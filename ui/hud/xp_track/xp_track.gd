@@ -59,7 +59,8 @@ signal level_display_changed(level: int)
 ## rate-derived pace and four levels compress to fit rather than running the
 ## five-plus seconds nobody watches. Not a guarantee: XP landing mid-replay
 ## appends to the queue, and a cascade that grows after it started legitimately
-## runs longer.
+## runs longer — as does a very deep one, where
+## [constant PoolGauge.MIN_SEGMENT_TIME] binds from six levels up.
 const CASCADE_BUDGET := 1.8
 
 
@@ -83,10 +84,21 @@ var _shown_level: int = 1
 ## THIS cascade rather than the run.
 var _cascade_stack: int = 0
 var _cascade_sp: int = 0
+## What is left of [constant CASCADE_BUDGET] for the cascade in flight. SPENT
+## down, not just divided: handing each segment `CASCADE_BUDGET / remaining`
+## without subtracting what it took gives the last segment the entire budget to
+## itself, so the replay decelerates — 0.45s, 0.60s, 0.90s, 1.35s — which is
+## both over budget and backwards from what a cascade should feel like.
+var _cascade_budget_left: float = CASCADE_BUDGET
 
 ## What this strip connects to the CURRENT hero's XP pool, released as a unit
 ## by [method _unbind] (#459 hot-seat handover).
 var _binds := BindScope.new()
+
+
+func _ready() -> void:
+	if _flourish != null and not _flourish.closed.is_connected(_on_flourish_closed):
+		_flourish.closed.connect(_on_flourish_closed)
 
 
 func bind(entity: Entity) -> void:
@@ -192,13 +204,18 @@ func _apply() -> void:
 func _play_next() -> void:
 	var segment := _seq.pop() if _seq != null else null
 	if segment != null:
+		if _phase != _Phase.SEGMENT:
+			# First segment of a cascade — everything after it draws on this.
+			_cascade_budget_left = CASCADE_BUDGET
 		_phase = _Phase.SEGMENT
-		# This segment plus everything still queued behind it share one budget.
-		# Read live, not once per cascade: a grant landing mid-replay appends,
-		# and the segments after it should take the shorter share.
+		# This segment plus everything still queued behind it split what's left
+		# of the budget. Divided live rather than once up front: a grant landing
+		# mid-replay appends, and the segments after it take the shorter share.
 		var to_play := _seq.pending_count() + 1
+		var allotment := _cascade_budget_left / float(to_play)
+		_cascade_budget_left = maxf(0.0, _cascade_budget_left - allotment)
 		_gauge.play_level_segment(segment.fill_to, segment.new_max,
-				CASCADE_BUDGET / float(to_play))
+				maxf(allotment, PoolGauge.MIN_SEGMENT_TIME))
 		return
 	# The queue is empty, so this cascade is over and the flourish can leave —
 	# the one thing the old center banner could never know, since it did not
@@ -244,13 +261,18 @@ func _stamp_flourish(level: int) -> void:
 		_flourish.stamp(level, _cascade_sp, _cascade_stack)
 
 
+## The cascade's queue is empty, so the flourish may leave once it has served
+## its dwell. The running count is NOT reset here — it resets when the flourish
+## has actually gone, so a level landing during the dwell continues the count
+## (×4 → ×5) instead of re-opening at ×1.
 func _release_flourish() -> void:
-	if _cascade_stack == 0:
-		return
-	_cascade_stack = 0
-	_cascade_sp = 0
 	if _flourish != null:
 		_flourish.release()
+
+
+func _on_flourish_closed() -> void:
+	_cascade_stack = 0
+	_cascade_sp = 0
 
 
 ## The single funnel for "the level readout changed" — every writer of

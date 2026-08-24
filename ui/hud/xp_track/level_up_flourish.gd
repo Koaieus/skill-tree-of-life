@@ -24,6 +24,11 @@ extends Control
 ## strip it decorates — same rule as [XpDeltaChip], and the same warning:
 ## never re-parent this into a Container.
 
+## Left the screen — nothing is being narrated any more. [XpTrack] resets the
+## cascade's running count on this rather than at [method release], so XP that
+## lands during the dwell keeps counting up instead of restarting at ×1.
+signal closed
+
 ## XP's gold, read from the stat that owns it rather than re-typed here —
 ## `StatDef.tint_color` is the single source of truth for a stat's colour
 ## (`.claude/rules/ui-palette.md`), and gold is reserved for pure positives,
@@ -70,6 +75,12 @@ func _apply_colors() -> void:
 	_colors_applied = true
 	_title.add_theme_color_override(&"font_color", Emissive.at(_XP_DEF.tint_color, Emissive.ALERT))
 	_detail.add_theme_color_override(&"font_color", Emissive.at(_XP_DEF.tint_color, Emissive.VALUE))
+
+
+## Is something being narrated right now? True from the first stamp until the
+## flourish has actually left — the dwell included.
+func is_open() -> bool:
+	return _open
 
 
 ## Announce one level. The first call opens the flourish; every later one
@@ -120,7 +131,10 @@ func cut() -> void:
 	_cancel_release()
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
+	var was_open := _open
 	_open = false
+	if was_open:
+		closed.emit()
 	modulate.a = 0.0
 	scale = Vector2.ONE
 	if _rest_captured:
@@ -132,6 +146,7 @@ func _play_exit() -> void:
 	if not _open:
 		return
 	_open = false
+	closed.emit()
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
 	_tween = create_tween()

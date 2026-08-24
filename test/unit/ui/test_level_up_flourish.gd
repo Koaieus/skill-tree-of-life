@@ -63,10 +63,14 @@ func _flourish_title() -> String:
 	return (_flourish.get_node("%Title") as Label).text
 
 
+## Runs the replay to completion AND past the flourish's dwell — the count
+## resets when the flourish has actually left, not when the queue drained, so
+## `min_dwell` is real wall-clock time this has to cover.
 func _settle() -> void:
 	for i in 60:
 		await get_tree().process_frame
 		await wait_seconds(0.01)
+	await wait_seconds(_flourish.min_dwell + 0.2)
 
 
 ## The headline fix. Four levels in one grant produce ONE element counting to
@@ -111,7 +115,28 @@ func test_the_flourish_is_held_until_the_queue_drains() -> void:
 	await wait_seconds(0.12)
 	assert_true(_flourish._open, "still on screen while the cascade runs")
 	await _settle()
-	assert_eq(_track._cascade_stack, 0, "the cascade's count reset at the drain")
+	assert_false(_flourish.is_open(), "and it left once the queue drained")
+	assert_eq(_track._cascade_stack, 0, "the count resets when it actually leaves")
+
+
+## A level landing while the flourish is still on screen CONTINUES the count.
+## This is the user-visible half of resetting on close rather than on release:
+## reset at release and a late level makes "×4" drop back to a bare "L E V E L
+## U P", which is a smaller version of the very bug this replaces.
+func test_a_level_landing_during_the_dwell_keeps_counting() -> void:
+	_entity.stat_board.xp.replenish(60.0)  # four levels
+	# Wait for the queue to drain, then act INSIDE the dwell — polling on the
+	# beats rather than sleeping a guessed interval, which would race the dwell.
+	while _stamps.size() < 4:
+		await get_tree().process_frame
+	assert_true(_flourish.is_open(), "sanity: drained, but still on screen")
+	var before := _stamps.size()
+
+	_entity.stat_board.xp.replenish(200.0)
+	while _stamps.size() == before:
+		await get_tree().process_frame
+	assert_eq(_flourish_title(), "L E V E L   U P  ×%d" % (before + 1),
+			"the late level continued the count instead of re-opening at ×1")
 
 
 ## A single level still gets a readable dwell — the failure mode of a bar-local
@@ -138,6 +163,39 @@ func test_rebinding_cuts_a_live_flourish() -> void:
 	assert_false(_flourish._open, "the previous hero's flourish is gone")
 	assert_eq(_track._cascade_stack, 0, "and its count with it")
 	other.get_parent().remove_child(other)
+
+
+## [b]The ≤2s requirement, measured end to end against the SHIPPED gauge.[/b]
+## Every other test here fixes the timings fast so it can assert on ordering,
+## which means none of them ever executes the compression path — and the first
+## implementation of the budget shipped a cascade that ran 3.3s and
+## DECELERATED (0.45 → 0.60 → 0.90 → 1.35), because it divided the budget by
+## the shrinking count of remaining levels without ever spending it down. This
+## is the test that fails on that.
+func test_a_four_level_cascade_fits_the_budget_at_shipped_timings() -> void:
+	# Undo before_each's fast fixture: this one is about the wall clock.
+	_gauge.fill_speed = 0.9
+	_gauge.level_up_fill_time = 0.35
+	_gauge.level_up_wrap_time = 0.10
+	_gauge.level_up_hold_time = 0.15
+
+	var beats: Array[float] = []
+	_track.level_reached.connect(func(_l: int): beats.append(float(Time.get_ticks_msec())))
+	var started := float(Time.get_ticks_msec())
+	_entity.stat_board.xp.replenish(60.0)  # four levels in one grant
+	# Wait on the WALL CLOCK, not on a frame count: a headless frame is not a
+	# real one, and an over-budget cascade must be given room to finish so the
+	# failure reads as "too slow" rather than "never happened".
+	while beats.size() < 4 and (float(Time.get_ticks_msec()) - started) < 6000.0:
+		await get_tree().process_frame
+	assert_gte(beats.size(), 4, "four levels were narrated")
+	var elapsed: float = (beats[3] - started) / 1000.0
+	assert_lt(elapsed, 2.0, "the whole cascade fits the budget a player will watch")
+	# ...and it does NOT decelerate: the last gap must not dwarf the first.
+	var first_gap: float = beats[1] - beats[0]
+	var last_gap: float = beats[3] - beats[2]
+	assert_lt(last_gap, first_gap * 2.0,
+			"the replay stays even instead of dragging out on the final level")
 
 
 ## The pacing half: a segment handed a budget fits inside it, while a segment

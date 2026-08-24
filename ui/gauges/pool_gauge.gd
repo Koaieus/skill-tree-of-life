@@ -258,16 +258,26 @@ func play_level_segment(fill_to: float, new_max: float,
 	var hold_time := level_up_hold_time
 	var wrap_time := level_up_wrap_time
 	if time_budget > 0.0:
-		# Never below MIN_SEGMENT_TIME: compressed past that the fill stops
-		# reading as a fill and the beat at full disappears entirely, which is
-		# the whole thing a level-up is made of.
+		# Never below MIN_SEGMENT_TIME: compressed past that, a level stops
+		# being an event at all.
 		var allowed := maxf(time_budget, MIN_SEGMENT_TIME)
-		var natural := fill_time + hold_time + wrap_time
-		if natural > allowed:
-			var scale := allowed / natural
-			fill_time *= scale
-			hold_time *= scale
-			wrap_time *= scale
+		var beat := hold_time + wrap_time
+		if fill_time + beat > allowed:
+			# The FILL absorbs the compression, and the beat at full gives
+			# ground last — the beat is the moment the level happens, and a
+			# cascade that scaled everything uniformly would spend its budget
+			# animating four bars and showing none of the four levels.
+			if allowed - beat >= min_fill_time:
+				fill_time = allowed - beat
+			else:
+				# Not even room for a visible fill plus the authored beat:
+				# floor the fill and let the beat take what is left, keeping
+				# hold and wrap in their authored proportion.
+				fill_time = min_fill_time
+				var room := maxf(allowed - fill_time, 0.0)
+				var k := room / beat if beat > 0.0 else 0.0
+				hold_time *= k
+				wrap_time *= k
 	_suppress_drain = true
 	_level_tween = create_tween()
 	# Phase 1 — fill to full at the cap this level reached. Rate-derived like any
