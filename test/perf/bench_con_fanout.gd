@@ -62,6 +62,21 @@ extends GutTest
 ##      base_value write + emit           0.3us   4%
 ##      on_max_increased -> set_current  ~3.0us  35%   irreducible while eager
 ##      call/branch overhead             ~0.8us   9%
+##
+## 6. [b]The issue's headline 5.9ms is stale.[/b] It was measured 2026-08-17;
+##    `board.begin_batch()` in `apply_entity_modifiers_to` landed 2026-08-18
+##    (414b1e8), turning a node that grants both `constitution` and
+##    `node_health` from two full fan-outs into one. Same seed, same graph,
+##    same policy RNG — halving 5.9ms lands on the ~3.0ms measured here. The
+##    current worst case really is ~3.0ms at 300 owned.
+## 7. [b]One of the two reads inside `set_base_ratcheted` is a compulsory
+##    miss[/b] — `old_max` straddles the `base_value` write that invalidates
+##    it, so no dirty-flag memo can serve it. What IS removable is the call
+##    cost: `get_value()` is 1.17us, 0.68us with the per-call
+##    `Array[ModifierBins]` literal hoisted, 0.21us fully inlined. So the
+##    read-side ceiling is ~37% (memo alone, ~1.6x) to ~49% (memo plus a
+##    cheaper read, ~2x) — NOT the 60x the earlier comment hoped for. Getting
+##    past 2x means making the fan-out lazy, which means confronting item 5.
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ENTITY_SCENE := preload("res://entity/entity.tscn")
@@ -264,6 +279,44 @@ func _decompose(target: int) -> void:
 	gut.p("  (h) set_base_ratcheted, value CHANGED  : %6dus  (%.1fus/node)" % [ratcheted, per.call(ratcheted)])
 	gut.p("      => _apply_max_change alone (h - g) : %6dus  (%.1fus/node)" % [ratcheted - raw_write, per.call(ratcheted - raw_write)])
 	gut.p("  node pool value_changed listeners      : %d" % listeners)
+
+	# --- Probe 5: what is a get_value() actually made of? ---------------------
+	# The read-side ceiling depends on this. A dirty-flag memo cannot remove
+	# BOTH reads inside set_base_ratcheted — `old_max` straddles the write, so
+	# the second is a compulsory miss. The other lever is making the call
+	# itself cheaper: it allocates a fresh `Array[ModifierBins]` literal per
+	# call. (j) reuses one array; (k) inlines the fold entirely, skipping the
+	# SET-winner scan and the multiplier walk — an upper bound on that win.
+	t = Time.get_ticks_usec()
+	for p in pools:
+		if p != null:
+			@warning_ignore("unused_variable")
+			var v := float(p.get_value())
+	var one_read := Time.get_ticks_usec() - t
+
+	var src: Array[ModifierBins] = [null]
+	t = Time.get_ticks_usec()
+	for p in pools:
+		if p != null:
+			src[0] = p.bins
+			@warning_ignore("unused_variable")
+			var v := ModifierBins.compute(p.base_value, src)
+	var hoisted := Time.get_ticks_usec() - t
+
+	t = Time.get_ticks_usec()
+	for p in pools:
+		if p != null:
+			var b: ModifierBins = p.bins
+			@warning_ignore("unused_variable")
+			var v: float = (p.base_value + b.base_add) \
+				* maxf(0.0, 1.0 + b.increase_sum / 100.0) + b.bonus_add
+	var inlined := Time.get_ticks_usec() - t
+
+	gut.p("")
+	gut.p("  --- what one get_value() costs ---")
+	gut.p("  (i) p.get_value()                      : %6dus  (%.2fus/node)" % [one_read, per.call(one_read)])
+	gut.p("  (j) compute() w/ hoisted source array  : %6dus  (%.2fus/node)" % [hoisted, per.call(hoisted)])
+	gut.p("  (k) fold inlined, no call, no SET scan : %6dus  (%.2fus/node)" % [inlined, per.call(inlined)])
 
 
 ## Disconnect every listener on the owner's `node_health` stat — the O(owned)
