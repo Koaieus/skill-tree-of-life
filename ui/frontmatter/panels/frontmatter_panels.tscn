@@ -1,9 +1,11 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://ui/frontmatter/panels/frontmatter_panels.gd" id="1_panels"]
 [ext_resource type="PackedScene" path="res://ui/frontmatter/panels/settings_panel.tscn" id="2_settings"]
 [ext_resource type="PackedScene" path="res://ui/frontmatter/panels/load_panel.tscn" id="3_load"]
 [ext_resource type="PackedScene" path="res://ui/frontmatter/panels/exit_confirm_panel.tscn" id="4_exit"]
+[ext_resource type="PackedScene" path="res://ui/frontmatter/panels/lobby_panel.tscn" id="5_lobby"]
+[ext_resource type="PackedScene" path="res://ui/frontmatter/panels/join_panel.tscn" id="6_join"]
 
 [node name="FrontmatterPanels" type="Control"]
 layout_mode = 3
@@ -24,5 +26,13 @@ layout_mode = 1
 visible = false
 
 [node name="ExitConfirmPanel" parent="." instance=ExtResource("4_exit")]
+layout_mode = 1
+visible = false
+
+[node name="LobbyPanel" parent="." instance=ExtResource("5_lobby")]
+layout_mode = 1
+visible = false
+
+[node name="JoinPanel" parent="." instance=ExtResource("6_join")]
 layout_mode = 1
 visible = false

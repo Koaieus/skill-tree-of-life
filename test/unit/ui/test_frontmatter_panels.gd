@@ -1,7 +1,7 @@
 extends GutTest
 
 ## The frontmatter's panel layer (#573) — the seam the navigation state machine
-## calls, and the three panels that carry no run state.
+## calls, and the five panels behind it.
 ##
 ## [b]What this pins is the seam, not the pixels.[/b] #567's testing contract
 ## puts glow, easing and "does it look good" on the sandbox tab and the owner's
@@ -10,9 +10,13 @@ extends GutTest
 ## below is about [FrontmatterPanels]' four public calls and the one signal C3
 ## consumes.
 ##
-## The lobby and join panels are absent on purpose — they are held pending the
-## orchestrator's call on the routing-parity collision (see this unit's report);
-## nothing here presumes their shape.
+## The lobby and join panels host the SHIPPED [LobbyScreen] / [HostJoinScreen]
+## by composition rather than reimplementing them, so what is asserted about
+## them here is only the seam: that the screen is reachable, that its signals
+## are relayed, and that #553/#554's roster logic still answers through the
+## panel. `test_lobby_roster.gd` and `test_host_join_screen.gd` remain the tests
+## OF those screens and are untouched by this unit — if they and these ever
+## disagree, they are right and this is wrong.
 
 const _PANELS := preload("res://ui/frontmatter/panels/frontmatter_panels.tscn")
 
@@ -40,10 +44,26 @@ func test_every_registered_id_is_a_menu_graph_panel_constant() -> void:
 		assert_true(id in known, "'%s' is not a MenuGraph panel id" % id)
 
 
-func test_the_panels_that_carry_no_run_state_are_registered() -> void:
+func test_every_panel_the_menu_tree_names_is_registered() -> void:
+	# The tree's leaves are the demand side; this container is the supply side.
+	# A leaf naming a panel nobody built routes into a no-op, which is exactly
+	# what LOAD GAME did before this unit and what nothing else should do.
+	var tree := MenuGraph.build()
+	for id in tree.ids():
+		var item := tree.get_item(id)
+		if item.panel == &"":
+			continue
+		assert_true(_panels.has_panel(item.panel),
+				"leaf '%s' names panel '%s', which nothing supplies" % [id, item.panel])
+
+
+func test_all_five_panels_are_registered() -> void:
+	assert_eq(_panels.panel_ids().size(), 5)
 	assert_true(_panels.has_panel(MenuGraph.PANEL_SETTINGS))
 	assert_true(_panels.has_panel(MenuGraph.PANEL_LOAD))
 	assert_true(_panels.has_panel(MenuGraph.PANEL_EXIT_CONFIRM))
+	assert_true(_panels.has_panel(MenuGraph.PANEL_LOBBY))
+	assert_true(_panels.has_panel(MenuGraph.PANEL_JOIN))
 
 
 func test_each_registered_panel_answers_to_its_own_id() -> void:
@@ -177,4 +197,161 @@ func test_backing_out_of_the_exit_confirm_quits_nothing() -> void:
 	_panels.get_panel(MenuGraph.PANEL_EXIT_CONFIRM).back_button.pressed.emit()
 
 	assert_eq(fired.size(), 0, "STAY is not QUIT")
+	assert_eq(_panels.shown_panel, &"")
+
+
+# --- the lobby is re-homed, not rewritten ------------------------------------
+
+func _humans(participants: Array[Participant]) -> Array[Participant]:
+	var out: Array[Participant] = []
+	for p in participants:
+		if p.kind != Participant.Kind.AI:
+			out.append(p)
+	return out
+
+
+func _lobby() -> LobbyPanel:
+	return _panels.get_panel(MenuGraph.PANEL_LOBBY) as LobbyPanel
+
+
+func test_the_lobby_panel_hosts_the_shipped_screen_rather_than_a_copy() -> void:
+	var lobby := _lobby()
+	assert_null(lobby.screen, "nothing is built until a route configures one")
+
+	lobby.configure(RunConfig.Mode.SINGLE, NetworkConfig.offline())
+
+	assert_not_null(lobby.screen)
+	assert_true(lobby.screen is LobbyScreen,
+			"#553/#554's roster logic is reached, not reimplemented")
+
+
+func test_the_roster_logic_still_answers_through_the_panel() -> void:
+	# The narrow claim: `build_run_config()` reached by composition produces the
+	# same shape `test_meta_routing_parity.gd` gets by pressing through
+	# MenuStack. If this drifts, the re-home lost #553/#554.
+	var lobby := _lobby()
+	lobby.configure(RunConfig.Mode.SINGLE, NetworkConfig.offline())
+
+	var cfg := lobby.screen.build_run_config()
+	assert_eq(cfg.mode, RunConfig.Mode.SINGLE)
+	assert_eq(_humans(cfg.participants).size(), 1)
+
+
+func test_a_networked_route_still_seats_the_absent_player_up_front() -> void:
+	# #554 D2 through the panel: the joiner's seat exists before anyone joins,
+	# and the roster answers VERSUS even though the route asked for coop.
+	var lobby := _lobby()
+	lobby.configure(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(7777))
+
+	var cfg := lobby.screen.build_run_config()
+	var humans := _humans(cfg.participants)
+	assert_eq(humans.size(), 2)
+	assert_true(LobbyScreen.is_pending_remote(humans[1]), "the joiner's seat is waiting")
+	assert_eq(cfg.mode, RunConfig.Mode.VERSUS, "the ROSTER answers, not the button")
+
+
+func test_configuring_again_replaces_the_lobby_rather_than_stacking_one() -> void:
+	# Backing out of a host route and taking a solo one must not leave the
+	# previous lobby's roster — or its node — behind.
+	var lobby := _lobby()
+	lobby.configure(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(7777))
+	lobby.configure(RunConfig.Mode.SINGLE, NetworkConfig.offline())
+
+	var screens := 0
+	for child in lobby.body.get_children():
+		if child is LobbyScreen and not child.is_queued_for_deletion():
+			screens += 1
+	assert_eq(screens, 1, "exactly one lobby is mounted")
+
+	var cfg := lobby.screen.build_run_config()
+	assert_eq(cfg.mode, RunConfig.Mode.SINGLE, "the host route left nothing behind")
+
+
+func test_start_is_relayed_upward_with_its_run_config() -> void:
+	# The panel carries the RunConfig up; it does not call GameSession.start
+	# itself. That decision is the shell's, as it is meta_root.gd's today.
+	var lobby := _lobby()
+	lobby.configure(RunConfig.Mode.SINGLE, NetworkConfig.offline())
+
+	var seen: Array[RunConfig] = []
+	lobby.start_pressed.connect(func(cfg: RunConfig): seen.append(cfg))
+	lobby.screen.start_pressed.emit(lobby.screen.build_run_config())
+
+	assert_eq(seen.size(), 1)
+	assert_eq(seen[0].mode, RunConfig.Mode.SINGLE)
+
+
+func test_the_lobbys_own_back_button_dismisses_the_panel() -> void:
+	# The hosted screen brings its own back button; the panel's is empty so
+	# there are not two. Backing out goes through MenuScreen.back_requested.
+	var lobby := _lobby()
+	lobby.configure(RunConfig.Mode.SINGLE, NetworkConfig.offline())
+	_panels.show_panel(MenuGraph.PANEL_LOBBY)
+
+	var seen: Array[StringName] = []
+	_panels.panel_dismissed.connect(func(id: StringName): seen.append(id))
+	lobby.screen.back_button.pressed.emit()
+
+	assert_eq(seen, [MenuGraph.PANEL_LOBBY] as Array[StringName])
+	assert_eq(_panels.shown_panel, &"")
+
+
+# --- the join panel keeps the shipped address handling -----------------------
+
+func _join() -> JoinPanel:
+	return _panels.get_panel(MenuGraph.PANEL_JOIN) as JoinPanel
+
+
+func _press(screen: HostJoinScreen, text: String) -> void:
+	for child in screen.content.get_children():
+		if child is Button and (child as Button).text == text:
+			(child as Button).pressed.emit()
+			return
+	fail_test("no button labelled '%s'" % text)
+
+
+func test_the_join_panel_hosts_the_shipped_screen() -> void:
+	assert_not_null(_join().screen)
+	assert_true(_join().screen is HostJoinScreen)
+
+
+func test_the_typed_address_and_port_reach_the_relay_intact() -> void:
+	# #573 names `host_join_screen.gd`'s address/port handling as something to
+	# re-home rather than rewrite. This is that handling, reached through the
+	# panel: what the player typed is what comes out.
+	var join := _join()
+	join.screen._address_edit.text = "192.168.1.7"
+	join.screen._port_edit.text = "7777"
+
+	var seen: Array = []
+	join.join_requested.connect(func(a: String, p: int): seen.append([a, p]))
+	_press(join.screen, "Join")
+
+	assert_eq(seen, [["192.168.1.7", 7777]])
+
+
+func test_a_blank_address_still_falls_back_rather_than_dialling_nothing() -> void:
+	# The `_address()` fallback comment #573 calls out. Asserted through the
+	# panel so the re-home cannot quietly drop it.
+	var join := _join()
+	join.screen._address_edit.text = ""
+	join.screen._port_edit.text = "7777"
+
+	var seen: Array = []
+	join.join_requested.connect(func(a: String, p: int): seen.append(a))
+	_press(join.screen, "Join")
+
+	assert_eq(seen.size(), 1)
+	assert_ne(seen[0], "", "an empty field falls back to the default address")
+
+
+func test_the_join_panels_back_button_dismisses_it() -> void:
+	var join := _join()
+	_panels.show_panel(MenuGraph.PANEL_JOIN)
+
+	var seen: Array[StringName] = []
+	_panels.panel_dismissed.connect(func(id: StringName): seen.append(id))
+	join.screen.back_button.pressed.emit()
+
+	assert_eq(seen, [MenuGraph.PANEL_JOIN] as Array[StringName])
 	assert_eq(_panels.shown_panel, &"")
