@@ -108,8 +108,8 @@ func test_showing_a_panel_raises_it_and_only_it() -> void:
 
 
 func test_showing_a_second_panel_replaces_rather_than_stacks() -> void:
-	# There is no stack. #567 replaced MenuStack's breadcrumb with the graph
-	# itself, so two panels up at once would be the old shape creeping back.
+	# There is no stack. #567 replaced the breadcrumb with the graph itself, so
+	# two panels up at once would be the old shape creeping back.
 	_panels.show_panel(MenuGraph.PANEL_SETTINGS)
 	_panels.show_panel(MenuGraph.PANEL_LOAD)
 
@@ -178,8 +178,8 @@ func test_the_exit_confirm_is_a_panel_and_not_a_modal() -> void:
 
 func test_confirming_the_exit_emits_rather_than_quitting_by_itself() -> void:
 	# Pressed for real, which is only safe BECAUSE nothing below the shell
-	# calls SceneTree.quit — the same split meta_root.gd ships for
-	# MainMenuScreen.quit_pressed today.
+	# calls SceneTree.quit — the same split the deleted main menu shipped for
+	# its own quit_pressed.
 	var fired: Array[int] = []
 	_panels.quit_requested.connect(func(): fired.append(1))
 
@@ -226,9 +226,9 @@ func test_the_lobby_panel_hosts_the_shipped_screen_rather_than_a_copy() -> void:
 
 
 func test_the_roster_logic_still_answers_through_the_panel() -> void:
-	# The narrow claim: `build_run_config()` reached by composition produces the
-	# same shape `test_meta_routing_parity.gd` gets by pressing through
-	# MenuStack. If this drifts, the re-home lost #553/#554.
+	# The narrow claim: `build_run_config()` reached through the panel produces
+	# the same shape `test_meta_routing_parity.gd` gets by walking the tree.
+	# If this drifts, the re-home lost #553/#554.
 	var lobby := _lobby()
 	lobby.configure(RunConfig.Mode.SINGLE, NetworkConfig.offline())
 
