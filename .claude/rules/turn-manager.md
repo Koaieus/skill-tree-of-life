@@ -35,6 +35,22 @@ Initiative is the **`initiative` PoolStat** on each entity's stat board (a `Cycl
 
 Readiness is **group membership, not `current >= cap`** — because the carry-reset drops `current` back near zero the instant the clock crosses. The `_tick_until_ready` loop is synchronous (no per-tick frame yield); the InitiativeBar animates the climb on its own via a tween bound to the pool's `current_changed`, and holds "full" off `replenished` until `turn_started` drains it.
 
+## `start_turn()` fires upkeep — never open a turn before you snapshot
+
+`start_turn()` unconditionally runs turn-start upkeep (wound-heal, node-refill).
+So opening the host's first turn **before** sending a join snapshot bakes an
+already-healed world into the payload, and the joining peer's own necessary
+`start_turn()` — needed so `current_entity` is set and a later mirrored
+`EndTurnCommand` is not a silent no-op — heals it a **second** time. The result
+is a genuine fingerprint mismatch that looks like a serialization bug.
+
+**Why:** upkeep is a side effect of opening a turn, not of an entity being
+current, and nothing dedupes it per peer.
+
+**How to apply:** in any snapshot-then-open-turn flow, send first and open the
+opening turn *after* the sends complete. Found building #533's rung-2 harness;
+`docs/domain/multiplayer-harness.md` carries the long version.
+
 ## Discovery
 
 `TurnManager` joins the `"turn_manager"` group (constant `TurnManager.GROUP`) in `_enter_tree`. `Entity._find_turn_manager()` uses `get_tree().get_first_node_in_group(...)`. A tree-walk via `get_children()` missed it — TM lives at `GameRoot/Systems/TurnManager` (sibling of Graph), never a direct child of an Entity ancestor. Single instance per level.
