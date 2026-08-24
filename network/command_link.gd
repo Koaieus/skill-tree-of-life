@@ -5,13 +5,22 @@ extends Node
 ## Bridges one [CommandApplier] to one [NetworkTransport]: the host broadcasts
 ## the commands it confirmed, every client applies them through its own applier.
 ##
-## [b]This is a mirror, not the sync layer.[/b] Wave 0 is deliberately
-## one-directional — host down to client, no intent channel upward. The reason
-## is not laziness: routing a client's own input upward means the client must
-## STOP applying locally and wait to be told, which is surgery on
-## [PlayerInputController]'s submit path and on [BattleSystem]. That is #463,
-## which is still `Needs design`. So the client here is a spectator with a real
-## applier, which is exactly enough to prove the shape.
+## [b]Since #548 the link runs BOTH ways.[/b] Host-authoritative intent-up /
+## confirmed-command-down (owner call, 2026-08-24): a client's
+## [method CommandApplier.submit] does not queue — it emits the command upward
+## as a [constant KIND_INTENT], the host puts it through the same
+## `_validate -> confirm -> apply` a local command takes, and the confirm comes
+## back down as an ordinary [constant KIND_COMMAND] the client applies through
+## [method CommandApplier.apply_remote]. There is no local pre-application and
+## no prediction (#548 decision 5).
+##
+## [b]A refusal has its own leg[/b] ([constant KIND_REFUSAL]), because a command
+## the host's gate rejects never confirms and so never crosses down — and a
+## client waiting on a confirmation that will never arrive is the failure mode
+## this feature most needs to not ship. There is deliberately NO timeout, retry
+## or heartbeat for a confirm that is simply lost (#548 decision 4): ENet's
+## reliable-ordered channel is the guarantee, and a desync on a one-room LAN is
+## a restart.
 ##
 ## [b]Every verb [CommandApplier] handles mirrors[/b] — allocate / deallocate /
 ## deallocate_set / mass_allocate / stake / extract / move_core / end_turn /
@@ -28,14 +37,13 @@ extends Node
 ## handles, so a verb missing from the wire is almost always a missing
 ## submission site, not a transport gap. Check who raises the command first.
 ##
-## [b]What is still one-directional:[/b] the link itself. There is no intent
-## channel upward, so a client remains a spectator with a real applier — see
-## the wave-0 note above. [PickLootCommand] is the one verb built for that
-## direction and is therefore dormant, not unrouted: the applier answers it for
-## real (through [method CommandApplier._answer_loot_pick], deliberately NOT
-## through its queue — see there), nothing can send it yet. It is also the one
-## command that must never be broadcast back down; bypassing the queue means it
-## never confirms, so that falls out rather than needing a guard here.
+## [PickLootCommand] is the one verb built for the upward direction and now
+## travels it, but it is still the exception on both ends: the applier answers
+## it through [method CommandApplier._answer_loot_pick], deliberately NOT
+## through its queue, so it never confirms and therefore can never be broadcast
+## back down — that falls out rather than needing a guard here. For the same
+## reason it opens no awaiting window and is not watched for refusal; see
+## [method _on_intent].
 ##
 ## [b]#529's determinism probe hangs off the mirror path here[/b], as three
 ## optional calls into [DeterminismProbe] and no logic of its own. It measures
@@ -57,6 +65,11 @@ const KEY_CONFIG := "config"
 const KEY_ROSTER := "roster"
 ## #560's join-handshake payload: an encoded [EntitySnapshot].
 const KEY_ENTITIES := "entities"
+## #548: which intent a [constant KIND_REFUSAL] is about — the id the CLIENT
+## minted, echoed back so it can match.
+const KEY_INTENT_ID := "intent"
+## #548: why the authority refused, as a [StringName] code.
+const KEY_REASON := "reason"
 ## #546: which code the sender is running. Rides the hello, never a [Command] —
 ## see [method send_hello].
 const KEY_BUILD := "build"
@@ -85,6 +98,25 @@ const KIND_SETUP := "setup"
 ## of what [constant KIND_SNAPSHOT] does for the graph. Same additive, opt-in
 ## shape: sent only by [method send_entity_snapshot].
 const KIND_ENTITIES := "entities"
+## #548's upward leg: a client's INTENT, not yet a command. Sent only under
+## [constant Mode.MIRROR], received only under [constant Mode.BROADCAST] — the
+## exact inverse of [constant KIND_COMMAND], which is why it is its own kind
+## rather than a [constant KIND_COMMAND] with the mode gate inverted.
+const KIND_INTENT := "intent"
+## #548's refusal leg: the authority's gate said no. Sent only under
+## [constant Mode.BROADCAST], received only under [constant Mode.MIRROR].
+##
+## A dedicated kind rather than an echoed command with a `refused` flag:
+## [method CommandApplier.confirm] documents that a refused command "changed
+## nothing and must not cross the wire", and an echo would force both the
+## fingerprint compare and [DeterminismProbe] to special-case the one path that
+## is the only cross-process diagnostic there is.
+const KIND_REFUSAL := "refusal"
+
+## The one refusal code today — [method CommandApplier._validate] answers a
+## bool, so there is nothing finer to report yet. A [StringName], never a UI
+## string: rendering a reason is a HUD question, not a wire one.
+const REASON_REFUSED := &"refused"
 
 enum Mode {
 	OFF,        ## Wired but idle.
@@ -126,6 +158,7 @@ var mode: Mode = Mode.OFF:
 		mode = value
 		if command_applier != null:
 			command_applier.is_authority = value != Mode.MIRROR
+			command_applier.local_peer_id = _local_peer_id()
 
 ## True while a RECEIVED command is being submitted, so a client that is also
 ## broadcasting cannot echo it back. Wave 0 never sets both, but the guard is
@@ -163,11 +196,32 @@ func _ready() -> void:
 	# can set `mode` before this node is ready), so re-apply it here.
 	if command_applier != null:
 		command_applier.is_authority = mode != Mode.MIRROR
+		command_applier.local_peer_id = _local_peer_id()
 	if transport != null:
 		transport.message_received.connect(_on_message_received)
 		transport.link_changed.connect(func(status: String) -> void: logged.emit(status))
 	if command_applier != null:
 		command_applier.command_confirmed.connect(_on_command_confirmed)
+		command_applier.intent_submitted.connect(_on_intent_submitted)
+		command_applier.command_applied.connect(_on_command_applied)
+
+
+## Who this peer is for [method CommandApplier._mint_intent_id]'s high half. It
+## has one job: make sure no two peers ever mint the same
+## [member Command.intent_id].
+##
+## [b]An id of 1 is not evidence of anything.[/b] It is what ENet hands the
+## HOST, and equally what [method MultiplayerAPI.get_unique_id] returns under
+## the [OfflineMultiplayerPeer] Godot installs by default — which every headless
+## test and every [LoopbackTransport] pair runs under. So a non-1 id is
+## believed (only a real ENet client is ever assigned one, and with three peers
+## in the room it is the only thing that keeps two clients apart), and 1 falls
+## back to the role, which is all a two-peer loopback needs.
+func _local_peer_id() -> int:
+	var assigned := multiplayer.get_unique_id() if multiplayer != null else 1
+	if assigned != 1:
+		return assigned
+	return 2 if mode == Mode.MIRROR else 1
 
 
 ## Announce our world to a freshly-connected peer. Host-side; the client's reply
@@ -266,6 +320,98 @@ func _on_command_confirmed(command: Command) -> void:
 	logged.emit("→ %s (pre-fp %d)" % [command.type_tag(), command.pre_fingerprint])
 
 
+## #548's upward leg. Mirrors off [signal CommandApplier.intent_submitted],
+## which only a peer that does NOT decide ever emits — so the `MIRROR` gate here
+## is belt-and-braces, and the honest statement of which direction this travels.
+##
+## No fingerprint rides up: the client's world is not the one being mutated
+## from, and the authority's own pre-state is what the downward
+## [constant KIND_COMMAND] compares against.
+func _on_intent_submitted(command: Command) -> void:
+	if mode != Mode.MIRROR or transport == null:
+		return
+	transport.send({KEY_KIND: KIND_INTENT, KEY_COMMAND: command.to_dict()})
+	logged.emit("↑ %s (intent %d)" % [command.type_tag(), command.intent_id])
+
+
+## Host-side. Watches every intent this link accepted, so a validate-fail can be
+## reported back to the peer that is waiting on it. Erased on the way out either
+## way — a confirmed command reports itself down the ordinary
+## [constant KIND_COMMAND] leg and needs no second message.
+##
+## Keyed by [member Command.intent_id] rather than holding the command, because
+## the applier hands the same object back and the id is the only thing the
+## client can match on.
+var _remote_intents: Dictionary = {}
+
+
+## #548 receive side, host-only. A received intent enters the SAME queue as a
+## local one — [method CommandApplier.submit], `_validate -> confirm -> apply`
+## — and the confirm broadcasts to everyone, the originator included.
+##
+## [b]`_applying_remote` is deliberately NOT set here.[/b] That flag stops a
+## mirrored command echoing back; an intent is the opposite case — the whole
+## point is that the host's confirm goes out to every peer.
+##
+## The client's [member Command.intent_id] is preserved verbatim through
+## `submit`'s mint-if-absent; nothing here re-stamps it.
+func _on_intent(payload: Dictionary) -> void:
+	if mode != Mode.BROADCAST or command_applier == null:
+		return
+	var command := CommandCodec.from_dict(payload.get(KEY_COMMAND, {}))
+	if command == null:
+		logged.emit("↑ undecodable intent, dropped")
+		return
+	if command.intent_id == 0:
+		logged.emit("↑ %s with no intent id, dropped" % command.type_tag())
+		return
+	# [PickLootCommand] bypasses the queue ([method CommandApplier.submit]) and
+	# so never reports through `command_applied`. It also never opens the
+	# client's awaiting window, so there is nothing to refuse and nothing to
+	# leak — watching it would strand an entry here forever.
+	if not (command is PickLootCommand):
+		_remote_intents[command.intent_id] = true
+	logged.emit("↑ %s (intent %d)" % [command.type_tag(), command.intent_id])
+	command_applier.submit(command)
+
+
+## Host-side refusal routing (#548). A client's command that fails
+## [method CommandApplier._validate] produces `command_applied(cmd, false)` here
+## and nothing else — no confirm, so nothing crosses the wire — and the client
+## would wait forever. This is the message that closes it.
+##
+## Only ever for a REFUSED intent. A successful one already went down as a
+## [constant KIND_COMMAND], which is what closes the client's gate.
+func _on_command_applied(command: Command, success: bool) -> void:
+	if mode != Mode.BROADCAST or transport == null or command == null:
+		return
+	if not _remote_intents.has(command.intent_id):
+		return
+	_remote_intents.erase(command.intent_id)
+	if success:
+		return
+	transport.send({
+		KEY_KIND: KIND_REFUSAL,
+		KEY_INTENT_ID: command.intent_id,
+		KEY_REASON: String(REASON_REFUSED),
+	})
+	logged.emit("→ refused %s (intent %d)" % [command.type_tag(), command.intent_id])
+
+
+## #548 receive side, client-only. Closes the awaiting window and reports the
+## refusal through [signal CommandApplier.command_applied], which
+## [PlayerInputController] already renders — no new feedback path, and
+## emphatically no [signal CommandApplier.command_confirmed] (#525's camera
+## director pans on that one).
+func _on_refusal(payload: Dictionary) -> void:
+	if mode != Mode.MIRROR or command_applier == null:
+		return
+	var intent_id := int(payload.get(KEY_INTENT_ID, 0))
+	command_applier.refuse_intent(intent_id,
+			StringName(payload.get(KEY_REASON, String(REASON_REFUSED))))
+	logged.emit("← refused (intent %d)" % intent_id)
+
+
 func _on_message_received(payload: Dictionary) -> void:
 	# One gate for every kind, rather than one per handler: a refused link is
 	# refused for commands, snapshots and run setup alike (#546).
@@ -284,6 +430,10 @@ func _on_message_received(payload: Dictionary) -> void:
 			_on_run_setup(payload)
 		KIND_ENTITIES:
 			_on_entity_snapshot(payload)
+		KIND_INTENT:
+			_on_intent(payload)
+		KIND_REFUSAL:
+			_on_refusal(payload)
 		_:
 			logged.emit("ignored payload with unknown kind %s" % payload.get(KEY_KIND))
 
@@ -493,7 +643,13 @@ func _on_remote_command(payload: Dictionary) -> void:
 		# lie ("0 diverged of 412" while only 280 were ever looked at).
 		probe.observe_skipped(command)
 	_applying_remote = true
-	command_applier.submit(command)
+	# [method CommandApplier.apply_remote], NOT `submit` — since #548 `submit`
+	# is the INTENT door, and on this MIRROR peer it would send the host's own
+	# confirmed command straight back up. `apply_remote` is the same queue and
+	# the same full `_validate -> confirm -> apply`, so
+	# [signal CommandApplier.command_confirmed] still fires here, on the peer
+	# that applies.
+	command_applier.apply_remote(command)
 	# `submit` may await (move_core beats, end_turn's initiative tick), so the
 	# flag is cleared when the queue actually empties, not on the next line.
 	if command_applier.is_applying:

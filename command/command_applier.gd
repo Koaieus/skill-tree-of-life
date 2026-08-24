@@ -73,6 +73,15 @@ signal command_applied(command: Command, success: bool)
 ## opted out through is gone rather than left standing with no callers.
 signal command_confirmed(command: Command)
 
+## A command was submitted on a peer that does NOT decide (#548) — send it
+## upward as an INTENT. Carries the command with its [member Command.intent_id]
+## already minted; the authority echoes that id back verbatim on the confirm.
+##
+## A signal rather than a [CommandLink] reference, for the same reason
+## [signal command_confirmed] is one: the applier does not know a transport
+## exists, and offline it simply has no listener.
+signal intent_submitted(command: Command)
+
 ## [member is_applying] transitioned. Consumers gate input off this
 ## ([method PlayerInputController.can_player_act]); it is not an outcome
 ## signal.
@@ -111,6 +120,12 @@ const CORE_HOP_SLIDE_DELAY := 0.18
 ## one needs gating; see its `_on_carrier_owner_changed`.
 var is_authority: bool = true
 
+## Who this peer is on the link, for minting a globally-unique
+## [member Command.intent_id] (#548). Written by [CommandLink]'s `mode` setter
+## alongside [member is_authority] — one place, one lifetime — and left at 0
+## offline, where there is nobody to collide with.
+var local_peer_id: int = 0
+
 ## True from the first [method submit] that starts a drain until the queue is
 ## empty — spanning every await inside every command, not just the mutation.
 var is_applying: bool = false
@@ -126,6 +141,12 @@ var is_applying: bool = false
 ## fits the window — [member BattleSystem.is_launching] means "an attack is in
 ## flight" and [member is_applying] means "a mutation is under way", and neither
 ## is true yet.
+##
+## [b]#548 opened that round trip.[/b] On a peer that is TOLD, this is true from
+## [method _submit_upward] until the authority's confirm lands in
+## [method apply_remote] carrying the same [member Command.intent_id] — or until
+## [method refuse_intent] closes it on a refusal. Still zero-length on a peer
+## that decides.
 ##
 ## The attack used to be the exception and the LONG one, spanning its whole
 ## resolve + mutation loop because it confirmed late. It no longer is: its
@@ -156,6 +177,21 @@ var _in_flight: Command = null
 ## non-re-entrant, so only one command is ever mid-apply.
 var _confirmed: Command = null
 
+## The intent this peer sent upward and has not yet heard back about (#548), or
+## null. It is the fourth thing [method _refresh_awaiting] derives from, and the
+## only one that can outlive a stack frame — on a peer that is TOLD, this is the
+## whole round trip.
+##
+## A held COMMAND rather than a bare id because a refusal has to hand the very
+## command back to [signal command_applied], which is what
+## [method PlayerInputController._on_command_applied] already renders.
+var _pending_intent: Command = null
+
+## Mint counter for [member Command.intent_id]. Starts at 1, so a minted id is
+## never 0 — 0 is what "unminted" means, and what [method Command.to_dict]
+## omits.
+var _next_intent: int = 1
+
 
 ## Claim the [BattleSystem] as ours to call back into. Set from here rather
 ## than by a second NodePath export on [BattleSystem] so the applier it
@@ -178,9 +214,75 @@ func _ready() -> void:
 func submit(command: Command) -> void:
 	if command == null:
 		return
+	# Mint-if-absent, and NEVER unconditionally (#548). A locally-originated
+	# command arrives with 0 and gets an id; a decoded INTENT arrives non-zero
+	# and is preserved verbatim, because the authority puts a received intent
+	# through this same method. An unconditional mint here would overwrite the
+	# client's id with a host one, the confirm would echo the host's, and the
+	# client's gate would never close.
+	if command.intent_id == 0:
+		command.intent_id = _mint_intent_id()
+	if not is_authority:
+		_submit_upward(command)
+		return
 	if command is PickLootCommand:
 		_answer_loot_pick(command as PickLootCommand)
 		return
+	_enqueue(command)
+
+
+## A peer that is TOLD does not queue its own command (#548): the intent goes
+## up, and the authority's confirm comes back down through
+## [method apply_remote] like any other. No local pre-application, no second
+## apply path, no prediction (settled, #548 decision 5).
+##
+## [PickLootCommand] crosses the wire but deliberately does NOT open the
+## awaiting gate — it bypasses the queue locally too
+## ([method _answer_loot_pick]), so it has never touched
+## [member is_awaiting_confirmation] on any peer, and opening a window here that
+## nothing closes is exactly the hang this issue exists to not ship.
+func _submit_upward(command: Command) -> void:
+	if not (command is PickLootCommand):
+		_pending_intent = command
+		_refresh_awaiting()
+	intent_submitted.emit(command)
+
+
+## A command the authority has already CONFIRMED, arriving down the wire — it
+## enters the one serial queue exactly as a local one does (#548). Separate from
+## [method submit] only because `submit` is now the *intent* door and would send
+## this straight back up.
+##
+## [b]This peer still runs the full [method _drain].[/b] It validates, it
+## [method confirm]s — so [signal command_confirmed] fires HERE too, on every
+## peer that applies, not only on the authority. #525's camera director hangs
+## off that signal; making the confirm authority-only would leave a mirror
+## peer's camera dead.
+func apply_remote(command: Command) -> void:
+	if command == null:
+		return
+	# The gate closes on THE CONFIRM THIS PEER IS WAITING FOR, and on nothing
+	# else: a confirmed command carrying a different id (or none — a
+	# host-originated command has an id this peer never minted) leaves the
+	# window open. That exactness is what buys `intent_id` over matching on
+	# `entity_id`, which any host-raised command for this entity would falsely
+	# close.
+	if _pending_intent != null and command.intent_id != 0 \
+			and command.intent_id == _pending_intent.intent_id:
+		_pending_intent = null
+	_enqueue(command)
+
+
+## Unique across peers by construction: the peer id owns the high half, a
+## per-peer counter the low half. Never 0 — [member _next_intent] starts at 1.
+func _mint_intent_id() -> int:
+	var minted := (local_peer_id << 32) | _next_intent
+	_next_intent += 1
+	return minted
+
+
+## The queue door both [method submit] and [method apply_remote] arrive at.
+func _enqueue(command: Command) -> void:
 	_queue.append(command)
 	# Ahead of the `is_applying` bail, deliberately — see
 	# [member is_awaiting_confirmation]. On the first submit of a drain this is
@@ -190,6 +292,35 @@ func submit(command: Command) -> void:
 	if is_applying:
 		return
 	_drain()
+
+
+## The authority refused the intent [param intent_id] (#548). Closes this peer's
+## awaiting window and reports the refusal through the SAME
+## [signal command_applied] route a local refusal takes, so
+## [method PlayerInputController._on_command_applied] renders it with no new
+## feedback path.
+##
+## [b]It must never [method confirm].[/b] A refused command changed nothing, and
+## #525's camera director pans on [signal command_confirmed] — a confirm here
+## would pan to a node that did not move.
+##
+## [param reason] is an enum-ish [StringName], never a UI string; see
+## [constant CommandLink.REASON_REFUSED].
+func refuse_intent(intent_id: int, reason: StringName = &"") -> void:
+	if intent_id == 0 or _pending_intent == null:
+		return
+	if _pending_intent.intent_id != intent_id:
+		return
+	var refused := _pending_intent
+	last_refusal_reason = reason
+	_pending_intent = null
+	_refresh_awaiting()
+	command_applied.emit(refused, false)
+
+
+## Why the authority refused this peer's last intent, for a diagnostic to read.
+## A [StringName] code, never presentation text.
+var last_refusal_reason: StringName = &""
 
 
 ## How many commands are waiting behind the one being applied. Tests read this;
@@ -303,7 +434,8 @@ func _drain() -> void:
 ## hazard `battle_system.gd:489-494` documents for `is_launching`).
 func _refresh_awaiting() -> void:
 	var awaiting := not _queue.is_empty() \
-			or (_in_flight != null and _confirmed != _in_flight)
+			or (_in_flight != null and _confirmed != _in_flight) \
+			or _pending_intent != null
 	if awaiting == is_awaiting_confirmation:
 		return
 	is_awaiting_confirmation = awaiting

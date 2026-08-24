@@ -17,7 +17,19 @@ extends RefCounted
 ## Rebuild a command from its wire form. Returns null on an unknown or missing
 ## type tag (with a warning) rather than half-building something the applier
 ## would then act on.
+## [b][member Command.intent_id] is restored HERE, not by each type's
+## `from_dict`.[/b] It is a base-class field that every type carries and no type
+## interprets, so one restore at the single decode seam beats twelve identical
+## lines — and a new command type cannot forget it. Absent means 0, which is
+## exactly what [method Command.to_dict]'s omit-when-zero rule produces.
 static func from_dict(d: Dictionary) -> Command:
+	var command := _build(d)
+	if command != null:
+		command.intent_id = int(d.get("intent_id", 0))
+	return command
+
+
+static func _build(d: Dictionary) -> Command:
 	var tag := StringName(d.get("type", &""))
 	match tag:
 		AllocateCommand.TAG:

@@ -50,6 +50,17 @@ var entity_id: int = 0
 ## is never compared.
 var pre_fingerprint: int = 0
 
+## Correlates a client's INTENT with the confirmation that comes back (#548).
+## Minted by the SUBMITTING peer in [method CommandApplier.submit] and echoed
+## VERBATIM by the authority — the host must never re-mint, or the client's
+## [member CommandApplier.is_awaiting_confirmation] would never close.
+##
+## [b]0 means unminted[/b], and [method to_dict] OMITS the key when it is 0, so
+## every committed fixture under `test/fixtures/outcome/` round-trips
+## byte-identical and none of them recapture. A minted id is never 0:
+## [method CommandApplier._mint_intent_id] starts its counter at 1.
+var intent_id: int = 0
+
 
 func _init(entity_id_: int = 0) -> void:
 	entity_id = entity_id_
@@ -64,4 +75,9 @@ func type_tag() -> StringName:
 ## The wire form. Subclasses call `super()` and add their own fields, so
 ## every dictionary carries `type` + `entity_id` at minimum.
 func to_dict() -> Dictionary:
-	return {"type": type_tag(), "entity_id": entity_id}
+	var d := {"type": type_tag(), "entity_id": entity_id}
+	# Omitted when unminted — see [member intent_id]. An unconditional key here
+	# would recapture every `test/fixtures/outcome/*.tres`.
+	if intent_id != 0:
+		d["intent_id"] = intent_id
+	return d
