@@ -5,10 +5,10 @@
 [ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="3_gauge"]
 [ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_qh8mw"]
 [ext_resource type="PackedScene" path="res://ui/hud/xp_track/xp_delta_chip.tscn" id="4_chip"]
-[ext_resource type="PackedScene" path="res://ui/hud/xp_track/level_up_flourish.tscn" id="5_flourish"]
+[ext_resource type="PackedScene" uid="uid://3a11l7dmup02" path="res://ui/hud/xp_track/level_up_flourish.tscn" id="5_flourish"]
 [ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="6_ta1v6"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_72gsw"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_qh8mw"]
 resource_local_to_scene = true
 shader = ExtResource("3_qh8mw")
 shader_parameter/size = Vector2(150, 61)
@@ -21,7 +21,7 @@ shader_parameter/corner_radius = 10.0
 shader_parameter/glow_color = Color(1, 1, 1, 0)
 shader_parameter/glow_strength = 0.0
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_bh11c"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ta1v6"]
 resource_local_to_scene = true
 shader = ExtResource("6_ta1v6")
 shader_parameter/size = Vector2(120, 20)
@@ -50,7 +50,7 @@ script = ExtResource("1_script")
 
 [node name="GlassPanel" parent="." unique_id=1707469390 instance=ExtResource("2_glass")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_72gsw")
+material = SubResource("ShaderMaterial_qh8mw")
 layout_mode = 2
 gradient_angle_deg = 90.0
 corner_radius = 10.0
@@ -113,7 +113,7 @@ mouse_filter = 2
 
 [node name="XPGauge" parent="Padded/Content/GaugeWrap" unique_id=530503948 instance=ExtResource("3_gauge")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_bh11c")
+material = SubResource("ShaderMaterial_ta1v6")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -127,7 +127,26 @@ glow_color = Color(0.8909, 0.7204, 0.2596, 0.6)
 corner_radius = 6.0
 fill_speed = 0.9
 
-[node name="LevelUpFlourish" parent="Padded/Content/GaugeWrap" unique_id=75571955 instance=ExtResource("5_flourish")]
-unique_name_in_owner = true
+[node name="Control" type="Control" parent="." unique_id=1706153863]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 8
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Control" unique_id=951712520]
 layout_mode = 1
-min_dwell = 2.0
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -75.0
+offset_right = 75.0
+offset_bottom = 61.0
+grow_horizontal = 2
+theme_override_constants/separation = 0
+
+[node name="Control" type="Control" parent="Control/VBoxContainer" unique_id=198821330]
+custom_minimum_size = Vector2(0, 5)
+layout_mode = 2
+
+[node name="LevelUpFlourish" parent="Control/VBoxContainer" unique_id=75571955 instance=ExtResource("5_flourish")]
+unique_name_in_owner = true
+layout_mode = 2

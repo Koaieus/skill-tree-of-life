@@ -1,43 +1,44 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://3a11l7dmup02"]
 
-[ext_resource type="Script" path="res://ui/hud/xp_track/level_up_flourish.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://vei3ti6syfsx" path="res://ui/hud/xp_track/level_up_flourish.gd" id="1_script"]
 
-[node name="LevelUpFlourish" type="Control"]
-script = ExtResource("1_script")
-anchors_preset = -1
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = 3.0
-offset_bottom = 41.0
-grow_horizontal = 2
-grow_vertical = 1
-mouse_filter = 2
+[node name="LevelUpFlourish" type="Control" unique_id=1245704431]
 modulate = Color(1, 1, 1, 0)
-
-[node name="Lines" type="VBoxContainer" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
+layout_mode = 3
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
 anchor_bottom = 1.0
+offset_top = -38.0
 grow_horizontal = 2
-grow_vertical = 2
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="Lines" type="VBoxContainer" parent="." unique_id=578411475]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -124.0
+offset_right = 124.0
+offset_bottom = 76.0
+grow_horizontal = 2
 mouse_filter = 2
 theme_override_constants/separation = 0
 
-[node name="Title" type="Label" parent="Lines"]
+[node name="Title" type="Label" parent="Lines" unique_id=1991057917]
 unique_name_in_owner = true
 layout_mode = 2
-mouse_filter = 2
 theme_type_variation = &"CinzelHeader"
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 32
 text = "L E V E L   U P"
 horizontal_alignment = 1
 
-[node name="Detail" type="Label" parent="Lines"]
+[node name="Detail" type="Label" parent="Lines" unique_id=621998297]
 unique_name_in_owner = true
 layout_mode = 2
-mouse_filter = 2
-theme_override_font_sizes/font_size = 11
+theme_override_font_sizes/font_size = 24
 text = "+2 SP — LEVEL 2"
 horizontal_alignment = 1
