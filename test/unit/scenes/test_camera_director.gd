@@ -236,8 +236,13 @@ func test_the_director_is_mounted_and_wired_in_game_root() -> void:
 	assert_not_null(director.camera, "camera NodePath")
 	assert_not_null(director.vision_system, "vision_system NodePath")
 	assert_not_null(director.battle_system, "battle_system NodePath")
+	assert_not_null(director.command_applier, "command_applier NodePath")
+	assert_not_null(director.graph, "graph NodePath")
 	assert_true(director.camera.manual_input_received.is_connected(director._on_manual_input),
 			"the player's hands can reach the director")
 	assert_true(director.battle_system.attack_committed.is_connected(director._on_attack_committed),
 			"and a committed attack can too")
+	assert_true(director.command_applier.command_confirmed.is_connected(
+			director._on_command_confirmed),
+			"and so can a confirmed command (#525)")
 	assert_not_null(director.seat_policy, "GameRoot pushed the seat policy after _setup_level")

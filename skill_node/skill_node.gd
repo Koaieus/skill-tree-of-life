@@ -1633,6 +1633,13 @@ func _detach_addon(a: SkillNodeAddon) -> void:
 	addons_changed.emit()
 
 
+## How long a core's presence takes to glide between two nodes. Named because
+## [CameraDirector] sizes a [MoveCoreCommand]'s camera hold off it (#525) and a
+## bare literal there would silently drift out of step with this one. It sits
+## slightly ABOVE [constant CommandApplier.CORE_HOP_SLIDE_DELAY] on purpose —
+## the hops of a multi-hop walk overlap so the walk reads as a cascade.
+const CORE_SLIDE_DURATION := 0.25
+
 ## Core-movement slide-in (#21, #128). Called on the *new* core slot after
 ## AllocationSystem.move_core commits; retargets the old CoreMarker glide onto
 ## [CorePresence] (CoreHalos + CoreSigilBloom) — the halo offsets to the
@@ -1643,7 +1650,7 @@ func _detach_addon(a: SkillNodeAddon) -> void:
 ## catch-up. No-op if this isn't actually the core node, it's sensed (its
 ## whole ShaderStack — and CorePresence with it — is hidden), or the offset is
 ## degenerate (same node).
-func play_core_slide_from(world_pos: Vector2, duration: float = 0.25) -> void:
+func play_core_slide_from(world_pos: Vector2, duration: float = CORE_SLIDE_DURATION) -> void:
 	if not is_node_ready() or not is_core() or sensed:
 		return
 	var offset := world_pos - global_position

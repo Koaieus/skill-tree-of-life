@@ -31,6 +31,18 @@ extends Node
 ## The battle hook (#524): a non-local actor's committed attack frames its
 ## from->to span.
 @export var battle_system: BattleSystem
+## The command hook (#525): every confirmed territory change frames itself.
+## [signal CommandApplier.command_confirmed] rather than [AllocationSystem]'s
+## signals, because a command carries THE ACTOR by construction
+## ([member Command.entity_id]) and the forced channel — level-load core
+## allocation, the death cascade, [BattleSystem]'s dealloc cascade — never
+## builds a [Command] at all. Both of the traps that channel would have needed
+## a filter for are simply not on this wire.
+@export var command_applier: CommandApplier
+## Resolves a command's wire ids back to live objects, exactly as
+## [CommandApplier] does: [method Graph.get_by_entity_id] for the actor,
+## [method Graph.get_by_stable_id] for each node.
+@export var graph: Graph
 ## How long the player's hands stay on the camera after their last manual
 ## input. Without it a multi-wave spell re-steals the camera the instant they
 ## let go. The first thing here that will want tuning.
@@ -46,6 +58,12 @@ extends Node
 @export_range(0.0, 2.0, 0.05) var default_focus_duration: float = 0.35
 ## Extra seconds held after the last hit lands, before handing the camera back.
 @export_range(0.0, 2.0, 0.05) var release_tail_seconds: float = 0.25
+## How long a confirmed command's focus is held (#525). The synchronous verbs
+## have no arrival clock to size a hold off — the applier drains them inside a
+## stack frame — so unlike an attack they need a knob. [MoveCoreCommand] is the
+## exception: it DERIVES its hold from the applier's own hop beat, so the
+## camera holds for exactly the walk. See [method _command_hold].
+@export_range(0.0, 5.0, 0.05) var command_hold_seconds: float = 0.6
 ## The zoom lattice the wheel walks (`GraphCamera.zoom_step`). The director
 ## snaps to it and never leaves it, which is what lets the camera restore the
 ## player's exact `_target_zoom` on release.
@@ -67,6 +85,9 @@ func _ready() -> void:
 		camera.manual_input_received.connect(_on_manual_input)
 	if battle_system != null and not battle_system.attack_committed.is_connected(_on_attack_committed):
 		battle_system.attack_committed.connect(_on_attack_committed)
+	if command_applier != null \
+			and not command_applier.command_confirmed.is_connected(_on_command_confirmed):
+		command_applier.command_confirmed.connect(_on_command_confirmed)
 
 
 func _process(delta: float) -> void:
@@ -290,3 +311,111 @@ func _append_if_visible(points: PackedVector2Array, node: SkillNode) -> void:
 	var pos := node.global_position
 	if not points.has(pos):
 		points.append(pos)
+
+
+## #525's trigger. See [method _build_command_request] for the rule.
+##
+## [signal CommandApplier.command_confirmed] fires INSIDE `_drain`, after the
+## gate passed and BEFORE the mutation — so this is a genuine pre-mutation hook,
+## on every peer, at most once per command, and never for a refused one. The pan
+## therefore runs CONCURRENTLY with the mutation and is still ahead of any
+## animation. It is never awaited: `is_applying` is true for the whole drain and
+## [method PlayerInputController.can_player_act] gates on that flag, so an
+## awaited pan would input-lock the player. See
+## `.claude/rules/presentation-clock.md`.
+func _on_command_confirmed(command: Command) -> void:
+	var request := _build_command_request(command)
+	if request == null:
+		return
+	request_focus(request)
+
+
+## Frame a confirmed command's territory change, for a NON-LOCAL actor only.
+## Returns null when no focus should be built at all — an excluded verb, an
+## unresolvable actor, or an actor this machine seats.
+##
+## [b]The verb list is an explicit allow-list, never a subtype test.[/b]
+## [ToggleTempUpgradeCommand] IS a [NodeCommand] and so has geometry, but it is
+## not a territory change and is excluded on purpose; [LaunchAttackCommand] is
+## excluded because [method _build_attack_request] already frames it, and wiring
+## both would raise two focus requests per attack. So `is NodeCommand` would
+## over-match and a `Command` fallback would over-match harder — every verb is
+## named, and anything unnamed builds nothing.
+##
+## [b]The seat predicate is the same rule as the attack path.[/b] The local
+## player who clicked the node is already looking at it; focusing it is the yank
+## the feature exists to avoid (owner: "in your own turn we don't need a
+## director"). An actor that fails to resolve is treated as unframeable rather
+## than as "not seated" — `seats(null)` is false, so falling through would frame
+## every unresolved command.
+##
+## Nothing surviving the fog filter yields an EMPTY request whose `empty_reason`
+## is `&"fogged"`, not null — the same distinction `_build_attack_request` draws,
+## so `decide()` can report why nothing happened.
+func _build_command_request(command: Command) -> FocusRequest:
+	if command == null or graph == null:
+		return null
+	var ids := _framed_node_ids(command)
+	if ids.is_empty():
+		return null
+	var actor := graph.get_by_entity_id(command.entity_id)
+	if actor == null:
+		return null
+	if seat_policy != null and seat_policy.seats(actor):
+		return null
+
+	var points := PackedVector2Array()
+	for id in ids:
+		_append_if_visible(points, graph.get_by_stable_id(id))
+	var hold := _command_hold(command)
+	var source := command.type_tag()
+	var request: FocusRequest
+	if points.is_empty() or ids.size() > 1:
+		# A multi-node verb frames its whole set. An all-fogged command lands
+		# here too, with no points at all — `decide` reads `empty_reason`.
+		request = FocusRequest.span(points, default_focus_duration, hold, source)
+	else:
+		# One node, one command: a point focus, which sets `allow_zoom_out`
+		# false and so can never yank the zoom for a single allocation.
+		request = FocusRequest.point(points[0], default_focus_duration, false, source)
+		request.hold = hold
+	request.empty_reason = &"fogged"
+	return request
+
+
+## The nodes [param command] wants framed, as stable ids — empty for every verb
+## this path does not claim. The exclusions are deliberate, not an oversight:
+##   * [LaunchAttackCommand] — already framed by `attack_committed` (#524).
+##   * [EndTurnCommand], [LootRoundCommand], [PickLootCommand] — no geometry.
+##   * [ToggleTempUpgradeCommand] — has geometry, is not a territory change.
+##
+## [MassAllocateCommand] over-frames by design: its affordable count is
+## re-computed at apply time (#458), so the path framed here may be longer than
+## what actually lands. The requested path is the intent, and framing the intent
+## is not wrong.
+func _framed_node_ids(command: Command) -> Array[int]:
+	if command is AllocateCommand or command is DeallocateCommand \
+			or command is StakeCommand or command is ExtractCommand:
+		return [(command as NodeCommand).node_id]
+	if command is DeallocateSetCommand:
+		return (command as DeallocateSetCommand).node_ids
+	if command is MassAllocateCommand:
+		return (command as MassAllocateCommand).path_ids
+	if command is MoveCoreCommand:
+		return (command as MoveCoreCommand).path_ids
+	return []
+
+
+## Seconds to hold a command's focus after the pan settles.
+##
+## [MoveCoreCommand] is the only verb with a real duration to read, and it is
+## the applier's own beat: the walk is ONE command whose hops are spaced by
+## [constant CommandApplier.CORE_HOP_SLIDE_DELAY], each hop gliding for
+## [constant SkillNode.CORE_SLIDE_DURATION]. The two are deliberately unequal —
+## the hops overlap so the walk reads as a cascade — so do not "fix" them to
+## match. Every other verb is drained inside a stack frame and takes the knob.
+func _command_hold(command: Command) -> float:
+	if command is MoveCoreCommand:
+		var hops := maxi((command as MoveCoreCommand).path_ids.size() - 1, 0)
+		return hops * CommandApplier.CORE_HOP_SLIDE_DELAY + SkillNode.CORE_SLIDE_DURATION
+	return command_hold_seconds
