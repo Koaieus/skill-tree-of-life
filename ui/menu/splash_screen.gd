@@ -1,10 +1,10 @@
 class_name SplashScreen
 extends Control
 
-## "Press any key" attract screen. Lives as a sibling of [MenuStack] inside
-## the same persistent meta_root scene (not a separate SceneDirector
-## destination) so a future pass can turn this into the literal root node
-## of the menu's skill-tree breadcrumb instead of a hard scene cut.
+## "Press any key" attract screen. Lives inside the same persistent meta_root
+## scene as the frontmatter graph (not a separate SceneDirector destination) so
+## a future pass can turn this into the literal root node of the menu's skill
+## tree instead of a hard scene cut — that pass is #574.
 
 signal advanced
 

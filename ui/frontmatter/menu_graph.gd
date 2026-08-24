@@ -22,8 +22,8 @@ extends RefCounted
 ## redesigned, only its presentation — [member Item.route] records, per leaf,
 ## the [RunConfig.Mode] and [NetworkTransport.Role] that leaf has always
 ## produced, and `test/unit/ui/test_meta_routing_parity.gd` pins that
-## correspondence against the live `meta_root.gd` so #573's deletion of
-## [MenuStack] cannot quietly change it.
+## correspondence against the live `meta_root.gd` so the deletion of the old
+## `MenuStack` breadcrumb (#579) could not quietly change it.
 
 
 ## What a leaf asks the panel layer for, once the player commits to it.
