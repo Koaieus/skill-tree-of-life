@@ -75,6 +75,13 @@ var _beat_clock: BeatClock = null
 ## True while an attack's VFX coroutine is parked. See `launch_attack` for why
 ## the flag exists rather than a bare `await _vfx_finished`.
 ##
+## [b]Melee only, since the release-beat split.[/b] The coordinator modes
+## (ranged/magic) run their VFX fire-and-forget and release on
+## [member release_beat] instead — see [method _commit] — so
+## [method _run_attack_vfx] deliberately does NOT touch this pair. That also
+## means the flag can never be claimed by two runs at once: `is_launching`
+## serialises the one path that sets it.
+##
 ## [b]Load-bearing invariant: nothing may free the animating node mid-play.[/b]
 ## A coroutine awaiting a freed object is silently dropped, so `_vfx_finished`
 ## would never fire, `_reset()` would never run, and the plan would stay armed
@@ -100,6 +107,26 @@ signal _vfx_finished
 ## Not inferred from whether `attack_vfx` / `melee_preview` are mounted —
 ## see [method _apply_outcome].
 var instant_mutation: bool = false
+
+## How long after the LAST landing a coordinator-mode attack (ranged/magic)
+## keeps [member is_launching] held — the "and breathe" beat between the world
+## settling and the player being able to fire again.
+##
+## Release used to wait out the whole animation drain, which for a ranged
+## volley meant the arrow's stick-and-fade: `LightArrow.hold_seconds` 0.35 +
+## `fade_seconds` 0.4, three quarters of a second in which nothing about the
+## world could still change. The arrows still linger — they are children of
+## `%AttackVFX`, not of the plan, so they finish fading on their own long
+## after `_reset()` — the player just no longer waits on them.
+##
+## Rides the same [BeatClock] as the mutation loop, so it is instant under
+## [member instant_mutation] and [method drain_pending_mutations] cuts it
+## short on teardown like any other beat.
+##
+## Melee is deliberately excluded: its plan (and the temp-upgrade addons
+## mounted on it, #406) must stay live through the visible swing, so it still
+## releases on [MeleePreview].
+@export var release_beat: float = 0.12
 
 
 var attack_plan: AttackPlan:
@@ -571,13 +598,21 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	# coroutine returns, so mirroring off THAT would make a peer sit out the
 	# host's whole swing before starting its own.
 	#
-	# Wait out the animation, then release. `is_launching`
-	# spans the WHOLE action, not just the mutation: it is what blocks a second
-	# launch, and the plan stays live behind it because a melee plan's
-	# temp-upgrade addons (#406) must keep rendering through the swing. Clearing
-	# it at mutation-end would let a player arm and fire again mid-swing with
-	# the previous plan still mounted. VFX ordinarily outlasts the mutation
-	# window anyway — an arrow lingers after it lands.
+	# Then release. `is_launching` spans the WHOLE action, not just the
+	# mutation: it is what blocks a second launch, and the plan stays live
+	# behind it. Two ways out, because the two modes want different things:
+	#
+	#   * MELEE parks on the swing (`_vfx_running`). A melee plan's
+	#     temp-upgrade addons (#406) must keep rendering through the visible
+	#     blade, and the ghost the preview animates IS the plan — clearing at
+	#     mutation-end would let a player arm and fire again mid-swing with the
+	#     previous plan still mounted.
+	#   * RANGED/MAGIC releases on `release_beat`, already waited out inside
+	#     `_apply_outcome`. Their coordinators own nothing of the plan, so
+	#     holding for the drain only bought a lockout for the arrow's
+	#     stick-and-fade — three quarters of a second in which the world was
+	#     already final. The arrows finish fading under `%AttackVFX` on their
+	#     own; see [member release_beat].
 	if _vfx_running:
 		await _vfx_finished
 	# is_launching flips false BEFORE _reset() (not after) — _reset()'s
@@ -602,16 +637,20 @@ func _run_melee_preview(melee_plan: MeleeAttackPlan) -> void:
 	_vfx_finished.emit()
 
 
-## Runs the ranged/magic coordinator to completion, then reports — see
-## [method _run_melee_preview].
+## Runs the ranged/magic coordinator — and, unlike [method _run_melee_preview],
+## reports nothing. Nobody waits on it: the launch releases on
+## [member release_beat] instead, so this coroutine outlives `_commit` and the
+## coordinator tears itself down whenever its last arrow has faded.
+##
+## That is also why it must not touch `_vfx_running` / `_vfx_finished` — an
+## un-awaited runner that still set them would emit into the NEXT launch's
+## park, releasing melee early. Leaving the pair to melee alone keeps it
+## serialised by `is_launching`.
 func _run_attack_vfx(outcome: AttackOutcome, coord_scene: PackedScene) -> void:
-	_vfx_running = true
 	if coord_scene != null:
 		await attack_vfx.play(coord_scene, outcome)
 	else:
 		await attack_vfx.play_ranged_volley(outcome)
-	_vfx_running = false
-	_vfx_finished.emit()
 
 
 ## The one place world mutation happens for an attack: every hit in
@@ -634,6 +673,13 @@ func _apply_outcome(outcome: AttackOutcome) -> void:
 			else BeatClock.for_tree(get_tree())
 	@warning_ignore("redundant_await")
 	await OutcomeApplier.apply(outcome, CombatWorld.live(), _beat_clock)
+	# The release beat, on the same clock and for the same reasons: instant
+	# under `instant_mutation`, and cut short by `drain_pending_mutations`.
+	# Melee doesn't want it — it has a whole swing left to watch — and asking
+	# for it there would just push the blade's own release out by 0.12 s.
+	if release_beat > 0.0 and not _vfx_running:
+		@warning_ignore("redundant_await")
+		await _beat_clock.advance_to(_beat_clock.elapsed + release_beat)
 	_beat_clock = null
 
 
