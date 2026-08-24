@@ -61,7 +61,7 @@ func _build(seating: SeatPolicy.Seating) -> void:
 	for i in 2:
 		var p := Participant.new()
 		p.id = i
-		p.kind = Participant.Kind.LOCAL_HUMAN
+		p.kind = Participant.Kind.HUMAN
 		p.camp = _CAMP_1 if i == 0 else _CAMP_2
 		roster.add(p)
 	GameRoot.apply_roster({0: _p1, 1: _p2}, roster)

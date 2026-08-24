@@ -190,7 +190,7 @@ func _setup_level() -> void:
 			entities_by_participant_id, roster, GameSession.local_peer_id)
 
 	if player == null:
-		push_warning("ProcgenPlaySandbox: no LOCAL_HUMAN participant — nothing bound as player")
+		push_warning("ProcgenPlaySandbox: no human participant at this peer — nothing bound as player")
 		return
 
 	# Wire the player into the interaction layer (input / vision / highlight)
@@ -220,17 +220,16 @@ func _setup_level() -> void:
 
 ## Is this participant the human THIS MACHINE plays (#554)?
 ##
-## By [member Participant.peer_id], never by [enum Participant.Kind]: LOCAL and
-## REMOTE are a RELATION, not a fact about the participant, and the roster a
-## client receives is the HOST's — in which the client's own seat is the
-## REMOTE_HUMAN. Asking "is this a LOCAL_HUMAN" therefore left a client with no
-## [member GameRoot.player] at all, and [method SeatPolicy.from_roster] handed
-## it the spectator seat in its own run. Same shape as
+## By [member Participant.peer_id], never by [enum Participant.Kind]: locality
+## is a RELATION, not a fact about the participant, and the roster a client
+## receives is the HOST's. #562 removed the enum values that let this be asked
+## the wrong way at all — the kind now says only HUMAN or AI, and locality
+## comes from [method Participant.is_local]. Same shape as
 ## `.claude/rules/ownership-vocabulary.md`'s rule for `owned_by`: the identity
 ## question and the "is it mine" question are not the same question.
 func _is_this_machines(participant: Participant) -> bool:
 	return (participant.kind != Participant.Kind.AI
-			and participant.peer_id == GameSession.local_peer_id)
+			and participant.is_local(GameSession.local_peer_id))
 
 
 ## The roster this level invents when there is no session roster to consume —
@@ -245,7 +244,7 @@ func _fallback_roster() -> ParticipantRoster:
 	var next_id := 0
 	for c in camp_sizes.size():
 		var camp_faction := _PLAYER_FACTION if c == 0 else _NPC_FACTION
-		var kind := Participant.Kind.LOCAL_HUMAN if c == 0 else Participant.Kind.AI
+		var kind := Participant.Kind.HUMAN if c == 0 else Participant.Kind.AI
 		for _m in maxi(0, camp_sizes[c]):
 			var participant := Participant.new()
 			participant.id = next_id

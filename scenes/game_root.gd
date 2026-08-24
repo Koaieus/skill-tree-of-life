@@ -299,9 +299,10 @@ func _greet_if_linked(_status: String) -> void:
 ##
 ## Client side, this is the first moment this machine knows its own id — the
 ## menu could not stamp it, since the server mints it. Host side, the lobby
-## already seated a REMOTE_HUMAN (procgen needed its camp before anyone could
-## possibly have connected); what was outstanding was only its identity, so the
-## join stamps that seat and ships the settled roster down.
+## already seated the remote human (procgen needed its camp before anyone could
+## possibly have connected); what was outstanding was only its identity — its
+## [member Participant.peer_id] — so the join stamps that seat and ships the
+## settled roster down.
 func _on_peer_joined(peer_id: int) -> void:
 	var net: NetworkConfig = GameSession.network
 	if net == null:
@@ -563,6 +564,10 @@ func _ensure_controllers() -> void:
 ## [member Participant.camp] is unset, are skipped. Static + side-effect-only
 ## on the entities: no dependency on a live GameRoot, so it's testable
 ## against a roster built in isolation, not against lobby UI.
+##
+## Everything applied here is ABSOLUTE — camp, and "is a human" — so every peer
+## running the same roster reaches the same answer. The per-machine half ("which
+## of these is mine") is [SeatPolicy]'s, off [method Participant.is_local].
 static func apply_roster(entities_by_participant_id: Dictionary, roster: ParticipantRoster) -> void:
 	for participant in roster.all():
 		var ent: Entity = entities_by_participant_id.get(participant.id)

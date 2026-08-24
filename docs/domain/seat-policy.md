@@ -64,9 +64,9 @@ the entity enters `entities_container`, and `0` is also the spectator seat, so
 One line, four correct answers:
 
 - **Coop shares** — couch *or* wire. `apply_roster` sets
-  `is_human_controlled` from `Participant.kind`, and a `REMOTE_HUMAN` is not
-  AI, so a teammate on another machine reads human on mine and reveals for me
-  exactly as a couch partner does. This is the non-obvious part; the instinct
+  `is_human_controlled` from `Participant.kind`, which says `HUMAN` wherever
+  that human is sitting, so a teammate on another machine reads human on mine
+  and reveals for me exactly as a couch partner does. This is the non-obvious part; the instinct
   to thread `peer_id` through the vision rule is wrong.
 - **Versus does not** — rivals are different camps by construction, so each
   group is a single hero. On a hot-seat couch the fog swaps with the handover,
@@ -119,9 +119,17 @@ level *consumes* `GameSession.roster` rather than building its own and
 overwriting the session's with it.
 
 What is still missing is not the path but the **roster**. Every participant a
-lobby builds today is a `LOCAL_HUMAN` sharing one `peer_id`, and `from_roster`
-only returns a seat when some participant's `peer_id` differs from this
-machine's — so it resolves to `couch()` by construction, correctly. #553 added
-`GameSession.local_peer_id` and passes it; **#554** is what puts a
-`REMOTE_HUMAN` with a real `peer_id` in the roster, and `from_roster` needs no
-change when it does.
+lobby builds today shares one `peer_id`, and `from_roster` only returns a seat
+when some participant's `peer_id` differs from this machine's — so it resolves
+to `couch()` by construction, correctly. #553 added `GameSession.local_peer_id`
+and passes it; **#554** is what puts a human with a real, foreign `peer_id` in
+the roster, and `from_roster` needs no change when it does.
+
+**`Participant.Kind` is `{ HUMAN, AI }` and nothing else (#562).** There is no
+local/remote flavour of `HUMAN`, because locality is a relation between a
+participant and the machine reading the roster — and the roster crosses the
+wire, so the same row is correctly local on one peer and remote on the other.
+Ask `Participant.is_local(local_peer_id)`; it is the one named home for the
+question, and it is what `from_roster` calls. This is the same rule
+`.claude/rules/ownership-vocabulary.md` draws for `owned_by` vs
+`SkillNode.ownership_bit`, one layer up.

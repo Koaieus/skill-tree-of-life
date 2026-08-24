@@ -89,8 +89,8 @@ func is_linked() -> bool:
 ## takes, and what [method SeatPolicy.from_roster] compares each
 ## [member Participant.peer_id] against. [constant HOST_PEER_ID] on a host,
 ## whatever the server minted on a client, and `0` offline — which is exactly the
-## value a lobby-authored LOCAL_HUMAN carries, so an offline run stays a couch by
-## construction.
+## [member Participant.peer_id] a lobby-authored offline seat carries, so an
+## offline run stays a couch by construction.
 func local_peer_id() -> int:
 	return 0
 

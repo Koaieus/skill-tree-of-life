@@ -47,8 +47,8 @@ func _on_single_player_pressed() -> void:
 ## #531 put a screen between this signal and the lobby: Multiplayer now asks
 ## HOW before it asks what. All three answers land on the same lobby — what
 ## differs is the [NetworkConfig], and since #554 that is also what decides the
-## lobby's roster shape (a networked lobby seats a REMOTE_HUMAN, a hot-seat one
-## seats two locals on one camp).
+## lobby's roster shape (a networked lobby seats a second human at another
+## peer id, a hot-seat one seats two humans sharing this machine's, on one camp).
 func _on_multiplayer_pressed() -> void:
 	var screen := HostJoinScreen.new()
 	screen.host_pressed.connect(_on_host_pressed)

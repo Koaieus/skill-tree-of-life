@@ -107,9 +107,9 @@ func test_the_session_roster_decides_the_contenders_the_camps_and_the_seat() -> 
 	# Four contenders across three camps, with two machines in them. One launch
 	# covers every seam this unit touches except the no-session fallback.
 	var roster := ParticipantRoster.new()
-	var mine := _participant(1, Participant.Kind.LOCAL_HUMAN, _CAMP_1, 5)
+	var mine := _participant(1, Participant.Kind.HUMAN, _CAMP_1, 5)
 	roster.add(mine)
-	roster.add(_participant(2, Participant.Kind.REMOTE_HUMAN, _CAMP_2, 9))
+	roster.add(_participant(2, Participant.Kind.HUMAN, _CAMP_2, 9))
 	roster.add(_participant(3, Participant.Kind.AI, _CAMP_3))
 	roster.add(_participant(4, Participant.Kind.AI, _CAMP_2))
 	GameSession.start(RunConfig.new())

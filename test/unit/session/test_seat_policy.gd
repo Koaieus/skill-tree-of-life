@@ -62,7 +62,7 @@ func test_an_unminted_entity_never_matches_a_seat() -> void:
 
 func test_single_player_is_a_couch() -> void:
 	var roster := ParticipantRoster.new()
-	roster.add(_participant(0, Participant.Kind.LOCAL_HUMAN, _CAMP_1))
+	roster.add(_participant(0, Participant.Kind.HUMAN, _CAMP_1))
 	roster.add(_participant(1, Participant.Kind.AI, _NPC))
 	var hero := _entity(10, true, _CAMP_1)
 	var policy := SeatPolicy.from_roster({0: hero, 1: _entity(11, false, _NPC)}, roster)
@@ -72,8 +72,8 @@ func test_single_player_is_a_couch() -> void:
 func test_hot_seat_is_a_couch_in_coop_and_in_versus() -> void:
 	for camps in [[_CAMP_1, _CAMP_1], [_CAMP_1, _CAMP_2]]:
 		var roster := ParticipantRoster.new()
-		roster.add(_participant(0, Participant.Kind.LOCAL_HUMAN, camps[0]))
-		roster.add(_participant(1, Participant.Kind.LOCAL_HUMAN, camps[1]))
+		roster.add(_participant(0, Participant.Kind.HUMAN, camps[0]))
+		roster.add(_participant(1, Participant.Kind.HUMAN, camps[1]))
 		var entities := {0: _entity(10, true, camps[0]), 1: _entity(11, true, camps[1])}
 		var policy := SeatPolicy.from_roster(entities, roster)
 		assert_eq(policy.seating, SeatPolicy.Seating.COUCH,
@@ -83,8 +83,8 @@ func test_hot_seat_is_a_couch_in_coop_and_in_versus() -> void:
 
 func test_a_remote_human_makes_this_machine_a_seat() -> void:
 	var roster := ParticipantRoster.new()
-	roster.add(_participant(0, Participant.Kind.LOCAL_HUMAN, _CAMP_1))
-	roster.add(_participant(1, Participant.Kind.REMOTE_HUMAN, _CAMP_2, 2))
+	roster.add(_participant(0, Participant.Kind.HUMAN, _CAMP_1))
+	roster.add(_participant(1, Participant.Kind.HUMAN, _CAMP_2, 2))
 	var mine := _entity(10, true, _CAMP_1)
 	var theirs := _entity(11, true, _CAMP_2)
 	var policy := SeatPolicy.from_roster({0: mine, 1: theirs}, roster)
@@ -98,8 +98,8 @@ func test_a_remote_human_makes_this_machine_a_seat() -> void:
 
 func test_a_peer_with_no_hero_of_its_own_is_a_pinned_spectator() -> void:
 	var roster := ParticipantRoster.new()
-	roster.add(_participant(0, Participant.Kind.REMOTE_HUMAN, _CAMP_1, 2))
-	roster.add(_participant(1, Participant.Kind.REMOTE_HUMAN, _CAMP_2, 3))
+	roster.add(_participant(0, Participant.Kind.HUMAN, _CAMP_1, 2))
+	roster.add(_participant(1, Participant.Kind.HUMAN, _CAMP_2, 3))
 	var policy := SeatPolicy.from_roster({0: _entity(10, true, _CAMP_1)}, roster)
 
 	assert_eq(policy.seating, SeatPolicy.Seating.SEAT)
@@ -151,9 +151,10 @@ func test_ai_and_blockers_never_share_vision_with_each_other() -> void:
 	assert_eq(SeatPolicy.vision_group(blocker, [ai_a, ai_b, blocker]), [blocker] as Array[Entity])
 
 
-## A remote teammate is `is_human_controlled` on my machine too (apply_roster
-## reads [member Participant.kind], and REMOTE_HUMAN is not AI) — which is why
-## online coop shares vision without the rule ever consulting `peer_id`.
+## A teammate on another machine is `is_human_controlled` on mine too
+## (apply_roster reads [member Participant.kind], which says HUMAN wherever that
+## human sits) — which is why online coop shares vision without the rule ever
+## consulting `peer_id`.
 func test_the_vision_rule_is_independent_of_seating() -> void:
 	var mine := _entity(1, true, _CAMP_1)
 	var remote_ally := _entity(2, true, _CAMP_1)
@@ -169,3 +170,47 @@ func test_the_hero_is_always_a_viewer() -> void:
 	var factionless := _entity(2, true, null)
 	assert_eq(SeatPolicy.vision_group(factionless, []), [factionless] as Array[Entity])
 	assert_eq(SeatPolicy.vision_group(null, []), [] as Array[Entity])
+
+
+# --- #562: the roster crossed a wire --------------------------------------
+
+## The defect behind #562, as pure data: a roster the HOST authored, decoded by
+## the CLIENT, must seat the client on its own hero. Under the old enum's
+## local/remote human split the payload said "A is local" no matter who
+## read it — a relation frozen into a fact, and wrong for exactly one of the two
+## readers. With [enum Participant.Kind] collapsed to `{ HUMAN, AI }` there is
+## no such claim on the wire: local-ness is derived from `peer_id`, so the SAME
+## payload seats each peer on its own hero.
+func _wire_roster() -> ParticipantRoster:
+	var roster := ParticipantRoster.new()
+	roster.add(_participant(0, Participant.Kind.HUMAN, _CAMP_1, 1))
+	roster.add(_participant(1, Participant.Kind.HUMAN, _CAMP_2, 2))
+	return ParticipantRoster.from_dict(roster.to_dict())
+
+
+func test_the_hosts_roster_seats_the_client_on_its_own_hero() -> void:
+	var decoded := _wire_roster()
+	var host_hero := _entity(10, true, _CAMP_1)
+	var client_hero := _entity(11, true, _CAMP_2)
+	var entities := {0: host_hero, 1: client_hero}
+
+	var on_client := SeatPolicy.from_roster(entities, decoded, 2)
+	assert_eq(on_client.seating, SeatPolicy.Seating.SEAT)
+	assert_true(on_client.seats(client_hero),
+			"the client plays its own hero, not the spectator seat")
+	assert_false(on_client.seats(host_hero))
+
+	var on_host := SeatPolicy.from_roster(entities, decoded, 1)
+	assert_eq(on_host.seating, SeatPolicy.Seating.SEAT)
+	assert_true(on_host.seats(host_hero), "the symmetric read of the same payload")
+	assert_false(on_host.seats(client_hero))
+
+
+## [method Participant.is_local] is the one named home for the question, and it
+## answers differently on the two machines reading the same decoded row.
+func test_is_local_is_answered_against_this_machines_peer_id() -> void:
+	var rows := _wire_roster().all()
+	assert_true(rows[0].is_local(1))
+	assert_false(rows[0].is_local(2))
+	assert_true(rows[1].is_local(2))
+	assert_false(rows[1].is_local(1))

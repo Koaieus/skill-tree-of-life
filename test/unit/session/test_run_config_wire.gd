@@ -24,14 +24,33 @@ func _participant(id: int, kind: Participant.Kind, camp: Faction, peer_id: int) 
 
 func _mixed_roster() -> ParticipantRoster:
 	var roster := ParticipantRoster.new()
-	roster.add(_participant(1, Participant.Kind.LOCAL_HUMAN, _CAMP_1, 0))
-	roster.add(_participant(2, Participant.Kind.REMOTE_HUMAN, _CAMP_2, 42))
+	roster.add(_participant(1, Participant.Kind.HUMAN, _CAMP_1, 0))
+	roster.add(_participant(2, Participant.Kind.HUMAN, _CAMP_2, 42))
 	roster.add(_participant(3, Participant.Kind.AI, _CAMP_2, 0))
 	return roster
 
 
+## #562: [enum Participant.Kind] is absolute, so ONE payload answers both
+## readers — and the relation each of them actually cares about is derived, not
+## carried. The old local/remote human split made this pair impossible: whatever
+## the wire said, it was wrong for one of the two machines.
+func test_one_payload_reads_correctly_on_both_machines() -> void:
+	var decoded := ParticipantRoster.from_dict(_mixed_roster().to_dict()).all()
+
+	for p in decoded:
+		assert_eq(p.kind, Participant.Kind.HUMAN if p.id != 3 else Participant.Kind.AI,
+				"kind survives encode/decode as an absolute fact")
+
+	# Peer 0 reads it: participant 1 is mine, 2 is theirs.
+	assert_true(decoded[0].is_local(0))
+	assert_false(decoded[1].is_local(0))
+	# Peer 42 reads the SAME payload: the answer flips, with no re-encoding.
+	assert_false(decoded[0].is_local(42))
+	assert_true(decoded[1].is_local(42))
+
+
 func test_participant_round_trip_preserves_every_field() -> void:
-	var source := _participant(5, Participant.Kind.REMOTE_HUMAN, _CAMP_1, 99)
+	var source := _participant(5, Participant.Kind.HUMAN, _CAMP_1, 99)
 	var decoded := Participant.from_dict(source.to_dict())
 
 	assert_eq(decoded.id, source.id)
@@ -58,8 +77,8 @@ func test_roster_round_trip_preserves_every_participant() -> void:
 		assert_eq(d.peer_id, s.peer_id, "participant %d peer_id" % i)
 
 
-## The full run's shape, including a mixed roster (LOCAL_HUMAN + REMOTE_HUMAN +
-## AI, distinct camps, distinct peer_ids) and the seed — #528's acceptance
+## The full run's shape, including a mixed roster (two humans at different
+## peer_ids + an AI, distinct camps) and the seed — #528's acceptance
 ## spec explicitly wants every field, including camp identity.
 func test_run_config_round_trip_preserves_every_field() -> void:
 	var source := RunConfig.new()

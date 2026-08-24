@@ -7,7 +7,7 @@ func before_each() -> void:
 	roster = ParticipantRoster.new()
 
 
-func _make(id: int, kind: Participant.Kind = Participant.Kind.LOCAL_HUMAN) -> Participant:
+func _make(id: int, kind: Participant.Kind = Participant.Kind.HUMAN) -> Participant:
 	var p := Participant.new()
 	p.id = id
 	p.display_name = "P%d" % id
@@ -68,18 +68,6 @@ func test_by_id_finds_correct_participant() -> void:
 	assert_not_null(found)
 	assert_eq(found.display_name, "P2")
 	assert_null(roster.by_id(42))
-
-
-func test_local_humans_filters_by_kind() -> void:
-	roster.add(_make(1, Participant.Kind.LOCAL_HUMAN))
-	roster.add(_make(2, Participant.Kind.AI))
-	roster.add(_make(3, Participant.Kind.LOCAL_HUMAN))
-
-	var humans := roster.local_humans()
-
-	assert_eq(humans.size(), 2)
-	assert_eq(humans[0].id, 1)
-	assert_eq(humans[1].id, 3)
 
 
 func test_camps_deduplicates_shared_faction() -> void:

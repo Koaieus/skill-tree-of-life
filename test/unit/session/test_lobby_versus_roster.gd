@@ -1,7 +1,7 @@
 extends GutTest
 
-## #554 — the lobby is what puts a REMOTE_HUMAN in the roster, and that is what
-## makes a [SeatPolicy] capable of being anything but a couch.
+## #554 — the lobby is what puts a human at a FOREIGN peer id in the roster, and
+## that is what makes a [SeatPolicy] capable of being anything but a couch.
 ##
 ## Pure logic: [method LobbyScreen.build_participants] and
 ## [method LobbyScreen.resolve_mode] are static so the roster/seat/mode wiring
@@ -43,7 +43,7 @@ func test_single_player_lobby_is_one_local_human_plus_the_ai_count() -> void:
 	var parts := LobbyScreen.build_participants(RunConfig.Mode.SINGLE, NetworkConfig.offline(), 2)
 	var humans := _humans(parts)
 	assert_eq(humans.size(), 1)
-	assert_eq(humans[0].kind, Participant.Kind.LOCAL_HUMAN)
+	assert_eq(humans[0].kind, Participant.Kind.HUMAN)
 	assert_eq(humans[0].camp, _PLAYER)
 	assert_eq(parts.size(), 3, "one human plus two AI opponents")
 	for i in range(1, parts.size()):
@@ -56,22 +56,22 @@ func test_hot_seat_lobby_is_two_locals_on_one_camp() -> void:
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.offline(), 0)
 	assert_eq(parts.size(), 2)
 	for p in parts:
-		assert_eq(p.kind, Participant.Kind.LOCAL_HUMAN)
+		assert_eq(p.kind, Participant.Kind.HUMAN)
 		assert_eq(p.camp, _CAMP_1, "hot-seat coop is two allied humans sharing territory")
 		assert_eq(p.peer_id, 0, "offline, every seat is at this keyboard")
 
 
-## The change #554 is actually about: a networked lobby seats a REMOTE_HUMAN,
-## on its own camp, before anybody has connected — because procgen reads the
+## The change #554 is actually about: a networked lobby seats a second human at
+## another peer id, on its own camp, before anybody has connected — because procgen reads the
 ## camp shape at level setup, long before a socket lands.
 func test_a_host_lobby_seats_a_remote_human_on_its_own_camp() -> void:
 	var parts := LobbyScreen.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(), 0)
 	assert_eq(parts.size(), 2)
-	assert_eq(parts[0].kind, Participant.Kind.LOCAL_HUMAN)
+	assert_eq(parts[0].kind, Participant.Kind.HUMAN)
 	assert_eq(parts[0].camp, _CAMP_1)
 	assert_eq(parts[0].peer_id, NetworkTransport.HOST_PEER_ID, "a host is always peer 1")
-	assert_eq(parts[1].kind, Participant.Kind.REMOTE_HUMAN)
+	assert_eq(parts[1].kind, Participant.Kind.HUMAN)
 	assert_eq(parts[1].camp, _CAMP_2, "the joiner is a rival, not a couch partner")
 	assert_true(parts[1].peer_id != parts[0].peer_id,
 			"a pending remote seat must never read as this machine's")
@@ -81,7 +81,7 @@ func test_a_join_lobby_mirrors_the_host_shape() -> void:
 	var parts := LobbyScreen.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.join("127.0.0.1"), 0)
 	assert_eq(parts.size(), 2)
-	assert_eq(parts[1].kind, Participant.Kind.REMOTE_HUMAN)
+	assert_eq(parts[1].kind, Participant.Kind.HUMAN)
 	assert_eq(parts[1].peer_id, NetworkTransport.HOST_PEER_ID,
 			"from a client, the remote human IS the host")
 
@@ -109,7 +109,7 @@ func test_mode_is_single_for_one_human_however_many_ai() -> void:
 # --- #554 acceptance 4: the roster now yields a SEAT ----------------------
 
 ## The whole point of the unit, in one test. Before #554 every lobby-built
-## participant was a LOCAL_HUMAN at peer_id 0, so `from_roster` returned a couch
+## participant was a human at peer_id 0, so `from_roster` returned a couch
 ## by construction and two peers each believed they drove the only human.
 func test_a_host_roster_yields_a_seat_not_a_couch() -> void:
 	var parts := LobbyScreen.build_participants(

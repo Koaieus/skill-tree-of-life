@@ -81,11 +81,12 @@ static func seat(entity_id: int) -> SeatPolicy:
 ## `scenes/meta/meta_root.gd` calls [method GameSession.start] and routes to a
 ## level, and since #553 that level spawns from the session's roster instead of
 ## inventing one. What is still missing is a roster with more than one machine
-## in it — every participant a lobby builds today is a LOCAL_HUMAN sharing
-## [param local_peer_id], so this correctly returns [method couch] every time.
-## #554 is what puts a REMOTE_HUMAN with a real `peer_id` in the roster; this
-## function needs no change when it does. Today's callers are the procgen
-## sandbox and the multiplayer harness.
+## in it — every participant a lobby builds today shares [param local_peer_id],
+## so this correctly returns [method couch] every time. #554 is what puts a
+## human with a real, foreign `peer_id` in the roster; this function needs no
+## change when it does — it has always asked [method Participant.is_local]'s
+## question rather than reading [enum Participant.Kind] for it (#562). Today's
+## callers are the procgen sandbox and the multiplayer harness.
 static func from_roster(
 	entities_by_participant_id: Dictionary,
 	roster: ParticipantRoster,
@@ -98,7 +99,7 @@ static func from_roster(
 	for participant in roster.all():
 		if participant.kind == Participant.Kind.AI:
 			continue
-		if participant.peer_id == local_peer_id:
+		if participant.is_local(local_peer_id):
 			var ent: Entity = entities_by_participant_id.get(participant.id)
 			if ent != null:
 				mine.append(ent)
@@ -141,8 +142,9 @@ func follows_active_turn() -> bool:
 ##
 ## - [b]Coop shares.[/b] Two humans on one camp — couch or wire — see for each
 ##   other. [method GameRoot.apply_roster] sets `is_human_controlled` from
-##   [member Participant.kind], and a REMOTE_HUMAN is human, so a teammate on
-##   another machine reveals for me exactly as a couch partner does.
+##   [member Participant.kind], which says HUMAN wherever that human is sitting,
+##   so a teammate on another machine reveals for me exactly as a couch partner
+##   does.
 ## - [b]Versus does not.[/b] Rivals are on different camps by construction, so
 ##   each hero's group is itself. On a hot-seat couch the group swaps with the
 ##   handover, which is the point.

@@ -4,7 +4,7 @@ extends GutTest
 ##
 ## Drives a real [GameRoot] (the composition root instantiated from its own
 ## scene, so the systems, the HUD and their wiring are the shipping ones) with
-## a roster of two LOCAL_HUMAN participants on the same camp, per the issue's
+## a roster of two human participants at this peer on the same camp, per the issue's
 ## "test-driven, against a roster constructed in a test, not menu UI".
 ##
 ## The three seams under test:
@@ -56,7 +56,7 @@ func before_each() -> void:
 	for i in 2:
 		var p := Participant.new()
 		p.id = i
-		p.kind = Participant.Kind.LOCAL_HUMAN
+		p.kind = Participant.Kind.HUMAN
 		p.camp = _CAMP_1
 		roster.add(p)
 	GameRoot.apply_roster({0: _p1, 1: _p2}, roster)

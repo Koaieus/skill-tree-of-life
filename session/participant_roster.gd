@@ -43,14 +43,6 @@ func notify_changed(id: int) -> void:
 	roster_changed.emit()
 
 
-func local_humans() -> Array[Participant]:
-	var result: Array[Participant] = []
-	for p in _participants:
-		if p.kind == Participant.Kind.LOCAL_HUMAN:
-			result.append(p)
-	return result
-
-
 func camps() -> Array[Faction]:
 	var result: Array[Faction] = []
 	for p in _participants:

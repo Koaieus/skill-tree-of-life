@@ -39,7 +39,7 @@ func test_multiplayer_lobby_run_config_has_two_allied_local_humans() -> void:
 	var humans := _humans(run_config.participants)
 	assert_eq(humans.size(), 2)
 	for p in humans:
-		assert_eq(p.kind, Participant.Kind.LOCAL_HUMAN)
+		assert_eq(p.kind, Participant.Kind.HUMAN)
 		assert_eq(p.camp, _CAMP_1)
 
 
@@ -74,7 +74,7 @@ func test_single_player_lobby_yields_one_participant_in_single_mode() -> void:
 	assert_eq(run_config.mode, RunConfig.Mode.SINGLE)
 	var humans := _humans(run_config.participants)
 	assert_eq(humans.size(), 1)
-	assert_eq(humans[0].kind, Participant.Kind.LOCAL_HUMAN)
+	assert_eq(humans[0].kind, Participant.Kind.HUMAN)
 	assert_eq(humans[0].camp, _PLAYER_FACTION)
 
 

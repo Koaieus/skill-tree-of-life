@@ -16,18 +16,23 @@ extends MenuScreen
 ## rather than by a mode the player picked:
 ##
 ## [codeblock]
-##   offline, SINGLE      1 LOCAL_HUMAN on `player.tres`         -> SINGLE
-##   offline, hot-seat    2 LOCAL_HUMAN sharing `camp_1.tres`    -> COOP_HOTSEAT
-##   host / join          1 LOCAL_HUMAN on camp_1 + 1 REMOTE_HUMAN
-##                        on camp_2                              -> VERSUS
+##   offline, SINGLE      1 human at peer 0 on `player.tres`    -> SINGLE
+##   offline, hot-seat    2 humans at peer 0 sharing `camp_1`    -> COOP_HOTSEAT
+##   host / join          1 human on camp_1 at THIS peer +
+##                        1 human on camp_2 at the other one     -> VERSUS
 ## [/codeblock]
+##
+## [b]Which of those humans is "me" is never written down (#562)[/b] — the two
+## seats differ only by [member Participant.peer_id], and each machine derives
+## its own answer with [method Participant.is_local]. A roster that named one
+## row "the local one" would be wrong on the machine it crossed to.
 ##
 ## [b]Why the remote seat is declared before anybody joins.[/b] #554's decision 3
 ## derives [enum RunConfig.Mode] at START from the roster, and procgen reads the
 ## camp shape at level setup — both happen before a peer's socket is anywhere
 ## near this machine. A roster that only grew when the join actually landed would
 ## generate a map with no room for the joiner on it. So a networked lobby seats
-## the remote human immediately, at [constant _PENDING_PEER_ID], and the join
+## the second human immediately, at [constant _PENDING_PEER_ID], and the join
 ## stamps that placeholder with the real id (see
 ## [method stamp_pending_remote_peer]). "The roster grows on join" is true of the
 ## peer id, not of the seat.
@@ -139,7 +144,7 @@ func participants() -> Array[Participant]:
 ## procgen could see it, and only the identity was outstanding.
 func stamp_pending_remote_peer(peer_id: int) -> bool:
 	for p in _participants:
-		if p.kind == Participant.Kind.REMOTE_HUMAN and p.peer_id == _PENDING_PEER_ID:
+		if is_pending_remote(p):
 			p.peer_id = peer_id
 			_refresh_rows()
 			return true
@@ -150,11 +155,11 @@ func stamp_pending_remote_peer(peer_id: int) -> bool:
 ## one question a caller outside this file might reasonably ask about the
 ## sentinel, answered without exporting the number.
 static func is_pending_remote(p: Participant) -> bool:
-	return p != null and p.kind == Participant.Kind.REMOTE_HUMAN and p.peer_id == _PENDING_PEER_ID
+	return p != null and p.kind == Participant.Kind.HUMAN and p.peer_id == _PENDING_PEER_ID
 
 
 ## The join half of #554 D2, as a seam the level can call without knowing what
-## a pending seat looks like: give the roster's waiting REMOTE_HUMAN the id the
+## a pending seat looks like: give the roster's waiting human seat the id the
 ## transport just reported. Returns false when there was nothing waiting — a
 ## second peer on a two-seat lobby, or a roster that never expected one.
 ##
@@ -166,7 +171,7 @@ static func stamp_pending_remote(roster: ParticipantRoster, peer_id: int) -> boo
 	if roster == null:
 		return false
 	for p in roster.all():
-		if p.kind == Participant.Kind.REMOTE_HUMAN and p.peer_id == _PENDING_PEER_ID:
+		if is_pending_remote(p):
 			p.peer_id = peer_id
 			roster.notify_changed(p.id)
 			return true
@@ -236,18 +241,31 @@ func _add_participant_row(participant: Participant) -> void:
 	row.add_child(name_label)
 
 	var kind_label := Label.new()
-	kind_label.text = _describe_kind(participant)
+	kind_label.text = _describe_seat(participant, _local_peer_id())
 	row.add_child(kind_label)
 
 
-static func _describe_kind(p: Participant) -> String:
-	match p.kind:
-		Participant.Kind.AI:
-			return "AI"
-		Participant.Kind.REMOTE_HUMAN:
-			return "waiting…" if p.peer_id == _PENDING_PEER_ID else "peer %d" % p.peer_id
-		_:
-			return "you" if p.peer_id != _PENDING_PEER_ID else ""
+## This machine's own id, as far as a lobby can know it: a client's real id is
+## minted by the server on connect, so the placeholder it authored for itself is
+## what its own rows carry until then.
+func _local_peer_id() -> int:
+	if _network == null or not _network.is_online():
+		return 0
+	return _HOST_PEER_ID if _network.role == NetworkTransport.Role.HOST else _PENDING_PEER_ID
+
+
+## The right-hand label on a roster row. Relational, and therefore computed
+## HERE against [param local_peer_id] rather than read off
+## [enum Participant.Kind] (#562) — "you" is a fact about the reader, not about
+## the participant.
+static func _describe_seat(p: Participant, local_peer_id: int) -> String:
+	if p.kind == Participant.Kind.AI:
+		return "AI"
+	if p.is_local(local_peer_id):
+		return "you"
+	if p.peer_id == _PENDING_PEER_ID:
+		return "waiting…"
+	return "peer %d" % p.peer_id
 
 
 ## The roster a lobby of this shape authors. Static and pure so the seat/mode
@@ -262,9 +280,9 @@ static func build_participants(
 		# over the wire when joining — a client's own roster is discarded on
 		# receipt, so what it puts here only has to be a coherent placeholder.
 		var local_peer := _HOST_PEER_ID if network.role == NetworkTransport.Role.HOST else _PENDING_PEER_ID
-		result.append(_make_participant(1, "Player 1", _CAMP_1, Participant.Kind.LOCAL_HUMAN, local_peer))
+		result.append(_make_participant(1, "Player 1", _CAMP_1, Participant.Kind.HUMAN, local_peer))
 		var remote_peer := _PENDING_PEER_ID if network.role == NetworkTransport.Role.HOST else _HOST_PEER_ID
-		result.append(_make_participant(2, "Player 2", _CAMP_2, Participant.Kind.REMOTE_HUMAN, remote_peer))
+		result.append(_make_participant(2, "Player 2", _CAMP_2, Participant.Kind.HUMAN, remote_peer))
 	elif mode == RunConfig.Mode.COOP_HOTSEAT:
 		result.append(_make_participant(1, "Player 1", _CAMP_1))
 		result.append(_make_participant(2, "Player 2", _CAMP_1))
@@ -284,7 +302,7 @@ static func _make_participant(
 	id: int,
 	display_name: String,
 	camp: Faction,
-	kind: Participant.Kind = Participant.Kind.LOCAL_HUMAN,
+	kind: Participant.Kind = Participant.Kind.HUMAN,
 	peer_id: int = 0
 ) -> Participant:
 	var p := Participant.new()

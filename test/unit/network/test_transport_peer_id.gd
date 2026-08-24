@@ -10,7 +10,7 @@ func test_the_base_seam_answers_offline() -> void:
 	autofree(t)
 	assert_eq(t.local_peer_id(), 0,
 			"offline, this machine is peer 0 — the same value a lobby-authored "
-			+ "LOCAL_HUMAN carries, so an offline run stays a couch")
+			+ "offline seat carries, so an offline run stays a couch")
 	assert_false(t.is_linked())
 
 

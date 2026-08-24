@@ -22,8 +22,8 @@ func _make_participant(id: int, kind: Participant.Kind, camp: Faction) -> Partic
 
 func test_two_local_humans_on_one_camp_are_allied_and_human_controlled() -> void:
 	var roster := ParticipantRoster.new()
-	var p1 := _make_participant(1, Participant.Kind.LOCAL_HUMAN, _CAMP_1)
-	var p2 := _make_participant(2, Participant.Kind.LOCAL_HUMAN, _CAMP_1)
+	var p1 := _make_participant(1, Participant.Kind.HUMAN, _CAMP_1)
+	var p2 := _make_participant(2, Participant.Kind.HUMAN, _CAMP_1)
 	roster.add(p1)
 	roster.add(p2)
 
@@ -47,7 +47,7 @@ func test_four_participants_on_four_camps_are_mutually_hostile() -> void:
 	var camps := [_CAMP_1, _CAMP_2, _CAMP_3, _CAMP_4]
 	var entities_by_id := {}
 	for i in 4:
-		var participant := _make_participant(i, Participant.Kind.LOCAL_HUMAN, camps[i])
+		var participant := _make_participant(i, Participant.Kind.HUMAN, camps[i])
 		roster.add(participant)
 		entities_by_id[i] = autofree(Entity.new()) as Entity
 
@@ -79,7 +79,7 @@ func test_ai_participant_is_not_human_controlled() -> void:
 
 func test_remote_human_is_human_controlled() -> void:
 	var roster := ParticipantRoster.new()
-	var remote := _make_participant(1, Participant.Kind.REMOTE_HUMAN, _CAMP_3)
+	var remote := _make_participant(1, Participant.Kind.HUMAN, _CAMP_3)
 	roster.add(remote)
 	var ent: Entity = autofree(Entity.new())
 	var entities_by_id := {1: ent}
@@ -91,7 +91,7 @@ func test_remote_human_is_human_controlled() -> void:
 
 func test_participant_with_no_matching_entity_is_skipped() -> void:
 	var roster := ParticipantRoster.new()
-	roster.add(_make_participant(1, Participant.Kind.LOCAL_HUMAN, _CAMP_1))
+	roster.add(_make_participant(1, Participant.Kind.HUMAN, _CAMP_1))
 
 	# No entity for id 1 — must not error, and must not touch other entries.
 	var untouched: Entity = autofree(Entity.new())
@@ -103,7 +103,7 @@ func test_participant_with_no_matching_entity_is_skipped() -> void:
 
 func test_participant_with_no_camp_leaves_entity_untouched() -> void:
 	var roster := ParticipantRoster.new()
-	roster.add(_make_participant(1, Participant.Kind.LOCAL_HUMAN, null))
+	roster.add(_make_participant(1, Participant.Kind.HUMAN, null))
 	var ent: Entity = autofree(Entity.new())
 	var default_faction := ent.faction
 

@@ -152,10 +152,10 @@ func test_start_opens_the_roster_from_the_config() -> void:
 	var cfg := _config(7)
 	var p1 := Participant.new()
 	p1.id = 1
-	p1.kind = Participant.Kind.LOCAL_HUMAN
+	p1.kind = Participant.Kind.HUMAN
 	var p2 := Participant.new()
 	p2.id = 2
-	p2.kind = Participant.Kind.REMOTE_HUMAN
+	p2.kind = Participant.Kind.HUMAN
 	p2.peer_id = 4711
 	cfg.participants = [p1, p2]
 
