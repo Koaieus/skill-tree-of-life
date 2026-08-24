@@ -11,12 +11,24 @@ extends Control
 ## Holds a rect in MINIMAP-LOCAL space, not a camera — [MinimapPanel] owns the
 ## world mapping and the polling, so this layer has nothing to keep in sync.
 ##
-## [b]The stroke is snapped to the pixel grid[/b] ([method _snap]) — without it
-## individual SIDES of the box drop out as the camera moves. A hairline stroke
-## is CENTRED on its path, so a path at an integer coordinate covers half of
-## each neighbouring pixel column; at this alpha two half-covered columns read
-## as nothing at all, and which of the four sides it happens to hit changes
-## every time the camera moves a fraction of a world unit.
+## [b]The box is four FILLED spans, not a stroked rect[/b] — otherwise
+## individual sides drop out as the camera moves. Two compounding reasons, and
+## only the second one actually settles it:
+##
+##  1. A hairline stroke is CENTRED on its path, so a path on a pixel boundary
+##     covers half of each neighbouring column and at this alpha reads as
+##     nothing. [method _snap] handles that much.
+##  2. But snapping to whole LOCAL pixels buys nothing on its own, because
+##     `project.godot` sets `stretch/mode = "canvas_items"` against a 1440x960
+##     base: on any other window size the entire HUD is scaled by a non-integer
+##     factor, so one local pixel is not one device pixel and a snapped path
+##     still lands wherever it lands. That is why the flicker survived the
+##     first fix.
+##
+## A filled span always covers area — it can dim under an awkward scale, but it
+## cannot vanish the way a zero-area path can. [method _device_pixel_width]
+## then keeps each span at least one DEVICE pixel thick by reading the actual
+## canvas scale, so the box stays visible at any window size.
 
 @export var outline_color: Color = Color(1.0, 1.0, 1.0, 0.85)
 @export var outline_width: float = 1.0
@@ -45,18 +57,46 @@ func set_view_rect(rect: Rect2) -> void:
 	queue_redraw()
 
 
-## Land a 1px stroke on whole pixels: round the box to integers, then inset it
-## by half a pixel on every side so each edge's CENTRE-LINE sits at `k + 0.5`
-## and covers exactly the one pixel row/column it is meant to.
+## Round the box to whole local pixels. Crisp when the canvas scale happens to
+## be 1, harmless when it is not — and load-bearing either way as the input to
+## the equality check in [method set_view_rect], which is what makes sub-pixel
+## camera drift free.
 ##
-## A degenerate box (the camera showing less than ~2px of minimap, i.e. zoomed
-## right in) would invert under the inset, so the size floors at zero — a
-## cross-hair rather than a box turned inside out.
+## Note it no longer INSETS by half a stroke: the sides are filled spans drawn
+## inward from these bounds ([method _edge_rects]), not a centre-line.
 func _snap(rect: Rect2) -> Rect2:
-	var half := outline_width * 0.5
-	var origin := rect.position.round() + Vector2(half, half)
-	var size := rect.size.round() - Vector2(outline_width, outline_width)
-	return Rect2(origin, Vector2(maxf(size.x, 0.0), maxf(size.y, 0.0)))
+	return Rect2(rect.position.round(), rect.size.round().maxf(0.0))
+
+
+## The stroke width in LOCAL units that renders at least one device pixel
+## thick, given whatever non-integer factor `canvas_items` stretch is currently
+## applying to the HUD. Falls back to the authored width when the transform is
+## degenerate (a layer not yet in a viewport, e.g. a unit test).
+func _device_pixel_width() -> float:
+	var canvas_scale := get_global_transform_with_canvas().get_scale()
+	var factor := minf(absf(canvas_scale.x), absf(canvas_scale.y))
+	if factor <= 0.0 or not is_finite(factor):
+		return outline_width
+	return maxf(outline_width, 1.0 / factor)
+
+
+## The box as four filled spans — top and bottom run the full width, the sides
+## fill only what is left between them so the corners are not drawn twice (at
+## this alpha a double-drawn corner is visibly brighter).
+##
+## Pure and static so the geometry is unit-testable without a viewport, a
+## camera or a canvas scale.
+static func _edge_rects(rect: Rect2, width: float) -> Array[Rect2]:
+	var w := minf(width, minf(rect.size.x, rect.size.y) * 0.5)
+	if w <= 0.0:
+		return []
+	var inner_height := maxf(rect.size.y - w * 2.0, 0.0)
+	return [
+		Rect2(rect.position.x, rect.position.y, rect.size.x, w),
+		Rect2(rect.position.x, rect.end.y - w, rect.size.x, w),
+		Rect2(rect.position.x, rect.position.y + w, w, inner_height),
+		Rect2(rect.end.x - w, rect.position.y + w, w, inner_height),
+	]
 
 
 ## Take the outline down — no camera bound, or a level with none at all.
@@ -71,4 +111,5 @@ func _draw() -> void:
 	draw_count += 1
 	if not _has_rect:
 		return
-	draw_rect(_rect, outline_color, false, outline_width)
+	for edge in _edge_rects(_rect, _device_pixel_width()):
+		draw_rect(edge, outline_color)

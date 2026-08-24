@@ -127,42 +127,59 @@ func test_an_unchanged_camera_does_not_redraw_the_outline() -> void:
 	assert_gt(layer.draw_count, before, "but a moved rect must")
 
 
-func test_the_outline_lands_on_whole_pixels() -> void:
-	# A 1px stroke is CENTRED on its path, so an edge at an integer coordinate
-	# covers half of each neighbouring pixel column and reads as gone. Every
-	# edge must end up at `k + 0.5`.
-	var layer := MinimapViewportRectLayer.new()
-	add_child_autofree(layer)
-	for raw in [Rect2(10.0, 20.0, 40.0, 30.0), Rect2(10.4, 19.6, 40.2, 29.7)]:
-		layer.set_view_rect(raw)
-		var r: Rect2 = layer._rect
-		for edge in [r.position.x, r.position.y, r.end.x, r.end.y]:
-			assert_almost_eq(fposmod(edge, 1.0), 0.5, 0.001,
-					"edge %s of %s is off the pixel grid" % [edge, raw])
+func test_the_outline_draws_all_four_sides_as_filled_spans() -> void:
+	# The bug this replaces: a CENTRED hairline stroke rasterises to nothing at
+	# some coordinates, and snapping to whole LOCAL pixels does not save it
+	# because `canvas_items` stretch scales the whole HUD by a non-integer
+	# factor. Filled spans always cover area.
+	var edges: Array[Rect2] = MinimapViewportRectLayer._edge_rects(
+			Rect2(10.0, 20.0, 40.0, 30.0), 1.0)
+	assert_eq(edges.size(), 4, "all four sides present")
+	for edge in edges:
+		assert_gt(edge.size.x, 0.0, "side %s has width" % edge)
+		assert_gt(edge.size.y, 0.0, "side %s has height" % edge)
 
 
-func test_subpixel_camera_drift_costs_no_redraw() -> void:
+func test_the_outline_sides_stay_inside_the_box_and_do_not_overlap() -> void:
+	var box := Rect2(10.0, 20.0, 40.0, 30.0)
+	var edges: Array[Rect2] = MinimapViewportRectLayer._edge_rects(box, 1.0)
+	for edge in edges:
+		assert_true(box.encloses(edge), "side %s escapes the box" % edge)
+	# Top and bottom run the full width; the sides fill only between them, so
+	# no corner is drawn twice (a double-drawn corner reads visibly brighter).
+	assert_false(edges[0].intersects(edges[2]), "top and left overlap")
+	assert_false(edges[1].intersects(edges[3]), "bottom and right overlap")
+
+
+func test_a_thin_box_still_draws_rather_than_collapsing() -> void:
+	# Zoomed far in, the view can be narrower than the stroke. The width caps
+	# at half the shorter axis instead of producing inverted spans.
+	var edges: Array[Rect2] = MinimapViewportRectLayer._edge_rects(
+			Rect2(0.0, 0.0, 3.0, 1.0), 1.0)
+	assert_eq(edges.size(), 4, "still four sides")
+	for edge in edges:
+		assert_gte(edge.size.x, 0.0, "no negative width")
+		assert_gte(edge.size.y, 0.0, "no negative height")
+
+
+func test_the_snapped_box_lands_on_whole_local_pixels() -> void:
 	var layer := MinimapViewportRectLayer.new()
 	add_child_autofree(layer)
-	layer.set_view_rect(Rect2(10.0, 20.0, 40.0, 30.0))
-	await get_tree().process_frame
-	await get_tree().process_frame
-	var before: int = layer.draw_count
-	# Snapping is applied BEFORE the equality check, so a camera that moved a
-	# fraction of a world unit lands on the same box and redraws nothing.
-	layer.set_view_rect(Rect2(10.1, 20.2, 40.1, 29.9))
-	await get_tree().process_frame
-	assert_eq(layer.draw_count, before, "sub-pixel drift must not redraw")
+	layer.set_view_rect(Rect2(10.4, 19.6, 40.2, 29.7))
+	var r: Rect2 = layer._rect
+	for value in [r.position.x, r.position.y, r.size.x, r.size.y]:
+		assert_almost_eq(fposmod(value, 1.0), 0.0, 0.001,
+				"%s is not a whole pixel" % value)
 
 
 func test_a_degenerate_box_does_not_invert() -> void:
-	# Zoomed far enough in, the view covers less than the stroke is wide. The
-	# inset must floor at zero rather than turn the box inside out.
 	var layer := MinimapViewportRectLayer.new()
 	add_child_autofree(layer)
 	layer.set_view_rect(Rect2(10.0, 20.0, 0.0, 0.0))
 	assert_gte(layer._rect.size.x, 0.0, "no negative width")
 	assert_gte(layer._rect.size.y, 0.0, "no negative height")
+	assert_eq(MinimapViewportRectLayer._edge_rects(layer._rect, 1.0), [] as Array[Rect2],
+			"a zero-area box draws nothing rather than inverted spans")
 
 
 # ------------------------------------------------------------- geometry ---
