@@ -43,6 +43,10 @@ signal focus_changed(id: StringName)
 ## with a snappier curve rather than a duration of its own.
 @export_range(0.0, 3.0, 0.01) var travel_duration: float = 0.85
 
+## Screen-space offset of the hover tooltip from the node it describes — up and
+## to the right, so it never sits under the cursor that summoned it.
+@export var _tooltip_offset: Vector2 = Vector2(28.0, -18.0)
+
 ## Skip every transition — jump straight to `set_progress(1.0)`.
 ##
 ## [method build] overwrites this from [member GameSettings.reduce_motion], so
@@ -65,10 +69,15 @@ var _progress: float = 1.0
 var _routed_panel: StringName = &""
 var _settled: bool = false
 var _transition: Tween = null
+var _tooltip: MenuTooltip = null
+
+const TOOLTIP_SCENE := preload("res://ui/frontmatter/menu_tooltip.tscn")
 
 @onready var _camera_2d: Camera2D = %Camera
 @onready var _graph_layer: Node2D = %GraphLayer
 @onready var _panel_layer: CanvasLayer = %PanelLayer
+@onready var _hover_preview: HoverPreview = %HoverPreview
+@onready var _back_affordance: BackAffordance = %BackAffordance
 
 
 func _ready() -> void:
@@ -86,6 +95,7 @@ func build(menu_tree: MenuGraph = null) -> void:
 	_build_edges()
 	camera = FrontmatterCamera.new(_camera_2d, tree)
 	_connect_panels()
+	_bind_affordances()
 	focus(tree.root, true)
 
 
@@ -106,6 +116,8 @@ func focus(id: StringName, instant: bool = false) -> void:
 	focus_id = id
 	_routed_panel = &""
 	_settled = false
+	set_hovered(&"")
+	_back_affordance.apply(focus_id, true)
 	_sync_allocation()
 	_capture_transition()
 	camera.travel_to(id)
@@ -177,6 +189,83 @@ func navigation_state() -> Dictionary:
 ## The view for a menu id, for #571/#574/#576 to reach without walking children.
 func view_for(id: StringName) -> MenuNodeView:
 	return _views.get(id) as MenuNodeView
+
+
+## The edge view running from [param id]'s PARENT down to it — edges are keyed
+## by their child end, since every node has exactly one incoming edge and the
+## root has none. Public for the same reason as [method view_for].
+func edge_for(id: StringName) -> MenuEdgeView:
+	return _edges.get(id) as MenuEdgeView
+
+
+## Points the hover affordances at [param id], or clears them with `&""`.
+##
+## [b]Nothing calls this yet in play, and that is a known gap, not an
+## oversight.[/b] [MenuNodeView] has no pickable region — no [Area2D], no
+## [Control] hit area, and its title [Label] is `MOUSE_FILTER_IGNORE` — so no
+## menu node can currently report a hover. #571 and #575 are complete and
+## tested against a driven id; whoever gives menu nodes a pick region calls
+## this and both light up with no further wiring. See #583.
+func set_hovered(id: StringName) -> void:
+	_hover_preview.apply(focus_id, id)
+	# `bind` owns its own visibility — it hides itself on a null item or on one
+	# with nothing to say (#575's content-driven rule, which is why the ROOT
+	# shows no tooltip). Do not second-guess it here.
+	_tooltip.bind(tree.get_item(id) if tree.has(id) else null)
+	if _tooltip.visible:
+		_place_tooltip(id)
+
+
+## Parks the tooltip beside its node, in SCREEN space.
+##
+## It lives in the `CanvasLayer` rather than beside the view in graph space for
+## the reason `.claude/rules/modal-system.md` and #573 both give about panels:
+## a canvas the camera transforms pans and *zooms* its text, and zoomed text is
+## the "why is this blurry and drifting" bug. The conversion is the engine's own
+## `get_viewport_transform()`, never hand-rolled camera math.
+func _place_tooltip(id: StringName) -> void:
+	var view := view_for(id)
+	if view == null:
+		return
+	var screen_pos := get_viewport_transform() * view.global_position
+	_tooltip.position = screen_pos + _tooltip_offset
+
+
+## Hands each affordance the tree and the lookups it needs, once per build.
+## They take [Callable]s rather than a reference to this node so that none of
+## them can steer the navigation they decorate — [signal
+## BackAffordance.back_requested] going to [method back] is the only edge the
+## other way.
+func _bind_affordances() -> void:
+	_ensure_tooltip()
+	_hover_preview.bind(tree, view_for, edge_for)
+	_back_affordance.bind(tree)
+	if not _back_affordance.back_requested.is_connected(_on_back_requested):
+		_back_affordance.back_requested.connect(_on_back_requested)
+
+
+func _on_back_requested() -> void:
+	back()
+
+
+## Mints the tooltip in CODE rather than instancing it in `frontmatter_root.tscn`.
+##
+## [b]This is a deliberate exception to `.claude/rules/scene-composition.md`, not
+## an oversight.[/b] `menu_tooltip.tscn` instances `slab_panel.tscn`, which
+## reaches its own children through `%Label`. A `%` name is registered against
+## the node's `owner`, and instancing a scene that already instances another
+## re-owns that third level to the OUTER scene root — so `%Label` stops
+## resolving and `slab_panel.gd`'s `@onready` fails at
+## `Node not found: "%Label"`. Two levels of nesting are fine, which is why
+## `menu_tooltip.tscn` works standalone and its own tests pass; the third level
+## is what breaks. An instance added from code has no `owner`, so its unique
+## names resolve inside itself and the chain holds.
+func _ensure_tooltip() -> void:
+	if _tooltip != null and is_instance_valid(_tooltip):
+		return
+	_tooltip = TOOLTIP_SCENE.instantiate()
+	_tooltip.visible = false
+	_panel_layer.add_child(_tooltip)
 
 
 ## Ids on the path from the root to the current focus, root first.

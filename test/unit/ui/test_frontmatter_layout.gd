@@ -329,9 +329,17 @@ func test_the_frontmatter_skeleton_is_two_layers_the_camera_and_nothing_else() -
 	# "why is the lobby text blurry and drifting" bug (#567).
 	var panel_layer := root.get_node("%PanelLayer")
 	assert_true(panel_layer is CanvasLayer)
-	assert_eq(panel_layer.get_child_count(), 1)
 	assert_true(panel_layer.get_child(0) is FrontmatterPanels,
 			"the panel container is instanced here so #573 never edits this scene")
+	# Exactly one container, not exactly one child: #575's tooltip is minted at
+	# build and parented here too (it needs the same immunity to the camera that
+	# the panels need). What must stay true is that the AUTHORED child is the
+	# container, and that nothing has quietly grown a second one.
+	var containers := 0
+	for child in panel_layer.get_children():
+		if child is FrontmatterPanels:
+			containers += 1
+	assert_eq(containers, 1, "one panel container, authored in this scene")
 
 
 func test_the_panel_seam_answers_for_every_leaf_panel_this_tree_names() -> void:

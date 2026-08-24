@@ -8,7 +8,15 @@ extends ColorRect
 ## pattern, scaled down for a 22px-tall reading row.
 
 
-@onready var label: Label = %Label
+## The row's text, when a consumer supplies one.
+##
+## [b]`%Label` lives in the CONSUMER's scene, not in `slab_panel.tscn`[/b] —
+## `mod_slab_row.tscn` declares it as a sibling under its own margin. So this is
+## `get_node_or_null`, not `%Label`: a scene is free to instance this panel as a
+## pure tinted background and never declare one (`ui/frontmatter/menu_tooltip.tscn`
+## does exactly that), and a hard `%Label` made that a load-time error the
+## consumer had no way to see coming.
+@onready var label: Label = get_node_or_null(^"%Label") as Label
 
 
 @export var tint_color: Color = Color(0.4, 0.95, 1.0):
