@@ -72,9 +72,6 @@ const _GROUP := &"fan_unit"
 ## for a sub-pixel gain.
 const _PIN_SETTLE_EPSILON := 0.0005
 
-## Per-unit latch for [method _report_unsatisfiable] — see there for why it
-## lives on the unit rather than in a driver-side map.
-const _UNSATISFIABLE_META := &"fan_arrival_unsatisfiable"
 
 ## Dev tooling (#309): from the fan scene open in the 2D editor, jump back to
 ## the sandbox host's "Tooltip Fan" tab. The tab's panel carries the outbound
@@ -98,6 +95,10 @@ func _jump_to_sandbox() -> void:
 ## length then changes as a consequence of the origin moving, not as a rule of
 ## its own.
 var node_radius := 0.0
+
+## Which units are currently in unsatisfiable-arrival geometry, by instance id —
+## the latch that makes [method _report_unsatisfiable] warn on ENTRY only.
+var _unsatisfiable: Dictionary[int, bool] = {}
 
 
 func _ready() -> void:
@@ -251,15 +252,21 @@ func _reroute(unit: Node) -> void:
 ## long as a panel sat in the bad geometry (a dragged bench panel, in practice)
 ## — the fact is an AUTHORING signal, and one line per entry is all of it.
 ##
-## The flag is per-unit [method Node.set_meta] rather than a driver-side map so
-## it cannot outlive the unit it describes.
+## The latch is a plain script var, NOT [method Node.set_meta] on the unit: this
+## driver is `@tool`, node metadata serializes, and the fan scene is authored in
+## the 2D editor — a meta latch would stamp itself into `fan.tscn` on save. A
+## driver-side map has no lifetime problem either way, since the driver dies with
+## the units it keys.
 func _report_unsatisfiable(unit: Node, route: Dictionary) -> void:
 	var bad: bool = route.get("unsatisfiable", false)
-	if bad == unit.get_meta(_UNSATISFIABLE_META, false):
+	var key := unit.get_instance_id()
+	if bad == _unsatisfiable.get(key, false):
 		return
-	unit.set_meta(_UNSATISFIABLE_META, bad)
 	if bad:
+		_unsatisfiable[key] = true
 		push_warning("FanAnchor [%s]: %s" % [unit.name, route.get("reason", "")])
+	else:
+		_unsatisfiable.erase(key)
 
 
 ## The PARTICIPATING units in ANGULAR order around the node — the order clock
