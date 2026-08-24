@@ -61,6 +61,26 @@ A lambda's `Callable.get_object()` is the **GDScript**, not the node, and
 matches, failing as a silent no-op. Record the Callable when you connect:
 `BindScope` (`ui/bind_scope.gd`) is the one such bookkeeper; don't add a second.
 
+## A hairline in `_draw` must snap to the VIEWPORT's screen grid
+
+Godot's 2D canvas does not antialias filled geometry — a pixel is covered iff its
+**centre** is inside the span — so a 1px line landing between two centres draws
+nothing. Snapping to whole pixels only helps on the *screen* grid, and under
+`canvas_items` stretch (1440x960 base) a differently-sized window rescales the
+canvas on the way out. Measured 2026-08-24 in a 1440x932 window:
+
+```
+layer.get_global_transform_with_canvas() -> (1.000000, 1.000000)
+layer.get_screen_transform()             -> (1.000000, 1.000000)  # despite the name
+get_viewport().get_screen_transform()    -> (0.970833, 0.970833)  # the only real one
+```
+
+**How to apply:** compose by hand — `get_viewport().get_screen_transform() *
+get_global_transform_with_canvas()` — `round()` the rect in that space, draw
+filled spans, transform back. Worked example: `MinimapViewportRectLayer`.
+**Symptom:** a 1px edge vanishing at certain coordinates on one axis only, that
+a window resize or refocus makes come and go.
+
 ## `@tool` (on `SkillNode`, `Entity`, `Graph`, most of `procgen/` + `ui/`)
 
 - **What the ENGINE loads from a `.tscn`/`.tres` becomes a placeholder instance**
