@@ -45,4 +45,21 @@ after assigning them, or they run with null deps and silently no-op. Group
 membership in `_enter_tree` is fine. Systems wired purely off autoloads can keep
 their hookup in `_ready`.
 
+## A free-floating Control + an autowrap Label sizes itself to the viewport
+
+An autowrap `Label` measures its height by wrapping at its **current** width, so
+the first layout (width 0) wraps one word per line; and a Control outside a
+Container never *shrinks* when its minimum drops, so that height is permanent.
+`SpellTooltip` sat at 4762px until it was made to fit itself.
+
+**How to apply:** a floating panel (tooltip, popup card) that autowraps must fit
+itself — `size = Vector2(width, 0.0)` on every populate and per frame while
+visible (`set_size()` clamps up against the combined minimum; it converges in ~2
+frames). Fit while **visible** — a hidden Control skips layout, so its Labels
+never re-shape and the fit never converges; fade in from `modulate.a = 0` rather
+than staying hidden. Worked example: `ui/spell_tooltip/`.
+
+`remove_theme_*_override()` also drops the **scene-authored** override, not just
+your runtime one — re-assert the captured value instead.
+
 Full set of Godot authoring gotchas: **`docs/domain/godot-workflow.md`**.
