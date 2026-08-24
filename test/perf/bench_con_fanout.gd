@@ -1,0 +1,362 @@
+extends GutTest
+
+## [b]#470 investigation[/b] — is the CON allocation cost a linear fan-out, and
+## where inside it do the ~30us/node actually go?
+##
+## Companion to `bench_alloc_cost_attribution.gd`, which established WHICH
+## allocations are expensive (the CON-granting ones) but not that the
+## `node_health` fan-out is the [i]cause[/i], and not what the per-node cost is
+## made of. Three probes here:
+##
+## 1. [b]Ablation.[/b] Re-run the same ramp with the entity `node_health` ->
+##    per-node `_sync_combat_health_base` binding severed before each timed
+##    allocation. If the expensive tail collapses, the fan-out is causal.
+## 2. [b]Within-run regression.[/b] Bucket the CON-granting allocations by
+##    `owned_before` and report usec/owned. Flat -> linear; rising -> quadratic.
+##    A max at 200 vs a max at 300 is one noisy order statistic; this is not.
+## 3. [b]Decomposition.[/b] At a fully built territory, time one entity
+##    `node_health` move under four conditions to split signal dispatch from
+##    `_ensure_local_stat` from the pipeline read.
+##
+## Run: [code]mise run test:one -- res://test/perf/bench_con_fanout.gd[/code]
+## `test/perf/` is outside `.gutconfig` and the `bench_` prefix keeps GUT's
+## `test_*.gd` collection from finding it.
+##
+## [b]Blind spot, deliberately not fixed:[/b] no `HudRoot` is attached, so the
+## per-node listeners a real level carries are not paid for here (the node pool
+## carries exactly 1 `value_changed` listener in this harness). Every number
+## below is a floor for in-game cost, not the in-game cost. A `VisionSystem` IS
+## attached, matching the sibling bench — measured to make no difference, which
+## is itself a result: vision is not on this path.
+##
+## [b]Findings, 2026-08-24[/b] (RX 7900 XTX, 2000-node `first_level`, 300 owned;
+## every figure reproduced within 2% across three runs):
+##
+## 1. [b]The fan-out is causal, not correlated.[/b] Severing the binding drops
+##    CON-granting allocations from mean 1889us / max 3385us to mean 691us /
+##    max 873us — statistically indistinguishable from the non-CON population
+##    (mean 653us / max 1129us). Nothing else about a CON node is expensive.
+## 2. [b]Linear, not quadratic.[/b] Subtracting the ablated baseline per bucket,
+##    the fan-out costs a flat [b]~8.2us per owned node[/b] from owned=75 out to
+##    owned=300 (14.2 / 8.1 / 8.2 / 8.6 / 8.2 / 8.1 across the buckets; the
+##    first is n=16 at low owned, where fixed cost dominates). So 300 owned is
+##    ~3.0ms, not the ~13ms a quadratic would predict. This independently
+##    agrees with the 8.5us/node the decomposition measures directly.
+## 3. [b]Signal dispatch is NOT the overhead.[/b] The entity-side write with no
+##    listeners costs 1us; `(a) - (b) - (c)` leaves 13-37us out of ~1700. The
+##    cost is entirely inside the per-node callback body.
+## 4. [b]The entity/node bin weave is not on this path at all.[/b]
+##    `SkillNode.get_local_value` / `ModifierBins.compute`-over-two-sources
+##    never runs here; each `Stat.get_value()` folds only its own bins — and
+##    still costs ~1.2us for ~5 flops, partly because it allocates a fresh
+##    `Array[ModifierBins]` literal (`[bins]`) on every call.
+## 5. [b]About a third of the cost is a state mutation, not a recompute.[/b]
+##    `node_combat_health` opts into `heal_on_max_increase`, so every cap rise
+##    runs `on_max_increased` -> `set_current` (~3.0us/node). That is required
+##    D-31 behaviour, and a read-side cache cannot defer it without changing
+##    when `current` moves. Per-node accounting of the 8.5us:
+##
+##      entity node_health.get_value()   ~1.2us  14%   identical for all N
+##      _ensure_local_stat                0.8us  10%
+##      2x node pool get_value()         ~2.4us  28%   inside set_base_ratcheted
+##      base_value write + emit           0.3us   4%
+##      on_max_increased -> set_current  ~3.0us  35%   irreducible while eager
+##      call/branch overhead             ~0.8us   9%
+
+const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+const _ENTITY_SCENE := preload("res://entity/entity.tscn")
+const _PRESET := preload("res://procgen/presets/first_level/first_level.tres")
+const _CORE_CLASS := preload("res://entity/core/balanced_core.tres")
+const _POLICY := preload("res://procgen/placement/greedy_bfs_ball.tres")
+
+const _NODE_COUNT := 2000
+const _SEED := 0x57A17EE
+
+var _graph: Graph
+var _alloc: AllocationSystem
+var _vision: VisionSystem
+var _entity: Entity
+var _core: SkillNode
+
+
+func test_con_fanout() -> void:
+	# --- Probe 1 + 2: the ramp, live and ablated, out to 300 owned ----------
+	var live := await _ramp(300, false)
+	_report_ramp("LIVE (unmodified)", live)
+	var ablated := await _ramp(300, true)
+	_report_ramp("ABLATED (node_health fan-out severed)", ablated)
+
+	# --- Probe 3: decompose one fan-out at a built territory ----------------
+	await _decompose(200)
+
+	assert_gt(live.size(), 0, "probe must have measured something")
+
+
+## Build a territory to [param target] owned nodes, timing every
+## `force_allocate`. With [param ablate], every existing owned node is
+## disconnected from the owner's `node_health` stat immediately before each
+## timed call, so the allocation pays for its own binding and nothing else.
+## Returns rows of `[owned_before, usec, grants_con, stat_ids]`.
+func _ramp(target: int, ablate: bool) -> Array:
+	await _build_world()
+	var policy: AllocationPolicy = _POLICY.duplicate(true)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _SEED ^ 0x8EEDED
+	policy.rng = rng
+
+	var rows: Array = []
+	while _owned() < target:
+		var frontier := _frontier()
+		if frontier.is_empty():
+			break
+		var pick: SkillNode = policy.pick_next(_entity, frontier, null)
+		if pick == null:
+			break
+		var owned_before := _owned()
+		var ids: Array[String] = []
+		for m in StatModifier.flatten_all(pick.modifiers):
+			ids.append(str(m.stat_id))
+		var joined := ", ".join(ids)
+		var grants_con := joined.contains("constitution") or joined.contains("node_health")
+		if ablate:
+			_sever_fanout()
+		var t := Time.get_ticks_usec()
+		_alloc.force_allocate(_entity, pick)
+		var usec := Time.get_ticks_usec() - t
+		rows.append([owned_before, usec, grants_con, joined])
+	return rows
+
+
+func _report_ramp(label: String, rows: Array) -> void:
+	var con_rows: Array = []
+	var plain_rows: Array = []
+	for r in rows:
+		if r[2]:
+			con_rows.append(r)
+		else:
+			plain_rows.append(r)
+	gut.p("")
+	gut.p("=== %s — n=%d ===" % [label, rows.size()])
+	gut.p("  CON-granting : n=%3d  mean=%6.0fus  max=%6dus" % [
+		con_rows.size(), _mean(con_rows, 1), _max(con_rows, 1)])
+	gut.p("  everything else: n=%3d  mean=%6.0fus  max=%6dus" % [
+		plain_rows.size(), _mean(plain_rows, 1), _max(plain_rows, 1)])
+
+	# The linear-vs-quadratic discriminator: usec/owned across the ramp.
+	gut.p("  CON-granting allocations bucketed by owned count:")
+	gut.p("    owned    | n  | mean us | us per owned node")
+	gut.p("    ---------+----+---------+------------------")
+	for lo in [0, 50, 100, 150, 200, 250]:
+		var bucket: Array = []
+		for r in con_rows:
+			if r[0] >= lo and r[0] < lo + 50:
+				bucket.append(r)
+		if bucket.is_empty():
+			continue
+		var mean_us := _mean(bucket, 1)
+		var mean_owned := _mean(bucket, 0)
+		gut.p("    %3d-%3d  | %2d | %7.0f | %.2f" % [
+			lo, lo + 49, bucket.size(), mean_us,
+			mean_us / maxf(mean_owned, 1.0)])
+
+
+## Time one entity-side `node_health` change against a built territory, under
+## four conditions, to split the ~30us/node into its parts.
+func _decompose(target: int) -> void:
+	await _build_world()
+	var policy: AllocationPolicy = _POLICY.duplicate(true)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _SEED ^ 0x8EEDED
+	policy.rng = rng
+	while _owned() < target:
+		var frontier := _frontier()
+		if frontier.is_empty():
+			break
+		var pick: SkillNode = policy.pick_next(_entity, frontier, null)
+		if pick == null:
+			break
+		_alloc.force_allocate(_entity, pick)
+
+	var owned: Array = _entity.navigator.get_mirrored_nodes()
+	var nh: Stat = _entity.stat_board.get_stat(&"node_health")
+	gut.p("")
+	gut.p("=== DECOMPOSITION at %d owned nodes ===" % owned.size())
+	if nh == null:
+		gut.p("  entity carries no node_health stat — nothing to decompose")
+		return
+
+	# (a) The whole thing: one baseline move, full signal fan-out.
+	var t := Time.get_ticks_usec()
+	nh.base_value += 1.0
+	var full := Time.get_ticks_usec() - t
+
+	# (b) Same write with the fan-out severed — the cost of the entity-side
+	#     stat write alone, with no listeners.
+	_sever_fanout()
+	t = Time.get_ticks_usec()
+	nh.base_value += 1.0
+	var bare := Time.get_ticks_usec() - t
+
+	# (c) The per-node callback, called directly in a loop (listeners are gone,
+	#     so this is the same work the dispatch would have done).
+	t = Time.get_ticks_usec()
+	for n in owned:
+		n._sync_combat_health_base()
+	var direct := Time.get_ticks_usec() - t
+
+	# (d) Just the two pipeline reads inside it — `set_base_ratcheted` calls
+	#     get_value() before and after — with no _ensure_local_stat, no setter.
+	var pools: Array = []
+	for n in owned:
+		pools.append(n.node_board.get_stat(&"node_health"))
+	t = Time.get_ticks_usec()
+	for p in pools:
+		if p != null:
+			@warning_ignore("unused_variable")
+			var v: float = float(p.get_value()) + float(p.get_value())
+	var reads := Time.get_ticks_usec() - t
+
+	# (e) `_ensure_local_stat` alone — the dictionary/mint path per node.
+	t = Time.get_ticks_usec()
+	for n in owned:
+		n._ensure_local_stat(&"node_health")
+	var ensure := Time.get_ticks_usec() - t
+
+	var per := func(us: int) -> float: return float(us) / maxf(owned.size(), 1.0)
+	gut.p("  (a) full baseline move, live fan-out : %6dus  (%.1fus/node)" % [full, per.call(full)])
+	gut.p("  (b) same write, no listeners         : %6dus" % bare)
+	gut.p("  (c) per-node callback, direct loop   : %6dus  (%.1fus/node)" % [direct, per.call(direct)])
+	gut.p("  (d) 2x pool get_value() only         : %6dus  (%.1fus/node)" % [reads, per.call(reads)])
+	gut.p("  (e) _ensure_local_stat only          : %6dus  (%.1fus/node)" % [ensure, per.call(ensure)])
+	gut.p("  signal dispatch overhead (a - b - c) : %6dus" % (full - bare - direct))
+
+	# --- Probe 4: split the per-node callback itself --------------------------
+	# `set_base_ratcheted` = one get_value(), a `base_value` write (which emits
+	# `value_changed` on the NODE board, un-batched), then `_apply_max_change`
+	# (another get_value(), then `on_max_increased` -> set_current -> another
+	# emission, since node_combat_health opts into `heal_on_max_increase`).
+	# Which of those three is the 8us?
+	t = Time.get_ticks_usec()
+	for p in pools:
+		if p != null:
+			p.set_base_ratcheted(p.base_value)  # no-op: value unchanged
+	var noop := Time.get_ticks_usec() - t
+
+	t = Time.get_ticks_usec()
+	for p in pools:
+		if p != null:
+			p.base_value = p.base_value + 1.0  # RAW door: setter + emit, no ratchet
+	var raw_write := Time.get_ticks_usec() - t
+
+	t = Time.get_ticks_usec()
+	for p in pools:
+		if p != null:
+			p.set_base_ratcheted(p.base_value + 1.0)  # full ratcheted door
+	var ratcheted := Time.get_ticks_usec() - t
+
+	var listeners := 0
+	if not pools.is_empty() and pools[0] != null:
+		listeners = (pools[0] as Stat).value_changed.get_connections().size()
+	gut.p("")
+	gut.p("  --- inside the per-node callback ---")
+	gut.p("  (f) set_base_ratcheted, value UNCHANGED: %6dus  (%.1fus/node)" % [noop, per.call(noop)])
+	gut.p("  (g) raw `base_value =` write (+ emit)  : %6dus  (%.1fus/node)" % [raw_write, per.call(raw_write)])
+	gut.p("  (h) set_base_ratcheted, value CHANGED  : %6dus  (%.1fus/node)" % [ratcheted, per.call(ratcheted)])
+	gut.p("      => _apply_max_change alone (h - g) : %6dus  (%.1fus/node)" % [ratcheted - raw_write, per.call(ratcheted - raw_write)])
+	gut.p("  node pool value_changed listeners      : %d" % listeners)
+
+
+## Disconnect every listener on the owner's `node_health` stat — the O(owned)
+## edge this issue is about. Newly allocated nodes re-subscribe themselves via
+## `_refresh_hp_binding`, so this must be called before each timed allocation,
+## not once up front.
+func _sever_fanout() -> void:
+	var nh: Stat = _entity.stat_board.get_stat(&"node_health")
+	if nh == null:
+		return
+	for c in nh.value_changed.get_connections():
+		nh.value_changed.disconnect(c["callable"])
+
+
+func _build_world() -> void:
+	_teardown()
+	var cfg: GraphProcgenConfig = _PRESET.duplicate(true)
+	cfg.node_count = _NODE_COUNT
+	cfg.seed = _SEED
+	cfg.n_random_starters = 0
+
+	_graph = _GRAPH_SCENE.instantiate()
+	add_child(_graph)
+	var result: Dictionary = await GraphProcgen.generate(cfg, _graph)
+	var starting_nodes: Array = result.get("starting_nodes", [])
+	assert_false(starting_nodes.is_empty())
+
+	_alloc = AllocationSystem.new()
+	_alloc.graph = _graph
+	add_child(_alloc)
+
+	_entity = _ENTITY_SCENE.instantiate() as Entity
+	_entity.name = "ProbePlayer"
+	_entity.core_class = _CORE_CLASS
+	_graph.entities_container.add_child(_entity)
+	await get_tree().process_frame
+
+	_core = starting_nodes[0]
+	_alloc.force_allocate(_entity, _core)
+	_entity.core_location = _core
+
+	# Present so this harness matches `bench_alloc_cost_attribution.gd`'s —
+	# otherwise the absolute usec are not comparable to the 5.9ms this issue
+	# was filed on.
+	_vision = VisionSystem.new()
+	_vision.graph = _graph
+	_vision.allocation_system = _alloc
+	_vision.viewers = [_entity]
+	add_child(_vision)
+	await get_tree().process_frame
+
+
+func _teardown() -> void:
+	for n in [_vision, _alloc, _graph]:
+		if is_instance_valid(n):
+			n.free()
+	_vision = null
+	_alloc = null
+	_graph = null
+	_entity = null
+	_core = null
+
+
+func _mean(rs: Array, col: int) -> float:
+	if rs.is_empty():
+		return 0.0
+	var s := 0.0
+	for r in rs:
+		s += float(r[col])
+	return s / float(rs.size())
+
+
+func _max(rs: Array, col: int) -> int:
+	var m := 0
+	for r in rs:
+		m = maxi(m, int(r[col]))
+	return m
+
+
+func _owned() -> int:
+	return _entity.navigator.get_mirrored_nodes().size()
+
+
+func _frontier() -> Array[SkillNode]:
+	var frontier: Array[SkillNode] = []
+	var seen: Dictionary[SkillNode, bool] = {}
+	for owned_node in _entity.navigator.get_mirrored_nodes():
+		for neighbour in _graph.get_neighbours(owned_node):
+			if neighbour.owned_by == null and not seen.has(neighbour):
+				seen[neighbour] = true
+				frontier.append(neighbour)
+	return frontier
+
+
+func after_all() -> void:
+	_teardown()
