@@ -1,0 +1,59 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/frontmatter/splash_screen.gd" id="1_splash"]
+
+[node name="Splash" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+script = ExtResource("1_splash")
+
+[node name="Title" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -400.0
+offset_top = 96.0
+offset_right = 400.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_constants/separation = 4
+
+[node name="Eyebrow" type="Label" parent="Title"]
+layout_mode = 2
+theme_type_variation = &"TierLabel"
+text = "A GAME OF"
+horizontal_alignment = 1
+
+[node name="Wordmark" type="Label" parent="Title"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CinzelHeader"
+theme_override_font_sizes/font_size = 64
+text = "SKILL TREE OF LIFE"
+horizontal_alignment = 1
+
+[node name="Prompt" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -300.0
+offset_top = -140.0
+offset_right = 300.0
+offset_bottom = -100.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"TierValue"
+text = "PRESS ANY BUTTON"
+horizontal_alignment = 1

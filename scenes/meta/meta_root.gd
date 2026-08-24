@@ -1,7 +1,7 @@
 extends Control
 
-## Entry point for the meta/menu flow: splash -> the frontmatter skill tree ->
-## a leaf's panel -> START. The only [method SceneDirector.goto] in this flow is
+## Entry point for the meta/menu flow: the attract state -> the frontmatter
+## skill tree -> a leaf's panel -> START. The only [method SceneDirector.goto] in this flow is
 ## the lobby's START, into the actual game level.
 ##
 ## [b]This file is the ROUTING and nothing else.[/b] Since #579 the presentation
@@ -18,20 +18,16 @@ extends Control
 
 const FIRST_LEVEL_SANDBOX := preload("res://scenes/first_level_sandbox.tscn")
 
-@onready var _splash: SplashScreen = %Splash
 @onready var _frontmatter: FrontmatterRoot = %Frontmatter
 
 
+## The frontmatter is visible from the first frame — since #574 the splash is
+## the same picture zoomed in on the root node, not a curtain in front of it, so
+## there is nothing here to show or hide. [SplashScreen] parks the camera and
+## takes itself off screen when it advances; this file only routes.
 func _ready() -> void:
-	_frontmatter.visible = false
-	_splash.advanced.connect(_on_splash_advanced)
 	_bind_panels()
 	_frontmatter.focus_changed.connect(_on_focus_changed)
-
-
-func _on_splash_advanced() -> void:
-	_splash.visible = false
-	_frontmatter.visible = true
 
 
 ## Wires the two panels that produce something this file has to act on. The
