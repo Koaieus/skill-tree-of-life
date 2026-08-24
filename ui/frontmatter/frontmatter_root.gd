@@ -78,6 +78,7 @@ const TOOLTIP_SCENE := preload("res://ui/frontmatter/menu_tooltip.tscn")
 @onready var _panel_layer: CanvasLayer = %PanelLayer
 @onready var _hover_preview: HoverPreview = %HoverPreview
 @onready var _back_affordance: BackAffordance = %BackAffordance
+@onready var _input: FrontmatterInput = %FrontmatterInput
 
 
 func _ready() -> void:
@@ -239,6 +240,13 @@ func _place_tooltip(id: StringName) -> void:
 func _bind_affordances() -> void:
 	_ensure_tooltip()
 	_hover_preview.bind(tree, view_for, edge_for)
+	# Bound from HERE rather than through FrontmatterInput's own
+	# `frontmatter_path` export, even though the export exists and works: a
+	# child's `_ready` runs BEFORE its parent's, so a self-binding input node
+	# seats its cursor — and drives `focus()` — while this node's `@onready`
+	# affordances are still null. Binding at build time is the only ordering in
+	# which the shell is fully assembled first.
+	_input.bind(self)
 	_back_affordance.bind(tree)
 	if not _back_affordance.back_requested.is_connected(_on_back_requested):
 		_back_affordance.back_requested.connect(_on_back_requested)

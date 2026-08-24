@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="PackedScene" path="res://ui/frontmatter/panels/frontmatter_panels.tscn" id="1_panels"]
 [ext_resource type="Script" path="res://ui/frontmatter/frontmatter_root.gd" id="2_root"]
 [ext_resource type="Script" path="res://ui/frontmatter/hover_preview.gd" id="3_hover"]
+[ext_resource type="Script" path="res://ui/frontmatter/frontmatter_input.gd" id="6_input"]
 [ext_resource type="PackedScene" path="res://ui/frontmatter/back_affordance.tscn" id="4_back"]
 
 [node name="FrontmatterRoot" type="Node2D"]
@@ -25,3 +26,7 @@ unique_name_in_owner = true
 [node name="HoverPreview" type="Node" parent="."]
 unique_name_in_owner = true
 script = ExtResource("3_hover")
+
+[node name="FrontmatterInput" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("6_input")
