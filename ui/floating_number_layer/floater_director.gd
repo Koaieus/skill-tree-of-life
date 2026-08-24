@@ -58,10 +58,38 @@ func _ready() -> void:
 
 # --- Domain intake → render request -----------------------------------------
 
-func _on_skill_node_damaged(node: SkillNode, amount: float, _source: Variant) -> void:
+func _on_skill_node_damaged(node: SkillNode, amount: float, source: Variant) -> void:
 	if node == null or amount <= 0.0 or not _node_visible(node):
 		return
-	_emit(node, "%d" % int(round(amount)), FloaterStyles.damage())
+	var tier := _crit_tier(source)
+	_emit(node, _damage_text(amount, tier), FloaterStyles.damage(tier))
+
+
+## Crit rank of the hit behind a damage announcement, or 0 for a normal hit.
+##
+## [param source] is whatever reached [method SkillNode.take_damage], and that is
+## NOT always a hit: turn regen passes null, and other callers pass their own
+## things. Hence the type check before the property read.
+##
+## Reads [member HitInstance.crit_tier] rather than just [member
+## HitInstance.is_crit] so the toast escalates on the same field
+## `ui/vfx/projectile/projectile.gd` escalates its `_on_crit` visual by — one
+## classifier of crit-ness, not two that can disagree. `is_crit` still gates it,
+## because the tier is a stacking count and the flag is the decision.
+static func _crit_tier(source: Variant) -> int:
+	if source is HitInstance and source.is_crit:
+		return maxi(source.crit_tier, 1)
+	return 0
+
+
+## A crit earns a "!" (a second one once several crit sources stacked on the
+## hit) — cheap, universally read, and it survives colour-blind viewing, which
+## is the one thing none of the crit registers do on their own.
+static func _damage_text(amount: float, crit_tier: int) -> String:
+	var text := "%d" % int(round(amount))
+	if crit_tier <= 0:
+		return text
+	return text + "!".repeat(mini(crit_tier, 2))
 
 
 ## Every heal floats the same way (#504) — an attack heal used to be held back

@@ -1,0 +1,9 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/floating_number_layer/floater_toast.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/floating_number_layer/crit_punch_toast/crit_punch_toast.gd" id="2_punch"]
+
+[node name="CritPunchToast" instance=ExtResource("1_base")]
+script = ExtResource("2_punch")
+visible_duration = 2.2
+fade_in_duration = 0.22
