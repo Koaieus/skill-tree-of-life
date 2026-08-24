@@ -14,8 +14,7 @@ extends FrontmatterPanel
 ## [b]It emits rather than quitting.[/b] [method SceneTree.quit] inside this
 ## script would end the process the moment a test pressed the button, which is
 ## exactly the trap `test_meta_routing_parity.gd` sidesteps today by asserting
-## [code]MainMenuScreen.quit_pressed[/code]'s connection count instead of
-## pressing it. So the shipped split survives the re-home unchanged: the panel
+## the old main menu's `quit_pressed` CONNECTION COUNT instead of pressing it. So the shipped split survives the re-home unchanged: the panel
 ## emits [signal quit_requested], [FrontmatterPanels] relays it, and the shell
 ## decides that means quit — the same shape as
 ## [code]main.quit_pressed.connect(func(): get_tree().quit())[/code] in

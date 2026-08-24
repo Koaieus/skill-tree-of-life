@@ -1,5 +1,5 @@
 class_name HostJoinScreen
-extends MenuScreen
+extends VBoxContainer
 
 ## The type-an-IP screen (#531): the step between Multiplayer and the lobby.
 ##
@@ -13,8 +13,7 @@ extends MenuScreen
 ##
 ## [b]This is the plainest functional thing on purpose.[/b] #461 is looks and
 ## UX and owns styling this later; per the owner's 2026-08-22 call the two are
-## sequenced, not merged. Same code-composed chrome as every other [MenuScreen]
-## — no scene file.
+## sequenced, not merged.
 
 signal host_pressed(port: int)
 signal join_pressed(address: String, port: int)
@@ -22,13 +21,36 @@ signal join_pressed(address: String, port: int)
 ## go straight to.
 signal hotseat_pressed
 
+## The rows this screen stacks, kept under the name the shipped code and its
+## tests already use. It is this node: the screen IS its own column now that
+## [FrontmatterPanel] supplies the frame, the title and the back button around
+## it (#579). Before the cutover this was a child [VBoxContainer] built by
+## the deleted `MenuScreen._ready`, which also drew a background and a title bar
+## — chrome that would be drawn twice inside a panel.
+var content: VBoxContainer:
+	get:
+		return self
+
+
+## Adds a Button to [member content]. Caller connects `.pressed` itself.
+##
+## Duplicated in [LobbyScreen] rather than shared through a common base: the
+## base that used to own it was `MenuScreen`, and #579 deletes it. Seven lines
+## of widget construction in two files beats a new base class whose whole reason
+## to exist is those seven lines.
+func add_option(text: String, disabled: bool = false) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.disabled = disabled
+	content.add_child(button)
+	return button
+
 var _address_edit: LineEdit
 var _port_edit: LineEdit
 
 
 func _ready() -> void:
-	super._ready()
-	set_title("Multiplayer")
+	add_theme_constant_override("separation", 8)
 
 	_address_edit = _add_field("Address:", NetworkConfig.DEFAULT_ADDRESS)
 	_port_edit = _add_field("Port:", str(NetworkConfig.DEFAULT_PORT))
@@ -54,9 +76,10 @@ func _ready() -> void:
 
 
 ## A labelled [LineEdit] row in [member content]. Rows are not buttons, so
-## [method MenuScreen.set_interactive] leaves their `mouse_filter` alone — a
-## field on a screen that is no longer on top stays visible but unreachable
-## behind the pushed screen, which is what the stack already relies on.
+## they were left alone by the deleted stack's interactivity toggle — a field on
+## a screen that was no longer on top stayed visible but unreachable behind the
+## pushed one. Nothing stacks any more; the note survives as the reason these
+## rows are built as rows rather than as options.
 func _add_field(label_text: String, initial: String) -> LineEdit:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)

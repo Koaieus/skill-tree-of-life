@@ -1,15 +1,16 @@
 extends GutTest
 
-## Characterization of the meta-menu routing **as `scenes/meta/meta_root.gd`
-## ships it today**, written before #573 deletes [MenuStack] and [MenuScreen]
-## (#568 acceptance 5).
+## Characterization of the meta-menu routing, **re-pointed at the frontmatter**
+## by #579 after #573 replaced the presentation.
 ##
 ## [b]This file is not here to describe a good design.[/b] It is here so that
-## replacing the presentation cannot quietly change the routing. #573's whole
-## acceptance is that this test stays green against the frontmatter panel layer,
-## so it drives the SHIPPED screens by their button labels and records what
-## comes out — including the parts that are awkward to reach, because awkward is
-## exactly what gets lost silently in a rewrite.
+## replacing the presentation cannot quietly change the routing. It was written
+## against the shipped `MenuStack` breadcrumb (C1, #568); the deletion of
+## `MenuStack` and `MenuScreen` made that driver impossible, so the driver — and
+## only the driver — was swapped for [FrontmatterRoot]'s navigation. **Every
+## assertion it made about the routing it still makes**, which is the whole
+## point of the split that produced #579: a characterization test is meant to be
+## re-pointed at the replacement, never weakened to fit it.
 ##
 ## Three decisions live in `meta_root.gd` and nowhere else, and each has its own
 ## test below:
@@ -20,12 +21,17 @@ extends GutTest
 ##    route including the offline ones, so a player who hosted, backed out and
 ##    then started a solo run does not silently open a socket.
 ## 3. START resolves [enum RunConfig.Mode] from the roster at press time (#554's
-##    [method LobbyScreen.resolve_mode]), never from the button that was clicked.
+##    [method LobbyScreen.resolve_mode]), never from the route that was taken.
 ##
 ## The second half of each route test asserts the SAME answer off
 ## [method MenuGraph.build] — that is the parity: the frontmatter's leaf data and
-## the shipped screens agree today, so #573 can swap the screens out against a
-## fixed target.
+## the live routing agree.
+##
+## [b]Navigation is walked, not jumped.[/b] `_navigate_to` focuses every id on
+## the path from the root down, which is what a player pressing through the tree
+## does. Focusing a leaf directly would reach the same panel while testing none
+## of the traversal — and traversal is the reason #579 waited for C3 rather than
+## re-pointing this file the moment the panels existed.
 
 const _CAMP_1 := preload("res://entity/factions/camp_1.tres")
 const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
@@ -35,6 +41,8 @@ const _META_ROOT := preload("res://scenes/meta/meta_root.tscn")
 const _META_SCRIPT := preload("res://scenes/meta/meta_root.gd")
 
 var _meta: Control
+var _frontmatter: FrontmatterRoot
+var _panels: FrontmatterPanels
 var _tree: MenuGraph
 
 
@@ -44,6 +52,9 @@ func before_each() -> void:
 	_tree = MenuGraph.build()
 	_meta = _META_ROOT.instantiate()
 	add_child_autofree(_meta)
+	_frontmatter = _meta.get_node("%Frontmatter") as FrontmatterRoot
+	var found := _frontmatter.find_children("*", "FrontmatterPanels", true, false)
+	_panels = found[0] as FrontmatterPanels
 
 
 func after_each() -> void:
@@ -51,43 +62,52 @@ func after_each() -> void:
 	GameSession.local_peer_id = 0
 
 
-# --- driving the shipped screens --------------------------------------------
+# --- driving the frontmatter --------------------------------------------------
 
-## The splash is a sibling of the stack, not a scene of its own, and its
-## `advanced` signal is what opens the main menu.
-func _open_main_menu() -> MainMenuScreen:
+## The splash is a sibling of the frontmatter, not a scene of its own, and its
+## `advanced` signal is what hands the stage to the menu graph.
+func _open_menu() -> void:
 	(_meta.get_node("%Splash") as SplashScreen).advanced.emit()
-	return _top() as MainMenuScreen
 
 
-func _stack() -> MenuStack:
-	return _meta.get_node("%MenuStack") as MenuStack
+## Walk from the root down to [param id], focusing each step — the traversal a
+## player performs. `instant` so the panel routes in this call rather than a
+## tween's last frame; #570 makes `set_progress(1.0)` the settle point either
+## way, so this is the same code path a real navigation ends on.
+func _navigate_to(id: StringName) -> void:
+	_open_menu()
+	for step in _tree.path_to(id):
+		_frontmatter.focus(step, true)
 
 
-## Top of the breadcrumb — [MenuStack] keeps ancestors alive, so the last child
-## is the active screen. A popped screen is `queue_free`d and therefore still a
-## child until the frame ends, which is why it is skipped rather than awaited
-## away: backing out and pressing the next thing happens in one call here.
-func _top() -> MenuScreen:
-	var stack := _stack()
-	for i in range(stack.get_child_count() - 1, -1, -1):
-		var child := stack.get_child(i)
-		if not child.is_queued_for_deletion():
-			return child as MenuScreen
-	fail_test("nothing is on the stack")
-	return null
+## Up one level, which is [method FrontmatterRoot.back] and nothing else — under
+## a moving camera back is the same call as forward (#567), so there is no
+## breadcrumb to pop.
+func _back() -> void:
+	_frontmatter.back()
 
 
-func _press(screen: MenuScreen, text: String) -> void:
-	for child in screen.content.get_children():
+func _back_out(levels: int) -> void:
+	for i in levels:
+		_back()
+
+
+## The lobby currently mounted on the panel layer, or null before a route
+## configured one.
+func _lobby() -> LobbyScreen:
+	return (_panels.get_panel(MenuGraph.PANEL_LOBBY) as LobbyPanel).screen
+
+
+func _join_screen() -> HostJoinScreen:
+	return (_panels.get_panel(MenuGraph.PANEL_JOIN) as JoinPanel).screen
+
+
+func _press(screen: Node, text: String) -> void:
+	for child in (screen.content as Control).get_children():
 		if child is Button and (child as Button).text == text:
 			(child as Button).pressed.emit()
 			return
 	fail_test("no button labelled '%s' on %s" % [text, screen])
-
-
-func _back(screen: MenuScreen) -> void:
-	screen.back_button.pressed.emit()
 
 
 func _humans(participants: Array[Participant]) -> Array[Participant]:
@@ -98,31 +118,25 @@ func _humans(participants: Array[Participant]) -> Array[Participant]:
 	return out
 
 
-## Walk down from whatever is on top, pressing one label per level.
-func _descend(path: Array) -> MenuScreen:
-	var screen := _top()
-	for label in path:
-		_press(screen, label)
-		screen = _top()
-	return screen
-
-
-## Back out [param levels] screens, leaving the ancestor that opened them.
-func _ascend(levels: int) -> void:
-	for i in levels:
-		_back(_top())
-
-
-## Every route ends on the same lobby; only the [NetworkConfig] differs.
-func _lobby_via(path: Array) -> LobbyScreen:
-	_open_main_menu()
-	return _descend(path) as LobbyScreen
+## The two networked routes reach their lobby through #531's address screen,
+## because that screen is the only place a PORT can be typed — a leaf's
+## [MenuGraph.Route] names a role, not digits. Walking to JOIN and pressing
+## through is therefore the real path, not a shortcut around one.
+func _dial(button: String, address: String = "", port: String = "") -> LobbyScreen:
+	_navigate_to(MenuGraph.ID_JOIN)
+	if address != "":
+		_join_screen()._address_edit.text = address
+	if port != "":
+		_join_screen()._port_edit.text = port
+	_press(_join_screen(), button)
+	return _lobby()
 
 
 # --- the four routes into a lobby -------------------------------------------
 
 func test_new_game_is_offline_and_single() -> void:
-	var lobby := _lobby_via(["Single Player", "New Game"])
+	_navigate_to(MenuGraph.ID_NEW_GAME)
+	var lobby := _lobby()
 
 	assert_eq(GameSession.network.role, NetworkTransport.Role.OFFLINE)
 	assert_false(GameSession.network.is_online(), "a solo run opens no socket")
@@ -142,7 +156,8 @@ func test_new_game_is_offline_and_single() -> void:
 
 
 func test_hot_seat_is_offline_and_two_humans_on_one_camp() -> void:
-	var lobby := _lobby_via(["Multiplayer", "Hot-Seat (this machine)"])
+	_navigate_to(MenuGraph.ID_LOCAL)
+	var lobby := _lobby()
 
 	assert_eq(GameSession.network.role, NetworkTransport.Role.OFFLINE)
 	assert_eq(lobby._mode, RunConfig.Mode.COOP_HOTSEAT)
@@ -161,12 +176,7 @@ func test_hot_seat_is_offline_and_two_humans_on_one_camp() -> void:
 
 
 func test_host_listens_and_seats_the_absent_player_up_front() -> void:
-	var screen := _open_main_menu() as MenuScreen
-	_press(screen, "Multiplayer")
-	var host_join := _top() as HostJoinScreen
-	host_join._port_edit.text = "7777"
-	_press(host_join, "Host")
-	var lobby := _top() as LobbyScreen
+	var lobby := _dial("Host", "", "7777")
 
 	assert_eq(GameSession.network.role, NetworkTransport.Role.HOST)
 	assert_eq(GameSession.network.port, 7777, "the typed port reaches the config")
@@ -185,13 +195,7 @@ func test_host_listens_and_seats_the_absent_player_up_front() -> void:
 
 
 func test_join_dials_and_offers_no_ai_opponents() -> void:
-	var screen := _open_main_menu() as MenuScreen
-	_press(screen, "Multiplayer")
-	var host_join := _top() as HostJoinScreen
-	host_join._address_edit.text = "192.168.1.7"
-	host_join._port_edit.text = "7777"
-	_press(host_join, "Join")
-	var lobby := _top() as LobbyScreen
+	var lobby := _dial("Join", "192.168.1.7", "7777")
 
 	assert_eq(GameSession.network.role, NetworkTransport.Role.CLIENT)
 	assert_eq(GameSession.network.address, "192.168.1.7")
@@ -210,16 +214,13 @@ func test_join_dials_and_offers_no_ai_opponents() -> void:
 	assert_eq(item.route.network_role, GameSession.network.role)
 
 
-# --- decision 3: START resolves the mode from the roster, not the button -----
+# --- decision 3: START resolves the mode from the roster, not the route ------
 
 func test_a_networked_route_asks_for_coop_and_resolves_to_versus() -> void:
-	# The single clearest statement of #554 D3: the button that opened the lobby
+	# The single clearest statement of #554 D3: the route that opened the lobby
 	# said COOP_HOTSEAT, and the run comes out VERSUS, because by then the roster
-	# spans two camps. Nothing about "which button" survives to START.
-	var screen := _open_main_menu() as MenuScreen
-	_press(screen, "Multiplayer")
-	_press(_top(), "Host")
-	var lobby := _top() as LobbyScreen
+	# spans two camps. Nothing about "which route" survives to START.
+	var lobby := _dial("Host")
 
 	assert_eq(lobby._mode, RunConfig.Mode.COOP_HOTSEAT, "the ROUTE asked for coop")
 	var cfg := lobby.build_run_config()
@@ -232,7 +233,8 @@ func test_a_networked_route_asks_for_coop_and_resolves_to_versus() -> void:
 
 
 func test_the_resolved_mode_ignores_how_many_ai_join() -> void:
-	var lobby := _lobby_via(["Single Player", "New Game"])
+	_navigate_to(MenuGraph.ID_NEW_GAME)
+	var lobby := _lobby()
 	lobby._ai_count_spin.value = 4
 	var cfg := lobby.build_run_config()
 	assert_eq(cfg.ai_opponent_count, 4)
@@ -244,15 +246,14 @@ func test_the_resolved_mode_ignores_how_many_ai_join() -> void:
 func test_backing_out_of_hosting_and_starting_solo_opens_no_socket() -> void:
 	# The scenario `_push_lobby`'s comment names. If an offline route left the
 	# role alone instead of re-stating it, this player would silently host.
-	var screen := _open_main_menu() as MenuScreen
-	_press(screen, "Multiplayer")
-	_press(_top(), "Host")
+	# Under the frontmatter the back-out is `FrontmatterRoot.back()` rather than
+	# a stack pop, but the thing being asserted is unchanged: what the next
+	# route leaves on GameSession.
+	_dial("Host")
 	assert_eq(GameSession.network.role, NetworkTransport.Role.HOST)
 
-	_back(_top())  # out of the lobby
-	_back(_top())  # out of the host/join screen
-	_press(_top(), "Single Player")
-	_press(_top(), "New Game")
+	_back_out(2)  # out of the lobby panel, then out of Multiplayer
+	_navigate_to(MenuGraph.ID_NEW_GAME)
 
 	assert_eq(GameSession.network.role, NetworkTransport.Role.OFFLINE)
 	assert_false(GameSession.network.is_online(), "hosting did not survive the back-out")
@@ -261,17 +262,17 @@ func test_backing_out_of_hosting_and_starting_solo_opens_no_socket() -> void:
 func test_every_lobby_route_writes_a_network_config() -> void:
 	# Not one of them leaves GameSession.network as it found it — that is the
 	# invariant, stated over all four routes at once.
-	_open_main_menu()
-	for path in [
-		["Single Player", "New Game"],
-		["Multiplayer", "Hot-Seat (this machine)"],
-		["Multiplayer", "Host"],
-		["Multiplayer", "Join"],
-	]:
+	for id in [MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOCAL]:
 		GameSession.network = null
-		_descend(path)
-		assert_not_null(GameSession.network, "%s states a role" % [path])
-		_ascend(path.size())
+		_navigate_to(id)
+		assert_not_null(GameSession.network, "'%s' states a role" % id)
+		_back_out(_tree.depth_of(id))
+
+	for button in ["Host", "Join"]:
+		GameSession.network = null
+		_dial(button)
+		assert_not_null(GameSession.network, "'%s' states a role" % button)
+		_back_out(2)
 
 
 # --- decision 1: which peer this machine is, before any socket opens ---------
@@ -302,9 +303,9 @@ func test_a_host_knows_its_own_peer_id_and_a_client_cannot() -> void:
 # --- the two leaves that never reach a lobby --------------------------------
 
 func test_options_opens_the_settings_screen_and_touches_no_run_state() -> void:
-	var main := _open_main_menu()
-	_press(main, "Options")
-	assert_true(_top() is OptionsMenuScreen)
+	_navigate_to(MenuGraph.ID_OPTIONS)
+	assert_eq(_panels.shown_panel, MenuGraph.PANEL_SETTINGS)
+	assert_true(_panels.get_panel(MenuGraph.PANEL_SETTINGS) is FrontmatterPanel)
 	assert_null(GameSession.network, "opening options is not a route into a run")
 
 	var item := _tree.get_item(MenuGraph.ID_OPTIONS)
@@ -313,11 +314,11 @@ func test_options_opens_the_settings_screen_and_touches_no_run_state() -> void:
 
 
 func test_quit_is_wired_to_exactly_one_thing() -> void:
-	# Deliberately NOT pressed through `_meta`: meta_root connects this to
+	# Deliberately NOT pressed through `_meta`: the shell connects this to
 	# `get_tree().quit()`, which would end the test run. So the wiring is
-	# asserted here and the signal itself on a standalone screen below.
-	var main := _open_main_menu()
-	assert_eq(main.quit_pressed.get_connections().size(), 1)
+	# asserted here and the signal itself on a standalone panel below.
+	_open_menu()
+	assert_eq(_panels.quit_requested.get_connections().size(), 1)
 
 	var item := _tree.get_item(MenuGraph.ID_EXIT)
 	assert_eq(item.panel, MenuGraph.PANEL_EXIT_CONFIRM,
@@ -326,12 +327,13 @@ func test_quit_is_wired_to_exactly_one_thing() -> void:
 
 
 func test_the_quit_option_emits_rather_than_quitting_by_itself() -> void:
-	var standalone := MainMenuScreen.new()
+	var standalone: ExitConfirmPanel = preload(
+			"res://ui/frontmatter/panels/exit_confirm_panel.tscn").instantiate()
 	add_child_autofree(standalone)
 	var fired: Array[int] = []
-	standalone.quit_pressed.connect(func(): fired.append(1))
-	_press(standalone, "Quit")
-	assert_eq(fired.size(), 1, "the screen emits; meta_root decides that means quit")
+	standalone.quit_requested.connect(func(): fired.append(1))
+	standalone._confirm_button.pressed.emit()
+	assert_eq(fired.size(), 1, "the panel emits; the shell decides that means quit")
 
 
 # --- the tree is the routing, restated ---------------------------------------

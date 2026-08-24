@@ -2,15 +2,15 @@
 
 [ext_resource type="PackedScene" path="res://ui/frontmatter/panels/frontmatter_panel.tscn" id="1_base"]
 [ext_resource type="Script" path="res://ui/frontmatter/panels/join_panel.gd" id="2_join"]
-[ext_resource type="Script" path="res://ui/menu/host_join_screen.gd" id="3_screen"]
+[ext_resource type="Script" path="res://ui/frontmatter/panels/host_join_screen.gd" id="3_screen"]
 
 [node name="JoinPanel" instance=ExtResource("1_base")]
 script = ExtResource("2_join")
 panel_id = &"join"
-title = ""
-back_text = ""
+title = "MULTIPLAYER"
+back_text = "BACK"
 
-[node name="HostJoinScreen" type="Control" parent="Center/Frame/Column/Body" index="0"]
+[node name="HostJoinScreen" type="VBoxContainer" parent="Center/Frame/Column/Body" index="0"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3

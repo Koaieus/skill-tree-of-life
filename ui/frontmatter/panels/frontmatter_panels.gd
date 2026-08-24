@@ -19,7 +19,7 @@ extends Control
 ## a programming error and asserts.
 ##
 ## [b]Exactly one panel is up at a time, or none.[/b] There is no stack —
-## [MenuStack]'s breadcrumb-of-shrinking-panels is what #567 replaced with the
+## the breadcrumb-of-shrinking-panels shape is what #567 replaced with the
 ## graph itself, and re-growing one here would resurrect it. "Back" is the
 ## graph's business: a panel emits [signal FrontmatterPanel.dismissed], this
 ## re-emits [signal panel_dismissed], and the navigation state machine decides
@@ -29,9 +29,10 @@ extends Control
 signal panel_dismissed(id: StringName)
 
 ## Emitted when the exit-confirm panel is answered "yes". Relayed rather than
-## acted on for the same reason `meta_root.gd` relays `MainMenuScreen`'s
-## `quit_pressed`: a [method SceneTree.quit] down here would end a test run the
-## moment the button was pressed. The shell connects it; see [ExitConfirmPanel].
+## acted on for the same reason the old main menu relayed its `quit_pressed`
+## rather than quitting: a [method SceneTree.quit] down here would end a test run
+## the moment the button was pressed. The shell connects it; see
+## [ExitConfirmPanel].
 signal quit_requested
 
 ## Id of the panel currently shown, or `&""` when the graph layer has the stage.

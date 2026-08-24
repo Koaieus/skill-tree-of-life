@@ -10,9 +10,9 @@ extends Control
 ## [i]inherited scene[/i] of `frontmatter_panel.tscn` that fills [member body];
 ## none of them compose their own backdrop, frame, title or back button, so a
 ## structural change to the chrome propagates to all five for free. That is the
-## opposite of what this replaces: [MenuScreen] built the same chrome in
-## `_ready` with `X.new()` chains, which is why its subclasses had no scene
-## files at all.
+## opposite of what this replaces: the deleted `MenuScreen` built the same
+## chrome in `_ready` with `X.new()` chains, which is why its subclasses had no
+## scene files at all.
 ##
 ## [b]A panel never knows where the camera is.[/b] It lives under a
 ## [CanvasLayer], which is immune to the graph camera's pan and zoom by design

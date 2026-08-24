@@ -1,9 +1,9 @@
-[gd_scene format=3 uid="uid://rjsur8iudehy"]
+[gd_scene load_steps=5 format=3 uid="uid://rjsur8iudehy"]
 
 [ext_resource type="Script" uid="uid://doboj23vcfxlg" path="res://scenes/meta/meta_root.gd" id="1_root"]
 [ext_resource type="Environment" uid="uid://cw0hn1e5xg8ja" path="res://ui/theme/default_game_env.tres" id="4_env"]
 [ext_resource type="Script" uid="uid://y2ldco3duaef" path="res://ui/menu/splash_screen.gd" id="2_splash"]
-[ext_resource type="Script" uid="uid://5jplb0w3afdm" path="res://ui/menu/menu_stack.gd" id="3_stack"]
+[ext_resource type="PackedScene" path="res://ui/frontmatter/frontmatter_root.tscn" id="3_frontmatter"]
 
 [node name="MetaRoot" type="Control" unique_id=9143592]
 layout_mode = 3
@@ -17,6 +17,9 @@ script = ExtResource("1_root")
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = ExtResource("4_env")
 
+[node name="Frontmatter" parent="." instance=ExtResource("3_frontmatter")]
+unique_name_in_owner = true
+
 [node name="Splash" type="Control" parent="." unique_id=1631141904]
 unique_name_in_owner = true
 anchors_preset = 0
@@ -25,12 +28,3 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("2_splash")
-
-[node name="MenuStack" type="Control" parent="." unique_id=1978690813]
-unique_name_in_owner = true
-anchors_preset = 0
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-script = ExtResource("3_stack")

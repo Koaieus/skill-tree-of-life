@@ -8,9 +8,10 @@ extends FrontmatterPanel
 ## #573 is explicit that [method LobbyScreen.build_run_config] is #553/#554 work
 ## — the whole roster, the AI count, the seed sentinel, #554 D3's
 ## [method LobbyScreen.resolve_mode] at START — and that it must be re-homed
-## rather than rewritten. So the logic is reached by composition here and moves
-## physically at the cutover, when [MenuScreen] and [MenuStack] are deleted.
-## Nothing in this file duplicates a decision that lives in that screen.
+## rather than rewritten. #579 completed the move: the screen now lives beside
+## this file and carries no chrome of its own, so what it contributes is the
+## roster column and nothing else. Nothing here duplicates a decision that
+## lives in it.
 ##
 ## [b]Why the screen is built in code rather than sitting in this scene.[/b]
 ## [method LobbyScreen.configure] documents its own ordering: it must be called
@@ -24,9 +25,9 @@ extends FrontmatterPanel
 ## [LobbyScreen] has no scene to instance, and building one would be the rewrite
 ## this unit must not do.
 ##
-## The panel's own title and back button are left empty — the hosted screen
-## brings its own, and two of each would be the [MenuStack] chrome showing
-## through. [signal MenuScreen.back_requested] is what dismisses this panel.
+## The panel supplies the title and the back button; the screen supplies the
+## rows. Before #579 it was the other way round — the screen carried inherited
+## chrome and this panel blanked its own to avoid drawing two of everything.
 
 ## Relayed from the hosted screen. The shell decides that START means "open the
 ## run and load the level"; this panel only carries the [RunConfig] up.
@@ -59,7 +60,6 @@ func configure(mode: RunConfig.Mode, network: NetworkConfig = null) -> void:
 	lobby.configure(mode, network)
 	lobby.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	lobby.start_pressed.connect(_on_start_pressed)
-	lobby.back_requested.connect(dismiss)
 	body.add_child(lobby)
 	screen = lobby
 

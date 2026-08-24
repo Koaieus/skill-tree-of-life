@@ -1,5 +1,5 @@
 class_name LobbyScreen
-extends MenuScreen
+extends VBoxContainer
 
 ## Lobby: one row per participant, a host-side "AI opponents" count, a seed
 ## field and a Start button. The seed field is live (#457): START hands this
@@ -75,6 +75,30 @@ const _PLACEHOLDER_COLORS := [
 const _DEFAULT_AI_OPPONENTS := 1
 const _MAX_AI_OPPONENTS := 4
 
+## The rows this screen stacks, kept under the name the shipped code and its
+## tests already use. It is this node: the screen IS its own column now that
+## [FrontmatterPanel] supplies the frame, the title and the back button around
+## it (#579). Before the cutover this was a child [VBoxContainer] built by
+## the deleted `MenuScreen._ready`, which also drew a background and a title bar
+## — chrome that would be drawn twice inside a panel.
+var content: VBoxContainer:
+	get:
+		return self
+
+
+## Adds a Button to [member content]. Caller connects `.pressed` itself.
+##
+## Duplicated in [HostJoinScreen] rather than shared through a common base: the
+## base that used to own it was `MenuScreen`, and #579 deletes it. Seven lines
+## of widget construction in two files beats a new base class whose whole reason
+## to exist is those seven lines.
+func add_option(text: String, disabled: bool = false) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.disabled = disabled
+	content.add_child(button)
+	return button
+
 var _mode: RunConfig.Mode = RunConfig.Mode.SINGLE
 var _network: NetworkConfig = null
 var _seed_edit: LineEdit
@@ -84,7 +108,7 @@ var _rows_container: VBoxContainer
 
 
 ## Configures this lobby before it enters the tree (call right after
-## [method LobbyScreen.new], before pushing onto [MenuStack]). [param mode] is
+## [method LobbyScreen.new], before it enters the tree). [param mode] is
 ## the shape the menu route ASKED for, not the mode the run ends up with —
 ## [method _resolved_mode] derives that from the roster at START (#554 D3).
 ## Defaults to the single-player shape so an unconfigured instance still behaves
@@ -95,8 +119,7 @@ func configure(mode: RunConfig.Mode, network: NetworkConfig = null) -> void:
 
 
 func _ready() -> void:
-	super._ready()
-	set_title("Lobby")
+	add_theme_constant_override("separation", 8)
 
 	_rows_container = VBoxContainer.new()
 	_rows_container.add_theme_constant_override("separation", 4)

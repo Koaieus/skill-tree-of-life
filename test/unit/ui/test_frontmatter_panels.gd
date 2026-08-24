@@ -281,16 +281,16 @@ func test_start_is_relayed_upward_with_its_run_config() -> void:
 	assert_eq(seen[0].mode, RunConfig.Mode.SINGLE)
 
 
-func test_the_lobbys_own_back_button_dismisses_the_panel() -> void:
-	# The hosted screen brings its own back button; the panel's is empty so
-	# there are not two. Backing out goes through MenuScreen.back_requested.
+func test_the_lobby_panels_back_button_dismisses_it() -> void:
+	# Since #579 the back button is the PANEL's — the hosted screen carries no
+	# chrome of its own, so there is exactly one of them rather than two.
 	var lobby := _lobby()
 	lobby.configure(RunConfig.Mode.SINGLE, NetworkConfig.offline())
 	_panels.show_panel(MenuGraph.PANEL_LOBBY)
 
 	var seen: Array[StringName] = []
 	_panels.panel_dismissed.connect(func(id: StringName): seen.append(id))
-	lobby.screen.back_button.pressed.emit()
+	lobby.back_button.pressed.emit()
 
 	assert_eq(seen, [MenuGraph.PANEL_LOBBY] as Array[StringName])
 	assert_eq(_panels.shown_panel, &"")
@@ -351,7 +351,7 @@ func test_the_join_panels_back_button_dismisses_it() -> void:
 
 	var seen: Array[StringName] = []
 	_panels.panel_dismissed.connect(func(id: StringName): seen.append(id))
-	join.screen.back_button.pressed.emit()
+	join.back_button.pressed.emit()
 
 	assert_eq(seen, [MenuGraph.PANEL_JOIN] as Array[StringName])
 	assert_eq(_panels.shown_panel, &"")

@@ -11,17 +11,14 @@ extends FrontmatterPanel
 ## has no configure-before-ready contract — it builds its two fields and its
 ## buttons in `_ready` and reads them only when pressed.
 ##
-## [b]Known redundancy, deliberate, and it goes at the cutover.[/b] The screen
-## carries Host / Join / Hot-Seat because #531 put one screen between
-## "Multiplayer" and the lobby. The frontmatter tree splits those into three
-## sibling leaves (`ID_HOST`, `ID_JOIN`, `ID_LOCAL`), and only JOIN routes here
-## — so the Host and Hot-Seat buttons on this panel duplicate leaves the graph
-## already offers. Trimming them means editing [HostJoinScreen], which is a
-## rewrite of shipped #531 work and out of this unit's scope; all three signals
-## are relayed so nothing is lost either way, and the trim happens when the
-## screen physically moves. [signal host_requested] and
-## [signal hotseat_requested] exist so that redundancy is at least addressable
-## rather than silently dead.
+## [b]The Host and Hot-Seat buttons stay, and that is a decision, not an
+## oversight.[/b] They look redundant — the frontmatter tree offers HOST and
+## LOCAL as their own leaves — but they are the only place a PORT can be typed.
+## A leaf carries a [MenuGraph.Route], which names a role and nothing else, so
+## routing HOST straight off the tree hosts on the default port forever. #531's
+## screen is what makes `NetworkConfig.host(<typed port>)` reachable at all, and
+## `test_host_join_screen.gd` pins all three buttons besides. Removing them
+## would delete shipped behaviour and the assertions over it; see #579's report.
 
 ## The address and port the player typed. The shell turns this into
 ## `NetworkConfig.join(address, port)`; this panel does not construct one, for
@@ -42,7 +39,6 @@ func _ready() -> void:
 	screen.join_pressed.connect(_on_join_pressed)
 	screen.host_pressed.connect(_on_host_pressed)
 	screen.hotseat_pressed.connect(_on_hotseat_pressed)
-	screen.back_requested.connect(dismiss)
 
 
 func _on_join_pressed(address: String, port: int) -> void:
