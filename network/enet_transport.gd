@@ -71,6 +71,12 @@ func is_linked() -> bool:
 	return not _peers.is_empty()
 
 
+func local_peer_id() -> int:
+	if multiplayer == null or multiplayer.multiplayer_peer == null:
+		return 0
+	return multiplayer.get_unique_id()
+
+
 func _adopt(peer: ENetMultiplayerPeer, as_role: Role) -> void:
 	_peer = peer
 	role = as_role
@@ -94,6 +100,10 @@ func _on_peer_connected(id: int) -> void:
 	if not _peers.has(id):
 		_peers.append(id)
 	_announce("peer %d connected" % id)
+	# Announce FIRST, then hand the id up: a listener on `peer_joined` may send
+	# (the host's run setup does), and `send` is gated on [method is_linked],
+	# which only just became true on the line above.
+	peer_joined.emit(id)
 
 
 func _on_peer_disconnected(id: int) -> void:
@@ -101,10 +111,15 @@ func _on_peer_disconnected(id: int) -> void:
 	if idx != -1:
 		_peers.remove_at(idx)
 	_announce("peer %d disconnected" % id)
+	peer_left.emit(id)
 
 
+## Client-side, the server is a peer too — it is simply never reported through
+## `multiplayer.peer_connected` on this side, so it is recorded here. Without
+## this a client's [method is_linked] would stay false forever.
 func _on_connected_to_server() -> void:
 	_announce("client: connected (my id %d)" % multiplayer.get_unique_id())
+	peer_joined.emit(HOST_PEER_ID)
 
 
 func _on_connection_failed() -> void:

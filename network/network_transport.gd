@@ -33,6 +33,27 @@ signal message_received(payload: Dictionary)
 ## [method is_linked] for a decision, this is for a person to read.
 signal link_changed(status: String)
 
+## A peer arrived, and this is WHICH one (#554). Distinct from [signal
+## link_changed] on purpose: that one is prose for a log, this one carries the
+## single datum nothing above the seam can obtain for itself.
+##
+## [b]The transport is where a peer id lives.[/b] Godot's peer ids come off
+## [member Node.multiplayer], and reaching for that from a lobby or a level
+## would put transport knowledge above the seam — the one thing this class
+## exists to prevent. Host-side this fires once per joining peer; client-side it
+## fires for the server (id 1) when the dial completes.
+signal peer_joined(peer_id: int)
+
+## A peer went away. Emitted for symmetry and for a log; the sync model's
+## answer to a disconnect is still "a desync is a restart" (#554 NOTES), so
+## nothing derives run state from this yet.
+signal peer_left(peer_id: int)
+
+## The id Godot's high-level multiplayer always gives the server. Named here
+## rather than typed as a literal at each site that stamps the host's own
+## participant.
+const HOST_PEER_ID := 1
+
 var role: Role = Role.OFFLINE
 
 
@@ -62,6 +83,16 @@ func send(_payload: Dictionary) -> void:
 ## True when a peer is actually on the other end (not merely listening).
 func is_linked() -> bool:
 	return false
+
+
+## This machine's own id on the link — the value [member GameSession.local_peer_id]
+## takes, and what [method SeatPolicy.from_roster] compares each
+## [member Participant.peer_id] against. [constant HOST_PEER_ID] on a host,
+## whatever the server minted on a client, and `0` offline — which is exactly the
+## value a lobby-authored LOCAL_HUMAN carries, so an offline run stays a couch by
+## construction.
+func local_peer_id() -> int:
+	return 0
 
 
 ## For subclasses: announce and log in one call.
