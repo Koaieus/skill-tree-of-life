@@ -49,6 +49,9 @@ const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 ## so shapes beyond 2 entries collapse every camp past the first into one NPC
 ## camp. A run that came from the menu never reads this: the session's roster
 ## decides the shape, and the roster decides how many camps procgen produces.
+##
+## Read through [method _fallback_camp_sizes], never directly, so a subclass can
+## derive the shape from a knob of its own — see `first_level_sandbox.gd`.
 @export var camp_sizes: Array[int] = [1, 1]
 
 ## Shared allocation-pick strategy (#275, D-24) — greedy BFS ball by default.
@@ -241,11 +244,12 @@ func _is_this_machines(participant: Participant) -> bool:
 ## fallback, not the default path.
 func _fallback_roster() -> ParticipantRoster:
 	var roster := ParticipantRoster.new()
+	var shape := _fallback_camp_sizes()
 	var next_id := 0
-	for c in camp_sizes.size():
+	for c in shape.size():
 		var camp_faction := _PLAYER_FACTION if c == 0 else _NPC_FACTION
 		var kind := Participant.Kind.HUMAN if c == 0 else Participant.Kind.AI
-		for _m in maxi(0, camp_sizes[c]):
+		for _m in maxi(0, shape[c]):
 			var participant := Participant.new()
 			participant.id = next_id
 			participant.kind = kind
@@ -289,3 +293,17 @@ func _camp_sizes(roster: ParticipantRoster, grouped: Array[Participant]) -> Arra
 		if idx != -1:
 			sizes[idx] += 1
 	return sizes
+
+
+## The camp shape [method _fallback_roster] builds from — [member camp_sizes] as
+## authored, unless a subclass has a better answer.
+##
+## The seam exists because a scene that only ever wants "one human plus N
+## opponents" should not have to author a second knob that says N when it
+## already has one: two exports that both look like the opponent count is
+## exactly how `first_level_sandbox` ended up spawning one enemy while its
+## inspector read 5 (#584). Overriding this keeps ONE roster builder — the
+## alternative, overriding [method _fallback_roster] itself, would be a second
+## implementation of the same contract.
+func _fallback_camp_sizes() -> Array[int]:
+	return camp_sizes

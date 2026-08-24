@@ -66,19 +66,15 @@ func _launch() -> GameRoot:
 	root.node_count_override = 40
 	root.enemy_territory_size = 1
 	# Deliberately pinned BELOW every roster these tests build. The scene authors
-	# 5, which would leave room for a 6-contender roster by luck and let a level
+	# 6, which would leave room for a 7-contender roster by luck and let a level
 	# that ignored the roster pass anyway. At 1, the preset's single authored
 	# starting point plus this yields 2 starters — so a test with more than two
 	# participants fails unless the count is genuinely derived.
+	#
+	# It sizes the FALLBACK too: `first_level_sandbox.gd` derives its camp shape
+	# from this same export, so one human plus one AI is what the fallback test
+	# below expects. One knob, deliberately — see that script's docstring.
 	root.n_random_starters = 1
-	# Pinned for the same reason as the line above, and pinned SEPARATELY from
-	# the scene: `first_level_sandbox.tscn` authors [1, 5] so a direct editor
-	# launch gets a populated map, and the fallback assertions below are about
-	# the SHAPE of the fallback, not about how many opponents that one scene
-	# happens to want. Left reading the scene, tuning the sandbox would silently
-	# rewrite what this test claims.
-	var pinned_camps: Array[int] = [1, 1]
-	root.camp_sizes = pinned_camps
 	add_child(root)
 	_root = root
 	# `_setup_level` is asynchronous — `GraphProcgen.generate` yields a frame per
@@ -172,7 +168,7 @@ func test_direct_launch_with_no_session_roster_falls_back_and_seeds_one() -> voi
 	assert_not_null(GameSession.roster,
 			"the fallback branch — and ONLY that branch — seeds the session")
 	assert_eq(GameSession.roster.all().size(), 2,
-			"camp_sizes [1, 1] as pinned in `_launch` — one local human, one AI")
+			"`n_random_starters = 1` as pinned in `_launch` — one local human, one AI")
 	assert_eq(_spawned_entities(root).size(), 2)
 	assert_not_null(root.player, "the fallback's camp 0 is the local human")
 	assert_true(root.seat_policy.follows_active_turn(),
