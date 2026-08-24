@@ -68,6 +68,10 @@ func test_density_at_100_nodes() -> void:
 
 func test_placements_skip_starters_and_keystones() -> void:
 	var cfg := _build_config(60, 777)
+	# Not what this test is about, and 60 nodes is small enough that the #300
+	# safe radius swallows the whole eligible pool — the radius has its own
+	# test below.
+	cfg.blocker_min_hops_from_core = 0
 	var sp := StartingPoint.new()
 	sp.position = Vector2.ZERO
 	cfg.starting_points.append(sp)
@@ -141,3 +145,72 @@ func test_denom_below_floor_clamps_to_min() -> void:
 	assert_eq(counts.get(GameRoot.BlockerSize.SMALL, 0), 10, "denom 1 clamps to 5 → 50/5 = 10")
 	assert_eq(counts.get(GameRoot.BlockerSize.MEDIUM, 0), 10, "denom 2 clamps to 5 → 10")
 	assert_eq(counts.get(GameRoot.BlockerSize.LARGE, 0), 10, "denom 3 clamps to 5 → 10")
+
+
+func _hops_from(graph: Graph, nodes: Array, origins: Array, max_hops: int) -> Dictionary:
+	# BFS over the live graph, returning {instance_id: true} for every node
+	# within `max_hops` of any origin SkillNode.
+	var seen := {}
+	var frontier: Array[SkillNode] = []
+	for o in origins:
+		seen[(o as SkillNode).get_instance_id()] = true
+		frontier.append(o)
+	var hops := 0
+	while hops < max_hops and not frontier.is_empty():
+		var next: Array[SkillNode] = []
+		for n in frontier:
+			for nb in graph.get_neighbours(n):
+				if seen.has(nb.get_instance_id()):
+					continue
+				seen[nb.get_instance_id()] = true
+				next.append(nb)
+		frontier = next
+		hops += 1
+	return seen
+
+
+func test_no_blocker_inside_core_safe_radius() -> void:
+	# #300 — no blocker within `blocker_min_hops_from_core` hops of ANY camp
+	# core, the human's and every AI camp's alike.
+	var cfg := _build_config(300, 31337)
+	cfg.n_random_starters = 3
+	cfg.blocker_min_hops_from_core = 6
+	var graph_scene: PackedScene = load("res://graph/graph.tscn")
+	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
+	add_child(graph)
+	await get_tree().process_frame
+	var result: Dictionary = await GraphProcgen.generate(cfg, graph)
+
+	var starting_nodes: Array = result.get("starting_nodes", [])
+	assert_eq(starting_nodes.size(), 3, "three camp cores")
+	var blockers: Array = result.get("blockers", [])
+	assert_gt(blockers.size(), 0, "expected some blocker placements outside the safe radius")
+
+	var forbidden := _hops_from(graph, result.get("nodes", []), starting_nodes, 6)
+	for placement in blockers:
+		var node: SkillNode = placement.get("node")
+		assert_false(
+			forbidden.has(node.get_instance_id()),
+			"blocker at %s is within 6 hops of a core" % str(node.position))
+
+
+func test_safe_radius_zero_allows_core_adjacent_blockers() -> void:
+	# The knob is opt-out: 0 restores the pre-#300 "anywhere but a core or a
+	# keystone" pool, so the ring one hop off a core is eligible again.
+	var cfg := _build_config(300, 31337)
+	cfg.n_random_starters = 3
+	cfg.blocker_min_hops_from_core = 0
+	var graph_scene: PackedScene = load("res://graph/graph.tscn")
+	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
+	add_child(graph)
+	await get_tree().process_frame
+	var result: Dictionary = await GraphProcgen.generate(cfg, graph)
+
+	var starting_nodes: Array = result.get("starting_nodes", [])
+	var near := _hops_from(graph, result.get("nodes", []), starting_nodes, 6)
+	var any_near := false
+	for placement in result.get("blockers", []):
+		if near.has((placement.get("node") as SkillNode).get_instance_id()):
+			any_near = true
+			break
+	assert_true(any_near, "with the radius disabled some blocker lands near a core")

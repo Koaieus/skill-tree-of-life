@@ -158,3 +158,15 @@ const MIN_BLOCKER_PER := 5
 @export_range(0, 200, 1, "or_greater") var blocker_per_small: int = 10
 @export_range(0, 200, 1, "or_greater") var blocker_per_medium: int = 25
 @export_range(0, 200, 1, "or_greater") var blocker_per_large: int = 100
+
+## Safe radius around every camp core (#300): no blocker may spawn within this
+## many hops of ANY starter core — the human's and every AI camp's alike, since
+## at procgen time a core is just a starter index and nothing yet knows which
+## camp a seat will drive. `0` disables the exclusion.
+##
+## Measured against the first_level preset (800 nodes, 7 starters, pruned
+## Delaunay mesh at connectivity 0.25): a 5-hop ball excludes ~205 nodes
+## (~26% of the map), a 6-hop ball ~266 (~33%). The eligible pool shrinking
+## below the requested blocker count places FEWER blockers — it never falls
+## back to the excluded ring.
+@export_range(0, 12, 1) var blocker_min_hops_from_core: int = 6

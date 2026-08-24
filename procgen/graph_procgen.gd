@@ -214,7 +214,8 @@ static func generate(
 	# reference, so a node can't be replaced once added. Eligibility mirrors
 	# the old post-loop pass: never a starter core (indices < starters.size())
 	# nor a keystone node (placement_ctx.keystones[i] != null, which is what
-	# the loop below stamps onto `sn.keystone`).
+	# the loop below stamps onto `sn.keystone`) — plus, since #300, never a
+	# node inside the core safe radius (blocker_min_hops_from_core).
 	#
 	# Deliberately rides its OWN derived RNG, not the shared `rng` stream:
 	# running this before the per-node content loop (needed so the loop can
@@ -226,7 +227,7 @@ static func generate(
 	var blocker_rng := RandomNumberGenerator.new()
 	blocker_rng.seed = rng.seed + _BLOCKER_RNG_SALT
 	var blocker_sizes := _place_blocker_indices(
-			positions.size(), starters.size(), placement_ctx.keystones, config, blocker_rng)
+			positions.size(), placement_ctx, config, blocker_rng)
 
 	await _emit_progress(progress_cb, 0.45, "Rolling content")
 	var nodes: Array[SkillNode] = []
@@ -852,10 +853,19 @@ static func _build_placement_context(
 ## swapped after that). Picks each size tier's count — `floor(config.node_count
 ## / denom)`, where denom 0 disables the tier and any positive denominator
 ## below [constant GraphProcgenConfig.MIN_BLOCKER_PER] is clamped up to it —
-## by sampling uniformly WITHOUT replacement from the regular node indices:
-## every starter core ([param starter_count] first indices) and every
-## keystone index ([param keystones][i] != null, the pre-roll pass's stamp
-## slot) is excluded.
+## by sampling uniformly WITHOUT replacement from the regular node indices.
+## Excluded from the pool: every starter core (the first [param
+## ctx].starter_indices.size() indices), every keystone index
+## ([param ctx].keystones[i] != null, the pre-roll pass's stamp slot), and —
+## per [member GraphProcgenConfig.blocker_min_hops_from_core] — every node
+## inside the hop-ball around ANY starter core, so no camp opens the run
+## boxed in by boulders.
+##
+## Exclusion shrinks the POOL, never the requested count: a tier whose count
+## exceeds what's left simply places fewer blockers (the existing
+## `mini(count, eligible.size())` clamp). It never falls back to a node inside
+## the safe radius — a too-dense level yielding zero blockers is a legible
+## failure, a blocker two hops off a core is not.
 ##
 ## [b]The denominator basis is [param node_count] — [member
 ## GraphProcgenConfig.node_count], the AUTHORED count — never [param
@@ -872,20 +882,31 @@ static func _build_placement_context(
 ## other roll.
 static func _place_blocker_indices(
 		positions_count: int,
-		starter_count: int,
-		keystones: Array,
+		ctx: PlacementContext,
 		config: GraphProcgenConfig,
 		rng: RandomNumberGenerator,
 ) -> Dictionary:
 	var out: Dictionary = {}
+	var keystones: Array = ctx.keystones
+	var starter_count := ctx.starter_indices.size()
+	# Core safe radius (#300): union of the hop-balls around every starter.
+	var too_close := {}
+	if config.blocker_min_hops_from_core > 0:
+		for s in ctx.starter_indices:
+			for n in ctx.nodes_within_hops(s, config.blocker_min_hops_from_core):
+				too_close[n] = true
 	var eligible: Array[int] = []
 	for i in positions_count:
 		if i < starter_count:
 			continue
 		if i < keystones.size() and keystones[i] != null:
 			continue
+		if too_close.has(i):
+			continue
 		eligible.append(i)
 	if eligible.is_empty():
+		if not too_close.is_empty():
+			push_warning("GraphProcgen: no blocker-eligible node outside the %d-hop core safe radius — placing none" % config.blocker_min_hops_from_core)
 		return out
 
 	# Small → medium → large (most numerous first). Each tier partial-Fisher-
