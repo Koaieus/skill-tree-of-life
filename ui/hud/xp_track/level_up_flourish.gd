@@ -39,7 +39,11 @@ const _XP_DEF := preload("res://stats_system/defs/xp.tres")
 ## Minimum time on screen after the LAST stamp. A single level-up would
 ## otherwise flash and leave inside the wrap; a cascade re-arms this on every
 ## stamp, so the tail is measured from the last level, not the first.
-@export_range(0.0, 1.5, 0.05) var min_dwell: float = 0.35
+##
+## Ranged to 4s, not to the 1.5 it shipped at: 1.5 turned out to be the value
+## the owner picked because the slider stopped there, and the wanted value was
+## 2. An export range that clips the answer is worse than no range.
+@export_range(0.0, 4.0, 0.05) var min_dwell: float = 2.0
 @export_range(0.0, 1.0, 0.02) var open_time: float = 0.14
 @export_range(0.0, 1.0, 0.02) var stamp_time: float = 0.10
 @export_range(0.0, 1.5, 0.02) var fade_time: float = 0.28

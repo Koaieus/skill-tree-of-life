@@ -139,8 +139,6 @@ signal level_segment_held(new_max: float)
 ## beats needs a Banner hold-extend — see #320.
 @export_range(0.0, 1.0, 0.01) var level_up_hold_time: float = 0.15
 
-## Floor on a budget-compressed segment — see [method play_level_segment].
-const MIN_SEGMENT_TIME := 0.30
 
 ## Constant-rate fills, in **bar fractions per second** (#320). At 0.9, an empty
 ## bar sweeps to full in ~1.1s and a gain of a tenth of the bar takes a tenth of
@@ -160,6 +158,11 @@ const MIN_SEGMENT_TIME := 0.30
 
 ## Floor and ceiling on a rate-derived duration — a sliver still reads as motion,
 ## a full sweep still ends. Both ignored when [member fill_speed] is 0.
+##
+## [b][member max_fill_time] silently wins.[/b] A level crossing sweeps the
+## whole bar, so its loop takes `1.0 / fill_speed` seconds OR this, whichever is
+## shorter — dropping `fill_speed` alone to slow a level-up down does nothing
+## once the two cross. Raise both.
 @export_range(0.0, 1.0, 0.01) var min_fill_time: float = 0.12
 @export_range(0.1, 4.0, 0.05) var max_fill_time: float = 1.1
 
@@ -206,20 +209,13 @@ func _push_all() -> void:
 ## at the old value and fading it down is a deliberate effect, and tweening the
 ## fill under `_suppress_drain` would silently delete it. "No tween" in #317 is
 ## about the fill, not the ghost.
-## [param time_budget] caps the fill, as in [method play_level_segment]. `0` is
-## natural pace and is what an ordinary gain uses; the settle at the end of a
-## budgeted cascade passes what is left of that cascade's budget, since a replay
-## is not over until the bar has stopped moving.
-func animate_to(target_current: float, target_max: float,
-		time_budget: float = 0.0) -> void:
+func animate_to(target_current: float, target_max: float) -> void:
 	if _level_tween and _level_tween.is_valid():
 		_level_tween.kill()
 	# The duration is read against the TARGET span, so `max_value` moves first.
 	var from_value := current
 	var span_max := target_max
 	var duration := _fill_duration(from_value, target_current, span_max)
-	if time_budget > 0.0:
-		duration = minf(duration, maxf(time_budget, min_fill_time))
 	if not is_inside_tree() or target_current <= current or duration <= 0.0:
 		_suppress_drain = false
 		max_value = target_max
@@ -243,16 +239,12 @@ func animate_to(target_current: float, target_max: float,
 ## landing mid-replay only has to append to the caller's queue: no tween is ever
 ## killed, so there's no stale "shown" state to rebuild from.
 ##
-## [param time_budget] caps the whole segment (fill + hold + wrap). `0` means
-## natural pace. A cascade is what needs this: at the natural rate four levels
-## run five-plus seconds, and the replay has to stay inside the couple of
-## seconds a player will actually watch — so the DRIVER divides its budget by
-## how many levels are still queued and hands each segment its share (see
-## [XpTrack]). Expressed as a ceiling rather than a fixed duration precisely so
-## the single-level case is untouched: one level is under budget already, keeps
-## its rate-derived fill, and so keeps saying how much XP it was.
-func play_level_segment(fill_to: float, new_max: float,
-		time_budget: float = 0.0) -> void:
+## [b]A segment costs what a segment costs, however many are queued behind
+## it.[/b] Compressing a cascade to fit a fixed total was tried and reverted
+## (#320, owner call 2026-08-24): XP is the currency the game is denominated in,
+## so gaining four levels SHOULD take about twice as long to watch as gaining
+## two. Pace the loop with [member fill_speed], not with the queue depth.
+func play_level_segment(fill_to: float, new_max: float) -> void:
 	if _level_tween and _level_tween.is_valid():
 		_level_tween.kill()
 	if not is_inside_tree():
@@ -264,27 +256,6 @@ func play_level_segment(fill_to: float, new_max: float,
 	var fill_time := _fill_duration(current, fill_to, max_value)
 	var hold_time := level_up_hold_time
 	var wrap_time := level_up_wrap_time
-	if time_budget > 0.0:
-		# Never below MIN_SEGMENT_TIME: compressed past that, a level stops
-		# being an event at all.
-		var allowed := maxf(time_budget, MIN_SEGMENT_TIME)
-		var beat := hold_time + wrap_time
-		if fill_time + beat > allowed:
-			# The FILL absorbs the compression, and the beat at full gives
-			# ground last — the beat is the moment the level happens, and a
-			# cascade that scaled everything uniformly would spend its budget
-			# animating four bars and showing none of the four levels.
-			if allowed - beat >= min_fill_time:
-				fill_time = allowed - beat
-			else:
-				# Not even room for a visible fill plus the authored beat:
-				# floor the fill and let the beat take what is left, keeping
-				# hold and wrap in their authored proportion.
-				fill_time = min_fill_time
-				var room := maxf(allowed - fill_time, 0.0)
-				var k := room / beat if beat > 0.0 else 0.0
-				hold_time *= k
-				wrap_time *= k
 	_suppress_drain = true
 	_level_tween = create_tween()
 	# Phase 1 — fill to full at the cap this level reached. Rate-derived like any

@@ -165,73 +165,58 @@ func test_rebinding_cuts_a_live_flourish() -> void:
 	other.get_parent().remove_child(other)
 
 
-## [b]The ≤2s requirement, measured end to end against the SHIPPED gauge.[/b]
-## Every other test here fixes the timings fast so it can assert on ordering,
-## which means none of them ever executes the compression path — and the first
-## implementation of the budget shipped a cascade that ran 3.3s and
-## DECELERATED (0.45 → 0.60 → 0.90 → 1.35), because it divided the budget by
-## the shrinking count of remaining levels without ever spending it down. This
-## is the test that fails on that.
-func test_a_four_level_cascade_fits_the_budget_at_shipped_timings() -> void:
-	# Undo before_each's fast fixture: this one is about the wall clock.
+## [b]A level's loop costs the same however many are queued behind it.[/b]
+## Owner call, #320, 2026-08-24 — reversing an earlier fixed-total budget that
+## made four levels take the same wall-clock as one:
+##
+## [i]"ideally the XP bar goes at a speed independent of how many levelups ...
+## XP gain is important to witness, so we don't want to rush it. and if gaining
+## 4 levels at once takes more or less twice as long as gaining 2 levels,
+## that's all fine — revel in your gains a bit longer."[/i]
+##
+## So the property is a RATIO, not a ceiling: measure the per-level pace of a
+## two-level cascade and a four-level one at the shipped gauge settings, and
+## they must match. A budget that divides by the queue depth fails this.
+func test_the_per_level_pace_does_not_depend_on_how_many_levels_land() -> void:
+	_use_shipped_timings()
+	var two := await _time_cascade(20.0, 2)   # 20 XP off a fresh board = 2 levels
+	after_each()
+	await before_each()
+	_use_shipped_timings()
+	var four := await _time_cascade(60.0, 4)  # 60 XP = 4 levels
+
+	# Measured spread between the two is ~2% (1.300s vs 1.327s), so 15% is
+	# loose enough not to flake and far tighter than any depth-scaling scheme
+	# could sneak through: dividing a fixed total by the queue would put these
+	# 40%+ apart.
+	assert_almost_eq(four, two, two * 0.15,
+			"a level costs a level, whether it is one of two or one of four")
+	# The same fact stated the way the owner asked for it: four levels is twice
+	# the watch time of two, not the same.
+	assert_almost_eq(four * 4.0, (two * 2.0) * 2.0, two * 2.0 * 0.3,
+			"four levels take about twice as long to watch as two")
+
+
+## Restores the gauge to what the HUD actually ships, undoing before_each's
+## fast fixture — a pacing test that ran on the fixture would measure nothing.
+func _use_shipped_timings() -> void:
 	_gauge.fill_speed = 0.9
 	_gauge.level_up_fill_time = 0.35
 	_gauge.level_up_wrap_time = 0.10
 	_gauge.level_up_hold_time = 0.15
 
+
+## Grant `amount`, wait for exactly `expected` beats, and return the average
+## seconds per level. Fails the test if the grant did not cross that many caps.
+func _time_cascade(amount: float, expected: int) -> float:
 	var beats: Array[float] = []
 	_track.level_reached.connect(func(_l: int): beats.append(float(Time.get_ticks_msec())))
 	var started := float(Time.get_ticks_msec())
-	_entity.stat_board.xp.replenish(60.0)  # four levels in one grant
-	# Wait on the WALL CLOCK, not on a frame count: a headless frame is not a
-	# real one, and an over-budget cascade must be given room to finish so the
-	# failure reads as "too slow" rather than "never happened".
-	while beats.size() < 4 and (float(Time.get_ticks_msec()) - started) < 6000.0:
+	_entity.stat_board.xp.replenish(amount)
+	while beats.size() < expected and (float(Time.get_ticks_msec()) - started) < 12000.0:
 		await get_tree().process_frame
-	assert_gte(beats.size(), 4, "four levels were narrated")
-	var elapsed: float = (beats[3] - started) / 1000.0
-	assert_lt(elapsed, 2.0, "the whole cascade fits the budget a player will watch")
-	# Wait for the bar to come to rest — the settle draws on the same budget,
-	# and "the replay is over" means the bar stopped moving, not the last beat.
-	while _track._phase != 0 and (float(Time.get_ticks_msec()) - started) < 6000.0:
-		await get_tree().process_frame
-	var at_rest: float = (float(Time.get_ticks_msec()) - started) / 1000.0
-	assert_lt(at_rest, 2.3, "including the settle, with a frame or two of slack")
-	# ...and it does NOT decelerate: the last gap must not dwarf the first.
-	var first_gap: float = beats[1] - beats[0]
-	var last_gap: float = beats[3] - beats[2]
-	assert_lt(last_gap, first_gap * 2.0,
-			"the replay stays even instead of dragging out on the final level")
-	# And it really was FOUR levels, not the first four of a longer cascade —
-	# which would be a different, cheaper case quietly passing the assertions
-	# above, and would make the numbers this test reports meaningless.
-	assert_eq(beats.size(), 4, "60 XP is exactly four levels off a fresh board")
-
-
-## The pacing half: a segment handed a budget fits inside it, while a segment
-## with no budget keeps the rate-derived duration that makes a gain's SIZE
-## legible (#320's constant-rate fills). One level is under budget anyway, so
-## the common case is untouched by construction.
-func test_a_budget_compresses_a_segment_but_never_below_the_floor() -> void:
-	var g := PoolGauge.new()
-	autofree(g)
-	add_child(g)
-	g.fill_speed = 0.9
-	g.min_value = 0.0
-	g.max_value = 10.0
-	g.current = 0.0
-	await get_tree().process_frame
-
-	var held: Array[float] = [0.0]
-	g.fill_finished.connect(func(): held[0] = float(Time.get_ticks_msec()))
-	var started := float(Time.get_ticks_msec())
-	g.play_level_segment(10.0, 20.0, 0.45)
-	for i in 200:
-		await get_tree().process_frame
-		if held[0] > 0.0:
-			break
-	assert_gt(held[0], 0.0, "the segment finished")
-	var elapsed: float = (held[0] - started) / 1000.0
-	assert_lt(elapsed, 0.75, "a full-bar sweep compressed into its budget")
-	assert_gte(elapsed, PoolGauge.MIN_SEGMENT_TIME - 0.05,
-			"but never below the floor that keeps the beat visible")
+	assert_eq(beats.size(), expected,
+			"%s XP is exactly %d levels off a fresh board" % [amount, expected])
+	if beats.size() < expected:
+		return 0.0
+	return ((beats[expected - 1] - started) / 1000.0) / float(expected)

@@ -53,17 +53,6 @@ signal level_display_changed(level: int)
 @onready var _chip: XpDeltaChip = %XPDeltaChip
 @onready var _flourish: LevelUpFlourish = %LevelUpFlourish
 
-## How long the WHOLE replay of a cascade should take, in seconds. Each
-## segment is handed `budget / levels_still_to_play` as a ceiling (see
-## [method PoolGauge.play_level_segment]), so one level keeps its natural
-## rate-derived pace and four levels compress to fit rather than running the
-## five-plus seconds nobody watches. Not a guarantee: XP landing mid-replay
-## appends to the queue, and a cascade that grows after it started legitimately
-## runs longer — as does a very deep one, where
-## [constant PoolGauge.MIN_SEGMENT_TIME] binds from six levels up.
-const CASCADE_BUDGET := 1.8
-
-
 enum _Phase {
 	IDLE,
 	SEGMENT,  ## a level crossing is playing; must not be restarted
@@ -84,12 +73,6 @@ var _shown_level: int = 1
 ## THIS cascade rather than the run.
 var _cascade_stack: int = 0
 var _cascade_sp: int = 0
-## What is left of [constant CASCADE_BUDGET] for the cascade in flight. SPENT
-## down, not just divided: handing each segment `CASCADE_BUDGET / remaining`
-## without subtracting what it took gives the last segment the entire budget to
-## itself, so the replay decelerates — 0.45s, 0.60s, 0.90s, 1.35s — which is
-## both over budget and backwards from what a cascade should feel like.
-var _cascade_budget_left: float = CASCADE_BUDGET
 
 ## What this strip connects to the CURRENT hero's XP pool, released as a unit
 ## by [method _unbind] (#459 hot-seat handover).
@@ -201,38 +184,27 @@ func _apply() -> void:
 		_play_next()
 
 
+## [b]The replay does not rush for a big cascade.[/b] An earlier cut divided a
+## fixed total across the queued levels so four levels took the same wall-clock
+## as one; reverted by owner call (#320, 2026-08-24) — XP is the currency the
+## whole game is denominated in, so it is worth witnessing, and four levels
+## should take about twice as long to watch as two. Every segment runs at
+## [member PoolGauge.fill_speed]; nothing here reads the queue's depth.
 func _play_next() -> void:
 	var segment := _seq.pop() if _seq != null else null
 	if segment != null:
-		if _phase != _Phase.SEGMENT:
-			# First segment of a cascade — everything after it draws on this.
-			_cascade_budget_left = CASCADE_BUDGET
 		_phase = _Phase.SEGMENT
-		# This segment plus everything still queued behind it split what's left
-		# of the budget. Divided live rather than once up front: a grant landing
-		# mid-replay appends, and the segments after it take the shorter share.
-		# +1 for the settle: the replay is not over when the last level lands,
-		# it is over when the bar stops moving, so the settle draws on the same
-		# budget rather than adding its own second on top.
-		var to_play := _seq.pending_count() + 2
-		var allotment := maxf(_cascade_budget_left / float(to_play),
-				PoolGauge.MIN_SEGMENT_TIME)
-		# Debit what the gauge will actually SPEND, floor included — otherwise
-		# "left" overstates the remaining time every time the floor binds.
-		_cascade_budget_left = maxf(0.0, _cascade_budget_left - allotment)
-		_gauge.play_level_segment(segment.fill_to, segment.new_max, allotment)
+		# Every segment costs the same, however many are queued — the loop's
+		# pace is [member PoolGauge.fill_speed]'s business and nothing here
+		# scales it by the depth of the cascade. See the note on this method.
+		_gauge.play_level_segment(segment.fill_to, segment.new_max)
 		return
 	# The queue is empty, so this cascade is over and the flourish can leave —
 	# the one thing the old center banner could never know, since it did not
 	# hold the queue.
 	_release_flourish()
-	# A settle that FOLLOWS a cascade spends what the cascade left; a settle
-	# after an ordinary gain (the common case — passive per-turn income) passes
-	# 0 and keeps the rate-derived pace that says how much XP it was.
-	var after_cascade := _phase == _Phase.SEGMENT
 	_phase = _Phase.SETTLE
-	_gauge.animate_to(float(_pool.current), float(_pool.value),
-			_cascade_budget_left if after_cascade else 0.0)
+	_gauge.animate_to(float(_pool.current), float(_pool.value))
 
 
 func _on_fill_finished() -> void:

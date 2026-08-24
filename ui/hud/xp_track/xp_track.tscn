@@ -1,36 +1,76 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cv28pc70yp3ll"]
 
-[ext_resource type="Script" path="res://ui/hud/xp_track/xp_track.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://do7fy25hnjypk" path="res://ui/hud/xp_track/xp_track.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
 [ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="3_gauge"]
+[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_qh8mw"]
 [ext_resource type="PackedScene" path="res://ui/hud/xp_track/xp_delta_chip.tscn" id="4_chip"]
 [ext_resource type="PackedScene" path="res://ui/hud/xp_track/level_up_flourish.tscn" id="5_flourish"]
+[ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="6_ta1v6"]
 
-[node name="XpTrack" type="MarginContainer"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_72gsw"]
+resource_local_to_scene = true
+shader = ExtResource("3_qh8mw")
+shader_parameter/size = Vector2(150, 61)
+shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
+shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_angle_deg = 90.0
+shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
+shader_parameter/border_width = 1.0
+shader_parameter/corner_radius = 10.0
+shader_parameter/glow_color = Color(1, 1, 1, 0)
+shader_parameter/glow_strength = 0.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bh11c"]
+resource_local_to_scene = true
+shader = ExtResource("6_ta1v6")
+shader_parameter/size = Vector2(120, 20)
+shader_parameter/current = 1.0
+shader_parameter/min_value = 0.0
+shader_parameter/max_value = 2.0
+shader_parameter/drain_from = 1.0
+shader_parameter/fill_color = Color(0.8909, 0.7204, 0.2596, 1)
+shader_parameter/empty_color = Color(1, 1, 1, 0.08)
+shader_parameter/glow_color = Color(0.8909, 0.7204, 0.2596, 0.6)
+shader_parameter/drain_color = Color(0.9, 0.3, 0.3, 0.5)
+shader_parameter/preview_gain = 0.0
+shader_parameter/preview_color = Color(1, 1, 1, 0.25)
+shader_parameter/surplus = 0.0
+shader_parameter/surplus_color = Color(0.91, 0.67, 0.3, 0.85)
+shader_parameter/force_cells = 0.0
+shader_parameter/shine_speed = 0.6
+shader_parameter/cell_count = 0.0
+shader_parameter/skew_degrees = 0.0
+shader_parameter/corner_radius = 6.0
+shader_parameter/cell_gap = 3.0
+
+[node name="XpTrack" type="MarginContainer" unique_id=1729010674]
+custom_minimum_size = Vector2(150, 0)
 script = ExtResource("1_script")
 
-[node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
+[node name="GlassPanel" parent="." unique_id=1707469390 instance=ExtResource("2_glass")]
 unique_name_in_owner = true
+material = SubResource("ShaderMaterial_72gsw")
 layout_mode = 2
 gradient_angle_deg = 90.0
 corner_radius = 10.0
 
-[node name="Padded" type="MarginContainer" parent="."]
+[node name="Padded" type="MarginContainer" parent="." unique_id=235055006]
 layout_mode = 2
 theme_override_constants/margin_left = 18
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 18
 theme_override_constants/margin_bottom = 10
 
-[node name="Content" type="VBoxContainer" parent="Padded"]
+[node name="Content" type="VBoxContainer" parent="Padded" unique_id=1088331823]
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="Header" type="HBoxContainer" parent="Padded/Content"]
+[node name="Header" type="HBoxContainer" parent="Padded/Content" unique_id=894482092]
 custom_minimum_size = Vector2(0, 26)
 layout_mode = 2
 
-[node name="LevelLabel" type="Label" parent="Padded/Content/Header"]
+[node name="LevelLabel" type="Label" parent="Padded/Content/Header" unique_id=820835505]
 unique_name_in_owner = true
 modulate = Color(0.8909, 0.7204, 0.2596, 0.95)
 layout_mode = 2
@@ -38,12 +78,27 @@ theme_type_variation = &"CinzelHeader"
 theme_override_font_sizes/font_size = 12
 text = "LEVEL 1"
 
-[node name="ChipSlot" type="Control" parent="Padded/Content/Header"]
+[node name="ChipSlot" type="Control" parent="Padded/Content/Header" unique_id=407873298]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="XPCaption" type="Label" parent="Padded/Content/Header"]
+[node name="XPDeltaChip" parent="Padded/Content/Header/ChipSlot" unique_id=695130685 instance=ExtResource("4_chip")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_left = 0.0
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = -19.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
+
+[node name="XPCaption" type="Label" parent="Padded/Content/Header" unique_id=461089726]
 unique_name_in_owner = true
 modulate = Color(1, 1, 1, 0.55)
 layout_mode = 2
@@ -51,17 +106,20 @@ theme_override_font_sizes/font_size = 11
 text = "0 / 0"
 vertical_alignment = 1
 
-[node name="GaugeWrap" type="Control" parent="Padded/Content"]
+[node name="GaugeWrap" type="Control" parent="Padded/Content" unique_id=1487540036]
 custom_minimum_size = Vector2(0, 14)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="XPGauge" parent="Padded/Content/GaugeWrap" instance=ExtResource("3_gauge")]
+[node name="XPGauge" parent="Padded/Content/GaugeWrap" unique_id=530503948 instance=ExtResource("3_gauge")]
 unique_name_in_owner = true
+material = SubResource("ShaderMaterial_bh11c")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_right = 0.0
+offset_bottom = 0.0
 grow_horizontal = 2
 grow_vertical = 2
 fill_color = Color(0.8909, 0.7204, 0.2596, 1)
@@ -69,22 +127,7 @@ glow_color = Color(0.8909, 0.7204, 0.2596, 0.6)
 corner_radius = 6.0
 fill_speed = 0.9
 
-[node name="XPDeltaChip" parent="Padded/Content/Header/ChipSlot" instance=ExtResource("4_chip")]
+[node name="LevelUpFlourish" parent="Padded/Content/GaugeWrap" unique_id=75571955 instance=ExtResource("5_flourish")]
 unique_name_in_owner = true
 layout_mode = 1
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 0.0
-offset_top = -19.0
-offset_right = 0.0
-offset_bottom = 0.0
-grow_horizontal = 2
-grow_vertical = 0
-theme_override_font_sizes/font_size = 14
-horizontal_alignment = 1
-
-[node name="LevelUpFlourish" parent="Padded/Content/GaugeWrap" instance=ExtResource("5_flourish")]
-unique_name_in_owner = true
-layout_mode = 1
+min_dwell = 2.0

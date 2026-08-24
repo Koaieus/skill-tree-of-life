@@ -56,13 +56,6 @@ func observe(current: float, cap: float) -> void:
 	_last_cap = cap
 
 
-## How many segments are still queued. The driver divides its replay budget by
-## this (plus the one it is about to play) to pace a cascade — see
-## [method PoolGauge.play_level_segment].
-func pending_count() -> int:
-	return _pending.size()
-
-
 func has_pending() -> bool:
 	return not _pending.is_empty()
 
