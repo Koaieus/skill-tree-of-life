@@ -33,29 +33,55 @@ extends RefCounted
 ## to convert a design pixel into the fraction it is of the layout.
 const DESIGN_VIEWPORT := Vector2(1440.0, 900.0)
 
+## [b]The six geometry ratios below are `static var`, not `const`, so #578's live
+## sandbox tab can retune them and rebuild the menu in place.[/b] They are read
+## as `FrontmatterLayout.NAME` exactly as constants were, and nothing else about
+## them changed — but they ARE now process-global mutable state, so:
+##
+## - Gameplay code must only ever READ them. The sandbox tab is the sole writer.
+## - A test that writes one must restore it (or call [method reset_geometry] in
+##   its teardown), because a leaked value silently re-poses every later test's
+##   menu. The existing layout tests assert relationships rather than literals,
+##   which is what makes them immune either way.
+
 ## Where the focused node sits on screen: design (190, 450), centre-left.
-const HERO_SLOT_RATIO := Vector2(190.0 / 1440.0, 450.0 / 900.0)
+static var HERO_SLOT_RATIO := Vector2(190.0 / 1440.0, 450.0 / 900.0)
 
 ## Horizontal distance between a node and its children, as a fraction of the
 ## design width. The option column sits at design x = 496 while the hero is at
 ## 190, so a child is 306 design px to the right of its parent — and because
 ## nodes never move, that spacing is the world column pitch, not a per-focus
 ## offset.
-const COLUMN_STEP_RATIO := (496.0 - 190.0) / 1440.0
+static var COLUMN_STEP_RATIO := (496.0 - 190.0) / 1440.0
 
 ## Vertical pitch between adjacent siblings, as a fraction of the design height
 ## (design 132). Uniform within a sibling group and never smaller than this
 ## anywhere in the tree — see [method _group_gap].
-const SIBLING_GAP_RATIO := 132.0 / 900.0
+static var SIBLING_GAP_RATIO := 132.0 / 900.0
 
 ## The hover peek-ahead column (#571): a hovered node's own children, shown
 ## small and dim at their collapsed positions. Design x = 780 against the option
 ## column's 496, so 284 design px right of the node being hovered.
-const PREVIEW_COLUMN_RATIO := (780.0 - 496.0) / 1440.0
+static var PREVIEW_COLUMN_RATIO := (780.0 - 496.0) / 1440.0
 ## Vertical pitch inside that collapsed stack (design 46).
-const PREVIEW_GAP_RATIO := 46.0 / 900.0
+static var PREVIEW_GAP_RATIO := 46.0 / 900.0
 ## Scale the peek-ahead nodes are drawn at.
-const PREVIEW_SCALE := 0.42
+static var PREVIEW_SCALE := 0.42
+
+
+## Restores all six tunable ratios to their authored values.
+##
+## Exists because they are `static var`: #578's tab writes them, and a test or a
+## sandbox session that leaves one changed would re-pose every menu built
+## afterwards in the same process. Call it in teardown rather than remembering
+## six assignments.
+static func reset_geometry() -> void:
+	HERO_SLOT_RATIO = Vector2(190.0 / 1440.0, 450.0 / 900.0)
+	COLUMN_STEP_RATIO = (496.0 - 190.0) / 1440.0
+	SIBLING_GAP_RATIO = 132.0 / 900.0
+	PREVIEW_COLUMN_RATIO = (780.0 - 496.0) / 1440.0
+	PREVIEW_GAP_RATIO = 46.0 / 900.0
+	PREVIEW_SCALE = 0.42
 
 ## The splash (#574) is the root node, alone and close: design (50%, 44%) at
 ## 2.55x. "Press any button" is really allocating the first node of the run, so
