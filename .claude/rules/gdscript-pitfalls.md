@@ -22,6 +22,38 @@ repo-wide — otherwise `docs/domain/godot-workflow.md`.
   `var t: FooType = dict.get(key)` crashes at the *assignment*. Read into an
   untyped var, `is_instance_valid` that, and only then assign the typed one.
 
+## An inline `set(v):` block cannot be overridden — `set = _method` can
+
+A subclass can only hook a parent's property write if the parent declared the
+setter as a **named function**. There is no error either way: with an inline
+block there is simply no method to override, so the subclass hook never runs and
+the write silently does the base thing.
+
+```gdscript
+# Stat — overridable, and load-bearing (#555)
+@export var base_value: float = 0.0:
+	set = _set_base_value
+
+func _set_base_value(v: float) -> void:
+	base_value = v          # does NOT recurse
+	_emit_value_changed()
+
+# PoolStat — this override is why a plain `pool.base_value = v` runs the cap policy
+func _set_base_value(v: float) -> void:
+	var old_max := float(get_value())
+	super(v)
+	_apply_max_change(old_max)
+```
+
+Verified by probe (2026-08-24): the override fires **through a base-typed
+reference** too, and `base_value = v` inside the setter still does not re-enter
+it when reached via `super()` from the override. Don't conclude the pattern is
+impossible from the inline form — that mistake costs a design.
+
+**How to apply:** don't "tidy" a `set = _method` declaration back into an inline
+block; you'd silently unhook every subclass. `test_skill_point_stat.gd`'s
+`sp.base_value = ...; assert_eq(sp.current, ...)` is what catches it for `Stat`.
+
 ## You cannot disconnect a lambda or an `unbind()` you did not keep
 
 A lambda's `Callable.get_object()` is the **GDScript**, not the node, and
