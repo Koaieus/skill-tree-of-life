@@ -186,8 +186,6 @@ unique_name_in_owner = true
 [node name="SpellTooltip" parent="." unique_id=556906459 instance=ExtResource("13_spell_tt")]
 visible = false
 layout_mode = 1
-offset_right = 200.0
-offset_bottom = 60.0
 
 [node name="StatBoardOverlay" type="Control" parent="." unique_id=1359135557]
 unique_name_in_owner = true

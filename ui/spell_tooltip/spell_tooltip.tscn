@@ -1,57 +1,87 @@
-[gd_scene format=3 uid="uid://byuujrcff7ex7"]
+[gd_scene load_steps=5 format=3 uid="uid://byuujrcff7ex7"]
 
 [ext_resource type="Script" uid="uid://dco2juuyxbk6v" path="res://ui/spell_tooltip/spell_tooltip.gd" id="1_j4qkg"]
+[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
+[ext_resource type="PackedScene" uid="uid://cjwsps8ttexc" path="res://ui/tooltip_fan/panel_header.tscn" id="3_header"]
+[ext_resource type="PackedScene" path="res://ui/theme/scanline_overlay.tscn" id="4_scanlines"]
 
-[node name="SpellTooltip" type="PanelContainer" unique_id=890407428]
-layout_mode = 0
-custom_minimum_size = Vector2(280, 0)
-mouse_filter = 2
+[node name="SpellTooltip" type="MarginContainer"]
 script = ExtResource("1_j4qkg")
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 3
+anchors_preset = 0
+mouse_filter = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="." unique_id=541342024]
+[node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
+unique_name_in_owner = true
+layout_mode = 2
+glow_color = Color(0.291, 0.5892, 1, 0.35)
+glow_strength = 9.0
+
+[node name="Padded" type="MarginContainer" parent="."]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_left = 13
+theme_override_constants/margin_top = 11
+theme_override_constants/margin_right = 13
+theme_override_constants/margin_bottom = 11
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=1664275912]
+[node name="Content" type="VBoxContainer" parent="Padded"]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 2
+theme_override_constants/separation = 7
 
-[node name="NameLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=971535083]
+[node name="HeaderRow" type="HBoxContainer" parent="Padded/Content"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 10
+
+[node name="Header" parent="Padded/Content/HeaderRow" instance=ExtResource("3_header")]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 14
-text = "Name"
+size_flags_horizontal = 3
+header = "SPELL NAME"
+subheader = "Requires degree ≥ 0"
 
-[node name="MinDegreeLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=583061083]
+[node name="ManaLabel" type="Label" parent="Padded/Content/HeaderRow"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
-text = "Min degree"
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"TierValue"
+theme_override_font_sizes/font_size = 15
+text = "◈ 0"
 
-[node name="DescriptionLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=609250948]
+[node name="DescriptionLabel" type="Label" parent="Padded/Content"]
 unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.72)
 layout_mode = 2
+mouse_filter = 2
 theme_override_font_sizes/font_size = 11
 text = "Description"
-autowrap_mode = 1
+autowrap_mode = 3
 
-[node name="HSeparator" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=1768471309]
+[node name="HSeparator" type="HSeparator" parent="Padded/Content"]
+modulate = Color(1, 1, 1, 0.35)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="StatsGrid" type="VBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=672525246]
+[node name="StatsGrid" type="VBoxContainer" parent="Padded/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 1
+theme_override_constants/separation = 3
 
-[node name="PropagationLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=294601090]
+[node name="PropagationLabel" type="Label" parent="Padded/Content"]
 unique_name_in_owner = true
 layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"TierInert"
 theme_override_font_sizes/font_size = 10
-autowrap_mode = 1
+text = "Propagation"
+autowrap_mode = 3
+
+[node name="Scanlines" parent="." instance=ExtResource("4_scanlines")]
+layout_mode = 2
+line_color = Color(0.4, 0.95, 1, 1)
+scanline_intensity = 0.07

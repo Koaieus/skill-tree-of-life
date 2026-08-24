@@ -49,3 +49,24 @@ func test_tooltip_shrinks_when_a_shorter_spell_is_hovered() -> void:
 	for _i in _SETTLE_FRAMES:
 		await wait_frames(1)
 	assert_lt(tt.size.y, tall_height, "tooltip kept the taller spell's height")
+
+
+func test_tooltip_renders_its_content_through_scene_components() -> void:
+	var tt: SpellTooltip = _TOOLTIP.instantiate()
+	add_child_autofree(tt)
+	await wait_frames(2)
+
+	var spell := load(_TALL) as SpellDef
+	tt.show_for(spell, null)
+	for _i in _SETTLE_FRAMES:
+		await wait_frames(1)
+
+	var header: PanelHeader = tt.get_node("%Header")
+	assert_eq(header.header, spell.name.to_upper(), "header should carry the spell name")
+	assert_string_contains(header.subheader, str(spell.min_degree))
+	assert_string_contains(tt.get_node("%ManaLabel").text, str(spell.mana_cost))
+
+	var rows := tt.get_node("%StatsGrid").get_children()
+	assert_gt(rows.size(), 0, "stat rows should be built")
+	for row in rows:
+		assert_is(row, SpellStatRow, "rows must be the row scene, not code-built Labels")

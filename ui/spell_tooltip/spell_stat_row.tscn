@@ -1,0 +1,33 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/spell_tooltip/spell_stat_row.gd" id="1_script"]
+
+[node name="SpellStatRow" type="HBoxContainer"]
+script = ExtResource("1_script")
+custom_minimum_size = Vector2(120, 16)
+offset_right = 200.0
+offset_bottom = 16.0
+mouse_filter = 2
+theme_override_constants/separation = 8
+row_label = "Damage"
+value = "0"
+
+[node name="NameLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+mouse_filter = 2
+theme_type_variation = &"TierInert"
+theme_override_font_sizes/font_size = 11
+text = "Damage"
+
+[node name="ValueLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_type_variation = &"TierValue"
+theme_override_font_sizes/font_size = 11
+horizontal_alignment = 2
+text = "0"

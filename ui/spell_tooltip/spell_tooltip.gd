@@ -1,5 +1,5 @@
 class_name SpellTooltip
-extends PanelContainer
+extends MarginContainer
 
 ## Floating tooltip shown on [SpellPickerButton] hover. Follows the
 ## [TooltipFan] pattern: subscribes to global [code]Events[/code]
@@ -12,10 +12,15 @@ extends PanelContainer
 ## plugin) can instantiate this scene, call [method show_for] with the
 ## spell and optional caster entity, then [method hide_tooltip] on exit.
 
+## Accent worn by any value the caster's own stats moved off the spell's
+## printed base. Gold reads as "this is yours" — a pure positive, which is the
+## only register `.claude/rules/ui-palette.md` allows it in.
 const DYNAMIC_COLOR: Color = Color(1.0, 0.85, 0.4)
 
-@onready var _name_label: Label = %NameLabel
-@onready var _min_degree_label: Label = %MinDegreeLabel
+const _ROW := preload("res://ui/spell_tooltip/spell_stat_row.tscn")
+
+@onready var _header: PanelHeader = %Header
+@onready var _mana_label: Label = %ManaLabel
 @onready var _description_label: Label = %DescriptionLabel
 @onready var _stats_grid: VBoxContainer = %StatsGrid
 @onready var _propagation_label: Label = %PropagationLabel
@@ -28,6 +33,7 @@ func _ready() -> void:
 	hide()
 	# Pin the width before anything is ever measured — see [method _fit].
 	size = Vector2(maxf(custom_minimum_size.x, 1.0), 0.0)
+	_tint_mana_label()
 	Events.spell_hovered.connect(_on_spell_hovered)
 	Events.spell_unhovered.connect(_on_spell_unhovered)
 
@@ -79,9 +85,8 @@ func _populate() -> void:
 	if _spell == null:
 		return
 
-	_name_label.text = "%s — %d Mana" % [_spell.name, _spell.mana_cost]
-	_min_degree_label.text = "Requires Degree ≥ %d" % _spell.min_degree
-	_min_degree_label.modulate = Color(0.7, 0.7, 0.75)
+	_header.bind(_spell.name, "Requires degree ≥ %d" % _spell.min_degree)
+	_mana_label.text = "◈ %d" % _spell.mana_cost
 
 	if _spell.description != "":
 		_description_label.text = _spell.description
@@ -102,10 +107,12 @@ func _populate() -> void:
 
 	if has_prop:
 		var prop := _spell.propagation
-		var hops_text := str(eff_hops)
-		if hops_dynamic:
-			hops_text = "%d (base %d)" % [eff_hops, base_hops]
-		_add_stat_row(&"Hops", hops_text, hops_dynamic)
+		# A 0-hop propagation is impact-only — printing "Hops 0" is noise.
+		if eff_hops > 0:
+			var hops_text := str(eff_hops)
+			if hops_dynamic:
+				hops_text = "%d (base %d)" % [eff_hops, base_hops]
+			_add_stat_row(&"Hops", hops_text, hops_dynamic)
 
 		if prop.hop_damage != null:
 			var hd := prop.hop_damage.get_description()
@@ -145,27 +152,29 @@ func _populate() -> void:
 			_add_stat_row(&"Target", target_desc, false)
 
 
+## Append one [SpellStatRow]. `dynamic` marks a value the caster's stats moved
+## off the spell's printed base — the row then wears [constant DYNAMIC_COLOR].
 func _add_stat_row(label: StringName, value: String, dynamic: bool) -> void:
-	var row := HBoxContainer.new()
-	row.mouse_filter = MOUSE_FILTER_IGNORE
-
-	var lbl := Label.new()
-	lbl.mouse_filter = MOUSE_FILTER_IGNORE
-	lbl.text = String(label)
-	lbl.modulate = Color(0.7, 0.7, 0.75)
-	lbl.size_flags_horizontal = SIZE_EXPAND_FILL
-	row.add_child(lbl)
-
-	var val := Label.new()
-	val.mouse_filter = MOUSE_FILTER_IGNORE
-	val.text = value
-	val.modulate = DYNAMIC_COLOR if dynamic else Color.WHITE
-	if dynamic:
-		val.add_theme_color_override(&"font_color", DYNAMIC_COLOR)
-		val.add_theme_font_size_override(&"font_size", 14)
-	row.add_child(val)
-
+	var row: SpellStatRow = _ROW.instantiate()
 	_stats_grid.add_child(row)
+	row.bind(
+		String(label),
+		value,
+		DYNAMIC_COLOR if dynamic else Color(1.0, 1.0, 1.0, 0.0),
+		dynamic
+	)
+
+
+## The mana chip wears the Mana stat's own palette colour — [StatDef.tint_color]
+## is the single source of truth for it (`.claude/rules/ui-palette.md`), so the
+## scene authors the size and this authors the hue, once.
+func _tint_mana_label() -> void:
+	var def: StatDef = StatRegistry.get_def(&"mana")
+	if def == null:
+		return
+	_mana_label.add_theme_color_override(
+		&"font_color", Emissive.at(def.tint_color, Emissive.VALUE)
+	)
 
 
 ## Effective max_hops from PropagationConfig, scaled by the caster's
