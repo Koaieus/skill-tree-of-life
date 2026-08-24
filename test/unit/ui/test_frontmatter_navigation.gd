@@ -388,3 +388,32 @@ func test_the_shell_owns_quitting_not_the_exit_panel() -> void:
 			"the shell is listening, and it is the only thing listening")
 	assert_eq(panels.get_signal_connection_list(&"panel_dismissed").size(), 1,
 			"and the dismiss route is wired exactly once, not once per rebuild")
+
+
+## `build()` clears before it fills, and `%GraphLayer` holds scene-authored
+## siblings as well as the views — #572's [BackAffordance] lives there so it
+## sits in graph space with the edge it decorates. A `_clear()` that freed every
+## child of the layer therefore destroyed the affordance on the FIRST build, and
+## the back button never appeared in play.
+##
+## **The await is the whole test.** `queue_free()` defers to end of frame, so
+## everything later in the same frame still ran against a live object and the
+## suite stayed green; the node was only gone a frame later. Asserting without
+## the await reproduces the original false pass exactly.
+func test_a_rebuild_does_not_eat_the_scene_authored_affordances() -> void:
+	_root.focus(MenuGraph.ID_SINGLE_PLAYER, true)
+	await get_tree().process_frame
+
+	var back: Node = _root.get_node_or_null("%BackAffordance")
+	assert_not_null(back, "the affordance survived the build that cleared the layer")
+	assert_true(is_instance_valid(back), "and was not queued for deletion")
+	assert_eq(back.get_parent(), _root.get_node("%GraphLayer"),
+			"still parented in graph space, where it reads against its edge")
+
+	# And a SECOND build must not eat it either — #578's live tab rebuilds in
+	# place on every knob change, which is the path that found this.
+	_root.build()
+	await get_tree().process_frame
+	assert_not_null(_root.get_node_or_null("%BackAffordance"), "survives a rebuild too")
+	assert_eq(_root.view_for(MenuGraph.ID_ROOT).get_parent(), _root.get_node("%GraphLayer"),
+			"and the views really were rebuilt, not merely left alone")

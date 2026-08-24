@@ -399,10 +399,30 @@ func _push_edges() -> void:
 		edge.set_endpoints(parent_view.position, (_views[child_id] as MenuNodeView).position)
 
 
+## Tears down what a previous [method build] MADE, and nothing else.
+##
+## [b]It frees the tracked views and edges, never "every child of
+## `%GraphLayer`".[/b] That layer also holds scene-authored siblings — #572's
+## [BackAffordance] is parented there so it sits in graph space with the edge it
+## decorates — and clearing the layer wholesale destroyed them on the very first
+## build, since `build()` clears before it fills.
+##
+## It failed silently, which is the part worth remembering: `queue_free()`
+## defers to end of frame, so everything later in the same frame still ran
+## against a live object and every test passed. The node was simply gone a frame
+## later. Found by #578's live tab, which reads the affordance one frame after
+## build.
 func _clear() -> void:
-	for child in _graph_layer.get_children():
-		_graph_layer.remove_child(child)
-		child.queue_free()
+	for id in _views:
+		var view: Node = _views[id]
+		if is_instance_valid(view):
+			view.get_parent().remove_child(view)
+			view.queue_free()
+	for key in _edges:
+		var edge: Node = _edges[key]
+		if is_instance_valid(edge):
+			edge.get_parent().remove_child(edge)
+			edge.queue_free()
 	_views = {}
 	_edges = {}
 	_from_pose = {}
