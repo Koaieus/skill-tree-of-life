@@ -21,6 +21,16 @@ every painter reads live world state, full stop. See `beat_clock.gd`'s class
 docstring (lines 4-19) for the clock's own statement of this; it is the
 long-form version of everything in this section.
 
+The clock carries one beat that is **not** a mutation: `BattleSystem`'s
+`release_beat`, waited out at the end of `_apply_outcome` before
+`is_launching` clears for a coordinator mode (ranged/magic). It is the pause
+between the world going final and the player being able to act again, and it
+rides this clock rather than a timer of its own precisely so it inherits the
+clock's two properties — instant under `instant_mutation`, and cut short by
+`drain()` on teardown. Melee doesn't take it: it releases on the visible
+swing, because its plan (and the temp-upgrade addons mounted on it) must stay
+live until the blade is done.
+
 ## Why this is not the disease #474 cured
 
 `await attack_vfx.play(...)` used to order mutation by *animation
