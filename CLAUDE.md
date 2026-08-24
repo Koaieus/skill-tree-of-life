@@ -64,7 +64,7 @@ Spawning runtime entities: subclass `GameRoot`, override `_setup_level()`, call 
 
 | Singleton | Purpose |
 |---|---|
-| `Boot` | Release-build entry point — on `OS.has_feature("release")` swaps to `first_level_sandbox`. No-op in the editor. |
+| `Boot` | Release-build entry point — on `OS.has_feature("release")` routes to the frontmatter menu (`scenes/meta/meta_root.tscn`) via `SceneDirector.goto` (#577). No-op in the editor. |
 | `SceneTransition` | Fade in/out + loading progress bar |
 | `SceneDirector` | Scene routing + async loading. Absorbed the zero-caller `SceneLoader` (#212); `MetaRoot` and the menu shell route through `SceneDirector.goto` |
 | `Settings` | `GameSettings` + `ConfigFile` persistence, surfaced by the reflected settings menu |
