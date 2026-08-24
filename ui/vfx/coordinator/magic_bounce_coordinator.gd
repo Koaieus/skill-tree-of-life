@@ -196,8 +196,32 @@ func _play_event(ev: PropagationEvent, pending: Array[int]) -> void:
 
 
 func _play_projectile(ev: PropagationEvent, pending: Array[int]) -> void:
-	if ev.origin == null or ev.target == null:
+	if ev.target == null:
 		return
+	for origin in _origins_for(ev):
+		_spawn_projectile(ev, origin, pending)
+
+
+## One inbound bolt per converging predecessor (#542) — a fork-then-reconverge
+## lands one impact ([code]docs/domain/attack-timeline.md[/code] / D2 on #542)
+## but should draw every branch that fed it, not just [member
+## PropagationEvent.origin]. Falls back to the single `origin` for the
+## overwhelming majority of events (JUMP, SELF_LOOP, a plain unconverged EDGE),
+## which all carry ≤1 predecessor and would draw the same single bolt either way.
+func _origins_for(ev: PropagationEvent) -> Array[SkillNode]:
+	if ev.predecessors.size() > 1:
+		var origins: Array[SkillNode] = []
+		for pred in ev.predecessors:
+			if pred != null:
+				origins.append(pred)
+		if origins.size() > 1:
+			return origins
+	if ev.origin != null:
+		return [ev.origin]
+	return []
+
+
+func _spawn_projectile(ev: PropagationEvent, origin: SkillNode, pending: Array[int]) -> void:
 	var proj := Projectile.new()
 	proj.path = _resolved_path(ev.verb)
 	proj.visual_scene = _resolved_visual(ev.verb)
@@ -208,7 +232,7 @@ func _play_projectile(ev: PropagationEvent, pending: Array[int]) -> void:
 	pending[0] += 1
 	proj.tree_exiting.connect(func() -> void:
 		pending[0] -= 1)
-	proj.launch(ev.origin.global_position, ev.target.global_position, 0.0)
+	proj.launch(origin.global_position, ev.target.global_position, 0.0)
 
 
 func _play_cancel(ev: PropagationEvent, pending: Array[int]) -> void:

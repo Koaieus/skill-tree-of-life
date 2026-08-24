@@ -40,8 +40,14 @@ static func _merge_payload_defaults(incidents: Array[CastSpell], node: SkillNode
 	merged.graph = incidents[0].graph
 	merged.rng = incidents[0].rng
 	merged.hop_index = incidents[0].hop_index
-	# Inbound predecessor: ambiguous when N branches converge; pick first
-	# for VFX origin purposes (the projectile has to fly from somewhere).
+	# Inbound predecessor: this merged payload keeps only the CHOSEN one — the
+	# canonical "the projectile has to fly from somewhere" reader (VFX origin,
+	# and anything downstream that wants "the" predecessor rather than the
+	# full converging set). Picking first here does NOT lose the rest of the
+	# set: SpellResolver captures every incident's predecessor straight off
+	# `incidents` at the grouping pass, before this reducer ever runs, and
+	# stamps the full array onto the emitted PropagationEvent's
+	# `predecessors` (#542). This field only ever needed to pick one.
 	merged.predecessor = incidents[0].predecessor
 	# hops_remaining: take MAX — gives the merged incident the most generous
 	# remaining budget across its inputs.

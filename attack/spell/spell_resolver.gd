@@ -152,6 +152,13 @@ static func resolve_against(
 		# otherwise default to 1; the null "first-wins" short-circuit returns
 		# incidents[0] raw). See #352.
 		var merged: Array[CastSpell] = []
+		# node -> every predecessor its converging incidents arrived from, in
+		# incident order (#542). The reducer folds N incidents into one merged
+		# CastSpell with a single CHOSEN predecessor (see
+		# IncidentReducer._merge_payload_defaults); this is the only place the
+		# full set still exists, so it's captured here and handed to the
+		# PropagationEvent this landing emits in step 3 below.
+		var predecessor_sets: Dictionary = {}  ## SkillNode -> Array[SkillNode]
 		for node in groups:
 			var incidents: Array[CastSpell] = []
 			for inc in (groups[node] as Array):
@@ -162,6 +169,10 @@ static func resolve_against(
 				continue
 			resolved.incident_count = incidents.size()
 			merged.append(resolved)
+			var preds: Array[SkillNode] = []
+			for inc in incidents:
+				preds.append(inc.predecessor)
+			predecessor_sets[node] = preds
 
 		# 3. Apply effects, emit a timeline event per landing, bump visit counter.
 		var wave_first := outcome.hits.size()
@@ -178,6 +189,9 @@ static func resolve_against(
 			var ev := PropagationEvent.new()
 			ev.beat = state.hop_index
 			ev.predecessor = state.predecessor
+			# Guaranteed present: `merged` and `predecessor_sets` are populated
+			# together, keyed by the same node, in the loop above.
+			ev.predecessors = predecessor_sets[state.current_node]
 			ev.origin = state.predecessor if state.predecessor != null else state.source
 			ev.target = state.current_node
 			ev.verb = _verb_for(state)
@@ -338,6 +352,10 @@ static func _record_cancel(
 	cancel_ev.beat = wave
 	cancel_ev.verb = PropagationEvent.Verb.CANCEL
 	cancel_ev.predecessor = first.predecessor
+	var preds: Array[SkillNode] = []
+	for inc in incidents:
+		preds.append(inc.predecessor)
+	cancel_ev.predecessors = preds
 	cancel_ev.origin = first.predecessor if first.predecessor != null else first.source
 	cancel_ev.target = node
 	outcome.timeline.append(cancel_ev)

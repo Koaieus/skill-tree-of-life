@@ -41,6 +41,17 @@ var target: SkillNode = null
 ## authoring-dock work.
 var predecessor: SkillNode = null
 
+## Every predecessor that converged on this landing — one entry per incident
+## the [IncidentReducer] folded together, in incident order. [member predecessor]
+## stays the single canonical choice ("where the merged payload came from",
+## VFX origin) so nothing that reads it breaks; this is the full set beside it
+## (#542, closing the "only one inbound projectile is ever drawn" gap). A
+## single-incident landing — the overwhelming majority — carries exactly one
+## entry, so [code]predecessors.size() > 1[/code] is what a VFX reader gates
+## multi-bolt rendering on ([MagicBounceCoordinator]). Size matches
+## [member CastSpell.incident_count] for the landing that produced this event.
+var predecessors: Array[SkillNode] = []
+
 ## The hit(s) this event lands — shared references into
 ## [member AttackOutcome.hits], NOT copies. Empty for [constant Verb.CANCEL]
 ## and for zero-damage / utility landings (which still get an event so the

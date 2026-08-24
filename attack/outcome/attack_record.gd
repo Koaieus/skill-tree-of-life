@@ -109,6 +109,15 @@ const KEY_EVENT_VERB := "e_verb"
 const KEY_EVENT_ORIGIN := "e_org"
 const KEY_EVENT_TARGET := "e_tgt"
 const KEY_EVENT_PRED := "e_pred"
+## Ragged predecessor set (#542) — the same [constant KEY_DEALLOC_COUNT] /
+## [constant KEY_DEALLOC_NODE] shape, flattened across ALL events:
+## [constant KEY_EVENT_PRED_COUNT] gives how many predecessors converged on
+## each event, in event order; [constant KEY_EVENT_PRED_ALL] is the flat run
+## those counts slice back apart. [constant KEY_EVENT_PRED] above stays the
+## single canonical predecessor — the VFX-origin reader that already existed
+## keeps working unchanged.
+const KEY_EVENT_PRED_COUNT := "e_predc"
+const KEY_EVENT_PRED_ALL := "e_preda"
 const KEY_EVENT_HITS := "e_hits"
 
 ## [constant KEY_HIT_FLAGS] bits.
@@ -186,6 +195,10 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	var event_origins := PackedInt32Array()
 	var event_targets := PackedInt32Array()
 	var preds := PackedInt32Array()
+	# Flattened across all events; `pred_counts` slices it back apart —
+	# same discipline as the dealloc arrays above (#542).
+	var pred_counts := PackedInt32Array()
+	var pred_all := PackedInt32Array()
 	var event_hits: Array = []
 	for event in outcome.timeline:
 		beats.append(event.beat)
@@ -193,6 +206,9 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		event_origins.append(_id_of(event.origin, graph))
 		event_targets.append(_id_of(event.target, graph))
 		preds.append(_id_of(event.predecessor, graph))
+		pred_counts.append(event.predecessors.size())
+		for pred in event.predecessors:
+			pred_all.append(_id_of(pred, graph))
 		var refs := PackedInt32Array()
 		for hit in event.hits:
 			# A hit the event references but the flat list does not hold would
@@ -231,6 +247,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		KEY_EVENT_ORIGIN: event_origins,
 		KEY_EVENT_TARGET: event_targets,
 		KEY_EVENT_PRED: preds,
+		KEY_EVENT_PRED_COUNT: pred_counts,
+		KEY_EVENT_PRED_ALL: pred_all,
 		KEY_EVENT_HITS: event_hits,
 	}
 
@@ -342,7 +360,12 @@ static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
 	var event_origins: PackedInt32Array = d.get(KEY_EVENT_ORIGIN, PackedInt32Array())
 	var event_targets: PackedInt32Array = d.get(KEY_EVENT_TARGET, PackedInt32Array())
 	var preds: PackedInt32Array = d.get(KEY_EVENT_PRED, PackedInt32Array())
+	var pred_counts: PackedInt32Array = d.get(KEY_EVENT_PRED_COUNT, PackedInt32Array())
+	var pred_all: PackedInt32Array = d.get(KEY_EVENT_PRED_ALL, PackedInt32Array())
 	var event_hits: Array = d.get(KEY_EVENT_HITS, [])
+	# Running offset into the flattened predecessor array, same shape as
+	# `dealloc_at` above — advanced by each event's own count.
+	var pred_at := 0
 	for i in beats.size():
 		var event := PropagationEvent.new()
 		event.beat = beats[i]
@@ -350,6 +373,13 @@ static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
 		event.origin = _node_of(event_origins[i], graph)
 		event.target = _node_of(event_targets[i], graph)
 		event.predecessor = _node_of(preds[i], graph)
+		if i < pred_counts.size():
+			var count := pred_counts[i]
+			var set: Array[SkillNode] = []
+			for k in count:
+				set.append(_node_of(pred_all[pred_at + k], graph))
+			event.predecessors = set
+			pred_at += count
 		var refs: PackedInt32Array = event_hits[i] if i < event_hits.size() else PackedInt32Array()
 		for index in refs:
 			if index >= 0 and index < outcome.hits.size():
