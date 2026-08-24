@@ -77,7 +77,7 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 | ~~#475~~ | ~~Author real faction camps~~ | **Shipped 2026-08-21** — so #459's allied-humans prerequisite is met |
 | **#459** | Hot-seat coop: the three rebind seams | **`Ready` — this is the LAN commitment, and it is one issue.** Needs nothing from #511/#512/#463 |
 | ~~#460~~ | ~~`VictorySystem` — a run that can end~~ | **Shipped 2026-08-21.** Owner call settled it: last camp standing, pluggable, blockers inert. `docs/domain/victory-system.md` |
-| **#461** | Menu shell follow-up: scenic screens, roster wiring, styling | Sits in `Ready` but still carries open forks — see "Known board violations" |
+| ~~#461~~ → **#567** | **Game Frontmatter — the menu IS a skill tree** | **Swarmified 2026-08-24.** #461 closed as superseded (its roster half shipped as #549). The owner put this back **in** the milestone — *"it's part of the LAN. i will be showing it to people, it needs a skill tree menu"* — reversing #461's own 2026-08-21 call to file it outside. Hub #567, **11 children**; LAN cut #568/#569/#570/#573/#574/#577 in `Ready`, polish tail #571/#572/#575/#576/#578 in `Backlog` behind native `blocked-by`. **Do not re-enumerate children here** — read `mise gh-project -- roadmap` |
 | ~~#462~~ | ~~Display settings (window mode, resolution, vsync, fps cap)~~ | **Shipped 2026-08-21.** North Star #2 is met |
 | **#463** | Versus: `NetworkTransport` + ENet lobby | **Hub, swarmified 2026-08-22.** The transport seam, both transports and `CommandLink` already shipped — the body was 60% stale. All five 2026-08-23 children closed (#527/#528/#529/#530/#531). **The sync model is settled 2026-08-24** — see below, and the upward channel + roster seam were swarmified the same day. **Do not re-enumerate children here** — read `mise gh-project -- roadmap` |
 | ~~#499~~ | ~~Ranged volley: arrival ramp + apply in arrival order~~ | **Shipped.** `OutcomeApplier` orders hits by `arrival_time` |
@@ -147,8 +147,14 @@ So the remaining order is short:
   already is.
 
 **The LAN date's risk is no longer #498 step 3.** It shipped 2026-08-23
-(#535 + #536). What is left is #461 and #457 sitting in `Ready` with their forks
-still open.
+(#535 + #536). #461 was swarmified 2026-08-24 into the #567 frontmatter hub, so
+what is left carrying open forks is **#457 alone**.
+
+One structural fact #567 surfaced that is worth knowing outside it: **`Boot`
+never reaches the menu.** `autoload/boot.gd` swaps straight to
+`first_level_sandbox` on a release build, so the meta shell is unreachable in
+anything but the editor. #577 fixes it. Anyone reasoning about "what does a
+player see first" should read that before assuming `meta_root.tscn` runs.
 
 **The attack-timeline contract is DONE** — `docs/domain/attack-timeline.md`,
 hub **#500**. Every child closed: the three mode moves (#501 / #502 / #503) and
@@ -316,11 +322,10 @@ the procgen config, #469 edge width vs. zoom + bolt dots (wants a design pass).
 
 ## Known board violations
 
-As of 2026-08-22: **#461 is fixed** — moved to `Needs design`, per the owner's
-call that an issue with open forks belongs there. **#457 remains** in `Ready`
-carrying the `design` label, and the label is honest: its forks are genuinely
-open, so `Ready` is what is wrong there. Don't let a drone pull it until a
-`/swarmify` pass settles it.
+As of 2026-08-24: **#461 is closed** — superseded by #567, whose children carry
+settled acceptance specs. **#457 remains** in `Ready` carrying the `design`
+label, and the label is honest: its forks are genuinely open, so `Ready` is what
+is wrong there. Don't let a drone pull it until a `/swarmify` pass settles it.
 
 Don't trust this section's date — run `mise gh-project -- hygiene`.
 
