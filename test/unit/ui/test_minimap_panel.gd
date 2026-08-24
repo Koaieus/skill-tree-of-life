@@ -127,6 +127,44 @@ func test_an_unchanged_camera_does_not_redraw_the_outline() -> void:
 	assert_gt(layer.draw_count, before, "but a moved rect must")
 
 
+func test_the_outline_lands_on_whole_pixels() -> void:
+	# A 1px stroke is CENTRED on its path, so an edge at an integer coordinate
+	# covers half of each neighbouring pixel column and reads as gone. Every
+	# edge must end up at `k + 0.5`.
+	var layer := MinimapViewportRectLayer.new()
+	add_child_autofree(layer)
+	for raw in [Rect2(10.0, 20.0, 40.0, 30.0), Rect2(10.4, 19.6, 40.2, 29.7)]:
+		layer.set_view_rect(raw)
+		var r: Rect2 = layer._rect
+		for edge in [r.position.x, r.position.y, r.end.x, r.end.y]:
+			assert_almost_eq(fposmod(edge, 1.0), 0.5, 0.001,
+					"edge %s of %s is off the pixel grid" % [edge, raw])
+
+
+func test_subpixel_camera_drift_costs_no_redraw() -> void:
+	var layer := MinimapViewportRectLayer.new()
+	add_child_autofree(layer)
+	layer.set_view_rect(Rect2(10.0, 20.0, 40.0, 30.0))
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var before: int = layer.draw_count
+	# Snapping is applied BEFORE the equality check, so a camera that moved a
+	# fraction of a world unit lands on the same box and redraws nothing.
+	layer.set_view_rect(Rect2(10.1, 20.2, 40.1, 29.9))
+	await get_tree().process_frame
+	assert_eq(layer.draw_count, before, "sub-pixel drift must not redraw")
+
+
+func test_a_degenerate_box_does_not_invert() -> void:
+	# Zoomed far enough in, the view covers less than the stroke is wide. The
+	# inset must floor at zero rather than turn the box inside out.
+	var layer := MinimapViewportRectLayer.new()
+	add_child_autofree(layer)
+	layer.set_view_rect(Rect2(10.0, 20.0, 0.0, 0.0))
+	assert_gte(layer._rect.size.x, 0.0, "no negative width")
+	assert_gte(layer._rect.size.y, 0.0, "no negative height")
+
+
 # ------------------------------------------------------------- geometry ---
 
 func test_an_unowned_node_takes_the_neutral_tint() -> void:
