@@ -75,3 +75,25 @@ func test_the_menu_it_boots_into_starts_on_the_attract_state() -> void:
 	var frontmatter := meta.get_node("%Frontmatter") as FrontmatterRoot
 	assert_eq(frontmatter.focus_id, frontmatter.tree.root,
 			"the tree is built and parked on its root")
+
+
+## `Boot` was registered as `Boot="uid://…"` — the ONLY autoload in
+## `project.godot` without the `*` prefix. Without it the script is still
+## instantiated and still runs, so nothing visibly broke; it simply was not
+## exposed as a global, and naming `Boot` in a script was a parse error.
+##
+## That is the worst shape a config defect can take here, because per
+## `.claude/rules/testing.md` a parse error makes GUT **skip the whole file
+## while still reporting green** — which is exactly what happened to the first
+## draft of this file: it silently collected zero tests.
+##
+## So this asserts the registration itself, not just the behaviour. CLAUDE.md's
+## autoload table calls `Boot` a singleton; this is what makes that true.
+func test_boot_is_registered_as_a_real_global() -> void:
+	assert_true(ProjectSettings.has_setting("autoload/Boot"), "Boot is registered")
+	var entry: String = ProjectSettings.get_setting("autoload/Boot")
+	assert_true(entry.begins_with("*"),
+			"the * prefix is what exposes an autoload as a global — without it, "
+			+ "naming Boot in a script is a parse error and GUT skips the file silently")
+	assert_not_null(Engine.get_main_loop().root.get_node_or_null("Boot"),
+			"and it is actually in the tree under that name")
