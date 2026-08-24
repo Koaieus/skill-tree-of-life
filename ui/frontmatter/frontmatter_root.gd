@@ -207,9 +207,8 @@ func _connect_panels() -> void:
 		return
 	if not panels.panel_dismissed.is_connected(_on_panel_dismissed):
 		panels.panel_dismissed.connect(_on_panel_dismissed)
-	if panels.has_signal(&"quit_requested") \
-			and not panels.is_connected(&"quit_requested", _on_quit_requested):
-		panels.connect(&"quit_requested", _on_quit_requested)
+	if not panels.quit_requested.is_connected(_on_quit_requested):
+		panels.quit_requested.connect(_on_quit_requested)
 
 
 func _on_panel_dismissed(_id: StringName) -> void:

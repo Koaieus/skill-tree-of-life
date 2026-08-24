@@ -345,13 +345,33 @@ func test_a_leafs_panel_is_raised_on_arrival_not_on_departure() -> void:
 	assert_eq(panels.shown_panel, MenuGraph.PANEL_LOBBY, "arrived")
 
 
-func test_a_panel_that_has_not_landed_yet_routes_harmlessly() -> void:
-	# `show_panel` no-ops on an unregistered id BY DESIGN, so a leaf whose panel
-	# #573 has not filled in leaves the graph visible instead of erroring.
+func test_routing_a_leaf_raises_its_panel() -> void:
+	# Every leaf's panel landed with #573, so a route both records the ask and
+	# gives the layer the stage. Written as the two halves of the contract on
+	# purpose — `shown_panel` is what the graph ASKED for, `has_panel` is
+	# whether anything can answer, and the layer's visibility follows the
+	# second, never the first.
 	var panels: FrontmatterPanels = _root.get_node("%PanelLayer").get_child(0)
 	_root.focus(MenuGraph.ID_LOAD_GAME)
 	assert_eq(panels.shown_panel, MenuGraph.PANEL_LOAD, "the ask is recorded")
-	assert_false(panels.has_panel(MenuGraph.PANEL_LOAD), "and nothing took the stage")
+	assert_true(panels.has_panel(MenuGraph.PANEL_LOAD), "and something answers it")
+	assert_true(panels.visible, "so the layer takes the stage")
+
+
+func test_an_unregistered_panel_id_routes_harmlessly() -> void:
+	# `show_panel` no-ops on an unregistered id BY DESIGN — it records the ask
+	# and leaves the graph visible rather than erroring, which is what let C3
+	# ship its navigation while #573's panels were still empty.
+	#
+	# Asserted against a FABRICATED id rather than a real leaf's: once every
+	# leaf has a panel there is no route left that exercises the miss, and a
+	# test that quietly stops testing its own name is worse than no test. This
+	# is that guarantee outliving the condition that first motivated it.
+	var panels: FrontmatterPanels = _root.get_node("%PanelLayer").get_child(0)
+	panels.show_panel(&"no_such_panel")
+	assert_eq(panels.shown_panel, &"no_such_panel", "the ask is still recorded")
+	assert_false(panels.has_panel(&"no_such_panel"), "nothing answers it")
+	assert_false(panels.visible, "so the graph keeps the stage")
 
 
 func test_the_shell_owns_quitting_not_the_exit_panel() -> void:
@@ -360,11 +380,9 @@ func test_the_shell_owns_quitting_not_the_exit_panel() -> void:
 	# menu's quit CONNECTION rather than pressing it. Same reasoning here: the
 	# connection is asserted, never fired.
 	var panels: FrontmatterPanels = _root.get_node("%PanelLayer").get_child(0)
-	# Stands in for the signal until #573 lands it, and steps aside once it has —
-	# either way the shell's guarded connect is what is under test, and the
-	# signal is never EMITTED here.
-	if not panels.has_signal(&"quit_requested"):
-		panels.add_user_signal("quit_requested")
+	# #573 has landed `quit_requested` for real, so the connect is a plain typed
+	# one — a rename now fails `mise run check` here instead of silently leaving
+	# EXIT wired to nothing. The signal is never EMITTED in this test.
 	_root._connect_panels()
 	assert_eq(panels.get_signal_connection_list(&"quit_requested").size(), 1,
 			"the shell is listening, and it is the only thing listening")
