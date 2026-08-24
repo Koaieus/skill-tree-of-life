@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+#MISE description="Fail on transcendentals in gameplay math: `mise run lint-transcendentals [-- --json]`"
+"""
+No `log` / `exp` / `pow` / `sin` / `cos` / `tan` / `atan` in a gameplay formula
+string or gameplay code path (#547). `sqrt` is fine — IEEE 754 requires it to be
+correctly rounded, and `+ - * / sqrt` (plus fma) is the whole list it requires.
+Everything else is a libm approximation that differs in the last bits between
+platforms, and gameplay math routinely lands on the boundary where that matters:
+`floor(log(INT)/log(10))` was returning 2 at INT 1000 on glibc, one ulp short of
+3, for a whole missing point of mana regen.
+
+Why it is a LINT and not just a fix: derived stats are recomputed locally on
+every peer rather than sent (host-authoritative intent-up / record-down, decided
+2026-08-24), so the next one of these authored into a `.tres` desyncs a mixed
+Windows/Linux lobby silently, presents as nothing in particular, and is found on
+LAN day. Catching it at authoring time is the point.
+
+Reports every hit with its file:line. Exits 1 when any survives the allowlist —
+this is a correctness gate, unlike `rules-hygiene`, which only reports.
+
+  ALLOWLIST DISCIPLINE: every exemption carries a REASON, and the reason states
+  the condition under which it stops being true. "It's just drawing" is a reason;
+  "out of scope" is not. If you are adding an entry, you are asserting that no
+  peer re-derives this number and compares it to another peer's.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+
+# `sqrt` is deliberately absent — IEEE 754 requires it to be correctly rounded,
+# along with `+ - * / ` and fma, and nothing else.
+#
+# Spell the whole family out rather than relying on a stem plus `\b`: a word
+# boundary needs a NON-word char before the stem, so `\bsin\(` never sees the
+# `sin` in `asin(`, and `\batan\s*\(` never matches `atan2(` because the `(`
+# check lands on the `2`. Every arc, hyperbolic and base-suffixed variant below
+# was invisible to the first draft of this regex.
+BANNED = ["log", "log2", "log10", "exp", "exp2", "pow",
+          "sin", "cos", "tan", "asin", "acos", "atan", "atan2",
+          "sinh", "cosh", "tanh", "asinh", "acosh", "atanh"]
+# Longest-first so `atan2` wins over `atan` and the reported name is the real one.
+CALL_RE = re.compile(r"\b(%s)\s*\(" % "|".join(sorted(BANNED, key=len, reverse=True)))
+
+# Directory prefixes exempt wholesale, each with the condition that makes it so.
+EXEMPT_DIRS = {
+    "addons/": "third-party + in-editor dev tooling; never on a peer's gameplay path.",
+    "test/": "tests may name the banned math to pin that gameplay no longer uses it.",
+    "tools/": "in-editor playgrounds — authoring aids, not a shipped gameplay path.",
+    "ui/": "presentation. Drawing, easing and layout are per-peer by nature; a "
+           "last-ulp difference moves a pixel, and no peer compares pixels.",
+    "skill_node/visuals/": "presentation — see ui/.",
+    "entity/core/sigil/": "presentation — sigil geometry is drawn, never compared.",
+    "procgen/": "the generated graph is TRANSMITTED (#527's snapshot), not "
+                "re-derived per peer. If that ever changes — if a peer generates "
+                "its own map from the shared seed — this exemption is VOID and "
+                "every roll here becomes a cross-platform hazard.",
+}
+
+# Single files exempt, same contract. Prefer a directory only when the whole
+# directory really is one category.
+EXEMPT_FILES = {
+    "skill_node/addons/skill_dust_addon.gd": "the file DOES hold gameplay (the "
+        "loot pour), but its only banned call is the `sin` twinkle inside `_draw`. "
+        "Exempt by file rather than by directory for exactly that reason — if a "
+        "second one appears here, read it before extending this entry.",
+    "graph/edge.gd": "presentation — `pow(2, stops)` is the HDR emissive lift.",
+    "systems/vision_system.gd": "the one `exp` is a frame-rate-independent ease "
+                               "in `_process` (`1 - exp(-rate * delta)`); it "
+                               "smooths a value already decided by gameplay.",
+    "attack/melee/sim/blade_sim.gd": "`sqrt` only — allowed math, but the file is "
+                                     "listed so the stem match does not need a "
+                                     "special case.",
+    "attack/melee/sim/blade_arc_driver.gd": "the blade's hit set and ordering ride "
+                                            "the `AttackRecord`; a peer re-simulates "
+                                            "the sweep only to DRAW it. See the "
+                                            "comment at `_sine_in_out`.",
+}
+
+SCAN_EXT = (".gd", ".tres")
+# In a `.tres` only the executable formula text is code. `per_phrase` is a label
+# a human reads — "log(WIS)" stays honest prose for a ladder that IS floor(ln x).
+TRES_CODE_KEYS = ("formula = ",)
+
+
+def tracked_files():
+    out = subprocess.run(["git", "ls-files", "-z"], capture_output=True, text=True)
+    if out.returncode != 0:
+        print("lint-transcendentals: not a git checkout", file=sys.stderr)
+        sys.exit(2)
+    return [p for p in out.stdout.split("\0") if p.endswith(SCAN_EXT)]
+
+
+def exemption_for(path):
+    for d, why in EXEMPT_DIRS.items():
+        if path.startswith(d):
+            return why
+    return EXEMPT_FILES.get(path)
+
+
+def strip_gd_comment(line):
+    """Drop a trailing `#` comment, ignoring `#` inside a string literal. Crude
+    but sufficient: GDScript has no block comments and no `#`-in-regex idiom that
+    survives without quotes."""
+    out, quote = [], None
+    for ch in line:
+        if quote:
+            out.append(ch)
+            if ch == quote:
+                quote = None
+        elif ch in "\"'":
+            quote = ch
+            out.append(ch)
+        elif ch == "#":
+            break
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def code_lines(path):
+    """Yield (lineno, code_text) for the parts of the file that actually execute."""
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for i, raw in enumerate(fh, 1):
+            if path.endswith(".gd"):
+                text = strip_gd_comment(raw)
+                if text.lstrip().startswith("##"):
+                    continue
+                yield i, text
+            else:
+                if any(raw.startswith(k) for k in TRES_CODE_KEYS):
+                    yield i, raw
+
+
+def scan():
+    hits, exempted = [], []
+    for path in tracked_files():
+        why = exemption_for(path)
+        for lineno, text in code_lines(path):
+            for m in CALL_RE.finditer(text):
+                rec = {"file": path, "line": lineno, "fn": m.group(1),
+                       "text": text.strip()[:120]}
+                if why:
+                    rec["reason"] = why
+                    exempted.append(rec)
+                else:
+                    hits.append(rec)
+    return hits, exempted
+
+
+def main():
+    as_json = "--json" in sys.argv[1:]
+    hits, exempted = scan()
+    if as_json:
+        print(json.dumps({"violations": hits, "exempted": exempted}, indent=2))
+        return 1 if hits else 0
+
+    print(f"Scanned tracked .gd/.tres — {len(exempted)} allowlisted hit(s) in "
+          f"{len(EXEMPT_DIRS)} dir(s) + {len(EXEMPT_FILES)} file(s).")
+    if not hits:
+        print("\n✓ no transcendentals in gameplay math")
+        return 0
+    print(f"\n{len(hits)} violation(s) — `{'`/`'.join(BANNED)}` in gameplay math:")
+    for h in hits:
+        print(f"  {h['file']}:{h['line']}  {h['fn']}(\n      {h['text']}")
+    print("\nUse integer/threshold math instead (see ThresholdFormula, #547), or —")
+    print("if this really is presentation or a transmitted result — add it to the")
+    print("allowlist in this file WITH a reason that says when the exemption ends.")
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

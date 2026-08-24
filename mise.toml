@@ -11,9 +11,9 @@
 godot = "4.7.1-stable"
 # Board tasks (.mise/tasks/gh-project) shell out to gh; auth stays in ~/.config/gh.
 gh = "2"
-# The python file tasks (test, refresh, rules-hygiene) are stdlib-only and want
-# nothing newer than 3.7 — pinned so `mise install` is the whole setup, not
-# because the version is delicate.
+# The python file tasks (test, refresh, rules-hygiene, lint-transcendentals) are
+# stdlib-only and want nothing newer than 3.7 — pinned so `mise install` is the
+# whole setup, not because the version is delicate.
 python = "3.13"
 
 # Project board identifiers — consumed by `.mise/tasks/gh-project`.

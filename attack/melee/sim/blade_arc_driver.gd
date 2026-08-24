@@ -38,5 +38,14 @@ func apply(positions: PackedVector2Array, t: float) -> void:
 	positions[particle] = center + Vector2.from_angle(angle) * radius
 
 
+## The one `cos` left in a gameplay-adjacent path, and it is deliberate (#547).
+## Every other transcendental was removed because derived stats are recomputed
+## on each peer, so a libm disagreement in the last bits desyncs them. This one
+## isn't: the blade's hit set and its ordering ride the `AttackRecord` the
+## authority stamps, and a peer re-simulates the sweep only to DRAW it. A
+## last-ulp difference here moves a particle, not a landing. It would have been
+## a hard blocker under lockstep, which is part of why lockstep was rejected —
+## so don't "fix" it, and equally don't start relying on it to agree across
+## platforms.
 func _sine_in_out(f: float) -> float:
 	return 0.5 - 0.5 * cos(PI * f)

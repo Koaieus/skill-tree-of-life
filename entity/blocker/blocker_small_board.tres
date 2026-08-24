@@ -46,6 +46,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/xp_per_turn.tres" id="def_xp_per_turn"]
 [ext_resource type="Resource" uid="uid://cwt1ufgl40t82" path="res://stats_system/formulas/level_scaling.tres" id="formula_level_scaling"]
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="script_expr"]
+[ext_resource type="Script" uid="uid://tni13fhowqha" path="res://stats_system/formulas/threshold_formula.gd" id="script_threshold"]
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="script_linear"]
 [ext_resource type="Script" uid="uid://dknxw63lhq13c" path="res://stats_system/formulas/ratio_formula.gd" id="script_ratio"]
 
@@ -152,10 +153,9 @@ stat_id = &"mana"
 formula = SubResource("formula_int_to_mana")
 
 [sub_resource type="Resource" id="formula_int_to_mana_pt"]
-script = ExtResource("script_expr")
-formula = "floor(log(max(1e-5, float(intelligence))) / log(10.0))"
-inputs = Array[StringName]([&"intelligence"])
-per_phrase = "×10 INT"
+script = ExtResource("script_threshold")
+source_stat_id = &"intelligence"
+breakpoints = Array[float]([10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0])
 
 [sub_resource type="Resource" id="mod_int_to_mana_pt"]
 script = ExtResource("12_3edt8")

@@ -384,9 +384,9 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 |---|---|---|---|---|
 | `perception` | `vision_range` | INCREASE | 2 | LinearFormula(perception) — at PER=3 → +6% |
 | `intelligence` | `mana` | ADD_BASE | 1 | RatioFormula(intelligence, 10) |
-| `intelligence` | `mana_per_turn` | ADD_BASE | 1 | `floor(log(max(1e-5, intelligence))/log(10.0))` |
+| `intelligence` | `mana_per_turn` | ADD_BASE | 1 | ThresholdFormula(intelligence, [10, 100, 1000, 1e4, 1e5, 1e6]) — one per decade (#547) |
 | `wisdom` | `xp_per_turn` | ADD_BASE | 1 | RatioFormula(wisdom, **2**) |
-| `wisdom` | `sensor_range` | ADD_BASE | 1 | `floor(log(maxf(1.0, wisdom)))` — clear sensing scales with WIS, not DEX |
+| `wisdom` | `sensor_range` | ADD_BASE | 1 | ThresholdFormula(wisdom, [3, 8, 21, 55, 149, 404, 1097, 2981, 8104, 22027]) — exactly `floor(ln WIS)`, `ceil(e^n)` per rung (#547). Clear sensing scales with WIS, not DEX |
 | `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
 | `dexterity` | `ranged_damage` | ADD_BASE | 1 | RatioFormula(dexterity, 10) |
 | `intelligence` | `spell_range` | ADD_BASE | 1 | LinearFormula(intelligence) |
@@ -411,19 +411,30 @@ Same field, one level down: `NodeStatBoard.intrinsic_modifiers` (`skill_node/def
 |---|---|---|
 | `RatioFormula(source, divisor)` | `floor(source / divisor)` | "per 20 STR" (generated) |
 | `LinearFormula(source)` | `source` | "per PER" (generated) |
+| `ThresholdFormula(source, breakpoints)` | count of ascending breakpoints reached | "per ×10 INT" for a geometric ladder, else the bare abbrev |
 | `ExpressionFormula(text, inputs)` | anything | authored `per_phrase`, or nothing |
 
+**No transcendental in a formula string — `log` / `exp` / `pow` / `sin` / `cos` / `tan`;
+`sqrt` is fine (#547).** A step function of one stat is a `ThresholdFormula`, whose
+`breakpoints` are compared with `>=` in integer-exact arithmetic. `floor(log(INT)/log(10))`
+returned **2 at INT 1000** on glibc — `log(1000.0)` is one ulp under `3 * log(10.0)` — and
+that is not a bug to wait out: IEEE 754 requires only `+ - * / sqrt` to be correctly
+rounded, so every platform's libm differs in the last bits, and `floor(log_b(x))` sits
+exactly on a boundary at the round numbers a stat system lands on constantly. Derived
+stats are recomputed on **every peer** rather than sent, so the next one desyncs a mixed
+Windows/Linux lobby silently. `mise run lint-transcendentals` fails on a new one.
+A `ThresholdFormula` **saturates at `breakpoints.size()`** — extend the ladder past
+anything the stat can reach, and pin its top in a test.
+
 **`floor(stat / N)` must be a `RatioFormula`, never an `ExpressionFormula`.**
-Six intrinsics were hand-written expressions until #289; the divisor lived only inside a
-string, so the prose describing it drifted in four separate places at once (the panel said
-`/10` while blade size computed `/20`; this very table said `decade of WIS` while XP regen
-computed `/2`). With `divisor` a typed field, `describe_per()` renders the same number
-`compute()` divides by — they cannot disagree.
+With `divisor` a typed field, `describe_per()` renders the same number `compute()`
+divides by, so the shown rule and the computed rule cannot disagree — the property
+`ThresholdFormula` reads its multiplier off `breakpoints` for the same reason.
 
 **Every formula owes a one-line `per_phrase`.** `StatModifier.format()` appends it —
 "+1 Blade Size **per 20 STR**" — and renders the modifier's `value` (the coefficient)
-rather than the effective value, because the clause now carries the variable part. Ratio
-and Linear generate the phrase; an `ExpressionFormula` must author one on the resource
+rather than the effective value, because the clause now carries the variable part. Ratio,
+Linear and Threshold generate the phrase; an `ExpressionFormula` must author one on the resource
 (`"×10 INT"`, `"CON × core scaling"`, `"level"`). It is deliberately **not
 multiline** — a formula-bound modifier renders as a single-Label glass slab (`ModSlabRow`)
 in a hover tooltip, and prose would blow the line budget. Nothing may derive the phrase by

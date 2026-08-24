@@ -5,6 +5,7 @@ Two authoring questions that keep getting re-derived from scratch, answered once
 - **"This rule needs a tweakable rate. Where does the knob live?"** → §1
 - **"This pool needs a second bucket alongside `current`. How do I add one?"** → §2
 - **"Why did writing `base_value` not trigger the ratchet?"** → §3
+- **"This rule steps up at 10 / 100 / 1000. Can I just use a log?"** → §4 (no)
 
 `.claude/rules/stats-system.md` is the *reference* — what exists, and how the
 pipeline computes. This doc is the *decision procedure* for adding something new.
@@ -216,3 +217,50 @@ spendable SP, silently, on the hottest path in the game.
 meaningful `current`, you almost certainly want `set_base_ratcheted`. Reach for
 the raw write only when you can name why the cap should move without the current
 following — and leave that reason in a comment, as `claim()` does.
+
+---
+
+## 4. A step function is a ladder of integers, never a logarithm
+
+**Decision 2026-08-24 (#547).** A gameplay rule that steps up at round numbers is
+a `ThresholdFormula` — an ascending `breakpoints` array compared with `>=` — not
+`floor(log(x) / log(b))`.
+
+`floor(log(INT) / log(10.0))` shipped as mana-per-turn and returned **2 at INT
+1000** on glibc: `log(1000.0)` is `6.907755278982137`, one ulp below
+`3 * log(10.0)`, the ratio is `2.9999999999999996`, and `floor` turns a last-bit
+difference into a whole missing point of regen.
+
+That is not a glibc bug to wait out. **IEEE 754 specifies only `+ - * / sqrt`
+(and fma) to be correctly rounded** — `log`/`exp`/`pow`/`sin`/`cos`/`tan` are
+each platform's own approximation, and they disagree in the last bits. `floor`
+then amplifies any disagreement into a whole integer step, and `floor(log_b(x))`
+sits exactly on an integer boundary precisely at `b^n` — the round numbers a
+stat system lands on constantly. Since derived stats are recomputed **locally on
+every peer** rather than sent (`docs/domain/multiplayer-sync-model.md`), a
+Windows client and a Linux host silently disagree for a whole run, presenting as
+"the client's caster runs dry a turn early" with nothing pointing at the network.
+
+**Rejected: `round(log10(x))`.** It fixes INT 1000 by accident while moving every
+breakpoint from `10^n` to `10^(n+0.5)` — INT 317 starts paying 3, INT 9 already
+pays 1 — and leaves the libm dependence fully intact. A different curve, not a fix.
+
+**Rejected: `str(int(x)).length() - 1`.** Exact, but a string allocation per
+recompute in a pipeline that already appears in #470's profile, and it can only
+ever express decades.
+
+**How to apply:**
+
+- Any monotone step function of one stat is authorable as breakpoints, not only
+  decades: `[3, 8, 21, 55, 149, 404]` is exactly `floor(ln WIS)` for every
+  integer WIS, because `ceil(e^n)` is where each step actually lands.
+- **The ladder saturates at `breakpoints.size()`.** Extend it past anything the
+  stat can plausibly reach, and pin the top rung in a test — a range that stops
+  below the top of the array cannot see the saturation.
+- Everything else stays a `RatioFormula` (`floor(source / N)`) or a
+  `LinearFormula`. See `.claude/rules/stats-system.md` → *Formula classes*.
+- `mise run lint-transcendentals` fails on a new `log`/`exp`/`pow`/trig in a
+  gameplay formula string or gameplay code path. Its allowlist is the record of
+  which paths are presentation or transmitted-result, and **each entry states
+  the condition under which its exemption stops being true** — write that
+  condition, not "out of scope", if you add one.
