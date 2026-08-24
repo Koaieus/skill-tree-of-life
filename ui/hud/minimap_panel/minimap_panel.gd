@@ -30,8 +30,18 @@ extends MarginContainer
 ##    camera's freedom of movement.
 ##
 ## The outline can therefore run off the board's edge when the camera is panned
-## into the slack. That is honest — you really are looking past the graph — and
-## `MapArea` clips it.
+## into the slack (~350 world units), and at low zoom the view is simply wider
+## than the graph. `MapArea` clips the overhanging sides away.
+##
+## [b]Owner call, 2026-08-24[/b], choosing that over clamping the box to the
+## panel or widening the board to swallow the slack: "Leave it clipped." The
+## box tells the truth — you really are looking past the graph, and the side
+## that goes missing is which way you overshot. Clamping would draw four sides
+## always, at the cost of a box that understates the view and stops moving once
+## you pan into the slack.
+##
+## Not to be confused with the hairline flicker that also dropped sides — that
+## was a pixel-grid bug, fixed in [MinimapViewportRectLayer].
 ##
 ## v0 deliberately stops short of: sensed-only blips, archetype fill +
 ## ownership ring, per-entity territory boxes, combat pings, and minimap zoom
