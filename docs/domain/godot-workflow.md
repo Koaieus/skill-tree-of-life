@@ -473,3 +473,41 @@ scene-authored value is clamped against the default at load, and nothing errors.
 
 Two live cases sit in `skill_node/visuals/rim_ring.gd`; both were found by
 seeing wrong values in a scene, not by reading the code.
+
+## `MultiMesh` per-instance data does not round-trip headless — the obvious test asserts nothing*
+
+Godot's `RendererDummy` no-ops the whole per-instance `MultiMesh` read/write
+path. So this, which looks like a real test, is not one:
+
+```gdscript
+mm.set_instance_transform_2d(0, expected)
+assert_eq(mm.get_instance_transform_2d(0), expected)   # passes on garbage
+```
+
+`get_instance_transform_2d()` comes back **identity** regardless of what was
+pushed. The assert therefore passes when the code under test wrote an all-zero
+transform, wrote nothing at all, or wrote the right thing — it cannot tell the
+three apart, in either direction.
+
+This is not hypothetical. It is exactly the blind spot that let **#413 ship
+invisible edges** past every headless probe: the whole batched-edge render path
+was verified by a suite that could not see it.
+
+**Instead, expose the computation as a pure function and assert that.**
+`ui/frontmatter/menu_edge_view.gd` is the pattern — `segment_transform(from, to)`
+and `instance_transform()` are static/pure, fully testable, and the
+`set_instance_transform_2d` call site shrinks to a one-liner with nothing left
+to get wrong:
+
+```gdscript
+func _push_transform() -> void:
+	multimesh.set_instance_transform_2d(0, instance_transform())
+```
+
+Instance **colours and custom data do** round-trip today. Do not lean on it —
+the same driver owns them, and nothing guarantees the asymmetry survives an
+engine bump.
+
+Anything that must be verified as *actually drawn* needs a real frame — see
+"Screenshotting the running game" above. Headless can verify the arithmetic that
+feeds the GPU; it cannot verify that the GPU did anything with it.
