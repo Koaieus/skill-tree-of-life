@@ -426,6 +426,14 @@ Windows/Linux lobby silently. `mise run lint-transcendentals` fails on a new one
 A `ThresholdFormula` **saturates at `breakpoints.size()`** — extend the ladder past
 anything the stat can reach, and pin its top in a test.
 
+**Same reason, second rule: aggregate a bin in a STABLE, DEFINED order.** Float
+addition is not associative, so summing the same modifiers in a different order gives
+different last bits and two peers disagree about a node's derived total. Godot 4
+Dictionaries are insertion-ordered and insertion follows replicated command order, so
+this holds today — it breaks silently the moment a bin is sorted by a float or moved
+into an unordered container. Relevant the instant anyone restructures the bin walk for
+perf (#470): keep the order, and pin an aggregate against a shuffled insertion order.
+
 **`floor(stat / N)` must be a `RatioFormula`, never an `ExpressionFormula`.**
 With `divisor` a typed field, `describe_per()` renders the same number `compute()`
 divides by, so the shown rule and the computed rule cannot disagree — the property
