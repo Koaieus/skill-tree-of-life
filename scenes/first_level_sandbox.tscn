@@ -6,7 +6,7 @@
 [ext_resource type="Resource" uid="uid://0icrnqbby6yx" path="res://entity/core/balanced_core.tres" id="4_core"]
 [ext_resource type="Resource" uid="uid://dr6op7u70t3y" path="res://entity/core/basic_enemy_core.tres" id="5_nenm1"]
 [ext_resource type="Resource" path="res://procgen/placement/territory_seeder.tres" id="6_gik01"]
-[ext_resource type="Script" path="res://network/enet_transport.gd" id="7_transport"]
+[ext_resource type="Script" uid="uid://c08gdeaalvasl" path="res://network/enet_transport.gd" id="7_transport"]
 
 [node name="FirstLevelSandbox" unique_id=1716671600 instance=ExtResource("1_base")]
 script = ExtResource("2_script")
@@ -18,13 +18,14 @@ enemy_core_class = ExtResource("5_nenm1")
 node_count_override = 0
 n_random_starters = 5
 viability_radius = 300.0
+camp_sizes = Array[int]([1, 5])
 territory_seeder = ExtResource("6_gik01")
 enemy_territory_size = 3
 
 [node name="FogOverlay" parent="Graph" parent_id_path=PackedInt32Array(1851662701) index="6" unique_id=1165041791]
 falloff = 0.15
 
-[node name="Transport" parent="." unique_id=1000000531]
+[node name="Transport" parent="." index="5" unique_id=1000000531]
 script = ExtResource("7_transport")
 
 [editable path="Graph/FloaterDirector"]
