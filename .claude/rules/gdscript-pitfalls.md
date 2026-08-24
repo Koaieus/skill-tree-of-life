@@ -1,7 +1,8 @@
 ---
-description: GDScript silent failures — freed-object reads, undisconnectable lambdas, @tool placeholder instances
+description: GDScript + .tres silent failures — freed-object reads, undisconnectable lambdas, @tool placeholder instances, dropped .tres properties
 paths:
   - "**/*.gd"
+  - "**/*.tres"
 ---
 
 # GDScript pitfalls
@@ -44,6 +45,11 @@ matches, failing as a silent no-op. Record the Callable when you connect:
 - **Declare an exported bound ABOVE the value that clamps against it** — exports
   restore in declaration order, so a later-declared bound silently clamps every
   scene-authored value against its *default*.
+- **In a `.tres`, a property authored ABOVE its `script = ExtResource(...)` line
+  is silently dropped** — it lands on a bare `Resource` that has no such
+  property. No error; the field just reads as its default. Hand-editing a
+  `[resource]` block, insert *after* the script line. (`.tres` has no comment
+  syntax either — a `;` trailer is a parse error, not a note.)
 - **`if Engine.is_editor_hint(): return` at the top of `_ready` is a trap for any
   script a live sandbox tab instantiates** — the hint is true there, so the object
   runs but every subscription below the guard is silently absent, and GUT (hint

@@ -66,7 +66,7 @@ Turn-start refill-to-full is **gone** (D-9) — damage persists across turns. `S
 
 The node's health is a `PoolStat` on `node_board` with id `"node_combat_health"` (`StandardPoolStatDef`, `on_cap_rise = FOLLOW`). On allocation, `base_value` is synced from the owning entity's `node_health` ScalarStat baseline and re-syncs on `value_changed`. `current` tracks damage; `deplete()` / `restore_to_full()` replace the old `current_hp` float. See `skill_node/skill_node.gd:_refresh_hp_binding`.
 
-**That re-sync is a plain `hp.base_value = ...` write, which since #555 IS the door that runs the cap policy** — `node_combat_health` is `on_cap_rise = FOLLOW`, so a cap rise grants the delta and a cap fall clamps `current` without subtracting. See "One door onto the cap" under Pool stats; #346 was this line using what was then the bypass.
+**The re-sync is a plain `hp.base_value = ...` write — since #555 that IS the door that runs the cap policy** (`node_combat_health` is `on_cap_rise = FOLLOW`). See "One door onto the cap" under Pool stats.
 
 ## Pool stats
 
@@ -154,11 +154,15 @@ Growth math: `new_max = stat._coerce(old_max * growth_factor + growth_flat)` —
 
 ### `replenished` fires in REVERSE chronological order across a cascade — `value_changed` doesn't
 
-A single `replenish(huge_amount)` that crosses multiple levels recurses: `set_current` → `on_pool_filled` (grows `base_value`, which fires `value_changed` immediately) → recursive `set_current` for the overflow → ... → only once the recursion bottoms out does control unwind and each frame's `replenished.emit()` fire. So for a 2-level cascade, the **deepest (final, highest) level's `replenished` fires first**, and the first/lowest level's fires last — backwards from the order the levels were actually reached in.
+A `replenish()` crossing multiple levels recurses, so each frame's
+`replenished.emit()` fires as the recursion *unwinds* — the highest level first,
+the level actually reached first last. `value_changed` fires at the point
+`base_value` is written, before the recursive call, so it stays in true ascending
+order.
 
-`value_changed` doesn't have this problem: it fires at the point `base_value` is written, which is *before* the recursive call for that frame — so across the cascade it fires in true ascending (chronological) order.
-
-**How to apply:** anything that needs to replay a multi-level cascade in order (e.g. a UI sequencer chaining "fill to old cap → grow → fill to new content" once per level) must build its segment list from `value_changed` snapshots, not from counting/ordering `replenished` calls. Verified by tracing `pool_stat.gd:set_current` against `growable_pool_stat_def.gd:on_pool_filled`; `test_overflow_huge_replenish_cascades_through_levels` (test/unit/test_growable_pool_stat_def.gd) confirms `replenished` fires twice for a 2-level cascade but doesn't assert order — a gap worth closing if a consumer ever depends on it.
+**How to apply:** anything replaying a multi-level cascade in order (a UI
+sequencer chaining "fill → grow → fill" per level) must build its segments from
+`value_changed` snapshots, never from the order of `replenished` calls.
 
 `skill_points` is `SkillPointStat` (PoolStat subclass). Max is the canonical PoolStat value (base + modifier pipeline). `current` is the spendable bucket; `wounded` and `staked` are two extra book-keeping buckets sitting *inside* max. **`used` is derived**: `max - current - wounded - staked` — SP locked into currently-allocated nodes. Operations:
 
@@ -616,11 +620,14 @@ logical event, and without it a node granting both `constitution` and
 - **`max` is a GDScript built-in.** Never name a property or variable `max` on PoolStat or its subclasses — it shadows `max()` in all subclass methods. Use `.value` for the cap. (Same risk for `range`, `min`, etc. — the `range` stat property is OK because nothing in `StatBoard`'s methods calls the global `range()`.)
 - **StatBoard field name must match the stat's `id` string.** `get_stat(id)` calls `Object.get(id)` — renaming either without the other silently breaks lookup.
 
-## Display contract — RETIRED in #120
+## No metadata-driven stat panel — wire each stat by id
 
-**`ui/stats_panel.gd` was deleted in #118** (HudRoot cutover); it was the only consumer of `StatDef`'s `display_type`/`display_group`/`display_order`/`parent_stat_id` and the `DisplayType` enum. #120 formally **retired all four fields plus the enum** — stripped from `stat_def.gd` and migrated out of every `stats_system/defs/*.tres`. `StatDef` now carries only `id`, `display_name`, `description`, `value_type`, `default_value`, `tint_color`.
-
-HudRoot's cards (AttributesPanel, CombatReadout, TurnResourcesPanel) hardcode which specific stat ids they bind. So **adding a stat means dropping a `.tres` in `stats_system/defs/` and wiring it into whichever HudRoot card should show it** (directly, by stat id — see e.g. `attributes_panel.gd`/`combat_readout.gd`). There is no generic metadata-driven panel; don't reintroduce `display_*` fields expecting one to pick them up. If a future generic consumer (debug stat-dump, modding inspector) returns, it defines its own presentation metadata then.
+`StatDef` carries only `id`, `display_name`, `description`, `value_type`,
+`default_value`, `tint_color`. The `display_type`/`display_group`/`display_order`/
+`parent_stat_id` fields and the `DisplayType` enum were retired in #120 with their
+one consumer. HudRoot's cards hardcode which stat ids they bind, so **adding a
+stat means dropping a `.tres` in `stats_system/defs/` and wiring it into the right
+card by id**. Don't reintroduce `display_*` expecting something to pick it up.
 
 ## Visualizer (editor plugin)
 
