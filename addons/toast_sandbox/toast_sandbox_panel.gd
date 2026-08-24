@@ -12,7 +12,11 @@ const _TOAST_CELL_SCENE: PackedScene = preload("res://addons/toast_sandbox/toast
 ## Grid width. The HEIGHT is not a constant — the cell count follows
 ## [method FloaterStyles.gallery] (plus one "Random" cell), so adding a style
 ## shows up here instead of falling off the end of a hardcoded 3x3.
-const _CELLS_W: int = 3
+##
+## 4 rather than 3 since the crit registers landed: cells are `size_flags_vertical
+## = 3` inside an expanding grid, so more ROWS means shorter cells — and a 46px
+## crit toast (three of them, under "All x3") needs the height to be judged at all.
+const _CELLS_W: int = 4
 
 # Cell colours — subtle background tints so each cell reads as distinct
 # without needing heavy borders. Picked to complement the toast colours.
