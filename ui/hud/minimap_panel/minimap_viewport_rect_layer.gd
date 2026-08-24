@@ -11,24 +11,31 @@ extends Control
 ## Holds a rect in MINIMAP-LOCAL space, not a camera — [MinimapPanel] owns the
 ## world mapping and the polling, so this layer has nothing to keep in sync.
 ##
-## [b]The box is four FILLED spans, not a stroked rect[/b] — otherwise
-## individual sides drop out as the camera moves. Two compounding reasons, and
-## only the second one actually settles it:
+## [b]The box is four filled spans, snapped to DEVICE pixel boundaries.[/b]
+## Getting here took three passes, because each fix exposed the next cause:
 ##
-##  1. A hairline stroke is CENTRED on its path, so a path on a pixel boundary
-##     covers half of each neighbouring column and at this alpha reads as
-##     nothing. [method _snap] handles that much.
-##  2. But snapping to whole LOCAL pixels buys nothing on its own, because
-##     `project.godot` sets `stretch/mode = "canvas_items"` against a 1440x960
-##     base: on any other window size the entire HUD is scaled by a non-integer
-##     factor, so one local pixel is not one device pixel and a snapped path
-##     still lands wherever it lands. That is why the flicker survived the
-##     first fix.
+##  1. A stroked `draw_rect` centres its hairline on the path, so an edge on a
+##     pixel boundary covers half of each neighbouring column and reads as
+##     nothing.
+##  2. Snapping to whole LOCAL pixels does not fix that, because `project.godot`
+##     sets `stretch/mode = "canvas_items"` against a 1440x960 base: at any
+##     other window size the whole HUD is scaled by a non-integer factor, so one
+##     local pixel is not one device pixel.
+##  3. Nor does making each span one device pixel WIDE. Godot's 2D canvas does
+##     not antialias filled geometry — a pixel is covered iff its CENTRE falls
+##     inside the span. A span exactly one device pixel wide, landing halfway
+##     between two centres, contains neither and draws nothing at all.
 ##
-## A filled span always covers area — it can dim under an awkward scale, but it
-## cannot vanish the way a zero-area path can. [method _device_pixel_width]
-## then keeps each span at least one DEVICE pixel thick by reading the actual
-## canvas scale, so the box stays visible at any window size.
+## (3) is what produced the reported symptom exactly: "fault lines" at a fixed
+## set of screen positions, per axis, hitting all four edges — a vertical edge
+## vanishing only at certain x, unaffected by vertical panning, and at the same
+## x for the left and right side alike. That is a property of the coordinate,
+## not of the edge.
+##
+## So the box is transformed into device space, snapped to integers there, and
+## the spans are transformed back ([method _draw]). Each span then covers
+## exactly one full pixel column or row and contains its centre by construction
+## — at any window size, at every camera position.
 
 @export var outline_color: Color = Color(1.0, 1.0, 1.0, 0.85)
 @export var outline_width: float = 1.0
@@ -57,27 +64,17 @@ func set_view_rect(rect: Rect2) -> void:
 	queue_redraw()
 
 
-## Round the box to whole local pixels. Crisp when the canvas scale happens to
-## be 1, harmless when it is not — and load-bearing either way as the input to
-## the equality check in [method set_view_rect], which is what makes sub-pixel
-## camera drift free.
+## Round the box to whole local pixels. This is NOT what makes the box render
+## correctly — [method _draw] snaps in device space for that — it is purely the
+## dedup key for [method set_view_rect], quantising sub-pixel camera drift so it
+## costs no redraw.
 ##
-## Note it no longer INSETS by half a stroke: the sides are filled spans drawn
-## inward from these bounds ([method _edge_rects]), not a centre-line.
+## Safe as a dedup key at any canvas scale below 1 (one local pixel is then
+## less than one device pixel, so no visible move can be quantised away). Above
+## 1 the box can lag the camera by up to a device pixel for a frame, which is
+## not worth a per-frame transform read to avoid.
 func _snap(rect: Rect2) -> Rect2:
 	return Rect2(rect.position.round(), rect.size.round().maxf(0.0))
-
-
-## The stroke width in LOCAL units that renders at least one device pixel
-## thick, given whatever non-integer factor `canvas_items` stretch is currently
-## applying to the HUD. Falls back to the authored width when the transform is
-## degenerate (a layer not yet in a viewport, e.g. a unit test).
-func _device_pixel_width() -> float:
-	var canvas_scale := get_global_transform_with_canvas().get_scale()
-	var factor := minf(absf(canvas_scale.x), absf(canvas_scale.y))
-	if factor <= 0.0 or not is_finite(factor):
-		return outline_width
-	return maxf(outline_width, 1.0 / factor)
 
 
 ## The box as four filled spans — top and bottom run the full width, the sides
@@ -111,5 +108,18 @@ func _draw() -> void:
 	draw_count += 1
 	if not _has_rect:
 		return
-	for edge in _edge_rects(_rect, _device_pixel_width()):
-		draw_rect(edge, outline_color)
+	var to_device := get_global_transform_with_canvas()
+	# A degenerate transform means no viewport yet (a bare unit-test instance).
+	# Draw in local space rather than dividing by a zero scale.
+	if is_zero_approx(to_device.determinant()):
+		for span in _edge_rects(_rect, outline_width):
+			draw_rect(span, outline_color)
+		return
+	# Snap in DEVICE space so every span covers whole pixel columns/rows and
+	# therefore contains their centres — see the class docs for why one device
+	# pixel of WIDTH is not enough on its own.
+	var device: Rect2 = to_device * _rect
+	device = Rect2(device.position.round(), device.size.round().maxf(1.0))
+	var to_local := to_device.affine_inverse()
+	for span in _edge_rects(device, maxf(outline_width, 1.0)):
+		draw_rect(to_local * span, outline_color)
