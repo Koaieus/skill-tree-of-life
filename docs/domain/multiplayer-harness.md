@@ -231,6 +231,99 @@ Two properties are load-bearing:
 - **It is folded by hand (FNV-1a), not `Array.hash()`.** The number is compared
   across processes, so it must not depend on engine hashing internals.
 
+## Two ways to measure the wrong process (#546)
+
+The harness exists to produce numbers that settle arguments — #529's probe
+decides a sync model *by measurement instead of argument*. So the one failure
+mode that matters more than a crash is a run that looks clean and is measured
+against the wrong peer. There is no in-band signal for it: the banner says
+connected, the probe prints, the totals look plausible.
+
+It happened on 2026-08-23, during #534's acceptance sweep. An orphaned host
+from a finished session — hours old, running `dc5ef29`-era code — still held
+port 9099. The fresh host failed to bind, **logged it and kept running**, and
+the fresh client dialled 9099 and reached the *orphan*, which happily accepted
+it and began sweeping. The run compared a months-old host against a
+current-master client. It was caught only because the stale process's
+backtraces named line numbers `command_applier.gd` no longer has.
+
+Two independent gates now close that:
+
+**1. A `--role=host` that cannot bind exits non-zero.** Binding *is* the job of
+`--role=host`; without a socket it is a solo sandbox nobody asked for, and
+`--role=solo` already exists for that. Identical headless and in-editor — the
+in-editor path is the one that otherwise keeps running in the exact shape that
+caused the incident. `solo` and `client` are untouched. The message is the
+deliverable, not the exit code, so it names the port and the check:
+
+```
+[host] host: FAILED to listen on 9099 (Can't create)
+[host] port 9099 is already in use (Can't create) — another harness may still be running:
+[host]          ps aux | grep mp_dev_sandbox
+[host] a host with no socket is not a host — exiting. (--role=solo runs offline.)
+```
+
+Finding the culprit is `ps aux | grep mp_dev_sandbox`, and that is deliberate:
+**ENet is UDP**, so `ss -ltn` (TCP) shows nothing for a perfectly healthy host.
+A sweep script that checked TCP produced a false "host did not bind" abort on
+2026-08-24. If you must check the socket rather than the process, it is
+`ss -lunp`.
+
+Rejected: **auto-picking a free port.** It masks the conflict, and it breaks the
+documented two-terminal flow outright — the operator types the client's `--port`
+by hand and would land on the stale host anyway. The false-positive cost of
+fail-fast is a two-second relaunch; the false-negative cost is a clean-looking
+table posted to an issue as fact.
+
+**2. Peers on different builds refuse to link.** The fatal bind closes one route
+to a wrong-host link; a stale process on another machine, a mistyped IP, or
+someone else's session on the same LAN are others. `CommandLink.send_hello`
+carries a `BuildInfo` stamp, the receiver compares it, and a mismatch hangs the
+link up with both builds printed on both ends:
+
+```
+[client] link REFUSED — build mismatch
+[client]   peer:   4174f36 (master)
+[client]   mine:   54cfcd7 (master @ issue-546-…)
+[client] The peers are not running the same code.
+```
+
+Details that are easy to get wrong, all covered by
+`test/unit/network/test_link_build_check.gd`:
+
+- **The stamp rides the hello, never a `Command`.** The hello is what brings a
+  link up today, so nothing in the harness can link without the check running.
+  (`KIND_SNAPSHOT` / `KIND_SETUP` are handled regardless of a prior hello, so a
+  future #531 lobby that sends a snapshot *first* would want the gate moved
+  ahead of it.) A per-checkout sha inside `Command.to_dict()` would re-capture
+  every fixture at `test/fixtures/outcome/` on every commit.
+- **An absent stamp is a mismatch, not a pass.** The orphan predates the check
+  and sends no build key at all — treating that as agreement would sail past the
+  one run this was written for. *Present-but-empty* is different and does
+  compare equal: an exported build has no `res://.git` and so no sha.
+- **Only the sha is compared.** Strictest, and correct for a LAN where everyone
+  pulls the same commit. It also refuses when one side has an unrelated
+  uncommitted edit — a loud, instantly diagnosable false positive, which is the
+  opposite of the failure being killed. Branch and worktree ride along for the
+  message only.
+- **Refusal is its own latch, not `mode = Mode.OFF`.** The `mode` setter writes
+  `is_authority = value != Mode.MIRROR`, so parking a refused *client* at OFF
+  hands it authority — the silent-divergence hole `mp_dev_sandbox._ready`
+  documents. A refused link goes quiet; it does not become an authority.
+- **The stamp catches different commits, not different working trees.** Godot
+  loads scripts at startup, so the staggered terminal flow — edit, launch host,
+  edit, launch client — gets a green handshake over genuinely divergent code,
+  both processes reporting the same sha. That is this same failure class
+  arriving through the front door, and a dirty-tree marker would not close it
+  (dirty-vs-dirty is an equally silent pass). **For a measurement that matters,
+  commit first, or launch both at once.** The Multiplayer tab's *Launch both* is
+  safe by construction; the two-terminal path is the exposed one.
+- **The reject payload goes out before `transport.stop()`.** A transport drops a
+  send once it is no longer linked, so that order is what makes the *other* end
+  print anything. The receiving side then only *reports* — it does not stop or
+  latch, or a host would close its listening socket over one bad client and the
+  operator would relaunch the fixed client into nothing.
+
 ## Extending it
 
 - **A different transport** — subclass `NetworkTransport`. Nothing above it

@@ -33,13 +33,13 @@ godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=host   --port
 godot --headless --path . scenes/dev/mp_dev_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9109 --autopilot --probe
 ```
 
-**Not 9099, the default — see #546.** A harness host that cannot bind keeps
-running, and the client then links to whatever *is* listening, which has already
-been an orphan from a previous session running months-old code. The run looks
-healthy and every number in it is measured against the wrong process. Until #546
-lands, use a port nothing else has claimed and verify the host bound it:
-`ss -lunp | grep 9109` — **UDP**, since ENet is not TCP and `ss -ltn` will always
-look empty.
+**9099, the default, works too** — a host that cannot bind now exits non-zero
+and says which port is taken (#546), so the stale-host link that once made a
+whole run measure the wrong process fails loudly instead. Different ports are
+still convenient for running two measurements at once. **Launch both processes
+from the same checkout at the same commit**: peers on different shas refuse to
+link, but the stamp cannot see uncommitted edits — see
+[multiplayer-harness.md](multiplayer-harness.md).
 
 **`--autopilot` on the client line is not a typo.** Only the host sweeps, but
 the flag also gates Red's budget boost, which must match on both peers or the

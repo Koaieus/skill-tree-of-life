@@ -110,6 +110,9 @@ var _autopilot_turns_run: int = 0
 ## `attack_plan`. Never observed in a 40-turn run — and one flag is cheaper
 ## than finding out it can.
 var _autopilot_running: bool = false
+## #546: the peers were not on the same build and the link was hung up. Banner
+## state only — [CommandLink] owns the refusal itself.
+var _link_refused: bool = false
 
 
 func _ready() -> void:
@@ -256,6 +259,7 @@ func _parse_cmdline() -> void:
 
 func _start_link() -> void:
 	_link.logged.connect(_write_log)
+	_link.link_refused.connect(_on_link_refused)
 	_transport.link_changed.connect(_refresh_banner.unbind(1))
 	_arm_probe()
 	if turn_manager != null:
@@ -266,9 +270,11 @@ func _start_link() -> void:
 			_link.mode = CommandLink.Mode.BROADCAST
 			_write_log(WorldFingerprint.describe(graph))
 			var err := _transport.start_host(_port)
-			if err == OK:
-				# The client connects later; greet it when it does.
-				_transport.link_changed.connect(_greet_if_linked)
+			if err != OK:
+				_die_without_a_socket(err)
+				return
+			# The client connects later; greet it when it does.
+			_transport.link_changed.connect(_greet_if_linked)
 		NetworkTransport.Role.CLIENT:
 			_link.mode = CommandLink.Mode.MIRROR
 			# A spectator, on purpose: wave 0 has no intent channel upward, so a
@@ -285,6 +291,51 @@ func _start_link() -> void:
 			return
 
 	_refresh_banner()
+
+
+## #546. [CommandLink] has already logged both builds through [signal
+## CommandLink.logged]; this only makes the banner stop claiming a link. Not
+## fatal the way a failed bind is — the process is a legible, inert window
+## saying why, and on the CLIENT that is the whole point (a refused client that
+## quit would leave nothing on screen to read).
+func _on_link_refused(_reason: String) -> void:
+	_link_refused = true
+	_refresh_banner()
+
+
+## A `--role=host` that could not bind is not a host — it is a solo sandbox
+## nobody asked for, and `--role=solo` already exists for that. Worse, it is
+## the exact shape that produced #546: an orphaned host from an earlier session
+## still held port 9099, the new host logged its bind failure and kept ticking
+## frames, and the freshly-launched client linked to the ORPHAN. The pair looked
+## healthy and every number the probe printed was measured against a
+## months-old build.
+##
+## So: fatal, and identically headless and in-editor — one rule to remember, and
+## the in-editor path is the one that otherwise keeps running in that exact
+## shape. `solo` and `client` are untouched, so the ordinary sandbox flow never
+## sees this.
+##
+## [b]The message is the deliverable, not the exit code[/b] — see
+## [method bind_failure_lines].
+func _die_without_a_socket(err: Error) -> void:
+	for line in bind_failure_lines(_port, err):
+		_write_log(line)
+	get_tree().quit(1)
+
+
+## Pure, so a test can assert the operator is actually told what to do: the
+## port that is taken, the likely cause, and the command that finds the culprit.
+## [EnetTransport.start_host] has already announced the raw
+## `host: FAILED to listen on N (Can't create)`; these lines are what turns that
+## into an instruction.
+static func bind_failure_lines(port: int, err: Error) -> PackedStringArray:
+	return PackedStringArray([
+		"port %d is already in use (%s) — another harness may still be running:"
+				% [port, error_string(err)],
+		"         ps aux | grep mp_dev_sandbox",
+		"a host with no socket is not a host — exiting. (--role=solo runs offline.)",
+	])
 
 
 ## #529. Armed only on the CLIENT and only with `--probe`: the probe measures
@@ -747,6 +798,8 @@ func _refresh_banner() -> void:
 	if _banner == null:
 		return
 	var linked := " · linked" if _transport.is_linked() else " · waiting"
+	if _link_refused:
+		linked = " · REFUSED (build mismatch)"
 	match _role:
 		NetworkTransport.Role.HOST:
 			_banner.text = "HOST — Red + Blue (hot-seat)%s" % linked

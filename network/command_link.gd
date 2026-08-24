@@ -55,9 +55,21 @@ const KEY_SUMMARY := "summary"
 const KEY_SNAPSHOT := "snapshot"
 const KEY_CONFIG := "config"
 const KEY_ROSTER := "roster"
+## #546: which code the sender is running. Rides the hello, never a [Command] —
+## see [method send_hello].
+const KEY_BUILD := "build"
+
+## Keys inside [constant KEY_BUILD]. Only [constant BUILD_SHA] is COMPARED; the
+## other two exist so the refusal message can name what the peer was on.
+const BUILD_SHA := "sha"
+const BUILD_BRANCH := "branch"
+const BUILD_WORKTREE := "worktree"
 
 const KIND_HELLO := "hello"
 const KIND_COMMAND := "command"
+## #546: "I am hanging up, and here is the build you failed to match." Sent by
+## whichever side detects the mismatch, so BOTH ends print it.
+const KIND_REFUSED := "refused"
 ## #527's join-handshake payload: an encoded [GraphSnapshot]. Additive and
 ## opt-in — sent only by [method send_graph_snapshot], never by [method send_hello]
 ## — so existing hello/fingerprint flows (and their tests) are untouched by a
@@ -83,6 +95,10 @@ signal logged(line: String)
 ## the client checks the world it is about to mutate). [param agrees] false means
 ## the two worlds have diverged, as of one command ago.
 signal sync_checked(agrees: bool, local: int, remote: int)
+
+## #546: the link was hung up because the peers are not running the same code.
+## Terminal — nothing reconnects, by design.
+signal link_refused(reason: String)
 
 @export var transport: NetworkTransport
 @export var command_applier: CommandApplier
@@ -110,10 +126,33 @@ var mode: Mode = Mode.OFF:
 ## one line and its absence is an infinite loop.
 var _applying_remote: bool = false
 
+## #546. What this peer announces at link-up, and what it compares an incoming
+## hello against. Filled from [BuildInfo] in [method _ready]; a test sets it
+## after `add_child` to stage a mismatch without needing two checkouts.
+var build_stamp: Dictionary = {}
+
+## Latched once a build mismatch hung the link up. Every payload is dropped
+## from here on.
+##
+## [b]This is a separate flag and NOT `mode = Mode.OFF`[/b], which is the
+## tempting one-liner and is a trap: the `mode` setter writes
+## `command_applier.is_authority = value != Mode.MIRROR`, so parking a refused
+## CLIENT at OFF would hand it authority — and a client with authority is
+## exactly the silent-divergence hole `mp_dev_sandbox._ready` documents (Blue's
+## [AIController] starts deciding locally). A refused link must go quiet, not
+## become an authority.
+var _refused: bool = false
+
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
+		# Deliberately BEFORE the build stamp is read: [BuildInfo] resolves in
+		# its own `_ready`, and this `@tool` script runs during the editor's
+		# import pass, when reaching into that autoload is not safe. Nothing in
+		# the editor links anyway.
 		return
+	if build_stamp.is_empty():
+		build_stamp = local_build_stamp()
 	# The export resolves after the setter may already have run (a level scene
 	# can set `mode` before this node is ready), so re-apply it here.
 	if command_applier != null:
@@ -126,12 +165,22 @@ func _ready() -> void:
 
 
 ## Announce our world to a freshly-connected peer. Host-side; the client's reply
-## is a log line, not a handshake — nothing here negotiates.
+## is a log line, not a handshake — with one exception, below.
+##
+## [b]The hello carries this peer's build stamp (#546), and a mismatch REFUSES
+## the link.[/b] That is the one thing here that negotiates, and it rides the
+## hello rather than a message of its own precisely so it cannot be forgotten:
+## the hello IS link establishment, so there is no way to bring a link up
+## without the check running. It is emphatically NOT a [Command] and must never
+## enter [method Command.to_dict] — a fixture at `test/fixtures/outcome/` is a
+## serialized command dict, and a per-checkout sha inside one would re-capture
+## every fixture on every commit.
 func send_hello() -> void:
 	if transport == null or mode != Mode.BROADCAST:
 		return
 	transport.send({
 		KEY_KIND: KIND_HELLO,
+		KEY_BUILD: build_stamp,
 		KEY_FINGERPRINT: WorldFingerprint.compute(graph),
 		KEY_SUMMARY: WorldFingerprint.describe(graph),
 	})
@@ -199,9 +248,15 @@ func _on_command_confirmed(command: Command) -> void:
 
 
 func _on_message_received(payload: Dictionary) -> void:
+	# One gate for every kind, rather than one per handler: a refused link is
+	# refused for commands, snapshots and run setup alike (#546).
+	if _refused:
+		return
 	match String(payload.get(KEY_KIND, "")):
 		KIND_HELLO:
 			_on_hello(payload)
+		KIND_REFUSED:
+			_on_refused_by_peer(payload)
 		KIND_COMMAND:
 			_on_remote_command(payload)
 		KIND_SNAPSHOT:
@@ -235,11 +290,106 @@ func _on_run_setup(payload: Dictionary) -> void:
 	logged.emit("← run setup (seed %d, %d participants)" % [config.seed, roster.all().size()])
 
 
+## #546's build gate, run before anything in the hello is believed.
+##
+## [b]An ABSENT stamp is a mismatch, not a pass.[/b] That is the whole incident:
+## the peer that corrupted #534's sweep was a `dc5ef29`-era orphan — code from
+## before this check existed, which sends a hello with no build key at all. If
+## "no stamp" read as agreement, this fix would sail straight past the one run
+## it was written for. Present-but-empty is different and DOES compare equal: an
+## exported build has no `res://.git` and so no sha (see [BuildInfo]), and two
+## shipped builds have nothing to disagree about here.
+##
+## [b]Only the sha is compared.[/b] Bare sha is the strictest key and the right
+## one for a LAN where everyone pulls the same commit; it also refuses when one
+## side has an unrelated uncommitted edit, which is a loud, instantly
+## diagnosable false positive — the exact opposite of the silent failure this
+## exists to kill. Branch and worktree ride along for the message only.
+func _accept_build(payload: Dictionary) -> bool:
+	if not payload.has(KEY_BUILD):
+		_refuse("the peer sent no build stamp — it predates this check", {})
+		return false
+	var theirs: Dictionary = payload.get(KEY_BUILD, {})
+	if String(theirs.get(BUILD_SHA, "")) == String(build_stamp.get(BUILD_SHA, "")):
+		return true
+	_refuse("build mismatch", theirs)
+	return false
+
+
+## Hang up, loudly, on both ends. The reject payload goes out BEFORE
+## [method NetworkTransport.stop] — a transport silently drops a send once it is
+## no longer linked, so the order here is what makes the other end print
+## anything at all.
+func _refuse(reason: String, theirs: Dictionary) -> void:
+	if _refused:
+		return
+	_refused = true
+	_log_refusal(reason, theirs)
+	if transport != null:
+		transport.send({KEY_KIND: KIND_REFUSED, KEY_BUILD: build_stamp, KEY_SUMMARY: reason})
+		transport.stop()
+	link_refused.emit(reason)
+
+
+## The other end did the comparing, so this side only reports it.
+##
+## [b]It deliberately neither latches nor stops.[/b] Both are one line and both
+## are wrong here. The refusing peer has already hung up its own side, so the
+## socket goes down on its own and a send drops by itself — while stopping HERE
+## closes a host's listening socket, and latching makes it deaf forever. That
+## breaks the exact workflow this feature exists to serve: the operator reads
+## the mismatch, fixes the client's checkout, relaunches the CLIENT — and would
+## find a host that can no longer be reached, with nothing on screen saying to
+## relaunch it too. On a LAN with several clients it is worse: one stale peer's
+## refusal would disconnect everybody.
+##
+## Nothing is lost by staying open. This side is [constant Mode.BROADCAST], and
+## [method _on_remote_command] requires [constant Mode.MIRROR], so a stale peer
+## still cannot make it apply anything. The latch belongs on the side that
+## REFUSED, where [method _refuse] sets it.
+func _on_refused_by_peer(payload: Dictionary) -> void:
+	_log_refusal(String(payload.get(KEY_SUMMARY, "build mismatch")),
+			payload.get(KEY_BUILD, {}))
+	link_refused.emit("refused by peer")
+
+
+func _log_refusal(reason: String, theirs: Dictionary) -> void:
+	logged.emit("link REFUSED — %s" % reason)
+	logged.emit("  peer:   %s" % describe_build(theirs))
+	logged.emit("  mine:   %s" % describe_build(build_stamp))
+	logged.emit("The peers are not running the same code.")
+
+
+## This peer's stamp, straight off the [BuildInfo] autoload — which reads
+## `res://.git` once at startup, with no `git` subprocess.
+static func local_build_stamp() -> Dictionary:
+	return {
+		BUILD_SHA: BuildInfo.short_sha,
+		BUILD_BRANCH: BuildInfo.branch,
+		BUILD_WORKTREE: BuildInfo.worktree,
+	}
+
+
+## e.g. `4174f36 (master)`, or `54cfcd7 (master @ issue-546-…)` in a worktree.
+static func describe_build(stamp: Dictionary) -> String:
+	var sha := String(stamp.get(BUILD_SHA, ""))
+	if sha.is_empty():
+		return "unknown — no build stamp"
+	var branch := String(stamp.get(BUILD_BRANCH, ""))
+	var worktree := String(stamp.get(BUILD_WORKTREE, ""))
+	var where := branch if branch != "" else "detached"
+	if worktree != "":
+		where += " @ " + worktree
+	return "%s (%s)" % [sha, where]
+
+
 ## The link-up check. A mismatch HERE — before a single command has crossed —
 ## means the two graphs disagree about node identity, which in a hand-authored
 ## scene almost always means unminted `stable_id`s. That is the failure this
 ## harness is built to make loud.
 func _on_hello(payload: Dictionary) -> void:
+	if not _accept_build(payload):
+		return
 	var remote := int(payload.get(KEY_FINGERPRINT, 0))
 	var local := WorldFingerprint.compute(graph)
 	logged.emit("host world: %s" % payload.get(KEY_SUMMARY, "?"))
