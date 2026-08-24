@@ -26,12 +26,15 @@ var _caster: Entity = null
 
 func _ready() -> void:
 	hide()
+	# Pin the width before anything is ever measured — see [method _fit].
+	size = Vector2(maxf(custom_minimum_size.x, 1.0), 0.0)
 	Events.spell_hovered.connect(_on_spell_hovered)
 	Events.spell_unhovered.connect(_on_spell_unhovered)
 
 
 func _process(_delta: float) -> void:
 	if visible:
+		_fit()
 		_reposition()
 
 
@@ -48,9 +51,22 @@ func _on_spell_unhovered() -> void:
 func show_for(spell: SpellDef, caster: Entity = null) -> void:
 	_spell = spell
 	_caster = caster
+	# Fade in from transparent rather than showing straight away: the layout
+	# system needs a couple of frames to settle the autowrap heights (see
+	# [method _fit]) and a visible panel would flash viewport-tall meanwhile.
+	# It must be *visible* while settling, though — a hidden Control skips
+	# layout entirely, so its Labels never re-shape and the fit never converges.
+	modulate.a = 0.0
 	_populate()
 	show()
+	for _i in 2:
+		_fit()
+		await get_tree().process_frame
+		if _spell != spell:
+			return  # unhovered, or moved to another spell, while we settled
+	_fit()
 	_reposition()
+	modulate.a = 1.0
 
 
 func hide_tooltip() -> void:
@@ -220,6 +236,25 @@ func _format_num(v: float) -> String:
 	if is_equal_approx(v, roundf(v)):
 		return str(int(v))
 	return "%.1f" % v
+
+
+## Re-fit the free-floating panel to its content width-first. Two layout facts
+## make this mandatory rather than cosmetic: a Control never *shrinks* back when
+## its minimum size drops, and an autowrap [Label] measures its height by
+## wrapping at its CURRENT width — so the very first layout (width 0) wraps the
+## description one word per line and balloons the panel to thousands of pixels,
+## a height it then keeps for every spell hovered afterwards. Pinning the width
+## (authored as [member Control.custom_minimum_size].x on the scene root, so it
+## stays tunable in the editor) and clamping the height to the recomputed
+## minimum converges within a frame.
+func _fit() -> void:
+	var width := maxf(custom_minimum_size.x, 1.0)
+	var min_h := get_combined_minimum_size().y
+	if is_equal_approx(size.x, width) and size.y <= min_h + 0.5:
+		return
+	# set_size() clamps against the combined minimum, so a 0 height means
+	# "exactly as tall as the content needs at this width".
+	size = Vector2(width, 0.0)
 
 
 func _reposition() -> void:
