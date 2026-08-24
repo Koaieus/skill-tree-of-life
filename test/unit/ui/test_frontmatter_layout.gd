@@ -318,11 +318,11 @@ func test_the_frontmatter_skeleton_is_two_layers_the_camera_and_nothing_else() -
 	var root: Node2D = preload("res://ui/frontmatter/frontmatter_root.tscn").instantiate()
 	add_child_autofree(root)
 
-	assert_null(root.get_script(), "the root script is #570's, not this unit's")
+	assert_true(root is FrontmatterRoot, "the shell script #570 added")
 	assert_true(root.get_node("%Camera") is Camera2D)
 	assert_true(root.get_node("%GraphLayer") is Node2D)
-	assert_eq(root.get_node("%GraphLayer").get_child_count(), 0,
-			"#569 fills the graph layer; this unit renders nothing")
+	assert_gt(root.get_node("%GraphLayer").get_child_count(), 0,
+			"the shell fills the graph layer at build; the layer itself is authored empty")
 
 	# A CanvasLayer is immune to the camera transform by design — anchored
 	# Controls sharing the camera's canvas get panned AND zoomed, which is the
@@ -338,7 +338,11 @@ func test_the_panel_seam_answers_for_every_leaf_panel_this_tree_names() -> void:
 	# The seam only, not the panels: #573 fills them. What is pinned today is
 	# that every leaf routes through `show_panel`/`hide_all` and that an
 	# unlanded panel is a no-op rather than a crash.
-	var panels := FrontmatterPanels.new()
+	# The SCENE, not `FrontmatterPanels.new()`: a bare `new()` type-checks but
+	# builds a container with none of its scene's children, so it would go on
+	# agreeing with this test after #573 fills the panels in.
+	var panels: FrontmatterPanels = preload(
+			"res://ui/frontmatter/panels/frontmatter_panels.tscn").instantiate()
 	add_child_autofree(panels)
 	for id in _tree.ids():
 		var item := _tree.get_item(id)
