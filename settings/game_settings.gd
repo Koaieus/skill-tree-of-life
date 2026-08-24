@@ -28,6 +28,13 @@ const RESOLUTIONS: Array[Vector2i] = [
 @export_group("Gameplay")
 @export var confirm_islanding_dealloc: bool = true
 @export_range(0.0, 2.0) var ai_turn_delay: float = 0.4
+## Skip presentation-layer transitions and land on their end state in one
+## frame — the frontmatter's camera move and grow-in (#570), and anything that
+## follows it. An accessibility setting, sitting beside `ai_turn_delay` because
+## both are about how much motion the player sits through rather than about a
+## rule. Every animated unit honours it by jumping to `set_progress(1.0)`; none
+## of them branch further than that.
+@export var reduce_motion: bool = false
 
 @export_group("Display")
 @export_enum("Windowed", "Fullscreen", "Borderless") var window_mode: int = WindowMode.WINDOWED
