@@ -49,6 +49,16 @@ columns = 2
 theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 6
 
+[node name="ScenePickerLabel" type="Label" parent="Margin/Box/Fields"]
+layout_mode = 2
+text = "Rung"
+
+[node name="ScenePicker" type="OptionButton" parent="Margin/Box/Fields"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(440, 0)
+layout_mode = 2
+tooltip_text = "Picks a known harness scene into the Scene field below. Rung 1 (mp_dev_sandbox) proves messaging with a hand-authored graph shared by both peers and nothing crossing the wire; rung 2 (mp_procgen_sandbox) proves run settings + the graph itself crossing (#533)."
+
 [node name="SceneLabel" type="Label" parent="Margin/Box/Fields"]
 layout_mode = 2
 text = "Scene"

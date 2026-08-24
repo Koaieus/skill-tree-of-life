@@ -1,0 +1,46 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" uid="uid://c13p7m8d4clqu" path="res://scenes/game_root.tscn" id="1_base"]
+[ext_resource type="Script" path="res://scenes/dev/mp_procgen_sandbox.gd" id="2_script"]
+[ext_resource type="Script" uid="uid://c08gdeaalvasl" path="res://network/enet_transport.gd" id="3_transport"]
+
+[node name="MpProcgenSandbox" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
+route_to_meta_on_run_end = false
+
+[node name="Transport" parent="." unique_id=1000000541]
+script = ExtResource("3_transport")
+
+[node name="NetOverlay" type="CanvasLayer" parent="."]
+layer = 128
+
+[node name="Margin" type="MarginContainer" parent="NetOverlay"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -420.0
+offset_bottom = 260.0
+grow_horizontal = 0
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="Box" type="VBoxContainer" parent="NetOverlay/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="NetBanner" type="Label" parent="NetOverlay/Margin/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "SOLO — no link"
+horizontal_alignment = 2
+
+[node name="NetLog" type="RichTextLabel" parent="NetOverlay/Margin/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(400, 200)
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_following = true
+modulate = Color(0.78, 0.85, 0.92, 0.85)

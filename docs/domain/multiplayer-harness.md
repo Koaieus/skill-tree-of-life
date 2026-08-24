@@ -14,7 +14,8 @@ It is a harness, not the sync layer. The architecture it serves is
 |---|---|
 | **Multiplayer** tab | `addons/sandbox_host/tabs/80_multiplayer_tab.tscn` |
 | Launcher panel | `addons/mp_sandbox/mp_sandbox_panel.tscn` |
-| The scene both processes run | `scenes/dev/mp_dev_sandbox.tscn` (inherits `dev_sandbox.tscn`) |
+| The scene both processes run — rung 1 | `scenes/dev/mp_dev_sandbox.tscn` (inherits `dev_sandbox.tscn`) |
+| The scene both processes run — rung 2 (#533) | `scenes/dev/mp_procgen_sandbox.tscn` (instances `game_root.tscn`) |
 | Where the wire is MOUNTED | `scenes/game_root.tscn` → `Transport` + `CommandLink` (#531) |
 | Transport seam | `network/network_transport.gd` + `enet_transport.gd` / `loopback_transport.gd` |
 | Applier ↔ transport bridge | `network/command_link.gd` |
@@ -336,6 +337,102 @@ Details that are easy to get wrong, all covered by
   `PlayerInputController` submit to a *link* rather than to the applier
   directly. `CommandLink._applying_remote` already exists so a peer that both
   mirrors and broadcasts cannot echo itself into a loop.
+
+## Rung 2: the graph and run settings actually cross the wire (#533)
+
+Rung 1's whole value is that NO state crosses — the two peers share the same
+hand-authored `dev_sandbox.tscn`, so any divergence there is a *messaging* bug
+by construction, never a serialization one. Rung 2 (`scenes/dev/mp_procgen_sandbox.tscn`
++ `.gd`) is the first harness scene where that stops being true: the HOST
+procgens a small level from a fixed `RunConfig`, and the CLIENT receives it —
+run settings first (#528, `CommandLink.send_run_setup`), then the graph itself
+(#527, `CommandLink.send_graph_snapshot`) — rather than re-deriving either
+locally. Launch it the same way as rung 1, over `--role` / `--port` /
+`--address`:
+
+```
+godot --headless --path . scenes/dev/mp_procgen_sandbox.tscn -- --role=host --port=9100
+godot --headless --path . scenes/dev/mp_procgen_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9100
+```
+
+`--rounds=N` (host only; bare `--rounds` is unbounded) sweeps N of Red's turns,
+each an allocate-if-legal followed by `end_turn` — a much smaller sweep than
+rung 1's `--autopilot`, because this rung's job is proving the JOIN, not
+re-proving every verb crosses (rung 1 already does that). The default is 3.
+
+**Why this is now a correctness requirement, not only a harness milestone
+(#547).** `procgen/` leans on `pow` / `exp` / `sin` / `cos` for continuous
+placement math — draw weights, a Poisson roll, a Gaussian bump, points on a
+circle — real math that would be wrong to rewrite, but whose last bit is not
+IEEE-754-portable across platforms' `libm`. Two peers "typing the same seed"
+(`HostJoinScreen`'s current lobby hint) can silently generate DIFFERENT maps,
+and every command after that lands on a node that isn't there — not subtle
+drift, the run failing to start coherently. Sending the graph rather than
+regenerating it retires that hazard permanently; `mise run lint-transcendentals`'s
+`procgen/` exemption says so explicitly and self-voids if a peer ever goes back
+to generating its own map from the seed.
+
+**No hot-seat, unlike rung 1.** Rung 1's HOST hot-seats a human Red against an
+AI Blue (`COUCH`); here BOTH peers are pinned with `SeatPolicy.seat()` to their
+own participant — host → Red, client → Blue — and never swing, per the owner's
+framing (2026-08-22): a client staying bound to Blue through every handover is
+a WANTED difference between the two instances, not a divergence to chase. Blue
+is still AI-driven and the run still needs no upward intent channel (#463,
+unfiled rung 3) — only the authority's `AIController` ever decides, gated by
+`CommandApplier.is_authority` exactly as rung 1 documents at length.
+
+**The CLIENT never calls `GraphProcgen`.** It spawns bare placeholder
+`Entity` nodes — no `core_location`, so no graph is needed yet — in the SAME
+order the host does, so `Graph`'s per-entry `entity_id` minting lands on the
+identical numbers. It waits for `GameSession.run_started` (fired by
+`GameSession.apply_received`, which `CommandLink._on_run_setup` calls) before
+it knows how many participants there are; only once the graph snapshot itself
+arrives can ownership resolve — `GraphSnapshot.decode`'s own contract is that
+ownership resolves through the RECEIVING graph's entities, so the placeholders
+must already exist and be correctly ID'd first.
+
+**`core_location` is not on the wire, and this rung's fix is a scope
+reduction, not a protocol addition.** `GraphSnapshot` carries which `Entity`
+owns each `SkillNode` (by `entity_id`), never which owned node is that
+entity's CORE — that lives on `Entity.core_location`, off the wire entirely
+(#527's own decode note: minting a core is #528's concern, not the snapshot's).
+Rather than invent a third wire message for it, this harness seeds NO
+territory beyond each entity's spawn node — no `TerritorySeeder` call, unlike
+`procgen_play_sandbox.gd` — so after decode each entity owns exactly one node,
+and "the node I now own" IS "my core". A level that wanted real enemy
+territory here would need the core named explicitly, not inferred.
+
+**Send order is run_setup, snapshot, THEN hello — reversed from rung 1.**
+`CommandLink.send_hello` is what produces the "✓ in sync at link-up" verdict,
+comparing `WorldFingerprint` on both sides, and the CLIENT's graph is empty
+until the snapshot decodes. Sending hello first (rung 1's order, safe there
+because both peers already share a graph) would report a structural, false
+DIVERGED before any real state could differ. Sending it last makes "at
+link-up" mean what it says — ENet's reliable channel is ordered, so the three
+sends arrive in the order they were made. One accepted consequence, already
+called out in `command_link.gd`'s own #546 note: `KIND_SETUP` / `KIND_SNAPSHOT`
+are handled regardless of a prior hello, so a build mismatch is not caught
+until after both have already been applied. That gap is pre-existing future
+work, not something this rung closes.
+
+**Automated coverage stops at the protocol, not the scene.** Two full OS
+processes can't share a `LoopbackTransport` (the earlier reasoning still
+holds: `EnetTransport` claims the SceneTree's one `MultiplayerAPI`), so
+`test/unit/network/test_mp_procgen_join.gd` drives two real `game_root.tscn`
+instances in one process instead, paired through their own mounted default
+transport — the same two-worlds-in-one-process technique
+`test_command_link.gd` already established, extended to also exercise
+`send_run_setup` / `send_graph_snapshot`. It pins: ownership + topology + HP
+match once the join handshake completes, `core_location` reconstructs
+correctly, each instance ends up bound to a different participant (asserted
+as correct), and fingerprint parity survives a short scripted SEQUENCE of
+mirrored commands. It deliberately does NOT exercise `EndTurnCommand` — both
+`TurnManager.end_turn` and `_tick_until_ready` read `Entity.GROUP` /
+`Entity.READY_GROUP` tree-wide, so with two worlds sharing one SceneTree they
+see BOTH worlds' entities regardless of which `TurnManager` is ticking; a real
+multi-turn run is exercised manually via the Multiplayer tab, same division of
+labour as rung 1's own test coverage (`test_harness_budget_boost.gd` tests
+`build_args`, not a spawned process).
 
 ## The other harness: replaying an outcome with no network (#539)
 

@@ -21,11 +21,22 @@ signal reload_requested
 
 const DEFAULT_SCENE := "res://scenes/dev/mp_dev_sandbox.tscn"
 
+## The ladder (`docs/domain/multiplayer-harness.md`) — a scene picker, so
+## launching rung 2 doesn't require knowing (or typing) its path. `%SceneField`
+## stays a free-text [LineEdit] alongside it: a picker names the two rungs
+## this repo ships, the field is what lets a third one be typed without a
+## code change here.
+const RUNG_SCENES: Array[Dictionary] = [
+	{"label": "Rung 1 — hand-authored graph (mp_dev_sandbox)", "scene": "res://scenes/dev/mp_dev_sandbox.tscn"},
+	{"label": "Rung 2 — host procgens, client receives (mp_procgen_sandbox)", "scene": "res://scenes/dev/mp_procgen_sandbox.tscn"},
+]
+
 ## Window geometry per role, so the two do not land on top of each other.
 const WINDOW_SIZE := Vector2i(960, 600)
 const HOST_POSITION := Vector2i(40, 80)
 const CLIENT_POSITION := Vector2i(1020, 80)
 
+@onready var _scene_picker: OptionButton = %ScenePicker
 @onready var _scene_field: LineEdit = %SceneField
 @onready var _address_field: LineEdit = %AddressField
 @onready var _port_field: SpinBox = %PortField
@@ -47,6 +58,8 @@ var _sweeping_by_pid: Dictionary = {}
 func _ready() -> void:
 	if _scene_field.text.is_empty():
 		_scene_field.text = DEFAULT_SCENE
+	_populate_scene_picker()
+	_scene_picker.item_selected.connect(_on_scene_picked)
 	%LaunchBoth.pressed.connect(_on_launch_both)
 	%LaunchHost.pressed.connect(_on_launch_host)
 	%LaunchClient.pressed.connect(_on_launch_client)
@@ -60,6 +73,33 @@ func _ready() -> void:
 ## to load — the launcher has no per-resource state.
 func load_object(_obj: Object) -> void:
 	pass
+
+
+## One entry per [constant RUNG_SCENES] row, plus whatever `%SceneField`
+## already names if it isn't one of them (a hand-typed third scene) — so
+## picking never silently overwrites a path someone typed by hand.
+func _populate_scene_picker() -> void:
+	_scene_picker.clear()
+	var current := _scene_field.text.strip_edges()
+	var matched_current := false
+	for i in RUNG_SCENES.size():
+		var row: Dictionary = RUNG_SCENES[i]
+		_scene_picker.add_item(String(row["label"]), i)
+		if String(row["scene"]) == current:
+			_scene_picker.select(i)
+			matched_current = true
+	if not matched_current and not current.is_empty():
+		_scene_picker.add_item("(custom) %s" % current, RUNG_SCENES.size())
+		_scene_picker.select(RUNG_SCENES.size())
+
+
+## Only ever fires for a [constant RUNG_SCENES] row — the "(custom)" entry
+## `_populate_scene_picker` may add reflects `%SceneField`, it is never itself
+## clicked into existence by this handler.
+func _on_scene_picked(index: int) -> void:
+	if index < 0 or index >= RUNG_SCENES.size():
+		return
+	_scene_field.text = String((RUNG_SCENES[index] as Dictionary)["scene"])
 
 
 func _on_launch_both() -> void:
