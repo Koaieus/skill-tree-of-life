@@ -79,7 +79,7 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 | ~~#460~~ | ~~`VictorySystem` — a run that can end~~ | **Shipped 2026-08-21.** Owner call settled it: last camp standing, pluggable, blockers inert. `docs/domain/victory-system.md` |
 | **#461** | Menu shell follow-up: scenic screens, roster wiring, styling | Sits in `Ready` but still carries open forks — see "Known board violations" |
 | ~~#462~~ | ~~Display settings (window mode, resolution, vsync, fps cap)~~ | **Shipped 2026-08-21.** North Star #2 is met |
-| **#463** | Versus: `NetworkTransport` + ENet lobby | **Hub, swarmified 2026-08-22.** The transport seam, both transports and `CommandLink` already shipped — the body was 60% stale. All five 2026-08-23 children closed (#527/#528/#529/#530/#531). **The sync model is settled 2026-08-24** — see below. Open under it: **#548** upward channel, **#549** roster seam, **#533** harness rung 2. **Do not re-enumerate children here** — read `mise gh-project -- roadmap` |
+| **#463** | Versus: `NetworkTransport` + ENet lobby | **Hub, swarmified 2026-08-22.** The transport seam, both transports and `CommandLink` already shipped — the body was 60% stale. All five 2026-08-23 children closed (#527/#528/#529/#530/#531). **The sync model is settled 2026-08-24** — see below, and the upward channel + roster seam were swarmified the same day. **Do not re-enumerate children here** — read `mise gh-project -- roadmap` |
 | ~~#499~~ | ~~Ranged volley: arrival ramp + apply in arrival order~~ | **Shipped.** `OutcomeApplier` orders hits by `arrival_time` |
 
 Also in the milestone, by owner call: **#403** Tech Seeds, `Needs design` —
@@ -132,8 +132,13 @@ So the remaining order is short:
   information destination. **Its three older grounds are all retired; do not
   pick one up.** `docs/domain/multiplayer-sync-model.md` carries both the live
   argument and the dead ones.
-  The upward-channel unit is now filed as **#548**, and the roster seam it
-  depends on as **#549** (split out of #461, which was only ever menu polish).
+  The upward-channel unit is **#548** (`Ready`, swarmified 2026-08-24) and the
+  roster seam is **#549** (split out of #461, which was only ever menu polish;
+  now a hub, its two children `Ready`). **They are independent** — the earlier
+  claim here that #548 *depends on* the roster seam is **wrong**, and #548's
+  acceptance spec says so: the mp harness seats its client by hand, so the
+  upward channel is implementable and testable without a lobby-fed roster.
+  What #548 *does* wait on is **#533**, recorded natively.
   A consequence worth carrying: derived stats are recomputed per peer, so the
   **stat pipeline** owes cross-platform determinism — **#547** is the one live
   violation.
