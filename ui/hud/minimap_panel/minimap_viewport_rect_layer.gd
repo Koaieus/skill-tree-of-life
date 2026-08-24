@@ -25,6 +25,14 @@ extends Control
 ##     not antialias filled geometry — a pixel is covered iff its CENTRE falls
 ##     inside the span. A span exactly one device pixel wide, landing halfway
 ##     between two centres, contains neither and draws nothing at all.
+##  4. And snapping against [method CanvasItem.get_global_transform_with_canvas]
+##     is snapping to the wrong grid: that transform stops at the canvas and
+##     does NOT include the viewport's stretch. A 1440x960 canvas in a 1440x932
+##     window reports scale (1, 1) there while the screen is really being
+##     scaled by ~0.971 — so a span snapped to whole canvas pixels arrives at
+##     the screen 0.971 px wide, at an arbitrary offset, and drops out again.
+##     [method CanvasItem.get_screen_transform] is the one that goes all the
+##     way to the screen, and is what this layer snaps against.
 ##
 ## (3) is what produced the reported symptom exactly: "fault lines" at a fixed
 ## set of screen positions, per axis, hitting all four edges — a vertical edge
@@ -108,7 +116,7 @@ func _draw() -> void:
 	draw_count += 1
 	if not _has_rect:
 		return
-	var to_device := get_global_transform_with_canvas()
+	var to_device := _screen_transform()
 	# A degenerate transform means no viewport yet (a bare unit-test instance).
 	# Draw in local space rather than dividing by a zero scale.
 	if is_zero_approx(to_device.determinant()):
@@ -123,6 +131,31 @@ func _draw() -> void:
 	var to_local := to_device.affine_inverse()
 	for span in _edge_rects(device, maxf(outline_width, 1.0)):
 		draw_rect(to_local * span, outline_color)
+
+
+## The transform from this layer's coordinates all the way to SCREEN pixels —
+## stretch included.
+##
+## [b]Measured, 2026-08-24[/b], in a 1440x932 window with a 1440x960 content
+## scale, because two plausible-looking answers here were both wrong:
+##   layer.get_global_transform_with_canvas() -> scale (1.000000, 1.000000)
+##   layer.get_screen_transform()             -> scale (1.000000, 1.000000)
+##   get_viewport().get_screen_transform()    -> scale (0.970833, 0.970833)
+##
+## So [method CanvasItem.get_screen_transform] does NOT include the viewport's
+## stretch despite the name — only the VIEWPORT's own screen transform does,
+## and it has to be composed with the item's canvas transform by hand. Anything
+## snapped against either of the first two is snapped to canvas pixels, which
+## the stretch then rescales to arbitrary sub-pixel positions on the way out.
+func _screen_transform() -> Transform2D:
+	var to_canvas := get_global_transform_with_canvas()
+	var viewport := get_viewport()
+	if viewport == null:
+		return to_canvas
+	var to_screen := viewport.get_screen_transform() * to_canvas
+	if is_zero_approx(to_screen.determinant()):
+		return to_canvas
+	return to_screen
 
 
 ## Dev dump for the system clipboard (`v` in [DebugClipboard]) — everything
@@ -153,20 +186,23 @@ func debug_state(camera: GraphCamera, panel: Control) -> String:
 		lines.append("  map_scale: %.6f  map_offset: %s" % [panel._map_scale, panel._map_offset])
 	lines.append("  layer size: %s" % size)
 	lines.append("  local rect: %s  has_rect: %s" % [_rect, _has_rect])
-	var xf := get_global_transform_with_canvas()
-	lines.append("  to_device: origin=%s scale=%s" % [xf.origin, xf.get_scale()])
+	var canvas_xf := get_global_transform_with_canvas()
+	var xf := _screen_transform()
+	lines.append("  to_canvas: origin=%s scale=%s  (NOT the screen grid)"
+			% [canvas_xf.origin, canvas_xf.get_scale()])
+	lines.append("  to_screen: origin=%s scale=%s" % [xf.origin, xf.get_scale()])
 	if _has_rect and not is_zero_approx(xf.determinant()):
 		var device: Rect2 = xf * _rect
-		lines.append("  device rect (raw):    %s" % device)
+		lines.append("  screen rect (raw):     %s" % device)
 		var snapped := Rect2(device.position.round(), device.size.round().maxf(1.0))
-		lines.append("  device rect (snapped): %s" % snapped)
+		lines.append("  screen rect (snapped): %s" % snapped)
 		var names := ["top", "bottom", "left", "right"]
 		var spans := _edge_rects(snapped, maxf(outline_width, 1.0))
 		if spans.is_empty():
 			lines.append("  spans: NONE (degenerate box)")
 		for i in spans.size():
 			var span: Rect2 = spans[i]
-			lines.append("    %-6s device %s -> covers a pixel centre: %s" % [
+			lines.append("    %-6s screen %s -> covers a pixel centre: %s" % [
 					names[i], span, _covers_a_pixel_centre(span)])
 	return "\n".join(lines)
 
