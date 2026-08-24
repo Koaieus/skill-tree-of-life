@@ -85,7 +85,7 @@ func _fixed_roster() -> ParticipantRoster:
 	red.display_name = "Red"
 	red.color = _RED_COLOR
 	red.camp = _PLAYER_FACTION
-	red.kind = Participant.Kind.LOCAL_HUMAN
+	red.kind = Participant.Kind.HUMAN
 	roster.add(red)
 	var blue := Participant.new()
 	blue.id = 1
