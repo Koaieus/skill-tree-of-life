@@ -3,8 +3,14 @@ class_name MinimapGraphLayer
 extends Control
 
 ## The dot-and-edge layer of the minimap (#453). Deliberately dumb: it owns no
-## graph reference, no mapping and no schedule — [MinimapPanel] builds the
-## point/colour arrays in minimap-local space and pushes them here.
+## graph reference and no schedule — [MinimapPanel] builds the point/colour
+## arrays in minimap-local space and pushes them here.
+##
+## Its material (`minimap_graph_fog.gdshader`) does hold a copy of the panel's
+## local→world mapping, pushed by [method MinimapPanel._push_graph_fog_mapping],
+## so every fragment can self-shade against the global vision field: a node
+## outside all vision is drawn at alpha ZERO. That is concealment; the fog quad
+## above is only the look of it.
 ##
 ## [b]Why it is its own Control[/b]: this is the layer whose redraw is
 ## expensive (a level holds 500–2500 SkillNodes) and whose content is nearly

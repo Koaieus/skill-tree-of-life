@@ -10,7 +10,12 @@ extends GutTest
 ##     expanded to the area's aspect, NOT the world bounds. Feeding the shader
 ##     the wrong one of the two offsets the fog by exactly the letterbox bars,
 ##     which looks almost right.
-##  2. **A camera move must not redraw the graph layer.** That split is the
+##  2. **The dot layer's self-shading mapping must agree with the dots.** The
+##     dots are placed on the CPU by `_world_to_map`; the shader that erases
+##     the fogged ones un-maps each fragment with two pushed uniforms. If those
+##     drift, the fog cut-out lands somewhere other than where the dots are —
+##     and nothing errors.
+##  3. **A camera move must not redraw the graph layer.** That split is the
 ##     whole reason the minimap is affordable at 500–2500 nodes, and nothing in
 ##     the engine enforces it — a stray `queue_redraw` in the wrong handler
 ##     would just cost frames, quietly.
@@ -75,6 +80,22 @@ func test_fog_rect_spans_the_full_area_not_the_letterboxed_board() -> void:
 	assert_almost_eq(far.x, 220.0, 0.001, "fog bottom-right x")
 	assert_almost_eq(far.y, 220.0, 0.001, "fog bottom-right y")
 	assert_gt(fog.size.y, 400.0, "the non-binding axis is EXPANDED, not clipped")
+
+
+func test_graph_fog_uniforms_invert_the_dot_mapping() -> void:
+	# The shader computes `world = origin + local_px * per_pixel`. That must be
+	# exactly `_map_to_world`, i.e. the inverse of where the dots were placed.
+	_panel._fit(Rect2(-500.0, -200.0, 1000.0, 400.0), Vector2(220.0, 220.0))
+	_panel._push_graph_fog_mapping()
+	var mat := _panel.graph_layer.material as ShaderMaterial
+	assert_not_null(mat, "GraphLayer carries the self-shading material")
+	var origin: Vector2 = mat.get_shader_parameter(&"minimap_world_origin")
+	var per_pixel: float = mat.get_shader_parameter(&"minimap_world_per_pixel")
+	for world in [Vector2(-500.0, -200.0), Vector2.ZERO, Vector2(123.0, -45.0)]:
+		var local: Vector2 = _panel._world_to_map(world)
+		var shaded: Vector2 = origin + local * per_pixel
+		assert_almost_eq(shaded.x, world.x, 0.001, "shader un-maps x at %s" % world)
+		assert_almost_eq(shaded.y, world.y, 0.001, "shader un-maps y at %s" % world)
 
 
 func test_a_degenerate_fit_disables_the_mapping_instead_of_dividing_by_zero() -> void:

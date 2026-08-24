@@ -8,7 +8,10 @@ extends MarginContainer
 ## [b]Three layers, split by redraw cadence[/b], which is the entire
 ## performance story at 500–2500 SkillNodes:
 ##   - [MinimapGraphLayer] — dots + edges. Rebuilt on topology/ownership
-##     change only, and drawn in two batched calls (see that class).
+##     change only, and drawn in two batched calls (see that class). It
+##     self-shades against the vision field (`minimap_graph_fog.gdshader`), so
+##     a fogged node is drawn at alpha zero rather than relying on the fog quad
+##     above it to bury it.
 ##   - `FogLayer` — a ColorRect running `minimap_fog.gdshader`, which samples
 ##     the same GLOBAL vision field `FogOverlay` writes each vision tick. Zero
 ##     CPU: the minimap asks [VisionSystem] nothing, per node or otherwise.
@@ -165,6 +168,7 @@ func _refit() -> void:
 	var area_size: Vector2 = map_area.size if map_area != null else Vector2.ZERO
 	_fit(_resolve_world_bounds(), area_size)
 	_push_fog_rect()
+	_push_graph_fog_mapping()
 	_push_view_rect()
 	_mark_geometry_dirty()
 
@@ -286,6 +290,20 @@ func _push_fog_rect() -> void:
 	mat.set_shader_parameter(&"minimap_world_rect", Vector4(
 			_fog_world_rect.position.x, _fog_world_rect.position.y,
 			_fog_world_rect.size.x, _fog_world_rect.size.y))
+
+
+## Hand [MinimapGraphLayer]'s self-shading shader the same local→world mapping
+## [method _map_to_world] applies. Derived here, beside [method _push_fog_rect],
+## for the same reason: two mappings onto one field must not be able to drift.
+func _push_graph_fog_mapping() -> void:
+	if graph_layer == null:
+		return
+	var mat := graph_layer.material as ShaderMaterial
+	if mat == null:
+		return
+	var per_pixel: float = (1.0 / _map_scale) if _map_scale > 0.0 else 0.0
+	mat.set_shader_parameter(&"minimap_world_origin", _map_to_world(Vector2.ZERO))
+	mat.set_shader_parameter(&"minimap_world_per_pixel", per_pixel)
 
 
 func _push_view_rect() -> void:

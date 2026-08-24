@@ -13,10 +13,12 @@ shader_type canvas_item;
 // asks `VisionSystem` nothing per node — it just reads the field at a
 // different set of world positions.
 //
-// Painting the fog OVER the dot/edge layer (rather than culling hidden nodes
-// on the CPU) is what makes that possible: `vision_field_darkness` reaches a
-// hard 1.0 beyond every circle's radius, so a hidden node is covered, not
-// merely dimmed.
+// This quad is the fog's LOOK, not its concealment. Hiding is the dot/edge
+// layer's own job — it self-shades to alpha zero against this same field in
+// `minimap_graph_fog.gdshader`, because this quad's alpha ceiling is under 1.0
+// (see `max_darkness`) and the residual few percent left a bright entity dot
+// legibly glowing through pitch black. Neither half culls on the CPU, so the
+// minimap still asks `VisionSystem` nothing, per node or otherwise.
 
 // The world rect this quad's UV space maps onto — x,y = position, z,w = size.
 //
@@ -29,7 +31,8 @@ uniform vec4 minimap_world_rect = vec4(0.0, 0.0, 1.0, 1.0);
 // Ceiling on the darkness alpha. Deliberately under 1.0: the panel sits on a
 // styled glass gradient, and a fresh level (one owned node) is almost entirely
 // fogged — at a hard 1.0 the whole minimap reads as a black hole punched in
-// the HUD. 0.92 still hides a hairline dot completely.
+// the HUD. It does NOT have to reach 1.0 to hide anything: the dots and edges
+// underneath have already erased themselves.
 uniform float max_darkness : hint_range(0.0, 1.0) = 0.92;
 
 void fragment() {

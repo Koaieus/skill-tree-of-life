@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://dw553wnqashv8" path="res://ui/hud/minimap_panel/minimap_graph_layer.gd" id="4_graph"]
 [ext_resource type="Shader" uid="uid://c258ore5pj5e1" path="res://ui/hud/minimap_panel/minimap_fog.gdshader" id="5_fog"]
 [ext_resource type="Script" uid="uid://cqpd8dsq34a0w" path="res://ui/hud/minimap_panel/minimap_viewport_rect_layer.gd" id="6_rect"]
+[ext_resource type="Shader" uid="uid://bluc3rdlftmcc" path="res://ui/hud/minimap_panel/minimap_graph_fog.gdshader" id="7_gfog"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_80oqb"]
 resource_local_to_scene = true
@@ -19,6 +20,12 @@ shader_parameter/border_width = 1.0
 shader_parameter/corner_radius = 13.0
 shader_parameter/glow_color = Color(1, 1, 1, 0)
 shader_parameter/glow_strength = 0.0
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_graphfog"]
+resource_local_to_scene = true
+shader = ExtResource("7_gfog")
+shader_parameter/minimap_world_origin = Vector2(0, 0)
+shader_parameter/minimap_world_per_pixel = 1.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fog"]
 resource_local_to_scene = true
@@ -53,6 +60,7 @@ layout_mode = 2
 
 [node name="GraphLayer" type="Control" parent="Inset/MapArea" unique_id=180937190]
 unique_name_in_owner = true
+material = SubResource("ShaderMaterial_graphfog")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
