@@ -98,6 +98,23 @@ const KIND_SETUP := "setup"
 ## of what [constant KIND_SNAPSHOT] does for the graph. Same additive, opt-in
 ## shape: sent only by [method send_entity_snapshot].
 const KIND_ENTITIES := "entities"
+## #561's repair envelope: the WHOLE world, entities and graph together, in one
+## message. Sent only by [method send_resync], applied only under
+## [constant Mode.MIRROR].
+##
+## [b]One envelope rather than the two separate sends the join uses[/b], and
+## that is the point: [method EntitySnapshot.resolve_graph_refs] has to run
+## AFTER the nodes exist, which the join gets by parking the entity bytes until
+## a graph arrives. A repair cannot rely on that — it decodes into a graph that
+## is ALREADY populated, so the park would drain against the pre-repair nodes
+## and never re-run against the new ones. Carrying both halves together makes
+## the dependency order (#521 D5) local to one handler instead of a property of
+## arrival timing. It is the same three calls in the same order; nothing here
+## is a second decode path.
+const KIND_RESYNC := "resync"
+## #561: "our worlds disagree — send me yours." The only thing a client emits
+## on a desync verdict, because only the authority may send state (#521 D4).
+const KIND_RESYNC_REQUEST := "resync_request"
 ## #548's upward leg: a client's INTENT, not yet a command. Sent only under
 ## [constant Mode.MIRROR], received only under [constant Mode.BROADCAST] — the
 ## exact inverse of [constant KIND_COMMAND], which is why it is its own kind
@@ -133,6 +150,16 @@ signal logged(line: String)
 ## the client checks the world it is about to mutate). [param agrees] false means
 ## the two worlds have diverged, as of one command ago.
 signal sync_checked(agrees: bool, local: int, remote: int)
+
+## #561: this peer, as the authority, pushed a full repair. [param reason] is
+## the verdict that caused it. A green run never emits this — which is the
+## assertion that keeps the "shout" half of #521 D3 honest.
+signal resync_sent(reason: String)
+
+## #561: this peer, as a client, had a repair applied to it. Emitted AFTER the
+## world is whole again. Deliberately not [signal CommandApplier.command_confirmed]
+## — #525's camera director pans on that one, and nobody pans for a repair.
+signal resync_applied(reason: String)
 
 ## #546: the link was hung up because the peers are not running the same code.
 ## Terminal — nothing reconnects, by design.
@@ -271,6 +298,95 @@ func send_entity_snapshot() -> void:
 		return
 	transport.send({KEY_KIND: KIND_ENTITIES, KEY_ENTITIES: EntitySnapshot.encode(graph)})
 	logged.emit("→ entity snapshot (%d entities)" % EntitySnapshot.entities_of(graph).size())
+
+
+## #561's backstop. Push the WHOLE world to every client, as a repair —
+## host-side, and the only thing that ever sends state on a desync verdict.
+##
+## Both halves ride one [constant KIND_RESYNC] envelope in the dependency order
+## #521 D5 settled and #560 established: entities decode first (pass 1 needs no
+## [SkillNode]), the graph next (its `owner_id` resolves through
+## [method Graph.get_by_entity_id]), and the entity->node references last. See
+## [constant KIND_RESYNC] for why it is one message rather than two.
+##
+## [b]It has no presentation semantics and must never acquire any[/b] (#521 D1).
+## No [Command] is submitted, so nothing this peer draws off
+## [signal CommandApplier.command_confirmed] — #525's camera director included —
+## fires. Nobody animates a repair.
+func send_resync(reason: String) -> void:
+	if transport == null or mode != Mode.BROADCAST or graph == null:
+		return
+	transport.send({
+		KEY_KIND: KIND_RESYNC,
+		KEY_ENTITIES: EntitySnapshot.encode(graph),
+		KEY_SNAPSHOT: GraphSnapshot.encode(graph),
+		KEY_SUMMARY: reason,
+	})
+	logged.emit("⟳ RESYNC pushed — %s (%s)" % [reason, WorldFingerprint.describe(graph)])
+	resync_sent.emit(reason)
+
+
+## Client-side half of #521 D4: ask, do not reconstruct.
+##
+## Latched until the next boundary agrees. A verdict fires per applied command,
+## so an unrepairable divergence would otherwise beg for a full world snapshot
+## on every command for the rest of the run — turning a diagnostic into a flood
+## and hiding the very log line the verdict exists to print.
+func request_resync(reason: String) -> void:
+	if transport == null or mode != Mode.MIRROR:
+		return
+	if _awaiting_resync:
+		return
+	_awaiting_resync = true
+	transport.send({KEY_KIND: KIND_RESYNC_REQUEST, KEY_SUMMARY: reason})
+	logged.emit("↑ resync requested — %s" % reason)
+
+
+## Latched between asking for a repair and the next agreeing boundary. See
+## [method request_resync].
+var _awaiting_resync: bool = false
+
+
+## #561 receive side, host-only. A client asking is treated exactly as the
+## host's own verdict would be — one push, same payload.
+func _on_resync_request(payload: Dictionary) -> void:
+	if mode != Mode.BROADCAST:
+		return
+	var reason := String(payload.get(KEY_SUMMARY, "peer asked"))
+	logged.emit("↓ resync requested by peer — %s" % reason)
+	send_resync(reason)
+
+
+## #561 receive side, client-only — a host must never apply a repair, which is
+## what the [constant Mode.MIRROR] gate here says out loud.
+##
+## The three calls below are [method EntitySnapshot.decode] ->
+## [method GraphSnapshot.decode] -> [method EntitySnapshot.resolve_graph_refs],
+## the join's own order with no parking step, because both halves arrived
+## together. Every one of them reconciles rather than rebuilds (#561 D6), so
+## the graph this decodes into being POPULATED is the ordinary case, not the
+## dangerous one: an entity's [method Entity.initialize] signal wiring, its
+## [Stat] instances and every [EffectInstance] handle survive, and a world that
+## never actually drifted comes out untouched.
+func _on_resync(payload: Dictionary) -> void:
+	if mode != Mode.MIRROR or graph == null:
+		return
+	var entity_bytes: PackedByteArray = payload.get(KEY_ENTITIES, PackedByteArray())
+	var graph_bytes: PackedByteArray = payload.get(KEY_SNAPSHOT, PackedByteArray())
+	var reason := String(payload.get(KEY_SUMMARY, ""))
+	if graph_bytes.is_empty():
+		# `GraphSnapshot._unpack` reads a 4-byte size header off the front, so
+		# an empty payload is not a no-op there — it is a decode error.
+		logged.emit("← resync with no graph half, dropped")
+		return
+	EntitySnapshot.decode(entity_bytes, graph)
+	GraphSnapshot.decode(graph_bytes, graph)
+	EntitySnapshot.resolve_graph_refs(entity_bytes, graph)
+	# Cleared here, not on the next verdict: the repair has landed, and the very
+	# next compare is the one that says whether it worked.
+	_awaiting_resync = false
+	logged.emit("⟳ resync applied — %s (%s)" % [reason, WorldFingerprint.describe(graph)])
+	resync_applied.emit(reason)
 
 
 ## Send the run's shape to a freshly-connected peer (#528) — host-side,
@@ -430,6 +546,10 @@ func _on_message_received(payload: Dictionary) -> void:
 			_on_run_setup(payload)
 		KIND_ENTITIES:
 			_on_entity_snapshot(payload)
+		KIND_RESYNC:
+			_on_resync(payload)
+		KIND_RESYNC_REQUEST:
+			_on_resync_request(payload)
 		KIND_INTENT:
 			_on_intent(payload)
 		KIND_REFUSAL:
@@ -438,11 +558,11 @@ func _on_message_received(payload: Dictionary) -> void:
 			logged.emit("ignored payload with unknown kind %s" % payload.get(KEY_KIND))
 
 
-## #527 receive side. Decodes straight into [member graph] — the caller (a
-## lobby / join flow, #531) is responsible for handing this link an EMPTY
-## graph before the host sends, same as [method GraphSnapshot.decode]'s own
-## contract; decoding twice into an already-populated graph is not this
-## method's job to make safe.
+## #527 receive side. Decodes straight into [member graph]. The join flow (a
+## lobby, #531) still hands this link an empty graph, but that is now a
+## convention rather than a requirement: since #561 [method GraphSnapshot.decode]
+## RECONCILES, so decoding into a populated graph is well-defined — it is what
+## the resync backstop does on every repair.
 func _on_graph_snapshot(payload: Dictionary) -> void:
 	var bytes: PackedByteArray = payload.get(KEY_SNAPSHOT, PackedByteArray())
 	if graph == null or bytes.is_empty():
@@ -665,6 +785,30 @@ func _report_sync(local: int, remote: int, when: String) -> bool:
 	sync_checked.emit(agrees, local, remote)
 	if agrees:
 		logged.emit("  ✓ in sync %s (fp %d)" % [when, local])
-	else:
-		logged.emit("  ✗ DIVERGED %s — mine %d, host %d" % [when, local, remote])
-	return agrees
+		# The repair landed and the next boundary agreed, so the client may ask
+		# again if it ever drifts a second time.
+		_awaiting_resync = false
+		return true
+	logged.emit("  ✗ DIVERGED %s — mine %d, host %d" % [when, local, remote])
+	_heal_desync("%s (mine %d, host %d)" % [when, local, remote])
+	return false
+
+
+## #521 D3, both halves. The shout above is not optional and is not replaced by
+## the repair: a silent auto-heal would retire the "the client's number crept
+## wrong" bug class from the LOGS rather than from the code, which is exactly
+## what the #529/#532 harness ladder exists to prevent. `sync_checked` has
+## already fired by the time this runs, so a rung asserting on it still sees
+## the failure.
+##
+## [b]Only the authority sends state (#521 D4).[/b] A client that detects
+## disagreement asks; it never reconstructs, because a peer repairing itself
+## from its own wrong world is not a repair.
+func _heal_desync(reason: String) -> void:
+	match mode:
+		Mode.BROADCAST:
+			send_resync(reason)
+		Mode.MIRROR:
+			request_resync(reason)
+		_:
+			pass

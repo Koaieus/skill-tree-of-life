@@ -286,6 +286,78 @@ not cover. Because the host already owns every decision and clients never mutate
 directly, moving here later swaps *what gets broadcast* (confirmed command →
 filtered delta) behind one seam, without touching input, AI, or the systems.
 
+### The resync backstop
+
+**Settled #521 (2026-08-24), built in #560 + #561. Additive under the decision
+above — it reopens nothing.** `AttackRecord` remains the only thing that mutates
+a peer's live world during combat (`.claude/rules/attack-timeline.md`), and a
+confirmed command remains the only thing that advances it. What the backstop
+adds is a *repair*, for the one bug class the model above has no answer to at
+all: the client's number crept wrong and nothing will ever notice.
+
+**Two triggers, and there is deliberately no third.**
+
+1. **Join.** A peer arriving mid-run receives the world rather than
+   regenerating it — `GraphSnapshot` (#527) for the nodes, `EntitySnapshot`
+   (#560) for the boards.
+2. **A desync verdict.** `CommandLink._report_sync` finds the two fingerprints
+   disagree, and the authority pushes the same pair as one `KIND_RESYNC`.
+
+The rejected third was a **periodic dirty-stat push** (#521 D2). A subscriber
+across every board at 2000 nodes is the exact shape this repo has twice shipped
+a quadratic of (`.claude/rules/graph.md`), and it buys a second,
+constantly-firing repair path overlapping this one. It is parked on evidence —
+a drift actually observed between resync points — not on principle, and it
+wants a board-level batch rather than a per-stat subscriber if it ever lands.
+
+**A verdict auto-resyncs AND shouts. Both halves are required** (#521 D3). The
+repair runs so play continues; the verdict is still emitted on `sync_checked`,
+still logged loudly through `logged`, and still a failure on the #529/#532
+harness ladder. A silent auto-heal would retire the bug class **from the logs
+rather than from the code**. The assertion that keeps this honest is the
+negative one: *a green run never resyncs*.
+
+**Only the authority sends state** (#521 D4). The verdict fires on whoever is
+comparing, but a client that detects disagreement sends a `KIND_RESYNC_REQUEST`
+and waits — it never reconstructs, because a peer repairing itself out of its
+own wrong world is not a repair. The request is latched until the next boundary
+agrees, so an unfixable divergence begs once, not once per command.
+
+**A repair has no presentation semantics, and must never acquire any** (#521
+D1). Nobody animates a repair: applying a resync submits no `Command`, so
+nothing fires on `command_confirmed` (#525's camera director hangs off that one
+and must not pan), no VFX plays and no `BeatClock` runs.
+
+**It decodes into a POPULATED world, and that is the ordinary case** (#561 D6).
+Every decoder reconciles rather than rebuilds: `GraphSnapshot.decode` updates a
+node whose `stable_id` it already knows, mints only genuinely-new ids, removes
+only genuinely-absent ones, and does the same edge by edge; `StatBoard.read_dict`
+keeps an existing modifier whose wire form matches; `EntitySnapshot` skips a
+grant already carried and moves each tag's refcount to the authority's. The
+teardown-and-replay alternative was considered and **rejected**: freeing the
+world would destroy a live entity's `initialize()` signal wiring, strand every
+`EffectInstance` handle and `source_node`, and rebuild every navigator mirror —
+all to repair a world that, in the overwhelming case, differs from the
+authority's in one number. Reconciling is also what makes the no-animation
+guarantee real, because a world that never drifted comes out untouched.
+
+**Reconcile means removal too, and that is what join never needed.** A joining
+peer decodes into an empty world, so every decoder only ever had to *add*. A
+repair has to be able to subtract: a node, an edge, a modifier or an entity that
+the authority does not have is drift, and it comes off. Entity removal here is
+emphatically not `Entity.die()` — no `entity_dying`, no loot, no victory check.
+The entity was never supposed to be there, so nothing about its leaving is an
+event anyone should see. Tags reconcile to the authority's **refcount**, not
+merely to its name set, for the same reason: a marker applied twice and removed
+once is still active, and a repair that restored names only would be the thing
+that broke it.
+
+**What a resync does NOT carry** is the derived tier — `StatBoard` totals,
+`Stat.bins`, aura contributions, vision. The receiver recomputes, exactly as
+`GraphSnapshot`'s tier table says. A backstop that shipped derived state would
+be asserting agreement on quantities the sync layer deliberately never
+transmits.
+
 ### Not a separate option: event sourcing
 
 Effectively the chosen model plus persistence. If a run log is ever wanted, the

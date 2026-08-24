@@ -35,14 +35,19 @@ extends RefCounted
 ## split collapses to by-value for modifiers on any board that is actually in
 ## play, which is the only kind this class ever encodes.
 ##
-## [b]It DECORATES; it never spawns and never mints an `entity_id` (#560 D7).[/b]
+## [b]It DECORATES; it never spawns and never mints an `entity_id` (#560 D7) —
+## but since #561 it does REMOVE.[/b]
 ## #528 (roster replication) and #553 (the level spawns from the session roster)
 ## both shipped, so a joining client's entities exist by the time state arrives.
 ## Every row resolves through [method Graph.get_by_entity_id] and a row whose
 ## entity is absent is SKIPPED with a warning — mirroring how
 ## [method GraphSnapshot._decode_node] decodes an unresolvable `owner_id` as
 ## unowned rather than inventing an entity. A snapshot that spawned would be a
-## second entity-minting path racing the roster's.
+## second entity-minting path racing the roster's. The reverse direction is
+## different and is not symmetric with it: an entity the payload does NOT name
+## does not exist in the authority's world at all, and
+## [method _prune_entities] drops it. Join never needed that (the roster spawns
+## exactly the named set); a resync does.
 ##
 ## [b]Two passes, and the order is load-bearing (#560 D5).[/b]
 ## [method decode] runs BEFORE the graph decodes (it needs no nodes);
@@ -79,7 +84,7 @@ const _R_SPELLBOOK := 4  ## index into `res`, -1 for none
 const _R_TIER := 5       ## Entity.entity_tier
 const _R_CORE_LOC := 6   ## core_location's stable_id, 0 for none — pass 2 only
 const _R_EFFECTS := 7    ## Array of [res_idx, source_stable_id] (0 = entity-wide)
-const _R_TAGS := 8       ## Array[String] — active tag names, refcounts not carried
+const _R_TAGS := 8       ## Array of [name, refcount] — see [method _restore_tags]
 
 
 ## Build the payload for every [Entity] under `graph.entities_container`.
@@ -99,7 +104,9 @@ static func decode(bytes: PackedByteArray, graph: Graph) -> void:
 		return
 	var payload := GraphSnapshot._unpack(bytes)
 	var res: Array = payload.get("res", [])
-	for row in (payload.get("entities", []) as Array):
+	var rows: Array = payload.get("entities", [])
+	_prune_entities(graph, rows)
+	for row in rows:
 		var e := _resolve(graph, row as Array)
 		if e == null:
 			continue
@@ -108,6 +115,37 @@ static func decode(bytes: PackedByteArray, graph: Graph) -> void:
 		# has nothing to resolve against yet.
 		_grant_effects(e, graph, row as Array, res, false)
 		_restore_board(e, row as Array)
+
+
+## An [Entity] the payload does not name does not exist in the authority's
+## world, so it does not exist here (#561 gap 1). It runs FIRST, before any row
+## is decorated, so [method GraphSnapshot.decode] — which resolves `owner_id`
+## through [method Graph.get_by_entity_id] — can never hand a node to a
+## corpse this peer was about to drop.
+##
+## [b]This is a repair, not a death.[/b] It is deliberately NOT
+## [method Entity.die]: no [signal Events.entity_dying], no loot, no victory
+## check. The entity was never supposed to be here, so nothing about its
+## leaving is an event anyone should see (#561 acceptance 6).
+##
+## Nothing on the JOIN path reaches this — the roster (#528/#553) spawns
+## exactly the entities the payload names.
+static func _prune_entities(graph: Graph, rows: Array) -> void:
+	if rows.is_empty():
+		return
+	var named: Dictionary[int, bool] = {}
+	for row in rows:
+		named[int((row as Array)[_R_ENTITY_ID])] = true
+	for e in entities_of(graph):
+		if named.has(e.entity_id):
+			continue
+		# `remove_child` before `queue_free`: the id index drops on
+		# `child_exiting_tree`, and a deferred free would leave
+		# [method Graph.get_by_entity_id] answering with a doomed entity for
+		# the rest of this frame — which is exactly the window the graph half
+		# of the resync decodes in.
+		e.get_parent().remove_child(e)
+		e.queue_free()
 
 
 ## Pass 2 — the entity->node references, after [method GraphSnapshot.decode]
@@ -176,7 +214,7 @@ static func _encode_entity(graph: Graph, e: Entity, table: GraphSnapshot._Intern
 		effects.append([table.intern(inst.effect.resource_path), src])
 	var tags: Array = []
 	for t in e.get_active_tags():
-		tags.append(String(t))
+		tags.append([String(t), e.get_tag_count(t)])
 	var row: Array
 	row.resize(9)
 	row[_R_ENTITY_ID] = e.entity_id
@@ -266,13 +304,31 @@ static func _restore_board(e: Entity, row: Array) -> void:
 	e.stat_board.read_dict(row[_R_BOARD] as Dictionary)
 
 
-## Additive: a tag the entity already holds is left alone. [member Entity._tags]
-## is refcounted but the count never crosses — [method Entity.get_active_tags]
-## reports names only, and an effect re-granted above has already restored its
-## own row. Restoring a count would double those. Runs in pass 2, AFTER the
-## node-sourced effects, so it only ever fills in what nothing else granted.
+## Tags reconcile to the authority's REFCOUNT, not merely to its name set
+## (#561 gap 2). [member Entity._tags] is refcounted — a tag applied twice and
+## removed once is still active — so a restore that only asked `has_tag` would
+## silently collapse every stacked marker to one application, and a resync
+## would be the thing that broke it.
+##
+## Reading the LIVE count and moving it to the wanted one is also what keeps
+## this composable with the grants above: an effect re-granted in pass 2 has
+## already put its own tag row back, so this sees the count it produced and
+## adds nothing on top. That is the double-count the name-only version avoided
+## by being lossy instead.
+##
+## Runs in pass 2, after the node-sourced effects, for that reason.
 static func _restore_tags(e: Entity, row: Array) -> void:
-	for t in (row[_R_TAGS] as Array):
-		var tag := StringName(t)
-		if not e.has_tag(tag):
+	var wanted: Dictionary[StringName, int] = {}
+	for entry in (row[_R_TAGS] as Array):
+		wanted[StringName((entry as Array)[0])] = int((entry as Array)[1])
+	for tag in wanted:
+		var have := e.get_tag_count(tag)
+		for _i in maxi(0, wanted[tag] - have):
 			e.add_tag(tag)
+		for _i in maxi(0, have - wanted[tag]):
+			e.remove_tag(tag)
+	for tag in e.get_active_tags():
+		if wanted.has(tag):
+			continue
+		for _i in e.get_tag_count(tag):
+			e.remove_tag(tag)

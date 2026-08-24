@@ -380,6 +380,16 @@ func has_tag(tag: StringName) -> bool:
 	return _combat.has_tag(tag)
 
 
+## How many times [param tag] is currently applied; 0 when it is not held.
+##
+## The count, not just the name, is what crosses in an [EntitySnapshot] (#561):
+## a tag applied twice and removed once is still active, so a resync that
+## restored names only would collapse every stacked marker to one application —
+## the repair path silently becoming the bug.
+func get_tag_count(tag: StringName) -> int:
+	return _tags.get(tag, 0)
+
+
 ## The live tag set — no [StatRegistry] entry, no board slot.
 func get_active_tags() -> Array[StringName]:
 	var out: Array[StringName] = []
