@@ -5,7 +5,7 @@ extends RefCounted
 ## it does not regenerate one" contract. Procgen is deterministic, but
 ## serializing also covers the cases regenerating can't: mid-run join,
 ## hand-authored levels, and (later) save/load. See
-## `docs/handoffs/lan-versus-transport.md` and #527's acceptance spec.
+## #527's acceptance spec, and #463's 2026-08-24 sync-model decision comment.
 ##
 ## [b]Three tiers, split per-moment not per-system[/b] (the issue's own
 ## table):

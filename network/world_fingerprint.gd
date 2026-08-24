@@ -4,8 +4,7 @@ extends RefCounted
 ## A cheap "do two peers hold the same world?" checksum, for the multiplayer
 ## harness AND #527's join handshake.
 ##
-## Folds three tiers (`docs/handoffs/lan-versus-transport.md` /
-## [GraphSnapshot]'s own tier table): ownership, topology (node identity +
+## Folds three tiers ([GraphSnapshot]'s own tier table): ownership, topology (node identity +
 ## edges), and ACCUMULATED per-node state — stake level, allocation level,
 ## regen stacks, and node HP. It does NOT fold derived [StatBoard] totals: the
 ## tier table says totals never cross the wire, so folding them would assert

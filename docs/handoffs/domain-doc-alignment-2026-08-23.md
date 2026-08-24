@@ -23,7 +23,25 @@ owner decision, and those rows are the agenda for the interactive session.
 
 ## Tier 1 — the ones that change what the remaining work *is*
 
-### 1. `multiplayer-sync-model.md` still rejects lockstep; the probe measured otherwise
+### 1. ~~`multiplayer-sync-model.md` still rejects lockstep~~ — **RESOLVED 2026-08-24**
+
+> **Spent.** The owner decided on 2026-08-24: **intent-up / confirmed-command-down
+> stands**, lockstep rejected on new grounds (cross-OS libm in the blade sim;
+> lockstep being contradictory with the partial-information destination).
+> `docs/domain/multiplayer-sync-model.md`'s rejection section was rewritten to
+> retire the three dead grounds and carry the live ones, and
+> `.claude/rules/multiplayer-sync.md` now says the model was re-decided.
+> #529 gained a **LAND** column first (commit `bc24e31`) so the half lockstep
+> would have stood on was measured rather than assumed — clean, 84 landings, but
+> scoped to one machine and therefore silent on the libm question that decided it.
+> Filed out of the same session: **#547** (the one live stat-pipeline
+> determinism violation), **#548** (upward channel), **#549** (roster seam).
+> `docs/handoffs/lan-versus-transport.md` is deleted, its condition having fired.
+>
+> The row below is kept as the record of what the doc used to claim. Nothing in
+> it is an open question any more.
+
+#### (original row, for the record)
 
 **Severity: highest. This is not doc tidiness — it gates the LAN date's last unit.**
 

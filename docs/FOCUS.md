@@ -73,13 +73,13 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 | **#457** | `GameSession` + one-shot seed resolution | Sits in `Ready`, forks still open — **owner decision**. The 2026-08-21 call shrank it: the seed is a procgen input, **not** a determinism contract over combat or loot |
 | ~~#474~~ | ~~Split world mutation from VFX in `launch_attack`~~ | **Shipped.** VFX is a pure observer. (Mutation was at t=0 here; #504 then moved it onto the reveal clock — see the row below) |
 | ~~#488~~ | ~~Presentation clock v2~~ | **Shipped 2026-08-21** as design **B** — the world mutates on the reveal clock; no view store. `docs/domain/presentation-clock.md` |
-| **#458** | `Command` + `CommandApplier` (rewritten) | **All four children shipped 2026-08-21** (`b1448fe`, `50d5556`, `2e7b67a`, `6f810be`). One verb is left un-routed: **loot picks** — `CommandApplier` push-warns on `PickLootCommand` and a mirrored client diverges the moment somebody picks. **Do not re-enumerate children here** — this row rotted once by doing that; read `mise gh-project -- roadmap` for live child state |
+| **#458** | `Command` + `CommandApplier` (rewritten) | **All four children shipped 2026-08-21** (`b1448fe`, `50d5556`, `2e7b67a`, `6f810be`). Loot picks **crossed with #522** — every verb is routed now. **Do not re-enumerate children here** — this row rotted once by doing that; read `mise gh-project -- roadmap` for live child state |
 | ~~#475~~ | ~~Author real faction camps~~ | **Shipped 2026-08-21** — so #459's allied-humans prerequisite is met |
 | **#459** | Hot-seat coop: the three rebind seams | **`Ready` — this is the LAN commitment, and it is one issue.** Needs nothing from #511/#512/#463 |
 | ~~#460~~ | ~~`VictorySystem` — a run that can end~~ | **Shipped 2026-08-21.** Owner call settled it: last camp standing, pluggable, blockers inert. `docs/domain/victory-system.md` |
 | **#461** | Menu shell follow-up: scenic screens, roster wiring, styling | Sits in `Ready` but still carries open forks — see "Known board violations" |
 | ~~#462~~ | ~~Display settings (window mode, resolution, vsync, fps cap)~~ | **Shipped 2026-08-21.** North Star #2 is met |
-| **#463** | Versus: `NetworkTransport` + ENet lobby | **Hub, swarmified 2026-08-22.** The transport seam, both transports and `CommandLink` already shipped — the body was 60% stale. Four `Ready` children: **#527** graph snapshot, **#528** run-setup replication, **#531** mount + IP screen, **#529** determinism probe (plus **#530**, hitscan sort, which gates it). The sync model is **not** settled — see below |
+| **#463** | Versus: `NetworkTransport` + ENet lobby | **Hub, swarmified 2026-08-22.** The transport seam, both transports and `CommandLink` already shipped — the body was 60% stale. All five 2026-08-23 children closed (#527/#528/#529/#530/#531). **The sync model is settled 2026-08-24** — see below. Open under it: **#548** upward channel, **#549** roster seam, **#533** harness rung 2. **Do not re-enumerate children here** — read `mise gh-project -- roadmap` |
 | ~~#499~~ | ~~Ranged volley: arrival ramp + apply in arrival order~~ | **Shipped.** `OutcomeApplier` orders hits by `arrival_time` |
 
 Also in the milestone, by owner call: **#403** Tech Seeds, `Needs design` —
@@ -124,14 +124,19 @@ So the remaining order is short:
   (`Backlog`, blocked-by #527/#528/#531): a procgen'd scene where the graph and
   run settings actually cross. Rung 3 is the client acting, and waits on the
   upward channel. Rung 4 is the real menu.
-- **#463 is open, and its sync model is decided by measurement, not argument.**
-  `CommandLink` wave 0 is one-directional: the client is a spectator with a real
-  applier. What replaces that is genuinely undecided — the owner pulled toward
-  **lockstep + snapshot recovery** over intent-up/confirm-down on 2026-08-22, and
-  **#529 produces the number that picks it**. #527, #528 and #531 are needed
-  under either model, so they start with no bet made; the upward-channel unit is
-  deliberately unfiled until the probe reports. Context:
-  `docs/handoffs/lan-versus-transport.md`.
+- **#463's sync model is SETTLED: intent-up / confirmed-command-down.**
+  Owner call **2026-08-24**, after #529 reported clean twice and a LAND column
+  was added to measure the half lockstep would have stood on. Lockstep was
+  rejected on grounds entirely different from the 2026-08-18 ones — cross-OS
+  libm in the blade sim, and lockstep being *contradictory* with the partial-
+  information destination. **Its three older grounds are all retired; do not
+  pick one up.** `docs/domain/multiplayer-sync-model.md` carries both the live
+  argument and the dead ones.
+  The upward-channel unit is now filed as **#548**, and the roster seam it
+  depends on as **#549** (split out of #461, which was only ever menu polish).
+  A consequence worth carrying: derived stats are recomputed per peer, so the
+  **stat pipeline** owes cross-platform determinism — **#547** is the one live
+  violation.
 - **#457 does not gate any of this.** The 2026-08-21 owner call made the seed
   procgen-only, and #458's entity ids are minted by `Graph` the way `stable_id`
   already is.

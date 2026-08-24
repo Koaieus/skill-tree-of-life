@@ -1,8 +1,13 @@
 # The multiplayer sync model
 
-**Decided 2026-08-18 in #473.** This is the architecture every networked and
-hot-seat feature hangs off. It also rewrites what #458 (`CommandBus`) and #463
-(versus) are for. Read this before touching input routing, `BattleSystem`'s
+**Decided 2026-08-18 in #473. Re-opened by the owner 2026-08-22, measured by
+#529, and re-decided unchanged on 2026-08-24** — the conclusion held, every
+argument for it was replaced. See `### Rejected: lockstep on the shared seed`
+before re-arguing this: three of the grounds that section used to rest on are
+dead, and picking one up is how this gets re-litigated for a fourth time.
+
+This is the architecture every networked and hot-seat feature hangs off. It
+also rewrites what #458 (`CommandBus`) and #463 (versus) are for. Read this before touching input routing, `BattleSystem`'s
 launch path, or the AI controller.
 
 The game-design side of what a player is *allowed to know* lives in
@@ -103,39 +108,149 @@ the host a full mutation window ahead of everyone it was telling.
 
 ### Rejected: lockstep on the shared seed
 
-Cheapest wire by far, and #463 guessed it was "nearly free" given #457's
-determinism contract. It isn't, for two reasons that are not about cost:
+**Re-opened by the owner 2026-08-22, measured by #529, and rejected again
+2026-08-24 — on entirely different grounds.** The conclusion did not move; every
+premise did. If you are about to re-litigate this, read which arguments are dead
+before picking one up.
 
-- **There is no authority at all**, so the later move to fog-filtered state —
-  the only way hidden information becomes technically real — is a rewrite rather
-  than a payload swap.
-- **The unseeded `Array.shuffle()` calls** in loot / skill-dust would make
-  killing-blow relics differ per client — a one-line fix (inject the seeded
-  RNG), not an architectural blocker, but a real one as the code stands today.
-  *This clause is specific to lockstep and no longer describes the codebase's
-  risk profile:* under the chosen model those rolls are host-only and the pick
-  travels as a result, so they need no seeding (owner call 2026-08-21, below).
-  **The rejection stands regardless** — it rests on the absence of authority,
-  not on the shuffles.
-- **`blade_arc_driver.gd:41`'s libm trig** is a residual caveat: transcendental
-  functions aren't guaranteed bit-identical across platforms/compilers, which
-  only matters for *bit-exact* lockstep, not for this rejection on its own.
+> **Owner call 2026-08-24:** *"getting that whole list of things cross platform
+> deterministic would take more time than i'd now want to spend on that, this
+> game doesn't do that much crazy stuff, nor a lot of commands (1 at a time with
+> massive margins before and after mostly)"* — and, on a mixed lobby being
+> likely: *"Yes — Windows/Linux mix likely."*
 
-`MeleeAttackPlan.resolve()` itself is **not** the blocker it looks like.
-`attack/melee/sim/blade_sim.gd:28-31` is a pure fixed-dt XPBD loop
-(`steps = ceil(duration/dt)`, `t = float(step)*dt`) with no frame delta and no
-RNG; `blade_hit_scan.gd:35` walks `trajectory.sample_dt`; every call site
-passes constants; `ai_blade_rollout.gd:37` already documents `simulate()` as
-pure so it can run on `WorkerThreadPool`. `BladePopResolver` resolving
-defensive-spike pops *during* the scan makes the hit set order-dependent
-within that one deterministic call — but **order-dependence inside a
-deterministic function is not a divergence risk**: given the same inputs,
-every peer's re-simulation produces the same order and the same set. That
-was the doc bug here, not a property of the sim.
+#### The three original grounds are all retired. Do not re-use them.
 
-Add the AI's frame-shaped timing, and the determinism budget buys nothing the
-host could not simply tell us — the real blockers are hidden information and
-the absence of authority, not re-simulability.
+1. **"There is no authority at all."** Aimed at *pure P2P* lockstep. What was
+   actually proposed on 2026-08-22 was **lockstep + snapshot recovery with the
+   host still refereeing**, so an authority survives. Dead.
+2. **The unseeded `Array.shuffle()` calls.** Host-only rolls are exempt and the
+   pick travels as a result (owner call 2026-08-21, above). Dead.
+3. **Hidden information / fog.** **Withdrawn by the owner**, on the record, in
+   #463's 2026-08-24 decision comment: the fog vision withholds *derived*
+   state, which is compatible with full replication of tiers 1-2. Dead **as
+   stated** — but see ground B below, which is a different claim aimed at a
+   different layer, not this one coming back.
+
+#### What #529 actually measured, and what it did not
+
+Two clean sweeps (773 commands, then 478 at `bc24e31`), zero divergences. That
+is real, and it is **narrower than it reads**:
+
+- The **RESOLVE** column answers "is the plan+seed resolution reproducible" —
+  the half a confirmed record was never needed for.
+- The **LAND** column (added 2026-08-24) answers the half lockstep would stand
+  on: post-mitigation damage, HP bars, `h_hpm`, the gated bit, forced-dealloc
+  cascades. It also came back clean — 30 ok, 0 diverged, 84 landings.
+- **Both were taken on one machine, one binary, one libm.** They measure
+  *pipeline order*, not floating-point portability. The question that decides
+  this model cannot be asked on a single machine, which is why a clean probe
+  did not carry the decision.
+
+#### The live grounds
+
+**A. Cross-platform libm, and it is unfixable by discipline.**
+IEEE 754 specifies `+ - * / sqrt` to be correctly rounded. It specifies
+**nothing** about `sin` / `cos` / `tan` / `exp` / `log` / `pow` — every
+platform's libm ships its own approximation and they disagree in the last bits.
+`attack/melee/sim/blade_arc_driver.gd` uses both (`Vector2.from_angle` at :38,
+`cos` at :42), the XPBD sim integrates those positions over dozens of substeps,
+and the hitscan sorts by the result. A 1-ulp difference flips two hits' order.
+
+Under record-down that is **cosmetic**: a peer re-simulates the blade only to
+*draw* it, and every damage number and the hit set itself come off the
+`AttackRecord`. Under lockstep the same ulp decides **who gets hit**. Same code,
+same rounding, one is invisible and the other is a desync — and no amount of
+care in gameplay code prevents it. Only fixed-point or deleting the trig would,
+and neither is worth a LAN date.
+
+**B. Lockstep is contradictory with partial information — not merely awkward.**
+This is *not* ground 3 returning. Ground 3 was about replicating tiers 1-2 and
+was correctly withdrawn. This is about **inputs**.
+
+Lockstep's defining property is that every peer derives the same result from the
+same inputs. Deny a peer an input and it cannot derive. The owner's own
+health-bar case is the proof:
+
+> **Owner, 2026-08-24:** *"health bars of damaged nodes which are persistently
+> shown and have a current + max ... max is a derivation of the entity stats x
+> node-local stats, which **is information you might not have** yet these should
+> not be question marks but real and correct values"*
+
+That asks for an **output** while denying its **inputs**. There is exactly one
+way that works: someone else computes it and hands you the number. That is
+record-down's normal case and lockstep's impossibility.
+
+The smell inverts too. Under record-down the received value **is** the model on
+that peer — there is no locally-computed truth for it to disagree with, so no
+`shown_health` beside `health`. You only get that second variable if you go
+lockstep and then bolt fog on top.
+
+**C. Lockstep's two claimed benefits were already harvested here.**
+The 2026-08-22 pitch offered "the VFX-duration lag disappears outright" and
+"total host/client code symmetry". Both landed **inside this model** the next
+day: #540 moved the confirm to the validate->apply flip point and `CommandLink`
+broadcasts off `command_confirmed`; #536 collapsed `BattleSystem` and #545 made
+the authority replay its own record exactly as a peer does. What remains on
+lockstep's side of the ledger is **wire size** — kilobytes, on a LAN.
+
+It is also **slower for the acting client**, which inverts the usual intuition.
+The host must resolve under both models (affordability gating needs
+`outcome.ap_cost`, which comes out of the resolve), so lockstep does not save
+the crunch — it duplicates it, once per peer, serially from the client's point
+of view. Record-down replaces the client's re-resolve with a deserialize of a
+few packed arrays: microseconds against milliseconds.
+
+**D. It enlarges the determinism surface from one subsystem to everything.**
+See the section below — this is the ground most likely to be forgotten, because
+it is about the code that has not been written yet.
+
+### The determinism obligation that survives — both models owed it
+
+**Record-down does not buy freedom from determinism; it bounds it.** Derived
+stats are recomputed **locally on every peer** under this model — nothing about
+`max_hp`, mana regen, or any board total rides a record. So the stat pipeline
+must produce identical results on every machine, and that obligation is real
+today.
+
+| model | what must be cross-platform deterministic |
+|---|---|
+| lockstep | stat pipeline **+** combat resolution **+** the XPBD blade sim + hitscan order **+** every crit roll **+** every future gameplay formula |
+| **record-down (chosen)** | the stat pipeline |
+
+The chosen model keeps the obligation inside one subsystem that can be audited
+with a grep. As of 2026-08-24 that audit returns exactly one live hit: **#547**,
+`floor(log(INT)/log(10.0))` in `entity/default_entity_board.tres:179`, which is
+already wrong at INT 1000 on glibc (returns 2, should be 3) and libm-dependent
+at every power of ten.
+
+Two rules follow, and they are the stat-pipeline analogue of #530's stable
+hitscan sort:
+
+- **No transcendentals in a gameplay formula or gameplay code path.**
+  `sqrt` is fine (IEEE requires it correctly rounded). `log` / `exp` / `pow` /
+  `sin` / `cos` / `tan` / `atan` are not. Presentation code is exempt —
+  `vision_system.gd:367`'s `exp` is a frame-rate ease inside `_process`, and
+  every `skill_node/visuals/`, `entity/core/sigil/` and `graph/edge.gd` use is
+  drawing.
+- **Bin aggregation must iterate in a stable, defined order.** Float addition is
+  not associative, so summing the same modifiers in a different order gives
+  different last bits. Godot 4 Dictionaries are insertion-ordered and insertion
+  follows replicated command order, so this holds today — but it breaks silently
+  the moment a bin is sorted by a float or moved into an unordered container.
+
+`MeleeAttackPlan.resolve()` itself is **not** the blocker it looks like, and
+this was true under either model. `attack/melee/sim/blade_sim.gd:28-31` is a
+pure fixed-dt XPBD loop (`steps = ceil(duration/dt)`, `t = float(step)*dt`) with
+no frame delta and no RNG; `blade_hit_scan.gd:35` walks
+`trajectory.sample_dt`; every call site passes constants; `ai_blade_rollout.gd:37`
+already documents `simulate()` as pure so it can run on `WorkerThreadPool`.
+`BladePopResolver` resolving defensive-spike pops *during* the scan makes the hit
+set order-dependent within that one deterministic call — but **order-dependence
+inside a deterministic function is not a divergence risk**: given the same
+inputs, every peer's re-simulation produces the same order and the same set.
+That was a doc bug, not a property of the sim. The portability of the *inputs*
+(ground A) is the separate problem, and it is the one that bites.
 
 **Current information decision: every client gets full world state; hiding
 is a UI concern.** No fog gating exists anywhere in planning today, so this

@@ -3,7 +3,7 @@ extends GutTest
 ## #527 — the wire format's own acceptance: a joining client receives a
 ## serialized graph rather than regenerating one, and the round trip preserves
 ## everything [WorldFingerprint] folds (ownership, topology, accumulated
-## per-node state). See `docs/handoffs/lan-versus-transport.md` and #527's
+## per-node state). See #527's
 ## acceptance spec.
 ##
 ## [b]Why fingerprints, not field-by-field asserts.[/b] [WorldFingerprint] is
