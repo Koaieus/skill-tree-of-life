@@ -294,7 +294,9 @@ func _set_modal_busy(busy: bool) -> void:
 
 
 ## Ports UIRoot's banner routing (#118 cutover parity) — "YOUR TURN" on the
-## player's turn start, "LEVEL UP" on level-up. AI turns animate silently.
+## player's turn start. AI turns animate silently. LEVEL UP is deliberately NOT
+## here: it belongs to the XP bar, which owns the replay queue and is therefore
+## the only thing that knows when a cascade is done ([LevelUpFlourish], #320).
 ## Also the initiative bar's show/hide beats.
 ##
 ## System-lifetime, despite every handler comparing against `_player`: the
@@ -308,13 +310,6 @@ func _bind_turn_signals() -> void:
 	if announcement_layer != null:
 		announcement_layer.bind_turn_manager(_turn_manager)
 		_turn_manager.turn_started.connect(_on_turn_started_for_banner)
-	# LEVEL UP is paced by the XP bar, not by the model (#317). `Entity.leveled_up`
-	# fires the instant XP lands — every level of a cascade in the same frame, and
-	# seconds before the bar has finished telling that story. XpTrack's
-	# `level_reached` is the same fact, emitted once per level at the moment the
-	# gauge actually reaches full.
-	if xp_track != null and not xp_track.level_reached.is_connected(_on_level_reached):
-		xp_track.level_reached.connect(_on_level_reached)
 	if initiative_bar != null:
 		_turn_manager.turn_started.connect(_on_turn_started_for_initiative)
 		_turn_manager.turn_ended.connect(_on_turn_ended_for_initiative)
@@ -324,15 +319,6 @@ func _on_turn_started_for_banner(entity: Entity) -> void:
 	if entity == _player:
 		announcement_layer.enqueue(AnnouncementRequest.make_for_entity(
 				"YOUR TURN", "", AnnouncementRequest.Style.DEFAULT, entity))
-
-
-func _on_level_reached(new_level: int) -> void:
-	# The SP count is asked of the level this BEAT is narrating, not of the
-	# player's current level — a 4-level cascade is already fully applied by
-	# the time the first bar fills, so `_player.level` reads the last one.
-	var sp := _player.sp_minted_for_level(new_level) if _player != null else 1
-	announcement_layer.enqueue(LevelUpAnnouncementRequest.make_for_level_up(
-			_player, sp, new_level))
 
 
 ## #116 — Turn Tracker Pill. InitiativeBar already implements the "hide

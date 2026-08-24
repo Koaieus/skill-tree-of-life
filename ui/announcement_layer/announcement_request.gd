@@ -92,6 +92,6 @@ func coalesce_key() -> Variant:
 
 ## Merge `other` (a newer request that matched [method coalesce_key]) into
 ## `self` in place. Default just bumps the display count; override to fold
-## `other`'s data into the displayed text (see [LevelUpAnnouncementRequest]).
+## `other`'s data into the displayed text.
 func absorb(other: AnnouncementRequest) -> void:
 	stack_count += other.stack_count

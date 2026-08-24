@@ -12,11 +12,12 @@ extends MarginContainer
 ## chip and the whole level-replay state machine moved to [XpTrack], the
 ## top-center strip. `XPRow` survives here only as hidden scenery — deliberately
 ## kept rather than deleted while the new placement settles, and deliberately
-## unbound: a second binder on the same `xp` pool would run its own sequencer and
-## emit a second `level_reached`, which [AnnouncementLayer]'s coalescing would
-## absorb into one banner stamped "LEVEL UP ×2" for a single level.
-## The level badge stays — [HudRoot] drives it from [signal XpTrack.level_reached]
-## via [method show_level], so badge, banner and bar all beat together.
+## unbound: a second binder on the same `xp` pool would run its own sequencer
+## and emit a second `level_reached`, which the [LevelUpFlourish] would stamp as
+## "×2" for a single level.
+## The level badge stays — [HudRoot] drives it from [signal
+## XpTrack.level_display_changed] via [method show_level], so badge, flourish
+## and bar all beat together.
 ##
 ## Root is a 0-margin MarginContainer (not a plain Control) so its reported
 ## minimum size aggregates its children's — a plain Control reports (0,0)
@@ -116,8 +117,9 @@ func _apply_entity_tint(tint: Color) -> void:
 
 
 ## Set the level shown on the emblem badge. Wired by [HudRoot] to
-## [signal XpTrack.level_reached] so the badge bumps on the gauge's beat rather
-## than the instant the model levelled.
+## [signal XpTrack.level_display_changed] so the badge bumps on the gauge's beat
+## rather than the instant the model levelled — and still corrects itself for a
+## level granted outside the XP pool, which crosses no cap and beats nothing.
 func show_level(level: int) -> void:
 	_shown_level = level
 	if _level_badge != null:

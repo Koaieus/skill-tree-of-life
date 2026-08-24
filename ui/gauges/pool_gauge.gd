@@ -139,6 +139,9 @@ signal level_segment_held(new_max: float)
 ## beats needs a Banner hold-extend — see #320.
 @export_range(0.0, 1.0, 0.01) var level_up_hold_time: float = 0.15
 
+## Floor on a budget-compressed segment — see [method play_level_segment].
+const MIN_SEGMENT_TIME := 0.30
+
 ## Constant-rate fills, in **bar fractions per second** (#320). At 0.9, an empty
 ## bar sweeps to full in ~1.1s and a gain of a tenth of the bar takes a tenth of
 ## that. `0` disables it: every fill then runs for a flat `level_up_fill_time`.
@@ -232,7 +235,17 @@ func animate_to(target_current: float, target_max: float) -> void:
 ## Split per-level (rather than one tween for the whole cascade) so a grant
 ## landing mid-replay only has to append to the caller's queue: no tween is ever
 ## killed, so there's no stale "shown" state to rebuild from.
-func play_level_segment(fill_to: float, new_max: float) -> void:
+##
+## [param time_budget] caps the whole segment (fill + hold + wrap). `0` means
+## natural pace. A cascade is what needs this: at the natural rate four levels
+## run five-plus seconds, and the replay has to stay inside the couple of
+## seconds a player will actually watch — so the DRIVER divides its budget by
+## how many levels are still queued and hands each segment its share (see
+## [XpTrack]). Expressed as a ceiling rather than a fixed duration precisely so
+## the single-level case is untouched: one level is under budget already, keeps
+## its rate-derived fill, and so keeps saying how much XP it was.
+func play_level_segment(fill_to: float, new_max: float,
+		time_budget: float = 0.0) -> void:
 	if _level_tween and _level_tween.is_valid():
 		_level_tween.kill()
 	if not is_inside_tree():
@@ -241,20 +254,34 @@ func play_level_segment(fill_to: float, new_max: float) -> void:
 		current = float(min_value)
 		_end_scripted_fill()
 		return
+	var fill_time := _fill_duration(current, fill_to, max_value)
+	var hold_time := level_up_hold_time
+	var wrap_time := level_up_wrap_time
+	if time_budget > 0.0:
+		# Never below MIN_SEGMENT_TIME: compressed past that the fill stops
+		# reading as a fill and the beat at full disappears entirely, which is
+		# the whole thing a level-up is made of.
+		var allowed := maxf(time_budget, MIN_SEGMENT_TIME)
+		var natural := fill_time + hold_time + wrap_time
+		if natural > allowed:
+			var scale := allowed / natural
+			fill_time *= scale
+			hold_time *= scale
+			wrap_time *= scale
 	_suppress_drain = true
 	_level_tween = create_tween()
 	# Phase 1 — fill to full at the cap this level reached. Rate-derived like any
 	# other fill: this is the path a levelling gain actually takes, so leaving it
 	# on a flat duration would keep exactly the "shoots to full" it's here to fix.
 	# Measured against the OLD cap, which is what `fill_to` is denominated in.
-	_level_tween.tween_property(self, ^"current", fill_to, _fill_duration(current, fill_to, max_value)) \
+	_level_tween.tween_property(self, ^"current", fill_to, fill_time) \
 			.set_ease(Tween.EASE_IN_OUT).set_trans(_fill_trans())
 	# Phase 2 — beat at full, and announce from there.
-	_level_tween.tween_interval(level_up_hold_time)
+	_level_tween.tween_interval(hold_time)
 	_level_tween.tween_callback(func() -> void: level_segment_held.emit(new_max))
 	# Phase 3 — grow the cap and empty the bar (the "wrap").
 	_level_tween.tween_callback(func() -> void: max_value = new_max)
-	_level_tween.tween_property(self, ^"current", float(min_value), level_up_wrap_time) \
+	_level_tween.tween_property(self, ^"current", float(min_value), wrap_time) \
 			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	_level_tween.tween_callback(_end_scripted_fill)
 

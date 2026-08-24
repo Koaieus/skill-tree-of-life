@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
 [ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="3_gauge"]
 [ext_resource type="PackedScene" path="res://ui/hud/xp_track/xp_delta_chip.tscn" id="4_chip"]
+[ext_resource type="PackedScene" path="res://ui/hud/xp_track/level_up_flourish.tscn" id="5_flourish"]
 
 [node name="XpTrack" type="MarginContainer"]
 script = ExtResource("1_script")
@@ -83,3 +84,7 @@ grow_horizontal = 2
 grow_vertical = 0
 theme_override_font_sizes/font_size = 14
 horizontal_alignment = 1
+
+[node name="LevelUpFlourish" parent="Padded/Content/GaugeWrap" instance=ExtResource("5_flourish")]
+unique_name_in_owner = true
+layout_mode = 1

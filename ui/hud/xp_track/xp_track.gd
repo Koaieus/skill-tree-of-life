@@ -34,8 +34,8 @@ extends MarginContainer
 ## A level crossing reached its beat on the XP bar (#317). Fires once per level,
 ## in ascending order, paced by the gauge — NOT by the model, which has already
 ## applied every level synchronously by the time the first bar fills. [HudRoot]
-## hangs the LEVEL UP announcement off this, so banner and bar tell the same
-## story at the same time.
+## drives its own [LevelUpFlourish] off this, so the announcement and the bar
+## are one timeline instead of two that have to be kept in sync.
 signal level_reached(new_level: int)
 
 ## The level this strip is now DISPLAYING. Fires on every beat, and also on the
@@ -51,6 +51,17 @@ signal level_display_changed(level: int)
 @onready var _caption: Label = %XPCaption
 @onready var _level_label: Label = %LevelLabel
 @onready var _chip: XpDeltaChip = %XPDeltaChip
+@onready var _flourish: LevelUpFlourish = %LevelUpFlourish
+
+## How long the WHOLE replay of a cascade should take, in seconds. Each
+## segment is handed `budget / levels_still_to_play` as a ceiling (see
+## [method PoolGauge.play_level_segment]), so one level keeps its natural
+## rate-derived pace and four levels compress to fit rather than running the
+## five-plus seconds nobody watches. Not a guarantee: XP landing mid-replay
+## appends to the queue, and a cascade that grows after it started legitimately
+## runs longer.
+const CASCADE_BUDGET := 1.8
+
 
 enum _Phase {
 	IDLE,
@@ -67,6 +78,11 @@ var _phase: _Phase = _Phase.IDLE
 ## The level the strip is currently showing. Advanced by the gauge's beats, not
 ## by the model — `stat_board.level` is already final when the replay starts.
 var _shown_level: int = 1
+## Levels narrated by the cascade currently on screen, and the skill points
+## they minted between them. Reset when the flourish is released, so they count
+## THIS cascade rather than the run.
+var _cascade_stack: int = 0
+var _cascade_sp: int = 0
 
 ## What this strip connects to the CURRENT hero's XP pool, released as a unit
 ## by [method _unbind] (#459 hot-seat handover).
@@ -113,6 +129,12 @@ func _bind_pool(pool: PoolStat, per_turn: ScalarStat) -> void:
 ## strip (and the sequencer would still hold its segments).
 func _unbind() -> void:
 	_binds.release()
+	if _flourish != null:
+		# A handover mid-cascade would otherwise leave the previous hero's
+		# level count sitting over the new hero's bar.
+		_flourish.cut()
+	_cascade_stack = 0
+	_cascade_sp = 0
 	_entity = null
 	_pool = null
 	_per_turn = null
@@ -171,8 +193,17 @@ func _play_next() -> void:
 	var segment := _seq.pop() if _seq != null else null
 	if segment != null:
 		_phase = _Phase.SEGMENT
-		_gauge.play_level_segment(segment.fill_to, segment.new_max)
+		# This segment plus everything still queued behind it share one budget.
+		# Read live, not once per cascade: a grant landing mid-replay appends,
+		# and the segments after it should take the shorter share.
+		var to_play := _seq.pending_count() + 1
+		_gauge.play_level_segment(segment.fill_to, segment.new_max,
+				CASCADE_BUDGET / float(to_play))
 		return
+	# The queue is empty, so this cascade is over and the flourish can leave —
+	# the one thing the old center banner could never know, since it did not
+	# hold the queue.
+	_release_flourish()
 	_phase = _Phase.SETTLE
 	_gauge.animate_to(float(_pool.current), float(_pool.value))
 
@@ -196,7 +227,30 @@ func _on_fill_finished() -> void:
 func _on_level_segment_held(_new_max: float) -> void:
 	_shown_level += 1
 	_refresh_level_label()
+	_stamp_flourish(_shown_level)
 	level_reached.emit(_shown_level)
+
+
+## Add this beat to the flourish. The SP count is asked of the level being
+## narrated, never of `_entity.level` — the model applied the whole cascade
+## synchronously, so by the time the bar reaches level 3 of 4 the entity is
+## already at the last one, and the every-5th-level milestone bonus would be
+## answered for the wrong level.
+func _stamp_flourish(level: int) -> void:
+	_cascade_stack += 1
+	if _entity != null:
+		_cascade_sp += _entity.sp_minted_for_level(level)
+	if _flourish != null:
+		_flourish.stamp(level, _cascade_sp, _cascade_stack)
+
+
+func _release_flourish() -> void:
+	if _cascade_stack == 0:
+		return
+	_cascade_stack = 0
+	_cascade_sp = 0
+	if _flourish != null:
+		_flourish.release()
 
 
 ## The single funnel for "the level readout changed" — every writer of

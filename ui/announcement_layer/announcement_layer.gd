@@ -16,8 +16,9 @@ extends CanvasLayer
 ## parallel (TitleBand and CalloutBand never contend for the same pixels).
 ##
 ## Public API ([method enqueue] / [method enqueue_now] / [method clear]) is
-## the contract call sites use — see [method HudRoot._on_player_leveled_up]
-## for an example building a coalescing [LevelUpAnnouncementRequest].
+## the contract call sites use. Coalescing is opt-in per request — override
+## [method AnnouncementRequest.coalesce_key] and [method
+## AnnouncementRequest.absorb] to fold a repeat into the line already on screen.
 
 ## Enum→scene contract: pair each [enum AnnouncementRequest.Kind] with the
 ## [AnnouncementBand] scene that renders it.
