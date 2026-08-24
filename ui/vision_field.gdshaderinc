@@ -34,6 +34,13 @@ global uniform float vision_union_smoothness : hint_range(0.0, 0.5);
 // vision), but a scene with no fog system at all (dev sandboxes, most tests)
 // must read as fully lit, not fully dark, and `vision_circle_count == 0`
 // can't tell those two cases apart on its own.
+//
+// THE GATE INVERTS BY WHAT YOU PAINT, and getting it backwards is silent:
+// a shader painting DARKNESS multiplies its alpha by `active` (fog.gdshader,
+// minimap_fog.gdshader), while a shader painting CONTENT that erases itself
+// needs `mix(1.0, <lit>, active)` (minimap_graph_fog.gdshader). A copy-pasted
+// `* active` in the second case blanks the whole board in every fogless dev
+// sandbox and HUD fixture — which no headless test can see.
 global uniform bool vision_field_enabled;
 
 // A VISIBLE element in the fade zone dims toward this floor instead of being
