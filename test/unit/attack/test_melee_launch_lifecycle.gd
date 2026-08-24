@@ -55,7 +55,7 @@ func before_each() -> void:
 	_attacker = Entity.new()
 	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_attacker.stat_board.blade_size.base_value = 3.0
-	_attacker.stat_board.action_points.set_base_ratcheted(2.0)
+	_attacker.stat_board.action_points.base_value = 2.0
 	_attacker.stat_board.action_points.current = 2.0
 	_graph.add_child(_attacker)
 	_tm.current_entity = _attacker

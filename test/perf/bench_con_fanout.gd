@@ -269,7 +269,7 @@ func _decompose(target: int) -> void:
 	t = Time.get_ticks_usec()
 	for p in pools:
 		if p != null:
-			p.set_base_ratcheted(p.base_value)  # no-op: value unchanged
+			p.base_value = p.base_value  # no-op: value unchanged
 	var noop := Time.get_ticks_usec() - t
 
 	t = Time.get_ticks_usec()
@@ -281,7 +281,7 @@ func _decompose(target: int) -> void:
 	t = Time.get_ticks_usec()
 	for p in pools:
 		if p != null:
-			p.set_base_ratcheted(p.base_value + 1.0)  # full ratcheted door
+			p.base_value = p.base_value + 1.0  # full cap-policy door
 	var ratcheted := Time.get_ticks_usec() - t
 
 	var listeners := 0
@@ -289,9 +289,9 @@ func _decompose(target: int) -> void:
 		listeners = (pools[0] as Stat).value_changed.get_connections().size()
 	gut.p("")
 	gut.p("  --- inside the per-node callback ---")
-	gut.p("  (f) set_base_ratcheted, value UNCHANGED: %6dus  (%.1fus/node)" % [noop, per.call(noop)])
+	gut.p("  (f) base_value write, value UNCHANGED : %6dus  (%.1fus/node)" % [noop, per.call(noop)])
 	gut.p("  (g) raw `base_value =` write (+ emit)  : %6dus  (%.1fus/node)" % [raw_write, per.call(raw_write)])
-	gut.p("  (h) set_base_ratcheted, value CHANGED  : %6dus  (%.1fus/node)" % [ratcheted, per.call(ratcheted)])
+	gut.p("  (h) base_value write, value CHANGED   : %6dus  (%.1fus/node)" % [ratcheted, per.call(ratcheted)])
 	gut.p("      => _apply_max_change alone (h - g) : %6dus  (%.1fus/node)" % [ratcheted - raw_write, per.call(ratcheted - raw_write)])
 	gut.p("  node pool value_changed listeners      : %d" % listeners)
 

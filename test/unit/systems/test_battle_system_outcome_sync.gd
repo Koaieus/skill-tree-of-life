@@ -72,7 +72,7 @@ func _build(with_live_vfx: bool) -> Dictionary:
 	# crits and the comparison would flake on a difference that has nothing to
 	# do with the attack_vfx wiring under test.
 	attacker.stat_board.get_stat(&"crit_chance").base_value = 0.0
-	attacker.stat_board.action_points.set_base_ratcheted(2.0)
+	attacker.stat_board.action_points.base_value = 2.0
 	attacker.stat_board.action_points.current = 2.0
 	graph.add_child(attacker)
 

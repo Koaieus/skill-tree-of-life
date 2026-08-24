@@ -219,13 +219,13 @@ func _boost_autopilot_budget() -> void:
 		return
 	var board := _red.stat_board
 	if board.skill_points != null:
-		board.skill_points.set_base_ratcheted(30.0)
+		board.skill_points.base_value = 30.0
 	if board.action_points != null:
-		board.action_points.set_base_ratcheted(12.0)
+		board.action_points.base_value = 12.0
 	if board.deallocation_points != null:
-		board.deallocation_points.set_base_ratcheted(10.0)
+		board.deallocation_points.base_value = 10.0
 	if board.mana != null:
-		board.mana.set_base_ratcheted(200.0)
+		board.mana.base_value = 200.0
 
 
 func _parse_cmdline() -> void:

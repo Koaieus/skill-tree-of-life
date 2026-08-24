@@ -84,11 +84,11 @@ func test_stake_level_below_fill_clamps_current_down() -> void:
 	assert_eq(int(_pool().current), 1)
 
 
-# --- 5. heal_on_max_increase == false ----------------------------------------
+# --- 5. on_cap_rise == PIN ---------------------------------------------------
 
 func test_raising_cap_does_not_auto_fill() -> void:
-	assert_false((_STAKE_DEF as StandardPoolStatDef).heal_on_max_increase,
-			"the def opts OUT of the ratchet — a granted slot must not mint a fill")
+	assert_eq((_STAKE_DEF as PoolStatDef).on_cap_rise, PoolStatDef.CapRise.PIN,
+			"the def PINs on a cap rise — a granted slot must not mint a fill")
 	_node.stake_level = 1
 	_node.allocation_level = 1
 	await _add_to_tree()

@@ -35,18 +35,31 @@ signal value_changed
 ## path), so there is no grant on a rise and no clamp of `current` on a fall.
 ## That bypass is load-bearing — [method SkillPointStat.claim] and
 ## [GrowablePoolStatDef]'s growth are both defined by it. If you want the
-## ratchet, use [method PoolStat.set_base_ratcheted]. See D-31 /
+## cap policy, [PoolStat] overrides the setter below so a plain write runs it
+## (#555 — there is no separate ratcheted door any more). See
 ## docs/domain/stat-knobs-and-bins.md §3 — routing this setter through the
 ## ratchet mints a spendable SP on every allocation.
+## [b]Declared `set = _set_base_value`, not an inline `set(v):` block, and that
+## is load-bearing.[/b] An inline setter block cannot be overridden by a
+## subclass; a named setter function is an ordinary virtual method, so [PoolStat]
+## overrides it to run its def's cap-change policy. That is what makes a plain
+## `pool.base_value = v` the CORRECT door rather than the silent-bypass one
+## (#555) — verified: the override fires even through a `Stat`-typed reference,
+## and `base_value = v` inside the setter assigns without re-entering it.
 @export var base_value: float = 0.0:
-	set(v):
-		if v == base_value:
-			return
-		base_value = v
-		# Computed value moves with base_value; notify subscribers (UI, formula
-		# modifiers watching this stat) so reactive paths stay coherent when
-		# scripts write base_value directly.
-		_emit_value_changed()
+	set = _set_base_value
+
+
+## The setter body. Subclasses override this to hook cap changes; always call
+## `super(v)` so the assignment and the notification still happen exactly once.
+func _set_base_value(v: float) -> void:
+	if v == base_value:
+		return
+	base_value = v
+	# Computed value moves with base_value; notify subscribers (UI, formula
+	# modifiers watching this stat) so reactive paths stay coherent when
+	# scripts write base_value directly.
+	_emit_value_changed()
 
 var _modifiers: Array[StatModifier] = []
 

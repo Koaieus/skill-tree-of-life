@@ -101,7 +101,7 @@ func _make_entity(nm: String) -> Entity:
 	e.name = nm
 	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	e.stat_board.blade_size.base_value = 3.0
-	e.stat_board.action_points.set_base_ratcheted(4.0)
+	e.stat_board.action_points.base_value = 4.0
 	e.stat_board.action_points.current = 4.0
 	# entities_container, not the Graph itself: `entity_id` mints on entry
 	# there, and CommandApplier resolves a command's actor by that id.

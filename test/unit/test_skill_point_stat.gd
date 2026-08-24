@@ -105,24 +105,25 @@ func test_claim_mints_max_only() -> void:
 	_assert_invariant(sp)
 
 
-func test_claim_bypasses_the_ratchet_that_its_own_def_opts_into() -> void:
-	# The near-miss behind D-31: `claim` is distinct from `grant` ONLY because a
-	# raw `base_value` write skips the cap-change path. Its def opts INTO
-	# heal_on_max_increase, so routing claim through the modifier pipeline (or
-	# through PoolStat.set_base_ratcheted) would silently mint a spendable SP on
-	# every allocation. This asserts the flag is genuinely on, so the test above
-	# can't pass for the wrong reason.
-	var def := _DEF as StandardPoolStatDef
-	assert_true(def.heal_on_max_increase,
-		"skill_points opts into the ratchet — claim's bypass is what makes it a mint-max-only")
+func test_claim_bypasses_the_cap_policy_that_its_own_def_opts_into() -> void:
+	# The near-miss behind D-31: `claim` is distinct from `grant` ONLY because it
+	# MINTS — moving the cap without running the def's cap-change policy. Its def
+	# is on_cap_rise = FOLLOW, so routing claim through the ordinary door would
+	# silently hand over a spendable SP on every allocation. This asserts the
+	# policy is genuinely FOLLOW, so the test above can't pass for the wrong reason.
+	var def := _DEF as PoolStatDef
+	assert_eq(def.on_cap_rise, PoolStatDef.CapRise.FOLLOW,
+		"skill_points is FOLLOW — claim's mint is what makes it a mint-max-only")
 
 	var sp := _fresh(3)
 	sp.claim(1)
-	assert_eq(sp.current, 3.0, "raw base_value write must not trigger on_max_increased")
+	assert_eq(sp.current, 3.0, "a mint must not run the cap-rise policy")
 
-	# ...and the ratcheted door on the very same pool does the opposite.
-	sp.set_base_ratcheted(sp.base_value + 1.0)
-	assert_eq(sp.current, 4.0, "set_base_ratcheted grants the delta, unlike claim")
+	# ...and the ORDINARY door on the very same pool does the opposite. This is
+	# the #555 inversion fixed: the plain assignment is now the one that obeys
+	# the def, and the bypass is the explicitly-named private one.
+	sp.base_value = sp.base_value + 1.0
+	assert_eq(sp.current, 4.0, "a plain base_value write follows the cap, unlike claim")
 
 
 func test_grant_mints_max_and_current() -> void:

@@ -59,12 +59,29 @@ func on_pool_filled(_stat: PoolStat, _excess: float) -> void:
 	pass
 
 
-## Called by PoolStat when the cap rises via the modifier pipeline.
-## `delta` is strictly positive. Cap *decreases* are handled by PoolStat
-## itself (current is clamped down) — defs only react to growth.
-## Default: no-op.
-func on_max_increased(_stat: PoolStat, _delta: float) -> void:
-	pass
+## How `current` responds when this pool's cap MOVES UP.
+##   PIN    — cap rises, `current` sits where it is (the bar looks emptier).
+##   FOLLOW — `current` rises by the same delta, so the relative fill holds.
+##            This is the D-21 ratchet on `health`; see PoolStat._follow_cap_delta.
+enum CapRise { PIN, FOLLOW }
+
+## How `current` responds when this pool's cap MOVES DOWN.
+##   CLAMP  — `current` only moves if it would exceed the new cap.
+##   FOLLOW — `current` drops by the same delta even when it had headroom
+##            ("shrink with"), then the clamp invariant still applies.
+enum CapFall { CLAMP, FOLLOW }
+
+## [b]The clamp is an INVARIANT, not one of these modes.[/b] `current` is bounded
+## by the cap after either policy runs, and no mode can switch that off. Budget
+## that legitimately exceeds the maximum is a *separate bin* — see
+## [SurplusPoolStat], whose `surplus` sits outside the cap and which the
+## cap-change policy must never touch (deallocation_points / movement_points).
+##
+## Replaces `StandardPoolStatDef.heal_on_max_increase` (#555): that bool was a
+## degenerate two-value CapRise living on one subclass, while the fall half was
+## hardcoded and the whole thing was skippable by writing `base_value` directly.
+@export var on_cap_rise: CapRise = CapRise.PIN
+@export var on_cap_fall: CapFall = CapFall.CLAMP
 
 
 func _validate_property(prop: Dictionary) -> void:

@@ -72,9 +72,9 @@ func _build(origin: Vector2 = Vector2.ZERO) -> Dictionary:
 	attacker.faction = _PLAYER_FACTION
 	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	attacker.stat_board.blade_size.base_value = 2.0
-	attacker.stat_board.action_points.set_base_ratcheted(4.0)
+	attacker.stat_board.action_points.base_value = 4.0
 	attacker.stat_board.action_points.current = 4.0
-	attacker.stat_board.mana.set_base_ratcheted(10.0)
+	attacker.stat_board.mana.base_value = 10.0
 	attacker.stat_board.mana.current = 10.0
 	# entities_container, NOT the Graph itself — entity_id mints on entry to
 	# that container (#509), and a command naming an unminted id resolves to

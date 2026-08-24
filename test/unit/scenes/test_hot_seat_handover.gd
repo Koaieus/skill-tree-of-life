@@ -170,14 +170,14 @@ func test_the_hud_follows_the_active_hero_and_not_the_previous_one() -> void:
 	var after_handover := gauge.max_value
 
 	# The OUTGOING hero's pool must no longer drive the card...
-	_p1.stat_board.health.set_base_ratcheted(_p1.stat_board.health.base_value + 50.0)
+	_p1.stat_board.health.base_value = _p1.stat_board.health.base_value + 50.0
 	await wait_physics_frames(1)
 	assert_eq(gauge.max_value, after_handover,
 			"player 1's health must not move player 2's gauge")
 
 	# ...and the INCOMING one must. (Without this, a rebind that connects
 	# nothing at all would pass the assert above.)
-	_p2.stat_board.health.set_base_ratcheted(_p2.stat_board.health.base_value + 50.0)
+	_p2.stat_board.health.base_value = _p2.stat_board.health.base_value + 50.0
 	await wait_physics_frames(1)
 	assert_ne(gauge.max_value, after_handover,
 			"player 2's health must drive the gauge it is now bound to")

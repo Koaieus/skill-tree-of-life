@@ -180,7 +180,12 @@ func _mint_stat(stat_id: StringName) -> Stat:
 	else:
 		s = ScalarStat.new()
 	s.definition = def
-	s.base_value = def.default_value
+	# Seeding a fresh stat is not a cap change — mint it so a pool's
+	# cap-change policy does not fire against a zero starting cap (#555).
+	if s is PoolStat:
+		(s as PoolStat)._set_base_minted(def.default_value)
+	else:
+		s.base_value = def.default_value
 	_extra_stats[stat_id] = s
 	return s
 
@@ -624,7 +629,13 @@ func clone_live() -> StatBoard:
 		var dst_stat: Stat = dst._ensure_stat(id)
 		if dst_stat == null:
 			continue
-		dst_stat.base_value = src_stat.base_value
+		# Copying a base onto a clone is not a cap change (#555) — the clone's
+		# `current` is transferred verbatim just below, and a policy firing here
+		# would move it before that assignment ever lands.
+		if dst_stat is PoolStat:
+			(dst_stat as PoolStat)._set_base_minted(src_stat.base_value)
+		else:
+			dst_stat.base_value = src_stat.base_value
 		if dst_stat is PoolStat and src_stat is PoolStat:
 			# Order-independent, and worth stating because it doesn't look it:
 			# `current` is a plain `@export var`, NOT a clamping property — the

@@ -193,7 +193,7 @@ func get_max_hp() -> float:
 		var o := owner()
 		var baseline: Stat = o.board().get_stat(&"node_health") if o != null and o.board() != null else null
 		if baseline != null:
-			hp.set_base_ratcheted(float(baseline.get_value()))
+			hp.base_value = float(baseline.get_value())
 	return hp.value
 
 

@@ -245,10 +245,10 @@ func _reset_board(entity: Entity) -> void:
 		board.skill_points.base_value = SKILL_POINTS
 		board.skill_points.set_current(SKILL_POINTS)
 	if board.action_points != null:
-		board.action_points.set_base_ratcheted(ACTION_POINTS)
+		board.action_points.base_value = ACTION_POINTS
 		board.action_points.current = ACTION_POINTS
 	if board.mana != null:
-		board.mana.set_base_ratcheted(MANA)
+		board.mana.base_value = MANA
 		board.mana.current = MANA
 	for pool in [board.health, board.deallocation_points]:
 		if pool != null:

@@ -32,7 +32,9 @@ func on_pool_filled(stat: PoolStat, excess: float) -> void:
 	var delta := new_max - old_max
 	if delta <= 0.0:
 		return  # misconfigured (factor < 1 + tiny flat) or no-op
-	stat.base_value += delta
+	# Mint: growth is this pool levelling ITSELF, not a cap that followed
+	# something else, so the def's cap-change policy must not fire (#555).
+	stat._set_base_minted(stat.base_value + delta)
 	match post_grow_mode:
 		PostGrowMode.KEEP:
 			pass  # current stays at the old cap; new headroom = delta

@@ -1198,7 +1198,7 @@ func _sync_combat_health_base() -> void:
 	# climbs with CON/level, and a raw write moves the cap *outside* the ratchet —
 	# no grant on a rise, no clamp on a fall. That stranded `current` at its old
 	# value while max grew, which is #346's "nodes sit at ~1/10 max HP". D-31.
-	hp.set_base_ratcheted(float(_bound_entity_node_health.get_value()))
+	hp.base_value = float(_bound_entity_node_health.get_value())
 
 
 func _reset_combat_health() -> void:
@@ -1244,7 +1244,7 @@ func _init_node_board() -> void:
 	node_board.apply_intrinsics()
 	# Push the AUTHORED backings, not the proxy getters — the getters would read
 	# the pool's just-cloned state and overwrite what the author set.
-	node_board.stake_level.set_base_ratcheted(float(_stake_level_backing))
+	node_board.stake_level.base_value = float(_stake_level_backing)
 	node_board.stake_level.set_current(float(_allocation_level_backing))
 
 
@@ -1253,7 +1253,7 @@ func _init_node_board() -> void:
 ## unallocated node); the pool itself is baked, so it is never absent after.
 func _push_stake_level() -> void:
 	_init_node_board()
-	node_board.stake_level.set_base_ratcheted(float(_stake_level_backing))
+	node_board.stake_level.base_value = float(_stake_level_backing)
 
 
 ## Push the [member allocation_level] backing into the node-board pool's

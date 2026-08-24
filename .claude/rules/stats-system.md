@@ -64,39 +64,85 @@ Turn-start refill-to-full is **gone** (D-9) — damage persists across turns. `S
 
 ### Node combat health
 
-The node's health is a `PoolStat` on `node_board` with id `"node_combat_health"` (`StandardPoolStatDef`, `heal_on_max_increase = true`). On allocation, `base_value` is synced from the owning entity's `node_health` ScalarStat baseline and re-syncs on `value_changed`. `current` tracks damage; `deplete()` / `restore_to_full()` replace the old `current_hp` float. See `skill_node/skill_node.gd:_refresh_hp_binding`.
+The node's health is a `PoolStat` on `node_board` with id `"node_combat_health"` (`StandardPoolStatDef`, `on_cap_rise = FOLLOW`). On allocation, `base_value` is synced from the owning entity's `node_health` ScalarStat baseline and re-syncs on `value_changed`. `current` tracks damage; `deplete()` / `restore_to_full()` replace the old `current_hp` float. See `skill_node/skill_node.gd:_refresh_hp_binding`.
 
-**That re-sync goes through `set_base_ratcheted`, not a raw write (D-31, #346)** — the node pool ratchets exactly like the entity pool: cap rise grants the delta, cap fall clamps `current` and never subtracts. See "Two doors onto the cap" under Pool stats for why the raw write was wrong here and right in `claim()`.
+**That re-sync is a plain `hp.base_value = ...` write, which since #555 IS the door that runs the cap policy** — `node_combat_health` is `on_cap_rise = FOLLOW`, so a cap rise grants the delta and a cap fall clamps `current` without subtracting. See "One door onto the cap" under Pool stats; #346 was this line using what was then the bypass.
 
 ## Pool stats
 
 `PoolStat extends ScalarStat`. The stat IS the cap — `get_value()` / `.value` returns the modifier-computed maximum. `.current` is the ephemeral game state (damage/heal, not the modifier system). Modifiers always target the pool id directly (e.g. `"health"`, `"mana"`); there are no `*_max` sibling stats or IDs.
 
-### Two doors onto the cap — `set_base_ratcheted` vs a raw `base_value` write (D-31)
+### One door onto the cap, and a private mint (#555, supersedes D-31's two doors)
 
-`Stat.base_value`'s setter emits `value_changed` but does **NOT** run `PoolStat._apply_max_change()` — that's reachable only from `add_modifier` / `remove_modifier` / `_on_dependent_modifier_changed`. So writing `base_value` on a pool moves the cap *outside* the ratchet: no `on_max_increased` grant on a rise, no clamp of `current` on a fall.
+**`pool.base_value = v` runs the def's cap-change policy.** That is the whole
+API — there is no `set_base_ratcheted` any more, and no way for gameplay code to
+move a cap without the configured policy firing.
 
-| Door | Cap-change behaviour |
+It works because `Stat` declares `base_value` with **`set = _set_base_value`**
+(a named setter function), not an inline `set(v):` block: an inline block cannot
+be overridden, a named one is an ordinary virtual method, so `PoolStat` overrides
+it. Verified — the override fires even through a `Stat`-typed reference, and
+`base_value = v` inside the setter assigns without re-entering it.
+**Don't convert that declaration back to an inline block.**
+
+| Door | Who may use it |
 |---|---|
-| `pool.set_base_ratcheted(v)` | grants the delta on a rise, clamps `current` on a fall |
-| `pool.base_value = v` | **raw** — neither |
+| `pool.base_value = v` | everyone — runs `_apply_max_change` |
+| `pool._set_base_minted(v)` | **`stats_system/` only.** Three mint sites: `SkillPointStat.claim`, `SkillPointStat.grant`, `GrowablePoolStatDef`'s growth — plus board init and `clone_live`, where seeding or copying a base is not a cap *change* |
 
-**The raw door is deliberate and load-bearing; don't weld it shut.** `SkillPointStat.claim()` *is* that bypass (`skill_points.tres` opts **into** `heal_on_max_increase`, so the raw write is the only thing making claim a mint-max-only), and `AllocationSystem` calls it on **every allocation** — routing the setter through the ratchet would silently mint a spendable SP per allocation. `GrowablePoolStatDef`'s level-up growth relies on it for the same reason.
+**Why the inversion mattered.** Before #555 the plain assignment was the
+*bypass* and the special-looking method was the correct one, so every new call
+site defaulted to silently skipping the pool's own configuration — a wrong number
+with no error. That is exactly how #346 shipped: `_sync_combat_health_base` used
+the plain write, so as CON climbed every allocated node's cap grew while `current`
+stayed frozen and node regen (~1/turn) couldn't close the gap — nodes read
+permanently near-empty (measured fill ratio **0.1**).
 
-This shipped as #346: `SkillNode._sync_combat_health_base()` used the raw door to follow the owner's `node_health` baseline, so as CON climbed with level every allocated node's cap grew while `current` stayed frozen, and node regen (~1/turn) couldn't close a widening gap — nodes read permanently near-empty (measured fill ratio: **0.1**, matching the reported "~1/10 max HP"). Fixed by using the ratcheted door there. `test_skill_point_stat.gd` now asserts `heal_on_max_increase` is genuinely on, so the claim test can't pass for the wrong reason.
+### The cap-change policy: two enums on `PoolStatDef`
+
+`heal_on_max_increase: bool` is **gone**. It was a degenerate two-value enum on
+one subclass, answering the same question `GrowablePoolStatDef.post_grow_mode`
+answers with three values on a sibling, while the cap-*fall* half was hardcoded
+and the whole thing was skippable.
+
+| field | values | meaning |
+|---|---|---|
+| `on_cap_rise` | `PIN` (default) / `FOLLOW` | does `current` rise with the cap |
+| `on_cap_fall` | `CLAMP` (default) / `FOLLOW` | does `current` drop with the cap even when it had headroom |
+
+**The clamp is an INVARIANT, not a mode.** `current` is bounded by the cap after
+either policy runs, and nothing can switch that off. Budget that legitimately
+exceeds the maximum is a **separate bin** — `SurplusPoolStat.surplus`
+(`deallocation_points`, `movement_points`), which sits outside the cap and which
+the cap-change policy must never touch. Those two facts coexist; don't "fix"
+either by letting `current` exceed the cap.
+
+Authored today: `on_cap_rise = FOLLOW` on `health`, `node_combat_health`,
+`skill_points`, `movement_points`, `mana`, `action_points`; `PIN` on
+`deallocation_points`, `stake_level`, `xp`, `initiative`. Every pool is
+`on_cap_fall = CLAMP` — the "shrink with" axis exists and nothing uses it yet.
+
+**The D-21 ratchet is now `PoolStat._follow_cap_delta`** — still one named,
+greppable method as D-26 requires, and now signed (it serves both directions).
+The toggle D-26 wants findable is `on_cap_rise` on the def.
+
+**`StandardPoolStatDef` is now deliberately empty** — the concrete "ordinary
+pool" choice, nothing more. `PoolStatDef` is abstract, so every def still picks a
+subclass.
 
 ### Def hierarchy
 
-`PoolStatDef` is abstract — concrete pools pick one of two subclasses, never the base directly. PoolStat stays agnostic to which subclass it holds; behaviour is delegated through two virtuals on the base:
+`PoolStatDef` is abstract — concrete pools pick one of two subclasses, never the base directly. PoolStat stays agnostic to which subclass it holds; fill behaviour is delegated through one virtual on the base:
 
 - `on_pool_filled(stat, excess)` — fires when `current` crosses up to the cap. `excess` is the amount of the inbound replenish that was clipped by the cap-clamp.
-- `on_max_increased(stat, delta)` — fires when the modifier pipeline raises the cap (cap *decreases* are handled by PoolStat: current is clamped).
+
+Cap-change behaviour is **authored data**, not a virtual — `on_cap_rise` / `on_cap_fall` above (#555). `on_max_increased` is gone.
 
 The base also carries `per_turn_mode: PerTurnMode {NONE, REFILL, ADD, CUSTOM}` — how the pool replenishes at turn start (`CUSTOM` dispatches to a `PoolStat` virtual). See "Turn-start upkeep" below. Default `NONE`.
 
 | Def class | When to use | Adds |
 |---|---|---|
-| `StandardPoolStatDef` | Fixed-cap pool (HP, mana, AP, DP, SP, movement) | `heal_on_max_increase: bool` — if true, `on_max_increased` bumps current by delta so the relative fill stays the same |
+| `StandardPoolStatDef` | Fixed-cap pool (HP, mana, AP, DP, SP, movement) | **nothing** — cap-change policy moved up to `PoolStatDef` in #555 |
 | `GrowablePoolStatDef` | Gauge that grows when filled (XP today; any future "fill-and-level" pool) | `growth_flat: float`, `growth_factor: float`, `post_grow_mode: PostGrowMode` |
 | `CyclicPoolStatDef` | Recurring threshold that resets on fill, carrying overshoot forward (`initiative` today) | nothing — `on_pool_filled` just does `set_current(min + excess)` (no growth) |
 
@@ -104,7 +150,7 @@ The base also carries `per_turn_mode: PerTurnMode {NONE, REFILL, ADD, CUSTOM}` �
 
 `PostGrowMode` (Growable only): `KEEP` (current parks at old cap, new headroom = delta) · `RESET` (current → min_value, new cap empty) · `OVERFLOW` (level-up consumes `old_max` worth of replenish; new level starts at `min_value + excess` — cascades naturally through multiple level-ups if the inbound replenish was huge). XP uses `OVERFLOW`.
 
-Growth math: `new_max = stat._coerce(old_max * growth_factor + growth_flat)` — coercion is via the stat's `value_type`, so int pools snap and float pools don't. Growth writes `base_value` directly (bypassing the modifier path) so a growable pool's level-up does NOT trigger StandardPoolStatDef's `heal_on_max_increase` — same deliberate pattern as `SkillPointStat.claim()`. BOOL `value_type` is hidden from the inspector via `_validate_property` on `PoolStatDef` — meaningless for a cap.
+Growth math: `new_max = stat._coerce(old_max * growth_factor + growth_flat)` — coercion is via the stat's `value_type`, so int pools snap and float pools don't. Growth **mints** (`_set_base_minted`) so a growable pool's level-up does NOT run `on_cap_rise` — same deliberate pattern as `SkillPointStat.claim()`. BOOL `value_type` is hidden from the inspector via `_validate_property` on `PoolStatDef` — meaningless for a cap.
 
 ### `replenished` fires in REVERSE chronological order across a cascade — `value_changed` doesn't
 
@@ -127,7 +173,7 @@ A single `replenish(huge_amount)` that crosses multiple levels recurses: `set_cu
 | **`claim(n)`** | `base_value += n` — max grows, current unchanged, the new SP lands in `used`. Equivalent to "grant(n) then spend(n)" collapsed atomically. Use for force_allocate / scripted setup. | **yes** |
 | **`grant(n)`** | `base_value += n; current += n` — mints free SP (level-up). | **yes** |
 
-Modifiers on `skill_points` behave like modifiers on any other PoolStat — they bump max via the pipeline, and `heal_on_max_increase=true` on the def causes modifier-driven max changes to also bump current. `claim()` bypasses the modifier path (writes base_value directly) so heal_on_max_increase does NOT fire — that's exactly what distinguishes it from grant.
+Modifiers on `skill_points` behave like modifiers on any other PoolStat — they bump max via the pipeline, and `on_cap_rise = FOLLOW` on the def causes modifier-driven max changes to also bump current. `claim()` **mints** so the policy does NOT fire — that's exactly what distinguishes it from grant. Both route `current` through `set_current`, never a raw `current +=`: `base_value += n` does not imply the *cap* moved by `n`, and the raw write could leave `current` above the cap, which `available()` reports as spendable (#555).
 
 `deallocation_points` and `movement_points` are `SurplusPoolStat` (PoolStat subclass, #152/#156). Unlike SkillPointStat's bins which sit *inside* max, its one extra bin — `surplus: int` — sits **outside** the cap:
 
@@ -472,7 +518,7 @@ this table is documentation, not a second source of truth.
 
 **CON → `node_health` does the same thing, one pool over (#298).** `node_health = 10 + node_health_scaling × CON`, with `node_health_scaling` an ordinary board scalar defaulting to `1.0`. This **settled #298** — its two proposed options (a `CoreClass` genesis param, or a board baseline plus a class delta) were both dropped in favour of the D-26 precedent, because a class tuning it needs no new mechanism and there is **no cliff**: `core_class` is nullable (`GameRoot.spawn_entity` defaults it to null, `Entity._ready` guards on it) and coreless entities really exist (`scenes/dev/_spike_live.gd`, several fixtures), so a fully class-side rate would have silently given them CON → 0. Same `inputs`-must-list-both-ids consequence as `health`. Per-class values remain a #268 pass — don't invent them. `node_health_scaling` is likewise entity-scope only.
 
-**The D-21 ratchet lives in `StandardPoolStatDef.grant_max_increase_delta`.** Allocating CON raises the `health` cap *and* hands you the delta as current HP, so a player can cycle territory to heal. That is **knowingly exploitable and accepted** (D-21) — the graph *is* the mechanics, and DP is not free, so the ratchet is bounded. D-26 requires the grant to stay one named, greppable method rather than being inlined into an allocation path, so the toggle is findable when it's revisited; `health.tres` carries `heal_on_max_increase = true` deliberately and says so in its `description`. The *infinite* version is closed at the other end: `deallocation_points.tres` sets `heal_on_max_increase = false`, so a node granting `+1 max DP` raises the maximum **without** granting a spendable point. Both halves are pinned by `test_entity_health_scaling.gd` — don't "tidy" either flag. The recorded-but-not-adopted alternative (voluntary dealloc subtracts the delta and is illegal if lethal; forced dealloc reduces max only) is the first thing to reach for if the ratchet misbehaves.
+**The D-21 ratchet lives in `PoolStat._follow_cap_delta`.** Allocating CON raises the `health` cap *and* hands you the delta as current HP, so a player can cycle territory to heal. That is **knowingly exploitable and accepted** (D-21) — the graph *is* the mechanics, and DP is not free, so the ratchet is bounded. D-26 requires the grant to stay one named, greppable method rather than being inlined into an allocation path, so the toggle is findable when it's revisited; `health.tres` carries `on_cap_rise = 1` (FOLLOW) deliberately. The *infinite* version is closed at the other end: `deallocation_points.tres` sets `on_cap_rise = 0` (PIN), so a node granting `+1 max DP` raises the maximum **without** granting a spendable point. Both halves are pinned by `test_entity_health_scaling.gd` — don't "tidy" either flag. The recorded-but-not-adopted alternative (voluntary dealloc subtracts the delta and is illegal if lethal; forced dealloc reduces max only) is the first thing to reach for if the ratchet misbehaves.
 
 **CON (D-11/D-12/D-14, #269) — the level→CON grant lives on the board, and only there (user decision, 2026-07-24).** D-15 originally named `BalancedCore` as its home, mirroring `+1 STR/DEX/INT per level`. It was settled the other way: the board intrinsic means **every** entity's durability scales with level regardless of core class, which is the asymmetry #269 existed to fix. **`BalancedCore` therefore contributes the +10 CON *base* grant (#271) but must NOT get a per-level CON entry in its `level_scaling` modifiers** — that would double-count against the board intrinsic. CON is the one attribute whose level channel is board-side; STR/DEX/INT remain class-side.
 
@@ -556,7 +602,7 @@ logical event, and without it a node granting both `constitution` and
 
 ## Gotchas
 
-- **`PoolStat.set_current` emits `value_changed`, not just `current_changed`** (`pool_stat.gd:81`). Consequence (now resolved): a formula modifier sourcing a pool **recomputes on every `current` write** — every hit, every tick — so the read had better be the right one. Pre-#333 `LinearFormula`/`RatioFormula`/`ExpressionFormula` bottoms out in `board.get_stat(id).get_value()`, which is the **cap**, so the recomputation was wasted on a wrong read. #333 split the read: `<stat_id>__<accessor>` tokens route through `Stat.read_accessor(name)`, which dispatches to a per-subclass `accessors()` map — so `health__current` reads `.current`, not the cap. `get_input_ids()` strips to base ids (`StatFormula.base_of`), so the dependency graph (and `StatBoard.cycle_from`) keep seeing `health`, not a phantom `health__current` vertex. The recompute cost is the price of correct subscription — **don't** optimize it by dropping `set_current`'s `value_changed` emit; the first formula to source `initiative` (ticks constantly) or `health` (every hit) folds it into a real perf budget, and that's a separate issue.
+- **`PoolStat.set_current` emits `value_changed`, not just `current_changed`.** Consequence (now resolved): a formula modifier sourcing a pool **recomputes on every `current` write** — every hit, every tick — so the read had better be the right one. Pre-#333 `LinearFormula`/`RatioFormula`/`ExpressionFormula` bottoms out in `board.get_stat(id).get_value()`, which is the **cap**, so the recomputation was wasted on a wrong read. #333 split the read: `<stat_id>__<accessor>` tokens route through `Stat.read_accessor(name)`, which dispatches to a per-subclass `accessors()` map — so `health__current` reads `.current`, not the cap. `get_input_ids()` strips to base ids (`StatFormula.base_of`), so the dependency graph (and `StatBoard.cycle_from`) keep seeing `health`, not a phantom `health__current` vertex. The recompute cost is the price of correct subscription — **don't** optimize it by dropping `set_current`'s `value_changed` emit; the first formula to source `initiative` (ticks constantly) or `health` (every hit) folds it into a real perf budget, and that's a separate issue.
 - **Formula accessor tokens are NOT stats.** `<stat_id>__<accessor>` (the `__`-double-underscore join — single `_` is ambiguous: ids like `min_damage_taken` contain it) is a formula-read handle, not a stat id. No `StatDef`, no `StatRegistry` entry, no write path through the modifier pipeline, never valid as a modifier `stat_id` (rejected at `StatBoard._ensure_stat` and `StatBoard.add_modifier` with a specific push_warning). `StatFormula.is_accessor_token` is the predicate. `Stat.accessors()` is the per-subclass discovery key (PoolStat→`current`, SkillPointStat→`wounded`/`staked`/`used`, SurplusPoolStat→`surplus`/`available`) — extend it the same way `CoreClass.load_all()` replaced a hand-maintained loader list: by overriding one method, not by editing a parallel registry.
 - **Formula-driven modifiers can be shared across entities/boards freely (#377).** No binding state on the modifier — `StatBoard.bind_modifier`/`unbind_modifier` own the reactive wiring per-board, recomputed from the modifier's own `formula.get_input_ids()` each call. `.duplicate(true)` before `add_modifier()` is no longer required for this reason; keep it only when you want a genuinely independent *value* per grant (loot draws, addon sub-resources without `resource_local_to_scene`) — that's a content-identity concern, not a binding one.
 - **`duplicate(true)` does NOT clone a *live* board — use `StatBoard.clone_live()`, then `release()` when done (#498/#506/#514).** `duplicate` copies exports only, so every `Stat.bins` comes back empty and `_extra_stats` (every minted stat, `node_health` among them) is missing outright — no error, the clone just reads as an unmodified board. It stays right for a **virgin template** you then build up (`Entity._ready`, `SkillNode._init_node_board`, `EffectContext.grant`), which is why nothing noticed until a combat shadow needed the other kind. Three things a clone needs that `duplicate` cannot give it, each silent when missed:

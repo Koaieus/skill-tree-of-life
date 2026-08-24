@@ -41,7 +41,7 @@ func before_each() -> void:
 	_attacker = Entity.new()
 	_attacker.faction = _PLAYER_FACTION
 	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_attacker.stat_board.action_points.set_base_ratcheted(4.0)
+	_attacker.stat_board.action_points.base_value = 4.0
 	_graph.entities_container.add_child(_attacker)
 	_defender = Entity.new()
 	_defender.faction = _NPC_FACTION

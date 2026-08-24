@@ -4,6 +4,7 @@
 
 [resource]
 script = ExtResource("1_std_pool_def")
+on_cap_rise = 1
 per_turn_mode = 1
 id = &"action_points"
 display_name = "Action Points"

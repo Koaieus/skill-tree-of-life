@@ -4,8 +4,8 @@
 
 [resource]
 script = ExtResource("1_std_pool_def")
+on_cap_rise = 0
 per_turn_mode = 1
-heal_on_max_increase = false
 id = &"deallocation_points"
 display_name = "Deallocation Points"
 description = "Per-turn reshape budget (apparent movement). Resets to max at turn start; unspent are wasted."

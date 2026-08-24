@@ -181,14 +181,16 @@ func extract(n: int) -> void:
 ## opts *into* `heal_on_max_increase`, so this line is the only reason claim is a
 ## mint-max-only — don't "tidy" it into the ratcheted call.
 func claim(n: int) -> void:
-	base_value += float(n)
-	_emit_value_changed()
+	_set_base_minted(base_value + float(n))
 
 
 ## Bump max by N and raise current by N. Used by level-up — the player
 ## earned a fresh spendable SP.
 func grant(n: int) -> void:
-	base_value += float(n)
-	current += float(n)
-	current_changed.emit(_coerce(current))
-	_emit_value_changed()
+	_set_base_minted(base_value + float(n))
+	# Through set_current, not a raw `current +=` (#555). The raw write skipped
+	# the clamp, `depleted`/`replenished`, and the fill branch — and since
+	# `base_value += n` does NOT imply the CAP moved by n (a negative INCREASE
+	# on skill_points moves it less), it could leave current ABOVE the cap,
+	# which `available()` then reports as spendable.
+	set_current(current + float(n))

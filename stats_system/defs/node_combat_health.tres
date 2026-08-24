@@ -4,9 +4,10 @@
 
 [resource]
 script = ExtResource("1_def")
+on_cap_rise = 1
 id = &"node_combat_health"
 display_name = "Node Combat Health"
-description = "Per-node combat HP pool. Max is entity.node_health baseline + node-local modifiers; current tracks damage/heal. heal_on_max_increase so adding node-local HP bumps current. Refilled at turn start by the owning entity."
+description = "Per-node combat HP pool. Max is entity.node_health baseline + node-local modifiers; current tracks damage/heal. on_cap_rise = FOLLOW so adding node-local HP bumps current. Refilled at turn start by the owning entity."
 value_type = 1
 default_value = 10.0
 minimum_value = 0.0

@@ -4,11 +4,11 @@
 
 [resource]
 script = ExtResource("1_std_pool_def")
+on_cap_rise = 0
 per_turn_mode = 0
-heal_on_max_increase = false
 id = &"stake_level"
 display_name = "Stake Level"
-description = "Per-node allocation cap — the N in the M/N dial. PoolStat: cap = stake_level (stake ceiling), current = allocation_level (fill). heal_on_max_increase = false so a granted slot raises the cap WITHOUT auto-filling the allocation level — the player still pays SP for the fill via allocate. Never on an entity board; node-board only (SkillNode.node_board)."
+description = "Per-node allocation cap — the N in the M/N dial. PoolStat: cap = stake_level (stake ceiling), current = allocation_level (fill). on_cap_rise = PIN so a granted slot raises the cap WITHOUT auto-filling the allocation level — the player still pays SP for the fill via allocate. Never on an entity board; node-board only (SkillNode.node_board)."
 default_value = 1.0
 tint_color = Color(0.7, 0.5, 0.9, 1)
 modifier_name = "Stake Level"

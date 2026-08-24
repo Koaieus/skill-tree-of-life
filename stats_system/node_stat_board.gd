@@ -70,6 +70,6 @@ func _mint_stat(stat_id: StringName) -> Stat:
 		return null
 	var hp := PoolStat.new()
 	hp.definition = def
-	hp.base_value = def.default_value
+	hp._set_base_minted(def.default_value)  # seed, not a cap change (#555)
 	_extra_stats[stat_id] = hp
 	return hp
