@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/frontmatter/menu_edge_view.gd" id="1_edge"]
+[ext_resource type="ShaderMaterial" uid="uid://c8xg4q7n2w4qk" path="res://graph/edge_mesh_material.tres" id="2_edge_mat"]
+
+[node name="MenuEdgeView" type="MultiMeshInstance2D"]
+material = ExtResource("2_edge_mat")
+z_index = -10
+z_as_relative = false
+script = ExtResource("1_edge")
