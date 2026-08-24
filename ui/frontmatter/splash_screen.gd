@@ -104,11 +104,23 @@ func is_advanced() -> bool:
 	return _advanced
 
 
+## "PRESS ANY BUTTON" has to mean it (#576). Key, gamepad button and mouse all
+## advance; before this, a controller player was stuck on the title screen
+## looking at a prompt that named the one device it did not accept.
+##
+## Deliberately NOT an `ui_accept` check: the prompt says ANY button, so this
+## takes the raw event kind rather than an action, and a player mashing whatever
+## is under their thumb gets through.
+static func is_any_button(event: InputEvent) -> bool:
+	if not event.is_pressed() or event.is_echo():
+		return false
+	return event is InputEventKey or event is InputEventJoypadButton
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
-	var key_event := event as InputEventKey
-	if key_event != null and key_event.pressed and not key_event.echo:
+	if is_any_button(event):
 		advance()
 		get_viewport().set_input_as_handled()
 
