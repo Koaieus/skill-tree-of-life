@@ -35,6 +35,7 @@ extends Control
 @onready var pause_menu: PauseMenu = %PauseMenu
 @onready var tooltip_fan: TooltipFan = %TooltipFan
 @onready var gained_modifier_toast: GainedModifierToast = %GainedModifierToast
+@onready var minimap_panel: MinimapPanel = %MinimapPanel
 
 var _player: Entity
 ## The composition root, kept only to read [member GameRoot.seat_policy] when a
@@ -179,6 +180,13 @@ func bind_systems(
 		mass_action_confirm_panel.bind_systems(_input_ctl, _allocation_system)
 		if _input_ctl != null:
 			_input_ctl.mass_action_pending_changed.connect(_on_mass_action_pending_changed)
+	# The camera comes off the ROOT, not the systems list, because it is not a
+	# system in that list's sense — same exception `_game_root` already exists
+	# for. A HUD fixture with no root simply gets a null camera and the minimap
+	# draws its board without a viewport outline.
+	if minimap_panel != null:
+		minimap_panel.bind(graph,
+				game_root.camera if game_root != null else null, _allocation_system)
 	if xp_track != null and hero_sigil_card != null:
 		# The emblem badge is the card's, but the beat that bumps it is the XP
 		# bar's — one source for badge, banner and gauge (#317/#320). It rides

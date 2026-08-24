@@ -1,7 +1,11 @@
-[gd_scene format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="1_glass"]
 [ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="2_shader"]
+[ext_resource type="Script" path="res://ui/hud/minimap_panel/minimap_panel.gd" id="3_panel"]
+[ext_resource type="Script" path="res://ui/hud/minimap_panel/minimap_graph_layer.gd" id="4_graph"]
+[ext_resource type="Shader" path="res://ui/hud/minimap_panel/minimap_fog.gdshader" id="5_fog"]
+[ext_resource type="Script" path="res://ui/hud/minimap_panel/minimap_viewport_rect_layer.gd" id="6_rect"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_minimap"]
 resource_local_to_scene = true
@@ -16,23 +20,65 @@ shader_parameter/corner_radius = 13.0
 shader_parameter/glow_color = Color(1, 1, 1, 0)
 shader_parameter/glow_strength = 0.0
 
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fog"]
+resource_local_to_scene = true
+shader = ExtResource("5_fog")
+shader_parameter/minimap_world_rect = Vector4(0, 0, 1, 1)
+shader_parameter/max_darkness = 0.92
+
 [node name="MinimapPanel" type="MarginContainer"]
 offset_right = 220.0
 offset_bottom = 220.0
 mouse_filter = 2
+script = ExtResource("3_panel")
 
 [node name="GlassPanel" parent="." instance=ExtResource("1_glass")]
 material = SubResource("ShaderMaterial_minimap")
 layout_mode = 2
 
-[node name="Placeholder" type="CenterContainer" parent="."]
+[node name="Inset" type="MarginContainer" parent="."]
 layout_mode = 2
 mouse_filter = 2
+theme_override_constants/margin_left = 7
+theme_override_constants/margin_top = 7
+theme_override_constants/margin_right = 7
+theme_override_constants/margin_bottom = 7
 
-[node name="Label" type="Label" parent="Placeholder"]
+[node name="MapArea" type="Control" parent="Inset"]
+unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
-theme_type_variation = &"CinzelHeader"
-theme_override_font_sizes/font_size = 14
-text = "Minimap
-(placeholder)"
-horizontal_alignment = 1
+
+[node name="GraphLayer" type="Control" parent="Inset/MapArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_graph")
+
+[node name="FogLayer" type="ColorRect" parent="Inset/MapArea"]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_fog")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 1)
+
+[node name="ViewportRectLayer" type="Control" parent="Inset/MapArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("6_rect")

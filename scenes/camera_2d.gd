@@ -329,6 +329,34 @@ func pan_margin_base() -> float:
 	return _pan_margin_base
 
 
+## The world-space rect the camera is CURRENTLY showing — what the minimap
+## paints its viewport outline from (#453).
+##
+## Reads the live `zoom`, not [member _target_zoom], deliberately: the wheel
+## tweens `zoom` over [member zoom_duration] and the outline should glide with
+## the view rather than snap to the step's destination a frame after the
+## player scrolls.
+func view_rect() -> Rect2:
+	var half: Vector2 = (get_viewport().get_visible_rect().size / zoom) * 0.5
+	return Rect2(global_position - half, half * 2.0)
+
+
+## Jump the view to [param world_pos], on behalf of a surface that names a
+## place directly rather than nudging the camera — the minimap's click/drag
+## (#453). No tween: a drag across the minimap is a stream of these, and each
+## one retargeting a glide would lag the cursor by the tween's whole duration.
+##
+## Emits [signal manual_input_received] FIRST, for the same reason the
+## middle-drag in [method _unhandled_input] does: [CameraDirector]'s cancel is
+## synchronous, so by the assignment below the camera is the player's again and
+## the jump lands on this event instead of being overwritten by a focus still
+## in flight.
+func pan_to(world_pos: Vector2) -> void:
+	manual_input_received.emit()
+	global_position = world_pos
+	_clamp_position()
+
+
 func _request_zoom_broadcast() -> void:
 	if _zoom_broadcast_pending:
 		return
