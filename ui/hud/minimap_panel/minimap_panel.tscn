@@ -1,18 +1,18 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene format=3 uid="uid://cv81a0y70nvs2"]
 
 [ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="1_glass"]
 [ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="2_shader"]
-[ext_resource type="Script" path="res://ui/hud/minimap_panel/minimap_panel.gd" id="3_panel"]
-[ext_resource type="Script" path="res://ui/hud/minimap_panel/minimap_graph_layer.gd" id="4_graph"]
-[ext_resource type="Shader" path="res://ui/hud/minimap_panel/minimap_fog.gdshader" id="5_fog"]
-[ext_resource type="Script" path="res://ui/hud/minimap_panel/minimap_viewport_rect_layer.gd" id="6_rect"]
+[ext_resource type="Script" uid="uid://c8f7j8x7kxgg6" path="res://ui/hud/minimap_panel/minimap_panel.gd" id="3_panel"]
+[ext_resource type="Script" uid="uid://dw553wnqashv8" path="res://ui/hud/minimap_panel/minimap_graph_layer.gd" id="4_graph"]
+[ext_resource type="Shader" uid="uid://c258ore5pj5e1" path="res://ui/hud/minimap_panel/minimap_fog.gdshader" id="5_fog"]
+[ext_resource type="Script" uid="uid://cqpd8dsq34a0w" path="res://ui/hud/minimap_panel/minimap_viewport_rect_layer.gd" id="6_rect"]
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_minimap"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_80oqb"]
 resource_local_to_scene = true
 shader = ExtResource("2_shader")
 shader_parameter/size = Vector2(220, 220)
-shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
-shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_color_a = Color(0.08700001, 0.09855, 0.15, 1)
+shader_parameter/gradient_color_b = Color(0.036399998, 0.040320005, 0.07, 1)
 shader_parameter/gradient_angle_deg = 158.0
 shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
 shader_parameter/border_width = 1.0
@@ -23,20 +23,22 @@ shader_parameter/glow_strength = 0.0
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fog"]
 resource_local_to_scene = true
 shader = ExtResource("5_fog")
-shader_parameter/minimap_world_rect = Vector4(0, 0, 1, 1)
+shader_parameter/minimap_world_rect = Vector4(0, 0, 0, 0)
 shader_parameter/max_darkness = 0.92
 
-[node name="MinimapPanel" type="MarginContainer"]
+[node name="MinimapPanel" type="MarginContainer" unique_id=1880210241]
 offset_right = 220.0
 offset_bottom = 220.0
 mouse_filter = 2
 script = ExtResource("3_panel")
 
-[node name="GlassPanel" parent="." instance=ExtResource("1_glass")]
-material = SubResource("ShaderMaterial_minimap")
+[node name="GlassPanel" parent="." unique_id=1711283948 instance=ExtResource("1_glass")]
+material = SubResource("ShaderMaterial_80oqb")
 layout_mode = 2
+gradient_color_a = Color(0.08700001, 0.09855, 0.15, 1)
+gradient_color_b = Color(0.036399998, 0.040320005, 0.07, 1)
 
-[node name="Inset" type="MarginContainer" parent="."]
+[node name="Inset" type="MarginContainer" parent="." unique_id=19137294]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 7
@@ -44,12 +46,12 @@ theme_override_constants/margin_top = 7
 theme_override_constants/margin_right = 7
 theme_override_constants/margin_bottom = 7
 
-[node name="MapArea" type="Control" parent="Inset"]
+[node name="MapArea" type="Control" parent="Inset" unique_id=1322333115]
 unique_name_in_owner = true
 clip_contents = true
 layout_mode = 2
 
-[node name="GraphLayer" type="Control" parent="Inset/MapArea"]
+[node name="GraphLayer" type="Control" parent="Inset/MapArea" unique_id=180937190]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -60,7 +62,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("4_graph")
 
-[node name="FogLayer" type="ColorRect" parent="Inset/MapArea"]
+[node name="FogLayer" type="ColorRect" parent="Inset/MapArea" unique_id=939631945]
 unique_name_in_owner = true
 material = SubResource("ShaderMaterial_fog")
 layout_mode = 1
@@ -70,9 +72,8 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(1, 1, 1, 1)
 
-[node name="ViewportRectLayer" type="Control" parent="Inset/MapArea"]
+[node name="ViewportRectLayer" type="Control" parent="Inset/MapArea" unique_id=872065399]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
