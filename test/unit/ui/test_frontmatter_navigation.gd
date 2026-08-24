@@ -254,6 +254,23 @@ func test_an_edge_is_lit_only_when_both_of_its_ends_are() -> void:
 
 # --- reduce motion ----------------------------------------------------------
 
+func test_the_player_setting_is_what_decides_reduce_motion() -> void:
+	# Read straight off GameSettings at build, not authored per scene — and a
+	# direct typed read, so renaming the setting breaks the compile rather than
+	# silently falling back to whatever this node happens to have on it.
+	var was: bool = Settings.current.reduce_motion
+	Settings.current.reduce_motion = true
+	var fresh: FrontmatterRoot = _ROOT_SCENE.instantiate()
+	add_child_autofree(fresh)
+	assert_true(fresh.reduce_motion, "the shell took the player's answer")
+
+	Settings.current.reduce_motion = false
+	var motion: FrontmatterRoot = _ROOT_SCENE.instantiate()
+	add_child_autofree(motion)
+	assert_false(motion.reduce_motion)
+	Settings.current.reduce_motion = was
+
+
 func test_reduce_motion_lands_the_transform_in_one_frame() -> void:
 	_root.reduce_motion = true
 	_root.travel_duration = 0.85  # would be a long tween if it were honoured

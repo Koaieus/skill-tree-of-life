@@ -45,19 +45,10 @@ signal focus_changed(id: StringName)
 
 ## Skip every transition — jump straight to `set_progress(1.0)`.
 ##
-## [b]Prefers the player's own setting when there is one.[/b] #570 asks for this
-## to be wired to [GameSettings], which today has no such property; rather than
-## hard-read one that does not exist (which would crash the menu, and which
-## `GameSettings`'s own docstring argues should fail at COMPILE time instead),
-## this reads it reflectively at build and falls back to whatever is authored
-## here. Adding `@export var reduce_motion: bool` to `settings/game_settings.gd`
-## is all it takes to make it player-facing — the reflected settings menu and the
-## `ConfigFile` persistence both walk `get_property_list()`.
+## [method build] overwrites this from [member GameSettings.reduce_motion], so
+## what is authored on the node is the default a run without the autoload gets
+## (the editor, and #578's live tab). See [method _resolve_reduce_motion].
 @export var reduce_motion: bool = false
-
-## The setting this looks for on [GameSettings]. Named once so the day it is
-## added there is a one-line change here, not a search.
-const REDUCE_MOTION_SETTING := &"reduce_motion"
 
 var tree: MenuGraph = null
 var camera: FrontmatterCamera = null
@@ -330,20 +321,18 @@ func _clear() -> void:
 	_to_pose = {}
 
 
-## Reads the player's setting if [GameSettings] has grown one, else keeps what
-## is authored on this node. See [member reduce_motion].
+## The player's accessibility setting, read straight off [GameSettings].
+##
+## [b]A direct, statically-typed read, deliberately.[/b] `GameSettings`'s own
+## docstring argues that retiring a setting must break every call site at
+## COMPILE time rather than silently read as null — so renaming `reduce_motion`
+## has to fail `mise run check` here, which a reflective `get_property_list()`
+## lookup would have quietly swallowed by falling back to the export.
+##
+## The one guard is the EDITOR, and it is a different question: project
+## autoloads are not in the editor's tree, and this script is `@tool` so #578's
+## live tab can mount it. That is about the autoload existing, not the property.
 func _resolve_reduce_motion() -> bool:
-	# Reached through the tree rather than by naming the `Settings` autoload:
-	# project autoloads are NOT in the editor's tree, and this script is `@tool`
-	# so #578's live tab can mount it. A missing autoload is "use what is
-	# authored here", not a crash.
-	var loop := Engine.get_main_loop() as SceneTree
-	if loop == null or loop.root == null or not loop.root.has_node("Settings"):
+	if Engine.is_editor_hint():
 		return reduce_motion
-	var settings: Resource = loop.root.get_node("Settings").get(&"settings")
-	if settings == null:
-		return reduce_motion
-	for property in settings.get_property_list():
-		if property["name"] == String(REDUCE_MOTION_SETTING):
-			return bool(settings.get(String(REDUCE_MOTION_SETTING)))
-	return reduce_motion
+	return Settings.current.reduce_motion
