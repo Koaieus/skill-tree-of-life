@@ -1,0 +1,57 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/frontmatter/frontmatter_live_sandbox.gd" id="1_sandbox"]
+[ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="2_bloom_vp"]
+[ext_resource type="PackedScene" path="res://ui/frontmatter/frontmatter_root.tscn" id="3_frontmatter"]
+
+[node name="FrontmatterLiveSandbox" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_sandbox")
+
+[node name="Split" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+
+[node name="Controls" type="ScrollContainer" parent="Split"]
+custom_minimum_size = Vector2(340, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Knobs" type="VBoxContainer" parent="Split/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 3
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+
+[node name="World" parent="Split/ViewportContainer" instance=ExtResource("2_bloom_vp")]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(1024, 720)
+render_target_update_mode = 4
+
+[node name="Bg" type="ColorRect" parent="Split/ViewportContainer/World"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.04, 0.05, 0.07, 1)
+
+[node name="Frontmatter" parent="Split/ViewportContainer/World" instance=ExtResource("3_frontmatter")]
+unique_name_in_owner = true
