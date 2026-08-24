@@ -327,8 +327,12 @@ func _on_turn_started_for_banner(entity: Entity) -> void:
 
 
 func _on_level_reached(new_level: int) -> void:
+	# The SP count is asked of the level this BEAT is narrating, not of the
+	# player's current level — a 4-level cascade is already fully applied by
+	# the time the first bar fills, so `_player.level` reads the last one.
+	var sp := _player.sp_minted_for_level(new_level) if _player != null else 1
 	announcement_layer.enqueue(LevelUpAnnouncementRequest.make_for_level_up(
-			_player, 1, new_level))
+			_player, sp, new_level))
 
 
 ## #116 — Turn Tracker Pill. InitiativeBar already implements the "hide

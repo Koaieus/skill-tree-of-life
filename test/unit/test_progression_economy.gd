@@ -124,6 +124,22 @@ func test_milestone_level_mints_one_extra_sp() -> void:
 	assert_eq(board.skill_points.value, max_before_6 + 2.0, "level 6 mints plain sp_gain_on_levelup, no milestone")
 
 
+## #320 item 7: the milestone rule lives in ONE place, and it is a pure
+## function of the level being asked about — not of the entity's current level.
+## The HUD narrates a multi-level cascade one beat at a time, seconds after the
+## model applied every level, so asking "how much did level 5 mint" while the
+## entity already sits at level 6 has to answer for 5.
+func test_sp_minted_for_level_answers_for_the_level_asked_not_the_current_one() -> void:
+	var ent: Entity = await _make_entity()
+	for _i in range(5):
+		ent._on_xp_replenished()
+	assert_eq(int(ent.level), 6, "sanity: entity is now level 6")
+	var plain: int = ent.sp_minted_for_level(6)
+	assert_eq(ent.sp_minted_for_level(5), plain + 1, "level 5 is a milestone even when asked from level 6")
+	assert_eq(ent.sp_minted_for_level(10), plain + 1, "level 10 is a milestone even before it is reached")
+	assert_eq(ent.sp_minted_for_level(4), plain, "level 4 mints the plain per-level yield")
+
+
 ## Decision 7 / D-16: starting SP is raised above the old default of 1.
 func test_starting_sp_is_above_1() -> void:
 	var ent: Entity = await _make_entity()

@@ -409,10 +409,8 @@ static func combat_readouts(attacker: BalanceFixture, defender: BalanceFixture) 
 	var node_max_hp: float = def_target.get_max_hp()
 	var health_max: float = float(defender.entity.stat_board.health.value)
 
-	var sp_gain: float = float(defender.entity.stat_board.sp_gain_on_levelup.value)
 	var next_level: int = int(defender.entity.level) + 1
-	var milestone: bool = (next_level % 5) == 0
-	var marginal_sp: float = sp_gain + (1.0 if milestone else 0.0)
+	var marginal_sp: float = float(defender.entity.sp_minted_for_level(next_level))
 
 	# D-21: `nodes_lost_before_death = health / dealloc_damage` — the count of
 	# cascaded nodes the entity's health pool survives before death. Should

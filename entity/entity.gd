@@ -144,6 +144,9 @@ const GROUP := &"entities"
 ## `ap_transfer_rate` ScalarStat — see `_transfer_unused_ap_to_surplus`.
 const DEFAULT_AP_TRANSFER_RATE := 2.0
 
+## Every Nth level mints one extra skill point — see [method sp_minted_for_level].
+const MILESTONE_LEVEL_INTERVAL := 5
+
 ## The [Graph] this entity belongs to, for a scene that cannot put it UNDER one.
 ## Null (the default, and every level scene) falls back to the ancestor walk in
 ## [method _find_graph].
@@ -478,18 +481,28 @@ func _on_xp_replenished() -> void:
 	if stat_board.level != null:
 		stat_board.level.base_value += 1
 	if stat_board.skill_points != null:
-		# D-16 (#271): SP minted per level-up is a stat, not a hardcoded 1 —
-		# lets a CoreClass/keystone/node deviate through the normal modifier
-		# pipeline. Falls back to 1 for sparse boards with no such stat.
-		var sp_gain := 1
-		if stat_board.sp_gain_on_levelup != null:
-			sp_gain = roundi(stat_board.sp_gain_on_levelup.value)
-		# Milestone bonus: +1 extra SP on every 5th level (5, 10, 15, ...).
-		if level % 5 == 0:
-			sp_gain += 1
-		stat_board.skill_points.grant(sp_gain)
+		stat_board.skill_points.grant(sp_minted_for_level(level))
 	leveled_up.emit(level)
 	dispatch(&"_on_level_up", [level])
+
+## How many skill points reaching `lvl` mints. A pure function of the level
+## number, deliberately: the model applies a whole multi-level cascade in one
+## synchronous call, so by the time the HUD narrates level 3 of 4, `self.level`
+## already reads 6 — anything narrating a *past* beat must ask about that
+## beat's level, not the entity's current one.
+##
+## D-16 (#271): the per-level yield is a stat, not a hardcoded 1, so a
+## CoreClass/keystone/node can deviate through the normal modifier pipeline.
+## Falls back to 1 for sparse boards with no such stat. The milestone bonus
+## (+1 on every 5th level) rides on top and lives ONLY here — #320 item 7.
+func sp_minted_for_level(lvl: int) -> int:
+	var sp_gain := 1
+	if stat_board != null and stat_board.sp_gain_on_levelup != null:
+		sp_gain = roundi(stat_board.sp_gain_on_levelup.value)
+	if lvl % MILESTONE_LEVEL_INTERVAL == 0:
+		sp_gain += 1
+	return sp_gain
+
 
 ## Listens for health.depleted (Entity's core health reduced to 0) → entity dies.
 func _on_health_depleted() -> void:
