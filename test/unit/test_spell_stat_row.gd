@@ -41,19 +41,30 @@ func test_no_accent_leaves_the_value_on_the_theme_reading() -> void:
 	)
 
 
-func test_accent_is_raised_to_an_emissive_tier() -> void:
+func test_accent_is_raised_to_the_named_tier() -> void:
 	var row := _row()
 	var accent := Color(1.0, 0.85, 0.4)
-	row.bind("Hops", "7", accent, true)
+	row.bind("Hops", "7", accent)
 	var value: Label = row.get_node("%ValueLabel")
 	assert_eq(
 		value.get_theme_color(&"font_color"),
-		Emissive.at(accent, Emissive.VALUE),
-		"emphasis should light the accent at the VALUE tier"
+		Emissive.at(accent, Emissive.LABEL),
+		"the default tier is the non-blooming whisper"
 	)
-	# Same accent without emphasis drops a tier — quieter, still tinted.
-	row.emphasis = false
-	assert_eq(value.get_theme_color(&"font_color"), Emissive.at(accent, Emissive.LABEL))
+	row.accent_tier = SpellStatRow.TIER_VALUE
+	assert_eq(value.get_theme_color(&"font_color"), Emissive.at(accent, Emissive.VALUE))
+
+
+func test_emphasis_does_not_change_the_tier() -> void:
+	# Brightness is accent_tier's job alone — emphasis must not smuggle a row
+	# over the bloom threshold, which is what makes gold a palette claim.
+	var row := _row()
+	var accent := Color(1.0, 0.85, 0.4)
+	row.bind("Hops", "7", accent, true)
+	assert_eq(
+		row.get_node("%ValueLabel").get_theme_color(&"font_color"),
+		Emissive.at(accent, Emissive.LABEL)
+	)
 
 
 func test_emphasis_bumps_the_authored_font_size() -> void:

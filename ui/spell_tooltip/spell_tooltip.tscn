@@ -15,8 +15,6 @@ mouse_filter = 2
 [node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
 unique_name_in_owner = true
 layout_mode = 2
-glow_color = Color(0.291, 0.5892, 1, 0.35)
-glow_strength = 9.0
 
 [node name="Padded" type="MarginContainer" parent="."]
 layout_mode = 2

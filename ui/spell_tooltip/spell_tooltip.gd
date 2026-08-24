@@ -8,13 +8,14 @@ extends MarginContainer
 ## (e.g. hops scaled by [code]spell_range[/code]) are highlighted in
 ## gold.
 ##
-## Reusable: both the spell bar (runtime) and spell playground (editor
-## plugin) can instantiate this scene, call [method show_for] with the
-## spell and optional caster entity, then [method hide_tooltip] on exit.
+## Reusable outside the HUD: instantiate the scene, call [method show_for] with
+## the spell and an optional caster entity, then [method hide_tooltip] on exit.
 
-## Accent worn by any value the caster's own stats moved off the spell's
-## printed base. Gold reads as "this is yours" — a pure positive, which is the
-## only register `.claude/rules/ui-palette.md` allows it in.
+## Accent worn by any value the caster's own stats moved off the spell's printed
+## base. Gold reads as "this is yours" — a pure positive, the only register
+## `.claude/rules/ui-palette.md` allows it in. Deliberately left at the row's
+## default LABEL tier rather than lifted to VALUE: a *blooming* gold is a louder
+## claim on a register already spoken for by XP gain and mythic pickups.
 const DYNAMIC_COLOR: Color = Color(1.0, 0.85, 0.4)
 
 const _ROW := preload("res://ui/spell_tooltip/spell_stat_row.tscn")
@@ -173,7 +174,7 @@ func _tint_mana_label() -> void:
 	if def == null:
 		return
 	_mana_label.add_theme_color_override(
-		&"font_color", Emissive.at(def.tint_color, Emissive.VALUE)
+		&"font_color", Emissive.at(def.tint_color, Emissive.LABEL)
 	)
 
 

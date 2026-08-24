@@ -16,7 +16,8 @@ extends HBoxContainer
 ## for code. Colours come from the theme's Tier* variations (name = TierInert,
 ## the at-threshold reading that never blooms; value = TierValue) and any accent
 ## is raised through [Emissive] — never a hand-picked HDR float, per
-## `.claude/rules/hdr-color.md`.
+## `.claude/rules/hdr-color.md`, and by NAMED TIER from a dropdown rather than a
+## number, so a row cannot quietly start blooming.
 
 ## Left-hand label. Ignored when [member stat_id] names a registered stat.
 @export_placeholder("Damage") var row_label: String = "":
@@ -40,7 +41,7 @@ extends HBoxContainer
 		stat_id = v
 		_apply_stat_def()
 
-## Accent for the value, raised to an emissive tier on the way to the label.
+## Accent for the value, raised to [member accent_tier] on the way to the label.
 ## Alpha 0 (the default) means "no accent" — the value keeps the theme's
 ## TierValue reading. Overwritten when [member stat_id] resolves.
 @export var accent_color: Color = Color(1.0, 1.0, 1.0, 0.0):
@@ -48,9 +49,18 @@ extends HBoxContainer
 		accent_color = v
 		_apply_accent()
 
+## How hard the accent burns. LABEL is a whisper that sits at the bloom
+## threshold; VALUE and above actually glow, so they are a claim on the palette
+## — see `.claude/rules/hdr-color.md` and the gold register in
+## `.claude/rules/ui-palette.md` before reaching past LABEL.
+@export_enum("Inert", "Label", "Value", "Alert") var accent_tier: int = TIER_LABEL:
+	set(v):
+		accent_tier = v
+		_apply_accent()
+
 ## Marks the row as *the* thing to read — used for values the caster's stats
-## moved off the spell's printed base. Costs a tier of glow and two points of
-## font size; meaningless without an [member accent_color].
+## moved off the spell's printed base. Costs font size, not glow: brightness is
+## [member accent_tier]'s job and stays a deliberate choice.
 @export var emphasis: bool = false:
 	set(v):
 		emphasis = v
@@ -62,6 +72,13 @@ extends HBoxContainer
 	set(v):
 		emphasis_size_bump = v
 		_apply_accent()
+
+## `accent_tier` dropdown index → the [Emissive] stop it names.
+const TIER_STOPS: Array[float] = [
+	Emissive.INERT, Emissive.LABEL, Emissive.VALUE, Emissive.ALERT
+]
+const TIER_LABEL: int = 1
+const TIER_VALUE: int = 2
 
 @onready var _name_label: Label = %NameLabel
 @onready var _value_label: Label = %ValueLabel
@@ -90,11 +107,13 @@ func bind(
 	label: String,
 	value_text: String,
 	accent: Color = Color(1.0, 1.0, 1.0, 0.0),
-	emphasise: bool = false
+	emphasise: bool = false,
+	tier: int = TIER_LABEL
 ) -> void:
 	row_label = label
 	value = value_text
 	accent_color = accent
+	accent_tier = tier
 	emphasis = emphasise
 
 
@@ -122,5 +141,5 @@ func _apply_accent() -> void:
 	if accent_color.a <= 0.0:
 		_value_label.remove_theme_color_override(&"font_color")
 		return
-	var stops := Emissive.VALUE if emphasis else Emissive.LABEL
+	var stops: float = TIER_STOPS[clampi(accent_tier, 0, TIER_STOPS.size() - 1)]
 	_value_label.add_theme_color_override(&"font_color", Emissive.at(accent_color, stops))
