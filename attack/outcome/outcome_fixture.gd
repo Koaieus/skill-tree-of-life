@@ -75,6 +75,12 @@ static func capture(source: LaunchAttackCommand, before: int, after: int,
 		notes_: String = "") -> OutcomeFixture:
 	var fixture := OutcomeFixture.new()
 	fixture.command = source.to_dict()
+	# `intent_id` (#548) is minted by `submit()`, so a command captured after
+	# submission carries the submission ordinal it happened to get. That is
+	# noise in a golden — it says nothing about the attack, and it would churn
+	# the fixture on every recapture. Kept out the same way `pre_fingerprint`
+	# and `computed_here` are.
+	fixture.command.erase("intent_id")
 	fixture.world_fingerprint_at_capture = before
 	fixture.expected_fingerprint = after
 	fixture.notes = notes_
