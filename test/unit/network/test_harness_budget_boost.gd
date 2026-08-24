@@ -43,12 +43,26 @@ const BOOSTED_MANA := 200.0
 ## Comparing the two scenes is also the STRONGER assertion. "Red's base is not
 ## 30" passes again the moment someone re-tunes the boost to 40 and leaves it
 ## un-gated — same bug, new constants. "The harness gives Red exactly the board
-## the plain sandbox does" cannot.
+## the plain sandbox does" cannot. `skill_points` is the one pool that can no
+## longer be held to it — see [constant COMPARABLE_POOLS].
 const DEV_SANDBOX := "res://scenes/dev_sandbox.tscn"
 
-## The pools the boost writes, which are therefore the ones worth comparing.
+## The pools the boost writes.
 const BUDGET_POOLS: Array[StringName] = [
 	&"skill_points", &"action_points", &"deallocation_points", &"mana",
+]
+
+## The subset whose `base_value` two live levels can be compared on. Everything
+## but `skill_points`: since dev_sandbox adopted `default_entity_board.tres`
+## (the board that carries `level`), turn-start XP levels Red and a level MINTS
+## skill points into `base_value` — and whether a given level's Red gets that
+## upkeep depends on which TurnManager holds the group when his entity binds
+## ([method Entity._find_turn_manager] is a global group lookup, so two levels
+## in one process do not both get one). The other three are REFILL/ADD pools
+## whose `base_value` no amount of play moves. `skill_points` keeps its own
+## assertion below, against the boost constant.
+const COMPARABLE_POOLS: Array[StringName] = [
+	&"action_points", &"deallocation_points", &"mana",
 ]
 
 
@@ -85,10 +99,14 @@ func test_a_plain_launch_leaves_red_on_the_board_the_plain_sandbox_gives_him() -
 	if boosted == null or baseline == null:
 		return
 
-	for id in BUDGET_POOLS:
+	for id in COMPARABLE_POOLS:
 		assert_eq(boosted.get_stat(id).base_value, baseline.get_stat(id).base_value,
 				"%s: adding a network role must not change Red's budget — " % id \
 				+ "a human launched this to play it, not to sweep it")
+	# The pool the gate is actually about, asserted against the boost rather than
+	# against the other level — see COMPARABLE_POOLS for why it can't be compared.
+	assert_ne(boosted.skill_points.base_value, BOOSTED_SKILL_POINTS,
+			"an unswept launch must not get the sweep's skill points")
 
 
 func test_the_boost_itself_still_does_what_the_sweep_needs() -> void:
