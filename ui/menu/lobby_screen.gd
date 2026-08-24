@@ -146,6 +146,33 @@ func stamp_pending_remote_peer(peer_id: int) -> bool:
 	return false
 
 
+## True when this participant is a remote seat nobody has arrived on yet — the
+## one question a caller outside this file might reasonably ask about the
+## sentinel, answered without exporting the number.
+static func is_pending_remote(p: Participant) -> bool:
+	return p != null and p.kind == Participant.Kind.REMOTE_HUMAN and p.peer_id == _PENDING_PEER_ID
+
+
+## The join half of #554 D2, as a seam the level can call without knowing what
+## a pending seat looks like: give the roster's waiting REMOTE_HUMAN the id the
+## transport just reported. Returns false when there was nothing waiting — a
+## second peer on a two-seat lobby, or a roster that never expected one.
+##
+## Static and roster-shaped (not screen-shaped) because the machine that needs
+## it is the HOST AT LEVEL TIME: the lobby is gone by the time a socket lands,
+## and the live roster is [member GameSession.roster]. The sentinel stays
+## private to this file so no other site has to agree with it.
+static func stamp_pending_remote(roster: ParticipantRoster, peer_id: int) -> bool:
+	if roster == null:
+		return false
+	for p in roster.all():
+		if p.kind == Participant.Kind.REMOTE_HUMAN and p.peer_id == _PENDING_PEER_ID:
+			p.peer_id = peer_id
+			roster.notify_changed(p.id)
+			return true
+	return false
+
+
 func _offers_ai_opponents() -> bool:
 	# Hot-seat coop and versus alike want the control; a host offers it because
 	# it is the host's roster everybody plays. A joining client's own roster is

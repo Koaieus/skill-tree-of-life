@@ -169,3 +169,26 @@ func test_a_versus_roster_survives_the_wire() -> void:
 		assert_eq(rows[i].kind, parts[i].kind)
 		assert_eq(rows[i].peer_id, parts[i].peer_id)
 		assert_eq(rows[i].camp, parts[i].camp)
+
+
+# --- #554 D2: the join stamps the seat the lobby already authored ----------
+
+func test_the_join_stamps_the_pending_remote_seat() -> void:
+	var parts := LobbyScreen.build_participants(
+			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(), 1)
+	var roster := _roster_of(parts)
+	var pending: Participant = parts[1]
+	assert_true(LobbyScreen.is_pending_remote(pending), "authored, nobody home yet")
+
+	assert_true(LobbyScreen.stamp_pending_remote(roster, 4711))
+	assert_eq(pending.peer_id, 4711)
+	assert_false(LobbyScreen.is_pending_remote(pending))
+	assert_false(LobbyScreen.stamp_pending_remote(roster, 4712),
+			"a second peer has no seat waiting for it on a two-seat lobby")
+
+
+func test_stamping_an_offline_roster_finds_nothing() -> void:
+	var roster := _roster_of(LobbyScreen.build_participants(
+			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.offline(), 1))
+	assert_false(LobbyScreen.stamp_pending_remote(roster, 4711))
+	assert_false(LobbyScreen.stamp_pending_remote(null, 4711))
