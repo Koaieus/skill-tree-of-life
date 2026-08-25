@@ -70,7 +70,7 @@ archetype_stat = &"constitution"
 unit_value = -1.0
 pool_weight = 0.3
 tier_bias_k = 0.5
-max_tier = 2
+min_tier = 3
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
 [resource]
