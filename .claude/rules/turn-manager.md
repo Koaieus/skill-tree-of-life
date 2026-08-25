@@ -78,7 +78,7 @@ a default controller to any entity that doesn't have one: `PlayerController`
 where `Entity.is_human_controlled` is set, `AIController` otherwise (#475 —
 this reads the per-entity flag, not entity identity against `self.player`,
 so it scales past a single human). That's the catch-all that keeps
-hand-authored sandbox scenes (`dev_sandbox.tscn`, `first_level_sandbox.tscn`)
+sandbox scenes (`dev_sandbox.tscn`, `first_level_sandbox.tscn`)
 playable without each remembering to wire controllers manually. Explicit
 scene composition wins — `_ensure_controllers()` skips entities that already
 have a child `EntityController`. `GameRoot.apply_roster()` is the

@@ -93,9 +93,9 @@ Three consequences, in the order they bite:
   [node name="Transport" parent="."]
   script = ExtResource("3_transport")   # enet_transport.gd
   ```
-  `mp_dev_sandbox.tscn` does this, and so does `first_level_sandbox.tscn` — the
-  level the menu routes to, which would otherwise be asked to host over a
-  loopback and link to nobody.
+  `mp_dev_sandbox.tscn` does this, and so does `level.tscn` — the level the menu
+  routes to, which would otherwise be asked to host over a loopback and link to
+  nobody. `first_level_sandbox.tscn` inherits it from there (#584).
 - **Never author a SECOND pair.** Before #531 the harness authored its own
   `Transport` / `CommandLink`; once the pair is inherited, doing that gives you
   colliding sibling names and `$Transport` resolves to whichever one Godot

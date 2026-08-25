@@ -16,7 +16,12 @@ extends Control
 ## [method FrontmatterRoot.back], which under a moving camera is the same call
 ## as going forward (#567). Nothing here tracks a history.
 
-const FIRST_LEVEL_SANDBOX := preload("res://scenes/first_level_sandbox.tscn")
+## Where a composed run lands. The BARE level (#584) — no [RunBootstrap], so
+## it has no way to start a run of its own and generates only from the session
+## the lobby already opened. `scenes/first_level_sandbox.tscn` is the same
+## scene plus an authored run, and is an editor-launch convenience that nothing
+## routes to.
+const FIRST_LEVEL_SANDBOX := preload("res://scenes/level.tscn")
 
 @onready var _frontmatter: FrontmatterRoot = %Frontmatter
 

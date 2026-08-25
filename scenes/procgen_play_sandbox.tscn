@@ -2,6 +2,8 @@
 
 [ext_resource type="PackedScene" uid="uid://c13p7m8d4clqu" path="res://scenes/game_root.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://bki8jbn5yvk7u" path="res://scenes/procgen_play_sandbox.gd" id="2_script"]
+[ext_resource type="Script" path="res://session/run_bootstrap.gd" id="8_boot"]
+[ext_resource type="Resource" path="res://session/runs/procgen_play_run.tres" id="9_run"]
 [ext_resource type="Resource" uid="uid://chf1rstvlgexn" path="res://procgen/presets/first_level/first_level.tres" id="3_preset"]
 [ext_resource type="Resource" uid="uid://0icrnqbby6yx" path="res://entity/core/balanced_core.tres" id="4_0xw0k"]
 [ext_resource type="Resource" uid="uid://dr6op7u70t3y" path="res://entity/core/basic_enemy_core.tres" id="5_12m0o"]
@@ -15,8 +17,11 @@ enemy_colors = Array[Color]([Color(0.95, 0.4, 0.4, 1), Color(1, 0.6, 0.2, 1)])
 core_class = ExtResource("4_0xw0k")
 enemy_core_class = ExtResource("5_12m0o")
 node_count_override = 50
-n_random_starters = 1
 viability_radius = 400.0
 expansion_steps = 9
+
+[node name="RunBootstrap" type="Node" parent="." index="0"]
+script = ExtResource("8_boot")
+run_setup = ExtResource("9_run")
 
 [editable path="Graph/FloaterDirector"]

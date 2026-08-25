@@ -14,13 +14,22 @@ extends GameRoot
 ##
 ## The player is seeded with the core node ONLY (D-16's pinned "starting
 ## nodes: 1") -- it is never handed to [member territory_seeder].
+##
+## [b]This level consumes a run; it never invents one (#584).[/b] Both
+## [member GameSession.config] and [member GameSession.roster] must already be
+## populated when [method _setup_level] runs, and the level refuses to generate
+## rather than inventing a substitute. Two composers fill them, and the level
+## cannot tell which: the lobby ([method GameSession.start] from
+## `meta_root.gd`), or a [RunBootstrap] child holding an authored `RunConfig`
+## `.tres` — which is all `scenes/first_level_sandbox.tscn` adds on top of
+## `scenes/level.tscn`. That indifference is the invariant worth keeping: a
+## sandbox that parsed its settings differently from a lobby-launched run would
+## stop being a rehearsal of the real game.
 
 const _STARTER_GROUP := &"procgen_starter"
 const _DEFAULT_CORE_CLASS := preload("res://entity/core/balanced_core.tres")
 const _DEFAULT_ENEMY_CORE_CLASS := preload("res://entity/core/basic_enemy_core.tres")
 const _DEFAULT_TERRITORY_SEEDER := preload("res://procgen/placement/territory_seeder.tres")
-const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
-const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
 @export var preset: GraphProcgenConfig
 @export var player_color: Color = Color(0.4, 0.8, 1.0)
@@ -34,25 +43,7 @@ const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 ## untouched so the same resource can serve multiple sandboxes at different
 ## sizes. 0 = inherit from preset.
 @export var node_count_override: int = 50
-## Starters to scatter on top of the preset's authored [member
-## GraphProcgenConfig.starting_points]. [b]A fallback default[/b] (#553): on the
-## legacy generation path the roster decides the count instead, because a run
-## needs exactly as many starting points as it has contenders. Still the
-## authored value for a preset whose starter count is not roster-driven.
-@export var n_random_starters: int = 1
 @export var viability_radius: float = 400.0
-
-## Camp shape for the [b]fallback[/b] roster only — the one this level builds
-## when it is launched directly (a dev sandbox, a headless test) with no
-## [GameSession.roster] to read. Camp 0 is always the local human; every other
-## camp is AI on the shared NPC faction — this sandbox owns only two Factions,
-## so shapes beyond 2 entries collapse every camp past the first into one NPC
-## camp. A run that came from the menu never reads this: the session's roster
-## decides the shape, and the roster decides how many camps procgen produces.
-##
-## Read through [method _fallback_camp_sizes], never directly, so a subclass can
-## derive the shape from a knob of its own — see `first_level_sandbox.gd`.
-@export var camp_sizes: Array[int] = [1, 1]
 
 ## Shared allocation-pick strategy (#275, D-24) — greedy BFS ball by default.
 ## Injectable so a different level scene can swap in another AllocationPolicy
@@ -75,7 +66,14 @@ func _setup_level() -> void:
 	# already has one; a level launched directly (dev sandbox, headless test)
 	# opens a session here seeded from the preset's authored value — so either
 	# way `cfg.seed` below is concrete and recorded, never a live sentinel.
-	GameSession.ensure_started(cfg.seed)
+	if not GameSession.is_active():
+		push_error("%s: no run is open. A level GENERATES a run, it does not "
+				% name + "invent one — start the session first, from the lobby "
+				+ "or from a RunBootstrap child holding an authored RunConfig.")
+		return
+	# #457: one resolved seed for the whole run, resolved by `GameSession.start`
+	# before anything reached this scene. The preset's authored seed is an
+	# authoring default that the run has already superseded.
 	cfg.seed = GameSession.config.seed
 	if node_count_override > 0:
 		cfg.node_count = node_count_override
@@ -91,15 +89,11 @@ func _setup_level() -> void:
 	# enemy get their faction from an authored [Participant], not from GameRoot
 	# deciding "this entity is named Player".
 	var roster: ParticipantRoster = GameSession.roster
-	var is_fallback_roster := roster == null or roster.all().is_empty()
-	if is_fallback_roster:
-		# FALLBACK, not the default path: no lobby ever ran, so there is nothing
-		# to consume. A menu-launched run always takes the branch above — and on
-		# a client that roster came from the HOST via
-		# [method GameSession.apply_received], which is exactly why this level
-		# must not write one back over it.
-		roster = _fallback_roster()
-		GameSession.roster = roster
+	if roster == null or roster.all().is_empty():
+		push_error("%s: the run has no participants. " % name
+				+ "This level spawns FROM a roster and no longer invents one (#584) — "
+				+ "whoever opened the session owes it a populated `participants` list.")
+		return
 	var grouped_participants := _camp_grouped_participants(roster)
 	cfg.camp_sizes = _camp_sizes(roster, grouped_participants)
 	# The roster decides how many starting points to produce, on BOTH generation
@@ -118,8 +112,13 @@ func _setup_level() -> void:
 			if sp != null:
 				authored += 1
 		cfg.n_random_starters = maxi(0, grouped_participants.size() - authored)
-	else:
-		cfg.n_random_starters = n_random_starters
+	# No `else`. On the `starter_placement` path `plan()` replaces the starter
+	# list wholesale and `GraphProcgen` never reads `n_random_starters` at all
+	# (`graph_procgen.gd` calls `_place_random_starters` only in the other
+	# branch), so the write this used to do had no reader. The scene export it
+	# copied from is gone with it: after #584 the roster is the only thing that
+	# says how many contenders exist, and a second knob that reads like the
+	# opponent count is precisely the defect this issue opened on.
 
 	# Show the loading bar over a black fade so the procgen wall-clock has a
 	# visible heartbeat. SceneTransition is the global fade/progress autoload.
@@ -235,30 +234,6 @@ func _is_this_machines(participant: Participant) -> bool:
 			and participant.is_local(GameSession.local_peer_id))
 
 
-## The roster this level invents when there is no session roster to consume —
-## a directly-launched sandbox or a headless test, never a menu-launched run.
-## Shape comes from [member camp_sizes]: camp 0 is the local human, every other
-## camp is AI on the shared NPC faction.
-##
-## Kept as its own function so the branch that calls it reads as what it is: a
-## fallback, not the default path.
-func _fallback_roster() -> ParticipantRoster:
-	var roster := ParticipantRoster.new()
-	var shape := _fallback_camp_sizes()
-	var next_id := 0
-	for c in shape.size():
-		var camp_faction := _PLAYER_FACTION if c == 0 else _NPC_FACTION
-		var kind := Participant.Kind.HUMAN if c == 0 else Participant.Kind.AI
-		for _m in maxi(0, shape[c]):
-			var participant := Participant.new()
-			participant.id = next_id
-			participant.kind = kind
-			participant.camp = camp_faction
-			roster.add(participant)
-			next_id += 1
-	return roster
-
-
 ## Groups roster participants by camp, in `roster.camps()` order — the shape
 ## #551's `starter_placement.plan()` expects and the order its returned
 ## `StartingPoint`s come back in (camp 0 member 0, camp 0 member 1, camp 1
@@ -293,17 +268,3 @@ func _camp_sizes(roster: ParticipantRoster, grouped: Array[Participant]) -> Arra
 		if idx != -1:
 			sizes[idx] += 1
 	return sizes
-
-
-## The camp shape [method _fallback_roster] builds from — [member camp_sizes] as
-## authored, unless a subclass has a better answer.
-##
-## The seam exists because a scene that only ever wants "one human plus N
-## opponents" should not have to author a second knob that says N when it
-## already has one: two exports that both look like the opponent count is
-## exactly how `first_level_sandbox` ended up spawning one enemy while its
-## inspector read 5 (#584). Overriding this keeps ONE roster builder — the
-## alternative, overriding [method _fallback_roster] itself, would be a second
-## implementation of the same contract.
-func _fallback_camp_sizes() -> Array[int]:
-	return camp_sizes

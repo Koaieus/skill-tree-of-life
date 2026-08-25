@@ -118,6 +118,14 @@ func _humans(participants: Array[Participant]) -> Array[Participant]:
 	return out
 
 
+func _ai(participants: Array[Participant]) -> Array[Participant]:
+	var out: Array[Participant] = []
+	for p in participants:
+		if p.kind == Participant.Kind.AI:
+			out.append(p)
+	return out
+
+
 ## The two networked routes reach their lobby through #531's address screen,
 ## because that screen is the only place a PORT can be typed — a leaf's
 ## [MenuGraph.Route] names a role, not digits. Walking to JOIN and pressing
@@ -202,7 +210,10 @@ func test_join_dials_and_offers_no_ai_opponents() -> void:
 	assert_eq(GameSession.network.port, 7777)
 
 	var cfg := lobby.build_run_config()
-	assert_eq(cfg.ai_opponent_count, 0,
+	# #584 deleted `ai_opponent_count`: the count was always derivable from
+	# `participants`, and a second field describing that list could disagree
+	# with it. Asserted on the list itself, which is what actually reaches a level.
+	assert_eq(_ai(cfg.participants).size(), 0,
 			"a client's own roster is replaced by the host's, so it authors no AI")
 	var humans := _humans(cfg.participants)
 	assert_eq(humans.size(), 2)
@@ -237,7 +248,8 @@ func test_the_resolved_mode_ignores_how_many_ai_join() -> void:
 	var lobby := _lobby()
 	lobby._ai_count_spin.value = 4
 	var cfg := lobby.build_run_config()
-	assert_eq(cfg.ai_opponent_count, 4)
+	assert_eq(_ai(cfg.participants).size(), 4,
+			"the spinbox's four AI reach the run as four AI participants (#584)")
 	assert_eq(cfg.mode, RunConfig.Mode.SINGLE, "AI opponents are not humans")
 
 

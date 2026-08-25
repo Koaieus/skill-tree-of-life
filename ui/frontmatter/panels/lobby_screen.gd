@@ -367,7 +367,6 @@ func build_run_config() -> RunConfig:
 	cfg.mode = resolve_mode(_participants)
 	cfg.seed = _parse_seed(_seed_edit.text if _seed_edit != null else "")
 	cfg.participants = _participants
-	cfg.ai_opponent_count = _ai_opponent_count()
 	return cfg
 
 

@@ -23,6 +23,7 @@ extends GutTest
 ## to catch a future edit that starts rebuilding the roster again.
 
 const _SANDBOX := preload("res://scenes/first_level_sandbox.tscn")
+const _BARE_LEVEL := preload("res://scenes/level.tscn")
 const _CAMP_1 := preload("res://entity/factions/camp_1.tres")
 const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
 const _CAMP_3 := preload("res://entity/factions/camp_3.tres")
@@ -60,21 +61,21 @@ func _participant(id: int, kind: Participant.Kind, camp: Faction, peer_id: int =
 	return p
 
 
-func _launch() -> GameRoot:
-	var root: GameRoot = _SANDBOX.instantiate()
+## [param scene] so the bare level can be launched too — its whole contract is
+## what it does with NO run, which the sandbox (a [RunBootstrap] on top of that
+## same scene) cannot express.
+##
+## #584 deleted the `n_random_starters` pin this used to carry. It existed to
+## hold the starter count below every roster these tests build, so a level that
+## ignored the roster could not pass by luck. That guard is now structural
+## rather than a pin: the export is gone and `_setup_level` derives the count
+## from `roster.all()` on the only surviving path, so there is no knob left for
+## a level to read instead.
+func _launch(scene: PackedScene = _SANDBOX, node_count: int = 40) -> GameRoot:
+	var root: GameRoot = scene.instantiate()
 	root.auto_start_turn = false
-	root.node_count_override = 40
+	root.node_count_override = node_count
 	root.enemy_territory_size = 1
-	# Deliberately pinned BELOW every roster these tests build. The scene authors
-	# 6, which would leave room for a 7-contender roster by luck and let a level
-	# that ignored the roster pass anyway. At 1, the preset's single authored
-	# starting point plus this yields 2 starters — so a test with more than two
-	# participants fails unless the count is genuinely derived.
-	#
-	# It sizes the FALLBACK too: `first_level_sandbox.gd` derives its camp shape
-	# from this same export, so one human plus one AI is what the fallback test
-	# below expects. One knob, deliberately — see that script's docstring.
-	root.n_random_starters = 1
 	add_child(root)
 	_root = root
 	# `_setup_level` is asynchronous — `GraphProcgen.generate` yields a frame per
@@ -122,18 +123,24 @@ func test_the_session_roster_decides_the_contenders_the_camps_and_the_seat() -> 
 
 	var root := await _launch()
 
-	# PIN: `n_random_starters` is pinned to 1 above, so the preset yields 2
-	# starting points unless the count is derived from the roster. A short list
+	# PIN: `first_level.tres` authors ONE starting point, so a level that read
+	# anything other than the roster yields one starter, not four. A short list
 	# trims the spawn (with a warning) rather than failing loudly, which is why
 	# entity count is the assertion.
+	#
+	# Launched through the SANDBOX scene on purpose, though this is the lobby's
+	# path: its [RunBootstrap] child must defer to the run already open rather
+	# than replacing it. That is the pause menu's `reload_current_scene` in
+	# miniature — re-starting there would reroll the seed and swap the map out
+	# from under a player who asked to retry. `assert_same` below is what bites.
 	var spawned := _spawned_entities(root)
 	assert_eq(spawned.size(), 4,
 			"four contenders must get four starting points — the roster decides the "
 			+ "camp count, procgen no longer decides how many opponents exist")
 
-	# PIN: the camps come from the roster, not from the scene. The sandbox's own
-	# fallback only ever authors `player` and `npc`, so camp_1/2/3 appearing at
-	# all is proof the session's roster was the source.
+	# PIN: the camps come from the roster, not from the scene. The sandbox's
+	# authored run names camp_1..camp_6 against six AI, so a THREE-camp spread
+	# across four contenders is reachable only from this test's own roster.
 	var camps: Array[StringName] = []
 	for e in spawned:
 		camps.append(e.faction.id)
@@ -151,25 +158,71 @@ func test_the_session_roster_decides_the_contenders_the_camps_and_the_seat() -> 
 
 	# GUARD (see the class docstring — this does not bite on the code replaced):
 	# the level must never hand a roster back to the session.
+	# Bites twice since #584: it still guards against a level rebuilding the
+	# roster, and now also against the RunBootstrap child clobbering a live run.
 	assert_same(GameSession.roster, roster,
 			"the level CONSUMES the session's roster — replacing the object is the "
 			+ "setup desync #549 describes, and on a client it would discard the "
 			+ "host's roster")
 
 
-func test_direct_launch_with_no_session_roster_falls_back_and_seeds_one() -> void:
-	# Acceptance item 3: launching a level scene directly still works. Nothing
-	# calls GameSession.start here — `ensure_started` in `_setup_level` opens the
-	# session, and the roster is the level's own fallback.
+## #584: the sandbox scene starts its OWN run from an authored `RunConfig`,
+## and the level below it cannot tell that apart from a lobby-composed one.
+##
+## This replaces `..._falls_back_and_seeds_one`. What it inherits: a direct
+## launch still yields a populated map, a local human, and a couch seat. What it
+## gains is the acceptance item the fallback could never meet — the fallback
+## owned two Factions, so every AI past the first collapsed into one allied NPC
+## camp. An authored roster names its camps, so they are genuine rivals.
+func test_direct_launch_starts_the_scenes_own_authored_run() -> void:
 	assert_null(GameSession.roster, "precondition: no lobby ran")
+	assert_false(GameSession.is_active(), "precondition: no session either")
 
-	var root := await _launch()
+	var root := await _launch(_SANDBOX, 300)
 
-	assert_not_null(GameSession.roster,
-			"the fallback branch — and ONLY that branch — seeds the session")
-	assert_eq(GameSession.roster.all().size(), 2,
-			"`n_random_starters = 1` as pinned in `_launch` — one local human, one AI")
-	assert_eq(_spawned_entities(root).size(), 2)
-	assert_not_null(root.player, "the fallback's camp 0 is the local human")
+	assert_true(GameSession.is_active(),
+			"the RunBootstrap child opened the run — the level no longer can")
+	var participants := GameSession.roster.all()
+	assert_eq(participants.size(), 7,
+			"`session/runs/first_level_run.tres` authors one human and six AI")
+	assert_eq(_spawned_entities(root).size(), 7)
+	assert_not_null(root.player, "the authored run's human is this machine's")
 	assert_true(root.seat_policy.follows_active_turn(),
 			"one local human and no other machine is a couch")
+
+	# The acceptance item, and the reason the fallback had to go.
+	var ai_camps := {}
+	for p in participants:
+		if p.kind == Participant.Kind.AI:
+			ai_camps[p.camp.id] = true
+	assert_gt(ai_camps.size(), 1,
+			"the AI must be RIVALS — the deleted fallback put every one of them "
+			+ "on the shared npc faction, i.e. one allied blob")
+
+
+## #584 decision 3: the shipped level cannot invent a run, and that inability is
+## the whole point of the split. `scenes/level.tscn` is `_SANDBOX` minus the
+## [RunBootstrap] child, so this is the one behaviour the two scenes differ on.
+##
+## Both halves of "fails loudly instead of inventing one" are asserted, because
+## either alone is satisfiable by a bug: an empty `entities_container` is also
+## what a level that crashed silently leaves behind, and a `push_error` is also
+## what a level that complained and then generated anyway emits.
+func test_the_bare_level_refuses_to_generate_without_a_run() -> void:
+	assert_false(GameSession.is_active(), "precondition: no lobby ran")
+
+	var root: GameRoot = _BARE_LEVEL.instantiate()
+	root.auto_start_turn = false
+	root.node_count_override = 40
+	add_child(root)
+	_root = root
+	for _f in 30:
+		await wait_physics_frames(1)
+
+	assert_push_error_count(1,
+			"it must fail LOUDLY — a silent empty level is the same symptom as a crash")
+	assert_true(_spawned_entities(root).is_empty(),
+			"the shipped level invented a run — the fallback is back")
+	assert_null(root.player, "and seated somebody in it")
+	assert_false(GameSession.is_active(),
+			"a level must never open a session; `GameSession.start` is a composer's call")

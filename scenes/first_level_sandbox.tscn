@@ -1,30 +1,11 @@
-[gd_scene format=3 uid="uid://blvfst1lvl0xx"]
+[gd_scene load_steps=4 format=3]
 
-[ext_resource type="PackedScene" uid="uid://c13p7m8d4clqu" path="res://scenes/game_root.tscn" id="1_base"]
-[ext_resource type="Script" path="res://scenes/first_level_sandbox.gd" id="2_script"]
-[ext_resource type="Resource" uid="uid://chf1rstvlgexn" path="res://procgen/presets/first_level/first_level.tres" id="3_preset"]
-[ext_resource type="Resource" uid="uid://0icrnqbby6yx" path="res://entity/core/balanced_core.tres" id="4_core"]
-[ext_resource type="Resource" uid="uid://dr6op7u70t3y" path="res://entity/core/basic_enemy_core.tres" id="5_nenm1"]
-[ext_resource type="Resource" path="res://procgen/placement/territory_seeder.tres" id="6_gik01"]
-[ext_resource type="Script" uid="uid://c08gdeaalvasl" path="res://network/enet_transport.gd" id="7_transport"]
+[ext_resource type="PackedScene" uid="uid://blvfst1lvl0xx" path="res://scenes/level.tscn" id="1_level"]
+[ext_resource type="Script" path="res://session/run_bootstrap.gd" id="2_boot"]
+[ext_resource type="Resource" path="res://session/runs/first_level_run.tres" id="3_run"]
 
-[node name="FirstLevelSandbox" unique_id=1716671600 instance=ExtResource("1_base")]
-script = ExtResource("2_script")
-preset = ExtResource("3_preset")
-player_color = Color(0.4, 0.8, 1, 1)
-enemy_colors = Array[Color]([Color(0.95, 0.4, 0.4, 1), Color(1, 0.6, 0.2, 1), Color(0.5, 0.3, 0.85, 1)])
-core_class = ExtResource("4_core")
-enemy_core_class = ExtResource("5_nenm1")
-node_count_override = 0
-n_random_starters = 6
-viability_radius = 300.0
-territory_seeder = ExtResource("6_gik01")
-enemy_territory_size = 3
+[node name="FirstLevelSandbox" instance=ExtResource("1_level")]
 
-[node name="FogOverlay" parent="Graph" parent_id_path=PackedInt32Array(1851662701) index="6" unique_id=1165041791]
-falloff = 0.15
-
-[node name="Transport" parent="." index="5" unique_id=1000000531]
-script = ExtResource("7_transport")
-
-[editable path="Graph/FloaterDirector"]
+[node name="RunBootstrap" type="Node" parent="." index="0"]
+script = ExtResource("2_boot")
+run_setup = ExtResource("3_run")

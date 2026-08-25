@@ -17,10 +17,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 exception is msdfgen (`mise run tools:bootstrap`), which the font pipeline needs.
 
 ```
-godot --editor .                          # open project in editor
-godot --path . scenes/dev_sandbox.tscn    # hand-authored sandbox (player + small graph)
-godot --path . scenes/procgen_play_sandbox.tscn   # procgen level + player + AI starters
+godot --editor .                                  # open project in editor
+godot --path . scenes/dev_sandbox.tscn            # hand-authored, fully baked — instant
+godot --path . scenes/first_level_sandbox.tscn    # THE one to reach for: a real 800-node
+                                                  # playthrough, run authored in session/runs/
+godot --path . scenes/procgen_play_sandbox.tscn   # small procgen proof-of-concept, 50 nodes
 ```
+
+`scenes/level.tscn` is the shipped level and is **not** launchable on its own —
+it generates from whatever run `GameSession` already holds and refuses without
+one. The two sandboxes above are that same scene plus a `RunBootstrap` child
+holding an authored `RunConfig`, which is the only way they differ from a
+lobby-launched run (#584).
 
 No build step or lint tool. Tests are GUT, driven through mise:
 

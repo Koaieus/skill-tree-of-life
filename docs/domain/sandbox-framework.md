@@ -70,9 +70,10 @@ The instinct for anti-drift is: extract `GameRoot`'s `Systems` subtree into a
 reusable `systems.tscn` so everyone instances one wiring source. **Don't** — four
 findings (all verified 2026-06-28) undermine it:
 
-1. **Level scenes already inherit `game_root.tscn`.** `dev_sandbox`,
-   `first_level_sandbox`, and `procgen_play_sandbox` are *inherited scenes* of
-   `game_root.tscn`, so they already share the Systems wiring for free. There is
+1. **Level scenes already inherit `game_root.tscn`.** `dev_sandbox`, `level`,
+   and `procgen_play_sandbox` are *inherited scenes* of `game_root.tscn` (and
+   since #584 `first_level_sandbox` inherits `level` in turn), so they already
+   share the Systems wiring for free. There is
    no drift *between the real levels*. The drift victims are the **standalone
    playgrounds**, which don't inherit it.
 2. **Standalone playgrounds want a *subset*, not the whole bundle.** The

@@ -1,0 +1,81 @@
+[gd_resource type="Resource" script_class="RunConfig" load_steps=16 format=3]
+
+[ext_resource type="Script" path="res://session/run_config.gd" id="1_cfg"]
+[ext_resource type="Script" path="res://session/participant.gd" id="2_p"]
+[ext_resource type="Resource" path="res://entity/factions/player.tres" id="3_player"]
+[ext_resource type="Resource" path="res://entity/factions/camp_1.tres" id="c1"]
+[ext_resource type="Resource" path="res://entity/factions/camp_2.tres" id="c2"]
+[ext_resource type="Resource" path="res://entity/factions/camp_3.tres" id="c3"]
+[ext_resource type="Resource" path="res://entity/factions/camp_4.tres" id="c4"]
+[ext_resource type="Resource" path="res://entity/factions/camp_5.tres" id="c5"]
+[ext_resource type="Resource" path="res://entity/factions/camp_6.tres" id="c6"]
+
+[sub_resource type="Resource" id="p1"]
+script = ExtResource("2_p")
+id = 1
+display_name = "Player 1"
+color = Color(0.4, 0.8, 1, 1)
+camp = ExtResource("3_player")
+kind = 0
+peer_id = 0
+
+[sub_resource type="Resource" id="p2"]
+script = ExtResource("2_p")
+id = 2
+display_name = "AI 1"
+color = Color(0.95, 0.4, 0.4, 1)
+camp = ExtResource("c1")
+kind = 1
+peer_id = 0
+
+[sub_resource type="Resource" id="p3"]
+script = ExtResource("2_p")
+id = 3
+display_name = "AI 2"
+color = Color(1, 0.6, 0.2, 1)
+camp = ExtResource("c2")
+kind = 1
+peer_id = 0
+
+[sub_resource type="Resource" id="p4"]
+script = ExtResource("2_p")
+id = 4
+display_name = "AI 3"
+color = Color(0.5, 0.3, 0.85, 1)
+camp = ExtResource("c3")
+kind = 1
+peer_id = 0
+
+[sub_resource type="Resource" id="p5"]
+script = ExtResource("2_p")
+id = 5
+display_name = "AI 4"
+color = Color(0.4, 0.9, 0.5, 1)
+camp = ExtResource("c4")
+kind = 1
+peer_id = 0
+
+[sub_resource type="Resource" id="p6"]
+script = ExtResource("2_p")
+id = 6
+display_name = "AI 5"
+color = Color(0.55, 0.85, 0.45, 1)
+camp = ExtResource("c5")
+kind = 1
+peer_id = 0
+
+[sub_resource type="Resource" id="p7"]
+script = ExtResource("2_p")
+id = 7
+display_name = "AI 6"
+color = Color(0.85, 0.6, 0.95, 1)
+camp = ExtResource("c6")
+kind = 1
+peer_id = 0
+
+[resource]
+script = ExtResource("1_cfg")
+resource_name = "First Level (direct launch)"
+mode = 0
+seed = 0
+participants = Array[ExtResource("2_p")]([SubResource("p1"), SubResource("p2"), SubResource("p3"), SubResource("p4"), SubResource("p5"), SubResource("p6"), SubResource("p7")])

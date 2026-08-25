@@ -37,6 +37,14 @@ extends "res://scenes/game_root.gd"
 ## [Entity] nodes — no `core_location`, so no graph is needed yet — in the
 ## SAME order the host does, so [Graph]'s per-entry `entity_id` minting
 ## (`graph/graph.gd::_mint_entity_id`) lands on the identical numbers. Only
+## [b]This harness is its own composer, deliberately[/b] — one of the two
+## exceptions to #584's "a level consumes a run, it never invents one". It
+## opens the session itself ([method GameSession.ensure_started]) and writes
+## the roster, because the run it builds is the thing it then SENDS to a peer;
+## there is no lobby upstream of it and a [RunBootstrap] would only be able to
+## author a run it must instead vary per harness case. The other exception is
+## the client half, which receives its run from the host.
+##
 ## once [signal GameSession.run_started] fires (via
 ## [method CommandLink._on_run_setup] → [method GameSession.apply_received])
 ## does it know how many participants there are and in what order; only once

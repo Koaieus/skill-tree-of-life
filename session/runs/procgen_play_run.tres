@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="RunConfig" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://session/run_config.gd" id="1_cfg"]
+[ext_resource type="Script" path="res://session/participant.gd" id="2_p"]
+[ext_resource type="Resource" path="res://entity/factions/player.tres" id="3_player"]
+[ext_resource type="Resource" path="res://entity/factions/camp_1.tres" id="c1"]
+
+[sub_resource type="Resource" id="p1"]
+script = ExtResource("2_p")
+id = 1
+display_name = "Player 1"
+color = Color(0.4, 0.8, 1, 1)
+camp = ExtResource("3_player")
+kind = 0
+peer_id = 0
+
+[sub_resource type="Resource" id="p2"]
+script = ExtResource("2_p")
+id = 2
+display_name = "AI 1"
+color = Color(0.95, 0.4, 0.4, 1)
+camp = ExtResource("c1")
+kind = 1
+peer_id = 0
+
+[resource]
+script = ExtResource("1_cfg")
+resource_name = "Procgen Play (direct launch)"
+mode = 0
+seed = 0
+participants = Array[ExtResource("2_p")]([SubResource("p1"), SubResource("p2")])

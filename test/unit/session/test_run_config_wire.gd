@@ -84,14 +84,12 @@ func test_run_config_round_trip_preserves_every_field() -> void:
 	var source := RunConfig.new()
 	source.mode = RunConfig.Mode.VERSUS
 	source.seed = 20260822
-	source.ai_opponent_count = 2
 	source.participants = _mixed_roster().all()
 
 	var decoded := RunConfig.from_dict(source.to_dict())
 
 	assert_eq(decoded.mode, source.mode)
 	assert_eq(decoded.seed, source.seed)
-	assert_eq(decoded.ai_opponent_count, source.ai_opponent_count)
 	assert_eq(decoded.participants.size(), source.participants.size())
 	for i in range(source.participants.size()):
 		assert_eq(decoded.participants[i].camp, source.participants[i].camp,

@@ -263,7 +263,7 @@ func _adopt_network_role() -> void:
 ## [b]GameRoot never picks the transport CLASS.[/b] It brings up the node at the
 ## fixed path (see [member transport]) in the role it was handed, and a level
 ## authored for real play swaps that node's script for [EnetTransport] —
-## `scenes/first_level_sandbox.tscn` does, the same way the harness does. Asking
+## `scenes/level.tscn` does, the same way the harness does. Asking
 ## a [LoopbackTransport] to host is therefore not an error here; it announces
 ## itself and links to nobody, which is exactly what a level that never meant to
 ## be networked should do.
