@@ -66,5 +66,4 @@ max_tier = 2
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"perception"
-tags = Array[StringName]([&"per"])
 pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("vr_inc"), SubResource("vr_bn"), SubResource("sr")])

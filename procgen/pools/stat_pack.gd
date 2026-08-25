@@ -29,10 +29,6 @@ extends Resource
 ## for universal packs (defensive, mobility) that have no archetype identity.
 @export var archetype_stat: StringName = &""
 
-## Tags shared by this pack; auto-stamped onto every entry at flatten time so
-## weight profiles can target archetype-wide. Validated against [TagRegistry].
-@export var tags: Array[StringName] = []
-
 ## All this pack's stat pools. Each [StatPool] fully describes its
 ## (stat_id, operation, tiers) — the pack is just a grouping for authoring.
 @export var pools: Array[StatPool] = []
@@ -41,7 +37,7 @@ extends Resource
 func format_table() -> String:
 	var lines: PackedStringArray = []
 	var arch := String(archetype_stat) if archetype_stat != &"" else "—"
-	lines.append("StatPack archetype=%s  tags=%s" % [arch, str(tags)])
+	lines.append("StatPack archetype=%s" % arch)
 	for p in pools:
 		if p == null:
 			lines.append("  (null pool)")

@@ -23,5 +23,4 @@ max_tier = 2
 
 [resource]
 script = ExtResource("1_sp")
-tags = Array[StringName]([&"mobility"])
 pools = Array[ExtResource("2_pool")]([SubResource("mv"), SubResource("dp")])

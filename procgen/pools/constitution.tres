@@ -76,5 +76,4 @@ metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"constitution"
-tags = Array[StringName]([&"con", &"defense"])
 pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("nh_inc"), SubResource("ar"), SubResource("int_debuff"), SubResource("Resource_u38nb")])

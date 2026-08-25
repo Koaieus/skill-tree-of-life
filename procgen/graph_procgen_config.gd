@@ -11,6 +11,7 @@ extends Resource
 @export var seed: int = 0
 
 # ── Topology ──────────────────────────────────────────────────────────────
+@export_group("Topology")
 
 ## Target node count. Poisson sampling stops when the active list empties,
 ## so the actual count is bounded by what the shape + spacing allow.
@@ -24,6 +25,7 @@ extends Resource
 ## (densest planar). Spans shortest-edges-first so the result stays organic.
 @export_range(0.0, 1.0) var connectivity: float = 0.55
 
+@export_subgroup("Self-loops")
 ## 4-tier floor-guaranteed staged self-loop draw (#42). Tier 1 draws
 ## `floor(N × p1)` nodes uniformly from all generated nodes (without
 ## replacement); tier k draws `floor(K_{k-1} × p_k)` from the previous tier's
@@ -41,10 +43,12 @@ extends Resource
 
 
 # ── Shape ─────────────────────────────────────────────────────────────────
+@export_group("Shape")
 
 @export var shape_mask: ShapeMask
 
 # ── Starting points ───────────────────────────────────────────────────────
+@export_group("Starting points")
 
 ## Anchor points that MUST become skill nodes. Seeded into the Poisson
 ## sampler before random points, so they're guaranteed to land and the rest
@@ -53,6 +57,7 @@ extends Resource
 ## landed on these (in order) so the caller can wire them as cores.
 @export var starting_points: Array[StartingPoint] = []
 
+@export_subgroup("Random starters")
 ## Extra anchors placed randomly inside [member shape_mask] before Poisson
 ## body sampling — typically the NPC opponents on a level. Each random anchor
 ## is rejection-sampled to keep `> viability_radius` away from every prior
@@ -70,6 +75,7 @@ extends Resource
 ## Bounded retry per random anchor. Hit it without placing → warn and skip.
 @export var random_starter_max_tries: int = 200
 
+@export_subgroup("Camp placement")
 ## Camp-relative annulus placement (#551). Unset (the default) = today's
 ## behaviour — [member starting_points] + [member n_random_starters] drive the
 ## starter list, unchanged, so `first_level.tres` and every existing test are
@@ -85,6 +91,7 @@ extends Resource
 @export var camp_sizes: Array[int] = []
 
 # ── Content: archetypes + modifiers ───────────────────────────────────────
+@export_group("Content")
 
 ## Phased-draw modifier content. The per-node v4 draw spends the rolled
 ## budget until broke across pools whose `archetype_stat` matches the node's
@@ -107,6 +114,7 @@ extends Resource
 ## empty leaves every node archetype-less (and content-less).
 @export var archetypes: Array[ArchetypePolicy] = []
 
+@export_subgroup("Addons & spell grants")
 ## Second-pass addon roll. Unset = no addons attached by procgen.
 @export var addon_policy: AddonPolicy
 
@@ -119,6 +127,7 @@ extends Resource
 @export var spell_grant_pool: SpellGrantPool
 @export_range(0.0, 1.0) var spell_grant_ratio: float = 0.0
 
+@export_subgroup("Placement & balancing")
 ## Pre-roll constraints. Each runs against a [PlacementContext] and may stamp
 ## role tags (consumed by [BudgetPolicy.role_bonus]) or reserve nodes for
 ## special content. See docs/domain/procgen-v2.md "GuaranteedPlacement".
@@ -139,6 +148,7 @@ extends Resource
 @export var archetype_stamps: Array[ArchetypeStamp] = []
 
 # ── Removable blockers (#300) ─────────────────────────────────────────────
+@export_group("Removable blockers")
 
 ## Safety floor for the [member blocker_per_small] / [member blocker_per_medium]
 ## / [member blocker_per_large] denominators, applied at the point of use in
