@@ -31,6 +31,14 @@ extends MultiMeshInstance2D
 ## a constant [constant Edge.VIS_VISIBLE], which `vision_field_dim` passes
 ## through untouched while `vision_field_enabled` is false) and `_clamp_code`
 ## (the Clamp addon, a gameplay thing).
+##
+## [b]The shape is a sigmoid, not a straight segment[/b] (#592, C3): a cubic
+## Bezier whose two control points are pulled purely horizontally off their own
+## endpoint, so the curve leaves the parent heading right and arrives at the
+## child heading right, with all the vertical travel folded into the middle.
+## Drawn as [member curve_segments] straight [QuadMesh] instances chained along
+## that curve — still one [MultiMesh], just more than one instance in it; see
+## [method curve_point].
 
 ## The shader's width is authored in SCREEN pixels and divided by the
 ## `edge_camera_zoom` global uniform at draw time. Only [GraphCamera] writes
@@ -43,6 +51,23 @@ var _from: Vector2 = Vector2.ZERO
 var _to: Vector2 = Vector2.ZERO
 var _color_from: Color = Color.WHITE
 var _color_to: Color = Color.WHITE
+
+## How many straight [QuadMesh] instances approximate the Bezier. The whole
+## menu has nine edges, so cost is irrelevant (#592) — tune for smoothness, not
+## for draw calls.
+@export_range(1, 64, 1) var curve_segments: int = 16:
+	set(value):
+		curve_segments = maxi(1, value)
+		_push_transform()
+		_push_colors()
+
+## How far each control point is pulled off its own endpoint, purely along X.
+## This is what makes the tangent horizontal at both ends — see [method
+## curve_point] — and how pronounced the S-curve reads in the middle.
+@export_range(0.0, 400.0, 1.0) var control_pull: float = 60.0:
+	set(value):
+		control_pull = value
+		_push_transform()
 
 ## Whether this edge reads as "on the focus path" — the edge equivalent of
 ## [member MenuNodeView.allocated]. A lit edge takes the HDR lift below; an
@@ -188,42 +213,99 @@ func _lifted(c: Color) -> Color:
 	)
 
 
-## One unit [QuadMesh] instance, built on demand so a caller may configure this
-## view before it enters the tree. Never authored in the `.tscn`: per-instance
-## MultiMesh data is runtime state, and [Graph] learned the hard way that it
-## must not reach a saved scene.
+## [member curve_segments] unit [QuadMesh] instances, (re)sized on demand so a
+## caller may configure this view before it enters the tree, and so changing
+## [member curve_segments] in the inspector resizes it live. Never authored in
+## the `.tscn`: per-instance MultiMesh data is runtime state, and [Graph]
+## learned the hard way that it must not reach a saved scene.
 func _ensure_mesh() -> void:
-	if multimesh != null:
+	if multimesh != null and multimesh.instance_count == curve_segments:
 		return
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_2D
-	mm.use_colors = true
-	mm.use_custom_data = true
-	mm.mesh = QuadMesh.new()
-	mm.instance_count = 1
-	mm.visible_instance_count = 1
+	var mm := multimesh
+	if mm == null:
+		mm = MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_2D
+		mm.use_colors = true
+		mm.use_custom_data = true
+		mm.mesh = QuadMesh.new()
+	mm.instance_count = curve_segments
+	mm.visible_instance_count = curve_segments
 	multimesh = mm
 
 
-## The transform this view pushes, as a value. Exposed because Godot's headless
-## dummy driver no-ops the whole per-instance MultiMesh read/write path — the
-## same thing that hid the #413 edge-invisibility bug from every headless probe
-## — so `get_instance_transform_2d()` is not something a test can read back.
+## This edge's Bezier sampled at `t` (0..1), in the same space `_from`/`_to`
+## were given — this node's PARENT space, per [method set_endpoints]. Cubic
+## Bezier with both control points pulled purely horizontally off their own
+## endpoint by [member control_pull]:
+## [codeblock]
+## P0 = _from
+## P1 = _from + (pull, 0)
+## P2 = _to   - (pull, 0)
+## P3 = _to
+## [/codeblock]
+## which makes the tangent at t=0 exactly `3*(P1-P0) = (3*pull, 0)` and the
+## tangent at t=1 exactly `3*(P3-P2) = (3*pull, 0)` — pure +X at BOTH ends,
+## independent of how far apart or how vertically offset the two endpoints
+## are. That is the "leaves going right, arrives going right" shape #592 asks
+## for; every real curvature and the whole vertical travel is folded into the
+## middle.
+##
+## Exposed as a pure function — not read back off the [MultiMesh] — because
+## per-instance MultiMesh data does not round-trip headless
+## (`docs/domain/godot-workflow.md`, the blind spot that hid #413): this is
+## what a test asserts against instead.
+func curve_point(t: float) -> Vector2:
+	var p1 := _from + Vector2(control_pull, 0.0)
+	var p2 := _to - Vector2(control_pull, 0.0)
+	var u := 1.0 - t
+	return (
+		_from * (u * u * u)
+		+ p1 * (3.0 * u * u * t)
+		+ p2 * (3.0 * u * t * t)
+		+ _to * (t * t * t)
+	)
+
+
+## The whole edge as ONE straight chord, endpoint to endpoint, in this node's
+## local space (subtracting `position` — the same convention [Graph] uses when
+## it subtracts its own `global_position` before pushing a segment). Predates
+## the curve (#592) and kept for what still reads it: not what the [MultiMesh]
+## is fed since the sigmoid shape landed, but a plain, useful "where does this
+## edge run in a straight line" helper.
 func instance_transform() -> Transform2D:
 	return segment_transform(_from - position, _to - position)
 
 
+## The `index`th straight sub-segment's instance transform, in this node's
+## local space (subtracting `position`, same convention [method
+## instance_transform] uses) — a chord of the Bezier between two adjacent
+## samples, stretched exactly as [method segment_transform] treats any other
+## straight span.
+func segment_instance_transform(index: int) -> Transform2D:
+	var t0 := float(index) / float(curve_segments)
+	var t1 := float(index + 1) / float(curve_segments)
+	return segment_transform(curve_point(t0) - position, curve_point(t1) - position)
+
+
 func _push_transform() -> void:
 	_ensure_mesh()
-	multimesh.set_instance_transform_2d(0, instance_transform())
+	for i in curve_segments:
+		multimesh.set_instance_transform_2d(i, segment_instance_transform(i))
 
 
-## `COLOR` carries endpoint A; `INSTANCE_CUSTOM.rgb` carries endpoint B and its
-## alpha carries the vision state — which is why B's own alpha is not sent:
-## both ends always share one alpha, exactly as [Edge] packs it.
+## `COLOR` carries each instance's own start colour; `INSTANCE_CUSTOM.rgb`
+## carries its end colour and its alpha carries the vision state — which is
+## why the end colour's own alpha is not sent: both ends always share one
+## alpha, exactly as [Edge] packs it. With [member curve_segments] > 1 the raw
+## hue is lerped along the WHOLE curve's `t` first and lifted per segment, so
+## the along-edge gradient — and the lit HDR lift riding on top of it — stays
+## continuous across every instance instead of jumping at segment seams.
 func _push_colors() -> void:
 	_ensure_mesh()
-	var a := endpoint_color(_color_from)
-	var b := endpoint_color(_color_to)
-	multimesh.set_instance_color(0, a)
-	multimesh.set_instance_custom_data(0, Color(b.r, b.g, b.b, Edge.VIS_VISIBLE))
+	for i in curve_segments:
+		var t0 := float(i) / float(curve_segments)
+		var t1 := float(i + 1) / float(curve_segments)
+		var a := endpoint_color(_color_from.lerp(_color_to, t0))
+		var b := endpoint_color(_color_from.lerp(_color_to, t1))
+		multimesh.set_instance_color(i, a)
+		multimesh.set_instance_custom_data(i, Color(b.r, b.g, b.b, Edge.VIS_VISIBLE))

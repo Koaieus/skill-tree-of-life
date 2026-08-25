@@ -226,8 +226,11 @@ func test_the_edge_view_draws_through_the_shipped_edge_material() -> void:
 	assert_eq((edge.material as ShaderMaterial).shader,
 			load("res://graph/edge_mesh.gdshader"))
 	assert_not_null(edge.multimesh)
-	assert_eq(edge.multimesh.instance_count, 1)
-	assert_eq(edge.multimesh.visible_instance_count, 1)
+	# #592: the curve is `curve_segments` chained straight instances, not one —
+	# assert against the export rather than a hardcoded count so this doesn't
+	# re-pin the old single-segment shape.
+	assert_eq(edge.multimesh.instance_count, edge.curve_segments)
+	assert_eq(edge.multimesh.visible_instance_count, edge.curve_segments)
 	assert_true(edge.multimesh.use_colors and edge.multimesh.use_custom_data,
 			"per-endpoint colour is per-instance data, exactly as Graph sends it")
 	assert_eq(edge.multimesh.transform_format, MultiMesh.TRANSFORM_2D)
