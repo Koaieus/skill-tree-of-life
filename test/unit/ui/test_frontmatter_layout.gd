@@ -291,7 +291,7 @@ func test_geometry_is_authored_in_the_harness_scenes_at_the_project_viewport() -
 	assert_almost_eq(hero.y, 480.0, 0.001, "and it fills the height, so it is centred")
 	assert_almost_eq(_column_step(), 306.0, 0.001, "hero 190 -> option column 496")
 	assert_almost_eq(FrontmatterLayout.PREVIEW_SCALE, 0.42, 0.0001)
-	assert_almost_eq(FrontmatterLayout.SPLASH_ZOOM, 2.55, 0.0001)
+	assert_almost_eq(FrontmatterLayout.SPLASH_ZOOM, 3.2, 0.0001)
 	# #593's two authored numbers, in the one place they are authored.
 	assert_almost_eq(FrontmatterLayout.zoom_for(_tree, MenuGraph.ID_ROOT), 1.35, 0.0001,
 			"root_menu.tscn parks the camera closer than TREE_ZOOM")

@@ -326,7 +326,7 @@ static func reset_geometry() -> void:
 
 
 ## The splash (#574) is the root node, alone and close: (50%, 44%) of the
-## viewport at 2.55x. "Press any button" is really allocating the first node of
+## viewport at 3.2x. "Press any button" is really allocating the first node of
 ## the run, so it is the same camera on the same tree, just parked.
 ##
 ## [b]These stay consts, and #593 looked at collapsing them.[/b] They are a
@@ -335,7 +335,11 @@ static func reset_geometry() -> void:
 ## close is this menu"; the splash is "how close is the attract state", which is
 ## a different question about the same node.
 const SPLASH_SLOT_RATIO := Vector2(0.5, 0.44)
-const SPLASH_ZOOM := 2.55
+## Raised from 2.55 by owner call (2026-08-26): [i]"before allocating, possibly
+## zoom it in just a bit more — it's the SPLASH."[/i] The root menu itself parks
+## at 1.35, so this is 2.4x that rather than 1.9x — enough that the attract state
+## reads as one node filling the screen instead of a slightly-closer menu.
+const SPLASH_ZOOM := 3.2
 
 ## The zoom the tree is navigated at, for every fan that does not author one of
 ## its own. 1.0 means one world unit per screen pixel.
