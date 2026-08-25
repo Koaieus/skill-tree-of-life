@@ -353,7 +353,36 @@ A named teammate does *not* run the `Agent` call's `prompt` — it returns
 "will receive instructions via mailbox" and sits idle. This is a **field
 observation (2026-07-30), not documented behaviour** — the tool description
 still presents `prompt` as the task — so if a spawn *does* start working off
-its prompt, believe the spawn and skip step 2. So:
+its prompt, believe the spawn and skip step 2.
+
+**Passing `name` is what makes an agent a teammate** — and therefore what
+costs you the prompt. Easy to add for addressability and silently lose the
+task with it. This bites non-worker spawns too: a `claude-code-guide` given a
+`name` and a full prompt will sit idle exactly the same way.
+
+**Budget one nudge per worker. Do not mistake the first idle for a fast
+finish.** Field observation (2026-08-26, 5/5 workers): after the `SendMessage`
+brief arrives, a teammate performs roughly ONE action from it — in every case
+the `mise run worktree:new` that led the brief — then emits an
+`idle_notification` and stops. It is *not* ignoring the message: the worktree
+exists, at the correct tip, before any nudge. A second `SendMessage` ("you went
+idle, continue, numbered steps follow") then drives the ENTIRE job unattended —
+one worker did two full issues, ~900 lines across 15 files, off a single nudge.
+
+So on every idle notification, **check the branch before reacting**: no commits
+plus a worktree means nudge, not merge. The cause is unsettled — see #595, which
+records the two candidates, the verified upstream lineage (`anthropics/claude-code`
+#28075, #29163 — both CLOSED, and #29163 is a different API surface), and the
+one-line experiment that would settle it (spawn, wait, *then* brief — the only
+option that removes the round-trip rather than absorbing it). Do not write the
+race mechanism in as fact until that has actually been tried.
+
+**Never acknowledge a finished teammate.** A courtesy "thanks, merged" wakes it
+and emits another `idle_notification`, which invites another reply —
+`anthropics/claude-code` #85047, still OPEN. When a worker is done, go quiet and
+merge. Relatedly, a worker whose report crossed with your nudge will re-report
+that it is already finished; that is the same crossing, not a second unit of
+work. So:
 
 **Step 1 — spawn every worker in a single message** (that is what makes them
 run in parallel). Per `Agent` call:

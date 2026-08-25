@@ -511,3 +511,68 @@ engine bump.
 Anything that must be verified as *actually drawn* needs a real frame — see
 "Screenshotting the running game" above. Headless can verify the arithmetic that
 feeds the GPU; it cannot verify that the GPU did anything with it.
+
+## `add_child` fails SILENTLY on a busy parent — and a directly-run scene has `root` busy*
+
+`Node.add_child()` does not raise when the parent is "busy setting up children".
+It prints an error and **does nothing** — the child stays unparented, and the
+next line runs as if it worked.
+
+`root` is exactly that while the `SceneTree` is adding a scene that was run
+DIRECTLY: F6 in the editor, or `run/main_scene`. So any `_ready()` in that scene
+which reaches for `get_tree().root.add_child(...)` is doing it inside the one
+window where it cannot succeed.
+
+This shipped as a real crash (#589/C1): `MenuFanHarness.measure()` parents itself
+to `root` for one synchronous call, because `Container.fit_child_in_rect()`
+early-returns on anything not `is_visible_in_tree()` and a detached Control
+measures every rect as `0x0`. On a direct run it never parented — and the first
+symptom was a null `get_parent()` three calls later, then a missing dictionary
+key, then an assertion naming an unrelated thing. **None of the three errors
+named the cause.**
+
+**How to apply.** If you need a temporary in-tree host during `_ready`:
+
+- Do NOT use `root`. Every **autoload** is a fully-ready child of `root` before
+  any scene is added, so none of them is ever mid-add — one of those is a host
+  that works in both cases.
+- **Verify, do not assume.** Check `is_visible_in_tree()` after parenting and
+  move on if false: some autoloads are invisible by nature (a fade overlay), and
+  a hidden host puts the rects straight back to `0x0`.
+- Check `get_parent() != null` after any `add_child` you cannot supervise, and
+  assert on THAT rather than letting it surface downstream.
+
+Deferring the work (`build.call_deferred()`) also fixes the direct run, and was
+rejected here: it breaks every test that rightly expects the scene to be usable
+once `_ready()` returns.
+
+## Capturing a real rendered frame headlessly — xvfb + opengl3 + x11*
+
+`--headless` renders nothing (dummy driver), so it cannot answer "does this look
+right". To get real pixels without opening a window on the user's desktop:
+
+```
+timeout 60 xvfb-run -a -s "-screen 0 1440x960x24" godot --path . <scene.tscn> \
+    --rendering-driver opengl3 --display-driver x11 --quit-after 180
+```
+
+Both flags are load-bearing. **Vulkan does not work under Xvfb** — it fails with
+*"None of the devices supports both graphics and present queues"* — and without
+`--display-driver x11` Godot tries Wayland first and dies on
+*"Can't connect to a Wayland display"*.
+
+To screenshot rather than just check for errors, run a throwaway scene that
+instantiates the target, `await RenderingServer.frame_post_draw`, then
+`get_viewport().get_texture().get_image().save_png(...)`. Two gotchas:
+
+- **`add_child` the target deferred** (`add_child.call_deferred`) — see the
+  section above; doing it inline reproduces the busy-parent failure.
+- **`Input.action_press()` does not drive `_input`/`_unhandled_input`.** A splash
+  or menu waiting on a real event will not advance. Use
+  `Input.parse_input_event()` with an actual `InputEventKey`, pressed then
+  released.
+
+**Why it matters.** A green suite proves the mechanism, not the picture. The
+#589 swarm shipped six units with the suite green throughout while the menu
+crashed on every direct run, and while one unit's headline visual change was
+invisible on screen. Delete the throwaway scene + script afterwards.
