@@ -43,14 +43,19 @@ func _camera_origin() -> Vector2:
 
 func test_the_camera_starts_parked_on_the_splash_pose_not_the_tree_pose() -> void:
 	# `FrontmatterRoot.build()` ends on `focus(root, true)`, so the camera is at
-	# TREE_ZOOM until the splash takes it back. If this ever reads the tree pose,
-	# the ordering in `meta_root.tscn` has been changed and the splash no longer
-	# runs after the frontmatter.
+	# the ROOT's own tree pose until the splash takes it back. If this ever reads
+	# that pose, the ordering in `meta_root.tscn` has been changed and the splash
+	# no longer runs after the frontmatter.
 	var expected := FrontmatterLayout.splash_camera(_frontmatter.tree)
 	assert_eq(_camera_origin(), expected.origin)
 	assert_almost_eq(FrontmatterLayout.zoom_of(expected).x,
 			FrontmatterLayout.SPLASH_ZOOM, 0.0001)
-	assert_gt(FrontmatterLayout.SPLASH_ZOOM, FrontmatterLayout.TREE_ZOOM,
+	# Re-pointed by #593. The splash's neighbour is the ROOT pose, not the
+	# generic tree zoom — the root menu authors its own zoom now, so comparing
+	# against `TREE_ZOOM` would go on passing while having quietly stopped
+	# testing "the same picture, closer in", which is the whole conceit.
+	assert_gt(FrontmatterLayout.SPLASH_ZOOM,
+			FrontmatterLayout.zoom_for(_frontmatter.tree, _root()),
 			"the splash is the SAME picture, closer in — that is the whole conceit")
 
 
@@ -81,8 +86,10 @@ func test_advancing_travels_the_camera_out_to_the_tree_pose() -> void:
 
 	var expected := FrontmatterLayout.camera_for(_frontmatter.tree, _root())
 	assert_eq(_camera_origin(), expected.origin)
+	# Re-pointed by #593: the pose the splash pulls back to is whatever
+	# `root_menu.tscn` authors, read off the scene rather than restated here.
 	assert_almost_eq(FrontmatterLayout.zoom_of(expected).x,
-			FrontmatterLayout.TREE_ZOOM, 0.0001)
+			FrontmatterLayout.zoom_for(_frontmatter.tree, _root()), 0.0001)
 
 
 func test_advancing_allocates_the_root() -> void:

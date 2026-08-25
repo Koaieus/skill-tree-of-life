@@ -141,7 +141,6 @@ func test_the_hover_picker_offers_every_node_plus_none() -> void:
 ## The acceptance's "visibly affects the running menu", in the half a headless
 ## run can see: a knob change really does reach the live objects.
 func test_a_knob_change_reaches_the_live_objects() -> void:
-	_panel._values[_PANEL_SCRIPT.K_NODE_RADIUS] = 48.0
 	_panel._values[_PANEL_SCRIPT.K_EDGE_UNLIT_ALPHA] = 0.2
 	_panel._values[_PANEL_SCRIPT.K_TRAVEL] = 0.25
 	_panel._values[_PANEL_SCRIPT.K_PEEK_ALPHA] = 0.8
@@ -149,7 +148,6 @@ func test_a_knob_change_reaches_the_live_objects() -> void:
 
 	var root := _frontmatter()
 	assert_almost_eq(root.travel_duration, 0.25, 0.0001)
-	assert_almost_eq(root.view_for(MenuGraph.ID_EXIT).radius, 48.0, 0.0001)
 	assert_almost_eq(root.edge_for(MenuGraph.ID_EXIT).unlit_alpha, 0.2, 0.0001)
 	assert_almost_eq(
 		(root.get_node("%HoverPreview") as HoverPreview).preview_alpha, 0.8, 0.0001
@@ -193,27 +191,42 @@ func test_the_widgets_survive_a_rebuild() -> void:
 ## rebuild mints fresh views, so the tuning only survives because this panel
 ## holds it and pushes it again.
 func test_a_rebuild_keeps_the_tuning() -> void:
-	_panel._values[_PANEL_SCRIPT.K_NODE_RADIUS] = 12.0
+	_panel._values[_PANEL_SCRIPT.K_EDGE_UNLIT_ALPHA] = 0.12
 	_panel._apply_all()
 	_panel._rebuild()
 	var root := _frontmatter()
 	assert_eq(root.focus_id, root.tree.root, "a real cold boot")
 	for id in root.tree.ids():
+		if id == root.tree.root:
+			continue  # the root is nobody's child, so it has no edge
 		assert_almost_eq(
-			root.view_for(id).radius, 12.0, 0.0001, "%s kept the tuned radius" % id
+			root.edge_for(id).unlit_alpha, 0.12, 0.0001, "%s kept the tuned alpha" % id
 		)
 
 
 ## Defaults must match what the shipped scenes already carry, or merely opening
 ## the tab would retune the menu and the first look would be a lie.
+##
+## [b]This test is why the node-radius knob is gone[/b] (#593). It was a single
+## GLOBAL radius written over every view at `DEFAULTS`' 32, so the moment
+## `root_menu.tscn` authored a bigger root, opening the tab shrank it — a live
+## defect, caught here. Radius is authored geometry now (#591), so the tab does
+## not write it at all and this asserts the stronger thing: the AUTHORED radius,
+## per node, is exactly what a fresh menu has.
 func test_the_defaults_change_nothing_on_open() -> void:
 	var root := _frontmatter()
 	var fresh: FrontmatterRoot = load(_ROOT_PATH).instantiate()
 	add_child_autofree(fresh)
 	assert_almost_eq(root.travel_duration, fresh.travel_duration, 0.0001)
-	assert_almost_eq(
-		root.view_for(MenuGraph.ID_ROOT).radius, fresh.view_for(MenuGraph.ID_ROOT).radius, 0.0001
-	)
+	for id in root.tree.ids():
+		var authored: float = FrontmatterLayout.look_of(id).radius
+		assert_almost_eq(root.view_for(id).radius, authored, 0.0001,
+				"'%s' is still the size its slot authors" % id)
+		assert_almost_eq(fresh.view_for(id).radius, authored, 0.0001,
+				"'%s' agrees with a menu the tab never touched" % id)
+	assert_gt(FrontmatterLayout.look_of(MenuGraph.ID_ROOT).radius,
+			FrontmatterLayout.look_of(MenuGraph.ID_EXIT).radius,
+			"and the root is the bigger one, which the old global knob flattened")
 	assert_almost_eq(
 		root.edge_for(MenuGraph.ID_EXIT).unlit_alpha,
 		fresh.edge_for(MenuGraph.ID_EXIT).unlit_alpha,

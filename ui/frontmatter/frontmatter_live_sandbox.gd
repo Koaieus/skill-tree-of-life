@@ -41,7 +41,6 @@ const LAYOUT_SCRIPT_PATH := "res://ui/frontmatter/frontmatter_layout.gd"
 ## drift apart.
 const K_TRAVEL := &"travel_duration"
 const K_REDUCE_MOTION := &"reduce_motion"
-const K_NODE_RADIUS := &"node_radius"
 const K_EDGE_ZOOM := &"edge_camera_zoom"
 const K_EDGE_LIT_ALPHA := &"edge_lit_alpha"
 const K_EDGE_UNLIT_ALPHA := &"edge_unlit_alpha"
@@ -88,7 +87,6 @@ const GEOMETRY_KEYS: Array[StringName] = [
 const DEFAULTS := {
 	K_TRAVEL: 0.85,
 	K_REDUCE_MOTION: false,
-	K_NODE_RADIUS: 32.0,
 	K_EDGE_ZOOM: 1.0,
 	K_EDGE_LIT_ALPHA: 1.0,
 	K_EDGE_UNLIT_ALPHA: 0.55,
@@ -169,8 +167,12 @@ func _build_controls() -> void:
 			"GameSettings.reduce_motion — every transition collapses to one frame")
 	_scrub_row()
 
+	# No node-radius slider: #591 made the radius an authored per-slot value, so
+	# it is tuned in the fan scene's full-screen editor preview like the rest of
+	# the geometry. The knob this replaced was a single GLOBAL radius written
+	# over every view, which since #593's bigger root would have SHRUNK it the
+	# moment the tab opened — see the class docs.
 	_header("NODES + EDGES")
-	_slider(K_NODE_RADIUS, "Node radius", "MenuNodeView.radius, in world units", 8.0, 64.0, 0.5)
 	_slider(K_EDGE_ZOOM, "Edge zoom", "The edge shader's screen-constant width divisor "
 			+ "(edge_camera_zoom) — drag it to see the #453 hairline behaviour", 0.25, 4.0, 0.05)
 	_slider(K_EDGE_LIT_ALPHA, "Lit alpha", "MenuEdgeView.lit_alpha", 0.0, 1.0, 0.01)
@@ -433,9 +435,6 @@ func _apply_all() -> void:
 	MenuEdgeView.push_camera_zoom(_values[K_EDGE_ZOOM])
 
 	for id in _tree_ids():
-		var view := _frontmatter.view_for(id)
-		if view != null:
-			view.radius = _values[K_NODE_RADIUS]
 		var edge := _frontmatter.edge_for(id)
 		if edge != null:
 			edge.lit_alpha = _values[K_EDGE_LIT_ALPHA]
