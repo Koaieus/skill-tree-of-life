@@ -30,16 +30,15 @@ extends Node2D
 signal back_requested
 
 ## How far along the incoming edge, from the hero back toward its parent, the
-## label sits — as a fraction of the design viewport's width.
+## label sits — as a fraction of the viewport's width.
 ##
-## [b]Derived, not picked.[/b] The hero slot is at design x = 190 and a parent
-## sits one column step (306 design px, [constant
-## FrontmatterLayout.COLUMN_STEP_RATIO]) to its left — so at design x = -116,
-## which is the off-screen-left the owner's note describes. The stretch of that
-## edge a player can actually see therefore runs from the screen's left edge to
-## the hero, and its midpoint is half the hero slot's x. Anchoring there puts
-## the label in the middle of the visible run at every depth, because under a
-## camera every depth presents the same picture.
+## [b]Derived, not picked.[/b] The hero slot is at x = 190 and a parent sits one
+## column step (306px, [method FrontmatterLayout.column_step]) to its left — so
+## at x = -116, which is the off-screen-left the owner's note describes. The
+## stretch of that edge a player can actually see therefore runs from the
+## screen's left edge to the hero, and its midpoint is half the hero slot's x.
+## Anchoring there puts the label in the middle of the visible run at every
+## depth, because under a camera every depth presents the same picture.
 const BACK_ANCHOR_RATIO := (190.0 * 0.5) / 1440.0
 
 ## Tier the label rests at. [constant Emissive.INERT] sits exactly at the bloom
@@ -120,7 +119,7 @@ static func anchor_for(hero: Vector2, parent: Vector2) -> Vector2:
 	var length := span.length()
 	if length <= 0.0:
 		return hero
-	var along: float = minf(BACK_ANCHOR_RATIO * FrontmatterLayout.DESIGN_VIEWPORT.x, length * 0.5)
+	var along: float = minf(BACK_ANCHOR_RATIO * FrontmatterLayout.viewport_size().x, length * 0.5)
 	return hero + span / length * along
 
 

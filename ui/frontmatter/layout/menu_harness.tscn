@@ -1,0 +1,29 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/frontmatter/layout/menu_fan_harness.gd" id="1_harness"]
+
+[node name="MenuHarness" type="MarginContainer"]
+offset_right = 1440.0
+offset_bottom = 960.0
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 0
+script = ExtResource("1_harness")
+
+[node name="Row" type="HBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="HeroSlot" type="Control" parent="Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+
+[node name="OptionsVBox" type="VBoxContainer" parent="Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(232, 0)
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 1

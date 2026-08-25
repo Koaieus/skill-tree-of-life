@@ -81,7 +81,7 @@ func test_the_anchor_is_a_point_of_the_incoming_edge() -> void:
 ## The distance is derived from the hero slot, not typed in — half of it, which
 ## is the midpoint of the stretch of edge that is actually on screen.
 func test_the_anchor_sits_midway_along_the_visible_run_of_the_edge() -> void:
-	var hero_x := FrontmatterLayout.slot(FrontmatterLayout.HERO_SLOT_RATIO).x
+	var hero_x := FrontmatterLayout.hero_slot().x
 	var anchor := BackAffordance.anchor_for(Vector2.ZERO, Vector2(-306.0, 0.0))
 	assert_almost_eq(anchor.x, -hero_x * 0.5, 0.001)
 	assert_almost_eq(anchor.y, 0.0, 0.001)

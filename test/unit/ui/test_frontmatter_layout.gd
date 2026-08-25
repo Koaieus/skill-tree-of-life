@@ -31,11 +31,17 @@ func _ids(values: Array) -> Array[StringName]:
 
 
 func _column_step() -> float:
-	return FrontmatterLayout.COLUMN_STEP_RATIO * FrontmatterLayout.DESIGN_VIEWPORT.x
+	return FrontmatterLayout.column_step()
 
 
-func _sibling_gap() -> float:
-	return FrontmatterLayout.SIBLING_GAP_RATIO * FrontmatterLayout.DESIGN_VIEWPORT.y
+## The pitch `parent`'s authored fan actually spaces its children at. Read off
+## the solved positions rather than off a constant: since #590 there is no one
+## sibling gap, each fan authors its own in `ui/frontmatter/layout/`.
+func _fan_pitch(parent: StringName) -> float:
+	var positions := FrontmatterLayout.solve(_tree)
+	var children := _tree.children_of(parent)
+	assert_gt(children.size(), 1, "'%s' has a pitch to measure" % parent)
+	return positions[children[1]].y - positions[children[0]].y
 
 
 # --- 1. tree shape ----------------------------------------------------------
@@ -132,41 +138,52 @@ func test_depth_sets_the_column() -> void:
 	# The option column is one step right of the hero slot, and because nodes
 	# never move that step is the WORLD pitch between a parent and its children,
 	# not something recomputed per focus.
+	#
+	# Re-pointed by #590: the step is no longer a ratio constant, it is
+	# `%HeroSlot`'s authored width in `menu_harness.tscn` — and because every fan
+	# is an INHERITED scene of that one base, every fan shares it. The assertion
+	# is the one it always was; only where the number comes from moved.
 	var positions := FrontmatterLayout.solve(_tree)
+	assert_almost_eq(_column_step(), 306.0, 0.001, "hero slot 190 -> option column 496")
 	for id in _tree.ids():
 		assert_almost_eq(positions[id].x, _tree.depth_of(id) * _column_step(), 0.001,
 				"'%s' sits in its depth's column" % id)
 
 
 func test_leaf_siblings_are_exactly_a_row_gap_apart() -> void:
+	# Re-pointed by #590. The old assertion was "every fan uses THE design row
+	# gap"; a fan authors its own now, so the surviving half is "within one fan
+	# the pitch is uniform", which is what a [VBoxContainer] gives for free and
+	# what a future author could still break with a stray slot height.
 	var positions := FrontmatterLayout.solve(_tree)
 	for parent in [MenuGraph.ID_SINGLE_PLAYER, MenuGraph.ID_MULTIPLAYER]:
 		var children := _tree.children_of(parent)
 		for i in children.size() - 1:
 			assert_almost_eq(positions[children[i + 1]].y - positions[children[i]].y,
-					_sibling_gap(), 0.001,
-					"'%s' spaces its children by the design row gap" % parent)
+					_fan_pitch(parent), 0.001,
+					"'%s' spaces its children by its own authored row gap" % parent)
+	assert_almost_eq(_fan_pitch(MenuGraph.ID_SINGLE_PLAYER), 132.0, 0.001)
+	assert_almost_eq(_fan_pitch(MenuGraph.ID_MULTIPLAYER), 110.0, 0.001)
 
 
-func test_a_sibling_group_is_evenly_spaced_and_centred_on_its_parent() -> void:
+func test_a_sibling_group_is_ordered_and_never_packed_tighter_than_a_peek_stack() -> void:
+	# Re-pointed by #590, which retired "centred on its parent" outright: an
+	# authored fan need not be, and the root fan deliberately is not — its four
+	# rows are 212/168/132/132 tall so that `SINGLE PLAYER` and `MULTIPLAYER`
+	# get the room their peek-ahead stacks need WITHOUT `OPTIONS -> EXIT`
+	# inheriting it, which is the defect #589 measured.
+	#
+	# What survives is everything that is still a rule rather than a taste: a fan
+	# runs top-to-bottom in tree order, and no two siblings sit closer than a
+	# collapsed peek stack's own pitch. Evenness is asserted per fan by
+	# `test_leaf_siblings_are_exactly_a_row_gap_apart`.
 	var positions := FrontmatterLayout.solve(_tree)
 	for parent in _tree.ids():
 		var children := _tree.children_of(parent)
-		if children.is_empty():
-			continue
-		var pitches: Array[float] = []
-		var mean := 0.0
-		for i in children.size():
-			mean += positions[children[i]].y
-			if i > 0:
-				pitches.append(positions[children[i]].y - positions[children[i - 1]].y)
-		for pitch in pitches:
-			assert_almost_eq(pitch, pitches[0], 0.001,
-					"'%s' spaces its children evenly" % parent)
-			assert_true(pitch >= _sibling_gap() - 0.001,
-					"'%s' never packs children tighter than the design gap" % parent)
-		assert_almost_eq(mean / children.size(), positions[parent].y, 0.001,
-				"'%s' sits level with the middle of its children" % parent)
+		for i in range(1, children.size()):
+			var pitch: float = positions[children[i]].y - positions[children[i - 1]].y
+			assert_true(pitch >= FrontmatterLayout.PREVIEW_GAP - 0.001,
+					"'%s' never packs children tighter than a peek stack" % parent)
 
 
 ## Where every node actually sits when the menu is focused on [param focus] —
@@ -212,8 +229,7 @@ func test_no_two_nodes_crowd_each_other_in_any_reachable_focus() -> void:
 				if absf(a.x - b.x) >= _column_step() * 0.5:
 					continue
 				assert_true(
-					absf(a.y - b.y) >= FrontmatterLayout.PREVIEW_GAP_RATIO
-						* FrontmatterLayout.DESIGN_VIEWPORT.y - 0.001,
+					absf(a.y - b.y) >= FrontmatterLayout.PREVIEW_GAP - 0.001,
 					"at focus '%s', '%s' and '%s' overlap on screen"
 						% [focus, ids[i], ids[j]]
 				)
@@ -234,7 +250,7 @@ func test_every_reachable_focus_fits_on_screen() -> void:
 
 func test_a_fan_that_is_too_tall_is_reported_as_not_fitting() -> void:
 	# fits_viewport has to be able to FAIL, or the test above passes vacuously.
-	FrontmatterLayout.SIBLING_GAP_RATIO = 1.0
+	FrontmatterLayout.set_fan_separation(MenuGraph.ID_ROOT, 900.0)
 	assert_false(
 		FrontmatterLayout.fits_viewport(_tree, _tree.root),
 		"a fan spread a whole viewport apart does not fit"
@@ -249,27 +265,92 @@ func test_the_preview_column_is_the_collapsed_peek_ahead_offset() -> void:
 	var slots := FrontmatterLayout.preview_slots(_tree, MenuGraph.ID_MULTIPLAYER)
 	var children := _tree.children_of(MenuGraph.ID_MULTIPLAYER)
 	assert_eq(slots.size(), children.size())
-	var column := FrontmatterLayout.PREVIEW_COLUMN_RATIO * FrontmatterLayout.DESIGN_VIEWPORT.x
-	var gap := FrontmatterLayout.PREVIEW_GAP_RATIO * FrontmatterLayout.DESIGN_VIEWPORT.y
+	var column := FrontmatterLayout.PREVIEW_COLUMN
+	var gap := FrontmatterLayout.PREVIEW_GAP
 	var origin: Vector2 = positions[MenuGraph.ID_MULTIPLAYER]
 	for i in children.size():
 		var at: Vector2 = slots[children[i]]
 		assert_almost_eq(at.x - origin.x, column, 0.001, "preview column offset")
 		assert_almost_eq(at.y - origin.y, (i - 1) * gap, 0.001, "preview stack pitch")
-	assert_true(gap < _sibling_gap(), "the peek-ahead stack is tighter than the real one")
+	assert_true(gap < _fan_pitch(MenuGraph.ID_MULTIPLAYER),
+			"the peek-ahead stack is tighter than the real one")
 	assert_eq(FrontmatterLayout.preview_slots(_tree, MenuGraph.ID_JOIN), {},
 			"a leaf has nothing to peek at")
 
 
-func test_geometry_is_authored_as_ratios_of_a_design_viewport() -> void:
-	# Not 1440x900 literals: every constant is a fraction, so the layout keeps
-	# its proportions when #578's live tab retunes the viewport.
-	assert_almost_eq(FrontmatterLayout.HERO_SLOT_RATIO.x, 190.0 / 1440.0, 0.0001)
-	assert_almost_eq(FrontmatterLayout.HERO_SLOT_RATIO.y, 0.5, 0.0001)
+func test_geometry_is_authored_in_the_harness_scenes_at_the_project_viewport() -> void:
+	# Re-pointed by #590. The old version pinned six ratios of a 1440x900 design
+	# canvas that was deliberately NOT the 1440x960 project viewport; #589 D4
+	# deleted that second size outright, so the same numbers are now asserted
+	# where they are now authored — the harness scenes — at the one viewport
+	# there is.
+	assert_eq(FrontmatterLayout.viewport_size(), Vector2(1440.0, 960.0),
+			"the harness is authored at the project viewport, and there is no other")
+	var hero := FrontmatterLayout.hero_slot()
+	assert_almost_eq(hero.x, 190.0, 0.001, "%HeroSlot is 380 wide, so its centre is 190")
+	assert_almost_eq(hero.y, 480.0, 0.001, "and it fills the height, so it is centred")
 	assert_almost_eq(_column_step(), 306.0, 0.001, "hero 190 -> option column 496")
-	assert_almost_eq(_sibling_gap(), 132.0, 0.001)
 	assert_almost_eq(FrontmatterLayout.PREVIEW_SCALE, 0.42, 0.0001)
 	assert_almost_eq(FrontmatterLayout.SPLASH_ZOOM, 2.55, 0.0001)
+
+
+func test_every_menu_id_is_seated_in_exactly_one_authored_slot() -> void:
+	# #589 D5: the scenes carry geometry, `MenuGraph` carries topology, and the
+	# 1:1 between them is checked at build rather than discovered as a node that
+	# never drew. An unseated id has no position at all, which is why
+	# `solve()` asserts rather than falling back.
+	var seated: Array[StringName] = []
+	for hero_id in FrontmatterLayout.fan_ids():
+		var fan: Dictionary = FrontmatterLayout.fans()[hero_id]
+		assert_true(_tree.has(hero_id), "'%s' fans out from a known id" % hero_id)
+		for slot_id: StringName in (fan[&"slots"] as Dictionary):
+			assert_false(seated.has(slot_id), "'%s' is seated once" % slot_id)
+			assert_eq(_tree.parent_of(slot_id), hero_id,
+					"'%s' is seated in its own parent's fan" % slot_id)
+			seated.append(slot_id)
+	for id in _tree.ids():
+		if id == _tree.root:
+			continue
+		assert_true(seated.has(id), "'%s' has an authored slot" % id)
+	assert_eq(seated.size(), _tree.size() - 1, "the root is the one node with no slot")
+
+
+func test_the_root_fan_owns_its_own_gaps() -> void:
+	# The numeric case #589 makes for authoring: the shipped solver derived 201
+	# for the root fan — 52% looser than every fan below it — because
+	# `MULTIPLAYER`'s collapsed peek stack had to clear `SINGLE PLAYER`'s, and it
+	# then applied that same looseness to `OPTIONS -> EXIT`, which needed none.
+	var positions := FrontmatterLayout.solve(_tree)
+	var options := _tree.children_of(MenuGraph.ID_ROOT)
+	var gaps: Array[float] = []
+	for i in range(1, options.size()):
+		gaps.append(positions[options[i]].y - positions[options[i - 1]].y)
+	assert_eq(gaps.size(), 3)
+	assert_almost_eq(gaps[0], 190.0, 0.001, "SINGLE PLAYER -> MULTIPLAYER, authored")
+	assert_almost_eq(gaps[1], 150.0, 0.001, "MULTIPLAYER -> OPTIONS")
+	assert_almost_eq(gaps[2], 132.0, 0.001,
+			"OPTIONS -> EXIT is two leaves, and pays for nobody's peek stack")
+	assert_true(gaps[0] < 201.0, "no neighbour's subtree forces the root fan's pitch")
+
+
+func test_the_harness_is_freed_before_anything_can_animate() -> void:
+	# #589 D3. The harness is a `Control` tree in SCREEN space; the menu is
+	# `Node2D` views under a `Camera2D` in WORLD space. A harness left alive
+	# would re-lay-out on a window resize under a camera that had already baked
+	# its numbers — a second layout system racing the first. So: solving reads
+	# it and drops it, and a built menu contains no piece of it.
+	FrontmatterLayout.solve(_tree)
+	for node in get_tree().root.find_children("*", "MenuFanHarness", true, false):
+		assert_true(false, "a fan harness is still in the tree: %s" % node)
+
+	var root: FrontmatterRoot = preload(
+			"res://ui/frontmatter/frontmatter_root.tscn").instantiate()
+	add_child_autofree(root)
+	root.build(_tree)
+	assert_eq(root.find_children("*", "MenuFanHarness", true, false).size(), 0,
+			"build() leaves no harness behind")
+	assert_eq(root.find_children("*", "MenuSlot", true, false).size(), 0,
+			"nor any of its slots")
 
 
 # --- 3. "nodes never move", machine-checked ---------------------------------
@@ -315,7 +396,7 @@ func test_solve_is_identical_across_camera_moves() -> void:
 
 func _assert_lands_on_hero(focus: StringName) -> void:
 	var xform := FrontmatterLayout.camera_for(_tree, focus)
-	var hero := FrontmatterLayout.slot(FrontmatterLayout.HERO_SLOT_RATIO)
+	var hero := FrontmatterLayout.hero_slot()
 	var landed := FrontmatterLayout.screen_to_world(xform, hero)
 	var want: Vector2 = FrontmatterLayout.solve(_tree)[focus]
 	assert_almost_eq(landed.x, want.x, 0.001, "'%s' lands on the hero slot" % focus)

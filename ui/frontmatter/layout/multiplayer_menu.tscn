@@ -1,0 +1,25 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/frontmatter/layout/menu_harness.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/frontmatter/layout/menu_slot.gd" id="2_slot"]
+
+[node name="MultiplayerMenu" instance=ExtResource("1_base")]
+hero_id = &"multiplayer"
+
+[node name="LocalSlot" type="Control" parent="Row/OptionsVBox" index="0"]
+custom_minimum_size = Vector2(0, 110)
+layout_mode = 2
+script = ExtResource("2_slot")
+menu_id = &"local"
+
+[node name="HostSlot" type="Control" parent="Row/OptionsVBox" index="1"]
+custom_minimum_size = Vector2(0, 110)
+layout_mode = 2
+script = ExtResource("2_slot")
+menu_id = &"host"
+
+[node name="JoinSlot" type="Control" parent="Row/OptionsVBox" index="2"]
+custom_minimum_size = Vector2(0, 110)
+layout_mode = 2
+script = ExtResource("2_slot")
+menu_id = &"join"

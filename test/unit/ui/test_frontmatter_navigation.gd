@@ -30,7 +30,7 @@ func before_each() -> void:
 
 
 func _hero_world() -> Vector2:
-	return FrontmatterLayout.slot(FrontmatterLayout.HERO_SLOT_RATIO)
+	return FrontmatterLayout.hero_slot()
 
 
 ## Where the camera actually puts a design-viewport point, right now.
