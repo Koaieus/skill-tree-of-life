@@ -417,3 +417,111 @@ func test_a_rebuild_does_not_eat_the_scene_authored_affordances() -> void:
 	assert_not_null(_root.get_node_or_null("%BackAffordance"), "survives a rebuild too")
 	assert_eq(_root.view_for(MenuGraph.ID_ROOT).get_parent(), _root.get_node("%GraphLayer"),
 			"and the views really were rebuilt, not merely left alone")
+
+
+# --- the mouse (#583) ---------------------------------------------------------
+
+func test_hovering_a_view_reaches_the_peek_ahead() -> void:
+	# The seam #571 and #575 were built against and nothing drove: a view's own
+	# pick region now reports the hover, and both light up with no further
+	# wiring.
+	_root.view_for(MenuGraph.ID_MULTIPLAYER).hover_entered.emit()
+	assert_eq(_root._hover_preview.hovered_id, MenuGraph.ID_MULTIPLAYER)
+
+
+func test_leaving_a_view_only_clears_ITS_own_hover() -> void:
+	# `mouse_exited` on the node you left arrives AFTER `mouse_entered` on the
+	# one you moved onto when two hit areas touch. Clearing unconditionally would
+	# blank the hover you had just acquired.
+	_root.view_for(MenuGraph.ID_MULTIPLAYER).hover_entered.emit()
+	_root.view_for(MenuGraph.ID_SINGLE_PLAYER).hover_exited.emit()
+	assert_eq(
+		_root._hover_preview.hovered_id, MenuGraph.ID_MULTIPLAYER,
+		"the stale exit did not clear the live hover"
+	)
+
+
+func test_clicking_a_view_navigates_to_it() -> void:
+	_root.view_for(MenuGraph.ID_MULTIPLAYER).activated.emit()
+	assert_eq(_root.focus_id, MenuGraph.ID_MULTIPLAYER)
+
+
+func test_clicking_a_disabled_view_does_nothing() -> void:
+	# LOAD GAME, while #23 save/load is parked. Refusing is a better answer than
+	# navigating to a node the keyboard already refuses to commit to.
+	_root.focus(MenuGraph.ID_SINGLE_PLAYER, true)
+	_root.view_for(MenuGraph.ID_LOAD_GAME).activated.emit()
+	assert_eq(_root.focus_id, MenuGraph.ID_SINGLE_PLAYER, "the click was refused")
+
+
+func test_a_click_and_a_keypress_navigate_through_the_same_call() -> void:
+	# One navigation path for both devices — the pose snapshot is identical
+	# whichever one got there, so `navigation_state()` cannot tell them apart.
+	_root.view_for(MenuGraph.ID_MULTIPLAYER).activated.emit()
+	var clicked := _root.navigation_state()
+	_root.focus(MenuGraph.ID_ROOT, true)
+	_root.focus(MenuGraph.ID_MULTIPLAYER, true)
+	assert_eq(_root.navigation_state(), clicked)
+
+
+func test_nothing_above_the_menu_swallows_the_mouse() -> void:
+	# GUI picking runs BEFORE physics picking and before `_unhandled_input`, so a
+	# full-rect Control anywhere over the graph eats every click on its way down.
+	# `MetaRoot` is exactly that — anchors_preset 15 over the whole viewport —
+	# and it defaulted to MOUSE_FILTER_STOP, which is why menu clicks never
+	# registered even once the views had hit areas.
+	var meta: Control = load("res://scenes/meta/meta_root.tscn").instantiate()
+	add_child_autofree(meta)
+	await wait_frames(2)
+	assert_eq(
+		meta.mouse_filter, Control.MOUSE_FILTER_IGNORE,
+		"the meta shell is a layout container, not a click target"
+	)
+	var panels: Control = meta.find_children("*", "FrontmatterPanels", true, false)[0]
+	assert_false(panels.visible, "and the panel layer starts hidden, so nor is it")
+
+
+func test_a_real_click_reaches_a_menu_node_through_the_whole_shell() -> void:
+	# [b]The only test here that does not drive a seam.[/b] Every other mouse
+	# test emits `activated` or calls `_gui_input` directly, and the shipped
+	# defect was that nothing ever CALLED those — the event died higher up. So
+	# this one synthesizes a real [InputEventMouseButton] at the node's real
+	# position and pushes it through `meta_root.tscn` entire: MetaRoot, the
+	# splash, the panel CanvasLayer, the camera, the pick region.
+	#
+	# It runs in its OWN [SubViewport] at the project's viewport size, not in
+	# GUT's: `add_child` here would put the shell under the runner's UI, and the
+	# click would land on GUT before it ever reached the menu — a harness
+	# artifact indistinguishable from the bug being tested.
+	#
+	# If anything ever grows a full-rect MOUSE_FILTER_STOP over the graph again,
+	# this is the test that fails and none of the others do.
+	var host := SubViewport.new()
+	host.size = FrontmatterLayout.viewport_size()
+	host.handle_input_locally = true
+	host.gui_disable_input = false
+	add_child_autofree(host)
+	var meta: Control = load("res://scenes/meta/meta_root.tscn").instantiate()
+	host.add_child(meta)
+	await wait_frames(2)
+	var frontmatter: FrontmatterRoot = meta.get_node("%Frontmatter")
+	frontmatter.reduce_motion = true
+	meta.get_node("%Splash").visible = false
+	await wait_frames(2)
+
+	var target := MenuGraph.ID_MULTIPLAYER
+	var pick: Control = frontmatter.view_for(target).get_node("%PickRegion")
+	# Viewport-local, so the camera's canvas transform is included and no camera
+	# arithmetic is repeated here.
+	var at: Vector2 = pick.get_global_transform_with_canvas() * (pick.size * 0.5)
+
+	for pressed in [true, false]:
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = pressed
+		click.position = at
+		click.global_position = at
+		host.push_input(click, true)
+		await wait_frames(2)
+
+	assert_eq(frontmatter.focus_id, target, "the click navigated the menu")

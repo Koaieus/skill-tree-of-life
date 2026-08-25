@@ -72,13 +72,18 @@ func _ready() -> void:
 ## Idempotent, so a rebuild (#578's live tab) can re-bind without stacking
 ## connections.
 func bind(frontmatter: FrontmatterRoot) -> void:
-	if _frontmatter != null and _frontmatter.focus_changed.is_connected(_on_focus_changed):
-		_frontmatter.focus_changed.disconnect(_on_focus_changed)
+	if _frontmatter != null:
+		if _frontmatter.focus_changed.is_connected(_on_focus_changed):
+			_frontmatter.focus_changed.disconnect(_on_focus_changed)
+		if _frontmatter.focus_started.is_connected(_on_focus_started):
+			_frontmatter.focus_started.disconnect(_on_focus_started)
 	_frontmatter = frontmatter
 	if _frontmatter == null:
 		return
 	if not _frontmatter.focus_changed.is_connected(_on_focus_changed):
 		_frontmatter.focus_changed.connect(_on_focus_changed)
+	if not _frontmatter.focus_started.is_connected(_on_focus_started):
+		_frontmatter.focus_started.connect(_on_focus_started)
 	_seat_cursor()
 
 
@@ -189,8 +194,24 @@ func grab_panel_focus() -> void:
 		panel.back_button.grab_focus()
 
 
-func _on_focus_changed(_id: StringName) -> void:
+## The focus has CHANGED, so the fan the cursor picks from has changed with it —
+## reseat immediately, while the camera is still travelling.
+##
+## [b]The cursor must never outlive the fan it was seated in.[/b] It used to be
+## reseated on [signal FrontmatterRoot.focus_changed], which fires on ARRIVAL, so
+## for the whole 850ms of travel `cursor` still named a child of the node being
+## left behind. `ui_left` then `ui_right` mid-flight read as "go back, then
+## commit to a node that is now a GRANDCHILD" and skipped a level. Departure is
+## the only correct moment: focus is a fact about where the menu IS going.
+func _on_focus_started(_id: StringName) -> void:
 	_seat_cursor()
+
+
+## The camera has ARRIVED. The cursor is already correct (see
+## [method _on_focus_started]); what is left is the thing that genuinely needs a
+## settled menu — handing the keyboard to a panel that has just been raised,
+## which only happens at `t == 1`.
+func _on_focus_changed(_id: StringName) -> void:
 	if _panel_is_up():
 		grab_panel_focus()
 

@@ -13,6 +13,9 @@ extends Node2D
 ## gameplay behaviour this menu has no use for. `test_menu_node_view.gd` walks
 ## the built tree and asserts none of those classes is anywhere in it.
 ##
+## The mouse is a [MenuNodePickRegion] child — see that file for why the hit
+## area is a [Control] rather than an [Area2D] (#583).
+##
 ## The general rule this is an instance of (#567, restated by the owner on
 ## #569): [i]"the visuals are reusable" is a claim about a scene or a shader,
 ## not about the class that drives it.[/i] The composite passes that test;
@@ -78,14 +81,28 @@ const _LABEL_GAP := 10.0
 		radius = value
 		_sync_radius()
 
+## The mouse found this node, or left it. Raised by the [MenuNodePickRegion]
+## child and re-emitted here so a caller binds to the VIEW and never has to know
+## the hit area exists (#583).
+signal hover_entered
+signal hover_exited
+
+## A left click landed on the disk. #570 answers it exactly as #576's
+## `ui_accept` is answered, through the same [method FrontmatterRoot.focus].
+signal activated
+
 @onready var _visuals: Node2D = %Visuals
 @onready var _label: Label = %Title
+@onready var _pick: MenuNodePickRegion = %PickRegion
 
 
 func _ready() -> void:
 	_sync_identity()
 	_sync_radius()
 	_sync_label()
+	_pick.mouse_entered.connect(hover_entered.emit)
+	_pick.mouse_exited.connect(hover_exited.emit)
+	_pick.activated.connect(activated.emit)
 
 
 ## Everything the model knows about one node, in one call — what #570 uses when
@@ -132,6 +149,10 @@ func _sync_radius() -> void:
 	_visuals.configure(radius)
 	_visuals.geom_outer_r = radius
 	_visuals.geom_inner_r = radius * _INNER_RADIUS_RATIO
+	# The hit area is the disk, so it is sized from the same number rather than
+	# authored alongside it — a rim that grew past its pick region would be
+	# clickable only in the middle.
+	_pick.radius = radius
 
 
 ## Caption: Cinzel from the project theme's `CinzelHeader` variation, tinted by

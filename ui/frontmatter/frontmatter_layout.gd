@@ -29,9 +29,83 @@ extends RefCounted
 ## resolution-independent on screen (#578's live tab tunes them).
 
 
-## The canvas these ratios were measured on. Never used as a screen size — only
-## to convert a design pixel into the fraction it is of the layout.
+## The canvas the ratios below were measured on. Never used as a screen size —
+## only to convert a design pixel into the fraction it is of the layout.
+##
+## [b]It is NOT the project's viewport, and the difference is deliberate.[/b]
+## `project.godot` renders into 1440x960 with `stretch/mode = "canvas_items"` and
+## `stretch/aspect = "keep"`, so the visible world at [constant TREE_ZOOM] is
+## always exactly [method viewport_size] units whatever window the player has —
+## that stretch is what makes ONE authored geometry correct at every resolution,
+## and it is why nothing here ever asks how big the window is. The `Game
+## Frontmatter` canvas was drawn at 1440x900; laying that out inside a 960-tall
+## viewport simply leaves 30 units of slack above and below, which is the margin
+## [method fits_viewport] measures against.
+##
+## Keep the two apart. #578's live tab bakes design pixels into its own
+## `DEFAULTS`, so redefining this as "the screen" silently desyncs every knob's
+## reset value from the number the panel shows.
 const DESIGN_VIEWPORT := Vector2(1440.0, 900.0)
+
+
+## What the player actually sees, in world units at [constant TREE_ZOOM].
+##
+## The one place this file reads the project, and it answers exactly one
+## question: does a fan fit on screen. Layout is authored against [constant
+## DESIGN_VIEWPORT]; whether the result CLEARS the window is a different question
+## with a different number, and conflating them is what let the root fan overflow
+## unnoticed. Fallbacks match `project.godot`.
+static func viewport_size() -> Vector2:
+	return Vector2(
+		float(ProjectSettings.get_setting("display/window/size/viewport_width", 1440)),
+		float(ProjectSettings.get_setting("display/window/size/viewport_height", 960))
+	)
+
+
+## Whether the menu you are LOOKING at is on screen when [param tree] is focused
+## on [param focus_id] — the hero and the fan it opens.
+##
+## [b]Deliberately not "every node".[/b] Two things are off screen BY DESIGN.
+## Focusing a child moves the camera onto it, sliding that child's own siblings
+## off toward the edge — a skill tree scrolling past where you came from. And the
+## hero's parent is a whole column step LEFT of a hero slot that sits at 13% of
+## the width, so the back edge trails off the left margin, which is the framing
+## the design canvas draws.
+##
+## What must never happen is an option you are being asked to choose between
+## having no pixels on screen, which is exactly what shipped: the root's four
+## options spanned +/-495 in a 960-unit viewport and two of them were undrawable.
+##
+## [param margin] is the clearance a node needs beyond its own ink — a
+## [MenuNodeView] draws a disk of `radius` and hangs its caption below it, so the
+## default covers both rather than testing bare centres.
+static func fits_viewport(
+	tree: MenuGraph, focus_id: StringName, margin: Vector2 = Vector2(140.0, 100.0)
+) -> bool:
+	if tree == null or not tree.has(focus_id):
+		return true
+	var xform := camera_for(tree, focus_id)
+	var view := viewport_size()
+	var positions := solve(tree)
+	var must_show: Array[StringName] = [focus_id]
+	must_show.append_array(tree.children_of(focus_id))
+	for id in must_show:
+		# `(W - position) * zoom + centre`, exactly as [method camera_at]
+		# documents it. Written multiplicatively rather than as a second hand-
+		# rolled inverse of the same transform: dividing happens to agree at
+		# [constant TREE_ZOOM] 1.0 and would silently disagree the moment #578's
+		# tab tunes the zoom.
+		var on_screen := (positions[id] as Vector2 - xform.origin) * zoom_of(xform) + view * 0.5
+		if (
+			on_screen.x < margin.x
+			or on_screen.y < margin.y
+			or on_screen.x > view.x - margin.x
+			or on_screen.y > view.y - margin.y
+		):
+			return false
+	return true
+
+
 
 ## [b]The six geometry ratios below are `static var`, not `const`, so #578's live
 ## sandbox tab can retune them and rebuild the menu in place.[/b] They are read
@@ -100,11 +174,10 @@ const TREE_ZOOM := 1.0
 ## whatever the camera has been doing in between.
 ##
 ## Layout is a tidy tree — depth sets x, and a sibling group is spread evenly
-## about its parent's y at a pitch wide enough that no two subtrees can overlap.
-## The alternative (every group at exactly [constant SIBLING_GAP_RATIO]) reads
-## fine one branch at a time but interleaves cousins in the same column, which
-## under a camera that shows a whole column at once is a collision, not a
-## detail.
+## about its parent's y at a pitch wide enough that adjacent siblings' collapsed
+## stacks clear each other. See [method _group_gap] for why the clearance is
+## measured collapsed rather than against the whole subtree, and
+## `test_frontmatter_layout.gd` for the assertion that every fan fits on screen.
 static func solve(tree: MenuGraph) -> Dictionary:
 	var positions: Dictionary = {}
 	if tree == null or tree.root == &"":
@@ -213,28 +286,56 @@ static func _place(
 
 
 ## The pitch a sibling group is spread at: the design gap, widened just enough
-## that the two fattest adjacent subtrees still clear each other by that same
+## that adjacent siblings' COLLAPSED stacks still clear each other by that same
 ## gap. Uniform across the group, so "siblings are evenly spaced" stays true at
 ## every depth — only the number changes.
+##
+## [b]Clearance is measured against the collapsed stack, not the whole
+## subtree.[/b] That is a consequence of #570's "grow, don't cut": a view sits at
+## its [method solve] home only while its parent is on the focus path, and every
+## other subtree in the tree is stacked on its own parent at
+## [method preview_slots] — [constant PREVIEW_GAP_RATIO] pitch, [constant
+## PREVIEW_SCALE] size. So when a fan is on screen, its siblings' descendants
+## occupy a stack tens of units tall, never the hundreds their expanded homes
+## would span.
+##
+## Reserving the expanded span was the original rule, and it is why the root fan
+## did not fit: `SINGLE PLAYER` and `MULTIPLAYER` demanded `66 + 132 + 132 = 330`
+## between them, that pitch was applied uniformly to all four root options, and
+## the outer two landed at `±495` in a 960-unit viewport. The recursion also made
+## the root fan two and a half times looser than every fan below it, which reads
+## as an inconsistency rather than as breathing room.
+##
+## [b]At most one sibling in a group is ever expanded[/b] — they share a parent,
+## so at most one can be an ancestor-or-self of the focus — and that one's fan
+## sits a column to the right of the neighbour it would have to clear. The
+## column pitch plus this gap is what separates them, which is why the expanded
+## span does not belong in this sum at all.
 static func _group_gap(tree: MenuGraph, children: Array[StringName]) -> float:
 	var gap := SIBLING_GAP_RATIO * DESIGN_VIEWPORT.y
 	for i in children.size() - 1:
-		var needed := _half_extent(tree, children[i]) + _half_extent(tree, children[i + 1]) + gap
+		var needed := (
+			_collapsed_extent(tree, children[i])
+			+ _collapsed_extent(tree, children[i + 1])
+			+ gap
+		)
 		gap = maxf(gap, needed)
 	return gap
 
 
-## Half the vertical span of [param id]'s whole subtree, in world units. A leaf
-## is a point (0); an internal node reaches as far as its outermost child's own
-## reach. Bottom-up, so a deep branch pushes its ancestors' siblings apart
-## rather than growing into them.
-static func _half_extent(tree: MenuGraph, id: StringName) -> float:
+## Half the vertical span [param id]'s subtree occupies while [param id] is NOT
+## on the focus path — the only state a sibling of an expanded fan can be in.
+##
+## Its children rest at [method preview_slots], and their own children rest
+## stacked on them by the same rule, so this recurses at the peek-ahead pitch
+## rather than at the sibling pitch. A leaf is a point.
+static func _collapsed_extent(tree: MenuGraph, id: StringName) -> float:
 	var children := tree.children_of(id)
 	if children.is_empty():
 		return 0.0
-	var gap := _group_gap(tree, children)
+	var gap := PREVIEW_GAP_RATIO * DESIGN_VIEWPORT.y
 	var reach := 0.0
 	for i in children.size():
 		var offset: float = absf((float(i) - float(children.size() - 1) * 0.5) * gap)
-		reach = maxf(reach, offset + _half_extent(tree, children[i]))
+		reach = maxf(reach, offset + _collapsed_extent(tree, children[i]))
 	return reach

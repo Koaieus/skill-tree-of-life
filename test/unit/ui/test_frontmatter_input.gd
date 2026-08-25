@@ -273,3 +273,49 @@ func test_the_face_buttons_are_a_stopgap_the_action_map_does_not_cover() -> void
 		for event in InputMap.action_get_events(action):
 			assert_false(event is InputEventJoypadButton,
 					"'%s' now binds a joypad button — retire the stopgap" % action)
+
+
+# --- mid-flight: the cursor may never outlive its fan ------------------------
+
+## These run with the transitions ON, which is why they were missing: every
+## other test in this file sets `reduce_motion = true` in `before_each`, and a
+## menu that arrives in the same frame it sets off has no window in which the
+## cursor can go stale.
+func _travelling() -> void:
+	_frontmatter.reduce_motion = false
+	_frontmatter.travel_duration = 0.85
+
+
+func test_the_cursor_reseats_when_the_camera_sets_off_not_when_it_arrives() -> void:
+	_travelling()
+	_send(_key(KEY_RIGHT))  # commit to Single Player, camera now travelling
+	assert_eq(_frontmatter.focus_id, MenuGraph.ID_SINGLE_PLAYER, "focus is already there")
+	assert_eq(_input.cursor, MenuGraph.ID_NEW_GAME, "and so is the cursor, mid-flight")
+
+
+func test_back_then_forward_mid_flight_does_not_skip_a_level() -> void:
+	# The shipped bug, exactly (#576 follow-up). The cursor was seated on
+	# `focus_changed`, which fires on ARRIVAL, so for the whole 850ms of travel
+	# it still named a child of the node being left behind: pressing `ui_left`
+	# and then `ui_right` committed to a GRANDCHILD of the node the camera had
+	# just returned to.
+	_travelling()
+	_frontmatter.focus(MenuGraph.ID_SINGLE_PLAYER, true)
+	assert_eq(_input.cursor, MenuGraph.ID_NEW_GAME)
+
+	_send(_key(KEY_LEFT))
+	assert_eq(_frontmatter.focus_id, MenuGraph.ID_ROOT, "heading back to the root")
+	assert_eq(_input.cursor, MenuGraph.ID_SINGLE_PLAYER, "on the root's fan already")
+
+	_send(_key(KEY_RIGHT))
+	assert_eq(
+		_frontmatter.focus_id, MenuGraph.ID_SINGLE_PLAYER,
+		"forward from the root is one level, not two"
+	)
+
+
+func test_stepping_mid_flight_walks_the_fan_being_travelled_to() -> void:
+	_travelling()
+	_send(_key(KEY_RIGHT))  # to Single Player, mid-flight
+	_send(_key(KEY_DOWN))
+	assert_eq(_input.cursor, MenuGraph.ID_LOAD_GAME, "the new fan, not the old one")

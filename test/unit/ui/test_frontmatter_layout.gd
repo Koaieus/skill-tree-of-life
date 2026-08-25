@@ -169,18 +169,77 @@ func test_a_sibling_group_is_evenly_spaced_and_centred_on_its_parent() -> void:
 				"'%s' sits level with the middle of its children" % parent)
 
 
-func test_no_two_nodes_in_a_column_crowd_each_other() -> void:
-	# Cousins share a column. Spacing each group at exactly the design gap reads
-	# fine one branch at a time and interleaves cousins on screen — under a
-	# camera that shows a whole column at once, that is a collision.
-	var positions := FrontmatterLayout.solve(_tree)
-	var ids := _tree.ids()
-	for i in ids.size():
-		for j in range(i + 1, ids.size()):
-			if _tree.depth_of(ids[i]) != _tree.depth_of(ids[j]):
-				continue
-			assert_true(absf(positions[ids[i]].y - positions[ids[j]].y) >= _sibling_gap() - 0.001,
-					"'%s' and '%s' share a column and must clear each other" % [ids[i], ids[j]])
+## Where every node actually sits when the menu is focused on [param focus] —
+## the test's own copy of [method FrontmatterRoot._target_pose]'s rule, so the
+## assertions below are about what is ON SCREEN rather than about `solve()`'s
+## homes, which most nodes are not at most of the time.
+func _poses_at(focus: StringName) -> Dictionary:
+	var homes := FrontmatterLayout.solve(_tree)
+	var path := _tree.path_to(focus)
+	var poses: Dictionary = {}
+	for id: StringName in homes:
+		var parent := _tree.parent_of(id)
+		if parent == &"" or path.has(parent):
+			poses[id] = homes[id]
+		else:
+			poses[id] = FrontmatterLayout.preview_slots(_tree, parent).get(id, homes[id])
+	return poses
+
+
+func test_no_two_nodes_crowd_each_other_in_any_reachable_focus() -> void:
+	# Cousins share a column, and under a camera that shows a whole column at
+	# once an interleave is a collision.
+	#
+	# It is asserted per FOCUS, not over `solve()`'s homes, because only the
+	# focus path's fans are grown out at any moment (#570's "grow, don't cut") —
+	# everything else is stacked on its parent at the peek-ahead pitch. Asserting
+	# it over the homes instead means demanding that subtrees which are never
+	# expanded together still clear each other, which is what inflated the root
+	# fan to 990 units of a 960-unit viewport.
+	#
+	# `solve()` stays focus-free; this walks every focus a player can reach and
+	# checks the pictures it produces, which is the honest form of the claim.
+	for focus in _tree.ids():
+		var poses := _poses_at(focus)
+		var ids := _tree.ids()
+		for i in ids.size():
+			for j in range(i + 1, ids.size()):
+				var a: Vector2 = poses[ids[i]]
+				var b: Vector2 = poses[ids[j]]
+				# Only nodes near enough in x to overlap on screen — a home
+				# column and the peek-ahead column beside it are 22 units apart,
+				# so this cannot be an equality.
+				if absf(a.x - b.x) >= _column_step() * 0.5:
+					continue
+				assert_true(
+					absf(a.y - b.y) >= FrontmatterLayout.PREVIEW_GAP_RATIO
+						* FrontmatterLayout.DESIGN_VIEWPORT.y - 0.001,
+					"at focus '%s', '%s' and '%s' overlap on screen"
+						% [focus, ids[i], ids[j]]
+				)
+
+
+func test_every_reachable_focus_fits_on_screen() -> void:
+	# The assertion the layout could not make before [method
+	# FrontmatterLayout.fits_viewport] existed, and the one that would have
+	# caught the shipped bug: at the root the four options spanned +/-495 in a
+	# 960-unit viewport, so two of them were simply not drawn anywhere a player
+	# could see.
+	for focus in _tree.ids():
+		assert_true(
+			FrontmatterLayout.fits_viewport(_tree, focus),
+			"focus '%s' puts a grown-out node off screen" % focus
+		)
+
+
+func test_a_fan_that_is_too_tall_is_reported_as_not_fitting() -> void:
+	# fits_viewport has to be able to FAIL, or the test above passes vacuously.
+	FrontmatterLayout.SIBLING_GAP_RATIO = 1.0
+	assert_false(
+		FrontmatterLayout.fits_viewport(_tree, _tree.root),
+		"a fan spread a whole viewport apart does not fit"
+	)
+	FrontmatterLayout.reset_geometry()
 
 
 func test_the_preview_column_is_the_collapsed_peek_ahead_offset() -> void:

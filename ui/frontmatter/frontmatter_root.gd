@@ -38,6 +38,22 @@ const _EDGE_VIEW := preload("res://ui/frontmatter/menu_edge_view.tscn")
 ## Emitted once the camera has settled on a new focus. #574/#576 hang off this.
 signal focus_changed(id: StringName)
 
+## Emitted the instant [member focus_id] changes — when the camera SETS OFF,
+## not when it arrives.
+##
+## [b]Two signals, because "where the menu is" and "where the camera is" are
+## different questions during a transition[/b], and anything that decides what
+## the NEXT input means has to answer the first one. [FrontmatterInput] reseats
+## its cursor on this: seating it on [signal focus_changed] left the cursor
+## pointing into the previous fan for the whole 850ms of travel, so pressing
+## `ui_left` and then `ui_right` mid-flight committed to a GRANDCHILD of the node
+## the camera had just returned to — one level skipped, from one stale
+## [StringName]. Pinned by `test_frontmatter_input.gd`'s mid-flight tests.
+##
+## Anything that decorates an ARRIVAL — the splash handoff, a panel being raised
+## — still wants [signal focus_changed]. Do not merge them.
+signal focus_started(id: StringName)
+
 ## Seconds a full navigation takes: the camera travel and the sprout together.
 ## #567's table gives 850ms for hero travel; the sprout rides the same clock
 ## with a snappier curve rather than a duration of its own.
@@ -122,6 +138,10 @@ func focus(id: StringName, instant: bool = false) -> void:
 	_sync_allocation()
 	_capture_transition()
 	camera.travel_to(id)
+	# Before the transition is driven, so a listener that reseats input state
+	# cannot be beaten to it by `set_progress(1.0)`'s `focus_changed` on the
+	# instant path.
+	focus_started.emit(focus_id)
 	if instant or reduce_motion or travel_duration <= 0.0:
 		set_progress(1.0)
 		return
@@ -161,6 +181,13 @@ func set_progress(t: float) -> void:
 		var s: float = lerpf(from[1] as float, to[1] as float, eased)
 		view.scale = Vector2(s, s)
 	_push_edges()
+	# The tooltip is parked in SCREEN space beside a node that is still moving,
+	# so it has to be re-parked every frame of the travel. It used to be placed
+	# once, from `set_hovered` — harmless while the cursor was only seated on
+	# arrival, and a stranded slab the moment seating moved to departure
+	# (`focus_started`), because the pose it read was the outgoing one.
+	if _tooltip != null and _tooltip.visible:
+		_place_tooltip(_hover_preview.hovered_id)
 	if _progress >= 1.0 and not _settled:
 		_settled = true
 		_route_focus_panel()
@@ -201,12 +228,10 @@ func edge_for(id: StringName) -> MenuEdgeView:
 
 ## Points the hover affordances at [param id], or clears them with `&""`.
 ##
-## [b]Nothing calls this yet in play, and that is a known gap, not an
-## oversight.[/b] [MenuNodeView] has no pickable region — no [Area2D], no
-## [Control] hit area, and its title [Label] is `MOUSE_FILTER_IGNORE` — so no
-## menu node can currently report a hover. #571 and #575 are complete and
-## tested against a driven id; whoever gives menu nodes a pick region calls
-## this and both light up with no further wiring. See #583.
+## Called by the mouse (each view's [MenuNodePickRegion], wired in
+## [method _build_views]) and by the keyboard ([FrontmatterInput] treats its
+## cursor as a hover) — one seam, so the peek-ahead and the tooltip cannot tell
+## the two apart and there is no second highlight rule to keep in sync.
 func set_hovered(id: StringName) -> void:
 	_hover_preview.apply(focus_id, id)
 	# `bind` owns its own visibility — it hides itself on a null item or on one
@@ -381,7 +406,36 @@ func _build_views() -> void:
 		_graph_layer.add_child(view)
 		view.bind(tree.get_item(id))
 		view.position = homes[id]
+		view.hover_entered.connect(set_hovered.bind(id))
+		view.hover_exited.connect(_on_hover_exited.bind(id))
+		view.activated.connect(_on_view_activated.bind(id))
 		_views[id] = view
+
+
+## The mouse left [param id]. Guarded on it still BEING the hovered node so that
+## the exit of the node you just left cannot clear the hover of the one you have
+## already entered — `mouse_exited` and `mouse_entered` arrive in that order when
+## two hit areas touch.
+func _on_hover_exited(id: StringName) -> void:
+	if _hover_preview.hovered_id == id:
+		set_hovered(&"")
+
+
+## A click on a node navigates to it — the same call `ui_accept` makes, so mouse
+## and keyboard cannot drift into two navigation paths (#576's rule, restated
+## for the mouse).
+##
+## [b]It navigates to the node CLICKED, not to a cursor[/b], and it refuses a
+## disabled one exactly as [method FrontmatterInput.commit] does. Clicking a node
+## that is not a child of the focus is not special-cased: [method focus] accepts
+## any id in the tree, and the collapsed nodes that would make it surprising are
+## already unclickable — [HoverPreview] holds their pick regions at
+## `MOUSE_FILTER_IGNORE`.
+func _on_view_activated(id: StringName) -> void:
+	var item := tree.get_item(id)
+	if item == null or item.disabled:
+		return
+	focus(id)
 
 
 ## One edge per parent/child pair, keyed by the CHILD's id — a tree, so a child

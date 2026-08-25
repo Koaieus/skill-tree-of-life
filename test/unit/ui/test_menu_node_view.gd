@@ -319,3 +319,47 @@ func test_the_camera_zoom_the_shader_reads_is_pushable() -> void:
 	assert_not_null(registered, "the shader global the menu pushes is registered")
 	assert_eq((registered as Dictionary)["type"], "float")
 	MenuEdgeView.push_camera_zoom(2.0)
+
+
+# --- the pick region (#583) ---------------------------------------------------
+
+func _pick_of(view: MenuNodeView) -> MenuNodePickRegion:
+	return view.get_node("%PickRegion") as MenuNodePickRegion
+
+
+func test_the_hit_area_is_a_control_so_hover_preview_can_disable_it() -> void:
+	# [HoverPreview] enforces "a peek-ahead is not clickable" by walking a view's
+	# Control descendants. An Area2D would be invisible to that walk, so a
+	# collapsed node would stay clickable through its own preview — which is a
+	# second picking rule to keep in sync with the first.
+	var view: MenuNodeView = _NODE_VIEW.instantiate()
+	add_child_autofree(view)
+	var pick := _pick_of(view)
+	assert_not_null(pick, "the view has a pick region")
+	assert_true(pick is Control, "and it is a Control")
+	assert_eq(pick.mouse_filter, Control.MOUSE_FILTER_STOP, "which takes the mouse")
+	assert_eq(
+		HoverPreview._controls_under(view).find(pick) >= 0, true,
+		"and HoverPreview's walk can see it"
+	)
+
+
+func test_the_hit_area_is_a_disk_the_size_of_the_node() -> void:
+	var view: MenuNodeView = _NODE_VIEW.instantiate()
+	add_child_autofree(view)
+	view.radius = 48.0
+	var pick := _pick_of(view)
+	assert_almost_eq(pick.radius, 48.0, 0.001, "the hit area follows the radius")
+	assert_true(pick._has_point(pick.size * 0.5), "the centre is inside")
+	assert_false(pick._has_point(Vector2.ZERO), "a corner of the rect is not")
+
+
+func test_a_left_click_reaches_the_view_as_one_signal() -> void:
+	var view: MenuNodeView = _NODE_VIEW.instantiate()
+	add_child_autofree(view)
+	watch_signals(view)
+	var click := InputEventMouseButton.new()
+	click.button_index = MOUSE_BUTTON_LEFT
+	click.pressed = true
+	_pick_of(view)._gui_input(click)
+	assert_signal_emitted(view, "activated")
