@@ -35,9 +35,11 @@ extends VBoxContainer
 ## gets a tooltip iff it carries a slab or a description, so SINGLE PLAYER and
 ## MULTIPLAYER get their joke and the ROOT (children, no content) gets nothing.
 ##
-## [b]The slab's text comes from the model[/b] ([member MenuGraph.Item.subtitle],
-## authored as `"+1 PLAYERS"`), split here rather than restated — there must be
-## one source for the joke, and it is the one the node itself is captioned from.
+## [b]The slab's text comes from the authored slot[/b] ([member
+## MenuSlot.subtitle], authored as `"+1 PLAYERS"` in `root_menu.tscn`), split
+## here rather than restated — there must be one source for the joke, and it is
+## the one the node itself is captioned from. #591 moved it off [MenuGraph],
+## which now carries topology and routing only.
 ##
 ## [b]It fades, it never hides.[/b] Nothing here ever writes `visible = false`:
 ## a hidden [Control] skips layout, which is what breaks size convergence in the
@@ -74,8 +76,8 @@ const _BODY_TINT_MIX := 0.3
 ## Scale the tooltip starts at when [method set_progress]'s `t` is 0.
 @export_range(0.5, 1.0, 0.01) var start_scale: float = 0.92
 
-## The item currently described, null for none.
-var item: MenuGraph.Item = null
+## The look currently described, null for none.
+var look: MenuSlot.Look = null
 
 
 func _ready() -> void:
@@ -90,35 +92,35 @@ func _ready() -> void:
 	set_progress(0.0)
 
 
-## Describes [param menu_item], or empties the tooltip when that item has
+## Describes [param menu_look], or empties the tooltip when that node has
 ## nothing to say. Safe to call with null.
-func bind(menu_item: MenuGraph.Item) -> void:
-	item = menu_item
+func bind(menu_look: MenuSlot.Look) -> void:
+	look = menu_look
 	_clear_rows()
-	if not has_content(menu_item):
-		item = null
+	if not has_content(menu_look):
+		look = null
 		set_progress(0.0)
 		_fit()
 		return
-	var tint := tint_for(menu_item)
-	var slab := slab_text(menu_item)
+	var tint := tint_for(menu_look)
+	var slab := slab_text(menu_look)
 
-	_add_row(SLAB_HEADER if not slab.is_empty() else menu_item.title, tint, _HEADER_TINT_MIX)
+	_add_row(SLAB_HEADER if not slab.is_empty() else menu_look.title, tint, _HEADER_TINT_MIX)
 	if not slab.is_empty():
 		_add_row(slab, tint, _BODY_TINT_MIX)
-	var text := describe(menu_item.id)
+	var text := describe(menu_look.id)
 	if not text.is_empty():
 		_add_row(text, tint, _BODY_TINT_MIX)
 	_fit()
 
 
-## Whether [param menu_item] has anything to show — a slab, a description, or
+## Whether [param look] has anything to show — a slab, a description, or
 ## neither. The whole of "what gets a tooltip"; see the class docs on why this
 ## is a content question rather than a leaf/non-leaf one.
-static func has_content(menu_item: MenuGraph.Item) -> bool:
-	if menu_item == null:
+static func has_content(look: MenuSlot.Look) -> bool:
+	if look == null:
 		return false
-	return not slab_for(menu_item).is_empty() or not describe(menu_item.id).is_empty()
+	return not slab_for(look).is_empty() or not describe(look.id).is_empty()
 
 
 ## The one-liner for a menu id, or `""`.
@@ -133,11 +135,11 @@ static func describe(id: StringName) -> String:
 ## other way round, so the split happens here. A subtitle that is not a signed
 ## value followed by a name is not a modifier and yields no slab, rather than a
 ## row reading `+0 SOMETHING`.
-static func slab_for(menu_item: MenuGraph.Item) -> Array:
+static func slab_for(look: MenuSlot.Look) -> Array:
 	var empty: Array = []
-	if menu_item == null:
+	if look == null:
 		return empty
-	var text := menu_item.subtitle.strip_edges()
+	var text := look.subtitle.strip_edges()
 	if text.is_empty():
 		return empty
 	var parts := text.split(" ", false, 1)
@@ -151,8 +153,8 @@ static func slab_for(menu_item: MenuGraph.Item) -> Array:
 
 ## The joke rendered the way a granted-modifier row reads it — `"PLAYERS +1"`,
 ## name first — or `""` for an item that carries no slab.
-static func slab_text(menu_item: MenuGraph.Item) -> String:
-	var slab := slab_for(menu_item)
+static func slab_text(look: MenuSlot.Look) -> String:
+	var slab := slab_for(look)
 	if slab.is_empty():
 		return ""
 	return "%s %s" % [slab[0] as String, _format_value(slab[1] as float)]
@@ -160,10 +162,10 @@ static func slab_text(menu_item: MenuGraph.Item) -> String:
 
 ## The identity colour the tooltip is tinted by — the same archetype colour the
 ## node itself renders at, read through #569's map so there is no second one.
-static func tint_for(menu_item: MenuGraph.Item) -> Color:
-	if menu_item == null:
+static func tint_for(look: MenuSlot.Look) -> Color:
+	if look == null:
 		return Color.WHITE
-	var archetype := MenuNodeView.archetype_for(menu_item.archetype)
+	var archetype := MenuNodeView.archetype_for(look.archetype)
 	return archetype.color if archetype != null else Color.WHITE
 
 

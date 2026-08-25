@@ -315,6 +315,63 @@ func test_every_menu_id_is_seated_in_exactly_one_authored_slot() -> void:
 	assert_eq(seated.size(), _tree.size() - 1, "the root is the one node with no slot")
 
 
+func test_the_look_is_authored_on_the_slots_and_nowhere_else() -> void:
+	# #591 / #589 D5. `MenuGraph` is topology and routing; every display string
+	# lives in the fan scene, where an author sees it at full-screen scale. The
+	# grep is the acceptance in its bluntest form — a caption that crept back
+	# into `build()` fails here rather than at a review.
+	var source := FileAccess.get_file_as_string("res://ui/frontmatter/menu_graph.gd")
+	assert_false(source.is_empty(), "menu_graph.gd is readable")
+	for display: String in ["SINGLE PLAYER", "+1 PLAYERS", "SKILL TREE OF LIFE", "wisdom"]:
+		assert_false(source.contains(display),
+				"'%s' is authored in a fan scene, not in MenuGraph.build()" % display)
+
+	for id in _tree.ids():
+		var look := FrontmatterLayout.look_of(id)
+		assert_not_null(look, "'%s' has an authored look" % id)
+		assert_eq(look.id, id, "a look answers under its own id")
+		assert_ne(look.title, "", "'%s' is captioned" % id)
+		assert_not_null(MenuNodeView.archetype_for(look.archetype),
+				"'%s' names a real archetype" % id)
+		assert_gt(look.radius, 0.0, "'%s' has a size" % id)
+	assert_null(FrontmatterLayout.look_of(&"nonexistent"))
+
+	# The root is the one node with no seat in anybody's fan — it has no parent
+	# — so `root_menu.tscn`'s own `%HeroSlot` is where its look is authored.
+	assert_eq(FrontmatterLayout.look_of(MenuGraph.ID_ROOT).title, "SKILL TREE OF LIFE")
+	assert_eq(FrontmatterLayout.look_of(MenuGraph.ID_SINGLE_PLAYER).subtitle, "+1 PLAYERS")
+	assert_eq(FrontmatterLayout.look_of(MenuGraph.ID_EXIT).subtitle, "",
+			"only the two joke nodes carry a slab")
+
+
+func test_a_decorative_slot_reserves_a_row_without_naming_a_menu_id() -> void:
+	# The seam for the owner's pre-authored bonus nodes (#589): a fan may carry
+	# scenery, and the 1:1 cross-check has to skip it rather than assert on an
+	# id `MenuGraph` has never heard of. Nothing ships one yet, so this measures
+	# a harness built here — which is also the cheapest proof that a decorative
+	# seat still shapes the fan's pitch like any other slot.
+	var harness: MenuFanHarness = preload(
+			"res://ui/frontmatter/layout/multiplayer_menu.tscn").instantiate()
+	var scenery := MenuSlot.new()
+	scenery.menu_id = &"a_bonus_node"
+	scenery.decorative = true
+	scenery.title = "BONUS"
+	scenery.custom_minimum_size = Vector2(0.0, 110.0)
+	harness.options_box().add_child(scenery)
+
+	var measured := harness.measure(FrontmatterLayout.viewport_size())
+	harness.free()
+
+	assert_false((measured[&"slots"] as Dictionary).has(&"a_bonus_node"),
+			"scenery is not a seat the tree has to account for")
+	assert_true((measured[&"decor"] as Dictionary).has(&"a_bonus_node"),
+			"but it is placed, so a later unit can draw it")
+	assert_eq((measured[&"looks"] as Dictionary).size(), 4,
+			"and it authors its look off the same exports")
+	assert_eq(FrontmatterLayout.decor_slots(_tree), {},
+			"no fan ships scenery yet — #591 builds the seam and no content")
+
+
 func test_the_root_fan_owns_its_own_gaps() -> void:
 	# The numeric case #589 makes for authoring: the shipped solver derived 201
 	# for the root fan — 52% looser than every fan below it — because

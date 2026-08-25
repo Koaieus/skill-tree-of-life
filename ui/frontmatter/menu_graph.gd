@@ -11,6 +11,14 @@ extends RefCounted
 ## node VISUALS (`skill_node/visuals/node_visuals_composite.tscn`, #569) and
 ## none of the machinery that normally drives them.
 ##
+## [b]It carries topology and routing, and no look at all[/b] (#589 D5). Every
+## display string, tint and radius is authored on a [MenuSlot] in
+## `ui/frontmatter/layout/`, where it can be seen at full-screen scale; ask
+## [method FrontmatterLayout.look_of] for one. What stays here is the half that
+## is not visual and already has a net under it — `test_meta_routing_parity.gd`
+## pins [member Item.panel] and [member Item.route] against the live
+## `meta_root.gd`.
+##
 ## [b]It is a tree, not a graph[/b], despite the name: every item has exactly
 ## one parent, the root has none, and there are no cycles. The name says what it
 ## LOOKS like on screen. [FrontmatterLayout] turns it into world positions once,
@@ -60,20 +68,14 @@ class Route extends RefCounted:
 		network_role = role
 
 
-## One node of the menu tree. A pure record: it holds no scene, no [Control] and
-## no position — #569 gives it a view, [FrontmatterLayout] gives it a place.
+## One node of the menu tree. A pure record: it holds no scene, no [Control], no
+## position and — since #591 — no LOOK either. #569 gives it a view,
+## [FrontmatterLayout] gives it a place, and [MenuSlot] gives it a caption.
 class Item extends RefCounted:
-	## Stable identifier. Used as the layout key, the focus token and the id
-	## every other child of #567 addresses this node by.
+	## Stable identifier. Used as the layout key, the focus token, the id every
+	## other child of #567 addresses this node by, and the key its
+	## [MenuSlot.Look] is authored under.
 	var id: StringName = &""
-	## The all-caps label on the node itself.
-	var title: String = ""
-	## The small slab under the title — the `+1 PLAYERS` / `+8 PLAYERS` joke
-	## (#575). Empty for nodes that do not carry one.
-	var subtitle: String = ""
-	## An `archetypes/*.tres` id, used by #569 for the tint and the carve shape.
-	## Menu-local: the archetype only supplies a LOOK here, no stats.
-	var archetype: StringName = &""
 	## Parent id, `&""` on the root.
 	var parent: StringName = &""
 	## Child ids, in the order they are drawn top to bottom.
@@ -126,30 +128,33 @@ var _order: Array[StringName] = []
 ## The frontmatter tree as shipped. Mirrors `scenes/meta/meta_root.gd`'s routing
 ## one-for-one; see `test_meta_routing_parity.gd` for the machine-checked half
 ## of that claim.
+##
+## There is no display string anywhere below, and that is the acceptance of
+## #591: what each of these ids LOOKS like is authored in its fan scene.
 static func build() -> MenuGraph:
 	var tree := MenuGraph.new()
-	tree.add(_item(ID_ROOT, "SKILL TREE OF LIFE", &"wisdom", &""))
+	tree.add(_item(ID_ROOT, &""))
 
-	tree.add(_item(ID_SINGLE_PLAYER, "SINGLE PLAYER", &"strength", ID_ROOT, "+1 PLAYERS"))
+	tree.add(_item(ID_SINGLE_PLAYER, ID_ROOT))
 	# `_on_new_game_pressed` -> `_push_lobby(SINGLE, NetworkConfig.offline())`.
-	tree.add(_leaf(ID_NEW_GAME, "NEW GAME", &"strength", ID_SINGLE_PLAYER, PANEL_LOBBY,
+	tree.add(_leaf(ID_NEW_GAME, ID_SINGLE_PLAYER, PANEL_LOBBY,
 			Route.new(RunConfig.Mode.SINGLE, NetworkTransport.Role.OFFLINE)))
-	var load_game := _leaf(ID_LOAD_GAME, "LOAD GAME", &"strength", ID_SINGLE_PLAYER, PANEL_LOAD)
+	var load_game := _leaf(ID_LOAD_GAME, ID_SINGLE_PLAYER, PANEL_LOAD)
 	load_game.disabled = true  # #23 save/load is parked.
 	tree.add(load_game)
 
-	tree.add(_item(ID_MULTIPLAYER, "MULTIPLAYER", &"dexterity", ID_ROOT, "+8 PLAYERS"))
+	tree.add(_item(ID_MULTIPLAYER, ID_ROOT))
 	# The three answers #531 put between "Multiplayer" and the lobby. All three
 	# land on the SAME lobby; only the NetworkConfig differs.
-	tree.add(_leaf(ID_LOCAL, "LOCAL", &"dexterity", ID_MULTIPLAYER, PANEL_LOBBY,
+	tree.add(_leaf(ID_LOCAL, ID_MULTIPLAYER, PANEL_LOBBY,
 			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.OFFLINE)))
-	tree.add(_leaf(ID_HOST, "HOST", &"dexterity", ID_MULTIPLAYER, PANEL_LOBBY,
+	tree.add(_leaf(ID_HOST, ID_MULTIPLAYER, PANEL_LOBBY,
 			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.HOST)))
-	tree.add(_leaf(ID_JOIN, "JOIN", &"dexterity", ID_MULTIPLAYER, PANEL_JOIN,
+	tree.add(_leaf(ID_JOIN, ID_MULTIPLAYER, PANEL_JOIN,
 			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.CLIENT)))
 
-	tree.add(_leaf(ID_OPTIONS, "OPTIONS", &"perception", ID_ROOT, PANEL_SETTINGS))
-	tree.add(_leaf(ID_EXIT, "EXIT", &"constitution", ID_ROOT, PANEL_EXIT_CONFIRM))
+	tree.add(_leaf(ID_OPTIONS, ID_ROOT, PANEL_SETTINGS))
+	tree.add(_leaf(ID_EXIT, ID_ROOT, PANEL_EXIT_CONFIRM))
 	return tree
 
 
@@ -239,31 +244,17 @@ func depth_of(id: StringName) -> int:
 	return path_to(id).size() - 1
 
 
-static func _item(
-	id: StringName,
-	title: String,
-	archetype: StringName,
-	parent: StringName,
-	subtitle: String = ""
-) -> Item:
+static func _item(id: StringName, parent: StringName) -> Item:
 	var item := Item.new()
 	item.id = id
-	item.title = title
-	item.archetype = archetype
 	item.parent = parent
-	item.subtitle = subtitle
 	return item
 
 
 static func _leaf(
-	id: StringName,
-	title: String,
-	archetype: StringName,
-	parent: StringName,
-	panel: StringName,
-	route: Route = null
+	id: StringName, parent: StringName, panel: StringName, route: Route = null
 ) -> Item:
-	var item := _item(id, title, archetype, parent)
+	var item := _item(id, parent)
 	item.panel = panel
 	item.route = route
 	return item

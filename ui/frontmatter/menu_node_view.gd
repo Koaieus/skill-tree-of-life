@@ -28,9 +28,9 @@ extends Node2D
 ## is deliberately not ported: two of its hues disagree with the repo, and the
 ## repo wins (OPTIONS is perception-purple, EXIT is constitution-white).
 
-## Menu id -> the archetype resource that brands it. The map lives here, on the
-## view, because the id is the model's business ([member MenuGraph.Item.archetype])
-## and the look is this unit's. `preload`ed rather than resolved by string path,
+## Archetype id -> the archetype resource that brands it. The map lives here, on
+## the view, because the id is authored data ([member MenuSlot.archetype]) and
+## turning it into a tint is this unit's job. `preload`ed rather than resolved by string path,
 ## so a typo'd id fails to load rather than rendering an untinted node.
 const ARCHETYPES := {
 	&"strength": preload("res://archetypes/strength.tres"),
@@ -105,16 +105,25 @@ func _ready() -> void:
 	_pick.activated.connect(activated.emit)
 
 
-## Everything the model knows about one node, in one call — what #570 uses when
-## it builds the tree, so no caller has to remember which export means what.
-func bind(item: MenuGraph.Item, is_allocated: bool = false) -> void:
-	title = item.title
-	archetype = archetype_for(item.archetype)
+## Everything the fan scene authors about one node, in one call — what #570 uses
+## when it builds the tree, so no caller has to remember which export means what.
+##
+## Takes the [MenuSlot.Look] rather than the [MenuGraph.Item] since #591: the
+## tree carries no display string, and the radius has no other source. A null
+## look leaves the view at the composite's own defaults rather than crashing —
+## an id nothing authors is caught by [method FrontmatterLayout.solve]'s
+## cross-check, which is a better place to hear about it than here.
+func bind(look: MenuSlot.Look, is_allocated: bool = false) -> void:
 	allocated = is_allocated
+	if look == null:
+		return
+	title = look.title
+	archetype = archetype_for(look.archetype)
+	radius = look.radius
 
 
-## The archetype resource for a [member MenuGraph.Item.archetype] id, or null
-## for an id nothing brands.
+## The archetype resource for a [member MenuSlot.archetype] id, or null for an
+## id nothing brands.
 static func archetype_for(id: StringName) -> Archetype:
 	return ARCHETYPES.get(id) as Archetype
 

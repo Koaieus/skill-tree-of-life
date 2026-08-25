@@ -6,26 +6,41 @@
 [node name="RootMenu" instance=ExtResource("1_base")]
 hero_id = &"root"
 
+[node name="HeroSlot" parent="Row" index="0"]
+menu_id = &"root"
+title = "SKILL TREE OF LIFE"
+archetype = &"wisdom"
+
 [node name="SinglePlayerSlot" type="Control" parent="Row/OptionsVBox" index="0"]
 custom_minimum_size = Vector2(0, 212)
 layout_mode = 2
 script = ExtResource("2_slot")
 menu_id = &"single_player"
+title = "SINGLE PLAYER"
+subtitle = "+1 PLAYERS"
+archetype = &"strength"
 
 [node name="MultiplayerSlot" type="Control" parent="Row/OptionsVBox" index="1"]
 custom_minimum_size = Vector2(0, 168)
 layout_mode = 2
 script = ExtResource("2_slot")
 menu_id = &"multiplayer"
+title = "MULTIPLAYER"
+subtitle = "+8 PLAYERS"
+archetype = &"dexterity"
 
 [node name="OptionsSlot" type="Control" parent="Row/OptionsVBox" index="2"]
 custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 script = ExtResource("2_slot")
 menu_id = &"options"
+title = "OPTIONS"
+archetype = &"perception"
 
 [node name="ExitSlot" type="Control" parent="Row/OptionsVBox" index="3"]
 custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 script = ExtResource("2_slot")
 menu_id = &"exit"
+title = "EXIT"
+archetype = &"constitution"

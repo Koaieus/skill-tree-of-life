@@ -10,7 +10,7 @@ extends MarginContainer
 ## [codeblock]
 ##   MenuFanHarness (MarginContainer, the project viewport)
 ##     %Row          (HBoxContainer)
-##       %HeroSlot   (Control)   — where the focused node docks
+##       %HeroSlot   (MenuSlot)  — where the focused node docks
 ##       %OptionsVBox(VBoxContainer)
 ##         MenuSlot x N          — one per child of [member hero_id]
 ## [/codeblock]
@@ -41,8 +41,14 @@ extends MarginContainer
 @export var hero_id: StringName = &""
 
 
-func hero_slot() -> Control:
-	return get_node("%HeroSlot") as Control
+## Where the focused node docks. A [MenuSlot] like any other, so that the one
+## node with no seat in anybody's fan — the ROOT, which has no parent — still
+## has somewhere to author its look (#591). Every other fan leaves its
+## [member MenuSlot.menu_id] empty: `single_player` is already authored as a
+## slot in `root_menu.tscn`, and a second copy here would be two sources for one
+## caption.
+func hero_slot() -> MenuSlot:
+	return get_node("%HeroSlot") as MenuSlot
 
 
 func options_box() -> BoxContainer:
@@ -75,8 +81,21 @@ func authored_theme() -> Dictionary:
 	}
 
 
-## Lays this fan out at [param view] and reports where everything landed, in
-## harness-local pixels: `{hero: Vector2, slots: {menu_id: Vector2}}`.
+## Lays this fan out at [param view] and reports what it authors, in
+## harness-local pixels:
+##
+## [codeblock]
+##   {
+##     hero:  Vector2,                    # %HeroSlot's centre
+##     slots: {menu_id: Vector2},         # the seats that stand for menu items
+##     decor: {menu_id: Vector2},         # the ones that are scenery (#591)
+##     looks: {menu_id: MenuSlot.Look},   # both kinds, plus the hero if it names one
+##   }
+## [/codeblock]
+##
+## The looks are COPIES: this whole Control tree is freed the moment the caller
+## is done with it, so a [MenuNodeView] holding a slot reference would be
+## holding a freed [Node].
 ##
 ## [param overrides] may carry `separation: float` and `margins: Vector4` —
 ## #578's live tab tuning the selected fan without editing the scene. Absent
@@ -96,16 +115,38 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Dictionary:
 	var host := (Engine.get_main_loop() as SceneTree)
 	assert(host != null, "a fan harness can only be measured under a SceneTree")
 	if host == null:
-		return {&"hero": Vector2.ZERO, &"slots": {}}
+		return {&"hero": Vector2.ZERO, &"slots": {}, &"decor": {}, &"looks": {}}
 	host.root.add_child(self)
 	position = Vector2.ZERO
 	size = view
 	_sort(self)
 
 	var slots: Dictionary = {}
+	var decor: Dictionary = {}
+	var looks: Dictionary = {}
+	var hero := hero_slot()
+	if hero.menu_id != &"":
+		assert(
+			hero.menu_id == hero_id,
+			"'%s' docks '%s' but its %%HeroSlot is authored as '%s'"
+				% [name, hero_id, hero.menu_id]
+		)
+		looks[hero.menu_id] = hero.look()
 	for slot in option_slots():
-		slots[slot.menu_id] = _centre_of(slot)
-	var measured := {&"hero": _centre_of(hero_slot()), &"slots": slots}
+		assert(slot.menu_id != &"", "a slot in '%s' names no id" % name)
+		assert(not looks.has(slot.menu_id), "'%s' is authored twice" % slot.menu_id)
+		var where := _centre_of(slot)
+		if slot.decorative:
+			decor[slot.menu_id] = where
+		else:
+			slots[slot.menu_id] = where
+		looks[slot.menu_id] = slot.look()
+	var measured := {
+		&"hero": _centre_of(hero),
+		&"slots": slots,
+		&"decor": decor,
+		&"looks": looks,
+	}
 	get_parent().remove_child(self)
 	return measured
 

@@ -11,9 +11,13 @@ custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 script = ExtResource("2_slot")
 menu_id = &"new_game"
+title = "NEW GAME"
+archetype = &"strength"
 
 [node name="LoadGameSlot" type="Control" parent="Row/OptionsVBox" index="1"]
 custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 script = ExtResource("2_slot")
 menu_id = &"load_game"
+title = "LOAD GAME"
+archetype = &"strength"

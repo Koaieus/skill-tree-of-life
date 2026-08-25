@@ -31,8 +31,16 @@ func before_each() -> void:
 	add_child_autofree(_tooltip)
 
 
+## The look table is a process-global cache of what the fan scenes author, and
+## two tests below poke at a look to prove the tooltip reads it rather than
+## restating it. Dropping the cache re-reads the scenes, so a poke cannot leak
+## into the next test — or into another suite in the same run.
+func after_each() -> void:
+	FrontmatterLayout.reset_geometry()
+
+
 func _bind(id: StringName) -> void:
-	_tooltip.bind(_tree.get_item(id))
+	_tooltip.bind(FrontmatterLayout.look_of(id))
 
 
 func _rows() -> Array[SlabRow]:
@@ -62,20 +70,21 @@ func test_multiplayer_grants_eight_players() -> void:
 
 
 ## The joke's text has exactly one home — the caption the node itself renders.
-func test_the_slab_reads_the_model_rather_than_restating_it() -> void:
-	var item := _tree.get_item(MenuGraph.ID_SINGLE_PLAYER)
-	assert_eq(item.subtitle, "+1 PLAYERS", "the model still authors it sign-first")
-	item.subtitle = "+3 GOATS"
-	_tooltip.bind(item)
+## Since #591 that home is `root_menu.tscn`'s slot, not [MenuGraph].
+func test_the_slab_reads_the_authored_slot_rather_than_restating_it() -> void:
+	var look := FrontmatterLayout.look_of(MenuGraph.ID_SINGLE_PLAYER)
+	assert_eq(look.subtitle, "+1 PLAYERS", "the slot authors it sign-first")
+	look.subtitle = "+3 GOATS"
+	_tooltip.bind(look)
 	assert_eq(_row_text(), [MenuTooltip.SLAB_HEADER, "GOATS +3"] as Array[String])
 
 
 func test_a_subtitle_that_is_not_a_signed_modifier_yields_no_slab() -> void:
-	var item := _tree.get_item(MenuGraph.ID_SINGLE_PLAYER)
+	var look := FrontmatterLayout.look_of(MenuGraph.ID_SINGLE_PLAYER)
 	for junk: String in ["PLAYERS", "lots of players", " "]:
-		item.subtitle = junk
-		assert_eq(MenuTooltip.slab_for(item).size(), 0, "'%s' is not a modifier" % junk)
-		assert_eq(MenuTooltip.slab_text(item), "", "'%s' renders no slab row" % junk)
+		look.subtitle = junk
+		assert_eq(MenuTooltip.slab_for(look).size(), 0, "'%s' is not a modifier" % junk)
+		assert_eq(MenuTooltip.slab_text(look), "", "'%s' renders no slab row" % junk)
 
 
 ## The one that matters. `PLAYERS` renders like a granted modifier and is not
@@ -102,8 +111,8 @@ func test_every_leaf_in_the_tree_has_something_to_say() -> void:
 	for id in _tree.ids():
 		if not _tree.is_leaf(id):
 			continue
-		var item := _tree.get_item(id)
-		assert_true(MenuTooltip.has_content(item), "%s has a tooltip" % id)
+		assert_true(MenuTooltip.has_content(FrontmatterLayout.look_of(id)),
+				"%s has a tooltip" % id)
 		assert_ne(MenuTooltip.describe(id), "", "%s has a description" % id)
 	assert_eq(
 		MenuTooltip.describe(MenuGraph.ID_HOST), "Open a game for others to join.",
@@ -119,7 +128,7 @@ func test_every_leaf_in_the_tree_has_something_to_say() -> void:
 func test_a_node_with_children_and_no_content_shows_no_rows() -> void:
 	_bind(MenuGraph.ID_ROOT)
 	assert_eq(_rows().size(), 0)
-	assert_false(MenuTooltip.has_content(_tree.get_item(MenuGraph.ID_ROOT)))
+	assert_false(MenuTooltip.has_content(FrontmatterLayout.look_of(MenuGraph.ID_ROOT)))
 	assert_almost_eq(_tooltip.modulate.a, 0.0, 0.0001, "it rests, it does not hide")
 
 
@@ -128,7 +137,7 @@ func test_binding_null_empties_it() -> void:
 	assert_eq(_rows().size(), 2)
 	_tooltip.bind(null)
 	assert_eq(_rows().size(), 0)
-	assert_null(_tooltip.item)
+	assert_null(_tooltip.look)
 
 
 ## #588: a hidden [Control] skips layout, which is what broke size convergence.
@@ -177,9 +186,9 @@ func test_the_stack_grows_with_its_content() -> void:
 ## a second table of menu colours.
 func test_the_tooltip_is_tinted_by_the_node_s_archetype() -> void:
 	for id: StringName in [MenuGraph.ID_SINGLE_PLAYER, MenuGraph.ID_OPTIONS, MenuGraph.ID_EXIT]:
-		var item := _tree.get_item(id)
-		var expected := MenuNodeView.archetype_for(item.archetype).color
-		assert_eq(MenuTooltip.tint_for(item), expected, "%s" % id)
+		var look := FrontmatterLayout.look_of(id)
+		var expected := MenuNodeView.archetype_for(look.archetype).color
+		assert_eq(MenuTooltip.tint_for(look), expected, "%s" % id)
 		_bind(id)
 		for row: SlabRow in _rows():
 			assert_eq(row._slab.tint_color, expected, "%s row" % id)

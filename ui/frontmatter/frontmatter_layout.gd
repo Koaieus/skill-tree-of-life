@@ -40,6 +40,11 @@ extends RefCounted
 ## transform rather than of a design-space fiction. `project.godot`'s
 ## `stretch/mode = "canvas_items"` + `stretch/aspect = "keep"` is what makes ONE
 ## authored geometry correct at every window size.
+##
+## [b]And the LOOK is authored in the same place (#589 D5 / #591).[/b] The same
+## pass that measures a fan lifts each seat's caption, joke slab, archetype and
+## radius off it into a [MenuSlot.Look] — see [method look_of]. [MenuGraph] keeps
+## topology and routing and carries no display string at all.
 
 
 ## What the player actually sees, in world units at [constant TREE_ZOOM].
@@ -111,7 +116,8 @@ const FAN_SCENES: Array[String] = [
 	"res://ui/frontmatter/layout/multiplayer_menu.tscn",
 ]
 
-## `hero_id -> {hero: Vector2, slots: {menu_id: Vector2}}`, in harness pixels.
+## `hero_id -> ` whatever [method MenuFanHarness.measure] reported, in harness
+## pixels — see it for the shape.
 ##
 ## Cached because [method solve] is called several times per navigation and the
 ## answer is a property of authored scenes, not of the caller. Emptied — never
@@ -121,6 +127,11 @@ static var _fans: Dictionary = {}
 
 ## Insertion order of [member _fans]; `[0]` is the root fan.
 static var _fan_order: Array[StringName] = []
+
+## `menu_id -> MenuSlot.Look`, gathered off the same scenes in the same pass
+## (#591). Every menu id has exactly one entry, including the root — which has
+## no seat in anybody's fan, so `root_menu.tscn`'s `%HeroSlot` authors it.
+static var _looks: Dictionary = {}
 
 ## `hero_id -> {separation: float, margins: Vector4}` — #578's live tab tuning a
 ## fan without editing its scene (#594). Gameplay never writes these.
@@ -170,6 +181,7 @@ static func _set_override(hero_id: StringName, key: StringName, value: Variant) 
 	fan[key] = value
 	_fan_overrides[hero_id] = fan
 	_fans = {}
+	_looks = {}
 
 
 ## Instances every fan scene, measures it, frees it (#589 D3).
@@ -183,6 +195,7 @@ static func _set_override(hero_id: StringName, key: StringName, value: Variant) 
 static func _read_harnesses() -> void:
 	_fans = {}
 	_fan_order = []
+	_looks = {}
 	var view := viewport_size()
 	for path in FAN_SCENES:
 		var harness := _instance(path)
@@ -191,7 +204,11 @@ static func _read_harnesses() -> void:
 		var hero_id := harness.hero_id
 		assert(hero_id != &"", "'%s' does not name the menu id it fans out from" % path)
 		assert(not _fans.has(hero_id), "two fan scenes both fan out from '%s'" % hero_id)
-		_fans[hero_id] = harness.measure(view, _fan_overrides.get(hero_id, {}))
+		var measured := harness.measure(view, _fan_overrides.get(hero_id, {}))
+		for slot_id: StringName in (measured[&"looks"] as Dictionary):
+			assert(not _looks.has(slot_id), "'%s' is authored in two scenes" % slot_id)
+			_looks[slot_id] = (measured[&"looks"] as Dictionary)[slot_id]
+		_fans[hero_id] = measured
 		_fan_order.append(hero_id)
 		harness.free()
 
@@ -206,13 +223,50 @@ static func _instance(path: String) -> MenuFanHarness:
 	return harness
 
 
+## How [param id] is drawn — its caption, its joke slab, its archetype and its
+## radius — or `null` for an id nothing authors (#591 / #589 D5).
+##
+## This is the whole of the look. [MenuGraph] deliberately carries none of it:
+## the tree is topology and routing, and every display string lives in the fan
+## scene where an author can see it at full-screen scale.
+static func look_of(id: StringName) -> MenuSlot.Look:
+	fans()
+	return _looks.get(id) as MenuSlot.Look
+
+
+## Where the DECORATIVE slots sit, in world units — `{menu_id: Vector2}`.
+##
+## The seam for the owner's pre-authored bonus nodes (#589): a fan scene may
+## carry seats that stand for nothing in [MenuGraph], reserving their row like
+## any other slot and taking their look off the same exports, and the 1:1
+## cross-check skips them. Nothing ships one yet; [method look_of] answers for
+## them too, so drawing them is the follow-up's whole job.
+static func decor_slots(tree: MenuGraph) -> Dictionary:
+	var placed: Dictionary = {}
+	var homes := solve(tree)
+	var authored := fans()
+	for hero_id: StringName in authored:
+		if not homes.has(hero_id):
+			continue
+		var fan: Dictionary = authored[hero_id]
+		var offset: Vector2 = homes[hero_id] - (fan[&"hero"] as Vector2)
+		for slot_id: StringName in (fan[&"decor"] as Dictionary):
+			placed[slot_id] = (fan[&"decor"] as Dictionary)[slot_id] + offset
+	return placed
+
+
 ## The authored fans and [param tree] describe the same menu, 1:1 (#589 D5).
 ##
 ## Every id but the root is named by exactly one slot, every slot and every fan
-## names an id the tree knows, and a slot sits in the fan of its own parent.
+## names an id the tree knows, and a slot sits in the fan of its own parent —
+## and since #591, every id including the root has exactly one authored look.
 ## `assert`, not a graceful fallback: an id with no slot has no position, and a
 ## menu item you cannot place is a bug to fix at build rather than to route
 ## around at runtime — the same call [method MenuGraph.add] makes.
+##
+## A [member MenuSlot.decorative] seat is scenery rather than a menu item, so it
+## is checked the other way round: it must NOT name an id the tree knows, or the
+## opt-out would be a way to smuggle a real item past the 1:1.
 static func _assert_authored_matches(tree: MenuGraph, authored: Dictionary) -> void:
 	var seated: Dictionary = {}
 	for hero_id: StringName in authored:
@@ -226,10 +280,15 @@ static func _assert_authored_matches(tree: MenuGraph, authored: Dictionary) -> v
 					% [slot_id, hero_id, tree.parent_of(slot_id)]
 			)
 			seated[slot_id] = true
+		for decor_id: StringName in (authored[hero_id] as Dictionary)[&"decor"]:
+			assert(
+				not tree.has(decor_id),
+				"decorative slot '%s' names a real menu id — drop the flag" % decor_id
+			)
 	for id in tree.ids():
-		if id == tree.root:
-			continue
-		assert(seated.has(id), "menu id '%s' has no authored slot" % id)
+		if id != tree.root:
+			assert(seated.has(id), "menu id '%s' has no authored slot" % id)
+		assert(_looks.has(id), "menu id '%s' has no authored look" % id)
 
 
 # --- tunables ---------------------------------------------------------------
@@ -262,6 +321,7 @@ static func reset_geometry() -> void:
 	PREVIEW_SCALE = 0.42
 	_fan_overrides = {}
 	_fans = {}
+	_looks = {}
 
 
 ## The splash (#574) is the root node, alone and close: (50%, 44%) of the

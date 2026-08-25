@@ -248,7 +248,7 @@ func set_hovered(id: StringName) -> void:
 	# `bind` owns its own visibility — it hides itself on a null item or on one
 	# with nothing to say (#575's content-driven rule, which is why the ROOT
 	# shows no tooltip). Do not second-guess it here.
-	_tooltip.bind(tree.get_item(id) if tree.has(id) else null)
+	_tooltip.bind(FrontmatterLayout.look_of(id))
 	if _tooltip.visible:
 		_place_tooltip(id)
 
@@ -425,7 +425,7 @@ func _build_views() -> void:
 		var view: MenuNodeView = _NODE_VIEW.instantiate()
 		view.name = String(id)
 		_graph_layer.add_child(view)
-		view.bind(tree.get_item(id))
+		view.bind(FrontmatterLayout.look_of(id))
 		view.position = homes[id]
 		view.hover_entered.connect(set_hovered.bind(id))
 		view.hover_exited.connect(_on_hover_exited.bind(id))

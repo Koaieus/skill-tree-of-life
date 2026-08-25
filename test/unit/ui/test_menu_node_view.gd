@@ -101,7 +101,7 @@ func test_the_whole_frontmatter_tree_stays_clean_when_it_is_built() -> void:
 	for id in tree.ids():
 		var view: MenuNodeView = _NODE_VIEW.instantiate()
 		host.add_child(view)
-		view.bind(tree.get_item(id), id == tree.root)
+		view.bind(FrontmatterLayout.look_of(id), id == tree.root)
 		views[id] = view
 	for id in tree.ids():
 		for child_id in tree.children_of(id):
@@ -128,12 +128,13 @@ func test_options_is_purple_and_exit_is_white_the_canvas_hues_lost() -> void:
 	# The design canvas gives perception hue 200 (cyan) and constitution 305
 	# (magenta). `Archetype.color` reads through to the primary stat's
 	# tint_color and the repo wins, so OPTIONS is purple and EXIT near-white.
-	var tree := MenuGraph.build()
-	var options := MenuNodeView.archetype_for(tree.get_item(MenuGraph.ID_OPTIONS).archetype)
+	var options := MenuNodeView.archetype_for(
+			FrontmatterLayout.look_of(MenuGraph.ID_OPTIONS).archetype)
 	assert_gt(options.color.b, options.color.g, "perception is purple, not cyan")
 	assert_gt(options.color.r, options.color.g, "perception is purple, not cyan")
 
-	var exit := MenuNodeView.archetype_for(tree.get_item(MenuGraph.ID_EXIT).archetype)
+	var exit := MenuNodeView.archetype_for(
+			FrontmatterLayout.look_of(MenuGraph.ID_EXIT).archetype)
 	assert_almost_eq(exit.color.r, exit.color.b, 0.15, "constitution is near-white")
 	assert_gt(exit.color.g, 0.8, "constitution is near-white, not magenta")
 
@@ -182,15 +183,31 @@ func test_radius_reaches_the_children_rather_than_only_redrawing() -> void:
 	assert_gt(pushed, 0, "there are children to push to")
 
 
-func test_binding_a_menu_item_fills_in_everything_at_once() -> void:
-	var item := MenuGraph.build().get_item(MenuGraph.ID_MULTIPLAYER)
+func test_binding_an_authored_look_fills_in_everything_at_once() -> void:
+	# #591: the caption, the tint and the RADIUS all come off the fan scene's
+	# slot in one call. `MenuGraph` carries none of them any more, which is why
+	# this reads the look table rather than the tree.
+	var look := FrontmatterLayout.look_of(MenuGraph.ID_MULTIPLAYER)
 	var view: MenuNodeView = _NODE_VIEW.instantiate()
 	add_child_autofree(view)
-	view.bind(item, true)
+	view.bind(look, true)
 	assert_eq(view.title, "MULTIPLAYER")
 	assert_eq(view.archetype, MenuNodeView.archetype_for(&"dexterity"))
+	assert_almost_eq(view.radius, look.radius, 0.001, "the slot sizes the disk")
 	assert_true(view.allocated)
 	assert_eq(view.get_node("%Title").text, "MULTIPLAYER")
+
+
+func test_binding_nothing_leaves_the_composites_own_defaults() -> void:
+	# An id nothing authors is caught by `solve()`'s 1:1 cross-check; the view
+	# is not the place to hear about it, so a null look is inert rather than
+	# fatal.
+	var view: MenuNodeView = _NODE_VIEW.instantiate()
+	add_child_autofree(view)
+	view.bind(null, true)
+	assert_eq(view.title, "")
+	assert_null(view.archetype)
+	assert_true(view.allocated)
 
 
 func test_an_unbranded_view_renders_the_composites_own_default() -> void:

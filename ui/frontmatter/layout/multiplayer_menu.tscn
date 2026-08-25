@@ -11,15 +11,21 @@ custom_minimum_size = Vector2(0, 110)
 layout_mode = 2
 script = ExtResource("2_slot")
 menu_id = &"local"
+title = "LOCAL"
+archetype = &"dexterity"
 
 [node name="HostSlot" type="Control" parent="Row/OptionsVBox" index="1"]
 custom_minimum_size = Vector2(0, 110)
 layout_mode = 2
 script = ExtResource("2_slot")
 menu_id = &"host"
+title = "HOST"
+archetype = &"dexterity"
 
 [node name="JoinSlot" type="Control" parent="Row/OptionsVBox" index="2"]
 custom_minimum_size = Vector2(0, 110)
 layout_mode = 2
 script = ExtResource("2_slot")
 menu_id = &"join"
+title = "JOIN"
+archetype = &"dexterity"

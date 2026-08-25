@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://ui/frontmatter/layout/menu_fan_harness.gd" id="1_harness"]
+[ext_resource type="Script" path="res://ui/frontmatter/layout/menu_slot.gd" id="2_slot"]
 
 [node name="MenuHarness" type="MarginContainer"]
 offset_right = 1440.0
@@ -20,6 +21,7 @@ theme_override_constants/separation = 0
 unique_name_in_owner = true
 custom_minimum_size = Vector2(380, 0)
 layout_mode = 2
+script = ExtResource("2_slot")
 
 [node name="OptionsVBox" type="VBoxContainer" parent="Row"]
 unique_name_in_owner = true
