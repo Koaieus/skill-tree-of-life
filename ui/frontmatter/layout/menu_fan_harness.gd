@@ -136,7 +136,7 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Measured:
 	var host := (Engine.get_main_loop() as SceneTree)
 	assert(host != null, "a fan harness can only be measured under a SceneTree")
 	if host == null:
-		return Measured.new()
+		return _nothing_measured()
 	_parent_for_measuring(host)
 	assert(
 		get_parent() != null,
@@ -144,7 +144,7 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Measured:
 			% name + "would take it, so every rect would read 0x0."
 	)
 	if get_parent() == null:
-		return Measured.new()
+		return _nothing_measured()
 	position = Vector2.ZERO
 	size = view
 	_sort(self)
@@ -177,6 +177,17 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Measured:
 	measured.looks = looks
 	get_parent().remove_child(self)
 	return measured
+
+
+## An empty measurement: no seats, no looks, hero at the origin — but this
+## fan's own authored [member camera_zoom], which is knowable without measuring
+## anything and is the one field a caller cannot sanely default. Zero would be
+## a degenerate camera scale, and the asserts guarding both callers of this are
+## stripped from a release build.
+func _nothing_measured() -> Measured:
+	var empty := Measured.new()
+	empty.zoom = camera_zoom
+	return empty
 
 
 ## Parents this harness somewhere it can actually be measured, for the length
