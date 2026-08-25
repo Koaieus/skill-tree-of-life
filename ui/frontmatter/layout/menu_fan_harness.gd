@@ -131,7 +131,20 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Dictionary:
 			&"decor": {},
 			&"looks": {},
 		}
-	host.root.add_child(self)
+	_parent_for_measuring(host)
+	assert(
+		get_parent() != null,
+		"'%s' could not be parented for measurement — nothing in the tree "
+			% name + "would take it, so every rect would read 0x0."
+	)
+	if get_parent() == null:
+		return {
+			&"hero": Vector2.ZERO,
+			&"zoom": camera_zoom,
+			&"slots": {},
+			&"decor": {},
+			&"looks": {},
+		}
 	position = Vector2.ZERO
 	size = view
 	_sort(self)
@@ -165,6 +178,37 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Dictionary:
 	}
 	get_parent().remove_child(self)
 	return measured
+
+
+## Parents this harness somewhere it can actually be measured, for the length
+## of one synchronous call.
+##
+## [b]Not `root`, on purpose.[/b] [method Node.add_child] FAILS — printing its
+## own error rather than raising — on a parent that is busy setting up
+## children, and `root` is exactly that while the [SceneTree] is adding a
+## scene that was run DIRECTLY (F6 in the editor, or `run/main_scene`). The
+## harness then never parents, [method _sort] measures every rect as `0x0`,
+## and the first thing anyone sees is a null `get_parent()` here followed by a
+## bogus "no authored look" assertion two calls away. That was a real crash on
+## every direct run of `meta_root.tscn`.
+##
+## Every autoload is a fully-ready child of `root` before any scene is added,
+## so none of them is ever mid-add — which makes one of them a host that works
+## in both cases, and avoids the failed-`add_child` error that probing `root`
+## first would print every time. Being a [Control] under a plain [Node] does
+## not affect `is_visible_in_tree()`, which is the only thing the sort needs.
+func _parent_for_measuring(host: SceneTree) -> void:
+	for candidate in host.root.get_children():
+		if candidate == host.current_scene:
+			continue
+		candidate.add_child(self)
+		if is_visible_in_tree():
+			return
+		# Parented, but under something hidden (the fade overlay is an autoload
+		# and rests invisible). `fit_child_in_rect` early-returns on anything
+		# not `is_visible_in_tree()`, so this host is no better than none.
+		candidate.remove_child(self)
+	host.root.add_child(self)
 
 
 ## Drives one full container sort, top-down, inside a single call.
