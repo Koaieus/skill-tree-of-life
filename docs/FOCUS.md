@@ -58,6 +58,14 @@ forks and moves it to `Ready`. **FOCUS does not catalog `Needs design` work.**
 
 ## The LAN — milestone `LAN 2026-08-31`, hub #456
 
+> **The LAN is 3-5 September, not 08-31.** Owner, 2026-08-25: *"the LAN is 3-5
+> Sept so we have time to get this right -- currently it's unpresentable"* (said
+> of the frontmatter menu). The milestone is still NAMED `LAN 2026-08-31` and
+> has not been renamed — treat the date in that name as the internal burn-down,
+> and 09-03 as the day it is shown to people. Rename the milestone or leave it;
+> that is an owner call nobody has made.
+
+
 North Star #3, with a date on it. **Membership in that milestone means "this
 gates the 08-31 build"** — read it with `mise gh-project -- roadmap`, which
 prints open / ready / needs-design counts per milestone, so the milestone answers
