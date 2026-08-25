@@ -145,3 +145,43 @@ func permanent_spells(core: SkillNode) -> Array[SpellDef]:
 func _notify_changed() -> void:
 	emit_changed()
 	membership_changed.emit()
+
+
+## A fresh book holding a random subset of [member spells], drawn by the
+## #586 prune chain. Used at blocker spawn so a Dormant Core offers a varying
+## slice of its authored loot rather than the same book every run.
+##
+## [b]The chain.[/b] With `n` spells left, pop a uniformly-random one with
+## probability `n / (n + m)`; on the first failed roll, stop and keep what's
+## left. It can run all the way to empty — that is the point, since the
+## claimant of a relic picks exactly ONE spell from whatever is offered, so
+## the only lever on how fast spells spread is how often a kill offers none.
+##
+## [b]What `m` means.[/b] It picks the shape of the outcome distribution over
+## `k` kept spells, and both closed forms are exact:
+## [codeblock]
+## E[kept]      = n * m / (m + 1)
+## P(kept == 0) = 1 / C(n + m, n)      # integer m
+## [/codeblock]
+## `m == 1` is the special case where every outcome in `{0..n}` is EQUALLY
+## likely — maximum variance, and `P(kept == 0) == 1 / (n + 1)`.
+## [b]Raising `m` above 1 makes spells spread FASTER, not slower[/b]: at
+## `n == 4` the chance of offering nothing falls from 20% (m=1) to 2.9% (m=3).
+## Turn `m` DOWN, not up, to make loot stingier (m=0.5 → 41% at `n == 4`).
+##
+## A null [param rng] or a non-positive [param m] prunes nothing — that is the
+## "feature off" path a hand-authored level or a fixture takes by not opting in.
+##
+## [member _sources] is deliberately not carried over: the copy is a loot pool,
+## so every spell in it reads as innate, which is what [SkillDustAddon] wants.
+func duplicate_pruned(rng: RandomNumberGenerator, m: float) -> SpellBook:
+	var out := SpellBook.new()
+	out.spells = spells.duplicate()
+	if rng == null or m <= 0.0:
+		return out
+	while not out.spells.is_empty():
+		var n := float(out.spells.size())
+		if rng.randf() >= n / (n + m):
+			break
+		out.spells.remove_at(rng.randi_range(0, out.spells.size() - 1))
+	return out

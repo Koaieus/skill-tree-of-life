@@ -141,7 +141,8 @@ func _setup_level() -> void:
 	# Spawned before territory seeding so enemy seeding skips already-blocked
 	# nodes (AllocationSystem treats them as owned by the blocker entity).
 	for placement in result.get("blockers", []):
-		spawn_blocker(placement.get("size"), placement.get("node"))
+		spawn_blocker(placement.get("size"), placement.get("node"),
+				placement.get("prune_seed", 0), cfg.blocker_spell_prune_m)
 
 	# Spawn onto the returned nodes in participant order — camp 0 member 0,
 	# camp 0 member 1, camp 1 member 0, ... (#551's `starter_placement`

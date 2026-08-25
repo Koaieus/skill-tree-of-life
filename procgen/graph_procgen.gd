@@ -16,8 +16,9 @@ extends RefCounted
 ## Array[SkillNode], starters: Array[StartingPoint], blockers:
 ## Array[Dictionary]}` — `starting_nodes[i]` is the SkillNode that landed on
 ## `config.starting_points[i]`, for the caller to wire as entity cores, and
-## each `blockers` entry is `{"node": SkillNode, "size": int}` (a
-## [GameRoot.BlockerSize] int) for the caller to hand to `spawn_blocker`.
+## each `blockers` entry is `{"node": SkillNode, "size": int, "prune_seed":
+## int}` (`size` being a [GameRoot.BlockerSize] int, `prune_seed` the #586
+## loot-book prune's seed) for the caller to hand to `spawn_blocker`.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BLOCKER_NODE_SCENE := preload("res://skill_node/blocker_node.tscn")
@@ -228,6 +229,15 @@ static func generate(
 	blocker_rng.seed = rng.seed + _BLOCKER_RNG_SALT
 	var blocker_sizes := _place_blocker_indices(
 			positions.size(), placement_ctx, config, blocker_rng)
+	# One prune seed per placement (#586), drawn HERE rather than at spawn
+	# time because the level scene is re-run on every peer — the loot-book
+	# prune is reproduced, not received, so an unseeded roll there would hand
+	# two peers different offers off the same relic (multiplayer-sync.md).
+	# Same dedicated stream as the placement above, so the main `rng` is
+	# untouched and a given seed still generates the same map.
+	var blocker_seeds: Dictionary[int, int] = {}
+	for idx: int in blocker_sizes:
+		blocker_seeds[idx] = blocker_rng.randi()
 
 	await _emit_progress(progress_cb, 0.45, "Rolling content")
 	var nodes: Array[SkillNode] = []
@@ -363,7 +373,11 @@ static func generate(
 	# unchanged.
 	var blockers: Array[Dictionary] = []
 	for idx: int in blocker_sizes:
-		blockers.append({"node": nodes[idx], "size": int(blocker_sizes[idx])})
+		blockers.append({
+			"node": nodes[idx],
+			"size": int(blocker_sizes[idx]),
+			"prune_seed": int(blocker_seeds[idx]),
+		})
 
 	await _emit_progress(progress_cb, 1.0, "Done")
 	return {

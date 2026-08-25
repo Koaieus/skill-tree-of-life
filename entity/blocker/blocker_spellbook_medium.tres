@@ -2,11 +2,10 @@
 
 [ext_resource type="Script" path="res://entity/spell_book.gd" id="1_book"]
 [ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
-[ext_resource type="Resource" path="res://attack/spell/defs/bruiser.tres" id="2_bruiser"]
-[ext_resource type="Resource" path="res://attack/spell/defs/leafblower.tres" id="3_leafblower"]
-[ext_resource type="Resource" path="res://attack/spell/defs/lightning_bolt.tres" id="4_lightning"]
-[ext_resource type="Resource" path="res://attack/spell/defs/resonator.tres" id="5_resonator"]
+[ext_resource type="Resource" path="res://attack/spell/defs/leafblower.tres" id="2_leafblower"]
+[ext_resource type="Resource" path="res://attack/spell/defs/resonator.tres" id="3_resonator"]
+[ext_resource type="Resource" path="res://attack/spell/defs/trail_blazer.tres" id="4_trail_blazer"]
 
 [resource]
 script = ExtResource("1_book")
-spells = Array[ExtResource("1_spell_def")]([ExtResource("2_bruiser"), ExtResource("3_leafblower"), ExtResource("4_lightning"), ExtResource("5_resonator")])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("2_leafblower"), ExtResource("3_resonator"), ExtResource("4_trail_blazer")])

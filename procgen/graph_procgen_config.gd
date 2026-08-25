@@ -180,3 +180,17 @@ const MIN_BLOCKER_PER := 5
 ## below the requested blocker count places FEWER blockers — it never falls
 ## back to the excluded ring.
 @export_range(0, 12, 1) var blocker_min_hops_from_core: int = 6
+
+## Shape of the #586 loot-book prune every blocker runs at spawn: it pops
+## random spells off a COPY of its tier's authored book until a roll fails,
+## so two runs of the same tier offer different slices — and sometimes none.
+##
+## This is the `m` in [method SpellBook.duplicate_pruned]'s `n / (n + m)`
+## chain; see there for the exact distribution. `1.0` makes every outcome in
+## `{0..n}` equally likely, which is both maximum variation and the stingiest
+## setting in the sane range.
+##
+## [b]Turn this DOWN to slow how fast spells spread, never up.[/b] Raising it
+## collapses the chance a kill offers nothing (at `n == 4`: 20% at 1.0, 2.9%
+## at 3.0), which is the opposite of what the knob exists for.
+@export_range(0.5, 3.0, 0.05) var blocker_spell_prune_m: float = 1.0

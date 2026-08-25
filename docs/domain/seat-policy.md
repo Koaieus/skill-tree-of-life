@@ -74,7 +74,7 @@ One line, four correct answers:
 - **AI never shares**, with a player or with another AI, even standing on the
   human camp. AI recon was never this system's business — `AiRecon` builds its
   own per-entity circles. Faction-shared AI reveal is #394.
-- **Blockers never share** — not human, own dormant camp.
+- **Dormant Cores never share** (`blocker` in code) — not human, own dormant camp.
 
 ### The ordering trap
 

@@ -2,7 +2,9 @@
 
 [ext_resource type="Script" path="res://entity/spell_book.gd" id="1_book"]
 [ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
+[ext_resource type="Resource" path="res://attack/spell/defs/bruiser.tres" id="2_bruiser"]
+[ext_resource type="Resource" path="res://attack/spell/defs/healing_beam.tres" id="3_healing_beam"]
 
 [resource]
 script = ExtResource("1_book")
-spells = Array[ExtResource("1_spell_def")]([])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("2_bruiser"), ExtResource("3_healing_beam")])

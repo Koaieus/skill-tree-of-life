@@ -21,7 +21,8 @@ inherits latching, signal timing and the death trigger for free.
 ## The rule
 
 **Owner call 2026-08-21:** "be the only camp that survives — no living hostile
-entities remain. **Blocker NPCs do not count**; they are inert scenery, not a
+entities remain. **Dormant Cores do not count** (`blocker` in code — see
+`docs/domain/dormant-core.md`); they are inert scenery, not a
 camp that can win or lose." And, pluggable, "because multiplayer setups will
 want different conditions" — last-camp-standing is "the first and the default,
 not the only one".

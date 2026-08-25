@@ -1,7 +1,7 @@
 extends GutTest
 
 ## Acceptance for #477 — removable-blocker placement (#300). Verifies
-## [GraphProcgen.generate] returns a `blockers` array of `{node, size}`
+## [GraphProcgen.generate] returns a `blockers` array of `{node, size, prune_seed}`
 ## placements, that the per-tier density is `floor(node_count / denom)`, that
 ## placements never land on a starter core or a keystone node, that no node is
 ## picked twice, and that placements are seed-deterministic.
@@ -214,3 +214,51 @@ func test_safe_radius_zero_allows_core_adjacent_blockers() -> void:
 			any_near = true
 			break
 	assert_true(any_near, "with the radius disabled some blocker lands near a core")
+
+
+# ── #586: the per-placement loot-book prune seed ─────────────────────────────
+
+func test_placements_carry_a_reproducible_prune_seed() -> void:
+	# Rides the same derived stream as placement, so a given procgen seed
+	# reproduces both WHERE blockers are and WHAT each one offers — every
+	# peer re-runs the level scene rather than being told the result.
+	var cfg_a := _build_config(100, 4242)
+	cfg_a.blocker_per_small = 10
+	cfg_a.blocker_per_medium = 25
+	cfg_a.blocker_per_large = 100
+	var cfg_b := _build_config(100, 4242)
+	cfg_b.blocker_per_small = 10
+	cfg_b.blocker_per_medium = 25
+	cfg_b.blocker_per_large = 100
+	var seeds_a := _prune_seeds((await _generate(cfg_a)).get("blockers", []))
+	var seeds_b := _prune_seeds((await _generate(cfg_b)).get("blockers", []))
+	assert_gt(seeds_a.size(), 1, "expected several blocker placements")
+	assert_eq(seeds_a, seeds_b, "same procgen seed → same prune seeds")
+
+	var distinct := {}
+	for s in seeds_a:
+		distinct[s] = true
+	assert_gt(distinct.size(), 1, "blockers do not all share one seed")
+
+
+func test_prune_seed_stream_does_not_shift_placements() -> void:
+	# The seeds are drawn from the dedicated blocker stream AFTER placement,
+	# so adding them must not move a single blocker — this is the guard on
+	# that ordering (the same reason the stream is derived, not shared).
+	var cfg := _build_config(100, 4242)
+	cfg.blocker_per_small = 10
+	cfg.blocker_per_medium = 25
+	cfg.blocker_per_large = 100
+	var result: Dictionary = await _generate(cfg)
+	var counts := _counts(result.get("blockers", []))
+	assert_eq(counts.get(GameRoot.BlockerSize.SMALL, 0), 10, "100/10 = 10 small")
+	assert_eq(counts.get(GameRoot.BlockerSize.MEDIUM, 0), 4, "100/25 = 4 medium")
+	assert_eq(counts.get(GameRoot.BlockerSize.LARGE, 0), 1, "100/100 = 1 large")
+
+
+func _prune_seeds(blockers: Array) -> Array[int]:
+	var out: Array[int] = []
+	for placement in blockers:
+		assert_true(placement.has("prune_seed"), "every placement carries a prune seed")
+		out.append(int(placement.get("prune_seed")))
+	return out

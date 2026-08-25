@@ -632,13 +632,34 @@ func spawn_entity(
 ## `graph.entities_container` and force-allocates the core, exactly like
 ## [method spawn_entity] (procgen setup, not a gameplay action). Returns the
 ## entity, with [member Entity.entity_tier] set to size + 1 (1/2/3).
-func spawn_blocker(size: BlockerSize, core_location: SkillNode) -> Entity:
+## Spawn one Dormant Core of [param size] onto [param core_location].
+##
+## [param spell_prune_m] is the #586 loot-book prune's shape parameter (see
+## [method SpellBook.duplicate_pruned]); leaving it at `0.0` keeps the tier's
+## authored book whole, which is what a hand-authored level or a fixture
+## wants. [param spell_prune_seed] seeds that prune — procgen hands one out
+## per placement, because every peer re-runs this and must land on the same
+## book. The prune copies before it pops — the tier books are `preload`ed
+## resources shared by every blocker of a size, so popping in place would
+## strip the tier for the rest of the run.
+func spawn_blocker(size: BlockerSize, core_location: SkillNode,
+		spell_prune_seed: int = 0, spell_prune_m: float = 0.0) -> Entity:
 	var ent := _BLOCKER_SCENE.instantiate() as Entity
 	ent.name = "Blocker_%s" % BlockerSize.keys()[size].to_lower()
-	ent.display_name = ent.name
+	# #587 — the player-facing name is "Dormant Core", never "Blocker": these
+	# are single-node entities that hold a node but never move or act, and
+	# `blocker` is the mechanic, not the thing. The node NAME stays `Blocker_*`
+	# so scene-tree lookups and the group are untouched; only `display_name`
+	# reaches a tooltip.
+	ent.display_name = "Dormant Core (%s)" % BlockerSize.keys()[size].capitalize()
 	ent.entity_tier = int(size) + 1
 	ent.stat_board = _BLOCKER_BOARDS[size] as EntityStatBoard
-	ent.spellbook = _BLOCKER_SPELLBOOKS[size] as SpellBook
+	var book := _BLOCKER_SPELLBOOKS[size] as SpellBook
+	if spell_prune_m > 0.0:
+		var prune_rng := RandomNumberGenerator.new()
+		prune_rng.seed = spell_prune_seed
+		book = book.duplicate_pruned(prune_rng, spell_prune_m)
+	ent.spellbook = book
 	graph.entities_container.add_child(ent)
 	if core_location != null:
 		allocation_system.force_allocate(ent, core_location)

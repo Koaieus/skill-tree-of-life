@@ -14,6 +14,7 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SMALL_BOARD := preload("res://entity/blocker/blocker_small_board.tres")
 const _MEDIUM_BOARD := preload("res://entity/blocker/blocker_medium_board.tres")
 const _LARGE_BOARD := preload("res://entity/blocker/blocker_large_board.tres")
+const _MEDIUM_SPELLBOOK := preload("res://entity/blocker/blocker_spellbook_medium.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
@@ -172,7 +173,7 @@ func test_spawn_blocker_spawns_with_tiered_board_and_spellbook() -> void:
 	assert_eq(_nodes[2].get_max_hp(), 40.0, "tier-2 board → node HP 40")
 	assert_null(blocker.core_class, "no CoreClass")
 	assert_not_null(blocker.spellbook, "spellbook is a non-null resource")
-	assert_eq(blocker.spellbook.spells.size(), 4, "medium spellbook carries its placeholder spells")
+	assert_eq(blocker.spellbook.spells.size(), 3, "medium spellbook carries its authored tier (#586 re-tier)")
 
 
 func test_spawn_blocker_size_to_tier_and_board_mapping() -> void:
@@ -185,5 +186,61 @@ func test_spawn_blocker_size_to_tier_and_board_mapping() -> void:
 	var large := gr.spawn_blocker(GameRoot.BlockerSize.LARGE, null)
 	assert_eq(small.entity_tier, 1, "SMALL → tier 1")
 	assert_eq(large.entity_tier, 3, "LARGE → tier 3")
-	assert_eq(small.spellbook.spells.size(), 0, "small blocker has an empty (non-null) spellbook")
+	assert_eq(small.spellbook.spells.size(), 2, "small blocker carries its own loot tier since #586")
 	assert_gt(large.spellbook.spells.size(), 0, "large blocker carries spells")
+
+
+# ── #586: loot-book prune at spawn ───────────────────────────────────────────
+
+func test_spawn_blocker_without_prune_keeps_the_tier_book_whole() -> void:
+	# The default (`spell_prune_m == 0.0`) is the pre-#586 behaviour a
+	# hand-authored level still gets: the tier's authored contents, entire.
+	var gr := GameRoot.new()
+	autofree(gr)
+	gr.graph = _graph
+	gr.allocation_system = _alloc
+
+	var a := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null)
+	assert_eq(a.spellbook.spells, _MEDIUM_SPELLBOOK.spells, "un-pruned = the whole authored tier")
+
+
+func test_prune_leaves_the_authored_resource_untouched() -> void:
+	# The prune runs on the `preload`ed tier book, which every blocker of a
+	# size shares — it must copy before popping, or one spawn would strip the
+	# resource for the whole run. (Entity._ready separately duplicates the
+	# book it is handed, so per-entity isolation is not what this guards.)
+	var gr := GameRoot.new()
+	autofree(gr)
+	gr.graph = _graph
+	gr.allocation_system = _alloc
+
+	for seed_value in [11, 22, 33, 44]:
+		gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, seed_value, 1.0)
+	assert_eq(_MEDIUM_SPELLBOOK.spells.size(), 3, "the authored resource is left whole")
+
+
+func test_prune_actually_varies_what_a_tier_offers() -> void:
+	var gr := GameRoot.new()
+	autofree(gr)
+	gr.graph = _graph
+	gr.allocation_system = _alloc
+
+	var sizes := {}
+	for seed_value in 40:
+		var b := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, seed_value, 1.0)
+		sizes[b.spellbook.spells.size()] = true
+	assert_true(sizes.has(0), "some medium blockers offer nothing at all")
+	assert_true(sizes.has(3), "some keep the whole book")
+
+
+func test_same_prune_seed_spawns_the_same_book_on_every_peer() -> void:
+	# Every peer re-runs the level scene, so this roll is reproduced rather
+	# than received — procgen hands out the seed for exactly this reason.
+	var gr := GameRoot.new()
+	autofree(gr)
+	gr.graph = _graph
+	gr.allocation_system = _alloc
+
+	var a := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, 4242, 1.0)
+	var b := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, 4242, 1.0)
+	assert_eq(a.spellbook.spells, b.spellbook.spells, "same seed → same book")
