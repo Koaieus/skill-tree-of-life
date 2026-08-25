@@ -295,14 +295,19 @@ func test_endpoints_are_read_in_the_views_parent_space() -> void:
 	# Same convention Graph uses when it subtracts its own global_position, so
 	# an edge view parked off the origin still lands on the solved positions.
 	#
-	# Read off `instance_transform()` rather than out of the MultiMesh: Godot's
+	# Built from `curve_point()` rather than read out of the MultiMesh: Godot's
 	# headless dummy driver no-ops the per-instance read/write path entirely
 	# (the same blind spot that hid #413's invisible edges from every headless
 	# probe), so a read-back assertion here would pass on an identity transform.
+	#
+	# These endpoints are level, and both control points are pulled along X
+	# only, so the whole Bezier collapses onto the straight chord — which is
+	# what lets this keep asserting the exact span it always did.
 	var edge := _make_edge_view()
 	edge.position = Vector2(50, 50)
 	edge.set_endpoints(Vector2(50, 50), Vector2(356, 50))
-	var xf := edge.instance_transform()
+	var xf := edge.segment_transform(
+			edge.curve_point(0.0) - edge.position, edge.curve_point(1.0) - edge.position)
 	assert_almost_eq(xf.origin.x, 153.0, 0.001, "the midpoint, measured from the view")
 	assert_almost_eq(xf.origin.y, 0.0, 0.001)
 	assert_almost_eq(xf.x.length(), 306.0, 0.001)

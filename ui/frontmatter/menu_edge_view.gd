@@ -266,16 +266,6 @@ func curve_point(t: float) -> Vector2:
 	)
 
 
-## The whole edge as ONE straight chord, endpoint to endpoint, in this node's
-## local space (subtracting `position` — the same convention [Graph] uses when
-## it subtracts its own `global_position` before pushing a segment). Predates
-## the curve (#592) and kept for what still reads it: not what the [MultiMesh]
-## is fed since the sigmoid shape landed, but a plain, useful "where does this
-## edge run in a straight line" helper.
-func instance_transform() -> Transform2D:
-	return segment_transform(_from - position, _to - position)
-
-
 ## The `index`th straight sub-segment's instance transform, in this node's
 ## local space (subtracting `position`, same convention [method
 ## instance_transform] uses) — a chord of the Bezier between two adjacent
