@@ -1,64 +1,10 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://ui/frontmatter/menu_tooltip.gd" id="1_tooltip"]
-[ext_resource type="PackedScene" path="res://ui/tooltip_fan/slab_panel.tscn" id="2_slab"]
-[ext_resource type="PackedScene" uid="uid://cjwsps8ttexc" path="res://ui/tooltip_fan/panel_header.tscn" id="3_header"]
 
-[node name="MenuTooltip" type="Control"]
-custom_minimum_size = Vector2(180, 0)
-offset_right = 180.0
-offset_bottom = 64.0
+[node name="MenuTooltip" type="VBoxContainer"]
+custom_minimum_size = Vector2(200, 0)
+offset_right = 200.0
 mouse_filter = 2
+theme_override_constants/separation = 3
 script = ExtResource("1_tooltip")
-
-[node name="Slab" parent="." instance=ExtResource("2_slab")]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_right = 0.0
-offset_bottom = 0.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-
-[node name="Margin" type="MarginContainer" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 8
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 8
-
-[node name="Body" type="VBoxContainer" parent="Margin"]
-unique_name_in_owner = true
-layout_mode = 2
-mouse_filter = 2
-theme_override_constants/separation = 6
-
-[node name="Header" parent="Margin/Body" instance=ExtResource("3_header")]
-unique_name_in_owner = true
-layout_mode = 2
-header = "HEADER"
-subheader = ""
-
-[node name="Description" type="Label" parent="Margin/Body"]
-unique_name_in_owner = true
-layout_mode = 2
-mouse_filter = 2
-theme_type_variation = &"ChakraData"
-theme_override_font_sizes/font_size = 12
-autowrap_mode = 3
-text = ""
-
-[node name="Rows" type="VBoxContainer" parent="Margin/Body"]
-unique_name_in_owner = true
-layout_mode = 2
-mouse_filter = 2
-theme_override_constants/separation = 2

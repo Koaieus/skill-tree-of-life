@@ -1,19 +1,25 @@
 extends GutTest
 
-## #575 — leaf tooltips and the `+1 / +8 PLAYERS` joke slab.
+## #575 / #588 — the menu's hover tooltip: a centred stack of [SlabRow]s that
+## sits directly under the node it describes.
 ##
-## The load-bearing test here is `test_players_never_becomes_a_real_stat`. #575
-## is explicit that `PLAYERS` is a string in the menu's own data and must not
-## reach [StatRegistry], and the tempting way to render it "exactly like a real
-## granted modifier" is to make it one. That test is what stops the joke from
-## quietly acquiring a StatDef resource, a registry entry and a board slot.
+## Two load-bearing tests here.
 ##
-## The tooltip is driven through [method MenuTooltip.bind] and read back off the
-## shipped tooltip-fan rows it composes, so a fork of those rows (which #575
-## forbids) shows up as these assertions reading the wrong nodes rather than as
-## a diff nobody looks at.
+## `test_players_never_becomes_a_real_stat` — #575 is explicit that `PLAYERS` is
+## a string in the menu's own data and must not reach [StatRegistry], and the
+## tempting way to render it "exactly like a real granted modifier" is to make
+## it one. Since #588 the tooltip composes [SlabRow], which takes a plain string
+## and a [Color], so there is not even a transient [StatDef] left in the path —
+## this test is what keeps it that way.
+##
+## `test_a_two_line_tooltip_is_two_lines_tall` — #588's whole reason for
+## existing. The previous panel carried a layout cycle (tooltip minimum read a
+## `%Body` that was anchored to the tooltip, containing an autowrap [Label]) and
+## settled at ~470px for two lines of text. A stack of Container-managed rows
+## has no cycle to converge, and this asserts the height that proves it.
 
 const _SCENE := preload("res://ui/frontmatter/menu_tooltip.tscn")
+const _ROOT_SCENE := preload("res://ui/frontmatter/frontmatter_root.tscn")
 
 var _tree: MenuGraph
 var _tooltip: MenuTooltip
@@ -29,42 +35,30 @@ func _bind(id: StringName) -> void:
 	_tooltip.bind(_tree.get_item(id))
 
 
-func _rows() -> Array[Node]:
-	return (_tooltip.get_node("%Rows") as VBoxContainer).get_children()
+func _rows() -> Array[SlabRow]:
+	var out: Array[SlabRow] = []
+	for child: Node in _tooltip.get_children():
+		out.append(child as SlabRow)
+	return out
 
 
 func _row_text() -> Array[String]:
 	var out: Array[String] = []
-	for row: Node in _rows():
-		out.append("%s %s" % [
-			(row.get_node("%NameLabel") as Label).text,
-			(row.get_node("%ValueLabel") as Label).text,
-		])
+	for row: SlabRow in _rows():
+		out.append(row._label.text)
 	return out
-
-
-func _header_text() -> String:
-	return (_tooltip.get_node("%Header") as PanelHeader).header
-
-
-func _description_text() -> String:
-	return (_tooltip.get_node("%Description") as Label).text
 
 
 # --- the joke ---------------------------------------------------------------
 
 func test_single_player_grants_one_player() -> void:
 	_bind(MenuGraph.ID_SINGLE_PLAYER)
-	assert_true(_tooltip.visible)
-	assert_eq(_row_text(), ["PLAYERS +1"] as Array[String])
-	assert_eq(_header_text(), MenuTooltip.SLAB_HEADER)
-	assert_eq(_description_text(), "", "the joke stands on its own")
+	assert_eq(_row_text(), [MenuTooltip.SLAB_HEADER, "PLAYERS +1"] as Array[String])
 
 
 func test_multiplayer_grants_eight_players() -> void:
 	_bind(MenuGraph.ID_MULTIPLAYER)
-	assert_eq(_row_text(), ["PLAYERS +8"] as Array[String])
-	assert_eq(_header_text(), MenuTooltip.SLAB_HEADER)
+	assert_eq(_row_text(), [MenuTooltip.SLAB_HEADER, "PLAYERS +8"] as Array[String])
 
 
 ## The joke's text has exactly one home — the caption the node itself renders.
@@ -73,7 +67,7 @@ func test_the_slab_reads_the_model_rather_than_restating_it() -> void:
 	assert_eq(item.subtitle, "+1 PLAYERS", "the model still authors it sign-first")
 	item.subtitle = "+3 GOATS"
 	_tooltip.bind(item)
-	assert_eq(_row_text(), ["GOATS +3"] as Array[String])
+	assert_eq(_row_text(), [MenuTooltip.SLAB_HEADER, "GOATS +3"] as Array[String])
 
 
 func test_a_subtitle_that_is_not_a_signed_modifier_yields_no_slab() -> void:
@@ -81,6 +75,7 @@ func test_a_subtitle_that_is_not_a_signed_modifier_yields_no_slab() -> void:
 	for junk: String in ["PLAYERS", "lots of players", " "]:
 		item.subtitle = junk
 		assert_eq(MenuTooltip.slab_for(item).size(), 0, "'%s' is not a modifier" % junk)
+		assert_eq(MenuTooltip.slab_text(item), "", "'%s' renders no slab row" % junk)
 
 
 ## The one that matters. `PLAYERS` renders like a granted modifier and is not
@@ -89,19 +84,16 @@ func test_players_never_becomes_a_real_stat() -> void:
 	for id: StringName in [&"PLAYERS", &"players", &"Players"]:
 		assert_null(StatRegistry.get_def(id), "'%s' is not a registered stat" % id)
 	_bind(MenuGraph.ID_MULTIPLAYER)
-	assert_eq(_rows().size(), 1, "and it still renders")
+	assert_eq(_rows().size(), 2, "and it still renders")
 	for id: StringName in [&"PLAYERS", &"players"]:
 		assert_null(StatRegistry.get_def(id), "and rendering it did not register one")
 
 
 # --- the described leaves ---------------------------------------------------
 
-func test_a_described_leaf_shows_its_line_and_no_slab() -> void:
+func test_a_described_leaf_shows_its_title_and_its_line() -> void:
 	_bind(MenuGraph.ID_NEW_GAME)
-	assert_true(_tooltip.visible)
-	assert_eq(_description_text(), "Begin something new.")
-	assert_eq(_rows().size(), 0, "no slab on a plain leaf")
-	assert_eq(_header_text(), "NEW GAME", "the tooltip names its subject")
+	assert_eq(_row_text(), ["NEW GAME", "Begin something new."] as Array[String])
 
 
 ## Every one of #575's seven lines, checked against the tree that has to carry
@@ -124,28 +116,59 @@ func test_every_leaf_in_the_tree_has_something_to_say() -> void:
 ## #575's third acceptance bullet, in the form that does not contradict its
 ## first: what suppresses a tooltip is having nothing to say, and the ROOT is
 ## the node that has children and no content.
-func test_a_node_with_children_and_no_content_shows_no_tooltip() -> void:
+func test_a_node_with_children_and_no_content_shows_no_rows() -> void:
 	_bind(MenuGraph.ID_ROOT)
-	assert_false(_tooltip.visible)
-	assert_false(MenuTooltip.has_content(_tree.get_item(MenuGraph.ID_ROOT)))
 	assert_eq(_rows().size(), 0)
+	assert_false(MenuTooltip.has_content(_tree.get_item(MenuGraph.ID_ROOT)))
+	assert_almost_eq(_tooltip.modulate.a, 0.0, 0.0001, "it rests, it does not hide")
 
 
-func test_binding_null_hides_it() -> void:
+func test_binding_null_empties_it() -> void:
 	_bind(MenuGraph.ID_EXIT)
-	assert_true(_tooltip.visible)
+	assert_eq(_rows().size(), 2)
 	_tooltip.bind(null)
-	assert_false(_tooltip.visible)
+	assert_eq(_rows().size(), 0)
 	assert_null(_tooltip.item)
+
+
+## #588: a hidden [Control] skips layout, which is what broke size convergence.
+## The rest state is transparent, never invisible — at every step.
+func test_the_tooltip_is_never_hidden() -> void:
+	assert_true(_tooltip.visible, "fresh")
+	_bind(MenuGraph.ID_ROOT)
+	assert_true(_tooltip.visible, "nothing to say")
+	_tooltip.bind(null)
+	assert_true(_tooltip.visible, "unbound")
+	_bind(MenuGraph.ID_EXIT)
+	assert_true(_tooltip.visible, "bound")
 
 
 func test_rebinding_replaces_the_content_rather_than_stacking_it() -> void:
 	_bind(MenuGraph.ID_SINGLE_PLAYER)
 	_bind(MenuGraph.ID_MULTIPLAYER)
-	assert_eq(_rows().size(), 1, "one slab, not two")
+	assert_eq(_row_text(), [MenuTooltip.SLAB_HEADER, "PLAYERS +8"] as Array[String])
 	_bind(MenuGraph.ID_OPTIONS)
-	assert_eq(_rows().size(), 0, "and a described leaf clears it")
-	assert_eq(_description_text(), "Tune the experience.")
+	assert_eq(_row_text(), ["OPTIONS", "Tune the experience."] as Array[String])
+
+
+# --- the size, which is the whole point of #588 -----------------------------
+
+## Was ~470px before the stack replaced the panel.
+func test_a_two_line_tooltip_is_two_lines_tall() -> void:
+	_bind(MenuGraph.ID_LOCAL)
+	assert_eq(_row_text(), ["LOCAL", "Same device, same screen."] as Array[String])
+	assert_lt(_tooltip.size.y, 120.0, "two rows, not a wall of text")
+
+
+func test_the_stack_grows_with_its_content() -> void:
+	_bind(MenuGraph.ID_LOCAL)
+	var two_rows := _tooltip.size.y
+	_bind(MenuGraph.ID_SINGLE_PLAYER)  # header + slab + no description
+	var with_slab := _tooltip.size.y
+	assert_eq(_rows().size(), 2)
+	assert_almost_eq(with_slab, two_rows, 4.0, "two rows either way")
+	_tooltip.bind(null)
+	assert_lt(_tooltip.size.y, two_rows, "and it shrinks back when emptied")
 
 
 # --- identity and reveal ----------------------------------------------------
@@ -158,7 +181,8 @@ func test_the_tooltip_is_tinted_by_the_node_s_archetype() -> void:
 		var expected := MenuNodeView.archetype_for(item.archetype).color
 		assert_eq(MenuTooltip.tint_for(item), expected, "%s" % id)
 		_bind(id)
-		assert_eq((_tooltip.get_node("%Slab") as SlabPanel).tint_color, expected, "%s slab" % id)
+		for row: SlabRow in _rows():
+			assert_eq(row._slab.tint_color, expected, "%s row" % id)
 
 
 func test_set_progress_fades_and_grows_it() -> void:
@@ -169,3 +193,75 @@ func test_set_progress_fades_and_grows_it() -> void:
 	_tooltip.set_progress(1.0)
 	assert_almost_eq(_tooltip.modulate.a, 1.0, 0.0001)
 	assert_almost_eq(_tooltip.scale.x, 1.0, 0.0001)
+
+
+## The rows themselves are fully revealed — the STACK owns the fade, so a row
+## still resting at `t = 0` would be an invisible tooltip.
+func test_the_rows_are_revealed_by_bind() -> void:
+	_bind(MenuGraph.ID_LOCAL)
+	for row: SlabRow in _rows():
+		assert_almost_eq(row.modulate.a, 1.0, 0.0001)
+		assert_almost_eq(row.scale.x, 1.0, 0.0001)
+
+
+# --- placement (#588: centred, directly under the node) ---------------------
+
+class _Placed extends RefCounted:
+	var root: FrontmatterRoot
+	var tooltip: MenuTooltip
+
+	func node_screen_x(id: StringName) -> float:
+		return (root.get_viewport_transform() * root.view_for(id).global_position).x
+
+	func node_screen_y(id: StringName) -> float:
+		return (root.get_viewport_transform() * root.view_for(id).global_position).y
+
+	func centre_x() -> float:
+		return tooltip.position.x + tooltip.size.x * 0.5
+
+
+func _placed() -> _Placed:
+	var out := _Placed.new()
+	out.root = _ROOT_SCENE.instantiate()
+	add_child_autofree(out.root)
+	out.root.reduce_motion = true
+	out.tooltip = out.root._tooltip
+	return out
+
+
+## The acceptance, three times over: the stack's horizontal centre is its node's
+## screen x — at rest, mid-travel, and fully revealed. The tooltip is placed
+## every frame it is up precisely because the node is still moving.
+func test_the_stack_is_centred_on_its_node() -> void:
+	var p := _placed()
+	var id := MenuGraph.ID_SINGLE_PLAYER
+	p.root.set_hovered(id)
+	p.root._place_tooltip(id)
+	assert_almost_eq(p.centre_x(), p.node_screen_x(id), 1.0, "at rest")
+
+	p.root.focus(id)
+	p.root.set_progress(0.5)
+	p.root._place_tooltip(id)
+	assert_almost_eq(p.centre_x(), p.node_screen_x(id), 1.0, "mid-flight")
+
+	p.root.set_progress(1.0)
+	p.tooltip.set_progress(1.0)
+	p.root._place_tooltip(id)
+	assert_almost_eq(p.centre_x(), p.node_screen_x(id), 1.0, "revealed")
+
+
+func test_the_stack_sits_below_offset_beneath_its_node() -> void:
+	var p := _placed()
+	var id := MenuGraph.ID_EXIT
+	p.root.tooltip_below_offset = 60.0
+	p.root.set_hovered(id)
+	p.root._place_tooltip(id)
+	assert_almost_eq(p.tooltip.position.y - p.node_screen_y(id), 60.0, 0.001)
+
+
+## Centred means the pivot is centred too, or a partially revealed stack drifts
+## left as it scales about its top-left corner.
+func test_the_scale_pivot_is_centred() -> void:
+	_bind(MenuGraph.ID_LOCAL)
+	assert_almost_eq(_tooltip.pivot_offset.x, _tooltip.size.x * 0.5, 0.001)
+	assert_almost_eq(_tooltip.pivot_offset.y, _tooltip.size.y * 0.5, 0.001)

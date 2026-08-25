@@ -59,9 +59,10 @@ signal focus_started(id: StringName)
 ## with a snappier curve rather than a duration of its own.
 @export_range(0.0, 3.0, 0.01) var travel_duration: float = 0.85
 
-## Screen-space offset of the hover tooltip from the node it describes — up and
-## to the right, so it never sits under the cursor that summoned it.
-@export var _tooltip_offset: Vector2 = Vector2(28.0, -18.0)
+## Screen-space gap between a node and the top of the slab stack that describes
+## it. The stack is centred horizontally on the node, so this is the whole of
+## the placement (#588) — there is no sideways component to tune.
+@export_range(0.0, 200.0, 1.0) var tooltip_below_offset: float = 44.0
 
 ## Skip every transition — jump straight to `set_progress(1.0)`.
 ##
@@ -252,19 +253,27 @@ func set_hovered(id: StringName) -> void:
 		_place_tooltip(id)
 
 
-## Parks the tooltip beside its node, in SCREEN space.
+## Parks the slab stack directly and centrally UNDER its node, in SCREEN space.
 ##
 ## It lives in the `CanvasLayer` rather than beside the view in graph space for
 ## the reason `.claude/rules/modal-system.md` and #573 both give about panels:
 ## a canvas the camera transforms pans and *zooms* its text, and zoomed text is
 ## the "why is this blurry and drifting" bug. The conversion is the engine's own
 ## `get_viewport_transform()`, never hand-rolled camera math.
+##
+## Centred-below replaces the old up-and-to-the-right offset outright (#588):
+## the stack authors its own width and fits itself to its rows, so its centre is
+## a known quantity and the placement is `node_x - width / 2`. The stack centres
+## its own scale pivot, so this holds mid-reveal too.
 func _place_tooltip(id: StringName) -> void:
 	var view := view_for(id)
 	if view == null:
 		return
 	var screen_pos := get_viewport_transform() * view.global_position
-	_tooltip.position = screen_pos + _tooltip_offset
+	_tooltip.position = Vector2(
+		screen_pos.x - _tooltip.size.x * 0.5,
+		screen_pos.y + tooltip_below_offset,
+	)
 
 
 ## Hands each affordance the tree and the lookups it needs, once per build.
@@ -307,7 +316,9 @@ func _ensure_tooltip() -> void:
 	if _tooltip != null and is_instance_valid(_tooltip):
 		return
 	_tooltip = TOOLTIP_SCENE.instantiate()
-	_tooltip.visible = false
+	# Never hidden — it rests at `modulate.a = 0` (#588). A hidden Control
+	# skips layout, and a stack that skipped layout cannot report the width
+	# `_place_tooltip` centres it by.
 	_panel_layer.add_child(_tooltip)
 
 
