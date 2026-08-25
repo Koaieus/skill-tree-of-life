@@ -26,9 +26,11 @@ extends MarginContainer
 ## A live harness would re-lay-out on window resize under a camera that already
 ## baked its numbers — a second layout system racing the first. So
 ## [FrontmatterLayout] instances it, calls [method measure], and frees it.
-## [method measure] deliberately never enters the [SceneTree]: it sizes itself
-## and drives the container sort by hand, which is what lets the whole geometry
-## stay a pure static function with no frame and no `await`.
+## [method measure] drives the container sort by hand rather than waiting for a
+## frame, which is what lets the whole geometry stay a pure static function with
+## no `await`. It does parent itself for the length of that one synchronous call
+## — [method _sort] explains why it has no choice — but it is never in the tree
+## across a frame, and that is what D3 is about.
 ##
 ## And never a [RemoteTransform2D] between the two: it pushes GLOBAL transform
 ## and would double-apply the camera.
@@ -135,8 +137,9 @@ static func _sort(control: Control) -> void:
 
 
 ## [param control]'s centre in harness-local pixels. Walked by hand rather than
-## via `get_global_rect()`, which needs the node to be inside a [SceneTree] —
-## the one thing this harness is defined by never being.
+## via `get_global_rect()`: the harness is parented to the tree ROOT for the
+## duration of [method measure], so a global rect would be offset by wherever
+## root put it. Local accumulation is what makes the result independent of that.
 func _centre_of(control: Control) -> Vector2:
 	var at := control.size * 0.5
 	var node: Node = control
