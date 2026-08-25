@@ -116,8 +116,8 @@ const FAN_SCENES: Array[String] = [
 	"res://ui/frontmatter/layout/multiplayer_menu.tscn",
 ]
 
-## `hero_id -> ` whatever [method MenuFanHarness.measure] reported, in harness
-## pixels — see it for the shape.
+## `hero_id -> ` a [MenuFanHarness.Measured], whatever [method
+## MenuFanHarness.measure] reported for that fan.
 ##
 ## Cached because [method solve] is called several times per navigation and the
 ## answer is a property of authored scenes, not of the caller. Emptied — never
@@ -205,9 +205,9 @@ static func _read_harnesses() -> void:
 		assert(hero_id != &"", "'%s' does not name the menu id it fans out from" % path)
 		assert(not _fans.has(hero_id), "two fan scenes both fan out from '%s'" % hero_id)
 		var measured := harness.measure(view, _fan_overrides.get(hero_id, {}))
-		for slot_id: StringName in (measured[&"looks"] as Dictionary):
+		for slot_id: StringName in measured.looks:
 			assert(not _looks.has(slot_id), "'%s' is authored in two scenes" % slot_id)
-			_looks[slot_id] = (measured[&"looks"] as Dictionary)[slot_id]
+			_looks[slot_id] = measured.looks[slot_id]
 		_fans[hero_id] = measured
 		_fan_order.append(hero_id)
 		harness.free()
@@ -248,10 +248,10 @@ static func decor_slots(tree: MenuGraph) -> Dictionary:
 	for hero_id: StringName in authored:
 		if not homes.has(hero_id):
 			continue
-		var fan: Dictionary = authored[hero_id]
-		var offset: Vector2 = homes[hero_id] - (fan[&"hero"] as Vector2)
-		for slot_id: StringName in (fan[&"decor"] as Dictionary):
-			placed[slot_id] = (fan[&"decor"] as Dictionary)[slot_id] + offset
+		var fan: MenuFanHarness.Measured = authored[hero_id]
+		var offset: Vector2 = homes[hero_id] - fan.hero
+		for slot_id: StringName in fan.decor:
+			placed[slot_id] = fan.decor[slot_id] + offset
 	return placed
 
 
@@ -271,7 +271,8 @@ static func _assert_authored_matches(tree: MenuGraph, authored: Dictionary) -> v
 	var seated: Dictionary = {}
 	for hero_id: StringName in authored:
 		assert(tree.has(hero_id), "fan scene fans out from unknown menu id '%s'" % hero_id)
-		for slot_id: StringName in (authored[hero_id] as Dictionary)[&"slots"]:
+		var fan: MenuFanHarness.Measured = authored[hero_id]
+		for slot_id: StringName in fan.slots:
 			assert(tree.has(slot_id), "a slot names unknown menu id '%s'" % slot_id)
 			assert(not seated.has(slot_id), "'%s' is authored in two slots" % slot_id)
 			assert(
@@ -280,7 +281,7 @@ static func _assert_authored_matches(tree: MenuGraph, authored: Dictionary) -> v
 					% [slot_id, hero_id, tree.parent_of(slot_id)]
 			)
 			seated[slot_id] = true
-		for decor_id: StringName in (authored[hero_id] as Dictionary)[&"decor"]:
+		for decor_id: StringName in fan.decor:
 			assert(
 				not tree.has(decor_id),
 				"decorative slot '%s' names a real menu id — drop the flag" % decor_id
@@ -363,9 +364,9 @@ static func solve(tree: MenuGraph) -> Dictionary:
 	for id in tree.ids():
 		if not authored.has(id) or not positions.has(id):
 			continue
-		var fan: Dictionary = authored[id]
-		var offset: Vector2 = positions[id] - (fan[&"hero"] as Vector2)
-		var slots: Dictionary = fan[&"slots"]
+		var fan: MenuFanHarness.Measured = authored[id]
+		var offset: Vector2 = positions[id] - fan.hero
+		var slots: Dictionary = fan.slots
 		for slot_id: StringName in slots:
 			positions[slot_id] = (slots[slot_id] as Vector2) + offset
 	return positions
@@ -381,7 +382,7 @@ static func hero_slot() -> Vector2:
 	var authored := fans()
 	if _fan_order.is_empty():
 		return viewport_size() * 0.5
-	return (authored[_fan_order[0]] as Dictionary)[&"hero"] as Vector2
+	return (authored[_fan_order[0]] as MenuFanHarness.Measured).hero
 
 
 ## The horizontal distance between a node and its children — the world column
@@ -391,10 +392,10 @@ static func column_step() -> float:
 	var authored := fans()
 	if _fan_order.is_empty():
 		return 0.0
-	var fan: Dictionary = authored[_fan_order[0]]
-	var slots: Dictionary = fan[&"slots"]
+	var fan: MenuFanHarness.Measured = authored[_fan_order[0]]
+	var slots: Dictionary = fan.slots
 	for slot_id: StringName in slots:
-		return (slots[slot_id] as Vector2).x - (fan[&"hero"] as Vector2).x
+		return (slots[slot_id] as Vector2).x - fan.hero.x
 	return 0.0
 
 
@@ -429,7 +430,7 @@ static func zoom_for(tree: MenuGraph, focus_id: StringName) -> float:
 	var id := focus_id if tree.has(focus_id) else tree.root
 	if not authored.has(id):
 		return TREE_ZOOM
-	return float((authored[id] as Dictionary)[&"zoom"])
+	return (authored[id] as MenuFanHarness.Measured).zoom
 
 
 ## The parked splash camera: the root node, big, near the middle of the screen.

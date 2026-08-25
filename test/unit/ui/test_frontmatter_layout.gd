@@ -306,9 +306,9 @@ func test_every_menu_id_is_seated_in_exactly_one_authored_slot() -> void:
 	# `solve()` asserts rather than falling back.
 	var seated: Array[StringName] = []
 	for hero_id in FrontmatterLayout.fan_ids():
-		var fan: Dictionary = FrontmatterLayout.fans()[hero_id]
+		var fan: MenuFanHarness.Measured = FrontmatterLayout.fans()[hero_id]
 		assert_true(_tree.has(hero_id), "'%s' fans out from a known id" % hero_id)
-		for slot_id: StringName in (fan[&"slots"] as Dictionary):
+		for slot_id: StringName in fan.slots:
 			assert_false(seated.has(slot_id), "'%s' is seated once" % slot_id)
 			assert_eq(_tree.parent_of(slot_id), hero_id,
 					"'%s' is seated in its own parent's fan" % slot_id)
@@ -367,11 +367,11 @@ func test_a_decorative_slot_reserves_a_row_without_naming_a_menu_id() -> void:
 	var measured := harness.measure(FrontmatterLayout.viewport_size())
 	harness.free()
 
-	assert_false((measured[&"slots"] as Dictionary).has(&"a_bonus_node"),
+	assert_false(measured.slots.has(&"a_bonus_node"),
 			"scenery is not a seat the tree has to account for")
-	assert_true((measured[&"decor"] as Dictionary).has(&"a_bonus_node"),
+	assert_true(measured.decor.has(&"a_bonus_node"),
 			"but it is placed, so a later unit can draw it")
-	assert_eq((measured[&"looks"] as Dictionary).size(), 4,
+	assert_eq(measured.looks.size(), 4,
 			"and it authors its look off the same exports")
 	assert_eq(FrontmatterLayout.decor_slots(_tree), {},
 			"no fan ships scenery yet — #591 builds the seam and no content")

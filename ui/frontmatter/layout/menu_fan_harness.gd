@@ -36,6 +36,28 @@ extends MarginContainer
 ## and would double-apply the camera.
 
 
+## What one fan authors, once [method measure] has laid it out and read every
+## seat's look off it.
+##
+## A plain record with no [Node] in it, for the reason [MenuSlot.Look] is one:
+## the whole Control tree is freed the moment the caller is done with it. It
+## replaced an untyped [Dictionary] with the same five keys (#589's crash was
+## hard to read for exactly that reason — a failed parenting produced
+## `Invalid access to property or key 'looks'` two calls from the real cause).
+## A typed member access cannot silently miss like that.
+class Measured extends RefCounted:
+	## `%HeroSlot`'s centre, in harness-local pixels.
+	var hero: Vector2 = Vector2.ZERO
+	## What the camera parks at while this fan is the choice on offer (#593).
+	var zoom: float = 0.0
+	## `{menu_id: Vector2}` — the seats that stand for real menu items.
+	var slots: Dictionary = {}
+	## `{menu_id: Vector2}` — the seats that are scenery (#591).
+	var decor: Dictionary = {}
+	## `{menu_id: MenuSlot.Look}` — both kinds, plus the hero if it names one.
+	var looks: Dictionary = {}
+
+
 ## The [MenuGraph] id this fan hangs off — the node that docks in `%HeroSlot`
 ## while these options are the choice on offer.
 @export var hero_id: StringName = &""
@@ -89,18 +111,8 @@ func authored_theme() -> Dictionary:
 	}
 
 
-## Lays this fan out at [param view] and reports what it authors, in
-## harness-local pixels:
-##
-## [codeblock]
-##   {
-##     hero:  Vector2,                    # %HeroSlot's centre
-##     zoom:  float,                      # what the camera parks at here (#593)
-##     slots: {menu_id: Vector2},         # the seats that stand for menu items
-##     decor: {menu_id: Vector2},         # the ones that are scenery (#591)
-##     looks: {menu_id: MenuSlot.Look},   # both kinds, plus the hero if it names one
-##   }
-## [/codeblock]
+## Lays this fan out at [param view] and reports what it authors, as a
+## [Measured] in harness-local pixels.
 ##
 ## The looks are COPIES: this whole Control tree is freed the moment the caller
 ## is done with it, so a [MenuNodeView] holding a slot reference would be
@@ -109,7 +121,7 @@ func authored_theme() -> Dictionary:
 ## [param overrides] may carry `separation: float` and `margins: Vector4` —
 ## #578's live tab tuning the selected fan without editing the scene. Absent
 ## keys leave the authored values alone.
-func measure(view: Vector2, overrides: Dictionary = {}) -> Dictionary:
+func measure(view: Vector2, overrides: Dictionary = {}) -> Measured:
 	if overrides.has(&"separation"):
 		options_box().add_theme_constant_override(
 			&"separation", int(roundf(float(overrides[&"separation"])))
@@ -124,13 +136,7 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Dictionary:
 	var host := (Engine.get_main_loop() as SceneTree)
 	assert(host != null, "a fan harness can only be measured under a SceneTree")
 	if host == null:
-		return {
-			&"hero": Vector2.ZERO,
-			&"zoom": camera_zoom,
-			&"slots": {},
-			&"decor": {},
-			&"looks": {},
-		}
+		return Measured.new()
 	_parent_for_measuring(host)
 	assert(
 		get_parent() != null,
@@ -138,13 +144,7 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Dictionary:
 			% name + "would take it, so every rect would read 0x0."
 	)
 	if get_parent() == null:
-		return {
-			&"hero": Vector2.ZERO,
-			&"zoom": camera_zoom,
-			&"slots": {},
-			&"decor": {},
-			&"looks": {},
-		}
+		return Measured.new()
 	position = Vector2.ZERO
 	size = view
 	_sort(self)
@@ -169,13 +169,12 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Dictionary:
 		else:
 			slots[slot.menu_id] = where
 		looks[slot.menu_id] = slot.look()
-	var measured := {
-		&"hero": _centre_of(hero),
-		&"zoom": camera_zoom,
-		&"slots": slots,
-		&"decor": decor,
-		&"looks": looks,
-	}
+	var measured := Measured.new()
+	measured.hero = _centre_of(hero)
+	measured.zoom = camera_zoom
+	measured.slots = slots
+	measured.decor = decor
+	measured.looks = looks
 	get_parent().remove_child(self)
 	return measured
 
