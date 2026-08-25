@@ -302,15 +302,41 @@ func test_the_shader_zoom_is_pushed_on_every_applied_frame() -> void:
 	# `edge_camera_zoom` tracks the camera, and GraphCamera is the only other
 	# writer. Pushing it only at the endpoints of a transition pumps the width
 	# through the middle of every zoom, so it rides `apply()`.
-	var pushes: Array[float] = []
 	var probe := FrontmatterCamera.new(null, _tree)
 	probe.snap_to(_tree.root)
+	var parked := FrontmatterLayout.zoom_for(_tree, _tree.root)
 	for t in [0.0, 0.25, 0.5, 0.75, 1.0]:
 		probe.set_progress(t)
-		pushes.append(FrontmatterLayout.zoom_of(probe.transform_at(t)).x)
-	for zoom in pushes:
-		assert_almost_eq(zoom, 1.0 / FrontmatterLayout.TREE_ZOOM, 0.001,
-				"tree navigation holds one zoom; a transition must not drift it")
+		assert_almost_eq(FrontmatterLayout.zoom_of(probe.transform_at(t)).x, parked, 0.001,
+				"a parked camera holds its zoom; nothing may drift it")
+
+
+func test_a_transition_between_two_authored_zooms_never_pops() -> void:
+	# #593. The root menu is looked at closer than the fans below it, so a
+	# transition now has a zoom to travel as well as a position. What must hold
+	# is that it LANDS on both authored values exactly and moves monotonically
+	# between them — a pop at either end is the failure mode, and `apply()`
+	# pushes every one of these frames into the edge shader.
+	var down := FrontmatterLayout.zoom_for(_tree, MenuGraph.ID_SINGLE_PLAYER)
+	var up := FrontmatterLayout.zoom_for(_tree, _tree.root)
+	assert_gt(up, down, "the root is the closer of the two")
+
+	var probe := FrontmatterCamera.new(null, _tree)
+	probe.snap_to(_tree.root)
+	probe.travel_to(MenuGraph.ID_SINGLE_PLAYER)
+	var seen: Array[float] = []
+	for t in [0.0, 0.25, 0.5, 0.75, 1.0]:
+		seen.append(FrontmatterLayout.zoom_of(probe.transform_at(t)).x)
+	assert_almost_eq(seen[0], up, 0.001, "it leaves from the root's authored zoom")
+	assert_almost_eq(seen[-1], down, 0.001, "and arrives exactly on the fan's")
+	for i in range(1, seen.size()):
+		assert_true(seen[i] <= seen[i - 1] + 0.001,
+				"the zoom only ever travels one way: %s" % [seen])
+
+	# And back, from wherever the outbound trip got to.
+	probe.travel_to(_tree.root)
+	assert_almost_eq(FrontmatterLayout.zoom_of(probe.transform_at(1.0)).x, up, 0.001,
+			"going back lands on the root's authored zoom, not near it")
 
 
 func test_focusing_a_leaf_routes_its_panel_through_the_seam() -> void:

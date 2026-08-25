@@ -327,10 +327,17 @@ static func reset_geometry() -> void:
 ## The splash (#574) is the root node, alone and close: (50%, 44%) of the
 ## viewport at 2.55x. "Press any button" is really allocating the first node of
 ## the run, so it is the same camera on the same tree, just parked.
+##
+## [b]These stay consts, and #593 looked at collapsing them.[/b] They are a
+## SECOND camera onto a fan that already authors one — same hero, different slot
+## and different zoom — and a fan has one of each. The per-fan knob is "how
+## close is this menu"; the splash is "how close is the attract state", which is
+## a different question about the same node.
 const SPLASH_SLOT_RATIO := Vector2(0.5, 0.44)
 const SPLASH_ZOOM := 2.55
 
-## The zoom the tree is navigated at. 1.0 means one world unit per screen pixel.
+## The zoom the tree is navigated at, for every fan that does not author one of
+## its own. 1.0 means one world unit per screen pixel.
 const TREE_ZOOM := 1.0
 
 
@@ -403,7 +410,26 @@ static func column_step() -> float:
 ## a focus token that does not exist is a caller bug, and landing on the root is
 ## the recoverable answer.
 static func camera_for(tree: MenuGraph, focus_id: StringName) -> Transform2D:
-	return camera_at(_focus_position(tree, focus_id), hero_slot(), TREE_ZOOM)
+	return camera_at(_focus_position(tree, focus_id), hero_slot(), zoom_for(tree, focus_id))
+
+
+## How close the camera sits while [param focus_id] is the hero (#593).
+##
+## A node with a fan is looked at through that fan's own authored
+## [member MenuFanHarness.camera_zoom] — the root reads closer than everything
+## else because `root_menu.tscn` says so, not because any code asks which id
+## this is. A leaf fans out nothing, so it is seen at [constant TREE_ZOOM].
+##
+## An unknown id answers with the root's, matching [method _focus_position]'s
+## own fallback: parking somewhere recoverable means parking there completely.
+static func zoom_for(tree: MenuGraph, focus_id: StringName) -> float:
+	if tree == null:
+		return TREE_ZOOM
+	var authored := fans()
+	var id := focus_id if tree.has(focus_id) else tree.root
+	if not authored.has(id):
+		return TREE_ZOOM
+	return float((authored[id] as Dictionary)[&"zoom"])
 
 
 ## The parked splash camera: the root node, big, near the middle of the screen.

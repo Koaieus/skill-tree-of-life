@@ -40,6 +40,14 @@ extends MarginContainer
 ## while these options are the choice on offer.
 @export var hero_id: StringName = &""
 
+## The zoom the camera parks at while this fan is the choice on offer (#593).
+##
+## Authored per fan rather than as a second global const beside
+## [constant FrontmatterLayout.TREE_ZOOM], because "the root reads closer than
+## everything else" is a property of the ROOT MENU and not a rule about menus.
+## A fan that has nothing to say leaves it at 1.0 and the tree zoom stands.
+@export_range(0.25, 4.0, 0.01) var camera_zoom: float = 1.0
+
 
 ## Where the focused node docks. A [MenuSlot] like any other, so that the one
 ## node with no seat in anybody's fan — the ROOT, which has no parent — still
@@ -87,6 +95,7 @@ func authored_theme() -> Dictionary:
 ## [codeblock]
 ##   {
 ##     hero:  Vector2,                    # %HeroSlot's centre
+##     zoom:  float,                      # what the camera parks at here (#593)
 ##     slots: {menu_id: Vector2},         # the seats that stand for menu items
 ##     decor: {menu_id: Vector2},         # the ones that are scenery (#591)
 ##     looks: {menu_id: MenuSlot.Look},   # both kinds, plus the hero if it names one
@@ -115,7 +124,13 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Dictionary:
 	var host := (Engine.get_main_loop() as SceneTree)
 	assert(host != null, "a fan harness can only be measured under a SceneTree")
 	if host == null:
-		return {&"hero": Vector2.ZERO, &"slots": {}, &"decor": {}, &"looks": {}}
+		return {
+			&"hero": Vector2.ZERO,
+			&"zoom": camera_zoom,
+			&"slots": {},
+			&"decor": {},
+			&"looks": {},
+		}
 	host.root.add_child(self)
 	position = Vector2.ZERO
 	size = view
@@ -143,6 +158,7 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Dictionary:
 		looks[slot.menu_id] = slot.look()
 	var measured := {
 		&"hero": _centre_of(hero),
+		&"zoom": camera_zoom,
 		&"slots": slots,
 		&"decor": decor,
 		&"looks": looks,
