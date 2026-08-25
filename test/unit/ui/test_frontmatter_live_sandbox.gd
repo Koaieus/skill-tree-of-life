@@ -35,11 +35,12 @@ func before_each() -> void:
 	add_child_autofree(_panel)
 
 
-## The six ratios are `static var` now — process-global. A test that left one
-## tuned would silently re-pose every menu built afterwards IN THIS SAME RUN,
-## including `test_frontmatter_layout.gd` and `test_hover_preview.gd`, and the
-## failure would land on them rather than here. The panel resets on teardown
-## too; this is the belt to that braces.
+## `PREVIEW_SCALE` and the live per-fan overrides are process-global. A test that
+## left one tuned would silently re-pose every menu built afterwards IN THIS SAME
+## RUN, including `test_frontmatter_layout.gd` and `test_hover_preview.gd`, and
+## the failure would land on them rather than here. #590 shrank that hazard from
+## six knobs to these; it did not remove it. The panel resets on teardown too;
+## this is the belt to that braces.
 func after_each() -> void:
 	FrontmatterLayout.reset_geometry()
 
@@ -131,9 +132,8 @@ func test_there_is_a_navigation_button_for_every_menu_node() -> void:
 
 
 func test_the_hover_picker_offers_every_node_plus_none() -> void:
-	var pickers := _controls_of("OptionButton")
-	assert_eq(pickers.size(), 1, "one hover source")
-	var picker := pickers[0] as OptionButton
+	var picker := _panel._hover_picker as OptionButton
+	assert_not_null(picker, "one hover source")
 	assert_eq(picker.item_count, _frontmatter().tree.size() + 1, "every node, plus (none)")
 	assert_eq(picker.get_item_metadata(0), &"", "the first entry clears the hover")
 
@@ -228,110 +228,173 @@ func test_the_defaults_change_nothing_on_open() -> void:
 
 # --- the geometry knobs -------------------------------------------------------
 
-## The panel's defaults must BE the authored ratios, or merely opening the tab
-## would retune the menu — and since the sliders are authored in design px and
-## the solver stores fractions, this is also where a units mistake surfaces.
-func test_the_geometry_defaults_are_the_authored_ratios() -> void:
+## The panel's defaults must BE what the code and the scenes already carry, or
+## merely opening the tab would retune the menu.
+##
+## Re-pointed by #594. Five of the six ratios died with the recursion (#590), so
+## what is pinned now is the one surviving constant plus the rule that replaced
+## the other five: the per-fan knobs are NOT literals in this panel at all, they
+## are read out of `ui/frontmatter/layout/` — which is the only way a reset can
+## be guaranteed to agree with the scene an author is editing.
+func test_the_geometry_defaults_are_the_authored_values() -> void:
 	FrontmatterLayout.reset_geometry()
-	var design := FrontmatterLayout.DESIGN_VIEWPORT
-	var expected := {
-		_PANEL_SCRIPT.K_HERO_X: FrontmatterLayout.HERO_SLOT_RATIO.x * design.x,
-		_PANEL_SCRIPT.K_HERO_Y: FrontmatterLayout.HERO_SLOT_RATIO.y * design.y,
-		_PANEL_SCRIPT.K_COLUMN_STEP: FrontmatterLayout.COLUMN_STEP_RATIO * design.x,
-		_PANEL_SCRIPT.K_SIBLING_GAP: FrontmatterLayout.SIBLING_GAP_RATIO * design.y,
-		_PANEL_SCRIPT.K_PREVIEW_COLUMN: FrontmatterLayout.PREVIEW_COLUMN_RATIO * design.x,
-		_PANEL_SCRIPT.K_PREVIEW_GAP: FrontmatterLayout.PREVIEW_GAP_RATIO * design.y,
-		_PANEL_SCRIPT.K_PREVIEW_SCALE: FrontmatterLayout.PREVIEW_SCALE,
-	}
-	for key: StringName in _PANEL_SCRIPT.GEOMETRY_KEYS:
-		assert_true(expected.has(key), "%s is covered by this test" % key)
-		assert_almost_eq(
-			_PANEL_SCRIPT.DEFAULTS[key] as float, expected[key] as float, 0.001,
-			"default for %s" % key,
-		)
-
-
-## #578's headline acceptance, in the half a headless run can see: a geometry
-## knob really does re-pose the running menu.
-func test_a_geometry_knob_re_poses_the_running_menu() -> void:
-	var root := _frontmatter()
-	var before := _column_step_of(root)
-	assert_almost_eq(before, 306.0, 0.001, "the authored column step, in world units")
-
-	_panel._values[_PANEL_SCRIPT.K_COLUMN_STEP] = 500.0
-	_panel._rebuild()
-	assert_almost_eq(_column_step_of(_frontmatter()), 500.0, 0.001, "the menu moved")
 	assert_almost_eq(
-		FrontmatterLayout.COLUMN_STEP_RATIO,
-		500.0 / FrontmatterLayout.DESIGN_VIEWPORT.x,
-		0.0001,
-		"and it is stored as a ratio, not as a pixel count",
+		_PANEL_SCRIPT.DEFAULTS[_PANEL_SCRIPT.K_PREVIEW_SCALE] as float,
+		FrontmatterLayout.PREVIEW_SCALE, 0.0001, "default for preview_scale",
+	)
+	for key: StringName in _PANEL_SCRIPT.GEOMETRY_KEYS:
+		if key == _PANEL_SCRIPT.K_PREVIEW_SCALE:
+			continue
+		assert_false(_PANEL_SCRIPT.DEFAULTS.has(key),
+				"%s is read off the fan's scene, never copied into DEFAULTS" % key)
+
+	var authored := FrontmatterLayout.authored_fan_theme(&"root")
+	assert_almost_eq(
+		_panel._values[_PANEL_SCRIPT.K_FAN_SEPARATION] as float,
+		authored[&"separation"] as float, 0.001,
+		"the panel opens on what root_menu.tscn authors",
 	)
 
 
-func test_the_preview_knobs_reach_the_collapsed_slots() -> void:
-	_panel._values[_PANEL_SCRIPT.K_PREVIEW_COLUMN] = 400.0
+## #578's headline acceptance, in the half a headless run can see: a geometry
+## knob really does re-pose the running menu. Re-pointed by #594 from the dead
+## `COLUMN_STEP_RATIO` onto the selected fan's authored separation.
+func test_a_geometry_knob_re_poses_the_running_menu() -> void:
+	var root := _frontmatter()
+	assert_almost_eq(_fan_pitch(root, MenuGraph.ID_ROOT), 190.0, 0.001,
+			"root_menu.tscn's authored top gap, in world units")
+
+	_panel._values[_PANEL_SCRIPT.K_FAN_SEPARATION] = 60.0
+	_panel._rebuild()
+	assert_almost_eq(_fan_pitch(_frontmatter(), MenuGraph.ID_ROOT), 250.0, 0.001,
+			"separation lands ON TOP of the authored slot heights")
+
+
+## Selecting a fan points the sliders at THAT fan, and tuning one leaves its
+## neighbours alone — the whole reason authoring replaced a global pitch.
+func test_the_fan_picker_tunes_one_fan_at_a_time() -> void:
+	# Solved homes, not view positions: MULTIPLAYER's children are collapsed onto
+	# their parent while the menu is parked on the root, so the pose a view is at
+	# is the peek-ahead pitch rather than the fan's own.
+	var tree := _frontmatter().tree
+	var before_mp := _solved_pitch(tree, MenuGraph.ID_MULTIPLAYER)
+	assert_almost_eq(before_mp, 110.0, 0.001, "multiplayer_menu.tscn's authored pitch")
+
+	_panel._values[_PANEL_SCRIPT.K_FAN_SEPARATION] = 60.0
+	_panel._rebuild()
+	assert_almost_eq(_solved_pitch(tree, MenuGraph.ID_MULTIPLAYER), before_mp, 0.001,
+			"MULTIPLAYER's fan did not move when the root fan was tuned")
+
+	_panel._selected_fan = MenuGraph.ID_MULTIPLAYER
+	_panel._load_authored_fan_values()
+	_panel._values[_PANEL_SCRIPT.K_FAN_SEPARATION] = 40.0
+	_panel._rebuild()
+	assert_almost_eq(_solved_pitch(tree, MenuGraph.ID_MULTIPLAYER), before_mp + 40.0,
+			0.001, "and now it does")
+
+
+func test_the_preview_scale_knob_reaches_the_collapsed_nodes() -> void:
 	_panel._values[_PANEL_SCRIPT.K_PREVIEW_SCALE] = 0.8
 	_panel._rebuild()
 	var root := _frontmatter()
-	var slots := FrontmatterLayout.preview_slots(root.tree, MenuGraph.ID_SINGLE_PLAYER)
-	var parent: Vector2 = FrontmatterLayout.solve(root.tree)[MenuGraph.ID_SINGLE_PLAYER]
-	for child_id: StringName in slots:
-		assert_almost_eq(
-			(slots[child_id] as Vector2).x - parent.x, 400.0, 0.001,
-			"%s peeks at the tuned offset" % child_id,
-		)
+	for child_id in root.tree.children_of(MenuGraph.ID_SINGLE_PLAYER):
 		assert_almost_eq(
 			root.view_for(child_id).scale.x, 0.8, 0.001, "%s draws at the tuned scale" % child_id
 		)
 
 
+## #594: `hidden_alpha` is the owner's "visible when possible" idea, surfaced so
+## it can be judged by eye. It is an alpha, not a position, so it must land
+## WITHOUT a rebuild — a rebuild would re-park the camera and lose the look.
+func test_ghosting_the_tree_in_needs_no_rebuild() -> void:
+	var root := _frontmatter()
+	var far: MenuNodeView = root.view_for(MenuGraph.ID_JOIN)
+	assert_almost_eq(far.modulate.a, HoverPreview.DEFAULT_HIDDEN_ALPHA, 0.001,
+			"a collapsed node is invisible at the authored default")
+
+	_panel._values[_PANEL_SCRIPT.K_PEEK_HIDDEN] = 0.6
+	_panel._apply_all()
+	assert_true(far == _frontmatter().view_for(MenuGraph.ID_JOIN),
+			"the same view, not a rebuild")
+	assert_almost_eq(far.modulate.a, 0.6, 0.001, "and the whole tree ghosted in")
+
+
+## Every knob this panel writes is handed back by `reset_geometry()`, one at a
+## time — the acceptance that stops a knob being added to `_apply_geometry` and
+## forgotten in the reset path.
+func test_every_geometry_knob_is_restored_by_reset() -> void:
+	for key: StringName in _PANEL_SCRIPT.GEOMETRY_KEYS:
+		var authored: float = _panel._values[key]
+		_panel._values[key] = authored + (0.3 if key == _PANEL_SCRIPT.K_PREVIEW_SCALE else 37.0)
+		_panel._rebuild()
+		_panel._reset_geometry()
+		assert_almost_eq(_panel._values[key] as float, authored, 0.001,
+				"%s is back to its authored value" % key)
+
+
 func test_reset_geometry_puts_the_menu_back() -> void:
 	var before := _poses()
-	_panel._values[_PANEL_SCRIPT.K_COLUMN_STEP] = 500.0
-	_panel._values[_PANEL_SCRIPT.K_SIBLING_GAP] = 300.0
+	_panel._values[_PANEL_SCRIPT.K_FAN_SEPARATION] = 70.0
+	_panel._values[_PANEL_SCRIPT.K_PREVIEW_SCALE] = 0.9
 	_panel._rebuild()
 	assert_ne(_poses(), before, "the tuning did something")
 	_panel._reset_geometry()
 	assert_eq(_poses(), before, "and reset put all of it back")
-	for key: StringName in _PANEL_SCRIPT.GEOMETRY_KEYS:
-		assert_almost_eq(
-			_panel._values[key] as float, _PANEL_SCRIPT.DEFAULTS[key] as float, 0.001,
-			"%s is back to its default" % key,
-		)
-
-
-## The ratios outlive the panel, so the panel has to hand them back. Without
-## this, one sandbox session re-poses every menu built later in the process.
-func test_tearing_the_panel_down_hands_the_ratios_back() -> void:
-	_panel._values[_PANEL_SCRIPT.K_SIBLING_GAP] = 350.0
-	_panel._rebuild()
-	assert_ne(FrontmatterLayout.SIBLING_GAP_RATIO, 132.0 / 900.0, "tuned")
-	_panel.get_parent().remove_child(_panel)
 	assert_almost_eq(
-		FrontmatterLayout.SIBLING_GAP_RATIO, 132.0 / 900.0, 0.0001,
-		"teardown restored the authored ratio",
+		_panel._values[_PANEL_SCRIPT.K_PREVIEW_SCALE] as float,
+		_PANEL_SCRIPT.DEFAULTS[_PANEL_SCRIPT.K_PREVIEW_SCALE] as float, 0.001,
 	)
 
 
-func test_the_geometry_readout_quotes_the_live_ratios() -> void:
-	_panel._values[_PANEL_SCRIPT.K_PREVIEW_GAP] = 90.0
+## The overrides outlive the panel, so the panel has to hand them back. Without
+## this, one sandbox session re-poses every menu built later in the process.
+func test_tearing_the_panel_down_hands_the_geometry_back() -> void:
+	var authored := _fan_pitch(_frontmatter(), MenuGraph.ID_ROOT)
+	_panel._values[_PANEL_SCRIPT.K_FAN_SEPARATION] = 90.0
+	_panel._values[_PANEL_SCRIPT.K_PREVIEW_SCALE] = 0.9
+	_panel._rebuild()
+	assert_ne(FrontmatterLayout.PREVIEW_SCALE, 0.42, "tuned")
+
+	_panel.get_parent().remove_child(_panel)
+	assert_almost_eq(FrontmatterLayout.PREVIEW_SCALE, 0.42, 0.0001,
+			"teardown restored the surviving constant")
+	var tree := MenuGraph.build()
+	var positions := FrontmatterLayout.solve(tree)
+	var options := tree.children_of(MenuGraph.ID_ROOT)
+	assert_almost_eq(
+		(positions[options[1]] as Vector2).y - (positions[options[0]] as Vector2).y,
+		authored, 0.001, "and dropped the fan override",
+	)
+
+
+func test_the_geometry_readout_quotes_the_live_geometry() -> void:
+	_panel._values[_PANEL_SCRIPT.K_FAN_SEPARATION] = 55.0
 	_panel._rebuild()
 	var text := ""
 	for label: Node in _controls_of("Label"):
-		if (label as Label).text.contains("PREVIEW_GAP_RATIO"):
+		if (label as Label).text.contains("column_step()"):
 			text = (label as Label).text
 	assert_ne(text, "", "the read-out exists")
-	assert_true(
-		text.contains("%.4f" % (90.0 / FrontmatterLayout.DESIGN_VIEWPORT.y)),
-		"and shows what the solver is actually holding",
-	)
+	assert_true(text.contains("55.0"), "and shows the separation the solver is holding")
+	assert_true(text.contains("%.1f" % (190.0 + 55.0)),
+			"and the pitch that separation actually bought")
 
 
-## World-space distance from the root to its children, which is what
-## COLUMN_STEP_RATIO buys at zoom 1.
-func _column_step_of(root: FrontmatterRoot) -> float:
-	return root.view_for(MenuGraph.ID_SINGLE_PLAYER).position.x - root.view_for(root.tree.root).position.x
+## The pitch [param parent]'s fan spaces its children at, measured on the built
+## menu — which is what an author is judging when they drag `separation`. Only
+## honest for a fan that is GROWN OUT: a collapsed one is stacked on its parent
+## at the peek-ahead pitch, so use [method _solved_pitch] for those.
+func _fan_pitch(root: FrontmatterRoot, parent: StringName) -> float:
+	var children := root.tree.children_of(parent)
+	return root.view_for(children[1]).position.y - root.view_for(children[0]).position.y
+
+
+## The same pitch, taken from the solver's homes rather than from where a view
+## currently rests.
+func _solved_pitch(tree: MenuGraph, parent: StringName) -> float:
+	var positions := FrontmatterLayout.solve(tree)
+	var children := tree.children_of(parent)
+	return (positions[children[1]] as Vector2).y - (positions[children[0]] as Vector2).y
 
 
 ## An ARRAY, so one assert_eq really does compare every node.

@@ -54,24 +54,32 @@ const K_BACK_REST := &"back_rest_stops"
 const K_BACK_HOVER := &"back_hover_stops"
 const K_BACK_SCALE := &"back_start_scale"
 const K_TOOLTIP_SCALE := &"tooltip_start_scale"
-## Geometry, in DESIGN PIXELS. The knobs are px because the motion notes and
-## #567's table are px; [method _apply_geometry] converts to the ratios
-## [FrontmatterLayout] actually stores, which is where they stay
-## resolution-independent.
-const K_HERO_X := &"hero_slot_x"
-const K_HERO_Y := &"hero_slot_y"
-const K_COLUMN_STEP := &"column_step"
-const K_SIBLING_GAP := &"sibling_gap"
-const K_PREVIEW_COLUMN := &"preview_column"
-const K_PREVIEW_GAP := &"preview_gap"
+## Geometry, in pixels of the project viewport. #590 moved the six ratios that
+## used to live here into the fan harness scenes, where they are authored in a
+## full-screen editor preview instead of being dragged blind; what is left is
+## the peek-ahead scale, which no scene owns, plus a live handle on the SELECTED
+## fan's own container settings so a separation can still be judged by eye
+## before it is committed to `root_menu.tscn`.
 const K_PREVIEW_SCALE := &"preview_scale"
+const K_FAN_SEPARATION := &"fan_separation"
+const K_FAN_MARGIN_LEFT := &"fan_margin_left"
+const K_FAN_MARGIN_TOP := &"fan_margin_top"
+const K_FAN_MARGIN_RIGHT := &"fan_margin_right"
+const K_FAN_MARGIN_BOTTOM := &"fan_margin_bottom"
+
+## The knobs that belong to whichever fan is selected, in the order the margin
+## [Vector4] carries them.
+const FAN_MARGIN_KEYS: Array[StringName] = [
+	K_FAN_MARGIN_LEFT, K_FAN_MARGIN_TOP, K_FAN_MARGIN_RIGHT, K_FAN_MARGIN_BOTTOM,
+]
 
 ## The geometry knobs as a set — what [method _reset_geometry] restores and what
-## [method _apply_geometry] writes. One list, so a new ratio cannot be added to
+## [method _apply_geometry] writes. One list, so a new knob cannot be added to
 ## one of those and forgotten in the other.
 const GEOMETRY_KEYS: Array[StringName] = [
-	K_HERO_X, K_HERO_Y, K_COLUMN_STEP, K_SIBLING_GAP,
-	K_PREVIEW_COLUMN, K_PREVIEW_GAP, K_PREVIEW_SCALE,
+	K_PREVIEW_SCALE,
+	K_FAN_SEPARATION,
+	K_FAN_MARGIN_LEFT, K_FAN_MARGIN_TOP, K_FAN_MARGIN_RIGHT, K_FAN_MARGIN_BOTTOM,
 ]
 
 ## Every knob's default, which is also the set of knobs [method _apply_all]
@@ -93,19 +101,17 @@ const DEFAULTS := {
 	K_BACK_HOVER: 0.5,
 	K_BACK_SCALE: 0.92,
 	K_TOOLTIP_SCALE: 0.92,
-	# The authored geometry, in design px — the same numbers
-	# `FrontmatterLayout.reset_geometry()` restores. Literals rather than reads
-	# of the live statics, because those are now mutable: a default computed
-	# from them would silently become "whatever the last session left".
-	# `test_the_geometry_defaults_are_the_authored_ratios` pins the agreement.
-	K_HERO_X: 190.0,
-	K_HERO_Y: 450.0,
-	K_COLUMN_STEP: 306.0,
-	K_SIBLING_GAP: 132.0,
-	K_PREVIEW_COLUMN: 284.0,
-	K_PREVIEW_GAP: 46.0,
+	# The one surviving geometry constant, as a literal rather than as a read of
+	# the live `static var`: that one is mutable, so a default computed from it
+	# would silently become "whatever the last session left".
+	# `test_the_geometry_defaults_are_the_authored_values` pins the agreement.
 	K_PREVIEW_SCALE: 0.42,
 }
+
+## The per-fan knobs are deliberately NOT in [constant DEFAULTS]. Their authored
+## values live in the harness scenes and differ per fan, so they are read from
+## `ui/frontmatter/layout/` whenever a fan is selected or the geometry is reset
+## (#594) — never kept as a second copy of a number that a scene already holds.
 
 var _values: Dictionary = {}
 var _hover_picker: OptionButton = null
@@ -116,6 +122,10 @@ var _sliders: Dictionary = {}
 ## end instead of one per knob.
 var _batching: bool = false
 var _geometry_readout: Label = null
+## Which fan the per-fan knobs are pointed at. One at a time, because a fan is
+## what an author is looking at when they judge a separation.
+var _selected_fan: StringName = &""
+var _fan_picker: OptionButton = null
 
 @onready var _frontmatter: FrontmatterRoot = %Frontmatter
 @onready var _knobs: VBoxContainer = %Knobs
@@ -123,6 +133,9 @@ var _geometry_readout: Label = null
 
 func _ready() -> void:
 	_values = DEFAULTS.duplicate()
+	var fans := FrontmatterLayout.fan_ids()
+	_selected_fan = fans[0] if not fans.is_empty() else &""
+	_load_authored_fan_values()
 	_build_controls()
 	_apply_all()
 
@@ -168,10 +181,17 @@ func _build_controls() -> void:
 	_slider(K_EDGE_DARKEN, "Unlit darken", "MenuEdgeView.unlit_darken", 0.0, 1.0, 0.01)
 
 	_header("PEEK-AHEAD (#571)")
+	# [b]`hidden_alpha` is the owner's "visible when possible rather than when
+	# needed" idea, and it is a knob rather than a fork (#589).[/b] At its
+	# authored 0.0 a collapsed node is invisible; raising it ghosts the WHOLE
+	# tree in permanently, which is a look to judge by eye rather than to argue
+	# about — so it goes first in this section, and it re-poses without a
+	# rebuild because alpha is pushed onto the live views (#594).
+	_slider(K_PEEK_HIDDEN, "Ghost the tree in", "HoverPreview.hidden_alpha — how visible a "
+			+ "collapsed node is when nothing peeks at it. 0 hides the tree until you "
+			+ "walk to it; raise it to see the whole tree at rest.", 0.0, 1.0, 0.01)
 	_slider(K_PEEK_ALPHA, "Preview alpha", "HoverPreview.preview_alpha — how visible a "
 			+ "peeked-at child is", 0.0, 1.0, 0.01)
-	_slider(K_PEEK_HIDDEN, "Collapsed alpha", "HoverPreview.hidden_alpha — how visible a "
-			+ "collapsed node is when nothing peeks at it", 0.0, 1.0, 0.01)
 
 	_header("BACK AFFORDANCE (#572)")
 	_slider(K_BACK_REST, "Rest tier (EV)", "BackAffordance.rest_stops", 0.0, 3.0, 0.05)
@@ -189,7 +209,7 @@ func _build_controls() -> void:
 			_rebuild)
 	_button("✎  Open frontmatter_root.tscn", "Open the benched scene in the 2D editor",
 			func() -> void: _open(FRONTMATTER_SCENE_PATH))
-	_button("✎  Open frontmatter_layout.gd", "The solver these knobs write into — the geometry's single source of truth",
+	_button("✎  Open frontmatter_layout.gd", "The solver these knobs write into — geometry now comes from ui/frontmatter/layout/",
 			func() -> void: _open(LAYOUT_SCRIPT_PATH))
 
 
@@ -236,35 +256,42 @@ func _scrub_row() -> void:
 	slider.value_changed.connect(func(v: float) -> void: _frontmatter.set_progress(v))
 
 
-## The geometry #578 exists to stop eyeballing. Sliders in design px, applied
-## onto [FrontmatterLayout]'s `static var` ratios and followed by a rebuild.
+## What is left of the geometry once #590 moved it into the harness scenes.
+##
+## [b]This tab was repurposed, not retired (#589 D8 / #594).[/b] Five of its six
+## ratios died with the recursion, and their replacement — a full-screen editor
+## preview of `root_menu.tscn` — is a better tuning loop than a blind slider
+## ever was. What a preview cannot answer is what a fan's separation looks like
+## on the RUNNING menu, under the camera, with the peek stacks drawn. So the
+## sliders below point at the selected fan's live container settings, and the
+## number a session lands on is then typed into that fan's scene.
 ##
 ## [b]The solver stays the only implementation.[/b] The alternative — re-solving
 ## here with local overrides and writing positions onto the views — would have
 ## been a second layout, and #567 calls the solver the single source of truth.
 ## Writing its own inputs and asking it again is what keeps that true.
 func _geometry_section() -> void:
-	_slider(K_HERO_X, "Hero slot x", "Where the focused node sits, design px across 1440",
-			0.0, 1440.0, 1.0, true)
-	_slider(K_HERO_Y, "Hero slot y", "Where the focused node sits, design px down 900",
-			0.0, 900.0, 1.0, true)
-	_slider(K_COLUMN_STEP, "Column step",
-			"Horizontal distance from a node to its children, design px", 60.0, 800.0, 1.0, true)
-	_slider(K_SIBLING_GAP, "Sibling gap (min)",
-			"Vertical pitch between siblings, design px — a FLOOR: _group_gap widens a "
-			+ "group until adjacent subtrees clear each other by this much",
-			40.0, 400.0, 1.0, true)
-	_slider(K_PREVIEW_COLUMN, "Preview column",
-			"Peek-ahead offset RIGHT OF THE HOVERED NODE, design px — relative, not "
-			+ "an absolute x", 0.0, 800.0, 1.0, true)
-	_slider(K_PREVIEW_GAP, "Preview gap", "Vertical pitch inside the collapsed stack, design px",
-			10.0, 200.0, 1.0, true)
+	_fan_row()
+	_slider(K_FAN_SEPARATION, "Slot separation",
+			"The selected fan's OptionsVBox separation, in px — on top of the slot "
+			+ "heights its scene authors", 0.0, 400.0, 1.0, true)
+	_slider(K_FAN_MARGIN_LEFT, "Margin left",
+			"The selected fan's harness margin, in px", 0.0, 600.0, 1.0, true)
+	_slider(K_FAN_MARGIN_TOP, "Margin top",
+			"The selected fan's harness margin, in px", 0.0, 400.0, 1.0, true)
+	_slider(K_FAN_MARGIN_RIGHT, "Margin right",
+			"The selected fan's harness margin, in px", 0.0, 600.0, 1.0, true)
+	_slider(K_FAN_MARGIN_BOTTOM, "Margin bottom",
+			"The selected fan's harness margin, in px", 0.0, 400.0, 1.0, true)
 	_slider(K_PREVIEW_SCALE, "Preview scale", "Scale a collapsed / peeked-at node draws at",
 			0.1, 1.0, 0.01, true)
 	_button("⟲  Reset geometry",
-			"FrontmatterLayout.reset_geometry() — the ratios are process-global now, "
-			+ "so this is how a session ends without re-posing every menu built after it",
+			"FrontmatterLayout.reset_geometry() — PREVIEW_SCALE and every live fan "
+			+ "override are process-global, so this is how a session ends without "
+			+ "re-posing every menu built after it",
 			_reset_geometry)
+	_button("✎  Open the selected fan's scene", "Author the numbers this session found",
+			func() -> void: _open(_fan_scene_path()))
 	_geometry_readout = Label.new()
 	_geometry_readout.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_geometry_readout.add_theme_font_size_override(&"font_size", 10)
@@ -272,39 +299,87 @@ func _geometry_section() -> void:
 	_refresh_geometry_readout()
 
 
-## The px knobs, converted to the fractions [FrontmatterLayout] stores. Ratios,
-## never literals — that is what makes the layout resolution-independent, and
-## the design viewport is the only place 1440x900 is allowed to appear.
-func _apply_geometry() -> void:
-	var design := FrontmatterLayout.DESIGN_VIEWPORT
-	FrontmatterLayout.HERO_SLOT_RATIO = Vector2(
-		float(_values[K_HERO_X]) / design.x, float(_values[K_HERO_Y]) / design.y
+## Which fan the sliders below point at. Selecting one loads what its SCENE
+## authors, so the handles always start from the truth rather than from whatever
+## the previous fan was left at.
+func _fan_row() -> void:
+	_fan_picker = OptionButton.new()
+	_fan_picker.tooltip_text = (
+		"Which fan harness in ui/frontmatter/layout/ the sliders below tune, live."
 	)
-	FrontmatterLayout.COLUMN_STEP_RATIO = float(_values[K_COLUMN_STEP]) / design.x
-	FrontmatterLayout.SIBLING_GAP_RATIO = float(_values[K_SIBLING_GAP]) / design.y
-	FrontmatterLayout.PREVIEW_COLUMN_RATIO = float(_values[K_PREVIEW_COLUMN]) / design.x
-	FrontmatterLayout.PREVIEW_GAP_RATIO = float(_values[K_PREVIEW_GAP]) / design.y
-	FrontmatterLayout.PREVIEW_SCALE = float(_values[K_PREVIEW_SCALE])
+	var fans := FrontmatterLayout.fan_ids()
+	for i in fans.size():
+		_fan_picker.add_item(String(fans[i]))
+		_fan_picker.set_item_metadata(i, fans[i])
+		if fans[i] == _selected_fan:
+			_fan_picker.select(i)
+	_fan_picker.item_selected.connect(func(index: int) -> void:
+		_selected_fan = _fan_picker.get_item_metadata(index) as StringName
+		_load_authored_fan_values()
+		_show_fan_values()
+		_rebuild())
+	_knobs.add_child(_fan_picker)
 
 
-## Back to the authored ratios, and back to the sliders that show them. Also the
-## teardown path — see [method _exit_tree].
-func _reset_geometry() -> void:
+## The selected fan's knobs, read straight off its harness scene (#594: reset
+## values come from the scene, never from a second copy of the number).
+func _load_authored_fan_values() -> void:
+	var theme := FrontmatterLayout.authored_fan_theme(_selected_fan)
+	var margins: Vector4 = theme.get(&"margins", Vector4.ZERO)
+	_values[K_FAN_SEPARATION] = float(theme.get(&"separation", 0.0))
+	_values[K_FAN_MARGIN_LEFT] = margins.x
+	_values[K_FAN_MARGIN_TOP] = margins.y
+	_values[K_FAN_MARGIN_RIGHT] = margins.z
+	_values[K_FAN_MARGIN_BOTTOM] = margins.w
+
+
+## Moves the handles to [member _values] without firing the knobs' own pushes —
+## a reset or a fan swap re-poses once, at the end, rather than six times.
+func _show_fan_values() -> void:
 	_batching = true
 	for key: StringName in GEOMETRY_KEYS:
-		_values[key] = DEFAULTS[key]
 		var slider := _sliders.get(key) as HSlider
 		if slider != null:
-			slider.value = DEFAULTS[key]
+			slider.value = _values[key]
 	_batching = false
+
+
+func _fan_scene_path() -> String:
+	for path in FrontmatterLayout.FAN_SCENES:
+		if path.get_file().begins_with(String(_selected_fan)):
+			return path
+	return FrontmatterLayout.FAN_SCENES[0]
+
+
+## The surviving knobs, pushed onto [FrontmatterLayout]'s process-global state.
+func _apply_geometry() -> void:
+	FrontmatterLayout.PREVIEW_SCALE = float(_values[K_PREVIEW_SCALE])
+	if _selected_fan == &"":
+		return
+	FrontmatterLayout.set_fan_separation(_selected_fan, float(_values[K_FAN_SEPARATION]))
+	FrontmatterLayout.set_fan_margins(_selected_fan, Vector4(
+		float(_values[K_FAN_MARGIN_LEFT]),
+		float(_values[K_FAN_MARGIN_TOP]),
+		float(_values[K_FAN_MARGIN_RIGHT]),
+		float(_values[K_FAN_MARGIN_BOTTOM]),
+	))
+
+
+## Back to what the scenes and the surviving constant author, and back to the
+## sliders that show them. Also the teardown path — see [method _exit_tree].
+func _reset_geometry() -> void:
 	FrontmatterLayout.reset_geometry()
+	_values[K_PREVIEW_SCALE] = DEFAULTS[K_PREVIEW_SCALE]
+	_load_authored_fan_values()
+	_show_fan_values()
 	_rebuild()
 
 
-## [b]The ratios are process-global mutable state now, so leaving them tuned
-## would re-pose every menu built afterwards in the same process[/b] — another
-## tab, a later test, the editor's own preview. Handing them back is this
-## panel's responsibility because this panel is their sole writer.
+## [b]`PREVIEW_SCALE` and the live fan overrides are process-global mutable
+## state, so leaving them tuned would re-pose every menu built afterwards in the
+## same process[/b] — another tab, a later test, the editor's own preview.
+## Handing them back is this panel's responsibility because this panel is their
+## sole writer. The `static var` hazard shrank with #590; it did not vanish.
 ##
 ## `_exit_tree` and not a visibility gate: the sandbox host hides an inactive tab
 ## rather than removing it, so this fires on a real teardown (reload, editor
@@ -316,17 +391,32 @@ func _exit_tree() -> void:
 func _refresh_geometry_readout() -> void:
 	if _geometry_readout == null:
 		return
-	var design := FrontmatterLayout.DESIGN_VIEWPORT
-	var hero := FrontmatterLayout.HERO_SLOT_RATIO
+	var view := FrontmatterLayout.viewport_size()
+	var hero := FrontmatterLayout.hero_slot()
 	_geometry_readout.text = "\n".join([
-		"As stored (fractions of the %.0fx%.0f design viewport):" % [design.x, design.y],
-		"  HERO_SLOT_RATIO      %.4f, %.4f" % [hero.x, hero.y],
-		"  COLUMN_STEP_RATIO    %.4f" % FrontmatterLayout.COLUMN_STEP_RATIO,
-		"  SIBLING_GAP_RATIO    %.4f" % FrontmatterLayout.SIBLING_GAP_RATIO,
-		"  PREVIEW_COLUMN_RATIO %.4f" % FrontmatterLayout.PREVIEW_COLUMN_RATIO,
-		"  PREVIEW_GAP_RATIO    %.4f" % FrontmatterLayout.PREVIEW_GAP_RATIO,
-		"  PREVIEW_SCALE        %.4f" % FrontmatterLayout.PREVIEW_SCALE,
+		"As solved (px of the %.0fx%.0f project viewport — there is no other):"
+			% [view.x, view.y],
+		"  hero_slot()       %.1f, %.1f" % [hero.x, hero.y],
+		"  column_step()     %.1f" % FrontmatterLayout.column_step(),
+		"  PREVIEW_COLUMN    %.1f" % FrontmatterLayout.PREVIEW_COLUMN,
+		"  PREVIEW_GAP       %.1f" % FrontmatterLayout.PREVIEW_GAP,
+		"  PREVIEW_SCALE     %.4f" % FrontmatterLayout.PREVIEW_SCALE,
+		"'%s' separation   %.1f" % [_selected_fan, float(_values.get(K_FAN_SEPARATION, 0.0))],
+		"'%s' fan pitch    %.1f" % [_selected_fan, _selected_fan_pitch()],
 	])
+
+
+## What the selected fan's slots actually ended up spaced at — the number an
+## author is really judging, since a [VBoxContainer] adds `separation` to the
+## slot heights its scene authors rather than replacing them.
+func _selected_fan_pitch() -> float:
+	if _frontmatter == null or _frontmatter.tree == null:
+		return 0.0
+	var children := _frontmatter.tree.children_of(_selected_fan)
+	if children.size() < 2:
+		return 0.0
+	var positions := FrontmatterLayout.solve(_frontmatter.tree)
+	return (positions[children[1]] as Vector2).y - (positions[children[0]] as Vector2).y
 
 
 # --- pushing the knobs -------------------------------------------------------

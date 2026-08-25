@@ -32,9 +32,9 @@ extends RefCounted
 ## it and are gone; a container authors the pitch now, and keeping both would be
 ## two sources for one coordinate set.
 ##
-## [b]There is exactly one size (#589 D4).[/b] `DESIGN_VIEWPORT` — a 1440x900
-## design canvas kept deliberately apart from the project's 1440x960 viewport —
-## is deleted. The harness is authored at the project viewport, so
+## [b]There is exactly one size (#589 D4).[/b] The old design-canvas constant —
+## 1440x900, kept deliberately apart from the project's 1440x960 viewport — is
+## deleted. The harness is authored at the project viewport, so
 ## [method viewport_size] is the only size in this file and
 ## [method screen_to_world] is the genuine inverse of the real viewport
 ## transform rather than of a design-space fiction. `project.godot`'s
