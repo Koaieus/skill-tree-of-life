@@ -16,9 +16,15 @@ extends Control
 ## [StatModifier].
 ##
 ## The row sizes to its label (#343 part 1): [method _get_minimum_size] is the
-## label's height plus the scene's vertical insets, so long text WRAPS (the
-## label autowraps to the container-given width) and the row grows instead of
-## overflowing its rect.
+## label's height plus the scene's vertical insets.
+##
+## [b]The label does NOT autowrap[/b], and that is deliberate (#588). A
+## single-line row's minimum height is known without reference to any width, so
+## there is no width→height→width path at all — the strongest form of the
+## "no cycle exists" property this extraction was done to get. A stack of these
+## widens to its longest row instead of wrapping within a fixed one. Inherited
+## behaviour, not a change: [ModSlabRow] never autowrapped either (the wording
+## this doc replaced claimed it did, and was wrong on both).
 ##
 ## Reveal is driven externally via [method set_progress] against the shared
 ## fixed-clock / progress(0..1) contract (see fan_panel.gd / docs/domain/
@@ -62,8 +68,9 @@ const _V_INSET := 4.0
 func _ready() -> void:
 	if _slab:
 		_refresh_label_color()
-		# The label wraps when the container changes its width — its min
-		# height then changes, so this row's min height does too.
+		# Not about wrapping (this label never wraps — see the class doc):
+		# a font or theme change alters the label's measured height, and
+		# this row's minimum has to follow it.
 		_label.resized.connect(update_minimum_size)
 	if Engine.is_editor_hint():
 		# Author-time: show the row fully revealed so its content is
@@ -88,9 +95,9 @@ func bind_text(text: String, tint: Color) -> void:
 	_slab.tint_color = tint
 	_background.color = tint
 	_refresh_label_color()
-	# The new text may wrap to a different number of lines than the old one —
-	# recompute this row's minimum height now (the parent container re-sorts
-	# on the next layout pass).
+	# New text is a different WIDTH (never a different number of lines — this
+	# label does not wrap), so this row's minimum changes; recompute it now
+	# and the parent container re-sorts on the next layout pass.
 	update_minimum_size()
 
 
@@ -103,8 +110,9 @@ func _refresh_label_color() -> void:
 
 
 ## The row is exactly its label plus the scene's vertical insets — height is
-## content-driven (#343), so a wrapped sentence grows the row instead of
-## overflowing it. Width is left to the container.
+## content-driven (#343). The label is single-line, so this is one line's
+## height plus insets and nothing here depends on the row's own width, which
+## is what keeps the stack cycle-free (#588). Width is left to the container.
 func _get_minimum_size() -> Vector2:
 	if _label == null:
 		return Vector2.ZERO
