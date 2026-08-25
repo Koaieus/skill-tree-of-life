@@ -101,6 +101,23 @@ func _ready() -> void:
 	build()
 
 
+## Re-parks the tooltip beside its node, every frame it is up.
+##
+## [b]Placing it once, when the hover changes, is not enough — twice over.[/b]
+## The node it describes is still travelling for [member travel_duration] after
+## the hover is set, and a [Camera2D] does not publish its transform until its
+## own internal process runs, so `get_viewport_transform()` read from inside
+## [method set_progress] is a frame stale and the LAST such read is the one the
+## slab keeps once the transition stops driving it. Both show up as a tooltip
+## parked hundreds of pixels from the node that summoned it.
+##
+## Per-frame is the honest fix rather than a chase: it is one [Transform2D]
+## multiply for one [Control], and it cannot be stale by construction.
+func _process(_delta: float) -> void:
+	if _tooltip != null and _tooltip.visible:
+		_place_tooltip(_hover_preview.hovered_id)
+
+
 ## Builds the whole menu — every node view, every edge view, the camera — and
 ## parks the camera on the root. Idempotent: a rebuild clears what it made
 ## first, so #578's live tab can retune geometry and rebuild in place.
@@ -181,13 +198,6 @@ func set_progress(t: float) -> void:
 		var s: float = lerpf(from[1] as float, to[1] as float, eased)
 		view.scale = Vector2(s, s)
 	_push_edges()
-	# The tooltip is parked in SCREEN space beside a node that is still moving,
-	# so it has to be re-parked every frame of the travel. It used to be placed
-	# once, from `set_hovered` — harmless while the cursor was only seated on
-	# arrival, and a stranded slab the moment seating moved to departure
-	# (`focus_started`), because the pose it read was the outgoing one.
-	if _tooltip != null and _tooltip.visible:
-		_place_tooltip(_hover_preview.hovered_id)
 	if _progress >= 1.0 and not _settled:
 		_settled = true
 		_route_focus_panel()

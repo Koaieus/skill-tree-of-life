@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="TerritorySeeder" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="TerritorySeeder" format=3 uid="uid://vo7gvxxlyf81"]
 
-[ext_resource type="Script" path="res://procgen/placement/territory_seeder.gd" id="1_seeder"]
+[ext_resource type="Script" uid="uid://sbyg3lx8oij3" path="res://procgen/placement/territory_seeder.gd" id="1_seeder"]
 [ext_resource type="Resource" path="res://procgen/placement/greedy_bfs_ball.tres" id="2_policy"]
 
 [resource]
