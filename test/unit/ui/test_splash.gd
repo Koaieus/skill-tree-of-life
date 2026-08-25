@@ -114,6 +114,61 @@ func test_advancing_takes_the_prompt_off_screen_and_emits_once() -> void:
 	assert_eq(seen.size(), 1)
 
 
+# --- the hold ----------------------------------------------------------------
+
+func _polygons_under(node: Node) -> int:
+	var found := 0
+	for child in node.get_children():
+		if child is Polygon2D:
+			found += 1
+		found += _polygons_under(child)
+	return found
+
+
+func test_the_root_lights_up_before_the_camera_sets_off() -> void:
+	# The beat the splash exists for: allocating the first node has to be
+	# visible AS an allocation, not as the first frame of a camera move. Before
+	# the split these were one call, so the two happened in the same frame.
+	_frontmatter.reduce_motion = false
+	_splash.allocation_hold = 0.6
+	var set_off: Array[int] = []
+	_frontmatter.focus_started.connect(func(_id): set_off.append(1))
+
+	_splash.advance()
+
+	assert_true(_frontmatter.view_for(_root()).allocated,
+			"the root is allocated on the spot")
+	assert_eq(set_off.size(), 0,
+			"and the camera has not set off — `focus_started` is what says it did")
+	assert_eq(_camera_origin(), FrontmatterLayout.splash_camera(_frontmatter.tree).origin)
+
+
+func test_advancing_drops_the_games_own_allocation_spike_on_the_root() -> void:
+	# `AllocationVFX.spawn_alloc_spike` builds its needle as a Polygon2D, so one
+	# appearing under the root view is the reuse itself — the menu has no
+	# AllocationSystem to fire it and never will.
+	var before := _polygons_under(_frontmatter.view_for(_root()))
+
+	_splash.advance()
+
+	assert_gt(_polygons_under(_frontmatter.view_for(_root())), before,
+			"press any button plays the same VFX every other allocation plays")
+
+
+func test_a_zero_hold_sets_off_in_the_same_frame() -> void:
+	# The authored escape hatch, and the same branch `reduce_motion` takes. It
+	# removes the WAIT, not the travel — with motion on, the camera then tweens
+	# out as usual, which is why this asserts the departure and not the arrival.
+	_frontmatter.reduce_motion = false
+	_splash.allocation_hold = 0.0
+	var set_off: Array[int] = []
+	_frontmatter.focus_started.connect(func(_id): set_off.append(1))
+
+	_splash.advance()
+
+	assert_eq(set_off.size(), 1)
+
+
 # --- the latch ---------------------------------------------------------------
 
 func test_a_second_press_during_the_travel_does_not_re_trigger() -> void:

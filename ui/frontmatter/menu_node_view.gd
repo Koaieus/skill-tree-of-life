@@ -179,3 +179,21 @@ func _sync_label() -> void:
 		&"font_color", Emissive.at(base, Emissive.VALUE if allocated else Emissive.INERT)
 	)
 
+
+## Plays the game's own allocation spike over this node — the "skill point from
+## the heavens" needle [AllocationVFX] drops on every real allocation.
+##
+## [b]Reused as a static function, not by mounting an [AllocationVFX].[/b] That
+## node binds to an [AllocationSystem] and a [BattleSystem] and connects to
+## [Events], none of which exist here; the spike itself needs a position, two
+## radii and a colour, which is exactly what
+## [method AllocationVFX.spawn_alloc_spike] now takes. Same rule as the
+## composite this view is drawn with — [i]reusable means a scene or a function,
+## never the class that drives it.[/i]
+##
+## Parented to THIS view, so a spike over a collapsed node is scaled down with
+## it. The effect sets its own absolute z and so still draws over the disk.
+func play_allocation_spike() -> void:
+	AllocationVFX.spawn_alloc_spike(
+		self, global_position, radius * _INNER_RADIUS_RATIO, radius, display_color()
+	)

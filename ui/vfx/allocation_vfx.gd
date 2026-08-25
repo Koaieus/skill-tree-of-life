@@ -128,7 +128,7 @@ func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) ->
 func _on_allocated(node: SkillNode, entity: Entity, forced: bool) -> void:
 	if muted or node == null or entity == null:
 		return
-	_spawn_alloc_spike(node, entity.color)
+	spawn_alloc_spike(self, node.global_position, node.inner_radius, node.radius, entity.color)
 	# Forced allocations are level setup (spawn / procgen / scene-authored) —
 	# the spike "drops the node in", but no gameplay pulses/floaters fire.
 	if forced:
@@ -274,29 +274,52 @@ func _emit_modifier_floater(entity: Entity, modifier: StatModifier) -> void:
 
 # --- Effect spawners ---------------------------------------------------------
 
-func _spawn_alloc_spike(node: SkillNode, color: Color) -> void:
+## "Skill point from the heavens" — a needle that drops onto the node and a
+## disk that lingers after it.
+##
+## [b]Static, and takes primitives rather than a [SkillNode][/b] — the last
+## spawner here that did not. `_spawn_lift` and `_spawn_shatter` already took
+## `(world_pos, radius, colour)`; this one kept a node reference only to read
+## two radii off it. Making it match is what lets the frontmatter menu (#574)
+## play the SAME spike when the splash allocates its root node: that menu has no
+## [SkillNode], no [Entity] and no [AllocationSystem] anywhere in it by
+## construction (see [MenuNodeView]), so anything it reuses has to be reusable as
+## a scene or a function, never as a class.
+##
+## [param host] is what the effect is parented to and what its [Tween] runs
+## against — this instance in gameplay, `%GraphLayer` in the menu. It sets its
+## own absolute z rather than inheriting one, so it wins over fog-promoted nodes
+## from any parent chain.
+static func spawn_alloc_spike(
+	host: Node2D, world_pos: Vector2, inner_radius: float, node_radius: float, color: Color
+) -> void:
 	var container := Node2D.new()
-	add_child(container)
-	
-	var disk := _make_snapshot_disk(node.inner_radius, color)
-	disk.global_position = node.global_position
+	# Absolute (z_as_relative = false), for the reason `_ready` gives: a
+	# transient added under a relative parent lands at parent_z + child_z.
+	container.z_as_relative = false
+	container.z_index = ZLayers.SPELL_VFX
+	host.add_child(container)
+
+	var disk := _make_snapshot_disk(inner_radius, color)
+	disk.global_position = world_pos
 	disk.modulate = Emissive.at(Color.WHITE, Emissive.PEAK)
 	container.add_child(disk)
 
 	var spike := Polygon2D.new()
-	spike.polygon = _build_needle_polygon(
-			node.inner_radius, node.radius * SPIKE_HEIGHT_FACTOR)
+	spike.polygon = _build_needle_polygon(inner_radius, node_radius * SPIKE_HEIGHT_FACTOR)
 	# Polygon2D.color is the draw tint — alpha here multiplies with modulate.a,
 	# so keep it opaque and animate visibility via modulate.a only.
 	spike.color = color
-	spike.global_position = node.global_position
+	spike.global_position = world_pos
 	spike.modulate = Emissive.at(Color.WHITE, Emissive.PEAK)
 	container.add_child(spike)
 
 	# White flash: disk + spike both ramp toward a lightened tint, then settle
 	# back to the entity color. Disk is the snapshot reused from the lift VFX.
 	#var flash_color := color
-	var tween := create_tween()
+	# Bound to the container rather than to `host`: the effect owns its own
+	# clock, so a static caller needs no node of its own to hang it off.
+	var tween := container.create_tween()
 	tween.set_parallel(true)
 
 	# Alpha 0.5 → 1 → 0.
@@ -415,7 +438,7 @@ func _emit_burst(parent: Node2D, disk_radius: float, color: Color) -> void:
 	particles.emitting = true
 
 
-func _make_snapshot_disk(disk_radius: float, color: Color) -> Node2D:
+static func _make_snapshot_disk(disk_radius: float, color: Color) -> Node2D:
 	var disk := _SnapshotDisk.new()
 	disk.disk_radius = max(1.0, disk_radius)
 	disk.disk_color = color
@@ -428,7 +451,7 @@ func _make_snapshot_disk(disk_radius: float, color: Color) -> Node2D:
 ##
 ## Polygon wound CCW: right-side base → right shoulder → tip → left shoulder
 ## → left base. y axis points DOWN in Godot, so "up" is negative y.
-func _build_needle_polygon(half_w: float, height: float) -> PackedVector2Array:
+static func _build_needle_polygon(half_w: float, height: float) -> PackedVector2Array:
 	var pts: PackedVector2Array = []
 	var gamma_sq := SPIKE_NEEDLE_GAMMA * SPIKE_NEEDLE_GAMMA
 	# Right side: bottom (t=0) → just-below-tip (t≈1). Skip t=1 here; the

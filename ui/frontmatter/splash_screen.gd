@@ -14,6 +14,12 @@ extends Control
 ## is [method FrontmatterRoot.focus] on the root, travelling out from
 ## [method FrontmatterLayout.splash_camera] to [method FrontmatterLayout.camera_for].
 ##
+## [b]Advancing is two beats, not one.[/b] The root is allocated — lit, with the
+## game's own allocation spike dropped on it — and only then, after
+## [member allocation_hold], does the camera set off. The allocation used to be a
+## side effect of the travel, so the one moment the splash exists to sell went
+## past in the same frame it happened.
+##
 ## [b]This scene therefore paints no background.[/b] The tree is meant to be
 ## visible behind the title, hugely magnified — that is the whole effect. The
 ## code-composed opaque `ColorRect` this replaces existed because the splash used
@@ -40,6 +46,20 @@ signal advanced
 
 ## Seconds the prompt takes to fade down and back up once.
 @export_range(0.0, 4.0, 0.05) var pulse_period: float = 1.0
+
+## Seconds the allocated root is held on screen, hugely magnified, before the
+## camera sets off for the tree — the beat between [i]"you allocated it"[/i] and
+## [i]"here is what it opens"[/i].
+##
+## [b]It is a fixed logical delay, never an await on the spike's tween.[/b]
+## `.claude/rules/presentation-clock.md` is the rule: a reveal is scheduled off
+## a clock the code owns, so retuning the VFX cannot silently retune the menu.
+## [constant AllocationVFX.SPIKE_DURATION] is 0.4 — the default lets the needle
+## land and read before anything moves.
+##
+## `0.0` runs the whole advance in one frame, which is also what
+## [member FrontmatterRoot.reduce_motion] collapses it to.
+@export_range(0.0, 3.0, 0.05) var allocation_hold: float = 0.6
 
 @onready var _prompt: Label = %Prompt
 
@@ -94,9 +114,50 @@ func advance() -> void:
 		return
 	_advanced = true
 	visible = false
-	if _frontmatter != null and _frontmatter.tree != null:
-		_frontmatter.focus(_frontmatter.tree.root)
+	_allocate_root()
+	if _hold_seconds() <= 0.0:
+		_travel()
+	else:
+		get_tree().create_timer(_hold_seconds()).timeout.connect(_travel)
 	advanced.emit()
+
+
+## Lights the root up and drops the game's own allocation spike on it — the
+## first half of the advance, and the half that happens on the spot.
+##
+## [b]The allocation is done HERE rather than left to [method
+## FrontmatterRoot.focus]'s `_sync_allocation`.[/b] Those two used to be the same
+## call, which is why the camera left the instant the key was pressed: the root
+## could not read as allocated until the travel that allocated it had already
+## started. Splitting them is the whole of the hold. `focus` re-asserts the same
+## flag when it arrives, so this is a lead, not a second source of truth.
+func _allocate_root() -> void:
+	if _frontmatter == null or _frontmatter.tree == null:
+		return
+	var root_view := _frontmatter.view_for(_frontmatter.tree.root)
+	if root_view == null:
+		return
+	root_view.allocated = true
+	root_view.play_allocation_spike()
+
+
+## The second half: pull back out to the tree. Re-checks the frontmatter because
+## a timer fires a frame or more later, by which point the scene may be gone.
+func _travel() -> void:
+	if _frontmatter == null or not is_instance_valid(_frontmatter):
+		return
+	if _frontmatter.tree == null:
+		return
+	_frontmatter.focus(_frontmatter.tree.root)
+
+
+## How long to hold. Collapsed to nothing by the accessibility setting, exactly
+## as [member FrontmatterRoot.travel_duration] is — a player who asked for no
+## motion is not asking for a pause where the motion used to be.
+func _hold_seconds() -> float:
+	if _frontmatter != null and _frontmatter.reduce_motion:
+		return 0.0
+	return allocation_hold
 
 
 ## Whether the attract state has already given way. `false` on a fresh menu.
