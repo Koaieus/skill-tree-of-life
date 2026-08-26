@@ -1,9 +1,29 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://cwxphbag0sut4"]
 
-[ext_resource type="PackedScene" path="res://ui/frontmatter/panels/frontmatter_panel.tscn" id="1_base"]
-[ext_resource type="Script" path="res://ui/frontmatter/panels/lobby_panel.gd" id="2_lobby"]
+[ext_resource type="PackedScene" uid="uid://doefrm4l5xs8b" path="res://ui/frontmatter/panels/frontmatter_panel.tscn" id="1_base"]
+[ext_resource type="Script" uid="uid://cvwml5jerui3p" path="res://ui/frontmatter/panels/lobby_panel.gd" id="2_lobby"]
+[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_6kljl"]
 
-[node name="LobbyPanel" instance=ExtResource("1_base")]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_guosn"]
+resource_local_to_scene = true
+shader = ExtResource("3_6kljl")
+shader_parameter/size = Vector2(1360, 912)
+shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
+shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
+shader_parameter/gradient_angle_deg = 158.0
+shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
+shader_parameter/border_width = 1.0
+shader_parameter/corner_radius = 13.0
+shader_parameter/glow_color = Color(1, 1, 1, 0)
+shader_parameter/glow_strength = 0.0
+
+[node name="LobbyPanel" unique_id=1810897554 instance=ExtResource("1_base")]
 script = ExtResource("2_lobby")
 panel_id = &"lobby"
 title = "LOBBY"
+
+[node name="GlassPanel" parent="OuterMargin" parent_id_path=PackedInt32Array(1713397761) index="0" unique_id=747232056]
+material = SubResource("ShaderMaterial_guosn")
+
+[node name="Title" parent="OuterMargin/GlassPanel/InnerMargin/Column" parent_id_path=PackedInt32Array(155366615) index="0" unique_id=1262299303]
+text = "LOBBY"
