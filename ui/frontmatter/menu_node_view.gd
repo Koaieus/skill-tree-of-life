@@ -59,7 +59,8 @@ const _CAPTION_BOX := Vector2(220.0, 24.0)
 ## [b]Because this menu draws text at every scale there is.[/b] A [Label] rasters
 ## its glyphs at `font_size` and the canvas then stretches that bitmap: the
 ## collapsed peek nodes sit at [constant FrontmatterLayout.PREVIEW_SCALE] (0.42),
-## a fan is navigated at its authored zoom (1.35 on the root menu), and #574's
+## every fan is navigated at [constant FrontmatterLayout.TREE_ZOOM] (1.0 since
+## #603 collapsed the per-fan zoom; the root menu's own 1.35 is gone), and #574's
 ## splash parks at [constant FrontmatterLayout.SPLASH_ZOOM]. Every one of those
 ## is a resample of a 16px raster, and it read as the aliased, mushy caption the
 ## owner called out on 2026-08-26.
