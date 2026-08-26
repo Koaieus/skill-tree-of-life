@@ -283,11 +283,20 @@ func set_hovered(id: StringName) -> void:
 ## the stack authors its own width and fits itself to its rows, so its centre is
 ## a known quantity and the placement is `node_x - width / 2`. The stack centres
 ## its own scale pivot, so this holds mid-reveal too.
+##
+## [b]`get_global_transform_with_canvas()`, NOT `get_viewport_transform()`.[/b]
+## The latter carries the viewport's FINAL transform — the `canvas_items`
+## stretch and the letterbox — so it answers in WINDOW pixels, while a
+## [CanvasLayer] child's `position` is read in viewport units. The two agree
+## only in a window that happens to be exactly the 1440x960 base, and drift
+## apart with distance from the centre everywhere else: the slab sat right of
+## and below its node, by more the further out the node was. Found by looking at
+## it, once it was visible at all.
 func _place_tooltip(id: StringName) -> void:
 	var view := view_for(id)
 	if view == null:
 		return
-	var screen_pos := get_viewport_transform() * view.global_position
+	var screen_pos := view.get_global_transform_with_canvas().origin
 	_tooltip.position = Vector2(
 		screen_pos.x - _tooltip.size.x * 0.5,
 		screen_pos.y + tooltip_below_offset,
