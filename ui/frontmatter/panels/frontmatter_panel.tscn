@@ -1,22 +1,6 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://ui/frontmatter/panels/frontmatter_panel.gd" id="1_panel"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_frame"]
-bg_color = Color(0.05, 0.06, 0.09, 0.94)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.8586, 0.9018, 0.9482, 0.35)
-corner_radius_top_left = 2
-corner_radius_top_right = 2
-corner_radius_bottom_right = 2
-corner_radius_bottom_left = 2
-content_margin_left = 28.0
-content_margin_top = 24.0
-content_margin_right = 28.0
-content_margin_bottom = 24.0
 
 [node name="FrontmatterPanel" type="Control"]
 layout_mode = 3
@@ -25,19 +9,21 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 script = ExtResource("1_panel")
 
-[node name="Backdrop" type="ColorRect" parent="."]
+[node name="Region" type="Control" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = 240.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 1
-color = Color(0.01, 0.012, 0.02, 0.72)
+mouse_filter = 2
 
-[node name="Center" type="CenterContainer" parent="."]
+[node name="Margin" type="MarginContainer" parent="Region"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -45,31 +31,25 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 24
 
-[node name="Frame" type="PanelContainer" parent="Center"]
+[node name="Column" type="VBoxContainer" parent="Region/Margin"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(420, 0)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_frame")
-
-[node name="Column" type="VBoxContainer" parent="Center/Frame"]
-layout_mode = 2
+alignment = 1
 theme_override_constants/separation = 16
 
-[node name="Title" type="Label" parent="Center/Frame/Column"]
+[node name="Title" type="Label" parent="Region/Margin/Column"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CinzelHeader"
-horizontal_alignment = 1
+horizontal_alignment = 0
 
-[node name="Body" type="VBoxContainer" parent="Center/Frame/Column"]
+[node name="Body" type="VBoxContainer" parent="Region/Margin/Column"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 10
-
-[node name="BackButton" type="Button" parent="Center/Frame/Column"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 4
-text = "BACK"

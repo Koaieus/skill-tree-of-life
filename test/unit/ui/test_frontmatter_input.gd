@@ -208,9 +208,27 @@ func test_cancel_inside_a_panel_returns_to_the_graph() -> void:
 
 func test_the_panel_takes_the_keyboard_when_it_is_raised() -> void:
 	# A controller player must not be left with a lit-up panel and no way in.
+	# #600 deletes the per-panel back button, so what takes the keyboard now is
+	# the panel's first operable content — the reflected settings menu's first
+	# widget — not a "way out".
 	var panels := _open_settings()
 	var panel := panels.get_panel(MenuGraph.PANEL_SETTINGS)
-	assert_true(panel.back_button.has_focus(), "the way out is focused")
+	var focused := panel.get_viewport().gui_get_focus_owner()
+	assert_not_null(focused, "something in the panel took the keyboard")
+	assert_true(panel.is_ancestor_of(focused), "and it is inside the panel's own content")
+
+
+func test_a_panel_with_nothing_focusable_grabs_nothing() -> void:
+	# The parked load screen is one Label — nothing to hand the keyboard to.
+	# Must not crash (the null branch of _first_focusable).
+	_frontmatter.focus(MenuGraph.ID_LOAD_GAME, true)
+	var found := _frontmatter.find_children("*", "FrontmatterPanels", true, false)
+	var panels := found[0] as FrontmatterPanels
+	assert_eq(panels.shown_panel, MenuGraph.PANEL_LOAD)
+	var panel := panels.get_panel(MenuGraph.PANEL_LOAD)
+	var focused := panel.get_viewport().gui_get_focus_owner()
+	assert_true(focused == null or not panel.is_ancestor_of(focused),
+			"nothing inside the load panel took the keyboard")
 
 
 # --- gamepad ------------------------------------------------------------------

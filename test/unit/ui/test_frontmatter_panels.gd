@@ -148,7 +148,7 @@ func test_a_panel_dismissing_itself_reports_its_id_upward() -> void:
 	_panels.panel_dismissed.connect(func(id: StringName): seen.append(id))
 
 	_panels.show_panel(MenuGraph.PANEL_SETTINGS)
-	_panels.get_panel(MenuGraph.PANEL_SETTINGS).back_button.pressed.emit()
+	_panels.get_panel(MenuGraph.PANEL_SETTINGS).dismiss()
 
 	assert_eq(seen, [MenuGraph.PANEL_SETTINGS] as Array[StringName])
 	assert_eq(_panels.shown_panel, &"", "dismissing hands the stage back")
@@ -194,7 +194,7 @@ func test_backing_out_of_the_exit_confirm_quits_nothing() -> void:
 	_panels.quit_requested.connect(func(): fired.append(1))
 
 	_panels.show_panel(MenuGraph.PANEL_EXIT_CONFIRM)
-	_panels.get_panel(MenuGraph.PANEL_EXIT_CONFIRM).back_button.pressed.emit()
+	_panels.get_panel(MenuGraph.PANEL_EXIT_CONFIRM).dismiss()
 
 	assert_eq(fired.size(), 0, "STAY is not QUIT")
 	assert_eq(_panels.shown_panel, &"")
@@ -281,16 +281,17 @@ func test_start_is_relayed_upward_with_its_run_config() -> void:
 	assert_eq(seen[0].mode, RunConfig.Mode.SINGLE)
 
 
-func test_the_lobby_panels_back_button_dismisses_it() -> void:
-	# Since #579 the back button is the PANEL's — the hosted screen carries no
-	# chrome of its own, so there is exactly one of them rather than two.
+func test_the_lobby_panel_dismisses_via_dismiss() -> void:
+	# Since #600 there is one back affordance (the graph's, in the hero
+	# column) rather than a per-panel button — the panel's own escape is
+	# `dismiss()`, exercised the same way the exit-confirm's "no" path uses it.
 	var lobby := _lobby()
 	lobby.configure(RunConfig.Mode.SINGLE, NetworkConfig.offline())
 	_panels.show_panel(MenuGraph.PANEL_LOBBY)
 
 	var seen: Array[StringName] = []
 	_panels.panel_dismissed.connect(func(id: StringName): seen.append(id))
-	lobby.back_button.pressed.emit()
+	lobby.dismiss()
 
 	assert_eq(seen, [MenuGraph.PANEL_LOBBY] as Array[StringName])
 	assert_eq(_panels.shown_panel, &"")
@@ -345,13 +346,116 @@ func test_a_blank_address_still_falls_back_rather_than_dialling_nothing() -> voi
 	assert_ne(seen[0], "", "an empty field falls back to the default address")
 
 
-func test_the_join_panels_back_button_dismisses_it() -> void:
+func test_the_join_panel_dismisses_via_dismiss() -> void:
 	var join := _join()
 	_panels.show_panel(MenuGraph.PANEL_JOIN)
 
 	var seen: Array[StringName] = []
 	_panels.panel_dismissed.connect(func(id: StringName): seen.append(id))
-	join.back_button.pressed.emit()
+	join.dismiss()
 
 	assert_eq(seen, [MenuGraph.PANEL_JOIN] as Array[StringName])
 	assert_eq(_panels.shown_panel, &"")
+
+
+# --- #600: chrome reshape -----------------------------------------------------
+
+## No `ColorRect` backdrop, no `BackButton`, and nothing spanning the full rect
+## can eat the clicks the graph-space `BackAffordance` needs.
+func test_the_base_panel_has_no_backdrop_and_no_back_button() -> void:
+	var panel: FrontmatterPanel = preload("res://ui/frontmatter/panels/frontmatter_panel.tscn").instantiate()
+	add_child_autofree(panel)
+
+	assert_null(_find_type(panel, "ColorRect"), "no backdrop ColorRect")
+	assert_null(panel.get_node_or_null("BackButton"), "no per-panel back button")
+	_assert_no_full_rect_stop(panel)
+
+
+func _find_type(node: Node, class_name_: String) -> Node:
+	if node.get_class() == class_name_:
+		return node
+	for child in node.get_children():
+		var found := _find_type(child, class_name_)
+		if found != null:
+			return found
+	return null
+
+
+func _assert_no_full_rect_stop(node: Node) -> void:
+	if node is Control:
+		var control := node as Control
+		var spans_full_rect := (
+			control.anchor_left == 0.0 and control.anchor_top == 0.0
+			and control.anchor_right == 1.0 and control.anchor_bottom == 1.0
+			and control.offset_left == 0.0 and control.offset_top == 0.0
+			and control.offset_right == 0.0 and control.offset_bottom == 0.0
+		)
+		if spans_full_rect:
+			assert_ne(control.mouse_filter, Control.MOUSE_FILTER_STOP,
+					"'%s' spans the full rect and would eat clicks" % control.name)
+	for child in node.get_children():
+		_assert_no_full_rect_stop(child)
+
+
+## #600's replacement chrome: the region's left edge sits past the hero
+## column, its right edge at the viewport edge — read off [FrontmatterLayout],
+## never a literal.
+func test_the_panel_region_spans_from_the_hero_column_to_the_viewport_edge() -> void:
+	var panel: FrontmatterPanel = preload("res://ui/frontmatter/panels/frontmatter_panel.tscn").instantiate()
+	add_child_autofree(panel)
+
+	var region: Control = panel.get_node("%Region")
+	# Left edge: a fixed pixel offset past the hero column's own edge — never
+	# a literal, so a re-tuned hero slot drags the region with it.
+	assert_eq(region.anchor_left, 0.0)
+	assert_gt(region.offset_left, FrontmatterLayout.hero_slot().x,
+			"left edge clears the hero column")
+	# Right edge: pinned to the viewport edge by anchor alone, no offset.
+	assert_eq(region.anchor_right, 1.0)
+	assert_eq(region.offset_right, 0.0)
+
+
+## No [FrontmatterPanel] subclass may reach across the layer split — that
+## invariant is what keeps panel text crisp instead of panned and zoomed by the
+## graph camera. `FrontmatterPanels` (the container) and content mounted into
+## `%Body` (`LobbyScreen`, `HostJoinScreen`) are not subclasses of
+## [FrontmatterPanel] and are excluded on purpose.
+func test_no_panel_subclass_reaches_across_the_layer_split() -> void:
+	var scripts := [
+		"res://ui/frontmatter/panels/settings_panel.gd",
+		"res://ui/frontmatter/panels/exit_confirm_panel.gd",
+		"res://ui/frontmatter/panels/lobby_panel.gd",
+		"res://ui/frontmatter/panels/join_panel.gd",
+	]
+	var forbidden := ["Camera2D", "%GraphLayer", "get_viewport_transform"]
+	for path in scripts:
+		if not ResourceLoader.exists(path):
+			continue
+		var source := FileAccess.get_file_as_string(path)
+		for needle in forbidden:
+			assert_false(source.contains(needle), "%s must not reference '%s'" % [path, needle])
+
+
+## The end-to-end acceptance for #600: with a panel up, the graph's own
+## [BackAffordance] is reachable and pressing it both returns focus to the
+## parent and takes the panel down — the affordance -> `back()` -> `hide_all()`
+## chain, through the whole shell rather than through the seam alone. Lives
+## here rather than in `test_frontmatter_navigation.gd` because it needs
+## `FrontmatterPanels`' own container, not just the graph.
+func test_pressing_the_back_affordance_with_a_panel_up_returns_to_the_parent() -> void:
+	var root: FrontmatterRoot = preload("res://ui/frontmatter/frontmatter_root.tscn").instantiate()
+	add_child_autofree(root)
+	root.reduce_motion = true
+
+	root.focus(MenuGraph.ID_OPTIONS, true)
+
+	var panels: FrontmatterPanels = root.get_node("%PanelLayer/FrontmatterPanels")
+	assert_eq(panels.shown_panel, MenuGraph.PANEL_SETTINGS, "the leaf routed its panel")
+
+	var back_affordance: Node = root.get_node("%BackAffordance")
+	assert_true(back_affordance.visible, "reachable while a panel is up (#600 deletes the backdrop)")
+
+	back_affordance.press()
+
+	assert_eq(root.focus_id, MenuGraph.ID_ROOT, "back() moved the focus")
+	assert_eq(panels.shown_panel, &"", "and hid the panel")

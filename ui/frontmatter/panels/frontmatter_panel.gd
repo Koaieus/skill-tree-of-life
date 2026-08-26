@@ -8,11 +8,10 @@ extends Control
 ## [b]This is a base scene, and it earns its keep by packaging children.[/b]
 ## Per `.claude/rules/scene-composition.md`, every concrete panel is an
 ## [i]inherited scene[/i] of `frontmatter_panel.tscn` that fills [member body];
-## none of them compose their own backdrop, frame, title or back button, so a
-## structural change to the chrome propagates to all five for free. That is the
-## opposite of what this replaces: the deleted `MenuScreen` built the same
-## chrome in `_ready` with `X.new()` chains, which is why its subclasses had no
-## scene files at all.
+## none of them compose their own frame or title, so a structural change to the
+## chrome propagates to all five for free. That is the opposite of what this
+## replaces: the deleted `MenuScreen` built the same chrome in `_ready` with
+## `X.new()` chains, which is why its subclasses had no scene files at all.
 ##
 ## [b]A panel never knows where the camera is.[/b] It lives under a
 ## [CanvasLayer], which is immune to the graph camera's pan and zoom by design
@@ -20,10 +19,28 @@ extends Control
 ## text stays crisp and stationary while the tree moves behind it. Nothing here
 ## may reach for [Camera2D], the graph layer, or [FrontmatterPanels] itself.
 ##
+## [b]The chrome is a right-hand region, not a centred modal (#600).[/b] There
+## is one baseline layout at every depth — hero column, then whatever fills the
+## remainder — and a leaf panel fills that remainder the same way a fan of
+## children would. [member _region]'s left edge sits at
+## [method FrontmatterLayout.hero_slot]'s x plus [constant _REGION_GUTTER]; its
+## right edge is the viewport edge. That boundary is a screen-space constant by
+## construction — the hero docks at the same pixel at every depth and every fan
+## zoom — so it is set once in [method _ready], never chased per frame the way
+## the tooltip chases an arbitrary hovered node.
+##
+## [b]Authoring a panel is authoring a static page.[/b] Anchors and containers,
+## `@tool` so the editor shows the truth, no code-composed layout — the owner's
+## framing, 2026-08-26.
+##
 ## A panel asks to be dismissed; it does not dismiss itself. [signal dismissed]
 ## goes up to [FrontmatterPanels], which re-emits it as
 ## [signal FrontmatterPanels.panel_dismissed] for the navigation state machine
-## to act on — the panel has no idea what "back" means in graph terms.
+## to act on — the panel has no idea what "back" means in graph terms. Since
+## #600 there is exactly one back affordance ([BackAffordance], in the hero
+## column) rather than one per panel; [method dismiss] survives as the route an
+## inherited scene's own cancel affordance (the exit-confirm's "no") uses to
+## reach the same exit.
 
 ## Emitted when this panel wants the frontmatter to return to the graph.
 ## [FrontmatterPanels] relays it, tagged with [member panel_id].
@@ -40,25 +57,21 @@ signal dismissed
 @export var title: String = "":
 	set = _set_title
 
-## Label under the back button, so a panel can name its own escape ("BACK",
-## "CANCEL"). Empty hides the button entirely — a panel that must be answered
-## rather than escaped.
-@export var back_text: String = "BACK":
-	set = _set_back_text
-
 ## Where an inherited scene puts its content. Pre-packaged by this scene, so an
 ## inherited scene may rely on it existing.
 @onready var body: VBoxContainer = %Body
-@onready var back_button: Button = %BackButton
 
 @onready var _title_label: Label = %Title
+@onready var _region: Control = %Region
+
+## Clearance past the hero column's own edge, so panel content does not start
+## flush against the back affordance sitting in that column.
+const _REGION_GUTTER := 48.0
 
 
 func _ready() -> void:
 	_apply_title()
-	_apply_back_text()
-	if not Engine.is_editor_hint():
-		back_button.pressed.connect(_on_back_pressed)
+	_layout_region()
 
 
 func _set_panel_id(value: StringName) -> void:
@@ -70,11 +83,6 @@ func _set_title(value: String) -> void:
 	_apply_title()
 
 
-func _set_back_text(value: String) -> void:
-	back_text = value
-	_apply_back_text()
-
-
 func _apply_title() -> void:
 	if not is_node_ready():
 		return
@@ -82,19 +90,17 @@ func _apply_title() -> void:
 	_title_label.visible = title != ""
 
 
-func _apply_back_text() -> void:
-	if not is_node_ready():
+## Docks [member _region]'s left edge past the hero column's right edge. Read
+## off [FrontmatterLayout] rather than a literal, so a re-tuned hero slot moves
+## every panel with it for free.
+func _layout_region() -> void:
+	if _region == null:
 		return
-	back_button.text = back_text
-	back_button.visible = back_text != ""
+	_region.offset_left = FrontmatterLayout.hero_slot().x + _REGION_GUTTER
 
 
 ## Emit [signal dismissed]. Exposed so an inherited scene can route its own
-## "cancel" affordance through the same exit as the back button rather than
+## "cancel" affordance through the same exit as [BackAffordance] rather than
 ## re-emitting the signal itself.
 func dismiss() -> void:
 	dismissed.emit()
-
-
-func _on_back_pressed() -> void:
-	dismiss()

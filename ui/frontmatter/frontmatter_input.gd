@@ -185,13 +185,41 @@ func dismiss_panel() -> void:
 
 ## Hands the keyboard to the raised panel, so a controller player is not left
 ## with a lit-up panel and no way into it.
+##
+## [b]It focuses the panel's first focusable CONTENT, not a back button.[/b] It
+## used to grab [member FrontmatterPanel.back_button], which #600 deleted along
+## with the rest of the per-panel chrome — one shared [BackAffordance] in the
+## hero column replaced five per-panel buttons. Focusing "back" was never the
+## intent anyway: this method exists to get the player INTO the panel, and
+## `ui_cancel` already dismisses it from anywhere (see [method _handle]), so
+## nothing is lost by putting the keyboard on the first operable control.
 func grab_panel_focus() -> void:
 	var panels := _panels()
 	if panels == null:
 		return
 	var panel := panels.get_panel(panels.shown_panel)
-	if panel != null and panel.back_button != null and panel.back_button.visible:
-		panel.back_button.grab_focus()
+	if panel == null:
+		return
+	var target := _first_focusable(panel)
+	if target != null:
+		target.grab_focus()
+
+
+## The first descendant of [param root] the keyboard can land on, in scene
+## order, depth-first so a control nested in a container is found. Null when the
+## panel has nothing operable — a legitimate state, since the parked load screen
+## is one label.
+static func _first_focusable(root: Node) -> Control:
+	for child in root.get_children():
+		var control := child as Control
+		if (control != null
+				and control.focus_mode != Control.FOCUS_NONE
+				and control.is_visible_in_tree()):
+			return control
+		var nested := _first_focusable(child)
+		if nested != null:
+			return nested
+	return null
 
 
 ## The focus has CHANGED, so the fan the cursor picks from has changed with it —

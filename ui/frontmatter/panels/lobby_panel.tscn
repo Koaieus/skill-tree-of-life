@@ -7,4 +7,3 @@
 script = ExtResource("2_lobby")
 panel_id = &"lobby"
 title = "LOBBY"
-back_text = "BACK"
