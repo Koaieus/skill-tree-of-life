@@ -41,7 +41,7 @@ The exception is being **growth-capped**: an NPC with no unowned node adjacent
 to its territory has nowhere left to allocate. If the thing walling it in is
 scenery it refuses to look at, it banks SP forever and its turn does nothing.
 So `AIController` asks `AiRecon.is_growth_capped()` once per turn and sets
-`Entity.ai_targets_dormant_cores` from the answer; `AiRecon.is_ai_target()`
+`Entity.ai_growth_capped` from the answer; `AiRecon.is_ai_target()`
 reads it and unlocks blockers for that turn. Kill, relic, expand.
 
 Four details that are load-bearing:
@@ -57,8 +57,29 @@ Growth then runs a **second** pass after the attack loop, so the freed node is
 allocated on the same turn as the kill — and allocating it is what claims the
 relic (NPCs auto-pick each loot round, see `SkillDustAddon`).
 
+### Unlocking is not enough — the door has to win
+
+Making a core *targetable* only fixes the case where it is the only thing in
+sight. A capped NPC that also sees a real hostile scores both on raw EV, so a
+distant enemy wins the tie and the wall beside it never gets hit: the same
+"stuck" complaint in a different costume, and a LARGE core (high HP, no kill
+bonus available) loses that comparison every turn forever.
+
+So `AiCombatScorer` carries a **breakout bonus**: while `ai_growth_capped`, any
+target that *borders the attacker's own territory* scores `_BREAKOUT_WEIGHT`.
+Depleting a node force-deallocates it, so a bordering node is a door — and
+nothing about that is blocker-specific, which is the point. A capped NPC walled
+in by a real camp punches through it on exactly the same reasoning.
+
+It is ungated by `ai_tier` (like the kill bonus — being stuck is not a tactical
+subtlety a naive brain is allowed to miss) and sized to sit *between* the two
+things it is ordered against: above any ordinary EV difference, below
+`_KILL_BONUS` on a non-door target, since a kill that is right there is still
+worth taking and the next AP re-evaluates back onto the door.
+
 Deliberately not built: any analysis of *which* faction is capping the NPC, or
-a proximity filter on which cores unlock. If an NPC is walled in by camps rather
+a proximity filter on which cores unlock (preference *among* unlocked
+candidates is the breakout bonus's job, above). If an NPC is walled in by camps rather
 than cores there is no adjacent core to unlock, so frontier-empty is
 behaviourally identical and far simpler; and "unlock all" is self-limiting
 because candidate enumeration only ever yields in-reach targets.

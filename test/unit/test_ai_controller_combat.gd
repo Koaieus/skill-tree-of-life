@@ -399,7 +399,7 @@ func test_uncapped_ai_still_ignores_a_dormant_core() -> void:
 	assert_false(AiRecon.is_growth_capped(_enemy), "fixture guard: room was left to grow")
 	assert_eq(walled.get_current_hp(), hp_before, "scenery takes no fire from an AI that can grow")
 	assert_eq(_launches.size(), 0, "and there is nothing else visible to shoot")
-	assert_false(_enemy.ai_targets_dormant_cores, "the stance should not have flipped")
+	assert_false(_enemy.ai_growth_capped, "the stance should not have flipped")
 
 
 func test_the_stance_does_not_outlive_the_turn_that_earned_it() -> void:
@@ -407,7 +407,7 @@ func test_the_stance_does_not_outlive_the_turn_that_earned_it() -> void:
 
 	_tm.start_turn(_enemy)
 	await get_tree().create_timer(0.3).timeout
-	assert_true(_enemy.ai_targets_dormant_cores, "capped this turn")
+	assert_true(_enemy.ai_growth_capped, "capped this turn")
 
 	# Open room to grow and take another turn: the stance must be re-decided
 	# from scratch, not latched on. Deliberately NOT by freeing `walled` — the
@@ -422,7 +422,7 @@ func test_the_stance_does_not_outlive_the_turn_that_earned_it() -> void:
 	_tm.start_turn(_enemy)
 	await get_tree().create_timer(0.3).timeout
 
-	assert_false(_enemy.ai_targets_dormant_cores,
+	assert_false(_enemy.ai_growth_capped,
 			"an AI that broke out once must not keep shooting scenery forever")
 
 
@@ -439,3 +439,32 @@ func test_clearing_the_core_expands_into_the_freed_node_the_same_turn() -> void:
 
 	assert_eq(walled.owned_by, _enemy,
 			"kill, then walk through the door it opened — on the same turn")
+
+
+
+func test_capped_ai_prefers_the_door_over_an_equally_reachable_hostile() -> void:
+	# Both in range and identical on EV — but only the core borders the AI's
+	# territory, so only killing it hands the AI a node. Without the breakout
+	# bonus the tie goes to enumeration order and the AI plinks the hostile
+	# forever while the wall beside it goes unhit: the same "stuck" complaint
+	# in a different costume.
+	var walled := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	walled.name = "Walled"
+	_graph.add_skill_node(walled)
+	_add_edge(_nodes[1], walled)
+	walled.global_position = Vector2(200.0, 0.0)
+	var core := _make_entity("DormantCore", preload("res://entity/factions/blocker.tres"))
+	_graph.entities_container.add_child(core)
+	await get_tree().process_frame
+	_alloc.force_allocate(core, walled)
+	core.core_location = walled
+
+	var wall_hp := walled.get_current_hp()
+	var hostile_hp := _nodes[2].get_current_hp()
+
+	_tm.start_turn(_enemy)
+	await get_tree().create_timer(0.3).timeout
+
+	assert_lt(walled.get_current_hp(), wall_hp, "the wall is the door — hit it")
+	assert_eq(_nodes[2].get_current_hp(), hostile_hp,
+			"H0 borders nothing of the AI's, so killing it opens no board")

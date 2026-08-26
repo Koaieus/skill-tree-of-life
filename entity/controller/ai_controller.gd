@@ -207,7 +207,7 @@ func _spend_skill_points(visible_enemies: Array[SkillNode]) -> Array[SkillNode]:
 ## Re-decide, for this turn only, whether Dormant Cores are worth this NPC's AP
 ## — true iff it is growth-capped ([method AiRecon.is_growth_capped]). Returns
 ## the capped verdict; the stance itself lands on
-## [member Entity.ai_targets_dormant_cores], which is where both halves of the
+## [member Entity.ai_growth_capped], which is where both halves of the
 ## AI target filter read it (list building AND swing valuation — see
 ## [method AiRecon.is_ai_target]).
 ##
@@ -216,7 +216,7 @@ func _spend_skill_points(visible_enemies: Array[SkillNode]) -> Array[SkillNode]:
 ## scenery forever.
 func _refresh_dormant_core_stance() -> bool:
 	var capped := AiRecon.is_growth_capped(entity)
-	entity.ai_targets_dormant_cores = capped
+	entity.ai_growth_capped = capped
 	return capped
 
 

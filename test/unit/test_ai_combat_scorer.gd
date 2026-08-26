@@ -135,7 +135,7 @@ func test_expected_damage_counts_a_blocker_hit_for_a_growth_capped_attacker() ->
 	_alloc.force_allocate(blocker, _nodes[2])
 	blocker.core_location = _nodes[2]
 	var outcome := _resolve_ranged_at(_nodes[2])
-	_ai.ai_targets_dormant_cores = true
+	_ai.ai_growth_capped = true
 
 	assert_almost_eq(AiCombatScorer.expected_damage(outcome, _ai),
 			AiCombatScorer.expected_damage(outcome), 0.001,
@@ -147,6 +147,40 @@ func test_expected_damage_still_counts_a_real_hostile() -> void:
 
 	assert_almost_eq(AiCombatScorer.expected_damage(outcome, _ai),
 			AiCombatScorer.expected_damage(outcome), 0.001)
+
+
+# ---------------------------------------------------------------------------
+# score — breakout bonus (#604)
+# ---------------------------------------------------------------------------
+
+func test_no_breakout_bonus_for_an_attacker_that_can_still_grow() -> void:
+	# _nodes[2] is the hostile CORE, adjacent to nothing of the AI's; and the
+	# AI is not capped. Both halves have to hold for the bonus.
+	var c := AiCombatScorer.score(BattleSystem.AttackMode.RANGED,
+			_resolve_ranged_at(_nodes[2]), _nodes[2], _ai, 0)
+
+	assert_eq(c.breakout_bonus, 0.0)
+
+
+func test_breakout_bonus_only_for_a_target_bordering_the_capped_attackers_land() -> void:
+	# Hang a hostile-owned node off the AI's own leaf: depleting it force-
+	# deallocates it, so it lands in the frontier next pass. That is the door.
+	var door := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	door.name = "Door"
+	_graph.add_skill_node(door)
+	_graph.add_edge(_nodes[1], door)
+	await get_tree().process_frame
+	_alloc.force_allocate(_hostile, door)
+	_ai.ai_growth_capped = true
+
+	var at_door := AiCombatScorer.score(BattleSystem.AttackMode.RANGED,
+			_resolve_ranged_at(door), door, _ai, 0)
+	var far := AiCombatScorer.score(BattleSystem.AttackMode.RANGED,
+			_resolve_ranged_at(_nodes[2]), _nodes[2], _ai, 0)
+
+	assert_gt(at_door.breakout_bonus, 0.0, "the bordering node is a way out")
+	assert_eq(far.breakout_bonus, 0.0, "a node bordering nothing of mine is not")
+	assert_gt(at_door.total, far.total, "and the door has to win on total, not just carry a term")
 
 
 # ---------------------------------------------------------------------------

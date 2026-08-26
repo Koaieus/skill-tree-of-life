@@ -62,7 +62,7 @@ static func visible_enemy_nodes(entity: Entity) -> Array[SkillNode]:
 ## the second half while staying hostile to everyone else, including the
 ## player.
 ##
-## [b]Unless the attacker is boxed in[/b] — [member Entity.ai_targets_dormant_cores],
+## [b]Unless the attacker is boxed in[/b] — [member Entity.ai_growth_capped],
 ## set per turn from [method is_growth_capped], flips the second half back on.
 ## An NPC with nowhere left to allocate is not being patient by ignoring the
 ## scenery that walls it in, it is stuck; a Dormant Core is then the cheapest
@@ -83,7 +83,7 @@ static func is_ai_target(attacker: Entity, node: SkillNode) -> bool:
 	var owner_faction: Faction = node.owned_by.faction
 	if owner_faction == null or owner_faction.targeted_by_ai:
 		return true
-	return attacker.ai_targets_dormant_cores
+	return attacker.ai_growth_capped
 
 
 ## Every unowned node adjacent to one [param entity] already owns — its growth
@@ -118,7 +118,7 @@ static func frontier_nodes(entity: Entity) -> Array[SkillNode]:
 ## one right now (SP is a budget, not a wall, and an entity that banks SP with
 ## nowhere to spend it is exactly the case this answers "yes" for).
 ##
-## Drives [member Entity.ai_targets_dormant_cores]: capped is the one state in
+## Drives [member Entity.ai_growth_capped]: capped is the one state in
 ## which an NPC stops treating a Dormant Core as scenery.
 static func is_growth_capped(entity: Entity) -> bool:
 	return frontier_nodes(entity).is_empty()

@@ -115,7 +115,7 @@ func test_blocker_becomes_a_target_once_the_attacker_is_growth_capped() -> void:
 	await get_tree().process_frame
 	_alloc.force_allocate(blocker, _nodes[1])
 	_nodes[1].global_position = _nodes[0].global_position + Vector2(100.0, 0.0)
-	_ai_entity.ai_targets_dormant_cores = true
+	_ai_entity.ai_growth_capped = true
 
 	assert_true(AiRecon.is_ai_target(_ai_entity, _nodes[1]))
 	assert_true(_nodes[1] in AiRecon.visible_enemy_nodes(_ai_entity))
@@ -128,7 +128,7 @@ func test_the_unlock_is_per_attacker() -> void:
 	_graph.add_child(blocker)
 	await get_tree().process_frame
 	_alloc.force_allocate(blocker, _nodes[1])
-	_ai_entity.ai_targets_dormant_cores = true
+	_ai_entity.ai_growth_capped = true
 
 	assert_false(AiRecon.is_ai_target(_hostile, _nodes[1]))
 

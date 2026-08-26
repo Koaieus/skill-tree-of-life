@@ -36,12 +36,22 @@ const _CAPTURE := false
 ## The two decisions are the AP×2 ranged loop: one dent, then the re-evaluated
 ## finisher — `kill=yes` is the scorer's PREDICTION, not an outcome, which is
 ## why N3 is still the hostile's at the end.
+##
+## [b]One post-capture amendment, #604[/b] — the ` door=500.0` trailer and the
+## +500 it adds to each `total`. This fixture's AI ends its growth step
+## growth-capped (it owns N0-N2, and N3 is the hostile's), so the breakout
+## bonus applies to N3, which borders N2. What did NOT change is everything the
+## parity assertion is actually about: same target, same two shots, same
+## ownership / SP / AP / mana / initiative / current_entity, all still the
+## values captured at 5349743. The scoring term is new behaviour, deliberately
+## added, and it moved the trace strings only — it could not be recaptured on
+## the pre-#512 controller because it did not exist there.
 const _GOLDEN := {
 	"ap": 0.0,
 	"current_entity": "Player",
 	"decisions": [
-		"[RANGED→N3] ev=6.0 kill=no cut=0.0 weak=0.0 risk=0.0 total=6.0",
-		"[RANGED→N3] ev=6.0 kill=yes cut=0.0 weak=0.0 risk=0.0 total=1006.0",
+		"[RANGED→N3] ev=6.0 kill=no cut=0.0 weak=0.0 risk=0.0 total=506.0 door=500.0",
+		"[RANGED→N3] ev=6.0 kill=yes cut=0.0 weak=0.0 risk=0.0 total=1506.0 door=500.0",
 	],
 	"enemy_owned": ["N0", "N1", "N2"],
 	"initiative": 0.0,

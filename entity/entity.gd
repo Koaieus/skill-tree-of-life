@@ -214,19 +214,23 @@ var _hook_buckets: Dictionary[StringName, Array] = {}
 ## corpse (TurnManager initiative, AI targeting).
 var is_dead: bool = false
 
-## Does this entity's BRAIN currently consider Dormant Cores worth its AP?
-## Host-only, AI-only, and re-decided every turn by [method AIController.take_turn]
-## from [method AiRecon.is_growth_capped] — a boxed-in NPC unlocks the scenery
-## that is boxing it in, everyone else stays uninterested. Read by
-## [method AiRecon.is_ai_target], which is why it lives on [Entity] rather than
-## on the controller: the scorer's filter only ever receives the attacker
-## entity. Player-driven entities never read it — the *relation* is what gates
-## a player's swing, and that stays HOSTILE regardless (see [Faction]).
+## Has this entity's BRAIN concluded it is boxed in, this turn? Host-only,
+## AI-only, and re-decided every turn by [method AIController.take_turn] from
+## [method AiRecon.is_growth_capped]. Two consequences, one cause (#604):
+## Dormant Cores stop being scenery ([method AiRecon.is_ai_target]), and any
+## target adjacent to this entity's own territory scores a breakout bonus
+## ([method AiCombatScorer.score]) — a door out is worth more than a dent when
+## there is no other way to grow.
+##
+## Lives on [Entity] rather than on the controller because both readers are
+## static and only ever receive the attacker entity. Player-driven entities
+## never read it — the *relation* is what gates a player's swing, and that
+## stays HOSTILE regardless (see [Faction]).
 ##
 ## Plain state, deliberately not a status tag: nothing grants or displays it,
 ## it never survives the turn that set it, and it carries no sync meaning (a
 ## MIRROR peer never runs an AI turn at all).
-var ai_targets_dormant_cores: bool = false
+var ai_growth_capped: bool = false
 
 ## Refcounted status markers, entity-wide twin of [member SkillNode._tags] — see
 ## docs/design/status-tags.md. Granted/revoked through [method EffectContext.grant_tag]

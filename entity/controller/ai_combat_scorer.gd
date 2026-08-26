@@ -28,6 +28,15 @@ const _ENEMY_WEAK_WEIGHT := 5.0
 ## real source of a nonzero [param thinned_nodes] into [method score] — a real
 ## defensive-spike pop count, not the blade's node-selection size.
 const _SHAPE_RISK_WEIGHT := 10.0
+## What a DOOR is worth to a boxed-in attacker (#604). Applies only while
+## [member Entity.ai_growth_capped] — see [method _opens_a_door]. Sized to sit
+## between the two things it has to be ordered against: it dominates any
+## ordinary EV difference (a capped AI must not plink a distant enemy forever
+## while the wall beside it goes unhit), and it loses to [constant _KILL_BONUS]
+## on a non-door target (a kill that is right there is still worth taking —
+## the next AP re-evaluates and comes back to the door). A candidate that is
+## both reads 1500 and beats either.
+const _BREAKOUT_WEIGHT := 500.0
 ## Distance-dominating bonus so a tactical-enabling frontier pick always beats
 ## a merely-closer one — see [method score_frontier].
 const _NEAR_MISS_ENABLE_BONUS := 1.0e6
@@ -55,6 +64,9 @@ class ScoredCandidate:
 	var cut_vertex_bonus: float = 0.0
 	var enemy_weak_bonus: float = 0.0
 	var self_shape_risk: float = 0.0
+	## Non-zero only for a capped attacker striking a node that borders its own
+	## territory — the way out. See [constant _BREAKOUT_WEIGHT].
+	var breakout_bonus: float = 0.0
 	var total: float = 0.0
 	var trace: String = ""
 
@@ -101,18 +113,50 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 	var target_hp: float = target.get_current_hp() if target != null else 0.0
 	c.is_kill = target_hp > 0.0 and c.ev >= target_hp
 	c.kill_bonus = _KILL_BONUS if c.is_kill else 0.0
+	# Ungated by tier, like the kill bonus: being stuck is not a tactical
+	# subtlety a naive brain is allowed to miss. Depleting a node force-
+	# deallocates it, so ANY owner's node bordering my territory is a door —
+	# nothing here is blocker-specific, and a capped AI walled in by a real
+	# camp punches through it on the same reasoning.
+	if attacker != null and attacker.ai_growth_capped and _opens_a_door(target, attacker):
+		c.breakout_bonus = _BREAKOUT_WEIGHT
 	if ai_tier > 0:
 		if _is_cut_vertex(target):
 			c.cut_vertex_bonus = _CUT_VERTEX_WEIGHT * ai_tier
 		c.enemy_weak_bonus = _armor_weakness(target) * _ENEMY_WEAK_WEIGHT * ai_tier
 		c.self_shape_risk = float(thinned_nodes) * _SHAPE_RISK_WEIGHT * ai_tier
-	c.total = c.ev + c.kill_bonus + c.cut_vertex_bonus + c.enemy_weak_bonus - c.self_shape_risk
+	c.total = c.ev + c.kill_bonus + c.cut_vertex_bonus + c.enemy_weak_bonus \
+			+ c.breakout_bonus - c.self_shape_risk
+	# `door` is appended rather than spliced in: the #512 parity golden freezes
+	# this string, and it is 0.0 for every uncapped attacker.
 	c.trace = "[%s→%s] ev=%.1f kill=%s cut=%.1f weak=%.1f risk=%.1f total=%.1f" % [
 		BattleSystem.AttackMode.keys()[mode],
 		target.name if target != null else "?",
 		c.ev, ("yes" if c.is_kill else "no"),
 		c.cut_vertex_bonus, c.enemy_weak_bonus, c.self_shape_risk, c.total]
+	if c.breakout_bonus > 0.0:
+		c.trace += " door=%.1f" % c.breakout_bonus
 	return c
+
+
+## Would depleting [param target] hand [param attacker] a node it can actually
+## allocate? True when the target borders the attacker's own territory — a
+## depleted node is force-deallocated, so it lands in the frontier the very
+## next pass ([method AiRecon.frontier_nodes]).
+##
+## Adjacency, not degree: the question is membership in the neighbour set, so
+## [method Graph.get_neighbours] is the right call and the degree rule does not
+## apply.
+static func _opens_a_door(target: SkillNode, attacker: Entity) -> bool:
+	if target == null or attacker == null or attacker.navigator == null:
+		return false
+	var graph: Graph = attacker.navigator.graph
+	if graph == null:
+		return false
+	for neighbour in graph.get_neighbours(target):
+		if neighbour != null and neighbour.owned_by == attacker:
+			return true
+	return false
 
 
 ## Highest-[member ScoredCandidate.total] entry, or null if [param candidates]
