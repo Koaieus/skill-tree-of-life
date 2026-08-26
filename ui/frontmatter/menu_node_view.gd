@@ -253,3 +253,21 @@ func play_allocation_spike() -> void:
 	AllocationVFX.spawn_alloc_spike(
 		self, global_position, radius * _INNER_RADIUS_RATIO, radius, display_color()
 	)
+
+
+## Plays the game's own dealloc lift over this node's spot — the puff that
+## marks a node's spot as it loses focus-path allocation and collapses back
+## onto its parent.
+##
+## [b]Reused as a static function, not by mounting an [AllocationVFX][/b] —
+## same reason as [method play_allocation_spike].
+##
+## [b]Parented to [param host] (the shell's `%GraphLayer`), NOT to this
+## view[/b] — unlike the spike. The node being left is about to collapse to
+## `FrontmatterLayout.PREVIEW_SCALE` on its own parent; a puff parented to it
+## would shrink away with it instead of marking the spot it vacated. See the
+## frontmatter VFX acceptance spec (#599).
+func play_dealloc_lift(host: Node2D) -> void:
+	AllocationVFX.spawn_dealloc_lift(
+			host, global_position, radius * _INNER_RADIUS_RATIO, display_color()
+	)

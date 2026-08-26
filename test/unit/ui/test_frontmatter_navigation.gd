@@ -551,3 +551,193 @@ func test_a_real_click_reaches_a_menu_node_through_the_whole_shell() -> void:
 		await wait_frames(2)
 
 	assert_eq(frontmatter.focus_id, target, "the click navigated the menu")
+
+# --- allocation VFX (#599) ---------------------------------------------------
+# Both VFX fire INSTANTLY off `_sync_allocation()`, on focus change — never on
+# camera arrival — and the diff is against each view's live `allocated` flag.
+# Counted rather than mocked: `spawn_alloc_spike` parents its container to the
+# VIEW, `spawn_dealloc_lift` parents its disk to `%GraphLayer`, so a plain
+# child-count diff is an exact spawn counter with no stub in production code.
+
+## Every view's scene-authored children: `%Visuals`, `%Title`, `%PickRegion`
+## (see `menu_node_view.tscn`). Any child beyond these three is a spike.
+const _VIEW_BASELINE_CHILDREN := 3
+
+
+func _graph_layer() -> Node2D:
+	return _root.get_node("%GraphLayer")
+
+
+## `%GraphLayer`'s own scene-authored child count: just `%BackAffordance`
+## (see `frontmatter_root.tscn`) — everything past that plus the live view/edge
+## counts is a lift.
+func _graph_layer_baseline_children() -> int:
+	return 1 + _root._views.size() + _root._edges.size()
+
+
+func test_forward_navigation_spawns_exactly_one_spike_before_travel_starts() -> void:
+	_root.focus(MenuGraph.ID_ROOT, true)
+	var child_view := _root.view_for(MenuGraph.ID_SINGLE_PLAYER)
+	var before := child_view.get_child_count()
+
+	# A real duration, deliberately not instant: no frame passes in a GUT test,
+	# so if the spike only showed up once the tween had been driven, this
+	# assertion — taken right after `focus()` returns — would still see zero.
+	_root.reduce_motion = false
+	_root.travel_duration = 0.85
+	_root.focus(MenuGraph.ID_SINGLE_PLAYER)
+
+	assert_eq(child_view.get_child_count(), before + 1,
+			"exactly one spike landed on the child, in the same frame as focus()")
+
+
+func test_back_spawns_exactly_one_lift_on_the_node_being_left() -> void:
+	_root.focus(MenuGraph.ID_SINGLE_PLAYER, true)
+	var layer := _graph_layer()
+	var before := layer.get_child_count()
+
+	_root.reduce_motion = false
+	_root.travel_duration = 0.85
+	assert_true(_root.back())
+
+	assert_eq(layer.get_child_count(), before + 1,
+			"exactly one lift landed on the node being left, in the same frame as back()")
+
+
+func test_a_sibling_jump_fires_one_lift_and_one_spike() -> void:
+	_root.focus(MenuGraph.ID_SINGLE_PLAYER, true)
+	var left_view := _root.view_for(MenuGraph.ID_SINGLE_PLAYER)
+	var arrived_view := _root.view_for(MenuGraph.ID_MULTIPLAYER)
+	var layer := _graph_layer()
+	var left_before := left_view.get_child_count()
+	var arrived_before := arrived_view.get_child_count()
+	var layer_before := layer.get_child_count()
+
+	_root.focus(MenuGraph.ID_MULTIPLAYER, true)
+
+	assert_eq(arrived_view.get_child_count(), arrived_before + 1,
+			"one spike on the node arrived at")
+	assert_eq(layer.get_child_count(), layer_before + 1,
+			"one lift, parented to the graph layer, for the node left")
+	assert_eq(left_view.get_child_count(), left_before,
+			"nothing extra landed on the view that was left")
+
+
+func test_a_fresh_build_spawns_zero_vfx() -> void:
+	# `build()` ends on the seeding `focus(root, true)`, which takes the root
+	# view false -> true — the first-focus latch's whole job is to keep that
+	# silent.
+	for id in _root.tree.ids():
+		assert_eq(_root.view_for(id).get_child_count(), _VIEW_BASELINE_CHILDREN,
+				"'%s' carries no leaked spike from the seeding focus" % id)
+	assert_eq(_graph_layer().get_child_count(), _graph_layer_baseline_children(),
+			"the graph layer carries no leaked lift from the seeding focus either")
+
+
+func test_pressing_through_the_splash_yields_exactly_one_spike_on_the_root() -> void:
+	var splash: SplashScreen = load("res://ui/frontmatter/splash_screen.tscn").instantiate()
+	add_child_autofree(splash)
+	splash._frontmatter = _root
+	splash._park()
+	var root_view := _root.view_for(_tree.root)
+	assert_false(root_view.allocated, "parked: the root reads unallocated again")
+	var before := root_view.get_child_count()
+
+	# `advance()` does both halves synchronously here (reduce_motion collapses
+	# the hold to 0): `_allocate_root()`'s spike, then `_travel()`'s
+	# `focus(root)`. The count below is over the WHOLE call, so it also proves
+	# the second half added none.
+	splash.advance()
+
+	assert_true(root_view.allocated)
+	assert_eq(root_view.get_child_count(), before + 1,
+			"exactly one spike — the one `_allocate_root()` plays — survives the whole advance")
+
+
+func test_counts_hold_under_reduce_motion() -> void:
+	# Same three shapes as the tests above, this time with reduce_motion doing
+	# the collapsing instead of a hand-held clock — `instant` must not be what
+	# gates the VFX, reduce_motion included.
+	_root.reduce_motion = true
+
+	_root.focus(MenuGraph.ID_ROOT)
+	var child_view := _root.view_for(MenuGraph.ID_SINGLE_PLAYER)
+	var before_spike := child_view.get_child_count()
+	_root.focus(MenuGraph.ID_SINGLE_PLAYER)
+	assert_eq(child_view.get_child_count(), before_spike + 1,
+			"forward still spikes under reduce_motion")
+
+	var layer := _graph_layer()
+	var before_lift := layer.get_child_count()
+	assert_true(_root.back())
+	assert_eq(layer.get_child_count(), before_lift + 1,
+			"back still lifts under reduce_motion")
+
+	_root.focus(MenuGraph.ID_SINGLE_PLAYER)
+	var left_view := _root.view_for(MenuGraph.ID_SINGLE_PLAYER)
+	var arrived_view := _root.view_for(MenuGraph.ID_MULTIPLAYER)
+	var left_before := left_view.get_child_count()
+	var arrived_before := arrived_view.get_child_count()
+	var layer_before := layer.get_child_count()
+	_root.focus(MenuGraph.ID_MULTIPLAYER)
+	assert_eq(arrived_view.get_child_count(), arrived_before + 1,
+			"a sibling jump still spikes the arrival under reduce_motion")
+	assert_eq(layer.get_child_count(), layer_before + 1,
+			"and still lifts the departure")
+	assert_eq(left_view.get_child_count(), left_before)
+
+
+func test_a_second_build_on_a_live_shell_spawns_zero_vfx() -> void:
+	# The latch-reset regression (#578's live tab rebuilds in place, so a latch
+	# that only ever arms once would fire the seeding VFX on every rebuild
+	# after the first).
+	_root.focus(MenuGraph.ID_MULTIPLAYER, true)
+	_root.build()
+
+	for id in _root.tree.ids():
+		assert_eq(_root.view_for(id).get_child_count(), _VIEW_BASELINE_CHILDREN,
+				"'%s' carries no leaked spike from the second build's seeding focus" % id)
+	assert_eq(_graph_layer().get_child_count(), _graph_layer_baseline_children(),
+			"nor does the graph layer carry a leaked lift")
+
+
+func test_the_spike_spawns_at_the_targets_home_at_full_scale() -> void:
+	# Pins that firing from `_sync_allocation()` — before `_capture_transition()`
+	# — spawns the spike exactly where the player clicked: collapsed nodes are
+	# unreachable by construction, so a node you can navigate TO is always at
+	# its canonical home, at scale 1.0, both before and after the focus change.
+	_root.focus(MenuGraph.ID_ROOT, true)
+	var child_id := MenuGraph.ID_SINGLE_PLAYER
+	var view := _root.view_for(child_id)
+	_root.focus(child_id, true)
+
+	var container := view.get_child(view.get_child_count() - 1)
+	var home: Vector2 = FrontmatterLayout.solve(_tree)[child_id]
+	assert_almost_eq((container as Node2D).global_position.x, home.x, 0.001)
+	assert_almost_eq((container as Node2D).global_position.y, home.y, 0.001)
+	assert_almost_eq(view.scale.x, 1.0, 0.001, "the clicked node was never collapsed")
+
+
+func test_spawn_dealloc_lift_is_static_and_needs_no_gameplay_systems() -> void:
+	var host := Node2D.new()
+	add_child_autofree(host)
+	var before := host.get_child_count()
+
+	AllocationVFX.spawn_dealloc_lift(host, Vector2(10.0, 20.0), 8.0, Color.RED)
+
+	assert_eq(host.get_child_count(), before + 1,
+			"reachable with no AllocationSystem, BattleSystem or Events wired up")
+
+
+func test_the_instance_lift_delegates_to_the_static() -> void:
+	# One implementation of the lift, not two (`.claude/rules/` — no parallel
+	# mirrors of logic): the gameplay path's `_spawn_lift` must be a one-line
+	# call into `spawn_dealloc_lift`, not a second copy of the tween.
+	var vfx := AllocationVFX.new()
+	add_child_autofree(vfx)
+	var before := vfx.get_child_count()
+
+	vfx._spawn_lift(Vector2.ZERO, 8.0, Color.BLUE)
+
+	assert_eq(vfx.get_child_count(), before + 1, "delegates straight into the static")
+

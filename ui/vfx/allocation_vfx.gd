@@ -344,12 +344,25 @@ static func spawn_alloc_spike(
 	tween.chain().tween_callback(container.queue_free)
 
 
-func _spawn_lift(world_pos: Vector2, disk_radius: float, color: Color) -> void:
+## Floating colored disk on voluntary deallocation — a puff marking the spot
+## the node vacated as it collapses back onto its parent.
+##
+## [b]Static, and takes a [param host] rather than assuming `self`[/b] — the
+## last spawner here that did. Extracted so the frontmatter menu (#599) can
+## play the SAME lift when a view loses focus-path allocation: that menu has
+## no [AllocationSystem] to mount an [AllocationVFX] under (see
+## [MenuNodeView]), so anything it reuses has to be reusable as a function.
+##
+## [param host] is what the effect is parented to and what its [Tween] runs
+## against — this instance in gameplay, `%GraphLayer` in the menu (the lift
+## marks the spot vacated, not the node itself, which is about to collapse to
+## `FrontmatterLayout.PREVIEW_SCALE` on its own parent).
+static func spawn_dealloc_lift(host: Node2D, world_pos: Vector2, disk_radius: float, color: Color) -> void:
 	var disk := _make_snapshot_disk(disk_radius, color)
 	disk.global_position = world_pos
-	add_child(disk)
+	host.add_child(disk)
 	var rise := disk_radius * LIFT_RISE_FACTOR
-	var tween := create_tween()
+	var tween := host.create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(disk, "position:y", world_pos.y - rise, LIFT_DURATION)\
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
@@ -363,6 +376,10 @@ func _spawn_lift(world_pos: Vector2, disk_radius: float, color: Color) -> void:
 	tween.tween_property(disk, "modulate:a", 0.0, LIFT_DURATION)\
 			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.chain().tween_callback(disk.queue_free)
+
+
+func _spawn_lift(world_pos: Vector2, disk_radius: float, color: Color) -> void:
+	spawn_dealloc_lift(self, world_pos, disk_radius, color)
 
 
 ## Node "death" animation: start vibrating and then *pop* shatter into pieces

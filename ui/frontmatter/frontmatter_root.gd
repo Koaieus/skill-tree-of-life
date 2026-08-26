@@ -88,6 +88,14 @@ var _settled: bool = false
 var _transition: Tween = null
 var _tooltip: MenuTooltip = null
 
+## First-focus latch (#599): [method build] ends on a seeding
+## `focus(tree.root, true)`, which takes the root view `false -> true` — a
+## naive diff in [method _sync_allocation] would drop a spike on a
+## splash-zoomed root before the prompt is even up. Suppresses VFX for the
+## first `_sync_allocation` call after a build only; reset there so #578's
+## live-tab rebuild-in-place does not leave it permanently armed.
+var _first_focus_done: bool = false
+
 const TOOLTIP_SCENE := preload("res://ui/frontmatter/menu_tooltip.tscn")
 
 @onready var _camera_2d: Camera2D = %Camera
@@ -126,6 +134,7 @@ func build(menu_tree: MenuGraph = null) -> void:
 	tree = menu_tree if menu_tree != null else MenuGraph.build()
 	reduce_motion = _resolve_reduce_motion()
 	_clear()
+	_first_focus_done = false
 	_build_views()
 	_build_edges()
 	camera = FrontmatterCamera.new(_camera_2d, tree)
@@ -385,8 +394,24 @@ func _route_focus_panel() -> void:
 ## it lands at once rather than being tweened.
 func _sync_allocation() -> void:
 	var path := tree.path_to(focus_id)
+	# Suppress on the first call after a build (the seeding `focus(root, true)`)
+	# — VFX still needs the `allocated` flags written, just not to fire.
+	var suppress := not _first_focus_done
+	_first_focus_done = true
 	for id in _views:
-		(_views[id] as MenuNodeView).allocated = path.has(id)
+		var view: MenuNodeView = _views[id]
+		# Diff against the view's LIVE flag, read before it is overwritten —
+		# what makes `SplashScreen._park()`'s direct `allocated = false` write
+		# account for itself for free, with no cached previous-path state here.
+		var was_allocated := view.allocated
+		var now_allocated := path.has(id)
+		view.allocated = now_allocated
+		if suppress or was_allocated == now_allocated:
+			continue
+		if now_allocated:
+			view.play_allocation_spike()
+		else:
+			view.play_dealloc_lift(_graph_layer)
 	for key in _edges:
 		var edge: MenuEdgeView = _edges[key]
 		var parent_view: MenuNodeView = _views[tree.parent_of(key)]
