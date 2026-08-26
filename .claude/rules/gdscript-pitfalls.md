@@ -30,25 +30,16 @@ block there is simply no method to override, so the subclass hook never runs and
 the write silently does the base thing.
 
 ```gdscript
-# Stat — overridable, and load-bearing (#555)
 @export var base_value: float = 0.0:
-	set = _set_base_value
+	set = _set_base_value        # Stat; PoolStat overrides it to run the cap policy
 
 func _set_base_value(v: float) -> void:
-	base_value = v          # does NOT recurse
+	base_value = v               # does NOT recurse
 	_emit_value_changed()
-
-# PoolStat — this override is why a plain `pool.base_value = v` runs the cap policy
-func _set_base_value(v: float) -> void:
-	var old_max := float(get_value())
-	super(v)
-	_apply_max_change(old_max)
 ```
 
-Verified by probe (2026-08-24): the override fires **through a base-typed
-reference** too, and `base_value = v` inside the setter still does not re-enter
-it when reached via `super()` from the override. Don't conclude the pattern is
-impossible from the inline form — that mistake costs a design.
+Probed 2026-08-24: the override fires through a **base-typed** reference too,
+and `base_value = v` inside it does not re-enter (nor via `super()`).
 
 **How to apply:** don't "tidy" a `set = _method` declaration back into an inline
 block; you'd silently unhook every subclass. `test_skill_point_stat.gd`'s
@@ -61,19 +52,27 @@ A lambda's `Callable.get_object()` is the **GDScript**, not the node, and
 matches, failing as a silent no-op. Record the Callable when you connect:
 `BindScope` (`ui/bind_scope.gd`) is the one such bookkeeper; don't add a second.
 
+## `global_position` on a node not yet in the tree silently writes `position`
+
+There is no parent transform to invert, so the setter falls through to
+`set_position` and the node lands at `parent.global_position + your_value` once
+you add it. **How to apply:** `add_child` first, position second, even when the
+host is at the origin today — same for a tween target computed off the world
+position rather than off the node's own `position`. **Symptom:** an effect
+offset by *exactly* its host's offset, i.e. doubled, correct everywhere the
+host sits at the origin (`AllocationVFX`'s spike, right in gameplay and doubled
+in the frontmatter menu, which parents it to a node view at its world home).
+
 ## A hairline in `_draw` must snap to the VIEWPORT's screen grid
 
 Godot's 2D canvas does not antialias filled geometry — a pixel is covered iff its
 **centre** is inside the span — so a 1px line landing between two centres draws
 nothing. Snapping to whole pixels only helps on the *screen* grid, and under
 `canvas_items` stretch (1440x960 base) a differently-sized window rescales the
-canvas on the way out. Measured 2026-08-24 in a 1440x932 window:
-
-```
-layer.get_global_transform_with_canvas() -> (1.000000, 1.000000)
-layer.get_screen_transform()             -> (1.000000, 1.000000)  # despite the name
-get_viewport().get_screen_transform()    -> (0.970833, 0.970833)  # the only real one
-```
+canvas on the way out. Probed 2026-08-24: only
+`get_viewport().get_screen_transform()` carries that rescale —
+`get_global_transform_with_canvas()` and the [CanvasLayer]'s own
+`get_screen_transform()` both report identity, despite the name.
 
 **How to apply:** compose by hand — `get_viewport().get_screen_transform() *
 get_global_transform_with_canvas()` — `round()` the rect in that space, draw
