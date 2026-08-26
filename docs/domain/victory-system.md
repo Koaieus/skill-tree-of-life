@@ -81,7 +81,7 @@ Four things to keep straight:
   not the justification"* — take it because a group read costs the same either
   way, but do not grow `ContestantRule` to anticipate a tutorial.
 
-**A historical trap, still worth knowing:** blockers and AI opponents both sat
+**A historical trap, still worth knowing:** Dormant Cores and AI opponents both sat
 on `npc.tres` (`entity.gd`'s default faction, and what
 `procgen_play_sandbox.gd` hands every AI participant). Under the old per-camp
 flag, opting `npc.tres` out would have left one counting camp at spawn and ended
@@ -101,22 +101,22 @@ the flag per owning entity, but that is its own decision.)
 chokepoint every NPC target list flows through (growth's directional bias, the
 `saw_hostile` short-circuit, and ranged/magic/melee candidate enumeration all
 consume what it returns). It is emphatically **not** expressed in
-`Entity.attitude_to()`: a blocker must stay `HOSTILE` so the *player* can clear
+`Entity.attitude_to()`: a Dormant Core must stay `HOSTILE` so the *player* can clear
 it and so damage, the forced-dealloc cascade and XP gating treat that as a real
 kill. `test_ai_recon.gd` holds a guard test asserting the relation is still
 HOSTILE, so relocating the filter into the attitude method goes red.
 
 **Known consequence, deliberately unsolved:** an NPC whose only route out of
-its region is through a blocker will never clear it, and grows in place
-forever. Blocker placement (#477) samples uniformly at random over regular
+its region is through a Dormant Core will never clear it, and grows in place
+forever. Placement (#477) samples uniformly at random over regular
 nodes (only starters and keystones are excluded), so nothing structurally
-prevents a blocker landing on a cut vertex — this is possible, just unobserved
-so far. The fix, if it's ever needed, is an AI-side "boxed in → treat blockers
+prevents one landing on a cut vertex — this is possible, just unobserved
+so far. The fix, if it's ever needed, is an AI-side "boxed in → treat them
 as targets" fallback, not a change to this flag.
 
-Side effect worth knowing: giving blockers their own faction id makes them
+Side effect worth knowing: giving them their own faction id makes them
 **hostile to the NPC camp** too, where before they were allied by sharing
-`npc`. AI opponents can now target blockers.
+`npc`. AI opponents can now target Dormant Cores.
 
 ## Evaluate on death, coalesced — and why DRAW depends on it
 

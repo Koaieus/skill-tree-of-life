@@ -66,7 +66,12 @@ func _render() -> void:
 		_owner.text = "—"
 		_hp.text = "—"
 		return
-	_name.text = node.name
+	# #587 — never show the raw scene-tree name: Godot's duplicate-name
+	# uniquifier leaks as "DormantCore@2", and CamelCase reads as an
+	# identifier rather than a name. A keystone's authored name wins when
+	# there is one.
+	var display := node.get_display_name()
+	_name.text = display if not display.is_empty() else String(node.name).get_slice("@", 0).capitalize()
 	# #504: `owned_by` IS the drawn value under design B — a forced-dealloc
 	# lands at its own `arrival_time`, so the card flips to "Unowned" on the
 	# same beat the node does.
