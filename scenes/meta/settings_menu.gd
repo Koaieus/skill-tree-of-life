@@ -5,6 +5,16 @@ extends Control
 ## gives sections, hint/hint_string gives widget bounds. Write the
 ## widget-per-hint switch here ONCE; adding a setting to GameSettings must
 ## never require touching this scene again.
+##
+## The row SHAPE — the HBox, the label, its column width, the slot the widget
+## drops into — is authored in `settings_row.tscn` (#609); only the row COUNT
+## and the widget PICK stay reflective, which is where reflection earns its
+## keep. `%Widget` in that scene authors the slot's default size flag
+## (`SIZE_EXPAND_FILL`, so a slider or a LineEdit takes the row's slack); a
+## `CheckBox` or an `OptionButton` would stretch absurdly at that flag, so
+## `_make_widget` overrides it to `SIZE_SHRINK_BEGIN` on those two only.
+
+const _ROW_SCENE := preload("res://scenes/meta/settings_row.tscn")
 
 @onready var _rows: VBoxContainer = %Rows
 
@@ -38,16 +48,26 @@ func _make_section_label(title: String) -> Label:
 
 
 func _make_row(prop: Dictionary) -> Control:
-	var row := HBoxContainer.new()
+	var row: HBoxContainer = _ROW_SCENE.instantiate()
 
-	var label := Label.new()
+	var label := row.get_node("%Label") as Label
 	label.text = String(prop.name)
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(label)
 
 	var key := StringName(prop.name)
 	var widget := _make_widget(prop, key)
+
+	# The slot's own size flag is the default a widget gets — but only if its
+	# per-type branch above didn't already claim one of its own (CheckBox,
+	# OptionButton); Control's own stock default is SIZE_FILL, so anything
+	# still sitting at that means _make_widget left it alone.
+	var slot := row.get_node("%Widget") as Control
+	if widget.size_flags_horizontal == Control.SIZE_FILL:
+		widget.size_flags_horizontal = slot.size_flags_horizontal
+	var slot_index := slot.get_index()
+	row.remove_child(slot)
+	slot.queue_free()
 	row.add_child(widget)
+	row.move_child(widget, slot_index)
 
 	return row
 
@@ -58,6 +78,7 @@ func _make_widget(prop: Dictionary, key: StringName) -> Control:
 	if prop.type == TYPE_BOOL:
 		var check := CheckBox.new()
 		check.button_pressed = value
+		check.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN  # not the slot's default EXPAND_FILL — a row-wide hit area
 		check.toggled.connect(func(v: bool): Settings.set_value(key, v))
 		return check
 
@@ -67,6 +88,7 @@ func _make_widget(prop: Dictionary, key: StringName) -> Control:
 		for i in names.size():
 			option.add_item(names[i], i)
 		option.selected = int(value)
+		option.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN  # not the slot's default EXPAND_FILL — stretches absurdly
 		option.item_selected.connect(func(idx: int): Settings.set_value(key, idx))
 		return option
 
