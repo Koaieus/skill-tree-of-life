@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="PackedScene" path="res://ui/frontmatter/panels/frontmatter_panels.tscn" id="1_panels"]
 [ext_resource type="Script" path="res://ui/frontmatter/frontmatter_root.gd" id="2_root"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://ui/frontmatter/frontmatter_input.gd" id="6_input"]
 [ext_resource type="PackedScene" path="res://ui/frontmatter/back_affordance.tscn" id="4_back"]
 [ext_resource type="PackedScene" path="res://ui/frontmatter/background/frontmatter_background.tscn" id="5_background"]
+[ext_resource type="PackedScene" path="res://ui/frontmatter/layout/frontmatter_columns.tscn" id="7_columns"]
 
 [node name="FrontmatterRoot" type="Node2D"]
 script = ExtResource("2_root")
@@ -21,7 +22,9 @@ unique_name_in_owner = true
 [node name="PanelLayer" type="CanvasLayer" parent="."]
 unique_name_in_owner = true
 
-[node name="FrontmatterPanels" parent="PanelLayer" instance=ExtResource("1_panels")]
+[node name="FrontmatterColumns" parent="PanelLayer" instance=ExtResource("7_columns")]
+
+[node name="FrontmatterPanels" parent="PanelLayer/FrontmatterColumns/Remainder" instance=ExtResource("1_panels")]
 
 [node name="BackAffordance" parent="PanelLayer" instance=ExtResource("4_back")]
 unique_name_in_owner = true

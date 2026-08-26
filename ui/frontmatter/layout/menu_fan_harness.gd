@@ -29,8 +29,8 @@ extends MarginContainer
 ## [method measure] drives the container sort by hand rather than waiting for a
 ## frame, which is what lets the whole geometry stay a pure static function with
 ## no `await`. It does parent itself for the length of that one synchronous call
-## — [method _sort] explains why it has no choice — but it is never in the tree
-## across a frame, and that is what D3 is about.
+## — [ControlMeasure.parent_for_measuring] explains why it has no choice — but
+## it is never in the tree across a frame, and that is what D3 is about.
 ##
 ## And never a [RemoteTransform2D] between the two: it pushes GLOBAL transform
 ## and would double-apply the camera.
@@ -133,7 +133,7 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Measured:
 	assert(host != null, "a fan harness can only be measured under a SceneTree")
 	if host == null:
 		return Measured.new()
-	_parent_for_measuring(host)
+	ControlMeasure.parent_for_measuring(self, host)
 	assert(
 		get_parent() != null,
 		"'%s' could not be parented for measurement — nothing in the tree "
@@ -143,7 +143,7 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Measured:
 		return Measured.new()
 	position = Vector2.ZERO
 	size = view
-	_sort(self)
+	ControlMeasure.sort(self)
 
 	var slots: Dictionary = {}
 	var decor: Dictionary = {}
@@ -159,86 +159,16 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Measured:
 	for slot in option_slots():
 		assert(slot.menu_id != &"", "a slot in '%s' names no id" % name)
 		assert(not looks.has(slot.menu_id), "'%s' is authored twice" % slot.menu_id)
-		var where := _centre_of(slot)
+		var where := ControlMeasure.centre_of(slot, self)
 		if slot.decorative:
 			decor[slot.menu_id] = where
 		else:
 			slots[slot.menu_id] = where
 		looks[slot.menu_id] = slot.look()
 	var measured := Measured.new()
-	measured.hero = _centre_of(hero)
+	measured.hero = ControlMeasure.centre_of(hero, self)
 	measured.slots = slots
 	measured.decor = decor
 	measured.looks = looks
 	get_parent().remove_child(self)
 	return measured
-
-
-## Parents this harness somewhere it can actually be measured, for the length
-## of one synchronous call.
-##
-## [b]Not `root`, on purpose.[/b] [method Node.add_child] FAILS — printing its
-## own error rather than raising — on a parent that is busy setting up
-## children, and `root` is exactly that while the [SceneTree] is adding a
-## scene that was run DIRECTLY (F6 in the editor, or `run/main_scene`). The
-## harness then never parents, [method _sort] measures every rect as `0x0`,
-## and the first thing anyone sees is a null `get_parent()` here followed by a
-## bogus "no authored look" assertion two calls away. That was a real crash on
-## every direct run of `meta_root.tscn`.
-##
-## Every autoload is a fully-ready child of `root` before any scene is added,
-## so none of them is ever mid-add — which makes one of them a host that works
-## in both cases, and avoids the failed-`add_child` error that probing `root`
-## first would print every time. Being a [Control] under a plain [Node] does
-## not affect `is_visible_in_tree()`, which is the only thing the sort needs.
-func _parent_for_measuring(host: SceneTree) -> void:
-	for candidate in host.root.get_children():
-		if candidate == host.current_scene:
-			continue
-		candidate.add_child(self)
-		if is_visible_in_tree():
-			return
-		# Parented, but under something hidden (the fade overlay is an autoload
-		# and rests invisible). `fit_child_in_rect` early-returns on anything
-		# not `is_visible_in_tree()`, so this host is no better than none.
-		candidate.remove_child(self)
-	host.root.add_child(self)
-
-
-## Drives one full container sort, top-down, inside a single call.
-##
-## [b]Why by hand.[/b] [method Container.queue_sort] defers through the message
-## queue and only flushes inside a frame, so the obvious version would force
-## every caller of [method FrontmatterLayout.solve] to `await` — including the
-## unit tests, which exist precisely because a [Transform2D] is assertable and a
-## tween's third frame is not. `NOTIFICATION_SORT_CHILDREN` is the same code path
-## the queue would eventually run; sending it in parent-before-child order gives
-## the identical result synchronously, because each container needs only its own
-## size (already set by its parent's sort) to place its children.
-##
-## [b]The one thing it cannot skip is the [SceneTree].[/b]
-## [method Container.fit_child_in_rect] early-returns on a child that is not
-## `is_visible_in_tree()`, and a node outside the tree never is — a harness
-## measured detached silently reports every rect as `0x0`. So [method measure]
-## parents itself for the duration of the sort and unparents before returning:
-## in the tree for the length of one function call, never for a frame, which is
-## what #589 D3 is actually about.
-static func _sort(control: Control) -> void:
-	if control is Container:
-		control.notification(Container.NOTIFICATION_SORT_CHILDREN)
-	for child in control.get_children():
-		if child is Control:
-			_sort(child as Control)
-
-
-## [param control]'s centre in harness-local pixels. Walked by hand rather than
-## via `get_global_rect()`: the harness is parented to the tree ROOT for the
-## duration of [method measure], so a global rect would be offset by wherever
-## root put it. Local accumulation is what makes the result independent of that.
-func _centre_of(control: Control) -> Vector2:
-	var at := control.size * 0.5
-	var node: Node = control
-	while node != null and node != self:
-		at += (node as Control).position
-		node = node.get_parent()
-	return at

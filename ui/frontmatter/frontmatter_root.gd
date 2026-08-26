@@ -354,13 +354,18 @@ func focus_path() -> Array[StringName]:
 	return tree.path_to(focus_id)
 
 
+## Found by type rather than by a direct-child walk (#603 D6): the container
+## used to sit right on `%PanelLayer`, but it now lives at
+## `%PanelLayer/FrontmatterColumns/Remainder/FrontmatterPanels`, and a
+## `get_children()` walk one level deep would silently stop finding it the
+## next time the columns scene grows a level. `find_children` is the same
+## robust-to-nesting lookup `FrontmatterInput._panels` and `MetaRoot._panels`
+## already use.
 func _panels() -> FrontmatterPanels:
 	if _panel_layer == null:
 		return null
-	for child in _panel_layer.get_children():
-		if child is FrontmatterPanels:
-			return child as FrontmatterPanels
-	return null
+	var found := _panel_layer.find_children("*", "FrontmatterPanels", true, false)
+	return null if found.is_empty() else found[0] as FrontmatterPanels
 
 
 ## The exit confirm asks; the SHELL quits. A panel that called

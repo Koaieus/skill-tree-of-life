@@ -568,17 +568,24 @@ func test_the_frontmatter_skeleton_is_two_layers_the_camera_and_nothing_else() -
 	# "why is the lobby text blurry and drifting" bug (#567).
 	var panel_layer := root.get_node("%PanelLayer")
 	assert_true(panel_layer is CanvasLayer)
-	assert_true(panel_layer.get_child(0) is FrontmatterPanels,
-			"the panel container is instanced here so #573 never edits this scene")
-	# Exactly one container, not exactly one child: #575's tooltip is minted at
-	# build and parented here too (it needs the same immunity to the camera that
-	# the panels need). What must stay true is that the AUTHORED child is the
-	# container, and that nothing has quietly grown a second one.
-	var containers := 0
-	for child in panel_layer.get_children():
-		if child is FrontmatterPanels:
-			containers += 1
-	assert_eq(containers, 1, "one panel container, authored in this scene")
+	# #603 D2/D3: the two-column split is instanced here now, ahead of the
+	# panel container it hosts inside its own %Remainder — so the AUTHORED
+	# first child is the columns scene, not FrontmatterPanels directly anymore.
+	# Node NAME, not a %unique lookup: frontmatter_live_sandbox.gd's own
+	# %PanelLayer/tooltip docstring notes nested-scene % resolution breaks past
+	# the instance boundary, which is exactly the boundary here.
+	assert_true(panel_layer.get_child(0).name == "FrontmatterColumns",
+			"the columns scene is instanced here so #603 never edits this scene")
+	assert_not_null(panel_layer.get_node_or_null("FrontmatterColumns/HeroColumn"))
+	assert_not_null(panel_layer.get_node_or_null("FrontmatterColumns/Remainder"))
+	# Exactly one container, not exactly one child, and not exactly one DIRECT
+	# child either: #575's tooltip is minted at build and parented here too
+	# (it needs the same immunity to the camera that the panels need), and
+	# #603 D6 nests the panel container inside %Remainder rather than directly
+	# on this layer. What must stay true is that there is exactly one
+	# container, wherever it lives.
+	var containers := panel_layer.find_children("*", "FrontmatterPanels", true, false)
+	assert_eq(containers.size(), 1, "one panel container, authored in this scene")
 
 
 func test_the_panel_seam_answers_for_every_leaf_panel_this_tree_names() -> void:

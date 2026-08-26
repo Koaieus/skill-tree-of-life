@@ -360,13 +360,24 @@ func test_the_join_panel_dismisses_via_dismiss() -> void:
 
 # --- #600: chrome reshape -----------------------------------------------------
 
-## No `ColorRect` backdrop, no `BackButton`, and nothing spanning the full rect
-## can eat the clicks the graph-space `BackAffordance` needs.
-func test_the_base_panel_has_no_backdrop_and_no_back_button() -> void:
+## No per-panel back button, and nothing spanning the full rect can eat the
+## clicks the graph-space `BackAffordance` needs.
+##
+## Re-pointed: this used to also assert no `ColorRect` anywhere in the tree,
+## back when a `ColorRect` could only mean an accidental opaque backdrop. #611
+## D2 authors a [GlassPanel] — a `ColorRect` under the hood — as the base
+## panel's own deliberate chrome, so that blanket check would now fail on
+## exactly the thing it is supposed to have. The click-safety concern it was
+## really guarding is [method _assert_no_full_rect_stop], which still checks
+## every `Control` in the tree, glass included.
+func test_the_base_panel_has_no_back_button_and_nothing_eats_clicks() -> void:
 	var panel: FrontmatterPanel = preload("res://ui/frontmatter/panels/frontmatter_panel.tscn").instantiate()
 	add_child_autofree(panel)
 
-	assert_null(_find_type(panel, "ColorRect"), "no backdrop ColorRect")
+	# `find_children`'s type filter matches a script `class_name`; `_find_type`
+	# below only matches `get_class()`, which is `ColorRect` for a `GlassPanel`.
+	assert_false(panel.find_children("*", "GlassPanel", true, false).is_empty(),
+			"the base chrome authors its own glass now")
 	assert_null(panel.get_node_or_null("BackButton"), "no per-panel back button")
 	_assert_no_full_rect_stop(panel)
 
@@ -400,19 +411,24 @@ func _assert_no_full_rect_stop(node: Node) -> void:
 ## #600's replacement chrome: the region's left edge sits past the hero
 ## column, its right edge at the viewport edge — read off [FrontmatterLayout],
 ## never a literal.
-func test_the_panel_region_spans_from_the_hero_column_to_the_viewport_edge() -> void:
+## Re-pointed by #603 D5/D6: `%Region` is gone. This scene's own root IS the
+## region now — it is parented straight into `frontmatter_columns.tscn`'s
+## `%Remainder` (`frontmatter_root.tscn`), so the panel gets its rect from
+## CONTAINER layout and no longer computes one off [FrontmatterLayout]. What
+## survives to test is that the panel authors no anchored stand-in that
+## recomputes it: the root fills its given rect by anchors alone, with no
+## per-panel offset literal.
+func test_the_panel_root_fills_its_column_with_no_offset_of_its_own() -> void:
 	var panel: FrontmatterPanel = preload("res://ui/frontmatter/panels/frontmatter_panel.tscn").instantiate()
 	add_child_autofree(panel)
 
-	var region: Control = panel.get_node("%Region")
-	# Left edge: a fixed pixel offset past the hero column's own edge — never
-	# a literal, so a re-tuned hero slot drags the region with it.
-	assert_eq(region.anchor_left, 0.0)
-	assert_gt(region.offset_left, FrontmatterLayout.hero_slot().x,
-			"left edge clears the hero column")
-	# Right edge: pinned to the viewport edge by anchor alone, no offset.
-	assert_eq(region.anchor_right, 1.0)
-	assert_eq(region.offset_right, 0.0)
+	assert_null(panel.get_node_or_null("%Region"), "no anchored stand-in for the region")
+	assert_eq(panel.anchor_left, 0.0)
+	assert_eq(panel.anchor_top, 0.0)
+	assert_eq(panel.anchor_right, 1.0)
+	assert_eq(panel.anchor_bottom, 1.0)
+	assert_eq(panel.offset_left, 0.0, "no left-edge literal — the column supplies it")
+	assert_eq(panel.offset_right, 0.0)
 
 
 ## #606: the region spans the full remainder of the viewport (#600's whole
@@ -420,14 +436,16 @@ func test_the_panel_region_spans_from_the_hero_column_to_the_viewport_edge() -> 
 ## region's full width strands its label ~1000px from its control. Asserted
 ## against the named bound rather than a repeated literal.
 func test_the_content_column_is_bounded_rather_than_filling_the_region() -> void:
+	# Re-pointed by #603 D5/D6: `%Region` is gone, and this scene's own root IS
+	# the region now (it fills whatever rect `%Remainder` gives it). The claim
+	# still being tested is unchanged — the column must not stretch to fill it.
 	var panel: FrontmatterPanel = preload("res://ui/frontmatter/panels/frontmatter_panel.tscn").instantiate()
 	add_child_autofree(panel)
 	await get_tree().process_frame
 
-	var region: Control = panel.get_node("%Region")
 	var column: Control = panel.get_node("%Column")
 
-	assert_lt(column.size.x, region.size.x,
+	assert_lt(column.size.x, panel.size.x,
 			"the column must not fill the region's full width")
 	assert_almost_eq(column.custom_minimum_size.x, FrontmatterPanel._CONTENT_MAX_WIDTH, 0.01)
 	assert_eq(column.size_flags_horizontal, Control.SIZE_SHRINK_BEGIN,
@@ -468,7 +486,11 @@ func test_pressing_the_back_affordance_with_a_panel_up_returns_to_the_parent() -
 
 	root.focus(MenuGraph.ID_OPTIONS, true)
 
-	var panels: FrontmatterPanels = root.get_node("%PanelLayer/FrontmatterPanels")
+	# Found by type, not the literal path: #603 D6 nests the container inside
+	# `frontmatter_columns.tscn`'s `%Remainder`, so it is no longer a direct
+	# child of `%PanelLayer` under a fixed name.
+	var found := root.get_node("%PanelLayer").find_children("*", "FrontmatterPanels", true, false)
+	var panels: FrontmatterPanels = found[0] as FrontmatterPanels
 	assert_eq(panels.shown_panel, MenuGraph.PANEL_SETTINGS, "the leaf routed its panel")
 
 	var back_affordance: Node = root.get_node("%BackAffordance")

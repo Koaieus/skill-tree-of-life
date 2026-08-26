@@ -81,9 +81,21 @@ func test_the_root_is_a_control_reachable_only_through_the_screen_space_layer() 
 
 ## Half the hero slot's x, and the hero slot's own y — a screen-space
 ## constant, not a point derived from a hero/parent segment.
-func test_the_anchor_sits_at_half_the_hero_slots_x_and_the_heros_y() -> void:
+## Re-pointed by #603's addendum (D7): the anchor used to be `hero.x * 0.5,
+## hero.y`, arithmetic derived from [method FrontmatterLayout.hero_slot]. It is
+## now a SECOND marker authored in `frontmatter_columns.tscn`'s `%HeroColumn`,
+## read the same way the hero marker is rather than computed from it — so what
+## this claims is "the shell reads the authored marker", and the numeric value
+## (still the hero column's quarter point today) is `frontmatter_columns.tscn`'s
+## business, not this file's.
+func test_the_anchor_reads_the_authored_marker_not_the_hero_slot() -> void:
+	assert_eq(BackAffordance.anchor_for(), FrontmatterLayout.back_anchor_slot())
+	# The carried-across value (#603 D4): a 380-wide %HeroColumn puts the
+	# quarter point at 95, and the hero slot still fills the column's height.
 	var hero := FrontmatterLayout.hero_slot()
-	assert_eq(BackAffordance.anchor_for(), Vector2(hero.x * 0.5, hero.y))
+	assert_almost_eq(BackAffordance.anchor_for().x, hero.x * 0.5, 0.001,
+			"today's authored marker still sits at the column's quarter point")
+	assert_almost_eq(BackAffordance.anchor_for().y, hero.y, 0.001)
 
 
 ## The whole point of the re-root: this position does not answer to the

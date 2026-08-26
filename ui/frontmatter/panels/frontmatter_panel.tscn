@@ -27,18 +27,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_panel")
 
-[node name="Region" type="Control" parent="." unique_id=934511502]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 238.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-
-[node name="GlassPanel" parent="Region" unique_id=747232056 instance=ExtResource("2_fs6d2")]
+[node name="GlassPanel" parent="." unique_id=747232056 instance=ExtResource("2_fs6d2")]
 material = SubResource("ShaderMaterial_km8wp")
 layout_mode = 1
 anchors_preset = 15
@@ -49,7 +38,7 @@ offset_bottom = 0.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Margin" type="MarginContainer" parent="Region" unique_id=1713397761]
+[node name="Margin" type="MarginContainer" parent="." unique_id=1713397761]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -57,12 +46,12 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-theme_override_constants/margin_left = 32
+theme_override_constants/margin_left = 48
 theme_override_constants/margin_top = 24
 theme_override_constants/margin_right = 32
 theme_override_constants/margin_bottom = 24
 
-[node name="Column" type="VBoxContainer" parent="Region/Margin" unique_id=155366615]
+[node name="Column" type="VBoxContainer" parent="Margin" unique_id=155366615]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(420, 0)
 layout_mode = 2
@@ -70,13 +59,13 @@ size_flags_horizontal = 0
 theme_override_constants/separation = 16
 alignment = 1
 
-[node name="Title" type="Label" parent="Region/Margin/Column" unique_id=1262299303]
+[node name="Title" type="Label" parent="Margin/Column" unique_id=1262299303]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
 theme_type_variation = &"CinzelHeader"
 
-[node name="Body" type="VBoxContainer" parent="Region/Margin/Column" unique_id=2096987890]
+[node name="Body" type="VBoxContainer" parent="Margin/Column" unique_id=2096987890]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3

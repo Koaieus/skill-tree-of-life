@@ -108,13 +108,22 @@ static func fits_viewport(
 # --- the authored harness ---------------------------------------------------
 
 ## Every fan in the game, in the order they are read. The FIRST one is the root
-## fan, and [method hero_slot] and [method column_step] answer off it — the base
-## harness owns both of those, so every fan agrees by construction.
+## fan, and [method column_step] answers off it — the base harness owns the
+## world column pitch, so every fan agrees by construction. [method hero_slot]
+## does NOT answer off it anymore (#603 D2/D3) — see [constant _COLUMNS_SCENE].
 const FAN_SCENES: Array[String] = [
 	"res://ui/frontmatter/layout/root_menu.tscn",
 	"res://ui/frontmatter/layout/single_player_menu.tscn",
 	"res://ui/frontmatter/layout/multiplayer_menu.tscn",
 ]
+
+## The two-column split every frontmatter screen-space position answers to
+## (#603 D2/D3/D7): a fixed-width `%HeroColumn` whose centre is [method
+## hero_slot] and whose quarter point is [method back_anchor_slot], and
+## `%Remainder` for whatever else — the leaf panel, when one is up. Also
+## instanced LIVE under `frontmatter_root.tscn`'s `%PanelLayer`; this is the
+## one scene read two ways.
+const _COLUMNS_SCENE := "res://ui/frontmatter/layout/frontmatter_columns.tscn"
 
 ## `hero_id -> ` a [MenuFanHarness.Measured], whatever [method
 ## MenuFanHarness.measure] reported for that fan.
@@ -136,6 +145,15 @@ static var _looks: Dictionary = {}
 ## `hero_id -> {separation: float, margins: Vector4}` — #578's live tab tuning a
 ## fan without editing its scene (#594). Gameplay never writes these.
 static var _fan_overrides: Dictionary = {}
+
+## `frontmatter_columns.tscn`'s markers, in the same `static var` family as
+## [member _fans] and cleared by the same [method reset_geometry] — [method
+## hero_slot] and [method back_anchor_slot] are called on every navigation and
+## every [BackAffordance.apply], so instancing a scene per call would be a
+## per-navigation scene load.
+static var _hero_slot: Vector2 = Vector2.ZERO
+static var _back_anchor_slot: Vector2 = Vector2.ZERO
+static var _columns_read: bool = false
 
 
 ## The authored fans, read once and cached.
@@ -221,6 +239,39 @@ static func _instance(path: String) -> MenuFanHarness:
 	var harness := packed.instantiate() as MenuFanHarness
 	assert(harness != null, "'%s' is not a MenuFanHarness" % path)
 	return harness
+
+
+## Instances [constant _COLUMNS_SCENE], measures it, frees it — the exact
+## instance/measure/free pattern [method _read_harnesses] uses for the fan
+## scenes, on [ControlMeasure] instead of a hand-rolled second copy (#603 C2).
+static func _read_columns() -> void:
+	if _columns_read:
+		return
+	var packed := load(_COLUMNS_SCENE) as PackedScene
+	assert(packed != null, "missing '%s'" % _COLUMNS_SCENE)
+	if packed == null:
+		return
+	var columns := packed.instantiate() as Control
+	var host := (Engine.get_main_loop() as SceneTree)
+	assert(host != null, "the columns scene can only be measured under a SceneTree")
+	if host == null:
+		return
+	ControlMeasure.parent_for_measuring(columns, host)
+	assert(
+		columns.get_parent() != null,
+		"'%s' could not be parented for measurement — every marker would read 0,0"
+			% _COLUMNS_SCENE
+	)
+	if columns.get_parent() == null:
+		return
+	ControlMeasure.sort(columns)
+	var hero_marker := columns.get_node("%HeroMarker") as Control
+	var back_marker := columns.get_node("%BackAnchorMarker") as Control
+	_hero_slot = ControlMeasure.centre_of(hero_marker, columns)
+	_back_anchor_slot = ControlMeasure.centre_of(back_marker, columns)
+	columns.get_parent().remove_child(columns)
+	columns.free()
+	_columns_read = true
 
 
 ## How [param id] is drawn — its caption, its joke slab, its archetype and its
@@ -316,13 +367,15 @@ static var PREVIEW_SCALE := 0.42
 
 
 ## Restores everything a sandbox session or a test can retune: the peek-ahead
-## scale, and every live per-fan override, which drops the harness cache so the
-## next [method solve] re-reads the authored scenes.
+## scale, and every live per-fan override, which drops the harness AND columns
+## caches so the next [method solve] / [method hero_slot] re-reads the
+## authored scenes.
 static func reset_geometry() -> void:
 	PREVIEW_SCALE = 0.42
 	_fan_overrides = {}
 	_fans = {}
 	_looks = {}
+	_columns_read = false
 
 
 ## The splash (#574) is the root node, alone and close: (50%, 44%) of the
@@ -378,17 +431,32 @@ static func solve(tree: MenuGraph) -> Dictionary:
 	return positions
 
 
-## Where the focused node docks on screen, in viewport pixels — the base
-## harness's `%HeroSlot` centre, so it is authored in the same place as
-## everything else rather than being a ratio constant beside them.
+## Where the focused node docks on screen, in viewport pixels — [method
+## camera_for]'s only screen-space input, never [method solve]'s.
 ##
-## Consumed by [method camera_for] only, never by [method solve]: the hero slot
-## is a camera concern, and authoring positions cannot move it.
+## [b]Read off `frontmatter_columns.tscn`, not off a fan (#603 D2/D3).[/b] The
+## hero dock used to be the root fan's own `%HeroSlot` centre; the owner's
+## framing is a two-column split that every screen-space position answers to —
+## "the entire viewport, divided into 2 columns; fixed width first one of which
+## the centre is the hero location... zero need to save viewport dependent
+## pixel values." [method solve] and [method camera_for] cannot read a live
+## [Node]'s `global_position` (this file is pure and static, no [SceneTree]
+## required), so the resolution is the instance/measure/free pattern [method
+## _read_harnesses] already uses, promoted to [ControlMeasure] (#603 C2) and
+## pointed at `frontmatter_columns.tscn` instead of a fan.
 static func hero_slot() -> Vector2:
-	var authored := fans()
-	if _fan_order.is_empty():
-		return viewport_size() * 0.5
-	return (authored[_fan_order[0]] as MenuFanHarness.Measured).hero
+	_read_columns()
+	return _hero_slot
+
+
+## Where [BackAffordance] sits, in viewport pixels — a second marker in the
+## same scene, `%HeroColumn`'s quarter point (#603 D7 addendum). Not derived
+## from [method hero_slot] by arithmetic: every frontmatter screen-space
+## position is a marker AUTHORED in `frontmatter_columns.tscn`, not one
+## computed from another.
+static func back_anchor_slot() -> Vector2:
+	_read_columns()
+	return _back_anchor_slot
 
 
 ## The horizontal distance between a node and its children — the world column

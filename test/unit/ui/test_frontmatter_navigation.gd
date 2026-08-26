@@ -33,6 +33,14 @@ func _hero_world() -> Vector2:
 	return FrontmatterLayout.hero_slot()
 
 
+## Found by type, not by child index — #603 D6 nests the container inside
+## `frontmatter_columns.tscn`'s `%Remainder`, so `%PanelLayer`'s own
+## `get_child(0)` is that columns scene now, not [FrontmatterPanels].
+func _panels() -> FrontmatterPanels:
+	var found := _root.get_node("%PanelLayer").find_children("*", "FrontmatterPanels", true, false)
+	return found[0] as FrontmatterPanels
+
+
 ## Where the camera actually puts a design-viewport point, right now.
 func _camera_sees(design_point: Vector2) -> Vector2:
 	return FrontmatterLayout.screen_to_world(_root.camera.current_transform(), design_point)
@@ -338,7 +346,7 @@ func test_a_transition_never_pops_the_one_zoom_there_is() -> void:
 
 
 func test_focusing_a_leaf_routes_its_panel_through_the_seam() -> void:
-	var panels: FrontmatterPanels = _root.get_node("%PanelLayer").get_child(0)
+	var panels: FrontmatterPanels = _panels()
 	_root.focus(MenuGraph.ID_NEW_GAME)
 	assert_eq(panels.shown_panel, MenuGraph.PANEL_LOBBY)
 
@@ -349,14 +357,14 @@ func test_focusing_a_leaf_routes_its_panel_through_the_seam() -> void:
 func test_focusing_a_branch_leaves_the_graph_on_stage() -> void:
 	_root.focus(MenuGraph.ID_NEW_GAME)
 	_root.back()
-	var panels: FrontmatterPanels = _root.get_node("%PanelLayer").get_child(0)
+	var panels: FrontmatterPanels = _panels()
 	assert_eq(panels.shown_panel, &"", "backing out of a leaf returns the stage")
 
 
 func test_a_leafs_panel_is_raised_on_arrival_not_on_departure() -> void:
 	# The lobby must not be on screen while the graph is still travelling to it.
 	_root.focus(MenuGraph.ID_SINGLE_PLAYER)
-	var panels: FrontmatterPanels = _root.get_node("%PanelLayer").get_child(0)
+	var panels: FrontmatterPanels = _panels()
 
 	_root.reduce_motion = false
 	_root.travel_duration = 0.85
@@ -375,7 +383,7 @@ func test_routing_a_leaf_raises_its_panel() -> void:
 	# purpose — `shown_panel` is what the graph ASKED for, `has_panel` is
 	# whether anything can answer, and the layer's visibility follows the
 	# second, never the first.
-	var panels: FrontmatterPanels = _root.get_node("%PanelLayer").get_child(0)
+	var panels: FrontmatterPanels = _panels()
 	_root.focus(MenuGraph.ID_LOAD_GAME)
 	assert_eq(panels.shown_panel, MenuGraph.PANEL_LOAD, "the ask is recorded")
 	assert_true(panels.has_panel(MenuGraph.PANEL_LOAD), "and something answers it")
@@ -391,7 +399,7 @@ func test_an_unregistered_panel_id_routes_harmlessly() -> void:
 	# leaf has a panel there is no route left that exercises the miss, and a
 	# test that quietly stops testing its own name is worse than no test. This
 	# is that guarantee outliving the condition that first motivated it.
-	var panels: FrontmatterPanels = _root.get_node("%PanelLayer").get_child(0)
+	var panels: FrontmatterPanels = _panels()
 	panels.show_panel(&"no_such_panel")
 	assert_eq(panels.shown_panel, &"no_such_panel", "the ask is still recorded")
 	assert_false(panels.has_panel(&"no_such_panel"), "nothing answers it")
@@ -403,7 +411,7 @@ func test_the_shell_owns_quitting_not_the_exit_panel() -> void:
 	# test pressed its button — which is why C1's parity test asserts the old
 	# menu's quit CONNECTION rather than pressing it. Same reasoning here: the
 	# connection is asserted, never fired.
-	var panels: FrontmatterPanels = _root.get_node("%PanelLayer").get_child(0)
+	var panels: FrontmatterPanels = _panels()
 	# #573 has landed `quit_requested` for real, so the connect is a plain typed
 	# one — a rename now fails `mise run check` here instead of silently leaving
 	# EXIT wired to nothing. The signal is never EMITTED in this test.

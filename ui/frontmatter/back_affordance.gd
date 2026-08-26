@@ -111,8 +111,8 @@ static func is_available(tree_: MenuGraph, focus: StringName) -> bool:
 	return tree_.parent_of(focus) != &""
 
 
-## Where the affordance sits, in viewport pixels: half the hero slot's x, and
-## the hero slot's own y.
+## Where the affordance sits, in viewport pixels — a second marker authored in
+## `frontmatter_columns.tscn`'s `%HeroColumn` (#603 D7 addendum).
 ##
 ## [b]A screen-space constant, not a segment computation (#601).[/b] The old
 ## graph-space form walked [method FrontmatterLayout.solve] for the focused
@@ -123,15 +123,16 @@ static func is_available(tree_: MenuGraph, focus: StringName) -> bool:
 ## FrontmatterLayout.camera_for] docks the focus at [method
 ## FrontmatterLayout.hero_slot] on screen at every depth and every zoom, so the
 ## visible run of the incoming edge is always the same screen rectangle and its
-## midpoint is always the same screen point. `BACK_ANCHOR_RATIO` — half the
-## hero slot's x over the design width — collapsed to exactly that arithmetic,
-## so it is gone rather than kept as a name for one multiply. The old clamp
-## guarded a shrinking [method FrontmatterLayout.column_step] pushing the label
-## past the parent in world space; with no segment there is nothing left to
-## clamp.
+## midpoint is always the same screen point.
+##
+## [b]Authored, not computed from another position (#603 D7).[/b] This used to
+## be `hero.x * 0.5, hero.y` — half the hero slot's x, arithmetic derived from
+## it. The owner's addendum is stronger than that: every frontmatter
+## screen-space position is a marker in the columns scene, so this reads
+## `%BackAnchorMarker` the same way [method FrontmatterLayout.hero_slot] reads
+## `%HeroMarker`, rather than computing a second point off the first.
 static func anchor_for() -> Vector2:
-	var hero := FrontmatterLayout.hero_slot()
-	return Vector2(hero.x * 0.5, hero.y)
+	return FrontmatterLayout.back_anchor_slot()
 
 
 ## Applies the reveal at clock position `t` (0..1): cubic ease-out driving scale
