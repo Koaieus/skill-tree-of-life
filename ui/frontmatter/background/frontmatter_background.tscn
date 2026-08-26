@@ -11,12 +11,13 @@ shader_parameter/scale = 3.5
 shader_parameter/warp_strength = 0.9
 shader_parameter/speed = 0.045
 
-[sub_resource type="Gradient" id="grad_tile"]
+[sub_resource type="FastNoiseLite" id="fnl_tile"]
 
-[sub_resource type="GradientTexture2D" id="tex_tile"]
-gradient = SubResource("grad_tile")
+[sub_resource type="NoiseTexture2D" id="tex_tile"]
+seamless = true
 width = 2048
 height = 2048
+noise = SubResource("fnl_tile")
 
 [sub_resource type="ShaderMaterial" id="mat_streaks_mid"]
 shader = ExtResource("3_streaks")
@@ -27,7 +28,7 @@ shader_parameter/speed = 0.07
 shader_parameter/line_freq = 10.0
 shader_parameter/line_sharpness = 16.0
 shader_parameter/tint = Color(0.55, 0.85, 1.0, 1.0)
-shader_parameter/line_strength = 0.6
+shader_parameter/line_strength = 0.3
 shader_parameter/seed = 13.0
 
 [sub_resource type="ShaderMaterial" id="mat_streaks_near"]
@@ -39,7 +40,7 @@ shader_parameter/speed = 0.12
 shader_parameter/line_freq = 18.0
 shader_parameter/line_sharpness = 22.0
 shader_parameter/tint = Color(1.0, 0.55, 0.85, 1.0)
-shader_parameter/line_strength = 0.5
+shader_parameter/line_strength = 0.25
 shader_parameter/seed = 61.0
 
 [node name="FrontmatterBackground" type="CanvasLayer"]
@@ -62,7 +63,7 @@ repeat_times = 8
 
 [node name="BaseLayer" type="Sprite2D" parent="Base"]
 unique_name_in_owner = true
-texture_repeat = 2
+texture_repeat = 1
 material = SubResource("mat_base")
 texture = SubResource("tex_tile")
 
@@ -73,7 +74,7 @@ repeat_times = 8
 
 [node name="MidLayer" type="Sprite2D" parent="Mid"]
 unique_name_in_owner = true
-texture_repeat = 2
+texture_repeat = 1
 material = SubResource("mat_streaks_mid")
 texture = SubResource("tex_tile")
 
@@ -84,6 +85,6 @@ repeat_times = 8
 
 [node name="NearLayer" type="Sprite2D" parent="Near"]
 unique_name_in_owner = true
-texture_repeat = 2
+texture_repeat = 1
 material = SubResource("mat_streaks_near")
 texture = SubResource("tex_tile")

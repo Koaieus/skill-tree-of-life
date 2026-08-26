@@ -9,6 +9,14 @@ extends GutTest
 ## [member CanvasLayer.layer], and [member GameSettings.reduce_motion] freezes
 ## the shader-driven animation clock without touching anything else. "Does it
 ## look good" is the owner's call per #602's brief, not this suite's.
+##
+## #605 adds two structural pins on top: the composite additive worst case
+## (base clamp + both streak [code]line_strength[/code]s) stays under the
+## bloom threshold, and the noise texture stays [code]seamless[/code] — plus
+## confirms the mount into [code]frontmatter_root.tscn[/code] landed without
+## breaking [code]%GraphLayer[/code] / [code]%PanelLayer[/code]. "No visible
+## tile seam" and "captions are legible" are still a screenshot call, not
+## this suite's.
 
 const _SCENE := preload("res://ui/frontmatter/background/frontmatter_background.tscn")
 
@@ -110,3 +118,49 @@ func test_enabled_false_hides_the_whole_background() -> void:
 func test_enabled_true_is_the_default() -> void:
 	assert_true(_bg.enabled)
 	assert_true(_bg.visible)
+
+
+# --- #605 dark mode + seam fix ---------------------------------------------
+
+func test_composite_worst_case_stays_under_bloom_threshold() -> void:
+	# frontmatter_plasma_base.gdshader clamps its output to 0.40 per channel
+	# (#605) — not a uniform, so pinned here as a literal matching the shader.
+	# The two additive streak layers sit on top of that opaque base
+	# (blend_add), so the worst case is a straight sum of the base clamp and
+	# both line_strengths; it must stay under 1.0 or the background clears
+	# glow_hdr_threshold and blooms under default_game_env.tres.
+	const BASE_CLAMP := 0.40
+	var mats := _layer_materials()
+	var mid_strength := float(mats[1].get_shader_parameter("line_strength"))
+	var near_strength := float(mats[2].get_shader_parameter("line_strength"))
+	var worst_case: float = BASE_CLAMP + mid_strength + near_strength
+	assert_lt(worst_case, 1.0,
+			"base + mid + near must stay under 1.0 or the background blooms (#605)")
+
+
+func test_noise_texture_is_seamless() -> void:
+	# Problem 1 (#605): a NoiseTexture2D with seamless = true is what
+	# eliminates the four-quadrant tiling seam that a blank GradientTexture2D
+	# + procedural fbm() left behind. This flag silently reverting is exactly
+	# how the quadrants come back, so pin it structurally.
+	for layer_name in ["BaseLayer", "MidLayer", "NearLayer"]:
+		var tex := (_bg.get_node("%" + layer_name) as Sprite2D).texture
+		assert_true(tex is NoiseTexture2D, "%s must sample a NoiseTexture2D" % layer_name)
+		if tex is NoiseTexture2D:
+			assert_true((tex as NoiseTexture2D).seamless,
+					"%s's noise texture must be seamless" % layer_name)
+
+
+# --- mount (#605) -----------------------------------------------------------
+
+func test_frontmatter_root_mounts_the_background() -> void:
+	# #605's other half: the background was built by #602 but deliberately
+	# left unmounted until this issue landed. Confirm the mount happened and
+	# that it did not disturb the layers the rest of the shell depends on.
+	var root: Node2D = load("res://ui/frontmatter/frontmatter_root.tscn").instantiate()
+	add_child_autofree(root)
+	var mounted := root.get_node_or_null("FrontmatterBackground")
+	assert_not_null(mounted, "frontmatter_root.tscn must mount FrontmatterBackground")
+	assert_true(mounted is FrontmatterBackground)
+	assert_not_null(root.get_node_or_null("%GraphLayer"), "%GraphLayer must still resolve")
+	assert_not_null(root.get_node_or_null("%PanelLayer"), "%PanelLayer must still resolve")
