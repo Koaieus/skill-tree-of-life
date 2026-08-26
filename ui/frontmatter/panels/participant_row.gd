@@ -1,15 +1,19 @@
 class_name ParticipantRow
 extends HBoxContainer
-## One participant row: swatch, hero-colour picker, name, seat description
-## ("you", "AI", "peer N"). Configured with a [Participant] in
-## [method configure].
+## One participant row: swatch, hero-colour picker, core-class picker with its
+## sigil preview, name, seat description ("you", "AI", "peer N"). Configured
+## with a [Participant] in [method configure].
+##
+## [b]The row asks; it never writes.[/b] Both pickers emit a signal and leave
+## the [Participant] alone — [LobbyScreen] owns the roster, and a row that wrote
+## into it would make "who decided this seat's colour" a two-answer question.
 ##
 ## [b]Widget order is a shared contract — four issues land here.[/b] #613 made
 ## the row a scene; #616 added the colour picker; #617 adds a faction emblem and
 ## #615 a camp dropdown. The authored order is, left to right:
 ##
 ## [codeblock]
-##   Emblem? | Swatch | ColorPick | Sigil? | CorePick? | Camp? | Name | Seat
+##   Emblem? | Swatch | ColorPick | Sigil | CorePick | Camp? | Name | Seat
 ## [/codeblock]
 ##
 ## Only the widgets whose issue has landed exist as nodes; the rest are named
@@ -24,6 +28,11 @@ extends HBoxContainer
 ## with (#616 D1: the roster is authoritative for hero colour).
 signal color_picked(color: Color)
 
+## A slot chose a core class (#618). Same ask-don't-write contract as
+## [signal color_picked]; the sigil is not a separate pick, it rides along on
+## [member CoreClass.sigil].
+signal core_class_picked(core: CoreClass)
+
 ## Edge of the generated colour chips in the picker's dropdown.
 const _CHIP_PX := 16
 
@@ -36,6 +45,46 @@ func configure(participant: Participant, local_peer_id: int) -> void:
 	get_node("%Swatch").color = participant.color
 	get_node("%Name").text = participant.display_name
 	get_node("%Seat").text = _describe_seat(participant, local_peer_id)
+	_show_sigil_of(participant.core_class)
+
+
+## Paint the sigil preview for [param core]. Handles the null cases the content
+## actually has (#618 D4): five [CoreClass] resources exist against three
+## [Sigil] concretes, so `basic_enemy_core` and `pacifist_core` carry no glyph —
+## and a slot may momentarily carry no class at all. [SigilGlyph] draws nothing
+## for a null sigil, so the row just shows an empty box of the same size and
+## nothing after it shifts.
+func _show_sigil_of(core: CoreClass) -> void:
+	var glyph: SigilGlyph = get_node("%Sigil")
+	glyph.sigil = core.sigil if core != null else null
+	glyph.entity_tint = _participant.color if _participant != null else Color(0, 0, 0, 0)
+
+
+## Fill the core-class dropdown with [param cores] — the classes THIS slot's
+## kind may choose, filtered by the caller through
+## [method CoreClass.pickable_for], because "am I a human or an AI seat" is a
+## roster fact the row is not the authority on.
+func set_core_choices(cores: Array[CoreClass]) -> void:
+	var pick: OptionButton = get_node("%CorePick")
+	if not pick.item_selected.is_connected(_on_core_item_selected):
+		pick.item_selected.connect(_on_core_item_selected)
+	pick.clear()
+	var mine: CoreClass = _participant.core_class if _participant != null else null
+	for i in cores.size():
+		var core: CoreClass = cores[i]
+		pick.add_item(core.display_name if core.display_name != "" else core.resource_path.get_file())
+		pick.set_item_metadata(i, core)
+		if core == mine:
+			pick.select(i)
+	pick.disabled = cores.is_empty()
+
+
+func _on_core_item_selected(index: int) -> void:
+	var pick: OptionButton = get_node("%CorePick")
+	var core: Variant = pick.get_item_metadata(index)
+	if core is CoreClass:
+		_show_sigil_of(core)
+		core_class_picked.emit(core)
 
 
 ## Fill the colour dropdown from [param palette], greying out every colour in

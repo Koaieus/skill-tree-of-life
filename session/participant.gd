@@ -18,6 +18,15 @@ enum Kind { HUMAN, AI }
 @export var display_name: String = ""
 @export var color: Color = Color.WHITE
 @export var camp: Faction = null
+## The class branding this seat's hero (#618 D1) — and, riding along on it,
+## the sigil the lobby row and the HUD hero card draw. Deliberately NOT a
+## separate `sigil` field: [member CoreClass.sigil] already owns that glyph, and
+## a second one here would be two sources of truth for one mark.
+##
+## `null` means "the level's default for this kind" — [ProcgenPlaySandbox]'s
+## `core_class` / `enemy_core_class` exports. A roster the lobby authored always
+## fills this in; a hand-rolled fallback roster may not.
+@export var core_class: CoreClass = null
 @export var kind: Kind = Kind.HUMAN
 ## Which machine this seat sits at. 0 outside a versus run (single-player and
 ## hot-seat alike — see `session/game_session.gd`), a real transport peer id
@@ -51,12 +60,18 @@ func is_local(local_peer_id: int) -> bool:
 ## per-node string cost that matters at 2000 nodes doesn't matter at a
 ## handful of participants. Reuse [GraphSnapshot]'s interning table if this
 ## ever needs to ride inside a graph snapshot instead of a roster payload.
+##
+## [member core_class] gets exactly the same treatment (#618 D2) and for the
+## same reason: a resource REFERENCE must never enter a wire form
+## (`.claude/rules/multiplayer-sync.md`), so it crosses as a path and each peer
+## `load()`s its own instance.
 func to_dict() -> Dictionary:
 	return {
 		"id": id,
 		"display_name": display_name,
 		"color": color,
 		"camp": camp.resource_path if camp != null else "",
+		"core_class": core_class.resource_path if core_class != null else "",
 		"kind": kind,
 		"peer_id": peer_id,
 	}
@@ -69,6 +84,8 @@ static func from_dict(d: Dictionary) -> Participant:
 	p.color = d.get("color", Color.WHITE)
 	var camp_path := String(d.get("camp", ""))
 	p.camp = load(camp_path) as Faction if camp_path != "" else null
+	var core_path := String(d.get("core_class", ""))
+	p.core_class = load(core_path) as CoreClass if core_path != "" else null
 	p.kind = int(d.get("kind", Kind.HUMAN)) as Kind
 	p.peer_id = int(d.get("peer_id", 0))
 	return p

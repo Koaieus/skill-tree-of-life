@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://ui/frontmatter/panels/participant_row.gd" id="1_script"]
+[ext_resource type="Script" path="res://ui/hud/hero_sigil_card/sigil_glyph.gd" id="2_sigil"]
 
 [node name="ParticipantRow" type="HBoxContainer"]
 layout_mode = 3
@@ -23,6 +24,19 @@ layout_mode = 2
 size_flags_vertical = 4
 tooltip_text = "Hero colour"
 fit_to_longest_item = false
+
+[node name="Sigil" type="Control" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("2_sigil")
+
+[node name="CorePick" type="OptionButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Core class"
 
 [node name="Name" type="Label" parent="."]
 unique_name_in_owner = true

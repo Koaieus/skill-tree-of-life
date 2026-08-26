@@ -174,14 +174,18 @@ func _setup_level() -> void:
 		# carries no colour at all.
 		var color := resolve_spawn_color(
 				participant, player_color, enemy_colors, enemies.size())
+		# #618 D3: and the roster decides the CLASS the same way. The
+		# `core_class` / `enemy_core_class` exports below are the fallback for a
+		# participant that carries none, not the answer.
+		var core := resolve_spawn_core(participant, core_class, enemy_core_class)
 		if participant.kind == Participant.Kind.AI:
-			ent = spawn_entity("Enemy_%d" % participant.id, color, starting_nodes[i], enemy_core_class)
+			ent = spawn_entity("Enemy_%d" % participant.id, color, starting_nodes[i], core)
 			enemies.append(ent)
 		elif _is_this_machines(participant):
-			ent = spawn_entity("Player", color, starting_nodes[i], core_class)
+			ent = spawn_entity("Player", color, starting_nodes[i], core)
 			player = ent
 		else:
-			ent = spawn_entity("Player_%d" % participant.id, color, starting_nodes[i], core_class)
+			ent = spawn_entity("Player_%d" % participant.id, color, starting_nodes[i], core)
 		entities_by_participant_id[participant.id] = ent
 
 	GameRoot.apply_roster(entities_by_participant_id, roster)
@@ -267,6 +271,22 @@ static func resolve_spawn_color(
 			return Color.RED
 		return enemy_fallback[enemy_index % enemy_fallback.size()]
 	return player_fallback
+
+
+## The core class this participant spawns on (#618 D3). The roster wins; the
+## level's two exports are what a participant that carries no class at all —
+## a hand-rolled fallback roster, a test fixture — lands on.
+##
+## Unlike [method resolve_spawn_color] this needs no sentinel: [CoreClass] is a
+## reference type, so `null` genuinely means "unset" and there is no legal value
+## that has to be reserved to say so.
+static func resolve_spawn_core(
+		participant: Participant,
+		player_fallback: CoreClass,
+		enemy_fallback: CoreClass) -> CoreClass:
+	if participant.core_class != null:
+		return participant.core_class
+	return enemy_fallback if participant.kind == Participant.Kind.AI else player_fallback
 
 
 ## Is this participant the human THIS MACHINE plays (#554)?

@@ -50,5 +50,6 @@ priority = 100
 
 [resource]
 script = ExtResource("1_core")
+pickable_in = 3
 display_name = "Pacifist"
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int"), SubResource("mod_armor"), SubResource("mod_ap"), SubResource("mod_transfer"), SubResource("mod_mp_zero"), SubResource("mod_dp_zero")])

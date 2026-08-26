@@ -75,8 +75,12 @@ const _HOST_PEER_ID := NetworkTransport.HOST_PEER_ID
 ## white are both absent from it.
 const _PALETTE := preload("res://ui/theme/player_palette.tres")
 # TODO(#617): faction emblems from `addons/at-icons`, shown on each row.
-# TODO(#618): per-slot CoreClass pick (the sigil rides along), with a
-#             player/AI pickability mask on CoreClass itself.
+## What a slot starts on when nobody has picked (#618 D5). The pick is what
+## differs between a human and an AI slot; the MECHANISM is identical, and both
+## defaults must themselves be pickable in their own slot kind — a default the
+## picker won't list is a state the player cannot return to.
+const _DEFAULT_PLAYER_CORE := preload("res://entity/core/balanced_core.tres")
+const _DEFAULT_AI_CORE := preload("res://entity/core/basic_enemy_core.tres")
 # TODO(#615): LobbyPolicy on the Route decides which slots may pick a camp.
 
 ## AI opponents a fresh lobby offers. One rival camp is what a menu-launched run
@@ -121,6 +125,9 @@ var _rows_container: VBoxContainer
 ## roster rebuild an AI-count change triggers. Absent id means "still on its
 ## palette default".
 var _picked_colors: Dictionary = {}
+## Core classes a player explicitly chose, by [member Participant.id]. Same
+## rebuild-survival contract as [member _picked_colors].
+var _picked_cores: Dictionary = {}
 
 
 ## Configures this lobby before it enters the tree (call right after
@@ -237,6 +244,8 @@ func _rebuild_participants() -> void:
 	for p in _participants:
 		if _picked_colors.has(p.id):
 			p.color = _picked_colors[p.id]
+		if _picked_cores.has(p.id):
+			p.core_class = _picked_cores[p.id]
 	_refresh_rows()
 
 
@@ -261,7 +270,9 @@ func _add_participant_row(participant: Participant) -> void:
 	_rows_container.add_child(row)
 	row.configure(participant, _local_peer_id())
 	row.set_color_choices(_PALETTE, taken_colors(_participants, participant.id))
+	row.set_core_choices(CoreClass.pickable_for(slot_bit_for(participant.kind)))
 	row.color_picked.connect(_on_color_picked.bind(participant))
+	row.core_class_picked.connect(_on_core_class_picked.bind(participant))
 
 
 ## A slot chose a colour. The lobby writes it, not the row — this screen owns
@@ -273,6 +284,14 @@ func _on_color_picked(color: Color, participant: Participant) -> void:
 	participant.color = color
 	_picked_colors[participant.id] = color
 	_refresh_rows()
+
+
+## A slot chose a core class. Unlike colour, classes are NOT unique across slots
+## — two players may both play Ninja — so nothing else has to be refreshed; the
+## row repaints its own sigil.
+func _on_core_class_picked(core: CoreClass, participant: Participant) -> void:
+	participant.core_class = core
+	_picked_cores[participant.id] = core
 
 
 ## This machine's own id, as far as a lobby can know it: a client's real id is
@@ -311,7 +330,24 @@ static func build_participants(
 		result.append(_make_participant(
 				next_id + i, "AI %d" % (i + 1), _NPC_FACTION, Participant.Kind.AI))
 	assign_default_colors(result, _PALETTE)
+	assign_default_cores(result)
 	return result
+
+
+## Which [member CoreClass.pickable_in] bit a slot of this kind carries. Lives
+## here rather than on [CoreClass] because [CoreClass] deliberately does not
+## know [Participant] exists — see the note on `pickable_in`.
+static func slot_bit_for(kind: Participant.Kind) -> int:
+	return CoreClass.PICKABLE_AI if kind == Participant.Kind.AI else CoreClass.PICKABLE_PLAYER
+
+
+## Seat every slot on its default class (#618 D5). Every slot gets one, AI
+## included — "the enemies would receive default enemy core by default but
+## should also be pickable" (owner, 2026-08-26).
+static func assign_default_cores(participants_in: Array[Participant]) -> void:
+	for p in participants_in:
+		if p.core_class == null:
+			p.core_class = _DEFAULT_AI_CORE if p.kind == Participant.Kind.AI else _DEFAULT_PLAYER_CORE
 
 
 ## Hand every slot a distinct colour off [param palette], in roster order

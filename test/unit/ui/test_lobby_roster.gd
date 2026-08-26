@@ -172,3 +172,81 @@ func test_a_pick_moves_the_colour_and_frees_the_old_one() -> void:
 	assert_false(LobbyScreen.taken_colors(parts, mine.id).has(free_color))
 	var others := LobbyScreen.taken_colors(parts, mine.id)
 	assert_false(others.has(before), "the colour it vacated is offerable again")
+
+
+# --- #618: the slot picks a core class, the sigil rides along --------------
+
+const _NINJA := preload("res://entity/core/ninja_core.tres")
+const _BALANCED := preload("res://entity/core/balanced_core.tres")
+const _BASIC_ENEMY := preload("res://entity/core/basic_enemy_core.tres")
+
+
+func _row_for(p: Participant) -> ParticipantRow:
+	var row: ParticipantRow = _ROW_SCENE.instantiate()
+	add_child_autofree(row)
+	row.configure(p, 0)
+	row.set_core_choices(CoreClass.pickable_for(LobbyScreen.slot_bit_for(p.kind)))
+	return row
+
+
+func test_the_row_renders_the_sigil_of_the_selected_class() -> void:
+	var parts := LobbyScreen.build_participants(RunConfig.Mode.SINGLE, null, 0)
+	var human: Participant = parts[0]
+	var row := _row_for(human)
+
+	var glyph: SigilGlyph = row.get_node("%Sigil")
+	assert_eq(glyph.sigil, _BALANCED.sigil, "the default class's own sigil")
+
+	var pick: OptionButton = row.get_node("%CorePick")
+	var ninja_index := -1
+	for i in pick.item_count:
+		if pick.get_item_metadata(i) == _NINJA:
+			ninja_index = i
+	assert_gte(ninja_index, 0, "ninja is offered in a human slot")
+
+	pick.item_selected.emit(ninja_index)
+	assert_eq(glyph.sigil, _NINJA.sigil, "picking a class repaints the sigil")
+
+
+func test_the_row_renders_a_class_that_has_no_sigil() -> void:
+	# #618 D4: five CoreClass resources, three Sigil concretes — basic_enemy has
+	# none, and the row must show an empty glyph rather than misbehave.
+	var ai := Participant.new()
+	ai.id = 9
+	ai.kind = Participant.Kind.AI
+	ai.core_class = _BASIC_ENEMY
+	assert_null(_BASIC_ENEMY.sigil, "premise: this core carries no glyph")
+
+	var row := _row_for(ai)
+	assert_null(row.get_node("%Sigil").sigil, "and the row is fine with that")
+	assert_eq(row.get_node("%Seat").text, "AI")
+
+
+func test_a_human_slot_is_never_offered_the_enemy_core() -> void:
+	var parts := LobbyScreen.build_participants(RunConfig.Mode.SINGLE, null, 1)
+	var human_row := _row_for(parts[0])
+	var ai_row := _row_for(parts[1])
+
+	var offered := func(row: ParticipantRow) -> Array:
+		var pick: OptionButton = row.get_node("%CorePick")
+		var out: Array = []
+		for i in pick.item_count:
+			out.append(pick.get_item_metadata(i))
+		return out
+
+	assert_false(offered.call(human_row).has(_BASIC_ENEMY), "AI-only core")
+	assert_false(offered.call(ai_row).has(_BALANCED), "player-only core")
+	assert_true(offered.call(human_row).has(_NINJA), "shared cores reach both")
+	assert_true(offered.call(ai_row).has(_NINJA))
+
+
+func test_picking_a_class_writes_it_onto_the_roster() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
+	var human: Participant = lobby.participants()[0]
+	assert_eq(human.core_class, _BALANCED, "seated on the default first")
+
+	lobby._on_core_class_picked(_NINJA, human)
+
+	assert_eq(human.core_class, _NINJA)
+	assert_eq(lobby.build_run_config().participants[0].core_class, _NINJA,
+			"and START hands the pick to the level")

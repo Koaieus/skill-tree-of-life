@@ -19,6 +19,7 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [resource]
 script = ExtResource("2_5r1b0")
+pickable_in = 2
 display_name = "Basic Enemy"
 description = "Has some basic attributes amongst which a WIS bonus that puts a clock on the player -- early on, enemies will surely out-grow the player!"
 modifiers = Array[ExtResource("1_agu68")]([ExtResource("3_baseline"), SubResource("Resource_q2ptp"), SubResource("Resource_xm0xk")])

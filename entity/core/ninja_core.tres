@@ -48,6 +48,7 @@ children = Array[ExtResource("2_mod")]([SubResource("mod_dealloc"), SubResource(
 
 [resource]
 script = ExtResource("8_mw6me")
+pickable_in = 3
 display_name = "Ninja"
 description = "The Phantom — a high deallocation budget for in-turn reshaping and a low skill-point cap that keeps your constellation compact, wrapped around an intense but very-short-range core aura that makes nearby owned nodes hit harder. Rewarded for staying tight, not for sprawling. STR/DEX/INT's flat +10 comes from the shared attribute_baseline.tres pack (D-27, #279), not hand-declared here."
 modifiers = Array[ExtResource("2_mod")]([ExtResource("10_baseline"), SubResource("mod_budget_pack")])

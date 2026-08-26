@@ -46,6 +46,52 @@ static func load_all() -> Array[CoreClass]:
 	return out
 
 
+## Every authored class a slot of this kind may choose, in [method load_all]
+## order. [param slot_bit] is [constant PICKABLE_PLAYER] or
+## [constant PICKABLE_AI].
+##
+## This IS the runtime caller [method load_all] flagged as hypothetical: a
+## project that exported only scene-referenced resources would quietly return a
+## short list here. Nothing strips resources today; revisit at export time.
+static func pickable_for(slot_bit: int) -> Array[CoreClass]:
+	var out: Array[CoreClass] = []
+	for core in load_all():
+		if core.is_pickable_in(slot_bit):
+			out.append(core)
+	return out
+
+
+## May a slot carrying [param slot_bit] choose this class?
+func is_pickable_in(slot_bit: int) -> bool:
+	return (pickable_in & slot_bit) != 0
+
+
+## The [member pickable_in] bit for a human lobby slot.
+const PICKABLE_PLAYER := 1
+## The [member pickable_in] bit for an AI lobby slot.
+const PICKABLE_AI := 2
+
+
+## Which lobby slots may CHOOSE this class (#618 D6). A property OF the class
+## ("this is an enemy archetype"), true wherever it is offered — a lobby-side
+## allow-list would be a second place to update every time a core is authored.
+##
+## [b]`0` — "neither" — is the deliberate default.[/b] A newly authored core is
+## invisible in every picker until somebody opts it in, so a class added for a
+## boss, a test, or an unfinished experiment cannot leak into the lobby by
+## merely existing.
+##
+## Composes with, rather than duplicates, the per-route `LobbyPolicy` (#615):
+## the mask says WHAT A CORE IS, the policy says whether this lobby lets that
+## slot choose at all.
+##
+## Deliberately NOT typed against [enum Participant.Kind] — [Participant] gains
+## a [CoreClass] field of its own, and a mutual `class_name` reference between
+## the two is exactly the resolution cycle `.claude/rules/godot-workflow.md`
+## warns about. Callers translate a kind to a bit; see
+## [method LobbyScreen.slot_bit_for].
+@export_flags("Player slots", "AI slots") var pickable_in: int = 0
+
 @export var display_name: String = ""
 
 @export_multiline var description: String = ""
