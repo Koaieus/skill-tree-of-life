@@ -433,8 +433,8 @@ func test_a_rebuild_does_not_eat_the_scene_authored_affordances() -> void:
 	var back: Node = _root.get_node_or_null("%BackAffordance")
 	assert_not_null(back, "the affordance survived the build that cleared the layer")
 	assert_true(is_instance_valid(back), "and was not queued for deletion")
-	assert_eq(back.get_parent(), _root.get_node("%GraphLayer"),
-			"still parented in graph space, where it reads against its edge")
+	assert_eq(back.get_parent(), _root.get_node("%PanelLayer"),
+			"still parented in screen space, where #601 re-rooted it")
 
 	# And a SECOND build must not eat it either — #578's live tab rebuilds in
 	# place on every knob change, which is the path that found this.
@@ -568,11 +568,16 @@ func _graph_layer() -> Node2D:
 	return _root.get_node("%GraphLayer")
 
 
-## `%GraphLayer`'s own scene-authored child count: just `%BackAffordance`
-## (see `frontmatter_root.tscn`) — everything past that plus the live view/edge
-## counts is a lift.
+## `%GraphLayer`'s own scene-authored child count: ZERO since #601 re-rooted
+## [BackAffordance] out of it into `%PanelLayer` (see `frontmatter_root.tscn`).
+## Anything past the live view/edge counts is therefore a lift.
+##
+## [b]It was `1 + ...` while the affordance lived here.[/b] Kept as a named
+## helper rather than inlined: "this layer has no scene-authored children of
+## its own" is a fact worth stating once, and the next thing parented here
+## will want exactly this line to change.
 func _graph_layer_baseline_children() -> int:
-	return 1 + _root._views.size() + _root._edges.size()
+	return _root._views.size() + _root._edges.size()
 
 
 func test_forward_navigation_spawns_exactly_one_spike_before_travel_starts() -> void:
