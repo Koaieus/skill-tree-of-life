@@ -1,0 +1,89 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://ui/frontmatter/background/frontmatter_background.gd" id="1_script"]
+[ext_resource type="Shader" path="res://ui/frontmatter/background/frontmatter_plasma_base.gdshader" id="2_base"]
+[ext_resource type="Shader" path="res://ui/frontmatter/background/frontmatter_streaks.gdshader" id="3_streaks"]
+
+[sub_resource type="ShaderMaterial" id="mat_base"]
+shader = ExtResource("2_base")
+shader_parameter/shader_time = 0.0
+shader_parameter/scale = 3.5
+shader_parameter/warp_strength = 0.9
+shader_parameter/speed = 0.045
+
+[sub_resource type="Gradient" id="grad_tile"]
+
+[sub_resource type="GradientTexture2D" id="tex_tile"]
+gradient = SubResource("grad_tile")
+width = 2048
+height = 2048
+
+[sub_resource type="ShaderMaterial" id="mat_streaks_mid"]
+shader = ExtResource("3_streaks")
+shader_parameter/shader_time = 0.0
+shader_parameter/scale = 5.0
+shader_parameter/warp_strength = 0.5
+shader_parameter/speed = 0.07
+shader_parameter/line_freq = 10.0
+shader_parameter/line_sharpness = 16.0
+shader_parameter/tint = Color(0.55, 0.85, 1.0, 1.0)
+shader_parameter/line_strength = 0.6
+shader_parameter/seed = 13.0
+
+[sub_resource type="ShaderMaterial" id="mat_streaks_near"]
+shader = ExtResource("3_streaks")
+shader_parameter/shader_time = 0.0
+shader_parameter/scale = 8.0
+shader_parameter/warp_strength = 0.6
+shader_parameter/speed = 0.12
+shader_parameter/line_freq = 18.0
+shader_parameter/line_sharpness = 22.0
+shader_parameter/tint = Color(1.0, 0.55, 0.85, 1.0)
+shader_parameter/line_strength = 0.5
+shader_parameter/seed = 61.0
+
+[node name="FrontmatterBackground" type="CanvasLayer"]
+layer = -100
+script = ExtResource("1_script")
+
+[node name="Fallback" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.05, 0.03, 0.09, 1)
+
+[node name="Base" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.03, 0.03)
+repeat_size = Vector2(2048, 2048)
+repeat_times = 8
+
+[node name="BaseLayer" type="Sprite2D" parent="Base"]
+unique_name_in_owner = true
+texture_repeat = 2
+material = SubResource("mat_base")
+texture = SubResource("tex_tile")
+
+[node name="Mid" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.12, 0.12)
+repeat_size = Vector2(2048, 2048)
+repeat_times = 8
+
+[node name="MidLayer" type="Sprite2D" parent="Mid"]
+unique_name_in_owner = true
+texture_repeat = 2
+material = SubResource("mat_streaks_mid")
+texture = SubResource("tex_tile")
+
+[node name="Near" type="Parallax2D" parent="."]
+scroll_scale = Vector2(0.25, 0.25)
+repeat_size = Vector2(2048, 2048)
+repeat_times = 8
+
+[node name="NearLayer" type="Sprite2D" parent="Near"]
+unique_name_in_owner = true
+texture_repeat = 2
+material = SubResource("mat_streaks_near")
+texture = SubResource("tex_tile")
