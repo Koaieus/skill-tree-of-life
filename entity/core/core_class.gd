@@ -112,8 +112,9 @@ const PICKABLE_AI := 2
 @export var effects: Array[Effect] = []
 
 ## Visual identity mark rendered on the HUD hero card ([HeroSigilCard]). `null`
-## falls back to the card's default glyph — existing classes without one
-## (Pacifist, basic enemy) keep working unchanged. See [Sigil].
+## falls back to the card's default glyph — every authored class carries a
+## sigil today, but a future or modded core left `null` keeps working
+## unchanged. See [Sigil].
 @export var sigil: Sigil = null
 
 ## The class's turn-start aura radiating from the core's node (D-10). `null`

@@ -75,10 +75,9 @@ func _show_emblem_of(camp: Faction) -> void:
 	mark.tooltip_text = camp.display_name if camp != null else ""
 
 
-## Paint the sigil preview for [param core]. Handles the null cases the content
-## actually has (#618 D4): five [CoreClass] resources exist against three
-## [Sigil] concretes, so `basic_enemy_core` and `pacifist_core` carry no glyph —
-## and a slot may momentarily carry no class at all. [SigilGlyph] draws nothing
+## Paint the sigil preview for [param core]. Every authored [CoreClass] carries
+## a sigil today, but a slot may momentarily carry no class at all, or a future
+## core may leave [member CoreClass.sigil] unset — [SigilGlyph] draws nothing
 ## for a null sigil, so the row just shows an empty box of the same size and
 ## nothing after it shifts.
 func _show_sigil_of(core: CoreClass) -> void:

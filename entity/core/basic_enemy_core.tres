@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="1_agu68"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="2_5r1b0"]
 [ext_resource type="Resource" uid="uid://cl4uo53xgkvxa" path="res://stats_system/packs/attribute_baseline.tres" id="3_baseline"]
+[ext_resource type="Resource" path="res://entity/core/sigil/triangle_sigil.tres" id="4_sigil"]
 
 [sub_resource type="Resource" id="Resource_q2ptp"]
 script = ExtResource("1_agu68")
@@ -23,4 +24,5 @@ pickable_in = 2
 display_name = "Basic Enemy"
 description = "Has some basic attributes amongst which a WIS bonus that puts a clock on the player -- early on, enemies will surely out-grow the player!"
 modifiers = Array[ExtResource("1_agu68")]([ExtResource("3_baseline"), SubResource("Resource_q2ptp"), SubResource("Resource_xm0xk")])
+sigil = ExtResource("4_sigil")
 metadata/_custom_type_script = "uid://ci0mmuifd3c71"

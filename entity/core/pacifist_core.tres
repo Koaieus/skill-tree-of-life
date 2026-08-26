@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="1_core"]
 [ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="1_pyoar"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
+[ext_resource type="Resource" path="res://entity/core/sigil/circle_sigil.tres" id="3_sigil"]
 
 [sub_resource type="Resource" id="mod_str"]
 script = ExtResource("2_mod")
@@ -52,4 +53,6 @@ priority = 100
 script = ExtResource("1_core")
 pickable_in = 3
 display_name = "Pacifist"
+description = "Movement and deallocation points are set to zero outright — no free repositioning, no free reshaping. Its only income for both is action points left unspent: whatever AP survives to turn's end converts to surplus movement AND deallocation points next round, at double rate. Spend your AP to attack and you're locked in place until the next windfall; hold back and you inch forward and reshape instead. Extra armor and action points round out the trade."
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int"), SubResource("mod_armor"), SubResource("mod_ap"), SubResource("mod_transfer"), SubResource("mod_mp_zero"), SubResource("mod_dp_zero")])
+sigil = ExtResource("3_sigil")

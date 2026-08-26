@@ -15,7 +15,6 @@
 
 [sub_resource type="Resource" id="scale_falling"]
 script = ExtResource("5_scale")
-rising = true
 
 [sub_resource type="Resource" id="Resource_aoidj"]
 script = ExtResource("2_mod")
@@ -36,11 +35,6 @@ stat_id = &"ranged_damage"
 value = 6.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
-[sub_resource type="Resource" id="Resource_486ch"]
-script = ExtResource("9_comp")
-children = Array[ExtResource("2_mod")]([SubResource("Resource_aoidj"), SubResource("Resource_bmjmu"), SubResource("Resource_hf1oc")])
-metadata/_custom_type_script = "uid://cyj0to3m0jdxa"
-
 [sub_resource type="Resource" id="reach_2hop"]
 script = ExtResource("4_reach")
 max_hops = 5
@@ -51,7 +45,7 @@ reach = SubResource("reach_2hop")
 distance_scale = SubResource("scale_falling")
 display_name = "Phantom Strike"
 description = "Nearby owned nodes hit harder, most intense at the core, gone by 5 hops out."
-modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_486ch")])
+modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_aoidj"), SubResource("Resource_bmjmu"), SubResource("Resource_hf1oc")])
 
 [sub_resource type="Resource" id="Resource_m5r4m"]
 script = ExtResource("10_7cbeb")

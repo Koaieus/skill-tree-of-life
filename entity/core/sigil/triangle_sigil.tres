@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="TriangleSigil" format=3]
+
+[ext_resource type="Script" path="res://entity/core/sigil/triangle_sigil.gd" id="1_tri"]
+
+[resource]
+resource_name = "Triangle Sigil"
+script = ExtResource("1_tri")

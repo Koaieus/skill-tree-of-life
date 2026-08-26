@@ -209,13 +209,17 @@ func test_the_row_renders_the_sigil_of_the_selected_class() -> void:
 
 
 func test_the_row_renders_a_class_that_has_no_sigil() -> void:
-	# #618 D4: five CoreClass resources, three Sigil concretes — basic_enemy has
-	# none, and the row must show an empty glyph rather than misbehave.
+	# #618 D4, revisited: every authored CoreClass now carries a sigil, so the
+	# empty-glyph fallback is exercised with a synthetic CoreClass rather than
+	# a real preset — the row must show an empty glyph rather than misbehave.
+	var no_sigil_core := CoreClass.new()
+	no_sigil_core.display_name = "No Sigil"
+
 	var ai := Participant.new()
 	ai.id = 9
 	ai.kind = Participant.Kind.AI
-	ai.core_class = _BASIC_ENEMY
-	assert_null(_BASIC_ENEMY.sigil, "premise: this core carries no glyph")
+	ai.core_class = no_sigil_core
+	assert_null(no_sigil_core.sigil, "premise: this core carries no glyph")
 
 	var row := _row_for(ai)
 	assert_null(row.get_node("%Sigil").sigil, "and the row is fine with that")
