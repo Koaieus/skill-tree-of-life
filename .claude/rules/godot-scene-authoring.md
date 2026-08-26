@@ -100,4 +100,20 @@ whole run while XP filled.
 `CoreClass` or a modifier, never a forked board. Pinned by
 `test/unit/test_authored_entity_boards.gd`.
 
+## A `Camera2D` moves every screen-space `Control` that is not on a `CanvasLayer`
+
+A `Camera2D` transforms the viewport's **default canvas**, and a `Control` that
+is merely a *sibling* of the `Node2D` holding it is on that canvas too — so UI
+authored in screen pixels is panned and *zoomed* with the world, and at a high
+zoom leaves the frame entirely. No error. It takes the Control's mouse rect with
+it, so clicks fall through to whatever is behind.
+
+`meta_root.tscn` shipped like this: the splash's wordmark and its "PRESS ANY
+BUTTON" prompt were never on screen at any zoom.
+
+**How to apply:** screen-space UI goes under a `CanvasLayer` — what
+`frontmatter_root.tscn` already does for its tooltip and panels. **Symptom:** UI
+that is "not rendering", often only after someone raises a camera zoom. The
+headless suite cannot see it; screenshot it.
+
 Full set of Godot authoring gotchas: **`docs/domain/godot-workflow.md`**.

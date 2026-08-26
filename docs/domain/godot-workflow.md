@@ -329,6 +329,47 @@ copy-pasted uids**. Either omit the `uid=` attribute (Godot resolves by
 `path=`), or verify each uid against `cat <script>.gd.uid`. Lint by loading
 the preset in a GUT test and asserting every field is non-null.
 
+## Editing a font `.import` REGENERATES its uid — re-pin it by hand*
+
+Changing any `[params]` line in a `.ttf.import` and reimporting rewrites the
+file's `uid=` to a fresh one. `theme.tres` references the font by the OLD uid, so
+the next load warns `ext_resource, invalid UID: uid://... — using text path
+instead` and every consumer silently falls back to the path. It still works, but
+you have just orphaned a uid the repo hard-codes.
+
+How to apply: after `godot --headless --import`, `git diff` the `.import` and put
+the original `uid=` back (`sed -i 's|^uid="uid://[a-z0-9]*"|uid://<original>|'`).
+Reimport again to confirm the warning is gone. The same happens for any imported
+asset, not just fonts.
+
+## Text drawn at a canvas scale needs supersampling, not a font flag*
+
+A `Label` rasters its glyphs at `font_size` and the canvas then STRETCHES that
+bitmap: a `Camera2D` zoom, a `Node2D` scale and window stretch all resample it.
+Magnified it reads mushy; minified it breaks into fragments. Godot's automatic
+oversampling covers the *viewport* scale only — not a camera zoom, and not a
+parent's scale.
+
+Three knobs, and only one of them is scoped:
+
+- **`oversampling` in the `.import`** rasters every use of that font N times
+  larger. Global: it measurably THINS screen-space labels at zoom 1, which want a
+  native raster. Measured on `CinzelHeader` in the HUD, 2026-08-26.
+- **`multichannel_signed_distance_field`** is scale-free and was the obvious
+  answer, but Cinzel's space glyph renders a visible stray dash under MSDF at
+  every `msdf_size` / `msdf_pixel_range` combination tried (48–64 / 2–8).
+- **Per-Label supersampling** is the scoped version of the first: set
+  `font_size * N`, `scale = 1/N`, and lay the box out in raster units — a
+  `Control` scales about its own `position`, so centring must still use the DRAWN
+  width. `MenuNodeView._supersample_caption` is the worked example.
+
+**`generate_mipmaps` is inert on its own.** Godot's default canvas filter has no
+mipmap stage, so the mipmaps are never sampled until a CanvasItem sets
+`texture_filter = 4` (`LINEAR_WITH_MIPMAPS`). That pair is what fixes the
+*minified* case; supersampling only fixes the magnified one.
+
+Judge all of this by screenshot (below) — the headless suite cannot see it.
+
 ## Hand-authoring `.tres` — two parser gotchas
 
 - **Array literals must be single-line.** `Array[T]([a, b, c])` works; the
