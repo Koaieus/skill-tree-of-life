@@ -125,6 +125,23 @@ func test_expected_damage_ignores_hits_on_blocker_owned_nodes() -> void:
 			"attacker-scoped sum drops the blocker hit")
 
 
+func test_expected_damage_counts_a_blocker_hit_for_a_growth_capped_attacker() -> void:
+	# #604: the unlock has to reach the SWING VALUATION too, not just the target
+	# list — a candidate the AI is allowed to pick but scores 0 EV for would
+	# only ever win on a kill bonus, i.e. cores it can one-shot.
+	var blocker: Entity = autofree(_make_entity("Blocker", _BLOCKER_FACTION))
+	_graph.add_child(blocker)
+	await get_tree().process_frame
+	_alloc.force_allocate(blocker, _nodes[2])
+	blocker.core_location = _nodes[2]
+	var outcome := _resolve_ranged_at(_nodes[2])
+	_ai.ai_targets_dormant_cores = true
+
+	assert_almost_eq(AiCombatScorer.expected_damage(outcome, _ai),
+			AiCombatScorer.expected_damage(outcome), 0.001,
+			"a capped attacker banks the same EV it would on any hostile")
+
+
 func test_expected_damage_still_counts_a_real_hostile() -> void:
 	var outcome := _resolve_ranged_at(_nodes[2])
 

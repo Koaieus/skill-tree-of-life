@@ -332,3 +332,110 @@ func test_melee_candidate_is_gathered_and_can_be_executed_through_take_turn() ->
 	assert_true(_launches.has(BattleSystem.AttackMode.MELEE),
 			"ranged is out of Euclidean range from both owned nodes; melee's swing geometry still connects")
 	assert_ne(_tm.current_entity, _enemy, "turn should have ended normally")
+
+
+# ---------------------------------------------------------------------------
+# Dormant Cores: scenery, until they're the wall (#604)
+# ---------------------------------------------------------------------------
+
+## Park the real hostile out of sight and put a Dormant Core on N1's only other
+## edge, so the ONLY thing the AI can see is the scenery walling it in. The
+## fixture is already growth-capped (N0 and N1 are both owned and N0-N1 is the
+## only edge between them), which is the point.
+func _wall_in_with_a_dormant_core() -> SkillNode:
+	_nodes[2].global_position = Vector2(100000.0, 0.0)
+
+	var walled := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	walled.name = "Walled"
+	_graph.add_skill_node(walled)
+	_add_edge(_nodes[1], walled)
+	walled.global_position = Vector2(200.0, 0.0)
+
+	var core := _make_entity("DormantCore", preload("res://entity/factions/blocker.tres"))
+	_graph.entities_container.add_child(core)
+	await get_tree().process_frame
+	_alloc.force_allocate(core, walled)
+	core.core_location = walled
+	return walled
+
+
+## A chain of free nodes off N1, long enough that no amount of turn-start SP
+## minting can consume it — the AI stays uncapped for the whole turn, however
+## generous the economy is feeling.
+func _open_room_to_grow() -> void:
+	var previous: SkillNode = _nodes[1]
+	for i in 5:
+		var free_node := _SKILL_NODE_SCENE.instantiate() as SkillNode
+		free_node.name = "Free%d" % i
+		_graph.add_skill_node(free_node)
+		_add_edge(previous, free_node)
+		free_node.global_position = Vector2(-100.0 * (i + 1), 0.0)
+		previous = free_node
+	await get_tree().process_frame
+
+
+func test_growth_capped_ai_attacks_the_dormant_core_walling_it_in() -> void:
+	var walled: SkillNode = await _wall_in_with_a_dormant_core()
+	var hp_before := walled.get_current_hp()
+
+	_tm.start_turn(_enemy)
+	await get_tree().create_timer(0.3).timeout
+
+	assert_true(_launches.has(BattleSystem.AttackMode.RANGED),
+			"boxed in with nowhere to allocate, the AI should shoot its way out")
+	assert_lt(walled.get_current_hp(), hp_before, "the core should have taken the damage")
+	assert_ne(_tm.current_entity, _enemy, "turn should have ended normally")
+
+
+func test_uncapped_ai_still_ignores_a_dormant_core() -> void:
+	# Same board plus room to grow. Indifference is still the default stance.
+	var walled: SkillNode = await _wall_in_with_a_dormant_core()
+	await _open_room_to_grow()
+	var hp_before := walled.get_current_hp()
+
+	_tm.start_turn(_enemy)
+	await get_tree().create_timer(0.3).timeout
+
+	assert_false(AiRecon.is_growth_capped(_enemy), "fixture guard: room was left to grow")
+	assert_eq(walled.get_current_hp(), hp_before, "scenery takes no fire from an AI that can grow")
+	assert_eq(_launches.size(), 0, "and there is nothing else visible to shoot")
+	assert_false(_enemy.ai_targets_dormant_cores, "the stance should not have flipped")
+
+
+func test_the_stance_does_not_outlive_the_turn_that_earned_it() -> void:
+	await _wall_in_with_a_dormant_core()
+
+	_tm.start_turn(_enemy)
+	await get_tree().create_timer(0.3).timeout
+	assert_true(_enemy.ai_targets_dormant_cores, "capped this turn")
+
+	# Open room to grow and take another turn: the stance must be re-decided
+	# from scratch, not latched on. Deliberately NOT by freeing `walled` — the
+	# AI would allocate that one freed node and be capped again on the same
+	# check, which is correct behaviour but tests nothing about latching.
+	#
+	# Clearing `current_entity` by hand rather than `end_turn()` — that
+	# auto-ticks to whoever is ready next, and this test is about the AI's
+	# SECOND turn specifically, not the clock.
+	await _open_room_to_grow()
+	_tm.current_entity = null
+	_tm.start_turn(_enemy)
+	await get_tree().create_timer(0.3).timeout
+
+	assert_false(_enemy.ai_targets_dormant_cores,
+			"an AI that broke out once must not keep shooting scenery forever")
+
+
+func test_clearing_the_core_expands_into_the_freed_node_the_same_turn() -> void:
+	var walled: SkillNode = await _wall_in_with_a_dormant_core()
+	# One shot's worth of HP left: the kill lands inside the AP loop, and the
+	# SP the growth pass couldn't spend is still banked for the second pass.
+	var per_shot: float = float(_nodes[1].get_local_value(&"ranged_damage"))
+	_true_damage(walled, walled.get_current_hp() - per_shot)
+	_enemy.stat_board.skill_points.set_current(1)
+
+	_tm.start_turn(_enemy)
+	await get_tree().create_timer(0.4).timeout
+
+	assert_eq(walled.owned_by, _enemy,
+			"kill, then walk through the door it opened — on the same turn")

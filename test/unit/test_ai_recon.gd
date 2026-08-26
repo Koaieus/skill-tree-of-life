@@ -107,6 +107,32 @@ func test_blocker_faction_node_in_range_is_not_an_ai_target() -> void:
 	assert_false(_nodes[1] in AiRecon.visible_enemy_nodes(_ai_entity))
 
 
+func test_blocker_becomes_a_target_once_the_attacker_is_growth_capped() -> void:
+	# #604: indifference is a per-turn stance, not a rule. Set by AIController
+	# from `is_growth_capped`; here it is set directly to isolate the filter.
+	var blocker: Entity = autofree(_make_entity("Blocker", _BLOCKER_FACTION))
+	_graph.add_child(blocker)
+	await get_tree().process_frame
+	_alloc.force_allocate(blocker, _nodes[1])
+	_nodes[1].global_position = _nodes[0].global_position + Vector2(100.0, 0.0)
+	_ai_entity.ai_targets_dormant_cores = true
+
+	assert_true(AiRecon.is_ai_target(_ai_entity, _nodes[1]))
+	assert_true(_nodes[1] in AiRecon.visible_enemy_nodes(_ai_entity))
+
+
+func test_the_unlock_is_per_attacker() -> void:
+	# The stance rides on the attacker, so an unblocked bystander is unaffected
+	# by its neighbour's desperation.
+	var blocker: Entity = autofree(_make_entity("Blocker", _BLOCKER_FACTION))
+	_graph.add_child(blocker)
+	await get_tree().process_frame
+	_alloc.force_allocate(blocker, _nodes[1])
+	_ai_entity.ai_targets_dormant_cores = true
+
+	assert_false(AiRecon.is_ai_target(_hostile, _nodes[1]))
+
+
 func test_blocker_stays_hostile_to_the_attitude_relation() -> void:
 	# Guard: the AI filter must NOT migrate into `attitude_to` — the relation
 	# is what lets a player (and the damage/XP paths) attack a blocker at all.
@@ -139,6 +165,37 @@ func test_no_owned_nodes_sees_nothing() -> void:
 	await get_tree().process_frame
 
 	assert_false(AiRecon.has_visible_hostile(bystander))
+
+
+# ---------------------------------------------------------------------------
+# frontier_nodes / is_growth_capped
+# ---------------------------------------------------------------------------
+
+func test_frontier_is_the_unowned_neighbours() -> void:
+	# Fixture: AI owns N0, edge N0-N1, N1 unowned.
+	assert_eq(AiRecon.frontier_nodes(_ai_entity), [_nodes[1]] as Array[SkillNode])
+	assert_false(AiRecon.is_growth_capped(_ai_entity))
+
+
+func test_growth_capped_when_every_neighbour_is_held() -> void:
+	# A node a Dormant Core holds is OWNED, so it is never frontier — which is
+	# exactly how a ring of cores caps an entity.
+	var blocker: Entity = autofree(_make_entity("Blocker", _BLOCKER_FACTION))
+	_graph.add_child(blocker)
+	await get_tree().process_frame
+	_alloc.force_allocate(blocker, _nodes[1])
+
+	assert_eq(AiRecon.frontier_nodes(_ai_entity).size(), 0)
+	assert_true(AiRecon.is_growth_capped(_ai_entity))
+
+
+func test_growth_capped_is_topological_not_a_budget_question() -> void:
+	# No SP at all, but a free neighbour: not capped. An entity that banks SP
+	# with nowhere to spend it is the case the unlock exists for, and "can I
+	# afford one" would answer that backwards.
+	_ai_entity.stat_board.skill_points.set_current(0)
+
+	assert_false(AiRecon.is_growth_capped(_ai_entity))
 
 
 # ---------------------------------------------------------------------------

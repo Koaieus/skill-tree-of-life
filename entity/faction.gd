@@ -28,6 +28,13 @@ extends Resource
 ## `saw_hostile` short-circuit, ranged/magic/melee candidate enumeration)
 ## never sees them.
 ##
+## [b]It is the default stance, not an absolute[/b] (#604). An NPC that is
+## growth-capped — walled in with no node left to allocate — flips
+## [member Entity.ai_targets_dormant_cores] on for that turn and does see them,
+## because the camp it is indifferent to has become the thing stopping it from
+## playing. Read this flag as "worth an NPC's AP under normal circumstances";
+## [method AiRecon.is_ai_target] owns the exception.
+##
 ## Deliberately NOT expressed in [method Entity.attitude_to]: "worth an NPC's
 ## AP" and "may be attacked at all" are different questions, and moving this
 ## into the attitude relation would silently disarm the *player* too.

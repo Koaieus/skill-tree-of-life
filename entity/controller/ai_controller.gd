@@ -31,6 +31,16 @@ extends EntityController
 ## presentation pacing with no sync meaning — see
 ## `docs/domain/multiplayer-sync-model.md`.
 ##
+## [b]Dormant Cores are scenery until they are a wall[/b] (#604). An NPC is
+## indifferent to them by default ([member Faction.targeted_by_ai]) — but the
+## indifference is a stance, not a rule, and it is re-decided every turn from
+## [method AiRecon.is_growth_capped]. Asked AFTER the growth step (that is when
+## "nowhere left to allocate" is a fact rather than a guess), a capped NPC
+## unlocks them for the rest of its turn, shoots its way out through one, and
+## spends its still-banked SP on the freed node in a second growth pass — kill,
+## relic, expand, all on the same turn. Nothing about the *player's* ability to
+## clear a core changes; see [method AiRecon.is_ai_target].
+##
 ## Fog-aware since #378: each AI consults [AiRecon] for its OWN visibility
 ## (not the shared player-only VisionSystem instance) — settled 2026-08-07,
 ## "each enemy acts only on what it personally sees", no faction-shared
@@ -101,21 +111,26 @@ func take_turn() -> void:
 	var saw_hostile := not visible_enemies.is_empty()
 
 	# Spend all available SP on frontier growth, fog-aware or not — the
-	# fog short-circuit only gates the ATTACK step below. Territory changes
-	# each allocation, so recon is re-run each pass (a new leaf can put a
-	# previously-out-of-range hostile in vision).
-	if entity.stat_board != null:
-		var sp: SkillPointStat = entity.stat_board.skill_points
-		if sp != null:
-			# Same loop as before #512, un-inlined because the allocation now
-			# suspends until the applier has applied it — `await` cannot live
-			# inside a `while` condition.
-			while sp.current > 0 and _continue():
-				if not await _try_allocate_frontier(visible_enemies):
-					break
-				await _wait()
-				visible_enemies = AiRecon.visible_enemy_nodes(entity)
-				saw_hostile = saw_hostile or not visible_enemies.is_empty()
+	# fog short-circuit only gates the ATTACK step below.
+	visible_enemies = await _spend_skill_points(visible_enemies)
+	saw_hostile = saw_hostile or not visible_enemies.is_empty()
+
+	# Only NOW is "boxed in" a fact: the question is whether growth has run out
+	# of board, so it has to be asked after growth has taken everything it can.
+	# A capped NPC unlocks Dormant Cores for the rest of this turn (#604) —
+	# they stay scenery for everyone else, see [method AiRecon.is_ai_target].
+	var was_capped := _refresh_dormant_core_stance()
+	if was_capped:
+		var unlocked := AiRecon.visible_enemy_nodes(entity)
+		# Announce only when the stance actually revealed something. Being
+		# boxed in by real enemies is the common case and says nothing about
+		# dormant cores — a decide line there would be noise, and it is what
+		# the #512 parity golden would read as drift.
+		if unlocked.size() > visible_enemies.size():
+			_decide("growth-capped — %d dormant core(s) unlocked as targets" \
+					% (unlocked.size() - visible_enemies.size()))
+		visible_enemies = unlocked
+		saw_hostile = saw_hostile or not visible_enemies.is_empty()
 
 	if not saw_hostile:
 		_decide("no visible hostile — growth only")
@@ -154,7 +169,55 @@ func take_turn() -> void:
 			await _wait()
 			ap = entity.stat_board.action_points
 
+	# A cleared Dormant Core frees the node it held, and the SP the growth loop
+	# above couldn't spend is still banked — so a capped NPC walks through the
+	# door it just opened THIS turn rather than next. Only reachable when the
+	# unlock fired: an uncapped NPC left the growth loop with nothing to buy.
+	if was_capped:
+		visible_enemies = await _spend_skill_points(visible_enemies)
+
 	_end_turn()
+
+
+## Spend every available SP on frontier growth, returning the enemy list as of
+## the last allocation — territory changes each pass, so recon is re-run (a new
+## leaf can put a previously-out-of-range hostile in vision). Returns rather
+## than mutates: reassigning the parameter would not reach the caller.
+##
+## Runs twice per turn since #604 — once before the attack step, once after, so
+## a Dormant Core cleared for being in the way is walked through on the same
+## turn. Idempotent when there is nothing to buy: the first `_try_allocate_frontier`
+## returns false and the loop breaks.
+func _spend_skill_points(visible_enemies: Array[SkillNode]) -> Array[SkillNode]:
+	if entity.stat_board == null:
+		return visible_enemies
+	var sp: SkillPointStat = entity.stat_board.skill_points
+	if sp == null:
+		return visible_enemies
+	# Un-inlined loop (#512): the allocation suspends until the applier has
+	# applied it, and `await` cannot live inside a `while` condition.
+	while sp.current > 0 and _continue():
+		if not await _try_allocate_frontier(visible_enemies):
+			break
+		await _wait()
+		visible_enemies = AiRecon.visible_enemy_nodes(entity)
+	return visible_enemies
+
+
+## Re-decide, for this turn only, whether Dormant Cores are worth this NPC's AP
+## — true iff it is growth-capped ([method AiRecon.is_growth_capped]). Returns
+## the capped verdict; the stance itself lands on
+## [member Entity.ai_targets_dormant_cores], which is where both halves of the
+## AI target filter read it (list building AND swing valuation — see
+## [method AiRecon.is_ai_target]).
+##
+## Always ASSIGNS rather than only setting on true: the flag must not outlive
+## the turn that earned it, or an NPC that broke out once keeps shooting
+## scenery forever.
+func _refresh_dormant_core_stance() -> bool:
+	var capped := AiRecon.is_growth_capped(entity)
+	entity.ai_targets_dormant_cores = capped
+	return capped
 
 
 ## Hand the turn back, as an [EndTurnCommand] rather than a direct
@@ -197,7 +260,7 @@ func _pick_frontier_node(visible_enemies: Array[SkillNode]) -> SkillNode:
 	var graph := entity.navigator.graph if entity.navigator != null else null
 	if graph == null:
 		return null
-	var frontier := _frontier_candidates(graph)
+	var frontier := AiRecon.frontier_nodes(entity)
 	if frontier.is_empty():
 		return null
 	if visible_enemies.is_empty():
@@ -211,24 +274,6 @@ func _pick_frontier_node(visible_enemies: Array[SkillNode]) -> SkillNode:
 			best_score = s
 			best = candidate
 	return best
-
-
-## Every unowned node adjacent to one this entity already owns, deduplicated.
-func _frontier_candidates(graph: Graph) -> Array[SkillNode]:
-	var out: Array[SkillNode] = []
-	var seen: Dictionary[SkillNode, bool] = {}
-	for edge in graph.get_edges():
-		if edge == null or edge.from == null or edge.to == null:
-			continue
-		var a := edge.from
-		var b := edge.to
-		if a.owned_by == entity and b.owned_by == null and not seen.has(b):
-			seen[b] = true
-			out.append(b)
-		if b.owned_by == entity and a.owned_by == null and not seen.has(a):
-			seen[a] = true
-			out.append(a)
-	return out
 
 
 ## Every ranged + magic + melee candidate against every visible hostile,

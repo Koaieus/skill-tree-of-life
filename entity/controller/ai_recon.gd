@@ -28,7 +28,8 @@ static func has_visible_hostile(entity: Entity) -> bool:
 
 ## Every enemy-owned [SkillNode] within vision range of any of [param entity]'s
 ## owned nodes, minus the camps that don't draw AI attention
-## ([member Faction.targeted_by_ai] — dormant-core blockers). This is the one
+## ([member Faction.targeted_by_ai] — dormant-core blockers, unless this
+## entity is boxed in; see [method is_ai_target]). This is the one
 ## chokepoint every NPC target list flows through: growth's directional bias,
 ## the `saw_hostile` short-circuit, and the ranged/magic/melee candidate
 ## enumerations all consume what this returns, so the filter belongs here and
@@ -61,18 +62,66 @@ static func visible_enemy_nodes(entity: Entity) -> Array[SkillNode]:
 ## the second half while staying hostile to everyone else, including the
 ## player.
 ##
+## [b]Unless the attacker is boxed in[/b] — [member Entity.ai_targets_dormant_cores],
+## set per turn from [method is_growth_capped], flips the second half back on.
+## An NPC with nowhere left to allocate is not being patient by ignoring the
+## scenery that walls it in, it is stuck; a Dormant Core is then the cheapest
+## door out (and pays a relic for opening it). Indifference is the default
+## stance, not a rule.
+##
 ## THE one definition, used both to build target lists ([method
 ## visible_enemy_nodes]) and to value a resolved swing ([method
 ## AiCombatScorer.expected_damage]) — an AoE/blade that merely clips a blocker
 ## must not score for it either, or the filter is cosmetic and the AI still
-## steers into scenery.
+## steers into scenery. Both consumers already pass the attacker, which is why
+## the stance rides on [Entity] rather than being threaded through as a param.
 static func is_ai_target(attacker: Entity, node: SkillNode) -> bool:
 	if attacker == null or node == null or node.owned_by == null:
 		return false
 	if attacker.attitude_to(node.owned_by) != Entity.Attitude.HOSTILE:
 		return false
 	var owner_faction: Faction = node.owned_by.faction
-	return owner_faction == null or owner_faction.targeted_by_ai
+	if owner_faction == null or owner_faction.targeted_by_ai:
+		return true
+	return attacker.ai_targets_dormant_cores
+
+
+## Every unowned node adjacent to one [param entity] already owns — its growth
+## frontier, and THE definition of one (the AI's allocation step and the
+## capped test below both read it, never a second walk).
+##
+## A node held by a Dormant Core is owned, so it is never frontier: killing the
+## core is what turns it into one.
+static func frontier_nodes(entity: Entity) -> Array[SkillNode]:
+	var out: Array[SkillNode] = []
+	var graph: Graph = entity.navigator.graph \
+			if entity != null and entity.navigator != null else null
+	if graph == null:
+		return out
+	var seen: Dictionary[SkillNode, bool] = {}
+	for edge in graph.get_edges():
+		if edge == null or edge.from == null or edge.to == null:
+			continue
+		var a := edge.from
+		var b := edge.to
+		if a.owned_by == entity and b.owned_by == null and not seen.has(b):
+			seen[b] = true
+			out.append(b)
+		if b.owned_by == entity and a.owned_by == null and not seen.has(a):
+			seen[a] = true
+			out.append(a)
+	return out
+
+
+## Has [param entity] run out of room to grow? Purely topological — it asks
+## whether ANY node is allocatable at all, never whether the entity can afford
+## one right now (SP is a budget, not a wall, and an entity that banks SP with
+## nowhere to spend it is exactly the case this answers "yes" for).
+##
+## Drives [member Entity.ai_targets_dormant_cores]: capped is the one state in
+## which an NPC stops treating a Dormant Core as scenery.
+static func is_growth_capped(entity: Entity) -> bool:
+	return frontier_nodes(entity).is_empty()
 
 
 ## Attack-reach + 1-allocation bound. [param max_reach] is the largest

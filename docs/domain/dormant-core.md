@@ -24,6 +24,45 @@ that would quietly change level generation in every authored `GraphProcgenConfig
 with nothing to catch it. Not worth it for an internal name that is already
 accurate.
 
+## Who shoots at one (#604)
+
+A Dormant Core is `targeted_by_ai = false` on its `Faction`, so `AiRecon` drops
+its nodes from every NPC target list. Two things that filter is deliberately
+NOT:
+
+- **It is not the attitude relation.** A blocker stays `HOSTILE` to everyone,
+  which is what lets the *player* clear one and what makes the forced-dealloc
+  cascade and XP gating treat a cleared blocker as a real kill. Moving the
+  filter into `Entity.attitude_to` would silently disarm the player too.
+- **It is not absolute.** It is the NPC's *default stance*, re-decided every
+  turn.
+
+The exception is being **growth-capped**: an NPC with no unowned node adjacent
+to its territory has nowhere left to allocate. If the thing walling it in is
+scenery it refuses to look at, it banks SP forever and its turn does nothing.
+So `AIController` asks `AiRecon.is_growth_capped()` once per turn and sets
+`Entity.ai_targets_dormant_cores` from the answer; `AiRecon.is_ai_target()`
+reads it and unlocks blockers for that turn. Kill, relic, expand.
+
+Four details that are load-bearing:
+
+| detail | why |
+|---|---|
+| asked **after** the growth step | "nowhere left to allocate" is a fact about the post-growth board, not a guess about the pre-growth one |
+| **topological only** — never "can I afford it" | an entity banking SP with nowhere to spend it is precisely the case this must answer *yes* for |
+| **both** consumers of `is_ai_target` unlock | the target list AND `AiCombatScorer.expected_damage`'s per-hit filter; unlocking only the list enumerates candidates that score 0 EV, so the AI would attack only cores it could one-shot |
+| always **assigned**, never only set | the stance must not outlive the turn that earned it, or an NPC that broke out once keeps shooting scenery |
+
+Growth then runs a **second** pass after the attack loop, so the freed node is
+allocated on the same turn as the kill — and allocating it is what claims the
+relic (NPCs auto-pick each loot round, see `SkillDustAddon`).
+
+Deliberately not built: any analysis of *which* faction is capping the NPC, or
+a proximity filter on which cores unlock. If an NPC is walled in by camps rather
+than cores there is no adjacent core to unlock, so frontier-empty is
+behaviourally identical and far simpler; and "unlock all" is self-limiting
+because candidate enumeration only ever yields in-reach targets.
+
 ## Sizes, boards, and loot tiers
 
 Three sizes (`GameRoot.BlockerSize`), each with an authored stat board (which
