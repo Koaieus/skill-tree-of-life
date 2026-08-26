@@ -87,13 +87,16 @@ func test_the_anchor_sits_at_half_the_hero_slots_x_and_the_heros_y() -> void:
 
 
 ## The whole point of the re-root: this position does not answer to the
-## camera at all, so it is identical at every depth and in every fan — the
-## root fan's own camera_zoom (1.35) included, even though the root itself has
-## no affordance to point it at.
+## camera at all, so it is identical at every depth and in every fan, even
+## though the camera itself genuinely moves between them.
 func test_the_position_is_identical_at_every_depth_and_every_fan() -> void:
-	var root_zoom := FrontmatterLayout.zoom_for(_tree, MenuGraph.ID_ROOT)
-	var leaf_zoom := FrontmatterLayout.zoom_for(_tree, MenuGraph.ID_NEW_GAME)
-	assert_ne(root_zoom, leaf_zoom, "the two zooms this claim is actually about differ")
+	# D1 (#603) retired #593's per-fan zoom, so a zoom differential can no
+	# longer stand for "the camera really is doing something different" here —
+	# every fan is TREE_ZOOM now. The camera's ORIGIN still varies with depth
+	# (it travels to keep the focus docked), so that is the guard instead.
+	var root_origin := FrontmatterLayout.camera_for(_tree, MenuGraph.ID_ROOT).origin
+	var leaf_origin := FrontmatterLayout.camera_for(_tree, MenuGraph.ID_NEW_GAME).origin
+	assert_ne(root_origin, leaf_origin, "the camera this claim is actually about does move")
 
 	var root: FrontmatterRoot = _ROOT_SCENE.instantiate()
 	add_child_autofree(root)

@@ -41,15 +41,19 @@ extends MarginContainer
 ##
 ## A plain record with no [Node] in it, for the reason [MenuSlot.Look] is one:
 ## the whole Control tree is freed the moment the caller is done with it. It
-## replaced an untyped [Dictionary] with the same five keys (#589's crash was
-## hard to read for exactly that reason — a failed parenting produced
+## replaced an untyped [Dictionary] with the same keys (#589's crash was hard
+## to read for exactly that reason — a failed parenting produced
 ## `Invalid access to property or key 'looks'` two calls from the real cause).
 ## A typed member access cannot silently miss like that.
+##
+## [b]No per-fan zoom.[/b] #593 authored one on `MenuFanHarness.camera_zoom`;
+## owner call 2026-08-26 retired it — there are only two zooms in the whole
+## menu, [constant FrontmatterLayout.TREE_ZOOM] and
+## [constant FrontmatterLayout.SPLASH_ZOOM] — so nothing here carries a zoom to
+## report and [method FrontmatterLayout.zoom_for] no longer reads this record.
 class Measured extends RefCounted:
 	## `%HeroSlot`'s centre, in harness-local pixels.
 	var hero: Vector2 = Vector2.ZERO
-	## What the camera parks at while this fan is the choice on offer (#593).
-	var zoom: float = 0.0
 	## `{menu_id: Vector2}` — the seats that stand for real menu items.
 	var slots: Dictionary = {}
 	## `{menu_id: Vector2}` — the seats that are scenery (#591).
@@ -61,14 +65,6 @@ class Measured extends RefCounted:
 ## The [MenuGraph] id this fan hangs off — the node that docks in `%HeroSlot`
 ## while these options are the choice on offer.
 @export var hero_id: StringName = &""
-
-## The zoom the camera parks at while this fan is the choice on offer (#593).
-##
-## Authored per fan rather than as a second global const beside
-## [constant FrontmatterLayout.TREE_ZOOM], because "the root reads closer than
-## everything else" is a property of the ROOT MENU and not a rule about menus.
-## A fan that has nothing to say leaves it at 1.0 and the tree zoom stands.
-@export_range(0.25, 4.0, 0.01) var camera_zoom: float = 1.0
 
 
 ## Where the focused node docks. A [MenuSlot] like any other, so that the one
@@ -136,7 +132,7 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Measured:
 	var host := (Engine.get_main_loop() as SceneTree)
 	assert(host != null, "a fan harness can only be measured under a SceneTree")
 	if host == null:
-		return _nothing_measured()
+		return Measured.new()
 	_parent_for_measuring(host)
 	assert(
 		get_parent() != null,
@@ -144,7 +140,7 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Measured:
 			% name + "would take it, so every rect would read 0x0."
 	)
 	if get_parent() == null:
-		return _nothing_measured()
+		return Measured.new()
 	position = Vector2.ZERO
 	size = view
 	_sort(self)
@@ -171,23 +167,11 @@ func measure(view: Vector2, overrides: Dictionary = {}) -> Measured:
 		looks[slot.menu_id] = slot.look()
 	var measured := Measured.new()
 	measured.hero = _centre_of(hero)
-	measured.zoom = camera_zoom
 	measured.slots = slots
 	measured.decor = decor
 	measured.looks = looks
 	get_parent().remove_child(self)
 	return measured
-
-
-## An empty measurement: no seats, no looks, hero at the origin — but this
-## fan's own authored [member camera_zoom], which is knowable without measuring
-## anything and is the one field a caller cannot sanely default. Zero would be
-## a degenerate camera scale, and the asserts guarding both callers of this are
-## stripped from a release build.
-func _nothing_measured() -> Measured:
-	var empty := Measured.new()
-	empty.zoom = camera_zoom
-	return empty
 
 
 ## Parents this harness somewhere it can actually be measured, for the length

@@ -292,9 +292,12 @@ func test_geometry_is_authored_in_the_harness_scenes_at_the_project_viewport() -
 	assert_almost_eq(_column_step(), 306.0, 0.001, "hero 190 -> option column 496")
 	assert_almost_eq(FrontmatterLayout.PREVIEW_SCALE, 0.42, 0.0001)
 	assert_almost_eq(FrontmatterLayout.SPLASH_ZOOM, 3.2, 0.0001)
-	# #593's two authored numbers, in the one place they are authored.
-	assert_almost_eq(FrontmatterLayout.zoom_for(_tree, MenuGraph.ID_ROOT), 1.35, 0.0001,
-			"root_menu.tscn parks the camera closer than TREE_ZOOM")
+	# #593's per-fan zoom is retired (owner call, 2026-08-26): there are only
+	# two zooms in the whole menu, TREE_ZOOM and SPLASH_ZOOM, so the root is
+	# seen at the same zoom as everything else and only its radius is bigger.
+	assert_almost_eq(FrontmatterLayout.zoom_for(_tree, MenuGraph.ID_ROOT),
+			FrontmatterLayout.TREE_ZOOM, 0.0001,
+			"root_menu.tscn no longer parks the camera any closer")
 	assert_almost_eq(FrontmatterLayout.look_of(MenuGraph.ID_ROOT).radius, 44.0, 0.001,
 			"and root_menu.tscn's %HeroSlot draws a bigger disk")
 
@@ -471,46 +474,37 @@ func test_camera_docks_the_focus_in_the_hero_slot_at_every_depth() -> void:
 	_assert_lands_on_hero(MenuGraph.ID_JOIN)
 
 
-func test_navigating_moves_the_camera_and_zooms_only_where_a_fan_says_so() -> void:
-	# Re-pointed by #593. The old assertion was "one zoom everywhere"; the root
-	# menu authors its own now, and everything else still shares TREE_ZOOM — so
-	# the surviving half is that a zoom change is something a SCENE asked for
-	# rather than something navigation does on its own.
+func test_navigating_moves_the_camera_but_never_the_zoom() -> void:
+	# Re-pointed by D1 (#603): #593's per-fan `camera_zoom` is retired (owner
+	# call, 2026-08-26 — "there is just" the splash zoom and "zoomed back out
+	# to normal"), so this no longer excludes the root: every id, root
+	# included, shares TREE_ZOOM. What survives is that navigating moves the
+	# camera's ORIGIN and never its zoom.
 	var root_cam := FrontmatterLayout.camera_for(_tree, MenuGraph.ID_ROOT)
 	var leaf_cam := FrontmatterLayout.camera_for(_tree, MenuGraph.ID_JOIN)
 	assert_ne(root_cam.origin, leaf_cam.origin, "the camera travels")
-	assert_eq(FrontmatterLayout.zoom_of(leaf_cam),
-			Vector2.ONE * FrontmatterLayout.TREE_ZOOM,
-			"a leaf fans out nothing, so it is seen at the tree zoom")
-	for id in [MenuGraph.ID_SINGLE_PLAYER, MenuGraph.ID_MULTIPLAYER, MenuGraph.ID_EXIT]:
+	for cam in [root_cam, leaf_cam]:
+		assert_eq(FrontmatterLayout.zoom_of(cam), Vector2.ONE * FrontmatterLayout.TREE_ZOOM,
+				"every id is seen at the one tree zoom")
+	for id in _tree.ids():
 		assert_almost_eq(FrontmatterLayout.zoom_for(_tree, id),
 				FrontmatterLayout.TREE_ZOOM, 0.0001,
-				"'%s' does not author a zoom of its own" % id)
+				"'%s' does not author a zoom of its own — nothing does anymore" % id)
+	assert_gt(FrontmatterLayout.SPLASH_ZOOM, FrontmatterLayout.TREE_ZOOM,
+			"the splash is still the one thing looked at closer than the tree")
 
 
-func test_the_root_is_bigger_and_closer_than_every_other_node() -> void:
-	# #593's whole acceptance, and both halves come off `root_menu.tscn` — the
-	# slot's `radius` and the harness's `camera_zoom`. There is no id check
-	# anywhere in code, which is why this walks every OTHER id rather than
-	# naming one.
+func test_the_root_is_bigger_than_every_other_node() -> void:
+	# Split from the old "...and closer..." by D1 (#603, acceptance 5): the
+	# root's own `camera_zoom` is gone, so radius is now the ONLY thing making
+	# the root read as the hero. There is no id check anywhere in code, which
+	# is why this walks every OTHER id rather than naming one.
 	var root_look := FrontmatterLayout.look_of(MenuGraph.ID_ROOT)
-	var root_zoom := FrontmatterLayout.zoom_for(_tree, MenuGraph.ID_ROOT)
 	for id in _tree.ids():
 		if id == _tree.root:
 			continue
 		assert_gt(root_look.radius, FrontmatterLayout.look_of(id).radius,
 				"the root is drawn bigger than '%s'" % id)
-		assert_gt(root_zoom, FrontmatterLayout.zoom_for(_tree, id),
-				"and looked at closer than '%s'" % id)
-	assert_gt(
-		FrontmatterLayout.zoom_of(
-			FrontmatterLayout.camera_for(_tree, MenuGraph.ID_ROOT)).x,
-		FrontmatterLayout.zoom_of(
-			FrontmatterLayout.camera_for(_tree, MenuGraph.ID_MULTIPLAYER)).x,
-		"and the transforms say so too, not just the table",
-	)
-	assert_gt(FrontmatterLayout.SPLASH_ZOOM, root_zoom,
-			"the splash is still closer than the tree ever gets")
 
 
 func test_an_unknown_focus_parks_on_the_root_at_the_roots_own_zoom() -> void:

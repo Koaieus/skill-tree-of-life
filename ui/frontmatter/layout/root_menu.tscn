@@ -5,7 +5,6 @@
 
 [node name="RootMenu" instance=ExtResource("1_base")]
 hero_id = &"root"
-camera_zoom = 1.35
 
 [node name="HeroSlot" parent="Row" index="0"]
 menu_id = &"root"

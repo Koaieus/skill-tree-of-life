@@ -329,20 +329,22 @@ static func reset_geometry() -> void:
 ## viewport at 3.2x. "Press any button" is really allocating the first node of
 ## the run, so it is the same camera on the same tree, just parked.
 ##
-## [b]These stay consts, and #593 looked at collapsing them.[/b] They are a
-## SECOND camera onto a fan that already authors one — same hero, different slot
-## and different zoom — and a fan has one of each. The per-fan knob is "how
-## close is this menu"; the splash is "how close is the attract state", which is
-## a different question about the same node.
+## [b]These stay consts.[/b] [constant SPLASH_ZOOM] is a SECOND camera onto the
+## root — same hero, different slot and a much closer zoom — because the splash
+## is "how close is the attract state", a different question from "how close is
+## the tree ever navigated", which [constant TREE_ZOOM] answers. #593 tried a
+## per-fan THIRD answer to that second question; owner call 2026-08-26 retired
+## it (see [method zoom_for]), leaving exactly the two.
 const SPLASH_SLOT_RATIO := Vector2(0.5, 0.44)
 ## Raised from 2.55 by owner call (2026-08-26): [i]"before allocating, possibly
-## zoom it in just a bit more — it's the SPLASH."[/i] The root menu itself parks
-## at 1.35, so this is 2.4x that rather than 1.9x — enough that the attract state
-## reads as one node filling the screen instead of a slightly-closer menu.
+## zoom it in just a bit more — it's the SPLASH."[/i] 3.2x a screen-filling node
+## reads as one massive node the player is about to allocate, rather than a
+## slightly-closer menu.
 const SPLASH_ZOOM := 3.2
 
-## The zoom the tree is navigated at, for every fan that does not author one of
-## its own. 1.0 means one world unit per screen pixel.
+## The zoom the tree is navigated at, at every depth and every fan. 1.0 means
+## one world unit per screen pixel — the only exception in the whole menu is
+## [constant SPLASH_ZOOM], for the parked attract state alone.
 const TREE_ZOOM := 1.0
 
 
@@ -418,23 +420,21 @@ static func camera_for(tree: MenuGraph, focus_id: StringName) -> Transform2D:
 	return camera_at(_focus_position(tree, focus_id), hero_slot(), zoom_for(tree, focus_id))
 
 
-## How close the camera sits while [param focus_id] is the hero (#593).
+## How close the camera sits while [param focus_id] is the hero.
 ##
-## A node with a fan is looked at through that fan's own authored
-## [member MenuFanHarness.camera_zoom] — the root reads closer than everything
-## else because `root_menu.tscn` says so, not because any code asks which id
-## this is. A leaf fans out nothing, so it is seen at [constant TREE_ZOOM].
-##
-## An unknown id answers with the root's, matching [method _focus_position]'s
-## own fallback: parking somewhere recoverable means parking there completely.
-static func zoom_for(tree: MenuGraph, focus_id: StringName) -> float:
-	if tree == null:
-		return TREE_ZOOM
-	var authored := fans()
-	var id := focus_id if tree.has(focus_id) else tree.root
-	if not authored.has(id):
-		return TREE_ZOOM
-	return (authored[id] as MenuFanHarness.Measured).zoom
+## [b]There are exactly two zooms in the whole menu (#593, retired 2026-08-26).[/b]
+## Owner, verbatim: [i]"there is just: zoomed in at the very first opening node
+## aka the splash screen... zoomed back out to normal."[/i] A per-fan
+## `camera_zoom` used to let `root_menu.tscn` park closer than everything else;
+## the owner's answer went past "retire the exception" to "there is no
+## exception" — every fan, root included, is seen at [constant TREE_ZOOM], and
+## the one node ever seen any closer is the splash's own parked shot
+## ([constant SPLASH_ZOOM], [method splash_camera]). Kept as a function taking
+## [param tree] and [param focus_id] rather than deleted outright: callers keep
+## asking a per-focus question even though the answer no longer varies, and a
+## constant read is one line at every call site either way.
+static func zoom_for(_tree: MenuGraph, _focus_id: StringName) -> float:
+	return TREE_ZOOM
 
 
 ## The parked splash camera: the root node, big, near the middle of the screen.
