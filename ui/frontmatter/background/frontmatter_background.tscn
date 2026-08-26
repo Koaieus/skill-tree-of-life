@@ -7,11 +7,27 @@
 [sub_resource type="ShaderMaterial" id="mat_base"]
 shader = ExtResource("2_base")
 shader_parameter/shader_time = 0.0
-shader_parameter/scale = 3.5
+shader_parameter/scale = 4.0
 shader_parameter/warp_strength = 0.9
 shader_parameter/speed = 0.045
 
 [sub_resource type="FastNoiseLite" id="fnl_tile"]
+; #607 — an all-defaults FastNoiseLite (frequency 0.01, fractal_octaves 5) is
+; the cause of the px-scale grain #605 shipped with: at frequency 0.01 one
+; noise period is ~100 texture px, and 5 baked octaves stack detail down
+; further before the shaders' own fbm() (3-4 more octaves) ever runs on top.
+; Retuned by eye (screenshot, not formula — FastNoiseLite's period doesn't
+; cash out to a clean 1/frequency once fractal octaves + the shaders' own
+; UV*scale tiling are in the mix) for base-layer features a few hundred
+; screen px across, the "rolling colour waves" #602's brief asked for.
+; noise_type PERLIN (3), not the SIMPLEX_SMOOTH default: at this low a
+; frequency, simplex showed a visible vertical column bias instead of round
+; soft blobs. fractal_octaves is kept low (3) so the baked texture stays
+; soft; the shaders' own fbm() supplies additional detail on top instead of
+; doubling up on it.
+noise_type = 3
+frequency = 0.0004
+fractal_octaves = 3
 
 [sub_resource type="NoiseTexture2D" id="tex_tile"]
 seamless = true

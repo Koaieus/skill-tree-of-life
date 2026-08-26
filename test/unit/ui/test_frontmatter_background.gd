@@ -153,6 +153,30 @@ func test_noise_texture_is_seamless() -> void:
 
 # --- mount (#605) -----------------------------------------------------------
 
+# --- #607 grain fix ---------------------------------------------------------
+
+func test_every_layers_scale_uniform_is_an_integer() -> void:
+	# #607 — a non-integer `scale` produces a coordinate discontinuity at the
+	# Parallax2D sprite boundary (each repeat maps UV 0..1 onto texture
+	# 0..scale), which silently reopens the tile seam #605 fixed. It was
+	# invisible only because the 2048px sprite is wider than the viewport and
+	# scroll_scale is small; a wider pan or window brings it back.
+	for mat in _layer_materials():
+		var s: float = float(mat.get_shader_parameter("scale"))
+		assert_eq(s, floor(s), "scale must be an integer to avoid a Parallax2D tile seam")
+
+
+func test_noise_resource_authors_frequency_and_octaves_explicitly() -> void:
+	# #607 — an all-defaults FastNoiseLite (frequency 0.01, fractal_octaves 5)
+	# is the whole cause of the px-scale grain; pin that it stays explicitly
+	# authored away from those defaults rather than silently reverting.
+	var tex := (_bg.get_node("%BaseLayer") as Sprite2D).texture as NoiseTexture2D
+	var fnl := tex.noise as FastNoiseLite
+	assert_ne(fnl.frequency, 0.01, "frequency must be authored, not the FastNoiseLite default")
+	assert_ne(fnl.fractal_octaves, 5,
+			"fractal_octaves must be authored, not the FastNoiseLite default")
+
+
 func test_frontmatter_root_mounts_the_background() -> void:
 	# #605's other half: the background was built by #602 but deliberately
 	# left unmounted until this issue landed. Confirm the mount happened and
