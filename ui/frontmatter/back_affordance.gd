@@ -1,9 +1,9 @@
 @tool
 class_name BackAffordance
-extends Node2D
+extends Control
 
 ## The hero's incoming edge, made pressable — the frontmatter's back button
-## (#567 / #572).
+## (#567 / #572 / #601).
 ##
 ## [b]There is no edge to add.[/b] Owner call, 2026-08-24, verbatim: [i]"the
 ## 'hero' node also still has its edge connected to the left of it going
@@ -24,35 +24,36 @@ extends Node2D
 ## [b]At the root there is no parent, so there is no affordance.[/b] Not a
 ## disabled button: absent. `back()` at the root is already a no-op, and a
 ## visible control that does nothing is the worse of the two lies.
+##
+## [b]It is a [Control] in screen space, not a [Node2D] under the camera
+## (#601).[/b] Owner call, 2026-08-26: [i]"Back button is a UI element, should
+## be a Control root."[/i] This does not contradict sitting on the hero's
+## incoming edge — it still sits there visually, because
+## [method FrontmatterLayout.camera_for] docks the hero at
+## [method FrontmatterLayout.hero_slot] in VIEWPORT PIXELS at every depth and
+## every fan zoom. The visible run of that edge is therefore a fixed rectangle
+## of the screen, not a segment of world space, and [method anchor_for]
+## collapses to a screen-space point rather than a graph-space one. A
+## screen-space [Control] also renders at 1.00x by definition, so the
+## supersampling [MenuNodeView]'s caption needs for graph-space text
+## (`_CAPTION_SUPERSAMPLE`) does not apply here and is deliberately not ported.
 
 ## Emitted when the player asks to go up one level. The shell decides what that
 ## means; see [method FrontmatterRoot.back].
 signal back_requested
 
-## How far along the incoming edge, from the hero back toward its parent, the
-## label sits — as a fraction of the viewport's width.
-##
-## [b]Derived, not picked.[/b] The hero slot is at x = 190 and a parent sits one
-## column step (306px, [method FrontmatterLayout.column_step]) to its left — so
-## at x = -116, which is the off-screen-left the owner's note describes. The
-## stretch of that edge a player can actually see therefore runs from the
-## screen's left edge to the hero, and its midpoint is half the hero slot's x.
-## Anchoring there puts the label in the middle of the visible run at every
-## depth, because under a camera every depth presents the same picture.
-const BACK_ANCHOR_RATIO := (190.0 * 0.5) / 1440.0
-
-## Tier the label rests at. [constant Emissive.INERT] sits exactly at the bloom
-## threshold and never blooms, which is the whole of "ghostly, low-contrast" —
-## per `.claude/rules/hdr-color.md` quiet is a tier you drop to, never an alpha
-## you fade to, so alpha here is reserved for [method set_progress].
-@export_range(0.0, 3.0, 0.05) var rest_stops: float = Emissive.INERT:
+## Tier the label rests at. Owner call, 2026-08-26: [i]"raise to LABEL."[/i] —
+## [constant Emissive.INERT]'s ghostly, low-contrast rest read too quiet once
+## the affordance sits on its own glass backing rather than bare over the
+## graph. Per `.claude/rules/hdr-color.md` a tier is what you rest at, never an
+## alpha; alpha here is reserved for [method set_progress].
+@export_range(0.0, 3.0, 0.05) var rest_stops: float = Emissive.LABEL:
 	set(value):
 		rest_stops = value
 		_push_color()
 
-## Tier the label takes while the pointer is on it. One step up, so the
-## affordance answers without lighting up like a menu item.
-@export_range(0.0, 3.0, 0.05) var hover_stops: float = Emissive.LABEL:
+## Tier the label takes while the pointer is on it. One step up from rest.
+@export_range(0.0, 3.0, 0.05) var hover_stops: float = Emissive.VALUE:
 	set(value):
 		hover_stops = value
 		_push_color()
@@ -82,8 +83,11 @@ func bind(menu_tree: MenuGraph) -> void:
 	tree = menu_tree
 
 
-## Re-sites the affordance for a new focus: present and anchored on the incoming
-## edge at any depth > 0, absent at the root.
+## Re-sites the affordance for a new focus: present at any depth > 0, absent at
+## the root. The screen position never actually changes between calls — see
+## [method anchor_for] — but it is still applied here rather than once in
+## [method _ready], since a live sandbox tab retunes [method
+## FrontmatterLayout.hero_slot] and expects a rebuild to pick that up.
 ##
 ## [param instant] (the default) lands it in one frame; a caller that wants it to
 ## fade in passes `false` and drives [method set_progress]. This unit owns no
@@ -95,8 +99,7 @@ func apply(focus: StringName, instant: bool = true) -> void:
 	if not available:
 		set_progress(0.0)
 		return
-	var homes := FrontmatterLayout.solve(tree)
-	position = anchor_for(homes[focus] as Vector2, homes[tree.parent_of(focus)] as Vector2)
+	position = anchor_for()
 	set_progress(1.0 if instant else 0.0)
 
 
@@ -108,23 +111,33 @@ static func is_available(tree_: MenuGraph, focus: StringName) -> bool:
 	return tree_.parent_of(focus) != &""
 
 
-## Where on the incoming edge the label sits: [constant BACK_ANCHOR_RATIO] of
-## the design width along the segment from [param hero] toward [param parent].
+## Where the affordance sits, in viewport pixels: half the hero slot's x, and
+## the hero slot's own y.
 ##
-## Clamped to the segment's own midpoint, so a tree whose column step ever grew
-## shorter than the hero slot's x cannot push the label past the parent and out
-## the far end of the edge it is supposed to be sitting on.
-static func anchor_for(hero: Vector2, parent: Vector2) -> Vector2:
-	var span := parent - hero
-	var length := span.length()
-	if length <= 0.0:
-		return hero
-	var along: float = minf(BACK_ANCHOR_RATIO * FrontmatterLayout.viewport_size().x, length * 0.5)
-	return hero + span / length * along
+## [b]A screen-space constant, not a segment computation (#601).[/b] The old
+## graph-space form walked [method FrontmatterLayout.solve] for the focused
+## node's and its parent's world positions and interpolated
+## [code]BACK_ANCHOR_RATIO[/code] of the viewport width along that segment —
+## work that only existed because the camera moved the node under a [Node2D]
+## affordance. A [Control] never moves: [method
+## FrontmatterLayout.camera_for] docks the focus at [method
+## FrontmatterLayout.hero_slot] on screen at every depth and every zoom, so the
+## visible run of the incoming edge is always the same screen rectangle and its
+## midpoint is always the same screen point. `BACK_ANCHOR_RATIO` — half the
+## hero slot's x over the design width — collapsed to exactly that arithmetic,
+## so it is gone rather than kept as a name for one multiply. The old clamp
+## guarded a shrinking [method FrontmatterLayout.column_step] pushing the label
+## past the parent in world space; with no segment there is nothing left to
+## clamp.
+static func anchor_for() -> Vector2:
+	var hero := FrontmatterLayout.hero_slot()
+	return Vector2(hero.x * 0.5, hero.y)
 
 
 ## Applies the reveal at clock position `t` (0..1): cubic ease-out driving scale
-## and fade, the same shape the tooltip-fan rows use.
+## and fade, the same shape the tooltip-fan rows use. Drives the whole node —
+## the glass backing and the label fade and scale together, since both are
+## children of the [Control] this transform and modulate apply to.
 func set_progress(t: float) -> void:
 	var eased := _ease_out(clampf(t, 0.0, 1.0))
 	scale = Vector2.ONE * lerpf(start_scale, 1.0, eased)

@@ -1,6 +1,7 @@
 extends GutTest
 
-## #572 — the hero's incoming edge is the back button.
+## #572 / #601 — the hero's incoming edge is the back button, and it is a UI
+## element sat on it rather than a thing drawn under the graph camera.
 ##
 ## Two of these tests are about something this unit deliberately does NOT do.
 ## The owner's constraint is that the hero [i]"still has its edge connected to
@@ -58,44 +59,50 @@ func test_an_unknown_focus_offers_nothing() -> void:
 	assert_false(_affordance.visible)
 
 
-# --- it sits ON the edge ----------------------------------------------------
+# --- it is a screen-space Control, not a Node2D under the camera (#601) -----
 
-## The anchor has to be a point of the segment, not merely near it — the whole
-## point of #572 is that the label reads as part of the edge.
-func test_the_anchor_is_a_point_of_the_incoming_edge() -> void:
-	var homes := FrontmatterLayout.solve(_tree)
+func test_the_root_is_a_control_reachable_only_through_the_screen_space_layer() -> void:
+	var untyped: Node = _affordance
+	assert_true(untyped is Control, "the scene root is a Control")
+	assert_false(untyped is Node2D, "not the old graph-space Node2D")
+
+	var root: FrontmatterRoot = _ROOT_SCENE.instantiate()
+	add_child_autofree(root)
+	var node: Node = root.get_node("%BackAffordance").get_parent()
+	var crossed_canvas_layer := false
+	while node != null and node != root:
+		assert_false(node is Camera2D, "no ancestor between it and the viewport is the graph camera")
+		if node is CanvasLayer:
+			crossed_canvas_layer = true
+		node = node.get_parent()
+	assert_true(crossed_canvas_layer,
+			"reparented under the screen-space CanvasLayer, not %GraphLayer")
+
+
+## Half the hero slot's x, and the hero slot's own y — a screen-space
+## constant, not a point derived from a hero/parent segment.
+func test_the_anchor_sits_at_half_the_hero_slots_x_and_the_heros_y() -> void:
+	var hero := FrontmatterLayout.hero_slot()
+	assert_eq(BackAffordance.anchor_for(), Vector2(hero.x * 0.5, hero.y))
+
+
+## The whole point of the re-root: this position does not answer to the
+## camera at all, so it is identical at every depth and in every fan — the
+## root fan's own camera_zoom (1.35) included, even though the root itself has
+## no affordance to point it at.
+func test_the_position_is_identical_at_every_depth_and_every_fan() -> void:
+	var root_zoom := FrontmatterLayout.zoom_for(_tree, MenuGraph.ID_ROOT)
+	var leaf_zoom := FrontmatterLayout.zoom_for(_tree, MenuGraph.ID_NEW_GAME)
+	assert_ne(root_zoom, leaf_zoom, "the two zooms this claim is actually about differ")
+
+	var root: FrontmatterRoot = _ROOT_SCENE.instantiate()
+	add_child_autofree(root)
+	root.reduce_motion = true
+	var affordance: BackAffordance = root.get_node("%BackAffordance")
+	var expected := BackAffordance.anchor_for()
 	for id in _below_root():
-		var hero: Vector2 = homes[id]
-		var parent: Vector2 = homes[_tree.parent_of(id)]
-		var anchor := BackAffordance.anchor_for(hero, parent)
-		var span := parent - hero
-		assert_almost_eq(
-			span.normalized().cross((anchor - hero).normalized()), 0.0, 0.0001,
-			"%s: the anchor is collinear with the edge" % id,
-		)
-		var along := hero.distance_to(anchor)
-		assert_gt(along, 0.0, "%s: clear of the hero" % id)
-		assert_lt(along, span.length(), "%s: short of the parent" % id)
-
-
-## The distance is derived from the hero slot, not typed in — half of it, which
-## is the midpoint of the stretch of edge that is actually on screen.
-func test_the_anchor_sits_midway_along_the_visible_run_of_the_edge() -> void:
-	var hero_x := FrontmatterLayout.hero_slot().x
-	var anchor := BackAffordance.anchor_for(Vector2.ZERO, Vector2(-306.0, 0.0))
-	assert_almost_eq(anchor.x, -hero_x * 0.5, 0.001)
-	assert_almost_eq(anchor.y, 0.0, 0.001)
-
-
-func test_a_degenerate_edge_does_not_divide_by_zero() -> void:
-	assert_eq(BackAffordance.anchor_for(Vector2(10.0, 10.0), Vector2(10.0, 10.0)), Vector2(10.0, 10.0))
-
-
-## A column step shorter than the hero slot's x must not push the label out
-## past the parent — it lands on the midpoint instead.
-func test_a_short_edge_clamps_the_anchor_to_its_midpoint() -> void:
-	var anchor := BackAffordance.anchor_for(Vector2.ZERO, Vector2(-40.0, 0.0))
-	assert_almost_eq(anchor.x, -20.0, 0.001)
+		root.focus(id, true)
+		assert_eq(affordance.position, expected, "%s: same screen point at every depth" % id)
 
 
 # --- the edge itself is #570's, and stays that way --------------------------
@@ -173,16 +180,38 @@ func test_set_progress_fades_and_grows_it() -> void:
 	assert_almost_eq(_affordance.scale.x, 1.0, 0.0001)
 
 
-## Ghostly is a TIER, not an alpha — `.claude/rules/hdr-color.md`'s house rule
-## is that alpha is the fade channel and colour value is the dimmer, and alpha
-## here belongs to set_progress.
-func test_the_label_rests_at_the_inert_tier_and_answers_a_step_up() -> void:
-	assert_eq(_affordance.rest_stops, Emissive.INERT, "never blooms at rest")
-	assert_eq(_affordance.rest_color(), Emissive.neutral(Emissive.INERT))
-	_affordance._on_hover(true)
+## The glass backing is a plain child of the root [Control], so the root's own
+## transform and modulate already carry it to the screen — one clock, checked
+## at the endpoints, never a second curve for the glass.
+func test_the_glass_backing_shares_the_labels_reveal_clock() -> void:
+	var glass: Control = _affordance.get_node("Glass")
+	assert_true(glass is GlassPanel, "the house glass skin backs the button")
+
+	_affordance.apply(MenuGraph.ID_NEW_GAME, false)
+	assert_almost_eq(_affordance.modulate.a, 0.0, 0.0001, "t=0: root (and glass with it) invisible")
+	assert_almost_eq(_affordance.scale.x, _affordance.start_scale, 0.0001, "t=0: and small")
+
+	_affordance.set_progress(1.0)
+	assert_almost_eq(_affordance.modulate.a, 1.0, 0.0001, "t=1: root (and glass with it) full")
+	assert_almost_eq(_affordance.scale.x, 1.0, 0.0001, "t=1: and full scale")
+
+
+func test_hit_sits_over_the_glass_with_every_stylebox_state_emptied() -> void:
+	var hit: Button = _affordance.get_node("%Hit")
+	for state in ["normal", "pressed", "hover", "disabled", "focus"]:
+		assert_true(hit.get_theme_stylebox(state) is StyleBoxEmpty,
+				"'%s' is emptied so the glass shows through rather than the theme's own chrome" % state)
+
+
+## Ghostly [constant Emissive.INERT] rest is retired — owner call, 2026-08-26:
+## raise to [constant Emissive.LABEL], hover steps to [constant Emissive.VALUE].
+func test_the_label_rests_at_the_label_tier_and_answers_a_step_up() -> void:
+	assert_eq(_affordance.rest_stops, Emissive.LABEL, "raised from the old ghostly rest")
 	assert_eq(_affordance.rest_color(), Emissive.neutral(Emissive.LABEL))
+	_affordance._on_hover(true)
+	assert_eq(_affordance.rest_color(), Emissive.neutral(Emissive.VALUE))
 	assert_gt(
 		_affordance.rest_color().get_luminance(),
-		Emissive.neutral(Emissive.INERT).get_luminance(),
+		Emissive.neutral(Emissive.LABEL).get_luminance(),
 		"pointing at it brightens it",
 	)

@@ -1,9 +1,27 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://ui/frontmatter/back_affordance.gd" id="1_back"]
+[ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
 
-[node name="BackAffordance" type="Node2D"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_normal"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_pressed"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_hover"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_disabled"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
+
+[node name="BackAffordance" type="Control"]
 script = ExtResource("1_back")
+
+[node name="Glass" parent="." instance=ExtResource("2_glass")]
+offset_left = -58.0
+offset_top = -14.0
+offset_right = 58.0
+offset_bottom = 14.0
+mouse_filter = 2
 
 [node name="Hit" type="Button" parent="."]
 unique_name_in_owner = true
@@ -14,4 +32,9 @@ offset_bottom = 14.0
 focus_mode = 0
 theme_type_variation = &"ChakraData"
 flat = true
+theme_override_styles/normal = SubResource("StyleBoxEmpty_normal")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_pressed")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_hover")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_disabled")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "‹ BACK"
