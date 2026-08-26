@@ -50,6 +50,34 @@ const _INNER_RADIUS_RATIO := 24.0 / 32.0
 ## Gap between the rim and the caption's box, in world units.
 const _LABEL_GAP := 10.0
 
+## The caption's box in WORLD units — what it occupies once supersampled and
+## scaled back down. Matches the box `menu_node_view.tscn` authors.
+const _CAPTION_BOX := Vector2(220.0, 24.0)
+
+## The caption is rasterized this many times larger than it is drawn.
+##
+## [b]Because this menu draws text at every scale there is.[/b] A [Label] rasters
+## its glyphs at `font_size` and the canvas then stretches that bitmap: the
+## collapsed peek nodes sit at [constant FrontmatterLayout.PREVIEW_SCALE] (0.42),
+## a fan is navigated at its authored zoom (1.35 on the root menu), and #574's
+## splash parks at [constant FrontmatterLayout.SPLASH_ZOOM]. Every one of those
+## is a resample of a 16px raster, and it read as the aliased, mushy caption the
+## owner called out on 2026-08-26.
+##
+## Rastering at 3x and drawing at 1/3 puts the raster ABOVE every scale the menu
+## uses, so magnifying is a downsample and never an upsample. Minifying is then
+## covered by the font's mipmaps, which is why the scene authors
+## `texture_filter = 4` (LINEAR_WITH_MIPMAPS) on the caption — Godot's default
+## canvas filter has no mipmap stage, so the mipmaps the import generates would
+## otherwise never be sampled and the peek captions would break into fragments.
+##
+## [b]Scoped to this Label rather than done in the font import.[/b] `oversampling`
+## in `Cinzel-VariableFont_wght.ttf.import` is the same trick globally, and it
+## measurably THINS the HUD's own `CinzelHeader` labels, which are screen-space at
+## zoom 1 and want a native raster. `generate_mipmaps` is safe to set globally
+## precisely because it is inert until a CanvasItem asks for a mipmap filter.
+const _CAPTION_SUPERSAMPLE := 3.0
+
 ## The label the composite is captioned with.
 @export var title: String = "":
 	set(value):
@@ -173,11 +201,39 @@ func _sync_label() -> void:
 	if not is_node_ready():
 		return
 	_label.text = title
-	_label.position.y = radius + _LABEL_GAP
+	_supersample_caption()
 	var base := display_color()
 	_label.add_theme_color_override(
 		&"font_color", Emissive.at(base, Emissive.VALUE if allocated else Emissive.INERT)
 	)
+
+
+## Parks the caption under the rim, at [constant _CAPTION_SUPERSAMPLE] times its
+## drawn size — see that constant for why.
+##
+## A [Control]'s `scale` pivots on its own top-left, which is its `position`, so
+## the box has to be laid out in RASTER units and left-aligned to where the
+## scaled box's left edge belongs. Centring by `-_CAPTION_BOX.x * 0.5` rather
+## than by the raster width is the whole of that correction.
+func _supersample_caption() -> void:
+	_label.scale = Vector2.ONE / _CAPTION_SUPERSAMPLE
+	_label.add_theme_font_size_override(
+		&"font_size", int(round(_base_font_size() * _CAPTION_SUPERSAMPLE))
+	)
+	_label.size = _CAPTION_BOX * _CAPTION_SUPERSAMPLE
+	_label.position = Vector2(-_CAPTION_BOX.x * 0.5, radius + _LABEL_GAP)
+
+
+## The theme's own `CinzelHeader` size, cached before the first override hides
+## it — `get_theme_font_size` answers with the override once one exists, so
+## reading it every sync would compound 16 -> 48 -> 144.
+func _base_font_size() -> int:
+	if _cached_font_size < 0:
+		_cached_font_size = _label.get_theme_font_size(&"font_size")
+	return _cached_font_size
+
+
+var _cached_font_size: int = -1
 
 
 ## Plays the game's own allocation spike over this node — the "skill point from
