@@ -37,8 +37,16 @@ extends VBoxContainer
 ## [method stamp_pending_remote_peer]). "The roster grows on join" is true of the
 ## peer id, not of the seat.
 ##
-## Deliberately minimal: scenic screens, per-player names and colour picking are
-## #461.
+## [b]This screen owns hero colour, for every slot (#616 D1/D4).[/b] Overturning
+## #563's closing note, [member Participant.color] is run shape rather than a
+## per-machine presentation choice: it crosses the wire in
+## [method Participant.to_dict], and every peer draws every hero in the colour
+## its slot chose. That makes the AI slots this screen's problem too — a roster
+## that only coloured the humans would render four identical greys — so defaults
+## come round-robin off [constant _PALETTE] across the WHOLE roster and the
+## per-row picker overrides.
+##
+## Deliberately minimal: scenic screens and per-player names are #461.
 
 signal start_pressed(run_config: RunConfig)
 
@@ -62,14 +70,10 @@ const _PENDING_PEER_ID := -1
 ## Godot's high-level multiplayer.
 const _HOST_PEER_ID := NetworkTransport.HOST_PEER_ID
 
-## Placeholder player colors — row 1 matches procgen's enemy_colors[0] red
-## (procgen_play_sandbox.gd), since there's no per-player color picker yet.
-const _PLACEHOLDER_COLORS := [
-	Color(0.95, 0.4, 0.4, 1.0),
-	Color(0.4, 0.8, 1.0, 1.0),
-]
-# TODO(#616): ~20-colour player palette + per-slot colour picker; the roster
-#             becomes authoritative for hero colour (blocked on #563).
+## Every hero colour a slot may hold (#616 D5). One authored resource, not a
+## const array here — see `ui/theme/player_palette.gd` for why gold and pure
+## white are both absent from it.
+const _PALETTE := preload("res://ui/theme/player_palette.tres")
 # TODO(#617): faction emblems from `addons/at-icons`, shown on each row.
 # TODO(#618): per-slot CoreClass pick (the sigil rides along), with a
 #             player/AI pickability mask on CoreClass itself.
@@ -113,6 +117,10 @@ var _seed_edit: LineEdit
 var _ai_count_row: AiCountRow
 var _participants: Array[Participant] = []
 var _rows_container: VBoxContainer
+## Colours a player explicitly chose, by [member Participant.id] — survives the
+## roster rebuild an AI-count change triggers. Absent id means "still on its
+## palette default".
+var _picked_colors: Dictionary = {}
 
 
 ## Configures this lobby before it enters the tree (call right after
@@ -223,6 +231,12 @@ func _offers_ai_opponents() -> bool:
 
 func _rebuild_participants() -> void:
 	_participants = build_participants(_mode, _network, _ai_opponent_count())
+	# Changing the AI count rebuilds the roster from scratch, so re-apply what
+	# the player already chose — a slot's colour must not silently revert to its
+	# palette default because a DIFFERENT slot was added.
+	for p in _participants:
+		if _picked_colors.has(p.id):
+			p.color = _picked_colors[p.id]
 	_refresh_rows()
 
 
@@ -244,8 +258,21 @@ func _refresh_rows() -> void:
 
 func _add_participant_row(participant: Participant) -> void:
 	var row: ParticipantRow = _PARTICIPANT_ROW.instantiate()
-	row.configure(participant, _local_peer_id())
 	_rows_container.add_child(row)
+	row.configure(participant, _local_peer_id())
+	row.set_color_choices(_PALETTE, taken_colors(_participants, participant.id))
+	row.color_picked.connect(_on_color_picked.bind(participant))
+
+
+## A slot chose a colour. The lobby writes it, not the row — this screen owns
+## the roster — and then rebuilds every row so the newly-taken colour greys out
+## in its siblings' dropdowns and the freed one comes back (#616 acceptance 4).
+func _on_color_picked(color: Color, participant: Participant) -> void:
+	if color == participant.color:
+		return
+	participant.color = color
+	_picked_colors[participant.id] = color
+	_refresh_rows()
 
 
 ## This machine's own id, as far as a lobby can know it: a client's real id is
@@ -279,14 +306,42 @@ static func build_participants(
 		result.append(_make_participant(2, "Player 2", _CAMP_1))
 	else:
 		result.append(_make_participant(1, "Player 1", _PLAYER_FACTION))
-	for i in result.size():
-		result[i].color = _PLACEHOLDER_COLORS[i % _PLACEHOLDER_COLORS.size()]
 	var next_id := result.size() + 1
 	for i in maxi(0, ai_opponents):
-		var ai := _make_participant(next_id + i, "AI %d" % (i + 1), _NPC_FACTION, Participant.Kind.AI)
-		ai.color = _NPC_FACTION.color
-		result.append(ai)
+		result.append(_make_participant(
+				next_id + i, "AI %d" % (i + 1), _NPC_FACTION, Participant.Kind.AI))
+	assign_default_colors(result, _PALETTE)
 	return result
+
+
+## Hand every slot a distinct colour off [param palette], in roster order
+## (#616 D4/D6). Humans and AI alike: the AI slots used to share
+## `_NPC_FACTION.color`, which rendered four opponents as four identical greys
+## the moment #563 made the spawn site read the roster.
+##
+## Round-robin, so a roster longer than the palette repeats rather than crashing
+## — but the max roster is 6 (2 humans + [constant _MAX_AI_OPPONENTS]) against
+## twenty colours, so in practice the wrap is unreachable and every slot differs.
+static func assign_default_colors(
+	participants_in: Array[Participant], palette: PlayerPalette
+) -> void:
+	if palette == null:
+		return
+	for i in participants_in.size():
+		participants_in[i].color = palette.default_for(i)
+
+
+## The colours other slots are already holding — what a row must grey out so no
+## two heroes share one (#616 D6). [param except_id] is the asking slot, which
+## must still be offered the colour it holds or it could never re-select it.
+static func taken_colors(
+	participants_in: Array[Participant], except_id: int
+) -> Array[Color]:
+	var out: Array[Color] = []
+	for p in participants_in:
+		if p.id != except_id and not out.has(p.color):
+			out.append(p.color)
+	return out
 
 
 static func _make_participant(

@@ -192,3 +192,20 @@ func test_stamping_an_offline_roster_finds_nothing() -> void:
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.offline(), 1))
 	assert_false(LobbyScreen.stamp_pending_remote(roster, 4711))
 	assert_false(LobbyScreen.stamp_pending_remote(null, 4711))
+
+
+# --- #616 D2: colour is run shape, so it crosses the wire ------------------
+
+func test_hero_colour_survives_the_roster_round_trip() -> void:
+	var parts := LobbyScreen.build_participants(
+			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(), 4)
+	var wire: Array = []
+	for p in parts:
+		wire.append(p.to_dict())
+
+	for i in parts.size():
+		var back := Participant.from_dict(wire[i])
+		assert_eq(back.color, parts[i].color,
+				"#616 D1: every peer draws hero %d in the colour its slot chose" % i)
+		assert_ne(back.color, Color.WHITE,
+				"and never in the 'nothing chosen' sentinel")

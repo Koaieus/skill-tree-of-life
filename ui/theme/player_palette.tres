@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="PlayerPalette" format=3]
+
+[ext_resource type="Script" path="res://ui/theme/player_palette.gd" id="1_palette"]
+
+[resource]
+script = ExtResource("1_palette")
+colors = Array[Color]([Color(0.6362, 0.6557, 0, 1), Color(0.652, 0.8055, 0.434, 1), Color(0.3297, 0.7222, 0.3181, 1), Color(0.42, 0.8434, 0.6205, 1), Color(0, 0.7484, 0.5893, 1), Color(0.187, 0.8472, 0.8134, 1), Color(0, 0.7295, 0.8161, 1), Color(0.2529, 0.8174, 0.9717, 1), Color(0, 0.6719, 0.9747, 1), Color(0.4875, 0.7632, 1, 1), Color(0.4344, 0.5934, 1, 1), Color(0.6955, 0.7001, 1, 1), Color(0.676, 0.5148, 0.9762, 1), Color(0.8609, 0.6435, 0.9755, 1), Color(0.8407, 0.4513, 0.8218, 1), Color(0.975, 0.6067, 0.8218, 1), Color(0.939, 0.4172, 0.604, 1), Color(1, 0.6021, 0.6348, 1), Color(0.963, 0.4345, 0.3501, 1), Color(1, 0.6361, 0.4514, 1)])

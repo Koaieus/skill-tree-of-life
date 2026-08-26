@@ -5,8 +5,8 @@
 [node name="ParticipantRow" type="HBoxContainer"]
 layout_mode = 3
 anchors_preset = 0
-offset_right = 220.0
-offset_bottom = 20.0
+offset_bottom = 24.0
+size_flags_horizontal = 3
 theme_override_constants/separation = 8
 script = ExtResource("1_script")
 
@@ -14,15 +14,25 @@ script = ExtResource("1_script")
 unique_name_in_owner = true
 custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
+size_flags_vertical = 4
 color = Color(0.95, 0.4, 0.4, 1)
+
+[node name="ColorPick" type="OptionButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Hero colour"
+fit_to_longest_item = false
 
 [node name="Name" type="Label" parent="."]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 4
 text = "Player 1"
 
 [node name="Seat" type="Label" parent="."]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_vertical = 4
 text = "you"

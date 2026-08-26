@@ -93,3 +93,82 @@ func test_seed_parsing_empty_or_non_numeric_becomes_zero() -> void:
 
 	lobby._seed_edit.text = "not-a-number"
 	assert_eq(lobby.build_run_config().seed, 0, "non-numeric text randomises")
+
+
+# --- #616: the lobby owns hero colour --------------------------------------
+
+const _PALETTE := preload("res://ui/theme/player_palette.tres")
+const _XP := preload("res://stats_system/defs/xp.tres")
+const _WISDOM := preload("res://stats_system/defs/wisdom.tres")
+const _ROW_SCENE := preload("res://ui/frontmatter/panels/participant_row.tscn")
+
+
+func test_player_palette_offers_at_least_twenty_colours() -> void:
+	assert_gte(_PALETTE.size(), 20,
+			"#616 D5: ~20 colours, enough that a 6-slot roster never wraps")
+
+
+func test_player_palette_excludes_pure_white() -> void:
+	# LOAD-BEARING, not tidiness. `Participant.color` defaults to Color.WHITE
+	# and carries no separate "unset" flag, so #563's
+	# ProcgenPlaySandbox.resolve_spawn_color reads pure white as the sentinel
+	# for "this participant chose nothing" and falls back to the level's
+	# player_color / enemy_colors exports. A slot that could pick pure white
+	# would silently spawn in the level default instead of the player's choice.
+	assert_false(_PALETTE.has_color(Color.WHITE),
+			"pure white is resolve_spawn_color's 'no colour chosen' sentinel")
+
+
+func test_player_palette_excludes_the_reserved_golds() -> void:
+	# `.claude/rules/ui-palette.md`: gold means reward, never identity.
+	assert_false(_PALETTE.has_color(_XP.tint_color), "xp gold is reserved")
+	assert_false(_PALETTE.has_color(_WISDOM.tint_color), "WIS gold is reserved")
+
+
+func test_every_slot_of_a_full_roster_gets_a_distinct_colour() -> void:
+	# 2 humans + 4 AI is the widest roster the lobby can author.
+	var parts := LobbyScreen.build_participants(
+			RunConfig.Mode.COOP_HOTSEAT, null, 4)
+	assert_eq(parts.size(), 6, "two humans plus four AI opponents")
+	var seen: Array[Color] = []
+	for p in parts:
+		assert_false(seen.has(p.color),
+				"%s reuses a colour already taken" % p.display_name)
+		assert_true(_PALETTE.has_color(p.color), "and it came from the palette")
+		seen.append(p.color)
+
+
+func test_picking_a_colour_disables_it_in_another_slots_dropdown() -> void:
+	var parts := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 1)
+	var mine: Participant = parts[0]
+	var theirs: Participant = parts[1]
+
+	var row: ParticipantRow = _ROW_SCENE.instantiate()
+	add_child_autofree(row)
+	row.configure(mine, 0)
+	row.set_color_choices(_PALETTE, LobbyScreen.taken_colors(parts, mine.id))
+
+	var pick: OptionButton = row.get_node("%ColorPick")
+	assert_eq(pick.item_count, _PALETTE.size(), "every palette colour is listed")
+	var mine_index := _PALETTE.colors.find(mine.color)
+	var theirs_index := _PALETTE.colors.find(theirs.color)
+	assert_eq(pick.selected, mine_index, "my own colour is the selected item")
+	assert_false(pick.is_item_disabled(mine_index), "and stays selectable")
+	assert_true(pick.is_item_disabled(theirs_index),
+			"#616 D6: a colour another slot holds is greyed out here")
+
+
+func test_a_pick_moves_the_colour_and_frees_the_old_one() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.COOP_HOTSEAT)
+	var parts := lobby.participants()
+	var mine: Participant = parts[0]
+	var before := mine.color
+	var free_color: Color = _PALETTE.colors[_PALETTE.size() - 1]
+	assert_ne(before, free_color, "picking something nobody holds")
+
+	lobby._on_color_picked(free_color, mine)
+
+	assert_eq(mine.color, free_color, "the lobby wrote the roster, not the row")
+	assert_false(LobbyScreen.taken_colors(parts, mine.id).has(free_color))
+	var others := LobbyScreen.taken_colors(parts, mine.id)
+	assert_false(others.has(before), "the colour it vacated is offerable again")
