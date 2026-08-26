@@ -17,12 +17,14 @@ extends Node2D
 ##
 ## [method bind] renders real content: one [ModSlabRow] per flattened
 ## modifier leaf (#305/#221), plus a "Grants <spell>" line per granted
-## [SpellGrant] (keystone gold, sorted ABOVE the modifier slabs — a granted
-## spell is the bigger fact about the node). This is a BOONS list, not a
-## "modifiers" list — one grammar, no header, no legend, no frame (see the
-## issue's chrome decisions). No separate addon-modifier traversal: addon
-## `entity_modifiers` already land in [member SkillNode.modifiers] via
-## [method SkillNode._on_addon_added], so flattening that one array is enough.
+## [SpellGrant] (a bare [SlabRow] tinted keystone gold, sorted ABOVE the
+## modifier slabs — a granted spell is the bigger fact about the node, and
+## a slab is the same reading surface #588 gave every other content row).
+## This is a BOONS list, not a "modifiers" list — one grammar, no header, no
+## legend, no frame (see the issue's chrome decisions). No separate
+## addon-modifier traversal: addon `entity_modifiers` already land in
+## [member SkillNode.modifiers] via [method SkillNode._on_addon_added], so
+## flattening that one array is enough.
 ##
 ## Deliberately EXEMPT from the fan's [method FanPanel.has_content]
 ## suppression contract — see [method _add_empty_row]. A node with nothing to
@@ -34,8 +36,8 @@ extends Node2D
 @export_range(0.5, 1.0, 0.01) var start_scale: float = 0.9
 
 ## Scale each row starts at (matches [member ModSlabRow.start_scale]'s
-## default) — used for the hand-rolled spell-grant lines, which aren't
-## [ModSlabRow] instances and so don't get that knob for free.
+## default) — used for the hand-rolled empty-state row, which isn't a
+## [SlabRow]/[ModSlabRow] instance and so doesn't get that knob for free.
 @export_range(0.5, 1.0, 0.01) var row_start_scale: float = 0.92
 
 ## 0 = fully hidden (used to gate visibility only; individual rows fade via
@@ -49,11 +51,13 @@ var _bound_node: SkillNode = null
 
 ## Per-row reveal setters, in display order (spell-grant lines first, then
 ## one per flattened modifier leaf) — parallel to `_rows`' children. A
-## spell-grant [Label] gets a bound closure over [method _apply_control_reveal];
-## a [ModSlabRow] hands over its own `set_progress` directly.
+## [SlabRow]/[ModSlabRow] hands over its own `set_progress` directly; the
+## hand-rolled empty-state [Label] gets a bound closure over
+## [method _apply_control_reveal] instead.
 var _row_setters: Array[Callable] = []
 
 const _MOD_SLAB_SCENE: PackedScene = preload("res://ui/tooltip_fan/mod_slab_row.tscn")
+const _SLAB_ROW_SCENE: PackedScene = preload("res://ui/tooltip_fan/slab_row.tscn")
 
 ## Keystone gold — matches [CorePanel]'s "deliberate gold skin" tone. Granted
 ## spells read as a keystone-tier fact, never as an ordinary stat operator.
@@ -122,11 +126,10 @@ func _rebuild_rows() -> void:
 
 
 func _add_spell_line(spell_def: SpellDef) -> void:
-	var label := Label.new()
-	label.text = "Grants %s" % spell_def.name
-	label.modulate = _KEYSTONE_GOLD
-	_rows.add_child(label)
-	_row_setters.append(func(t: float) -> void: _apply_control_reveal(label, t))
+	var row := _SLAB_ROW_SCENE.instantiate() as SlabRow
+	_rows.add_child(row)
+	row.bind_text("Grants %s" % spell_def.name, _KEYSTONE_GOLD)
+	_row_setters.append(row.set_progress)
 
 
 ## Empty state (#227 follow-up): a node with no granted spells and no
@@ -150,7 +153,7 @@ func _add_mod_row(m: StatModifier) -> void:
 	_row_setters.append(row.set_progress)
 
 
-## Reveal for the hand-rolled spell-grant [Label]s — mirrors
+## Reveal for the hand-rolled empty-state [Label] — mirrors
 ## [method ModSlabRow.set_progress] (scale + fade, cubic ease-out) since a
 ## bare Label doesn't have that contract of its own.
 func _apply_control_reveal(control: Control, t: float) -> void:
