@@ -68,6 +68,12 @@ const _PLACEHOLDER_COLORS := [
 	Color(0.95, 0.4, 0.4, 1.0),
 	Color(0.4, 0.8, 1.0, 1.0),
 ]
+# TODO(#616): ~20-colour player palette + per-slot colour picker; the roster
+#             becomes authoritative for hero colour (blocked on #563).
+# TODO(#617): faction emblems from `addons/at-icons`, shown on each row.
+# TODO(#618): per-slot CoreClass pick (the sigil rides along), with a
+#             player/AI pickability mask on CoreClass itself.
+# TODO(#615): LobbyPolicy on the Route decides which slots may pick a camp.
 
 ## AI opponents a fresh lobby offers. One rival camp is what a menu-launched run
 ## produced before this screen authored any AI at all (the level's fallback
@@ -210,6 +216,8 @@ func _offers_ai_opponents() -> bool:
 
 
 func _add_ai_count_row() -> void:
+	# TODO(#613): this is a `.tscn` — `ai_count_row.tscn`, with the slider and the
+	#             no-jump ordering. #614 sweeps the remaining code-composed trees.
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	content.add_child(row)
@@ -249,6 +257,8 @@ func _refresh_rows() -> void:
 
 
 func _add_participant_row(participant: Participant) -> void:
+	# TODO(#613): this is a `.tscn` — `participant_row.tscn`. One plain scene for
+	#             now; inherited variants land when a second variant is named.
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	_rows_container.add_child(row)
