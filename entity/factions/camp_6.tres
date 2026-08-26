@@ -1,9 +1,11 @@
-[gd_resource type="Resource" script_class="Faction" format=3]
+[gd_resource type="Resource" script_class="Faction" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://entity/faction.gd" id="1_faction"]
+[ext_resource type="Texture2D" path="res://addons/at-icons/control/pig.svg" id="2_emblem"]
 
 [resource]
 script = ExtResource("1_faction")
 id = &"camp_6"
 display_name = "Camp Six"
 color = Color(0.85, 0.6, 0.95, 1.0)
+emblem = ExtResource("2_emblem")

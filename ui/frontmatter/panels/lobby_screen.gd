@@ -74,7 +74,6 @@ const _HOST_PEER_ID := NetworkTransport.HOST_PEER_ID
 ## const array here — see `ui/theme/player_palette.gd` for why gold and pure
 ## white are both absent from it.
 const _PALETTE := preload("res://ui/theme/player_palette.tres")
-# TODO(#617): faction emblems from `addons/at-icons`, shown on each row.
 ## What a slot starts on when nobody has picked (#618 D5). The pick is what
 ## differs between a human and an AI slot; the MECHANISM is identical, and both
 ## defaults must themselves be pickable in their own slot kind — a default the

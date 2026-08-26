@@ -1,9 +1,11 @@
-[gd_resource type="Resource" script_class="Faction" format=3]
+[gd_resource type="Resource" script_class="Faction" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://entity/faction.gd" id="1_faction"]
+[ext_resource type="Texture2D" path="res://addons/at-icons/control/chess_king.svg" id="2_emblem"]
 
 [resource]
 script = ExtResource("1_faction")
 id = &"player"
 display_name = "Player"
 color = Color(0.4, 0.8, 1.0, 1.0)
+emblem = ExtResource("2_emblem")

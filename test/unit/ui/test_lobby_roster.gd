@@ -432,3 +432,83 @@ func test_a_locked_slot_still_shows_the_camp_it_actually_holds() -> void:
 	assert_true(pick.disabled)
 	assert_eq(pick.get_item_metadata(pick.selected), ai.camp,
 			"the shown camp is the one the slot is on")
+
+# --- #617: a faction carries an emblem, and the row shows it -----------------
+
+## #617 acceptance 1. Every camp on disk is authored with a mark that actually
+## resolves — an unset one is not an error at load, it is an empty box at the
+## far left of a lobby row, which nothing else would catch.
+func test_every_faction_is_authored_with_an_emblem_that_loads() -> void:
+	var seen := 0
+	for file in DirAccess.get_files_at("res://entity/factions"):
+		if not file.ends_with(".tres"):
+			continue
+		seen += 1
+		var faction: Faction = load("res://entity/factions/%s" % file)
+		assert_not_null(faction, "%s is a Faction" % file)
+		assert_not_null(faction.emblem, "%s names an emblem" % file)
+		assert_gt(faction.emblem.get_width(), 0, "%s's emblem is a real texture" % file)
+	assert_eq(seen, 9, "camp_1..6 plus player, npc and blocker")
+
+
+## #617 D1: the emblem identifies the CAMP, so no two camps may share one — six
+## slots showing the same silhouette would be worse than none.
+func test_no_two_factions_share_an_emblem() -> void:
+	var seen: Array[Texture2D] = []
+	for file in DirAccess.get_files_at("res://entity/factions"):
+		if not file.ends_with(".tres"):
+			continue
+		var faction: Faction = load("res://entity/factions/%s" % file)
+		assert_false(seen.has(faction.emblem), "%s's emblem is its own" % file)
+		seen.append(faction.emblem)
+
+
+## #617 acceptance 2.
+func test_the_row_renders_the_emblem_of_the_slots_faction() -> void:
+	var p := Participant.new()
+	p.id = 1
+	p.camp = _CAMP_1
+	p.color = Color.CYAN
+	var row: ParticipantRow = _ROW_SCENE.instantiate()
+	add_child_autofree(row)
+	row.configure(p, 0)
+
+	var mark: TextureRect = row.get_node("%Emblem")
+	assert_eq(mark.texture, _CAMP_1.emblem, "camp_1's own mark")
+	assert_eq(mark.modulate, _CAMP_1.color,
+			"tinted by the CAMP, not the hero — the swatch answers that question")
+	assert_ne(mark.modulate, p.color)
+
+
+func test_the_row_survives_a_slot_with_no_camp() -> void:
+	# A Participant is constructible without one, and an empty box of the same
+	# size is the correct answer — same contract the sigil keeps for a core
+	# class that carries no glyph.
+	var p := Participant.new()
+	p.id = 1
+	var row: ParticipantRow = _ROW_SCENE.instantiate()
+	add_child_autofree(row)
+	row.configure(p, 0)
+	assert_null(row.get_node("%Emblem").texture)
+
+
+## #617 D4 meets #615: the emblem is display, and the camp dropdown is what
+## moves it. Picking a camp must repaint the mark in the same gesture.
+func test_picking_a_camp_repaints_the_emblem() -> void:
+	var p := Participant.new()
+	p.id = 1
+	p.camp = _CAMP_1
+	var row: ParticipantRow = _ROW_SCENE.instantiate()
+	add_child_autofree(row)
+	row.configure(p, 0)
+	row.set_camp_choices(_POLICY_VERSUS.camp_choices(), true)
+
+	var pick: OptionButton = row.get_node("%Camp")
+	var camp_2_index := -1
+	for i in pick.item_count:
+		if pick.get_item_metadata(i) == _CAMP_2:
+			camp_2_index = i
+	assert_gte(camp_2_index, 0, "camp_2 is offered")
+
+	pick.item_selected.emit(camp_2_index)
+	assert_eq(row.get_node("%Emblem").texture, _CAMP_2.emblem)

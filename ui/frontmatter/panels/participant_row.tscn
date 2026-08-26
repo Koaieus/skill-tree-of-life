@@ -11,6 +11,14 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 8
 script = ExtResource("1_script")
 
+[node name="Emblem" type="TextureRect" parent="."]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_vertical = 4
+expand_mode = 1
+stretch_mode = 5
+
 [node name="Swatch" type="ColorRect" parent="."]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(20, 20)

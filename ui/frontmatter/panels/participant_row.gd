@@ -1,8 +1,14 @@
 class_name ParticipantRow
 extends HBoxContainer
-## One participant row: swatch, hero-colour picker, core-class picker with its
-## sigil preview, name, seat description ("you", "AI", "peer N"). Configured
-## with a [Participant] in [method configure].
+## One participant row: faction emblem, swatch, hero-colour picker, core-class
+## picker with its sigil preview, camp dropdown, name, seat description ("you",
+## "AI", "peer N"). Configured with a [Participant] in [method configure].
+##
+## [b]Two marks, two questions.[/b] The emblem is the CAMP's, tinted with the
+## camp's colour, and answers "which side is this slot on"; the sigil is the
+## slot's own [CoreClass] glyph, tinted with the hero colour, and answers "what
+## does it play as". They are separate fields on separate resources (#617 D1)
+## and are deliberately not collapsed into one picture.
 ##
 ## [b]The row asks; it never writes.[/b] Both pickers emit a signal and leave
 ## the [Participant] alone — [LobbyScreen] owns the roster, and a row that wrote
@@ -51,6 +57,22 @@ func configure(participant: Participant, local_peer_id: int) -> void:
 	get_node("%Name").text = participant.display_name
 	get_node("%Seat").text = _describe_seat(participant, local_peer_id)
 	_show_sigil_of(participant.core_class)
+	_show_emblem_of(participant.camp)
+
+
+## Paint the camp mark for [param camp] (#617 D4 — display, not selection: the
+## row shows the emblem of the camp the slot is on, and choosing that camp is
+## #615's dropdown). Tinted with the camp's own colour rather than the hero's:
+## the emblem answers "which side", while the swatch beside it answers "which
+## hero", and tinting both the same would collapse two questions into one look.
+##
+## A camp with no emblem, or no camp at all, leaves an empty box of the same
+## size — nothing after it shifts, same contract as [method _show_sigil_of].
+func _show_emblem_of(camp: Faction) -> void:
+	var mark: TextureRect = get_node("%Emblem")
+	mark.texture = camp.emblem if camp != null else null
+	mark.modulate = camp.color if camp != null else Color.WHITE
+	mark.tooltip_text = camp.display_name if camp != null else ""
 
 
 ## Paint the sigil preview for [param core]. Handles the null cases the content
@@ -133,6 +155,9 @@ func _on_camp_item_selected(index: int) -> void:
 	var pick: OptionButton = get_node("%Camp")
 	var camp: Variant = pick.get_item_metadata(index)
 	if camp is Faction:
+		# Repainted here as well as on the lobby's rebuild, so the row is honest
+		# standalone — same contract the sigil keeps for the core picker.
+		_show_emblem_of(camp)
 		camp_picked.emit(camp)
 
 

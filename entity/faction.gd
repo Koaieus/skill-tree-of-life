@@ -18,6 +18,27 @@ extends Resource
 @export var display_name: String = ""
 @export var color: Color = Color.WHITE
 
+## The camp's mark — a flat icon from `addons/at-icons`, shown wherever a camp
+## needs a silhouette rather than a name (#617). The lobby row is the first
+## consumer.
+##
+## [b]It is the FACTION's emblem, not a participant's[/b] (#617 D1). A player's
+## personal glyph is [member CoreClass.sigil], which rides on the class they
+## pick; this one identifies the side they are on, and every slot in a camp
+## shows the same one.
+##
+## [b]It never crosses the wire[/b] (#617 D3). [member Participant.camp] is
+## serialized as a resource PATH and `load()`-ed on receipt, so a peer resolves
+## this field from its own copy of the same `.tres` —
+## `.claude/rules/multiplayer-sync.md`'s "never a resource reference in a
+## command" is satisfied by construction, and no sync design is owed.
+##
+## Independent of #245's baked CARVE-art substrate and #167's [SigilGlyph] work
+## (#617 D2): those govern what a [SkillNode] looks like, not what a camp's mark
+## is. Deliberately a plain [Texture2D] for the same reason — the mark is a
+## picture, and giving it a resource wrapper would invite it to grow policy.
+@export var emblem: Texture2D = null
+
 ## Do NPC brains spend their turn shooting at this camp? False only on
 ## `blocker.tres`: a dormant core is scenery a *player* may want to clear, so
 ## it stays [constant Entity.Attitude.HOSTILE] — the relation is what lets
