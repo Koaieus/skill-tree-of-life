@@ -91,6 +91,8 @@ var content: VBoxContainer:
 	get:
 		return self
 
+const _PARTICIPANT_ROW := preload("res://ui/frontmatter/panels/participant_row.tscn")
+const _AI_COUNT_ROW := preload("res://ui/frontmatter/panels/ai_count_row.tscn")
 
 ## Adds a Button to [member content]. Caller connects `.pressed` itself.
 ##
@@ -108,7 +110,7 @@ func add_option(text: String, disabled: bool = false) -> Button:
 var _mode: RunConfig.Mode = RunConfig.Mode.SINGLE
 var _network: NetworkConfig = null
 var _seed_edit: LineEdit
-var _ai_count_spin: SpinBox
+var _ai_count_spin: AiCountRow  # Renamed from SpinBox to AiCountRow, but keeping the name for backward compat
 var _participants: Array[Participant] = []
 var _rows_container: VBoxContainer
 
@@ -127,12 +129,14 @@ func configure(mode: RunConfig.Mode, network: NetworkConfig = null) -> void:
 func _ready() -> void:
 	add_theme_constant_override("separation", 8)
 
+	if _offers_ai_opponents():
+		_ai_count_spin = _AI_COUNT_ROW.instantiate()
+		_ai_count_spin.value_changed.connect(func(_v: float): _rebuild_participants())
+		content.add_child(_ai_count_spin)
+
 	_rows_container = VBoxContainer.new()
 	_rows_container.add_theme_constant_override("separation", 4)
 	content.add_child(_rows_container)
-
-	if _offers_ai_opponents():
-		_add_ai_count_row()
 
 	var seed_row := HBoxContainer.new()
 	seed_row.add_theme_constant_override("separation", 8)
@@ -215,24 +219,6 @@ func _offers_ai_opponents() -> bool:
 	return _network == null or _network.role != NetworkTransport.Role.CLIENT
 
 
-func _add_ai_count_row() -> void:
-	# TODO(#613): this is a `.tscn` — `ai_count_row.tscn`, with the slider and the
-	#             no-jump ordering. #614 sweeps the remaining code-composed trees.
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
-	content.add_child(row)
-
-	var label := Label.new()
-	label.text = "AI opponents:"
-	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(label)
-
-	_ai_count_spin = SpinBox.new()
-	_ai_count_spin.min_value = 0
-	_ai_count_spin.max_value = _MAX_AI_OPPONENTS
-	_ai_count_spin.value = _DEFAULT_AI_OPPONENTS
-	_ai_count_spin.value_changed.connect(func(_v: float): _rebuild_participants())
-	row.add_child(_ai_count_spin)
 
 
 func _rebuild_participants() -> void:
@@ -257,25 +243,9 @@ func _refresh_rows() -> void:
 
 
 func _add_participant_row(participant: Participant) -> void:
-	# TODO(#613): this is a `.tscn` — `participant_row.tscn`. One plain scene for
-	#             now; inherited variants land when a second variant is named.
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	var row: ParticipantRow = _PARTICIPANT_ROW.instantiate()
+	row.configure(participant, _local_peer_id())
 	_rows_container.add_child(row)
-
-	var swatch := ColorRect.new()
-	swatch.color = participant.color
-	swatch.custom_minimum_size = Vector2(20, 20)
-	row.add_child(swatch)
-
-	var name_label := Label.new()
-	name_label.text = participant.display_name
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(name_label)
-
-	var kind_label := Label.new()
-	kind_label.text = _describe_seat(participant, _local_peer_id())
-	row.add_child(kind_label)
 
 
 ## This machine's own id, as far as a lobby can know it: a client's real id is
@@ -287,18 +257,6 @@ func _local_peer_id() -> int:
 	return _HOST_PEER_ID if _network.role == NetworkTransport.Role.HOST else _PENDING_PEER_ID
 
 
-## The right-hand label on a roster row. Relational, and therefore computed
-## HERE against [param local_peer_id] rather than read off
-## [enum Participant.Kind] (#562) — "you" is a fact about the reader, not about
-## the participant.
-static func _describe_seat(p: Participant, local_peer_id: int) -> String:
-	if p.kind == Participant.Kind.AI:
-		return "AI"
-	if p.is_local(local_peer_id):
-		return "you"
-	if p.peer_id == _PENDING_PEER_ID:
-		return "waiting…"
-	return "peer %d" % p.peer_id
 
 
 ## The roster a lobby of this shape authors. Static and pure so the seat/mode

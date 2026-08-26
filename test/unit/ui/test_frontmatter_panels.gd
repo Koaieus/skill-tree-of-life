@@ -589,3 +589,79 @@ func test_pressing_the_back_affordance_with_a_panel_up_returns_to_the_parent() -
 
 	assert_eq(root.focus_id, MenuGraph.ID_ROOT, "back() moved the focus")
 	assert_eq(panels.shown_panel, &"", "and hid the panel")
+
+
+# --- #613: rows are scenes, not code-composed trees -------------------------
+
+func test_participant_row_configures_with_color_name_and_seat() -> void:
+	var row: ParticipantRow = preload("res://ui/frontmatter/panels/participant_row.tscn").instantiate()
+	add_child_autofree(row)
+
+	var p := Participant.new()
+	p.display_name = "Test Player"
+	p.color = Color.RED
+	p.kind = Participant.Kind.HUMAN
+	p.peer_id = 0
+
+	row.configure(p, 0)
+
+	assert_eq(row.get_node("%Swatch").color, Color.RED, "swatch color matches participant")
+	assert_eq(row.get_node("%Name").text, "Test Player", "name matches participant")
+	assert_eq(row.get_node("%Seat").text, "you", "seat text is 'you' for local peer")
+
+
+func test_ai_count_slider_and_spinbox_stay_linked() -> void:
+	var row: AiCountRow = preload("res://ui/frontmatter/panels/ai_count_row.tscn").instantiate()
+	add_child_autofree(row)
+
+	var slider: HSlider = row.get_node("%Slider")
+	var spinbox: SpinBox = row.get_node("%SpinBox")
+
+	slider.value = 3.0
+	await get_tree().process_frame
+	assert_eq(spinbox.value, 3.0, "spinbox follows slider")
+
+	spinbox.value = 2.0
+	await get_tree().process_frame
+	assert_eq(slider.value, 2.0, "slider follows spinbox")
+
+
+func test_ai_count_row_does_not_jump_when_ai_count_changes() -> void:
+	var lobby := _lobby()
+	lobby.configure(RunConfig.Mode.SINGLE, NetworkConfig.offline())
+	_panels.show_panel(MenuGraph.PANEL_LOBBY)
+	await get_tree().process_frame
+
+	var ai_row: AiCountRow = lobby.screen._ai_count_spin
+	var initial_y := ai_row.global_position.y
+
+	ai_row.value = 4.0
+	await get_tree().process_frame
+
+	var final_y := ai_row.global_position.y
+	assert_eq(final_y, initial_y, "AI count row y-position unchanged after changing count")
+
+
+func test_no_hbox_containers_code_composed_in_lobby_screen() -> void:
+	# Acceptance test 1: grep for HBoxContainer.new() in the two row builders
+	var source := FileAccess.get_file_as_string("res://ui/frontmatter/panels/lobby_screen.gd")
+	var lines := source.split("\n")
+	var in_add_participant_row := false
+	var in_add_ai_count_row := false
+	var hbox_count := 0
+
+	for line in lines:
+		if "func _add_participant_row" in line:
+			in_add_participant_row = true
+			in_add_ai_count_row = false
+		elif "func _add_ai_count_row" in line:
+			in_add_ai_count_row = true
+			in_add_participant_row = false
+		elif line.begins_with("func "):
+			in_add_participant_row = false
+			in_add_ai_count_row = false
+
+		if (in_add_participant_row or in_add_ai_count_row) and "HBoxContainer.new()" in line:
+			hbox_count += 1
+
+	assert_eq(hbox_count, 0, "no HBoxContainer.new() calls in the two row builders")
