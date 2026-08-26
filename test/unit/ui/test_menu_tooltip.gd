@@ -219,11 +219,20 @@ class _Placed extends RefCounted:
 	var root: FrontmatterRoot
 	var tooltip: MenuTooltip
 
+	## The node's position in the space a [CanvasLayer] child's `position` is
+	## read in — the same call [method FrontmatterRoot._place_tooltip] makes.
+	## NOT `get_viewport_transform()`: that carries the `canvas_items` stretch
+	## and the letterbox, so it answers in WINDOW pixels, and the two agree only
+	## in a window that happens to be exactly the 1440x960 base. Asserting
+	## against it measured the tooltip in one space and the node in another.
+	func _node_screen_pos(id: StringName) -> Vector2:
+		return root.view_for(id).get_global_transform_with_canvas().origin
+
 	func node_screen_x(id: StringName) -> float:
-		return (root.get_viewport_transform() * root.view_for(id).global_position).x
+		return _node_screen_pos(id).x
 
 	func node_screen_y(id: StringName) -> float:
-		return (root.get_viewport_transform() * root.view_for(id).global_position).y
+		return _node_screen_pos(id).y
 
 	func centre_x() -> float:
 		return tooltip.position.x + tooltip.size.x * 0.5
