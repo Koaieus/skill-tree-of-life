@@ -46,6 +46,30 @@ which is why local versus costs a lobby toggle rather than a mode branch.
 `RunConfig.Mode` exists for menu presentation and defaults; deriving seating
 from it would be a second source of truth against the roster.
 
+### Hero colour is NOT on this axis — owner call, 2026-08-26 (#563)
+
+The seat decides *who I play* and *whose eyes I draw with*. It does **not**
+decide what colour anyone is. Verbatim, the owner:
+
+> "The roster is authoritative for hero colour. `Participant.color` is real run
+> shape, it crosses the wire, and every peer draws every hero in the colour its
+> lobby slot chose."
+
+This **reverses** the closing Note #563 opened with, which claimed colour was
+"a per-machine presentation choice, not run shape ... that is `SeatPolicy`'s
+half of the split ... so this must not be authored into `RunConfig` or
+replicated." That is no longer the rule. The reversal is deliberate: it is what
+makes the lobby's per-slot colour picker (#616) meaningful — a picker whose
+value the run discards is not a picker.
+
+`Participant.color` already crossed the wire before #563
+(`session/participant.gd:58` / `:69`), so no transport work was involved. What
+changed is only the spawn site: `scenes/procgen_play_sandbox.gd` reads
+`participant.color` for **every** entity, human and AI alike. Its
+`player_color` / `enemy_colors` exports survive as **fallbacks only**, for the
+authored-sandbox path where no lobby ever set a colour. Making distinct slots
+pick distinct colours is the lobby's job (#616), not the spawn site's.
+
 Constructors: `SeatPolicy.couch()` (the default a roster-less hand-authored
 scene or a GUT fixture gets), `SeatPolicy.seat(entity_id)`, and
 `SeatPolicy.from_roster(entities_by_participant_id, roster, local_peer_id)` —

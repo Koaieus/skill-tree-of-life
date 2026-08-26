@@ -168,15 +168,20 @@ func _setup_level() -> void:
 	for i in spawn_count:
 		var participant: Participant = grouped_participants[i]
 		var ent: Entity
+		# #563 D1: the ROSTER decides the colour, for every entity alike. The
+		# `player_color` / `enemy_colors` exports below are reached only through
+		# `resolve_spawn_color`'s fallback arm, and only for a participant that
+		# carries no colour at all.
+		var color := resolve_spawn_color(
+				participant, player_color, enemy_colors, enemies.size())
 		if participant.kind == Participant.Kind.AI:
-			var color: Color = enemy_colors[enemies.size() % enemy_colors.size()] if not enemy_colors.is_empty() else Color.RED
 			ent = spawn_entity("Enemy_%d" % participant.id, color, starting_nodes[i], enemy_core_class)
 			enemies.append(ent)
 		elif _is_this_machines(participant):
-			ent = spawn_entity("Player", player_color, starting_nodes[i], core_class)
+			ent = spawn_entity("Player", color, starting_nodes[i], core_class)
 			player = ent
 		else:
-			ent = spawn_entity("Player_%d" % participant.id, player_color, starting_nodes[i], core_class)
+			ent = spawn_entity("Player_%d" % participant.id, color, starting_nodes[i], core_class)
 		entities_by_participant_id[participant.id] = ent
 
 	GameRoot.apply_roster(entities_by_participant_id, roster)
@@ -219,6 +224,49 @@ func _setup_level() -> void:
 		e.level = achieved
 
 	SceneTransition.fade_in()
+
+
+## What colour does this participant's entity render in (#563)?
+##
+## [b]The roster is authoritative.[/b] Owner call, 2026-08-26, verbatim:
+##
+## [i]"The roster is authoritative for hero colour. `Participant.color` is real
+## run shape, it crosses the wire, and every peer draws every hero in the colour
+## its lobby slot chose."[/i]
+##
+## That REVERSES #563's own opening Note, which called colour a per-machine
+## presentation choice belonging to [SeatPolicy]. It does not: it is run shape,
+## it replicates, and it is what makes the lobby's per-slot colour picker (#616)
+## mean anything. See `docs/domain/seat-policy.md` § "One axis".
+##
+## Human and AI take the same path — there is no "is this mine" branch here, and
+## adding one would be the #563 bug in its original form (two humans both
+## drawing in `player_color`, territory indistinguishable).
+##
+## [param player_fallback] / [param enemy_fallback] are the scene exports, and
+## are reached ONLY when the participant carries no colour (#563 D2 — the
+## authored-sandbox path, which has no lobby to have picked one). They are not
+## dead: a sandbox launched without a roster must still render distinguishable
+## heroes. The "no colour" test is [constant Color.WHITE], because that is
+## [member Participant.color]'s default and the data model carries no separate
+## unset flag; every lobby-built roster already assigns a real colour
+## (`ui/frontmatter/panels/lobby_screen.gd`), so the fallback never fires on the
+## menu path.
+##
+## Making distinct slots pick DISTINCT colours is the lobby's job (#616 D4), not
+## this function's — here we only honour what we are given.
+static func resolve_spawn_color(
+		participant: Participant,
+		player_fallback: Color,
+		enemy_fallback: Array[Color],
+		enemy_index: int) -> Color:
+	if participant.color != Color.WHITE:
+		return participant.color
+	if participant.kind == Participant.Kind.AI:
+		if enemy_fallback.is_empty():
+			return Color.RED
+		return enemy_fallback[enemy_index % enemy_fallback.size()]
+	return player_fallback
 
 
 ## Is this participant the human THIS MACHINE plays (#554)?
