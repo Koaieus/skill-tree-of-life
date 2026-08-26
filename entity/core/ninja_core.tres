@@ -9,42 +9,76 @@
 [ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="7_effect"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="8_mw6me"]
 [ext_resource type="Script" uid="uid://cyj0to3m0jdxa" path="res://stats_system/composite_stat_modifier.gd" id="9_comp"]
+[ext_resource type="Script" uid="uid://dknxw63lhq13c" path="res://stats_system/formulas/ratio_formula.gd" id="10_7cbeb"]
 [ext_resource type="Resource" uid="uid://cl4uo53xgkvxa" path="res://stats_system/packs/attribute_baseline.tres" id="10_baseline"]
+[ext_resource type="Script" uid="uid://bmb1t7vgyaqm5" path="res://entity/core/sigil/star_sigil.gd" id="12_7cbeb"]
 
 [sub_resource type="Resource" id="scale_falling"]
 script = ExtResource("5_scale")
+rising = true
 
-[sub_resource type="Resource" id="mod_aura_strength"]
+[sub_resource type="Resource" id="Resource_aoidj"]
 script = ExtResource("2_mod")
-stat_id = &"strength"
-operation = 3
+stat_id = &"blade_damage"
 value = 6.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_bmjmu"]
+script = ExtResource("2_mod")
+stat_id = &"spell_damage"
+operation = 1
+value = 40.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_hf1oc"]
+script = ExtResource("2_mod")
+stat_id = &"ranged_damage"
+value = 6.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_486ch"]
+script = ExtResource("9_comp")
+children = Array[ExtResource("2_mod")]([SubResource("Resource_aoidj"), SubResource("Resource_bmjmu"), SubResource("Resource_hf1oc")])
+metadata/_custom_type_script = "uid://cyj0to3m0jdxa"
 
 [sub_resource type="Resource" id="reach_2hop"]
 script = ExtResource("4_reach")
-max_hops = 2
+max_hops = 5
 
 [sub_resource type="Resource" id="aura_strike"]
 script = ExtResource("3_aura")
 reach = SubResource("reach_2hop")
 distance_scale = SubResource("scale_falling")
 display_name = "Phantom Strike"
-description = "Nearby owned nodes hit harder — intense at the core, gone by 2 hops out."
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_aura_strength")])
+description = "Nearby owned nodes hit harder, most intense at the core, gone by 5 hops out."
+modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_486ch")])
+
+[sub_resource type="Resource" id="Resource_m5r4m"]
+script = ExtResource("10_7cbeb")
+source_stat_id = &"level"
+divisor = 5.0
+per_phrase = "+1 Deallocation Point per 5 levels"
+metadata/_custom_type_script = "uid://dknxw63lhq13c"
 
 [sub_resource type="Resource" id="mod_dealloc"]
+resource_name = "Boost deallocation points"
 script = ExtResource("2_mod")
 stat_id = &"deallocation_points"
-value = 2.0
+formula = SubResource("Resource_m5r4m")
 
 [sub_resource type="Resource" id="mod_sp"]
+resource_name = "Nerf skill points"
 script = ExtResource("2_mod")
 stat_id = &"skill_points"
-value = -1.0
+value = -3.0
 
 [sub_resource type="Resource" id="mod_budget_pack"]
 script = ExtResource("9_comp")
 children = Array[ExtResource("2_mod")]([SubResource("mod_dealloc"), SubResource("mod_sp")])
+
+[sub_resource type="Resource" id="Resource_u38nb"]
+script = ExtResource("12_7cbeb")
+metadata/_custom_type_script = "uid://bmb1t7vgyaqm5"
 
 [resource]
 script = ExtResource("8_mw6me")
@@ -53,3 +87,4 @@ display_name = "Ninja"
 description = "The Phantom — a high deallocation budget for in-turn reshaping and a low skill-point cap that keeps your constellation compact, wrapped around an intense but very-short-range core aura that makes nearby owned nodes hit harder. Rewarded for staying tight, not for sprawling. STR/DEX/INT's flat +10 comes from the shared attribute_baseline.tres pack (D-27, #279), not hand-declared here."
 modifiers = Array[ExtResource("2_mod")]([ExtResource("10_baseline"), SubResource("mod_budget_pack")])
 effects = Array[ExtResource("7_effect")]([SubResource("aura_strike")])
+sigil = SubResource("Resource_u38nb")

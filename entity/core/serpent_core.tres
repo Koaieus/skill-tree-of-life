@@ -6,7 +6,10 @@
 [ext_resource type="Script" uid="uid://br6ngcebah1at" path="res://effects/metric/euclidean_metric.gd" id="5_euclid"]
 [ext_resource type="Script" uid="uid://cfjomnv7kdqqh" path="res://effects/distance_scale/proportional_scale.gd" id="6_prop"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="7_7hpuy"]
+[ext_resource type="Script" uid="uid://cyj0to3m0jdxa" path="res://stats_system/composite_stat_modifier.gd" id="7_oqifr"]
+[ext_resource type="Resource" uid="uid://cl4uo53xgkvxa" path="res://stats_system/packs/attribute_baseline.tres" id="8_5dwqy"]
 [ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="8_effect"]
+[ext_resource type="Script" uid="uid://8cv1vnm6vjpp" path="res://entity/core/sigil/spiral_sigil.gd" id="9_5dwqy"]
 
 [sub_resource type="Resource" id="scale_hop"]
 script = ExtResource("6_prop")
@@ -19,13 +22,36 @@ script = ExtResource("2_mod")
 stat_id = &"armor"
 operation = 3
 
+[sub_resource type="Resource" id="Resource_5dwqy"]
+script = ExtResource("2_mod")
+stat_id = &"blade_damage"
+value = 0.5
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_u3i0u"]
+script = ExtResource("2_mod")
+stat_id = &"spell_damage"
+value = 0.5
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_nirvb"]
+script = ExtResource("2_mod")
+stat_id = &"ranged_damage"
+value = 0.5
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_milid"]
+script = ExtResource("7_oqifr")
+children = Array[ExtResource("2_mod")]([SubResource("Resource_5dwqy"), SubResource("Resource_u3i0u"), SubResource("Resource_nirvb")])
+metadata/_custom_type_script = "uid://cyj0to3m0jdxa"
+
 [sub_resource type="Resource" id="aura_hop_buff"]
 script = ExtResource("3_aura")
 metric = SubResource("metric_hop")
 distance_scale = SubResource("scale_hop")
 display_name = "Coil (hops)"
-description = "The further a node winds from the core in hops, the more armor it gains."
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hop_buff")])
+description = "The further a node winds from the core in hops, the more armor and damage it gains."
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hop_buff"), SubResource("Resource_milid")])
 
 [sub_resource type="Resource" id="scale_euclid"]
 script = ExtResource("6_prop")
@@ -40,33 +66,50 @@ stat_id = &"armor"
 operation = 3
 value = -1.0
 
+[sub_resource type="Resource" id="Resource_ssrim"]
+script = ExtResource("2_mod")
+stat_id = &"blade_damage"
+operation = 1
+value = -0.5
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_iik14"]
+script = ExtResource("2_mod")
+stat_id = &"spell_damage"
+operation = 1
+value = -0.5
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_tt46n"]
+script = ExtResource("2_mod")
+stat_id = &"ranged_damage"
+operation = 1
+value = -0.5
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_riohq"]
+script = ExtResource("7_oqifr")
+children = Array[ExtResource("2_mod")]([SubResource("Resource_ssrim"), SubResource("Resource_iik14"), SubResource("Resource_tt46n")])
+metadata/_custom_type_script = "uid://cyj0to3m0jdxa"
+
 [sub_resource type="Resource" id="aura_euclid_penalty"]
 script = ExtResource("3_aura")
 metric = SubResource("metric_euclid")
 distance_scale = SubResource("scale_euclid")
 display_name = "Coil (space)"
-description = "The further a node sits from the core in space, the more armor it loses."
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_euclid_penalty")])
+description = "The further a node sits from the core in space, the more armor and damage it loses."
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_euclid_penalty"), SubResource("Resource_riohq")])
 
-[sub_resource type="Resource" id="mod_str"]
-script = ExtResource("2_mod")
-stat_id = &"strength"
-value = 10.0
-
-[sub_resource type="Resource" id="mod_dex"]
-script = ExtResource("2_mod")
-stat_id = &"dexterity"
-value = 10.0
-
-[sub_resource type="Resource" id="mod_int"]
-script = ExtResource("2_mod")
-stat_id = &"intelligence"
-value = 10.0
+[sub_resource type="Resource" id="Resource_u38nb"]
+script = ExtResource("9_5dwqy")
+closed = false
+metadata/_custom_type_script = "uid://8cv1vnm6vjpp"
 
 [resource]
 script = ExtResource("7_7hpuy")
 pickable_in = 3
 display_name = "Serpent"
-description = "The Coil — two auras at once: a node gains armor the further it winds from the core in hops, and loses armor the further it sits from the core in space. The sweet spot is many hops away yet spatially close — a tight coil, or a wind bridging a chasm."
-modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str"), SubResource("mod_dex"), SubResource("mod_int")])
+description = "The Coil — two auras at once: a node gains armor and damage the further it winds from the core in hops, and loses armor and damage the further it sits from the core in space. The sweet spot is many hops away yet spatially close — a tight coil, or a wind bridging a chasm."
+modifiers = Array[ExtResource("2_mod")]([ExtResource("8_5dwqy")])
 effects = Array[ExtResource("8_effect")]([SubResource("aura_hop_buff"), SubResource("aura_euclid_penalty")])
+sigil = SubResource("Resource_u38nb")
