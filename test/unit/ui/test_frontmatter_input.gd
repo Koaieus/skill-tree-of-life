@@ -45,6 +45,14 @@ func _send(event: InputEvent) -> bool:
 	return _input._handle(event)
 
 
+## The slab stack the shell mints in code (see `FrontmatterRoot._ensure_tooltip`
+## for why it is not in the scene), found the way #578's tab finds it.
+func _tooltip() -> Control:
+	var found := _frontmatter.find_children("*", "MenuTooltip", true, false)
+	assert_false(found.is_empty(), "the frontmatter has a tooltip")
+	return found[0] as Control
+
+
 func _options() -> Array[StringName]:
 	return _frontmatter.tree.children_of(_frontmatter.focus_id)
 
@@ -119,10 +127,33 @@ func test_the_cursor_raises_the_same_peek_the_mouse_would() -> void:
 	# player can see what a commit would do before making it. Asserted through
 	# the tooltip, which `set_hovered` binds.
 	_send(_key(KEY_DOWN))
-	var tooltip := _frontmatter.find_children("*", "MenuTooltip", true, false)
-	assert_false(tooltip.is_empty(), "the frontmatter has a tooltip to raise")
-	assert_true((tooltip[0] as Node).visible,
+	# Read through `modulate.a` rather than `visible` — the stack fades and never
+	# hides (#588), so `visible` is true even when it has nothing to say and the
+	# assertion this test rests on has to be the alpha.
+	assert_gt(_tooltip().modulate.a, 0.0,
 			"moving the cursor onto Multiplayer describes it")
+
+
+## Seating is not moving. Arriving somewhere must peek at NOTHING: the fan you
+## just opened is the answer to the click, and its first option's children are
+## not something anybody asked to see.
+##
+## The shipped bug (reported 2026-08-26): [method FrontmatterRoot.focus] clears
+## the hover and then emits `focus_started`, which reseated the cursor here and
+## raised it straight back — so clicking the root hub popped Single Player's
+## children open.
+func test_seating_the_cursor_raises_no_peek() -> void:
+	_frontmatter.focus(MenuGraph.ID_ROOT)
+	assert_eq(_input.cursor, MenuGraph.ID_SINGLE_PLAYER, "still seated, for a commit")
+	var plan := HoverPreview.plan(_frontmatter.tree, _frontmatter.focus_id, &"")
+	assert_eq(plan[MenuGraph.ID_NEW_GAME], HoverPreview.DEFAULT_HIDDEN_ALPHA,
+			"nothing under Single Player is revealed")
+	# `modulate.a`, not `visible`: the slab stack fades and never hides (#588),
+	# so a `visible` assertion about it is vacuously true either way.
+	assert_almost_eq(_tooltip().modulate.a, 0.0, 0.001, "and nothing has summoned it")
+	var view := _frontmatter.view_for(MenuGraph.ID_NEW_GAME)
+	assert_almost_eq(view.modulate.a, HoverPreview.DEFAULT_HIDDEN_ALPHA, 0.001,
+			"the peek really is down, not merely planned down")
 
 
 # --- committing ---------------------------------------------------------------

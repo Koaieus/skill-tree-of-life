@@ -18,14 +18,24 @@ extends Node
 ## between New Game and Load Game — and conflating them would make merely
 ## looking at an option navigate to it.
 ##
-## [b]Keyboard focus counts as hover, deliberately.[/b] The cursor calls
-## [method FrontmatterRoot.set_hovered], so moving it raises the same peek and
-## tooltip the mouse would. #576's note forbids inventing a seventh ring colour
-## and asks for an existing focus treatment to be reused instead — this is that
-## reuse, and it is the whole reason a keyboard player can see what a commit
-## would do before making it. There is no disagreement to manage between the two
-## today: [MenuNodeView] has no pick region at all yet, so mouse hover does not
-## fire (#583).
+## [b]MOVING the cursor counts as hover; SEATING it does not.[/b] [method step]
+## calls [method FrontmatterRoot.set_hovered], so a keyboard player raises the
+## same peek and tooltip the mouse would — #576's note forbids inventing a
+## seventh ring colour and asks for an existing focus treatment to be reused
+## instead, and this is that reuse.
+##
+## [method _seat_cursor] deliberately does NOT, and the reason is a
+## contradiction it used to cause: [method FrontmatterRoot.focus] clears the
+## hover and three lines later emits [signal FrontmatterRoot.focus_started],
+## which lands here and re-raised it on the new fan's first option. So merely
+## ARRIVING somewhere peeked ahead — clicking the root hub popped Single
+## Player's children open with nobody having asked for them (reported
+## 2026-08-26). A commit still works from an unmoved cursor, because the seat
+## itself is unchanged; only the broadcast is withheld.
+##
+## Since #583 landed, [MenuNodeView] has a real [MenuNodePickRegion] and the
+## mouse raises the same hover through the same seam, which is what made that
+## unasked-for peek visible in the first place.
 ##
 ## [b]Mounting.[/b] Add as a child of [FrontmatterRoot] with
 ## [member frontmatter_path] pointing at it, or call [method bind] from a
@@ -245,14 +255,19 @@ func _on_focus_changed(_id: StringName) -> void:
 
 
 ## Puts the cursor on the first option of the new fan — or nowhere, on a leaf.
+## Silently: see the class docs for why a seat must not raise the peek that a
+## deliberate [method step] does.
 func _seat_cursor() -> void:
 	var options := _options()
-	_move_cursor(options[0] if not options.is_empty() else &"")
+	_move_cursor(options[0] if not options.is_empty() else &"", false)
 
 
-func _move_cursor(id: StringName) -> void:
+## [param raise_hover] false seats the cursor without telling anyone — no peek,
+## no tooltip. [method FrontmatterRoot.focus] has already cleared the hover by
+## the time a seat runs, so there is nothing to clear here either.
+func _move_cursor(id: StringName, raise_hover: bool = true) -> void:
 	cursor = id
-	if _frontmatter != null:
+	if _frontmatter != null and raise_hover:
 		_frontmatter.set_hovered(id)
 
 

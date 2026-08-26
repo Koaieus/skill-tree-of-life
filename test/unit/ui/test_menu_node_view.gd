@@ -388,3 +388,65 @@ func test_a_left_click_reaches_the_view_as_one_signal() -> void:
 	click.pressed = true
 	_pick_of(view)._gui_input(click)
 	assert_signal_emitted(view, "activated")
+
+
+# --- the VFX land ON the node ------------------------------------------------
+
+## The spike is parented to the VIEW, which is at its own world home — so the
+## anchoring has to survive a host that is not at the origin.
+##
+## The shipped bug (reported 2026-08-26): `AllocationVFX.spawn_alloc_spike` wrote
+## `global_position` on a node it had not added to the tree yet. Out of the tree
+## there is no parent transform to invert, so the write lands on `position`, and
+## adding it under a view at `P` put the effect at `2P` — a spike "way off", by
+## exactly the node's own offset. Invisible in gameplay, where `%AllocationVFX`
+## sits at the origin, which is why only the menu ever showed it.
+func test_the_allocation_spike_lands_on_the_node_not_at_twice_its_offset() -> void:
+	var view: MenuNodeView = _NODE_VIEW.instantiate()
+	add_child_autofree(view)
+	view.position = Vector2(640.0, -320.0)
+	var before := view.get_children()
+	view.play_allocation_spike()
+	var added := _spawned_under(view, before)
+	assert_false(added.is_empty(), "the spike mounted something")
+	for effect in added:
+		for part in _node2ds_under(effect):
+			assert_almost_eq(part.global_position.distance_to(view.global_position), 0.0, 1.0,
+					"the spike's '%s' is anchored on the node" % part.name)
+
+
+## Same anchoring, from the other end: the lift is parented to the shell's
+## `%GraphLayer` rather than to the view (it marks the spot vacated), so it must
+## land at the world position it was HANDED, wherever its host happens to be.
+func test_the_dealloc_lift_lands_at_the_spot_it_was_handed() -> void:
+	var host := Node2D.new()
+	add_child_autofree(host)
+	host.position = Vector2(-200.0, 75.0)
+	var world_pos := Vector2(640.0, -320.0)
+	AllocationVFX.spawn_dealloc_lift(host, world_pos, 24.0, Color.WHITE)
+	var disks := _spawned_under(host, [])
+	assert_eq(disks.size(), 1, "one puff")
+	assert_almost_eq(disks[0].global_position.distance_to(world_pos), 0.0, 1.0,
+			"the puff marks the spot, not the host's own offset")
+
+
+## The [Node2D]s under [param host] that were NOT there before — the view already
+## owns its visuals composite, whose own children legitimately sit off-centre.
+func _spawned_under(host: Node2D, before: Array) -> Array[Node2D]:
+	var found: Array[Node2D] = []
+	for child in host.get_children():
+		var item := child as Node2D
+		if item != null and not before.has(child):
+			found.append(item)
+	return found
+
+
+## [param root] and every [Node2D] beneath it — the effect's container carries
+## the anchor for the spike, and the disk and needle hang off it.
+func _node2ds_under(root: Node2D) -> Array[Node2D]:
+	var found: Array[Node2D] = [root]
+	for child in root.get_children():
+		var item := child as Node2D
+		if item != null:
+			found.append_array(_node2ds_under(item))
+	return found

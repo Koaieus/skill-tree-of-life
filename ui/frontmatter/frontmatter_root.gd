@@ -123,7 +123,7 @@ func _ready() -> void:
 ## Per-frame is the honest fix rather than a chase: it is one [Transform2D]
 ## multiply for one [Control], and it cannot be stale by construction.
 func _process(_delta: float) -> void:
-	if _tooltip != null and _tooltip.visible:
+	if _tooltip != null and _tooltip.modulate.a > 0.0:
 		_place_tooltip(_hover_preview.hovered_id)
 
 
@@ -254,11 +254,20 @@ func edge_for(id: StringName) -> MenuEdgeView:
 ## the two apart and there is no second highlight rule to keep in sync.
 func set_hovered(id: StringName) -> void:
 	_hover_preview.apply(focus_id, id)
-	# `bind` owns its own visibility — it hides itself on a null item or on one
+	# `bind` owns its own CONTENT — it empties itself on a null item or on one
 	# with nothing to say (#575's content-driven rule, which is why the ROOT
-	# shows no tooltip). Do not second-guess it here.
-	_tooltip.bind(FrontmatterLayout.look_of(id))
-	if _tooltip.visible:
+	# shows no tooltip). Do not second-guess what it puts in the stack here.
+	var look := FrontmatterLayout.look_of(id)
+	_tooltip.bind(look)
+	# But it does not raise itself. The stack fades and never hides (#588), so
+	# its reveal is `set_progress`, and this is its one caller — gating on
+	# `visible` instead, as this did, is a condition that is ALWAYS true: the
+	# stack was bound with rows and then left at `t = 0`, so the frontmatter
+	# tooltip never appeared at all. Landed instantly, per the repo's
+	# animated-unit convention (an external caller may drive the clock; nothing
+	# does yet).
+	_tooltip.set_progress(1.0 if MenuTooltip.has_content(look) else 0.0)
+	if MenuTooltip.has_content(look):
 		_place_tooltip(id)
 
 

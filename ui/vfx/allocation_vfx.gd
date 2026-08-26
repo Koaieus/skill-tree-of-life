@@ -301,18 +301,25 @@ static func spawn_alloc_spike(
 	host.add_child(container)
 
 	var disk := _make_snapshot_disk(inner_radius, color)
-	disk.global_position = world_pos
 	disk.modulate = Emissive.at(Color.WHITE, Emissive.PEAK)
+	# Parented FIRST, positioned second. `global_position` on a node that is not
+	# in the tree yet has no parent transform to invert, so it silently writes
+	# `position` — and the child then lands at `host.global_position + world_pos`
+	# once it is added. Invisible while every host sat at the origin
+	# (`%AllocationVFX` does); the frontmatter menu parents a spike to the NODE
+	# VIEW itself, which is at its own world home, so the offset read as exactly
+	# doubled (#599 follow-up, reported 2026-08-26).
 	container.add_child(disk)
+	disk.global_position = world_pos
 
 	var spike := Polygon2D.new()
 	spike.polygon = _build_needle_polygon(inner_radius, node_radius * SPIKE_HEIGHT_FACTOR)
 	# Polygon2D.color is the draw tint — alpha here multiplies with modulate.a,
 	# so keep it opaque and animate visibility via modulate.a only.
 	spike.color = color
-	spike.global_position = world_pos
 	spike.modulate = Emissive.at(Color.WHITE, Emissive.PEAK)
-	container.add_child(spike)
+	container.add_child(spike)  # before `global_position` — see the disk above.
+	spike.global_position = world_pos
 
 	# White flash: disk + spike both ramp toward a lightened tint, then settle
 	# back to the entity color. Disk is the snapshot reused from the lift VFX.
@@ -359,12 +366,15 @@ static func spawn_alloc_spike(
 ## `FrontmatterLayout.PREVIEW_SCALE` on its own parent).
 static func spawn_dealloc_lift(host: Node2D, world_pos: Vector2, disk_radius: float, color: Color) -> void:
 	var disk := _make_snapshot_disk(disk_radius, color)
+	host.add_child(disk)  # before `global_position` — see [method spawn_alloc_spike].
 	disk.global_position = world_pos
-	host.add_child(disk)
 	var rise := disk_radius * LIFT_RISE_FACTOR
 	var tween := host.create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(disk, "position:y", world_pos.y - rise, LIFT_DURATION)\
+	# The rise is off the disk's OWN `position`, not off `world_pos` — those
+	# agree only for a host at the origin, and the whole point of `host` being a
+	# parameter is that it need not be.
+	tween.tween_property(disk, "position:y", disk.position.y - rise, LIFT_DURATION)\
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tween.tween_property(disk, "scale", Vector2.ONE * LIFT_END_SCALE, LIFT_DURATION)
 	# Color shift owner → white (holy puff of smoke) over the first ~70% of
@@ -387,8 +397,8 @@ func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay:
 	# Wrapper Node2D holds the vibrating snapshot disk; particles spawn at
 	# burst time as a sibling. Whole thing self-frees when both children are done.
 	var stage := Node2D.new()
+	add_child(stage)  # before `global_position` — see [method spawn_alloc_spike].
 	stage.global_position = world_pos
-	add_child(stage)
 	var disk := _make_snapshot_disk(disk_radius, color)
 	stage.add_child(disk)
 	# Stay visible through the pre-vibrate delay — the real SkillNode's owned
@@ -419,8 +429,8 @@ func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay:
 ## Blade-pop burst (#170): a self-freeing one-shot spray at the contact point.
 func _spawn_pop_burst(world_pos: Vector2, radius: float, color: Color) -> void:
 	var stage := Node2D.new()
+	add_child(stage)  # before `global_position` — see [method spawn_alloc_spike].
 	stage.global_position = world_pos
-	add_child(stage)
 	_emit_burst(stage, radius, color)
 	var tween := create_tween()
 	tween.tween_interval(POP_BURST_DURATION)
