@@ -166,6 +166,21 @@ func test_every_layers_scale_uniform_is_an_integer() -> void:
 		assert_eq(s, floor(s), "scale must be an integer to avoid a Parallax2D tile seam")
 
 
+# --- #608 figure/ground inversion -------------------------------------------
+
+func test_base_layer_carries_a_coverage_mask_uniform() -> void:
+	# #608 — the base layer used to paint palette(n) across the whole tile at
+	# alpha 1.0 (colour as the ground). It now folds to near-black away from
+	# a ridge and only shows colour along filaments, via a coverage_sharpness
+	# uniform multiplying the palette colour. Pinned structurally so the
+	# uniform (and therefore the inversion) doesn't silently regress back to
+	# a flat full-field fill.
+	var mats := _layer_materials()
+	var coverage_sharpness: float = float(mats[0].get_shader_parameter("coverage_sharpness"))
+	assert_gt(coverage_sharpness, 1.0,
+			"coverage_sharpness must fold most of the tile to black, not just tint it down")
+
+
 func test_noise_resource_authors_frequency_and_octaves_explicitly() -> void:
 	# #607 — an all-defaults FastNoiseLite (frequency 0.01, fractal_octaves 5)
 	# is the whole cause of the px-scale grain; pin that it stays explicitly
