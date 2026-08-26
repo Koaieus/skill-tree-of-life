@@ -415,6 +415,25 @@ func test_the_panel_region_spans_from_the_hero_column_to_the_viewport_edge() -> 
 	assert_eq(region.offset_right, 0.0)
 
 
+## #606: the region spans the full remainder of the viewport (#600's whole
+## point), but the content column inside it must not — a row stretched to the
+## region's full width strands its label ~1000px from its control. Asserted
+## against the named bound rather than a repeated literal.
+func test_the_content_column_is_bounded_rather_than_filling_the_region() -> void:
+	var panel: FrontmatterPanel = preload("res://ui/frontmatter/panels/frontmatter_panel.tscn").instantiate()
+	add_child_autofree(panel)
+	await get_tree().process_frame
+
+	var region: Control = panel.get_node("%Region")
+	var column: Control = panel.get_node("%Column")
+
+	assert_lt(column.size.x, region.size.x,
+			"the column must not fill the region's full width")
+	assert_almost_eq(column.custom_minimum_size.x, FrontmatterPanel._CONTENT_MAX_WIDTH, 0.01)
+	assert_eq(column.size_flags_horizontal, Control.SIZE_SHRINK_BEGIN,
+			"left-aligned within the region, not centred or filling")
+
+
 ## No [FrontmatterPanel] subclass may reach across the layer split — that
 ## invariant is what keeps panel text crisp instead of panned and zoomed by the
 ## graph camera. `FrontmatterPanels` (the container) and content mounted into

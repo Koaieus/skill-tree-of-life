@@ -63,15 +63,25 @@ signal dismissed
 
 @onready var _title_label: Label = %Title
 @onready var _region: Control = %Region
+@onready var _column: VBoxContainer = %Column
 
 ## Clearance past the hero column's own edge, so panel content does not start
 ## flush against the back affordance sitting in that column.
 const _REGION_GUTTER := 48.0
 
+## Legibility bound, not a magic number: [member _region] spans the remainder
+## of the viewport by design (#600), but a settings row's [HBoxContainer]
+## stretching to fill all of that leaves its label and control ~1000px apart
+## and unreadable (#606). Picked by screenshotting the 1440x960 design
+## viewport and iterating — wide enough that the settings/join/lobby rows
+## still breathe, narrow enough that every label sits next to its control.
+const _CONTENT_MAX_WIDTH := 420.0
+
 
 func _ready() -> void:
 	_apply_title()
 	_layout_region()
+	_constrain_column_width()
 
 
 func _set_panel_id(value: StringName) -> void:
@@ -97,6 +107,16 @@ func _layout_region() -> void:
 	if _region == null:
 		return
 	_region.offset_left = FrontmatterLayout.hero_slot().x + _REGION_GUTTER
+
+
+## Bounds [member _column] to [constant _CONTENT_MAX_WIDTH] and pins it to the
+## LEFT of [member _region] rather than letting the [MarginContainer] stretch
+## it to the region's full width, or centring it in the leftover space (#606).
+func _constrain_column_width() -> void:
+	if _column == null:
+		return
+	_column.custom_minimum_size.x = _CONTENT_MAX_WIDTH
+	_column.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
 
 ## Emit [signal dismissed]. Exposed so an inherited scene can route its own
