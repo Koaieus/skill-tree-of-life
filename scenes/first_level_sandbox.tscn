@@ -1,11 +1,13 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://fnxcmhe6vqjt"]
 
 [ext_resource type="PackedScene" uid="uid://jc4k3v6sfvmn" path="res://scenes/level.tscn" id="1_level"]
-[ext_resource type="Script" path="res://session/run_bootstrap.gd" id="2_boot"]
-[ext_resource type="Resource" path="res://session/runs/first_level_run.tres" id="3_run"]
+[ext_resource type="Script" uid="uid://ddlkd4hsdgsi1" path="res://session/run_bootstrap.gd" id="2_boot"]
+[ext_resource type="Resource" uid="uid://bt7d52lhv6suc" path="res://session/runs/first_level_run.tres" id="3_run"]
 
-[node name="FirstLevelSandbox" instance=ExtResource("1_level")]
+[node name="FirstLevelSandbox" unique_id=298275976 instance=ExtResource("1_level")]
 
-[node name="RunBootstrap" type="Node" parent="." index="0"]
+[node name="RunBootstrap" type="Node" parent="." index="0" unique_id=1980352345]
 script = ExtResource("2_boot")
 run_setup = ExtResource("3_run")
+
+[editable path="Graph/FloaterDirector"]
