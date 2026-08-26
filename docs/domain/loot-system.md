@@ -323,6 +323,20 @@ branch — **the default the test suite exercises**. It stays a host-only roll a
 is exempt from the seeding rule: a peer receives the result rather than
 reproducing it.
 
+Note what the NPC case is *not* keyed on: nothing anywhere asks "is this
+collector AI-controlled". `UNCLAIMED` means nobody on this machine put their
+hand up, and an NPC gets the auto-roll because HudRoot filters on
+`request.collector == _player` and walks away. One consequence worth keeping in
+mind before adding a second listener: any handler that claims a request without
+that filter would hang an NPC's round on a picker nobody will ever answer.
+
+`test/unit/entity/test_ai_claims_loot.gd` pins the whole chain from the NPC end
+— an [AIController] decides the kill, claims the relic with its own
+`AllocateCommand` through a real `CommandApplier`, and auto-resolves both stat
+rounds and the terminal spell round inside its turn. Every other loot test
+drives the claim by calling `AllocationSystem.allocate()` by hand, which skips
+the host gate and the command chain entirely.
+
 **Why it stopped being a bool.** With `handled: bool`, a remote human's request
 read as "nobody claimed it" and the emitter random-picked on the very next
 line — before a round trip could even begin — and the pick that arrived later
