@@ -368,6 +368,35 @@ func test_every_leaf_that_starts_a_run_names_a_network_role() -> void:
 	assert_eq(routed, 4, "new game, local, host, join — the four routes into a lobby")
 
 
+func test_every_route_into_a_lobby_names_its_lobby_policy() -> void:
+	# #615 D2: the policy hangs on the ROUTE, not on a `Mode -> policy` table,
+	# because `requested_mode` is explicitly not authoritative — HOST and JOIN
+	# both ask for COOP_HOTSEAT and both open the versus lobby.
+	for id in _tree.ids():
+		var item := _tree.get_item(id)
+		if item.route == null:
+			continue
+		assert_not_null(item.route.lobby_policy, "'%s' names a lobby policy" % id)
+	assert_ne(_tree.get_item(MenuGraph.ID_NEW_GAME).route.lobby_policy,
+			_tree.get_item(MenuGraph.ID_HOST).route.lobby_policy,
+			"solo and versus are not the same lobby")
+
+
+func test_a_route_hands_its_policy_to_the_lobby_it_opens() -> void:
+	# The wiring half: `_push_lobby` carries the leaf's policy through
+	# `LobbyPanel.configure` into the screen. Asserted on all three lobby leaves
+	# plus #531's address-screen path, which cannot read `item.route` on focus.
+	for id in [MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOCAL, MenuGraph.ID_HOST]:
+		_navigate_to(id)
+		assert_eq(_lobby()._policy, _tree.get_item(id).route.lobby_policy,
+				"'%s' hands its policy down" % id)
+		_back_out(_tree.depth_of(id))
+
+	assert_eq(_dial("Join", "10.0.0.4", "7777")._policy,
+			_tree.get_item(MenuGraph.ID_JOIN).route.lobby_policy,
+			"and so does the address screen, which has no leaf focus to read")
+
+
 func test_the_parked_load_screen_starts_nothing() -> void:
 	var item := _tree.get_item(MenuGraph.ID_LOAD_GAME)
 	assert_true(item.disabled, "#23 save/load is parked; today's screen disables it too")

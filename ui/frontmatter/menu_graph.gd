@@ -59,13 +59,26 @@ class Route extends RefCounted:
 	## who hosted, backed out, and then started a solo run must not silently
 	## open a socket.
 	var network_role: NetworkTransport.Role = NetworkTransport.Role.OFFLINE
+	## What this route's lobby lets its slots choose (#615 D2) — null on a route
+	## that opens no lobby, and null is also the legal "today's behaviour" answer
+	## ([LobbyPolicy]'s class docs).
+	##
+	## [b]It hangs here, and not on a [enum RunConfig.Mode] table[/b], because
+	## [member requested_mode] is explicitly NOT authoritative — it is what this
+	## leaf ASKED for, and the run's real mode is derived from the roster at
+	## START. A policy is needed at lobby-OPEN, when the only thing that exists
+	## is this route. Plain `var`, not `@export`: [Route] is a [RefCounted]
+	## authored in [method build], not a [Resource] edited in the inspector.
+	var lobby_policy: LobbyPolicy = null
 
 	func _init(
 		mode: RunConfig.Mode = RunConfig.Mode.SINGLE,
-		role: NetworkTransport.Role = NetworkTransport.Role.OFFLINE
+		role: NetworkTransport.Role = NetworkTransport.Role.OFFLINE,
+		policy: LobbyPolicy = null
 	) -> void:
 		requested_mode = mode
 		network_role = role
+		lobby_policy = policy
 
 
 ## One node of the menu tree. A pure record: it holds no scene, no [Control], no
@@ -116,6 +129,13 @@ const ID_JOIN := &"join"
 const ID_OPTIONS := &"options"
 const ID_EXIT := &"exit"
 
+## The three lobby shapes (#615). One authored resource per shape, not per leaf:
+## HOST and JOIN open the same versus lobby and must agree about it, which is
+## the whole reason the policy is data rather than a branch in the lobby.
+const POLICY_SINGLE := preload("res://ui/frontmatter/policies/lobby_policy_single.tres")
+const POLICY_HOTSEAT := preload("res://ui/frontmatter/policies/lobby_policy_hotseat.tres")
+const POLICY_VERSUS := preload("res://ui/frontmatter/policies/lobby_policy_versus.tres")
+
 ## The root's id. Set by [method add] for the first parentless item.
 var root: StringName = &""
 
@@ -138,7 +158,8 @@ static func build() -> MenuGraph:
 	tree.add(_item(ID_SINGLE_PLAYER, ID_ROOT))
 	# `_on_new_game_pressed` -> `_push_lobby(SINGLE, NetworkConfig.offline())`.
 	tree.add(_leaf(ID_NEW_GAME, ID_SINGLE_PLAYER, PANEL_LOBBY,
-			Route.new(RunConfig.Mode.SINGLE, NetworkTransport.Role.OFFLINE)))
+			Route.new(RunConfig.Mode.SINGLE, NetworkTransport.Role.OFFLINE,
+					POLICY_SINGLE)))
 	var load_game := _leaf(ID_LOAD_GAME, ID_SINGLE_PLAYER, PANEL_LOAD)
 	load_game.disabled = true  # #23 save/load is parked.
 	tree.add(load_game)
@@ -147,11 +168,18 @@ static func build() -> MenuGraph:
 	# The three answers #531 put between "Multiplayer" and the lobby. All three
 	# land on the SAME lobby; only the NetworkConfig differs.
 	tree.add(_leaf(ID_LOCAL, ID_MULTIPLAYER, PANEL_LOBBY,
-			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.OFFLINE)))
+			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.OFFLINE,
+					POLICY_HOTSEAT)))
 	tree.add(_leaf(ID_HOST, ID_MULTIPLAYER, PANEL_LOBBY,
-			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.HOST)))
+			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.HOST,
+					POLICY_VERSUS)))
+	# JOIN's panel is the address screen, so its policy is not read on arrival —
+	# it is read when that screen reports an address and `_on_join_requested`
+	# pushes the lobby. Authored anyway, and identical to HOST's, because both
+	# ends of one link must show the same lobby.
 	tree.add(_leaf(ID_JOIN, ID_MULTIPLAYER, PANEL_JOIN,
-			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.CLIENT)))
+			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.CLIENT,
+					POLICY_VERSUS)))
 
 	tree.add(_leaf(ID_OPTIONS, ID_ROOT, PANEL_SETTINGS))
 	tree.add(_leaf(ID_EXIT, ID_ROOT, PANEL_EXIT_CONFIRM))

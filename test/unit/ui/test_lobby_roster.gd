@@ -250,3 +250,185 @@ func test_picking_a_class_writes_it_onto_the_roster() -> void:
 	assert_eq(human.core_class, _NINJA)
 	assert_eq(lobby.build_run_config().participants[0].core_class, _NINJA,
 			"and START hands the pick to the level")
+
+# --- #615: a LobbyPolicy on the route decides who may pick a camp ------------
+
+const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
+const _POLICY_SINGLE := preload("res://ui/frontmatter/policies/lobby_policy_single.tres")
+const _POLICY_HOTSEAT := preload("res://ui/frontmatter/policies/lobby_policy_hotseat.tres")
+const _POLICY_VERSUS := preload("res://ui/frontmatter/policies/lobby_policy_versus.tres")
+
+
+func _policied_lobby(
+	mode: RunConfig.Mode, policy: LobbyPolicy, network: NetworkConfig = null
+) -> LobbyScreen:
+	var lobby := LobbyScreen.new()
+	lobby.configure(mode, network, policy)
+	add_child_autofree(lobby)
+	return lobby
+
+
+func _camp_picks(lobby: LobbyScreen) -> Array[OptionButton]:
+	var out: Array[OptionButton] = []
+	for row in lobby._rows_container.get_children():
+		out.append(row.get_node("%Camp") as OptionButton)
+	return out
+
+
+## #615 acceptance 3, the characterization half: without a policy the lobby is
+## byte-for-byte what it was before this issue — no camp control on any row, and
+## START refused by nothing. This is the assertion that lets a route be authored
+## with a null policy.
+func test_a_null_policy_reproduces_todays_lobby_exactly() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.COOP_HOTSEAT)
+
+	for pick in _camp_picks(lobby):
+		assert_false(pick.visible, "no policy, no camp control")
+		assert_eq(pick.item_count, 0, "and nothing was ever put in it")
+
+	assert_true(lobby.can_start(), "nothing blocks START without a policy")
+	assert_eq(lobby.start_blocked_reason(), "")
+	var cfg := lobby.build_run_config()
+	assert_eq(cfg.mode, RunConfig.Mode.COOP_HOTSEAT)
+	var humans := _humans(cfg.participants)
+	assert_eq(humans.size(), 2)
+	assert_eq(humans[0].camp, _CAMP_1)
+	assert_eq(humans[1].camp, _CAMP_1, "the pre-#615 hot-seat roster, unchanged")
+
+
+## #615 acceptance 1. The control is SHOWN and disabled rather than absent, so
+## the rule is visible; and D6's invariant holds by construction — both humans
+## are still on `camp_1`, so `resolve_mode` still answers coop.
+func test_a_hot_seat_policy_locks_the_camp_on_both_human_rows() -> void:
+	var lobby := _policied_lobby(RunConfig.Mode.COOP_HOTSEAT, _POLICY_HOTSEAT)
+	var parts := lobby.participants()
+
+	var humans := _humans(parts)
+	assert_eq(humans.size(), 2, "premise: a hot-seat lobby seats two humans")
+	for i in humans.size():
+		var pick: OptionButton = lobby._rows_container.get_child(i).get_node("%Camp")
+		assert_true(pick.visible, "the rule is shown, not hidden")
+		assert_true(pick.disabled, "a hot-seat human may not change camp")
+
+	assert_false(_POLICY_HOTSEAT.may_pick_camp(Participant.Kind.HUMAN))
+	assert_true(_POLICY_HOTSEAT.may_pick_camp(Participant.Kind.AI),
+			"locking the players together does not lock the opponents")
+	assert_eq(LobbyScreen.resolve_mode(parts), RunConfig.Mode.COOP_HOTSEAT,
+			"#615 D6: the mode is still derived, and still coop")
+	assert_true(lobby.can_start())
+
+
+## #615 acceptance 2. A versus lobby whose humans all share a camp has no
+## opposing side — `resolve_mode` would quietly answer COOP_HOTSEAT — so the
+## policy refuses START rather than letting a coop run out of a versus route.
+func test_a_versus_policy_refuses_a_start_where_every_human_shares_a_camp() -> void:
+	var lobby := _policied_lobby(
+			RunConfig.Mode.COOP_HOTSEAT, _POLICY_VERSUS, NetworkConfig.host())
+	var humans := _humans(lobby.participants())
+	assert_eq(humans[0].camp, _CAMP_1)
+	assert_eq(humans[1].camp, _CAMP_2, "premise: a host lobby seats two camps")
+	assert_true(lobby.can_start(), "two camps is a legal versus start")
+
+	lobby._on_camp_picked(_CAMP_1, humans[1])
+
+	assert_false(lobby.can_start(), "one camp between them is not versus")
+	assert_ne(lobby.start_blocked_reason(), "", "and it says why")
+	assert_true(lobby._start_button.disabled, "the button follows the veto")
+
+	var fired: Array[int] = []
+	lobby.start_pressed.connect(func(_cfg: RunConfig): fired.append(1))
+	lobby._start_button.pressed.emit()
+	assert_eq(fired.size(), 0, "pressing it anyway starts nothing")
+
+	lobby._on_camp_picked(_CAMP_2, humans[1])
+	assert_true(lobby.can_start(), "and moving back off it lifts the veto")
+
+
+## #615 acceptance 3, the authoring half: every route that opens a lobby names a
+## policy, on the ROUTE (D2) rather than in a mode table.
+func test_every_lobby_route_carries_a_policy() -> void:
+	var tree := MenuGraph.build()
+	for id in [MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOCAL, MenuGraph.ID_HOST]:
+		var item := tree.get_item(id)
+		assert_eq(item.panel, MenuGraph.PANEL_LOBBY, "'%s' opens a lobby" % id)
+		assert_not_null(item.route.lobby_policy, "'%s' names a policy" % id)
+	# JOIN reaches the same lobby through #531's address screen, so it must agree
+	# with HOST about what that lobby is.
+	assert_eq(tree.get_item(MenuGraph.ID_JOIN).route.lobby_policy,
+			tree.get_item(MenuGraph.ID_HOST).route.lobby_policy,
+			"both ends of one link show the same lobby")
+	assert_null(tree.get_item(MenuGraph.ID_OPTIONS).route,
+			"and a leaf that opens no lobby carries no route to hang one on")
+
+
+## #615 acceptance 4 / D5. The bound has zero headroom: the picker may never
+## offer more camps than `entity/factions/` actually holds.
+func test_the_camp_picker_never_offers_more_camps_than_exist() -> void:
+	var on_disk := 0
+	for file in DirAccess.get_files_at("res://entity/factions"):
+		if file.begins_with("camp_") and file.ends_with(".tres"):
+			on_disk += 1
+	assert_eq(on_disk, LobbyPolicy.MAX_CAMPS,
+			"D5: camp_1..camp_6, and the bound is that number")
+
+	var policies: Array[LobbyPolicy] = [_POLICY_SINGLE, _POLICY_HOTSEAT, _POLICY_VERSUS]
+	for policy in policies:
+		var choices := policy.camp_choices()
+		assert_lte(choices.size(), on_disk, "no policy offers a camp that isn't there")
+		var seen: Array[Faction] = []
+		for camp in choices:
+			assert_false(seen.has(camp), "and none is offered twice")
+			seen.append(camp)
+
+	# The ceiling is enforced by the policy, not merely by what was authored.
+	var greedy := LobbyPolicy.new()
+	greedy.camps = _POLICY_VERSUS.camps.duplicate()
+	greedy.max_distinct_camps = 99
+	assert_lte(greedy.camp_choices().size(), LobbyPolicy.MAX_CAMPS,
+			"max_distinct_camps is clamped to MAX_CAMPS")
+
+
+func test_a_single_player_policy_shows_no_camp_control_at_all() -> void:
+	# The solo human is on `player.tres` and every AI shares `npc.tres`; there is
+	# no camp choice to make, so the column stays out of the row entirely.
+	var lobby := _policied_lobby(RunConfig.Mode.SINGLE, _POLICY_SINGLE)
+	assert_true(_POLICY_SINGLE.camp_choices().is_empty())
+	assert_false(_POLICY_SINGLE.may_pick_camp(Participant.Kind.HUMAN))
+	for pick in _camp_picks(lobby):
+		assert_false(pick.visible)
+	assert_true(lobby.can_start())
+
+
+func test_a_camp_pick_survives_an_ai_count_change() -> void:
+	# Same rebuild-survival contract as #616's colours: changing the AI count
+	# rebuilds the roster from scratch, and a pick must not silently revert.
+	var lobby := _policied_lobby(
+			RunConfig.Mode.COOP_HOTSEAT, _POLICY_HOTSEAT, NetworkConfig.host())
+	var ai: Participant = lobby.participants()[2]
+	assert_eq(ai.kind, Participant.Kind.AI, "premise: the third slot is an AI")
+
+	lobby._on_camp_picked(_CAMP_2, ai)
+	lobby._ai_count_row.value = 3
+
+	assert_eq(lobby.participants()[2].camp, _CAMP_2, "the pick survived")
+	assert_eq(lobby.build_run_config().participants[2].camp, _CAMP_2,
+			"and START hands it to the level")
+
+
+func test_a_locked_slot_still_shows_the_camp_it_actually_holds() -> void:
+	# An AI sits on `npc.tres`, which is not in any policy's pool. The dropdown
+	# must show that rather than lie by selecting the pool's first entry.
+	var ai := Participant.new()
+	ai.id = 9
+	ai.kind = Participant.Kind.AI
+	ai.camp = preload("res://entity/factions/npc.tres")
+	var row: ParticipantRow = _ROW_SCENE.instantiate()
+	add_child_autofree(row)
+	row.configure(ai, 0)
+	row.set_camp_choices(_POLICY_VERSUS.camp_choices(), false)
+
+	var pick: OptionButton = row.get_node("%Camp")
+	assert_true(pick.visible)
+	assert_true(pick.disabled)
+	assert_eq(pick.get_item_metadata(pick.selected), ai.camp,
+			"the shown camp is the one the slot is on")

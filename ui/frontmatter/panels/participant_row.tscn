@@ -38,6 +38,13 @@ layout_mode = 2
 size_flags_vertical = 4
 tooltip_text = "Core class"
 
+[node name="Camp" type="OptionButton" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Camp"
+
 [node name="Name" type="Label" parent="."]
 unique_name_in_owner = true
 layout_mode = 2

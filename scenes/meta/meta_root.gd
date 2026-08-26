@@ -63,7 +63,8 @@ func _on_focus_changed(id: StringName) -> void:
 		return
 	if item.panel != MenuGraph.PANEL_LOBBY:
 		return
-	_push_lobby(item.route.requested_mode, _network_for(item.route))
+	_push_lobby(item.route.requested_mode, _network_for(item.route),
+			item.route.lobby_policy)
 
 
 ## The [NetworkConfig] constructor a route's role names. Every role is spelled
@@ -85,15 +86,30 @@ static func _network_for(route: MenuGraph.Route) -> NetworkConfig:
 ## VERSUS by way of the remote seat their lobby authors; hot-seat stays coop
 ## because its two humans share a camp.
 func _on_host_requested(port: int) -> void:
-	_push_lobby(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(port))
+	_push_lobby(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(port),
+			_policy_of(MenuGraph.ID_HOST))
 
 
 func _on_join_requested(address: String, port: int) -> void:
-	_push_lobby(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.join(address, port))
+	_push_lobby(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.join(address, port),
+			_policy_of(MenuGraph.ID_JOIN))
 
 
 func _on_hotseat_requested() -> void:
-	_push_lobby(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.offline())
+	_push_lobby(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.offline(),
+			_policy_of(MenuGraph.ID_LOCAL))
+
+
+## The [LobbyPolicy] a leaf authored (#615 D2). #531's three buttons reach the
+## lobby through the address screen rather than through their own leaf, so they
+## cannot read `item.route` off the focus change — they ask for it by id here.
+## Read from the tree rather than restated as a constant so there stays exactly
+## one authoring site; a null answer is legal and means "today's behaviour".
+func _policy_of(id: StringName) -> LobbyPolicy:
+	if _frontmatter == null or _frontmatter.tree == null:
+		return null
+	var item := _frontmatter.tree.get_item(id)
+	return null if item == null or item.route == null else item.route.lobby_policy
 
 
 ## Every route into the lobby goes through here, so the role is stated on ALL
@@ -101,12 +117,14 @@ func _on_hotseat_requested() -> void:
 ## who hosted, backed out, and started a solo game from silently opening a
 ## socket on the way in: [method GameSession.end] clears the role when a run
 ## finishes, and this re-states it when one begins.
-func _push_lobby(mode: RunConfig.Mode, network: NetworkConfig) -> void:
+func _push_lobby(
+	mode: RunConfig.Mode, network: NetworkConfig, policy: LobbyPolicy = null
+) -> void:
 	GameSession.network = network
 	var lobby := _lobby_panel()
 	if lobby == null:
 		return
-	lobby.configure(mode, network)
+	lobby.configure(mode, network, policy)
 	var panels := _panels()
 	if panels != null:
 		panels.show_panel(MenuGraph.PANEL_LOBBY)

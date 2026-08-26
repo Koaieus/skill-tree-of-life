@@ -9,8 +9,9 @@ extends HBoxContainer
 ## into it would make "who decided this seat's colour" a two-answer question.
 ##
 ## [b]Widget order is a shared contract — four issues land here.[/b] #613 made
-## the row a scene; #616 added the colour picker; #617 adds a faction emblem and
-## #615 a camp dropdown. The authored order is, left to right:
+## the row a scene; #616 added the colour picker; #618 the core picker; #615 the
+## camp dropdown and #617 the faction emblem. The authored order is, left to
+## right:
 ##
 ## [codeblock]
 ##   Emblem? | Swatch | ColorPick | Sigil | CorePick | Camp? | Name | Seat
@@ -32,6 +33,10 @@ signal color_picked(color: Color)
 ## [signal color_picked]; the sigil is not a separate pick, it rides along on
 ## [member CoreClass.sigil].
 signal core_class_picked(core: CoreClass)
+
+## A slot chose a camp (#615). Same ask-don't-write contract as the other two —
+## the camp is roster shape, and [LobbyScreen] owns the roster.
+signal camp_picked(camp: Faction)
 
 ## Edge of the generated colour chips in the picker's dropdown.
 const _CHIP_PX := 16
@@ -85,6 +90,50 @@ func _on_core_item_selected(index: int) -> void:
 	if core is CoreClass:
 		_show_sigil_of(core)
 		core_class_picked.emit(core)
+
+
+## Fill the camp dropdown with [param camps], enabled iff [param enabled]
+## (#615). Called by [LobbyScreen] only when the route carried a [LobbyPolicy] —
+## a lobby with no policy never calls this, so `%Camp` stays hidden and the row
+## is byte-for-byte the pre-#615 row, which is the characterization contract.
+##
+## An empty [param camps] hides the control; a non-empty one with
+## [param enabled] false SHOWS it disabled. That distinction is the hot-seat
+## shape: both humans are locked to one camp and the player should be able to
+## see that rule rather than wonder where the dropdown went.
+func set_camp_choices(camps: Array[Faction], enabled: bool) -> void:
+	var pick: OptionButton = get_node("%Camp")
+	if camps.is_empty():
+		pick.visible = false
+		return
+	pick.visible = true
+	if not pick.item_selected.is_connected(_on_camp_item_selected):
+		pick.item_selected.connect(_on_camp_item_selected)
+	pick.clear()
+	var mine: Faction = _participant.camp if _participant != null else null
+	var holds_mine := false
+	for i in camps.size():
+		var camp: Faction = camps[i]
+		pick.add_item(camp.display_name if camp.display_name != "" else String(camp.id))
+		pick.set_item_metadata(i, camp)
+		if camp == mine:
+			pick.select(i)
+			holds_mine = true
+	if not holds_mine:
+		# A locked slot may sit on a camp outside the pool — `player.tres` in the
+		# single-player shape, `npc.tres` on an AI. Show what it holds rather
+		# than lie by selecting the pool's first entry.
+		pick.add_item(mine.display_name if mine != null else "—")
+		pick.set_item_metadata(camps.size(), mine)
+		pick.select(camps.size())
+	pick.disabled = not enabled
+
+
+func _on_camp_item_selected(index: int) -> void:
+	var pick: OptionButton = get_node("%Camp")
+	var camp: Variant = pick.get_item_metadata(index)
+	if camp is Faction:
+		camp_picked.emit(camp)
 
 
 ## Fill the colour dropdown from [param palette], greying out every colour in

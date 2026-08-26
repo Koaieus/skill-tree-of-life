@@ -81,7 +81,6 @@ const _PALETTE := preload("res://ui/theme/player_palette.tres")
 ## picker won't list is a state the player cannot return to.
 const _DEFAULT_PLAYER_CORE := preload("res://entity/core/balanced_core.tres")
 const _DEFAULT_AI_CORE := preload("res://entity/core/basic_enemy_core.tres")
-# TODO(#615): LobbyPolicy on the Route decides which slots may pick a camp.
 
 ## AI opponents a fresh lobby offers. One rival camp is what a menu-launched run
 ## produced before this screen authored any AI at all (the level's fallback
@@ -117,7 +116,11 @@ func add_option(text: String, disabled: bool = false) -> Button:
 
 var _mode: RunConfig.Mode = RunConfig.Mode.SINGLE
 var _network: NetworkConfig = null
+## What the route that opened this lobby lets its slots choose (#615). Null is
+## the pre-#615 lobby: no camp control on any row, and nothing blocks START.
+var _policy: LobbyPolicy = null
 var _seed_edit: LineEdit
+var _start_button: Button
 var _ai_count_row: AiCountRow
 var _participants: Array[Participant] = []
 var _rows_container: VBoxContainer
@@ -128,6 +131,9 @@ var _picked_colors: Dictionary = {}
 ## Core classes a player explicitly chose, by [member Participant.id]. Same
 ## rebuild-survival contract as [member _picked_colors].
 var _picked_cores: Dictionary = {}
+## Camps a player explicitly chose, by [member Participant.id]. Same
+## rebuild-survival contract as [member _picked_colors].
+var _picked_camps: Dictionary = {}
 
 
 ## Configures this lobby before it enters the tree (call right after
@@ -136,9 +142,16 @@ var _picked_cores: Dictionary = {}
 ## [method _resolved_mode] derives that from the roster at START (#554 D3).
 ## Defaults to the single-player shape so an unconfigured instance still behaves
 ## as it always has.
-func configure(mode: RunConfig.Mode, network: NetworkConfig = null) -> void:
+## [param policy] is what this lobby's ROUTE lets its slots choose (#615 D2) —
+## it hangs on the route rather than being looked up from [param mode] precisely
+## because [param mode] is not authoritative. Null reproduces the pre-#615
+## lobby exactly: no camp control anywhere, and START never refused.
+func configure(
+	mode: RunConfig.Mode, network: NetworkConfig = null, policy: LobbyPolicy = null
+) -> void:
 	_mode = mode
 	_network = network
+	_policy = policy
 
 
 func _ready() -> void:
@@ -177,7 +190,37 @@ func _ready() -> void:
 
 	_rebuild_participants()
 
-	add_option("Start Game").pressed.connect(func(): start_pressed.emit(build_run_config()))
+	_start_button = add_option("Start Game")
+	_start_button.pressed.connect(_on_start_button_pressed)
+	_refresh_start_enabled()
+
+
+## The policy's veto, applied at the one place it can be: a versus lobby whose
+## humans all share a camp has no opposing side, and #554 D3's
+## [method resolve_mode] would quietly hand back COOP_HOTSEAT rather than fail.
+## The button is also disabled, so this guard is belt-and-braces for a caller
+## that emits `pressed` directly (every test does).
+func _on_start_button_pressed() -> void:
+	if not can_start():
+		return
+	start_pressed.emit(build_run_config())
+
+
+## Is START allowed on the current roster? Always true without a policy — see
+## [method configure].
+func can_start() -> bool:
+	return start_blocked_reason().is_empty()
+
+
+## Why START is refused right now, or `""`. Public so the panel layer can
+## surface it later without re-deriving the rule (#615 descopes the message UI).
+func start_blocked_reason() -> String:
+	return "" if _policy == null else _policy.start_blocked_reason(_participants)
+
+
+func _refresh_start_enabled() -> void:
+	if _start_button != null:
+		_start_button.disabled = not can_start()
 
 
 ## The roster this lobby currently shows. Live, not a copy — the join path
@@ -246,6 +289,8 @@ func _rebuild_participants() -> void:
 			p.color = _picked_colors[p.id]
 		if _picked_cores.has(p.id):
 			p.core_class = _picked_cores[p.id]
+		if _picked_camps.has(p.id):
+			p.camp = _picked_camps[p.id]
 	_refresh_rows()
 
 
@@ -263,6 +308,7 @@ func _refresh_rows() -> void:
 		child.queue_free()
 	for p in _participants:
 		_add_participant_row(p)
+	_refresh_start_enabled()
 
 
 func _add_participant_row(participant: Participant) -> void:
@@ -271,8 +317,14 @@ func _add_participant_row(participant: Participant) -> void:
 	row.configure(participant, _local_peer_id())
 	row.set_color_choices(_PALETTE, taken_colors(_participants, participant.id))
 	row.set_core_choices(CoreClass.pickable_for(slot_bit_for(participant.kind)))
+	# Only a policied lobby ever asks for a camp control — a null policy leaves
+	# `%Camp` untouched and hidden, which is the pre-#615 row (#615 D3).
+	if _policy != null:
+		row.set_camp_choices(
+				_policy.camp_choices(), _policy.may_pick_camp(participant.kind))
 	row.color_picked.connect(_on_color_picked.bind(participant))
 	row.core_class_picked.connect(_on_core_class_picked.bind(participant))
+	row.camp_picked.connect(_on_camp_picked.bind(participant))
 
 
 ## A slot chose a colour. The lobby writes it, not the row — this screen owns
@@ -292,6 +344,21 @@ func _on_color_picked(color: Color, participant: Participant) -> void:
 func _on_core_class_picked(core: CoreClass, participant: Participant) -> void:
 	participant.core_class = core
 	_picked_cores[participant.id] = core
+
+
+## A slot chose a camp (#615). Camps are shared, not unique like colours, so
+## nothing has to be greyed out elsewhere — but the whole roster is refreshed
+## anyway, because the policy's START veto is a fact about the roster and the
+## button has to follow it.
+##
+## [b]This does not touch the mode[/b] (#615 D6): [method resolve_mode] still
+## derives it from the roster at START, counting humans only.
+func _on_camp_picked(camp: Faction, participant: Participant) -> void:
+	if camp == participant.camp:
+		return
+	participant.camp = camp
+	_picked_camps[participant.id] = camp
+	_refresh_rows()
 
 
 ## This machine's own id, as far as a lobby can know it: a client's real id is

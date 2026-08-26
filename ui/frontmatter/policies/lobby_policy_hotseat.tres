@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="LobbyPolicy" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://ui/frontmatter/lobby_policy.gd" id="1_policy"]
+[ext_resource type="Script" path="res://entity/faction.gd" id="2_faction"]
+[ext_resource type="Resource" path="res://entity/factions/camp_1.tres" id="3_camp1"]
+[ext_resource type="Resource" path="res://entity/factions/camp_2.tres" id="4_camp2"]
+[ext_resource type="Resource" path="res://entity/factions/camp_3.tres" id="5_camp3"]
+[ext_resource type="Resource" path="res://entity/factions/camp_4.tres" id="6_camp4"]
+[ext_resource type="Resource" path="res://entity/factions/camp_5.tres" id="7_camp5"]
+[ext_resource type="Resource" path="res://entity/factions/camp_6.tres" id="8_camp6"]
+
+[resource]
+script = ExtResource("1_policy")
+camps = Array[ExtResource("2_faction")]([ExtResource("3_camp1"), ExtResource("4_camp2"), ExtResource("5_camp3"), ExtResource("6_camp4"), ExtResource("7_camp5"), ExtResource("8_camp6")])
+human_camps_pickable = false
+ai_camps_pickable = true
+max_distinct_camps = 6
+require_distinct_human_camps = false

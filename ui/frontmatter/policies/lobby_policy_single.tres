@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="LobbyPolicy" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/frontmatter/lobby_policy.gd" id="1_policy"]
+[ext_resource type="Script" path="res://entity/faction.gd" id="2_faction"]
+
+[resource]
+script = ExtResource("1_policy")
+camps = Array[ExtResource("2_faction")]([])
+human_camps_pickable = false
+ai_camps_pickable = false
+max_distinct_camps = 1
+require_distinct_human_camps = false

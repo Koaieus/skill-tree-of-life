@@ -50,14 +50,18 @@ var screen: LobbyScreen = null
 ## it stays in `meta_root.gd` until the cutover moves it. A panel that also
 ## wrote it would be a second place that decides, which is exactly the drift
 ## `test_meta_routing_parity.gd` exists to catch.
-func configure(mode: RunConfig.Mode, network: NetworkConfig = null) -> void:
+## [param policy] is what the route this lobby was opened from lets its slots
+## choose (#615 D2). Null is legal and reproduces the pre-#615 lobby exactly.
+func configure(
+	mode: RunConfig.Mode, network: NetworkConfig = null, policy: LobbyPolicy = null
+) -> void:
 	if screen != null:
 		body.remove_child(screen)
 		screen.queue_free()
 		screen = null
 
 	var lobby := LobbyScreen.new()
-	lobby.configure(mode, network)
+	lobby.configure(mode, network, policy)
 	lobby.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lobby.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	lobby.start_pressed.connect(_on_start_pressed)
