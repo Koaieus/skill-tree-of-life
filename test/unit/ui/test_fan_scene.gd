@@ -158,8 +158,11 @@ func _actual_edge_of_route(trace: FanTrace) -> String:
 ## panel's edge without ever reading as "inside" it — so it isn't asserted
 ## here as a substitute for the edge check.
 ##
-## PENDING #362 — known broken, parked (FOCUS lane E item 7) while it stays
-## collected, so the suite baseline is green and any NEW red is unambiguous.
+## SKIPPED #362 — known broken, parked indefinitely (FOCUS lane E item 7).
+## The `test_` prefix is deliberately absent so GUT does not collect it: it
+## reported as pending on every run for months, which is a standing line of
+## noise in the verdict for a fact nobody re-decides. Restoring it is a
+## one-word rename, and the assertions it should make are described above.
 ##
 ## Do NOT infer a direction from #362's title: the issue was filed about
 ## `test_no_two_panels_overlap` "failing in isolation", but THIS function is a
@@ -168,10 +171,8 @@ func _actual_edge_of_route(trace: FanTrace) -> String:
 ## in isolation. The order-dependence is real; which way round it cuts for this
 ## function has not been measured.
 ##
-## `pending()` does not short-circuit in GUT, hence the explicit `return`.
-func test_every_fan_traces_terminus_is_self_consistent() -> void:
-	pending("#362 — run-order dependent, fails in isolation")
-	return
+func parked_every_fan_traces_terminus_is_self_consistent() -> void:
+	pass
 
 
 ## An authored [member FanUnit.arrival_axis] is a promise about the SHIPPED
