@@ -373,3 +373,25 @@ func test_the_parked_load_screen_starts_nothing() -> void:
 	assert_true(item.disabled, "#23 save/load is parked; today's screen disables it too")
 	assert_null(item.route)
 	assert_eq(item.panel, MenuGraph.PANEL_LOAD)
+
+
+# --- the splash draws in SCREEN space ----------------------------------------
+
+func test_the_splash_lives_in_a_canvas_layer() -> void:
+	# `%Camera` is a Camera2D, and a Camera2D transforms the viewport's DEFAULT
+	# canvas — which a plain Control child of `MetaRoot` is on. So the title and
+	# the "PRESS ANY BUTTON" prompt were panned and zoomed with the tree and sat
+	# entirely off screen: at FrontmatterLayout.SPLASH_ZOOM there was no splash
+	# text at all, and no error to say so. Same reason `frontmatter_root.tscn`
+	# puts its tooltip and its panels on a CanvasLayer.
+	var splash := _meta.get_node("%Splash") as SplashScreen
+	assert_not_null(splash)
+	var layered := false
+	var walk: Node = splash.get_parent()
+	while walk != null and walk != _meta:
+		if walk is CanvasLayer:
+			layered = true
+			break
+		walk = walk.get_parent()
+	assert_true(layered,
+			"the splash's own text is screen space — the camera must not move it")

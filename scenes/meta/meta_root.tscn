@@ -21,6 +21,8 @@ environment = ExtResource("4_env")
 [node name="Frontmatter" parent="." instance=ExtResource("3_frontmatter")]
 unique_name_in_owner = true
 
-[node name="Splash" parent="." instance=ExtResource("2_splash")]
+[node name="SplashLayer" type="CanvasLayer" parent="."]
+
+[node name="Splash" parent="SplashLayer" instance=ExtResource("2_splash")]
 unique_name_in_owner = true
-frontmatter_path = NodePath("../Frontmatter")
+frontmatter_path = NodePath("../../Frontmatter")
