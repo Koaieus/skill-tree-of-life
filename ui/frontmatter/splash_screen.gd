@@ -141,12 +141,23 @@ func _allocate_root() -> void:
 	root_view.play_allocation_spike()
 
 
-## The second half: pull back out to the tree. Re-checks the frontmatter because
-## a timer fires a frame or more later, by which point the scene may be gone.
+## The second half: pull back out to the tree. Re-checks everything, because a
+## timer fires a frame or more later and the world may have moved on.
+##
+## [b]The focus guard is the latch, extended over the hold.[/b] The latch stops a
+## SECOND press re-focusing the root; without this, the FIRST press did it —
+## "PRESS ANY BUTTON" invites mashing, so a player can press again during the
+## hold, navigate into SINGLE PLAYER, and be yanked home when the timer fires.
+## The menu is still on the root all through the hold (`build` left it there and
+## nothing has moved it), so this only trips when the player got ahead — and then
+## their own travel has already pulled the camera out of splash zoom, which is
+## the outcome anyway.
 func _travel() -> void:
 	if _frontmatter == null or not is_instance_valid(_frontmatter):
 		return
 	if _frontmatter.tree == null:
+		return
+	if _frontmatter.focus_id != _frontmatter.tree.root:
 		return
 	_frontmatter.focus(_frontmatter.tree.root)
 

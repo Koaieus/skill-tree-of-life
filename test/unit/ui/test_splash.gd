@@ -155,6 +155,36 @@ func test_advancing_drops_the_games_own_allocation_spike_on_the_root() -> void:
 			"press any button plays the same VFX every other allocation plays")
 
 
+func test_the_camera_really_does_set_off_once_the_hold_is_up() -> void:
+	# The hold is a deferred call, and nothing else here waits on the timer —
+	# if it ever stopped firing, the game's entry point would softlock on a
+	# magnified root node with the prompt already gone.
+	_frontmatter.reduce_motion = false
+	_splash.allocation_hold = 0.1
+
+	_splash.advance()
+	await get_tree().create_timer(0.3).timeout
+
+	assert_eq(_frontmatter.focus_id, _root())
+	assert_true(_frontmatter.view_for(_root()).allocated)
+
+
+func test_pressing_on_through_the_hold_is_not_dragged_back_to_the_root() -> void:
+	# "PRESS ANY BUTTON" invites mashing. The latch stops the SECOND press
+	# re-focusing the root; before the guard in `_travel`, the FIRST press did
+	# it — the player navigated on during the hold and the timer yanked them
+	# home a beat later.
+	_frontmatter.reduce_motion = false
+	_splash.allocation_hold = 0.1
+
+	_splash.advance()
+	_frontmatter.focus(MenuGraph.ID_SINGLE_PLAYER, true)
+	await get_tree().create_timer(0.3).timeout
+
+	assert_eq(_frontmatter.focus_id, MenuGraph.ID_SINGLE_PLAYER,
+			"the hold expiring is not a route home either")
+
+
 func test_a_zero_hold_sets_off_in_the_same_frame() -> void:
 	# The authored escape hatch, and the same branch `reduce_motion` takes. It
 	# removes the WAIT, not the travel — with motion on, the camera then tweens
