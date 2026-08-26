@@ -94,3 +94,13 @@ func test_procgen_generates_full_level() -> void:
 		if n.keystone != null:
 			keystone_count += 1
 	assert_eq(keystone_count, 1, "expected 1 keystone node; got %d" % keystone_count)
+
+
+func test_preset_leaves_the_loot_book_prune_switched_on() -> void:
+	# The shipped level runs off THIS resource, and the prune is off at
+	# `m <= 0.0`. That is not hypothetical: the editor once re-serialized this
+	# export as `null` after the property was added, which would have shipped
+	# the feature silently disabled with every other test still green.
+	var cfg: GraphProcgenConfig = load(_PRESET_PATH)
+	assert_not_null(cfg.blocker_spell_prune_m, "the knob is a real float, not null")
+	assert_gt(cfg.blocker_spell_prune_m, 0.0, "a value <= 0 ships the prune switched OFF")
