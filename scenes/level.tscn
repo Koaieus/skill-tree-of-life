@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://blvfst1lvl0xx"]
+[gd_scene format=3 uid="uid://jc4k3v6sfvmn"]
 
 [ext_resource type="PackedScene" uid="uid://c13p7m8d4clqu" path="res://scenes/game_root.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://bki8jbn5yvk7u" path="res://scenes/procgen_play_sandbox.gd" id="2_script"]

@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3]
 
-[ext_resource type="PackedScene" uid="uid://blvfst1lvl0xx" path="res://scenes/level.tscn" id="1_level"]
+[ext_resource type="PackedScene" uid="uid://jc4k3v6sfvmn" path="res://scenes/level.tscn" id="1_level"]
 [ext_resource type="Script" path="res://session/run_bootstrap.gd" id="2_boot"]
 [ext_resource type="Resource" path="res://session/runs/first_level_run.tres" id="3_run"]
 

@@ -1,10 +1,10 @@
-[gd_resource type="Resource" script_class="SpellBook" format=3 uid="uid://b300blkspell02"]
+[gd_resource type="Resource" script_class="SpellBook" format=3 uid="uid://6hd5n3oddlvt"]
 
-[ext_resource type="Script" path="res://entity/spell_book.gd" id="1_book"]
-[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
-[ext_resource type="Resource" path="res://attack/spell/defs/leafblower.tres" id="2_leafblower"]
-[ext_resource type="Resource" path="res://attack/spell/defs/resonator.tres" id="3_resonator"]
-[ext_resource type="Resource" path="res://attack/spell/defs/trail_blazer.tres" id="4_trail_blazer"]
+[ext_resource type="Script" uid="uid://dgddohrmd3gn6" path="res://entity/spell_book.gd" id="1_book"]
+[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
+[ext_resource type="Resource" uid="uid://b6ecc584ysaku" path="res://attack/spell/defs/leafblower.tres" id="2_leafblower"]
+[ext_resource type="Resource" uid="uid://d4cd1vbl585es" path="res://attack/spell/defs/resonator.tres" id="3_resonator"]
+[ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="4_trail_blazer"]
 
 [resource]
 script = ExtResource("1_book")

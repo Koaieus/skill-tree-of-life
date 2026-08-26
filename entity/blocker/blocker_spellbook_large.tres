@@ -1,8 +1,8 @@
-[gd_resource type="Resource" script_class="SpellBook" format=3 uid="uid://b300blkspell03"]
+[gd_resource type="Resource" script_class="SpellBook" format=3 uid="uid://6hd5n3oddlvu"]
 
-[ext_resource type="Script" path="res://entity/spell_book.gd" id="1_book"]
-[ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
-[ext_resource type="Resource" path="res://attack/spell/defs/reverberator.tres" id="2_reverberator"]
+[ext_resource type="Script" uid="uid://dgddohrmd3gn6" path="res://entity/spell_book.gd" id="1_book"]
+[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
+[ext_resource type="Resource" uid="uid://dae6hdb4aq3b3" path="res://attack/spell/defs/reverberator.tres" id="2_reverberator"]
 
 [resource]
 script = ExtResource("1_book")
