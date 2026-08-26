@@ -9,7 +9,7 @@ script = ExtResource("2_join")
 panel_id = &"join"
 title = "MULTIPLAYER"
 
-[node name="HostJoinScreen" type="VBoxContainer" parent="Margin/Column/Body" index="0"]
+[node name="HostJoinScreen" type="VBoxContainer" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" index="0"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3

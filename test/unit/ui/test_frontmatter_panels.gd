@@ -297,6 +297,58 @@ func test_the_lobby_panel_dismisses_via_dismiss() -> void:
 	assert_eq(_panels.shown_panel, &"")
 
 
+## #610/#611 acceptance 4: every OTHER lobby test in this file calls
+## `configure()` by hand on a bare `frontmatter_panels.tscn` — #610 exists
+## because that never exercised the real navigation path, so this one boots
+## the whole shell (`meta_root.tscn`) and walks it, same as
+## `test_meta_routing_parity.gd`'s `_navigate_to`. Does not use [member
+## _panels] / [member before_each] on purpose: those are the bare container
+## this test is specifically avoiding.
+##
+## The leading hypothesis in #610 — `_constrain_column_width()` pinning
+## `%Column` to a zero-width shrink — did not reproduce once #603's re-home
+## landed (probed by hand: `%Body`'s children already carried real, non-zero
+## sizes before #611 touched anything). This stays as the regression net
+## #610 asks for regardless of which unit actually fixed it.
+func test_navigating_to_new_game_renders_a_real_lobby() -> void:
+	var meta: Control = load("res://scenes/meta/meta_root.tscn").instantiate()
+	add_child_autofree(meta)
+	var frontmatter: FrontmatterRoot = meta.get_node("%Frontmatter")
+	(meta.get_node("%Splash") as SplashScreen).advanced.emit()
+	for step in frontmatter.tree.path_to(MenuGraph.ID_NEW_GAME):
+		frontmatter.focus(step, true)
+	await wait_frames(2)
+
+	var found := frontmatter.find_children("*", "FrontmatterPanels", true, false)
+	var panels := found[0] as FrontmatterPanels
+	assert_eq(panels.shown_panel, MenuGraph.PANEL_LOBBY, "the leaf routed to the lobby")
+	assert_true(panels.visible, "the panel layer took the stage")
+
+	var lobby_panel := panels.get_panel(MenuGraph.PANEL_LOBBY) as LobbyPanel
+	assert_true(lobby_panel.visible, "the lobby panel itself is shown")
+	var screen := lobby_panel.screen
+	assert_not_null(screen, "configure() minted a real LobbyScreen")
+	assert_gt(screen.size.x, 0.0, "the screen has real width, not a collapsed column")
+
+	# Participant rows: the rendered nodes, not just the data array — #610 was
+	# about the UI reading empty, which a non-empty `participants()` alone
+	# would not have caught.
+	assert_gt(screen._rows_container.get_child_count(), 0, "at least one participant row rendered")
+	assert_gt(screen.participants().size(), 0, "and the roster behind it is non-empty")
+
+	# Recursive: the spinner and the seed field each sit inside their own row
+	# (an HBoxContainer child of the screen), not directly on it.
+	assert_false(screen.find_children("*", "SpinBox", true, false).is_empty(),
+			"the AI-opponents spinner rendered")
+	assert_false(screen.find_children("*", "LineEdit", true, false).is_empty(),
+			"the seed field rendered")
+	var found_start_button := false
+	for button in screen.find_children("*", "Button", true, false):
+		if (button as Button).text == "Start Game":
+			found_start_button = true
+	assert_true(found_start_button, "the Start button rendered")
+
+
 # --- the join panel keeps the shipped address handling -----------------------
 
 func _join() -> JoinPanel:
@@ -431,25 +483,62 @@ func test_the_panel_root_fills_its_column_with_no_offset_of_its_own() -> void:
 	assert_eq(panel.offset_right, 0.0)
 
 
-## #606: the region spans the full remainder of the viewport (#600's whole
-## point), but the content column inside it must not — a row stretched to the
-## region's full width strands its label ~1000px from its control. Asserted
-## against the named bound rather than a repeated literal.
-func test_the_content_column_is_bounded_rather_than_filling_the_region() -> void:
-	# Re-pointed by #603 D5/D6: `%Region` is gone, and this scene's own root IS
-	# the region now (it fills whatever rect `%Remainder` gives it). The claim
-	# still being tested is unchanged — the column must not stretch to fill it.
+## Retired by #611 D3, not re-pointed: `#606`'s `_CONTENT_MAX_WIDTH` was a
+## compensation for a row that stretched to strand its label from its
+## control, not a legibility bound — #609 fixed the row-layout cause
+## directly, so bounding the COLUMN'S width is no longer this scene's job at
+## all. The issue names this exact deletion (`test_frontmatter_panels.gd:432`
+## at the time of writing). What survives the reshape — the glass visibly
+## inset from the viewport, headers above content — is
+## `test_the_base_panel_reshapes_into_outer_margin_glass_inner_margin` below.
+
+
+## #611 D2, acceptance 1: outer margin -> glass -> inner margin -> title +
+## body, in that order, and the outer margin is what insets the glass from
+## the viewport's own top/right/bottom (a pixel diff is `#603`'s C4 kind of
+## check, not this file's — this pins the STRUCTURE the screenshot depends on).
+func test_the_base_panel_reshapes_into_outer_margin_glass_inner_margin() -> void:
 	var panel: FrontmatterPanel = preload("res://ui/frontmatter/panels/frontmatter_panel.tscn").instantiate()
 	add_child_autofree(panel)
-	await get_tree().process_frame
 
-	var column: Control = panel.get_node("%Column")
+	var outer := panel.get_node("%OuterMargin") as MarginContainer
+	assert_eq(outer.get_parent(), panel, "the outer margin is the panel's own first child")
+	assert_gt(outer.get_theme_constant(&"margin_top"), 0, "inset from the top")
+	assert_gt(outer.get_theme_constant(&"margin_right"), 0, "inset from the right")
+	assert_gt(outer.get_theme_constant(&"margin_bottom"), 0, "inset from the bottom")
 
-	assert_lt(column.size.x, panel.size.x,
-			"the column must not fill the region's full width")
-	assert_almost_eq(column.custom_minimum_size.x, FrontmatterPanel._CONTENT_MAX_WIDTH, 0.01)
-	assert_eq(column.size_flags_horizontal, Control.SIZE_SHRINK_BEGIN,
-			"left-aligned within the region, not centred or filling")
+	var glass := outer.find_children("*", "GlassPanel", false, false)
+	assert_eq(glass.size(), 1, "exactly one glass panel, direct child of the outer margin")
+	var glass_panel := glass[0] as Control
+
+	var inner := glass_panel.get_node("%InnerMargin") as MarginContainer
+	assert_eq(inner.get_parent(), glass_panel, "the inner margin is inside the glass, not beside it")
+
+	var column := inner.get_node("%Column")
+	assert_eq(column.get_parent(), inner, "content sits inside the inner margin")
+	assert_eq(panel.get_node("%Title").get_parent(), column)
+	assert_eq(panel.get_node("%Body").get_parent(), column)
+
+
+## #611 D4: every inherited panel gets this frame from the ONE base scene.
+## No inherited scene repeats a margin or re-declares the glass — each just
+## fills `%Body`.
+func test_every_inherited_panel_gets_the_frame_from_the_base_scene_alone() -> void:
+	for path in [
+		"res://ui/frontmatter/panels/settings_panel.tscn",
+		"res://ui/frontmatter/panels/load_panel.tscn",
+		"res://ui/frontmatter/panels/exit_confirm_panel.tscn",
+		"res://ui/frontmatter/panels/lobby_panel.tscn",
+		"res://ui/frontmatter/panels/join_panel.tscn",
+	]:
+		var panel: FrontmatterPanel = load(path).instantiate()
+		add_child_autofree(panel)
+		assert_not_null(panel.get_node_or_null("%OuterMargin"), "%s inherits the outer margin" % path)
+		assert_not_null(panel.get_node_or_null("%InnerMargin"), "%s inherits the inner margin" % path)
+		assert_eq(
+			panel.find_children("*", "GlassPanel", true, false).size(), 1,
+			"%s inherits exactly one glass panel, never authors its own" % path,
+		)
 
 
 ## No [FrontmatterPanel] subclass may reach across the layer split — that

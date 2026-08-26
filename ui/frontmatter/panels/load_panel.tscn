@@ -6,7 +6,7 @@
 panel_id = &"load"
 title = "LOAD GAME"
 
-[node name="Empty" type="Label" parent="Margin/Column/Body" index="0"]
+[node name="Empty" type="Label" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" index="0"]
 layout_mode = 2
 theme_type_variation = &"TierInert"
 text = "No saved runs.

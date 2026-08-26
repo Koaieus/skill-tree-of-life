@@ -7,6 +7,6 @@
 panel_id = &"settings"
 title = "OPTIONS"
 
-[node name="SettingsMenu" parent="Margin/Column/Body" index="0" instance=ExtResource("2_settings")]
+[node name="SettingsMenu" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" index="0" instance=ExtResource("2_settings")]
 layout_mode = 2
 size_flags_vertical = 3

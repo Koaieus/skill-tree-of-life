@@ -34,6 +34,35 @@ extends Control
 ## rect the old `%Region` computed by hand, and there is nothing left to chase
 ## per frame the way the tooltip chases an arbitrary hovered node.
 ##
+## [b]A panel knows nothing about column 1 either (#611 D1).[/b] Owner,
+## verbatim: [i]"if i were to place a child in the 2nd column... it should
+## naturally occupy that space. any authored panel doesn't even know about the
+## 1st column, they just author themselves, standalone."[/i] Nothing in this
+## scene reads a hero-column width or a gutter; a panel dropped into
+## `%Remainder` grows to take the space it is given, full stop.
+##
+## [b]The nesting is inside-out from what it draws (#611 D2).[/b] Owner,
+## verbatim: [i]"margins should be applied to top right and bottom, possibly
+## left too -> then the panel (with glass background) is centered in there...
+## and inside that panel is more margins -> headers + actual content."[/i] So:
+## [codeblock]
+##   FrontmatterPanel        (this scene's own root, already fills %Remainder)
+##     %OuterMargin           top / right / bottom (and left)
+##       GlassPanel            fills the outer margin's inset rect
+##         %InnerMargin          the legibility padding around content
+##           %Column               %Title  +  %Body
+## [/codeblock]
+## The glass used to sit edge-to-edge against the viewport (#606's
+## `_CONTENT_MAX_WIDTH` compensated by narrowing the CONTENT instead); now the
+## OUTER margin insets the glass itself, visibly, from the viewport's own
+## edges.
+##
+## [b]`_CONTENT_MAX_WIDTH` is retired (#611 D3).[/b] It was a compensation, not
+## a legibility bound — #609 fixed the row-layout cause it was compensating
+## for (a settings row's own [HBoxContainer] no longer stretches to strand its
+## label from its control), so the column sizes off its content and its
+## column instead of a hand-picked pixel width.
+##
 ## [b]Authoring a panel is authoring a static page.[/b] Anchors and containers,
 ## `@tool` so the editor shows the truth, no code-composed layout — the owner's
 ## framing, 2026-08-26.
@@ -67,20 +96,10 @@ signal dismissed
 @onready var body: VBoxContainer = %Body
 
 @onready var _title_label: Label = %Title
-@onready var _column: VBoxContainer = %Column
-
-## Legibility bound, not a magic number: this panel spans the remainder of the
-## viewport by design (#600), but a settings row's [HBoxContainer] stretching
-## to fill all of that leaves its label and control ~1000px apart and
-## unreadable (#606). Picked by screenshotting the 1440x960 design viewport and
-## iterating — wide enough that the settings/join/lobby rows still breathe,
-## narrow enough that every label sits next to its control.
-const _CONTENT_MAX_WIDTH := 420.0
 
 
 func _ready() -> void:
 	_apply_title()
-	_constrain_column_width()
 
 
 func _set_panel_id(value: StringName) -> void:
@@ -97,16 +116,6 @@ func _apply_title() -> void:
 		return
 	_title_label.text = title
 	_title_label.visible = title != ""
-
-
-## Bounds [member _column] to [constant _CONTENT_MAX_WIDTH] and pins it to the
-## LEFT rather than letting the [MarginContainer] stretch it to the panel's
-## full width, or centring it in the leftover space (#606).
-func _constrain_column_width() -> void:
-	if _column == null:
-		return
-	_column.custom_minimum_size.x = _CONTENT_MAX_WIDTH
-	_column.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
 
 ## Emit [signal dismissed]. Exposed so an inherited scene can route its own

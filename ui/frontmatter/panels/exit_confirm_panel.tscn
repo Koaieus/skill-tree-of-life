@@ -8,14 +8,14 @@ script = ExtResource("2_exit")
 panel_id = &"exit_confirm"
 title = "LEAVE THE TREE?"
 
-[node name="Message" type="Label" parent="Margin/Column/Body" index="0"]
+[node name="Message" type="Label" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" index="0"]
 layout_mode = 2
 theme_type_variation = &"TierLabel"
 text = "Nothing is allocated yet. Quitting loses nothing."
 horizontal_alignment = 0
 autowrap_mode = 3
 
-[node name="ConfirmButton" type="Button" parent="Margin/Column/Body" index="1"]
+[node name="ConfirmButton" type="Button" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" index="1"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 0

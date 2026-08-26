@@ -58,6 +58,7 @@ func configure(mode: RunConfig.Mode, network: NetworkConfig = null) -> void:
 
 	var lobby := LobbyScreen.new()
 	lobby.configure(mode, network)
+	lobby.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lobby.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	lobby.start_pressed.connect(_on_start_pressed)
 	body.add_child(lobby)
