@@ -121,6 +121,24 @@ func test_blocker_becomes_a_target_once_the_attacker_is_growth_capped() -> void:
 	assert_true(_nodes[1] in AiRecon.visible_enemy_nodes(_ai_entity))
 
 
+func test_a_capped_attacker_does_not_unlock_a_core_it_does_not_border() -> void:
+	# Capped by ALLIES: there is no door, and a core across the map is not the
+	# thing walling this entity in. Unlocking it would just burn AP on scenery
+	# it still cannot allocate around.
+	var blocker: Entity = autofree(_make_entity("Blocker", _BLOCKER_FACTION))
+	_graph.add_child(blocker)
+	await get_tree().process_frame
+	# N2 is unconnected to the AI's N0 — visible (moved into range), never
+	# adjacent.
+	_alloc.force_allocate(blocker, _nodes[2])
+	_nodes[2].global_position = _nodes[0].global_position + Vector2(100.0, 0.0)
+	_ai_entity.ai_growth_capped = true
+
+	assert_false(AiRecon.borders_territory(_nodes[2], _ai_entity))
+	assert_false(AiRecon.is_ai_target(_ai_entity, _nodes[2]))
+	assert_false(_nodes[2] in AiRecon.visible_enemy_nodes(_ai_entity))
+
+
 func test_the_unlock_is_per_attacker() -> void:
 	# The stance rides on the attacker, so an unblocked bystander is unaffected
 	# by its neighbour's desperation.

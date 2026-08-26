@@ -29,7 +29,7 @@ const _ENEMY_WEAK_WEIGHT := 5.0
 ## defensive-spike pop count, not the blade's node-selection size.
 const _SHAPE_RISK_WEIGHT := 10.0
 ## What a DOOR is worth to a boxed-in attacker (#604). Applies only while
-## [member Entity.ai_growth_capped] — see [method _opens_a_door]. Sized to sit
+## [member Entity.ai_growth_capped] — see [method AiRecon.borders_territory]. Sized to sit
 ## between the two things it has to be ordered against: it dominates any
 ## ordinary EV difference (a capped AI must not plink a distant enemy forever
 ## while the wall beside it goes unhit), and it loses to [constant _KILL_BONUS]
@@ -118,7 +118,8 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 	# deallocates it, so ANY owner's node bordering my territory is a door —
 	# nothing here is blocker-specific, and a capped AI walled in by a real
 	# camp punches through it on the same reasoning.
-	if attacker != null and attacker.ai_growth_capped and _opens_a_door(target, attacker):
+	if attacker != null and attacker.ai_growth_capped \
+			and AiRecon.borders_territory(target, attacker):
 		c.breakout_bonus = _BREAKOUT_WEIGHT
 	if ai_tier > 0:
 		if _is_cut_vertex(target):
@@ -138,25 +139,6 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 		c.trace += " door=%.1f" % c.breakout_bonus
 	return c
 
-
-## Would depleting [param target] hand [param attacker] a node it can actually
-## allocate? True when the target borders the attacker's own territory — a
-## depleted node is force-deallocated, so it lands in the frontier the very
-## next pass ([method AiRecon.frontier_nodes]).
-##
-## Adjacency, not degree: the question is membership in the neighbour set, so
-## [method Graph.get_neighbours] is the right call and the degree rule does not
-## apply.
-static func _opens_a_door(target: SkillNode, attacker: Entity) -> bool:
-	if target == null or attacker == null or attacker.navigator == null:
-		return false
-	var graph: Graph = attacker.navigator.graph
-	if graph == null:
-		return false
-	for neighbour in graph.get_neighbours(target):
-		if neighbour != null and neighbour.owned_by == attacker:
-			return true
-	return false
 
 
 ## Highest-[member ScoredCandidate.total] entry, or null if [param candidates]

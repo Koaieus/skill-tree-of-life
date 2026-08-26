@@ -62,12 +62,20 @@ static func visible_enemy_nodes(entity: Entity) -> Array[SkillNode]:
 ## the second half while staying hostile to everyone else, including the
 ## player.
 ##
-## [b]Unless the attacker is boxed in[/b] — [member Entity.ai_growth_capped],
-## set per turn from [method is_growth_capped], flips the second half back on.
+## [b]Unless the attacker is boxed in AND this is the wall[/b] —
+## [member Entity.ai_growth_capped], set per turn from [method is_growth_capped],
+## flips the second half back on for cores that [method borders_territory].
 ## An NPC with nowhere left to allocate is not being patient by ignoring the
 ## scenery that walls it in, it is stuck; a Dormant Core is then the cheapest
 ## door out (and pays a relic for opening it). Indifference is the default
 ## stance, not a rule.
+##
+## The bordering half is not decoration: an entity capped by its own ALLIES has
+## no door at all, and without it that entity would unlock — and spend its AP
+## on — some unreachable core across the map that opens nothing. A core you
+## cannot allocate around is not what is capping you; the wall is adjacent by
+## definition, and a core further out only becomes reachable after a node next
+## to it is allocated, which a capped entity cannot do anyway.
 ##
 ## THE one definition, used both to build target lists ([method
 ## visible_enemy_nodes]) and to value a resolved swing ([method
@@ -83,7 +91,7 @@ static func is_ai_target(attacker: Entity, node: SkillNode) -> bool:
 	var owner_faction: Faction = node.owned_by.faction
 	if owner_faction == null or owner_faction.targeted_by_ai:
 		return true
-	return attacker.ai_growth_capped
+	return attacker.ai_growth_capped and borders_territory(node, attacker)
 
 
 ## Every unowned node adjacent to one [param entity] already owns — its growth
@@ -111,6 +119,28 @@ static func frontier_nodes(entity: Entity) -> Array[SkillNode]:
 			seen[a] = true
 			out.append(a)
 	return out
+
+
+## Does [param node] touch [param entity]'s own territory? THE definition of a
+## "door" for a capped entity: depleting a node force-deallocates it, so a
+## bordering node lands in [method frontier_nodes] the very next pass.
+##
+## Two readers, one rule — the blocker unlock in [method is_ai_target] and the
+## breakout bonus in [method AiCombatScorer.score].
+##
+## Adjacency, not degree: the question is membership in the neighbour set, so
+## [method Graph.get_neighbours] is the right call and the degree rule does not
+## apply.
+static func borders_territory(node: SkillNode, entity: Entity) -> bool:
+	if node == null or entity == null or entity.navigator == null:
+		return false
+	var graph: Graph = entity.navigator.graph
+	if graph == null:
+		return false
+	for neighbour in graph.get_neighbours(node):
+		if neighbour != null and neighbour.owned_by == entity:
+			return true
+	return false
 
 
 ## Has [param entity] run out of room to grow? Purely topological — it asks

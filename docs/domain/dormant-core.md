@@ -41,15 +41,25 @@ The exception is being **growth-capped**: an NPC with no unowned node adjacent
 to its territory has nowhere left to allocate. If the thing walling it in is
 scenery it refuses to look at, it banks SP forever and its turn does nothing.
 So `AIController` asks `AiRecon.is_growth_capped()` once per turn and sets
-`Entity.ai_growth_capped` from the answer; `AiRecon.is_ai_target()`
-reads it and unlocks blockers for that turn. Kill, relic, expand.
+`Entity.ai_growth_capped` from the answer; `AiRecon.is_ai_target()` reads it
+and unlocks — for that turn only — the cores that `borders_territory()`. Kill,
+relic, expand.
 
-Four details that are load-bearing:
+The bordering half is not decoration. **Owner call 2026-08-26:** *"beware that
+if surrounded by friendlies, there is no door available"* — an entity capped by
+its own allies has nothing to break through, and without the border test it
+would unlock some core across the map and spend AP opening a door it cannot
+walk through. The wall is adjacent by definition; a core further out only
+becomes reachable once a node beside it is allocated, which a capped entity
+cannot do anyway.
+
+Five details that are load-bearing:
 
 | detail | why |
 |---|---|
 | asked **after** the growth step | "nowhere left to allocate" is a fact about the post-growth board, not a guess about the pre-growth one |
 | **topological only** — never "can I afford it" | an entity banking SP with nowhere to spend it is precisely the case this must answer *yes* for |
+| unlock only what **borders** the attacker | capped-by-allies has no door at all; an unreachable core is not what is capping you |
 | **both** consumers of `is_ai_target` unlock | the target list AND `AiCombatScorer.expected_damage`'s per-hit filter; unlocking only the list enumerates candidates that score 0 EV, so the AI would attack only cores it could one-shot |
 | always **assigned**, never only set | the stance must not outlive the turn that earned it, or an NPC that broke out once keeps shooting scenery |
 
@@ -66,7 +76,8 @@ distant enemy wins the tie and the wall beside it never gets hit: the same
 bonus available) loses that comparison every turn forever.
 
 So `AiCombatScorer` carries a **breakout bonus**: while `ai_growth_capped`, any
-target that *borders the attacker's own territory* scores `_BREAKOUT_WEIGHT`.
+target that `borders_territory()` scores `_BREAKOUT_WEIGHT` — the same
+predicate the unlock uses, one rule with two readers.
 Depleting a node force-deallocates it, so a bordering node is a door — and
 nothing about that is blocker-specific, which is the point. A capped NPC walled
 in by a real camp punches through it on exactly the same reasoning.
@@ -76,6 +87,14 @@ subtlety a naive brain is allowed to miss) and sized to sit *between* the two
 things it is ordered against: above any ordinary EV difference, below
 `_KILL_BONUS` on a non-door target, since a kill that is right there is still
 worth taking and the next AP re-evaluates back onto the door.
+
+It is deliberately NOT ordered against the `ai_tier` terms (cut-vertex 25/tier,
+weak-point 5/tier — 75 at most): at 500 it outranks all of them, so a capped
+NPC is door-first at every tier. **Owner call 2026-08-26**, weighing exactly
+that. Being unable to grow is existential where those terms are refinements for
+winning a fight you can already fight — and the tier layer keeps its meaning
+*among* doors, since every door carries the same +500 and cut-vertex /
+weak-point preference still decides which one.
 
 Deliberately not built: any analysis of *which* faction is capping the NPC, or
 a proximity filter on which cores unlock (preference *among* unlocked

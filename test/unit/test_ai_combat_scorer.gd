@@ -129,12 +129,18 @@ func test_expected_damage_counts_a_blocker_hit_for_a_growth_capped_attacker() ->
 	# #604: the unlock has to reach the SWING VALUATION too, not just the target
 	# list — a candidate the AI is allowed to pick but scores 0 EV for would
 	# only ever win on a kill bonus, i.e. cores it can one-shot.
+	# On a node BORDERING the AI's leaf — the unlock covers the wall, not every
+	# core on the board (an entity capped by its own allies has no door).
+	var walled := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	walled.name = "Walled"
+	_graph.skill_nodes_container.add_child(walled)
+	_add_edge(_nodes[1], walled)
 	var blocker: Entity = autofree(_make_entity("Blocker", _BLOCKER_FACTION))
 	_graph.add_child(blocker)
 	await get_tree().process_frame
-	_alloc.force_allocate(blocker, _nodes[2])
-	blocker.core_location = _nodes[2]
-	var outcome := _resolve_ranged_at(_nodes[2])
+	_alloc.force_allocate(blocker, walled)
+	blocker.core_location = walled
+	var outcome := _resolve_ranged_at(walled)
 	_ai.ai_growth_capped = true
 
 	assert_almost_eq(AiCombatScorer.expected_damage(outcome, _ai),
