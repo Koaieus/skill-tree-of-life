@@ -76,6 +76,13 @@ const _CAPTION_BOX := Vector2(220.0, 24.0)
 ## measurably THINS the HUD's own `CinzelHeader` labels, which are screen-space at
 ## zoom 1 and want a native raster. `generate_mipmaps` is safe to set globally
 ## precisely because it is inert until a CanvasItem asks for a mipmap filter.
+##
+## [b]Applied on the node, in `menu_node_view.tscn` (#612), not here.[/b] `%Title`
+## authors `scale = (0.333333, 0.333333)`, a `font_size` override of 48 and
+## `size = (660, 72)` directly — all three are static, none vary per node, so
+## the scene is where they belong. This constant documents WHY those three
+## numbers are what they are (`16 * 3 = 48`, `_CAPTION_BOX * 3 = (660, 72)`,
+## `1 / 3`); nothing at runtime reads it any more.
 const _CAPTION_SUPERSAMPLE := 3.0
 
 ## The label the composite is captioned with.
@@ -145,9 +152,12 @@ func bind(look: MenuSlot.Look, is_allocated: bool = false) -> void:
 	allocated = is_allocated
 	if look == null:
 		return
+	# radius FIRST: `title=` and `archetype=` both sync the caption, which reads
+	# `radius` to park itself under the rim (#612) — setting radius last would
+	# leave the caption parked at the PREVIOUS radius until the next sync.
+	radius = look.radius
 	title = look.title
 	archetype = archetype_for(look.archetype)
-	radius = look.radius
 
 
 ## The archetype resource for a [member MenuSlot.archetype] id, or null for an
@@ -208,32 +218,18 @@ func _sync_label() -> void:
 	)
 
 
-## Parks the caption under the rim, at [constant _CAPTION_SUPERSAMPLE] times its
-## drawn size — see that constant for why.
+## Parks the caption under the rim. The scale, font size and raster box that
+## make this a [constant _CAPTION_SUPERSAMPLE]x supersample are authored on
+## `%Title` in `menu_node_view.tscn` (#612) — none of them vary per node. Only
+## the position does: it reads [member radius], which arrives at runtime via
+## [method bind].
 ##
 ## A [Control]'s `scale` pivots on its own top-left, which is its `position`, so
 ## the box has to be laid out in RASTER units and left-aligned to where the
 ## scaled box's left edge belongs. Centring by `-_CAPTION_BOX.x * 0.5` rather
 ## than by the raster width is the whole of that correction.
 func _supersample_caption() -> void:
-	_label.scale = Vector2.ONE / _CAPTION_SUPERSAMPLE
-	_label.add_theme_font_size_override(
-		&"font_size", int(round(_base_font_size() * _CAPTION_SUPERSAMPLE))
-	)
-	_label.size = _CAPTION_BOX * _CAPTION_SUPERSAMPLE
 	_label.position = Vector2(-_CAPTION_BOX.x * 0.5, radius + _LABEL_GAP)
-
-
-## The theme's own `CinzelHeader` size, cached before the first override hides
-## it — `get_theme_font_size` answers with the override once one exists, so
-## reading it every sync would compound 16 -> 48 -> 144.
-func _base_font_size() -> int:
-	if _cached_font_size < 0:
-		_cached_font_size = _label.get_theme_font_size(&"font_size")
-	return _cached_font_size
-
-
-var _cached_font_size: int = -1
 
 
 ## Plays the game's own allocation spike over this node — the "skill point from

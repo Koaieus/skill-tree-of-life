@@ -198,6 +198,56 @@ func test_binding_an_authored_look_fills_in_everything_at_once() -> void:
 	assert_eq(view.get_node("%Title").text, "MULTIPLAYER")
 
 
+func test_the_caption_supersample_is_authored_on_the_scene() -> void:
+	# #612 D1 — scale, font size and box are static, so `menu_node_view.tscn`
+	# authors them on `%Title` directly instead of `_supersample_caption()`
+	# computing them every sync. The drawn (post-scale) size stays pixel-
+	# identical to the theme's own 16px CinzelHeader at every scale the menu
+	# draws at — none of TREE_ZOOM (1.0), SPLASH_ZOOM (3.2) or PREVIEW_SCALE
+	# (0.42) enter into this at all, since the label's own scale is constant.
+	var view := _make_node_view(&"strength")
+	var label := view.get_node("%Title") as Label
+	assert_almost_eq(label.scale.x, 1.0 / 3.0, 0.001, "1/3 == the supersample's reciprocal")
+	assert_almost_eq(label.scale.y, 1.0 / 3.0, 0.001)
+	assert_eq(label.get_theme_font_size(&"font_size"), 48, "48 == the theme's 16 x supersample 3")
+	assert_almost_eq(label.size.x, 660.0, 0.5, "660 == _CAPTION_BOX.x x supersample 3")
+	assert_almost_eq(label.size.y, 72.0, 0.5, "72 == _CAPTION_BOX.y x supersample 3")
+	var drawn_font_size: float = label.get_theme_font_size(&"font_size") * label.scale.x
+	assert_almost_eq(drawn_font_size, 16.0, 0.05, "drawn size matches the un-supersampled theme size")
+
+
+func test_no_font_size_override_is_set_from_code() -> void:
+	# #612 acceptance 2 — the override lives on `%Title` in the scene now;
+	# `_sync_label()` / `_supersample_caption()` must not re-add it in code.
+	var source := FileAccess.get_file_as_string("res://ui/frontmatter/menu_node_view.gd")
+	assert_eq(source.find("add_theme_font_size_override"), -1)
+
+
+func test_binding_twice_with_different_radii_still_parks_the_caption() -> void:
+	# #612 acceptance 3 — the position line is the one bit of
+	# `_supersample_caption()` that survives in code, because it reads `radius`,
+	# which `bind()` only updates via [member radius]'s own setter. This is the
+	# regression that line owns: a stale ordering would park the caption at the
+	# PREVIOUS bind's radius instead of the one just bound.
+	var small := MenuSlot.Look.new()
+	small.title = "SMALL"
+	small.archetype = &"strength"
+	small.radius = 24.0
+	var view: MenuNodeView = _NODE_VIEW.instantiate()
+	add_child_autofree(view)
+
+	view.bind(small, true)
+	var label := view.get_node("%Title") as Label
+	assert_almost_eq(label.position.y, small.radius + 10.0, 0.01, "parked under the first radius")
+
+	var big := MenuSlot.Look.new()
+	big.title = "BIG"
+	big.archetype = &"strength"
+	big.radius = 64.0
+	view.bind(big, true)
+	assert_almost_eq(label.position.y, big.radius + 10.0, 0.01, "and re-parked under the second")
+
+
 func test_binding_nothing_leaves_the_composites_own_defaults() -> void:
 	# An id nothing authors is caught by `solve()`'s 1:1 cross-check; the view
 	# is not the place to hear about it, so a null look is inert rather than
