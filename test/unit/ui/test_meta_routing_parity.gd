@@ -246,7 +246,7 @@ func test_a_networked_route_asks_for_coop_and_resolves_to_versus() -> void:
 func test_the_resolved_mode_ignores_how_many_ai_join() -> void:
 	_navigate_to(MenuGraph.ID_NEW_GAME)
 	var lobby := _lobby()
-	lobby._ai_count_spin.value = 4
+	lobby._ai_count_row.value = 4
 	var cfg := lobby.build_run_config()
 	assert_eq(_ai(cfg.participants).size(), 4,
 			"the spinbox's four AI reach the run as four AI participants (#584)")

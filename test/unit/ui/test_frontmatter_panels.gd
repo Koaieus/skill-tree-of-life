@@ -632,7 +632,7 @@ func test_ai_count_row_does_not_jump_when_ai_count_changes() -> void:
 	_panels.show_panel(MenuGraph.PANEL_LOBBY)
 	await get_tree().process_frame
 
-	var ai_row: AiCountRow = lobby.screen._ai_count_spin
+	var ai_row: AiCountRow = lobby.screen._ai_count_row
 	var initial_y := ai_row.global_position.y
 
 	ai_row.value = 4.0

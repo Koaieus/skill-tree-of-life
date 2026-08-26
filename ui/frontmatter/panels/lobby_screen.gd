@@ -110,7 +110,7 @@ func add_option(text: String, disabled: bool = false) -> Button:
 var _mode: RunConfig.Mode = RunConfig.Mode.SINGLE
 var _network: NetworkConfig = null
 var _seed_edit: LineEdit
-var _ai_count_spin: AiCountRow  # Renamed from SpinBox to AiCountRow, but keeping the name for backward compat
+var _ai_count_row: AiCountRow
 var _participants: Array[Participant] = []
 var _rows_container: VBoxContainer
 
@@ -130,9 +130,9 @@ func _ready() -> void:
 	add_theme_constant_override("separation", 8)
 
 	if _offers_ai_opponents():
-		_ai_count_spin = _AI_COUNT_ROW.instantiate()
-		_ai_count_spin.value_changed.connect(func(_v: float): _rebuild_participants())
-		content.add_child(_ai_count_spin)
+		_ai_count_row = _AI_COUNT_ROW.instantiate()
+		_ai_count_row.value_changed.connect(func(_v: float): _rebuild_participants())
+		content.add_child(_ai_count_row)
 
 	_rows_container = VBoxContainer.new()
 	_rows_container.add_theme_constant_override("separation", 4)
@@ -227,9 +227,9 @@ func _rebuild_participants() -> void:
 
 
 func _ai_opponent_count() -> int:
-	if _ai_count_spin == null:
+	if _ai_count_row == null:
 		return _DEFAULT_AI_OPPONENTS if _offers_ai_opponents() else 0
-	return int(_ai_count_spin.value)
+	return int(_ai_count_row.value)
 
 
 func _refresh_rows() -> void:
