@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+#MISE description="Per-script GUT timings from the last run, slowest-first: `mise run test:timings`"
+"""
+Per-script test timings, extracted from the JUnit XML `mise run test` already
+writes to .godot/gut-last.xml (#624).
+
+GUT's own junit exporter (addons/gut/junit_xml_export.gd) sums each script's
+testcase `time_taken` into its <testsuite time="..."> attribute — the
+per-script total this report wants already exists in that file with no GUT
+changes needed. This script only parses it.
+
+Deliberately does NOT run the suite itself: a measurement must not perturb the
+thing it measures, and `mise run test`'s own verdict format is relied on by
+other agents. Run `mise run test` first (or reuse an existing gut-last.xml,
+including one from a `test:one` / `test:dir` narrowed run), then this.
+
+Caveat worth keeping in mind when reading the report: a script's <testsuite>
+time is the sum of its *testcase* times, which wrap before_each/after_each but
+NOT before_all/after_all (addons/gut/gut.gd, _run_test vs _call_before_all) —
+a script whose cost is a one-time before_all scene load will under-report
+slightly relative to its true wall time.
+"""
+import os
+import sys
+import xml.etree.ElementTree as ET
+
+ROOT = os.environ.get("MISE_PROJECT_ROOT") or os.getcwd()
+XML = os.path.join(ROOT, ".godot", "gut-last.xml")
+OUT = os.path.join(ROOT, ".godot", "gut-last-timings.txt")
+
+TOP_N_CONSOLE = 25
+
+
+def main():
+    if not os.path.exists(XML):
+        sys.exit(f"✗ no {os.path.relpath(XML, ROOT)} — run `mise run test` first")
+
+    try:
+        tree = ET.parse(XML)
+    except ET.ParseError as e:
+        sys.exit(f"✗ could not parse {os.path.relpath(XML, ROOT)}: {e}")
+
+    rows = []  # (time, script, tests, failures, skipped)
+    for suite in tree.getroot().iter("testsuite"):
+        rows.append((
+            float(suite.get("time", 0.0)),
+            suite.get("name", "?"),
+            int(suite.get("tests", 0)),
+            int(suite.get("failures", 0)),
+            int(suite.get("skipped", 0)),
+        ))
+
+    if not rows:
+        sys.exit(f"✗ 0 testsuites in {os.path.relpath(XML, ROOT)} — nothing to report")
+
+    rows.sort(key=lambda r: r[0], reverse=True)
+    total = sum(r[0] for r in rows)
+
+    def cum_fraction(n):
+        return sum(r[0] for r in rows[:n]) / total if total else 0.0
+
+    lines = []
+    lines.append(f"Per-script GUT timings from {os.path.relpath(XML, ROOT)}")
+    lines.append(f"{len(rows)} scripts, {sum(r[2] for r in rows)} tests, "
+                  f"{total:.3f}s total testcase time")
+    lines.append("")
+    lines.append(f"{'time(s)':>8}  {'tests':>5}  {'fail':>4}  {'skip':>4}  script")
+    for time_taken, name, tests, failures, skipped in rows:
+        lines.append(f"{time_taken:8.3f}  {tests:5d}  {failures:4d}  {skipped:4d}  {name}")
+    lines.append("")
+    for n in (10, 25):
+        if n <= len(rows):
+            lines.append(f"top {n:>2} scripts: {cum_fraction(n) * 100:5.1f}% of total time "
+                          f"({sum(r[0] for r in rows[:n]):.3f}s)")
+
+    report = "\n".join(lines) + "\n"
+    with open(OUT, "w") as f:
+        f.write(report)
+
+    # Console gets the summary + head of the table; the full table is the file
+    # — same split as `mise run test` vs .godot/gut-last.log.
+    print(f"{len(rows)} scripts, {total:.3f}s total testcase time")
+    for n in (10, 25):
+        if n <= len(rows):
+            print(f"  top {n:>2}: {cum_fraction(n) * 100:5.1f}% of total ({sum(r[0] for r in rows[:n]):.3f}s)")
+    print()
+    print(f"{'time(s)':>8}  {'tests':>5}  script")
+    for time_taken, name, tests, _, _ in rows[:TOP_N_CONSOLE]:
+        print(f"{time_taken:8.3f}  {tests:5d}  {name}")
+    if len(rows) > TOP_N_CONSOLE:
+        print(f"  …and {len(rows) - TOP_N_CONSOLE} more — see {os.path.relpath(OUT, ROOT)}")
+    print(f"\nfull table: {os.path.relpath(OUT, ROOT)}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

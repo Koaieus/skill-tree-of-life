@@ -157,6 +157,17 @@ dir="${1:?usage: mise run test:dir -- res://test/unit/}"
 exec "${MISE_PROJECT_ROOT:-.}/.mise/tasks/test" "$dir"
 '''
 
+# test:timings (#624) is a pure parser of the JUnit XML `test` already writes —
+# it does not invoke godot itself, so it never perturbs the suite it measures.
+# Run `mise run test` (or test:one / test:dir) first, then this.
+[tasks."test:timings"]
+description = "Per-script GUT timings from the last run, slowest-first: `mise run test:timings`"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+exec "${MISE_PROJECT_ROOT:-.}/.mise/tasks/test-timings"
+'''
+
 [tasks."worktree:new"]
 description = "Create a worktree: `mise run worktree:new -- 86` (issue number, fetches title) or `mise run worktree:new -- my-topic` (free text)"
 run = '''
