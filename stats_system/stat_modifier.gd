@@ -271,17 +271,24 @@ func contribution_text(board: StatBoard = null) -> String:
 ## is what #231's audit found. Use [method contribution_text] when you want
 ## the live computed number instead.
 func format() -> String:
-	var def: StatDef = StatRegistry.get_def(stat_id)
-	var name: String = String(stat_id)
-	var as_percent := false
-	var value_type := StatDef.ValueType.INT
-	if def != null:
-		name = def.modifier_name if not def.modifier_name.is_empty() else def.display_name
-		as_percent = def.display_as_percent
-		value_type = def.value_type
+	var parts := _display_parts()
 	if formula != null:
-		return _with_per_clause(_format_value(name, as_percent, value_type, value))
-	return _format_value(name, as_percent, value_type, get_effective_value())
+		return _with_per_clause(_format_value(parts[0], parts[1], parts[2], value))
+	return _format_value(parts[0], parts[1], parts[2], get_effective_value())
+
+
+## The display triple `[name, as_percent, value_type]` this modifier's
+## [StatDef] dictates, falling back to the raw [member stat_id] and INT when
+## the id resolves to no def. Shared by [method format] and
+## [method format_effective] so the two cannot drift on what a stat is CALLED
+## while disagreeing only on which value they print — the difference between
+## them is the value, and should stay only the value.
+func _display_parts() -> Array:
+	var def: StatDef = StatRegistry.get_def(stat_id)
+	if def == null:
+		return [String(stat_id), false, StatDef.ValueType.INT]
+	var name: String = def.modifier_name if not def.modifier_name.is_empty() else def.display_name
+	return [name, def.display_as_percent, def.value_type]
 
 
 ## The same full sentence as [method format], but ALWAYS through
