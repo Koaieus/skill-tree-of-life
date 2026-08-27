@@ -117,6 +117,27 @@ func test_stat_value_row_parenthetical_form() -> void:
 	assert_eq(row._value_label.text, "5 (3)")
 
 
+func test_stat_value_row_int_stat_rounds_a_scaled_fraction() -> void:
+	# #622 — the observed bug: an aura's distance-falloff scaling can hand an
+	# INT-typed stat a fractional value (39.97). Display must round it, never
+	# print the fraction.
+	var row := _STAT_VALUE_ROW_SCENE.instantiate()
+	add_child_autofree(row)
+	var def := _stat_def(&"strength", "Strength", Color.RED)
+	def.value_type = StatDef.ValueType.INT
+	row.bind_scalar(def, 39.97)
+	assert_eq(row._value_label.text, "+40")
+
+
+func test_stat_value_row_float_stat_keeps_decimals() -> void:
+	var row := _STAT_VALUE_ROW_SCENE.instantiate()
+	add_child_autofree(row)
+	var def := _stat_def(&"crit_chance", "Crit Chance", Color.RED)
+	def.value_type = StatDef.ValueType.FLOAT
+	row.bind_scalar(def, 1.5)
+	assert_eq(row._value_label.text, "+1.5")
+
+
 func test_stat_value_row_tints_name_by_stat_def() -> void:
 	var row := _STAT_VALUE_ROW_SCENE.instantiate()
 	add_child_autofree(row)

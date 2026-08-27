@@ -274,12 +274,14 @@ func format() -> String:
 	var def: StatDef = StatRegistry.get_def(stat_id)
 	var name: String = String(stat_id)
 	var as_percent := false
+	var value_type := StatDef.ValueType.INT
 	if def != null:
 		name = def.modifier_name if not def.modifier_name.is_empty() else def.display_name
 		as_percent = def.display_as_percent
+		value_type = def.value_type
 	if formula != null:
-		return _with_per_clause(_format_value(name, as_percent, value))
-	return _format_value(name, as_percent, get_effective_value())
+		return _with_per_clause(_format_value(name, as_percent, value_type, value))
+	return _format_value(name, as_percent, value_type, get_effective_value())
 
 
 ## Appends " per <phrase>" to `sentence` when the bound formula offers one.
@@ -290,20 +292,28 @@ func _with_per_clause(sentence: String) -> String:
 	return sentence if phrase.is_empty() else "%s per %s" % [sentence, phrase]
 
 
-func _format_value(name: String, as_percent: bool, v: float) -> String:
+## `value_type`-aware (#622) — ADD_BASE / INCREASE / ADD_BONUS route their
+## non-percent value through [method StatDef.format_number] (via [method _signed])
+## so a FLOAT stat's decimals survive instead of an unconditional `roundi()`.
+## `display_as_percent` stays on its own `roundi(v * 100.0)` path, unchanged
+## (#622 decision: it composes with the type rule rather than replacing it —
+## a percent display is already whole-number-of-percent regardless of the
+## underlying stat's type). MULTIPLY / SET keep `_trim(v)` untouched — neither
+## is type-aware; see [StatDef.format_number]'s docstring for why.
+func _format_value(name: String, as_percent: bool, value_type: StatDef.ValueType, v: float) -> String:
 	match operation:
 		Operation.ADD_BASE:
 			if as_percent:
 				return "%+d%% %s" % [roundi(v * 100.0), name]
-			return "%+d %s" % [roundi(v), name]
+			return "%s %s" % [_signed(value_type, v), name]
 		Operation.INCREASE:
-			return "%+d%% increased %s" % [roundi(v), name]
+			return "%s%% increased %s" % [_signed(value_type, v), name]
 		Operation.MULTIPLY:
 			return "×%s %s" % [_trim(v), name]
 		Operation.ADD_BONUS:
 			if as_percent:
 				return "%+d%% bonus %s" % [roundi(v * 100.0), name]
-			return "%+d bonus %s" % [roundi(v), name]
+			return "%s bonus %s" % [_signed(value_type, v), name]
 		Operation.SET:
 			if as_percent:
 				return "%s is %d%%" % [name, roundi(v * 100.0)]
@@ -311,7 +321,20 @@ func _format_value(name: String, as_percent: bool, v: float) -> String:
 	return ""
 
 
+## Signed, type-aware rendering of [param v] via [method StatDef.format_number]
+## — the value-only half of ADD_BASE/INCREASE/ADD_BONUS's "+N Stat" grammar.
+## `format_number` already carries the sign for a negative value (both its
+## branches print through a signed numeric format); this only adds the "+" a
+## non-negative value needs, matching the old unconditional `"%+d"`.
+static func _signed(value_type: StatDef.ValueType, v: float) -> String:
+	var body := StatDef.format_number(value_type, v)
+	return body if v < 0.0 else "+" + body
+
+
 ## Render a float without trailing ".00" — whole values print as ints.
+## NOT type-aware — MULTIPLY/SET keep this literal-trim behaviour regardless
+## of the stat's [enum StatDef.ValueType] (#622 acceptance 3); the type-aware
+## sibling is [method StatDef.format_number], used by the other three ops.
 static func _trim(v: float) -> String:
 	if is_equal_approx(v, roundf(v)):
 		return "%d" % roundi(v)

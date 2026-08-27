@@ -37,6 +37,40 @@ func test_negative_value_keeps_own_sign() -> void:
 	assert_eq(_mod(&"strength", StatModifier.Operation.ADD_BASE, -5.0).format(), "-5 Strength")
 
 
+# --- #622: value_type-aware formatting — FLOAT keeps decimals, INT still rounds ---
+
+func test_add_base_on_a_float_stat_keeps_decimals() -> void:
+	# crit_multiplier is FLOAT-typed with no display_as_percent — the root-cause
+	# case: _format_value used to blanket-roundi() this to "+2 Crit Multiplier".
+	assert_eq(
+		_mod(&"crit_multiplier", StatModifier.Operation.ADD_BASE, 1.5).format(),
+		"+1.5 Crit Multiplier"
+	)
+
+
+func test_increase_on_a_float_stat_keeps_decimals() -> void:
+	assert_eq(
+		_mod(&"crit_multiplier", StatModifier.Operation.INCREASE, 1.5).format(),
+		"+1.5% increased Crit Multiplier"
+	)
+
+
+func test_add_bonus_on_a_float_stat_keeps_decimals() -> void:
+	assert_eq(
+		_mod(&"crit_multiplier", StatModifier.Operation.ADD_BONUS, 1.5).format(),
+		"+1.5 bonus Crit Multiplier"
+	)
+
+
+func test_add_base_on_an_int_stat_still_rounds() -> void:
+	# strength is INT-typed — unaffected by #622's fix, pinned so a future
+	# regression on the type-aware branch shows up here too.
+	assert_eq(
+		_mod(&"strength", StatModifier.Operation.ADD_BASE, 4.6).format(),
+		"+5 Strength"
+	)
+
+
 # --- modifier_name substitution on a pool stat, across all five operators ---------
 
 func test_add_base_modifier_name_substitution() -> void:

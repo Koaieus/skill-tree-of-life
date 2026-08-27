@@ -31,21 +31,21 @@ extends Control
 func bind_scalar(stat_def: StatDef, value: float) -> void:
 	_bind_name(stat_def)
 	var prefix := "+" if value >= 0.0 else ""
-	_value_label.text = prefix + _val(value)
+	_value_label.text = prefix + _val(value, stat_def)
 
 
 ## Pool form: `current / max`, e.g. `6 / 10`. Never falls back to a bar —
 ## callers wanting a bar own that decision elsewhere.
 func bind_pool(stat_def: StatDef, current: float, max_value: float) -> void:
 	_bind_name(stat_def)
-	_value_label.text = "%s / %s" % [_val(current), _val(max_value)]
+	_value_label.text = "%s / %s" % [_val(current, stat_def), _val(max_value, stat_def)]
 
 
 ## Suffixed/parenthetical form: a primary value with a bracketed secondary
 ## reading, e.g. `5 (3)` — #230's combined armor + min_damage_taken row.
 func bind_parenthetical(stat_def: StatDef, value: float, paren_value: float) -> void:
 	_bind_name(stat_def)
-	_value_label.text = "%s (%s)" % [_val(value), _val(paren_value)]
+	_value_label.text = "%s (%s)" % [_val(value, stat_def), _val(paren_value, stat_def)]
 
 
 ## Applies the fan reveal at clock position `t` (0..1): cubic ease-out driving
@@ -63,12 +63,14 @@ func _bind_name(stat_def: StatDef) -> void:
 	_name_label.add_theme_color_override("font_color", stat_def.tint_color)
 
 
-## Render a float without trailing ".00" — whole values print as ints.
-## Mirrors [method ModSlabRow._val].
-static func _val(v: float) -> String:
-	if is_equal_approx(v, roundf(v)):
-		return str(int(v))
-	return "%.2f" % v
+## Renders [param v] per [param stat_def]'s declared [member StatDef.value_type]
+## via the shared [method StatDef.format_number] (#622) — an INT stat always
+## rounds to a whole number (e.g. an aura's scaled fraction, `39.97`, → `40`),
+## a FLOAT stat keeps its decimals. Contrast [ModSlabRow], which renders a
+## modifier's own value/op grammar through [method StatModifier.format]
+## instead of a bare stat value.
+static func _val(v: float, stat_def: StatDef) -> String:
+	return StatDef.format_number(stat_def.value_type, v)
 
 
 static func _ease_out(t: float) -> float:

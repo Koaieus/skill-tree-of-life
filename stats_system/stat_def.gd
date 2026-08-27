@@ -48,3 +48,25 @@ func get_abbrev() -> String:
 	if display_name.is_empty():
 		return String(id).substr(0, 3).to_upper()
 	return display_name.substr(0, 3).to_upper()
+
+
+## Single shared formatter (#622) for "a raw float, rendered per a stat's
+## declared [enum ValueType]" — the one thing neither [StatValueRow] nor
+## [method StatModifier._format_value] consulted before, in opposite-failing
+## directions: an INT stat showed decimals (`+39.97 STR`, e.g. from aura
+## distance-falloff scaling — see [method EffectContext.grant_scaled]), a
+## FLOAT stat got wrongly `roundi()`'d. Unsigned, no thousands/percent
+## handling — callers own sign prefixing and [member display_as_percent].
+##
+## INT always rounds to a whole number, regardless of an upstream fractional
+## artifact. FLOAT (and BOOL, which has no numeric display path today — this
+## just falls through unchanged) prints a whole value bare and otherwise keeps
+## two decimals, trimmed of one trailing zero — mirrors
+## [method StatModifier._trim], which stays independent since MULTIPLY/SET
+## are deliberately NOT type-aware (#622 acceptance 3).
+static func format_number(value_type: ValueType, v: float) -> String:
+	if value_type == ValueType.INT:
+		return str(roundi(v))
+	if is_equal_approx(v, roundf(v)):
+		return str(int(v))
+	return ("%.2f" % v).trim_suffix("0")
