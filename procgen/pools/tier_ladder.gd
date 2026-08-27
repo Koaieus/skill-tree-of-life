@@ -36,6 +36,19 @@ static func value(tier: int) -> float:
 	return 2.0 * cost(tier) - 1.0
 
 
+## Low-bound recurrence (#628): a pool's floor at its first tier is its
+## tunable `m`; every higher tier's floor is the PREVIOUS tier's high bound
+## plus `m` — `L(1) = m`, `L(r+1) = H(r) + m`. Deliberately takes the caller's
+## already-computed `prev_high` rather than re-deriving it from [method value],
+## because [member StatPool.value_overrides] can pin a tier's high bound to
+## something the ladder formula alone doesn't know — chaining off the real
+## previous high (override or not) is the only correct implementation. Do not
+## also write a closed-form version of this: see .claude/rules (no parallel
+## mirrors of the same logic).
+static func low(is_first_tier: bool, prev_high: float, m: float) -> float:
+	return m if is_first_tier else prev_high + m
+
+
 static func tier_tag(tier: int) -> StringName:
 	return StringName("tier_%d" % clampi(tier, MIN_TIER, MAX_TIER))
 

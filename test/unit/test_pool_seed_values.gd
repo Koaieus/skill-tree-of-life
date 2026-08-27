@@ -31,66 +31,87 @@ func _find_pool(archetype_stat: StringName, stat_id: StringName, op: int) -> Sta
 
 func test_strength_addb_flattens_to_seed_table() -> void:
 	# Seed row: strength .addb, unit 2, T1..T4 → +2 +6 +14 +30 at costs 1 2 4 8.
+	# #628: these are now HIGH bounds, not fixed points — "resulting T1..T4"
+	# in the seed table was always H, and H is unchanged (acceptance 4: no
+	# existing pool rebalances). None of these pools author `range_floor`, so
+	# it defaults to `unit_value` (2.0) and the low bounds follow the
+	# recurrence L(1) = M, L(t+1) = H(t) + M — T1 stays a zero-width point,
+	# T2..T4 gain real width. See test_pool_range_bounds.gd for the formula
+	# itself; this file only pins that H didn't move.
 	var p := _find_pool(&"strength", &"strength", StatModifier.Operation.ADD_BASE)
 	var entries := p.to_entries()
 	assert_eq(entries.size(), 4, "strength.addb offers T1..T4")
-	var expected_mags := [2.0, 6.0, 14.0, 30.0]
+	var expected_highs := [2.0, 6.0, 14.0, 30.0]
+	var expected_lows := [2.0, 4.0, 8.0, 16.0]  # M=2 default: L1=2, L(t+1)=H(t)+2
 	var expected_costs := [1, 2, 4, 8]
 	for i in entries.size():
 		var e: ModifierPoolEntry = entries[i]
 		assert_eq(e.cost, expected_costs[i], "strength.addb T%d cost" % [i + 1])
-		assert_almost_eq(e.value_range.x, expected_mags[i], 0.001, "strength.addb T%d magnitude" % [i + 1])
-		assert_almost_eq(e.value_range.y, e.value_range.x, 0.001,
-				"no jitter (deleted #326) — range is a fixed point, not a spread")
+		assert_almost_eq(e.value_range.y, expected_highs[i], 0.001, "strength.addb T%d high (unchanged by #628)" % [i + 1])
+		assert_almost_eq(e.value_range.x, expected_lows[i], 0.001, "strength.addb T%d low (default M=unit_value)" % [i + 1])
 
 
 func test_crit_chance_inc_flattens_with_overrides() -> void:
 	# Seed row: crit_chance .inc, unit 5, overrides {3: 50, 4: 100} →
-	# +5 +15 +50 +100 at costs 1 2 4 8.
+	# +5 +15 +50 +100 at costs 1 2 4 8. #628: these are highs — unchanged, an
+	# override replaces H(t) but never L(t). Default M=5 (unit_value); L(3)
+	# and L(4) chain off the OVERRIDDEN H(2)/H(3), per the value_overrides
+	# guard (acceptance 7) — covered in depth in test_pool_range_bounds.gd.
 	var p := _find_pool(&"dexterity", &"crit_chance", StatModifier.Operation.INCREASE)
 	var entries := p.to_entries()
 	assert_eq(entries.size(), 4, "crit_chance.inc offers T1..T4")
-	var expected_mags := [5.0, 15.0, 50.0, 100.0]
+	var expected_highs := [5.0, 15.0, 50.0, 100.0]
+	var expected_lows := [5.0, 10.0, 20.0, 55.0]
 	var expected_costs := [1, 2, 4, 8]
 	for i in entries.size():
 		var e: ModifierPoolEntry = entries[i]
 		assert_eq(e.cost, expected_costs[i], "crit_chance.inc T%d cost" % [i + 1])
-		assert_almost_eq(e.value_range.x, expected_mags[i], 0.001, "crit_chance.inc T%d magnitude" % [i + 1])
+		assert_almost_eq(e.value_range.y, expected_highs[i], 0.001, "crit_chance.inc T%d high (unchanged by #628)" % [i + 1])
+		assert_almost_eq(e.value_range.x, expected_lows[i], 0.001, "crit_chance.inc T%d low" % [i + 1])
 
 
 func test_movement_points_addb_caps_at_t2() -> void:
 	# Seed row: movement_points .addb, unit 1, max_tier 2 → +1 +3 at costs 1 2.
 	# The cap (not a descending weight curve) is the honest brake (#321 D6).
+	# #628: highs unchanged; default M=1 gives L1=1 (zero-width), L2=H1+M=2.
 	var p := _find_pool(&"", &"movement_points", StatModifier.Operation.ADD_BASE)
 	var entries := p.to_entries()
 	assert_eq(entries.size(), 2, "movement_points.addb caps at T2")
-	var expected_mags := [1.0, 3.0]
+	var expected_highs := [1.0, 3.0]
+	var expected_lows := [1.0, 2.0]
 	var expected_costs := [1, 2]
 	for i in entries.size():
 		var e: ModifierPoolEntry = entries[i]
 		assert_eq(e.cost, expected_costs[i], "movement_points T%d cost" % [i + 1])
-		assert_almost_eq(e.value_range.x, expected_mags[i], 0.001, "movement_points T%d magnitude" % [i + 1])
+		assert_almost_eq(e.value_range.y, expected_highs[i], 0.001, "movement_points T%d high (unchanged by #628)" % [i + 1])
+		assert_almost_eq(e.value_range.x, expected_lows[i], 0.001, "movement_points T%d low" % [i + 1])
 
 
 func test_attribute_mul_starts_at_t3() -> void:
 	# Seed row: attribute .mul, unit 0.05, min_tier 3, pool_weight 1 →
-	# ×1.05 ×1.15 at costs 4 8. Value rungs are indexed relative to min_tier
-	# (the pool's first tier is V1, ×1, whatever it costs); cost stays
-	# absolute. The +1 (the "more" excess) is folded in at flatten, so the
-	# range must read as the full multiplier.
+	# ×1.05 ×1.15 at costs 4 8 (highs, unchanged by #628). Value rungs are
+	# indexed relative to min_tier (the pool's first tier is V1, ×1, whatever
+	# it costs); cost stays absolute. The +1 (the "more" excess) is folded
+	# into BOTH ends here, so range_floor's default (M=unit_value=0.05) makes
+	# T3 (the pool's own first tier) a zero-width ×1.05 point and T4 gain a
+	# ×1.10..×1.15 spread.
 	var p := _find_pool(&"strength", &"strength", StatModifier.Operation.MULTIPLY)
 	var entries := p.to_entries()
 	assert_eq(entries.size(), 2, "strength.mul offers T3..T4 only")
 	assert_eq(entries[0].cost, 4)
 	assert_eq(entries[1].cost, 8)
-	assert_almost_eq(entries[0].value_range.x, 1.05, 0.001, "T3 → ×1.05")
-	assert_almost_eq(entries[1].value_range.x, 1.15, 0.001, "T4 → ×1.15")
+	assert_almost_eq(entries[0].value_range.y, 1.05, 0.001, "T3 high → ×1.05")
+	assert_almost_eq(entries[0].value_range.x, 1.05, 0.001, "T3 low → ×1.05 (zero-width, pool's first tier)")
+	assert_almost_eq(entries[1].value_range.y, 1.15, 0.001, "T4 high → ×1.15")
+	assert_almost_eq(entries[1].value_range.x, 1.10, 0.001, "T4 low → ×1.10")
 
 
 func test_min_tier_indexes_value_relative_to_first_tier() -> void:
 	# The ladder rule: cost stays absolute, value rungs are indexed relative
 	# to the pool's first tier. min_tier=3 → t3 costs 4 but is V1 (×1), t4
-	# costs 8 and is V2 (×3). ADD_BASE so the magnitudes read raw.
+	# costs 8 and is V2 (×3). ADD_BASE so the magnitudes read raw. These are
+	# HIGHS (unaffected by #628); default range_floor=unit_value makes t3
+	# (the pool's first tier) a zero-width point and t4 low = H(t3) + M.
 	var p := StatPool.new()
 	p.stat_id = &"strength"
 	p.operation = StatModifier.Operation.ADD_BASE
@@ -100,9 +121,11 @@ func test_min_tier_indexes_value_relative_to_first_tier() -> void:
 	var entries := p.to_entries()
 	assert_eq(entries.size(), 2, "min_tier=3, max_tier=4 → T3..T4 only")
 	assert_eq(entries[0].cost, 4, "t3 cost stays absolute (2^(3-1))")
-	assert_almost_eq(entries[0].value_range.x, 1.0, 0.001, "t3 is the pool's first tier → V1 = ×1")
+	assert_almost_eq(entries[0].value_range.y, 1.0, 0.001, "t3 is the pool's first tier → V1 = ×1")
+	assert_almost_eq(entries[0].value_range.x, 1.0, 0.001, "t3 is zero-width (default M=unit_value)")
 	assert_eq(entries[1].cost, 8, "t4 cost stays absolute (2^(4-1))")
-	assert_almost_eq(entries[1].value_range.x, 3.0, 0.001, "t4 is the second rung → V2 = ×3")
+	assert_almost_eq(entries[1].value_range.y, 3.0, 0.001, "t4 is the second rung → V2 = ×3")
+	assert_almost_eq(entries[1].value_range.x, 2.0, 0.001, "t4 low = H(t3) + M = 1.0 + 1.0")
 
 
 func test_every_flattened_entry_cost_is_legal() -> void:

@@ -72,6 +72,31 @@ extends Resource
 ## budget (seed: ≤ 6).
 @export var value_overrides: Dictionary[int, float] = {}
 
+## Tunable floor magnitude — "M" in #628. `L(min_tier) = range_floor`; every
+## higher tier's low bound is `H(previous tier) + range_floor` ([method
+## TierLadder.low]). Same units as `unit_value` — the *excess* for MULTIPLY
+## pools (the +1 is folded in at flatten, same as `unit_value`), raw
+## otherwise. Only constraint: `range_floor <= unit_value` (a floor above the
+## T1 ceiling inverts the range) — `_get_configuration_warnings` enforces it.
+## Negative is legal and intended: it spans the range across zero so a normal
+## (non-debuff) pool can roll a small penalty alongside its usual upside; see
+## docs/domain/procgen-v4.md.
+##
+## Sentinel default: [constant FLOOR_UNSET] means "not authored" and resolves
+## to `unit_value`, which is always valid (`range_floor <= unit_value` holds
+## as equality) and reproduces pre-#628 behaviour exactly — a zero-width
+## min_tier, unchanged highs. A literal numeric default could not do this: it
+## would fail validation for any pool whose `unit_value` is smaller than it
+## (e.g. `attribute .mul`'s 0.05) or wrong-signed (the intelligence debuff's
+## −5). Every already-authored `.tres` under `procgen/pools/` omits this
+## field and so gets `range_floor == unit_value` for free — the "no existing
+## pool rebalances" regression the acceptance spec asks for.
+##
+## Does not apply to debuff pools (`unit_value < 0`, D9) — see
+## [method _tier_magnitude_bounds].
+const FLOOR_UNSET := INF
+@export var range_floor: float = FLOOR_UNSET
+
 ## Base sampling weight for this pool (the pool-selection axis). Tier weight
 ## within a pool is `|cost|^tier_bias_k`; the draw multiplies the two.
 @export var pool_weight: float = 1.0
@@ -104,6 +129,47 @@ func _init() -> void:
 func _update_resource_name():
 	resource_name = '%s %s' % [stat_id, _op_symbol()]
 
+## Resolves [member range_floor]'s sentinel — see its docstring.
+func _effective_floor() -> float:
+	return unit_value if is_inf(range_floor) else range_floor
+
+## One (lo, hi) magnitude pair per tier in `min_tier..max_tier` — the shared
+## computation behind [method to_entries], [method format_table], and
+## [method _get_configuration_warnings]. "Magnitude" = pre-"+1" excess for
+## MULTIPLY pools, raw value otherwise (the transform is applied by callers,
+## same split [method to_entries] always used for `unit_value`). Single
+## source of the low-bound recurrence so every reader sees the same chain
+## through (possibly overridden) highs — see [method TierLadder.low].
+##
+## Debuff pools (`unit_value < 0`, D9) are exempt from `range_floor`: #628's
+## body is explicit that this child "only needs to not obstruct" the
+## separate negative-M migration that eventually replaces the debuff
+## mechanic — it does not need to make the two compose. `L(t+1) = H(t) + M`
+## assumes H grows in the positive direction M points; a debuff's H trends
+## *more* negative per tier, so the same arithmetic would swap which end is
+## numerically smaller without meaning anything (T2 of the repo's INT debuff:
+## H(2) = -6, L(2) = H(1) + M = -4 — "low" ends up right of "high"). Debuffs
+## keep the pre-#628 fixed point (`lo == hi == H`) until that migration lands.
+func _tier_magnitude_bounds() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var lo := clampi(min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)
+	var hi := clampi(max_tier, lo, TierLadder.MAX_TIER)
+	var is_debuff := unit_value < 0.0
+	var floor_m := _effective_floor()
+	var prev_high := 0.0
+	var first := true
+	for t in range(lo, hi + 1):
+		# Value is indexed relative to the pool's first tier: `min_tier=3`
+		# rolls t3 at cost 4 with the V1 magnitude (×1) and t4 at cost 8 with
+		# V2 — a pool's first tier is worth ×1 whatever it costs. Cost stays
+		# absolute; only the value rung shifts.
+		var h := float(value_overrides.get(t, unit_value * TierLadder.value(t - min_tier + 1)))
+		var l := h if is_debuff else TierLadder.low(first, prev_high, floor_m)
+		out.append({"tier": t, "lo": l, "hi": h})
+		prev_high = h
+		first = false
+	return out
+
 ## Flatten into runtime entries (one per tier in `min_tier..max_tier`).
 ## Stable id per tier: `<stat_id>_<op>_<arch>_t<tier>` so weight profiles target
 ## stably across re-flattens.
@@ -111,31 +177,25 @@ func to_entries() -> Array[ModifierPoolEntry]:
 	var out: Array[ModifierPoolEntry] = []
 	var op_short := _op_short()
 	var arch_seg := String(archetype_stat) if archetype_stat != &"" else "any"
-	var lo := clampi(min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)
-	var hi := clampi(max_tier, lo, TierLadder.MAX_TIER)
-	for t in range(lo, hi + 1):
+	var is_debuff := unit_value < 0.0
+	for b in _tier_magnitude_bounds():
+		var t: int = b.tier
 		var e := ModifierPoolEntry.new()
 		e.id = StringName("%s_%s_%s_t%d" % [stat_id, op_short, arch_seg, t])
 		e.stat_id = stat_id
 		e.operation = operation
 		# Debuff pools (unit_value < 0): cost is -T (refunds budget).
-		var is_debuff := unit_value < 0.0
 		var t_cost := TierLadder.cost(t)
 		e.cost = -t_cost if is_debuff else t_cost
-		# value_range = magnitude = override or unit*V[T]. For MULTIPLY, the
-		# rolled StatModifier value is `1 + magnitude` (the "more" excess), so
-		# the +1 is folded in here while the ×1 base stays fixed. No per-roll
-		# jitter (deleted #326): draw count + tier spread are the variance
-		# sources — how many draws a node's budget affords *is* the variability.
-		# Value is indexed relative to the pool's first tier: `min_tier=3`
-		# rolls t3 at cost 4 with the V1 magnitude (×1) and t4 at cost 8 with
-		# V2 — a pool's first tier is worth ×1 whatever it costs. Cost stays
-		# absolute; only the value rung shifts.
-		var mag := float(value_overrides.get(t, unit_value * TierLadder.value(t - min_tier + 1)))
+		# value_range = [lo, hi] magnitude (#628/#629 — the draw rolls
+		# uniformly within it, see [method ModifierPoolEntry.roll]). For
+		# MULTIPLY, the rolled StatModifier value is `1 + magnitude` (the
+		# "more" excess), so the +1 is folded into both ends here while the
+		# ×1 base stays fixed.
 		if operation == StatModifier.Operation.MULTIPLY:
-			e.value_range = Vector2(1.0 + mag, 1.0 + mag)
+			e.value_range = Vector2(1.0 + b.lo, 1.0 + b.hi)
 		else:
-			e.value_range = Vector2(mag, mag)
+			e.value_range = Vector2(b.lo, b.hi)
 		# weight = pool_weight * |cost|^k.
 		e.weight = pool_weight * pow(float(t_cost), tier_bias_k)
 		# tags = pool tags + ladder auto-tags (tier_N + rarity).
@@ -165,29 +225,34 @@ func _op_symbol() -> String:
 		StatModifier.Operation.SET: return "="
 	return "??"
 
+## Inspector button (#628 acceptance 6): preview this pool's own tier table
+## without printing the whole [ModifierPoolSet] via its set-level button.
+@export_tool_button("Print tier table") var _print_button: Callable = _print_table
+
+func _print_table() -> void:
+	print(format_table())
+
 ## Markdown-ish table for the print-tool. Caller prefixes with the pool id.
+## Shows the rolled L..H range (#628/#629) and its mean, not a single
+## magnitude — a pool's tiers are no longer fixed points.
 func format_table() -> String:
 	var lines: PackedStringArray = []
 	var arch := String(archetype_stat) if archetype_stat != &"" else "—"
 	lines.append("  stat=%s op=%s archetype=%s tags=%s" % [
 			String(stat_id), _op_short(), arch, str(tags)])
-	lines.append("  tier  magnitude          cost  weight   tags")
-	lines.append("  ----  -----------------  ----  -------  ----")
-	var lo := clampi(min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)
-	var hi := clampi(max_tier, lo, TierLadder.MAX_TIER)
-	for t in range(lo, hi + 1):
-		var mag := float(value_overrides.get(t, unit_value * TierLadder.value(t - min_tier + 1)))
+	lines.append("  tier  L..H                  cost  weight   mean     tags")
+	lines.append("  ----  --------------------  ----  -------  -------  ----")
+	var is_mul := operation == StatModifier.Operation.MULTIPLY
+	for b in _tier_magnitude_bounds():
+		var t: int = b.tier
+		var lo_disp: float = (1.0 + b.lo) if is_mul else b.lo
+		var hi_disp: float = (1.0 + b.hi) if is_mul else b.hi
 		var tc := TierLadder.cost(t)
 		var w := pool_weight * pow(float(tc), tier_bias_k)
 		var ttags := TierLadder.auto_tags(t)
-		var disp: float
-		if operation == StatModifier.Operation.MULTIPLY:
-			disp = 1.0 + mag
-		else:
-			disp = mag
-		lines.append("  T%-3d  %7.2f         %-4d  %7.3f  %s" % [
-				t, disp,
-				(-tc if unit_value < 0.0 else tc), w, str(ttags)])
+		lines.append("  T%-3d  %8.2f..%-9.2f  %-4d  %7.3f  %7.2f  %s" % [
+				t, lo_disp, hi_disp,
+				(-tc if unit_value < 0.0 else tc), w, (lo_disp + hi_disp) / 2.0, str(ttags)])
 	return "\n".join(lines)
 
 
@@ -201,6 +266,22 @@ func _get_configuration_warnings() -> PackedStringArray:
 		out.append("max_tier < min_tier — pool will draw nothing.")
 	if unit_value == 0.0 and value_overrides.is_empty():
 		out.append("unit_value 0 with no overrides — every tier rolls 0.")
+	# #628: the one validation rule is `range_floor <= unit_value` (a floor
+	# above the T1 ceiling inverts the pool's whole range). Negative
+	# range_floor is legal and intended — see its docstring.
+	var floor_m := _effective_floor()
+	if floor_m > unit_value:
+		out.append("%s: range_floor (%s) exceeds unit_value (%s) — inverts min_tier's range." % [
+				resource_name, floor_m, unit_value])
+	# #628 acceptance 7: value_overrides is keyed on ABSOLUTE tier while the
+	# ladder indexes relative — an override on tier T changes H(T), and
+	# L(T+1) = H(T) + range_floor chains off it. An override deep enough (or
+	# range_floor large enough) can still invert a later tier even when the
+	# clause above passes at min_tier.
+	for b in _tier_magnitude_bounds():
+		if b.lo > b.hi:
+			out.append("%s: T%d range inverted (lo %s > hi %s) — check value_overrides against range_floor." % [
+					resource_name, b.tier, b.lo, b.hi])
 	var registry := TagRegistry.canonical()
 	if registry != null:
 		var unknown := registry.unknown_tags(tags)

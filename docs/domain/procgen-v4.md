@@ -53,6 +53,84 @@ draw (primary → cost-capped off-attribute → defensive → rare) is replaced 
   *wants* duplicates to combine). The class + `test_weight_profiles.gd` remain
   for anyone who wants the primitive, but a v4 preset must not include it.
 
+## Tunable floor + computed tier bounds (#628)
+
+Every tier now has a `[L, H]` range instead of a fixed value. `H(t)` is
+unchanged (`unit_value × V[t]`, or a `value_overrides` entry) — the ladder's
+existing ceiling. `L` is new, driven by a per-pool `StatPool.range_floor`
+("M"):
+
+```
+L(min_tier) = M
+L(t+1)      = H(t) + M
+H(t)        = unit_value × V(t)      # unchanged
+```
+
+`TierLadder.low(is_first_tier, prev_high, m)` is the single implementation of
+this recurrence — it chains off the *actual* previous high, which may be a
+`value_overrides` entry, so it is never reimplemented as a closed form.
+
+**Validation is one rule: `M <= unit_value`.** A negative `M` is legal and
+intended — it spans the range across zero so a normal pool can roll a small
+penalty alongside its usual upside. Non-overlap between tiers (`L(t+1) >
+H(t)`) is a **consequence** of a positive `M`, not a guaranteed property of
+the model — do not assert it for negative `M`; players never see individual
+tiers anyway, only the fused result (see "Uniform roll" below).
+
+Anchors for authors:
+- `M = -unit_value` makes the first tier EV-neutral (mean 0, a symmetric coin
+  flip) — a tier's mean is `(L+H)/2`. More negative than that and the
+  cheapest tier is negative-EV.
+- How far negatives reach up the ladder: tier `t+1` can roll negative iff
+  `unit_value × V(t) < |M|`. With `V = [1,3,7,15]` the breakpoints are
+  `|M| > u` (reaches T2), `> 3u` (T3), `> 7u` (T4).
+
+**Default `M = unit_value`** (sentinel: `StatPool.range_floor ==
+StatPool.FLOOR_UNSET`, unset). This is always valid (`M <= unit_value` holds
+as equality), yields a zero-width `min_tier` (a fixed point, same as
+pre-#628), and leaves every already-authored pool's high bounds untouched —
+no existing pool rebalances. Authors opt into variance by lowering
+`range_floor` below `unit_value`.
+
+**Debuff pools (`unit_value < 0`, D9) are exempt.** `range_floor` doesn't
+apply to them — they keep the pre-#628 fixed point (`L == H`) unconditionally.
+The recurrence assumes `H` grows in the direction `M` points; a debuff's `H`
+trends *more* negative per tier, so applying it verbatim would swap which end
+is numerically smaller without meaning anything. This is deliberate, not an
+oversight: "Negative M replaces debuff pools" is a separate, not-yet-filed
+migration, and #628 only needs to not obstruct it, not make the two compose.
+
+**`value_overrides` guard**: it is keyed on *absolute* tier while the ladder
+indexes *relative* — an override on tier `T` changes `H(T)`, and `L(T+1)`
+chains off that overridden `H`, not the un-overridden formula. An override
+that leaves a tier's own `L > H` is a `_get_configuration_warnings()` error
+naming the pool.
+
+An inspector button ("Print tier table") on `StatPool` itself dumps
+`format_table()` — tier, `L..H`, cost, weight, and mean — so an author can see
+the consequences of a chosen `M` directly, which is what makes relaxed
+validation safe.
+
+## Uniform roll within L..H (#629)
+
+`ModifierPoolEntry.roll(rng)` already samples `value_range` with
+`rng.randf_range` — #628 widening `value_range` to a real `[L, H]` is what
+activates uniform rolling; #629 didn't need to touch the sampling call at
+all. Its own content is the fused-no-op re-roll: procgen's spend-until-broke
+draw fuses same-`(stat, op)` picks (see "Per-(stat,op) aggregation" above),
+and with negative `M` legal, a fused result can land exactly on its
+operation's neutral element (`0` for ADD*/INCREASE, `1` for MULTIPLY — `SET`
+has none) — a slot that does nothing. `_roll_modifiers_v4` detects this
+*after* fusion (never per-roll — individual rolls are allowed to be small or
+negative) and re-rolls just that group's contributing picks, up to a fixed
+retry cap, dropping the modifier if it still no-ops after exhausting
+retries. The retry path draws from the same seeded `rng` in the same
+deterministic order as the original picks, so two peers retry identically —
+see `.claude/rules/multiplayer-sync.md`.
+
+The roll is baked in at generation time, same as everything else in this
+draw — it is not re-rolled on load.
+
 ## Debuffs (D9)
 
 A `StatPool` with negative `unit_value` is a debuff pool. It ladders like any
