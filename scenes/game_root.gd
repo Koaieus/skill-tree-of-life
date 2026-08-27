@@ -174,6 +174,12 @@ func _ready() -> void:
 	# mine?" before it may frame anyone's action (#524).
 	if camera_director != null:
 		camera_director.seat_policy = seat_policy
+	# The applier asks the SAME seat question before its pre-roll pause (#556),
+	# so it is pushed from the one place that owns the policy rather than
+	# re-derived there. Without this the gate stays null and the pre-roll is
+	# inert — see [method CommandApplier._pre_roll].
+	if command_applier != null:
+		command_applier.seat_policy = seat_policy
 	# The run decides how it ends (#457/#460). After `_setup_level`, which is
 	# where a directly-launched level opens its session. `resolved_...` is what
 	# falls back to the MODE's default when the run authored no condition — the

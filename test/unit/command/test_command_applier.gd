@@ -343,3 +343,56 @@ func test_confirm_is_idempotent_so_one_command_crosses_the_wire_once() -> void:
 	_applier.submit(command)
 	assert_eq(confirmed.size(), 1, "exactly one confirmation for one command")
 	assert_eq(confirmed[0], command)
+
+
+# ── #556: pre-roll before a non-local actor's command applies ──────────────
+
+func test_with_no_seat_policy_wired_a_command_applies_in_the_same_frame() -> void:
+	# Every other test in this file leaves `seat_policy` unset — this pins that
+	# the default is "no gate, no pre-roll", which is what keeps them all
+	# passing unmodified.
+	_applier.pre_roll_seconds = 5.0
+	var applied := [false]
+	_applier.command_applied.connect(func(_cmd, _ok): applied[0] = true)
+	_applier.submit(_allocate("B"))
+	assert_true(applied[0], "no SeatPolicy means nothing to ask, so no delay")
+	assert_false(_applier.is_applying)
+
+
+func test_a_seated_actors_command_still_applies_in_the_same_frame() -> void:
+	# Acceptance 1: a seated actor sees no behavioural change at all.
+	_player.is_human_controlled = true  # couch seats every HUMAN
+	_applier.seat_policy = SeatPolicy.couch()
+	_applier.pre_roll_seconds = 5.0
+	var applied := [false]
+	_applier.command_applied.connect(func(_cmd, _ok): applied[0] = true)
+	_applier.submit(_allocate("B"))
+	assert_true(applied[0], "seated -> no pre-roll, same frame as today")
+	assert_false(_applier.is_applying)
+
+
+func test_a_non_seated_actors_command_waits_out_the_pre_roll() -> void:
+	# Acceptance 2 + 3: the pre-roll elapses between confirm and the mutation,
+	# and `is_applying` survives it — the same bracket every other await sits
+	# inside (:385-:422).
+	_applier.seat_policy = SeatPolicy.seat(999999)  # pinned to nobody in this fixture
+	_applier.pre_roll_seconds = 0.2
+	var applied := [false]
+	_applier.command_applied.connect(func(_cmd, _ok): applied[0] = true)
+	_applier.submit(_allocate("B"))
+	assert_false(applied[0], "the pre-roll has not elapsed yet")
+	assert_true(_applier.is_applying, "the guard survives the pre-roll like every other await")
+
+	await wait_seconds(0.3)
+	assert_true(applied[0], "and now the mutation has landed")
+	assert_false(_applier.is_applying)
+	assert_eq(_n("B").owned_by, _player, "the mutation itself is unaffected by the delay")
+
+
+func test_zero_pre_roll_seconds_disables_the_gate() -> void:
+	_applier.seat_policy = SeatPolicy.seat(999999)
+	_applier.pre_roll_seconds = 0.0
+	var applied := [false]
+	_applier.command_applied.connect(func(_cmd, _ok): applied[0] = true)
+	_applier.submit(_allocate("B"))
+	assert_true(applied[0], "0.0 is off, not an instant timer")

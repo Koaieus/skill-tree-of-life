@@ -106,6 +106,19 @@ const CORE_HOP_SLIDE_DELAY := 0.18
 ## The outstanding-loot-pick book, for [PickLootCommand] (#522).
 @export var loot_pick_registry: LootPickRegistry
 
+## #556: how long [method _pre_roll] holds the drain for a non-local actor's
+## command, so [CameraDirector] has time to pan there before the mutation
+## lands. Authored independently of [member CameraDirector.default_focus_duration]
+## — 0.35 in spirit, but this applier must not read the director. `0.0` (or no
+## [member seat_policy]) disables the pre-roll entirely.
+@export_range(0.0, 2.0, 0.05) var pre_roll_seconds: float = 0.35
+
+## Who THIS MACHINE plays (#556) — the same [SeatPolicy] [GameRoot] pushes onto
+## [CameraDirector], asked here rather than re-derived. `null` until pushed, the
+## same as the director's own field: no gate means no pre-roll, which is also
+## every fixture's default and why no existing test needed to change.
+var seat_policy: SeatPolicy = null
+
 ## Is this peer the one that DECIDES, or the one that is told? True offline,
 ## true on the host, false only while [member CommandLink.mode] is `MIRROR` —
 ## that setter is the single writer, so nothing has to be kept in sync by hand
@@ -401,6 +414,7 @@ func _drain() -> void:
 			# [method BattleSystem.prepare_launch_command] stamped its record
 			# inside the validate above.
 			confirm(command)
+			await _pre_roll(command)
 			@warning_ignore("redundant_await")
 			success = await _apply(command)
 		# Inside the guard, deliberately — see the class note. Fires for a
@@ -421,6 +435,39 @@ func _drain() -> void:
 		_refresh_awaiting()
 	is_applying = false
 	applying_changed.emit(false)
+
+
+## #556: a fixed pause between a command's confirmation and its mutation, for a
+## NON-LOCAL actor only, so [CameraDirector] has time to pan there before the
+## world changes under it. Called from inside [method _drain]'s :385-:422
+## bracket, so [member is_applying] is already true across it — the same
+## guarantee that already spans [MoveCoreCommand]'s inter-hop beat.
+##
+## [b]A fixed timer, never a wait on the camera.[/b] Awaiting presentation
+## itself would put presentation on the mutation path
+## (`.claude/rules/presentation-clock.md`); this is a clock, not a dependency.
+##
+## [b]The seat predicate is the SAME question [CameraDirector] asks[/b]
+## ([method SeatPolicy.seats], pushed here by [GameRoot] the same way it is
+## pushed onto the director) — not a second copy of the rule. An actor that
+## fails to resolve is treated as unframeable, exactly as
+## [method CameraDirector._build_command_request] treats it, rather than as
+## "not seated": falling through would delay every command whose actor this
+## applier cannot look up.
+##
+## [b]Seat-gated on purpose, confirmed safe under the sync model (#556).[/b]
+## [method _drain] runs identically on every peer, so this makes a
+## seat-dependent peer apply at a different wall-clock moment than another —
+## timing drift, not divergence, under host-authoritative
+## confirmed-command-down: outcomes come from the command itself, never from
+## when `_drain` happens to resume. See `docs/domain/multiplayer-sync-model.md`.
+func _pre_roll(command: Command) -> void:
+	if seat_policy == null or graph == null or pre_roll_seconds <= 0.0:
+		return
+	var actor := graph.get_by_entity_id(command.entity_id)
+	if actor == null or seat_policy.seats(actor):
+		return
+	await get_tree().create_timer(pre_roll_seconds).timeout
 
 
 ## Recompute [member is_awaiting_confirmation] from what the queue actually
