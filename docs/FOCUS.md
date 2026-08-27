@@ -88,7 +88,7 @@ classes, `GameSettings` + reflected settings menu, `BuildInfo`,
 | ~~#461~~ → **#567** | **Game Frontmatter — the menu IS a skill tree** | **Swarmified 2026-08-24.** #461 closed as superseded (its roster half shipped as #549). The owner put this back **in** the milestone — *"it's part of the LAN. i will be showing it to people, it needs a skill tree menu"* — reversing #461's own 2026-08-21 call to file it outside. Hub #567, **11 children**; LAN cut #568/#569/#570/#573/#574/#577 in `Ready`, polish tail #571/#572/#575/#576/#578 in `Backlog` behind native `blocked-by`. **Do not re-enumerate children here** — read `mise gh-project -- roadmap` |
 | ~~#462~~ | ~~Display settings (window mode, resolution, vsync, fps cap)~~ | **Shipped 2026-08-21.** North Star #2 is met |
 | **#463** | Versus: `NetworkTransport` + ENet lobby | **Hub, swarmified 2026-08-22.** The transport seam, both transports and `CommandLink` already shipped — the body was 60% stale. All five 2026-08-23 children closed (#527/#528/#529/#530/#531). **The sync model is settled 2026-08-24** — see below, and the upward channel + roster seam were swarmified the same day. **Do not re-enumerate children here** — read `mise gh-project -- roadmap` |
-| **#597** | **The run carries its map** — `RunConfig` picks the procgen preset | **`Needs design`, filed 2026-08-26.** #584 shipped (`dbd8d7c`): a level consumes a run and refuses without one, and a sandbox is that same scene plus a `RunBootstrap` child holding an authored `RunConfig`. The map is the one thing a run still does NOT carry — so `coop_versus.tres` (#550, shipped + tested) has **no consumer** and is unreachable, exactly as the menu was before #577. Three forks, owner session. Gates **#349**; settle with **#558**, same seam |
+| **#597** | **The run carries its map** — `RunConfig` picks the procgen preset | **SWARMIFIED — it is a HUB, not open design work** (owner call 2026-08-27, correcting this row's own earlier "three forks, owner session" text). Its D9 settled the `Scenario` / `RunConfig` split, and its children carry settled acceptance specs and sit in `Ready`: **#641** (child 1, creates the `Scenario` type — *"cut so the siblings have a type to point at"*, so it is the root), **#642**, **#643**, **#638**, with **#349** and **#558** in the same lane. The parent keeps a `design` label and sits outside `Ready`; that is hub bookkeeping, **not a blocker** — do not read it as "needs design" and do not stall a child on it. Background: #584 shipped (`dbd8d7c`), and `coop_versus.tres` (#550) still has no consumer until this lane lands |
 | ~~#499~~ | ~~Ranged volley: arrival ramp + apply in arrival order~~ | **Shipped.** `OutcomeApplier` orders hits by `arrival_time` |
 
 Also in the milestone, by owner call: **#403** Tech Seeds, `Needs design` —
@@ -314,7 +314,11 @@ the procgen config, #469 edge width vs. zoom + bolt dots (wants a design pass).
 `Needs design`, reconcile before scheduling more). **#349 moved into the LAN
 milestone** 2026-08-26 and was re-scoped to "split `GraphProcgenConfig` into
 reusable top-level preset modules" — its dead-field half shipped as `ec361e4`.
-Native `blocked-by` **#597**; don't pull it first.
+**Not blocked by #597** — that hub is swarmified and its children are `Ready`
+(corrected 2026-08-27; this line previously claimed a native `blocked-by` that
+does not exist in the GitHub API). #349's own body names a different
+prerequisite: *"after #324–#329 land"* — and **#327 is the only one of those
+still open**. Judge #349 against #327, not against #597.
 
 ## Deliberately parked
 
