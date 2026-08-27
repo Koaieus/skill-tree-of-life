@@ -23,15 +23,32 @@ extends Node
 ## very next line, and the pick that arrives a round trip later hits an
 ## already-resolved request and is silently dropped.
 ##
-## [b]What is dormant today, and why.[/b] There is no upward intent channel:
-## [CommandLink] `MIRROR` never sends, `mp_dev_sandbox` freezes the client's
-## input outright, and #463 owns building that channel. There is also no roster
-## saying which peer seats which entity — [SeatPolicy] is the per-machine half
-## and deliberately never feeds anything a peer must reproduce. So
-## [method is_remote_collector] answers `false` for everybody today and no
-## request is ever actually parked in real play. It cannot be exercised
-## end-to-end until #463 lands the channel and the roster. Everything the
-## harness CAN reach — a local human picking, an NPC auto-picking, a headless
+## [b]A MIRROR peer's registry is inert, always (#564).[/b] [SkillDustAddon]'s
+## whole claim chain is HOST-GATED at `_on_carrier_owner_changed` — a peer never
+## opens a round on its own, it only replays a [LootRoundCommand] as it arrives
+## — so [method park] is never called there. [method pending_count] reads 0 for
+## the entire span of a mirror peer's loot round, by construction: there is no
+## local state to strand, so there is nothing to leave unresolved. Do not add a
+## client-side park/await — see `.claude/rules/multiplayer-sync.md` and the
+## owner call this class's issue settled (a mirror decides nothing and
+## reproduces nothing it can be told; the resolved outcome rides down as a
+## confirmed [LootRoundCommand] instead).
+##
+## [b]What is dormant today, and why.[/b] The upward intent channel exists
+## (#548: [CommandLink] `MIRROR` sends, [method CommandApplier._submit_upward]
+## routes a [PickLootCommand] there) and the roster CAN say which peer a
+## participant sits at ([member Participant.peer_id],
+## [method Participant.is_local] — never [SeatPolicy], which is the per-machine
+## half and deliberately never feeds anything a peer must reproduce). What is
+## still missing is the OTHER half: nothing in the codebase maps a live
+## [Entity] back to the [Participant] that seats it — [member Participant.id]
+## is a lobby-minted seat index, unrelated to [member Entity.entity_id], and the
+## `{participant_id: Entity}` dictionary [method GameRoot.apply_roster] /
+## [method SeatPolicy.from_roster] take is built fresh at setup and never kept.
+## Until that correlation exists — on [Entity] itself, or wherever it ends up
+## living — [method is_remote_collector] cannot resolve "which participant plays
+## this collector" and stays `false` for everybody. Everything the harness CAN
+## reach today — a local human picking, an NPC auto-picking, a headless
 ## auto-resolve — rides down as a [LootRoundCommand] and needs none of this.
 ##
 ## [b]The one thing #463 must not undo.[/b] An answer to a parked request must
