@@ -40,6 +40,17 @@ func _mount_coord() -> ArrowVolleyCoordinator:
 	# Visual timing is irrelevant to the reveal schedule — keep it short so
 	# the projectile drain doesn't stretch the test.
 	coord.flight_time = 0.02
+	# `flight_time` isn't where the real wait was: `_flight_for` recovers each
+	# shot's actual airtime from `arrival_time` (a few ms here), so what
+	# dominated was Projectile's post-arrival wait on LightArrow's `finished`
+	# signal — LightArrow's own `hold_seconds` (0.35) + `fade_seconds` (0.4),
+	# a purely cosmetic dwell nothing here asserts on. `visual_scene = null`
+	# skips instantiating a visual at all (Projectile._instantiate_visual's
+	# own null guard), which drops `_wait_for_visual_done` to Projectile's
+	# `linger_seconds` fallback (0.1) instead — this is the same
+	# "swap a lighter double" pattern as the AIController.turn_delay override
+	# in 8917a81, expressed through an export already meant for exactly this.
+	coord.visual_scene = null
 	add_child_autofree(coord)
 	return coord
 

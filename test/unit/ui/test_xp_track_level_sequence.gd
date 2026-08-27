@@ -54,6 +54,15 @@ func after_each() -> void:
 
 ## Runs the replay to completion. Generous: each level is fill+hold+wrap plus a
 ## deferred hop between beats.
+##
+## Tried dropping the per-tick `wait_seconds(0.01)` (bare `process_frame`
+## ticks, same 60-tick ceiling) — passed 3/3 runs here in isolation, but the
+## identical loop in test_level_up_flourish.gd flaked on
+## `test_the_flourish_is_held_until_the_queue_drains` under the SAME change:
+## with no explicit floor, 60 ticks' real wall time tracks engine/CPU load
+## rather than a guaranteed minimum, so the margin against a real multi-level
+## cascade shrinks exactly when the box is busiest — which it demonstrably
+## is right now (concurrent swarm workers). Reverted; not safe to ship.
 func _settle() -> void:
 	for i in 60:
 		await get_tree().process_frame

@@ -66,11 +66,24 @@ func _flourish_title() -> String:
 ## Runs the replay to completion AND past the flourish's dwell — the count
 ## resets when the flourish has actually left, not when the queue drained, so
 ## `min_dwell` is real wall-clock time this has to cover.
+##
+## `min_dwell` is post-cascade presentation pacing (`LevelUpFlourish.release()`
+## reads it only when the cascade drains) — not part of what these assertions
+## check (ordering, counts, resets). Overriding it here, before any stamp has
+## a chance to call `release()`, is the same test-only-override pattern
+## sanctioned for `AIController.turn_delay` in 8917a81: it collapses an
+## artificial ~2s wait per call without touching what's asserted. Scoped to
+## `_settle()` alone, restored after — `test_a_single_level_still_dwells` and
+## `test_rebinding_cuts_a_live_flourish` check `_open` against the SHIPPED
+## `min_dwell` at a fixed wait and would break if this leaked into `before_each`.
 func _settle() -> void:
+	var _shipped_dwell := _flourish.min_dwell
+	_flourish.min_dwell = 0.05
 	for i in 60:
 		await get_tree().process_frame
 		await wait_seconds(0.01)
 	await wait_seconds(_flourish.min_dwell + 0.2)
+	_flourish.min_dwell = _shipped_dwell
 
 
 ## The headline fix. Four levels in one grant produce ONE element counting to
