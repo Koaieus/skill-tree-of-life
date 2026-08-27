@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+#MISE description="Regenerate the procgen golden fixtures (test_preset_generation_golden.gd) — a DELIBERATE act, never a way to make a red test green"
+set -euo pipefail
+
+# Flips test_preset_generation_golden.gd's `_REGENERATE` const to true, runs
+# the test alone (which then rewrites both fixture files under
+# test/unit/procgen/fixtures/ and fails on purpose as a reminder to review),
+# then flips the const back — always, even on failure. It does NOT run the
+# test a second time to confirm green: review the resulting fixture diff by
+# hand and re-run `mise run test:one -- res://test/unit/procgen/test_preset_generation_golden.gd`
+# yourself before committing, with a commit message that justifies WHY
+# GraphProcgen's output was supposed to change (#349).
+
+ROOT="${MISE_PROJECT_ROOT:-.}"
+SCRIPT="$ROOT/test/unit/procgen/test_preset_generation_golden.gd"
+
+cleanup() {
+	sed -i 's/^const _REGENERATE := true$/const _REGENERATE := false/' "$SCRIPT"
+}
+trap cleanup EXIT
+
+sed -i 's/^const _REGENERATE := false$/const _REGENERATE := true/' "$SCRIPT"
+grep -q '^const _REGENERATE := true$' "$SCRIPT" || {
+	echo "✗ could not find 'const _REGENERATE := false' to flip in $SCRIPT" >&2
+	exit 1
+}
+
+echo "Regenerating procgen golden fixtures…"
+godot --headless --path "$ROOT" -s res://addons/gut/gut_cmdln.gd \
+	-gtest="res://test/unit/procgen/test_preset_generation_golden.gd" -gdir= \
+	-gdisable_colors -gexit || true
+
+echo
+echo "Fixtures rewritten under test/unit/procgen/fixtures/ — review the diff,"
+echo "re-run the test to confirm it's green, then commit with a message"
+echo "justifying why generation was supposed to change."
