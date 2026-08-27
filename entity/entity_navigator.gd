@@ -20,6 +20,15 @@ extends GraphMirror
 
 @export var entity: Entity
 
+## Bumped on every structural change to this mirror — a node entering/leaving
+## the owned subgraph, or an edge between two already-mirrored nodes. The cheap
+## fingerprint [AuraDistanceCache] compares against its own cached generation
+## to know whether a shared hop-distance walk is still valid (#626). Overriding
+## the base's mutation points rather than listening to a signal keeps this to
+## one integer write per real topology event, on the object that already knows
+## about every one of them (see the mutation-contract doc above).
+var topology_generation: int = 0
+
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
@@ -33,5 +42,29 @@ func _ready() -> void:
 	wire_to(graph)
 
 
+func _exit_tree() -> void:
+	AuraDistanceCache.forget_mirror(self)
+
+
 func _should_mirror(node: SkillNode) -> bool:
 	return node.owned_by == entity
+
+
+func mirror_add(node: SkillNode) -> void:
+	super.mirror_add(node)
+	topology_generation += 1
+
+
+func mirror_remove(node: SkillNode) -> void:
+	super.mirror_remove(node)
+	topology_generation += 1
+
+
+func _on_edge_added(edge: Edge) -> void:
+	super._on_edge_added(edge)
+	topology_generation += 1
+
+
+func _on_edge_removed(edge: Edge) -> void:
+	super._on_edge_removed(edge)
+	topology_generation += 1

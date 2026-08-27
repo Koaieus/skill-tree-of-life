@@ -52,12 +52,18 @@ func _on_granted(ctx: EffectContext) -> void:
 	recompute(ctx)
 
 
-func _on_node_allocated(ctx: EffectContext, _node: SkillNode, _forced: bool) -> void:
-	recompute(ctx)
+## Allocation/deallocation route through [method _topology_changed] rather
+## than a blind [method recompute] — that's the #626 fix. A core move still
+## goes straight to a full [method recompute]: for an entity-wide aura the
+## SOURCE itself just changed (old core's cache entry is simply orphaned, a new
+## one populated at the new source), and that's rare enough not to need its own
+## fast path.
+func _on_node_allocated(ctx: EffectContext, node: SkillNode, _forced: bool) -> void:
+	_topology_changed(ctx, node)
 
 
-func _on_node_deallocated(ctx: EffectContext, _node: SkillNode, _forced: bool) -> void:
-	recompute(ctx)
+func _on_node_deallocated(ctx: EffectContext, node: SkillNode, _forced: bool) -> void:
+	_topology_changed(ctx, node)
 
 
 func _on_core_moved(ctx: EffectContext, _from: SkillNode, _to: SkillNode) -> void:
@@ -88,6 +94,156 @@ func recompute(ctx: EffectContext) -> void:
 		if not is_instance_valid(node):
 			continue
 		var s: float = 1.0 if distance_scale == null else distance_scale.scale(dists[node], bound)
+		if is_zero_approx(s):
+			continue
+		for m in modifiers:
+			if m != null:
+				ctx.grant_scaled(m, s, node)
+
+
+## The alloc/dealloc entry point (#626). `metric == null` keeps the OLD,
+## unconditional full-rebuild behaviour untouched — that path (reach's own raw
+## distances, no [DistanceMetric] involved) is outside this issue's file list.
+## With a metric set, three branches, cheapest first:
+##
+## 1. [param changed_node] can't be in reach at all → no-op (acceptance 5).
+## 2. A bound-dependent [member distance_scale] (Linear/Curve) normalizes by the
+##    widest distance in the set, so even a metric that says "nothing else
+##    moved" can still shift everyone's SCALE when membership changes the
+##    bound. Correctness over cleverness here: fall back to a full
+##    [method recompute] rather than trying to detect whether the bound
+##    actually moved (acceptance 1b).
+## 3. Otherwise, delegate to whichever of [method _apply_hop_diff] /
+##    [method _apply_membership_update] matches
+##    [method DistanceMetric.dirties_on_membership_change].
+func _topology_changed(ctx: EffectContext, changed_node: SkillNode) -> void:
+	if modifiers.is_empty():
+		return
+	if not is_instance_valid(changed_node):
+		return
+	var source := ctx.source_node if ctx.source_node != null else ctx.core_location
+	var mirror := _mirror(ctx)
+	if source == null or mirror == null:
+		return
+	if metric == null:
+		recompute(ctx)
+		return
+	if not _reach_could_include(changed_node, source, mirror):
+		return
+	if _is_bound_dependent(distance_scale):
+		recompute(ctx)
+		return
+	if metric.dirties_on_membership_change():
+		_apply_hop_diff(ctx, source, mirror)
+	else:
+		_apply_membership_update(ctx, source, mirror, changed_node)
+
+
+## Cheap pre-test (acceptance 5): can [param node] possibly matter to this
+## aura at all? `null` [member reach] floods the whole scope, so anything
+## already the graph's problem to have mirrored is in play — no filtering to
+## do (the downstream membership/diff logic is what actually excludes an
+## unreachable node either way; this is purely a short-circuit).
+##
+## Only [EuclideanRangeFinder] gets a real O(1) short-circuit here, via
+## [method RangeFinder.in_range] with a null attacker (unscaled, matching
+## [method _distances]'s own [code]reach.gather(source, mirror)[/code] call —
+## auras never inherit a caster's `spell_range`). [HopRangeFinder.in_range] is
+## NOT safe to call the same way: it hardwires the GLOBAL navigator rather
+## than whatever mirror an owned-scope aura measures over, AND early-returns
+## false whenever `attacker == null` — so `in_range(null, ...)` would silently
+## reject every node, always. There is no cheap single-candidate hop query
+## against an arbitrary mirror to fall back to (`.claude/rules/graph.md`'s
+## `gather()`-not-`in_range()`-in-a-loop rule is about the reverse shape, but
+## the underlying reason — `in_range` isn't mirror-generic — is the same one
+## that bites here), so a bounded hop reach skips the short-circuit and lets
+## the downstream membership/diff logic do the filtering instead.
+func _reach_could_include(node: SkillNode, source: SkillNode, mirror: GraphMirror) -> bool:
+	if reach == null or not reach is EuclideanRangeFinder:
+		return true
+	return reach.in_range(null, source, node)
+
+
+## Bound-dependent scales normalize by the widest distance actually observed
+## ([LinearScale], [CurveScale]) — a farthest node leaving the set moves that
+## bound and therefore every other node's scale, even though the metric itself
+## reports nothing moved. [ProportionalScale] / [FlatScale] (and anything else)
+## ignore the bound outright, so a membership-only update is safe for them.
+## [DistanceScale] isn't an owned file for this issue, so this is a closed
+## `is` check against the two concrete scales the acceptance spec names, not a
+## virtual method on the base.
+func _is_bound_dependent(scale: DistanceScale) -> bool:
+	return scale is LinearScale or scale is CurveScale
+
+
+## The Euclidean-shaped path: [param changed_node] is the only thing that could
+## possibly need touching, because [method DistanceMetric.dirties_on_membership_change]
+## being false is a promise that no OTHER node's distance moved. One O(1)-ish
+## metric read, one grant or revoke — every other already-applied node's
+## handle is left exactly as it was (acceptance 1).
+func _apply_membership_update(ctx: EffectContext, source: SkillNode, mirror: GraphMirror, changed_node: SkillNode) -> void:
+	for h in ctx.handles_for(changed_node):
+		ctx.revoke(h)
+	if not is_instance_valid(changed_node):
+		return
+	var still_selected: bool
+	if reach == null:
+		still_selected = mirror.vertex_id(changed_node) >= 0
+	else:
+		# O(N) gather, not a hand-rolled single-node owned-mirror query:
+		# RangeFinder exposes no such primitive, and it isn't ours to add one
+		# to. Only paid by a bounded `reach` — Serpent/Ninja (reach == null)
+		# never do (#626 report).
+		still_selected = reach.gather(source, mirror).has(changed_node)
+	if not still_selected:
+		return
+	var one := metric.distances(source, [changed_node], mirror)
+	if not one.has(changed_node):
+		return
+	# Bound-independent by construction (only reached when `_is_bound_dependent`
+	# said no) — the scale ignores whatever we pass here, so -1.0 is safe.
+	var s: float = 1.0 if distance_scale == null else distance_scale.scale(one[changed_node], -1.0)
+	if is_zero_approx(s):
+		return
+	for m in modifiers:
+		if m != null:
+			ctx.grant_scaled(m, s, changed_node)
+
+
+## The hop-shaped path: pull the shared, generation-cached raw map (walked at
+## most once for every hop-metric aura sharing this [param source] this
+## topology change — [AuraDistanceCache], acceptance 3), diff it against what
+## was cached a moment ago, and touch only what moved.
+##
+## "Touched" is the union of what this aura currently has granted
+## ([method EffectInstance.node_targets], not the cache — a bounded [member
+## reach] means the cache's full map is a superset) and what the fresh walk
+## says is in range now. Absent from the new map = revoked, not skipped
+## (acceptance 6) — [HopMetric] already drops unreachable nodes from its
+## result, so "missing" and "unreachable" are the same thing here.
+func _apply_hop_diff(ctx: EffectContext, source: SkillNode, mirror: GraphMirror) -> void:
+	var old_granted := ctx.instance.node_targets()
+	var old_raw := AuraDistanceCache.peek(mirror, source)
+	var new_dists := _distances(source, mirror)
+	var touched: Dictionary[SkillNode, bool] = {}
+	for node in old_granted:
+		touched[node] = true
+	for node in new_dists:
+		touched[node] = true
+	var bound := _bound(new_dists)
+	for node in touched:
+		if not is_instance_valid(node):
+			continue
+		var now_in := new_dists.has(node)
+		var was_granted: bool = old_granted.has(node)
+		if was_granted and now_in and old_raw.has(node) and is_equal_approx(float(old_raw[node]), new_dists[node]):
+			continue  # unchanged: leave the existing handle alone
+		if was_granted:
+			for h in ctx.handles_for(node):
+				ctx.revoke(h)
+		if not now_in:
+			continue
+		var s: float = 1.0 if distance_scale == null else distance_scale.scale(new_dists[node], bound)
 		if is_zero_approx(s):
 			continue
 		for m in modifiers:
