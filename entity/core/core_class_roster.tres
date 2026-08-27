@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CoreClassRoster" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://entity/core/core_class_roster.gd" id="1_roster"]
+[ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="2_core_class"]
+[ext_resource type="Resource" uid="uid://0icrnqbby6yx" path="res://entity/core/balanced_core.tres" id="3_balanced"]
+[ext_resource type="Resource" uid="uid://dr6op7u70t3y" path="res://entity/core/basic_enemy_core.tres" id="4_basic_enemy"]
+[ext_resource type="Resource" uid="uid://bi6mv7on2h5aj" path="res://entity/core/ninja_core.tres" id="5_ninja"]
+[ext_resource type="Resource" uid="uid://bri0ncfru2o8n" path="res://entity/core/pacifist_core.tres" id="6_pacifist"]
+[ext_resource type="Resource" uid="uid://oo7fcspevd4s" path="res://entity/core/serpent_core.tres" id="7_serpent"]
+
+[resource]
+script = ExtResource("1_roster")
+classes = Array[ExtResource("2_core_class")]([ExtResource("3_balanced"), ExtResource("4_basic_enemy"), ExtResource("5_ninja"), ExtResource("6_pacifist"), ExtResource("7_serpent")])

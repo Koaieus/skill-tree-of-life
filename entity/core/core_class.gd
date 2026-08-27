@@ -32,9 +32,15 @@ const DIR := "res://entity/core/"
 ## five of these" is a claim about shipped content and belongs in a test, not in
 ## a loader that a stripped build or a mod directory could legitimately empty.
 ##
-## If a RUNTIME caller ever appears (class-select UI, procgen enemy rolls), note
-## that a project exporting only selected resources would strip any core class
-## no scene references, and this would quietly return a short list.
+## [b]EDITOR AND TEST CODE ONLY (#597 D13, settled by #640).[/b] This scans
+## [constant DIR] with `DirAccess.get_files_at()`, which lists exactly what the
+## PCK contains in an exported build — and the exporter's default
+## `.tres`->`.res` remap means that is never a `.tres`, so this quietly returns
+## `[]` there. Confirmed 2026-08-27 via a real `--export-pack` run. The one
+## RUNTIME caller ([method pickable_for]) no longer goes through this — see its
+## docstring — so this stays a scan on purpose: [method pickable_for]'s
+## authored roster can't discover a class nothing has added to it, and #322's
+## DAG check needs exactly that discovery.
 static func load_all() -> Array[CoreClass]:
 	var out: Array[CoreClass] = []
 	for file in DirAccess.get_files_at(DIR):
@@ -46,19 +52,31 @@ static func load_all() -> Array[CoreClass]:
 	return out
 
 
-## Every authored class a slot of this kind may choose, in [method load_all]
-## order. [param slot_bit] is [constant PICKABLE_PLAYER] or
-## [constant PICKABLE_AI].
+## Every authored class a slot of this kind may choose, in
+## [member CoreClassRoster.classes] order. [param slot_bit] is
+## [constant PICKABLE_PLAYER] or [constant PICKABLE_AI].
 ##
-## This IS the runtime caller [method load_all] flagged as hypothetical: a
-## project that exported only scene-referenced resources would quietly return a
-## short list here. Nothing strips resources today; revisit at export time.
+## This IS the runtime caller [method load_all]'s docstring used to flag as
+## hypothetical (`lobby_screen.gd`'s per-slot core-class dropdown, #618) — and
+## #640 settled it: a directory scan is wrong here, because the exporter's
+## `.tres`->`.res` remap makes [method load_all] return `[]` in an exported
+## build. Per #597 D13 ("directory scan for editor and test code, authored
+## array for runtime"), this reads [constant ROSTER_PATH] instead — an
+## `ExtResource` array is a hard dependency edge the exporter can't rename out
+## from under, and it gives the picker an authored order rather than
+## [method load_all]'s alphabetical one. A newly authored pickable class must
+## still be added to the roster by hand; see [CoreClassRoster].
 static func pickable_for(slot_bit: int) -> Array[CoreClass]:
 	var out: Array[CoreClass] = []
-	for core in load_all():
+	var roster := load(ROSTER_PATH) as CoreClassRoster
+	for core in roster.classes:
 		if core.is_pickable_in(slot_bit):
 			out.append(core)
 	return out
+
+
+## Where the authored runtime roster lives. See [method pickable_for].
+const ROSTER_PATH := "res://entity/core/core_class_roster.tres"
 
 
 ## May a slot carrying [param slot_bit] choose this class?
