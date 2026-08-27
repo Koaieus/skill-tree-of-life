@@ -385,6 +385,26 @@ Entity-scoped node modifiers now route through `SkillNode.add_entity_modifier` /
 `modifiers.append(m)` + `board.add_modifier(m)`. Node-scoped ones go through
 `add_local_modifier` / `remove_local_modifier`. See `docs/domain/effect-system.md`.
 
+### `grant_scaled` scales the duplicate's LEAVES, before granting (#623)
+
+`EffectContext.grant_scaled(mod, scale, target)` — the aura distance-falloff
+path — must never scale the modifier it hands to `grant`/`add_local_modifier`
+*after* the fact. `StatBoard.add_modifier` and `SkillNode.add_local_modifier`
+both flatten a `CompositeStatModifier` into its children and bind each **leaf**
+directly; the outer composite's own `value` field is vestigial from that point
+on, so a post-bind write to it is silently lost. The same shape bites a
+**plain** formula-bearing modifier on a clone/shadow board too:
+`StatBoard._localize` (`stat_board.gd:401-408`) hands the binder a *private
+copy* the moment `_is_clone` and `m.formula != null`, so a post-bind mutation
+of the original object never reaches what got bound.
+
+The fix (and the only correct shape): duplicate, walk `duplicate.flatten()`,
+multiply each **leaf's** `.value` by `scale`, THEN apply the already-scaled
+duplicate through the ordinary `grant`/`add_local_modifier` path. Composites,
+shadow boards, and formula-bearing modifiers all fall out of this for free —
+there is nothing downstream left to get wrong. Never reintroduce a
+scale-after-bind write to `grant_scaled`.
+
 ## Class identity modifiers (CoreClass)
 
 Per-entity class bonuses live on `Entity.core_class: CoreClass` (`entity/core/`), NOT on the stat board's intrinsic list or as an Entity-level modifier array (the old `Entity.core_modifiers` field was removed). `Entity._ready` calls `core_class.apply(self)` once, which installs every entry in `CoreClass.modifiers` directly — **no per-entry duplication** (#377): the same `.tres` and the same modifier instances are safe across every entity of that class, since binding lives on each entity's own board (`StatBoard.bind_modifier`), not on the modifier. `BalancedCore` is the +10 STR/DEX/INT baseline (plus +1 each per level — see "Per-level class bonuses" below) against which other classes are tuned; create new classes by extending `CoreClass` and authoring a `.tres`. Procgen sandboxes wire the class via `GameRoot.spawn_entity(..., core_class)`; hand-authored scenes set it on the Entity node directly.

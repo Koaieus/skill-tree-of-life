@@ -81,3 +81,26 @@ func test_core_move_recomputes_both_auras() -> void:
 
 func _armor(n: SkillNode) -> float:
 	return float(n.get_local_value(&"armor"))
+
+
+## #623 shipped-content regression guard: `serpent_core.tres` bundles
+## blade/spell/ranged damage into a `CompositeStatModifier` inside BOTH auras
+## (`Resource_milid` on the hop buff, `Resource_riohq` on the euclid penalty).
+## Before the fix, `grant_scaled` only ever moved the outer (vestigial) handle,
+## so the damage half of the Serpent's design — "gains damage the further it
+## winds in hops, loses damage the further it sits in space" — was silently
+## inert; only `armor` (a plain modifier) actually scaled. This pins that the
+## composite children move too, the same shape `test_dual_metric_auras_sum_on_the_same_stat`
+## already pins for armor.
+func test_composite_children_scale_with_distance_not_just_armor() -> void:
+	var blade_1 := float(_nodes[1].get_local_value(&"blade_damage"))
+	var blade_2 := float(_nodes[2].get_local_value(&"blade_damage"))
+	var blade_3 := float(_nodes[3].get_local_value(&"blade_damage"))
+
+	assert_ne(blade_1, blade_2, "blade_damage must move with distance, not sit at one flat value")
+	assert_ne(blade_2, blade_3)
+	# Same shape as armor: on this straight-line fixture (100px/hop) the hop
+	# buff's growing ADD_BASE dominates the euclid penalty's much smaller
+	# INCREASE malus, so blade_damage rises with distance too.
+	assert_gt(blade_2, blade_1, "further node: bigger hop-buff contribution")
+	assert_gt(blade_3, blade_2)

@@ -81,7 +81,34 @@ var graph: Graph:
 func grant(mod: StatModifier, target: Variant = null) -> StatModifier:
 	if mod == null or combat == null:
 		return null
-	var handle: StatModifier = mod.duplicate(true)
+	return _apply(mod.duplicate(true), target)
+
+
+## Scale [param mod]'s leaves by [param scale] BEFORE granting — the aura path.
+##
+## Must not scale the outer handle after [method grant] the way an earlier
+## version did: [method StatBoard.add_modifier] flattens a
+## [CompositeStatModifier] and binds each CHILD, so a post-bind write to the
+## composite's own `value` lands on a vestigial field nothing reads again
+## (#623). And on a clone/shadow board, [method StatBoard._localize] hands a
+## formula-bearing modifier's binder a private copy — so even a plain
+## modifier's post-bind write can land on an object nobody applied. Scaling
+## the duplicate's flattened leaves first sidesteps both: whatever
+## `add_modifier` / `add_local_modifier` binds afterward is already correct.
+func grant_scaled(mod: StatModifier, scale: float, target: Variant = null) -> StatModifier:
+	if mod == null or combat == null:
+		return null
+	var scaled: StatModifier = mod.duplicate(true)
+	for leaf in scaled.flatten():
+		leaf.value *= scale
+	return _apply(scaled, target)
+
+
+## Apply an already-duplicated (and, for [method grant_scaled], already-scaled)
+## handle to its target and ledger it. The shared tail of [method grant] and
+## [method grant_scaled] — the only difference between them is what happens to
+## the duplicate before it gets here.
+func _apply(handle: StatModifier, target: Variant) -> StatModifier:
 	if target == null:
 		var board := combat.board()
 		if board == null:
@@ -96,17 +123,6 @@ func grant(mod: StatModifier, target: Variant = null) -> StatModifier:
 			return null
 		slice.add_local_modifier(handle)
 	instance.record(handle, target)
-	return handle
-
-
-## Scale a modifier's value before granting it — the aura path. Equivalent to
-## grant() on a copy whose `value` is multiplied by [param scale].
-func grant_scaled(mod: StatModifier, scale: float, target: Variant = null) -> StatModifier:
-	if mod == null:
-		return null
-	var handle: StatModifier = grant(mod, target)
-	if handle != null:
-		handle.value = mod.value * scale
 	return handle
 
 

@@ -277,6 +277,105 @@ func test_serpent_dual_metric_auras_sum_additively() -> void:
 	assert_almost_eq(_armor(_nodes[1]), 0.5, 0.001)
 
 
+# ── Composite modifiers (#623) ──────────────────────────────────────────────
+
+## A two-leaf bundle. `_composite_pair` rather than reusing `_armor_mod` twice:
+## the bug is specifically about a CompositeStatModifier's CHILDREN, which a
+## plain-modifier aura (armor above) cannot exercise at all.
+func _composite_pair(a_id: StringName, a_value: float, b_id: StringName, b_value: float) -> CompositeStatModifier:
+	var c := CompositeStatModifier.new()
+	var la := StatModifier.new()
+	la.stat_id = a_id
+	la.operation = StatModifier.Operation.ADD_BONUS
+	la.value = a_value
+	var lb := StatModifier.new()
+	lb.stat_id = b_id
+	lb.operation = StatModifier.Operation.ADD_BONUS
+	lb.value = b_value
+	c.children = [la, lb]
+	return c
+
+
+## Failing on master: `grant_scaled` scaled the vestigial OUTER composite
+## handle after `grant()` had already flattened + bound each CHILD, so every
+## leaf applied at full authored strength regardless of distance. Bridges the
+## fixture's two disjoint 3-node lines into one 6-node chain so hop 1 and hop 3
+## both exist under one entity's ownership.
+func test_composite_children_scale_with_aura_distance() -> void:
+	_add_edge(_nodes[2], _nodes[3])
+	var ent: Entity = await _spawn(_nodes[0], [_nodes[0], _nodes[1], _nodes[2], _nodes[3]])
+
+	var finder := HopRangeFinder.new()
+	finder.max_hops = 4   # bound > the hop-3 node under test, so neither hop hits scale 0
+	var aura := AuraEffect.new()
+	aura.reach = finder
+	aura.distance_scale = LinearScale.new()   # real falloff: 1.0 at the source, 0.0 at the bound
+	aura.modifiers = [_composite_pair(&"blade_damage", 10.0, &"spell_damage", 10.0)]
+
+	var blade_base_1 := float(_nodes[1].get_local_value(&"blade_damage"))
+	var blade_base_3 := float(_nodes[3].get_local_value(&"blade_damage"))
+	var spell_base_1 := float(_nodes[1].get_local_value(&"spell_damage"))
+	var spell_base_3 := float(_nodes[3].get_local_value(&"spell_damage"))
+
+	ent.grant_effect(aura)
+
+	var blade_delta_1 := float(_nodes[1].get_local_value(&"blade_damage")) - blade_base_1
+	var blade_delta_3 := float(_nodes[3].get_local_value(&"blade_damage")) - blade_base_3
+	var spell_delta_1 := float(_nodes[1].get_local_value(&"spell_damage")) - spell_base_1
+	var spell_delta_3 := float(_nodes[3].get_local_value(&"spell_damage")) - spell_base_3
+
+	assert_gt(blade_delta_1, blade_delta_3, "closer hop must scale HIGHER than a farther one")
+	assert_gt(spell_delta_1, spell_delta_3)
+	assert_lt(blade_delta_1, 10.0, "scaled below the authored child value at any nonzero hop")
+	assert_lt(spell_delta_1, 10.0)
+	assert_gt(blade_delta_3, 0.0, "still applied at hop 3 — not skipped as a zero scale")
+	assert_gt(spell_delta_3, 0.0)
+
+
+## Acceptance 4: `grant_scaled` must duplicate before it ever touches a leaf's
+## `value` — the authored `.tres` sub-resources a CoreClass's auras reference
+## are shared, so a live mutation on them would corrupt every entity of that
+## class, not just the one being scaled.
+func test_grant_scaled_never_mutates_the_authored_composite() -> void:
+	var authored := _composite_pair(&"blade_damage", 10.0, &"spell_damage", 10.0)
+	var ent: Entity = await _spawn(_nodes[0], [_nodes[0], _nodes[1], _nodes[2]])
+	var aura := AuraEffect.new()
+	aura.metric = HopMetric.new()
+	aura.distance_scale = ProportionalScale.new()
+	aura.modifiers = [authored]
+	ent.grant_effect(aura)
+
+	assert_eq((authored.children[0] as StatModifier).value, 10.0, "authored child 0 untouched")
+	assert_eq((authored.children[1] as StatModifier).value, 10.0, "authored child 1 untouched")
+
+
+## Acceptance 5: the same scaling must hold when the aura RECOMPUTES against a
+## SHADOW slice — attack resolution's actual path (docs/domain/attack-timeline.md)
+## — not only the live entity. Forces a real recompute via `dispatch`, the same
+## call `EntityCombat.apply_cascade`'s `_on_node_deallocated` makes, rather than
+## just reading a snapshot's cloned bins (which would prove nothing about
+## `grant_scaled` itself).
+func test_composite_children_scale_correctly_when_an_aura_recomputes_on_a_shadow() -> void:
+	var ent: Entity = await _spawn(_nodes[0], [_nodes[0], _nodes[1], _nodes[2]])
+	var aura := AuraEffect.new()
+	aura.metric = HopMetric.new()
+	aura.distance_scale = ProportionalScale.new()
+	aura.modifiers = [_composite_pair(&"blade_damage", 2.0, &"spell_damage", 2.0)]
+	ent.grant_effect(aura)
+
+	var live_blade := float(_nodes[2].get_local_value(&"blade_damage"))
+	var live_spell := float(_nodes[2].get_local_value(&"spell_damage"))
+
+	var shadow := ent.get_combat().snapshot()
+	shadow.dispatch(&"_on_node_allocated", [_nodes[2], false])
+	var shadow_node := shadow.world().combat_for(_nodes[2])
+
+	assert_almost_eq(float(shadow_node.get_local_value(&"blade_damage")), live_blade, 0.001,
+			"a composite aura re-granted ON a shadow must scale its children exactly like the live grant")
+	assert_almost_eq(float(shadow_node.get_local_value(&"spell_damage")), live_spell, 0.001)
+	shadow.free_shadow()
+
+
 # ── gather() vs in_range() ──────────────────────────────────────────────────
 
 ## The perf fix: one BFS, same answer as N× in_range. Scoped to the GLOBAL mirror
