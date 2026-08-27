@@ -179,6 +179,20 @@ different shape of work** from one that changes files that do. Give it its
 own `warp`, or make it the worker's ONLY unit and expect to review it like a
 feature, not a fix.
 
+**But an ABANDONED DRAFT is not that shape, and costs two minutes to tell
+apart.** Measured 2026-08-27: a unit was deferred out of a swarm as
+unverified new surface because a prior session left 575 uncommitted
+insertions that had never been compiled or run, and its own commit message
+said the hard parts were unfinished. They weren't — the whole display rule
+was implemented and tested; one fixture bug (two entities silently sharing a
+default faction resource) was masking the only failure. **A commit message is
+a claim, not evidence.** When a draft exists, the discriminator is cheap and
+mechanical: rebase it, `mise run check`, run its own test file. That tells you
+whether you have a near-done unit or a rewrite, before you spend a deferral on
+it. The new-surface rule above is about files that *do not exist*; a file that
+exists but has never been executed is a different case, and the run is what
+settles it.
+
 **Watch worker cost, and halt rather than hope.** Nothing in the harness caps
 a worker's spend, and a grinding worker looks identical to a working one from
 the orchestrator's seat — in this run the *user* spotted it first. When you
