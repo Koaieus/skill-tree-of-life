@@ -135,18 +135,28 @@ func _push_lobby(
 
 ## START opens the run before the level loads (#457): `GameSession.start`
 ## resolves the lobby's seed sentinel once, here, and the level reads the
-## concrete value back out. The destination is
-## [code]run_config.scenario.level_scene[/code] (#641 acceptance 4) — a run
-## whose [Scenario] carries one routes there; one with no `scenario` at all
-## (every route today — picking a Scenario from the lobby is future work)
-## falls back to [constant FIRST_LEVEL_SANDBOX].
+## concrete value back out. [method _destination_for] decides where.
 func _on_start_pressed(run_config: RunConfig) -> void:
 	GameSession.start(run_config)
 	_stamp_local_peer()
+	SceneDirector.goto(_destination_for(run_config))
+
+
+## The destination a run's [Scenario] names (#641 acceptance 4) — a run whose
+## `scenario` carries a [member Scenario.level_scene] routes there; one with no
+## `scenario` at all (every route today — [LobbyScreen.build_run_config] does
+## not yet author one, since picking a Scenario from the lobby is future work)
+## or a `scenario` with no `level_scene` falls back to
+## [constant FIRST_LEVEL_SANDBOX].
+##
+## `static`, same reason [method _stamp_local_peer] already is: a test can call
+## it directly rather than driving the whole frontmatter tree to prove the
+## reader moved with the field (#584 D5).
+static func _destination_for(run_config: RunConfig) -> PackedScene:
 	var scenario: Scenario = run_config.scenario
-	var destination: PackedScene = scenario.level_scene if scenario != null and scenario.level_scene != null \
-			else FIRST_LEVEL_SANDBOX
-	SceneDirector.goto(destination)
+	if scenario != null and scenario.level_scene != null:
+		return scenario.level_scene
+	return FIRST_LEVEL_SANDBOX
 
 
 ## Which peer THIS machine is, before any socket opens.

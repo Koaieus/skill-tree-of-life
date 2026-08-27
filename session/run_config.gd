@@ -1,7 +1,7 @@
 class_name RunConfig
 extends Resource
 
-## What run to build — mode, level, seed, participants. Menus write this;
+## What run to build — mode, scenario, seed, participants. Menus write this;
 ## the level reads it. `seed == 0` is a legal authoring value ("randomise
 ## me") that GameSession resolves to a concrete number exactly once, up
 ## front, before a run starts.

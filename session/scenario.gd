@@ -31,4 +31,14 @@ extends Resource
 ## `scenes/meta/meta_root.gd`'s START handler — moving the field off
 ## [RunConfig] without moving its reader would relocate #584 D5's smell
 ## instead of discharging it.
+##
+## [b]Must never name a scene whose own [RunBootstrap] holds a run pointing
+## back at THIS Scenario.[/b] Godot's resource loader cannot resolve that
+## cycle — `res://scenes/procgen_play_sandbox.tscn`'s `RunBootstrap` holds
+## `session/runs/procgen_play_run.tres`, which is why
+## `session/scenarios/procgen_play.tres` points here at `scenes/level.tscn`
+## instead of at the sandbox scene it is bootstrapped from: pointing it at
+## itself failed at load with "referenced non-existent resource", not at
+## generation time. A `Scenario` meant only for a `RunBootstrap` sandbox with
+## no lobby route can leave this null instead.
 @export var level_scene: PackedScene

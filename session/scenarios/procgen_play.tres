@@ -2,10 +2,8 @@
 
 [ext_resource type="Script" path="res://session/scenario.gd" id="1_scn"]
 [ext_resource type="Resource" path="res://procgen/presets/first_level/first_level.tres" id="2_preset"]
-[ext_resource type="PackedScene" path="res://scenes/level.tscn" id="3_level"]
 
 [resource]
 resource_name = "Procgen Play"
 script = ExtResource("1_scn")
 preset = ExtResource("2_preset")
-level_scene = ExtResource("3_level")
