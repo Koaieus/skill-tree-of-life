@@ -39,6 +39,16 @@ func before_each() -> void:
 			break
 	assert_eq(_root.turn_manager.current_entity, _root.player,
 			"fixture: the player should hold the first turn")
+	# `_ensure_controllers()` has already run by now (current_entity is set
+	# after it) — the enemy's AIController exists. Its `turn_delay` is
+	# host-local presentation pacing between actions within a turn
+	# (entity/controller/ai_controller.gd), not part of what this suite
+	# checks: whether the gate re-emits `true`, not how long the enemy's
+	# turn visibly takes. Zeroing it is what turns 2 of these tests from an
+	# ~8s real-time wait for the AI's paced turn into a handful of frames.
+	var enemy: Entity = _root.graph.entities_container.get_node("Enemy")
+	var enemy_ai := enemy.get_node("AIController") as AIController
+	enemy_ai.turn_delay = 0.0
 	_emissions = []
 	_ctl.player_can_act_changed.connect(func(can_act: bool): _emissions.append(can_act))
 
