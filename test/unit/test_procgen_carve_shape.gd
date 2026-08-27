@@ -44,7 +44,16 @@ func test_archetype_carve_shape_reaches_the_generated_node() -> void:
 	var found_tagged := false
 	for n in nodes:
 		if n.get_meta("archetype", &"") == tagged_archetype:
-			assert_eq(n.archetype.carve_shape, shape, "the archetype's own carve_shape must reach its nodes")
+			# Compared BY VALUE, not by identity. Since #349 split the config into
+			# top-level modules, `generate()` defensively re-duplicates
+			# `config.content` on entry (it mutates `budget_policy.budget_field`
+			# in place, and `duplicate(true)` no longer crosses that boundary).
+			# The archetype this test inlines is therefore deep-copied on the way
+			# through, so `carve_shape` arrives as an equal instance rather than
+			# the same one. Production is unaffected: archetypes are ExtResources
+			# and `duplicate(true)` never crosses a resource file boundary.
+			assert_true(n.archetype.carve_shape is PolygonCarveShape, "the archetype's own carve_shape must reach its nodes")
+			assert_eq(n.archetype.carve_shape.sides, shape.sides, "and it must be the 9-sided shape this test authored, not the class default")
 			found_tagged = true
 	assert_true(found_tagged, "expected at least one node of the tagged archetype")
 
