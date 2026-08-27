@@ -369,6 +369,23 @@ exists, at the correct tip, before any nudge. A second `SendMessage` ("you went
 idle, continue, numbered steps follow") then drives the ENTIRE job unattended —
 one worker did two full issues, ~900 lines across 15 files, off a single nudge.
 
+Second data point (2026-08-27): with the dispatch above (placeholder spawn
+prompt, full multi-paragraph brief via `SendMessage`), the idle fired 7/7 —
+including briefs that explicitly said "do NOT stop after the worktree step;
+work straight through unattended." Brief wording inside that shape does not
+prevent it.
+
+But a **different dispatch shape avoided it, 2/2**, same session, same day:
+write the full brief to a file first, spawn with a one-line prompt pointing
+at it ("Read `<path>` and execute it fully, start to finish, without waiting
+for further instruction"), then `SendMessage` one line repeating that
+pointer. Both workers started immediately, no idle at all. Prefer this
+file-pointer shape as the default. Caveat: 2/2 is a small sample and this
+was not a controlled experiment — the file-brief shape changes two things at
+once (where the brief lives, and how short the spawn prompt is), so which of
+those does the work is not established. Keep the nudge below as the
+fallback — it is still needed whenever a worker does idle.
+
 So on every idle notification, **check the branch before reacting**: no commits
 plus a worktree means nudge, not merge. The cause is unsettled — see #595, which
 records the two candidates, the verified upstream lineage (`anthropics/claude-code`
@@ -649,10 +666,17 @@ silently blocks the next swarm.
 
 ### 7. Teardown
 
-**Teardown is yours and unconditional.** A `mise` worktree is *never*
-auto-removed — the point, so a stopped worker can be resumed into its own
-checkout — but it means every worker leaves one behind, whether or not it
-committed.
+**Teardown is yours and unconditional — once the worker is actually done.** A
+merged branch is not the same as a finished worker: the worker may still be
+running its own final verification in that worktree after you've already
+fast-forwarded its commits into `master`. Tear down only once it has reported
+and you do not intend to resume it. Symptom of getting this wrong: a worker
+that looks hung is often mid-command against a worktree path you just
+deleted, not stuck.
+
+A `mise` worktree is *never* auto-removed — the point, so a stopped worker can
+be resumed into its own checkout — but it means every worker leaves one
+behind, whether or not it committed.
 
 ```bash
 mise run worktree:ls                                # find the survivors
