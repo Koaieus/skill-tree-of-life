@@ -168,6 +168,27 @@ and an unmerged worktree closes nothing. When in doubt, cut the worker count,
 not the per-worker verification — verification is what makes a unit
 mergeable.
 
+**A unit that builds a NEW surface is `warp`-sized, not a swarm second unit.**
+Measured 2026-08-27: a unit that had to add a new panel scene, a new read
+path through a subsystem it did not start out owning, AND a display rule was
+clustered as one worker's second issue. It ran to ~400k tokens without
+committing and had to be halted; its sibling units, each a bounded change to
+existing code, cost a third of that. The tell is in the issue's own file
+list — **a unit whose acceptance requires a file that does not exist yet is a
+different shape of work** from one that changes files that do. Give it its
+own `warp`, or make it the worker's ONLY unit and expect to review it like a
+feature, not a fix.
+
+**Watch worker cost, and halt rather than hope.** Nothing in the harness caps
+a worker's spend, and a grinding worker looks identical to a working one from
+the orchestrator's seat — in this run the *user* spotted it first. When you
+do halt: `TaskStop` the worker (a `SendMessage` costs another turn on a
+context that is already the expensive thing), then commit its worktree
+yourself as a `wip(...)` commit that states plainly what was never run, write
+the state onto the issue, and move the issue OUT of `in-progress`. A halted
+unit that is preserved and documented costs the next session nothing; loose
+worktree state costs it everything.
+
 ## The cycle
 
 ### 1. Read the issues ONCE, then delegate exploration downward
