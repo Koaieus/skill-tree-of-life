@@ -829,6 +829,17 @@ func add_local_modifier(m: StatModifier) -> void:
 	# (composites stay whole) so the walk can consult its override.
 	if not _local_modifiers.has(m):
 		_local_modifiers.append(m)
+	# #634: a freshly bound handle always arrives at its AUTHORED (al=1)
+	# value — an aura re-grant included, since #623 scales the aura's
+	# distance, never the node's allocation ladder. Bring it up to this
+	# node's CURRENT allocation level right here, or it sits at baseline
+	# until the next stake_level change happens to fire
+	# _on_stake_level_changed. `_scale_modifier` is the same universal-law /
+	# override walk _apply_local_scale already runs per stake change, so a
+	# composite's children and any `_local_scale_override` are honoured
+	# identically; it needs a live board, which is exactly why this runs
+	# after `node_board` is bound above.
+	_scale_modifier(m, 1, _last_allocation_level)
 
 
 ## Remove a modifier previously applied by [method add_local_modifier]. Removal

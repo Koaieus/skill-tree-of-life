@@ -125,6 +125,72 @@ func test_multiply_1_1_percent_more_round_trip() -> void:
 			"backed to al=1 reads ×1.1")
 
 
+# ── Re-grant lands at the CURRENT allocation level (#634) ────────────────────
+
+## The direct regression: `AuraEffect.recompute()` revokes every handle and
+## re-grants fresh duplicates from the authored `.tres` values on essentially
+## every board action. Before the fix, the fresh handle landed at AUTHORED
+## (baseline, al=1) strength and stayed there until the next stake_level change
+## happened to fire `_on_stake_level_changed`. The fix is at INSERT, inside
+## `add_local_modifier` itself — so a plain grant while already staked is
+## enough to exercise it; no AuraEffect needed.
+func test_add_local_modifier_after_staking_lands_at_current_allocation_level() -> void:
+	_node.stake_level = 3
+	_set_al(3)
+	_node.add_local_modifier(_add_mod(&"armor", 5.0))
+	assert_eq(int(_node.get_local_value(&"armor")), 15,
+			"a modifier granted while al=3 must land al-scaled immediately, not at the authored +5")
+
+
+## The literal recompute shape: revoke, then re-grant a FRESH instance (never
+## the one the mutator already scaled) from its authored baseline — exactly
+## what `AuraEffect.recompute()` does on every allocation/deallocation/core-move.
+func test_a_simulated_aura_recompute_keeps_the_regrant_al_scaled() -> void:
+	_node.stake_level = 3
+	var first := _add_mod(&"armor", 5.0)
+	_node.add_local_modifier(first)
+	_set_al(3)
+	var before_recompute := int(_node.get_local_value(&"armor"))
+
+	_node.remove_local_modifier(first)
+	var fresh := _add_mod(&"armor", 5.0)   # a NEW instance, still at the authored baseline
+	_node.add_local_modifier(fresh)
+
+	assert_eq(int(_node.get_local_value(&"armor")), before_recompute,
+			"a fresh re-grant at al=3 must land at the same scaled value the revoked handle held")
+
+
+## The failure mode the REJECTED design (AuraEffect pre-scaling by
+## allocation_level, instead of SkillNode scaling at insert) would have
+## introduced: a handle already brought to al=3 at insert getting the delta
+## applied AGAIN on top at the next stake change. Pinned so a later refactor
+## cannot reintroduce it silently.
+func test_grant_at_al3_then_stake_round_trip_returns_exactly_no_double_scaling() -> void:
+	_node.stake_level = 4
+	_set_al(3)
+	_node.add_local_modifier(_add_mod(&"armor", 5.0))
+	var at_al3 := int(_node.get_local_value(&"armor"))
+
+	_set_al(4)
+	_set_al(3)
+
+	assert_eq(int(_node.get_local_value(&"armor")), at_al3,
+			"al3 -> al4 -> al3 must return EXACTLY to the al3 value, not x3 of it")
+
+
+## Acceptance 5 — the fix lives in `add_local_modifier` itself, the shared
+## channel every local-ledger client goes through, so an addon's local grant
+## benefits too, not only an aura's. Different stat than the tests above so
+## this doesn't just re-run the same assertion under a new name.
+func test_every_local_ledger_client_lands_al_scaled_not_just_auras() -> void:
+	_node.stake_level = 3
+	_set_al(3)
+	_node.add_local_modifier(_add_mod(&"min_damage_taken", -1.0))
+	assert_eq(int(_node.get_local_value(&"min_damage_taken")),
+			int(StatRegistry.get_def(&"min_damage_taken").default_value) - 3,
+			"an addon-style local grant lands al-scaled too, not just an aura's")
+
+
 # ── Composition (decision 8) ──────────────────────────────────────────────────
 
 ## A composite whose override doubles its leaf-set at al >= 2 and returns its

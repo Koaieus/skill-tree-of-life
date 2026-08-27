@@ -405,6 +405,32 @@ shadow boards, and formula-bearing modifiers all fall out of this for free —
 there is nothing downstream left to get wrong. Never reintroduce a
 scale-after-bind write to `grant_scaled`.
 
+### The local-scale ladder (#376) is reapplied at INSERT (#634)
+
+A modifier lands on `add_local_modifier` at its AUTHORED (baseline, al=1)
+value — an aura re-grant included, since #623's fix scales the aura's
+*distance*, never the node's allocation ladder, and those are different
+owners that must not merge. `SkillNode.add_local_modifier` therefore ends by
+calling `_scale_modifier(m, 1, _last_allocation_level)` — the same
+universal-law / `_local_scale_override` walk `_apply_local_scale` runs per
+stake change — bringing the freshly bound handle up to the node's *current*
+allocation level immediately, rather than leaving it at baseline until the
+next `stake_level` change happens to fire `_on_stake_level_changed`.
+
+**Why this doesn't double-scale:** `_local_scale`'s ladder is floored at 1, so
+`al ∈ {0, 1}` both read as baseline — a fresh grant is always "coming from
+al=1" regardless of `_last_allocation_level`'s literal value at grant time.
+`_apply_local_scale`'s later per-stake-change call then applies its OWN delta
+from wherever the handle now sits, which composes correctly (grant at al=3,
+stake to 4: `x 4/3`) — see `test_grant_at_al3_then_stake_round_trip_returns_exactly_no_double_scaling`.
+
+**Ownership stays with `SkillNode`, not `AuraEffect`.** The rejected
+alternative — an aura pre-scaling by `allocation_level` before granting —
+would leave the *next* `_apply_local_scale` walk applying its delta AGAIN on
+top (double-scaling), and would split the ladder's authority across two
+systems. Scaling at insert needs no new state (bind and scale are one act) and
+covers every `add_local_modifier` caller — addons included, not just auras.
+
 ## Class identity modifiers (CoreClass)
 
 Per-entity class bonuses live on `Entity.core_class: CoreClass` (`entity/core/`), NOT on the stat board's intrinsic list or as an Entity-level modifier array (the old `Entity.core_modifiers` field was removed). `Entity._ready` calls `core_class.apply(self)` once, which installs every entry in `CoreClass.modifiers` directly — **no per-entry duplication** (#377): the same `.tres` and the same modifier instances are safe across every entity of that class, since binding lives on each entity's own board (`StatBoard.bind_modifier`), not on the modifier. `BalancedCore` is the +10 STR/DEX/INT baseline (plus +1 each per level — see "Per-level class bonuses" below) against which other classes are tuned; create new classes by extending `CoreClass` and authoring a `.tres`. Procgen sandboxes wire the class via `GameRoot.spawn_entity(..., core_class)`; hand-authored scenes set it on the Entity node directly.
