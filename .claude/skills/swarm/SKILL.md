@@ -175,7 +175,16 @@ clustered as one worker's second issue. It ran to ~400k tokens without
 committing and had to be halted; its sibling units, each a bounded change to
 existing code, cost a third of that. The tell is in the issue's own file
 list — **a unit whose acceptance requires a file that does not exist yet is a
-different shape of work** from one that changes files that do. Give it its
+different shape of work** from one that changes files that do.
+
+**But a draft that exists and was merely never *run* is NOT that shape**, even
+when it came out of a previous grind. Verified 2026-08-27 on #621: a draft
+deferred twice as unverified-new-surface turned out substantially complete, and
+its single failing test was a one-line fixture bug. Its own commit message
+claimed the work was unfinished and was wrong about itself — a commit message
+is a claim, not evidence. The cheap discriminator is `mise run check` plus the
+draft's own test, which costs about two minutes and settles it either way. Run
+that before deferring anything on novelty grounds. Give it its
 own `warp`, or make it the worker's ONLY unit and expect to review it like a
 feature, not a fix.
 
@@ -777,6 +786,16 @@ That refresh is also what generates the `.uid` for a worker's new test file,
 so until you run it **GUT silently does not collect the new test** — the
 suite looks green at the *old* script count. Compare `Scripts` / `Tests`
 totals before and after; if the totals didn't move, the new test never ran.
+
+**The `.uid` can also be generated but never *staged*, which looks identical.**
+A worker that ran `refresh` in its own worktree has the `.uid` on disk, so the
+test collects there and its report is honest — but if the worker staged only
+the `.gd`, the `.uid` stays untracked and the file is invisible in every other
+checkout. This is silent in both directions: green in the worktree, green on
+master, just one script short. Check `git status` in the worker's worktree for
+an untracked `.uid` beside every new test file, and commit it. Verified
+2026-08-27 on #627, caught only because the merging orchestrator compared
+script counts.
 
 Per `.claude/rules/godot-workflow.md`, an editor pass re-serializes scenes
 it touches, and master is a shared checkout that may carry the user's
