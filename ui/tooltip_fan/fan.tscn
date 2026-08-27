@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" uid="uid://dfbaga8vkwm87" path="res://ui/tooltip_fan/units/owner_unit.tscn" id="6_owner"]
 [ext_resource type="PackedScene" uid="uid://c0qd36wwvguhe" path="res://ui/tooltip_fan/units/core_unit.tscn" id="7_core"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/units/procgen_debug_unit.tscn" id="8_procgen"]
+[ext_resource type="PackedScene" uid="uid://c1n9t7dq5v1p2" path="res://ui/tooltip_fan/units/effect_readout_unit.tscn" id="9_effects"]
 
 [node name="Fan" type="Node2D" unique_id=689565114]
 script = ExtResource("1_driver")
@@ -41,3 +42,6 @@ anchor_slide = 0.05
 z_index = -5
 position = Vector2(-164, -166)
 anchor_slide = 0.93
+
+[node name="EffectReadout" parent="." unique_id=1540150392 instance=ExtResource("9_effects")]
+position = Vector2(30, 260)

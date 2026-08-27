@@ -1,0 +1,27 @@
+[gd_scene format=3 uid="uid://cq7x0k3v4hqta"]
+
+[ext_resource type="PackedScene" uid="uid://bqwejggu0vmvu" path="res://ui/tooltip_fan/panels/panel_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/tooltip_fan/panels/effect_readout_panel.gd" id="2_script"]
+
+[node name="EffectReadoutPanel" unique_id=1732006850 instance=ExtResource("1_base")]
+script = ExtResource("2_script")
+glow = 0.45
+
+[node name="PanelContainer" parent="." index="0" unique_id=882997509]
+offset_left = -115.0
+offset_top = -90.0
+offset_right = 115.0
+offset_bottom = 90.0
+
+[node name="FusedPanel" parent="PanelContainer" index="0" unique_id=525977820]
+instance_shader_parameters/glow = 0.45
+instance_shader_parameters/size = Vector2(230, 180)
+custom_minimum_size = Vector2(230, 180)
+glow = 0.45
+
+[node name="Header" parent="PanelContainer/MarginContainer/Content" parent_id_path=PackedInt32Array(1269983304) index="0" unique_id=1164856017]
+header = "EFFECTS"
+subheader = "What's touching this node"
+
+[node name="Rows" parent="PanelContainer/MarginContainer/Content" parent_id_path=PackedInt32Array(1269983304) index="1" unique_id=580212173]
+theme_override_constants/separation = 4

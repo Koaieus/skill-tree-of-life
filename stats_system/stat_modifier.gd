@@ -284,6 +284,26 @@ func format() -> String:
 	return _format_value(name, as_percent, value_type, get_effective_value())
 
 
+## The same full sentence as [method format], but ALWAYS through
+## [method get_effective_value] — never the formula coefficient + "per"
+## clause branch. [method format] intentionally shows the coefficient for a
+## formula-bound modifier (a definition reads better next to its rate); a
+## per-node effect readout (#621) wants the opposite: what this specific
+## grant is contributing RIGHT NOW, coefficient or not. [param board] is
+## passed straight to [method get_effective_value] — the board to read
+## formula inputs from, same as that method's own parameter.
+func format_effective(board: StatBoard = null) -> String:
+	var def: StatDef = StatRegistry.get_def(stat_id)
+	var name: String = String(stat_id)
+	var as_percent := false
+	var value_type := StatDef.ValueType.INT
+	if def != null:
+		name = def.modifier_name if not def.modifier_name.is_empty() else def.display_name
+		as_percent = def.display_as_percent
+		value_type = def.value_type
+	return _format_value(name, as_percent, value_type, get_effective_value(board))
+
+
 ## Appends " per <phrase>" to `sentence` when the bound formula offers one.
 ## An empty phrase (an [ExpressionFormula] nobody authored yet) degrades to
 ## the bare sentence rather than to a dangling "per".

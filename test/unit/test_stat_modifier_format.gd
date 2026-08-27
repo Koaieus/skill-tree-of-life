@@ -71,6 +71,29 @@ func test_add_base_on_an_int_stat_still_rounds() -> void:
 	)
 
 
+# --- #621 acceptance 8: format_effective() renders the EFFECTIVE value, -----
+# --- never the formula coefficient format() intentionally shows ------------
+
+func test_format_effective_uses_the_computed_value_not_the_coefficient() -> void:
+	var board := (preload("res://entity/default_entity_board.tres") as EntityStatBoard).duplicate(true) as EntityStatBoard
+	board.strength.base_value = 40.0
+	var f := LinearFormula.new()
+	f.source_stat_id = &"strength"
+	var m := _mod(&"armor", StatModifier.Operation.ADD_BASE, 0.1)
+	m.formula = f
+	# format() shows the coefficient (0.1) plus a "per" clause — the definition
+	# reading, deliberately unaffected by this issue.
+	assert_string_contains(m.format(), "+0", "sanity: format() renders the bare coefficient, not 4")
+	# format_effective() shows what this grant is ACTUALLY contributing right
+	# now: 0.1 * strength(40) = 4.
+	assert_eq(m.format_effective(board), "+4 Armor")
+
+
+func test_format_effective_matches_format_when_there_is_no_formula() -> void:
+	var m := _mod(&"strength", StatModifier.Operation.ADD_BASE, 4.0)
+	assert_eq(m.format_effective(), m.format())
+
+
 # --- modifier_name substitution on a pool stat, across all five operators ---------
 
 func test_add_base_modifier_name_substitution() -> void:
