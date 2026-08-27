@@ -76,9 +76,26 @@ func _on_core_moved(ctx: EffectContext, _from: SkillNode, _to: SkillNode) -> voi
 ## nodes, `revoke_all` also purges rows whose node was freed by a cascade, and a
 ## rebuild can't drift out of sync with the buffed set the way a diff can. It runs
 ## on allocation events, never per frame.
+##
+## [b]Batched per node board (#627).[/b] A rebuild revokes the OLD grant on a
+## node then re-grants the NEW one — the same stat written twice — and
+## unbatched that is two immediate [signal Stat.value_changed] emissions where
+## one would do. [method _open_batch] / [method _close_batches] bracket every
+## board this call touches (old targets AND new — a batch opened before
+## [method EffectContext.revoke_all] below covers the revoke half too) so each
+## stat that actually moved settles once. Values are unaffected:
+## [method Stat.get_value] recomputes from bins per call, so batching defers
+## notification only, never value.
 func recompute(ctx: EffectContext) -> void:
+	var batched: Array[StatBoard] = []
+	var seen: Dictionary[StatBoard, bool] = {}
+	# Old targets first: their boards must already be batching before
+	# `revoke_all` touches them, or the revoke's own emission escapes the batch.
+	for node in ctx.instance.node_targets():
+		_open_batch(ctx, node, batched, seen)
 	ctx.revoke_all()
 	if modifiers.is_empty():
+		_close_batches(batched)
 		return
 	# Origin rule: a node-carried aura (keystone/addon) radiates from its own
 	# node; an entity-wide aura (core class) falls back to the core. No new
@@ -86,6 +103,7 @@ func recompute(ctx: EffectContext) -> void:
 	var source := ctx.source_node if ctx.source_node != null else ctx.core_location
 	var mirror := _mirror(ctx)
 	if source == null or mirror == null:
+		_close_batches(batched)
 		return
 
 	var dists := _distances(source, mirror)
@@ -96,9 +114,35 @@ func recompute(ctx: EffectContext) -> void:
 		var s: float = 1.0 if distance_scale == null else distance_scale.scale(dists[node], bound)
 		if is_zero_approx(s):
 			continue
+		_open_batch(ctx, node, batched, seen)
 		for m in modifiers:
 			if m != null:
 				ctx.grant_scaled(m, s, node)
+	_close_batches(batched)
+
+
+## Opens (once) the batch on [param node]'s board and records it in [param
+## batched] / [param seen], so [method _close_batches] closes every board this
+## [method recompute] call touched. A no-op if the board hasn't materialized
+## yet (nothing to batch — the caller's own grant/revoke lazily creates and
+## touches it unbatched, same as before this issue) or is already open.
+func _open_batch(ctx: EffectContext, node: SkillNode, batched: Array[StatBoard], seen: Dictionary[StatBoard, bool]) -> void:
+	var board := ctx.board_for(node)
+	if board == null or seen.has(board):
+		return
+	seen[board] = true
+	batched.append(board)
+	board.begin_batch()
+
+
+## The guaranteed close for every board [method _open_batch] opened this
+## [method recompute] call. Called from EVERY exit path above, including the
+## early returns, so an unmatched `begin_batch` never lingers —
+## [method StatBoard.begin_batch]'s own docstring: an unmatched call "silently
+## swallows every subsequent notification on this board", forever.
+func _close_batches(batched: Array[StatBoard]) -> void:
+	for b in batched:
+		b.end_batch()
 
 
 ## The alloc/dealloc entry point (#626). `metric == null` keeps the OLD,

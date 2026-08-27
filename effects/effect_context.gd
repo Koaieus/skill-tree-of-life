@@ -174,6 +174,29 @@ func handles_for(target: Variant) -> Array[StatModifier]:
 	return instance.handles_for(target)
 
 
+## The [StatBoard] a grant/revoke to [param target] would land on — the entity
+## board for null, a [SkillNode]'s node board otherwise. Mirrors [method _apply]
+## / [method _detach]'s own target routing (without duplicating it) so a caller
+## can bracket a burst of grants/revokes to one target in
+## [method StatBoard.begin_batch] / [method StatBoard.end_batch] (#627).
+##
+## Returns null when there is nothing to batch: no [member combat], a freed
+## [param target], or a node whose board has never been touched (lazily
+## materialized — [method SkillNode._init_node_board]'s "never pays for a
+## board it doesn't need" rule). The caller's own grant/revoke still lazily
+## creates and touches it in that case, just unbatched, exactly as today.
+func board_for(target: Variant) -> StatBoard:
+	if combat == null:
+		return null
+	if target == null:
+		return combat.board()
+	if not is_instance_valid(target):
+		return null
+	var node: SkillNode = target
+	var slice := world.combat_for(node)
+	return slice.board() if slice != null else null
+
+
 func _detach(handle: StatModifier, target: Variant) -> void:
 	if combat == null:
 		return
