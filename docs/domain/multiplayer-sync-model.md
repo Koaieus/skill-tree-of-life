@@ -537,18 +537,34 @@ distinguishes "did I compute this". The transient `computed_here` field does, an
 it is deliberately absent from the wire: a received command is by definition one
 this machine did not compute.
 
-**The loot round is the deliberate exception to "one type, two states" (#646).**
-`LootRoundCommand` had the same empty/populated pun as `LaunchAttackCommand`
-until #646, and it broke the same way: `_drain` confirms before it applies, so
-a round whose outcome was stamped *inside* `_apply` (deep in `SkillDustAddon`'s
-`_run_round` chain) broadcast an EMPTY `resolved` — a peer read that as an
-unstamped INITIATE and rolled its own divergent loot, empirically confirmed
-(host granted a modifier, client granted none). #545's own fix does not
-transfer, though: the attack resolves on a shadow world with nothing to wait
-for, but a loot round with a human collector can *await a pick*. Computing it
-inside `_validate`, `LaunchAttackCommand`-style, would freeze the host's whole
-command queue on a remote player's click — unacceptable on a LAN where a
-relic's claim can run several rounds deep.
+**The loot round is the deliberate exception to "one type, two states" (#646)
+— and it still honours the same underlying invariant.** The rule #545 actually
+establishes is not "compute in `_validate`"; it is **the command must be
+complete before it reaches the confirm flip point**. #545 satisfies that by
+computing *earlier, inside* the pipeline (`BattleSystem.prepare_launch_command`
+resolves on a shadow world from within `_validate`). #646 satisfies the SAME
+invariant by minting the command *later, outside* the pipeline — the
+offer/pick/roll sequence runs to completion first, and `LootRoundCommand` is
+constructed only once it has. Two routes to one rule, not an exception to it.
+
+The validate-lift route was tried first and does not transfer. `LootRoundCommand`
+had the same empty/populated pun as `LaunchAttackCommand` until #646, and broke
+the same way: `_drain` confirms before it applies, so a round whose outcome was
+stamped *inside* `_apply` (deep in `SkillDustAddon`'s `_run_round` chain)
+broadcast an EMPTY `resolved` — a peer read that as an unstamped INITIATE and
+rolled its own divergent loot, empirically confirmed (host granted a modifier,
+client granted none). Unlike the attack, though, a loot round with a human
+collector can *await a pick* — resolving it inside `_validate`,
+`LaunchAttackCommand`-style, would freeze the host's whole serial command queue
+on a remote player's click, unacceptable on a LAN where a relic's claim can run
+several rounds deep. So neither of the two prior fixes was available here: not
+the `confirms_before_apply()` hook (#545 deleted it, and issue #646's
+acceptance 4 forbids reintroducing it), not the validate-lift (blocked by the
+human in the loop). The offer/pick/roll split is the third route to the same
+invariant, achieved by construction rather than by exemption — which is the
+answer for the next verb that reaches for "one type, two states" with a human
+in the middle of it: check whether the validate-lift can actually apply before
+assuming it can.
 
 So #646 split the two things one `LootRoundCommand` used to carry into two
 downward messages instead of two states of one type:
@@ -563,7 +579,7 @@ downward messages instead of two states of one type:
   deciding it. It is therefore ALWAYS a replay, on every peer including the
   authority: `_drain` needs no opt-out, because by construction there is
   nothing left to compute by the time one exists. The grant itself moves out of
-  resolution and into the shared apply/replay path (`SkillDustAddon._replay_round`),
+  resolution and into the shared apply/replay path (`SkillDustAddon._land_outcome`),
   so the authority does not double-grant (once resolving, once applying).
 
 The explicit cost, accepted rather than hidden: this gives up the symmetry
