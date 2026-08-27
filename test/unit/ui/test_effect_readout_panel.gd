@@ -13,6 +13,8 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PANEL_SCENE := preload("res://ui/tooltip_fan/panels/effect_readout_panel.tscn")
+const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
+const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
 var _graph: Graph
 var _node: SkillNode
@@ -186,8 +188,11 @@ func test_neutral_in_aggregate_too_truly_hides() -> void:
 # --- "does this affect me" (ownership_bit, mechanism only) ------------------
 
 func test_hostile_source_tints_the_row_toward_red() -> void:
-	var mine := _spawn_entity()
-	var enemy := _spawn_entity()
+	# Distinct factions — [method Entity.attitude_to] reads HOSTILE for two
+	# faction-less entities too, but that's a degenerate case this test
+	# should not lean on; a real player/NPC split is the honest fixture.
+	var mine := _spawn_entity(_PLAYER_FACTION)
+	var enemy := _spawn_entity(_NPC_FACTION)
 	_node.owned_by = mine
 	_grant(mine, "Home Buff", _mod(&"armor", StatModifier.Operation.ADD_BASE, 2.0))
 	_grant(enemy, "Enemy Aura", _mod(&"armor", StatModifier.Operation.ADD_BASE, 5.0))
