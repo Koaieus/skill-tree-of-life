@@ -13,6 +13,19 @@ extends GutTest
 ## shows up here), every edge as a canonicalized (min,max) stable-id pair, and
 ## the ordered starting-node list. See `gh issue view 349 --comments`.
 ##
+## Also covers the rest of GraphProcgenConfig's Content group, since #349's
+## Content module owns all of it, not just modifier_pool_set: each node's
+## attached addons (`_roll_and_attach_addons`, walked via
+## [method SkillNode.get_addons] so this also picks up any addon a
+## [KeystonePlacement] mints via `Keystone.addon_scenes`) with their
+## `local_modifiers`, spell grants (`GraphProcgenSpellGrants.distribute`,
+## captured as the granted [SpellDef.id]), and a stamped [SkillNode.keystone]'s
+## identity. `MinNearStartingPoints` / `RandomBudgetBoost` (the other two
+## `guaranteed_placements` entries both presets author) and `archetype_stamps`
+## (authored empty in both presets today) are deliberately NOT captured as
+## their own fields — see the comments at their capture sites for why each is
+## either fully implied by what's already here, or genuinely absent.
+##
 ## Fixtures live at `test/unit/procgen/fixtures/<preset>.golden.txt` —
 ## committed, human-diffable, deterministically ordered (sorted node ids,
 ## canonicalized edge pairs, fixed 6-decimal floats).
@@ -66,24 +79,19 @@ static func _fmt_float(v: float) -> String:
 	return "%.6f" % v
 
 
-## One node's canonical text block: a NODE header line plus one sorted MOD
-## line per entry in [member SkillNode.modifiers] (entity-scoped — the field
-## procgen actually writes; see GraphProcgen.generate's per-node loop). Sorted
-## by (stat_id, operation) rather than left in draw/aggregation order: after
-## `_roll_modifiers_v4`'s fuse step those pairs are unique per node, so this
-## reorder is content-only and can't hide a real value regression behind a
-## harmless change to internal draw order.
-static func _node_block(id: int, node: SkillNode) -> String:
-	var arch_id := String(node.archetype.id) if node.archetype != null else ""
-	var lines := PackedStringArray()
-	lines.append("NODE %d %s %s %s" % [
-		id, _fmt_float(node.position.x), _fmt_float(node.position.y), arch_id,
-	])
-	var mods: Array[StatModifier] = node.modifiers.duplicate()
+## Sorted by (stat_id, operation) rather than left in draw/aggregation order:
+## after `_roll_modifiers_v4`'s fuse step those pairs are unique per node, so
+## this reorder is content-only and can't hide a real value regression behind
+## a harmless change to internal draw order. Shared by [member
+## SkillNode.modifiers] (MOD) and each addon's `local_modifiers` (AMOD) — same
+## shape, different line tag, so a diff always says which system moved.
+static func _mod_lines(tag: String, indent: String, mods_in: Array[StatModifier]) -> PackedStringArray:
+	var mods := mods_in.duplicate()
 	mods.sort_custom(func(a: StatModifier, b: StatModifier) -> bool:
 		if a.stat_id != b.stat_id:
 			return String(a.stat_id) < String(b.stat_id)
 		return a.operation < b.operation)
+	var lines := PackedStringArray()
 	for m in mods:
 		# Procgen-drawn modifiers are plain static rolls (no formula) today,
 		# but capture it anyway rather than silently dropping a field a future
@@ -91,9 +99,83 @@ static func _node_block(id: int, node: SkillNode) -> String:
 		var formula_tag := "-"
 		if m.formula != null:
 			formula_tag = JSON.stringify(m.formula.to_dict(), "", true)
-		lines.append("  MOD %s %d %s %d %s" % [
-			String(m.stat_id), m.operation, _fmt_float(m.value), m.priority, formula_tag,
+		lines.append("%s%s %s %d %s %d %s" % [
+			indent, tag, String(m.stat_id), m.operation, _fmt_float(m.value), m.priority, formula_tag,
 		])
+	return lines
+
+
+## An addon instance carries no `id` of its own (that lives on the
+## [AddonPoolEntry] resource, one layer up, never on the minted node) — but
+## `PackedScene.instantiate()` stamps the root's `scene_file_path` back to the
+## source scene, so the scene's own file name is a stable, human-readable
+## stand-in. Falls back to the script path for the (untested-in-practice) case
+## of an addon minted without a backing scene.
+static func _addon_identity(a: SkillNodeAddon) -> String:
+	var path := a.scene_file_path
+	if path.is_empty() and a.get_script() != null:
+		path = (a.get_script() as Script).resource_path
+	return path.get_file().get_basename() if not path.is_empty() else "<unknown>"
+
+
+## One node's canonical text block:
+##   NODE <id> <x> <y> <archetype>
+##     MOD ...                          — [member SkillNode.modifiers]
+##     ADDON <identity>                 — one per [method SkillNode.get_addons]
+##       AMOD ...                       — that addon's local_modifiers
+##     SPELL <spell id>                 — one per SpellGrant in [member SkillNode.effects]
+##     KEYSTONE <keystone id>           — only if [member SkillNode.keystone] is stamped
+## ADDON blocks sort by identity (ties broken by attach order, since a
+## non-unique addon can repeat) so a reordering of `_roll_and_attach_addons`'s
+## internal draw loop can't produce a false diff either.
+static func _node_block(id: int, node: SkillNode) -> String:
+	var arch_id := String(node.archetype.id) if node.archetype != null else ""
+	var lines := PackedStringArray()
+	lines.append("NODE %d %s %s %s" % [
+		id, _fmt_float(node.position.x), _fmt_float(node.position.y), arch_id,
+	])
+	lines.append_array(_mod_lines("MOD", "  ", node.modifiers))
+
+	var addons: Array[SkillNodeAddon] = node.get_addons()
+	var addon_order: Array[int] = []
+	for i in addons.size():
+		addon_order.append(i)
+	addon_order.sort_custom(func(i: int, j: int) -> bool:
+		var id_i := _addon_identity(addons[i])
+		var id_j := _addon_identity(addons[j])
+		if id_i != id_j:
+			return id_i < id_j
+		return i < j)
+	for i in addon_order:
+		var a := addons[i]
+		lines.append("  ADDON %s" % _addon_identity(a))
+		lines.append_array(_mod_lines("AMOD", "    ", a.local_modifiers))
+
+	# Spell grants land as plain SpellGrant effects appended directly to
+	# `effects` by GraphProcgenSpellGrants._place (via SkillNode.add_effect) —
+	# distinct from a keystone's own effects, which live on the keystone
+	# resource, not here. SpellDef is authored content, so its `id` is a
+	# stable, resolvable identity (same reasoning as the archetype id above).
+	var spell_ids: Array[String] = []
+	for e in node.effects:
+		if e is SpellGrant and (e as SpellGrant).spell_def != null:
+			spell_ids.append(String((e as SpellGrant).spell_def.id))
+	spell_ids.sort()
+	for sid in spell_ids:
+		lines.append("  SPELL %s" % sid)
+
+	# Keystone.stamp() sets node.keystone and (params permitting) overrides
+	# base_type_color / base_radius / mints addon_scenes — the last of those
+	# is already covered above since it lands through the same get_addons()
+	# walk. What ISN'T implied by anything else here is the keystone's own
+	# identity and its live-referenced effects grant, so capture the
+	# identity (its resource path is as stable and resolvable as a SpellDef
+	# id) and skip the presentation overrides as cosmetic.
+	if node.keystone != null:
+		var kpath: String = node.keystone.resource_path
+		var kid := kpath.get_file().get_basename() if not kpath.is_empty() else "<unnamed>"
+		lines.append("  KEYSTONE %s" % kid)
+
 	return "\n".join(lines)
 
 
@@ -181,7 +263,10 @@ static func _parse_fixture(text: String) -> Dictionary:
 	for raw_line in text.split("\n"):
 		if raw_line.strip_edges().is_empty() or raw_line.begins_with("#"):
 			continue
-		if raw_line.begins_with("  MOD "):
+		# Any indented line (MOD, ADDON, AMOD, SPELL, KEYSTONE) belongs to the
+		# NODE block currently accumulating — only SEED / NODE_COUNT / NODE /
+		# EDGE / STARTER start at column 0.
+		if raw_line.begins_with(" "):
 			current_lines.append(raw_line)
 			continue
 		if current_id >= 0:
