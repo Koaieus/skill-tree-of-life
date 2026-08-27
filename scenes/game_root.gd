@@ -247,11 +247,38 @@ func _ready() -> void:
 	else:
 		$UI.visible = false
 
-	# After `_setup_level`, so a command that arrives the instant the link comes
-	# up finds a world to apply to. Split from `_adopt_network_role` for that
-	# one reason — the role has to be known far earlier than the socket may open.
-	# A CLIENT already opened it above (#463) and is linked by now, which is why
-	# `pull_host_world` can ask for the authority's world on the next line.
+	# HOST and offline only, and the old reason still holds for them: opening
+	# after `_setup_level` means a command arriving the instant the link comes up
+	# finds a world to apply to. Split from `_adopt_network_role` because the
+	# role has to be known far earlier than the socket may open.
+	#
+	# [b]A CLIENT no longer obeys that rule, and #463 changed what protects
+	# it.[/b] It opened its socket before `_setup_level` (see the call site up
+	# there) because it has nothing to build from until `run_setup` lands, so
+	# there IS now a window on the joining side where the link is up and the
+	# world is not. What arrives in that window is not buffered: `apply_remote`
+	# enqueues and drains AT ONCE, against whatever world is there. Read, not
+	# assumed — and the failure has two shapes, the second worse than the first.
+	# If the command's ids do not resolve, `CommandApplier._validate` warns and
+	# DROPS it. If they DO resolve — a half-built world, or (the #463 case) a
+	# complete world generated a moment ago — then nothing warns at all and the
+	# command lands on whatever node happens to carry that `stable_id`. Silence
+	# here is not evidence that nothing went wrong.
+	#
+	# Either way it is survivable for exactly one reason, and it is the next line:
+	# `pull_host_world` asks the authority for its whole world, and the reply
+	# carries the authority's whole state, superseding both shapes above —
+	# what this peer missed and what it misapplied alike. Ordering makes it
+	# airtight rather than probable — `EnetTransport._receive` is an
+	# `@rpc(..., "reliable")`, so it is ordered as well as delivered: the host
+	# encodes the resync when the request arrives, and anything it applies after
+	# that is sent after the envelope and lands on top of it. Nothing this window
+	# swallowed can outlive the pull.
+	#
+	# So the gate is not a buffer, it is the repair — and it must stay on this
+	# line, immediately after the world exists. Moving `pull_host_world` later
+	# (behind a fade, an await, a turn start) reopens the hole this comment is
+	# about.
 	if not _is_network_client():
 		_open_link()
 	pull_host_world()
@@ -339,6 +366,21 @@ func _note_host_run_adopted(_config: RunConfig) -> void:
 ## delete. Asking once the level is built has no such window, and needs no
 ## upward "I am ready" message: [method CommandLink.request_resync] IS that
 ## message.
+##
+## [b]The reply's internal order is load-bearing, and it is the OPPOSITE of the
+## #533 harness's.[/b] `scenes/dev/mp_procgen_sandbox.gd:364` sends the entity
+## snapshot and then the graph, and its own docstring pins that order — correct
+## THERE, because that client's graph is empty, so `_on_entity_snapshot` parks
+## its pass 2 and `_on_graph_snapshot` drains it against the fresh nodes. A
+## joining client under #463 has a POPULATED graph (it just generated one from
+## the host's seed), so the park never happens: `_on_entity_snapshot` drains
+## immediately on `not graph.get_skill_nodes().is_empty()`, clears
+## `_pending_entities`, and resolves every `core_location` against nodes
+## [method GraphSnapshot.decode] is about to delete. The graph half must land
+## FIRST here. [method CommandLink._on_resync] already does exactly that —
+## decode entities, decode graph, THEN resolve the entity->node refs — which is
+## the third reason this is a resync pull and not two pushed snapshots. Anyone
+## "fixing" this to match the harness's order will reintroduce the bug.
 func pull_host_world() -> void:
 	if command_link == null or not _is_network_client():
 		return

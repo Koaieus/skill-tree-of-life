@@ -282,6 +282,69 @@ func test_await_host_run_is_inert_off_the_join_path() -> void:
 	assert_true(true, "returned rather than hanging as the HOST")
 
 
+## The invariant the moved `_open_link` depends on, made executable.
+##
+## A client now opens its socket BEFORE `_setup_level`, so there is a window on
+## the joining side where the link is up and the world is not — or, as here, is
+## still the wrong one. Nothing buffers that traffic:
+## [method CommandApplier.apply_remote] enqueues and drains at once, against
+## whatever world is present. When the ids do not resolve, `_validate` warns and
+## drops. When they DO resolve against the wrong world — which is what happens
+## below, and why no warning appears in the log — the command lands on whatever
+## node happens to carry that `stable_id`, silently. The quiet case is the
+## dangerous one, and it is the case this test pins.
+##
+## [b]That is survivable only because the pull comes after.[/b] The resync
+## carries every effect of every command the window swallowed, and
+## `EnetTransport._receive` is an `@rpc(..., "reliable")` — ordered as well as
+## delivered — so anything the host applies after encoding the reply is sent
+## after the envelope and lands on top of it. This test is what fails if
+## `pull_host_world` is ever moved later in `_ready` than the line where the
+## world first exists.
+func test_a_command_that_lands_before_the_pull_cannot_outlive_it() -> void:
+	await _two_divergent_worlds()
+
+	# The host plays on while the joining machine is still catching up. On the
+	# client this mirrors into a world whose `stable_id`s mean something else
+	# entirely — the case the old `_open_link` placement existed to prevent.
+	var host_red: Entity = _host_root.graph.get_by_entity_id(1)
+	var target := _first_frontier_node(_host_root.graph, host_red)
+	assert_not_null(target, "sanity: Red has somewhere to expand")
+	_host_root.command_applier.submit(AllocateCommand.new(
+			host_red.entity_id, _host_root.graph.get_stable_id(target)))
+	await get_tree().process_frame
+
+	var host_fingerprint := WorldFingerprint.compute(_host_root.graph)
+	assert_ne(WorldFingerprint.compute(_client_root.graph), host_fingerprint,
+			"sanity: mirroring a command into the wrong world does not converge it — "
+			+ "whether it dropped or landed on the wrong node, the peers still disagree")
+
+	GameSession.network = _client_network()
+	_client_root.pull_host_world()
+	await get_tree().process_frame
+
+	assert_eq(WorldFingerprint.compute(_client_root.graph), host_fingerprint,
+			"the pull supersedes the window's outcome, whatever it was")
+	assert_eq(target.owned_by, host_red, "sanity: the host really did allocate it")
+	var client_target := _client_root.graph.get_by_stable_id(
+			_host_root.graph.get_stable_id(target))
+	assert_not_null(client_target, "the allocated node exists on the client after the pull")
+	assert_eq(client_target.owned_by, _client_root.graph.get_by_entity_id(1),
+			"and it is owned by Red there too")
+
+
+## An unowned node adjacent to [param red]'s territory — the cheapest legal
+## `AllocateCommand` target.
+func _first_frontier_node(graph: Graph, red: Entity) -> SkillNode:
+	for node in graph.get_skill_nodes():
+		if node.owned_by != null:
+			continue
+		for neighbour in graph.get_neighbours(node):
+			if neighbour.owned_by == red:
+				return node
+	return null
+
+
 func _client_network() -> NetworkConfig:
 	return NetworkConfig.join(NetworkConfig.DEFAULT_ADDRESS)
 
