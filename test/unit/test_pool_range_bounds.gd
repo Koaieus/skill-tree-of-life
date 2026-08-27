@@ -92,19 +92,23 @@ func test_floor_equal_to_unit_value_is_accepted() -> void:
 
 
 ## Acceptance 7: value_overrides is keyed on ABSOLUTE tier; the low-bound
-## recurrence chains off the (possibly overridden) previous high. An override
-## low enough to sit below its OWN tier's naturally-chained low must warn.
+## recurrence chains off the (possibly overridden) previous high. An
+## overridden tier is itself always a fixed point (#629: overrides "bypass
+## the roll entirely"), so it can never invert on its own — the guard is
+## about a LATER, non-overridden tier whose chained low outruns its high
+## because an EARLIER tier's override inflated the high it chains from.
 func test_value_override_inversion_warns() -> void:
 	var p := _pool(5.0, 5.0, 1, 2)
-	# Natural: T1 5..5, T2 low = H(1)+M = 10..15. Override T2's high to 1 —
-	# below the chained low of 10 — inverting T2's range.
-	p.value_overrides = {2: 1.0}
+	# T1 overridden to 100 (forced fixed point, bypassing the roll). T2 is
+	# NOT overridden: natural H(2) = 5*V(2) = 15, but its chained low is
+	# H(1) + M = 100 + 5 = 105 — inverted.
+	p.value_overrides = {1: 100.0}
 	var warnings := p._get_configuration_warnings()
 	var found := false
 	for w in warnings:
 		if "T2" in w and "inverted" in w:
 			found = true
-	assert_true(found, "an override producing lo > hi must warn: %s" % str(warnings))
+	assert_true(found, "an override inflating an earlier high must warn on the tier it breaks: %s" % str(warnings))
 
 
 ## Acceptance 4 + 5: default M (range_floor unset) reproduces the pre-#628
@@ -132,6 +136,19 @@ func test_every_authored_pool_default_m_matches_old_highs_and_validates() -> voi
 						"%s T%d high must match the pre-#628 formula exactly" % [String(p.stat_id), t])
 				checked += 1
 	assert_gt(checked, 20, "sweep should cover the whole specimen set")
+
+
+## An overridden tier bypasses the roll entirely (#629) — it is a fixed point
+## at the override value regardless of range_floor, even when the chain would
+## otherwise have given it real width.
+func test_override_forces_fixed_point_at_its_own_tier() -> void:
+	var p := _pool(5.0, 1.0, 1, 3)  # non-trivial M so T2/T3 would otherwise widen
+	p.value_overrides = {2: 42.0}
+	var entries := p.to_entries()
+	assert_almost_eq(entries[1].value_range.x, 42.0, 0.0001, "overridden tier low == override")
+	assert_almost_eq(entries[1].value_range.y, 42.0, 0.0001, "overridden tier high == override")
+	# T3 (not overridden) still chains off T2's overridden high.
+	assert_almost_eq(entries[2].value_range.x, 43.0, 0.0001, "T3 low = H(T2 override) + M = 42 + 1")
 
 
 ## Default M makes the pool's own first tier zero-width — the anchor every

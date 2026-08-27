@@ -1039,6 +1039,14 @@ static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringNam
 ## See docs/domain/procgen-v4.md.
 const _MAX_DEBUFF_REFUNDS := 1
 
+## #629: a fused (stat,op) result equal to its operation's neutral element
+## (0 for ADD*/INCREASE, 1 for MULTIPLY — SET has none, see [method
+## _is_neutral_result]) is a no-op slot and gets re-rolled. Bounded and
+## seeded (never an unbounded retry loop) so two peers on the same seed
+## retry an identical number of times — see .claude/rules/multiplayer-sync.md.
+## Proposed by the issue; not tuned further.
+const _NO_OP_RETRY_CAP := 3
+
 static func _roll_modifiers_v4(
 		pool_set: ModifierPoolSet,
 		profiles: Array[Resource],
@@ -1072,15 +1080,15 @@ static func _roll_modifiers_v4(
 	# Rolled values collected per (stat_id, op) for aggregation. Each entry.roll
 	# already coerces the sampled value (INCREASE → int, ADD by stat value_type,
 	# MULTIPLY/SET raw float), so aggregating the coerced values keeps the
-	# snapping semantics of ModifierPoolEntry._coerce_to_stat_type.
+	# snapping semantics of ModifierPoolEntry.coerce_to_stat_type.
 	var rolled := StatModifierAggregator.new()
 	var draws := 0
-	
+
 	while remaining > 0:
 		var entry := _v4_weighted_pick(entries, profiles, ctx, remaining, refunds_used, rng)
 		if entry == null:
 			break
-		rolled.append(entry.roll(rng), entry.cost)
+		rolled.append(entry.roll(rng), entry.cost, entry)
 		remaining -= entry.cost  # cost < 0 → remaining increases (refund)
 		if entry.cost < 0:
 			refunds_used += 1
@@ -1098,38 +1106,87 @@ static func _roll_modifiers_v4(
 	# (PoE-additive); MULTIPLY products (\times1.15 · \times1.15 = \times1.3225,
 	# NOT \times2.30); SET max. Emitted in descending aggregated-cost order, so
 	# tooltips read biggest-investment-first.
-	return rolled.get_aggregate()
+	#
+	# #629: a fused result can land exactly on its operation's neutral element
+	# (M can be negative — see docs/domain/procgen-v4.md) — a slot that does
+	# nothing. Detected AFTER fusion (never per-roll: individual rolls are
+	# allowed to be small or negative), re-rolled from the SAME contributing
+	# entries in the SAME order — deterministic, so two peers on one seed
+	# retry identically — up to _NO_OP_RETRY_CAP times, then dropped rather
+	# than shipped as a visible no-op.
+	var aggregate := rolled.get_aggregate()
+	var final: Array[StatModifier] = []
+	var no_op_retries := 0
+	var dropped := 0
+	for mod in aggregate:
+		var group: Array = rolled.group_entries.get(mod, [] as Array[ModifierPoolEntry])
+		var attempt := 0
+		while _is_neutral_result(mod) and attempt < _NO_OP_RETRY_CAP:
+			StatModifierAggregator.reroll_into(mod, group, rng)
+			attempt += 1
+			no_op_retries += 1
+		if _is_neutral_result(mod):
+			dropped += 1
+		else:
+			final.append(mod)
+	fp["no_op_retries"] = no_op_retries
+	fp["dropped"] = dropped
+	return final
+
+## True iff `mod`'s value is its operation's neutral element (a fused no-op):
+## `0` for ADD_BASE/ADD_BONUS/INCREASE, `1` for MULTIPLY. `SET` has no
+## neutral element and is never a no-op (#629). Coercion-aware via the same
+## [method ModifierPoolEntry.coerce_to_stat_type] the roll path uses — a
+## `+0.4` on an INT stat coerces to `0` (a no-op) where the same value on a
+## FLOAT stat does not.
+static func _is_neutral_result(mod: StatModifier) -> bool:
+	match mod.operation:
+		StatModifier.Operation.MULTIPLY:
+			return is_equal_approx(mod.value, 1.0)
+		StatModifier.Operation.SET:
+			return false
+		_:
+			var coerced := ModifierPoolEntry.coerce_to_stat_type(mod.value, mod.operation, mod.stat_id)
+			return is_zero_approx(coerced)
 
 ## Typed container for StatModifiers that aggregates them as it ingests via `append`
 ## Merges in new ones destructively if mergeable, fusing two StatModifiers into 1
 class StatModifierAggregator extends Resource:
-	# TODO: review this stub and promote it to something real if needed -- or revert to previous 
-	
+	# TODO: review this stub and promote it to something real if needed -- or revert to previous
+
 	var aggregated_mods: Dictionary[StatModifier, int] = {}
-	
+	# Parallel to aggregated_mods: the entries that fused INTO each key, in
+	# pick order — #629's re-roll replays exactly these, in this order, so a
+	# retry is deterministic across peers.
+	var group_entries: Dictionary[StatModifier, Array] = {}
+
 	func get_aggregate() -> Array[StatModifier]:
 		var agg := aggregated_mods.keys()
 		agg.sort_custom(func(a: StatModifier, b: StatModifier): return aggregated_mods[a] > aggregated_mods[b])
 		return agg
-	
-	func append(mod: StatModifier, cost: int) -> void:
+
+	func append(mod: StatModifier, cost: int, entry: ModifierPoolEntry) -> void:
 		var matching_mod := _find_match(mod)
 		if matching_mod != null:
 			# match found: merge the incoming mod into existing
-			_merge(matching_mod, mod)
+			merge_into(matching_mod, mod)
 			aggregated_mods[matching_mod] += cost
+			(group_entries[matching_mod] as Array).append(entry)
 		else:
 			# missing: append to our array
 			aggregated_mods[mod] = cost
-	
+			group_entries[mod] = [entry]
+
 	func _find_match(needle: StatModifier) -> StatModifier:
 		for mod in aggregated_mods:
 			if needle.stat_id == mod.stat_id and needle.operation == mod.operation:
 				return mod
 		return null
-		
-	# Updates StatModifier `a` by merging in contribution of `b`
-	func _merge(a: StatModifier, b: StatModifier) -> StatModifier:
+
+	# Updates StatModifier `a` by merging in contribution of `b`.
+	# Static (#629): also the primitive [method reroll_into] fuses fresh
+	# rolls with — one merge implementation, not two.
+	static func merge_into(a: StatModifier, b: StatModifier) -> StatModifier:
 		assert(a.stat_id == b.stat_id, "Can't merge modifiers that don't have the same Stat ID") # TODO: move this to a test
 		assert(a.operation == b.operation, "Can't merge modifiers that don't have the same operation")
 		match a.operation:
@@ -1140,7 +1197,21 @@ class StatModifierAggregator extends Resource:
 			_:
 				a.value += b.value
 		return a
-	
+
+	## #629: re-rolls every entry in `group` (same entries, same order as the
+	## original draw) from `rng` and fuses them into `mod` IN PLACE, replacing
+	## its stale value. `rng` must be the same seeded stream the original draw
+	## used — this is what makes the retry deterministic across peers.
+	static func reroll_into(mod: StatModifier, group: Array, rng: RandomNumberGenerator) -> void:
+		var fresh: StatModifier = null
+		for e in group:
+			var m: StatModifier = (e as ModifierPoolEntry).roll(rng)
+			if fresh == null:
+				fresh = m
+			else:
+				merge_into(fresh, m)
+		mod.value = fresh.value
+
 
 ## v4 weighted pick: affordable filter (debuff-aware + refund-cap) + weight
 ## profile multiplication, then a single weighted sample.

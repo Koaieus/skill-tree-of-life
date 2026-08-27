@@ -150,6 +150,14 @@ func _effective_floor() -> float:
 ## numerically smaller without meaning anything (T2 of the repo's INT debuff:
 ## H(2) = -6, L(2) = H(1) + M = -4 — "low" ends up right of "high"). Debuffs
 ## keep the pre-#628 fixed point (`lo == hi == H`) until that migration lands.
+##
+## A tier with a [member value_overrides] entry is ALSO a fixed point at its
+## own tier — #629's decision text: "value_overrides still pins a tier to an
+## exact value, bypassing the roll entirely." Its (overridden) `H` still
+## feeds the NEXT tier's low bound via the chain — the guard [method
+## _get_configuration_warnings] enforces is specifically about THAT: a large
+## override can invert a LATER, non-overridden tier, not the overridden tier
+## itself (which can never invert — its own lo and hi are the same number).
 func _tier_magnitude_bounds() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var lo := clampi(min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)
@@ -163,8 +171,9 @@ func _tier_magnitude_bounds() -> Array[Dictionary]:
 		# rolls t3 at cost 4 with the V1 magnitude (×1) and t4 at cost 8 with
 		# V2 — a pool's first tier is worth ×1 whatever it costs. Cost stays
 		# absolute; only the value rung shifts.
+		var overridden := value_overrides.has(t)
 		var h := float(value_overrides.get(t, unit_value * TierLadder.value(t - min_tier + 1)))
-		var l := h if is_debuff else TierLadder.low(first, prev_high, floor_m)
+		var l := h if (is_debuff or overridden) else TierLadder.low(first, prev_high, floor_m)
 		out.append({"tier": t, "lo": l, "hi": h})
 		prev_high = h
 		first = false

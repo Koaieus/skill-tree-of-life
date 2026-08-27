@@ -53,15 +53,18 @@ func test_strength_addb_flattens_to_seed_table() -> void:
 
 func test_crit_chance_inc_flattens_with_overrides() -> void:
 	# Seed row: crit_chance .inc, unit 5, overrides {3: 50, 4: 100} →
-	# +5 +15 +50 +100 at costs 1 2 4 8. #628: these are highs — unchanged, an
-	# override replaces H(t) but never L(t). Default M=5 (unit_value); L(3)
-	# and L(4) chain off the OVERRIDDEN H(2)/H(3), per the value_overrides
-	# guard (acceptance 7) — covered in depth in test_pool_range_bounds.gd.
+	# +5 +15 +50 +100 at costs 1 2 4 8. #628: these are highs — unchanged.
+	# #629's decision text: an override "pins a tier to an exact value,
+	# bypassing the roll entirely" — so T3/T4 are zero-width fixed points at
+	# their override, not chain-computed. T1/T2 have no override and follow
+	# the normal chain (default M=5=unit_value): L1=M=5, L2=H(1)+M=10.
+	# See test_pool_range_bounds.gd for the guard this bypass still needs
+	# (an override can invert a LATER, non-overridden tier's chain).
 	var p := _find_pool(&"dexterity", &"crit_chance", StatModifier.Operation.INCREASE)
 	var entries := p.to_entries()
 	assert_eq(entries.size(), 4, "crit_chance.inc offers T1..T4")
 	var expected_highs := [5.0, 15.0, 50.0, 100.0]
-	var expected_lows := [5.0, 10.0, 20.0, 55.0]
+	var expected_lows := [5.0, 10.0, 50.0, 100.0]
 	var expected_costs := [1, 2, 4, 8]
 	for i in entries.size():
 		var e: ModifierPoolEntry = entries[i]

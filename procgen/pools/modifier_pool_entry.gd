@@ -38,7 +38,7 @@ func roll(rng: RandomNumberGenerator) -> StatModifier:
 	m.stat_id = stat_id
 	m.operation = operation
 	var v := rng.randf_range(value_range.x, value_range.y)
-	m.value = _coerce_to_stat_type(v, operation)
+	m.value = coerce_to_stat_type(v, operation, stat_id)
 	return m
 
 
@@ -48,7 +48,12 @@ func roll(rng: RandomNumberGenerator) -> StatModifier:
 ## integers in UI (+13% not +13.84%), so we snap to int regardless of the
 ## target stat's value_type. MULTIPLY is a raw scalar (×1.07) and is NOT
 ## coerced — rounding would destroy the roll.
-func _coerce_to_stat_type(v: float, op: int) -> float:
+##
+## Static (#629) so [method GraphProcgen._is_neutral_result] can reuse the
+## exact same coercion when deciding whether a FUSED modifier is a no-op —
+## one predicate, not a parallel reimplementation. `target_stat_id` is the
+## `stat_id` an instance call would otherwise read off `self`.
+static func coerce_to_stat_type(v: float, op: int, target_stat_id: StringName) -> float:
 	if op == StatModifier.Operation.MULTIPLY or op == StatModifier.Operation.SET:
 		return v
 	if op == StatModifier.Operation.INCREASE:
@@ -57,7 +62,7 @@ func _coerce_to_stat_type(v: float, op: int) -> float:
 	# ADD_BASE / ADD_BONUS: coerce by target stat's value_type.
 	if StatRegistry == null:
 		return v
-	var def: StatDef = StatRegistry.get_def(stat_id)
+	var def: StatDef = StatRegistry.get_def(target_stat_id)
 	if def == null:
 		return v
 	match def.value_type:

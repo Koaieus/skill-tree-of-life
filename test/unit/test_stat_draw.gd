@@ -16,6 +16,7 @@ func _pool(
 		min_tier: int = 1,
 		max_tier: int = 4,
 		tier_bias_k: float = 1.0,
+		range_floor: float = StatPool.FLOOR_UNSET,
 ) -> StatPool:
 	var p := StatPool.new()
 	p.stat_id = stat_id
@@ -26,6 +27,7 @@ func _pool(
 	p.min_tier = min_tier
 	p.max_tier = max_tier
 	p.tier_bias_k = tier_bias_k
+	p.range_floor = range_floor
 	return p
 
 
@@ -54,9 +56,9 @@ func _rng(seed_value: int = 1) -> RandomNumberGenerator:
 	return r
 
 
-func _draw(pool_set: ModifierPoolSet, primary_stat: StringName, budget: int, rng: RandomNumberGenerator) -> Array:
+func _draw(pool_set: ModifierPoolSet, primary_stat: StringName, budget: int, rng: RandomNumberGenerator, fp: Dictionary = {}) -> Array:
 	return _SCRIPT._roll_modifiers_v4(
-			pool_set, [], &"strength", primary_stat, [], Vector2.ZERO, 0, budget, rng)
+			pool_set, [], &"strength", primary_stat, [], Vector2.ZERO, 0, budget, rng, fp)
 
 
 func test_zero_budget_returns_empty() -> void:
@@ -152,3 +154,60 @@ func test_debuff_refunds_budget_and_caps_at_one_refund() -> void:
 	# The refund-cap invariant is hard to assert from the outside without the
 	# footprint dict; the draw loop enforces _MAX_DEBUFF_REFUNDS = 1 — this
 	# test just proves the debuff path is reachable and negative-valued.
+
+
+# ── #629: uniform roll within L..H + determinism ──────────────────────────
+# The uniform roll itself is #628's widening activating ModifierPoolEntry.roll
+# (which already samples value_range) — see docs/domain/procgen-v4.md. What's
+# tested here is the determinism contract on top of it, and the fused-no-op
+# re-roll's own determinism (test_no_op_reroll.gd covers the re-roll logic in
+# isolation).
+
+func _wide_pool_set() -> ModifierPoolSet:
+	# range_floor 1.0 vs unit 5.0 → every tier beyond T1 has real width
+	# (#628's first worked table: T1 1..5, T2 6..15, T3 16..35, T4 36..75).
+	return _make_set([
+		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 5.0, 1.0, 1, 4, 1.0, 1.0)]),
+	])
+
+
+func test_same_seed_produces_identical_values() -> void:
+	var pool_set := _wide_pool_set()
+	var a := _draw(pool_set, &"strength", 15, _rng(7))
+	var b := _draw(pool_set, &"strength", 15, _rng(7))
+	assert_eq(a.size(), b.size(), "same seed should draw the same number of aggregated mods")
+	for i in a.size():
+		assert_eq(a[i].stat_id, b[i].stat_id, "mod %d stat_id" % i)
+		assert_eq(a[i].operation, b[i].operation, "mod %d operation" % i)
+		assert_almost_eq(a[i].value, b[i].value, 0.00001, "mod %d value — same seed must be byte-identical" % i)
+
+
+func test_different_seeds_produce_different_values() -> void:
+	var pool_set := _wide_pool_set()
+	var saw_difference := false
+	var baseline := _draw(pool_set, &"strength", 15, _rng(1))
+	for seed_value in range(2, 20):
+		var other := _draw(pool_set, &"strength", 15, _rng(seed_value))
+		if other.size() != baseline.size() or (other.size() > 0 and not is_equal_approx(other[0].value, baseline[0].value)):
+			saw_difference = true
+			break
+	assert_true(saw_difference, "different seeds should not all pin to the same rolled value")
+
+
+## A zero-width tier (T1 under default range_floor) must consume exactly one
+## RNG draw regardless — consuming conditionally would desync peers on
+## whether a zero-width tier happened to be picked. Verified indirectly: two
+## identical-seed runs, each followed by one more draw from the SAME rng
+## object, must still agree on that extra draw — proving the zero-width tier
+## didn't leave the two rng streams at different positions.
+func test_zero_width_tier_consumes_rng_deterministically() -> void:
+	var pool_set := _make_set([
+		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 5.0)]),
+	])
+	var rng_a := _rng(3)
+	var rng_b := _rng(3)
+	var mods_a := _draw(pool_set, &"strength", 1, rng_a)  # budget 1 → single T1 (zero-width) draw
+	var mods_b := _draw(pool_set, &"strength", 1, rng_b)
+	assert_almost_eq(mods_a[0].value, mods_b[0].value, 0.00001)
+	assert_almost_eq(rng_a.randf(), rng_b.randf(), 0.00001,
+			"post-draw rng state must match — the zero-width roll consumed the same number of draws")

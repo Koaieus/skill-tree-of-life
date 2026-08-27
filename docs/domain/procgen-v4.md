@@ -100,11 +100,15 @@ is numerically smaller without meaning anything. This is deliberate, not an
 oversight: "Negative M replaces debuff pools" is a separate, not-yet-filed
 migration, and #628 only needs to not obstruct it, not make the two compose.
 
-**`value_overrides` guard**: it is keyed on *absolute* tier while the ladder
-indexes *relative* — an override on tier `T` changes `H(T)`, and `L(T+1)`
-chains off that overridden `H`, not the un-overridden formula. An override
-that leaves a tier's own `L > H` is a `_get_configuration_warnings()` error
-naming the pool.
+**`value_overrides` is keyed on *absolute* tier while the ladder indexes
+*relative*.** An overridden tier is itself always a fixed point — `L(T) =
+H(T) = override` — never chain-computed (#629's decision: overrides "pin a
+tier to an exact value, bypassing the roll entirely"), so it can never
+invert on its own. But its `H` still feeds `L(T+1) = H(T) + M` for the
+*next* tier, which is NOT exempt: a large enough override can inflate that
+next tier's chained low past its own high. `_get_configuration_warnings()`
+flags that case (a non-overridden tier whose chained `L > H`), naming the
+pool.
 
 An inspector button ("Print tier table") on `StatPool` itself dumps
 `format_table()` — tier, `L..H`, cost, weight, and mean — so an author can see
