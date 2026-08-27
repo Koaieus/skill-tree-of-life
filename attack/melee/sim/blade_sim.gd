@@ -24,7 +24,11 @@ static func simulate(
 	state.prev_positions = state.positions.duplicate()
 	var traj := BladeTrajectory.new()
 	traj.sample_dt = dt
-	traj.samples = []
+	# samples[0] is the pose BEFORE any solver step — prepended so
+	# samples[k] means "pose at simulated time k*dt" for every k, matching
+	# the docstring above (#633). Do not shift sample()'s indexing instead;
+	# that was considered and rejected in favor of the data meaning what it says.
+	traj.samples = [state.positions.duplicate()]
 	var steps := int(ceil(duration / dt))
 	for step in steps:
 		var t := float(step) * dt
