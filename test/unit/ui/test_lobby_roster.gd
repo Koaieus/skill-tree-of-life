@@ -158,6 +158,93 @@ func test_picking_a_colour_disables_it_in_another_slots_dropdown() -> void:
 			"#616 D6: a colour another slot holds is greyed out here")
 
 
+# --- #639: default colours stride the palette instead of walking it -------
+
+## OKLab dE (Euclidean distance in OKLab) — the same Björn Ottosson formulas
+## the palette's own docstring cites, and the same yardstick the issue's dE
+## table was measured with. No runtime code needs this conversion (the
+## implementation only needs `gcd`), so it lives here, local to the test that
+## states the acceptance criteria in these units — not a second copy of
+## anything `default_for` does. Not gameplay code, so
+## `.claude/rules/multiplayer-sync.md`'s ban on transcendentals in
+## gameplay/stat formulas doesn't apply: this `pow()` never leaves this test
+## file.
+static func _oklab(c: Color) -> Vector3:
+	var lin := c.srgb_to_linear()
+	var l := 0.4122214708 * lin.r + 0.5363325363 * lin.g + 0.0514459929 * lin.b
+	var m := 0.2119034982 * lin.r + 0.6806995451 * lin.g + 0.1073969566 * lin.b
+	var s := 0.0883024619 * lin.r + 0.2817188376 * lin.g + 0.6299787005 * lin.b
+	var l_ := pow(maxf(l, 0.0), 1.0 / 3.0)
+	var m_ := pow(maxf(m, 0.0), 1.0 / 3.0)
+	var s_ := pow(maxf(s, 0.0), 1.0 / 3.0)
+	return Vector3(
+			0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+			1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+			0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_)
+
+
+static func _delta_e_ok(a: Color, b: Color) -> float:
+	return (_oklab(a) - _oklab(b)).length()
+
+
+func _assert_pairwise_separated(swatches: Array[Color], minimum: float, label: String) -> void:
+	for i in swatches.size():
+		for j in range(i + 1, swatches.size()):
+			var d := _delta_e_ok(swatches[i], swatches[j])
+			assert_gte(d, minimum,
+					"%s: slot %d vs %d only %.4f apart in OKLab" % [label, i, j, d])
+
+
+func test_a_three_slot_rosters_default_colours_are_pairwise_separated() -> void:
+	# The reported symptom: the first 3 slots landed within 31 degrees of hue.
+	var swatches: Array[Color] = []
+	for i in 3:
+		swatches.append(_PALETTE.default_for(i))
+	_assert_pairwise_separated(swatches, 0.14, "3-slot roster")
+
+
+func test_a_six_slot_rosters_default_colours_are_pairwise_separated() -> void:
+	# 2 humans + 4 AI — the widest roster the lobby can author (#616).
+	var swatches: Array[Color] = []
+	for i in 6:
+		swatches.append(_PALETTE.default_for(i))
+	_assert_pairwise_separated(swatches, 0.14, "6-slot roster")
+
+
+func test_the_shipped_stride_is_coprime_with_the_shipped_palette_size() -> void:
+	assert_eq(PlayerPalette.gcd(PlayerPalette.DEFAULT_STRIDE, _PALETTE.size()), 1,
+			"#639: this is what lets the stride cycle every colour before repeating")
+	assert_eq(PlayerPalette.effective_stride(_PALETTE.size()), PlayerPalette.DEFAULT_STRIDE)
+
+
+func test_a_non_coprime_palette_size_falls_back_to_the_old_walk() -> void:
+	# 34 = 2 * 17 shares a factor with the stride — the exact trap the issue
+	# calls out: gcd(17, 34) is 17, not 1.
+	assert_eq(PlayerPalette.gcd(PlayerPalette.DEFAULT_STRIDE, 34), 17,
+			"premise: 34 is NOT coprime with the shipped stride")
+	assert_eq(PlayerPalette.effective_stride(34), 1,
+			"falls back to the old walk rather than collapsing onto gcd(17,34)=17 colours")
+
+	var oversized := PlayerPalette.new()
+	oversized.colors = []
+	for i in 34:
+		oversized.colors.append(Color(float(i) / 34.0, 0.5, 0.5))
+
+	var seen: Array[Color] = []
+	for i in 34:
+		var c := oversized.default_for(i)
+		assert_true(oversized.colors.has(c), "still a real palette entry, not a crash")
+		assert_false(seen.has(c),
+				"stride-1 fallback: no repeat before size() picks, same as today")
+		seen.append(c)
+
+
+func test_default_for_still_wraps_past_the_palette_size() -> void:
+	for i in _PALETTE.size():
+		assert_eq(_PALETTE.default_for(i), _PALETTE.default_for(i + _PALETTE.size()),
+				"#639: the wrap contract holds under the strided walk too")
+
+
 func test_a_pick_moves_the_colour_and_frees_the_old_one() -> void:
 	var lobby := _make_lobby(RunConfig.Mode.COOP_HOTSEAT)
 	var parts := lobby.participants()

@@ -41,13 +41,51 @@ func size() -> int:
 	return colors.size()
 
 
+## Owner call 2026-08-27 (#639): walking the ramp at stride 1 seats adjacent
+## slots on adjacent hues — a 20-entry smooth ramp puts the first 3 slots
+## within 31 degrees of each other. Every stride co-prime with the palette
+## size beats stride 1 at every roster size 2-6; 17 is the minimax pick (see
+## the issue for the full dE table). Not a bare literal — [method effective_stride]
+## below guards it.
+const DEFAULT_STRIDE := 17
+
+
+## [constant DEFAULT_STRIDE] if it shares no factor with [param size] — which is
+## what keeps the stride cycling through every entry before repeating, the same
+## guarantee stride 1 already had — else `1`, degrading to the old round-robin
+## walk rather than silently colliding multiple slots onto the same few
+## colours. **This is a property of the pair, not of 17**: a palette that grows
+## to a size sharing a factor with 17 (34, for instance) must fall back too, or
+## the sequence collapses onto `gcd(17, size)` colours. Public so the
+## co-primality invariant is assertable directly against the shipped palette
+## rather than re-derived in a test.
+static func effective_stride(size: int) -> int:
+	if size <= 0 or gcd(DEFAULT_STRIDE, size) != 1:
+		return 1
+	return DEFAULT_STRIDE
+
+
+## Euclid's algorithm. Exposed alongside [method effective_stride] so the
+## co-primality guard it implements is testable as itself, not re-implemented
+## a second time in a test.
+static func gcd(a: int, b: int) -> int:
+	while b != 0:
+		var t := a % b
+		a = b
+		b = t
+	return a
+
+
 ## The default colour for the slot at [param index], wrapping if a roster ever
 ## outgrows the palette. Max roster today is 6 (2 humans + 4 AI), so twenty
-## entries is headroom, not a coincidence.
+## entries is headroom, not a coincidence. Strides through the palette by
+## [method effective_stride] rather than walking it one entry at a time — see
+## [constant DEFAULT_STRIDE].
 func default_for(index: int) -> Color:
 	if colors.is_empty():
 		return Color.WHITE
-	return colors[index % colors.size()]
+	var size := colors.size()
+	return colors[(index * effective_stride(size)) % size]
 
 
 ## Does this palette offer [param color]? Compared exactly — every colour that
