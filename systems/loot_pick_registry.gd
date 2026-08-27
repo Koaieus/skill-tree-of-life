@@ -57,6 +57,12 @@ extends Node
 ## [method CommandApplier.submit] routes [PickLootCommand] there rather than
 ## enqueueing it.
 
+## A request was parked for a REMOTE collector (#646) — [CommandLink] listens
+## for this to broadcast the matching [LootPickOffer] down to the peer that
+## owes the answer. Fired from [method park] itself rather than by the caller,
+## so nothing can park a request and forget to announce it.
+signal offer_parked(request: Variant)
+
 ## Injected by [method GameRoot._ready] (#564), never read off an autoload
 ## in here — a leaf system takes its dependencies, it doesn't go fetch them.
 ## Null outside an active [GameSession] run (a hand-authored sandbox with no
@@ -90,6 +96,7 @@ func park(request: Variant) -> int:
 	_next_id += 1
 	request.request_id = id
 	_parked[id] = request
+	offer_parked.emit(request)
 	return id
 
 
@@ -125,16 +132,18 @@ func resolve_pick(request_id: int, chosen_index: int) -> bool:
 	return true
 
 
-## [b]There is deliberately no `has_outstanding(entity)` here[/b], though the
-## issue's acceptance sketch asked for one to gate End Turn. It would be dead
-## code: a round runs INSIDE its [LootRoundCommand]'s application, so
-## [member CommandApplier.is_applying] is true for the whole pick and
-## [method PlayerInputController.can_player_act] already returns false — the
-## End Turn button greys out through the existing `player_can_act_changed`
-## path. The same fact makes the collector-death case unreachable rather than
-## merely unlikely: no other entity can take a turn while the queue is blocked,
-## so nothing can kill a collector mid-pick. Add this back only if a round ever
-## stops holding the queue.
+## [b]`has_outstanding` lives on [CommandApplier], not here (#646).[/b] It used
+## to be dead code by construction: a round ran INSIDE its [LootRoundCommand]'s
+## application, so [member CommandApplier.is_applying] covered the whole pick
+## and nothing else could act — the collector-death case was unreachable for
+## the same reason. #646 moved the offer/pick/roll sequence OUTSIDE the command
+## pipeline (it has to, so a remote human's pick no longer holds the host's
+## queue — issue #646 acceptance 3), so `is_applying` no longer implies "a pick
+## is outstanding" and the gate has to exist for real. It is a
+## [CommandApplier] concern rather than a registry one because this registry
+## only ever hears about REMOTE (parked) picks; a LOCAL or UNCLAIMED round
+## still has to hold the SAME gate, and [SkillDustAddon] is the one thing that
+## sees all three uniformly.
 
 
 ## The peer holding [param entity] dropped off the link. NOT "escaping the

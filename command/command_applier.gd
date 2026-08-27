@@ -93,6 +93,15 @@ signal applying_changed(applying: bool)
 ## [PlayerInputController], never two.
 signal awaiting_confirmation_changed(awaiting: bool)
 
+## [method has_outstanding_loot] transitioned (#646). A relic's offer/pick/roll
+## sequence now runs OUTSIDE this queue between rounds (see
+## [SkillDustAddon]'s class doc), so [member is_applying] no longer implies "a
+## pick is outstanding" — this is the gate that has to exist explicitly instead,
+## per the owner's 2026-08-27 pick-gate decision. Same signal shape as
+## [signal applying_changed] / [signal awaiting_confirmation_changed] so
+## [PlayerInputController] wires it the same way.
+signal outstanding_loot_changed(has_outstanding: bool)
+
 ## Beat between hops of a [MoveCoreCommand], so a multi-hop walk reads as a
 ## cascade rather than one snap. Was `PlayerInputController.CORE_HOP_SLIDE_DELAY`
 ## before the walk moved in here; slightly under SkillNode's slide duration.
@@ -174,6 +183,12 @@ var is_applying: bool = false
 ## yet — and the only moment the third gate is the sole reason the player cannot
 ## act. Do not "simplify" it to a read after the pop.
 var is_awaiting_confirmation: bool = false
+
+## How many relic claim chains this applier is currently driving OUTSIDE the
+## queue (#646) — see [method notify_loot_round_opened]. A count, not a bool,
+## so two relics claimed back to back (or concurrently, on separate carriers)
+## don't stomp each other's close.
+var _outstanding_loot_rounds: int = 0
 
 var _queue: Array[Command] = []
 
@@ -340,6 +355,34 @@ var last_refusal_reason: StringName = &""
 ## nothing in production should need it.
 func pending_count() -> int:
 	return _queue.size()
+
+
+## A relic's claim chain opened on THIS applier (#646) — called only from the
+## authority side of [SkillDustAddon]'s `_on_carrier_owner_changed`, since a
+## MIRROR peer never drives a chain, only replays it. Paired with
+## [method notify_loot_round_closed], called from the same authority-gated
+## site once the chain's terminal round lands.
+func notify_loot_round_opened() -> void:
+	_outstanding_loot_rounds += 1
+	if _outstanding_loot_rounds == 1:
+		outstanding_loot_changed.emit(true)
+
+
+func notify_loot_round_closed() -> void:
+	if _outstanding_loot_rounds <= 0:
+		return
+	_outstanding_loot_rounds -= 1
+	if _outstanding_loot_rounds == 0:
+		outstanding_loot_changed.emit(false)
+
+
+## Is a relic claim chain being driven right now, whether or not this queue is
+## also empty? [PlayerInputController.can_player_act] gates on this exactly as
+## it does [member is_applying] / [member is_awaiting_confirmation] — see
+## [signal outstanding_loot_changed]'s note for why this stopped being implied
+## by [member is_applying] alone.
+func has_outstanding_loot() -> bool:
+	return _outstanding_loot_rounds > 0
 
 
 ## "This command's payload is final and it is going to be applied" — announce it

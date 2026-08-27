@@ -128,41 +128,43 @@ func test_an_unknown_tag_decodes_to_null_rather_than_half_a_modifier() -> void:
 # ── 2. The round is the wire unit ────────────────────────────────────────────
 
 func test_a_loot_round_command_round_trips_through_the_codec() -> void:
-	var command := LootRoundCommand.new(3, 11)
-	command.record(_mod(&"armor", StatModifier.Operation.ADD_BASE, 5.0), &"", false)
+	var command := LootRoundCommand.new(
+			3, 11, _mod(&"armor", StatModifier.Operation.ADD_BASE, 5.0), &"", false)
 
 	var back := CommandCodec.from_dict(command.to_dict()) as LootRoundCommand
 
 	assert_not_null(back, "the codec knows the tag")
 	assert_eq(back.entity_id, 3)
 	assert_eq(back.carrier_id, 11)
-	assert_true(back.is_replay(), "a stamped record makes it a replay on the far side")
 	assert_eq(back.granted_modifier().value, 5.0)
 	assert_false(back.is_final())
 
 
-func test_an_unstamped_command_is_an_initiate() -> void:
-	assert_false(LootRoundCommand.new(1, 2).is_replay(),
-			"empty record means 'not applied yet' — the authority runs it for real")
+## #646: the constructor takes the outcome, so there is no "unstamped" state
+## left to construct — a bare `.new()` still has to mean SOMETHING, and it
+## means "granted nothing, not final" rather than "not applied yet".
+func test_a_default_constructed_command_grants_nothing_and_is_not_final() -> void:
+	var command := LootRoundCommand.new(1, 2)
+
+	assert_null(command.granted_modifier())
+	assert_null(command.granted_spell())
+	assert_false(command.is_final())
 
 
 ## The forfeit / terminal payloads are the ones most easily lost: a round that
-## granted nothing still has to be distinguishable from one that has not run.
-func test_a_terminal_round_carries_no_grant_and_still_reads_as_applied() -> void:
-	var command := LootRoundCommand.new(1, 2)
-	command.record(null, &"", true)
+## granted nothing still has to be distinguishable from one that IS final.
+func test_a_terminal_round_carries_no_grant_and_still_reads_as_final() -> void:
+	var command := LootRoundCommand.new(1, 2, null, &"", true)
 
 	var back := CommandCodec.from_dict(command.to_dict()) as LootRoundCommand
 
-	assert_true(back.is_replay(), "granting nothing is an OUTCOME, not an un-run round")
 	assert_true(back.is_final(), "and it is what frees the relic on every peer")
 	assert_null(back.granted_modifier())
 	assert_null(back.granted_spell())
 
 
 func test_a_spell_round_travels_by_id() -> void:
-	var command := LootRoundCommand.new(1, 2)
-	command.record(null, SpellCatalog.SPARK.id, false)
+	var command := LootRoundCommand.new(1, 2, null, SpellCatalog.SPARK.id, false)
 
 	var back := CommandCodec.from_dict(command.to_dict()) as LootRoundCommand
 
@@ -179,8 +181,8 @@ func test_a_peer_grants_what_the_record_says() -> void:
 	# round, and an addon with no applier runs one inline (the offline path).
 	_relic.owned_by = _collector
 	var dust := _dust([_mod(&"armor", StatModifier.Operation.ADD_BASE, 99.0)])
-	var command := LootRoundCommand.new(_collector.entity_id, 0)
-	command.record(_mod(&"strength", StatModifier.Operation.ADD_BASE, 6.0), &"", false)
+	var command := LootRoundCommand.new(_collector.entity_id, 0,
+			_mod(&"strength", StatModifier.Operation.ADD_BASE, 6.0), &"", false)
 
 	await dust.run_round(command)
 
@@ -192,8 +194,7 @@ func test_a_peer_grants_what_the_record_says() -> void:
 func test_a_final_replayed_round_frees_the_relic() -> void:
 	_relic.owned_by = _collector
 	var dust := _dust([_mod(&"armor", StatModifier.Operation.ADD_BASE, 1.0)])
-	var command := LootRoundCommand.new(_collector.entity_id, 0)
-	command.record(null, &"", true)
+	var command := LootRoundCommand.new(_collector.entity_id, 0, null, &"", true)
 
 	await dust.run_round(command)
 	await get_tree().process_frame
@@ -352,9 +353,8 @@ func test_a_round_applies_through_the_applier_after_a_wire_round_trip() -> void:
 	_relic.owned_by = _collector
 	var dust := _dust([_mod(&"armor", StatModifier.Operation.ADD_BASE, 1.0)])
 
-	var sent := LootRoundCommand.new(
-			_collector.entity_id, _graph.get_stable_id(_relic))
-	sent.record(_mod(&"strength", StatModifier.Operation.ADD_BASE, 6.0), &"", false)
+	var sent := LootRoundCommand.new(_collector.entity_id, _graph.get_stable_id(_relic),
+			_mod(&"strength", StatModifier.Operation.ADD_BASE, 6.0), &"", false)
 
 	var received := CommandCodec.from_dict(sent.to_dict())
 	applier.submit(received)
@@ -368,8 +368,8 @@ func test_a_round_applies_through_the_applier_after_a_wire_round_trip() -> void:
 
 func test_a_round_naming_an_unminted_carrier_is_refused_not_silent() -> void:
 	var applier := _applier(_registry())
-	var command := LootRoundCommand.new(_collector.entity_id, 0)
-	command.record(_mod(&"strength", StatModifier.Operation.ADD_BASE, 6.0), &"", false)
+	var command := LootRoundCommand.new(_collector.entity_id, 0,
+			_mod(&"strength", StatModifier.Operation.ADD_BASE, 6.0), &"", false)
 
 	applier.submit(command)
 	if applier.is_applying:
@@ -379,9 +379,11 @@ func test_a_round_naming_an_unminted_carrier_is_refused_not_silent() -> void:
 			"carrier_id 0 grants nothing — the trap in .claude/rules/graph.md")
 
 
-## The "no ending the turn while picking" rule (owner call, 2026-08-22) needs no
-## gate of its own: the round holds the applier, and `can_player_act` already
-## reads that.
+## `can_player_act` still reads `is_applying` — true for the span of ONE
+## round's apply. Since #646 that is no longer the whole pick (see
+## `test_loot_offer_split.gd` for the explicit `has_outstanding_loot()` gate
+## that now covers the rest of the chain), but a round genuinely mid-apply must
+## still block, same as any other verb.
 func test_a_round_in_flight_is_what_blocks_the_player_from_acting() -> void:
 	var applier := _applier(_registry())
 	var input_ctl := PlayerInputController.new()

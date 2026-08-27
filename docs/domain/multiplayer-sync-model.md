@@ -476,8 +476,10 @@ confirm still lands between its neighbours'.
 Routed so far: every `PlayerInputController` mutation (#510),
 `battle_system.launch_attack` (#511 — it builds a `LaunchAttackCommand`,
 submits it, and parks on `applying_changed`, so every existing caller still
-awaits the whole action), and loot (#522 — a `LootRoundCommand` per round of a
-relic's claim). Still direct, by plan: `ai_controller` (child D).
+awaits the whole action), and loot (#522, reshaped by #646 — a
+`LootRoundCommand` per round of a relic's claim, minted only once that round's
+outcome is known; see "The loot round is the deliberate exception" below).
+Still direct, by plan: `ai_controller` (child D).
 
 `PickLootCommand` is now answered for real, against `LootPickRegistry` — which
 also took over minting `request_id`, replacing the per-process static counter
@@ -534,6 +536,49 @@ replays its own, exactly as a peer does — so `record.is_empty()` no longer
 distinguishes "did I compute this". The transient `computed_here` field does, and
 it is deliberately absent from the wire: a received command is by definition one
 this machine did not compute.
+
+**The loot round is the deliberate exception to "one type, two states" (#646).**
+`LootRoundCommand` had the same empty/populated pun as `LaunchAttackCommand`
+until #646, and it broke the same way: `_drain` confirms before it applies, so
+a round whose outcome was stamped *inside* `_apply` (deep in `SkillDustAddon`'s
+`_run_round` chain) broadcast an EMPTY `resolved` — a peer read that as an
+unstamped INITIATE and rolled its own divergent loot, empirically confirmed
+(host granted a modifier, client granted none). #545's own fix does not
+transfer, though: the attack resolves on a shadow world with nothing to wait
+for, but a loot round with a human collector can *await a pick*. Computing it
+inside `_validate`, `LaunchAttackCommand`-style, would freeze the host's whole
+command queue on a remote player's click — unacceptable on a LAN where a
+relic's claim can run several rounds deep.
+
+So #646 split the two things one `LootRoundCommand` used to carry into two
+downward messages instead of two states of one type:
+
+* A `LootPickOffer` — NOT a `Command` — carries "show this collector a pick
+  screen, here is the draw" when a round needs a REMOTE human. It mutates
+  nothing and never touches `CommandApplier._drain`; `CommandLink` sends it off
+  `LootPickRegistry.offer_parked` as its own additive, opt-in wire kind
+  (`KIND_LOOT_OFFER`), the same shape as `KIND_SNAPSHOT` / `KIND_SETUP`.
+* `LootRoundCommand` is minted only once a round's outcome is fully known — its
+  constructor takes the outcome, so there is no way to construct one before
+  deciding it. It is therefore ALWAYS a replay, on every peer including the
+  authority: `_drain` needs no opt-out, because by construction there is
+  nothing left to compute by the time one exists. The grant itself moves out of
+  resolution and into the shared apply/replay path (`SkillDustAddon._replay_round`),
+  so the authority does not double-grant (once resolving, once applying).
+
+The explicit cost, accepted rather than hidden: this gives up the symmetry
+`LaunchAttackCommand` has. The loot round arguably never fit that shape in the
+first place — it is the one verb with a human in the middle, and the
+empty/populated state pun is exactly what produced the #646 bug. `PickLootCommand`
+is untouched by any of this; it remains the upward intent, now answering a
+`LootPickOffer` instead of a bare invitation to guess that one exists.
+
+One consequence: the offer/pick/roll sequence now runs entirely OUTSIDE the
+command queue, between rounds, so `CommandApplier.is_applying` no longer
+implies "a pick is outstanding" the way it used to (the whole chain used to run
+inside one command's `_apply`). `CommandApplier.has_outstanding_loot()` is the
+explicit gate that replaces what `is_applying` used to give for free — see
+`PlayerInputController.can_player_act()`.
 
 **A peer re-simulates to DRAW, never to derive.** Melee reforms a bit-identical
 blade from the plan (`blade_sim.gd` is a pure fixed-dt XPBD loop, no frame

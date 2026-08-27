@@ -20,15 +20,25 @@ extends SkillNodeAddon
 ## picker; NPCs auto-pick at random, per round.
 ## STEAL/PROLIFERATE choice and staining stay deferred (see loot-system.md).
 ##
-## ON THE WIRE (#522): each round is a [LootRoundCommand] — the authority runs
-## it and stamps what it granted, a peer replays that record and rolls nothing.
-## The ROUND rather than the PICK is the wire unit because two of the grant
-## paths below (the single-survivor auto-grant, the NPC auto-resolve) never
-## raise a request at all. This addon is therefore HOST-GATED at
-## `_on_carrier_owner_changed`: `owned_by` flips on every peer that applies the
-## allocation, and only the authority may open a chain. A null
-## [member command_applier] means "no pipeline" (headless, editor, authored
-## sandbox relic) and runs the round inline, pre-#522 behaviour.
+## ON THE WIRE (#522, split #646): the offer/pick/roll sequence for each round
+## runs entirely OUTSIDE the command pipeline — see [method _run_round]. Only
+## once a round's outcome is fully known does the authority mint a
+## [LootRoundCommand] with that outcome ALREADY STAMPED and submit it; applying
+## one is therefore always a REPLAY, on every peer including the authority
+## itself (see [method _land_outcome], which is also where the grant actually
+## lands — never at resolve time, or the authority would double-grant: once
+## while resolving, again while applying its own command). The ROUND rather
+## than the PICK is the wire unit because two of the grant paths below (the
+## single-survivor auto-grant, the NPC auto-resolve) never raise a request at
+## all. This addon is therefore HOST-GATED at `_on_carrier_owner_changed`:
+## `owned_by` flips on every peer that applies the allocation, and only the
+## authority may open a chain. A null [member command_applier] means "no
+## pipeline" (headless, editor, authored sandbox relic) and self-replays the
+## instant an outcome is known — see [method _settle_outcome].
+##
+## A downward [LootPickOffer] (also #646, NOT a [Command]) tells a REMOTE
+## collector's peer to open its own picker; see that class and
+## [signal LootPickRegistry.offer_parked].
 ##
 ## TERMINAL SPELL ROUND (#204 re-cut): once every stat round has resolved,
 ## [member spell_candidates] (if non-empty) offers ONE MORE pick — a spell the
@@ -248,82 +258,88 @@ func _on_carrier_owner_changed() -> void:
 	_collector = collector
 	_rounds_remaining = rounds
 	_phase = Phase.STAT
-	_open_round()
+	if command_applier != null:
+		command_applier.notify_loot_round_opened()
+	_run_round()  # fired, not awaited — see _land_outcome's doc
 
 
-## Raise the next round as a [LootRoundCommand], so it becomes an ordinary
-## confirmed command that [CommandLink] mirrors like every other verb.
-##
-## [b]The chain is one command per round, submitted from the previous round's
-## application.[/b] That is not re-entrancy: [CommandApplier] QUEUES a command
-## raised from inside another command's application, by documented design.
-func _open_round() -> void:
-	if command_applier == null:
-		# No pipeline (headless / editor / authored sandbox relic) — same round,
-		# run straight. Pre-#522 behaviour, unchanged.
-		@warning_ignore("redundant_await")
-		await run_round(LootRoundCommand.new())
-		return
-	var collector_id := _collector.entity_id if is_instance_valid(_collector) else 0
-	var carrier_id := 0
-	if command_applier.graph != null:
-		carrier_id = command_applier.graph.get_stable_id(carrier)
-	command_applier.submit(LootRoundCommand.new(collector_id, carrier_id))
-
-
-## The [CommandApplier]'s entry point, and the one place a loot round mutates
-## the world. INITIATE runs the round for real and stamps what it did; REPLAY
-## grants exactly what was stamped. See [LootRoundCommand] for the two-states
-## split and why the ROUND rather than the PICK is the wire unit.
+## The [CommandApplier]'s entry point, and the one place a WIRE loot round
+## mutates the world. Always a REPLAY (#646 — see the class doc): by
+## construction a [LootRoundCommand] never exists before its outcome does.
 ## [param collector] is the command's `entity_id` resolved by the applier, so a
-## replay grants to the same entity the authority did. Null on the inline
-## (no-applier) path, which reads the latched `_collector` instead, and
-## legitimately null on a terminal round.
+## replay grants to the same entity the authority did; legitimately null on a
+## terminal round. Decodes the command's payload and hands off to
+## [method _land_outcome] — the same landing [method _settle_outcome] uses for
+## the no-applier path, so there is exactly one place that grants + frees +
+## continues, not two.
 func run_round(command: LootRoundCommand, collector: Entity = null) -> bool:
-	if command.is_replay():
-		_replay_round(command, collector)
-		return true
-	@warning_ignore("redundant_await")
-	return await _run_round(command)
+	_land_outcome(command.granted_modifier(), command.granted_spell(),
+			command.is_final(), collector)
+	return true
 
 
-## Peer side: grant what the authority recorded, free the relic if it said so,
-## and touch nothing else. No rolling, no `would_cycle` filter, no request, no
-## pool bookkeeping and no advancing — the next round arrives on its own.
+## Grant [param granted] / [param spell], free the relic if [param finished],
+## and — only on the authority, and only once the grant above has actually
+## landed — start resolving the NEXT round. Runs on EVERY peer including the
+## authority when reached via [method run_round], which is what makes the
+## grant itself safe here: it happens exactly once, at apply time, never twice
+## (see the class doc's double-grant note). The no-applier path
+## ([method _settle_outcome]) reaches this directly with the exact objects the
+## round just picked — no wire round trip, so a headless/editor claim keeps
+## granting the SAME [StatModifier] instance it drew, unchanged from pre-#646.
 ##
-## The peer's [member candidates] pool is therefore never trimmed, so its
-## tooltip keeps listing an already-granted candidate for the seconds the claim
-## takes. Cosmetic and deliberate: trimming would need to match a by-value
-## modifier against a by-instance pool, and the pool is freed at `finished`
-## anyway.
-func _replay_round(command: LootRoundCommand, collector: Entity) -> void:
+## [b]The continuation is fired, never awaited.[/b] [method _run_round] can
+## await a human pick, sometimes across a real round trip — awaiting it here
+## would hold [member CommandApplier.is_applying] for the whole remaining
+## chain again, exactly the queue-blocking this split exists to avoid (issue
+## #646 acceptance 3). [CommandApplier] already documents queuing a command
+## raised from inside another command's application as by-design, not
+## re-entrancy; this is the same shape one level removed — the SUBMIT that
+## follows resolution is what re-enters the queue, not this call.
+##
+## The peer's [member candidates] pool is never trimmed (only the authority's
+## resolve path does that), so its tooltip keeps listing an already-granted
+## candidate for the seconds the claim takes. Cosmetic and deliberate: trimming
+## would need to match a by-value modifier against a by-instance pool, and the
+## pool is freed at `finished` anyway.
+func _land_outcome(granted: StatModifier, spell: SpellDef, finished: bool,
+		collector: Entity) -> void:
 	if collector == null and carrier != null:
 		collector = carrier.owned_by  # inline path: no applier resolved one for us
 	if is_instance_valid(collector) and not collector.is_dead:
-		var m := command.granted_modifier()
-		if m != null:
-			_grant_mod(collector, m)
-		var spell := command.granted_spell()
+		if granted != null:
+			_grant_mod(collector, granted)
 		if spell != null:
 			_grant_spell(collector, spell)
-	if command.is_final():
+	if finished:
+		# Symmetric with the ONE open call in `_on_carrier_owner_changed`, which
+		# is authority-gated the same way — a MIRROR peer's applier never
+		# opened, so it must not close either, or the counter underflows.
+		if command_applier != null and command_applier.is_authority:
+			command_applier.notify_loot_round_closed()
 		_really_finish()
+		return
+	if command_applier == null or command_applier.is_authority:
+		_run_round()  # fired, not awaited — see the doc above
 
 
-## Authority side: run whichever round the chain is on, stamp the outcome into
-## [param command], and open the next one. Recurses on a phase change rather
-## than burning a command on it — a phase transition is bookkeeping, not a
-## mutation a peer needs told about.
-func _run_round(command: LootRoundCommand) -> bool:
+## Authority side (and the no-applier inline path, which is authority by
+## construction): run whichever round the chain is on next, all the way to a
+## settled outcome — the offer, the `would_cycle` filter, the weighted sample,
+## and the pick itself if one is needed. NEVER grants; see the class doc for
+## why the grant lives only in [method _land_outcome]. Ends in
+## [method _settle_outcome], which is what actually mints/submits (or
+## self-replays) the round's [LootRoundCommand].
+func _run_round() -> void:
 	match _phase:
 		Phase.STAT:
 			@warning_ignore("redundant_await")
-			return await _run_stat_round(command)
+			await _run_stat_round()
 		Phase.SPELL:
 			@warning_ignore("redundant_await")
-			return await _run_spell_round(command)
+			await _run_spell_round()
 		_:
-			return _run_terminal_round(command)
+			_run_terminal_round()
 
 
 ## One stat round (#323). Filters the REMAINING [member candidates] by
@@ -337,11 +353,11 @@ func _run_round(command: LootRoundCommand) -> bool:
 ##   * no cycle-safe survivor left → the stat phase is over.
 ##   * exactly one survivor → no real choice, auto-grant it, don't pop a picker.
 ##   * 2-3 survivors → weighted-sample up to 3 and offer a real pick-1 choice.
-func _run_stat_round(command: LootRoundCommand) -> bool:
+func _run_stat_round() -> void:
 	if not is_instance_valid(_collector) or _collector.is_dead \
 			or _rounds_remaining <= 0 or candidates.is_empty():
-		@warning_ignore("redundant_await")
-		return await _enter_spell_phase(command)
+		_enter_spell_phase()
+		return
 
 	var board := _collector.stat_board
 	var safe_indices: Array[int] = []
@@ -349,16 +365,16 @@ func _run_stat_round(command: LootRoundCommand) -> bool:
 		if board == null or not board.would_cycle(candidates[i]):
 			safe_indices.append(i)
 	if safe_indices.is_empty():
-		@warning_ignore("redundant_await")
-		return await _enter_spell_phase(command)
+		_enter_spell_phase()
+		return
 
 	var offer_indices := _weighted_sample(safe_indices, mini(3, safe_indices.size()))
 	if offer_indices.is_empty():
-		@warning_ignore("redundant_await")
-		return await _enter_spell_phase(command)
+		_enter_spell_phase()
+		return
 	if offer_indices.size() == 1:
-		_settle_stat_round(command, candidates[offer_indices[0]])
-		return true
+		_settle_stat_round(candidates[offer_indices[0]])
+		return
 
 	var offer: Array[StatModifier] = []
 	for i in offer_indices:
@@ -368,54 +384,56 @@ func _run_stat_round(command: LootRoundCommand) -> bool:
 	Events.loot_pick_requested.emit(request)
 	@warning_ignore("redundant_await")
 	var chosen: Array = await _await_pick(request, offer)
-	_settle_stat_round(command, chosen[0] if not chosen.is_empty() else null)
-	return true
+	_settle_stat_round(chosen[0] if not chosen.is_empty() else null)
 
 
-## Grant the pick (so the NEXT round's `would_cycle` check sees it), remove it
-## from [member candidates] so it can't be re-offered, stamp the record, and
-## open the next round. The other 2 un-picked offer members are NOT removed —
-## they stay eligible for a later round's fresh 3-sample ("single pick, then new
-## draw, the next pick is always clean", per the #322 comment thread this shape
-## came from). A null `chosen` (a forfeited round) burns the round rather than
-## stalling the relic.
-func _settle_stat_round(command: LootRoundCommand, chosen: StatModifier) -> void:
-	if chosen != null and is_instance_valid(_collector) and not _collector.is_dead:
-		_grant_mod(_collector, chosen)
+## Remove the pick from [member candidates] so it can't be re-offered (the
+## NEXT round's `would_cycle` check sees the grant once [method _land_outcome]
+## actually lands it, not here — resolving never grants, see the class doc),
+## and settle this round's outcome. The other 2 un-picked offer members are NOT
+## removed — they stay eligible for a later round's fresh 3-sample ("single
+## pick, then new draw, the next pick is always clean", per the #322 comment
+## thread this shape came from). A null `chosen` (a forfeited round, or a
+## collector who died mid-pick) records no grant rather than stalling the
+## relic.
+func _settle_stat_round(chosen: StatModifier) -> void:
+	if not (is_instance_valid(_collector) and not _collector.is_dead):
+		chosen = null
+	if chosen != null:
 		var idx := candidates.find(chosen)
 		if idx != -1:
 			candidates.remove_at(idx)
 			weights.remove_at(idx)
-	else:
-		chosen = null
-	command.record(chosen, &"", false)
 	_rounds_remaining -= 1
-	_open_round()
+	_settle_outcome(chosen, null, false)
 
 
 ## Every stat round has resolved (or there were none to run) — move to the
-## terminal spell round, reusing THIS command rather than burning one on a
-## transition a peer does not need to hear about.
-func _enter_spell_phase(command: LootRoundCommand) -> bool:
+## terminal spell round. No command to reuse any more (#646) — a phase
+## transition is bookkeeping a peer never sees either way, now simply because
+## nothing is minted until an outcome exists.
+func _enter_spell_phase() -> void:
 	candidates = []
 	weights = []
 	_phase = Phase.SPELL
 	@warning_ignore("redundant_await")
-	return await _run_round(command)
+	await _run_spell_round()
 
 
 ## The terminal bonus round (#204 re-cut). Guarded the same way a stat round is
 ## — `_collector` can already be invalid here, and reading `_collector.spellbook`
 ## on a freed Object crashes at the typed assignment (see gdscript-pitfalls.md),
 ## not at a null check.
-func _run_spell_round(command: LootRoundCommand) -> bool:
+func _run_spell_round() -> void:
 	if spell_candidates.is_empty() or not is_instance_valid(_collector) or _collector.is_dead:
-		return _enter_terminal_phase(command)
+		_enter_terminal_phase()
+		return
 
 	var offerable := _exclude_permanently_known(spell_candidates, _collector)
 	spell_candidates = []  # single-shot bonus — consumed regardless of outcome
 	if offerable.is_empty():
-		return _enter_terminal_phase(command)
+		_enter_terminal_phase()
+		return
 
 	offerable.shuffle()
 	var offer_count := mini(_SPELL_OFFER_CAP, offerable.size())
@@ -425,34 +443,57 @@ func _run_spell_round(command: LootRoundCommand) -> bool:
 	Events.spell_loot_requested.emit(request)
 	@warning_ignore("redundant_await")
 	var chosen: Array = await _await_pick(request, offer)
-	_settle_spell_round(command, chosen[0] if not chosen.is_empty() else null)
-	return true
+	_settle_spell_round(chosen[0] if not chosen.is_empty() else null)
 
 
-## Spell round resolver: grants the chosen spell (#204) — a [SpellGrant] on the
-## collector's CORE node, same mechanism as an authored/earned core spell — then
-## opens the terminal round. There is no further offer after this one.
-func _settle_spell_round(command: LootRoundCommand, chosen: SpellDef) -> void:
-	if chosen != null and is_instance_valid(_collector) and not _collector.is_dead:
-		_grant_spell(_collector, chosen)
-	else:
+## Spell round resolver: settles the chosen spell's outcome (#204) — the actual
+## grant, a [SpellGrant] on the collector's CORE node, only lands once this
+## round's [LootRoundCommand] applies (see the class doc). There is no further
+## offer after this one.
+func _settle_spell_round(chosen: SpellDef) -> void:
+	if not (is_instance_valid(_collector) and not _collector.is_dead):
 		chosen = null
-	command.record(null, chosen.id if chosen != null else &"", false)
 	_phase = Phase.TERMINAL
-	_open_round()
+	_settle_outcome(null, chosen, false)
 
 
-func _enter_terminal_phase(command: LootRoundCommand) -> bool:
+func _enter_terminal_phase() -> void:
 	_phase = Phase.TERMINAL
-	return _run_terminal_round(command)
+	_run_terminal_round()
 
 
-## Nothing left to offer. The ONE record that frees the relic on every peer,
+## Nothing left to offer. The ONE outcome that frees the relic on every peer,
 ## whichever of the five ways the chain ended got us here.
-func _run_terminal_round(command: LootRoundCommand) -> bool:
-	command.record(null, &"", true)
-	_really_finish()
-	return true
+func _run_terminal_round() -> void:
+	_settle_outcome(null, null, true)
+
+
+## The one place a round's decided outcome becomes a [LootRoundCommand] (#646)
+## — the constructor takes the outcome, so by construction there is no way to
+## build one before this point. With a pipeline, submit it and let
+## [method run_round] land the grant uniformly for every peer, authority
+## included (see the class doc). Without one (headless / editor / authored
+## sandbox relic — pre-#522 behaviour, unchanged in effect), there is no queue
+## to land it on, so self-replay immediately.
+## [param spell] is the actual [SpellDef] this round chose, never just its id —
+## the no-applier branch below hands it straight to [method _land_outcome]
+## unchanged, so a headless/editor claim keeps granting the SAME instance it
+## offered (which matters for a test-minted, uncatalogued [SpellDef] just as
+## much as it does for a [StatModifier]; see [method _land_outcome]'s doc).
+## Only the WIRE branch narrows it to `spell.id`, because that is the one
+## direction where the receiving peer resolves it back through
+## [SpellCatalog] — an authored spell has a real identity there, unlike a
+## runtime-minted [StatModifier].
+func _settle_outcome(granted: StatModifier, spell: SpellDef, finished: bool) -> void:
+	if command_applier == null:
+		_land_outcome(granted, spell, finished, _collector)
+		return
+	var collector_id := _collector.entity_id if is_instance_valid(_collector) else 0
+	var carrier_id := 0
+	if command_applier.graph != null:
+		carrier_id = command_applier.graph.get_stable_id(carrier)
+	var spell_id := spell.id if spell != null else &""
+	command_applier.submit(LootRoundCommand.new(collector_id, carrier_id, granted, spell_id, finished))
 
 
 ## Park on the pick, whoever is making it. THE HANDSHAKE (see [LootPickRequest]):
@@ -462,18 +503,27 @@ func _run_terminal_round(command: LootRoundCommand) -> bool:
 ##   * `LOCAL` — a picker on this machine is up; await its confirm.
 ##   * `REMOTE` — a human on another peer owes the answer; park it in the
 ##     registry so the returning [PickLootCommand] can land, and await that.
-##     Dormant today (nothing reports a remote collector — see
-##     [LootPickRegistry]).
+##     [method LootPickRegistry.park] is also what fires the downward
+##     [LootPickOffer] ([CommandLink] listens for
+##     [signal LootPickRegistry.offer_parked]) that tells the remote peer's HUD
+##     to open a picker at all. `is_remote_collector` still returns false today
+##     (#646 note in [LootPickRegistry]'s class doc), so this branch is wired
+##     but unreached in real play until that lands.
 ##   * `UNCLAIMED` — NPC / headless / no HUD. Auto-resolve a random 1 of the
 ##     offer. This stays a HOST-ONLY roll and is exempt from the seeding rule
 ##     per `.claude/rules/multiplayer-sync.md`: the peer receives the result, it
 ##     does not reproduce it.
 ##
-## Awaiting here is what keeps [member CommandApplier.is_applying] true for the
-## whole pick — which is how "no ending the turn while picking" (owner call,
-## 2026-08-22) falls out of the existing `can_player_act` gate for free, with
-## the End Turn button greying out through `player_can_act_changed` rather than
-## silently no-opping.
+## [b]Owner call 2026-08-27: a collector that dies while this await is parked
+## forfeits the round[/b], rather than leaving it stuck forever. This used to
+## be unreachable — the whole chain ran inside [member CommandApplier.is_applying],
+## so nothing else could act to kill the collector — but #646 moves the
+## offer/pick/roll sequence outside the queue between rounds specifically so a
+## remote pick no longer holds it, which is what makes this reachable now.
+## [method LootPickRegistry.forfeit_for] already existed for a disconnected
+## peer and only ever reaches a PARKED (REMOTE) request; resolving [param
+## request] directly here covers LOCAL and lingering UNCLAIMED awaits too,
+## since this is the one place that sees all three claims uniformly.
 func _await_pick(request: Variant, offer: Array) -> Array:
 	if request.claim == LootPickRequest.Claim.UNCLAIMED \
 			and pick_registry != null and pick_registry.is_remote_collector(_collector):
@@ -485,8 +535,27 @@ func _await_pick(request: Variant, offer: Array) -> Array:
 		return [pool[0]]
 	if request.is_resolved():
 		return []
+	var forfeit_on_death := Callable()
+	if is_instance_valid(_collector):
+		forfeit_on_death = func() -> void:
+			if not request.is_resolved():
+				request.resolve(_forfeit_like(request))
+		_collector.died.connect(forfeit_on_death, CONNECT_ONE_SHOT)
 	@warning_ignore("redundant_await")
-	return await request.settled
+	var chosen: Array = await request.settled
+	if forfeit_on_death.is_valid() and is_instance_valid(_collector) \
+			and _collector.died.is_connected(forfeit_on_death):
+		_collector.died.disconnect(forfeit_on_death)
+	return chosen
+
+
+## The correctly-typed empty array for whichever request kind [param request]
+## is — GDScript has no generics, so this can't be shared with
+## [method LootPickRegistry._empty_like] across files.
+func _forfeit_like(request: Variant) -> Array:
+	if request is SpellLootRequest:
+		return [] as Array[SpellDef]
+	return [] as Array[StatModifier]
 
 
 func _really_finish() -> void:

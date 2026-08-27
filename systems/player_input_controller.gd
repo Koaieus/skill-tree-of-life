@@ -213,6 +213,10 @@ func _ready() -> void:
 		# The third gate (#541) rides the SAME refresh route rather than growing
 		# a second one — one `_emit_gate_changed`, four things that can move it.
 		command_applier.awaiting_confirmation_changed.connect(_emit_gate_changed.unbind(1))
+		# The fourth gate (#646): a relic's claim chain now runs OUTSIDE the
+		# queue between rounds, so `is_applying` no longer covers "a pick is
+		# outstanding" — see [CommandApplier.has_outstanding_loot].
+		command_applier.outstanding_loot_changed.connect(_emit_gate_changed.unbind(1))
 	core_move_targeting_changed.connect(_refresh_armed_state.unbind(1))
 
 
@@ -1148,6 +1152,14 @@ func can_player_act() -> bool:
 	# Third gate rather than folded into `is_applying`: that flag answers "a
 	# mutation is under way", and here nothing has moved yet.
 	if command_applier != null and command_applier.is_awaiting_confirmation:
+		return false
+	# A relic's claim chain is being driven (#646) — offer/pick/roll no longer
+	# runs inside `is_applying`, on purpose (issue #646 acceptance 3: it must
+	# not hold this applier's queue for a remote human's pick), so the gate
+	# that used to fall out of `is_applying` for free has to be explicit here
+	# instead. See [CommandApplier.has_outstanding_loot] and the owner's
+	# 2026-08-27 pick-gate decision.
+	if command_applier != null and command_applier.has_outstanding_loot():
 		return false
 	# AP=0 blocks further attack/cast actions; UI uses this to dim.
 	if player != null and player.stat_board != null:

@@ -70,6 +70,10 @@ const KEY_ENTITIES := "entities"
 const KEY_INTENT_ID := "intent"
 ## #548: why the authority refused, as a [StringName] code.
 const KEY_REASON := "reason"
+## #646: a [LootPickOffer]'s wire form. Its own key, not [constant KEY_COMMAND]
+## — an offer is explicitly NOT a [Command], and this class's convention is one
+## key per concept even where several nest a plain [Dictionary].
+const KEY_OFFER := "offer"
 ## #546: which code the sender is running. Rides the hello, never a [Command] —
 ## see [method send_hello].
 const KEY_BUILD := "build"
@@ -129,6 +133,13 @@ const KIND_INTENT := "intent"
 ## fingerprint compare and [DeterminismProbe] to special-case the one path that
 ## is the only cross-process diagnostic there is.
 const KIND_REFUSAL := "refusal"
+## #646's downward offer — "show this collector a pick screen, here is the
+## draw" ([LootPickOffer]). NOT a [Command]: it mutates nothing on arrival, so
+## it never touches [CommandApplier] at all, unlike every kind above it. Same
+## additive, opt-in shape as [constant KIND_SNAPSHOT] — sent only by
+## [method send_loot_offer], which [method _ready] wires to
+## [signal LootPickRegistry.offer_parked].
+const KIND_LOOT_OFFER := "loot_offer"
 
 ## The one refusal code today — [method CommandApplier._validate] answers a
 ## bool, so there is nothing finer to report yet. A [StringName], never a UI
@@ -165,9 +176,22 @@ signal resync_applied(reason: String)
 ## Terminal — nothing reconnects, by design.
 signal link_refused(reason: String)
 
+## #646: a [LootPickOffer] arrived — a REMOTE collector's peer owes a pick.
+## Nothing in this codebase consumes it yet (the HUD half of #564 is still
+## dormant, same as [method LootPickRegistry.is_remote_collector]); it is
+## emitted so that HUD wiring, when it lands, has a single source rather than
+## reaching into [method _on_message_received] itself.
+signal loot_offer_received(offer: LootPickOffer)
+
 @export var transport: NetworkTransport
 @export var command_applier: CommandApplier
 @export var graph: Graph
+## #646: the outstanding-pick book, ONLY consulted here for
+## [signal LootPickRegistry.offer_parked] — the trigger for
+## [method send_loot_offer]. Null is supported (no registry wired, e.g. every
+## existing [CommandLink] test): the offer leg simply never sends, same as
+## every other additive/opt-in kind on this class.
+@export var loot_pick_registry: LootPickRegistry
 
 ## #529's measurement, optional and OFF unless a harness enables it. A null
 ## probe, or a disabled one, costs one branch per received command — the hooks
@@ -231,6 +255,8 @@ func _ready() -> void:
 		command_applier.command_confirmed.connect(_on_command_confirmed)
 		command_applier.intent_submitted.connect(_on_intent_submitted)
 		command_applier.command_applied.connect(_on_command_applied)
+	if loot_pick_registry != null:
+		loot_pick_registry.offer_parked.connect(_on_offer_parked)
 
 
 ## Who this peer is for [method CommandApplier._mint_intent_id]'s high half. It
@@ -407,6 +433,43 @@ func send_run_setup(config: RunConfig, roster: ParticipantRoster) -> void:
 			[config.seed, roster.all().size() if roster != null else 0])
 
 
+## #646 send side. [method LootPickRegistry.park] only ever parks a REMOTE
+## claim ([SkillDustAddon]'s `_await_pick`), so every [signal
+## LootPickRegistry.offer_parked] this connects to is, by construction, a pick
+## that owes a downward offer. Host-only and NOT gated on [member graph] —
+## unlike every other `send_*` here, this message names no node, only stat
+## candidates (BY VALUE) or spell ids.
+func _on_offer_parked(request: Variant) -> void:
+	send_loot_offer(_offer_for(request))
+
+
+func _offer_for(request: Variant) -> LootPickOffer:
+	if request is SpellLootRequest:
+		return LootPickOffer.for_spell_request(request as SpellLootRequest)
+	return LootPickOffer.for_stat_request(request as LootPickRequest)
+
+
+## Send [param offer] to every connected peer. Mutates nothing and carries no
+## [Command] — see [constant KIND_LOOT_OFFER].
+func send_loot_offer(offer: LootPickOffer) -> void:
+	if transport == null or mode != Mode.BROADCAST or offer == null:
+		return
+	transport.send({KEY_KIND: KIND_LOOT_OFFER, KEY_OFFER: offer.to_dict()})
+	logged.emit("→ loot offer (request %d, collector %d)" %
+			[offer.request_id, offer.collector_id])
+
+
+## #646 receive side. Decodes and re-emits — see [signal loot_offer_received]
+## for why this does not itself open a picker.
+func _on_loot_offer(payload: Dictionary) -> void:
+	if mode != Mode.MIRROR:
+		return
+	var offer := LootPickOffer.from_dict(payload.get(KEY_OFFER, {}))
+	loot_offer_received.emit(offer)
+	logged.emit("← loot offer (request %d, collector %d)" %
+			[offer.request_id, offer.collector_id])
+
+
 ## Mirrors off [signal CommandApplier.command_confirmed], NOT `command_applied`:
 ## a refused command never confirms, and since #540 a confirm fires BEFORE the
 ## mutation for every deterministic verb — which is the whole point, because it
@@ -554,6 +617,8 @@ func _on_message_received(payload: Dictionary) -> void:
 			_on_intent(payload)
 		KIND_REFUSAL:
 			_on_refusal(payload)
+		KIND_LOOT_OFFER:
+			_on_loot_offer(payload)
 		_:
 			logged.emit("ignored payload with unknown kind %s" % payload.get(KEY_KIND))
 
