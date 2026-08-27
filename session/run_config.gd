@@ -9,7 +9,13 @@ extends Resource
 enum Mode { SINGLE, COOP_HOTSEAT, VERSUS }
 
 @export var mode: Mode = Mode.SINGLE
-@export var level_scene: PackedScene = null
+## What game this run is playing (#641) — the composed procgen preset and the
+## level scene to route to. Replaces the old `level_scene` field: a Scenario
+## is authored content, pickable and shareable, and a run points at one rather
+## than duplicating its choices. Null is legal — a directly-launched sandbox's
+## `RunBootstrap` fixture may open a session with no Scenario at all, and the
+## level it boots falls back to its own scene-authored `preset` (#597 D6).
+@export var scenario: Scenario = null
 @warning_ignore("shadowed_global_identifier")
 @export var seed: int = 0
 @export var participants: Array[Participant] = []
@@ -50,7 +56,7 @@ func resolved_victory_condition() -> VictoryCondition:
 
 
 ## Wire form for #528 — "the run's shape crosses the wire; each peer derives
-## its own seat" (the acceptance spec's own framing). [member level_scene] and
+## its own seat" (the acceptance spec's own framing). [member scenario] and
 ## [member victory_condition] cross as resource PATHS: both are either unset
 ## or point at one of a handful of authored `.tres`/`.tscn` assets, so there is
 ## no per-node-scale string cost to intern away here (contrast #527's
@@ -63,13 +69,19 @@ func resolved_victory_condition() -> VictoryCondition:
 ## now serialized (#527) — it's no longer needed to reproduce the map, but
 ## other things read it, and a peer whose session reports a different seed
 ## than the host's is worth being able to see (#528's acceptance spec).
+##
+## [b]Every script variable declared on this class must be a key below.[/b]
+## `test_run_config_wire_guard.gd` walks [method get_property_list] and fails
+## on any field that is neither a key here nor on that test's named deny-list
+## — #597's trap: an `@export` this function never learned about crosses as
+## nothing, and the client silently generates from a null value.
 func to_dict() -> Dictionary:
 	var participant_rows: Array = []
 	for p in participants:
 		participant_rows.append(p.to_dict())
 	return {
 		"mode": mode,
-		"level_scene": level_scene.resource_path if level_scene != null else "",
+		"scenario": scenario.resource_path if scenario != null else "",
 		"seed": seed,
 		"participants": participant_rows,
 		"victory_condition": victory_condition.resource_path if victory_condition != null else "",
@@ -79,8 +91,8 @@ func to_dict() -> Dictionary:
 static func from_dict(d: Dictionary) -> RunConfig:
 	var cfg := RunConfig.new()
 	cfg.mode = int(d.get("mode", Mode.SINGLE)) as Mode
-	var level_path := String(d.get("level_scene", ""))
-	cfg.level_scene = load(level_path) as PackedScene if level_path != "" else null
+	var scenario_path := String(d.get("scenario", ""))
+	cfg.scenario = load(scenario_path) as Scenario if scenario_path != "" else null
 	cfg.seed = int(d.get("seed", 0))
 	var parts: Array[Participant] = []
 	for row in (d.get("participants", []) as Array):

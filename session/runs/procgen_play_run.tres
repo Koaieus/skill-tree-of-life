@@ -1,7 +1,8 @@
-[gd_resource type="Resource" script_class="RunConfig" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="RunConfig" load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://session/run_config.gd" id="1_cfg"]
 [ext_resource type="Script" path="res://session/participant.gd" id="2_p"]
+[ext_resource type="Resource" path="res://session/scenarios/procgen_play.tres" id="5_scenario"]
 [ext_resource type="Resource" path="res://entity/factions/player.tres" id="3_player"]
 [ext_resource type="Resource" path="res://entity/factions/camp_1.tres" id="c1"]
 
@@ -27,5 +28,6 @@ peer_id = 0
 script = ExtResource("1_cfg")
 resource_name = "Procgen Play (direct launch)"
 mode = 0
+scenario = ExtResource("5_scenario")
 seed = 0
 participants = Array[ExtResource("2_p")]([SubResource("p1"), SubResource("p2")])

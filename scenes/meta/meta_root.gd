@@ -16,11 +16,14 @@ extends Control
 ## [method FrontmatterRoot.back], which under a moving camera is the same call
 ## as going forward (#567). Nothing here tracks a history.
 
-## Where a composed run lands. The BARE level (#584) — no [RunBootstrap], so
-## it has no way to start a run of its own and generates only from the session
-## the lobby already opened. `scenes/first_level_sandbox.tscn` is the same
-## scene plus an authored run, and is an editor-launch convenience that nothing
-## routes to.
+## Fallback destination (#641 acceptance 4/5) for a route whose composed
+## [RunConfig] carries no [Scenario] at all — today, every route:
+## [LobbyScreen.build_run_config] does not yet author one, so this constant is
+## still what every lobby-launched run reaches. The BARE level (#584) — no
+## [RunBootstrap], so it has no way to start a run of its own and generates
+## only from the session the lobby already opened.
+## `scenes/first_level_sandbox.tscn` is the same scene plus an authored run,
+## and is an editor-launch convenience that nothing routes to.
 const FIRST_LEVEL_SANDBOX := preload("res://scenes/level.tscn")
 
 @onready var _frontmatter: FrontmatterRoot = %Frontmatter
@@ -132,12 +135,18 @@ func _push_lobby(
 
 ## START opens the run before the level loads (#457): `GameSession.start`
 ## resolves the lobby's seed sentinel once, here, and the level reads the
-## concrete value back out. `RunConfig.level_scene` is still unread — picking
-## a level from the lobby is future work; every run is the first-level sandbox.
+## concrete value back out. The destination is
+## [code]run_config.scenario.level_scene[/code] (#641 acceptance 4) — a run
+## whose [Scenario] carries one routes there; one with no `scenario` at all
+## (every route today — picking a Scenario from the lobby is future work)
+## falls back to [constant FIRST_LEVEL_SANDBOX].
 func _on_start_pressed(run_config: RunConfig) -> void:
 	GameSession.start(run_config)
 	_stamp_local_peer()
-	SceneDirector.goto(FIRST_LEVEL_SANDBOX)
+	var scenario: Scenario = run_config.scenario
+	var destination: PackedScene = scenario.level_scene if scenario != null and scenario.level_scene != null \
+			else FIRST_LEVEL_SANDBOX
+	SceneDirector.goto(destination)
 
 
 ## Which peer THIS machine is, before any socket opens.

@@ -98,6 +98,75 @@ func test_run_config_round_trip_preserves_every_field() -> void:
 				"participant %d peer_id" % i)
 
 
+## #641 acceptance 3/6 — `scenario` replaces `level_scene` on the wire, and
+## crosses as a resource PATH exactly the way `level_scene` and
+## `victory_condition` already did (#528). Acceptance 6: the field genuinely
+## MOVED — `scenario` is present and `level_scene` is gone, not merely
+## duplicated.
+func test_scenario_survives_round_trip_as_a_path_and_level_scene_is_gone() -> void:
+	var source := RunConfig.new()
+	source.scenario = load("res://session/scenarios/coop_versus.tres") as Scenario
+
+	var dict := source.to_dict()
+	assert_true(dict.has("scenario"), "the field genuinely moved onto the wire")
+	assert_false(dict.has("level_scene"), "level_scene must not still be sent")
+	assert_eq(dict["scenario"], source.scenario.resource_path,
+			"scenario crosses as a PATH, not embedded content")
+
+	var decoded := RunConfig.from_dict(dict)
+	assert_eq(decoded.scenario, source.scenario,
+			"a resource path resolves back to the SAME cached Resource")
+
+
+## An unset [member RunConfig.scenario] must not silently degrade into a
+## PATH string that decodes to something else — the same silent-null shape
+## #597 names for `preset`.
+func test_an_unset_scenario_round_trips_as_null() -> void:
+	var source := RunConfig.new()
+	var decoded := RunConfig.from_dict(source.to_dict())
+	assert_null(decoded.scenario)
+
+
+## #641 acceptance 3's other half — a peer generating from the DECODED config
+## produces the SAME map as the host, because the decoded [Scenario] resolves
+## back to the identical cached `.tres`-backed [GraphProcgenConfig], never a
+## value that crossed the wire and diverged.
+func test_a_client_generating_from_the_decoded_scenario_matches_the_host() -> void:
+	var source := RunConfig.new()
+	source.scenario = load("res://session/scenarios/coop_versus.tres") as Scenario
+	source.seed = 20260827
+
+	var decoded := RunConfig.from_dict(source.to_dict())
+
+	var host_nodes := await _generate_from_preset(source.scenario.preset, source.seed)
+	var client_nodes := await _generate_from_preset(decoded.scenario.preset, decoded.seed)
+
+	assert_eq(client_nodes.size(), host_nodes.size(), "same seed, same node count")
+	for i in host_nodes.size():
+		assert_eq((client_nodes[i] as Node2D).position, (host_nodes[i] as Node2D).position,
+				"node %d position must match — same seed, same preset" % i)
+
+
+## Small, self-contained generation for the round-trip comparison above — a
+## fresh duplicate per call, same reason `test_coop_versus_preset.gd`'s
+## `_fresh_config` re-duplicates: `generate` mutates the config in place and
+## `load` is cached, so two calls sharing one object would generate the SAME
+## map trivially rather than proving the decoded config can reproduce it.
+func _generate_from_preset(preset: GraphProcgenConfig, seed_value: int) -> Array:
+	var cfg: GraphProcgenConfig = preset.duplicate(true)
+	# #349 acceptance 4: topology is a top-level module `.tres` (ExtResource);
+	# duplicate(true) does not cross that boundary.
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = 40
+	cfg.seed = seed_value
+	var graph_scene: PackedScene = load("res://graph/graph.tscn")
+	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
+	add_child(graph)
+	await get_tree().process_frame
+	var result: Dictionary = await GraphProcgen.generate(cfg, graph)
+	return result.get("nodes", [])
+
+
 ## A [VictoryCondition] built via `.new()` (the common case —
 ## [method RunConfig.default_condition_for] does exactly this) has no
 ## `resource_path` and so cannot cross by reference. It decodes to `null`,

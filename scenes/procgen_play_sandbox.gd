@@ -31,6 +31,14 @@ const _DEFAULT_CORE_CLASS := preload("res://entity/core/balanced_core.tres")
 const _DEFAULT_ENEMY_CORE_CLASS := preload("res://entity/core/basic_enemy_core.tres")
 const _DEFAULT_TERRITORY_SEEDER := preload("res://procgen/placement/territory_seeder.tres")
 
+## The FALLBACK preset (#641 D6). A run carrying a [Scenario]
+## ([member GameSession.config].scenario) wins — this export is what a run
+## opened with none lands on. Precedent already shipped in this same file:
+## [method resolve_spawn_color] (#563 D1) and [method resolve_spawn_core]
+## (#618 D3) both read "the run wins; the scene export is what a run carrying
+## none lands on". The arm stays live rather than dead code because a sandbox
+## launched without a lobby (`RunBootstrap` holding an authored `RunConfig`
+## with no `scenario`) must still generate a map.
 @export var preset: GraphProcgenConfig
 @export var player_color: Color = Color(0.4, 0.8, 1.0)
 @export var enemy_colors: Array[Color] = [Color(0.95, 0.4, 0.4), Color(1.0, 0.6, 0.2)]
@@ -58,9 +66,6 @@ const _DEFAULT_TERRITORY_SEEDER := preload("res://procgen/placement/territory_se
 
 
 func _setup_level() -> void:
-	if preset == null:
-		push_warning("ProcgenPlaySandbox: assign `preset` in inspector")
-		return
 	# #463: on a joining CLIENT, everything below reads a run this machine does
 	# not own — `cfg.seed` and the roster alike are the host's, and until the
 	# host's `run_setup` lands they are still this lobby's wish. Generating
@@ -71,7 +76,6 @@ func _setup_level() -> void:
 	# and for every offline launch, which is why this sits ahead of the
 	# `is_active` guard rather than inside a network branch of it.
 	await await_host_run()
-	var cfg: GraphProcgenConfig = preset.duplicate(true)
 	# #457: one resolved seed for the whole run. A run started from the lobby
 	# already has one; a level launched directly (dev sandbox, headless test)
 	# opens a session here seeded from the preset's authored value — so either
@@ -81,6 +85,15 @@ func _setup_level() -> void:
 				% name + "invent one — start the session first, from the lobby "
 				+ "or from a RunBootstrap child holding an authored RunConfig.")
 		return
+	# #641 D6: the run's Scenario names the preset; `preset` (the scene export
+	# above) is the fallback for a run that opened with none.
+	var scenario: Scenario = GameSession.config.scenario
+	var source_preset: GraphProcgenConfig = scenario.preset if scenario != null else preset
+	if source_preset == null:
+		push_warning("%s: no preset available — the run's Scenario carries none "
+				% name + "and `preset` is unassigned in the inspector")
+		return
+	var cfg: GraphProcgenConfig = source_preset.duplicate(true)
 	# #457: one resolved seed for the whole run, resolved by `GameSession.start`
 	# before anything reached this scene. The preset's authored seed is an
 	# authoring default that the run has already superseded.

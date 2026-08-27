@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bposlwywdiihl" path="res://session/run_config.gd" id="1_cfg"]
 [ext_resource type="Script" uid="uid://nundwj0da5hp" path="res://session/participant.gd" id="2_p"]
+[ext_resource type="Resource" path="res://session/scenarios/first_level.tres" id="4_scenario"]
 [ext_resource type="Resource" path="res://entity/factions/player.tres" id="3_player"]
 [ext_resource type="Resource" path="res://entity/factions/camp_1.tres" id="c1"]
 [ext_resource type="Resource" path="res://entity/factions/camp_2.tres" id="c2"]
@@ -68,4 +69,5 @@ kind = 1
 [resource]
 resource_name = "First Level (direct launch)"
 script = ExtResource("1_cfg")
+scenario = ExtResource("4_scenario")
 participants = Array[ExtResource("2_p")]([SubResource("p1"), SubResource("p2"), SubResource("p3"), SubResource("p4"), SubResource("p5"), SubResource("p6"), SubResource("p7")])
