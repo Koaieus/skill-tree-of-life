@@ -250,9 +250,11 @@ func test_clearing_survives_the_corpse_being_freed() -> void:
 
 func _build_config(node_count: int, rng_seed: int) -> GraphProcgenConfig:
 	var cfg := GraphProcgenConfig.new()
-	cfg.node_count = node_count
+	cfg.topology = GraphProcgenTopology.new()
+	cfg.topology.node_count = node_count
 	cfg.seed = rng_seed
-	cfg.shape_mask = CircularShapeMask.new()
+	cfg.shape = GraphProcgenShape.new()
+	cfg.shape.shape_mask = CircularShapeMask.new()
 	return cfg
 
 

@@ -20,7 +20,7 @@ extends Resource
 ## floor/ceiling split would (outer_min = base_min × outer_scale can exceed
 ## inner_max = base_max × inner_scale) without a second field to keep in sync.
 ##
-## Assigned to [member GraphProcgenConfig.budget_policy]; unset there means
+## Assigned to [member GraphProcgenContent.budget_policy]; unset there means
 ## every node rolls a budget of 0 (no modifiers).
 
 @export var base_min: int = 2

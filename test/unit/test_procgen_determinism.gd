@@ -19,9 +19,11 @@ extends GutTest
 
 func _config(config_seed: int) -> GraphProcgenConfig:
 	var cfg := GraphProcgenConfig.new()
-	cfg.node_count = 40
+	cfg.topology = GraphProcgenTopology.new()
+	cfg.topology.node_count = 40
 	cfg.seed = config_seed
-	cfg.shape_mask = CircularShapeMask.new()
+	cfg.shape = GraphProcgenShape.new()
+	cfg.shape.shape_mask = CircularShapeMask.new()
 	return cfg
 
 

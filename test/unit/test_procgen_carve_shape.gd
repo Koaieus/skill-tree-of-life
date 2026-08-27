@@ -13,19 +13,25 @@ const PolygonCarveShape = preload("res://skill_node/visuals/emblem/polygon_carve
 func test_archetype_carve_shape_reaches_the_generated_node() -> void:
 	var cfg_src: GraphProcgenConfig = load(_PRESET_PATH)
 	var cfg: GraphProcgenConfig = cfg_src.duplicate(true)
-	cfg.node_count = 60
+	# #349: topology/content are top-level module .tres (ExtResource);
+	# duplicate(true) above does NOT cross that boundary, so both need their
+	# own re-duplication before mutating (acceptance 4's trap, one level
+	# deeper for `content` — see the comment below on the archetype ref).
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = 60
 	cfg.n_random_starters = 0
 	cfg.seed = 3
 
 	var shape := PolygonCarveShape.new()
 	shape.sides = 9
-	var tagged_archetype: StringName = cfg.archetypes[0].id
+	cfg.content = cfg.content.duplicate(true)
+	var tagged_archetype: StringName = cfg.content.archetypes[0].id
 	# `archetype` is an ExtResource (archetypes/strength.tres) — cfg.duplicate(true)
 	# does NOT deep-duplicate across a resource file boundary, only inline
 	# sub-resources. Mutating it in place would corrupt the shared, cached
 	# strength.tres singleton for every other test/consumer that loads it.
-	cfg.archetypes[0].archetype = cfg.archetypes[0].archetype.duplicate(true)
-	cfg.archetypes[0].archetype.carve_shape = shape
+	cfg.content.archetypes[0].archetype = cfg.content.archetypes[0].archetype.duplicate(true)
+	cfg.content.archetypes[0].archetype.carve_shape = shape
 
 	var graph_scene: PackedScene = load("res://graph/graph.tscn")
 	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
@@ -50,7 +56,10 @@ func test_archetype_carve_shape_reaches_the_generated_node() -> void:
 func test_every_tagged_node_carries_its_archetypes_shape() -> void:
 	var cfg_src: GraphProcgenConfig = load(_PRESET_PATH)
 	var cfg: GraphProcgenConfig = cfg_src.duplicate(true)
-	cfg.node_count = 60
+	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
+	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = 60
 	cfg.n_random_starters = 0
 	cfg.seed = 3
 

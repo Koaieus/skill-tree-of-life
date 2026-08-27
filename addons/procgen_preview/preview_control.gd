@@ -61,13 +61,13 @@ func _rebind_subs() -> void:
 	if _config == null:
 		return
 	var subs: Array[Resource] = []
-	if _config.shape_mask != null:
-		subs.append(_config.shape_mask)
-	if _config.budget_policy != null:
-		subs.append(_config.budget_policy)
-		if _config.budget_policy.budget_field != null:
-			subs.append(_config.budget_policy.budget_field)
-	for sp in _config.starting_points:
+	if _config.shape.shape_mask != null:
+		subs.append(_config.shape.shape_mask)
+	if _config.content.budget_policy != null:
+		subs.append(_config.content.budget_policy)
+		if _config.content.budget_policy.budget_field != null:
+			subs.append(_config.content.budget_policy.budget_field)
+	for sp in _config.starting.starting_points:
 		if sp != null:
 			subs.append(sp)
 	for r in subs:
@@ -81,14 +81,14 @@ func _rebind_subs() -> void:
 func _draw() -> void:
 	var ctrl_size := size
 	draw_rect(Rect2(Vector2.ZERO, ctrl_size), Color(0.08, 0.08, 0.1))
-	if _config == null or _config.shape_mask == null or ctrl_size.x < 8.0 or ctrl_size.y < 8.0:
+	if _config == null or _config.shape.shape_mask == null or ctrl_size.x < 8.0 or ctrl_size.y < 8.0:
 		_draw_label(Vector2(8, 16), "no shape_mask assigned")
 		return
-	var bounds: Rect2 = _config.shape_mask.aabb()
+	var bounds: Rect2 = _config.shape.shape_mask.aabb()
 	if bounds.size.x <= 0.0 or bounds.size.y <= 0.0:
 		_draw_label(Vector2(8, 16), "shape_mask has empty AABB")
 		return
-	var budget_field: ScalarField = _config.budget_policy.budget_field if _config.budget_policy != null else null
+	var budget_field: ScalarField = _config.content.budget_policy.budget_field if _config.content.budget_policy != null else null
 
 	var margin := 12.0
 	var fit := minf(
@@ -108,7 +108,7 @@ func _draw() -> void:
 			var wp := bounds.position + Vector2(
 					(x + 0.5) / _CELL_RES * bounds.size.x,
 					(y + 0.5) / _CELL_RES * bounds.size.y)
-			if not _config.shape_mask.contains(wp):
+			if not _config.shape.shape_mask.contains(wp):
 				values[y * _CELL_RES + x] = NAN
 				continue
 			var v := 1.0 if budget_field == null else budget_field.sample(wp)
@@ -136,7 +136,7 @@ func _draw() -> void:
 	draw_rect(Rect2(draw_origin, draw_size), Color(1, 1, 1, 0.18), false, 1.0)
 
 	# Starter markers.
-	for sp in _config.starting_points:
+	for sp in _config.starting.starting_points:
 		if sp == null:
 			continue
 		var p := draw_origin + (sp.position - bounds.position) * fit

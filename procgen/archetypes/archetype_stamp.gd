@@ -35,6 +35,6 @@ enum RegionMode { EUCLIDEAN, TOPOLOGICAL }
 ## 0 = seed only; 1 = seed + direct neighbours; etc.
 @export var max_hops: int = 2
 
-## Index into [member GraphProcgenConfig.archetypes] — the archetype identity
+## Index into [member GraphProcgenContent.archetypes] — the archetype identity
 ## assigned to every node caught by this stamp.
 @export var archetype_idx: int = 0

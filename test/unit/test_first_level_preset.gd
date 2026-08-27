@@ -13,22 +13,25 @@ const _PRESET_PATH := "res://procgen/presets/first_level/first_level.tres"
 func test_preset_loads() -> void:
 	var cfg: GraphProcgenConfig = load(_PRESET_PATH)
 	assert_not_null(cfg, "first_level.tres should load as GraphProcgenConfig")
-	assert_gt(cfg.node_count, 0, "node_count should be set")
-	assert_eq(cfg.archetypes.size(), 6, "expected 6 archetypes (red/green/blue/white/gold/purple)")
-	assert_not_null(cfg.modifier_pool_set, "modifier_pool_set should be set")
-	assert_gt(cfg.modifier_pool_set.packs.size(), 0, "pool set should carry StatPacks")
-	assert_eq(cfg.weight_profiles.size(), 1, "profiles: archetype only (radial band profile deleted in #552)")
-	assert_not_null(cfg.budget_policy)
-	assert_eq(cfg.guaranteed_placements.size(), 3)
-	assert_eq(cfg.blocker_per_small, 10, "blocker_per_small default (#477)")
-	assert_eq(cfg.blocker_per_medium, 25, "blocker_per_medium default (#477)")
-	assert_eq(cfg.blocker_per_large, 100, "blocker_per_large default (#477)")
+	assert_gt(cfg.topology.node_count, 0, "node_count should be set")
+	assert_eq(cfg.content.archetypes.size(), 6, "expected 6 archetypes (red/green/blue/white/gold/purple)")
+	assert_not_null(cfg.content.modifier_pool_set, "modifier_pool_set should be set")
+	assert_gt(cfg.content.modifier_pool_set.packs.size(), 0, "pool set should carry StatPacks")
+	assert_eq(cfg.content.weight_profiles.size(), 1, "profiles: archetype only (radial band profile deleted in #552)")
+	assert_not_null(cfg.content.budget_policy)
+	assert_eq(cfg.content.guaranteed_placements.size(), 3)
+	assert_eq(cfg.blockers.blocker_per_small, 10, "blocker_per_small default (#477)")
+	assert_eq(cfg.blockers.blocker_per_medium, 25, "blocker_per_medium default (#477)")
+	assert_eq(cfg.blockers.blocker_per_large, 100, "blocker_per_large default (#477)")
 
 
 func test_modifiers_rolled_on_nodes() -> void:
 	var cfg_src: GraphProcgenConfig = load(_PRESET_PATH)
 	var cfg: GraphProcgenConfig = cfg_src.duplicate(true)
-	cfg.node_count = 60
+	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
+	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = 60
 	cfg.n_random_starters = 0
 	cfg.seed = 9
 
@@ -52,7 +55,10 @@ func test_procgen_generates_full_level() -> void:
 	var cfg_src: GraphProcgenConfig = load(_PRESET_PATH)
 	# Smaller node count for test speed — same shape of pipeline.
 	var cfg: GraphProcgenConfig = cfg_src.duplicate(true)
-	cfg.node_count = 120
+	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
+	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = 120
 	cfg.n_random_starters = 0  # keep starter set deterministic for assertions
 	cfg.seed = 42
 
@@ -77,7 +83,7 @@ func test_procgen_generates_full_level() -> void:
 	# count carry the anomalous role tag — read from the preset rather than a
 	# hardcoded literal, since that count is a tunable design knob.
 	var expected_anomalous := 0
-	for placement in cfg_src.guaranteed_placements:
+	for placement in cfg_src.content.guaranteed_placements:
 		if placement is RandomBudgetBoost and placement.role_tag == &"anomalous":
 			expected_anomalous = placement.count
 	var anomalous_count := 0
@@ -102,5 +108,5 @@ func test_preset_leaves_the_loot_book_prune_switched_on() -> void:
 	# export as `null` after the property was added, which would have shipped
 	# the feature silently disabled with every other test still green.
 	var cfg: GraphProcgenConfig = load(_PRESET_PATH)
-	assert_not_null(cfg.blocker_spell_prune_m, "the knob is a real float, not null")
-	assert_gt(cfg.blocker_spell_prune_m, 0.0, "a value <= 0 ships the prune switched OFF")
+	assert_not_null(cfg.blockers.blocker_spell_prune_m, "the knob is a real float, not null")
+	assert_gt(cfg.blockers.blocker_spell_prune_m, 0.0, "a value <= 0 ships the prune switched OFF")

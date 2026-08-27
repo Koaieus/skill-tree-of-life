@@ -160,7 +160,10 @@ func _ready() -> void:
 func _setup_level_as_host_or_solo() -> void:
 	GameSession.ensure_started(fixed_seed)
 	var cfg: GraphProcgenConfig = preset.duplicate(true)
-	cfg.node_count = node_count_override
+	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
+	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = node_count_override
 	# 1 authored `starting_points` entry (first_level.tres) + 1 random = the 2
 	# this harness's fixed roster needs. See the class docstring's #551/#553
 	# cross-reference in `docs/domain/multiplayer-harness.md` for why a

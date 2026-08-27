@@ -28,9 +28,11 @@ func _new_graph() -> Graph:
 func _procgen_graph(node_count: int, seed_value: int) -> Graph:
 	var graph := await _new_graph()
 	var cfg := GraphProcgenConfig.new()
-	cfg.node_count = node_count
+	cfg.topology = GraphProcgenTopology.new()
+	cfg.topology.node_count = node_count
 	cfg.seed = seed_value
-	cfg.shape_mask = CircularShapeMask.new()
+	cfg.shape = GraphProcgenShape.new()
+	cfg.shape.shape_mask = CircularShapeMask.new()
 	await GraphProcgen.generate(cfg, graph)
 	return graph
 

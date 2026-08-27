@@ -148,6 +148,9 @@ func refresh_from_config() -> void:
 			preferred_id = (meta as ArchetypePolicy).id
 
 	_config = _source_config.duplicate(true)
+	# #349: see the comment in _set_config — re-duplicate before mutating.
+	_config.shape = _config.shape.duplicate(true)
+	_config.content = _config.content.duplicate(true)
 	GraphProcgen._propagate_mask_radius(_config)
 	_populate_archetypes(preferred_id)
 	_populate_stamp_archetypes()
@@ -229,9 +232,15 @@ func _on_open_presets_folder_pressed() -> void:
 
 func _set_config(cfg: GraphProcgenConfig) -> void:
 	_config = cfg
-	# Resolve any opted-in radial field radius (outer_radius <= 0) from the
-	# shape, exactly as GraphProcgen does before sampling.
+	# #349: shape/content are top-level module .tres (ExtResource); a caller's
+	# `.duplicate(true)` does not cross that boundary, so re-duplicate before
+	# `_propagate_mask_radius` mutates `content.budget_policy.budget_field` in
+	# place — otherwise that write lands on the shared, cached module every
+	# other loaded copy of this preset sees too (acceptance 4's trap, one
+	# level deeper).
 	if _config != null:
+		_config.shape = _config.shape.duplicate(true)
+		_config.content = _config.content.duplicate(true)
 		GraphProcgen._propagate_mask_radius(_config)
 	_populate_archetypes()
 	_populate_stamp_archetypes()
@@ -268,7 +277,7 @@ func _populate_archetypes(preferred_id: StringName = &"") -> void:
 	if _config == null:
 		return
 	var preferred_idx := -1
-	for policy in _config.archetypes:
+	for policy in _config.content.archetypes:
 		if policy == null:
 			continue
 		var idx := _arch_option.item_count
@@ -326,8 +335,8 @@ func _sample_once(world_pos: Vector2, policy: ArchetypePolicy) -> Dictionary:
 	var archetype_id: StringName = policy.id if policy != null else &""
 	var budget := 0
 	var breakdown := {}
-	if _config.budget_policy != null:
-		breakdown = _config.budget_policy.compute_budget_breakdown(archetype_id, world_pos, [], _rng)
+	if _config.content.budget_policy != null:
+		breakdown = _config.content.budget_policy.compute_budget_breakdown(archetype_id, world_pos, [], _rng)
 		budget = breakdown.budget
 	var sample := _sample_with_budget(world_pos, policy, budget)
 	sample["breakdown"] = breakdown
@@ -340,9 +349,9 @@ func _sample_with_budget(world_pos: Vector2, policy: ArchetypePolicy, budget: in
 	var primary_stat: StringName = policy.primary_stat if policy != null else &""
 	var forbid: Array[StringName] = policy.forbid_tags if policy != null else ([] as Array[StringName])
 	var mods: Array[StatModifier] = []
-	if _config != null and _config.modifier_pool_set != null:
+	if _config != null and _config.content.modifier_pool_set != null:
 		mods = GraphProcgen._roll_modifiers_v4(
-				_config.modifier_pool_set, _config.weight_profiles,
+				_config.content.modifier_pool_set, _config.content.weight_profiles,
 				archetype_id, primary_stat, forbid, world_pos, 0, budget, _rng, {})
 	return {"budget": budget, "mods": mods}
 
@@ -366,7 +375,10 @@ func _regenerate_graph(reuse_seed: bool = false) -> void:
 	if _config == null or _graph_view == null:
 		return
 	var cfg: GraphProcgenConfig = _config.duplicate(true)
-	cfg.node_count = int(_graph_node_count_spin.value) if _graph_node_count_spin != null else _GRAPH_PREVIEW_NODE_COUNT
+	# #349: see the comment in _set_config — re-duplicate before mutating.
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.content = cfg.content.duplicate(true)
+	cfg.topology.node_count = int(_graph_node_count_spin.value) if _graph_node_count_spin != null else _GRAPH_PREVIEW_NODE_COUNT
 	cfg.n_random_starters = 0
 	# Guaranteed placements (e.g. RandomBudgetBoost's fixed `count`) are
 	# calibrated for the preset's full node_count — first_level.tres rolls a
@@ -374,7 +386,7 @@ func _regenerate_graph(reuse_seed: bool = false) -> void:
 	# preview. That drowns the budget-field gradient this tab exists to show,
 	# so the preview skips them entirely (same rationale as zeroing
 	# n_random_starters above — this graph previews the field, not placements).
-	cfg.guaranteed_placements = []
+	cfg.content.guaranteed_placements = []
 	# `RunConfig.resolve_seed` is the one sentinel resolver (#457) — an editor
 	# preview is not a run, but it must not be a second place that draws one.
 	cfg.seed = RunConfig.resolve_seed(_last_graph_seed if reuse_seed else 0)
@@ -430,11 +442,11 @@ func _populate_stamp_archetypes() -> void:
 	if _stamp_arch_option == null:
 		return
 	_stamp_arch_option.clear()
-	if _config == null or _config.archetypes.is_empty():
+	if _config == null or _config.content.archetypes.is_empty():
 		_stamp_arch_option.add_item("(no archetypes)")
 		return
-	for k in _config.archetypes.size():
-		var policy: ArchetypePolicy = _config.archetypes[k]
+	for k in _config.content.archetypes.size():
+		var policy: ArchetypePolicy = _config.content.archetypes[k]
 		if policy == null:
 			continue
 		_stamp_arch_option.add_item(String(policy.id))

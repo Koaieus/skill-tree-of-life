@@ -76,7 +76,15 @@ func _setup_level() -> void:
 	# authoring default that the run has already superseded.
 	cfg.seed = GameSession.config.seed
 	if node_count_override > 0:
-		cfg.node_count = node_count_override
+		# #349 acceptance 4: `topology` is a top-level module `.tres`
+		# (ExtResource), so `preset.duplicate(true)` above did NOT deep-copy
+		# it — only embedded SubResources cross that boundary. Writing
+		# `node_count` straight onto `cfg.topology` would mutate the shared,
+		# cached, on-disk Topology module and leak into every subsequent run
+		# in this process. Re-duplicate it first so the stamp lands on a
+		# private copy, same as `cfg` itself already is.
+		cfg.topology = cfg.topology.duplicate(true)
+		cfg.topology.node_count = node_count_override
 	cfg.viability_radius = viability_radius
 
 	# #553: the roster is decided BEFORE generation and the level only READS it.
@@ -103,12 +111,12 @@ func _setup_level() -> void:
 	# which is what the menu actually launches — the starter list is the preset's
 	# authored `starting_points` plus this many, so it is this knob that has to
 	# stop being a scene @export independent of who is playing.
-	if cfg.starter_placement == null:
+	if cfg.starting.starter_placement == null:
 		# Counted the way `GraphProcgen` counts them: it skips null entries when
 		# it seeds the starter list from `starting_points`, so counting the raw
 		# array here would over-subtract and silently under-produce starters.
 		var authored := 0
-		for sp in cfg.starting_points:
+		for sp in cfg.starting.starting_points:
 			if sp != null:
 				authored += 1
 		cfg.n_random_starters = maxi(0, grouped_participants.size() - authored)
@@ -142,7 +150,7 @@ func _setup_level() -> void:
 	# nodes (AllocationSystem treats them as owned by the blocker entity).
 	for placement in result.get("blockers", []):
 		spawn_blocker(placement.get("size"), placement.get("node"),
-				placement.get("prune_seed", 0), cfg.blocker_spell_prune_m)
+				placement.get("prune_seed", 0), cfg.blockers.blocker_spell_prune_m)
 
 	# Spawn onto the returned nodes in participant order — camp 0 member 0,
 	# camp 0 member 1, camp 1 member 0, ... (#551's `starter_placement`

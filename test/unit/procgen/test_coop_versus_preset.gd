@@ -29,7 +29,10 @@ func _fresh_config() -> GraphProcgenConfig:
 	# `generate` mutates the config in place (mask `size_for`, the propagated
 	# `outer_radius`) and `load` is cached — so every pass gets its own copy.
 	var cfg: GraphProcgenConfig = (load(_PRESET_PATH) as GraphProcgenConfig).duplicate(true)
-	cfg.node_count = _NODE_COUNT
+	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
+	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = _NODE_COUNT
 	cfg.seed = _SEED
 	return cfg
 
@@ -46,7 +49,7 @@ func _generate(cfg: GraphProcgenConfig) -> Array:
 ## Mean budget per node, averaged over `_ROLLS_PER_NODE` draws from one
 ## deterministically seeded stream. Parallel to `nodes`.
 func _mean_budgets(cfg: GraphProcgenConfig, nodes: Array) -> Array[float]:
-	var policy: BudgetPolicy = cfg.budget_policy
+	var policy: BudgetPolicy = cfg.content.budget_policy
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	var out: Array[float] = []
@@ -80,7 +83,7 @@ func _decile_means(nodes: Array, budgets: Array[float], radius: float) -> Array[
 
 
 func _gradient_radius(cfg: GraphProcgenConfig) -> float:
-	return (cfg.budget_policy.budget_field as RadialGradientField).outer_radius
+	return (cfg.content.budget_policy.budget_field as RadialGradientField).outer_radius
 
 
 func test_gradient_radius_tracks_the_auto_scaled_mask() -> void:
@@ -90,15 +93,15 @@ func test_gradient_radius_tracks_the_auto_scaled_mask() -> void:
 	# outer rim. Every other assertion here divides by R and so would pass
 	# unchanged if someone "fixed" the zero — this is the one that would not.
 	var authored: GraphProcgenConfig = load(_PRESET_PATH)
-	var field := authored.budget_policy.budget_field as RadialGradientField
+	var field := authored.content.budget_policy.budget_field as RadialGradientField
 	assert_not_null(field, "budget_field should be a RadialGradientField")
 	assert_eq(authored.n_random_starters, 0,
 		"contenders only — #551 places the starters")
-	assert_eq(authored.weight_profiles.size(), 1,
+	assert_eq(authored.content.weight_profiles.size(), 1,
 		"archetype weights only; no RadialBandProfile (#552)")
 
 	var cfg := _fresh_config()
-	assert_eq((cfg.budget_policy.budget_field as RadialGradientField).outer_radius, 0.0,
+	assert_eq((cfg.content.budget_policy.budget_field as RadialGradientField).outer_radius, 0.0,
 		"the preset must author outer_radius = 0 (the mask-tracking opt-in)")
 	await _generate(cfg)
 	assert_gt(_gradient_radius(cfg), 0.0,
@@ -154,6 +157,6 @@ func test_single_player_gradient_is_untouched() -> void:
 	# them at the centre. Both are intentional — this guard exists so nobody
 	# "fixes" one to match the other. See #550 / #516.
 	var single: GraphProcgenConfig = load(_FIRST_LEVEL_PATH)
-	var field := single.budget_policy.budget_field as RadialGradientField
+	var field := single.content.budget_policy.budget_field as RadialGradientField
 	assert_eq(field.inner_value, 1.0, "first_level's centre stays poor")
 	assert_eq(field.outer_value, 4.0, "first_level's rim stays rich")

@@ -11,9 +11,14 @@ const _KEYSTONE := preload("res://entity/keystone/instances/xp_anchor_keystone.t
 
 func _build_config(node_count: int, rng_seed: int) -> GraphProcgenConfig:
 	var cfg := GraphProcgenConfig.new()
-	cfg.node_count = node_count
+	cfg.topology = GraphProcgenTopology.new()
+	cfg.topology.node_count = node_count
 	cfg.seed = rng_seed
-	cfg.shape_mask = CircularShapeMask.new()
+	cfg.shape = GraphProcgenShape.new()
+	cfg.shape.shape_mask = CircularShapeMask.new()
+	cfg.starting = GraphProcgenStartingPoints.new()
+	cfg.content = GraphProcgenContent.new()
+	cfg.blockers = GraphProcgenBlockers.new()
 	return cfg
 
 
@@ -42,9 +47,9 @@ func _positions(blockers: Array) -> Array:
 
 func test_density_at_50_nodes() -> void:
 	var cfg := _build_config(50, 12345)
-	cfg.blocker_per_small = 10
-	cfg.blocker_per_medium = 25
-	cfg.blocker_per_large = 100
+	cfg.blockers.blocker_per_small = 10
+	cfg.blockers.blocker_per_medium = 25
+	cfg.blockers.blocker_per_large = 100
 	var result: Dictionary = await _generate(cfg)
 	var blockers: Array = result.get("blockers", [])
 	var counts := _counts(blockers)
@@ -56,9 +61,9 @@ func test_density_at_50_nodes() -> void:
 
 func test_density_at_100_nodes() -> void:
 	var cfg := _build_config(100, 4242)
-	cfg.blocker_per_small = 10
-	cfg.blocker_per_medium = 25
-	cfg.blocker_per_large = 100
+	cfg.blockers.blocker_per_small = 10
+	cfg.blockers.blocker_per_medium = 25
+	cfg.blockers.blocker_per_large = 100
 	var result: Dictionary = await _generate(cfg)
 	var counts := _counts(result.get("blockers", []))
 	assert_eq(counts.get(GameRoot.BlockerSize.SMALL, 0), 10, "100/10 = 10 small")
@@ -71,13 +76,13 @@ func test_placements_skip_starters_and_keystones() -> void:
 	# Not what this test is about, and 60 nodes is small enough that the #300
 	# safe radius swallows the whole eligible pool — the radius has its own
 	# test below.
-	cfg.blocker_min_hops_from_core = 0
+	cfg.blockers.blocker_min_hops_from_core = 0
 	var sp := StartingPoint.new()
 	sp.position = Vector2.ZERO
-	cfg.starting_points.append(sp)
+	cfg.starting.starting_points.append(sp)
 	var kp := KeystonePlacement.new()
 	kp.keystone = _KEYSTONE
-	cfg.guaranteed_placements.append(kp)
+	cfg.content.guaranteed_placements.append(kp)
 
 	var result: Dictionary = await _generate(cfg)
 	var starting_nodes: Array = result.get("starting_nodes", [])
@@ -99,13 +104,13 @@ func test_placements_skip_starters_and_keystones() -> void:
 
 func test_same_seed_same_placements() -> void:
 	var cfg_a := _build_config(80, 9999)
-	cfg_a.blocker_per_small = 10
-	cfg_a.blocker_per_medium = 25
-	cfg_a.blocker_per_large = 100
+	cfg_a.blockers.blocker_per_small = 10
+	cfg_a.blockers.blocker_per_medium = 25
+	cfg_a.blockers.blocker_per_large = 100
 	var cfg_b := _build_config(80, 9999)
-	cfg_b.blocker_per_small = 10
-	cfg_b.blocker_per_medium = 25
-	cfg_b.blocker_per_large = 100
+	cfg_b.blockers.blocker_per_small = 10
+	cfg_b.blockers.blocker_per_medium = 25
+	cfg_b.blockers.blocker_per_large = 100
 
 	var result_a: Dictionary = await _generate(cfg_a)
 	var result_b: Dictionary = await _generate(cfg_b)
@@ -116,16 +121,16 @@ func test_same_seed_same_placements() -> void:
 
 func test_denom_zero_disables_tier() -> void:
 	var cfg := _build_config(50, 42)
-	cfg.blocker_per_small = 0
-	cfg.blocker_per_medium = 0
-	cfg.blocker_per_large = 0
+	cfg.blockers.blocker_per_small = 0
+	cfg.blockers.blocker_per_medium = 0
+	cfg.blockers.blocker_per_large = 0
 	var result: Dictionary = await _generate(cfg)
 	assert_eq((result.get("blockers", []) as Array).size(), 0, "all denoms 0 → no blockers")
 
 	cfg = _build_config(50, 43)
-	cfg.blocker_per_small = 0
-	cfg.blocker_per_medium = 5
-	cfg.blocker_per_large = 0
+	cfg.blockers.blocker_per_small = 0
+	cfg.blockers.blocker_per_medium = 5
+	cfg.blockers.blocker_per_large = 0
 	result = await _generate(cfg)
 	var counts := _counts(result.get("blockers", []))
 	assert_eq(counts.get(GameRoot.BlockerSize.SMALL, 0), 0, "small disabled")
@@ -137,9 +142,9 @@ func test_denom_below_floor_clamps_to_min() -> void:
 	# A joker authoring denom 1 (or 2..4) must not get "one blocker per node":
 	# the placement pass clamps any positive denominator up to MIN_BLOCKER_PER.
 	var cfg := _build_config(50, 555)
-	cfg.blocker_per_small = 1
-	cfg.blocker_per_medium = 2
-	cfg.blocker_per_large = 3
+	cfg.blockers.blocker_per_small = 1
+	cfg.blockers.blocker_per_medium = 2
+	cfg.blockers.blocker_per_large = 3
 	var result: Dictionary = await _generate(cfg)
 	var counts := _counts(result.get("blockers", []))
 	assert_eq(counts.get(GameRoot.BlockerSize.SMALL, 0), 10, "denom 1 clamps to 5 → 50/5 = 10")
@@ -174,7 +179,7 @@ func test_no_blocker_inside_core_safe_radius() -> void:
 	# core, the human's and every AI camp's alike.
 	var cfg := _build_config(300, 31337)
 	cfg.n_random_starters = 3
-	cfg.blocker_min_hops_from_core = 6
+	cfg.blockers.blocker_min_hops_from_core = 6
 	var graph_scene: PackedScene = load("res://graph/graph.tscn")
 	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
 	add_child(graph)
@@ -199,7 +204,7 @@ func test_safe_radius_zero_allows_core_adjacent_blockers() -> void:
 	# keystone" pool, so the ring one hop off a core is eligible again.
 	var cfg := _build_config(300, 31337)
 	cfg.n_random_starters = 3
-	cfg.blocker_min_hops_from_core = 0
+	cfg.blockers.blocker_min_hops_from_core = 0
 	var graph_scene: PackedScene = load("res://graph/graph.tscn")
 	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
 	add_child(graph)
@@ -223,13 +228,13 @@ func test_placements_carry_a_reproducible_prune_seed() -> void:
 	# reproduces both WHERE blockers are and WHAT each one offers — every
 	# peer re-runs the level scene rather than being told the result.
 	var cfg_a := _build_config(100, 4242)
-	cfg_a.blocker_per_small = 10
-	cfg_a.blocker_per_medium = 25
-	cfg_a.blocker_per_large = 100
+	cfg_a.blockers.blocker_per_small = 10
+	cfg_a.blockers.blocker_per_medium = 25
+	cfg_a.blockers.blocker_per_large = 100
 	var cfg_b := _build_config(100, 4242)
-	cfg_b.blocker_per_small = 10
-	cfg_b.blocker_per_medium = 25
-	cfg_b.blocker_per_large = 100
+	cfg_b.blockers.blocker_per_small = 10
+	cfg_b.blockers.blocker_per_medium = 25
+	cfg_b.blockers.blocker_per_large = 100
 	var seeds_a := _prune_seeds((await _generate(cfg_a)).get("blockers", []))
 	var seeds_b := _prune_seeds((await _generate(cfg_b)).get("blockers", []))
 	assert_gt(seeds_a.size(), 1, "expected several blocker placements")
@@ -246,9 +251,9 @@ func test_prune_seed_stream_does_not_shift_placements() -> void:
 	# so adding them must not move a single blocker — this is the guard on
 	# that ordering (the same reason the stream is derived, not shared).
 	var cfg := _build_config(100, 4242)
-	cfg.blocker_per_small = 10
-	cfg.blocker_per_medium = 25
-	cfg.blocker_per_large = 100
+	cfg.blockers.blocker_per_small = 10
+	cfg.blockers.blocker_per_medium = 25
+	cfg.blockers.blocker_per_large = 100
 	var result: Dictionary = await _generate(cfg)
 	var counts := _counts(result.get("blockers", []))
 	assert_eq(counts.get(GameRoot.BlockerSize.SMALL, 0), 10, "100/10 = 10 small")

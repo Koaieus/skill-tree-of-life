@@ -35,7 +35,7 @@ func _config(archetypes: Array) -> GraphProcgenConfig:
 	var typed: Array[ArchetypePolicy] = []
 	for a in archetypes:
 		typed.append(a)
-	cfg.archetypes = typed
+	cfg.content.archetypes = typed
 	return cfg
 
 

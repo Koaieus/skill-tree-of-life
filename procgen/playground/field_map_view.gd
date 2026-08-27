@@ -71,7 +71,7 @@ func _gui_input(event: InputEvent) -> void:
 			return
 		var local: Vector2 = (event as InputEventMouseButton).position
 		var world := _bounds.position + (local - _draw_origin) / _fit
-		if _config != null and _config.shape_mask != null and not _config.shape_mask.contains(world):
+		if _config != null and _config.shape.shape_mask != null and not _config.shape.shape_mask.contains(world):
 			return  # clicks outside the shape don't sample
 		_marker_world = world
 		_has_marker = true
@@ -80,8 +80,8 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _budget_field() -> ScalarField:
-	if _config != null and _config.budget_policy != null:
-		return _config.budget_policy.budget_field
+	if _config != null and _config.content.budget_policy != null:
+		return _config.content.budget_policy.budget_field
 	return null
 
 
@@ -94,12 +94,12 @@ func _get_tooltip(at_position: Vector2) -> String:
 	if not _has_transform or _fit <= 0.0 or _config == null:
 		return ""
 	var world := _bounds.position + (at_position - _draw_origin) / _fit
-	if _config.shape_mask != null and not _config.shape_mask.contains(world):
+	if _config.shape.shape_mask != null and not _config.shape.shape_mask.contains(world):
 		return ""
 	var lines: Array[String] = []
 	var field := _budget_field()
 	lines.append("field ×%.2f" % (1.0 if field == null else field.sample(world)))
-	var policy := _config.budget_policy
+	var policy := _config.content.budget_policy
 	if policy != null:
 		lines.append("base range %d–%d" % [policy.base_min, policy.base_max])
 	return "\n".join(lines)
@@ -109,10 +109,10 @@ func _draw() -> void:
 	var ctrl_size := size
 	draw_rect(Rect2(Vector2.ZERO, ctrl_size), Color(0.08, 0.08, 0.1))
 	_has_transform = false
-	if _config == null or _config.shape_mask == null or ctrl_size.x < 8.0 or ctrl_size.y < 8.0:
+	if _config == null or _config.shape.shape_mask == null or ctrl_size.x < 8.0 or ctrl_size.y < 8.0:
 		_label(Vector2(8, 16), "no shape_mask assigned")
 		return
-	_bounds = _config.shape_mask.aabb()
+	_bounds = _config.shape.shape_mask.aabb()
 	if _bounds.size.x <= 0.0 or _bounds.size.y <= 0.0:
 		_label(Vector2(8, 16), "shape_mask has empty AABB")
 		return
@@ -137,7 +137,7 @@ func _draw() -> void:
 			var wp := _bounds.position + Vector2(
 					(x + 0.5) / _CELL_RES * _bounds.size.x,
 					(y + 0.5) / _CELL_RES * _bounds.size.y)
-			if not _config.shape_mask.contains(wp):
+			if not _config.shape.shape_mask.contains(wp):
 				values[y * _CELL_RES + x] = NAN
 				continue
 			var v := 1.0 if field == null else field.sample(wp)
@@ -165,7 +165,7 @@ func _draw() -> void:
 	draw_rect(Rect2(_draw_origin, draw_size), Color(1, 1, 1, 0.18), false, 1.0)
 
 	# Starter markers.
-	for sp in _config.starting_points:
+	for sp in _config.starting.starting_points:
 		if sp == null:
 			continue
 		var p := _draw_origin + (sp.position - _bounds.position) * _fit

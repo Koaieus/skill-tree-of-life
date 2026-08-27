@@ -120,7 +120,10 @@ func _join() -> Dictionary:
 	cfg.seed = _FIXED_SEED
 	GameSession.start(cfg)
 	var gcfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	gcfg.node_count = 60
+	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
+	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
+	gcfg.topology = gcfg.topology.duplicate(true)
+	gcfg.topology.node_count = 60
 	gcfg.n_random_starters = 1
 	gcfg.seed = GameSession.config.seed
 	var result: Dictionary = await GraphProcgen.generate(gcfg, _host_root.graph)

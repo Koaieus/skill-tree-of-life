@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="GraphProcgenStartingPoints" format=3]
+
+[ext_resource type="Script" path="res://procgen/modules/starting_points.gd" id="1_qog3p"]
+[ext_resource type="Script" path="res://procgen/placement/camp_annulus_starters.gd" id="2_j44jg"]
+[ext_resource type="Script" path="res://procgen/placement/starting_point.gd" id="3_m0yyh"]
+
+[sub_resource type="Resource" id="cas_grouped"]
+script = ExtResource("2_j44jg")
+metadata/_custom_type_script = "uid://d1mtqbmhocaxb"
+
+[sub_resource type="Resource" id="sp_core"]
+script = ExtResource("3_m0yyh")
+id = &"core"
+
+[resource]
+script = ExtResource("1_qog3p")
+starting_points = Array[ExtResource("3_m0yyh")]([SubResource("sp_core")])
+starter_placement = SubResource("cas_grouped")

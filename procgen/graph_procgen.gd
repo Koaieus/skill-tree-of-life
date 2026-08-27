@@ -15,7 +15,7 @@ extends RefCounted
 ## Returns a Dictionary `{nodes: Array[SkillNode], starting_nodes:
 ## Array[SkillNode], starters: Array[StartingPoint], blockers:
 ## Array[Dictionary]}` — `starting_nodes[i]` is the SkillNode that landed on
-## `config.starting_points[i]`, for the caller to wire as entity cores, and
+## `config.starting.starting_points[i]`, for the caller to wire as entity cores, and
 ## each `blockers` entry is `{"node": SkillNode, "size": int, "prune_seed":
 ## int}` (`size` being a [GameRoot.BlockerSize] int, `prune_seed` the #586
 ## loot-book prune's seed) for the caller to hand to `spawn_blocker`.
@@ -121,7 +121,7 @@ static func generate(
 ) -> Dictionary:
 	assert(config != null, "GraphProcgen.generate: null config")
 	assert(graph != null, "GraphProcgen.generate: null graph")
-	assert(config.shape_mask != null, "GraphProcgen.generate: config.shape_mask is null")
+	assert(config.shape.shape_mask != null, "GraphProcgen.generate: config.shape.shape_mask is null")
 
 	# #457: the caller resolved the sentinel already — `GameSession.start` for a
 	# real run, an explicit seed for a test or an editor preview. Generation is
@@ -134,13 +134,29 @@ static func generate(
 	var rng := RandomNumberGenerator.new()
 	rng.seed = RunConfig.resolve_seed(config.seed)
 
-	var min_dist := 2.0 * config.node_radius + config.node_padding
+	# #349: `shape` and `content` are top-level module `.tres` files, so a
+	# caller's `preset.duplicate(true)` did NOT deep-copy them —
+	# `duplicate(true)` only recurses across EMBEDDED SubResources, never a
+	# resource-file (ExtResource) boundary (see the comment in
+	# test_procgen_carve_shape.gd). `generate` mutates both below —
+	# `shape_mask.size_for` for auto-scale, and `_propagate_mask_radius`'s
+	# one-time `budget_field.outer_radius` stamp — so without this, two
+	# generate() calls sharing the same loaded preset (any two tests, or the
+	# same level rerun in one process) would silently corrupt the cached
+	# on-disk module for each other, exactly the leak #349 acceptance 4
+	# exists to catch, one level deeper than `topology.node_count`.
+	if config.shape != null:
+		config.shape = config.shape.duplicate(true)
+	if config.content != null:
+		config.content = config.content.duplicate(true)
+
+	var min_dist := 2.0 * config.topology.node_radius + config.topology.node_padding
 	await _emit_progress(progress_cb, 0.02, "Preparing shape")
 	# Auto-size the shape mask so Poisson can fit node_count at the requested
 	# spacing without under-filling. See _POISSON_AREA_PER_POINT above.
-	if config.shape_mask != null and config.shape_mask.auto_scale:
-		var target_area := target_area_for_node_count(config.node_count, min_dist)
-		config.shape_mask.size_for(target_area, min_dist * 4.0)
+	if config.shape.shape_mask != null and config.shape.shape_mask.auto_scale:
+		var target_area := target_area_for_node_count(config.topology.node_count, min_dist)
+		config.shape.shape_mask.size_for(target_area, min_dist * 4.0)
 	# Now that the mask is sized, propagate its outer radius to any radial
 	# fields/profiles that opted in (outer_radius ≤ 0).
 	_propagate_mask_radius(config)
@@ -148,17 +164,17 @@ static func generate(
 	# we place. Caller reads back via `starting_nodes` in the same order, so
 	# manual vs. random can be told apart by index.
 	var starters: Array[StartingPoint] = []
-	if config.starter_placement != null:
+	if config.starting.starter_placement != null:
 		# #551: camp-relative annulus placement replaces the whole manual
 		# list. Read the resolved radius the same way _propagate_mask_radius
 		# (just above) does — the mask is already auto-scaled by this point.
 		var resolved_radius := 0.0
-		if config.shape_mask != null:
-			var mask_aabb := config.shape_mask.aabb()
+		if config.shape.shape_mask != null:
+			var mask_aabb := config.shape.shape_mask.aabb()
 			resolved_radius = 0.5 * minf(mask_aabb.size.x, mask_aabb.size.y)
-		starters = config.starter_placement.plan(config.camp_sizes, resolved_radius, min_dist, rng)
+		starters = config.starting.starter_placement.plan(config.camp_sizes, resolved_radius, min_dist, rng)
 	else:
-		for sp in config.starting_points:
+		for sp in config.starting.starting_points:
 			if sp != null:
 				starters.append(sp)
 		_place_random_starters(starters, config, rng)
@@ -168,7 +184,7 @@ static func generate(
 		anchors.append(sp.position)
 	await _emit_progress(progress_cb, 0.05, "Sampling positions")
 	var positions := PoissonDiskSampler.sample(
-			config.shape_mask, min_dist, config.node_count,
+			config.shape.shape_mask, min_dist, config.topology.node_count,
 			anchors, rng)
 	if positions.is_empty():
 		push_warning("GraphProcgen: sampler produced no points")
@@ -179,10 +195,10 @@ static func generate(
 		}
 
 	await _emit_progress(progress_cb, 0.25, "Connecting edges")
-	var edge_pairs := _triangulate_and_prune(positions, config.connectivity)
+	var edge_pairs := _triangulate_and_prune(positions, config.topology.connectivity)
 	await _emit_progress(progress_cb, 0.30, "Planning clusters")
 	var type_assignments: PackedInt32Array
-	if not config.archetypes.is_empty():
+	if not config.content.archetypes.is_empty():
 		type_assignments = _assign_archetypes(positions, edge_pairs, config, rng)
 	else:
 		# No archetypes → no clustering source. Leave every node unassigned;
@@ -193,7 +209,7 @@ static func generate(
 	# Post-clustering territory stamps (#163). Override archetype assignments
 	# for nodes inside each stamp's region — before building the placement
 	# context so the updated assignments flow into guaranteed placements too.
-	if not config.archetype_stamps.is_empty():
+	if not config.content.archetype_stamps.is_empty():
 		_apply_archetype_stamps(positions, edge_pairs, type_assignments, config)
 
 	# Pre-roll pass: GuaranteedPlacements decorate nodes with role tags.
@@ -204,7 +220,7 @@ static func generate(
 		starter_indices.append(k)
 	var placement_ctx := _build_placement_context(
 			positions, edge_pairs, type_assignments, starter_indices, config, rng)
-	for placement in config.guaranteed_placements:
+	for placement in config.content.guaranteed_placements:
 		if placement != null:
 			placement.apply(placement_ctx)
 
@@ -257,14 +273,14 @@ static func generate(
 		else:
 			sn = _SKILL_NODE_SCENE.instantiate()
 		sn.position = positions[i]
-		sn.base_radius = config.node_radius
+		sn.base_radius = config.topology.node_radius
 		var archetype_id: StringName = &""
 		var archetype_color: Color = Color.WHITE
 		var archetype_forbid: Array[StringName] = []
 		var archetype_primary_stat: StringName = &""
 		var archetype_resource: Archetype = null
 		if type_assignments[i] >= 0:
-			var policy: ArchetypePolicy = config.archetypes[type_assignments[i]]
+			var policy: ArchetypePolicy = config.content.archetypes[type_assignments[i]]
 			if policy != null and policy.archetype != null:
 				archetype_id = policy.id
 				archetype_color = policy.archetype.color
@@ -277,13 +293,13 @@ static func generate(
 				fp["role_tags"] = placement_ctx.role_tags[i].duplicate()
 			var role_tags: Array = placement_ctx.role_tags[i]
 			var budget := 0
-			if config.budget_policy != null:
-				budget = config.budget_policy.compute_budget(
+			if config.content.budget_policy != null:
+				budget = config.content.budget_policy.compute_budget(
 						archetype_id, positions[i], role_tags, rng)
 			fp["budget"] = budget
-			if config.modifier_pool_set != null:
+			if config.content.modifier_pool_set != null:
 				sn.modifiers = _roll_modifiers_v4(
-						config.modifier_pool_set, config.weight_profiles,
+						config.content.modifier_pool_set, config.content.weight_profiles,
 						archetype_id, archetype_primary_stat, archetype_forbid,
 						positions[i], i, budget, rng, fp)
 			sn.set_meta("procgen_footprint", fp)
@@ -318,7 +334,7 @@ static func generate(
 			await _emit_progress(progress_cb, frac, "Rolling content")
 
 	GraphProcgenSpellGrants.distribute(
-			int_nodes, config.spell_grant_pool, config.spell_grant_ratio, rng)
+			int_nodes, config.content.spell_grant_pool, config.content.spell_grant_ratio, rng)
 
 	await _emit_progress(progress_cb, 0.95, "Wiring edges")
 	for pair in edge_pairs:
@@ -334,10 +350,10 @@ static func generate(
 	# excluded from the tier-1 pool — a self-loop on a core is a defining
 	# launch condition by design.
 	var tier_rates := [
-			config.self_loop_tier1_rate,
-			config.self_loop_tier2_rate,
-			config.self_loop_tier3_rate,
-			config.self_loop_tier4_rate,
+			config.topology.self_loop_tier1_rate,
+			config.topology.self_loop_tier2_rate,
+			config.topology.self_loop_tier3_rate,
+			config.topology.self_loop_tier4_rate,
 	]
 	var pool: Array = nodes.duplicate()
 	for tier in tier_rates.size():
@@ -413,19 +429,19 @@ static func _place_random_starters(
 		config: GraphProcgenConfig,
 		rng: RandomNumberGenerator,
 ) -> void:
-	if config.n_random_starters <= 0 or config.shape_mask == null:
+	if config.n_random_starters <= 0 or config.shape.shape_mask == null:
 		return
-	var bounds := config.shape_mask.aabb()
+	var bounds := config.shape.shape_mask.aabb()
 	if bounds.size.x <= 0.0 or bounds.size.y <= 0.0:
 		return
 	var min_sq := config.viability_radius * config.viability_radius
 	for i in config.n_random_starters:
 		var placed := false
-		for _t in maxi(1, config.random_starter_max_tries):
+		for _t in maxi(1, config.starting.random_starter_max_tries):
 			var p := Vector2(
 					rng.randf_range(bounds.position.x, bounds.end.x),
 					rng.randf_range(bounds.position.y, bounds.end.y))
-			if not config.shape_mask.contains(p):
+			if not config.shape.shape_mask.contains(p):
 				continue
 			var ok := true
 			for sp in starters:
@@ -436,12 +452,12 @@ static func _place_random_starters(
 				continue
 			var new_sp := StartingPoint.new()
 			new_sp.position = p
-			new_sp.id = StringName("%s_%d" % [config.random_starter_id_prefix, i])
+			new_sp.id = StringName("%s_%d" % [config.starting.random_starter_id_prefix, i])
 			starters.append(new_sp)
 			placed = true
 			break
 		if not placed:
-			push_warning("GraphProcgen: couldn't place random starter %d after %d tries — viability_radius too large for shape/anchor density?" % [i, config.random_starter_max_tries])
+			push_warning("GraphProcgen: couldn't place random starter %d after %d tries — viability_radius too large for shape/anchor density?" % [i, config.starting.random_starter_max_tries])
 
 
 # ── Topology ──────────────────────────────────────────────────────────────
@@ -519,7 +535,7 @@ static func _triangulate_and_prune(positions: Array[Vector2], connectivity: floa
 
 
 ## Cluster assignment. Returns an int per position, indexing into
-## [GraphProcgenConfig.archetypes]. Algorithm (BFS-grow; see the clustering
+## [GraphProcgenContent.archetypes]. Algorithm (BFS-grow; see the clustering
 ## section of docs/domain/procgen-v2.md):
 ##  1. Compute target node count per archetype from target_ratio shares.
 ##  2. Per archetype, sample cluster sizes from cluster_size_weights until
@@ -543,24 +559,24 @@ static func _assign_archetypes(
 	out.resize(n)
 	for i in n:
 		out[i] = -1
-	if n == 0 or config.archetypes.is_empty():
+	if n == 0 or config.content.archetypes.is_empty():
 		return out
 
 	# Step 1: target counts per archetype (normalised target_ratio).
 	var total_ratio := 0.0
-	for a in config.archetypes:
+	for a in config.content.archetypes:
 		if a != null:
 			total_ratio += maxf(0.0, a.target_ratio)
 	if total_ratio <= 0.0:
 		# All-zero: uniform fallback.
-		for k in config.archetypes.size():
-			if config.archetypes[k] != null:
+		for k in config.content.archetypes.size():
+			if config.content.archetypes[k] != null:
 				total_ratio += 1.0
 	var target_counts: Array[int] = []
-	target_counts.resize(config.archetypes.size())
+	target_counts.resize(config.content.archetypes.size())
 	var assigned_so_far := 0
-	for k in config.archetypes.size():
-		var policy: ArchetypePolicy = config.archetypes[k]
+	for k in config.content.archetypes.size():
+		var policy: ArchetypePolicy = config.content.archetypes[k]
 		var ratio := 0.0 if policy == null else maxf(0.0, policy.target_ratio)
 		if total_ratio > 0.0 and ratio == 0.0 and policy != null:
 			ratio = 1.0  # uniform-fallback path
@@ -579,8 +595,8 @@ static func _assign_archetypes(
 	# Step 2: build flat cluster plan list.
 	# Each plan = {archetype_idx, target_size}. Use Vector2i (x=archetype, y=size).
 	var plans: Array[Vector2i] = []
-	for k in config.archetypes.size():
-		var policy: ArchetypePolicy = config.archetypes[k]
+	for k in config.content.archetypes.size():
+		var policy: ArchetypePolicy = config.content.archetypes[k]
 		if policy == null:
 			continue
 		var remaining := target_counts[k]
@@ -632,13 +648,13 @@ static func _assign_archetypes(
 	# Step 6: fallback for unclaimed nodes — graph-BFS to nearest claimed.
 	# (Running counts maintained so ArchetypeBalancer, if enabled, can react.)
 	var counts := PackedInt32Array()
-	counts.resize(config.archetypes.size())
+	counts.resize(config.content.archetypes.size())
 	var total_assigned := 0
 	for i in n:
 		if out[i] != -1 and out[i] < counts.size():
 			counts[out[i]] += 1
 			total_assigned += 1
-	var balancer: ArchetypeBalancer = config.archetype_balancer
+	var balancer: ArchetypeBalancer = config.content.archetype_balancer
 	var use_balancer := balancer != null and balancer.enabled
 	for i in n:
 		if out[i] != -1:
@@ -648,19 +664,19 @@ static func _assign_archetypes(
 			out[i] = found
 		else:
 			# Disconnected & nothing claimed reachable.
-			out[i] = (balancer.pick(config.archetypes, counts, total_assigned, rng)
-					if use_balancer else _pick_archetype_by_ratio(config.archetypes, rng))
+			out[i] = (balancer.pick(config.content.archetypes, counts, total_assigned, rng)
+					if use_balancer else _pick_archetype_by_ratio(config.content.archetypes, rng))
 		if out[i] >= 0 and out[i] < counts.size():
 			counts[out[i]] += 1
 			total_assigned += 1
 
 	# Step 7: cluster_jitter reroll per archetype.
 	for i in n:
-		var policy: ArchetypePolicy = config.archetypes[out[i]] if out[i] >= 0 and out[i] < config.archetypes.size() else null
+		var policy: ArchetypePolicy = config.content.archetypes[out[i]] if out[i] >= 0 and out[i] < config.content.archetypes.size() else null
 		if policy != null and rng.randf() < policy.cluster_jitter:
 			var prev := out[i]
-			out[i] = (balancer.pick(config.archetypes, counts, total_assigned, rng)
-					if use_balancer else _pick_archetype_by_ratio(config.archetypes, rng))
+			out[i] = (balancer.pick(config.content.archetypes, counts, total_assigned, rng)
+					if use_balancer else _pick_archetype_by_ratio(config.content.archetypes, rng))
 			if use_balancer and prev != out[i]:
 				if prev >= 0 and prev < counts.size():
 					counts[prev] -= 1
@@ -756,12 +772,12 @@ static func _apply_archetype_stamps(
 		config: GraphProcgenConfig,
 ) -> void:
 	var n := positions.size()
-	for stamp in config.archetype_stamps:
+	for stamp in config.content.archetype_stamps:
 		if stamp == null:
 			continue
-		if stamp.archetype_idx < 0 or stamp.archetype_idx >= config.archetypes.size():
+		if stamp.archetype_idx < 0 or stamp.archetype_idx >= config.content.archetypes.size():
 			push_warning("ArchetypeStamp: archetype_idx %d out of range (archetypes has %d entries); skipping."
-				% [stamp.archetype_idx, config.archetypes.size()])
+				% [stamp.archetype_idx, config.content.archetypes.size()])
 			continue
 
 		match stamp.mode:
@@ -864,14 +880,14 @@ static func _build_placement_context(
 ## Pre-loop pass picking which node INDICES get a removable blocker (#477),
 ## so `generate` can instantiate [constant _BLOCKER_NODE_SCENE] for them
 ## before the edges/self-loops wire nodes by reference (#478 — a node can't be
-## swapped after that). Picks each size tier's count — `floor(config.node_count
+## swapped after that). Picks each size tier's count — `floor(config.topology.node_count
 ## / denom)`, where denom 0 disables the tier and any positive denominator
-## below [constant GraphProcgenConfig.MIN_BLOCKER_PER] is clamped up to it —
+## below [constant GraphProcgenBlockers.MIN_BLOCKER_PER] is clamped up to it —
 ## by sampling uniformly WITHOUT replacement from the regular node indices.
 ## Excluded from the pool: every starter core (the first [param
 ## ctx].starter_indices.size() indices), every keystone index
 ## ([param ctx].keystones[i] != null, the pre-roll pass's stamp slot), and —
-## per [member GraphProcgenConfig.blocker_min_hops_from_core] — every node
+## per [member GraphProcgenBlockers.blocker_min_hops_from_core] — every node
 ## inside the hop-ball around ANY starter core, so no camp opens the run
 ## boxed in by boulders.
 ##
@@ -882,7 +898,7 @@ static func _build_placement_context(
 ## failure, a blocker two hops off a core is not.
 ##
 ## [b]The denominator basis is [param node_count] — [member
-## GraphProcgenConfig.node_count], the AUTHORED count — never [param
+## GraphProcgenTopology.node_count], the AUTHORED count — never [param
 ## positions].size().[/b] Poisson-disk sampling routinely yields fewer points
 ## than requested, and `test_blocker_placement.gd`'s density tests assert
 ## exact counts against the authored value; silently switching the basis to
@@ -905,9 +921,9 @@ static func _place_blocker_indices(
 	var starter_count := ctx.starter_indices.size()
 	# Core safe radius (#300): union of the hop-balls around every starter.
 	var too_close := {}
-	if config.blocker_min_hops_from_core > 0:
+	if config.blockers.blocker_min_hops_from_core > 0:
 		for s in ctx.starter_indices:
-			for n in ctx.nodes_within_hops(s, config.blocker_min_hops_from_core):
+			for n in ctx.nodes_within_hops(s, config.blockers.blocker_min_hops_from_core):
 				too_close[n] = true
 	var eligible: Array[int] = []
 	for i in positions_count:
@@ -920,16 +936,16 @@ static func _place_blocker_indices(
 		eligible.append(i)
 	if eligible.is_empty():
 		if not too_close.is_empty():
-			push_warning("GraphProcgen: no blocker-eligible node outside the %d-hop core safe radius — placing none" % config.blocker_min_hops_from_core)
+			push_warning("GraphProcgen: no blocker-eligible node outside the %d-hop core safe radius — placing none" % config.blockers.blocker_min_hops_from_core)
 		return out
 
 	# Small → medium → large (most numerous first). Each tier partial-Fisher-
 	# Yates-shuffles the front of the remaining pool and slices the winners off,
 	# so no node can be picked by two tiers.
 	var tiers: Array = [
-		[config.blocker_per_small, GameRoot.BlockerSize.SMALL],
-		[config.blocker_per_medium, GameRoot.BlockerSize.MEDIUM],
-		[config.blocker_per_large, GameRoot.BlockerSize.LARGE],
+		[config.blockers.blocker_per_small, GameRoot.BlockerSize.SMALL],
+		[config.blockers.blocker_per_medium, GameRoot.BlockerSize.MEDIUM],
+		[config.blockers.blocker_per_large, GameRoot.BlockerSize.LARGE],
 	]
 	for tier in tiers:
 		var denom: int = tier[0]
@@ -938,9 +954,9 @@ static func _place_blocker_indices(
 		# Clamp positive-but-too-small denominators up to the safety floor
 		# (#477): denom 1..4 would otherwise place a blocker on nearly every
 		# node, so a joker authoring `1` still gets `5`.
-		denom = maxi(denom, GraphProcgenConfig.MIN_BLOCKER_PER)
+		denom = maxi(denom, GraphProcgenBlockers.MIN_BLOCKER_PER)
 		# node_count, not positions_count/eligible.size() — see docstring.
-		var count := int(floor(float(config.node_count) / float(denom)))
+		var count := int(floor(float(config.topology.node_count) / float(denom)))
 		count = mini(count, eligible.size())
 		for i in count:
 			var j := i + rng.randi() % (eligible.size() - i)
@@ -960,7 +976,7 @@ static func _roll_and_attach_addons(
 		config: GraphProcgenConfig,
 		rng: RandomNumberGenerator,
 ) -> void:
-	var policy: AddonPolicy = config.addon_policy
+	var policy: AddonPolicy = config.content.addon_policy
 	if policy == null or policy.pool == null:
 		return
 	var slots := policy.sample_slot_count(rng)
@@ -1266,14 +1282,14 @@ static func _v4_weighted_pick(
 ## RadialGradientField track an auto-scaled mask without the designer
 ## hard-coding the size in two places.
 static func _propagate_mask_radius(config: GraphProcgenConfig) -> void:
-	if config.shape_mask == null:
+	if config.shape.shape_mask == null:
 		return
-	var aabb := config.shape_mask.aabb()
+	var aabb := config.shape.shape_mask.aabb()
 	var resolved_radius := 0.5 * minf(aabb.size.x, aabb.size.y)
 	if resolved_radius <= 0.0:
 		return
 	# Budget field
-	if config.budget_policy != null:
-		var bf := config.budget_policy.budget_field
+	if config.content.budget_policy != null:
+		var bf := config.content.budget_policy.budget_field
 		if bf is RadialGradientField and (bf as RadialGradientField).outer_radius <= 0.0:
 			(bf as RadialGradientField).outer_radius = resolved_radius

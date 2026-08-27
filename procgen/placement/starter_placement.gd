@@ -8,7 +8,7 @@ extends Resource
 ## structured: an abstract Resource base, concrete geometry lives in a
 ## subclass (see [CampAnnulusStarters]). See #551.
 ##
-## Wired onto [member GraphProcgenConfig.starter_placement]: when set, it
+## Wired onto [member GraphProcgenStartingPoints.starter_placement]: when set, it
 ## REPLACES [GraphProcgen]'s manual `starting_points` + `_place_random_starters`
 ## list wholesale, rather than augmenting it.
 ##

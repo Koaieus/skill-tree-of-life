@@ -153,7 +153,10 @@ func test_rebinding_a_metaless_node_clears_the_previous_footprint() -> void:
 ## others trustworthy; if procgen changes the footprint shape, this fails first.
 func test_it_renders_a_footprint_produced_by_real_procgen() -> void:
 	var cfg: GraphProcgenConfig = (load(_PRESET_PATH) as GraphProcgenConfig).duplicate(true)
-	cfg.node_count = 60
+	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
+	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = 60
 	cfg.n_random_starters = 0
 	cfg.seed = 7
 

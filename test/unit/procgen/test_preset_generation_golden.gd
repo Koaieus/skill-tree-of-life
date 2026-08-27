@@ -98,7 +98,16 @@ func _fresh_config(preset_path: String, node_count: int = -1) -> GraphProcgenCon
 	var cfg: GraphProcgenConfig = (load(preset_path) as GraphProcgenConfig).duplicate(true)
 	cfg.seed = _SEED
 	if node_count > 0:
-		cfg.node_count = node_count
+		# #349: `topology` is a top-level module `.tres` (ExtResource), so the
+		# `duplicate(true)` above did NOT deep-copy it — only embedded
+		# SubResources cross that boundary. Without re-duplicating here, this
+		# DETAIL-tier override would mutate the SAME cached Topology resource
+		# that `_run_preset`'s very next `_fresh_config(preset_path)` call (no
+		# override, for the DIGEST tier) reads — silently overwriting the
+		# "authored node_count" it depends on. Same trap as #349 acceptance 4,
+		# one call site over.
+		cfg.topology = cfg.topology.duplicate(true)
+		cfg.topology.node_count = node_count
 	return cfg
 
 

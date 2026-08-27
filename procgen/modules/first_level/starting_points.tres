@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="GraphProcgenStartingPoints" format=3]
+
+[ext_resource type="Script" path="res://procgen/modules/starting_points.gd" id="1_gtenw"]
+[ext_resource type="Script" path="res://procgen/placement/starting_point.gd" id="2_s80oh"]
+
+[sub_resource type="Resource" id="sp_core"]
+script = ExtResource("2_s80oh")
+id = &"core"
+
+[resource]
+script = ExtResource("1_gtenw")
+starting_points = Array[ExtResource("2_s80oh")]([SubResource("sp_core")])

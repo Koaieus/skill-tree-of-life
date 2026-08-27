@@ -112,7 +112,10 @@ func _ensure_fixture() -> void:
 	_built = true
 
 	var cfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	cfg.node_count = _NODE_COUNT
+	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
+	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = _NODE_COUNT
 	cfg.seed = _SEED
 	# No AI starters: enemy territory would claim nodes out from under the
 	# ramp and make "200 owned" depend on where the seeder happened to grow.

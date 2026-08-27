@@ -27,7 +27,7 @@ const _PEER_RATIO := 0.3
 
 func _archetypes() -> Array[ArchetypePolicy]:
 	var cfg: GraphProcgenConfig = _PRESET.duplicate(true) as GraphProcgenConfig
-	return cfg.archetypes
+	return cfg.content.archetypes
 
 
 func _policy_for(stat: StringName) -> ArchetypePolicy:

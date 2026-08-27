@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="GraphProcgenShape" format=3]
+
+[ext_resource type="Script" path="res://procgen/modules/shape.gd" id="1_ga7m2"]
+[ext_resource type="Script" path="res://procgen/placement/circular_shape_mask.gd" id="2_tyiwb"]
+
+[sub_resource type="Resource" id="shape_circle"]
+script = ExtResource("2_tyiwb")
+radius = 3000.0
+
+[resource]
+script = ExtResource("1_ga7m2")
+shape_mask = SubResource("shape_circle")

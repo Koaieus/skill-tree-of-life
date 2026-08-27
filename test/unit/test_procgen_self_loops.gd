@@ -9,9 +9,11 @@ extends GutTest
 
 func _build_config(node_count: int, rng_seed: int) -> GraphProcgenConfig:
 	var cfg := GraphProcgenConfig.new()
-	cfg.node_count = node_count
+	cfg.topology = GraphProcgenTopology.new()
+	cfg.topology.node_count = node_count
 	cfg.seed = rng_seed
-	cfg.shape_mask = CircularShapeMask.new()
+	cfg.shape = GraphProcgenShape.new()
+	cfg.shape.shape_mask = CircularShapeMask.new()
 	return cfg
 
 
@@ -89,7 +91,7 @@ func test_scaled_floors_at_3000() -> void:
 
 func test_zero_tier1_rate_yields_no_self_loops() -> void:
 	var cfg := _build_config(300, 999)
-	cfg.self_loop_tier1_rate = 0.0
+	cfg.topology.self_loop_tier1_rate = 0.0
 	var result: Dictionary = await _generate(cfg)
 	var counts := _loop_counts(result.get("nodes", []))
 	assert_eq(

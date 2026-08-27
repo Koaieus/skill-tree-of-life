@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="GraphProcgenTopology" format=3]
+
+[ext_resource type="Script" path="res://procgen/modules/topology.gd" id="1_jhu14"]
+
+[resource]
+script = ExtResource("1_jhu14")
+node_count = 800
+node_padding = 86.0
+connectivity = 0.25
+self_loop_tier1_rate = 0.05
+self_loop_tier2_rate = 0.15
+self_loop_tier3_rate = 0.25
+self_loop_tier4_rate = 0.15

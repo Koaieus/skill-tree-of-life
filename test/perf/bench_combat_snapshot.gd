@@ -52,7 +52,10 @@ func _ensure_fixture() -> void:
 	_built = true
 
 	var cfg: GraphProcgenConfig = _PRESET.duplicate(true)
-	cfg.node_count = _NODE_COUNT
+	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
+	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = _NODE_COUNT
 	cfg.seed = _SEED
 	cfg.n_random_starters = 0
 

@@ -160,11 +160,14 @@ func test_arc_clamp_holds_under_pressure_8_8() -> void:
 
 func test_null_starter_placement_changes_nothing() -> void:
 	var authored: GraphProcgenConfig = load(_FIRST_LEVEL_PATH)
-	assert_null(authored.starter_placement, "first_level.tres must not author a starter_placement")
+	assert_null(authored.starting.starter_placement, "first_level.tres must not author a starter_placement")
 	assert_true(authored.camp_sizes.is_empty(), "first_level.tres must not author camp_sizes")
 
 	var cfg: GraphProcgenConfig = authored.duplicate(true)
-	cfg.node_count = 60
+	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
+	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = 60
 	cfg.seed = 909
 	var result := await _generate_full(cfg)
 	var starting_nodes: Array = result.get("starting_nodes", [])
@@ -205,7 +208,7 @@ func test_no_anchor_dropped() -> void:
 func test_arc_clamp_no_drop_8_8() -> void:
 	var camp_sizes: Array[int] = [8, 8]
 	var cfg := _minimal_config(camp_sizes, CampAnnulusStarters.Arrangement.GROUPED, 11)
-	(cfg.starter_placement as CampAnnulusStarters).camp_arc_span = 0.01
+	(cfg.starting.starter_placement as CampAnnulusStarters).camp_arc_span = 0.01
 	var result := await _generate_full(cfg)
 	var starting_nodes: Array = result.get("starting_nodes", [])
 	assert_eq(starting_nodes.size(), 16, "no anchor should be dropped under a tiny authored arc span")
@@ -213,13 +216,16 @@ func test_arc_clamp_no_drop_8_8() -> void:
 
 func test_integration_coop_versus_preset() -> void:
 	var cfg: GraphProcgenConfig = (load(_COOP_VERSUS_PATH) as GraphProcgenConfig).duplicate(true)
-	cfg.node_count = 200
+	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
+	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = 200
 	cfg.seed = 555
 	cfg.camp_sizes = [2, 2]
 	var result := await _generate_full(cfg)
 	var starting_nodes: Array = result.get("starting_nodes", [])
 	assert_eq(starting_nodes.size(), 4)
-	var shape_mask: ShapeMask = cfg.shape_mask
+	var shape_mask: ShapeMask = cfg.shape.shape_mask
 	var aabb := shape_mask.aabb()
 	var r := 0.5 * minf(aabb.size.x, aabb.size.y)
 	for n in starting_nodes:
@@ -232,13 +238,13 @@ func test_integration_coop_versus_preset() -> void:
 func _minimal_config(camp_sizes: Array[int], arrangement: int, seed_val: int) -> GraphProcgenConfig:
 	var cfg := GraphProcgenConfig.new()
 	cfg.seed = seed_val
-	cfg.node_count = 60
-	cfg.node_radius = 32.0
-	cfg.node_padding = 14.0
-	cfg.shape_mask = CircularShapeMask.new()
+	cfg.topology.node_count = 60
+	cfg.topology.node_radius = 32.0
+	cfg.topology.node_padding = 14.0
+	cfg.shape.shape_mask = CircularShapeMask.new()
 	var placement := CampAnnulusStarters.new()
 	placement.arrangement = arrangement
-	cfg.starter_placement = placement
+	cfg.starting.starter_placement = placement
 	cfg.camp_sizes = camp_sizes
 	return cfg
 
