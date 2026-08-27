@@ -139,21 +139,32 @@ func simulate(
 ## Tween visual positions through the trajectory. Awaitable.
 ##   - ghostly=true: translucent modulate, no hit signals emitted
 ##   - hits: pre-scanned BladeHitEvents emitted at their scheduled t
+##   - playback_rate: 1.0 (default) preserves today's real-time pace exactly;
+##     0.5 takes twice the wall-clock to play the same trajectory. See the
+##     sim/presentation invariant in docs/domain/melee-blade-sim.md — hit
+##     scheduling stays in trajectory time regardless of this knob (#619).
 func play(
 		traj: BladeTrajectory,
 		hits: Array[BladeHitEvent] = [],
-		ghostly: bool = false) -> void:
+		ghostly: bool = false,
+		playback_rate: float = 1.0) -> void:
 	if traj == null or traj.samples.is_empty():
 		playback_finished.emit()
 		return
 	modulate = Color(1.0, 1.0, 1.0, 0.35) if ghostly else Color.WHITE
 	var pending: Array[BladeHitEvent] = hits.duplicate()
 	var dur := traj.duration()
+	# tween_method interpolates the VALUE range [0, dur] linearly over
+	# `wall_duration` wall-clock seconds — the callback argument is always
+	# trajectory time, never wall-clock time, no matter how the two differ.
+	# That mismatch IS the rate knob: _apply_playback_frame and its hit
+	# comparisons need no conversion and stay correct at any rate.
+	var wall_duration := dur / maxf(playback_rate, 0.0001)
 	var tween := create_tween()
 	_active_tween = tween
 	tween.tween_method(
 			_apply_playback_frame.bind(traj, pending, ghostly),
-			0.0, dur, dur)
+			0.0, dur, wall_duration)
 	await tween.finished
 	_active_tween = null
 	playback_finished.emit()

@@ -94,6 +94,25 @@ attack/plan/melee_attack_plan.gd  resolve() → builds BladeState → BladeSim.s
 			(visuals)
 ```
 
+## Sim/presentation invariant
+
+**The sim owns business logic — positions and pre-scanned hits. Presentation
+may interpolate, retime, or re-sim freely without affecting outcomes.**
+
+`BladeHitScan` pre-scans the whole swing into `Array[BladeHitEvent]` before
+any playback happens (#502's timing, #619's write-up). By the time
+`SkillBlade.play()` starts tweening, every hit's target, damage, and
+trajectory-domain `t` is already decided. Playback's only job is to *replay*
+that decision at whatever pace and fidelity looks good — a `playback_rate`
+knob (#619), a future re-sim at a coarser `dt` for AI scoring, a slow-mo FX
+on crits — none of it may resolve a NEW hit or move a WRONG target. If a
+playback change ever needs `BladeHitScan` to run again, it has stopped being
+presentation.
+
+This is already structurally true — `play()` takes pre-scanned `hits` as a
+parameter, never calls `BladeHitScan` itself — but was implicit until now.
+Writing it down is what stops the next author resolving hits during playback.
+
 ## Module contracts
 
 ### `BladeState`
@@ -191,9 +210,11 @@ above which you start seeing rubbery edges". Pass `0` to disable.
 ### `BladeTrajectory`
 
 Pure data: `sample_dt: float`, `samples: Array[PackedVector2Array]`.
-Indexed by step, each sample is the full particle position array.
+`samples[k]` is the pose at simulated time `k * sample_dt` — `samples[0]`
+is the pre-step pose (`BladeSim.simulate` prepends it, #633), so `duration()`
+is `(samples.size() - 1) * sample_dt`, not `samples.size() * sample_dt`.
 `sample(t: float)` linear-interpolates between adjacent step samples
-for arbitrary real-time playback.
+for arbitrary real-time playback, clamping at both endpoints.
 
 ### `BladeHitScan.scan(trajectory, state, space_state, collision_mask, exclude)`
 
@@ -223,8 +244,16 @@ swept-volume continuous collision needed.
 constructs `BladeState` and spawns BladeNode + BladeEdge visuals at
 their initial positions. `simulate(duration)` runs the sim (drivers
 auto-built from pivot-adjacent particles). `play(trajectory, hits,
-ghostly)` tweens visual positions through the trajectory and emits
-`hit` signals at scheduled times.
+ghostly, playback_rate)` tweens visual positions through the trajectory
+and emits `hit` signals at scheduled times.
+
+`playback_rate` (default `1.0`, #619) only changes the tween's wall-clock
+pace — `tween_method`'s callback argument is always trajectory time
+(`0..traj.duration()`), regardless of how many real seconds it takes to
+sweep that range, so `_apply_playback_frame` and every hit comparison stay
+in trajectory time unmodified. A rate of `0.5` takes twice the wall-clock
+for the same swing; `MeleePreview`'s idle loop never passes a rate, so it
+keeps today's pace exactly.
 
 `BladeNode` and `BladeEdge` are pure `Node2D` visuals now — no
 `RigidBody2D`, no `PinJoint2D`, no `Area2D` hitbox. Their positions are
