@@ -34,22 +34,20 @@ extends Node
 ## reproduces nothing it can be told; the resolved outcome rides down as a
 ## confirmed [LootRoundCommand] instead).
 ##
-## [b]What is dormant today, and why.[/b] The upward intent channel exists
-## (#548: [CommandLink] `MIRROR` sends, [method CommandApplier._submit_upward]
-## routes a [PickLootCommand] there) and the roster CAN say which peer a
-## participant sits at ([member Participant.peer_id],
-## [method Participant.is_local] — never [SeatPolicy], which is the per-machine
-## half and deliberately never feeds anything a peer must reproduce). What is
-## still missing is the OTHER half: nothing in the codebase maps a live
-## [Entity] back to the [Participant] that seats it — [member Participant.id]
-## is a lobby-minted seat index, unrelated to [member Entity.entity_id], and the
-## `{participant_id: Entity}` dictionary [method GameRoot.apply_roster] /
-## [method SeatPolicy.from_roster] take is built fresh at setup and never kept.
-## Until that correlation exists — on [Entity] itself, or wherever it ends up
-## living — [method is_remote_collector] cannot resolve "which participant plays
-## this collector" and stays `false` for everybody. Everything the harness CAN
-## reach today — a local human picking, an NPC auto-picking, a headless
-## auto-resolve — rides down as a [LootRoundCommand] and needs none of this.
+## [b]The upward channel and the roster correlation both exist now (#564).[/b]
+## The intent channel (#548: [CommandLink] `MIRROR` sends,
+## [method CommandApplier._submit_upward] routes a [PickLootCommand] there) and
+## the roster CAN say which peer a participant sits at
+## ([member Participant.peer_id], [method Participant.is_local] — never
+## [SeatPolicy], which is the per-machine half and deliberately never feeds
+## anything a peer must reproduce). The other half — mapping a live [Entity]
+## back to the [Participant] that seats it — is [member Entity.participant_id],
+## set once at [method GameRoot.apply_roster] time. [method is_remote_collector]
+## looks the collector's [member Entity.participant_id] up in [member roster]
+## and answers from [method Participant.is_local]. Everything the harness could
+## already reach without this — a local human picking, an NPC auto-picking, a
+## headless auto-resolve — still rides down as a [LootRoundCommand] and needs
+## none of it; this only turns on the remote-human branch.
 ##
 ## [b]The one thing #463 must not undo.[/b] An answer to a parked request must
 ## NOT be submitted onto [CommandApplier]'s queue. A round runs inside its own
@@ -58,6 +56,17 @@ extends Node
 ## not a delay. [method CommandApplier._answer_loot_pick] is the door, and
 ## [method CommandApplier.submit] routes [PickLootCommand] there rather than
 ## enqueueing it.
+
+## Injected by [method GameRoot._ready] (#564), never read off an autoload
+## in here — a leaf system takes its dependencies, it doesn't go fetch them.
+## Null outside an active [GameSession] run (a hand-authored sandbox with no
+## lobby); [method is_remote_collector] treats that as "nobody is remote"
+## rather than an error.
+var roster: ParticipantRoster = null
+
+## This machine's [member Participant.peer_id], from [member GameSession.local_peer_id].
+## 0 outside a versus run — see [member GameSession.local_peer_id]'s own doc.
+var local_peer_id: int = 0
 
 ## Never reused; 1-based, so 0 keeps meaning "no request". An instance member
 ## rather than a static: two worlds in one process (which the multiplayer
@@ -142,12 +151,24 @@ func forfeit_for(entity: Entity) -> void:
 			request.resolve(_empty_like(request))
 
 
-## Is [param collector] being played by a human on ANOTHER peer? Always false
-## today — see the dormancy note in the class doc. This is the single place
-## #463 has to teach about its roster, and it is deliberately one method rather
-## than a condition spread through [SkillDustAddon].
-func is_remote_collector(_collector: Entity) -> bool:
-	return false
+## Is [param collector] being played by a human on ANOTHER peer? Answers from
+## [member roster] via [member Entity.participant_id] — [b]never [SeatPolicy][/b],
+## which is the per-machine half of a run's setup and structurally cannot
+## answer for a peer (see the class doc, and `.claude/rules/multiplayer-sync.md`).
+## False for an NPC (`participant_id == 0`, nothing seats it), false for an
+## AI-driven seat (an AI is simulated somewhere, but nobody's *human* input is
+## being awaited — see [method Participant.is_local]'s own doc on pairing it
+## with a kind check), false for a locally-seated human, true only for a
+## human seated by a non-local peer. This is the single place #463 has to
+## teach about its roster, and it is deliberately one method rather than a
+## condition spread through [SkillDustAddon].
+func is_remote_collector(collector: Entity) -> bool:
+	if collector == null or roster == null or collector.participant_id == 0:
+		return false
+	var participant := roster.by_id(collector.participant_id)
+	if participant == null or participant.kind == Participant.Kind.AI:
+		return false
+	return not participant.is_local(local_peer_id)
 
 
 func pending_count() -> int:

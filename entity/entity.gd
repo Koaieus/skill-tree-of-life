@@ -59,6 +59,18 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 ## never writing a derived value back into an @export.
 var entity_id: int = 0
 
+## Which [Participant] seats this entity — [member Participant.id], a
+## lobby-minted seat index unrelated to [member entity_id] above (#564). 0
+## means unset: an NPC nobody seats, or an entity built outside a roster-driven
+## run (a hand-authored scene, a test fixture). Assigned at
+## [method GameRoot.apply_roster] time rather than authored — plain var for the
+## same reason [member entity_id] is: it is run-assigned identity, not content.
+## The correlation this exists to close: [member Participant.id] alone cannot
+## answer "which live entity is this seat playing", and nothing else in the
+## codebase maps a live [Entity] back to the [Participant] that seats it.
+## [method LootPickRegistry.is_remote_collector] is the first reader.
+var participant_id: int = 0
+
 
 ## The entity's spellbook, created empty if it doesn't have one yet. Every
 ## entity *has* a book — an empty one is a real state, not an absent one — so

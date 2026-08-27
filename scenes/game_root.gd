@@ -100,6 +100,12 @@ var _run_end_routed: bool = false
 ## by walking up to its GameRoot, the same way it resolves [member battle_system]
 ## — the applier node itself has been in `game_root.tscn` since #510.
 @onready var command_applier: CommandApplier = %CommandApplier
+## #564: the registry needs the roster + this machine's peer id to answer
+## `is_remote_collector`. Injected below rather than read off the [GameSession]
+## autoload from inside the registry itself, matching how [member seat_policy]
+## reaches [member command_applier] — GameRoot mediates, the leaf system stays
+## a plain dependency-taking object.
+@onready var pick_registry: LootPickRegistry = %LootPickRegistry
 ## The wire, mounted every level (#531). [b]The node PATH is the contract[/b] —
 ## Godot resolves an RPC by node path, so `Transport` and `CommandLink` must sit
 ## at the same place in every scene both peers run, which is why they live in
@@ -180,6 +186,14 @@ func _ready() -> void:
 	# inert — see [method CommandApplier._pre_roll].
 	if command_applier != null:
 		command_applier.seat_policy = seat_policy
+	# #564: NOT seat_policy — is_remote_collector answers for a PEER (a
+	# roster question), which is exactly what the per-machine SeatPolicy
+	# cannot do. GameSession.roster is null outside an active run (a
+	# hand-authored sandbox with no lobby), which the registry treats as
+	# "nobody is remote" rather than an error.
+	if pick_registry != null:
+		pick_registry.roster = GameSession.roster
+		pick_registry.local_peer_id = GameSession.local_peer_id
 	# The run decides how it ends (#457/#460). After `_setup_level`, which is
 	# where a directly-launched level opens its session. `resolved_...` is what
 	# falls back to the MODE's default when the run authored no condition — the
@@ -581,6 +595,11 @@ static func apply_roster(entities_by_participant_id: Dictionary, roster: Partici
 			continue
 		ent.faction = participant.camp
 		ent.is_human_controlled = participant.kind != Participant.Kind.AI
+		# #564: the correlation LootPickRegistry.is_remote_collector needs.
+		# Set alongside the other roster-authored fields above rather than in
+		# a second pass — every entity this loop actually touches IS the
+		# seated entity.
+		ent.participant_id = participant.id
 
 
 static func _find_controller(ent: Entity) -> EntityController:
