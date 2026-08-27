@@ -16,9 +16,19 @@ func test_dexterity_pool_values() -> void:
 			assert_eq(pp.unit_value, 2.0)
 			assert_eq(pp.min_tier, 1); assert_eq(pp.max_tier, 4)
 			assert_eq(pp.to_entries().size(), 4)
-			# T1 magnitude = unit*V[0] = 2*1 = 2 (center of value_range)
-			assert_almost_eq((pp.to_entries()[0].value_range.x + pp.to_entries()[0].value_range.y) / 2.0, 2.0, 0.001)
+			# T1 (min_tier, no range_floor authored → default M=unit_value)
+			# is a zero-width fixed point at unit*V[0] = 2*1 = 2 (#628).
+			var e0 := pp.to_entries()[0]
+			assert_almost_eq(e0.value_range.x, 2.0, 0.001, "T1 low")
+			assert_almost_eq(e0.value_range.y, 2.0, 0.001, "T1 high")
 func test_crit_chance_carries_t3_t4_overrides() -> void:
+	# #628 widened value_range from a fixed point to a real [L, H] per tier;
+	# checking the CENTER only meant something while every range was
+	# zero-width (pre-#628), where center == the single value. Post-#628, T2
+	# alone has real width (center 12.5, not 15) so a center check silently
+	# stopped testing anything meaningful. Assert L and H separately instead,
+	# plus the L(t+1) = H(t) + M chain the formula promises (docs/domain/
+	# procgen-v4.md) — that's what actually pins #628's behaviour here.
 	var p: StatPack = _PACK.duplicate(true) as StatPack
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
@@ -27,12 +37,21 @@ func test_crit_chance_carries_t3_t4_overrides() -> void:
 			assert_eq(pp.min_tier, 1); assert_eq(pp.max_tier, 4)
 			assert_eq(pp.to_entries().size(), 4)
 			assert_eq(pp.value_overrides, {3: 50.0, 4: 100.0})
-			# T3 center = override 50; T4 center = override 100 (#321 D11).
 			var entries := pp.to_entries()
+			# Highs are the pre-#628 seed values, exactly unchanged.
+			var expected_highs := [5.0, 15.0, 50.0, 100.0]
 			for i in entries.size():
-				var center := (entries[i].value_range.x + entries[i].value_range.y) / 2.0
-				assert_almost_eq(center, [5.0, 15.0, 50.0, 100.0][i], 0.001,
-						"crit_chance T%d center" % (i + 1))
+				assert_almost_eq(entries[i].value_range.y, expected_highs[i], 0.001,
+						"crit_chance T%d high (unchanged by #628)" % (i + 1))
+			# T1/T2 carry no override — normal chain off default M (=unit_value=5):
+			# L1 = M = 5 (zero-width, min_tier); L2 = H(1) + M = 5 + 5 = 10.
+			assert_almost_eq(entries[0].value_range.x, 5.0, 0.001, "T1 low = M")
+			assert_almost_eq(entries[1].value_range.x, 10.0, 0.001, "T2 low = H(1) + M")
+			# T3/T4 ARE overridden: #629's decision is that an override "pins a
+			# tier to an exact value, bypassing the roll entirely" — so each is
+			# its own fixed point (low == high == override), not chain-computed.
+			assert_almost_eq(entries[2].value_range.x, 50.0, 0.001, "T3 low == override (bypasses the roll)")
+			assert_almost_eq(entries[3].value_range.x, 100.0, 0.001, "T4 low == override (bypasses the roll)")
 func test_draw_only_emits_pack_stat_ids() -> void:
 	var pool_set := ModifierPoolSet.new()
 	pool_set.packs = [_PACK.duplicate(true)]
