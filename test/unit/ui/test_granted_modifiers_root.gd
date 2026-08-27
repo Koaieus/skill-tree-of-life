@@ -90,7 +90,7 @@ func test_spell_grant_renders_above_the_modifier_slabs_in_keystone_gold() -> voi
 	assert_true(rows[0] is SlabRow and not rows[0] is ModSlabRow, "spell-grant line is a bare SlabRow, first row")
 	var spell_row := rows[0] as SlabRow
 	assert_eq(spell_row._label.text, "Grants Emberlance")
-	assert_eq(spell_row._slab.tint_color, Color(0.95, 0.85, 0.55), "keystone gold, not an operator tint")
+	assert_eq(spell_row._slab.tint_color, GrantedModifiersRoot._KEYSTONE_GOLD, "keystone gold, not an operator tint")
 	assert_true(rows[1] is ModSlabRow, "modifier slab sits below the spell line")
 
 
