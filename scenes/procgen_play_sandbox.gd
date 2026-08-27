@@ -61,6 +61,16 @@ func _setup_level() -> void:
 	if preset == null:
 		push_warning("ProcgenPlaySandbox: assign `preset` in inspector")
 		return
+	# #463: on a joining CLIENT, everything below reads a run this machine does
+	# not own — `cfg.seed` and the roster alike are the host's, and until the
+	# host's `run_setup` lands they are still this lobby's wish. Generating
+	# first and reconciling after cannot be repaired: `Graph` mints `entity_id`
+	# by add-order and a join lobby is offered no AI-count row, so a client that
+	# guessed would spawn a different entity SET and slide every id past the
+	# first mismatch. See [method GameRoot.await_host_run]. No-op for the host
+	# and for every offline launch, which is why this sits ahead of the
+	# `is_active` guard rather than inside a network branch of it.
+	await await_host_run()
 	var cfg: GraphProcgenConfig = preset.duplicate(true)
 	# #457: one resolved seed for the whole run. A run started from the lobby
 	# already has one; a level launched directly (dev sandbox, headless test)

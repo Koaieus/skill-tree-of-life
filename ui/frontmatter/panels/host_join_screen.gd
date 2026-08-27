@@ -64,15 +64,14 @@ func _ready() -> void:
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_child(spacer)
 
-	# The honest caption for what this can and cannot do yet. Run settings do
-	# not cross the wire until #533, so the two peers agree on a map only by
-	# both people typing the same seed. Saying so here beats a player
-	# discovering it as a DIVERGED line in a log they never open.
-	var hint := Label.new()
-	hint.text = "Both players must type the same seed in the lobby."
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.modulate = Color(1, 1, 1, 0.6)
-	content.add_child(hint)
+	# No same-seed caption any more (#463). It used to read "Both players must
+	# type the same seed in the lobby", and it was honest: run settings did not
+	# cross the wire, so two peers agreed on a map only by agreeing by hand. A
+	# joining client now adopts the host's `RunConfig` and roster outright and
+	# then pulls the host's serialized world on top ([method
+	# GameRoot.await_host_run] / [method GameRoot.pull_host_world]), so the seed
+	# this screen's lobby collects is simply ignored on the joining side. Do not
+	# reinstate the hint without also reinstating the defect.
 
 
 ## A labelled [LineEdit] row in [member content]. Rows are not buttons, so

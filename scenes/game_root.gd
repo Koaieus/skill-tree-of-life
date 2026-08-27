@@ -162,6 +162,19 @@ func _ready() -> void:
 	# _setup_level runs — procgen spawning goes through force_allocate which
 	# claims itself, but hand-authored owned_by= assignments skip that path.
 	allocation_system.register_scene_authored_ownership()
+	# #463: a CLIENT has no run of its own to build. The seed it typed and the
+	# AI count its lobby showed are both about to be replaced wholesale by the
+	# host's `run_setup`, so its socket comes up HERE — before `_setup_level`,
+	# which then waits for that message (see [method await_host_run]) instead of
+	# generating a world nobody else is playing. The host keeps the original
+	# order (the `_open_link` at the tail of this method): it decides the run,
+	# so it has everything it needs the moment the level loads.
+	if _is_network_client():
+		# Latched before the socket opens, so a `run_setup` that arrives while
+		# `_setup_level` is still between statements cannot be missed by
+		# `await_host_run`'s signal wait.
+		GameSession.run_started.connect(_note_host_run_adopted, CONNECT_ONE_SHOT)
+		_open_link()
 	# _setup_level runs BEFORE hud_root.compose because compose reads
 	# `player.stat_board` immediately — procgen sandboxes that spawn the
 	# player here need the entity in place first. `await` is harmless on
@@ -237,7 +250,11 @@ func _ready() -> void:
 	# After `_setup_level`, so a command that arrives the instant the link comes
 	# up finds a world to apply to. Split from `_adopt_network_role` for that
 	# one reason — the role has to be known far earlier than the socket may open.
-	_open_link()
+	# A CLIENT already opened it above (#463) and is linked by now, which is why
+	# `pull_host_world` can ask for the authority's world on the next line.
+	if not _is_network_client():
+		_open_link()
+	pull_host_world()
 
 	if auto_start_turn and player != null and turn_manager != null:
 		# Skip the initial tick race: fill the player's clock so they act first.
@@ -255,6 +272,77 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if battle_system != null:
 		battle_system.drain_pending_mutations()
+
+
+## #463: does this machine ADOPT its run, or DECIDE it?
+##
+## The one question the join path turns on, asked in one place. A client's
+## lobby settings are a wish, not a run: `GameSession.apply_received` replaces
+## its [RunConfig] and its whole [ParticipantRoster] with the host's, so
+## everything this machine builds must wait for that message. Offline play and
+## the host both answer false and take the untouched pre-#463 path.
+func _is_network_client() -> bool:
+	var net: NetworkConfig = GameSession.network
+	return (net != null and net.is_online()
+			and net.role == NetworkTransport.Role.CLIENT)
+
+
+## Block until this machine's run IS the host's (#463) — the gate a level's
+## [method _setup_level] opens with before it generates anything.
+##
+## [b]Why a client must not generate first and reconcile after.[/b] It is not
+## only the seed. [Graph] mints [member Entity.entity_id] by add-order
+## (`graph/graph.gd::_mint_entity_id`), and a joining lobby is not offered the
+## AI-count row at all (`lobby_screen.gd::_offers_ai_opponents` returns false
+## for a [constant NetworkTransport.Role.CLIENT]), so a client left to its own
+## roster spawns a different NUMBER of entities than the host — which slides
+## every id after the first mismatch. [EntitySnapshot] decorates by
+## `entity_id` and never spawns (#560 D7), so once the ids have slid there is
+## nothing any snapshot can do to repair it. Waiting costs one handshake and
+## makes the entity set identical by construction.
+##
+## No-op off the join path, and idempotent once the setup has landed —
+## [member _adopted_host_run] latches, so a level that calls this after the
+## message arrived does not hang waiting for a signal that already fired.
+func await_host_run() -> void:
+	if not _is_network_client() or _adopted_host_run:
+		return
+	await GameSession.run_started
+
+
+## Latched by [method _note_host_run_adopted] the moment the host's `run_setup`
+## lands, so [method await_host_run] can tell "not yet" from "already".
+var _adopted_host_run: bool = false
+
+
+func _note_host_run_adopted(_config: RunConfig) -> void:
+	_adopted_host_run = true
+
+
+## #463: the second half of adopting a host's run. [method await_host_run] gave
+## this machine the host's SEED, and generating from it is not the same as
+## playing the host's MAP — `procgen/` leans on transcendentals whose last bit
+## is not portable across two platforms' libm (#547), and nothing promises the
+## two peers ran the same binary. So the client PULLS the authority's serialized
+## world on top of what it just built, through the [constant
+## CommandLink.KIND_RESYNC] envelope #561 already ships: entities, graph, then
+## the entity->node pass, in one message, reconciled into a populated world
+## rather than rebuilt.
+##
+## [b]A pull, not a push from [method _on_peer_joined], and that is the whole
+## ordering answer.[/b] A push races the client's own generation — over ENet
+## the snapshot lands while procgen is still awaiting frames; over a loopback
+## it lands INSIDE `_on_run_setup`, before the level has spawned anything at
+## all — and [method CommandLink._on_entity_snapshot] drains its pass-2 park
+## the instant the graph is non-empty, so a push would resolve every
+## `core_location` against nodes [method GraphSnapshot.decode] is about to
+## delete. Asking once the level is built has no such window, and needs no
+## upward "I am ready" message: [method CommandLink.request_resync] IS that
+## message.
+func pull_host_world() -> void:
+	if command_link == null or not _is_network_client():
+		return
+	command_link.request_resync("join: adopting the host's world")
 
 
 ## Half one of bringing the wire up (#531): tell the link which side of it we
@@ -332,6 +420,11 @@ func _on_peer_joined(peer_id: int) -> void:
 		return
 	LobbyScreen.stamp_pending_remote(GameSession.roster, peer_id)
 	if command_link != null:
+		# #463: the run's SHAPE, and only that. The world itself is not pushed
+		# from here — the peer that just arrived has not built a level yet, so a
+		# graph snapshot sent on this line would decode into a graph that is
+		# about to be generated over. The client asks for it instead, once it is
+		# ready, via [method pull_host_world].
 		command_link.send_run_setup(GameSession.config, GameSession.roster)
 
 
