@@ -101,6 +101,24 @@ def _run_checks(tmp):
     code, out = run_hook(payload)
     check("silence under 150k", code == 0 and out == "", f"exit={code} out={out!r}")
 
+    # --- 1b. a huge trailing tool result must not hide the crossing -------
+    # PostToolUse fires right after the tool result is appended, so the last
+    # assistant record (the one with usage) can sit far beyond the 64KB fast
+    # path. #649 measures whole-file Reads at 62% of tool-result volume in the
+    # blown-context transcripts this hook targets, so this is the common case
+    # for the population that most needs the warning — not an edge case.
+    path = os.path.join(tmp, "huge_trailing_result.jsonl")
+    write_transcript(path, 260_000)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps({"type": "user", "message": {"content": "X" * 200_000}}) + "\n")
+    payload = {"session_id": "sess-hugetail", "transcript_path": path}
+    code, out = run_hook(payload)
+    check(
+        "a >64KB trailing tool result does not hide the crossing",
+        code == 0 and "260k" in out,
+        f"exit={code} out={out!r}",
+    )
+
     # --- 2. fires exactly once, repeated calls ----------------------------
     path = os.path.join(tmp, "cross150k.jsonl")
     write_transcript(path, 212_345)

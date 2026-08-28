@@ -34,6 +34,14 @@ _THRESHOLD_STEP_START = 200_000
 _THRESHOLD_STEP_FLOOR = 250_000
 _THRESHOLD_STEP = 50_000
 _TAIL_BYTES = 65_536
+# A single tool result can be far larger than the tail window — a whole-file
+# Read routinely is, and #649 measures whole-file Reads at 62% of tool-result
+# volume in exactly the blown-context transcripts this hook exists to warn.
+# PostToolUse fires immediately after that result is appended, so the last
+# assistant record (the one carrying usage) can sit beyond the window and the
+# crossing is missed silently. So: keep 64KB as the fast path, and widen only
+# when it came up empty. The common case still reads 64KB and stops.
+_TAIL_WINDOWS = (65_536, 524_288, 4_194_304, 33_554_432)
 _MAX_HEAD_LINES = 2_000  # bound on the one-time, first-crossing-only head scan
 
 _LEDGER_PATH = os.path.expanduser("~/.claude/ctx-hook-ledger.csv")
@@ -52,28 +60,25 @@ def _compute_tier(tokens):
     ) * _THRESHOLD_STEP
 
 
-def _tail_lines(path):
-    """Non-empty lines from the last _TAIL_BYTES of `path`, oldest first.
+def _tail_lines(path, window=_TAIL_BYTES):
+    """Non-empty lines from the last `window` bytes of `path`, oldest first.
 
     Seeking mid-file can land inside a line, so when the file is bigger than
-    the tail window the first (likely-truncated) line is dropped.
+    the window the first (likely-truncated) line is dropped.
     """
     size = os.path.getsize(path)
     with open(path, "rb") as f:
-        f.seek(max(0, size - _TAIL_BYTES))
+        f.seek(max(0, size - window))
         chunk = f.read()
     text = chunk.decode("utf-8", errors="ignore")
     lines = text.split("\n")
-    if size > _TAIL_BYTES:
+    if size > window:
         lines = lines[1:]
     return [line for line in lines if line.strip()]
 
 
-def _read_last_usage_total(path):
-    """Sum of the three usage fields on the most recent assistant record."""
-    if not os.path.isfile(path):
-        return None
-    lines = _tail_lines(path)
+def _scan_for_usage(lines):
+    """Sum the three usage fields on the newest assistant record in `lines`."""
     for line in reversed(lines):
         try:
             record = json.loads(line)
@@ -92,6 +97,26 @@ def _read_last_usage_total(path):
             )
         except (TypeError, ValueError):
             continue
+    return None
+
+
+def _read_last_usage_total(path):
+    """Sum of the three usage fields on the most recent assistant record.
+
+    Widens the tail window only when the previous one held no assistant
+    record — see _TAIL_WINDOWS. Stops as soon as the window covers the whole
+    file, so a transcript with genuinely no usage yet costs one full read at
+    most, not one per window.
+    """
+    if not os.path.isfile(path):
+        return None
+    size = os.path.getsize(path)
+    for window in _TAIL_WINDOWS:
+        total = _scan_for_usage(_tail_lines(path, window))
+        if total is not None:
+            return total
+        if window >= size:
+            break
     return None
 
 

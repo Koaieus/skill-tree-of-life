@@ -71,6 +71,28 @@ file and scans backward for the most recent `type: "assistant"` record whose
 a real harness-reported `subagent_tokens` figure during #652's research, within
 rounding).
 
+### The window widens when, and only when, 64KB came up empty
+
+64KB is the fast path, not the whole rule. `PostToolUse` fires *immediately
+after* the tool result is appended to the transcript, so the newest assistant
+record — the one carrying `usage` — sits **behind** that result in the file. A
+single tool result larger than the window therefore pushes the usage record out
+of view, and a naive 64KB-only read reports nothing.
+
+That is not an edge case for this hook's target population. #649 measures
+whole-file `Read`s at **62.2% of tool-result volume** in the blown-context
+transcripts — so the sessions most in need of the warning are precisely the
+ones most likely to suppress it, and the suppression is silent. Verified during
+review: a 200KB trailing tool result made a genuine 260k crossing vanish.
+
+So `_read_last_usage_total()` walks `_TAIL_WINDOWS` — 64KB, 512KB, 4MB, 32MB —
+and stops at the first window holding an assistant record, or as soon as the
+window covers the whole file. The common case still reads 64KB and stops, so
+steady-state overhead is unchanged (measured identical before and after). A
+transcript with genuinely no usage record yet costs one full read, once, rather
+than one per window. Pinned by the selftest's *"a >64KB trailing tool result
+does not hide the crossing"* check.
+
 The one exception is the session-start timestamp, read once (on the first
 threshold crossing only) from the head of the file and then cached in the
 latch — see below — so the steady-state path never leaves the tail-read.
