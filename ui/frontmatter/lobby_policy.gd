@@ -108,6 +108,21 @@ const MAX_CAMPS := 6
 ## observably testable before then.
 @export var victory_options: LobbyOptionSet = null
 
+## The starter-arrangement ladder (#558), or null for "no arrangement control".
+##
+## [b]It is a MODULE override, not a bespoke field[/b] (#558 D3, #597 D12): each
+## option writes the leaf `starting:starter_placement:arrangement`, so it rides
+## exactly the [ScenarioOverride] merge path map size and blockers already use
+## and there is no second channel to keep in step.
+##
+## [b]Inert on a preset that authors no `starter_placement`.[/b] `first_level.tres`
+## does not (only `coop_versus.tres` does), so an arrangement override there does
+## not resolve and [method ScenarioOverride.merge_onto] warns, naming the target,
+## rather than no-opping silently (#558 acceptance 4, restated by the owner
+## 2026-08-27). Author this only on a route whose [member scenario] carries a
+## [CampAnnulusStarters].
+@export var arrangement_options: LobbyOptionSet = null
+
 ## May the host retune [member BudgetPolicy.base_min] / [member BudgetPolicy.base_max]?
 ## Raw spinners rather than a ladder, and the one control #643 requires to work
 ## — see [BudgetRangeRow] for the owner's verbatim reason.
@@ -122,7 +137,8 @@ const MAX_CAMPS := 6
 func offers_run_section() -> bool:
 	return (budget_overridable
 			or not _ladder(map_size_options).is_empty()
-			or not _ladder(blocker_options).is_empty())
+			or not _ladder(blocker_options).is_empty()
+			or not _ladder(arrangement_options).is_empty())
 
 
 ## [param set]'s choices, or `[]` when it is null — the "unlocked but unauthored"

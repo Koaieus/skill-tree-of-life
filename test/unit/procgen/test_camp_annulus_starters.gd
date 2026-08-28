@@ -331,3 +331,132 @@ func _assert_within_camp_spacing(pts: Array, min_spacing: float) -> void:
 			var d := a.position.distance_to(b.position)
 			assert_true(d >= min_spacing - 0.5,
 				"camp %d members %d,%d spaced %.2f < required %.2f" % [c, i, i + 1, d, min_spacing])
+
+
+# ── #558 — a host-chosen arrangement, end to end ───────────────────────────
+#
+# #551 built the three arrangements; nothing exposed them. These pin the whole
+# chain a lobby pick travels: RunConfig.overrides -> ScenarioOverride.merge_onto
+# -> the duplicated `starting` module -> GraphProcgen -> the placed starters.
+# Asserted on the PRODUCED starters, never by reading the field back — the
+# issue exists to prevent "a dropdown that changes nothing observable".
+
+const _COOP_VERSUS_SCENARIO_PATH := "res://session/scenarios/coop_versus.tres"
+const _FIRST_LEVEL_SCENARIO_PATH := "res://session/scenarios/first_level.tres"
+
+
+func _run_with_arrangement(scenario_path: String, arrangement: Variant) -> RunConfig:
+	var cfg := RunConfig.new()
+	cfg.scenario = load(scenario_path) as Scenario
+	cfg.seed = 313131
+	if arrangement != null:
+		var o := ScenarioOverride.new()
+		o.target = "starting:starter_placement:arrangement"
+		o.value = arrangement
+		cfg.overrides = [o]
+	return cfg
+
+
+## Stamps the runtime-only inputs onto the MERGED preset. `topology` gets its
+## own duplicate first: it is a top-level module `.tres` (an ExtResource), and
+## `duplicate(true)` does not cross that boundary — the same trap
+## `merge_onto`'s `_localize_module` exists for, arriving from the test side.
+func _stamped(cfg_in: GraphProcgenConfig, camp_sizes: Array[int], seed_val: int) -> GraphProcgenConfig:
+	var cfg := cfg_in
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = 200
+	cfg.seed = seed_val
+	cfg.camp_sizes = camp_sizes
+	return cfg
+
+
+## #558 acceptance 1. A run carrying an ALTERNATING override against
+## `coop_versus.tres` — whose authored value is GROUPED — produces starters that
+## actually alternate around the annulus.
+func test_an_arrangement_override_reaches_the_produced_starters() -> void:
+	var run := _run_with_arrangement(
+			_COOP_VERSUS_SCENARIO_PATH, CampAnnulusStarters.Arrangement.ALTERNATING)
+	var camp_sizes: Array[int] = [3, 3]
+	var cfg := _stamped(run.resolved_preset(), camp_sizes, run.seed)
+	var result := await _generate_full(cfg)
+	var starters: Array = result.get("starters", [])
+
+	assert_eq(starters.size(), 6, "six starters were asked for")
+	_assert_evenly_spaced_and_alternating(starters, 6)
+
+
+## #558 acceptance 2. No override reproduces the preset's AUTHORED arrangement —
+## D5's pinned default, GROUPED — asserted as clustered camps on opposite rims,
+## which is the observable difference from the test above.
+func test_no_override_reproduces_the_authored_grouped_arrangement() -> void:
+	var run := _run_with_arrangement(_COOP_VERSUS_SCENARIO_PATH, null)
+	assert_eq(run.overrides.size(), 0, "premise: nothing was picked")
+	var camp_sizes: Array[int] = [3, 3]
+	var cfg := _stamped(run.resolved_preset(), camp_sizes, run.seed)
+	assert_eq(cfg.starting.starter_placement.arrangement,
+			CampAnnulusStarters.Arrangement.GROUPED,
+			"D5: the authored default stays GROUPED")
+
+	var result := await _generate_full(cfg)
+	var starters: Array = result.get("starters", [])
+	assert_eq(starters.size(), 6)
+
+	var camp0 := _angles_of(starters.slice(0, 3))
+	var camp1 := _angles_of(starters.slice(3, 6))
+	# Not bounded by the AUTHORED `camp_arc_span`: `_effective_arc_span` widens
+	# it at runtime whenever the authored value would pack members closer than
+	# `min_dist`, and on this preset's real radius it does. The bound that still
+	# discriminates GROUPED from ALTERNATING is a quadrant — under ALTERNATING
+	# with camps of 3 the same camp would span 4pi/3.
+	assert_lt(_angular_spread(camp0), PI / 2.0,
+			"GROUPED packs a camp into one arc rather than around the rim")
+	assert_almost_eq(
+			absf(_angle_diff(_circular_mean(camp0), _circular_mean(camp1))), PI, 0.01,
+			"and puts the two camps on opposite rims")
+
+
+## #558 acceptance 4, as the owner RESTATED it 2026-08-27 — the body's original
+## "is unaffected and does not warn" inverted.
+##
+## `first_level.tres` authors no `starter_placement`, so
+## `get_indexed("starting:starter_placement:arrangement")` on it returns `null`
+## SILENTLY. Under #642 D14 that must not pass quietly: the merge warns, naming
+## the unresolvable target, and the run still generates. A silent no-op here is
+## exactly the "dropdown that changes nothing observable" symptom #558 exists to
+## prevent. (No shipped route pairs this ladder with this preset —
+## `test_lobby_roster.gd` pins that — but a mispaired one must be LOUD.)
+func test_an_arrangement_override_on_a_placement_less_preset_warns_and_still_generates() -> void:
+	var run := _run_with_arrangement(
+			_FIRST_LEVEL_SCENARIO_PATH, CampAnnulusStarters.Arrangement.RANDOM)
+	var authored: GraphProcgenConfig = load(_FIRST_LEVEL_PATH)
+	assert_null(authored.starting.starter_placement,
+			"premise: first_level.tres authors no starter_placement")
+
+	var cfg := run.resolved_preset()
+	assert_push_warning("starting:starter_placement:arrangement")
+	assert_null(cfg.starting.starter_placement,
+			"and nothing was conjured onto the preset")
+
+	cfg.topology = cfg.topology.duplicate(true)
+	cfg.topology.node_count = 60
+	cfg.seed = run.seed
+	var result := await _generate_full(cfg)
+	assert_gt((result.get("nodes", []) as Array).size(), 0,
+			"the run still generates — a rejected override is never fatal")
+
+
+## The module-mutation trap, from the consumer side: merging an arrangement
+## override must not corrupt the authored `starting` module every later loader
+## of `coop_versus.tres` shares.
+func test_merging_an_arrangement_never_mutates_the_authored_module() -> void:
+	var authored: GraphProcgenConfig = load(_COOP_VERSUS_PATH)
+	var before: int = authored.starting.starter_placement.arrangement
+
+	var run := _run_with_arrangement(
+			_COOP_VERSUS_SCENARIO_PATH, CampAnnulusStarters.Arrangement.RANDOM)
+	var merged := run.resolved_preset()
+	assert_eq(merged.starting.starter_placement.arrangement,
+			CampAnnulusStarters.Arrangement.RANDOM, "the copy took the override")
+	assert_eq((load(_COOP_VERSUS_PATH) as GraphProcgenConfig)
+			.starting.starter_placement.arrangement, before,
+			"the authored module is byte-for-byte untouched")

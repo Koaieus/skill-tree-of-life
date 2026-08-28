@@ -109,6 +109,10 @@ const _BUDGET_RANGE_ROW := preload("res://ui/frontmatter/panels/budget_range_row
 ## the assertion that such a knob contributes no override at all.
 const KNOB_MAP_SIZE := &"map_size"
 const KNOB_BLOCKERS := &"blockers"
+## Which shape the starters are laid out in (#558) — GROUPED / ALTERNATING /
+## RANDOM. Per-RUN like the rest: one arrangement describes the whole board's
+## seating, not one participant's.
+const KNOB_ARRANGEMENT := &"arrangement"
 const KNOB_BUDGET := &"budget"
 
 ## Adds a Button to [member content]. Caller connects `.pressed` itself.
@@ -152,6 +156,7 @@ var _picked_camps: Dictionary = {}
 var _run_section: VBoxContainer
 var _map_size_row: OptionChoiceRow
 var _blocker_row: OptionChoiceRow
+var _arrangement_row: OptionChoiceRow
 var _budget_row: BudgetRangeRow
 
 ## Run-level picks the host made explicitly, keyed by knob (see [constant
@@ -319,6 +324,8 @@ func _build_run_section() -> void:
 
 	_map_size_row = _add_ladder_row("Map size:", _policy.map_size_options, KNOB_MAP_SIZE)
 	_blocker_row = _add_ladder_row("Blockers:", _policy.blocker_options, KNOB_BLOCKERS)
+	_arrangement_row = _add_ladder_row(
+			"Starters:", _policy.arrangement_options, KNOB_ARRANGEMENT)
 
 	if _policy.budget_overridable:
 		_budget_row = _BUDGET_RANGE_ROW.instantiate()
@@ -425,6 +432,7 @@ func _compose_overrides() -> Array[ScenarioOverride]:
 	var out: Array[ScenarioOverride] = []
 	_append_ladder_overrides(out, _policy_ladder(KNOB_MAP_SIZE), KNOB_MAP_SIZE)
 	_append_ladder_overrides(out, _policy_ladder(KNOB_BLOCKERS), KNOB_BLOCKERS)
+	_append_ladder_overrides(out, _policy_ladder(KNOB_ARRANGEMENT), KNOB_ARRANGEMENT)
 	if _picked_options.has(KNOB_BUDGET):
 		var pair: Array = _picked_options[KNOB_BUDGET]
 		out.append(_leaf("content:budget_policy:base_min", int(pair[0])))
@@ -435,7 +443,13 @@ func _compose_overrides() -> Array[ScenarioOverride]:
 func _policy_ladder(knob: StringName) -> LobbyOptionSet:
 	if _policy == null:
 		return null
-	return _policy.map_size_options if knob == KNOB_MAP_SIZE else _policy.blocker_options
+	match knob:
+		KNOB_MAP_SIZE:
+			return _policy.map_size_options
+		KNOB_ARRANGEMENT:
+			return _policy.arrangement_options
+		_:
+			return _policy.blocker_options
 
 
 func _append_ladder_overrides(

@@ -1026,3 +1026,87 @@ func test_only_the_single_player_route_reaches_the_placement_less_preset() -> vo
 			"only New Game reaches a preset with no starter_placement")
 	assert_true(tree.get_item(MenuGraph.ID_NEW_GAME).route.lobby_policy.camps.is_empty(),
 			"and that route offers no camps, so nothing there wants camp-relative placement")
+
+
+# ── #558 — the starter-arrangement ladder ──────────────────────────────────
+#
+# Owner call 2026-08-24 (#516 decision 5): the arrangement is HOST-chosen and
+# is run shape a peer must reproduce, so it rides the roster/RunConfig half and
+# never SeatPolicy. D3 makes it a MODULE override rather than a bespoke field —
+# one more instance of the ladder map size and blockers already use.
+
+const _ARRANGEMENT_OPTIONS := preload(
+		"res://ui/frontmatter/lobby_options/arrangement_options.tres")
+
+
+## The ladder-direction trap #643 found on the blocker denominators, applied
+## here: `arrangement` is an ENUM, so "ordered correctly" means each option's
+## value IS the constant its label names. An off-by-one would ship a dropdown
+## whose "Random" produced grouped camps, and every other test would stay green.
+func test_the_arrangement_ladder_maps_each_label_to_its_own_enum_value() -> void:
+	var choices := _ARRANGEMENT_OPTIONS.choices()
+	var labels: Array[String] = []
+	for o in choices:
+		labels.append(o.label)
+	assert_eq(labels, ["Grouped", "Alternating", "Random"] as Array[String],
+			"D5: GROUPED is the default and leads the ladder")
+
+	var expected := [
+		CampAnnulusStarters.Arrangement.GROUPED,
+		CampAnnulusStarters.Arrangement.ALTERNATING,
+		CampAnnulusStarters.Arrangement.RANDOM,
+	]
+	for i in choices.size():
+		assert_eq(choices[i].patches.size(), 1,
+				"'%s' patches exactly the arrangement" % labels[i])
+		assert_eq(choices[i].patches[0].target, "starting:starter_placement:arrangement",
+				"D3: a module override, not a bespoke RunConfig field")
+		assert_eq(int(choices[i].patches[0].value), expected[i],
+				"'%s' must carry its own enum value" % labels[i])
+
+
+## The row is offered through the SAME seam as the other two, and is gated
+## independently — a policy unlocking only the arrangement gets only that row.
+func test_the_arrangement_knob_is_gated_independently() -> void:
+	var policy := LobbyPolicy.new()
+	policy.arrangement_options = _ARRANGEMENT_OPTIONS
+	var lobby := _run_section_lobby(policy)
+
+	assert_not_null(lobby._run_section, "an arrangement ladder alone opens the section")
+	assert_not_null(lobby._arrangement_row, "arrangement was unlocked")
+	assert_true(lobby._arrangement_row.visible)
+	assert_null(lobby._map_size_row, "map size was not")
+	assert_null(lobby._blocker_row, "nor blockers")
+
+
+## #558 acceptance 3's lobby half: a pick becomes exactly one leaf override,
+## and an untouched control writes none at all.
+func test_a_picked_arrangement_becomes_one_leaf_override() -> void:
+	var policy := LobbyPolicy.new()
+	policy.scenario = _COOP_VERSUS_SCENARIO
+	policy.arrangement_options = _ARRANGEMENT_OPTIONS
+	var lobby := _run_section_lobby(policy)
+
+	assert_eq(lobby.build_run_config().overrides.size(), 0,
+			"untouched: no override, not an override that happens to match")
+
+	lobby._on_option_picked(
+			CampAnnulusStarters.Arrangement.ALTERNATING, LobbyScreen.KNOB_ARRANGEMENT)
+	var overrides := lobby.build_run_config().overrides
+	assert_eq(overrides.size(), 1)
+	assert_eq(overrides[0].target, "starting:starter_placement:arrangement")
+	assert_eq(int(overrides[0].value), CampAnnulusStarters.Arrangement.ALTERNATING)
+
+
+## Only the routes whose Scenario actually carries a `CampAnnulusStarters` offer
+## the control — the companion to
+## `test_only_the_single_player_route_reaches_the_placement_less_preset`. New
+## Game reaches `first_level`, which authors no placement, so an arrangement
+## ladder there would be the silent no-op #642 acceptance 8 catches.
+func test_only_routes_with_a_starter_placement_offer_the_arrangement() -> void:
+	var tree := MenuGraph.build()
+	for id in [MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOCAL, MenuGraph.ID_HOST, MenuGraph.ID_JOIN]:
+		var policy: LobbyPolicy = tree.get_item(id).route.lobby_policy
+		var has_placement := policy.scenario.preset.starting.starter_placement != null
+		assert_eq(policy.arrangement_options != null, has_placement,
+				"'%s': the arrangement is offered iff there is a placement to patch" % id)

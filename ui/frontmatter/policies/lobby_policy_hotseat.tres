@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="LobbyPolicy" load_steps=12 format=3]
+[gd_resource type="Resource" script_class="LobbyPolicy" load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://ui/frontmatter/lobby_policy.gd" id="1_policy"]
 [ext_resource type="Script" path="res://entity/faction.gd" id="2_faction"]
@@ -10,7 +10,8 @@
 [ext_resource type="Resource" path="res://entity/factions/camp_6.tres" id="8_camp6"]
 [ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/map_size_options.tres" id="90_maps"]
 [ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/blocker_options.tres" id="91_blks"]
-[ext_resource type="Resource" path="res://session/scenarios/coop_versus.tres" id="92_scen"]
+[ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/arrangement_options.tres" id="92_arr"]
+[ext_resource type="Resource" path="res://session/scenarios/coop_versus.tres" id="93_scen"]
 
 [resource]
 script = ExtResource("1_policy")
@@ -21,5 +22,6 @@ max_distinct_camps = 6
 require_distinct_human_camps = false
 map_size_options = ExtResource("90_maps")
 blocker_options = ExtResource("91_blks")
+arrangement_options = ExtResource("92_arr")
 budget_overridable = true
-scenario = ExtResource("92_scen")
+scenario = ExtResource("93_scen")
