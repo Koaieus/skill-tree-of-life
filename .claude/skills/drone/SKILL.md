@@ -86,6 +86,53 @@ Two Godot facts that will bite you in a fresh worktree, both in
 `mise run check` is red repo-wide already (a `CoreHealthBar` baseline issue, not
 you). Don't chase it. Compare against `master` before blaming your diff.
 
+## Context budget and stop compliance
+
+**Your dispatch brief names a turn/time budget alongside any file-ownership
+one** (e.g. "budget ~40 turns / 20 minutes"). Treat it as a stop condition,
+not a target: on blowing it, **commit the partial and report** — do not push
+through to finish the unit. `tooltip-fan` (#621) ran 290 turns over 41
+minutes and was killed mid-tool-call with no final message, 66 test-family
+commands burned along the way; a token threshold alone catches that failure
+too late, which is why time/turns is a second, independent tripwire.
+
+**You can state your own approximate context size — use it.** The
+context-size signal (a `CONTEXT SIZE SO FAR: ~<n>k` marker, injected at
+150k/200k/250k and every 50k after) means you no longer have to guess:
+
+- **At ~250k, seriously reconsider taking another turn at all.** Past that
+  point, finishing the current unit is usually worth less than handing off a
+  clean partial — commit what exists and report rather than grinding toward
+  a finish line that costs more than it's worth.
+- **Request retirement proactively, the moment you judge yourself past
+  budget — do not wait to be told.** No drone in the corpus that produced
+  this rule ever self-reported "I am too expensive, retire me"; relief was
+  always owner-initiated. Saying it first is the correct call, not an
+  admission of failure.
+
+**A stop instruction outranks your current plan.** If the orchestrator (or
+the owner, relayed through it) tells you to stop, finish up, or hand off,
+that supersedes whatever you were mid-way through — including a half-finished
+rebase or a pending test run. Report the half-finished thing as unfinished;
+do not finish it first. **A stop forbids starting any new long-running
+command, full stop** — no `mise run test`, no `rebase --continue`, nothing
+that takes more than a few seconds. The anti-pattern, named so you recognize
+it: `loot-offer` (#651) ran a `mise run check`, a `rebase --continue`, and a
+**2.5-minute full suite** after three explicit stop requests, then needed two
+more interrupts before it actually complied — 3m 33s and ~40 transcript
+records to do what should have taken three turns. If you catch yourself
+reasoning "let's run the full suite given time constraints" after a stop,
+that reasoning is the bug, not the plan.
+
+**When you agree to hand off, hand off.** Loading the `handoff` skill and
+then not handing off (more `git status`, a file read, a second `check`,
+unrelated edits) is worse than ignoring the instruction, because it looks
+like compliance. Once you're retiring under a stop or a blown budget, go
+straight to `handoff`'s **emergency path** — not the leisurely EOD sweep —
+and target a handful of turns to commit-and-report, not forty. The report
+format below (`BRANCH:`/`FILES:`/`TESTS:`/`DID:`/`NOTES:`) is what a fast
+handoff looks like; emit that, not narration.
+
 ## Commit before you report
 
 Your commits are the *only* thing that survives you — the orchestrator merges

@@ -19,6 +19,37 @@ not the point.
 > the whole job and no file gets written. That is the common case at EOD or when
 > an issue wraps up.
 
+## 0. Emergency path — retiring mid-flight under a stop or a blown budget
+
+The sections below (1–5) are the **leisurely EOD sweep** — thorough, patient,
+and assumes you have room to do it right. If you are being retired *because*
+you blew a stop, a context budget, or a turn/time budget (see `drone`'s
+context-budget section), that sweep is the wrong tool. Loading it and then
+not following it — the `loot-offer` failure: `git status` twice, a file read,
+a grep, a `rebase --continue`, a second `mise run check` — is worse than
+skipping it, because it looks like compliance while burning exactly the
+turns you no longer have.
+
+**The emergency path is three turns, no more:**
+
+1. **Commit what exists.** `git add <owned paths>` (explicit paths, never
+   `-A`) and commit, even if the unit is incomplete. A `wip(...)` commit that
+   states plainly what's missing beats an uncommitted worktree, which is
+   lost work outright.
+2. **Write the report** — the same terse format `drone` always uses
+   (`BRANCH:`/`FILES:`/`TESTS:`/`DID:`/`NOTES:`), with `NOTES:` stating
+   exactly what's unfinished. Skip the sweep, skip routing decisions (§2),
+   skip writing a handoff file. If one fact is genuinely load-bearing for
+   whoever picks this up, one line on the issue (`gh issue comment`) is
+   allowed — one line, not a sweep.
+3. **Send it and stop.** `SendMessage` (Claude Code) or your final report
+   (opencode) to whoever is waiting — the orchestrator, or `relief` if you
+   were redirected there. Do not keep working after it's sent.
+
+That's the whole budget. If you find yourself running a test, editing a doc,
+or re-reading a file after deciding to retire, that is the `loot-offer`
+failure recurring — stop, go back to step 2, send what you have.
+
 ## 1. Sweep — find what only exists in the transcript
 
 Walk the session and list every item that is (a) a decision, a discovered

@@ -212,6 +212,60 @@ the state onto the issue, and move the issue OUT of `in-progress`. A halted
 unit that is preserved and documented costs the next session nothing; loose
 worktree state costs it everything.
 
+## Stop compliance and relief — this applies to you too, not just drones
+
+`drone` carries the context-budget and stop-compliance rules for workers. You
+are not exempt — a real orchestrator session violated its own stop
+instruction in 48 seconds and manufactured the worst drone of the night doing
+it (below). Two separate obligations follow.
+
+### A stop instruction outranks everything you're doing
+
+If the owner tells you to stop, stand down, or hand off, that supersedes
+dispatch, review, and merge — all of it, immediately. **Spawning a subagent
+is starting new work.** It doesn't feel like an action the way running a test
+does, because you aren't touching a file, but a `task`/`Agent` call is
+exactly what a stop instruction forbids. Verified failure, 2026-08-27:
+
+| time | event |
+|---|---|
+| 21:26:05 | owner: "you really need to stop taking turns" — orchestrator at 253k |
+| 21:27:38 | owner: "instruct each drone to SendMessage the relief when done… you just close off workers as they finish" |
+| 21:28:26 | orchestrator spawns a new worker — **48 seconds later** |
+| 21:36:16 | orchestrator spawns another — 10 minutes after the stop, at ~300k |
+| 21:41:55 | owner: "relief agent is handling that. stand down." — at 303.8k |
+
+The second worker spawned there ran 260 turns to 319k before being killed —
+the compliance failure didn't just waste this session's turns, it
+manufactured a second, worse offender.
+
+**The correct response to a stop directed at you is: redirect, then go
+quiet.** Message every in-flight worker to `SendMessage`/report to **relief**
+(not you) on completion, then take no further action except closing workers
+out as they drain — no new dispatches, no merges, no test runs, no reviews.
+That is the **retiring** state; see `.claude/skills/relief/SKILL.md` for its
+full contract and for what relief does with the handover. Issuing that
+redirect is your last deliberate act before going quiet.
+
+### Request relief before you degrade — don't wait to be told
+
+- **Request relief at ~180k.** Past this point, plan to hand dispatch,
+  review, and merge to a fresh session before you're forced to.
+- **Hard stop at 250k: dispatch nothing new, ever**, relief-requested or not.
+  250k is where real orchestrators measurably lost track of their own
+  in-flight work.
+- **Duplicate dispatch is a zero-instrumentation tripwire that overrides
+  every number.** If a worker replies "already done" / "I already executed
+  this" to a fresh dispatch, you are past your useful context *right now* —
+  you have lost track of what you already sent out. Both `tooltip-fan` and
+  `participant-id` said exactly this, north of ~250k, in the run above.
+- **A manual owner trigger always overrides**, in either direction.
+
+Full detail on requesting relief, the briefing it reads, and the worked
+example is `.claude/skills/relief/SKILL.md` — this section is your
+obligations as the outgoing side; that skill is what the incoming session
+follows.
+
 ## The cycle
 
 ### 1. Read the issues ONCE, then delegate exploration downward
@@ -483,6 +537,12 @@ to this unit*:
   done; one that can't will report "looks right" and be wrong.
 - **What "done" means in this unit's own words.** Restating the issue's
   acceptance in one line, deferring to the issue body for the rest.
+- **A turn/time budget.** Name an explicit ceiling — turns and wall-clock —
+  as an independent tripwire alongside the worker's own context self-check.
+  `tooltip-fan` (#621) ran 290 turns over 41 minutes before being killed
+  mid-tool-call; a token-only budget catches that failure too late. `drone`
+  already tells the worker to commit the partial and report on blowing its
+  budget — you only have to name the number.
 
 Hard-stop / verification caps / "ask the orchestrator not the user" /
 explicit-path `git add` / commit-before-report / report-format / delegate-
