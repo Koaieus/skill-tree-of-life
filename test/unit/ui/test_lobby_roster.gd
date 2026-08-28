@@ -603,3 +603,270 @@ func test_picking_a_camp_repaints_the_emblem() -> void:
 
 	pick.item_selected.emit(camp_2_index)
 	assert_eq(row.get_node("%Emblem").texture, _CAMP_2.emblem)
+
+
+# --- #643 / #642 acceptance 5-6: the per-RUN section ------------------------
+#
+# The knobs a run is tuned with at the LAN, and the reason they exist, in the
+# owner's words (2026-08-27): "so that i don't have to recompile + redistribute
+# the game mid-lan if we want to tune runs". Every assertion below is ultimately
+# about that sentence — a picker that does not reach the generated graph is
+# worth nothing here.
+
+const _MAP_SIZE_OPTIONS := preload("res://ui/frontmatter/lobby_options/map_size_options.tres")
+const _BLOCKER_OPTIONS := preload("res://ui/frontmatter/lobby_options/blocker_options.tres")
+const _FIRST_LEVEL_SCENARIO := preload("res://session/scenarios/first_level.tres")
+
+
+## A policy that unlocks the whole run section AND names a Scenario, so
+## `resolved_preset()` has a preset to merge onto. Built here rather than
+## preloaded because #597 fork 3 (where a lobby's Scenario comes from) is still
+## open — the shipped `.tres` deliberately leave `scenario` null, so a test that
+## wants the end-to-end path has to supply one.
+func _run_policy() -> LobbyPolicy:
+	var policy := LobbyPolicy.new()
+	policy.scenario = _FIRST_LEVEL_SCENARIO
+	policy.map_size_options = _MAP_SIZE_OPTIONS
+	policy.blocker_options = _BLOCKER_OPTIONS
+	policy.budget_overridable = true
+	return policy
+
+
+func _run_section_lobby(policy: LobbyPolicy) -> LobbyScreen:
+	return _policied_lobby(RunConfig.Mode.SINGLE, policy)
+
+
+## #643 acceptance 2, the characterization half — matching the camp half's
+## `test_a_null_policy_reproduces_todays_lobby_exactly` exactly in shape. A null
+## policy renders NO run section at all, not an empty one.
+func test_a_null_policy_renders_no_run_section_at_all() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
+
+	assert_null(lobby._run_section, "no policy, no run section")
+	assert_null(lobby.find_child("RunSection", true, false),
+			"and nothing named like one is in the tree either")
+
+	var cfg := lobby.build_run_config()
+	assert_eq(cfg.overrides.size(), 0, "and START writes no override")
+	assert_null(cfg.scenario, "master's behaviour: a lobby run carries no Scenario")
+
+
+## #643 acceptance 2, the gating half. A policy that unlocks nothing is not the
+## same object as a null one, and must still render nothing.
+func test_a_policy_that_unlocks_nothing_renders_no_run_section() -> void:
+	var policy := LobbyPolicy.new()
+	assert_false(policy.offers_run_section(), "premise: a bare policy unlocks nothing")
+	assert_null(_run_section_lobby(policy)._run_section)
+
+
+## #643 acceptance 2, the positive half — a fully-unlocked policy renders all
+## three controls.
+func test_an_unlocking_policy_renders_all_three_run_controls() -> void:
+	var lobby := _run_section_lobby(_run_policy())
+
+	assert_not_null(lobby._run_section, "the section exists")
+	assert_not_null(lobby._map_size_row)
+	assert_not_null(lobby._blocker_row)
+	assert_not_null(lobby._budget_row)
+	assert_true(lobby._map_size_row.visible)
+	assert_true(lobby._blocker_row.visible)
+
+
+## #643 acceptance 2, per-knob. Unlocking budget alone must not conjure the
+## ladders — this is what lets #558 and #638 add controls that a route can
+## unlock independently.
+func test_each_knob_is_gated_independently() -> void:
+	var policy := LobbyPolicy.new()
+	policy.budget_overridable = true
+	var lobby := _run_section_lobby(policy)
+
+	assert_not_null(lobby._budget_row, "budget was unlocked")
+	assert_null(lobby._map_size_row, "map size was not")
+	assert_null(lobby._blocker_row, "nor blockers")
+
+
+## #642 acceptance 6: order IS information. `DirAccess.get_files_at` would have
+## returned `l, m, s, xl, xs, xxl`; the authored array is a ladder, and this is
+## the assertion that keeps it one.
+func test_the_map_size_ladder_is_authored_in_ascending_order() -> void:
+	var labels: Array[String] = []
+	var sizes: Array[int] = []
+	for o in _MAP_SIZE_OPTIONS.choices():
+		labels.append(o.label)
+		assert_eq(o.patches.size(), 1, "'%s' patches exactly node_count" % o.label)
+		assert_eq(o.patches[0].target, "topology:node_count")
+		sizes.append(int(o.patches[0].value))
+
+	assert_eq(labels, ["XS", "S", "M", "L", "XL", "XXL"] as Array[String],
+			"the ladder reads as a sequence, not as an alphabetised directory")
+	for i in range(1, sizes.size()):
+		assert_gt(sizes[i], sizes[i - 1],
+				"%s is a bigger map than %s" % [labels[i], labels[i - 1]])
+
+
+## #642 acceptance 6 for the blocker ladder, and the trap it is really guarding:
+## `blocker_per_small` is a DENOMINATOR (`floor(node_count / blocker_per_size)`),
+## so MORE blockers means a SMALLER number. An ascending ladder here would ship a
+## "Heavy" option that produced the fewest blockers on the map.
+func test_the_blocker_ladder_descends_because_the_field_is_a_denominator() -> void:
+	var choices := _BLOCKER_OPTIONS.choices()
+	var labels: Array[String] = []
+	for o in choices:
+		labels.append(o.label)
+	assert_eq(labels, ["None", "Few", "Regular", "Lots", "Heavy"] as Array[String])
+
+	# "None" is the 0-disables-the-tier case and sits outside the ordering.
+	for patch in choices[0].patches:
+		assert_eq(int(patch.value), 0, "None disables every tier")
+
+	var prev := -1
+	for i in range(1, choices.size()):
+		var small := 0
+		for patch in choices[i].patches:
+			if patch.target == "blockers:blocker_per_small":
+				small = int(patch.value)
+		assert_true(small > 0, "%s places blockers" % labels[i])
+		if prev != -1:
+			assert_lt(small, prev,
+					"%s is DENSER than %s, so its denominator is smaller"
+					% [labels[i], labels[i - 1]])
+		prev = small
+
+
+## #643 acceptance 5, and the reason the brief calls it out: this asserts the
+## override list is EMPTY, never that a value happens to match the authored one.
+## A silent no-op and a correct pass-through are indistinguishable by value.
+func test_an_untouched_control_writes_no_override_at_all() -> void:
+	var lobby := _run_section_lobby(_run_policy())
+	var cfg := lobby.build_run_config()
+
+	assert_eq(cfg.overrides.size(), 0,
+			"nothing was picked, so nothing is overridden")
+	assert_eq(lobby._map_size_row.get_value(), -1,
+			"and the widget itself is in the no-pick state")
+
+	# The authored preset is what a run with no picks generates from.
+	var resolved := cfg.resolved_preset()
+	assert_not_null(resolved)
+	assert_eq(resolved.topology.node_count,
+			_FIRST_LEVEL_SCENARIO.preset.topology.node_count,
+			"the Scenario's authored preset, unchanged")
+
+
+## #643 acceptance 4 — THE control that must work. Raw spinners reaching
+## `BudgetPolicy.base_min` / `base_max`, asserted on the merged preset rather
+## than on the widget.
+func test_the_budget_spinners_reach_budget_policy_on_the_generated_preset() -> void:
+	var lobby := _run_section_lobby(_run_policy())
+	var authored := _FIRST_LEVEL_SCENARIO.preset.content.budget_policy
+	assert_eq(lobby._budget_row.get_min_value(), authored.base_min,
+			"the row opens on the preset's own authored budget")
+	assert_eq(lobby._budget_row.get_max_value(), authored.base_max)
+
+	lobby._budget_row._min_spin.value = 11
+	lobby._budget_row._max_spin.value = 40
+
+	var cfg := lobby.build_run_config()
+	var resolved := cfg.resolved_preset()
+	assert_eq(resolved.content.budget_policy.base_min, 11, "go HAM, min")
+	assert_eq(resolved.content.budget_policy.base_max, 40, "go HAM, max")
+
+	# #642's module-mutation trap, from the consumer's side: the merge must have
+	# written to a private copy, never to the shared cached module every other
+	# run in this process loads.
+	assert_eq(authored.base_min, _FIRST_LEVEL_SCENARIO.preset.content.budget_policy.base_min,
+			"the authored .tres is untouched")
+	assert_ne(resolved.content.budget_policy, authored,
+			"and the merge produced its own BudgetPolicy object")
+
+
+## #643 acceptance 1, END TO END ON THE GENERATED GRAPH — the brief is explicit
+## that asserting on the widget does not count. A picked map size must change
+## how many nodes procgen actually emits.
+func test_a_picked_map_size_reaches_the_generated_graph() -> void:
+	var lobby := _run_section_lobby(_run_policy())
+	# Index 0 is XS (100 nodes); the authored preset is 800.
+	lobby._on_option_picked(0, LobbyScreen.KNOB_MAP_SIZE)
+
+	var cfg := lobby.build_run_config()
+	var resolved := cfg.resolved_preset()
+	assert_eq(resolved.topology.node_count, 100, "the pick reached the preset")
+
+	# The shipped `graph.tscn`, not `Graph.new()` — generation reaches
+	# `entities_container` and other children the scene supplies, and a
+	# code-composed Graph has none of them (`.claude/rules/scene-composition.md`,
+	# and every procgen test in `test/unit/procgen/` does it this way).
+	var graph_scene: PackedScene = load("res://graph/graph.tscn")
+	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
+	add_child(graph)
+	await get_tree().process_frame
+	resolved.seed = 1234
+	var result: Dictionary = await GraphProcgen.generate(resolved, graph)
+
+	var nodes: Array = result.nodes
+	assert_gt(nodes.size(), 0, "procgen produced a graph")
+	assert_lt(nodes.size(), 400,
+			"an XS map is nowhere near the authored 800-node first level")
+
+
+## #643 acceptance 3. The roster rebuilds on EVERY slot change; a run-level pick
+## is not a roster fact and must not be collateral damage.
+func test_a_run_level_pick_survives_a_roster_rebuild() -> void:
+	var policy := _run_policy()
+	policy.camps = [_CAMP_1, _CAMP_2]
+	policy.ai_camps_pickable = true
+	var lobby := _policied_lobby(RunConfig.Mode.COOP_HOTSEAT, policy, NetworkConfig.host())
+
+	lobby._on_option_picked(0, LobbyScreen.KNOB_MAP_SIZE)
+	lobby._budget_row._min_spin.value = 9
+
+	lobby._ai_count_row.value = 3
+
+	var cfg := lobby.build_run_config()
+	assert_eq(cfg.participants.size(), 5, "premise: the roster really did rebuild")
+	var resolved := cfg.resolved_preset()
+	assert_eq(resolved.topology.node_count, 100, "the map-size pick survived")
+	assert_eq(resolved.content.budget_policy.base_min, 9, "and so did the budget")
+
+
+## Two picks into DIFFERENT modules must compose, not discard each other — the
+## localize-once-per-module contract `ScenarioOverride._localize_module` keeps,
+## exercised from the lobby rather than from a hand-built override list.
+func test_picks_across_two_modules_compose() -> void:
+	var lobby := _run_section_lobby(_run_policy())
+	lobby._on_option_picked(0, LobbyScreen.KNOB_MAP_SIZE)   # XS
+	lobby._on_option_picked(4, LobbyScreen.KNOB_BLOCKERS)   # Heavy
+	lobby._budget_row._max_spin.value = 33
+
+	var resolved := lobby.build_run_config().resolved_preset()
+	assert_eq(resolved.topology.node_count, 100)
+	assert_eq(resolved.blockers.blocker_per_small, 5)
+	assert_eq(resolved.content.budget_policy.base_max, 33)
+
+
+## The section is a SHARED surface (#558 adds a starter-arrangement control,
+## #638 a victory-condition one). This is the seam they land on, asserted so a
+## later wave finds it rather than re-deriving how this screen builds a column.
+func test_the_run_section_accepts_an_appended_row() -> void:
+	var lobby := _run_section_lobby(_run_policy())
+	var before := lobby._run_section.get_child_count()
+	var extra := Label.new()
+
+	lobby.add_run_row(extra)
+
+	assert_eq(lobby._run_section.get_child_count(), before + 1)
+	assert_eq(extra.get_parent(), lobby._run_section)
+
+
+## Raising min past max drags max with it. `BudgetPolicy` rolls
+## `lerp(base_min, base_max, randf())`, which does not error on an inverted
+## range — it quietly rolls downward.
+func test_raising_the_budget_minimum_pushes_the_maximum_up() -> void:
+	var lobby := _run_section_lobby(_run_policy())
+	lobby._budget_row._min_spin.value = 99
+
+	assert_eq(lobby._budget_row.get_max_value(), 99, "max followed min up")
+	var resolved := lobby.build_run_config().resolved_preset()
+	assert_lte(resolved.content.budget_policy.base_min,
+			resolved.content.budget_policy.base_max,
+			"the merged policy never carries an inverted range")

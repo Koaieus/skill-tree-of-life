@@ -1,0 +1,83 @@
+[gd_resource type="Resource" script_class="LobbyOptionSet" format=3]
+
+[ext_resource type="Script" path="res://ui/frontmatter/lobby_option_set.gd" id="1_set"]
+[ext_resource type="Script" path="res://ui/frontmatter/lobby_option.gd" id="2_opt"]
+[ext_resource type="Script" path="res://session/scenario_override.gd" id="3_ovr"]
+
+[sub_resource type="Resource" id="p0_0"]
+script = ExtResource("3_ovr")
+target = "topology:node_count"
+value = 100
+metadata/_custom_type_script = ExtResource("3_ovr")
+
+[sub_resource type="Resource" id="o0"]
+script = ExtResource("2_opt")
+label = "XS"
+patches = Array[ExtResource("3_ovr")]([SubResource("p0_0")])
+metadata/_custom_type_script = ExtResource("2_opt")
+
+[sub_resource type="Resource" id="p1_0"]
+script = ExtResource("3_ovr")
+target = "topology:node_count"
+value = 250
+metadata/_custom_type_script = ExtResource("3_ovr")
+
+[sub_resource type="Resource" id="o1"]
+script = ExtResource("2_opt")
+label = "S"
+patches = Array[ExtResource("3_ovr")]([SubResource("p1_0")])
+metadata/_custom_type_script = ExtResource("2_opt")
+
+[sub_resource type="Resource" id="p2_0"]
+script = ExtResource("3_ovr")
+target = "topology:node_count"
+value = 500
+metadata/_custom_type_script = ExtResource("3_ovr")
+
+[sub_resource type="Resource" id="o2"]
+script = ExtResource("2_opt")
+label = "M"
+patches = Array[ExtResource("3_ovr")]([SubResource("p2_0")])
+metadata/_custom_type_script = ExtResource("2_opt")
+
+[sub_resource type="Resource" id="p3_0"]
+script = ExtResource("3_ovr")
+target = "topology:node_count"
+value = 800
+metadata/_custom_type_script = ExtResource("3_ovr")
+
+[sub_resource type="Resource" id="o3"]
+script = ExtResource("2_opt")
+label = "L"
+patches = Array[ExtResource("3_ovr")]([SubResource("p3_0")])
+metadata/_custom_type_script = ExtResource("2_opt")
+
+[sub_resource type="Resource" id="p4_0"]
+script = ExtResource("3_ovr")
+target = "topology:node_count"
+value = 1400
+metadata/_custom_type_script = ExtResource("3_ovr")
+
+[sub_resource type="Resource" id="o4"]
+script = ExtResource("2_opt")
+label = "XL"
+patches = Array[ExtResource("3_ovr")]([SubResource("p4_0")])
+metadata/_custom_type_script = ExtResource("2_opt")
+
+[sub_resource type="Resource" id="p5_0"]
+script = ExtResource("3_ovr")
+target = "topology:node_count"
+value = 2200
+metadata/_custom_type_script = ExtResource("3_ovr")
+
+[sub_resource type="Resource" id="o5"]
+script = ExtResource("2_opt")
+label = "XXL"
+patches = Array[ExtResource("3_ovr")]([SubResource("p5_0")])
+metadata/_custom_type_script = ExtResource("2_opt")
+
+[resource]
+resource_name = "Map Size"
+script = ExtResource("1_set")
+options = Array[ExtResource("2_opt")]([SubResource("o0"), SubResource("o1"), SubResource("o2"), SubResource("o3"), SubResource("o4"), SubResource("o5")])
+metadata/_custom_type_script = ExtResource("1_set")

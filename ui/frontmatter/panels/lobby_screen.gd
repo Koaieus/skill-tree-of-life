@@ -99,6 +99,17 @@ var content: VBoxContainer:
 
 const _PARTICIPANT_ROW := preload("res://ui/frontmatter/panels/participant_row.tscn")
 const _AI_COUNT_ROW := preload("res://ui/frontmatter/panels/ai_count_row.tscn")
+const _OPTION_CHOICE_ROW := preload("res://ui/frontmatter/panels/option_choice_row.tscn")
+const _BUDGET_RANGE_ROW := preload("res://ui/frontmatter/panels/budget_range_row.tscn")
+
+## Keys into [member _picked_options] (#643 decision 1 — these are per-RUN, so
+## they are keyed by KNOB, not by [member Participant.id] the way
+## [member _picked_colors] is). A knob ABSENT from that dictionary is the
+## "host never touched this control" state, and #643 acceptance 5 is exactly
+## the assertion that such a knob contributes no override at all.
+const KNOB_MAP_SIZE := &"map_size"
+const KNOB_BLOCKERS := &"blockers"
+const KNOB_BUDGET := &"budget"
 
 ## Adds a Button to [member content]. Caller connects `.pressed` itself.
 ##
@@ -133,6 +144,26 @@ var _picked_cores: Dictionary = {}
 ## Camps a player explicitly chose, by [member Participant.id]. Same
 ## rebuild-survival contract as [member _picked_colors].
 var _picked_camps: Dictionary = {}
+
+## The run-level section beside the seed field (#643). Named and reachable
+## through [method add_run_row] because it is a SHARED surface: #558 appends a
+## starter-arrangement control here and #638 a victory-condition one, in a later
+## wave. Nothing about it is map-size-shaped.
+var _run_section: VBoxContainer
+var _map_size_row: OptionChoiceRow
+var _blocker_row: OptionChoiceRow
+var _budget_row: BudgetRangeRow
+
+## Run-level picks the host made explicitly, keyed by knob (see [constant
+## KNOB_MAP_SIZE]). Values are a ladder INDEX for the pickers and a
+## `[base_min, base_max]` pair for the budget row.
+##
+## [b]Same rebuild-survival contract as [member _picked_colors], for a different
+## reason.[/b] Those survive because the roster rebuilds on every slot change;
+## these survive because this dictionary — not the widget — is what
+## [method build_run_config] reads. The widget is a view of the pick, so a
+## control that is rebuilt, hidden or never realised cannot silently drop one.
+var _picked_options: Dictionary = {}
 
 
 ## Configures this lobby before it enters the tree (call right after
@@ -177,6 +208,8 @@ func _ready() -> void:
 	_seed_edit.placeholder_text = "random"
 	_seed_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	seed_row.add_child(_seed_edit)
+
+	_build_run_section()
 
 	if _network != null and _network.is_online():
 		var link_label := Label.new()
@@ -266,6 +299,151 @@ static func stamp_pending_remote(roster: ParticipantRoster, peer_id: int) -> boo
 			roster.notify_changed(p.id)
 			return true
 	return false
+
+
+## --- #643: the per-RUN section ----------------------------------------------
+##
+## Beside the seed field, never on a [ParticipantRow] (#643 decision 1): a
+## per-slot map-size control would imply each participant picks a map.
+##
+## Every control here is gated by [LobbyPolicy] (#597 D5, #615 D2), and a NULL
+## policy renders the section not at all — #643 acceptance 2, which is not a new
+## rule but the same "null means today's behaviour" the camp half already keeps.
+func _build_run_section() -> void:
+	if _policy == null or not _policy.offers_run_section():
+		return
+	_run_section = VBoxContainer.new()
+	_run_section.name = "RunSection"
+	_run_section.add_theme_constant_override("separation", 4)
+	content.add_child(_run_section)
+
+	_map_size_row = _add_ladder_row("Map size:", _policy.map_size_options, KNOB_MAP_SIZE)
+	_blocker_row = _add_ladder_row("Blockers:", _policy.blocker_options, KNOB_BLOCKERS)
+
+	if _policy.budget_overridable:
+		_budget_row = _BUDGET_RANGE_ROW.instantiate()
+		add_run_row(_budget_row)
+		var authored := _authored_budget()
+		_budget_row.set_range(authored[0], authored[1])
+		_budget_row.range_changed.connect(_on_budget_range_changed)
+
+
+## Appends [param row] to the run section — the seam #558 (starter arrangement)
+## and #638 (victory condition) add their own controls through, so neither has
+## to know how this screen builds its column. Safe before `_ready` only in the
+## sense that the section must exist; a route that unlocks nothing has no
+## section and silently accepts nothing, which is the correct answer for a knob
+## its policy did not unlock either.
+func add_run_row(row: Control) -> void:
+	if _run_section == null:
+		return
+	_run_section.add_child(row)
+
+
+## One named ladder, or null when [param option_set] is unauthored. The row is
+## instanced BEFORE `set_choices` decides whether to show it, because
+## `%`-unique lookups resolve on `_ready` — a row configured before entering the
+## tree would fault on `%Label`.
+func _add_ladder_row(
+	title: String, option_set: LobbyOptionSet, knob: StringName
+) -> OptionChoiceRow:
+	if LobbyPolicy._ladder(option_set).is_empty():
+		return null
+	var row: OptionChoiceRow = _OPTION_CHOICE_ROW.instantiate()
+	add_run_row(row)
+	row.set_choices(title, option_set)
+	row.option_picked.connect(_on_option_picked.bind(knob))
+	return row
+
+
+## The preset's OWN authored budget, which is what the spinners open on — the
+## host is tuning relative to "the normal stuff" (owner, 2026-08-27), so a
+## neutral placeholder would hide the very number being tuned. Falls back to
+## [BudgetPolicy]'s own defaults when the route carries no [Scenario] yet, so
+## the control is still usable rather than showing zeroes.
+func _authored_budget() -> Array[int]:
+	var preset := _authored_preset()
+	if preset != null and preset.content != null and preset.content.budget_policy != null:
+		var bp := preset.content.budget_policy
+		return [bp.base_min, bp.base_max]
+	var fallback := BudgetPolicy.new()
+	return [fallback.base_min, fallback.base_max]
+
+
+## The [Scenario] this run generates from, and the ONE seam that answers it.
+##
+## [b]Held open deliberately.[/b] #597 fork 3 has two live arms — per-ROUTE
+## authoring (the [member LobbyPolicy.scenario] read below) and per-ROSTER
+## derivation from [method resolve_mode] — and they diverge only when a roster
+## change flips the derived mode mid-lobby. Everything else in this file reads
+## the scenario through here, so settling that fork is a change to this function
+## and to nothing else.
+func _run_scenario() -> Scenario:
+	return null if _policy == null else _policy.scenario
+
+
+func _authored_preset() -> GraphProcgenConfig:
+	var scenario := _run_scenario()
+	return null if scenario == null else scenario.preset
+
+
+## A ladder pick. Unlike a camp pick nothing else has to be refreshed — these
+## are per-RUN, so no sibling row's options change — but the pick is recorded in
+## [member _picked_options] rather than left in the widget, which is what makes
+## it the source of truth [method build_run_config] reads.
+func _on_option_picked(index: int, knob: StringName) -> void:
+	_picked_options[knob] = index
+
+
+## The host retuned the budget. Recorded as a `[min, max]` pair under one knob
+## rather than two, because they are one control and one decision: a run tuned
+## to "go HAM" moved both ends.
+func _on_budget_range_changed(base_min: int, base_max: int) -> void:
+	_picked_options[KNOB_BUDGET] = [base_min, base_max]
+
+
+## Every [ScenarioOverride] the host's run-level picks amount to (#643
+## acceptance 1/4). Built fresh from [member _picked_options] on each call, so
+## an untouched knob contributes NOTHING — #643 acceptance 5 is "no override is
+## written", not "the value happens to match the authored one", and only an
+## absent entry can satisfy that.
+##
+## [b]The patches are duplicated, never handed over by reference.[/b] A ladder's
+## [ScenarioOverride]s live on a cached, authored `.tres`; putting those very
+## objects on a [RunConfig] would let a later consumer mutate shared authored
+## content — the same [ExtResource]-boundary trap `_localize_module` exists for,
+## arriving from the other side.
+func _compose_overrides() -> Array[ScenarioOverride]:
+	var out: Array[ScenarioOverride] = []
+	_append_ladder_overrides(out, _policy_ladder(KNOB_MAP_SIZE), KNOB_MAP_SIZE)
+	_append_ladder_overrides(out, _policy_ladder(KNOB_BLOCKERS), KNOB_BLOCKERS)
+	if _picked_options.has(KNOB_BUDGET):
+		var pair: Array = _picked_options[KNOB_BUDGET]
+		out.append(_leaf("content:budget_policy:base_min", int(pair[0])))
+		out.append(_leaf("content:budget_policy:base_max", int(pair[1])))
+	return out
+
+
+func _policy_ladder(knob: StringName) -> LobbyOptionSet:
+	if _policy == null:
+		return null
+	return _policy.map_size_options if knob == KNOB_MAP_SIZE else _policy.blocker_options
+
+
+func _append_ladder_overrides(
+	out: Array[ScenarioOverride], option_set: LobbyOptionSet, knob: StringName
+) -> void:
+	if option_set == null or not _picked_options.has(knob):
+		return
+	for patch in option_set.patches_at(int(_picked_options[knob])):
+		out.append(_leaf(patch.target, patch.value))
+
+
+static func _leaf(target: String, value: Variant) -> ScenarioOverride:
+	var o := ScenarioOverride.new()
+	o.target = target
+	o.value = value
+	return o
 
 
 func _offers_ai_opponents() -> bool:
@@ -492,6 +670,12 @@ func build_run_config() -> RunConfig:
 	cfg.mode = resolve_mode(_participants)
 	cfg.seed = _parse_seed(_seed_edit.text if _seed_edit != null else "")
 	cfg.participants = _participants
+	# #643: the run's Scenario names the preset every override merges ONTO, so
+	# the two must travel together — overrides with no scenario would merge onto
+	# nothing and the picks would vanish silently, which is the exact failure
+	# mode #642 D4 names for a different field.
+	cfg.scenario = _run_scenario()
+	cfg.overrides = _compose_overrides()
 	return cfg
 
 

@@ -1,0 +1,32 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/frontmatter/panels/budget_range_row.gd" id="1_script"]
+
+[node name="BudgetRangeRow" type="HBoxContainer"]
+offset_right = 260.0
+offset_bottom = 20.0
+theme_override_constants/separation = 8
+script = ExtResource("1_script")
+
+[node name="Label" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Modifier budget:"
+
+[node name="MinSpin" type="SpinBox" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.0
+max_value = 50.0
+value = 2.0
+allow_greater = true
+prefix = "min"
+
+[node name="MaxSpin" type="SpinBox" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.0
+max_value = 50.0
+value = 5.0
+allow_greater = true
+prefix = "max"

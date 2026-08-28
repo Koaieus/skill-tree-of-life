@@ -87,8 +87,17 @@ func _setup_level() -> void:
 		return
 	# #641 D6: the run's Scenario names the preset; `preset` (the scene export
 	# above) is the fallback for a run that opened with none.
-	var scenario: Scenario = GameSession.config.scenario
-	var source_preset: GraphProcgenConfig = scenario.preset if scenario != null else preset
+	#
+	# #643: through `resolved_preset()` rather than `scenario.preset` directly,
+	# which is what makes #642's whole merge path reachable — before this, that
+	# path had ZERO production callers and every lobby override was silently
+	# dropped. This is a STRICT SUPERSET of the previous behaviour, not a
+	# behaviour change: `resolved_preset()` returns `scenario.preset` merged onto
+	# a duplicate, and merging an EMPTY override list is a plain duplicate. A run
+	# carrying no overrides therefore generates exactly the map it always did.
+	var source_preset: GraphProcgenConfig = GameSession.config.resolved_preset()
+	if source_preset == null:
+		source_preset = preset
 	if source_preset == null:
 		push_warning("%s: no preset available — the run's Scenario carries none "
 				% name + "and `preset` is unassigned in the inspector")

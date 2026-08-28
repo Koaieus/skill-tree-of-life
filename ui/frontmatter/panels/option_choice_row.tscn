@@ -1,0 +1,19 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/frontmatter/panels/option_choice_row.gd" id="1_script"]
+
+[node name="OptionChoiceRow" type="HBoxContainer"]
+offset_right = 220.0
+offset_bottom = 20.0
+theme_override_constants/separation = 8
+script = ExtResource("1_script")
+
+[node name="Label" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Map size:"
+
+[node name="Picker" type="OptionButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
