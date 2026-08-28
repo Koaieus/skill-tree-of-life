@@ -41,6 +41,16 @@ side in that skill's "Stop compliance and relief" section:
   redirect is the outgoing orchestrator's last deliberate act before going
   quiet: message every live worker that on completion it should
   `SendMessage`/report to the relief session.
+
+  **The redirect must carry relief's actual address, or it is not
+  actionable.** A drone cannot address a session it has never heard of, and
+  "report to relief" names no one. The outgoing orchestrator gets the address
+  from `ListAgents` (relief appears there as another local Claude session) or
+  from the owner, and quotes it verbatim in the redirect: *"when you finish,
+  `SendMessage` to `<name>` — not to me."* Relief should state its own
+  address in its first message to the outgoing session precisely so this
+  redirect can be issued in one turn, at a point where the outgoing session
+  has very few turns left to spend.
 - **Merging, reviewing, and the authoritative test run move to relief
   immediately** — not after the last drone drains. Relief owns those from
   the moment it goes live, even while the outgoing session is still watching
@@ -103,10 +113,19 @@ last-mile delta" rather than composing a knowledge dump from scratch at 250k.
 
 The measured baseline (`relief-1`, below) took **39 minutes** from going live
 to its first dispatch — during which the outgoing orchestrator was still
-spawning drones it had already been told to stop spawning. That is the
-number to beat, not the target: the continuous briefing above is what makes a
-short overlap achievable, since relief no longer has to reconstruct state
-from a death-bed message written under time pressure.
+spawning drones it had already been told to stop spawning. That is the number
+to beat, not the target: the continuous briefing above is what makes a short
+overlap achievable, since relief no longer has to reconstruct state from a
+death-bed message written under time pressure.
+
+**The bound: relief is oriented and has issued its first dispatch within ~10
+minutes of going live, and the outgoing session takes no action other than
+draining drones from the moment relief is live.** Those are two separate
+clocks and both matter — the second is the expensive one, because every
+outgoing turn is priced at 250k+. If orientation is running past ~10 minutes,
+stop reading and say what is missing: the ledger is stale, and the fix is to
+ask the outgoing session one specific question (its cheapest possible act)
+rather than to keep reconstructing state yourself.
 
 ## Fable advisor — optional colour, not contract
 

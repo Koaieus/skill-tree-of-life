@@ -242,7 +242,11 @@ manufactured a second, worse offender.
 **The correct response to a stop directed at you is: redirect, then go
 quiet.** Message every in-flight worker to `SendMessage`/report to **relief**
 (not you) on completion, then take no further action except closing workers
-out as they drain — no new dispatches, no merges, no test runs, no reviews.
+out as they drain. **Put relief's actual address in that message** — from
+`ListAgents`, or from the owner — because "report to relief" names nobody a
+drone can send to, and a redirect the drone cannot act on leaves you holding
+its report anyway, which is the one thing you no longer have the context to
+do — no new dispatches, no merges, no test runs, no reviews.
 That is the **retiring** state; see `.claude/skills/relief/SKILL.md` for its
 full contract and for what relief does with the handover. Issuing that
 redirect is your last deliberate act before going quiet.
