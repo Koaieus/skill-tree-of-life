@@ -5,6 +5,29 @@ extends ProgressBar
 ## current) via [method SkillNode.node_board]. Wires in _ready; visibility is
 ## automatic: hidden when unallocated or at full HP, fades in on hover or damage.
 ##
+## [b]Query + subscription while shown (#660).[/b] The live subscriptions — the
+## pool's `current_changed`/`value_changed` and the owner's
+## [signal Entity.node_health_cap_changed] — are scoped into a [SubBag] that is
+## bound only while the bar is actually on screen and released the moment it
+## fades out. The bar is on screen iff the node is damaged or hovered, so the
+## entity-level cap signal carries O(visible) listeners rather than O(owned):
+## a level's undamaged, unhovered nodes hold no subscription at all and do no
+## per-node work when their owner's CON moves.
+##
+## What stays always-on is deliberately only the free, node-LOCAL triggers that
+## decide whether to sprout: `owner_changed`, hover, and
+## [signal SkillNode.damaged]. Those cost one listener on the node's own signals
+## and never fan out from the entity — re-adding a per-node subscription to the
+## entity board as a convenience is precisely what #660 deleted.
+##
+## The no-pop guarantee is [method SubBag.now]: the sprout connects and paints in
+## one step, snapping `value`/`max_value` to the pool's live state *while alpha
+## is still 0*, before the fade-in starts. So a bar that spent the last minute
+## unsubscribed and stale can never render that stale fill — its first visible
+## frame is already reconciled. Releasing is symmetric and invisible: `clear()`
+## touches no drawing state, and the fade-out and value tweens already in flight
+## are animations, not subscriptions, so they run to completion unaffected.
+##
 ## [b]@tool[/b] so the editor-hosted Spell Playground shows live HP. That means
 ## `_ready` runs while `skill_node.tscn` itself is open — every property it
 ## writes there is a serialization candidate, so `modulate` and `value` are
@@ -33,11 +56,19 @@ var _value_tween: Tween = null
 ## alpha toward the *opposite* target, leaving the bar stuck (#147).
 var _fade_target: float = 0.0
 ## The owner whose entity-level [signal Entity.node_health_cap_changed] this bar
-## is currently subscribed to (#660). The node pool's own `value_changed` no
+## subscribes to *while shown* (#660). The node pool's own `value_changed` no
 ## longer fires when the OWNER's `node_health` baseline moves — the cap is
-## derived on read — so a visible bar hears it once, from the entity, instead of
-## every owned node holding a listener.
+## derived on read — so a visible bar hears it once, from the entity, and an
+## invisible one does not hear it at all.
 var _cap_source: Entity = null
+## The show-scoped subscriptions. Everything in here is connected by
+## [method _bind_live] and dropped by [method _release]; nothing outside those
+## two methods connects to the pool or the entity.
+var _subs := SubBag.new()
+## Whether [member _subs] currently holds the live bindings. Guards the
+## re-entrancy [method SubBag.now] introduces — its synchronous first call lands
+## in [method _on_current_changed], which re-enters [method _update_visibility].
+var _bound: bool = false
 
 
 func _ready() -> void:
@@ -55,66 +86,84 @@ func _ready() -> void:
 	_skill_node.owner_changed.connect(_on_owner_changed, CONNECT_DEFERRED)
 	_skill_node.mouse_entered.connect(_on_hovered)
 	_skill_node.mouse_exited.connect(_on_unhovered)
+	# The sprout trigger, and the reason an undamaged node needs no pool
+	# subscription: node-LOCAL, one listener, no entity fan-out.
+	_skill_node.damaged.connect(_on_node_hp_event)
+	_skill_node.healed.connect(_on_node_hp_event)
 
 	# Deferred so SkillNode._ready() (parent) runs first — it creates the
 	# node_board and refills combat health during _refresh_hp_binding.
 	_on_owner_changed.call_deferred()
 
 
-## Rebind to whichever `node_health` pool this node's current owner brings.
-## The pool is the ONLY thing this bar draws (#504) — see [method _bind_pool].
+## Re-target at whichever `node_health` pool and owner this node now has. The
+## live bindings are released first: they point at the *previous* pool/entity,
+## and [method _update_visibility] re-sprouts against the new pair if the bar is
+## still meant to be on screen.
 func _on_owner_changed() -> void:
 	if _skill_node == null:
 		return
-	var hp: PoolStat = null
-	if _skill_node.is_allocated() and _skill_node.node_board != null:
-		hp = _skill_node.node_board.get_stat(&"node_health") as PoolStat
-	_bind_cap_source(_skill_node.owned_by if _skill_node.is_allocated() else null)
-	_bind_pool(hp)
-
-
-## Subscribe to the one entity-level cap signal, swapping owners as they change.
-func _bind_cap_source(e: Entity) -> void:
-	if _cap_source == e:
-		return
-	if _cap_source != null and _cap_source.node_health_cap_changed.is_connected(_on_max_changed):
-		_cap_source.node_health_cap_changed.disconnect(_on_max_changed)
-	_cap_source = e
-	if _cap_source != null:
-		_cap_source.node_health_cap_changed.connect(_on_max_changed)
-
-
-## #504: the bar binds to the real `node_health` pool and draws it — both its
-## max (`value_changed`) and its current (`current_changed`). There is no view
-## store to lag behind: [OutcomeApplier] lands each hit at its own
-## `arrival_time`, so the pool itself already changes on the beat the player is
-## watching (see [BeatClock]).
-func _bind_pool(pool: PoolStat) -> void:
-	if _pool == pool:
-		return
-	if _pool != null:
-		if _pool.value_changed.is_connected(_on_max_changed):
-			_pool.value_changed.disconnect(_on_max_changed)
-		if _pool.current_changed.is_connected(_on_current_changed):
-			_pool.current_changed.disconnect(_on_current_changed)
-	_pool = pool
-	if _pool != null:
-		_pool.value_changed.connect(_on_max_changed)
-		_pool.current_changed.connect(_on_current_changed)
-		_sync()
+	_release()
+	var allocated := _skill_node.is_allocated()
+	_pool = _skill_node.node_board.get_stat(&"node_health") as PoolStat \
+			if allocated and _skill_node.node_board != null else null
+	_cap_source = _skill_node.owned_by if allocated else null
 	_update_visibility()
 
+
+# ── Show-scoped bindings ────────────────────────────────────────────────────
+
+## Connect the live sources and paint once, atomically ([method SubBag.now] —
+## a read-then-subscribe done as two steps leaves a gap in which the pool can
+## move, and the bar would fade in showing the value from before it).
+##
+## `current_changed` carries the fill; `value_changed` carries a NODE-LOCAL cap
+## move; [signal Entity.node_health_cap_changed] carries an owner-baseline cap
+## move. The last one is why this bag exists.
+func _bind_live() -> void:
+	if _bound or _pool == null:
+		return
+	_bound = true
+	_subs.on(_pool.current_changed, _on_current_changed)
+	if _cap_source != null:
+		_subs.on(_cap_source.node_health_cap_changed, _on_max_changed)
+	# Last, and via `now()`: every connect above is already in place, so its
+	# zero-arg synchronous call is a first paint with no gap in front of it.
+	_subs.now(_pool.value_changed, _on_max_changed)
+
+
+## Drop every show-scoped subscription. Idempotent, and safe against a freed
+## pool or entity ([SubBag] delegates that tolerance to [BindScope]).
+func _release() -> void:
+	if not _bound:
+		return
+	_bound = false
+	_subs.clear()
+
+
+# ── Pool signal handlers ────────────────────────────────────────────────────
 
 ## The node's combat HP moved. Damage snaps down fast, healing eases back up —
 ## the tween is pure animation over a value the model has already committed to,
 ## and gates nothing.
-func _on_current_changed(new_current: Variant) -> void:
-	var hp := float(new_current)
-	if hp < value:
+##
+## The emitted value is ignored in favour of a fresh read: [method SubBag.now]
+## invokes this with no arguments at all, and the pool is the authority either
+## way (see the [SubBag] class doc).
+func _on_current_changed(_new_current: Variant = null) -> void:
+	if _pool == null:
+		return
+	var hp := float(_pool.current)
+	if is_zero_approx(modulate.a) and is_zero_approx(_fade_target):
+		# First paint of a sprout: the bar is invisible, so snap rather than
+		# tween. Tweening from a stale fill IS the visible pop.
+		_kill_value_tween()
+		value = hp
+	elif hp < value:
 		_tween_value(hp, _DMG_DURATION, Tween.EASE_OUT, Tween.TRANS_CUBIC)
 	else:
 		_tween_value(hp, _HEAL_DURATION, Tween.EASE_IN_OUT, Tween.TRANS_CUBIC)
-	_update_visibility_for(hp)
+	_update_visibility()
 
 
 ## The cap moved — from a node-local modifier (the pool's own `value_changed`)
@@ -127,14 +176,7 @@ func _on_max_changed() -> void:
 	if _pool == null:
 		return
 	max_value = _pool.value
-	_on_current_changed(_pool.current)
-
-
-func _sync() -> void:
-	if _pool == null:
-		return
-	max_value = _pool.value
-	value = float(_pool.current)
+	_on_current_changed()
 
 
 # ── Hover ───────────────────────────────────────────────────────────────────
@@ -149,21 +191,35 @@ func _on_unhovered() -> void:
 	_update_visibility()
 
 
+## Node-local damage/heal announcement. While the bar is released this is the
+## only thing that can wake it; while it is bound it is redundant with
+## `current_changed` and costs one no-op visibility pass.
+func _on_node_hp_event(_amount: float = 0.0, _source: Variant = null) -> void:
+	_update_visibility()
+
+
 # ── Visibility ──────────────────────────────────────────────────────────────
 
+## The single gate: it decides whether the bar is on screen AND whether it holds
+## live subscriptions, so the two can never disagree.
+##
+## `hp < max` counts as damaged: a depleted node must read as an empty bar, not
+## as no bar at all. Only a node at full HP hides itself — and a hidden bar is
+## an unsubscribed one.
 func _update_visibility() -> void:
 	if _pool == null:
+		_release()
 		return _fade_to(0.0)
-	_update_visibility_for(float(_pool.current))
-
-
-## `hp < max` counts as damaged: a depleted node must read as an empty bar,
-## not as no bar at all. Only a node at full HP hides itself.
-func _update_visibility_for(hp: float) -> void:
-	if _pool == null:
-		return _fade_to(0.0)
-	var damaged: bool = hp < _pool.value
-	_fade_to(1.0 if (_hovered or damaged) else 0.0)
+	var hp := float(_pool.current)
+	var shown: bool = _hovered or hp < _pool.value
+	if shown:
+		# Before the fade: `_bind_live`'s first paint must land while alpha is
+		# still 0 for the snap-not-tween branch above to fire.
+		_bind_live()
+		_fade_to(1.0)
+	else:
+		_fade_to(0.0)
+		_release()
 
 
 func _fade_to(target_alpha: float) -> void:
@@ -180,10 +236,15 @@ func _fade_to(target_alpha: float) -> void:
 
 # ── Value tween ─────────────────────────────────────────────────────────────
 
-func _tween_value(target: float, duration: float,
-		_ease: Tween.EaseType, trans: Tween.TransitionType) -> void:
+func _kill_value_tween() -> void:
 	if _value_tween:
 		_value_tween.kill()
+		_value_tween = null
+
+
+func _tween_value(target: float, duration: float,
+		_ease: Tween.EaseType, trans: Tween.TransitionType) -> void:
+	_kill_value_tween()
 	_value_tween = create_tween()
 	_value_tween.tween_property(self, "value", target, duration) \
 			.set_ease(_ease).set_trans(trans)

@@ -7,8 +7,9 @@ extends GutTest
 ## these tests pin the claim that `refill()` itself is sound (it is), which
 ## isolates the real cause to the in-flight-damage race in `_cast()`.
 ##
-## Also covers HealthBar: it only shows the pool if it actually binds it, and a
-## depleted node must read as an *empty* bar, not as no bar.
+## Also covers HealthBar: it binds the pool the moment there is damage to show
+## (#660 scoped that bind to while-shown), and a depleted node must read as an
+## *empty* bar, not as no bar.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -74,15 +75,25 @@ func test_refill_restores_a_node_killed_by_accumulated_chip_damage() -> void:
 	assert_eq(hp.current, float(hp.value), "refill() undoes accumulated damage too")
 
 
-func test_health_bar_binds_the_pool_and_tracks_damage() -> void:
+## #660 acceptance 7 re-point. This used to open by asserting the bar ALREADY
+## mirrored the pool while sitting invisible at full HP — the always-bound
+## contract, which is exactly what got scoped away: an undamaged, unhovered bar
+## now holds no subscription and paints nothing, so `max_value`/`value` are
+## deliberately whatever the scene baked. The two replacement asserts pin the
+## property that actually matters, and every assert from the damage onward is
+## unchanged and still passes: the sprout snaps to live state, so no frame ever
+## renders the stale pair.
+func test_health_bar_sprouts_on_damage_and_tracks_it() -> void:
 	var bar: ProgressBar = _node.get_node("Visuals/HealthBar")
 	await get_tree().process_frame  # HealthBar._on_owner_changed is deferred
 
 	var hp := _pool()
-	assert_eq(bar.max_value, float(hp.value), "bar max mirrors the pool cap")
-	assert_almost_eq(bar.value, float(hp.value), 0.001, "bar starts full, not at a baked value")
+	assert_almost_eq(bar.modulate.a, 0.0, 0.001, "an undamaged node shows no bar")
+	assert_eq(_entity.node_health_cap_changed.get_connections().size(), 0,
+			"…and its released bar holds no subscription to the owner's cap")
 
 	_node.take_damage(float(hp.value) + 1000.0, null)
+	assert_eq(bar.max_value, float(hp.value), "the sprout's first paint snaps the cap")
 	assert_eq(hp.current, 0.0)
 	# Both the fill and the fade-in are tweened — let them land before reading.
 	await wait_seconds(0.3)

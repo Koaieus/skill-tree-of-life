@@ -23,6 +23,12 @@ var _value_tween: Tween = null
 ## Committed fade target — see the same field in health_bar.gd (#147). Guards
 ## against early-returning while a fade tween is still driving alpha the other way.
 var _fade_target: float = 0.0
+## Bind-scoped pool subscriptions. This bar is one-per-ENTITY, not one-per-node,
+## so it is not part of #660's fan-out problem — it uses [SubBag] for the other
+## half of the contract: `now()` fuses the connect and the first paint, so a
+## rebind can never fade in showing the previous owner's fill, and `clear()`
+## replaces the hand-rolled `is_connected` guards this used to carry.
+var _subs := SubBag.new()
 
 
 func _ready() -> void:
@@ -41,43 +47,41 @@ func _ready() -> void:
 func bind_health(pool: PoolStat) -> void:
 	if _pool == pool:
 		return
-	if _pool != null:
-		if _pool.value_changed.is_connected(_on_max_changed):
-			_pool.value_changed.disconnect(_on_max_changed)
-		if _pool.current_changed.is_connected(_on_current_changed):
-			_pool.current_changed.disconnect(_on_current_changed)
+	_subs.clear()
 	_pool = pool
-	if _pool != null:
-		_pool.value_changed.connect(_on_max_changed)
-		_pool.current_changed.connect(_on_current_changed)
-		_sync()
-		_fade_to(1.0)
-	else:
-		_fade_to(0.0)
+	if _pool == null:
+		return _fade_to(0.0)
+	_subs.on(_pool.current_changed, _on_current_changed)
+	_subs.now(_pool.value_changed, _on_max_changed)
+	_fade_to(1.0)
 
 
 # ── Pool signal handlers ──────────────────────────────────────────────────────
 
 ## The entity's core health moved. A staggered cascade steps this once per
 ## landing, the same rhythm as the node paint.
-func _on_current_changed(new_current: Variant) -> void:
-	var hp := float(new_current)
-	if hp < value:
+func _on_current_changed(_new_current: Variant = null) -> void:
+	if _pool == null:
+		return
+	var hp := float(_pool.current)
+	if is_zero_approx(modulate.a) and is_zero_approx(_fade_target):
+		# First paint of a (re)bind, while the bar is still invisible: snap.
+		# Tweening from the previous owner's fill IS the visible pop.
+		_kill_value_tween()
+		value = hp
+	elif hp < value:
 		_tween_value(hp, _DMG_DURATION, Tween.EASE_OUT, Tween.TRANS_CUBIC)
 	else:
 		_tween_value(hp, _HEAL_DURATION, Tween.EASE_IN_OUT, Tween.TRANS_CUBIC)
 
 
+## The cap moved, or a fresh bind is painting for the first time. Re-reads
+## `current` too, so one call is a complete paint.
 func _on_max_changed() -> void:
-	if _pool != null:
-		max_value = _pool.value
-
-
-func _sync() -> void:
 	if _pool == null:
 		return
 	max_value = _pool.value
-	value = float(_pool.current)
+	_on_current_changed()
 
 
 # ── Fade ──────────────────────────────────────────────────────────────────────
@@ -96,10 +100,15 @@ func _fade_to(target_alpha: float) -> void:
 
 # ── Value tween ───────────────────────────────────────────────────────────────
 
-func _tween_value(target: float, duration: float,
-		ease_type: Tween.EaseType, trans: Tween.TransitionType) -> void:
+func _kill_value_tween() -> void:
 	if _value_tween:
 		_value_tween.kill()
+		_value_tween = null
+
+
+func _tween_value(target: float, duration: float,
+		ease_type: Tween.EaseType, trans: Tween.TransitionType) -> void:
+	_kill_value_tween()
 	_value_tween = create_tween()
 	_value_tween.tween_property(self, "value", target, duration) \
 			.set_ease(ease_type).set_trans(trans)
