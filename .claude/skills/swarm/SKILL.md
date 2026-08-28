@@ -403,7 +403,32 @@ and the work is already committed and reachable by branch name. You have the
 cheap context for merging; spend yours, not theirs. If a rebase conflicts,
 resolve it yourself upstream of the merge.
 
-### 3. Dispatch — claim the kanban, then fire one parallel wave
+### 3. Dispatch — check the roster, claim the kanban, then fire one parallel wave
+
+**Step 1, before anything else: check the roster.** `docs/handoffs/swarm-<date>.md`
+is this run's dispatch ledger — one file, both the briefing and the
+at-most-once record. If it doesn't exist yet, create it now, before your
+first dispatch. Contents:
+
+- A **roster table**: unit / brief file / drone name / state
+  (`dispatched@HH:MM` → `reported` → `merged` | `rejected→redispatched`).
+- **Unpersisted decisions and swings** — each reduced to a pointer once it
+  lands in its real home (issue, doc, rule file), per
+  `.claude/rules/handoffs.md`. Never the only place a decision lives.
+- **Next steps / queue order.**
+
+**At-most-once dispatch lives in this file, not in your memory.** Checking it
+before every dispatch is what makes duplicate dispatch mechanical to avoid
+rather than something you have to remember to check for — the
+duplicate-dispatch tripwire above is the backstop for when the file is stale
+or missing, not a substitute for keeping it current.
+
+**Update it on every dispatch, every report collected, every merge, every
+owner call.** Rewrite in place, never append — target ≤ ~1.5k tokens. One
+`Edit` per event; the cost is what buys you a cheap `relief` handover later
+(`.claude/skills/relief/SKILL.md` reads exactly this file plus
+`mise gh-project -- list in-progress` to get oriented). Delete the file once
+the run is closed out, per `.claude/rules/handoffs.md`.
 
 **Claim every issue on the kanban before you spawn anything:**
 

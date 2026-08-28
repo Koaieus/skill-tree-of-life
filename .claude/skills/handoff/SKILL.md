@@ -147,3 +147,11 @@ And the two rules that keep the file honest:
   outcomes, not the path to them.
 - **Not automatic.** If the sweep finds nothing un-persisted, say so and stop.
   That is a good result, not a failed run.
+- **Not the entry half.** This skill is how a session closes out — including
+  a one-shot continuation file per §5. Picking up a swarm that is still
+  *running* — drones in flight, worktrees open, merges pending — is
+  `relief`'s job (`.claude/skills/relief/SKILL.md`). Relief reads a
+  *continuous* briefing kept live at `docs/handoffs/swarm-<date>.md`,
+  updated by `swarm` on every dispatch/report/merge — not a one-shot file
+  written at the end. Same directory and lifecycle rules as §5
+  (`.claude/rules/handoffs.md`), a different cadence.
