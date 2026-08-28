@@ -16,6 +16,13 @@ enum Mode { SINGLE, COOP_HOTSEAT, VERSUS }
 ## `RunBootstrap` fixture may open a session with no Scenario at all, and the
 ## level it boots falls back to its own scene-authored `preset` (#597 D6).
 @export var scenario: Scenario = null
+## Leaf-addressed by-value patches (#642 D14) merged onto a DUPLICATE of
+## [member scenario]'s `preset` — never a write to the authored asset. See
+## [ScenarioOverride] and [method resolved_preset]. An empty array (the
+## common case — most runs pick a named preset with no tweaks) means
+## "the authored preset, unchanged" by construction: there is no sentinel to
+## check, only entries to apply.
+@export var overrides: Array[ScenarioOverride] = []
 @warning_ignore("shadowed_global_identifier")
 @export var seed: int = 0
 @export var participants: Array[Participant] = []
@@ -55,6 +62,19 @@ func resolved_victory_condition() -> VictoryCondition:
 	return victory_condition if victory_condition != null else default_condition_for(mode)
 
 
+## The preset this run actually generates from (#642 D14) — [member scenario]'s
+## authored `preset` with every entry in [member overrides] merged onto a
+## DUPLICATE (see [method ScenarioOverride.merge_onto]; the authored asset and
+## its modules are never mutated). Null [member scenario] (or a Scenario with
+## no `preset`) yields null, same shape as [method resolved_victory_condition]'s
+## null-falls-to-default — here the level falls back to its own
+## scene-authored preset instead (#597 D6), one layer up from this function.
+func resolved_preset() -> GraphProcgenConfig:
+	if scenario == null or scenario.preset == null:
+		return null
+	return ScenarioOverride.merge_onto(scenario.preset, overrides)
+
+
 ## Wire form for #528 — "the run's shape crosses the wire; each peer derives
 ## its own seat" (the acceptance spec's own framing). [member scenario] and
 ## [member victory_condition] cross as resource PATHS: both are either unset
@@ -79,9 +99,13 @@ func to_dict() -> Dictionary:
 	var participant_rows: Array = []
 	for p in participants:
 		participant_rows.append(p.to_dict())
+	var override_rows: Array = []
+	for o in overrides:
+		override_rows.append(o.to_dict())
 	return {
 		"mode": mode,
 		"scenario": scenario.resource_path if scenario != null else "",
+		"overrides": override_rows,
 		"seed": seed,
 		"participants": participant_rows,
 		"victory_condition": victory_condition.resource_path if victory_condition != null else "",
@@ -93,6 +117,11 @@ static func from_dict(d: Dictionary) -> RunConfig:
 	cfg.mode = int(d.get("mode", Mode.SINGLE)) as Mode
 	var scenario_path := String(d.get("scenario", ""))
 	cfg.scenario = load(scenario_path) as Scenario if scenario_path != "" else null
+	var override_rows: Array = d.get("overrides", [])
+	var overrides_out: Array[ScenarioOverride] = []
+	for row in override_rows:
+		overrides_out.append(ScenarioOverride.from_dict(row as Dictionary))
+	cfg.overrides = overrides_out
 	cfg.seed = int(d.get("seed", 0))
 	var parts: Array[Participant] = []
 	for row in (d.get("participants", []) as Array):
