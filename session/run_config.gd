@@ -26,11 +26,6 @@ enum Mode { SINGLE, COOP_HOTSEAT, VERSUS }
 @warning_ignore("shadowed_global_identifier")
 @export var seed: int = 0
 @export var participants: Array[Participant] = []
-## How this run ends (#460). Null means "use the mode's default" — see
-## [method default_condition_for]. Authored per-run rather than baked into
-## [VictorySystem] because, per the owner, multiplayer setups will want
-## different conditions.
-@export var victory_condition: VictoryCondition = null
 
 
 ## The one and only place a seed sentinel resolves (#457). `0` means
@@ -49,17 +44,22 @@ static func resolve_seed(value: int) -> int:
 	return drawn if drawn != 0 else 1
 
 
-## The condition a mode falls back to when none is authored. All three modes
-## share last-camp-standing today — the switch exists because the owner's call
-## was explicitly that they "may default differently", and a mode wanting its
-## own answer should find one place to change, not a call site to fork.
-static func default_condition_for(_mode: Mode) -> VictoryCondition:
-	return LastCampStandingCondition.new()
-
-
-## The condition actually in force for this config.
+## How this run ends — read straight off [member scenario] (#638). The field
+## and the mode-keyed default switch that used to live beside it are GONE,
+## not merely uncalled (see [method Scenario.default_victory_condition] for the
+## name that was deleted and why): a victory condition is authored content, so it
+## belongs to "what game is this" ([Scenario]) and never to a [enum Mode],
+## which decides only how many humans share a machine (#615 D6,
+## `docs/domain/seat-policy.md` §"One axis").
+##
+## Kept as a method on [RunConfig] because that is the seam `scenes/game_root.gd`
+## already reads, and because a run with NO scenario (a `RunBootstrap` sandbox,
+## #597 D6) still has to end somehow — it resolves the same default a
+## condition-less [Scenario] does, from the same static.
 func resolved_victory_condition() -> VictoryCondition:
-	return victory_condition if victory_condition != null else default_condition_for(mode)
+	if scenario == null:
+		return Scenario.default_victory_condition()
+	return scenario.resolved_victory_condition()
 
 
 ## The preset this run actually generates from (#642 D14) — [member scenario]'s
@@ -76,16 +76,14 @@ func resolved_preset() -> GraphProcgenConfig:
 
 
 ## Wire form for #528 — "the run's shape crosses the wire; each peer derives
-## its own seat" (the acceptance spec's own framing). [member scenario] and
-## [member victory_condition] cross as resource PATHS: both are either unset
-## or point at one of a handful of authored `.tres`/`.tscn` assets, so there is
-## no per-node-scale string cost to intern away here (contrast #527's
-## per-node archetype/addon refs, where that cost is real). A
-## script-constructed [VictoryCondition] (e.g. `LastCampStandingCondition.new()`
-## from [method default_condition_for]) has no `resource_path` and crosses as
-## `""` — decoded back to `null`, which resolves to the SAME default on every
-## peer because [method default_condition_for] is a pure function of
-## [member mode]. [member seed] rides along even though the graph itself is
+## its own seat" (the acceptance spec's own framing). [member scenario] crosses
+## as a resource PATH: it is either unset or points at one of a handful of
+## authored `.tres` assets, so there is no per-node-scale string cost to intern
+## away here (contrast #527's per-node archetype/addon refs, where that cost is
+## real). The victory condition no longer crosses at all — since #638 it hangs
+## off that [Scenario], so a peer that loaded the same scenario path resolves
+## the same condition by construction rather than by a second field agreeing.
+## [member seed] rides along even though the graph itself is
 ## now serialized (#527) — it's no longer needed to reproduce the map, but
 ## other things read it, and a peer whose session reports a different seed
 ## than the host's is worth being able to see (#528's acceptance spec).
@@ -108,7 +106,6 @@ func to_dict() -> Dictionary:
 		"overrides": override_rows,
 		"seed": seed,
 		"participants": participant_rows,
-		"victory_condition": victory_condition.resource_path if victory_condition != null else "",
 	}
 
 
@@ -127,6 +124,4 @@ static func from_dict(d: Dictionary) -> RunConfig:
 	for row in (d.get("participants", []) as Array):
 		parts.append(Participant.from_dict(row as Dictionary))
 	cfg.participants = parts
-	var vc_path := String(d.get("victory_condition", ""))
-	cfg.victory_condition = load(vc_path) as VictoryCondition if vc_path != "" else null
 	return cfg

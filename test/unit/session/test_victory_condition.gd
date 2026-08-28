@@ -215,9 +215,52 @@ func test_run_config_defaults_every_mode_to_last_camp_standing() -> void:
 				"mode %s should default to last-camp-standing" % mode)
 
 
-func test_run_config_honours_an_authored_condition() -> void:
+## #638 acceptance 1: the condition is read off the [Scenario], not off the run.
+func test_run_config_honours_the_scenarios_condition() -> void:
 	var cfg := RunConfig.new()
 	var authored := VictoryCondition.new()
-	cfg.victory_condition = authored
+	cfg.scenario = Scenario.new()
+	cfg.scenario.victory_condition = authored
 
 	assert_eq(cfg.resolved_victory_condition(), authored)
+
+
+## #638 acceptance 2, with the teeth the spec asks for: the fallback is the
+## SCENARIO's own default and takes no mode. Every [enum RunConfig.Mode] is run
+## against the SAME condition-less [Scenario] and every one must land on the
+## same type — a reintroduced `mode -> condition` switch that answered
+## differently for any mode fails here rather than passing silently the way the
+## deleted single-arm `default_condition_for` did.
+func test_a_scenario_authoring_no_condition_falls_back_without_consulting_mode() -> void:
+	var scenario := Scenario.new()
+	var scripts: Array = []
+	for mode in [RunConfig.Mode.SINGLE, RunConfig.Mode.COOP_HOTSEAT, RunConfig.Mode.VERSUS]:
+		var cfg := RunConfig.new()
+		cfg.mode = mode
+		cfg.scenario = scenario
+		var resolved := cfg.resolved_victory_condition()
+		assert_true(resolved is LastCampStandingCondition,
+				"mode %s must fall back to last-camp-standing" % mode)
+		scripts.append(resolved.get_script())
+	assert_eq(scripts[0], scripts[1], "the fallback must not vary by mode")
+	assert_eq(scripts[1], scripts[2], "the fallback must not vary by mode")
+	assert_eq(scenario.resolved_victory_condition().get_script(), scripts[0],
+			"and it must be the SCENARIO's answer, reachable with no RunConfig at all")
+
+
+## #638 acceptance 3: `default_condition_for` is DELETED, not merely uncalled.
+func test_run_config_no_longer_exposes_a_mode_keyed_condition_default() -> void:
+	var src: GDScript = load("res://session/run_config.gd")
+	assert_false(src.source_code.contains("default_condition_for"),
+			"#638 acceptance 3: deleted, not left with no callers — "
+			+ "a mode must never decide content (#615 D6)")
+
+
+## #638 acceptance 5: a route whose [LobbyPolicy] does not unlock the slot
+## offers no victory ladder, and the Scenario's condition is used unchanged.
+func test_a_policy_that_does_not_unlock_the_slot_offers_no_victory_ladder() -> void:
+	var policy := LobbyPolicy.new()
+	assert_null(policy.victory_options,
+			"no shipped route unlocks the victory slot yet (#638)")
+	assert_false(policy.offers_run_section(),
+			"an unauthored victory ladder must not conjure a run section")

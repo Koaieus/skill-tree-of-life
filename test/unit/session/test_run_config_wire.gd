@@ -167,17 +167,17 @@ func _generate_from_preset(preset: GraphProcgenConfig, seed_value: int) -> Array
 	return result.get("nodes", [])
 
 
-## A [VictoryCondition] built via `.new()` (the common case —
-## [method RunConfig.default_condition_for] does exactly this) has no
-## `resource_path` and so cannot cross by reference. It decodes to `null`,
-## which resolves back to the SAME default via [method RunConfig.resolved_victory_condition]
-## on every peer, since that default is a pure function of `mode`.
+## Since #638 the victory condition does not cross at all — it hangs off the
+## [Scenario], which crosses as a path, so a peer that decoded the same scenario
+## resolves the same condition by construction. A run carrying NO scenario still
+## has to end somehow, and both sides must land on the SAME fallback type.
 func test_an_unauthored_victory_condition_resolves_to_the_same_default_on_both_sides() -> void:
 	var source := RunConfig.new()
 	source.mode = RunConfig.Mode.COOP_HOTSEAT
 	var decoded := RunConfig.from_dict(source.to_dict())
 
-	assert_null(decoded.victory_condition)
+	assert_false(source.to_dict().has("victory_condition"),
+			"#638: the condition is the Scenario's, so it no longer crosses on RunConfig")
 	assert_eq(decoded.resolved_victory_condition().get_script(),
 			source.resolved_victory_condition().get_script(),
 			"both peers must fall back to the same condition TYPE")

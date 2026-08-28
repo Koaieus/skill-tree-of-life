@@ -16,9 +16,8 @@ extends Resource
 ## mode authority, deriving it from the roster at press time. A [Scenario]
 ## cannot know in advance how many humans will end up sharing a camp.
 ##
-## Extended by #638, which adds the victory-condition slot to this same class
-## (moving [member RunConfig.victory_condition] here is explicitly NOT this
-## unit's job — see #641's acceptance 8).
+## Since #638 this is also where the victory condition lives: how a run ENDS is
+## a fact about what game you are playing, not about who is playing it.
 
 ## The composed procgen shape this scenario generates (#349). A composed
 ## [GraphProcgenConfig] — five module refs plus a seed — never edited through
@@ -42,3 +41,33 @@ extends Resource
 ## generation time. A `Scenario` meant only for a `RunBootstrap` sandbox with
 ## no lobby route can leave this null instead.
 @export var level_scene: PackedScene
+
+
+## How a run carrying this [Scenario] ends (#638, #597 D9). Null means "the
+## default" — see [method resolved_victory_condition]. It sits here rather than
+## on [RunConfig] because a victory condition is authored content, exactly like
+## [member preset]: two runs of the same scenario end the same way, and a lobby
+## that lets the host retune it does so as an override of THIS value, never as a
+## second authoritative home for it.
+@export var victory_condition: VictoryCondition = null
+
+
+## The condition actually in force, falling back to this Scenario's OWN default.
+##
+## [b]Deliberately not a function of [enum RunConfig.Mode][/b] (#638 acceptance
+## 2). The deleted `RunConfig.default_condition_for(mode)` was a `mode ->
+## condition` switch, which is `Mode` deciding CONTENT — forbidden by
+## `docs/domain/seat-policy.md` §"One axis" and #615 D6. A Scenario knows what
+## game it is; the mode only knows how many humans share a machine, and #597
+## D11a is explicit that a Scenario has no mode field at all. So the fallback is
+## a property of the scenario and takes no arguments — a reintroduced mode
+## switch has nowhere to hook.
+func resolved_victory_condition() -> VictoryCondition:
+	return victory_condition if victory_condition != null else default_victory_condition()
+
+
+## The condition a [Scenario] authoring none falls back to. Static so callers
+## with no [Scenario] at all (a `RunBootstrap` sandbox, #597 D6) resolve the
+## SAME answer rather than a second, drifting one.
+static func default_victory_condition() -> VictoryCondition:
+	return LastCampStandingCondition.new()

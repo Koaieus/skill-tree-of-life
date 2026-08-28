@@ -90,6 +90,24 @@ const MAX_CAMPS := 6
 ## number means FEWER blockers.
 @export var blocker_options: LobbyOptionSet = null
 
+## The victory-condition ladder this route offers, or null for "no victory
+## control" (#638 scope 3). Null on every shipped policy today, deliberately.
+##
+## [b]The slot exists; the picker does not, and that is #638's own call.[/b]
+## Exactly one [VictoryCondition] subclass ships ([LastCampStandingCondition]),
+## and #638 puts authoring more of them HARD out of scope — "the slot works with
+## one condition in it; with one, the picker simply does not render". So this is
+## authored empty and [method offers_run_section] never counts it.
+##
+## [b]Outstanding: #638 acceptance 4.[/b] Before a ladder can be authored here,
+## a lobby pick needs a way to reach [member Scenario.victory_condition], and
+## there is none — [ScenarioOverride] is a SCALAR leaf patch onto a
+## [GraphProcgenConfig] (D15 rejects TYPE_OBJECT outright) and a [Scenario] is
+## not one. The unit that authors the SECOND condition owns building that
+## channel, because a one-option picker never renders and so acceptance 4 is not
+## observably testable before then.
+@export var victory_options: LobbyOptionSet = null
+
 ## May the host retune [member BudgetPolicy.base_min] / [member BudgetPolicy.base_max]?
 ## Raw spinners rather than a ladder, and the one control #643 requires to work
 ## — see [BudgetRangeRow] for the owner's verbatim reason.
