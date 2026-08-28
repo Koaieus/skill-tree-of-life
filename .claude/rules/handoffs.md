@@ -1,1 +1,1 @@
-Handoff files live at `docs/handoffs/<topic>.md` (never the repo root), only *point* at decisions whose home is an issue/doc/rule/commit, and are deleted once spent. See the `handoff` skill.
+Handoff files live at `docs/handoffs/<topic>.md` (never the repo root), only *point* at decisions whose home is an issue/doc/rule/commit, and are deleted once spent — and the per-run swarm ledger `docs/handoffs/swarm-*.md` is gitignored, so write it but never commit it. See the `handoff` skill.
