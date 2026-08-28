@@ -31,8 +31,9 @@ signal run_ended(outcome: RunOutcome)
 @export var graph: Graph
 @export var turn_manager: TurnManager
 ## The rule in force. Authored here so a hand-built level scene can swap it;
-## [GameRoot] overrides it from [member RunConfig.victory_condition] when a run
-## carries one — that RunConfig comes off the `GameSession` autoload (#457).
+## [GameRoot] overrides it from [method RunConfig.resolved_victory_condition]
+## when a run carries one — that RunConfig comes off the `GameSession` autoload
+## (#457), and since #638 the condition itself lives on the run's [Scenario].
 ## Defaults to the mode-agnostic baseline for a level with no live run.
 @export var condition: VictoryCondition = LastCampStandingCondition.new()
 

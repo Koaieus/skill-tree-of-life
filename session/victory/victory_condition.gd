@@ -4,7 +4,8 @@ extends Resource
 ## When does a run end, and who won? An authored, swappable rule — the owner's
 ## call (2026-08-21) was that last-camp-standing is "the first and the default,
 ## not the only one", because multiplayer setups will want different
-## conditions. [RunConfig.victory_condition] carries the chosen one.
+## conditions. [member Scenario.victory_condition] carries the chosen one
+## (#638 moved it off RunConfig, which now only resolves it).
 ##
 ## Pure: [method evaluate] reads a [VictoryContext] and returns either a
 ## populated [RunOutcome] (the run is over) or [code]null[/code] (it continues).
