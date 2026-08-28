@@ -4,3 +4,18 @@
 
 # git worktrees (mise worktree:new/rm), each carries its own .godot/
 /.worktrees/
+
+# Swarm working files. Both are deliberately EPHEMERAL and both churned hard when
+# tracked — the 2026-08-28 run alone put 20 commits on its ledger, none of which
+# were the work. Knowledge that must outlive a run goes to the issue, a design doc,
+# or a rule file (see .claude/rules/handoffs.md); these two are scaffolding.
+#
+# The per-run swarm ledger. Still WRITTEN to disk and still how a `relief` session
+# orients — ignoring it stops the commit churn, it does not stop the mechanism.
+# Durable handoff docs (docs/handoffs/<topic>.md) stay tracked; only swarm-* is a
+# per-run ledger.
+docs/handoffs/swarm-*.md
+
+# Drone briefs and scratch bodies for `gh --body-file`. Never tracked in practice;
+# this just stops them showing up as permanent untracked noise in `git status`.
+/scratchpad/
