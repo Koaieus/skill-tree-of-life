@@ -181,42 +181,85 @@ Four rules, each of which has already cost something:
 
 ---
 
-## 3. The two `base_value` doors
+## 3. One `base_value` door, and the policy is authored data
 
-`Stat.base_value`'s setter emits `value_changed` but does **not** run
-`PoolStat._apply_max_change()`. That method is only reachable from
-`add_modifier` / `remove_modifier` / `_on_dependent_modifier_changed`.
+**Decision 2026-08-24 (#555), extended 2026-08-29 (#660).** There is exactly one
+door onto a pool's cap — `pool.base_value = v` — and the def decides what happens
+to `current` when it moves. Owner, verbatim on the old second door:
 
-**This is deliberate, not an oversight.** A raw `base_value` write is the door for
-moving a cap *without* the D-21 ratchet, and three callers depend on it:
+> *"`set_base_ratcheted` in my view has never had a right to exist, was pure
+> smell. because ratcheting behavior (follow on rise) imo is a knob we should set
+> on the pool, which changes the behavior of the setter (setters can be
+> overridden in subclasses too if needed)"*
 
-- `SkillPointStat.claim(n)` — max grows, `current` does not; the new SP lands in
-  `used`. This is exactly what distinguishes `claim` from `grant`, and
-  `AllocationSystem` calls it on **every allocation**.
-- `GrowablePoolStatDef` growth — a level-up must not also trigger
-  `heal_on_max_increase`.
-- `SkillNode._ensure_local_stat` — seeding a fresh combat pool's base while
-  `current` is still 0.
+`Stat` declares `base_value` with `set = _set_base_value` **precisely so
+`PoolStat` can override it** — the `set = _method` property form is
+subclass-overridable, the inline `set(v):` form is not. So a plain assignment,
+even through a `Stat`-typed reference, runs the def's policy. That is what makes
+the ordinary-looking write the *correct* one.
 
-So there are two doors, and you must pick:
+### The policy is two authored enums on `PoolStatDef`
 
-| Door | Call | Cap-change behaviour |
+| Knob | Values | Meaning |
 |---|---|---|
-| **Raw** | `stat.base_value = v` | none — no grant on a rise, no clamp on a fall |
-| **Ratcheted** | `pool.set_base_ratcheted(v)` | routes through `_apply_max_change` → `on_max_increased` / clamp |
+| `on_cap_rise` | `PIN` / `FOLLOW` | cap up: `current` sits still, or rises by the same delta (the D-21 ratchet) |
+| `on_cap_fall` | `CLAMP` / `FOLLOW` | cap down: `current` moves only if it would exceed the new cap, or drops by the same delta |
 
-**How this bit us (#346).** `SkillNode._sync_combat_health_base()` used the raw
-door to follow the owner's `node_health` baseline. So as CON climbed with level,
-every allocated node's cap rose while `current` stayed frozen, and node regen
-(~1/turn) could not close a gap that kept widening — nodes drifted toward reading
-near-empty and never recovered. The fix was to use the ratcheted door, *not* to
-weld the raw one shut: doing that would have made every `claim(1)` also mint a
-spendable SP, silently, on the hottest path in the game.
+**The clamp is an invariant, not a mode.** `current` is bounded by the cap after
+either policy runs, and no mode switches that off. Budget that legitimately
+exceeds the cap is a *separate bin* (`SurplusPoolStat.surplus`), which the
+cap-change policy never touches.
 
-**How to apply:** if you are moving a pool's `base_value` and the pool has a
-meaningful `current`, you almost certainly want `set_base_ratcheted`. Reach for
-the raw write only when you can name why the cap should move without the current
-following — and leave that reason in a comment, as `claim()` does.
+### The mint door is private, and there are four sites
+
+`PoolStat._set_base_minted(v)` moves the base *without* the policy. It is private
+and lives entirely inside `stats_system/`: `SkillPointStat.claim`,
+`SkillPointStat.grant`, `GrowablePoolStatDef.on_pool_filled`'s growth, and
+`PoolStat._read_base` (a wire snapshot transports a cap; that is not a cap
+*change*). Board init and `StatBoard.clone_live` use it for the same reason.
+**A mint is "this pool's own base is game state it grows itself"** — never "the
+cap followed something else", which is a plain assignment.
+
+### The policy also chooses the STORED REPRESENTATION (#660)
+
+`PoolStat.stores_missing()` is derived from those same two enums, not from a
+third switch:
+
+- `FOLLOW` **on both** rise and fall → the pool stores **damage taken**, and
+  `current` is *derived* as `max(floor, cap − missing)` on every read.
+- anything else → the pool stores an absolute `current`, as it always did.
+
+One accessor either way: `current` is always read and written in absolute units,
+and nothing outside `PoolStat` knows which representation it is holding (house
+rule: no parallel mirrors of logic). What falls out of missing-storage rather
+than being implemented:
+
+- **the cap can move with no notification at all** — which is what let #660
+  delete the CON→`node_health` fan-out, where every owned node held a
+  `value_changed` subscription and re-pushed its own cap on every CON swing;
+- **path independence** — a cap that dips and returns leaves `current` exactly
+  where it was. The old `FOLLOW` rise + `CLAMP` fall pair forgave damage down to
+  the dip and handed it back on the way up, so a dealloc/realloc CON round trip
+  *healed* you. Nobody designed that, and it is gone;
+- **the sliver** — a fall past the damage floors at `min_value` instead of
+  killing. Death stays exclusively inside `NodeCombat.take_damage`, so a node
+  driven to the floor by pure stat loss survives and dies to the next real hit.
+
+`node_combat_health` is the only def on this side today. Entity-board pools
+(`health`, `mana`, `action_points`, …) have a fan-out of 1 and stay
+stored-current.
+
+**How this bit us (#346).** Back when the raw write was the *silent-bypass* door,
+`SkillNode._sync_combat_health_base()` used it to follow the owner's `node_health`
+baseline. Every allocated node's cap rose with CON while `current` stayed frozen,
+and node regen (~1/turn) could not close a widening gap — nodes drifted toward
+reading near-empty. #555 inverted the default so the ordinary write is the safe
+one; #660 deleted the sync entirely.
+
+**How to apply:** move a cap with `pool.base_value = v` and author the policy on
+the def. If you find yourself wanting `_set_base_minted`, you need a reason you
+can name in a comment, as `claim()` does — and you need to be inside
+`stats_system/`.
 
 ---
 

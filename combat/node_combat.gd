@@ -102,6 +102,14 @@ func snapshot(owner_combat: EntityCombat) -> NodeCombat:
 		host._init_node_board()
 		# clone_live, not duplicate(true) — see its doc on StatBoard.
 		shadow._board = host.node_board.clone_live() as NodeStatBoard
+		# The clone's `node_health` pool must resolve through the SHADOW's owner,
+		# never the live one. `base_provider` is not exported so `duplicate()`
+		# does not carry it, but `clone_live` copies stat-by-stat — clear it
+		# explicitly rather than rely on that, then let `_hp_pool` reinstall this
+		# slice's own on first read.
+		var shadow_hp := shadow._board.get_stat(&"node_health") as PoolStat
+		if shadow_hp != null:
+			shadow_hp.base_provider = Callable()
 	return shadow
 
 
@@ -174,27 +182,56 @@ func get_local_value(stat_id: StringName) -> Variant:
 	return 0.0
 
 
-## Max combat HP — state-half twin of [method SkillNode.get_max_hp]. Live
-## reads the node board's pool, which [method SkillNode._sync_combat_health_base]
-## keeps ratcheted (PUSH, off the owner's `node_health` `value_changed` signal)
-## — untouched here. A shadow has no host, so no [SkillNode] and no signal to
-## drive that push; it re-runs the identical ratchet formula on every read
-## instead (PULL). That's what lets a modifier added to the shadow's own
-## entity board move the cap mid-"attack" with no signal machinery in play —
-## see docs/domain/attack-timeline.md's "max health is derived, not snapshotted".
-func get_max_hp() -> float:
+## This node's `node_health` pool, with its cap PROVIDER installed (#660).
+##
+## The provider is the whole of the CON fan-out's replacement: the pool's cap
+## base is the owner's `node_health` baseline, read live on every cap read
+## instead of pushed into every owned node whenever CON moves. It is installed
+## here rather than by [SkillNode] because this class is the one place that
+## already abstracts live-vs-shadow ([method board] / [method owner]) — one
+## provider serves both worlds, each resolving through its OWN owner, and the
+## shadow's "re-run the formula on read" (docs/domain/attack-timeline.md's "max
+## health is derived, not snapshotted") simply became the live path too.
+##
+## Re-pointed on every call rather than once: a slice is not rebound when
+## [AllocationSystem] rewrites `owned_by`, and the provider closes over `self`,
+## whose [method owner] read is already fresh-every-call by this class's
+## no-caching rule.
+func _hp_pool() -> PoolStat:
 	var b := board()
 	if b == null:
-		return 0.0
-	var hp := b.get_stat(&"node_health") as PoolStat
-	if hp == null:
-		return 0.0
-	if host == null:
-		var o := owner()
-		var baseline: Stat = o.board().get_stat(&"node_health") if o != null and o.board() != null else null
-		if baseline != null:
-			hp.base_value = float(baseline.get_value())
-	return hp.value
+		return null
+	# Materialised on first NEED, never on ownership: the deleted sync used to
+	# mint this pool as a side effect of its per-node push, and an unowned node
+	# must not pay for one across a 2500-node level (.claude/rules/skill-node-scale.md).
+	# `_ensure_stat` routes through [method NodeStatBoard._mint_stat], which is
+	# what makes this id a PoolStat on a node board and a ScalarStat baseline on
+	# an entity board.
+	var hp := (b._ensure_stat(&"node_health") if is_allocated() else b.get_stat(&"node_health")) as PoolStat
+	if hp != null and hp.base_provider != _node_health_base:
+		hp.base_provider = _node_health_base
+	return hp
+
+
+## The provider itself: the owner's `node_health` baseline, or this pool's own
+## stored base when there is no owner (an unallocated node still has to answer
+## [method get_max_hp] with something, and its stored base is the def default
+## the mint seeded).
+func _node_health_base() -> float:
+	var o := owner()
+	var baseline: Stat = o.board().get_stat(&"node_health") if o != null and o.board() != null else null
+	if baseline != null:
+		return float(baseline.get_value())
+	var b := board()
+	var hp: Stat = b.get_stat(&"node_health") if b != null else null
+	return hp.base_value if hp != null else 0.0
+
+
+## Max combat HP — state-half twin of [method SkillNode.get_max_hp]. Derived on
+## read, live and shadow alike, through [method _hp_pool]'s provider (#660).
+func get_max_hp() -> float:
+	var hp := _hp_pool()
+	return hp.value if hp != null else 0.0
 
 
 ## This node's fill — state-half twin of [member SkillNode.allocation_level],
@@ -216,10 +253,7 @@ func get_allocation_level() -> int:
 
 ## Current combat HP — state-half twin of [method SkillNode.get_current_hp].
 func get_current_hp() -> float:
-	var b := board()
-	if b == null:
-		return 0.0
-	var hp := b.get_stat(&"node_health") as PoolStat
+	var hp := _hp_pool()
 	return hp.current if hp != null else 0.0
 
 
@@ -264,7 +298,7 @@ func take_damage(amount: float, source: Variant) -> void:
 	var flipped_to_heal := source is DamageInstance and effective < 0.0
 	if flipped_to_heal:
 		(source as DamageInstance).kind = HitInstance.Kind.HEAL
-	var hp := board().get_stat(&"node_health") as PoolStat if board() != null else null
+	var hp := _hp_pool()
 	if hp == null:
 		return
 	var before := hp.current
@@ -417,7 +451,7 @@ func remove_local_modifier(m: StatModifier) -> void:
 func heal_damage(amount: float, source: Variant) -> void:
 	if owner() == null or amount <= 0.0:
 		return
-	var hp := board().get_stat(&"node_health") as PoolStat if board() != null else null
+	var hp := _hp_pool()
 	if hp == null:
 		return
 	var prev := hp.current
@@ -444,7 +478,7 @@ func heal_damage(amount: float, source: Variant) -> void:
 ## State half of [method SkillNode.refill]. The notification half is
 ## [method SkillNode.notify_refilled].
 func refill(silent: bool = false) -> void:
-	var hp := board().get_stat(&"node_health") as PoolStat if board() != null else null
+	var hp := _hp_pool()
 	if hp == null:
 		return
 	var prev := hp.current

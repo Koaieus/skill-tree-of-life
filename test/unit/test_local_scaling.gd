@@ -382,13 +382,21 @@ func test_mutator_walk_is_linear_and_drift_free_at_scale() -> void:
 	assert_eq(int(_node.get_local_value(&"armor")), 70, "and the sweep is drift-free (14 x +5)")
 
 
+## RE-POINTED by #660 (the final assert was `hp.current == 25.0`, "fall clamps
+## to the new cap — never subtracts below it").
+##
+## That assertion WAS the dip-heal artifact, in miniature: this node starts at
+## 0/25, ramps its cap up to 55 and back down to 25, and under the old
+## FOLLOW-rise + CLAMP-fall pair came out at 25/25 — a full heal bought by
+## moving a number up and down. The node pool now stores damage taken, so the
+## 25 missing survives the whole round trip and it ends where it began.
+##
+## The RISE half is untouched: D-21 still grants the delta, which is the same
+## fact the missing-invariant states.
 func test_al_ramp_does_not_interfere_with_the_hp_ratchet() -> void:
 	# D-21 ratchet interaction: the mutator writes `value`, never
-	# `health.base_value`, so the node pool's ratchet ("HP only ticks up")
-	# stays intact across an al ramp. The +15 local node_health mod scales the
-	# CAP; the ratchet grants the delta on rise and clamps (never subtracts)
-	# on fall — so `current` never drops below the incoming cap and never
-	# subtracts.
+	# `health.base_value`, so the node pool's cap behaviour stays intact across
+	# an al ramp. The +15 local node_health mod scales the CAP.
 	_node.modifiers = [_add_mod(&"node_health", 15.0)]
 	_own()
 	var hp := _node.node_board.get_stat(&"node_health") as PoolStat
@@ -401,4 +409,5 @@ func test_al_ramp_does_not_interfere_with_the_hp_ratchet() -> void:
 	assert_almost_eq(hp.current, 30.0, 0.001, "second rise grants again: 15 -> 30")
 	_set_al(1)
 	assert_almost_eq(float(hp.value), 25.0, 0.001, "cap round-trips (10 + 15)")
-	assert_almost_eq(hp.current, 25.0, 0.001, "fall clamps to the new cap — never subtracts below it")
+	assert_almost_eq(hp.current, 0.0, 0.001,
+			"path independence (#660): 25 missing throughout, so the round trip heals nothing")

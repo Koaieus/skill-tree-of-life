@@ -256,10 +256,10 @@ func test_a_spells_record_replays_to_the_same_world_with_its_timeline() -> void:
 	var host: Dictionary = await _build()
 	var peer: Dictionary = await _build(_PEER_ORIGIN)
 	_arm_magic(host)
-	# Read AFTER the board settles: `mana`'s cap is base + INT//10 and
-	# `set_base_ratcheted` refills to it, so the fixture's own 10.0 is not the
-	# starting value. Asserting a delta rather than an absolute keeps this
-	# about the record.
+	# Read AFTER the board settles: `mana`'s cap is base + INT//10 and its def's
+	# `on_cap_rise = FOLLOW` hands the delta to `current`, so the fixture's own
+	# 10.0 is not the starting value. Asserting a delta rather than an absolute
+	# keeps this about the record.
 	var mana_before: float = (host.attacker as Entity).stat_board.mana.current
 	var command := await _fire_and_replay(host, peer)
 	assert_gt((command.record[AttackRecord.KEY_EVENT_BEAT] as PackedInt32Array).size(), 0,

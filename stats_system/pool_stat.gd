@@ -23,7 +23,94 @@ signal current_changed(new_current: Variant)
 ## not a value-changed notification. See [FloaterDirector]'s XP toast.
 signal replenished_by(amount: float)
 
-@export var current: float = 0.0
+## The pool's fill, ALWAYS in absolute units — read it, write it, serialize it
+## exactly as before. What changed in #660 is what sits behind it: this is a
+## property over [member _state], whose MEANING is the pool's representation
+## policy (see [method stores_missing]). A missing-storage pool derives this on
+## every read from the live cap, which is what lets that cap move with no
+## per-node notification at all.
+##
+## The setter is deliberately RAW — no clamp, no signal — because that is what
+## the plain `@export var` it replaces was. `.tres` deserialization writes
+## `current` BEFORE `definition` and `base_value` (the file is alphabetical), so
+## a clamping setter here would pin every authored pool to a cap of 0.
+## Clamping and crossings live in [method set_current], as they always have.
+@export var current: float = 0.0:
+	get = _get_current, set = _set_current_field
+
+## The single float of health state this pool actually stores.
+##
+## [b]One field, two meanings, chosen by authored policy[/b] — never two fields
+## (house rule: no parallel mirrors of logic). Stored-current pools keep the
+## absolute fill here; missing-storage pools keep DAMAGE TAKEN. Nothing outside
+## this class reads it: [member current] is the one accessor, in both
+## representations.
+var _state: float = 0.0
+
+## Live source for this pool's cap BASE, replacing the stored [member base_value]
+## when set (#660). Installed by [method NodeCombat.get_max_hp]'s pool accessor
+## on a node's `node_health` pool, where the base IS the owner's `node_health`
+## baseline and pushing it per-node was the CON fan-out this issue deletes.
+##
+## Not exported, so `duplicate()` never carries one world's provider into
+## another's clone — a shadow installs its own, pointed at its own owner.
+var base_provider: Callable = Callable()
+
+
+## True iff this pool stores DAMAGE TAKEN rather than an absolute fill.
+##
+## The discriminator is the def's own policy, not a separate switch: a pool that
+## FOLLOWs its cap in both directions is, by definition, one whose `missing` is
+## the invariant — so storing `missing` and deriving `current = max(floor, cap −
+## missing)` IS that policy, exactly, with no cap-change work to do. A pool that
+## CLAMPs on the way down has a fill that is genuinely independent of its cap and
+## must store it.
+##
+## Consequences that fall out rather than being implemented (#660):
+## - the cap may move with no notification and `current` stays correct;
+## - a dip-and-restore round trip heals nothing (path independence);
+## - a cap fall past `missing` floors at [method _min_value] — the sliver — and
+##   death stays exclusively inside [method NodeCombat.take_damage].
+func stores_missing() -> bool:
+	var d := pool_definition
+	return (
+		d != null
+		and d.on_cap_rise == PoolStatDef.CapRise.FOLLOW
+		and d.on_cap_fall == PoolStatDef.CapFall.FOLLOW
+	)
+
+
+func _get_current() -> float:
+	if stores_missing():
+		return maxf(float(_min_value()), float(get_value()) - _state)
+	return _state
+
+
+## Raw write half of [member current] — see its doc for why this does not clamp.
+func _set_current_field(v: float) -> void:
+	_store_current(v, float(get_value()) if stores_missing() else 0.0)
+
+
+## [method _set_current_field] for a caller that already knows the cap, so a
+## clamp-and-store round trip runs the cap pipeline once instead of twice.
+func _store_current(v: float, cap: float) -> void:
+	if stores_missing():
+		_state = maxf(0.0, cap - v)
+	else:
+		_state = v
+
+
+## Transfer this pool's state to [param dst] in its STORED representation.
+##
+## [method StatBoard.clone_live] copies bins by hand after the base, so at the
+## moment it transfers state the clone's cap is still bare `base_value` — an
+## absolute `dst.current = src.current` would be re-encoded against the wrong
+## cap on a missing-storage pool. Both sides hold the same def and therefore the
+## same policy, so copying the raw field is exact and order-independent.
+func copy_state_from(src: PoolStat) -> void:
+	if src == null:
+		return
+	_state = src._state
 
 
 var pool_definition: PoolStatDef:
@@ -33,6 +120,18 @@ func _init() -> void:
 	super()
 	if Engine.is_editor_hint():
 		current_changed.connect(func(_v): notify_property_list_changed())
+
+
+## The cap. [member base_provider] wins over the stored [member base_value] when
+## one is installed, and such a read deliberately SKIPS #470's memo: a provided
+## base moves with no signal to dirty it, so caching it is the one thing that
+## would make lazy defer a VALUE rather than a signal. The fold itself is the
+## identical [method ModifierBins.compute_single] over the identical bins in the
+## identical insertion order — #463's stable-order obligation is untouched.
+func get_value() -> Variant:
+	if base_provider.is_valid():
+		return _coerce(ModifierBins.compute_single(float(base_provider.call()), bins))
+	return super()
 
 
 func _computed_display() -> String:
@@ -134,7 +233,7 @@ func _set_current_with_cap(v: float, cap: float) -> void:
 		return
 	var was_below_cap := current < cap
 	var excess: float = max(0.0, v - cap)
-	current = clamped
+	_store_current(clamped, cap)
 	current_changed.emit(_coerce(current))
 	_emit_value_changed()
 	if current <= floor_v:
@@ -238,6 +337,12 @@ func _on_dependent_modifier_changed(m: StatModifier) -> void:
 func _apply_max_change(old_max: float) -> void:
 	var new_max := float(get_value())
 	if is_equal_approx(new_max, old_max):
+		return
+	# A missing-storage pool has NOTHING to do here: FOLLOW in both directions
+	# and the clamp invariant are both what `current = max(floor, cap − missing)`
+	# already means. This early return is the deleted fan-out, at the seam where
+	# the per-node work used to happen (#660).
+	if stores_missing():
 		return
 	var d := pool_definition
 	if d != null:

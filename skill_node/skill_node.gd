@@ -371,10 +371,6 @@ var regen_stacks: int = 0
 ## hit since its last upkeep gets no base heal this turn and its ramp resets.
 var _damaged_since_upkeep: bool = false
 
-# Track the entity node_health stat so we can re-sync the node's combat health
-# base_value when the entity baseline changes. Swap on owner_changed.
-var _bound_entity_node_health: Stat = null
-
 # Hit-flash bookkeeping. Killed and re-created on every hit so back-to-back
 # damage doesn't visually merge into one stuck red.
 var _hit_flash_tween: Tween
@@ -1177,39 +1173,23 @@ func notify_healed(_prev: float, _after: float, effective: float, source: Varian
 # ── Internals ──────────────────────────────────────────────────────────────
 
 
+## Ownership changed: materialize the board and refill, or reset to empty.
+##
+## [b]This used to be a subscription, and the subscription is what #660
+## deleted.[/b] Every owned node held a `value_changed` connection to its
+## owner's `node_health` and re-pushed the cap into its own pool whenever CON
+## moved — O(owned) full pipeline evaluations per allocation. The cap is now
+## DERIVED on read from that same baseline ([method NodeCombat._hp_pool]'s
+## provider), and the pool stores damage taken rather than an absolute fill
+## ([method PoolStat.stores_missing]), so there is no per-node copy to keep in
+## step and nothing to invalidate. What is left is the ownership transition
+## itself, which is genuinely per-node and genuinely rare.
 func _refresh_hp_binding() -> void:
-	# Detach from previous owner's node_health; attach to the new owner's.
-	if _bound_entity_node_health != null and _bound_entity_node_health.value_changed.is_connected(_on_entity_node_health_changed):
-		_bound_entity_node_health.value_changed.disconnect(_on_entity_node_health_changed)
-		_bound_entity_node_health = null
 	if owned_by != null and owned_by.stat_board != null:
 		_init_node_board()
-		_bound_entity_node_health = owned_by.stat_board.get_stat(&"node_health")
-		if _bound_entity_node_health != null:
-			if not _bound_entity_node_health.value_changed.is_connected(_on_entity_node_health_changed):
-				_bound_entity_node_health.value_changed.connect(_on_entity_node_health_changed)
-			# Sync our combat health pool's base_value to the entity baseline.
-			_sync_combat_health_base()
 		refill(true)
 	else:
 		_reset_combat_health()
-
-
-func _on_entity_node_health_changed() -> void:
-	_sync_combat_health_base()
-
-
-func _sync_combat_health_base() -> void:
-	if _bound_entity_node_health == null:
-		return
-	var hp := _ensure_local_stat(&"node_health") as PoolStat
-	if hp == null:
-		return
-	# Ratcheted, not a raw `base_value` write: the owner's node_health baseline
-	# climbs with CON/level, and a raw write moves the cap *outside* the ratchet —
-	# no grant on a rise, no clamp on a fall. That stranded `current` at its old
-	# value while max grew, which is #346's "nodes sit at ~1/10 max HP". D-31.
-	hp.base_value = float(_bound_entity_node_health.get_value())
 
 
 func _reset_combat_health() -> void:

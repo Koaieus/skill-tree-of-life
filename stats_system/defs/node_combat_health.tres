@@ -5,9 +5,10 @@
 [resource]
 script = ExtResource("1_def")
 on_cap_rise = 1
+on_cap_fall = 1
 id = &"node_combat_health"
 display_name = "Node Combat Health"
-description = "Per-node combat HP pool. Max is entity.node_health baseline + node-local modifiers; current tracks damage/heal. on_cap_rise = FOLLOW so adding node-local HP bumps current. Refilled at turn start by the owning entity."
+description = "Per-node combat HP pool. Max is entity.node_health baseline + node-local modifiers, DERIVED ON READ (#660) — nothing pushes it per node. FOLLOW on both rise and fall is what makes this a missing-storage pool (PoolStat.stores_missing): it keeps damage taken, so the cap may move with no notification, a dip-and-restore round trip heals nothing, and a fall past the damage floors at min_value (the sliver) rather than killing. Death stays exclusively inside NodeCombat.take_damage. Refilled at turn start by the owning entity."
 value_type = 1
 default_value = 10.0
 minimum_value = 0.0

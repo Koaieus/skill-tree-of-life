@@ -95,10 +95,13 @@ func test_entity_node_health_change_re_syncs() -> void:
 
 # ── D-31: the node pool ratchets like the entity pool (#346) ────────────────
 #
-# Cap rises -> grant the delta into `current`. Cap falls -> clamp only, never
-# subtract. These drive through the ENTITY baseline (the path #346 broke),
-# not through a node-local modifier (already covered above) — the whole bug
-# was that the two took different routes into the cap.
+# Cap rises -> grant the delta into `current` (the D-21 ratchet, unchanged).
+# Cap FALLS -> #660 replaced CLAMP with the missing-invariant + a floor: the
+# pool stores DAMAGE TAKEN, so a fall carries the damage down with it and a
+# fall past the damage floors at min_value (the sliver) instead of killing.
+# These drive through the ENTITY baseline (the path #346 broke), not through a
+# node-local modifier (already covered above) — the whole bug was that the two
+# took different routes into the cap.
 
 func test_entity_driven_cap_rise_grants_the_delta() -> void:
 	var ctx: Dictionary = await _setup_node(20.0)
@@ -113,7 +116,13 @@ func test_entity_driven_cap_rise_grants_the_delta() -> void:
 	assert_almost_eq(hp.current, 28.0, 0.001, "D-21 ratchet: the +20 cap delta lands in current")
 
 
-func test_entity_driven_cap_fall_clamps_but_never_subtracts() -> void:
+## RE-POINTED by #660 (was `test_entity_driven_cap_fall_clamps_but_never_subtracts`,
+## which pinned `current` at 5 through the fall). The node pool stores damage
+## taken, so a cap fall carries the damage with it; with 35 missing and a cap of
+## 20 the node floors at the sliver and stays ALIVE — death is exclusively
+## [method NodeCombat.take_damage]'s. The old CLAMP semantics is what produced
+## the dip-heal artifact the next test pins as gone.
+func test_entity_driven_cap_fall_carries_damage_down_to_the_sliver() -> void:
 	var ctx: Dictionary = await _setup_node(20.0)
 	var node: SkillNode = ctx.node
 	var board: EntityStatBoard = ctx.board
@@ -123,11 +132,55 @@ func test_entity_driven_cap_fall_clamps_but_never_subtracts() -> void:
 	board.add_modifier(m)
 	assert_almost_eq(hp.value, 40.0, 0.001)
 
-	# Well below the incoming max -> untouched (#276 acceptance criterion 6).
-	hp.set_current(5.0)
+	hp.set_current(5.0)  # 35 missing
 	board.remove_modifier(m)
 	assert_almost_eq(hp.value, 20.0, 0.001, "cap falls back to the baseline")
-	assert_almost_eq(hp.current, 5.0, 0.001, "current below the new max must NOT be subtracted from")
+	assert_almost_eq(hp.current, 0.0, 0.001, "missing (35) exceeds the new cap (20): floors at the sliver")
+	assert_false(node.is_queued_for_deletion(), "a pure stat-loss dip must never kill — only take_damage does")
+
+
+## Acceptance 2 (#660): path independence, and the death of the dip-heal.
+##
+## A cap that dips and comes back must leave `current` exactly where it was.
+## Under the old `on_cap_fall = CLAMP` + `on_cap_rise = FOLLOW` pair, the fall
+## forgot damage down to the dip and the rise handed it back as HP — a
+## dealloc/realloc CON round trip healed you. Nobody designed that.
+func test_cap_round_trip_heals_nothing() -> void:
+	var ctx: Dictionary = await _setup_node(100.0)
+	var board: EntityStatBoard = ctx.board
+	var node: SkillNode = ctx.node
+	var hp := node.node_board.get_stat(&"node_health") as PoolStat
+	hp.deplete(10.0)
+	assert_almost_eq(hp.current, 90.0, 0.001, "damaged to 90/100")
+
+	var dip := _mod(StatModifier.Operation.ADD_BASE, -20.0, &"node_health")
+	board.add_modifier(dip)
+	assert_almost_eq(hp.value, 80.0, 0.001, "cap dipped to 80")
+	assert_almost_eq(hp.current, 70.0, 0.001, "the 10 missing came down with the cap")
+
+	board.remove_modifier(dip)
+	assert_almost_eq(hp.value, 100.0, 0.001, "cap back to 100")
+	assert_almost_eq(hp.current, 90.0, 0.001, "still 10 missing — the round trip healed nothing")
+
+
+## Acceptance 3 (#660): a slivered node dies to the next REAL hit, through the
+## ordinary [method SkillNode.take_damage] -> [method SkillNode.notify_depleted]
+## path. Death never falls out of a lazy read.
+func test_slivered_node_dies_to_the_next_real_hit() -> void:
+	var ctx: Dictionary = await _setup_node(20.0)
+	var board: EntityStatBoard = ctx.board
+	var node: SkillNode = ctx.node
+	var hp := node.node_board.get_stat(&"node_health") as PoolStat
+
+	var m := _mod(StatModifier.Operation.ADD_BASE, 20.0, &"node_health")
+	board.add_modifier(m)
+	hp.set_current(5.0)
+	board.remove_modifier(m)
+	assert_almost_eq(hp.current, 0.0, 0.001, "slivered")
+
+	watch_signals(node)
+	node.take_damage(1000.0, null)
+	assert_signal_emitted(node, "depleted", "the next real hit kills through take_damage")
 
 
 func test_entity_driven_cap_fall_clamps_current_above_new_max() -> void:

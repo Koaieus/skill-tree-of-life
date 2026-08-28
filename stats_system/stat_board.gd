@@ -676,12 +676,12 @@ func clone_live() -> StatBoard:
 			dst_stat.base_value = src_stat.base_value
 		if dst_stat is PoolStat and src_stat is PoolStat:
 			# Order-independent, and worth stating because it doesn't look it:
-			# `current` is a plain `@export var`, NOT a clamping property — the
-			# clamp against the cap lives in the `set_current()` METHOD. So
-			# assigning it here, while the clone's bins are still empty and its
-			# cap therefore still bare `base_value`, does not silently clip a
-			# node sitting at 50/120 down to 20/20.
-			(dst_stat as PoolStat).current = (src_stat as PoolStat).current
+			# state is transferred in its STORED representation, so it neither
+			# clips against the clone's still-bare cap (bins are copied below)
+			# nor re-encodes a missing-storage pool against the wrong one — see
+			# [method PoolStat.copy_state_from]. Both sides hold the same def and
+			# therefore the same policy, which is what makes a raw copy exact.
+			(dst_stat as PoolStat).copy_state_from(src_stat as PoolStat)
 		dst_stat._board = dst
 		dst_stat.bins.base_add = src_stat.bins.base_add
 		dst_stat.bins.increase_sum = src_stat.bins.increase_sum

@@ -32,6 +32,12 @@ var _value_tween: Tween = null
 ## momentary alpha would let `_fade_to` early-return while a tween still drives
 ## alpha toward the *opposite* target, leaving the bar stuck (#147).
 var _fade_target: float = 0.0
+## The owner whose entity-level [signal Entity.node_health_cap_changed] this bar
+## is currently subscribed to (#660). The node pool's own `value_changed` no
+## longer fires when the OWNER's `node_health` baseline moves — the cap is
+## derived on read — so a visible bar hears it once, from the entity, instead of
+## every owned node holding a listener.
+var _cap_source: Entity = null
 
 
 func _ready() -> void:
@@ -51,7 +57,7 @@ func _ready() -> void:
 	_skill_node.mouse_exited.connect(_on_unhovered)
 
 	# Deferred so SkillNode._ready() (parent) runs first — it creates the
-	# node_board and syncs combat health during _refresh_hp_binding.
+	# node_board and refills combat health during _refresh_hp_binding.
 	_on_owner_changed.call_deferred()
 
 
@@ -63,7 +69,19 @@ func _on_owner_changed() -> void:
 	var hp: PoolStat = null
 	if _skill_node.is_allocated() and _skill_node.node_board != null:
 		hp = _skill_node.node_board.get_stat(&"node_health") as PoolStat
+	_bind_cap_source(_skill_node.owned_by if _skill_node.is_allocated() else null)
 	_bind_pool(hp)
+
+
+## Subscribe to the one entity-level cap signal, swapping owners as they change.
+func _bind_cap_source(e: Entity) -> void:
+	if _cap_source == e:
+		return
+	if _cap_source != null and _cap_source.node_health_cap_changed.is_connected(_on_max_changed):
+		_cap_source.node_health_cap_changed.disconnect(_on_max_changed)
+	_cap_source = e
+	if _cap_source != null:
+		_cap_source.node_health_cap_changed.connect(_on_max_changed)
 
 
 ## #504: the bar binds to the real `node_health` pool and draws it — both its
@@ -99,9 +117,17 @@ func _on_current_changed(new_current: Variant) -> void:
 	_update_visibility_for(hp)
 
 
+## The cap moved — from a node-local modifier (the pool's own `value_changed`)
+## or from the owner's baseline ([signal Entity.node_health_cap_changed]).
+##
+## Re-reads `current` as well, and must: this pool stores DAMAGE TAKEN
+## ([method PoolStat.stores_missing]), so a cap move IS a current move, and no
+## `current_changed` accompanies it.
 func _on_max_changed() -> void:
-	if _pool != null:
-		max_value = _pool.value
+	if _pool == null:
+		return
+	max_value = _pool.value
+	_on_current_changed(_pool.current)
 
 
 func _sync() -> void:

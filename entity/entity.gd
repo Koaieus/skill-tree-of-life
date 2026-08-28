@@ -10,6 +10,16 @@ extends Node
 signal core_location_changed
 signal leveled_up(new_level: int)
 signal died
+## This entity's `node_health` BASELINE moved, so the derived cap of every node
+## it owns moved with it (#660).
+##
+## [b]One signal, not one per owned node.[/b] It replaces the N per-node
+## `value_changed` subscriptions the old CON fan-out kept — the cap itself is
+## derived on read ([method NodeCombat._hp_pool]), so this carries no value and
+## invalidates nothing; it exists purely so a VISIBLE health bar knows to
+## re-read. Cost is O(listeners), which is O(visible), never O(owned). Do not
+## reintroduce a per-node listener as a convenience.
+signal node_health_cap_changed
 
 ## The player/enemy relation. Two teams for now (#384): [constant ALLIED] is
 ## same-[member faction], [constant HOSTILE] is everything else. Enemies do
@@ -333,6 +343,11 @@ func initialize() -> void:
 		# dies. The core node never emits `depleted` itself (#18).
 		if stat_board.health != null:
 			stat_board.health.depleted.connect(_on_health_depleted)
+		# The single re-emit that stands in for every owned node's old binding
+		# (#660). Connected once, here, for the entity's whole life.
+		var node_hp_baseline: Stat = stat_board.get_stat(&"node_health")
+		if node_hp_baseline != null:
+			node_hp_baseline.value_changed.connect(node_health_cap_changed.emit)
 
 	var tm := _find_turn_manager()
 	if tm != null:

@@ -9,14 +9,20 @@ extends GutTest
 ## made of. Three probes here:
 ##
 ## 1. [b]Ablation.[/b] Re-run the same ramp with the entity `node_health` ->
-##    per-node `_sync_combat_health_base` binding severed before each timed
-##    allocation. If the expensive tail collapses, the fan-out is causal.
+##    per-node listeners severed before each timed allocation. It was the
+##    ablation that proved the fan-out causal; post-#660 there are no per-node
+##    listeners left to sever, so LIVE and ABLATED converging IS the fix.
 ## 2. [b]Within-run regression.[/b] Bucket the CON-granting allocations by
 ##    `owned_before` and report usec/owned. Flat -> linear; rising -> quadratic.
 ##    A max at 200 vs a max at 300 is one noisy order statistic; this is not.
-## 3. [b]Decomposition.[/b] At a fully built territory, time one entity
-##    `node_health` move under four conditions to split signal dispatch from
-##    `_ensure_local_stat` from the pipeline read.
+## 3. [b]Baseline move (rewritten by #660).[/b] At a fully built territory,
+##    time one entity `node_health` move and price the derived reads that
+##    replaced the eager push. Acceptance 1 lives here.
+##
+## [b]Findings 1-7 below are the 2026-08 RECORD of the eager fan-out, kept as
+## history — #660 deleted the mechanism they anatomise[/b] (`set_base_ratcheted`
+## and `heal_on_max_increase` are both gone; the per-node push is gone). Probes 1
+## and 2 still run unchanged and are the before/after; probe 3 was rewritten.
 ##
 ## Run: [code]mise run test:one -- res://test/perf/bench_con_fanout.gd[/code]
 ## `test/perf/` is outside `.gutconfig` and the `bench_` prefix keeps GUT's
@@ -190,8 +196,15 @@ func _report_ramp(label: String, rows: Array) -> void:
 			mean_us / maxf(mean_owned, 1.0)])
 
 
-## Time one entity-side `node_health` change against a built territory, under
-## four conditions, to split the ~30us/node into its parts.
+## [b]Probe 3, rewritten by #660.[/b] The old body dissected the per-node
+## `_sync_combat_health_base` callback — signal dispatch vs `_ensure_local_stat`
+## vs the two pipeline reads. There is no such callback any more: the cap is
+## DERIVED on read from the owner's baseline, and the node pool stores damage
+## taken, so a `node_health` move does no per-node work at all.
+##
+## What replaces it is the acceptance criterion itself: time one entity
+## baseline move at a fully built territory and show it does not scale with
+## owned count, then price the derived READ that pays for it.
 func _decompose(target: int) -> void:
 	await _build_world()
 	var policy: AllocationPolicy = _POLICY.duplicate(true)
@@ -210,167 +223,53 @@ func _decompose(target: int) -> void:
 	var owned: Array = _entity.navigator.get_mirrored_nodes()
 	var nh: Stat = _entity.stat_board.get_stat(&"node_health")
 	gut.p("")
-	gut.p("=== DECOMPOSITION at %d owned nodes ===" % owned.size())
+	gut.p("=== BASELINE MOVE at %d owned nodes (post-#660) ===" % owned.size())
 	if nh == null:
-		gut.p("  entity carries no node_health stat — nothing to decompose")
+		gut.p("  entity carries no node_health stat — nothing to measure")
 		return
 
-	# (a) The whole thing: one baseline move, full signal fan-out.
+	var per := func(us: int) -> float: return float(us) / maxf(owned.size(), 1.0)
+
+	# (a) The whole thing. Under the old push this was O(owned) full pipeline
+	#     evaluations; it is now one entity-side stat write plus one re-emit.
 	var t := Time.get_ticks_usec()
 	nh.base_value += 1.0
 	var full := Time.get_ticks_usec() - t
 
-	# (b) Same write with the fan-out severed — the cost of the entity-side
-	#     stat write alone, with no listeners.
+	# (b) The same write with every listener severed — the floor.
 	_sever_fanout()
 	t = Time.get_ticks_usec()
 	nh.base_value += 1.0
 	var bare := Time.get_ticks_usec() - t
 
-	# (c) The per-node callback, called directly in a loop (listeners are gone,
-	#     so this is the same work the dispatch would have done).
-	t = Time.get_ticks_usec()
-	for n in owned:
-		n._sync_combat_health_base()
-	var direct := Time.get_ticks_usec() - t
-
-	# (d) Just the two pipeline reads inside it — `set_base_ratcheted` calls
-	#     get_value() before and after — with no _ensure_local_stat, no setter.
+	# (c) What the laziness costs on the other side: one derived cap read per
+	#     owned node. This is the work that USED to be eager and is now paid
+	#     only by whoever actually looks — O(visible), not O(owned).
 	var pools: Array = []
 	for n in owned:
-		pools.append(n.node_board.get_stat(&"node_health"))
+		var pool: Variant = n.node_board.get_stat(&"node_health") if n.node_board != null else null
+		if pool != null:
+			pools.append(pool)
 	t = Time.get_ticks_usec()
-	for p in pools:
-		if p != null:
-			@warning_ignore("unused_variable")
-			var v: float = float(p.get_value()) + float(p.get_value())
+	for pool in pools:
+		@warning_ignore("unused_variable")
+		var v: float = float(pool.value)
 	var reads := Time.get_ticks_usec() - t
 
-	# (e) `_ensure_local_stat` alone — the dictionary/mint path per node.
+	# (d) …and the derived `current` on top of it, which is the number a bar draws.
 	t = Time.get_ticks_usec()
-	for n in owned:
-		n._ensure_local_stat(&"node_health")
-	var ensure := Time.get_ticks_usec() - t
+	for pool in pools:
+		@warning_ignore("unused_variable")
+		var c: float = float(pool.current)
+	var currents := Time.get_ticks_usec() - t
 
-	var per := func(us: int) -> float: return float(us) / maxf(owned.size(), 1.0)
-	gut.p("  (a) full baseline move, live fan-out : %6dus  (%.1fus/node)" % [full, per.call(full)])
-	gut.p("  (b) same write, no listeners         : %6dus" % bare)
-	gut.p("  (c) per-node callback, direct loop   : %6dus  (%.1fus/node)" % [direct, per.call(direct)])
-	gut.p("  (d) 2x pool get_value() only         : %6dus  (%.1fus/node)" % [reads, per.call(reads)])
-	gut.p("  (e) _ensure_local_stat only          : %6dus  (%.1fus/node)" % [ensure, per.call(ensure)])
-	gut.p("  signal dispatch overhead (a - b - c) : %6dus" % (full - bare - direct))
+	gut.p("  (a) baseline move, live listeners : %6dus  (%.2fus/owned)" % [full, per.call(full)])
+	gut.p("  (b) baseline move, no listeners   : %6dus" % bare)
+	gut.p("  (c) derived cap read, %3d pools    : %6dus  (%.2fus/pool)" % [pools.size(), reads, float(reads) / maxf(pools.size(), 1.0)])
+	gut.p("  (d) derived current, %3d pools     : %6dus  (%.2fus/pool)" % [pools.size(), currents, float(currents) / maxf(pools.size(), 1.0)])
+	gut.p("  ACCEPTANCE 1: (a) must not scale with owned count — compare against")
+	gut.p("  the bucketed us-per-owned table above, which must now be flat.")
 
-	# --- Probe 4: split the per-node callback itself --------------------------
-	# `set_base_ratcheted` = one get_value(), a `base_value` write (which emits
-	# `value_changed` on the NODE board, un-batched), then `_apply_max_change`
-	# (another get_value(), then `on_max_increased` -> set_current -> another
-	# emission, since node_combat_health opts into `heal_on_max_increase`).
-	# Which of those three is the 8us?
-	t = Time.get_ticks_usec()
-	for p in pools:
-		if p != null:
-			p.base_value = p.base_value  # no-op: value unchanged
-	var noop := Time.get_ticks_usec() - t
-
-	t = Time.get_ticks_usec()
-	for p in pools:
-		if p != null:
-			p.base_value = p.base_value + 1.0  # RAW door: setter + emit, no ratchet
-	var raw_write := Time.get_ticks_usec() - t
-
-	t = Time.get_ticks_usec()
-	for p in pools:
-		if p != null:
-			p.base_value = p.base_value + 1.0  # full cap-policy door
-	var ratcheted := Time.get_ticks_usec() - t
-
-	var listeners := 0
-	if not pools.is_empty() and pools[0] != null:
-		listeners = (pools[0] as Stat).value_changed.get_connections().size()
-	gut.p("")
-	gut.p("  --- inside the per-node callback ---")
-	gut.p("  (f) base_value write, value UNCHANGED : %6dus  (%.1fus/node)" % [noop, per.call(noop)])
-	gut.p("  (g) raw `base_value =` write (+ emit)  : %6dus  (%.1fus/node)" % [raw_write, per.call(raw_write)])
-	gut.p("  (h) base_value write, value CHANGED   : %6dus  (%.1fus/node)" % [ratcheted, per.call(ratcheted)])
-	gut.p("      => _apply_max_change alone (h - g) : %6dus  (%.1fus/node)" % [ratcheted - raw_write, per.call(ratcheted - raw_write)])
-	gut.p("  node pool value_changed listeners      : %d" % listeners)
-
-	# --- Probe 5: what is a get_value() actually made of? ---------------------
-	# The read-side ceiling depends on this. A dirty-flag memo cannot remove
-	# BOTH reads inside set_base_ratcheted — `old_max` straddles the write, so
-	# the second is a compulsory miss. The other lever is making the call
-	# itself cheaper: it allocates a fresh `Array[ModifierBins]` literal per
-	# call. (j) reuses one array; (k) inlines the fold entirely, skipping the
-	# SET-winner scan and the multiplier walk — an upper bound on that win.
-	t = Time.get_ticks_usec()
-	for p in pools:
-		if p != null:
-			@warning_ignore("unused_variable")
-			var v := float(p.get_value())
-	var one_read := Time.get_ticks_usec() - t
-
-	var src: Array[ModifierBins] = [null]
-	t = Time.get_ticks_usec()
-	for p in pools:
-		if p != null:
-			src[0] = p.bins
-			@warning_ignore("unused_variable")
-			var v := ModifierBins.compute(p.base_value, src)
-	var hoisted := Time.get_ticks_usec() - t
-
-	t = Time.get_ticks_usec()
-	for p in pools:
-		if p != null:
-			var b: ModifierBins = p.bins
-			@warning_ignore("unused_variable")
-			var v: float = (p.base_value + b.base_add) \
-				* maxf(0.0, 1.0 + b.increase_sum / 100.0) + b.bonus_add
-	var inlined := Time.get_ticks_usec() - t
-
-	gut.p("")
-	gut.p("  --- what one get_value() costs ---")
-	gut.p("  (i) p.get_value()                      : %6dus  (%.2fus/node)" % [one_read, per.call(one_read)])
-	gut.p("  (j) compute() w/ hoisted source array  : %6dus  (%.2fus/node)" % [hoisted, per.call(hoisted)])
-	gut.p("  (k) fold inlined, no call, no SET scan : %6dus  (%.2fus/node)" % [inlined, per.call(inlined)])
-
-	# --- Probe 6: why is `heal_on_max_increase` 3us? -------------------------
-	# It is one addition, so it should be free. It is not, because
-	# `set_current` re-reads the cap through the WHOLE modifier pipeline (a
-	# third `get_value()` in the same callback) and then fires up to three
-	# signals plus a virtual. And these nodes sit at FULL hp, so the cap rise
-	# lands `current` exactly on the new cap every time — `was_below_cap` is
-	# true, so the fill branch is taken on every single one.
-	t = Time.get_ticks_usec()
-	for p in pools:
-		if p != null:
-			p.set_current(p.current)  # no-op: get_value, then early-return
-	var sc_noop := Time.get_ticks_usec() - t
-
-	t = Time.get_ticks_usec()
-	for p in pools:
-		if p != null:
-			p.set_current(p.current - 5.0)  # real change, DOWN: no fill branch
-	var sc_down := Time.get_ticks_usec() - t
-
-	t = Time.get_ticks_usec()
-	for p in pools:
-		if p != null:
-			p.set_current(p.current + 5.0)  # back up ONTO the cap: fill branch
-	var sc_up := Time.get_ticks_usec() - t
-
-	gut.p("")
-	gut.p("  --- what set_current() costs (the 'one addition') ---")
-	gut.p("  (l) set_current, no-op (get_value + bail): %6dus  (%.2fus/node)" % [sc_noop, per.call(sc_noop)])
-	gut.p("  (m) set_current down, no fill branch     : %6dus  (%.2fus/node)" % [sc_down, per.call(sc_down)])
-	gut.p("  (n) set_current up ONTO cap, fill branch : %6dus  (%.2fus/node)" % [sc_up, per.call(sc_up)])
-	gut.p("      => 2 signals + coerce (m - l)        : %6dus  (%.2fus/node)" % [sc_down - sc_noop, per.call(sc_down - sc_noop)])
-	gut.p("      => on_pool_filled + replenished (n-m): %6dus  (%.2fus/node)" % [sc_up - sc_down, per.call(sc_up - sc_down)])
-
-
-## Disconnect every listener on the owner's `node_health` stat — the O(owned)
-## edge this issue is about. Newly allocated nodes re-subscribe themselves via
-## `_refresh_hp_binding`, so this must be called before each timed allocation,
-## not once up front.
 func _sever_fanout() -> void:
 	var nh: Stat = _entity.stat_board.get_stat(&"node_health")
 	if nh == null:
