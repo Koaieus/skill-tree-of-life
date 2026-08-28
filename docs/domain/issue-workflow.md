@@ -74,6 +74,18 @@ The shell runs command substitution and silently deletes the span, publishing
 mangled text with no error. Write a heredoc to the scratchpad and use
 `--body-file`.
 
+## Never write a closing keyword in a commit body, even quoted
+
+GitHub's parser scans the whole commit message for `close/closes/closed/fix/…
+#NNN` and does not read quotation marks, negation, or context. On 2026-08-28,
+`429e6e1` — a docs commit whose body recorded that a *dead* `"close #470 against
+this"` instruction was **neutralized** — closed #470 the second it was pushed,
+with acceptance 1 unmet and nobody's decision behind it.
+
+So when writing *about* such an instruction, split the keyword from the number
+("the `close` #NNN instruction"), or write "issue 470". Same care in issue
+comments and PR bodies.
+
 ## Attribute owner decisions to the owner, verbatim
 
 Nearly every issue body and comment here was written by an agent, so when you

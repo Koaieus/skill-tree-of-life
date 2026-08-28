@@ -7,7 +7,7 @@
 Rewritten 2026-08-18. **This file no longer carries a backlog.** Everything that
 used to live here as prose — the playtesting findings, the meta-shell units, the
 perf follow-ups, the tier-ladder forks — is now filed as issues, and the
-**`LAN 2026-08-31` milestone** is the burn-down for the date. What remains here
+**`LAN 2026-09-04` milestone** is the burn-down for the date. What remains here
 is the one job a milestone cannot do: saying what is **next**, and by omission
 saying everything else is not.
 
@@ -25,7 +25,7 @@ judged against:
 2. **The player can control that**: windowed / fullscreen / borderless,
    resolution, vsync, framerate cap. Substrate shipped; the settings are #462.
 3. **LAN-playable**: single-player, seeded runs, and hot-seat coop by
-   **2026-08-31**, with versus if it fits. That is milestone `LAN 2026-08-31`.
+   **2026-09-04**, with versus if it fits. That is milestone `LAN 2026-09-04`.
 
 ## Why this file exists
 
@@ -56,18 +56,18 @@ forks and moves it to `Ready`. **FOCUS does not catalog `Needs design` work.**
 6. **`Ready` is a superset, not the queue.** Being `Ready` means "a drone *could*
    take this"; being named below means "a drone *should*".
 
-## The LAN — milestone `LAN 2026-08-31`, hub #456
+## The LAN — milestone `LAN 2026-09-04`, hub #456
 
-> **The LAN is 3-5 September, not 08-31.** Owner, 2026-08-25: *"the LAN is 3-5
-> Sept so we have time to get this right -- currently it's unpresentable"* (said
-> of the frontmatter menu). The milestone is still NAMED `LAN 2026-08-31` and
-> has not been renamed — treat the date in that name as the internal burn-down,
-> and 09-03 as the day it is shown to people. Rename the milestone or leave it;
-> that is an owner call nobody has made.
-
+> **The LAN is 4-6 September.** Owner call, 2026-08-29: the milestone is
+> **renamed** to `LAN 2026-09-04` (was `LAN 2026-08-31`, an internal burn-down
+> date that never matched the event) and the standing instruction for the window
+> is: *"we will take all time we have to land as much as we can, make it future
+> proof, but mostly, clean."* So the extra week buys **cleanliness, not scope** —
+> prefer the correct shape over the crappy-now shortcut that rule 5 permits
+> elsewhere.
 
 North Star #3, with a date on it. **Membership in that milestone means "this
-gates the 08-31 build"** — read it with `mise gh-project -- roadmap`, which
+gates the LAN build"** — read it with `mise gh-project -- roadmap`, which
 prints open / ready / needs-design counts per milestone, so the milestone answers
 "what is left, and what still needs its forks settled" without this file.
 
