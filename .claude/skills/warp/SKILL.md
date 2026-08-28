@@ -69,12 +69,23 @@ Two things specific to running in a *fresh* worktree:
   refresh (`mise run refresh`) — the main checkout's refresh doesn't propagate.
 
 **4. Test before presenting anything**
+
+The full suite is a **gate**, not a feedback loop — measured 2026-08-28 at
+**~162s, 335 scripts, 2948 tests** — so reach for it **once**, right before
+step 5. While iterating, use the cheap ladder instead:
+
 ```bash
-mise run test              # inside the worktree
-mise run check              # if any class_name changed
+mise run check                                     # ~20s — after every script edit
+mise run test:one -- res://test/unit/test_foo.gd   # the file you're changing
+mise run test:dir -- res://test/unit/<subsystem>/  # its subsystem, once you believe you're green
+mise run test                                      # full suite — ONCE, right before step 5
 ```
-Don't skip this to save time — the approval step in #5 assumes tests already
-pass; surfacing red tests at approval time wastes the review.
+
+Don't skip the full run to save time — the approval step in #5 assumes tests
+already pass; surfacing red tests at approval time wastes the review. But
+don't re-run it mid-iteration either — that's what `test:one`/`test:dir` are
+for, and a 162s round trip on every edit is exactly the waste this ladder
+exists to avoid.
 
 **5. Pending approval — stop and ask**
 Present the diff/summary to the user. **Do not merge without explicit

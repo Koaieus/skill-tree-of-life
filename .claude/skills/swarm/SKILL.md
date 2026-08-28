@@ -530,13 +530,14 @@ the same amount of code as the cheapest and cost 35% more, entirely in
 verification it was never asked for. That is the lever.
 
 **Bound verification explicitly in every prompt.** Drone already carries the
-caps (fast loop = `mise run check`; full suite **once** before reporting, not
-per edit; no new test harnesses unless the brief names one; no `xvfb` unless
-a shader changed). Adding a one-line reminder in the brief is cheap
-insurance; restating the full bullet list is drone's job and wastes tokens.
-The lever itself is real: the dearest worker in the run below cost 35% more
-than the cheapest for *identical code*, entirely in verification it was never
-asked for.
+ladder (`check` → `test:one` → `test:dir` → full, ~162s for the full suite as
+of 2026-08-28) and the cap that goes with it — full suite **at most once**,
+at final green, never to explore, never per edit; no new test harnesses
+unless the brief names one; no `xvfb` unless a shader changed. Adding a
+one-line reminder in the brief is cheap insurance; restating the full bullet
+list is drone's job and wastes tokens. The lever itself is real: the dearest
+worker in the run below cost 35% more than the cheapest for *identical
+code*, entirely in verification it was never asked for.
 
 **Have workers delegate broad searches downward too, not just you.** When a
 unit needs "where is X handled across the repo", drone already tells the
@@ -598,9 +599,11 @@ git diff master...<branch>                         # then content
    left where the issue asked for code)? Compare against the
    acceptance-parameters table from §1a — if the worker added an escape
    that the issue spec rejected, push back.
-3. **Test check.** Run `mise run test` from the merged tip after the
-   fast-forward, not the worker's claim. A green worker is not a green
-   `master`.
+3. **Test check.** A drone's own green — down to a `test:dir` run — is
+   acceptable input to proceeding with the merge; it is a claim, not the
+   verdict. The verdict is your own **authoritative full suite**, run once
+   per **batch** of merges rather than after every individual fast-forward
+   (the merge train, §6) — never the worker's claim standing in for it.
 
 Then **branch on quality**, in decreasing order of frequency:
 
@@ -664,7 +667,7 @@ game looks like, either drive it (`mise run play`) or say plainly
 to the user that you confirmed the plumbing and not the pixels. Don't let
 "tests pass, shader compiles" quietly stand in for "it looks right".
 
-### 6. Merge, one branch at a time
+### 6. Merge, one branch at a time — but test once per batch (the merge train)
 
 Per branch, in sequence, exactly as `warp` step 6 describes: rebase the
 branch onto `master` from inside its worktree, then fast-forward `master`.
@@ -672,8 +675,18 @@ Sequential is not a limitation — each rebase re-tests the *next* branch
 against the merged result of the previous ones, which is the only place a
 cross-unit break surfaces.
 
-Run `mise run test` after each merge, not only after the last. When
-something breaks, you want to know which branch did it.
+**The authoritative full suite runs once per batch of merges, not once per
+merge.** Owner call, 2026-08-28: *"orchestrator holds all the cards, if they
+merge in 10 commits… then merge all then test once."* Fast-forward every
+branch in the batch first, **then** run `mise run test` once against the
+merged tip. `swarm-v2` ran 11 authoritative suites in one night doing it
+per-merge; a train cuts that to roughly 2–4.
+
+**On a red batch, bisect.** Re-run the suite (or the narrower `test:dir` for
+the failing area) against successive merge points until you isolate the
+offending branch — that costs ~log2(n) extra suite runs, paid only in the
+failure case, and is still cheaper than paying the full 162s on every merge
+whether or not anything ever breaks.
 
 If the units were file-disjoint, every rebase is clean. A conflict here
 means the decomposition leaked — fix the decomposition's consequence, not

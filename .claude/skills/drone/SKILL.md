@@ -45,12 +45,30 @@ Read anything you like. Write only what you own.
 
 ## Red-green
 
-Your prompt gives you an acceptance test, or an exact spec. Drive to green:
+Your prompt gives you an acceptance test, or an exact spec. **The full suite
+is a gate, not a feedback loop** — measured 2026-08-28 at **~162s, 335
+scripts, 2948 tests** — so you earn it **at most once**, at your final green,
+immediately before reporting. Never to explore, never mid-rebase, never "to
+see where things stand." Use the cheap ladder instead while you iterate:
 
 ```bash
-mise run test:one -- res://test/unit/test_<yours>.gd    # your unit's test
-mise run test                                            # full suite before you finish
+mise run check                                           # ~20s — after every script edit
+mise run test:one -- res://test/unit/test_<yours>.gd     # the file you're changing
+mise run test:dir -- res://test/unit/<subsystem>/        # its subsystem, once you believe you're green
+mise run test                                            # full suite — AT MOST ONCE, right before you report
 ```
+
+`check` catches parse errors ~8x cheaper than a full run would; reach for it
+after every script edit. `test:one`/`test:dir` are your red-green loop. Three
+worked examples, from healthy drones in the corpus, cheapest to most
+expensive:
+
+- `c0f9d75f`: `check` → `test:one` → `test:dir` → one full suite at final
+  green → `test:one` to confirm → commit.
+- `e96e4971`: `check` → `test:dir` on the touched dir → commit. No full
+  suite — the change didn't warrant one.
+- `6743ce24`: `check` only — a visual/shader fix with no runtime-testable
+  behaviour. Correctly skipped `test:dir` and the full suite entirely.
 
 See `.claude/rules/testing.md`. Do not declare done on "looks right" — run the
 test and read the output. If it will not go green, report that plainly with the
@@ -125,13 +143,13 @@ don't touch issue status or labels.
   costs the team one message; grinding costs it your whole remaining context,
   and a swarm is bounded by a shared rate-limit window — your loop is
   spending everyone's budget. **A question is a success.**
-- **Do not over-verify.** Your fast loop is the project's compile check. Run
-  the full suite **once** before reporting, not after every edit —
-  verification you were not asked for is where workers burn 35% more than
-  their peers for identical code. Don't author new test suites unless your
-  brief names one; visual acceptance ("does it look right") does not get a
-  test harness. Don't do real-backend / `xvfb` boots unless you changed a
-  shader.
+- **Do not over-verify.** The ladder in Red-green is the budget — don't run
+  the full suite more than once, and don't reach for it as a substitute for
+  `test:one`/`test:dir` while you iterate. Verification you were not asked
+  for is where workers burn 35% more than their peers for identical code.
+  Don't author new test suites unless your brief names one; visual
+  acceptance ("does it look right") does not get a test harness. Don't do
+  real-backend / `xvfb` boots unless you changed a shader.
 - **Do not trust a "pre-existing" failure.** If the suite is red and you
   suspect it predates you, say so in `NOTES:` and let the orchestrator
   confirm against real `master`. Your worktree may contain a sibling worker's

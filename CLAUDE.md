@@ -40,9 +40,16 @@ mise run check                                 # headless compile-check of every
 mise run refresh                               # editor/class-cache refresh + a verdict on what it changed
 ```
 
-A suite run costs ~110s, so **never re-run it to grep it differently.** `mise run
-test` prints a verdict (counts, every failing test with its first assert + line,
-pending, run-health alarms) and always keeps the full console output at
+The full suite costs **~162s** (335 scripts, 2948 tests, measured
+2026-08-28) — it is a **gate**, not a feedback loop. **Earn it at most once
+per unit of work, at final green, immediately before reporting or
+presenting** — never to explore, never mid-rebase, never "to see where
+things stand," and **never re-run it to grep it differently.** Reach for the
+cheap ladder instead while iterating: `check` (~20s, catches parse errors
+~8x cheaper) → `test:one` (the file you're changing) → `test:dir` (its
+subsystem) → only then the full suite. `mise run test` prints a verdict
+(counts, every failing test with its first assert + line, pending,
+run-health alarms) and always keeps the full console output at
 `.godot/gut-last.log` plus junit XML at `.godot/gut-last.xml`. If the summary
 elided what you need, grep the log — `grep -F '[Failed]'`, with `-F`, since a
 bare `[Failed]` is a bracket expression that matches almost every line.
