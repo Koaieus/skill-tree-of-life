@@ -13,5 +13,18 @@
       "Bash(mise run --quiet gh-project -- roadmap*)",
       "Bash(gh api rate_limit)"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR/.mise/tasks/context-size-hook\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }

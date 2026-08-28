@@ -1,0 +1,241 @@
+#!/usr/bin/env python3
+#MISE description="PostToolUse hook: inject 'CONTEXT SIZE SO FAR' at 150k/200k/250k+50k (#652). Not meant to be run directly — see context-size-hook-selftest."
+"""
+A Claude Code PostToolUse hook, wired in .claude/settings.json. Reads the hook
+payload (JSON) on stdin, and on exit 0 prints at most one JSON line to stdout:
+
+    {"hookSpecificOutput": {"hookEventName": "PostToolUse",
+                             "additionalContext": "CONTEXT SIZE SO FAR: ~212k (crossed 19:31, ~38 min into session)"}}
+
+Silence (zero stdout bytes, exit 0) is the default and the overwhelming
+majority case. See docs/domain/context-size-hook.md for the design; this file
+is deliberately just the mechanism.
+
+FAIL-CLOSED IS THE TOP PROPERTY. This runs after every tool call, in every
+session, project-wide (checked into .claude/settings.json so subagents inherit
+it too — they don't read settings.local.json). Any exception, missing file,
+truncated line, or unwritable latch dir must degrade to silent exit 0, never
+to stderr noise or a broken JSON contract. Hence the single blanket try/except
+in __main__ around all real work.
+
+Why tail-read, never full-parse: transcripts run to hundreds of MB over a
+session and this fires after *every* tool call — an O(size) parse here would
+make the tax grow with the very thing it's trying to warn about. Only the
+one-time session-start read (cached into the latch after the first crossing)
+walks from the head, and even that is bounded (see _MAX_HEAD_LINES).
+"""
+import json
+import os
+import sys
+from datetime import datetime, timezone
+
+_THRESHOLD_FLOOR = 150_000
+_THRESHOLD_STEP_START = 200_000
+_THRESHOLD_STEP_FLOOR = 250_000
+_THRESHOLD_STEP = 50_000
+_TAIL_BYTES = 65_536
+_MAX_HEAD_LINES = 2_000  # bound on the one-time, first-crossing-only head scan
+
+_LEDGER_PATH = os.path.expanduser("~/.claude/ctx-hook-ledger.csv")
+
+
+def _compute_tier(tokens):
+    """Highest threshold at/below `tokens`, or None below 150k."""
+    if tokens < _THRESHOLD_FLOOR:
+        return None
+    if tokens < _THRESHOLD_STEP_START:
+        return _THRESHOLD_FLOOR
+    if tokens < _THRESHOLD_STEP_FLOOR:
+        return _THRESHOLD_STEP_START
+    return _THRESHOLD_STEP_FLOOR + (
+        (tokens - _THRESHOLD_STEP_FLOOR) // _THRESHOLD_STEP
+    ) * _THRESHOLD_STEP
+
+
+def _tail_lines(path):
+    """Non-empty lines from the last _TAIL_BYTES of `path`, oldest first.
+
+    Seeking mid-file can land inside a line, so when the file is bigger than
+    the tail window the first (likely-truncated) line is dropped.
+    """
+    size = os.path.getsize(path)
+    with open(path, "rb") as f:
+        f.seek(max(0, size - _TAIL_BYTES))
+        chunk = f.read()
+    text = chunk.decode("utf-8", errors="ignore")
+    lines = text.split("\n")
+    if size > _TAIL_BYTES:
+        lines = lines[1:]
+    return [line for line in lines if line.strip()]
+
+
+def _read_last_usage_total(path):
+    """Sum of the three usage fields on the most recent assistant record."""
+    if not os.path.isfile(path):
+        return None
+    lines = _tail_lines(path)
+    for line in reversed(lines):
+        try:
+            record = json.loads(line)
+        except ValueError:
+            continue
+        if record.get("type") != "assistant":
+            continue
+        usage = (record.get("message") or {}).get("usage")
+        if not isinstance(usage, dict):
+            continue
+        try:
+            return (
+                int(usage.get("input_tokens", 0))
+                + int(usage.get("cache_read_input_tokens", 0))
+                + int(usage.get("cache_creation_input_tokens", 0))
+            )
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _read_session_start(path):
+    """`timestamp` (ISO-8601 UTC) of the first record in `path` that has one.
+
+    Only called once per session, on the first threshold crossing — the
+    result is cached in the latch so the steady-state path never does this.
+    """
+    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        for _ in range(_MAX_HEAD_LINES):
+            line = f.readline()
+            if not line:
+                break
+            try:
+                record = json.loads(line)
+            except ValueError:
+                continue
+            ts = record.get("timestamp")
+            if ts:
+                return ts
+    return None
+
+
+def _parse_iso8601_utc(ts):
+    if ts.endswith("Z"):
+        ts = ts[:-1] + "+00:00"
+    return datetime.fromisoformat(ts)
+
+
+def _load_latch(path):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            return data
+    except (OSError, ValueError):
+        pass
+    return {}
+
+
+def _save_latch(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = f"{path}.tmp{os.getpid()}"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+    os.replace(tmp, path)
+
+
+def _append_ledger(session_id, kind, threshold, elapsed_min):
+    """Best-effort CSV append for #649's follow-up (session_id, kind, threshold, elapsed).
+
+    Never allowed to affect the hook's own exit code or output — a failure
+    here is swallowed, not surfaced.
+    """
+    try:
+        os.makedirs(os.path.dirname(_LEDGER_PATH), exist_ok=True)
+        with open(_LEDGER_PATH, "a", encoding="utf-8") as f:
+            f.write(f"{session_id},{kind},{threshold},{elapsed_min}\n")
+    except OSError:
+        pass
+
+
+def _run(payload):
+    """Returns the additionalContext line to print, or None for silence."""
+    session_id = payload.get("session_id")
+    transcript_path = payload.get("transcript_path")
+    if not session_id or not transcript_path:
+        return None
+
+    # Presence of agent_id is the discriminator: absent on a main-session
+    # call, present on a subagent call — where transcript_path/session_id in
+    # the payload belong to the PARENT, not the subagent (#652 comment,
+    # verified empirically; do not "fix" this back to trusting transcript_path).
+    agent_id = payload.get("agent_id")
+    agent_type = payload.get("agent_type")
+    if agent_id:
+        target_path = os.path.join(
+            os.path.dirname(transcript_path), session_id, "subagents", f"agent-{agent_id}.jsonl"
+        )
+        latch_name = f"{session_id}__{agent_id}.json"
+        kind = f"subagent:{agent_type}" if agent_type else "subagent"
+    else:
+        target_path = transcript_path
+        latch_name = f"{session_id}__main.json"
+        kind = "main"
+
+    tokens = _read_last_usage_total(target_path)
+    if tokens is None:
+        return None
+
+    tier = _compute_tier(tokens)
+    if tier is None:
+        return None
+
+    # Latch dir sits beside the PARENT transcript (dirname(transcript_path) is
+    # always the ~/.claude/projects/<slug>/ dir Claude Code itself writes to —
+    # guaranteed to exist and be writable — for both main and subagent calls).
+    latch_dir = os.path.join(os.path.dirname(transcript_path), "ctx-hook-state")
+    latch_path = os.path.join(latch_dir, latch_name)
+    state = _load_latch(latch_path)
+
+    highest_fired = state.get("highest_fired")
+    if isinstance(highest_fired, int) and tier <= highest_fired:
+        return None
+
+    start_ts = state.get("session_start_utc") or _read_session_start(target_path)
+    if not start_ts:
+        return None
+    try:
+        start_dt = _parse_iso8601_utc(start_ts)
+    except ValueError:
+        return None
+
+    now_utc = datetime.now(timezone.utc)
+    elapsed_min = max(0, int((now_utc - start_dt).total_seconds() // 60))
+    crossed_local = now_utc.astimezone().strftime("%H:%M")
+
+    # Persist BEFORE printing: if the latch can't be written we must not
+    # claim the threshold fired, and per #652 the correct failure mode is
+    # silence (never re-print every call because we couldn't remember firing).
+    _save_latch(latch_path, {"session_start_utc": start_ts, "highest_fired": tier})
+
+    _append_ledger(session_id, kind, tier, elapsed_min)
+
+    approx_k = max(1, round(tokens / 1000))
+    return f"CONTEXT SIZE SO FAR: ~{approx_k}k (crossed {crossed_local}, ~{elapsed_min} min into session)"
+
+
+def main():
+    payload = json.load(sys.stdin)
+    line = _run(payload)
+    if line:
+        print(json.dumps({
+            "hookSpecificOutput": {
+                "hookEventName": "PostToolUse",
+                "additionalContext": line,
+            }
+        }))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        pass  # fail-closed: never a traceback on stdout, never a nonzero exit
+    sys.exit(0)

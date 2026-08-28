@@ -1,0 +1,225 @@
+#!/usr/bin/env python3
+#MISE description="Runnable checks for the context-size-hook (#652): `mise run context-size-hook-selftest`"
+"""
+Not a GUT test — this exercises a Claude Code hook script, which GUT (a Godot
+test runner) has no way to invoke or observe. Pipes synthetic PostToolUse
+payloads into context-size-hook as real subprocesses (matching exactly how
+Claude Code itself calls it: JSON on stdin, JSON-or-silence on stdout, exit
+code checked) and asserts:
+
+  1. silence under 150k
+  2. a threshold fires exactly once across repeated calls
+  3. every 50k step above 250k fires once (300k/350k/400k)
+  4. agent_id present -> reads the subagent transcript; absent -> transcript_path
+  5. per-invocation overhead against the largest real transcript on this
+     machine under ~/.claude/projects/-home-bramh-skill-tree-of-life/
+  6. fails CLOSED (silent, exit 0) on: missing file, truncated/unparseable
+     JSON, an assistant record with no usage block, and an unwritable latch
+     directory
+
+Re-run any time the hook script changes: `mise run context-size-hook-selftest`.
+"""
+import glob
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from datetime import datetime, timedelta, timezone
+
+HOOK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "context-size-hook")
+
+_failures = []
+
+
+def check(name, condition, detail=""):
+    status = "ok" if condition else "FAIL"
+    print(f"[{status}] {name}" + (f" — {detail}" if detail and not condition else ""))
+    if not condition:
+        _failures.append(name)
+
+
+def run_hook(payload):
+    """Returns (exit_code, stdout_text)."""
+    proc = subprocess.run(
+        [sys.executable, HOOK],
+        input=json.dumps(payload),
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    return proc.returncode, proc.stdout
+
+
+def usage_record(tokens, ts=None):
+    # Split the total arbitrarily across the three summed fields — the hook
+    # doesn't care about the split, only the sum.
+    a = tokens // 2
+    b = tokens - a
+    rec = {"type": "assistant", "message": {"usage": {
+        "input_tokens": 1,
+        "cache_read_input_tokens": a,
+        "cache_creation_input_tokens": b - 1 if b > 0 else 0,
+    }}}
+    if ts:
+        rec["timestamp"] = ts
+    return rec
+
+
+def write_transcript(path, tokens, start_ts=None, pad_lines=0):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    start_ts = start_ts or "2026-08-28T17:00:00.000Z"
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"type": "mode", "mode": "normal"}) + "\n")
+        f.write(json.dumps({"type": "user", "timestamp": start_ts}) + "\n")
+        for _ in range(pad_lines):
+            f.write(json.dumps({"type": "user", "timestamp": start_ts}) + "\n")
+        f.write(json.dumps(usage_record(tokens, ts=start_ts)) + "\n")
+
+
+def main():
+    tmp = tempfile.mkdtemp(prefix="ctxhook-selftest-")
+    try:
+        _run_checks(tmp)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    print()
+    if _failures:
+        print(f"{len(_failures)} check(s) failed: {', '.join(_failures)}")
+        sys.exit(1)
+    print("all checks passed")
+
+
+def _run_checks(tmp):
+    # --- 1. silence under 150k -------------------------------------------
+    path = os.path.join(tmp, "under150k.jsonl")
+    write_transcript(path, 149_999)
+    payload = {"session_id": "sess-under150k", "transcript_path": path}
+    code, out = run_hook(payload)
+    check("silence under 150k", code == 0 and out == "", f"exit={code} out={out!r}")
+
+    # --- 2. fires exactly once, repeated calls ----------------------------
+    path = os.path.join(tmp, "cross150k.jsonl")
+    write_transcript(path, 212_345)
+    payload = {"session_id": "sess-cross150k", "transcript_path": path}
+    fires = 0
+    lines_seen = []
+    for _ in range(20):
+        code, out = run_hook(payload)
+        if code == 0 and out.strip():
+            fires += 1
+            lines_seen.append(out.strip())
+    check("fires exactly once across 20 identical calls", fires == 1, f"fired {fires} times: {lines_seen}")
+    if lines_seen:
+        line = json.loads(lines_seen[0])["hookSpecificOutput"]["additionalContext"]
+        check("line reports ~212k and the informational format", "~212k" in line and "crossed" in line and "min into session" in line, line)
+
+    # --- 3. every 50k above 250k fires once, each on its own session -----
+    for tokens, label in ((300_000, "300k"), (350_000, "350k"), (400_000, "400k")):
+        path = os.path.join(tmp, f"cross{label}.jsonl")
+        write_transcript(path, tokens)
+        payload = {"session_id": f"sess-{label}", "transcript_path": path}
+        code1, out1 = run_hook(payload)
+        code2, out2 = run_hook(payload)  # second call must be silent (latched)
+        fired_once = code1 == 0 and out1.strip() != "" and code2 == 0 and out2.strip() == ""
+        check(f"{label} fires once then latches", fired_once, f"first={out1!r} second={out2!r}")
+
+    # --- 4. subagent vs main routing --------------------------------------
+    parent_session = "sess-parent-routing"
+    parent_path = os.path.join(tmp, f"{parent_session}.jsonl")
+    write_transcript(parent_path, 10_000)  # parent stays small
+    agent_id = "abc123deadbeef"
+    subagent_path = os.path.join(tmp, parent_session, "subagents", f"agent-{agent_id}.jsonl")
+    write_transcript(subagent_path, 260_000)  # the actual offender
+
+    # A payload WITHOUT agent_id must read the (small) parent transcript -> silent.
+    main_payload = {"session_id": parent_session, "transcript_path": parent_path}
+    code, out = run_hook(main_payload)
+    check("main payload (no agent_id) reads transcript_path directly", code == 0 and out == "", f"out={out!r}")
+
+    # A payload WITH agent_id must derive and read the subagent file -> fires,
+    # reporting the SUBAGENT's number (260k), not the parent's (10k).
+    sub_payload = {
+        "session_id": parent_session,
+        "transcript_path": parent_path,
+        "agent_id": agent_id,
+        "agent_type": "general-purpose",
+    }
+    code, out = run_hook(sub_payload)
+    fired_right_number = False
+    if code == 0 and out.strip():
+        line = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+        fired_right_number = "~260k" in line
+    check("subagent payload (agent_id present) derives + reads the subagent transcript", fired_right_number, out)
+
+    # --- 5. overhead against the largest real transcript on this machine --
+    real_dir = os.path.expanduser("~/.claude/projects/-home-bramh-skill-tree-of-life")
+    candidates = [p for p in glob.glob(os.path.join(real_dir, "*.jsonl"))]
+    if candidates:
+        largest = max(candidates, key=os.path.getsize)
+        size_mb = os.path.getsize(largest) / (1024 * 1024)
+        # Copy into the scratch dir so the hook's latch writes never touch
+        # the real ~/.claude/projects tree (see selftest header + report).
+        copy_path = os.path.join(tmp, "real_largest.jsonl")
+        shutil.copyfile(largest, copy_path)
+        perf_payload = {"session_id": "sess-perf-probe", "transcript_path": copy_path}
+        timings = []
+        for _ in range(5):
+            t0 = time.perf_counter()
+            run_hook(perf_payload)
+            timings.append((time.perf_counter() - t0) * 1000)
+            # Reset the latch between runs so each call does real work,
+            # not an early-exit on an already-fired threshold.
+            latch_dir = os.path.join(tmp, "ctx-hook-state")
+            shutil.rmtree(latch_dir, ignore_errors=True)
+        best_ms = min(timings)
+        print(f"[info] overhead vs {os.path.basename(largest)} ({size_mb:.1f} MB): "
+              f"best {best_ms:.1f} ms of {[round(t, 1) for t in timings]} ms over 5 runs")
+        check("overhead stays well under the 200ms acceptance bar", best_ms < 200, f"{best_ms:.1f} ms")
+    else:
+        print("[info] no real transcripts found under ~/.claude/projects/-home-bramh-skill-tree-of-life — skipping overhead check")
+
+    # --- 6. fails closed: silent + exit 0 on every malformed input -------
+    missing_path = os.path.join(tmp, "does-not-exist.jsonl")
+    code, out = run_hook({"session_id": "sess-missing", "transcript_path": missing_path})
+    check("missing transcript file -> silent", code == 0 and out == "", f"exit={code} out={out!r}")
+
+    garbage_path = os.path.join(tmp, "garbage.jsonl")
+    with open(garbage_path, "w") as f:
+        f.write("not json at all\n{also not json\n")
+    code, out = run_hook({"session_id": "sess-garbage", "transcript_path": garbage_path})
+    check("unparseable JSON throughout -> silent", code == 0 and out == "", f"exit={code} out={out!r}")
+
+    truncated_path = os.path.join(tmp, "truncated.jsonl")
+    with open(truncated_path, "w") as f:
+        f.write(json.dumps({"type": "user", "timestamp": "2026-08-28T17:00:00.000Z"}) + "\n")
+        f.write('{"type": "assistant", "message": {"usage": {"input_tok')  # cut off mid-record, no trailing newline
+    code, out = run_hook({"session_id": "sess-truncated", "transcript_path": truncated_path})
+    check("truncated last line, no recoverable record -> silent", code == 0 and out == "", f"exit={code} out={out!r}")
+
+    no_usage_path = os.path.join(tmp, "no-usage.jsonl")
+    with open(no_usage_path, "w") as f:
+        f.write(json.dumps({"type": "user", "timestamp": "2026-08-28T17:00:00.000Z"}) + "\n")
+        f.write(json.dumps({"type": "assistant", "message": {"content": []}}) + "\n")  # no usage key at all
+    code, out = run_hook({"session_id": "sess-no-usage", "transcript_path": no_usage_path})
+    check("assistant record with no usage block -> silent", code == 0 and out == "", f"exit={code} out={out!r}")
+
+    unwritable_dir = os.path.join(tmp, "unwritable")
+    os.makedirs(unwritable_dir, exist_ok=True)
+    unwritable_transcript = os.path.join(unwritable_dir, "sess-unwritable.jsonl")
+    write_transcript(unwritable_transcript, 300_000)
+    # Pre-occupy the exact path the hook wants for its latch DIRECTORY with a
+    # plain FILE, so os.makedirs(...) on it raises regardless of uid/perm bits
+    # (works even running as root, unlike chmod 000).
+    blocked_latch_dir = os.path.join(unwritable_dir, "ctx-hook-state")
+    with open(blocked_latch_dir, "w") as f:
+        f.write("occupied")
+    code, out = run_hook({"session_id": "sess-unwritable", "transcript_path": unwritable_transcript})
+    check("unwritable latch dir -> silent, not noise", code == 0 and out == "", f"exit={code} out={out!r}")
+
+
+if __name__ == "__main__":
+    main()
