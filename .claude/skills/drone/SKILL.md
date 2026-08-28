@@ -201,6 +201,14 @@ don't touch issue status or labels.
   suspect it predates you, say so in `NOTES:` and let the orchestrator
   confirm against real `master`. Your worktree may contain a sibling worker's
   commit, which makes a stash-based baseline lie.
+- **Never `git stash` in a worktree.** The stash stack lives in the SHARED
+  `.git`, not in your worktree — so `git stash pop`/`apply` grabs whoever's
+  entry is on top, which may be a months-old stash from another branch or a
+  live sibling's. A #660 drone did exactly this to build a hygiene baseline
+  and popped an unrelated stash into files it did not own; the pop
+  conflicted, which is the only reason nothing was lost. To get a clean
+  baseline, check the file out of `HEAD` or read the pre-change version with
+  `git show HEAD:<path>` — never stash.
 - **`git add` by explicit path — never `-A`, never `-a`.** You may, through a
   harness quirk, be sharing a worktree with another live worker; a blanket
   add would commit their unfinished work.
