@@ -412,7 +412,11 @@ resolve it yourself upstream of the merge.
 **Step 1, before anything else: check the roster.** `docs/handoffs/swarm-<date>.md`
 is this run's dispatch ledger — one file, both the briefing and the
 at-most-once record. If it doesn't exist yet, create it now, before your
-first dispatch. Contents:
+first dispatch. **It is gitignored (`docs/handoffs/swarm-*.md`) and should
+stay that way** — you rewrite it on every dispatch, report and merge, which
+put 20 commits of pure scaffolding on the 2026-08-28 run before it was
+ignored. Write it, never commit it; anything that must outlive the run goes
+to the issue, a design doc, or a rule file. Contents:
 
 - A **roster table**: unit / brief file / drone name / state
   (`dispatched@HH:MM` → `reported` → `merged` | `rejected→redispatched`).
