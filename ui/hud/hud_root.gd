@@ -76,8 +76,11 @@ var _systems_bound: bool = false
 
 ## What HudRoot itself connects to the CURRENT hero's pools — just the
 ## initiative bar, since every other player-keyed connection belongs to the
-## cluster that made it. Released on rebind, same as each cluster's own scope.
-var _binds := BindScope.new()
+## cluster that made it. Cleared on rebind, same as each cluster's own scope.
+## A [SubBag], not a bare [BindScope]: the initiative readout needs the same
+## "connect now, paint now" `now()` fuses (#9) that the manual link-then-call
+## below used to spell out by hand.
+var _binds := SubBag.new()
 
 
 func _ready() -> void:
@@ -208,7 +211,7 @@ func rebind_player(player: Entity) -> void:
 		# GameRoot binds the player once before HudRoot.compose runs (see its
 		# `_ready`); the compose call that follows does this properly.
 		return
-	_binds.release()
+	_binds.clear()
 	_player = player
 	var board: StatBoard = _player.stat_board if _player != null else null
 
@@ -345,9 +348,16 @@ func _bind_initiative_pool() -> void:
 	if init_pool == null:
 		return
 	initiative_bar.max_initiative = float(init_pool.value)
-	_binds.link(init_pool.current_changed, initiative_bar._on_initiative_changed)
-	_binds.link(init_pool.replenished, initiative_bar._on_ready)
-	initiative_bar._on_initiative_changed(float(init_pool.current))
+	# now(): connect-and-paint fused into one call — the manual link-then-call
+	# this replaced was exactly the read/subscribe gap SubBag exists to close.
+	# The default arg is load-bearing: `now()` invokes this with zero arguments
+	# for the synchronous first paint, while `current_changed` itself emits one
+	# — the lambda has to tolerate both calling conventions, so it re-reads
+	# `init_pool.current` rather than trust either call's argument.
+	_binds.now(init_pool.current_changed,
+			func(_v: float = 0.0) -> void:
+				initiative_bar._on_initiative_changed(float(init_pool.current)))
+	_binds.on(init_pool.replenished, initiative_bar._on_ready)
 
 
 func _on_turn_started_for_initiative(entity: Entity) -> void:
