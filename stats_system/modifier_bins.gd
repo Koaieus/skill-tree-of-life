@@ -51,11 +51,29 @@ static func compute(base: float, sources: Array[ModifierBins]) -> float:
 		bon += b.bonus_add
 		for m in b.multipliers:
 			mult *= m.get_effective_value(b.board)
-	# Clamp (1 + Σ INCREASE/100) at 0: large stacks of negative INCREASE zero
-	# the stat out rather than flipping its sign. Net inc below -100% is a
-	# legitimate gameplay state (think "nerf modifier" pool entries on INT);
-	# the floor keeps the math predictable and the result interpretable as
-	# "× 0 + BONUS" for downstream consumers.
+	return _fold(base, add, inc, bon, mult)
+
+
+## Single-source compose — the [Stat.get_value] fast path (#470). Same pipeline
+## as [method compute], specialised for the one-source case so a caller never
+## allocates an `Array[ModifierBins]` literal just to hand this a single bin.
+static func compute_single(base: float, bins: ModifierBins) -> float:
+	if bins.winning_set != null:
+		return bins.winning_set.get_effective_value(bins.board)
+	var mult := 1.0
+	for m in bins.multipliers:
+		mult *= m.get_effective_value(bins.board)
+	return _fold(base, bins.base_add, bins.increase_sum, bins.bonus_add, mult)
+
+
+## The pipeline's arithmetic, shared by [method compute] and
+## [method compute_single] so there is exactly one definition of it.
+## Clamp (1 + Σ INCREASE/100) at 0: large stacks of negative INCREASE zero
+## the stat out rather than flipping its sign. Net inc below -100% is a
+## legitimate gameplay state (think "nerf modifier" pool entries on INT);
+## the floor keeps the math predictable and the result interpretable as
+## "× 0 + BONUS" for downstream consumers.
+static func _fold(base: float, add: float, inc: float, bon: float, mult: float) -> float:
 	return (base + add) * maxf(0.0, 1.0 + inc / 100.0) * mult + bon
 
 

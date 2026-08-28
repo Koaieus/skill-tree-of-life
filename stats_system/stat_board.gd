@@ -689,6 +689,12 @@ func clone_live() -> StatBoard:
 		dst_stat.bins.multipliers = src_stat.bins.multipliers.duplicate()
 		dst_stat.bins.winning_set = src_stat.bins.winning_set
 		dst_stat.bins.board = dst
+		# Belt-and-braces, not load-bearing today: dst_stat is fresh out of
+		# _ensure_stat and its get_value() memo already starts dirty (Stat's
+		# own default), so this never observably matters — set explicitly so a
+		# direct bins write is never the one place that can leave a stale memo
+		# warm (#470).
+		dst_stat._value_dirty = true
 		dst_stat.adopt_modifier_list(src_stat)
 		dst_stats.append(dst_stat)
 
@@ -752,6 +758,10 @@ func release() -> void:
 		s.release_modifier_subscriptions()
 		s._board = null
 		s.bins.board = null
+		# The bins didn't change, but which BOARD a SET/MULTIPLY leaf resolves
+		# against just did — force the next get_value() to recompute against the
+		# now-null board rather than serve a memo warmed before release() (#470).
+		s._value_dirty = true
 	_dirty_stats.clear()
 
 

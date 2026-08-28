@@ -84,6 +84,19 @@ var _modifiers: Array[StatModifier] = []
 var bins: ModifierBins = ModifierBins.new()
 var _last_contrib: Dictionary = {}
 
+## get_value() memo (#470). `_cached_raw_value` is the pre-[method _coerce]
+## pipeline result; [member _value_dirty] starts true so the first read always
+## computes. Every path that changes what get_value() would return funnels
+## through [method _emit_value_changed], so that is the one place that marks
+## this dirty — see it for why that holds even under [method StatBoard]
+## batching. Doesn't change aggregation order: the memo just caches the same
+## [method ModifierBins.compute_single] fold [method get_value] already ran
+## live, over the same incrementally-maintained [member bins] scalars in the
+## same insertion order (#463's stable-order obligation) — nothing here
+## re-sorts or re-derives from [member _modifiers].
+var _value_dirty: bool = true
+var _cached_raw_value: float = 0.0
+
 ## The board this stat lives on — set the first time a caller passes one to
 ## [method add_modifier] / [method remove_modifier], and remembered for
 ## reactive recomputation ([method _on_dependent_modifier_changed],
@@ -106,10 +119,12 @@ var _board: StatBoard = null
 ## can coalesce a burst of them (see [method StatBoard.begin_batch]). Outside a
 ## batch this is exactly `value_changed.emit()`.
 ##
-## Deferring the SIGNAL never defers the VALUE: [method get_value] recomputes
-## from the bins on every call, so a read taken mid-batch is already correct.
-## Only the notification waits.
+## Deferring the SIGNAL never defers the VALUE: this always marks the
+## [method get_value] memo dirty FIRST, unconditionally, before the batching
+## branch — a read taken mid-batch recomputes and is already correct. Only the
+## notification waits.
 func _emit_value_changed() -> void:
+	_value_dirty = true
 	if _board != null and _board.is_batching():
 		_board.mark_stat_dirty(self)
 		return
@@ -450,10 +465,18 @@ func _find_winning_set() -> StatModifier:
 ## Computed value: base + modifier pipeline, coerced to the definition's value_type.
 ## ADD_BASE / INCREASE / ADD_BONUS read O(1) from running bins; MULTIPLY walks
 ## its (typically tiny) list to avoid the divide-on-remove drift trap.
-## Delegates the math to ModifierBins.compute so single-source (this) and
-## multi-source (entity + node-board) reads share the one pipeline implementation.
+##
+## Memoized behind [member _value_dirty] (#470) — every mutation path marks it
+## dirty via [method _emit_value_changed], so a warm read is just the coerce.
+## Delegates the fold to [method ModifierBins.compute_single], the one-source
+## sibling of [method ModifierBins.compute] (used for multi-source reads like
+## [method SkillNode.get_local_value]) — no per-call `Array[ModifierBins]`
+## literal.
 func get_value() -> Variant:
-	return _coerce(ModifierBins.compute(base_value, [bins]))
+	if _value_dirty:
+		_cached_raw_value = ModifierBins.compute_single(base_value, bins)
+		_value_dirty = false
+	return _coerce(_cached_raw_value)
 
 
 ## Read this stat through a formula accessor — the ONLY door the formula
