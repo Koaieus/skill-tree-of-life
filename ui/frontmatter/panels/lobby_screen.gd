@@ -370,14 +370,22 @@ func _authored_budget() -> Array[int]:
 	return [fallback.base_min, fallback.base_max]
 
 
-## The [Scenario] this run generates from, and the ONE seam that answers it.
+## The [Scenario] this run generates from — authored per ROUTE, on the policy
+## (#597 fork 3, settled by the owner 2026-08-28).
 ##
-## [b]Held open deliberately.[/b] #597 fork 3 has two live arms — per-ROUTE
-## authoring (the [member LobbyPolicy.scenario] read below) and per-ROSTER
-## derivation from [method resolve_mode] — and they diverge only when a roster
-## change flips the derived mode mid-lobby. Everything else in this file reads
-## the scenario through here, so settling that fork is a change to this function
-## and to nothing else.
+## [b]Why not derived from [method resolve_mode].[/b] That is a fact about the
+## ROSTER, and the roster changes while the lobby is open: seating a second
+## human flips SINGLE -> COOP_HOTSEAT, which would silently swap the scenario —
+## and with it the preset every override merges onto — underneath picks the host
+## had already made. The route, by contrast, is fixed the moment the lobby opens.
+## This also adds no new concept: [LobbyPolicy] is already the per-route authored
+## gate for every other lobby choice, so there is no second table to drift and no
+## switch statement anywhere.
+##
+## [b]Null stays null.[/b] A route with no policy — or a policy with no scenario
+## — yields no [Scenario], [method RunConfig.resolved_preset] returns null, and
+## the level falls back to its own `preset` export exactly as on master. That is
+## the characterization property, not a defensive branch.
 func _run_scenario() -> Scenario:
 	return null if _policy == null else _policy.scenario
 

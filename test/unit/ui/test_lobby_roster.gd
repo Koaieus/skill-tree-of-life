@@ -870,3 +870,159 @@ func test_raising_the_budget_minimum_pushes_the_maximum_up() -> void:
 	assert_lte(resolved.content.budget_policy.base_min,
 			resolved.content.budget_policy.base_max,
 			"the merged policy never carries an inverted range")
+
+
+# --- #597 fork 3, settled: the Scenario is authored per ROUTE, on the policy --
+
+const _COOP_VERSUS_SCENARIO := preload("res://session/scenarios/coop_versus.tres")
+
+
+## Generates from [param lobby]'s run config and returns the graph's nodes.
+## Goes through `build_run_config().resolved_preset()` — the real START path —
+## rather than assembling a preset, which is what makes these end-to-end.
+func _generate_from(lobby: LobbyScreen, run_seed: int) -> Array:
+	var resolved := lobby.build_run_config().resolved_preset()
+	assert_not_null(resolved, "the route's policy names a Scenario to merge onto")
+	resolved.seed = run_seed
+	var graph_scene: PackedScene = load("res://graph/graph.tscn")
+	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
+	add_child(graph)
+	await get_tree().process_frame
+	var result: Dictionary = await GraphProcgen.generate(resolved, graph)
+	return result.nodes
+
+
+func _total_modifiers(nodes: Array) -> int:
+	var total := 0
+	for n in nodes:
+		total += n.modifiers.size()
+	return total
+
+
+## The mapping, pinned. `lobby_policy_hotseat` is the `ID_LOCAL` route under
+## MULTIPLAYER — couch coop, the "Coop" in "Coop / Versus" — not a single-player
+## variant, so it takes the coop preset. Two things make that the substantive
+## answer rather than a naming coincidence: `coop_versus`'s `starting_points`
+## authors a `CampAnnulusStarters` placement and `first_level`'s authors NONE
+## (#558's central finding), and `test_coop_versus_preset.gd` documents its
+## budget gradient as the deliberate MIRROR of `first_level`'s so that multi-camp
+## rim spawns work inwards. A multi-camp lobby on `first_level` would get neither.
+func test_each_shipped_policy_names_the_scenario_its_lobby_shape_needs() -> void:
+	assert_eq(_POLICY_SINGLE.scenario, _FIRST_LEVEL_SCENARIO,
+			"one human, no camps -> the first level")
+	assert_eq(_POLICY_HOTSEAT.scenario, _COOP_VERSUS_SCENARIO,
+			"couch coop is a multi-camp shape -> the coop preset")
+	assert_eq(_POLICY_VERSUS.scenario, _COOP_VERSUS_SCENARIO)
+
+	for policy in [_POLICY_SINGLE, _POLICY_HOTSEAT, _POLICY_VERSUS]:
+		assert_not_null(policy.scenario.preset,
+				"'%s' names a Scenario carrying a preset" % policy.scenario.resource_name)
+
+	# Only the multi-camp presets carry camp-relative starter placement, which is
+	# the reason the hotseat mapping is what it is.
+	assert_not_null(_COOP_VERSUS_SCENARIO.preset.starting.starter_placement)
+	assert_null(_FIRST_LEVEL_SCENARIO.preset.starting.starter_placement,
+			"#558's finding, pinned: first_level authors no starter_placement")
+
+
+## Every route the shipped menu offers reaches a preset. The companion to
+## `test_every_lobby_route_carries_a_policy` — a policy with no scenario would
+## render the whole run section inert, and nothing else would fail.
+func test_every_lobby_route_reaches_a_generable_preset() -> void:
+	var tree := MenuGraph.build()
+	for id in [MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOCAL, MenuGraph.ID_HOST, MenuGraph.ID_JOIN]:
+		var policy: LobbyPolicy = tree.get_item(id).route.lobby_policy
+		assert_not_null(policy.scenario, "'%s' names a Scenario" % id)
+		assert_not_null(policy.scenario.preset, "'%s' reaches a preset" % id)
+		assert_true(policy.offers_run_section(), "'%s' offers the run section" % id)
+
+
+## #643 acceptance 2, re-asserted now that the shipped policies carry scenarios:
+## a NULL policy must still yield a null scenario and behave exactly as master.
+## This is the property the whole feature is allowed to exist behind.
+func test_a_null_policy_still_yields_no_scenario_and_no_overrides() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.COOP_HOTSEAT)
+	var cfg := lobby.build_run_config()
+
+	assert_null(cfg.scenario, "master's behaviour: no policy, no Scenario")
+	assert_eq(cfg.overrides.size(), 0)
+	assert_null(cfg.resolved_preset(),
+			"so the level falls back to its own `preset` export, as on master")
+	assert_true(lobby.can_start())
+
+
+## **The LAN requirement, asserted against SHIPPED DATA.** No test-fixture
+## policy and no test-fixture scenario: this drives the real `New Game` route's
+## authored `LobbyPolicy` and asserts that turning the budget spinners up changes
+## how many modifiers procgen actually puts on the map.
+##
+## Two runs at the SAME seed, differing only in the budget pick, compared by
+## total modifier count. A comparison rather than an absolute threshold because
+## the rolled range is scaled by `archetype_multiplier` and `budget_field`
+## before it lands — but it is MONOTONIC in `base_min`/`base_max`, so "more
+## budget yields more modifiers" holds whatever those scalars are.
+func test_a_budget_pick_on_the_shipped_route_reaches_the_generated_map() -> void:
+	var route_policy: LobbyPolicy = MenuGraph.build().get_item(
+			MenuGraph.ID_NEW_GAME).route.lobby_policy
+	assert_eq(route_policy, _POLICY_SINGLE, "premise: this is the shipped route's policy")
+
+	# XS on both runs, purely to keep the comparison cheap — it is itself a
+	# second shipped-ladder pick reaching procgen.
+	var baseline := _run_section_lobby(route_policy)
+	baseline._on_option_picked(0, LobbyScreen.KNOB_MAP_SIZE)
+	var baseline_nodes := await _generate_from(baseline, 20260828)
+
+	var ham := _run_section_lobby(route_policy)
+	ham._on_option_picked(0, LobbyScreen.KNOB_MAP_SIZE)
+	ham._budget_row._min_spin.value = 18
+	ham._budget_row._max_spin.value = 30
+	var ham_nodes := await _generate_from(ham, 20260828)
+
+	assert_eq(ham_nodes.size(), baseline_nodes.size(),
+			"same seed and same map size, so the topology is identical")
+	assert_gt(_total_modifiers(ham_nodes), _total_modifiers(baseline_nodes),
+			"'do the normal stuff but increase budgets, lets go HAM' reached the map")
+
+
+## The other half of the requirement: with NO pick, the shipped route generates
+## exactly the map it did before this feature existed. Acceptance 5, end to end.
+func test_the_shipped_route_with_no_pick_generates_the_authored_preset() -> void:
+	var lobby := _run_section_lobby(_POLICY_SINGLE)
+	var cfg := lobby.build_run_config()
+
+	assert_eq(cfg.overrides.size(), 0, "nothing picked, nothing overridden")
+	var resolved := cfg.resolved_preset()
+	var authored := _FIRST_LEVEL_SCENARIO.preset
+	assert_eq(resolved.topology.node_count, authored.topology.node_count)
+	assert_eq(resolved.content.budget_policy.base_min,
+			authored.content.budget_policy.base_min)
+	assert_eq(resolved.content.budget_policy.base_max,
+			authored.content.budget_policy.base_max)
+
+
+## **For #558.** After the hotseat remap, `first_level.tres` — the ONE preset
+## with no `starter_placement` — is reachable from exactly one shipped lobby
+## route: `New Game`, the single-player one. Every camp-offering route now lands
+## on `coop_versus`, which authors a `CampAnnulusStarters` placement.
+##
+## That matters to #558 in both directions. Its arrangement control WILL be
+## observable on every route that offers camps (its own central complaint about
+## itself, discharged). And on `New Game` it will still have nothing to patch —
+## so a `starter_placement` override there is the silent no-op #642 acceptance 8
+## exists to catch, not a bug in the control.
+##
+## If a later change gives `first_level` a `starter_placement`, or points a
+## camp-offering route back at it, this test fails and that paragraph needs
+## rewriting — which is the point of asserting it.
+func test_only_the_single_player_route_reaches_the_placement_less_preset() -> void:
+	var tree := MenuGraph.build()
+	var without_placement: Array[StringName] = []
+	for id in [MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOCAL, MenuGraph.ID_HOST, MenuGraph.ID_JOIN]:
+		var policy: LobbyPolicy = tree.get_item(id).route.lobby_policy
+		if policy.scenario.preset.starting.starter_placement == null:
+			without_placement.append(id)
+
+	assert_eq(without_placement, [MenuGraph.ID_NEW_GAME] as Array[StringName],
+			"only New Game reaches a preset with no starter_placement")
+	assert_true(tree.get_item(MenuGraph.ID_NEW_GAME).route.lobby_policy.camps.is_empty(),
+			"and that route offers no camps, so nothing there wants camp-relative placement")
