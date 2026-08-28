@@ -147,8 +147,11 @@ The project's `.godot/global_script_class_cache.cfg` goes stale whenever the set
 of `class_name`s moves under it. Three triggers, one fix:
 
 - You renamed or added a `class_name`.
-- You **rebased or pulled** and *someone else's* commit did. Nothing in your own
-  working tree changed, which is what makes this one surprising.
+- You **rebased, pulled, or ff-merged a branch** and *someone else's* commit did.
+  Nothing in your own working tree changed, which is what makes this one
+  surprising. The swarm case: ff-merging a reviewed drone branch that added a
+  `class_name`, then running the authoritative suite in the main checkout — it
+  comes back red with hundreds of failures and it is the cache, every time.
 - You're in a **fresh worktree** — it has its own gitignored `.godot/` (see the
   worktrees section below), so it starts with *no* cache at all.
 
