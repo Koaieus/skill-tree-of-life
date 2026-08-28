@@ -69,13 +69,14 @@ metadata/_custom_type_script = "uid://dkhgm4v74h1ya"
 unique_name_in_owner = true
 script = ExtResource("22_lootreg")
 
-[node name="LootSystem" type="Node" parent="Systems" unique_id=1000000012 node_paths=PackedStringArray("turn_manager", "battle_system", "command_applier", "pick_registry")]
+[node name="LootSystem" type="Node" parent="Systems" unique_id=1000000012 node_paths=PackedStringArray("turn_manager", "battle_system", "command_applier", "pick_registry", "command_link")]
 unique_name_in_owner = true
 script = ExtResource("12_loot")
 turn_manager = NodePath("../TurnManager")
 battle_system = NodePath("../BattleSystem")
 command_applier = NodePath("../CommandApplier")
 pick_registry = NodePath("../LootPickRegistry")
+command_link = NodePath("../../CommandLink")
 skill_dust_scene = ExtResource("12_dust")
 
 [node name="CommandApplier" type="Node" parent="Systems" unique_id=1000000510 node_paths=PackedStringArray("graph", "allocation_system", "battle_system", "turn_manager", "loot_pick_registry")]
@@ -190,12 +191,13 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 script = ExtResource("23_transport")
 
-[node name="CommandLink" type="Node" parent="." unique_id=1000000532 node_paths=PackedStringArray("transport", "command_applier", "graph")]
+[node name="CommandLink" type="Node" parent="." unique_id=1000000532 node_paths=PackedStringArray("transport", "command_applier", "graph", "loot_pick_registry")]
 unique_name_in_owner = true
 script = ExtResource("24_link")
 transport = NodePath("../Transport")
 command_applier = NodePath("../Systems/CommandApplier")
 graph = NodePath("../Graph")
+loot_pick_registry = NodePath("../Systems/LootPickRegistry")
 
 [connection signal="core_moved" from="Systems/AllocationSystem" to="." method="_on_core_moved"]
 

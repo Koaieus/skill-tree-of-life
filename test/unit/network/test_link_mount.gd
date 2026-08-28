@@ -168,3 +168,33 @@ func test_the_harness_link_still_reaches_its_probe() -> void:
 	assert_not_null(link.probe, "probe NodePath survives the inherited-node override")
 	assert_eq(link.transport, root.get_node(TRANSPORT_PATH), "and it points at the swapped transport")
 	_discard(root)
+
+
+## #564 — both ends of the remote loot round, which shipped with NEITHER wired.
+##
+## The adapter code was complete and its two-world harness was green, but
+## `game_root.tscn` set no `CommandLink.loot_pick_registry` (the SEND side, a
+## hole that predated #564 and broke the HOST) and no `LootSystem.command_link`
+## (the RECEIVE side, added by #564 itself). So a remote loot round was inert in
+## real play while every test that mattered passed — the harness authors its own
+## wiring, so nothing in the suite ever read the scene's.
+##
+## That is this file's whole subject: a NodePath nobody asserts is a NodePath
+## nobody notices. Asserting the ends are non-null is not enough — a path that
+## resolves to the WRONG node is the failure mode a hand-edited `.tscn` actually
+## produces, so both are compared against the node they must be.
+func test_the_scene_wires_both_ends_of_a_remote_loot_round() -> void:
+	var root: Node = preload(GAME_ROOT).instantiate()
+	var link: CommandLink = root.get_node(LINK_PATH)
+	var loot: LootSystem = root.get_node("Systems/LootSystem")
+	var registry: LootPickRegistry = root.get_node("Systems/LootPickRegistry")
+
+	# Send side: without this the registry's `offer_parked` never reaches the
+	# link, so `send_loot_offer` never fires and the HOST silently drops it.
+	assert_eq(link.loot_pick_registry, registry,
+			"CommandLink.loot_pick_registry resolves to Systems/LootPickRegistry")
+	# Receive side: without this a client's `loot_offer_received` reaches no
+	# adapter, so the offer never becomes a local pick request.
+	assert_eq(loot.command_link, link,
+			"LootSystem.command_link resolves to the mounted CommandLink")
+	_discard(root)
