@@ -638,14 +638,23 @@ that survivable rather than catastrophic:
 
 - Workers commit **after each unit**, never only at the end. A killed worker
   then loses one unit, not two.
-- Merge each branch as it lands. Do not batch merges to the end — four
-  merged units beat six unmerged ones.
+- Merge each branch as it lands. Do not batch *merging* to the end — four
+  merged units beat six unmerged ones. (This is about survival, not
+  verification: the authoritative *suite* runs once per batch of merges, a
+  separate and still-correct cadence — see §6's merge train.)
 - When a worker dies mid-unit, **commit its uncommitted worktree state
   yourself** as an explicit `wip(...)` commit that says what is unfinished,
   and write the blocker onto the issue. Never leave work as loose worktree
   state, and never leave the issue `in-progress` with nobody on it.
 
-### 4. Collect — act on each completion as it lands, do not batch
+### 4. Collect — act on each completion as it lands
+
+**Review and merge-decision happen as each report lands, not batched to the
+end** — that is what "do not batch" means here, and it is a different batch
+from §6's: this one is about *your attention*, not about *when the suite
+runs*. Letting five reports pile up before you look at any of them is the
+mistake this heading warns against; running one suite over a train of
+already-reviewed merges is not that mistake — see §6.
 
 `drone` mandates a terse structured report. Read those, not the diffs. If a
 worker's report is a wall of text, that's a `drone` violation — don't
@@ -693,8 +702,9 @@ git diff master...<branch>                         # then content
 Then **branch on quality**, in decreasing order of frequency:
 
 - **Perfect — merge to `master` now.** Rebase onto current `master`,
-  fast-forward, amend `Closes #<n>` (§6), push or queue, run `mise run test`,
-  move the issue to `in-review` on the kanban. Do not let it sit.
+  fast-forward, amend `Closes #<n>` (§6), push or queue, move the issue to
+  `in-review` on the kanban. Do not let it sit. The authoritative suite runs
+  once per batch, not on this individual merge — see §6.
 - **Almost perfect — fix it yourself, then merge.** The diff is 95% right and
   the gap is a one-line thing the worker would burn a full escalation round
   to arrive at. You are the smart model and the cheap context — make the
@@ -772,6 +782,15 @@ the failing area) against successive merge points until you isolate the
 offending branch — that costs ~log2(n) extra suite runs, paid only in the
 failure case, and is still cheaper than paying the full 162s on every merge
 whether or not anything ever breaks.
+
+**The suite is a gate on code, not a ritual owed to every train.** "Once per
+batch" replaces "once per merge" — it does not mean "always." A batch that
+touched no `.gd`/`.tscn` (a docs-only or skills-only train, say) cannot be
+observed by a 162s Godot test run at all; running one anyway is the same
+mistake this whole cluster tells a *drone* not to make, just committed by the
+orchestrator instead. Match the check to what actually changed: `mise run
+check` if any script changed, the full suite once the batch is runtime-
+observable, and no Godot test at all for a documentation-only batch.
 
 If the units were file-disjoint, every rebase is clean. A conflict here
 means the decomposition leaked — fix the decomposition's consequence, not
