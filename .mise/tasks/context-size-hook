@@ -44,7 +44,12 @@ _TAIL_BYTES = 65_536
 _TAIL_WINDOWS = (65_536, 524_288, 4_194_304, 33_554_432)
 _MAX_HEAD_LINES = 2_000  # bound on the one-time, first-crossing-only head scan
 
-_LEDGER_PATH = os.path.expanduser("~/.claude/ctx-hook-ledger.csv")
+# Overridable so the selftest can point it at a temp file. Without this the
+# selftest's synthetic runs append to the real ledger, corrupting the very
+# dataset #649's follow-up measurement reads (41 junk rows, found in review).
+_LEDGER_PATH = os.environ.get(
+    "CTX_HOOK_LEDGER", os.path.expanduser("~/.claude/ctx-hook-ledger.csv")
+)
 
 
 def _compute_tier(tokens):

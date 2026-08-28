@@ -139,6 +139,13 @@ the hook has no opinion to go stale.
 
 ## Stats ledger (optional, for #649)
 
+Path override: `CTX_HOOK_LEDGER` replaces the default
+`~/.claude/ctx-hook-ledger.csv`. It exists so the selftest can write its
+synthetic rows to a temp file — without it, every selftest run appends junk to
+the production ledger and corrupts the dataset #649's follow-up measurement
+reads. (Found in review: 41 synthetic rows had already landed there.) Anything
+that invokes the hook outside a real session must set it.
+
 Every fire also best-effort-appends one CSV line
 (`session_id,kind,threshold,elapsed_min`) to `~/.claude/ctx-hook-ledger.csv`,
 so a future measurement pass over "did warned drones actually see fewer

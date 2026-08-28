@@ -41,14 +41,24 @@ def check(name, condition, detail=""):
         _failures.append(name)
 
 
-def run_hook(payload):
+# Every hook invocation from this file writes its stats row here, NOT to the
+# real ~/.claude/ctx-hook-ledger.csv — synthetic runs must never land in the
+# dataset #649's follow-up measurement reads.
+_LEDGER_SANDBOX = os.path.join(tempfile.gettempdir(), "ctx-hook-selftest-ledger.csv")
+
+
+def run_hook(payload, env_extra=None):
     """Returns (exit_code, stdout_text)."""
+    env = dict(os.environ, CTX_HOOK_LEDGER=_LEDGER_SANDBOX)
+    if env_extra:
+        env.update(env_extra)
     proc = subprocess.run(
         [sys.executable, HOOK],
         input=json.dumps(payload),
         capture_output=True,
         text=True,
         timeout=10,
+        env=env,
     )
     return proc.returncode, proc.stdout
 
