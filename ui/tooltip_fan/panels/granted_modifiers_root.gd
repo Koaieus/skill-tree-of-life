@@ -142,6 +142,12 @@ func _add_empty_row() -> void:
 	var label := Label.new()
 	label.text = _EMPTY_TEXT
 	label.modulate = _EMPTY_MUTED
+	# SHRINK_CENTER, not a CENTER text alignment: the label is narrower than
+	# `%Rows`' box, so under the container default (FILL) it stretched across
+	# the box and drew its text flush LEFT — ~20px off the SkillNode this
+	# stack hangs under. Centering text inside a full-width box would have
+	# worked too; centering the box itself is the smaller claim.
+	label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_rows.add_child(label)
 	_row_setters.append(func(t: float) -> void: _apply_control_reveal(label, t))
 

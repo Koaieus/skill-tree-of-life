@@ -171,6 +171,54 @@ func test_adding_rows_grows_the_stack_downward_only() -> void:
 	assert_eq(root._rows.alignment, BoxContainer.ALIGNMENT_BEGIN, "VBoxContainer stacks top-down — growth is downward only")
 
 
+## The stack hangs UNDER the SkillNode, so its horizontal centre must stay on
+## the root's origin whatever it holds. `%Rows` is authored 120 wide from -60;
+## before `grow_horizontal = GROW_DIRECTION_BOTH` a row wider than that pushed
+## only the right edge out (Control grows END by default), sliding the whole
+## column right by half the overflow.
+func test_a_row_wider_than_the_authored_box_stays_centred_on_the_origin() -> void:
+	_node.modifiers = [_make_modifier(StatModifier.Operation.ADD_BASE, 123.0, &"intelligence")]
+	var root := _ROOT_SCENE.instantiate() as GrantedModifiersRoot
+	add_child_autofree(root)
+	root.bind(_node)
+	await _shown(root)
+
+	assert_gt(root._rows.size.x, 120.0, "this modifier's row is wider than the authored box (else the case is untested)")
+	assert_almost_eq(root._rows.position.x + root._rows.size.x * 0.5, 0.0, 0.5,
+		"the widened box is centred on the root, not left-anchored")
+
+
+## The empty-state Label is hand-rolled (not a SlabRow), so it needs its own
+## size flag: under the container default (FILL) it stretched across the box
+## and drew its text flush LEFT, ~20px off the node it hangs under.
+func test_the_empty_state_row_is_centred_on_the_origin() -> void:
+	_node.modifiers = []
+	var root := _ROOT_SCENE.instantiate() as GrantedModifiersRoot
+	add_child_autofree(root)
+	root.bind(_node)
+	await _shown(root)
+
+	var label := root._rows.get_child(0) as Label
+	assert_not_null(label, "the empty state renders a bare Label")
+	# Both halves matter: a full-width box centred on the origin still draws
+	# its text flush left, which is exactly the bug. The box hugging its text
+	# is what makes "the box is centred" mean "the text is centred".
+	assert_almost_eq(label.size.x, label.get_combined_minimum_size().x, 0.5,
+		"the label box hugs its text rather than stretching across the stack")
+	assert_almost_eq(label.position.x + root._rows.position.x + label.size.x * 0.5, 0.0, 0.5,
+		"the muted 'no modifiers' row is centred on the origin")
+
+
+## A Container does not sort its children while hidden, and the root rests
+## hidden at progress 0 — so any layout assertion has to raise it first and
+## then let a frame pass, or it reads pre-sort positions.
+func _shown(root: GrantedModifiersRoot) -> void:
+	root.visible = true
+	root._set_progress(1.0)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
 func _mod_slab_rows(root: GrantedModifiersRoot) -> Array:
 	var out: Array = []
 	for child in root._rows.get_children():
