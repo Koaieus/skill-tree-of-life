@@ -20,9 +20,19 @@ func _ready() -> void:
 ## the emitter won't auto-resolve behind us.
 func present(request: SpellLootRequest) -> void:
 	_present(_BODY_SCENE, "SPELL DRAFT", request)
+	if not request.settled.is_connected(_on_request_settled):
+		request.settled.connect(_on_request_settled, CONNECT_ONE_SHOT)
 
 
 ## A [SpellLootRequest] carries its own resolve callback — [ModalBase] never
 ## calls it, this does.
 func _on_confirmed(chosen: Array, request: Variant) -> void:
 	(request as SpellLootRequest).resolve(chosen)
+
+
+## #564 — see [LootPicker]'s own copy of this note: a round can settle this
+## request out from under us (a mirror peer's rebuilt request, force-resolved
+## by [LootSystem] when the host decided without a local answer). `dismiss()`
+## is a no-op if the normal confirm path already closed us.
+func _on_request_settled(_chosen: Array) -> void:
+	dismiss()

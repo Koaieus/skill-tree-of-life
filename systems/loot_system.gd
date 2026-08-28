@@ -63,6 +63,12 @@ extends Node
 ## [LootPickRegistry].
 @export var pick_registry: LootPickRegistry
 
+## The mirror-side signal source for #564's adapter (see [method
+## _on_loot_offer_received], below). Null on the authority side and on any
+## no-link configuration (headless fixture, editor, offline sandbox) — a mirror
+## peer is the only consumer of [signal CommandLink.loot_offer_received].
+@export var command_link: CommandLink
+
 ## Per-side-effect kill-switches. A sandbox tab (a GameRoot-inherited scene) flips
 ## these in the inspector to neuter a reward path while keeping 1:1 wiring with
 ## the real system — ONE declarative guard at the data boundary, not guards
@@ -180,6 +186,13 @@ var _removed_this_attack: Dictionary[Entity, Dictionary] = {}
 
 func _ready() -> void:
 	Events.entity_dying.connect(_on_entity_dying)
+	# #564: the mirror-side adapter. Independent of the battle_system-null
+	# early return below — a headless fixture that never runs a cascade may
+	# still want to exercise the loot-offer adapter, and vice versa.
+	if command_link != null:
+		command_link.loot_offer_received.connect(_on_loot_offer_received)
+	if command_applier != null:
+		command_applier.command_applied.connect(_on_command_applied)
 	# The cascade is the only place that knows the full removal set (impact node
 	# + everything it islanded) AND the defender it came off — `owned_by` is
 	# cleared by the strip that same loop, so the fact has to be read here or not
@@ -498,3 +511,115 @@ func _spell_candidates(victim: Entity) -> Array[SpellDef]:
 	if victim_book == null or victim.core_location == null:
 		return []
 	return victim_book.spells.duplicate()
+
+
+# ── #564: mirror-side loot-pick adapter ───────────────────────────────────────
+## Gives [signal CommandLink.loot_offer_received] its first production
+## consumer. A remote collector's peer receives a downward [LootPickOffer] (see
+## that class + [LootPickRegistry]'s class doc) and has nothing that opens a
+## picker for it — this rebuilds the SAME [LootPickRequest] / [SpellLootRequest]
+## shape the host's own claim flow raises and re-emits it on the SAME
+## `Events.loot_pick_requested` / `Events.spell_loot_requested` bus (owner call
+## 2026-08-28: reuse the Events path — [HudRoot] and [LootPicker] /
+## [SpellLootPicker] need no second raising path).
+##
+## [b]The rebuilt request never touches [member pick_registry].[/b] A mirror
+## peer's registry stays inert (owner call 2026-08-27, [LootPickRegistry]'s
+## class doc) — this request's resolver submits the pick UPWARD as a
+## [PickLootCommand] instead of granting or parking anything locally. The
+## round's actual outcome only lands when the host's confirmed
+## [LootRoundCommand] replays here, same as every other peer.
+##
+## The one request outstanding at a time on this peer — a relic's claim chain
+## is one round at a time by construction (see [SkillDustAddon]'s class doc),
+## so there is never more than one rebuilt request open here, same coarse
+## assumption [method CommandApplier.apply_remote]'s [PickLootCommand] gate
+## already makes ("closes on the NEXT LootRoundCommand this peer receives").
+var _pending_mirror_request: Variant = null
+
+
+## Rebuild [param offer] into a request and raise it. `collector_id` resolves
+## through the applier's own graph — the same lookup [method
+## CommandApplier._apply_loot_round] uses — never a fresh source; a mirror has
+## none.
+func _on_loot_offer_received(offer: LootPickOffer) -> void:
+	if offer == null:
+		return
+	_force_settle_pending_mirror_request()
+	var graph: Graph = command_applier.graph if command_applier != null else null
+	var collector: Entity = graph.get_by_entity_id(offer.collector_id) if graph != null else null
+	var request: Variant
+	if offer.kind == LootPickOffer.KIND_SPELL:
+		var spell_candidates: Array[SpellDef] = []
+		for id: StringName in offer.spell_ids:
+			var s := SpellCatalog.by_id(id)
+			if s != null:
+				spell_candidates.append(s)
+		request = SpellLootRequest.new(collector, spell_candidates,
+				_submit_pick_upward.bind(offer.request_id, offer.collector_id, spell_candidates))
+	else:
+		request = LootPickRequest.new(collector, offer.stat_candidates,
+				_submit_pick_upward.bind(offer.request_id, offer.collector_id, offer.stat_candidates))
+	_pending_mirror_request = request
+	# Owner call 2026-08-27 (acceptance 3): a collector that dies while this
+	# peer's picker is up must not leave it stranded — auto-forfeit and let the
+	# forfeit travel upward as `chosen_index == -1`, same shape as
+	# [SkillDustAddon]._await_pick's own death guard on the host side.
+	if is_instance_valid(collector):
+		var forfeit_on_death := func() -> void:
+			if not request.is_resolved():
+				request.resolve(_mirror_empty_like(request))
+		collector.died.connect(forfeit_on_death, CONNECT_ONE_SHOT)
+	if offer.kind == LootPickOffer.KIND_SPELL:
+		Events.spell_loot_requested.emit(request)
+	else:
+		Events.loot_pick_requested.emit(request)
+
+
+## The resolver every rebuilt request shares, bound with the offer's
+## `request_id` / `collector_id` / candidate list. `chosen` is whatever the
+## picker (or the death-forfeit guard above) resolved the request with — empty
+## means forfeit. Submits through [member command_applier], which for a
+## MIRROR routes a [PickLootCommand] upward untouched
+## ([method CommandApplier.submit] -> [method CommandApplier._submit_upward]);
+## nothing new is needed there (#564 verified against master).
+func _submit_pick_upward(chosen: Array, request_id: int, collector_id: int,
+		candidates: Array) -> void:
+	if command_applier == null:
+		return
+	var chosen_index := -1
+	if not chosen.is_empty():
+		chosen_index = candidates.find(chosen[0])
+	command_applier.submit(PickLootCommand.new(collector_id, request_id, chosen_index))
+
+
+## Every applied command crosses here (host and mirror alike); a
+## [LootRoundCommand] replaying means the round this peer's outstanding request
+## belonged to has been decided by the host — whether by this peer's own answer
+## (already resolved; this only clears the reference) or by a host-side timeout
+## / death forfeit this peer never saw (still open; force it closed so its
+## picker modal dismisses instead of hanging — [LootPicker] / [SpellLootPicker]
+## listen for `settled` and dismiss on an externally-resolved request).
+func _on_command_applied(command: Command, _success: bool) -> void:
+	if not (command is LootRoundCommand):
+		return
+	_force_settle_pending_mirror_request()
+
+
+func _force_settle_pending_mirror_request() -> void:
+	if _pending_mirror_request == null:
+		return
+	var request: Variant = _pending_mirror_request
+	_pending_mirror_request = null
+	if not request.is_resolved():
+		request.resolve(_mirror_empty_like(request))
+
+
+## The correctly-typed empty array for whichever request kind [param request]
+## is — GDScript has no generics, so this can't be shared with
+## [method LootPickRegistry._empty_like] / [method SkillDustAddon._forfeit_like]
+## across files.
+func _mirror_empty_like(request: Variant) -> Array:
+	if request is SpellLootRequest:
+		return [] as Array[SpellDef]
+	return [] as Array[StatModifier]

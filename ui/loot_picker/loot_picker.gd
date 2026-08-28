@@ -23,9 +23,22 @@ func _ready() -> void:
 ## the emitter won't auto-resolve behind us.
 func present(request: LootPickRequest) -> void:
 	_present(_BODY_SCENE, "CLAIM LOOT", request)
+	if not request.settled.is_connected(_on_request_settled):
+		request.settled.connect(_on_request_settled, CONNECT_ONE_SHOT)
 
 
 ## A [LootPickRequest] carries its own resolve callback — [ModalBase] never
 ## calls it, this does.
 func _on_confirmed(chosen: Array, request: Variant) -> void:
 	(request as LootPickRequest).resolve(chosen)
+
+
+## #564 — a round can settle THIS request without our own confirm ever firing:
+## a mirror peer's [LootSystem] adapter force-resolves its rebuilt request when
+## the host's outcome comes down without a local answer (host-side timeout or
+## death-mid-pick forfeit). The normal confirm path already resolves AFTER
+## `_close()`, so `dismiss()` there is a harmless no-op; this is what keeps the
+## client from being left holding a modal for a question the host already
+## answered.
+func _on_request_settled(_chosen: Array) -> void:
+	dismiss()
