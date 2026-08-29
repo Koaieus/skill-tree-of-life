@@ -46,7 +46,11 @@ SCOPED_MAX_LINES = 150   # above this, a scoped rule is a doc wearing a rule's h
 # in that window cited no reproduced instance (audit 2026-08-29, see ee42f80).
 # Growth is the signal a pure size cap misses: that file was never the biggest.
 DOCS = "docs/domain"
-DOC_MAX_BYTES = 36000     # p90 of the tier on 2026-08-29 (median 12k, max 41.6k)
+# Set ABOVE everything current (max 41.6k on 2026-08-29; median 12k, p90 36k) so
+# it fires only on genuinely new territory. A ceiling that flags docs nobody is
+# going to split is a standing violation with no action, and a violation list
+# people learn to skim is worse than no check. Lower it once the tier is tidier.
+DOC_MAX_BYTES = 48000
 # Calibration matters more than the mechanism here. A doc growing next to active
 # feature work is HEALTHY, and at 25%/30d this fired on 7 of 42 docs — a check
 # that noisy is the anxiety failure mode 963618ef already cost this repo once.
