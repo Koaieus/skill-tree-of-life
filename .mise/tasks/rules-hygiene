@@ -7,7 +7,9 @@ The always-on tier is injected into every turn of every session, so its size is 
 tax on all future work. This checks the invariants that keep it small and the
 scoped tier honest. See docs/domain/breadcrules.md.
 
-The headline check is DEAD GLOB: a `paths:` pattern matching zero files makes a
+Two headline checks. DOC ACCRETION is the newer one: a docs/domain page that
+grew sharply in the last month, which is how a diagnostic doc turns into a
+paranoia generator (see the DOCS constants below). The other is DEAD GLOB: a `paths:` pattern matching zero files makes a
 rule that silently never loads. It looks fine, ships green, and nobody finds out.
 Nothing else in the repo can catch that.
 """
@@ -34,6 +36,25 @@ COMBINED_BUDGET = 16500
 EXPECTED_COST_MAX = 1500
 CRUMB_MAX = 600          # a single always-on rule above this isn't a crumb
 SCOPED_MAX_LINES = 150   # above this, a scoped rule is a doc wearing a rule's hat
+
+# The docs/domain tier is read on demand, so it gets no total budget — a big doc
+# is only paid for by the agent who opens it. What it gets instead is a GROWTH
+# check, because the failure mode here is not size, it is accretion: a doc that
+# grows without any addition citing an observed incident, until it primes wrong
+# diagnoses. Attested — godot-workflow.md's class-cache section regrew 91% by
+# bytes in the month AFTER 963618ef deliberately cut it back, and every addition
+# in that window cited no reproduced instance (audit 2026-08-29, see ee42f80).
+# Growth is the signal a pure size cap misses: that file was never the biggest.
+DOCS = "docs/domain"
+DOC_MAX_BYTES = 36000     # p90 of the tier on 2026-08-29 (median 12k, max 41.6k)
+# Calibration matters more than the mechanism here. A doc growing next to active
+# feature work is HEALTHY, and at 25%/30d this fired on 7 of 42 docs — a check
+# that noisy is the anxiety failure mode 963618ef already cost this repo once.
+# The real signal is a doc that is ALREADY MATURE and still growing fast, so the
+# floor does most of the work. At 60/15000 the tier yields one finding.
+DOC_GROWTH_PCT = 60       # growth over the window that reads as accretion
+DOC_GROWTH_DAYS = 30
+DOC_GROWTH_FLOOR = 15000  # a doc smaller than this is still being written
 
 
 def user_always_on():
@@ -90,6 +111,20 @@ def matches_any(pattern):
     if pattern.endswith("/**"):
         return matches_any(pattern[:-1] + "*")
     return os.path.isfile(pattern)
+
+
+def doc_baseline_sha(days):
+    """The commit HEAD was at `days` ago, or None in a shallow/young repo."""
+    out = subprocess.run(["git", "rev-list", "-1", f"--before={days} days ago", "HEAD"],
+                         capture_output=True, text=True)
+    return out.stdout.strip() or None
+
+
+def blob_size(sha, path):
+    """Byte size of `path` at `sha`, or None if it did not exist there."""
+    out = subprocess.run(["git", "cat-file", "-s", f"{sha}:{path}"],
+                         capture_output=True, text=True)
+    return int(out.stdout.strip()) if out.returncode == 0 else None
 
 
 _SOURCES = None
@@ -186,6 +221,29 @@ def main():
                     "msg": f"crumb points at {bare}, which does not exist",
                 })
 
+    docs, doc_total = [], 0
+    base = doc_baseline_sha(DOC_GROWTH_DAYS)
+    for path in sorted(glob.glob(f"{DOCS}/*.md")):
+        size = os.path.getsize(path)
+        doc_total += size
+        was = blob_size(base, path) if base else None
+        grew = round((size - was) / was * 100) if was else None
+        docs.append((os.path.basename(path), size, grew))
+        if size > DOC_MAX_BYTES:
+            findings.append({
+                "check": "fat-doc", "file": path, "bytes": size,
+                "msg": f"{size}B (>{DOC_MAX_BYTES}) — past the point an agent reads it "
+                       f"end to end; split by topic or cut what no longer earns its place",
+            })
+        if grew is not None and size >= DOC_GROWTH_FLOOR and grew >= DOC_GROWTH_PCT:
+            findings.append({
+                "check": "doc-accretion", "file": path, "growth_pct": grew,
+                "msg": f"+{grew}% in {DOC_GROWTH_DAYS}d ({was}B -> {size}B) — check the "
+                       f"commit bodies behind that growth actually cite observed "
+                       f"incidents; if they assert a cause without one, cut them "
+                       f"(.claude/rules/writing-rules.md)",
+            })
+
     claude_md = os.path.getsize("CLAUDE.md") if os.path.isfile("CLAUDE.md") else 0
     user_tier, user_files = user_always_on()
     combined = always_on_total + claude_md + user_tier
@@ -215,7 +273,8 @@ def main():
         print(json.dumps({"always_on_bytes": combined,
                           "rule_tier_bytes": always_on_total,
                           "user_tier_bytes": user_tier,
-                          "claude_md_bytes": claude_md, "findings": findings}, indent=2))
+                          "claude_md_bytes": claude_md,
+                          "doc_tier_bytes": doc_total, "findings": findings}, indent=2))
         return 1 if (findings and strict) else 0
 
     print(f"ALWAYS-ON (paid by every session before it reads anything): "
@@ -232,6 +291,11 @@ def main():
     print(f"\nScoped: {len(scoped)} rules, {sum(s for _, s, _ in scoped)}B (loaded on demand)")
     for n, s, l in sorted(scoped, key=lambda x: -x[1])[:5]:
         print(f"  {s:6d}  {l:4d}L  {n}")
+
+    print(f"\nDocs: {len(docs)} in {DOCS}/, {doc_total}B (read on demand, no total budget)")
+    for n, sz, g in sorted(docs, key=lambda x: -(x[2] or 0))[:5]:
+        print(f"  {sz:6d}  {('%+d%%' % g) if g is not None else 'new':>6}"
+              f" /{DOC_GROWTH_DAYS}d  {n}")
 
     if not findings:
         print("\n✓ no violations")
