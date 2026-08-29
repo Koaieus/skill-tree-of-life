@@ -1,8 +1,9 @@
 ---
-description: Writing a rule or CLAUDE.md entry — keep the always-on tier tiny; scope with paths:, or leave a Breadcrule
+description: Writing a rule, doc, or CLAUDE.md entry — keep the always-on tier tiny; scope with paths:, leave a Breadcrule, and cite a reproduced incident for any diagnostic claim
 paths:
   - ".claude/rules/*.md"
   - "CLAUDE.md"
+  - "docs/domain/*.md"
 ---
 
 # Writing a rule
@@ -89,6 +90,37 @@ anything on the ones that do.
 Ask the deciding question honestly: *will an agent who is not me, working on
 something else, be better off carrying this?* Rules exist for the 99% who never
 hit your bug — not for the one who just did.
+
+## Cite the incident, or don't add the claim
+
+A **diagnostic** claim — one that tells a future agent *what a symptom means* —
+compounds differently from one about tone or length. A wrong entry doesn't just
+cost bytes, it **primes a wrong diagnosis**: the next agent spends turns chasing
+your cause, and the usual repair is *another* paragraph correcting the first. The
+doc ends up arguing with itself and everyone carries both sides.
+
+That loop is attested here, not hypothetical. `docs/domain/godot-workflow.md`'s
+class-cache section regrew 91% by bytes in the month *after* it was deliberately
+cut back, entirely through additions whose commit messages cite no observed
+instance (audited 2026-08-29).
+
+So: **an addition asserting "symptom X means cause Y" must name the instance that
+showed it** — the error string, the test count, a sha, an issue — in the commit
+body, not just the diff.
+
+- **No incident, no entry.** *"It is the cache, every time"* with an empty commit
+  body is a guess wearing a rule's confidence. Write what you saw, or write
+  nothing.
+- **Rule out the benign explanation first, in writing.** Most "the tool silently
+  corrupted my file" claims are normal serialization or stale committed state.
+  Godot omits any property equal to its script's *current* default, so shifting a
+  default makes a `.tres` line appear or vanish with the effective value
+  unchanged — indistinguishable in a diff from the editor eating a field. Same
+  family as the `.import`-churn misread.
+- **Ruling a cause OUT beats adding another warning.** If the doc's own framing
+  sent you down the wrong path, cut or narrow the section that misled you. A
+  "this look-alike is NOT that" paragraph leaves the misleading claim standing
+  and doubles what every future agent carries.
 
 Full tiering (inline gotcha → scoped rule → breadcrule+doc → doc), the `paths:`
 mechanism, and how to write the crumb: **`docs/domain/breadcrules.md`**.
