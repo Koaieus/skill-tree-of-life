@@ -216,44 +216,42 @@ So: refresh when you need to. Do not stall waiting for a safe moment, do not
 build a workaround, do not `md5sum` anything, do not ask the user for
 permission, and do not spend turns investigating a diff you can simply read.
 Attention spent here is attention taken from the implementation you're actually
-doing. Glance at the diff, act on it if a *non-default* value vanished, and get
-back to work.
+doing. Glance at the diff, check any *non-default* value that vanished against its
+script default, and get back to work.
 
-The editor pass re-serializes any scene or `.tres` it briefly touches. Observed:
+The editor pass re-serializes any scene or `.tres` it briefly touches. Every
+git-visible effect on record has been cosmetic or benign:
 
-- **Dropped node instances** — `[node name="UIRoot" ...]` vanished from
-  `dev_sandbox.tscn` during a refresh, with the matching ext_resource
-  removed too. Runtime then failed on `$UI/UIRoot` lookup.
-- **Regenerated sub_resource ids** — `Resource_umwfs` → `Resource_qrijo`,
-  with the consumer reference updated in lockstep (cosmetic, but noise).
-- **Position normalisation** — node positions tweaked by a few pixels
-  if the editor briefly re-laid out something.
-- **Stripped `.tres` fields + sub-resources** — `spark.tres` lost its
-  `damage = 5` line, its `range_finder` sub-resource, and the
-  `HopRangeFinder` ext_resource entry. The author code (`SpellDef.damage`,
-  `SingleHostileNodeTargeting.range_finder`) was correct; the editor
-  re-serialized with a *stale view* of the class's field set, omitting
-  fields it didn't recognise at that moment. The file still parses, so there's
-  no error — the diff is your signal. This is the rare case; it is also the
-  only one worth acting on.
+- **Default-elision** — a pass over `procgen/pools/*.tres` dropped
+  `operation = 0`, `archetype_stat = &""`, `unit_value = 1.0`, `min_tier = 1`
+  and added `uid=` to ext_resources: 95 deletions across 8 files, alarming at a
+  glance. Every dropped line equalled its class default, and non-default values
+  (`max_tier = 2`) were **kept**. Godot omits defaults on re-serialize —
+  semantically identical.
+- **A shifted default does this on its own, with no editor pass involved** —
+  `e521ac2` dropped `max_hops = 3` from `spark.tres` because
+  `hop_range_finder.gd` declares `@export var max_hops: int = 3`. The stored
+  value met the default, so the line stopped being written; runtime unchanged.
+  The mirror case *adds* a line when a default moves away from a stored value.
+- **Regenerated sub_resource ids** — `Resource_umwfs` → `Resource_qrijo`, with
+  the consumer reference updated in lockstep (cosmetic, but noise).
+- **Position normalisation** — node positions tweaked by a few pixels if the
+  editor briefly re-laid out something.
 
-**Default-elision is the benign diff — learn to tell it from the strip.** A pass
-over `procgen/pools/*.tres` dropped `operation = 0`, `archetype_stat = &""`,
-`unit_value = 1.0`, `min_tier = 1` and added `uid=` to ext_resources — 95
-deletions across 8 files, alarming at a glance. Every dropped line equalled its
-class default, and non-default values (`max_tier = 2`) were **kept**. That's
-Godot omitting defaults on re-serialize, semantically identical.
+**No committed instance of the editor destroying a non-default value has ever
+been found.** This section asserted two; both were audited out 2026-08-29 —
+`ed73af65` ("…stripped by editor") is a no-op against its parent `00a3f442`,
+and `UIRoot` is present unchanged in `1d3ca92`. Neither loss reached git.
 
-**How to tell them apart:** look up each dropped field's default in the script.
-All-defaults-dropped + non-defaults-retained = elision, safe. A *non-default*
-value gone (`damage = 5`, `per_phrase = "×10 INT"`) = the stale-class-view strip,
-restore it. `per_phrase` **moving** below `formula`/`inputs` is also just property
-reordering — the regression to fear is `per_phrase = null`.
+So if a non-default value vanished, check its `@export` default **at that sha**
+(`git show <sha>:script.gd`) before concluding anything: equal → elision, safe;
+different → you have the first evidenced case, record the sha. Nobody ran that
+command for two and a half months, and "restore it" is what produced
+`ed73af65` — a no-op written up as a witnessed incident.
 
 These re-appear on every editor pass, so don't fold them into an unrelated
 commit: either revert them, or commit them alone as normalization.
 
-Position/id noise is fine. Dropped instances and stripped fields are not.
 The whole protocol:
 
 ```bash
@@ -265,10 +263,6 @@ It runs the pass, excludes pre-existing dirt, and hands back a verdict —
 sidecar/`.import` churn from authored files, listing **only the non-trivial
 lines removed**. That list is the entire judgement call; everything else it
 already classified for you. Don't hand-diff unless it points you somewhere.
-
-For `.tres` files specifically: also boot and exercise the resource's
-behaviour if you can — silent strip won't cause a parse error, so the
-diff is your only signal until the bug surfaces in gameplay.
 
 ## Refreshing while the user has the editor open — just do it
 
