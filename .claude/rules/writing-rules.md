@@ -31,7 +31,9 @@ You're reading or editing a rule / `CLAUDE.md`. Before you add a page:
   silently never loads, which nothing else can catch. It also counts the
   **`~/.claude` user tier** (the auto-memory index + any unscoped global rule),
   which is always-on and lives outside the repo — so a claim duplicated between a
-  memory and a rule is paid twice, every turn.
+  memory and a rule is paid twice, every turn. It also reports the `docs/domain`
+  tier: `fat-doc` (past reading in one sitting) and `doc-accretion` (a mature doc
+  growing fast — go check those additions cite incidents).
 - Lead with the rule, then **Why:** / **How to apply:**. Small-rule discipline is
   in `CLAUDE.md` → *Knowledge accumulation*.
 
