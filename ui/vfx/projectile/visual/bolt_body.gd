@@ -196,7 +196,7 @@ func _on_crit(tier: int) -> void:
 func _on_context(entry: Variant) -> void:
 	if entry == null:
 		return
-	var frac: float = _entry_float(entry, &"hop_fraction", -1.0)
+	var frac: float = VfxContext.read_float(entry, &"hop_fraction", -1.0)
 	if frac >= 0.0:
 		_hop_fraction = clampf(frac, 0.0, 1.0)
 		_apply_look()
@@ -266,22 +266,3 @@ func _place_segments() -> void:
 		var back: int = (i + 1) * trail_stride
 		var idx: int = maxi(0, _history.size() - 1 - back)
 		_segments[i].global_position = _history[idx]
-
-
-## Duck-typed read off a `ScheduleEntry`-shaped object. Returns [param fallback]
-## when the field is absent or non-numeric, which is the whole point — a
-## visual must work when nothing supplies context at all.
-static func _entry_float(entry: Variant, field: StringName, fallback: float) -> float:
-	if entry is Object:
-		var obj: Object = entry
-		if field in obj:
-			var v: Variant = obj.get(field)
-			if v is float or v is int:
-				return float(v)
-	elif entry is Dictionary:
-		var d: Dictionary = entry
-		if d.has(field):
-			var v: Variant = d[field]
-			if v is float or v is int:
-				return float(v)
-	return fallback
