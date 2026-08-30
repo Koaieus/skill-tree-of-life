@@ -84,24 +84,15 @@ Each `PropagationEvent.Verb` resolves to its own path and visual. Per-verb `@exp
 
 Unset per-verb slots fall back to the legacy `projectile_path` / `visual_scene`, then to built-in defaults (`BezierArcPath` / `GlowingDot`).
 
-### ProjectilePath catalogue
+### ProjectilePath catalogue, and the shared kit (#670)
 
-| Path | File | Use |
-|---|---|---|
-| `BezierArcPath` | `ui/vfx/projectile/path/bezier_arc_path.gd` | Quadratic arc through apex. Default for JUMP. |
-| `LinearPath` | `ui/vfx/projectile/path/linear_path.gd` | Straight lerp origin→target. Canonical for EDGE. |
-| `SelfLoopPath` | `ui/vfx/projectile/path/self_loop_path.gd` | Cubic Bezier teardrop loop. For SELF_LOOP (origin == target). |
-| `CubicBezierPath` | `ui/vfx/projectile/path/cubic_bezier_path.gd` | General cubic with launch/arrival tangents. |
-| `Curve2DPath` | `ui/vfx/projectile/path/curve2d_path.gd` | Authored `Curve2D` sampled and mapped. Used by AllocationVFX. |
-| `WavePath` | `ui/vfx/projectile/path/wave_path.gd` | Lerp + transverse sine (#670 P3). "This propagates" rather than "this was thrown". Reverberator / Resonator. |
-| `JitterPath` | `ui/vfx/projectile/path/jitter_path.gd` | Lerp + perpendicular hash noise (#670 P4). Unstable arcing electricity. Spark / the lightning family. |
-
-**The shared primitive kit (#670)** — `BoltBody` (+5 configs), `ImpactRing`,
-`WavePath`, `JitterPath`, `EdgeEnergize`, plus an **ease knob on every path**
-(remaps *time*, not shape). Never a per-instance `ShaderMaterial` nor animated
-per-instance uniform (the kit batches ~60 into one draw); the crit grammar is
-authored ONCE in `ImpactRing`; `EdgeEnergize` paints on top, never touching the
-edge MultiMesh. [docs/domain/spell-vfx-kit.md](../../docs/domain/spell-vfx-kit.md).
+Seven paths (all pure functions of `t`, all carrying an **ease knob** that remaps
+*time*, never shape, default linear) plus the five shared primitives selected
+alongside them — `BoltBody` (+5 configs), `ImpactRing`, `WavePath`, `JitterPath`,
+`EdgeEnergize` — are tabled in
+[docs/domain/spell-vfx-kit.md](../../docs/domain/spell-vfx-kit.md#the-catalogue).
+Two repeat here: never a per-instance `ShaderMaterial` nor an animated per-instance
+uniform (either breaks the ~60-into-one-draw batch), and `EdgeEnergize` paints *on top* of an edge.
 
 ## CANCEL dissipate (#201)
 

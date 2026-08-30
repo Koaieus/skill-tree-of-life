@@ -12,6 +12,18 @@ primitive is not in them, a per-spell unit will not find it.
 
 ## The catalogue
 
+### ProjectilePath — the seven shapes
+
+| Path | File | Use |
+|---|---|---|
+| `BezierArcPath` | `ui/vfx/projectile/path/bezier_arc_path.gd` | Quadratic arc through apex. Default for JUMP. |
+| `LinearPath` | `ui/vfx/projectile/path/linear_path.gd` | Straight lerp origin→target. Canonical for EDGE. |
+| `SelfLoopPath` | `ui/vfx/projectile/path/self_loop_path.gd` | Cubic Bezier teardrop loop. For SELF_LOOP (origin == target). |
+| `CubicBezierPath` | `ui/vfx/projectile/path/cubic_bezier_path.gd` | General cubic with launch/arrival tangents. |
+| `Curve2DPath` | `ui/vfx/projectile/path/curve2d_path.gd` | Authored `Curve2D` sampled and mapped. Used by AllocationVFX. |
+| `WavePath` | `ui/vfx/projectile/path/wave_path.gd` | Lerp + transverse sine (#670 P3). "This propagates" rather than "this was thrown". Reverberator / Resonator. |
+| `JitterPath` | `ui/vfx/projectile/path/jitter_path.gd` | Lerp + perpendicular hash noise (#670 P4). Unstable arcing electricity. Spark / the lightning family. |
+
 | Primitive | Files | What it is |
 |---|---|---|
 | `BoltBody` | `ui/vfx/projectile/visual/bolt_body.tscn` + five inherited configs (`bolt_small` / `_blunt` / `_streak` / `_packet` / `_soft`) | The workhorse body. Supersedes `GlowingDot` **for spell use** — `GlowingDot` is not deleted, it has non-spell callers. |
