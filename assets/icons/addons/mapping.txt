@@ -9,3 +9,16 @@ addon_fortification	heavenly-dog/defensive-wall.svg
 addon_clamp	delapouite/clamp.svg
 addon_skill_dust	lorc/dust-cloud.svg
 addon_watchtower	delapouite/watchtower.svg
+# Armed-mode cursor badges (#664). The three attack modes are a deliberate
+# family — three diagonally-pointing weapons, differentiated by the STR/DEX/INT
+# tint, not by silhouette (owner call 2026-08-29).
+armed_melee	lorc/broadsword.svg
+armed_ranged	lorc/high-shot.svg
+armed_magic	lorc/crystal-wand.svg
+armed_deallocate	lorc/cycle.svg
+armed_move_core	delapouite/move.svg
+# Extract/Stake are ONE piece of art and its vertical mirror — a guaranteed
+# pair. The flip is baked here (optional third column) so `ArmedMode.icon()`
+# keeps returning a plain Texture2D and no presentation flag leaks into systems/.
+armed_extract	delapouite/plain-arrow.svg
+armed_stake	delapouite/plain-arrow.svg	flip_v

@@ -30,3 +30,10 @@ func pop() -> bool:
 		return false
 	_ctl.cancel_mass_action()
 	return true
+
+
+## No badge, deliberately (#664, decision 11). A confirm modal is up and the
+## input controller is frozen (`set_input_frozen`, #486), so there is no "next
+## click" for a badge to describe. Inherits `null` / transparent from
+## [ArmedMode]; this comment exists so the omission reads as a decision rather
+## than an oversight.

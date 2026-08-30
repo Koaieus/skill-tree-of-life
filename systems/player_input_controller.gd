@@ -119,6 +119,21 @@ signal armed_tint_changed(tint: Color)
 ## Last tint emitted, so a level that re-sets the same value doesn't re-fire.
 var _armed_tint: Color = Color.TRANSPARENT
 
+## Badge for the cursor-following armed-mode icon (#664), carried so
+## [ArmedModeIcon] is a pure consumer with no knowledge of the stack — the same
+## deal [signal armed_tint_changed] gives [ArmedModeGlow].
+##
+## **Deduped INDEPENDENTLY of the tint, and that independence is the whole
+## point.** The two channels walk the stack from opposite ends, so they change
+## at different moments: arming a clamp on top of an armed melee plan moves the
+## badge and leaves the border red. Folding this emit in under the tint's
+## early-return would swallow exactly that case — the headline scenario of
+## #664 — so each channel compares against its own cached value below.
+signal armed_icon_changed(icon: Texture2D, tint: Color)
+## Last badge emitted, so a refresh that changed nothing doesn't re-fire.
+var _armed_icon: Texture2D = null
+var _armed_icon_tint: Color = Color.TRANSPARENT
+
 ## Node currently under the cursor, tracked via the Events hover bus so the
 ## `D`-to-deallocate channel knows what to act on. Null when nothing hovered.
 var _hovered_node: SkillNode = null
@@ -788,17 +803,83 @@ func get_armed_tint() -> Color:
 	return Color.TRANSPARENT
 
 
+## The armed level whose badge the cursor should show (#664), or null.
+##
+## Walks `_armed_modes` in **array order** — the TOP of the stack decides, the
+## same end [method _pop_armed_mode] starts from and the OPPOSITE end from
+## [method get_armed_tint]. **Owner call 2026-08-29:** "top first", for the
+## badge specifically; the 2026-08-21 base-first call stands unchanged for the
+## outline. The divergence is the feature, not a bug to reconcile: in
+## `Melee → blade select → Clamp armed` the border stays STR red (*what am I
+## wielding*) while the badge becomes the clamp (*what does my next click do*).
+## Make both walk top-first and arming a clamp kills the red border, which
+## reads as "you left Melee" and is false; make both walk base-first and the
+## badge shows a sword while the click places a clamp, which lies about the
+## click.
+##
+## Private, and the single walk BOTH public readers below go through — that is
+## what makes decision 4 ("one level supplies the texture *and* its colour")
+## structural rather than a convention two functions have to remember.
+##
+## An armed level with no icon falls through instead of blanking the badge, so
+## it can never mask a level beneath it — the same rule [method ArmedMode.icon]
+## documents.
+func _armed_icon_level() -> ArmedMode:
+	for mode in _armed_modes:
+		if not mode.is_armed():
+			continue
+		if mode.icon() != null:
+			return mode
+	return null
+
+
+## The badge texture for the armed-mode cursor icon (#664), or null when
+## nothing armed contributes one.
+##
+## Pure: no side effects, no frame state — same reason [method get_armed_tint]
+## is. A cursor badge cannot be judged headless
+## (`docs/domain/godot-workflow.md`), so the resolution has to live somewhere a
+## GUT test can call directly.
+func get_armed_icon() -> Texture2D:
+	var level := _armed_icon_level()
+	return level.icon() if level != null else null
+
+
+## The colour [method get_armed_icon]'s badge is modulated with, read off the
+## SAME level the texture came from — never a second independent walk. Returned
+## UNLIFTED; [ArmedModeIcon] owns the emissive tier.
+func get_armed_icon_tint() -> Color:
+	var level := _armed_icon_level()
+	return level.icon_tint() if level != null else Color.TRANSPARENT
+
+
 ## Single fan-in for "the armed stack may have changed": re-reads it once and
 ## pushes both consumers (cursor shape, viewport glow). Called from every
 ## arm/disarm setter and from the turn/act gate, since `can_player_act()` gates
 ## [method AttackPlanArmedMode.is_armed] — a turn ending disarms the glow.
 func _refresh_armed_state() -> void:
 	_update_cursor()
+
+	# Two channels, two caches, two independent emits — NOT one early return
+	# guarding both. The tint walks the stack base-first and the icon walks it
+	# top-first, so they genuinely change at different moments; a shared
+	# early-return on the tint would swallow every badge change that leaves the
+	# border colour alone, which is precisely the melee+clamp case #664 exists
+	# for. See [signal armed_icon_changed].
 	var next_tint := get_armed_tint()
-	if next_tint == _armed_tint:
-		return
-	_armed_tint = next_tint
-	armed_tint_changed.emit(next_tint)
+	if next_tint != _armed_tint:
+		_armed_tint = next_tint
+		armed_tint_changed.emit(next_tint)
+
+	# Resolved as a pair, from one walk: `get_armed_icon_tint` reads the tint
+	# off the same level the icon came from, so the badge can never show one
+	# mode's glyph in another mode's colour.
+	var next_icon := get_armed_icon()
+	var next_icon_tint := get_armed_icon_tint()
+	if next_icon != _armed_icon or next_icon_tint != _armed_icon_tint:
+		_armed_icon = next_icon
+		_armed_icon_tint = next_icon_tint
+		armed_icon_changed.emit(next_icon, next_icon_tint)
 
 
 ## Core-movement (#21) click routing. Two clicks: first click on the player's

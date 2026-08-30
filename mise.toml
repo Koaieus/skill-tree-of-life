@@ -244,7 +244,12 @@ for mapping in "${mappings[@]}"; do
   dest="$(dirname "$mapping")"
   mkdir -p "$dest"
   count=0
-  while IFS=$'\t' read -r name source_path; do
+  # Third column is an OPTIONAL flags field (`flip_v` today). It exists so a
+  # mirrored pair — #664's Stake/Extract arrows are one piece of art and its
+  # reflection — is baked from the manifest rather than flipped at runtime:
+  # the manifest stays the single source of truth and `ArmedMode.icon()` keeps
+  # returning a plain Texture2D, with no presentation flag leaking into systems/.
+  while IFS=$'\t' read -r name source_path flags; do
     # Skip comments and blank lines
     [[ -z "$name" || "$name" == \#* ]] && continue
     svg="$REPO_DIR/$source_path"
@@ -257,9 +262,16 @@ for mapping in "${mappings[@]}"; do
     sed -e "s/fill=\"#fff\"/fill=\"$FG_COLOR\"/g" \
         -e 's|<path d="M0 0h512v512H0z"/>||g' \
         "$svg" > "$tmp_svg"
+    # Flip in the VECTOR domain (an extra group on the fixed 512 viewBox) rather
+    # than post-flipping the PNG — no raster round-trip, and no dependency on a
+    # second image tool just to mirror one arrow.
+    if [[ "$flags" == *flip_v* ]]; then
+      sed -i -e 's|viewBox="0 0 512 512">|viewBox="0 0 512 512"><g transform="translate(0,512) scale(1,-1)">|' \
+             -e 's|</svg>|</g></svg>|' "$tmp_svg"
+    fi
     rsvg-convert -w "$ICON_SIZE" -h "$ICON_SIZE" "$tmp_svg" -o "$dest/${name}.png"
     rm "$tmp_svg"
-    echo "  ✓ $name  ←  $source_path"
+    echo "  ✓ $name  ←  $source_path${flags:+  [$flags]}"
     count=$((count + 1))
   done < "$mapping"
   echo "✓ $count icons rasterized → $dest/"
@@ -290,7 +302,10 @@ fi
 mkdir -p "$PROJECT_ROOT/assets/emblem_luts"
 lut_total=0
 for mapping in "${mappings[@]}"; do
-  while IFS=$'\t' read -r name source_path; do
+  # `flags` (the optional third column) is read but unused here: the LUT bake
+  # feeds the CARVE atlas, which is built from spells/mapping.txt only. Named
+  # anyway so a three-column row's path parses instead of silently missing.
+  while IFS=$'\t' read -r name source_path flags; do
     [[ -z "$name" || "$name" == \#* ]] && continue
     svg="$REPO_DIR/$source_path"
     [ -f "$svg" ] || continue

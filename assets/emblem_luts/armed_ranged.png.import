@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://buw6e5d0j8v38"
-path="res://.godot/imported/addon_clamp.png-1b522e776b1a8dca8ff3f564a494eeb8.ctex"
+uid="uid://dqk0ilbdxe8r7"
+path="res://.godot/imported/armed_ranged.png-5fdd76167d4f0f38415b58290ff8f594.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/addons/addon_clamp.png"
-dest_files=["res://.godot/imported/addon_clamp.png-1b522e776b1a8dca8ff3f564a494eeb8.ctex"]
+source_file="res://assets/emblem_luts/armed_ranged.png"
+dest_files=["res://.godot/imported/armed_ranged.png-5fdd76167d4f0f38415b58290ff8f594.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

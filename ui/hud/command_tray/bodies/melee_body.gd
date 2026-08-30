@@ -16,14 +16,22 @@ extends CommandTrayBodyBase
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 
-## Blip tint per MeleeAttackPlan.TEMP_UPGRADE_CATALOG entry, same order
-## (#406) — reused both for the upgrade-spend pips and as the addon-outline
-## decoration on blade-region pips, so one color means one addon kind
-## everywhere in this panel.
-const _UPGRADE_BLIP_COLORS: Array[Color] = [
-	Color(0.4, 0.7, 0.95, 1),   # Clamp — cool metal-brace blue
-	Color(0.95, 0.6, 0.25, 1),  # Spike — warm damage amber
-]
+## Blip tint per MeleeAttackPlan.TEMP_UPGRADE_CATALOG entry (#406) — reused
+## both for the upgrade-spend pips and as the addon-outline decoration on
+## blade-region pips, so one color means one addon kind everywhere in this
+## panel.
+##
+## Read off the shared [ActionPalette] rather than held as literals here
+## (#664): the armed-mode cursor badge shows the SAME addon in the SAME colour
+## seconds after the player presses one of these cards, and two hand-authored
+## copies of the pair is exactly how those drift apart. Keyed by the catalog
+## entry's `id`, so this no longer depends on catalog ORDER either.
+const _PALETTE := preload("res://ui/theme/action_palette.tres")
+
+
+static func _upgrade_color(index: int) -> Color:
+	var upgrade: Dictionary = MeleeAttackPlan.TEMP_UPGRADE_CATALOG[index]
+	return _PALETTE.color_for(upgrade.get("id", &""))
 
 ## The node a blip is currently forcing hover on, if any — owned exclusively
 ## here so at most one SkillNode is ever forced-hovered at a time. Cleared at
@@ -175,7 +183,7 @@ func _refresh() -> void:
 					if a.is_temporary and a.get_script() == upgrade.script:
 						for _j in a.temp_upgrade_cost:
 							upgrade_bound.append(node)
-							upgrade_colors.append(_UPGRADE_BLIP_COLORS[i])
+							upgrade_colors.append(_upgrade_color(i))
 	_upgrade_blips.max_count = upgrade_bound.size()
 	_upgrade_blips.bound_nodes = upgrade_bound
 	_upgrade_blips.segment_colors = upgrade_colors
@@ -211,7 +219,7 @@ func _outline_colors_for(node: SkillNode) -> Array[Color]:
 	for a in node.get_addons():
 		for i in MeleeAttackPlan.TEMP_UPGRADE_CATALOG.size():
 			if a.get_script() == MeleeAttackPlan.TEMP_UPGRADE_CATALOG[i].script:
-				colors.append(_UPGRADE_BLIP_COLORS[i])
+				colors.append(_upgrade_color(i))
 	return colors
 
 

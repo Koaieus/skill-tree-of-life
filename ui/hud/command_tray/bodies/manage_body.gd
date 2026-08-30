@@ -14,6 +14,42 @@ extends CommandTrayBodyBase
 @onready var _stake_card: ManageCard = %StakeCard
 @onready var _extract_card: ManageCard = %ExtractCard
 
+## Card title colours (#664). These were five inline `title_color`s on
+## `manage_body.tscn` until the armed-mode cursor badge became a second
+## consumer of the same five values — and an [ArmedMode] is a `RefCounted` in
+## `systems/` that cannot reach into a `.tscn` to read an export. So they moved
+## to [ActionPalette] and are assigned here instead: a `.tscn` property cannot
+## reference a field of an external `.tres`, so the assignment has to happen in
+## code, and this is the scene's own script.
+##
+## Values carried over unchanged — a move, not a retune. The payoff is that the
+## card a player just pressed and the badge now on their cursor match for free.
+const _PALETTE := preload("res://ui/theme/action_palette.tres")
+
+## Card → palette key. Move Core is keyed `&"move_core"` because it is a
+## targeting mode rather than a [enum PlayerInputController.ManageVerb]; the
+## other four are the lower-cased verb names, which is the same key
+## [ManageArmedMode] looks its badge tint up by.
+func _palette_keyed_cards() -> Dictionary:
+	return {
+		&"allocate": _allocate_card,
+		&"move_core": _move_card,
+		&"deallocate": _dealloc_card,
+		&"stake": _stake_card,
+		&"extract": _extract_card,
+	}
+
+
+## Paint the titles before anything else binds. Runs in the editor too (this is
+## a `@tool` script), so the authored look survives in the scene view without a
+## second copy of the colours living in the `.tscn`.
+func _ready() -> void:
+	var cards := _palette_keyed_cards()
+	for key in cards:
+		var card: ManageCard = cards[key]
+		if card != null:
+			card.title_color = _PALETTE.color_for(key)
+
 
 func _on_bound() -> void:
 	if Engine.is_editor_hint() or _input_ctl == null:

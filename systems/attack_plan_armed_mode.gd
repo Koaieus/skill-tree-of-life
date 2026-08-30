@@ -53,3 +53,29 @@ func tint() -> Color:
 	if def == null:
 		return Color.TRANSPARENT
 	return def.tint_color
+
+
+## Badge art per attack mode (#664). Three diagonally-pointing weapons —
+## **owner call 2026-08-29:** "having the basic 3 attack modes all be a
+## diagonally pointing weapon is actually neat right? broadsword, bow×arrow,
+## wand". The shared silhouette says *these are the same kind of thing*; the
+## STR/DEX/INT tint from [method tint] carries the difference. The
+## broadsword/wand similarity is that family resemblance, not a mistake.
+const _MODE_ICON := {
+	BattleSystem.AttackMode.MELEE: preload("res://assets/icons/addons/armed_melee.png"),
+	BattleSystem.AttackMode.RANGED: preload("res://assets/icons/addons/armed_ranged.png"),
+	BattleSystem.AttackMode.MAGIC: preload("res://assets/icons/addons/armed_magic.png"),
+}
+
+
+func icon() -> Texture2D:
+	if not is_armed():
+		return null
+	return _MODE_ICON.get(_ctl.battle_system.attack_mode, null)
+
+
+## The same attribute colour the border glow uses — reusing [method tint]
+## rather than restating the three colours, so the badge and the outline can
+## never drift apart.
+func icon_tint() -> Color:
+	return tint()

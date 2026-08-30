@@ -27,6 +27,7 @@ extends Control
 @onready var command_tray: CommandTray = %CommandTray
 @onready var announcement_layer: AnnouncementLayer = %AnnouncementLayer
 @onready var armed_mode_glow: ArmedModeGlow = %ArmedModeGlow
+@onready var armed_mode_icon: ArmedModeIcon = %ArmedModeIcon
 @onready var stat_board_overlay: StatBoardOverlay = %StatBoardOverlay
 @onready var loot_picker: LootPicker = %LootPicker
 @onready var mass_action_confirm_panel: MassActionConfirmPanel = %MassActionConfirmPanel
@@ -160,6 +161,12 @@ func bind_systems(
 	# player entity simply never arms anything.
 	if armed_mode_glow != null:
 		armed_mode_glow.bind(_input_ctl)
+	# The badge (#664) is the glow's foveal counterpart and reads the same
+	# controller. It is bound here AND re-bound in `rebind_player` — a hot-seat
+	# handover (#459) can hand over a different controller, and a badge left
+	# driven by the outgoing one would describe the wrong player's next click.
+	if armed_mode_icon != null:
+		armed_mode_icon.bind(_input_ctl)
 	if node_inspector_card != null:
 		node_inspector_card.bind(_input_ctl)
 	if turn_resources_panel != null:
@@ -237,6 +244,13 @@ func rebind_player(player: Entity) -> void:
 		action_cluster.set_player(_player)
 	if command_tray != null:
 		command_tray.set_player(_player)
+	# Re-read the badge on every hot-seat handover (#459, #664). The controller
+	# object survives a handover, so this is not about re-wiring a signal — it
+	# is about the incoming player's armed state being reflected immediately
+	# rather than at whatever they arm next. `bind` releases its previous scope,
+	# so re-calling it never doubles the connection.
+	if armed_mode_icon != null:
+		armed_mode_icon.bind(_input_ctl)
 	_bind_initiative_pool()
 
 

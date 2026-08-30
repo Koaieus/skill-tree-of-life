@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://buw6e5d0j8v38"
-path="res://.godot/imported/addon_clamp.png-1b522e776b1a8dca8ff3f564a494eeb8.ctex"
+uid="uid://bi540512otpo2"
+path="res://.godot/imported/armed_melee.png-e9c54cc5a4c7f1da72ea44ef9fcb625d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/addons/addon_clamp.png"
-dest_files=["res://.godot/imported/addon_clamp.png-1b522e776b1a8dca8ff3f564a494eeb8.ctex"]
+source_file="res://assets/icons/addons/armed_melee.png"
+dest_files=["res://.godot/imported/armed_melee.png-e9c54cc5a4c7f1da72ea44ef9fcb625d.ctex"]
 
 [params]
 

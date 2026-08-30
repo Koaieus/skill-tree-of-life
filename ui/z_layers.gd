@@ -26,8 +26,15 @@
 ##   the world            0   graph, fog, VFX — the root viewport's own canvas
 ##   ArmedModeGlow        1   #412 armed-mode border glow, frames the play area
 ##   UI (HudRoot)         2   scenes/game_root.tscn — HUD panels draw over the glow
+##   ArmedModeIcon        3   #664 cursor badge — INVERTED vs the glow, see below
 ##   AnnouncementLayer   95   ui/announcement_layer/
 ##   RunEndOverlay      100   ui/run_end_overlay/run_end_overlay.tscn
+##
+## The glow and the badge deliberately sit on OPPOSITE sides of the HUD. The
+## glow frames the play area and the tray/left column/minimap draw over it
+## (owner call 2026-08-21); the badge rides the cursor and must never be
+## occluded by anything, so it goes above. Its constant lives here rather than
+## only in the scene because [ArmedModeIcon] sets `layer` from code in `_ready`.
 ##
 ## `default_game_env.tres` sets `background_canvas_max_layer = 100`, so
 ## everything through RunEndOverlay reaches the bloom pass; a layer above 100
@@ -44,3 +51,8 @@ const SENSED: int = 1001
 const SPELL_VFX: int = 2000
 const PROJECTILE: int = 3000
 const UI: int = 4096
+
+## `CanvasLayer.layer`, NOT a z_index — the odd one out in this file, and it is
+## here because [ArmedModeIcon] assigns it in code (see the CanvasLayer stack
+## above). Above the HUD's 2, below `background_canvas_max_layer`'s 100.
+const ARMED_MODE_ICON: int = 3

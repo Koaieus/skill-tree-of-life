@@ -27,32 +27,27 @@ unique_name_in_owner = true
 layout_mode = 2
 title_text = "◆ Allocate"
 hint_text = "Left-click an adjacent node · costs 1 SP"
-title_color = Color(0.2606, 0.6387, 0.9922, 1)
 
 [node name="MoveCard" parent="BodyContent/Content/Cards" instance=ExtResource("3_card")]
 unique_name_in_owner = true
 layout_mode = 2
 title_text = "✦ Move Core"
 hint_text = "Click core then destination, or drag · costs Move"
-title_color = Color(0.9039, 0.7331, 0.2746, 1)
 
 [node name="DeallocCard" parent="BodyContent/Content/Cards" instance=ExtResource("3_card")]
 unique_name_in_owner = true
 layout_mode = 2
 title_text = "⌫ Deallocate"
 hint_text = "Hover + D, or click armed · costs Dealloc · no self-islanding"
-title_color = Color(0.6935, 0.4045, 0.9676, 1)
 
 [node name="StakeCard" parent="BodyContent/Content/Cards" instance=ExtResource("3_card")]
 unique_name_in_owner = true
 layout_mode = 2
 title_text = "⬆ Stake"
 hint_text = "Click an owned node within 1 hop of core · costs 1 SP + 1 AP"
-title_color = Color(0.35, 0.85, 0.55, 1)
 
 [node name="ExtractCard" parent="BodyContent/Content/Cards" instance=ExtResource("3_card")]
 unique_name_in_owner = true
 layout_mode = 2
 title_text = "⬇ Extract"
 hint_text = "Click a staked node within 1 hop of core · costs 1 DP"
-title_color = Color(0.95, 0.55, 0.35, 1)
