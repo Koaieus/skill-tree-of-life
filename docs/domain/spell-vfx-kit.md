@@ -176,6 +176,7 @@ frame. The named constants an owner is most likely to want to move:
 | `linger_seconds` (2.5) | `edge_energize.tscn` / per-spell override | The burn-in fade — **and the thing that sets peak overlay count**, via `EdgeEnergize.max_live_overlays(linger, beat)`. Read #663's load table before raising it. |
 | `head_size`, `trail_length`, `hop_scale_start/end` | the five `bolt_*.tscn` configs | Per-config silhouette and the #663 D3 size ramp. |
 | `radius`, `expand_radius`, `thickness`, `squash` | `impact_ring.tscn` / `impact_ring_absorb.tscn` | Ring geometry. |
+| the `0.12` convergence widening coefficient | `ui/vfx/projectile/visual/impact_ring.gd` `_on_context` | How much each extra converging predecessor widens the ring. In code rather than on the scene, because it is a *rate*, not a per-config silhouette — Resonator is the only spell that will exercise it. |
 
 Emissive values are **never** hand-picked floats: everything routes through
 `Emissive.at` / `.tint` / `.tint_peak` with a named tier.
