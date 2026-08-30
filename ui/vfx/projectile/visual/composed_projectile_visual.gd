@@ -67,6 +67,14 @@ var _crit_tier: int = 0
 
 
 func _ready() -> void:
+	# `@tool` is the house convention for every visual in this directory, so it
+	# stays — but this is the only one that SPAWNS A CHILD, and an unowned
+	# `add_child` from a tool script shows up as a phantom node the moment a
+	# per-spell scene is opened in the editor (and can be offered for saving
+	# into the `.tscn`). The other primitives only draw themselves, which is why
+	# none of them needs this guard.
+	if Engine.is_editor_hint():
+		return
 	if body_scene == null:
 		return
 	_body = body_scene.instantiate()

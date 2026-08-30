@@ -445,3 +445,54 @@ func _find_projectiles(coord: MagicBounceCoordinator) -> Array[Projectile]:
 		if child is Projectile:
 			result.append(child)
 	return result
+
+
+## #663 D4 — the coordinator half of the caster-tint stamp.
+##
+## `test/unit/vfx/test_caster_tint_stamp.gd` pins the WRAPPER half (that
+## ComposedProjectileVisual forwards a stamp down to its body). These pin the
+## half that actually shipped broken: MagicBounceCoordinator never resolved a
+## caster or stamped anything, while ArrowVolleyCoordinator had since #507, so
+## every spell rendered neutral-white. Drop the four stamp lines from
+## `_spawn_projectile` and the wrapper test stays green while all eight spells
+## go white again — which is exactly how this survived undetected.
+func test_resolve_caster_tint_reads_the_attacker() -> void:
+	var outcome := _build_4hop_outcome()
+	assert_eq(_mount_coord(0.01, 0.005)._resolve_caster_tint(outcome), Color.RED,
+			"the cast's tint is the attacker's own colour")
+
+
+func test_resolve_caster_tint_falls_back_to_white_with_no_attacker() -> void:
+	var nodes := _graph.get_skill_nodes()
+	# A hit with no `attacker` — the shape a hand-built or replayed outcome can
+	# legitimately arrive in. White is the documented "no identity supplied"
+	# fallback, never a hand-picked colour.
+	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.EDGE)
+	assert_eq(_mount_coord(0.01, 0.005)._resolve_caster_tint(outcome), Color.WHITE,
+			"no attacker named a colour, so the body carries no identity")
+
+
+## End to end: the colour has to reach the spawned projectile's visual, not
+## merely be resolvable. `launch` instantiates the visual synchronously as the
+## projectile's first child, which is what makes the stamp land before its
+## first draw.
+func test_spawned_visual_is_stamped_with_the_caster_colour() -> void:
+	var coord := _mount_coord(0.01, 0.005, preload("res://ui/vfx/projectile/visual/bolt_small.tscn"))
+	coord.play(_build_4hop_outcome())
+	await get_tree().process_frame
+
+	var projectiles := _find_projectiles(coord)
+	assert_gt(projectiles.size(), 0, "the cast spawned at least one projectile")
+
+	var stamped := 0
+	for proj in projectiles:
+		if proj.get_child_count() == 0:
+			continue
+		var v: Node = proj.get_child(0)
+		if "tint" in v:
+			assert_eq(v.get("tint"), Color.RED,
+					"the spawned body carries the attacker's colour (#663 D4)")
+			stamped += 1
+	assert_gt(stamped, 0,
+			"at least one spawned visual actually exposed `tint` and was stamped "
+			+ "— a zero here means the assertion above never ran")
