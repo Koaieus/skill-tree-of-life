@@ -59,14 +59,21 @@ enum Operation {
 }
 
 
-@export var stat_id: StringName = &""
-@export var operation: Operation = Operation.ADD_BASE
+@export var stat_id: StringName = &"":
+	set(v):
+		stat_id = v
+		_update_resource_name()
+@export var operation: Operation = Operation.ADD_BASE:
+	set(v):
+		operation = v
+		_update_resource_name()
 @export var value: float = 1.0:
 	set(v):
 		if v == value:
 			return
 		value = v
 		emit_changed()
+		_update_resource_name()
 ## Optional. When set, effective value becomes `value * formula.compute(board)`,
 ## so `value` reads as the coefficient and the formula contributes the variable
 ## part. When null, effective value is just `value` (plain static modifier).
@@ -74,6 +81,29 @@ enum Operation {
 ## Tie-breaker — currently only consulted for SET (the only op where
 ## composition order matters). Higher wins.
 @export var priority: int = 0
+
+
+## Keeps the inspector's array-entry label (and any other `resource_name`
+## reader) in sync with what this modifier actually does, instead of the
+## useless per-class default ("StatModifier" for every entry — #467). Reuses
+## [method format] rather than building a second string — same pattern as
+## [StatPool]'s `_update_resource_name`. Wired off `stat_id` / `operation` /
+## `value`; `formula` and `priority` don't need it (neither is part of
+## [method format]'s coefficient-first rendering for an unbound modifier, and a
+## formula swap without a stat_id/op/value change is not a case this ships
+## with today).
+##
+## [method format] resolves the stat's display name through the `StatRegistry`
+## autoload, which is unavailable (resolves to `null`, not a placeholder) while
+## a `.tres` referencing a `StatModifier` is deserialized outside a running
+## SceneTree — a `preload()` at script-const evaluation time is exactly this
+## window. Skip in that case; the field write still lands, it just doesn't
+## have a name to render yet, and any later edit made once the tree (and
+## therefore the autoload) is up recomputes it normally.
+func _update_resource_name() -> void:
+	if not is_instance_valid(StatRegistry):
+		return
+	resource_name = format()
 
 
 ## Re-entrancy guard on THIS instance's own [method _on_source_changed] — stops

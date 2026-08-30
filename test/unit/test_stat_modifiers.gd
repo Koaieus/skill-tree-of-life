@@ -323,3 +323,30 @@ func test_same_modifier_instance_shared_across_two_boards_computes_independently
 	a.dexterity.base_value = 999.0
 	assert_eq(int(b.strength.get_value()), 100, "board B is untouched by A's source change")
 	assert_eq(int(a.strength.get_value()), 999, "board A recomputed off its own source")
+
+
+# --- #467: resource_name mirrors format() so the inspector's array-entry ---
+# --- label shows the actual modifier instead of the class default. ---------
+
+func test_resource_name_reflects_format_on_construction() -> void:
+	var m := _mod(StatModifier.Operation.ADD_BASE, 4.0)
+	assert_eq(m.resource_name, m.format())
+	assert_eq(m.resource_name, "+4 Strength")
+
+
+func test_resource_name_updates_on_stat_id_change() -> void:
+	var m := _mod(StatModifier.Operation.ADD_BASE, 4.0)
+	m.stat_id = &"dexterity"
+	assert_eq(m.resource_name, "+4 Dexterity")
+
+
+func test_resource_name_updates_on_operation_change() -> void:
+	var m := _mod(StatModifier.Operation.ADD_BASE, 4.0)
+	m.operation = StatModifier.Operation.INCREASE
+	assert_eq(m.resource_name, "+4% increased Strength")
+
+
+func test_resource_name_updates_on_value_change() -> void:
+	var m := _mod(StatModifier.Operation.ADD_BASE, 4.0)
+	m.value = 9.0
+	assert_eq(m.resource_name, "+9 Strength")
