@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/bolt_body.tscn" id="1_base"]
+
+[node name="BoltBlunt" instance=ExtResource("1_base")]
+head_size = 30.0
+trail_length = 0
+emissive_tier = 0.5
+stretch_along_velocity = 0.45
+fade_seconds = 0.32

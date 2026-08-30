@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/bolt_body.tscn" id="1_base"]
+
+[node name="BoltSoft" instance=ExtResource("1_base")]
+head_size = 26.0
+trail_length = 0
+emissive_tier = 0.5
+tint = Color(1, 1, 1, 0.55)
+fade_seconds = 0.45

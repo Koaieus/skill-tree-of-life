@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/bolt_body.tscn" id="1_base"]
+
+[node name="BoltStreak" instance=ExtResource("1_base")]
+head_size = 13.0
+trail_length = 4
+trail_stride = 2
+stretch_along_velocity = 1.1
+hop_scale_end = 1.6
+fade_seconds = 0.3
