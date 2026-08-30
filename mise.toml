@@ -89,29 +89,15 @@ echo "✓ all scripts compiled clean"
 '''
 
 # Shader parse errors print as `SHADER ERROR`, not `SCRIPT ERROR`, and the
-# editor import pass above never compiles scene shaders — they only parse
-# when a scene carrying them loads (#465's watermark consts shipped broken
-# through exactly that gap). Probe the two scenes that between them mount
-# every shipped shader; Godot exits 0 regardless, so grep is the gate.
-[tasks."check-shaders"]
-description = "Headless scene-load probe (dev_sandbox + meta_root): fails on any SHADER ERROR"
-run = '''
-#!/usr/bin/env bash
-set -uo pipefail
-fail=0
-for scene in scenes/dev_sandbox.tscn scenes/meta/meta_root.tscn; do
-  out=$(godot --headless --path . --quit-after 10 "$scene" 2>&1)
-  if printf '%s\n' "$out" | grep -qE 'SHADER ERROR|Shader compilation failed'; then
-    printf '%s\n' "$out" | grep -E 'SHADER ERROR|Shader compilation failed'
-    echo "✗ shader errors in $scene"
-    fail=1
-  fi
-done
-if [ "$fail" -eq 0 ]; then
-  echo "✓ all shaders compiled clean"
-fi
-exit "$fail"
-'''
+# editor import pass above never compiles scene shaders — they only parse when
+# something assigns them to a material (#465's watermark consts shipped broken
+# through exactly that gap). check-shaders lives as a file task
+# (`.mise/tasks/check-shaders`, Python like refresh/lint-transcendentals
+# alongside it) because it walks the shader tree and shells out to a
+# generated headless probe script — past what's readable inline here. It
+# used to hardcode a two-scene probe list; #682 replaced that with a full
+# `.gdshader`/`.gdshaderinc` tree walk after a shader outside both scenes
+# broke and the gate stayed green.
 
 [tasks.check-script]
 description = "Parse-check a single GDScript file: `mise run check-script -- path/to.gd`"

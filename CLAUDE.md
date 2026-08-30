@@ -37,7 +37,7 @@ mise run test                                  # full suite, headless (reads .gu
 mise run test:one -- res://test/unit/test_smoke.gd   # a single script
 mise run test:dir -- res://test/unit/          # a directory
 mise run check                                 # headless compile-check of every script + shader
-mise run check-shaders                         # the shader half alone: scene-load probe of dev_sandbox + meta_root
+mise run check-shaders                         # the shader half alone: compile-checks every .gdshader in the tree
 mise run refresh                               # editor/class-cache refresh + a verdict on what it changed
 ```
 

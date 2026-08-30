@@ -311,6 +311,17 @@ opengl3 (mesa/llvmpipe) needs no GPU and surfaces the codegen error even though
 production uses the RD/Vulkan backend — the bug is in Godot's shader codegen, so
 it reproduces on either backend. Empty grep = compiles clean.
 
+`mise run check-shaders` (#682) walks every `.gdshader`/`.gdshaderinc` in the
+repo and is a real gate — worth running before reaching for the manual
+`xvfb-run` recipe above. But it stays on the plain `--headless` dummy
+renderer for speed, so it only proves the tier this file's own examples
+distinguish: GDSL parse/type errors (an undefined function call, a name
+collision) surface there too, confirmed by injection. The **silent codegen
+miscompile** this section opened with — valid-looking GDSL whose generated
+GLSL is broken only at the backend compile step — is a different tier, and a
+green `check-shaders` says nothing about it. That bug class still needs this
+section's `xvfb-run … --rendering-driver opengl3` recipe.
+
 ## Hand-authoring `.tres` — UID mismatch silently nulls the field*
 
 `[ext_resource type="Script" uid="uid://..." path="res://foo/bar.gd" id="x"]`

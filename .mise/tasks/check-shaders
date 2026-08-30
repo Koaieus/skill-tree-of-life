@@ -1,0 +1,132 @@
+#!/usr/bin/env python3
+#MISE description="Compile-checks every .gdshader in the repo by walking the tree, plus .gdshaderinc coverage-by-inclusion: `mise run check-shaders`"
+"""
+Force-compiles every `.gdshader` the tree walk finds, so a shader's coverage
+follows its existence on disk rather than a hand-maintained scene list (#682 —
+the two-scene probe this replaced went green through a real `SHADER ERROR`
+because neither `dev_sandbox.tscn` nor `meta_root.tscn` happened to instantiate
+the broken shader).
+
+Assigning a loaded `Shader` to a fresh `ShaderMaterial.shader` synchronously
+calls into `RenderingServer.shader_set_code` and prints `SHADER ERROR` /
+`Shader compilation failed` on a bad shader — confirmed by injection, and true
+for every `shader_type` tried (canvas_item, spatial). No node needs to be added
+to a tree and no frame needs to render, so the probe skips scene/mesh setup
+entirely: just load + assign, in a `SceneTree`-derived headless script.
+
+`.gdshaderinc` files aren't independently loadable as a `Shader` resource —
+they're plain text pulled in by `#include`, and (per lighting.gdshaderinc's own
+header comment) not always meaningful outside the includer's uniform scope. So
+they're checked by proof of inclusion instead of by direct compile: the probe
+walks them too, and fails if one is never `#include`-d by any walked
+`.gdshader` — that shader-inc would silently carry zero coverage otherwise,
+reproducing this exact issue one file type over.
+
+An unrelated engine line shows up on every run regardless of shader content —
+`ERROR: Condition "!actions.custom_samplers.has(...)" ... at: _dump_node_code`
+— confirmed by testing against a completely empty SceneTree (no shader loaded
+at all): it's headless/dummy-driver boot noise, not a shader defect, and is
+deliberately not in FAIL_PATTERN below.
+"""
+import os
+import re
+import subprocess
+import sys
+import tempfile
+
+PROBE_SCRIPT = r'''
+extends SceneTree
+
+func _initialize() -> void:
+	var shaders: Array[String] = []
+	var includes: Array[String] = []
+	_walk("res://", shaders, includes)
+	shaders.sort()
+	includes.sort()
+
+	for path in shaders:
+		var shader: Shader = load(path)
+		if shader == null:
+			push_error("PROBE: failed to load %s" % path)
+			continue
+		var mat := ShaderMaterial.new()
+		mat.shader = shader
+
+	for inc in includes:
+		var referenced := false
+		for sp in shaders:
+			var text := FileAccess.get_file_as_string(sp)
+			if text.find(inc) != -1:
+				referenced = true
+				break
+		if not referenced:
+			push_error("PROBE: %s is never #include-d by any .gdshader -- cannot be compile-checked" % inc)
+
+	print("PROBE: checked %d shader(s), %d include(s)" % [shaders.size(), includes.size()])
+	quit()
+
+func _walk(dir_path: String, shaders: Array[String], includes: Array[String]) -> void:
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var name := dir.get_next()
+	while name != "":
+		# Dot-dirs cover .git, .godot, .mise, .claude, and (in the shared main
+		# checkout, not a worktree) .worktrees -- none of them are project
+		# source, and .worktrees would double-probe sibling drones' scratch state.
+		if name.begins_with("."):
+			name = dir.get_next()
+			continue
+		var full := dir_path.path_join(name)
+		if dir.current_is_dir():
+			_walk(full, shaders, includes)
+		elif name.ends_with(".gdshader"):
+			shaders.append(full)
+		elif name.ends_with(".gdshaderinc"):
+			includes.append(full)
+		name = dir.get_next()
+'''
+
+FAIL_PATTERN = re.compile(
+    r"SHADER ERROR|Shader compilation failed|PROBE: failed to load|PROBE: .* is never #include"
+)
+SUMMARY_PATTERN = re.compile(r"PROBE: checked (\d+) shader\(s\), (\d+) include\(s\)")
+
+
+def main() -> int:
+    fd, probe_path = tempfile.mkstemp(suffix=".gd", prefix="check-shaders-probe-")
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(PROBE_SCRIPT)
+        r = subprocess.run(
+            ["godot", "--headless", "--path", ".", "--script", probe_path],
+            capture_output=True, text=True,
+        )
+    finally:
+        os.unlink(probe_path)
+
+    out = r.stdout + r.stderr
+    failures = [line for line in out.splitlines() if FAIL_PATTERN.search(line)]
+    if failures:
+        print("\n".join(failures))
+        print("✗ shader errors found")
+        return 1
+
+    summary = SUMMARY_PATTERN.search(out)
+    if not summary:
+        # The probe never reached its own summary line -- e.g. it crashed
+        # mid-walk. Print what we have and fail loud rather than reporting a
+        # green that didn't actually check anything (the exact failure mode
+        # #682 was filed over).
+        print(out[-2000:])
+        print("✗ probe did not complete (no summary line found)")
+        return 1
+
+    print(f"✓ all shaders compiled clean ({summary.group(1)} shaders, "
+          f"{summary.group(2)} includes)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
