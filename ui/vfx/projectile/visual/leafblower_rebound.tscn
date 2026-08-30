@@ -1,0 +1,27 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/vfx/projectile/visual/leafblower_rebound.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://ui/vfx/projectile/visual/bolt_head_texture.tres" id="2_tex"]
+
+[sub_resource type="Gradient" id="Gradient_leaf"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(0.55, 0.62, 0.35, 0.6, 0.55, 0.62, 0.35, 0)
+
+[node name="LeafblowerRebound" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Particles" type="CPUParticles2D" parent="."]
+unique_name_in_owner = true
+emitting = false
+amount = 14
+lifetime = 0.35
+one_shot = true
+explosiveness = 0.9
+texture = ExtResource("2_tex")
+spread = 18.0
+gravity = Vector2(0, 60)
+initial_velocity_min = 70.0
+initial_velocity_max = 130.0
+scale_amount_min = 1.5
+scale_amount_max = 3.0
+color_ramp = SubResource("Gradient_leaf")

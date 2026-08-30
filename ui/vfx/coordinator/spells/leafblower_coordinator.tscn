@@ -1,0 +1,28 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/vfx/projectile/path/bezier_arc_path.gd" id="2_arc"]
+[ext_resource type="Script" path="res://ui/vfx/projectile/path/cubic_bezier_path.gd" id="3_cubic"]
+[ext_resource type="Script" path="res://ui/vfx/projectile/path/self_loop_path.gd" id="4_loop"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/leafblower_visual.tscn" id="5_visual"]
+
+[sub_resource type="Resource" id="Resource_arc"]
+script = ExtResource("2_arc")
+
+[sub_resource type="Resource" id="Resource_flutter"]
+script = ExtResource("3_cubic")
+start_tangent = Vector2(0.3, -1.0)
+start_strength = 0.25
+end_tangent = Vector2(-0.3, -1.0)
+end_strength = 0.25
+
+[sub_resource type="Resource" id="Resource_loop"]
+script = ExtResource("4_loop")
+
+[node name="LeafblowerCoordinator" instance=ExtResource("1_base")]
+jump_path = SubResource("Resource_arc")
+edge_path = SubResource("Resource_flutter")
+self_loop_path = SubResource("Resource_loop")
+jump_visual = ExtResource("5_visual")
+edge_visual = ExtResource("5_visual")
+self_loop_visual = ExtResource("5_visual")
