@@ -17,6 +17,7 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="9_vajd0"]
 [ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="12_08wik"]
 [ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/progression/multiply_progression.gd" id="13_prog"]
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/lightning_bolt_coordinator.tscn" id="14_vfx"]
 
 [sub_resource type="Resource" id="carve_lightning"]
 script = ExtResource("1_tcs")
@@ -66,5 +67,5 @@ mana_cost = 2
 power = 2.0
 propagation = SubResource("prop_lightning")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_lightning")])
-vfx_coordinator_scene = ExtResource("12_08wik")
+vfx_coordinator_scene = ExtResource("14_vfx")
 targeting = SubResource("targeting_lightning")

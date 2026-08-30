@@ -1,0 +1,22 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/vfx/projectile/path/jitter_path.gd" id="2_jitter"]
+[ext_resource type="Script" path="res://ui/vfx/projectile/path/self_loop_path.gd" id="3_loop"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/lightning_bolt_visual.tscn" id="4_visual"]
+
+[sub_resource type="Resource" id="Resource_jitter"]
+script = ExtResource("2_jitter")
+amplitude = 12.0
+smoothing = 0.1
+
+[sub_resource type="Resource" id="Resource_loop"]
+script = ExtResource("3_loop")
+
+[node name="LightningBoltCoordinator" instance=ExtResource("1_base")]
+jump_path = SubResource("Resource_jitter")
+edge_path = SubResource("Resource_jitter")
+self_loop_path = SubResource("Resource_loop")
+jump_visual = ExtResource("4_visual")
+edge_visual = ExtResource("4_visual")
+self_loop_visual = ExtResource("4_visual")

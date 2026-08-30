@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/bolt_body.tscn" id="1_base"]
+
+[node name="LightningBoltBody" instance=ExtResource("1_base")]
+head_size = 10.0
+trail_length = 4
+trail_stride = 2
+trail_taper = 0.25
+hop_scale_start = 1.0
+hop_scale_end = 0.125
+fade_seconds = 0.12
