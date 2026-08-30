@@ -375,6 +375,49 @@ cmd_label() {
   esac
 }
 
+# --- Dependencies: native issue blocked-by/blocking, NOT the `blocked` label --
+# `gh issue view` prints these as `blocked-by:` / `blocking:`. #598 went looking
+# for how to WRITE them and initially found only the raw REST resource
+# (`repos/<repo>/issues/<n>/dependencies/blocked_by`), whose `issue_id` is the
+# API's internal numeric id, not the issue number — a real trap, verified
+# 2026-08-26 setting #349 blocked-by #597 by resolving `.id` first.
+#
+# `gh issue edit` (>=2.98, this repo's pinned version) turns out to have grown
+# first-class flags that take issue NUMBERS directly and error loudly on a bad
+# one — `--add-blocked-by`/`--remove-blocked-by`/`--add-blocking`/
+# `--remove-blocking` — which sidesteps the id trap entirely. Use those, not
+# the raw API. (Re-verified 2026-08-31 round-tripping #2 blocked-by #3.)
+cmd_blocked_by() {
+  local issue=$1 blocker=${2:-}
+  if [ -z "$blocker" ]; then
+    gh issue view "$issue" --json blockedBy \
+      -q '[.blockedBy.nodes[].number] | if length == 0 then "—" else (map("#" + (.|tostring)) | join(", ")) end'
+    return
+  fi
+  if [ "$blocker" = "clear" ]; then
+    local nums n
+    nums=$(gh issue view "$issue" --json blockedBy -q '.blockedBy.nodes[].number')
+    if [ -z "$nums" ]; then
+      echo "✓ issue #$issue blocked-by → (already clear)"; return
+    fi
+    for n in $nums; do
+      gh issue edit "$issue" --remove-blocked-by "$n" >/dev/null
+    done
+    echo "✓ issue #$issue blocked-by → (cleared)"
+    return
+  fi
+  gh issue edit "$issue" --add-blocked-by "$blocker" >/dev/null
+  echo "✓ issue #$issue blocked-by → +#$blocker"
+}
+
+# Read-only inverse — no native way to "set" what an issue blocks except by
+# setting blocked-by the other direction.
+cmd_blocking() {
+  local issue=$1
+  gh issue view "$issue" --json blocking \
+    -q '[.blocking.nodes[].number] | if length == 0 then "—" else (map("#" + (.|tostring)) | join(", ")) end'
+}
+
 # --- hygiene: board invariants, reported not enforced -------------------------
 # Detection over prevention. GitHub's built-in project workflows are a fixed set
 # and none can express "if this item has a parent, set Status" — only a GH Action
@@ -582,7 +625,7 @@ cmd_roadmap() {
 }
 
 usage() {
-  cat <<EOF
+  cat <<'EOF'
 Usage: mise gh-project -- <cmd> [args...]
 
 Commands:
@@ -604,6 +647,10 @@ Board hygiene:
   label <n> [<add|rm> <name>]  Read or flip a label (blocked|design|…)
   hygiene [--json]             Report board invariant violations (see below)
 
+Dependencies (native GitHub issue links, distinct from the `blocked` label):
+  blocked-by <n> [<blocker>|clear]  Read or set what blocks issue <n>
+  blocking <n>                      Read-only: what <n> blocks
+
 The design gate is the STATUS, not a label. `design`/`blocked` issue sits in
 `needs-design` → /swarmify settles the forks → move to `ready` → swarm/warp
 executes. `Ready` IS the swarm queue; the old `swarmable` label is retired.
@@ -615,6 +662,9 @@ Examples:
   mise gh-project -- target 240 2026-08-15
   mise gh-project -- status 240 ready      # passed the design gate
   mise gh-project -- hygiene              # what is inconsistent on the board
+  mise gh-project -- blocked-by 571       # what blocks #571
+  mise gh-project -- blocked-by 571 570   # #571 is blocked by #570
+  mise gh-project -- blocking 570         # what #570 blocks
 
 Agents — machine-readable listing:
   mise run --quiet gh-project -- list ready --json | jq -r '.[].number'
@@ -638,6 +688,8 @@ case "$CMD" in
   estimate) cmd_estimate "${2:-}" "${3:-}" ;;
   label)    cmd_label "${2:-}" "${3:-}" "${4:-}" ;;
   hygiene)  shift; cmd_hygiene "$@" ;;
+  blocked-by) cmd_blocked_by "${2:-}" "${3:-}" ;;
+  blocking)   cmd_blocking "${2:-}" ;;
   swarmq)   echo "✗ swarmq is retired — Ready IS the queue now. Use: mise gh-project -- list ready" >&2; exit 1 ;;
   roadmap)  cmd_roadmap "${2:-}" ;;
   -h|--help|help) usage ;;

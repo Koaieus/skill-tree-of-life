@@ -70,7 +70,22 @@ is `{"blockedBy":{"nodes":[…],"totalCount":N}}`, so the jq path is
 `.blockedBy.nodes[].number` — `.blockedBy[]` yields nothing and reads exactly
 like "the relation was never created". There is no `blockedByIssues` field on
 the GraphQL `Issue` type either; `--json blockedBy` is the supported route.
-(`mise gh-project` has no blocked-by tooling of its own — that gap is #598.)
+
+**`mise gh-project -- blocked-by <n> [<blocker>|clear]` / `blocking <n>`**
+(#598) read or set native issue dependencies — read from `gh issue view --json
+blockedBy`/`blocking` as above, write via `gh issue edit --add-blocked-by
+<blocker>` / `--remove-blocked-by <blocker>` (both take issue **numbers**
+directly and error loudly — non-zero exit, a real "could not resolve" message
+— on a bad one). `clear` removes every current blocker in a loop.
+
+**The trap this sidesteps:** the *raw* REST resource
+(`repos/<repo>/issues/<n>/dependencies/blocked_by`, `POST`/`DELETE`) takes an
+`issue_id` — the API's internal ~10-digit id, **not** the issue number — so a
+number passed there silently succeeds against an unrelated issue or fails
+opaquely with no "no such issue" error (verified 2026-08-26 setting #349
+blocked-by #597 by resolving `.id` first). `gh issue edit --add-blocked-by`
+(gh ≥ 2.98, this repo's pinned version) is the higher-level route and takes
+plain issue numbers — **use it, not the raw API**, and the trap doesn't apply.
 
 ## Reading an issue is two `gh` calls
 
