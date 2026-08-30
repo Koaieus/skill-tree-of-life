@@ -313,17 +313,6 @@ func test_the_dpad_commits_and_goes_back_through_the_real_action_map() -> void:
 	assert_eq(_frontmatter.focus_id, _frontmatter.tree.root)
 
 
-func test_the_face_buttons_are_a_stopgap_the_action_map_does_not_cover() -> void:
-	# Probed 2026-08-25: ui_accept is Enter/Kp Enter/Space and ui_cancel is
-	# Escape — neither carries a joypad event, which is why FrontmatterInput
-	# checks the face buttons itself. If this assertion ever FAILS, the project
-	# input map has grown the bindings and JOY_ACCEPT/JOY_CANCEL can be deleted.
-	for action in [&"ui_accept", &"ui_cancel"]:
-		for event in InputMap.action_get_events(action):
-			assert_false(event is InputEventJoypadButton,
-					"'%s' now binds a joypad button — retire the stopgap" % action)
-
-
 # --- mid-flight: the cursor may never outlive its fan ------------------------
 
 ## These run with the transitions ON, which is why they were missing: every

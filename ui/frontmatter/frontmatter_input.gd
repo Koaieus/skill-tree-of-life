@@ -43,22 +43,6 @@ extends Node
 ## [Control] in the panel layer consumes first — typing into the seed field, a
 ## button press — never reaches here.
 
-## Face buttons this menu answers to ON TOP of the `ui_*` actions.
-##
-## [b]A stopgap, and the real fix is one line of `project.godot`.[/b] Probed
-## 2026-08-25: this project's `ui_accept` is bound to Enter / Kp Enter / Space
-## and `ui_cancel` to Escape — **neither carries a joypad event**, while
-## `ui_up`/`ui_down`/`ui_left`/`ui_right` all carry D-pad and stick bindings. So
-## a controller can already walk the menu (D-pad right commits, D-pad left goes
-## back) but the two buttons every player reaches for first do nothing.
-##
-## Adding `JOY_BUTTON_A` to `ui_accept` and `JOY_BUTTON_B` to `ui_cancel` in the
-## project input map is the correct fix — global, remappable, and it would let
-## these two constants be deleted. `project.godot` is outside #576's file list,
-## so this covers the menu until that lands. See the unit's report.
-const JOY_ACCEPT := JOY_BUTTON_A
-const JOY_CANCEL := JOY_BUTTON_B
-
 ## The frontmatter this drives. Injected as a NodePath by the composing scene
 ## per `.claude/rules/scene-composition.md`.
 @export var frontmatter_path: NodePath
@@ -114,7 +98,7 @@ func _handle(event: InputEvent) -> bool:
 	# A raised panel owns the keyboard: its own Controls handle up/down/accept,
 	# and the only thing this layer still answers for is the way out.
 	if _panel_is_up():
-		if _is_cancel(event):
+		if event.is_action_pressed(&"ui_cancel"):
 			dismiss_panel()
 			return true
 		return false
@@ -123,24 +107,11 @@ func _handle(event: InputEvent) -> bool:
 		return step(-1)
 	if event.is_action_pressed(&"ui_down"):
 		return step(1)
-	if _is_accept(event) or event.is_action_pressed(&"ui_right"):
+	if event.is_action_pressed(&"ui_accept") or event.is_action_pressed(&"ui_right"):
 		return commit()
-	if _is_cancel(event) or event.is_action_pressed(&"ui_left"):
+	if event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"ui_left"):
 		return back()
 	return false
-
-
-static func _is_accept(event: InputEvent) -> bool:
-	return event.is_action_pressed(&"ui_accept") or _is_face_button(event, JOY_ACCEPT)
-
-
-static func _is_cancel(event: InputEvent) -> bool:
-	return event.is_action_pressed(&"ui_cancel") or _is_face_button(event, JOY_CANCEL)
-
-
-static func _is_face_button(event: InputEvent, button: JoyButton) -> bool:
-	var pad := event as InputEventJoypadButton
-	return pad != null and pad.pressed and pad.button_index == button
 
 
 ## Moves the cursor [param delta] places through the current fan.
