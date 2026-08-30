@@ -52,3 +52,25 @@ static func read_bool(entry: Variant, field: StringName, fallback: bool) -> bool
 			if v is bool:
 				return v
 	return fallback
+
+
+## Normalized hop fraction in 0..1 — the one input a per-hop heat/size ramp
+## reads (Lightning attenuates outward, Leafblower grows).
+##
+## [b]Why this is derived rather than read.[/b] #543 landed the quantity as the
+## PAIR [code]beat_index[/code] / [code]beat_count[/code] — "together a
+## normalized hop fraction" — not as a single [code]hop_fraction[/code] field.
+## The derivation therefore lives here, once, instead of in every visual that
+## ramps. An explicit [code]hop_fraction[/code] still wins where present, so a
+## coordinator (or a test) may hand over a literal it computed itself.
+static func read_hop_fraction(entry: Variant, fallback: float) -> float:
+	var explicit: float = read_float(entry, &"hop_fraction", -1.0)
+	if explicit >= 0.0:
+		return clampf(explicit, 0.0, 1.0)
+	var count: float = read_float(entry, &"beat_count", -1.0)
+	if count < 0.0:
+		return fallback
+	# A single wave has no ramp to walk, so it sits at the near end rather than
+	# dividing by zero and landing on the far one.
+	var span: float = maxf(count - 1.0, 1.0)
+	return clampf(read_float(entry, &"beat_index", 0.0) / span, 0.0, 1.0)

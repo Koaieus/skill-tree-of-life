@@ -101,6 +101,42 @@ func test_context_entry_drives_the_hop_size_ramp() -> void:
 	assert_gt(head.scale.y, small, "hop_fraction 1.0 must reach hop_scale_end")
 
 
+func test_a_real_schedule_entry_drives_the_hop_size_ramp() -> void:
+	# The dict stand-in above proves the ramp; it does NOT prove the seam with
+	# #543, because a stub agrees with whatever field name this file typed.
+	# #543 landed the quantity as the `beat_index` / `beat_count` PAIR, so the
+	# real class is the only honest witness that the ramp is wired at all.
+	var bolt := _spawn()
+	bolt.hop_scale_start = 1.0
+	bolt.hop_scale_end = 2.0
+	bolt._on_launch()
+	var head: Sprite2D = bolt.get_node("%Head")
+	var near: float = head.scale.y
+
+	var entry := ScheduleEntry.new()
+	entry.beat_index = 3
+	entry.beat_count = 4
+	bolt._on_context(entry)
+	assert_gt(head.scale.y, near, "the last beat of four must reach hop_scale_end")
+
+
+func test_a_single_beat_entry_sits_at_the_near_end_of_the_ramp() -> void:
+	# `beat_count` 1 is every non-magic mode and every one-wave cast. It must
+	# read as "first hop", not divide by zero into the far end.
+	var bolt := _spawn()
+	bolt.hop_scale_start = 1.0
+	bolt.hop_scale_end = 2.0
+	bolt._on_launch()
+	var head: Sprite2D = bolt.get_node("%Head")
+	var near: float = head.scale.y
+
+	var entry := ScheduleEntry.new()
+	entry.beat_index = 0
+	entry.beat_count = 1
+	bolt._on_context(entry)
+	assert_almost_eq(head.scale.y, near, 0.001, "a single beat must not ramp")
+
+
 func test_context_tolerates_null_and_unknown_shapes() -> void:
 	# "Any subset, all optional" is the contract; nothing may crash on a peer
 	# that hands over a shape this visual does not read.

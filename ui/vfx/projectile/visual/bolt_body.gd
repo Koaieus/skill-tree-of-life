@@ -93,7 +93,9 @@ const _TEXTURE_SIZE: float = 64.0
 ## `face_velocity` so local +X is forward.
 @export_range(0.0, 3.0, 0.05) var stretch_along_velocity: float = 0.0
 
-## Size ramp across the cast, driven by `_on_context(entry).hop_fraction`.
+## Size ramp across the cast, driven by the hop fraction `_on_context(entry)`
+## carries — as #543's `beat_index` / `beat_count` pair, or as an explicit
+## `hop_fraction`. See [method VfxContext.read_hop_fraction].
 ## This is #663 D3's deliberate teaching pair: Lightning SHRINKS per hop
 ## (end < 1) while Leafblower GROWS (end > 1), so "bolt size means current
 ## damage" becomes learned vocabulary. Both default to 1.0 — a visual that
@@ -196,7 +198,7 @@ func _on_crit(tier: int) -> void:
 func _on_context(entry: Variant) -> void:
 	if entry == null:
 		return
-	var frac: float = VfxContext.read_float(entry, &"hop_fraction", -1.0)
+	var frac: float = VfxContext.read_hop_fraction(entry, -1.0)
 	if frac >= 0.0:
 		_hop_fraction = clampf(frac, 0.0, 1.0)
 		_apply_look()
