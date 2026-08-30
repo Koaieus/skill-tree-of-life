@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/vfx/projectile/visual/edge_energize.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://ui/vfx/projectile/visual/edge_energize_texture.tres" id="2_tex"]
+[ext_resource type="Material" path="res://ui/vfx/projectile/visual/edge_energize_material.tres" id="3_mat"]
+
+[node name="EdgeEnergize" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Bar" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+material = ExtResource("3_mat")
+texture = ExtResource("2_tex")
+centered = false
+offset = Vector2(0, -4)
