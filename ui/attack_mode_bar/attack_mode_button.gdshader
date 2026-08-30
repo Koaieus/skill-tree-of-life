@@ -22,6 +22,13 @@ const float ARC_ANGULAR_SPEED = .28;  //  0.28
 const float BREATHING_SPEED = 3.;
 const float BREATHING_AMP = 0.5;
 
+// Watermark (#465): glyph edge in p-space (1.0 = tab height) + the three
+// amplitude terms — first guesses, not sandbox-tuned.
+const vec2 WATERMARK_SIZE    = vec2(0.7, 0.7);
+const float WATERMARK_FLOOR  = 0.07;
+const float WATERMARK_RIPPLE = 0.35;
+const float WATERMARK_ACTIVE = 0.55;
+
 // Rounded-rect SDF: p centered at origin, b = full half-extents, r = corner radius.
 float sdf_rrect(vec2 p, vec2 b, float r) {
     vec2 d = abs(p) - b + r;
