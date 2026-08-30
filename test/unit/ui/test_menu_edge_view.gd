@@ -119,3 +119,40 @@ func test_curve_segments_is_tunable_and_resizes_the_multimesh() -> void:
 	edge.curve_segments = 24
 	assert_eq(edge.multimesh.instance_count, 24)
 	assert_eq(edge.multimesh.visible_instance_count, 24)
+
+
+## #596 — the sigmoid has to be VISIBLE, not merely present. At the old default
+## pull of 60 the curve bowed ~2.6% of its own chord and read as a straight line
+## at menu scale; the default is 150 now.
+##
+## The honest headless proxy for "visibly curved" is peak perpendicular deviation
+## from the chord. It is deliberately NOT the midpoint: at t=0.5 both coordinates
+## cancel to the chord midpoint for EVERY value of [member
+## MenuEdgeView.control_pull], so a midpoint assertion measures nothing and would
+## pass at a pull of zero.
+##
+## This does not prove it looks right — that is an eyeball on a real frame. It
+## proves the bow is of a magnitude that CAN read.
+func test_default_pull_bows_the_curve_measurably_off_its_chord() -> void:
+	var edge := _make_edge_view()
+	# Deliberately does NOT set control_pull — the default is what ships, and
+	# the default is the thing #596 was about.
+	var from := Vector2(0, 0)
+	var to := Vector2(300, 200)
+	edge.set_endpoints(from, to)
+
+	var chord := to - from
+	var chord_len := chord.length()
+	var axis := chord / chord_len
+
+	var peak := 0.0
+	for i in range(1, 32):
+		var t := float(i) / 32.0
+		var offset := edge.curve_point(t) - from
+		# Component of the offset perpendicular to the chord.
+		var along := offset.dot(axis)
+		peak = maxf(peak, (offset - axis * along).length())
+
+	assert_gt(peak, chord_len * 0.05,
+			"the default sigmoid bows at least 5% of its chord — at pull 60 it "
+			+ "was ~2.6% and read as a straight line (#596)")

@@ -64,7 +64,13 @@ var _color_to: Color = Color.WHITE
 ## How far each control point is pulled off its own endpoint, purely along X.
 ## This is what makes the tangent horizontal at both ends — see [method
 ## curve_point] — and how pronounced the S-curve reads in the middle.
-@export_range(0.0, 400.0, 1.0) var control_pull: float = 60.0:
+##
+## Raised 60 -> 150 for #596: at 60 the bow was ~2.6% of the chord and the edge
+## read as a straight line at menu scale, which defeated the point of it being a
+## sigmoid at all. The curve's midpoint is INVARIANT under this knob (both
+## coordinates cancel at t=0.5), so the bow shows up off-centre — measure it as
+## peak perpendicular deviation from the chord, never as midpoint offset.
+@export_range(0.0, 400.0, 1.0) var control_pull: float = 150.0:
 	set(value):
 		control_pull = value
 		_push_transform()
