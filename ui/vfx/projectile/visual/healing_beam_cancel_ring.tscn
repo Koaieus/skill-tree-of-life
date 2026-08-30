@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/impact_ring_absorb.tscn" id="1_base"]
+
+[node name="HealingBeamCancelRing" instance=ExtResource("1_base")]
+radius = 3.0
+expand_radius = 9.0
+duration = 0.3
+emissive_tier = 0.5

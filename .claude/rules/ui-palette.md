@@ -43,4 +43,6 @@ Owner call, 2026-08-24, choosing the emissive-red crit toast over a gold one aft
 
 **How to apply:** a "this is intense / rare / important" visual for something *bad* escalates on its own hue plus a second channel — emissive lift, size, and above all **motion** — never by borrowing gold. `FloaterStyles.crit` is the worked example: damage red lifted over the bloom threshold, with the intensity carried by the entry animation in `CritPunchToast`.
 
+**Documented carve-out: a critical Healing Beam is gold.** Owner call, 2026-08-30, on issue #675: *"a critical heal is the one unambiguous reward in the spell book and the only earned claim on gold, while crit-red keeps meaning damage everywhere else."* Every other spell's crit stays on the uniform crit-red grammar (#663 D6); Healing Beam's `ImpactRing.crit_color` is set to the XP/gold value above (`Color(0.8909, 0.7204, 0.2596, 1)`) instead, escalating through the same ring-count/PEAK-core grammar as every other crit. This is the one and only sanctioned gold-on-harm-adjacent-but-actually-reward exception — do not generalize it to another spell's crit without a fresh owner call.
+
 Conversion script (Björn Ottosson's OKLab formulas) used to derive these: `/tmp/.../oklch2srgb.py` in the session that authored this table — re-derive with the same math if more design colors need converting; don't eyeball new ones.

@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/vfx/projectile/visual/healing_beam_orb_visual.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/healing_beam_absorb_ring.tscn" id="2_ring"]
+
+[node name="HealingBeamOrbVisual" type="Node2D"]
+script = ExtResource("1_script")
+arrival_companions = Array[PackedScene]([ExtResource("2_ring")])

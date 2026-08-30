@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/impact_ring_absorb.tscn" id="1_base"]
+
+[node name="HealingBeamAbsorbRing" instance=ExtResource("1_base")]
+emissive_tier = 0.5
+crit_color = Color(0.8909, 0.7204, 0.2596, 1)
