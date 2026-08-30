@@ -21,8 +21,8 @@ extends Node2D
 ##                              or Resonator's branches converging.
 ##
 ## Visual contract (see [Projectile]):
-##   inbound  — `_on_launch()`, `_on_arrival()`, `_on_crit(tier)`,
-##              `_on_context(entry)`
+##   inbound  — `_on_arrival()`, `_on_crit(tier)`, `_on_context(entry)`
+##              (NOT `_on_launch()` — see below)
 ##   outbound — [signal finished]
 ##
 ## It is also usable standalone as a `cancel_visual` — instantiate it at the
@@ -40,10 +40,10 @@ enum Direction {
 
 ## Radii of the concentric rings the crit grammar draws, as multiples of
 ## [member radius]. Index 0 is the primary ring, index 1 the tier-2 companion.
-const RING_SCALES: PackedFloat32Array = PackedFloat32Array([1.0, 0.58])
+const RING_SCALES: Array[float] = [1.0, 0.58]
 
 ## Ring count the grammar produces at each crit tier. Index = tier, clamped.
-const CRIT_RING_COUNT: PackedInt32Array = PackedInt32Array([1, 1, 2])
+const CRIT_RING_COUNT: Array[int] = [1, 1, 2]
 
 ## Identity colour, stamped by the coordinator the same way [member
 ## BoltBody.tint] is. A crit overrides it with damage-red (or, for a critical
@@ -57,6 +57,11 @@ const CRIT_RING_COUNT: PackedInt32Array = PackedInt32Array([1, 1, 2])
 @export_range(0, 3, 1) var crit_tier: int = 0:
 	set(value):
 		crit_tier = maxi(0, value)
+		# A coordinator may stamp the tier AFTER instantiating the ring at its
+		# target, by which point a standalone ring is already playing — so the
+		# flash arms from whichever of the two happens second.
+		if _playing:
+			_arm_flash()
 		_rebuild()
 
 ## Rings drawn on a NON-crit impact. The crit grammar overrides this upward;
@@ -111,16 +116,26 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		queue_redraw()
 		return
-	# Standalone use (a `cancel_visual`, or the playground) plays immediately;
-	# a Projectile-driven use re-arms on `_on_launch`, which is idempotent.
+	# Standalone use (a `cancel_visual`, or the playground) plays immediately,
+	# exactly as [CancelDissipate] does.
+	#
+	# Under a [Projectile] it must NOT: the projectile instantiates its visual
+	# at LAUNCH, so an autoplay here would run the whole ring out and
+	# `queue_free` this node a full flight before impact — and `Projectile`
+	# then `await`s `finished` on a freed node and hangs the BattleSystem chain
+	# behind it. So the parent decides, which needs no new export and no
+	# coordinator cooperation.
+	if get_parent() is Projectile:
+		return
 	play()
 
 
 # ---------------------------------------------------------------- duck contract
 
 
-func _on_launch() -> void:
-	play()
+## Deliberately absent from the inbound contract: `_on_launch()`. This is
+## punctuation — it fires when something lands, never when something sets off.
+## A `play()` here would put the ring at the origin node a whole flight early.
 
 
 func _on_arrival() -> void:
@@ -163,15 +178,23 @@ func play() -> void:
 	if _playing or _done_emitted:
 		return
 	_playing = true
-	# Latched at play time, not at draw time: the flash is a fact about the
-	# tier, and a headless test must be able to see it without a real frame.
-	_flash_pending = has_peak_flash()
-	peak_flash_fired = _flash_pending
+	_arm_flash()
 	_t = 0.0
 	set_process(true)
 	var tween := create_tween()
 	tween.tween_property(self, ^"_t", 1.0, duration)
 	tween.tween_callback(_emit_finished)
+
+
+## Latched from the TIER, not from a draw: the flash is a fact about the crit,
+## and a headless test must be able to see it without a real frame. Idempotent,
+## and it never un-arms — a ring whose tier drops back to 0 mid-play has already
+## earned its one frame.
+func _arm_flash() -> void:
+	if not has_peak_flash():
+		return
+	_flash_pending = true
+	peak_flash_fired = true
 
 
 func _process(_delta: float) -> void:
