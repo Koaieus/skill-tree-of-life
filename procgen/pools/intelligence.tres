@@ -20,7 +20,7 @@ operation = 1
 archetype_stat = &"intelligence"
 tags = Array[StringName]([&"int", &"percent"])
 unit_value = 7.0
-pool_weight = 3.0
+pool_weight = 6.0
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
@@ -51,7 +51,18 @@ tags = Array[StringName]([&"int", &"flat", &"magic"])
 pool_weight = 2.0
 max_tier = 2
 
+[sub_resource type="Resource" id="Resource_0tuuk"]
+resource_name = "node_health +%"
+script = ExtResource("2_pool")
+stat_id = &"node_health"
+operation = 1
+archetype_stat = &"intelligence"
+unit_value = -2.0
+range_floor = -1.0
+max_tier = 3
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"intelligence"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("mana"), SubResource("mpt")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("mana"), SubResource("mpt"), SubResource("Resource_0tuuk")])

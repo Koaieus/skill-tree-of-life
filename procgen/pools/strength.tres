@@ -33,7 +33,19 @@ tags = Array[StringName]([&"str", &"multiply"])
 unit_value = 0.05
 min_tier = 3
 
+[sub_resource type="Resource" id="Resource_u38nb"]
+resource_name = "intelligence +%"
+script = ExtResource("2_pool")
+stat_id = &"intelligence"
+operation = 1
+archetype_stat = &"strength"
+unit_value = -2.0
+range_floor = -1.0
+pool_weight = 2.0
+max_tier = 2
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"strength"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("Resource_u38nb")])
