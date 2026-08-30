@@ -42,39 +42,21 @@ extends RefCounted
 ## older docstring said.
 
 
-## Uniform seconds-per-wave used to stamp [member HitInstance.arrival_time]
-## (#501: was 0.0 for every magic hit — a semantic lie under the staged
-## presentation clock, see docs/domain/attack-timeline.md). Chosen to match
-## [MagicBounceCoordinator]'s default `beat_interval`; the two aren't wired
-## together — [code]resolve()[/code] is a static utility with no VFX
-## instance to read — so re-check this constant if that default is ever
-## retuned. What matters for correctness is that later waves get strictly
-## greater values, not the absolute number: #499's sibling change makes
-## [OutcomeApplier] sort by `arrival_time`, and this is what keeps magic's
-## hits in wave order under that sort.
-const WAVE_ARRIVAL_INTERVAL: float = 0.4
-
-## Flight time of the bolt travelling INTO a wave, added ahead of every
-## `arrival_time` below.
+## [b]The wave interval and the bolt lead-in used to live here as constants,
+## and they are gone[/b] (#543 D3).
 ##
-## [b]`arrival_time` means "when the hit lands", absolutely — not "which wave it
-## belongs to".[/b] Ranged has always spelled it that way: a shot's
-## `arrival_time` is its impact moment, and [ArrowVolleyCoordinator] recovers the
-## launch delay as `arrival_time - shot_flight_time`. Magic was the one mode that
-## left the flight out, so the mutation clock ran a whole bolt-flight ahead of the
-## picture: [MagicBounceCoordinator] spawns each wave early and pins impact to the
-## beat, i.e. wave N hits at `launch_to_impact + N * beat_interval`, while
-## [OutcomeApplier] landed it at `N * beat_interval`. The damage number, HP bar
-## and node tint therefore all moved ~0.35 s before the projectile arrived — most
-## visibly on the seed, which landed at t=0 with the bolt still in the air.
+## They were stamped straight into [member HitInstance.arrival_time] below,
+## duplicated as `@export`s on [MagicBounceCoordinator], and deliberately not
+## wired together — with a documented "retune either and re-check both" tax,
+## because a static [method resolve] has no VFX instance to read. Both now live
+## once, on [PresentationTempo] ([member PresentationTempo.beat_interval] /
+## [member PresentationTempo.beat_lead_in]), and only
+## [method OutcomeSchedule.compile] turns them into seconds. This walk records
+## the hop ordinal and nothing else.
 ##
-## Matches [MagicBounceCoordinator]'s default `launch_to_impact`, by the same
-## unwired-constant convention (and the same caveat) as
-## [constant WAVE_ARRIVAL_INTERVAL] above. A uniform offset shifts every hit
-## equally, so wave ordering and the exact within-wave ties
-## [method OutcomeApplier.in_arrival_order] and [CritRoll]'s seeded stream depend
-## on are untouched.
-const WAVE_FLIGHT_LEAD_IN: float = 0.35
+## The lead-in itself survives, and must: magic used to land wave N at
+## `N * interval`, i.e. it omitted the bolt's flight, so the mutation clock ran
+## a whole flight ahead of the picture. See [member PresentationTempo.beat_lead_in].
 
 
 ## [method resolve_against] on a throwaway shadow — the preview/tooltip/AI
@@ -103,6 +85,7 @@ static func resolve_against(
 		world: CombatWorld,
 		rng: RandomNumberGenerator = null) -> AttackOutcome:
 	var outcome := AttackOutcome.new()
+	outcome.cadence = ScheduleEntry.Cadence.BEAT
 	if spell == null or spell.propagation == null or target == null or graph == null:
 		return outcome
 	var config: PropagationConfig = spell.propagation
@@ -176,6 +159,11 @@ static func resolve_against(
 
 		# 3. Apply effects, emit a timeline event per landing, bump visit counter.
 		var wave_first := outcome.hits.size()
+		# state -> the event it emitted, so step 4 can stamp `is_terminal` on
+		# the landings the walk actually ENDED at (#543 D6) rather than leaving
+		# a VFX reader to re-derive the stopping condition. Identity-keyed: two
+		# landings in one wave are distinct CastSpell objects.
+		var event_of: Dictionary = {}
 		for state in merged:
 			# Every `HitInstance` this landing's effects append belongs to this
 			# event (#381: was two parallel lists with a ≤1-per-landing parity
@@ -195,6 +183,10 @@ static func resolve_against(
 			ev.origin = state.predecessor if state.predecessor != null else state.source
 			ev.target = state.current_node
 			ev.verb = _verb_for(state)
+			# BEFORE `bump_visit` below, so the nth strike on a node reports
+			# n-1: 0, 1, 2 for a Reverberator-shaped cast (#543 D6). The count
+			# already existed on the context and was dropped on the floor.
+			ev.visit_index = ctx.visit_count(state.current_node)
 			for i in range(pre, outcome.hits.size()):
 				var hit: HitInstance = outcome.hits[i]
 				# The caster is stamped HERE rather than inside each
@@ -203,14 +195,13 @@ static func resolve_against(
 				# be forgotten beats N places that can.
 				hit.attacker = ctx.caster
 				_stamp_crit_conditions(spell, state, hit)
-				# #501: real time, not 0.0 -- later waves land strictly later.
-				# The lead-in is what puts the landing at the moment the bolt
-				# ARRIVES rather than the moment it was loosed — see
-				# WAVE_FLIGHT_LEAD_IN.
-				hit.arrival_time = WAVE_FLIGHT_LEAD_IN \
-						+ float(state.hop_index) * WAVE_ARRIVAL_INTERVAL
+				# Magic's structural parameter is purely ORDINAL — which wave
+				# this landing belongs to, nothing more. The compiler turns it
+				# into seconds; this walk never names one (#543).
+				hit.structural_key = float(state.hop_index)
 				ev.hits.append(hit)
 			outcome.timeline.append(ev)
+			event_of[state] = ev
 			ctx.bump_visit(state.current_node)
 
 		# 3b. Settle this wave's crits, then LAND it — before step 4's filter
@@ -221,10 +212,11 @@ static func resolve_against(
 		# Two passes, not one interleaved pass, so the crit stream is consumed
 		# exactly as the old single `CritRoll.decide_all` at the end of the walk
 		# consumed it: that call iterated `in_arrival_order`, which for magic is
-		# `hop_index * WAVE_ARRIVAL_INTERVAL` (plus a uniform lead-in, which
-		# shifts every hit equally and so reorders nothing) ascending with an index-stable
-		# tiebreak — i.e. wave by wave, append order within a wave, which is
-		# exactly this. The draw sequence is bit-identical; only its position
+		# the hop ordinal ascending with an index-stable tiebreak — i.e. wave by
+		# wave, append order within a wave, which is exactly this. #543 made
+		# that key structural rather than a float, which leaves this identity
+		# TRUE BY CONSTRUCTION instead of true by an arithmetic argument about
+		# a uniform offset. The draw sequence is bit-identical; only its position
 		# relative to the landings moved, and it had to, because
 		# `CritRoll.apply` multiplies at land time and cannot multiply by a
 		# decision that has not been made yet.
@@ -237,6 +229,7 @@ static func resolve_against(
 		var next_wave: Array[CastSpell] = []
 		for state in merged:
 			if state.hops_remaining <= 0 or config.step == null:
+				_mark_terminal(event_of, state)
 				continue
 			var candidates: Array[SkillNode] = []
 			for nb in graph.get_neighbours(state.current_node):
@@ -248,11 +241,33 @@ static func resolve_against(
 			for nb in candidates:
 				if ctx.visit_count(nb) < config.max_visits_per_node:
 					capped.append(nb)
-			next_wave.append_array(config.step.step(state.current_node, state, capped, config, ctx))
+			var stepped: Array[CastSpell] = config.step.step(
+					state.current_node, state, capped, config, ctx)
+			# "Ended by terminal rule" includes a step that CHOSE to stop —
+			# TrailBlazerStep sets `hops_remaining = 0` at a junction, and its
+			# slam is exactly this entry. Emitting nothing is the same ending.
+			if stepped.is_empty():
+				_mark_terminal(event_of, state)
+			next_wave.append_array(stepped)
 		ctx.wave_index += 1
 		wave = next_wave
 
+	# Structure is complete; seconds are assigned exactly once, here, from the
+	# spell's authored shape. The walk above landed each wave through
+	# `land_one`, which never waits — the beat clock is [method OutcomeApplier.apply]'s
+	# concern on the replay pass, and this is what gives it something to wait on.
+	outcome.schedule = OutcomeSchedule.compile(outcome, spell.tempo)
 	return outcome
+
+
+## Stamp [member PropagationEvent.is_terminal] on the event a state emitted.
+## A state whose reducer merged it away emitted no event and is silently
+## skipped — the merged survivor carries the landing, and it is the one that
+## either continues or ends.
+static func _mark_terminal(event_of: Dictionary, state: CastSpell) -> void:
+	var ev: PropagationEvent = event_of.get(state, null)
+	if ev != null:
+		ev.is_terminal = true
 
 
 ## The impact hit: [code]spell_damage × SpellDef.power[/code] (D-32). **The one

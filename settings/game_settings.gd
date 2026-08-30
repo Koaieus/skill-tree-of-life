@@ -35,6 +35,16 @@ const RESOLUTIONS: Array[Vector2i] = [
 ## rule. Every animated unit honours it by jumping to `set_progress(1.0)`; none
 ## of them branch further than that.
 @export var reduce_motion: bool = false
+## Seconds-per-second of combat presentation — the RATE half of #543's tempo
+## split, folded in by [method OutcomeSchedule.compile] after every authored
+## shape term. 1.0 is the authored speed; 0.5 plays combat at double speed
+## ("fast combat"), 2.0 is a slow-motion replay.
+##
+## [b]Safe to differ between machines.[/b] Landing order and the crit stream key
+## off [member ScheduleEntry.index], never off seconds
+## (`.claude/rules/multiplayer-sync.md`, #543 D2/D4) — so one player can run
+## combat at double speed and still end in a bit-identical world.
+@export_range(0.25, 3.0, 0.05) var combat_time_scale: float = 1.0
 
 @export_group("Display")
 @export_enum("Windowed", "Fullscreen", "Borderless") var window_mode: int = WindowMode.WINDOWED

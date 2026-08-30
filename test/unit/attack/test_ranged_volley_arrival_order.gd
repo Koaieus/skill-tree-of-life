@@ -1,6 +1,6 @@
 extends GutTest
 
-## OutcomeApplier lands hits in arrival_time order, not append order
+## OutcomeApplier lands hits in SCHEDULE order, not append order
 ## (docs/domain/attack-timeline.md "Ordering and arrival_time") — the half
 ## of #499's fix that actually changes application order; the ranged ramp
 ## (test_ranged_attack_plan.gd) is what makes that order meaningful.
@@ -22,7 +22,10 @@ class _RecordingHit extends HitInstance:
 
 	func _init(p_log: Array, p_arrival: float) -> void:
 		log = p_log
-		arrival_time = p_arrival
+		# #543: structure in, seconds out. The outcome is LITERAL-cadence, so
+		# the compiler turns this key back into exactly these seconds — what
+		# changed is that the applier's SORT no longer reads them.
+		structural_key = p_arrival
 
 	func land_on(_node: NodeCombat, _world: CombatWorld) -> void:
 		log.append(self)
@@ -35,7 +38,7 @@ func _hit(log: Array, arrival: float) -> _RecordingHit:
 	return h
 
 
-func test_lands_hits_in_arrival_time_order_not_append_order() -> void:
+func test_lands_hits_in_schedule_order_not_append_order() -> void:
 	var log: Array = []
 	var late := _hit(log, 0.5)
 	var early := _hit(log, 0.1)
@@ -49,8 +52,8 @@ func test_lands_hits_in_arrival_time_order_not_append_order() -> void:
 
 
 func test_ties_preserve_original_append_order() -> void:
-	# Every melee/magic hit carries arrival_time == 0.0 today (#501/#502 are
-	# mid-flight stamping real values on those modes) — an unstable sort here
+	# Every hit here shares one structural key, so they share one schedule
+	# entry index — an unstable sort here
 	# would permute their application order nondeterministically, which is
 	# gameplay-observable (node-local armour + synchronous force-dealloc
 	# cascades both read at land time). This is the invariant that makes this

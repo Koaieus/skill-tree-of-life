@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="PresentationTempo" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://attack/outcome/presentation_tempo.gd" id="1_tempo"]
+
+[resource]
+script = ExtResource("1_tempo")
+beat_interval = 0.4
+beat_lead_in = 0.35
+volley_draw_time = 0.0
+volley_stagger_span = 0.7
+volley_flight_time = 0.8
+swing_duration = 1.2

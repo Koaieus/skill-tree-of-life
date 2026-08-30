@@ -1,13 +1,21 @@
 extends GutTest
 
 ## Clock-contract tests for [MagicBounceCoordinator]. The propagation clock
-## is fixed (one wave per [member MagicBounceCoordinator.beat_interval])
-## and animations may NOT gate it — so these tests assert on the
+## is fixed (one wave per [member PresentationTempo.beat_interval], read off
+## the cast's compiled [OutcomeSchedule] since #543) and animations may NOT
+## gate it — so these tests assert on the
 ## [signal MagicBounceCoordinator.wave_started] emission cadence, not on
 ## projectile completion.
 ##
 ## Tests cover: three-clocks scheduling (#201), verb→ProjectilePath mapping,
 ## CANCEL dissipate, and the legacy fallback path.
+##
+## [b]Re-pointed by #543, not deleted:[/b] these pin the fourth-clock lead-in,
+## which survived the tempo split as an authored field. The two numbers moved
+## from `@export`s on the coordinator to a [PresentationTempo] the spell owns,
+## so every timing test now drives the shape through
+## [member SpellDef.tempo] — the real production path, resolver-compiled — and
+## the coordinator's own `tempo` only where the outcome is hand-built.
 
 const STUB_NEVER_FINISH := preload("res://test/unit/vfx/stub_never_finish_visual.tscn")
 
@@ -32,19 +40,31 @@ func before_each() -> void:
 # `hop_index` on each hit is wired exactly the way production produces it.
 # On a line graph with FanAll + enemy-only + max_visits=1, the wave at each
 # hop is a single hit, which keeps the assertions tight.
-func _build_4hop_outcome() -> AttackOutcome:
+func _build_4hop_outcome(tempo: PresentationTempo = null) -> AttackOutcome:
 	var config := _helper.make_config(
 			_helper.fan_all(), _helper.owner_enemy(), null,
 			{max_hops = 3})
 	var spell := _helper.make_spell(config, [DamageEffect.new()], 100.0)
+	# The production path since #543: the SPELL owns its shape, the resolver
+	# compiles seconds from it, and the coordinator reads the result. Setting
+	# the tempo on the coordinator instead would test only the fallback.
+	spell.tempo = tempo
 	var nodes := _graph.get_skill_nodes()
 	return SpellResolver.resolve(spell, nodes[1], nodes[0], _attacker, _graph)
 
 
+## A fast tempo, so a 4-beat cast fits in a test frame budget. The pair is
+## exactly what used to be `beat_interval` / `launch_to_impact`.
+func _tempo(beat_interval: float, launch_to_impact: float) -> PresentationTempo:
+	var tempo := PresentationTempo.new()
+	tempo.beat_interval = beat_interval
+	tempo.beat_lead_in = launch_to_impact
+	return tempo
+
+
 func _mount_coord(beat_interval: float, launch_to_impact: float, visual: PackedScene = null) -> MagicBounceCoordinator:
 	var coord := MagicBounceCoordinator.new()
-	coord.beat_interval = beat_interval
-	coord.launch_to_impact = launch_to_impact
+	coord.tempo = _tempo(beat_interval, launch_to_impact)
 	if visual != null:
 		coord.visual_scene = visual
 	add_child_autofree(coord)
@@ -65,7 +85,8 @@ func test_resolver_produces_monotonic_hop_indices() -> void:
 
 
 func test_wave_started_fires_once_per_hop_in_order() -> void:
-	var outcome := _build_4hop_outcome()
+	var tempo := _tempo(0.06, 0.04)
+	var outcome := _build_4hop_outcome(tempo)
 	var coord := _mount_coord(0.06, 0.04)
 	var events: Array = []
 	coord.wave_started.connect(func(hop: int, count: int) -> void:
@@ -89,8 +110,8 @@ func test_wave_intervals_match_beat_interval() -> void:
 	# (the play() coroutine is launched bare, picked up by the message
 	# pump on the next frame boundary). The total span cancels that out
 	# — what matters for the clock contract is the average cadence.
-	var outcome := _build_4hop_outcome()
 	var dur := 0.08
+	var outcome := _build_4hop_outcome(_tempo(dur, 0.05))
 	var coord := _mount_coord(dur, 0.05)
 	var stamps: Array[int] = []
 	coord.wave_started.connect(func(_h: int, _c: int) -> void:
@@ -120,8 +141,8 @@ func test_hung_visual_does_not_delay_subsequent_waves() -> void:
 	# but MUST NOT hold up the next hop's wave_started emission. If this
 	# test regresses, somebody re-introduced an `await previous-finished`
 	# coupling — see feedback_spell_vfx_clock_contract memory.
-	var outcome := _build_4hop_outcome()
 	var dur := 0.05
+	var outcome := _build_4hop_outcome(_tempo(dur, 0.04))
 	var coord := _mount_coord(dur, 0.04, STUB_NEVER_FINISH)
 	var events: Array = []
 	coord.wave_started.connect(func(hop: int, _c: int) -> void:
@@ -335,7 +356,7 @@ func test_three_clocks_impact_pinned_to_beat() -> void:
 	# at t=0, t=0.10, t=0.20, t=0.30 for 4 beats. This is the same cadence
 	# as before the rename — the three-clocks scheduling doesn't change the
 	# wave clock, only when projectiles are spawned (which is internal).
-	var outcome := _build_4hop_outcome()
+	var outcome := _build_4hop_outcome(_tempo(0.10, 0.04))
 	var coord := _mount_coord(0.10, 0.04)
 	var events: Array = []
 	coord.wave_started.connect(func(hop: int, _c: int) -> void:

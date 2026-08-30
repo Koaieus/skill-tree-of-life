@@ -10,12 +10,21 @@ class_name OutcomeApplier
 ## model will want.
 
 
-## Land every hit in [member HitInstance.arrival_time] order, not append
-## order (docs/domain/attack-timeline.md "Ordering and arrival_time") — this
+## Land every hit in SCHEDULE order, not append order
+## (docs/domain/attack-timeline.md "Ordering and arrival_time") — this
 ## is the half that actually fixes allocation order leaking into combat
 ## outcome; the per-mode ramps (ranged's rank-authored schedule, magic's
 ## propagation beat, melee's `BladeHitEvent.t`) are what make the order
 ## meaningful.
+##
+## [b]Order is the schedule's structure; the WAIT is its seconds[/b] (#543).
+## Those are two different jobs that [member HitInstance.arrival_time] used to
+## do at once, and separating them is what lets tempo be per-peer: the sort
+## below keys off [member HitInstance.schedule_index], which every machine
+## derives identically from the same structure, while the wait reads seconds no
+## two machines need to agree on. Compiling here when the outcome has no
+## schedule yet is deliberate — a replayed record arrives with structure and no
+## seconds, and there must be exactly one place that turns one into the other.
 ##
 ## Design B (#504): this loop is also the [b]clock[/b]. It waits out each hit's
 ## `arrival_time` on [param clock] before landing it, so the world mutates when
@@ -43,6 +52,8 @@ class_name OutcomeApplier
 static func apply(outcome: AttackOutcome, world: CombatWorld,
 		clock: BeatClock = null) -> void:
 	var beat: BeatClock = clock if clock != null else BeatClock.instant_clock()
+	if outcome.schedule == null:
+		outcome.schedule = OutcomeSchedule.compile(outcome)
 	for hit in in_arrival_order(outcome.hits):
 		if hit.target == null:
 			continue
@@ -100,19 +111,30 @@ static func land_one(hit: HitInstance, world: CombatWorld) -> void:
 				hit.popped_vertex, hit.attacker, hit.popped_vertex.global_position)
 
 
-## Decorate-sort-undecorate on `(arrival_time, original_index)`. Public
+## Decorate-sort-undecorate on `(schedule_index, original_index)`. Public
 ## because [method CritRoll.decide_all] must consume its seeded stream in the
 ## exact order this lands hits (#507) — a second sort written to match would
 ## be free to drift out of step with this one, and the symptom would be crits
 ## that stop reproducing under a replayed seed.
+##
+## [b]The key is the structural entry index, never seconds[/b] (#543 D2, and
+## the one decision on that issue whose violation produces a green suite and a
+## desync). Land order is gameplay-observable — node-local armour reads at land
+## time, forced-dealloc cascades run synchronously between landings, and
+## [CritRoll] draws in exactly this sequence — while seconds became
+## tempo-dependent the moment tempo became a per-peer setting. Two peers at
+## different [member GameSettings.combat_time_scale] therefore hold different
+## floats for the same landing and the SAME [member HitInstance.schedule_index],
+## which is the only reason D4's "recompile per peer" is safe.
+## [b]Never reintroduce a sort or compare on [member HitInstance.arrival_time].[/b]
+##
 ## [method Array.sort_custom] is not documented stable in Godot 4.x, and
-## all three modes still produce genuine ties (magic stamps a whole wave at
-## one `WAVE_FLIGHT_LEAD_IN + hop_index * WAVE_ARRIVAL_INTERVAL`; a melee sim substep can land two
-## events at the same `t`) — an unstable sort would permute their application
-## order nondeterministically, which is gameplay-observable here (node-local
-## armour + synchronous force-dealloc cascades both read at land time).
-## Sorting on the original index as a tiebreak makes this a provable no-op for
-## any outcome whose hits all tie.
+## all three modes still produce genuine ties (a whole magic wave shares one
+## beat and therefore one entry; a melee sim substep can land two events at the
+## same normalized `t`) — an unstable sort would permute their application
+## order nondeterministically. Sorting on the original index as a tiebreak
+## makes this a provable no-op for any outcome whose hits all tie, exactly as
+## it did when the primary key was a float.
 ##
 ## [member SkillNode.stable_id] is NOT the tiebreak here — it's the ranged
 ## ramp's OWN rank tiebreak (see [method RangedAttackPlan.get_firing_schedule]).
@@ -120,14 +142,7 @@ static func land_one(hit: HitInstance, world: CombatWorld) -> void:
 static func in_arrival_order(hits: Array[HitInstance]) -> Array[HitInstance]:
 	var decorated: Array = []
 	for i in hits.size():
-		decorated.append([hits[i].arrival_time, i, hits[i]])
-	# Exact float comparison, deliberately — NOT is_equal_approx. An
-	# approximate tie test is not transitive (a~b and b~c does not give a~c
-	# for times spaced just under the epsilon), which violates the strict
-	# weak ordering sort_custom requires and can misorder or read out of
-	# bounds. Every intended tie here is exact anyway: a magic wave stamps one
-	# `WAVE_FLIGHT_LEAD_IN + hop_index * WAVE_ARRIVAL_INTERVAL` across the whole wave, and two shots
-	# at the same rank produce the same lerp output bit-for-bit.
+		decorated.append([hits[i].schedule_index, i, hits[i]])
 	decorated.sort_custom(func(a: Array, b: Array) -> bool:
 		if a[0] != b[0]:
 			return a[0] < b[0]

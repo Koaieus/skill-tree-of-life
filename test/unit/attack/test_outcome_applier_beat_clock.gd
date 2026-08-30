@@ -43,12 +43,18 @@ func before_each() -> void:
 ## A TRUE-typed DamageInstance: `Mitigation.apply` returns the raw amount
 ## unchanged for TRUE, so the fixture's HP arithmetic is exact rather than
 ## armour-dependent (see `.claude/rules/turn-manager.md`).
+## #543: the fixture authors a STRUCTURAL key, and the applier compiles it
+## into seconds. These outcomes carry the default
+## [constant ScheduleEntry.Cadence.LITERAL], where the key IS the second — so
+## every number below still means exactly what it did when it was written
+## straight into `arrival_time`, but it now travels the production route
+## (compile, then wait) instead of bypassing it.
 func _hit(target: SkillNode, amount: float, arrival_time: float) -> DamageInstance:
 	var d := DamageInstance.new()
 	d.target = target
 	d.amount = amount
 	d.type = DamageInstance.Type.TRUE
-	d.arrival_time = arrival_time
+	d.structural_key = arrival_time
 	return d
 
 

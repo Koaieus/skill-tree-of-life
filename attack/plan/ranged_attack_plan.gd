@@ -179,13 +179,17 @@ func _is_valid_target(node: SkillNode) -> bool:
 func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# One DamageInstance per scheduled shot, in the authored firing order
 	# (see get_firing_schedule) — flat-armour-friendly, stagger-VFX-friendly.
-	# Each hit's arrival_time is authored from where the firing leaf sits in
-	# the volley's own DISTANCE SPAN — never from append order, and never from
-	# distance/speed (flight time stays constant):
-	#   frac         = (distance - d_min) / (d_max - d_min)   # 0 .. 1
-	#   launch_time  = DRAW_TIME + frac * TOTAL_STAGGER
-	#   arrival_time = launch_time + FLIGHT_TIME (constant)
-	# so the recorded timeline is the ordering authority OutcomeApplier reads
+	# Each hit's STRUCTURAL KEY is where the firing leaf sits in the volley's
+	# own DISTANCE SPAN — never append order, and never distance/speed:
+	#   frac = (distance - d_min) / (d_max - d_min)   # 0 .. 1
+	# and that is the whole of what this plan records about timing (#543). The
+	# seconds it used to stamp —
+	# `DRAW_TIME + frac * TOTAL_STAGGER + FLIGHT_TIME` — are now
+	# [constant ScheduleEntry.Cadence.RAMP] arithmetic inside
+	# [method OutcomeSchedule.compile], reading
+	# [member PresentationTempo.volley_stagger_span] and friends, so a
+	# slow-motion replay stretches the ramp instead of re-authoring it.
+	# The compiled schedule is still the ordering authority OutcomeApplier reads
 	# (docs/domain/attack-timeline.md "The ranged volley ramp").
 	#
 	# The ramp is METRIC, not ordinal (it used to lerp on rank / (n - 1)):
@@ -194,6 +198,7 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# and a lone outlier owns the whole tail. Allocation order still cannot
 	# influence it — distance is pure geometry off `global_position`.
 	var outcome := AttackOutcome.new()
+	outcome.cadence = ScheduleEntry.Cadence.RAMP
 	outcome.resolve_seed = resolve_seed
 	if not is_valid():
 		return outcome
@@ -209,13 +214,14 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		# Exact `<= 0.0`, not is_equal_approx: this guards a DIVISION, and a
 		# degenerate span is exactly the n == 1 / all-equidistant case, where
 		# every shot legitimately launches on the same beat. Dividing anyway
-		# would stamp NaN into arrival_time — which flows through the VFX
-		# `maxf` and the applier's BeatClock as garbage, with no error.
-		var frac: float = 0.0 if span <= 0.0 else (shot.distance - d_min) / span
-		var launch_time: float = RangedDamageFormula.DRAW_TIME \
-				+ frac * RangedDamageFormula.TOTAL_STAGGER
-		hit.arrival_time = launch_time + RangedDamageFormula.FLIGHT_TIME
+		# would stamp NaN into the structural key — which flows through the
+		# compiler into every second, and through the applier's BeatClock as
+		# garbage, with no error.
+		hit.structural_key = 0.0 if span <= 0.0 else (shot.distance - d_min) / span
 		outcome.hits.append(hit)
+	# Seconds, once, before anything consumes an order: `decide_all` below
+	# draws its seeded stream in landing order, which is the schedule's.
+	outcome.schedule = OutcomeSchedule.compile(outcome)
 	# Every arrow rolls its own crit (#507 — owner call: "a hit can crit"), off
 	# the stamped seed, never `randf()`. A 40-leaf empire therefore rolls 40
 	# times against one node; that is more chances for more shots, which is

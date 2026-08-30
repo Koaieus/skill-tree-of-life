@@ -28,39 +28,48 @@ One per "shape" of action — see [docs/domain/attack_plan_system.md](../../docs
 - `launch_to_impact` should default to slightly less than `beat_interval` so the projectile lands as the beat fires (small visual beat between waves).
 - The coordinator still waits for all projectiles to drain before `play()` returns, so it doesn't `queue_free` mid-trail. That's a teardown-safety drain, not a wave gate.
 
-## Three-clocks timing (#201)
+## Three-clocks timing (#201, retuned by #543)
 
-Impact is pinned to the **beat**, not to launch. The coordinator spawns projectiles early (`beat_time - launch_to_impact`) so they arrive AT the beat:
-- **Beat clock**: `wave_started` fires at `N * beat_interval` (the ground truth).
-- **Travel clock**: projectile flies origin→target over `launch_to_impact` seconds.
-- **Visual clock**: the visual's own windup/linger, free to start before launch and outlive impact. Authored via Godot's Animation dock with an Impact marker (4.3+) for complex visuals; lightweight visuals keep the duck-typed `_on_progress(t)` path.
+Impact is pinned to the **beat**, not to launch — each projectile is spawned one
+lead-in early so it arrives AT the beat:
+- **Beat clock**: `wave_started` fires at `lead_in + N * beat_interval` (the ground truth).
+- **Travel clock**: the projectile flies origin→target over `lead_in` seconds.
+- **Visual clock**: the visual's own windup/linger, free to start before launch and outlive impact. Authored via the Animation dock with an Impact marker (4.3+) for complex visuals; lightweight ones keep the duck-typed `_on_progress(t)` path.
 
-`launch_to_impact` must be ≤ `beat_interval` for impact alignment. The old exports `per_hop_duration` / `flight_time` were renamed to reflect the semantic shift.
+**Since #543 all three read one authored source.** `beat_interval` and
+`beat_lead_in` live on a `PresentationTempo` resource (`attack/outcome/`),
+referenced from `SpellDef.tempo` with **one shared default `.tres`**.
+`MagicBounceCoordinator` exports neither: it reads
+`outcome.schedule.beat_interval()` / `.lead_in()` off the compiled
+`OutcomeSchedule`, and its own `tempo` export is a **fallback for a hand-built
+outcome only**. Retune a spell by editing its `.tres` — never a constant in
+code, never a coordinator export (that moves the picture and leaves the model
+behind). The compiler clamps the lead-in to the interval: a longer one would
+launch wave N+1 before wave N landed. The player-facing **rate**
+(`GameSettings.combat_time_scale`) is a separate multiplier folded in after
+every shape term; it is per-peer and may legally differ between two machines.
 
-### There is a fourth clock, and it must agree: the mutation clock
+### There is a fourth clock: the mutation clock — and it can no longer disagree
 
 `OutcomeApplier` lands each hit at its own `HitInstance.arrival_time` (#504), so
-the world changes on a clock the coordinator does not own. **`arrival_time` means
-"when the hit lands", absolutely — not "which wave it belongs to".**
+the world changes on a clock the coordinator does not own — **`arrival_time` is
+"when the hit lands", absolutely, not "which wave it belongs to".** It used to be
+kept in step with the picture by hand: `SpellResolver` stamped
+`WAVE_FLIGHT_LEAD_IN + hop_index * WAVE_ARRIVAL_INTERVAL` from its own `const`s
+while the coordinator drew from its own `@export`s, unwired — retuning either
+meant re-checking both. That tax is gone: the resolver records only the hop
+**ordinal**, `OutcomeSchedule.compile` is the sole writer of seconds, and the
+coordinator reads the schedule it wrote.
 
-Impact under three-clocks is `launch_to_impact + N * beat_interval`, so
-`SpellResolver` stamps `WAVE_FLIGHT_LEAD_IN + hop_index * WAVE_ARRIVAL_INTERVAL`.
-The two pairs of constants are deliberately *not* wired together (`resolve()` is
-static and has no coordinator instance to read), so **retuning either export means
-re-checking both constants.**
-
-**Why the lead-in exists:** magic originally stamped `hop_index * interval`, i.e.
-it omitted the flight. The mutation clock then ran a whole bolt-flight ahead of
-the picture — the damage number, HP bar and node tint moved ~0.35 s *before* the
-projectile arrived, most visibly on the seed, which landed at t=0 with the bolt
-still in the air. Ranged never had this: a shot's `arrival_time` is its impact
-moment and `ArrowVolleyCoordinator` recovers the launch delay as
-`arrival_time - shot_flight_time`. Magic was the outlier; don't "simplify" the
-offset back out.
-
-A uniform offset shifts every hit equally, so wave ordering and the exact
-within-wave ties that `OutcomeApplier.in_arrival_order` and `CritRoll`'s seeded
-stream depend on are untouched.
+**Why the lead-in still exists** (do not "simplify" it back out): magic once
+stamped `hop_index * interval`, omitting the flight, so the mutation clock ran a
+whole bolt-flight ahead of the picture — damage number, HP bar and node tint all
+moved ~0.35 s *before* the projectile arrived, most visibly on the seed, which
+landed at t=0 with the bolt still in the air. But **seconds are presentation;
+ORDER is structure**: landing order and `CritRoll`'s seeded stream key off
+`HitInstance.schedule_index`, never off `arrival_time`, which is tempo-dependent
+and so per-peer. Sorting on the float is a desync that reports a green suite;
+`test_outcome_schedule.gd` scans for a reintroduced one.
 
 ## Verb → ProjectilePath mapping (#201)
 

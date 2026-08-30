@@ -21,6 +21,12 @@ extends Node2D
 ##     * `_on_arrival()`       — once on impact, before the linger / free.
 ##     * `_on_crit(tier)`       — called immediately after `_on_launch` when
 ##       [member crit_tier] > 0, so the visual can scale/tint/shake.
+##     * `_on_context(entry)`  — once, at visual instantiation and therefore
+##       BEFORE `_on_launch`, with this projectile's [ScheduleEntry] (#543 D6).
+##       Everything a per-spell treatment needs to know about WHERE in the cast
+##       it sits — beat fraction, normalized magnitude, convergence count,
+##       visit index, terminal flag, and its own launch/arrive window. Skipped
+##       when no coordinator supplied one.
 ##   outbound (Visual → Projectile)
 ##     * `finished` signal     — visual says "I'm fully done draining" so
 ##       the projectile (and the BattleSystem await chain it feeds) waits
@@ -46,6 +52,16 @@ signal arrived
 ## the visual via duck-typed `_on_crit(tier)` so it can add emphasis
 ## (scale, screenshake, color pop). 0 = normal hit; 1+ = crit tier.
 var crit_tier: int = 0
+
+## This projectile's slot in the compiled [OutcomeSchedule] — the whole render
+## context a per-spell visual reads (#543 D6). Set by the coordinator before
+## [method launch]; forwarded once, duck-typed as `_on_context(entry)`.
+##
+## Before #543 a visual received exactly one integer ([member crit_tier]), so
+## six of the eight per-spell treatments had no way to know whether they were
+## the first hop or the last, the big landing or a graze — data the resolver
+## had already computed and thrown away.
+var context: ScheduleEntry = null
 
 var _origin_pos: Vector2
 var _target_pos: Vector2
@@ -73,6 +89,11 @@ func _instantiate_visual() -> void:
 		return
 	_visual = visual_scene.instantiate()
 	add_child(_visual)
+	# Before `_on_launch`, deliberately: a visual that sizes or tints itself
+	# from its place in the cast must do so on its FIRST frame, not one hook
+	# later with a visible pop.
+	if context != null:
+		_call_visual(&"_on_context", [context])
 
 
 func _process(delta: float) -> void:

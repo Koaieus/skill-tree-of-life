@@ -40,8 +40,8 @@ func _mount_coord() -> ArrowVolleyCoordinator:
 	# Visual timing is irrelevant to the reveal schedule — keep it short so
 	# the projectile drain doesn't stretch the test.
 	coord.flight_time = 0.02
-	# `flight_time` isn't where the real wait was: `_flight_for` recovers each
-	# shot's actual airtime from `arrival_time` (a few ms here), so what
+	# `flight_time` isn't where the real wait was: `_flight_for` reads each
+	# shot's actual airtime off its ScheduleEntry (a few ms here), so what
 	# dominated was Projectile's post-arrival wait on LightArrow's `finished`
 	# signal — LightArrow's own `hold_seconds` (0.35) + `fade_seconds` (0.4),
 	# a purely cosmetic dwell nothing here asserts on. `visual_scene = null`
@@ -55,13 +55,17 @@ func _mount_coord() -> ArrowVolleyCoordinator:
 	return coord
 
 
-func _hit(arrival_time: float, amount: float = 5.0) -> DamageInstance:
+## #543: a hit records its STRUCTURAL key, never seconds. These outcomes are
+## hand-built and so carry the default [constant ScheduleEntry.Cadence.LITERAL],
+## where the key IS the second — which is exactly what these drain tests want
+## and what `arrival_time` used to mean here.
+func _hit(structural_key: float, amount: float = 5.0) -> DamageInstance:
 	var hit := DamageInstance.new()
 	hit.origin = _origin
 	hit.target = _target
 	hit.amount = amount
 	hit.effective_amount = amount
-	hit.arrival_time = arrival_time
+	hit.structural_key = structural_key
 	return hit
 
 
@@ -102,9 +106,15 @@ func test_play_does_not_return_before_arrows_drain() -> void:
 
 ## docs/domain/attack-timeline.md flags `_flight_for` as the drift class
 ## #479/#481 cost five rounds of latches, and #504 RAISES the stakes: the
-## arrow's flight is now the only thing keeping the visual in step with a
-## mutation that happens at `arrival_time`. Miss, and the arrow lands out of
+## arrow's flight is the only thing keeping the visual in step with a mutation
+## that happens at the schedule's `arrive_at`. Miss, and the arrow lands out of
 ## sync with its own damage number — visibly.
+##
+## [b]#543 removed the drift class rather than re-testing it.[/b] The old
+## version subtracted a `shot_flight_time` export from `arrival_time` to
+## recover a launch delay, and a mistuned export desynced every arrow. The
+## compiler now assigns BOTH ends of the window, so the identity below is
+## structural, not arithmetic — there is no second number left to keep equal.
 ##
 ## [b]This instantiates the SCENE, not `ArrowVolleyCoordinator.new()`.[/b] The
 ## exports are what drift, and exports are serialized per-scene: the old
@@ -116,18 +126,30 @@ func test_play_does_not_return_before_arrows_drain() -> void:
 func test_every_arrow_touches_down_exactly_when_its_damage_lands() -> void:
 	var coord := _COORD_SCENE.instantiate() as ArrowVolleyCoordinator
 	add_child_autofree(coord)
-	assert_almost_eq(coord.shot_flight_time, RangedDamageFormula.FLIGHT_TIME, 0.0001,
-			"the scene must not override shot_flight_time away from the domain constant")
+	assert_null(coord.tempo,
+			"the scene must not override the shared default tempo")
 
-	# Nearest shot (launch 0.0) and furthest (launch TOTAL_STAGGER): both fly
-	# exactly FLIGHT_TIME, so arrival order == firing order == distance order.
-	for arrival in [RangedDamageFormula.FLIGHT_TIME,
-			RangedDamageFormula.TOTAL_STAGGER + RangedDamageFormula.FLIGHT_TIME]:
-		var hit := _hit(arrival)
-		var launch_delay: float = maxf(hit.arrival_time - coord.shot_flight_time, 0.0)
-		assert_almost_eq(coord._flight_for(hit, launch_delay),
-				RangedDamageFormula.FLIGHT_TIME, 0.0001,
-				"arrow airtime must equal the authored flight time at arrival %.2f" % arrival)
-		assert_almost_eq(launch_delay + coord._flight_for(hit, launch_delay),
-				hit.arrival_time, 0.0001,
+	# A real RAMP outcome: nearest leaf (key 0.0) and furthest (key 1.0).
+	var outcome := AttackOutcome.new()
+	outcome.cadence = ScheduleEntry.Cadence.RAMP
+	outcome.hits.append(_hit(0.0))
+	outcome.hits.append(_hit(1.0))
+	var schedule := OutcomeSchedule.compile(outcome, null, 1.0)
+	var tempo := PresentationTempo.shared_default()
+
+	for entry in schedule.entries:
+		assert_almost_eq(coord._flight_for(entry), tempo.volley_flight_time, 0.0001,
+				"arrow airtime must equal the authored flight time at key %.2f"
+						% entry.structural_key)
+		assert_almost_eq(entry.launch_at + coord._flight_for(entry),
+				entry.arrive_at, 0.0001,
 				"the arrow must touch down exactly when its damage lands")
+
+	# The domain constants RangedDamageFormula still publishes and the tempo
+	# the compiler now reads must agree, or the ramp silently retempos.
+	assert_almost_eq(tempo.volley_flight_time, RangedDamageFormula.FLIGHT_TIME, 0.0001,
+			"default tempo's flight time must match the domain constant")
+	assert_almost_eq(tempo.volley_stagger_span, RangedDamageFormula.TOTAL_STAGGER, 0.0001,
+			"default tempo's stagger span must match the domain constant")
+	assert_almost_eq(tempo.volley_draw_time, RangedDamageFormula.DRAW_TIME, 0.0001,
+			"default tempo's draw time must match the domain constant")

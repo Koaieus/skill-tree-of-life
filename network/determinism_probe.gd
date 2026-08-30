@@ -79,9 +79,16 @@ const RESOLVE_KEYS: Array[String] = [
 	AttackRecord.KEY_HIT_TARGET,
 	AttackRecord.KEY_HIT_ORIGIN,
 	AttackRecord.KEY_HIT_ATTACKER,
-	AttackRecord.KEY_HIT_ARRIVAL,
+	# #543: the STRUCTURAL key and its cadence, not the seconds they compile
+	# into. Seconds left the wire because tempo is a per-peer setting — which
+	# is exactly why they could never have been measured here as agreement.
+	AttackRecord.KEY_HIT_STRUCT,
+	AttackRecord.KEY_CADENCE,
+	AttackRecord.KEY_TEMPO,
 	AttackRecord.KEY_HIT_CRIT_TIER,
 	AttackRecord.KEY_EVENT_BEAT,
+	AttackRecord.KEY_EVENT_VISIT,
+	AttackRecord.KEY_EVENT_TERMINAL,
 	AttackRecord.KEY_EVENT_VERB,
 	AttackRecord.KEY_EVENT_ORIGIN,
 	AttackRecord.KEY_EVENT_TARGET,

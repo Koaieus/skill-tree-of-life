@@ -72,6 +72,15 @@ extends Resource
 ## produces an outcome. Scene root must be a [VFXCoordinator] subclass.
 @export var vfx_coordinator_scene: PackedScene = null
 
+## This spell's presentation SHAPE — beat interval and bolt lead-in (#543 D3a).
+## Same composed-resource pattern as [member vfx_coordinator_scene] above, and
+## null means [method PresentationTempo.shared_default], so eight spells do not
+## mean eight copies of the same two numbers. A spell only authors its own when
+## its identity genuinely differs (artillery arc vs. chain of snaps); the
+## player-facing RATE is not here, it is
+## [member GameSettings.combat_time_scale].
+@export var tempo: PresentationTempo = null
+
 ## How this spell's target is gathered + what counts as valid. The kind
 ## drives input dispatch (NODE click vs. world click); the predicates drive
 ## valid-target enumeration for highlight + AI.

@@ -60,7 +60,8 @@ static func stream_for(resolve_seed: int) -> RandomNumberGenerator:
 
 
 ## Decide the crit for every hit in [param outcome], drawing from [param rng]
-## in [member HitInstance.arrival_time] order.
+## in LANDING order — [member HitInstance.schedule_index], the structural entry
+## index, never seconds (#543 D2).
 ##
 ## [b]The order is load-bearing.[/b] One stream serves the whole attack, so if
 ## two modes consumed it in different orders the same `resolve_seed` would stop
@@ -69,6 +70,14 @@ static func stream_for(resolve_seed: int) -> RandomNumberGenerator:
 ## the order landings apply (#499/#503), so it is the one order every mode
 ## already agrees on. Reuses [method OutcomeApplier.in_arrival_order] rather
 ## than re-sorting, so the two can never disagree.
+##
+## [b]That order had to stop being a float[/b] the moment #543 made seconds
+## tempo-dependent and tempo a per-peer [member GameSettings.combat_time_scale]:
+## two players at different combat speeds hold different `arrival_time`s for the
+## same landing, so a stream drawn in seconds order would deal different crits
+## on each machine off the same seed — a desync no test sorting on the same
+## wrong key could see. The structural index is identical on every peer by
+## construction.
 ##
 ## Any condition-path tier already stamped on a hit (magic's
 ## [member SpellDef.crit_conditions], see [method SpellResolver._stamp_crit_conditions])

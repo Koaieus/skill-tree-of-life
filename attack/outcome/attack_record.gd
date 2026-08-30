@@ -69,12 +69,32 @@ extends RefCounted
 const KEY_SEED := "seed"
 const KEY_AP := "ap"
 const KEY_MANA := "mana"
+## Which arithmetic turns [constant KEY_HIT_STRUCT] into seconds — one per
+## outcome, because an outcome is one mode. See [enum ScheduleEntry.Cadence].
+const KEY_CADENCE := "cad"
+## `resource_path` of the [PresentationTempo] the host compiled against, or ""
+## for the shared default (#543 D3a). The SHAPE is authored content both peers
+## already have on disk, so shipping the path — not the numbers — is what lets
+## a peer reproduce the spell's identity while still folding in its OWN rate.
+const KEY_TEMPO := "tempo"
 const KEY_HIT_KIND := "h_kind"
 const KEY_HIT_AMOUNT := "h_amt"
 const KEY_HIT_TARGET := "h_tgt"
 const KEY_HIT_ORIGIN := "h_org"
 const KEY_HIT_ATTACKER := "h_atk"
-const KEY_HIT_ARRIVAL := "h_at"
+## The landing's STRUCTURAL key (#543 D4) — a hop ordinal for magic, normalized
+## position in the volley's distance span for ranged, normalized swing position
+## for melee. [b]Seconds never cross the wire.[/b] Each peer runs
+## [method OutcomeSchedule.compile] over this plus [constant KEY_CADENCE] and
+## its own [member GameSettings.combat_time_scale], so two machines may play
+## combat at different speeds and still land the identical sequence — safe only
+## because ordering keys off [member HitInstance.schedule_index] and never off
+## a float (#543 D2).
+##
+## [b]The win is semantic, not wire bytes:[/b] melee's structural parameter is
+## genuinely [BladeSim] output a peer replays rather than re-runs, so this is
+## still one float per hit, exactly the size the old `h_at` was.
+const KEY_HIT_STRUCT := "h_key"
 const KEY_HIT_FLAGS := "h_flags"
 const KEY_HIT_CRIT_TIER := "h_crit"
 ## Per-hit HP bar numbers (#518). Distinct from [constant KEY_HIT_AMOUNT],
@@ -118,6 +138,13 @@ const KEY_EVENT_PRED := "e_pred"
 ## keeps working unchanged.
 const KEY_EVENT_PRED_COUNT := "e_predc"
 const KEY_EVENT_PRED_ALL := "e_preda"
+## Per-event render context the resolver computes and used to discard
+## (#543 D6): the 0-based nth-strike-on-this-node index Reverberator reads, and
+## a flag for the landings the walk ENDED at (Trail Blazer's junction slam).
+## Structure, not seconds — a peer's visual must read the same values the
+## host's did or the two pictures tell different stories.
+const KEY_EVENT_VISIT := "e_visit"
+const KEY_EVENT_TERMINAL := "e_term"
 const KEY_EVENT_HITS := "e_hits"
 
 ## [constant KEY_HIT_FLAGS] bits.
@@ -139,7 +166,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	var targets := PackedInt32Array()
 	var origins := PackedInt32Array()
 	var attackers := PackedInt32Array()
-	var arrivals := PackedFloat64Array()
+	var structural := PackedFloat64Array()
 	var flags := PackedByteArray()
 	var crit_tiers := PackedInt32Array()
 	var hp_before := PackedFloat64Array()
@@ -166,7 +193,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		targets.append(_id_of(hit.target, graph))
 		origins.append(_id_of(hit.origin, graph))
 		attackers.append(hit.attacker.entity_id if hit.attacker != null else 0)
-		arrivals.append(hit.arrival_time)
+		structural.append(hit.structural_key)
 		var f := 0
 		if hit.gated:
 			f |= FLAG_GATED
@@ -191,6 +218,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 			dealloc_label_counts.append(e.revoked_labels.size())
 			dealloc_labels.append_array(e.revoked_labels)
 	var beats := PackedInt32Array()
+	var visits := PackedInt32Array()
+	var terminals := PackedByteArray()
 	var verbs := PackedByteArray()
 	var event_origins := PackedInt32Array()
 	var event_targets := PackedInt32Array()
@@ -202,6 +231,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	var event_hits: Array = []
 	for event in outcome.timeline:
 		beats.append(event.beat)
+		visits.append(event.visit_index)
+		terminals.append(1 if event.is_terminal else 0)
 		verbs.append(int(event.verb))
 		event_origins.append(_id_of(event.origin, graph))
 		event_targets.append(_id_of(event.target, graph))
@@ -223,12 +254,14 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		KEY_SEED: outcome.resolve_seed,
 		KEY_AP: outcome.ap_cost,
 		KEY_MANA: outcome.mana_cost,
+		KEY_CADENCE: int(outcome.cadence),
+		KEY_TEMPO: _tempo_path(outcome),
 		KEY_HIT_KIND: kinds,
 		KEY_HIT_AMOUNT: amounts,
 		KEY_HIT_TARGET: targets,
 		KEY_HIT_ORIGIN: origins,
 		KEY_HIT_ATTACKER: attackers,
-		KEY_HIT_ARRIVAL: arrivals,
+		KEY_HIT_STRUCT: structural,
 		KEY_HIT_FLAGS: flags,
 		KEY_HIT_CRIT_TIER: crit_tiers,
 		KEY_HIT_HP_BEFORE: hp_before,
@@ -249,6 +282,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		KEY_EVENT_PRED: preds,
 		KEY_EVENT_PRED_COUNT: pred_counts,
 		KEY_EVENT_PRED_ALL: pred_all,
+		KEY_EVENT_VISIT: visits,
+		KEY_EVENT_TERMINAL: terminals,
 		KEY_EVENT_HITS: event_hits,
 	}
 
@@ -272,12 +307,13 @@ static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
 	outcome.resolve_seed = int(d.get(KEY_SEED, 0))
 	outcome.ap_cost = int(d.get(KEY_AP, 0))
 	outcome.mana_cost = int(d.get(KEY_MANA, 0))
+	outcome.cadence = int(d.get(KEY_CADENCE, 0)) as ScheduleEntry.Cadence
 	var kinds: PackedByteArray = d.get(KEY_HIT_KIND, PackedByteArray())
 	var amounts: PackedFloat64Array = d.get(KEY_HIT_AMOUNT, PackedFloat64Array())
 	var targets: PackedInt32Array = d.get(KEY_HIT_TARGET, PackedInt32Array())
 	var origins: PackedInt32Array = d.get(KEY_HIT_ORIGIN, PackedInt32Array())
 	var attackers: PackedInt32Array = d.get(KEY_HIT_ATTACKER, PackedInt32Array())
-	var arrivals: PackedFloat64Array = d.get(KEY_HIT_ARRIVAL, PackedFloat64Array())
+	var structural: PackedFloat64Array = d.get(KEY_HIT_STRUCT, PackedFloat64Array())
 	var flags: PackedByteArray = d.get(KEY_HIT_FLAGS, PackedByteArray())
 	var crit_tiers: PackedInt32Array = d.get(KEY_HIT_CRIT_TIER, PackedInt32Array())
 	var hp_before: PackedFloat64Array = d.get(KEY_HIT_HP_BEFORE, PackedFloat64Array())
@@ -350,12 +386,14 @@ static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
 			hit.deallocations = entries
 			dealloc_at += count
 		hit.gated = gated
-		hit.arrival_time = arrivals[i]
+		hit.structural_key = structural[i]
 		hit.target = _node_of(targets[i], graph)
 		hit.origin = _node_of(origins[i], graph)
 		hit.attacker = graph.get_by_entity_id(attackers[i]) if graph != null else null
 		outcome.hits.append(hit)
 	var beats: PackedInt32Array = d.get(KEY_EVENT_BEAT, PackedInt32Array())
+	var visits: PackedInt32Array = d.get(KEY_EVENT_VISIT, PackedInt32Array())
+	var terminals: PackedByteArray = d.get(KEY_EVENT_TERMINAL, PackedByteArray())
 	var verbs: PackedByteArray = d.get(KEY_EVENT_VERB, PackedByteArray())
 	var event_origins: PackedInt32Array = d.get(KEY_EVENT_ORIGIN, PackedInt32Array())
 	var event_targets: PackedInt32Array = d.get(KEY_EVENT_TARGET, PackedInt32Array())
@@ -369,6 +407,8 @@ static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
 	for i in beats.size():
 		var event := PropagationEvent.new()
 		event.beat = beats[i]
+		event.visit_index = visits[i] if i < visits.size() else 0
+		event.is_terminal = i < terminals.size() and terminals[i] != 0
 		event.verb = verbs[i] as PropagationEvent.Verb
 		event.origin = _node_of(event_origins[i], graph)
 		event.target = _node_of(event_targets[i], graph)
@@ -386,7 +426,34 @@ static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
 				# The SAME object, not a copy — [PropagationEvent]'s contract.
 				event.hits.append(outcome.hits[index])
 		outcome.timeline.append(event)
+	# Seconds are minted HERE, on the peer, from the structure that just
+	# crossed plus this machine's own rate (#543 D4) — never decoded, because
+	# they were never encoded. One compile, so the applier's wait and the VFX
+	# layer read the same schedule object rather than two agreeing copies.
+	outcome.schedule = OutcomeSchedule.compile(outcome, _tempo_of(d))
 	return outcome
+
+
+## The [PresentationTempo] a schedule was compiled against, as a path — "" when
+## it is the shared default or when nothing compiled one, which is the same
+## thing to the far side ([method OutcomeSchedule.compile] falls back to
+## [method PresentationTempo.shared_default] on null).
+static func _tempo_path(outcome: AttackOutcome) -> String:
+	if outcome.schedule == null or outcome.schedule.tempo == null:
+		return ""
+	var path: String = outcome.schedule.tempo.resource_path
+	return "" if path == PresentationTempo.DEFAULT_PATH else path
+
+
+## Inverse of [method _tempo_path]. A path the peer cannot resolve (a build
+## skew, a renamed `.tres`) degrades to the shared default rather than to no
+## presentation at all — a spell that plays on the wrong CADENCE is a cosmetic
+## bug; one that does not play is a lost turn.
+static func _tempo_of(d: Dictionary) -> PresentationTempo:
+	var path: String = str(d.get(KEY_TEMPO, ""))
+	if path.is_empty() or not ResourceLoader.exists(path):
+		return null
+	return load(path) as PresentationTempo
 
 
 ## Node -> wire id. Always through [method Graph.get_stable_id], never

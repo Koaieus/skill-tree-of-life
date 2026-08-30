@@ -4,8 +4,9 @@ extends VFXCoordinator
 
 ## Plays a multi-hop spell's visual sequence. Walks [member AttackOutcome.timeline]
 ## ([PropagationEvent]s), groups it by [member PropagationEvent.beat], and fires
-## one wave per beat on a fixed clock: beat N spawns at
-## [code]t = N * beat_interval[/code] relative to [method play].
+## one wave per beat on a fixed clock read off the cast's compiled
+## [OutcomeSchedule] (#543): beat N impacts at
+## [code]lead_in + N * beat_interval[/code] relative to [method play].
 ##
 ## ## The clock is the ground truth
 ##
@@ -20,9 +21,18 @@ extends VFXCoordinator
 ## ## Three-clocks timing
 ##
 ## Impact is pinned to the beat, not to launch (#201). Projectiles are
-## spawned early ([code]beat_time - launch_to_impact[/code]) so they arrive
-## exactly at the beat. The visual's own windup/linger is free to start
-## before and outlive impact — the coordinator only gates on the wave clock.
+## spawned early (one [method OutcomeSchedule.lead_in] ahead of the beat) so
+## they arrive exactly at the beat. The visual's own windup/linger is free to
+## start before and outlive impact — the coordinator only gates on the wave
+## clock.
+##
+## [b]Both numbers come from the schedule, not from an export here[/b] (#543
+## D3). They used to exist twice — as `const`s in [SpellResolver] stamped into
+## the model's landing times, and as `@export`s on this node driving the
+## picture — deliberately unwired, with a documented "retune either and
+## re-check both" tax. [PresentationTempo] is now their single home and
+## [method OutcomeSchedule.compile] their only reader, so the mutation clock
+## and the picture cannot drift apart.
 ##
 ## ## Verb → ProjectilePath mapping
 ##
@@ -50,13 +60,16 @@ const _DEFAULT_CANCEL: PackedScene = preload("res://ui/vfx/projectile/visual/can
 ## the beat (landings + CANCELs).
 signal wave_started(hop_index: int, events_in_wave: int)
 
-## Seconds between beats. Was [code]per_hop_duration[/code] — renamed for the
-## three-clocks model where "hop" conflated launch and arrival (#201).
-@export var beat_interval: float = 0.4
-## Per-projectile flight duration (launch → impact). Must be ≤ [member beat_interval]
-## for impact to align with the beat. Renamed from [code]per_hop_duration[/code]'s
-## old companion [code]flight_time[/code]; same semantics.
-@export var launch_to_impact: float = 0.35
+## Fallback SHAPE, used only for an outcome that arrives with no compiled
+## [member AttackOutcome.schedule] — a hand-built fixture, or a preview built
+## outside a resolve. On the real path the spell's own
+## [member SpellDef.tempo] already rode into the schedule at resolve time and
+## this is never consulted; null falls back to
+## [method PresentationTempo.shared_default].
+##
+## [b]Not a place to retune a spell.[/b] Author the `.tres` the [SpellDef]
+## points at — that is the one both the model and the picture read.
+@export var tempo: PresentationTempo = null
 @export var face_velocity: bool = true
 
 # -- Verb → path slots --------------------------------------------------------
@@ -102,6 +115,12 @@ func play(payload: Variant) -> void:
 	# lands zero-damage events that carry no hit — it must still render its path.
 	if outcome == null or outcome.timeline.is_empty():
 		return
+	# Whoever resolved this already compiled one; compiling here covers a
+	# hand-built outcome and is idempotent either way.
+	if outcome.schedule == null:
+		outcome.schedule = OutcomeSchedule.compile(outcome, tempo)
+	var schedule: OutcomeSchedule = outcome.schedule
+	var entry_of := _entries_by_event(schedule)
 	var waves := _group_by_beat(outcome.timeline)
 	var beats: Array = waves.keys()
 	beats.sort()
@@ -121,16 +140,19 @@ func play(payload: Variant) -> void:
 	# rendering partway down its own timeline (damage/heal are already
 	# applied by BattleSystem before play() ever runs — see #474 — so what's
 	# at stake here is purely the visual, not a dropped mutation).
-	await _play_three_clocks(waves, beats, pending)
+	await _play_three_clocks(schedule, entry_of, waves, beats, pending)
 	while pending[0] > 0:
 		await get_tree().process_frame
 
 
 ## Three-clocks playback: projectiles are spawned early ([code]beat_time - launch_to_impact[/code])
 ## so impact lands on the beat. [method wave_started] fires AT the beat.
-func _play_three_clocks(waves: Dictionary, beats: Array, pending: Array[int]) -> void:
-	var interval: float = maxf(0.001, beat_interval)
-	var flight: float = clampf(launch_to_impact, 0.001, interval)
+func _play_three_clocks(schedule: OutcomeSchedule, entry_of: Dictionary,
+		waves: Dictionary, beats: Array, pending: Array[int]) -> void:
+	var interval: float = schedule.beat_interval()
+	# Floored at a tick rather than at 0: `create_timer(0.0)` is an error, and
+	# a lead-in of exactly zero is a legal authoring choice.
+	var flight: float = maxf(0.001, schedule.lead_in())
 
 	for i in beats.size():
 		var beat := int(beats[i])
@@ -145,7 +167,7 @@ func _play_three_clocks(waves: Dictionary, beats: Array, pending: Array[int]) ->
 			# arrival; beat 0 is now the same shape, which costs one `flight`
 			# of lead-in and puts the whole spell in cause-then-effect order.
 			for ev_v in wave:
-				_play_event(ev_v, pending)
+				_play_event(ev_v, entry_of, flight, pending)
 			await get_tree().create_timer(flight).timeout
 
 		# #504: no `_show_presentation` pass anymore. The wave's hits land on
@@ -154,12 +176,11 @@ func _play_three_clocks(waves: Dictionary, beats: Array, pending: Array[int]) ->
 		# longer re-announces what already happened. `wave_started` stays: it is
 		# the animation's own cadence signal, which tests assert on.
 		#
-		# "As the bolt arrives" is an arithmetic claim, and both halves have to
-		# agree for it to hold: impact here is `launch_to_impact + N *
-		# beat_interval` (spawn early, pin to the beat), so the resolver stamps
-		# `WAVE_FLIGHT_LEAD_IN + hop_index * WAVE_ARRIVAL_INTERVAL`. Retune
-		# either export and re-check both constants — dropping the lead-in is
-		# what made damage numbers pop a whole flight before the projectile.
+		# "As the bolt arrives" used to be an arithmetic claim whose two halves
+		# were maintained by hand in two files. Since #543 it is true by
+		# construction: impact here is `lead_in + N * beat_interval` read off
+		# the schedule, and the applier waits that same schedule's
+		# `arrive_at`. One number, so there is nothing left to re-check.
 		wave_started.emit(beat, wave.size())
 
 		if i < beats.size() - 1:
@@ -168,7 +189,7 @@ func _play_three_clocks(waves: Dictionary, beats: Array, pending: Array[int]) ->
 			if early > 0.0:
 				await get_tree().create_timer(early).timeout
 			for ev_v in next_wave:
-				_play_event(ev_v, pending)
+				_play_event(ev_v, entry_of, flight, pending)
 			var remaining: float = maxf(0.0, interval - early)
 			if remaining > 0.0:
 				await get_tree().create_timer(remaining).timeout
@@ -187,19 +208,32 @@ func _group_by_beat(timeline: Array[PropagationEvent]) -> Dictionary:
 	return waves
 
 
-func _play_event(ev: PropagationEvent, pending: Array[int]) -> void:
+func _play_event(ev: PropagationEvent, entry_of: Dictionary, flight: float,
+		pending: Array[int]) -> void:
 	match ev.verb:
 		PropagationEvent.Verb.CANCEL:
 			_play_cancel(ev, pending)
 		_:
-			_play_projectile(ev, pending)
+			_play_projectile(ev, entry_of, flight, pending)
 
 
-func _play_projectile(ev: PropagationEvent, pending: Array[int]) -> void:
+func _play_projectile(ev: PropagationEvent, entry_of: Dictionary, flight: float,
+		pending: Array[int]) -> void:
 	if ev.target == null:
 		return
 	for origin in _origins_for(ev):
-		_spawn_projectile(ev, origin, pending)
+		_spawn_projectile(ev, origin, entry_of.get(ev, null), flight, pending)
+
+
+## Event -> its [ScheduleEntry]. Identity-keyed, because two landings on one
+## node in one beat are distinct events with equal field values (the same
+## reason [method AttackRecord.capture] keys its hit index by identity).
+func _entries_by_event(schedule: OutcomeSchedule) -> Dictionary:
+	var by_event: Dictionary = {}
+	for entry in schedule.entries:
+		if entry.event != null:
+			by_event[entry.event] = entry
+	return by_event
 
 
 ## One inbound bolt per converging predecessor (#542) — a fork-then-reconverge
@@ -221,13 +255,17 @@ func _origins_for(ev: PropagationEvent) -> Array[SkillNode]:
 	return []
 
 
-func _spawn_projectile(ev: PropagationEvent, origin: SkillNode, pending: Array[int]) -> void:
+func _spawn_projectile(ev: PropagationEvent, origin: SkillNode,
+		entry: ScheduleEntry, flight: float, pending: Array[int]) -> void:
 	var proj := Projectile.new()
 	proj.path = _resolved_path(ev.verb)
 	proj.visual_scene = _resolved_visual(ev.verb)
-	proj.flight_time = launch_to_impact
+	proj.flight_time = flight
 	proj.face_velocity = face_velocity
 	proj.crit_tier = ev.max_crit_tier()
+	# The whole render context, not just the crit integer (#543 D6). Set
+	# BEFORE `launch`, which is what instantiates the visual and forwards it.
+	proj.context = entry
 	add_child(proj)
 	pending[0] += 1
 	proj.tree_exiting.connect(func() -> void:

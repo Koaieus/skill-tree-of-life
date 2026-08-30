@@ -49,10 +49,43 @@ var crit_multiplier: float = 1.0
 ## propagation step that carried it.
 var crit_tier: int = 0
 
-## Seconds from attack launch until this hit's VFX visually reaches its
-## target — the presentation-clock analogue of melee's per-event
-## [code]BladeHitEvent.t[/code] and magic's fixed propagation clock. 0.0 for
-## hit types that don't yet compute one.
+## This landing's STRUCTURAL position, in whatever units its outcome's
+## [member AttackOutcome.cadence] names — a hop ordinal for magic, normalized
+## position in the volley's distance span for ranged, normalized position along
+## the swing for melee (#543).
+##
+## [b]This is what the resolver writes, and the only timing-shaped thing it
+## knows.[/b] It is also the only one that crosses the wire: a peer recompiles
+## its own seconds from it (see [OutcomeSchedule]), so tempo may differ per
+## machine without any of them disagreeing about what happened.
+var structural_key: float = 0.0
+
+## Position of this landing's [ScheduleEntry] in its
+## [member AttackOutcome.schedule] — [b]the landing-order key[/b]
+## ([method OutcomeApplier.in_arrival_order], #543 D2).
+##
+## Ordering had to leave [member arrival_time] because land order is
+## gameplay-observable (cascades, land-time mitigation) and [CritRoll] consumes
+## its seeded stream in exactly that order, while seconds became
+## tempo-dependent and tempo became per-peer. Sorting on a float that two peers
+## are ALLOWED to disagree about is a desync that reports a green suite.
+##
+## -1 until a schedule has been compiled; the applier compiles one rather than
+## landing on an unassigned key.
+var schedule_index: int = -1
+
+## Seconds from attack launch until this hit's VFX visually reaches its target.
+##
+## [b]A compiler-written cache, not a resolver output[/b] (#543 D1). Its sole
+## writer is [method OutcomeSchedule._write_back]; the three resolver stamps
+## that used to fill it in ([SpellResolver]'s wave loop,
+## [method RangedAttackPlan.resolve_against], [method MeleeAttackPlan.resolve_against])
+## are gone. It survives as a field because deleting it would push the applier's
+## per-hit wait and [CameraDirector]'s span walk through a dictionary lookup in
+## a hot loop for zero behavioural gain — the field was never the problem,
+## who wrote it was.
+##
+## [b]Never sort or compare on it.[/b] See [member schedule_index].
 var arrival_time: float = 0.0
 
 ## Post-mitigation / post-clamp HP delta magnitude — what actually landed,

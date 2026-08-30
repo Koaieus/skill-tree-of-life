@@ -26,7 +26,7 @@ func _record() -> Dictionary:
 		AttackRecord.KEY_HIT_TARGET: PackedInt32Array([4, 9]),
 		AttackRecord.KEY_HIT_ORIGIN: PackedInt32Array([1, 1]),
 		AttackRecord.KEY_HIT_ATTACKER: PackedInt32Array([2, 2]),
-		AttackRecord.KEY_HIT_ARRIVAL: PackedFloat64Array([0.0, 0.4]),
+		AttackRecord.KEY_HIT_STRUCT: PackedFloat64Array([0.0, 1.0]),
 		AttackRecord.KEY_HIT_FLAGS: PackedByteArray([AttackRecord.FLAG_CRIT, 0]),
 		AttackRecord.KEY_HIT_CRIT_TIER: PackedInt32Array([1, 0]),
 		AttackRecord.KEY_HIT_POP: PackedInt32Array([0, 0]),

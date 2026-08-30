@@ -3,8 +3,15 @@ extends GutTest
 ## #501 (descoped): every magic hit gets a real, wave-derived
 ## `HitInstance.arrival_time` -- 0.0 was a semantic lie under the staged
 ## presentation clock (docs/domain/attack-timeline.md). Later waves must land
-## strictly later so #499's arrival_time sort in OutcomeApplier keeps magic's
-## hits in wave order regardless of merge order against volley-499.
+## strictly later, which is what keeps magic's hits in wave order.
+##
+## [b]Re-pointed by #543, not deleted.[/b] The resolver no longer stamps the
+## seconds asserted below; it records the hop ORDINAL and
+## [method OutcomeSchedule.compile] assigns seconds from
+## [PresentationTempo]. The fourth-clock lead-in survives that split as an
+## authored field, so what these tests pin — the seed lands when its bolt
+## ARRIVES, and the per-wave interval is uniform — is unchanged. Only the
+## constant's home moved.
 
 var _h: SpellTestHelper
 
@@ -35,10 +42,13 @@ func test_arrival_time_is_stamped_and_monotonic_across_waves() -> void:
 	assert_gt(hop_hit.arrival_time, seed_hit.arrival_time,
 			"a later wave must land strictly after an earlier one")
 	# NOT t=0. `arrival_time` is when the hit LANDS, absolutely -- and the seed's
-	# own bolt is in the air for `WAVE_FLIGHT_LEAD_IN` first. Landing it at zero
+	# own bolt is in the air for one `beat_lead_in` first. Landing it at zero
 	# put the damage number a whole flight ahead of the projectile; see that
-	# constant's doc for why magic was the odd mode out here.
-	assert_almost_eq(seed_hit.arrival_time, SpellResolver.WAVE_FLIGHT_LEAD_IN, 0.001,
+	# field's doc for why magic was the odd mode out here. The spell authors no
+	# tempo, so this is the shared default — the same number
+	# `SpellResolver.WAVE_FLIGHT_LEAD_IN` used to hold, now in its one home.
+	assert_almost_eq(seed_hit.arrival_time,
+			PresentationTempo.shared_default().beat_lead_in, 0.001,
 			"wave 0 (the seed) lands when its bolt arrives, not when it was loosed")
 
 

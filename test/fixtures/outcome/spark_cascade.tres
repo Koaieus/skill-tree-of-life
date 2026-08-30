@@ -16,6 +16,7 @@ command = {
 },
 "record": {
 "ap": 1,
+"cad": 1,
 "d_chip": PackedFloat64Array(1, 1, 1),
 "d_lbl": PackedStringArray(),
 "d_lblc": PackedInt32Array(0, 0, 0),
@@ -27,26 +28,32 @@ command = {
 "e_hits": [PackedInt32Array(0)],
 "e_org": PackedInt32Array(2),
 "e_pred": PackedInt32Array(0),
+"e_preda": PackedInt32Array(0),
+"e_predc": PackedInt32Array(1),
+"e_term": PackedByteArray(1),
 "e_tgt": PackedInt32Array(3),
 "e_verb": PackedByteArray(0),
+"e_visit": PackedInt32Array(0),
 "h_amt": PackedFloat64Array(9999),
-"h_at": PackedFloat64Array(0),
 "h_atk": PackedInt32Array(1),
 "h_crit": PackedInt32Array(0),
 "h_flags": PackedByteArray(0),
 "h_hp0": PackedFloat64Array(10),
 "h_hp1": PackedFloat64Array(0),
 "h_hpm": PackedFloat64Array(10),
+"h_key": PackedFloat64Array(0),
 "h_kind": PackedByteArray(0),
 "h_org": PackedInt32Array(2),
+"h_pop": PackedInt32Array(0),
 "h_tgt": PackedInt32Array(3),
 "mana": 1,
-"seed": 3160770990
+"seed": 2539810180,
+"tempo": ""
 },
-"seed": 3160770990,
+"seed": 2539810180,
 "type": &"launch_attack"
 }
 world_fingerprint_at_capture = 2077471193
 expected_fingerprint = 1624479824
 notes = "Spark cast from a_leaf onto d_gate: the kill islands the limb, so the forced-dealloc cascade replays as three BFS layers. Regenerate with REGEN_OUTCOME_FIXTURE=1 on test_outcome_fixture_replay.gd."
-captured_at = "2026-08-23"
+captured_at = "2026-08-30"

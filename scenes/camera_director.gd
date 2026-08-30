@@ -292,9 +292,15 @@ func _build_attack_request(outcome: AttackOutcome, attacker: Entity) -> FocusReq
 	if seat_policy != null and seat_policy.seats(attacker):
 		return null
 	var points := PackedVector2Array()
-	var last_arrival := 0.0
+	# The schedule owns "how long does this take" (#543) — hand-computing a
+	# `maxf` over every hit's cached seconds was a second implementation of
+	# [method OutcomeSchedule.duration], free to drift the moment tempo became
+	# a per-peer setting. Compile if nothing has yet: a focus that outlives its
+	# attack is a stuck camera.
+	if outcome.schedule == null:
+		outcome.schedule = OutcomeSchedule.compile(outcome)
+	var last_arrival: float = outcome.schedule.duration()
 	for hit in outcome.hits:
-		last_arrival = maxf(last_arrival, hit.arrival_time)
 		_append_if_visible(points, hit.origin)
 		_append_if_visible(points, hit.target)
 	var request := FocusRequest.span(points, default_focus_duration,

@@ -610,6 +610,7 @@ var last_hits: Array[DamageInstance] = []
 
 func resolve_against(world: CombatWorld) -> AttackOutcome:
 	var outcome := AttackOutcome.new()
+	outcome.cadence = ScheduleEntry.Cadence.SWING
 	outcome.resolve_seed = resolve_seed
 	if not is_valid():
 		return outcome
@@ -653,16 +654,23 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		di.origin = source
 		di.source = self
 		di.attacker = attacker
-		di.arrival_time = ev.t
+		# Melee is #543's honest caveat: its structural parameter IS continuous
+		# time the sim produced, so it is NORMALIZED against the swing rather
+		# than "not timing at all". The compiler scales it back out by
+		# [member PresentationTempo.swing_duration], which is what lets the
+		# picture be stretched without re-simulating the blade.
+		di.structural_key = ev.t / maxf(0.001, SWING_DURATION)
 		outcome.hits.append(di)
 		di_list.append(di)
 	last_hits = di_list
+	# Seconds, once, before `decide_all` consumes its stream in landing order.
+	outcome.schedule = OutcomeSchedule.compile(outcome)
 	# Every blade landing rolls its own crit (#507 — owner call: "a hit can
 	# crit"), off the stamped seed, never `randf()`. So a wide blade sweeping
 	# many nodes gets more lottery tickets than a narrow one; settled as
 	# intended, not a reason to fall back to one roll per swing.
-	# `decide_all` sorts by `arrival_time` itself, so this does not depend on
-	# BladeHitScan emitting events in `t` order.
+	# `decide_all` sorts by the compiled schedule index itself, so this does not
+	# depend on BladeHitScan emitting events in `t` order.
 	CritRoll.decide_all(outcome, CritRoll.stream_for(resolve_seed))
 	# Melee selects on physics, so nothing above read `world`: every live read
 	# it makes is inside `BladeDamageInstance.land_on` -> `LiveGate.admit`,

@@ -52,6 +52,21 @@ var predecessor: SkillNode = null
 ## [member CastSpell.incident_count] for the landing that produced this event.
 var predecessors: Array[SkillNode] = []
 
+## The nth time this cast has landed on [member target], 0-based — the read
+## an accumulation visual (Reverberator) collapses to noise without (#543 D6).
+## Stamped from [method PropagationContext.visit_count] at resolve, BEFORE the
+## bump, so a node struck three times reports 0, 1, 2. The count already
+## existed on the context and was simply dropped on the floor.
+var visit_index: int = 0
+
+## True when the propagation walk ENDED at this landing by terminal rule —
+## hops exhausted, no step configured, or nothing left to expand to — as
+## opposed to merely being the last event appended (#543 D6). Trail Blazer's
+## junction slam is exactly "the entry where the walk ended", which was
+## previously only inferable by re-deriving the resolver's own stopping
+## condition in the VFX layer.
+var is_terminal: bool = false
+
 ## The hit(s) this event lands — shared references into
 ## [member AttackOutcome.hits], NOT copies. Empty for [constant Verb.CANCEL]
 ## and for zero-damage / utility landings (which still get an event so the

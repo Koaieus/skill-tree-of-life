@@ -43,6 +43,25 @@ var timeline: Array[PropagationEvent] = []
 ## plan type — melee is the only mode that can cost the attacker's own shape
 ## mid-execution, which is what [AiCombatScorer]'s self-shape-risk term reads.
 var thinned_nodes: int = 0
+## Which structural clock every landing's [member HitInstance.structural_key]
+## is expressed in — one per outcome, because an outcome is one mode (#543).
+## [method OutcomeSchedule.compile] reads it to pick the arithmetic that turns
+## structure into seconds. [constant ScheduleEntry.Cadence.LITERAL] (the
+## default) means the keys already ARE seconds, which is what a hand-built
+## fixture wants.
+var cadence: ScheduleEntry.Cadence = ScheduleEntry.Cadence.LITERAL
+
+## The compiled presentation timeline, or null until something compiles one.
+##
+## [b]Local, never on the wire.[/b] Structure crosses ([member cadence] plus
+## each hit's structural key); every peer compiles its own seconds against its
+## own [member GameSettings.combat_time_scale]. Filled in by whichever of
+## [method AttackPlan.resolve_against], [method AttackRecord.rebuild] or
+## [method OutcomeApplier.apply] gets there first — all three route through the
+## same compiler, so it is compiled once and shared, never recomputed per
+## reader.
+var schedule: OutcomeSchedule = null
+
 ## The [member AttackPlan.resolve_seed] this outcome was resolved under, so
 ## the artifact is self-describing: it carries everything needed to reproduce
 ## itself. A peer handed (intent + this seed) re-resolves to a bit-identical

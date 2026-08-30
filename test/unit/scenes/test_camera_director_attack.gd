@@ -55,7 +55,10 @@ func _hit(origin: SkillNode, target: SkillNode, arrival: float = 0.0) -> HitInst
 	h.amount = 1.0
 	h.origin = origin
 	h.target = target
-	h.arrival_time = arrival
+	# #543: the fixture authors a STRUCTURAL key; the director compiles the
+	# schedule and reads its duration. LITERAL cadence, so the key IS the
+	# second — the same numbers, now arriving the way production produces them.
+	h.structural_key = arrival
 	return h
 
 
@@ -155,7 +158,7 @@ func test_the_hold_is_the_last_arrival_plus_a_tail() -> void:
 	]
 	var req := _dir._build_attack_request(_outcome(hits), _entity(false))
 	assert_almost_eq(req.hold, 1.2 + _dir.release_tail_seconds, 0.001,
-			"sized from max(arrival_time) — the director READS the clock, never gates it")
+			"sized from OutcomeSchedule.duration() — the director READS the clock, never gates it")
 
 
 # --- the three fit branches, on a real span --------------------------------
