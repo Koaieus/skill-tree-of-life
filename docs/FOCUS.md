@@ -1,353 +1,73 @@
 # Focus
 
-**What is live right now, and what is deliberately not.** One page, on purpose.
+**What is next, and what is deliberately not.** One page, on purpose.
 
-`ROADMAP.md` is the full inventory (and is stale). The GitHub board is the queue.
+**This file carries no per-issue state.** It never says what an issue's status is,
+what it depends on, or what shipped — the board answers all three, live:
 
-Rewritten 2026-08-18. **This file no longer carries a backlog.** Everything that
-used to live here as prose — the playtesting findings, the meta-shell units, the
-perf follow-ups, the tier-ladder forks — is now filed as issues, and the
-**`LAN 2026-09-04` milestone** is the burn-down for the date. What remains here
-is the one job a milestone cannot do: saying what is **next**, and by omission
-saying everything else is not.
+```
+mise gh-project -- roadmap        # open / ready / needs-design per milestone
+mise gh-project -- list ready     # what a drone could pull right now
+```
 
-Closed work is not recorded here. Git history and the issue tracker hold it.
+> **Rewritten 2026-08-31**, from 353 lines to this. The previous version referenced
+> 134 issues; 89 were closed and 81 of those still read as live work — including
+> every row in the "what to pull next" table. It was rewritten once before, on
+> 2026-08-18, for the same reason, and regrew in twelve days. **The structural
+> cause is per-issue prose: it is irresistible to append to and invisible to
+> prune.** So the rule is now mechanical rather than aspirational — *a line naming
+> one issue may contain its number and nothing else.* If you want to write a
+> sentence about an issue, write it **on the issue**.
 
 ## North Star
 
 The bar this project is aiming at, so a perf or scope call has something to be
 judged against:
 
-1. **A 2000-`SkillNode` map runs smoothly at 144Hz, at 1440p.** The dev sandbox
-   is *not* 1440p, so local framerates are optimistic about resolution. This is
-   the number that decides whether a rendering or recompute approach is
-   acceptable — see `.claude/rules/rendering-performance.md`.
-2. **The player can control that**: windowed / fullscreen / borderless,
-   resolution, vsync, framerate cap. Substrate shipped; the settings are #462.
+1. **A 2000-`SkillNode` map runs smoothly at 144Hz, at 1440p.** The dev sandbox is
+   *not* 1440p, so local framerates are optimistic about resolution. This is the
+   number that decides whether a rendering or recompute approach is acceptable —
+   see `.claude/rules/rendering-performance.md`.
+2. **The player can control that**: windowed / fullscreen / borderless, resolution,
+   vsync, framerate cap.
 3. **LAN-playable**: single-player, seeded runs, and hot-seat coop by
    **2026-09-04**, with versus if it fits. That is milestone `LAN 2026-09-04`.
-
-## Why this file exists
-
-The board sprawls. This file is the antidote: it names what's actually next, and
-by omission says everything else is not.
-
-There is one queue for "needs design" work — **#261** (the swarmify pipeline). If
-an issue is in `Needs design`, it sits there until a `/swarmify` pass settles its
-forks and moves it to `Ready`. **FOCUS does not catalog `Needs design` work.**
 
 ## The rules
 
 1. **WIP limit: 5 — and it is the weakest rule here.** The real failure mode is
    things *rotting* `In progress`. Judge the column by age, not by count.
-2. **Any amount of lanes at a time.** Lanes below are grouped by topic.
-	Ideally we close out lanes one by one, but any work closed on any lane is
-	always welcome.
-3. **A fork is a Backlog issue, never an immediate start.** File it, finish the
-	current unit, re-read this file. If the forked off issue is relevant to FOCUS, fold it in here,
-	if it's more like "nice to have", keep it backlog. Most often an issue wants
-	things that lead to 1 or more related issues being filed to get it done, this
-	means that it's more about tracking what needs to be done *for that unit* so
-	by all means it should be done ASAP in that case. But useful to split so an
-	agent can be pointed at it to complete it, instead of "read half of this issue
-	 then do that one paragraph".
+2. **Any number of lanes at a time.** Ideally we close lanes out one by one, but
+   work closed on any lane is always welcome.
+3. **A fork is a filed issue, never an immediate start.** File it, finish the
+   current unit, re-read this file. If the fork is needed *for the current unit*,
+   do it ASAP — the split exists so an agent can be pointed at a whole issue
+   instead of one paragraph of another.
 4. **Legibility ships, fidelity defers.**
-5. **Crappy-now beats correct-later for anything not on the critical path.**
-6. **`Ready` is a superset, not the queue.** Being `Ready` means "a drone *could*
-   take this"; being named below means "a drone *should*".
+5. **Crappy-now beats correct-later for anything not on the critical path** —
+   except during the LAN window, see below.
+6. **`Ready` is a superset, not the queue.** `Ready` means a drone *could* take
+   this; being named below means a drone *should*.
+7. **There is one queue for design work — #261**, the swarmify pipeline. An issue
+   in `Needs design` sits there until a `/swarmify` pass settles its forks.
+   **FOCUS does not catalog `Needs design` work.**
 
 ## The LAN — milestone `LAN 2026-09-04`, hub #456
 
-> **The LAN is 4-6 September.** Owner call, 2026-08-29: the milestone is
-> **renamed** to `LAN 2026-09-04` (was `LAN 2026-08-31`, an internal burn-down
-> date that never matched the event) and the standing instruction for the window
-> is: *"we will take all time we have to land as much as we can, make it future
-> proof, but mostly, clean."* So the extra week buys **cleanliness, not scope** —
-> prefer the correct shape over the crappy-now shortcut that rule 5 permits
+> **The LAN is 4-6 September.** Standing instruction for the window, owner call
+> 2026-08-29: *"we will take all time we have to land as much as we can, make it
+> future proof, but mostly, clean."* The extra week bought **cleanliness, not
+> scope** — prefer the correct shape over the crappy-now shortcut rule 5 permits
 > elsewhere.
 
-North Star #3, with a date on it. **Membership in that milestone means "this
-gates the LAN build"** — read it with `mise gh-project -- roadmap`, which
-prints open / ready / needs-design counts per milestone, so the milestone answers
-"what is left, and what still needs its forks settled" without this file.
+**Membership in the milestone means "this gates the LAN build."** What is left in
+it is a board query, not a table here. The lanes, in the order they matter:
 
-Already shipped under the hub: tier-S plumbing (`SceneDirector`, `session/` data
-classes, `GameSettings` + reflected settings menu, `BuildInfo`,
-`SkillNode.stable_id`, merged as `db80618`) and the menu shell (`5053afc`).
+1. **Frontmatter / meta shell** — #567, #582, #589
+2. **Spell VFX** — #663, #671, #672
+3. **Aura recompute perf** — #657 first; #620, #636, #681
+4. **Readouts & UI polish** — #621, #625, #669, #683
+5. **AI combat reads** — #537, #538
+6. **Owner-run, not drone work** — #665
 
-| # | Unit | State |
-|---|---|---|
-| ~~#473~~ | ~~Design session: the multiplayer sync model~~ | **Decided 2026-08-18** — `docs/domain/multiplayer-sync-model.md` |
-| **#457** | `GameSession` + one-shot seed resolution | Sits in `Ready`, forks still open — **owner decision**. The 2026-08-21 call shrank it: the seed is a procgen input, **not** a determinism contract over combat or loot |
-| ~~#474~~ | ~~Split world mutation from VFX in `launch_attack`~~ | **Shipped.** VFX is a pure observer. (Mutation was at t=0 here; #504 then moved it onto the reveal clock — see the row below) |
-| ~~#488~~ | ~~Presentation clock v2~~ | **Shipped 2026-08-21** as design **B** — the world mutates on the reveal clock; no view store. `docs/domain/presentation-clock.md` |
-| **#458** | `Command` + `CommandApplier` (rewritten) | **All four children shipped 2026-08-21** (`b1448fe`, `50d5556`, `2e7b67a`, `6f810be`). Loot picks **crossed with #522** — every verb is routed now. **Do not re-enumerate children here** — this row rotted once by doing that; read `mise gh-project -- roadmap` for live child state |
-| ~~#475~~ | ~~Author real faction camps~~ | **Shipped 2026-08-21** — so #459's allied-humans prerequisite is met |
-| **#459** | Hot-seat coop: the three rebind seams | **`Ready` — this is the LAN commitment, and it is one issue.** Needs nothing from #511/#512/#463 |
-| ~~#460~~ | ~~`VictorySystem` — a run that can end~~ | **Shipped 2026-08-21.** Owner call settled it: last camp standing, pluggable, blockers inert. `docs/domain/victory-system.md` |
-| ~~#461~~ → **#567** | **Game Frontmatter — the menu IS a skill tree** | **Swarmified 2026-08-24.** #461 closed as superseded (its roster half shipped as #549). The owner put this back **in** the milestone — *"it's part of the LAN. i will be showing it to people, it needs a skill tree menu"* — reversing #461's own 2026-08-21 call to file it outside. Hub #567, **11 children**; LAN cut #568/#569/#570/#573/#574/#577 in `Ready`, polish tail #571/#572/#575/#576/#578 in `Backlog` behind native `blocked-by`. **Do not re-enumerate children here** — read `mise gh-project -- roadmap` |
-| ~~#462~~ | ~~Display settings (window mode, resolution, vsync, fps cap)~~ | **Shipped 2026-08-21.** North Star #2 is met |
-| **#463** | Versus: `NetworkTransport` + ENet lobby | **Hub, swarmified 2026-08-22.** The transport seam, both transports and `CommandLink` already shipped — the body was 60% stale. All five 2026-08-23 children closed (#527/#528/#529/#530/#531). **The sync model is settled 2026-08-24** — see below, and the upward channel + roster seam were swarmified the same day. **Do not re-enumerate children here** — read `mise gh-project -- roadmap` |
-| **#597** | **The run carries its map** — `RunConfig` picks the procgen preset | **SWARMIFIED — it is a HUB, not open design work** (owner call 2026-08-27, correcting this row's own earlier "three forks, owner session" text). Its D9 settled the `Scenario` / `RunConfig` split, and its children carry settled acceptance specs and sit in `Ready`: **#641** (child 1, creates the `Scenario` type — *"cut so the siblings have a type to point at"*, so it is the root), **#642**, **#643**, **#638**, with **#349** and **#558** in the same lane. The parent keeps a `design` label and sits outside `Ready`; that is hub bookkeeping, **not a blocker** — do not read it as "needs design" and do not stall a child on it. Background: #584 shipped (`dbd8d7c`), and `coop_versus.tres` (#550) still has no consumer until this lane lands |
-| ~~#499~~ | ~~Ranged volley: arrival ramp + apply in arrival order~~ | **Shipped.** `OutcomeApplier` orders hits by `arrival_time` |
-| **#663** | **Spell VFX — the skill tree's combat finally looks like eight different spells** | **SWARMIFIED 2026-08-30 — it is a HUB.** Its premise was stale: the per-verb authoring surface (`vfx_coordinator_scene`, `jump_/edge_/self_loop_` path+visual slots, five `ProjectilePath` classes, crit-tier already reaching the visual) **already existed**, so the children are *authoring* units, not plumbing. **#543 was pulled in and settled as the root** (owner: *"let's settle 543 first so we can set up the issues with specs that work in unison"*) — the DAG is **#543 → #670 (shared kit) → eight per-spell units**, which are mutually parallel-safe on disjoint files, i.e. one swarm batch. **Do not re-enumerate children here** — read `mise gh-project -- roadmap` |
-
-Also in the milestone, by owner call: **#403** Tech Seeds, `Needs design` —
-"should be easy to get *something* going", so it wants a fast swarmify, not a
-deep one. (**#300** removable node blockers shipped 2026-08-21, which unblocks
-#403; its deferred chokepoint-placement heuristic is #508, unscheduled. **#412**
-armed-mode viewport glow shipped 2026-08-21 — the glow values are owner-tunable
-`shader_parameter`s, see the glowup section.)
-
-**Order, restated 2026-08-21 after the sync lane's big day.** Multiplayer is a
-four-layer stack and **three layers are done**:
-
-1. *The model* — #473, `docs/domain/multiplayer-sync-model.md`. **Decided.**
-2. *Mutation must not be frame-ordered* — the presentation-clock v2 arc
-   (#488–#494, #504), #474, and the attack-timeline children #501/#502/#503.
-   **Shipped.** This was the real blocker: you cannot broadcast a world change
-   whose timing a dropped frame decides.
-3. *The command layer* — #458. **Shipped, minus loot picks.** There is now
-   exactly one serial path through which the world mutates, it speaks in
-   serializable commands, and every player and AI verb reaches it.
-4. *The transport* — #463. **Two thirds shipped without anyone noticing**, and
-   swarmified 2026-08-22 into four `Ready` children. See the row above.
-
-So the remaining order is short:
-
-- **#459 is the LAN commitment and it is one issue.** Hot-seat coop needs
-  nothing from a transport, and #475 (its allied-humans half) landed. Pull it
-  first.
-- **A verb that never becomes a `Command` is not #463's problem, it is #458's.**
-  `CommandLink` mirrors everything the applier handles; what does not cross the
-  wire is what nothing submits. Two were found 2026-08-22 — the player's End
-  Turn button (fixed, it now goes through
-  `PlayerInputController.request_end_turn`) and loot picks (still open). When a
-  verb misbehaves in a mirrored sandbox, check the submission site before the
-  transport.
-- **The harness is a ladder now, and each rung defines "done" for a layer.**
-  Rung 1 **#532** (`Ready`): the existing `mp_dev_sandbox`, where no state
-  crosses by construction — so a failure there is a *messaging* bug and cannot be
-  a serialization bug. Restores the AI opponent (the "#512 makes the AI bypass
-  the applier" justification in the code and the doc is **stale** — #512 landed),
-  sweeps every verb, and asserts turn-advance + seating. Rung 2 **#533**
-  (`Backlog`, blocked-by #527/#528/#531): a procgen'd scene where the graph and
-  run settings actually cross. Rung 3 is the client acting, and waits on the
-  upward channel. Rung 4 is the real menu.
-- **#463's sync model is SETTLED: intent-up / confirmed-command-down.**
-  Owner call **2026-08-24**, after #529 reported clean twice and a LAND column
-  was added to measure the half lockstep would have stood on. Lockstep was
-  rejected on grounds entirely different from the 2026-08-18 ones — cross-OS
-  libm in the blade sim, and lockstep being *contradictory* with the partial-
-  information destination. **Its three older grounds are all retired; do not
-  pick one up.** `docs/domain/multiplayer-sync-model.md` carries both the live
-  argument and the dead ones.
-  The upward-channel unit is **#548** (`Ready`, swarmified 2026-08-24) and the
-  roster seam is **#549** (split out of #461, which was only ever menu polish;
-  now a hub, its two children `Ready`). **They are independent** — the earlier
-  claim here that #548 *depends on* the roster seam is **wrong**, and #548's
-  acceptance spec says so: the mp harness seats its client by hand, so the
-  upward channel is implementable and testable without a lobby-fed roster.
-  What #548 *does* wait on is **#533**, recorded natively.
-  A consequence worth carrying: derived stats are recomputed per peer, so the
-  **stat pipeline** owes cross-platform determinism — **#547** is the one live
-  violation.
-- **#457 does not gate any of this.** The 2026-08-21 owner call made the seed
-  procgen-only, and #458's entity ids are minted by `Graph` the way `stable_id`
-  already is.
-
-**The LAN date's risk is no longer #498 step 3.** It shipped 2026-08-23
-(#535 + #536). #461 was swarmified 2026-08-24 into the #567 frontmatter hub, so
-what is left carrying open forks is **#457 alone**.
-
-One structural fact #567 surfaced that is worth knowing outside it: **`Boot`
-never reaches the menu.** `autoload/boot.gd` swaps straight to
-`first_level_sandbox` on a release build, so the meta shell is unreachable in
-anything but the editor. #577 fixes it. Anyone reasoning about "what does a
-player see first" should read that before assuming `meta_root.tscn` runs.
-
-**The attack-timeline contract is DONE** — `docs/domain/attack-timeline.md`,
-hub **#500**. Every child closed: the three mode moves (#501 / #502 / #503) and
-#507 crits landed 2026-08-21; #506, #514, #518, #520 followed; and the substrate
-finished 2026-08-23 as **#535** (`CombatWorld`) + **#536** (`resolve_against`
-for all three modes, plus the `BattleSystem` collapse — the host now replays its
-own record like any peer). #501's un-shipped wave-loop half went with #536 and is
-pinned by `test/unit/spell/test_wave_gating.gd`.
-
-**One acceptance item was reversed rather than met** (owner call 2026-08-23,
-`e48852f`): offense is **snapshotted at commit time** in all three modes, not
-read at land time — an arrow carries the damage it was loosed with, a blade is
-forged then swung, a spell in flight carries its own. #503 had shipped the
-land-time re-read for ranged; it is deleted. Nothing is lost because the *gate*
-stays live and vetoes arrows whose target is already dead. See #500's comment and
-the doc section of that name.
-
-Two follow-ons were deliberately re-homed to `Backlog` / **AI v2**, and neither
-gates the date: **#537** two-tier AI candidate gating and **#538**
-`LootSystem.preview_kill_xp`. #537 is worth knowing about — shadow-always made a
-magic AI candidate ~150× more expensive (0.076 ms → 11.58 ms at 200 owned), and
-ranged/magic still enumerate candidates exhaustively.
-
-**Symmetric confirmation (#534) is done — shipped and measured.**
-#539 (outcome playground), #540 (validate → confirm → apply,
-fingerprint compares pre-state) and #541 (the input gate's third phase) landed
-2026-08-22/23 and made the **eight non-attack verbs** symmetric. **#545** closed
-the ninth on 2026-08-23: `BattleSystem._compute_record()` now runs inside
-`BattleSystem.prepare_launch_command()`, which `CommandApplier._validate` calls,
-so the record is final before the confirm — and the
-`Command.confirms_before_apply()` opt-out hook is deleted outright rather than
-left with no callers. Every verb confirms before it applies; there is no
-exception left to remember.
-
-Two consequences to know: `_validate` is no longer side-effect-free (the attack's
-branch produces the payload it gates on, on a shadow), and
-`LaunchAttackCommand.computed_here` — transient, off-wire — replaced
-`record.is_empty()` as "did this machine compute it", because the authority now
-replays its own record like a peer.
-
-**#534 is closed** (2026-08-23), and the two acceptance items nobody had
-measured since the flip were measured rather than waived. There is no
-`mp-harness` binary — the sweep is the two-process invocation documented at
-`docs/domain/determinism-probe.md`, host `--autopilot --turns=30` plus client
-`--autopilot --probe`, which has existed since #529. (The client's `--autopilot`
-was implicit at the time these were taken — the budget boost it now gates used
-to run unconditionally — so the recorded runs reproduce under the current
-recipe, not under dropping the flag from the client half.)
-
-Two sweeps were taken, at `54cfcd7` (pre-#545) and `4174f36` (post-#545). Both
-clean, and the per-verb denominators are identical across all three runs to date
-(114 non-`end_turn` commands, 31 attacks, 86 landings) — the autopilot is
-deterministic on that graph, so it is a controlled before/after. Final:
-**321 ok, 0 diverged, `skipped` 19 → 0** on the comparable verbs. Full tables on
-#463.
-
-**`skipped` going to zero is the useful number, and it is not hygiene.**
-`CommandLink` declines the WORLD compare when the peer's applier is busy as a
-command arrives, so a command is skipped exactly when it lands while the peer is
-still working on the previous one — which, pre-flip, was structural, since the
-host applied to completion before broadcasting. It is host/peer phase lag,
-measured, and it is now zero. Stronger than the WORLD column, which says the
-worlds agree but not that they are in step.
-
-Not claimed: the *felt* symptom. Acceptance was structural by the 2026-08-23
-re-scope, and confirming it feels right wants a human at two windows, which
-hot-seat coop does not exercise.
-
-The cross-unit seam that governed those waves still holds for anything new:
-`OutcomeApplier` sorts hits by `arrival_time`, so **each mode's stamps must be
-monotonic in that mode's own intended application order**, or a sibling unit's
-sort silently reorders it.
-
-## Perf — as good as fixed, *for now*
-
-The framerate collapse is diagnosed and the big fix landed: `FogOverlay`'s
-per-element dimming cost 78.7ms/frame at 200 owned; #414 ported nodes to
-self-shading in their own shader (`65a69fc`) and it is 0.2ms. Before that,
-`VisionCircles` took the vision recompute from 19.4ms to 6.5ms.
-
-Still open, all measured and filed — pull in if the framerate misbehaves again:
-
-- **#439** AuraOverlay refresh coalescing — a plausible second per-frame repeater, still unmeasured.
-- **#470** StatBoard dirty-mark/batched-flush. CON allocation is O(owned); worst-case `force_allocate` is 5.9ms at 200 owned.
-- **#471** `VisionCircles` cell size == max radius, so a query scans every circle in the tile.
-
-**The standing rule here: profile before touching anything.** Twice now the
-culprit was a quadratic CPU walk and not the GPU. Benches live in `test/perf/`
-(`bench_allocation_cost.gd`, `bench_alloc_cost_attribution.gd`,
-`bench_fog_refresh_cost.gd`), outside `.gutconfig`'s `test/unit/` and named
-`bench_` so nothing collects them by accident.
-
-**Exit condition, not yet met:** 2000-node map, 200 owned, allocation at a steady
-144fps at 1440p — needs the owner's eyeball in the real game.
-
-## The glowup — owner tuning, not drone work
-
-**#392** (attack + allocation VFX emissive) and **#393** (strikethrough toast
-trace glow) are code-complete on master and **not tuned** — glow values, and for
-#393 a scope the owner grew: the trace tip should read as a blooming laser cutter
-cutting across, not a static line. **#371** (the foundation hub) closes when they
-do. Follow-ons #140 (aura fields span edges) and #257 (node-shatter texture) are
-not scheduled.
-
-## Everything else, by topic
-
-Pull these in when something needs them; none are scheduled against the LAN date.
-
-**Node-local & aura mechanics** — #316 heal aura per-hop falloff, #356 unify
-`PropagationContext` (gates #355). Both `Needs design`.
-
-**Content from the map** — #327 keystones (needs a *real* design pass: named
-examples, several back-and-forths, no coding yet), #330 wire the 4 landmark
-keystones into procgen, #336 keystone-as-`.tscn` hub, #206/#207 spell grants in
-pools. All `Needs design`. **#472** tier-ladder / roll redesign is the big one
-here — roughly the 8th pass at the roll model, three tangled forks, owner session
-only.
-
-**Legibility** — tooltip V2 cluster (#343, #344, #345, #281), #354 spell preview
-UI, #361 `core_panel.tscn`'s two skins (a decision, not a drone unit), #380
-tooltip-fan inherited panels (`In review` — owner wants to drive it first), #362
-`test_fan_scene` overlap test (`Needs design`: the reframe is panels that
-push/pull each other, sidestepping overlap detection rather than fixing it).
-
-Plus a standing clarity ask, deliberately not yet split into issues: the
-**highlight-ring language is overloaded** — hover yellow outline, Manage-mode
-allocatable golden-orange ring, attack-plan targeting yellow/red ring — all three
-competing with the WIS gold-rim signal, while unallocated nodes read dark gray.
-It wants one visual design pass, not more colours.
-
-**Balance — deliberately last.** #373 CON→health remodel (P0), #365 mana pool max
-+ regen (P0, blocks #278), #278 spell balance pass (an owner session), #248 the
-hub. (#366/#367, the balance harnesses, shipped.)
-
-**Onboarding** — #49 tutorial. (#403 is in the LAN milestone; #300 shipped.)
-
-**AI** — v1 shipped and closed. #410 `AiWeights` archetype personality
-(unblocked, unscheduled), #47 strategy-pattern controller (v2), #394
-faction-shared vision (a difficulty lever). Note #473 has to say where AI sits in
-whatever sync model wins.
-
-**Ergonomics filed 2026-08-18, cheap Sonnet-tier units** — #464 two CommandTray
-buttons lit at once (root-caused), #465 button icons + active/inactive states,
-#466 reform last blade, #467 `StatModifier.resource_name`, #468 `@export_group`
-the procgen config, #469 edge width vs. zoom + bolt dots (wants a design pass).
-
-**Enablers** — #249 sandbox host live-tab scaffolding (7/12 closed; board says
-`Needs design`, reconcile before scheduling more). **#349 moved into the LAN
-milestone** 2026-08-26 and was re-scoped to "split `GraphProcgenConfig` into
-reusable top-level preset modules" — its dead-field half shipped as `ec361e4`.
-**Not blocked by #597** — that hub is swarmified and its children are `Ready`
-(corrected 2026-08-27; this line previously claimed a native `blocked-by` that
-does not exist in the GitHub API). #349's own body names a different
-prerequisite: *"after #324–#329 land"* — and **#327 is the only one of those
-still open**. Judge #349 against #327, not against #597.
-
-## Deliberately parked
-
-| Parked | Why |
-|---|---|
-| #165 pre-authored clusters in procgen | planarity + stitching research. |
-| #245, #167, #342, #142 emblem/carve substrate + rune art | fidelity, not legibility. |
-| #348 addon placement UX | wholly undesigned. |
-| #355 Chromatic Cascade | gated on #356 and on having played Resonator. |
-| #313 ArchetypePolicy clustering dials | overlaps stamping/cluster work. |
-| #23 save/load | metagame; and #457 settles seeds first. |
-| #256, #257 blade node visuals, InnerDisk shatter | VFX juice. |
-| #197 double-crit as a tier | enhancement on working crits. |
-| #409, #407, #408 edge sharpeners, velocity damage, Clamp's second use | design forks with no shape yet. |
-| procgen "stamping" | detour; don't reopen. |
-
-## Known board violations
-
-As of 2026-08-24: **#461 is closed** — superseded by #567, whose children carry
-settled acceptance specs. **#457 remains** in `Ready` carrying the `design`
-label, and the label is honest: its forks are genuinely open, so `Ready` is what
-is wrong there. Don't let a drone pull it until a `/swarmify` pass settles it.
-
-Don't trust this section's date — run `mise gh-project -- hygiene`.
-
-## When this file is wrong
-
-It will go stale — but it should now go stale *slowly*, because it holds pointers
-rather than content. **If you catch yourself adding a paragraph of detail here,
-that paragraph is an issue.** File it, link the number, move on. And when the
-structure itself stops fitting: rewrite it rather than patching around it.
+Board reconciliation lives on #653.

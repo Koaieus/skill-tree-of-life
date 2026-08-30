@@ -96,7 +96,7 @@ Entry points: `docs/GDD.md` (master GDD) · `docs/design/index.md` (full index w
 
 GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`); board via `mise gh-project -- list|add|status|…`.
 
-**The status ladder is the pipeline** — `Backlog` → `Needs design` (the `/swarmify` inbox) → `Ready` → `In progress` → `In review` → `Done`. `Ready` *is* the swarm queue and **a drone never touches a non-`Ready` issue**; `Ready` and `Needs design` are in turn filtered by [docs/FOCUS.md](docs/FOCUS.md), which **wins** when it and a status field disagree.
+**The status ladder is the pipeline** — `Backlog` → `Needs design` (the `/swarmify` inbox) → `Ready` → `In progress` → `In review` → `Done`. `Ready` *is* the swarm queue and **a drone never touches a non-`Ready` issue**; `Ready` and `Needs design` are in turn prioritised by [docs/FOCUS.md](docs/FOCUS.md), which wins on **what to pull first** and never on state — the board is authoritative for status, dependencies and what shipped.
 
 **Reading an issue is two calls** — `gh issue view <n>` prints the body, `--comments` prints ONLY the comments, and the comments usually hold the decisions. **A 0-comment issue makes `--comments` print nothing at all** — no "no comments" message, exit code 0 — which reads like a broken call; it isn't, that's just what zero comments looks like. **Never pass `gh --body "..."` with backticks**: the shell silently deletes the span and publishes mangled text — heredoc to the scratchpad, `--body-file`. **Attribute owner decisions to the owner, verbatim**, dated, as an owner call — never laundered into your own reasoning.
 
