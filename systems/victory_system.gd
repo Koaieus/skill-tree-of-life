@@ -41,6 +41,32 @@ signal run_ended(outcome: RunOutcome)
 ## still fires the death signal, and every one of them must be ignored.
 var outcome: RunOutcome = null
 
+## #667. The gate in front of the latch: a run cannot be judged before its world
+## exists. [GameRoot] raises this once, at the tail of its `_ready`, on EVERY
+## path — offline, host and joining client alike — so this is a lifecycle fact
+## about the level, not a network concept.
+##
+## [b]Why it has to exist.[/b] [LastCampStandingCondition] returns a winner the
+## moment `alive.size() == 1`, and a world still being generated is
+## [i]normally[/i] in exactly that state: one camp spawned, the rest not yet. Any
+## death during generation — a network payload landing in the joining client's
+## pre-world window (#667's other half), a locally spawned entity dying, a
+## presentation replay — would latch [member outcome], and that latch has no
+## reset within a scene lifetime. The consequence is terminal: `run_ended` ->
+## `GameRoot._on_run_ended` -> `GameSession.end()` + a route to the meta-shell,
+## on a verdict the host never reached.
+##
+## [b]It is checked in [method _evaluate], not in the death handler.[/b]
+## Evaluation is `call_deferred`, so a death that arrives inside the generation
+## window can be judged after it closes — and, more importantly, the invariant
+## being asserted is about the world the condition READS, which is only sampled
+## at evaluation time.
+##
+## [b]Defaults to `false`[/b], because "not ready" is what a system that nobody
+## has told anything is. A fixture driving [method evaluate_now] by hand must
+## say so, exactly as a level does.
+var world_ready: bool = false
+
 var _pending: bool = false
 
 
@@ -79,6 +105,12 @@ func build_context() -> VictoryContext:
 
 func _evaluate() -> void:
 	_pending = false
+	# #667: refuse to judge a world that does not exist yet. Cheap, and it sits
+	# next to the latch it protects rather than depending on the network layer
+	# never letting a death through. `_pending` is already cleared above, so the
+	# next real death schedules a fresh evaluation.
+	if not world_ready:
+		return
 	if outcome != null or condition == null:
 		return
 	var result := condition.evaluate(build_context())

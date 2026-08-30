@@ -373,6 +373,60 @@ func request_resync(reason: String) -> void:
 var _awaiting_resync: bool = false
 
 
+## #667's drop-until-resync latch. A joining CLIENT opens its socket BEFORE it
+## has a world ([code]GameRoot._ready[/code]'s client branch, which exists so a
+## [constant KIND_SETUP] cannot be missed), and then spends seconds generating
+## one. Everything that arrives in that window would otherwise apply against a
+## half-built graph — and a kill that lands there reaches [VictorySystem], whose
+## `outcome` latch has no reset and ejects the player to the meta-shell on a
+## verdict the host never reached.
+##
+## [b]Drop, do not buffer.[/b] The transport is ONE `@rpc` on ONE channel
+## ([code]EnetTransport._receive[/code], `reliable`, channel 0 — the sole
+## production `@rpc` in the repo) and kind is a dictionary FIELD, not a channel.
+## So the host encodes the resync at the moment the request arrives, everything
+## it applied before that is already INSIDE the resync, and everything after is
+## sent after and lands on top. Dropping here is provably lossless; replaying a
+## buffer would double-apply.
+##
+## Set by GameRoot before [code]_open_link()[/code] on the client path and
+## cleared in [method _on_resync]. Defaults OFF, so every host, offline sandbox
+## and existing harness is untouched.
+var defer_until_resync: bool = false
+
+
+## The kinds [member defer_until_resync] swallows, and — as important — the ones
+## it must NOT.
+##
+## [b]Dropped[/b]
+## [constant KIND_COMMAND]: the whole point. A world mutation against a
+## half-built graph, superseded wholesale by the resync.
+## [constant KIND_LOOT_OFFER]: not a [Command], but it parks state. It resolves
+## `collector_id` through the applier's graph (null, mid-generation), binds a
+## [signal Entity.died] handler on an entity the resync is about to reconcile,
+## and parks [code]LootSystem._pending_mirror_request[/code]. It also cannot be
+## FOR this peer — an offer follows its collector's own claim, and a peer still
+## joining has taken no action to claim from. The whole window is pre-HUD too,
+## so nothing is listening on `Events.loot_pick_requested` to answer it; letting
+## it through buys a forfeit against the wrong world, not an answer.
+##
+## [b]Passed[/b]
+## [constant KIND_SETUP], [constant KIND_SNAPSHOT], [constant KIND_ENTITIES],
+## [constant KIND_RESYNC]: these are HOW the client gets a world at all. Gating
+## them deadlocks the join.
+## [constant KIND_HELLO], [constant KIND_REFUSED]: link-level handshake and
+## diagnostics; they touch no world state.
+## [constant KIND_INTENT], [constant KIND_RESYNC_REQUEST]: host-only handlers
+## ([code]mode != Mode.BROADCAST[/code] early-return), and this latch is only
+## ever set on a MIRROR peer — gating them would be unreachable code, so the
+## decision is recorded here rather than as a guard that can never fire.
+## [constant KIND_REFUSAL]: the answer to an intent this peer raised, and a
+## joining client has raised none — but it mutates nothing and a swallowed
+## refusal would strand a waiting submitter forever, which is exactly the
+## failure #548 refused to ship.
+const DEFERRED_KINDS: Array[String] = [KIND_COMMAND, KIND_LOOT_OFFER]
+
+
 ## #561 receive side, host-only. A client asking is treated exactly as the
 ## host's own verdict would be — one push, same payload.
 func _on_resync_request(payload: Dictionary) -> void:
@@ -411,6 +465,9 @@ func _on_resync(payload: Dictionary) -> void:
 	# Cleared here, not on the next verdict: the repair has landed, and the very
 	# next compare is the one that says whether it worked.
 	_awaiting_resync = false
+	# #667: and the world this peer was missing is now the host's, so the drop
+	# window is over. Same line for the same reason — the repair HAS landed.
+	defer_until_resync = false
 	logged.emit("⟳ resync applied — %s (%s)" % [reason, WorldFingerprint.describe(graph)])
 	resync_applied.emit(reason)
 
@@ -596,7 +653,14 @@ func _on_message_received(payload: Dictionary) -> void:
 	# refused for commands, snapshots and run setup alike (#546).
 	if _refused:
 		return
-	match String(payload.get(KEY_KIND, "")):
+	var kind := String(payload.get(KEY_KIND, ""))
+	# #667: same reasoning for the placement — the pre-world window is a
+	# property of the LINK, not of one handler, so the decision about every kind
+	# is readable in one place. See [constant DEFERRED_KINDS].
+	if defer_until_resync and DEFERRED_KINDS.has(kind):
+		logged.emit("← %s dropped — no world yet, waiting on resync" % kind)
+		return
+	match kind:
 		KIND_HELLO:
 			_on_hello(payload)
 		KIND_REFUSED:

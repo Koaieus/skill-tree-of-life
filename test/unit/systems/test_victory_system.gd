@@ -21,6 +21,10 @@ var _outcomes: Array[RunOutcome] = []
 func before_each() -> void:
 	_outcomes = []
 	_victory = VictorySystem.new()
+	# #667: what `GameRoot` raises at the tail of its `_ready` once the world
+	# exists. Every test below is about a world that already does — the guard
+	# itself is pinned by the two `world_ready` cases at the bottom of the file.
+	_victory.world_ready = true
 	add_child_autofree(_victory)
 	_victory.run_ended.connect(func(o: RunOutcome) -> void: _outcomes.append(o))
 
@@ -176,3 +180,38 @@ func test_the_bus_carries_the_same_outcome() -> void:
 
 	assert_eq(seen.size(), 1)
 	assert_eq(seen[0], _outcomes[0])
+
+
+# ── #667: the readiness guard ────────────────────────────────────────────────
+## Asserted DIRECTLY, with no network anywhere near it: the ejection this guard
+## prevents does not need a wire to reproduce. A world mid-generation normally
+## has one camp spawned and the rest not yet, which is precisely the shape
+## `LastCampStandingCondition` calls a WIN — and [member VictorySystem.outcome]
+## has no reset within a scene lifetime, so latching it once is terminal.
+func test_a_death_before_the_world_is_ready_does_not_latch_an_outcome() -> void:
+	_victory.world_ready = false
+	_spawn("Player", _PLAYER)
+	var npc := _spawn("Npc", _NPC)
+
+	_kill(npc)
+	await get_tree().process_frame
+
+	assert_eq(_outcomes.size(), 0, "a partial roster is not a verdict")
+	assert_null(_victory.outcome, "the latch must not fire — nothing can un-fire it")
+
+
+## The single-entity world the guard exists for, and the proof it is a DEFERRAL
+## and not a mute: the same roster, judged again once the world is declared
+## ready, still ends the run.
+func test_the_lone_camp_of_a_half_built_world_is_ignored_then_judged() -> void:
+	_victory.world_ready = false
+	_spawn("Player", _PLAYER)
+
+	_victory.evaluate_now()
+	assert_null(_victory.outcome, "one camp standing mid-generation is the normal state")
+
+	_victory.world_ready = true
+	_victory.evaluate_now()
+
+	assert_eq(_outcomes.size(), 1, "the same world is judged once it is ready")
+	assert_eq(_outcomes[0].winning_camp.id, &"player")

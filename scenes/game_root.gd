@@ -174,6 +174,14 @@ func _ready() -> void:
 		# `_setup_level` is still between statements cannot be missed by
 		# `await_host_run`'s signal wait.
 		GameSession.run_started.connect(_note_host_run_adopted, CONNECT_ONE_SHOT)
+		# #667: and the same "before the socket, not after" rule for the drop
+		# latch. Between here and `pull_host_world()` at the tail of this method
+		# this peer has no world worth mutating, so world-mutating payloads are
+		# swallowed rather than applied against a half-built graph. Lossless —
+		# the resync the pull asks for contains everything dropped. See
+		# [member CommandLink.defer_until_resync].
+		if command_link != null:
+			command_link.defer_until_resync = true
 		_open_link()
 	# _setup_level runs BEFORE hud_root.compose because compose reads
 	# `player.stat_board` immediately — procgen sandboxes that spawn the
@@ -282,6 +290,15 @@ func _ready() -> void:
 	if not _is_network_client():
 		_open_link()
 	pull_host_world()
+	# #667, second half. The world now exists on EVERY path — offline, host and
+	# client alike — so the run may be judged. Before this line a death (from
+	# the network window above, or from anything else that can fire during
+	# generation) would let `LastCampStandingCondition` read a
+	# partially-populated entity group, see one camp standing, and latch an
+	# outcome that can never be un-fired. Deliberately not a network concept:
+	# the same one line arms it for a solo sandbox.
+	if victory_system != null:
+		victory_system.world_ready = true
 
 	if auto_start_turn and player != null and turn_manager != null:
 		# Skip the initial tick race: fill the player's clock so they act first.
