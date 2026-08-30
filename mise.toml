@@ -74,7 +74,8 @@ echo "✓ msdfgen 1.13 → $BIN"
 '''
 
 [tasks.check]
-description = "Headless compile-check of all project scripts (Godot editor import)"
+depends = ["check-shaders"]
+description = "Headless compile-check of all project scripts (Godot editor import) — also runs check-shaders"
 run = '''
 #!/usr/bin/env bash
 set -uo pipefail
@@ -85,6 +86,31 @@ if printf '%s\n' "$out" | grep -qE 'SCRIPT ERROR'; then
   exit 1
 fi
 echo "✓ all scripts compiled clean"
+'''
+
+# Shader parse errors print as `SHADER ERROR`, not `SCRIPT ERROR`, and the
+# editor import pass above never compiles scene shaders — they only parse
+# when a scene carrying them loads (#465's watermark consts shipped broken
+# through exactly that gap). Probe the two scenes that between them mount
+# every shipped shader; Godot exits 0 regardless, so grep is the gate.
+[tasks."check-shaders"]
+description = "Headless scene-load probe (dev_sandbox + meta_root): fails on any SHADER ERROR"
+run = '''
+#!/usr/bin/env bash
+set -uo pipefail
+fail=0
+for scene in scenes/dev_sandbox.tscn scenes/meta/meta_root.tscn; do
+  out=$(godot --headless --path . --quit-after 10 "$scene" 2>&1)
+  if printf '%s\n' "$out" | grep -qE 'SHADER ERROR|Shader compilation failed'; then
+    printf '%s\n' "$out" | grep -E 'SHADER ERROR|Shader compilation failed'
+    echo "✗ shader errors in $scene"
+    fail=1
+  fi
+done
+if [ "$fail" -eq 0 ]; then
+  echo "✓ all shaders compiled clean"
+fi
+exit "$fail"
 '''
 
 [tasks.check-script]

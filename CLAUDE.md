@@ -36,7 +36,8 @@ No build step or lint tool. Tests are GUT, driven through mise:
 mise run test                                  # full suite, headless (reads .gutconfig.json)
 mise run test:one -- res://test/unit/test_smoke.gd   # a single script
 mise run test:dir -- res://test/unit/          # a directory
-mise run check                                 # headless compile-check of every script
+mise run check                                 # headless compile-check of every script + shader
+mise run check-shaders                         # the shader half alone: scene-load probe of dev_sandbox + meta_root
 mise run refresh                               # editor/class-cache refresh + a verdict on what it changed
 ```
 
@@ -44,7 +45,7 @@ The full suite costs **~162s** (335 scripts, 2948 tests, 2026-08-28) — a
 **gate, not a feedback loop.** Earn it **at most once per unit of work**, at
 final green, right before reporting: never to explore, never mid-rebase,
 never **to grep it differently.** Iterate on the cheap ladder instead —
-`check` (~20s, catches parse errors 8x cheaper) → `test:one` → `test:dir` →
+`check` (~20s, catches script parse + shader compile errors 8x cheaper) → `test:one` → `test:dir` →
 only then the full suite. `mise run test` prints a verdict
 (counts, every failing test with its first assert + line, pending,
 run-health alarms) and always keeps the full console output at
