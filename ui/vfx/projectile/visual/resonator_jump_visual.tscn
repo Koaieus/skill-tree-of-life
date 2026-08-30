@@ -1,0 +1,10 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://ui/vfx/projectile/visual/composed_projectile_visual.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/bolt_packet.tscn" id="2_body"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/impact_ring_absorb.tscn" id="3_ring"]
+
+[node name="ResonatorJumpVisual" type="Node2D"]
+script = ExtResource("1_script")
+body_scene = ExtResource("2_body")
+arrival_companions = Array[PackedScene]([ExtResource("3_ring")])
