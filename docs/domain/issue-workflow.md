@@ -56,6 +56,22 @@ The repo uses the parent/sub-issue model. File a child under its epic with `gh
 issue create --parent <parent-number> …` (gh ≥ 2.9x) — this nests it, distinct
 from a `Closes #` trailer.
 
+**Re-parenting an issue that already exists is `--parent`, NOT `--add-parent`**
+(gh 2.98). The `--add-*` prefix is right for every *other* relation
+(`--add-blocked-by`, `--add-blocking`, `--add-sub-issue`, `--add-label`), so the
+symmetry is a trap: an issue has one parent, hence a setter. `--add-parent`
+exits 1 with `unknown flag`, which a `| tail -1` in a loop swallows silently —
+so a batch that looks like it parented ten children may have parented none.
+Either check the exit code per call, or verify after with
+`gh api graphql … issue(number:N){subIssues(first:20){nodes{number}}}`.
+
+**`gh issue view --json blockedBy` returns an OBJECT, not an array.** The shape
+is `{"blockedBy":{"nodes":[…],"totalCount":N}}`, so the jq path is
+`.blockedBy.nodes[].number` — `.blockedBy[]` yields nothing and reads exactly
+like "the relation was never created". There is no `blockedByIssues` field on
+the GraphQL `Issue` type either; `--json blockedBy` is the supported route.
+(`mise gh-project` has no blocked-by tooling of its own — that gap is #598.)
+
 ## Reading an issue is two `gh` calls
 
 **RTFC — read the fucking comments.** When working an issue, read its comments,
