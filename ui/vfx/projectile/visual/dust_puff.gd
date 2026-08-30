@@ -19,7 +19,7 @@ signal finished
 
 
 func _ready() -> void:
-	if Engine.is_editor_hint():
+	if VfxEditorScene.is_edited(self):
 		return
 	_particles.emitting = false
 

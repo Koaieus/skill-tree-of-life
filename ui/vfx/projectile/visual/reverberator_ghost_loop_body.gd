@@ -48,7 +48,7 @@ var _done_emitted: bool = false
 
 
 func _ready() -> void:
-	if Engine.is_editor_hint():
+	if VfxEditorScene.is_edited(self):
 		return
 	if lead_scene != null:
 		_lead = lead_scene.instantiate()

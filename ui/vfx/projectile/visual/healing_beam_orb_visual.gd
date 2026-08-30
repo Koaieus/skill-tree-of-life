@@ -43,7 +43,7 @@ var _crit_tier: int = 0
 
 
 func _ready() -> void:
-	if Engine.is_editor_hint():
+	if VfxEditorScene.is_edited(self):
 		return
 	_body = BODY_SCENE.instantiate()
 	add_child(_body)

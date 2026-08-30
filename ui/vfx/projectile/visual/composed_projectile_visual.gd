@@ -73,7 +73,12 @@ func _ready() -> void:
 	# per-spell scene is opened in the editor (and can be offered for saving
 	# into the `.tscn`). The other primitives only draw themselves, which is why
 	# none of them needs this guard.
-	if Engine.is_editor_hint():
+	#
+	# It must be `is_edited`, NOT `Engine.is_editor_hint()`: the latter is
+	# process-wide, so it also swallows the throwaway instances a live sandbox
+	# tab spawns at runtime — which is how every wrapped spell rendered its
+	# impact rings and NO projectile body in the VFX playground (#663).
+	if VfxEditorScene.is_edited(self):
 		return
 	if body_scene == null:
 		return

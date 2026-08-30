@@ -43,7 +43,7 @@ var _done_emitted: bool = false
 
 
 func _ready() -> void:
-	if Engine.is_editor_hint():
+	if VfxEditorScene.is_edited(self):
 		return
 	if body_scene != null:
 		_body = body_scene.instantiate()

@@ -35,7 +35,7 @@ var _travel_direction: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
-	if Engine.is_editor_hint():
+	if VfxEditorScene.is_edited(self):
 		return
 	_particles.emitting = false
 

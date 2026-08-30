@@ -68,8 +68,9 @@ var _done_emitted: bool = false
 func _ready() -> void:
 	# Same guard [ComposedProjectileVisual] uses: a `@tool` script that spawns
 	# a child would otherwise leave a phantom node offered for saving the
-	# moment this scene is opened in the editor.
-	if Engine.is_editor_hint():
+	# moment this scene is opened in the editor. Scoped to the EDITED scene,
+	# not the editor process, so a live sandbox tab still gets its overlay.
+	if VfxEditorScene.is_edited(self):
 		return
 	# The overlay's `edge_origin`/`edge_target` are authored as absolute world
 	# positions (see class docs); this flag is what makes "this wrapper's
