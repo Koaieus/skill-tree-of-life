@@ -124,7 +124,12 @@ func test_the_harness_swaps_the_transport_instead_of_adding_one() -> void:
 # --- the role the menu leaves behind ----------------------------------------
 
 func test_a_host_role_raises_the_link_to_broadcast() -> void:
-	GameSession.network = NetworkConfig.host()
+	# Port 0, not NetworkConfig.DEFAULT_PORT (#581): this asks the OS for an
+	# ephemeral port instead of asserting on a fixed 9099, which a concurrent
+	# suite (or an earlier socket in the SAME run not yet released) can hold.
+	# The test cares that a host role opens A listener, never which number it
+	# lands on.
+	GameSession.network = NetworkConfig.host(0)
 	var root: GameRoot = await _live_game_root()
 	assert_eq(root.command_link.mode, CommandLink.Mode.BROADCAST)
 	assert_true(root.command_applier.is_authority, "a host decides")
