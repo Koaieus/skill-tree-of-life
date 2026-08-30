@@ -17,7 +17,7 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="11_o13bb"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="12_swiy2"]
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="13_qkgt4"]
-[ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="14_1jkab"]
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/trail_blazer_coordinator.tscn" id="14_1jkab"]
 [ext_resource type="Script" uid="uid://bvwqgqwcnxnsd" path="res://attack/spell/propagation/progression/flat_add_progression.gd" id="15_prog"]
 
 [sub_resource type="Resource" id="carve_trailblazer"]
