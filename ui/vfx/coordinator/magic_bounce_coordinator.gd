@@ -109,6 +109,9 @@ class Beat extends RefCounted:
 	# seems to be used as some kind of context, this whole thing smells and i think we are
 	# like 1~2 extra inner classes away from could clean this all up a bit typed and well
 
+var _caster_tint: Color = Color.WHITE
+
+
 func play(payload: Variant) -> void:
 	var outcome := payload as AttackOutcome
 	# Guard on the timeline, not `hits`: a pure-utility spell (power 0)
@@ -120,6 +123,11 @@ func play(payload: Variant) -> void:
 	if outcome.schedule == null:
 		outcome.schedule = OutcomeSchedule.compile(outcome, tempo)
 	var schedule: OutcomeSchedule = outcome.schedule
+	# Resolved ONCE per cast, not per event: a spell has exactly one caster,
+	# and a CANCEL / pure-utility event carries no hit to read an attacker off
+	# at all — so a per-event read would drop identity on precisely the events
+	# that already carry the least information.
+	_caster_tint = _resolve_caster_tint(outcome)
 	var entry_of := _entries_by_event(schedule)
 	var waves := _group_by_beat(outcome.timeline)
 	var beats: Array = waves.keys()
@@ -271,6 +279,30 @@ func _spawn_projectile(ev: PropagationEvent, origin: SkillNode,
 	proj.tree_exiting.connect(func() -> void:
 		pending[0] -= 1)
 	proj.launch(origin.global_position, ev.target.global_position, 0.0)
+	# Tint hook, mirroring ArrowVolleyCoordinator exactly (#663 D4): `launch`
+	# instantiates the visual synchronously as the projectile's first child, so
+	# stamping right after is what lets the body read the caster's colour on its
+	# FIRST draw rather than popping a frame later. Visuals with no `tint` field
+	# ignore it — that is the duck-typed visual contract, not a missing guard.
+	if proj.get_child_count() > 0:
+		var v: Node = proj.get_child(0)
+		if "tint" in v:
+			v.set("tint", _caster_tint)
+
+
+## The caster's identity colour for the cast currently playing, resolved in
+## [method play]. White means "no attacker named a colour" — the documented
+## no-identity fallback, never a hand-picked default.
+##
+## This existed for ranged since #507 and was simply absent on the magic path
+## until #671/#672 authored the first spell bodies that read it, so every
+## spell rendered neutral-white. `docs/domain/spell-vfx-kit.md` already
+## described the stamp as if it were here; now it is.
+func _resolve_caster_tint(outcome: AttackOutcome) -> Color:
+	for hit in outcome.hits:
+		if hit.attacker != null:
+			return hit.attacker.color
+	return Color.WHITE
 
 
 func _play_cancel(ev: PropagationEvent, pending: Array[int]) -> void:

@@ -42,6 +42,22 @@ signal finished
 ## Companions always receive the crit tier regardless of this flag.
 @export var forward_crit_to_body: bool = true
 
+## The caster's identity colour, stamped by the coordinator right after
+## `Projectile.launch` exactly as it is on a bare [BoltBody] — this wrapper sits
+## BETWEEN the projectile and the body, so without forwarding it the stamp would
+## land here and stop, and every composed spell would render neutral-white while
+## an uncomposed one tinted correctly.
+##
+## Forwarded to [member body_scene] only, never to the arrival companions:
+## identity is carried by the flying body (#663 D3/D4), while [ImpactRing] is
+## crit-grammar punctuation whose colour is its own tier ladder. Tinting the ring
+## with the caster colour would make "where it fired" read as identity instead of
+## as placement.
+@export var tint: Color = Color.WHITE:
+	set(value):
+		tint = value
+		_push_tint()
+
 var _body: Node
 var _pending: int = 0
 var _arrival_handled: bool = false
@@ -55,6 +71,9 @@ func _ready() -> void:
 		return
 	_body = body_scene.instantiate()
 	add_child(_body)
+	# The setter may have run before `_ready` (an authored value, or a stamp
+	# that beat instantiation), when there was no body to push onto yet.
+	_push_tint()
 
 
 func _on_launch() -> void:
@@ -96,6 +115,11 @@ func _on_arrival() -> void:
 		_forward(node, &"_on_arrival", [])
 	_arrival_handled = true
 	_check_done()
+
+
+func _push_tint() -> void:
+	if _body != null and "tint" in _body:
+		_body.set("tint", tint)
 
 
 func _forward(node: Node, method: StringName, args: Array) -> void:
