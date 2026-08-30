@@ -14,6 +14,9 @@ extends ProjectilePath
 
 
 func evaluate(t: float, origin: Vector2, target: Vector2) -> Vector2:
+	# Pace first, geometry second — [member ProjectilePath.ease_curve] remaps
+	# TIME only, and defaults to the exact identity (#670).
+	t = eased(t)
 	if curve == null or curve.point_count < 2:
 		return origin.lerp(target, t)
 	var ref_start := curve.get_point_position(0)
