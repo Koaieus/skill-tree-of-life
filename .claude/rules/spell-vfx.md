@@ -13,7 +13,7 @@ One per "shape" of action — see [docs/domain/attack_plan_system.md](../../docs
 
 | Coordinator | Used by | Visual | Cadence knob |
 |---|---|---|---|
-| `MagicBounceCoordinator` (`ui/vfx/coordinator/magic_bounce_coordinator.gd`) | All magic spells (`SpellDef.vfx_coordinator_scene`) | `GlowingDot` (bouncy ball) | `beat_interval` |
+| `MagicBounceCoordinator` (`ui/vfx/coordinator/magic_bounce_coordinator.gd`) | All magic spells (`SpellDef.vfx_coordinator_scene`) | `GlowingDot` is the built-in *fallback*; every spell should select from the shared kit below (#670) | `beat_interval` |
 | `ArrowVolleyCoordinator` (`ui/vfx/coordinator/arrow_volley_coordinator.gd`) | Ranged attacks (`AttackVFX.play_ranged_volley`) | `LightArrow` (oriented, sticks + fades) | `shot_flight_time` (defaults to `RangedDamageFormula.FLIGHT_TIME`; each shot's launch delay is recovered as `arrival_time - shot_flight_time` from the distance-authored ramp, never from its index — the reveal rides `DamageInstance.arrival_time`) |
 
 ## The clock contract (load-bearing)
@@ -93,6 +93,15 @@ Unset per-verb slots fall back to the legacy `projectile_path` / `visual_scene`,
 | `SelfLoopPath` | `ui/vfx/projectile/path/self_loop_path.gd` | Cubic Bezier teardrop loop. For SELF_LOOP (origin == target). |
 | `CubicBezierPath` | `ui/vfx/projectile/path/cubic_bezier_path.gd` | General cubic with launch/arrival tangents. |
 | `Curve2DPath` | `ui/vfx/projectile/path/curve2d_path.gd` | Authored `Curve2D` sampled and mapped. Used by AllocationVFX. |
+| `WavePath` | `ui/vfx/projectile/path/wave_path.gd` | Lerp + transverse sine (#670 P3). "This propagates" rather than "this was thrown". Reverberator / Resonator. |
+| `JitterPath` | `ui/vfx/projectile/path/jitter_path.gd` | Lerp + perpendicular hash noise (#670 P4). Unstable arcing electricity. Spark / the lightning family. |
+
+**The shared primitive kit (#670)** — `BoltBody` (+5 configs), `ImpactRing`,
+`WavePath`, `JitterPath`, `EdgeEnergize`, plus an **ease knob on every path**
+(remaps *time*, not shape). Never a per-instance `ShaderMaterial` nor animated
+per-instance uniform (the kit batches ~60 into one draw); the crit grammar is
+authored ONCE in `ImpactRing`; `EdgeEnergize` paints on top, never touching the
+edge MultiMesh. [docs/domain/spell-vfx-kit.md](../../docs/domain/spell-vfx-kit.md).
 
 ## CANCEL dissipate (#201)
 
