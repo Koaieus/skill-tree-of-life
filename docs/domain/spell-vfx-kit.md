@@ -32,6 +32,48 @@ primitive is not in them, a per-spell unit will not find it.
 | `JitterPath` | `ui/vfx/projectile/path/jitter_path.gd` | Lerp + perpendicular hash noise. Unstable arcing electricity. Spark / the lightning family. |
 | `EdgeEnergize` | `ui/vfx/projectile/visual/edge_energize.tscn` + `edge_energize.gdshader` | A travelling front of light **painted on top of** an edge. |
 
+### `ComposedProjectileVisual` — how a spell gets a body AND a ring
+
+A `Projectile`'s `visual_scene` slot takes **one** scene per verb, but nearly
+every spell wants a flying `BoltBody` *and* an arriving `ImpactRing` (the crit
+grammar). `ui/vfx/projectile/visual/composed_projectile_visual.gd` is the shared
+wrapper that composes them, authored for #671/#672 and **intended for every
+per-spell unit after them — compose with it, do not re-invent it.**
+
+- `body_scene` — the flight body, instantiated up front, lives the whole flight.
+- `arrival_companions` — spawned **only at `_on_arrival`**, in order. Not as
+  static children, and this is load-bearing: `ImpactRing` autoplays on `_ready`
+  unless its DIRECT parent is a `Projectile`, so a ring authored one level deeper
+  would defeat that guard and fire a full flight early.
+- `forward_crit_to_body` (default true) — set false when the body must not
+  escalate on a crit while the ring still does (Bruiser, which must never read
+  as lethal).
+- `tint` — forwarded down to the body only, never to companions. See below.
+
+It forwards the whole duck-typed visual contract to the body, and to each
+companion as it spawns. Its own `finished` fires deferred once every child that
+has one has fired — deferred because a zero-length fade would otherwise emit
+before `Projectile`'s `await finished` is listening, which hangs forever.
+
+### The caster tint reaches the body through the wrapper (#663 D4)
+
+`MagicBounceCoordinator` resolves the caster **once per cast** and stamps the
+projectile's visual right after `launch`, mirroring `ArrowVolleyCoordinator`.
+Once per cast, not per event, because a spell has one caster and a
+CANCEL/pure-utility event carries no hit to read an attacker off.
+
+This did not exist until #671/#672: ranged had stamped since #507, magic never
+had, and **this document already described the stamp as though it were
+there.** Nothing caught it because no magic body read `tint` (`GlowingDot`
+ignores it) and no test asserted the colour arrives. Every spell rendered
+neutral-white. Pinned now by `test/unit/vfx/test_caster_tint_stamp.gd`.
+
+The wrapper sits BETWEEN the projectile and the body, so it must forward the
+stamp down — a stamp that stops at the wrapper is invisible in exactly the
+composed case every spell uses. It is **not** forwarded to arrival companions:
+`ImpactRing` is punctuation owning its own tier colour, and tinting it with the
+caster's would make "where it fired" read as identity rather than as placement.
+
 **The crit grammar is authored once, in `ImpactRing`** (#663 D6): tier 1 = one
 ring at `Emissive.ALERT`; tier 2+ = a second concentric ring plus a
 **single-frame** `Emissive.PEAK` core flash. A spell gets its crit look by
