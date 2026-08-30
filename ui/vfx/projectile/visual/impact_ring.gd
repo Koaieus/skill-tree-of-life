@@ -105,6 +105,10 @@ const CRIT_RING_COUNT: Array[int] = [1, 1, 2]
 ## without racing a tween.
 var peak_flash_fired: bool = false
 
+## [member expand_radius] as authored, latched the first time `_on_context`
+## widens it. -1 = never widened.
+var _authored_expand_radius: float = -1.0
+
 var _t: float = 0.0
 var _playing: bool = false
 var _done_emitted: bool = false
@@ -155,7 +159,11 @@ func _on_context(entry: Variant) -> void:
 		return
 	var count: float = VfxContext.read_float(entry, &"convergence_count", -1.0)
 	if count > 1.0:
-		expand_radius *= 1.0 + 0.12 * (count - 1.0)
+		# Against the AUTHORED radius, not against the current one — a second
+		# context entry for the same arrival must not compound the widening.
+		if _authored_expand_radius < 0.0:
+			_authored_expand_radius = expand_radius
+		expand_radius = _authored_expand_radius * (1.0 + 0.12 * (count - 1.0))
 
 
 # ------------------------------------------------------------------- internals

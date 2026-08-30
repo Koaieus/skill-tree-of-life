@@ -146,7 +146,11 @@ func test_convergence_count_widens_the_gather() -> void:
 	var ring := _spawn()
 	var authored: float = ring.expand_radius
 	ring._on_context({&"convergence_count": 4.0})
-	assert_gt(ring.expand_radius, authored, "four branches meeting reads wider than one")
+	var widened: float = ring.expand_radius
+	assert_gt(widened, authored, "four branches meeting reads wider than one")
+	ring._on_context({&"convergence_count": 4.0})
+	assert_almost_eq(ring.expand_radius, widened, 0.001,
+		"a repeated entry must not compound the widening")
 
 
 func test_context_tolerates_null_and_foreign_shapes() -> void:
