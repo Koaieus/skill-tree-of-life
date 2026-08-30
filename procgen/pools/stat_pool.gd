@@ -18,10 +18,11 @@ extends Resource
 ## with weight profiles, spends budget until broke, then aggregates per
 ## (stat_id, operation): ADD*/INCREASE sum, MULTIPLY product, SET max.
 ##
-## Debuffs (D9): set `unit_value` negative. Debuff pools ladder like any
-## other pool — each tier refunds budget (`cost = -T`) alongside its rolled
-## value, deeper tiers refunding more in lockstep with hurting more (settled
-## 2026-08-07). The draw enforces `max_refunds = 1` per node.
+## Negative pools (D9): set `unit_value` negative for a pool that always rolls
+## a downside. It ladders like any other pool — cost is `+T` like any other
+## tier (the old refund economics were retired #637, superseded 2026-08-30)
+## and, per #628/#637, it rolls a real `[L, H]` range the same as a positive
+## pool; nothing branches on the sign except display formatting.
 ##
 ## Archetype affinity vs target stat:
 ##   - `stat_id`     — what the modifier writes to (e.g. `&"xp_per_turn"`).
@@ -76,24 +77,33 @@ extends Resource
 ## higher tier's low bound is `H(previous tier) + range_floor` ([method
 ## TierLadder.low]). Same units as `unit_value` — the *excess* for MULTIPLY
 ## pools (the +1 is folded in at flatten, same as `unit_value`), raw
-## otherwise. Only constraint: `range_floor <= unit_value` (a floor above the
-## T1 ceiling inverts the range) — `_get_configuration_warnings` enforces it.
-## Negative is legal and intended: it spans the range across zero so a normal
-## (non-debuff) pool can roll a small penalty alongside its usual upside; see
+## otherwise. Validation is sign-aware (#637): for a positive (or zero)
+## `unit_value` the constraint stays `range_floor <= unit_value` (a floor
+## above the T1 ceiling inverts the range) — negative `range_floor` is legal
+## and intended, it spans the range across zero so a normal pool can roll a
+## small penalty alongside its usual upside. For a negative `unit_value` the
+## constraint is magnitude-based instead — `sign(range_floor) ==
+## sign(unit_value) and abs(range_floor) <= abs(unit_value)` — because an
+## always-negative pool must stay always-negative; a floor that crossed zero
+## or overshot the T1 ceiling's magnitude would break that guarantee.
+## `_get_configuration_warnings` enforces both branches; see
 ## docs/domain/procgen-v4.md.
 ##
 ## Sentinel default: [constant FLOOR_UNSET] means "not authored" and resolves
-## to `unit_value`, which is always valid (`range_floor <= unit_value` holds
-## as equality) and reproduces pre-#628 behaviour exactly — a zero-width
-## min_tier, unchanged highs. A literal numeric default could not do this: it
-## would fail validation for any pool whose `unit_value` is smaller than it
-## (e.g. `attribute .mul`'s 0.05) or wrong-signed (the intelligence debuff's
-## −5). Every already-authored `.tres` under `procgen/pools/` omits this
-## field and so gets `range_floor == unit_value` for free — the "no existing
-## pool rebalances" regression the acceptance spec asks for.
+## to `unit_value`, which is always valid under either branch above (equality
+## trivially satisfies both) and reproduces pre-#628 behaviour exactly — a
+## zero-width min_tier, unchanged highs. A literal numeric default could not
+## do this: it would fail validation for any pool whose `unit_value` is
+## smaller than it (e.g. `attribute .mul`'s 0.05) or wrong-signed (a negative
+## pool's `unit_value`). Every already-authored `.tres` under
+## `procgen/pools/` that doesn't deliberately author a `range_floor` omits
+## this field and so gets `range_floor == unit_value` for free — the "no
+## existing pool rebalances" regression the acceptance spec asks for.
 ##
-## Does not apply to debuff pools (`unit_value < 0`, D9) — see
-## [method _tier_magnitude_bounds].
+## Negative pools (`unit_value < 0`, D9) are NOT exempt from `range_floor` as
+## of #637 — they roll a real range like any other pool. See [method
+## _tier_magnitude_bounds] for how the recurrence's near/far pair is ordered
+## for a negative pool.
 const FLOOR_UNSET := INF
 @export var range_floor: float = FLOOR_UNSET
 
@@ -141,15 +151,20 @@ func _effective_floor() -> float:
 ## source of the low-bound recurrence so every reader sees the same chain
 ## through (possibly overridden) highs — see [method TierLadder.low].
 ##
-## Debuff pools (`unit_value < 0`, D9) are exempt from `range_floor`: #628's
-## body is explicit that this child "only needs to not obstruct" the
-## separate negative-M migration that eventually replaces the debuff
-## mechanic — it does not need to make the two compose. `L(t+1) = H(t) + M`
-## assumes H grows in the positive direction M points; a debuff's H trends
-## *more* negative per tier, so the same arithmetic would swap which end is
-## numerically smaller without meaning anything (T2 of the repo's INT debuff:
-## H(2) = -6, L(2) = H(1) + M = -4 — "low" ends up right of "high"). Debuffs
-## keep the pre-#628 fixed point (`lo == hi == H`) until that migration lands.
+## Negative pools (`unit_value < 0`, D9) roll a real range too, as of #637 —
+## the old exemption ("low ends up right of high") was a **naming** problem,
+## not a math failure: [method TierLadder.low] is sign-agnostic, and for a
+## negative pool the recurrence yields the tier's *near*-zero end while the
+## ladder (`unit_value × V(t)`) yields its *far* end — the mirror image of a
+## positive pool, where the recurrence yields the near end and the ladder the
+## far end. This function orders the pair by that role (not by raw numeric
+## sort) before returning it, so both [method to_entries]'s `value_range` and
+## [method _get_configuration_warnings]'s inversion check can keep comparing
+## `lo` against `hi` with the exact same `>` — unchanged for either sign — and
+## get the right answer: `lo` is always "the end nearer zero should not have
+## overshot past hi" in the appropriate direction. Example, the repo's INT
+## pool (`unit_value = -3`, `range_floor = -1`): T1 near = -1, far = -3 →
+## ordered (lo, hi) = (-3, -1); T2 near = -4, far = -9 → (lo, hi) = (-9, -4).
 ##
 ## A tier with a [member value_overrides] entry is ALSO a fixed point at its
 ## own tier — #629's decision text: "value_overrides still pins a tier to an
@@ -162,7 +177,6 @@ func _tier_magnitude_bounds() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var lo := clampi(min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)
 	var hi := clampi(max_tier, lo, TierLadder.MAX_TIER)
-	var is_debuff := unit_value < 0.0
 	var floor_m := _effective_floor()
 	var prev_high := 0.0
 	var first := true
@@ -172,10 +186,15 @@ func _tier_magnitude_bounds() -> Array[Dictionary]:
 		# V2 — a pool's first tier is worth ×1 whatever it costs. Cost stays
 		# absolute; only the value rung shifts.
 		var overridden := value_overrides.has(t)
-		var h := float(value_overrides.get(t, unit_value * TierLadder.value(t - min_tier + 1)))
-		var l := h if (is_debuff or overridden) else TierLadder.low(first, prev_high, floor_m)
+		var far := float(value_overrides.get(t, unit_value * TierLadder.value(t - min_tier + 1)))
+		var near := far if overridden else TierLadder.low(first, prev_high, floor_m)
+		# Role-order, not numeric sort (#637): a negative pool's near end is
+		# numerically the LARGER of the two (closer to zero), so swap which
+		# raw quantity plays "lo" vs "hi" by sign — see docstring above.
+		var l := far if unit_value < 0.0 else near
+		var h := near if unit_value < 0.0 else far
 		out.append({"tier": t, "lo": l, "hi": h})
-		prev_high = h
+		prev_high = far
 		first = false
 	return out
 
@@ -186,16 +205,16 @@ func to_entries() -> Array[ModifierPoolEntry]:
 	var out: Array[ModifierPoolEntry] = []
 	var op_short := _op_short()
 	var arch_seg := String(archetype_stat) if archetype_stat != &"" else "any"
-	var is_debuff := unit_value < 0.0
 	for b in _tier_magnitude_bounds():
 		var t: int = b.tier
 		var e := ModifierPoolEntry.new()
 		e.id = StringName("%s_%s_%s_t%d" % [stat_id, op_short, arch_seg, t])
 		e.stat_id = stat_id
 		e.operation = operation
-		# Debuff pools (unit_value < 0): cost is -T (refunds budget).
+		# Cost is always positive (#637 — the refund economics of negative
+		# pools are retired): every pool, whatever its sign, spends `+T`.
 		var t_cost := TierLadder.cost(t)
-		e.cost = -t_cost if is_debuff else t_cost
+		e.cost = t_cost
 		# value_range = [lo, hi] magnitude (#628/#629 — the draw rolls
 		# uniformly within it, see [method ModifierPoolEntry.roll]). For
 		# MULTIPLY, the rolled StatModifier value is `1 + magnitude` (the
@@ -260,8 +279,7 @@ func format_table() -> String:
 		var w := pool_weight * pow(float(tc), tier_bias_k)
 		var ttags := TierLadder.auto_tags(t)
 		lines.append("  T%-3d  %8.2f..%-9.2f  %-4d  %7.3f  %7.2f  %s" % [
-				t, lo_disp, hi_disp,
-				(-tc if unit_value < 0.0 else tc), w, (lo_disp + hi_disp) / 2.0, str(ttags)])
+				t, lo_disp, hi_disp, tc, w, (lo_disp + hi_disp) / 2.0, str(ttags)])
 	return "\n".join(lines)
 
 
@@ -275,18 +293,33 @@ func _get_configuration_warnings() -> PackedStringArray:
 		out.append("max_tier < min_tier — pool will draw nothing.")
 	if unit_value == 0.0 and value_overrides.is_empty():
 		out.append("unit_value 0 with no overrides — every tier rolls 0.")
-	# #628: the one validation rule is `range_floor <= unit_value` (a floor
-	# above the T1 ceiling inverts the pool's whole range). Negative
-	# range_floor is legal and intended — see its docstring.
+	# #628/#637: validation is sign-aware. A positive (or zero) unit_value
+	# pool keeps the original rule, `range_floor <= unit_value` (a floor
+	# above the T1 ceiling inverts the pool's whole range); negative
+	# range_floor is legal and intended there — see its docstring. A
+	# negative unit_value pool must stay always-negative, so its floor is
+	# constrained by magnitude instead: it must share unit_value's sign and
+	# not exceed its magnitude, or the pool would cross zero (or overshoot
+	# past the T1 ceiling).
 	var floor_m := _effective_floor()
-	if floor_m > unit_value:
-		out.append("%s: range_floor (%s) exceeds unit_value (%s) — inverts min_tier's range." % [
-				resource_name, floor_m, unit_value])
+	var floor_valid: bool
+	if unit_value < 0.0:
+		floor_valid = signf(floor_m) == signf(unit_value) and absf(floor_m) <= absf(unit_value)
+	else:
+		floor_valid = floor_m <= unit_value
+	if not floor_valid:
+		out.append("%s: range_floor (%s) is invalid for unit_value (%s) — %s." % [
+				resource_name, floor_m, unit_value,
+				("must share its sign and not exceed its magnitude" if unit_value < 0.0
+						else "exceeds unit_value, inverting min_tier's range")])
 	# #628 acceptance 7: value_overrides is keyed on ABSOLUTE tier while the
 	# ladder indexes relative — an override on tier T changes H(T), and
 	# L(T+1) = H(T) + range_floor chains off it. An override deep enough (or
 	# range_floor large enough) can still invert a later tier even when the
-	# clause above passes at min_tier.
+	# clause above passes at min_tier. `b.lo`/`b.hi` are already role-ordered
+	# by [method _tier_magnitude_bounds] (near/far by sign, not numeric
+	# sort), so the SAME `>` comparison catches a genuine inversion for
+	# either sign of pool (#637) — do not special-case unit_value here.
 	for b in _tier_magnitude_bounds():
 		if b.lo > b.hi:
 			out.append("%s: T%d range inverted (lo %s > hi %s) — check value_overrides against range_floor." % [

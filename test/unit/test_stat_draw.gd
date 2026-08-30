@@ -133,27 +133,33 @@ func test_universal_pool_drawn_by_any_primary() -> void:
 	assert_true(saw_armor, "universal armor pool should be drawable by a STR node across 39 seeds")
 
 
-func test_debuff_refunds_budget_and_caps_at_one_refund() -> void:
-	# A debuff pool (unit_value < 0, max_tier 1) refunds 1 budget. The draw
-	# should be able to spend that refunded budget on more content, but only
-	# ONE refund per node.
+## #637: refund economics retired — a negative-unit_value pool costs `+T`
+## exactly like any other pool at its tier, so spend is monotonic: nothing a
+## draw picks can ever push `remaining` back up. Replaces
+## test_debuff_refunds_budget_and_caps_at_one_refund (the refund/one-cap
+## mechanic it covered no longer exists).
+func test_negative_pool_cost_is_positive_and_spend_never_refunds() -> void:
+	var negative_pool := _pool(&"intelligence", StatModifier.Operation.INCREASE, &"strength", -5.0, 0.5, 1, 1)
+	for e in negative_pool.to_entries():
+		assert_true(e.cost > 0, "a negative unit_value pool must cost +T, not refund budget")
+
 	var pool_set := _make_set([
 		_pack(&"strength", [
 			_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 2.0, 10.0),
-			# intelligence INCREASE debuff: unit -5, single tier, refunds 1.
-			_pool(&"intelligence", StatModifier.Operation.INCREASE, &"strength", -5.0, 0.5, 1, 1),
+			negative_pool,
 		]),
 	])
-	var saw_debuff := false
+	var saw_negative := false
 	for seed_value in range(1, 50):
-		var mods := _draw(pool_set, &"strength", 7, _rng(seed_value))
+		var fp := {}
+		var mods := _draw(pool_set, &"strength", 7, _rng(seed_value), fp)
 		for m in mods:
 			if m.stat_id == &"intelligence" and m.value < 0.0:
-				saw_debuff = true
-	assert_true(saw_debuff, "debuff pool should land at least once across 49 seeded draws")
-	# The refund-cap invariant is hard to assert from the outside without the
-	# footprint dict; the draw loop enforces _MAX_DEBUFF_REFUNDS = 1 — this
-	# test just proves the debuff path is reachable and negative-valued.
+				saw_negative = true
+		assert_between(fp.remaining, 0, 7,
+			"remaining must stay within [0, budget] every draw — no pick can refund it back up")
+	assert_true(saw_negative, "negative pool should still land at least once across 49 seeded draws")
+
 
 
 # ── #629: uniform roll within L..H + determinism ──────────────────────────

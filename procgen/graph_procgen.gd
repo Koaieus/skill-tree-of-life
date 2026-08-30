@@ -1039,10 +1039,12 @@ static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringNam
 ##      OR == &"" (universal). No off-archetype phase, no defensive/rare roles
 ##      (#321 D7, D8).
 ##   2. Spend `budget` until broke: weighted-pick an affordable entry applying
-##      weight profiles (archetype), subtract its cost, repeat. Debuff
-##      entries (cost < 0) refund budget; `max_refunds = 1` per node (D9).
-##      T1 always costs 1, so leftover budget always drains into T1 filler —
-##      budget is never wasted (D3).
+##      weight profiles (archetype), subtract its cost, repeat. Every entry
+##      costs `+T`, whatever its rolled value's sign — the old refund
+##      economics for negative pools were retired (#637, superseded
+##      2026-08-30 — see docs/domain/procgen-v4.md). T1 always costs 1, so
+##      leftover budget always drains into T1 filler — budget is never
+##      wasted (D3).
 ##   3. Aggregate the rolled modifiers per (stat_id, operation): ADD* and
 ##      INCREASE sum, MULTIPLY products, SET max (D3). Line count on a node is
 ##      now bounded by the number of distinct (stat, op) pairs it drew — not
@@ -1053,7 +1055,6 @@ static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringNam
 ## include it in `weight_profiles` — `first_level.tres` dropped it.
 ##
 ## See docs/domain/procgen-v4.md.
-const _MAX_DEBUFF_REFUNDS := 1
 
 ## #629: a fused (stat,op) result equal to its operation's neutral element
 ## (0 for ADD*/INCREASE, 1 for MULTIPLY — SET has none, see [method
@@ -1092,7 +1093,6 @@ static func _roll_modifiers_v4(
 	ctx.forbid_tags = forbid_tags
 
 	var remaining := budget
-	var refunds_used := 0
 	# Rolled values collected per (stat_id, op) for aggregation. Each entry.roll
 	# already coerces the sampled value (INCREASE → int, ADD by stat value_type,
 	# MULTIPLY/SET raw float), so aggregating the coerced values keeps the
@@ -1101,21 +1101,19 @@ static func _roll_modifiers_v4(
 	var draws := 0
 
 	while remaining > 0:
-		var entry := _v4_weighted_pick(entries, profiles, ctx, remaining, refunds_used, rng)
+		var entry := _v4_weighted_pick(entries, profiles, ctx, remaining, 0, rng)
 		if entry == null:
 			break
 		rolled.append(entry.roll(rng), entry.cost, entry)
-		remaining -= entry.cost  # cost < 0 → remaining increases (refund)
-		if entry.cost < 0:
-			refunds_used += 1
+		remaining -= entry.cost  # cost is always positive (#637) — spend is monotonic.
 		draws += 1
-		# Safety: a pathological refund chain could loop forever; cap draws at a
-		# generous bound so a mis-authored debuff pool can't hang procgen.
+		# Safety net: every cost is >= 1 (TierLadder floor), so this loop is
+		# already bounded by `budget`, but cap draws generously anyway in
+		# case a mis-authored pool ever ships a 0-or-negative cost.
 		if draws > 64:
 			break
 
 	fp["draws"] = draws
-	fp["refunds_used"] = refunds_used
 	fp["remaining"] = remaining
 
 	# Aggregate per (stat_id, operation). ADD_BASE / ADD_BONUS / INCREASE sum
@@ -1229,14 +1227,20 @@ class StatModifierAggregator extends Resource:
 		mod.value = fresh.value
 
 
-## v4 weighted pick: affordable filter (debuff-aware + refund-cap) + weight
-## profile multiplication, then a single weighted sample.
+## v4 weighted pick: affordable filter + weight profile multiplication, then
+## a single weighted sample. Cost is always positive (#637 retired the
+## negative-cost/refund-cap branch a debuff pool used to get) — one
+## affordability rule for every pool regardless of its rolled value's sign.
+## A dead 5th positional int param stays in the signature, unread, only
+## because test/unit/test_weight_profiles.gd:29 (outside this unit's owned
+## paths — #637) calls this with 6 positional args; drop the parameter and
+## fix that one call site together in a follow-up that owns that file.
 static func _v4_weighted_pick(
 		entries: Array[ModifierPoolEntry],
 		profiles: Array[Resource],
 		context: WeightContext,
 		remaining: int,
-		refunds_used: int,
+		_reserved_unused: int,
 		rng: RandomNumberGenerator,
 ) -> ModifierPoolEntry:
 	var affordable: Array[ModifierPoolEntry] = []
@@ -1247,13 +1251,7 @@ static func _v4_weighted_pick(
 			continue
 		if not context.forbid_tags.is_empty() and _has_forbidden_tag(e, context.forbid_tags):
 			continue
-		# Affordability — debuff-aware. A debuff (cost < 0) is affordable only
-		# while there is budget to spend (remaining >= 1) AND the per-node
-		# refund cap has not been reached (#321 D9).
-		if e.cost < 0:
-			if remaining < 1 or refunds_used >= _MAX_DEBUFF_REFUNDS:
-				continue
-		elif e.cost > remaining:
+		if e.cost > remaining:
 			continue
 		var w := e.weight
 		for p in profiles:

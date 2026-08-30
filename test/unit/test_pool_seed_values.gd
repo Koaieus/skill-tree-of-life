@@ -132,41 +132,37 @@ func test_min_tier_indexes_value_relative_to_first_tier() -> void:
 
 
 func test_every_flattened_entry_cost_is_legal() -> void:
-	# #326 acceptance 4 — no unrollable content. Every flattened entry across ALL
-	# packs costs a legal ladder rung: 1/2/4/8 for a buff, and the NEGATION of
-	# that rung for a debuff (it refunds budget instead of spending it).
+	# #637 acceptance 3 — no unrollable content, and refund economics are
+	# RETIRED (superseded 2026-08-30, see docs/domain/procgen-v4.md): every
+	# flattened entry across ALL packs costs a legal, POSITIVE ladder rung
+	# (1/2/4/8), whatever the sign of its rolled value. A negative-unit_value
+	# pool used to cost the NEGATION of the rung (refunding budget instead of
+	# spending it, settled 2026-08-07) — that mechanic is gone. Cost is `+T`
+	# universally now; budget spend is monotonic (no draw ever increases
+	# `remaining`).
 	#
-	# This used to demand debuffs cost exactly -1, i.e. debuffs were single-tier
-	# by decree. `StatPool.to_entries` never implemented that restriction — it
-	# has always emitted `-TierLadder.cost(t)` across the pool's whole
-	# min_tier..max_tier span — so the assert was pinning a rule only the test
-	# believed in, and any debuff pool authored past tier 1 failed it.
-	#
-	# Laddered debuffs are the intended reading (settled 2026-08-07): the CON
-	# pack's INT debuff at unit -2% runs -2% / -6% / -14% across T1..T3 (the
-	# value ladder is 1/3/7), refunding -1 / -2 / -4. A deeper debuff hurts more
-	# AND refunds more, in lockstep — so a bigger refund is never free budget.
+	# A negative-unit_value pool still rolls a real range (#628/#637 — it is
+	# no longer exempt): the CON pack's INT pool at unit -3%/floor -1% runs
+	# -1%/-3% / -4%/-9% / -10%/-21% across T1..T3, costing 1/2/4 — exactly
+	# like a positive pool at the same tiers.
 	var legal_rungs: Array[int] = []
 	for t in range(TierLadder.MIN_TIER, TierLadder.MAX_TIER + 1):
 		legal_rungs.append(TierLadder.cost(t))
 
 	var checked := 0
-	var debuffs_seen := 0
+	var negative_pool_entries_seen := 0
 	for pack in _SET.packs:
 		for sp in pack.pools:
 			var p: StatPool = sp as StatPool
-			var is_debuff := p.unit_value < 0.0
+			var is_negative_pool := p.unit_value < 0.0
 			for e in p.to_entries():
 				checked += 1
-				assert_true(legal_rungs.has(absi(e.cost)),
-						"%s cost %d is not a ladder rung %s"
-						% [String(p.stat_id), e.cost, str(legal_rungs)])
-				if is_debuff:
-					debuffs_seen += 1
-					assert_lt(e.cost, 0,
-							"debuff %s must refund, not charge" % String(p.stat_id))
-				else:
-					assert_gt(e.cost, 0,
-							"buff %s must charge, not refund" % String(p.stat_id))
+				assert_true(legal_rungs.has(e.cost),
+					"%s cost %d is not a ladder rung %s"
+					% [String(p.stat_id), e.cost, str(legal_rungs)])
+				assert_gt(e.cost, 0,
+					"%s cost must be positive — refund economics retired (#637)" % String(p.stat_id))
+				if is_negative_pool:
+					negative_pool_entries_seen += 1
 	assert_gt(checked, 20, "sweep should cover the whole specimen set")
-	assert_gt(debuffs_seen, 0, "the specimen set still contains a debuff pool at all")
+	assert_gt(negative_pool_entries_seen, 0, "the specimen set still contains a negative unit_value pool at all")

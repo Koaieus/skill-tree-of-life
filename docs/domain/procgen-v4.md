@@ -135,19 +135,60 @@ see `.claude/rules/multiplayer-sync.md`.
 The roll is baked in at generation time, same as everything else in this
 draw — it is not re-rolled on load.
 
-## Debuffs (D9)
+## Negative pools (D9, revised 2026-08-30)
 
-A `StatPool` with negative `unit_value` is a debuff pool. It ladders like any
-other pool (settled 2026-08-07): each tier `T` has `cost = -T` (so the draw
-**refunds** budget when picked) alongside its negative rolled value — a
-deeper debuff hurts more AND refunds more, in lockstep, so a bigger refund is
-never free budget. The draw enforces `max_refunds = 1` per node and only
-offers a debuff while `remaining ≥ 1`. The economics self-balance on an
-exponential ladder: a T1 debuff only pays when the refund crosses a
-power-of-two threshold into a higher tier (budget 7 → T3+T2+T1 = 11 value;
-budget 7 + T1 debuff → budget 8 → T4 = 15, −1 = 14 value). The repo's debuff
-is the `intelligence` INCREASE `unit_value = -2` (`max_tier = 3`) in
-`constitution.tres`.
+A `StatPool` with negative `unit_value` authors negative values. That is the
+whole of what its sign means: **it is an ordinary pool that happens to author
+downsides.** It ladders, rolls a range, and costs budget exactly like every
+other pool. There is no `is_debuff` concept in the code and nothing branches
+on the sign except display formatting.
+
+Ranges come from the same recurrence as everywhere else — `TierLadder.low()`
+is sign-agnostic, and for a negative pool the recurrence yields the *near* end
+while the ladder yields the *far* end. The pair is **ordered before it reaches
+`value_range`**, so "low ends up right of high" is a naming artefact, never a
+math failure.
+
+Validation is magnitude-based rather than signed, because `range_floor <=
+unit_value` is wrong-signed for a negative pool — it would reject the valid
+`u = -3, M = -1` and accept the invalid `u = -1, M = -10`:
+
+```
+negative pools:  sign(M) == sign(unit_value)  and  abs(M) <= abs(unit_value)
+positive pools:  M <= unit_value              # unchanged; negative M stays legal (#628)
+```
+
+The two authored entries, both in `constitution.tres`:
+
+| Entry | Authoring | Flattens to |
+|---|---|---|
+| `min_damage_taken` | `unit_value = -1.0`, `min_tier = 3` (unchanged) | T3 `-1..-1` cost 4; T4 `-2..-3` cost 8 |
+| `intelligence +%` | `unit_value = -3.0`, `range_floor = -1.0`, `max_tier = 3` | T1 `-1..-3`; T2 `-4..-9`; T3 `-10..-21` |
+
+### The refund economics are retired — owner call, 2026-08-30
+
+**This supersedes the 2026-08-07 decision** recorded in earlier revisions of
+this section, which gave a debuff pool `cost = -T` (so picking one *refunded*
+budget) and capped it at `max_refunds = 1` per node. Constant, counter,
+pick-filter branch and covering test are all deleted. **Cost is always `+T`;
+budget spend is monotonic and no draw increases `remaining`.**
+
+The owner's reason, verbatim (#637, 2026-08-30):
+
+> "the budget refund lever disappears. given that modifiers now roll ranges,
+> they generally are lower (before: they picked the new [max] of the range,
+> now there's a [min] too) in value and can hence tweak budget ranges instead.
+> so having no refund concept is fine — besides, negative rolls are more added
+> flavor, they don't make up the bulk of what we author by a long margin."
+
+The **one-curse-per-node cap is knowingly given up** with it (same call):
+several negative rolls on one node is acceptable. Note this cap *was* real —
+it was implemented as `_MAX_DEBUFF_REFUNDS`, not under the `max_refunds` name
+the old docs used, which is why an earlier audit wrongly reported it missing.
+
+Negative pools now consume RNG draws they previously did not, so **the seed
+stream changed deliberately** and the golden fixtures were regenerated rather
+than preserved.
 
 ## Rare content → hand-authored landmarks (D8)
 

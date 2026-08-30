@@ -58,7 +58,8 @@ script = ExtResource("2_pool")
 stat_id = &"intelligence"
 operation = 1
 tags = Array[StringName]([&"int", &"percent"])
-unit_value = -2.0
+unit_value = -3.0
+range_floor = -1.0
 pool_weight = 0.25
 max_tier = 3
 

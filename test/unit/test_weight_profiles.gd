@@ -8,7 +8,7 @@ extends GutTest
 ## the per-node draw consumes budget: pick → append → subtract cost → repeat.
 ## Kept here (rather than in graph_procgen) so collision / archetype-bias /
 ## forbid can be asserted against a flat entry list in isolation. No debuff
-## entries in this suite, so `refunds_used` stays 0 throughout.
+## entries in this suite; negative pools cost budget like any other (refunds retired, #637).
 func _roll_pipeline(
 		entries: Array[ModifierPoolEntry],
 		profiles: Array[Resource],
