@@ -606,10 +606,22 @@ func _set_pinned(node: SkillNode) -> void:
 
 func _on_skill_node_hovered(skill_node: SkillNode) -> void:
 	_hovered_node = skill_node
+	_push_magic_hover(skill_node)
 
 
 func _on_skill_node_unhovered() -> void:
 	_hovered_node = null
+	_push_magic_hover(null)
+
+
+## Feeds the hover into the active magic plan's aim-time propagation preview
+## (#679) -- a no-op for every other mode/plan, and for a plan that isn't the
+## player's own (mirrors [method _active_attack_plan]'s ownership gate, so a
+## hot-seat peer's hover never drives the LOCAL player's preview).
+func _push_magic_hover(skill_node: SkillNode) -> void:
+	var plan := _active_attack_plan() as MagicAttackPlan
+	if plan != null:
+		plan.set_hover_target(skill_node)
 
 
 ## Channels live here:

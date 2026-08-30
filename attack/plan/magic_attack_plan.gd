@@ -25,6 +25,30 @@ var target: SkillNode = null
 var _cached_valid_targets: Dictionary[SkillNode, bool] = {}
 var _target_cache_dirty: bool = true
 
+## The candidate the player is currently hovering, distinct from the
+## committed [member target] — pushed in by [method PlayerInputController]'s
+## hover channel (#679). Drives the aim-time propagation preview below
+## whenever no target is committed yet; once [member target] is set the
+## preview locks onto it instead (see [method _preview_target]).
+var _hover_target: SkillNode = null
+
+## #679 aim-time preview — the predicted [method SpellResolver.resolve] walk
+## for the current preview target (see [method _preview_target]), rebuilt
+## lazily off [signal state_changed] like [member _cached_valid_targets]
+## above. Resolved against a THROWAWAY shadow world ([method SpellResolver.resolve],
+## never [method resolve_against]) so a hover can never mutate HP, ownership
+## or mana on the real board.
+##
+## Cost per rebuild (not per repaint — only on a preview-target CHANGE):
+## one [method SpellResolver.resolve] walk (bounded by the spell's own hop
+## count / visit cap, same cost a real cast pays) plus one O(edges) pass
+## building [member _edge_lookup]'s adjacency map so each hop's edge is an
+## O(1) lookup rather than an O(edges) scan — O(hops) that way instead of
+## O(hops × edges), which matters for Trail Blazer's now-unbounded string walk.
+var _preview_dirty: bool = true
+var _preview_hit_nodes: Dictionary[SkillNode, bool] = {}
+var _preview_edges: Array[Edge] = []
+
 
 func _init() -> void:
 	mode = BattleSystem.AttackMode.MAGIC
@@ -105,10 +129,23 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 		return HighlightRole.ORIGIN
 	if target != null and node == target:
 		return HighlightRole.HOSTILE_TARGET
+	if _preview_hit_set().has(node):
+		return HighlightRole.PROPAGATION
 	if source != null and spell != null and spell.targeting != null:
 		if _valid_targets().has(node):
 			return HighlightRole.IN_RANGE
 	return HighlightRole.NONE
+
+
+## Push the currently-hovered candidate in from PlayerInputController's hover
+## channel. A no-op re-hover (same node, incl. two nulls) skips the
+## state_changed emit so mouse jitter over an already-hovered node doesn't
+## force a repaint or a preview rebuild.
+func set_hover_target(node: SkillNode) -> void:
+	if _hover_target == node:
+		return
+	_hover_target = node
+	state_changed.emit()
 
 
 func validate() -> Array[String]:
@@ -142,12 +179,21 @@ func get_available_spells() -> Array[SpellDef]:
 
 
 func get_range_visual() -> RangeVisual:
-	if source == null or spell == null or spell.targeting == null:
-		return null
-	var finder: RangeFinder = spell.targeting.range_finder
-	if finder == null:
-		return null
-	return finder.get_visual(attacker, source)
+	var visual: RangeVisual = null
+	if source != null and spell != null and spell.targeting != null:
+		var finder: RangeFinder = spell.targeting.range_finder
+		if finder != null:
+			visual = finder.get_visual(attacker, source)
+	# #679: fold the aim-time propagation preview's traversed edges in on top
+	# of the spell's own reach visual — same [RangeVisual], PROPAGATION-tagged
+	# entries, so [EdgeHighlightOverlay] paints both with no overlay change.
+	var preview_edges := _preview_edge_list()
+	if not preview_edges.is_empty():
+		if visual == null:
+			visual = RangeVisual.new()
+		for e in preview_edges:
+			visual.edges.append(RangeVisual.EdgeEntry.new(e, 0, 0, HighlightRole.PROPAGATION))
+	return visual
 
 
 func _target_still_valid() -> bool:
@@ -166,6 +212,7 @@ func _valid_targets() -> Dictionary[SkillNode, bool]:
 
 func _invalidate_target_cache() -> void:
 	_target_cache_dirty = true
+	_preview_dirty = true
 
 
 ## ONE traversal ([method RangeFinder.gather], BFS/linear-scan) over the global
@@ -206,6 +253,88 @@ func _rebuild_target_cache() -> void:
 	for candidate in finder.gather(source, graph.navigator, attacker):
 		if candidate.ownership_bit(attacker) & nt.ownership_filter != 0:
 			_cached_valid_targets[candidate] = true
+
+
+## The node the aim-time preview should resolve against right now: the
+## COMMITTED [member target] once one is picked, else the live-hovered
+## candidate (#679) -- but only while it's an actual valid target, so
+## hovering scenery or an out-of-range node previews nothing.
+func _preview_target() -> SkillNode:
+	if target != null:
+		return target
+	if _hover_target == null:
+		return null
+	if not _valid_targets().has(_hover_target):
+		return null
+	return _hover_target
+
+
+## Lazily (re)built #679 preview node set -- see [member _preview_dirty].
+func _preview_hit_set() -> Dictionary[SkillNode, bool]:
+	if _preview_dirty:
+		_rebuild_preview()
+	return _preview_hit_nodes
+
+
+## Lazily (re)built #679 preview edge list -- see [member _preview_dirty].
+func _preview_edge_list() -> Array[Edge]:
+	if _preview_dirty:
+		_rebuild_preview()
+	return _preview_edges
+
+
+## Runs [method SpellResolver.resolve] -- the shadow-world, side-effect-free
+## entry point (#679's owner decision: no second propagation walk) -- against
+## [method _preview_target], then reads its [member AttackOutcome.timeline]
+## for the nodes the walk landed on and the edges it stepped across. The seed
+## landing ([constant PropagationEvent.Verb.JUMP]) has no predecessor edge --
+## it lands on the target by casting, not by stepping -- so only EDGE / SELF_LOOP
+## events contribute an edge.
+func _rebuild_preview() -> void:
+	_preview_dirty = false
+	_preview_hit_nodes.clear()
+	_preview_edges.clear()
+	var preview_target := _preview_target()
+	if preview_target == null or source == null or spell == null or attacker == null:
+		return
+	var graph := _graph_of(source)
+	if graph == null:
+		return
+	var outcome := SpellResolver.resolve(spell, preview_target, source, attacker, graph)
+	if outcome.timeline.is_empty():
+		return
+	var lookup := _edge_lookup(graph)
+	for event in outcome.timeline:
+		if event.target != null:
+			_preview_hit_nodes[event.target] = true
+		if event.verb == PropagationEvent.Verb.JUMP or event.predecessor == null:
+			continue
+		var from_map: Dictionary = lookup.get(event.predecessor, {})
+		var edge: Edge = from_map.get(event.target)
+		if edge != null:
+			_preview_edges.append(edge)
+
+
+## One O(edges) pass building predecessor->target->Edge lookup, so
+## [method _rebuild_preview] resolves each hop's edge in O(1) instead of
+## rescanning [method Graph.get_edges] per hop -- O(edges + hops) total
+## rather than O(edges * hops), which is what keeps Trail Blazer's now-
+## unbounded string walk cheap at the [code]first_level[/code] (800-node) scale.
+func _edge_lookup(graph: Graph) -> Dictionary[SkillNode, Dictionary]:
+	var lookup: Dictionary[SkillNode, Dictionary] = {}
+	for e in graph.get_edges():
+		if e == null or e.from == null or e.to == null:
+			continue
+		_index_edge_pair(lookup, e.from, e.to, e)
+		if e.from != e.to:
+			_index_edge_pair(lookup, e.to, e.from, e)
+	return lookup
+
+
+func _index_edge_pair(lookup: Dictionary[SkillNode, Dictionary], a: SkillNode, b: SkillNode, e: Edge) -> void:
+	if not lookup.has(a):
+		lookup[a] = {}
+	(lookup[a] as Dictionary)[b] = e
 
 
 ## SkillNodes live under Graph/SkillNodes; walk parents to find it.
