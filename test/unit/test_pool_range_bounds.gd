@@ -111,7 +111,7 @@ func test_value_override_inversion_warns() -> void:
 	assert_true(found, "an override inflating an earlier high must warn on the tier it breaks: %s" % str(warnings))
 
 
-## Acceptance 4 + 5: default M (range_floor unset) reproduces the pre-#628
+## Acceptance 4 + 5: default M reproduces the pre-#628
 ## high bound for EVERY authored pool (no rebalance) and passes validation
 ## with no range_floor complaint, across the whole specimen set.
 func test_every_authored_pool_default_m_matches_old_highs_and_validates() -> void:
@@ -119,11 +119,18 @@ func test_every_authored_pool_default_m_matches_old_highs_and_validates() -> voi
 	for pack in _SET.packs:
 		for sp in pack.pools:
 			var p: StatPool = sp as StatPool
-			assert_true(is_inf(p.range_floor), "%s should not author range_floor" % String(p.stat_id))
 			var warnings := p._get_configuration_warnings()
 			for w in warnings:
 				assert_false("range_floor" in w or "inverted" in w,
-						"%s should validate under default M: %s" % [String(p.stat_id), w])
+						"%s should validate: %s" % [String(p.stat_id), w])
+			if not is_inf(p.range_floor):
+				# A pool that DELIBERATELY authors a floor is outside this test's
+				# scope: the "no rebalance" invariant below is about what the
+				# DEFAULT M reproduces. #637 made `intelligence +%` such a pool
+				# (unit_value -3.0, range_floor -1.0) on purpose, and its exact
+				# per-tier table is pinned by test_constitution_pool.gd. It still
+				# has to validate cleanly, which is asserted just above.
+				continue
 			var lo := clampi(p.min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)
 			var hi := clampi(p.max_tier, lo, TierLadder.MAX_TIER)
 			var entries := p.to_entries()
@@ -132,8 +139,13 @@ func test_every_authored_pool_default_m_matches_old_highs_and_validates() -> voi
 				var expected_h := float(p.value_overrides.get(t, p.unit_value * TierLadder.value(t - p.min_tier + 1)))
 				if p.operation == StatModifier.Operation.MULTIPLY:
 					expected_h = 1.0 + expected_h
-				assert_almost_eq(entries[i].value_range.y, expected_h, 0.001,
-						"%s T%d high must match the pre-#628 formula exactly" % [String(p.stat_id), t])
+				# `expected_h` is the ladder end of the pair. #637 orders the pair
+				# before it reaches `value_range`, and for a NEGATIVE pool the ladder
+				# yields the FAR end — so it lands in `.x`, not `.y`. (For a positive
+				# pool the ladder end is the larger value and still lands in `.y`.)
+				var ladder_end: float = entries[i].value_range.x if expected_h < 0.0 else entries[i].value_range.y
+				assert_almost_eq(ladder_end, expected_h, 0.001,
+						"%s T%d ladder bound must match the pre-#628 formula exactly" % [String(p.stat_id), t])
 				checked += 1
 	assert_gt(checked, 20, "sweep should cover the whole specimen set")
 
