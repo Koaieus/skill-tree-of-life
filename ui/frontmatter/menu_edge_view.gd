@@ -54,8 +54,16 @@ var _color_to: Color = Color.WHITE
 
 ## How many straight [QuadMesh] instances approximate the Bezier. The whole
 ## menu has nine edges, so cost is irrelevant (#592) — tune for smoothness, not
-## for draw calls.
-@export_range(1, 64, 1) var curve_segments: int = 16:
+## for draw calls. Instances live in ONE [MultiMesh], so this number does not
+## move the draw-call count at all; only the per-joint angle.
+##
+## Raised 16 -> 48 (owner, 2026-08-31: the curve read jagged). Two straight
+## quads meeting at a joint leave a notch on the OUTSIDE of the bend roughly
+## `width / 2 * tan(angle / 2)` deep, and at 16 segments across a ~400px chord
+## the chords were ~25px and that notch was visible. Faceting falls off with
+## the per-joint angle, so tripling the count is what smooths it — widening
+## the quads or softening the shader would not.
+@export_range(1, 64, 1) var curve_segments: int = 48:
 	set(value):
 		curve_segments = maxi(1, value)
 		_push_transform()
