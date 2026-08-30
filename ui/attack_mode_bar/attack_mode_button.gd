@@ -5,10 +5,45 @@ extends Button
 const TEXT_SHADER := preload("res://ui/attack_mode_bar/attack_mode_button_text.gdshader")
 const ANIMATION_TIME: float = 0.2
 
+## Inline glyph edge length, px. Sized to sit beside the 30px label without
+## out-shouting it.
+const ICON_SIZE := Vector2(24, 24)
+
+## Which attribute's identity colour each attack-mode tab borrows (#465,
+## decision 6). Per `.claude/rules/ui-palette.md` [member StatDef.tint_color] is
+## the single source of truth for attribute colours — `attack_mode_bar.tscn`
+## used to restate all three as inline literals, a duplicate the rule names
+## explicitly. Same read [constant AttackPlanArmedMode._MODE_STAT_ID] already
+## does, so the tab, the viewport glow and the cursor badge share one value.
+##
+## The Manage tab is deliberately absent: it has no attribute behind it, so its
+## authored `tint` stands.
+const _MODE_STAT_ID := {
+	BattleSystem.AttackMode.MELEE: &"strength",
+	BattleSystem.AttackMode.RANGED: &"dexterity",
+	BattleSystem.AttackMode.MAGIC: &"intelligence",
+}
+
 @export_color_no_alpha var tint: Color = Color.WHITE
 @export_range(0.0, 1.0, 0.01) var glow_radius: float = 0.3
 
 @export var attack_mode: BattleSystem.AttackMode
+
+## The tab's glyph (#465), shown in TWO registers off ONE authored texture so
+## they can never disagree:
+##
+## - inline at [constant ICON_SIZE] left of the label — the LEGIBLE channel a
+##   new player reads. It shares the Label's [member _text_mat], so it is
+##   alpha-driven and lights with the text for free (off-white at rest, ramping
+##   to [member tint] on hover/active, desaturating when disabled). Its baked
+##   cyan RGB is discarded, which is exactly the requested "text coloured".
+## - as the background shader's large, faint `watermark` — ATMOSPHERE, and the
+##   surface the existing hover ripple washes across. Kept well below the text
+##   and rim layers: it must never compete with the label sitting on top of it.
+@export var mode_icon: Texture2D:
+	set(v):
+		mode_icon = v
+		_apply_icon()
 
 ## Keyboard shortcut chip text shown in the tab's top-left corner (e.g.
 ## "1", "Q") — purely cosmetic, doesn't drive the actual [member shortcut].
@@ -31,6 +66,7 @@ var _disabled_tweener: Tween
 @onready var _bg_mat: ShaderMaterial = color_rect.material as ShaderMaterial
 @onready var _key_chip: PanelContainer = %KeyChip
 @onready var _key_label: Label = %KeyChip/KeyLabel
+@onready var _icon: TextureRect = %Icon
 
 
 var hovered: float = 0.0:
@@ -64,8 +100,17 @@ func _ready() -> void:
 
 	_text_mat.shader = TEXT_SHADER
 	label.material = _text_mat
+	# The icon rides the SAME material INSTANCE as the label rather than a
+	# parallel one: the text shader reads only `glyph.a` and colours the mask
+	# itself, and our icons are flat single-colour PNGs with alpha, so sharing
+	# it makes the glyph track the label's hover / active / disabled ramp with
+	# no second state machine to keep in sync.
+	_icon.material = _text_mat
+	_icon.custom_minimum_size = ICON_SIZE
 	_materials = [_bg_mat, _text_mat]
 
+	_resolve_tint()
+	_apply_icon()
 	_push("tint", tint)
 	_push("glow_radius", glow_radius)
 	_push("texture_size", size)
@@ -78,6 +123,26 @@ func _ready() -> void:
 	if _key_label != null:
 		_key_label.modulate = tint
 		_key_label.text = key_hint
+
+## Pull the attribute tint for this tab off [StatRegistry] (decision 6). A tab
+## with no attack mode behind it — Manage — keeps whatever the scene authored.
+func _resolve_tint() -> void:
+	var stat_id: StringName = _MODE_STAT_ID.get(attack_mode, &"")
+	if stat_id == &"":
+		return
+	var def := StatRegistry.get_def(stat_id)
+	if def != null:
+		tint = def.tint_color
+
+
+func _apply_icon() -> void:
+	if _icon != null:
+		_icon.texture = mode_icon
+		_icon.visible = mode_icon != null
+	# A no-op before _ready (`_materials` is empty) — _ready re-runs it.
+	_push("watermark", mode_icon)
+	_push("has_watermark", 1.0 if mode_icon != null else 0.0)
+
 
 func _push(param: String, value: Variant) -> void:
 	for mat in _materials:

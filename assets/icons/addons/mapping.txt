@@ -22,3 +22,8 @@ armed_move_core	delapouite/move.svg
 # keeps returning a plain Texture2D and no presentation flag leaks into systems/.
 armed_extract	delapouite/plain-arrow.svg
 armed_stake	delapouite/plain-arrow.svg	flip_v
+# The Manage TAB's glyph (#465). `tinker` (crossed screwdriver + wrench) over
+# `cog`: a cog reads as "options menu" in a game HUD and this tab is territory
+# management, and a cog's ring silhouette rhymes with `armed_deallocate`'s
+# cycle. Tab-only — Manage mode deliberately has no cursor badge.
+armed_manage	lorc/tinker.svg

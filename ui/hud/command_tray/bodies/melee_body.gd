@@ -97,22 +97,34 @@ func _clear_hover() -> void:
 	_hovered_node = null
 
 
+## The tray card for one temp upgrade (#465). A real scene rather than the
+## `Button.new()` this used to emit — **owner call 2026-08-29:** *"does
+## button.new in code → definitely need a scene"*
+## (`.claude/rules/scene-composition.md`).
+const _UPGRADE_BUTTON := preload("res://ui/hud/command_tray/bodies/temp_upgrade_button.tscn")
+
+
 ## One button per MeleeAttackPlan.TEMP_UPGRADE_CATALOG entry (#406) — a
 ## future catalog addition (e.g. the filed "edge sharpener") needs zero
-## changes here. Labeled from the addon's authored `description`/tooltip
-## title (SkillNodeAddon.get_tooltip_title), read off a throwaway instance
-## since the catalog only carries scene/script references.
+## changes here. Label, glyph and cost all come off a throwaway instance of
+## the addon's own scene (#465), since the catalog only carries scene/script
+## references and the addon scene is the source of truth for its own art:
+## the icon here and the one [TempUpgradeArmedMode] puts on the cursor are
+## the same authored [member SkillNodeAddon.icon], never two copies.
 func _build_upgrade_buttons() -> void:
 	for child in _upgrade_row.get_children():
 		child.queue_free()
-	for upgrade in MeleeAttackPlan.TEMP_UPGRADE_CATALOG:
+	for i in MeleeAttackPlan.TEMP_UPGRADE_CATALOG.size():
+		var upgrade: Dictionary = MeleeAttackPlan.TEMP_UPGRADE_CATALOG[i]
 		var tmp := (upgrade.scene as PackedScene).instantiate() as SkillNodeAddon
-		var label := tmp.get_tooltip_title()
+		var btn := _UPGRADE_BUTTON.instantiate() as TempUpgradeButton
+		btn.label_text = tmp.get_tooltip_title()
+		btn.icon_texture = tmp.icon
+		btn.cost = tmp.temp_upgrade_cost
 		tmp.free()
-		var btn := Button.new()
-		btn.text = label
-		btn.toggle_mode = true
-		btn.pressed.connect(_input_ctl.arm_temp_upgrade.bind(upgrade))
+		btn.accent = _upgrade_color(i)
+		if _input_ctl != null:
+			btn.pressed.connect(_input_ctl.arm_temp_upgrade.bind(upgrade))
 		_upgrade_row.add_child(btn)
 
 
@@ -202,12 +214,16 @@ func _refresh() -> void:
 	# fires whenever a command finishes applying, which covers the territory
 	# changes that flip the answer.
 	_reform_button.disabled = _input_ctl == null or not _input_ctl.can_reform()
+	# Arm and affordability are pushed as two SEPARATE facts (#465), never
+	# collapsed into `Button.disabled`: "out of blade budget", "not your turn"
+	# and "not selected" are three different sentences and the card paints them
+	# as three. Which of them wins visually is TempUpgradeButton.state's call.
 	var arm: Variant = _input_ctl.temp_upgrade_arm() if _input_ctl != null else null
 	for i in MeleeAttackPlan.TEMP_UPGRADE_CATALOG.size():
 		var upgrade: Dictionary = MeleeAttackPlan.TEMP_UPGRADE_CATALOG[i]
-		var btn := _upgrade_row.get_child(i) as Button
-		btn.button_pressed = arm == upgrade
-		btn.disabled = plan == null or not can_act or not plan.has_temp_upgrade_budget(upgrade)
+		var btn := _upgrade_row.get_child(i) as TempUpgradeButton
+		btn.armed = arm == upgrade
+		btn.affordable = plan != null and can_act and plan.has_temp_upgrade_budget(upgrade)
 
 
 ## Outline colors (up to two, catalog order) for every TEMP_UPGRADE_CATALOG

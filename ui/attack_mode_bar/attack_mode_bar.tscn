@@ -2,6 +2,10 @@
 
 [ext_resource type="PackedScene" uid="uid://vntdpku7608y" path="res://ui/attack_mode_bar/attack_mode_button.tscn" id="1_lgd3m"]
 [ext_resource type="Script" uid="uid://dbby8cnmigwn0" path="res://ui/attack_mode_bar/attack_mode_bar.gd" id="1_lh5ky"]
+[ext_resource type="Texture2D" uid="uid://cgafj8aax2gq2" path="res://assets/icons/addons/armed_manage.png" id="2_manage"]
+[ext_resource type="Texture2D" uid="uid://bi540512otpo2" path="res://assets/icons/addons/armed_melee.png" id="3_melee"]
+[ext_resource type="Texture2D" uid="uid://d2p57omyqbwni" path="res://assets/icons/addons/armed_ranged.png" id="4_ranged"]
+[ext_resource type="Texture2D" uid="uid://buh4fapo62w2t" path="res://assets/icons/addons/armed_magic.png" id="5_magic"]
 
 [sub_resource type="InputEventAction" id="InputEventAction_gogxr"]
 action = &"ui_select_manage_mode"
@@ -42,6 +46,7 @@ button_pressed = true
 shortcut = SubResource("Shortcut_gogxr")
 text = "Manage"
 tint = Color(0.784, 0.824, 0.902, 1)
+mode_icon = ExtResource("2_manage")
 key_hint = "1"
 
 [node name="MeleeToggleButton" parent="." unique_id=1205266549 instance=ExtResource("1_lgd3m")]
@@ -50,8 +55,8 @@ size_flags_horizontal = 0
 size_flags_vertical = 0
 shortcut = SubResource("Shortcut_cxu8c")
 text = "Melee"
-tint = Color(0.9451, 0.2689, 0.2453, 1)
 attack_mode = 1
+mode_icon = ExtResource("3_melee")
 key_hint = "Q"
 
 [node name="RangedToggleButton" parent="." unique_id=2083894384 instance=ExtResource("1_lgd3m")]
@@ -60,8 +65,8 @@ size_flags_horizontal = 0
 size_flags_vertical = 0
 shortcut = SubResource("Shortcut_yg4qb")
 text = "Ranged"
-tint = Color(0.3187, 0.7773, 0.4484, 1)
 attack_mode = 2
+mode_icon = ExtResource("4_ranged")
 key_hint = "W"
 
 [node name="MagicToggleButton" parent="." unique_id=900054164 instance=ExtResource("1_lgd3m")]
@@ -70,6 +75,6 @@ size_flags_horizontal = 0
 size_flags_vertical = 0
 shortcut = SubResource("Shortcut_ei3j1")
 text = "Magic"
-tint = Color(0.291, 0.5892, 1, 1)
 attack_mode = 3
+mode_icon = ExtResource("5_magic")
 key_hint = "E"

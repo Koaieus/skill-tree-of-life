@@ -8,6 +8,14 @@ uniform float glow_strength : hint_range(0.0, 1.0) = 0.0;
 uniform float active_strength : hint_range(0.0, 1.0) = 0.0;
 uniform float disabled_strength : hint_range(0.0, 1.0) = 0.0;
 
+// The tab's own glyph, drawn large and faint behind the label (#465) — the
+// ATMOSPHERE half of the two-channel iconography; the inline TextureRect in
+// front of it is the legible half. `has_watermark` exists because an unset
+// sampler still samples (as transparent black on most drivers, but that is not
+// guaranteed), and a Manage-less tab must cost nothing rather than draw noise.
+uniform sampler2D watermark : source_color, filter_linear_mipmap, hint_default_transparent;
+uniform float has_watermark : hint_range(0.0, 1.0) = 0.0;
+
 const float CORNER_RADIUS = 0.12; // fraction of button height
 const float RIM_WIDTH     = 0.04;
 const float ARC_ANGULAR_SPEED = .28;  //  0.28
@@ -61,6 +69,23 @@ void fragment() {
     float mouse_spot = 1.0 - smoothstep(0.0, glow_radius * 2.0, md);
 	mouse_spot *= max(0., cos( md * 50.- TIME * 25.)) * (1. - rim);
     col += tint * mouse_spot * glow_strength * 0.30;
+
+    // ── Watermark ─────────────────────────────────────────────────────────────
+    // Sampled in the SAME aspect-corrected `p` space the shape uses, so the
+    // square stays square whatever the tab's proportions are.
+    vec2 wm_uv = p / WATERMARK_SIZE + 0.5;
+    float inside = step(0.0, wm_uv.x) * step(wm_uv.x, 1.0)
+                 * step(0.0, wm_uv.y) * step(wm_uv.y, 1.0);
+    float wm = texture(watermark, clamp(wm_uv, vec2(0.0), vec2(1.0))).a
+             * inside * has_watermark * (1.0 - rim);
+    // Three terms, ascending in loudness. The middle one multiplies by
+    // `mouse_spot` — the radial wavefront already computed above — so the ripple
+    // literally WASHES ACROSS the glyph rather than sitting beside it. That
+    // interaction is the point of this whole channel.
+    col += mix(tint, vec3(1.0), 0.15) * wm * (
+          WATERMARK_FLOOR
+        + WATERMARK_RIPPLE * mouse_spot * glow_strength
+        + WATERMARK_ACTIVE * active_strength);
 
     // ── Active fill: breathing tint pulse ─────────────────────────────────────
     float pulse = sin(TIME * 2.8 * BREATHING_SPEED) * BREATHING_AMP + 0.5;

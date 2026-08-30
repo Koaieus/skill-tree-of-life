@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://uc3n7j5e5c1c"
-path="res://.godot/imported/addon_bunker.png-999a503a1bdcf97b86fec57595493f57.ctex"
+uid="uid://cgafj8aax2gq2"
+path="res://.godot/imported/armed_manage.png-b0cb2d162678af345ab69592c4c2900c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/icons/addons/addon_bunker.png"
-dest_files=["res://.godot/imported/addon_bunker.png-999a503a1bdcf97b86fec57595493f57.ctex"]
+source_file="res://assets/icons/addons/armed_manage.png"
+dest_files=["res://.godot/imported/armed_manage.png-b0cb2d162678af345ab69592c4c2900c.ctex"]
 
 [params]
 
