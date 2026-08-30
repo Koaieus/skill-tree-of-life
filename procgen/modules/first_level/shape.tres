@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="GraphProcgenShape" format=3]
+[gd_resource type="Resource" script_class="GraphProcgenShape" format=3 uid="uid://c4qandw3xws5j"]
 
-[ext_resource type="Script" path="res://procgen/modules/shape.gd" id="1_jno4l"]
-[ext_resource type="Script" path="res://procgen/placement/circular_shape_mask.gd" id="2_186rm"]
+[ext_resource type="Script" uid="uid://dwwcthbqijxox" path="res://procgen/modules/shape.gd" id="1_jno4l"]
+[ext_resource type="Script" uid="uid://cd48qqhmhst4t" path="res://procgen/placement/circular_shape_mask.gd" id="2_186rm"]
 
 [sub_resource type="Resource" id="shape_circle"]
 script = ExtResource("2_186rm")

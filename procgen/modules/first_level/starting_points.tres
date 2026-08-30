@@ -1,7 +1,7 @@
-[gd_resource type="Resource" script_class="GraphProcgenStartingPoints" format=3]
+[gd_resource type="Resource" script_class="GraphProcgenStartingPoints" format=3 uid="uid://cf30tuk83fg7k"]
 
-[ext_resource type="Script" path="res://procgen/modules/starting_points.gd" id="1_gtenw"]
-[ext_resource type="Script" path="res://procgen/placement/starting_point.gd" id="2_s80oh"]
+[ext_resource type="Script" uid="uid://c5oun4i6a7uar" path="res://procgen/modules/starting_points.gd" id="1_gtenw"]
+[ext_resource type="Script" uid="uid://hojbmre85ttl" path="res://procgen/placement/starting_point.gd" id="2_s80oh"]
 
 [sub_resource type="Resource" id="sp_core"]
 script = ExtResource("2_s80oh")

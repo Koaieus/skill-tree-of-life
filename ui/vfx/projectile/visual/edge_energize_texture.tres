@@ -1,10 +1,8 @@
-[gd_resource type="GradientTexture2D" load_steps=2 format=3]
+[gd_resource type="GradientTexture2D" format=3 uid="uid://cge78gabjyp51"]
 
 [sub_resource type="Gradient" id="Gradient_bar"]
-offsets = PackedFloat32Array(0, 1)
 colors = PackedColorArray(1, 1, 1, 1, 1, 1, 1, 1)
 
 [resource]
 gradient = SubResource("Gradient_bar")
-width = 64
 height = 8

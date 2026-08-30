@@ -1,11 +1,11 @@
 [gd_resource type="Resource" script_class="GraphProcgenConfig" format=3 uid="uid://chf1rstvlgexn"]
 
 [ext_resource type="Resource" path="res://procgen/modules/first_level/blockers.tres" id="1_5xxfy"]
-[ext_resource type="Resource" path="res://procgen/modules/first_level/content.tres" id="2_u43ff"]
-[ext_resource type="Resource" path="res://procgen/modules/first_level/shape.tres" id="4_4nss1"]
-[ext_resource type="Resource" path="res://procgen/modules/first_level/starting_points.tres" id="5_kb82o"]
+[ext_resource type="Resource" uid="uid://dam77vb2nj8dl" path="res://procgen/modules/first_level/content.tres" id="2_u43ff"]
+[ext_resource type="Resource" uid="uid://c4qandw3xws5j" path="res://procgen/modules/first_level/shape.tres" id="4_4nss1"]
+[ext_resource type="Resource" uid="uid://cf30tuk83fg7k" path="res://procgen/modules/first_level/starting_points.tres" id="5_kb82o"]
 [ext_resource type="Resource" path="res://procgen/modules/first_level/topology.tres" id="6_vmsip"]
-[ext_resource type="Script" path="res://procgen/graph_procgen_config.gd" id="cfg"]
+[ext_resource type="Script" uid="uid://ddnb4q6ytw0t4" path="res://procgen/graph_procgen_config.gd" id="cfg"]
 
 [resource]
 script = ExtResource("cfg")

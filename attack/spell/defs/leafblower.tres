@@ -19,7 +19,6 @@
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="11_targeting"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="12_range"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="12_y0ifm"]
-[ext_resource type="PackedScene" uid="uid://dpi6d3wrj3jjn" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="15_l5r25"]
 [ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/progression/multiply_progression.gd" id="16_prog"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/leafblower_coordinator.tscn" id="17_vfx"]
 
