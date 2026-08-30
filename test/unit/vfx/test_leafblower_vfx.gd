@@ -2,7 +2,8 @@ extends GutTest
 
 ## #676 acceptance: Leafblower's own coordinator — a [BezierArcPath] seed, a
 ## fluttering [CubicBezierPath] edge, and a [BoltBody]-Streak body that GROWS
-## per hop (the shared kit's own bolt_streak.tscn, hop_scale 1.0 -> 1.6),
+## per hop (its own leafblower_body.tscn, hop_scale 0.5 -> 4.0 — an 8x span,
+## deliberately mirroring Lightning's 8x shrink so the teaching pair is symmetric),
 ## plus a crit-only backwash rebound on [LeafCritCondition] hits. Half of the
 ## deliberate teaching pair with Lightning Bolt (#674): same fan verb,
 ## opposite body-size ramp — see test_lightning_bolt_vfx.gd for the other half.
@@ -10,7 +11,7 @@ extends GutTest
 const LEAFBLOWER_DEF := preload("res://attack/spell/defs/leafblower.tres")
 const LEAFBLOWER_COORDINATOR := preload("res://ui/vfx/coordinator/spells/leafblower_coordinator.tscn")
 const SHARED_DEFAULT_COORDINATOR := preload("res://ui/vfx/coordinator/magic_bounce_coordinator.tscn")
-const BOLT_STREAK := preload("res://ui/vfx/projectile/visual/bolt_streak.tscn")
+const LEAFBLOWER_BODY := preload("res://ui/vfx/projectile/visual/leafblower_body.tscn")
 const LEAFBLOWER_VISUAL := preload("res://ui/vfx/projectile/visual/leafblower_visual.tscn")
 
 
@@ -71,17 +72,22 @@ func test_every_per_verb_visual_slot_shares_the_same_growing_streak_visual() -> 
 		"self_loop_visual must be filled too — #676 explicitly forbids leaving it defaulted")
 	var visual: ComposedProjectileVisual = coord.jump_visual.instantiate()
 	add_child_autofree(visual)
-	assert_eq(visual.body_scene, BOLT_STREAK, "the body is the shared kit's P1-Streak config")
+	assert_eq(visual.body_scene, LEAFBLOWER_BODY,
+		"the body is Leafblower's own streak config, not the shared kit's milder bolt_streak")
 	assert_eq(visual.arrival_companions.size(), 2, "the crit-grammar ring plus the leaf-crit rebound")
 
 
 func test_body_growth_ramps_up_not_down() -> void:
 	# The opposite ramp direction from Lightning's shrink — this is the half
 	# of the teaching pair this issue owns.
-	var body: BoltBody = BOLT_STREAK.instantiate()
+	var body: BoltBody = LEAFBLOWER_BODY.instantiate()
 	add_child_autofree(body)
-	assert_almost_eq(body.hop_scale_start, 1.0, 0.001, "the seed generation reads at the base size")
 	assert_gt(body.hop_scale_end, body.hop_scale_start, "later hops must be visibly HEAVIER, not lighter")
+	# #676's headline acceptance is that the growth is as unmistakable as Lightning's
+	# attenuation. Lightning spans 1.0 -> 0.125 (8x). Anything milder than a 4x span here
+	# leaves the pair asymmetric and the pair stops teaching, so pin the floor.
+	assert_gt(body.hop_scale_end / body.hop_scale_start, 4.0 - 0.001,
+		"the growth span must be at least 4x, to mirror Lightning's shrink")
 
 
 func test_composed_visual_still_ramps_off_a_real_schedule_entry() -> void:
