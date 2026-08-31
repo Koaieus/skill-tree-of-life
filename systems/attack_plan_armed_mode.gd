@@ -67,10 +67,22 @@ const _MODE_ICON := {
 	BattleSystem.AttackMode.MAGIC: preload("res://assets/icons/addons/armed_magic.png"),
 }
 
+## Melee before its pivot is picked (#683) — the same sword without its blade,
+## by the same author as the broadsword above so the two read as one weapon in
+## two phases. **Not a fourth silhouette**: the 2026-08-29 family call stands,
+## and this splits ONE mode into its unaimed and aimed phase rather than adding
+## a member to the family. Melee-only by owner call 2026-08-31 — Ranged and
+## Magic have no pivot phase, so there is no unaimed state to distinguish, and
+## this is deliberately not a generic "armed but un-targeted" badge channel.
+const _MELEE_HILT_ICON := preload("res://assets/icons/addons/armed_melee_hilt.png")
+
 
 func icon() -> Texture2D:
 	if not is_armed():
 		return null
+	var plan := _ctl._active_attack_plan()
+	if plan is MeleeAttackPlan and (plan as MeleeAttackPlan).source == null:
+		return _MELEE_HILT_ICON
 	return _MODE_ICON.get(_ctl.battle_system.attack_mode, null)
 
 

@@ -12,7 +12,14 @@ addon_watchtower	delapouite/watchtower.svg
 # Armed-mode cursor badges (#664). The three attack modes are a deliberate
 # family — three diagonally-pointing weapons, differentiated by the STR/DEX/INT
 # tint, not by silhouette (owner call 2026-08-29).
+#
+# `armed_melee_hilt` is not a fourth weapon (#683): it is the SAME melee sword
+# before its pivot is picked, so the badge reads hilt → blade as the swing takes
+# shape. Same author as the broadsword on purpose — a whole-sword alternative was
+# rejected for reading as two similar swords rather than one weapon in two
+# phases (owner call 2026-08-31).
 armed_melee	lorc/broadsword.svg
+armed_melee_hilt	lorc/sword-hilt.svg
 armed_ranged	lorc/high-shot.svg
 armed_magic	lorc/crystal-wand.svg
 armed_deallocate	lorc/cycle.svg

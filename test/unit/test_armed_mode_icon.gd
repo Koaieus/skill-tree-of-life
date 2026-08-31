@@ -128,9 +128,12 @@ func test_arming_plain_allocate_still_has_no_badge() -> void:
 
 # --- 2. the attack triple ----------------------------------------------------
 
-func test_melee_badges_the_sword_in_strength_red() -> void:
+func test_melee_badges_the_bare_hilt_in_strength_red_before_a_pivot() -> void:
+	# #683: arming Melee is not yet an aimed swing — the badge shows the sword
+	# WITHOUT its blade until a pivot is picked. Same STR red either way; the
+	# phase is carried by the silhouette, the mode by the colour.
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-	assert_eq(_ctl.get_armed_icon(), _icon("armed_melee"))
+	assert_eq(_ctl.get_armed_icon(), _icon("armed_melee_hilt"))
 	assert_eq(_ctl.get_armed_icon_tint(), _stat_color(&"strength"))
 
 
@@ -142,6 +145,73 @@ func test_ranged_and_magic_badge_their_own_art() -> void:
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MAGIC)
 	assert_eq(_ctl.get_armed_icon(), _icon("armed_magic"))
 	assert_eq(_ctl.get_armed_icon_tint(), _stat_color(&"intelligence"))
+
+
+# --- 2b. melee's two phases (#683) -------------------------------------------
+
+## Set the melee pivot the way a player does — through the controller's real
+## left-click channel, not by poking `plan.source`. The badge is downstream of
+## the signal that click emits, so a hand-set field would test the branch while
+## silently skipping the wiring this issue exists to fix.
+func _pick_pivot(node: SkillNode) -> MeleeAttackPlan:
+	_ctl.route_left_click(node)
+	var plan := _ctl._active_attack_plan() as MeleeAttackPlan
+	assert_not_null(plan, "fixture check: melee should still be the active plan")
+	assert_not_null(plan.source, "fixture check: the left-click should set the pivot")
+	return plan
+
+
+func test_picking_the_pivot_swaps_the_hilt_for_the_blade() -> void:
+	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
+	assert_eq(_ctl.get_armed_icon(), _icon("armed_melee_hilt"), "unaimed: hilt")
+
+	_pick_pivot(_nodes[0])
+
+	assert_eq(_ctl.get_armed_icon(), _icon("armed_melee"),
+			"pivot picked — the blade is on the sword")
+	assert_eq(_ctl.get_armed_icon_tint(), _stat_color(&"strength"),
+			"both phases burn the SAME red, off the same stack walk")
+
+
+func test_popping_the_pivot_returns_the_badge_to_the_hilt() -> void:
+	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
+	var plan := _pick_pivot(_nodes[0])
+
+	assert_true(plan.pop(), "fixture check: the plan pops its pivot before it cancels")
+	assert_null(plan.source)
+	assert_eq(_ctl.get_armed_icon(), _icon("armed_melee_hilt"),
+			"back to no pivot — back to the hilt")
+
+
+func test_setting_the_pivot_fires_the_icon_signal() -> void:
+	# THE regression this issue exists for. `_refresh_armed_state` used to hang
+	# off `attack_plan_changed` alone, which is plan LIFECYCLE — setting a pivot
+	# is plan STATE and never moved it, so the badge would resolve correctly and
+	# nobody would ever ask it to. Guarded the way decision 12 is guarded.
+	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
+
+	watch_signals(_ctl)
+	_pick_pivot(_nodes[0])
+
+	assert_signal_emit_count(_ctl, "armed_icon_changed", 1,
+			"the badge MUST move when the pivot lands")
+	assert_signal_emitted_with_parameters(_ctl, "armed_icon_changed",
+			[_icon("armed_melee"), _stat_color(&"strength")], 0)
+	assert_signal_emit_count(_ctl, "armed_tint_changed", 0,
+			"the glow is unchanged — it is the same mode, in its second phase")
+
+
+func test_ranged_and_magic_are_untouched_by_the_pivot_split() -> void:
+	# Melee-only, by owner call. Neither of the others has a pivot phase, and
+	# neither may pick up the hilt by falling through the new branch.
+	for mode in [BattleSystem.AttackMode.RANGED, BattleSystem.AttackMode.MAGIC]:
+		_ctl.on_attack_mode_requested(mode)
+		assert_ne(_ctl.get_armed_icon(), _icon("armed_melee_hilt"),
+				"mode %d must never badge the melee hilt" % mode)
+	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.RANGED)
+	assert_eq(_ctl.get_armed_icon(), _icon("armed_ranged"))
+	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MAGIC)
+	assert_eq(_ctl.get_armed_icon(), _icon("armed_magic"))
 
 
 # --- 3. the two walks disagree, on purpose -----------------------------------
@@ -214,7 +284,7 @@ func test_popping_the_clamp_restores_the_melee_badge() -> void:
 	watch_signals(_ctl)
 	assert_true(_ctl._pop_armed_mode(), "the temp upgrade is the top level")
 
-	assert_eq(_ctl.get_armed_icon(), _icon("armed_melee"),
+	assert_eq(_ctl.get_armed_icon(), _icon("armed_melee_hilt"),
 			"a level with no icon falls through — it never blanks the badge")
 	assert_eq(_ctl.get_armed_icon_tint(), _stat_color(&"strength"))
 	assert_signal_emit_count(_ctl, "armed_icon_changed", 1)

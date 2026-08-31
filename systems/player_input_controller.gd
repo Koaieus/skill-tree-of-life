@@ -206,6 +206,14 @@ func _ready() -> void:
 
 	if battle_system != null:
 		battle_system.attack_plan_changed.connect(_refresh_armed_state.unbind(1))
+		# ...and plan *state*, not just plan lifecycle (#683). The melee badge
+		# now reads the pivot, which moves inside a plan that never changes
+		# identity — `attack_plan_changed` would never fire for it. This is the
+		# higher-frequency of the two (every blade toggle, every temp upgrade),
+		# and it costs nothing: `_refresh_armed_state` emits only on a resolved
+		# icon/tint that actually differs, and `_update_cursor` above the dedup
+		# is an idempotent `Input.set_default_cursor_shape`.
+		battle_system.attack_plan_state_changed.connect(_refresh_armed_state)
 		# The arm can't outlive its plan (#406) — a plan swap or clear always
 		# invalidates whatever temp-upgrade card was armed for the old one.
 		battle_system.attack_plan_changed.connect(func(_p): _set_temp_upgrade_arm(null))
