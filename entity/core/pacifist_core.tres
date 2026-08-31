@@ -6,36 +6,43 @@
 [ext_resource type="Resource" path="res://entity/core/sigil/circle_sigil.tres" id="3_sigil"]
 
 [sub_resource type="Resource" id="mod_str"]
+resource_name = "+10 Strength"
 script = ExtResource("2_mod")
 stat_id = &"strength"
 value = 10.0
 
 [sub_resource type="Resource" id="mod_dex"]
+resource_name = "+10 Dexterity"
 script = ExtResource("2_mod")
 stat_id = &"dexterity"
 value = 10.0
 
 [sub_resource type="Resource" id="mod_int"]
+resource_name = "+10 Intelligence"
 script = ExtResource("2_mod")
 stat_id = &"intelligence"
 value = 10.0
 
 [sub_resource type="Resource" id="mod_armor"]
+resource_name = "+3 Armor"
 script = ExtResource("2_mod")
 stat_id = &"armor"
 value = 3.0
 
 [sub_resource type="Resource" id="mod_ap"]
+resource_name = "+2 Max Action Points"
 script = ExtResource("2_mod")
 stat_id = &"action_points"
 value = 2.0
 
 [sub_resource type="Resource" id="mod_transfer"]
+resource_name = "+2 AP Transfer Rate"
 script = ExtResource("2_mod")
 stat_id = &"ap_transfer_rate"
 value = 2.0
 
 [sub_resource type="Resource" id="mod_mp_zero"]
+resource_name = "Max Movement is 0"
 script = ExtResource("2_mod")
 stat_id = &"movement_points"
 operation = 4
@@ -43,6 +50,7 @@ value = 0.0
 priority = 100
 
 [sub_resource type="Resource" id="mod_dp_zero"]
+resource_name = "Max Deallocation Points is 0"
 script = ExtResource("2_mod")
 stat_id = &"deallocation_points"
 operation = 4

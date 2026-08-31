@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="4_mod"]
 
 [sub_resource type="Resource" id="m_vision_range"]
+resource_name = "+100 Vision Range"
 script = ExtResource("4_mod")
 stat_id = &"vision_range"
 value = 100.0

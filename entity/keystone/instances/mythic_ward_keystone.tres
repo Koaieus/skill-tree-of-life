@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="4_mod"]
 
 [sub_resource type="Resource" id="m_min_damage_taken"]
+resource_name = "-1 Min Damage Taken"
 script = ExtResource("4_mod")
 stat_id = &"min_damage_taken"
 value = -1.0

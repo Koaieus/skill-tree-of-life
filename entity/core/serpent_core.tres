@@ -18,23 +18,27 @@ script = ExtResource("6_prop")
 script = ExtResource("4_hop")
 
 [sub_resource type="Resource" id="mod_hop_buff"]
+resource_name = "+1 bonus Armor"
 script = ExtResource("2_mod")
 stat_id = &"armor"
 operation = 3
 
 [sub_resource type="Resource" id="Resource_5dwqy"]
+resource_name = "+1 Blade Damage"
 script = ExtResource("2_mod")
 stat_id = &"blade_damage"
 value = 0.5
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_u3i0u"]
+resource_name = "+1 Spell Damage"
 script = ExtResource("2_mod")
 stat_id = &"spell_damage"
 value = 0.5
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_nirvb"]
+resource_name = "+1 Ranged Damage"
 script = ExtResource("2_mod")
 stat_id = &"ranged_damage"
 value = 0.5
@@ -61,12 +65,14 @@ per_unit = 0.005
 script = ExtResource("5_euclid")
 
 [sub_resource type="Resource" id="mod_euclid_penalty"]
+resource_name = "-1 bonus Armor"
 script = ExtResource("2_mod")
 stat_id = &"armor"
 operation = 3
 value = -1.0
 
 [sub_resource type="Resource" id="Resource_ssrim"]
+resource_name = "-1% increased Blade Damage"
 script = ExtResource("2_mod")
 stat_id = &"blade_damage"
 operation = 1
@@ -74,6 +80,7 @@ value = -0.5
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_iik14"]
+resource_name = "-1% increased Spell Damage"
 script = ExtResource("2_mod")
 stat_id = &"spell_damage"
 operation = 1
@@ -81,6 +88,7 @@ value = -0.5
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_tt46n"]
+resource_name = "-1% increased Ranged Damage"
 script = ExtResource("2_mod")
 stat_id = &"ranged_damage"
 operation = 1
