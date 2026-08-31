@@ -68,6 +68,21 @@ const _TEXTURE_SIZE: float = 64.0
 		emissive_tier = value
 		_apply_look()
 
+## Hop-driven emissive-tier ramp, the tier equivalent of [member hop_scale_start]
+## / [member hop_scale_end] below — lerped by the same hop fraction. `-1.0` is a
+## sentinel meaning "unset -> fall back to [member emissive_tier]", so a config
+## that sets neither (every one shipped before #686) holds a flat tier across
+## the whole hop, byte-identical to today. Never a hand-picked float on either
+## end — see docs/domain/hdr-color.md.
+@export_range(0.0, 3.0, 0.05) var emissive_tier_start: float = -1.0:
+	set(value):
+		emissive_tier_start = value
+		_apply_look()
+@export_range(0.0, 3.0, 0.05) var emissive_tier_end: float = -1.0:
+	set(value):
+		emissive_tier_end = value
+		_apply_look()
+
 ## Head diameter in world pixels at [member hop_scale_start].
 @export_range(1.0, 96.0, 0.5) var head_size: float = 14.0:
 	set(value):
@@ -229,13 +244,20 @@ func _apply_look(progress_hint: float = -1.0) -> void:
 	var frac: float = _hop_fraction
 	if frac <= 0.0 and progress_hint >= 0.0:
 		frac = clampf(progress_hint, 0.0, 1.0)
+
+	var ramp: float = lerpf(hop_scale_start, hop_scale_end, frac)
+	# Tier's own ramp, right beside the scale one above — same `frac`, same
+	# sentinel-resolution idiom (#686).
+	var tier_start: float = emissive_tier_start if emissive_tier_start >= 0.0 else emissive_tier
+	var tier_end: float = emissive_tier_end if emissive_tier_end >= 0.0 else emissive_tier
+	var tier_ramp: float = lerpf(tier_start, tier_end, frac)
+
 	var base: Color = _crit_tint if _has_crit else tint
-	var tier: float = Emissive.ALERT if _has_crit else emissive_tier
+	var tier: float = Emissive.ALERT if _has_crit else tier_ramp
 	var col: Color = Emissive.tint(base, tier)
 	col.a = base.a * clampf(_alpha, 0.0, 1.0)
 	modulate = col
 
-	var ramp: float = lerpf(hop_scale_start, hop_scale_end, frac)
 	var diameter: float = head_size * ramp * _crit_scale
 	var s: float = diameter / _TEXTURE_SIZE
 	# Squash-and-stretch along local +X (the [Projectile] rotates us so +X is
