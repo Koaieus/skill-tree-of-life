@@ -90,6 +90,15 @@ func test_body_growth_ramps_up_not_down() -> void:
 		"the growth span must be at least 4x, to mirror Lightning's shrink")
 
 
+func test_tier_climbs_to_alert_by_the_late_hops_not_only_the_scale() -> void:
+	# #686: the spec calls for Leafblower to climb to ALERT by hops 6-7 — the
+	# tier ramp is the other half of the same knob as the growth test above.
+	var body: BoltBody = LEAFBLOWER_BODY.instantiate()
+	add_child_autofree(body)
+	assert_almost_eq(body.emissive_tier_start, Emissive.VALUE, 0.001, "the seed hop reads at the default heat")
+	assert_almost_eq(body.emissive_tier_end, Emissive.ALERT, 0.001, "the tail hop climbs all the way to ALERT")
+
+
 func test_composed_visual_still_ramps_off_a_real_schedule_entry() -> void:
 	var coord := _spawn_coordinator()
 	var visual: ComposedProjectileVisual = coord.jump_visual.instantiate()
@@ -103,6 +112,8 @@ func test_composed_visual_still_ramps_off_a_real_schedule_entry() -> void:
 	assert_almost_eq(bolt._hop_fraction, 1.0, 0.001, "the last hop of the chain reaches the far end of the ramp")
 	var ramp: float = lerpf(bolt.hop_scale_start, bolt.hop_scale_end, bolt._hop_fraction)
 	assert_gt(ramp, bolt.hop_scale_start, "hop 6 of 7 must read heavier than the seed")
+	var tier_ramp: float = lerpf(bolt.emissive_tier_start, bolt.emissive_tier_end, bolt._hop_fraction)
+	assert_gt(tier_ramp, bolt.emissive_tier_start, "hop 6 of 7 must read hotter than the seed too")
 
 
 func test_rebound_only_fires_on_a_crit_never_on_ordinary_arrival() -> void:

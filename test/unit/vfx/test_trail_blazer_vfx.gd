@@ -10,7 +10,7 @@ extends GutTest
 const TRAIL_BLAZER_DEF := preload("res://attack/spell/defs/trail_blazer.tres")
 const TRAIL_BLAZER_COORDINATOR := preload("res://ui/vfx/coordinator/spells/trail_blazer_coordinator.tscn")
 const SHARED_DEFAULT_COORDINATOR := preload("res://ui/vfx/coordinator/magic_bounce_coordinator.tscn")
-const BOLT_SMALL := preload("res://ui/vfx/projectile/visual/bolt_small.tscn")
+const TRAIL_BLAZER_BODY := preload("res://ui/vfx/projectile/visual/trail_blazer_body.tscn")
 const TRAIL_BLAZER_EDGE_VISUAL := preload("res://ui/vfx/projectile/visual/trail_blazer_edge_visual.tscn")
 
 
@@ -59,9 +59,20 @@ func test_edge_path_is_a_straight_unwased_line() -> void:
 	assert_eq(path.ease_curve, ProjectilePath.Ease.LINEAR, "the wire travels at a constant pace")
 
 
-func test_jump_visual_is_the_bare_small_bolt() -> void:
+func test_jump_visual_is_trail_blazers_own_ramping_bolt() -> void:
+	# #686: the shared kit config (bolt_small.tscn) must NOT carry a per-spell
+	# ramp, so Trail Blazer gets its own body config -- P1-Small's silhouette
+	# plus the LABEL -> ALERT heat climb the spec calls for.
 	var coord := _spawn_coordinator()
-	assert_eq(coord.jump_visual, BOLT_SMALL, "the seed is P1-Small, undecorated")
+	assert_eq(coord.jump_visual, TRAIL_BLAZER_BODY,
+		"the seed is Trail Blazer's own body config, not the shared bolt_small")
+
+
+func test_jump_bodys_tier_climbs_from_label_towards_alert() -> void:
+	var body: BoltBody = TRAIL_BLAZER_BODY.instantiate()
+	add_child_autofree(body)
+	assert_almost_eq(body.emissive_tier_start, Emissive.LABEL, 0.001, "the seed dart starts as a whisper")
+	assert_almost_eq(body.emissive_tier_end, Emissive.ALERT, 0.001, "the far end brushes ALERT, mirroring the fuse ramp")
 
 
 func test_edge_visual_is_the_trail_blazer_wrapper() -> void:

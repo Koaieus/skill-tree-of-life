@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/bolt_body.tscn" id="1_base"]
+
+[node name="TrailBlazerBody" instance=ExtResource("1_base")]
+head_size = 9.0
+trail_length = 2
+trail_stride = 2
+emissive_tier_start = 0.5
+emissive_tier_end = 2.0
+fade_seconds = 0.2

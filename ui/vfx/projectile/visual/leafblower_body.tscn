@@ -9,4 +9,6 @@ trail_stride = 2
 stretch_along_velocity = 1.1
 hop_scale_start = 0.5
 hop_scale_end = 4.0
+emissive_tier_start = 1.0
+emissive_tier_end = 2.0
 fade_seconds = 0.3

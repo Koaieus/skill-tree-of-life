@@ -137,6 +137,38 @@ func test_a_single_beat_entry_sits_at_the_near_end_of_the_ramp() -> void:
 	assert_almost_eq(head.scale.y, near, 0.001, "a single beat must not ramp")
 
 
+func test_context_entry_drives_the_hop_tier_ramp() -> void:
+	# #686's core mechanism: the tier equivalent of the scale ramp above, same
+	# `hop_fraction` channel. A body with start VALUE / end INERT must be
+	# measurably DIMMER at the far end of the hop than at the seed.
+	var bolt := _spawn()
+	bolt.tint = Color.WHITE
+	bolt.emissive_tier_start = Emissive.VALUE
+	bolt.emissive_tier_end = Emissive.INERT
+	bolt._on_launch()
+	bolt._on_context({&"hop_fraction": 0.0})
+	var bright: Color = bolt.modulate
+	bolt._on_context({&"hop_fraction": 1.0})
+	var dim: Color = bolt.modulate
+	assert_lt(dim.r, bright.r, "frac=1 (INERT) must read dimmer than frac=0 (VALUE)")
+
+
+func test_unset_tier_ramp_holds_emissive_tier_flat_across_the_hop() -> void:
+	# The sentinel contract: a config that sets neither `emissive_tier_start`
+	# nor `emissive_tier_end` (every config shipped before #686) must hold the
+	# static `emissive_tier` flat across the entire hop, not silently ramp.
+	var bolt := _spawn()
+	bolt.tint = Color.WHITE
+	bolt.emissive_tier = Emissive.LABEL
+	bolt._on_launch()
+	bolt._on_context({&"hop_fraction": 0.0})
+	var at_zero: Color = bolt.modulate
+	bolt._on_context({&"hop_fraction": 1.0})
+	var at_one: Color = bolt.modulate
+	assert_eq(at_zero, at_one,
+		"an unset start/end sentinel must hold emissive_tier flat, never ramp")
+
+
 func test_context_tolerates_null_and_unknown_shapes() -> void:
 	# "Any subset, all optional" is the contract; nothing may crash on a peer
 	# that hands over a shape this visual does not read.

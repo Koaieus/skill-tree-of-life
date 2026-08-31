@@ -79,6 +79,15 @@ func test_per_hop_attenuation_shrinks_the_bolt_unmistakably() -> void:
 	assert_lt(body.hop_scale_end, 0.2, "three generations of x0.5 leaves the tail near-dead (0.125x)")
 
 
+func test_per_hop_attenuation_also_dims_not_only_shrinks() -> void:
+	# #686: the spec asked for the walk to read as heat fading, not just size —
+	# the tier ramp is the other half of the same knob as the test above.
+	var body: BoltBody = LIGHTNING_BODY.instantiate()
+	add_child_autofree(body)
+	assert_almost_eq(body.emissive_tier_start, Emissive.VALUE, 0.001, "the seed generation reads at full heat")
+	assert_almost_eq(body.emissive_tier_end, Emissive.INERT, 0.001, "the tail generation reads near-dead")
+
+
 func test_composed_visual_still_ramps_off_a_real_schedule_entry() -> void:
 	var coord := _spawn_coordinator()
 	var visual: ComposedProjectileVisual = coord.jump_visual.instantiate()
@@ -93,3 +102,5 @@ func test_composed_visual_still_ramps_off_a_real_schedule_entry() -> void:
 	assert_almost_eq(bolt._hop_fraction, 1.0, 0.001, "the last of three generations reaches the far end of the ramp")
 	var ramp: float = lerpf(bolt.hop_scale_start, bolt.hop_scale_end, bolt._hop_fraction)
 	assert_lt(ramp, 0.2, "the third generation's effective scale is near-dead, not merely smaller")
+	var tier_ramp: float = lerpf(bolt.emissive_tier_start, bolt.emissive_tier_end, bolt._hop_fraction)
+	assert_almost_eq(tier_ramp, Emissive.INERT, 0.001, "the third generation's heat is near-dead too")
