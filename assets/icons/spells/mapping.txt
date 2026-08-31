@@ -16,3 +16,4 @@ skills	delapouite/skills.svg
 family_tree	delapouite/family-tree.svg
 linked_rings	lorc/linked-rings.svg
 hospital_cross	lorc/hospital-cross.svg
+cyclone	lorc/vortex.svg

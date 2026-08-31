@@ -61,3 +61,26 @@ var graph: Graph = null
 ## RandomNumberGenerator. Tests inject a seeded one via [method
 ## SpellResolver.resolve]'s `rng` parameter for determinism.
 var rng: RandomNumberGenerator = null
+## Nodes this front may NOT travel back into on its next step — the "where I
+## came from" set, vetoed by [BacktrackFilter]. An ARRAY and not a single
+## [member predecessor] because a convergence merges N fronts that genuinely
+## arrived from N directions, and the merged payload has to refuse all of them
+## (owner's spec for Cyclone: [i]"it makes the cast-from an array, and the
+## step/propagation needs to veto all of them for travel"[/i]).
+##
+## [b]Empty means free[/b], which is what makes the reset branchless: a step
+## that closed a cycle mints its children with an empty set, so the filter is
+## one membership test with no "did we just reset?" special case. Populated at
+## MINT by [CycloneStep]; merged by [CycloneReducer]. Distinct from
+## [member predecessor], which stays the single canonical "the projectile flew
+## from here" reader for VFX.
+var came_from: Array[SkillNode] = []
+## True when the hop that produced this payload landed on a node already in its
+## own lineage's [member visited] trail — i.e. it CLOSED a cycle.
+##
+## Stamped at mint by [CycloneStep], read by [CycleCritCondition]. This is the
+## Design A split [ConvergenceCritCondition] documents: the step/reducer does
+## the math and stamps the fact, the crit condition owns the policy and stays a
+## read-only predicate. The trail cannot be re-derived at landing time, because
+## a closing mint RESETS [member visited] to just the landed node.
+var closed_cycle: bool = false

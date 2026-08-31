@@ -1,0 +1,85 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://b6c1yc1lonvkq"]
+
+[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Texture2D" uid="uid://bmpvgd428n8v5" path="res://assets/icons/spells/cyclone.png" id="1_icon"]
+[ext_resource type="Texture2D" uid="uid://be3m0tcmtjlag" path="res://assets/emblem_luts/cyclone.png" id="1_lut"]
+[ext_resource type="Script" uid="uid://ci08q7vcgbwdx" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="1_tcs"]
+[ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/crit/crit_condition.gd" id="2_crit_base"]
+[ext_resource type="Script" uid="uid://djv4ku7pve4ra" path="res://attack/spell/crit/cycle_crit_condition.gd" id="2_crit_cycle"]
+[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
+[ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
+[ext_resource type="Script" uid="uid://7wdkvrd3qinr" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="4_filter_base"]
+[ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_owner"]
+[ext_resource type="Script" uid="uid://c53asst73kv13" path="res://attack/spell/propagation/filter/backtrack_filter.gd" id="6_backtrack"]
+[ext_resource type="Script" uid="uid://dpm0inm5l0utx" path="res://attack/spell/propagation/filter/composite_filter.gd" id="7_composite"]
+[ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="8_targeting"]
+[ext_resource type="Script" uid="uid://bs86s2grue8eq" path="res://attack/spell/propagation/progression/scaled_add_progression.gd" id="9_ramp"]
+[ext_resource type="Script" uid="uid://duy3yt7dr5o8t" path="res://attack/range_finder/euclidean_range_finder.gd" id="9_range"]
+[ext_resource type="Script" uid="uid://0qb4hd77pkw3" path="res://attack/spell/propagation/reducer/cyclone_reducer.gd" id="10_reducer"]
+[ext_resource type="Script" uid="uid://bpwyniiutjmiy" path="res://attack/spell/propagation/step/cyclone_step.gd" id="10_step"]
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/cyclone_coordinator.tscn" id="12_vfx"]
+
+[sub_resource type="Resource" id="carve_cyclone"]
+script = ExtResource("1_tcs")
+source_texture = ExtResource("1_icon")
+baked_lut = ExtResource("1_lut")
+
+[sub_resource type="Resource" id="crit_cycle"]
+script = ExtResource("2_crit_cycle")
+
+[sub_resource type="Resource" id="dmg"]
+script = ExtResource("3_dmg")
+
+[sub_resource type="Resource" id="filter_enemy"]
+script = ExtResource("5_owner")
+
+[sub_resource type="Resource" id="filter_backtrack"]
+script = ExtResource("6_backtrack")
+
+[sub_resource type="Resource" id="filter_composite"]
+script = ExtResource("7_composite")
+children = Array[ExtResource("4_filter_base")]([SubResource("filter_enemy"), SubResource("filter_backtrack")])
+
+[sub_resource type="Resource" id="ramp"]
+script = ExtResource("9_ramp")
+seed_fraction_per_hop = 0.25
+
+[sub_resource type="Resource" id="reducer_cyclone"]
+script = ExtResource("10_reducer")
+
+[sub_resource type="Resource" id="step_cyclone"]
+script = ExtResource("10_step")
+
+[sub_resource type="Resource" id="prop"]
+script = ExtResource("4_config")
+filter = SubResource("filter_composite")
+step = SubResource("step_cyclone")
+reducer = SubResource("reducer_cyclone")
+max_hops = 9
+max_visits_per_node = 6
+hop_damage = SubResource("ramp")
+
+[sub_resource type="Resource" id="range"]
+script = ExtResource("9_range")
+max_distance = 150.0
+
+[sub_resource type="Resource" id="targeting"]
+script = ExtResource("8_targeting")
+range_finder = SubResource("range")
+
+[resource]
+script = ExtResource("1_spell")
+id = &"cyclone"
+name = "Cyclone"
+description = "Fans to every enemy neighbour but never back the way it came — the storm only moves forward. Damage ramps +25% of seed per hop. When a front lands on a node its own lineage already struck, the cycle closes: CRIT (×2, stacks with crit_chance) and the storm re-seeds to lap the loop again. Counter-rotating fronts snuff each other head-on in even rings; odd rings let them spin. Self-loops don't count — going nowhere isn't a cycle. Feed it a tight ring and it grinds the whole loop down; cast it at a string and it's just wind."
+icon = ExtResource("1_icon")
+carve_shape = SubResource("carve_cyclone")
+min_degree = 4
+mana_cost = 5
+power = 2.0
+propagation = SubResource("prop")
+on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
+crit_conditions = Array[ExtResource("2_crit_base")]([SubResource("crit_cycle")])
+vfx_coordinator_scene = ExtResource("12_vfx")
+targeting = SubResource("targeting")

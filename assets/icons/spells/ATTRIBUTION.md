@@ -20,3 +20,4 @@ Individual icons and their authors:
 | skills.png | skills.svg | Delapouite |
 | family_tree.png | family-tree.svg | Delapouite |
 | linked_rings.png | linked-rings.svg | Lorc |
+| cyclone.png | vortex.svg | Lorc |
