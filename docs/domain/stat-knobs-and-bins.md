@@ -5,6 +5,8 @@ Two authoring questions that keep getting re-derived from scratch, answered once
 - **"This rule needs a tweakable rate. Where does the knob live?"** → §1
 - **"This pool needs a second bucket alongside `current`. How do I add one?"** → §2
 - **"Why did writing `base_value` not trigger the ratchet?"** → §3
+- **"How do I force a stat to exactly N?"** → §3 (`base_value` only if the base
+  *is* the number; a derived stat wants a `SET` modifier)
 - **"This rule steps up at 10 / 100 / 1000. Can I just use a log?"** → §4 (no)
 
 `.claude/rules/stats-system.md` is the *reference* — what exists, and how the
@@ -260,6 +262,48 @@ one; #660 deleted the sync entirely.
 the def. If you find yourself wanting `_set_base_minted`, you need a reason you
 can name in a comment, as `claim()` does — and you need to be inside
 `stats_system/`.
+
+### The door is onto a POOL's cap — a DERIVED baseline wants a SET modifier
+
+Found 2026-09-01 wiring the spell playground's node-HP slider (`9b1287f`).
+
+The rule above is about a pool whose base *is* the number. It does not transfer
+to a stat that §1 made **derived** — `node_health` on the entity board is
+`10 + node_health_scaling × CON`, and `base_value` is only the `10`. Writing it
+moves the result by the same delta but never *to* the value you wrote, so a
+control labelled "node HP = 50" caps nodes at 50 + CON. Silent: nothing is out
+of range, the number is just not the one you asked for.
+
+`StatModifier.Operation.SET` is the one that means what the caller said — it
+bypasses the pipeline, intrinsic included, so the modifier's `value` **is** the
+stat's value. Add it once through `board.add_modifier(m)`, keep the reference,
+and drive it by assigning `m.value`: the setter emits `Resource.changed`, which
+every `Stat` holding the modifier already subscribes to
+(`stats_system/stat.gd:370`), so the recompute and the whole `value_changed`
+fan-out follow from the assignment. There is no re-add and no board poke, and a
+`SET` that arrives after yours simply wins on `priority` — which is the right
+outcome for a debug override.
+
+**How to apply:** ask what the stat's value is *made of* before reaching for
+`base_value`. Base is one input among several → SET a modifier. Base is the
+whole number (a pool cap, an unmodified scalar) → the one door above. What you
+must not do is the third option: back-solve the base by subtracting the
+intrinsic's contribution in the caller, which is a second copy of the formula
+and dies the first time the formula changes.
+
+**Where this pays off beyond debug knobs.** A SET is composable in a way a base
+write is not — it is removable (drop the modifier, the derivation comes back
+untouched), it is stacking-aware, and it survives everything that legitimately
+rewrites a base underneath it. That makes it the shape for a curse, an aura, or
+a "all nodes are 1 HP" run modifier, not only for a slider.
+
+Worked example: `addons/spell_playground/playground_panel.gd`
+(`_install_node_health_sets` / `_on_node_health_changed`), which seeds the
+modifier from the baseline's own current value so installing the control changes
+nothing until it moves. Two notes it also earns: a derived baseline reaches
+every node through `NodeCombat._hp_pool`'s cap provider (#660) with no per-node
+push, and a node with no owner falls back to its own stored base rather than to
+the override.
 
 ---
 
