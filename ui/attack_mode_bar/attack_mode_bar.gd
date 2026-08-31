@@ -4,7 +4,10 @@ extends HBoxContainer
 
 signal attack_mode_requested(mode: BattleSystem.AttackMode)
 
+const _PALETTE := preload("res://ui/theme/action_palette.tres")
+
 @onready var _group: ButtonGroup = $MeleeToggleButton.button_group
+@onready var _manage_button: AttackModeButton = $ManageToggleButton
 
 ## Mirrors whatever [method set_active_mode] was last told — NOT derived from
 ## button toggle state. Godot's [ButtonGroup] radio-exclusivity silently
@@ -18,6 +21,12 @@ var _active_mode: BattleSystem.AttackMode = BattleSystem.AttackMode.NONE
 func _ready() -> void:
 	for btn: AttackModeButton in _group.get_buttons():
 		btn.pressed.connect(_on_button_pressed.bind(btn))
+
+	# Manage has no attribute behind it, so unlike Melee/Ranged/Magic (which
+	# resolve their own tint from StatDef in AttackModeButton._resolve_tint)
+	# it is a deliberate second source (#669): the shared ActionPalette's
+	# `&"manage"` surface key.
+	_manage_button.tint = _PALETTE.color_for(&"manage")
 
 
 ## Re-clicking the already-active Melee/Ranged/Magic tab cancels back to

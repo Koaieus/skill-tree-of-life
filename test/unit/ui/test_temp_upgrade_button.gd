@@ -13,8 +13,10 @@ extends GutTest
 ## - "armed", "available" and "unaffordable" are three distinguishable answers
 ##   rather than the one grey `Button.disabled` used to collapse them into;
 ## - the three attack tabs read their tint from `StatDef.tint_color` instead of
-##   restating it, which is `.claude/rules/ui-palette.md`'s rule and the one
-##   assertion that catches a literal creeping back into `attack_mode_bar.tscn`.
+##   restating it (`.claude/rules/ui-palette.md`'s rule), and the Manage tab
+##   reads and APPLIES its tint from `ActionPalette`'s `&"manage"` surface key
+##   (#669) instead of restating it either — two routes, two assertions, both
+##   catching a literal creeping back into `attack_mode_bar.tscn`.
 ##
 ## State assertions go through `TempUpgradeButton.state`, never through a colour
 ## value: which exact blue "armed" is remains a tuning decision, and pinning it
@@ -238,6 +240,34 @@ func test_mode_tabs_read_their_tint_from_the_stat_registry() -> void:
 		assert_not_null(def, "no StatDef for %s" % expected[node_name])
 		assert_eq(btn.tint, def.tint_color,
 			"%s must read its tint from StatDef.tint_color, not a .tscn literal" % node_name)
+
+
+## #669 — the Manage tab has no attribute to resolve its own tint from
+## (`_resolve_tint` no-ops for it), so `attack_mode_bar.gd` pushes the shared
+## `ActionPalette`'s `&"manage"` surface key in AFTER the button's own
+## `_ready` already ran. A var-only assertion can't catch a regression here:
+## the setter must actually repaint the shader param, not just record the
+## Color (see `AttackModeButton._apply_tint`).
+func test_manage_tab_reads_and_applies_its_tint_from_the_action_palette() -> void:
+	var bar := _MODE_BAR.instantiate()
+	add_child_autofree(bar)
+	var btn := bar.find_child("ManageToggleButton", true, false) as AttackModeButton
+	assert_not_null(btn, "ManageToggleButton missing from attack_mode_bar.tscn")
+	var expected: Color = _PALETTE.color_for(&"manage")
+	assert_eq(btn.tint, expected,
+		"Manage tab must read its tint from ActionPalette, not a .tscn literal")
+	assert_eq(btn.label.material.get_shader_parameter("tint"), expected,
+		"Manage tab's tint must be APPLIED to its shader, not just recorded on the var")
+
+
+## #669 D4 — `color_for`'s unmapped-key fall-through is `Color.TRANSPARENT`,
+## so "the key is wired" and "the key exists" are different facts and both
+## need pinning.
+func test_action_palette_manage_key_is_wired_and_matches_the_authored_resource() -> void:
+	assert_ne(_PALETTE.color_for(&"manage"), Color.TRANSPARENT,
+		"manage key must be wired in ActionPalette.color_for, not falling through")
+	assert_eq(_PALETTE.color_for(&"manage"), _PALETTE.manage,
+		"color_for(&manage) must return the .tres-authored value")
 
 
 func test_every_mode_tab_carries_a_glyph() -> void:

@@ -45,7 +45,6 @@ size_flags_vertical = 0
 button_pressed = true
 shortcut = SubResource("Shortcut_gogxr")
 text = "Manage"
-tint = Color(0.784, 0.824, 0.902, 1)
 mode_icon = ExtResource("2_manage")
 key_hint = "1"
 

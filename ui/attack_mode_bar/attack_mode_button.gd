@@ -16,15 +16,24 @@ const ICON_SIZE := Vector2(24, 24)
 ## explicitly. Same read [constant AttackPlanArmedMode._MODE_STAT_ID] already
 ## does, so the tab, the viewport glow and the cursor badge share one value.
 ##
-## The Manage tab is deliberately absent: it has no attribute behind it, so its
-## authored `tint` stands.
+## The Manage tab is deliberately absent: it has no attribute behind it. Its
+## tint comes from a second source instead — [ActionPalette]'s `&"manage"`
+## surface key, pushed in from `attack_mode_bar.gd` (#669) rather than resolved
+## here, since this button has no notion of the palette.
 const _MODE_STAT_ID := {
 	BattleSystem.AttackMode.MELEE: &"strength",
 	BattleSystem.AttackMode.RANGED: &"dexterity",
 	BattleSystem.AttackMode.MAGIC: &"intelligence",
 }
 
-@export_color_no_alpha var tint: Color = Color.WHITE
+## The tab's identity colour. Melee/Ranged/Magic overwrite this in
+## [method _resolve_tint]; Manage has no attribute to resolve, so
+## `attack_mode_bar.gd` assigns it directly (#669) — the setter re-applies to
+## the shader param and the key-chip so a post-`_ready` write still paints.
+@export_color_no_alpha var tint: Color = Color.WHITE:
+	set(v):
+		tint = v
+		_apply_tint()
 @export_range(0.0, 1.0, 0.01) var glow_radius: float = 0.3
 
 @export var attack_mode: BattleSystem.AttackMode
@@ -111,21 +120,17 @@ func _ready() -> void:
 
 	_resolve_tint()
 	_apply_icon()
-	_push("tint", tint)
+	_apply_tint()
 	_push("glow_radius", glow_radius)
 	_push("texture_size", size)
 	enabled = not disabled    # snap GDScript var to .tscn-set Button.disabled
 
-	if _key_chip != null:
-		var sb: StyleBoxFlat = _key_chip.get_theme_stylebox(&"panel").duplicate()
-		sb.border_color = tint
-		_key_chip.add_theme_stylebox_override(&"panel", sb)
 	if _key_label != null:
-		_key_label.modulate = tint
 		_key_label.text = key_hint
 
 ## Pull the attribute tint for this tab off [StatRegistry] (decision 6). A tab
-## with no attack mode behind it — Manage — keeps whatever the scene authored.
+## with no attack mode behind it — Manage — has nothing to resolve here; see
+## [member tint]'s doc for its second source.
 func _resolve_tint() -> void:
 	var stat_id: StringName = _MODE_STAT_ID.get(attack_mode, &"")
 	if stat_id == &"":
@@ -133,6 +138,22 @@ func _resolve_tint() -> void:
 	var def := StatRegistry.get_def(stat_id)
 	if def != null:
 		tint = def.tint_color
+
+## Repaints every surface [member tint] drives. A no-op before `_ready`
+## (`_materials` is empty, `_key_chip`/`_key_label` are null) — `_ready`
+## re-runs it once they exist, same shape as [method _apply_icon]. Also the
+## setter's re-entry point for a POST-`_ready` write (`attack_mode_bar.gd`
+## assigning the Manage tab's tint after this button's own `_ready` already
+## fired — child `_ready` runs before parent `_ready`, so the paint would
+## otherwise miss it).
+func _apply_tint() -> void:
+	_push("tint", tint)
+	if _key_chip != null:
+		var sb: StyleBoxFlat = _key_chip.get_theme_stylebox(&"panel").duplicate()
+		sb.border_color = tint
+		_key_chip.add_theme_stylebox_override(&"panel", sb)
+	if _key_label != null:
+		_key_label.modulate = tint
 
 
 func _apply_icon() -> void:

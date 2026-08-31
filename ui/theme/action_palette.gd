@@ -50,16 +50,27 @@ extends Resource
 ## Spike-ring temp-upgrade addon — warm damage amber.
 @export var spike_ring: Color = Color(0.95, 0.6, 0.25, 1)
 
+## The Manage tab itself (#669) — a SURFACE, not a verb. Distinct from
+## `allocate`: branding the tab with one of the four verbs it contains would
+## misread as "this tab is allocate". Carried over unchanged from the literal
+## `attack_mode_bar.tscn` used to hold; not a retint.
+@export var manage: Color = Color(0.784, 0.824, 0.902, 1)
+
 ## The ONE accessor. Every consumer — the tray cards, the melee blip strip, and
 ## the armed-mode badge — goes through this, so there is a single contract to
 ## keep rather than one shape per caller.
 ##
-## Keys for the two addon entries are the [constant
-## MeleeAttackPlan.TEMP_UPGRADE_CATALOG] `id`s verbatim, so a caller holding a
-## catalog entry never needs a second lookup table to get from it to a colour.
-## Verb keys are the lower-cased [enum PlayerInputController.ManageVerb] names,
-## plus `&"move_core"` for core-move targeting, which is a mode rather than a
-## verb.
+## Keys fall into FOUR categories:
+## - catalogue ids: the two addon entries, keyed by the [constant
+##   MeleeAttackPlan.TEMP_UPGRADE_CATALOG] `id`s verbatim, so a caller holding a
+##   catalog entry never needs a second lookup table to get from it to a colour.
+## - verbs: the lower-cased [enum PlayerInputController.ManageVerb] names.
+## - modes: `&"move_core"` for core-move targeting, which is a mode rather than
+##   a verb.
+## - surfaces (#669): `&"manage"`, which stands for the Manage TAB as a whole
+##   rather than any single verb inside it. A surface key is fair game for a
+##   future tab/panel that similarly has no single verb or attribute to borrow
+##   from.
 ##
 ## An unmapped key returns [constant Color.TRANSPARENT] — same fall-through
 ## contract as [method ArmedMode.icon_tint]: "nothing to say here", never
@@ -73,4 +84,5 @@ func color_for(key: StringName) -> Color:
 		&"extract": return extract
 		&"clamp": return clamp_addon
 		&"spike_ring": return spike_ring
+		&"manage": return manage
 	return Color.TRANSPARENT
