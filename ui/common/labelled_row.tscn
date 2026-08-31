@@ -1,6 +1,9 @@
-[gd_scene load_steps=1 format=3]
+[gd_scene load_steps=2 format=3]
 
-[node name="SettingsRow" type="HBoxContainer"]
+[ext_resource type="Script" path="res://ui/common/labelled_row.gd" id="1_script"]
+
+[node name="LabelledRow" type="HBoxContainer"]
+script = ExtResource("1_script")
 theme_override_constants/separation = 8
 
 [node name="Label" type="Label" parent="."]

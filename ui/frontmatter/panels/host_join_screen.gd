@@ -15,6 +15,8 @@ extends VBoxContainer
 ## UX and owns styling this later; per the owner's 2026-08-22 call the two are
 ## sequenced, not merged.
 
+const _ROW_SCENE := preload("res://ui/common/labelled_row.tscn")
+
 signal host_pressed(port: int)
 signal join_pressed(address: String, port: int)
 ## Two humans, one machine, no wire — the shape the Multiplayer button used to
@@ -80,19 +82,13 @@ func _ready() -> void:
 ## pushed one. Nothing stacks any more; the note survives as the reason these
 ## rows are built as rows rather than as options.
 func _add_field(label_text: String, initial: String) -> LineEdit:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	var row: LabelledRow = _ROW_SCENE.instantiate()
+	row.set_label(label_text)
 	content.add_child(row)
-
-	var label := Label.new()
-	label.text = label_text
-	row.add_child(label)
 
 	var edit := LineEdit.new()
 	edit.text = initial
-	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(edit)
-	return edit
+	return row.set_widget(edit) as LineEdit
 
 
 ## Blank falls back to the default rather than dialling "" — a typo'd address

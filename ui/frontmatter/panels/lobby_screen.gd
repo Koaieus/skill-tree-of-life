@@ -101,6 +101,7 @@ const _PARTICIPANT_ROW := preload("res://ui/frontmatter/panels/participant_row.t
 const _AI_COUNT_ROW := preload("res://ui/frontmatter/panels/ai_count_row.tscn")
 const _OPTION_CHOICE_ROW := preload("res://ui/frontmatter/panels/option_choice_row.tscn")
 const _BUDGET_RANGE_ROW := preload("res://ui/frontmatter/panels/budget_range_row.tscn")
+const _ROW_SCENE := preload("res://ui/common/labelled_row.tscn")
 
 ## Keys into [member _picked_options] (#643 decision 1 — these are per-RUN, so
 ## they are keyed by KNOB, not by [member Participant.id] the way
@@ -201,18 +202,13 @@ func _ready() -> void:
 	_rows_container.add_theme_constant_override("separation", 4)
 	content.add_child(_rows_container)
 
-	var seed_row := HBoxContainer.new()
-	seed_row.add_theme_constant_override("separation", 8)
+	var seed_row: LabelledRow = _ROW_SCENE.instantiate()
+	seed_row.set_label("Seed:")
 	content.add_child(seed_row)
-
-	var seed_label := Label.new()
-	seed_label.text = "Seed:"
-	seed_row.add_child(seed_label)
 
 	_seed_edit = LineEdit.new()
 	_seed_edit.placeholder_text = "random"
-	_seed_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	seed_row.add_child(_seed_edit)
+	seed_row.set_widget(_seed_edit)
 
 	_build_run_section()
 

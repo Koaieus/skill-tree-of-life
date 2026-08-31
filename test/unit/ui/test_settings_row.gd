@@ -13,7 +13,7 @@ extends GutTest
 ## `SIZE_SHRINK_BEGIN`.
 
 const _MENU_SCENE := preload("res://scenes/meta/settings_menu.tscn")
-const _ROW_SCENE := preload("res://scenes/meta/settings_row.tscn")
+const _ROW_SCENE := preload("res://ui/common/labelled_row.tscn")
 
 
 func _make_menu(width: float) -> SettingsMenu:
