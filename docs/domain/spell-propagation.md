@@ -74,6 +74,9 @@ Stock subclasses (slot into one or more `PropagationConfig`s):
   greater-or-equal vs. current degree, measured inside each node's own
   territory (Leafblower ships less-or-equal). See `docs/domain/degree.md`
   for why entity degree and not graph degree.
+- `NoSelfLoopFilter` — vetoes `to == from`. Self-loops are first-class here,
+  so a spell that refuses them has to say so; leaving it to emerge from
+  another rule is what shipped Cyclone with the opposite behaviour (#699).
 - `CoreDistanceFilter` — closer-to-Core / farther-from-Core (Homing
   Decoring, Corifugal Bolt)
 - `CompositeFilter` — AND/OR-combine children (matches `RangeFinder`'s

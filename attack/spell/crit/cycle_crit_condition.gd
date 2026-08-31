@@ -12,13 +12,16 @@ extends CritCondition
 ## predicate over the landed state.
 ##
 ## [b]It cannot re-derive the fact[/b], which is why the flag exists. A closing
-## mint resets [member CastSpell.visited] to just the landed node, so
+## mint truncates [member CastSpell.visited] to the ring it just walked, and
+## the landed node is the last entry of that ring — so
 ## `state.visited.has(state.current_node)` is true on every landing, closing or
-## not — the trail at landing time no longer remembers.
+## not. The trail at landing time no longer remembers which it was.
 ##
-## The identity of Cyclone (#696), and the odd-cycle counterpart to
-## [ConvergenceCritCondition]: convergence crits where two equal-length branches
-## meet head-on (even rings), this crits where one lineage laps home (odd rings).
+## One of Cyclone's two crit conditions (#696, #699), and the ODD half of the
+## pair: this fires where a single lineage laps home onto its own trail, which
+## is the only way an odd ring can be closed, since its two arms differ by one
+## and pass mid-edge instead of meeting. [ConvergenceCritCondition] covers the
+## even half, where the arms are equal and merge head-on at hop L/2.
 
 func evaluate(state: CastSpell, _target: SkillNode, _outcome: AttackOutcome) -> bool:
 	if state == null:

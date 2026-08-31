@@ -28,13 +28,20 @@ extends IncidentReducer
 ## narrative ([i]this lineage walked a loop, watch it come home[/i]), so the
 ## strongest incident's lineage survives whole.
 ##
-## [b]3. Reset DOMINATES the union.[/b] When one incident closed a cycle and
+## [b]3. Closing DOMINATES the union.[/b] When one incident closed a cycle and
 ## another didn't, a plain union hands the merged storm the non-closer's veto —
-## an unrelated front silently weakening someone else's reset. So `closed_cycle`
-## ORs (the owner's [i]"these combine as just 1 crit"[/i]), and if it fires, the
-## payload resets outright: empty veto, trail restarted at this node. Note this
-## also bounds hole 2 — on a closing wave the union is discarded, so a
-## cross-lineage crit can only ever come from a NON-closing convergence.
+## an unrelated front silently weakening someone else's re-seed. So
+## `closed_cycle` ORs (the owner's [i]"these combine as just 1 crit"[/i]), and
+## if it fires the merged payload takes a CLOSER's state whole: its truncated
+## ring as the trail, and an empty veto so the storm fans both shoulders and
+## laps again. Note this also bounds hole 2 — on a closing wave the union is
+## discarded, so a cross-lineage crit can only ever come from a NON-closing
+## convergence.
+##
+## The closer is picked by damage among the closers, not by [MaxDamageReducer]
+## overall: the trail has to be a ring some single lineage actually walked, and
+## the strongest incident may be a non-closer carrying an ordinary path. Damage
+## still comes from the overall winner — only the lineage is the closer's.
 
 
 func reduce(incidents: Array[CastSpell], node: SkillNode, _ctx: PropagationContext) -> CastSpell:
@@ -42,18 +49,17 @@ func reduce(incidents: Array[CastSpell], node: SkillNode, _ctx: PropagationConte
 	var merged := _merge_payload_defaults(incidents, node)
 	merged.damage = winner.damage
 
-	var closed := false
+	var closer: CastSpell = null
 	for inc in incidents:
-		if inc.closed_cycle:
-			closed = true
-			break
-	merged.closed_cycle = closed
+		if inc.closed_cycle and (closer == null or inc.damage > closer.damage):
+			closer = inc
+	merged.closed_cycle = closer != null
 
-	if closed:
-		# Reset dominates: the loop closed here, so the storm is free to go
-		# anywhere next and starts a fresh trail from this node.
+	if closer != null:
+		# Closing dominates: the loop closed here, so the storm is free to go
+		# anywhere next, and carries the ring that closer already truncated to.
 		merged.came_from = []
-		merged.visited = [node]
+		merged.visited = closer.visited.duplicate()
 		return merged
 
 	# The strongest lineage survives whole — NOT the union the base helper built.

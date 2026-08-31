@@ -213,17 +213,20 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 
 ---
 
-### Cyclone [shipped #696] — the odd-cycle spell
+### Cyclone [shipped #696, redesigned #699] — the cycle spell
 
 - **target type:** node
-- **power:** medium (2.0), mana 5, `min_degree` **4** — the catalogue's deepest casting requirement
+- **power:** medium, mana 5, `min_degree` **4** — the catalogue's deepest casting requirement
 - **range:** short, **euclidean** ~150px (the first non-hop range in the catalogue)
-- **mechanics/propagation:** fans to every enemy neighbour except the one(s) it came from. When a front lands on a node its **own lineage** already struck, the cycle CLOSES: crit ×2, and both the veto and the trail reset, so the storm laps the loop again. Linear ramp (+25% of seed per hop), `MAX` merger, 9 hops, 6 visits per node.
-- **notes:** the veto is the immediate predecessor and *not* the whole trail — vetoing the trail would make a cycle unclosable, which is the one hop the spell exists to reward. On convergence the veto becomes the **union** of every incident's predecessors, which is what the owner meant by *"it makes the cast-from an array"*.
-- **emergent: it is a parity detector, and nothing in it was authored to be one.** Two counter-rotating fronts survive a ring iff the ring is **odd**. On a square or hexagon they collide head-on at the antipodal *node*, merge, veto each other's shoulders, and strand — damage lands, no crit, no onward travel. On a triangle or pentagon they pass on the antipodal *edge* instead and both lap home. So Cyclone is the odd-cycle counterpart to Resonator's even-cycle convergence crit, and the two together make ring parity a legible game concept.
-- **self-loop-blind for free:** a self-loop hop has `predecessor == current_node`, so the backtrack veto bans it by construction. Zero turf war with Reverberator.
+- **mechanics/propagation:** fans to every enemy neighbour except the one(s) it came from, and never into itself. Two crit conditions, one per parity, which between them punish **every** ring:
+  - **odd ring** — the two arms differ by one, pass on the antipodal *edge*, never merge, and each laps the whole way home onto its own trail → `CycleCritCondition`. A pentagon crits at hop 5.
+  - **even ring** — the arms are equal, meet head-on at the antipodal *node* and merge → `ConvergenceCritCondition`, at hop **L/2**. A square crits at hop 2, a hexagon at hop 3.
+- **the grind:** on closing, the trail **truncates to the ring just walked** (rotated to end at the landing) and the veto clears. So the storm keeps the loop it found and laps it, critting *every beat* until `max_visits_per_node` bites — the payoff for feeding it a tight ring. An even ring detonates and strands in the same beat instead, because the union veto leaves the merge node nowhere to go.
+- **notes:** the veto is the immediate predecessor and *not* the whole trail — vetoing the trail would make a cycle unclosable, which is the one hop the spell exists to reward. On convergence the veto becomes the **union** of every incident's predecessors, which is what the owner meant by *"it makes the cast-from an array"*. Stranding needs `|union| ≥ degree`, a low-degree condition, so it bites sparse rings and leaves dense territory alone.
+- **the invariant, and why the trail truncates rather than resets or accumulates:** trail = ring + all-distinct tail, so a close is always a back-edge onto a *simple* walk, and **every crit certifies a real simple cycle of length ≥ 3**. Minimum length 3 falls out; there is no gate. A plain reset made the storm forget the loop the instant it found it; never resetting made the footprint cover everything by wave 2 in dense terrain, degrading the crit into a flat ×2 with no cycle signal left. Truncation is the only one of the three that grinds *and* stays honest.
+- **self-loops are refused, and now actually are:** `NoSelfLoopFilter`, authored in the `.tres`. Through #699 the code claimed to be "self-loop-blind by construction" via the backtrack veto — but that set holds the *predecessor*, never the current node, so a self-loop crit on the very next wave, on Reverberator's turf. It hid behind a test that hand-rigged a payload the step cannot mint.
 - **fills a real hole:** rings have no cut vertices (immune to Topple) and self-loop fortification counters Leafblower — nothing punished cyclic territory before this.
-- review: dead weight on stringy territory by design (it degrades to a two-armed Lightning), which is the same terrain-typing every shipped spell has. The softener is legibility, not power — see Open Question below.
+- review: dead weight on stringy territory by design (it degrades to a two-armed Lightning), which is the same terrain-typing every shipped spell has. On a tree nothing ever crits, because a revisit *is* a cycle.
 
 ---
 
@@ -261,7 +264,7 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 | Leafblower | medium | medium | node | Downhill territory-degree filter (`<=`), rampup, payload-on-leaf |
 | Bruiser | medium | medium | node | Greedy → max HP, low base damage, single branch |
 | Resonator | high/ultra | medium | node | Fan-all, flat +2/hop, **SUM merger**, crit on convergence (#352) |
-| Cyclone | medium | short (euclidean) | node | Fan-all minus the way it came, +25%/hop, **MAX merger + unioned veto**, crit on closing a cycle (#696) |
+| Cyclone | medium | short (euclidean) | node | Fan-all, no backtrack, no self-loops, **crit on every ring** — lineage lap (odd) or head-on merge (even), then grind the kept loop (#696, #699) |
 | Homing Decoring | TBD | TBD | node | Greedy → toward enemy Core |
 | Corifugal Bolt | TBD | TBD | node | Greedy → away from enemy Core |
 
@@ -277,6 +280,6 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 6. **Degree Drain metric** — owned degree (mirrors casting power, same metric as spell tier) or total degree (mirrors HP bracing)? These are meaningfully different spells.
 7. **Aftershock recursion** — if the secondary cast also kills a node, does it generate a further aftershock? No by default; build upgrade potentially yes.
 8. **Flood + Lifelink gaps** — can Flood cross Hive pod gaps if graph connectivity exists through the field? Probably yes; intended as the anti-Hive tool.
-9. **Self-loop interactions** — under the new propagation model self-loops are well-defined (the two outbound copies converge in the merger), but each spell still needs to confirm its intent. Resonator *wants* them; Leafblower reads a self-loop as +2 degree, so loops are its designed counter-play (they turn the flow away rather than absorbing it); Bruiser is single-branch so merger never fires. Worth a per-spell line.
+9. **Self-loop interactions** — under the new propagation model self-loops are well-defined (the two outbound copies converge in the merger), but each spell still needs to confirm its intent, and **#699 is the cautionary tale**: Cyclone's intent to refuse them was documented in four places and implemented in none, because it was left to emerge from an unrelated rule instead of being authored. `NoSelfLoopFilter` exists so that "this spell refuses self-loops" is a line in the `.tres` a reader can check. Resonator *wants* them; Leafblower reads a self-loop as +2 degree, so loops are its designed counter-play (they turn the flow away rather than absorbing it); Bruiser is single-branch so merger never fires. Worth a per-spell line.
 10. **Self-loop rendering & procgen seeding** — Resonator only sings if self-loops actually exist on the board and the player can *see* them. Two prerequisites: (a) procgen should seed at least one self-loop per generated graph (rare, premium node — feels like a fang in the topology), (b) the edge renderer needs a self-loop variant (a small arc/halo glyph around the node, not a degenerate straight line). Neither exists today; both are blockers for Resonator shipping playable rather than just configured.
 11. **Spell slots / economy** — catalogue assumes unlimited access (any spell if degree allows). Is there a selection mechanic, cooldown, or equip-slot model? TBD.

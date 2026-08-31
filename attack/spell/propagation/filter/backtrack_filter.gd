@@ -15,11 +15,15 @@ extends PropagationFilter
 ## `came_from`, so "the veto resets when the cycle completes" needs no branch
 ## here at all. This filter is one membership test, forever.
 ##
-## Free side effect worth knowing: a self-loop hop has
-## `to_node == from_node == payload.current_node`, which is always in
-## `came_from` on a non-closing payload — so a spell wearing this filter is
-## self-loop-blind by construction. That is what keeps Cyclone off
-## Reverberator's turf.
+## [b]It does NOT cover self-loops, despite an earlier claim here that it did
+## "by construction" (#699).[/b] The reasoning was that a self-loop hop has
+## `to == from == payload.current_node` — true — and that the current node is
+## therefore in the veto — false. This set holds the PREDECESSOR. A front that
+## walked A → B carries `came_from = [A]`, so B → B sails straight through and
+## crits on the next wave, which is Reverberator's mechanic wearing Cyclone's
+## name. [NoSelfLoopFilter] is the fix, composed alongside this one, and the
+## separation is the lesson: an unrelated rule that happens to cover your case
+## is a rule that can stop covering it silently.
 
 
 func allows(
