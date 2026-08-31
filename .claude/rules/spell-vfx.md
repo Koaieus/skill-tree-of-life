@@ -87,7 +87,9 @@ Unset per-verb slots fall back to the legacy `projectile_path` / `visual_scene`,
 ### ProjectilePath catalogue, and the shared kit (#670)
 
 Seven paths (all pure functions of `t`, all carrying an **ease knob** that remaps
-*time*, never shape, default linear) plus the five shared primitives selected
+*time*, never shape, default linear) — plus one authored *tuning* of one of them,
+`bounce_path.tres`, the pre-#663 house look promoted out of the shared
+coordinator's legacy slot into a composable kit resource (#684) — plus the five shared primitives selected
 alongside them — `BoltBody` (+5 configs), `ImpactRing`, `WavePath`, `JitterPath`,
 `EdgeEnergize` — are tabled in
 [docs/domain/spell-vfx-kit.md](../../docs/domain/spell-vfx-kit.md#the-catalogue).

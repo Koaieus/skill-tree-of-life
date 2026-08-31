@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="BezierArcPath" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://cgrg32a54m1xy" path="res://ui/vfx/projectile/path/bezier_arc_path.gd" id="1_bezier"]
+
+[resource]
+script = ExtResource("1_bezier")
+apex_height = 420.0
+apex_direction = Vector2(0, -1)
+ease_curve = 0
+ease_strength = 1.0

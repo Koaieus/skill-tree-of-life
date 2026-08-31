@@ -24,11 +24,47 @@ func test_every_catalogued_visual_exists() -> void:
 		assert_not_null(scene, "%s (%s) must load" % [entry[0], entry[1]])
 
 
+## A catalogue entry is either a `.gd` (a shape, built at its defaults) or a
+## `.tres` (an authored tuning, previewed as authored — #684's bounce). Both
+## must resolve to a [ProjectilePath]; nothing else belongs in the shopping list.
 func test_every_catalogued_path_exists_and_is_a_projectile_path() -> void:
 	for entry in GALLERY.PATHS:
-		var script: GDScript = load(entry[1])
-		assert_not_null(script, "%s must load" % entry[1])
-		assert_true(script.new() is ProjectilePath, "%s must be a ProjectilePath" % entry[1])
+		var res: Resource = load(entry[1])
+		assert_not_null(res, "%s must load" % entry[1])
+		var script := res as GDScript
+		var path: ProjectilePath = script.new() if script != null else res as ProjectilePath
+		assert_true(path is ProjectilePath, "%s must be a ProjectilePath" % entry[1])
+
+
+## The gallery hands the ease picker whatever it builds, so an authored `.tres`
+## entry MUST come back as a copy — the shipped `bounce_path.tres` is referenced
+## live by the shared coordinator's fallback slot and by Reverberator's two path
+## slots, and a sandbox dropdown must not retune all three for the session.
+func test_an_authored_tres_entry_is_duplicated_not_handed_out_live() -> void:
+	var gallery := _gallery()
+	var found := 0
+	for i in GALLERY.PATHS.size():
+		var res_path: String = GALLERY.PATHS[i][1]
+		if not res_path.ends_with(".tres"):
+			continue
+		found += 1
+		var shared: ProjectilePath = load(res_path)
+		gallery._path_picker = _picker_selecting(i)
+		gallery._ease_picker = _picker_selecting(ProjectilePath.Ease.OUT_IN)
+		var built: ProjectilePath = gallery._build_path()
+		assert_ne(built, shared, "%s must be duplicated, never handed out live" % res_path)
+		assert_eq(shared.ease_curve, ProjectilePath.Ease.LINEAR,
+			"…so stamping the picker's ease leaves the shipped resource untouched")
+	assert_gt(found, 0, "the catalogue must still carry its authored entry")
+
+
+func _picker_selecting(index: int) -> OptionButton:
+	var picker := OptionButton.new()
+	for i in index + 1:
+		picker.add_item("item %d" % i)
+	picker.selected = index
+	autofree(picker)
+	return picker
 
 
 func test_the_gallery_offers_all_five_primitives() -> void:
@@ -37,7 +73,7 @@ func test_the_gallery_offers_all_five_primitives() -> void:
 		labels += entry[0] + "\n"
 	for entry in GALLERY.PATHS:
 		labels += entry[0] + "\n"
-	for needle in ["Bolt", "ImpactRing", "EdgeEnergize", "WavePath", "JitterPath"]:
+	for needle in ["Bolt", "ImpactRing", "EdgeEnergize", "WavePath", "JitterPath", "Bounce"]:
 		assert_true(labels.contains(needle), "the gallery must offer %s" % needle)
 
 

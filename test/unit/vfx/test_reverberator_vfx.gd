@@ -1,16 +1,20 @@
 extends GutTest
 
-## #677 acceptance: Reverberator's own coordinator — packets fly STRAIGHT and
-## funnel INWARD to hubs (never Resonator's outward wiggle, #663 hub), climbing
-## via a snap-in [LinearPath] lunge, accumulating per-node via `visit_index`
+## #677 acceptance as amended by #684: Reverberator's own coordinator — packets
+## funnel INWARD to hubs (never Resonator's outward flood, #663 hub), lobbing in
+## on the promoted shared bounce arc, accumulating per-node via `visit_index`
 ## sized/heated arrival rings, and a self-loop ghost twin that crits red on the
 ## return — "the teardrop itself is the tell".
+##
+## #677's original "packets fly STRAIGHT" tell is retired here; see the note
+## above the path tests for the owner call that retired it.
 
 const REVERBERATOR_DEF := preload("res://attack/spell/defs/reverberator.tres")
 const REVERBERATOR_COORDINATOR := preload("res://ui/vfx/coordinator/spells/reverberator_coordinator.tscn")
 const SHARED_DEFAULT_COORDINATOR := preload("res://ui/vfx/coordinator/magic_bounce_coordinator.tscn")
 const BOLT_PACKET := preload("res://ui/vfx/projectile/visual/bolt_packet.tscn")
 const GHOST_LOOP_BODY := preload("res://ui/vfx/projectile/visual/reverberator_ghost_loop_body.tscn")
+const BOUNCE_PATH := preload("res://ui/vfx/projectile/path/bounce_path.tres")
 
 const PEAK_INSTANCES: int = 40
 
@@ -54,23 +58,61 @@ func test_coordinator_is_a_magic_bounce_coordinator() -> void:
 # ---------------------------------------------------------------------- paths
 
 
-func test_jump_path_is_a_plain_straight_dart() -> void:
+# #684 supersedes #677's "straight" tell for JUMP/EDGE. Owner call, 2026-08-31:
+#
+# > "the bouncing projectile vfx (the one that all spells used before we did
+# > this pass), is still a very good vfx, but now none of our spells use it? ...
+# > give it to the reverberator spell, promote it"
+#
+# and, on the #677 collision:
+#
+# > "each (forked or initial) projectile of a spell has an origin, and a target,
+# > and in most cases (all cases even currently) only travel along edges (source
+# > and target have an edge between them). but whether they jump or teleport or
+# > *travel along the edge* is all up to the specific vfx"
+#
+# So a lob OVER the edge is as legitimate a traversal as a wiggle along it, and
+# `LinearPath` is no longer Reverberator's identity. What still separates it from
+# Resonator is the surviving half of the pair — INWARD funnelling to hubs, the
+# node-centric treatment (no edge-energize, asserted below), and the visit_index
+# arrival ramp. The by-eye check at 100% zoom is the owner's, not this suite's.
+
+
+func test_jump_and_edge_share_the_promoted_bounce_resource() -> void:
 	var coord := _spawn_coordinator()
-	assert_true(coord.jump_path is LinearPath, "the seed is a straight throw, never an arc")
+	assert_eq(coord.jump_path, BOUNCE_PATH,
+		"the seed lobs on the shared kit bounce, referenced not re-authored")
+	assert_eq(coord.edge_path, BOUNCE_PATH,
+		"…and so does the climb — one resource in both slots, per #684")
 
 
-func test_edge_path_is_a_snap_in_lunge_uphill() -> void:
-	var coord := _spawn_coordinator()
-	assert_true(coord.edge_path is LinearPath, "the climb is still a straight line")
-	var path: LinearPath = coord.edge_path
-	assert_eq(path.ease_curve, ProjectilePath.Ease.IN, "the lunge is a hard ease-IN")
-	assert_gt(path.ease_strength, 0.0, "the ease must actually bite")
+func test_the_bounce_is_a_bezier_arc_that_actually_lofts() -> void:
+	# The look IS the apex tuning, so pin the tuning, not just the class.
+	assert_true(BOUNCE_PATH is BezierArcPath, "the bounce is a BezierArcPath tuning")
+	var path: BezierArcPath = BOUNCE_PATH
+	# Pinned to the exact authored number, not just `> 0`: 420/(0,-1) are ALSO
+	# BezierArcPath's script defaults, so a `.tres` whose `[resource]` block
+	# silently failed to load would still loft, still pass every shape assert,
+	# and quietly make the promotion a placebo. This is the one assertion that
+	# tells authored apart from default.
+	assert_almost_eq(path.apex_height, 420.0, 0.001, "the authored tuning IS the look")
+	assert_eq(path.apex_direction, Vector2(0, -1), "lofted against scene-up")
+	assert_eq(path.ease_curve, ProjectilePath.Ease.LINEAR,
+		"the bounce is given as it was — the pacing is not re-authored on the way in")
+	var origin := Vector2.ZERO
+	var target := Vector2(400.0, 0.0)
+	assert_lt(path.evaluate(0.5, origin, target).y, -1.0,
+		"midflight must sit ABOVE the origin-target segment — that is the lob")
+	assert_eq(path.evaluate(0.0, origin, target), origin, "endpoints stay pinned")
+	assert_eq(path.evaluate(1.0, origin, target), target, "endpoints stay pinned")
 
 
-func test_self_loop_path_is_the_teardrop_not_the_legacy_default() -> void:
+func test_self_loop_path_is_still_the_teardrop() -> void:
+	# Unchanged by #684: "the teardrop itself is the tell" is #677's, and the
+	# self-loop is the one verb the bounce does not take over.
 	var coord := _spawn_coordinator()
 	assert_true(coord.self_loop_path is SelfLoopPath,
-		"nothing may fall through to the legacy BezierArcPath default")
+		"the leave-and-return arc is authored, never a fallthrough")
 
 
 func test_edge_energizing_is_explicitly_not_used() -> void:
@@ -91,7 +133,7 @@ func test_jump_and_edge_visuals_are_the_same_packet_arrival_composition() -> voi
 	var coord := _spawn_coordinator()
 	assert_not_null(coord.jump_visual)
 	assert_eq(coord.jump_visual, coord.edge_visual,
-		"JUMP and EDGE both read as a straight packet funnelling toward the hub")
+		"JUMP and EDGE both read as one packet funnelling toward the hub")
 	var visual: ReverberatorArrivalVisual = coord.jump_visual.instantiate()
 	add_child_autofree(visual)
 	assert_eq(visual.body_scene, BOLT_PACKET, "the flying body is P1-Packet, per the spec")

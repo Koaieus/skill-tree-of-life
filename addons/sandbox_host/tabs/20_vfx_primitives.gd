@@ -30,7 +30,12 @@ const VISUALS: Array = [
 	["EdgeEnergize", "res://ui/vfx/projectile/visual/edge_energize.tscn"],
 ]
 
-## Paths, matching `.claude/rules/spell-vfx.md`'s catalogue. Label → script path.
+## Paths, matching `.claude/rules/spell-vfx.md`'s catalogue. Label → resource path.
+##
+## An entry is either a `.gd` (constructed at its script defaults) or a `.tres`
+## (an AUTHORED configuration, previewed as authored). `Bounce` is the second
+## kind — the shape is `BezierArcPath`, but the look is its apex tuning, and
+## that tuning is the thing a per-spell unit shops for. See `_build_path`.
 const PATHS: Array = [
 	["LinearPath", "res://ui/vfx/projectile/path/linear_path.gd"],
 	["WavePath (P3)", "res://ui/vfx/projectile/path/wave_path.gd"],
@@ -38,6 +43,7 @@ const PATHS: Array = [
 	["BezierArcPath", "res://ui/vfx/projectile/path/bezier_arc_path.gd"],
 	["CubicBezierPath", "res://ui/vfx/projectile/path/cubic_bezier_path.gd"],
 	["SelfLoopPath", "res://ui/vfx/projectile/path/self_loop_path.gd"],
+	["Bounce (authored)", "res://ui/vfx/projectile/path/bounce_path.tres"],
 ]
 
 const EASES: Array = ["Linear", "In", "Out", "In-Out", "Out-In"]
@@ -203,8 +209,16 @@ func _fire_edge_energize() -> void:
 			overlay.call(&"_on_arrival"))
 
 
+## The picked catalogue entry as a fresh, mutable [ProjectilePath].
+##
+## A `.tres` entry is DUPLICATED rather than used directly: the gallery stamps
+## the ease picker onto whatever it builds, and `bounce_path.tres` is a shared
+## kit resource that real coordinators reference live. Handing the picker the
+## shared instance would let a sandbox dropdown retune every spell that
+## composes it, for the rest of the editor session.
 func _build_path() -> ProjectilePath:
-	var script: GDScript = load(PATHS[maxi(0, _path_picker.selected)][1])
-	var path: ProjectilePath = script.new()
+	var res: Resource = load(PATHS[maxi(0, _path_picker.selected)][1])
+	var script := res as GDScript
+	var path: ProjectilePath = script.new() if script != null else (res as ProjectilePath).duplicate()
 	path.ease_curve = maxi(0, _ease_picker.selected) as ProjectilePath.Ease
 	return path

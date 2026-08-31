@@ -23,6 +23,23 @@ primitive is not in them, a per-spell unit will not find it.
 | `Curve2DPath` | `ui/vfx/projectile/path/curve2d_path.gd` | Authored `Curve2D` sampled and mapped. Used by AllocationVFX. |
 | `WavePath` | `ui/vfx/projectile/path/wave_path.gd` | Lerp + transverse sine (#670 P3). "This propagates" rather than "this was thrown". Reverberator / Resonator. |
 | `JitterPath` | `ui/vfx/projectile/path/jitter_path.gd` | Lerp + perpendicular hash noise (#670 P4). Unstable arcing electricity. Spark / the lightning family. |
+| **Bounce** | `ui/vfx/projectile/path/bounce_path.tres` | The pre-#663 house look, as an authored `.tres` rather than a class (#684). A `BezierArcPath` at `apex_height = 420` — a high lob **over** the edge rather than a traversal along it. Reverberator. |
+
+**Bounce is the catalogue's one authored entry, and that is the point.** Every
+other row is a shape you get by `new()`-ing a script; Bounce is a *tuning* of
+`BezierArcPath` — no new geometry, so a `BouncePath extends BezierArcPath`
+would be a second name for one shape. Before #684 that tuning lived as an
+anonymous `SubResource` inside `magic_bounce_coordinator.tscn`'s legacy
+`projectile_path` slot: it was the fallback every spell fell through to, and
+when #663 gave all eight their own coordinators it stopped being rendered by
+anything. A named `.tres` is composable into any per-verb slot on any
+coordinator; a `SubResource` is reachable only from the scene that owns it.
+
+It is a **shared, live** resource — the shared coordinator's fallback slot and
+Reverberator's `jump_path`/`edge_path` all reference the same instance. That is
+safe because `evaluate` is pure and nothing mutates a path at runtime, but it
+means anything that *does* want to retune it must `duplicate()` first (the
+sandbox gallery does, for exactly this reason).
 
 | Primitive | Files | What it is |
 |---|---|---|
