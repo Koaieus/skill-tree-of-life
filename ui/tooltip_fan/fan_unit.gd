@@ -139,11 +139,17 @@ func bind(node: SkillNode, graph: Graph) -> void:
 
 
 func _ready() -> void:
-	if Engine.is_editor_hint():
-		# Author-time: leave whatever's on-scene visible so trace/panel
-		# placement is witnessable while dragging, and write NOTHING to the
-		# children — a @tool _ready that sets child properties dirties the
-		# scene on every editor load (.claude/rules/godot-workflow.md).
+	# Scoped to the EDITED scene, not the process-wide hint (#685): leave
+	# whatever's on-scene visible so trace/panel placement is witnessable
+	# while dragging THIS unit in the editor, and write NOTHING to the
+	# children then — a @tool _ready that sets child properties dirties the
+	# scene on every editor load (.claude/rules/godot-workflow.md). But a
+	# throwaway instance the tooltip-fan live sandbox tab spawns
+	# (`fan_live_sandbox.tscn` via `fan.tscn`) is NOT part of anyone's edited
+	# scene, so it still needs this wiring — a blanket
+	# `Engine.is_editor_hint()` skip silently leaves it unconfigured there.
+	# See `VfxEditorScene.is_edited` and docs/domain/sandbox-framework.md.
+	if VfxEditorScene.is_edited(self):
 		return
 	_trace.idle_anim = trace_idle_anim
 	_panel.idle_anim = panel_idle_anim

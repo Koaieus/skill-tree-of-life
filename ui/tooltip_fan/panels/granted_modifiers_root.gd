@@ -85,11 +85,17 @@ const _ROW_STAGGER_CAP := 0.85
 
 
 func _ready() -> void:
-	if Engine.is_editor_hint():
-		# Skip populating rows in-editor (consistent with the stub FanPanel
-		# subclasses) — the root's own size is content-driven by design
-		# (unbounded, growing downward), so an empty %Rows during editor
-		# load doesn't hide any authored envelope.
+	# Scoped to the EDITED scene, not the process-wide hint (#685): skip
+	# populating rows for a node that's part of a scene someone has open for
+	# editing (consistent with the stub FanPanel subclasses — the root's own
+	# size is content-driven by design, unbounded and growing downward, so an
+	# empty %Rows during editor load doesn't hide any authored envelope). But
+	# a throwaway instance the tooltip-fan live sandbox tab spawns
+	# (`fan_live_sandbox.tscn` via `fan.tscn`'s Roots child) is NOT part of
+	# anyone's edited scene, so it still needs `progress` reset here — a
+	# blanket `Engine.is_editor_hint()` skip silently left it unconfigured
+	# there. See `VfxEditorScene.is_edited` and docs/domain/sandbox-framework.md.
+	if VfxEditorScene.is_edited(self):
 		return
 	progress = 0.0
 	_apply_progress()

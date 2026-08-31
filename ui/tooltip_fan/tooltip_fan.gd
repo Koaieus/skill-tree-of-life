@@ -90,7 +90,13 @@ func bind(level_graph: Graph) -> void:
 
 
 func _ready() -> void:
-	if Engine.is_editor_hint():
+	# Scoped to the EDITED scene, not the process-wide hint (#685):
+	# `Engine.is_editor_hint()` is also true for a throwaway instance a live
+	# sandbox tab spawns at runtime, and a blanket guard here would silently
+	# skip wiring the hover subscriptions the moment this scene gets a live
+	# tab of its own. See `VfxEditorScene.is_edited` and
+	# docs/domain/sandbox-framework.md.
+	if VfxEditorScene.is_edited(self):
 		return
 	visible = false
 	Events.skill_node_hovered.connect(_on_hovered)
@@ -98,7 +104,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	if Engine.is_editor_hint():
+	if VfxEditorScene.is_edited(self):
 		return
 	if _hovered_node != null and is_instance_valid(_hovered_node):
 		global_position = _hovered_node.get_global_transform_with_canvas().origin

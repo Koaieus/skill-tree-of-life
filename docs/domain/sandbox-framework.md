@@ -303,6 +303,18 @@ guard never fires, and the test passes for the wrong reason. There is no
 in-editor assertion to write either — so the durable protection is the shape of
 the guard itself, not a test.
 
+**Statically enforced since #685.** `mise run lint-editor-hint-guard`
+(`.mise/tasks/lint-editor-hint-guard`, wired into `mise run check`) greps every
+tracked `@tool` script for `if Engine.is_editor_hint():` as the first statement
+of `_ready()` whose entire body is a bare `return`, and fails the run if it
+finds one outside its allowlist. A narrow guard — one that does work before
+returning (`impact_ring.gd`'s `queue_redraw()` then `return`), or isn't the
+function's first statement — is untouched; only the blanket shape this section
+warns about trips it. Not a substitute for the reasoning above: the lint tells
+you the shape is wrong, not why, and the allowlist entries in that file (a
+handful of pure data mirrors + `addons/` wholesale for vendored code) record
+the judgement calls that are correct to keep.
+
 **How to apply:**
 
 - Never guard a whole `_ready` on the editor hint. Guard the individual things

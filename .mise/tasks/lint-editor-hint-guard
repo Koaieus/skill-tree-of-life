@@ -1,0 +1,183 @@
+#!/usr/bin/env python3
+#MISE description="Fail on a blanket `if Engine.is_editor_hint(): return` opening a @tool script's _ready() (#685): `mise run lint-editor-hint-guard [-- --json]`"
+"""
+`Engine.is_editor_hint()` is PROCESS-WIDE — true for every node in the editor
+process, including a throwaway instance a live sandbox tab spawns at runtime
+(`docs/domain/sandbox-framework.md`, "`Engine.is_editor_hint()` is TRUE inside
+a live tab"). A `@tool` script whose `_ready()` opens with
+
+    if Engine.is_editor_hint():
+        return
+
+therefore also skips wiring itself the moment it gets a live tab of its own —
+exactly how eight authored spells shipped rendering impact rings and no
+projectile bodies at all (#663, fixed in 1bbefb5), and how #466's reform slot
+shipped dead in the melee tab. GUT cannot catch this: the suite is headless,
+the hint is false there, and the guard never fires — so the only durable
+protection is the shape of the guard itself (#685).
+
+Flags the BLANKET shape only: `if Engine.is_editor_hint():` as the first
+statement of a `_ready()` in a `@tool` script, whose entire body is a bare
+`return`. Does NOT flag a narrow guard — one that does work before returning
+(`queue_redraw()` then `return`), guards a single OS/input/physics call at its
+own site, or isn't the function's first statement. Those are the pattern the
+doc's "How to apply" section asks for, not the bug.
+
+  ALLOWLIST DISCIPLINE: every exemption carries a REASON, same contract as
+  `lint-transcendentals`. A reason states why a blanket skip is actually safe
+  here (no live-tab spawn path onto this script), not just that it's old.
+"""
+import json
+import re
+import subprocess
+import sys
+
+# Directory prefixes exempt wholesale, each with the condition that makes it
+# so — same contract as `lint-transcendentals`'s EXEMPT_DIRS.
+EXEMPT_DIRS = {
+    "addons/gut/": "vendored third-party test-runner UI, not a sandbox_host "
+                   "live tab and not ours to rewrite; never on a project "
+                   "gameplay or authoring path (#685).",
+}
+
+# file -> reason a blanket editor-hint guard is correct here, not a bug.
+ALLOWLIST = {
+    "graph/navigator.gd": (
+        "pure AStar2D data mirror wired only from a real Graph (GameRoot / "
+        "procgen sandboxes); no live-tab spawn path instantiates a bare "
+        "Navigator at runtime, so there is no scene for the guard to skip "
+        "wiring into. Rewriting to scope-by-edited-scene risks a real "
+        "mirror-sync regression for no live hazard it would close (#685)."
+    ),
+    "entity/entity_navigator.gd": (
+        "same shape as graph/navigator.gd, one level down (an Entity's owned "
+        "subgraph mirror rather than the full graph): pure AStar2D data "
+        "mirror, no live-tab spawn path. See graph/navigator.gd's entry (#685)."
+    ),
+    "network/command_link.gd": (
+        "checked every sandbox_host live tab (addons/sandbox_host/,  "
+        "addons/mp_sandbox/): none instantiates CommandLink at runtime — it "
+        "is only ever a child of game_root.tscn, which no live tab spawns. "
+        "The in-body comment ('Nothing in the editor links anyway') is "
+        "correct today; void this entry the day a live tab mounts a "
+        "CommandLink or a GameRoot (#685)."
+    ),
+}
+
+def exemption_for(path: str) -> str | None:
+    for d, why in EXEMPT_DIRS.items():
+        if path.startswith(d):
+            return why
+    return ALLOWLIST.get(path)
+
+
+FUNC_READY_RE = re.compile(r"^func\s+_ready\s*\(")
+GUARD_RE = re.compile(r"^if\s+Engine\.is_editor_hint\(\)\s*:$")
+DOC_POINTER = (
+    "docs/domain/sandbox-framework.md:281 "
+    "(\"`Engine.is_editor_hint()` is TRUE inside a live tab\")"
+)
+
+
+def tracked_gd_files():
+    out = subprocess.run(["git", "ls-files", "-z"], capture_output=True, text=True)
+    if out.returncode != 0:
+        print("lint-editor-hint-guard: not a git checkout", file=sys.stderr)
+        sys.exit(2)
+    return [p for p in out.stdout.split("\0") if p.endswith(".gd")]
+
+
+def indent_of(line: str) -> int:
+    return len(line) - len(line.lstrip(" \t"))
+
+
+def is_blank_or_comment(stripped: str) -> bool:
+    return stripped == "" or stripped.startswith("#")
+
+
+def scan_file(path: str, lines: list[str]) -> list[dict]:
+    if not any(line.strip() == "@tool" for line in lines):
+        return []
+
+    findings = []
+    n = len(lines)
+    for i, raw in enumerate(lines):
+        if not FUNC_READY_RE.match(raw.strip()):
+            continue
+        func_indent = indent_of(raw)
+
+        # First non-blank/non-comment statement after the signature.
+        j = i + 1
+        while j < n and is_blank_or_comment(lines[j].strip()):
+            j += 1
+        if j >= n:
+            continue
+        cand = lines[j]
+        cand_stripped = cand.strip()
+        if indent_of(cand) <= func_indent or not GUARD_RE.match(cand_stripped):
+            continue
+        guard_indent = indent_of(cand)
+
+        # Collect the if-block's body (skipping comment-only lines) and stop
+        # at the first line back at or below the guard's own indent.
+        body = []
+        k = j + 1
+        while k < n:
+            s = lines[k]
+            s_stripped = s.strip()
+            if s_stripped == "":
+                k += 1
+                continue
+            if indent_of(s) <= guard_indent:
+                break
+            if s_stripped.startswith("#"):
+                k += 1
+                continue
+            body.append(s_stripped)
+            k += 1
+
+        if body == ["return"]:
+            findings.append({"file": path, "line": j + 1})
+
+    return findings
+
+
+def main() -> int:
+    as_json = "--json" in sys.argv[1:]
+    hits, exempted = [], []
+    for path in tracked_gd_files():
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            lines = fh.readlines()
+        for rec in scan_file(path, lines):
+            why = exemption_for(path)
+            if why:
+                rec["reason"] = why
+                exempted.append(rec)
+            else:
+                hits.append(rec)
+
+    if as_json:
+        print(json.dumps({"violations": hits, "exempted": exempted}, indent=2))
+        return 1 if hits else 0
+
+    print(f"Scanned tracked .gd for blanket editor-hint _ready() guards — "
+          f"{len(exempted)} allowlisted hit(s) in {len(EXEMPT_DIRS)} dir(s) + "
+          f"{len(ALLOWLIST)} file(s).")
+    if not hits:
+        print("\n✓ no blanket `if Engine.is_editor_hint(): return` in a @tool _ready()")
+        return 0
+
+    print(f"\n{len(hits)} violation(s) — blanket editor-hint guard opening _ready():")
+    for h in hits:
+        print(f"  {h['file']}:{h['line']}  if Engine.is_editor_hint(): return")
+    print(f"\n`Engine.is_editor_hint()` is process-wide — true for a live sandbox tab's")
+    print(f"runtime instance too, so this silently skips wiring in every tab that")
+    print(f"spawns one. Scope to the EDITED scene instead: `VfxEditorScene.is_edited(self)`")
+    print(f"(res://ui/vfx/projectile/visual/vfx_editor_scene.gd). See {DOC_POINTER}.")
+    print(f"\nIf this really has no live-tab spawn path, add it to ALLOWLIST in this")
+    print(f"file with a reason that says when the exemption stops being true.")
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
