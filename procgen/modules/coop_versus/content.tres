@@ -31,6 +31,7 @@
 [ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="29_nugfq"]
 [ext_resource type="Resource" uid="uid://dae6hdb4aq3b3" path="res://attack/spell/defs/reverberator.tres" id="30_11kk7"]
 [ext_resource type="Resource" uid="uid://dm5qgrlia6ne6" path="res://attack/spell/defs/healing_beam.tres" id="31_haq38"]
+[ext_resource type="Resource" uid="uid://b6c1yc1lonvkq" path="res://attack/spell/defs/cyclone.tres" id="33_cyclone"]
 [ext_resource type="Script" uid="uid://cfprsq1bfanb5" path="res://procgen/pools/spell_grant_pool.gd" id="32_uy8h0"]
 [ext_resource type="Script" uid="uid://cacdyy5i472u8" path="res://procgen/archetypes/archetype_weight_profile.gd" id="33_6i3cq"]
 
@@ -206,9 +207,13 @@ spell_def = ExtResource("30_11kk7")
 script = ExtResource("25_227yd")
 spell_def = ExtResource("31_haq38")
 
+[sub_resource type="Resource" id="sgpe_cyclone"]
+script = ExtResource("25_227yd")
+spell_def = ExtResource("33_cyclone")
+
 [sub_resource type="Resource" id="spell_grant_pool_main"]
 script = ExtResource("32_uy8h0")
-entries = Array[ExtResource("25_227yd")]([SubResource("sgpe_bruiser"), SubResource("sgpe_leafblower"), SubResource("sgpe_resonator"), SubResource("sgpe_trail_blazer"), SubResource("sgpe_reverberator"), SubResource("sgpe_healing_beam")])
+entries = Array[ExtResource("25_227yd")]([SubResource("sgpe_bruiser"), SubResource("sgpe_leafblower"), SubResource("sgpe_resonator"), SubResource("sgpe_trail_blazer"), SubResource("sgpe_reverberator"), SubResource("sgpe_healing_beam"), SubResource("sgpe_cyclone")])
 
 [sub_resource type="Resource" id="awp_main"]
 script = ExtResource("33_6i3cq")
