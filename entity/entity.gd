@@ -403,10 +403,22 @@ func dispatch(hook: StringName, args: Array = []) -> void:
 	var bucket: Array = _hook_buckets.get(hook, [])
 	if bucket.is_empty():
 		return
+	# #647: two auras touching the same node board in ONE dispatch settle once,
+	# not twice. The scope is what [method EntityCombat.hold_batch] batches into;
+	# the boards actually touched are held open until the drain below, so a
+	# dispatch that touches none pays nothing. The early return above is safe to
+	# take unbracketed — nothing can have opened a batch yet.
+	_combat.begin_dispatch()
 	for inst: EffectInstance in bucket.duplicate():
 		var call_args: Array = [inst.context]
 		call_args.append_array(args)
 		inst.effect.callv(hook, call_args)
+	# Unconditional by construction — GDScript has no `finally`, so this is the
+	# ONE close site, and the loop above has no `return`/`break` past it. A hook
+	# that errors aborts its own frame and returns into `callv`, so the drain
+	# still runs; a hook that grants or revokes re-entrantly nests the scope
+	# (see [method EntityCombat.begin_dispatch]) rather than escaping it.
+	_combat.end_dispatch()
 
 
 func get_effects() -> Array[EffectInstance]:

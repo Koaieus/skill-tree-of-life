@@ -86,6 +86,12 @@ func _on_core_moved(ctx: EffectContext, _from: SkillNode, _to: SkillNode) -> voi
 ## stat that actually moved settles once. Values are unaffected:
 ## [method Stat.get_value] recomputes from bins per call, so batching defers
 ## notification only, never value.
+##
+## [b]Widened to the whole dispatch (#647).[/b] When a hook dispatch is running,
+## [method EffectContext.hold_batch] takes each board over for its duration, so
+## the entity's two auras collapse into ONE settle per stat instead of one each.
+## Outside a dispatch (`_on_granted`, a direct call) this is unchanged #627
+## behaviour: the local `batched` list is opened and closed here.
 func recompute(ctx: EffectContext) -> void:
 	var batched: Array[StatBoard] = []
 	var seen: Dictionary[StatBoard, bool] = {}
@@ -131,6 +137,13 @@ func _open_batch(ctx: EffectContext, node: SkillNode, batched: Array[StatBoard],
 	if board == null or seen.has(board):
 		return
 	seen[board] = true
+	# #647: inside a hook dispatch the ENTITY holds the batch open for the whole
+	# dispatch, so the second aura's recompute joins the first's batch instead of
+	# settling the same stat again. It closes it too — this call must not record
+	# the board in `batched`, or [method _close_batches] would close it early and
+	# leave the ledger's own drain unmatched.
+	if ctx.hold_batch(board):
+		return
 	batched.append(board)
 	board.begin_batch()
 

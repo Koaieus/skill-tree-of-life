@@ -128,6 +128,27 @@ var _world: CombatWorld
 ## any one entity in it.
 var _owns_world: bool = false
 
+## Dispatch-scoped batch ledger (#647). Depth of the currently running
+## [method dispatch] (0 = none), and the [StatBoard]s [method hold_batch] has
+## opened for its duration.
+##
+## [b]Why the ledger, and not the obvious shape.[/b] #627 batches inside one
+## [method AuraEffect.recompute], so two auras touching the SAME node board in
+## the same hook dispatch still settle twice. The naive fix — bracket every
+## owned node's board around every dispatch — was rejected on #647's own
+## grounds: it is `2 * owned` begin/end calls per dispatch (300 on a 150-node
+## Serpent), paid even when no aura touches a node board at all. This batches
+## only the boards actually touched, so the cost is zero on a dispatch that
+## touches none, and it holds them open until the dispatch ends so the second
+## aura joins the first aura's batch.
+##
+## [b]It NARROWS the unmatched-`begin_batch` trap rather than widening it.[/b]
+## There is exactly one close site — the drain in [method end_dispatch] —
+## instead of one per hook implementation.
+var _dispatch_depth: int = 0
+var _held_batches: Array[StatBoard] = []
+var _held_seen: Dictionary[StatBoard, bool] = {}
+
 
 func _init(p_host: Entity = null) -> void:
 	host = p_host
@@ -376,12 +397,72 @@ func dispatch(hook: StringName, args: Array = []) -> void:
 	if host != null:
 		host.dispatch(hook, args)
 		return
+	# Shadow only. The live branch above brackets inside [method Entity.dispatch]
+	# instead, because that is where `AllocationSystem` / `SkillNode` enter —
+	# they call `entity.dispatch()` directly, never through this slice.
+	begin_dispatch()
 	for inst in _effects.duplicate():
 		if inst.effect == null or not inst.effect.implemented_hooks().has(hook):
 			continue
 		var call_args: Array = [inst.context]
 		call_args.append_array(args)
 		inst.effect.callv(hook, call_args)
+	end_dispatch()
+
+
+## Open the dispatch scope [method hold_batch] batches into (#647). Re-entrant:
+## a hook may dispatch again (or grant an effect, whose `_on_granted` recomputes),
+## and only the OUTERMOST scope drains — an inner one closing boards the outer is
+## still filling would defeat the merge and, worse, close a batch twice.
+func begin_dispatch() -> void:
+	_dispatch_depth += 1
+
+
+## Close the dispatch scope and, at depth 0, flush every board
+## [method hold_batch] held open for it.
+##
+## The held set is swapped out BEFORE the drain: `end_batch` emits, an emission
+## can re-enter [method dispatch], and that nested scope must start from an
+## empty ledger rather than mutating the array being iterated.
+func end_dispatch() -> void:
+	if _dispatch_depth <= 0:
+		push_warning("EntityCombat.end_dispatch called without a matching begin_dispatch")
+		return
+	_dispatch_depth -= 1
+	if _dispatch_depth > 0:
+		return
+	var held := _held_batches
+	_held_batches = []
+	_held_seen = {}
+	for board in held:
+		board.end_batch()
+
+
+## Take ownership of batching [param board] for the rest of the running
+## dispatch. Returns `true` when this slice took it — the caller must NOT call
+## `end_batch` itself. Returns `false` when there is no live dispatch (or no
+## board), leaving the caller to batch and close it the #627 way.
+##
+## Idempotent per board: a second aura asking for a board the first already
+## opened joins that batch instead of nesting a second one, which is the whole
+## 48 -> 24 collapse.
+## How many boards [method hold_batch] is currently holding open. The probe for
+## #647's no-op acceptance: a dispatch whose hooks touch no node board must
+## report 0 here, which is what distinguishes this ledger from the rejected
+## "pre-bracket every owned board" shape it would otherwise silently regress to.
+func held_batch_count() -> int:
+	return _held_batches.size()
+
+
+func hold_batch(board: StatBoard) -> bool:
+	if board == null or _dispatch_depth <= 0:
+		return false
+	if _held_seen.has(board):
+		return true
+	_held_seen[board] = true
+	_held_batches.append(board)
+	board.begin_batch()
+	return true
 
 
 ## This shadow's real -> shadow node index, for a [CombatWorld] assembling

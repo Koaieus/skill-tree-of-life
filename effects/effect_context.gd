@@ -197,6 +197,20 @@ func board_for(target: Variant) -> StatBoard:
 	return slice.board() if slice != null else null
 
 
+## Hand [param board] to the running dispatch's batch ledger (#647), so every
+## aura firing in the SAME hook dispatch shares one batch per board instead of
+## opening its own. Returns `true` when the slice took ownership — the caller
+## must not close it. `false` means no dispatch is live (`_on_granted`, a direct
+## [method AuraEffect.recompute]), leaving the caller to bracket it itself.
+##
+## Routed through [member combat], never [member entity]: a shadow slice's
+## [method EntityCombat.real_entity] answers with the LIVE entity, so an entity-
+## addressed ledger would let a shadow recompute park shadow boards on a live
+## entity that never drains them.
+func hold_batch(board: StatBoard) -> bool:
+	return combat.hold_batch(board) if combat != null else false
+
+
 func _detach(handle: StatModifier, target: Variant) -> void:
 	if combat == null:
 		return

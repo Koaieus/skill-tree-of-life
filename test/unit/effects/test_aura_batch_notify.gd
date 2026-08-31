@@ -155,7 +155,16 @@ func test_final_values_match_hand_computed_expectation_after_a_core_move() -> vo
 ## 16 per interior node (4 stats x 2 ops x 2 auras) and 8 at each end (one op
 ## only there) = 4*16 + 2*8 = 80. Both numbers reported to the orchestrator
 ## for the issue's corrected acceptance text.
-func test_core_move_on_the_real_serpent_shape_settles_48_times_not_80() -> void:
+##
+## [b]Re-pointed 48 -> 24 by #647.[/b] The paragraph above is the record of what
+## #627 could reach with a per-`recompute` batch; the "not shared across the two
+## auras" clause it rests on is exactly what #647 removed. `Entity.dispatch` now
+## holds each touched board open for the whole hook dispatch, so the second
+## aura's writes join the first aura's batch and the pair settles ONCE per stat:
+## 4 stats x 6 nodes = 24. This is the ONLY assertion in this file #647 moved —
+## every value assertion above and below is untouched, because batching defers
+## notification, never value.
+func test_core_move_on_the_real_serpent_shape_settles_24_times_not_48_or_80() -> void:
 	var ent: Entity = await _spawn(_nodes[0], _nodes)
 	ent.grant_effect(_serpent_hop_buff())
 	ent.grant_effect(_serpent_euclid_penalty())
@@ -168,8 +177,8 @@ func test_core_move_on_the_real_serpent_shape_settles_48_times_not_80() -> void:
 
 	ent.core_location = _nodes[5]
 
-	assert_eq(seen.size(), 48,
-		"6 nodes x 4 stats x 2 auras, revoke+grant collapsed within each aura's own batch")
+	assert_eq(seen.size(), 24,
+		"6 nodes x 4 stats — revoke+grant AND both auras collapsed into one dispatch-scoped batch (#647)")
 
 
 # ── Acceptance 3/9 (corrected numbering: originally 3, then restated as 9

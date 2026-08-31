@@ -373,6 +373,12 @@ func test_composite_children_scale_correctly_when_an_aura_recomputes_on_a_shadow
 	assert_almost_eq(float(shadow_node.get_local_value(&"blade_damage")), live_blade, 0.001,
 			"a composite aura re-granted ON a shadow must scale its children exactly like the live grant")
 	assert_almost_eq(float(shadow_node.get_local_value(&"spell_damage")), live_spell, 0.001)
+	# #647: a shadow dispatch runs the same deferred-close batch ledger the live
+	# one does, so it must come out of `dispatch` with nothing left held — a
+	# stranded `begin_batch` on a shadow board would silently swallow every
+	# later notification on it for the rest of the resolve.
+	assert_eq(shadow.held_batch_count(), 0, "the shadow's dispatch drained its batch ledger")
+	assert_false(shadow_node.board().is_batching(), "no shadow board left batching")
 	shadow.free_shadow()
 
 
