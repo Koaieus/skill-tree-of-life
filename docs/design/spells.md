@@ -213,6 +213,20 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 
 ---
 
+### Cyclone [shipped #696] — the odd-cycle spell
+
+- **target type:** node
+- **power:** medium (2.0), mana 5, `min_degree` **4** — the catalogue's deepest casting requirement
+- **range:** short, **euclidean** ~150px (the first non-hop range in the catalogue)
+- **mechanics/propagation:** fans to every enemy neighbour except the one(s) it came from. When a front lands on a node its **own lineage** already struck, the cycle CLOSES: crit ×2, and both the veto and the trail reset, so the storm laps the loop again. Linear ramp (+25% of seed per hop), `MAX` merger, 9 hops, 6 visits per node.
+- **notes:** the veto is the immediate predecessor and *not* the whole trail — vetoing the trail would make a cycle unclosable, which is the one hop the spell exists to reward. On convergence the veto becomes the **union** of every incident's predecessors, which is what the owner meant by *"it makes the cast-from an array"*.
+- **emergent: it is a parity detector, and nothing in it was authored to be one.** Two counter-rotating fronts survive a ring iff the ring is **odd**. On a square or hexagon they collide head-on at the antipodal *node*, merge, veto each other's shoulders, and strand — damage lands, no crit, no onward travel. On a triangle or pentagon they pass on the antipodal *edge* instead and both lap home. So Cyclone is the odd-cycle counterpart to Resonator's even-cycle convergence crit, and the two together make ring parity a legible game concept.
+- **self-loop-blind for free:** a self-loop hop has `predecessor == current_node`, so the backtrack veto bans it by construction. Zero turf war with Reverberator.
+- **fills a real hole:** rings have no cut vertices (immune to Topple) and self-loop fortification counters Leafblower — nothing punished cyclic territory before this.
+- review: dead weight on stringy territory by design (it degrades to a two-armed Lightning), which is the same terrain-typing every shipped spell has. The softener is legibility, not power — see Open Question below.
+
+---
+
 ### Homing Decoring [wip need a better name than this pun; tho it has a charm]
 #### Live Laugh Loathe: Home Decor(e) but homing in on Core
 
@@ -247,6 +261,7 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 | Leafblower | medium | medium | node | Downhill territory-degree filter (`<=`), rampup, payload-on-leaf |
 | Bruiser | medium | medium | node | Greedy → max HP, low base damage, single branch |
 | Resonator | high/ultra | medium | node | Fan-all, flat +2/hop, **SUM merger**, crit on convergence (#352) |
+| Cyclone | medium | short (euclidean) | node | Fan-all minus the way it came, +25%/hop, **MAX merger + unioned veto**, crit on closing a cycle (#696) |
 | Homing Decoring | TBD | TBD | node | Greedy → toward enemy Core |
 | Corifugal Bolt | TBD | TBD | node | Greedy → away from enemy Core |
 

@@ -431,6 +431,53 @@ cut. This issue lands the *shape*; the VFX-timing rework builds on it.
 
 ---
 
+---
+
+## Per-branch payload state and the merge trap (#696)
+
+`CastSpell` carries per-branch state beyond damage — `visited`, and since
+Cyclone also `came_from` / `closed_cycle`. **The stock merge silently decides
+what happens to all of it, and its defaults are wrong for anything that reads
+that state as a rule rather than as trivia.**
+
+`IncidentReducer._merge_payload_defaults` does two things worth knowing before
+you author the next payload field:
+
+- **`visited` is UNIONED.** Fine when the trail is only a revisit guard. Wrong
+  the moment the trail *means* something: Cyclone crits on landing in its own
+  trail, so a union crits on ground the surviving lineage never walked — and
+  only when it happened to converge with someone who did. Inconsistency wearing
+  flavour's clothes. `CycloneReducer` keeps **the winning incident's trail**
+  instead.
+- **`predecessor` keeps only `incidents[0]`'s.** It is the canonical "the
+  projectile flew from somewhere" reader for VFX, and it was never meant to be a
+  *set*. A rule that needs every direction the fronts arrived from must carry its
+  own array field — that is what `CastSpell.came_from` is, and the full set does
+  also exist on `PropagationEvent.predecessors` (#542), but only for the event,
+  after the fact.
+
+Three questions a new payload field has to answer, and the reducer is the only
+place that can:
+
+1. **How does it merge?** Union, winner-takes, max, OR — pick deliberately.
+2. **Does any incident's state DOMINATE?** Cyclone's does: if one front closed a
+   cycle, the merged payload resets outright (empty veto, trail restarted)
+   rather than unioning in a non-closer's veto. Without that, an unrelated front
+   silently weakens someone else's reset — a reset that sometimes isn't one.
+3. **Where is it stamped?** At **mint, in the step**, if the answer depends on
+   the parent's state. By landing time `_propagate_to` has already mutated the
+   child's copy and a reset may have cleared it, so the fact is unrecoverable.
+   The crit condition then just *reads* the stamped flag — the Design A split
+   `ConvergenceCritCondition` documents, and the reason `CycleCritCondition` is
+   a one-line predicate rather than a re-derivation.
+
+The payoff for getting (1) right is not just correctness. Cyclone's veto-union
+is what makes it a **parity detector** — counter-rotating fronts extinguish on
+even rings and lap home on odd ones — and nothing in the spell was authored to
+do that. Merge semantics are where emergent behaviour lives.
+
+---
+
 ## Open questions / queue
 
 1. ~~Should `seed_damage_fraction` move into the Step?~~ **Closed** — the knob
