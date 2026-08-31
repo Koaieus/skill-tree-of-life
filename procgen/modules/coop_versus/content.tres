@@ -31,9 +31,9 @@
 [ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="29_nugfq"]
 [ext_resource type="Resource" uid="uid://dae6hdb4aq3b3" path="res://attack/spell/defs/reverberator.tres" id="30_11kk7"]
 [ext_resource type="Resource" uid="uid://dm5qgrlia6ne6" path="res://attack/spell/defs/healing_beam.tres" id="31_haq38"]
-[ext_resource type="Resource" uid="uid://b6c1yc1lonvkq" path="res://attack/spell/defs/cyclone.tres" id="33_cyclone"]
 [ext_resource type="Script" uid="uid://cfprsq1bfanb5" path="res://procgen/pools/spell_grant_pool.gd" id="32_uy8h0"]
 [ext_resource type="Script" uid="uid://cacdyy5i472u8" path="res://procgen/archetypes/archetype_weight_profile.gd" id="33_6i3cq"]
+[ext_resource type="Resource" uid="uid://b6c1yc1lonvkq" path="res://attack/spell/defs/cyclone.tres" id="33_cyclone"]
 
 [sub_resource type="Resource" id="Resource_68xts"]
 script = ExtResource("1_h8ukh")
