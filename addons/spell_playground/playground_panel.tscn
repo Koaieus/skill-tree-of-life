@@ -255,6 +255,10 @@ owned_by = NodePath("../../Entities/DefenderEntity")
 position = Vector2(710, 470)
 owned_by = NodePath("../../Entities/DefenderEntity")
 
+[node name="C_ne" parent="HBox/WorldContainer/World/Graph/Nodes" parent_id_path=PackedInt32Array(1726628961, 1428063024) index="20" unique_id=3000014 node_paths=PackedStringArray("owned_by") instance=ExtResource("2_sn")]
+position = Vector2(-40, 170)
+owned_by = NodePath("../../Entities/CasterEntity")
+
 [node name="e_caster_n" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="0" unique_id=3000100 node_paths=PackedStringArray("from", "to") instance=ExtResource("5_edge")]
 from = NodePath("../../Nodes/C_hub")
 to = NodePath("../../Nodes/C_n")
@@ -342,5 +346,10 @@ to = NodePath("../../Nodes/d_chain4")
 [node name="e_chain4_tip" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="21" unique_id=3000121 node_paths=PackedStringArray("from", "to") instance=ExtResource("5_edge")]
 from = NodePath("../../Nodes/d_chain4")
 to = NodePath("../../Nodes/d_tip")
+
+
+[node name="e_caster_ne" parent="HBox/WorldContainer/World/Graph/Edges" parent_id_path=PackedInt32Array(1726628961, 983028403) index="22" unique_id=3000122 node_paths=PackedStringArray("from", "to") instance=ExtResource("5_edge")]
+from = NodePath("../../Nodes/C_hub")
+to = NodePath("../../Nodes/C_ne")
 
 [editable path="HBox/WorldContainer/World/Graph"]

@@ -61,8 +61,8 @@ func test_both_entities_are_minted_and_mirrored() -> void:
 		assert_not_null(entity.navigator, "%s has no navigator" % entity.display_name)
 	assert_eq(_defender.navigator.get_mirrored_nodes().size(), 16,
 			"the defender's whole authored territory is in its mirror")
-	assert_eq(_caster.navigator.get_mirrored_nodes().size(), 4,
-			"and the caster's — four nodes, so `C_hub` reaches owned degree 3")
+	assert_eq(_caster.navigator.get_mirrored_nodes().size(), 5,
+			"and the caster's — five nodes, so `C_hub` reaches owned degree 4")
 
 
 ## Without a core there is no anchor for [method EntityCombat.cascade_set] to
@@ -83,11 +83,20 @@ func test_every_authored_node_is_filled_not_just_owned() -> void:
 		assert_eq(sn.allocation_level, 1, "%s is owned but unfilled" % sn.name)
 
 
-## The deepest `min_degree` in the catalog is 3, measured over the caster's OWN
-## subgraph — the cast-from node has to clear it or every such spell refuses.
+## The cast-from node has to clear the catalogue's deepest `min_degree`,
+## measured over the caster's OWN subgraph, or every such spell refuses.
+##
+## Derived, not hardcoded: this asserted a literal 3 until Cyclone (#696)
+## shipped `min_degree = 4` and quietly became uncastable on the only surface
+## built for exercising spells by hand. Reading the catalogue means the next
+## deeper spell fails HERE, with the fixture named, instead of failing as a
+## silent no-op in the playground.
 func test_the_cast_from_node_clears_the_deepest_min_degree() -> void:
-	assert_eq(_caster.navigator.get_degree(_node("C_hub")), 3,
-			"three owned neighbours; the global degree (4, counting `d_entry`) is not the question")
+	var deepest: int = 0
+	for spell in SpellCatalog.ALL:
+		deepest = maxi(deepest, spell.min_degree)
+	assert_eq(_caster.navigator.get_degree(_node("C_hub")), deepest,
+			"owned neighbours only; the global degree (one higher, counting `d_entry`) is not the question")
 
 
 ## The acceptance: Cast moves the world.

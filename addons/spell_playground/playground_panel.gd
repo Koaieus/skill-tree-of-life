@@ -160,9 +160,11 @@ func _ready() -> void:
 ##   * `d_core` sits behind `d_join`, two leaves away from anything — the
 ##     defender survives ordinary casts, and killing it is a deliberate act.
 ##
-## The caster's own four nodes are not scenery: [method SpellBook.is_castable]
+## The caster's own five nodes are not scenery: [method SpellBook.is_castable]
 ## measures `min_degree` over the caster's OWNED subgraph, and the deepest spell
-## in the catalog wants 3. `C_hub` has exactly three owned neighbours.
+## in the catalog wants 4 (Cyclone, #696). `C_hub` has exactly four owned
+## neighbours — `C_n`, `C_w`, `C_s`, `C_ne` — so every catalogue spell is
+## castable here and none is castable with room to spare.
 func _capture_authored_world() -> void:
 	for sn in graph.get_skill_nodes():
 		if sn.owned_by != null:
