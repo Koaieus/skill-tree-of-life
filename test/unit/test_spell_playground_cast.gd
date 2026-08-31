@@ -185,3 +185,40 @@ func test_snapshotting_an_entity_with_no_navigator_is_empty_not_fatal() -> void:
 	assert_not_null(shadow, "snapshot must return a shadow, not blow up on `Array[SkillNode]`")
 	assert_eq(shadow.owned().size(), 0, "nothing is owned, so the shadow owns nothing")
 	shadow.free_shadow()
+
+
+## The node-HP slider is the max HP of every node on the board, both sides of it.
+##
+## It is a SET modifier on each entity's `node_health` baseline rather than a
+## `base_value` write, because the baseline is `10 + node_health_scaling × CON`
+## and the slider has to read as the literal cap. What this pins is the whole
+## chain: mutating the modifier's `value` re-dirties the baseline, and every
+## owned node's cap provider (#660) re-reads it — no per-node push exists to
+## forget.
+func test_node_health_slider_moves_every_node_cap() -> void:
+	var mine := _node("C_n")
+	var theirs := _node("d_hub")
+	var before := theirs.get_combat().get_max_hp()
+	assert_eq(_panel.node_health_slider.value, before,
+			"the slider seeds itself from the baseline, so installing it changes nothing")
+	_panel.node_health_slider.value = before + 40.0
+	assert_eq(theirs.get_combat().get_max_hp(), before + 40.0, "the defender's nodes follow")
+	assert_eq(mine.get_combat().get_max_hp(), before + 40.0, "so do the caster's")
+	assert_string_contains(_panel.node_health_label.text, "%.0f" % (before + 40.0))
+
+
+## Moving the cap — either way — does not forgive damage — `node_combat_health` stores damage
+## taken and derives `current` from the live cap (#660), which is what lets this
+## panel accumulate across casts while the slider moves.
+func test_lowering_the_slider_keeps_the_damage_already_taken() -> void:
+	var target := _node("d_hub")
+	_panel.load_spell(_SPARK)
+	_panel._on_target_clicked(target)
+	await _panel._cast()
+	var missing := target.get_combat().get_max_hp() - target.get_combat().get_current_hp()
+	assert_gt(missing, 0.0, "fixture: the cast has to have hurt it")
+	for moved in [_panel.node_health_slider.value + 25.0, _panel.node_health_slider.value - 5.0]:
+		assert_gt(moved, missing, "fixture: stay above the wound, or `current` floors instead")
+		_panel.node_health_slider.value = moved
+		assert_almost_eq(target.get_combat().get_max_hp() - target.get_combat().get_current_hp(),
+				missing, 0.01, "the wound survives a cap move to %.0f" % moved)

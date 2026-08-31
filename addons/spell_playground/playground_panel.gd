@@ -70,6 +70,8 @@ const CASTER_SPELL_RANGE_BONUS: float = 900.0
 @onready var browse_button: Button = %BrowseButton
 @onready var spell_damage_slider: HSlider = %SpellDamageSlider
 @onready var spell_damage_label: Label = %SpellDamageLabel
+@onready var node_health_slider: HSlider = %NodeHealthSlider
+@onready var node_health_label: Label = %NodeHealthLabel
 @onready var _world_container: SubViewportContainer = $HBox/WorldContainer
 
 var _spell: SpellDef = null
@@ -90,6 +92,10 @@ var _battle: BattleSystem = null
 ## really kill a node and cascade its neighbours out of the defender's territory,
 ## so `owned_by` is no longer readable off the scene once the first spell lands —
 ## this is what Reset replays.
+## The two SET modifiers the node-HP slider drives — one per entity board. Held
+## because the slider MUTATES them (see [method _on_node_health_changed]); they
+## are added once and never removed.
+var _node_health_sets: Array[StatModifier] = []
 var _authored_owners: Dictionary[SkillNode, Entity] = {}
 var _authored_cores: Dictionary[Entity, SkillNode] = {}
 ## Bounding box of the authored node positions; the viewport fits to it.
@@ -111,6 +117,8 @@ func _ready() -> void:
 	reset_button.pressed.connect(_reset_state)
 	reload_button.pressed.connect(reload_requested.emit)
 	spell_damage_slider.value_changed.connect(_on_spell_damage_changed)
+	_install_node_health_sets()
+	node_health_slider.value_changed.connect(_on_node_health_changed)
 	world.size_changed.connect(_layout_world)
 	_populate_spell_list()
 	spell_list.item_selected.connect(_on_spell_list_selected)
@@ -570,6 +578,69 @@ func _on_spell_damage_changed(value: float) -> void:
 	if caster_entity != null and caster_entity.stat_board != null \
 			and caster_entity.stat_board.spell_damage != null:
 		caster_entity.stat_board.spell_damage.base_value = value
+
+
+## Put a SET modifier on each entity's `node_health` baseline, seeded with
+## whatever that baseline already computes to — so installing the slider changes
+## nothing until it is dragged.
+##
+## SET rather than a `base_value` write because the baseline is not a plain
+## number: it is `10 + node_health_scaling × CON` (docs/domain/stat-knobs-and-bins.md
+## §1), so a base write would leave the slider reading one number and the nodes
+## capping at another. SET overrides the whole pipeline, which makes the slider
+## the literal max HP of every owned node — the one thing this control is for.
+##
+## Nothing else needs wiring: [method NodeCombat._hp_pool] installs the OWNER's
+## baseline as each node pool's cap provider and re-reads it on every cap read
+## (#660), so one modifier per board reaches every node that board owns, with no
+## per-node push and nothing to refill. A node that has cascaded OUT of
+## ownership is the exception: it falls back to its own stored base (the def's
+## 10) through the no-owner branch of [method NodeCombat._node_health_base],
+## until Reset puts it back under an owner.
+func _install_node_health_sets() -> void:
+	var seeded: float = node_health_slider.value
+	if defender_entity != null and defender_entity.stat_board != null:
+		var baseline: Stat = defender_entity.stat_board.get_stat(&"node_health")
+		if baseline != null:
+			seeded = float(baseline.get_value())
+	node_health_slider.max_value = maxf(node_health_slider.max_value, seeded)
+	node_health_slider.set_value_no_signal(seeded)
+	for entity in [caster_entity, defender_entity]:
+		if entity == null or entity.stat_board == null:
+			continue
+		var mod := StatModifier.new()
+		mod.stat_id = &"node_health"
+		mod.operation = StatModifier.Operation.SET
+		mod.value = seeded
+		entity.stat_board.add_modifier(mod)
+		_node_health_sets.append(mod)
+	_refresh_node_health_label()
+
+
+## Move both entities' `node_health` BASELINE — the one number every owned
+## node's max HP derives from (#660: [method NodeCombat._hp_pool] installs the
+## owner's baseline as the pool's cap provider and re-reads it on every cap
+## read, so there is nothing to push per node and nothing to refill).
+##
+## Damage survives the move: `node_combat_health` is authored FOLLOW/FOLLOW, so
+## it stores damage taken and derives `current` from the live cap — which is
+## exactly the accumulate-across-casts behaviour this panel exists for.
+##
+## A node that has cascaded out of ownership falls back to its own stored base
+## (the def's 10), not the slider — the no-owner branch of
+## [method NodeCombat._node_health_base]. Reset puts it back under an owner.
+func _on_node_health_changed(value: float) -> void:
+	# Writing `value` emits `Resource.changed`, which every Stat holding the
+	# modifier is subscribed to (`stats_system/stat.gd:370`) — so the recompute,
+	# the `value_changed` fan-out and every node's next cap read follow from this
+	# one assignment. No re-add, no board poke.
+	for mod in _node_health_sets:
+		mod.value = value
+	_refresh_node_health_label()
+
+
+func _refresh_node_health_label() -> void:
+	node_health_label.text = "Node HP: %.0f" % node_health_slider.value
 
 
 ## Gate Cast + Reset for the duration of a launch — its mutation loop walks the
