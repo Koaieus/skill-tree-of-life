@@ -19,11 +19,9 @@ extends FanAllStep
 ## [codeblock]
 ## idx    = payload.visited.find(nb)      # BEFORE _propagate_to appends it
 ## closed = idx >= 0
-## ring   = payload.visited.slice(idx + 1) + [nb]   # rotated to end at nb
 ##
-## closed, ring >= 3 → visited = ring,                  came_from = []
-## closed, ring <  3 → visited = payload.visited + [nb], came_from = []
-## ¬closed           → visited = payload.visited + [nb], came_from = [payload.current_node]
+## closed  → visited = closed_ring(payload.visited, idx),  came_from = []
+## ¬closed → visited = payload.visited + [nb],             came_from = [payload.current_node]
 ## [/codeblock]
 ##
 ## [b]Why the trail truncates to the ring instead of resetting to the node
@@ -34,13 +32,13 @@ extends FanAllStep
 ## [i]honest[/i] in dense territory, where a never-reset footprint would cover
 ## everything by wave 2 and degrade the crit into a flat damage multiplier.
 ##
-## [b]Why the length guard.[/b] Without it the truncation can collapse onto the
-## reversal edge. On triangle ABC after the lap home, the trail is `[B,C,A]`
-## and the hop `A → C` finds C at index 1, so the ring would be `[A,C]` — the
-## lineage forgets the triangle and ping-pongs A↔C, closing a "cycle" of length
-## 2 every beat forever. Below 3 the parent trail is kept instead: the hop
-## still crits (it is a real hop onto a real ring), but the footprint keeps
-## remembering the real ring.
+## [b]Why the short case takes the complementary arc.[/b] On triangle ABC after
+## the lap home the trail is `[B,C,A]`, and the hop `A → C` finds C one step
+## back: the forward arc is the single edge, so a naive truncation would leave
+## the lineage holding `[A,C]`, ping-ponging A↔C and closing a "cycle" of
+## length 2 forever. But that hop really did close the triangle — the other way
+## round — so the ring it keeps is the whole ring, rotated. The hop crits
+## either way; what the case decides is what the lineage remembers next.
 ##
 ## [b]The invariant all of this buys[/b], and the reason it beats both rejected
 ## alternatives: the trail is always ring + all-distinct tail, so a close is
@@ -87,20 +85,45 @@ func step(
 			continue
 		child.closed_cycle = true
 		child.came_from = []
-		var ring := closed_ring(payload.visited, idx, child.current_node)
-		if ring.size() >= MIN_RING:
-			child.visited = ring
+		child.visited = closed_ring(payload.visited, idx)
 	return out
 
 
-## The ring a closing hop just walked: the trail's suffix from the node's
-## previous appearance, rotated so it ENDS at the landed node (which is where
-## the front now stands, and where the next hop measures from).
-static func closed_ring(
-		trail: Array[SkillNode], idx: int, landed: SkillNode) -> Array[SkillNode]:
-	var ring: Array[SkillNode] = trail.slice(idx + 1)
-	ring.append(landed)
-	return ring
+## The ring a closing hop just walked, ending at the landed node — which is
+## where the front now stands, and where the next hop measures its own trail
+## from. [param idx] is the landed node's previous position in [param trail].
+##
+## Normally that is the trail's suffix from `idx`: the pre-cycle tail is
+## discarded and what is left is exactly the loop.
+##
+## [b]The short case is a reversal, and it takes the long way round.[/b] The
+## one hop that can measure under [constant MIN_RING] is a step back onto the
+## node one behind — reachable only immediately after a close, when the veto
+## has just cleared and the trail is a bare ring. The forward arc between them
+## is the single edge, but the cycle that hop closes is the [i]complementary
+## arc[/i]: the whole ring, the other way. So rotate rather than truncate —
+## same nodes, re-ordered to end where the front now stands, which is a real
+## walk because a ring's ends are adjacent.
+##
+## [b]Never append.[/b] An earlier cut kept the parent trail and appended the
+## landed node on the short branch, which put a node in the trail twice; two
+## hops later [method Array.find] returned the FIRST occurrence, the slice ran
+## long, and the guard waved through a "ring" like `[C,A,C,B]`. That certifies
+## a vertex-repeating closed walk — the exact shape #699 exists to refuse.
+## Truncating on every close is what keeps the trail all-distinct, and the
+## all-distinct trail is what makes every crit a real simple cycle.
+static func closed_ring(trail: Array[SkillNode], idx: int) -> Array[SkillNode]:
+	var landed: SkillNode = trail[idx]
+	var forward: Array[SkillNode] = trail.slice(idx + 1)
+	forward.append(landed)
+	if forward.size() >= MIN_RING:
+		return forward
+	var complementary: Array[SkillNode] = trail.slice(idx + 1)
+	complementary.append_array(trail.slice(0, idx + 1))
+	# Below MIN_RING either way there is no ring to keep — a trail too short to
+	# hold one. Unreachable while the self-loop veto holds; harmless if it ever
+	# is not, since the forward arc is still all-distinct.
+	return complementary if complementary.size() >= MIN_RING else forward
 
 
 func get_description() -> String:

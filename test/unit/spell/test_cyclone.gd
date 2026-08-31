@@ -374,8 +374,16 @@ func test_the_self_loop_veto_is_structural_and_not_a_backtrack_side_effect() -> 
 func test_a_closed_ring_is_the_trail_suffix_rotated_onto_the_landing() -> void:
 	_ring(3)
 	var trail: Array[SkillNode] = [_n(0), _n(1), _n(2)]
-	assert_eq(CycloneStep.closed_ring(trail, 0, _n(0)), [_n(1), _n(2), _n(0)],
+	assert_eq(CycloneStep.closed_ring(trail, 0), [_n(1), _n(2), _n(0)],
 			"A→B→C closing on A keeps the whole triangle, ending on A")
+
+
+## A tail ahead of the ring is not part of the loop and is dropped.
+func test_a_closed_ring_discards_the_walk_that_led_up_to_it() -> void:
+	_ring(4)
+	var trail: Array[SkillNode] = [_n(3), _n(0), _n(1), _n(2)]
+	assert_eq(CycloneStep.closed_ring(trail, 1), [_n(1), _n(2), _n(0)],
+			"the hop home to A closes A-B-C; D was only how the storm got there")
 
 
 func _step_children(payload: CastSpell, candidates: Array[SkillNode]) -> Array[CastSpell]:
@@ -383,19 +391,43 @@ func _step_children(payload: CastSpell, candidates: Array[SkillNode]) -> Array[C
 			PropagationConfig.new(), PropagationContext.new())
 
 
-## The guard, and the degenerate loop it exists to refuse. Standing on A with
-## the kept ring [B,C,A], the hop back to C finds C one step back — so the
-## "ring" would be [A,C], the lineage would forget the triangle, and it would
-## ping-pong A↔C closing a length-2 cycle every beat forever.
-func test_the_ring_guard_refuses_to_truncate_onto_the_reversal_edge() -> void:
+## The reversal, and the degenerate loop a naive truncation would leave behind.
+## Standing on A with the kept ring [B,C,A], the hop back to C finds C one step
+## back — so the forward arc is the single edge A-C. Truncating to that would
+## have the lineage forget the triangle and ping-pong A↔C, closing a length-2
+## "cycle" every beat forever. The hop really did close the triangle, the other
+## way round, so the ring it keeps is the whole ring, rotated.
+func test_a_reversal_after_a_close_keeps_the_ring_the_long_way_round() -> void:
 	_ring(3)
 	var payload := _incident(_n(0), 1.0, [_n(1), _n(2), _n(0)] as Array[SkillNode],
 			[] as Array[SkillNode], true)
 	var child := _step_children(payload, [_n(2)] as Array[SkillNode])[0]
-	assert_true(child.closed_cycle, "the hop still closes — and still crits")
-	assert_true(child.visited.has(_n(1)),
-			"but the footprint keeps remembering the real triangle, not the edge")
-	assert_true(child.visited.size() >= CycloneStep.MIN_RING)
+	assert_true(child.closed_cycle, "the hop closes — and crits — either way")
+	assert_eq(child.visited, [_n(0), _n(1), _n(2)],
+			"the same triangle, rotated to end where the front now stands")
+
+
+## The invariant everything else rests on, and the one an earlier cut broke by
+## appending the landed node on the short branch: a trail with a node in it
+## twice makes `find` return the first occurrence, the next slice runs long,
+## and the guard waves through a ring like [C,A,C,B] — a vertex-repeating
+## closed walk, which is exactly what #699 exists to refuse.
+func test_a_closing_trail_is_always_all_distinct() -> void:
+	_ring(3)
+	var payload := _incident(_n(0), 1.0, [_n(1), _n(2), _n(0)] as Array[SkillNode],
+			[] as Array[SkillNode], true)
+	for hops in 6:
+		var candidates: Array[SkillNode] = []
+		for nb in _graph.get_neighbours(payload.current_node):
+			if not payload.came_from.has(nb) and nb != payload.current_node:
+				candidates.append(nb)
+		payload = _step_children(payload, candidates)[0]
+		var seen: Array[SkillNode] = []
+		for node in payload.visited:
+			assert_false(seen.has(node),
+					"hop %d left a node in the trail twice" % hops)
+			seen.append(node)
+		assert_true(payload.visited.size() >= CycloneStep.MIN_RING)
 
 
 ## The ordinary case: a hop onto the far side of the kept ring truncates to

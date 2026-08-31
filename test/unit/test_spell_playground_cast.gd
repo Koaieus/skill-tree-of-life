@@ -222,3 +222,21 @@ func test_lowering_the_slider_keeps_the_damage_already_taken() -> void:
 		_panel.node_health_slider.value = moved
 		assert_almost_eq(target.get_combat().get_max_hp() - target.get_combat().get_current_hp(),
 				missing, 0.01, "the wound survives a cap move to %.0f" % moved)
+
+
+## The sliders are remembered across a tab Reload through STATIC vars on the
+## script — the tab is rebuilt from its `.tscn`, so nothing on the instance
+## survives. Statics outlive a GUT test too, hence the `Engine.is_editor_hint()`
+## gate on the restore: headless, every panel must still start from the authored
+## board, or a test's slider becomes the next test's starting position.
+func test_slider_memory_does_not_leak_between_headless_panels() -> void:
+	var baseline := _panel.node_health_slider.value
+	_panel.node_health_slider.value = baseline + 40.0
+	_panel.spell_damage_slider.value = 7.5
+	var fresh = _PANEL.instantiate()
+	add_child_autofree(fresh)
+	await get_tree().process_frame
+	assert_eq(fresh.node_health_slider.value, baseline, "node HP starts from the baseline")
+	assert_eq(fresh.spell_damage_slider.value, 1.0, "spell damage starts from the authored value")
+	assert_eq(fresh.caster_entity.stat_board.spell_damage.base_value, 1.0,
+			"and the board it armed agrees with the slider")
