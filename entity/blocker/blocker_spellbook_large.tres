@@ -3,7 +3,8 @@
 [ext_resource type="Script" uid="uid://dgddohrmd3gn6" path="res://entity/spell_book.gd" id="1_book"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell_def"]
 [ext_resource type="Resource" uid="uid://dae6hdb4aq3b3" path="res://attack/spell/defs/reverberator.tres" id="2_reverberator"]
+[ext_resource type="Resource" uid="uid://b6c1yc1lonvkq" path="res://attack/spell/defs/cyclone.tres" id="3_cyclone"]
 
 [resource]
 script = ExtResource("1_book")
-spells = Array[ExtResource("1_spell_def")]([ExtResource("2_reverberator")])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("2_reverberator"), ExtResource("3_cyclone")])

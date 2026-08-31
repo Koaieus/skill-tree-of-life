@@ -15,7 +15,7 @@
 # in the commit message.
 DIGEST_NODE_COUNT 800
 DIGEST_SEED 424242
-DIGEST_SHA256 d65d2cae615de8b8540826502be61ef8e21c8fb7f31699f7c2482c9ec73db67a
+DIGEST_SHA256 44a6b2ccf3901cb2cb61b57c02d62ac68c1effc29b439c04010aae13d0cef698
 SEED 424242
 NODE_COUNT 80
 NODE 1 0.000000 0.000000 green
@@ -43,233 +43,243 @@ NODE 3 228.316345 -711.048645 blue
 NODE 4 332.392151 -239.679993 white
   MOD constitution 0 6.000000 0 -
 NODE 5 630.647400 91.300232 blue
-  MOD intelligence 1 7.000000 0 -
-  MOD mana 0 2.000000 0 -
+  MOD intelligence 1 15.000000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
+  SPELL cyclone
 NODE 6 -30.838928 -934.194824 green
-  MOD crit_chance 1 15.000000 0 -
+  MOD armor 0 2.000000 0 -
+  MOD dexterity 0 2.000000 0 -
 NODE 7 236.094666 664.311707 white
-  MOD constitution 0 4.000000 0 -
-NODE 8 5.932785 -677.917969 green
-  MOD dexterity 0 7.000000 0 -
-  MOD dexterity 1 18.000000 0 -
-  ADDON bunker_addon
-    AMOD armor 3 5.000000 0 -
-    AMOD min_damage_taken 3 -5.000000 0 -
-  ADDON clamp_addon
+  MOD armor 0 1.000000 0 -
+  MOD node_health 1 3.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
+NODE 8 5.932785 -677.917969 green
+  MOD dexterity 0 8.000000 0 -
+  ADDON watchtower_addon
+    AMOD range 0 150.000000 0 -
+    AMOD range 2 1.250000 0 -
+    AMOD vision_range 3 300.000000 0 -
 NODE 9 142.308960 -933.078125 green
-  MOD dexterity 0 2.000000 0 -
-  MOD dexterity 1 46.000000 0 -
+  MOD dexterity 0 13.000000 0 -
+  ADDON fortification_addon
+    AMOD node_health 3 15.000000 0 -
 NODE 10 -235.592026 -842.471619 green
-  MOD crit_multiplier 1 18.000000 0 -
-  MOD dexterity 0 5.000000 0 -
+  MOD dexterity 0 12.000000 0 -
 NODE 11 -263.353210 -644.321472 blue
   MOD intelligence 0 2.000000 0 -
-  MOD mana_per_turn 0 1.000000 0 -
+  MOD mana_per_turn 0 2.000000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
 NODE 12 85.394196 -523.122864 red
-  MOD armor 0 3.000000 0 -
-  MOD strength 0 2.000000 0 -
+  MOD movement_points 0 1.000000 0 -
+  MOD strength 0 5.000000 0 -
+NODE 13 -118.608620 -451.574646 red
+  MOD strength 1 19.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
-NODE 13 -118.608620 -451.574646 red
-  MOD strength 0 8.000000 0 -
-  ADDON clamp_addon
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
 NODE 14 373.162048 -787.750793 blue
-  MOD intelligence 0 6.000000 0 -
-  MOD intelligence 1 15.000000 0 -
+  MOD intelligence 0 13.000000 0 -
+  MOD intelligence 1 7.000000 0 -
 NODE 15 -148.807938 246.156830 gold
-  MOD wisdom 0 6.000000 0 -
-  MOD wisdom 1 3.000000 0 -
+  MOD wisdom 0 2.000000 0 -
 NODE 16 -156.690048 -0.805822 green
-  MOD dexterity 0 4.000000 0 -
+  MOD dexterity 0 6.000000 0 -
+  MOD dexterity 1 7.000000 0 -
   KEYSTONE xp_anchor_keystone
 NODE 17 -98.073425 -191.110931 red
-  MOD strength 0 2.000000 0 -
+  MOD strength 0 4.000000 0 -
 NODE 18 149.469315 -59.534866 green
-  MOD dexterity 0 5.000000 0 -
-  MOD dexterity 1 7.000000 0 -
-  ADDON clamp_addon
+  MOD dexterity 0 2.000000 0 -
 NODE 19 174.666367 212.696823 red
-  MOD strength 0 6.000000 0 -
+  MOD strength 0 7.000000 0 -
   ADDON clamp_addon
 NODE 20 84.033180 -203.788284 gold
-  MOD wisdom 0 2.000000 0 -
-  MOD wisdom 1 3.000000 0 -
-  ADDON spike_ring_addon
-    AMOD blade_damage 0 3.000000 0 -
-    AMOD blade_damage 2 1.500000 0 -
+  MOD wisdom 0 4.000000 0 -
 NODE 21 746.865723 364.805267 blue
-  MOD armor 0 2.000000 0 -
-  MOD mana_per_turn 0 2.000000 0 -
+  MOD mana 0 8.000000 0 -
+  SPELL reverberator
 NODE 22 382.933044 237.059479 white
-  MOD node_health 1 6.000000 0 -
+  MOD armor 0 3.000000 0 -
+  MOD constitution 0 2.000000 0 -
 NODE 23 830.858765 162.802658 blue
-  MOD intelligence 1 15.000000 0 -
-  MOD mana 0 2.000000 0 -
-  ADDON bunker_addon
-    AMOD armor 3 5.000000 0 -
-    AMOD min_damage_taken 3 -5.000000 0 -
-  ADDON fortification_addon
-    AMOD node_health 3 15.000000 0 -
+  MOD intelligence 0 2.000000 0 -
+  MOD mana_per_turn 0 2.000000 0 -
+  MOD node_health 1 3.000000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
 NODE 24 472.927368 -103.965912 white
-  MOD constitution 0 11.000000 0 -
-  ADDON spike_ring_addon
-    AMOD blade_damage 0 3.000000 0 -
-    AMOD blade_damage 2 1.500000 0 -
+  MOD constitution 0 7.000000 0 -
 NODE 25 390.428040 51.426403 white
-  MOD deallocation_points 0 3.000000 0 -
+  MOD movement_points 0 1.000000 0 -
+  MOD node_health 1 7.000000 0 -
 NODE 26 697.139709 -88.384323 blue
-  MOD intelligence 0 6.000000 0 -
-  MOD mana 0 2.000000 0 -
+  MOD intelligence 0 12.000000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
+  ADDON watchtower_addon
+    AMOD range 0 150.000000 0 -
+    AMOD range 2 1.250000 0 -
+    AMOD vision_range 3 300.000000 0 -
 NODE 27 516.951904 366.920654 white
-  MOD constitution 0 6.000000 0 -
-  ADDON spike_ring_addon
-    AMOD blade_damage 0 3.000000 0 -
-    AMOD blade_damage 2 1.500000 0 -
-  ADDON spike_ring_addon
-    AMOD blade_damage 0 3.000000 0 -
-    AMOD blade_damage 2 1.500000 0 -
+  MOD constitution 0 7.000000 0 -
 NODE 28 877.029297 -38.893051 blue
+  MOD intelligence 0 4.000000 0 -
+  MOD mana 0 2.000000 0 -
+NODE 29 307.030914 -79.625183 white
+  MOD constitution 0 4.000000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
+NODE 30 -409.104065 -761.500854 blue
   MOD intelligence 0 2.000000 0 -
   MOD mana 0 4.000000 0 -
-NODE 29 307.030914 -79.625183 white
-  MOD armor 0 2.000000 0 -
-NODE 30 -409.104065 -761.500854 blue
-  MOD intelligence 1 42.000000 0 -
   SPELL bruiser
+  SPELL trail_blazer
 NODE 31 -397.779694 -514.540161 blue
-  MOD intelligence 0 6.000000 0 -
-  MOD mana_per_turn 0 3.000000 0 -
+  MOD intelligence 0 2.000000 0 -
+  MOD mana 0 3.000000 0 -
+  ADDON fortification_addon
+    AMOD node_health 3 15.000000 0 -
 NODE 32 -525.674561 -630.458130 blue
-  MOD intelligence 1 37.000000 0 -
-  ADDON bunker_addon
-    AMOD armor 3 5.000000 0 -
-    AMOD min_damage_taken 3 -5.000000 0 -
+  MOD mana 0 10.000000 0 -
   SPELL resonator
 NODE 33 -302.713623 334.791748 red
-  MOD strength 0 15.000000 0 -
-  ADDON spike_ring_addon
-    AMOD blade_damage 0 3.000000 0 -
-    AMOD blade_damage 2 1.500000 0 -
+  MOD armor 0 2.000000 0 -
+  MOD strength 0 5.000000 0 -
 NODE 34 -11.725723 372.804016 red
   MOD strength 0 2.000000 0 -
-  MOD strength 1 15.000000 0 -
-  ADDON bunker_addon
-    AMOD armor 3 5.000000 0 -
-    AMOD min_damage_taken 3 -5.000000 0 -
-  ADDON fortification_addon
-    AMOD node_health 3 15.000000 0 -
+  MOD strength 2 1.050000 0 -
 NODE 35 -292.058990 110.086899 red
   MOD strength 0 2.000000 0 -
+  MOD strength 1 15.000000 0 -
 NODE 36 -185.823944 465.302063 green
-  MOD dexterity 0 4.000000 0 -
-  MOD dexterity 1 17.000000 0 -
-NODE 37 1.638611 204.109100 gold
-  MOD wisdom 0 6.000000 0 -
-NODE 38 -431.103882 206.962585 red
-  MOD strength 0 7.000000 0 -
-NODE 39 246.243744 -447.622559 red
-  MOD strength 0 18.000000 0 -
-NODE 40 -596.914734 -420.347656 blue
-  MOD intelligence 0 8.000000 0 -
+  MOD dexterity 0 6.000000 0 -
+  ADDON fortification_addon
+    AMOD node_health 3 15.000000 0 -
   ADDON spike_ring_addon
     AMOD blade_damage 0 3.000000 0 -
     AMOD blade_damage 2 1.500000 0 -
-  ADDON watchtower_addon
-    AMOD range 0 150.000000 0 -
-    AMOD range 2 1.250000 0 -
-    AMOD vision_range 3 300.000000 0 -
+NODE 37 1.638611 204.109100 gold
+  MOD xp_per_turn 1 4.000000 0 -
+NODE 38 -431.103882 206.962585 red
+  MOD strength 0 15.000000 0 -
+  ADDON bunker_addon
+    AMOD armor 3 5.000000 0 -
+    AMOD min_damage_taken 3 -5.000000 0 -
+  ADDON fortification_addon
+    AMOD node_health 3 15.000000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
+NODE 39 246.243744 -447.622559 red
+  MOD strength 0 7.000000 0 -
+NODE 40 -596.914734 -420.347656 blue
+  MOD intelligence 0 2.000000 0 -
+  MOD intelligence 1 21.000000 0 -
   SPELL leafblower
 NODE 41 -223.812927 -290.392365 red
-  MOD strength 1 14.000000 0 -
+  MOD strength 0 6.000000 0 -
 NODE 42 -686.535645 -551.629395 blue
-  MOD intelligence 0 7.000000 0 -
-NODE 43 -524.035339 -271.241821 green
-  MOD dexterity 0 12.000000 0 -
-NODE 44 251.741867 492.903076 red
-  MOD movement_points 0 3.000000 0 -
+  MOD mana 0 7.000000 0 -
   ADDON bunker_addon
     AMOD armor 3 5.000000 0 -
     AMOD min_damage_taken 3 -5.000000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
+NODE 43 -524.035339 -271.241821 green
+  MOD dexterity 0 4.000000 0 -
+NODE 44 251.741867 492.903076 red
+  MOD strength 0 7.000000 0 -
 NODE 45 -11.234131 687.496582 green
-  MOD crit_multiplier 1 42.000000 0 -
-  MOD dexterity 0 2.000000 0 -
-  ADDON fortification_addon
-    AMOD node_health 3 15.000000 0 -
-  ADDON spike_ring_addon
-    AMOD blade_damage 0 3.000000 0 -
-    AMOD blade_damage 2 1.500000 0 -
-NODE 46 96.469620 525.817078 red
-  MOD strength 0 11.000000 0 -
-  ADDON clamp_addon
-NODE 47 137.314148 837.303101 white
-  MOD constitution 0 6.000000 0 -
-NODE 48 437.062073 851.130981 white
-  MOD armor 0 1.000000 0 -
-  MOD constitution 0 6.000000 0 -
-  ADDON spike_ring_addon
-    AMOD blade_damage 0 3.000000 0 -
-    AMOD blade_damage 2 1.500000 0 -
-NODE 49 422.093414 589.991577 white
-  MOD armor 0 1.000000 0 -
-  MOD constitution 0 7.000000 0 -
-NODE 50 -682.525330 -188.129959 green
   MOD dexterity 1 14.000000 0 -
-  ADDON fortification_addon
-    AMOD node_health 3 15.000000 0 -
+  MOD movement_points 0 3.000000 0 -
+NODE 46 96.469620 525.817078 red
+  MOD strength 0 8.000000 0 -
   ADDON watchtower_addon
     AMOD range 0 150.000000 0 -
     AMOD range 2 1.250000 0 -
     AMOD vision_range 3 300.000000 0 -
+NODE 47 137.314148 837.303101 white
+  MOD constitution 0 7.000000 0 -
+  MOD node_health 1 3.000000 0 -
+  ADDON clamp_addon
+NODE 48 437.062073 851.130981 white
+  MOD constitution 0 6.000000 0 -
+NODE 49 422.093414 589.991577 white
+  MOD constitution 0 6.000000 0 -
+  ADDON watchtower_addon
+    AMOD range 0 150.000000 0 -
+    AMOD range 2 1.250000 0 -
+    AMOD vision_range 3 300.000000 0 -
+NODE 50 -682.525330 -188.129959 green
+  MOD dexterity 0 9.000000 0 -
+  ADDON clamp_addon
 NODE 51 -347.304199 -44.982422 white
-  MOD armor 0 1.000000 0 -
   MOD constitution 0 2.000000 0 -
-  ADDON bunker_addon
-    AMOD armor 3 5.000000 0 -
-    AMOD min_damage_taken 3 -5.000000 0 -
-  ADDON spike_ring_addon
-    AMOD blade_damage 0 3.000000 0 -
-    AMOD blade_damage 2 1.500000 0 -
 NODE 52 -529.135071 1.546387 white
   MOD constitution 0 6.000000 0 -
+  MOD movement_points 0 1.000000 0 -
 NODE 53 -769.137146 -400.270813 blue
-  MOD intelligence 0 4.000000 0 -
+  MOD intelligence 0 13.000000 0 -
   MOD intelligence 1 7.000000 0 -
-  ADDON clamp_addon
-  ADDON spike_ring_addon
-    AMOD blade_damage 0 3.000000 0 -
-    AMOD blade_damage 2 1.500000 0 -
 NODE 54 709.092041 -265.162964 blue
-  MOD intelligence 0 2.000000 0 -
-  MOD movement_points 0 2.000000 0 -
+  MOD armor 0 2.000000 0 -
+  MOD intelligence 1 7.000000 0 -
 NODE 55 528.882507 -351.147461 purple
-  MOD sensor_range 0 2.000000 0 -
+  MOD perception 0 6.000000 0 -
+  MOD vision_range 1 8.000000 0 -
 NODE 56 -527.600891 408.979126 red
-  MOD strength 0 6.000000 0 -
-  ADDON spike_ring_addon
-    AMOD blade_damage 0 3.000000 0 -
-    AMOD blade_damage 2 1.500000 0 -
+  MOD strength 0 10.000000 0 -
 NODE 57 -630.501587 127.091255 green
-  MOD dexterity 0 5.000000 0 -
+  MOD dexterity 0 14.000000 0 -
+  ADDON fortification_addon
+    AMOD node_health 3 15.000000 0 -
   ADDON spike_ring_addon
     AMOD blade_damage 0 3.000000 0 -
     AMOD blade_damage 2 1.500000 0 -
 NODE 58 400.639771 -486.803467 white
-  MOD constitution 0 13.000000 0 -
+  MOD constitution 0 5.000000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
 NODE 59 120.869965 -363.753174 red
-  MOD strength 0 5.000000 0 -
-  MOD strength 1 7.000000 0 -
+  MOD strength 0 8.000000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
 NODE 60 -201.542465 745.717773 green
   MOD dexterity 0 6.000000 0 -
+  ADDON bunker_addon
+    AMOD armor 3 5.000000 0 -
+    AMOD min_damage_taken 3 -5.000000 0 -
+  ADDON clamp_addon
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
 NODE 61 -632.791199 286.172363 purple
-  MOD perception 1 31.000000 0 -
-  MOD sensor_range 0 1.000000 0 -
+  MOD sensor_range 0 2.000000 0 -
 NODE 62 -881.089600 261.995941 blue
   MOD intelligence 0 2.000000 0 -
   MOD mana 0 2.000000 0 -
-  SPELL healing_beam
-  SPELL reverberator
 NODE 63 -774.552856 -13.408836 green
   MOD dexterity 1 38.000000 0 -
 NODE 64 -89.357361 -795.412781 green
@@ -301,28 +311,35 @@ NODE 69 649.237183 -487.757660 blue
   ADDON bunker_addon
     AMOD armor 3 5.000000 0 -
     AMOD min_damage_taken 3 -5.000000 0 -
+  SPELL healing_beam
 NODE 70 -391.121399 -360.496918 red
+  MOD intelligence 1 -1.000000 0 -
   MOD strength 0 5.000000 0 -
-  MOD strength 1 7.000000 0 -
 NODE 71 894.448975 -256.925964 blue
   MOD intelligence 0 11.000000 0 -
-  SPELL trail_blazer
 NODE 72 825.384521 -392.599792 blue
-  MOD intelligence 0 10.000000 0 -
-  MOD intelligence 1 7.000000 0 -
+  MOD intelligence 0 2.000000 0 -
+  MOD intelligence 1 35.000000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
+  ADDON spike_ring_addon
+    AMOD blade_damage 0 3.000000 0 -
+    AMOD blade_damage 2 1.500000 0 -
   SPELL bruiser
 NODE 73 -882.979919 -258.176758 white
-  MOD armor 0 4.000000 0 -
-  MOD constitution 0 2.000000 0 -
-  ADDON clamp_addon
+  MOD armor 0 1.000000 0 -
+  MOD constitution 1 3.000000 0 -
+  ADDON fortification_addon
+    AMOD node_health 3 15.000000 0 -
 NODE 74 -574.219788 605.796082 red
-  MOD strength 0 17.000000 0 -
+  MOD strength 0 10.000000 0 -
   ADDON spike_ring_addon
     AMOD blade_damage 0 3.000000 0 -
     AMOD blade_damage 2 1.500000 0 -
 NODE 75 175.222290 363.768372 red
   MOD deallocation_points 0 3.000000 0 -
-  MOD strength 1 7.000000 0 -
+  MOD intelligence 1 -1.000000 0 -
   ADDON spike_ring_addon
     AMOD blade_damage 0 3.000000 0 -
     AMOD blade_damage 2 1.500000 0 -
@@ -345,14 +362,13 @@ EDGE 2 60
 EDGE 2 66
 EDGE 2 80
 EDGE 3 14
-EDGE 4 4
-EDGE 4 4
 EDGE 4 24
 EDGE 4 29
 EDGE 5 23
 EDGE 5 26
 EDGE 6 9
 EDGE 6 64
+EDGE 7 7
 EDGE 7 44
 EDGE 7 46
 EDGE 7 47
@@ -396,7 +412,6 @@ EDGE 30 32
 EDGE 31 32
 EDGE 31 70
 EDGE 32 42
-EDGE 33 33
 EDGE 33 36
 EDGE 33 38
 EDGE 34 36
@@ -428,13 +443,14 @@ EDGE 50 63
 EDGE 50 73
 EDGE 51 52
 EDGE 52 57
-EDGE 53 53
 EDGE 53 73
 EDGE 54 55
 EDGE 54 71
 EDGE 54 72
+EDGE 55 55
 EDGE 55 58
 EDGE 55 69
+EDGE 56 56
 EDGE 56 61
 EDGE 56 74
 EDGE 56 77
@@ -448,11 +464,12 @@ EDGE 60 67
 EDGE 61 77
 EDGE 62 77
 EDGE 63 76
-EDGE 64 64
 EDGE 65 66
 EDGE 65 67
 EDGE 69 72
 EDGE 71 72
+EDGE 73 73
+EDGE 73 73
 EDGE 74 79
 EDGE 74 80
 EDGE 77 79

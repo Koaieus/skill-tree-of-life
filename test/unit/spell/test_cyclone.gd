@@ -175,8 +175,9 @@ func test_triangle_grind_is_bounded_by_the_visit_cap() -> void:
 	var per_node: Dictionary = {}
 	for entry in _landings(_cast(3)):
 		per_node[entry[1]] = int(per_node.get(entry[1], 0)) + 1
-	assert_eq(per_node.get(1), 6, "a shoulder takes exactly its visit cap over three laps")
-	assert_eq(per_node.get(2), 6)
+	var cap: int = _CYCLONE.propagation.max_visits_per_node
+	assert_eq(per_node.get(1), cap, "a shoulder takes exactly its visit cap over three laps")
+	assert_eq(per_node.get(2), cap)
 	assert_eq(per_node.get(0), 4, "the seed takes the initial hit plus three laps home")
 
 
@@ -197,6 +198,12 @@ func test_square_extinguishes_head_on_at_the_far_corner() -> void:
 			beats.append(entry[0])
 	assert_eq(beats, [0, 1, 2], "the walk dies at the collision, well short of max_hops")
 	assert_eq(out.hits.size(), 4, "A, both shoulders, and the far corner once")
+	# The load-bearing assertion, and the one a landing count cannot make: the
+	# walk has to die because C REFUSED BOTH FRONTS, not merely because it ran
+	# out of unvisited ground. A veto that regressed to `incidents[0]` would
+	# still terminate here and still land four hits.
+	assert_eq(out.timeline[-1].predecessors.size(), 2,
+			"both shoulders converged on the far corner, and the merged veto saw both")
 
 
 func test_pentagon_laps_home_because_the_fronts_pass_on_an_edge() -> void:

@@ -121,10 +121,16 @@ func test_mean_kept_matches_the_closed_form() -> void:
 func test_blocker_books_climb_with_tier() -> void:
 	# Book size IS the whiff dial at m=1 (P(empty) == 1/(n+1)), so the tier
 	# ladder lives in these three counts. Large is deliberately the thinnest
-	# and stingiest — one rare spell, offered ~50% of the time.
+	# and stingiest — the rare tier, and still the whiffiest of the three.
+	#
+	# It held ONE spell until Cyclone (#696) joined the rare tier and moved the
+	# large blocker's whiff from 50% to 33%. That is a real balance change, not
+	# bookkeeping: it is the price of Cyclone being lootable at all, since this
+	# file's coverage test refuses to let a new spell land in no book. Reverting
+	# means choosing which of the two rare spells a large blocker can drop.
 	assert_eq(_SMALL_BOOK.spells.size(), 2, "small: 2 spells → 33% whiff")
 	assert_eq(_MEDIUM_BOOK.spells.size(), 3, "medium: 3 spells → 25% whiff")
-	assert_eq(_LARGE_BOOK.spells.size(), 1, "large: 1 rare spell → 50% whiff")
+	assert_eq(_LARGE_BOOK.spells.size(), 2, "large: 2 rare spells → 33% whiff")
 
 
 func test_every_spell_is_lootable_or_explicitly_excluded() -> void:

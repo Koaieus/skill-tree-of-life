@@ -27,9 +27,9 @@ func before_each() -> void:
 
 
 func test_scene_authors_the_full_topology() -> void:
-	assert_eq(_graph.get_edges().size(), 22, "authored edge count drifted from the scene")
-	assert_eq(_graph.get_node("Nodes").get_child_count(), 20,
-			"4 caster nodes + 16 defender nodes")
+	assert_eq(_graph.get_edges().size(), 23, "authored edge count drifted from the scene")
+	assert_eq(_graph.get_node("Nodes").get_child_count(), 21,
+			"5 caster nodes + 16 defender nodes")
 
 
 func test_every_authored_edge_resolves_both_endpoints() -> void:
@@ -45,7 +45,7 @@ func test_every_authored_edge_resolves_both_endpoints() -> void:
 func test_the_authored_edges_reach_the_shared_multimesh() -> void:
 	var mm: MultiMesh = _graph.edge_mesh.multimesh
 	assert_not_null(mm, "Graph._ready mints this; an authored override would shadow it")
-	assert_eq(mm.visible_instance_count, 22, "one buffer slot per authored edge")
+	assert_eq(mm.visible_instance_count, 23, "one buffer slot per authored edge")
 
 
 ## `self_loops` is a DERIVED runtime index that the editor serializes anyway
