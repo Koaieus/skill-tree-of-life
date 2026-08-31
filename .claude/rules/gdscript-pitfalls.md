@@ -52,6 +52,21 @@ A lambda's `Callable.get_object()` is the **GDScript**, not the node, and
 matches, failing as a silent no-op. Record the Callable when you connect:
 `BindScope` (`ui/bind_scope.gd`) is the one such bookkeeper; don't add a second.
 
+## A lambda captures outer locals BY VALUE — writes inside never escape
+
+A lambda copies the locals it closes over at creation time, so assigning to one
+inside the body mutates the *copy*. No error, no warning: the enclosing variable
+just still holds its old value. Bites hardest in tests, where the natural shape
+is a signal handler that flips a local flag — the handler runs, the flag reads
+`false`, and the assertion reports "signal never fired" for a signal that fired.
+
+**How to apply:** when a callable must write something the caller reads back,
+give it a member var (or a single-element `Array`/`Dictionary`, which are
+reference types and so mutate through) and connect a named method. Reserve
+lambdas for callables that only *read* their captures.
+
+Found writing #538's non-mutation test, 2026-08-31.
+
 ## `global_position` on a node not yet in the tree silently writes `position`
 
 There is no parent transform to invert, so the setter falls through to
