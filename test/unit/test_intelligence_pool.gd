@@ -34,5 +34,14 @@ func test_draw_only_emits_pack_stat_ids() -> void:
 	for seed_value in range(1, 25):
 		var mods: Array = _GP._roll_modifiers_v4(pool_set, [], &"intelligence", &"intelligence", [] as Array[StringName], Vector2.ZERO, 0, 8, _rng(seed_value))
 		for m in mods: if not (m.stat_id in ids): ids.append(m.stat_id)
-	# every rolled stat_id must be one this pack owns
-	for sid in ids: assert_true(sid in [&"intelligence", &"mana", &"mana_per_turn"], "unexpected stat_id rolled: %s" % String(sid))
+	# Every rolled stat_id must be one this pack owns — read OFF the pack, not
+	# from a hand-listed trio. The literal list went stale the moment ef67e82
+	# gave INT a cross-archetype `node_health +%` pool: the content change was
+	# deliberate and the test failed anyway, blaming the roll for a fact about
+	# the fixture. Derived, it asserts what its name says.
+	var owned: Array[StringName] = []
+	for sp in (pool_set.packs[0] as StatPack).pools:
+		var sid_owned := (sp as StatPool).stat_id
+		if not (sid_owned in owned): owned.append(sid_owned)
+	assert_true(owned.size() > 1, "fixture: the pack must own more than one stat for this to bite")
+	for sid in ids: assert_true(sid in owned, "unexpected stat_id rolled: %s (pack owns %s)" % [String(sid), owned])
