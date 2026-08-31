@@ -61,6 +61,13 @@ class ScoredCandidate:
 	var ev: float = 0.0
 	var is_kill: bool = false
 	var kill_bonus: float = 0.0
+	## Preview-only (#538): what this candidate's kill/removal would pay in
+	## XP, via [method LootSystem.preview_kill_xp]. NOT summed into [member
+	## total] — the issue that adds this term explicitly descopes weighting
+	## it against damage; it exists to be read, not to move the ranking.
+	## 0.0 whenever no [LootSystem] was supplied to [method score] (existing
+	## callers don't yet thread one through).
+	var kill_xp: float = 0.0
 	var cut_vertex_bonus: float = 0.0
 	var enemy_weak_bonus: float = 0.0
 	var self_shape_risk: float = 0.0
@@ -103,8 +110,19 @@ static func expected_damage(outcome: AttackOutcome, attacker: Entity = null) -> 
 ## defensive-spike pop does (see [BladePopResolver]) — so melee (slice C)
 ## passes [member AttackOutcome.thinned_nodes] (the real per-swing pop count
 ## [MeleeAttackPlan.resolve] already computes), not blade_nodes.size().
+##
+## [param loot_system], if supplied, previews [member ScoredCandidate.kill_xp]
+## via [method LootSystem.preview_kill_xp] (#538) — trailing and defaulted to
+## null so neither existing caller ([code]ai_controller.gd[/code],
+## [code]ai_blade_rollout.gd[/code]) needs to change to keep compiling; they
+## simply don't get a kill_xp preview yet. Modelled as one removed node
+## (`target` itself) when [member ScoredCandidate.is_kill], with the entity-
+## kill flag set only when `target` is the victim's core — this scorer has no
+## broader "removed this attack" set to offer (that's BattleSystem cascade
+## state), so a non-core node depletion previews the plain trickle rate.
 static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target: SkillNode,
-		attacker: Entity, ai_tier: int, thinned_nodes: int = 0) -> ScoredCandidate:
+		attacker: Entity, ai_tier: int, thinned_nodes: int = 0,
+		loot_system: LootSystem = null) -> ScoredCandidate:
 	var c := ScoredCandidate.new()
 	c.mode = mode
 	c.target = target
@@ -113,6 +131,11 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 	var target_hp: float = target.get_current_hp() if target != null else 0.0
 	c.is_kill = target_hp > 0.0 and c.ev >= target_hp
 	c.kill_bonus = _KILL_BONUS if c.is_kill else 0.0
+	if loot_system != null and target != null and attacker != null:
+		var victim: Entity = target.owned_by
+		var removed_node_count := 1 if c.is_kill else 0
+		var kills_entity := c.is_kill and victim != null and target == victim.core_location
+		c.kill_xp = loot_system.preview_kill_xp(attacker, victim, removed_node_count, kills_entity)
 	# Ungated by tier, like the kill bonus: being stuck is not a tactical
 	# subtlety a naive brain is allowed to miss. Depleting a node force-
 	# deallocates it, so ANY owner's node bordering my territory is a door —
@@ -137,6 +160,11 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 		c.cut_vertex_bonus, c.enemy_weak_bonus, c.self_shape_risk, c.total]
 	if c.breakout_bonus > 0.0:
 		c.trace += " door=%.1f" % c.breakout_bonus
+	# Same append-not-splice treatment as `door`, for the same reason: the
+	# #512 golden freezes the base string, and kill_xp is 0.0 (so silent)
+	# for every caller that doesn't yet thread a LootSystem through.
+	if c.kill_xp > 0.0:
+		c.trace += " kill_xp=%.1f" % c.kill_xp
 	return c
 
 

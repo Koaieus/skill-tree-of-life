@@ -249,6 +249,22 @@ func _resolve_killer(victim: Entity) -> Entity:
 
 # ── #68: XP reward ───────────────────────────────────────────────────────────
 
+## Pure formula (#538): what `removed_node_count` removals off `victim` are
+## worth. Shared by [method _award_kill_xp] (which then nets off trickle
+## already paid mid-cascade — see below) and [method preview_kill_xp] (which
+## does NOT net that off — the whole point is a number that doesn't move
+## depending on when in the cascade it's asked). `removed_node_count` excludes
+## the core; `kills_entity` folds in the core, the [member entity_kill_bonus]
+## multiplier, and the #300 tier bonus. Never duplicate this arithmetic
+## anywhere else — a second copy is exactly the parallel-mirrors shape
+## `.claude/rules/no-parallel-mirrors` forbids.
+func _kill_xp_total(removed_node_count: int, kills_entity: bool, victim: Entity) -> float:
+	if not kills_entity:
+		return xp_per_node_killed * float(removed_node_count)
+	var tier_bonus := tier_xp_base * float(victim.entity_tier * victim.entity_tier)
+	return xp_per_node_killed * float(removed_node_count + 1) * entity_kill_bonus + tier_bonus
+
+
 func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 	if not award_xp_on_kill:
 		return
@@ -270,17 +286,33 @@ func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 	var counted := removed.duplicate()
 	for n in _held_nodes(victim):
 		counted[n] = true
-	var total := xp_per_node_killed * float(counted.size() + 1) * entity_kill_bonus
+	var total := _kill_xp_total(counted.size(), true, victim)
 	# The ledger's nodes already collected their trickle at 1x — pay only the
 	# difference, so the kill is worth exactly `total` however the attack was
 	# sequenced.
 	var already_paid := xp_per_node_killed * float(removed.size()) \
 			if award_xp_on_node_kill else 0.0
-	# #300: tier bonus — a flat size-shaped reward on top of the territory term,
-	# paid once per kill (not per node). Scales quadratically so a large blocker
-	# is worth meaningfully more than several small ones, not just linearly more.
-	var tier_bonus := tier_xp_base * float(victim.entity_tier * victim.entity_tier)
-	_grant_xp(killer, total - already_paid + tier_bonus)
+	_grant_xp(killer, total - already_paid)
+
+
+## Read-only. What this many removals on `victim` would pay `killer` in XP —
+## the TOTAL the attack is worth (owner's Added decision 2, #538), never netted
+## against trickle already banked earlier in the same cascade. Reads no
+## `_removed_this_attack` ledger and no already-paid bookkeeping, so it is a
+## pure function of its arguments: calling it twice, or mid-cascade vs. before
+## the cascade started, returns the same number. Non-mutating — no `Events`,
+## no rolls, no loot RNG, no instance-state writes. Honours the same guards
+## `_award_kill_xp` does: `award_xp_on_kill`, a null/dead killer, and the
+## HOSTILE-only gate (#384/#386) all preview 0.0.
+func preview_kill_xp(killer: Entity, victim: Entity, removed_node_count: int,
+		kills_entity: bool) -> float:
+	if not award_xp_on_kill:
+		return 0.0
+	if killer == null or killer.is_dead or victim == null:
+		return 0.0
+	if killer.attitude_to(victim) != Entity.Attitude.HOSTILE:
+		return 0.0
+	return _kill_xp_total(removed_node_count, kills_entity, victim)
 
 
 ## A fresh attack — the ledger is scoped to one attack, so nothing carries over.
