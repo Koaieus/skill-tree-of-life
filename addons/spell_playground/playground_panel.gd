@@ -101,6 +101,27 @@ var _authored_cores: Dictionary[Entity, SkillNode] = {}
 ## Bounding box of the authored node positions; the viewport fits to it.
 var _content_rect: Rect2 = Rect2()
 
+## Where the two tuning sliders were last left, carried across a Reload.
+##
+## Reload discards and rebuilds the WHOLE TAB from its `.tscn`
+## ([method SandboxHost.reload_tab]) — that is the point of it, and it is why an
+## instance var cannot carry anything: this object does not survive. A static
+## does, for as long as the editor keeps the script loaded, which is the right
+## lifetime (a script reload is a code change, and starting from the authored
+## values then is correct).
+##
+## Restored under [method Engine.is_editor_hint] only. GUT instantiates this
+## panel per test, and a static leaking between tests would have each one start
+## from wherever the last one left its slider — while Reload is an editor
+## affordance in the first place, so the hint is exactly the right question. The
+## WRITES below are unguarded: with the restore gated there is nothing for a
+## headless write to leak into.
+##
+## `NAN` rather than a sentinel number: every real slider value is a legal one,
+## so "never touched" has to be un-representable as a value.
+static var _remembered_spell_damage: float = NAN
+static var _remembered_node_health: float = NAN
+
 
 func _ready() -> void:
 	# Bring-up, before anything reads a board or resolves a spell. `Entity._ready`
@@ -111,12 +132,17 @@ func _ready() -> void:
 	defender_entity.initialize()
 	_capture_authored_world()
 	_build_systems()
+	# Before `_arm_board`, which stamps the spell-damage slider onto the caster's
+	# board — restoring after it would arm the board from the authored value and
+	# leave the slider disagreeing with the stat until the next Reset.
+	_restore_remembered_sliders()
 	_arm_board()
 	_grant_caster_reach()
 	cast_button.pressed.connect(_cast)
 	reset_button.pressed.connect(_reset_state)
 	reload_button.pressed.connect(reload_requested.emit)
 	spell_damage_slider.value_changed.connect(_on_spell_damage_changed)
+	_refresh_spell_damage_label()
 	_install_node_health_sets()
 	node_health_slider.value_changed.connect(_on_node_health_changed)
 	world.size_changed.connect(_layout_world)
@@ -573,11 +599,31 @@ func _reset_state() -> void:
 	_refresh_status()
 
 
+## Put both sliders back where the last incarnation of this panel left them.
+## See [member _remembered_spell_damage] for what Reload does and why a static
+## is what survives it.
+func _restore_remembered_sliders() -> void:
+	if not Engine.is_editor_hint():
+		return
+	if not is_nan(_remembered_spell_damage):
+		spell_damage_slider.set_value_no_signal(_remembered_spell_damage)
+	if not is_nan(_remembered_node_health):
+		# A remembered value can sit above the authored ceiling if the ceiling
+		# was itself widened for a big baseline last time round.
+		node_health_slider.max_value = maxf(node_health_slider.max_value, _remembered_node_health)
+		node_health_slider.set_value_no_signal(_remembered_node_health)
+
+
 func _on_spell_damage_changed(value: float) -> void:
-	spell_damage_label.text = "Spell DMG: %.1f" % value
+	_remembered_spell_damage = value
+	_refresh_spell_damage_label()
 	if caster_entity != null and caster_entity.stat_board != null \
 			and caster_entity.stat_board.spell_damage != null:
 		caster_entity.stat_board.spell_damage.base_value = value
+
+
+func _refresh_spell_damage_label() -> void:
+	spell_damage_label.text = "Spell DMG: %.1f" % spell_damage_slider.value
 
 
 ## Put a SET modifier on each entity's `node_health` baseline, seeded with
@@ -598,11 +644,14 @@ func _on_spell_damage_changed(value: float) -> void:
 ## 10) through the no-owner branch of [method NodeCombat._node_health_base],
 ## until Reset puts it back under an owner.
 func _install_node_health_sets() -> void:
+	# A restored slider is already the answer — seeding from the baseline again
+	# would silently snap it back to the authored cap.
 	var seeded: float = node_health_slider.value
-	if defender_entity != null and defender_entity.stat_board != null:
-		var baseline: Stat = defender_entity.stat_board.get_stat(&"node_health")
-		if baseline != null:
-			seeded = float(baseline.get_value())
+	if is_nan(_remembered_node_health) or not Engine.is_editor_hint():
+		if defender_entity != null and defender_entity.stat_board != null:
+			var baseline: Stat = defender_entity.stat_board.get_stat(&"node_health")
+			if baseline != null:
+				seeded = float(baseline.get_value())
 	node_health_slider.max_value = maxf(node_health_slider.max_value, seeded)
 	node_health_slider.set_value_no_signal(seeded)
 	for entity in [caster_entity, defender_entity]:
@@ -634,6 +683,7 @@ func _on_node_health_changed(value: float) -> void:
 	# modifier is subscribed to (`stats_system/stat.gd:370`) — so the recompute,
 	# the `value_changed` fan-out and every node's next cap read follow from this
 	# one assignment. No re-add, no board poke.
+	_remembered_node_health = value
 	for mod in _node_health_sets:
 		mod.value = value
 	_refresh_node_health_label()

@@ -230,10 +230,10 @@ func test_lowering_the_slider_keeps_the_damage_already_taken() -> void:
 ## gate on the restore: headless, every panel must still start from the authored
 ## board, or a test's slider becomes the next test's starting position.
 func test_slider_memory_does_not_leak_between_headless_panels() -> void:
-	var baseline := _panel.node_health_slider.value
+	var baseline: float = _panel.node_health_slider.value
 	_panel.node_health_slider.value = baseline + 40.0
 	_panel.spell_damage_slider.value = 7.5
-	var fresh = _PANEL.instantiate()
+	var fresh: Node = _PANEL.instantiate()
 	add_child_autofree(fresh)
 	await get_tree().process_frame
 	assert_eq(fresh.node_health_slider.value, baseline, "node HP starts from the baseline")
