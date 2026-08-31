@@ -8,7 +8,7 @@ extends GutTest
 ## [method GameSession.apply_received] and nothing in `scenes/` consumed the
 ## [signal GameSession.run_started] that came back out. Two lobbies configured
 ## identically genuinely played each other; anything else desynced in silence,
-## which is what `HostJoinScreen`'s retired "both players must type the same
+## which is what #531's retired "both players must type the same
 ## seed" caption was honestly disclaiming.
 ##
 ## The adoption is two halves and this file covers both:

@@ -2,7 +2,7 @@ class_name LabelledRow
 extends HBoxContainer
 
 ## A label beside an expanding field (#690) — the shape `settings_menu.gd`,
-## `host_join_screen.gd`, and `lobby_screen.gd` were each hand-building as a
+## `network_fields.gd`, and `lobby_screen.gd` were each hand-building as a
 ## fresh `HBoxContainer` + `Label` + field. One scene, one swap
 ## implementation; every caller instances this and calls [method set_widget].
 

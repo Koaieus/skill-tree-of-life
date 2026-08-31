@@ -38,7 +38,7 @@ func _ready() -> void:
 	_frontmatter.focus_changed.connect(_on_focus_changed)
 
 
-## Wires the two panels that produce something this file has to act on. The
+## Wires the three panels that produce something this file has to act on. The
 ## other three (settings, load, exit confirm) are answered entirely inside the
 ## panel layer — the exit confirm's quit goes to [FrontmatterRoot], which owns
 ## the tree, not here.
@@ -49,16 +49,18 @@ func _bind_panels() -> void:
 	var join := _join_panel()
 	if join != null:
 		join.join_requested.connect(_on_join_requested)
-		join.host_requested.connect(_on_host_requested)
-		join.hotseat_requested.connect(_on_hotseat_requested)
+	var host := _host_panel()
+	if host != null:
+		host.host_requested.connect(_on_host_requested)
 
 
 ## Arriving on a leaf that authors a run is what used to be a button press.
 ##
-## Only the leaves whose panel IS the lobby route from here: JOIN opens the
-## code-entry panel first and reaches the lobby through
-## [method _on_join_requested] once an address has been typed. That asymmetry is
-## #531's, restated — it is the reason [MenuGraph.Item] splits "which panel
+## Only the leaves whose panel IS the lobby route from here — today the two
+## offline ones. HOST and JOIN each open a config panel first and reach the
+## lobby through [method _on_host_requested] / [method _on_join_requested] once
+## a port (and, for JOIN, an address) has been typed. That asymmetry is #531's,
+## widened by #582 — it is the reason [MenuGraph.Item] splits "which panel
 ## opens" from "what run shape does this eventually author".
 func _on_focus_changed(id: StringName) -> void:
 	var item := _frontmatter.tree.get_item(id)
@@ -72,6 +74,13 @@ func _on_focus_changed(id: StringName) -> void:
 
 ## The [NetworkConfig] constructor a route's role names. Every role is spelled
 ## out, including OFFLINE — see [method _push_lobby] for why that matters.
+##
+## Only the OFFLINE branch is reached today: since #582 both networked roles
+## arrive through a panel that already typed their digits, and a role reaching a
+## lobby WITHOUT them would be exactly the "hosts on the default port forever"
+## bug that issue was filed about. The match stays total all the same, so a
+## future lobby-routed role fails loudly rather than silently coming out
+## offline.
 static func _network_for(route: MenuGraph.Route) -> NetworkConfig:
 	match route.network_role:
 		NetworkTransport.Role.HOST:
@@ -98,14 +107,9 @@ func _on_join_requested(address: String, port: int) -> void:
 			_policy_of(MenuGraph.ID_JOIN))
 
 
-func _on_hotseat_requested() -> void:
-	_push_lobby(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.offline(),
-			_policy_of(MenuGraph.ID_LOCAL))
-
-
-## The [LobbyPolicy] a leaf authored (#615 D2). #531's three buttons reach the
-## lobby through the address screen rather than through their own leaf, so they
-## cannot read `item.route` off the focus change — they ask for it by id here.
+## The [LobbyPolicy] a leaf authored (#615 D2). HOST and JOIN reach the lobby
+## through their config panel rather than through their own focus change, so
+## they cannot read `item.route` off it — they ask for it by id here.
 ## Read from the tree rather than restated as a constant so there stays exactly
 ## one authoring site; a null answer is legal and means "today's behaviour".
 func _policy_of(id: StringName) -> LobbyPolicy:
@@ -191,3 +195,8 @@ func _lobby_panel() -> LobbyPanel:
 func _join_panel() -> JoinPanel:
 	var panels := _panels()
 	return null if panels == null else panels.get_panel(MenuGraph.PANEL_JOIN) as JoinPanel
+
+
+func _host_panel() -> HostPanel:
+	var panels := _panels()
+	return null if panels == null else panels.get_panel(MenuGraph.PANEL_HOST) as HostPanel

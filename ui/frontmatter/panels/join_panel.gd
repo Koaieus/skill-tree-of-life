@@ -2,52 +2,39 @@
 class_name JoinPanel
 extends FrontmatterPanel
 
-## The type-an-address panel JOIN raises before the lobby (#573).
+## The type-an-address panel JOIN raises before the lobby (#573, #582).
 ##
-## [b]This panel hosts the shipped [HostJoinScreen] as-is.[/b] #573 names its
-## address/port handling and its `_address()` fallback as things to re-home
-## rather than rewrite, so the screen is instanced whole and its three signals
-## are relayed. Unlike [LobbyPanel] it can sit in the `.tscn`: [HostJoinScreen]
-## has no configure-before-ready contract — it builds its two fields and its
-## buttons in `_ready` and reads them only when pressed.
+## [b]It carries an address AND a port, and nothing else.[/b] #582's owner call:
+## [i]"join -- has option to select port (with default set to 9099) and or
+## network address (whichever we need, likely both?)"[/i] — the answer is both,
+## matching [method NetworkConfig.join]'s two arguments.
 ##
-## [b]The Host and Hot-Seat buttons stay, and that is a decision, not an
-## oversight.[/b] They look redundant — the frontmatter tree offers HOST and
-## LOCAL as their own leaves — but they are the only place a PORT can be typed.
-## A leaf carries a [MenuGraph.Route], which names a role and nothing else, so
-## routing HOST straight off the tree hosts on the default port forever. #531's
-## screen is what makes `NetworkConfig.host(<typed port>)` reachable at all, and
-## `test_host_join_screen.gd` pins all three buttons besides. Removing them
-## would delete shipped behaviour and the assertions over it; see #579's report.
+## [b]The Host and Hot-Seat buttons are gone (#582 acceptance 6).[/b] They were
+## on the hosted `HostJoinScreen` from #531, when this was the only surface in
+## the whole frontmatter that could accept a port — a [MenuGraph.Route] names a
+## role, not digits, so routing HOST off the tree would have hosted on the
+## default port forever. #579 wanted them trimmed and was right to be refused:
+## trimming them then would have deleted the only port entry there was. Now
+## [HostPanel] holds the host's port and the LOCAL leaf holds hot-seat, so the
+## buttons are redundant in fact and not merely in appearance. The screen they
+## lived on is gone with them; its address/port parsing survives, shared with
+## the host panel, in [NetworkFields].
 
 ## The address and port the player typed. The shell turns this into
 ## `NetworkConfig.join(address, port)`; this panel does not construct one, for
 ## the same reason [LobbyPanel] does not write [member GameSession.network].
 signal join_requested(address: String, port: int)
-## Relayed from the hosted screen's redundant Host button — see the class note.
-signal host_requested(port: int)
-## Relayed from the hosted screen's redundant Hot-Seat button — see the class note.
-signal hotseat_requested
 
-@onready var screen: HostJoinScreen = %HostJoinScreen
+@onready var fields: NetworkFields = %NetworkFields
+@onready var _join_button: Button = %JoinButton
 
 
 func _ready() -> void:
 	super()
 	if Engine.is_editor_hint():
 		return
-	screen.join_pressed.connect(_on_join_pressed)
-	screen.host_pressed.connect(_on_host_pressed)
-	screen.hotseat_pressed.connect(_on_hotseat_pressed)
+	_join_button.pressed.connect(_on_join_pressed)
 
 
-func _on_join_pressed(address: String, port: int) -> void:
-	join_requested.emit(address, port)
-
-
-func _on_host_pressed(port: int) -> void:
-	host_requested.emit(port)
-
-
-func _on_hotseat_pressed() -> void:
-	hotseat_requested.emit()
+func _on_join_pressed() -> void:
+	join_requested.emit(fields.address(), fields.port())

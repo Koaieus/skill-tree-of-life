@@ -1,7 +1,7 @@
-[gd_scene format=3 uid="uid://utdix8miupe1"]
+[gd_scene format=3]
 
 [ext_resource type="PackedScene" uid="uid://doefrm4l5xs8b" path="res://ui/frontmatter/panels/frontmatter_panel.tscn" id="1_base"]
-[ext_resource type="Script" uid="uid://bd3spqp4omyn4" path="res://ui/frontmatter/panels/join_panel.gd" id="2_join"]
+[ext_resource type="Script" path="res://ui/frontmatter/panels/host_panel.gd" id="2_host"]
 [ext_resource type="PackedScene" path="res://ui/frontmatter/panels/network_fields.tscn" id="3_fields"]
 [ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_woope"]
 
@@ -18,22 +18,23 @@ shader_parameter/corner_radius = 13.0
 shader_parameter/glow_color = Color(1, 1, 1, 0)
 shader_parameter/glow_strength = 0.0
 
-[node name="JoinPanel" unique_id=1924546662 instance=ExtResource("1_base")]
-script = ExtResource("2_join")
-panel_id = &"join"
-title = "JOIN"
+[node name="HostPanel" unique_id=1924546663 instance=ExtResource("1_base")]
+script = ExtResource("2_host")
+panel_id = &"host"
+title = "HOST"
 
 [node name="GlassPanel" parent="OuterMargin" parent_id_path=PackedInt32Array(1713397761) index="0" unique_id=747232056]
 material = SubResource("ShaderMaterial_nv3kl")
 
 [node name="Title" parent="OuterMargin/GlassPanel/InnerMargin/Column" parent_id_path=PackedInt32Array(155366615) index="0" unique_id=1262299303]
-text = "JOIN"
+text = "HOST"
 
-[node name="NetworkFields" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" parent_id_path=PackedInt32Array(2096987890) index="0" unique_id=286348380 instance=ExtResource("3_fields")]
+[node name="NetworkFields" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" parent_id_path=PackedInt32Array(2096987890) index="0" unique_id=286348382 instance=ExtResource("3_fields")]
 unique_name_in_owner = true
 layout_mode = 2
+show_address = false
 
-[node name="JoinButton" type="Button" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" parent_id_path=PackedInt32Array(2096987890) index="1" unique_id=286348381]
+[node name="HostButton" type="Button" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" parent_id_path=PackedInt32Array(2096987890) index="1" unique_id=286348383]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Join"
+text = "Start Hosting"

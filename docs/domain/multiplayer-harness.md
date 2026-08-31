@@ -366,7 +366,7 @@ re-proving every verb crosses (rung 1 already does that). The default is 3.
 placement math — draw weights, a Poisson roll, a Gaussian bump, points on a
 circle — real math that would be wrong to rewrite, but whose last bit is not
 IEEE-754-portable across platforms' `libm`. Two peers "typing the same seed"
-(`HostJoinScreen`'s current lobby hint) can silently generate DIFFERENT maps,
+(#531's retired lobby hint) can silently generate DIFFERENT maps,
 and every command after that lands on a node that isn't there — not subtle
 drift, the run failing to start coherently. Sending the graph rather than
 regenerating it retires that hazard permanently; `mise run lint-transcendentals`'s

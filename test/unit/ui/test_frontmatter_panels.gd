@@ -10,12 +10,14 @@ extends GutTest
 ## below is about [FrontmatterPanels]' four public calls and the one signal C3
 ## consumes.
 ##
-## The lobby and join panels host the SHIPPED [LobbyScreen] / [HostJoinScreen]
-## by composition rather than reimplementing them, so what is asserted about
-## them here is only the seam: that the screen is reachable, that its signals
-## are relayed, and that #553/#554's roster logic still answers through the
-## panel. `test_lobby_roster.gd` and `test_host_join_screen.gd` remain the tests
-## OF those screens and are untouched by this unit — if they and these ever
+## The lobby panel hosts the SHIPPED [LobbyScreen] by composition rather than
+## reimplementing it, so what is asserted about it here is only the seam: that
+## the screen is reachable, that its signals are relayed, and that #553/#554's
+## roster logic still answers through the panel. The two network panels
+## ([HostPanel], [JoinPanel]) author their own bodies since #582 and share
+## [NetworkFields]; only their relay is asserted here.
+## `test_lobby_roster.gd` and `test_network_entry_panels.gd` remain the tests OF
+## those bodies and are untouched by this unit — if they and these ever
 ## disagree, they are right and this is wrong.
 
 const _PANELS := preload("res://ui/frontmatter/panels/frontmatter_panels.tscn")
@@ -37,6 +39,7 @@ func test_every_registered_id_is_a_menu_graph_panel_constant() -> void:
 		MenuGraph.PANEL_LOBBY,
 		MenuGraph.PANEL_LOAD,
 		MenuGraph.PANEL_JOIN,
+		MenuGraph.PANEL_HOST,
 		MenuGraph.PANEL_SETTINGS,
 		MenuGraph.PANEL_EXIT_CONFIRM,
 	]
@@ -57,13 +60,14 @@ func test_every_panel_the_menu_tree_names_is_registered() -> void:
 				"leaf '%s' names panel '%s', which nothing supplies" % [id, item.panel])
 
 
-func test_all_five_panels_are_registered() -> void:
-	assert_eq(_panels.panel_ids().size(), 5)
+func test_all_six_panels_are_registered() -> void:
+	assert_eq(_panels.panel_ids().size(), 6)
 	assert_true(_panels.has_panel(MenuGraph.PANEL_SETTINGS))
 	assert_true(_panels.has_panel(MenuGraph.PANEL_LOAD))
 	assert_true(_panels.has_panel(MenuGraph.PANEL_EXIT_CONFIRM))
 	assert_true(_panels.has_panel(MenuGraph.PANEL_LOBBY))
 	assert_true(_panels.has_panel(MenuGraph.PANEL_JOIN))
+	assert_true(_panels.has_panel(MenuGraph.PANEL_HOST))
 
 
 func test_each_registered_panel_answers_to_its_own_id() -> void:
@@ -349,50 +353,58 @@ func test_navigating_to_new_game_renders_a_real_lobby() -> void:
 	assert_true(found_start_button, "the Start button rendered")
 
 
-# --- the join panel keeps the shipped address handling -----------------------
+# --- the network panels keep the shipped address handling --------------------
 
 func _join() -> JoinPanel:
 	return _panels.get_panel(MenuGraph.PANEL_JOIN) as JoinPanel
 
 
-func _press(screen: HostJoinScreen, text: String) -> void:
-	for child in screen.content.get_children():
-		if child is Button and (child as Button).text == text:
-			(child as Button).pressed.emit()
-			return
-	fail_test("no button labelled '%s'" % text)
+func _host() -> HostPanel:
+	return _panels.get_panel(MenuGraph.PANEL_HOST) as HostPanel
 
 
-func test_the_join_panel_hosts_the_shipped_screen() -> void:
-	assert_not_null(_join().screen)
-	assert_true(_join().screen is HostJoinScreen)
+func test_both_network_panels_carry_the_shared_fields() -> void:
+	assert_not_null(_join().fields)
+	assert_not_null(_host().fields, "#582: HOST types a port before the lobby")
 
 
 func test_the_typed_address_and_port_reach_the_relay_intact() -> void:
-	# #573 names `host_join_screen.gd`'s address/port handling as something to
-	# re-home rather than rewrite. This is that handling, reached through the
-	# panel: what the player typed is what comes out.
+	# #573 named the old screen's address/port handling as something to re-home
+	# rather than rewrite; #582 re-homed it into [NetworkFields]. This is that
+	# handling, reached through the panel: what the player typed is what comes
+	# out.
 	var join := _join()
-	join.screen._address_edit.text = "192.168.1.7"
-	join.screen._port_edit.text = "7777"
+	join.fields._address_edit.text = "192.168.1.7"
+	join.fields._port_edit.text = "7777"
 
 	var seen: Array = []
 	join.join_requested.connect(func(a: String, p: int): seen.append([a, p]))
-	_press(join.screen, "Join")
+	join._join_button.pressed.emit()
 
 	assert_eq(seen, [["192.168.1.7", 7777]])
 
 
-func test_a_blank_address_still_falls_back_rather_than_dialling_nothing() -> void:
-	# The `_address()` fallback comment #573 calls out. Asserted through the
-	# panel so the re-home cannot quietly drop it.
-	var join := _join()
-	join.screen._address_edit.text = ""
-	join.screen._port_edit.text = "7777"
+func test_the_typed_port_reaches_the_relay_from_the_host_panel_too() -> void:
+	var host := _host()
+	host.fields._port_edit.text = "7777"
 
 	var seen: Array = []
-	join.join_requested.connect(func(a: String, p: int): seen.append(a))
-	_press(join.screen, "Join")
+	host.host_requested.connect(func(p: int): seen.append(p))
+	host._host_button.pressed.emit()
+
+	assert_eq(seen, [7777])
+
+
+func test_a_blank_address_still_falls_back_rather_than_dialling_nothing() -> void:
+	# The `address()` fallback #573 calls out. Asserted through the panel so the
+	# re-home cannot quietly drop it.
+	var join := _join()
+	join.fields._address_edit.text = ""
+	join.fields._port_edit.text = "7777"
+
+	var seen: Array = []
+	join.join_requested.connect(func(a: String, _p: int): seen.append(a))
+	join._join_button.pressed.emit()
 
 	assert_eq(seen.size(), 1)
 	assert_ne(seen[0], "", "an empty field falls back to the default address")
@@ -530,6 +542,7 @@ func test_every_inherited_panel_gets_the_frame_from_the_base_scene_alone() -> vo
 		"res://ui/frontmatter/panels/exit_confirm_panel.tscn",
 		"res://ui/frontmatter/panels/lobby_panel.tscn",
 		"res://ui/frontmatter/panels/join_panel.tscn",
+		"res://ui/frontmatter/panels/host_panel.tscn",
 	]:
 		var panel: FrontmatterPanel = load(path).instantiate()
 		add_child_autofree(panel)
@@ -544,7 +557,7 @@ func test_every_inherited_panel_gets_the_frame_from_the_base_scene_alone() -> vo
 ## No [FrontmatterPanel] subclass may reach across the layer split — that
 ## invariant is what keeps panel text crisp instead of panned and zoomed by the
 ## graph camera. `FrontmatterPanels` (the container) and content mounted into
-## `%Body` (`LobbyScreen`, `HostJoinScreen`) are not subclasses of
+## `%Body` ([LobbyScreen], [NetworkFields]) are not subclasses of
 ## [FrontmatterPanel] and are excluded on purpose.
 func test_no_panel_subclass_reaches_across_the_layer_split() -> void:
 	var scripts := [
@@ -552,6 +565,7 @@ func test_no_panel_subclass_reaches_across_the_layer_split() -> void:
 		"res://ui/frontmatter/panels/exit_confirm_panel.gd",
 		"res://ui/frontmatter/panels/lobby_panel.gd",
 		"res://ui/frontmatter/panels/join_panel.gd",
+		"res://ui/frontmatter/panels/host_panel.gd",
 	]
 	var forbidden := ["Camera2D", "%GraphLayer", "get_viewport_transform"]
 	for path in scripts:

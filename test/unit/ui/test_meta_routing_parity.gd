@@ -23,6 +23,13 @@ extends GutTest
 ## 3. START resolves [enum RunConfig.Mode] from the roster at press time (#554's
 ##    [method LobbyScreen.resolve_mode]), never from the route that was taken.
 ##
+## [b]#582 moved HOST behind a config panel[/b], the way #531 had already moved
+## JOIN behind an address one — so two of the four routes now reach their lobby
+## by pressing through a panel rather than by arriving on a leaf. Same
+## re-pointing discipline: every assertion survives, including
+## [code]"the typed port reaches the config"[/code], which is the end-to-end
+## claim #582 acceptance 6 protects.
+##
 ## The second half of each route test asserts the SAME answer off
 ## [method MenuGraph.build] — that is the parity: the frontmatter's leaf data and
 ## the live routing agree.
@@ -98,16 +105,12 @@ func _lobby() -> LobbyScreen:
 	return (_panels.get_panel(MenuGraph.PANEL_LOBBY) as LobbyPanel).screen
 
 
-func _join_screen() -> HostJoinScreen:
-	return (_panels.get_panel(MenuGraph.PANEL_JOIN) as JoinPanel).screen
+func _join_panel() -> JoinPanel:
+	return _panels.get_panel(MenuGraph.PANEL_JOIN) as JoinPanel
 
 
-func _press(screen: Node, text: String) -> void:
-	for child in (screen.content as Control).get_children():
-		if child is Button and (child as Button).text == text:
-			(child as Button).pressed.emit()
-			return
-	fail_test("no button labelled '%s' on %s" % [text, screen])
+func _host_panel() -> HostPanel:
+	return _panels.get_panel(MenuGraph.PANEL_HOST) as HostPanel
 
 
 func _humans(participants: Array[Participant]) -> Array[Participant]:
@@ -126,17 +129,28 @@ func _ai(participants: Array[Participant]) -> Array[Participant]:
 	return out
 
 
-## The two networked routes reach their lobby through #531's address screen,
-## because that screen is the only place a PORT can be typed — a leaf's
-## [MenuGraph.Route] names a role, not digits. Walking to JOIN and pressing
+## The two networked routes reach their lobby through a config panel, because
+## that panel is the only place a PORT can be typed — a leaf's
+## [MenuGraph.Route] names a role, not digits. Walking to the leaf and pressing
 ## through is therefore the real path, not a shortcut around one.
-func _dial(button: String, address: String = "", port: String = "") -> LobbyScreen:
+##
+## #582 gave HOST a panel of its own, so what was one helper is now two; the
+## assertions they feed are unchanged.
+func _host(port: String = "") -> LobbyScreen:
+	_navigate_to(MenuGraph.ID_HOST)
+	if port != "":
+		_host_panel().fields._port_edit.text = port
+	_host_panel()._host_button.pressed.emit()
+	return _lobby()
+
+
+func _dial(address: String = "", port: String = "") -> LobbyScreen:
 	_navigate_to(MenuGraph.ID_JOIN)
 	if address != "":
-		_join_screen()._address_edit.text = address
+		_join_panel().fields._address_edit.text = address
 	if port != "":
-		_join_screen()._port_edit.text = port
-	_press(_join_screen(), button)
+		_join_panel().fields._port_edit.text = port
+	_join_panel()._join_button.pressed.emit()
 	return _lobby()
 
 
@@ -184,7 +198,7 @@ func test_hot_seat_is_offline_and_two_humans_on_one_camp() -> void:
 
 
 func test_host_listens_and_seats_the_absent_player_up_front() -> void:
-	var lobby := _dial("Host", "", "7777")
+	var lobby := _host("7777")
 
 	assert_eq(GameSession.network.role, NetworkTransport.Role.HOST)
 	assert_eq(GameSession.network.port, 7777, "the typed port reaches the config")
@@ -197,13 +211,14 @@ func test_host_listens_and_seats_the_absent_player_up_front() -> void:
 	assert_true(LobbyScreen.is_pending_remote(humans[1]), "the joiner's seat is waiting")
 
 	var item := _tree.get_item(MenuGraph.ID_HOST)
-	assert_eq(item.panel, MenuGraph.PANEL_LOBBY)
+	assert_eq(item.panel, MenuGraph.PANEL_HOST,
+			"#582: HOST asks for a port before a lobby, the way JOIN asks for an address")
 	assert_eq(item.route.requested_mode, lobby._mode)
 	assert_eq(item.route.network_role, GameSession.network.role)
 
 
 func test_join_dials_and_offers_no_ai_opponents() -> void:
-	var lobby := _dial("Join", "192.168.1.7", "7777")
+	var lobby := _dial("192.168.1.7", "7777")
 
 	assert_eq(GameSession.network.role, NetworkTransport.Role.CLIENT)
 	assert_eq(GameSession.network.address, "192.168.1.7")
@@ -231,7 +246,7 @@ func test_a_networked_route_asks_for_coop_and_resolves_to_versus() -> void:
 	# The single clearest statement of #554 D3: the route that opened the lobby
 	# said COOP_HOTSEAT, and the run comes out VERSUS, because by then the roster
 	# spans two camps. Nothing about "which route" survives to START.
-	var lobby := _dial("Host")
+	var lobby := _host()
 
 	assert_eq(lobby._mode, RunConfig.Mode.COOP_HOTSEAT, "the ROUTE asked for coop")
 	var cfg := lobby.build_run_config()
@@ -261,7 +276,7 @@ func test_backing_out_of_hosting_and_starting_solo_opens_no_socket() -> void:
 	# Under the frontmatter the back-out is `FrontmatterRoot.back()` rather than
 	# a stack pop, but the thing being asserted is unchanged: what the next
 	# route leaves on GameSession.
-	_dial("Host")
+	_host()
 	assert_eq(GameSession.network.role, NetworkTransport.Role.HOST)
 
 	_back_out(2)  # out of the lobby panel, then out of Multiplayer
@@ -280,11 +295,15 @@ func test_every_lobby_route_writes_a_network_config() -> void:
 		assert_not_null(GameSession.network, "'%s' states a role" % id)
 		_back_out(_tree.depth_of(id))
 
-	for button in ["Host", "Join"]:
-		GameSession.network = null
-		_dial(button)
-		assert_not_null(GameSession.network, "'%s' states a role" % button)
-		_back_out(2)
+	GameSession.network = null
+	_host()
+	assert_not_null(GameSession.network, "HOST states a role")
+	_back_out(2)
+
+	GameSession.network = null
+	_dial()
+	assert_not_null(GameSession.network, "JOIN states a role")
+	_back_out(2)
 
 
 # --- decision 1: which peer this machine is, before any socket opens ---------
@@ -386,15 +405,21 @@ func test_a_route_hands_its_policy_to_the_lobby_it_opens() -> void:
 	# The wiring half: `_push_lobby` carries the leaf's policy through
 	# `LobbyPanel.configure` into the screen. Asserted on all three lobby leaves
 	# plus #531's address-screen path, which cannot read `item.route` on focus.
-	for id in [MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOCAL, MenuGraph.ID_HOST]:
+	for id in [MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOCAL]:
 		_navigate_to(id)
 		assert_eq(_lobby()._policy, _tree.get_item(id).route.lobby_policy,
 				"'%s' hands its policy down" % id)
 		_back_out(_tree.depth_of(id))
 
-	assert_eq(_dial("Join", "10.0.0.4", "7777")._policy,
+	# ...and so do the two config panels, which have no leaf focus to read: by
+	# the time they report, the focus change that would have carried the route
+	# is long past. `_policy_of` asks the tree by id instead.
+	assert_eq(_host("7777")._policy, _tree.get_item(MenuGraph.ID_HOST).route.lobby_policy,
+			"HOST hands its policy down")
+	_back_out(2)
+	assert_eq(_dial("10.0.0.4", "7777")._policy,
 			_tree.get_item(MenuGraph.ID_JOIN).route.lobby_policy,
-			"and so does the address screen, which has no leaf focus to read")
+			"and so does JOIN")
 
 
 func test_the_parked_load_screen_starts_nothing() -> void:

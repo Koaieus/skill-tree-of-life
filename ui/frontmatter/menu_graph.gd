@@ -26,7 +26,7 @@ extends RefCounted
 ## "no detaching, ever").
 ##
 ## [b]The tree mirrors the routing `scenes/meta/meta_root.gd` ships today[/b],
-## including #531's host/join/hot-seat intermediary. The routing is not being
+## including the config panels HOST and JOIN raise before a lobby (#582). The routing is not being
 ## redesigned, only its presentation — [member Item.route] records, per leaf,
 ## the [RunConfig.Mode] and [NetworkTransport.Role] that leaf has always
 ## produced, and `test/unit/ui/test_meta_routing_parity.gd` pins that
@@ -37,9 +37,10 @@ extends RefCounted
 ## What a leaf asks the panel layer for, once the player commits to it.
 ##
 ## Split into "which panel opens" ([member Item.panel]) and "what run shape does
-## it eventually author" (this) because those differ: JOIN opens the code-entry
-## panel and only reaches the lobby afterwards, while HOST opens the lobby
-## directly. Both end up with a CLIENT/HOST [NetworkConfig].
+## it eventually author" (this) because those differ: the two networked leaves
+## each open a panel that collects digits and only reach the lobby afterwards,
+## while the offline ones open the lobby directly. Both networked ones end up
+## with a CLIENT/HOST [NetworkConfig].
 ##
 ## The address and port are NOT here. They are typed by a human into the panel,
 ## which is the whole reason [NetworkConfig] exists as a per-machine thing (see
@@ -113,6 +114,8 @@ class Item extends RefCounted:
 const PANEL_LOBBY := &"lobby"
 const PANEL_LOAD := &"load"
 const PANEL_JOIN := &"join"
+## HOST's pre-lobby config panel (#582) — where the listen port is typed.
+const PANEL_HOST := &"host"
 const PANEL_SETTINGS := &"settings"
 const PANEL_EXIT_CONFIRM := &"exit_confirm"
 
@@ -166,11 +169,16 @@ static func build() -> MenuGraph:
 
 	tree.add(_item(ID_MULTIPLAYER, ID_ROOT))
 	# The three answers #531 put between "Multiplayer" and the lobby. All three
-	# land on the SAME lobby; only the NetworkConfig differs.
+	# land on the SAME lobby; only the NetworkConfig differs — and since #582
+	# the two networked ones stop at a panel first, because that is where the
+	# port (and, for JOIN, the address) gets typed.
 	tree.add(_leaf(ID_LOCAL, ID_MULTIPLAYER, PANEL_LOBBY,
 			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.OFFLINE,
 					POLICY_HOTSEAT)))
-	tree.add(_leaf(ID_HOST, ID_MULTIPLAYER, PANEL_LOBBY,
+	# HOST's panel is its config screen, so — exactly like JOIN — its policy is
+	# not read on arrival but when that screen reports a port and
+	# `_on_host_requested` pushes the lobby (#582 D1).
+	tree.add(_leaf(ID_HOST, ID_MULTIPLAYER, PANEL_HOST,
 			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.HOST,
 					POLICY_VERSUS)))
 	# JOIN's panel is the address screen, so its policy is not read on arrival —

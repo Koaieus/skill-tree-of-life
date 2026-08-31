@@ -118,10 +118,11 @@ const KNOB_BUDGET := &"budget"
 
 ## Adds a Button to [member content]. Caller connects `.pressed` itself.
 ##
-## Duplicated in [HostJoinScreen] rather than shared through a common base: the
-## base that used to own it was `MenuScreen`, and #579 deletes it. Seven lines
-## of widget construction in two files beats a new base class whose whole reason
-## to exist is those seven lines.
+## The last code-composed button in the panel layer: the other screen that had
+## one of these (#531's host/join screen) is gone, and both its successors
+## author their button in their own `.tscn`. This screen keeps it because it
+## builds its whole column in code — see [LobbyPanel] for why that has to stay
+## true until `configure`'s before-`_ready` contract is retired.
 func add_option(text: String, disabled: bool = false) -> Button:
 	var button := Button.new()
 	button.text = text
@@ -214,7 +215,7 @@ func _ready() -> void:
 
 	if _network != null and _network.is_online():
 		var link_label := Label.new()
-		link_label.text = _network.describe()
+		link_label.text = _link_caption()
 		content.add_child(link_label)
 
 	var spacer := Control.new()
@@ -226,6 +227,24 @@ func _ready() -> void:
 	_start_button = add_option("Start Game")
 	_start_button.pressed.connect(_on_start_button_pressed)
 	_refresh_start_enabled()
+
+
+## What the lobby says about the wire.
+##
+## [b]A host reads out where it can be REACHED[/b] (#582 acceptance 3) — the
+## address a joiner types into [JoinPanel], picked out of every address this
+## machine answers to by [method NetworkConfig.pick_advertised_address]. It has
+## to be said somewhere, because nothing discovers it: LAN broadcast was
+## evaluated and dropped (#463), so "one room, one number" means a human reads
+## the number to another human.
+##
+## [b]A client keeps [method NetworkConfig.describe][/b] — it already knows what
+## it dialled, and telling it its own local address would be noise at best and
+## the wrong number at worst (#582 D6).
+func _link_caption() -> String:
+	if _network.role != NetworkTransport.Role.HOST:
+		return _network.describe()
+	return "Others join at %s" % _network.advertised_endpoint()
 
 
 ## The policy's veto, applied at the one place it can be: a versus lobby whose

@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/frontmatter/panels/network_fields.gd" id="1_fields"]
+[ext_resource type="PackedScene" path="res://ui/common/labelled_row.tscn" id="2_row"]
+
+[node name="NetworkFields" type="VBoxContainer"]
+script = ExtResource("1_fields")
+theme_override_constants/separation = 8
+
+[node name="AddressRow" parent="." instance=ExtResource("2_row")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Label" parent="AddressRow" index="0"]
+text = "Address:"
+
+[node name="PortRow" parent="." instance=ExtResource("2_row")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Label" parent="PortRow" index="0"]
+text = "Port:"

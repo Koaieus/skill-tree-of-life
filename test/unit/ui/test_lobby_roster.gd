@@ -439,12 +439,18 @@ func test_a_versus_policy_refuses_a_start_where_every_human_shares_a_camp() -> v
 ## policy, on the ROUTE (D2) rather than in a mode table.
 func test_every_lobby_route_carries_a_policy() -> void:
 	var tree := MenuGraph.build()
-	for id in [MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOCAL, MenuGraph.ID_HOST]:
+	for id in [MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOCAL]:
 		var item := tree.get_item(id)
 		assert_eq(item.panel, MenuGraph.PANEL_LOBBY, "'%s' opens a lobby" % id)
 		assert_not_null(item.route.lobby_policy, "'%s' names a policy" % id)
-	# JOIN reaches the same lobby through #531's address screen, so it must agree
-	# with HOST about what that lobby is.
+	# The two networked leaves reach their lobby through a config panel — JOIN
+	# through #531's address one, HOST through #582's port one — so neither
+	# names PANEL_LOBBY, and both must still agree with each other about what
+	# that lobby is.
+	for id in [MenuGraph.ID_HOST, MenuGraph.ID_JOIN]:
+		var item := tree.get_item(id)
+		assert_ne(item.panel, MenuGraph.PANEL_LOBBY, "'%s' types digits first" % id)
+		assert_not_null(item.route.lobby_policy, "'%s' names a policy" % id)
 	assert_eq(tree.get_item(MenuGraph.ID_JOIN).route.lobby_policy,
 			tree.get_item(MenuGraph.ID_HOST).route.lobby_policy,
 			"both ends of one link show the same lobby")
@@ -1110,3 +1116,42 @@ func test_only_routes_with_a_starter_placement_offer_the_arrangement() -> void:
 		var has_placement := policy.scenario.preset.starting.starter_placement != null
 		assert_eq(policy.arrangement_options != null, has_placement,
 				"'%s': the arrangement is offered iff there is a placement to patch" % id)
+
+
+# --- what a host reads out loud (#582 acceptance 3) ---------------------------
+
+## The caption's label, wherever it ended up in the column.
+func _caption_of(lobby: LobbyScreen) -> String:
+	for child in lobby.content.get_children():
+		var label := child as Label
+		if label != null:
+			return label.text
+	return ""
+
+
+func test_a_hosting_lobby_says_where_a_joiner_should_dial() -> void:
+	# Nothing discovers a host: LAN broadcast was evaluated and dropped (#463),
+	# so "one room, one number" means a human reads the number to another human.
+	# This is where that number is said.
+	var lobby := LobbyScreen.new()
+	lobby.configure(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(7777))
+	add_child_autofree(lobby)
+
+	var caption := _caption_of(lobby)
+	assert_string_contains(caption, "7777", "the port a joiner types")
+	assert_string_contains(caption, NetworkConfig.local_advertised_address(),
+			"and the address it goes with")
+
+
+func test_a_joining_lobby_is_told_nothing_about_its_own_addresses() -> void:
+	# It already knows what it dialled, and its own local address is at best
+	# noise and at worst the wrong number (#582 D6).
+	var lobby := LobbyScreen.new()
+	lobby.configure(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.join("10.0.0.4", 7777))
+	add_child_autofree(lobby)
+
+	assert_eq(_caption_of(lobby), NetworkConfig.join("10.0.0.4", 7777).describe())
+
+
+func test_an_offline_lobby_says_nothing_about_the_wire_at_all() -> void:
+	assert_eq(_caption_of(_make_lobby(RunConfig.Mode.SINGLE)), "")
