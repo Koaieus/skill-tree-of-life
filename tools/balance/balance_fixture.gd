@@ -68,6 +68,10 @@ static func build(
 
 	fx.entity = Entity.new()
 	fx.entity.display_name = "Fixture"
+	# An established entity, not a spawn: it is levelled and territoried below,
+	# so it must NOT take Entity's first-turn upkeep skip. Claiming turn 1 is
+	# already served is what makes every `run_turns` call a real upkeep.
+	fx.entity.turns_taken = 1
 	fx.entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	fx.entity.core_class = core_class
 	fx.graph.add_child(fx.entity)

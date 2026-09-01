@@ -29,13 +29,16 @@ func before_each() -> void:
 	_entity.display_name = "Regenerator"
 	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	# Keep the turn upkeep from levelling up mid-test. WIS 10 gives
-	# xp_per_turn = floor(10/2) = 5 against an xp cap of exactly 5, so the very
-	# first _on_turn_started() levels the entity, which grants +1 CON, which
-	# raises node_health by 1 — and since D-31 that cap rise correctly ratchets
-	# +1 into every owned node's current HP. Harmless in play, but it lands on
-	# top of the regen/aura numbers these tests assert exactly. Nothing here
-	# tests levelling, so take the variable off the table.
+	# xp_per_turn = floor(10/2) = 5 against an xp cap of exactly 5, so any
+	# _on_turn_started() that isn't skipped levels the entity, which grants
+	# +1 CON, which raises node_health by 1 — and since D-31 that cap rise
+	# correctly ratchets +1 into every owned node's current HP. Harmless in
+	# play, but it lands on top of the regen/aura numbers these tests assert
+	# exactly. Nothing here tests levelling, so take the variable off the table.
 	_entity.stat_board.xp.base_value = 100000.0
+	# These tests drive ONE _on_turn_started() and read its effects, so the
+	# entity must be past the first-turn upkeep skip before the first call.
+	_entity.turns_taken = 1
 	_graph.add_child(_entity)
 
 	await get_tree().process_frame  # entity._ready wires navigator

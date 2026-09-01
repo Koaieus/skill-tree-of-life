@@ -68,6 +68,8 @@ func test_on_turn_started_dispatches_through_entity() -> void:
 	add_child(ent)
 	await get_tree().process_frame
 	ent._on_turn_started(ent)
+	assert_eq(core.calls, 0, "an entity's FIRST turn runs no upkeep at all, hook included")
+	ent._on_turn_started(ent)
 	assert_eq(core.calls, 1)
 
 

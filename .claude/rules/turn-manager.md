@@ -35,17 +35,18 @@ Initiative is the **`initiative` PoolStat** on each entity's stat board (a `Cycl
 
 Readiness is **group membership, not `current >= cap`** — because the carry-reset drops `current` back near zero the instant the clock crosses. The `_tick_until_ready` loop is synchronous (no per-tick frame yield); the InitiativeBar animates the climb on its own via a tween bound to the pool's `current_changed`, and holds "full" off `replenished` until `turn_started` drains it.
 
+## An entity's FIRST turn runs NO upkeep
+
+`Entity._on_turn_started` counts into `Entity.turns_taken` (per-entity; the one on `TurnManager` is the global tally) and returns while it reads 1 — no pool upkeep, no node regen, no aura, no `on_turn_started`, no `_on_turn_start` dispatch. Pools are authored at cap, so what the gate really removes is one tick of `xp_per_turn`, which used to level a fresh entity before it had made a move. **How to apply:** anything constructing an *already-established* entity and then driving `_on_turn_started` directly must set `turns_taken = 1` at build time — the `tools/balance/` fixtures do, or they under-report a turn of income. The counter is derived, never synced: each peer counts the same turns off its own TurnManager.
+
 ## `start_turn()` fires upkeep — never open a turn before you snapshot
 
-`start_turn()` unconditionally runs turn-start upkeep (wound-heal, node-refill).
-So opening the host's first turn **before** sending a join snapshot bakes an
-already-healed world into the payload, and the joining peer's own necessary
-`start_turn()` — needed so `current_entity` is set and a later mirrored
-`EndTurnCommand` is not a silent no-op — heals it a **second** time. The result
-is a genuine fingerprint mismatch that looks like a serialization bug.
-
-**Why:** upkeep is a side effect of opening a turn, not of an entity being
-current, and nothing dedupes it per peer.
+`start_turn()` unconditionally runs turn-start upkeep, and nothing dedupes it per
+peer — upkeep is a side effect of opening a turn, not of being `current_entity`.
+Open the host's first turn *before* sending a join snapshot and the payload bakes
+in an already-healed world, which the joining peer's own necessary `start_turn()`
+then heals a second time: a real fingerprint mismatch that reads as a
+serialization bug.
 
 **How to apply:** in any snapshot-then-open-turn flow, send first and open the
 opening turn *after* the sends complete. Found building #533's rung-2 harness;

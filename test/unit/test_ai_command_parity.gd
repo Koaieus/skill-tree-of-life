@@ -209,6 +209,12 @@ func _owned_names(e: Entity) -> Array:
 
 func _run_one_ai_turn() -> void:
 	_enemy.stat_board.skill_points.set_current(2)
+	# The golden was captured before Entity's first-turn upkeep skip existed, so
+	# it encodes a turn that ran a full upkeep (mana +1, the xp tick and the SP
+	# it levels into). Claiming a turn already served keeps this fixture on the
+	# conditions the golden was captured under — the parity property under test
+	# is "queue path == direct path", not "an entity's opening turn".
+	_enemy.turns_taken = 1
 	_tm.start_turn(_enemy)
 	await get_tree().create_timer(0.3).timeout
 

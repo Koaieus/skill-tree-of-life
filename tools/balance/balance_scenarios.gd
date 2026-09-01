@@ -467,6 +467,9 @@ static func combat_readouts(attacker: BalanceFixture, defender: BalanceFixture) 
 static func _territory_growth(root: Node, level: int, core_class: CoreClass) -> Dictionary:
 	var probe := Entity.new()
 	probe.display_name = "XPProbe"
+	# Same reason as BalanceFixture.build: the probe is levelled up below and
+	# then timed over real turns, so it must not eat the first-turn upkeep skip.
+	probe.turns_taken = 1
 	probe.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	probe.core_class = core_class
 	root.add_child(probe)

@@ -236,6 +236,21 @@ var _hook_buckets: Dictionary[StringName, Array] = {}
 ## corpse (TurnManager initiative, AI targeting).
 var is_dead: bool = false
 
+## Turns THIS entity has been served, counted in [method _on_turn_started] —
+## distinct from [member TurnManager.turns_taken], which tallies every entity's.
+##
+## Its one job today is the first-turn gate: while it reads 1, turn-start upkeep
+## is skipped entirely, so an entity never collects a turn of income before it
+## has played a move. Derived, never synced: `turn_started` fires on every
+## peer's own [TurnManager], so each peer counts the same turns independently
+## and no [EntitySnapshot] slot is needed. (A mid-run resync onto a freshly
+## constructed Entity is the one gap — it would re-grant the skip.)
+##
+## Fixtures that construct an already-established entity (the `tools/balance/`
+## probes) set this to 1 at build time, which is the honest claim: they are not
+## on their first turn.
+var turns_taken: int = 0
+
 ## Has this entity's BRAIN concluded it is boxed in, this turn? Host-only,
 ## AI-only, and re-decided every turn by [method AIController.take_turn] from
 ## [method AiRecon.is_growth_capped]. Two consequences, one cause (#604):
@@ -464,8 +479,19 @@ func get_active_tags() -> Array[StringName]:
 ## bookkeeping today: replenish pools (per each pool's per_turn_mode, including
 ## skill_points' CUSTOM wound-heal), run the gated node regen sweep (D-9) plus
 ## the class aura (D-10), run the class hook.
+##
+## NONE of it runs on the entity's FIRST turn: you open the game in the state
+## you spawned in, not one free tick of income richer. Every pool is authored at
+## its cap on `default_entity_board.tres`, so the skipped REFILLs and the
+## health/mana ADDs were no-ops anyway — what the skip actually removes is a
+## turn of `xp_per_turn` that used to level a fresh entity before it had made a
+## single move. See [member turns_taken].
 func _on_turn_started(entity: Entity) -> void:
 	if entity != self or stat_board == null:
+		return
+	# Counted before the gate, so the tally stays honest about turns SERVED.
+	turns_taken += 1
+	if turns_taken == 1:
 		return
 	# All pool upkeep is declarative — each pool replenishes per its def's
 	# per_turn_mode (AP/DP/movement REFILL, mana/xp ADD, skill_points CUSTOM
