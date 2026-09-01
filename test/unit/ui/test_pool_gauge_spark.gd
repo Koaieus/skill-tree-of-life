@@ -28,7 +28,7 @@ func _mp_gauge() -> SurplusPoolGauge:
 	return _panel.get_node(^"%MPGauge") as SurplusPoolGauge
 
 
-func _uniform(gauge: PoolGauge, param: StringName) -> Variant:
+func _uniform(gauge: ColorRect, param: StringName) -> Variant:
 	return (gauge.material as ShaderMaterial).get_shader_parameter(param)
 
 
@@ -106,3 +106,61 @@ func test_a_rebind_snaps_instead_of_igniting() -> void:
 
 	assert_eq(float(_uniform(_mp_gauge(), &"spark_energy")), 0.0,
 			"binding a hero with fewer points must not read as a spend")
+
+
+# ── The Skill Points bar ────────────────────────────────────────────────────
+# A different widget with a different model — four proportional buckets instead
+# of one current/max pool — but the same ignition, off the same GaugeSpark.
+
+func _sp_bar() -> CompositeBarGauge:
+	return _panel.get_node(^"%SPBar") as CompositeBarGauge
+
+
+func test_spending_a_skill_point_ignites_the_cell_it_left() -> void:
+	var sp := _board.skill_points
+	sp.base_value = 10.0
+	sp.set_current(6.0)
+	_panel.bind(_board)
+	await get_tree().process_frame
+
+	sp.spend(1)
+	await get_tree().process_frame
+
+	var bar := _sp_bar()
+	assert_almost_eq(float(_uniform(bar, &"spark_lo")), 5.0, 0.01,
+			"the to-spend run gave up its last cell")
+	assert_almost_eq(float(_uniform(bar, &"spark_hi")), 6.0, 0.01, "…exactly one of them")
+	assert_eq(float(_uniform(bar, &"spark_out")), 1.0, "a spent point is outgoing")
+	assert_eq(float(_uniform(bar, &"spark_anchor_right")), 0.0,
+			"the blue to-spend run reads left-to-right like every other fill")
+
+
+## The one the panel used to miss entirely: a forced deallocation moves
+## used -> wounded, which touches neither `current` nor `value`.
+func test_a_wound_repaints_and_ignites_from_the_right() -> void:
+	var sp := _board.skill_points
+	sp.base_value = 10.0
+	sp.set_current(4.0)
+	_panel.bind(_board)
+	await get_tree().process_frame
+
+	sp.wound(2)
+	await get_tree().process_frame
+
+	var bar := _sp_bar()
+	assert_eq(bar.wounded, 2.0, "the bar heard the wound at all")
+	assert_gt(float(_uniform(bar, &"spark_energy")), 0.0, "…and ignited")
+	assert_eq(float(_uniform(bar, &"spark_out")), 0.0, "wounded cells are arriving")
+	assert_eq(float(_uniform(bar, &"spark_anchor_right")), 1.0,
+			"the trailing wounded run originates from the right")
+
+
+func test_binding_the_sp_bar_does_not_ignite() -> void:
+	var sp := _board.skill_points
+	sp.base_value = 10.0
+	sp.set_current(4.0)
+	_panel.bind(_board)
+	await get_tree().process_frame
+
+	assert_eq(float(_uniform(_sp_bar(), &"spark_energy")), 0.0,
+			"a bind paints; it does not spend")

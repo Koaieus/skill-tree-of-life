@@ -19,19 +19,7 @@ uniform vec4 glow_color : source_color = vec4(1.0, 1.0, 1.0, 0.6);
 // WorldEnvironment glow pass picks up, so `glow_color` is the HUE and this is
 // the ENERGY. glow_color.a stays the strength of the trace over the fill.
 uniform float glow_stops : hint_range(0.0, 3.0, 0.05) = 2.0;
-// Ignition spark (cell branch only). A cell that just arrived or just left
-// burns at `spark_stops` and cools to the resting `glow_stops` over
-// `spark_energy` 1 -> 0, which PoolGauge tweens. The band is in STRIP CELL
-// INDICES, not stat units, because the strip mixes two bins — the cap's cells
-// and SurplusPoolStat's trailing ones — and a Movement point is spent out of
-// the surplus bin first, so the moving cell is not always a `current` cell.
-// spark_out 1 = the cells are LEAVING (spent): drawn lit, then shrunk away.
-// spark_out 0 = ARRIVING (replenished): grown in hot, then settled.
-uniform float spark_lo = 0.0;
-uniform float spark_hi = 0.0;
-uniform float spark_energy = 0.0;
-uniform float spark_out = 0.0;
-uniform float spark_stops : hint_range(0.0, 3.0, 0.05) = 2.5;
+#include "res://ui/gauges/gauge_spark.gdshaderinc"
 uniform vec4 drain_color : source_color = vec4(0.9, 0.3, 0.3, 0.5);
 uniform float preview_gain = 0.0;
 uniform vec4 preview_color : source_color = vec4(1.0, 1.0, 1.0, 0.25);
@@ -65,15 +53,6 @@ float sd_round_rect(vec2 p, vec2 half_size, float r) {
 // trace the colour it was authored. `source_color` already decoded the uniform
 // to linear, so the divide + pow is the whole conversion (same shader-side
 // copy of the formula as slab_panel.gdshader).
-vec3 lift_peak(vec3 base, float stops) {
-	vec3 c = max(base, vec3(0.0));
-	float peak = max(c.r, max(c.g, c.b));
-	if (peak < 0.0001) {
-		return vec3(0.0);
-	}
-	return (c / peak) * pow(2.0, stops);
-}
-
 vec3 shine_tint() {
 	return lift_peak(glow_color.rgb, glow_stops);
 }
@@ -144,22 +123,12 @@ void fragment() {
 
 		float local_x = mod(sheared_x, cell_w);
 
-		// Ignition spark. `scale` shrinks a leaving cell away from its slot's
-		// centre and grows an arriving one into it; both are expressed as extra
-		// inset on the gap mask, so the strip's geometry never moves.
-		bool sparking = spark_energy > 0.001
-				&& idx >= spark_lo - 0.001 && idx < spark_hi - 0.001;
-		float spark_scale = 1.0;
-		if (sparking) {
-			spark_scale = spark_out > 0.5
-					// Leaving: hold the cell at full for the first breath, then
-					// pull it in — a spend should read as "that one just went".
-					? clamp(spark_energy * 1.4, 0.0, 1.0)
-					// Arriving: snap open over the first half, then just cool.
-					: clamp((1.0 - spark_energy) * 2.0, 0.0, 1.0);
-		}
-		float inset = cell_gap * 0.5 + (1.0 - spark_scale) * max(0.0, cell_w - cell_gap) * 0.5;
-		float gap_mask = step(inset, local_x) * step(local_x, cell_w - inset);
+		// Ignition geometry: a burning cell grows out of / collapses back into
+		// one edge of its own slot, so the strip itself never moves.
+		bool sparking = spark_hits(idx);
+		vec2 cell_window = spark_cell_window(cell_w, cell_gap,
+				sparking ? spark_extent() : 1.0);
+		float gap_mask = step(cell_window.x, local_x) * step(local_x, cell_window.y);
 
 		// Fill fractions are relative to the cap, so multiply by base_n.
 		float filled_upto = fill_frac * base_n;
@@ -168,27 +137,29 @@ void fragment() {
 		// Surplus cells are the band [base_n, base_n + surp); past that (the
 		// n>=1 placeholder slot at rest) is an ordinary empty cell, not gold.
 		bool is_surplus = idx >= base_n - 0.001 && idx < base_n + surp - 0.001;
-		// A leaving cell is drawn as if it were still lit while it burns down,
-		// in the bin it left — past the cap that means gold, because a Movement
-		// point is spent out of the surplus bin first. Its drain ghost is
-		// suppressed below: the spark IS the spend feedback here, and the two
-		// would otherwise diverge (the ghost band shrinks from the right over
-		// DRAIN_FADE_TIME while the spark band stands still).
 		bool leaving = sparking && spark_out > 0.5;
-		is_surplus = is_surplus || (leaving && idx >= base_n - 0.001);
-		bool filled = (!is_surplus && idx < filled_upto - 0.001) || (leaving && !is_surplus);
+		bool filled = !is_surplus && idx < filled_upto - 0.001;
+		// A leaving cell's drain ghost is suppressed: the spark IS the spend
+		// feedback here, and the two would otherwise diverge — the ghost band
+		// shrinks from the right over DRAIN_FADE_TIME while the spark band
+		// stands still.
 		bool draining = !leaving && !is_surplus && !filled && idx < drain_upto - 0.001;
 		bool previewing = !leaving && !is_surplus && !filled && !draining && idx < preview_upto - 0.001;
 
 		vec4 col = filled ? fill_color : empty_color;
-		if (is_surplus) {
+		if (leaving) {
+			// Burn in the bin it LEFT — past the cap that means gold, because a
+			// Movement point is spent out of the surplus bin first, and by now
+			// the fragment would compute an ordinary empty cell for itself.
+			col = spark_color;
+		} else if (is_surplus) {
 			col = surplus_color;  // trailing surplus cell — available, spent first
 		} else if (draining) {
 			col = drain_color;
 		} else if (previewing) {
 			col = preview_color;
 		}
-		if (filled || is_surplus) {
+		if (filled || is_surplus || leaving) {
 			float shine = sin((UV.x - TIME * shine_speed) * 10.0) * 0.5 + 0.5;
 			col.rgb = mix(col.rgb, shine_tint(), glow_color.a * pow(shine, 6.0));
 		}

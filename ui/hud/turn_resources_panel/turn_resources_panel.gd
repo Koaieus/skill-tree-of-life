@@ -127,8 +127,11 @@ func _bind_skill_points(sp: SkillPointStat) -> void:
 	if _sp_bar == null or sp == null:
 		return
 	var sync := func():
-		_sp_bar.set_buckets(float(sp.current), float(sp.wounded), float(sp.staked), float(sp.value))
+		# Cap first: it re-scales the strip, and CompositeBarGauge rebases its
+		# spark boundaries onto the new coordinate system when it moves. Buckets
+		# after, so a level-up's extra points still ignite as points arriving.
 		_sp_bar.cell_count = float(sp.value)
+		_sp_bar.set_buckets(float(sp.current), float(sp.wounded), float(sp.staked), float(sp.value))
 		if _sp_to_spend_value != null:
 			_sp_to_spend_value.text = str(int(sp.current))
 			# #390 — "glows only when > 0" is VALUE-vs-INERT, not a static
@@ -139,8 +142,19 @@ func _bind_skill_points(sp: SkillPointStat) -> void:
 		_refresh_wound_heal(sp)
 	_binds.link(sp.current_changed, sync.unbind(1))
 	_binds.link(sp.value_changed, sync)
+	# A forced deallocation moves used -> wounded and touches NEITHER of the two
+	# above (`used` is derived, `current` doesn't move), so without these the bar
+	# simply never repainted on a wound — it sat on the last state some other
+	# signal happened to push. `staked` is linked for the same reason, though
+	# stake()/extract() do also move `current` today.
+	_binds.link(sp.wounded_changed, sync)
+	_binds.link(sp.staked_changed, sync)
 	_binds.link(sp.wound_heal_progress_changed, func(_p): _refresh_wound_heal(sp))
+	# First paint is a BIND, not points changing hands — see the same window on
+	# the battery gauges above.
+	_sp_bar.begin_snap()
 	sync.call()
+	_sp_bar.end_snap()
 
 
 func _refresh_legend(sp: SkillPointStat) -> void:

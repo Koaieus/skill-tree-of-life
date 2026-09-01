@@ -36,11 +36,11 @@ signal level_segment_held(new_max: float)
 			# new one so the loss reads as a fading trail, not a snap.
 			drain_from = old
 			_animate_drain_to(v)
-			spark_cells(_cell_of(v), _cell_of(old), true)
+			spark_cells(_cell_of(v), _cell_of(old), true, fill_color)
 		else:
 			drain_from = v
 			if v > old:
-				spark_cells(_cell_of(old), _cell_of(v), false)
+				spark_cells(_cell_of(old), _cell_of(v), false, fill_color)
 		_push(&"current", current)
 
 @export var min_value: float = 0.0:
@@ -199,20 +199,12 @@ signal level_segment_held(new_max: float)
 
 var _drain_tween: Tween
 var _level_tween: Tween
-var _spark_tween: Tween
-## Live ignition band, in strip cell indices, and which way it is going. Kept on
-## the script (not read back off the material) so a second spend arriving mid-
-## burn can UNION with the one in flight instead of resetting the band to its own
-## single cell — which would snap the first cell from hot to gone.
-var _spark_lo: float = 0.0
-var _spark_hi: float = 0.0
-var _spark_out: bool = false
-var _spark_energy: float = 0.0:
-	set(v):
-		_spark_energy = v
-		_push(&"spark_energy", v)
+## The ignition band — one cell burning at a time, cooling to rest. Composed,
+## and shared with [CompositeBarGauge]; see [GaugeSpark].
+var _spark := GaugeSpark.new(self, _push)
 ## Set while a (re)bind is painting a gauge for the first time — see
-## [method snap_to]. Suppresses both the drain ghost and the ignition spark.
+## [method begin_snap]. Suppresses the drain ghost; [GaugeSpark] carries the
+## same window for the spark.
 var _snapping: bool = false
 ## Set while a scripted level-up animation drives `current`, to disable the
 ## drain-trail branch of its setter.
@@ -238,7 +230,7 @@ func _push_all() -> void:
 	_push(&"glow_color", glow_color)
 	_push(&"glow_stops", glow_stops)
 	_push(&"spark_stops", spark_stops)
-	_push(&"spark_energy", _spark_energy)
+	_spark.push_initial()
 	_push(&"drain_color", drain_color)
 	_push(&"preview_gain", preview_gain)
 	_push(&"preview_color", preview_color)
@@ -388,10 +380,12 @@ func _emit_fill_finished() -> void:
 ## values (cap, cells, current, surplus) wants one window around all of them.
 func begin_snap() -> void:
 	_snapping = true
+	_spark.snapping = true
 
 
 func end_snap() -> void:
 	_snapping = false
+	_spark.snapping = false
 
 
 ## [method begin_snap] around a single `current` write.
@@ -401,42 +395,19 @@ func snap_to(value: float) -> void:
 	end_snap()
 
 
-## Ignite the strip cells in [code][lo, hi)[/code] — `outgoing` for cells being
-## spent (drawn lit, then shrunk away), otherwise for cells arriving (grown in
-## hot, then settled). Indices are into the RENDERED strip, so a
-## [SurplusPoolGauge]'s trailing surplus cells are addressable as
-## [code]cell_count + n[/code]; see the shader's spark_lo comment for why the
-## band cannot be expressed in stat units.
+## Ignite the strip cells in [code][lo, hi)[/code] — see [method GaugeSpark.ignite].
+## Indices are into the RENDERED strip, so a [SurplusPoolGauge]'s trailing
+## surplus cells are addressable as [code]cell_count + n[/code]; the band cannot
+## be expressed in stat units because the strip mixes two bins.
 ##
-## [b]Model signals only.[/b] The HUD reacts to a pool that already moved; it
-## never ignites off an input or an intent. Under host-authoritative sync every
-## peer's pool moves on the same confirmed command, so every peer's gauge
-## ignites the same cells — and the tween gates nothing, so a slow client cannot
-## hold up the world (see .claude/rules/presentation-clock.md).
-func spark_cells(lo: float, hi: float, outgoing: bool) -> void:
-	if _snapping or _suppress_drain or not is_inside_tree():
+## `color` is the bin the cells are leaving, which the shader can no longer work
+## out for itself by the time it draws them.
+func spark_cells(lo: float, hi: float, outgoing: bool, color: Color) -> void:
+	if _suppress_drain:
+		# A scripted fill (a level-up wrap) steps `current` many times; it owns
+		# the motion and must not strobe the strip.
 		return
-	lo = floorf(lo + 0.001)
-	hi = ceilf(hi - 0.001)
-	if hi - lo <= 0.001 or spark_time <= 0.0:
-		return
-	if _spark_tween and _spark_tween.is_valid() and _spark_out == outgoing:
-		# Same direction, still burning: widen the band rather than restarting on
-		# the newest cell alone.
-		lo = minf(lo, _spark_lo)
-		hi = maxf(hi, _spark_hi)
-	_spark_lo = lo
-	_spark_hi = hi
-	_spark_out = outgoing
-	_push(&"spark_lo", lo)
-	_push(&"spark_hi", hi)
-	_push(&"spark_out", 1.0 if outgoing else 0.0)
-	if _spark_tween:
-		_spark_tween.kill()
-	_spark_energy = 1.0
-	_spark_tween = create_tween()
-	_spark_tween.tween_property(self, ^"_spark_energy", 0.0, spark_time) \
-			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_spark.ignite(lo, hi, outgoing, color, false, spark_time)
 
 
 ## Which strip cell a stat value sits at — the cap-relative fill in cells, which

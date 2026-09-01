@@ -25,7 +25,8 @@ uniform vec4 glow_color : source_color = vec4(0.26, 0.64, 0.99, 0.6);
 // same knob, same peak-channel normalization as pool_gauge.gdshader; see the
 // note on shine_tint() there for why the sweep is no longer a fake additive
 // highlight. glow_color is the HUE, this is the ENERGY.
-uniform float glow_stops : hint_range(0.0, 3.0, 0.05) = 2.5;
+uniform float glow_stops : hint_range(0.0, 3.0, 0.05) = 2.0;
+#include "res://ui/gauges/gauge_spark.gdshaderinc"
 uniform float corner_radius = 5.0;
 uniform float pulse_speed = 2.4;
 uniform float shine_speed = 0.6;
@@ -38,15 +39,8 @@ float sd_round_rect(vec2 p, vec2 half_size, float r) {
 	return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }
 
-// `glow_color` lifted to `glow_stops`, peak-channel normalized
-// (Emissive.tint_peak). Shared verbatim with pool_gauge.gdshader.
 vec3 shine_tint() {
-	vec3 c = max(glow_color.rgb, vec3(0.0));
-	float peak = max(c.r, max(c.g, c.b));
-	if (peak < 0.0001) {
-		return vec3(0.0);
-	}
-	return (c / peak) * pow(2.0, glow_stops);
+	return lift_peak(glow_color.rgb, glow_stops);
 }
 
 // Shared bucket lookup: `u` is the 0..1 position along the bar to classify.
@@ -110,13 +104,30 @@ void fragment() {
 		}
 
 		float local_x = mod(sheared_x, cell_w);
-		float gap_mask = step(cell_gap * 0.5, local_x) * step(local_x, cell_w - cell_gap * 0.5);
+
+		// Ignition geometry — identical to the pool battery's, and anchored per
+		// spark: the blue to-spend run originates from the left like every other
+		// l->r fill, the trailing wounded/staked runs from the right.
+		bool sparking = spark_hits(idx);
+		vec2 cell_window = spark_cell_window(cell_w, cell_gap,
+				sparking ? spark_extent() : 1.0);
+		float gap_mask = step(cell_window.x, local_x) * step(local_x, cell_window.y);
 
 		float cell_u = (idx + 0.5) / n;
 		vec4 col = bucket_color(cell_u, b0, b1, b2, b3, pulse, glow);
+		if (sparking && spark_out > 0.5) {
+			// The bucket it LEFT. A spent SP cell already reads as `allocated`
+			// and a healed wound already reads as background, so the fragment
+			// can no longer work this out for itself.
+			col = spark_color;
+			pulse = 1.0;
+		}
 		if (glow) {
 			float shine = sin((UV.x - TIME * shine_speed) * 10.0) * 0.5 + 0.5;
 			col.rgb = mix(col.rgb, shine_tint(), glow_color.a * pow(shine, 6.0));
+		}
+		if (sparking) {
+			col.rgb = mix(col.rgb, lift_peak(col.rgb, spark_stops), spark_energy);
 		}
 		COLOR = vec4(col.rgb, col.a * pulse * gap_mask);
 	}

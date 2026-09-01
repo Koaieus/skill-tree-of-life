@@ -26,6 +26,14 @@ signal segment_hovered(bucket: Bucket)
 signal segment_unhovered
 
 var _hovered_bucket: int = -1
+## The ignition band, shared with [PoolGauge]. See [GaugeSpark].
+var _spark := GaugeSpark.new(self, _push)
+## Bucket boundaries, in strip cells, as of the last reconcile — what a fresh
+## set of buckets is diffed against to work out which cells changed hands.
+var _prev_bounds: PackedFloat32Array = PackedFloat32Array()
+## Set while [method set_buckets] is writing its four properties one at a time;
+## every one of them pushes, and the intermediate states are not events.
+var _batching: bool = false
 
 @export var to_spend: float = 1.0:
 	set(v):
@@ -83,10 +91,20 @@ var _hovered_bucket: int = -1
 
 ## EV stops the to-spend shine trace is lifted by — see [member PoolGauge.glow_stops];
 ## same knob, same peak-channel normalization, same bloom dependency.
-@export_range(0.0, 3.0, 0.05) var glow_stops: float = 2.5:
+@export_range(0.0, 3.0, 0.05) var glow_stops: float = 2.0:
 	set(v):
 		glow_stops = v
 		_push(&"glow_stops", v)
+
+## The tier a cell burns at the instant it changes bucket — see
+## [member PoolGauge.spark_stops].
+@export_range(0.0, 3.0, 0.05) var spark_stops: float = 2.5:
+	set(v):
+		spark_stops = v
+		_push(&"spark_stops", v)
+
+## How long one ignition takes to cool back to [member glow_stops].
+@export_range(0.05, 2.0, 0.01) var spark_time: float = 0.45
 
 @export_range(0.0, 20.0, 0.5) var corner_radius: float = 5.0:
 	set(v):
@@ -109,6 +127,12 @@ var _hovered_bucket: int = -1
 	set(v):
 		cell_count = v
 		_push(&"cell_count", v)
+		# The strip just re-scaled (the SP cap moved). That is not points
+		# changing hands, so rebase the boundaries in the new coordinate system
+		# rather than diffing across it — a level-up would otherwise read as
+		# every bucket moving at once. Bind cell_count BEFORE the buckets so the
+		# gain that came with the new cap still gets its own ignition.
+		_prev_bounds = _bounds()
 
 @export_range(-45.0, 45.0, 0.5) var skew_degrees: float = -15.0:
 	set(v):
@@ -132,6 +156,8 @@ func _ready() -> void:
 	_push(&"color_background", color_allocated)
 	_push(&"glow_color", glow_color)
 	_push(&"glow_stops", glow_stops)
+	_push(&"spark_stops", spark_stops)
+	_spark.push_initial()
 	_push(&"corner_radius", corner_radius)
 	_push(&"pulse_speed", pulse_speed)
 	_push(&"shine_speed", shine_speed)
@@ -182,17 +208,86 @@ func _push_size() -> void:
 ## Sets all three buckets + the pool max in one call (the usual binding path
 ## from a SkillPointStat) rather than firing four separate setters.
 func set_buckets(p_to_spend: float, p_wounded: float, p_staked: float, p_max_value: float) -> void:
+	_batching = true
 	to_spend = p_to_spend
 	wounded = p_wounded
 	staked = p_staked
 	max_value = p_max_value
+	_batching = false
+	_push_fractions()
+
+
+## Open a window in which bucket writes land with no ignition — the paint a bind
+## or a hot-seat rebind does. Pair with [method end_snap]; see
+## [member GaugeSpark.snapping].
+func begin_snap() -> void:
+	_spark.snapping = true
+
+
+func end_snap() -> void:
+	_spark.snapping = false
+
+
+## Where each bucket boundary falls, in strip cells: `[to_spend | allocated |
+## wounded | staked]`, so the runs are `[0, b0)`, `[b0, b1)`, `[b1, b2)`,
+## `[b2, b3)`.
+func _bounds() -> PackedFloat32Array:
+	var denom := maxf(max_value, to_spend + wounded + staked)
+	if denom <= 0.0 or cell_count <= 0.0:
+		return PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
+	var per_cell := cell_count / denom
+	var b0 := to_spend * per_cell
+	var allocated := maxf(0.0, denom - to_spend - wounded - staked)
+	var b1 := b0 + allocated * per_cell
+	var b2 := b1 + wounded * per_cell
+	return PackedFloat32Array([b0, b1, b2, b2 + staked * per_cell])
+
+
+## Diff the runs against the last reconcile and ignite whichever changed.
+##
+## [b]One band burns at a time[/b], so when two runs move together the LAST
+## ignition wins — deliberately ordered to-spend, wounded, staked, because a
+## forced deallocation moves both and the wound is the story. In practice only
+## one run moves per event: spending an SP shifts `b0` alone, and a wound trades
+## allocated for wounded, which moves `b1` alone.
+func _reconcile_spark() -> void:
+	var now := _bounds()
+	if _prev_bounds.size() != 4:
+		_prev_bounds = now
+		return
+	var was := _prev_bounds
+	_prev_bounds = now
+	# The to-spend run reads left-to-right like every other fill; the trailing
+	# wounded/staked runs originate from the right instead.
+	_ignite_run(0.0, was[0], 0.0, now[0], color_to_spend, false)
+	_ignite_run(was[1], was[2], now[1], now[2], color_wounded, true)
+	_ignite_run(was[2], was[3], now[2], now[3], color_staked, true)
+
+
+## Ignite the cells one run gained or gave up. Whichever of its two edges moved
+## further is the one that changed the run's membership; a run that grew is
+## arriving, one that shrank is leaving.
+func _ignite_run(was_lo: float, was_hi: float, now_lo: float, now_hi: float,
+		color: Color, anchor_right: bool) -> void:
+	var d_lo := now_lo - was_lo
+	var d_hi := now_hi - was_hi
+	if absf(d_lo) < 0.001 and absf(d_hi) < 0.001:
+		return
+	if absf(d_hi) >= absf(d_lo):
+		_spark.ignite(minf(was_hi, now_hi), maxf(was_hi, now_hi), d_hi < 0.0,
+				color, anchor_right, spark_time)
+	else:
+		_spark.ignite(minf(was_lo, now_lo), maxf(was_lo, now_lo), d_lo > 0.0,
+				color, anchor_right, spark_time)
 
 func _push_fractions() -> void:
 	var denom := maxf(max_value, to_spend + wounded + staked)
 	if denom <= 0.0:
 		_push(&"fractions", Vector3(0.0, 0.0, 0.0))
-		return
-	_push(&"fractions", Vector3(to_spend / denom, wounded / denom, staked / denom))
+	else:
+		_push(&"fractions", Vector3(to_spend / denom, wounded / denom, staked / denom))
+	if not _batching:
+		_reconcile_spark()
 
 func _push(param: StringName, value: Variant) -> void:
 	if material is ShaderMaterial:
