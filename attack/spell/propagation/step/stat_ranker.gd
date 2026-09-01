@@ -12,8 +12,12 @@ extends NodeRanker
 func score(node: SkillNode, _payload: CastSpell, _ctx: PropagationContext) -> float:
 	if node == null:
 		return 0.0
+	# A node with no such stat answers null, and `float(null)` is an error rather
+	# than a 0 — so this guard is load-bearing, not defensive padding.
 	var v: Variant = node.get_local_value(stat_id)
-	return float(v) if v != null else 0.0
+	if v == null:
+		return 0.0
+	return float(v)
 
 
 func get_description() -> String:
