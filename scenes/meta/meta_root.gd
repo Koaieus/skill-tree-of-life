@@ -35,7 +35,7 @@ const FIRST_LEVEL_SANDBOX := preload("res://scenes/level.tscn")
 ## takes itself off screen when it advances; this file only routes.
 func _ready() -> void:
 	_bind_panels()
-	_frontmatter.focus_changed.connect(_on_focus_changed)
+	_frontmatter.focus_started.connect(_on_focus_started)
 
 
 ## Wires the three panels that produce something this file has to act on. The
@@ -54,7 +54,18 @@ func _bind_panels() -> void:
 		host.host_requested.connect(_on_host_requested)
 
 
-## Arriving on a leaf that authors a run is what used to be a button press.
+## Taking a route to a leaf that authors a run is what used to be a button
+## press.
+##
+## [b]On [signal FrontmatterRoot.focus_started], not `focus_changed`.[/b] Since
+## the panel slides in from [member FrontmatterRoot.panel_lead] rather than on
+## arrival, a lobby configured on ARRIVAL was configured too late: the two
+## offline leaves share ONE lobby panel, so going back and walking into the
+## other one slid the previous route's roster on screen and only swapped its
+## contents when the camera finally stopped. Content is pushed at departure —
+## before the panel can be raised at all — which is the general rule for
+## anything that fills a panel: be ready before the reveal clock starts, never
+## when it ends.
 ##
 ## Only the leaves whose panel IS the lobby route from here — today the two
 ## offline ones. HOST and JOIN each open a config panel first and reach the
@@ -62,7 +73,7 @@ func _bind_panels() -> void:
 ## a port (and, for JOIN, an address) has been typed. That asymmetry is #531's,
 ## widened by #582 — it is the reason [MenuGraph.Item] splits "which panel
 ## opens" from "what run shape does this eventually author".
-func _on_focus_changed(id: StringName) -> void:
+func _on_focus_started(id: StringName) -> void:
 	var item := _frontmatter.tree.get_item(id)
 	if item == null or item.route == null:
 		return

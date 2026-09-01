@@ -449,3 +449,32 @@ func test_the_splash_lives_in_a_canvas_layer() -> void:
 		walk = walk.get_parent()
 	assert_true(layered,
 			"the splash's own text is screen space — the camera must not move it")
+
+
+# --- lobby content is ready BEFORE the panel is revealed ----------------------
+
+func test_the_lobby_is_reconfigured_at_departure_not_on_arrival() -> void:
+	# Two leaves share ONE lobby panel, and since the panel slides in from
+	# `panel_lead` rather than waiting out the pan, a lobby configured on
+	# ARRIVAL slid the PREVIOUS route's roster on screen and only swapped its
+	# contents when the camera finally stopped. `meta_root.gd` listens on
+	# `focus_started` for exactly this reason.
+	_navigate_to(MenuGraph.ID_NEW_GAME)
+	var lobby: LobbyPanel = _panels.get_panel(MenuGraph.PANEL_LOBBY) as LobbyPanel
+	var first_screen := lobby.screen
+	assert_not_null(first_screen, "the first route built a lobby")
+
+	_back_out(2)
+	_frontmatter.focus(MenuGraph.ID_MULTIPLAYER, true)
+
+	_frontmatter.reduce_motion = false
+	_frontmatter.travel_duration = 0.85
+	_frontmatter.panel_lead = 0.3
+	_frontmatter.focus(MenuGraph.ID_LOCAL)
+	_frontmatter.set_progress(0.0)
+	assert_ne(lobby.screen, first_screen,
+			"the second route rebuilt the lobby before the camera even moved")
+
+	_frontmatter.set_progress(0.5)
+	assert_eq(_panels.shown_panel, MenuGraph.PANEL_LOBBY,
+			"so what slides in mid-flight is already the new route's lobby")
