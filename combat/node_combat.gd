@@ -164,7 +164,13 @@ func get_spike_power() -> float:
 ## makes it correct on a shadow too (needed by [method take_damage]'s
 ## mitigation math — see [Mitigation], which requires a real [SkillNode] and
 ## so cannot be called on a shadow's behalf).
+##
+## Also understands #333's accessor tokens — `<stat_id>__<accessor>`, e.g.
+## `node_health__current` — which route to [method _read_accessor] below
+## instead of the merge. A bare id behaves exactly as it always has.
 func get_local_value(stat_id: StringName) -> Variant:
+	if StatFormula.is_accessor_token(stat_id):
+		return _read_accessor(stat_id)
 	var ns: Stat = board().get_stat(stat_id) if board() != null else null
 	var o := owner()
 	if o != null and o.board() != null:
@@ -177,6 +183,47 @@ func get_local_value(stat_id: StringName) -> Variant:
 	if ns != null:
 		return ns.get_value()
 	var def: StatDef = StatRegistry.get_def(stat_id)
+	if def != null:
+		return def.default_value
+	return 0.0
+
+
+## Reads an accessor token (`<stat_id>__<accessor>`) off whichever board owns
+## the state — the #333 grammar, taught to this method rather than reimplemented
+## anywhere (#702). Adds no grammar: [StatFormula]'s statics split the token and
+## [method Stat.read_accessor] dispatches through the per-subclass
+## [method Stat.accessors] map, so a new accessor on a new [Stat] subclass
+## reaches every caller of this method for free.
+##
+## [b]Deliberately does NOT merge.[/b] The bin merge above is meaningful for a
+## modifier-computed cap, where the entity's and the node's modifiers genuinely
+## stack. It is meaningless for `.current` / `wounded` / `surplus`, which are
+## ephemeral state living on exactly ONE [Stat] instance — merging two boards'
+## bins onto one of them would compute a number nothing stores.
+##
+## So this resolves rather than merges, node board first: a node's own
+## `node_health` [PoolStat] holds its damage, and only the owner's board holds
+## an entity-scope pool like `skill_points`. That ordering is why
+## `skill_points__wounded` works here with no further code — it simply misses
+## the node board and finds the owner's [SkillPointStat].
+##
+## A base id absent from both boards falls through to the def default on the
+## BASE id, matching the bare-id tail above. An accessor the found stat does not
+## answer to is [method Stat.read_accessor]'s call, not this method's: it warns
+## once and degrades to [method Stat.get_value]. Not overridden per-caller —
+## one contract, one policy — and degrading is the right answer for a ranker
+## anyway, since a `0.0` would silently invert the ranking. Typos are caught at
+## load time by the authored-content test, not per-read here.
+func _read_accessor(token: StringName) -> Variant:
+	var base := StatFormula.base_of(token)
+	var s: Stat = board().get_stat(base) if board() != null else null
+	if s == null:
+		var o := owner()
+		if o != null and o.board() != null:
+			s = o.board().get_stat(base)
+	if s != null:
+		return s.read_accessor(StatFormula.accessor_of(token))
+	var def: StatDef = StatRegistry.get_def(base)
 	if def != null:
 		return def.default_value
 	return 0.0
