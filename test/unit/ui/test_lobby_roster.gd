@@ -748,8 +748,8 @@ func test_an_untouched_control_writes_no_override_at_all() -> void:
 
 	assert_eq(cfg.overrides.size(), 0,
 			"nothing was picked, so nothing is overridden")
-	assert_eq(lobby._map_size_row.get_value(), -1,
-			"and the widget itself is in the no-pick state")
+	assert_eq(lobby._map_size_row.get_value(), _MAP_SIZE_OPTIONS.default_index,
+			"the widget shows the ladder's authored default, not a real pick")
 
 	# The authored preset is what a run with no picks generates from.
 	var resolved := cfg.resolved_preset()

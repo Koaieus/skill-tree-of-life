@@ -80,4 +80,5 @@ metadata/_custom_type_script = ExtResource("2_opt")
 resource_name = "Map Size"
 script = ExtResource("1_set")
 options = Array[ExtResource("2_opt")]([SubResource("o0"), SubResource("o1"), SubResource("o2"), SubResource("o3"), SubResource("o4"), SubResource("o5")])
+default_index = 3
 metadata/_custom_type_script = ExtResource("1_set")

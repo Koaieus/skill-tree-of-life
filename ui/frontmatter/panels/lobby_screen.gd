@@ -85,7 +85,7 @@ const _DEFAULT_AI_CORE := preload("res://entity/core/basic_enemy_core.tres")
 ## produced before this screen authored any AI at all (the level's fallback
 ## roster is `camp_sizes = [1, 1]`), so this is that behaviour, made visible.
 const _DEFAULT_AI_OPPONENTS := 1
-const _MAX_AI_OPPONENTS := 4
+const _MAX_AI_OPPONENTS := 12
 
 ## The rows this screen stacks, kept under the name the shipped code and its
 ## tests already use. It is this node: the screen IS its own column now that
@@ -203,12 +203,20 @@ func _ready() -> void:
 	_rows_container.add_theme_constant_override("separation", 4)
 	content.add_child(_rows_container)
 
+	# Pushes everything below the roster — seed, run section, Start — toward
+	# the bottom of the panel instead of crowding it directly under the last
+	# slot row.
+	var roster_spacer := Control.new()
+	roster_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(roster_spacer)
+
 	var seed_row: LabelledRow = _ROW_SCENE.instantiate()
 	seed_row.set_label("Seed:")
 	content.add_child(seed_row)
 
 	_seed_edit = LineEdit.new()
-	_seed_edit.placeholder_text = "random"
+	_seed_edit.placeholder_text = "random, e.g. 20260901"
+	_seed_edit.text_changed.connect(_on_seed_text_changed)
 	seed_row.set_widget(_seed_edit)
 
 	_build_run_section()
@@ -217,10 +225,6 @@ func _ready() -> void:
 		var link_label := Label.new()
 		link_label.text = _link_caption()
 		content.add_child(link_label)
-
-	var spacer := Control.new()
-	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(spacer)
 
 	_rebuild_participants()
 
@@ -637,7 +641,7 @@ static func assign_default_cores(participants_in: Array[Participant]) -> void:
 ## the moment #563 made the spawn site read the roster.
 ##
 ## Round-robin, so a roster longer than the palette repeats rather than crashing
-## — but the max roster is 6 (2 humans + [constant _MAX_AI_OPPONENTS]) against
+## — but the max roster is 14 (2 humans + [constant _MAX_AI_OPPONENTS]) against
 ## twenty colours, so in practice the wrap is unreachable and every slot differs.
 static func assign_default_colors(
 	participants_in: Array[Participant], palette: PlayerPalette
@@ -722,3 +726,20 @@ static func _parse_seed(text: String) -> int:
 	if text.is_empty() or not text.is_valid_int():
 		return 0
 	return text.to_int()
+
+
+## Keeps the seed field digits-only as the host types, rather than accepting
+## anything and letting [method _parse_seed] quietly discard it as "randomise
+## me" — a typo would otherwise look accepted and silently reseed the run.
+## Setting [member LineEdit.text] from code does not re-emit `text_changed` in
+## Godot 4, so this needs no reentrancy guard.
+func _on_seed_text_changed(new_text: String) -> void:
+	var filtered := ""
+	for c in new_text:
+		if c.is_valid_int():
+			filtered += c
+	if filtered == new_text:
+		return
+	var caret := _seed_edit.caret_column - (new_text.length() - filtered.length())
+	_seed_edit.text = filtered
+	_seed_edit.caret_column = clampi(caret, 0, filtered.length())

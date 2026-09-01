@@ -44,4 +44,5 @@ metadata/_custom_type_script = ExtResource("2_opt")
 resource_name = "Starter Arrangement"
 script = ExtResource("1_set")
 options = Array[ExtResource("2_opt")]([SubResource("o0"), SubResource("o1"), SubResource("o2")])
+default_index = 0
 metadata/_custom_type_script = ExtResource("1_set")

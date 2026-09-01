@@ -41,11 +41,14 @@ func set_choices(title: String, option_set: LobbyOptionSet) -> void:
 	visible = not choices.is_empty()
 	for c in choices:
 		_picker.add_item(c.label)
-	# Nothing is selected until the host picks. That is #643 acceptance 5 made
-	# structural: "no explicit pick" has to be a state the widget can BE in, or
-	# the screen could never tell "the host chose L" from "L happens to be
-	# first" and would write an override for a control nobody touched.
-	_picker.select(-1)
+	# The host hasn't PICKED anything — #643 acceptance 5 still holds, an
+	# untouched row writes no override — but the widget shows the ladder's
+	# authored default rather than a blank dropdown. select() doesn't emit
+	# item_selected, so this can't masquerade as a real pick.
+	var default_index := -1 if option_set == null else option_set.default_index
+	if default_index < 0 or default_index >= choices.size():
+		default_index = -1
+	_picker.select(default_index)
 
 
 ## Re-selects [param index] without emitting — the rebuild-survival half
@@ -57,7 +60,10 @@ func set_value(index: int) -> void:
 	_updating = false
 
 
-## The index currently shown, or `-1` for "the host has not picked".
+## The index currently shown — the ladder's authored [member
+## LobbyOptionSet.default_index] until the host picks, `-1` if the ladder has
+## no default. NOT the same question as "has the host picked" (see
+## [LobbyScreen._picked_options] for that).
 func get_value() -> int:
 	return _picker.selected
 

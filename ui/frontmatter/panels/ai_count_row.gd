@@ -1,6 +1,6 @@
 class_name AiCountRow
 extends HBoxContainer
-## AI count row: label + slider (0..4, expanding) + spinbox (0..4), with bidirectional linking.
+## AI count row: label + slider (0..12, expanding) + spinbox (0..12), with bidirectional linking.
 ## The slider and spinbox are kept in sync. The `value_changed` signal propagates from either control.
 
 signal value_changed(v: float)
