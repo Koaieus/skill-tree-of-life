@@ -23,7 +23,6 @@ value = -5.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [node name="BunkerAddon" type="Node2D" unique_id=631414463]
-modulate = Color(2.454227, 2.454227, 2.454227, 1)
 z_index = 1
 script = ExtResource("1_83r5f")
 local_modifiers = Array[ExtResource("2_efkvd")]([SubResource("Resource_vxeh7"), SubResource("Resource_u38nb")])

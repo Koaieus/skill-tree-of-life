@@ -14,7 +14,6 @@ value = 15.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [node name="FortificationAddon" type="Node2D" unique_id=631414463]
-modulate = Color(1.8247963, 1.8247963, 1.8247963, 1)
 z_index = 1
 script = ExtResource("1_ppux5")
 local_modifiers = Array[ExtResource("1_3e5dq")]([SubResource("Resource_kv1mp")])

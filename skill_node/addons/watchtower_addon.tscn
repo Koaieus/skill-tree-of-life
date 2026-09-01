@@ -31,7 +31,6 @@ value = 1.25
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [node name="WatchtowerAddon" type="Node2D" unique_id=1780589357]
-modulate = Color(2.1168277, 2.1168277, 2.1168277, 1)
 z_index = 1
 script = ExtResource("1_wtwr")
 stand_bearing_deg = -90.0

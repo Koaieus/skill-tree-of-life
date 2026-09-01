@@ -22,7 +22,6 @@ value = 3.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [node name="SpikeRingAddon" type="Node2D" unique_id=1569558765]
-modulate = Color(1.8247963, 1.8247963, 1.8247963, 1)
 z_index = 1
 script = ExtResource("1_spike")
 local_modifiers = Array[ExtResource("2_2tu4f")]([SubResource("Resource_arix0"), SubResource("Resource_u38nb")])
