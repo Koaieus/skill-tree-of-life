@@ -83,19 +83,23 @@ expand_icon = true
 
 [node name="SaveButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer" unique_id=399043513]
 layout_mode = 2
+disabled = true
+tooltip_text = "Saving isn't implemented yet."
 text = "SAVE"
 icon = ExtResource("3_vovkw")
 expand_icon = true
 
 [node name="LoadButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer" unique_id=690353971]
 layout_mode = 2
+disabled = true
+tooltip_text = "Loading isn't implemented yet."
 text = "LOAD"
 icon = ExtResource("4_jyvtb")
 expand_icon = true
 
 [node name="ToMainMenuButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer" unique_id=2023258104]
 layout_mode = 2
-text = "Main Menu"
+text = "MAIN MENU"
 icon = ExtResource("5_fijdv")
 expand_icon = true
 
@@ -125,8 +129,6 @@ horizontal_alignment = 1
 text = "seed —  ·  —"
 
 [connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/RestartButton" to="." method="_on_restart_button_pressed"]
-[connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/SaveButton" to="." method="_on_save_button_pressed"]
-[connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/LoadButton" to="." method="_on_load_button_pressed"]
 [connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/ToMainMenuButton" to="." method="_on_to_main_menu_button_pressed"]
 [connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/ExitButton" to="." method="_on_exit_button_pressed"]
 [connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/ContinueButton" to="." method="_on_continue_button_pressed"]

@@ -1,6 +1,15 @@
 class_name PauseMenu
 extends Control
 
+## Where "MAIN MENU" goes. Stated as a path rather than a `preload` on purpose:
+## the pause menu ships inside every level's HudRoot, and preloading the whole
+## frontmatter shell would drag the menu graph into each of them.
+##
+## It is the same scene as `application/run/main_scene` — i.e. where an exported
+## build boots — and `test/unit/ui/test_pause_menu.gd` pins the two together, so
+## repointing the boot scene can never leave this button on a dead one.
+const MAIN_MENU_SCENE := "res://scenes/meta/meta_root.tscn"
+
 ## Single source of truth for the paused state. Toggling it shows/hides the menu
 ## and flips the SceneTree pause flag together. The node runs in
 ## PROCESS_MODE_ALWAYS (set in the scene) so it still catches the un-pause key
@@ -74,16 +83,29 @@ func _on_restart_button_pressed() -> void:
 	_restart()
 
 
-func _on_save_button_pressed() -> void:
-	push_warning('ToDo: implement saving')
-
-
-func _on_load_button_pressed() -> void:
-	push_warning('ToDo: implement loading')
-
-
+## Abandon the run and go back to the frontmatter menu. Straight out, no
+## confirmation — same call the sibling [method _restart] already makes.
 func _on_to_main_menu_button_pressed() -> void:
-	push_warning('ToDo: implement a main menu / metagame / outer world')
+	leave_run()
+	SceneDirector.goto(MAIN_MENU_SCENE)
+
+
+## The tear-down half of leaving, split out because the [SceneDirector] half
+## cannot be exercised from a test without actually swapping the running scene.
+##
+## Unpausing FIRST is load-bearing, and for a stronger reason than `paused`
+## outliving the scene swap: [SceneTransition] is a PAUSABLE autoload, so its
+## fade-out never finishes while the tree is frozen and
+## [method SceneDirector.goto] would await forever — the button would look dead.
+##
+## [method GameSession.end] then closes the run so the next one starts clean;
+## in particular its [NetworkConfig] must not survive, or a player who hosted
+## and then backed out silently opens a socket again. No
+## [signal Events.run_ended] — [VictorySystem] is the sole emitter of that, and
+## walking out is not an outcome.
+func leave_run() -> void:
+	active = false
+	GameSession.end()
 
 
 ## Quit the application. `get_tree().quit()` requests a clean shutdown — the
