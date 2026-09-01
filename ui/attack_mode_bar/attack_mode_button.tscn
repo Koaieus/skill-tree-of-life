@@ -25,6 +25,7 @@ shader_parameter/glow_radius = 0.44
 shader_parameter/glow_strength = 0.0
 shader_parameter/active_strength = 0.0
 shader_parameter/disabled_strength = 0.0
+shader_parameter/has_watermark = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_yol2q"]
 shader = ExtResource("4_kuoad")
@@ -100,11 +101,13 @@ theme_override_constants/margin_bottom = 4
 [node name="Content" type="HBoxContainer" parent="MarginContainer" unique_id=311423600]
 layout_mode = 2
 mouse_filter = 2
-alignment = 1
 theme_override_constants/separation = 8
+alignment = 1
 
 [node name="Icon" type="TextureRect" parent="MarginContainer/Content" unique_id=311423601]
 unique_name_in_owner = true
+visible = false
+material = SubResource("ShaderMaterial_yol2q")
 custom_minimum_size = Vector2(24, 24)
 layout_mode = 2
 size_flags_vertical = 4
@@ -116,7 +119,6 @@ stretch_mode = 5
 unique_name_in_owner = true
 material = SubResource("ShaderMaterial_yol2q")
 layout_mode = 2
-size_flags_vertical = 4
 label_settings = SubResource("LabelSettings_ndpa3")
 horizontal_alignment = 1
 vertical_alignment = 1

@@ -9,9 +9,7 @@
 [ext_resource type="PackedScene" uid="uid://jwqwvt0lrm1b" path="res://ui/hud/action_cluster/action_cluster.tscn" id="7_cluster"]
 [ext_resource type="PackedScene" uid="uid://f33t8yww1r8b" path="res://ui/hud/command_tray/command_tray.tscn" id="8_tray"]
 [ext_resource type="PackedScene" path="res://ui/announcement_layer/announcement_layer.tscn" id="9_announcement"]
-[ext_resource type="PackedScene" path="res://ui/hud/armed_mode_glow/armed_mode_glow.tscn" id="21_armed_glow"]
-[ext_resource type="PackedScene" path="res://ui/hud/armed_mode_icon/armed_mode_icon.tscn" id="22_armed_icon"]
-[ext_resource type="PackedScene" path="res://ui/hud/xp_track/xp_track.tscn" id="10_xp_track"]
+[ext_resource type="PackedScene" uid="uid://cv28pc70yp3ll" path="res://ui/hud/xp_track/xp_track.tscn" id="10_xp_track"]
 [ext_resource type="PackedScene" path="res://ui/hud/node_inspector_card/node_inspector_card.tscn" id="11_inspector"]
 [ext_resource type="PackedScene" uid="uid://byuujrcff7ex7" path="res://ui/spell_tooltip/spell_tooltip.tscn" id="13_spell_tt"]
 [ext_resource type="PackedScene" uid="uid://c7aepi87fu42e" path="res://ui/pause_menu.tscn" id="14_pause"]
@@ -21,8 +19,10 @@
 [ext_resource type="PackedScene" path="res://ui/loot_picker/spell_loot_picker.tscn" id="18_spell_loot"]
 [ext_resource type="PackedScene" path="res://ui/tooltip_fan/tooltip_fan.tscn" id="19_tooltip_fan"]
 [ext_resource type="PackedScene" path="res://ui/gained_modifier_toast/gained_modifier_toast.tscn" id="20_gain_toast"]
-[ext_resource type="PackedScene" path="res://ui/hud/minimap_panel/minimap_panel.tscn" id="21_minimap"]
-[ext_resource type="PackedScene" path="res://ui/mass_action_confirm/mass_action_confirm_panel.tscn" id="22_mass_action"]
+[ext_resource type="PackedScene" uid="uid://shcntcdwmn7a" path="res://ui/hud/armed_mode_glow/armed_mode_glow.tscn" id="21_armed_glow"]
+[ext_resource type="PackedScene" uid="uid://cv81a0y70nvs2" path="res://ui/hud/minimap_panel/minimap_panel.tscn" id="21_minimap"]
+[ext_resource type="PackedScene" path="res://ui/hud/armed_mode_icon/armed_mode_icon.tscn" id="22_armed_icon"]
+[ext_resource type="PackedScene" uid="uid://c26eoebnjw1lg" path="res://ui/mass_action_confirm/mass_action_confirm_panel.tscn" id="22_mass_action"]
 
 [node name="HudRoot" type="Control" unique_id=1012524231]
 process_mode = 1
@@ -155,27 +155,26 @@ offset_bottom = 0.0
 grow_horizontal = 0
 grow_vertical = 0
 
-[node name="MinimapSlot" type="Control" parent="MarginContainer"]
+[node name="MinimapSlot" type="Control" parent="MarginContainer" unique_id=21296951]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 8
 mouse_filter = 2
 
-[node name="MinimapPanel" parent="MarginContainer/MinimapSlot" instance=ExtResource("21_minimap")]
+[node name="MinimapPanel" parent="MarginContainer/MinimapSlot" unique_id=1706063918 instance=ExtResource("21_minimap")]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_top = -220.0
-offset_right = 220.0
 offset_bottom = 0.0
 grow_vertical = 0
 
-[node name="ArmedModeGlow" parent="." instance=ExtResource("21_armed_glow")]
+[node name="ArmedModeGlow" parent="." unique_id=771708188 instance=ExtResource("21_armed_glow")]
 unique_name_in_owner = true
 
-[node name="ArmedModeIcon" parent="." instance=ExtResource("22_armed_icon")]
+[node name="ArmedModeIcon" parent="." unique_id=337706865 instance=ExtResource("22_armed_icon")]
 unique_name_in_owner = true
 
 [node name="AnnouncementLayer" parent="." unique_id=394311347 instance=ExtResource("9_announcement")]
@@ -217,7 +216,7 @@ unique_name_in_owner = true
 visible = false
 layout_mode = 1
 
-[node name="MassActionConfirmPanel" parent="." instance=ExtResource("22_mass_action")]
+[node name="MassActionConfirmPanel" parent="." unique_id=422834914 instance=ExtResource("22_mass_action")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
