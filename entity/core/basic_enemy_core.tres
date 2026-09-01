@@ -7,12 +7,14 @@
 [ext_resource type="Resource" path="res://entity/core/sigil/triangle_sigil.tres" id="4_sigil"]
 
 [sub_resource type="Resource" id="Resource_q2ptp"]
+resource_name = "+30 Wisdom"
 script = ExtResource("1_agu68")
 stat_id = &"wisdom"
 value = 30.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_xm0xk"]
+resource_name = "+10 Perception"
 script = ExtResource("1_agu68")
 stat_id = &"perception"
 value = 10.0

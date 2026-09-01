@@ -4,16 +4,19 @@
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
 
 [sub_resource type="Resource" id="mod_str"]
+resource_name = "+10 Strength"
 script = ExtResource("2_mod")
 stat_id = &"strength"
 value = 10.0
 
 [sub_resource type="Resource" id="mod_dex"]
+resource_name = "+10 Dexterity"
 script = ExtResource("2_mod")
 stat_id = &"dexterity"
 value = 10.0
 
 [sub_resource type="Resource" id="mod_int"]
+resource_name = "+10 Intelligence"
 script = ExtResource("2_mod")
 stat_id = &"intelligence"
 value = 10.0

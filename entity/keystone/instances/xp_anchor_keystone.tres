@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="4_mod"]
 
 [sub_resource type="Resource" id="m_xp_per_turn"]
+resource_name = "+4 XP / Turn"
 script = ExtResource("4_mod")
 stat_id = &"xp_per_turn"
 value = 4.0

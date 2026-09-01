@@ -59,6 +59,7 @@ operation = 1
 archetype_stat = &"intelligence"
 unit_value = -2.0
 range_floor = -1.0
+pool_weight = 0.5
 max_tier = 3
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 

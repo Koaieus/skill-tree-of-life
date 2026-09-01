@@ -14,26 +14,31 @@ base = 5.0
 hop_range = 3.0
 
 [sub_resource type="Resource" id="mod_con"]
+resource_name = "+10 Constitution"
 script = ExtResource("2_mod")
 stat_id = &"constitution"
 value = 10.0
 
 [sub_resource type="Resource" id="mod_wis"]
+resource_name = "+10 Wisdom"
 script = ExtResource("2_mod")
 stat_id = &"wisdom"
 value = 10.0
 
 [sub_resource type="Resource" id="mod_str_per_level"]
+resource_name = "+1 Strength"
 script = ExtResource("2_mod")
 stat_id = &"strength"
 formula = ExtResource("4_lvl")
 
 [sub_resource type="Resource" id="mod_dex_per_level"]
+resource_name = "+1 Dexterity"
 script = ExtResource("2_mod")
 stat_id = &"dexterity"
 formula = ExtResource("4_lvl")
 
 [sub_resource type="Resource" id="mod_int_per_level"]
+resource_name = "+1 Intelligence"
 script = ExtResource("2_mod")
 stat_id = &"intelligence"
 formula = ExtResource("4_lvl")
