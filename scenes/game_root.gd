@@ -38,10 +38,14 @@ const _BLOCKER_SPELLBOOKS: Dictionary = {
 	BlockerSize.LARGE: preload("res://entity/blocker/blocker_spellbook_large.tres"),
 }
 
-## Dev shortcut (#244): `F` flips FogOverlay.intensity between fully opaque
+## Dev shortcut (#244): `F2` flips FogOverlay.intensity between fully opaque
 ## (ship default, 1.0) and the dimmer "almost black" (0.88) that lets a dev see
 ## enemy positions through unsensed fog.
-const _FOG_DEBUG_KEY: int = KEY_F
+##
+## Was `F` until `F` became the global fullscreen toggle ([method
+## Settings.toggle_fullscreen]) — a player-facing key beats a dev one, and this
+## joins `F5` (restart) in function-key territory where nothing competes.
+const _FOG_DEBUG_KEY: int = KEY_F2
 const _FOG_INTENSITY_SHIP: float = 1.0
 const _FOG_INTENSITY_DEV: float = 0.88
 

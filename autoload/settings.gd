@@ -13,11 +13,48 @@ const _DISPLAY_KEYS: Array[StringName] = [&"window_mode", &"resolution", &"vsync
 
 var current: GameSettings = GameSettings.new()
 
+## The mode [method toggle_fullscreen] returns to. Deliberately NOT a
+## [GameSettings] @export: "which window mode was I before F" is scratch state,
+## not a player-facing setting, and a session that boots straight into
+## fullscreen has no earlier mode to have persisted anyway. BORDERLESS is why
+## it exists at all — a borderless player who presses F twice must land back on
+## borderless, not on plain windowed.
+var _pre_fullscreen_mode: int = GameSettings.WindowMode.WINDOWED
+
 
 func _ready() -> void:
+	# The fullscreen key has to work from the pause menu, which freezes the
+	# tree; an autoload otherwise inherits the root's PAUSABLE mode and stops
+	# receiving input the moment the game is paused.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	load_settings()
 	_apply_display_settings()
 	changed.connect(_on_changed)
+
+
+## `F` from anywhere — the menu, a level, the pause menu on top of one.
+##
+## Safe as a bare letter because `_unhandled_key_input` is the LAST input phase:
+## a focused [LineEdit] (the lobby's port / address / seed fields) consumes the
+## keystroke as text in the GUI phase and this never sees it. Nothing else in
+## the game claims F any more — [GameRoot]'s fog-debug shortcut moved to `F2`
+## when this landed.
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event.is_action_pressed(&"ui_toggle_fullscreen"):
+		get_viewport().set_input_as_handled()
+		toggle_fullscreen()
+
+
+## Flip in and out of fullscreen, through [method set_value] rather than
+## [DisplayServer] directly — the setting IS the window mode, so a direct
+## display call would leave the options menu describing a window that no longer
+## exists — one door onto the window mode, not two.
+func toggle_fullscreen() -> void:
+	if current.window_mode == GameSettings.WindowMode.FULLSCREEN:
+		set_value(&"window_mode", _pre_fullscreen_mode)
+		return
+	_pre_fullscreen_mode = current.window_mode
+	set_value(&"window_mode", GameSettings.WindowMode.FULLSCREEN)
 
 
 func set_value(key: StringName, value: Variant) -> void:
