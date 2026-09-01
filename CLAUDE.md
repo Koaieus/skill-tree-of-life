@@ -24,6 +24,12 @@ godot --path . scenes/first_level_sandbox.tscn    # THE one to reach for: a real
 godot --path . scenes/procgen_play_sandbox.tscn   # small procgen proof-of-concept, 50 nodes
 ```
 
+`run/main_scene` is `scenes/meta/meta_root.tscn` — the frontmatter menu, i.e.
+where an exported build and a bare `godot --path .` (or F5) start. It is a
+config setting on purpose: an autoload cannot redirect *before* the main scene
+is built, so pointing it at a sandbox made every export construct that level and
+cut away from it a moment later. Launch sandboxes by path, as above.
+
 `scenes/level.tscn` is the shipped level and is **not** launchable on its own —
 it generates from whatever run `GameSession` already holds and refuses without
 one. The two sandboxes above are that same scene plus a `RunBootstrap` child
@@ -78,7 +84,6 @@ Spawning runtime entities: subclass `GameRoot`, override `_setup_level()`, call 
 
 | Singleton | Purpose |
 |---|---|
-| `Boot` | Release-build entry point — on `OS.has_feature("release")` routes to the frontmatter menu (`scenes/meta/meta_root.tscn`) via `SceneDirector.goto` (#577). No-op in the editor. |
 | `SceneTransition` | Fade in/out + loading progress bar |
 | `SceneDirector` | Scene routing + async loading. Absorbed the zero-caller `SceneLoader` (#212); `MetaRoot` and the menu shell route through `SceneDirector.goto` |
 | `Settings` | `GameSettings` + `ConfigFile` persistence, surfaced by the reflected settings menu |

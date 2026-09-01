@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="Skill Tree of Life"
-run/main_scene="uid://ch0s7sw18mc23"
+run/main_scene="uid://rjsur8iudehy"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -25,7 +25,6 @@ SceneTransition="*res://autoload/scene_transition.tscn"
 SceneDirector="*res://autoload/scene_director.gd"
 Settings="*res://autoload/settings.gd"
 BuildInfo="*res://autoload/build_info.gd"
-Boot="*res://autoload/boot.gd"
 Events="*res://autoload/events.gd"
 GameSession="*res://autoload/game_session.gd"
 StatRegistry="*res://autoload/stat_registry.gd"
