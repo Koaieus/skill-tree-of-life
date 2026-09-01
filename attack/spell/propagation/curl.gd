@@ -76,7 +76,30 @@ static func rank(
 		node: SkillNode,
 		candidates: Array[SkillNode],
 		clockwise: bool = true) -> Array[SkillNode]:
-	var origin := node.global_position
+	var positions := PackedVector2Array()
+	for nb in candidates:
+		positions.append(nb.global_position)
+	var out: Array[SkillNode] = []
+	for i in rank_indices(from_position, node.global_position, positions, clockwise):
+		out.append(candidates[i])
+	return out
+
+
+## The ranking itself, on bare geometry: indices into [param candidates] (whose
+## positions live in the same space as [param origin]), sharpest turn first,
+## with the arrival edge and any zero-length candidate already dropped.
+##
+## [method rank] is a thin adapter over this. The split exists because the curl
+## is also a [b]measuring device[/b]: `tools/curl_spectrum/` builds the spell's
+## directed-edge transfer operator over hundreds of procgen terrains per sweep
+## and cannot afford a [SkillNode] scene per point — and re-deriving the
+## ranking there would be a second implementation of the one rule the spell is
+## made of, free to drift from this one.
+static func rank_indices(
+		from_position: Vector2,
+		origin: Vector2,
+		candidates: PackedVector2Array,
+		clockwise: bool = true) -> PackedInt32Array:
 	var back := from_position - origin
 	# A real arrival edge scores exactly 0 and gets dropped below. A DEGENERATE
 	# one must not: with no direction to have come from there is no edge to
@@ -89,8 +112,7 @@ static func rank(
 		exclude_arrival = false
 	var keyed: Array = []
 	for i in candidates.size():
-		var nb: SkillNode = candidates[i]
-		var d := nb.global_position - origin
+		var d := candidates[i] - origin
 		var forward := back.dot(d)
 		var side := back.cross(d)
 		var key := pseudo_angle(forward, -side if clockwise else side)
@@ -100,9 +122,9 @@ static func rank(
 		# edge scores just above 0, a hair anticlockwise just under 4.
 		if exclude_arrival and (key < ARRIVAL_EPSILON or key > 4.0 - ARRIVAL_EPSILON):
 			continue  # the arrival edge itself
-		keyed.append([key, i, nb])
+		keyed.append([key, i])
 	keyed.sort_custom(func(a, b): return a[0] < b[0] if a[0] != b[0] else a[1] < b[1])
-	var out: Array[SkillNode] = []
+	var out := PackedInt32Array()
 	for entry in keyed:
-		out.append(entry[2])
+		out.append(entry[1])
 	return out

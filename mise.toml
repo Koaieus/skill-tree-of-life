@@ -398,6 +398,14 @@ fi
 description = "Balance harness (#268): full scenario table + ratio invariants, informative only — see tools/balance/README.md"
 run = "godot --headless --path . --script res://tools/balance/run_balance.gd"
 
+[tasks."curl-spectrum"]
+description = "Cyclone coefficient sweep (#705): spectral radius + 8-wave damage over real procgen terrain — `mise run curl-spectrum -- <nodes> <seeds> <targets>`"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+godot --headless --path . --script res://tools/curl_spectrum/run_spectrum.gd -- "$@"
+'''
+
 [tasks."balance:sensitivity"]
 description = "1-D balance sensitivity slice: `mise run balance:sensitivity -- mirror_L20 dexterity 5 40 5`"
 run = '''
