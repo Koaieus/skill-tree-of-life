@@ -81,6 +81,13 @@ var _hovered_bucket: int = -1
 		glow_color = v
 		_push(&"glow_color", v)
 
+## EV stops the to-spend shine trace is lifted by — see [member PoolGauge.glow_stops];
+## same knob, same peak-channel normalization, same bloom dependency.
+@export_range(0.0, 3.0, 0.05) var glow_stops: float = 2.5:
+	set(v):
+		glow_stops = v
+		_push(&"glow_stops", v)
+
 @export_range(0.0, 20.0, 0.5) var corner_radius: float = 5.0:
 	set(v):
 		corner_radius = v
@@ -124,6 +131,7 @@ func _ready() -> void:
 	_push(&"color_2", color_staked)
 	_push(&"color_background", color_allocated)
 	_push(&"glow_color", glow_color)
+	_push(&"glow_stops", glow_stops)
 	_push(&"corner_radius", corner_radius)
 	_push(&"pulse_speed", pulse_speed)
 	_push(&"shine_speed", shine_speed)

@@ -72,6 +72,22 @@ signal level_segment_held(new_max: float)
 		glow_color = v
 		_push(&"glow_color", v)
 
+## EV stops the travelling shine trace is lifted by — the ENERGY half of the
+## trace, with [member glow_color] as its hue and that colour's alpha as how far
+## the crest mixes over the fill. Landmarks are [Emissive]'s named tiers
+## ([code]VALUE[/code] 1.0, [code]ALERT[/code] 2.0, [code]PEAK[/code] 3.0); the
+## shader peak-normalizes the hue first (Emissive.tint_peak), so equal stops read
+## as equal glow whether the gauge is red, cyan or gold.
+##
+## Above 0 this is real HDR that the WorldEnvironment bloom pass picks up — it is
+## not a self-lit fake, so a viewport with no bloom (an editor dock, a
+## SubViewport without [code]use_hdr_2d[/code]) shows only the SDR crest. See
+## docs/domain/hdr-color.md.
+@export_range(0.0, 3.0, 0.05) var glow_stops: float = 2.5:
+	set(v):
+		glow_stops = v
+		_push(&"glow_stops", v)
+
 @export var drain_color: Color = Color(0.9, 0.3, 0.3, 0.5):
 	set(v):
 		drain_color = v
@@ -190,6 +206,7 @@ func _push_all() -> void:
 	_push(&"fill_color", fill_color)
 	_push(&"empty_color", empty_color)
 	_push(&"glow_color", glow_color)
+	_push(&"glow_stops", glow_stops)
 	_push(&"drain_color", drain_color)
 	_push(&"preview_gain", preview_gain)
 	_push(&"preview_color", preview_color)

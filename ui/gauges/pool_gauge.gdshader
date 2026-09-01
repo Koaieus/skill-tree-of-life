@@ -13,6 +13,12 @@ uniform float drain_from = 1.0;
 uniform vec4 fill_color : source_color = vec4(0.7, 0.75, 0.95, 1.0);
 uniform vec4 empty_color : source_color = vec4(1.0, 1.0, 1.0, 0.08);
 uniform vec4 glow_color : source_color = vec4(1.0, 1.0, 1.0, 0.6);
+// EV stops the shine trace is lifted by (see docs/domain/hdr-color.md). The
+// sweep was authored as a fake additive highlight before the project had a
+// real bloom pass; it now lands as a genuine >1.0 HDR crest the
+// WorldEnvironment glow pass picks up, so `glow_color` is the HUE and this is
+// the ENERGY. glow_color.a stays the strength of the trace over the fill.
+uniform float glow_stops : hint_range(0.0, 3.0, 0.05) = 2.5;
 uniform vec4 drain_color : source_color = vec4(0.9, 0.3, 0.3, 0.5);
 uniform float preview_gain = 0.0;
 uniform vec4 preview_color : source_color = vec4(1.0, 1.0, 1.0, 0.25);
@@ -37,6 +43,22 @@ uniform float cell_gap = 3.0;
 float sd_round_rect(vec2 p, vec2 half_size, float r) {
 	vec2 q = abs(p) - half_size + r;
 	return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+}
+
+// `glow_color` lifted to `glow_stops`, normalized by its PEAK channel —
+// Emissive.tint_peak(), not .tint(). Luminance normalization would drag a red
+// vitals bar's green/blue to ~1.0 and the streak would read white with a red
+// halo; peak normalization keeps the dominant channel on the tier and the
+// trace the colour it was authored. `source_color` already decoded the uniform
+// to linear, so the divide + pow is the whole conversion (same shader-side
+// copy of the formula as slab_panel.gdshader).
+vec3 shine_tint() {
+	vec3 c = max(glow_color.rgb, vec3(0.0));
+	float peak = max(c.r, max(c.g, c.b));
+	if (peak < 0.0001) {
+		return vec3(0.0);
+	}
+	return (c / peak) * pow(2.0, glow_stops);
 }
 
 void fragment() {
@@ -69,7 +91,7 @@ void fragment() {
 		}
 		if (filled) {
 			float shine = sin((UV.x - TIME * shine_speed) * 18.0) * 0.5 + 0.5;
-			col.rgb += glow_color.rgb * glow_color.a * pow(shine, 6.0) * 0.5;
+			col.rgb = mix(col.rgb, shine_tint(), glow_color.a * pow(shine, 6.0));
 		}
 		COLOR = vec4(col.rgb, col.a * shape_alpha);
 	} else {
@@ -127,7 +149,7 @@ void fragment() {
 		}
 		if (filled || is_surplus) {
 			float shine = sin((UV.x - TIME * shine_speed) * 10.0) * 0.5 + 0.5;
-			col.rgb += glow_color.rgb * glow_color.a * pow(shine, 6.0) * 0.4;
+			col.rgb = mix(col.rgb, shine_tint(), glow_color.a * pow(shine, 6.0));
 		}
 		COLOR = vec4(col.rgb, col.a * gap_mask);
 	}

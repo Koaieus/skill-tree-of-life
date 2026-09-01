@@ -21,6 +21,11 @@ uniform vec4 color_1 : source_color = vec4(0.87, 0.23, 0.24, 1.0);
 uniform vec4 color_2 : source_color = vec4(0.91, 0.67, 0.30, 1.0);
 uniform vec4 color_background : source_color = vec4(0.59, 0.65, 0.78, 0.30);
 uniform vec4 glow_color : source_color = vec4(0.26, 0.64, 0.99, 0.6);
+// EV stops the to-spend shine trace is lifted by (docs/domain/hdr-color.md) —
+// same knob, same peak-channel normalization as pool_gauge.gdshader; see the
+// note on shine_tint() there for why the sweep is no longer a fake additive
+// highlight. glow_color is the HUE, this is the ENERGY.
+uniform float glow_stops : hint_range(0.0, 3.0, 0.05) = 2.5;
 uniform float corner_radius = 5.0;
 uniform float pulse_speed = 2.4;
 uniform float shine_speed = 0.6;
@@ -31,6 +36,17 @@ uniform float cell_gap = 3.0;
 float sd_round_rect(vec2 p, vec2 half_size, float r) {
 	vec2 q = abs(p) - half_size + r;
 	return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+}
+
+// `glow_color` lifted to `glow_stops`, peak-channel normalized
+// (Emissive.tint_peak). Shared verbatim with pool_gauge.gdshader.
+vec3 shine_tint() {
+	vec3 c = max(glow_color.rgb, vec3(0.0));
+	float peak = max(c.r, max(c.g, c.b));
+	if (peak < 0.0001) {
+		return vec3(0.0);
+	}
+	return (c / peak) * pow(2.0, glow_stops);
 }
 
 // Shared bucket lookup: `u` is the 0..1 position along the bar to classify.
@@ -75,7 +91,7 @@ void fragment() {
 		vec4 col = bucket_color(UV.x, b0, b1, b2, b3, pulse, glow);
 		if (glow) {
 			float shine = sin((UV.x - TIME * shine_speed) * 18.0) * 0.5 + 0.5;
-			col.rgb += glow_color.rgb * glow_color.a * pow(shine, 6.0) * 0.6;
+			col.rgb = mix(col.rgb, shine_tint(), glow_color.a * pow(shine, 6.0));
 		}
 		COLOR = vec4(col.rgb, col.a * pulse * shape_alpha);
 	} else {
@@ -100,7 +116,7 @@ void fragment() {
 		vec4 col = bucket_color(cell_u, b0, b1, b2, b3, pulse, glow);
 		if (glow) {
 			float shine = sin((UV.x - TIME * shine_speed) * 10.0) * 0.5 + 0.5;
-			col.rgb += glow_color.rgb * glow_color.a * pow(shine, 6.0) * 0.5;
+			col.rgb = mix(col.rgb, shine_tint(), glow_color.a * pow(shine, 6.0));
 		}
 		COLOR = vec4(col.rgb, col.a * pulse * gap_mask);
 	}
