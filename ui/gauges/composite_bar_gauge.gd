@@ -267,18 +267,23 @@ func _reconcile_spark() -> void:
 ## Ignite the cells one run gained or gave up. Whichever of its two edges moved
 ## further is the one that changed the run's membership; a run that grew is
 ## arriving, one that shrank is leaving.
+##
+## The colour handed to [GaugeSpark] is always the state on the OTHER side of
+## the change, so the slot stays occupied for the whole burn: `run_color` when
+## cells are leaving it, and the allocated background they are displacing when
+## cells are arriving.
 func _ignite_run(was_lo: float, was_hi: float, now_lo: float, now_hi: float,
-		color: Color, anchor_right: bool) -> void:
+		run_color: Color, anchor_right: bool) -> void:
 	var d_lo := now_lo - was_lo
 	var d_hi := now_hi - was_hi
 	if absf(d_lo) < 0.001 and absf(d_hi) < 0.001:
 		return
-	if absf(d_hi) >= absf(d_lo):
-		_spark.ignite(minf(was_hi, now_hi), maxf(was_hi, now_hi), d_hi < 0.0,
-				color, anchor_right, spark_time)
-	else:
-		_spark.ignite(minf(was_lo, now_lo), maxf(was_lo, now_lo), d_lo > 0.0,
-				color, anchor_right, spark_time)
+	var edge_is_hi := absf(d_hi) >= absf(d_lo)
+	var outgoing := d_hi < 0.0 if edge_is_hi else d_lo > 0.0
+	var lo: float = minf(was_hi, now_hi) if edge_is_hi else minf(was_lo, now_lo)
+	var hi: float = maxf(was_hi, now_hi) if edge_is_hi else maxf(was_lo, now_lo)
+	_spark.ignite(lo, hi, outgoing, run_color if outgoing else color_allocated,
+			anchor_right, spark_time)
 
 func _push_fractions() -> void:
 	var denom := maxf(max_value, to_spend + wounded + staked)

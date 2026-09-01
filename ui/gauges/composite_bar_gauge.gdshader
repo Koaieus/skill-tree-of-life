@@ -111,23 +111,19 @@ void fragment() {
 		bool sparking = spark_hits(idx);
 		vec2 cell_window = spark_cell_window(cell_w, cell_gap,
 				sparking ? spark_extent() : 1.0);
-		float gap_mask = step(cell_window.x, local_x) * step(local_x, cell_window.y);
+		// The SLOT is always drawn at full width; the window only decides which
+		// of the two states each half of it shows.
+		float gap_mask = step(cell_gap * 0.5, local_x) * step(local_x, cell_w - cell_gap * 0.5);
 
 		float cell_u = (idx + 0.5) / n;
 		vec4 col = bucket_color(cell_u, b0, b1, b2, b3, pulse, glow);
-		if (sparking && spark_out > 0.5) {
-			// The bucket it LEFT. A spent SP cell already reads as `allocated`
-			// and a healed wound already reads as background, so the fragment
-			// can no longer work this out for itself.
-			col = spark_color;
-			pulse = 1.0;
-		}
 		if (glow) {
 			float shine = sin((UV.x - TIME * shine_speed) * 10.0) * 0.5 + 0.5;
 			col.rgb = mix(col.rgb, shine_tint(), glow_color.a * pow(shine, 6.0));
 		}
 		if (sparking) {
-			col.rgb = mix(col.rgb, lift_peak(col.rgb, spark_stops), spark_energy);
+			col = spark_blend(col, local_x, cell_window);
+			pulse = 1.0;  // the wound pulse is not the story while a cell burns
 		}
 		COLOR = vec4(col.rgb, col.a * pulse * gap_mask);
 	}

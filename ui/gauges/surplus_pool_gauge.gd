@@ -19,7 +19,7 @@ extends PoolGauge
 		if v < old:
 			spark_cells(cell_count + v, cell_count + old, true, surplus_color)
 		elif v > old:
-			spark_cells(cell_count + old, cell_count + v, false, surplus_color)
+			spark_cells(cell_count + old, cell_count + v, false, empty_color)
 
 @export var surplus_color: Color = Color(0.9084, 0.6684, 0.3042, 0.85):
 	set(v):

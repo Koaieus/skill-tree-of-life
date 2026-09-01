@@ -29,9 +29,15 @@ uniform float spark_out = 0.0;
 // both originate from the left. 1 = the right edge, for the trailing
 // wounded/staked runs, which originate from the right.
 uniform float spark_anchor_right = 0.0;
-// The colour a LEAVING cell burns in — the bin it left, which by then is no
-// longer what the fragment would compute for itself (a spent SP cell already
-// reads as allocated, a spent surplus cell is already past the surplus band).
+// The colour of the state on the OTHER side of the change — the bin a leaving
+// cell came from, or the one an arriving cell is displacing. The fragment can
+// never compute it for itself: by the time it draws, a spent SP cell already
+// reads as allocated and an arriving cell already reads as filled.
+//
+// The slot always draws at full width. The spark only decides which of the two
+// states each half of it shows, so the cell a fill is eating into (or the empty
+// slot a spend is uncovering) stays on screen the whole time instead of blinking
+// out from under the animation.
 uniform vec4 spark_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform float spark_stops : hint_range(0.0, 3.0, 0.05) = 2.5;
 
@@ -64,9 +70,10 @@ float spark_extent() {
 			: clamp((1.0 - spark_energy) * 2.0, 0.0, 1.0);
 }
 
-// The [near, far] horizontal window a cell occupies inside its own slot.
-// `_extent` of 1.0 reproduces the resting mask exactly, so a gauge can call
-// this unconditionally.
+// The [near, far] horizontal window the CHANGING state occupies inside a slot;
+// whatever is left of the slot shows the state on the other side of the change.
+// `_extent` of 1.0 covers the whole slot, so a gauge can call this
+// unconditionally and get its resting appearance back.
 vec2 spark_cell_window(float _cell_w, float _gap, float _extent) {
 	float _half = _gap * 0.5;
 	float _span = max(0.0, _cell_w - _gap) * clamp(_extent, 0.0, 1.0);
@@ -74,4 +81,21 @@ vec2 spark_cell_window(float _cell_w, float _gap, float _extent) {
 		return vec2(_cell_w - _half - _span, _cell_w - _half);
 	}
 	return vec2(_half, _half + _span);
+}
+
+
+// Composite one fragment of a burning cell. `_own` is what the gauge computed
+// for it — which is the POST-change state, so it is the arriving colour on the
+// way in and the vacated slot on the way out. The other side of the change is
+// `spark_color`, and the window says which of the two this fragment falls in.
+// Only the changing state takes the HDR lift; the state it is displacing sits
+// there at its resting value.
+vec4 spark_blend(vec4 _own, float _local_x, vec2 _window) {
+	bool _leaving = spark_out > 0.5;
+	if (_local_x < _window.x || _local_x > _window.y) {
+		return _leaving ? _own : spark_color;
+	}
+	vec4 _hot = _leaving ? spark_color : _own;
+	_hot.rgb = mix(_hot.rgb, lift_peak(_hot.rgb, spark_stops), spark_energy);
+	return _hot;
 }

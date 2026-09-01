@@ -40,7 +40,9 @@ signal level_segment_held(new_max: float)
 		else:
 			drain_from = v
 			if v > old:
-				spark_cells(_cell_of(old), _cell_of(v), false, fill_color)
+				# Arriving: the slot it is filling shows `empty_color` behind the
+				# fill for as long as the fill is still growing into it.
+				spark_cells(_cell_of(old), _cell_of(v), false, empty_color)
 		_push(&"current", current)
 
 @export var min_value: float = 0.0:
@@ -400,8 +402,10 @@ func snap_to(value: float) -> void:
 ## surplus cells are addressable as [code]cell_count + n[/code]; the band cannot
 ## be expressed in stat units because the strip mixes two bins.
 ##
-## `color` is the bin the cells are leaving, which the shader can no longer work
-## out for itself by the time it draws them.
+## `color` is the state on the OTHER side of the change — the bin a leaving cell
+## came from, or the one an arriving cell is displacing. The shader cannot work
+## it out for itself: by the time it draws, the model has already moved, and it
+## needs both states to keep the slot occupied for the whole burn.
 func spark_cells(lo: float, hi: float, outgoing: bool, color: Color) -> void:
 	if _suppress_drain:
 		# A scripted fill (a level-up wrap) steps `current` many times; it owns
