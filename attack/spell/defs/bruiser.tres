@@ -36,6 +36,7 @@ script = ExtResource("8_reducer")
 
 [sub_resource type="Resource" id="ranker_hp"]
 script = ExtResource("7_ranker")
+stat_id = &"node_health__current"
 
 [sub_resource type="Resource" id="step_top"]
 script = ExtResource("6_step")

@@ -61,6 +61,11 @@ func test_bruiser_preset_well_formed() -> void:
 	var step := p.step as TakeTopNStep
 	assert_not_null(step.ranker, "bruiser step has a ranker")
 	assert_true(step.ranker is StatRanker)
+	# Authored explicitly rather than left on the export default, so the intent
+	# is visible in the content. The cap ties across one entity's nodes (#660),
+	# so ranking on it would not rank at all — see test_stat_ranker.gd (#702).
+	assert_eq((step.ranker as StatRanker).stat_id, &"node_health__current",
+		"bruiser homes by CURRENT health, not by the pool cap")
 
 
 func test_reverberator_preset_well_formed() -> void:

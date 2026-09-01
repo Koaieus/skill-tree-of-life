@@ -65,6 +65,28 @@ func is_allocated_in_world(node: SkillNode) -> bool:
 	return slice != null and slice.is_allocated()
 
 
+## [param node]'s value for [param stat_id] as read in [member world] — the
+## third twin of [method ownership_bit_of] / [method is_allocated_in_world],
+## and the ONE place a propagation predicate reads a stat off a candidate.
+##
+## [b]This is what makes a ranker see the cast's own damage (#702).[/b] Asking
+## `node.get_local_value` reads the LIVE slice, so a node the resolver hit on
+## wave 0 still reads its pre-cast HP when wave 1 ranks it — the same trap
+## [method ownership_bit_of] exists for, and one that only bites now that
+## `node_health__current` is rankable: a pool CAP does not move mid-cast, a
+## current does, every wave.
+##
+## Accepts accessor tokens (`<stat_id>__<accessor>`), since
+## [method NodeCombat.get_local_value] does. Falls back to the node's own read
+## when the world has no slice for it — an unallocated candidate has no combat
+## state, and its stats are the node's own.
+func local_value_of(node: SkillNode, stat_id: StringName) -> Variant:
+	if node == null:
+		return null
+	var slice := world.combat_for(node)
+	return slice.get_local_value(stat_id) if slice != null else node.get_local_value(stat_id)
+
+
 func visit_count(node: SkillNode) -> int:
 	return int(global_visit_count.get(node, 0))
 
