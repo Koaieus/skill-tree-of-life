@@ -162,9 +162,11 @@ func test_a_hello_with_no_build_stamp_is_refused() -> void:
 	assert_string_contains(client_log, "unknown — no build stamp")
 
 
-## An exported build has no `res://.git`, so [BuildInfo] leaves every field
-## empty. Two shipped builds have nothing to disagree about — present-but-empty
-## is a match, unlike absent.
+## Present-but-empty is a match, unlike absent. Since `mise run build` writes a
+## build stamp this is no longer the ordinary shape of an exported build — but
+## a build produced any other way still reaches here, and an empty-vs-empty
+## comparison must stay a pass rather than falling into the "predates this
+## check" refusal, which would be a lie about what the peer is running.
 func test_two_stampless_exported_builds_still_link() -> void:
 	_host.build_stamp = _stamp("", "", "")
 	_client.build_stamp = _stamp("", "", "")

@@ -97,6 +97,10 @@ modifier_name = "My Stat"   # noun phrase for "+5 My Stat"; empty falls back to 
 
 **There are no `display_*` fields.** `display_type` / `display_group` / `display_order` / `parent_stat_id` and the `DisplayType` enum were **retired in #120** when the only consumer (`ui/stats_panel.gd`) was deleted — don't author them, they're silently dropped. HudRoot's cards hardcode the stat ids they bind, so **making a stat visible means wiring it into a specific card** (`attributes_panel.gd`, `combat_readout.gd`, `hero_sigil_card.gd`, …) by id. See `.claude/rules/stats-system.md` → "Display contract — RETIRED in #120" and `docs/domain/stat-ui-visibility.md`.
 
+**1b. Add it to `stats_system/stat_def_roster.tres`** — one `ExtResource` line plus one entry in the `defs` array.
+
+`StatRegistry` reads that roster and **does not scan** `stats_system/defs/`, because a directory scan finds nothing inside an exported PCK (the exporter rewrites every `.tres` to `.res` + `.tres.remap`) — a def that is only on disk resolves fine in the editor and in tests, then fails every lookup in a shipped build. `test/unit/test_stat_def_roster.gd` fails if the directory and the roster disagree, so you will hear about it; see `docs/domain/exporting.md` and #597 D13.
+
 **2. Add `@export var` to `stat_board.gd`** — inside the right `@export_group`. Current groups: Attributes, Survivability, Economy, Allocation, Turn Budget, Turn Order, Vision, Ranged, Magic, Melee, Scaling Rules. The property name **must equal** the StatDef `id` (`get_stat(id)` is `Object.get(id)`).
 
 ```gdscript

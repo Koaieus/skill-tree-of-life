@@ -218,10 +218,10 @@ func _on_open_presets_folder_pressed() -> void:
 		return
 	if not DirAccess.dir_exists_absolute(_PRESETS_DIR):
 		DirAccess.make_dir_recursive_absolute(_PRESETS_DIR)
-		var fs := EditorInterface.get_resource_filesystem()
+		var fs: Object = Engine.get_singleton(&"EditorInterface").get_resource_filesystem()
 		if fs != null:
 			fs.scan()
-	var dock := EditorInterface.get_file_system_dock()
+	var dock: Object = Engine.get_singleton(&"EditorInterface").get_file_system_dock()
 	if dock == null:
 		return
 	dock.navigate_to_path(_PRESETS_DIR)

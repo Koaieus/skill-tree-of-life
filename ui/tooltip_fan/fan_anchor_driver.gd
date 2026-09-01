@@ -76,13 +76,21 @@ const _PIN_SETTLE_EPSILON := 0.0005
 ## Dev tooling (#309): from the fan scene open in the 2D editor, jump back to
 ## the sandbox host's "Tooltip Fan" tab. The tab's panel carries the outbound
 ## half ("✎ Open fan.tscn"). Editor-only — a no-op at runtime.
+##
+## [b]`EditorInterface` is reached through [method Engine.get_singleton], never
+## named directly.[/b] It is an editor-only global, so naming it in a script
+## that ships is a PARSE error under an export template — which kills the
+## WHOLE script, not just this editor-only function. This file shipped with a
+## dead `FanAnchorDriver` for exactly that reason; `Engine.is_editor_hint()`
+## does not help, because the failure is at parse time, before any guard runs.
 @export_tool_button("◈  Open in Sandbox") var _open_sandbox: Callable = _jump_to_sandbox
 
 func _jump_to_sandbox() -> void:
 	if not Engine.is_editor_hint():
 		return
-	EditorInterface.set_main_screen_editor("Sandbox")
-	var host := EditorInterface.get_editor_main_screen().get_node_or_null("Sandbox")
+	var editor := Engine.get_singleton(&"EditorInterface")
+	editor.set_main_screen_editor("Sandbox")
+	var host: Node = editor.get_editor_main_screen().get_node_or_null("Sandbox")
 	if host != null and host.has_method(&"reveal_tab"):
 		host.reveal_tab(&"tooltip_fan")
 

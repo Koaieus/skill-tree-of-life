@@ -98,8 +98,8 @@ func _wire_editor() -> void:
 func _open_fan_scene() -> void:
 	if not Engine.is_editor_hint():
 		return
-	EditorInterface.open_scene_from_path(_FAN_SCENE_PATH)
-	EditorInterface.set_main_screen_editor("2D")
+	Engine.get_singleton(&"EditorInterface").open_scene_from_path(_FAN_SCENE_PATH)
+	Engine.get_singleton(&"EditorInterface").set_main_screen_editor("2D")
 
 
 # --- control sync ----------------------------------------------------------------

@@ -590,6 +590,6 @@ func _open(path: String) -> void:
 	if not Engine.is_editor_hint():
 		return
 	if path.ends_with(".tscn"):
-		EditorInterface.open_scene_from_path(path)
+		Engine.get_singleton(&"EditorInterface").open_scene_from_path(path)
 	else:
-		EditorInterface.get_file_system_dock().navigate_to_path(path)
+		Engine.get_singleton(&"EditorInterface").get_file_system_dock().navigate_to_path(path)

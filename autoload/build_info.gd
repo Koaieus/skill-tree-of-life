@@ -2,9 +2,29 @@ extends Node
 
 ## Which checkout + branch + commit this running window is. Read ONCE at
 ## startup via plain FileAccess (no `git` subprocess — unavailable in an
-## exported build, too slow to shell out per frame). res://.git is not
-## exported, so in a shipped build every field stays empty and consumers
-## hide themselves — that's correct, this is a dev-only feature.
+## exported build, too slow to shell out per frame).
+##
+## [b]Two sources, tried in that order.[/b] `res://.git` is the dev one and is
+## never exported. An exported build instead carries [constant STAMP_PATH], a
+## ConfigFile that `mise run build` writes from the exporting checkout's HEAD
+## and the presets' `include_filter` packs — so a shipped build knows its own
+## sha even though it has no repository.
+##
+## That second source is not cosmetic: [CommandLink] builds its #546 hello
+## stamp straight off this autoload, and that gate compares shas. With no
+## stamp, two DIFFERENT exported builds both announce an empty sha, compare
+## equal, and go on to desync — the exact silent failure #546 exists to kill.
+## Stamping at export time is what makes the gate fire between builds.
+##
+## [member is_dev] stays false in a stamped build: it means "running from a
+## checkout", which a build is not, and nothing about having a sha changes
+## that.
+
+## Where `mise run build` writes the exporting checkout's identity. Absent in a
+## checkout (it is gitignored and only generated at export time), which is why
+## the git path is tried first and this is a fallback rather than a replacement.
+const STAMP_PATH := "res://build_stamp.cfg"
+
 
 var branch: String = ""
 var short_sha: String = ""
@@ -16,6 +36,8 @@ var is_dev: bool = false
 
 func _ready() -> void:
 	_resolve(ProjectSettings.globalize_path("res://"))
+	if short_sha.is_empty():
+		_adopt_stamp(read_stamp(STAMP_PATH))
 
 
 func _resolve(project_root: String) -> void:
@@ -24,6 +46,27 @@ func _resolve(project_root: String) -> void:
 	short_sha = result.get("short_sha", "")
 	worktree = result.get("worktree", "")
 	is_dev = result.get("is_dev", false)
+
+
+func _adopt_stamp(stamp: Dictionary) -> void:
+	branch = stamp.get("branch", "")
+	short_sha = stamp.get("short_sha", "")
+	worktree = stamp.get("worktree", "")
+
+
+## Pure reader for the export-time stamp — same shape as [method parse_git_dir]
+## minus `is_dev`, and likewise takes its path so a test can point it at a
+## fixture. A missing or unparseable file yields empty fields, which is the
+## pre-stamp behaviour and the correct answer for a build that never got one.
+static func read_stamp(path: String) -> Dictionary:
+	var out := {"branch": "", "short_sha": "", "worktree": ""}
+	var cfg := ConfigFile.new()
+	if cfg.load(path) != OK:
+		return out
+	out.branch = String(cfg.get_value("build", "branch", ""))
+	out.short_sha = String(cfg.get_value("build", "short_sha", ""))
+	out.worktree = String(cfg.get_value("build", "worktree", ""))
+	return out
 
 
 ## Pure parsing entrypoint (also used by tests against fixture directories) —

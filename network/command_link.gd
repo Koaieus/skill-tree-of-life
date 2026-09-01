@@ -750,9 +750,12 @@ var _pending_entities: PackedByteArray = PackedByteArray()
 ## the peer that corrupted #534's sweep was a `dc5ef29`-era orphan — code from
 ## before this check existed, which sends a hello with no build key at all. If
 ## "no stamp" read as agreement, this fix would sail straight past the one run
-## it was written for. Present-but-empty is different and DOES compare equal: an
-## exported build has no `res://.git` and so no sha (see [BuildInfo]), and two
-## shipped builds have nothing to disagree about here.
+## it was written for. Present-but-empty is different and DOES compare equal —
+## though that case is now rare on purpose: an exported build has no
+## `res://.git`, so it used to announce an empty sha and two DIFFERENT builds
+## compared equal all the way into a desync. `mise run build` writes a build
+## stamp that [BuildInfo] falls back to, so a build knows its sha too and this
+## gate fires between builds, not just between checkouts.
 ##
 ## [b]Only the sha is compared.[/b] Bare sha is the strictest key and the right
 ## one for a LAN where everyone pulls the same commit; it also refuses when one

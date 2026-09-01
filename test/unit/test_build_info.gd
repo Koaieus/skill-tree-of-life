@@ -84,3 +84,37 @@ func test_missing_git_dir_yields_empty_non_dev_result() -> void:
 	assert_false(result.is_dev)
 	assert_eq(result.branch, "")
 	assert_eq(result.short_sha, "")
+
+
+## The export-time fallback (`mise run build` writes this; the presets pack it).
+## It is what lets [CommandLink]'s #546 gate compare real shas between two
+## exported builds instead of two empty strings.
+func test_stamp_file_is_read_when_present() -> void:
+	var path := _fixture_root.path_join("build_stamp.cfg")
+	_write(path, "[build]\nbranch=\"master\"\nshort_sha=\"f8ff6c2\"\nworktree=\"\"\n")
+
+	var result := BuildInfoScript.read_stamp(path)
+
+	assert_eq(result.branch, "master")
+	assert_eq(result.short_sha, "f8ff6c2")
+	assert_eq(result.worktree, "")
+
+
+## A `--dirty` build stamps `<sha>+<digest>`, and the sha is compared verbatim —
+## so the suffix must survive the read intact or two differently-dirty trees
+## would compare equal.
+func test_stamp_preserves_a_dirty_suffix() -> void:
+	var path := _fixture_root.path_join("build_stamp.cfg")
+	_write(path, "[build]\nshort_sha=\"f8ff6c2+9a3c1de\"\n")
+
+	assert_eq(BuildInfoScript.read_stamp(path).short_sha, "f8ff6c2+9a3c1de")
+
+
+## No stamp is the pre-#546-export behaviour and must stay silent, not error:
+## a checkout never has one (it is gitignored) and reads the git dir instead.
+func test_missing_stamp_file_yields_empty_fields() -> void:
+	var result := BuildInfoScript.read_stamp(_fixture_root.path_join("nope.cfg"))
+
+	assert_eq(result.branch, "")
+	assert_eq(result.short_sha, "")
+	assert_eq(result.worktree, "")

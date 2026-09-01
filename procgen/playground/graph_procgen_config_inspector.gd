@@ -18,7 +18,7 @@ func _parse_begin(object: Object) -> void:
 	config_inspected.emit(config)
 	var btn := Button.new()
 	btn.text = "  Open Procgen Playground"
-	btn.icon = EditorInterface.get_editor_theme().get_icon(&"Play", &"EditorIcons")
+	btn.icon = Engine.get_singleton(&"EditorInterface").get_editor_theme().get_icon(&"Play", &"EditorIcons")
 	btn.tooltip_text = "Reveal the Procgen Playground tab. It auto-syncs with whichever GraphProcgenConfig is selected, and re-renders live as you tweak its properties."
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.pressed.connect(func() -> void: reveal_panel_requested.emit())

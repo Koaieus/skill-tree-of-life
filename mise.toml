@@ -405,3 +405,44 @@ run = '''
 set -euo pipefail
 godot --headless --path . --script res://tools/balance/run_sensitivity.gd -- "$@"
 '''
+
+# ── Exporting ──────────────────────────────────────────────────────────────
+# `mise run build` is a file task (.mise/tasks/build) — it stamps the build id,
+# runs the two exports and verifies the artifacts. Templates are a separate,
+# rarely-run task because they are a ~1GB download that only changes when the
+# engine pin in [tools] above changes.
+
+[tasks."build:templates"]
+description = "Download + install the export templates matching the pinned engine (~1GB, once per engine bump)"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+# The version string the templates dir must be named after is the engine's own
+# `x.y.z.stable`, not the mise pin's `x.y.z-stable` — Godot looks up the
+# directory by the former and silently reports "no export template found" for
+# any other spelling. Derive it from the running binary so a bump to [tools]
+# needs no edit here.
+version=$(godot --version | head -1 | sed -E 's/^([0-9]+\.[0-9]+(\.[0-9]+)?\.stable).*/\1/')
+if [[ ! "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?\.stable$ ]]; then
+  echo "✗ only stable releases are handled here; godot reports: $(godot --version)"
+  exit 1
+fi
+tag="${version%.stable}-stable"
+dest="${XDG_DATA_HOME:-$HOME/.local/share}/godot/export_templates/$version"
+
+if [ -f "$dest/linux_release.x86_64" ] && [ -f "$dest/windows_release_x86_64.exe" ]; then
+  echo "✓ export templates already installed for $version"
+  exit 0
+fi
+
+url="https://github.com/godotengine/godot/releases/download/${tag}/Godot_v${tag}_export_templates.tpz"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+echo "→ downloading $url"
+curl -fL --progress-bar -o "$tmp/templates.tpz" "$url"
+# A .tpz is a plain zip whose members all sit under `templates/`.
+unzip -q "$tmp/templates.tpz" -d "$tmp"
+mkdir -p "$dest"
+cp "$tmp"/templates/* "$dest/"
+echo "✓ export templates $version → $dest"
+'''

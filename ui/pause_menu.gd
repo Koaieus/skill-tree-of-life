@@ -27,8 +27,13 @@ func set_blocked(blocked: bool) -> void:
 func _ready() -> void:
 	# Start hidden + unpaused regardless of the editor-saved `visible`.
 	visible = false
-	_build_footer.visible = BuildInfo.is_dev
-	if BuildInfo.is_dev:
+	# Gated on KNOWING a sha, not on [member BuildInfo.is_dev]: since exports
+	# carry a build stamp, a LAN build can answer "which build is this machine
+	# running" without the operator diffing two exes. A build with no stamp
+	# still hides it.
+	var identified := not BuildInfo.short_sha.is_empty()
+	_build_footer.visible = identified
+	if identified:
 		_build_footer.text = _footer_text()
 		_build_footer.gui_input.connect(_on_build_footer_gui_input)
 

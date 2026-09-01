@@ -19,3 +19,7 @@ docs/handoffs/swarm-*.md
 # Drone briefs and scratch bodies for `gh --body-file`. Never tracked in practice;
 # this just stops them showing up as permanent untracked noise in `git status`.
 /scratchpad/
+
+# Export artifacts + the generated build stamp (see .mise/tasks/build).
+/export/
+/build_stamp.cfg
