@@ -26,33 +26,34 @@ primary_stat = &"wisdom"
 carve_shape = SubResource("Resource_u38nb")
 metadata/_custom_type_script = "uid://cr6yvdiuavfam"
 
-[sub_resource type="Resource" id="Resource_nwsy6"]
+[sub_resource type="Resource" id="Resource_o712f"]
 resource_name = "addon_slots"
 script = ExtResource("7_n7a64")
 definition = ExtResource("6_n1oas")
 
-[sub_resource type="Resource" id="Resource_n1oas"]
+[sub_resource type="Resource" id="Resource_nwsy6"]
+resource_name = "+1 Addon Slots"
 script = ExtResource("8_pefj3")
 stat_id = &"addon_slots"
 formula = ExtResource("9_267xi")
 
-[sub_resource type="Resource" id="Resource_n7a64"]
+[sub_resource type="Resource" id="Resource_n1oas"]
 resource_name = "stake_level"
 script = ExtResource("12_rtvrv")
 definition = ExtResource("11_vevrr")
 base_value = 3.0
 
-[sub_resource type="Resource" id="Resource_pefj3"]
+[sub_resource type="Resource" id="Resource_n7a64"]
 script = ExtResource("10_brdld")
-stake_level = SubResource("Resource_n7a64")
-addon_slots = SubResource("Resource_nwsy6")
-intrinsic_modifiers = Array[ExtResource("8_pefj3")]([SubResource("Resource_n1oas")])
+stake_level = SubResource("Resource_n1oas")
+addon_slots = SubResource("Resource_o712f")
+intrinsic_modifiers = Array[ExtResource("8_pefj3")]([SubResource("Resource_nwsy6")])
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_267xi"]
+[sub_resource type="CircleShape2D" id="CircleShape2D_pefj3"]
 resource_local_to_scene = true
 radius = 44.0
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_brdld"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_267xi"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -64,7 +65,7 @@ corner_radius_bottom_right = 6
 corner_radius_bottom_left = 6
 corner_detail = 6
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_vevrr"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_brdld"]
 content_margin_left = 2.0
 content_margin_top = 2.0
 content_margin_right = 2.0
@@ -79,11 +80,11 @@ corner_detail = 6
 [node name="SkillNodeLab" unique_id=1465153555 instance=ExtResource("1_base")]
 archetype = SubResource("Resource_u716c")
 base_type_color = Color(0.36, 0.9, 0.585, 1)
-node_board = SubResource("Resource_pefj3")
+node_board = SubResource("Resource_n7a64")
 stake_level = 3
 
 [node name="CollisionShape2D" parent="." index="0" unique_id=987061496]
-shape = SubResource("CircleShape2D_267xi")
+shape = SubResource("CircleShape2D_pefj3")
 
 [node name="NodeVisualsComposite" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="0" unique_id=1855738635]
 stake_level = 3
@@ -112,6 +113,7 @@ entity_tint = Color(1, 1, 1, 1)
 archetype_tint = Color(0.36, 0.9, 0.585, 1)
 
 [node name="Sprite2D" type="Sprite2D" parent="Visuals/NodeVisualsComposite/ShaderStack/InnerDisk" index="0" unique_id=1985415229]
+visible = false
 modulate = Color(8.715504, 8.715504, 8.715504, 0.011764706)
 scale = Vector2(0.3, 0.3)
 texture = ExtResource("4_nwsy6")
@@ -133,16 +135,19 @@ radius = 44.0
 entity_tint = Color(1, 1, 1, 1)
 archetype_tint = Color(0.36, 0.9, 0.585, 1)
 
+[node name="CorePresence" parent="Visuals/NodeVisualsComposite/ShaderStack" parent_id_path=PackedInt32Array(1855738635, 463232490) index="2" unique_id=-573062784]
+process_mode = 4
+
 [node name="SensedOutline" parent="Visuals/NodeVisualsComposite" index="1" unique_id=834843408]
 radius = 44.0
 entity_tint = Color(1, 1, 1, 1)
 archetype_tint = Color(0.36, 0.9, 0.585, 1)
 
 [node name="HealthBar" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="2" unique_id=1764922168]
-theme_override_styles/fill = SubResource("StyleBoxFlat_brdld")
+theme_override_styles/fill = SubResource("StyleBoxFlat_267xi")
 
 [node name="CoreHealthBar" parent="Visuals" parent_id_path=PackedInt32Array(1803819214) index="3" unique_id=1764922170]
-theme_override_styles/fill = SubResource("StyleBoxFlat_vevrr")
+theme_override_styles/fill = SubResource("StyleBoxFlat_brdld")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." index="3" unique_id=786664194]
 environment = ExtResource("13_o712f")
