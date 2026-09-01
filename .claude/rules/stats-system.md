@@ -45,6 +45,8 @@ Read side: `SkillNode.get_local_value(id)` returns the combined value without al
 
 For entity-absent fallback: `get_local_value(id)` uses `StatRegistry.get_def(id).default_value` when neither board carries the stat.
 
+**A new `StatDef` must be added to `stats_system/stat_def_roster.tres`, not just dropped in `defs/`.** `StatRegistry` reads that authored roster and **never scans the directory** — a scan finds nothing inside an exported PCK (the exporter rewrites every `.tres` into `.res` + `.tres.remap`), which shipped a build where *every* stat lookup failed while the editor and the whole suite stayed green. That is #597 D13, "directory scan for editor and test code, authored array for runtime". `test/unit/test_stat_def_roster.gd` fails if the directory and the roster drift apart, so this is enforced, not remembered. See `docs/domain/exporting.md`.
+
 ### Node regen stats (`node_healing` / `node_healing_ramp`, D-9 #270)
 
 Two **node-local** scalars read through `get_local_value` — so a single node can be tuned to regen faster than its owner's baseline. `node_healing` is the flat per-turn heal; `node_healing_ramp` is the extra granted per consecutive undamaged turn.
