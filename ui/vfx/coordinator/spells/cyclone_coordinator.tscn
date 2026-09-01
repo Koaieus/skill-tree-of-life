@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/magic_bounce_coordinator.tscn" id="1_base"]
 [ext_resource type="Script" uid="uid://citgto5v5j4fs" path="res://ui/vfx/projectile/path/wave_path.gd" id="2_wave"]
-[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/bolt_streak.tscn" id="3_streak"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/cyclone_visual.tscn" id="3_visual"]
 
 [sub_resource type="Resource" id="path_curl"]
 script = ExtResource("2_wave")
@@ -19,5 +19,5 @@ decay = 0.0
 [node name="CycloneCoordinator" instance=ExtResource("1_base")]
 jump_path = SubResource("path_seed")
 edge_path = SubResource("path_curl")
-jump_visual = ExtResource("3_streak")
-edge_visual = ExtResource("3_streak")
+jump_visual = ExtResource("3_visual")
+edge_visual = ExtResource("3_visual")
