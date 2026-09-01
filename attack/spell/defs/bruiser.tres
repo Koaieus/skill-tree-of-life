@@ -10,8 +10,11 @@
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_owner"]
 [ext_resource type="Script" uid="uid://bdvx7u7771m3t" path="res://attack/spell/propagation/step/take_top_n_step.gd" id="6_step"]
+[ext_resource type="Script" uid="uid://7wdkvrd3qinr" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="7_ljvxs"]
 [ext_resource type="Script" uid="uid://kvd7y10ttqsx" path="res://attack/spell/propagation/step/stat_ranker.gd" id="7_ranker"]
 [ext_resource type="Script" uid="uid://dra06averh54c" path="res://attack/spell/propagation/reducer/max_damage_reducer.gd" id="8_reducer"]
+[ext_resource type="Script" uid="uid://dpm0inm5l0utx" path="res://attack/spell/propagation/filter/composite_filter.gd" id="9_6yaph"]
+[ext_resource type="Script" uid="uid://dpq5i1jom3t1v" path="res://attack/spell/propagation/filter/no_self_loop_filter.gd" id="9_885nj"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="9_ihn2u"]
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="9_targeting"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="10_bm58y"]
@@ -28,15 +31,24 @@ metadata/_custom_type_script = "uid://ci08q7vcgbwdx"
 [sub_resource type="Resource" id="dmg"]
 script = ExtResource("3_dmg")
 
-[sub_resource type="Resource" id="filter_enemy"]
+[sub_resource type="Resource" id="Resource_0tuuk"]
 script = ExtResource("5_owner")
+metadata/_custom_type_script = "uid://dsyv0dkxki366"
+
+[sub_resource type="Resource" id="Resource_riohq"]
+script = ExtResource("9_885nj")
+metadata/_custom_type_script = "uid://dpq5i1jom3t1v"
+
+[sub_resource type="Resource" id="Resource_885nj"]
+script = ExtResource("9_6yaph")
+children = Array[ExtResource("7_ljvxs")]([SubResource("Resource_0tuuk"), SubResource("Resource_riohq")])
+metadata/_custom_type_script = "uid://dpm0inm5l0utx"
 
 [sub_resource type="Resource" id="reducer_max"]
 script = ExtResource("8_reducer")
 
 [sub_resource type="Resource" id="ranker_hp"]
 script = ExtResource("7_ranker")
-stat_id = &"node_health__current"
 
 [sub_resource type="Resource" id="step_top"]
 script = ExtResource("6_step")
@@ -44,10 +56,11 @@ ranker = SubResource("ranker_hp")
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
-filter = SubResource("filter_enemy")
+filter = SubResource("Resource_885nj")
 step = SubResource("step_top")
 reducer = SubResource("reducer_max")
-max_hops = 3
+max_hops = 4
+max_visits_per_node = 2
 
 [sub_resource type="Resource" id="range"]
 script = ExtResource("10_range")
@@ -65,7 +78,7 @@ icon = ExtResource("1_bm58y")
 carve_shape = SubResource("Resource_u38nb")
 min_degree = 2
 mana_cost = 2
-power = 4.0
+power = 3.0
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
 vfx_coordinator_scene = ExtResource("13_ihn2u")

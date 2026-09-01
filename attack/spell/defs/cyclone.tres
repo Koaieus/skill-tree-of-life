@@ -48,8 +48,6 @@ script = ExtResource("10_reducer")
 [sub_resource type="Resource" id="step_cyclone"]
 script = ExtResource("10_step")
 rank_coefficients = PackedFloat32Array(0.7, 0.4, 0.2)
-closing_gain = 1.35
-clockwise = true
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")

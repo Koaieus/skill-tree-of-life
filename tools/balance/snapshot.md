@@ -250,15 +250,15 @@
 | sp_income_at_level_marginal | 2.000 |
 | sp_income_at_level_max | 90.000 |
 | spell_damage | 4.000 |
-| spell_dpa_Bruiser | 16.000 |
+| spell_dpa_Bruiser | 12.000 |
 | spell_dpa_Leafblower | 8.000 |
-| spell_dpa_Lightning Bolt | 8.000 |
+| spell_dpa_Lightning Bolt | 12.000 |
 | spell_dpa_Resonator | 4.000 |
 | spell_dpa_Reverberator | 12.000 |
 | spell_dpa_Spark | 4.000 |
 | spell_dpa_The Trailblazer | 4.000 |
-| spell_dpa_best | 16.000 |
-| spell_dpa_over_melee_dpa | 4.000 |
+| spell_dpa_best | 12.000 |
+| spell_dpa_over_melee_dpa | 3.000 |
 | sustain_rate | 1.000 |
 | turns_to_drop_core_naive | 10 |
 
@@ -319,7 +319,7 @@ _fails this run._
 | aura_coverage_fraction | TBD | 0.117 (range not yet pinned) | D-10 sanctuary bubble — what fraction of territory the heal aura covers must stay bounded, or it out-heals the forced-dealloc chip damage and the core's death clock stops ticking |
 | core_node_ttk_under_sustained_pressure | TBD | -1 (range not yet pinned) | D-10 magnitude — the core-node heal is deliberately not a full reset, so sustained pressure must still grind it down; a reading of -1 (never depleted within the simulated cap) means the aura re-exempted the core from D-9 attrition |
 | baseline_raw_damage_vs_mitigation_at_matched_level | TBD | 1.500 (range not yet pinned) | D-11/D-14 — confirms no dead zone re-forms via bulk alone: a leveled defender should be slower to kill but never effectively immune to an uninvested attacker |
-| spell_dpa_over_melee_dpa | TBD | 4.000 (range not yet pinned) | channel parity (#366, sibling of melee_dpa_over_ranged_dpa) — the magic channel's strongest seeded cast (max per-spell spell_dpa across the real pool) against melee, both mitigated at the same defender node, AP read as 1; seed = spell_damage × power (D-32), so the ratio tracks INT-vs-STR/DEX investment |
+| spell_dpa_over_melee_dpa | TBD | 3.000 (range not yet pinned) | channel parity (#366, sibling of melee_dpa_over_ranged_dpa) — the magic channel's strongest seeded cast (max per-spell spell_dpa across the real pool) against melee, both mitigated at the same defender node, AP read as 1; seed = spell_damage × power (D-32), so the ratio tracks INT-vs-STR/DEX investment |
 | nodes_lost_before_death | TBD | 39.000 (range not yet pinned) | D-21 round-5 close (comment on #268, 2026-08-01): `health / dealloc_damage` — the count of cascaded nodes the entity's health pool survives — should stay a roughly constant FRACTION of territory across levels; that is what D-21 fixed, watch it not re-break. `nodes_lost_before_death_fraction` printed alongside in every row |
 | core_healing_vs_cascade_chip_rate | TBD | 1.000 (range not yet pinned) | #277 / D-25 (round-5 comment on #268): if `core_healing >= dealloc_damage × nodes_lost_per_turn`, camping becomes viable and D-10's structural anti-camping guarantee is silently undone. Read from the sustained-pressure fixture; `core_healing` is the real stat the health pool replenishes by per turn, nodes_lost_per_turn read as 1 (one node stripped per turn by a sustained attacker), so the ratio is core_healing / dealloc_damage |
 | armor_saturation_against_floor | TBD | 4.000 (range not yet pinned) | #332 invariants comment (2026-08-01, NOT the addendum): armor has a hard saturation point at `raw - min_damage_taken` — past it every further point of armor buys literally nothing (invisible wasted investment). Readout = armor − (raw_typical − min_damage_taken); positive means stacked authored armor sits past the floor. The fixture stacks the two real authored channels (bunker addon + node-content grant); note two bunker instances alone do NOT stack — instantiating the same addon .tscn twice shares one StatModifier sub-resource and the second is a no-op (`bunker_stack_armor` prints that reality). Addendum: magnitudes are a tuning knob, not a design problem, but the saturation shape is scale-invariant, so the guard stays meaningful after any retune |
