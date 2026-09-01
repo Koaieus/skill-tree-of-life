@@ -2,6 +2,7 @@
 description: Turn manager quick-reference — single-phase turn, initiative, turn-start hooks
 paths:
   - "systems/turn_manager.gd"
+  - "entity/entity.gd"
   - "entity/controller/**"
   - "scenes/game_root.gd"
 ---
@@ -41,12 +42,7 @@ Readiness is **group membership, not `current >= cap`** — because the carry-re
 
 ## `start_turn()` fires upkeep — never open a turn before you snapshot
 
-`start_turn()` unconditionally runs turn-start upkeep, and nothing dedupes it per
-peer — upkeep is a side effect of opening a turn, not of being `current_entity`.
-Open the host's first turn *before* sending a join snapshot and the payload bakes
-in an already-healed world, which the joining peer's own necessary `start_turn()`
-then heals a second time: a real fingerprint mismatch that reads as a
-serialization bug.
+`start_turn()` runs turn-start upkeep on every turn but the entity's first (above), and nothing dedupes it per peer — upkeep is a side effect of opening a turn, not of being `current_entity`. Open the host's first turn *before* sending a join snapshot and the payload bakes in an already-healed world, which the joining peer's own necessary `start_turn()` then heals a second time: a real fingerprint mismatch that reads as a serialization bug.
 
 **How to apply:** in any snapshot-then-open-turn flow, send first and open the
 opening turn *after* the sends complete. Found building #533's rung-2 harness;
