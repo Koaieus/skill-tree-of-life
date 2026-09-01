@@ -174,7 +174,12 @@ func test_coarse_rank_selects_the_nearer_finalists() -> void:
 	var chain_a: Array[SkillNode] = [m_a]
 	var chain_c: Array[SkillNode] = [m_c]
 	var chain_b: Array[SkillNode] = [m_b]
-	var proposals := [[pivot, chain_d], [pivot, chain_a], [pivot, chain_c], [pivot, chain_b]]
+	# A proposal carries its swing direction as its third element (#692
+	# follow-up). These four sit at fixed positions with no arc driving them,
+	# so direction is inert here — the ranking under test is the distance one.
+	var proposals := [
+		[pivot, chain_d, false], [pivot, chain_a, false],
+		[pivot, chain_c, false], [pivot, chain_b, false]]
 	var enemy_positions: Array[Vector2] = [enemy_pos]
 	var finalists := AiBladeRollout._coarse_rank_and_select(proposals, _ai_entity, enemy_positions)
 

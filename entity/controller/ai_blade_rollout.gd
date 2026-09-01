@@ -18,8 +18,10 @@ extends RefCounted
 ##      farthest possible reach can't touch the nearest visible enemy, at
 ##      zero simulation cost. [method MeleeAttackPlan.build_drivers]'s arc
 ##      drivers sweep a full TAU regardless of swing_cw, so a directional test
-##      collapses into this same distance check: there's no "wrong way" to
-##      swing.
+##      collapses into this same distance check for REACH — a full sweep gets
+##      to the same places either way. Direction still matters to the swing's
+##      RESULT, though, and is a proposal dimension in (2) rather than a
+##      pruning one.
 ##   2. Steerable proposals — surviving pivots each grow ONE greedy chain of
 ##      blade members toward the visible-enemy centroid (closest-unselected-
 ##      neighbour-first), then every leaf-truncation of that chain becomes a
@@ -98,7 +100,8 @@ static func gather_melee_candidates(
 	for f in finalists:
 		var pivot: SkillNode = f[0]
 		var blade_nodes: Array[SkillNode] = f[1]
-		var candidate := _resolve_and_score(entity, pivot, blade_nodes, visible_enemies, ai_tier)
+		var candidate := _resolve_and_score(
+				entity, pivot, blade_nodes, f[2], visible_enemies, ai_tier)
 		if candidate != null:
 			out.append(candidate)
 	return out
@@ -190,7 +193,29 @@ static func _reach_bound(pivot: SkillNode, adjacency: Dictionary, max_hops: int)
 ## For each surviving [pivot, max_size] pair, a greedy chain of blade members
 ## grown toward [param target_centroid] (closest-unselected-neighbour-first),
 ## then every leaf-truncation of that chain — the bounded "add/remove a leaf"
-## move set. Each proposal is [pivot, Array[SkillNode] blade_nodes].
+## move set — [b]in both swing directions[/b]. Each proposal is
+## [pivot, Array[SkillNode] blade_nodes, bool swing_cw].
+##
+## [b]Direction is part of a candidate's IDENTITY, not a choice made after
+## picking one[/b] (#692 follow-up). It used to be neither: every AI swing ran
+## at [member MeleeAttackPlan.swing_cw]'s `false` default, so half the move set
+## was unreachable. Two things make it matter, and only the second is obvious:
+##
+##   - The blade is a PBD chain, so it LAGS its driver — reversing the sweep
+##     traces a genuinely different path, not the same circle backwards.
+##     Measured on a 2-member chain against an off-axis enemy, the coarse
+##     metric below reads 0.048 one way and 9.210 the other. (A single rigid
+##     arm really is symmetric: 7.371861 vs 7.371915. So this buys nothing for
+##     a 1-member blade, and a great deal for anything longer.)
+##   - Order of contact decides what a defensive spike costs. A pop kills the
+##     vertex and severs everything downstream from that instant
+##     ([BladePopResolver]), so sweeping into a spiked hemisphere FIRST can
+##     zero a swing the other direction would have banked — the owner's #537
+##     report.
+##
+## Nothing here estimates either effect. Both directions simply enter the same
+## ranking and the same gate-accurate finalist resolve, which is what keeps
+## this a wider search rather than a second scoring path (#537 D4).
 static func _propose_blade_selections(pivot_infos: Array, adjacency: Dictionary, target_centroid: Vector2) -> Array:
 	var out := []
 	for info in pivot_infos:
@@ -198,7 +223,9 @@ static func _propose_blade_selections(pivot_infos: Array, adjacency: Dictionary,
 		var max_size: int = info[1]
 		var chain := _greedy_chain(pivot, adjacency, target_centroid, max_size)
 		for l in range(1, chain.size() + 1):
-			out.append([pivot, chain.slice(0, l)])
+			var members := chain.slice(0, l)
+			for cw in [false, true]:
+				out.append([pivot, members, cw])
 	return out
 
 
@@ -229,7 +256,15 @@ static func _greedy_chain(pivot: SkillNode, adjacency: Dictionary, target_pos: V
 
 ## Coarse-simulates every proposal (threaded — [method BladeSim.simulate] is
 ## pure) and returns the top [constant _FINALIST_COUNT] by closest
-## particle-to-enemy approach. Entries are [pivot, Array[SkillNode]].
+## particle-to-enemy approach. Entries are
+## [pivot, Array[SkillNode], bool swing_cw].
+##
+## Both directions of a selection compete for the same finalist slots rather
+## than being decided here: this metric is a whole-sweep MINIMUM distance and
+## knows nothing about spikes, so it ranks direction on path geometry alone.
+## Whether a direction actually pays is settled downstream by
+## [method _resolve_and_score]'s real pop gate. That is the split doing its
+## job — the cheap tier orders, the expensive tier decides.
 static func _coarse_rank_and_select(proposals: Array, entity: Entity, enemy_positions: Array[Vector2]) -> Array:
 	var scored := []
 	# Build every BladeState/driver set on the CALLING thread (touches
@@ -243,6 +278,10 @@ static func _coarse_rank_and_select(proposals: Array, entity: Entity, enemy_posi
 		probe.attacker = entity
 		probe.source = pivot
 		probe.blade_nodes = blade_nodes
+		# Before build_drivers: `swing_cw` picks the arc drivers' sweep sign,
+		# so setting it afterwards would rank a trajectory the finalist
+		# resolve then never reproduces.
+		probe.swing_cw = proposal[2]
 		var state := probe.build_blade_state()
 		if state == null:
 			continue
@@ -275,12 +314,13 @@ static func _closest_approach(traj: BladeTrajectory, enemy_positions: Array[Vect
 # ── Full-fidelity resolve + scoring (main thread only) ──────────────────────
 
 static func _resolve_and_score(
-		entity: Entity, pivot: SkillNode, blade_nodes: Array[SkillNode],
+		entity: Entity, pivot: SkillNode, blade_nodes: Array[SkillNode], swing_cw: bool,
 		visible_enemies: Array[SkillNode], ai_tier: int) -> AiCombatScorer.ScoredCandidate:
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = entity
 	plan.source = pivot
 	plan.blade_nodes = blade_nodes
+	plan.swing_cw = swing_cw
 	if not plan.is_valid():
 		return null
 	# The only call site that ever runs BladeHitScan.scan for AI candidate
@@ -294,6 +334,7 @@ static func _resolve_and_score(
 			BattleSystem.AttackMode.MELEE, outcome, primary, entity, ai_tier, outcome.thinned_nodes)
 	candidate.source_node = pivot
 	candidate.blade_nodes = blade_nodes
+	candidate.swing_cw = swing_cw
 	return candidate
 
 

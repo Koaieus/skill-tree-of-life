@@ -387,6 +387,12 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 				return false
 			plan.source = candidate.source_node
 			plan.blade_nodes = candidate.blade_nodes
+			# Not cosmetic, and not optional: the rollout ranked and resolved
+			# THIS direction. `request_attack_mode` seeds a fresh plan from
+			# `BattleSystem.next_melee_cw` — the HUMAN's sticky tray toggle —
+			# so leaving it alone makes an AI swing whichever way the player
+			# last chose, which is neither what was scored nor reproducible.
+			plan.swing_cw = candidate.swing_cw
 		_:
 			return false
 	if not bs.attack_plan.is_valid():

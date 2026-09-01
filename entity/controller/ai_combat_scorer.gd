@@ -58,6 +58,13 @@ class ScoredCandidate:
 	var spell: SpellDef = null
 	## Blade member selection for MELEE candidates; empty for RANGED/MAGIC.
 	var blade_nodes: Array[SkillNode] = []
+	## Swing direction for MELEE candidates; unused (false) for RANGED/MAGIC.
+	## Part of the candidate's identity, not a presentation detail — the blade
+	## is a PBD chain that lags its driver, so the two directions trace
+	## different paths and meet a defender's spikes in a different ORDER. A
+	## caller that launches this candidate MUST carry it onto the plan, or it
+	## executes a swing the scorer never valued.
+	var swing_cw: bool = false
 	var outcome: AttackOutcome = null
 
 	var ev: float = 0.0
