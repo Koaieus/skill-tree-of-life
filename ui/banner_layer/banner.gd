@@ -50,6 +50,7 @@ var _tween: Tween
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_assert_full_width()
 	custom_minimum_size = Vector2(0, _band_height())
 	_apply_font_size()
 	_collapse_bg()
@@ -101,6 +102,33 @@ func _preview() -> void:
 			"MAIN SAMPLE", "SUB SAMPLE", AnnouncementRequest.Style.DEFAULT)
 	sample.stack_count = 3
 	play(sample)
+
+
+## Re-assert the horizontal half of this widget's own contract — it spans the
+## full canvas width — because an EXPORT does not preserve it, and only an
+## export doesn't (every source run and every test loads the band correctly).
+##
+## Exporting re-saves each `.tscn` as binary, and that re-save writes the
+## editor helper `anchors_preset = 0` onto this instance — a property
+## `title_band.tscn` was hand-authored without. Its setter zeroes all four
+## anchors. The two that then get restored are the two the instance stores,
+## and it stores only what DIFFERS from `banner.tscn`'s own root:
+## `anchor_top`/`anchor_bottom` (0.5 vs 0.0/1.0) survive, while
+## `anchor_right = 1.0` is dropped as redundant against this scene's identical
+## root value — so nothing puts it back. `TitleBand` itself is unaffected:
+## it is not an instance, so its anchors are stored against the *class*
+## default and 1.0 is kept.
+##
+## The band therefore loaded 0px wide in an export: `play()` derives every
+## slide position from `size.x`, so the text lived around x=0 (~80% off the
+## left edge) and `Bg` — anchored 0..1 inside this Control — had no width to
+## draw at all, which is what made the backdrop look absent.
+##
+## Vertical placement is per-instance (main and sub occupy different bands) and
+## survives the round trip, so it stays authored in the scene.
+func _assert_full_width() -> void:
+	anchor_left = 0.0
+	anchor_right = 1.0
 
 
 func _band_height() -> int:
