@@ -98,11 +98,10 @@ costs no batching (see `rendering-performance.md`).
 **It lives on the addon, not the carrier** — draw order is the addon's own
 presentation concern, and `SkillNode` has no business writing its children's z.
 
-**In the script, not per-scene.** There is no base addon scene: bunker /
-fortification / clamp / spike_ring / skill_dust are each standalone scenes
-carrying this script, and `addon_tile.gd` builds one in code. A scene-level
-value would have to be repeated in all of them and would be missed by the next
-addon anyone adds. (`skill_node_addon.tscn` used to exist as a one-node
+**In the script, not per-scene.** There is no base addon scene — every concrete
+addon is its own standalone scene carrying its own script, and `addon_tile.gd`
+builds one in code. A scene-level value would have to be repeated in all of them
+and would be missed by the next addon anyone adds. (`skill_node_addon.tscn` used to exist as a one-node
 "template" — a bare `Node2D` + script that nothing inherited. Deleted: a base
 scene earns its keep by packaging internal children every instance needs, and
 that one packaged nothing.)
@@ -110,3 +109,30 @@ that one packaged nothing.)
 Don't reach for `Visuals.z_index = -1` as the alternative — a sensed SkillNode
 goes absolute `z = 1001`, which would drop `Visuals` onto the `FOG` band (1000)
 and lose the punch-through.
+
+
+## An addon's visual goes in an OUTBOARD register, never the centre
+
+The disk's centre is the single-winner CARVE slot, outranked by
+KEYSTONE/LOOT/SPELL — an addon that contributes its visual there via
+`get_emblem()` goes invisible on exactly the loaded nodes worth caring about.
+Draw your own geometry outside the emblem, the way SpikeRing does.
+
+**The trap:** `SkillNodeAddon.icon` is right there, so a `Sprite2D` at the origin
+looks like the cheap move. Bunker, Fortification and Watchtower all shipped that
+way and all three were replaced — those icons are buildings in *elevation* and
+the gem is a dome lit from *above*, so it was a projection clash on top of a
+register clash.
+
+**How to apply:** an addon that changes the node's shell draws a concentric band
+in plan; one that builds a structure on the territory stands in elevation on a
+bearing (straight up belongs to the health bars); Clamp's answer — nothing on the
+carrier, thicken its edges instead — is also valid. Bands stack, so claim a
+radius range and a tone and check them together. Judge every one of these at
+three zooms AND on an **allocated** carrier, in the sandbox host's **Node
+Visuals** tab — `check` cannot see any of it. Two failed only at distance, and a
+third (Bunker, which overlaps the rim) looked right on every unallocated preview
+and then vanished into the bronze allocated rim underneath it.
+
+Band budget, the geometry helpers, the elevation constraints and the incidents
+behind all of it: **docs/domain/addon-visual-registers.md**.

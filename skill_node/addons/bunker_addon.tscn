@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://cmkt6tybpv38p"]
 
-[ext_resource type="Script" uid="uid://bkf87fqtgkm7a" path="res://skill_node/addons/skill_node_addon.gd" id="1_83r5f"]
-[ext_resource type="Texture2D" uid="uid://b5wr16ekrxx2w" path="res://assets/icons/Icon set 1/1x/Asset 51.png" id="2_83r5f"]
+[ext_resource type="Script" path="res://skill_node/addons/bunker_addon.gd" id="1_83r5f"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_efkvd"]
 [ext_resource type="Texture2D" uid="uid://uc3n7j5e5c1c" path="res://assets/icons/addons/addon_bunker.png" id="3_icon"]
 
@@ -25,10 +24,5 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 z_index = 1
 script = ExtResource("1_83r5f")
 local_modifiers = Array[ExtResource("2_efkvd")]([SubResource("Resource_vxeh7"), SubResource("Resource_u38nb")])
+description = "Casemate plating — heavy chamfered plates hug this node's rim, blunting every hit that lands on it."
 icon = ExtResource("3_icon")
-metadata/_custom_type_script = "uid://bkf87fqtgkm7a"
-
-[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1003430993]
-modulate = Color(0.16, 0.15711999, 0.14559999, 0.57254905)
-scale = Vector2(0.11904764, 0.11904762)
-texture = ExtResource("2_83r5f")

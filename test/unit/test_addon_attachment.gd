@@ -114,7 +114,7 @@ func test_unique_addon_duplicate_is_rejected() -> void:
 	second.unique = true
 	_node.add_child(second)
 	assert_eq(_node.get_addons().size(), 1, "the duplicate unique addon was rejected")
-	assert_push_error("Duplicate unique addon res://skill_node/addons/skill_node_addon.gd on SkillNode; rejecting.")
+	assert_push_error("Duplicate unique addon res://skill_node/addons/bunker_addon.gd on SkillNode; rejecting.")
 
 
 func test_get_addons_returns_a_copy() -> void:
