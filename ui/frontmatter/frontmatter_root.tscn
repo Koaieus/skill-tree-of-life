@@ -36,3 +36,5 @@ script = ExtResource("3_hover")
 [node name="FrontmatterInput" type="Node" parent="."]
 unique_name_in_owner = true
 script = ExtResource("6_input")
+
+[editable path="PanelLayer/FrontmatterColumns"]

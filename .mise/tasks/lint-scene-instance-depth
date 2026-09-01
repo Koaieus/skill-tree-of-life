@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+#MISE description="Fail on a sub-scene instanced DEEP inside another instance with no [editable path=…] — the export drops it (#711): `mise run lint-scene-instance-depth [-- --json]`"
+"""
+A `.tscn` may add nodes into an instanced sub-scene. Adding them to the
+instance's ROOT always survives; putting an INSTANCE further down — under a
+node that belongs to the sub-scene — only survives if the outer scene also
+declares
+
+    [editable path="<the instance's path>"]
+
+Without it the scene still loads and runs correctly from source, and the node
+is silently DROPPED when the editor converts the scene for an export. So the
+whole failure lives in the exported build and in nothing else: `mise run test`
+is green, `godot --path .` is correct, F5 is correct, and the shipped game is
+missing a subtree.
+
+That is exactly how the frontmatter shipped with no panels at all (#711):
+`frontmatter_root.tscn` instanced `FrontmatterPanels` at
+`PanelLayer/FrontmatterColumns/Remainder` — one level below the
+`FrontmatterColumns` instance root — so every export had a menu that navigated
+to Single Player and raised nothing. Verified by A/B export: with the
+`[editable]` line the exported `frontmatter_root.scn` contains the node, and
+without it (whitespace-perturbed, so it is not a stale conversion cache) it
+does not.
+
+The rule this flags is therefore narrow and evidence-backed:
+
+    an INSTANCE whose parent path passes THROUGH another instance
+    but is not that instance's root, with no covering [editable path=…]
+
+Plain `type=`-declared children in the same position are NOT flagged — those
+survive the conversion (`frontmatter_panel.tscn`'s own Column/Title/Body live
+that way and render in the export).
+
+Editor-only trees are exempt: `addons/*` is stripped by the export presets, and
+the live-sandbox scenes are never in a build either. They can hold the shape
+without shipping it.
+"""
+
+from __future__ import annotations
+
+import fnmatch
+import json
+import os
+import re
+import sys
+
+ROOT = os.environ.get("MISE_PROJECT_ROOT") or os.getcwd()
+
+# Never exported (see `exclude_filter` in export_presets.cfg) or an in-editor
+# sandbox surface: the shape is harmless there because the scene never reaches
+# a build.
+EXEMPT = (
+    "addons/*",
+    "test/*",
+    "tools/*",
+    "*_live_sandbox.tscn",
+    "*_sandbox_panel.tscn",
+    "*/visuals/panel/*",
+)
+
+SKIP_DIRS = {".git", ".godot", ".worktrees", "export", "scratchpad"}
+
+NODE_RE = re.compile(r'^\[node name="([^"]+)"([^\]]*)\]', re.M)
+EDITABLE_RE = re.compile(r'^\[editable path="([^"]+)"\]', re.M)
+PARENT_RE = re.compile(r'parent="([^"]*)"')
+
+
+def _exempt(rel: str) -> bool:
+    return any(fnmatch.fnmatch(rel, pat) for pat in EXEMPT)
+
+
+def _scan(path: str, rel: str) -> list[dict]:
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        text = fh.read()
+
+    instances: set[str] = set()
+    nodes: list[tuple[str, str | None, bool, int]] = []
+    for match in NODE_RE.finditer(text):
+        name, attrs = match.group(1), match.group(2)
+        parent_match = PARENT_RE.search(attrs)
+        parent = parent_match.group(1) if parent_match else None
+        full = name if parent in (None, ".") else "%s/%s" % (parent, name)
+        is_instance = "instance=" in attrs
+        if is_instance:
+            instances.add(full)
+        line = text.count("\n", 0, match.start()) + 1
+        nodes.append((full, parent, is_instance, line))
+
+    editable = set(EDITABLE_RE.findall(text))
+
+    findings: list[dict] = []
+    for full, parent, is_instance, line in nodes:
+        if not is_instance or parent in (None, "."):
+            continue
+        segments = parent.split("/")
+        for i in range(1, len(segments) + 1):
+            prefix = "/".join(segments[:i])
+            if prefix not in instances:
+                continue
+            if prefix != parent and prefix not in editable:
+                findings.append(
+                    {
+                        "file": rel,
+                        "line": line,
+                        "node": full,
+                        "instance": prefix,
+                        "fix": '[editable path="%s"]' % prefix,
+                    }
+                )
+            break
+    return findings
+
+
+def main() -> int:
+    as_json = "--json" in sys.argv[1:]
+
+    findings: list[dict] = []
+    scanned = 0
+    for dirpath, dirnames, filenames in os.walk(ROOT):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for filename in sorted(filenames):
+            if not filename.endswith(".tscn"):
+                continue
+            path = os.path.join(dirpath, filename)
+            rel = os.path.relpath(path, ROOT)
+            if _exempt(rel):
+                continue
+            scanned += 1
+            findings.extend(_scan(path, rel))
+
+    if as_json:
+        print(json.dumps({"scanned": scanned, "findings": findings}, indent=2))
+        return 1 if findings else 0
+
+    if not findings:
+        print("✓ no sub-scene instanced deep inside a non-editable instance (%d scenes)" % scanned)
+        return 0
+
+    for f in findings:
+        print("%s:%d: '%s' is instanced inside '%s' but below its root" % (f["file"], f["line"], f["node"], f["instance"]))
+        print("    the export will DROP it — add `%s` to the scene" % f["fix"])
+    print("✗ %d scene node(s) would not survive an export" % len(findings))
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

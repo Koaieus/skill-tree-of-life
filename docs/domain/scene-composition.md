@@ -86,3 +86,47 @@ it was a standalone tree that drifted from game_root.tscn; now it's an
 
 See also [godot-workflow.md](godot-workflow.md) for the scene-node `_ready`
 vs `initialize()` injection-timing gotcha.
+
+## An instance placed deep inside another instance needs `[editable path=…]`
+
+A `.tscn` may add nodes into an instanced sub-scene. Added at the instance's
+**root** they always survive. An **instance** placed *below* that root — under a
+node the sub-scene itself owns — survives only if the outer scene also declares
+
+```
+[editable path="PanelLayer/FrontmatterColumns"]
+```
+
+Without it the scene loads and runs correctly from source and the node is
+**silently dropped when the editor converts the scene for an export**. Every
+cheap signal stays green: the suite passes, `godot --path .` is right, F5 is
+right, and only the shipped build is missing a subtree — with no error printed
+in it either.
+
+That is #711. `frontmatter_root.tscn` instanced `FrontmatterPanels` at
+`PanelLayer/FrontmatterColumns/Remainder`, one level below the
+`FrontmatterColumns` instance root, so **every export shipped a menu with no
+panels at all**: navigating to Single Player raised nothing, and the same click
+raised the lobby from source.
+
+Established by A/B export, not by reading engine source:
+
+- with the `[editable]` line, the converted `.godot/exported/…-frontmatter_root.scn`
+  contains `FrontmatterPanels`; without it, zero occurrences;
+- the same file perturbed by whitespace alone (new content hash, so a fresh
+  conversion, ruling out a stale export cache) still drops the node;
+- a plain `PackedScene` → `ResourceSaver.save()` → reload round-trip **keeps**
+  it, so this is the editor's export conversion, not binary serialisation;
+- plain `type=`-declared children in the same position survive
+  (`frontmatter_panel.tscn`'s own `Column`/`Title`/`Body` render in the export),
+  which is why the rule is scoped to *instances*.
+
+`mise run lint-scene-instance-depth` (wired into `mise run check`) fails on the
+shape. Editor-only trees — `addons/*`, `*_live_sandbox.tscn`, sandbox panels —
+are exempt, because the export strips them anyway.
+
+**How to apply.** Either add the `[editable path=…]` line for the instance you
+are reaching into, or — better — give the sub-scene a real slot and instance
+into it from a scene that owns the slot. The second is the shape the rest of
+this doc argues for; the first is the one-line fix when the slot already exists
+and the reach is honest.
