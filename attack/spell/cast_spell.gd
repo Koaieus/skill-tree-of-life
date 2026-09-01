@@ -19,6 +19,20 @@ var current_node: SkillNode = null
 ## VFX layer falls back to [member source] when this is null (see
 ## [DamageEffect]) so the seed projectile flies from the cast-from node.
 var predecessor: SkillNode = null
+## The direction of travel INTO [member current_node] — the storm's heading.
+##
+## Normally just [code]current_node.position - predecessor.position[/code], and
+## a spell that never merges could read that instead. It exists because a
+## MERGED front has no single predecessor to subtract: several incidents
+## arrived from several sides, and the question "which way is this front
+## going now" has a better answer than "whichever predecessor the reducer
+## happened to keep". [CycloneReducer] writes the damage-weighted mean here,
+## so a strong front from the west and a weak one from the south leave heading
+## west-by-south. [CycloneStep] measures its turn ranking against it.
+##
+## [constant Vector2.ZERO] means "unset" (and also means two fronts cancelled
+## head-on) — readers fall back to [member predecessor], then [member source].
+var arrival_bearing: Vector2 = Vector2.ZERO
 ## The node the spell was originally cast FROM (caster's launching node).
 ## Immutable across hops. Distinct from [member predecessor] so seed-vs-hop
 ## logic stays explicit (a null predecessor unambiguously marks the seed).

@@ -26,6 +26,11 @@ extends IncidentReducer
 ## to be a ring some single lineage actually walked and the strongest incident
 ## may be a non-closer carrying an ordinary path.
 ##
+## [b]And the merge redirects the FLOW.[/b] [method _combined_bearing] writes the
+## damage-weighted mean heading onto the survivor, so the curl measures its next
+## turn against where the combined storm is actually going rather than against
+## one arbitrarily-kept predecessor. Owner call 2026-09-01.
+##
 ## [b]`came_from` is no longer a veto set[/b], and the union that used to be
 ## built here is gone with it. Cyclone dropped [BacktrackFilter] at #703: the
 ## curl measures its ranking FROM the arrival edge and so never offers it, which
@@ -53,7 +58,38 @@ func reduce(incidents: Array[CastSpell], node: SkillNode, _ctx: PropagationConte
 	# silently takes every merge down with it.
 	var cleared: Array[SkillNode] = []
 	merged.came_from = cleared if closer != null else lineage.came_from.duplicate()
+	merged.arrival_bearing = _combined_bearing(incidents, node, lineage)
 	return merged
+
+
+## The merged front's heading: each incident's direction of travel, normalised
+## so a long edge does not outvote a short one, weighted by the damage it
+## brought. Owner's spec, verbatim: [i]"from this side, this strength; from that
+## side, that strength; combined: this strength that direction"[/i].
+##
+## The physical reading is momentum, and it is what keeps the curl coherent
+## through a convergence — [CycloneStep] ranks its turns against this, so
+## without it a merge would snap the storm's heading to whichever predecessor
+## the reducer happened to keep and the wheel would wobble on every collision.
+##
+## [b]Two fronts meeting head-on cancel to zero[/b], which is a real event and
+## not a degenerate one: equal and opposite is exactly what colliding arms are.
+## There is no meaningful average heading, so the surviving lineage's own
+## bearing is used and the storm carries on the way the winner was already
+## going.
+static func _combined_bearing(
+		incidents: Array[CastSpell], node: SkillNode, lineage: CastSpell) -> Vector2:
+	if node == null:
+		return lineage.arrival_bearing
+	var bearing := Vector2.ZERO
+	for inc in incidents:
+		var heading: Vector2 = inc.arrival_bearing
+		if heading == Vector2.ZERO and inc.predecessor != null:
+			heading = node.global_position - inc.predecessor.global_position
+		if heading == Vector2.ZERO:
+			continue
+		bearing += heading.normalized() * maxf(inc.damage, 0.0)
+	return bearing.normalized() if bearing != Vector2.ZERO else lineage.arrival_bearing
 
 
 func get_description() -> String:

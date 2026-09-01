@@ -85,6 +85,9 @@ func step(
 			continue
 		var nb: SkillNode = ranked[rank_index]
 		var child := _propagate_to(nb, payload, config)
+		# Normalised: a heading, not a displacement, so a long edge cannot
+		# outvote a short one when CycloneReducer averages several of them.
+		child.arrival_bearing = (nb.global_position - current_node.global_position).normalized()
 		# `payload.visited`, never `child.visited`: the base mint has already
 		# appended the destination to the child's copy, so asking the child
 		# would answer "yes" every single hop.
@@ -107,9 +110,16 @@ func step(
 
 
 ## Where the front came FROM, as a position — the only thing the ranking needs.
-## The seed has no predecessor, so it measures from the cast-from node, which is
-## what gives the opening fan a direction instead of firing symmetrically.
+##
+## [member CastSpell.arrival_bearing] first, because a merged front's heading is
+## the weighted mean of everything that arrived and NOT the one predecessor the
+## reducer kept; falling back to [member CastSpell.predecessor] would quietly
+## discard the other fronts' contribution to which way the storm is now turning.
+## The seed has neither, so it measures from the cast-from node, which is what
+## gives the opening fan a direction instead of firing symmetrically.
 func _arrival_position(current_node: SkillNode, payload: CastSpell) -> Vector2:
+	if payload.arrival_bearing != Vector2.ZERO:
+		return current_node.global_position - payload.arrival_bearing
 	if payload.predecessor != null:
 		return payload.predecessor.global_position
 	if payload.source != null:

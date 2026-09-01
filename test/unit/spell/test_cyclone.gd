@@ -153,12 +153,56 @@ func test_the_coefficients_satisfy_c1_below_one_below_their_sum() -> void:
 
 ## Revisits are the whole point, and the resolver's cap does not merely skip a
 ## landing — it removes the candidate and KILLS the front (spell_resolver.gd),
-## which strangles the epicentre exactly when it starts mattering. `max_hops` is
-## the real balance knob here, and it is exponential.
-func test_the_visit_cap_leaves_room_to_lap() -> void:
+## which strangles the epicentre exactly when it starts mattering. Owner call
+## 2026-09-01: uncap it. `max_hops` bounds the walk on its own, so the visit
+## counter has nothing left to protect against and is authored out of the way.
+func test_revisits_are_effectively_uncapped() -> void:
 	var p := _CYCLONE.propagation as PropagationConfig
-	assert_gt(p.max_visits_per_node, p.max_hops / 2,
-			"the storm has to be allowed to come back around")
+	assert_gt(p.max_visits_per_node, p.max_hops * 10,
+			"max_hops is the only propagation limit this spell wants")
+
+
+## The merge redirects the flow. Two fronts of unequal strength arriving from
+## different sides leave as one front heading between them, biased toward the
+## stronger — which is what keeps the curl coherent through a convergence
+## instead of snapping to whichever predecessor the reducer happened to keep.
+func test_converging_fronts_combine_their_heading_by_strength() -> void:
+	_build(_ring(4), _ring_positions(4), 4, 0)
+	var node := _graph.get_skill_nodes()[0]
+	var strong := CastSpell.new()
+	strong.damage = 9.0
+	strong.arrival_bearing = Vector2.RIGHT
+	var weak := CastSpell.new()
+	weak.damage = 1.0
+	weak.arrival_bearing = Vector2.UP
+	var incidents: Array[CastSpell] = [strong, weak]
+	for c in incidents:
+		c.visited = [] as Array[SkillNode]
+		c.came_from = [] as Array[SkillNode]
+	var merged := CycloneReducer.new().reduce(incidents, node, PropagationContext.new())
+	assert_gt(merged.arrival_bearing.x, 0.0, "still mostly heading the strong way")
+	assert_lt(merged.arrival_bearing.y, 0.0, "but pulled toward the weak front")
+	assert_gt(absf(merged.arrival_bearing.x), absf(merged.arrival_bearing.y) * 5.0,
+			"9 vs 1 is a strong bias, not an even split")
+
+
+## Equal and opposite is what colliding arms ARE, so the average heading is
+## genuinely zero and the survivor keeps its own rather than stalling.
+func test_a_head_on_collision_keeps_the_survivors_heading() -> void:
+	_build(_ring(4), _ring_positions(4), 4, 0)
+	var node := _graph.get_skill_nodes()[0]
+	var east := CastSpell.new()
+	east.damage = 5.0
+	east.arrival_bearing = Vector2.RIGHT
+	var west := CastSpell.new()
+	west.damage = 5.0
+	west.arrival_bearing = Vector2.LEFT
+	var incidents: Array[CastSpell] = [east, west]
+	for c in incidents:
+		c.visited = [] as Array[SkillNode]
+		c.came_from = [] as Array[SkillNode]
+	var merged := CycloneReducer.new().reduce(incidents, node, PropagationContext.new())
+	assert_ne(merged.arrival_bearing, Vector2.ZERO, "a stalled front has no turn to rank")
 
 
 func test_the_filter_is_hostile_ground_and_no_self_loops_and_nothing_else() -> void:
@@ -208,21 +252,36 @@ func test_a_tree_gets_nothing() -> void:
 			"seed + exactly one fan: a tree has no circulation to feed on")
 
 
-## The headline of #703. Under the old design a square crit at hop 2 and
-## STRANDED for 26 damage while a pentagon laped home for far more — parity was
-## the mechanic. Now ring length grades smoothly and monotonically, because a
-## longer lap simply takes longer to feed itself.
-func test_rings_grade_by_length_with_no_parity_zigzag() -> void:
+## The headline of #703. Under the old design a square crit once at hop 2 and
+## STRANDED for 26 damage while a pentagon lapped home for six times that:
+## parity WAS the mechanic, and its signature was that an even ring detonated
+## and died.
+##
+## What is pinned here is the death of that signature — every ring keeps
+## critting past its first close, and none is worth a fraction of another.
+## Deliberately NOT monotonicity in ring length: with a finite `max_hops` a
+## short ring simply fits more laps in (a triangle laps ~2.7 times in 8 hops, a
+## hexagon ~1.3), so totals pair up 3-4 and 5-6 by lap count. That is a hop-
+## budget artifact and it is not an odd/even alternation — which is exactly
+## what a parity detector would produce and this no longer does.
+func test_no_ring_strands_the_way_parity_used_to_make_it() -> void:
 	var totals: Array[float] = []
 	for n in [3, 4, 5, 6]:
 		_build(_ring(n), _ring_positions(n), n, 0)
 		var out := _cast(n)
-		assert_gt(_crit_count(out), 0, "every ring closes, whatever its parity (n=%d)" % n)
+		assert_gt(_crit_count(out), 2,
+				"a ring keeps critting once it closes — it never detonates and "
+				+ "strands, which is what an even ring used to do (n=%d)" % n)
 		totals.append(_total(out))
-	for i in range(1, totals.size()):
-		assert_lt(totals[i], totals[i - 1],
-				"a longer ring feeds itself more slowly — strictly monotone, "
-				+ "so no odd/even alternation can be hiding in here (%s)" % [totals])
+	var best := 0.0
+	for t in totals:
+		best = maxf(best, t)
+	for i in totals.size():
+		assert_gt(totals[i], best * 0.35,
+				"no ring collapses to a fraction of another — the old square/"
+				+ "pentagon gap was 6x (%s)" % [totals])
+	assert_gt(totals[0], totals[totals.size() - 1],
+			"the trend across the range is still downward with length (%s)" % [totals])
 
 
 ## The vibe, stated as a test: one triangle is worth killing over, a field of

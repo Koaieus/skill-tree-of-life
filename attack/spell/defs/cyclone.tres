@@ -57,7 +57,7 @@ filter = SubResource("filter_composite")
 step = SubResource("step_cyclone")
 reducer = SubResource("reducer_cyclone")
 max_hops = 8
-max_visits_per_node = 12
+max_visits_per_node = 999
 
 [sub_resource type="Resource" id="range"]
 script = ExtResource("9_range")

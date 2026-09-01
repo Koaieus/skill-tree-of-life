@@ -55,6 +55,22 @@ static func pseudo_angle(dx: float, dy: float) -> float:
 ##
 ## Ties (two neighbours on the same ray) keep their incoming order, which comes
 ## from [method Graph.get_neighbours] and is therefore identical on every peer.
+## How close to the arrival edge still counts AS the arrival edge.
+##
+## [b]This cannot be an exact zero test[/b], and assuming it could was a real
+## bug (#703): when the arrival direction is a merged front's damage-weighted
+## average rather than a literal predecessor position, `back` is only NEARLY
+## antiparallel to the edge it came in on. The cross product lands on ~1e-14
+## instead of 0, the key misses the equality by a hair, and the front walks
+## straight back the way it came — which on a TREE manufactures circulation out
+## of nothing and quietly destroys the spell's whole terrain typing.
+##
+## One pseudo-angle unit is roughly a quarter turn, so this is on the order of a
+## hundredth of a degree: far tighter than any authored layout distinguishes,
+## far looser than float noise.
+const ARRIVAL_EPSILON := 1.0e-4
+
+
 static func rank(
 		from_position: Vector2,
 		node: SkillNode,
@@ -80,7 +96,9 @@ static func rank(
 		var key := pseudo_angle(forward, -side if clockwise else side)
 		if key < 0.0:
 			continue  # zero-length: self-loop, no angular slot
-		if exclude_arrival and key <= 0.0:
+		# Both ends of the range: a direction a hair clockwise of the arrival
+		# edge scores just above 0, a hair anticlockwise just under 4.
+		if exclude_arrival and (key < ARRIVAL_EPSILON or key > 4.0 - ARRIVAL_EPSILON):
 			continue  # the arrival edge itself
 		keyed.append([key, i, nb])
 	keyed.sort_custom(func(a, b): return a[0] < b[0] if a[0] != b[0] else a[1] < b[1])

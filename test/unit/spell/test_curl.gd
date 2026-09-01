@@ -81,6 +81,26 @@ func test_rank_drops_a_self_loop() -> void:
 	assert_eq(ranked, [east] as Array[SkillNode])
 
 
+## The regression for #703's nastiest bug. A merged front arrives on a
+## damage-weighted AVERAGE heading, not a literal predecessor position, so
+## `back` is only NEARLY antiparallel to the edge it came in on — the cross
+## product lands on ~1e-14 rather than 0. An exact-zero test misses it by a
+## hair, the front walks back the way it came, and a TREE grows circulation it
+## must never have (measured: a 6-leaf star went from 9.2 damage and zero crits
+## to 34.5 and five, silently destroying the spell's terrain typing).
+func test_rank_drops_an_arrival_edge_that_is_only_nearly_antiparallel() -> void:
+	var hub := _node(Vector2.ZERO)
+	var east := _node(Vector2(60, 0))
+	var cands: Array[SkillNode] = [east]
+	# Arrival heading a unit vector's worth behind, with the float error a
+	# normalise-then-scale round trip actually produces.
+	var bearing := (east.global_position - hub.global_position).normalized()
+	var jittered := (bearing * 2.8).normalized() * 1.0000001
+	var arrival := east.global_position - jittered
+	assert_eq(Curl.rank(arrival, east, cands, true).size(), 0,
+			"still the way it came, however the average was rounded")
+
+
 func test_rank_survives_a_degenerate_arrival_position() -> void:
 	# The seed measures from its cast-from node, which a sandbox can leave
 	# stacked on top of it. Any fixed axis is fine; returning nothing is not.
