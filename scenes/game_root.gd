@@ -93,6 +93,9 @@ var seat_policy: SeatPolicy = SeatPolicy.couch()
 ## Latched by [method route_to_meta_now] so the run leaves the level once (#526)
 ## — the overlay's button and the fallback timeout are two callers of one route.
 var _run_end_routed: bool = false
+## Set at the tail of `_ready`, read by [method is_reveal_ready] — the whole
+## SceneDirector reveal contract is this one bool.
+var _reveal_ready: bool = false
 @onready var graph: Graph = $Graph
 
 # Systems
@@ -311,6 +314,13 @@ func _ready() -> void:
 			player.stat_board.initiative.restore_to_full()
 		turn_manager.start_turn(player)
 	_focus_camera_on_player()
+	# LAST. Everything above is what "presentable" means: the world generated,
+	# the HUD composed, the camera already on the player (`request_focus` with a
+	# 0s duration snaps, so nothing slides in under a lifting curtain). Only now
+	# does the screen come back — see [method is_reveal_ready].
+	_reveal_ready = true
+	if SceneTransition.is_curtain_up():
+		await SceneTransition.fade_in()
 
 
 ## The drain (#504, design B). An attack's world mutation is spread across a
@@ -320,6 +330,20 @@ func _ready() -> void:
 func _exit_tree() -> void:
 	if battle_system != null:
 		battle_system.drain_pending_mutations()
+
+
+## The [SceneDirector] reveal contract: is this level worth looking at yet?
+##
+## A level's `_ready` is a coroutine — it awaits [method _setup_level], which on
+## a procgen level generates a few hundred nodes across many frames. Whoever
+## faded the screen out must not fade it back in until this reads true, or the
+## player watches the HUD sit over an empty world and then the world pop in.
+##
+## The flag is set at the very end of `_ready` and this level lowers its own
+## curtain there; [SceneDirector] only waits (bounded — a client stuck waiting
+## on a host's `run_setup` still gets a screen eventually).
+func is_reveal_ready() -> bool:
+	return _reveal_ready
 
 
 ## #463: does this machine ADOPT its run, or DECIDE it?

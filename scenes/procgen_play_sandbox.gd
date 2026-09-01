@@ -162,8 +162,15 @@ func _setup_level() -> void:
 
 	# Show the loading bar over a black fade so the procgen wall-clock has a
 	# visible heartbeat. SceneTransition is the global fade/progress autoload.
-	# `set_faded(true)` snaps to opaque-black (no fade animation needed here —
-	# we're populating an empty level, no prior content to fade away from).
+	# `set_faded(true)` snaps to opaque-black; on the lobby path the curtain is
+	# ALREADY up (SceneDirector faded out before the load and holds it) and this
+	# is a no-op, and on a direct `godot --path . scenes/first_level_sandbox.tscn`
+	# launch it is what raises it — no fade animation either way, there is no
+	# prior content to fade away from.
+	#
+	# It is not lowered here: [method GameRoot._ready] fades in at its very end,
+	# once the HUD is composed and the camera is on the player, which is the
+	# same moment on both paths.
 	SceneTransition.set_faded(true)
 	SceneTransition.progress_bar.show()
 	SceneTransition.set_progress(0.0)
@@ -266,8 +273,6 @@ func _setup_level() -> void:
 		# a graph that runs dry before `enemy_territory_size` still yields a
 		# self-consistent level rather than an inflated one.
 		e.level = achieved
-
-	SceneTransition.fade_in()
 
 
 ## What colour does this participant's entity render in (#563)?
