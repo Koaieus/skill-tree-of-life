@@ -167,6 +167,18 @@ from the shipped build:
 - `callout_band.tscn` — same layer, same shape, plain children — is unaffected
   for that reason. **Only instances are exposed.**
 
+The synthesized value is **not computed from the node's anchors**: `TitleBand`
+is anchored (0, 0, 1, 1) — `FULL_RECT`, 15 — and the export writes `0` for it
+too. It survives regardless, being a plain node whose stored `anchor_right`
+re-applies afterwards. So do not reason about which preset an unauthored node
+will be given; author one.
+
+The fix is verified the same way, by reading the converted scene the export
+leaves at `.godot/exported/<n>/export-<hash>-title_band.scn`: with
+`anchors_preset = 14` authored, the converted binary carries `14`, and
+instantiating it straight from that file yields anchors (0, 0.5, 1, 0.5) and
+offsets (0, -132, 0, 8) — correct before any code runs.
+
 `mise run lint-instanced-anchors` (wired into `mise run check`) fails on an
 instanced node that sets any `anchor_*` without an `anchors_preset` line.
 
