@@ -416,6 +416,8 @@ func snap_to(value: float) -> void:
 func spark_cells(lo: float, hi: float, outgoing: bool) -> void:
 	if _snapping or _suppress_drain or not is_inside_tree():
 		return
+	lo = floorf(lo + 0.001)
+	hi = ceilf(hi - 0.001)
 	if hi - lo <= 0.001 or spark_time <= 0.0:
 		return
 	if _spark_tween and _spark_tween.is_valid() and _spark_out == outgoing:
@@ -439,6 +441,13 @@ func spark_cells(lo: float, hi: float, outgoing: bool) -> void:
 
 ## Which strip cell a stat value sits at — the cap-relative fill in cells, which
 ## is where a `current` move lands. Surplus cells live past `cell_count`.
+##
+## A pool need not be integral (a regen tick or a fractional modifier can park
+## `current` at 3.5), and the shader tests the band against whole cell indices —
+## so a raw fractional bound would produce a band no cell ever matches, and the
+## spark would silently do nothing for exactly those values. [method spark_cells]
+## widens to whole cells for that reason: a partial move ignites the cell it is
+## in.
 func _cell_of(value: float) -> float:
 	var span := max_value - min_value
 	if span <= 0.0:

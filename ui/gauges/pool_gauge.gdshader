@@ -196,7 +196,6 @@ void fragment() {
 			// The cell's OWN colour lifted, not glow_color's — a spent Move cell
 			// should ignite in the Move tint, and a surplus cell in gold.
 			col.rgb = mix(col.rgb, lift_peak(col.rgb, spark_stops), spark_energy);
-			col.a = max(col.a, spark_energy);
 		}
 		COLOR = vec4(col.rgb, col.a * gap_mask);
 	}
