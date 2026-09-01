@@ -115,7 +115,12 @@ func _bind_cells(gauge: PoolGauge, pool: PoolStat) -> void:
 	_binds.link(pool.value_changed, sync)
 	if surplus_pool != null:
 		_binds.link(surplus_pool.surplus_changed, sync)
+	# The first paint is a BIND, not a spend: snapped, so a hot-seat handover to
+	# a hero with fewer points doesn't ignite the difference as if it had just
+	# been spent. Every later sync runs off a pool signal and is free to spark.
+	gauge.begin_snap()
 	sync.call()
+	gauge.end_snap()
 
 
 func _bind_skill_points(sp: SkillPointStat) -> void:

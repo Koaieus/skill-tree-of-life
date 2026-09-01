@@ -134,8 +134,10 @@ func _bind_pool(gauge: PoolGauge, caption: Label, pool: PoolStat, per_turn: Scal
 	if gauge == null or pool == null:
 		return
 	gauge.min_value = 0.0
+	gauge.begin_snap()
 	gauge.max_value = float(pool.value)
 	gauge.current = float(pool.current)
+	gauge.end_snap()
 	gauge.preview_gain = float(per_turn.value) if per_turn != null else 0.0
 	# Tweened, not hard-cut (#317) — and `animate_to` deliberately only tweens
 	# *gains*, so a wound still snaps down and leaves its drain trail behind.

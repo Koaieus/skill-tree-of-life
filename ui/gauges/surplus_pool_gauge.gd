@@ -9,8 +9,17 @@ extends PoolGauge
 
 @export var surplus: float = 0.0:
 	set(v):
+		var old := surplus
 		surplus = v
 		_push(&"surplus", v)
+		# The surplus bin is spent FIRST (SurplusPoolStat's burn-it-or-lose-it
+		# contract), so for MP this — not `current` — is the bin a Movement point
+		# usually leaves from, and the cell that has to ignite and animate out.
+		# It is also the bin that refills at turn end, hence the arriving spark.
+		if v < old:
+			spark_cells(cell_count + v, cell_count + old, true)
+		elif v > old:
+			spark_cells(cell_count + old, cell_count + v, false)
 
 @export var surplus_color: Color = Color(0.9084, 0.6684, 0.3042, 0.85):
 	set(v):
