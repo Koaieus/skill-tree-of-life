@@ -361,6 +361,19 @@ func test_focusing_a_branch_leaves_the_graph_on_stage() -> void:
 	assert_eq(panels.shown_panel, &"", "backing out of a leaf returns the stage")
 
 
+func test_focusing_a_branch_from_a_leaf_tears_down_the_stale_panel() -> void:
+	# Regression: landing on MULTIPLAYER (a branch, no panel) straight from
+	# OPTIONS (a leaf with one) must clear the stage — not just leave it be,
+	# which used to strand the settings panel over the new branch's children.
+	var panels: FrontmatterPanels = _panels()
+	_root.focus(MenuGraph.ID_OPTIONS)
+	assert_eq(panels.shown_panel, MenuGraph.PANEL_SETTINGS)
+
+	_root.focus(MenuGraph.ID_MULTIPLAYER)
+	assert_eq(panels.shown_panel, &"", "no panel answers a branch node")
+	assert_false(panels.visible, "the graph regains the stage")
+
+
 func test_a_leafs_panel_is_raised_on_arrival_not_on_departure() -> void:
 	# The lobby must not be on screen while the graph is still travelling to it.
 	_root.focus(MenuGraph.ID_SINGLE_PLAYER)

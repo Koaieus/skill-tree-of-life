@@ -83,7 +83,6 @@ var _edges: Dictionary = {}
 var _from_pose: Dictionary = {}
 var _to_pose: Dictionary = {}
 var _progress: float = 1.0
-var _routed_panel: StringName = &""
 var _settled: bool = false
 var _transition: Tween = null
 var _tooltip: MenuTooltip = null
@@ -158,7 +157,6 @@ func focus(id: StringName, instant: bool = false) -> void:
 		_transition.kill()
 	_transition = null
 	focus_id = id
-	_routed_panel = &""
 	_settled = false
 	set_hovered(&"")
 	_back_affordance.apply(focus_id, true)
@@ -399,18 +397,21 @@ func _on_quit_requested() -> void:
 
 ## A leaf's panel is raised when the camera ARRIVES, not when it sets off — the
 ## lobby should not be on screen while the graph is still travelling toward it.
-## Latched, because `set_progress(1.0)` is reached on every frame after the last.
+## Guarded by [member _settled], not by comparing panels, so this runs exactly
+## once per landing regardless of where focus came from.
+##
+## Landing on a branch (or a leaf with no panel) is itself a routing target,
+## not a no-op — it must tear down whatever panel the previous leaf left up,
+## same as [method back] already does explicitly.
 func _route_focus_panel() -> void:
 	var item := tree.get_item(focus_id)
-	if item == null or not item.is_leaf() or item.panel == &"":
-		return
-	if _routed_panel == item.panel:
-		return
 	var panels := _panels()
 	if panels == null:
 		return
-	_routed_panel = item.panel
-	panels.show_panel(item.panel)
+	if item != null and item.is_leaf() and item.panel != &"":
+		panels.show_panel(item.panel)
+	else:
+		panels.hide_all()
 
 
 ## Allocation is "on the focus path" (#569) — an identity change, not motion, so
