@@ -24,7 +24,8 @@ const float BREATHING_AMP = 0.5;
 
 // Watermark (#465): glyph edge in p-space (1.0 = tab height) + the three
 // amplitude terms — first guesses, not sandbox-tuned.
-const vec2 WATERMARK_SIZE    = vec2(0.7, 0.7);
+const vec2 WATERMARK_SIZE    = vec2(1.6, 1.6);
+const vec2 WATERMARK_OFFSET  = vec2(0.60, 0.25); // physical p-space shift; +x = right, +y = down
 const float WATERMARK_FLOOR  = 0.07;
 const float WATERMARK_RIPPLE = 0.35;
 const float WATERMARK_ACTIVE = 0.55;
@@ -80,7 +81,7 @@ void fragment() {
     // ── Watermark ─────────────────────────────────────────────────────────────
     // Sampled in the SAME aspect-corrected `p` space the shape uses, so the
     // square stays square whatever the tab's proportions are.
-    vec2 wm_uv = p / WATERMARK_SIZE + 0.5;
+    vec2 wm_uv = (p - WATERMARK_OFFSET) / WATERMARK_SIZE + 0.5;
     float inside = step(0.0, wm_uv.x) * step(wm_uv.x, 1.0)
                  * step(0.0, wm_uv.y) * step(wm_uv.y, 1.0);
     float wm = texture(watermark, clamp(wm_uv, vec2(0.0), vec2(1.0))).a
