@@ -75,6 +75,12 @@ level-1 board.
 
 ## The mount, and why a level may only SWAP it (#531)
 
+> **Superseded in its load-bearing half by #713, 2026-09-01.** The RPC no longer
+> lives under `GameRoot` at all — it moved to the `Wire` autoload, `/root/Wire`.
+> Read *"The socket outlives the scene (#713)"* below first; what survives here
+> is the SEAM's mount, which is still per-level and still swappable, and the
+> "never author a second pair" rule, which is still absolute.
+
 `Transport` and `CommandLink` are direct children of `GameRoot`, so every level
 inherits them at the same two node paths. That is not tidiness: Godot's
 high-level multiplayer resolves an RPC **by node path**, so two peers running
@@ -109,6 +115,48 @@ on `RunConfig`, which crosses the wire by value (`docs/domain/seat-policy.md`
 has the same argument for the same reason). `GameRoot` reads it once: the role
 is adopted at the top of `_ready` (before anything can act and diverge), the
 socket opens after `_setup_level` (so an arriving command finds a world).
+
+## The socket outlives the scene (#713)
+
+The mount above made the wire correct and made it **unable to exist before a
+level did**. Two machines could not talk until both were already inside one, so
+the lobby was local on every machine, a joining client generated a world nobody
+was playing, and #463's join handshake had to happen at level `_ready`. #712 is
+the hub that undoes that; this is its foundation.
+
+**`Wire` (`autoload/wire.gd`, `/root/Wire`) owns the socket and the repo's only
+`@rpc`.** That path is identical on every peer *and* survives
+`SceneDirector.goto`, which is the same fixed-path argument #531 made, taken one
+step further.
+
+Two facts made this a small change rather than a rewrite:
+
+- **There was only ever one production `@rpc`** — `_receive`. `CommandLink` is
+  not an RPC target; it speaks to the transport over plain signals. So exactly
+  one function had to move.
+- **The peer was always tree-scoped.** `multiplayer.multiplayer_peer` belongs to
+  the `SceneTree`, not to a node, so an open socket already survived a scene
+  change. What died with the freed `GameRoot` was the RPC *target*, the signal
+  connections, and the peer list. `Wire` is those three things, kept somewhere
+  that does not get freed.
+
+**`EnetTransport` is now a facade over it and holds no peer.** The seam keeps
+its per-level mount, its `LoopbackTransport` default, and every
+two-worlds-in-one-process fixture that needs a transport per `GameRoot` — a
+single process-wide *transport* could not serve two worlds, while a single
+process-wide *socket* always did.
+
+**A level ADOPTS a link it did not open.** `start_host` / `start_client` bring
+the socket up only when there is not one; when the lobby already opened it they
+bind and **replay `peer_joined` for the peers already on it**, so a host that
+adopts still stamps roster seats and ships run setup. The replay is not a
+nicety: `Wire.start_host` opens with a `stop()`, so a level that blindly
+re-started would tear down the link it was handed, and every host-side
+consequence of a join hangs off a signal that fired while the menu was up.
+
+`test/unit/network/test_wire_outlives_the_level.gd` pins the mechanism; the two
+rungs below are the live proof, since one process holds one link and a real pair
+needs two.
 
 ## The three decisions, and why
 

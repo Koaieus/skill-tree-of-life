@@ -29,6 +29,7 @@ Events="*res://autoload/events.gd"
 GameSession="*res://autoload/game_session.gd"
 StatRegistry="*res://autoload/stat_registry.gd"
 DebugClipboard="*res://autoload/debug_clipboard.gd"
+Wire="*res://autoload/wire.gd"
 
 [debug]
 

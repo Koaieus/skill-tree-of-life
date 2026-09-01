@@ -311,7 +311,13 @@ func _start_link() -> void:
 				return
 			# The client connects later, once `_setup_level_as_host_or_solo`
 			# has generated the world it will send.
-			_transport.link_changed.connect(_greet_if_linked_and_ready)
+			# `.unbind(1)` because `link_changed` carries a status string and this
+			# handler wants none — without it every emit raises "Method expected
+			# 0 argument(s), but called with 1" and the greet never runs, so the
+			# client dials in, receives nothing, and times out. Shipped broken:
+			# rung 2 has no automated coverage, and the error is a signal-call
+			# fault rather than a crash, so it only shows in the host's log.
+			_transport.link_changed.connect(_greet_if_linked_and_ready.unbind(1))
 		NetworkTransport.Role.CLIENT:
 			_link.mode = CommandLink.Mode.MIRROR
 			# A spectator, on purpose — same reasoning as rung 1: wave 0 has

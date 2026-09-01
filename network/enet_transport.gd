@@ -2,138 +2,140 @@
 class_name EnetTransport
 extends NetworkTransport
 
-## [NetworkTransport] over [ENetMultiplayerPeer] — the LAN default.
+## The LAN transport — a facade over the [Wire] singleton, which owns the socket
+## and the RPC (#713).
 ##
 ## ENet is the pick because it ships with Godot and is zero-config on a LAN, not
 ## because it is the only option; the seam above exists so that stays true
 ## (`docs/domain/multiplayer-sync-model.md`, "Transport").
 ##
-## [b]Payloads ride one RPC.[/b] Godot's high-level multiplayer resolves an RPC
-## by NODE PATH, so both peers must run a scene where this node sits at the same
-## path — which is exactly what the harness does (both processes open the same
-## `.tscn`). If you ever mount this transport at a different path per role, the
-## RPC silently goes nowhere.
+## [b]This node holds no peer.[/b] Before #713 it owned an [ENetMultiplayerPeer]
+## and carried the repo's only `@rpc`, which pinned the wire to a node path
+## underneath [GameRoot] — so two machines could not talk until both were already
+## inside a level. Everything socket-shaped moved to `/root/Wire`, a path that
+## outlives a scene change; what stays here is the [NetworkTransport] seam the
+## game actually talks to.
 ##
-## [b]It claims the SceneTree's [MultiplayerAPI].[/b] `multiplayer_peer` is a
-## per-SceneTree property, so one process holds one link. That is not a
-## limitation to design around — two worlds in one process would also share the
-## [Events] autoload, which is why the harness launches two OS processes instead
-## (see `docs/domain/multiplayer-harness.md`).
+## [b]So a level may ADOPT a link it did not open.[/b] [method start_host] and
+## [method start_client] bring the socket up only when there isn't one; when the
+## lobby already opened it, they bind to it and replay the peers that arrived
+## before this node existed. That is what makes "the host clicks START and
+## everyone transitions over an already-established connection" possible without
+## a reconnect — and note that [method Wire.start_host] begins with a `stop()`,
+## so a level that blindly re-started would tear down the very link it was handed.
+##
+## [b]Why the mount survives at all.[/b] The seam stays per-level and swappable:
+## [LoopbackTransport] is still the mounted default, `test_link_mount.gd` still
+## asserts exactly one transport child, and the two-worlds-in-one-process
+## fixtures still give each [GameRoot] a transport of its own. A single
+## process-wide transport could not serve two worlds; a single process-wide
+## SOCKET always did, because `multiplayer_peer` is per-[SceneTree].
 
-## Peers currently connected to us. Host-side this can be many; client-side it
-## is only ever the server (id 1).
-var _peers: PackedInt32Array = PackedInt32Array()
+## Whether this node is currently bound to [Wire]'s signals. Bind is idempotent
+## and unbind runs on [method _exit_tree], so a freed level stops re-emitting
+## while the socket itself keeps running.
+var _bound: bool = false
 
-var _peer: ENetMultiplayerPeer
+
+func _exit_tree() -> void:
+	_unbind()
 
 
 func start_host(port: int) -> Error:
-	stop()
-	var peer := ENetMultiplayerPeer.new()
-	var err := peer.create_server(port)
-	if err != OK:
-		_announce("host: FAILED to listen on %d (%s)" % [port, error_string(err)])
-		return err
-	_adopt(peer, Role.HOST)
-	_announce("host: listening on port %d" % port)
-	return OK
+	if Wire.is_open():
+		return _adopt_live_link(Role.HOST)
+	_bind()
+	var err := Wire.start_host(port)
+	role = Wire.role
+	return err
 
 
 func start_client(address: String, port: int) -> Error:
-	stop()
-	var peer := ENetMultiplayerPeer.new()
-	var err := peer.create_client(address, port)
-	if err != OK:
-		_announce("client: FAILED to dial %s:%d (%s)" % [address, port, error_string(err)])
-		return err
-	_adopt(peer, Role.CLIENT)
-	_announce("client: dialling %s:%d…" % [address, port])
-	return OK
+	if Wire.is_open():
+		return _adopt_live_link(Role.CLIENT)
+	_bind()
+	var err := Wire.start_client(address, port)
+	role = Wire.role
+	return err
 
 
 func stop() -> void:
-	if _peer != null:
-		_peer.close()
-		_peer = null
-	if multiplayer != null and multiplayer.multiplayer_peer != null:
-		multiplayer.multiplayer_peer = null
-	_peers = PackedInt32Array()
+	_unbind()
+	Wire.stop()
 	super()
 
 
 func send(payload: Dictionary) -> void:
-	if not is_linked():
-		return
-	_receive.rpc(payload)
+	Wire.send(payload)
 
 
 func is_linked() -> bool:
-	return not _peers.is_empty()
+	return Wire.is_linked()
 
 
 func local_peer_id() -> int:
-	if multiplayer == null or multiplayer.multiplayer_peer == null:
-		return 0
-	return multiplayer.get_unique_id()
+	return Wire.local_peer_id()
 
 
-func _adopt(peer: ENetMultiplayerPeer, as_role: Role) -> void:
-	_peer = peer
-	role = as_role
-	multiplayer.multiplayer_peer = peer
-	_wire_multiplayer_signals()
+## Bind to a socket somebody else opened — the lobby, before this level existed.
+##
+## [b]The peers are replayed.[/b] A peer that connected while the menu was up
+## fired [signal Wire.peer_joined] at a moment this node could not have been
+## listening, and every host-side consequence of a join (stamping a roster seat,
+## shipping the run setup) hangs off that signal. Replaying it here is what makes
+## a level that adopts a link indistinguishable from one that opened its own.
+## Emitted AFTER [signal NetworkTransport.link_changed], for the same ordering
+## reason [method Wire._on_peer_connected] documents: a listener may send, and
+## sending is gated on [method is_linked].
+func _adopt_live_link(expected: Role) -> Error:
+	if Wire.role != expected:
+		_announce("adopt: REFUSED — the live link is %s, this level wants %s"
+				% [Wire.role, expected])
+		return ERR_UNAVAILABLE
+	_bind()
+	role = Wire.role
+	_announce("adopted the live link (%d peer(s))" % Wire.peers().size())
+	for id in Wire.peers():
+		peer_joined.emit(id)
+	return OK
 
 
-## Connected once per link, and only if not already connected — [method stop]
-## drops the peer but leaves this node's connections in place.
-func _wire_multiplayer_signals() -> void:
-	if multiplayer.peer_connected.is_connected(_on_peer_connected):
+func _bind() -> void:
+	if _bound:
 		return
-	multiplayer.peer_connected.connect(_on_peer_connected)
-	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
-	multiplayer.connected_to_server.connect(_on_connected_to_server)
-	multiplayer.connection_failed.connect(_on_connection_failed)
-	multiplayer.server_disconnected.connect(_on_server_disconnected)
+	_bound = true
+	Wire.message_received.connect(_on_wire_message)
+	Wire.link_changed.connect(_on_wire_status)
+	Wire.peer_joined.connect(_on_wire_peer_joined)
+	Wire.peer_left.connect(_on_wire_peer_left)
 
 
-func _on_peer_connected(id: int) -> void:
-	if not _peers.has(id):
-		_peers.append(id)
-	_announce("peer %d connected" % id)
-	# Announce FIRST, then hand the id up: a listener on `peer_joined` may send
-	# (the host's run setup does), and `send` is gated on [method is_linked],
-	# which only just became true on the line above.
+func _unbind() -> void:
+	if not _bound:
+		return
+	_bound = false
+	Wire.message_received.disconnect(_on_wire_message)
+	Wire.link_changed.disconnect(_on_wire_status)
+	Wire.peer_joined.disconnect(_on_wire_peer_joined)
+	Wire.peer_left.disconnect(_on_wire_peer_left)
+
+
+func _on_wire_message(payload: Dictionary) -> void:
+	message_received.emit(payload)
+
+
+## Also the point where a link that closed itself (a failed dial, a host that
+## went away) is reflected back into this node's own [member role] — [Wire] can
+## drop to [constant NetworkTransport.Role.OFFLINE] without anybody calling
+## [method stop] here.
+func _on_wire_status(status: String) -> void:
+	role = Wire.role
+	_announce(status)
+
+
+func _on_wire_peer_joined(id: int) -> void:
 	peer_joined.emit(id)
 
 
-func _on_peer_disconnected(id: int) -> void:
-	var idx := _peers.find(id)
-	if idx != -1:
-		_peers.remove_at(idx)
-	_announce("peer %d disconnected" % id)
+func _on_wire_peer_left(id: int) -> void:
 	peer_left.emit(id)
-
-
-## Client-side, the server is a peer too — it is simply never reported through
-## `multiplayer.peer_connected` on this side, so it is recorded here. Without
-## this a client's [method is_linked] would stay false forever.
-func _on_connected_to_server() -> void:
-	_announce("client: connected (my id %d)" % multiplayer.get_unique_id())
-	peer_joined.emit(HOST_PEER_ID)
-
-
-func _on_connection_failed() -> void:
-	_announce("client: connection FAILED")
-	stop()
-
-
-func _on_server_disconnected() -> void:
-	_announce("client: host went away")
-	stop()
-
-
-## The wire's only entry point. `call_remote` so a send never re-enters the
-## sender — the host has already applied what it is broadcasting.
-@rpc("any_peer", "call_remote", "reliable")
-func _receive(payload: Dictionary) -> void:
-	message_received.emit(payload)
