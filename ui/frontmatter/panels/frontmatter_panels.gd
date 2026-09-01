@@ -56,11 +56,29 @@ func _ready() -> void:
 ## no panels in it at all, which is what makes an unlanded leaf a no-op rather
 ## than a crash. Whether a body actually exists is [method has_panel]'s
 ## question, and it is the one that decides whether this layer takes the stage.
+## The panel lands FULLY REVEALED — `set_progress(1.0)` — because a direct
+## caller (a test, [MetaRoot]) asks for a panel that is simply up, and because
+## an interrupted transition must not leave the next one stranded at whatever
+## mid-slide alpha it was abandoned at. A caller that wants the slide writes
+## [method set_progress] afterwards, in the SAME call as this one; doing it a
+## frame later shows one frame of fully-opaque panel before the slide starts.
 func show_panel(id: StringName) -> void:
 	shown_panel = id
 	for panel_id in _panels:
-		(_panels[panel_id] as FrontmatterPanel).visible = panel_id == id
+		var panel := _panels[panel_id] as FrontmatterPanel
+		panel.visible = panel_id == id
+		if panel.visible:
+			panel.set_progress(1.0)
 	visible = has_panel(id)
+
+
+## Drives the shown panel's reveal clock (0..1); a no-op when the graph has the
+## stage. Forwarded rather than reached past, because the container is the seam
+## and [FrontmatterRoot] must keep knowing nothing about what a panel is.
+func set_progress(t: float) -> void:
+	var panel := get_panel(shown_panel)
+	if panel != null:
+		panel.set_progress(t)
 
 
 ## Return the stage to the graph layer.

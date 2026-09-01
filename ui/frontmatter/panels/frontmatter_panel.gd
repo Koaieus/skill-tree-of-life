@@ -91,6 +91,11 @@ signal dismissed
 @export var title: String = "":
 	set = _set_title
 
+## How far right of its home the panel starts its slide-in, in pixels (#567's
+## bridge animation). Authored on the base scene, so every inherited panel
+## enters the same way; #578's live tab tunes it.
+@export_range(0.0, 400.0, 1.0) var slide_offset: float = 72.0
+
 ## Where an inherited scene puts its content. Pre-packaged by this scene, so an
 ## inherited scene may rely on it existing.
 @onready var body: VBoxContainer = %Body
@@ -123,3 +128,26 @@ func _apply_title() -> void:
 ## re-emitting the signal itself.
 func dismiss() -> void:
 	dismissed.emit()
+
+
+## The reveal, at clock position `t` (0..1): a slide in from the right plus a
+## fade. The repo's animated-unit contract — no [Tween] here, one external
+## caller owns the clock — and that caller is [FrontmatterRoot], which drives
+## this off the SAME `t` as the camera travel it overlaps (see
+## [member FrontmatterRoot.panel_lead]).
+##
+## [b]Why the panel opens before the camera lands.[/b] Waiting for the pan to
+## finish made a leaf feel like it took 850ms to answer a click; the slide is
+## the bridge across that gap, so the panel is up and readable while the tree
+## is still settling behind it.
+##
+## [b]It writes `position`, not an inner offset.[/b] Both this scene's parents
+## (`FrontmatterPanels`, and `frontmatter_columns.tscn`'s `%Remainder`) are
+## plain [Control]s rather than containers, so nothing re-lays this root out
+## and the write survives; landing at exactly `0` every time keeps it from
+## accumulating drift. Slide it from inside a container and a resize would
+## snap it back mid-flight.
+func set_progress(t: float) -> void:
+	var eased := FrontmatterCamera.ease_sprout(clampf(t, 0.0, 1.0))
+	position.x = (1.0 - eased) * slide_offset
+	modulate.a = eased

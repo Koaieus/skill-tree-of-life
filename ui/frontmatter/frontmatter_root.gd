@@ -50,14 +50,33 @@ signal focus_changed(id: StringName)
 ## the camera had just returned to — one level skipped, from one stale
 ## [StringName]. Pinned by `test_frontmatter_input.gd`'s mid-flight tests.
 ##
-## Anything that decorates an ARRIVAL — the splash handoff, a panel being raised
-## — still wants [signal focus_changed]. Do not merge them.
+## Anything that decorates an ARRIVAL — the splash handoff — still wants
+## [signal focus_changed]. Do not merge them. (A leaf's panel used to be such a
+## decoration; it now rides the clock itself from [member panel_lead], which is
+## a third answer again: neither departure nor arrival.)
 signal focus_started(id: StringName)
 
 ## Seconds a full navigation takes: the camera travel and the sprout together.
 ## #567's table gives 850ms for hero travel; the sprout rides the same clock
 ## with a snappier curve rather than a duration of its own.
 @export_range(0.0, 3.0, 0.01) var travel_duration: float = 0.85
+
+## Clock fraction (0..1 of [member travel_duration]) at which a leaf's panel
+## starts sliding in — the panel no longer waits for the camera to land.
+##
+## [b]Sooner than arrival, on purpose.[/b] Waiting out the full pan made a leaf
+## feel like it took 850ms to answer a click. The panel is up and readable
+## while the tree is still settling behind it, and the slide
+## ([method FrontmatterPanel.set_progress]) is what bridges the gap so it
+## arrives rather than pops.
+@export_range(0.0, 1.0, 0.01) var panel_lead: float = 0.3
+
+## How long the panel's slide-in takes, in SECONDS — deliberately not a second
+## clock fraction. Opening early means a low [member panel_lead], and a slide
+## that rode "the rest of the travel" would get LONGER the earlier it opened,
+## which is mush. This pins the slide's feel independent of how much pan it
+## overlaps. Still one clock: it is read as a span of `t`, never as a [Tween].
+@export_range(0.0, 1.5, 0.01) var panel_slide_duration: float = 0.25
 
 ## Screen-space gap between a node and the top of the slab stack that describes
 ## it. The stack is centred horizontally on the node, so this is the whole of
@@ -185,7 +204,7 @@ func back() -> bool:
 	var parent := tree.parent_of(focus_id)
 	if parent == &"":
 		return false
-	var panels := _panels()
+	var panels := panel_container()
 	if panels != null:
 		panels.hide_all()
 	focus(parent)
@@ -206,9 +225,9 @@ func set_progress(t: float) -> void:
 		var s: float = lerpf(from[1] as float, to[1] as float, eased)
 		view.scale = Vector2(s, s)
 	_push_edges()
+	_drive_panel(_progress)
 	if _progress >= 1.0 and not _settled:
 		_settled = true
-		_route_focus_panel()
 		focus_changed.emit(focus_id)
 
 
@@ -223,7 +242,7 @@ func navigation_state() -> Dictionary:
 	for id in _views:
 		var view: MenuNodeView = _views[id]
 		poses[id] = [view.position, view.scale, view.allocated, view.get_parent(), view.z_index]
-	var panels := _panels()
+	var panels := panel_container()
 	return {
 		&"focus": focus_id,
 		&"camera": camera.current_transform(),
@@ -352,6 +371,11 @@ func focus_path() -> Array[StringName]:
 	return tree.path_to(focus_id)
 
 
+## The panel container. Public since the panel reveal became tunable — #578's
+## live tab pushes [member FrontmatterPanel.slide_offset] onto each registered
+## panel, and a dev tab reaching in with its own `find_children` would be a
+## second copy of this lookup.
+##
 ## Found by type rather than by a direct-child walk (#603 D6): the container
 ## used to sit right on `%PanelLayer`, but it now lives at
 ## `%PanelLayer/FrontmatterColumns/Remainder/FrontmatterPanels`, and a
@@ -359,7 +383,7 @@ func focus_path() -> Array[StringName]:
 ## next time the columns scene grows a level. `find_children` is the same
 ## robust-to-nesting lookup `FrontmatterInput._panels` and `MetaRoot._panels`
 ## already use.
-func _panels() -> FrontmatterPanels:
+func panel_container() -> FrontmatterPanels:
 	if _panel_layer == null:
 		return null
 	var found := _panel_layer.find_children("*", "FrontmatterPanels", true, false)
@@ -375,7 +399,7 @@ func _panels() -> FrontmatterPanels:
 ## signal exists once that lands, and connecting a signal that is not there yet
 ## would be an error rather than a no-op.
 func _connect_panels() -> void:
-	var panels := _panels()
+	var panels := panel_container()
 	if panels == null:
 		return
 	if not panels.panel_dismissed.is_connected(_on_panel_dismissed):
@@ -385,7 +409,7 @@ func _connect_panels() -> void:
 
 
 func _on_panel_dismissed(_id: StringName) -> void:
-	var panels := _panels()
+	var panels := panel_container()
 	if panels != null:
 		panels.hide_all()
 	back()
@@ -395,23 +419,50 @@ func _on_quit_requested() -> void:
 	get_tree().quit()
 
 
-## A leaf's panel is raised when the camera ARRIVES, not when it sets off — the
-## lobby should not be on screen while the graph is still travelling toward it.
-## Guarded by [member _settled], not by comparing panels, so this runs exactly
-## once per landing regardless of where focus came from.
+## Raises, drives and tears down the focus's panel — every frame, as a pure
+## function of the clock.
+##
+## [b]Not latched, deliberately.[/b] The obvious shape here is "raise it once,
+## when `t` first crosses [member panel_lead]" — but `t` runs BACKWARDS
+## routinely: #578's live tab wires a scrub slider straight into
+## [method set_progress], which is exactly the loop this animation gets tuned
+## in. A one-way latch would leave [member FrontmatterPanels.shown_panel] set
+## with the panel clamped invisible. Derived from `t` instead, so scrubbing is
+## symmetric for free — the same reason [method navigation_state] is a pure
+## function of [member focus_id].
 ##
 ## Landing on a branch (or a leaf with no panel) is itself a routing target,
 ## not a no-op — it must tear down whatever panel the previous leaf left up,
 ## same as [method back] already does explicitly.
-func _route_focus_panel() -> void:
-	var item := tree.get_item(focus_id)
-	var panels := _panels()
+func _drive_panel(t: float) -> void:
+	var panels := panel_container()
 	if panels == null:
 		return
-	if item != null and item.is_leaf() and item.panel != &"":
-		panels.show_panel(item.panel)
-	else:
+	var item := tree.get_item(focus_id)
+	var panel_t := panel_progress_at(t)
+	if item == null or not item.is_leaf() or item.panel == &"" or panel_t <= 0.0:
 		panels.hide_all()
+		return
+	# In this order and in ONE call: `show_panel` lands the panel fully
+	# revealed, so a `set_progress` a frame later would flash it opaque first.
+	panels.show_panel(item.panel)
+	panels.set_progress(panel_t)
+
+
+## The panel's own reveal clock at travel clock position [param t] — 0 until the
+## lead has elapsed, then a [member panel_slide_duration]-long ramp expressed as
+## a span of `t`. Public because it is the whole timing contract, and a test
+## asserting it needs no frames.
+func panel_progress_at(t: float) -> float:
+	var span := minf(1.0 - panel_lead, panel_slide_duration / maxf(travel_duration, 0.001))
+	# A zero span is a SNAP, not a hidden panel — reachable from both ends of
+	# the tuning range (`panel_lead = 1.0`, `panel_slide_duration = 0.0`), and
+	# `lead = 1.0` is exactly the "show me the old wait-for-arrival behaviour"
+	# comparison. Dividing by an epsilon instead left `(t - lead) == 0` at
+	# `t = 1`, i.e. the panel never appearing at all.
+	if span <= 0.0:
+		return 1.0 if t >= panel_lead else 0.0
+	return clampf((t - panel_lead) / span, 0.0, 1.0)
 
 
 ## Allocation is "on the focus path" (#569) — an identity change, not motion, so

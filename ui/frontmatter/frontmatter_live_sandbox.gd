@@ -41,6 +41,9 @@ const LAYOUT_SCRIPT_PATH := "res://ui/frontmatter/frontmatter_layout.gd"
 ## drift apart.
 const K_TRAVEL := &"travel_duration"
 const K_REDUCE_MOTION := &"reduce_motion"
+const K_PANEL_LEAD := &"panel_lead"
+const K_PANEL_SLIDE := &"panel_slide_duration"
+const K_PANEL_SLIDE_OFFSET := &"panel_slide_offset"
 const K_EDGE_ZOOM := &"edge_camera_zoom"
 const K_EDGE_LIT_ALPHA := &"edge_lit_alpha"
 const K_EDGE_UNLIT_ALPHA := &"edge_unlit_alpha"
@@ -87,6 +90,9 @@ const GEOMETRY_KEYS: Array[StringName] = [
 const DEFAULTS := {
 	K_TRAVEL: 0.85,
 	K_REDUCE_MOTION: false,
+	K_PANEL_LEAD: 0.3,
+	K_PANEL_SLIDE: 0.25,
+	K_PANEL_SLIDE_OFFSET: 72.0,
 	K_EDGE_ZOOM: 1.0,
 	K_EDGE_LIT_ALPHA: 1.0,
 	K_EDGE_UNLIT_ALPHA: 0.55,
@@ -166,6 +172,18 @@ func _build_controls() -> void:
 	_check(K_REDUCE_MOTION, "Reduce motion",
 			"GameSettings.reduce_motion — every transition collapses to one frame")
 	_scrub_row()
+
+	# The three knobs of "a leaf answers before the camera lands". Judge them
+	# with the scrub slider above as much as by navigating: it drives the same
+	# `t`, so the panel slides under the mouse.
+	_header("PANEL REVEAL")
+	_slider(K_PANEL_LEAD, "Lead", "FrontmatterRoot.panel_lead — fraction of the travel "
+			+ "that passes before a leaf's panel starts sliding in. 1.0 is the old "
+			+ "wait-for-arrival behaviour.", 0.0, 1.0, 0.01)
+	_slider(K_PANEL_SLIDE, "Slide", "FrontmatterRoot.panel_slide_duration — seconds the "
+			+ "slide-in takes, independent of the pan it overlaps", 0.0, 1.0, 0.01)
+	_slider(K_PANEL_SLIDE_OFFSET, "Slide offset", "FrontmatterPanel.slide_offset — pixels "
+			+ "right of home the panel starts from", 0.0, 400.0, 1.0)
 
 	# No node-radius slider: #591 made the radius an authored per-slot value, so
 	# it is tuned in the fan scene's full-screen editor preview like the rest of
@@ -432,6 +450,9 @@ func _apply_all() -> void:
 	_apply_geometry()
 	_frontmatter.travel_duration = _values[K_TRAVEL]
 	_frontmatter.reduce_motion = _values[K_REDUCE_MOTION]
+	_frontmatter.panel_lead = _values[K_PANEL_LEAD]
+	_frontmatter.panel_slide_duration = _values[K_PANEL_SLIDE]
+	_apply_panel_slide_offset()
 	MenuEdgeView.push_camera_zoom(_values[K_EDGE_ZOOM])
 
 	for id in _tree_ids():
@@ -463,6 +484,19 @@ func _apply_all() -> void:
 	_tooltip().start_scale = _values[K_TOOLTIP_SCALE]
 
 	_refresh_geometry_readout()
+
+
+## Pushes the slide offset onto every registered panel — one authored value on
+## `frontmatter_panel.tscn`, so the tab writes all of them rather than picking
+## the one currently up (which, at rest, is none).
+func _apply_panel_slide_offset() -> void:
+	var panels := _frontmatter.panel_container()
+	if panels == null:
+		return
+	for id in panels.panel_ids():
+		var panel := panels.get_panel(id)
+		if panel != null:
+			panel.slide_offset = _values[K_PANEL_SLIDE_OFFSET]
 
 
 func _rebuild() -> void:

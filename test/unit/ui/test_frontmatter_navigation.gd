@@ -374,20 +374,82 @@ func test_focusing_a_branch_from_a_leaf_tears_down_the_stale_panel() -> void:
 	assert_false(panels.visible, "the graph regains the stage")
 
 
-func test_a_leafs_panel_is_raised_on_arrival_not_on_departure() -> void:
-	# The lobby must not be on screen while the graph is still travelling to it.
+func test_a_leafs_panel_is_raised_mid_flight_not_on_departure() -> void:
+	# The lobby must not be on screen the instant the camera sets off — but it
+	# no longer waits out the whole pan either: it slides in from `panel_lead`
+	# onward, so a leaf answers a click long before the tree finishes settling.
 	_root.focus(MenuGraph.ID_SINGLE_PLAYER)
 	var panels: FrontmatterPanels = _panels()
 
 	_root.reduce_motion = false
 	_root.travel_duration = 0.85
+	_root.panel_lead = 0.3
+	_root.panel_slide_duration = 0.25
 	_root.focus(MenuGraph.ID_NEW_GAME)
+
 	_root.set_progress(0.0)
-	assert_eq(panels.shown_panel, &"", "still travelling")
-	_root.set_progress(0.99)
-	assert_eq(panels.shown_panel, &"", "still travelling")
+	assert_eq(panels.shown_panel, &"", "not on departure")
+	_root.set_progress(0.29)
+	assert_eq(panels.shown_panel, &"", "still nothing before the lead elapses")
+
+	_root.set_progress(0.4)
+	assert_eq(panels.shown_panel, MenuGraph.PANEL_LOBBY, "up while the camera still travels")
+	var panel := panels.get_panel(MenuGraph.PANEL_LOBBY)
+	assert_between(panel.modulate.a, 0.01, 0.99, "mid-slide")
+	assert_gt(panel.position.x, 0.0, "and still right of home")
+
 	_root.set_progress(1.0)
-	assert_eq(panels.shown_panel, MenuGraph.PANEL_LOBBY, "arrived")
+	assert_almost_eq(panel.modulate.a, 1.0, 0.001, "landed opaque")
+	assert_almost_eq(panel.position.x, 0.0, 0.001, "and exactly at home")
+
+
+func test_the_panel_slide_is_a_pure_function_of_the_clock() -> void:
+	# #578's live tab wires a scrub slider straight into `set_progress`, so `t`
+	# runs BACKWARDS routinely — which a raise-once latch would strand, leaving
+	# `shown_panel` set with the panel clamped invisible.
+	_root.reduce_motion = false
+	_root.travel_duration = 0.85
+	_root.panel_lead = 0.3
+	var panels: FrontmatterPanels = _panels()
+
+	_root.focus(MenuGraph.ID_NEW_GAME)
+	_root.set_progress(1.0)
+	assert_eq(panels.shown_panel, MenuGraph.PANEL_LOBBY)
+
+	_root.set_progress(0.1)
+	assert_eq(panels.shown_panel, &"", "scrubbing back below the lead takes it down again")
+
+	_root.set_progress(1.0)
+	assert_eq(panels.shown_panel, MenuGraph.PANEL_LOBBY, "and forward brings it back")
+
+
+func test_the_panel_slide_duration_is_independent_of_the_travel() -> void:
+	# Riding "the rest of the travel" would make the slide LONGER the earlier it
+	# opened. Same slide seconds, half the pan: twice the span of `t`.
+	_root.panel_lead = 0.0
+	_root.panel_slide_duration = 0.25
+
+	_root.travel_duration = 1.0
+	assert_almost_eq(_root.panel_progress_at(0.25), 1.0, 0.001, "settled after 250ms")
+
+	_root.travel_duration = 0.5
+	assert_almost_eq(_root.panel_progress_at(0.25), 0.5, 0.001, "still 250ms, half the pan")
+
+
+func test_a_degenerate_slide_span_snaps_rather_than_vanishing() -> void:
+	# Both ends of the tuning range collapse the span to zero, and the panel
+	# must SNAP there rather than never appear — `panel_lead = 1.0` is the
+	# "show me the old wait-for-arrival behaviour" comparison itself.
+	_root.travel_duration = 0.85
+	_root.panel_slide_duration = 0.25
+	_root.panel_lead = 1.0
+	assert_eq(_root.panel_progress_at(0.99), 0.0, "nothing while travelling")
+	assert_eq(_root.panel_progress_at(1.0), 1.0, "full on arrival")
+
+	_root.panel_lead = 0.3
+	_root.panel_slide_duration = 0.0
+	assert_eq(_root.panel_progress_at(0.29), 0.0, "nothing before the lead")
+	assert_eq(_root.panel_progress_at(0.3), 1.0, "and fully up the moment it elapses")
 
 
 func test_routing_a_leaf_raises_its_panel() -> void:
