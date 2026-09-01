@@ -93,7 +93,13 @@ caster's would make "where it fired" read as identity rather than as placement.
 
 **The crit grammar is authored once, in `ImpactRing`** (#663 D6): tier 1 = one
 ring at `Emissive.ALERT`; tier 2+ = a second concentric ring plus a
-**single-frame** `Emissive.PEAK` core flash. A spell gets its crit look by
+**single-frame** `Emissive.PEAK` core flash. **It is the IMPACT punctuation
+first and the crit grammar second** — it plays on *every* arrival, with
+`crit_tier = 0` meaning one plain ring at rest, and the grammar *"overrides this
+upward; it never overrides it downward"*. So a crit reads as an **escalation** of
+a ring that was already there, never as the ring's mere existence; spec an
+acceptance criterion as "a non-crit rings at tier 0", not "a non-crit spawns no
+ring" (#709 was written to the wrong one first). A spell gets its crit look by
 *configuring that scene*, never by writing a second one — that is what keeps
 "where it fired" reading as placement rather than as three different effects.
 
