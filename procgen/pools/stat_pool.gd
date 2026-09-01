@@ -246,10 +246,10 @@ func _op_short() -> String:
 
 func _op_symbol() -> String:
 	match operation:
-		StatModifier.Operation.ADD_BASE: return "+"  # TODO: when formalizing bool for flipping "which way is up" for a stat (some stats you want lowered), splice in condition to make this `-` instead
-		StatModifier.Operation.INCREASE: return "+%"
+		StatModifier.Operation.ADD_BASE: return "+" if unit_value >= 0. else "-"  # TODO: when formalizing bool for flipping "which way is up" for a stat (some stats you want lowered), splice in condition to make this `-` instead
+		StatModifier.Operation.INCREASE: return "+%" if unit_value >= 0. else "-%"
 		StatModifier.Operation.MULTIPLY: return "×"
-		StatModifier.Operation.ADD_BONUS: return "+b"
+		StatModifier.Operation.ADD_BONUS: return "+b" if unit_value >= 0. else "-b"
 		StatModifier.Operation.SET: return "="
 	return "??"
 
