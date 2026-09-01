@@ -15,13 +15,20 @@ two viewports in one process: `Events` is a process-global bus carrying live
 node/entity references and every listener connects unscoped, so world B's
 `VictorySystem` would latch on world A's death.
 
-**`Transport` + `CommandLink` are mounted in `scenes/game_root.tscn` (#531), and
-a level may only SWAP the transport's script, never author a second pair** — an
-RPC resolves by node path, and two pairs at colliding sibling names means
-`$Transport` picks whichever Godot renamed last, silently. The default is
-`LoopbackTransport` with the link `Mode.OFF`; the role comes from
-`GameSession.network` (`NetworkConfig`), which is per-machine and deliberately
-not on `RunConfig`.
+**The socket and the repo's ONE `@rpc` live on the `Wire` autoload, `/root/Wire`
+(#713)** — a path that is identical on every peer and survives a scene change, so
+a link can exist before a level does. `EnetTransport` is a facade over it and
+holds no peer; `Wire.start_host` opens with a `stop()`, so a level ADOPTS a live
+link (replaying `peer_joined` for peers already on it) rather than re-starting
+one and dropping everybody who joined in the lobby.
+
+**`Transport` + `CommandLink` are still mounted in `scenes/game_root.tscn`
+(#531), and a level may only SWAP the transport's script, never author a second
+pair** — the seam stays per-level because two worlds in one process need a
+transport each, and colliding sibling names mean `$Transport` picks whichever
+Godot renamed last, silently. The default is `LoopbackTransport` with the link
+`Mode.OFF`; the role comes from `GameSession.network` (`NetworkConfig`), which is
+per-machine and deliberately not on `RunConfig`.
 
 **One direction only, on purpose.** The host broadcasts confirmed commands; the
 client applies them through its own `CommandApplier` and is otherwise a frozen

@@ -82,13 +82,23 @@ func start_client(address: String, port: int) -> Error:
 	return OK
 
 
-## Tear the link down. Idempotent.
+## Tear the link down and hand the [SceneTree] back the peer it started with.
+## Idempotent.
+##
+## [b]It restores an [OfflineMultiplayerPeer]; it does not null the slot.[/b]
+## Godot installs one by default, and that is what makes
+## `multiplayer.get_unique_id()` answer `1` for a game with no network rather
+## than raising — `CommandLink._local_peer_id` calls it unguarded, by design, on
+## every single command. Nulling the slot leaves the whole process in a state it
+## never boots into, and the damage lands nowhere near here: in GUT it surfaced
+## as `Condition "multiplayer_peer.is_null()" is true` on ~30 unrelated tests
+## that merely ran after a link was closed.
 func stop() -> void:
 	if _peer != null:
 		_peer.close()
 		_peer = null
-	if multiplayer != null and multiplayer.multiplayer_peer != null:
-		multiplayer.multiplayer_peer = null
+	if multiplayer != null:
+		multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	_peers = PackedInt32Array()
 	role = NetworkTransport.Role.OFFLINE
 
@@ -114,8 +124,14 @@ func is_open() -> bool:
 
 ## This machine's own id on the link. [constant NetworkTransport.HOST_PEER_ID] on
 ## a host, whatever the server minted on a client, and `0` with no socket.
+## [OfflineMultiplayerPeer] answers `1` — the same id ENet gives a host — so it
+## is ruled out explicitly rather than by a null check. A peer that is not on a
+## link is `0`, which is the [member Participant.peer_id] a lobby-authored
+## offline seat carries, so an offline run stays a couch by construction.
 func local_peer_id() -> int:
 	if multiplayer == null or multiplayer.multiplayer_peer == null:
+		return 0
+	if multiplayer.multiplayer_peer is OfflineMultiplayerPeer:
 		return 0
 	return multiplayer.get_unique_id()
 

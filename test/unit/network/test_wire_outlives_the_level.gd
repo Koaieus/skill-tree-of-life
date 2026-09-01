@@ -28,12 +28,19 @@ extends GutTest
 const _EPHEMERAL := 0
 
 
+## [b][Wire] is the second process-global autoload this suite has to reset.[/b]
+## `test_link_mount.gd` already documents the hazard for `GameSession.network`
+## — an autoload outlives every test in GUT's single process, so a leftover
+## socket would make these assertions pass or fail on test ORDER. Any future
+## file that opens one owes the same two hooks.
 func before_each() -> void:
 	Wire.stop()
+	GameSession.network = null
 
 
 func after_each() -> void:
 	Wire.stop()
+	GameSession.network = null
 
 
 ## A mounted transport, in the tree, as a level would hold one.
@@ -127,6 +134,26 @@ func test_a_level_that_wants_the_other_role_is_refused_rather_than_stealing_the_
 	assert_true(Wire.is_open())
 
 
+## The ordering [GameRoot._open_link] silently depends on. It connects BOTH
+## `link_changed` -> `_greet_if_linked` (which ships the build-stamp hello) and
+## `peer_joined` -> `_on_peer_joined` (which stamps the roster seat and ships the
+## run setup). On a live link both fire inside one `start_host` call, and the
+## hello has to be first — `docs/domain/multiplayer-harness.md` notes the gate
+## must precede anything else crossing.
+func test_adopting_announces_before_it_replays_a_join() -> void:
+	Wire.start_host(_EPHEMERAL)
+	Wire._on_peer_connected(7)
+
+	var transport := _mounted()
+	var order: Array[String] = []
+	transport.link_changed.connect(func(_s: String): order.append("status"))
+	transport.peer_joined.connect(func(_id: int): order.append("join"))
+	transport.start_host(_EPHEMERAL)
+
+	assert_eq(order, ["status", "join"],
+			"the hello's trigger fires before the run setup's")
+
+
 # --- the seam still behaves like a seam -------------------------------------
 
 func test_a_wire_payload_surfaces_on_the_mounted_seam() -> void:
@@ -142,18 +169,25 @@ func test_a_wire_payload_surfaces_on_the_mounted_seam() -> void:
 	assert_eq(got[0].get("kind"), "hello")
 
 
-func test_a_freed_transport_stops_forwarding() -> void:
+## The unbind, asserted on the connection itself. [Wire] is an autoload that
+## outlives every level, so a facade that failed to detach would accumulate one
+## dead listener per level loaded — and because a stale connection surfaces as an
+## engine error rather than a failed assert, nothing weaker than this catches it.
+func test_a_freed_transport_detaches_from_the_wire() -> void:
 	Wire.start_host(_EPHEMERAL)
 	var transport := EnetTransport.new()
 	add_child(transport)
 	transport.start_host(_EPHEMERAL)
+	assert_eq(Wire.message_received.get_connections().size(), 1, "sanity: bound")
+
 	transport.free()
 	await get_tree().process_frame
 
-	# The assertion is that this does not fault on a freed listener — an
-	# unbind that never ran shows up as an error, not as a failed compare.
-	Wire.message_received.emit({"kind": "hello"})
-	assert_true(Wire.is_open(), "the wire is still healthy with its listener gone")
+	assert_eq(Wire.message_received.get_connections().size(), 0,
+			"a freed level leaves no listener behind on the singleton")
+	assert_eq(Wire.peer_joined.get_connections().size(), 0)
+	assert_eq(Wire.link_changed.get_connections().size(), 0)
+	assert_true(Wire.is_open(), "and the link itself is untouched")
 
 
 func test_stopping_through_the_seam_closes_the_underlying_socket() -> void:
@@ -166,3 +200,43 @@ func test_stopping_through_the_seam_closes_the_underlying_socket() -> void:
 	assert_false(Wire.is_open(), "stop() still means stop")
 	assert_eq(transport.role, NetworkTransport.Role.OFFLINE)
 	assert_eq(Wire.local_peer_id(), 0, "a closed link is nobody")
+
+
+# --- and the same thing through the real composition root -------------------
+
+## Acceptance 2, through the caller that matters. The tests above drive the
+## facade directly; this one goes through [method GameRoot._open_link], which
+## connects its handlers BEFORE calling `start_host` and is the only production
+## caller there is.
+##
+## [b]No peer is simulated here, on purpose.[/b] A peer in [Wire]'s book makes
+## `send` real, and a `_receive.rpc()` aimed at an id no ENet peer answers to is
+## an engine error rather than a test signal. Peer replay and its ordering are
+## pinned above, on the seam, where they can be observed without a socket.
+##
+## The socket-identity assert is the one that matters: [method Wire.start_host]
+## opens with a `stop()`, so a level that re-started rather than adopted would
+## hold a DIFFERENT [ENetMultiplayerPeer] — and on a real link, a client that had
+## already joined the lobby would have been dropped on the floor by the level it
+## was joining.
+func test_a_game_root_adopts_the_lobby_s_link_rather_than_reopening_it() -> void:
+	Wire.start_host(_EPHEMERAL)
+	var opened_by_the_lobby := Wire._peer
+	assert_not_null(opened_by_the_lobby, "sanity: there is a socket to adopt")
+
+	GameSession.network = NetworkConfig.host(_EPHEMERAL)
+	var root: GameRoot = preload("res://scenes/game_root.tscn").instantiate()
+	# The swap `level.tscn` and both harness scenes author in their `.tscn`, done
+	# here in code so this test does not depend on which level happens to ship it.
+	root.get_node("Transport").set_script(preload("res://network/enet_transport.gd"))
+	add_child_autofree(root)
+	await wait_physics_frames(6)
+
+	assert_true(root.transport is EnetTransport, "sanity: the swap took")
+	assert_eq(root.transport.role, NetworkTransport.Role.HOST,
+			"the level took the role off the live link")
+	assert_eq(root.command_link.mode, CommandLink.Mode.BROADCAST, "and it is the authority")
+	assert_true(Wire.is_open(), "the link the lobby opened is still up")
+	assert_eq(Wire._peer, opened_by_the_lobby,
+			"and it is the SAME socket — a re-start would have dropped every "
+			+ "peer that joined in the lobby")
