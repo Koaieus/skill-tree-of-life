@@ -27,11 +27,36 @@ extends Resource
 ## pick pure white would therefore silently spawn in the level default instead
 ## of what the player chose. `test_lobby_roster.gd` pins the absence.
 ##
+## [b]Owner call, 2026-09-02, superseding #639's stride:[/b] sixteen colours in
+## two authored tiers — eight canonical brights (index 0-7: Red, Blue, and six
+## more spread around the non-gold hue arc), then eight muted "second choice"
+## colours (index 8-15) sitting in the hue gaps between the brights, for a
+## roster that somehow outgrows tier one. [method default_for] just walks the
+## array (`colors[index % size]`) — the ordering itself is arranged so that
+## consecutive slots land on well-separated hues; #639's runtime
+## `index * stride` trick is retired rather than reapplied to a hand-curated
+## list. `test_lobby_roster.gd` still pins pairwise OKLab separation (dE ≥
+## 0.14, same bar #639 used) for a 3- and a 6-slot roster.
+##
 ## Values were derived OKLCH → sRGB with the house conversion (Björn Ottosson's
-## OKLab formulas, same script as the stat palette table): twenty hues spread
-## evenly over the non-gold arc, alternating `oklch(0.70 0.17 h)` and
-## `oklch(0.80 0.13 h)` so adjacent entries differ in lightness as well as hue.
-## Don't eyeball a new one — re-derive it.
+## OKLab formulas, same script as the stat palette table), gamut-checked per
+## hue rather than clamped, with lightness cycled across three values (0.62 /
+## 0.74 / 0.86) so hue alone never has to carry the whole separation. Don't
+## eyeball a new one — re-derive it.
+##
+## `dev_sandbox.tscn`'s pre-#616 hardcoded players — `Color(0.9, 0.2, 0.2)` Red
+## and `Color(0.25, 0.45, 0.95)` Blue — were the reference for where slots 0/1
+## should sit; kept here as a note in case a future fully-bespoke (non-OKLCH-
+## generated) palette wants to match them exactly rather than approximate them.
+##
+## Names, index-for-index with the shipped array (not a second data source —
+## just what to call an index when talking about one):
+## [codeblock]
+## 0 Red         4 Orange       8 Rust       12 Cobalt
+## 1 Blue        5 Chartreuse   9 Moss       13 Lavender
+## 2 Violet      6 Olive       10 Teal       14 Plum
+## 3 Magenta     7 Cyan        11 Steel      15 Rose
+## [/codeblock]
 
 ## Every colour a slot may choose, in picker order.
 @export var colors: Array[Color] = []
@@ -41,51 +66,14 @@ func size() -> int:
 	return colors.size()
 
 
-## Owner call 2026-08-27 (#639): walking the ramp at stride 1 seats adjacent
-## slots on adjacent hues — a 20-entry smooth ramp puts the first 3 slots
-## within 31 degrees of each other. Every stride co-prime with the palette
-## size beats stride 1 at every roster size 2-6; 17 is the minimax pick (see
-## the issue for the full dE table). Not a bare literal — [method effective_stride]
-## below guards it.
-const DEFAULT_STRIDE := 17
-
-
-## [constant DEFAULT_STRIDE] if it shares no factor with [param size] — which is
-## what keeps the stride cycling through every entry before repeating, the same
-## guarantee stride 1 already had — else `1`, degrading to the old round-robin
-## walk rather than silently colliding multiple slots onto the same few
-## colours. **This is a property of the pair, not of 17**: a palette that grows
-## to a size sharing a factor with 17 (34, for instance) must fall back too, or
-## the sequence collapses onto `gcd(17, size)` colours. Public so the
-## co-primality invariant is assertable directly against the shipped palette
-## rather than re-derived in a test.
-static func effective_stride(size: int) -> int:
-	if size <= 0 or gcd(DEFAULT_STRIDE, size) != 1:
-		return 1
-	return DEFAULT_STRIDE
-
-
-## Euclid's algorithm. Exposed alongside [method effective_stride] so the
-## co-primality guard it implements is testable as itself, not re-implemented
-## a second time in a test.
-static func gcd(a: int, b: int) -> int:
-	while b != 0:
-		var t := a % b
-		a = b
-		b = t
-	return a
-
-
 ## The default colour for the slot at [param index], wrapping if a roster ever
-## outgrows the palette. Max roster today is 6 (2 humans + 4 AI), so twenty
-## entries is headroom, not a coincidence. Strides through the palette by
-## [method effective_stride] rather than walking it one entry at a time — see
-## [constant DEFAULT_STRIDE].
+## outgrows the palette. Max roster today is 6 (2 humans + 4 AI); sixteen
+## entries is headroom, not a coincidence — the first eight are the whole
+## tier a roster ever actually draws from by default.
 func default_for(index: int) -> Color:
 	if colors.is_empty():
 		return Color.WHITE
-	var size := colors.size()
-	return colors[(index * effective_stride(size)) % size]
+	return colors[index % colors.size()]
 
 
 ## Does this palette offer [param color]? Compared exactly — every colour that

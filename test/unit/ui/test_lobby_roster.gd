@@ -103,9 +103,9 @@ const _WISDOM := preload("res://stats_system/defs/wisdom.tres")
 const _ROW_SCENE := preload("res://ui/frontmatter/panels/participant_row.tscn")
 
 
-func test_player_palette_offers_at_least_twenty_colours() -> void:
-	assert_gte(_PALETTE.size(), 20,
-			"#616 D5: ~20 colours, enough that a 6-slot roster never wraps")
+func test_player_palette_offers_sixteen_colours() -> void:
+	assert_eq(_PALETTE.size(), 16,
+			"#616/2026-09-02 restyle: 8 canonical brights + 8 secondary, still headroom over a 6-slot roster")
 
 
 func test_player_palette_excludes_pure_white() -> void:
@@ -158,7 +158,7 @@ func test_picking_a_colour_disables_it_in_another_slots_dropdown() -> void:
 			"#616 D6: a colour another slot holds is greyed out here")
 
 
-# --- #639: default colours stride the palette instead of walking it -------
+# --- 2026-09-02: default colours walk a hand-curated array, no runtime stride ---
 
 ## OKLab dE (Euclidean distance in OKLab) — the same Björn Ottosson formulas
 ## the palette's own docstring cites, and the same yardstick the issue's dE
@@ -211,38 +211,10 @@ func test_a_six_slot_rosters_default_colours_are_pairwise_separated() -> void:
 	_assert_pairwise_separated(swatches, 0.14, "6-slot roster")
 
 
-func test_the_shipped_stride_is_coprime_with_the_shipped_palette_size() -> void:
-	assert_eq(PlayerPalette.gcd(PlayerPalette.DEFAULT_STRIDE, _PALETTE.size()), 1,
-			"#639: this is what lets the stride cycle every colour before repeating")
-	assert_eq(PlayerPalette.effective_stride(_PALETTE.size()), PlayerPalette.DEFAULT_STRIDE)
-
-
-func test_a_non_coprime_palette_size_falls_back_to_the_old_walk() -> void:
-	# 34 = 2 * 17 shares a factor with the stride — the exact trap the issue
-	# calls out: gcd(17, 34) is 17, not 1.
-	assert_eq(PlayerPalette.gcd(PlayerPalette.DEFAULT_STRIDE, 34), 17,
-			"premise: 34 is NOT coprime with the shipped stride")
-	assert_eq(PlayerPalette.effective_stride(34), 1,
-			"falls back to the old walk rather than collapsing onto gcd(17,34)=17 colours")
-
-	var oversized := PlayerPalette.new()
-	oversized.colors = []
-	for i in 34:
-		oversized.colors.append(Color(float(i) / 34.0, 0.5, 0.5))
-
-	var seen: Array[Color] = []
-	for i in 34:
-		var c := oversized.default_for(i)
-		assert_true(oversized.colors.has(c), "still a real palette entry, not a crash")
-		assert_false(seen.has(c),
-				"stride-1 fallback: no repeat before size() picks, same as today")
-		seen.append(c)
-
-
 func test_default_for_still_wraps_past_the_palette_size() -> void:
 	for i in _PALETTE.size():
 		assert_eq(_PALETTE.default_for(i), _PALETTE.default_for(i + _PALETTE.size()),
-				"#639: the wrap contract holds under the strided walk too")
+				"the wrap contract holds under the plain array walk too")
 
 
 func test_a_pick_moves_the_colour_and_frees_the_old_one() -> void:
