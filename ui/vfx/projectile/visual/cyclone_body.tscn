@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/bolt_streak.tscn" id="1_base"]
+
+[node name="CycloneBody" instance=ExtResource("1_base")]
+head_size = 20.0
+arc_weight_influence = 1.0

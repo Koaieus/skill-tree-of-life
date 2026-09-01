@@ -58,6 +58,20 @@ signal finished
 		tint = value
 		_push_tint()
 
+## How much of the wave the arc this projectile draws is carrying (#708),
+## stamped by the coordinator right after `launch` exactly as [member tint] is —
+## and forwarded down for exactly the same reason: this wrapper sits BETWEEN the
+## projectile and the body, so a stamp that stopped here would be invisible in
+## the composed case every spell uses.
+##
+## Body only, never the arrival companions: a weak offshoot must still punctuate
+## at full strength, and dimming an [ImpactRing] by its arc's share would undo
+## the crit grammar #709 just gave this spell.
+@export var arc_weight: float = 1.0:
+	set(value):
+		arc_weight = value
+		_push_arc_weight()
+
 var _body: Node
 var _pending: int = 0
 var _arrival_handled: bool = false
@@ -87,6 +101,7 @@ func _ready() -> void:
 	# The setter may have run before `_ready` (an authored value, or a stamp
 	# that beat instantiation), when there was no body to push onto yet.
 	_push_tint()
+	_push_arc_weight()
 
 
 func _on_launch() -> void:
@@ -133,6 +148,12 @@ func _on_arrival() -> void:
 func _push_tint() -> void:
 	if _body != null and "tint" in _body:
 		_body.set("tint", tint)
+
+
+func _push_arc_weight() -> void:
+	if _body != null and "arc_weight" in _body:
+		_body.set("arc_weight", arc_weight)
+
 
 
 func _forward(node: Node, method: StringName, args: Array) -> void:

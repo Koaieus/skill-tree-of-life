@@ -36,6 +36,17 @@ extends ProjectilePath
 ## Below 0 the wave GROWS instead, which reads as a signal building.
 @export_range(-1.0, 1.0, 0.05) var decay: float = 0.35
 
+## Which side of the segment the bow rides: +1 or -1. Multiplies the
+## perpendicular, so it flips the wave WITHOUT re-signing [member amplitude] —
+## which keeps "how wide" and "which side" separate knobs, and keeps the
+## authored value in a `.tscn` honest about what is drawn (a negative amplitude
+## held only at runtime is invisible to whoever opens the scene).
+##
+## Cyclone (#708) sets it from [member PropagationEvent.turn_sign] so the
+## picture turns the way [member CycloneStep.clockwise] actually says. Every
+## other spell on this path leaves it at 1.0 and is untouched by construction.
+@export_range(-1.0, 1.0, 2.0) var handedness: float = 1.0
+
 
 func evaluate(t: float, origin: Vector2, target: Vector2) -> Vector2:
 	t = eased(t)
@@ -47,7 +58,7 @@ func evaluate(t: float, origin: Vector2, target: Vector2) -> Vector2:
 		# normalising a zero vector.
 		return base
 	var perpendicular := Vector2(-along.y, along.x).normalized()
-	return base + perpendicular * amplitude * _envelope(t) * sin(TAU * frequency * t)
+	return base + perpendicular * handedness * amplitude * _envelope(t) * sin(TAU * frequency * t)
 
 
 ## Amplitude scale at [param t]. Pinned to 0 at BOTH ends regardless of

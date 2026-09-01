@@ -110,6 +110,10 @@ class Beat extends RefCounted:
 	# like 1~2 extra inner classes away from could clean this all up a bit typed and well
 
 var _caster_tint: Color = Color.WHITE
+## Which way the cast currently playing turns, and the signed paths built for
+## it. Both are per-cast state resolved in [method play] — see #708.
+var _turn_sign: float = 0.0
+var _handed_paths: Dictionary = {}  ## Verb -> ProjectilePath
 
 
 func play(payload: Variant) -> void:
@@ -128,6 +132,11 @@ func play(payload: Variant) -> void:
 	# at all — so a per-event read would drop identity on precisely the events
 	# that already carry the least information.
 	_caster_tint = _resolve_caster_tint(outcome)
+	# Once per cast, not per bolt: handedness is constant for a whole cast, so
+	# the signed path resources below are built at most once per verb and no
+	# projectile ever duplicates one (#708).
+	_turn_sign = _resolve_turn_sign(outcome)
+	_handed_paths.clear()
 	var entry_of := _entries_by_event(schedule)
 	var waves := _group_by_beat(outcome.timeline)
 	var beats: Array = waves.keys()
@@ -229,8 +238,9 @@ func _play_projectile(ev: PropagationEvent, entry_of: Dictionary, flight: float,
 		pending: Array[int]) -> void:
 	if ev.target == null:
 		return
-	for origin in _origins_for(ev):
-		_spawn_projectile(ev, origin, entry_of.get(ev, null), flight, pending)
+	for i in _arc_indices_for(ev):
+		var origin: SkillNode = ev.predecessors[i] if i >= 0 else ev.origin
+		_spawn_projectile(ev, origin, _share_at(ev, i), entry_of.get(ev, null), flight, pending)
 
 
 ## Event -> its [ScheduleEntry]. Identity-keyed, because two landings on one
@@ -247,26 +257,78 @@ func _entries_by_event(schedule: OutcomeSchedule) -> Dictionary:
 ## One inbound bolt per converging predecessor (#542) — a fork-then-reconverge
 ## lands one impact ([code]docs/domain/attack-timeline.md[/code] / D2 on #542)
 ## but should draw every branch that fed it, not just [member
-## PropagationEvent.origin]. Falls back to the single `origin` for the
-## overwhelming majority of events (JUMP, SELF_LOOP, a plain unconverged EDGE),
-## which all carry ≤1 predecessor and would draw the same single bolt either way.
-func _origins_for(ev: PropagationEvent) -> Array[SkillNode]:
+## PropagationEvent.origin].
+##
+## Returns INDICES into [member PropagationEvent.predecessors] rather than the
+## nodes themselves, because the index is what keeps each bolt paired with its
+## own [member PropagationEvent.incident_shares] entry (#708) — resolving to
+## nodes first and looking the weight up afterwards is exactly how the two
+## arrays would drift.
+##
+## [code]-1[/code] means "no predecessor to index": the single-`origin` fallback
+## the overwhelming majority of events take (JUMP, SELF_LOOP, a plain
+## unconverged EDGE), which all carry ≤1 predecessor and draw one bolt either way.
+func _arc_indices_for(ev: PropagationEvent) -> PackedInt32Array:
+	var out := PackedInt32Array()
 	if ev.predecessors.size() > 1:
-		var origins: Array[SkillNode] = []
-		for pred in ev.predecessors:
-			if pred != null:
-				origins.append(pred)
-		if origins.size() > 1:
-			return origins
+		for i in ev.predecessors.size():
+			if ev.predecessors[i] != null:
+				out.append(i)
+		if out.size() > 1:
+			return out
+		out.clear()
 	if ev.origin != null:
-		return [ev.origin]
-	return []
+		out.append(-1)
+	return out
 
 
-func _spawn_projectile(ev: PropagationEvent, origin: SkillNode,
+## The share the bolt at [param index] is carrying, or 1.0 for "undivided".
+##
+## The fallback is deliberately NOT [code]incident_shares[0][/code]. A merged
+## event whose predecessors filtered down to one non-null entry still carries
+## several shares, and index 0 need not be the survivor's — reading it anyway
+## would pair a bolt with another arc's weight, which is worse than not weighting
+## it at all because it is wrong rather than merely absent.
+func _share_at(ev: PropagationEvent, index: int) -> float:
+	if index >= 0 and index < ev.incident_shares.size():
+		return ev.incident_shares[index]
+	if ev.incident_shares.size() == 1:
+		return ev.incident_shares[0]
+	return 1.0
+
+
+## The cast's handedness, read off the first landing that reports one (#708).
+## 0.0 = no handedness, which is every spell but Cyclone and also Cyclone's own
+## seed, since a JUMP is not a turn.
+func _resolve_turn_sign(outcome: AttackOutcome) -> float:
+	for ev in outcome.timeline:
+		if not is_zero_approx(ev.turn_sign):
+			return ev.turn_sign
+	return 0.0
+
+
+## The authored path, bowed to the side the storm actually turns.
+##
+## The authored amplitude expresses the +1 look, so a positive or absent sign
+## hands back the shared resource untouched and nothing allocates. A negative
+## one needs a [WavePath] whose [member WavePath.handedness] is flipped — and
+## because [ProjectilePath] resources are SHARED and live, that has to be a
+## duplicate rather than a write. Cached per verb and cleared per cast, so a
+## whole hex wheel costs at most two duplicates, never one per bolt.
+func _handed_path(verb: PropagationEvent.Verb, path: ProjectilePath) -> ProjectilePath:
+	if _turn_sign >= 0.0 or path == null or not (path is WavePath):
+		return path
+	if not _handed_paths.has(verb):
+		var flipped: WavePath = (path as WavePath).duplicate()
+		flipped.handedness = -absf(flipped.handedness)
+		_handed_paths[verb] = flipped
+	return _handed_paths[verb]
+
+
+func _spawn_projectile(ev: PropagationEvent, origin: SkillNode, share: float,
 		entry: ScheduleEntry, flight: float, pending: Array[int]) -> void:
 	var proj := Projectile.new()
-	proj.path = _resolved_path(ev.verb)
+	proj.path = _handed_path(ev.verb, _resolved_path(ev.verb))
 	proj.visual_scene = _resolved_visual(ev.verb)
 	proj.flight_time = flight
 	proj.face_velocity = face_velocity
@@ -288,6 +350,10 @@ func _spawn_projectile(ev: PropagationEvent, origin: SkillNode,
 		var v: Node = proj.get_child(0)
 		if "tint" in v:
 			v.set("tint", _caster_tint)
+		# Same hook, same guard: a visual that is a bare BoltBody, or a spell
+		# that never opted into weighting, simply ignores it.
+		if "arc_weight" in v:
+			v.set("arc_weight", share)
 
 
 ## The caster's identity colour for the cast currently playing, resolved in

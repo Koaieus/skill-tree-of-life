@@ -58,11 +58,17 @@ func test_both_verb_slots_are_composed_not_a_bare_body() -> void:
 		"the visual must be the shared ComposedProjectileVisual wrapper, not a bespoke scene")
 
 
-func test_the_body_is_still_the_streak_the_spell_already_had() -> void:
-	# #709 is a composition fix, not a re-look: the flying body is unchanged,
-	# the ring is what was missing.
+func test_the_body_is_a_streak_config_that_opts_into_arc_weighting() -> void:
+	# #709 left the shared bolt_streak in place, a pure composition fix. #708
+	# then needed a config of its own to turn weighting on — the kit default is
+	# OFF precisely so the eight non-splitting spells stay untouched.
 	var visual := _spawn_visual()
-	assert_eq(visual.body_scene, BOLT_STREAK, "the streak body carries over untouched")
+	var body: BoltBody = visual.body_scene.instantiate()
+	add_child_autofree(body)
+	assert_almost_eq(body.arc_weight_influence, 1.0, 0.001,
+		"Cyclone draws its arcs in direct proportion to the share they carry")
+	assert_gt(body.head_size, 14.0,
+		"a bigger base head, so a 0.20 offshoot is still visible once scaled down")
 
 
 func test_arrival_spawns_the_shared_impact_ring() -> void:
@@ -158,3 +164,202 @@ func test_self_loop_slot_is_deliberately_unfilled() -> void:
 	# Authoring a look for a verb the spell cannot produce would be dead weight.
 	var coord := _spawn_coordinator()
 	assert_null(coord.self_loop_visual, "Cyclone emits no SELF_LOOP; the slot stays empty on purpose")
+
+
+# -- #708: drawing the curl ------------------------------------------------
+
+const _CYCLONE_DEF_708 := preload("res://attack/spell/defs/cyclone.tres")
+
+
+func _event(preds: Array, shares: Array, turn: float = 1.0) -> PropagationEvent:
+	var ev := PropagationEvent.new()
+	var typed: Array[SkillNode] = []
+	for p in preds:
+		typed.append(p)
+	ev.predecessors = typed
+	ev.incident_shares = PackedFloat32Array(shares)
+	ev.turn_sign = turn
+	ev.origin = typed[0] if not typed.is_empty() else null
+	return ev
+
+
+func _node(pos: Vector2 = Vector2.ZERO) -> SkillNode:
+	var n := SkillNode.new()
+	n.position = pos
+	autofree(n)
+	return n
+
+
+func test_arc_weight_reaches_the_body_through_the_wrapper() -> void:
+	# The same failure mode as the caster tint before #671: the wrapper sits
+	# BETWEEN the projectile and the body, so a stamp that stops at the wrapper
+	# is invisible in exactly the composed case every spell uses.
+	var visual := _spawn_visual()
+	visual.arc_weight = 0.2
+	var body: BoltBody = visual.get_child(0)
+	assert_almost_eq(body.arc_weight, 0.2, 0.001, "the share must reach the body")
+
+
+func test_arc_weight_stamped_before_the_body_exists_is_re_pushed() -> void:
+	# The stamp can legitimately land before `_ready` instantiates the body —
+	# which is why `tint` carries a setter AND a re-push, and why this one must.
+	var visual: ComposedProjectileVisual = CYCLONE_VISUAL.instantiate()
+	visual.arc_weight = 0.35
+	add_child_autofree(visual)
+	var body: BoltBody = visual.get_child(0)
+	assert_almost_eq(body.arc_weight, 0.35, 0.001,
+		"a stamp that beat instantiation must still land on the body")
+
+
+func test_arc_weight_does_not_dim_the_impact_ring() -> void:
+	# Rank deliberately does NOT ride the wrapper's `modulate`: it is a Node2D,
+	# so modulate cascades, and a rank-3 offshoot would dim the very crit ring
+	# #709 exists to make visible.
+	var visual := _spawn_visual()
+	visual.arc_weight = 0.2
+	visual._on_launch()
+	visual._on_crit(1)
+	visual._on_arrival()
+	assert_eq(visual.modulate, Color.WHITE, "the wrapper must not carry the weight as modulate")
+	assert_eq(_ring_of(visual).modulate, Color.WHITE, "punctuation lands at full strength")
+
+
+func test_a_spine_draws_more_than_twice_the_weakest_offshoot() -> void:
+	# The #704 complaint, as pixels: 0.70 and 0.20 must not be the same picture.
+	var body: BoltBody = _spawn_visual().body_scene.instantiate()
+	add_child_autofree(body)
+	body.arc_weight = 0.70
+	var spine := body.arc_scale()
+	body.arc_weight = 0.20
+	var offshoot := body.arc_scale()
+	assert_gt(spine, offshoot * 2.0,
+		"the spine must read more than twice the offshoot (%.2f vs %.2f)" % [spine, offshoot])
+
+
+func test_a_spell_that_never_splits_is_untouched_by_the_new_channel() -> void:
+	# The kit default is influence 0, so the other eight spells provably take
+	# the pre-#708 path whatever weight is stamped on them.
+	var body: BoltBody = preload("res://ui/vfx/projectile/visual/bolt_streak.tscn").instantiate()
+	add_child_autofree(body)
+	assert_almost_eq(body.arc_weight_influence, 0.0, 0.001, "weighting is opt-in")
+	body.arc_weight = 0.2
+	assert_almost_eq(body.arc_scale(), 1.0, 0.001, "an opted-out body ignores the stamp entirely")
+
+
+# -- pairing: the one place alignment can silently lie ---------------------
+
+
+func test_each_bolt_of_a_merge_is_paired_with_its_own_arc_s_share() -> void:
+	var coord := _spawn_coordinator()
+	var a := _node(Vector2(-50, 0))
+	var b := _node(Vector2(50, 0))
+	var ev := _event([a, b], [0.70, 0.20])
+	var indices := coord._arc_indices_for(ev)
+	assert_eq(indices.size(), 2, "a two-arc merge draws two bolts")
+	assert_almost_eq(coord._share_at(ev, indices[0]), 0.70, 0.001)
+	assert_almost_eq(coord._share_at(ev, indices[1]), 0.20, 0.001)
+
+
+func test_a_merge_that_filters_down_to_one_arc_refuses_to_guess() -> void:
+	# A merged event whose predecessors filter to one non-null entry still
+	# carries several shares, and index 0 need not be the survivor's. Reading it
+	# anyway would pair a bolt with ANOTHER arc's weight — worse than not
+	# weighting it, because it is wrong rather than merely absent.
+	var coord := _spawn_coordinator()
+	var ev := _event([_node(), null], [0.70, 0.20])
+	var indices := coord._arc_indices_for(ev)
+	assert_eq(indices.size(), 1, "one drawable arc falls back to the single origin")
+	assert_almost_eq(coord._share_at(ev, indices[0]), 1.0, 0.001,
+		"an unpairable bolt draws undivided rather than borrowing a neighbour's weight")
+
+
+func test_an_ordinary_single_arc_landing_still_carries_its_own_share() -> void:
+	var coord := _spawn_coordinator()
+	var ev := _event([_node()], [0.40])
+	var indices := coord._arc_indices_for(ev)
+	assert_eq(indices.size(), 1)
+	assert_almost_eq(coord._share_at(ev, indices[0]), 0.40, 0.001,
+		"the overwhelmingly common case must be weighted, not defaulted")
+
+
+# -- handedness ------------------------------------------------------------
+
+
+func test_a_clockwise_cast_leaves_the_authored_path_untouched() -> void:
+	var coord := _spawn_coordinator()
+	coord._turn_sign = 1.0
+	var authored: ProjectilePath = coord.edge_path
+	assert_same(coord._handed_path(PropagationEvent.Verb.EDGE, authored), authored,
+		"the authored amplitude already expresses the +1 look; nothing should allocate")
+
+
+func test_a_counter_clockwise_cast_flips_the_bow() -> void:
+	var coord := _spawn_coordinator()
+	coord._turn_sign = -1.0
+	var authored: WavePath = coord.edge_path
+	var flipped: WavePath = coord._handed_path(PropagationEvent.Verb.EDGE, authored)
+	assert_lt(flipped.handedness, 0.0, "flipping CycloneStep.clockwise must flip the picture")
+	assert_almost_eq(flipped.amplitude, authored.amplitude, 0.001,
+		"the width knob is untouched — handedness is its own field, not a sign on amplitude")
+
+
+func test_flipping_never_mutates_the_shared_path_resource() -> void:
+	# ProjectilePath resources are shared and live. Writing the sign onto one
+	# would flip it for every projectile of every spell that references it.
+	var coord := _spawn_coordinator()
+	var authored: WavePath = coord.edge_path
+	coord._turn_sign = -1.0
+	coord._handed_path(PropagationEvent.Verb.EDGE, authored)
+	assert_almost_eq(authored.handedness, 1.0, 0.001, "the shared resource keeps its authored sign")
+
+
+func test_the_flipped_path_is_built_once_per_cast_never_once_per_bolt() -> void:
+	# Handedness is constant for a whole cast, so a 60-bolt hex wheel must cost
+	# ONE duplicate. A per-bolt duplicate is the silent regression here.
+	var coord := _spawn_coordinator()
+	coord._turn_sign = -1.0
+	var first: ProjectilePath = coord._handed_path(PropagationEvent.Verb.EDGE, coord.edge_path)
+	for _i in 60:
+		assert_same(coord._handed_path(PropagationEvent.Verb.EDGE, coord.edge_path), first,
+			"every bolt of the cast shares one flipped path")
+
+
+func test_the_cast_s_handedness_is_read_off_the_timeline() -> void:
+	var coord := _spawn_coordinator()
+	var outcome := AttackOutcome.new()
+	# The seed reports 0 — a JUMP is not a turn — so the resolve must look past
+	# it rather than concluding the whole cast is unhanded.
+	outcome.timeline.append(_event([_node()], [1.0], 0.0))
+	outcome.timeline.append(_event([_node()], [0.70], -1.0))
+	assert_almost_eq(coord._resolve_turn_sign(outcome), -1.0, 0.001,
+		"the seed's 0 must not mask the cast's real handedness")
+
+
+func test_a_rotation_blind_spell_reports_no_handedness() -> void:
+	var coord := _spawn_coordinator()
+	var outcome := AttackOutcome.new()
+	outcome.timeline.append(_event([_node()], [1.0], 0.0))
+	assert_almost_eq(coord._resolve_turn_sign(outcome), 0.0, 0.001)
+	assert_same(coord._handed_path(PropagationEvent.Verb.EDGE, coord.edge_path), coord.edge_path,
+		"a spell with no handedness never allocates a flipped path")
+
+
+func test_a_flipped_path_mirrors_the_bow_across_the_segment() -> void:
+	# The behavioural half: the two paths must land on opposite sides of the
+	# straight line, and both must still hit the endpoints exactly.
+	var straight := WavePath.new()
+	straight.amplitude = 26.0
+	straight.frequency = 0.5
+	straight.decay = 0.0
+	var mirrored: WavePath = straight.duplicate()
+	mirrored.handedness = -1.0
+	var origin := Vector2.ZERO
+	var target := Vector2(100, 0)
+	var a := straight.evaluate(0.5, origin, target)
+	var b := mirrored.evaluate(0.5, origin, target)
+	assert_almost_eq(a.y, -b.y, 0.001, "the bow mirrors across the segment")
+	assert_ne(a.y, 0.0, "and it actually bows")
+	assert_almost_eq(mirrored.evaluate(0.0, origin, target).distance_to(origin), 0.0, 0.001,
+		"a flipped path still starts exactly at the origin")
+	assert_almost_eq(mirrored.evaluate(1.0, origin, target).distance_to(target), 0.0, 0.001,
+		"and still lands exactly on the target")

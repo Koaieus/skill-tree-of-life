@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://ui/vfx/projectile/visual/composed_projectile_visual.gd" id="1_script"]
-[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/bolt_streak.tscn" id="2_body"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/cyclone_body.tscn" id="2_body"]
 [ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/impact_ring.tscn" id="3_ring"]
 
 [node name="CycloneVisual" type="Node2D"]

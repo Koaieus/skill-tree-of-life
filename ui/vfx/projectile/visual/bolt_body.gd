@@ -122,6 +122,32 @@ const _TEXTURE_SIZE: float = 64.0
 ## dissipating after the head lands.
 @export_range(0.0, 2.0, 0.01) var fade_seconds: float = 0.28
 
+## How much of the wave this ONE arc is carrying, stamped per projectile by the
+## coordinator exactly as [member tint] is (#708). 1.0 = undivided, which is
+## what every spell that does not split its damage across a fan means.
+##
+## Per-ARC and not per-landing, which is why it cannot ride `_on_context`: a
+## [ScheduleEntry] is one landing moment, and a convergence is one entry holding
+## several arcs.
+@export_range(0.0, 2.0, 0.01) var arc_weight: float = 1.0:
+	set(value):
+		arc_weight = maxf(0.0, value)
+		_apply_look()
+
+## How far [member arc_weight] moves the body's size. 0 = ignored entirely,
+## which is the default and why this is strictly additive: the eight spells that
+## do not split their damage are untouched. 1 = direct proportion, so a rank-3
+## offshoot carrying 0.20 draws at a fifth of the spine.
+##
+## Direct proportion is the honest setting, because "bolt size means current
+## damage" is already learned vocabulary from #663 D3's Lightning/Leafblower
+## teaching pair — a splitting spell is saying the same sentence about the same
+## quantity, one hop earlier.
+@export_range(0.0, 1.0, 0.05) var arc_weight_influence: float = 0.0:
+	set(value):
+		arc_weight_influence = clampf(value, 0.0, 1.0)
+		_apply_look()
+
 @onready var _head: Sprite2D = %Head
 @onready var _trail_root: Node2D = %Trail
 
@@ -258,7 +284,7 @@ func _apply_look(progress_hint: float = -1.0) -> void:
 	col.a = base.a * clampf(_alpha, 0.0, 1.0)
 	modulate = col
 
-	var diameter: float = head_size * ramp * _crit_scale
+	var diameter: float = head_size * ramp * _crit_scale * arc_scale()
 	var s: float = diameter / _TEXTURE_SIZE
 	# Squash-and-stretch along local +X (the [Projectile] rotates us so +X is
 	# forward when `face_velocity` is on). Volume-preserving: whatever the head
@@ -290,3 +316,9 @@ func _place_segments() -> void:
 		var back: int = (i + 1) * trail_stride
 		var idx: int = maxi(0, _history.size() - 1 - back)
 		_segments[i].global_position = _history[idx]
+
+
+## The size factor [member arc_weight] contributes — 1.0 whenever the spell has
+## opted out, so the eight non-splitting spells provably take the old path.
+func arc_scale() -> float:
+	return lerpf(1.0, arc_weight, arc_weight_influence)

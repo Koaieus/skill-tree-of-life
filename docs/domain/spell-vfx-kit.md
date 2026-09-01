@@ -101,7 +101,55 @@ ring at `Emissive.ALERT`; tier 2+ = a second concentric ring plus a
 **caster's** tint, stamped by the coordinator after `proj.launch()` (the same
 stamp `ArrowVolleyCoordinator` already makes on `LightArrow`).
 
-### Two things that will silently cost 60x
+#### Per-arc weight: `BoltBody.arc_weight` (#708)
+
+A spell that **splits its damage across a fan** needs each drawn bolt to say how
+much it is carrying. Cyclone's rank-1 arc takes 0.70 of the incoming damage and
+its rank-3 offshoot 0.20, and before #708 they were the same picture.
+
+The value rides the **per-projectile stamp**, next to `tint`, and it has to:
+`_on_context(entry)` is the surface every visual reads, but a `ScheduleEntry` is
+**one landing moment**, and a convergence is one entry holding several arcs. It
+structurally cannot carry a per-arc number.
+
+- `MagicBounceCoordinator` stamps `arc_weight` on `proj.get_child(0)` right after
+  `launch()`, under the same `in` guard `tint` uses, from
+  `PropagationEvent.incident_shares[i]` — where `i` is the arc's index, which is
+  why `_arc_indices_for` returns indices rather than nodes. Resolving to nodes
+  first and looking the weight up afterwards is exactly how the two arrays drift.
+- `ComposedProjectileVisual` forwards it with the **setter + `_ready` re-push**
+  pair `tint` has, because the stamp can land before the body exists. Body only,
+  never the arrival companions: a weak offshoot must still punctuate at full
+  strength, and dimming an `ImpactRing` by its share would undo the crit grammar.
+- **`arc_weight_influence` defaults to 0**, so the channel is opt-in and the eight
+  spells that do not split are untouched by construction. Cyclone's own
+  `cyclone_body.tscn` sets it to 1 (direct proportion) and raises `head_size`, so
+  a 0.20 offshoot is scaled down and still visible.
+
+Direct proportion rather than a softened curve, because *"bolt size means current
+damage"* is already learned vocabulary from #663 D3's Lightning/Leafblower
+teaching pair. A splitting spell is saying the same sentence about the same
+quantity, one hop earlier.
+
+**Never put per-arc weight on the wrapper's `modulate`.** `ComposedProjectileVisual`
+is a `Node2D`, so `modulate` cascades to the `ImpactRing` too.
+
+### `WavePath.handedness` — which side the bow rides (#708)
+
+`amplitude` is *how wide*; `handedness` (+1/-1) multiplies the perpendicular and
+is *which side*. Two knobs rather than a signed amplitude, because a negative
+amplitude held only at runtime is invisible to whoever opens the `.tscn` — and
+widening the amplitude range would re-label the knob for Reverberator and
+Resonator, which share the class and leave `handedness` at 1.0.
+
+The coordinator resolves the cast's `turn_sign` **once per cast** (in `play()`,
+beside the caster tint) and caches one flipped `duplicate()` **per verb**, cleared
+per cast. Paths are shared live resources, so the sign can never be written onto
+the authored one — and a whole hex wheel costs at most two duplicates, never one
+per bolt. A `+1` or absent sign hands back the shared resource and allocates
+nothing.
+
+## Two things that will silently cost 60x
 
 1. **Never a per-instance `ShaderMaterial`, and never animate a per-instance
    shader uniform.** Batching breaks on a different texture *or* a different
