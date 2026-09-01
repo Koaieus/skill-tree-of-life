@@ -130,3 +130,50 @@ are reaching into, or — better — give the sub-scene a real slot and instance
 into it from a scene that owns the slot. The second is the shape the rest of
 this doc argues for; the first is the one-line fix when the slot already exists
 and the reach is honest.
+
+## An instance that re-anchors must author its own `anchors_preset` (2026-09-01)
+
+Sibling of the rule above, same signature — correct from source, wrong only in
+an exported build — but a different mechanism, so `lint-scene-instance-depth`
+was clean while the bug shipped.
+
+Exporting re-saves every scene as binary, and that re-save writes the editor
+helper `anchors_preset` onto each node **whether or not the text scene had
+one**. Its setter assigns all four anchors. What survives that is only the
+subset of `anchor_*` values the instance actually stores — and an instance
+stores only what DIFFERS from its base scene's root, so an override that
+happens to *match* the base is dropped as redundant and nothing restores it.
+
+`title_band.tscn` re-anchored two `banner.tscn` instances to (0, 0.5, 1, 0.5)
+and authored no preset. The export synthesized `0` (`PRESET_TOP_LEFT`), which
+zeroed all four; `anchor_top`/`anchor_bottom` came back because 0.5 differs
+from `banner.tscn`'s own root, while `anchor_right = 1.0` — identical to that
+root — had already been dropped. The band loaded with correct height and
+**zero width**: "YOUR TURN" slid around x=0, roughly 80% off the left edge,
+and its backdrop (anchored 0..1 *inside* the band) had no width to draw, so it
+read as missing entirely.
+
+Established by reading the exported `PackedScene`'s own `SceneState` at runtime
+from the shipped build:
+
+- the exported scene lists `anchors_preset = 0` on a node whose `.tscn` never
+  contained the property, and lists **no** `anchor_left` / `anchor_right`;
+- a `ResourceSaver.save()` → reload round-trip in-editor **keeps** all four
+  anchors, so this is the export conversion, not binary serialisation — the
+  same split as #711;
+- the parent (`TitleBand`, a plain `type=` node) was a healthy 1440x960
+  throughout, because its anchors are stored against the CLASS default and so
+  nothing is dropped as redundant;
+- `callout_band.tscn` — same layer, same shape, plain children — is unaffected
+  for that reason. **Only instances are exposed.**
+
+`mise run lint-instanced-anchors` (wired into `mise run check`) fails on an
+instanced node that sets any `anchor_*` without an `anchors_preset` line.
+
+**How to apply.** Author the preset that matches the intent — `anchors_preset =
+14` is `HCENTER_WIDE`, i.e. exactly left 0 / right 1 / top 0.5 / bottom 0.5.
+A preset the author chose is written back unchanged and applied harmlessly. A
+widget with a geometric contract of its own can also re-assert it in `_ready()`
+(`Banner._assert_full_width()`), which is belt-and-braces rather than the fix:
+prefer the authored preset, since the code guard only covers the sides that
+one widget happens to know about.

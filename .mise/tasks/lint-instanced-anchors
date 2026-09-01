@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+#MISE description="Fail on an instanced Control that overrides anchors without authoring `anchors_preset` — the export synthesizes a wrong one and zeroes them: `mise run lint-instanced-anchors [-- --json]`"
+"""
+A `.tscn` that instances a Control scene and re-anchors it must author
+`anchors_preset` alongside the `anchor_*` lines. Omitting it loads correctly
+from source and breaks in an export, and in nothing else.
+
+Exporting re-saves every scene as binary, and that re-save writes the editor
+helper `anchors_preset` onto each node whether or not the text scene had one.
+Its setter assigns all four anchors. So the exported node applies a preset the
+author never chose, and what survives afterwards is only the subset of anchors
+the instance actually STORES — and an instance stores only the values that
+DIFFER from its base scene's root. An override that happens to match the base
+is dropped as redundant, so nothing restores it.
+
+That is how the "YOUR TURN" banner shipped 0px wide (2026-09-01):
+`title_band.tscn` re-anchored two `banner.tscn` instances to
+(0, 0.5, 1, 0.5) with no `anchors_preset`. The export synthesized `0`
+(PRESET_TOP_LEFT), which zeroed all four; `anchor_top`/`anchor_bottom` (0.5)
+came back because they differ from `banner.tscn`'s own root, while
+`anchor_right = 1.0` — identical to that root — had been dropped. The band
+loaded with correct height and zero width, so the title slid around x=0 with
+its backdrop collapsed to nothing. Every source run, sandbox and menu route
+alike, was correct throughout. Verified by reading the exported
+`PackedScene`'s own `SceneState` at runtime, which lists `anchors_preset = 0`
+on a node whose text scene never contained the property.
+
+Non-instanced (`type=`-declared) nodes are NOT flagged: their anchors are
+stored against the CLASS default, so nothing is dropped as redundant and a
+synthesized preset is overwritten by the stored values. Only instances are
+exposed, which is why `callout_band.tscn` — same layer, same shape, plain
+children — was unaffected.
+
+The fix is to author the preset that matches the intent (`anchors_preset = 14`
+is HCENTER_WIDE, i.e. exactly left 0 / right 1 / top 0.5 / bottom 0.5). A
+preset the author chose is written back unchanged and applied harmlessly.
+
+Editor-only trees are exempt for the same reason as
+`lint-scene-instance-depth`: the export presets strip them, so the shape never
+reaches a build.
+"""
+
+from __future__ import annotations
+
+import fnmatch
+import json
+import os
+import re
+import sys
+
+ROOT = os.environ.get("MISE_PROJECT_ROOT") or os.getcwd()
+
+EXEMPT = (
+    "addons/*",
+    "test/*",
+    "tools/*",
+    "*_live_sandbox.tscn",
+    "*_sandbox_panel.tscn",
+)
+
+SKIP_DIRS = {".git", ".godot", ".worktrees", "export", "scratchpad"}
+
+NODE_RE = re.compile(r'^\[node name="([^"]+)"([^\]]*)\]')
+PROPERTY_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_/]*)\s*=")
+# `anchor_slide` and friends are script properties that merely start with the
+# same letters; only the four real sides matter.
+ANCHOR_SIDES = {"anchor_left", "anchor_right", "anchor_top", "anchor_bottom"}
+
+
+def _exempt(rel: str) -> bool:
+    return any(fnmatch.fnmatch(rel, pat) for pat in EXEMPT)
+
+
+def _scan(path: str, rel: str) -> list[dict]:
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        lines = fh.read().splitlines()
+
+    findings: list[dict] = []
+    node: str | None = None
+    line_no = 0
+    is_instance = False
+    anchors: list[str] = []
+    has_preset = False
+
+    def flush() -> None:
+        if node is not None and is_instance and anchors and not has_preset:
+            findings.append(
+                {
+                    "file": rel,
+                    "line": line_no,
+                    "node": node,
+                    "anchors": sorted(anchors),
+                }
+            )
+
+    for index, line in enumerate(lines, start=1):
+        if line.startswith("["):
+            flush()
+            match = NODE_RE.match(line)
+            node = match.group(1) if match else None
+            line_no = index
+            is_instance = bool(match) and "instance=" in match.group(2)
+            anchors = []
+            has_preset = False
+            continue
+        if node is None:
+            continue
+        prop_match = PROPERTY_RE.match(line)
+        if prop_match is None:
+            continue
+        prop = prop_match.group(1)
+        if prop in ANCHOR_SIDES:
+            anchors.append(prop)
+        elif prop == "anchors_preset":
+            has_preset = True
+    flush()
+    return findings
+
+
+def main() -> int:
+    as_json = "--json" in sys.argv[1:]
+
+    findings: list[dict] = []
+    scanned = 0
+    for dirpath, dirnames, filenames in os.walk(ROOT):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for filename in sorted(filenames):
+            if not filename.endswith(".tscn"):
+                continue
+            path = os.path.join(dirpath, filename)
+            rel = os.path.relpath(path, ROOT)
+            if _exempt(rel):
+                continue
+            scanned += 1
+            findings.extend(_scan(path, rel))
+
+    if as_json:
+        print(json.dumps({"scanned": scanned, "findings": findings}, indent=2))
+        return 1 if findings else 0
+
+    if not findings:
+        print("✓ every re-anchored instance authors its own anchors_preset (%d scenes)" % scanned)
+        return 0
+
+    for f in findings:
+        print("%s:%d: instanced '%s' sets %s with no `anchors_preset`" % (
+            f["file"], f["line"], f["node"], ", ".join(f["anchors"])))
+        print("    the export will synthesize one and zero them — author the preset that matches")
+    print("✗ %d instance(s) would load mis-anchored in an export" % len(findings))
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

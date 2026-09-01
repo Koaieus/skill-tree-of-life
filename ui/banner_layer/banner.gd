@@ -129,6 +129,8 @@ func _preview() -> void:
 func _assert_full_width() -> void:
 	anchor_left = 0.0
 	anchor_right = 1.0
+	offset_left = 0.0
+	offset_right = 0.0
 
 
 func _band_height() -> int:
