@@ -14,11 +14,14 @@ extends Control
 ## is [method FrontmatterRoot.focus] on the root, travelling out from
 ## [method FrontmatterLayout.splash_camera] to [method FrontmatterLayout.camera_for].
 ##
-## [b]Advancing is two beats, not one.[/b] The root is allocated — lit, with the
-## game's own allocation spike dropped on it — and only then, after
-## [member allocation_hold], does the camera set off. The allocation used to be a
-## side effect of the travel, so the one moment the splash exists to sell went
-## past in the same frame it happened.
+## [b]Advancing is three beats, not one.[/b] The root lights up on the press,
+## holds there for [member allocation_hold], and the camera then sets off — with
+## the allocation needle dropping [member spike_lead] INTO that travel rather
+## than before it. The allocation used to be a side effect of the travel, so the
+## one moment the splash exists to sell went past in the same frame it happened;
+## the correction overshot the other way and fired a 845px needle at a node
+## parked 422px down a 960px screen, which is the clipping [member spike_lead]
+## exists to answer.
 ##
 ## [b]This scene therefore paints no background.[/b] The tree is meant to be
 ## visible behind the title, hugely magnified — that is the whole effect. The
@@ -54,12 +57,39 @@ signal advanced
 ## [b]It is a fixed logical delay, never an await on the spike's tween.[/b]
 ## `.claude/rules/presentation-clock.md` is the rule: a reveal is scheduled off
 ## a clock the code owns, so retuning the VFX cannot silently retune the menu.
-## [constant AllocationVFX.SPIKE_DURATION] is 0.4 — the default lets the needle
-## land and read before anything moves.
+## What it holds is the LIT root, not the needle — the needle now drops into the
+## travel this delays (see [member spike_lead]), so this is the anticipation beat
+## between "you pressed it" and "it opens", and the beat a charge-up windup
+## would eventually fill.
 ##
 ## `0.0` runs the whole advance in one frame, which is also what
 ## [member FrontmatterRoot.reduce_motion] collapses it to.
 @export_range(0.0, 3.0, 0.05) var allocation_hold: float = 0.6
+
+## Fraction of the travel that passes before the allocation needle drops.
+##
+## [b]The needle does not need the camera to ARRIVE, only to LEAVE.[/b]
+## [method MenuNodeView.play_allocation_spike] parents the spike to the view, in
+## world space, so its on-screen height is `radius * SPIKE_HEIGHT_FACTOR * zoom`
+## — at the root's authored radius 44 and [constant
+## FrontmatterLayout.SPLASH_ZOOM] that is 845px of needle on a 960px screen whose
+## node centre sits at 422, i.e. half of it off the top, which is what shipped.
+## It fits whole once `264 * zoom <= 422`, so from zoom 1.6 down; [method
+## FrontmatterCamera.ease_travel] is a cubic ease-out on the interpolated SCALE
+## and crosses that at `t = 0.18`. The default clears it with room, and the root
+## still reads at ~1.5x hero size when the needle lands, so the splash keeps the
+## scale the owner asked for (2026-08-26, [i]"zoom it in just a bit more — it's
+## the SPLASH"[/i]).
+##
+## [b]A fraction, not seconds[/b] — the same shape as [member
+## FrontmatterRoot.panel_lead], and for the same reason. What the spike needs is
+## a ZOOM; the zoom is a function of the eased clock, not of wall time, so an
+## absolute delay would land at a different zoom the moment #578's tab retunes
+## [member FrontmatterRoot.travel_duration].
+##
+## `0.0` fires it on the spot, which is the old behaviour and the comparison to
+## judge this against.
+@export_range(0.0, 1.0, 0.01) var spike_lead: float = 0.2
 
 @onready var _prompt: Label = %Prompt
 
@@ -122,8 +152,7 @@ func advance() -> void:
 	advanced.emit()
 
 
-## Lights the root up and drops the game's own allocation spike on it — the
-## first half of the advance, and the half that happens on the spot.
+## Lights the root up — the half of the advance that happens on the spot.
 ##
 ## [b]The allocation is done HERE rather than left to [method
 ## FrontmatterRoot.focus]'s `_sync_allocation`.[/b] Those two used to be the same
@@ -131,6 +160,13 @@ func advance() -> void:
 ## could not read as allocated until the travel that allocated it had already
 ## started. Splitting them is the whole of the hold. `focus` re-asserts the same
 ## flag when it arrives, so this is a lead, not a second source of truth.
+##
+## [b]And that lead is exactly why the needle is scheduled elsewhere.[/b] Writing
+## the flag up front is what makes `_sync_allocation` see no transition and fire
+## nothing when the travel starts — so the VFX has to be split off the flag to be
+## delayed at all, or [member spike_lead] would simply hand the spike back to
+## [FrontmatterRoot] at the one instant it must not fire. Flag here, needle in
+## [method _drop_needle].
 func _allocate_root() -> void:
 	if _frontmatter == null or _frontmatter.tree == null:
 		return
@@ -138,7 +174,6 @@ func _allocate_root() -> void:
 	if root_view == null:
 		return
 	root_view.allocated = true
-	root_view.play_allocation_spike()
 
 
 ## The second half: pull back out to the tree. Re-checks everything, because a
@@ -160,6 +195,46 @@ func _travel() -> void:
 	if _frontmatter.focus_id != _frontmatter.tree.root:
 		return
 	_frontmatter.focus(_frontmatter.tree.root)
+	_drop_needle()
+
+
+## Schedules the allocation needle for [member spike_lead] into the travel the
+## caller has just started.
+##
+## [b]A fixed logical delay off the travel's own duration, never an await on the
+## camera or on the spike's own tween[/b] — `.claude/rules/presentation-clock.md`,
+## the same rule [member allocation_hold] answers to. Retuning
+## [constant AllocationVFX.SPIKE_DURATION] must not silently retune the splash.
+func _drop_needle() -> void:
+	var delay := _spike_delay()
+	if delay <= 0.0:
+		_play_spike()
+		return
+	get_tree().create_timer(delay).timeout.connect(_play_spike)
+
+
+## Seconds into the travel the needle drops. Collapsed to nothing by the
+## accessibility setting exactly as [method _hold_seconds] is — and correct
+## there for a second reason: `reduce_motion` makes [method
+## FrontmatterRoot.focus] snap straight to [constant
+## FrontmatterLayout.TREE_ZOOM], where the needle already fits whole.
+func _spike_delay() -> float:
+	if _frontmatter == null or _frontmatter.reduce_motion:
+		return 0.0
+	return spike_lead * _frontmatter.travel_duration
+
+
+## Plays the game's own allocation spike on the root, re-checking everything —
+## a timer fires a frame or more later and the world may have moved on, the same
+## caution [method _travel] takes.
+func _play_spike() -> void:
+	if _frontmatter == null or not is_instance_valid(_frontmatter):
+		return
+	if _frontmatter.tree == null:
+		return
+	var root_view := _frontmatter.view_for(_frontmatter.tree.root)
+	if root_view != null:
+		root_view.play_allocation_spike()
 
 
 ## How long to hold. Collapsed to nothing by the accessibility setting, exactly

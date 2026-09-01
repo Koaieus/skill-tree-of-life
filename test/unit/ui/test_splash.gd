@@ -155,6 +155,70 @@ func test_advancing_drops_the_games_own_allocation_spike_on_the_root() -> void:
 			"press any button plays the same VFX every other allocation plays")
 
 
+## The defect this file's `spike_lead` answers, as arithmetic rather than as
+## pixels: the needle is 6x the node radius in WORLD units and the splash parks
+## at 3.2x, so a spike fired while the camera is still parked is `44 * 6 * 3.2`
+## = 845px tall on a 960px screen whose root sits 422px down — half of it off
+## the top, which is what shipped.
+##
+## Asserted at the instant the spike is SPAWNED, which is the strictest moment
+## available: `AllocationVFX` ramps `scale.y` from 0 to 1 over the first half of
+## `SPIKE_DURATION`, so the needle reaches full height 0.2s later still, by which
+## point the camera has zoomed out further. Nothing here renders — the transform
+## is rebuilt from the same public statics `FrontmatterCamera` interpolates, so
+## this stays a decidable claim about the geometry and not a look-at-it test.
+##
+## It fails if anyone retunes SPLASH_ZOOM, the root's authored radius,
+## SPIKE_HEIGHT_FACTOR or `spike_lead` back into the clipping range.
+func test_the_needle_is_wholly_on_screen_by_the_time_it_drops() -> void:
+	var tree := _frontmatter.tree
+	var parked := FrontmatterLayout.splash_camera(tree)
+	var arrived := FrontmatterLayout.camera_for(tree, _root())
+	# Exactly what `FrontmatterCamera.transform_at` does with the clock the
+	# splash schedules the needle on.
+	var at_drop := parked.interpolate_with(
+			arrived, FrontmatterCamera.ease_travel(_splash.spike_lead))
+	var zoom := FrontmatterLayout.zoom_of(at_drop).y
+	var view := FrontmatterLayout.viewport_size()
+	var world := FrontmatterLayout.solve(tree)[_root()] as Vector2
+	var screen_y := (world.y - at_drop.origin.y) * zoom + view.y * 0.5
+
+	var radius := FrontmatterLayout.look_of(_root()).radius
+	var needle := radius * AllocationVFX.SPIKE_HEIGHT_FACTOR * zoom
+
+	assert_lte(needle, screen_y,
+			"the needle (%.0fpx at zoom %.2f) overshoots the %.0fpx above the root"
+					% [needle, zoom, screen_y])
+
+
+func test_the_needle_does_not_drop_until_the_camera_has_set_off() -> void:
+	# The whole of `spike_lead`: the flag is written on the press so
+	# `_sync_allocation` stays a no-op re-assert, and the VFX is scheduled apart
+	# from it. If the two are ever recombined, the spike lands at 3.2x again and
+	# this catches it without anyone having to look at the screen.
+	_frontmatter.reduce_motion = false
+	_splash.allocation_hold = 0.05
+	_splash.spike_lead = 0.5
+	_frontmatter.travel_duration = 0.4
+	var before := _polygons_under(_frontmatter.view_for(_root()))
+
+	_splash.advance()
+
+	assert_true(_frontmatter.view_for(_root()).allocated,
+			"the root still reads allocated on the spot — only the VFX is delayed")
+	assert_eq(_polygons_under(_frontmatter.view_for(_root())), before,
+			"and no needle yet: the camera has not even set off")
+
+	# Past the hold, into the travel, but short of the lead (0.5 * 0.4 = 0.2).
+	await get_tree().create_timer(0.15).timeout
+	assert_eq(_polygons_under(_frontmatter.view_for(_root())), before,
+			"still none — the camera is travelling and the lead has not elapsed")
+
+	await get_tree().create_timer(0.2).timeout
+	assert_gt(_polygons_under(_frontmatter.view_for(_root())), before,
+			"and there it is, dropped into the travel rather than before it")
+
+
 func test_the_camera_really_does_set_off_once_the_hold_is_up() -> void:
 	# The hold is a deferred call, and nothing else here waits on the timer —
 	# if it ever stopped firing, the game's entry point would softlock on a
