@@ -213,20 +213,32 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 
 ---
 
-### Cyclone [shipped #696, redesigned #699] — the cycle spell
+### Cyclone [shipped #696, redesigned #699, re-thesised #703] — the curl spell
 
 - **target type:** node
-- **power:** medium, mana 5, `min_degree` **4** — the catalogue's deepest casting requirement
+- **power:** medium, mana 5, `min_degree` **4** — the catalogue's deepest casting requirement (measured on the *cast-from* node, in the caster's own territory)
 - **range:** short, **euclidean** ~150px (the first non-hop range in the catalogue)
-- **mechanics/propagation:** fans to every enemy neighbour except the one(s) it came from, and never into itself. Two crit conditions, one per parity, which between them punish **every** ring:
-  - **odd ring** — the two arms differ by one, pass on the antipodal *edge*, never merge, and each laps the whole way home onto its own trail → `CycleCritCondition`. A pentagon crits at hop 5.
-  - **even ring** — the arms are equal, meet head-on at the antipodal *node* and merge → `ConvergenceCritCondition`, at hop **L/2**. A square crits at hop 2, a hexagon at hop 3.
-- **the grind:** on closing, the trail **truncates to the ring just walked** (rotated to end at the landing) and the veto clears. So the storm keeps the loop it found and laps it, critting *every beat* until `max_visits_per_node` bites — the payoff for feeding it a tight ring. An even ring detonates and strands in the same beat instead, because the union veto leaves the merge node nowhere to go.
-- **notes:** the veto is the immediate predecessor and *not* the whole trail — vetoing the trail would make a cycle unclosable, which is the one hop the spell exists to reward. On convergence the veto becomes the **union** of every incident's predecessors, which is what the owner meant by *"it makes the cast-from an array"*. Stranding needs `|union| ≥ degree`, a low-degree condition, so it bites sparse rings and leaves dense territory alone.
-- **the invariant, and why the trail truncates rather than resets or accumulates:** the trail is always all-distinct — ring, or ring + tail — so a close is always a back-edge onto a *simple* walk, and **every crit certifies a real simple cycle of length ≥ 3**. A reversal straight after a close is the one hop whose forward arc is a single edge; it closes the ring *the other way round*, so the trail rotates rather than truncating. Minimum length 3 falls out; there is no gate. A plain reset made the storm forget the loop the instant it found it; never resetting made the footprint cover everything by wave 2 in dense terrain, degrading the crit into a flat ×2 with no cycle signal left. Truncation is the only one of the three that grinds *and* stays honest.
-- **self-loops are refused, and now actually are:** `NoSelfLoopFilter`, authored in the `.tres`. Through #699 the code claimed to be "self-loop-blind by construction" via the backtrack veto — but that set holds the *predecessor*, never the current node, so a self-loop crit on the very next wave, on Reverberator's turf. It hid behind a test that hand-rigged a payload the step cannot mint.
-- **fills a real hole:** rings have no cut vertices (immune to Topple) and self-loop fortification counters Leafblower — nothing punished cyclic territory before this.
-- review: dead weight on stringy territory by design (it degrades to a two-armed Lightning), which is the same terrain-typing every shipped spell has. On a tree nothing ever crits, because a revisit *is* a cycle.
+- **mechanics/propagation:** at every node the storm ranks the turns it could make — clockwise from the edge it arrived on — and mints one front per rank, each carrying a share `c_r` of the incoming damage, hardest into the sharpest turn. Merger = **SUM**. Closing a loop crits (×2) *and* multiplies the share feeding that loop (`closing_gain`).
+- **why a curl at all:** the graph is **planar** (procgen builds edges from a Delaunay triangulation and only ever prunes), so every vertex carries a cyclic order of its incident edges — a **rotation system**, which is exactly what handedness means, and it is already sitting in the node positions. A rotation-*blind* fan has no handedness, and parity was never a designed property: it is the residue left over when the curl is missing.
+- **the engine, in two numbers:** each `c_r` is below 1 so no single thread survives the split; they SUM to more than 1 and converging fronts add, so energy grows globally while decaying per thread and therefore concentrates **only where geometry folds threads back together**. Circulation reinforces, offshoots bleed out — with no cycle detection anywhere in the loop. As a linear operator on directed edges, growth per wave is its spectral radius:
+
+  | terrain | ρ |
+  |---|---|
+  | path, star, **any tree** | 0.000 |
+  | triangle / square / pentagon / hexagon | 0.650 |
+  | stringy chain with one loop | 0.650 |
+  | double triangle · rect + triangle | 0.893 · 0.849 |
+  | hex wheel | 1.159 |
+  | triangulated lattice, 19 / 37 nodes | 1.296 / 1.326 |
+
+  Every lone ring is identical regardless of **length or parity**, so it collapses to `ρ(lone ring) = c₁` and `ρ(dense triangulated) → Σc_r`, and the authoring condition is **`c₁ < 1 < Σc_r`**. The spell stopped typing terrain by *"is it cyclic"* and started typing it by *"is it two-dimensional"*.
+- **why a ranked fan and not a face-trace:** taking only rank 1 is the next-edge permutation, whose orbits are the embedding's faces — elegant, and wrong here. It necessarily assigns one arm to the **outer** face, so a triangle reads as two arms colliding rather than one storm turning. A ranked fan has no such arm: verified that all six arms off a hex hub trace same-signed faces, i.e. they co-rotate.
+- **`closing_gain` is the sustain term** and it is distinct from the crit: the crit multiplies the *landing*, the gain feeds *forward*. It is the dial that makes a lone triangle worth killing over instead of fizzling at `c₁` per hop. Owner call 2026-09-01: *"a single triangle will get demolished, but a group of them will absolutely become a center of death and destruction radiating outwards."*
+- **measured on the real resolver** (seed damage 4.0, 8 hops, `0.70 / 0.40 / 0.20`, `closing_gain` 1.35): star/tree **9.2 with zero crits, dead by beat 1**; rings 3→6 **41.9 / 31.9 / 25.6 / 21.9** — smooth and monotone, no zigzag; double triangle ~87; hex wheel **251, peak node 68, still accelerating at beat 8**.
+- **what this deleted:** `ConvergenceCritCondition` off the preset, `BacktrackFilter` off the composite (the ranking measures *from* the arrival edge and so can never offer it back — stronger than a filter can promise a merged front), the union-veto stranding that made a rectangle worth 26 damage, and the whole parity apparatus. `CycleCritCondition` survives, now as sparkle and a damage floor rather than half the design.
+- **tuning is inspector-live:** every knob (`rank_coefficients`, `closing_gain`, `clockwise`) is an `@export` on `CycloneStep`, and the spell playground re-reads step exports on each Cast. `max_visits_per_node` must stay high — the resolver's cap removes the candidate and *kills the front*, which strangles the epicentre exactly when it starts mattering — leaving `max_hops` as the real balance knob, and it is exponential.
+- **no transcendentals:** the angular sort is a cross-product pseudo-angle comparator (`Curl.pseudo_angle`), never `atan2`, per `.claude/rules/multiplayer-sync.md`. Self-loops arrive as zero-length directions with no angular slot and are dropped before the sort.
+- review: still dead weight on stringy territory by design, and now for a sharper reason — a chain with an incidental loop reads identically to a bare ring (ρ 0.650). The counterplay against it is to keep territory *thin*, which is in direct tension with every other spell that punishes low degree.
 
 ---
 
@@ -264,7 +276,7 @@ Self-loops are first-class under this model: a self-looped node propagating to i
 | Leafblower | medium | medium | node | Downhill territory-degree filter (`<=`), rampup, payload-on-leaf |
 | Bruiser | medium | medium | node | Greedy → max HP, low base damage, single branch |
 | Resonator | high/ultra | medium | node | Fan-all, flat +2/hop, **SUM merger**, crit on convergence (#352) |
-| Cyclone | medium | short (euclidean) | node | Fan-all, no backtrack, no self-loops, **crit on every ring** — lineage lap (odd) or head-on merge (even), then grind the kept loop (#696, #699) |
+| Cyclone | medium | short (euclidean) | node | **Curl** — clockwise turn-ranked fan with decaying shares, **SUM merger**, crit + gain on loop closure; types terrain by 2-dimensionality, not parity (#703) |
 | Homing Decoring | TBD | TBD | node | Greedy → toward enemy Core |
 | Corifugal Bolt | TBD | TBD | node | Greedy → away from enemy Core |
 

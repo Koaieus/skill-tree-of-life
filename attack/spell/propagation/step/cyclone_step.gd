@@ -1,70 +1,69 @@
 @tool
 class_name CycloneStep
-extends FanAllStep
+extends PropagationStep
 
-## [FanAllStep] plus the cycle bookkeeping Cyclone's identity is made of. Fans
-## to every candidate the filter allowed, then stamps each minted child with
-## whether that hop CLOSED a cycle, with the ring it closed, and with the set
-## the child may not travel back into.
+## Cyclone's curl (#703, superseding the parity design of #699). Ranks the
+## filtered candidates by the turn the front makes to reach them — measured from
+## the edge it arrived on, in one fixed rotational direction — and mints one
+## child per rank, carrying a decaying share of the incoming damage.
 ##
-## [b]The bookkeeping happens at MINT, not at landing[/b], and it has to: at
-## mint the child knows both its destination and its parent's trail, which is
-## exactly the pair the question needs. By the time it lands, `_propagate_to`
-## has already appended the destination to `visited` — the answer is
-## unrecoverable. So the step stamps [member CastSpell.closed_cycle] and
-## [CycleCritCondition] reads it, per the Design A split
-## [ConvergenceCritCondition] documents.
+## [b]The whole spell is three numbers.[/b] Rank 1 is the sharpest turn, so it
+## hugs the face the front is circling; ranks 2 and 3 are wider turns that
+## radiate outward. Give them coefficients whose SUM exceeds 1 while each is
+## individually BELOW 1 and you get the storm: energy grows globally, decays per
+## thread, and therefore concentrates only where the geometry folds threads back
+## together. Circulation reinforces, offshoots diminish. Nothing detects a
+## cycle to make that happen — it is what a weighted walk on a planar graph
+## does.
 ##
-## The rule, per hop into candidate `nb`:
+## Modelled as a linear operator on directed edges, growth per wave is its
+## spectral radius, and it collapses to two readings:
 ## [codeblock]
-## idx    = payload.visited.find(nb)      # BEFORE _propagate_to appends it
-## closed = idx >= 0
-##
-## closed  → visited = closed_ring(payload.visited, idx),  came_from = []
-## ¬closed → visited = payload.visited + [nb],             came_from = [payload.current_node]
+## rho(any lone ring)      = c_1          # regardless of LENGTH or PARITY
+## rho(dense triangulated) → sum(c_r)
 ## [/codeblock]
+## so the authoring condition is [b]c_1 < 1 < sum(c_r)[/b]: a lone ring cannot
+## sustain itself, a triangulated patch can. Measured: every tree is exactly
+## 0.000, every lone ring (triangle through hexagon alike) 0.650, a hex wheel
+## 1.159, a 37-node triangular lattice 1.326. The spell stopped typing terrain
+## by "is it cyclic" and started typing it by "is it two-dimensional", which is
+## the point — parity was never a designed property, only the residue of a
+## rotation-blind fan.
 ##
-## [b]Why the trail truncates to the ring instead of resetting to the node
-## (#699).[/b] A reset made the storm forget the loop the instant it found it,
-## so the lap home crit fired and the next three hops went quiet. Truncating
-## keeps exactly the ring and nothing else, which is what makes the grind
-## crit every beat once the loop is closed — and what keeps that grind
-## [i]honest[/i] in dense territory, where a never-reset footprint would cover
-## everything by wave 2 and degrade the crit into a flat damage multiplier.
+## [b]Why a ranked fan and not a face-trace.[/b] Taking only rank 1 is the
+## next-edge permutation, whose orbits are the embedding's faces — elegant, and
+## wrong for this spell: it necessarily assigns one arm to the OUTER face, so a
+## triangle reads as two arms colliding rather than one storm turning. A ranked
+## fan has no such arm. Verified on a hex wheel: all six arms off the hub trace
+## same-signed faces, i.e. they co-rotate, which is the wheel the spell is for.
 ##
-## [b]Why the short case takes the complementary arc.[/b] On triangle ABC after
-## the lap home the trail is `[B,C,A]`, and the hop `A → C` finds C one step
-## back: the forward arc is the single edge, so a naive truncation would leave
-## the lineage holding `[A,C]`, ping-ponging A↔C and closing a "cycle" of
-## length 2 forever. But that hop really did close the triangle — the other way
-## round — so the ring it keeps is the whole ring, rotated. The hop crits
-## either way; what the case decides is what the lineage remembers next.
+## [b]Closing a loop boosts the coefficient[/b] ([member closing_gain]) rather
+## than merely lighting up [CycleCritCondition]. The crit is sparkle on the
+## landing; the gain feeds FORWARD, so a ring that closes gets sustain and a
+## lone triangle is worth killing over instead of fizzling at c_1 per hop.
+## Owner call 2026-09-01.
 ##
-## [b]The invariant all of this buys[/b], and the reason it beats both rejected
-## alternatives: the trail is always ring + all-distinct tail, so a close is
-## always a back-edge onto a SIMPLE walk. Every crit therefore certifies a
-## genuine simple cycle of length ≥ 3 — never a closed walk that laps back
-## through a vertex it already used. Minimum length 3 falls out; no gate needed.
-##
-## [b]Why the veto is the immediate predecessor and not the whole trail.[/b]
-## Vetoing the trail would make a cycle unclosable — on a triangle A→B→C, C
-## could never step back onto A, which is the very hop the spell exists to
-## reward. Only "where I just came from" is barred, and only until the loop
-## closes; a closing mint clears it outright so the storm re-seeds and fans
-## both shoulders again. Self-loops are barred by [NoSelfLoopFilter] and not by
-## this set — relying on `came_from` for that was the bug #699 fixed.
-##
-## Cycle detection needs no algorithm. The walk is its own DFS, so closing a
-## cycle IS a back-edge onto your own trail: one `find` against the trail
-## [method PropagationStep._propagate_to] already maintains, which doubles as
-## the ring's own starting index. The graph theory that enumerates a graph's
-## cycles answers a question this spell never asks — it only ever asks "did I
-## just close one, and which one", and it is standing on the answer.
+## Every knob is an export because the owner tunes them live — the spell
+## playground re-reads step exports on each Cast (`playground_panel.gd`).
 
 
 ## Shortest ring worth remembering. Below this the "cycle" is the reversal edge
 ## itself, which is a footprint the lineage would ping-pong on forever.
 const MIN_RING := 3
+
+## Damage share minted at each turn-rank: index 0 is the sharpest turn. Entries
+## beyond the candidate count are ignored; a rank with no coefficient is not
+## travelled at all, so the array length doubles as the fan width.
+@export var rank_coefficients := PackedFloat32Array([0.70, 0.40, 0.20])
+
+## Extra multiplier on a hop that CLOSES a loop. This is the sustain term: at
+## 1.0 a lone triangle decays at c_1 per hop and fizzles; above it the ring
+## feeds itself and the triangle becomes a kill.
+@export var closing_gain: float = 1.35
+
+## Which way the storm turns. Flipping it mirrors every cast; it is a handedness
+## and not a balance knob.
+@export var clockwise: bool = true
 
 
 func step(
@@ -72,21 +71,50 @@ func step(
 		payload: CastSpell,
 		candidates: Array[SkillNode],
 		config: PropagationConfig,
-		ctx: PropagationContext) -> Array[CastSpell]:
-	var out := super.step(current_node, payload, candidates, config, ctx)
-	for child in out:
+		_ctx: PropagationContext) -> Array[CastSpell]:
+	var out: Array[CastSpell] = []
+	if candidates.is_empty() or rank_coefficients.is_empty():
+		return out
+	var ranked := Curl.rank(
+			_arrival_position(current_node, payload), current_node, candidates, clockwise)
+	for rank_index in ranked.size():
+		if rank_index >= rank_coefficients.size():
+			break
+		var coefficient := rank_coefficients[rank_index]
+		if coefficient <= 0.0:
+			continue
+		var nb: SkillNode = ranked[rank_index]
+		var child := _propagate_to(nb, payload, config)
 		# `payload.visited`, never `child.visited`: the base mint has already
 		# appended the destination to the child's copy, so asking the child
 		# would answer "yes" every single hop.
-		var idx := payload.visited.find(child.current_node)
+		var idx := payload.visited.find(nb)
 		if idx < 0:
 			child.closed_cycle = false
-			child.came_from = [payload.current_node]
-			continue
-		child.closed_cycle = true
-		child.came_from = []
-		child.visited = closed_ring(payload.visited, idx)
+			var arrived: Array[SkillNode] = [payload.current_node]
+			child.came_from = arrived
+		else:
+			child.closed_cycle = true
+			var cleared: Array[SkillNode] = []
+			child.came_from = cleared
+			child.visited = closed_ring(payload.visited, idx)
+			coefficient *= closing_gain
+		# Scales whatever `hop_damage` produced rather than replacing it, so an
+		# authored ramp still composes with the curl's split.
+		child.damage *= coefficient
+		out.append(child)
 	return out
+
+
+## Where the front came FROM, as a position — the only thing the ranking needs.
+## The seed has no predecessor, so it measures from the cast-from node, which is
+## what gives the opening fan a direction instead of firing symmetrically.
+func _arrival_position(current_node: SkillNode, payload: CastSpell) -> Vector2:
+	if payload.predecessor != null:
+		return payload.predecessor.global_position
+	if payload.source != null:
+		return payload.source.global_position
+	return current_node.global_position
 
 
 ## The ring a closing hop just walked, ending at the landed node — which is
@@ -94,24 +122,17 @@ func step(
 ## from. [param idx] is the landed node's previous position in [param trail].
 ##
 ## Normally that is the trail's suffix from `idx`: the pre-cycle tail is
-## discarded and what is left is exactly the loop.
-##
-## [b]The short case is a reversal, and it takes the long way round.[/b] The
-## one hop that can measure under [constant MIN_RING] is a step back onto the
-## node one behind — reachable only immediately after a close, when the veto
-## has just cleared and the trail is a bare ring. The forward arc between them
-## is the single edge, but the cycle that hop closes is the [i]complementary
-## arc[/i]: the whole ring, the other way. So rotate rather than truncate —
-## same nodes, re-ordered to end where the front now stands, which is a real
-## walk because a ring's ends are adjacent.
+## discarded and what is left is exactly the loop. The one hop that can measure
+## under [constant MIN_RING] is a step back onto the node one behind, whose
+## forward arc is a single edge — but the cycle it closes is the complementary
+## arc, the whole ring the other way, so rotate rather than truncate.
 ##
 ## [b]Never append.[/b] An earlier cut kept the parent trail and appended the
 ## landed node on the short branch, which put a node in the trail twice; two
-## hops later [method Array.find] returned the FIRST occurrence, the slice ran
-## long, and the guard waved through a "ring" like `[C,A,C,B]`. That certifies
-## a vertex-repeating closed walk — the exact shape #699 exists to refuse.
-## Truncating on every close is what keeps the trail all-distinct, and the
-## all-distinct trail is what makes every crit a real simple cycle.
+## hops later [method Array.find] returned the FIRST occurrence and the guard
+## waved through a vertex-repeating closed walk. Truncating on every close is
+## what keeps the trail all-distinct, and the all-distinct trail is what makes
+## every [CycleCritCondition] crit a real simple cycle of length >= 3.
 static func closed_ring(trail: Array[SkillNode], idx: int) -> Array[SkillNode]:
 	var landed: SkillNode = trail[idx]
 	var forward: Array[SkillNode] = trail.slice(idx + 1)
@@ -120,11 +141,8 @@ static func closed_ring(trail: Array[SkillNode], idx: int) -> Array[SkillNode]:
 		return forward
 	var complementary: Array[SkillNode] = trail.slice(idx + 1)
 	complementary.append_array(trail.slice(0, idx + 1))
-	# Below MIN_RING either way there is no ring to keep — a trail too short to
-	# hold one. Unreachable while the self-loop veto holds; harmless if it ever
-	# is not, since the forward arc is still all-distinct.
 	return complementary if complementary.size() >= MIN_RING else forward
 
 
 func get_description() -> String:
-	return "Fans onward without ever doubling back, and keeps the loops it closes."
+	return "Turns one way, splitting its power across the turn it can make."

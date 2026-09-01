@@ -474,10 +474,15 @@ place that can:
    `ConvergenceCritCondition` documents, and the reason `CycleCritCondition` is
    a one-line predicate rather than a re-derivation.
 
-The payoff for getting (1) right is not just correctness. Cyclone's veto-union
-is what makes it a **parity detector** — counter-rotating fronts extinguish on
-even rings and lap home on odd ones — and nothing in the spell was authored to
-do that. Merge semantics are where emergent behaviour lives.
+The payoff for getting (1) right is not just correctness — but Cyclone is also
+the cautionary tale. Its veto-union made the spell a **parity detector**
+(counter-rotating fronts extinguished on even rings and lapped home on odd
+ones), nothing in it was authored to do that, and at #703 the parity was
+**removed as unwanted**: it was never a designed property, only the residue of a
+rotation-blind fan. Merge semantics are where emergent behaviour lives, which
+cuts both ways — emergent is not the same as intended, and a merge rule can
+manufacture a whole mechanic nobody asked for. Cyclone now sums (see
+`CycloneReducer`) and gets its identity from a curl instead.
 
 ---
 

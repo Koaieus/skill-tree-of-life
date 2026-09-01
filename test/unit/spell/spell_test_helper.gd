@@ -28,7 +28,13 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 
-func make_graph(adjacency: Array, gut: GutTest) -> Graph:
+## [param positions] maps node index -> position. Optional, and empty is the
+## right answer for every test that only reads topology — but a spell with a
+## [b]curl[/b] ranks its candidates by angle, so a fixture that leaves every
+## node stacked at the origin hands [method Curl.rank] a pile of zero-length
+## directions and gets an empty fan. Any test touching Cyclone must pass real
+## coordinates (#703).
+func make_graph(adjacency: Array, gut: GutTest, positions: Dictionary = {}) -> Graph:
 	var node_count: int = 0
 	for pair in adjacency:
 		node_count = max(node_count, int(pair[0]) + 1, int(pair[1]) + 1)
@@ -38,6 +44,8 @@ func make_graph(adjacency: Array, gut: GutTest) -> Graph:
 	for i in node_count:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
 		sn.name = "N%d" % i
+		if positions.has(i):
+			sn.position = positions[i]
 		graph.skill_nodes_container.add_child(sn)
 	for pair in adjacency:
 		var a: SkillNode = graph.get_skill_nodes()[int(pair[0])]
