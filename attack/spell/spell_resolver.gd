@@ -142,6 +142,12 @@ static func resolve_against(
 		# full set still exists, so it's captured here and handed to the
 		# PropagationEvent this landing emits in step 3 below.
 		var predecessor_sets: Dictionary = {}  ## SkillNode -> Array[SkillNode]
+		# node -> the damage share each of those arcs was minted with (#704),
+		# gathered in the SAME loop off the SAME `incidents` so the two arrays
+		# are aligned by construction rather than by a downstream assertion.
+		# The share cannot be recovered after the fact: the reducer sums the
+		# incidents and the crit multiplies again below.
+		var share_sets: Dictionary = {}  ## SkillNode -> PackedFloat32Array
 		for node in groups:
 			var incidents: Array[CastSpell] = []
 			for inc in (groups[node] as Array):
@@ -153,9 +159,12 @@ static func resolve_against(
 			resolved.incident_count = incidents.size()
 			merged.append(resolved)
 			var preds: Array[SkillNode] = []
+			var shares := PackedFloat32Array()
 			for inc in incidents:
 				preds.append(inc.predecessor)
+				shares.append(inc.arrival_share)
 			predecessor_sets[node] = preds
+			share_sets[node] = shares
 
 		# 3. Apply effects, emit a timeline event per landing, bump visit counter.
 		var wave_first := outcome.hits.size()
@@ -180,6 +189,9 @@ static func resolve_against(
 			# Guaranteed present: `merged` and `predecessor_sets` are populated
 			# together, keyed by the same node, in the loop above.
 			ev.predecessors = predecessor_sets[state.current_node]
+			# Same guarantee, same loop: one share per predecessor, in order.
+			ev.incident_shares = share_sets[state.current_node]
+			ev.turn_sign = state.turn_sign
 			ev.origin = state.predecessor if state.predecessor != null else state.source
 			ev.target = state.current_node
 			ev.verb = _verb_for(state)
@@ -368,9 +380,13 @@ static func _record_cancel(
 	cancel_ev.verb = PropagationEvent.Verb.CANCEL
 	cancel_ev.predecessor = first.predecessor
 	var preds: Array[SkillNode] = []
+	var shares := PackedFloat32Array()
 	for inc in incidents:
 		preds.append(inc.predecessor)
+		shares.append(inc.arrival_share)
 	cancel_ev.predecessors = preds
+	cancel_ev.incident_shares = shares
+	cancel_ev.turn_sign = first.turn_sign
 	cancel_ev.origin = first.predecessor if first.predecessor != null else first.source
 	cancel_ev.target = node
 	outcome.timeline.append(cancel_ev)

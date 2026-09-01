@@ -33,6 +33,33 @@ var predecessor: SkillNode = null
 ## [constant Vector2.ZERO] means "unset" (and also means two fronts cancelled
 ## head-on) — readers fall back to [member predecessor], then [member source].
 var arrival_bearing: Vector2 = Vector2.ZERO
+## The fraction of the incoming damage THIS front was minted with — the turn-rank
+## coefficient that was actually applied, with any closing bonus already folded
+## in ([member CycloneStep.closing_gain]).
+##
+## It exists because the number is otherwise destroyed the instant it is used.
+## [CycloneStep] holds it as a local, multiplies [member damage] by it and drops
+## it; [CycloneReducer] then SUMS every incident, and the crit multiplies again
+## at landing. So a landed amount cannot be inverted back to "which rank made
+## this", and rank is the entire mechanic — the sharp turn circulates, the wide
+## turns radiate. The VFX layer has to be TOLD, exactly as it is told
+## [member PropagationEvent.verb] rather than inferring it (#704).
+##
+## Default 1.0 = "full strength, undivided", which is what every spell that does
+## not split its damage across a fan means.
+var arrival_share: float = 1.0
+## Which way the storm turned to get here: +1 clockwise, -1 counter-clockwise,
+## 0 for "no handedness" (the seed, and every non-curl spell).
+##
+## CONSTANT for a whole cast — [method Curl.rank] ranks in one fixed direction
+## from the arrival edge at every single node, so this is one value per cast
+## rather than a per-arc one. It is carried anyway because the VFX layer has no
+## other honest way to reach it: deriving a turn needs the direction the front
+## arrived INTO its origin, which lives in a DIFFERENT event, and
+## [member PropagationEvent.predecessor] is a node ref with the event-to-event
+## link deliberately deferred. With revisits uncapped a node is the target of
+## many events, so "which one fed this arc" is genuinely ambiguous downstream.
+var turn_sign: float = 0.0
 ## The node the spell was originally cast FROM (caster's launching node).
 ## Immutable across hops. Distinct from [member predecessor] so seed-vs-hop
 ## logic stays explicit (a null predecessor unambiguously marks the seed).

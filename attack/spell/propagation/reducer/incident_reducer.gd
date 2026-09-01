@@ -40,6 +40,15 @@ static func _merge_payload_defaults(incidents: Array[CastSpell], node: SkillNode
 	merged.graph = incidents[0].graph
 	merged.rng = incidents[0].rng
 	merged.hop_index = incidents[0].hop_index
+	# Handedness is constant for a whole cast (Curl ranks in one fixed direction
+	# at every node), so first-wins here is exact rather than a choice.
+	#
+	# `arrival_share` is deliberately NOT merged: it describes ONE arc's mint,
+	# and once the fronts have summed there is no such thing as the merged
+	# payload's share. The per-arc values are read straight off `incidents` by
+	# SpellResolver, in the same pass that captures `predecessors`, so the two
+	# arrays cannot drift out of alignment (#704).
+	merged.turn_sign = incidents[0].turn_sign
 	# Inbound predecessor: this merged payload keeps only the CHOSEN one — the
 	# canonical "the projectile has to fly from somewhere" reader (VFX origin,
 	# and anything downstream that wants "the" predecessor rather than the

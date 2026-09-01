@@ -105,6 +105,15 @@ func step(
 		# Scales whatever `hop_damage` produced rather than replacing it, so an
 		# authored ramp still composes with the curl's split.
 		child.damage *= coefficient
+		# Stamped, not derivable (#704). Once `damage` has been multiplied the
+		# coefficient is gone: CycloneReducer SUMS every incident and the crit
+		# multiplies again at landing, so no downstream reader can invert a
+		# landed amount back to the rank that produced it. The VFX layer needs
+		# it to draw the spine heavier than the offshoots, which is the whole
+		# mechanic. `closing_gain` is already folded in above, deliberately —
+		# a closing rank-1 arc really is carrying more than an ordinary one.
+		child.arrival_share = coefficient
+		child.turn_sign = 1.0 if clockwise else -1.0
 		out.append(child)
 	return out
 

@@ -394,10 +394,56 @@ var verb: Verb
 var origin: SkillNode                # probe travels FROM here (predecessor ?? source)
 var target: SkillNode                # lands here (current_node)
 var predecessor: SkillNode = null    # NODE ref this pass — event→event fork-tree link deferred
+var predecessors: Array[SkillNode] = []       # every arc that converged here, in incident order (#542)
+var visit_index: int = 0                      # the nth time this cast has landed on `target`, 0-based (#543 D6)
+var is_terminal: bool = false                 # the walk ENDED here by terminal rule, not merely last-appended
+var incident_shares: PackedFloat32Array = []  # per-arc damage share, ALIGNED with `predecessors` (#707)
+var turn_sign: float = 0.0                    # +1 / -1 / 0 — which way the storm turned (#707)
 var hits: Array[HitInstance] = []    # shared refs into `hits`; empty for CANCEL / zero-damage
 # crit_tier lives on each HitInstance now (#381); event.max_crit_tier() derives
 # the per-event emphasis value across `hits`.
 ```
+
+> The four fields above `hits` were added after #46 and this block used to omit
+> them. `predecessors`, `visit_index` and `is_terminal` arrived with #542/#543;
+> `incident_shares` and `turn_sign` with #707. Each was added for exactly one
+> spell that could not otherwise be drawn — which is the pattern, not an
+> exception: the seam widens when the picture provably cannot re-derive
+> something, and never merely because it would be convenient.
+
+### `incident_shares` — why rank had to cross the seam (#707)
+
+Cyclone splits its damage across turn-ranks, and rank is the whole mechanic: the
+sharp turn circulates, the wide turns radiate. The VFX layer cannot recover it.
+`CycloneStep` holds the coefficient as a **local**, multiplies `damage` by it and
+drops it; `CycloneReducer` then **sums** every incident, and the crit multiplies
+again at landing. A landed amount is not invertible.
+
+Three things make the shape what it is:
+
+- **A float share, not the rank ordinal.** The share has `closing_gain` folded
+  in, so a closing rank-1 arc reads as genuinely heavier than an ordinary one —
+  which it is. An ordinal would flatten exactly that, and a float is directly
+  usable as a brightness or width scalar with no lookup.
+- **Aligned with `predecessors`, not one scalar per landing.** The coordinator
+  already draws one bolt per `predecessors` entry, and a convergence is precisely
+  a strong arc meeting a weak one. That *is* the reinforcement mechanic, and the
+  only moment a player can see it. `SpellResolver` gathers both arrays in the
+  same loop off the same `incidents`, so they are aligned by construction rather
+  than by a downstream assertion.
+- **The seed reports 1.0**, meaning "undivided" — louder than any coefficient,
+  because it was not minted by a turn at all. Every non-splitting spell reports
+  1.0 throughout, so a reader may treat the share as a weight unconditionally.
+
+`turn_sign` rides along because handedness is not derivable either. Measuring a
+turn needs the direction the front arrived *into* its origin, which lives in a
+**different event** — and `predecessor` is a node ref with the event→event link
+deferred, while uncapped revisits (b98a2ca) mean a node is the target of many
+events. "Which one fed this arc" is genuinely ambiguous downstream. It is
+constant for a whole cast (`Curl.rank` turns one fixed way at every node), so
+`IncidentReducer._merge_payload_defaults` carries it first-wins through a merge —
+exact, not a choice. `arrival_share` is deliberately **not** merged: it describes
+one arc's mint, and once the fronts have summed the merged payload has no share.
 
 **Verb is resolver-stamped, not geometry-inferred** — it *cannot* be recovered
 from positions (a self-loop's origin == target). The resolver knows it at

@@ -59,6 +59,28 @@ var predecessors: Array[SkillNode] = []
 ## existed on the context and was simply dropped on the floor.
 var visit_index: int = 0
 
+## The damage share each converging arc carried in, aligned index-for-index
+## with [member predecessors] — entry `i` belongs to the predecessor at `i`.
+## A single-incident landing carries exactly one entry, mirroring how
+## [member predecessors] already behaves.
+##
+## This is what lets a merge be DRAWN as a merge (#704). The coordinator
+## already spawns one bolt per [member predecessors] entry, and a Cyclone
+## convergence is precisely a strong rank-1 arc meeting a weak rank-3 one —
+## which is the reinforcement mechanic, and the only moment a player can see
+## it. One scalar per landing would flatten exactly that.
+##
+## A float rather than the rank ordinal, deliberately: the ordinal loses
+## [member CycloneStep.closing_gain], so a closing rank-1 arc would draw
+## identically to an ordinary one — and a share is directly usable as a
+## brightness or width scalar with no lookup table.
+var incident_shares: PackedFloat32Array = PackedFloat32Array()
+
+## Which way the storm turned to reach this landing — +1 / -1 / 0 for none.
+## See [member CastSpell.turn_sign]; constant for a cast, carried per event
+## because the VFX layer cannot honestly derive it.
+var turn_sign: float = 0.0
+
 ## True when the propagation walk ENDED at this landing by terminal rule —
 ## hops exhausted, no step configured, or nothing left to expand to — as
 ## opposed to merely being the last event appended (#543 D6). Trail Blazer's
