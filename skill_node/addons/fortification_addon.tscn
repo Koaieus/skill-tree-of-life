@@ -1,11 +1,12 @@
 [gd_scene format=3 uid="uid://duyunqwjt7qd"]
 
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="1_3e5dq"]
-[ext_resource type="Script" path="res://skill_node/addons/fortification_addon.gd" id="1_ppux5"]
+[ext_resource type="Script" uid="uid://qg567d7r0y31" path="res://skill_node/addons/fortification_addon.gd" id="1_ppux5"]
 [ext_resource type="Texture2D" uid="uid://bbcoaaq7xchhg" path="res://assets/icons/addons/addon_fortification.png" id="2_icon"]
 
 [sub_resource type="Resource" id="Resource_kv1mp"]
 resource_local_to_scene = true
+resource_name = "+15 bonus Node Health"
 script = ExtResource("1_3e5dq")
 stat_id = &"node_health"
 operation = 3
@@ -13,6 +14,8 @@ value = 15.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [node name="FortificationAddon" type="Node2D" unique_id=631414463]
+modulate = Color(1.8247963, 1.8247963, 1.8247963, 1)
+z_index = 1
 script = ExtResource("1_ppux5")
 local_modifiers = Array[ExtResource("1_3e5dq")]([SubResource("Resource_kv1mp")])
 description = "A crenellated curtain wall ringing this node — more structure to grind through before it falls."

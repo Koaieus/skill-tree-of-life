@@ -1,11 +1,12 @@
 [gd_scene format=3 uid="uid://cmkt6tybpv38p"]
 
-[ext_resource type="Script" path="res://skill_node/addons/bunker_addon.gd" id="1_83r5f"]
+[ext_resource type="Script" uid="uid://14yngvhjdbwx" path="res://skill_node/addons/bunker_addon.gd" id="1_83r5f"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_efkvd"]
 [ext_resource type="Texture2D" uid="uid://uc3n7j5e5c1c" path="res://assets/icons/addons/addon_bunker.png" id="3_icon"]
 
 [sub_resource type="Resource" id="Resource_vxeh7"]
 resource_local_to_scene = true
+resource_name = "+5 bonus Armor"
 script = ExtResource("2_efkvd")
 stat_id = &"armor"
 operation = 3
@@ -14,6 +15,7 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_u38nb"]
 resource_local_to_scene = true
+resource_name = "-5 bonus Min Damage Taken"
 script = ExtResource("2_efkvd")
 stat_id = &"min_damage_taken"
 operation = 3
@@ -21,6 +23,7 @@ value = -5.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [node name="BunkerAddon" type="Node2D" unique_id=631414463]
+modulate = Color(2.454227, 2.454227, 2.454227, 1)
 z_index = 1
 script = ExtResource("1_83r5f")
 local_modifiers = Array[ExtResource("2_efkvd")]([SubResource("Resource_vxeh7"), SubResource("Resource_u38nb")])
