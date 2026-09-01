@@ -297,24 +297,41 @@ static func _resolve_and_score(
 	return candidate
 
 
-## The visible-hostile hit with the largest single damage instance — the
+## The visible-hostile hit that LANDED the largest single damage instance — the
 ## candidate's kill/HP-comparison anchor for [AiCombatScorer]. A blade can hit
 ## several nodes at once; scoring still needs one representative target.
-## Null if this swing didn't connect with anyone currently visible (a
-## coarse-ranked candidate that missed on full-fidelity resolve).
+## Null if this swing didn't damage anyone currently visible (a coarse-ranked
+## candidate that missed on full-fidelity resolve, or one every vertex of which
+## popped).
+##
+## [b]Ranks on [member HitInstance.effective_amount], never `amount`[/b] (#692),
+## for the same reason [method AiCombatScorer.expected_damage] sums it: `amount`
+## is the PRE-gate number, and melee pre-filters nothing at resolve (#502). On a
+## mixed swing — one arm popped on a spiked node, another landed on a plain one
+## — an `amount` ranking names the node that took NOTHING, and
+## [method AiCombatScorer.score] then measures the whole swing's EV against that
+## node's HP: a blade that connected hard elsewhere collects
+## [constant AiCombatScorer._KILL_BONUS] for a kill that cannot happen.
+##
+## The zero seed is deliberate, not inherited. It used to be -1.0, which with
+## landed amounts would anchor a fully-popped swing on its first gated hit and
+## emit a candidate that can only ever lose; at 0.0 with a strict compare, a
+## swing that dealt nothing returns null and [method _resolve_and_score] drops
+## it. A real hit that armour fully soaked is dropped on the same rule, which is
+## the same call: it has no EV and cannot be a kill.
 static func _primary_target(outcome: AttackOutcome, visible_enemies: Array[SkillNode]) -> SkillNode:
 	var enemy_set: Dictionary = {}
 	for e in visible_enemies:
 		enemy_set[e] = true
 	var best: SkillNode = null
-	var best_amount := -1.0
+	var best_amount := 0.0
 	# Melee only ever produces damage (#381's damage_hits() filter), so this
 	# stays a no-op filter today — kept explicit so a future melee heal
 	# effect doesn't silently rank itself as "biggest hit."
 	for hit in outcome.damage_hits():
 		if hit.target == null or not enemy_set.has(hit.target):
 			continue
-		if hit.amount > best_amount:
-			best_amount = hit.amount
+		if hit.effective_amount > best_amount:
+			best_amount = hit.effective_amount
 			best = hit.target
 	return best

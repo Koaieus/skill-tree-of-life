@@ -8,11 +8,13 @@ extends RefCounted
 ## already-[method AttackPlan.resolve]d [AttackOutcome], so it doesn't care
 ## which plan class produced it.
 ##
-## Damage numbers are read off the SAME preview path [BattleSystem.launch_attack]
-## commits through — [method AttackPlan.resolve] (pure) + [Mitigation.apply]
-## (the same post-armor formula [SkillNode.take_damage] runs) — so a scored
-## candidate's expected damage never diverges from what executing it actually
-## deals. Never hand-roll a second damage estimate here.
+## Damage numbers are not estimated here at all — they are READ off the outcome
+## [method AttackPlan.resolve] already landed in a shadow world, hit by hit
+## ([member HitInstance.effective_amount]). That is the same [OutcomeApplier]
+## pass, the same land-time gates and the same post-armor arithmetic
+## [BattleSystem.launch_attack] commits through, so a scored candidate's
+## expected damage cannot diverge from what executing it actually deals. Never
+## hand-roll a second damage estimate here — see [method expected_damage].
 ##
 ## Bonus/penalty terms are tier-gated via a single int on the controller
 ## ([member AIController.ai_tier]) — see the class doc there. At
@@ -82,9 +84,23 @@ class ScoredCandidate:
 
 
 ## Expected damage this outcome would deal on commit — post-mitigation, summed
-## across every hit, via the exact formula [SkillNode.take_damage] applies.
-## Filters to [method AttackOutcome.damage_hits] (#381) — [Mitigation.apply]
-## takes a [DamageInstance] specifically, and a heal shouldn't score as damage.
+## across every hit, read straight off [member HitInstance.effective_amount]:
+## the number [method NodeCombat.take_damage] actually subtracted when
+## [method AttackPlan.resolve_against] landed this outcome in its shadow world.
+## Filters to [method AttackOutcome.damage_hits] (#381) — a hit that
+## [method NodeCombat.take_damage] reclassified to a heal shouldn't score as
+## damage.
+##
+## [b]Read, never re-derive[/b] (#692). This used to re-run
+## [method Mitigation.apply] over each hit's `amount`, which is the
+## PRE-gate number: melee pre-filters nothing at resolve (#502), so a blade
+## vertex a defensive spike popped — and every vertex the pop severed from the
+## handle — is still in [member AttackOutcome.hits] carrying full damage it
+## never dealt, and the AI happily banked EV for a swing that landed nothing.
+## The same held for a ranged dud ([member HitInstance.gated]) and for crits
+## in the other direction: [method CritRoll.apply] multiplies `amount` at LAND
+## time, so a re-derivation also missed every crit it rolled. Since #536
+## resolving IS applying, so the landed number is always there to read.
 ##
 ## With [param attacker] supplied, hits on nodes that aren't AI targets
 ## ([method AiRecon.is_ai_target] — dormant-core blockers) contribute nothing.
@@ -99,7 +115,7 @@ static func expected_damage(outcome: AttackOutcome, attacker: Entity = null) -> 
 	for hit in outcome.damage_hits():
 		if attacker != null and not AiRecon.is_ai_target(attacker, hit.target):
 			continue
-		total += Mitigation.apply(hit, hit.target)
+		total += hit.effective_amount
 	return total
 
 
