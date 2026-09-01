@@ -34,13 +34,13 @@ func test_main_menu_button_targets_the_scene_the_game_boots_into() -> void:
 	var boot: String = ProjectSettings.get_setting("application/run/main_scene", "")
 	if boot.begins_with("uid://"):
 		boot = ResourceUID.get_id_path(ResourceUID.text_to_id(boot))
-	assert_eq(PauseMenu.MAIN_MENU_SCENE, boot,
+	assert_eq(GameRoot.META_ROOT, boot,
 			"MAIN MENU must go where an exported build boots")
 
 
 func test_main_menu_target_scene_exists() -> void:
-	assert_true(ResourceLoader.exists(PauseMenu.MAIN_MENU_SCENE),
-			"%s is not loadable" % PauseMenu.MAIN_MENU_SCENE)
+	assert_true(ResourceLoader.exists(GameRoot.META_ROOT),
+			"%s is not loadable" % GameRoot.META_ROOT)
 
 
 ## Unpausing is not cosmetic: SceneTransition is a PAUSABLE autoload, so a
@@ -106,6 +106,22 @@ func test_toggle_fullscreen_returns_to_borderless_not_windowed() -> void:
 
 	Settings.toggle_fullscreen()
 	assert_eq(Settings.current.window_mode, GameSettings.WindowMode.BORDERLESS)
+
+
+## The one test that proves the feature rather than a piece of it: every other
+## fullscreen assert here would still pass if an autoload never received
+## unhandled key input at all. No display needed — the setting is what moves,
+## and `_apply_display_settings` no-ops headless.
+func test_pressing_f_reaches_the_autoload_and_toggles() -> void:
+	Settings.current.window_mode = GameSettings.WindowMode.WINDOWED
+
+	var press := InputEventKey.new()
+	press.physical_keycode = KEY_F
+	press.pressed = true
+	get_tree().root.push_input(press)
+
+	assert_eq(Settings.current.window_mode, GameSettings.WindowMode.FULLSCREEN,
+			"F must reach Settings._unhandled_key_input")
 
 
 func test_fullscreen_key_survives_a_paused_tree() -> void:

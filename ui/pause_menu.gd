@@ -1,15 +1,6 @@
 class_name PauseMenu
 extends Control
 
-## Where "MAIN MENU" goes. Stated as a path rather than a `preload` on purpose:
-## the pause menu ships inside every level's HudRoot, and preloading the whole
-## frontmatter shell would drag the menu graph into each of them.
-##
-## It is the same scene as `application/run/main_scene` — i.e. where an exported
-## build boots — and `test/unit/ui/test_pause_menu.gd` pins the two together, so
-## repointing the boot scene can never leave this button on a dead one.
-const MAIN_MENU_SCENE := "res://scenes/meta/meta_root.tscn"
-
 ## Single source of truth for the paused state. Toggling it shows/hides the menu
 ## and flips the SceneTree pause flag together. The node runs in
 ## PROCESS_MODE_ALWAYS (set in the scene) so it still catches the un-pause key
@@ -87,7 +78,11 @@ func _on_restart_button_pressed() -> void:
 ## confirmation — same call the sibling [method _restart] already makes.
 func _on_to_main_menu_button_pressed() -> void:
 	leave_run()
-	SceneDirector.goto(MAIN_MENU_SCENE)
+	# [constant GameRoot.META_ROOT], not a second copy of the path: a finished
+	# run already routes there (#460), and "where is the main menu" gets one
+	# answer. `test/unit/ui/test_pause_menu.gd` pins it against
+	# `application/run/main_scene` so neither site can go stale.
+	SceneDirector.goto(GameRoot.META_ROOT)
 
 
 ## The tear-down half of leaving, split out because the [SceneDirector] half
