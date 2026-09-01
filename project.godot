@@ -167,15 +167,15 @@ vision_union_smoothness={
 }
 vision_circles_tex={
 "type": "sampler2D",
-"value": null
+"value": ""
 }
 vision_tile_index_tex={
 "type": "sampler2D",
-"value": null
+"value": ""
 }
 vision_tile_indices_tex={
 "type": "sampler2D",
-"value": null
+"value": ""
 }
 vision_field_enabled={
 "type": "bool",

@@ -100,10 +100,12 @@ and prints its size. Two other traps it handles:
 
 ## What only an export can show you
 
-The first real export of this project (2026-09-01) booted, and printed three
-classes of failure that **zero** of `mise run check`, the GUT suite, and
-`godot --path .` can produce. Assume any new one of these shapes is invisible
-until someone exports.
+The first real export of this project (2026-09-01) booted, and printed **two**
+classes of failure that `mise run check`, the GUT suite and `godot --path .`
+cannot produce. Assume any new one of these shapes is invisible until someone
+exports. (It printed a third, `res://<null>`, which *was* reproducible from
+source — see the section below; the export got the blame for a while and did
+not deserve it.)
 
 **1. A runtime `DirAccess` scan finds nothing in a PCK.** `StatRegistry` scanned
 `stats_system/defs/` for `*.tres`. The exporter rewrites each `.tres` into a
@@ -135,11 +137,28 @@ This only matters for scripts that ship. Inside `addons/` — excluded from the
 export — naming `EditorInterface` directly is fine, which is why the codebase is
 full of it.
 
-**3. Three `No loader found for resource: res://<null>` errors at boot.**
-Present in a control export with an empty `exclude_filter`, so *not* caused by
-the exclusions above, and absent when run from source. Unattributed as of
-2026-09-01 — harmless so far, but it is an export-only defect and worth an
-issue rather than a shrug.
+## A boot error with no backtrace: `res://<null>`
+
+Three `Resource file not found: res://<null>` errors at boot, fixed 2026-09-01.
+The three `sampler2D` entries in `project.godot`'s `[shader_globals]`
+(`vision_circles_tex`, `vision_tile_index_tex`, `vision_tile_indices_tex`) were
+serialized with `"value": null`. The rendering server resolves every sampler
+global by path at startup, and `String(null)` is `"<null>"`, which localizes to
+`res://<null>`. Setting each value to `""` silences all three (verified
+2026-09-01, editor and running game).
+
+Two things hid it for weeks. It needs a **real renderer** — every `--headless`
+run, which is the whole test suite, is clean, so it looks export-only when it
+is not. And it carries **no GDScript backtrace**, because no script is
+involved: it fires during server/scene init, before any autoload.
+
+`--verbose` is what cracks that shape. The load stream names the failing path in
+order (`Loading resource: res://<null>`), so what loaded *just before* it points
+at the caller — here, immediately after `res://theme.tres`.
+
+**Watch for a regression** — the editor's *Shader Globals* project-settings
+panel is a plausible source of the `null`s, so re-check `git diff project.godot`
+after touching it.
 
 ## Testing multiplayer across two machines
 
