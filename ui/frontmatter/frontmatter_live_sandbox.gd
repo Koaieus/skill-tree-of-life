@@ -44,6 +44,7 @@ const K_REDUCE_MOTION := &"reduce_motion"
 const K_PANEL_LEAD := &"panel_lead"
 const K_PANEL_SLIDE := &"panel_slide_duration"
 const K_PANEL_SLIDE_OFFSET := &"panel_slide_offset"
+const K_PANEL_EXIT := &"panel_exit_duration"
 const K_EDGE_ZOOM := &"edge_camera_zoom"
 const K_EDGE_LIT_ALPHA := &"edge_lit_alpha"
 const K_EDGE_UNLIT_ALPHA := &"edge_unlit_alpha"
@@ -93,6 +94,7 @@ const DEFAULTS := {
 	K_PANEL_LEAD: 0.3,
 	K_PANEL_SLIDE: 0.25,
 	K_PANEL_SLIDE_OFFSET: 72.0,
+	K_PANEL_EXIT: 0.15,
 	K_EDGE_ZOOM: 1.0,
 	K_EDGE_LIT_ALPHA: 1.0,
 	K_EDGE_UNLIT_ALPHA: 0.55,
@@ -182,6 +184,9 @@ func _build_controls() -> void:
 			+ "wait-for-arrival behaviour.", 0.0, 1.0, 0.01)
 	_slider(K_PANEL_SLIDE, "Slide", "FrontmatterRoot.panel_slide_duration — seconds the "
 			+ "slide-in takes, independent of the pan it overlaps", 0.0, 1.0, 0.01)
+	_slider(K_PANEL_EXIT, "Exit", "FrontmatterRoot.panel_exit_duration — seconds the "
+			+ "outgoing panel takes to slide back out, from the head of the clock",
+			0.0, 1.0, 0.01)
 	_slider(K_PANEL_SLIDE_OFFSET, "Slide offset", "FrontmatterPanel.slide_offset — pixels "
 			+ "right of home the panel starts from", 0.0, 400.0, 1.0)
 
@@ -452,6 +457,7 @@ func _apply_all() -> void:
 	_frontmatter.reduce_motion = _values[K_REDUCE_MOTION]
 	_frontmatter.panel_lead = _values[K_PANEL_LEAD]
 	_frontmatter.panel_slide_duration = _values[K_PANEL_SLIDE]
+	_frontmatter.panel_exit_duration = _values[K_PANEL_EXIT]
 	_apply_panel_slide_offset()
 	MenuEdgeView.push_camera_zoom(_values[K_EDGE_ZOOM])
 

@@ -149,5 +149,24 @@ func dismiss() -> void:
 ## snap it back mid-flight.
 func set_progress(t: float) -> void:
 	var eased := FrontmatterCamera.ease_sprout(clampf(t, 0.0, 1.0))
-	position.x = (1.0 - eased) * slide_offset
-	modulate.a = eased
+	_pose(eased)
+
+
+## The dismissal, at its own clock position `t` (0..1) — back out to the right,
+## the way it came in.
+##
+## [b]Its own method rather than [method set_progress] run backwards.[/b] A
+## reversed entry clock inherits the entry's curve, which decelerates INTO its
+## endpoint — played backwards that is a panel which lingers at full opacity and
+## then vanishes at the last instant. An exit wants the opposite shape: leave
+## immediately, decelerate on the way out, so the stage is clear well before the
+## clock says so. Same two properties, one eased value, opposite ends.
+func set_exit_progress(t: float) -> void:
+	var eased := FrontmatterCamera.ease_travel(clampf(t, 0.0, 1.0))
+	_pose(1.0 - eased)
+
+
+## Both clocks land here, so "where a panel is at reveal `x`" is written once.
+func _pose(revealed: float) -> void:
+	position.x = (1.0 - revealed) * slide_offset
+	modulate.a = revealed

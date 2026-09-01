@@ -81,6 +81,15 @@ func set_progress(t: float) -> void:
 		panel.set_progress(t)
 
 
+## Drives the shown panel's DISMISSAL clock (0..1) — see
+## [method FrontmatterPanel.set_exit_progress]. Forwarded for the same reason as
+## [method set_progress]: the seam, not a reach past it.
+func set_exit_progress(t: float) -> void:
+	var panel := get_panel(shown_panel)
+	if panel != null:
+		panel.set_exit_progress(t)
+
+
 ## Return the stage to the graph layer.
 func hide_all() -> void:
 	shown_panel = &""

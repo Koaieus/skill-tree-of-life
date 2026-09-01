@@ -403,6 +403,61 @@ func test_a_leafs_panel_is_raised_mid_flight_not_on_departure() -> void:
 	assert_almost_eq(panel.position.x, 0.0, 0.001, "and exactly at home")
 
 
+func test_leaving_a_leaf_slides_its_panel_out_before_the_next_arrives() -> void:
+	# The exit owns the HEAD of the clock: the stage is clear before the
+	# incoming panel's lead elapses, so the layer still shows exactly one panel
+	# at a time (FrontmatterPanels' own rule — no crossfade).
+	_root.focus(MenuGraph.ID_OPTIONS, true)
+	var panels: FrontmatterPanels = _panels()
+	assert_eq(panels.shown_panel, MenuGraph.PANEL_SETTINGS)
+	var panel := panels.get_panel(MenuGraph.PANEL_SETTINGS)
+
+	_root.reduce_motion = false
+	_root.travel_duration = 0.85
+	_root.panel_lead = 0.3
+	_root.panel_exit_duration = 0.15
+	_root.focus(MenuGraph.ID_ROOT)
+
+	_root.set_progress(0.05)
+	assert_eq(panels.shown_panel, MenuGraph.PANEL_SETTINGS, "still on stage, on its way out")
+	assert_between(panel.modulate.a, 0.01, 0.99, "mid-exit")
+	assert_gt(panel.position.x, 0.0, "backing out the way it came in")
+
+	_root.set_progress(0.3)
+	assert_eq(panels.shown_panel, &"", "and gone by the time anything else could arrive")
+
+
+func test_back_under_reduce_motion_clears_the_stage_in_the_same_call() -> void:
+	# `back()` no longer hides the panel itself — the clock does — so the
+	# instant path clearing the stage rests entirely on `focus()` reaching
+	# `set_progress(1.0)`. Pinned rather than left incidental.
+	_root.reduce_motion = true
+	_root.focus(MenuGraph.ID_OPTIONS)
+	var panels: FrontmatterPanels = _panels()
+	assert_eq(panels.shown_panel, MenuGraph.PANEL_SETTINGS)
+
+	_root.back()
+	assert_eq(panels.shown_panel, &"", "gone in the same call, no frames needed")
+	assert_false(panels.visible, "and the graph has the stage back")
+
+
+func test_a_panel_two_leaves_share_is_held_rather_than_slid_out_and_back() -> void:
+	# Both offline routes open the LOBBY. Sliding it out and straight back in
+	# would be a flinch around a panel that never actually left the stage.
+	_root.reduce_motion = false
+	_root.travel_duration = 0.85
+	_root.focus(MenuGraph.ID_NEW_GAME, true)
+	var panels: FrontmatterPanels = _panels()
+	var panel := panels.get_panel(MenuGraph.PANEL_LOBBY)
+
+	_root.focus(MenuGraph.ID_LOCAL)
+	for t in [0.0, 0.2, 0.5, 1.0]:
+		_root.set_progress(t)
+		assert_eq(panels.shown_panel, MenuGraph.PANEL_LOBBY, "held at t=%s" % t)
+		assert_almost_eq(panel.modulate.a, 1.0, 0.001, "never dips at t=%s" % t)
+		assert_almost_eq(panel.position.x, 0.0, 0.001, "and never moves at t=%s" % t)
+
+
 func test_the_panel_slide_is_a_pure_function_of_the_clock() -> void:
 	# #578's live tab wires a scrub slider straight into `set_progress`, so `t`
 	# runs BACKWARDS routinely — which a raise-once latch would strand, leaving

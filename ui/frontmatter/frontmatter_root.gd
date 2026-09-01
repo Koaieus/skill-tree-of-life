@@ -78,6 +78,13 @@ signal focus_started(id: StringName)
 ## overlaps. Still one clock: it is read as a span of `t`, never as a [Tween].
 @export_range(0.0, 1.5, 0.01) var panel_slide_duration: float = 0.25
 
+## How long the outgoing panel takes to slide back out, in seconds. It runs
+## from the START of the clock, so the stage is clear before the incoming
+## panel's [member panel_lead] elapses — the panel layer still shows exactly
+## one panel at a time, which is [FrontmatterPanels]' own rule and not
+## something to relax for a crossfade.
+@export_range(0.0, 1.5, 0.01) var panel_exit_duration: float = 0.15
+
 ## Screen-space gap between a node and the top of the slab stack that describes
 ## it. The stack is centred horizontally on the node, so this is the whole of
 ## the placement (#588) — there is no sideways component to tune.
@@ -113,6 +120,18 @@ var _tooltip: MenuTooltip = null
 ## first `_sync_allocation` call after a build only; reset there so #578's
 ## live-tab rebuild-in-place does not leave it permanently armed.
 var _first_focus_done: bool = false
+
+## The panel of the focus the CURRENT transition LEFT, or `&""`. Captured by
+## [method focus] the same way [member _from_pose] captures where the views
+## were: an exit needs to outlive the focus that owned it, and deriving it from
+## the previous [member focus_id] rather than from what the container happens
+## to be showing keeps it true even when a panel dismissed itself on the way out
+## (the exit confirm's "no", which takes itself down before [method back] runs).
+##
+## It may equal the INCOMING panel — two leaves can share one (both offline
+## routes open the lobby) — which is a third case rather than an exit: see
+## [method _drive_panel].
+var _left_panel: StringName = &""
 
 const TOOLTIP_SCENE := preload("res://ui/frontmatter/menu_tooltip.tscn")
 
@@ -153,6 +172,12 @@ func build(menu_tree: MenuGraph = null) -> void:
 	reduce_motion = _resolve_reduce_motion()
 	_clear()
 	_first_focus_done = false
+	# Defensive: `focus_id` still holds the PRE-rebuild focus here, so an
+	# uncleared exit would describe a panel this build never showed. Today's
+	# seeding focus is instant and lands past the exit in the same call, so
+	# nothing observes it — which is exactly why it is worth clearing rather
+	# than reasoning about again the next time this focus stops being instant.
+	_left_panel = &""
 	_build_views()
 	_build_edges()
 	camera = FrontmatterCamera.new(_camera_2d, tree)
@@ -175,6 +200,7 @@ func focus(id: StringName, instant: bool = false) -> void:
 	if _transition != null and _transition.is_valid():
 		_transition.kill()
 	_transition = null
+	_left_panel = _panel_of(focus_id)
 	focus_id = id
 	_settled = false
 	set_hovered(&"")
@@ -204,9 +230,10 @@ func back() -> bool:
 	var parent := tree.parent_of(focus_id)
 	if parent == &"":
 		return false
-	var panels := panel_container()
-	if panels != null:
-		panels.hide_all()
+	# No `hide_all()` here any more: taking the panel down is the clock's job
+	# now ([method _drive_panel]), and cutting it away first is precisely the
+	# hard cut the exit slide replaces. The instant path still clears it in the
+	# same call, via `set_progress(1.0)`.
 	focus(parent)
 	return true
 
@@ -408,10 +435,11 @@ func _connect_panels() -> void:
 		panels.quit_requested.connect(_on_quit_requested)
 
 
+## The panel asked to go away; [method back] is what makes it go away — the
+## exit slide included. (The container has already taken it off its own books;
+## [member _left_panel] is derived from the focus being left, not from what the
+## container is showing, so the slide still plays.)
 func _on_panel_dismissed(_id: StringName) -> void:
-	var panels := panel_container()
-	if panels != null:
-		panels.hide_all()
 	back()
 
 
@@ -438,31 +466,85 @@ func _drive_panel(t: float) -> void:
 	var panels := panel_container()
 	if panels == null:
 		return
-	var item := tree.get_item(focus_id)
-	var panel_t := panel_progress_at(t)
-	if item == null or not item.is_leaf() or item.panel == &"" or panel_t <= 0.0:
+	var incoming := _panel_of(focus_id)
+	# Three cases, not two. A panel the transition both LEFT and is arriving at
+	# — two leaves can share one — never left the stage, so it is HELD rather
+	# than slid out and back in, which would be a flinch around nothing. Its
+	# contents still swap, at departure (`meta_root.gd`'s `_on_focus_started`).
+	if incoming != &"" and _left_panel == incoming:
+		panels.show_panel(incoming)
+		return
+	# Otherwise the outgoing panel owns the head of the clock, alone. Both
+	# panels visible at once would be a crossfade, and `FrontmatterPanels`
+	# allows exactly one.
+	var exit_t := exit_progress_at(t)
+	if _left_panel != &"" and exit_t < 1.0:
+		panels.show_panel(_left_panel)
+		panels.set_exit_progress(exit_t)
+		return
+	var panel_t := panel_progress_at(t, _effective_lead())
+	if incoming == &"" or panel_t <= 0.0:
 		panels.hide_all()
 		return
 	# In this order and in ONE call: `show_panel` lands the panel fully
 	# revealed, so a `set_progress` a frame later would flash it opaque first.
-	panels.show_panel(item.panel)
+	panels.show_panel(incoming)
 	panels.set_progress(panel_t)
+
+
+## The panel [param id] raises, or `&""` for a branch, an unknown id, or a leaf
+## that authors none.
+func _panel_of(id: StringName) -> StringName:
+	if tree == null:
+		return &""
+	var item := tree.get_item(id)
+	# A leaf may carry no panel at all — `Item.panel` defaults to `&""` and
+	# `is_leaf()` is "has no children", not "has a panel".
+	return item.panel if item != null and item.is_leaf() else &""
+
+
+## [member panel_lead], floored by the exit so the incoming panel cannot be
+## scheduled to start while the outgoing one is still on stage — at the authored
+## values it never is (170ms out, 255ms lead), but a lead dragged below the exit
+## in #578's tab would otherwise make the entry POP in mid-slide, at whatever
+## progress its own curve had already reached.
+func _effective_lead() -> float:
+	if _left_panel == &"":
+		return panel_lead
+	return maxf(panel_lead, exit_span())
 
 
 ## The panel's own reveal clock at travel clock position [param t] — 0 until the
 ## lead has elapsed, then a [member panel_slide_duration]-long ramp expressed as
 ## a span of `t`. Public because it is the whole timing contract, and a test
 ## asserting it needs no frames.
-func panel_progress_at(t: float) -> float:
-	var span := minf(1.0 - panel_lead, panel_slide_duration / maxf(travel_duration, 0.001))
+func panel_progress_at(t: float, lead: float = -1.0) -> float:
+	if lead < 0.0:
+		lead = panel_lead
+	var span := minf(1.0 - lead, panel_slide_duration / maxf(travel_duration, 0.001))
 	# A zero span is a SNAP, not a hidden panel — reachable from both ends of
 	# the tuning range (`panel_lead = 1.0`, `panel_slide_duration = 0.0`), and
 	# `lead = 1.0` is exactly the "show me the old wait-for-arrival behaviour"
 	# comparison. Dividing by an epsilon instead left `(t - lead) == 0` at
 	# `t = 1`, i.e. the panel never appearing at all.
 	if span <= 0.0:
-		return 1.0 if t >= panel_lead else 0.0
-	return clampf((t - panel_lead) / span, 0.0, 1.0)
+		return 1.0 if t >= lead else 0.0
+	return clampf((t - lead) / span, 0.0, 1.0)
+
+
+## The outgoing panel's dismissal clock at travel clock position [param t]. Runs
+## from `t = 0`, so leaving a leaf clears the stage first and the incoming panel
+## follows into an empty one.
+func exit_progress_at(t: float) -> float:
+	var span := exit_span()
+	if span <= 0.0:
+		return 1.0
+	return clampf(t / span, 0.0, 1.0)
+
+
+## How much of the travel clock the exit occupies.
+func exit_span() -> float:
+	return minf(1.0, panel_exit_duration / maxf(travel_duration, 0.001))
 
 
 ## Allocation is "on the focus path" (#569) — an identity change, not motion, so
