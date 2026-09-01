@@ -91,8 +91,15 @@ at `0.78` (a typical mid-tint archetype green) decodes to linear `~0.57`; at
 Bumping to `+3`/`+4` stops (linear `~4.5`/`~9.1`) pushes the *same* weak
 intensity into visible range — which is exactly the "nothing at ALERT, medium
 at +3, great at +4" ladder that first surfaces this bug. **The fix is
-`glow_intensity`, not another stop.** `default_game_env.tres` now sets it to
-`1.2`.
+`glow_intensity`, not another stop.**
+
+`default_game_env.tres`'s current value is an owner tuning call and has moved
+more than once — **read the file, don't trust a number quoted here.** If it
+omits `glow_intensity` entirely that is not a lost setting: Godot omits any
+property equal to its default, and `0.3` *is* the default, so "the line is
+gone" and "the owner chose 0.3" look identical in a diff. Do not reconstruct a
+deletion from `git log` and call it a regression — that misread cost a session
+on 2026-09-01.
 
 ### A thin/small element needs real pixel coverage, not just a hot colour
 
@@ -329,9 +336,9 @@ it.
   `PROPERTY_USAGE_STORAGE` properties *onto* the live object; reassigning your own
   reference just orphans you from the one the viewport holds.
 
-### Five ways glow silently does nothing
+### Six ways glow silently does nothing
 
-All five fail with no error and no warning. In diagnosis order:
+All six fail with no error and no warning. In diagnosis order:
 
 1. **`background_canvas_max_layer` defaults to `0`,** which excludes every
    `CanvasLayer` — i.e. the entire HUD. Set to `100`: verified to include the base
@@ -362,7 +369,28 @@ All five fail with no error and no warning. In diagnosis order:
    `glow_intensity`, so it runs at Godot's default `0.3` — low. Intensity is the
    knob for *bloom present but weak*; threshold is the knob that makes it
    **absent**. Reaching for the wrong one is how a threshold ends up at 1.53.
-5. **A SubViewport in an editor dock inherits the editor's "environments
+5. **Porting `Emissive.at()`'s sRGB round trip into a shader, where the base is
+   a `source_color` uniform that is ALREADY LINEAR.** The renderer decodes
+   `source_color` uniforms on upload, so in GLSL the whole lift is
+   `base_linear * exp2(stops)`. Running `srgb_to_linear` on it again costs ~5x
+   the energy and parks the result just *under* the bright-pass — no bloom at
+   **any** tier, which reads exactly like a broken viewport and sends you
+   hunting canvas layers and env settings instead.
+
+   The tell: it renders at roughly the right *hue*, just never blooms, and
+   raising the tier does nothing. Confirm it in one frame — draw your widget
+   beside a reference `Label` with `modulate = Emissive.at(c, same_stops)` and
+   screenshot `get_viewport().get_texture().get_image()`. Dimmer than the
+   reference at equal stops means you are double-converting.
+
+   Correct exemplars: `skill_node/visuals/rim_ring.gdshader` (the original
+   #389 fix), `ui/tooltip_fan/slab_panel.gdshader:33`, and
+   `ui/attack_mode_bar/attack_mode_button_text.gdshader` (`fd91d18`).
+   **`ui/theme/fused_panel.gdshader` still carries the round trip** — it is the
+   one wrong exemplar in the tree, and copying it is how this was reintroduced
+   on 2026-09-01. Correcting it needs its authored `glow_energy` values
+   re-tuned down, so it is a look call, not a drop-in fix.
+6. **A SubViewport in an editor dock inherits the editor's "environments
    disabled".** A viewport's environment mode defaults to `INHERIT` — it takes
    the setting from its *parent* viewport rather than deciding for itself. In a
    game the parent chain ends at the root with environments on. In the editor the

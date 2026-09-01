@@ -39,8 +39,8 @@ settings/stdout/print_fps=true
 window/size/viewport_width=1440
 window/size/viewport_height=960
 window/size/mode=3
-window/size/mode.editor=0
 window/stretch/mode="canvas_items"
+window/size/mode.editor=0
 
 [editor]
 
