@@ -165,6 +165,18 @@ func _ready() -> void:
 		# turn loop would stall on the first one to take a turn. Re-running it is
 		# idempotent (explicit composition always wins) and cheap.
 		command_link.resync_applied.connect(_on_resync_applied)
+		# Rung 3's protocol trace, hooked HERE rather than beside its verdict line
+		# at the tail of `_ready` — by then the resync has already been pushed
+		# (host) or applied (client) and the interesting lines are gone. It is what
+		# makes acceptance 3 comparable ACROSS the two logs: the host's
+		# `⟳ RESYNC pushed — … (fp N)` and the client's `⟳ resync applied — … (fp N)`
+		# sample the SAME world, whereas the two FIRST TURN lines are each taken at
+		# their own machine's turn start and so straddle whatever the turn start
+		# itself moves (regen, mana). See [method _announce_first_turn_for_rung_3].
+		var rung3 := _rung_3_role()
+		if not rung3.is_empty():
+			command_link.logged.connect(
+					func(line: String) -> void: print("[%s] %s" % [rung3, line]))
 	# Entity death (#18): AllocationSystem strips the corpse's nodes off the same
 	# bus signal; GameRoot owns the player-vs-NPC consequence (game-over / despawn).
 	Events.entity_died.connect(_on_entity_died)
@@ -295,6 +307,22 @@ func _ready() -> void:
 		command_link.defer_until_resync = true
 	_open_link()
 	pull_host_world()
+	# And then WAIT for the answer, on the joining side only (#715). Before this,
+	# a client had a world of its own — the wrong one, but a populated one — so
+	# everything below could run against it and the pull repaired it a moment
+	# later. It no longer has one: its graph is empty until the resync lands, and
+	# arming [VictorySystem], starting a turn or lifting the curtain over nothing
+	# is not "a bit early", it is a level with no map. This await IS what the
+	# client's loading bar has been covering since `_setup_level` — the host's
+	# generate and ship, rather than this machine's own procgen.
+	#
+	# Unbounded on purpose, and safe because somebody else bounds it:
+	# [SceneDirector] shows a screen after [constant
+	# SceneDirector.REVEAL_TIMEOUT_S] regardless, and `_reveal_ready` staying
+	# false is the honest report that this peer never got a world. A timeout that
+	# gave up and started a turn on an empty graph would be worse than a wait.
+	if _is_network_client() and command_link != null:
+		await command_link.resync_applied
 	# #667, second half. The world now exists on EVERY path — offline, host and
 	# client alike — so the run may be judged. Before this line a death (from
 	# the network window above, or from anything else that can fire during
@@ -305,6 +333,7 @@ func _ready() -> void:
 	if victory_system != null:
 		victory_system.world_ready = true
 
+	_announce_first_turn_for_rung_3()
 	if auto_start_turn and player != null and turn_manager != null:
 		# Skip the initial tick race: fill the player's clock so they act first.
 		# (start_turn clears the ready-group membership this would otherwise set.)
@@ -319,6 +348,42 @@ func _ready() -> void:
 	_reveal_ready = true
 	if SceneTransition.is_curtain_up():
 		await SceneTransition.fade_in()
+
+
+## Rung 3's verdict line (#715) — the level half of `meta_root`'s
+## `--lobby=host|client` driver. Prints, once, on the first turn this machine
+## sees: which world it holds and whether it agrees with the other process.
+##
+## [b]On `turn_started`, not on the resync[/b], because "the first turn starts"
+## IS acceptance 1. A client that decoded a world and then never got a turn has
+## not proved the thing; the fingerprint beside it is what makes the pair
+## comparable across two logs.
+##
+## Behind the same explicit flag `meta_root` reads, so an ordinary launch, an
+## exported build and every test print nothing and parse nothing.
+## `""` unless this process was launched by `meta_root`'s `--lobby=` driver.
+static func _rung_3_role() -> String:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--lobby="):
+			return arg.trim_prefix("--lobby=")
+	return ""
+
+
+func _announce_first_turn_for_rung_3() -> void:
+	var role := _rung_3_role()
+	if role.is_empty() or turn_manager == null:
+		return
+	var announce := func(entity: Entity) -> void:
+		print("[%s] rung 3: FIRST TURN — %s | %d nodes | %s | seat %d | %s" % [
+			role,
+			entity.display_name if entity != null else "<none>",
+			graph.get_skill_nodes().size(),
+			"authority" if command_link == null or command_link.mode != CommandLink.Mode.MIRROR
+					else "mirror",
+			seat_policy.seated_entity_id,
+			WorldFingerprint.describe(graph),
+		])
+	turn_manager.turn_started.connect(announce, CONNECT_ONE_SHOT)
 
 
 ## The drain (#504, design B). An attack's world mutation is spread across a
@@ -473,6 +538,25 @@ func _on_peer_joined(peer_id: int) -> void:
 		GameSession.local_peer_id = transport.local_peer_id()
 		return
 	LobbyScreen.stamp_pending_remote(GameSession.roster, peer_id)
+	# And ship this peer the world (#715). Host-side this line runs at the tail of
+	# `_ready`, so the world is COMPLETE — `_open_link` is the last thing before
+	# it, and [method EnetTransport._adopt_live_link] replays the join for a peer
+	# that was already on the socket, which on the lobby path is every peer.
+	#
+	# [b]Why a push as well as the client's pull.[/b] They race, and neither wins
+	# alone. A client's level is up in milliseconds (it generates nothing) while
+	# the host spends 5-10 seconds on procgen — so `request_resync` arrives while
+	# the host's level has not yet adopted the link, `Wire` emits it to nobody,
+	# and it is silently dropped. Conversely this push lands on nothing if the
+	# client's level is the slower one. Both legs are idempotent (the resync
+	# RECONCILES, #561 D6) and `_awaiting_resync` stops the client asking twice,
+	# so whichever arrives second is simply a no-op repair.
+	#
+	# The old warning against pushing from here does not survive #715: it said a
+	# graph snapshot would "decode into a graph that is about to be generated
+	# over", and the joining peer no longer generates anything.
+	if command_link != null:
+		command_link.send_resync("join: the peer is on the link and has no world")
 
 
 func _unhandled_input(event: InputEvent) -> void:

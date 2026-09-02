@@ -50,6 +50,7 @@ func _ready() -> void:
 	# menu. `unbind(1)` could not be disconnected by hand either
 	# (`.claude/rules/gdscript-pitfalls.md`).
 	Wire.peer_joined.connect(_on_wire_peer_joined)
+	_drive_lobby_from_cmdline()
 
 
 ## Wires the three panels that produce something this file has to act on. The
@@ -327,3 +328,65 @@ func _join_panel() -> JoinPanel:
 func _host_panel() -> HostPanel:
 	var panels := _panels()
 	return null if panels == null else panels.get_panel(MenuGraph.PANEL_HOST) as HostPanel
+
+
+# --- Rung 3: the lobby, driven from the command line (#715) --------------------
+#
+# The smallest thing that proves acceptance 1 — "the host clicks START with one
+# remote human and both processes reach the level and the first turn starts" —
+# over two real OS processes. #714's lobby replication was pinned headlessly
+# only, with two `LobbyScreen`s over a loopback pair and no socket; this drives
+# the REAL route, through the real menu graph, over a real ENet socket.
+#
+#   godot --headless --path . -- --lobby=host --port=9300
+#   godot --headless --path . -- --lobby=client --address=127.0.0.1 --port=9300
+#
+# No scene argument: `run/main_scene` IS this file, which is the point — nothing
+# is stubbed. The host walks its own HOST leaf, waits for a peer to arrive in the
+# lobby, and presses START; the client walks JOIN and is routed by the broadcast
+# that follows. `GameRoot` prints the verdict on the other side (see
+# [method GameRoot._announce_first_turn_for_rung_3]).
+#
+# Deliberately behind an explicit flag and reading nothing by default: an
+# ordinary launch, an exported build and every test parse no arguments at all.
+const _RUNG3_FLAG := "--lobby="
+
+
+func _drive_lobby_from_cmdline() -> void:
+	var role := ""
+	var address := NetworkConfig.DEFAULT_ADDRESS
+	var port := NetworkConfig.DEFAULT_PORT
+	for arg in OS.get_cmdline_user_args():
+		var pair := arg.trim_prefix("--").split("=", true, 1)
+		if pair.size() != 2:
+			continue
+		match pair[0]:
+			"lobby":
+				role = pair[1]
+			"address":
+				address = pair[1]
+			"port":
+				port = int(pair[1])
+	if role.is_empty():
+		return
+	print("[%s] rung 3: driving the lobby from the command line" % role)
+	if role == "host":
+		_on_host_requested(port)
+		# The host presses START once a human has actually arrived — which is the
+		# whole thing under test: the seat was authored up front so procgen could
+		# see it, and only its identity was outstanding.
+		Wire.peer_joined.connect(_press_start_when_seated, CONNECT_ONE_SHOT)
+	else:
+		_on_join_requested(address, port)
+
+
+## One deferred hop so [method LobbyScreen._on_link_peer_joined] has stamped the
+## waiting seat before START reads the roster off it.
+func _press_start_when_seated(_peer_id: int) -> void:
+	await get_tree().process_frame
+	var lobby := _lobby_panel()
+	if lobby == null or lobby.screen == null:
+		push_error("rung 3: no lobby to start")
+		return
+	print("[host] rung 3: peer seated — pressing START")
+	lobby.screen._on_start_button_pressed()
