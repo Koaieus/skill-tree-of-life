@@ -57,7 +57,7 @@ different things depending on whether the step self-terminates:
 
 | spell | propagation `max_hops` | role |
 |---|---|---|
-| Trailblazer | 20 | **backstop** — `trail_blazer_step.gd` walks one path and stops at the first junction (degree > 2) |
+| Trailblazer | **999** (was 20 — see below) | **backstop** — `trail_blazer_step.gd` walks one path and stops at the first junction (degree > 2) |
 | Cyclone | 8 | limiter |
 | Leafblower | 7 | limiter |
 | Resonator | 6 | limiter |

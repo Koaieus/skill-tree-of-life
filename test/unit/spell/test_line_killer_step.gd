@@ -63,7 +63,10 @@ func _trail_blazer_config(opts: Dictionary = {}) -> PropagationConfig:
 	var deg2 := ExpressionFilter.new()
 	deg2.expression = "to_degree >= 2"
 	var children: Array[PropagationFilter] = [h.owner_enemy(), deg2]
-	var o := {max_hops = 20, hop_damage = h.flat_add_progression(2.0)}
+	# Mirrors `trail_blazer.tres`: the hop budget is a SAFETY BACKSTOP, not a
+	# tuning knob. The walk is meant to end at a junction, and termination is
+	# guaranteed by `max_visits_per_node = 1` (never revisit), not by this.
+	var o := {max_hops = 999, hop_damage = h.flat_add_progression(2.0)}
 	o.merge(opts)
 	return h.make_config(TrailBlazerStep.new(), h.composite_filter(children), null, o)
 
@@ -289,3 +292,68 @@ func test_seeded_mid_string_splits_into_two_probes_walking_both_ways() -> void:
 			"E: (X + 2A) × 2 slam")
 	assert_almost_eq(h.total_damage_on(out, nodes[5]), 0.0, 0.001, "past junction, stopped")
 	assert_almost_eq(h.total_damage_on(out, nodes[6]), 0.0, 0.001, "past junction, stopped")
+
+
+# ── the hop budget is a backstop, not a limiter ───────────────────────────
+
+## A 25-node string is the Trailblazer's advertised dream target ("cast on a
+## node at the end of a long string for maximum devastation") — and until
+## 2026-09-02 it silently fizzled: `max_hops = 20` ran the budget out at hop 20,
+## `SpellResolver` marked the walk terminal, and the junction slam never landed.
+## The player got the whole ramp and none of the payoff, on exactly the shape
+## the spell exists to punish.
+func test_long_string_walks_past_the_old_20_hop_backstop_and_still_slams() -> void:
+	# String 0-1-…-24-25, junction at 25 (edges to 24, 26, 27 → entity degree 3).
+	# The walk is 25 hops long, comfortably past the retired 20-hop budget.
+	var edges: Array = []
+	for i in 25:
+		edges.append([i, i + 1])
+	edges.append([25, 26])
+	edges.append([25, 27])
+	edges.append([28, 29])  # disjoint attacker territory to cast from
+	var graph := h.make_graph(edges, self)
+	var attacker := h.make_entity(graph, "ATK", Color.RED)
+	var defender := h.make_entity(graph, "DEF", Color.BLUE)
+	h.give_big_hp(defender)
+	var defender_nodes: Array = []
+	for i in 28:
+		defender_nodes.append(i)
+	h.assign_owner(graph, defender, defender_nodes)
+	h.assign_owner(graph, attacker, [28, 29])
+
+	var effects: Array[OnHitEffect] = [DamageEffect.new()]
+	var spell := h.make_spell(_trail_blazer_config(), effects, 1.0)
+	var nodes := graph.get_skill_nodes()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+
+	var out := SpellResolver.resolve(spell, nodes[0], nodes[28], attacker, graph, rng)
+
+	var x: float = h.seed_multiplier(nodes[28]) * spell.power
+	var a := 2.0
+	# Hop 21+ must still land — this is the assertion the old budget broke.
+	assert_almost_eq(h.total_damage_on(out, nodes[21]), x + 21.0 * a, 0.001,
+			"hop 21 lands (was truncated by the 20-hop budget)")
+	assert_almost_eq(h.total_damage_on(out, nodes[24]), x + 24.0 * a, 0.001,
+			"hop 24, the last link before the junction")
+	assert_almost_eq(h.total_damage_on(out, nodes[25]), (x + 25.0 * a) * 2.0, 0.001,
+			"junction slams at hop 25 — the payoff the truncation stole")
+	assert_almost_eq(h.total_damage_on(out, nodes[26]), 0.0, 0.001,
+			"past junction, walk stopped")
+	assert_almost_eq(h.total_damage_on(out, nodes[27]), 0.0, 0.001,
+			"past junction, walk stopped")
+
+
+## Guards the AUTHORED value, not just the fixture — the bug lived in the
+## `.tres`, so a test built on a hand-made config could never have caught it.
+func test_authored_trail_blazer_hop_budget_clears_any_realistic_string() -> void:
+	var spell: SpellDef = load("res://attack/spell/defs/trail_blazer.tres")
+	assert_not_null(spell, "trail_blazer.tres loads")
+	assert_not_null(spell.propagation, "trail_blazer has a propagation config")
+	assert_gt(spell.propagation.max_hops, 200,
+			"max_hops is a SAFETY BACKSTOP, not a tuning knob — the walk must be "
+			+ "able to run the length of any realistic degree-2 string and reach "
+			+ "its junction. Termination is guaranteed by max_visits_per_node = 1 "
+			+ "(never revisit), so lowering this only truncates long strings.")
+	assert_eq(spell.propagation.max_visits_per_node, 1,
+			"the never-revisit cap is what actually bounds the walk")

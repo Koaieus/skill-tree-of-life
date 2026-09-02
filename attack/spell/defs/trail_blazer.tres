@@ -50,7 +50,7 @@ script = ExtResource("8_6uaym")
 script = ExtResource("7_riwgb")
 filter = SubResource("filter_composite")
 step = SubResource("step_killer")
-max_hops = 20
+max_hops = 999
 hop_damage = SubResource("prog_flat")
 
 [sub_resource type="Resource" id="range"]
