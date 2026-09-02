@@ -51,7 +51,7 @@ func after_each() -> void:
 func _shadow_node() -> NodeCombat:
 	var shadow := _entity.get_combat().snapshot()
 	_shadows.append(shadow)
-	return shadow._shadow_by_real[_node]
+	return shadow.shadow_for(_node)
 
 
 # ── Host invariant ───────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ func test_max_hp_on_a_shadow_responds_to_a_mid_attack_modifier_change() -> void:
 	# with no reactive wiring involved.
 	var shadow := _entity.get_combat().snapshot()
 	_shadows.append(shadow)
-	var n: NodeCombat = shadow._shadow_by_real[_node]
+	var n: NodeCombat = shadow.shadow_for(_node)
 	var before := n.get_max_hp()
 
 	var mod := StatModifier.new()

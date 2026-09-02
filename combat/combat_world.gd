@@ -27,14 +27,24 @@ extends RefCounted
 ## [SkillNode] -> [NodeCombat] index.
 ##
 ## [b]A shadow grows on demand, and that is safe.[/b] [method shadow] starts
-## empty; the first time a hit lands on a node whose owner is not snapshotted
-## yet, that owner's WHOLE owned subgraph is snapshotted then (#498's "do not
-## reach-bound the owned subgraph" — a node fifty hops away can still be in a
-## cascade). Snapshotting late reads the same state as snapshotting up front,
-## because a shadow resolve never writes to the real world, so the real world is
-## frozen for its whole duration. Lazily is also strictly cheaper: at ~0.7 ms per
-## entity board (the bench on #498) only the entities actually hit are paid for,
-## instead of every candidate's.
+## empty. The first time a hit lands on a node whose owner is not snapshotted
+## yet, that owner's [EntityCombat] is snapshotted then — its entity board, its
+## owned-set mirror, its effect twins and its core's board — and from #695 on
+## each further owned NODE's board is cloned only when this world is first asked
+## about that node ([method EntityCombat.shadow_for]). Snapshotting late reads
+## the same state as snapshotting up front, because a shadow resolve never
+## writes to the real world, so the real world is frozen for its whole duration.
+## Lazily is also strictly cheaper: at ~0.7 ms per entity board (the bench on
+## #498) only the entities actually hit are paid for, and at ~0.1 ms per node
+## board only the nodes a walk actually visits (#681 measured 8-24 ms per hover
+## for the whole-subgraph clone this replaced).
+##
+## Per-node laziness ends the moment anything ENTITY-wide runs — a cascade, a
+## simulated death, a hook dispatch, an `owned()` read — at which point
+## [method EntityCombat._materialize_all] mints the rest, so #498's "do not
+## reach-bound the owned subgraph" still holds: a node fifty hops away is in the
+## cascade set exactly as before, because by the time a cascade set is asked for
+## the whole subgraph is present (owner call on #695, 2026-08-31).
 ##
 ## [b]Every shadow needs [method free_shadow][/b], for the reference cycles
 ## [method EntityCombat.free_shadow] documents. A live world holds nothing and
@@ -79,9 +89,11 @@ func is_shadow() -> bool:
 ## The [NodeCombat] that [param node]'s state lives in for this world.
 ##
 ## Live: the node's own composed slice. Shadow: the snapshot, taken now if this
-## is the first time this world has been asked about [param node]'s owner. An
-## unallocated node gets an ownerless slice of its own — a spell conduit has no
-## entity to snapshot, but it still has a board a hit could read or mutate.
+## is the first time this world has been asked about [param node] — and its
+## owner's entity-level snapshot too, if this is the first of that owner's
+## nodes (see the class doc). An unallocated node gets an ownerless slice of
+## its own — a spell conduit has no entity to snapshot, but it still has a
+## board a hit could read or mutate.
 func combat_for(node: SkillNode) -> NodeCombat:
 	if node == null:
 		return null
@@ -92,10 +104,11 @@ func combat_for(node: SkillNode) -> NodeCombat:
 		return known
 	var owner_entity := node.owned_by
 	if owner_entity != null:
-		# Snapshots the owner's ENTIRE owned subgraph, which is what indexes
-		# `node` — never just `node`, per #498's "do not reach-bound".
-		combat_for_entity(owner_entity)
-		known = _nodes.get(node)
+		# Mints just THIS node's board (#695) — `shadow_for` registers it here
+		# through `index_node`. Null when the owner's navigator disagrees with
+		# `owned_by` (a fixture that wrote the field directly), which falls
+		# through to an orphan exactly as the whole-subgraph fold did.
+		known = combat_for_entity(owner_entity).shadow_for(node)
 		if known != null:
 			return known
 	var orphan := node.get_combat().snapshot(null)
@@ -105,8 +118,8 @@ func combat_for(node: SkillNode) -> NodeCombat:
 
 
 ## The [EntityCombat] that [param entity]'s state lives in for this world.
-## Shadow: snapshotted on first ask, and its whole owned subgraph is folded into
-## this world's node index in the same pass.
+## Shadow: snapshotted on first ask; its owned nodes join this world's node
+## index one at a time as they are minted ([method index_node]).
 func combat_for_entity(entity: Entity) -> EntityCombat:
 	if entity == null:
 		return null
@@ -123,9 +136,11 @@ func combat_for_entity(entity: Entity) -> EntityCombat:
 	return shadow_entity
 
 
-## Register an already-built shadow [EntityCombat] and fold its owned nodes into
-## this world's index. Called by [method combat_for_entity], and by
-## [method EntityCombat.world] when a bare snapshot mints its own world.
+## Register an already-built shadow [EntityCombat] and fold the nodes it has
+## minted so far into this world's index. Called by [method combat_for_entity],
+## and by [method EntityCombat.world] when a bare snapshot mints its own world —
+## the case that needs the fold: nodes minted before the shadow had a world to
+## [method index_node] into.
 func adopt(shadow_entity: EntityCombat) -> void:
 	if shadow_entity == null or not _shadow:
 		return
@@ -134,10 +149,20 @@ func adopt(shadow_entity: EntityCombat) -> void:
 		_entities[origin] = shadow_entity
 	var index := shadow_entity.shadow_index()
 	for real_node in index:
-		# An owned node can never have been minted as an orphan first —
-		# `combat_for` checks `owned_by` before it orphans, and ownership does
-		# not change under a shadow except by a cascade, which only ever un-owns.
-		_nodes[real_node] = index[real_node]
+		index_node(real_node, index[real_node])
+
+
+## Index one minted shadow node under its real node. Called by
+## [method EntityCombat.shadow_for] as it mints (#695), so a node's slice is
+## findable from this world the moment it exists — an [EffectContext] resolves a
+## grant target through here.
+func index_node(real_node: SkillNode, slice: NodeCombat) -> void:
+	if real_node == null or slice == null or not _shadow:
+		return
+	# An owned node can never have been minted as an orphan first —
+	# `combat_for` checks `owned_by` before it orphans, and ownership does
+	# not change under a shadow except by a cascade, which only ever un-owns.
+	_nodes[real_node] = slice
 
 
 ## Release every slice this world minted. Mandatory on a shadow (see

@@ -102,7 +102,7 @@ func test_snapshot_host_is_null() -> void:
 func test_simulated_kill_emits_nothing_on_events() -> void:
 	var shadow := _entity.get_combat().snapshot()
 	_shadows.append(shadow)
-	var shadow_n1: NodeCombat = shadow._shadow_by_real[_n1]
+	var shadow_n1: NodeCombat = shadow.shadow_for(_n1)
 	shadow_n1.take_damage(999999.0, null)
 	assert_eq(_events_fired, 0, "a shadow kill must never reach the Events bus")
 	# And the real world is untouched.
@@ -129,16 +129,16 @@ func test_shadow_kill_islands_the_same_set_as_the_live_navigator() -> void:
 
 	var shadow := _entity.get_combat().snapshot()
 	_shadows.append(shadow)
-	var shadow_n1: NodeCombat = shadow._shadow_by_real[_n1]
+	var shadow_n1: NodeCombat = shadow.shadow_for(_n1)
 	shadow_n1.take_damage(999999.0, null)
 
 	var still_owned := shadow.owned()
 	assert_false(still_owned.has(shadow_n1), "the killed node itself must be stripped")
 	for real in ground_truth:
-		var shadow_equiv: NodeCombat = shadow._shadow_by_real[real]
+		var shadow_equiv: NodeCombat = shadow.shadow_for(real)
 		assert_false(still_owned.has(shadow_equiv),
 				"%s must be islanded on the shadow exactly as it is live" % real.name)
-	assert_true(still_owned.has(shadow._shadow_by_real[_n0]), "the core survives — only N1's arm islands")
+	assert_true(still_owned.has(shadow.shadow_for(_n0)), "the core survives — only N1's arm islands")
 
 	# The live world never moved.
 	assert_eq(_owned_count(), 4, "a shadow-resolved kill must not touch real ownership")
@@ -150,7 +150,7 @@ func test_core_overflow_on_shadow_strips_every_owned_node() -> void:
 	var shadow := _entity.get_combat().snapshot()
 	_shadows.append(shadow)
 	(shadow.board().get_stat(&"health") as PoolStat).set_current(1.0)
-	var shadow_core: NodeCombat = shadow._shadow_by_real[_n0]
+	var shadow_core: NodeCombat = shadow.shadow_for(_n0)
 	shadow_core.take_damage(999999.0, null)
 
 	assert_true(shadow.owned().is_empty(), "chipping health to 0 must strip the whole shadow territory")
@@ -236,7 +236,7 @@ func test_shadow_cascade_charges_the_same_wound_and_chip_as_the_live_path() -> v
 
 	# Kill the cut vertex on the SHADOW: N1 leaves, islanding N2 and N3 — three
 	# nodes cascade, so three wounds and three chips.
-	var shadow_n1: NodeCombat = shadow._shadow_by_real[_n1]
+	var shadow_n1: NodeCombat = shadow.shadow_for(_n1)
 	var entries := shadow.cascade_from(shadow_n1)
 
 	assert_eq(entries.size(), 3, "N1 plus the two nodes it islands")
@@ -261,6 +261,85 @@ func test_shadow_cascade_charges_the_same_wound_and_chip_as_the_live_path() -> v
 	assert_eq(_owned_count(), 4, "a simulated cascade must not strip a real node")
 
 
+## #695's parity claim: a shadow that minted node boards one at a time (the
+## preview path — one touch, then a kill) walks a cascade to the same result as
+## one that had every board up front (the eager snapshot this replaced, which
+## `owned()` now reproduces by materializing everything before the first
+## touch). Same [DeallocEntry]s in the same order, same surviving set in the
+## same order, same numbers on every node board and on the entity board. This
+## is the check that makes materialize-on-cascade safe to lean on.
+func test_lazy_and_materialized_shadows_walk_a_cascade_to_identical_state() -> void:
+	# Something entity-wide for the cascade's `_on_node_deallocated` dispatch to
+	# re-grant, so the "board minted AFTER the dispatch misses the delta" hazard
+	# the materialize triggers exist for is actually on the table.
+	var armor := StatModifier.new()
+	armor.stat_id = &"armor"
+	armor.operation = StatModifier.Operation.ADD_BONUS
+	armor.value = 3.0
+	var aura := AuraEffect.new()
+	aura.metric = HopMetric.new()
+	aura.distance_scale = ProportionalScale.new()   # per-node values differ, so a swap would show
+	aura.modifiers = [armor]
+	_entity.grant_effect(aura, _n0)
+
+	var lazy := _entity.get_combat().snapshot()
+	_shadows.append(lazy)
+	var eager := _entity.get_combat().snapshot()
+	_shadows.append(eager)
+	assert_eq(eager.owned().size(), 4, "owned() materializes the whole territory up front")
+	assert_eq(lazy.shadow_index().size(), 1, "precondition: the lazy shadow holds only the core")
+	assert_almost_eq(float(eager.shadow_for(_n3).get_local_value(&"armor")), 6.0, 0.001,
+			"precondition: the aura is live on the far node (2 hops x 3)")
+
+	var lazy_entries := lazy.cascade_from(lazy.shadow_for(_n1))
+	var eager_entries := eager.cascade_from(eager.shadow_for(_n1))
+
+	# THE hazard: N3 was never touched before the kill. The cascade's
+	# `_on_node_deallocated` dispatch recomputed the aura and revoked N3's grant
+	# on the shadow — a board cloned from the live node AFTER that would still
+	# carry the 6.0 the real N3 keeps. Materialize-on-cascade is what makes the
+	# lazy shadow read 0 here.
+	assert_almost_eq(float(lazy.shadow_for(_n3).get_local_value(&"armor")), 0.0, 0.001,
+			"a node minted by the cascade's materialize pass must see the post-cascade revoke")
+	assert_almost_eq(float(_n3.get_local_value(&"armor")), 6.0, 0.001,
+			"while the real node, untouched by any shadow, still carries the grant")
+
+	assert_eq(_entry_rows(lazy_entries), _entry_rows(eager_entries),
+			"the cascade must strip the same nodes, in the same order, charging the same numbers")
+	assert_eq(lazy_entries.size(), 3, "N1 plus the {N2, N3} it islands — the far nodes were never touched before the kill")
+	assert_eq(_owned_names(lazy), _owned_names(eager), "the surviving set must match, in order")
+	assert_eq(_node_readout(lazy), _node_readout(eager),
+			"every node board — minted lazily or up front — must read identically after the cascade")
+	assert_eq(_health(lazy.board()), _health(eager.board()))
+	assert_eq(_sp_used(lazy.board()), _sp_used(eager.board()))
+
+
+func _entry_rows(entries: Array[DeallocEntry]) -> Array:
+	var rows: Array = []
+	for e in entries:
+		rows.append([e.node.name if e.node != null else "<null>", e.node_id, e.allocation_level,
+				e.wound, e.chip, e.was_core, e.revoked_labels])
+	return rows
+
+
+func _owned_names(shadow: EntityCombat) -> PackedStringArray:
+	var out := PackedStringArray()
+	for n in shadow.owned():
+		out.append(n.real().name)
+	return out
+
+
+## `node_health` and `armor` on every node the shadow ever minted — stripped
+## nodes included, since a stripped node's board is still readable.
+func _node_readout(shadow: EntityCombat) -> Array:
+	var rows: Array = []
+	for real in [_n0, _n1, _n2, _n3]:
+		var n: NodeCombat = shadow.shadow_for(real)
+		rows.append([real.name, n.get_current_hp(), n.get_max_hp(),
+				n.get_local_value(&"armor"), n.owner() == shadow])
+	return rows
+
+
 ## The parity claim itself, run both ways on the same fixture: the numbers the
 ## shadow charges are the numbers the live cascade charges. This is what makes
 ## the driver ONE implementation rather than two that happen to agree today.
@@ -270,7 +349,7 @@ func test_shadow_and_live_cascade_charge_identical_numbers() -> void:
 	var shadow_board := shadow.board()
 	var sim_wound_before: int = _sp_used(shadow_board)["wounded"]
 	var sim_health_before := _health(shadow_board)
-	shadow.cascade_from(shadow._shadow_by_real[_n1])
+	shadow.cascade_from(shadow.shadow_for(_n1))
 	var sim_wound: int = _sp_used(shadow_board)["wounded"] - sim_wound_before
 	var sim_chip := sim_health_before - _health(shadow_board)
 
@@ -351,7 +430,7 @@ func test_the_hit_records_the_cascade_it_caused_live_and_shadow() -> void:
 	var sim_hit := DamageInstance.new()
 	sim_hit.type = DamageInstance.Type.TRUE  # skip mitigation; this is about the record
 	sim_hit.amount = 100000.0
-	shadow._shadow_by_real[_n1].take_damage(sim_hit.amount, sim_hit)
+	shadow.shadow_for(_n1).take_damage(sim_hit.amount, sim_hit)
 
 	var live_hit := DamageInstance.new()
 	live_hit.type = DamageInstance.Type.TRUE

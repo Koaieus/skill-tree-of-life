@@ -201,14 +201,32 @@ func test_shadow_world_is_stable_per_node() -> void:
 			"asking twice must not mint a second slice — the first one holds the damage")
 
 
-func test_shadow_of_one_node_snapshots_its_owner_s_whole_subgraph() -> void:
-	# #498: "do not reach-bound the owned subgraph" — a node fifty hops from the
-	# impact can still be in the cascade, so asking about D1 must bring D3 too.
+func test_shadow_of_one_node_mints_only_that_node_and_the_core() -> void:
+	# #695: a preview walk over a few nodes must not pay for a clone of every
+	# board the owner has. Asking about D1 snapshots the defender ENTITY (board,
+	# mirror, effects, core) plus D1's own board — nothing else.
+	var w := _shadow()
+	w.combat_for(_d1)
+	var defender_shadow := w.combat_for_entity(_defender)
+	assert_eq(defender_shadow.shadow_index().size(), 2,
+			"exactly two node boards cloned: the core (always) and the node asked about")
+	assert_not_null(w._nodes.get(_d1))
+	assert_not_null(w._nodes.get(_d0), "the core is eager — is_core() is read on every hit")
+	assert_null(w._nodes.get(_d3), "the far side of the cut vertex is not paid for until needed")
+	assert_not_null(defender_shadow.core(), "and core() answers without anyone touching D0")
+
+
+func test_an_entity_wide_read_materializes_the_whole_subgraph() -> void:
+	# #498's "do not reach-bound the owned subgraph" is a REACHABILITY
+	# guarantee (owner call on #695): a node fifty hops from the impact can
+	# still be in the cascade, so by the time anything asks about the SET the
+	# set must be whole. `owned()` is the simplest such ask.
 	var w := _shadow()
 	w.combat_for(_d1)
 	assert_eq(w.combat_for_entity(_defender).owned().size(), 4,
 			"the defender's whole territory, not just the node asked about")
-	assert_not_null(w._nodes.get(_d3), "including the far side of the cut vertex")
+	assert_not_null(w._nodes.get(_d3),
+			"including the far side of the cut vertex, and indexed in the world too")
 
 
 func test_shadow_grows_across_entities_on_demand() -> void:

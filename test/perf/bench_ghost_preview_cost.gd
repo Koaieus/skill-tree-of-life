@@ -86,6 +86,25 @@ extends GutTest
 ## that reads node/entity state without a full defensive-copy snapshot per
 ## hover, which is a `CombatWorld`/`SpellResolver` change, out of scope for
 ## this measurement bench. See #681 for the follow-up decision.
+##
+## [b]Fixed by #695, 2026-09-03[/b] (same box, headless, same fixture): the
+## shadow now mints one [NodeStatBoard] per node the walk actually TOUCHES
+## ([method EntityCombat.shadow_for]) instead of one per node the defender owns,
+## and materializes the rest only when something entity-wide (a cascade) needs
+## the set. The ramp is gone — what is left is the flat `_edge_lookup` term plus
+## one entity-board clone and the owned-set mirror build:
+## [codeblock]
+## defender owned | _edge_lookup (med) | _rebuild_preview (med) | worst   | frames @144Hz (worst)
+##              50 |             1812 us |             4273 us |   4960 us |  0.71
+##             100 |             1817 us |             4656 us |   5144 us |  0.74
+##             200 |             1741 us |             5346 us |   6021 us |  0.87
+## [/codeblock]
+## Attribution at 200 defender-owned, one candidate: resolve_against 2896 us
+## (was 14920), free_shadow 458 us (was 2432), total 3357 us (was 17355) — a
+## 5.2x drop on the lifecycle. The remaining shallow ramp (~7 us per owned
+## node) is the `mirror_add` per owned node the snapshot still does eagerly;
+## the assert below keeps the 2x-budget line as the regression catch for the
+## whole-subgraph clone coming back (2.79x measured just before the fix).
 
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ENTITY_SCENE := preload("res://entity/entity.tscn")
@@ -300,17 +319,14 @@ func test_rebuild_preview_cost_ramp() -> void:
 	gut.p("worst _rebuild_preview across the whole ramp: %.0f us against a %.0f us 144Hz budget"
 		% [checkpoint_worst, _FRAME_BUDGET_USEC])
 
-	# THIS ASSERT IS EXPECTED TO FAIL TODAY. It is not a flaky bench — it is the
-	# open defect (#681), written down as a test that turns green when it is
-	# fixed. See test_shadow_world_lifecycle_attribution below for WHERE the
-	# cost is: CombatWorld.combat_for's lazy full-board EntityCombat snapshot,
-	# not the edge lookup and not the propagation walk. 2x budget is comfortably
-	# below the measured 3.46x at 200 defender-owned, with room for a slower
-	# machine, while still catching a real regression once this is fixed.
+	# Written red on #681 as the open defect, green since #695 (0.87x at 200
+	# defender-owned — see the header). 2x budget, not 1x: it is the line the
+	# whole-subgraph snapshot (2.79x measured) cannot get back under, with room
+	# for a slower machine than the one that measured 0.87x.
 	assert_lt(checkpoint_worst, 2.0 * _FRAME_BUDGET_USEC,
-		("KNOWN OPEN DEFECT (#681), not a flaky bench: worst _rebuild_preview cost %.0f us "
-			+ "against a %.0f us 144Hz frame budget, paid on EVERY preview-target change. "
-			+ "See this file's header for the attribution.")
+		("REGRESSION (#681/#695): worst _rebuild_preview cost %.0f us against a %.0f us "
+			+ "144Hz frame budget, paid on EVERY preview-target change — is the shadow "
+			+ "cloning every owned node board again? See this file's header.")
 			% [checkpoint_worst, _FRAME_BUDGET_USEC])
 
 
@@ -354,7 +370,7 @@ func test_shadow_world_lifecycle_attribution() -> void:
 	gut.p("shadow world lifecycle at %d defender owned, one candidate, median of %d:"
 		% [_defender.navigator.get_mirrored_nodes().size(), _SAMPLES_PER_TARGET])
 	gut.p("  CombatWorld.shadow() mint      %7.0f us (%4.1f%%)" % [mint, 100.0 * mint / total])
-	gut.p("  SpellResolver.resolve_against  %7.0f us (%4.1f%%)  <- walk + lazy full-board snapshot"
+	gut.p("  SpellResolver.resolve_against  %7.0f us (%4.1f%%)  <- walk + per-node lazy snapshot (#695)"
 		% [resolve, 100.0 * resolve / total])
 	gut.p("  world.free_shadow()            %7.0f us (%4.1f%%)" % [teardown, 100.0 * teardown / total])
 	gut.p("  total                          %7.0f us" % total)

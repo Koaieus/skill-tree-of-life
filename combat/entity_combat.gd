@@ -90,9 +90,10 @@ var _core: NodeCombat
 var _mirror: GraphMirror
 ## Real [SkillNode] -> shadow [NodeCombat] — needed because [member _mirror] is
 ## keyed by the real node (topology lives there) while every other shadow
-## accessor is keyed by [NodeCombat] (ownership lives here). Built once at
-## [method snapshot]; membership never shrinks, so a node stripped by
-## [method apply_cascade] can still be translated afterwards.
+## accessor is keyed by [NodeCombat] (ownership lives here). Grows one node at
+## a time through [method shadow_for] (#695); membership never shrinks, so a
+## node stripped by [method apply_cascade] can still be translated afterwards,
+## and the roster of MINTED boards [method free_shadow] releases is exactly this.
 ##
 ## The [b]other[/b] direction is [method NodeCombat.real], not a second
 ## dictionary here (#498 step 3). A shadow node already had to know its real
@@ -100,6 +101,13 @@ var _mirror: GraphMirror
 ## fact is the shape `.claude/rules/` warns about, and the two could go out of
 ## step only in one direction — silently.
 var _shadow_by_real: Dictionary[SkillNode, NodeCombat] = {}
+## True once [method _materialize_all] has minted every owned node (#695).
+## Latched rather than re-derived: [member _mirror] only ever shrinks and
+## [member _shadow_by_real] only ever grows, so once every mirrored node has a
+## board the shadow stays complete, and the entity-wide entry points that call
+## [method _materialize_all] on every pass (one `dispatch` per stripped node in
+## [method apply_cascade]) get an O(1) re-check instead of an O(owned) sweep.
+var _materialized: bool = false
 ## The [Entity] this slice stands for on a SHADOW — its IDENTITY only. Same
 ## contract, and the same warning, as [member NodeCombat._real]: never a back
 ## door to [member host]. It answers "whose territory is this" for
@@ -230,7 +238,8 @@ func board() -> StatBoard:
 
 ## Every [NodeCombat] this entity owns. Live: derived from
 ## [member Entity.navigator] on every call (never cached, same rule as
-## [method board]). Shadow: the slice's own ledger.
+## [method board]). Shadow: the slice's own ledger — an entity-wide read, so it
+## materializes first (#695; see [method _materialize_all]).
 func owned() -> Array[NodeCombat]:
 	if host != null:
 		var out: Array[NodeCombat] = []
@@ -238,6 +247,7 @@ func owned() -> Array[NodeCombat]:
 			for n in host.navigator.get_mirrored_nodes():
 				out.append(n.get_combat())
 		return out
+	_materialize_all()
 	return _owned.duplicate()
 
 
@@ -255,10 +265,20 @@ func core() -> NodeCombat:
 ## Build a detached SHADOW of this LIVE slice (only ever call on a slice with
 ## [member host] != null). `host` on the result is null FOREVER — see the
 ## class doc. Deep-clones [member Entity.stat_board] exactly like
-## [method Entity._ready] does, snapshots every currently-owned [NodeCombat]
-## via [method NodeCombat.snapshot], and builds the manual-mode [member _mirror]
-## from the real owned set — see the class doc for why a real [SkillNode] is
-## still needed for that one piece.
+## [method Entity._ready] does, builds the manual-mode [member _mirror] from the
+## real owned set (see the class doc for why a real [SkillNode] is still needed
+## for that one piece), and clones the effect twins.
+##
+## [b]Owned node boards are NOT cloned here[/b] (#695). A preview walk touches
+## a handful of a defender's nodes and used to pay for a clone of every one of
+## them — 8-24 ms per hover at 50-200 owned, the whole of #681's overrun. Each
+## board is minted on first touch by [method shadow_for] instead, and every
+## entity-wide entry point mints the remainder through [method _materialize_all]
+## before it reads or writes the set. The one board always cloned up front is
+## the core's: [method core] / [method NodeCombat.is_core] are read on every
+## hit's ownership check, independent of the materialize triggers, and `_core`
+## would otherwise dangle null until the core happened to be hit (owner call,
+## 2026-08-31, on #695).
 func snapshot(into: CombatWorld = null) -> EntityCombat:
 	var shadow := EntityCombat.new()
 	if host == null:
@@ -281,13 +301,15 @@ func snapshot(into: CombatWorld = null) -> EntityCombat:
 	var real_nodes: Array[SkillNode] = []
 	if host.navigator != null:
 		real_nodes = host.navigator.get_mirrored_nodes()
+	# The mirror is the shadow's owned ROSTER from here on — `shadow_for` mints
+	# only for nodes in it, and `_materialize_all` walks it.
 	for real_node in real_nodes:
-		var node_shadow: NodeCombat = real_node.get_combat().snapshot(shadow)
-		shadow._owned.append(node_shadow)
-		shadow._shadow_by_real[real_node] = node_shadow
 		shadow._mirror.mirror_add(real_node)
 	if host.core_location != null:
-		shadow._core = shadow._shadow_by_real.get(host.core_location)
+		# Null when the core is not in the navigator (a fixture that wrote
+		# `core_location` without allocating) — the same answer the eager
+		# lookup gave.
+		shadow._core = shadow.shadow_for(host.core_location)
 	shadow._tags = host._tags.duplicate()
 	# Last, so every twin's context sees a fully-populated shadow: an
 	# `_on_revoked` or a recompute fired against one reads `owned()` / `core()`
@@ -295,6 +317,68 @@ func snapshot(into: CombatWorld = null) -> EntityCombat:
 	for inst in host.get_effects():
 		shadow._effects.append(inst.clone_for(shadow))
 	return shadow
+
+
+## The shadow [NodeCombat] for [param real_node], minted now if this shadow has
+## not touched it yet (#695). Null on a live slice, and null for a node this
+## entity does not own — the caller ([method CombatWorld.combat_for]) then falls
+## through to an ownerless slice, as it always did for a node whose `owned_by`
+## disagrees with the navigator.
+##
+## Minting late reads the same state as minting at [method snapshot] would
+## have: a shadow resolve never writes to the real world, so the live board a
+## clone is taken from is frozen for the shadow's whole lifetime. The one thing
+## that could go stale is the shadow's OWN writes to a board it has not minted
+## yet — and there are none, because a write reaches a node board only through
+## a slice, and asking for the slice is what mints it. What DOES need the whole
+## set present is anything that enumerates it: see [method _materialize_all].
+func shadow_for(real_node: SkillNode) -> NodeCombat:
+	if host != null or real_node == null:
+		return null
+	var known: NodeCombat = _shadow_by_real.get(real_node)
+	if known != null:
+		return known
+	if _mirror == null or _mirror.vertex_id(real_node) < 0:
+		return null
+	var node_shadow: NodeCombat = real_node.get_combat().snapshot(self)
+	_owned.append(node_shadow)
+	_shadow_by_real[real_node] = node_shadow
+	if _world != null:
+		_world.index_node(real_node, node_shadow)
+	return node_shadow
+
+
+## Mint every owned node this shadow has not touched yet, so the set is
+## complete before anything entity-wide reads or writes it (#695). Idempotent
+## and O(1) after the first call (see [member _materialized]).
+##
+## Called at the top of every entity-wide entry point — [method owned],
+## [method cascade_set], [method apply_cascade], [method simulate_entity_death]
+## and the shadow branch of [method dispatch] (the list the owner blessed on
+## #695, 2026-08-31). A missed trigger fails SILENTLY as a subtly wrong preview
+## — [method nodes_islanded_by_removing] translates through
+## [member _shadow_by_real] and would drop an unminted islanded node — so add
+## to this list before adding a new enumerating read, never after.
+##
+## Also restores [member _owned] to the roster's order. Lazy minting appends in
+## touch order; the eager snapshot this replaces held navigator order, and
+## [method simulate_entity_death]'s [DeallocEntry]s come out in `_owned` order.
+## Re-sequencing here keeps a lazy shadow's output byte-identical to the eager
+## one's from the first moment the order can be observed.
+func _materialize_all() -> void:
+	if host != null or _materialized:
+		return
+	_materialized = true
+	if _mirror == null:
+		return
+	var roster := _mirror.get_mirrored_nodes()
+	for real_node in roster:
+		shadow_for(real_node)
+	# Every roster node is minted now; `shadow_for` appended the new ones in
+	# roster order after the touched ones, so rebuild rather than sort.
+	_owned.clear()
+	for real_node in roster:
+		_owned.append(_shadow_by_real[real_node])
 
 
 ## The [Entity] this slice stands for — [member host] when live,
@@ -400,6 +484,9 @@ func dispatch(hook: StringName, args: Array = []) -> void:
 	# Shadow only. The live branch above brackets inside [method Entity.dispatch]
 	# instead, because that is where `AllocationSystem` / `SkillNode` enter —
 	# they call `entity.dispatch()` directly, never through this slice.
+	# A hook may enumerate the owned set (an aura recompute does), so the set
+	# must be whole before the first one runs (#695).
+	_materialize_all()
 	begin_dispatch()
 	for inst in _effects.duplicate():
 		if inst.effect == null or not inst.effect.implemented_hooks().has(hook):
@@ -469,7 +556,9 @@ func hold_batch(board: StatBoard) -> bool:
 ## several entities' slices into one board-wide lookup. Empty on a live slice
 ## (there is nothing to index — [method SkillNode.get_combat] already is the
 ## lookup). Handed out directly rather than copied: [CombatWorld] folds it into
-## its own dictionary and never mutates this one.
+## its own dictionary and never mutates this one. Holds only the nodes MINTED
+## so far (#695) — a miss on an owned node is answered by [method shadow_for],
+## not by this index.
 func shadow_index() -> Dictionary[SkillNode, NodeCombat]:
 	return _shadow_by_real
 
@@ -512,10 +601,15 @@ func nodes_islanded_by_removing(node: NodeCombat, anchor: NodeCombat) -> Array[N
 ##
 ## Must be answered before the strip either way: removing the depleted node
 ## from the navigator mirror first would make its own islanded set go stale.
+##
+## On a shadow this is where laziness ends (#695): the islanded set is
+## translated real -> shadow through [member _shadow_by_real], which silently
+## drops any node not minted yet, so the whole territory is minted first.
 func cascade_set(node: NodeCombat) -> Array[NodeCombat]:
 	var out: Array[NodeCombat] = []
 	if node == null or node.owner() != self:
 		return out
+	_materialize_all()
 	out.append(node)
 	out.append_array(nodes_islanded_by_removing(node, core()))
 	return out
@@ -552,6 +646,10 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 	var entries: Array[DeallocEntry] = []
 	if nodes.is_empty():
 		return entries
+	# Before the first strip: the `_on_node_deallocated` dispatch below re-grants
+	# aura modifiers onto owned node boards, and a board minted from the live
+	# node AFTER that would miss the delta (#695).
+	_materialize_all()
 	var b := board()
 	# Read once, applied per cascaded node. Older hand-authored boards lacking
 	# the stat fall back to the StatDef default (1).
@@ -630,6 +728,8 @@ func cascade_from(node: NodeCombat, alloc: AllocationSystem = null) -> Array[Dea
 ## chip `health` to 0, which strips the whole owned set in one sweep — there is
 ## nothing left to recurse into after that.
 func simulate_entity_death() -> Array[DeallocEntry]:
+	# Here, not only inside `apply_cascade` — the set is read BEFORE that call.
+	_materialize_all()
 	var entries := apply_cascade(_owned.duplicate(), null, false)
 	_core = null
 	return entries

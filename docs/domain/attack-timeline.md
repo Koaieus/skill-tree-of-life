@@ -433,11 +433,22 @@ record serializes, what a fogged peer resolves by `stable_id`, what every VFX
 observer reads). Only the **state** it mutates is swappable, and the swap is
 one dictionary lookup. There is no preview flag anywhere in the chain.
 
-A shadow world grows on demand: the first hit on a node whose owner is not yet
-snapshotted snapshots that owner's *whole* owned subgraph then. Late is the
-same as up front, because a shadow resolve never writes to the real world — so
-the real world is frozen for its whole duration — and it means only the
-entities an attack actually touches are paid for.
+A shadow world grows on demand, at two grains (#695). The first hit on a node
+whose owner is not yet snapshotted snapshots that owner's *entity* — its stat
+board, effect twins, owned-set mirror and core board; each further owned
+node's board is cloned only when the world is first asked about that node
+(`EntityCombat.shadow_for`). Late is the same as up front, because a shadow
+resolve never writes to the real world — so the real world is frozen for its
+whole duration — and it means only the entities *and nodes* an attack actually
+touches are paid for: a preview walk over 2-8 nodes of a 200-node territory no
+longer clones 200 boards (#681's 8-24 ms per hover). The per-node grain ends
+the moment anything entity-wide runs — `cascade_set` / `apply_cascade`,
+`simulate_entity_death`, a shadow `dispatch()`, `owned()` — where
+`_materialize_all` mints the rest first, so a cascade set is computed over the
+whole subgraph exactly as before. #498's "do not reach-bound the owned
+subgraph" is a *reachability* guarantee, not an eagerness mandate (owner call
+on #695, 2026-08-31): a node fifty hops away is still in the cascade set,
+because it is materialized before any cascade set is asked for.
 
 **No shared shadow `GraphMirror` is needed, and that rests on one assumption.**
 Topology never changes mid-attack, so islanding and propagation keep walking the
