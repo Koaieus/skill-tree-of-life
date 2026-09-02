@@ -178,6 +178,37 @@ the scalar knobs that don't deserve their own class:
 This replaces `SpellPropagation` entirely. `SpellDef.propagation` retypes
 to `PropagationConfig`.
 
+#### `max_hops` takes NO stat scaling — owner ruling, 2026-09-02
+
+There are two different "spell hops" and they must never share a modifier:
+
+| | what it means | where | scalable? |
+|---|---|---|---|
+| **Cast-range hops** | how far away a target may be | `HopRangeFinder.max_hops` | **yes** — this is what a reach stat tunes |
+| **Propagation hops** | how many times the spell bounces in flight | `PropagationConfig.max_hops` | **no** |
+
+> "bonus spell hops (cast 'range' gate) vs bonus spell hops (in flight spell
+> lands more hops/bounces) — the former we are tuning right now, the latter one
+> we should be very careful about, and possibly disable entirely until we find a
+> proper way to tune it — adding max hops to a spell dramatically alters its
+> performance" — owner, 2026-09-02
+
+Runtime already honours this: `spell_resolver.gd` sets
+`seed_state.hops_remaining = config.max_hops` **raw**. The only thing that ever
+scaled it was the tooltip, which lied about the depth it printed — fixed
+2026-09-02 (`b51c66f`).
+
+**Why it cannot take a global modifier at all**, independent of tuning taste:
+`max_hops` means two different things depending on whether the step
+self-terminates. Trailblazer's 999 is a *backstop* — `trail_blazer_step.gd`
+walks one path and stops at the first junction (degree > 2), so "+2 hops" does
+nothing to it — while Cyclone's 8 is a *limiter*, and the same "+2" takes it
+from 8 bounces to 10. One modifier, wildly different effect per spell. Any
+future propagation tuning has to be **per-step-strategy, not a board stat**.
+
+Bounce count is superlinear in effect, unlike reach. Keep this in view when
+adding any reach stat: it feeds `HopRangeFinder` only.
+
 ### Damage: one coefficient × one board stat (D-32, #274)
 
 The scalar damage knobs above are gone. There is exactly one absolute number

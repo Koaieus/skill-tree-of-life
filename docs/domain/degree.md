@@ -32,6 +32,25 @@ Verified equal: one self-loop on a degree-2 node reads 4 from all three.
 This is what makes fortification legible: two self-loops turn a degree-2 node
 into a degree-6 node, and a downhill walk turns away from it.
 
+### And they count toward a spell's casting gate — owner ruling, 2026-09-02
+
+`SpellDef.min_degree` is checked against the **entity** degree of the casting
+node (`attacker.navigator.get_degree(source)`, `entity/spell_book.gd:108`) —
+the owned subgraph, not the whole board — and a self-loop's +2 counts there
+like any other. So Cyclone's degree-5 gate clears on 3 real edges + 1
+self-loop, and Reverberator's 6 on 2 + 2.
+
+**Ruled, do not reopen.** Owner, 2026-09-02:
+
+> "self loops are a topology feature, they are caster gates but often carry
+> risks as being targeted or incurring extra damage. and they're in part the
+> reason a 6-degree requirement is doable, possibly we could raise min degree
+> even higher (though then we would implicitly require 1 or more self loops to
+> be present). self loops MUST count towards casting degree"
+
+The implication to keep in view when tuning: any gate above ~6 *implicitly
+requires* a self-loop to be present, because real edges alone rarely reach it.
+
 ## Why `get_entity_degree` does not just call the navigator
 
 It looks like hand-rolled duplication of `GraphMirror.get_degree` — "why
