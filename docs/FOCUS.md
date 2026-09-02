@@ -52,7 +52,7 @@ judged against:
    in `Needs design` sits there until a `/swarmify` pass settles its forks.
    **FOCUS does not catalog `Needs design` work.**
 
-## The LAN — milestone `LAN 2026-09-04`, hub #456
+## The LAN — milestone `LAN 2026-08-31`, hub #456
 
 > **The LAN is 4-6 September.** Standing instruction for the window, owner call
 > 2026-08-29: *"we will take all time we have to land as much as we can, make it
@@ -63,12 +63,11 @@ judged against:
 **Membership in the milestone means "this gates the LAN build."** What is left in
 it is a board query, not a table here. The lanes, in the order they matter:
 
-1. **Networked lobby** — #712 (children in order: #713, #714, #715, #716)
-2. **Frontmatter / meta shell** — #567, #582, #589
-3. **Spell VFX** — #663, #671, #672
-4. **Aura recompute perf** — #657 first; #620, #636, #681
-5. **Readouts & UI polish** — #621, #625, #669, #683
-6. **AI combat reads** — #537, #538
-7. **Owner-run, not drone work** — #665
+1. **Networked lobby** — #712 (children in order: #715, #716)
+2. **Spell VFX** — #663, #671, #672
+3. **Aura recompute perf** — #657 first; #681
+4. **Readouts & UI polish** — #621
+5. **AI combat reads** — #537
+6. **Owner-run, not drone work** — #665
 
 Board reconciliation lives on #653.
