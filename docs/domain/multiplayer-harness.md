@@ -158,6 +158,36 @@ consequence of a join hangs off a signal that fired while the menu was up.
 rungs below are the live proof, since one process holds one link and a real pair
 needs two.
 
+**Exactly one facade may be bound at a time (#715).** Since #714 there are two
+places that mount an `EnetTransport` over this one socket — the lobby and the
+level — and the level adopts what the lobby opened. Two bound at once each
+re-emit `Wire.message_received`, so **every packet is handled twice** and
+nothing errors: a command applied twice, a resync decoded twice. `Wire`
+therefore hands out a single binder token (`claim_binder` / `release_binder` /
+`has_binder`), `EnetTransport._bind` answers `ERR_ALREADY_IN_USE` when it is
+refused, and **both** lobby roles hand their link back before routing
+(`LobbyScreen.release_link`, off `GameSession.run_started`). Before #715 only
+the host released; a client relied on the menu scene being freed first, which is
+not something the route guarantees.
+
+**The run's shape crosses at START, not on JOIN (#715).** `run_setup` used to be
+pushed by `GameRoot._on_peer_joined`, which a pre-established link never fires
+again — so with the socket outliving the scene, a level would have waited out
+`SceneDirector.REVEAL_TIMEOUT_S` for it. `LobbyScreen` broadcasts it instead,
+and **the joining client no longer runs `GraphProcgen` at all**: it seats the
+roster, builds an empty graph, and `GameRoot.pull_host_world` brings the
+authority's serialized world. So a joined level with an empty graph is the
+NORMAL shape now, and the `_pending_entities` park in `CommandLink` — long the
+harness's odd case — is the primary path.
+
+**One consequence worth knowing before you debug a fingerprint:** procgen spawns
+entities the roster never names (one per removable blocker, ~120 on the shipped
+preset). A peer that ran no procgen has none of them, so `EntitySnapshot` asks
+`CommandLink.entity_spawner` (`GameRoot.spawn_snapshot_entity`) to rebuild any
+row it cannot resolve, at the authority's `entity_id`. Without that their nodes
+decode as *unowned* and the ownership fold disagrees on the very first compare —
+which looks exactly like a procgen desync and is not one.
+
 ## The three decisions, and why
 
 ### Two OS processes, not two viewports in one

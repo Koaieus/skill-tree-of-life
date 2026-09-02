@@ -27,7 +27,10 @@ one and dropping everybody who joined in the lobby.
 **The LOBBY mounts a pair of its own (#714)** — but only when `Wire` is already
 open, and it never opens one: `meta_root._push_lobby` is the single place that
 decides a route brings a socket up, and `LobbyScreen` hands its link back at
-START so only the level adopts the socket.
+START so only the level adopts the socket. **`Wire` admits exactly ONE bound
+facade (#715)** — two would handle every packet twice, silently — and **the run
+crosses at START, from the lobby, so a joining client runs no procgen at all**
+and its level's graph is empty until `pull_host_world` answers.
 
 **`Transport` + `CommandLink` are still mounted in `scenes/game_root.tscn`
 (#531), and a level may only SWAP the transport's script, never author a second

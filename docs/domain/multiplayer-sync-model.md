@@ -441,6 +441,21 @@ already resolved and **opens a run**. A lobby's seed is still the `0` sentinel
 until START. Relaxing that assertion to save a constant would trade a
 load-bearing gate for nothing; `KIND_LOBBY` touches `GameSession` not at all.
 
+**START is where `KIND_SETUP` finally goes out (#715), from the lobby.** It used
+to be pushed on JOIN, by `GameRoot._on_peer_joined`, off a
+`NetworkTransport.peer_joined` — which a *pre-established* link never fires
+again. Once #713/#714 let the socket outlive the menu, a level built on an
+adopted link would have waited out `SceneDirector.REVEAL_TIMEOUT_S` for a
+message nobody would send. So `LobbyScreen._on_run_started` broadcasts the
+settled `RunConfig` + `ParticipantRoster` off `GameSession.run_started`: the
+HOST reaches that signal because the shell called `GameSession.start` on what
+START emitted (which is also what resolved the seed the sentinel gate above
+demands), and the JOINER reaches it because `apply_received` re-emitted it. One
+signal, both machines, and each releases its lobby link there before routing —
+`Wire` admits exactly one bound `EnetTransport` facade (`Wire.claim_binder`),
+because two would re-emit every packet and the world would silently drift.
+`GameRoot.await_host_run` is deleted, not deprecated.
+
 **Who may edit what.** A human seat is editable by the machine it sits at
 (`Participant.is_local`, #562's one home for "which of these is me"); an AI seat
 belongs to whoever authors the roster, which is everyone except a client. The
@@ -726,6 +741,18 @@ the same encoding the obvious one.
   Consequence, and it is deliberate: **the same seed reproduces the same map,
   not the same fights.** #457's `GameSession` seed is a procgen input; it is not
   a determinism contract over combat or loot.
+
+  **And since #715 it is not a CROSS-PEER contract at all.** The seed reproduces
+  a map *on one machine* — a replay input, so a run can be re-rolled from what
+  was recorded. It is no longer how a second machine gets the same world: only
+  the host generates, and a joining client receives the authority's serialized
+  graph and never runs `GraphProcgen`. Anywhere this document, or
+  `.claude/rules/game-session.md`, reads *"the map is reproduced by each peer
+  from the seed"*, read instead: **the map is SHIPPED**. That is what takes
+  `procgen/`'s transcendentals (#547, #689, #706 — `pow()` in the seeded draw,
+  whose last bit is not portable across two platforms' libm) off the LAN
+  critical path entirely: nothing on the joining side re-derives them, so
+  nothing about them can desync.
 
 - **Still never roll from a null RNG on anything a peer must reproduce.** The
   narrower rule that survives: if a result crosses the wire as something a peer
