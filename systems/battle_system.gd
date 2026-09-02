@@ -259,11 +259,19 @@ var next_melee_cw: bool = false
 ## seed and posts it with the outcome, so a peer can replay the attack
 ## exactly rather than re-rolling its own crits.
 ##
-## Randomised at `_ready` for now, which makes each RUN's attacks unique
-## while every attack WITHIN a run is individually reproducible from its
-## stamp. #457 is where this stops being self-seeded and starts deriving
-## from [member RunConfig.seed] — a one-line change here, deliberately not
-## made now so the plumbing lands without waiting on the seed policy.
+## Randomised at `_ready`, and it stays that way. Each RUN's attacks are
+## unique while every attack WITHIN a run is individually reproducible from
+## its stamp. #457 settled this the opposite way to what an earlier note here
+## predicted — owner call, 2026-08-21: the run seed is procgen's and nothing
+## else's, so the acceptance reads *"the resolved seed reaches `GraphProcgen`
+## and nothing else. Do not thread it into `BattleSystem`, `SpellResolver`,
+## `LootSystem`, or `SkillDustAddon`."* Reproducibility comes from the
+## per-attack stamp, which is strictly better for sync: a run-level stream
+## would couple every peer's result to having consumed prior draws in the same
+## order — the ordering fragility that sank lockstep in #473.
+##
+## The consequence is deliberate: same seed, same MAP, not the same FIGHTS.
+## See `.claude/rules/game-session.md`.
 var _seed_source := RandomNumberGenerator.new()
 
 # Called when the node enters the scene tree for the first time.
