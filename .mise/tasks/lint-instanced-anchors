@@ -58,7 +58,7 @@ EXEMPT = (
     "*_sandbox_panel.tscn",
 )
 
-SKIP_DIRS = {".git", ".godot", ".worktrees", "export", "scratchpad"}
+SKIP_DIRS = {".git", ".godot", ".claude", ".mise", ".worktrees", "export", "scratchpad"}
 
 NODE_RE = re.compile(r'^\[node name="([^"]+)"([^\]]*)\]')
 PROPERTY_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_/]*)\s*=")

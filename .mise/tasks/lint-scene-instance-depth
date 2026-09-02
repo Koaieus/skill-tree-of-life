@@ -59,7 +59,7 @@ EXEMPT = (
     "*/visuals/panel/*",
 )
 
-SKIP_DIRS = {".git", ".godot", ".worktrees", "export", "scratchpad"}
+SKIP_DIRS = {".git", ".godot", ".claude", ".mise", ".worktrees", "export", "scratchpad"}
 
 NODE_RE = re.compile(r'^\[node name="([^"]+)"([^\]]*)\]', re.M)
 EDITABLE_RE = re.compile(r'^\[editable path="([^"]+)"\]', re.M)
