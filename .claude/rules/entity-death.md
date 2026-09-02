@@ -79,14 +79,18 @@ children, which is exactly what the phases immunise against.
 
 ## Death cleanup is SYNCHRONOUS, deliberately (not deferred)
 
-Death fires synchronously mid-cascade (`health.deplete` inside BattleSystem's
-`for n in cascade` loop). The instinct is to `call_deferred` the cleanup to let
-the cascade unwind — **don't**. Two reasons:
+Death fires synchronously mid-cascade (`health.deplete` inside
+`EntityCombat.apply_cascade`'s `for n in nodes` loop — #518 moved the cascade's
+implementation off `BattleSystem`; `BattleSystem._on_node_depleted`,
+`systems/battle_system.gd:720-815`, now only BFSes the set into VFX layers and
+forwards). The instinct is to `call_deferred` the cleanup to let the cascade
+unwind — **don't**. Two reasons:
 
-1. **Synchronous is already safe.** BattleSystem guards every cascade step with
-   `if n.owned_by != defender: continue`, so nodes the death cleanup deallocates
-   are simply skipped when control returns to the loop. The loop never restarts;
-   there is no re-entry.
+1. **Synchronous is already safe.** `apply_cascade` guards every cascade step
+   with `if n == null or n.owner() != self: continue`
+   (`combat/entity_combat.gd:562-610`), so nodes the death cleanup deallocates
+   are simply skipped when control returns to the loop. The loop never
+   restarts; there is no re-entry.
 2. **Deferring introduces a worse bug.** A deferred `deallocate_all_owned(entity)`
    races GameRoot's `queue_free(entity)`, and **a deferred call whose Object
    argument has been freed is silently dropped by Godot** — so the deallocate
