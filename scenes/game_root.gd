@@ -155,6 +155,16 @@ func _ready() -> void:
 	# `scenes/dev/mp_dev_sandbox.gd` documents at length in its own `_ready`.
 	# The socket itself opens later, in `_open_link`.
 	_adopt_network_role()
+	# #715: how the arriving world builds an entity the roster never names — see
+	# [method spawn_snapshot_entity]. Set here, before any link can be up, because
+	# the first thing a joining client does with its link is ask for that world.
+	if command_link != null:
+		command_link.entity_spawner = spawn_snapshot_entity
+		# The entities the resync brings with it arrive AFTER `_ensure_controllers`
+		# has already run, so they would sit in `Entity.GROUP` uncontrolled and the
+		# turn loop would stall on the first one to take a turn. Re-running it is
+		# idempotent (explicit composition always wins) and cheap.
+		command_link.resync_applied.connect(_on_resync_applied)
 	# Entity death (#18): AllocationSystem strips the corpse's nodes off the same
 	# bus signal; GameRoot owns the player-vs-NPC consequence (game-over / despawn).
 	Events.entity_died.connect(_on_entity_died)
@@ -797,9 +807,18 @@ func spawn_entity(
 ## book. The prune copies before it pops — the tier books are `preload`ed
 ## resources shared by every blocker of a size, so popping in place would
 ## strip the tier for the rest of the run.
+##
+## [param preassigned_id] adopts an [Entity] id decided elsewhere instead of
+## letting [Graph] mint one (#715) — the authority's, when a snapshot is
+## rebuilding a blocker on a peer that ran no procgen. `0`, the default, is
+## every ordinary caller and mints as before.
 func spawn_blocker(size: BlockerSize, core_location: SkillNode,
-		spell_prune_seed: int = 0, spell_prune_m: float = 0.0) -> Entity:
+		spell_prune_seed: int = 0, spell_prune_m: float = 0.0,
+		preassigned_id: int = 0) -> Entity:
 	var ent := _BLOCKER_SCENE.instantiate() as Entity
+	# Before `add_child`: `Graph._mint_entity_id` assigns only to an entity whose
+	# id is still 0, so stamping first is adoption rather than a second mint.
+	ent.entity_id = preassigned_id
 	ent.name = "Blocker_%s" % BlockerSize.keys()[size].to_lower()
 	# #587 — the player-facing name is "Dormant Core", never "Blocker": these
 	# are single-node entities that hold a node but never move or act, and
@@ -820,6 +839,60 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 		allocation_system.force_allocate(ent, core_location)
 		ent.core_location = core_location
 	return ent
+
+
+## Rebuild an [Entity] an arriving snapshot names and this peer does not have
+## (#715) — [member CommandLink.entity_spawner]'s one production implementation.
+##
+## [b]Only a BLOCKER, and refusing anything else is the point.[/b] Since #715 a
+## joining client runs no procgen, so the entities procgen spawns that the roster
+## never names — one per removable blocker (#477), ~120 on the shipped preset —
+## have no other way to exist here, and their nodes would otherwise decode as
+## unowned and move the ownership fold. Every OTHER entity is the roster's, and
+## the roster spawns the same set on every peer by construction
+## ([method ProcgenPlaySandbox._seat_the_roster]): a row asking for one of those
+## means the two peers disagree about who is playing, which is a fault to
+## surface, not to paper over by inventing a hero.
+##
+## The tier is what names the size — [method spawn_blocker] writes
+## `entity_tier = size + 1` — and everything else the blocker needs (its tiered
+## [EntityStatBoard], its scene, its `scenery` group) comes from that same call,
+## which is exactly why this lives here and not in [EntitySnapshot].
+##
+## [b]Known gap: the #586 PRUNED spellbook does not cross.[/b] A
+## `duplicate_pruned` book has no `resource_path` to intern, so the rebuilt
+## blocker carries its tier's WHOLE authored book rather than the host's pruned
+## slice. Loot is a host-only roll that reaches this peer as a command either
+## way, so no exchange is decided from this list here — it is a tooltip-level
+## difference, tracked rather than solved.
+func spawn_snapshot_entity(
+	entity_id: int, scene_path: String, tier: int, _display_name: String
+) -> Entity:
+	if scene_path != _BLOCKER_SCENE.resource_path:
+		push_warning(
+			"GameRoot: snapshot names entity %d from '%s', which is not a blocker — "
+			% [entity_id, scene_path]
+			+ "the roster should have spawned it. Refusing to invent one.")
+		return null
+	var size := clampi(tier - 1, 0, BlockerSize.size() - 1) as BlockerSize
+	return spawn_blocker(size, null, 0, 0.0, entity_id)
+
+
+## The authority's world has landed (#715). Anything [method spawn_snapshot_entity]
+## built arrived after the level's own pass, so give it a controller and put the
+## fog back on this machine's real subgraph — the seat's vision was derived from
+## a player that owned nothing at the time.
+func _on_resync_applied(_reason: String) -> void:
+	_ensure_controllers()
+	_apply_seat_vision()
+	if vision_system != null:
+		# Reassigned rather than left to [method _apply_seat_vision]'s skip-if-equal
+		# guard: the viewer SET is unchanged (same heroes), while what each of them
+		# OWNS just arrived wholesale — and `owned_by` written by
+		# [method GraphSnapshot._decode_node] bypasses [AllocationSystem], so
+		# nothing on `allocation_changed` will do it for us. The setter always
+		# rebinds and recomputes.
+		vision_system.viewers = vision_system.viewers
 
 
 func _on_core_moved(_entity: Entity, from_node: SkillNode, to_node: SkillNode) -> void:

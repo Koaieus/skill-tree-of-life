@@ -555,9 +555,9 @@ func _on_resync(payload: Dictionary) -> void:
 		# an empty payload is not a no-op there — it is a decode error.
 		logged.emit("← resync with no graph half, dropped")
 		return
-	EntitySnapshot.decode(entity_bytes, graph)
+	EntitySnapshot.decode(entity_bytes, graph, entity_spawner)
 	GraphSnapshot.decode(graph_bytes, graph)
-	EntitySnapshot.resolve_graph_refs(entity_bytes, graph)
+	EntitySnapshot.resolve_graph_refs(entity_bytes, graph, entity_spawner)
 	# Cleared here, not on the next verdict: the repair has landed, and the very
 	# next compare is the one that says whether it worked.
 	_awaiting_resync = false
@@ -869,7 +869,7 @@ func _on_entity_snapshot(payload: Dictionary) -> void:
 	var bytes: PackedByteArray = payload.get(KEY_ENTITIES, PackedByteArray())
 	if graph == null or bytes.is_empty():
 		return
-	EntitySnapshot.decode(bytes, graph)
+	EntitySnapshot.decode(bytes, graph, entity_spawner)
 	_pending_entities = bytes
 	if not graph.get_skill_nodes().is_empty():
 		_drain_pending_entities()
@@ -881,12 +881,24 @@ func _drain_pending_entities() -> void:
 		return
 	var bytes := _pending_entities
 	_pending_entities = PackedByteArray()
-	EntitySnapshot.resolve_graph_refs(bytes, graph)
+	EntitySnapshot.resolve_graph_refs(bytes, graph, entity_spawner)
 
 
 ## An entity snapshot whose pass 2 is still waiting on a graph. Cleared the
 ## moment it is drained, so a later graph snapshot cannot re-run it.
 var _pending_entities: PackedByteArray = PackedByteArray()
+
+
+## How an arriving snapshot builds an [Entity] this peer does not have (#715).
+##
+## Set by [GameRoot] to [method GameRoot.spawn_snapshot_entity]; left unset a
+## missing row is skipped with a warning, exactly as before. It is a [Callable]
+## and not a subclass hook because the knowledge is the LEVEL's — what a blocker
+## is, which board its tier carries — and this class deliberately knows only
+## about rows. See [method EntitySnapshot._materialize] for why a joining client
+## needs it at all: since #715 it runs no procgen, so the entities procgen would
+## have spawned (one per removable blocker) arrive only here.
+var entity_spawner: Callable = Callable()
 
 
 ## #546's build gate, run before anything in the hello is believed.

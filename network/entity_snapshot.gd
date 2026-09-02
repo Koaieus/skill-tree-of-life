@@ -85,6 +85,8 @@ const _R_TIER := 5       ## Entity.entity_tier
 const _R_CORE_LOC := 6   ## core_location's stable_id, 0 for none — pass 2 only
 const _R_EFFECTS := 7    ## Array of [res_idx, source_stable_id] (0 = entity-wide)
 const _R_TAGS := 8       ## Array of [name, refcount] — see [method _restore_tags]
+const _R_SCENE := 9      ## `scene_file_path` interned into `res`, -1 for none — see [method _materialize]
+const _R_NAME := 10      ## Entity.display_name — carried only so a materialized row is not nameless
 
 
 ## Build the payload for every [Entity] under `graph.entities_container`.
@@ -99,7 +101,11 @@ static func encode(graph: Graph) -> PackedByteArray:
 ## Pass 1 — everything that needs no [SkillNode]. Run this BEFORE
 ## [method GraphSnapshot.decode]; run [method resolve_graph_refs] with the same
 ## bytes after.
-static func decode(bytes: PackedByteArray, graph: Graph) -> void:
+## [param spawner] is how a row this peer has no [Entity] for gets one — see
+## [method _materialize]. Optional: left unset (every existing caller, every
+## test) this class behaves exactly as it did before #715 and a missing entity is
+## skipped with a warning.
+static func decode(bytes: PackedByteArray, graph: Graph, spawner := Callable()) -> void:
 	if graph == null or bytes.is_empty():
 		return
 	var payload := GraphSnapshot._unpack(bytes)
@@ -107,7 +113,7 @@ static func decode(bytes: PackedByteArray, graph: Graph) -> void:
 	var rows: Array = payload.get("entities", [])
 	_prune_entities(graph, rows)
 	for row in rows:
-		var e := _resolve(graph, row as Array)
+		var e := _resolve(graph, row as Array, res, spawner)
 		if e == null:
 			continue
 		_decode_identity(e, row as Array, res)
@@ -152,13 +158,15 @@ static func _prune_entities(graph: Graph, rows: Array) -> void:
 ## has built the nodes: `core_location`, and every effect a node granted. The
 ## board is reconciled again afterwards so the modifiers those grants just put
 ## on it are recognised rather than churned; see this class's docblock.
-static func resolve_graph_refs(bytes: PackedByteArray, graph: Graph) -> void:
+static func resolve_graph_refs(
+	bytes: PackedByteArray, graph: Graph, spawner := Callable()
+) -> void:
 	if graph == null or bytes.is_empty():
 		return
 	var payload := GraphSnapshot._unpack(bytes)
 	var res: Array = payload.get("res", [])
 	for row in (payload.get("entities", []) as Array):
-		var e := _resolve(graph, row as Array)
+		var e := _resolve(graph, row as Array, res, spawner)
 		if e == null:
 			continue
 		var loc_id := int((row as Array)[_R_CORE_LOC])
@@ -216,7 +224,9 @@ static func _encode_entity(graph: Graph, e: Entity, table: GraphSnapshot._Intern
 	for t in e.get_active_tags():
 		tags.append([String(t), e.get_tag_count(t)])
 	var row: Array
-	row.resize(9)
+	row.resize(11)
+	row[_R_SCENE] = table.intern(e.scene_file_path) if e.scene_file_path != "" else -1
+	row[_R_NAME] = e.display_name
 	row[_R_ENTITY_ID] = e.entity_id
 	row[_R_BOARD] = e.stat_board.to_dict() if e.stat_board != null else {}
 	row[_R_CORE_CLASS] = _intern_of(table, e.core_class)
@@ -235,15 +245,62 @@ static func _intern_of(table: GraphSnapshot._InternTable, r: Resource) -> int:
 	return table.intern(r.resource_path)
 
 
-static func _resolve(graph: Graph, row: Array) -> Entity:
+static func _resolve(graph: Graph, row: Array, res: Array, spawner: Callable) -> Entity:
 	var id := int(row[_R_ENTITY_ID])
 	var e := graph.get_by_entity_id(id)
+	if e == null:
+		e = _materialize(row, res, spawner)
 	if e == null:
 		push_warning(
 			"EntitySnapshot: no entity with id %d to decorate — the roster (#528) must land before entity state does"
 			% id
 		)
 	return e
+
+
+## Ask [param spawner] for the [Entity] a row names when this peer does not have
+## it (#715). Null when there is no spawner, or when it declines.
+##
+## [b]This relaxes #560 D7, and the premise D7 rested on is what changed.[/b]
+## That decision — "it decorates, it never spawns" — was justified by "#528 and
+## #553 both shipped, so a joining client's entities exist by the time state
+## arrives": the roster spawns exactly the named set, so a spawning snapshot
+## would be a second minting path racing it. That held while BOTH peers ran
+## procgen. Since #715 the client runs none, and procgen spawns entities the
+## ROSTER NEVER NAMES — one [Entity] per removable blocker (#477), ~120 of them
+## on the shipped 800-node preset. They have no other way to arrive, and without
+## them the client decodes their nodes as UNOWNED, which moves
+## [method WorldFingerprint.compute]'s ownership fold on the very first compare.
+##
+## [b]It is not a second minting path.[/b] The id is the AUTHORITY's, taken from
+## the row and stamped before the entity enters `entities_container` —
+## [method Graph._mint_entity_id] assigns only to an entity whose `entity_id` is
+## still `0`. It is the exact mirror of [method _prune_entities], which already
+## deletes an entity the payload does not name: the payload is the authority's
+## entity SET, and both directions of that set now cross.
+##
+## [b]Why a CALLBACK and not an `instantiate()` here.[/b] The row's scene path is
+## carried ([constant _R_SCENE]) and this class could instantiate it — but a
+## blocker's [EntityStatBoard] is assigned in CODE per tier
+## (`GameRoot.spawn_blocker`), not authored in `blocker_entity.tscn`, and
+## [method StatBoard.read_dict] cannot rebuild a board from nothing:
+## [EntityStatBoard] refuses to mint a stat it has no field for, by design. A
+## bare instantiate would therefore produce a blocker with no board and no
+## health, which the accumulated fold would then disagree about instead. So the
+## LEVEL builds it — it is the one that knows what a blocker is — and this class
+## keeps knowing only about rows. See [method GameRoot.spawn_snapshot_entity].
+static func _materialize(row: Array, res: Array, spawner: Callable) -> Entity:
+	if not spawner.is_valid() or row.size() <= _R_SCENE:
+		return null
+	var scene_path := ""
+	var idx := int(row[_R_SCENE])
+	if idx >= 0 and idx < res.size():
+		scene_path = String(res[idx])
+	if scene_path.is_empty():
+		return null
+	return spawner.call(
+			int(row[_R_ENTITY_ID]), scene_path, int(row[_R_TIER]),
+			String(row[_R_NAME])) as Entity
 
 
 ## The authored tier. [member Entity.core_class] is assigned but NOT re-applied:
