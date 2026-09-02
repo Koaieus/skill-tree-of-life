@@ -25,6 +25,17 @@ extends Effect
 ## keeps no buffed-set dict. The applied handles live in the per-grant
 ## [EffectInstance] ledger, and a recompute reads them back from there. A `_buffed`
 ## member here would have every Ninja silently clobbering every other Ninja's aura.
+##
+## [b]The PAYLOAD is the swappable state, not the walk.[/b] Everything above —
+## the three knobs, the origin rule, [method recompute]'s batching, and #626's
+## incremental [method _topology_changed] paths — is channel-agnostic. What a
+## subclass swaps is the pair [method _has_payload] / [method _grant_to]:
+## "is anything configured" and "put one grant on this node at this scale".
+## [TagAuraEffect] is that in ~15 lines on the tag channel; #720 ports
+## [HealAura]'s per-turn healing onto the same seam (its payload lands from
+## `_on_turn_start` rather than on membership, so it will override the hook and
+## reuse [method _distances] — the seam is deliberately per-node-per-scale, not
+## per-modifier, so a non-modifier payload fits without a second walk).
 
 enum Scope {
 	OWNED,   ## Measure over the entity's own subgraph (EntityNavigator).
@@ -100,7 +111,7 @@ func recompute(ctx: EffectContext) -> void:
 	for node in ctx.instance.node_targets():
 		_open_batch(ctx, node, batched, seen)
 	ctx.revoke_all()
-	if modifiers.is_empty():
+	if not _has_payload():
 		_close_batches(batched)
 		return
 	# Origin rule: a node-carried aura (keystone/addon) radiates from its own
@@ -121,9 +132,7 @@ func recompute(ctx: EffectContext) -> void:
 		if is_zero_approx(s):
 			continue
 		_open_batch(ctx, node, batched, seen)
-		for m in modifiers:
-			if m != null:
-				ctx.grant_scaled(m, s, node)
+		_grant_to(ctx, node, s)
 	_close_batches(batched)
 
 
@@ -174,7 +183,7 @@ func _close_batches(batched: Array[StatBoard]) -> void:
 ##    [method _apply_membership_update] matches
 ##    [method DistanceMetric.dirties_on_membership_change].
 func _topology_changed(ctx: EffectContext, changed_node: SkillNode) -> void:
-	if modifiers.is_empty():
+	if not _has_payload():
 		return
 	if not is_instance_valid(changed_node):
 		return
@@ -227,8 +236,10 @@ func _reach_could_include(node: SkillNode, source: SkillNode, mirror: GraphMirro
 ## metric read, one grant or revoke — every other already-applied node's
 ## handle is left exactly as it was (acceptance 1).
 func _apply_membership_update(ctx: EffectContext, source: SkillNode, mirror: GraphMirror, changed_node: SkillNode) -> void:
-	for h in ctx.handles_for(changed_node):
-		ctx.revoke(h)
+	# `revoke_all(node)`, not a `handles_for` loop: `handles_for` returns only
+	# MODIFIER rows, so a tag-channel payload ([TagAuraEffect]) would leave its
+	# grant standing here. `revoke_all` sweeps both kinds off the one target.
+	ctx.revoke_all(changed_node)
 	if not is_instance_valid(changed_node):
 		return
 	var still_selected: bool
@@ -251,9 +262,7 @@ func _apply_membership_update(ctx: EffectContext, source: SkillNode, mirror: Gra
 	var s: float = 1.0 if distance_scale == null else distance_scale.scale(one[changed_node], -1.0)
 	if is_zero_approx(s):
 		return
-	for m in modifiers:
-		if m != null:
-			ctx.grant_scaled(m, s, changed_node)
+	_grant_to(ctx, changed_node, s)
 
 
 ## The hop-shaped path: pull the shared, generation-cached raw map (walked at
@@ -285,16 +294,13 @@ func _apply_hop_diff(ctx: EffectContext, source: SkillNode, mirror: GraphMirror)
 		if was_granted and now_in and old_raw.has(node) and is_equal_approx(float(old_raw[node]), new_dists[node]):
 			continue  # unchanged: leave the existing handle alone
 		if was_granted:
-			for h in ctx.handles_for(node):
-				ctx.revoke(h)
+			ctx.revoke_all(node)  # both channels — see _apply_membership_update
 		if not now_in:
 			continue
 		var s: float = 1.0 if distance_scale == null else distance_scale.scale(new_dists[node], bound)
 		if is_zero_approx(s):
 			continue
-		for m in modifiers:
-			if m != null:
-				ctx.grant_scaled(m, s, node)
+		_grant_to(ctx, node, s)
 
 
 func get_description() -> String:
@@ -304,6 +310,28 @@ func get_description() -> String:
 	if reach == null:
 		return "%s to every node in your constellation" % body
 	return body
+
+
+## Is there anything to radiate? The walk short-circuits on false, both on a
+## full [method recompute] and on the [method _topology_changed] entry — so a
+## subclass whose payload lives somewhere other than [member modifiers] must say
+## so here, or its aura silently never populates.
+func _has_payload() -> bool:
+	return not modifiers.is_empty()
+
+
+## Put this aura's payload on [param node] at [param scale] — the one call that
+## differs per channel, and the only thing a subclass has to write.
+##
+## Called once per selected node from every path (full rebuild, hop diff,
+## membership update), always after the node's board batch is open and after
+## a zero scale has already been filtered out. Whatever it grants goes through
+## [param ctx], so the [EffectInstance] ledger stays the sole record and
+## `revoke_all` keeps working without the subclass doing any bookkeeping.
+func _grant_to(ctx: EffectContext, node: SkillNode, scale: float) -> void:
+	for m in modifiers:
+		if m != null:
+			ctx.grant_scaled(m, scale, node)
 
 
 func _mirror(ctx: EffectContext) -> GraphMirror:
