@@ -16,35 +16,13 @@ class_name RangedDamageFormula
 ## PROJECTILE_SPEED`, which let allocation order leak into combat outcome
 ## (a near leaf firing third could still land before a far leaf firing
 ## first). The ramp is authored against the volley's own distance span
-## instead: RangedAttackPlan.resolve() normalizes each reaching leaf's
-## distance to target into 0..1 across [d_min, d_max] and stamps
-## `arrival_time` from the constants below. `compute()` leaves it at the
-## HitInstance default (0.0) — it is filled in exactly once, by the caller
-## that knows the whole volley's span.
-
-## Constant per-shot flight duration (s) — every shot takes the same time to
-## land regardless of distance. The fiction is the arc: a point-blank shot
-## is lobbed nearly straight up, a distant one goes nearly flat, and both
-## take about the same time to come down. This is what makes arrival order
-## == firing order == distance order UNCONDITIONALLY (a distance-scaled
-## flight speed could invert it). Also the animation's per-shot speed is now
-## derived (`distance / FLIGHT_TIME`) rather than driving the schedule.
-const FLIGHT_TIME: float = 0.8
-
-## Total span (s) the launch ramp covers, nearest-to-target leaf to
-## furthest-reaching leaf — fixed regardless of shot count, so a 4-shot and
-## a 100-shot volley take the same wall time and stay readable rather than
-## crawling. Also fixed regardless of how the leaves are DISTRIBUTED inside
-## it: only the two extremes pin the window; everything else lands wherever
-## its own distance falls. test_arrow_volley_coordinator.gd pins the VFX
-## against this value at both ends of the ramp, so retuning it fails there
-## rather than on screen.
-const TOTAL_STAGGER: float = 0.7
-
-## Windup before the first release. 0.0 for now, per the issue's settled
-## design — authored in from the start so a draw phase can be turned on
-## without re-deriving the schedule.
-const DRAW_TIME: float = 0.0
+## instead: RangedAttackPlan.resolve_against() normalizes each reaching
+## leaf's distance to target into 0..1 across [d_min, d_max] and stamps it
+## onto `HitInstance.structural_key` — seconds are assigned later, by
+## `OutcomeSchedule.compile()`'s `Cadence.RAMP` branch, off
+## `PresentationTempo.volley_draw_time` / `volley_stagger_span` /
+## `volley_flight_time` (#543). `compute()` itself leaves `arrival_time` at
+## the HitInstance default (0.0) — it never had seconds to stamp.
 
 static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode) -> DamageInstance:
 	var hit := RangedHitInstance.new()

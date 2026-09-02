@@ -14,7 +14,7 @@ One per "shape" of action — see [docs/domain/attack_plan_system.md](../../docs
 | Coordinator | Used by | Visual | Cadence knob |
 |---|---|---|---|
 | `MagicBounceCoordinator` (`ui/vfx/coordinator/magic_bounce_coordinator.gd`) | All magic spells (`SpellDef.vfx_coordinator_scene`) | `GlowingDot` is the built-in *fallback*; every spell should select from the shared kit below (#670) | `beat_interval` |
-| `ArrowVolleyCoordinator` (`ui/vfx/coordinator/arrow_volley_coordinator.gd`) | Ranged attacks (`AttackVFX.play_ranged_volley`) | `LightArrow` (oriented, sticks + fades) | `shot_flight_time` (defaults to `RangedDamageFormula.FLIGHT_TIME`; each shot's launch delay is recovered as `arrival_time - shot_flight_time` from the distance-authored ramp, never from its index — the reveal rides `DamageInstance.arrival_time`) |
+| `ArrowVolleyCoordinator` (`ui/vfx/coordinator/arrow_volley_coordinator.gd`) | Ranged attacks (`AttackVFX.play_ranged_volley`) | `LightArrow` (oriented, sticks + fades) | `PresentationTempo.volley_flight_time` (#543 — each shot's own `ScheduleEntry.window` carries its airtime directly; the coordinator no longer re-derives a launch delay from `arrival_time`, and the reveal still rides `DamageInstance.arrival_time`) |
 
 ## The clock contract (load-bearing)
 

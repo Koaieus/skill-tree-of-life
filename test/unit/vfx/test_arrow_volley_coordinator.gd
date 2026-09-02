@@ -144,12 +144,3 @@ func test_every_arrow_touches_down_exactly_when_its_damage_lands() -> void:
 		assert_almost_eq(entry.launch_at + coord._flight_for(entry),
 				entry.arrive_at, 0.0001,
 				"the arrow must touch down exactly when its damage lands")
-
-	# The domain constants RangedDamageFormula still publishes and the tempo
-	# the compiler now reads must agree, or the ramp silently retempos.
-	assert_almost_eq(tempo.volley_flight_time, RangedDamageFormula.FLIGHT_TIME, 0.0001,
-			"default tempo's flight time must match the domain constant")
-	assert_almost_eq(tempo.volley_stagger_span, RangedDamageFormula.TOTAL_STAGGER, 0.0001,
-			"default tempo's stagger span must match the domain constant")
-	assert_almost_eq(tempo.volley_draw_time, RangedDamageFormula.DRAW_TIME, 0.0001,
-			"default tempo's draw time must match the domain constant")
