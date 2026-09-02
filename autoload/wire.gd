@@ -104,7 +104,11 @@ func claim_binder(who: Object) -> bool:
 	if _binder_id == id:
 		return true
 	if _binder_id != 0 and is_instance_id_valid(_binder_id):
-		push_error(
+		# A warning and a refusing RETURN VALUE, not `push_error`: the caller
+		# ([method EnetTransport._bind]) answers `ERR_ALREADY_IN_USE` and its own
+		# callers act on that, which is the same shape
+		# [method EnetTransport._adopt_live_link] already uses for its refusal.
+		push_warning(
 			"Wire: %s tried to bind while %s already holds the wire — refused. "
 			% [who, instance_from_id(_binder_id)]
 			+ "Two bound facades double-handle every packet; release the first "

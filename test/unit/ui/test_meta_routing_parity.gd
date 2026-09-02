@@ -63,6 +63,10 @@ func before_each() -> void:
 	Wire.stop()
 	GameSession.network = null
 	GameSession.local_peer_id = 0
+	# Routing into a HOST or JOIN lobby really opens a socket (#714's
+	# `_open_wire_for`), and since #715 "which peer am I" is asked OF that socket
+	# — so a link left up leaks a peer id into the next test.
+	Wire.stop()
 	_tree = MenuGraph.build()
 	_meta = _META_ROOT.instantiate()
 	add_child_autofree(_meta)
@@ -75,6 +79,7 @@ func after_each() -> void:
 	Wire.stop()
 	GameSession.network = null
 	GameSession.local_peer_id = 0
+	Wire.stop()
 
 
 # --- driving the frontmatter --------------------------------------------------
@@ -316,32 +321,37 @@ func test_every_lobby_route_writes_a_network_config() -> void:
 
 # --- decision 1: which peer this machine is, before any socket opens ---------
 
-## Re-pointed, not weakened: START still stamps the id, and the id is still 1 for
-## a host and 0 for a machine with no socket. What moved is WHERE the answer
-## comes from — [Wire], the process-wide singleton the menu's own socket lives on
-## (#713) — so the [NetworkConfig] role no longer gets a second, forkable vote.
-func test_start_stamps_this_machines_id_from_the_live_socket() -> void:
-	GameSession.network = NetworkConfig.host()
-	assert_eq(Wire.start_host(_EPHEMERAL_PORT), OK, "sanity: the menu's socket opens")
-	_META_SCRIPT._stamp_local_peer()
-	assert_eq(GameSession.local_peer_id, NetworkTransport.HOST_PEER_ID,
-			"a host is peer 1, and it is the SOCKET that says so")
-
-	GameSession.local_peer_id = 99
-	Wire.stop()
-	_META_SCRIPT._stamp_local_peer()
-	assert_eq(GameSession.local_peer_id, 0,
-			"a role with no socket behind it is nobody — GameRoot stamps the client on join")
-
+## [b]Re-pointed by #715 acceptance 6.[/b] This used to assert a hard-coded `0`
+## for a client, justified by "before any socket opens". That stopped being true
+## when the lobby got a live link: a joiner learns its server-minted id while the
+## menu is still up, and every seat the lobby draws turns on it. The decision this
+## file pins is unchanged — "which peer is this machine" is `meta_root`'s — but
+## the answer now comes from [Wire] rather than from the role.
+func test_which_peer_this_machine_is_comes_from_the_socket() -> void:
 	GameSession.local_peer_id = 99
 	GameSession.network = NetworkConfig.offline()
 	_META_SCRIPT._stamp_local_peer()
 	assert_eq(GameSession.local_peer_id, 0, "offline is nobody in particular")
 
 	GameSession.local_peer_id = 99
+	GameSession.network = NetworkConfig.join("10.0.0.4")
+	_META_SCRIPT._stamp_local_peer()
+	assert_eq(GameSession.local_peer_id, 0,
+			"a client that has not connected yet is still nobody — the server mints its id")
+
+	GameSession.local_peer_id = 99
 	GameSession.network = null
 	_META_SCRIPT._stamp_local_peer()
 	assert_eq(GameSession.local_peer_id, 0, "and an absent config is not a crash")
+
+	# With a socket up — which on the HOST path `_push_lobby` has already opened
+	# by the time START is pressed — the answer comes from the socket.
+	assert_eq(Wire.start_host(0), OK, "sanity: a listening socket")
+	GameSession.network = NetworkConfig.host()
+	_META_SCRIPT._stamp_local_peer()
+	assert_eq(GameSession.local_peer_id, NetworkTransport.HOST_PEER_ID,
+			"a host is always peer 1 under Godot's high-level multiplayer")
+	Wire.stop()
 
 
 # --- the two leaves that never reach a lobby --------------------------------

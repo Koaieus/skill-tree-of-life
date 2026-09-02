@@ -193,6 +193,10 @@ var _link_lost: bool = false
 ## so the refusal wins, and the loss only sets the Start veto.
 var _refusal_shown: bool = false
 
+## One-shot: this lobby's run has opened and been broadcast (#715). See
+## [method _on_run_started] for why it is latched before the send.
+var _started: bool = false
+
 ## Keys inside a [constant CommandLink.KIND_LOBBY_PICK] payload that are not
 ## themselves [Participant] fields: WHICH seat, and WHO is asking. The changed
 ## fields beside them use [method Participant.to_dict]'s own names and encoding.
@@ -342,8 +346,16 @@ func _on_start_button_pressed() -> void:
 ## screen and the level adopts it (#713), but this lobby's [CommandLink] must
 ## not, or two bound facades answer every packet ([method Wire.claim_binder]).
 func _on_run_started(config: RunConfig) -> void:
-	if _link == null:
+	if _link == null or _started:
 		return
+	# Latched BEFORE the send, not after, and the release below is not enough on
+	# its own. [signal GameSession.run_started] is a global autoload signal, and
+	# the receiving side re-emits it from [method GameSession.apply_received] —
+	# so with both lobbies in ONE process (every headless test of this path) the
+	# host's own handler re-enters from inside its own `send`, before the release
+	# on the last line can run. The latch is what makes that terminate. In
+	# production it says the plainer thing: a lobby starts its run once.
+	_started = true
 	if not _is_client():
 		# `GameSession.roster` and not `_participants`: [method GameSession.start]
 		# has just rebuilt the roster from the config it resolved, and that

@@ -27,7 +27,14 @@ var _pair: Array[LoopbackTransport] = []
 
 
 func before_each() -> void:
+	GameSession.end()
 	_build(null)
+
+
+## #715 put a [signal GameSession.run_started] listener on every linked lobby, so
+## a run left open here would leak into the next test's fixture.
+func after_each() -> void:
+	GameSession.end()
 
 
 ## Both lobbies, wired. [param policy] is authored per shape and reaches both
@@ -267,6 +274,11 @@ func test_an_offline_lobby_mounts_nothing() -> void:
 ## Acceptance 7, at the lobby's own scope: START is the only thing that opens a
 ## run, and the lobby hands its own link back before it fires so the level can
 ## adopt the socket without a second [CommandLink] answering on it.
+## [b]Re-pointed by #715[/b], which moved the release one signal later. The
+## button no longer releases: it only emits, and the shell answers by opening the
+## run — which is the moment the HOST has a resolved seed to broadcast, and so
+## the moment both machines may leave the menu. The claim is unchanged; what it
+## hangs off is [signal GameSession.run_started].
 func test_start_releases_the_link_without_closing_the_socket() -> void:
 	_join()
 	var transport := _host._transport
@@ -274,7 +286,37 @@ func test_start_releases_the_link_without_closing_the_socket() -> void:
 	_host.start_pressed.connect(func(cfg: RunConfig): configs.append(cfg))
 
 	_host._on_start_button_pressed()
-
 	assert_eq(configs.size(), 1, "START still emits its RunConfig")
-	assert_null(_host._link, "the lobby's link is gone")
+	assert_not_null(_host._link, "and does NOT release yet — the seed is not resolved")
+
+	# What `meta_root._on_start_pressed` does next.
+	GameSession.start(configs[0])
+
+	assert_null(_host._link, "the lobby's link is gone once the run is open")
 	assert_true(is_instance_valid(transport), "the transport it did not own is not freed")
+
+
+## #715 acceptance 1, at the lobby's scope: START broadcasts the settled run over
+## the live link, and the joiner leaves the menu because of it rather than
+## because somebody pressed something.
+##
+## [b]The seed is the assertion that matters.[/b] `build_run_config` hands back a
+## sentinel (`0` = randomise me) and [method GameSession.start] resolves it; a
+## broadcast taken from the button rather than from the run would ship that
+## sentinel, which [method GameSession.apply_received] refuses outright. So this
+## also pins WHEN the broadcast happens, not only that it does.
+func test_start_broadcasts_the_resolved_run_and_routes_the_joiner() -> void:
+	_host._on_link_peer_joined(_CLIENT_PEER)
+	var routed: Array[RunConfig] = []
+	_client.remote_start.connect(func(cfg: RunConfig): routed.append(cfg))
+	var configs: Array[RunConfig] = []
+	_host.start_pressed.connect(func(cfg: RunConfig): configs.append(cfg))
+
+	_host._on_start_button_pressed()
+	GameSession.start(configs[0])
+
+	assert_eq(routed.size(), 1, "the joiner was routed by the host's START, with no button of its own")
+	assert_ne(routed[0].seed, 0,
+			"and it adopted a RESOLVED seed — a sentinel is not a run")
+	assert_eq(routed[0].seed, GameSession.config.seed, "the same one the host is playing")
+	assert_null(_client._link, "the joiner released its own link too, so the level may adopt the socket")
