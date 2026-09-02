@@ -558,6 +558,11 @@ func _on_resync(payload: Dictionary) -> void:
 	EntitySnapshot.decode(entity_bytes, graph, entity_spawner)
 	GraphSnapshot.decode(graph_bytes, graph)
 	EntitySnapshot.resolve_graph_refs(entity_bytes, graph, entity_spawner)
+	# LAST, and it is a fourth step rather than part of the graph half: HP is a
+	# POOL and a pool clamps to a cap the owner's board decides, so it can only be
+	# restored once that board is whole — which pass 2 above is what finishes.
+	# See [method GraphSnapshot.restore_hp].
+	GraphSnapshot.restore_hp(graph_bytes, graph)
 	# Cleared here, not on the next verdict: the repair has landed, and the very
 	# next compare is the one that says whether it worked.
 	_awaiting_resync = false

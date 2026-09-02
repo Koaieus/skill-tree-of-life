@@ -104,6 +104,41 @@ static func encode(graph: Graph) -> PackedByteArray:
 ## so a per-row lookup through the graph would rebuild the whole index once per
 ## row — an O(nodes^2) decode at the 2000-node scale this payload exists for,
 ## the exact shape `.claude/rules/graph.md` says this repo has shipped twice.
+## Re-apply nothing but each node's CURRENT HP (#715). Run it LAST, after
+## [method EntitySnapshot.resolve_graph_refs].
+##
+## [b]`node_health` is a POOL, and a pool clamps.[/b]
+## [method SkillNode.restore_current_hp] writes through
+## [method PoolStat.set_current], which cannot exceed the pool's cap — and that
+## cap is derived: [method NodeCombat.get_local_value] merges the node's own
+## board with its OWNER's, so it moves with whatever the owner has been granted.
+## [method decode] therefore restores HP at a moment when the owner's board is
+## only partly rebuilt: the node-sourced effects an owner holds are granted in
+## [EntitySnapshot]'s PASS 2, which by construction runs after this. Every node
+## whose true HP sat above the not-yet-raised cap is silently clamped down, and
+## nothing ever raises it again — the value is simply lost.
+##
+## [b]It only surfaced once a peer stopped generating its own world (#715).[/b]
+## A client that had just run the same procgen already held caps within a
+## rounding error of the authority's, so the clamp had nothing to bite. Starting
+## from an empty graph it bites on every owned node at once: measured over the
+## shipped 800-node preset, 125 owned nodes lost ~2-4 HP each and the
+## accumulated fold disagreed on the first compare while ownership and topology
+## agreed exactly. That signature — `own` and `topo` equal, `accum` off — is what
+## this method exists to keep from coming back.
+##
+## Idempotent and cheap: one pool write per node, no signals
+## ([method SkillNode.restore_current_hp] bypasses damage/heal by design).
+static func restore_hp(bytes: PackedByteArray, graph: Graph) -> void:
+	if graph == null or bytes.is_empty():
+		return
+	var payload := _unpack(bytes)
+	for row in (payload.get("nodes", []) as Array):
+		var node := graph.get_by_stable_id(int((row as Array)[_R_STABLE_ID]))
+		if node != null:
+			node.restore_current_hp(float((row as Array)[_R_HP]) / 100.0)
+
+
 static func decode(bytes: PackedByteArray, graph: Graph) -> void:
 	var payload := _unpack(bytes)
 	var res: Array = payload.get("res", [])

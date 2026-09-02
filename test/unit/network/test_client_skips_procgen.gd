@@ -147,16 +147,27 @@ func test_await_host_run_is_gone() -> void:
 			+ "already adopted before the level loads")
 
 
-## Acceptance 5, the consequence: a joined level reaches its own reveal gate
-## without waiting on anything. If it did not, [SceneDirector] would hold the
-## curtain for 30s and this would time out instead.
-func test_a_joined_level_reveals_itself_without_waiting_for_a_message() -> void:
+## Acceptance 5, the consequence — and the ONE thing a joined level still waits
+## for, which is not a `run_setup`.
+##
+## `_ready` runs all the way to `pull_host_world` without blocking: the run is
+## already adopted, so there is no handshake left to miss. What it then waits on
+## is the WORLD — arming [VictorySystem], starting a turn or lifting the curtain
+## over an empty graph is not "a bit early", it is a level with no map. There is
+## no socket behind this fixture, so the reply never comes and the level
+## correctly never reveals; [SceneDirector]'s 30s timeout is the backstop for
+## exactly that, and on a live link (harness rung 3) the world lands in seconds.
+func test_a_joined_level_waits_for_the_world_and_nothing_else() -> void:
 	_open_joined_run()
 	var root := _build_joined_level()
 	await wait_physics_frames(3)
 
-	assert_true(root.is_reveal_ready(),
-			"`_ready` ran to completion — nothing in it awaits a `run_setup`")
+	assert_false(root.is_reveal_ready(),
+			"no world has arrived, so there is nothing worth revealing")
+	assert_true(root.command_link.defer_until_resync,
+			"and it is the RESYNC it is waiting on — #667's latch, still armed")
+	assert_gt(EntitySnapshot.entities_of(root.graph).size(), 0,
+			"`_setup_level` itself ran to completion: it did not block on a run setup")
 
 
 ## Acceptance 8, restated where it can regress: an OFFLINE run still generates.
