@@ -86,12 +86,10 @@ func start_client(address: String, port: int) -> Error:
 ## Idempotent.
 ##
 ## [b]It restores an [OfflineMultiplayerPeer]; it does not null the slot.[/b]
-## Godot installs one by default, and that is what makes
-## `multiplayer.get_unique_id()` answer `1` for a game with no network rather
-## than raising — `CommandLink._local_peer_id` calls it unguarded, by design, on
-## every single command. Nulling the slot leaves the whole process in a state it
-## never boots into, and the damage lands nowhere near here: in GUT it surfaced
-## as `Condition "multiplayer_peer.is_null()" is true` on ~30 unrelated tests
+## Godot installs one by default, and that is the state every headless test and
+## every offline run boots into. Nulling the slot leaves the whole process in a
+## state it never boots into, and the damage lands nowhere near here: in GUT it
+## surfaced as `Condition "multiplayer_peer.is_null()" is true` on ~30 unrelated tests
 ## that merely ran after a link was closed.
 func stop() -> void:
 	if _peer != null:

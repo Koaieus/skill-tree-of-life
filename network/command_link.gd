@@ -290,6 +290,7 @@ func _ready() -> void:
 	if transport != null:
 		transport.message_received.connect(_on_message_received)
 		transport.link_changed.connect(func(status: String) -> void: logged.emit(status))
+		transport.peer_joined.connect(_on_transport_peer_joined)
 	if command_applier != null:
 		command_applier.command_confirmed.connect(_on_command_confirmed)
 		command_applier.intent_submitted.connect(_on_intent_submitted)
@@ -302,18 +303,27 @@ func _ready() -> void:
 ## has one job: make sure no two peers ever mint the same
 ## [member Command.intent_id].
 ##
-## [b]An id of 1 is not evidence of anything.[/b] It is what ENet hands the
-## HOST, and equally what [method MultiplayerAPI.get_unique_id] returns under
-## the [OfflineMultiplayerPeer] Godot installs by default — which every headless
-## test and every [LoopbackTransport] pair runs under. So a non-1 id is
-## believed (only a real ENet client is ever assigned one, and with three peers
-## in the room it is the only thing that keeps two clients apart), and 1 falls
-## back to the role, which is all a two-peer loopback needs.
+## [b]It asks the transport, never [member Node.multiplayer].[/b] A peer id is
+## the one datum [signal NetworkTransport.peer_joined] exists to carry across
+## the seam, and reaching past it for [method MultiplayerAPI.get_unique_id]
+## would put transport knowledge above the seam — plus it cannot tell an
+## [OfflineMultiplayerPeer]'s `1` from a real host's.
+##
+## Only `0` — not linked yet — falls back to the role, because [member mode] is
+## set before a level calls `_open_link()` and the applier needs *some* distinct
+## half from the first command. It stops being a guess the moment
+## [signal NetworkTransport.peer_joined] re-stamps it below.
 func _local_peer_id() -> int:
-	var assigned := multiplayer.get_unique_id() if multiplayer != null else 1
-	if assigned != 1:
+	var assigned := transport.local_peer_id() if transport != null else 0
+	if assigned != 0:
 		return assigned
 	return 2 if mode == Mode.MIRROR else 1
+
+
+## The link came up, so the transport now knows an id the role could only guess.
+func _on_transport_peer_joined(_peer_id: int) -> void:
+	if command_applier != null:
+		command_applier.local_peer_id = _local_peer_id()
 
 
 ## Announce our world to a freshly-connected peer. Host-side; the client's reply
