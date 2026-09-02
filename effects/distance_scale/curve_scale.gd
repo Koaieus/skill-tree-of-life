@@ -16,3 +16,7 @@ func scale(distance: float, max_distance: float) -> float:
 	if max_distance <= 0.0:
 		return curve.sample(1.0)
 	return curve.sample(clampf(distance / max_distance, 0.0, 1.0))
+
+
+func uses_bound() -> bool:
+	return true

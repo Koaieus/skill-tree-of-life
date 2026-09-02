@@ -16,3 +16,7 @@ func scale(distance: float, max_distance: float) -> float:
 		return 1.0
 	var t: float = clampf(distance / max_distance, 0.0, 1.0)
 	return t if rising else 1.0 - t
+
+
+func uses_bound() -> bool:
+	return true

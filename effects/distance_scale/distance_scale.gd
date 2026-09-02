@@ -19,6 +19,18 @@ extends Resource
 ## compose freely, which is why this must stay direction-agnostic.
 ##
 ## [param max_distance] is the aura's reach bound in the same units, or -1.0 when
-## unbounded. Scales that don't normalize (Flat, Proportional, Shell) ignore it.
+## unbounded. A scale that doesn't normalize ignores it — say so by leaving
+## [method uses_bound] at its default.
 
 @abstract func scale(distance: float, max_distance: float) -> float
+
+
+## True when [method scale] actually reads `max_distance`. Default false.
+##
+## [AuraEffect] asks before taking an incremental topology path: a normalizing
+## scale re-derives EVERY node's multiplier the moment membership moves the
+## widest observed distance, even though the metric itself reports nothing
+## moved — so it must fall back to a full recompute. The metric side answers
+## the mirror-image question through [method DistanceMetric.dirties_on_membership_change].
+func uses_bound() -> bool:
+	return false
