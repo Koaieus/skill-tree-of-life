@@ -202,6 +202,91 @@ func test_stopping_through_the_seam_closes_the_underlying_socket() -> void:
 	assert_eq(Wire.local_peer_id(), 0, "a closed link is nobody")
 
 
+# --- #716 item 2: the socket stops on every leave ---------------------------
+
+## Acceptance 3, on the run's exit. Both level exits go through
+## [method GameSession.end] (`GameRoot.route_to_meta_now`, `PauseMenu.leave_run`),
+## and until #716 it cleared the [NetworkConfig] and left the LISTENER up —
+## harmless only while the socket died with the level, which stopped being true
+## at #713.
+##
+## [b]The re-host is on the very port that was just held[/b], read back out of
+## the socket ([method Wire.port]). Any other port would pass with the old
+## behaviour too, which is precisely the assertion the issue asks for.
+func test_leaving_a_run_stops_the_socket_and_frees_the_port() -> void:
+	assert_eq(Wire.start_host(_EPHEMERAL), OK)
+	var held := Wire.port()
+	assert_gt(held, 0, "sanity: an ephemeral bind still lands on a real port")
+
+	GameSession.end()
+
+	assert_false(Wire.is_open(), "leaving the run took the listener down with it")
+	assert_eq(Wire.start_host(held), OK,
+			"and the next Host click binds the same port rather than failing on it")
+
+
+## Dropping ONE peer leaves the link up for the rest (#716 item 1, at the socket
+## seam), and does it on the spot: `disconnect_peer` only SCHEDULES the drop, and
+## every caller wants "that peer is gone" to be true the instant it asked.
+##
+## [b]The ENet half is deliberately absent, as everywhere else in this file.[/b]
+## The simulated peers were never in `ENetMultiplayerPeer`'s own list, so asking
+## it to disconnect one is an engine error rather than a test signal; nulling the
+## socket handle leaves exactly the bookkeeping this is about. What a real drop
+## does to a real peer is pinned at the loopback seam instead
+## (`test_link_lifecycle.gd`, `test_lobby_link_lifecycle.gd`).
+func test_dropping_a_peer_is_immediate_and_leaves_the_link_up() -> void:
+	Wire.start_host(_EPHEMERAL)
+	Wire._on_peer_connected(7)
+	Wire._on_peer_connected(9)
+	Wire._peer = null
+	var left: Array[int] = []
+	Wire.peer_left.connect(func(id: int): left.append(id))
+
+	Wire.drop_peer(7)
+
+	assert_eq(left, [7], "the drop is announced by the call, not by a later poll")
+	assert_eq(Wire.peers(), PackedInt32Array([9]), "and the other peer is untouched")
+	assert_true(Wire.is_open(), "the listener never went down")
+
+
+## …and ENet's own notification for a peer this machine already hung up on is
+## swallowed, so a lobby seat cannot be returned to "waiting" twice — once per
+## source of the same fact.
+func test_a_peer_left_notification_fires_once_per_peer() -> void:
+	Wire.start_host(_EPHEMERAL)
+	Wire._on_peer_connected(7)
+	var left: Array[int] = []
+	Wire.peer_left.connect(func(id: int): left.append(id))
+
+	Wire._on_peer_disconnected(7)
+	Wire._on_peer_disconnected(7)
+
+	assert_eq(left, [7])
+
+
+## Item 4's ordering bug, at the seam that hid it. [Wire] announced BEFORE it
+## stopped, so [method EnetTransport._on_wire_status] copied out a role that was
+## about to be wrong and nothing above the seam ever learned the link had died.
+func test_a_lost_link_reaches_the_seam_as_offline() -> void:
+	Wire.start_client("127.0.0.1", 1)
+	var transport := _mounted()
+	transport.start_client("127.0.0.1", 1)
+	var lost: Array[String] = []
+	var roles: Array[int] = []
+	transport.link_lost.connect(func(reason: String):
+		lost.append(reason)
+		roles.append(transport.role))
+
+	Wire._on_server_disconnected()
+
+	assert_eq(lost.size(), 1, "the facade re-emits the loss")
+	assert_eq(roles, [NetworkTransport.Role.OFFLINE],
+			"and by the time it does, the role it reports is already the true one")
+	assert_false(Wire.is_open())
+	assert_string_contains(Wire.last_status, "host went away")
+
+
 # --- and the same thing through the real composition root -------------------
 
 ## Acceptance 2, through the caller that matters. The tests above drive the

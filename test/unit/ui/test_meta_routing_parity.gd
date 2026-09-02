@@ -491,3 +491,68 @@ func test_the_lobby_is_reconfigured_at_departure_not_on_arrival() -> void:
 	_frontmatter.set_progress(0.5)
 	assert_eq(_panels.shown_panel, MenuGraph.PANEL_LOBBY,
 			"so what slides in mid-flight is already the new route's lobby")
+
+
+# --- #716 item 2: every route out of a lobby stops the socket ----------------
+
+## Acceptance 3, at the menu's exit. Until #716 nothing but START released
+## [LobbyScreen]'s link, so a host that opened a listener and walked away kept
+## holding the port — and since #713 that outlives the whole menu scene.
+##
+## The re-host is on the port that was just held, read back off the socket:
+## re-binding some OTHER port would pass with the old behaviour too.
+func test_backing_out_of_a_host_lobby_frees_the_port_it_held() -> void:
+	_host(str(_EPHEMERAL_PORT))
+	assert_true(Wire.is_open(), "sanity: hosting opened a socket")
+	var held := Wire.port()
+
+	_back()
+
+	assert_false(Wire.is_open(), "backing out of the lobby took the listener down")
+	assert_null(GameSession.network, "and left no role behind to re-open it")
+	assert_eq(Wire.start_host(held), OK, "so the next Host click binds the same port")
+
+
+## The two ways out are one call, deliberately. A player who backs out with the
+## panel's own button and one who walks into another leaf must not get different
+## socket behaviour — so the leave hangs off "the focus is not a lobby leaf",
+## not off an enumeration of the ways of leaving.
+func test_walking_into_another_leaf_leaves_the_lobby_too() -> void:
+	_host(str(_EPHEMERAL_PORT))
+	assert_true(Wire.is_open(), "sanity")
+
+	_frontmatter.focus(MenuGraph.ID_OPTIONS, true)
+
+	assert_false(Wire.is_open())
+	assert_null(GameSession.network)
+
+
+## The seam itself, called as a static — the same shape `_stamp_local_peer` is
+## tested through, so the claim survives a change in how the menu reaches it.
+func test_leave_lobby_is_idempotent_and_needs_no_lobby() -> void:
+	Wire.start_host(_EPHEMERAL_PORT)
+	GameSession.network = NetworkConfig.host(_EPHEMERAL_PORT)
+
+	_META_SCRIPT._leave_lobby()
+	_META_SCRIPT._leave_lobby()
+
+	assert_false(Wire.is_open())
+	assert_null(GameSession.network)
+
+
+## The owner's complaint on #714, closed. `_open_wire_for` used to compare ROLES
+## and skip when they matched, so re-hosting on a different port silently kept
+## the old one — the one case a lobby most needs to get right, since the port is
+## the number the host reads out to the other player.
+## The socket IDENTITY is what is asserted, not the port number: an ephemeral
+## re-bind may legitimately land on the port that was just released, so a
+## number comparison would flake. A different [ENetMultiplayerPeer] is the
+## unambiguous statement that the shortcut is gone.
+func test_re_hosting_actually_rebinds_rather_than_no_opping() -> void:
+	assert_eq(Wire.start_host(_EPHEMERAL_PORT), OK)
+	var first := Wire._peer
+
+	_META_SCRIPT._open_wire_for(NetworkConfig.host(_EPHEMERAL_PORT))
+
+	assert_true(Wire.is_open())
+	assert_ne(Wire._peer, first, "a second Host click opened a new socket, not the old one")

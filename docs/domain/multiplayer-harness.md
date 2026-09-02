@@ -340,11 +340,28 @@ link up with both builds printed on both ends:
 Details that are easy to get wrong, all covered by
 `test/unit/network/test_link_build_check.gd`:
 
+- **The gate runs in the LOBBY, host-side, per peer (#716).** It used to ride
+  the host's hello alone, which a lobby cannot send — it has no world — so a
+  joiner on the wrong commit was already seated by the time anything compared.
+  The client now announces its own stamp (`CommandLink.announce_self`, a
+  `KIND_HELLO` carrying `KEY_BUILD` + `KEY_PEER`) the instant its dial
+  completes, and the host answers with `peer_cleared` or `peer_refused`.
+  `LobbyScreen` seats on `peer_cleared` and never on the bare `peer_joined`, so
+  "a refused peer never appears in anyone's roster" is a property of the wiring
+  rather than of a check somebody has to remember. The move is what the old note
+  here predicted (`KIND_SNAPSHOT` / `KIND_SETUP` are handled regardless of a
+  prior hello, so a lobby exchanging anything first wants the gate ahead of it);
+  it is done.
+- **Refusing a PEER is not refusing the socket (#716).** `_refuse_peer` sends
+  the reject to that one peer and then `transport.drop_peer`s it — no latch, no
+  `transport.stop()`. The old `_refuse` did stop the socket, which was tolerable
+  with exactly one client and took the listener down for every seated player the
+  moment there were two. A *client* told it was refused still latches and still
+  loses its link; that side owns nothing else. `test_link_lifecycle.gd` states
+  both halves against one host and two clients.
 - **The stamp rides the hello, never a `Command`.** The hello is what brings a
-  link up today, so nothing in the harness can link without the check running.
-  (`KIND_SNAPSHOT` / `KIND_SETUP` are handled regardless of a prior hello, so a
-  future #531 lobby that sends a snapshot *first* would want the gate moved
-  ahead of it.) A per-checkout sha inside `Command.to_dict()` would re-capture
+  link up in either direction, so nothing in the harness can link without the
+  check running. A per-checkout sha inside `Command.to_dict()` would re-capture
   every fixture at `test/fixtures/outcome/` on every commit.
 - **An absent stamp is a mismatch, not a pass.** The orphan predates the check
   and sends no build key at all — treating that as agreement would sail past the
@@ -367,11 +384,34 @@ Details that are easy to get wrong, all covered by
   (dirty-vs-dirty is an equally silent pass). **For a measurement that matters,
   commit first, or launch both at once.** The Multiplayer tab's *Launch both* is
   safe by construction; the two-terminal path is the exposed one.
-- **The reject payload goes out before `transport.stop()`.** A transport drops a
-  send once it is no longer linked, so that order is what makes the *other* end
-  print anything. The receiving side then only *reports* — it does not stop or
-  latch, or a host would close its listening socket over one bad client and the
+- **The reject payload goes out before the hang-up** — `transport.stop()` on a
+  client, `transport.drop_peer()` on a host. A transport drops a send once the
+  recipient is no longer linked, so that order is what makes the *other* end
+  print anything. A HOST receiving one still only *reports*: it does not stop or
+  latch, or it would close its listening socket over one bad client and the
   operator would relaunch the fixed client into nothing.
+
+## The socket stops on every leave (#716)
+
+`Wire` outlives the level (#713), so nothing dies with a scene any more and
+every exit has to say so out loud:
+
+- `GameSession.end()` calls `Wire.stop()` — both level exits already route
+  through it (`GameRoot.route_to_meta_now`, `PauseMenu.leave_run`);
+- `meta_root._leave_lobby()` nulls `GameSession.network` and stops the wire, and
+  hangs off *both* ways out of a lobby: `FrontmatterPanels.panel_dismissed` and
+  any `focus_started` onto something that is not a lobby leaf.
+
+Because every route in now passes through a teardown, `_open_wire_for` always
+(re)opens on the endpoint that was typed. It used to skip when an open link's
+ROLE matched, which made re-hosting on a different port a silent no-op.
+
+Client-side loss surfaces on the lobby's own status line, off
+`NetworkTransport.link_lost` (a failed dial, a host that quit, a host that
+dropped us) — emitted *after* the transport is already OFFLINE. `Wire` tears
+down before it announces for exactly that reason: announcing first handed
+`EnetTransport._on_wire_status` a role that was about to be wrong, and nothing
+above the seam ever learned the link had died.
 
 ## Extending it
 

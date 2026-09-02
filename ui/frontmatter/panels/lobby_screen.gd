@@ -178,6 +178,11 @@ var _status_label: Label = null
 ## is the panel's [BackAffordance], not a button that would open a run nobody
 ## else is in.
 var _link_lost: bool = false
+## Set once this machine has been told WHY it was hung up on. A refusal is
+## always followed by the disconnect that enforces it, and the generic
+## "connection lost" would then paint over the only line that names the cause —
+## so the refusal wins, and the loss only sets the Start veto.
+var _refusal_shown: bool = false
 
 ## Keys inside a [constant CommandLink.KIND_LOBBY_PICK] payload that are not
 ## themselves [Participant] fields: WHICH seat, and WHO is asking. The changed
@@ -348,7 +353,8 @@ func status_text() -> String:
 ## refused until then rather than opening a run whose other seat cannot arrive.
 func _on_transport_link_lost(reason: String) -> void:
 	_link_lost = true
-	_set_status("Connection lost — %s. Go back and try again." % reason)
+	if not _refusal_shown:
+		_set_status("Connection lost — %s. Go back and try again." % reason)
 	_refresh_start_enabled()
 
 
@@ -357,6 +363,7 @@ func _on_transport_link_lost(reason: String) -> void:
 ## is a verdict about the code being run, and saying "connection lost" over it
 ## would name the wrong problem.
 func _on_link_refused(reason: String) -> void:
+	_refusal_shown = true
 	_set_status("Refused — %s" % reason)
 
 
@@ -496,6 +503,7 @@ func bind_link(transport: NetworkTransport) -> void:
 	# A link was adopted after all, so whatever [method _report_mount_state]
 	# concluded from its absence is stale.
 	_link_lost = false
+	_refusal_shown = false
 	_set_status("")
 	# A no-op on the production path (the rows do not exist yet — `_ready` mounts
 	# the link first, precisely so they can be built knowing the answer), and what
