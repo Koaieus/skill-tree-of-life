@@ -390,6 +390,53 @@ This supersedes the earlier reading — carried in §"Four facts" fact 3 and in 
 lockstep rejection — that the loot/skill-dust `Array.shuffle()` calls were a
 per-client divergence hazard needing a seeded RNG.
 
+### The lobby roster, at the same model and a different scope (#714)
+
+The roster replicates *before* a level exists, and it does it with the model
+above rather than beside it. Two kinds, and they are the exact inverse of each
+other:
+
+| | Kind | Payload | Gate |
+|---|---|---|---|
+| Up | `KIND_LOBBY_PICK` | `{id, peer_id, …changed fields}` — one seat, only what moved, in `Participant.to_dict`'s encoding (a `Faction` / `CoreClass` as its `resource_path`, never a reference) | `Mode.MIRROR` sends, `Mode.BROADCAST` receives |
+| Down | `KIND_LOBBY` | `roster.to_dict()`, the **whole** authoritative roster | `Mode.BROADCAST` sends, `Mode.MIRROR` applies |
+
+Whole-roster rather than a delta: it is a handful of rows, and a delta protocol
+would buy an ordering problem a lobby does not have.
+
+**A refusal is not a message.** The host answers *every* pick with its roster,
+accepted or not, so a client that asked for a colour somebody already holds
+converges on the truth without a second leg. There is no local
+pre-application — the same "no prediction" call #548 made for the world.
+
+**One rule set, because a remote pick goes through the local writers.**
+`LobbyScreen._on_remote_pick` validates the seat and then calls
+`_on_color_picked` / `_on_core_class_picked` / `_on_camp_picked`, so colour
+uniqueness (`LobbyScreen.taken_colors` — the same call that greys a chip out in
+the picker) and the `LobbyPolicy` START veto apply to a client's pick without
+either being restated for the wire.
+
+**Why not `KIND_SETUP`.** That envelope carries a `RunConfig` too, and its
+receiver hands both to `GameSession.apply_received`, which asserts the seed is
+already resolved and **opens a run**. A lobby's seed is still the `0` sentinel
+until START. Relaxing that assertion to save a constant would trade a
+load-bearing gate for nothing; `KIND_LOBBY` touches `GameSession` not at all.
+
+**Who may edit what.** A human seat is editable by the machine it sits at
+(`Participant.is_local`, #562's one home for "which of these is me"); an AI seat
+belongs to whoever authors the roster, which is everyone except a client. The
+rule is symmetric — the host does not dress the joiner's hero either — and it is
+enforced twice on purpose: in the UI (`ParticipantRow.set_editable`) so a player
+sees it, and on the host against the *roster* (`LobbyScreen.may_edit_remotely`)
+so a payload cannot claim it.
+
+**The lobby mounts its own `NetworkTransport` + `CommandLink` pair, and never
+opens the socket.** `meta_root._push_lobby` is the one place that decides a
+route opens a link — the same file that already decides which `NetworkConfig` a
+route leaves on `GameSession` — so a lobby with no live `Wire` behind it mounts
+nothing and is byte-for-byte the offline lobby. The screen hands its link back
+at START (`_release_link`), leaving the socket up for the level to adopt (#713).
+
 **Mass actions are one atomic command, never N.** `deallocate_set` and
 mass-allocate paths serialize as a single command with a node list — splitting
 them would let a peer observe an intermediate state that never legally existed.

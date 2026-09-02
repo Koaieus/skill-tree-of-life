@@ -158,7 +158,7 @@ var _picked_camps: Dictionary = {}
 ## level mounts, at the one other scope that needs it — and it never opens the
 ## link itself, so a lobby built with no wire behind it is byte-for-byte the
 ## offline lobby that shipped before this.
-var _transport: EnetTransport = null
+var _transport: NetworkTransport = null
 var _link: CommandLink = null
 ## This machine's real id on the link, or 0 before the server has minted one.
 ## A client authors its own seat at [constant _PENDING_PEER_ID] and only learns
@@ -372,17 +372,29 @@ static func stamp_pending_remote(roster: ParticipantRoster, peer_id: int) -> boo
 func _mount_link() -> void:
 	if _network == null or not _network.is_online() or not Wire.is_open():
 		return
-	_transport = EnetTransport.new()
-	_transport.name = "Transport"
-	add_child(_transport)
+	var transport := EnetTransport.new()
+	transport.name = "Transport"
+	add_child(transport)
 	# Binds to the live [Wire] and replays whoever joined already — on a host
 	# that re-fires the join this lobby has to stamp.
-	var err := (_transport.start_host(_network.port)
+	var err := (transport.start_host(_network.port)
 			if _network.role == NetworkTransport.Role.HOST
-			else _transport.start_client(_network.address, _network.port))
+			else transport.start_client(_network.address, _network.port))
 	if err != OK:
-		_release_link()
+		remove_child(transport)
+		transport.queue_free()
 		return
+	bind_link(transport)
+
+
+## Put this lobby on [param transport], which is expected to be live already.
+##
+## Split out of [method _mount_link] so a headless test can hand it a
+## [LoopbackTransport] pair and drive the whole protocol without a socket — the
+## same seam every other leg of the wire is tested through
+## (`test/unit/network/`). Production has exactly one caller, above.
+func bind_link(transport: NetworkTransport) -> void:
+	_transport = transport
 	_link = CommandLink.new()
 	_link.name = "CommandLink"
 	_link.transport = _transport
@@ -398,6 +410,10 @@ func _mount_link() -> void:
 	_transport.peer_joined.connect(_on_link_peer_joined)
 	_transport.peer_left.connect(_on_link_peer_left)
 	_local_peer = _transport.local_peer_id()
+	# A no-op on the production path (the rows do not exist yet — `_ready` mounts
+	# the link first, precisely so they can be built knowing the answer), and what
+	# makes a link bound afterwards repaint the seats it just re-decided.
+	_refresh_rows()
 
 
 ## Drop this lobby's binding to the socket WITHOUT closing it. The socket is what
@@ -406,7 +422,10 @@ func _mount_link() -> void:
 ## menu scene to be freed.
 func _release_link() -> void:
 	for node in [_link, _transport]:
-		if node != null:
+		if node == null:
+			continue
+		# The transport may not be ours — [method bind_link] takes a live one.
+		if node.get_parent() == self:
 			remove_child(node)
 			node.queue_free()
 	_link = null

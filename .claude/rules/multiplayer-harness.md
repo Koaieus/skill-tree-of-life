@@ -22,6 +22,11 @@ holds no peer; `Wire.start_host` opens with a `stop()`, so a level ADOPTS a live
 link (replaying `peer_joined` for peers already on it) rather than re-starting
 one and dropping everybody who joined in the lobby.
 
+**The LOBBY mounts a pair of its own (#714)** — but only when `Wire` is already
+open, and it never opens one: `meta_root._push_lobby` is the single place that
+decides a route brings a socket up, and `LobbyScreen` hands its link back at
+START so only the level adopts the socket.
+
 **`Transport` + `CommandLink` are still mounted in `scenes/game_root.tscn`
 (#531), and a level may only SWAP the transport's script, never author a second
 pair** — the seam stays per-level because two worlds in one process need a
