@@ -175,14 +175,16 @@ Each mode's snapshot point, concretely:
   independent reason to freeze, stated at that function: a per-hop re-read would
   compound INT (INT² by hop 2).
 
-**Ranged's freeze rests on a relationship between two constants**, and it is
-pinned rather than commented (`test_ranged_damage_formula.gd`):
-`FLIGHT_TIME` (0.8) **must stay greater than** `TOTAL_STAGGER` (0.7), so the
-last arrow launches before the first one lands. Retune `TOTAL_STAGGER` above
-`FLIGHT_TIME` and an arrow would be loosed *after* an earlier arrow had already
+**Ranged's freeze rests on a relationship between two authored numbers**, and
+it is pinned rather than commented (`test_ranged_damage_formula.gd`):
+`PresentationTempo.volley_flight_time` **must stay greater than**
+`volley_stagger_span`, so the last arrow launches before the first one lands.
+Retune `volley_stagger_span` above `volley_flight_time` on the authored
+`.tres` and an arrow would be loosed *after* an earlier arrow had already
 cascaded the board — at which point "snapshot at launch" and "snapshot at
 resolve" stop being the same thing, silently, with no test failing and damage
-merely going stale.
+merely going stale. (Since #543 these two live on `PresentationTempo`, not as
+`const`s on `RangedDamageFormula` — see "The ranged volley ramp" below.)
 
 ### The crit split — the one input that spans two clocks
 
@@ -636,9 +638,21 @@ rank reaching leaves by euclidean distance to target, ascending
     tie-break: SkillNode.stable_id          # wire-legal, minted by Graph
 d_min, d_max   = distance of the first and last ranked leaf
 frac_i         = (d_i - d_min) / (d_max - d_min)   # 0 .. 1; 0 if the span is 0
-launch_time_i  = draw_time + frac_i * TOTAL_STAGGER
-arrival_time_i = launch_time_i + FLIGHT_TIME       # constant, NOT distance/speed
 ```
+
+**Since #543 that is the whole of what `RangedAttackPlan.resolve_against`
+records about timing.** `frac_i` is stamped onto `HitInstance.structural_key`
+— the resolver emits structure, never seconds. Turning it into a clock is
+`OutcomeSchedule.compile`'s job, in its `Cadence.RAMP` branch, off the
+authored `PresentationTempo`:
+
+```
+launch_time_i  = volley_draw_time + frac_i * volley_stagger_span
+arrival_time_i = launch_time_i + volley_flight_time   # constant, NOT distance/speed
+```
+
+so a slow-motion replay (a lower `combat_time_scale`) stretches the compiled
+schedule instead of the resolver re-authoring one.
 
 **The ramp is metric, not ordinal.** Settled 2026-08-21. It used to lerp on
 `rank_i / (n - 1)`, which spaced every shot evenly no matter where the leaves
@@ -663,17 +677,18 @@ to come down. Arrows are *aimed*, not fired on a rail.
 
 Mechanically this is the stronger choice, which is why it wins:
 
-- **The launch span and the arrival span are identical** (both `TOTAL_STAGGER`).
-  With a constant projectile *speed* the arrival span would be
-  `TOTAL_STAGGER + (flight_far - flight_near)` — always wider, and widening
-  with the size of your territory, so a big empire's volleys would smear out
-  while a small one's stayed crisp.
+- **The launch span and the arrival span are identical** (both
+  `volley_stagger_span`). With a constant projectile *speed* the arrival span
+  would be `volley_stagger_span + (flight_far - flight_near)` — always wider,
+  and widening with the size of your territory, so a big empire's volleys
+  would smear out while a small one's stayed crisp.
 - **Arrival order == firing order == distance order**, unconditionally. No
   ratio between stagger and flight can invert it, so armor-reducing ammo has an
   order it can rely on without a caveat.
-- **`RangedDamageFormula.PROJECTILE_SPEED` stops being the timing authority.**
-  The animation still needs a speed — it is now *derived* per shot
-  (`distance / FLIGHT_TIME`) rather than the input the schedule is built from.
+- **A single projectile speed stops being the timing authority.** The
+  animation still needs one — it is now *derived* per shot
+  (`distance / volley_flight_time`) rather than the input the schedule is
+  built from.
 
 - **Nearest fires first and arrives first.** Note ranged is single-target —
   every reaching leaf shoots the *same* node — so what ripples outward is the
@@ -682,31 +697,28 @@ Mechanically this is the stronger choice, which is why it wins:
   range in the same direction.) The choice therefore sets *resolution* order at
   the target, which is what armor-reducing ammo needs, not a visual wave of
   impacts.
-- **`TOTAL_STAGGER` is fixed**, so a 4-shot volley and a 100-shot volley take
-  the same wall time. This is what makes the "blot out the sun" fantasy
+- **`volley_stagger_span` is fixed**, so a 4-shot volley and a 100-shot volley
+  take the same wall time. This is what makes the "blot out the sun" fantasy
   readable — a hundred arrows in the same window rather than a hundred×stagger
   crawl.
-- **`draw_time`** is a windup phase before the first release — leaves visibly
-  draw before loosing. **0.0 for now**, but it is authored in from the start so
-  it can be turned on without re-deriving the schedule. Melee wants an
+- **`volley_draw_time`** is a windup phase before the first release — leaves
+  visibly draw before loosing. **0.0 for now**, but it is authored in from the
+  start so it can be turned on without re-deriving the schedule. Melee wants an
   analogous preparatory phase.
 - **`t = 0` is the start of the draw**, not the first arrival. Every
   `arrival_time` is measured from the moment the action begins.
 
-**`ArrowVolleyCoordinator._flight_for` has no floor, on purpose.** It returns
-`arrival_time - launch_delay` flat, so `launch_delay + flight == arrival_time`
-holds algebraically for every shot and the arrow cannot drift from its own
-damage. It used to clamp to `maxf(..., flight_time * MIN_FLIGHT_FRACTION)`,
-guarding a point-blank shot against blinking instantly — a case the constant
-flight time already rules out. `arrival_time` is `launch_time + FLIGHT_TIME`
-and `launch_delay` is `arrival_time - shot_flight_time`, so the subtraction
-collapses to a constant: the floor sat under a value that could never go below
-it, unless `shot_flight_time` had drifted from `FLIGHT_TIME` — and then the
-clamp *hid* the drift by desyncing the visual. Removed 2026-08-21; it had been
-biting in the shipped scene (`flight_time = 2.0` → a 0.8s floor against a 0.35s
-airtime, every arrow landing 0.45s after its damage) while
-`test_arrow_volley_coordinator.gd` stayed green by constructing the
-coordinator in code and reading the code default instead of the scene's.
+**`ArrowVolleyCoordinator._flight_for` reads the shot's own compiled window
+directly**, rather than recovering a launch delay by subtracting a constant
+from `arrival_time` — the compiler (`OutcomeSchedule`) already assigns both
+`launch_at` and `arrive_at` per entry, so there is no second number here that
+could drift from it (#543). Before that, the coordinator's `shot_flight_time`
+export re-derived a launch delay from `arrival_time`, and a mistuned export
+desynced the arrow's touchdown from its own damage — biting in the shipped
+scene (`flight_time = 2.0` → a 0.8s floor against a 0.35s airtime, every arrow
+landing 0.45s after its damage) while `test_arrow_volley_coordinator.gd`
+stayed green by constructing the coordinator in code and reading the code
+default instead of the scene's.
 
 **Watch:** that is exactly the drift class #479/#481 cost five rounds of
 latches, so the replacement test instantiates the `.tscn`. Any test pinning a
@@ -750,8 +762,13 @@ That doc needs the correction independently of this one.
 
 ## Open forks
 
-- `TOTAL_STAGGER` and `FLIGHT_TIME` values — feel, needs the real game.
-- `draw_time` values, and the melee analogue of a preparatory phase.
+- `PresentationTempo.volley_stagger_span` and `volley_flight_time` values —
+  feel, needs the real game; tuned on the authored `.tres`
+  (`shared_default()`'s backing resource), never as a code constant. The one
+  fixed constraint is `volley_flight_time > volley_stagger_span` (see "Offense
+  is snapshotted at commit time" above) — a house rule on the resource, not a
+  pinned pair of numbers.
+- `volley_draw_time` values, and the melee analogue of a preparatory phase.
 - ~~Whether the combat slice (#498) is worth its size~~ — **settled.** The owner
   call of 2026-08-21 made it a networking requirement, not an optimisation: a
   fogged client cannot walk the nodes a spell bounces through, so propagation
