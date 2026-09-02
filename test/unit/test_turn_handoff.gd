@@ -112,3 +112,68 @@ func test_player_gets_turn_back_after_enemy_ai() -> void:
 			"player should have the turn back after the AI timer fires")
 	assert_eq(_turn_ended_for.count(_player), 1,
 			"turn_ended(player) must fire exactly once — no stale AI corruption")
+
+
+# ---------------------------------------------------------------------------
+# #443: a turn that ends by DEATH still signals that it ended.
+#
+# `GameRoot._pull_from_turn_loop` used to null `current_entity` by hand, so
+# `turn_ended` never fired for the acting entity's own death — an invariant
+# whose only guard was `start_turn`'s `assert`, compiled out of a release
+# build. `TurnManager.abandon_turn` is the explicit path.
+# ---------------------------------------------------------------------------
+
+func test_abandon_turn_ends_the_dying_actors_turn() -> void:
+	assert_eq(_tm.current_entity, _player, "precondition: the player is acting")
+
+	_tm.abandon_turn(_player)
+
+	assert_null(_tm.current_entity, "a corpse must not keep holding the turn")
+	assert_eq(_turn_ended_for.count(_player), 1,
+			"turn_ended(player) must fire — a release build has no assert to catch this")
+
+
+func test_abandon_turn_does_not_hand_the_clock_on() -> void:
+	# Unlike `end_turn`, it deliberately does NOT `_tick_until_ready`: the
+	# handoff is command-ordered (EndTurnCommand), and advancing the clock
+	# locally out of a death handler reopens the group-order sync hazard that
+	# command exists to close.
+	_enemy.stat_board.initiative.set_current(50.0)
+	var started_before := _turn_started_for.size()  # `before_each` opened the player's turn
+
+	_tm.abandon_turn(_player)
+
+	assert_null(_tm.current_entity, "no next turn is opened by the death path")
+	assert_eq(_turn_started_for.size(), started_before,
+			"abandon_turn must not start anyone's turn")
+
+
+func test_abandon_turn_is_a_no_op_for_a_bystander_and_for_a_second_arrival() -> void:
+	# `Entity.die()` is re-entrant from inside a forced-dealloc cascade, and
+	# death fires for entities that were never acting — neither may emit a
+	# second `turn_ended`.
+	_tm.abandon_turn(_enemy)
+	assert_eq(_tm.current_entity, _player, "a bystander's death leaves the turn alone")
+	assert_true(_turn_ended_for.is_empty(), "and signals nothing")
+
+	_tm.abandon_turn(_player)
+	_tm.abandon_turn(_player)
+	assert_eq(_turn_ended_for.count(_player), 1,
+			"turn_ended fires exactly once no matter how often death re-enters")
+
+
+func test_game_root_death_handler_routes_through_abandon_turn() -> void:
+	# The wiring, not just the method: `_pull_from_turn_loop` is what a real
+	# death reaches, and it must no longer write the field by hand.
+	# Never `add_child`ed, exactly as `test_entity_death.gd` builds one: entering
+	# the tree runs GameRoot's `@onready` block, whose `%TurnManager` lookup has
+	# nothing to find outside `game_root.tscn` and would clobber this injection.
+	var gr: GameRoot = autofree(GameRoot.new())
+	gr.turn_manager = _tm
+
+	gr._pull_from_turn_loop(_player)
+
+	assert_null(_tm.current_entity, "the corpse released the turn")
+	assert_eq(_turn_ended_for.count(_player), 1, "and the turn signalled its end")
+	assert_false(_player.is_in_group(Entity.READY_GROUP),
+			"and is out of the readiness group, as before")

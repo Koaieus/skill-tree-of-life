@@ -58,6 +58,44 @@ func end_turn() -> void:
 	_tick_until_ready(entity)
 
 
+## The acting entity died mid-turn — end its turn without handing the clock on.
+## [GameRoot._pull_from_turn_loop] is the caller; a corpse must not hold the
+## turn, and until this existed the field was simply nulled from the outside, so
+## [signal turn_ended] never fired for a turn that ended by death. The only
+## guard on that invariant was [method start_turn]'s `assert`, which is compiled
+## out of a release build — the listeners that go stale are real ones
+## ([ActionCluster] leaves the End Turn button live, the initiative bar keeps
+## the acting tint, [PlayerInputController]'s act-gate never re-emits).
+##
+## [b]Deliberately does NOT tick on to the next entity[/b], unlike
+## [method end_turn]. The handoff is command-ordered: [EndTurnCommand] exists
+## precisely so `_tick_until_ready`'s group-order tiebreak runs at the same
+## point of the command stream on every peer, and a clock advanced locally out
+## of a death handler is that hazard reopened. Nothing reaches this path today —
+## chip damage and core overflow both kill the DEFENDER during the attacker's
+## turn — so the handoff has no reachable caller to design against; the
+## mechanic that would create one is named at `LootSystem`'s killer-attribution
+## note ("Thorns / counter-damage would kill on the defender's turn — when those
+## land this needs real source-threading"), and that is where it belongs.
+##
+## No-op unless `entity` is the one actually holding the turn: death fires for
+## bystanders too, and `Entity.die()` is re-entrant from inside a forced-dealloc
+## cascade, so a second arrival must not emit a second [signal turn_ended].
+##
+## This does put a side-effect-bearing emit inside the `entity_died` phase —
+## [method Entity._on_turn_ended] fires on the CORPSE, transferring its unused
+## AP into a DP/MP surplus and dispatching `_on_turn_end`. Whether that lands
+## before or after AllocationSystem's strip is decided by child order in
+## `game_root.tscn`, which is scene-authored and therefore identical on every
+## peer — deterministic, not a sync hazard — and the surplus itself is written
+## to an entity that will never take another turn.
+func abandon_turn(entity: Entity) -> void:
+	if entity == null or current_entity != entity:
+		return
+	current_entity = null
+	turn_ended.emit(entity)
+
+
 ## Tick the initiative clock by one unit. Replenishes every entity's `initiative`
 ## pool by its initiative_speed; a pool that crosses its cap fires `replenished`,
 ## which the entity handles by joining Entity.READY_GROUP (and the cyclic def
