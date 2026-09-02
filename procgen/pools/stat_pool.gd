@@ -239,7 +239,7 @@ func to_entries() -> Array[ModifierPoolEntry]:
 
 func _op_short() -> String:
 	match operation:
-		StatModifier.Operation.ADD_BASE: return "addb" # TODO: maybe switch base add (the default!) to be just `add` and let the BONUS add be `addb` instead? throughout the codebase. or is that confusing?
+		StatModifier.Operation.ADD_BASE: return "addb" # the default op wears the qualified name — #729
 		StatModifier.Operation.INCREASE: return "inc"
 		StatModifier.Operation.MULTIPLY: return "mul"
 		StatModifier.Operation.ADD_BONUS: return "addn"
@@ -248,7 +248,7 @@ func _op_short() -> String:
 
 func _op_symbol() -> String:
 	match operation:
-		StatModifier.Operation.ADD_BASE: return "+" if unit_value >= 0. else "-"  # TODO: when formalizing bool for flipping "which way is up" for a stat (some stats you want lowered), splice in condition to make this `-` instead
+		StatModifier.Operation.ADD_BASE: return "+" if unit_value >= 0. else "-"  # sign only, not polarity: a stat where lower is better reads backwards here — #729
 		StatModifier.Operation.INCREASE: return "+%" if unit_value >= 0. else "-%"
 		StatModifier.Operation.MULTIPLY: return "×"
 		StatModifier.Operation.ADD_BONUS: return "+b" if unit_value >= 0. else "-b"

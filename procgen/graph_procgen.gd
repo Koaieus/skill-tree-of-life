@@ -1166,7 +1166,9 @@ static func _is_neutral_result(mod: StatModifier) -> bool:
 ## Typed container for StatModifiers that aggregates them as it ingests via `append`
 ## Merges in new ones destructively if mergeable, fusing two StatModifiers into 1
 class StatModifierAggregator extends Resource:
-	# TODO: review this stub and promote it to something real if needed -- or revert to previous
+	# A stub: two parallel dicts keyed by the same StatModifier, a linear
+	# _find_match, and `extends Resource` for something never serialized.
+	# Promote or revert — #730.
 
 	var aggregated_mods: Dictionary[StatModifier, int] = {}
 	# Parallel to aggregated_mods: the entries that fused INTO each key, in
@@ -1201,7 +1203,7 @@ class StatModifierAggregator extends Resource:
 	# Static (#629): also the primitive [method reroll_into] fuses fresh
 	# rolls with — one merge implementation, not two.
 	static func merge_into(a: StatModifier, b: StatModifier) -> StatModifier:
-		assert(a.stat_id == b.stat_id, "Can't merge modifiers that don't have the same Stat ID") # TODO: move this to a test
+		assert(a.stat_id == b.stat_id, "Can't merge modifiers that don't have the same Stat ID") # wants GUT coverage — asserts are stripped in release (#730)
 		assert(a.operation == b.operation, "Can't merge modifiers that don't have the same operation")
 		match a.operation:
 			StatModifier.Operation.MULTIPLY:

@@ -9,9 +9,11 @@ extends RefCounted
 ## and [method revoke] from any hook, not just `_on_granted` — [AuraEffect] does
 ## exactly that as its buffed set shifts. The ledger on [member instance] tracks
 ## what is currently applied, so [method revoke_all] is always exact.
-# TODO: need to carefully review all these splits -- both where/when these live,
-	# as well as Effect vs EffectInstance. review: where does effect definition live, 
-	# where/when does it get applied, and reapplied, like map out the whole lifecycle
+##
+## [b]The lifecycle map — who holds what, and when — is not written down yet.[/b]
+## Effect (authored, stateless by contract) / EffectInstance (the per-grant
+## ledger) / EffectContext (this, the per-hook world channel) each document their
+## own seam, but not the whole. #731 puts it in `docs/domain/effect-system.md`.
 
 ## The owner slice this context acts through (#520). NOT an [Entity]: everything
 ## below that used to reach `entity.stat_board` / `entity.navigator` /
