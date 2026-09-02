@@ -71,8 +71,10 @@ hidden-information destination.
   channel classic lockstep lacks, which is a separate thing from authority and
   does not by itself create one.
 - **The fog ground was withdrawn by the owner, on the record.**
-  `docs/handoffs/lan-versus-transport.md` ("Rotating authority forecloses fog.
-  **Withdrawn.**") records that the owner's fog vision withholds *derived* state
+  `docs/handoffs/lan-versus-transport.md` (deleted; its rejection section was
+  folded into `docs/domain/multiplayer-sync-model.md`) recorded "Rotating
+  authority forecloses fog. **Withdrawn.**" — the owner's fog vision withholds
+  *derived* state
   — tier 3 — which is compatible with full replication of tiers 1–2. So the
   hidden-information destination is not the blocker the doc's rejection treats it
   as. Rotating authority was dropped for a different reason: ~1 ms on LAN against

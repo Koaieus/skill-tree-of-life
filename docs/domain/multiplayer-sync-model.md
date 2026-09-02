@@ -654,8 +654,8 @@ the same encoding the obvious one.
   with no argument is a desync. Every gameplay-affecting roll draws from a
   `GameSession` sub-stream."*
 
-  > **Owner call 2026-08-21** (`docs/handoffs/lan-wave-0.md`): *"we don't care
-  > about that seed beyond the procgen using it, for now. possibly forever."*
+  > **Owner call 2026-08-21:** *"we don't care about that seed beyond the
+  > procgen using it, for now. possibly forever."*
 
   Consequence, and it is deliberate: **the same seed reproduces the same map,
   not the same fights.** #457's `GameSession` seed is a procgen input; it is not
