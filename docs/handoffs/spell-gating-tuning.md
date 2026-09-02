@@ -50,9 +50,25 @@ grants in-flight bounces today.
 **The only thing scaling propagation is the tooltip, and it is lying.**
 `ui/spell_tooltip/spell_tooltip.gd:186` calls `_scale_by_spell_range(_spell.propagation.max_hops)`.
 Deleting that scaling both fixes the bug (§6) and implements the owner's
-"disable entirely" policy. Worst case today: `trail_blazer.tres` authorises
-`max_hops = 20` (see `attack/outcome/attack_record.gd:45`), so an INT-30 caster
-is shown 26 bounces for a spell that does 20.
+"disable entirely" policy.
+
+**Why propagation cannot take a global modifier at all.** `max_hops` means two
+different things depending on whether the step self-terminates:
+
+| spell | propagation `max_hops` | role |
+|---|---|---|
+| Trailblazer | 20 | **backstop** — `trail_blazer_step.gd` walks one path and stops at the first junction (degree > 2) |
+| Cyclone | 8 | limiter |
+| Leafblower | 7 | limiter |
+| Resonator | 6 | limiter |
+| Reverberator | 5 | limiter |
+| Bruiser | 4 | limiter |
+| Lightning Bolt, Healing Beam | 3 | limiter |
+
+A global "+N propagation hops" would do **nothing** to Trailblazer (it terminates
+on topology, not budget) while taking Cyclone from 8 bounces to 10. One
+modifier, wildly different effect per spell. Any future propagation tuning has
+to be per-step-strategy, not a board stat.
 
 > **HARD CONSTRAINT for §2:** the new `spell_hops` stat feeds `HopRangeFinder`
 > **only**. It must never reach `PropagationConfig.max_hops`. Propagation
