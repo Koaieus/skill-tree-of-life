@@ -175,7 +175,7 @@ The whole system leans on `StringName` tags and ids. One typo (`&"str"` vs
 `&"strr"`) silently weights nothing. Two layers catch this cleanly without
 boxing designers in:
 
-### Layer 1: `procgen/tags.tres` — single source of truth
+### Layer 1: `procgen/archetypes/tags.tres` — single source of truth
 
 A small data resource — `Array[StringName]` — listing every legal tag with a
 short description per entry. Designers add a tag by editing this file; the
@@ -478,7 +478,7 @@ knobs. No new engine code, all `.tres`.
 1. Reshape `ModifierPoolEntry`: add `stat_id`, `operation`, `value_range`,
    `tags`; remove the embedded `StatModifier` resource (the entry now mints
    one on `roll()`). Migrate existing presets.
-2. Land `procgen/tags.tres` + `@tool` validator + GUT test (the typo backstop)
+2. Land `procgen/archetypes/tags.tres` + `@tool` validator + GUT test (the typo backstop)
    in the same change as step 1 so new tags are gated from day one.
 3. Extract `WeightContext`, `WeightProfile` (abstract), and
    `ArchetypeWeightProfile` + `CollisionProfile` (the two minimum-viable

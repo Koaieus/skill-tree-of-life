@@ -60,8 +60,10 @@ extends Resource
 ## entry replaces that default. For MULTIPLY the rolled modifier value is
 ## `1 + unit × V[t]` (a "more" excess — `unit 0.05, V[T3]=7 → ×1.35`), so
 ## `unit_value` is the *excess*, not the full multiplier. Negative `unit_value`
-## marks a *debuff pool* (D9): its cost is `-T` (refunds budget), value is
-## negative.
+## marks a *debuff pool* (D9): the rolled value is negative, but the cost is
+## **still positive** — #637 retired the refund economics (a debuff no longer
+## hands budget back), see `docs/domain/procgen-v4.md` §"The refund economics
+## are retired".
 @export var unit_value: float = 1.0
 
 ## Sparse per-tier value override (D11): `tier -> T-magnitude` — the *excess*

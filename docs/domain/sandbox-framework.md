@@ -15,7 +15,7 @@ We have several module-testing surfaces, each set up differently:
 | Spell cast / hop tuning | `addons/spell_playground/` (plugin) | live-edit |
 | VFX / projectile launcher | `addons/vfx_playground/` (plugin) | live-edit |
 | Stat-board visualizer | `addons/stat_board_visualizer/` (plugin) | live-edit |
-| Allocation / dealloc / death VFX | `scenes/dev/allocation_vfx_showcase.tscn` (scene) | **played** |
+| Allocation / dealloc / death VFX | `addons/sandbox_host/tabs/40_allocation_tab.tscn` (live tab) | **live-edit** |
 | Melee blade | `addons/melee_sandbox/` (live tab, #256) | **live-edit** |
 | Ranged | — (none yet) | played |
 | Loot | — (foreseen) | played |

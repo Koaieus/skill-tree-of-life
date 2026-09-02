@@ -69,7 +69,7 @@ The `//N` gear-ratio spine decouples chunky modifier loot from single-digit dama
 - **Vision** = `round(420 * (1 + PER * 0.02))` px (euclidean); **Sensor** = `3 + floor(PER / 10)` hops (structure-only into fog)
 - **Armor** flat, then per-color `resist_r/g/b`, floored at `damage_floor` (default 1)
 
-> The breakpoint slivers read the *rule* per stat. To generalize cleanly, promote derived stats (e.g. `blade_damage`) to real stats with a formula `StatModifier`, and have the UI read the modifier's per/step from the StatDef rather than hardcoding — so a node's spike addon that raises local `blade_damage` shows correctly. (See `docs/domain/stats_panel_refactor.md`.)
+> The breakpoint slivers read the *rule* per stat. To generalize cleanly, promote derived stats (e.g. `blade_damage`) to real stats with a formula `StatModifier`, and have the UI read the modifier's per/step from the StatDef rather than hardcoding — so a node's spike addon that raises local `blade_damage` shows correctly. (See `docs/domain/stat-ui-visibility.md`.)
 
 ## SP accounting (SETTLED)
 `max = current + wounded + staked + allocated` (allocated = non-core owned node count; core is free).

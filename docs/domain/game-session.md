@@ -111,7 +111,7 @@ so adding a modifier roll upstream doesn't shift where enemies start.
 - `session/run_config.gd` — `RunConfig`, and `resolve_seed`
 - `session/participant_roster.gd`, `session/run_outcome.gd`
 - `procgen/graph_procgen.gd` — the assert
-- `ui/menu/lobby_screen.gd` — the seed field in
+- `ui/frontmatter/panels/lobby_screen.gd` — the seed field in
 - `ui/pause_menu.gd` — the seed field out (click the footer to copy it)
 - `test/unit/session/test_game_session.gd`, `test/unit/test_procgen_determinism.gd`
 

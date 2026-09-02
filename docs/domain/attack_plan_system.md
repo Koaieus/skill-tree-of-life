@@ -526,30 +526,19 @@ single function is the entire defense pipeline; growing it is one
 edit + one set of stat definitions. Decide whether resistances are
 PoE-style additive % or D&D-style per-source flat — design call.
 
-### Melee `resolve()` (medium, depends on phantom-swing sandbox)
+### ~~Melee `resolve()`~~ — LANDED
 
-**Prereq:** the existing phantom-swing sandbox graduates to a real
-attack (defines the contact set: which enemy nodes a blade sweep
-actually hits). **Touches:** `MeleeAttackPlan.resolve()`,
-`attack/formulas/melee_damage.gd` (new), maybe `AttackVFX.play_melee_swing`.
+`MeleeAttackPlan.resolve_against()` (`attack/plan/melee_attack_plan.gd`) is
+real; the blade sim lives in `attack/melee/`. No standalone
+`attack/formulas/melee_damage.gd` was ever created — the damage shape resolves
+inside the plan. Kept here only so the queue below reads honestly.
 
-The empty-outcome stub is the placeholder. Damage formula likely
-`floor(STR / 10) + 1` PHYSICAL per contact, mirroring ranged's per-shot
-shape. Per-contact instances let armour bite each one independently —
-keeps the offense/defense symmetry the ranged path established.
+### ~~Magic `resolve()` + spell effect payload~~ — LANDED
 
-### Magic `resolve()` + spell effect payload (medium)
+`MagicAttackPlan.resolve_against()` (`attack/plan/magic_attack_plan.gd`) drives
+propagation through `attack/spell/spell_resolver.gd`; `SpellDef` grew its real
+effect payload there. No `attack/formulas/magic_damage.gd` was ever created.
 
-**Prereq:** spell effect data shape — `SpellDef` currently has `damage:
-int` as a placeholder. **Touches:** `MagicAttackPlan.resolve()`,
-`attack/formulas/magic_damage.gd` (new), possibly grow `SpellDef` to
-carry an effect kind enum (damage / heal / debuff / status).
-
-The Spark proof-of-concept (one target, damage by INT//10) lands first.
-AoE spells require Targeting `valid_targets()` returning multiple +
-one DamageInstance per resolved target. Status effects need a
-container on the outcome (`effects: Array[StatusInstance]` alongside
-`hits`).
 
 ### Damage / death preview overlay (small, depends on hover hook)
 

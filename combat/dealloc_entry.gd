@@ -66,13 +66,14 @@ var was_core: bool = false
 ## whatever stat grants were revoked so the clients can draw them if they so
 ## want (stat modifier loss is sometimes toasted)"*.
 ##
-## [b]Labels, not handles, and deliberately not a revocation.[/b] #518 does not
-## revoke a shadow's granted modifiers at all — that is #520, and the reason is
-## that the helpers which would do it ([method SkillNode.remove_entity_modifiers_from],
+## [b]Labels, not handles, and deliberately not a revocation.[/b] #518 shipped
+## only this presentation half: the helpers that would actually revoke
+## ([method SkillNode.remove_entity_modifiers_from],
 ## [method SkillNode.clear_scaled_effect_sets]) MUTATE the real node, so a
-## shadow cannot borrow them. Reading names off `node.modifiers` mutates
-## nothing, which is exactly why the presentation half could ship here and the
-## model half could not.
+## shadow cannot borrow them, while reading names off `node.modifiers` mutates
+## nothing. The model half landed separately in #520 (slice-aware
+## `EffectContext` + `AuraEffect.recompute`); these labels stayed a
+## presentation channel and are still not a revocation handle.
 var revoked_labels: PackedStringArray = PackedStringArray()
 
 

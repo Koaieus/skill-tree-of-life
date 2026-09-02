@@ -59,8 +59,9 @@ extends Node
 @export var command_applier: CommandApplier
 
 ## The outstanding-pick book, stamped onto the relic alongside the applier.
-## Only consulted for a REMOTE collector, which nothing reports today — see
-## [LootPickRegistry].
+## Only consulted for a REMOTE collector — #564 wired that consumer: a mirror
+## peer's pick arrives via [signal CommandLink.loot_offer_received] and closes
+## its round through this book. See [LootPickRegistry].
 @export var pick_registry: LootPickRegistry
 
 ## The mirror-side signal source for #564's adapter (see [method

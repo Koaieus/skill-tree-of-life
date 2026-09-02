@@ -30,7 +30,7 @@ Two consequences fall out of this design:
    because each branch's `visited` only saw one shoulder. Worse, a Spark
    with `max_hops=3` over a moderately-connected graph procs ~28 hits
    because every fan-out forks the visited set. This is captured by
-   `test/unit/spell/test_all_neighbours_propagation.gd::test_diamond_double_hits_via_parallel_branches`
+   `test/unit/spell/test_propagation.gd::test_diamond_double_hits_via_parallel_branches`
    with a TODO flagging the model as wrong.
 2. **No merger.** When N branches converge on the same node in the same
    BFS wave, the resolver produces N independent hits — no way to express
@@ -333,7 +333,7 @@ and a dev-only spell playground — migration is cheap.
 2. Rewrite `SpellResolver.resolve()` to wave-based. Keep its signature.
 3. Update `SpellDef.propagation` to type `PropagationConfig`.
 4. Port `spark.tres` and `lightning.tres` to the new config shape.
-5. Update `test/unit/spell/test_all_neighbours_propagation.gd`:
+5. Update `test/unit/spell/test_propagation.gd`:
    - Remove the TODO.
    - `test_diamond_double_hits_via_parallel_branches` → becomes a
      `SumDamageReducer` assertion (sum of damages on D, not 2 separate
