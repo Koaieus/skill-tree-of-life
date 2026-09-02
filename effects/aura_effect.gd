@@ -164,12 +164,12 @@ func _close_batches(batched: Array[StatBoard]) -> void:
 ## With a metric set, three branches, cheapest first:
 ##
 ## 1. [param changed_node] can't be in reach at all → no-op (acceptance 5).
-## 2. A bound-dependent [member distance_scale] (Linear/Curve) normalizes by the
-##    widest distance in the set, so even a metric that says "nothing else
-##    moved" can still shift everyone's SCALE when membership changes the
-##    bound. Correctness over cleverness here: fall back to a full
-##    [method recompute] rather than trying to detect whether the bound
-##    actually moved (acceptance 1b).
+## 2. A [method DistanceScale.uses_bound] scale normalizes by the widest
+##    distance in the set, so even a metric that says "nothing else moved" can
+##    still shift everyone's SCALE when membership changes the bound.
+##    Correctness over cleverness here: fall back to a full [method recompute]
+##    rather than trying to detect whether the bound actually moved
+##    (acceptance 1b).
 ## 3. Otherwise, delegate to whichever of [method _apply_hop_diff] /
 ##    [method _apply_membership_update] matches
 ##    [method DistanceMetric.dirties_on_membership_change].
@@ -187,7 +187,7 @@ func _topology_changed(ctx: EffectContext, changed_node: SkillNode) -> void:
 		return
 	if not _reach_could_include(changed_node, source, mirror):
 		return
-	if _is_bound_dependent(distance_scale):
+	if distance_scale != null and distance_scale.uses_bound():
 		recompute(ctx)
 		return
 	if metric.dirties_on_membership_change():
@@ -221,18 +221,6 @@ func _reach_could_include(node: SkillNode, source: SkillNode, mirror: GraphMirro
 	return reach.in_range(null, source, node)
 
 
-## Bound-dependent scales normalize by the widest distance actually observed
-## ([LinearScale], [CurveScale]) — a farthest node leaving the set moves that
-## bound and therefore every other node's scale, even though the metric itself
-## reports nothing moved. [ProportionalScale] / [FlatScale] (and anything else)
-## ignore the bound outright, so a membership-only update is safe for them.
-## [DistanceScale] isn't an owned file for this issue, so this is a closed
-## `is` check against the two concrete scales the acceptance spec names, not a
-## virtual method on the base.
-func _is_bound_dependent(scale: DistanceScale) -> bool:
-	return scale is LinearScale or scale is CurveScale
-
-
 ## The Euclidean-shaped path: [param changed_node] is the only thing that could
 ## possibly need touching, because [method DistanceMetric.dirties_on_membership_change]
 ## being false is a promise that no OTHER node's distance moved. One O(1)-ish
@@ -257,8 +245,9 @@ func _apply_membership_update(ctx: EffectContext, source: SkillNode, mirror: Gra
 	var one := metric.distances(source, [changed_node], mirror)
 	if not one.has(changed_node):
 		return
-	# Bound-independent by construction (only reached when `_is_bound_dependent`
-	# said no) — the scale ignores whatever we pass here, so -1.0 is safe.
+	# Bound-independent by construction (only reached when
+	# [method DistanceScale.uses_bound] said no) — the scale ignores whatever we
+	# pass here, so -1.0 is safe.
 	var s: float = 1.0 if distance_scale == null else distance_scale.scale(one[changed_node], -1.0)
 	if is_zero_approx(s):
 		return
