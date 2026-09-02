@@ -30,6 +30,35 @@ has a different targeting pattern, for diversity." The two flips are deliberate.
 hop scaling. Section 2 changes what "5 hops" means in play, so expect a light
 re-tune pass after it lands.
 
+## 1b. TWO different "spell hops" — do not conflate (owner, 2026-09-02)
+
+> "bonus spell hops (cast 'range' gate) vs bonus spell hops (in flight spell
+> lands more hops/bounces) — the former we are tuning right now, the latter one
+> we should be very careful about, and possibly disable entirely until we find a
+> proper way to tune it — adding max hops to a spell dramatically alters its
+> performance"
+
+| | what it means | where | in scope? |
+|---|---|---|---|
+| **Cast-range hops** | how far away a target may be | `HopRangeFinder.max_hops` | **YES** — §2 tunes this |
+| **Propagation hops** | how many times the spell bounces/chains in flight | `PropagationConfig.max_hops` (`attack/spell/propagation/propagation_config.gd:29`) | **NO** — leave alone |
+
+**Current state is already correct at runtime**: `spell_resolver.gd:110` does
+`seed_state.hops_remaining = config.max_hops` — **raw**, unscaled. No stat
+grants in-flight bounces today.
+
+**The only thing scaling propagation is the tooltip, and it is lying.**
+`ui/spell_tooltip/spell_tooltip.gd:186` calls `_scale_by_spell_range(_spell.propagation.max_hops)`.
+Deleting that scaling both fixes the bug (§6) and implements the owner's
+"disable entirely" policy. Worst case today: `trail_blazer.tres` authorises
+`max_hops = 20` (see `attack/outcome/attack_record.gd:45`), so an INT-30 caster
+is shown 26 bounces for a spell that does 20.
+
+> **HARD CONSTRAINT for §2:** the new `spell_hops` stat feeds `HopRangeFinder`
+> **only**. It must never reach `PropagationConfig.max_hops`. Propagation
+> scaling stays off until it has a deliberate tuning model of its own —
+> bounce count is superlinear in effect, unlike reach.
+
 ## 2. Split `spell_range` into two stats
 
 ### The problem
