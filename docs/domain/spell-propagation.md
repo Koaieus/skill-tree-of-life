@@ -430,14 +430,15 @@ var visit_index: int = 0                      # the nth time this cast has lande
 var is_terminal: bool = false                 # the walk ENDED here by terminal rule, not merely last-appended
 var incident_shares: PackedFloat32Array = []  # per-arc damage share, ALIGNED with `predecessors` (#707)
 var turn_sign: float = 0.0                    # +1 / -1 / 0 — which way the storm turned (#707)
+var closed_ring: Array[SkillNode] = []        # the simple cycle this landing CLOSED, in walk order (#710)
 var hits: Array[HitInstance] = []    # shared refs into `hits`; empty for CANCEL / zero-damage
 # crit_tier lives on each HitInstance now (#381); event.max_crit_tier() derives
 # the per-event emphasis value across `hits`.
 ```
 
-> The four fields above `hits` were added after #46 and this block used to omit
+> The five fields above `hits` were added after #46 and this block used to omit
 > them. `predecessors`, `visit_index` and `is_terminal` arrived with #542/#543;
-> `incident_shares` and `turn_sign` with #707. Each was added for exactly one
+> `incident_shares` and `turn_sign` with #707; `closed_ring` with #710. Each was added for exactly one
 > spell that could not otherwise be drawn — which is the pattern, not an
 > exception: the seam widens when the picture provably cannot re-derive
 > something, and never merely because it would be convenient.
@@ -475,6 +476,32 @@ constant for a whole cast (`Curl.rank` turns one fixed way at every node), so
 `IncidentReducer._merge_payload_defaults` carries it first-wins through a merge —
 exact, not a choice. `arrival_share` is deliberately **not** merged: it describes
 one arc's mint, and once the fronts have summed the merged payload has no share.
+
+### `closed_ring` — the ring, because a ring cannot be re-derived (#710)
+
+Cyclone's closing hop is the payoff of the whole #703 redesign (the crit, plus
+`closing_gain` feeding forward as sustain) and it used to light at most **one
+node**. Lighting the ring *as* a ring needs the ring, and it lives in
+`CastSpell.visited` — a resolver-local the event never carried.
+
+- **The resolver stamps it where the crit is stamped.** `CycloneStep.closed_ring()`
+  truncates `visited` to *exactly* the loop on every close (that truncation is
+  what makes every `CycleCritCondition` crit a real simple cycle of length ≥ 3),
+  and `CycloneReducer` hands a closer's lineage through whole. So the stamp is one
+  line — `ev.closed_ring = state.visited.duplicate()` when `state.closed_cycle` —
+  and `closed_ring` is non-empty on exactly the landings that closed something.
+- **Array order IS the storm's rotation.** The ring comes back in walking order
+  ending at the landed node, so consecutive pairs are its edges and
+  `ring[-1] → ring[0]` is the edge the closer just crossed — the Nth edge, not a
+  seam. The VFX layer derives edges from those pairs; nothing promotes `Edge`
+  objects or stable ids, and no `turn_sign` read is needed to lap it.
+- **Node refs, like `predecessors` and `target`.** An event is local replay
+  output and never a command, so the sync rule's "no node refs" does not apply.
+
+The picture is `ui/vfx/projectile/visual/cyclone_ring_flash.tscn`, spawned once
+per closing event through `MagicBounceCoordinator.ring_visual` — once per
+*event*, not per arc, because a merged landing draws one bolt per predecessor
+and an additive polyline drawn three times reads as a brightness bug.
 
 **Verb is resolver-stamped, not geometry-inferred** — it *cannot* be recovered
 from positions (a self-loop's origin == target). The resolver knows it at

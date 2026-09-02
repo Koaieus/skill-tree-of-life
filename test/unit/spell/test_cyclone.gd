@@ -324,3 +324,105 @@ func test_converging_fronts_add_rather_than_take_the_strongest() -> void:
 		incidents.append(c)
 	var merged := CycloneReducer.new().reduce(incidents, null, PropagationContext.new())
 	assert_almost_eq(merged.damage, 8.0, 0.001, "summed, not max'd")
+
+
+# -- #710: the closed ring crosses the seam ---------------------------------
+#
+# The closing hop is the payoff of the whole #703 redesign, and until #710 it
+# lit at most ONE node. `PropagationEvent.closed_ring` is the ring itself,
+# stamped where the crit is stamped: the resolver copies `state.visited` on
+# every closing landing, because `CycloneStep.closed_ring()` has already
+# truncated that trail to exactly the loop.
+
+
+## Every event that carries a ring, in timeline order.
+func _rings(outcome: AttackOutcome) -> Array[PropagationEvent]:
+	var out: Array[PropagationEvent] = []
+	for ev in outcome.timeline:
+		if not ev.closed_ring.is_empty():
+			out.append(ev)
+	return out
+
+
+func _all_distinct(nodes: Array[SkillNode]) -> bool:
+	var seen: Array[SkillNode] = []
+	for n in nodes:
+		if seen.has(n):
+			return false
+		seen.append(n)
+	return true
+
+
+func test_a_triangle_closure_carries_the_whole_triangle() -> void:
+	_build(_ring(3), _ring_positions(3), 3, 0)
+	var out := _cast(3)
+	var rings := _rings(out)
+	assert_gt(rings.size(), 0, "a triangle closes, repeatedly — at least one ring must be stamped")
+	var first := rings[0]
+	assert_eq(first.closed_ring.size(), 3, "the ring a triangle closes IS the triangle")
+	assert_true(_all_distinct(first.closed_ring), "a simple cycle repeats no vertex")
+	assert_same(first.closed_ring[first.closed_ring.size() - 1], first.target,
+			"the ring ends where the front now stands, so the lap ends on the landing")
+
+
+func test_the_seed_and_every_open_hop_carry_no_ring() -> void:
+	_build(_ring(3), _ring_positions(3), 3, 0)
+	var out := _cast(3)
+	assert_true(out.timeline[0].closed_ring.is_empty(),
+			"a JUMP closes nothing — the seed must not carry a ring")
+	# `closed_ring` is stamped exactly where `closed_cycle` is, and
+	# CycleCritCondition is the only reader of that flag — so the two counts are
+	# the same number seen twice. A ring stamped on a non-closing landing (or
+	# missing from a closing one) shows up here as a mismatch.
+	var crits: int = 0
+	for ev in out.timeline:
+		if ev.max_crit_tier() > 0:
+			crits += 1
+	assert_eq(_rings(out).size(), crits,
+			"a ring is stamped on exactly the landings that closed one")
+
+
+func test_every_stamped_ring_is_a_real_simple_cycle_including_the_wraparound() -> void:
+	# The invariant the VFX layer rests on: array order IS the storm's rotation,
+	# so consecutive pairs PLUS `ring[-1] -> ring[0]` are the N edges to light.
+	# A wraparound that is not an edge would draw a chord across the wheel.
+	_build(_hub(6, true), _hub_positions(6), 7, 0)
+	var out := _cast(7)
+	var rings := _rings(out)
+	assert_gt(rings.size(), 3, "a hex wheel closes loops constantly")
+	for ev in rings:
+		var ring := ev.closed_ring
+		assert_gte(ring.size(), 3, "a ring shorter than a triangle is not a cycle: %s" % [ring])
+		assert_true(_all_distinct(ring), "a simple cycle repeats no vertex: %s" % [ring])
+		assert_same(ring[ring.size() - 1], ev.target, "the ring ends at the landing")
+		for k in ring.size():
+			var from_node: SkillNode = ring[k]
+			var to_node: SkillNode = ring[(k + 1) % ring.size()]
+			assert_true(_graph.get_neighbours(from_node).has(to_node),
+					"ring[%d] -> ring[%d] must be a real edge (%s)" % [k, (k + 1) % ring.size(), ring])
+
+
+func test_a_merge_carries_the_closers_ring_not_the_strongest_fronts_trail() -> void:
+	# "Closing dominates": the trail has to be a ring some single lineage
+	# actually walked, so the closer wins the lineage even when a NON-closer is
+	# carrying more damage. Taking the max-damage winner's trail would stamp a
+	# `closed_ring` that is not a cycle at all.
+	_build(_ring(4), _ring_positions(4), 4, 0)
+	var nodes := _graph.get_skill_nodes()
+	var loop: Array[SkillNode] = [nodes[0], nodes[1], nodes[2]]
+	var trail: Array[SkillNode] = [nodes[3], nodes[2]]
+	var closer := CastSpell.new()
+	closer.damage = 1.0
+	closer.closed_cycle = true
+	closer.visited = loop
+	closer.came_from = [] as Array[SkillNode]
+	var bruiser := CastSpell.new()
+	bruiser.damage = 9.0
+	bruiser.closed_cycle = false
+	bruiser.visited = trail
+	bruiser.came_from = [] as Array[SkillNode]
+	var incidents: Array[CastSpell] = [bruiser, closer]
+	var merged := CycloneReducer.new().reduce(incidents, nodes[2], PropagationContext.new())
+	assert_true(merged.closed_cycle, "one closer among the incidents closes the merge")
+	assert_eq(merged.visited, loop,
+			"the merged landing carries the CLOSER's ring, not the 9-damage front's trail")

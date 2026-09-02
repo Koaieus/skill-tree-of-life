@@ -363,3 +363,380 @@ func test_a_flipped_path_mirrors_the_bow_across_the_segment() -> void:
 		"a flipped path still starts exactly at the origin")
 	assert_almost_eq(mirrored.evaluate(1.0, origin, target).distance_to(target), 0.0, 0.001,
 		"and still lands exactly on the target")
+
+
+# -- #710: the closed ring, lit as a ring -----------------------------------
+#
+# The closing hop is the payoff of #703 and it used to light ONE node.
+# `CycloneRingFlash` lays N `EdgeEnergize` overlays on the N ring edges and runs
+# one front around them in the walk's own rotation over a fixed lap — one
+# gesture whatever the ring's length. Two things carry it and neither is safe to
+# assume: it stays on the shared material (the batch), and it is spawned exactly
+# ONCE per closing event however many arcs converged there.
+
+const RING_FLASH := preload("res://ui/vfx/projectile/visual/cyclone_ring_flash.tscn")
+const _BEAT_INTERVAL: float = 0.4  ## `default_presentation_tempo.tres`
+
+
+func _closing_event(ring: Array, preds: Array) -> PropagationEvent:
+	var ev := _event(preds, [0.70, 0.20] if preds.size() > 1 else [0.70])
+	var typed: Array[SkillNode] = []
+	for n in ring:
+		typed.append(n)
+	ev.closed_ring = typed
+	ev.target = typed[typed.size() - 1] if not typed.is_empty() else _node()
+	return ev
+
+
+## A ring of `n` nodes on a circle, so no two edges are degenerate.
+func _ring_nodes(n: int) -> Array:
+	var out: Array = []
+	for i in n:
+		var a := TAU * float(i) / float(n)
+		out.append(_node(Vector2(cos(a), sin(a)) * 120.0))
+	return out
+
+
+func _projectiles(coord: MagicBounceCoordinator) -> Array[Projectile]:
+	var out: Array[Projectile] = []
+	for child in coord.get_children():
+		if child is Projectile:
+			out.append(child)
+	return out
+
+
+func _ring_projectiles(coord: MagicBounceCoordinator) -> Array[Projectile]:
+	var out: Array[Projectile] = []
+	for proj in _projectiles(coord):
+		if proj.visual_scene == coord.ring_visual:
+			out.append(proj)
+	return out
+
+
+func _flash(ring: Array) -> CycloneRingFlash:
+	var flash: CycloneRingFlash = RING_FLASH.instantiate()
+	add_child_autofree(flash)
+	flash._on_context({&"closed_ring": ring})
+	return flash
+
+
+func _energizers(flash: CycloneRingFlash) -> Array[EdgeEnergize]:
+	var out: Array[EdgeEnergize] = []
+	for child in flash.get_children():
+		if child is EdgeEnergize:
+			out.append(child)
+	return out
+
+
+## The child's front, read back the only way it is observable from outside —
+## the quad's x-scale, which IS the front (`test_edge_energize.gd`).
+func _front_of(edge: EdgeEnergize) -> float:
+	var span: float = edge.edge_origin.distance_to(edge.edge_target)
+	if span <= 0.0:
+		return 0.0
+	var bar: Sprite2D = edge.get_node("%Bar") as Sprite2D
+	return bar.scale.x * float(EdgeEnergize.BAR_TEXTURE.get_width()) / span
+
+
+# ------------------------------------------------- the coordinator's ring slot
+
+
+func test_cyclone_authors_a_ring_visual_and_the_shared_default_does_not() -> void:
+	assert_eq(_spawn_coordinator().ring_visual, RING_FLASH,
+		"Cyclone is the one spell with a ring to light")
+	var shared: MagicBounceCoordinator = SHARED_DEFAULT_COORDINATOR.instantiate()
+	add_child_autofree(shared)
+	assert_null(shared.ring_visual,
+		"null = nothing, exactly how `cancel_visual = null` behaves — the other eight are untouched")
+
+
+func test_a_merged_closure_draws_two_bolts_and_exactly_one_ring() -> void:
+	# The per-event dedupe, and the whole reason the ring is not an
+	# `arrival_companion`: a merged landing spawns one bolt per predecessor, and
+	# an ADDITIVE ring polyline drawn twice reads as a brightness bug.
+	var coord := _spawn_coordinator()
+	var ring := _ring_nodes(3)
+	var ev := _closing_event(ring, [ring[0], ring[1]])
+	var pending: Array[int] = [0]
+	coord._play_projectile(ev, {}, 0.35, pending)
+	assert_eq(_projectiles(coord).size(), 3, "two bolts plus one ring")
+	assert_eq(_ring_projectiles(coord).size(), 1,
+		"one closure is one ring however many arcs converged on it")
+
+
+func test_an_open_hop_spawns_no_ring() -> void:
+	var coord := _spawn_coordinator()
+	var ev := _event([_node(Vector2(-50, 0))], [0.70])
+	ev.target = _node(Vector2(50, 0))
+	var pending: Array[int] = [0]
+	coord._play_projectile(ev, {}, 0.35, pending)
+	assert_eq(_ring_projectiles(coord).size(), 0, "nothing closed, nothing to light")
+	assert_eq(_projectiles(coord).size(), 1, "the ordinary bolt is untouched")
+
+
+func test_a_coordinator_with_no_ring_slot_spawns_none() -> void:
+	var coord := _spawn_coordinator()
+	coord.ring_visual = null
+	var ring := _ring_nodes(4)
+	var pending: Array[int] = [0]
+	coord._play_projectile(_closing_event(ring, [ring[2]]), {}, 0.35, pending)
+	assert_eq(_projectiles(coord).size(), 1, "an unauthored slot draws the bolt and nothing else")
+
+
+func test_the_ring_rides_the_same_clock_and_the_same_drain() -> void:
+	# Not `add_child` + a timer: a cast cut short must not leave rings behind, so
+	# the ring is a Projectile like every other and is counted in `pending`,
+	# which is what `play()` drains on.
+	var coord := _spawn_coordinator()
+	var ring := _ring_nodes(3)
+	var pending: Array[int] = [0]
+	coord._play_projectile(_closing_event(ring, [ring[1], ring[0]]), {}, 0.35, pending)
+	assert_eq(pending[0], 3, "every spawned projectile, ring included, is drained on")
+	var flight: Array[float] = []
+	for proj in _projectiles(coord):
+		flight.append(proj.flight_time)
+	for f in flight:
+		assert_almost_eq(f, 0.35, 0.0001,
+			"the ring is spawned one lead-in early like the bolt, so it ignites ON the beat")
+
+
+func test_the_ring_travels_nowhere_and_therefore_never_spins() -> void:
+	# `target -> target` is the zero-length SELF_LOOP shape Projectile already
+	# supports; `face_velocity`'s own length guard means it never rotates.
+	var coord := _spawn_coordinator()
+	var ring := _ring_nodes(5)
+	var pending: Array[int] = [0]
+	coord._play_projectile(_closing_event(ring, [ring[3]]), {}, 0.35, pending)
+	var proj: Projectile = _ring_projectiles(coord)[0]
+	assert_almost_eq(proj.rotation, 0.0, 0.0001, "a zero-length flight has no heading to face")
+	assert_almost_eq(proj.global_position.distance_to(ring[4].global_position), 0.0, 0.001,
+		"it sits on the landing")
+
+
+# --------------------------------------------------------------- the geometry
+
+
+func test_a_ring_of_n_nodes_becomes_n_overlays_laid_on_its_own_edges() -> void:
+	var ring := _ring_nodes(6)
+	var edges := _energizers(_flash(ring))
+	assert_eq(edges.size(), 6, "N nodes, N edges — the wraparound is one of them, not a seam")
+	for k in edges.size():
+		var from_node: SkillNode = ring[k]
+		var to_node: SkillNode = ring[(k + 1) % ring.size()]
+		assert_almost_eq(edges[k].edge_origin.distance_to(from_node.global_position), 0.0, 0.001,
+			"overlay %d starts at ring[%d]" % [k, k])
+		assert_almost_eq(edges[k].edge_target.distance_to(to_node.global_position), 0.0, 0.001,
+			"overlay %d ends at ring[%d]" % [k, (k + 1) % ring.size()])
+
+
+func test_the_last_overlay_closes_the_loop_back_onto_the_first_node() -> void:
+	# The edge the closer just crossed. Skipping it draws an arc, not a ring.
+	var ring := _ring_nodes(4)
+	var edges := _energizers(_flash(ring))
+	assert_almost_eq(edges[3].edge_target.distance_to((ring[0] as SkillNode).global_position),
+		0.0, 0.001, "ring[-1] -> ring[0] is the Nth edge")
+
+
+func test_a_degenerate_or_absent_ring_builds_nothing() -> void:
+	assert_eq(_energizers(_flash([])).size(), 0, "an empty ring is every non-closing landing")
+	assert_eq(_energizers(_flash(_ring_nodes(2))).size(), 0, "two nodes are not a cycle")
+	var flash: CycloneRingFlash = RING_FLASH.instantiate()
+	add_child_autofree(flash)
+	flash._on_context(null)
+	flash._on_context(RefCounted.new())
+	assert_eq(_energizers(flash).size(), 0, "an unread context shape changes nothing")
+
+
+func test_sixty_overlays_of_one_ring_share_one_material() -> void:
+	# The batching pin, mirroring `test_edge_energize.gd`: a ring is N overlays
+	# alive at once, so a per-instance ShaderMaterial here costs 60 draws.
+	var edges := _energizers(_flash(_ring_nodes(60)))
+	assert_eq(edges.size(), 60)
+	var materials: Array = []
+	for edge in edges:
+		var bar: Sprite2D = edge.get_node("%Bar") as Sprite2D
+		if not materials.has(bar.material):
+			materials.append(bar.material)
+	assert_eq(materials.size(), 1, "a 60-edge ring must resolve to exactly one material resource")
+	assert_eq(materials[0], EdgeEnergize.SHARED_MATERIAL, "and it is the one named on the class")
+
+
+func test_the_composition_owns_no_shader_of_its_own() -> void:
+	assert_false(FileAccess.file_exists("res://ui/vfx/projectile/visual/cyclone_ring_flash.gdshader"),
+		"#710 is a COMPOSITION of kit primitives — a new shader would be a new primitive")
+
+
+# -------------------------------------------------------------------- the lap
+
+
+func test_the_lap_runs_the_edges_in_walk_order() -> void:
+	# `clampf(p * N - k, 0, 1)`: edge 0 over the first 1/N of the lap, edge 1
+	# over the next. Simultaneous ignition was rejected — it loses the "it
+	# circulates" read, and Cyclone's identity is motion (#663 D3).
+	assert_almost_eq(CycloneRingFlash.edge_front(0.0, 0, 4), 0.0, 0.0001, "nothing lit at p=0")
+	assert_almost_eq(CycloneRingFlash.edge_front(0.25, 0, 4), 1.0, 0.0001, "edge 0 done a quarter in")
+	assert_almost_eq(CycloneRingFlash.edge_front(0.25, 1, 4), 0.0, 0.0001, "edge 1 only starting")
+	assert_almost_eq(CycloneRingFlash.edge_front(0.5, 1, 4), 1.0, 0.0001)
+	assert_almost_eq(CycloneRingFlash.edge_front(1.0, 3, 4), 1.0, 0.0001, "the whole ring lit at p=1")
+
+
+func test_the_front_is_monotonic_non_increasing_across_the_ring() -> void:
+	var flash := _flash(_ring_nodes(5))
+	var edges := _energizers(flash)
+	flash._on_arrival()
+	for p in [0.0, 0.15, 0.4, 0.72, 1.0]:
+		flash._set_lap(p)
+		var previous := INF
+		for k in edges.size():
+			var front := _front_of(edges[k])
+			assert_almost_eq(front, CycloneRingFlash.edge_front(p, k, edges.size()), 0.01,
+				"edge %d at p=%.2f" % [k, p])
+			assert_lte(front, previous + 0.001, "the front never runs backwards along the ring")
+			previous = front
+
+
+func test_a_three_ring_and_a_twenty_ring_take_the_same_lap() -> void:
+	# One gesture, bounded. Per-EDGE speed would give a 20-ring a ~7-beat lap
+	# that stacks with the next closure.
+	var small := _flash(_ring_nodes(3))
+	var large := _flash(_ring_nodes(20))
+	assert_almost_eq(small.lap_seconds, large.lap_seconds, 0.0001,
+		"lap time is a property of the gesture, not of the ring's length")
+	small._on_arrival()
+	large._on_arrival()
+	small._set_lap(0.5)
+	large._set_lap(0.5)
+	assert_almost_eq(_front_of(_energizers(small)[1]), 0.5, 0.01, "3-ring halfway: edge 1 half lit")
+	assert_almost_eq(_front_of(_energizers(large)[10]), 0.0, 0.01, "20-ring halfway: edge 10 starting")
+	assert_almost_eq(_front_of(_energizers(large)[9]), 1.0, 0.01, "…and edge 9 just completed")
+
+
+func test_nothing_moves_before_the_beat() -> void:
+	# The flight is the wind-up: the ring ignites at the same instant as the
+	# closing bolt's ImpactRing, never during the lead-in.
+	var flash := _flash(_ring_nodes(4))
+	var edges := _energizers(flash)
+	flash._on_launch()
+	flash._on_progress(0.5)
+	flash._on_progress(1.0)
+	for edge in edges:
+		assert_almost_eq(_front_of(edge), edge.initial_front, 0.005,
+			"a child must sit at `initial_front` for the whole flight")
+
+
+func test_each_edge_lingers_from_its_own_completion() -> void:
+	# Not from the lap's: the fade is EdgeEnergize's own, armed the moment that
+	# edge's front reaches 1.0.
+	var flash := _flash(_ring_nodes(3))
+	var edges := _energizers(flash)
+	for edge in edges:
+		watch_signals(edge)
+		edge.linger_seconds = 0.0
+	flash._on_arrival()
+	flash._set_lap(0.4)
+	assert_signal_emitted(edges[0], "finished", "edge 0 completes a third of the way round")
+	assert_signal_not_emitted(edges[2], "finished", "edge 2 has not been reached yet")
+
+
+func test_finished_waits_for_every_child() -> void:
+	var flash := _flash(_ring_nodes(3))
+	watch_signals(flash)
+	for edge in _energizers(flash):
+		edge.linger_seconds = 0.0
+	flash._on_arrival()
+	flash._set_lap(0.6)
+	await get_tree().process_frame
+	assert_signal_not_emitted(flash, "finished", "two of three edges done is not done")
+	flash._set_lap(1.0)
+	await get_tree().process_frame
+	assert_signal_emitted(flash, "finished", "the lap ends when the last edge does")
+
+
+func test_a_ringless_flash_finishes_rather_than_hanging_the_drain() -> void:
+	# `pending` is what `play()` drains on, so a ring visual that never emits
+	# `finished` would hold a whole cast open.
+	var flash: CycloneRingFlash = RING_FLASH.instantiate()
+	add_child_autofree(flash)
+	watch_signals(flash)
+	flash._on_context({&"closed_ring": []})
+	flash._on_arrival()
+	await get_tree().process_frame
+	assert_signal_emitted(flash, "finished")
+
+
+# ------------------------------------------------------------- tint and crit
+
+
+func test_the_casters_tint_reaches_every_overlay() -> void:
+	var flash := _flash(_ring_nodes(5))
+	var caster_colour := Color(0.2, 0.9, 0.4)
+	flash.tint = caster_colour
+	for edge in _energizers(flash):
+		assert_eq(edge.tint, caster_colour, "identity must reach the whole ring, not the wrapper")
+
+
+func test_a_tint_stamped_before_the_ring_exists_still_lands() -> void:
+	# The coordinator stamps `tint` after `launch()`, and `_on_context` runs
+	# inside it — but a hand-driven order must not silently drop identity.
+	var flash: CycloneRingFlash = RING_FLASH.instantiate()
+	add_child_autofree(flash)
+	flash.tint = Color(0.9, 0.3, 0.1)
+	flash._on_context({&"closed_ring": _ring_nodes(3)})
+	for edge in _energizers(flash):
+		assert_eq(edge.tint, Color(0.9, 0.3, 0.1), "a stamp that beat the ring must still land")
+
+
+func test_the_closure_crit_reaches_every_overlay() -> void:
+	# The closing hop IS a crit (CycleCritCondition), and EdgeEnergize leans one
+	# stop into one. A crit that stopped at the wrapper would be invisible.
+	var calm := _energizers(_flash(_ring_nodes(3)))
+	var flash := _flash(_ring_nodes(3))
+	flash._on_crit(1)
+	for k in 3:
+		assert_gt(_energizers(flash)[k].modulate.r, calm[k].modulate.r, "overlay %d burns hotter" % k)
+
+
+func test_a_crit_that_arrives_before_the_ring_is_still_applied() -> void:
+	var flash: CycloneRingFlash = RING_FLASH.instantiate()
+	add_child_autofree(flash)
+	flash._on_crit(1)
+	flash._on_context({&"closed_ring": _ring_nodes(3)})
+	var calm := _energizers(_flash(_ring_nodes(3)))
+	assert_gt(_energizers(flash)[0].modulate.r, calm[0].modulate.r,
+		"a crit stamped before `_on_context` must not be dropped")
+
+
+# ------------------------------------------------- the concurrency bound (#710)
+
+
+func test_live_overlays_are_bounded_by_lap_plus_linger_over_the_beat() -> void:
+	# A triangle can close EVERY beat (revisits are uncapped, b98a2ca), and each
+	# closure re-runs the whole lap. So the ceiling is per-ring-edge, exactly the
+	# EdgeEnergize bound with the lap folded into the linger.
+	var flash: CycloneRingFlash = RING_FLASH.instantiate()
+	add_child_autofree(flash)
+	var edge: EdgeEnergize = flash.edge_energize_scene.instantiate()
+	add_child_autofree(edge)
+	var per_edge := EdgeEnergize.max_live_overlays(flash.lap_seconds + edge.linger_seconds,
+		_BEAT_INTERVAL)
+	assert_eq(per_edge, 9, "0.4 s lap + 2.5 s linger over 0.4 s beats is ceil(7.25)+1")
+	assert_eq(3 * per_edge, 27, "a triangle re-closing every beat peaks at 27 overlays")
+	assert_eq(20 * per_edge, 180, "and a 20-ring at 180 — the number to check a retune against")
+
+
+func test_the_ring_reaches_the_visual_through_the_schedule_entry() -> void:
+	# End to end across the seam: the coordinator hands the whole ScheduleEntry
+	# over as `context` BEFORE `launch` instantiates the visual, and the visual
+	# reads `entry.event.closed_ring` off it. A context wired to the bolts but
+	# not to the ring would spawn an empty flash and light nothing.
+	var coord := _spawn_coordinator()
+	var ring := _ring_nodes(4)
+	var ev := _closing_event(ring, [ring[2]])
+	var entry := ScheduleEntry.new()
+	entry.event = ev
+	var pending: Array[int] = [0]
+	coord._play_projectile(ev, {ev: entry}, 0.35, pending)
+	var proj: Projectile = _ring_projectiles(coord)[0]
+	var flash: CycloneRingFlash = proj.get_child(0)
+	assert_eq(_energizers(flash).size(), 4, "the ring must survive the whole seam, entry included")
+	assert_eq(flash.tint, coord._caster_tint, "and the caster stamp lands on it like any bolt")
