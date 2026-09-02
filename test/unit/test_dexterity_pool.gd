@@ -13,14 +13,17 @@ func test_dexterity_pool_values() -> void:
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
 		if pp.stat_id == &"dexterity" and pp.operation == StatModifier.Operation.ADD_BASE:
-			assert_eq(pp.unit_value, 2.0)
+			assert_eq(pp.unit_value, 3.0)
+			assert_eq(pp.range_floor, 1.0)
 			assert_eq(pp.min_tier, 1); assert_eq(pp.max_tier, 4)
 			assert_eq(pp.to_entries().size(), 4)
-			# T1 (min_tier, no range_floor authored → default M=unit_value)
-			# is a zero-width fixed point at unit*V[0] = 2*1 = 2 (#628).
+			# b3975d8 re-tuned this pool (unit 2 → 3) and authored an explicit
+			# `range_floor` of 1.0, so T1 is no longer the zero-width fixed
+			# point the default M=unit_value used to make it (#628): its high
+			# is still unit*V[0] = 3*1 = 3, but its low is now M = 1.
 			var e0 := pp.to_entries()[0]
-			assert_almost_eq(e0.value_range.x, 2.0, 0.001, "T1 low")
-			assert_almost_eq(e0.value_range.y, 2.0, 0.001, "T1 high")
+			assert_almost_eq(e0.value_range.x, 1.0, 0.001, "T1 low = M (authored range_floor)")
+			assert_almost_eq(e0.value_range.y, 3.0, 0.001, "T1 high = unit x V[0]")
 func test_crit_chance_carries_t3_t4_overrides() -> void:
 	# #628 widened value_range from a fixed point to a real [L, H] per tier;
 	# checking the CENTER only meant something while every range was

@@ -30,25 +30,29 @@ func _find_pool(archetype_stat: StringName, stat_id: StringName, op: int) -> Sta
 
 
 func test_strength_addb_flattens_to_seed_table() -> void:
-	# Seed row: strength .addb, unit 2, T1..T4 → +2 +6 +14 +30 at costs 1 2 4 8.
-	# #628: these are now HIGH bounds, not fixed points — "resulting T1..T4"
-	# in the seed table was always H, and H is unchanged (acceptance 4: no
-	# existing pool rebalances). None of these pools author `range_floor`, so
-	# it defaults to `unit_value` (2.0) and the low bounds follow the
-	# recurrence L(1) = M, L(t+1) = H(t) + M — T1 stays a zero-width point,
-	# T2..T4 gain real width. See test_pool_range_bounds.gd for the formula
-	# itself; this file only pins that H didn't move.
+	# Seed row shape: strength .addb, T1..T4 highs are `unit x V[t]` at costs
+	# 1 2 4 8 (V = [1,3,7,15]), lows follow the #628 recurrence L(1) = M,
+	# L(t+1) = H(t) + M. The seed table's original numbers (unit 2, default
+	# M = unit_value → +2 +6 +14 +30 with a zero-width T1) were re-tuned by
+	# `b3975d8 chore: tweak procgen pools`, which raised `unit_value` to 3
+	# and authored an explicit `range_floor` of 1.0 — deliberate tuning, so
+	# this file re-points onto it rather than pinning the retired values
+	# (#717). What it still pins is the LADDER: that both bounds are exactly
+	# what the formula says for the values the pool authors today. See
+	# test_pool_range_bounds.gd for the formula itself.
 	var p := _find_pool(&"strength", &"strength", StatModifier.Operation.ADD_BASE)
 	var entries := p.to_entries()
 	assert_eq(entries.size(), 4, "strength.addb offers T1..T4")
-	var expected_highs := [2.0, 6.0, 14.0, 30.0]
-	var expected_lows := [2.0, 4.0, 8.0, 16.0]  # M=2 default: L1=2, L(t+1)=H(t)+2
+	assert_eq(p.unit_value, 3.0, "strength.addb unit (b3975d8)")
+	assert_eq(p.range_floor, 1.0, "strength.addb authors an explicit M (b3975d8)")
+	var expected_highs := [3.0, 9.0, 21.0, 45.0]   # unit 3 x V = [1,3,7,15]
+	var expected_lows := [1.0, 4.0, 10.0, 22.0]    # M=1 authored: L1=1, L(t+1)=H(t)+1
 	var expected_costs := [1, 2, 4, 8]
 	for i in entries.size():
 		var e: ModifierPoolEntry = entries[i]
 		assert_eq(e.cost, expected_costs[i], "strength.addb T%d cost" % [i + 1])
 		assert_almost_eq(e.value_range.y, expected_highs[i], 0.001, "strength.addb T%d high (unchanged by #628)" % [i + 1])
-		assert_almost_eq(e.value_range.x, expected_lows[i], 0.001, "strength.addb T%d low (default M=unit_value)" % [i + 1])
+		assert_almost_eq(e.value_range.x, expected_lows[i], 0.001, "strength.addb T%d low (authored M=1)" % [i + 1])
 
 
 func test_crit_chance_inc_flattens_with_overrides() -> void:
@@ -92,21 +96,23 @@ func test_movement_points_addb_caps_at_t2() -> void:
 
 func test_attribute_mul_starts_at_t3() -> void:
 	# Seed row: attribute .mul, unit 0.05, min_tier 3, pool_weight 1 →
-	# ×1.05 ×1.15 at costs 4 8 (highs, unchanged by #628). Value rungs are
-	# indexed relative to min_tier (the pool's first tier is V1, ×1, whatever
-	# it costs); cost stays absolute. The +1 (the "more" excess) is folded
-	# into BOTH ends here, so range_floor's default (M=unit_value=0.05) makes
-	# T3 (the pool's own first tier) a zero-width ×1.05 point and T4 gain a
-	# ×1.10..×1.15 spread.
+	# ×1.05 ×1.15 at costs 4 8 (highs — the tuning in `b3975d8` left these
+	# alone). Value rungs are indexed relative to min_tier (the pool's first
+	# tier is V1, ×1, whatever it costs); cost stays absolute. The +1 (the
+	# "more" excess) is folded into BOTH ends here. b3975d8 authored an
+	# explicit `range_floor` of 0.02 where the default (M=unit_value=0.05)
+	# used to make T3 a zero-width ×1.05 point, so T3 now spans
+	# ×1.02..×1.05 and T4 ×1.07..×1.15 (L4 = H3 + M = 0.05 + 0.02).
 	var p := _find_pool(&"strength", &"strength", StatModifier.Operation.MULTIPLY)
 	var entries := p.to_entries()
 	assert_eq(entries.size(), 2, "strength.mul offers T3..T4 only")
+	assert_eq(p.range_floor, 0.02, "strength.mul authors an explicit M (b3975d8)")
 	assert_eq(entries[0].cost, 4)
 	assert_eq(entries[1].cost, 8)
 	assert_almost_eq(entries[0].value_range.y, 1.05, 0.001, "T3 high → ×1.05")
-	assert_almost_eq(entries[0].value_range.x, 1.05, 0.001, "T3 low → ×1.05 (zero-width, pool's first tier)")
+	assert_almost_eq(entries[0].value_range.x, 1.02, 0.001, "T3 low → ×1.02 (M=0.02, pool's first tier)")
 	assert_almost_eq(entries[1].value_range.y, 1.15, 0.001, "T4 high → ×1.15")
-	assert_almost_eq(entries[1].value_range.x, 1.10, 0.001, "T4 low → ×1.10")
+	assert_almost_eq(entries[1].value_range.x, 1.07, 0.001, "T4 low → ×1.07 (H3 + M)")
 
 
 func test_min_tier_indexes_value_relative_to_first_tier() -> void:
