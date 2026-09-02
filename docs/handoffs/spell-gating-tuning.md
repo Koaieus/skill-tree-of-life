@@ -70,6 +70,19 @@ on topology, not budget) while taking Cyclone from 8 bounces to 10. One
 modifier, wildly different effect per spell. Any future propagation tuning has
 to be per-step-strategy, not a board stat.
 
+**LANDED 2026-09-02 (`a875517`): Trailblazer's budget raised 20 → 999.** At 20 a
+string of 21+ degree-2 nodes ran the budget out mid-chain, `SpellResolver` marked
+the walk terminal, and the junction slam never landed — so the spell paid out
+*less* on its advertised best case ("cast on a node at the end of a long string
+for maximum devastation") than on a short one. Safe to raise because
+`max_visits_per_node = 1` is what bounds the walk, not the hop count.
+
+Provenance: this closes a question left open at authoring time. The original
+design note (session of 2026-08-07) already specified that a degree-2 node should
+"deal damage, raise it by 2, and *continue spreading*" — and left the mechanism
+unresolved as "e.g. by raising max_hops locally **or idk**". The 20 was never a
+decision, it was a placeholder that outlived the question.
+
 > **HARD CONSTRAINT for §2:** the new `spell_hops` stat feeds `HopRangeFinder`
 > **only**. It must never reach `PropagationConfig.max_hops`. Propagation
 > scaling stays off until it has a deliberate tuning model of its own —
