@@ -956,7 +956,7 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 ## blocker carries its tier's WHOLE authored book rather than the host's pruned
 ## slice. Loot is a host-only roll that reaches this peer as a command either
 ## way, so no exchange is decided from this list here — it is a tooltip-level
-## difference, tracked rather than solved.
+## difference, tracked as #726 rather than solved.
 func spawn_snapshot_entity(
 	entity_id: int, scene_path: String, tier: int, _display_name: String
 ) -> Entity:
