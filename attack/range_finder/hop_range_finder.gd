@@ -26,13 +26,18 @@ func in_range(attacker: Entity, source: SkillNode, candidate: SkillNode) -> bool
 	var path := nav.astar.get_id_path(src_id, dst_id)
 	if path.is_empty():
 		return false
-	return path.size() - 1 <= _effective_max_hops(attacker, source)
+	return path.size() - 1 <= effective_max_hops(attacker, source)
 
 
 ## Round-to-nearest scaling so a single +20% from INT pushes a 3-hop spell
 ## to 4 hops (3 × 1.2 ≈ 3.6 → 4) rather than getting eaten by truncation.
-func _effective_max_hops(attacker: Entity, source: SkillNode) -> int:
-	return int(round(float(max_hops) * spell_range_multiplier(attacker, source)))
+##
+## Public because [SpellTooltip] prints this number while hovering — and used to
+## re-derive the expression rather than ask for it. Its call passes neither
+## attacker nor source (no cast-from node is picked while hovering) and leans on
+## [param board] instead.
+func effective_max_hops(attacker: Entity, source: SkillNode, board: StatBoard = null) -> int:
+	return int(round(float(max_hops) * spell_range_multiplier(attacker, source, board)))
 
 
 ## One BFS over [param mirror], not one AStar query per candidate. Pass the
@@ -42,13 +47,13 @@ func _effective_max_hops(attacker: Entity, source: SkillNode) -> int:
 ## [param attacker] is `null` — auras don't inherit a caster stat, and that's
 ## also every pre-#385 caller, so the default keeps them bit-for-bit unchanged.
 ## A non-null attacker (only [MagicAttackPlan]'s highlight cache passes one)
-## reads [method _effective_max_hops] instead, matching what [method in_range]
+## reads [method effective_max_hops] instead, matching what [method in_range]
 ## would have computed per candidate.
 func gather(source: SkillNode, mirror: GraphMirror, attacker: Entity = null) -> Dictionary[SkillNode, float]:
 	var out: Dictionary[SkillNode, float] = {}
 	if source == null or mirror == null:
 		return out
-	var hops := max_hops if attacker == null else _effective_max_hops(attacker, source)
+	var hops := max_hops if attacker == null else effective_max_hops(attacker, source)
 	var depths: Dictionary[SkillNode, int] = mirror.nodes_within(source, hops)
 	for node in depths:
 		out[node] = float(depths[node])
@@ -61,7 +66,7 @@ func max_reach() -> float:
 
 func get_visual(attacker: Entity, source: SkillNode) -> RangeVisual:
 	var visual := RangeVisual.new()
-	var hops := _effective_max_hops(attacker, source)
+	var hops := effective_max_hops(attacker, source)
 	if source == null or hops <= 0:
 		return visual
 	if attacker == null or attacker.navigator == null:

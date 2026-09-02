@@ -5,7 +5,7 @@ extends MarginContainer
 ## [TooltipFan] pattern: subscribes to global [code]Events[/code]
 ## signals, auto-positions at the mouse cursor, and formats all
 ## [SpellDef] fields. Values that change based on the caster's stats
-## (e.g. hops scaled by [code]spell_range[/code]) are highlighted in
+## (e.g. cast range scaled by [code]spell_range[/code]) are highlighted in
 ## gold.
 ##
 ## Reusable outside the HUD: instantiate the scene, call [method show_for] with
@@ -99,9 +99,13 @@ func _populate() -> void:
 		child.queue_free()
 
 	var has_prop := _spell.propagation != null
-	var base_hops := _spell.propagation.max_hops if has_prop else 0
-	var eff_hops := _effective_hops()
-	var hops_dynamic := has_prop and eff_hops != base_hops
+	# RAW, never scaled: `SpellResolver` seeds `hops_remaining` straight off
+	# `config.max_hops`, so no caster stat moves a spell's bounce count today —
+	# and per the owner's 2026-09-02 ruling none may until propagation has a
+	# tuning model of its own, bounce count being superlinear in effect where
+	# reach is not. A tooltip that scaled this over-reported for every caster
+	# above baseline INT while the combat readout showed the true number.
+	var hops := _spell.propagation.max_hops if has_prop else 0
 
 	var impact := _impact_damage()
 	_add_stat_row(&"Damage", _format_num(impact), not is_equal_approx(impact, _spell.power))
@@ -109,11 +113,8 @@ func _populate() -> void:
 	if has_prop:
 		var prop := _spell.propagation
 		# A 0-hop propagation is impact-only — printing "Hops 0" is noise.
-		if eff_hops > 0:
-			var hops_text := str(eff_hops)
-			if hops_dynamic:
-				hops_text = "%d (base %d)" % [eff_hops, base_hops]
-			_add_stat_row(&"Hops", hops_text, hops_dynamic)
+		if hops > 0:
+			_add_stat_row(&"Hops", str(hops), false)
 
 		if prop.hop_damage != null:
 			var hd := prop.hop_damage.get_description()
@@ -135,15 +136,13 @@ func _populate() -> void:
 	if rf != null:
 		if rf is HopRangeFinder:
 			var hrf := rf as HopRangeFinder
-			var base_r: int = hrf.max_hops
-			var eff_r: int = _effective_hops_from_finder(hrf)
-			var r_dynamic: bool = eff_r != base_r
+			var eff_r: int = hrf.effective_max_hops(null, null, _caster_board())
+			var r_dynamic: bool = eff_r != hrf.max_hops
 			_add_stat_row(&"Range", "%d hop%s" % [eff_r, "" if eff_r == 1 else "s"], r_dynamic)
 		elif rf is EuclideanRangeFinder:
 			var erf := rf as EuclideanRangeFinder
-			var base_r: float = erf.max_distance
-			var eff_r: float = _effective_distance_from_finder(erf)
-			var r_dynamic: bool = not is_equal_approx(eff_r, base_r)
+			var eff_r: float = erf.effective_distance(null, null, _caster_board())
+			var r_dynamic: bool = not is_equal_approx(eff_r, erf.max_distance)
 			_add_stat_row(&"Range", _format_num(eff_r), r_dynamic)
 
 	# Target kind
@@ -178,47 +177,21 @@ func _tint_mana_label() -> void:
 	)
 
 
-## Effective max_hops from PropagationConfig, scaled by the caster's
-## spell_range stat (same formula as HopRangeFinder._effective_max_hops).
-func _effective_hops() -> int:
-	if _caster == null or _caster.stat_board == null or _spell.propagation == null:
-		return _spell.propagation.max_hops if _spell.propagation != null else 0
-	return _scale_by_spell_range(_spell.propagation.max_hops)
-
-
-func _effective_hops_from_finder(rf: HopRangeFinder) -> int:
-	if _caster == null or _caster.stat_board == null:
-		return rf.max_hops
-	return _scale_by_spell_range(rf.max_hops)
-
-
-func _effective_distance_from_finder(rf: EuclideanRangeFinder) -> float:
-	if _caster == null or _caster.stat_board == null:
-		return rf.max_distance
-	var mult := _spell_range_multiplier()
-	return rf.max_distance * mult
-
-
-func _scale_by_spell_range(base: int) -> int:
-	return int(round(float(base) * _spell_range_multiplier()))
-
-
 ## Impact damage for the hovered caster (D-32) — delegated to
 ## [method SpellResolver.impact_damage], which owns the expression. The raw
 ## [member SpellDef.power] coefficient is meaningless on its own, so the row
 ## shows the computed number and goes gold whenever the caster moved it.
 func _impact_damage() -> float:
-	var board: StatBoard = _caster.stat_board if _caster != null else null
-	return SpellResolver.impact_damage(_spell, null, board)
+	return SpellResolver.impact_damage(_spell, null, _caster_board())
 
 
-## Reach multiplier for the hovered caster — delegated to
-## [method SpellRangeRules.multiplier], which owns the rule. No cast-from node
-## is picked while hovering, so this takes the board path and therefore misses
-## node-local range addons; the finder itself reads them node-locally at cast.
-func _spell_range_multiplier() -> float:
-	var board: StatBoard = _caster.stat_board if _caster != null else null
-	return SpellRangeRules.multiplier(null, null, board)
+## The hovered caster's board, or null. Every dynamic number on this tooltip is
+## computed by *asking its owner* with this board — the finder for reach, the
+## resolver for damage — never by re-deriving the expression here. A private
+## copy of the hop-scaling formula is exactly what made the tooltip disagree
+## with the game about propagation depth.
+func _caster_board() -> StatBoard:
+	return _caster.stat_board if _caster != null else null
 
 
 func _resolve_range_finder() -> RangeFinder:
