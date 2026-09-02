@@ -92,6 +92,20 @@ signal wave_started(hop_index: int, events_in_wave: int)
 ## [CancelDissipate]. Set to null to disable cancel visuals entirely.
 @export var cancel_visual: PackedScene = _DEFAULT_CANCEL
 
+## Visual for a landing that CLOSED a loop — spawned once per event whose
+## [member PropagationEvent.closed_ring] is non-empty, and handed the whole
+## event through its [ScheduleEntry] context so it can light the ring as a ring
+## (#710). Null means "nothing", exactly how [member cancel_visual] behaves;
+## eight of the nine spells never close anything and leave it unset.
+##
+## [b]Once per EVENT, not once per arc.[/b] A merged landing spawns one bolt per
+## [member PropagationEvent.predecessors] entry — an additive ring polyline drawn
+## twice or three times at a hub merge reads as a brightness bug, not as a merge.
+## That per-event dedupe is the ONLY one: simultaneous closures on the same beat
+## each get their own visual on purpose (owner, 2026-09-03), and where two rings
+## share an edge the overlays add up.
+@export var ring_visual: PackedScene = null
+
 # -- Legacy fallback exports (kept for existing scenes/tres) ------------------
 ## Fallback path when no per-verb path is set.
 @export var projectile_path: ProjectilePath
@@ -230,9 +244,52 @@ func _play_projectile(ev: PropagationEvent, entry_of: Dictionary, flight: float,
 		pending: Array[int]) -> void:
 	if ev.target == null:
 		return
+	var entry: ScheduleEntry = entry_of.get(ev, null)
 	for i in _arc_indices_for(ev):
 		var origin: SkillNode = ev.predecessors[i] if i >= 0 else ev.origin
-		_spawn_projectile(ev, origin, _share_at(ev, i), entry_of.get(ev, null), flight, pending)
+		_spawn_projectile(ev, origin, _share_at(ev, i), entry, flight, pending)
+	# After the per-arc loop, and OUTSIDE it: one ring per closing landing (#710).
+	_play_ring(ev, entry, flight, pending)
+
+
+## The closed-ring flash, if this landing closed one and a scene is authored for
+## it (#710).
+##
+## [b]A zero-length [Projectile], not a bare `add_child` + timer.[/b] It rides
+## the same clock as the closing bolt (spawned one lead-in early, arriving on the
+## beat), the same `pending` drain, and the same teardown safety every other
+## projectile gets — a cast cut short by [method BeatClock.drain] must not leave
+## rings behind. `target → target` is the SELF_LOOP shape [Projectile] already
+## supports, and [member face_velocity]'s own `length_squared() > 1e-6` guard
+## means a zero-length flight never rotates.
+func _play_ring(ev: PropagationEvent, entry: ScheduleEntry, flight: float,
+		pending: Array[int]) -> void:
+	if ring_visual == null or ev.closed_ring.is_empty() or ev.target == null:
+		return
+	var proj := Projectile.new()
+	# The ring does not travel — its overlays are laid in world space on the
+	# ring's own edges — so the path only has to survive a degenerate segment,
+	# which every kit path does. Reusing the verb's own resource rather than
+	# minting one keeps this allocation-free.
+	proj.path = _handed_path(ev.verb, _resolved_path(ev.verb))
+	proj.visual_scene = ring_visual
+	proj.flight_time = flight
+	proj.face_velocity = face_velocity
+	proj.crit_tier = ev.max_crit_tier()
+	# Set BEFORE `launch`: the context is where the ring itself comes from, and
+	# `launch` is what instantiates the visual and forwards it.
+	proj.context = entry
+	add_child(proj)
+	pending[0] += 1
+	proj.tree_exiting.connect(func() -> void:
+		pending[0] -= 1)
+	proj.launch(ev.target.global_position, ev.target.global_position, 0.0)
+	# The same tint stamp every bolt gets, for the same reason: `launch`
+	# instantiated the visual synchronously as the first child.
+	if proj.get_child_count() > 0:
+		var v: Node = proj.get_child(0)
+		if "tint" in v:
+			v.set("tint", _caster_tint)
 
 
 ## Event -> its [ScheduleEntry]. Identity-keyed, because two landings on one

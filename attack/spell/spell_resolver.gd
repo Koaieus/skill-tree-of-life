@@ -192,6 +192,14 @@ static func resolve_against(
 			# Same guarantee, same loop: one share per predecessor, in order.
 			ev.incident_shares = share_sets[state.current_node]
 			ev.turn_sign = state.turn_sign
+			# The ring the closing hop just walked, ending at this landing
+			# (#710). Empty on every landing that did not close one; the
+			# reducer has already picked the dominating closer's lineage, so
+			# `state.visited` IS that ring — CycloneStep truncates it to
+			# exactly the loop on every close. Copied, because the walk keeps
+			# extending the payload's own array after this.
+			if state.closed_cycle:
+				ev.closed_ring = state.visited.duplicate()
 			ev.origin = state.predecessor if state.predecessor != null else state.source
 			ev.target = state.current_node
 			ev.verb = _verb_for(state)

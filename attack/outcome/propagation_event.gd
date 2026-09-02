@@ -76,6 +76,27 @@ var visit_index: int = 0
 ## brightness or width scalar with no lookup table.
 var incident_shares: PackedFloat32Array = PackedFloat32Array()
 
+## The simple cycle this landing CLOSED, in walking order and ending at
+## [member target] — empty on every landing that closed nothing (#710).
+##
+## The closing hop is Cyclone's payoff (the crit, plus
+## [member CycloneStep.closing_gain] feeding forward as sustain) and it used to
+## light, at most, one node. Lighting the ring AS a ring needs the ring, and
+## nothing downstream can re-derive it: the walk that found it is
+## [member CastSpell.visited], a resolver-local the event never carried.
+##
+## [b]Array order IS the storm's rotation[/b], so no [member turn_sign] read is
+## needed to lap it. [method CycloneStep.closed_ring] returns the ring in walk
+## order, which means consecutive pairs are its edges and the wraparound pair
+## [code]ring[-1] → ring[0][/code] is the edge the closer just crossed — the Nth
+## edge, not a seam to skip. Edges are derived at the VFX layer from those
+## pairs; nothing promotes [Edge] objects.
+##
+## Node refs, the same precedent [member predecessors] and [member target]
+## already set: an event is local replay output and never a command, so the
+## sync rule's "no node refs on the wire" does not apply here.
+var closed_ring: Array[SkillNode] = []
+
 ## Which way the storm turned to reach this landing — +1 / -1 / 0 for none.
 ## See [member CastSpell.turn_sign]; constant for a cast, carried per event
 ## because the VFX layer cannot honestly derive it.
