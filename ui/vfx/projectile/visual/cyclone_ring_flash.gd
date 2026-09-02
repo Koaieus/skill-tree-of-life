@@ -60,6 +60,9 @@ const MIN_RING_NODES: int = 3
 		_push_tint()
 
 var _edges: Array[Node2D] = []
+## Per-edge "its front has completed and it has been handed its own arrival",
+## index-aligned with [member _edges]. See [method _set_lap] for why a latch.
+var _completed: Array[bool] = []
 var _lap: float = 0.0
 var _arrived: bool = false
 var _crit_tier: int = 0
@@ -145,11 +148,17 @@ func _set_lap(p: float) -> void:
 		var edge: Node2D = _edges[k]
 		var front: float = edge_front(p, k, count)
 		edge.call(&"set_front", front)
-		# The moment its front completes, the child runs its OWN arrival — so
-		# each edge lingers and fades from where it finished, not from where the
-		# lap did. `_on_arrival` is idempotent on EdgeEnergize (`_done_emitted`),
-		# which is what lets this be called from every tween step.
-		if front >= 1.0:
+		# The moment its front completes — ONCE, on the transition — the child
+		# runs its own arrival, so each edge lingers and fades from where IT
+		# finished rather than from where the lap did.
+		#
+		# The latch is not decoration. `EdgeEnergize._on_arrival` is idempotent
+		# only after its linger has fully drained (`_done_emitted` is set by
+		# `_emit_finished`, at the END of the fade), so calling it every tween
+		# step would mint a fresh 2.5 s fade tween per frame: the overlay would
+		# never actually fade, and a 20-ring would be spawning 20 tweens a frame.
+		if front >= 1.0 and not _completed[k]:
+			_completed[k] = true
 			edge.call(&"_on_arrival")
 
 
@@ -171,6 +180,7 @@ func _add_edge(from_pos: Vector2, to_pos: Vector2) -> void:
 	if _crit_tier > 0:
 		edge.call(&"_on_crit", _crit_tier)
 	_edges.append(edge)
+	_completed.append(false)
 	if edge.has_signal(&"finished"):
 		_pending += 1
 		edge.connect(&"finished", _on_child_finished)

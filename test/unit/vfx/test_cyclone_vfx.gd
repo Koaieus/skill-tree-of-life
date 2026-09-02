@@ -740,3 +740,33 @@ func test_the_ring_reaches_the_visual_through_the_schedule_entry() -> void:
 	var flash: CycloneRingFlash = proj.get_child(0)
 	assert_eq(_energizers(flash).size(), 4, "the ring must survive the whole seam, entry included")
 	assert_eq(flash.tint, coord._caster_tint, "and the caster stamp lands on it like any bolt")
+
+
+func test_a_completed_edge_is_handed_its_arrival_exactly_once() -> void:
+	# `EdgeEnergize._on_arrival` is idempotent only AFTER its linger has fully
+	# drained — `_done_emitted` is set at the END of the fade. So handing it an
+	# arrival on every tween step mints a fresh 2.5 s fade tween per frame: the
+	# overlay never actually fades, and a 20-ring spawns 20 tweens a frame. The
+	# tween count is the observable: one per completed edge, and no more.
+	var flash := _flash(_ring_nodes(3))
+	var edges := _energizers(flash)
+	flash._on_arrival()
+	flash._set_lap(0.4)          # edge 0 complete
+	var after_first: int = edges[0].get_tree().get_processed_tweens().size()
+	for _i in 8:
+		flash._set_lap(0.4)      # …and stays complete for the rest of the lap
+	assert_eq(edges[0].get_tree().get_processed_tweens().size(), after_first,
+		"a completed edge must not re-arm its linger on every step of the lap")
+
+
+func test_every_edge_still_fades_from_its_own_completion() -> void:
+	# The other half: the latch must not cost an edge its arrival altogether.
+	var flash := _flash(_ring_nodes(4))
+	var edges := _energizers(flash)
+	for edge in edges:
+		watch_signals(edge)
+		edge.linger_seconds = 0.0
+	flash._on_arrival()
+	flash._set_lap(1.0)
+	for k in edges.size():
+		assert_signal_emitted(edges[k], "finished", "edge %d finished its own burn-in" % k)
