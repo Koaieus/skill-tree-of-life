@@ -517,7 +517,8 @@ landed alongside this rung.** `GraphSnapshot` carries which `Entity` owns each
 #560's own framing: a client whose board never got the starting node's grants
 shows the wrong HP/stats from its first frame, silently. `CommandLink
 .send_entity_snapshot` is the sibling send this rung also makes: it DECORATES
-the entities the roster already spawned (never mints one — #560 D7), and its
+the entities the roster already spawned (#560 D7 — relaxed by #715 for the
+blockers no roster names; see multiplayer-sync-model.md), and its
 own two-pass decode is what resolves `core_location` — pass 1 needs no graph,
 pass 2 (entity → node) runs once a graph exists to resolve against. Order
 between the graph and entity snapshots does not matter (both passes are

@@ -371,6 +371,29 @@ merely to its name set, for the same reason: a marker applied twice and removed
 once is still active, and a repair that restored names only would be the thing
 that broke it.
 
+**#560 D7 — "`EntitySnapshot` DECORATES; it never spawns and never mints an
+`entity_id`" — is superseded by #715 because the client no longer runs procgen
+(agent decision, 2026-09-02).** D7 was settled by the owner in #560's
+"Decisions (settled, do not re-open)" list, and its premise was stated there:
+"#528 and #553 both shipped, so a joining client's entities exist by the time
+state arrives" — i.e. the roster spawns exactly the named set. That held only
+while both peers ran procgen. Since #715 the client runs none, and procgen
+spawns ~120 entities the roster never names (one per removable blocker, #477);
+without them the client decodes their nodes as unowned and the ownership fold
+disagrees on the first compare. So a row whose entity is absent now asks an
+optional `spawner` callback (`CommandLink.entity_spawner` →
+`GameRoot.spawn_snapshot_entity`, which refuses anything that is not a blocker)
+before it is skipped. **The prohibition D7 was really protecting still holds:**
+this is not a second minting path, because the `entity_id` is the AUTHORITY's,
+read off the row and stamped before the entity enters `entities_container`
+(`Graph._mint_entity_id` assigns only where the id is still `0`). It is the
+exact mirror of `_prune_entities`, which already removes an entity the payload
+does not name — the payload is the authority's entity SET, and both directions
+of that set now cross. A **callback** rather than an `instantiate()` inside the
+snapshot: a blocker's `EntityStatBoard` is assigned per tier in code, and
+`EntityStatBoard` refuses to mint a stat it has no field for, so a bare
+instantiate yields a blocker with no health. See `EntitySnapshot._materialize`.
+
 **What a resync does NOT carry** is the derived tier — `StatBoard` totals,
 `Stat.bins`, aura contributions, vision. The receiver recomputes, exactly as
 `GraphSnapshot`'s tier table says. A backstop that shipped derived state would

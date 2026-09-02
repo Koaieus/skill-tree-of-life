@@ -35,15 +35,20 @@ extends RefCounted
 ## split collapses to by-value for modifiers on any board that is actually in
 ## play, which is the only kind this class ever encodes.
 ##
-## [b]It DECORATES; it never spawns and never mints an `entity_id` (#560 D7) —
-## but since #561 it does REMOVE.[/b]
+## [b]It DECORATES rather than spawns (#560 D7) — but since #561 it also
+## REMOVES, and since #715 it may MATERIALIZE what the roster never named.[/b]
+## D7 is an owner decision (#560's settled list) and #715's relaxation of it is
+## an agent decision, 2026-09-02, recorded in
+## `docs/domain/multiplayer-sync-model.md`. Read
+## [method _materialize] for the premise that changed and for why this is still
+## not a second `entity_id`-minting path.
 ## #528 (roster replication) and #553 (the level spawns from the session roster)
-## both shipped, so a joining client's entities exist by the time state arrives.
-## Every row resolves through [method Graph.get_by_entity_id] and a row whose
-## entity is absent is SKIPPED with a warning — mirroring how
+## both shipped, so every entity the ROSTER names exists by the time state
+## arrives. Every row resolves through [method Graph.get_by_entity_id]; a row
+## whose entity is absent asks [method _materialize] and, if that declines, is
+## SKIPPED with a warning — mirroring how
 ## [method GraphSnapshot._decode_node] decodes an unresolvable `owner_id` as
-## unowned rather than inventing an entity. A snapshot that spawned would be a
-## second entity-minting path racing the roster's. The reverse direction is
+## unowned rather than inventing an entity. The reverse direction is
 ## different and is not symmetric with it: an entity the payload does NOT name
 ## does not exist in the authority's world at all, and
 ## [method _prune_entities] drops it. Join never needed that (the roster spawns
