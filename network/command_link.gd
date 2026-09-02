@@ -93,6 +93,13 @@ const KEY_PICK := "pick"
 ## acting on another client's behalf.
 const KEY_PEER := "peer"
 
+## #715: this resync (or the request that asked for it) is the JOIN's first
+## world, not a mid-run repair. Set on both legs of the join race — the host's
+## push in [code]GameRoot._on_peer_joined[/code] and the client's pull in
+## [code]GameRoot.pull_host_world[/code] — so the client can apply the first one
+## to arrive and drop the loser. A repair never carries it.
+const KEY_JOIN := "join"
+
 ## Keys inside [constant KEY_BUILD]. Only [constant BUILD_SHA] is COMPARED; the
 ## other two exist so the refusal message can name what the peer was on.
 const BUILD_SHA := "sha"
@@ -435,7 +442,7 @@ func send_entity_snapshot() -> void:
 ## No [Command] is submitted, so nothing this peer draws off
 ## [signal CommandApplier.command_confirmed] — #525's camera director included —
 ## fires. Nobody animates a repair.
-func send_resync(reason: String) -> void:
+func send_resync(reason: String, is_join_world: bool = false) -> void:
 	if transport == null or mode != Mode.BROADCAST or graph == null:
 		return
 	transport.send({
@@ -443,6 +450,7 @@ func send_resync(reason: String) -> void:
 		KEY_ENTITIES: EntitySnapshot.encode(graph),
 		KEY_SNAPSHOT: GraphSnapshot.encode(graph),
 		KEY_SUMMARY: reason,
+		KEY_JOIN: is_join_world,
 	})
 	logged.emit("⟳ RESYNC pushed — %s (%s)" % [reason, WorldFingerprint.describe(graph)])
 	resync_sent.emit(reason)
@@ -454,19 +462,30 @@ func send_resync(reason: String) -> void:
 ## so an unrepairable divergence would otherwise beg for a full world snapshot
 ## on every command for the rest of the run — turning a diagnostic into a flood
 ## and hiding the very log line the verdict exists to print.
-func request_resync(reason: String) -> void:
+func request_resync(reason: String, is_join_world: bool = false) -> void:
 	if transport == null or mode != Mode.MIRROR:
 		return
 	if _awaiting_resync:
 		return
 	_awaiting_resync = true
-	transport.send({KEY_KIND: KIND_RESYNC_REQUEST, KEY_SUMMARY: reason})
+	transport.send({
+		KEY_KIND: KIND_RESYNC_REQUEST,
+		KEY_SUMMARY: reason,
+		KEY_JOIN: is_join_world,
+	})
 	logged.emit("↑ resync requested — %s" % reason)
 
 
 ## Latched between asking for a repair and the next agreeing boundary. See
 ## [method request_resync].
 var _awaiting_resync: bool = false
+
+
+## #715: consumed by the FIRST [constant KEY_JOIN]-flagged resync to arrive.
+## Never reset — a peer joins once per level, and a level that re-joins is a new
+## [CommandLink]. Read at [method _on_resync]'s guard, which is where the reason
+## it exists is written down.
+var _join_world_arrived: bool = false
 
 
 ## #667's drop-until-resync latch. A joining CLIENT opens its socket BEFORE it
@@ -530,7 +549,9 @@ func _on_resync_request(payload: Dictionary) -> void:
 		return
 	var reason := String(payload.get(KEY_SUMMARY, "peer asked"))
 	logged.emit("↓ resync requested by peer — %s" % reason)
-	send_resync(reason)
+	# The join flag rides the request through, so the answer is recognisable as
+	# the join's world on the way back down (#715). See [constant KEY_JOIN].
+	send_resync(reason, bool(payload.get(KEY_JOIN, false)))
 
 
 ## #561 receive side, client-only — a host must never apply a repair, which is
@@ -555,6 +576,28 @@ func _on_resync(payload: Dictionary) -> void:
 		# an empty payload is not a no-op there — it is a decode error.
 		logged.emit("← resync with no graph half, dropped")
 		return
+	var is_join_world := bool(payload.get(KEY_JOIN, false))
+	if is_join_world and _join_world_arrived:
+		# The join race's loser (#715). Both legs — the host's push and the
+		# answer to this peer's pull — carry a WHOLE world, and one of them is
+		# redundant by construction. Dropping the second is not merely an
+		# optimisation: applying it would re-run the decode against a graph the
+		# first leg populated, re-emit [signal resync_applied] (whose GameRoot
+		# handler re-derives seat vision and controllers) and re-enter
+		# [member entity_spawner] for every materialised blocker.
+		#
+		# Safe because the transport is ONE ordered reliable channel: everything
+		# the host sent between the two encodes has already been received and —
+		# the first leg having cleared [member defer_until_resync] — applied. So
+		# this peer's world is ALREADY the world this payload describes, in the
+		# parts a fingerprint folds and the parts it does not (tags, effects).
+		#
+		# Scoped to the flag, never to "a world is present": a mid-run repair
+		# (#521/#560/#561) carries no join flag and must always apply, including
+		# the case where it repairs state the fingerprint fold cannot see —
+		# which is why this is a flag and not a fingerprint compare.
+		logged.emit("← join world already applied, dropped — %s" % reason)
+		return
 	EntitySnapshot.decode(entity_bytes, graph, entity_spawner)
 	GraphSnapshot.decode(graph_bytes, graph)
 	EntitySnapshot.resolve_graph_refs(entity_bytes, graph, entity_spawner)
@@ -569,6 +612,8 @@ func _on_resync(payload: Dictionary) -> void:
 	# #667: and the world this peer was missing is now the host's, so the drop
 	# window is over. Same line for the same reason — the repair HAS landed.
 	defer_until_resync = false
+	if is_join_world:
+		_join_world_arrived = true
 	logged.emit("⟳ resync applied — %s (%s)" % [reason, WorldFingerprint.describe(graph)])
 	resync_applied.emit(reason)
 

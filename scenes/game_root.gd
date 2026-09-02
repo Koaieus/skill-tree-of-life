@@ -456,7 +456,7 @@ func _is_network_client() -> bool:
 func pull_host_world() -> void:
 	if command_link == null or not _is_network_client():
 		return
-	command_link.request_resync("join: adopting the host's world")
+	command_link.request_resync("join: adopting the host's world", true)
 
 
 ## Half one of bringing the wire up (#531): tell the link which side of it we
@@ -548,15 +548,23 @@ func _on_peer_joined(peer_id: int) -> void:
 	# the host spends 5-10 seconds on procgen — so `request_resync` arrives while
 	# the host's level has not yet adopted the link, `Wire` emits it to nobody,
 	# and it is silently dropped. Conversely this push lands on nothing if the
-	# client's level is the slower one. Both legs are idempotent (the resync
-	# RECONCILES, #561 D6) and `_awaiting_resync` stops the client asking twice,
-	# so whichever arrives second is simply a no-op repair.
+	# client's level is the slower one.
+	#
+	# [b]And when BOTH legs land, the world is applied ONCE.[/b] Both are flagged
+	# [constant CommandLink.KEY_JOIN] (the flag rides the request through
+	# `_on_resync_request`, so the answer carries it too) and the client's
+	# `_join_world_arrived` latch drops the loser outright rather than decoding a
+	# whole world it already holds. `_awaiting_resync` stops it asking twice.
+	# `CommandLink._on_resync`'s guard is where that is argued, including why it
+	# keys off the flag rather than off a fingerprint compare — a mid-run repair
+	# (#521/#560/#561) must still apply even when the fold agrees.
 	#
 	# The old warning against pushing from here does not survive #715: it said a
 	# graph snapshot would "decode into a graph that is about to be generated
 	# over", and the joining peer no longer generates anything.
 	if command_link != null:
-		command_link.send_resync("join: the peer is on the link and has no world")
+		command_link.send_resync(
+				"join: the peer is on the link and has no world", true)
 
 
 func _unhandled_input(event: InputEvent) -> void:
