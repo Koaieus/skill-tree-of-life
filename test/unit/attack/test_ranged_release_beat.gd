@@ -6,8 +6,9 @@ extends GutTest
 ##
 ## It used to be the drain, and for a volley that meant the arrow's
 ## stick-and-fade — `LightArrow.hold_seconds` 0.35 + `fade_seconds` 0.4 on top
-## of a 1.5 s schedule (`TOTAL_STAGGER` 0.7 + `FLIGHT_TIME` 0.8). Three quarters
-## of a second of lockout in which nothing about the world could still change.
+## of a 1.5 s schedule (`PresentationTempo.volley_stagger_span` 0.7 +
+## `volley_flight_time` 0.8). Three quarters of a second of lockout in which
+## nothing about the world could still change.
 ##
 ## So this runs on a REAL beat clock (`instant_mutation` stays false — the
 ## timing IS the subject) and pins both halves: the launch returns while the

@@ -163,11 +163,14 @@ func test_resolve_default_ap_cost_is_one() -> void:
 
 func test_resolve_stamps_the_authored_ramp_onto_arrival_time() -> void:
 	# resolve() authors arrival_time from the volley's DISTANCE SPAN, not from
-	# distance/speed and not from append order. The two ends of the span pin
-	# the window: the nearest leaf launches at DRAW_TIME (frac 0), the
-	# furthest-reaching one DRAW_TIME + TOTAL_STAGGER later (frac 1). Both
-	# leaves reach here; _leaf_near (dist 50) outranks _leaf_far (dist 450).
+	# distance/speed and not from append order — via OutcomeSchedule.compile's
+	# Cadence.RAMP branch reading PresentationTempo (#543). The two ends of the
+	# span pin the window: the nearest leaf launches at volley_draw_time
+	# (frac 0), the furthest-reaching one volley_draw_time +
+	# volley_stagger_span later (frac 1). Both leaves reach here; _leaf_near
+	# (dist 50) outranks _leaf_far (dist 450).
 	_set_range(_leaf_far, 500.0)  # distance 450 → reaches too
+	var tempo := PresentationTempo.shared_default()
 	var p := _plan()
 	p._on_node_left_clicked(_target)
 	var outcome := p.resolve()
@@ -177,12 +180,12 @@ func test_resolve_stamps_the_authored_ramp_onto_arrival_time() -> void:
 	assert_eq(near_hit.origin, _leaf_near, "nearest leaf fires (and is listed) first")
 	assert_eq(far_hit.origin, _leaf_far)
 	assert_almost_eq(near_hit.arrival_time,
-			RangedDamageFormula.DRAW_TIME + RangedDamageFormula.FLIGHT_TIME, 0.0001,
-			"rank 0 launches at DRAW_TIME with no ramp offset")
+			tempo.volley_draw_time + tempo.volley_flight_time, 0.0001,
+			"rank 0 launches at volley_draw_time with no ramp offset")
 	assert_almost_eq(far_hit.arrival_time,
-			RangedDamageFormula.DRAW_TIME + RangedDamageFormula.TOTAL_STAGGER
-					+ RangedDamageFormula.FLIGHT_TIME, 0.0001,
-			"the last rank launches TOTAL_STAGGER after the first")
+			tempo.volley_draw_time + tempo.volley_stagger_span
+					+ tempo.volley_flight_time, 0.0001,
+			"the last rank launches volley_stagger_span after the first")
 
 
 ## Attaches a fresh reaching leaf to `_mid` at [param pos]. Returns it so a
@@ -200,23 +203,24 @@ func _add_reaching_leaf(pos: Vector2) -> SkillNode:
 func test_middle_shot_launches_at_its_distance_fraction_not_its_rank() -> void:
 	# The whole point of the metric ramp, and the ONLY assertion that can tell
 	# it apart from the old ordinal one — with 3 shots, rank-lerp would put the
-	# middle shot at 0.5 * TOTAL_STAGGER no matter where it stands.
+	# middle shot at 0.5 * volley_stagger_span no matter where it stands.
 	# Distances to _target(450, 0): near 50, mid_leaf 150, far 450.
 	# span 400 → fracs 0, 0.25, 1.
 	_set_range(_leaf_far, 500.0)
 	_add_reaching_leaf(Vector2(450, 150))
+	var tempo := PresentationTempo.shared_default()
 	var p := _plan()
 	p._on_node_left_clicked(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 3)
-	var base: float = RangedDamageFormula.DRAW_TIME + RangedDamageFormula.FLIGHT_TIME
+	var base: float = tempo.volley_draw_time + tempo.volley_flight_time
 	assert_almost_eq(outcome.hits[0].arrival_time, base, 0.0001,
 			"nearest leaf pins frac 0")
 	assert_almost_eq(outcome.hits[1].arrival_time,
-			base + 0.25 * RangedDamageFormula.TOTAL_STAGGER, 0.0001,
+			base + 0.25 * tempo.volley_stagger_span, 0.0001,
 			"a leaf a quarter of the way across the span launches a quarter into it")
 	assert_almost_eq(outcome.hits[2].arrival_time,
-			base + RangedDamageFormula.TOTAL_STAGGER, 0.0001,
+			base + tempo.volley_stagger_span, 0.0001,
 			"furthest leaf pins frac 1")
 
 
@@ -244,7 +248,8 @@ func test_equidistant_leaves_all_launch_on_the_same_beat() -> void:
 	p._on_node_left_clicked(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 2)
-	var expected: float = RangedDamageFormula.DRAW_TIME + RangedDamageFormula.FLIGHT_TIME
+	var tempo := PresentationTempo.shared_default()
+	var expected: float = tempo.volley_draw_time + tempo.volley_flight_time
 	for hit in outcome.hits:
 		assert_almost_eq(hit.arrival_time, expected, 0.0001,
 				"an equidistant volley has no ramp to spread across")
@@ -252,12 +257,13 @@ func test_equidistant_leaves_all_launch_on_the_same_beat() -> void:
 
 func test_single_shot_volley_launches_at_draw_time() -> void:
 	# n == 1 is the other degenerate span — same guard, different cause.
+	var tempo := PresentationTempo.shared_default()
 	var p := _plan()
 	p._on_node_left_clicked(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 1)
 	assert_almost_eq(outcome.hits[0].arrival_time,
-			RangedDamageFormula.DRAW_TIME + RangedDamageFormula.FLIGHT_TIME, 0.0001)
+			tempo.volley_draw_time + tempo.volley_flight_time, 0.0001)
 
 
 func test_firing_schedule_ranks_nearest_leaf_first() -> void:
@@ -272,24 +278,26 @@ func test_firing_schedule_ranks_nearest_leaf_first() -> void:
 
 
 func test_launch_span_equals_arrival_span_at_any_shot_count() -> void:
-	# The issue's mechanical payoff for a constant FLIGHT_TIME: launch span
-	# and arrival span are identical, so this must hold at both n=2 and n=3.
+	# The issue's mechanical payoff for a constant volley_flight_time: launch
+	# span and arrival span are identical, so this must hold at both n=2 and
+	# n=3.
 	_set_range(_leaf_far, 500.0)
+	var tempo := PresentationTempo.shared_default()
 	var p := _plan()
 	p._on_node_left_clicked(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 2)
-	var launch_span: float = (outcome.hits[1].arrival_time - RangedDamageFormula.FLIGHT_TIME) \
-			- (outcome.hits[0].arrival_time - RangedDamageFormula.FLIGHT_TIME)
+	var launch_span: float = (outcome.hits[1].arrival_time - tempo.volley_flight_time) \
+			- (outcome.hits[0].arrival_time - tempo.volley_flight_time)
 	var arrival_span: float = outcome.hits[1].arrival_time - outcome.hits[0].arrival_time
 	assert_almost_eq(launch_span, arrival_span, 0.0001)
-	assert_almost_eq(arrival_span, RangedDamageFormula.TOTAL_STAGGER, 0.0001,
-			"span between the only two ranks is the full TOTAL_STAGGER")
+	assert_almost_eq(arrival_span, tempo.volley_stagger_span, 0.0001,
+			"span between the only two ranks is the full volley_stagger_span")
 
 
 func test_wall_time_is_constant_across_shot_counts() -> void:
-	# A 2-shot and a 3-shot volley must cover the same TOTAL_STAGGER window —
-	# a larger volley reads as denser, not slower.
+	# A 2-shot and a 3-shot volley must cover the same volley_stagger_span
+	# window — a larger volley reads as denser, not slower.
 	_set_range(_leaf_far, 500.0)
 	var two_shot := _plan()
 	two_shot._on_node_left_clicked(_target)
@@ -309,8 +317,9 @@ func test_wall_time_is_constant_across_shot_counts() -> void:
 	assert_eq(outcome_three.hits.size(), 3)
 	var span_three := outcome_three.hits[-1].arrival_time - outcome_three.hits[0].arrival_time
 
-	assert_almost_eq(span_two, RangedDamageFormula.TOTAL_STAGGER, 0.0001)
-	assert_almost_eq(span_three, RangedDamageFormula.TOTAL_STAGGER, 0.0001)
+	var tempo := PresentationTempo.shared_default()
+	assert_almost_eq(span_two, tempo.volley_stagger_span, 0.0001)
+	assert_almost_eq(span_three, tempo.volley_stagger_span, 0.0001)
 
 
 func test_reordering_allocation_does_not_change_the_firing_schedule() -> void:

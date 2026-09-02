@@ -34,15 +34,16 @@ func test_every_arrow_launches_before_the_first_one_lands() -> void:
 	# that is only the same thing as "at launch" while the LAST launch still
 	# precedes the FIRST arrival:
 	#
-	#   last launch  = DRAW_TIME + TOTAL_STAGGER
-	#   first arrival = DRAW_TIME + FLIGHT_TIME
+	#   last launch  = volley_draw_time + volley_stagger_span
+	#   first arrival = volley_draw_time + volley_flight_time
 	#
-	# Retune TOTAL_STAGGER past FLIGHT_TIME and an arrow gets loosed AFTER an
-	# earlier arrow has already cascaded the board — at which point the frozen
-	# number is stale and nothing else in the suite would notice, because the
-	# damage would merely be wrong, never absent. Hence an assert and not a
-	# comment.
-	assert_gt(RangedDamageFormula.FLIGHT_TIME, RangedDamageFormula.TOTAL_STAGGER,
+	# Retune volley_stagger_span past volley_flight_time (PresentationTempo,
+	# #543) and an arrow gets loosed AFTER an earlier arrow has already
+	# cascaded the board — at which point the frozen number is stale and
+	# nothing else in the suite would notice, because the damage would merely
+	# be wrong, never absent. Hence an assert and not a comment.
+	var tempo := PresentationTempo.shared_default()
+	assert_gt(tempo.volley_flight_time, tempo.volley_stagger_span,
 			"a volley must fully launch before it starts landing, or "
 			+ "snapshot-at-launch damage silently goes stale")
 
