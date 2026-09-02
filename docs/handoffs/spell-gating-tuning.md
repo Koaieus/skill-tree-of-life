@@ -195,10 +195,23 @@ sub-resource replacements, so confirm the defs still load.
   `propagation.max_hops` by `spell_range`; `spell_resolver.gd:110` uses
   `config.max_hops` **raw**. Over-reports for any caster above baseline INT.
   Pre-existing, independent of this work.
-- **`pow()`/`exp()` in peer-reproduced procgen.** `procgen/pools/stat_pool.gd:228,279`
-  (`pow` for tier weights) and `procgen/placement/gaussian_bump_field.gd:26`
-  (`exp`). Procgen is reproduced from the shared seed per `game-session.md`, so
-  these are latent cross-platform divergence risks of exactly the kind
-  `.claude/rules/multiplayer-sync.md` exists to prevent.
-- **DEX has no drawback.** Owner: STR nodes carry `-%` INT, INT nodes cost
-  node_health, "but there's no drawback on DEX? suspicious". Design asymmetry.
+- **`pow()` in peer-reproduced procgen — ASSESSED, ACCEPTED, not filed.**
+  `procgen/pools/stat_pool.gd:228,279` uses `pow` for tier weights, and peers
+  reproduce the map from the shared seed (`game-session.md`), so a one-ulp
+  difference could in principle flip a weighted draw and diverge the whole
+  sequence. Deliberately **not** being chased, on owner's call (2026-09-02) plus
+  two mitigations: (a) a divergence is caught by `CommandLink._report_sync`
+  fingerprints and repaired by a `KIND_RESYNC` world push
+  (`multiplayer-sync-model.md:295-303`) — a hitch, not a corrupted run; (b) it
+  requires cross-platform play *and* a cumulative weight landing within an ulp
+  of the threshold. Rare × recoverable. Revisit only if a real desync is
+  observed. (`procgen/placement/gaussian_bump_field.gd` also uses `exp`, but is
+  not currently used at all — owner, 2026-09-02.)
+  Related owner judgement on the *range* case: under host-authoritative
+  intent-up, a client whose range math differs by an ulp merely gets its intent
+  rejected ("no, out of range") — a papercut, not a desync. Do not use
+  determinism to argue against `sqrt` or similar in the reach path.
+- **DEX has no drawback → filed as #718**, widened: four of seven pools
+  (dexterity, mobility, perception, wisdom) carry no drawback at all, and
+  `intelligence` is taxed by *two* pools (strength -2%, constitution -3%) while
+  taxing only `node_health` (-2%). Design pass, not a bug.
