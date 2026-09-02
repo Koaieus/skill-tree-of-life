@@ -332,23 +332,12 @@ func _host_panel() -> HostPanel:
 
 # --- Rung 3: the lobby, driven from the command line (#715) --------------------
 #
-# The smallest thing that proves acceptance 1 — "the host clicks START with one
-# remote human and both processes reach the level and the first turn starts" —
-# over two real OS processes. #714's lobby replication was pinned headlessly
-# only, with two `LobbyScreen`s over a loopback pair and no socket; this drives
-# the REAL route, through the real menu graph, over a real ENet socket.
-#
 #   godot --headless --path . -- --lobby=host --port=9300
 #   godot --headless --path . -- --lobby=client --address=127.0.0.1 --port=9300
 #
-# No scene argument: `run/main_scene` IS this file, which is the point — nothing
-# is stubbed. The host walks its own HOST leaf, waits for a peer to arrive in the
-# lobby, and presses START; the client walks JOIN and is routed by the broadcast
-# that follows. `GameRoot` prints the verdict on the other side (see
-# [method GameRoot._announce_first_turn_for_rung_3]).
-#
-# Deliberately behind an explicit flag and reading nothing by default: an
-# ordinary launch, an exported build and every test parse no arguments at all.
+# Two OS processes driving the REAL menu route — no scene argument, nothing
+# stubbed. What it proves, why it is on `turn_started`, and why both halves read
+# nothing without the flag: `docs/domain/multiplayer-harness.md`, "Rung 3".
 const _RUNG3_FLAG := "--lobby="
 
 

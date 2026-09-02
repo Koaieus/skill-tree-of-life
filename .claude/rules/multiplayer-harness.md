@@ -24,13 +24,10 @@ holds no peer; `Wire.start_host` opens with a `stop()`, so a level ADOPTS a live
 link (replaying `peer_joined` for peers already on it) rather than re-starting
 one and dropping everybody who joined in the lobby.
 
-**The LOBBY mounts a pair of its own (#714)** — but only when `Wire` is already
-open, and it never opens one: `meta_root._push_lobby` is the single place that
-decides a route brings a socket up, and `LobbyScreen` hands its link back at
-START so only the level adopts the socket. **`Wire` admits exactly ONE bound
-facade (#715)** — two would handle every packet twice, silently — and **the run
-crosses at START, from the lobby, so a joining client runs no procgen at all**
-and its level's graph is empty until `pull_host_world` answers.
+**The LOBBY mounts a pair of its own (#714)** — only when `Wire` is already
+open; `meta_root._push_lobby` alone decides a route opens a socket, and
+`LobbyScreen` hands its link back at START because **`Wire` admits ONE bound
+facade** (#715), and a **client runs no procgen**.
 
 **`Transport` + `CommandLink` are still mounted in `scenes/game_root.tscn`
 (#531), and a level may only SWAP the transport's script, never author a second

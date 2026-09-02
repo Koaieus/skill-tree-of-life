@@ -16,6 +16,7 @@ It is a harness, not the sync layer. The architecture it serves is
 | Launcher panel | `addons/mp_sandbox/mp_sandbox_panel.tscn` |
 | The scene both processes run — rung 1 | `scenes/dev/mp_dev_sandbox.tscn` (inherits `dev_sandbox.tscn`) |
 | The scene both processes run — rung 2 (#533) | `scenes/dev/mp_procgen_sandbox.tscn` (instances `game_root.tscn`) |
+| Rung 3 (#715) — no scene at all, the REAL menu | `MetaRoot._drive_lobby_from_cmdline`, `--lobby=host\|client` |
 | Where the wire is MOUNTED | `scenes/game_root.tscn` → `Transport` + `CommandLink` (#531) |
 | Transport seam | `network/network_transport.gd` + `enet_transport.gd` / `loopback_transport.gd` |
 | Applier ↔ transport bridge | `network/command_link.gd` |
@@ -573,6 +574,72 @@ see BOTH worlds' entities regardless of which `TurnManager` is ticking; a real
 multi-turn run is exercised manually via the Multiplayer tab, same division of
 labour as rung 1's own test coverage (`test_harness_budget_boost.gd` tests
 `build_args`, not a spawned process).
+
+## Rung 3: the REAL lobby, driven from the command line (#715)
+
+Rungs 1 and 2 are dev scenes. Rung 3 is not a scene at all — it drives the
+shipped menu, so what it proves is the product's own route rather than a
+harness's imitation of it:
+
+```
+godot --headless --path . -- --lobby=host --port=9300
+godot --headless --path . -- --lobby=client --address=127.0.0.1 --port=9300
+```
+
+**There is no scene argument, and that is the point.** `run/main_scene` is
+`scenes/meta/meta_root.tscn`, so both processes boot the frontmatter menu
+exactly as an exported build does; nothing is stubbed. `MetaRoot
+._drive_lobby_from_cmdline` reads the flags (`--lobby=host|client`,
+`--address`, `--port`) and presses the same buttons a human would: the host
+walks its own HOST leaf, waits for a peer to arrive in the lobby, and presses
+START (`MetaRoot._press_start_when_seated` → `LobbyScreen._on_start_button_pressed`);
+the client walks JOIN and is routed to the level by the broadcast that follows.
+One deferred hop before START, so `LobbyScreen._on_link_peer_joined` has stamped
+the waiting seat before START reads the roster off it.
+
+**What it proves that rung 2 cannot.** #714's lobby replication was pinned
+headlessly only — two `LobbyScreen`s over a `LoopbackTransport` pair, in one
+process, with no socket. Rung 3 is the first live two-process proof of the
+menu-opened socket, of the level ADOPTING that socket rather than re-opening
+one (#713), and of the whole join happening without any peer running procgen.
+
+**The verdict line is `GameRoot._announce_first_turn_for_rung_3`.** It prints
+once per process, on `turn_started` rather than on the resync, because "the
+first turn starts" *is* #715's acceptance 1 — a client that decoded a world and
+then never got a turn has not proved the thing. Beside it goes
+`WorldFingerprint.describe`, which is what makes the two logs comparable: the
+run is green when both print the same `fp` at their first turn.
+
+**Both halves are behind an explicit flag and read nothing by default.**
+`MetaRoot._RUNG3_FLAG` and `GameRoot._rung_3_role` scan
+`OS.get_cmdline_user_args()` and return immediately when the flag is absent, so
+an ordinary launch, an exported build and every test parse no arguments at all.
+
+**A joining peer runs no procgen whatsoever** (#715), so its level's graph is
+empty until the host's world lands, and its loading bar is covering the *host's*
+generate-and-ship rather than its own generation. Its `_ready` awaits
+`CommandLink.resync_applied` before arming `VictorySystem`, starting a turn or
+lifting the curtain — unbounded on purpose, with `SceneDirector`'s 30s reveal
+timeout as the backstop and `_reveal_ready` staying false as the honest report.
+
+**The world is pushed AND pulled, and applied once.** The host pushes on
+`peer_joined` and also answers the client's `request_resync`, because either leg
+alone can be dropped in silence (the client's level is up in milliseconds while
+the host spends 5-10s generating, so a pull can arrive before the host's level
+has adopted the link and reach nobody). Both legs carry `CommandLink.KEY_JOIN`
+and the client's `_join_world_arrived` latch drops the loser. That latch is keyed
+off the message flag rather than off a fingerprint compare on purpose: the fold
+covers neither tags nor effects, so a mid-run repair (#521/#560/#561) must still
+apply even when the two fingerprints already agree.
+`test_join_world_applies_once.gd` pins both halves.
+
+**`Wire` admits exactly ONE bound facade** (`Wire.claim_binder` /
+`release_binder`, #715). Two `EnetTransport`s bound at once would each re-emit
+`message_received` and every packet would be handled twice, silently — which is
+reachable the moment a lobby's pair and a level's pair overlap, so the lobby
+hands its link back at START. Refusal is a `push_warning` plus an
+`ERR_ALREADY_IN_USE` return, never a `push_error`: GUT counts a `push_error` as
+an unexpected error.
 
 ## The other harness: replaying an outcome with no network (#539)
 
