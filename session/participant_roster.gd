@@ -55,6 +55,18 @@ func all() -> Array[Participant]:
 	return _participants.duplicate()
 
 
+## A roster over [param participants], for a caller that holds the seats as a
+## plain array and needs the wire form (#714): the lobby authors its roster as
+## an [Array] and only ever needs a [ParticipantRoster] at the moment it ships
+## one. Goes through [method add], so the signals fire exactly as they do for
+## any other route in — nothing here is a second way to fill a roster.
+static func of(participants: Array[Participant]) -> ParticipantRoster:
+	var roster := ParticipantRoster.new()
+	for p in participants:
+		roster.add(p)
+	return roster
+
+
 ## Wire form for #528 — a flat list of [method Participant.to_dict] rows. The
 ## roster itself carries no other state (it's runtime bookkeeping, not
 ## authored data — see the class docstring), so there is nothing else to fold in.

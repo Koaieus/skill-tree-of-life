@@ -139,6 +139,7 @@ func _push_lobby(
 	mode: RunConfig.Mode, network: NetworkConfig, policy: LobbyPolicy = null
 ) -> void:
 	GameSession.network = network
+	_open_wire_for(network)
 	var lobby := _lobby_panel()
 	if lobby == null:
 		return
@@ -146,6 +147,37 @@ func _push_lobby(
 	var panels := _panels()
 	if panels != null:
 		panels.show_panel(MenuGraph.PANEL_LOBBY)
+
+
+## Bring the wire up for the route being taken, or take it down (#714).
+##
+## [b]This file, because the decision is the same one it already makes.[/b] The
+## role a route leaves on [GameSession] and whether that role means a socket are
+## one fact stated twice; splitting them across two files is how a player who
+## hosted, backed out and started a solo game ends up still listening on 9099.
+## Since #713 the socket lives on [Wire] and outlives every scene, so "take it
+## down when the route goes offline" is a thing that has to be said out loud.
+##
+## [b]Opening it HERE, and not in the lobby, is what keeps the lobby honest.[/b]
+## [LobbyScreen] adopts a live link and mounts nothing when there isn't one, so
+## every offline lobby — and every existing lobby test — is on exactly the path
+## it was on before.
+##
+## An already-open link on the SAME endpoint is left alone: re-entering a host
+## lobby must not rebind a port this machine already holds, nor drop a peer that
+## already joined it.
+static func _open_wire_for(net: NetworkConfig) -> void:
+	if net == null or not net.is_online():
+		if Wire.is_open():
+			Wire.stop()
+		return
+	if Wire.is_open() and Wire.role == net.role:
+		return
+	Wire.stop()
+	if net.role == NetworkTransport.Role.HOST:
+		Wire.start_host(net.port)
+	else:
+		Wire.start_client(net.address, net.port)
 
 
 ## START opens the run before the level loads (#457): `GameSession.start`

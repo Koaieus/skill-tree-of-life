@@ -151,6 +151,26 @@ var _picked_cores: Dictionary = {}
 ## rebuild-survival contract as [member _picked_colors].
 var _picked_camps: Dictionary = {}
 
+## --- #714: the roster replicates while the menu is up --------------------------
+##
+## The lobby's own [NetworkTransport] + [CommandLink] pair, mounted only when a
+## socket is ALREADY open (see [method _mount_link]). It is the same seam the
+## level mounts, at the one other scope that needs it — and it never opens the
+## link itself, so a lobby built with no wire behind it is byte-for-byte the
+## offline lobby that shipped before this.
+var _transport: EnetTransport = null
+var _link: CommandLink = null
+## This machine's real id on the link, or 0 before the server has minted one.
+## A client authors its own seat at [constant _PENDING_PEER_ID] and only learns
+## the truth on [signal NetworkTransport.peer_joined]; see [method _local_peer_id].
+var _local_peer: int = 0
+
+## Keys inside a [constant CommandLink.KIND_LOBBY_PICK] payload that are not
+## themselves [Participant] fields: WHICH seat, and WHO is asking. The changed
+## fields beside them use [method Participant.to_dict]'s own names and encoding.
+const PICK_ID := "id"
+const PICK_PEER := "peer_id"
+
 ## The run-level section beside the seed field (#643). Named and reachable
 ## through [method add_run_row] because it is a SHARED surface: #558 appends a
 ## starter-arrangement control here and #638 a victory-condition one, in a later
@@ -193,6 +213,10 @@ func configure(
 
 func _ready() -> void:
 	add_theme_constant_override("separation", 8)
+	# Before the roster is built: a client's own peer id decides which row reads
+	# "you" and which pickers it may touch, and a host must be listening for the
+	# join that stamps its waiting seat before it can possibly arrive.
+	_mount_link()
 
 	if _offers_ai_opponents():
 		_ai_count_row = _AI_COUNT_ROW.instantiate()
@@ -259,6 +283,10 @@ func _link_caption() -> String:
 func _on_start_button_pressed() -> void:
 	if not can_start():
 		return
+	# The socket outlives this screen and the level adopts it (#713); this
+	# lobby's own [CommandLink] must not, or two links would answer the level's
+	# first message.
+	_release_link()
 	start_pressed.emit(build_run_config())
 
 
@@ -323,6 +351,201 @@ static func stamp_pending_remote(roster: ParticipantRoster, peer_id: int) -> boo
 			roster.notify_changed(p.id)
 			return true
 	return false
+
+
+## --- #714: the wire ----------------------------------------------------------
+##
+## Host-authoritative intent-up / confirmed-command-down
+## (`docs/domain/multiplayer-sync-model.md`) at the ROSTER's scope: a client
+## sends the one seat it touched as a [constant CommandLink.KIND_LOBBY_PICK],
+## the host puts it through the very writers a local pick goes through
+## ([method _on_color_picked] and its siblings), and the host answers with its
+## whole roster as a [constant CommandLink.KIND_LOBBY]. No new architecture, and
+## exactly one rule set — the refusal path in particular is not a message but the
+## absence of a change in the answer everybody gets anyway.
+##
+## [b]The link is ADOPTED, never opened here.[/b] `meta_root.gd` is the one place
+## that decides a route opens a socket, the same file that already decides which
+## [NetworkConfig] a route leaves on [GameSession]. A lobby with no live [Wire]
+## behind it mounts nothing at all, which is what keeps offline, hot-seat and
+## every existing lobby test on exactly the path they were on before.
+func _mount_link() -> void:
+	if _network == null or not _network.is_online() or not Wire.is_open():
+		return
+	_transport = EnetTransport.new()
+	_transport.name = "Transport"
+	add_child(_transport)
+	# Binds to the live [Wire] and replays whoever joined already — on a host
+	# that re-fires the join this lobby has to stamp.
+	var err := (_transport.start_host(_network.port)
+			if _network.role == NetworkTransport.Role.HOST
+			else _transport.start_client(_network.address, _network.port))
+	if err != OK:
+		_release_link()
+		return
+	_link = CommandLink.new()
+	_link.name = "CommandLink"
+	_link.transport = _transport
+	_link.lobby_roster_received.connect(_adopt_remote_roster)
+	_link.lobby_pick_received.connect(_on_remote_pick)
+	add_child(_link)
+	# Set AFTER `add_child`, because [method CommandLink._ready] re-applies the
+	# role onto its (here absent) applier — and because a lobby-time link must
+	# have a role the moment the socket is live, not when a level says so.
+	_link.mode = (CommandLink.Mode.BROADCAST
+			if _network.role == NetworkTransport.Role.HOST
+			else CommandLink.Mode.MIRROR)
+	_transport.peer_joined.connect(_on_link_peer_joined)
+	_transport.peer_left.connect(_on_link_peer_left)
+	_local_peer = _transport.local_peer_id()
+
+
+## Drop this lobby's binding to the socket WITHOUT closing it. The socket is what
+## the level adopts (#713); what must not survive is a second [CommandLink]
+## listening on it, which is why this runs at START rather than waiting for the
+## menu scene to be freed.
+func _release_link() -> void:
+	for node in [_link, _transport]:
+		if node != null:
+			remove_child(node)
+			node.queue_free()
+	_link = null
+	_transport = null
+
+
+func _is_client() -> bool:
+	return _network != null and _network.role == NetworkTransport.Role.CLIENT
+
+
+## A peer arrived. On a host that is #554 D2's outstanding half — the waiting
+## seat gets its real id (#714 acceptance 5, [method stamp_pending_remote_peer]'s
+## first caller outside this file's own tests). On a client it is this machine
+## finally learning its OWN id, which is what makes [method Participant.is_local]
+## answer for the row it is sitting at.
+func _on_link_peer_joined(peer_id: int) -> void:
+	if _is_client():
+		_local_peer = _transport.local_peer_id()
+		_refresh_rows()
+		return
+	stamp_pending_remote_peer(peer_id)
+	_broadcast_roster()
+
+
+## A peer dropped: its seat goes back to waiting rather than vanishing, because
+## #554 D2's seat was authored for procgen up front and only the identity was
+## ever outstanding.
+func _on_link_peer_left(peer_id: int) -> void:
+	if _is_client() or peer_id == _PENDING_PEER_ID:
+		return
+	var freed := false
+	for p in _participants:
+		if p.kind == Participant.Kind.HUMAN and p.peer_id == peer_id:
+			p.peer_id = _PENDING_PEER_ID
+			freed = true
+	if not freed:
+		return
+	_refresh_rows()
+	_broadcast_roster()
+
+
+## Host-side: ship what this lobby actually holds. Called after every accepted
+## change, join or drop — and after a REFUSED one too, which is the whole
+## convergence story (#714 acceptance 3): a client that asked for something it
+## may not have is answered with the truth rather than with silence.
+func _broadcast_roster() -> void:
+	if _link != null:
+		_link.send_lobby_roster(ParticipantRoster.of(_participants))
+
+
+## Client-side: the host's answer, adopted wholesale. No merge — the host's
+## roster IS the roster, and a client that kept any part of its own would be the
+## second source of truth this model exists to not have.
+func _adopt_remote_roster(roster: ParticipantRoster) -> void:
+	if roster == null:
+		return
+	_participants = roster.all()
+	_refresh_rows()
+
+
+## Host-side: a client asked for a change to one seat. Validated against the same
+## roster rules a local pick meets, applied through the same writers, and
+## answered with the whole roster either way.
+func _on_remote_pick(pick: Dictionary) -> void:
+	var target := _by_id(int(pick.get(PICK_ID, 0)))
+	if may_edit_remotely(target, int(pick.get(PICK_PEER, 0))):
+		if pick.has("display_name"):
+			target.display_name = String(pick["display_name"])
+		if pick.has("color"):
+			_on_color_picked(pick["color"], target)
+		if pick.has("core_class"):
+			_on_core_class_picked(_loaded(pick["core_class"]) as CoreClass, target)
+		if pick.has("camp"):
+			_on_camp_picked(_loaded(pick["camp"]) as Faction, target)
+	_refresh_rows()
+	_broadcast_roster()
+
+
+static func _loaded(path: Variant) -> Resource:
+	var as_path := String(path)
+	return null if as_path.is_empty() else load(as_path)
+
+
+func _by_id(id: int) -> Participant:
+	for p in _participants:
+		if p.id == id:
+			return p
+	return null
+
+
+## One seat's changed fields, in [method Participant.to_dict]'s encoding — a
+## [Resource] crosses as its `resource_path` and never as a reference
+## (`.claude/rules/multiplayer-sync.md`). [param from_peer] is the sender's own
+## id, which is what the host checks the seat against.
+static func encode_pick(
+	participant: Participant, from_peer: int, changes: Dictionary
+) -> Dictionary:
+	var pick := {PICK_ID: participant.id, PICK_PEER: from_peer}
+	for key in changes:
+		var value: Variant = changes[key]
+		pick[key] = value.resource_path if value is Resource else value
+	return pick
+
+
+## Client-side: ask for a change rather than making one. There is deliberately no
+## local pre-application (#548 decision 5 at the roster's scope) — the row is
+## repainted from the roster this machine still holds, and moves only when the
+## host's answer lands.
+func _submit_pick(participant: Participant, changes: Dictionary) -> void:
+	if _link != null:
+		_link.send_lobby_pick(encode_pick(participant, _local_peer_id(), changes))
+	_refresh_rows()
+
+
+## May the machine DRAWING this lobby change [param p] (#714 acceptance 6)?
+##
+## A human seat is editable iff it is this machine's own — [method
+## Participant.is_local], #554/#562's one home for "which of these is me", with
+## no local/remote flavour written into the payload. An AI seat belongs to
+## whoever authors the roster: everyone except a client, which is exactly
+## [method _offers_ai_opponents]'s rule and is stated as a parameter so the two
+## cannot drift into two answers.
+static func may_edit(p: Participant, local_peer_id: int, authors_ai: bool) -> bool:
+	if p == null:
+		return false
+	if p.kind == Participant.Kind.AI:
+		return authors_ai
+	return p.is_local(local_peer_id)
+
+
+## The HOST's half of the same question, asked of a pick that arrived over the
+## wire. Deliberately not [method may_edit] with the sender's id: peer `0` means
+## "no link", every offline seat carries it, and a payload claiming it must never
+## match a row. An AI seat is never remotely editable at all — a client does not
+## author the AI, and saying so here is cheaper than trusting it not to try.
+static func may_edit_remotely(p: Participant, from_peer: int) -> bool:
+	if p == null or from_peer == 0 or p.kind == Participant.Kind.AI:
+		return false
+	return p.peer_id == from_peer
 
 
 ## --- #643: the per-RUN section ----------------------------------------------
@@ -540,16 +763,55 @@ func _add_participant_row(participant: Participant) -> void:
 	if _policy != null:
 		row.set_camp_choices(
 				_policy.camp_choices(), _policy.may_pick_camp(participant.kind))
-	row.color_picked.connect(_on_color_picked.bind(participant))
-	row.core_class_picked.connect(_on_core_class_picked.bind(participant))
-	row.camp_picked.connect(_on_camp_picked.bind(participant))
+	row.set_editable(may_edit(participant, _local_peer_id(), _offers_ai_opponents()))
+	# Through the row-signal handlers rather than straight onto the writers: on a
+	# CLIENT a pick is a request, and only the handler knows that. The writers
+	# below stay the single place a roster is actually changed, local or remote.
+	row.color_picked.connect(_on_row_color_picked.bind(participant))
+	row.core_class_picked.connect(_on_row_core_class_picked.bind(participant))
+	row.camp_picked.connect(_on_row_camp_picked.bind(participant))
+
+
+## A row asked for a colour. Local machines write it; a client sends it up
+## (#714) and waits for the host's roster to say what happened.
+func _on_row_color_picked(color: Color, participant: Participant) -> void:
+	if _is_client():
+		_submit_pick(participant, {"color": color})
+		return
+	_on_color_picked(color, participant)
+	_broadcast_roster()
+
+
+func _on_row_core_class_picked(core: CoreClass, participant: Participant) -> void:
+	if _is_client():
+		_submit_pick(participant, {"core_class": core})
+		return
+	_on_core_class_picked(core, participant)
+	_broadcast_roster()
+
+
+func _on_row_camp_picked(camp: Faction, participant: Participant) -> void:
+	if _is_client():
+		_submit_pick(participant, {"camp": camp})
+		return
+	_on_camp_picked(camp, participant)
+	_broadcast_roster()
 
 
 ## A slot chose a colour. The lobby writes it, not the row — this screen owns
 ## the roster — and then rebuilds every row so the newly-taken colour greys out
 ## in its siblings' dropdowns and the freed one comes back (#616 acceptance 4).
+##
+## [b]The uniqueness rule is enforced HERE since #714[/b], not only by the greyed
+## chips [method taken_colors] produces for the picker. Both readings ask
+## [method taken_colors], so there is still exactly one rule — but a pick that
+## arrived over the wire never saw a dropdown, and a client that asks for a taken
+## colour has to meet the same refusal a local player physically cannot express.
+## Locally this changes nothing: the chip it would need is already disabled.
 func _on_color_picked(color: Color, participant: Participant) -> void:
 	if color == participant.color:
+		return
+	if taken_colors(_participants, participant.id).has(color):
 		return
 	participant.color = color
 	_picked_colors[participant.id] = color
@@ -581,10 +843,15 @@ func _on_camp_picked(camp: Faction, participant: Participant) -> void:
 
 ## This machine's own id, as far as a lobby can know it: a client's real id is
 ## minted by the server on connect, so the placeholder it authored for itself is
-## what its own rows carry until then.
+## what its own rows carry until then — and since #714 the moment it stops being
+## a placeholder is [signal NetworkTransport.peer_joined], while the menu is
+## still up, which is what lets a joiner's own row become editable in the lobby
+## rather than only in the level.
 func _local_peer_id() -> int:
 	if _network == null or not _network.is_online():
 		return 0
+	if _local_peer != 0:
+		return _local_peer
 	return _HOST_PEER_ID if _network.role == NetworkTransport.Role.HOST else _PENDING_PEER_ID
 
 

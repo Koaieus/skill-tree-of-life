@@ -50,6 +50,38 @@ const _CHIP_PX := 16
 var _participant: Participant = null
 var _palette: PlayerPalette = null
 
+## May the machine drawing this row change what it shows (#714)? True by
+## default, which is every lobby that was ever shipped before a second machine
+## could see one: offline, hot-seat and the host's own lobby all leave it alone.
+## A client sets it false on every seat but its own — see
+## [method LobbyScreen.may_edit], which owns the rule.
+var _editable: bool = true
+## What each picker would be disabled by REGARDLESS of locality: an empty core
+## list, a camp the policy locked. Kept so [method set_editable] can be called in
+## any order relative to the three `set_*_choices` calls without either of them
+## clobbering the other's reason for a grey control.
+var _cores_empty: bool = true
+var _camp_enabled: bool = false
+
+
+## Lock or unlock every picker on this row (#714 acceptance 6). Locality is the
+## only thing this decides on; WHY a control was already disabled is remembered
+## separately, so re-enabling a row never un-greys a camp its policy locked.
+func set_editable(editable: bool) -> void:
+	_editable = editable
+	_apply_disabled()
+
+
+func _apply_disabled() -> void:
+	get_node("%ColorPick").disabled = not _editable
+	get_node("%CorePick").disabled = _cores_empty or not _editable
+	# Left strictly alone while hidden: a lobby with no [LobbyPolicy] never calls
+	# [method set_camp_choices] at all, and #615's characterization contract is
+	# that such a row is byte-for-byte the pre-#615 one.
+	var camp: OptionButton = get_node("%Camp")
+	if camp.visible:
+		camp.disabled = not _camp_enabled or not _editable
+
 
 func configure(participant: Participant, local_peer_id: int) -> void:
 	_participant = participant
@@ -102,7 +134,8 @@ func set_core_choices(cores: Array[CoreClass]) -> void:
 		pick.set_item_metadata(i, core)
 		if core == mine:
 			pick.select(i)
-	pick.disabled = cores.is_empty()
+	_cores_empty = cores.is_empty()
+	_apply_disabled()
 
 
 func _on_core_item_selected(index: int) -> void:
@@ -147,7 +180,8 @@ func set_camp_choices(camps: Array[Faction], enabled: bool) -> void:
 		pick.add_item(mine.display_name if mine != null else "—")
 		pick.set_item_metadata(camps.size(), mine)
 		pick.select(camps.size())
-	pick.disabled = not enabled
+	_camp_enabled = enabled
+	_apply_disabled()
 
 
 func _on_camp_item_selected(index: int) -> void:

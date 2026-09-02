@@ -77,6 +77,11 @@ const KEY_OFFER := "offer"
 ## #546: which code the sender is running. Rides the hello, never a [Command] —
 ## see [method send_hello].
 const KEY_BUILD := "build"
+## #714: one lobby seat's changed fields, on the way UP. Its own key rather than
+## [constant KEY_ROSTER] because it is emphatically not a roster — a client never
+## sends one, it sends the single row it touched and lets the host answer with
+## the whole thing.
+const KEY_PICK := "pick"
 
 ## Keys inside [constant KEY_BUILD]. Only [constant BUILD_SHA] is COMPARED; the
 ## other two exist so the refusal message can name what the peer was on.
@@ -140,6 +145,29 @@ const KIND_REFUSAL := "refusal"
 ## [method send_loot_offer], which [method _ready] wires to
 ## [signal LootPickRegistry.offer_parked].
 const KIND_LOOT_OFFER := "loot_offer"
+## #714's downward leg: the host's WHOLE authoritative [ParticipantRoster] while
+## the menu is still up, after every accepted change, join or drop.
+##
+## [b]Why not [constant KIND_SETUP].[/b] That envelope carries a [RunConfig] too
+## and its receiver hands both to [method GameSession.apply_received], which
+## asserts the seed is already resolved and OPENS a run by emitting
+## [signal GameSession.run_started]. A lobby's seed is still the `0` sentinel
+## until START and a lobby must not open a run, so relaxing that gate to reuse
+## the envelope would trade a load-bearing assertion for one saved constant.
+## This kind carries [constant KEY_ROSTER] and nothing else, touches
+## [GameSession] not at all, and is decoded straight back into a lobby view.
+##
+## Whole-roster rather than a delta, deliberately: it is a handful of rows, and a
+## delta protocol would buy an ordering problem a lobby does not have.
+const KIND_LOBBY := "lobby"
+## #714's upward leg: "I picked X for my seat." Carries the sender's `peer_id`,
+## the target [member Participant.id] and only the fields that changed, in
+## [method Participant.to_dict]'s encoding. Sent only under
+## [constant Mode.MIRROR], received only under [constant Mode.BROADCAST] — the
+## same inversion [constant KIND_INTENT] draws for the world, at the roster's
+## scope: a pick is an INTENT, and the host's [constant KIND_LOBBY] answer is the
+## confirmation.
+const KIND_LOBBY_PICK := "lobby_pick"
 
 ## The one refusal code today — [method CommandApplier._validate] answers a
 ## bool, so there is nothing finer to report yet. A [StringName], never a UI
@@ -182,6 +210,17 @@ signal link_refused(reason: String)
 ## emitted so that HUD wiring, when it lands, has a single source rather than
 ## reaching into [method _on_message_received] itself.
 signal loot_offer_received(offer: LootPickOffer)
+
+## #714, client-side: the host's authoritative lobby roster arrived. Decoded
+## here and re-emitted, never applied here — this class owns the envelope, and
+## [LobbyScreen] owns what a roster means to a lobby.
+signal lobby_roster_received(roster: ParticipantRoster)
+
+## #714, host-side: a client asked for a change to one seat. The payload is left
+## as a raw [Dictionary] on purpose — validating it against the roster (may this
+## peer edit that seat, is that colour taken) is the LOBBY's rule set, and this
+## class must not become a second place that decides.
+signal lobby_pick_received(pick: Dictionary)
 
 @export var transport: NetworkTransport
 @export var command_applier: CommandApplier
@@ -490,6 +529,51 @@ func send_run_setup(config: RunConfig, roster: ParticipantRoster) -> void:
 			[config.seed, roster.all().size() if roster != null else 0])
 
 
+## #714 send side, host-only: the whole authoritative lobby roster. Unlike
+## [method send_run_setup] this carries no [RunConfig], so nothing about it can
+## open a run — see [constant KIND_LOBBY].
+##
+## Not gated on [member graph]: a lobby has no world, which is the entire point
+## of the kind.
+func send_lobby_roster(roster: ParticipantRoster) -> void:
+	if transport == null or mode != Mode.BROADCAST or roster == null:
+		return
+	transport.send({KEY_KIND: KIND_LOBBY, KEY_ROSTER: roster.to_dict()})
+	logged.emit("→ lobby roster (%d participants)" % roster.all().size())
+
+
+## #714 send side, client-only: one seat's changed fields. [param pick] is built
+## by the lobby (see [method LobbyScreen.encode_pick]) and crosses verbatim.
+func send_lobby_pick(pick: Dictionary) -> void:
+	if transport == null or mode != Mode.MIRROR or pick.is_empty():
+		return
+	transport.send({KEY_KIND: KIND_LOBBY_PICK, KEY_PICK: pick})
+	logged.emit("↑ lobby pick for seat %d" % int(pick.get("id", 0)))
+
+
+## #714 receive side, client-only. The host's answer REPLACES what this peer
+## shows — there is no merge and no prediction (#548 D5 at the roster's scope),
+## which is what makes a refused pick converge rather than linger.
+func _on_lobby_roster(payload: Dictionary) -> void:
+	if mode != Mode.MIRROR:
+		return
+	var roster := ParticipantRoster.from_dict(payload.get(KEY_ROSTER, {}))
+	lobby_roster_received.emit(roster)
+	logged.emit("← lobby roster (%d participants)" % roster.all().size())
+
+
+## #714 receive side, host-only.
+func _on_lobby_pick(payload: Dictionary) -> void:
+	if mode != Mode.BROADCAST:
+		return
+	var pick: Dictionary = payload.get(KEY_PICK, {})
+	if pick.is_empty():
+		logged.emit("↑ empty lobby pick, dropped")
+		return
+	lobby_pick_received.emit(pick)
+	logged.emit("↑ lobby pick for seat %d" % int(pick.get("id", 0)))
+
+
 ## #646 send side. [method LootPickRegistry.park] only ever parks a REMOTE
 ## claim ([SkillDustAddon]'s `_await_pick`), so every [signal
 ## LootPickRegistry.offer_parked] this connects to is, by construction, a pick
@@ -683,6 +767,10 @@ func _on_message_received(payload: Dictionary) -> void:
 			_on_refusal(payload)
 		KIND_LOOT_OFFER:
 			_on_loot_offer(payload)
+		KIND_LOBBY:
+			_on_lobby_roster(payload)
+		KIND_LOBBY_PICK:
+			_on_lobby_pick(payload)
 		_:
 			logged.emit("ignored payload with unknown kind %s" % payload.get(KEY_KIND))
 
