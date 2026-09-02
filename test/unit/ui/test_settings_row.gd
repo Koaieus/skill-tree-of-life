@@ -1,7 +1,9 @@
 extends GutTest
 
-## #609 — a settings row is authored as `settings_row.tscn`, not built as a
-## fresh HBoxContainer + Label in `_make_row()`. D2's whole point: the LABEL
+## #609 — a settings row is authored as a scene, not built as a fresh
+## HBoxContainer + Label in `_make_row()`. #690 superseded #609's own
+## `settings_row.tscn` with the shared `ui/common/labelled_row.tscn`, which is
+## what `_ROW_SCENE` below preloads. D2's whole point: the LABEL
 ## no longer takes the row's slack (`SIZE_EXPAND_FILL`), so a row's control
 ## sits adjacent to its label at any container width instead of shoved to the
 ## panel's far right — the defect #606's drone found by screenshot and that
@@ -55,7 +57,7 @@ func test_a_row_instances_the_scene_rather_than_building_an_hbox_in_code() -> vo
 	assert_gt(rows.size(), 0, "there are settings to list")
 	for row in rows:
 		assert_eq(row.scene_file_path, _ROW_SCENE.resource_path,
-				"'%s' comes from settings_row.tscn" % row.name)
+				"'%s' comes from labelled_row.tscn" % row.name)
 		assert_not_null(row.get_node_or_null("%Label"), "the scene's label slot")
 
 
