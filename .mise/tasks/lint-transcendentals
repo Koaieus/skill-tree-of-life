@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 #MISE description="Fail on transcendentals in gameplay math: `mise run lint-transcendentals [-- --json]`"
 """
-No `log` / `exp` / `pow` / `sin` / `cos` / `tan` / `atan` in a gameplay formula
-string or gameplay code path (#547). `sqrt` is fine — IEEE 754 requires it to be
+No `log` / `exp` / `pow` / `sin` / `cos` / `tan` / `atan` in a value a peer
+RECOMPUTES — a stat formula string, an aura, any derived stat (#547). A value a
+peer RECEIVES (attack/spell resolution riding an `AttackRecord`, the procgen'd
+map riding a `GraphSnapshot`) is out of the ban's reach (#706); this lint is
+path-based and coarser than that, and the allowlist below is how a received-side
+file claims it. `sqrt` is fine — IEEE 754 requires it to be
 correctly rounded, and `+ - * / sqrt` (plus fma) is the whole list it requires.
 Everything else is a libm approximation that differs in the last bits between
 platforms, and gameplay math routinely lands on the boundary where that matters:
@@ -65,6 +69,9 @@ EXEMPT_FILES = {
         "loot pour), but its only banned call is the `sin` twinkle inside `_draw`. "
         "Exempt by file rather than by directory for exactly that reason — if a "
         "second one appears here, read it before extending this entry.",
+    "skill_node/addons/watchtower_addon.gd": "same shape as skill_dust: gameplay "
+        "file, but its only banned calls are the `cos`/`sin` of `_draw_ellipse`, "
+        "a `_draw` helper. Read before extending.",
     "graph/edge.gd": "presentation — `pow(2, stops)` is the HDR emissive lift.",
     "systems/vision_system.gd": "the one `exp` is a frame-rate-independent ease "
                                "in `_process` (`1 - exp(-rate * delta)`); it "

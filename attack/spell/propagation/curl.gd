@@ -19,13 +19,14 @@ class_name Curl
 ## radiate outward. Feeding those ranks decaying damage coefficients is what
 ## makes circulation reinforce and offshoots diminish — see [CycloneStep].
 ##
-## [b]No transcendental, deliberately.[/b] `atan2` is the obvious way to sort by
-## angle and it is banned in gameplay code by
-## [code].claude/rules/multiplayer-sync.md[/code] — peers recompute derived
-## values rather than receive them, so a trig call is a desync waiting for a
-## platform difference. [method pseudo_angle] is the standard "diamond angle":
-## strictly monotone in the true angle, exact under the same float ops on every
-## peer, and built from nothing but adds, a divide and a compare.
+## [b]No transcendental, because it is cheaper — not because a rule forbids
+## it.[/b] `atan2` is the obvious way to sort by angle. The transcendental ban in
+## [code].claude/rules/multiplayer-sync.md[/code] does not reach a propagation
+## walk: this runs on the authority's shadow world and its result ships as an
+## [AttackRecord], so no peer ever re-derives the order (#706). [method
+## pseudo_angle] is kept on cost alone — the standard "diamond angle", strictly
+## monotone in the true angle, built from nothing but adds, a divide and a
+## compare — and as a bonus it is exact under the same float ops everywhere.
 
 
 ## A value in [code][0, 4)[/code] strictly increasing with the counter-clockwise

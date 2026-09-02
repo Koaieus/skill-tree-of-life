@@ -74,8 +74,8 @@ echo "✓ msdfgen 1.13 → $BIN"
 '''
 
 [tasks.check]
-depends = ["check-shaders", "lint-editor-hint-guard", "lint-scene-instance-depth", "lint-instanced-anchors"]
-description = "Headless compile-check of all project scripts (Godot editor import) — also runs check-shaders, lint-editor-hint-guard, lint-scene-instance-depth and lint-instanced-anchors"
+depends = ["check-shaders", "lint-editor-hint-guard", "lint-scene-instance-depth", "lint-instanced-anchors", "lint-transcendentals"]
+description = "Headless compile-check of all project scripts (Godot editor import) — also runs check-shaders, lint-editor-hint-guard, lint-scene-instance-depth, lint-instanced-anchors and lint-transcendentals"
 run = '''
 #!/usr/bin/env bash
 set -uo pipefail

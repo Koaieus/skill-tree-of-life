@@ -227,12 +227,31 @@ at every power of ten.
 Two rules follow, and they are the stat-pipeline analogue of #530's stable
 hitscan sort:
 
-- **No transcendentals in a gameplay formula or gameplay code path.**
-  `sqrt` is fine (IEEE requires it correctly rounded). `log` / `exp` / `pow` /
-  `sin` / `cos` / `tan` / `atan` are not. Presentation code is exempt —
-  `vision_system.gd:367`'s `exp` is a frame-rate ease inside `_process`, and
-  every `skill_node/visuals/`, `entity/core/sigil/` and `graph/edge.gd` use is
-  drawing.
+- **No transcendentals in a value a peer recomputes.** `sqrt` is fine (IEEE
+  requires it correctly rounded). `log` / `exp` / `pow` / `sin` / `cos` /
+  `tan` / `atan` are not. The ban's reach is exactly the table above: the
+  derived tier every peer computes for itself from replicated state — the
+  stat pipeline, aura contributions, anything a resync does *not* carry. It
+  does **not** reach a value a peer *receives*: attack and spell resolution
+  ships as an `AttackRecord` (`attack/melee/sim/`, `attack/spell/propagation/`
+  run on the authority's shadow world, and `apply_launch_command` on a peer
+  is a deserialize, never a re-resolve), and the map ships as a
+  `GraphSnapshot` (`procgen/`'s Gaussian bumps and Poisson rolls are real
+  math that would be wrong to rewrite). Presentation is likewise exempt —
+  `vision_system.gd`'s `exp` is a frame-rate ease inside `_process`, and every
+  `skill_node/visuals/`, `entity/core/sigil/` and `graph/edge.gd` use is
+  drawing. (Narrowed 2026-09-03, #706: the old wording said "gameplay code
+  path", which was broader than its own rationale — Cyclone's angular sort
+  keeps its cross-product pseudo-angle because it is *cheaper* than `atan2`,
+  not because a rule forbids the alternative.)
+
+  `mise run lint-transcendentals` enforces this and is deliberately coarser
+  than the rule — it is path-based, so a new transcendental in a
+  received-side file it does not yet list fails the lint. That is the door,
+  not a bug: the allowlist entry you add carries the reason *and the
+  condition under which the exemption ends* (`procgen/`'s voids the moment a
+  peer generates its own map from the seed). Adding one is asserting that no
+  peer re-derives this number and compares it to another peer's.
 - **Bin aggregation must iterate in a stable, defined order.** Float addition is
   not associative, so summing the same modifiers in a different order gives
   different last bits. Godot 4 Dictionaries are insertion-ordered and insertion
