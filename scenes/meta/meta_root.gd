@@ -206,18 +206,22 @@ static func _destination_for(run_config: RunConfig) -> PackedScene:
 	return FIRST_LEVEL_SANDBOX
 
 
-## Which peer THIS machine is, before any socket opens.
+## Which peer THIS machine is, carried from the menu's socket into the run.
 ##
-## A host is always id 1 under Godot's high-level multiplayer, so it is
-## knowable here — and it has to be, because the level generates from the
-## roster and derives its [SeatPolicy] before a peer has connected. A CLIENT
-## cannot know its own id until the link is up, so it stays 0 here and
-## [GameRoot] stamps it from the transport when the link comes up.
+## [b]There is one reader of this, and it is [Wire].[/b] Since #713 the socket
+## opens on the MENU, so by START a host already holds
+## [constant NetworkTransport.HOST_PEER_ID] and a client has already been minted
+## its real id — [method LobbyScreen._on_link_peer_joined] stamped its own seat
+## off the very same singleton. Deriving it from [member GameSession.network]'s
+## role a second time would be a parallel answer that can disagree.
+##
+## A machine with no socket answers `0`, which is the [member Participant.peer_id]
+## a lobby-authored offline seat carries — so an offline run stays a couch by
+## construction, with no branch here to say so.
+## [method GameRoot._on_peer_joined] still re-stamps, for the client whose dial
+## only completes once the level exists.
 static func _stamp_local_peer() -> void:
-	var net: NetworkConfig = GameSession.network
-	GameSession.local_peer_id = (NetworkTransport.HOST_PEER_ID
-			if net != null and net.role == NetworkTransport.Role.HOST
-			else 0)
+	GameSession.local_peer_id = Wire.local_peer_id()
 
 
 ## Found by type rather than by path. `%PanelLayer` is unique-named inside

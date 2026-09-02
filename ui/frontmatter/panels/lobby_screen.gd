@@ -734,7 +734,7 @@ func _offers_ai_opponents() -> bool:
 	# it is the host's roster everybody plays. A joining client's own roster is
 	# replaced wholesale by the host's [method GameSession.apply_received], so
 	# a count it chose here would be a lie on screen.
-	return _network == null or _network.role != NetworkTransport.Role.CLIENT
+	return not _is_client()
 
 
 

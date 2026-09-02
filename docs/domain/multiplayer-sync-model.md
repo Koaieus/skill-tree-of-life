@@ -651,9 +651,9 @@ number is computed. `docs/domain/attack-timeline.md`'s land-time re-read
 contract is host-side only, and now says so.
 
 **Payload size.** Most commands are a few dozen bytes. **The attack record is
-the outlier and magic is its worst case:** `trail_blazer.tres` authorises
-`max_hops = 20` and `reverberator.tres` allows `max_visits_per_node = 6`, so a
-single cast can genuinely produce ~100 landings, each carrying a
+the outlier and magic is its worst case:** a propagating spell authors its own
+hop budget and revisit allowance, and the tuned ones are generous enough that a
+single cast can genuinely produce on the order of ~100 landings, each carrying a
 post-mitigation amount plus its crit/gate flags. That is kilobytes, not
 hundreds of bytes — still a trivial one-shot burst on a LAN, but it is why the
 record encodes as **parallel arrays of scalars with the timeline holding

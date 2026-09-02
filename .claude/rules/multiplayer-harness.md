@@ -2,10 +2,12 @@
 description: The two-process multiplayer harness and the no-network Outcome playground — what each proves, and what deliberately does not
 paths:
   - "network/**"
+  - "autoload/wire.gd"
   - "addons/mp_sandbox/**"
   - "addons/outcome_playground/**"
   - "attack/outcome/outcome_fixture.gd"
   - "scenes/dev/mp_dev_sandbox.gd"
+  - "scenes/dev/mp_procgen_sandbox.gd"
   - "scenes/dev/outcome_playground_world.gd"
 ---
 
