@@ -48,6 +48,7 @@ sandbox gallery does, for exactly this reason).
 | `WavePath` | `ui/vfx/projectile/path/wave_path.gd` | Lerp + transverse sine. "This propagates" rather than "this was thrown". Reverberator / Resonator. |
 | `JitterPath` | `ui/vfx/projectile/path/jitter_path.gd` | Lerp + perpendicular hash noise. Unstable arcing electricity. Spark / the lightning family. |
 | `EdgeEnergize` | `ui/vfx/projectile/visual/edge_energize.tscn` + `edge_energize.gdshader` | A travelling front of light **painted on top of** an edge. |
+| `GhostLoopBody` | `ui/vfx/projectile/visual/ghost_loop_body.tscn` | A body wearing TWO heads — a lead plus a `ghost_alpha`-dimmed twin sampled `GHOST_T_OFFSET` behind it, off the lead's own recorded `(t, position)` history rather than a second copy of the path. "An echo chasing itself." Drop-in for any `body_scene` slot; worn by Reverberator (#677) and Resonator (#678). |
 
 ### `ComposedProjectileVisual` — how a spell gets a body AND a ring
 

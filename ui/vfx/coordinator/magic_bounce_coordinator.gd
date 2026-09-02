@@ -98,16 +98,8 @@ signal wave_started(hop_index: int, events_in_wave: int)
 ## Fallback visual when no per-verb visual is set.
 @export var visual_scene: PackedScene = _DEFAULT_VISUAL
 
-class Beat extends RefCounted:
-	var wave: int
-	var events: Array[PropagationEvent]
-	
-	# TODO: think through a class decomposition instead of working with `waves, beats, pending`
-	
-	# static var pending: int = 0
-	# TODO: static.. might not be the solution here. but the `pending int[]` array
-	# seems to be used as some kind of context, this whole thing smells and i think we are
-	# like 1~2 extra inner classes away from could clean this all up a bit typed and well
+# The `waves` / beat-index / `pending` triple this coordinator schedules with
+# wants to be a per-wave object rather than three parallel locals — #722.
 
 var _caster_tint: Color = Color.WHITE
 ## Which way the cast currently playing turns, and the signed paths built for

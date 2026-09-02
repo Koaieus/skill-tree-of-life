@@ -13,7 +13,7 @@ const REVERBERATOR_DEF := preload("res://attack/spell/defs/reverberator.tres")
 const REVERBERATOR_COORDINATOR := preload("res://ui/vfx/coordinator/spells/reverberator_coordinator.tscn")
 const SHARED_DEFAULT_COORDINATOR := preload("res://ui/vfx/coordinator/magic_bounce_coordinator.tscn")
 const BOLT_PACKET := preload("res://ui/vfx/projectile/visual/bolt_packet.tscn")
-const GHOST_LOOP_BODY := preload("res://ui/vfx/projectile/visual/reverberator_ghost_loop_body.tscn")
+const GHOST_LOOP_BODY := preload("res://ui/vfx/projectile/visual/ghost_loop_body.tscn")
 const BOUNCE_PATH := preload("res://ui/vfx/projectile/path/bounce_path.tres")
 
 const PEAK_INSTANCES: int = 40
@@ -152,7 +152,7 @@ func test_self_loop_visual_composes_the_ghost_loop_body() -> void:
 
 
 func test_ghost_loop_body_spawns_a_lead_and_a_world_space_ghost() -> void:
-	var body: ReverberatorGhostLoopBody = GHOST_LOOP_BODY.instantiate()
+	var body: GhostLoopBody = GHOST_LOOP_BODY.instantiate()
 	add_child_autofree(body)
 	var bolts: Array = body.find_children("*", "BoltBody", true, false)
 	assert_eq(bolts.size(), 2, "one lead head plus one ghost head")
@@ -160,7 +160,7 @@ func test_ghost_loop_body_spawns_a_lead_and_a_world_space_ghost() -> void:
 
 
 func test_ghost_trails_the_lead_by_roughly_point_one_t() -> void:
-	var body: ReverberatorGhostLoopBody = GHOST_LOOP_BODY.instantiate()
+	var body: GhostLoopBody = GHOST_LOOP_BODY.instantiate()
 	add_child_autofree(body)
 	body.global_position = Vector2(100.0, 100.0)
 	body._on_launch()
@@ -177,14 +177,14 @@ func test_ghost_trails_the_lead_by_roughly_point_one_t() -> void:
 
 
 func test_ghost_body_is_alpha_dimmed_not_hue_shifted() -> void:
-	var body: ReverberatorGhostLoopBody = GHOST_LOOP_BODY.instantiate()
+	var body: GhostLoopBody = GHOST_LOOP_BODY.instantiate()
 	add_child_autofree(body)
 	assert_lt(body._ghost.self_modulate.a, 1.0, "the echo dims by alpha")
 	assert_almost_eq(body._ghost.self_modulate.r, 1.0, 0.001, "never a hue shift (#663 D3)")
 
 
 func test_crit_forwards_to_both_lead_and_ghost() -> void:
-	var body: ReverberatorGhostLoopBody = GHOST_LOOP_BODY.instantiate()
+	var body: GhostLoopBody = GHOST_LOOP_BODY.instantiate()
 	add_child_autofree(body)
 	body._on_launch()
 	var lead: BoltBody = body._lead
@@ -305,7 +305,7 @@ func test_forty_packets_share_one_texture_and_one_material() -> void:
 func test_ghost_loop_bodies_also_share_the_one_material() -> void:
 	var materials: Array = []
 	for _i in 10:
-		var body: ReverberatorGhostLoopBody = GHOST_LOOP_BODY.instantiate()
+		var body: GhostLoopBody = GHOST_LOOP_BODY.instantiate()
 		add_child_autofree(body)
 		for bolt in body.find_children("*", "BoltBody", true, false):
 			var head: Sprite2D = (bolt as BoltBody).get_node("%Head")

@@ -45,7 +45,7 @@ var _text_mat := ShaderMaterial.new()
 var _materials: Array[ShaderMaterial] = []
 
 ## The casting entity whose stats may modify spell values shown in the
-## floating tooltip. Set externally by [SpellPickerBar.update_gating_context].
+## floating tooltip. Written only through [method set_caster].
 var _caster: Entity = null
 
 var _hover_tweener: Tween
@@ -107,6 +107,14 @@ func _push(param: StringName, value: Variant) -> void:
 func set_castable(castable: bool) -> void:
 	disabled = not castable
 	_tween_disabled(0.0 if castable else 1.0)
+
+
+## Tell the button which entity is hovering-as-caster, so [SpellTooltip] can
+## read that board for the values the caster's stats move off the printed base.
+## Purely presentational — it never gates the button, which [method set_castable]
+## owns.
+func set_caster(caster: Entity) -> void:
+	_caster = caster
 
 
 func refresh() -> void:

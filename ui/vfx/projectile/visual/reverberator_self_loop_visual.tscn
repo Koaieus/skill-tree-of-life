@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/reverberator_arrival_visual.tscn" id="1_base"]
-[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/reverberator_ghost_loop_body.tscn" id="2_ghost_body"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/ghost_loop_body.tscn" id="2_ghost_body"]
 
 [node name="ReverberatorSelfLoopVisual" instance=ExtResource("1_base")]
 body_scene = ExtResource("2_ghost_body")

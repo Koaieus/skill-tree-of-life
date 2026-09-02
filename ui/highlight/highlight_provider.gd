@@ -24,7 +24,7 @@ enum HighlightRole {
 	INVALID,          ## Hovered-but-rejected (range / ownership / etc.).
 	REACHABLE,        ## Core-move: an owned node reachable within the MP budget.
 	PATH,             ## Edge role: a reachable / on-route edge (core-move).
-	PROPAGATION,      ## RESERVED: spell propagation preview (red). Not yet driven — see issue.
+	PROPAGATION,      ## Aim-time propagation preview (#679), driven by [MagicAttackPlan].
 	ALLOCATABLE,      ## Manage mode: unowned node the player can allocate (adjacent + SP gated).
 	PENDING_REMAINDER, ## Mass-allocate confirm: on the route but past the SP-affordable prefix.
 }

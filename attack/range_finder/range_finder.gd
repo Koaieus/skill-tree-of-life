@@ -89,5 +89,9 @@ func get_visual(_attacker: Entity, _source: SkillNode) -> RangeVisual:
 ## for a given caster is a stat question, and used to live here only by accident.
 ## Subclasses scale their base reach by this value so INT-driven boosts
 ## propagate uniformly across hop and euclidean finders.
-static func spell_range_multiplier(attacker: Entity, source: SkillNode) -> float:
-	return SpellRangeRules.multiplier(attacker, source)
+## [param board] is the preview fallback for a caller that has a caster but no
+## cast-from node yet ([SpellTooltip]) — see [method SpellRangeRules.multiplier].
+static func spell_range_multiplier(
+	attacker: Entity, source: SkillNode, board: StatBoard = null
+) -> float:
+	return SpellRangeRules.multiplier(attacker, source, board)
