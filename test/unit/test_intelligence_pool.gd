@@ -9,24 +9,37 @@ func test_pack_loads_as_statpack() -> void:
 	assert_not_null(p); assert_eq(p.archetype_stat, &"intelligence")
 	assert_true(p.pools.size() > 0)
 func test_intelligence_pool_values() -> void:
+	# Content invariant, NOT a value pin (#719). The magnitudes here are the
+	# owner's to tune between balance passes; pinning them turned a deliberate
+	# tuning pass red without catching anything (#717). Formula conformance for
+	# whatever this pool authors is swept in test_pool_range_bounds.gd, the
+	# ladder itself is pinned on hand-built pools in test_pool_seed_values.gd,
+	# and unintended content drift is the procgen goldens' job.
 	var p: StatPack = _PACK.duplicate(true) as StatPack
+	var found := false
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
 		if pp.stat_id == &"intelligence" and pp.operation == StatModifier.Operation.ADD_BASE:
-			assert_eq(pp.unit_value, 2.0)
-			assert_eq(pp.min_tier, 1); assert_eq(pp.max_tier, 4)
-			assert_eq(pp.to_entries().size(), 4)
-			# T1 magnitude = unit*V[0] = 2*1 = 2 (center of value_range)
-			assert_almost_eq((pp.to_entries()[0].value_range.x + pp.to_entries()[0].value_range.y) / 2.0, 2.0, 0.001)
+			found = true
+			assert_eq(pp.to_entries().size(), pp.max_tier - pp.min_tier + 1,
+					"intelligence.addb: one entry per offered tier")
+	assert_true(found, "the pack must carry a intelligence addb pool at all")
 func test_mana_pool_values() -> void:
+	# Content invariant, NOT a value pin (#719). The magnitudes here are the
+	# owner's to tune between balance passes; pinning them turned a deliberate
+	# tuning pass red without catching anything (#717). Formula conformance for
+	# whatever this pool authors is swept in test_pool_range_bounds.gd, the
+	# ladder itself is pinned on hand-built pools in test_pool_seed_values.gd,
+	# and unintended content drift is the procgen goldens' job.
 	var p: StatPack = _PACK.duplicate(true) as StatPack
+	var found := false
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
 		if pp.stat_id == &"mana" and pp.operation == StatModifier.Operation.ADD_BASE:
-			assert_eq(pp.unit_value, 1.5)
-			assert_eq(pp.min_tier, 1); assert_eq(pp.max_tier, 4)
-			assert_eq(pp.to_entries().size(), 4)
-			assert_almost_eq((pp.to_entries()[0].value_range.x + pp.to_entries()[0].value_range.y) / 2.0, 1.5, 0.001)
+			found = true
+			assert_eq(pp.to_entries().size(), pp.max_tier - pp.min_tier + 1,
+					"mana.addb: one entry per offered tier")
+	assert_true(found, "the pack must carry a mana addb pool at all")
 func test_draw_only_emits_pack_stat_ids() -> void:
 	var pool_set := ModifierPoolSet.new()
 	pool_set.packs = [_PACK.duplicate(true)]

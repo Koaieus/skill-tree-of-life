@@ -17,16 +17,21 @@ func test_pack_loads_as_statpack() -> void:
 
 
 func test_constitution_pool_values() -> void:
+	# Content invariant, NOT a value pin (#719). The magnitudes here are the
+	# owner's to tune between balance passes; pinning them turned a deliberate
+	# tuning pass red without catching anything (#717). Formula conformance for
+	# whatever this pool authors is swept in test_pool_range_bounds.gd, the
+	# ladder itself is pinned on hand-built pools in test_pool_seed_values.gd,
+	# and unintended content drift is the procgen goldens' job.
 	var p: StatPack = _PACK.duplicate(true) as StatPack
+	var found := false
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
 		if pp.stat_id == &"constitution" and pp.operation == StatModifier.Operation.ADD_BASE:
-			assert_eq(pp.unit_value, 2.0)
-			assert_eq(pp.min_tier, 1)
-			assert_eq(pp.max_tier, 4)
-			assert_eq(pp.to_entries().size(), 4)
-			var e0 = pp.to_entries()[0]
-			assert_almost_eq((e0.value_range.x + e0.value_range.y) / 2.0, 2.0, 0.001)
+			found = true
+			assert_eq(pp.to_entries().size(), pp.max_tier - pp.min_tier + 1,
+					"constitution.addb: one entry per offered tier")
+	assert_true(found, "the pack must carry a constitution addb pool at all")
 
 
 func test_universal_pools_are_archetype_empty() -> void:
@@ -81,43 +86,44 @@ func test_min_damage_taken_flattens_to_exact_migrated_table() -> void:
 		var pp: StatPool = sp as StatPool
 		if pp.stat_id == &"min_damage_taken":
 			found = true
-			assert_almost_eq(pp.unit_value, -1.0, 0.0001)
-			assert_eq(pp.min_tier, 3)
-			assert_true(is_inf(pp.range_floor), "min_damage_taken should not author range_floor (no authoring change, #637)")
+			# Content invariant, not a value pin (#719): min_damage_taken is a
+			# DOWNSIDE pool, and that is what must survive any tune — a
+			# positive unit here would turn a penalty into a buff. The exact
+			# negative-pool table (role-ordered pair, positive cost) is pinned
+			# on a hand-built pool in test_pool_seed_values.gd.
+			assert_lt(pp.unit_value, 0.0, "min_damage_taken must stay a downside pool")
 			var entries := pp.to_entries()
-			assert_eq(entries.size(), 2, "min_tier 3, default max_tier 4 → T3..T4 only")
-			assert_eq(entries[0].cost, 4, "T3 cost")
-			assert_almost_eq(entries[0].value_range.x, -1.0, 0.001, "T3 low")
-			assert_almost_eq(entries[0].value_range.y, -1.0, 0.001, "T3 high (zero-width, pool's first tier)")
-			assert_eq(entries[1].cost, 8, "T4 cost")
-			assert_almost_eq(entries[1].value_range.x, -3.0, 0.001, "T4 far end (H = unit*V(2) = -1*3)")
-			assert_almost_eq(entries[1].value_range.y, -2.0, 0.001, "T4 near end (L = H(T3) + M = -1 + -1)")
+			assert_eq(entries.size(), pp.max_tier - pp.min_tier + 1, "one entry per offered tier")
+			for e in entries:
+				assert_gt(e.cost, 0, "cost is always positive — refund economics retired (#637)")
+				assert_lt(e.value_range.y, 0.0, "every tier stays negative at BOTH ends")
 	assert_true(found, "constitution pack still carries min_damage_taken")
 
 
-## #637 acceptance 2: intelligence +% retunes to unit -3.0, range_floor -1.0
-## and flattens to exactly T1 -1..-3, T2 -4..-9, T3 -10..-21 — all POSITIVE
-## cost. Do not swap the numbers: unit -1.0/floor -3.0 inverts T1 and fails
-## well-formedness (see docs/domain/procgen-v4.md).
-func test_intelligence_pool_flattens_to_exact_migrated_table() -> void:
+## #637's sign guarantee for the CON pack's INT pool, as a content invariant
+## rather than a pinned table (#719): an always-negative pool must STAY
+## always-negative, so its `range_floor` has to share `unit_value`'s sign and
+## not exceed its magnitude — otherwise the range crosses zero and a downside
+## pool starts rolling buffs. The exact migrated table (unit -3, floor -1 →
+## T1 -3..-1, T2 -9..-4, T3 -21..-10 at costs 1 2 4) is pinned on a hand-built
+## pool in test_pool_seed_values.gd, where re-tuning this `.tres` cannot reach
+## it. See docs/domain/procgen-v4.md.
+func test_intelligence_pool_stays_sign_consistent() -> void:
 	var p: StatPack = _PACK.duplicate(true) as StatPack
 	var found := false
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
 		if pp.stat_id == &"intelligence" and pp.operation == StatModifier.Operation.INCREASE:
 			found = true
-			assert_almost_eq(pp.unit_value, -3.0, 0.0001)
-			assert_almost_eq(pp.range_floor, -1.0, 0.0001)
-			var entries := pp.to_entries()
-			assert_eq(entries.size(), 3, "min_tier 1, max_tier 3")
-			var expected_costs := [1, 2, 4]
-			var expected_lo := [-3.0, -9.0, -21.0]
-			var expected_hi := [-1.0, -4.0, -10.0]
-			for i in entries.size():
-				assert_eq(entries[i].cost, expected_costs[i], "T%d cost" % (i + 1))
-				assert_gt(entries[i].cost, 0, "cost is always positive — refund economics retired (#637)")
-				assert_almost_eq(entries[i].value_range.x, expected_lo[i], 0.001, "T%d low (far end)" % (i + 1))
-				assert_almost_eq(entries[i].value_range.y, expected_hi[i], 0.001, "T%d high (near end)" % (i + 1))
+			assert_lt(pp.unit_value, 0.0, "the INT pool in the CON pack is a downside pool")
+			if not is_inf(pp.range_floor):
+				assert_eq(signf(pp.range_floor), signf(pp.unit_value),
+						"range_floor must share unit_value's sign or the range crosses zero")
+				assert_lte(absf(pp.range_floor), absf(pp.unit_value),
+						"range_floor must not overshoot the T1 ceiling's magnitude")
+			for e in pp.to_entries():
+				assert_gt(e.cost, 0, "cost is always positive — refund economics retired (#637)")
+				assert_lt(e.value_range.y, 0.0, "every tier stays negative at BOTH ends")
 	assert_true(found, "constitution pack still carries the intelligence +% pool")
 
 
@@ -156,5 +162,13 @@ func test_constitution_draw_only_emits_pack_stat_ids() -> void:
 		for m in mods:
 			if not (m.stat_id in ids):
 				ids.append(m.stat_id)
-	for sid in ids:
-		assert_true(sid in [&"constitution", &"node_health", &"armor", &"intelligence", &"min_damage_taken"], "unexpected: %s" % String(sid))
+	# Every rolled stat_id must be one this pack owns — read OFF the pack, not
+	# a hand-listed set (#719). A literal list goes stale the moment a pool is
+	# added to the pack: the content change is deliberate and the test fails
+	# anyway, blaming the roll for a fact about the fixture. Derived, it
+	# asserts what its name says — no cross-pack leakage.
+	var owned: Array[StringName] = []
+	for sp in (pool_set.packs[0] as StatPack).pools:
+		var sid_owned := (sp as StatPool).stat_id
+		if not (sid_owned in owned): owned.append(sid_owned)
+	for sid in ids: assert_true(sid in owned, "unexpected stat_id rolled: %s (pack owns %s)" % [String(sid), owned])

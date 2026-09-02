@@ -420,7 +420,13 @@ func _assert_detail_matches(preset_key: String, golden: Dictionary, actual: Dict
 		if not actual_nodes.has(id):
 			continue  # already reported by the id-set assert above
 		assert_eq(String(actual_nodes[id]), String(golden_nodes[id]),
-			"%s node %d: mismatch vs golden\n--- golden ---\n%s\n--- actual ---\n%s"
+			("%s node %d: mismatch vs golden. If you just TUNED pool/spell/addon "
+			+ "content, this is expected and the fix is one command: "
+			+ "`mise run procgen-golden-regenerate`, review the diff, commit with "
+			+ "a message saying why generation changed. (Note a pool re-tune shifts "
+			+ "pool-SELECTION RNG consumption, so expect a wholesale reshuffle, not "
+			+ "a value-only diff.) If you did NOT touch content, this is a real "
+			+ "regression — do not regenerate.\n--- golden ---\n%s\n--- actual ---\n%s")
 			% [preset_key, id, golden_nodes[id], actual_nodes[id]])
 
 	assert_eq(actual.edges, golden.edges, "%s: edge set differs from golden" % preset_key)
@@ -440,8 +446,9 @@ func _assert_digest_matches(preset_key: String, golden: Dictionary, actual: Dict
 	assert_eq(String(actual.digest_sha256), String(golden.digest_sha256),
 		("%s: full-scale (N=%d) generation hash differs from golden, but the %d-node DETAIL tier "
 		+ "still matched — this is a change visible ONLY at full scale (per-N blocker counts, the "
-		+ "budget curve, the phased draw's aggregate shape). Regenerate locally and diff the full "
-		+ "text by hand to see what moved; do not weaken this assert to make it pass.")
+		+ "budget curve, the phased draw's aggregate shape). If you just TUNED content, run "
+		+ "`mise run procgen-golden-regenerate` and diff the full text by hand to see what moved. "
+		+ "Never weaken this assert to make it pass.")
 		% [preset_key, actual.digest_node_count, _DETAIL_NODE_COUNT])
 
 

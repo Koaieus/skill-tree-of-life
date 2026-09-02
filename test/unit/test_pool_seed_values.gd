@@ -1,140 +1,128 @@
 extends GutTest
 
-## Seed-table conformance for the v4 StatPool content (#326 acceptance).
-## Pins the flattened magnitudes + costs from #321's seed table for a
-## representative sample of pools, and sweeps EVERY flattened entry in the
-## specimen set for legal costs (acceptance 4 — the D11/D4 cost guard).
+## The v4 tier ladder as a FORMULA contract (#321 D6, re-scoped by #719).
 ##
-## The seed table (from #321, D6): cost ladder [1,2,4,8], V = [1,3,7,15];
-## `value = unit_value × V[t]` unless a per-tier `value_overrides` entry
-## replaces it. This file exists because the flatten result is the contract
-## the rest of the draw pipeline consumes — if a pool drifts from the table,
-## budget math and weight profiles drift with it silently.
+## Every test here builds its own [StatPool] in code and pins the resulting
+## table as literals. Nothing in this file reads `procgen/pools/*.tres`, and
+## that is the point: the owner tunes those between balance passes, so a test
+## that pinned their `unit_value` asserted the tuner's numbers rather than the
+## engine's behaviour and went red on every deliberate pass (#717). Literals on
+## a hand-built pool can't drift with content, and — unlike a test that
+## re-derives the recurrence from the pool's own fields — they cannot mirror a
+## bug in [method StatPool._tier_magnitude_bounds] and silently assert nothing.
+##
+## The ladder (#321 D6): cost = [1,2,4,8], V = [1,3,7,15]. A tier's HIGH bound
+## is `unit_value × V[t]` (or its `value_overrides` entry); its LOW bound
+## follows `L(1) = M`, `L(t+1) = H(t) + M`, where M is `range_floor` and
+## defaults to `unit_value`. Value rungs are indexed relative to `min_tier`;
+## cost stays absolute.
+##
+## Where the other two halves of pool coverage live:
+##   - **Do the shipped pools obey this formula?** — `test_pool_range_bounds.gd`
+##     sweeps every pool in the specimen set for conformance against whatever
+##     it authors. Tune-proof: the `.tres` is the input, never the expectation.
+##   - **Did pool content change unintentionally?** — the procgen goldens
+##     (`test/unit/procgen/test_preset_generation_golden.gd`). That is their
+##     job, and they are the only layer that should go red on a tune.
 
-const _SET := preload("res://procgen/pools/specimen_pool_set.tres")
+
+## A bare pool with no archetype/tags — just the ladder fields under test.
+func _pool(unit: float, op: int = StatModifier.Operation.ADD_BASE,
+		min_t: int = 1, max_t: int = 4, floor_m: float = StatPool.FLOOR_UNSET) -> StatPool:
+	var p := StatPool.new()
+	p.stat_id = &"strength"
+	p.operation = op
+	p.unit_value = unit
+	p.min_tier = min_t
+	p.max_tier = max_t
+	p.range_floor = floor_m
+	return p
 
 
-## Finds the (first) pool in the set matching archetype affinity + target stat
-## + operation. `archetype_stat` must be the pack's archetype (or `&""` for
-## the universal mobility pack).
-func _find_pool(archetype_stat: StringName, stat_id: StringName, op: int) -> StatPool:
-	for pack in _SET.packs:
-		if pack.archetype_stat != archetype_stat:
-			continue
-		for sp in pack.pools:
-			var p: StatPool = sp as StatPool
-			if p.stat_id == stat_id and int(p.operation) == op:
-				return p
-	fail_test("pool not found: arch=%s stat=%s op=%d" % [archetype_stat, stat_id, op])
-	return null
-
-
-func test_strength_addb_flattens_to_seed_table() -> void:
-	# Seed row shape: strength .addb, T1..T4 highs are `unit x V[t]` at costs
-	# 1 2 4 8 (V = [1,3,7,15]), lows follow the #628 recurrence L(1) = M,
-	# L(t+1) = H(t) + M. The seed table's original numbers (unit 2, default
-	# M = unit_value → +2 +6 +14 +30 with a zero-width T1) were re-tuned by
-	# `b3975d8 chore: tweak procgen pools`, which raised `unit_value` to 3
-	# and authored an explicit `range_floor` of 1.0 — deliberate tuning, so
-	# this file re-points onto it rather than pinning the retired values
-	# (#717). What it still pins is the LADDER: that both bounds are exactly
-	# what the formula says for the values the pool authors today. See
-	# test_pool_range_bounds.gd for the formula itself.
-	var p := _find_pool(&"strength", &"strength", StatModifier.Operation.ADD_BASE)
-	var entries := p.to_entries()
-	assert_eq(entries.size(), 4, "strength.addb offers T1..T4")
-	assert_eq(p.unit_value, 3.0, "strength.addb unit (b3975d8)")
-	assert_eq(p.range_floor, 1.0, "strength.addb authors an explicit M (b3975d8)")
-	var expected_highs := [3.0, 9.0, 21.0, 45.0]   # unit 3 x V = [1,3,7,15]
-	var expected_lows := [1.0, 4.0, 10.0, 22.0]    # M=1 authored: L1=1, L(t+1)=H(t)+1
-	var expected_costs := [1, 2, 4, 8]
-	for i in entries.size():
+func _assert_table(entries: Array[ModifierPoolEntry], costs: Array, lows: Array, highs: Array,
+		what: String) -> void:
+	assert_eq(entries.size(), costs.size(), "%s: one entry per offered tier" % what)
+	for i in mini(entries.size(), costs.size()):
 		var e: ModifierPoolEntry = entries[i]
-		assert_eq(e.cost, expected_costs[i], "strength.addb T%d cost" % [i + 1])
-		assert_almost_eq(e.value_range.y, expected_highs[i], 0.001, "strength.addb T%d high (unchanged by #628)" % [i + 1])
-		assert_almost_eq(e.value_range.x, expected_lows[i], 0.001, "strength.addb T%d low (authored M=1)" % [i + 1])
+		assert_eq(e.cost, costs[i], "%s T%d cost" % [what, i + 1])
+		assert_almost_eq(e.value_range.x, lows[i], 0.001, "%s T%d low" % [what, i + 1])
+		assert_almost_eq(e.value_range.y, highs[i], 0.001, "%s T%d high" % [what, i + 1])
 
 
-func test_crit_chance_inc_flattens_with_overrides() -> void:
-	# Seed row: crit_chance .inc, unit 5, overrides {3: 50, 4: 100} →
-	# +5 +15 +50 +100 at costs 1 2 4 8. #628: these are highs — unchanged.
-	# #629's decision text: an override "pins a tier to an exact value,
-	# bypassing the roll entirely" — so T3/T4 are zero-width fixed points at
-	# their override, not chain-computed. T1/T2 have no override and follow
-	# the normal chain (default M=5=unit_value): L1=M=5, L2=H(1)+M=10.
-	# See test_pool_range_bounds.gd for the guard this bypass still needs
-	# (an override can invert a LATER, non-overridden tier's chain).
-	var p := _find_pool(&"dexterity", &"crit_chance", StatModifier.Operation.INCREASE)
-	var entries := p.to_entries()
-	assert_eq(entries.size(), 4, "crit_chance.inc offers T1..T4")
-	var expected_highs := [5.0, 15.0, 50.0, 100.0]
-	var expected_lows := [5.0, 10.0, 50.0, 100.0]
-	var expected_costs := [1, 2, 4, 8]
-	for i in entries.size():
-		var e: ModifierPoolEntry = entries[i]
-		assert_eq(e.cost, expected_costs[i], "crit_chance.inc T%d cost" % [i + 1])
-		assert_almost_eq(e.value_range.y, expected_highs[i], 0.001, "crit_chance.inc T%d high (unchanged by #628)" % [i + 1])
-		assert_almost_eq(e.value_range.x, expected_lows[i], 0.001, "crit_chance.inc T%d low" % [i + 1])
+func test_addb_with_default_floor_flattens_to_the_seed_table() -> void:
+	# The original #321 seed row (unit 2, no authored floor): T1..T4 resolve to
+	# +2 +6 +14 +30 at costs 1 2 4 8. With M defaulting to `unit_value`, T1 is
+	# a zero-width fixed point and T2..T4 gain real width off the recurrence.
+	_assert_table(_pool(2.0).to_entries(),
+			[1, 2, 4, 8], [2.0, 4.0, 8.0, 16.0], [2.0, 6.0, 14.0, 30.0],
+			"addb unit 2, default M")
 
 
-func test_movement_points_addb_caps_at_t2() -> void:
-	# Seed row: movement_points .addb, unit 1, max_tier 2 → +1 +3 at costs 1 2.
-	# The cap (not a descending weight curve) is the honest brake (#321 D6).
-	# #628: highs unchanged; default M=1 gives L1=1 (zero-width), L2=H1+M=2.
-	var p := _find_pool(&"", &"movement_points", StatModifier.Operation.ADD_BASE)
-	var entries := p.to_entries()
-	assert_eq(entries.size(), 2, "movement_points.addb caps at T2")
-	var expected_highs := [1.0, 3.0]
-	var expected_lows := [1.0, 2.0]
-	var expected_costs := [1, 2]
-	for i in entries.size():
-		var e: ModifierPoolEntry = entries[i]
-		assert_eq(e.cost, expected_costs[i], "movement_points T%d cost" % [i + 1])
-		assert_almost_eq(e.value_range.y, expected_highs[i], 0.001, "movement_points T%d high (unchanged by #628)" % [i + 1])
-		assert_almost_eq(e.value_range.x, expected_lows[i], 0.001, "movement_points T%d low" % [i + 1])
+func test_an_authored_floor_widens_t1_and_shifts_the_low_chain() -> void:
+	# What an authored `range_floor` buys, pinned as literals: M no longer
+	# tracks `unit_value`, so T1 stops being a fixed point and every higher
+	# tier's low drops to H(previous) + M. This is the shape the shipped
+	# attribute pools took in `b3975d8` (unit 3, floor 1) — pinned HERE, on a
+	# hand-built pool, precisely so re-tuning that `.tres` cannot turn it red.
+	_assert_table(_pool(3.0, StatModifier.Operation.ADD_BASE, 1, 4, 1.0).to_entries(),
+			[1, 2, 4, 8], [1.0, 4.0, 10.0, 22.0], [3.0, 9.0, 21.0, 45.0],
+			"addb unit 3, M 1")
 
 
-func test_attribute_mul_starts_at_t3() -> void:
-	# Seed row: attribute .mul, unit 0.05, min_tier 3, pool_weight 1 →
-	# ×1.05 ×1.15 at costs 4 8 (highs — the tuning in `b3975d8` left these
-	# alone). Value rungs are indexed relative to min_tier (the pool's first
-	# tier is V1, ×1, whatever it costs); cost stays absolute. The +1 (the
-	# "more" excess) is folded into BOTH ends here. b3975d8 authored an
-	# explicit `range_floor` of 0.02 where the default (M=unit_value=0.05)
-	# used to make T3 a zero-width ×1.05 point, so T3 now spans
-	# ×1.02..×1.05 and T4 ×1.07..×1.15 (L4 = H3 + M = 0.05 + 0.02).
-	var p := _find_pool(&"strength", &"strength", StatModifier.Operation.MULTIPLY)
-	var entries := p.to_entries()
-	assert_eq(entries.size(), 2, "strength.mul offers T3..T4 only")
-	assert_eq(p.range_floor, 0.02, "strength.mul authors an explicit M (b3975d8)")
-	assert_eq(entries[0].cost, 4)
-	assert_eq(entries[1].cost, 8)
-	assert_almost_eq(entries[0].value_range.y, 1.05, 0.001, "T3 high → ×1.05")
-	assert_almost_eq(entries[0].value_range.x, 1.02, 0.001, "T3 low → ×1.02 (M=0.02, pool's first tier)")
-	assert_almost_eq(entries[1].value_range.y, 1.15, 0.001, "T4 high → ×1.15")
-	assert_almost_eq(entries[1].value_range.x, 1.07, 0.001, "T4 low → ×1.07 (H3 + M)")
+func test_overrides_pin_their_own_tier_and_still_feed_the_next_low() -> void:
+	# #629: an override "pins a tier to an exact value, bypassing the roll
+	# entirely" — so an overridden tier is a zero-width fixed point. Its
+	# (overridden) H still feeds the NEXT tier's low through the chain. The
+	# seed row that motivated the escape hatch is crit_chance .inc: unit 5,
+	# overrides {3: 50, 4: 100} → +5 +15 +50 +100 at costs 1 2 4 8.
+	var p := _pool(5.0, StatModifier.Operation.INCREASE)
+	p.value_overrides = {3: 50.0, 4: 100.0}
+	# T1 = M = 5 (zero-width, min_tier); T2 low = H(1) + M = 10; T3/T4 are
+	# their own overrides at both ends.
+	_assert_table(p.to_entries(),
+			[1, 2, 4, 8], [5.0, 10.0, 50.0, 100.0], [5.0, 15.0, 50.0, 100.0],
+			"inc unit 5 + overrides")
+
+
+func test_max_tier_is_the_honest_brake() -> void:
+	# `max_tier < 4` caps a flat ladder instead of hiding the brake in a
+	# descending weight curve (#321 D6) — the shape the mobility pack uses:
+	# unit 1, max_tier 2 → +1 +3 at costs 1 2, nothing above.
+	_assert_table(_pool(1.0, StatModifier.Operation.ADD_BASE, 1, 2).to_entries(),
+			[1, 2], [1.0, 2.0], [1.0, 3.0], "addb unit 1, max_tier 2")
+
+
+func test_multiply_folds_the_plus_one_into_both_ends() -> void:
+	# For MULTIPLY, `unit_value` is the "more" EXCESS and to_entries folds the
+	# +1 into both bounds, so the ×1 base stays fixed. min_tier 3 also
+	# exercises the relative-rung rule below: T3 is the pool's FIRST tier, so
+	# it is V1 (×1) despite costing 4.
+	_assert_table(_pool(0.05, StatModifier.Operation.MULTIPLY, 3, 4).to_entries(),
+			[4, 8], [1.05, 1.10], [1.05, 1.15], "mul unit 0.05, min_tier 3")
+	# …and with an authored floor (the shape `b3975d8` gave strength .mul),
+	# T3 widens off its fixed point: M = 0.02 → ×1.02..×1.05, then
+	# L(T4) = H(T3) + M = 0.05 + 0.02 → ×1.07.
+	_assert_table(_pool(0.05, StatModifier.Operation.MULTIPLY, 3, 4, 0.02).to_entries(),
+			[4, 8], [1.02, 1.07], [1.05, 1.15], "mul unit 0.05, M 0.02")
+
+
+func test_a_negative_pool_orders_its_pair_by_role_not_by_sign() -> void:
+	# #637: a negative pool rolls a real range like any other, and the pair is
+	# ordered by ROLE — the ladder end (`unit × V[t]`, the far end) is `lo` and
+	# the recurrence end (the near end) is `hi`, mirroring a positive pool.
+	# unit -3, floor -1 → T1 -3..-1, T2 -9..-4, T3 -21..-10, all at POSITIVE
+	# cost (refund economics retired). This is the shape the CON pack's INT
+	# pool ships, pinned here so re-tuning it cannot turn this red.
+	_assert_table(_pool(-3.0, StatModifier.Operation.INCREASE, 1, 3, -1.0).to_entries(),
+			[1, 2, 4], [-3.0, -9.0, -21.0], [-1.0, -4.0, -10.0], "inc unit -3, M -1")
 
 
 func test_min_tier_indexes_value_relative_to_first_tier() -> void:
 	# The ladder rule: cost stays absolute, value rungs are indexed relative
 	# to the pool's first tier. min_tier=3 → t3 costs 4 but is V1 (×1), t4
-	# costs 8 and is V2 (×3). ADD_BASE so the magnitudes read raw. These are
-	# HIGHS (unaffected by #628); default range_floor=unit_value makes t3
-	# (the pool's first tier) a zero-width point and t4 low = H(t3) + M.
-	var p := StatPool.new()
-	p.stat_id = &"strength"
-	p.operation = StatModifier.Operation.ADD_BASE
-	p.unit_value = 1.0
-	p.min_tier = 3
-	p.max_tier = 4
-	var entries := p.to_entries()
-	assert_eq(entries.size(), 2, "min_tier=3, max_tier=4 → T3..T4 only")
-	assert_eq(entries[0].cost, 4, "t3 cost stays absolute (2^(3-1))")
-	assert_almost_eq(entries[0].value_range.y, 1.0, 0.001, "t3 is the pool's first tier → V1 = ×1")
-	assert_almost_eq(entries[0].value_range.x, 1.0, 0.001, "t3 is zero-width (default M=unit_value)")
-	assert_eq(entries[1].cost, 8, "t4 cost stays absolute (2^(4-1))")
-	assert_almost_eq(entries[1].value_range.y, 3.0, 0.001, "t4 is the second rung → V2 = ×3")
-	assert_almost_eq(entries[1].value_range.x, 2.0, 0.001, "t4 low = H(t3) + M = 1.0 + 1.0")
+	# costs 8 and is V2 (×3). Default M makes t3 zero-width, t4 low = H(t3) + M.
+	_assert_table(_pool(1.0, StatModifier.Operation.ADD_BASE, 3, 4).to_entries(),
+			[4, 8], [1.0, 2.0], [1.0, 3.0], "addb unit 1, min_tier 3")
 
 
 func test_every_flattened_entry_cost_is_legal() -> void:
@@ -147,17 +135,17 @@ func test_every_flattened_entry_cost_is_legal() -> void:
 	# universally now; budget spend is monotonic (no draw ever increases
 	# `remaining`).
 	#
-	# A negative-unit_value pool still rolls a real range (#628/#637 — it is
-	# no longer exempt): the CON pack's INT pool at unit -3%/floor -1% runs
-	# -1%/-3% / -4%/-9% / -10%/-21% across T1..T3, costing 1/2/4 — exactly
-	# like a positive pool at the same tiers.
+	# This is the one test here that still reads the shipped content, and it
+	# stays tune-proof by construction: it asserts a PROPERTY of every entry
+	# (its cost is a rung) rather than any particular pool's numbers.
 	var legal_rungs: Array[int] = []
 	for t in range(TierLadder.MIN_TIER, TierLadder.MAX_TIER + 1):
 		legal_rungs.append(TierLadder.cost(t))
 
+	var pool_set: ModifierPoolSet = preload("res://procgen/pools/specimen_pool_set.tres")
 	var checked := 0
 	var negative_pool_entries_seen := 0
-	for pack in _SET.packs:
+	for pack in pool_set.packs:
 		for sp in pack.pools:
 			var p: StatPool = sp as StatPool
 			var is_negative_pool := p.unit_value < 0.0

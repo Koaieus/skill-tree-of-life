@@ -24,37 +24,35 @@ func test_dexterity_pool_values() -> void:
 			var e0 := pp.to_entries()[0]
 			assert_almost_eq(e0.value_range.x, 1.0, 0.001, "T1 low = M (authored range_floor)")
 			assert_almost_eq(e0.value_range.y, 3.0, 0.001, "T1 high = unit x V[0]")
-func test_crit_chance_carries_t3_t4_overrides() -> void:
-	# #628 widened value_range from a fixed point to a real [L, H] per tier;
-	# checking the CENTER only meant something while every range was
-	# zero-width (pre-#628), where center == the single value. Post-#628, T2
-	# alone has real width (center 12.5, not 15) so a center check silently
-	# stopped testing anything meaningful. Assert L and H separately instead,
-	# plus the L(t+1) = H(t) + M chain the formula promises (docs/domain/
-	# procgen-v4.md) — that's what actually pins #628's behaviour here.
+func test_crit_chance_pool_uses_the_override_escape_hatch() -> void:
+	# Content invariant, not a value pin (#719). What matters about this pool
+	# is that it is the repo's exemplar of the `value_overrides` escape hatch
+	# (#321 D11) — the crit ladder is deliberately steeper than the global V
+	# curve — and that each override lands as a zero-width fixed point at its
+	# own tier (#629, "bypassing the roll entirely"). The override MAGNITUDES
+	# are the owner's to tune; the mechanism is pinned on a hand-built pool in
+	# test_pool_seed_values.gd, and the repo-wide override budget (<= 6, D11)
+	# is guarded by test_specimen_pool_set.gd.
 	var p: StatPack = _PACK.duplicate(true) as StatPack
+	var found := false
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
 		if pp.stat_id == &"crit_chance" and pp.operation == StatModifier.Operation.INCREASE:
-			assert_eq(pp.unit_value, 5.0)
-			assert_eq(pp.min_tier, 1); assert_eq(pp.max_tier, 4)
-			assert_eq(pp.to_entries().size(), 4)
-			assert_eq(pp.value_overrides, {3: 50.0, 4: 100.0})
+			found = true
+			assert_false(pp.value_overrides.is_empty(),
+					"crit_chance is the override exemplar — it must author at least one")
 			var entries := pp.to_entries()
-			# Highs are the pre-#628 seed values, exactly unchanged.
-			var expected_highs := [5.0, 15.0, 50.0, 100.0]
+			assert_eq(entries.size(), pp.max_tier - pp.min_tier + 1, "one entry per offered tier")
 			for i in entries.size():
-				assert_almost_eq(entries[i].value_range.y, expected_highs[i], 0.001,
-						"crit_chance T%d high (unchanged by #628)" % (i + 1))
-			# T1/T2 carry no override — normal chain off default M (=unit_value=5):
-			# L1 = M = 5 (zero-width, min_tier); L2 = H(1) + M = 5 + 5 = 10.
-			assert_almost_eq(entries[0].value_range.x, 5.0, 0.001, "T1 low = M")
-			assert_almost_eq(entries[1].value_range.x, 10.0, 0.001, "T2 low = H(1) + M")
-			# T3/T4 ARE overridden: #629's decision is that an override "pins a
-			# tier to an exact value, bypassing the roll entirely" — so each is
-			# its own fixed point (low == high == override), not chain-computed.
-			assert_almost_eq(entries[2].value_range.x, 50.0, 0.001, "T3 low == override (bypasses the roll)")
-			assert_almost_eq(entries[3].value_range.x, 100.0, 0.001, "T4 low == override (bypasses the roll)")
+				var tier := pp.min_tier + i
+				if pp.value_overrides.has(tier):
+					assert_almost_eq(entries[i].value_range.x, entries[i].value_range.y, 0.001,
+							"an overridden tier (T%d) is a zero-width fixed point" % tier)
+					assert_almost_eq(entries[i].value_range.y, float(pp.value_overrides[tier]), 0.001,
+							"T%d high == its override" % tier)
+	assert_true(found, "the dexterity pack must carry a crit_chance INCREASE pool at all")
+
+
 func test_draw_only_emits_pack_stat_ids() -> void:
 	var pool_set := ModifierPoolSet.new()
 	pool_set.packs = [_PACK.duplicate(true)]
@@ -63,4 +61,13 @@ func test_draw_only_emits_pack_stat_ids() -> void:
 		var mods: Array = _GP._roll_modifiers_v4(pool_set, [], &"dexterity", &"dexterity", [] as Array[StringName], Vector2.ZERO, 0, 8, _rng(seed_value))
 		for m in mods: if not (m.stat_id in ids): ids.append(m.stat_id)
 	# every rolled stat_id must be one this pack owns
-	for sid in ids: assert_true(sid in [&"dexterity", &"crit_chance", &"crit_multiplier"], "unexpected stat_id rolled: %s" % String(sid))
+	# Every rolled stat_id must be one this pack owns — read OFF the pack, not
+	# a hand-listed set (#719). A literal list goes stale the moment a pool is
+	# added to the pack: the content change is deliberate and the test fails
+	# anyway, blaming the roll for a fact about the fixture. Derived, it
+	# asserts what its name says — no cross-pack leakage.
+	var owned: Array[StringName] = []
+	for sp in (pool_set.packs[0] as StatPack).pools:
+		var sid_owned := (sp as StatPool).stat_id
+		if not (sid_owned in owned): owned.append(sid_owned)
+	for sid in ids: assert_true(sid in owned, "unexpected stat_id rolled: %s (pack owns %s)" % [String(sid), owned])

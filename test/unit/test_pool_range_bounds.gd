@@ -123,14 +123,6 @@ func test_every_authored_pool_default_m_matches_old_highs_and_validates() -> voi
 			for w in warnings:
 				assert_false("range_floor" in w or "inverted" in w,
 						"%s should validate: %s" % [String(p.stat_id), w])
-			if not is_inf(p.range_floor):
-				# A pool that DELIBERATELY authors a floor is outside this test's
-				# scope: the "no rebalance" invariant below is about what the
-				# DEFAULT M reproduces. #637 made `intelligence +%` such a pool
-				# (unit_value -3.0, range_floor -1.0) on purpose, and its exact
-				# per-tier table is pinned by test_constitution_pool.gd. It still
-				# has to validate cleanly, which is asserted just above.
-				continue
 			var lo := clampi(p.min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)
 			var hi := clampi(p.max_tier, lo, TierLadder.MAX_TIER)
 			var entries := p.to_entries()

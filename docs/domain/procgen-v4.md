@@ -210,6 +210,14 @@ scenes exist and load; they are not yet placed by `first_level.tres`.
 
 ## Seed table (settled in #321)
 
+> **This is the #321 SEED, not current content.** The owner re-tunes these
+> between balance passes (`b3975d8` alone moved attribute `.addb` to unit 3,
+> `crit_multiplier .inc` to unit 5, and authored `range_floor` on twelve
+> pools). The live values are in `procgen/pools/*.tres` — read them with the
+> "Print tier table" inspector button on a `StatPool`, or the set-level button
+> on `ModifierPoolSet`. This table stays as the shape the ladder was designed
+> around; do not treat a divergence from it as a bug.
+
 `unit` = `unit_value` (T1 magnitude; negative = debuff). `pool_w` =
 `pool_weight`. Default `jitter = 0.25`, `tier_bias_k = 1.0`. ADD*/INCREASE/
 ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
@@ -250,3 +258,65 @@ toward `mythic`-tagged (T4) content, and because `value(t) = 2·cost(t) − 1`
 composition is itself a power lever, the real swing was closer to ~7.5x —
 a hidden second gradient stacked on the budget one. Retuning from these
 seeds is #268's job once the balance harness exists.
+
+## Tuning a pool: what goes red, and what to run
+
+Settled in #719, after two investigation cycles (#717 and the earlier
+`ef67e82` INT-pool case) burned on the same confusion.
+
+**Only the procgen goldens should go red on a content tune.** Editing
+`unit_value` / `range_floor` / `pool_weight` / `min_tier` / `max_tier`, or
+adding a pool to a pack, must not fail a unit test. If it does, that test is
+asserting the tuner's numbers instead of the engine's behaviour — fix the
+test, not the tuning.
+
+The three layers, and what each is allowed to know:
+
+| layer | reads | goes red on a tune? |
+|---|---|---|
+| `test_pool_seed_values.gd` | nothing — hand-built `StatPool`s | never |
+| `test_pool_range_bounds.gd` | every pool in the specimen set, as **input** | never |
+| `test_preset_generation_golden.gd` | full generated output | **yes, by design** |
+
+- The **formula** (`H = unit × V[t]`, `L(1) = M`, `L(t+1) = H(t) + M`, cost
+  ladder, override fixed points, min_tier-relative rungs, negative-pool
+  role-ordering) is pinned as **literals on hand-built pools**. Never re-derive
+  the recurrence from a pool's own fields in a test: it is stateful enough that
+  the mirror would reproduce any bug in `_tier_magnitude_bounds` and the
+  assertion would be vacuous.
+- **Shipped content** is only ever swept for *conformance* to that formula. The
+  `.tres` is the input, never the expectation. (This sweep used to skip any
+  pool authoring an explicit `range_floor` — which meant `b3975d8` silently
+  dropped twelve pools, including all four of `strength.tres`, out of coverage
+  at the same moment it broke the value pins. Removed in #719.)
+- A pack's **stat allowlist** is derived from the pack, not hand-listed. A
+  literal list goes stale the moment a pool is added and then blames the roll
+  for a fact about the fixture.
+
+**A pool re-tune reshuffles both goldens wholesale — a value-only diff is the
+exception, not the rule.** Pool *selection* is weighted, so changing a
+`pool_weight`, adding a pool, or dropping a `max_tier` cap changes how much RNG
+the draw consumes at the first node of that archetype; everything downstream
+then differs by *position*, not just by magnitude. #717 predicted a one-line
+golden diff from a single spell grant and got a full reshuffle, because a pool
+tune had landed in between. Don't try to reconcile such a diff line by line —
+it is unattributable by construction. Check it in aggregate instead: the
+line-tag census (counts per `MOD`/`ADDON`/`SPELL` kind) should be unchanged
+*in kind*, and spot-check that any new extreme value is reachable under the
+new authoring.
+
+The fix for a red golden is one command:
+
+```
+mise run procgen-golden-regenerate    # rewrites both fixtures, then review the diff
+```
+
+It flips `_REGENERATE`, runs the test alone (which `fail_test()`s on purpose
+after writing), and flips the flag back. Commit the fixtures with a message
+saying *why* generation was supposed to change.
+
+**One test is meant to be tune-sensitive:**
+`test_specimen_pool_set.gd::test_value_overrides_stay_under_repo_budget` caps
+the repo at 6 `value_overrides` (D11). Adding a seventh turns it red on
+purpose — that is the escape hatch's budget working, not fragility. Raise the
+budget deliberately or use the ladder instead.
