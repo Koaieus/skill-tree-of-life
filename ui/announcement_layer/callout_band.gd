@@ -100,15 +100,16 @@ func _size_label() -> void:
 	_label.position.y = -bar_height * 0.5
 
 
-## STR red / DEX green / INT blue — see .claude/rules/ui-palette.md. Magic
-## uses the generic spell/INT blue rather than per-spell color; a per-spell
-## tint would need a SpellDef.tint_color field, not added here (YAGNI).
+## STR red / DEX green / INT blue, read live off StatDef.tint_color via
+## StatRegistry — see .claude/rules/ui-palette.md. Magic uses the generic
+## spell/INT blue rather than per-spell color; a per-spell tint would need a
+## SpellDef.tint_color field, not added here (YAGNI).
 func _apply_style(style: AnnouncementRequest.Style) -> void:
 	var color: Color
 	match style:
-		AnnouncementRequest.Style.MELEE: color = Color(0.9451, 0.2689, 0.2453, 1)
-		AnnouncementRequest.Style.RANGED: color = Color(0.3187, 0.7773, 0.4484, 1)
-		AnnouncementRequest.Style.MAGIC: color = Color(0.291, 0.5892, 1.0, 1) # TODO: didn't we have a central repository for these? or is the current (the `StatDef`s themselves) the best location?
+		AnnouncementRequest.Style.MELEE: color = StatRegistry.get_def(&"strength").tint_color
+		AnnouncementRequest.Style.RANGED: color = StatRegistry.get_def(&"dexterity").tint_color
+		AnnouncementRequest.Style.MAGIC: color = StatRegistry.get_def(&"intelligence").tint_color
 		_: color = Color(0.95, 0.85, 1.0)
 
 	var sb := StyleBoxFlat.new()

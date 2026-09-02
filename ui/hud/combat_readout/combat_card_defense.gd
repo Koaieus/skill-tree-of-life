@@ -6,7 +6,7 @@ extends CombatReadoutCard
 ## Never mode-highlighted (not tied to an AttackMode) — the shell still
 ## flashes it via [method flash_unmute] on any relevant stat change.
 
-# TODO: Complete refactor to inherited scene like MeleeCard and RangedCard
+# Inherited-scene cutover unfinished relative to MeleeCard/RangedCard — see #723.
 
 
 @onready var _armor_row: CombatValueRow = %ArmorRow

@@ -6,6 +6,7 @@ paths:
   - "ui/theme/**"
   - "ui/frontmatter/**"
   - "ui/floating_number_layer/**"
+  - "ui/announcement_layer/**"
 ---
 
 # UI color palette ("Arcane Terminal")
