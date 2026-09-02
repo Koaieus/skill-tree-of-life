@@ -42,6 +42,11 @@ signal peer_joined(peer_id: int)
 ## A peer went away.
 signal peer_left(peer_id: int)
 
+## This machine's own link went away without it asking (#716) — a dial that
+## failed, a host that quit, a host that dropped us. Emitted AFTER [method stop]
+## has run, so [member role] already reads OFFLINE.
+signal link_lost(reason: String)
+
 ## Mirrors [enum NetworkTransport.Role] by value. Declared here rather than
 ## imported so this singleton does not depend on the seam that wraps it — the
 ## dependency runs the other way.
@@ -52,6 +57,13 @@ var role: NetworkTransport.Role = NetworkTransport.Role.OFFLINE
 var _peers: PackedInt32Array = PackedInt32Array()
 
 var _peer: ENetMultiplayerPeer
+
+## The last line [signal link_changed] carried. A lobby that mounts AFTER a dial
+## already failed has no signal left to catch — `create_client` errors
+## synchronously on an unreachable or malformed address, before any screen could
+## be listening — so the last announcement is the only thing left to show
+## (#716 item 4).
+var last_status: String = ""
 
 
 ## Listen on [param port]. [constant OK] means the socket is open, not that
@@ -91,7 +103,13 @@ func start_client(address: String, port: int) -> Error:
 ## state it never boots into, and the damage lands nowhere near here: in GUT it
 ## surfaced as `Condition "multiplayer_peer.is_null()" is true` on ~30 unrelated tests
 ## that merely ran after a link was closed.
+## Nothing open means nothing to close, and that early return is what makes this
+## safe to call from every leave path (#716 item 2): [method GameSession.end]
+## and the lobby back-out both call it unconditionally, and neither should
+## reinstall an [OfflineMultiplayerPeer] over a process that never had a socket.
 func stop() -> void:
+	if not is_open():
+		return
 	if _peer != null:
 		_peer.close()
 		_peer = null
@@ -106,6 +124,47 @@ func send(payload: Dictionary) -> void:
 	if not is_linked():
 		return
 	_receive.rpc(payload)
+
+
+## Ship [param payload] to ONE peer (#716). Gated on that peer still being on our
+## books: `rpc_id` at an id ENet no longer knows is an engine error, not a
+## silent drop, and the whole point of this call site is a peer that is about to
+## be disconnected.
+func send_to(peer_id: int, payload: Dictionary) -> void:
+	if not _peers.has(peer_id):
+		return
+	_receive.rpc_id(peer_id, payload)
+
+
+## Disconnect ONE peer and keep listening (#716 item 1). Host-only — a client's
+## only peer is the server, and hanging that up is [method stop].
+##
+## [b]The book is updated here rather than left to ENet.[/b]
+## `disconnect_peer` schedules the drop; `peer_disconnected` arrives a poll or
+## more later, and every caller wants "that peer is gone" to be true the instant
+## it asked. [method _on_peer_disconnected] is idempotent for exactly this
+## reason, so ENet's own later notification is a no-op rather than a second
+## [signal peer_left].
+func drop_peer(peer_id: int) -> void:
+	if role != NetworkTransport.Role.HOST:
+		return
+	if _peer != null:
+		_peer.disconnect_peer(peer_id)
+	var idx := _peers.find(peer_id)
+	if idx == -1:
+		return
+	_peers.remove_at(idx)
+	_announce("peer %d dropped" % peer_id)
+	peer_left.emit(peer_id)
+
+
+## The port this machine is actually bound to, or `0` when it is not hosting.
+## Asked for by a caller that wants to re-open the very endpoint it just held —
+## which is the only way to state #716 acceptance 3 when the port was ephemeral.
+func port() -> int:
+	if _peer == null or role != NetworkTransport.Role.HOST:
+		return 0
+	return _peer.host.get_local_port()
 
 
 ## True when a peer is actually on the other end, not merely listening.
@@ -169,10 +228,15 @@ func _on_peer_connected(id: int) -> void:
 	peer_joined.emit(id)
 
 
+## Idempotent: an id [method drop_peer] already took off the books produces
+## nothing here, so ENet's own `peer_disconnected` for a peer this machine hung
+## up cannot fire [signal peer_left] a second time — and a lobby seat cannot be
+## returned to "waiting" twice, once per notification.
 func _on_peer_disconnected(id: int) -> void:
 	var idx := _peers.find(id)
-	if idx != -1:
-		_peers.remove_at(idx)
+	if idx == -1:
+		return
+	_peers.remove_at(idx)
 	_announce("peer %d disconnected" % id)
 	peer_left.emit(id)
 
@@ -185,17 +249,27 @@ func _on_connected_to_server() -> void:
 	peer_joined.emit(NetworkTransport.HOST_PEER_ID)
 
 
+## [b]`stop()` comes FIRST, and that order is the whole fix (#716 item 4).[/b]
+## [method EnetTransport._on_wire_status] copies [member role] out of this
+## singleton on every announcement, so announcing before the teardown handed the
+## facade the role it was ABOUT to stop being — CLIENT — and nothing above the
+## seam ever learned the link had died. Announce the state that is already true.
 func _on_connection_failed() -> void:
-	_announce("client: connection FAILED")
-	stop()
+	_lost("could not reach the host")
 
 
 func _on_server_disconnected() -> void:
-	_announce("client: host went away")
+	_lost("the host went away")
+
+
+func _lost(reason: String) -> void:
 	stop()
+	_announce("client: %s" % reason)
+	link_lost.emit(reason)
 
 
 func _announce(status: String) -> void:
+	last_status = status
 	link_changed.emit(status)
 
 

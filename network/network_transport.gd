@@ -44,10 +44,21 @@ signal link_changed(status: String)
 ## fires for the server (id 1) when the dial completes.
 signal peer_joined(peer_id: int)
 
-## A peer went away. Emitted for symmetry and for a log; the sync model's
-## answer to a disconnect is still "a desync is a restart" (#554 NOTES), so
-## nothing derives run state from this yet.
+## A peer went away. Since #716 the LOBBY derives state from this: a seat whose
+## peer dropped goes back to waiting ([method LobbyScreen._on_link_peer_left]).
+## In a RUN nothing does, and that is still deliberate — the sync model's answer
+## to an in-run disconnect is "a desync is a restart" (#554 NOTES).
 signal peer_left(peer_id: int)
+
+## This machine's link went away without it asking (#716): a failed dial, a host
+## that went away, a host that dropped us. Distinct from [signal link_changed],
+## which is prose for a log, and from [signal peer_left], which is about somebody
+## ELSE — this one says the local end is offline now.
+##
+## [b]Emitted AFTER the transport is already OFFLINE[/b], so a listener that
+## repaints a lobby reads the state it is being told about rather than the one
+## that is about to be true.
+signal link_lost(reason: String)
 
 ## The id Godot's high-level multiplayer always gives the server. Named here
 ## rather than typed as a literal at each site that stamps the host's own
@@ -77,6 +88,23 @@ func stop() -> void:
 ## Ship [param payload] to the other side. Silently drops when not linked — a
 ## transport is not the place to decide that an unsent message is an error.
 func send(_payload: Dictionary) -> void:
+	pass
+
+
+## Ship [param payload] to ONE peer (#716). Same silent-drop contract as
+## [method send]; the default is a no-op for the same reason.
+##
+## [b]Why the seam needs it at all.[/b] The build-stamp gate now runs host-side,
+## per joining peer, before a seat is offered — and the refusal has to reach that
+## peer alone. A broadcast refusal would print on every client that is already
+## seated and happily linked.
+func send_to(_peer_id: int, _payload: Dictionary) -> void:
+	pass
+
+
+## Disconnect ONE peer, leaving the link up for everybody else (#716). Host-side;
+## a client has nothing to drop but its own link, which is [method stop].
+func drop_peer(_peer_id: int) -> void:
 	pass
 
 

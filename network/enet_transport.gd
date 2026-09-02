@@ -69,6 +69,14 @@ func send(payload: Dictionary) -> void:
 	Wire.send(payload)
 
 
+func send_to(peer_id: int, payload: Dictionary) -> void:
+	Wire.send_to(peer_id, payload)
+
+
+func drop_peer(peer_id: int) -> void:
+	Wire.drop_peer(peer_id)
+
+
 func is_linked() -> bool:
 	return Wire.is_linked()
 
@@ -108,6 +116,7 @@ func _bind() -> void:
 	Wire.link_changed.connect(_on_wire_status)
 	Wire.peer_joined.connect(_on_wire_peer_joined)
 	Wire.peer_left.connect(_on_wire_peer_left)
+	Wire.link_lost.connect(_on_wire_link_lost)
 
 
 func _unbind() -> void:
@@ -118,6 +127,7 @@ func _unbind() -> void:
 	Wire.link_changed.disconnect(_on_wire_status)
 	Wire.peer_joined.disconnect(_on_wire_peer_joined)
 	Wire.peer_left.disconnect(_on_wire_peer_left)
+	Wire.link_lost.disconnect(_on_wire_link_lost)
 
 
 func _on_wire_message(payload: Dictionary) -> void:
@@ -139,3 +149,10 @@ func _on_wire_peer_joined(id: int) -> void:
 
 func _on_wire_peer_left(id: int) -> void:
 	peer_left.emit(id)
+
+
+## #716: the local link died without this machine asking. [Wire] tears down
+## BEFORE it announces, so [member role] has already been re-read as OFFLINE by
+## [method _on_wire_status] when this arrives.
+func _on_wire_link_lost(reason: String) -> void:
+	link_lost.emit(reason)

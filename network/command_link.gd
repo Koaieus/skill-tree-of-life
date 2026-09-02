@@ -82,6 +82,14 @@ const KEY_BUILD := "build"
 ## sends one, it sends the single row it touched and lets the host answer with
 ## the whole thing.
 const KEY_PICK := "pick"
+## #716: the SENDER's own peer id, on a client's announce. The host needs it to
+## know which peer to clear or refuse, and it cannot read it off the envelope —
+## nothing under [method NetworkTransport.send] carries a return address.
+##
+## Same trust model as [constant LobbyScreen.PICK_PEER]: one LAN, one room, and a
+## peer that lies about its id can only refuse or clear ITSELF, because the
+## reject is aimed at the id in the payload.
+const KEY_PEER := "peer"
 
 ## Keys inside [constant KEY_BUILD]. Only [constant BUILD_SHA] is COMPARED; the
 ## other two exist so the refusal message can name what the peer was on.
@@ -204,6 +212,18 @@ signal resync_applied(reason: String)
 ## Terminal — nothing reconnects, by design.
 signal link_refused(reason: String)
 
+## #716, host-side: this peer announced itself and its build matches ours. THE
+## gate a joiner clears before anything is offered to it — [LobbyScreen] seats a
+## peer on this signal rather than on [signal NetworkTransport.peer_joined],
+## which is what makes "a refused peer never appears in anyone's roster" a
+## property of the wiring rather than of a check somebody has to remember.
+signal peer_cleared(peer_id: int)
+
+## #716, host-side: this peer's build does not match ours and it has been
+## disconnected. The listener is up, every other peer is untouched, and nothing
+## on this end latched — refusing the PEER is not refusing the socket.
+signal peer_refused(peer_id: int, reason: String)
+
 ## #646: a [LootPickOffer] arrived — a REMOTE collector's peer owes a pick.
 ## [method LootSystem._on_loot_offer_received] is the one consumer (#564): the
 ## mirror-side adapter that rebuilds the offer into the same [LootPickRequest] /
@@ -322,9 +342,33 @@ func _local_peer_id() -> int:
 
 
 ## The link came up, so the transport now knows an id the role could only guess.
+##
+## [b]A CLIENT also ANNOUNCES here (#716).[/b] The build-stamp gate used to ride
+## the host's hello, which a lobby only sends once a level exists — so a joiner
+## on the wrong commit was already seated by the time anybody compared. Now the
+## first thing a client puts on the wire is its own stamp, the instant its dial
+## completes, and the host answers by clearing or refusing it. The hello itself
+## is unchanged and still goes the other way: this is an ADDITIONAL, upward leg,
+## not a move of the existing one.
 func _on_transport_peer_joined(_peer_id: int) -> void:
 	if command_applier != null:
 		command_applier.local_peer_id = _local_peer_id()
+	if mode == Mode.MIRROR:
+		announce_self()
+
+
+## Client-side: "here I am, and this is the code I am running." Its own send
+## rather than a branch inside [method send_hello], which is host-only and
+## carries a world.
+func announce_self() -> void:
+	if transport == null or mode != Mode.MIRROR:
+		return
+	transport.send({
+		KEY_KIND: KIND_HELLO,
+		KEY_BUILD: build_stamp,
+		KEY_PEER: transport.local_peer_id(),
+	})
+	logged.emit("↑ hello (%s)" % describe_build(build_stamp))
 
 
 ## Announce our world to a freshly-connected peer. Host-side; the client's reply
@@ -887,6 +931,49 @@ func _refuse(reason: String, theirs: Dictionary) -> void:
 	link_refused.emit(reason)
 
 
+## #716, host-side: the gate a joining peer clears before it is offered
+## anything. Same comparison as [method _accept_build] — absent is a mismatch,
+## present-but-empty is a match, only the sha counts — reached through the one
+## place that decides it.
+##
+## [b]It emits rather than acts.[/b] Whether a cleared peer gets a lobby seat, a
+## run setup, or nothing at all is not this class's call; what is this class's
+## call is that no peer is heard from before the comparison ran.
+func _gate_peer(payload: Dictionary) -> void:
+	var peer_id := int(payload.get(KEY_PEER, 0))
+	if not payload.has(KEY_BUILD):
+		_refuse_peer(peer_id, "the peer sent no build stamp — it predates this check", {})
+		return
+	var theirs: Dictionary = payload.get(KEY_BUILD, {})
+	if String(theirs.get(BUILD_SHA, "")) != String(build_stamp.get(BUILD_SHA, "")):
+		_refuse_peer(peer_id, "build mismatch", theirs)
+		return
+	logged.emit("↑ peer %d cleared (%s)" % [peer_id, describe_build(theirs)])
+	peer_cleared.emit(peer_id)
+
+
+## Hang up on ONE peer and keep listening (#716 item 1, acceptance 1).
+##
+## [b]No latch and no [method NetworkTransport.stop].[/b] Both are what
+## [method _refuse] does, and both are wrong for a host: the listener the socket
+## holds belongs to every other peer on it, and a latch would make this machine
+## deaf to the client whose checkout the operator is about to fix. What the host
+## loses by staying up is nothing — a refused peer is no longer connected, so it
+## has no way to say anything else.
+##
+## The reject goes out BEFORE the disconnect, same reason [method _refuse]
+## documents: a message aimed at a peer that is already gone is dropped, and then
+## the refused end has nothing on screen to explain itself with.
+func _refuse_peer(peer_id: int, reason: String, theirs: Dictionary) -> void:
+	_log_refusal(reason, theirs)
+	if transport != null:
+		transport.send_to(peer_id, {
+			KEY_KIND: KIND_REFUSED, KEY_BUILD: build_stamp, KEY_SUMMARY: reason,
+		})
+		transport.drop_peer(peer_id)
+	peer_refused.emit(peer_id, reason)
+
+
 ## The other end did the comparing, so this side only reports it.
 ##
 ## [b]It deliberately neither latches nor stops.[/b] Both are one line and both
@@ -903,10 +990,24 @@ func _refuse(reason: String, theirs: Dictionary) -> void:
 ## [method _on_remote_command] requires [constant Mode.MIRROR], so a stale peer
 ## still cannot make it apply anything. The latch belongs on the side that
 ## REFUSED, where [method _refuse] sets it.
+##
+## [b]A CLIENT told this does latch, since #716.[/b] Everything above is about a
+## HOST, and stays true for one. A client, though, has just been disconnected by
+## the peer that sent this — [method _refuse_peer] drops it — so there is no
+## socket left to be deaf on, and going quiet is what stops it acting on
+## anything still in flight. The one behaviour that must not change either way is
+## [method NetworkTransport.stop] on a host, which is why the latch is the only
+## line under the mode check.
+##
+## The reason travels (#716 item 4): the lobby shows it, so "Refused" alone —
+## which is all this used to emit — would put a screen in front of a human that
+## says a build mismatch happened without saying which build.
 func _on_refused_by_peer(payload: Dictionary) -> void:
-	_log_refusal(String(payload.get(KEY_SUMMARY, "build mismatch")),
-			payload.get(KEY_BUILD, {}))
-	link_refused.emit("refused by peer")
+	var summary := String(payload.get(KEY_SUMMARY, "build mismatch"))
+	_log_refusal(summary, payload.get(KEY_BUILD, {}))
+	if mode == Mode.MIRROR:
+		_refused = true
+	link_refused.emit("refused by peer — %s" % summary)
 
 
 func _log_refusal(reason: String, theirs: Dictionary) -> void:
@@ -939,11 +1040,21 @@ static func describe_build(stamp: Dictionary) -> String:
 	return "%s (%s)" % [sha, where]
 
 
-## The link-up check. A mismatch HERE — before a single command has crossed —
-## means the two graphs disagree about node identity, which in a hand-authored
-## scene almost always means unminted `stable_id`s. That is the failure this
-## harness is built to make loud.
+## A hello means two different things depending on which end reads it (#716), so
+## it dispatches on [member mode] rather than growing a second kind:
+##
+## - under [constant Mode.BROADCAST] it is a JOINER announcing itself, and the
+##   answer is [method _gate_peer] — clear that peer or hang up on that peer;
+## - under [constant Mode.MIRROR] it is the host's world announcement, unchanged
+##   since #546, and a mismatch hangs up this machine's own link.
+##
+## The asymmetry is the point. A client owns nothing but its own link, so
+## [method _refuse] closing it is correct; a host owns the listener every OTHER
+## peer is on, so it must never take that route.
 func _on_hello(payload: Dictionary) -> void:
+	if mode == Mode.BROADCAST:
+		_gate_peer(payload)
+		return
 	if not _accept_build(payload):
 		return
 	var remote := int(payload.get(KEY_FINGERPRINT, 0))
