@@ -50,6 +50,15 @@ extends VBoxContainer
 
 signal start_pressed(run_config: RunConfig)
 
+## The HOST pressed START and this machine is the one that joined (#715). The
+## sibling of [signal start_pressed] for the peer that does not decide: same
+## destination, same [RunConfig], reached from the wire rather than a button —
+## and deliberately its own signal, because the shell must NOT re-open the run
+## ([method GameSession.apply_received] already did, and re-running
+## [method GameSession.start] would re-resolve the seed and hand this peer a
+## different map).
+signal remote_start(run_config: RunConfig)
+
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _CAMP_1 := preload("res://entity/factions/camp_1.tres")
 const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
@@ -306,11 +315,44 @@ func _link_caption() -> String:
 func _on_start_button_pressed() -> void:
 	if not can_start():
 		return
-	# The socket outlives this screen and the level adopts it (#713); this
-	# lobby's own [CommandLink] must not, or two links would answer the level's
-	# first message.
-	_release_link()
+	# The link is NOT released here any more (#715). START's whole job on a host
+	# is now to broadcast the settled run, and the seed it has to carry is not
+	# resolved until the shell calls [method GameSession.start] on the config this
+	# emit hands up. So the release moved one signal later, onto
+	# [method _on_run_started] — which is also where the CLIENT releases, off the
+	# very same signal, arriving from the wire instead of from a button.
 	start_pressed.emit(build_run_config())
+
+
+## The run is open — on a HOST because the shell just called
+## [method GameSession.start] with what the button above emitted, on a CLIENT
+## because the host's [constant CommandLink.KIND_SETUP] landed on this lobby's
+## own link and [method GameSession.apply_received] adopted it (#715).
+##
+## [b]One signal, both sides, and that symmetry is the point.[/b] Before this,
+## the run's shape crossed on JOIN, pushed by [code]GameRoot._on_peer_joined[/code]
+## off a [signal NetworkTransport.peer_joined] that a pre-established link never
+## fires again — so a level built on an adopted socket waited on a message that
+## had already been sent. START broadcasts it explicitly instead, at the one
+## moment the run is actually settled, and both machines leave the menu from the
+## same fact rather than from a handshake.
+##
+## The release is here rather than at the button for the ordering reason above,
+## and it still runs BEFORE either machine routes: the socket outlives this
+## screen and the level adopts it (#713), but this lobby's [CommandLink] must
+## not, or two bound facades answer every packet ([method Wire.claim_binder]).
+func _on_run_started(config: RunConfig) -> void:
+	if _link == null:
+		return
+	if not _is_client():
+		# `GameSession.roster` and not `_participants`: [method GameSession.start]
+		# has just rebuilt the roster from the config it resolved, and that
+		# resolved config is what the peer must adopt — the sentinel seed this
+		# lobby was showing a moment ago is not a run.
+		_link.send_run_setup(config, GameSession.roster)
+	release_link()
+	if _is_client():
+		remote_start.emit(config)
 
 
 ## Is START allowed on the current roster? Always true without a policy — see
@@ -499,6 +541,11 @@ func bind_link(transport: NetworkTransport) -> void:
 	_transport.peer_joined.connect(_on_link_peer_joined)
 	_transport.peer_left.connect(_on_link_peer_left)
 	_transport.link_lost.connect(_on_transport_link_lost)
+	# #715: START's broadcast (host) and the route-out it produces (both sides)
+	# hang off the run opening, not off the button — see [method _on_run_started].
+	# Connected only on a lobby that HAS a link, so an offline lobby is untouched.
+	if not GameSession.run_started.is_connected(_on_run_started):
+		GameSession.run_started.connect(_on_run_started)
 	_local_peer = _transport.local_peer_id()
 	# A link was adopted after all, so whatever [method _report_mount_state]
 	# concluded from its absence is stale.
@@ -515,7 +562,16 @@ func bind_link(transport: NetworkTransport) -> void:
 ## the level adopts (#713); what must not survive is a second [CommandLink]
 ## listening on it, which is why this runs at START rather than waiting for the
 ## menu scene to be freed.
-func _release_link() -> void:
+##
+## [b]Public, and both roles call it (#715).[/b] The host used to be the only one
+## that ever released — a client was routed by nothing in particular and relied
+## on the menu scene being freed synchronously before the level's
+## [EnetTransport] bound. It is not, and [method Wire.claim_binder] now refuses
+## the level's facade outright rather than letting two of them double-handle
+## every packet. Both sides release on [method _on_run_started].
+##
+## Idempotent: releasing twice, or with no link mounted, is a no-op.
+func release_link() -> void:
 	for node in [_link, _transport]:
 		if node == null:
 			continue

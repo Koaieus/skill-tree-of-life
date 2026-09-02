@@ -169,27 +169,15 @@ func _ready() -> void:
 	# _setup_level runs — procgen spawning goes through force_allocate which
 	# claims itself, but hand-authored owned_by= assignments skip that path.
 	allocation_system.register_scene_authored_ownership()
-	# #463: a CLIENT has no run of its own to build. The seed it typed and the
-	# AI count its lobby showed are both about to be replaced wholesale by the
-	# host's `run_setup`, so its socket comes up HERE — before `_setup_level`,
-	# which then waits for that message (see [method await_host_run]) instead of
-	# generating a world nobody else is playing. The host keeps the original
-	# order (the `_open_link` at the tail of this method): it decides the run,
-	# so it has everything it needs the moment the level loads.
-	if _is_network_client():
-		# Latched before the socket opens, so a `run_setup` that arrives while
-		# `_setup_level` is still between statements cannot be missed by
-		# `await_host_run`'s signal wait.
-		GameSession.run_started.connect(_note_host_run_adopted, CONNECT_ONE_SHOT)
-		# #667: and the same "before the socket, not after" rule for the drop
-		# latch. Between here and `pull_host_world()` at the tail of this method
-		# this peer has no world worth mutating, so world-mutating payloads are
-		# swallowed rather than applied against a half-built graph. Lossless —
-		# the resync the pull asks for contains everything dropped. See
-		# [member CommandLink.defer_until_resync].
-		if command_link != null:
-			command_link.defer_until_resync = true
-		_open_link()
+	# #715: nothing opens a socket early any more, on either role. A CLIENT used
+	# to bring its link up HERE and then block `_setup_level` on the host's
+	# `run_setup` — because the run's shape crossed on JOIN and could not be
+	# missed. It no longer crosses on join: the host broadcasts it from the LOBBY
+	# at START ([method LobbyScreen._on_run_started]), so by the time this level
+	# is built `GameSession` already holds the host's run on every machine, and a
+	# level that awaited that message would await a signal that has already fired
+	# — a 30-second `SceneDirector.REVEAL_TIMEOUT_S` hang, not dead code.
+	#
 	# _setup_level runs BEFORE hud_root.compose because compose reads
 	# `player.stat_board` immediately — procgen sandboxes that spawn the
 	# player here need the entity in place first. `await` is harmless on
@@ -262,40 +250,40 @@ func _ready() -> void:
 	else:
 		$UI.visible = false
 
-	# HOST and offline only, and the old reason still holds for them: opening
-	# after `_setup_level` means a command arriving the instant the link comes up
-	# finds a world to apply to. Split from `_adopt_network_role` because the
-	# role has to be known far earlier than the socket may open.
+	# EVERY role opens here now (#715), and the reason the host and offline always
+	# did is finally the reason on the joining side too: opening after
+	# `_setup_level` means a command arriving the instant the link comes up finds
+	# a world to apply to. Split from `_adopt_network_role` because the role has
+	# to be known far earlier than the socket may open.
 	#
-	# [b]A CLIENT no longer obeys that rule, and #463 changed what protects
-	# it.[/b] It opened its socket before `_setup_level` (see the call site up
-	# there) because it has nothing to build from until `run_setup` lands, so
-	# there IS now a window on the joining side where the link is up and the
-	# world is not. What arrives in that window is not buffered: `apply_remote`
-	# enqueues and drains AT ONCE, against whatever world is there. Read, not
-	# assumed — and the failure has two shapes, the second worse than the first.
-	# If the command's ids do not resolve, `CommandApplier._validate` warns and
-	# DROPS it. If they DO resolve — a half-built world, or (the #463 case) a
-	# complete world generated a moment ago — then nothing warns at all and the
-	# command lands on whatever node happens to carry that `stable_id`. Silence
-	# here is not evidence that nothing went wrong.
+	# [b]#667's drop latch stays, and its window is what changed.[/b] It used to
+	# span the client's whole procgen — seconds, with a socket up and no world.
+	# It now spans the ONE round trip between adopting the link on the next line
+	# and the resync landing: this peer's world is empty until the pull answers,
+	# and a `KIND_COMMAND` that arrives meanwhile would apply against nothing.
+	# Narrower, not gone — the latch is still what makes the window safe rather
+	# than merely short, because `apply_remote` enqueues and drains AT ONCE
+	# against whatever world is there. If the command's ids do not resolve,
+	# `CommandApplier._validate` warns and DROPS it. If they DO resolve, nothing
+	# warns at all and it lands on whatever node happens to carry that
+	# `stable_id`. Silence here is not evidence that nothing went wrong.
 	#
-	# Either way it is survivable for exactly one reason, and it is the next line:
-	# `pull_host_world` asks the authority for its whole world, and the reply
-	# carries the authority's whole state, superseding both shapes above —
-	# what this peer missed and what it misapplied alike. Ordering makes it
-	# airtight rather than probable — `EnetTransport._receive` is an
-	# `@rpc(..., "reliable")`, so it is ordered as well as delivered: the host
-	# encodes the resync when the request arrives, and anything it applies after
-	# that is sent after the envelope and lands on top of it. Nothing this window
-	# swallowed can outlive the pull.
+	# Either way it is survivable for exactly one reason, and it is the last line
+	# of this block: `pull_host_world` asks the authority for its whole world, and
+	# the reply carries the authority's whole state, superseding both shapes above
+	# — what this peer missed and what it misapplied alike. Ordering makes it
+	# airtight rather than probable — `Wire._receive` is an `@rpc(..., "reliable")`,
+	# so it is ordered as well as delivered: the host encodes the resync when the
+	# request arrives, and anything it applies after that is sent after the
+	# envelope and lands on top of it. Nothing this window swallowed can outlive
+	# the pull.
 	#
-	# So the gate is not a buffer, it is the repair — and it must stay on this
-	# line, immediately after the world exists. Moving `pull_host_world` later
-	# (behind a fade, an await, a turn start) reopens the hole this comment is
-	# about.
-	if not _is_network_client():
-		_open_link()
+	# So the gate is not a buffer, it is the repair — and `pull_host_world` must
+	# stay on this line, immediately after the link is up. Moving it later (behind
+	# a fade, an await, a turn start) reopens the hole this comment is about.
+	if _is_network_client() and command_link != null:
+		command_link.defer_until_resync = true
+	_open_link()
 	pull_host_world()
 	# #667, second half. The world now exists on EVERY path — offline, host and
 	# client alike — so the run may be judged. Before this line a death (from
@@ -359,73 +347,37 @@ func _is_network_client() -> bool:
 			and net.role == NetworkTransport.Role.CLIENT)
 
 
-## Block until this machine's run IS the host's (#463) — the gate a level's
-## [method _setup_level] opens with before it generates anything.
-##
-## [b]Why a client must not generate first and reconcile after.[/b] It is not
-## only the seed. [Graph] mints [member Entity.entity_id] by add-order
-## (`graph/graph.gd::_mint_entity_id`), and a joining lobby is not offered the
-## AI-count row at all (`lobby_screen.gd::_offers_ai_opponents` returns false
-## for a [constant NetworkTransport.Role.CLIENT]), so a client left to its own
-## roster spawns a different NUMBER of entities than the host — which slides
-## every id after the first mismatch. [EntitySnapshot] decorates by
-## `entity_id` and never spawns (#560 D7), so once the ids have slid there is
-## nothing any snapshot can do to repair it. Waiting costs one handshake and
-## makes the entity set identical by construction.
-##
-## No-op off the join path, and idempotent once the setup has landed —
-## [member _adopted_host_run] latches, so a level that calls this after the
-## message arrived does not hang waiting for a signal that already fired.
-func await_host_run() -> void:
-	if not _is_network_client() or _adopted_host_run:
-		return
-	await GameSession.run_started
-
-
-## Latched by [method _note_host_run_adopted] the moment the host's `run_setup`
-## lands, so [method await_host_run] can tell "not yet" from "already".
-var _adopted_host_run: bool = false
-
-
-func _note_host_run_adopted(_config: RunConfig) -> void:
-	_adopted_host_run = true
-
-
-## #463: the second half of adopting a host's run. [method await_host_run] gave
-## this machine the host's SEED, and generating from it is not the same as
-## playing the host's MAP — `procgen/` leans on transcendentals whose last bit
-## is not portable across two platforms' libm (#547), and nothing promises the
-## two peers ran the same binary. So the client PULLS the authority's serialized
-## world on top of what it just built, through the [constant
+## #463/#715: how a joining client gets a world at all. It does not generate one
+## — it asks the authority for the serialized one, through the [constant
 ## CommandLink.KIND_RESYNC] envelope #561 already ships: entities, graph, then
-## the entity->node pass, in one message, reconciled into a populated world
-## rather than rebuilt.
+## the entity->node pass, in one message.
 ##
-## [b]A pull, not a push from [method _on_peer_joined], and that is the whole
-## ordering answer.[/b] A push races the client's own generation — over ENet
-## the snapshot lands while procgen is still awaiting frames; over a loopback
-## it lands INSIDE `_on_run_setup`, before the level has spawned anything at
-## all — and [method CommandLink._on_entity_snapshot] drains its pass-2 park
-## the instant the graph is non-empty, so a push would resolve every
-## `core_location` against nodes [method GraphSnapshot.decode] is about to
-## delete. Asking once the level is built has no such window, and needs no
-## upward "I am ready" message: [method CommandLink.request_resync] IS that
-## message.
+## [b]#715 made this the ONLY way a client gets a map, and that closed a
+## window.[/b] Until then the client generated from the host's seed and pulled on
+## top, because generating from a seed is not the same as playing the host's map
+## (`procgen/` leans on transcendentals whose last bit is not portable across two
+## platforms' libm, #547). So there was a period where the link was up and a
+## WRONG world was present. There is no longer: the client builds nothing, and
+## `#689`/`#706`'s `pow()` in the seeded draw leaves the LAN critical path with
+## it, because nothing on this machine re-derives the map.
 ##
-## [b]The reply's internal order is load-bearing, and it is the OPPOSITE of the
-## #533 harness's.[/b] `scenes/dev/mp_procgen_sandbox.gd:364` sends the entity
-## snapshot and then the graph, and its own docstring pins that order — correct
-## THERE, because that client's graph is empty, so `_on_entity_snapshot` parks
-## its pass 2 and `_on_graph_snapshot` drains it against the fresh nodes. A
-## joining client under #463 has a POPULATED graph (it just generated one from
-## the host's seed), so the park never happens: `_on_entity_snapshot` drains
-## immediately on `not graph.get_skill_nodes().is_empty()`, clears
-## `_pending_entities`, and resolves every `core_location` against nodes
-## [method GraphSnapshot.decode] is about to delete. The graph half must land
-## FIRST here. [method CommandLink._on_resync] already does exactly that —
-## decode entities, decode graph, THEN resolve the entity->node refs — which is
-## the third reason this is a resync pull and not two pushed snapshots. Anyone
-## "fixing" this to match the harness's order will reintroduce the bug.
+## [b]A pull, not a push, and that is the whole ordering answer.[/b] A push
+## races the level's own construction — over a loopback it lands INSIDE
+## `_on_run_setup`, before the level has spawned anything at all. Asking once
+## the level is built has no such window, and needs no upward "I am ready"
+## message: [method CommandLink.request_resync] IS that message.
+##
+## [b]The reply's internal order is load-bearing, and it serves BOTH shapes.[/b]
+## [method CommandLink._on_resync] decodes entities, decodes the graph, THEN
+## resolves the entity->node refs. On the join path the graph is EMPTY, which is
+## the #533 harness's old odd case and is now the primary one. On a mid-run
+## repair (#521/#560/#561) it is POPULATED, and the order is what stops
+## [method EntitySnapshot.resolve_graph_refs] resolving every `core_location`
+## against nodes [method GraphSnapshot.decode] is about to delete. One order,
+## both shapes — which is the reason this is a resync pull and not the two
+## pushed snapshots `scenes/dev/mp_procgen_sandbox.gd` sends in the opposite
+## order. Anyone "fixing" this to match the harness's order will reintroduce the
+## bug; `test_graph_snapshot.gd` pins both shapes.
 func pull_host_world() -> void:
 	if command_link == null or not _is_network_client():
 		return
@@ -490,14 +442,19 @@ func _greet_if_linked(_status: String) -> void:
 		command_link.send_hello()
 
 
-## #554: a peer arrived, and this is the only place in a run that learns WHICH.
+## #554: a peer arrived. On the lobby path everything about that has ALREADY
+## happened — the socket was opened by the menu (#714), the joiner's seat was
+## stamped there, and its id reached [GameSession] there too. What survives here
+## is the belt-and-braces restatement of both facts for a peer that arrives while
+## a level is up, and the replayed join [method EnetTransport._adopt_live_link]
+## fires for a peer that was already on the socket when this level adopted it.
 ##
-## Client side, this is the first moment this machine knows its own id — the
-## menu could not stamp it, since the server mints it. Host side, the lobby
-## already seated the remote human (procgen needed its camp before anyone could
-## possibly have connected); what was outstanding was only its identity — its
-## [member Participant.peer_id] — so the join stamps that seat and ships the
-## settled roster down.
+## [b]It no longer sends the run's shape, and that is #715's core subtraction.[/b]
+## This was `run_setup`'s only sender, and it fired off a
+## [signal NetworkTransport.peer_joined] that a PRE-ESTABLISHED link never fires
+## again — so a level that adopted the lobby's socket would sit waiting for a
+## message nobody would ever send. START broadcasts it from the lobby instead,
+## once, over the live link ([method LobbyScreen._on_run_started]).
 func _on_peer_joined(peer_id: int) -> void:
 	var net: NetworkConfig = GameSession.network
 	if net == null:
@@ -506,13 +463,6 @@ func _on_peer_joined(peer_id: int) -> void:
 		GameSession.local_peer_id = transport.local_peer_id()
 		return
 	LobbyScreen.stamp_pending_remote(GameSession.roster, peer_id)
-	if command_link != null:
-		# #463: the run's SHAPE, and only that. The world itself is not pushed
-		# from here — the peer that just arrived has not built a level yet, so a
-		# graph snapshot sent on this line would decode into a graph that is
-		# about to be generated over. The client asks for it instead, once it is
-		# ready, via [method pull_host_world].
-		command_link.send_run_setup(GameSession.config, GameSession.roster)
 
 
 func _unhandled_input(event: InputEvent) -> void:

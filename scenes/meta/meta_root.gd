@@ -36,6 +36,20 @@ const FIRST_LEVEL_SANDBOX := preload("res://scenes/level.tscn")
 func _ready() -> void:
 	_bind_panels()
 	_frontmatter.focus_started.connect(_on_focus_started)
+	# #715 acceptance 6: a CLIENT learns its own id the instant the socket
+	# connects — which is now in the LOBBY, long before a level exists. This is
+	# the same routing decision the rest of this file makes ("which peer is this
+	# machine"), so it stays here. [LobbyScreen] asks its own transport the same
+	# question for its own rows; what this connection settles is the value the
+	# RUN carries, which is [GameSession]'s and nobody else's.
+	#
+	# Through an INSTANCE method rather than `_stamp_local_peer.unbind(1)`: the
+	# subscriber is the `Wire` autoload, which outlives this scene, and a static
+	# Callable is not owned by this node — so Godot's free-time auto-disconnect
+	# would not fire and the connection would pile up on every route back to the
+	# menu. `unbind(1)` could not be disconnected by hand either
+	# (`.claude/rules/gdscript-pitfalls.md`).
+	Wire.peer_joined.connect(_on_wire_peer_joined)
 
 
 ## Wires the three panels that produce something this file has to act on. The
@@ -46,6 +60,9 @@ func _bind_panels() -> void:
 	var lobby := _lobby_panel()
 	if lobby != null:
 		lobby.start_pressed.connect(_on_start_pressed)
+		# #715: the same destination, reached from the wire. A joiner has no
+		# button to press — the host's START is what routes it.
+		lobby.remote_start.connect(_on_remote_start)
 	var join := _join_panel()
 	if join != null:
 		join.join_requested.connect(_on_join_requested)
@@ -216,10 +233,33 @@ static func _open_wire_for(net: NetworkConfig) -> void:
 ## START opens the run before the level loads (#457): `GameSession.start`
 ## resolves the lobby's seed sentinel once, here, and the level reads the
 ## concrete value back out. [method _destination_for] decides where.
+##
+## [b]That one call is also the broadcast (#715).[/b] `GameSession.start` emits
+## [signal GameSession.run_started], and a lobby holding a live link answers it
+## by shipping the now-resolved [RunConfig] + [ParticipantRoster] down the wire
+## and handing its link back ([method LobbyScreen._on_run_started]). Which is
+## why the order on these three lines is load-bearing and not incidental: the
+## peer must have the run before this machine leaves the menu, and the seed must
+## be resolved before the peer has it. Nothing is pushed on JOIN any more —
+## a pre-established link never fires that signal again.
 func _on_start_pressed(run_config: RunConfig) -> void:
 	GameSession.start(run_config)
 	_stamp_local_peer()
 	SceneDirector.goto(_destination_for(run_config))
+
+
+## The joiner's half of the same moment (#715). The run is ALREADY open here —
+## [method GameSession.apply_received] adopted the host's config when the
+## broadcast landed on the lobby's link — so this deliberately does not call
+## [method GameSession.start]: re-opening the run would re-resolve the seed and
+## hand this machine a different run than the one it was invited to.
+func _on_remote_start(run_config: RunConfig) -> void:
+	_stamp_local_peer()
+	SceneDirector.goto(_destination_for(run_config))
+
+
+func _on_wire_peer_joined(_peer_id: int) -> void:
+	_stamp_local_peer()
 
 
 ## The destination a run's [Scenario] names (#641 acceptance 4) — a run whose
@@ -239,20 +279,27 @@ static func _destination_for(run_config: RunConfig) -> PackedScene:
 	return FIRST_LEVEL_SANDBOX
 
 
-## Which peer THIS machine is, carried from the menu's socket into the run.
+## Which peer THIS machine is — asked of the socket, which since #713 exists
+## before any level does and since #714 is opened by this very file on the way
+## into the lobby.
 ##
-## [b]There is one reader of this, and it is [Wire].[/b] Since #713 the socket
-## opens on the MENU, so by START a host already holds
-## [constant NetworkTransport.HOST_PEER_ID] and a client has already been minted
-## its real id — [method LobbyScreen._on_link_peer_joined] stamped its own seat
-## off the very same singleton. Deriving it from [member GameSession.network]'s
-## role a second time would be a parallel answer that can disagree.
+## [b]The `0` this used to hard-code for a client is gone (#715 acceptance 6),
+## and so is the comment that justified it.[/b] "Before any socket opens" stopped
+## being true the moment the lobby got a live link: a joiner learns its own
+## server-minted id at `connected_to_server`, while the menu is still up, and
+## every seat the lobby draws — which row reads "you", which pickers it may
+## touch — turns on that id. So this runs at two moments, both of them before
+## the level exists: on [signal Wire.peer_joined] (the id arriving) and at START
+## (the id being carried into the run).
 ##
-## A machine with no socket answers `0`, which is the [member Participant.peer_id]
-## a lobby-authored offline seat carries — so an offline run stays a couch by
-## construction, with no branch here to say so.
-## [method GameRoot._on_peer_joined] still re-stamps, for the client whose dial
-## only completes once the level exists.
+## [method Wire.local_peer_id] answers all three cases on its own, which is why
+## there is no role branch left here: `1` on a host (ENet's server id, and
+## knowable before anyone connects — the level derives its [SeatPolicy] from the
+## roster before a peer exists), the minted id on a connected client, and `0`
+## with no socket at all, which is the [member Participant.peer_id] an offline
+## lobby authors. A client that has not connected YET is also `0`, and stays a
+## couch by construction until it does. [method GameRoot._on_peer_joined] still
+## re-stamps, for the client whose dial only completes once the level exists.
 static func _stamp_local_peer() -> void:
 	GameSession.local_peer_id = Wire.local_peer_id()
 

@@ -65,17 +65,21 @@ const _DEFAULT_TERRITORY_SEEDER := preload("res://procgen/placement/territory_se
 @export var enemy_territory_size: int = 20
 
 
+## Two shapes, and only one of them generates (#715).
+##
+## [b]A joining CLIENT runs no procgen at all.[/b] It used to generate from the
+## host's seed and then pull the authority's world on top, which cost it 5-10
+## seconds to build a map it was about to throw away and left a window where the
+## link was up and a WRONG world was present. It now builds an empty graph,
+## spawns the roster's entities as placeholders so `entity_id` minting lands on
+## the host's numbers, and lets [method GameRoot.pull_host_world] fill in the
+## world. Everything the host derives from the seed — nodes, edges, archetypes,
+## keystones — arrives serialized instead of being re-derived, so no
+## transcendental in the seeded draw (#547, #689, #706) can desync anything.
+##
+## The `is_active` / roster guards below are shared, and deliberately: a client
+## with no run open is exactly as broken as a host with none.
 func _setup_level() -> void:
-	# #463: on a joining CLIENT, everything below reads a run this machine does
-	# not own — `cfg.seed` and the roster alike are the host's, and until the
-	# host's `run_setup` lands they are still this lobby's wish. Generating
-	# first and reconciling after cannot be repaired: `Graph` mints `entity_id`
-	# by add-order and a join lobby is offered no AI-count row, so a client that
-	# guessed would spawn a different entity SET and slide every id past the
-	# first mismatch. See [method GameRoot.await_host_run]. No-op for the host
-	# and for every offline launch, which is why this sits ahead of the
-	# `is_active` guard rather than inside a network branch of it.
-	await await_host_run()
 	# #457: one resolved seed for the whole run. A run started from the lobby
 	# already has one; a level launched directly (dev sandbox, headless test)
 	# opens a session here seeded from the preset's authored value — so either
@@ -84,6 +88,11 @@ func _setup_level() -> void:
 		push_error("%s: no run is open. A level GENERATES a run, it does not "
 				% name + "invent one — start the session first, from the lobby "
 				+ "or from a RunBootstrap child holding an authored RunConfig.")
+		return
+	# #715: and here the two shapes part company. Above this line everything is
+	# shared; below it is generation, which a joining client does not do.
+	if _is_network_client():
+		await _setup_level_as_client()
 		return
 	# #641 D6: the run's Scenario names the preset; `preset` (the scene export
 	# above) is the fallback for a run that opened with none.
@@ -184,13 +193,6 @@ func _setup_level() -> void:
 	for n in starting_nodes:
 		(n as Node).add_to_group(_STARTER_GROUP)
 
-	# Removable blockers (#477): one blocker entity per procgen placement.
-	# Spawned before territory seeding so enemy seeding skips already-blocked
-	# nodes (AllocationSystem treats them as owned by the blocker entity).
-	for placement in result.get("blockers", []):
-		spawn_blocker(placement.get("size"), placement.get("node"),
-				placement.get("prune_seed", 0), cfg.blockers.blocker_spell_prune_m)
-
 	# Spawn onto the returned nodes in participant order — camp 0 member 0,
 	# camp 0 member 1, camp 1 member 0, ... (#551's `starter_placement`
 	# contract, held even when no `starter_placement` ran: `cfg.camp_sizes`
@@ -203,36 +205,126 @@ func _setup_level() -> void:
 		push_warning("ProcgenPlaySandbox: %d starting nodes for %d camp-planned participants — trimming"
 				% [starting_nodes.size(), grouped_participants.size()])
 
-	var entities_by_participant_id: Dictionary = {}
 	var enemies: Array[Entity] = []
-	# Humans: core only. D-16 pins starting nodes at 1 — no seeding call here.
+	var seated := _seat_the_roster(
+			roster, grouped_participants, starting_nodes, spawn_count, enemies)
+
+	# Removable blockers (#477): one blocker entity per procgen placement. Still
+	# before territory seeding, so enemy seeding skips already-blocked nodes
+	# (AllocationSystem treats them as owned by the blocker entity).
 	#
-	# #554: the AI/human split is by KIND, which every peer reads identically off
-	# the same roster, and only `player` — the per-machine half — is decided by
-	# peer id. Keying the spawn shape off "is this mine" instead would seed each
-	# peer's rival with `enemy_territory_size` nodes and its own hero with one,
-	# so two peers would build different worlds from the same roster.
+	# [b]AFTER the roster's spawns, not before (#715).[/b] [Graph] mints
+	# `entity_id` by add-order, and a joining client seats the roster and spawns
+	# no blockers at all — so with blockers first, every participant's id on the
+	# host sat above ~120 ids the client does not have, and [EntitySnapshot]
+	# (which decorates by `entity_id`) would decorate the wrong entities.
+	# Participants first makes their ids `1..N` on every peer by construction.
+	# Nothing else about this loop cares where it sits: blocker placement excludes
+	# every starter core, so it cannot collide with a core just force-allocated.
+	for placement in result.get("blockers", []):
+		spawn_blocker(placement.get("size"), placement.get("node"),
+				placement.get("prune_seed", 0), cfg.blockers.blocker_spell_prune_m)
+
+	if not seated:
+		return
+
+	# Derive seeding RNG from the run's resolved seed so identical seeds produce
+	# identical content + enemy territory. Salting with a constant keeps the
+	# seeding stream independent of the procgen content stream (so adding or
+	# removing modifier rolls upstream doesn't shift seeding). The salt is part
+	# of reproducing the MAP, so it stays; what's gone is the second sentinel
+	# resolution that used to live on this line (#457).
+	var rng := RandomNumberGenerator.new()
+	rng.seed = cfg.seed ^ 0x57AB02D
+	for e in enemies:
+		var achieved := territory_seeder.seed_territory(e, graph, allocation_system, enemy_territory_size, rng)
+		# D-19: enemy_level = starting_nodes. Uses the ACTUAL claimed count —
+		# a graph that runs dry before `enemy_territory_size` still yields a
+		# self-consistent level rather than an inflated one.
+		e.level = achieved
+
+
+## The joining CLIENT's whole `_setup_level` (#715): no preset, no
+## [GraphProcgen], no territory seeding — an empty graph and the roster's
+## entities, standing by for [method GameRoot.pull_host_world] to fill the world
+## in around them.
+##
+## [b]It still SPAWNS, and that is the one thing it may not skip.[/b]
+## [EntitySnapshot] decorates by `entity_id` and never spawns (#560 D7), so the
+## entities have to be here before the host's state arrives or every row is
+## skipped with a warning. They are spawned in [method _camp_grouped_participants]
+## order — the identical order the generating branch uses — because [Graph] mints
+## `entity_id` by add-order (`graph/graph.gd::_mint_entity_id`), and one
+## mis-ordered spawn slides every id past it. `core_location` is null: there are
+## no nodes yet to allocate onto, and the snapshot's pass 2 resolves it.
+##
+## [b]The loading bar covers the HOST's generate + ship, not this machine's
+## procgen.[/b] Same curtain, same progress widget, different wall-clock being
+## explained — this peer is waiting on somebody else's 5-10 seconds now. It is
+## indeterminate on purpose: the host reports no progress, and inventing a fake
+## ramp would be worse than a bar that simply says "working".
+func _setup_level_as_client() -> void:
+	if false: await get_tree().process_frame # keep this a coroutine, as the caller awaits it
+	var roster: ParticipantRoster = GameSession.roster
+	if roster == null or roster.all().is_empty():
+		push_error("%s: the host's run carries no participants — nothing to seat." % name)
+		return
+	SceneTransition.set_faded(true)
+	SceneTransition.progress_bar.show()
+	SceneTransition.set_progress(0.0)
+	var grouped := _camp_grouped_participants(roster)
+	var enemies: Array[Entity] = []
+	_seat_the_roster(roster, grouped, [], grouped.size(), enemies)
+
+
+## Spawn one [Entity] per camp-grouped participant, apply the roster to them and
+## derive this machine's [SeatPolicy]. Shared by both branches of
+## [method _setup_level] (#715) precisely because it must not drift: the ORDER
+## and the COUNT of these spawns are what make `entity_id` mean the same thing on
+## every peer, and two copies of this loop would be two chances to disagree.
+##
+## [param starting_nodes] is empty on the client, which is what makes every core
+## `null` there. [param enemies] is filled in for the caller — only the
+## generating branch seeds territory, so only it uses them. Returns false when
+## this machine seated nobody, which is the caller's cue to stop.
+##
+## Humans: core only. D-16 pins starting nodes at 1 — no seeding call here.
+##
+## #554: the AI/human split is by KIND, which every peer reads identically off
+## the same roster, and only `player` — the per-machine half — is decided by
+## peer id. Keying the spawn shape off "is this mine" instead would seed each
+## peer's rival with `enemy_territory_size` nodes and its own hero with one,
+## so two peers would build different worlds from the same roster.
+func _seat_the_roster(
+	roster: ParticipantRoster,
+	grouped_participants: Array[Participant],
+	starting_nodes: Array,
+	spawn_count: int,
+	enemies: Array[Entity],
+) -> bool:
+	var entities_by_participant_id: Dictionary = {}
 	for i in spawn_count:
 		var participant: Participant = grouped_participants[i]
 		var ent: Entity
+		var where: SkillNode = starting_nodes[i] if i < starting_nodes.size() else null
 		# #563 D1: the ROSTER decides the colour, for every entity alike. The
-		# `player_color` / `enemy_colors` exports below are reached only through
+		# `player_color` / `enemy_colors` exports are reached only through
 		# `resolve_spawn_color`'s fallback arm, and only for a participant that
 		# carries no colour at all.
 		var color := resolve_spawn_color(
 				participant, player_color, enemy_colors, enemies.size())
 		# #618 D3: and the roster decides the CLASS the same way. The
-		# `core_class` / `enemy_core_class` exports below are the fallback for a
+		# `core_class` / `enemy_core_class` exports are the fallback for a
 		# participant that carries none, not the answer.
 		var core := resolve_spawn_core(participant, core_class, enemy_core_class)
 		if participant.kind == Participant.Kind.AI:
-			ent = spawn_entity("Enemy_%d" % participant.id, color, starting_nodes[i], core)
+			ent = spawn_entity("Enemy_%d" % participant.id, color, where, core)
 			enemies.append(ent)
 		elif _is_this_machines(participant):
-			ent = spawn_entity("Player", color, starting_nodes[i], core)
+			ent = spawn_entity("Player", color, where, core)
 			player = ent
 		else:
-			ent = spawn_entity("Player_%d" % participant.id, color, starting_nodes[i], core)
+			ent = spawn_entity("Player_%d" % participant.id, color, where, core)
 		entities_by_participant_id[participant.id] = ent
 
 	GameRoot.apply_roster(entities_by_participant_id, roster)
@@ -250,7 +342,7 @@ func _setup_level() -> void:
 
 	if player == null:
 		push_warning("ProcgenPlaySandbox: no human participant at this peer — nothing bound as player")
-		return
+		return false
 
 	# Wire the player into the interaction layer (input / vision / highlight)
 	# now that it exists — edit-time NodePaths can't bind to a node spawned at
@@ -258,21 +350,7 @@ func _setup_level() -> void:
 	# too sets vision before territory seeding + the fade so the initial fog
 	# is correct.
 	bind_player(player)
-
-	# Derive seeding RNG from the run's resolved seed so identical seeds produce
-	# identical content + enemy territory. Salting with a constant keeps the
-	# seeding stream independent of the procgen content stream (so adding or
-	# removing modifier rolls upstream doesn't shift seeding). The salt is part
-	# of reproducing the MAP, so it stays; what's gone is the second sentinel
-	# resolution that used to live on this line (#457).
-	var rng := RandomNumberGenerator.new()
-	rng.seed = cfg.seed ^ 0x57AB02D
-	for e in enemies:
-		var achieved := territory_seeder.seed_territory(e, graph, allocation_system, enemy_territory_size, rng)
-		# D-19: enemy_level = starting_nodes. Uses the ACTUAL claimed count —
-		# a graph that runs dry before `enemy_territory_size` still yields a
-		# self-consistent level rather than an inflated one.
-		e.level = achieved
+	return true
 
 
 ## What colour does this participant's entity render in (#563)?

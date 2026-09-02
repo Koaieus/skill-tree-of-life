@@ -73,6 +73,59 @@ var last_status: String = ""
 ## is a property of the message in flight; the next arrival overwrites it.
 var last_sender_id: int = 0
 
+## The ONE facade currently re-emitting this singleton's signals, by
+## `get_instance_id()` — see [method claim_binder]. `0` when nobody holds it.
+##
+## An id, not the reference, because a freed [Object] compares equal to `null`
+## (`.claude/rules/gdscript-pitfalls.md`): a latch holding the freed lobby
+## transport would read back as "nothing bound" only by accident, and would read
+## back as "still bound" the rest of the time.
+var _binder_id: int = 0
+
+
+## Take exclusive hold of this singleton's signals, and refuse if somebody else
+## already has it (#715).
+##
+## [b]Why exclusivity is a rule and not a convention.[/b] Since #714 there are
+## two places that mount a [NetworkTransport] facade over this one socket — the
+## lobby and the level — and the level ADOPTS the link the lobby opened rather
+## than opening its own. If the lobby's facade is still bound when the level's
+## binds, BOTH re-emit [signal message_received] and every packet is handled
+## twice: a command applied twice, a resync decoded twice, a roster adopted
+## twice. Nothing errors; the world simply drifts. So the second binder is
+## refused loudly here rather than left to the accident of which scene Godot
+## frees first.
+##
+## Idempotent for the current holder: re-claiming what you already hold succeeds.
+func claim_binder(who: Object) -> bool:
+	if who == null:
+		return false
+	var id := who.get_instance_id()
+	if _binder_id == id:
+		return true
+	if _binder_id != 0 and is_instance_id_valid(_binder_id):
+		push_error(
+			"Wire: %s tried to bind while %s already holds the wire — refused. "
+			% [who, instance_from_id(_binder_id)]
+			+ "Two bound facades double-handle every packet; release the first "
+			+ "one (LobbyScreen.release_link) before mounting the second.")
+		return false
+	_binder_id = id
+	return true
+
+
+## Hand the wire back. A no-op for anybody who is not the current holder, so a
+## facade tearing down after it was refused cannot evict the one that won.
+func release_binder(who: Object) -> void:
+	if who != null and _binder_id == who.get_instance_id():
+		_binder_id = 0
+
+
+## Is anything currently bound? What a test asserts on, and what makes the
+## exclusivity rule observable rather than only enforced.
+func has_binder() -> bool:
+	return _binder_id != 0 and is_instance_id_valid(_binder_id)
+
 
 ## Listen on [param port]. [constant OK] means the socket is open, not that
 ## anybody has connected yet.

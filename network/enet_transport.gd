@@ -44,7 +44,8 @@ func _exit_tree() -> void:
 func start_host(port: int) -> Error:
 	if Wire.is_open():
 		return _adopt_live_link(Role.HOST)
-	_bind()
+	if not _bind():
+		return ERR_ALREADY_IN_USE
 	var err := Wire.start_host(port)
 	role = Wire.role
 	return err
@@ -53,7 +54,8 @@ func start_host(port: int) -> Error:
 func start_client(address: String, port: int) -> Error:
 	if Wire.is_open():
 		return _adopt_live_link(Role.CLIENT)
-	_bind()
+	if not _bind():
+		return ERR_ALREADY_IN_USE
 	var err := Wire.start_client(address, port)
 	role = Wire.role
 	return err
@@ -104,7 +106,11 @@ func _adopt_live_link(expected: Role) -> Error:
 		_announce("adopt: REFUSED — the live link is %s, this level wants %s"
 				% [Wire.role, expected])
 		return ERR_UNAVAILABLE
-	_bind()
+	# #715: refused when another facade is still bound. That is not a
+	# transport-level hiccup to shrug off — it means the lobby's pair outlived
+	# the route and every packet from here on would be handled twice.
+	if not _bind():
+		return ERR_ALREADY_IN_USE
 	role = Wire.role
 	_announce("adopted the live link (%d peer(s))" % Wire.peers().size())
 	for id in Wire.peers():
@@ -112,15 +118,22 @@ func _adopt_live_link(expected: Role) -> Error:
 	return OK
 
 
-func _bind() -> void:
+## Returns whether this node now holds the wire. [b]It can fail[/b] — see
+## [method Wire.claim_binder]; at most one facade may be bound at a time, and a
+## caller that ignores the answer is the double-handling bug the guard exists to
+## stop.
+func _bind() -> bool:
 	if _bound:
-		return
+		return true
+	if not Wire.claim_binder(self):
+		return false
 	_bound = true
 	Wire.message_received.connect(_on_wire_message)
 	Wire.link_changed.connect(_on_wire_status)
 	Wire.peer_joined.connect(_on_wire_peer_joined)
 	Wire.peer_left.connect(_on_wire_peer_left)
 	Wire.link_lost.connect(_on_wire_link_lost)
+	return true
 
 
 func _unbind() -> void:
@@ -132,6 +145,7 @@ func _unbind() -> void:
 	Wire.peer_joined.disconnect(_on_wire_peer_joined)
 	Wire.peer_left.disconnect(_on_wire_peer_left)
 	Wire.link_lost.disconnect(_on_wire_link_lost)
+	Wire.release_binder(self)
 
 
 func _on_wire_message(payload: Dictionary) -> void:

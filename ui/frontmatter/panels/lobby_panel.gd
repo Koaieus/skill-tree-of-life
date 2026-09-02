@@ -33,6 +33,11 @@ extends FrontmatterPanel
 ## run and load the level"; this panel only carries the [RunConfig] up.
 signal start_pressed(run_config: RunConfig)
 
+## Relayed from the hosted screen (#715). The host pressed START; this machine
+## joined. Same relay, same shell decision, one fact different — the run is
+## already open, so the shell routes without opening it.
+signal remote_start(run_config: RunConfig)
+
 ## The hosted screen, or null until [method configure] has run.
 var screen: LobbyScreen = null
 
@@ -65,9 +70,14 @@ func configure(
 	lobby.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lobby.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	lobby.start_pressed.connect(_on_start_pressed)
+	lobby.remote_start.connect(_on_remote_start)
 	body.add_child(lobby)
 	screen = lobby
 
 
 func _on_start_pressed(run_config: RunConfig) -> void:
 	start_pressed.emit(run_config)
+
+
+func _on_remote_start(run_config: RunConfig) -> void:
+	remote_start.emit(run_config)
