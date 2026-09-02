@@ -82,13 +82,15 @@ const KEY_BUILD := "build"
 ## sends one, it sends the single row it touched and lets the host answer with
 ## the whole thing.
 const KEY_PICK := "pick"
-## #716: the SENDER's own peer id, on a client's announce. The host needs it to
-## know which peer to clear or refuse, and it cannot read it off the envelope —
-## nothing under [method NetworkTransport.send] carries a return address.
+## #716: what the sender CLAIMS its own peer id is, on a client's announce.
 ##
-## Same trust model as [constant LobbyScreen.PICK_PEER]: one LAN, one room, and a
-## peer that lies about its id can only refuse or clear ITSELF, because the
-## reject is aimed at the id in the payload.
+## [b]It is never the authority.[/b] [method _gate_peer] acts on
+## [method NetworkTransport.last_sender_id], the id the transport itself vouches
+## for; this key exists only so a disagreement between the two can be seen and
+## named. Trusting it would let one client announce its neighbour's id and have
+## a seated, innocent peer disconnected — which is not the "one LAN, one room"
+## trust model [constant LobbyScreen.PICK_PEER] rides on, but a client trivially
+## acting on another client's behalf.
 const KEY_PEER := "peer"
 
 ## Keys inside [constant KEY_BUILD]. Only [constant BUILD_SHA] is COMPARED; the
@@ -939,8 +941,26 @@ func _refuse(reason: String, theirs: Dictionary) -> void:
 ## [b]It emits rather than acts.[/b] Whether a cleared peer gets a lobby seat, a
 ## run setup, or nothing at all is not this class's call; what is this class's
 ## call is that no peer is heard from before the comparison ran.
+##
+## [b]The peer acted on is the one the TRANSPORT names[/b]
+## ([method NetworkTransport.last_sender_id]), never the one the payload claims.
+## The two exist because a claim can be wrong: a client announcing its
+## neighbour's id would otherwise have that neighbour — already cleared, already
+## seated — disconnected on its say-so. A disagreement is itself a refusal, and
+## of the sender: there is no legitimate way to produce one, and a client that
+## cannot name itself correctly has nothing to contribute to a roster.
+##
+## Falling back to the claimed id when the transport answers `0` keeps a fixture
+## that emits [signal NetworkTransport.message_received] by hand — and any
+## transport with no id of its own — on the path it was on.
 func _gate_peer(payload: Dictionary) -> void:
-	var peer_id := int(payload.get(KEY_PEER, 0))
+	var claimed := int(payload.get(KEY_PEER, 0))
+	var verified := transport.last_sender_id() if transport != null else 0
+	var peer_id := verified if verified != 0 else claimed
+	if verified != 0 and claimed != 0 and claimed != verified:
+		_refuse_peer(peer_id, "announced as peer %d but sent from peer %d"
+				% [claimed, verified], payload.get(KEY_BUILD, {}))
+		return
 	if not payload.has(KEY_BUILD):
 		_refuse_peer(peer_id, "the peer sent no build stamp — it predates this check", {})
 		return

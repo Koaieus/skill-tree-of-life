@@ -41,6 +41,15 @@ var peer: LoopbackTransport:
 ## NetworkTransport.HOST_PEER_ID], the client is the next one up.
 var my_peer_id: int = 0
 
+## Who last delivered to THIS end, stamped by the sender in [method send] /
+## [method send_to] — the loopback's stand-in for
+## [method MultiplayerAPI.get_remote_sender_id]. Read through
+## [method last_sender_id]; a fixture that emits [signal
+## NetworkTransport.message_received] by hand bypasses the stamp and leaves it at
+## whatever the last real send set, which is why `0` has to be a legal answer
+## upstream.
+var _last_sender: int = 0
+
 
 ## Two transports facing each other, already "linked".
 ## The id a paired loopback client answers to. ENet would mint something
@@ -109,24 +118,34 @@ func start_client(_address: String, _port: int) -> Error:
 func stop() -> void:
 	links = []
 	my_peer_id = 0
+	_last_sender = 0
 	super()
 	_announce("loopback: closed")
 
 
 func send(payload: Dictionary) -> void:
 	for link in links:
-		# Duplicated deep, per recipient: the receiver must not be handed a
-		# dictionary the sender — or a sibling recipient — can still mutate. A
-		# real socket copies by definition; a loopback that skips this hides
-		# aliasing bugs until the day ENet is switched on.
-		link.message_received.emit(payload.duplicate(true))
+		_deliver(link, payload)
 
 
 func send_to(peer_id: int, payload: Dictionary) -> void:
 	for link in links:
 		if link.my_peer_id == peer_id:
-			link.message_received.emit(payload.duplicate(true))
+			_deliver(link, payload)
 			return
+
+
+## The stamp-then-emit a real transport gets for free. [member _last_sender] is
+## set on the RECEIVER, by the sender, which is the whole point: a loopback whose
+## receiver had to take the sender's word for who sent it could not express the
+## lie the build gate has to be safe against.
+func _deliver(link: LoopbackTransport, payload: Dictionary) -> void:
+	link._last_sender = my_peer_id
+	# Duplicated deep, per recipient: the receiver must not be handed a
+	# dictionary the sender — or a sibling recipient — can still mutate. A
+	# real socket copies by definition; a loopback that skips this hides
+	# aliasing bugs until the day ENet is switched on.
+	link.message_received.emit(payload.duplicate(true))
 
 
 ## Drop one client, exactly as a host's socket would: the victim finds its own
@@ -154,3 +173,7 @@ func is_linked() -> bool:
 
 func local_peer_id() -> int:
 	return my_peer_id
+
+
+func last_sender_id() -> int:
+	return _last_sender

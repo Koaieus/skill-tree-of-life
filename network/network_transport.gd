@@ -108,6 +108,20 @@ func drop_peer(_peer_id: int) -> void:
 	pass
 
 
+## The VERIFIED id of whoever sent the payload currently being delivered — the
+## transport's own answer, not one the sender wrote into the dictionary. `0`
+## when unknown (no link, or a payload injected straight at [signal
+## message_received] by a fixture).
+##
+## [b]Anything that acts ON a peer must key off this[/b], because a claimed id is
+## a claim: the build gate disconnects the peer it refuses, and taking the id
+## from the payload would let one client name another and have it dropped. Read
+## it inside a [signal message_received] handler and nowhere else — it describes
+## the message in flight and the next arrival overwrites it.
+func last_sender_id() -> int:
+	return 0
+
+
 ## True when a peer is actually on the other end (not merely listening).
 func is_linked() -> bool:
 	return false

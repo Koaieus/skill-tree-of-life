@@ -65,6 +65,14 @@ var _peer: ENetMultiplayerPeer
 ## (#716 item 4).
 var last_status: String = ""
 
+## Who sent the payload currently being delivered, straight off the [MultiplayerAPI]
+## — the id ENet itself vouches for, not one a sender wrote into a dictionary.
+## `0` outside a delivery.
+##
+## [b]Read it during a [signal message_received] handler and nowhere else.[/b] It
+## is a property of the message in flight; the next arrival overwrites it.
+var last_sender_id: int = 0
+
 
 ## Listen on [param port]. [constant OK] means the socket is open, not that
 ## anybody has connected yet.
@@ -282,4 +290,8 @@ func _announce(status: String) -> void:
 ## re-couples the wire to whatever scene is loaded.
 @rpc("any_peer", "call_remote", "reliable")
 func _receive(payload: Dictionary) -> void:
+	# Captured BEFORE the emit: a handler that sends (the build gate's reject
+	# does) re-enters the [MultiplayerAPI], and this is the only moment the
+	# sender of THIS message is knowable.
+	last_sender_id = multiplayer.get_remote_sender_id() if multiplayer != null else 0
 	message_received.emit(payload)

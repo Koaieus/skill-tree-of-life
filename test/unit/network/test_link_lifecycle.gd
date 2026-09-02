@@ -205,6 +205,50 @@ func test_the_announce_names_the_sender() -> void:
 	assert_eq(int(seen[0].get(CommandLink.KEY_PEER)), _CLIENT_B)
 
 
+## [b]The announce names its sender, and the host does not take its word for
+## it.[/b] `KEY_PEER` is a claim; the transport's own
+## [method NetworkTransport.last_sender_id] is not. A client that announced its
+## NEIGHBOUR's id would otherwise have the host disconnect an innocent peer that
+## had already cleared and been seated — one buggy joiner evicting a player, by
+## exactly the mechanism this issue exists to stop happening to the socket.
+##
+## The liar is the one refused, and the refusal says what it did.
+func test_a_peer_announcing_someone_else_s_id_is_refused_itself() -> void:
+	_agree()
+	_a_transport.announce_joined()
+	assert_eq(_cleared, [_CLIENT_A], "sanity: A is on the link and cleared")
+
+	# B announces, correctly stamped, but claiming to be A.
+	_b_transport.send({
+		CommandLink.KEY_KIND: CommandLink.KIND_HELLO,
+		CommandLink.KEY_BUILD: _b.build_stamp,
+		CommandLink.KEY_PEER: _CLIENT_A,
+	})
+
+	assert_eq(_refused.size(), 1, "one refusal, and it is not A's")
+	assert_string_contains(_refused[0], "%d:" % _CLIENT_B)
+	assert_string_contains(_refused[0], "announced as peer %d" % _CLIENT_A)
+	assert_eq(_cleared, [_CLIENT_A], "the claim cleared nobody a second time")
+
+	assert_false(_b_transport.is_linked(), "the peer that lied is gone")
+	assert_true(_a_transport.is_linked(), "and the peer it named is still on the link")
+	assert_eq(_a_refusals, [], "and was never even told about it")
+
+
+## The verified id also wins when the claim is merely ABSENT, which is what a
+## peer that predates this key sends. Nothing is inferred from the payload.
+func test_the_gate_keys_off_the_transport_s_id_not_the_payload_s() -> void:
+	_agree()
+
+	_b_transport.send({
+		CommandLink.KEY_KIND: CommandLink.KIND_HELLO,
+		CommandLink.KEY_BUILD: _b.build_stamp,
+	})
+
+	assert_eq(_cleared, [_CLIENT_B], "the host cleared whoever actually sent it")
+	assert_eq(_refused, [])
+
+
 ## A refused CLIENT goes quiet (#716): it has already been disconnected, so
 ## anything still in flight must not be acted on. The HOST's behaviour on being
 ## told is unchanged — see `test_link_build_check.gd`.

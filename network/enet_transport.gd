@@ -85,6 +85,10 @@ func local_peer_id() -> int:
 	return Wire.local_peer_id()
 
 
+func last_sender_id() -> int:
+	return Wire.last_sender_id
+
+
 ## Bind to a socket somebody else opened — the lobby, before this level existed.
 ##
 ## [b]The peers are replayed.[/b] A peer that connected while the menu was up
