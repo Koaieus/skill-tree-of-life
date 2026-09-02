@@ -99,6 +99,23 @@ shared" gotcha is impossible to get wrong from an effect.
 from any hook, not just `_on_granted`. `AuraEffect` does exactly this as its buffed
 set shifts.
 
+## The context acts through a SLICE, not an Entity (#520)
+
+`EffectContext.combat` is an `EntityCombat`, and `EffectContext.world` is the
+`CombatWorld` it belongs to. Everything that used to reach `entity.stat_board` /
+`entity.navigator` / `node.add_local_modifier` now reaches the slice instead, so
+**the identical `Effect` code recomputes against a shadow board when handed a
+shadow slice** — a node grant routes through `world.combat_for(node)` and lands on
+that node's slice in the same world. There is no preview branch anywhere in
+`effect_context.gd`: the world is the parameter. `ctx.entity` still answers with
+the real `Entity`, but for **identity only** (attitude, display); an effect that
+wants to *change* something goes through `ctx.combat`, or a shadow recompute would
+write to the live entity. `EffectInstance.clone_for(combat)` is the shadow's
+stand-in for a live grant row — the ledger rows are copied, the handles inside them
+stay the live `StatModifier` instances, which is what lets a shadow revoke a grant
+it never issued (`StatBoard._localized` translates the handle). See
+[attack-timeline.md](attack-timeline.md).
+
 ## Effects are shared resources — never store runtime state on them
 
 One `.tres` may sit on every entity of a class. A `var _buffed := {}` member on an
@@ -191,13 +208,49 @@ docstring warns about. `NinjaCore`/`ninja_core.tres` and `SerpentCore`/
 Serpent's two components land on the same stat as `ADD_BONUS` and sum through one
 `ModifierBins.compute` — `Array[Effect]` *is* the composite.
 
-`recompute` is a **full rebuild** (`revoke_all`, then re-grant), not an incremental
-diff: an owned subgraph is tens of nodes, it runs on allocation events rather than
-per frame, `revoke_all` also purges ledger rows whose node a cascade freed, and a
-rebuild cannot drift out of sync with the buffed set the way a diff can.
+`recompute` is a **full rebuild** (`revoke_all`, then re-grant) and is still what a
+core move and `_on_granted` run: `revoke_all` also purges ledger rows whose node a
+cascade freed, and a rebuild cannot drift out of sync with the buffed set the way a
+diff can. Allocation and deallocation no longer take it, though — **#626 gave them
+an incremental path**, `_topology_changed`, which is three branches cheapest-first:
+
+1. the changed node can't be in reach at all → no-op;
+2. a `DistanceScale.uses_bound()` scale normalizes by the widest distance in the
+   set, so membership alone can move every node's multiplier → fall back to the
+   full rebuild;
+3. otherwise `_apply_hop_diff` (a metric that dirties on membership change: pull
+   the generation-cached raw walk from `AuraDistanceCache`, diff it, touch only
+   what moved) or `_apply_membership_update` (one that doesn't: only the changed
+   node can need touching, so one metric read and one grant-or-revoke).
+
+`AuraEffect` also owns the **payload seam** the two channels share:
+`_has_payload()` and `_grant_to(ctx, node, scale)`. `TagAuraEffect` is those two
+methods and nothing else — the walk, the knobs, the origin rule and the batching
+below are inherited, not copied.
 
 Reach queries go through `RangeFinder.gather`, never `in_range` in a loop — see
 `.claude/rules/graph.md`.
+
+### Batching: one settle per stat per dispatch (#627, #647)
+
+A rebuild revokes a node's OLD grant then re-grants the new one — the same stat
+written twice, and unbatched that is two immediate `Stat.value_changed` emissions
+where one would do. `recompute` brackets every board it touches (old targets *and*
+new, opened before `revoke_all` so the revoke half is covered too) in
+`StatBoard.begin_batch` / `end_batch`, closing on every exit path including the
+early returns — an unmatched `begin_batch` swallows every later notification on
+that board, forever.
+
+#647 widens the bracket from one `recompute` to the whole **hook dispatch**.
+`Entity.dispatch` opens the scope with `EntityCombat.begin_dispatch()` and drains
+it in `end_dispatch()`; in between, `EffectContext.hold_batch(board)` parks the
+board on that deferred-close ledger, which takes ownership and returns `true` —
+the aura must then *not* close it itself. So the
+Serpent's two auras collapse into one settle per stat instead of one each. Outside
+a dispatch (`_on_granted`, a direct `recompute`) `hold_batch` returns false and the
+local bracket applies, exactly as in #627. Batching defers **notification only,
+never value** — `Stat.get_value()` recomputes from bins per call, so a mid-batch
+read is already correct.
 
 ## Deferred
 
@@ -229,13 +282,18 @@ Reach queries go through `RangeFinder.gather`, never `in_range` in a loop — se
 ## Known limits — file an issue to extend
 
 This is the boundary of what the effect system can express **today**. Hitting one
-of these is the signal to file (or revisit) an issue, not to work around it locally:
+of these is the signal to file (or revisit) an issue, not to work around it locally.
+
+Two rows left this table in #267 and are now ordinary features: a **non-numeric
+marker** on a node/entity (`poisoned`, `marked`) is `EffectContext.grant_tag` —
+refcounted on the carrier, ledgered alongside modifier rows, radiated by
+`TagAuraEffect`; and an aura **radiating from its carrier node** rather than the
+core is the origin rule `ctx.source_node ?? ctx.core_location`, resolved once in
+`AuraEffect.recompute`.
 
 | You want… | Status | Extend via |
 |---|---|---|
 | An effect that reacts to a **node's own** lifecycle and mutates only that node | Not supported (all dispatch is entity-scoped) | Node-local effect bin — see Deferred above |
-| A **non-numeric marker** on a node/entity (`poisoned`, `has_lifeline`, `marked`) | Not supported (only grant target is `StatModifier`) | Status tags — [#240](../design/status-tags.md) |
-| An aura that **radiates from its carrier node**, not core | Not supported (`recompute` hardcodes `core_location`) | Origin rule `source_node ?? core_location` — [#240](../design/status-tags.md) |
 | A hook that **returns a value** to change *whether* something happens (LifeLine veto) | Not supported (hooks are fire-and-forget `void`) | Query hook — LifeLine, Deferred above |
 | An effect on an **unallocated** node (map/environment hazard) | Not supported (node effects are dormant until owned) | A distinct `NodeHazardEffect` feature — no issue yet |
 | A spell/tag grant that **survives its granting node** on death | Handled *outside* the ledger (`SpellBook` innate/permanent add) | Spellbook looting — [#204](https://github.com/Koaieus/skill-tree-of-life/issues/204) |
