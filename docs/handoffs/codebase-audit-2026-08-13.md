@@ -1,7 +1,11 @@
 # Handoff — codebase audit 2026-08-13/14
 
-**The live document is [`audit-2026-08-13/TRIAGE.md`](audit-2026-08-13/TRIAGE.md).**
-Start there. This file keeps only what does not belong in the triage: the
+**The triage doc this file used to point at (`audit-2026-08-13/TRIAGE.md`) was
+never committed.** What survives is `00-brief.md` (the original fan-out prompt)
+plus the 8 raw slice reports in `audit-2026-08-13/`: `audit-attack.md`,
+`audit-devtools.md`, `audit-graph-core.md`, `audit-procgen.md`,
+`audit-skill-node.md`, `audit-systems.md`, `audit-test-infra.md`,
+`audit-vfx.md`. This file keeps only what does not belong in the triage: the
 fan-out budget post-mortem, and the pointer to the raw reports.
 
 Written against `7f03e5e`. Master is green-modulo-6 (the same 6 failures that
