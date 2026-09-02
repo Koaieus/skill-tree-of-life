@@ -165,6 +165,20 @@ var _link: CommandLink = null
 ## the truth on [signal NetworkTransport.peer_joined]; see [method _local_peer_id].
 var _local_peer: int = 0
 
+## --- #716: what the wire is doing, said out loud -------------------------------
+##
+## Two labels, because they answer two different questions and only one of them
+## is ever empty. [member _link_label] is the standing caption ("Others join at
+## …"); [member _status_label] is the incident line — a refusal, a lost link, a
+## dial that never connected — and it stays blank while nothing has gone wrong.
+var _link_label: Label = null
+var _status_label: Label = null
+## Latched when this machine's own link went away ([signal
+## NetworkTransport.link_lost]). START is refused while it is set: the route out
+## is the panel's [BackAffordance], not a button that would open a run nobody
+## else is in.
+var _link_lost: bool = false
+
 ## Keys inside a [constant CommandLink.KIND_LOBBY_PICK] payload that are not
 ## themselves [Participant] fields: WHICH seat, and WHO is asking. The changed
 ## fields beside them use [method Participant.to_dict]'s own names and encoding.
@@ -246,9 +260,13 @@ func _ready() -> void:
 	_build_run_section()
 
 	if _network != null and _network.is_online():
-		var link_label := Label.new()
-		link_label.text = _link_caption()
-		content.add_child(link_label)
+		_link_label = Label.new()
+		_link_label.text = _link_caption()
+		content.add_child(_link_label)
+		_status_label = Label.new()
+		_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		content.add_child(_status_label)
+		_report_mount_state()
 
 	_rebuild_participants()
 
@@ -304,7 +322,65 @@ func start_blocked_reason() -> String:
 
 func _refresh_start_enabled() -> void:
 	if _start_button != null:
-		_start_button.disabled = not can_start()
+		_start_button.disabled = _link_lost or not can_start()
+
+
+## --- #716 item 4: link loss has somewhere to appear ---------------------------
+##
+## Three distinct sentences, because they are three distinct situations and a
+## human on a dead screen needs to know which one they are in: the host dropped
+## me for a reason, the link died under me, or the peer I refused was that one.
+## Blank means nothing has gone wrong — this label is an incident line, not a
+## caption ([method _link_caption] is the caption).
+func _set_status(text: String) -> void:
+	if _status_label != null:
+		_status_label.text = text
+
+
+## Public so a test — and, later, a diagnostics panel — can read the incident
+## line without reaching into a private child.
+func status_text() -> String:
+	return "" if _status_label == null else _status_label.text
+
+
+## This machine's link went away without it asking. There is nothing to retry
+## from here: the route back is the panel's [BackAffordance], and START is
+## refused until then rather than opening a run whose other seat cannot arrive.
+func _on_transport_link_lost(reason: String) -> void:
+	_link_lost = true
+	_set_status("Connection lost — %s. Go back and try again." % reason)
+	_refresh_start_enabled()
+
+
+## This machine was refused: by the host it dialled, or by its own local
+## comparison against a hello. Not latched into [member _link_lost] — a refusal
+## is a verdict about the code being run, and saying "connection lost" over it
+## would name the wrong problem.
+func _on_link_refused(reason: String) -> void:
+	_set_status("Refused — %s" % reason)
+
+
+## Host-side: a joiner did not clear the gate. It was disconnected and never
+## seated, so the roster is deliberately untouched here — the only trace a
+## refused peer leaves anywhere is this line.
+func _on_link_peer_refused(peer_id: int, reason: String) -> void:
+	_set_status("Refused peer %d — %s" % [peer_id, reason])
+
+
+## What the wire was already doing when this screen mounted (#716 item 4). A dial
+## that fails SYNCHRONOUSLY — an unreachable or malformed address, where
+## `create_client` itself errors — is over before any panel exists, so no signal
+## will ever arrive and [member Wire.last_status] is the only account of it left.
+## Keyed on [member _transport] rather than on [method Wire.is_open] alone: a
+## mount that adopted a live link is the healthy case however the socket got
+## there, and a test that binds a [LoopbackTransport] afterwards clears this in
+## [method bind_link].
+func _report_mount_state() -> void:
+	if _transport != null:
+		return
+	_link_lost = true
+	_set_status("Connection lost — %s. Go back and try again."
+			% (Wire.last_status if Wire.last_status != "" else "no link"))
 
 
 ## The roster this lobby currently shows. Live, not a copy — the join path
@@ -400,6 +476,12 @@ func bind_link(transport: NetworkTransport) -> void:
 	_link.transport = _transport
 	_link.lobby_roster_received.connect(_adopt_remote_roster)
 	_link.lobby_pick_received.connect(_on_remote_pick)
+	# #716: the build gate, on both of its ends. A seat is offered on
+	# `peer_cleared` and never on the bare join, so a peer on the wrong commit
+	# cannot appear in anybody's roster even for one broadcast.
+	_link.peer_cleared.connect(_on_link_peer_cleared)
+	_link.peer_refused.connect(_on_link_peer_refused)
+	_link.link_refused.connect(_on_link_refused)
 	add_child(_link)
 	# Set AFTER `add_child`, because [method CommandLink._ready] re-applies the
 	# role onto its (here absent) applier — and because a lobby-time link must
@@ -409,7 +491,12 @@ func bind_link(transport: NetworkTransport) -> void:
 			else CommandLink.Mode.MIRROR)
 	_transport.peer_joined.connect(_on_link_peer_joined)
 	_transport.peer_left.connect(_on_link_peer_left)
+	_transport.link_lost.connect(_on_transport_link_lost)
 	_local_peer = _transport.local_peer_id()
+	# A link was adopted after all, so whatever [method _report_mount_state]
+	# concluded from its absence is stale.
+	_link_lost = false
+	_set_status("")
 	# A no-op on the production path (the rows do not exist yet — `_ready` mounts
 	# the link first, precisely so they can be built knowing the answer), and what
 	# makes a link bound afterwards repaint the seats it just re-decided.
@@ -436,15 +523,28 @@ func _is_client() -> bool:
 	return _network != null and _network.role == NetworkTransport.Role.CLIENT
 
 
-## A peer arrived. On a host that is #554 D2's outstanding half — the waiting
-## seat gets its real id (#714 acceptance 5, [method stamp_pending_remote_peer]'s
-## first caller outside this file's own tests). On a client it is this machine
-## finally learning its OWN id, which is what makes [method Participant.is_local]
-## answer for the row it is sitting at.
-func _on_link_peer_joined(peer_id: int) -> void:
+## A peer arrived. On a client it is this machine finally learning its OWN id,
+## which is what makes [method Participant.is_local] answer for the row it is
+## sitting at.
+##
+## [b]On a HOST this no longer seats anybody (#716 item 1).[/b] A socket-level
+## join says only that somebody connected; whether they are running this code is
+## not known until the build gate has answered, and #716 acceptance 2 is that a
+## refused peer never appears in anyone's roster — not even for the one broadcast
+## it would take to seat it and un-seat it. The seating moved to
+## [method _on_link_peer_cleared], one signal later.
+func _on_link_peer_joined(_peer_id: int) -> void:
+	if not _is_client():
+		return
+	_local_peer = _transport.local_peer_id()
+	_refresh_rows()
+
+
+## The peer cleared the build gate, so now it may have a seat — #554 D2's
+## outstanding half, one step later than it used to be
+## ([method stamp_pending_remote_peer] is still the writer).
+func _on_link_peer_cleared(peer_id: int) -> void:
 	if _is_client():
-		_local_peer = _transport.local_peer_id()
-		_refresh_rows()
 		return
 	stamp_pending_remote_peer(peer_id)
 	_broadcast_roster()

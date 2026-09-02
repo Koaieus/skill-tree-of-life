@@ -23,6 +23,7 @@ const _CLIENT_PEER := 2
 
 var _host: LobbyScreen
 var _client: LobbyScreen
+var _pair: Array[LoopbackTransport] = []
 
 
 func before_each() -> void:
@@ -33,13 +34,24 @@ func before_each() -> void:
 ## screens, exactly as a [MenuGraph.Route] would hand the same resource to the
 ## HOST and JOIN leaves.
 func _build(policy: LobbyPolicy) -> void:
-	var pair := LoopbackTransport.pair()
-	add_child_autofree(pair[0])
-	add_child_autofree(pair[1])
+	_pair = LoopbackTransport.pair()
+	add_child_autofree(_pair[0])
+	add_child_autofree(_pair[1])
 	_host = _lobby(NetworkConfig.host(0), policy)
 	_client = _lobby(NetworkConfig.join("127.0.0.1", 0), policy)
-	_host.bind_link(pair[0])
-	_client.bind_link(pair[1])
+	_host.bind_link(_pair[0])
+	_client.bind_link(_pair[1])
+
+
+## The join, driven from the CLIENT's socket event rather than by calling the
+## host's handler (#716). Since the build gate moved host-side and per peer, a
+## seat is offered on [signal CommandLink.peer_cleared] and not on the bare join
+## — so a fixture that pokes `_on_link_peer_joined` directly would be asserting
+## against a path production no longer takes. `announce_joined` is exactly what
+## a completed dial emits, and the announce, the gate and the roster answer all
+## fall out of it.
+func _join() -> void:
+	_pair[1].announce_joined()
 
 
 func _lobby(network: NetworkConfig, policy: LobbyPolicy) -> LobbyScreen:
@@ -81,7 +93,7 @@ func test_a_join_stamps_the_host_s_waiting_seat_and_replicates_the_roster() -> v
 	assert_true(LobbyScreen.is_pending_remote(_seat_of(_host, 2)),
 			"sanity: seat 2 is the authored-up-front remote seat, still waiting")
 
-	_host._on_link_peer_joined(_CLIENT_PEER)
+	_join()
 
 	assert_eq(_seat_of(_host, 2).peer_id, _CLIENT_PEER, "the waiting seat is stamped")
 	assert_false(LobbyScreen.is_pending_remote(_seat_of(_host, 2)))
@@ -96,7 +108,7 @@ func test_a_join_stamps_the_host_s_waiting_seat_and_replicates_the_roster() -> v
 ## the seat up front so procgen could see it, and only the identity was ever
 ## outstanding.
 func test_a_drop_returns_the_seat_to_waiting() -> void:
-	_host._on_link_peer_joined(_CLIENT_PEER)
+	_join()
 	_host._on_link_peer_left(_CLIENT_PEER)
 
 	assert_true(LobbyScreen.is_pending_remote(_seat_of(_host, 2)))
@@ -107,7 +119,7 @@ func test_a_drop_returns_the_seat_to_waiting() -> void:
 ## OWN view moved only because the host said so — there is no local
 ## pre-application (#548 D5 at the roster's scope).
 func test_a_client_s_pick_is_applied_by_the_host_and_comes_back_down() -> void:
-	_host._on_link_peer_joined(_CLIENT_PEER)
+	_join()
 	var mine := _my_seat(_client)
 	assert_eq(mine.id, 2, "the joiner's own seat is the one the host stamped")
 	var wanted := Color(0.123, 0.456, 0.789)
@@ -124,7 +136,7 @@ func test_a_client_s_pick_is_applied_by_the_host_and_comes_back_down() -> void:
 
 ## Acceptance 2, downward.
 func test_a_host_pick_reaches_the_joiner() -> void:
-	_host._on_link_peer_joined(_CLIENT_PEER)
+	_join()
 	var wanted := Color(0.9, 0.1, 0.2)
 
 	_host._on_row_color_picked(wanted, _seat_of(_host, 1))
@@ -137,7 +149,7 @@ func test_a_host_pick_reaches_the_joiner() -> void:
 ## it without the wire restating it, and the host's answer is what the client
 ## ends up showing.
 func test_a_colliding_colour_is_refused_and_the_client_converges() -> void:
-	_host._on_link_peer_joined(_CLIENT_PEER)
+	_join()
 	var host_color: Color = _seat_of(_host, 1).color
 	var before: Color = _seat_of(_client, 2).color
 	assert_ne(before, host_color, "sanity: the palette handed the two seats different colours")
@@ -154,7 +166,7 @@ func test_a_colliding_colour_is_refused_and_the_client_converges() -> void:
 ## invalid is a roster the host may not start.
 func test_a_start_veto_reflects_a_remote_camp_pick() -> void:
 	_build(_versus_policy())
-	_host._on_link_peer_joined(_CLIENT_PEER)
+	_join()
 	assert_true(_host.can_start(), "sanity: the two humans start on different camps")
 
 	_client._on_row_camp_picked(_CAMP_1, _my_seat(_client))
@@ -169,7 +181,7 @@ func test_a_start_veto_reflects_a_remote_camp_pick() -> void:
 ## what the payload claims — a client naming somebody else's seat is refused and
 ## answered with the truth.
 func test_a_client_may_not_move_the_host_s_row_or_an_ai_row() -> void:
-	_host._on_link_peer_joined(_CLIENT_PEER)
+	_join()
 	var host_color: Color = _seat_of(_host, 1).color
 	var ai := _seat_of(_host, 3)
 	assert_eq(ai.kind, Participant.Kind.AI, "sanity: seat 3 is the AI opponent")
@@ -194,7 +206,7 @@ func _color_pick_disabled(lobby: LobbyScreen, row: int) -> bool:
 
 
 func test_only_the_local_seat_s_pickers_are_live() -> void:
-	_host._on_link_peer_joined(_CLIENT_PEER)
+	_join()
 
 	assert_true(_color_pick_disabled(_client, 0), "the host's row is locked on the joiner's screen")
 	assert_false(_color_pick_disabled(_client, 1), "the joiner's own row is live")
@@ -256,7 +268,7 @@ func test_an_offline_lobby_mounts_nothing() -> void:
 ## run, and the lobby hands its own link back before it fires so the level can
 ## adopt the socket without a second [CommandLink] answering on it.
 func test_start_releases_the_link_without_closing_the_socket() -> void:
-	_host._on_link_peer_joined(_CLIENT_PEER)
+	_join()
 	var transport := _host._transport
 	var configs: Array[RunConfig] = []
 	_host.start_pressed.connect(func(cfg: RunConfig): configs.append(cfg))

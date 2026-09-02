@@ -160,6 +160,11 @@ func end() -> void:
 	# The wire belonged to the run: a player who hosted once and then starts a
 	# solo game must not silently open a socket again.
 	network = null
+	# …and since #713 the SOCKET outlives the level too, so clearing the config
+	# is no longer enough (#716 item 2). Nothing else stops it on the way out —
+	# `EnetTransport` has no `_exit_tree` teardown, by design — and a listener
+	# left behind holds the port the next Host click needs.
+	Wire.stop()
 
 
 func _on_run_ended(run_outcome: RunOutcome) -> void:

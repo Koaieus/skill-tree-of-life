@@ -140,7 +140,10 @@ func test_refusal_emits_link_refused_on_both_ends() -> void:
 	# Order is not a contract — the loopback delivers the reject synchronously
 	# from inside `_refuse`, so the host announces first — but both must fire.
 	assert_has(seen, "client:build mismatch")
-	assert_has(seen, "host:refused by peer")
+	# The REASON travels since #716: a lobby puts this string in front of a
+	# human, and "refused by peer" alone says a mismatch happened without
+	# saying what mismatched.
+	assert_has(seen, "host:refused by peer — build mismatch")
 
 
 ## The incident itself: the orphan was running code from before this check, so

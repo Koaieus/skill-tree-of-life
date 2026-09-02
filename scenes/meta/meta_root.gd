@@ -52,6 +52,11 @@ func _bind_panels() -> void:
 	var host := _host_panel()
 	if host != null:
 		host.host_requested.connect(_on_host_requested)
+	# #716 item 2: the lobby's back button. Its sibling route out — a focus
+	# change to some other leaf — is caught in [method _on_focus_started].
+	var panels := _panels()
+	if panels != null:
+		panels.panel_dismissed.connect(_on_panel_dismissed)
 
 
 ## Taking a route to a leaf that authors a run is what used to be a button
@@ -73,14 +78,42 @@ func _bind_panels() -> void:
 ## a port (and, for JOIN, an address) has been typed. That asymmetry is #531's,
 ## widened by #582 — it is the reason [MenuGraph.Item] splits "which panel
 ## opens" from "what run shape does this eventually author".
+## [b]Leaving is routed here too (#716 item 2).[/b] Every navigation in the
+## frontmatter goes through [method FrontmatterRoot.focus], which emits this — so
+## a focus that is not a lobby leaf IS the back-out, whether the player pressed
+## the panel's back button or walked into a different leaf entirely. Stating it
+## as "anything that is not the lobby" rather than enumerating the ways out is
+## what stops the next route from silently keeping a socket open.
+##
+## HOST and JOIN focus their own config panel and only swap the LOBBY panel in
+## afterwards, without moving the focus — so on those routes the leaving edge is
+## the focus change off that same leaf, which this still catches.
 func _on_focus_started(id: StringName) -> void:
 	var item := _frontmatter.tree.get_item(id)
-	if item == null or item.route == null:
+	if item == null or item.panel != MenuGraph.PANEL_LOBBY:
+		_leave_lobby()
 		return
-	if item.panel != MenuGraph.PANEL_LOBBY:
+	if item.route == null:
 		return
 	_push_lobby(item.route.requested_mode, _network_for(item.route),
 			item.route.lobby_policy)
+
+
+func _on_panel_dismissed(id: StringName) -> void:
+	if id == MenuGraph.PANEL_LOBBY:
+		_leave_lobby()
+
+
+## Backing out of a lobby is a leave, and a leave stops the socket (#716
+## acceptance 3). Before this, a host that opened a listener and walked away kept
+## it — nothing released [LobbyScreen]'s bound link but START — and the next Host
+## click bound a port this machine already held.
+##
+## Idempotent by construction: both are no-ops when there is nothing open, which
+## is what lets every route out call it without asking whether it was in a lobby.
+static func _leave_lobby() -> void:
+	GameSession.network = null
+	Wire.stop()
 
 
 ## The [NetworkConfig] constructor a route's role names. Every role is spelled
@@ -163,17 +196,17 @@ func _push_lobby(
 ## every offline lobby — and every existing lobby test — is on exactly the path
 ## it was on before.
 ##
-## An already-open link on the SAME endpoint is left alone: re-entering a host
-## lobby must not rebind a port this machine already holds, nor drop a peer that
-## already joined it.
+## [b]It always (re)opens on the endpoint that was typed (#716).[/b] There used
+## to be a "same role, leave it alone" shortcut here, and it compared ROLES —
+## so re-hosting on a different port was a silent no-op and the player kept
+## listening on the old one. Since every route into [method _push_lobby] now
+## passes through [method _leave_lobby] on the way out of the previous one, there
+## is no live link left to preserve anyway: the case the shortcut existed for
+## cannot arise, and the case it broke was real.
 static func _open_wire_for(net: NetworkConfig) -> void:
-	if net == null or not net.is_online():
-		if Wire.is_open():
-			Wire.stop()
-		return
-	if Wire.is_open() and Wire.role == net.role:
-		return
 	Wire.stop()
+	if net == null or not net.is_online():
+		return
 	if net.role == NetworkTransport.Role.HOST:
 		Wire.start_host(net.port)
 	else:
