@@ -1,16 +1,22 @@
 @tool
-class_name ReverberatorGhostLoopBody
+class_name GhostLoopBody
 extends Node2D
 
-## Reverberator's SELF_LOOP body (#677) — "an echo chasing itself around the
-## teardrop": a second [BoltPacket] head sampled ~0.1 behind the lead's own
-## `t`, both riding whatever [SelfLoopPath] the coordinator is already
-## evaluating for the whole [Projectile] (never a second copy of that curve,
-## which could only drift from the lead's own). Implements the same duck
+## The shared SELF_LOOP body — "an echo chasing itself around the teardrop": a
+## second [member ghost_scene] head sampled [constant GHOST_T_OFFSET] behind
+## the lead's own `t`, both riding whatever [SelfLoopPath] the coordinator is
+## already evaluating for the whole [Projectile] (never a second copy of that
+## curve, which could only drift from the lead's own). Implements the same duck
 ## contract [BoltBody] does (`tint`, `_on_launch`/`_on_progress(t)`/
 ## `_on_arrival()`/`_on_crit(tier)`/`_on_context(entry)`, `finished`), so it
-## drops straight into [code]ReverberatorArrivalVisual[/code]'s `body_scene`
-## slot exactly like a bare [BoltPacket] does for the JUMP/EDGE verbs.
+## drops straight into any wrapper's `body_scene` slot exactly like a bare
+## [BoltPacket] does for the JUMP/EDGE verbs.
+##
+## Worn by Reverberator (#677, "an echo chasing itself") and Resonator (#678,
+## "self-loops are explicitly weaponised by this spell") — one body, since the
+## two only ever differed by their header comment. A spell that wants its own
+## flavour reaches for [member lead_scene] / [member ghost_scene] /
+## [member ghost_alpha], not for a copy of this file.
 ##
 ## The ghost is [member Node2D.top_level] — like [BoltBody]'s own trail
 ## segments ("trail segments live in WORLD space") — because this node's

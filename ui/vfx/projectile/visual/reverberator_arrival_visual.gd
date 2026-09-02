@@ -3,7 +3,7 @@ class_name ReverberatorArrivalVisual
 extends Node2D
 
 ## Reverberator's shared per-verb visual (#677): a flying [member body_scene]
-## (a bare [BoltPacket] for JUMP/EDGE, [ReverberatorGhostLoopBody] for
+## (a bare [BoltPacket] for JUMP/EDGE, [GhostLoopBody] for
 ## SELF_LOOP) plus an arrival [ImpactRing] in `IN` mode, sized and heated by
 ## the landing's `visit_index` — "the 1st strike whispers, the 4th blazes"
 ## (#677 acceptance), drawn literally as an escalating ring per repeat visit.
@@ -28,7 +28,7 @@ signal finished
 const RAMP_VISITS: float = 3.0
 
 ## Flying body — [code]bolt_packet.tscn[/code] for JUMP/EDGE,
-## [ReverberatorGhostLoopBody] for SELF_LOOP (set per coordinator slot).
+## [GhostLoopBody] for SELF_LOOP (set per coordinator slot).
 @export var body_scene: PackedScene = preload("res://ui/vfx/projectile/visual/bolt_packet.tscn")
 
 ## Arrival ring — `IN` (absorb/gather): "every landing spawns P2 in IN mode"

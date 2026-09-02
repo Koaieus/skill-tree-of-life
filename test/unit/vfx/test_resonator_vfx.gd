@@ -9,7 +9,7 @@ const RESONATOR_DEF := preload("res://attack/spell/defs/resonator.tres")
 const RESONATOR_COORDINATOR := preload("res://ui/vfx/coordinator/spells/resonator_coordinator.tscn")
 const SHARED_DEFAULT_COORDINATOR := preload("res://ui/vfx/coordinator/magic_bounce_coordinator.tscn")
 const BOLT_PACKET := preload("res://ui/vfx/projectile/visual/bolt_packet.tscn")
-const GHOST_LOOP_BODY := preload("res://ui/vfx/projectile/visual/resonator_ghost_loop_body.tscn")
+const GHOST_LOOP_BODY := preload("res://ui/vfx/projectile/visual/ghost_loop_body.tscn")
 const EDGE_VISUAL := preload("res://ui/vfx/projectile/visual/resonator_edge_visual.tscn")
 
 const PEAK_PACKETS: int = 60
@@ -135,7 +135,7 @@ func test_self_loop_visual_composes_the_ghost_loop_body_with_a_gather_ring() -> 
 
 
 func test_ghost_loop_body_spawns_a_lead_and_a_world_space_ghost() -> void:
-	var body: ResonatorGhostLoopBody = GHOST_LOOP_BODY.instantiate()
+	var body: GhostLoopBody = GHOST_LOOP_BODY.instantiate()
 	add_child_autofree(body)
 	var bolts: Array = body.find_children("*", "BoltBody", true, false)
 	assert_eq(bolts.size(), 2, "one lead head plus one ghost head")
@@ -143,7 +143,7 @@ func test_ghost_loop_body_spawns_a_lead_and_a_world_space_ghost() -> void:
 
 
 func test_ghost_trails_the_lead_by_roughly_point_one_t() -> void:
-	var body: ResonatorGhostLoopBody = GHOST_LOOP_BODY.instantiate()
+	var body: GhostLoopBody = GHOST_LOOP_BODY.instantiate()
 	add_child_autofree(body)
 	body.global_position = Vector2(100.0, 100.0)
 	body._on_launch()
