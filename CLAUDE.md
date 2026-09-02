@@ -47,17 +47,14 @@ mise run check-shaders                         # the shader half alone: compile-
 mise run refresh                               # editor/class-cache refresh + a verdict on what it changed
 ```
 
-The full suite costs **~162s** (335 scripts, 2948 tests, 2026-08-28) — a
+The full suite costs **~185s** (386 scripts, 3504 tests, 2026-09-02) — a
 **gate, not a feedback loop.** Earn it **at most once per unit of work**, at
 final green, right before reporting: never to explore, never mid-rebase,
 never **to grep it differently.** Iterate on the cheap ladder instead —
 `check` (~20s, catches script parse + shader compile errors 8x cheaper) → `test:one` → `test:dir` →
-only then the full suite. `mise run test` prints a verdict
-(counts, every failing test with its first assert + line, pending,
-run-health alarms) and always keeps the full console output at
-`.godot/gut-last.log` plus junit XML at `.godot/gut-last.xml`. If the summary
-elided what you need, grep the log — `grep -F '[Failed]'`, with `-F`, since a
-bare `[Failed]` is a bracket expression that matches almost every line.
+only then the full suite. `mise run test` prints a verdict and always keeps
+the full console output at `.godot/gut-last.log` plus junit XML — see
+`.claude/rules/testing.md` for the log-grep gotcha and other pitfalls.
 
 Each level scene extends `scenes/game_root.tscn` (the composition root); subclasses populate content via the `_setup_level()` hook.
 
@@ -71,7 +68,7 @@ Each level scene extends `scenes/game_root.tscn` (the composition root); subclas
 `Navigator` (`graph/navigator.gd`) — full-graph `AStar2D` mirror; `EntityNavigator` (`entity/entity_navigator.gd`) is the per-entity subgraph mirror used for cut-vertex / islanding queries.
 `TurnManager` (`systems/turn_manager.gd`) — initiative ticks to 100 → entity acts (single implicit phase — intent is by input channel, not phase gates); `end_turn()` deducts 100. See `.claude/rules/turn-manager.md`.
 `AllocationSystem` (`systems/allocation_system.gd`) — `allocate` / `deallocate` (gated) + `force_allocate` / `force_deallocate` (primitives). See `docs/domain/allocation_system.md`.
-`BattleSystem` (`systems/battle_system.gd`) — owns active `AttackPlan`, runs `launch_attack` (resolve → VFX await → AP deduction), drives forced-dealloc cascade. See `docs/domain/attack_plan_system.md`.
+`BattleSystem` (`systems/battle_system.gd`) — owns active `AttackPlan`; `launch_attack` builds a `LaunchAttackCommand` and submits it to `CommandApplier`, whose `apply_launch_command` rebuilds and replays the resolved `AttackRecord` on the reveal clock, driving the forced-dealloc cascade. See `docs/domain/attack_plan_system.md`.
 `VisionSystem` (`systems/vision_system.gd`) — fog of war; reads owned subgraph + per-entity `vision_range` / `sensor_range`. See `docs/domain/vision-system.md`.
 `LootSystem` (`systems/loot_system.gd`) — killing-blow XP + a relic on the victim's former core; snapshots on the pre-cleanup `Events.entity_dying` phase, before AllocationSystem strips the corpse. See `docs/domain/loot-system.md`.
 `StatBoard` (`stats_system/`) — PoE-style modifier pipeline. See `.claude/rules/stats-system.md` for IDs, pipeline, gotchas — **update it when the stat system changes.**
@@ -92,6 +89,7 @@ Spawning runtime entities: subclass `GameRoot`, override `_setup_level()`, call 
 | `GameSession` | The live run — `RunConfig`, `ParticipantRoster`, `RunOutcome`; resolves the procgen seed **exactly once** up front (`.claude/rules/game-session.md`) |
 | `StatRegistry` | StatDef lookup by id |
 | `DebugClipboard` | Press `c` while hovering a SkillNode to copy its full state (archetype, owner, hp, modifiers, addons) to the system clipboard |
+| `Wire` | The LAN socket + the repo's single `@rpc`, at `/root/Wire` — a path that outlives every scene (#713). See `docs/domain/multiplayer-harness.md` |
 
 ## Design docs
 
@@ -103,7 +101,7 @@ GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`); board via `mise gh-p
 
 **The status ladder is the pipeline** — `Backlog` → `Needs design` (the `/swarmify` inbox) → `Ready` → `In progress` → `In review` → `Done`. `Ready` *is* the swarm queue and **a drone never touches a non-`Ready` issue**; `Ready` and `Needs design` are in turn prioritised by [docs/FOCUS.md](docs/FOCUS.md), which wins on **what to pull first** and never on state — the board is authoritative for status, dependencies and what shipped.
 
-**Reading an issue is two calls** — `gh issue view <n>` prints the body, `--comments` prints ONLY the comments, and the comments usually hold the decisions. **A 0-comment issue makes `--comments` print nothing at all** — no "no comments" message, exit code 0 — which reads like a broken call; it isn't, that's just what zero comments looks like. **Never pass `gh --body "..."` with backticks**: the shell silently deletes the span and publishes mangled text — heredoc to the scratchpad, `--body-file`. **Attribute owner decisions to the owner, verbatim**, dated, as an owner call — never laundered into your own reasoning.
+**Reading an issue is two calls** — `gh issue view <n>` prints the body, `--comments` prints ONLY the comments (and prints nothing, exit 0, on a 0-comment issue — that's not a broken call, just what zero comments looks like), and the comments usually hold the decisions. **Never pass `gh --body "..."` with backticks**: the shell silently deletes the span — heredoc to the scratchpad, `--body-file`. **Attribute owner decisions to the owner, verbatim**, dated, as an owner call — never laundered into your own reasoning.
 
 Board commands, the full ladder, the `Backlog`-means-no-live-parent invariant, roadmap fields, sub-issues, and why attribution is load-bearing: **`docs/domain/issue-workflow.md`**.
 
