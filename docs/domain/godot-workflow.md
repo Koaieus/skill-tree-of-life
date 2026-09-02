@@ -137,6 +137,13 @@ Run it as part of the same change, not later. Note `.tscn`/`.tres` carry their
 uid **inline** in the `[gd_scene uid="…"]` header, so deleting a scene leaves no
 sidecar — this bites `.gd` (and imported assets), not scenes.
 
+The inverse bite, on **create**: a new `.gd` mints its `.uid` sidecar on first
+load — a headless test run counts — and the repo tracks them (392 under
+`test/unit/` alone). A branch that adds scripts must commit their sidecars too,
+or the worktree is left with untracked strays that the next checkout regenerates
+as churn (#716's two test scripts landed sidecar-less and needed a pinning chore
+commit). Sweep for `?? *.uid` in `git status` at branch-finish time.
+
 Known pre-existing orphan: `addons/gut/menu_manager.gd.uid`, shipped by vendored
 GUT 9.6.0 (`24da57f`) with no companion script. Left alone deliberately — don't
 diverge from a vendored addon over it.
