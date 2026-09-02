@@ -266,20 +266,29 @@ func test_the_client_is_seated_on_its_own_participant_after_adopting() -> void:
 			"the two machines are seated on different heroes — the WANTED difference")
 
 
-## [method GameRoot.await_host_run] is a no-op for everyone who is not adopting
+## [method GameRoot.pull_host_world] is a no-op for everyone who is not adopting
 ## a run: the host, and every offline launch. That is what keeps single-player
-## and hot-seat on the untouched pre-#463 path rather than hanging on a signal
-## nobody will emit.
-func test_await_host_run_is_inert_off_the_join_path() -> void:
+## and hot-seat on the untouched path.
+##
+## This replaces #463's `await_host_run` inertness test, which #715 deleted along
+## with the method — the run's shape now crosses in the LOBBY at START, so a
+## level that waited for it would wait forever
+## (`test_client_skips_procgen.gd::test_await_host_run_is_gone`). What survives
+## unchanged is the claim that claim was making: nothing on the join path may
+## fire for a machine that is not joining.
+func test_the_world_pull_is_inert_off_the_join_path() -> void:
 	var root := _build_root("offline")
 	await wait_physics_frames(1)
+	var asked: Array[String] = []
+	root.command_link.resync_sent.connect(func(reason: String) -> void: asked.append(reason))
+
 	GameSession.network = null
-	await root.await_host_run()
-	assert_true(true, "returned rather than hanging with no network config")
+	root.pull_host_world()
+	assert_eq(asked.size(), 0, "an offline level asks nobody for a world")
 
 	GameSession.network = _host_network()
-	await root.await_host_run()
-	assert_true(true, "returned rather than hanging as the HOST")
+	root.pull_host_world()
+	assert_eq(asked.size(), 0, "and neither does the machine that decides the run")
 
 
 ## The invariant the moved `_open_link` depends on, made executable.

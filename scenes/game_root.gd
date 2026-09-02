@@ -1004,7 +1004,16 @@ func _on_camera_bounds_changed(bounds: Rect2) -> void:
 func _focus_camera_on_player() -> void:
 	if player == null:
 		return
-	var target: Vector2 = player.core_location.global_position if player.core_location != null else player.position
+	# `Entity` extends [Node], not [Node2D] — it has no `position` of its own, and
+	# the hero's place in the world IS its core node. Before #715 the fallback was
+	# unreachable (a spawned hero always got a core), so it read `player.position`
+	# and would have thrown on the first machine that hit it. A joining client
+	# reaches it every time: it seats the roster before any node exists and the
+	# core arrives with the resync, so the camera simply has nowhere to look yet.
+	# `_on_resync_applied` -> `bind_player` is not what re-points it; the turn
+	# start that follows the world's arrival is.
+	var target: Vector2 = (player.core_location.global_position
+			if player.core_location != null else Vector2.ZERO)
 	if camera_director != null:
 		camera_director.request_focus(FocusRequest.point(target, 0.0, true, &"handover"))
 		return
