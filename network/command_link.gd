@@ -205,9 +205,10 @@ signal resync_applied(reason: String)
 signal link_refused(reason: String)
 
 ## #646: a [LootPickOffer] arrived — a REMOTE collector's peer owes a pick.
-## Nothing in this codebase consumes it yet (the HUD half of #564 is still
-## dormant, same as [method LootPickRegistry.is_remote_collector]); it is
-## emitted so that HUD wiring, when it lands, has a single source rather than
+## [method LootSystem._on_loot_offer_received] is the one consumer (#564): the
+## mirror-side adapter that rebuilds the offer into the same [LootPickRequest] /
+## [SpellLootRequest] the host's own claim flow raises, on the same `Events`
+## bus. The signal exists so that adapter has a single source rather than
 ## reaching into [method _on_message_received] itself.
 signal loot_offer_received(offer: LootPickOffer)
 
