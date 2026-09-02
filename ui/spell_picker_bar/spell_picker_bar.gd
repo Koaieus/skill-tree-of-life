@@ -58,9 +58,9 @@ func update_gating_context(attacker: Entity, source: SkillNode) -> void:
 	_gating_source = source
 	_refresh_castability()
 	# Propagate caster to buttons so the floating tooltip can compute
-	# dynamic values (e.g. hops scaled by spell_range stat).
+	# dynamic values (e.g. cast range scaled by the spell_range stat).
 	for btn in _buttons_by_spell.values():
-		btn._caster = attacker
+		btn.set_caster(attacker)
 
 
 func _rebuild() -> void:
@@ -77,7 +77,7 @@ func _rebuild() -> void:
 			continue
 		var btn: SpellPickerButton = _SpellPickerButton.instantiate()
 		btn.spell = spell
-		btn._caster = _gating_attacker
+		btn.set_caster(_gating_attacker)
 		btn.button_group = _group
 		btn.pressed.connect(_on_spell_button_pressed.bind(spell))
 		add_child(btn)
