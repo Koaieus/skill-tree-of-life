@@ -15,8 +15,8 @@ extends GutTest
 ## Three decisions live in `meta_root.gd` and nowhere else, and each has its own
 ## test below:
 ##
-## 1. [code]_stamp_local_peer()[/code] — a HOST is peer 1 and knowable before any
-##    socket opens; a CLIENT cannot know its own id and stays 0 for [GameRoot].
+## 1. [code]_stamp_local_peer()[/code] — START carries this machine's id off the
+##    menu's own socket ([Wire], #713); no socket is 0, which [GameRoot] restamps.
 ## 2. [code]_push_lobby()[/code] re-states the [NetworkConfig] role on EVERY
 ##    route including the offline ones, so a player who hosted, backed out and
 ##    then started a solo run does not silently open a socket.
@@ -46,6 +46,9 @@ const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _META_ROOT := preload("res://scenes/meta/meta_root.tscn")
 ## The script, so the static `_stamp_local_peer()` can be called as a static.
 const _META_SCRIPT := preload("res://scenes/meta/meta_root.gd")
+## Ephemeral, not [constant NetworkConfig.DEFAULT_PORT] (#581): a concurrent
+## suite, or an earlier socket in this same run not yet released, can hold 9099.
+const _EPHEMERAL_PORT := 0
 
 var _meta: Control
 var _frontmatter: FrontmatterRoot
@@ -53,7 +56,11 @@ var _panels: FrontmatterPanels
 var _tree: MenuGraph
 
 
+## [Wire] is process-global and outlives every test in GUT's single process, so
+## a socket left open here would make another file's assertions pass or fail on
+## test ORDER — see `test_wire_outlives_the_level.gd`, which owes the same hooks.
 func before_each() -> void:
+	Wire.stop()
 	GameSession.network = null
 	GameSession.local_peer_id = 0
 	_tree = MenuGraph.build()
@@ -65,6 +72,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	Wire.stop()
 	GameSession.network = null
 	GameSession.local_peer_id = 0
 
@@ -308,17 +316,22 @@ func test_every_lobby_route_writes_a_network_config() -> void:
 
 # --- decision 1: which peer this machine is, before any socket opens ---------
 
-func test_a_host_knows_its_own_peer_id_and_a_client_cannot() -> void:
+## Re-pointed, not weakened: START still stamps the id, and the id is still 1 for
+## a host and 0 for a machine with no socket. What moved is WHERE the answer
+## comes from — [Wire], the process-wide singleton the menu's own socket lives on
+## (#713) — so the [NetworkConfig] role no longer gets a second, forkable vote.
+func test_start_stamps_this_machines_id_from_the_live_socket() -> void:
 	GameSession.network = NetworkConfig.host()
+	assert_eq(Wire.start_host(_EPHEMERAL_PORT), OK, "sanity: the menu's socket opens")
 	_META_SCRIPT._stamp_local_peer()
 	assert_eq(GameSession.local_peer_id, NetworkTransport.HOST_PEER_ID,
-			"a host is always peer 1 under Godot's high-level multiplayer")
+			"a host is peer 1, and it is the SOCKET that says so")
 
 	GameSession.local_peer_id = 99
-	GameSession.network = NetworkConfig.join("10.0.0.4")
+	Wire.stop()
 	_META_SCRIPT._stamp_local_peer()
 	assert_eq(GameSession.local_peer_id, 0,
-			"a client's id is minted on connect — GameRoot stamps it from the transport")
+			"a role with no socket behind it is nobody — GameRoot stamps the client on join")
 
 	GameSession.local_peer_id = 99
 	GameSession.network = NetworkConfig.offline()
