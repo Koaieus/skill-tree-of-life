@@ -1,12 +1,9 @@
 ## Runtime debug overlay: F3 toggles a StatBoardGraph over the game.
 ##
-## Wire by the scene glue (HudRoot.compose does this):
-##   overlay.board = _player.stat_board
+## Wire by the scene glue (HudRoot.rebind_player does this):
+##   stat_board_overlay.board = board
 ##
-## Falls back to `get_first_node_in_group("player").stat_board` if `board`
-## is not set — requires the player entity to add_to_group("player").
-##
-## Mount: add as a child of HudRoot or any CanvasLayer in your level scene.
+## Mount: authored as a child of HudRoot in hud_root.tscn.
 ## The internal StatBoardGraph runs a 4 Hz refresh timer; we don't need to
 ## drive it from _process.
 extends Control
@@ -63,13 +60,8 @@ func _toggle() -> void:
 
 
 func _open() -> void:
-	var b := board
-	if b == null:
-		var player := get_tree().get_first_node_in_group(&"player")
-		if player != null:
-			b = player.get(&"stat_board")
-	if b == null:
-		push_warning("StatBoardOverlay: no board — set overlay.board or add player to group 'player'")
+	if board == null:
+		push_warning("StatBoardOverlay: no board — HudRoot.rebind_player has not set overlay.board yet")
 		return
-	_graph.call(&"load_board", b)
+	_graph.call(&"load_board", board)
 	show()
