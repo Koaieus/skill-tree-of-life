@@ -6,7 +6,7 @@ extends CombatReadoutCard
 ## [AttributeRules] / stats-system.md's intrinsic table — both `blade_size`
 ## and `blade_damage` step every 10 STR).
 
-# TODO: query value from innate modifiers on board, don't reproduce *stale* logic. If needed maybe we should consider adding a system to resolve these kind of values, so this UI element can stay more dumb 
+# Reproduces stale STR-breakpoint logic instead of reading the board's innate modifiers — see #723.
 const STR_STEP := 10.0
 
 @onready var _size_blips: CapacityBlips = %SizeBlips
