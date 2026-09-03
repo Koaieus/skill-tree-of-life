@@ -29,6 +29,11 @@ open; `meta_root._push_lobby` alone decides a route opens a socket, and
 `LobbyScreen` hands its link back at START because **`Wire` admits ONE bound
 facade** (#715), and a **client runs no procgen**.
 
+**There is no drop-in mid-game (#733).** `GameRoot._on_peer_joined`'s host branch
+refuses — via `CommandLink.refuse_peer`, ahead of `stamp_pending_remote` and the
+join-world push — any peer absent from `GameSession.roster`. A peer that dials a
+live run gets no world; don't "fix" a silent late joiner by widening that gate.
+
 **`Transport` + `CommandLink` are still mounted in `scenes/game_root.tscn`
 (#531), and a level may only SWAP the transport's script, never author a second
 pair** — the seam stays per-level because two worlds in one process need a
