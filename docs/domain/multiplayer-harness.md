@@ -383,6 +383,21 @@ Details that are easy to get wrong, all covered by
   here predicted (`KIND_SNAPSHOT` / `KIND_SETUP` are handled regardless of a
   prior hello, so a lobby exchanging anything first wants the gate ahead of it);
   it is done.
+- **After START the door is shut, and the refusal says so (#733).** The build
+  gate above is the LOBBY's door; a peer that dials in once a level is up never
+  gets that far. Owner call: "joining only happens to the lobby before the host
+  presses START, there's no drop-in mid-game." `Wire` keeps the socket open
+  across the level mount by design (#713), so the door has to be shut on
+  purpose rather than left to close itself — `GameRoot._on_peer_joined`'s host
+  branch checks the new peer's id against `GameSession.roster` (some seat's
+  `peer_id` must already match) before it does anything else, and a peer with
+  no seat is turned away through the same `CommandLink.refuse_peer` the build
+  gate uses, ahead of `LobbyScreen.stamp_pending_remote` and ahead of the
+  join-world push. Not a socket seal: refusing the SOCKET rather than the peer
+  would have ENet reset the connect silently, so the joiner would sit out its
+  own connect timeout and land on "could not reach the host" — a lie about a
+  host that is running. Accepting the connection and refusing with a reason is
+  what keeps the message truthful.
 - **Refusing a PEER is not refusing the socket (#716).** `_refuse_peer` sends
   the reject to that one peer and then `transport.drop_peer`s it — no latch, no
   `transport.stop()`. The old `_refuse` did stop the socket, which was tolerable

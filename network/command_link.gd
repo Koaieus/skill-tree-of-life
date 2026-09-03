@@ -1077,6 +1077,15 @@ func _refuse_peer(peer_id: int, reason: String, theirs: Dictionary) -> void:
 	peer_refused.emit(peer_id, reason)
 
 
+## #733's door in: a caller OUTSIDE this file that already knows a peer must be
+## turned away — [GameRoot]'s in-run join gate, which has no build stamp to
+## compare and so nothing to put in [param theirs]. [method _refuse_peer] stays
+## private; this is the one public way onto it, so nothing outside this class
+## reaches for the private method directly.
+func refuse_peer(peer_id: int, reason: String) -> void:
+	_refuse_peer(peer_id, reason, {})
+
+
 ## The other end did the comparing, so this side only reports it.
 ##
 ## [b]It deliberately neither latches nor stops.[/b] Both are one line and both

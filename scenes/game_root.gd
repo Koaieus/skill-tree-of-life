@@ -530,6 +530,15 @@ func _greet_if_linked(_status: String) -> void:
 ## again — so a level that adopted the lobby's socket would sit waiting for a
 ## message nobody would ever send. START broadcasts it from the lobby instead,
 ## once, over the live link ([method LobbyScreen._on_run_started]).
+##
+## [b]#733: the other half is refusing a peer that was never in the lobby at
+## all.[/b] Everything above describes a peer [LobbyScreen] already seated —
+## the replay, or the belt-and-braces restatement. A fresh dial mid-run has no
+## seat in [member GameSession.roster], because "joining only happens to the
+## lobby before the host presses START" (owner call, #733) — there is no
+## drop-in mid-game. That peer is refused, with a reason a human reads on its
+## screen, before [method LobbyScreen.stamp_pending_remote] or the world push
+## below ever run.
 func _on_peer_joined(peer_id: int) -> void:
 	var net: NetworkConfig = GameSession.network
 	if net == null:
@@ -548,6 +557,17 @@ func _on_peer_joined(peer_id: int) -> void:
 		if pick_registry != null:
 			pick_registry.roster = GameSession.roster
 			pick_registry.local_peer_id = GameSession.local_peer_id
+		return
+	var seated := false
+	if GameSession.roster != null:
+		for p in GameSession.roster.all():
+			if p.peer_id == peer_id:
+				seated = true
+				break
+	if not seated:
+		if command_link != null:
+			command_link.refuse_peer(peer_id,
+					"the run has already started — there is no drop-in mid-game")
 		return
 	LobbyScreen.stamp_pending_remote(GameSession.roster, peer_id)
 	# And ship this peer the world (#715). Host-side this line runs at the tail of

@@ -41,6 +41,11 @@ var _b_lost: Array[String] = []
 
 
 func before_each() -> void:
+	# #733's tests below read/write `GameSession.network` and `.roster` — an
+	# autoload outlives every test in GUT's single process, so start each test
+	# from a clean run same as the other `network/` files do.
+	GameSession.end()
+
 	var pair := LoopbackTransport.pair()
 	_host_transport = pair[0]
 	_a_transport = pair[1]
@@ -64,6 +69,10 @@ func before_each() -> void:
 	_a.link_refused.connect(func(r: String) -> void: _a_refusals.append(r))
 	_b.link_refused.connect(func(r: String) -> void: _b_refusals.append(r))
 	_b_transport.link_lost.connect(func(r: String) -> void: _b_lost.append(r))
+
+
+func after_each() -> void:
+	GameSession.end()
 
 
 ## No [CommandApplier] and no [Graph] — every assertion here is about the
@@ -260,3 +269,123 @@ func test_a_refused_client_latches_and_the_host_does_not() -> void:
 
 	assert_true(_b._refused, "the client that was hung up on is deaf now")
 	assert_false(_host._refused, "the host that did the hanging up is not")
+
+
+# --- #733: a peer that dials in after the run has already started -------------
+
+## Reachable but never seated — the owner's policy is "there's no drop-in
+## mid-game" (#733), so this id sits on the socket (#716's build gate would
+## clear it fine) but never made it into a lobby roster.
+const _MYSTERY_PEER := 5
+
+## The reason [method GameRoot._on_peer_joined] hands the joiner — asserted by
+## substring so the test doesn't pin the exact wording, only that it names the
+## policy.
+const _POLICY_PHRASE := "no drop-in mid-game"
+
+
+## A roster seat for [param peer_id], same shape [LobbyScreen] hands the wire —
+## real id, no pending sentinel.
+func _seated(peer_id: int) -> Participant:
+	var p := Participant.new()
+	p.id = peer_id
+	p.peer_id = peer_id
+	p.kind = Participant.Kind.HUMAN
+	return p
+
+
+## Puts [GameSession] in the one shape [method GameRoot._on_peer_joined]'s host
+## branch reads: online as HOST, with a roster whose seats carry the real peer
+## ids [param seated_peer_ids] — never [param dialling_peer_id], which is the
+## id under test.
+func _stage_live_run(seated_peer_ids: Array[int]) -> void:
+	var seats: Array[Participant] = []
+	for id in seated_peer_ids:
+		seats.append(_seated(id))
+	GameSession.roster = ParticipantRoster.of(seats)
+	GameSession.network = NetworkConfig.host()
+
+
+## A [GameRoot] whose `_ready` never ran — [method GameRoot._on_peer_joined]'s
+## host branch only reads [member GameRoot.command_link] and [GameSession], so
+## this stands in for "a level up" without paying for `_setup_level`, HUD
+## composition or procgen, and without a scene tree to resolve `%CommandLink`
+## against. Freed at the end of the test that builds it: a bare [Node2D] never
+## added to the tree is not autofreed by [method GutTest.add_child_autofree].
+func _headless_host(link: CommandLink) -> GameRoot:
+	var root := GameRoot.new()
+	root.command_link = link
+	return root
+
+
+func test_a_peer_that_dials_into_a_live_run_is_refused_with_a_reason() -> void:
+	_host.graph = _empty_graph()
+	_stage_live_run([_CLIENT_A])
+	var mystery := LoopbackTransport.attach(_host_transport, _MYSTERY_PEER)
+	add_child_autofree(mystery)
+	var seen: Array[Dictionary] = []
+	mystery.message_received.connect(func(p: Dictionary) -> void: seen.append(p))
+	var root := _headless_host(_host)
+
+	root._on_peer_joined(_MYSTERY_PEER)
+	root.free()
+
+	assert_eq(seen.size(), 1, "the dialling peer hears exactly one thing")
+	assert_eq(String(seen[0].get(CommandLink.KEY_KIND, "")), CommandLink.KIND_REFUSED)
+	var summary := String(seen[0].get(CommandLink.KEY_SUMMARY, ""))
+	assert_false(summary.is_empty(), "the reason reaches the human on the joiner's screen")
+	assert_string_contains(summary, _POLICY_PHRASE, "and names the policy")
+	assert_false(mystery.is_linked(), "drop_peer took the dialling peer off the socket")
+
+
+## The defect proper (#733): before this fix, `_on_peer_joined` shipped
+## `send_resync(..., true)` — the WHOLE WORLD — to any peer that connected,
+## roster seat or not. Must be RED on master.
+func test_a_mid_run_joiner_is_never_shipped_the_world() -> void:
+	_host.graph = _empty_graph()
+	_stage_live_run([_CLIENT_A])
+	var mystery := LoopbackTransport.attach(_host_transport, _MYSTERY_PEER)
+	add_child_autofree(mystery)
+	var seen: Array[Dictionary] = []
+	mystery.message_received.connect(func(p: Dictionary) -> void: seen.append(p))
+	var root := _headless_host(_host)
+
+	root._on_peer_joined(_MYSTERY_PEER)
+	root.free()
+
+	for payload in seen:
+		assert_ne(String(payload.get(CommandLink.KEY_KIND, "")), CommandLink.KIND_RESYNC,
+				"no world payload may ever reach a peer with no roster seat")
+
+
+## The regression guard: the replayed lobby peer — [method
+## EnetTransport._adopt_live_link] replaying [signal NetworkTransport.peer_joined]
+## for a peer already on the socket, which on the lobby path is every peer — is
+## still resynced and never refused. Must pass before AND after.
+func test_the_replayed_lobby_peer_still_gets_its_world() -> void:
+	_host.graph = _empty_graph()
+	_stage_live_run([_CLIENT_A])
+	var seen: Array[Dictionary] = []
+	_a_transport.message_received.connect(func(p: Dictionary) -> void: seen.append(p))
+	var root := _headless_host(_host)
+
+	root._on_peer_joined(_CLIENT_A)
+	root.free()
+
+	var resyncs: Array[Dictionary] = []
+	for payload in seen:
+		assert_ne(String(payload.get(CommandLink.KEY_KIND, "")), CommandLink.KIND_REFUSED,
+				"a seated peer is never refused")
+		if String(payload.get(CommandLink.KEY_KIND, "")) == CommandLink.KIND_RESYNC:
+			resyncs.append(payload)
+	assert_eq(resyncs.size(), 1, "and it still gets exactly one world")
+	assert_true(_a_transport.is_linked(), "and stays on the socket")
+
+
+## An empty world, same shape `test_join_world_applies_once.gd` builds for the
+## joining side — [method CommandLink.send_resync] no-ops on a null graph, so
+## the fixture needs one even though its node count is never asserted on.
+func _empty_graph() -> Graph:
+	var graph: Graph = preload("res://graph/graph.tscn").instantiate()
+	add_child_autofree(graph)
+	return graph
