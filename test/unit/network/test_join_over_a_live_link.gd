@@ -42,7 +42,7 @@ func _authority_world() -> Graph:
 	var gcfg: GraphProcgenConfig = _PRESET.duplicate(true)
 	gcfg.topology = gcfg.topology.duplicate(true)
 	gcfg.topology.node_count = 24
-	gcfg.n_random_starters = 1
+	gcfg.camp_sizes = [2]
 	gcfg.seed = 90210715
 	var result: Dictionary = await GraphProcgen.generate(gcfg, g)
 	var starts: Array = result.get("starting_nodes", [])

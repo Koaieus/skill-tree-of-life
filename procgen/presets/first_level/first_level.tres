@@ -14,5 +14,3 @@ shape = ExtResource("4_4nss1")
 starting = ExtResource("5_kb82o")
 content = ExtResource("2_u43ff")
 blockers = ExtResource("1_5xxfy")
-n_random_starters = 6
-viability_radius = 300.0

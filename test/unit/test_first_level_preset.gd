@@ -32,7 +32,7 @@ func test_modifiers_rolled_on_nodes() -> void:
 	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = 60
-	cfg.n_random_starters = 0
+	cfg.camp_sizes = [1]  # keep starter set deterministic (core only, no random fill)
 	cfg.seed = 9
 
 	var graph_scene: PackedScene = load("res://graph/graph.tscn")
@@ -59,7 +59,7 @@ func test_procgen_generates_full_level() -> void:
 	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = 120
-	cfg.n_random_starters = 0  # keep starter set deterministic for assertions
+	cfg.camp_sizes = [1]  # keep starter set deterministic for assertions (core only, no random fill)
 	cfg.seed = 42
 
 	var graph_scene: PackedScene = load("res://graph/graph.tscn")

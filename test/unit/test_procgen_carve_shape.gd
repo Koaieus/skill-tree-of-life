@@ -19,7 +19,6 @@ func test_archetype_carve_shape_reaches_the_generated_node() -> void:
 	# deeper for `content` — see the comment below on the archetype ref).
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = 60
-	cfg.n_random_starters = 0
 	cfg.seed = 3
 
 	var shape := PolygonCarveShape.new()
@@ -69,7 +68,6 @@ func test_every_tagged_node_carries_its_archetypes_shape() -> void:
 	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = 60
-	cfg.n_random_starters = 0
 	cfg.seed = 3
 
 	var graph_scene: PackedScene = load("res://graph/graph.tscn")

@@ -5,6 +5,8 @@
 [ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/map_size_options.tres" id="90_maps"]
 [ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/blocker_options.tres" id="91_blks"]
 [ext_resource type="Resource" path="res://session/scenarios/first_level.tres" id="92_scen"]
+[ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/victory_options.tres" id="93_vic"]
+[ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/spawn_order_options.tres" id="94_spawn"]
 
 [resource]
 script = ExtResource("1_policy")
@@ -15,5 +17,8 @@ max_distinct_camps = 1
 require_distinct_human_camps = false
 map_size_options = ExtResource("90_maps")
 blocker_options = ExtResource("91_blks")
+victory_options = ExtResource("93_vic")
+spawn_order_options = ExtResource("94_spawn")
+spawn_order_pickable = true
 budget_overridable = true
 scenario = ExtResource("92_scen")

@@ -51,7 +51,6 @@ const _DEFAULT_TERRITORY_SEEDER := preload("res://procgen/placement/territory_se
 ## untouched so the same resource can serve multiple sandboxes at different
 ## sizes. 0 = inherit from preset.
 @export var node_count_override: int = 50
-@export var viability_radius: float = 400.0
 
 ## Shared allocation-pick strategy (#275, D-24) — greedy BFS ball by default.
 ## Injectable so a different level scene can swap in another AllocationPolicy
@@ -126,7 +125,6 @@ func _setup_level() -> void:
 		# private copy, same as `cfg` itself already is.
 		cfg.topology = cfg.topology.duplicate(true)
 		cfg.topology.node_count = node_count_override
-	cfg.viability_radius = viability_radius
 
 	# #553: the roster is decided BEFORE generation and the level only READS it.
 	# Two things follow from that order, and both are the point of this unit:
@@ -145,29 +143,14 @@ func _setup_level() -> void:
 		return
 	var grouped_participants := _camp_grouped_participants(roster)
 	cfg.camp_sizes = _camp_sizes(roster, grouped_participants)
-	# The roster decides how many starting points to produce, on BOTH generation
-	# paths (#551 split them in `GraphProcgen.generate`). With a
-	# `starter_placement` set, `cfg.camp_sizes` above already does it and
-	# `n_random_starters` is bypassed entirely. Without one — `first_level.tres`,
-	# which is what the menu actually launches — the starter list is the preset's
-	# authored `starting_points` plus this many, so it is this knob that has to
-	# stop being a scene @export independent of who is playing.
-	if cfg.starting.starter_placement == null:
-		# Counted the way `GraphProcgen` counts them: it skips null entries when
-		# it seeds the starter list from `starting_points`, so counting the raw
-		# array here would over-subtract and silently under-produce starters.
-		var authored := 0
-		for sp in cfg.starting.starting_points:
-			if sp != null:
-				authored += 1
-		cfg.n_random_starters = maxi(0, grouped_participants.size() - authored)
-	# No `else`. On the `starter_placement` path `plan()` replaces the starter
-	# list wholesale and `GraphProcgen` never reads `n_random_starters` at all
-	# (`graph_procgen.gd` calls `_place_random_starters` only in the other
-	# branch), so the write this used to do had no reader. The scene export it
-	# copied from is gone with it: after #584 the roster is the only thing that
-	# says how many contenders exist, and a second knob that reads like the
-	# opponent count is precisely the defect this issue opened on.
+	# The roster decides how many starting points to produce (#551, #742) —
+	# `cfg.camp_sizes` above is the ONLY input either generation path reads for
+	# that count. With a `starter_placement` set (every shipped preset, since
+	# #742 lifted `first_level.tres`'s legacy manual-anchor-plus-random-fill
+	# path into a real [CenterCoreStarters]), `plan()` derives the headcount
+	# from `camp_sizes` directly. Without one, the starter list is exactly the
+	# preset's authored `starting_points` — no random fill, no second knob
+	# reading like an opponent count independent of who is playing (#584).
 
 	# Show the loading bar over a black fade so the procgen wall-clock has a
 	# visible heartbeat. SceneTransition is the global fade/progress autoload.
@@ -196,10 +179,10 @@ func _setup_level() -> void:
 	# Spawn onto the returned nodes in participant order — camp 0 member 0,
 	# camp 0 member 1, camp 1 member 0, ... (#551's `starter_placement`
 	# contract, held even when no `starter_placement` ran: `cfg.camp_sizes`
-	# is inert there). Trim to whichever list came back shorter: the legacy
-	# `n_random_starters` path sizes `starting_nodes` off a knob independent
-	# of `camp_sizes`, so outside a `starter_placement` preset the two can
-	# disagree.
+	# is inert there). Trim to whichever list came back shorter: a preset with
+	# no `starter_placement` sizes `starting_nodes` off its own authored
+	# `starting_points` list, independent of `camp_sizes`, so the two can
+	# disagree outside a `starter_placement` preset.
 	var spawn_count: int = mini(grouped_participants.size(), starting_nodes.size())
 	if spawn_count < grouped_participants.size():
 		push_warning("ProcgenPlaySandbox: %d starting nodes for %d camp-planned participants — trimming"

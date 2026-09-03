@@ -178,7 +178,8 @@ func test_no_blocker_inside_core_safe_radius() -> void:
 	# #300 — no blocker within `blocker_min_hops_from_core` hops of ANY camp
 	# core, the human's and every AI camp's alike.
 	var cfg := _build_config(300, 31337)
-	cfg.n_random_starters = 3
+	cfg.starting.starter_placement = CenterCoreStarters.new()
+	cfg.camp_sizes = [3]
 	cfg.blockers.blocker_min_hops_from_core = 6
 	var graph_scene: PackedScene = load("res://graph/graph.tscn")
 	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
@@ -203,7 +204,8 @@ func test_safe_radius_zero_allows_core_adjacent_blockers() -> void:
 	# The knob is opt-out: 0 restores the pre-#300 "anywhere but a core or a
 	# keystone" pool, so the ring one hop off a core is eligible again.
 	var cfg := _build_config(300, 31337)
-	cfg.n_random_starters = 3
+	cfg.starting.starter_placement = CenterCoreStarters.new()
+	cfg.camp_sizes = [3]
 	cfg.blockers.blocker_min_hops_from_core = 0
 	var graph_scene: PackedScene = load("res://graph/graph.tscn")
 	var graph: Graph = autofree(graph_scene.instantiate()) as Graph

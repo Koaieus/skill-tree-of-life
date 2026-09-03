@@ -6,7 +6,7 @@
 
 [sub_resource type="Resource" id="p0_0"]
 script = ExtResource("3_ovr")
-target = "topology:node_count"
+target = "preset:topology:node_count"
 value = 100
 metadata/_custom_type_script = ExtResource("3_ovr")
 
@@ -18,7 +18,7 @@ metadata/_custom_type_script = ExtResource("2_opt")
 
 [sub_resource type="Resource" id="p1_0"]
 script = ExtResource("3_ovr")
-target = "topology:node_count"
+target = "preset:topology:node_count"
 value = 250
 metadata/_custom_type_script = ExtResource("3_ovr")
 
@@ -30,7 +30,7 @@ metadata/_custom_type_script = ExtResource("2_opt")
 
 [sub_resource type="Resource" id="p2_0"]
 script = ExtResource("3_ovr")
-target = "topology:node_count"
+target = "preset:topology:node_count"
 value = 500
 metadata/_custom_type_script = ExtResource("3_ovr")
 
@@ -42,7 +42,7 @@ metadata/_custom_type_script = ExtResource("2_opt")
 
 [sub_resource type="Resource" id="p3_0"]
 script = ExtResource("3_ovr")
-target = "topology:node_count"
+target = "preset:topology:node_count"
 value = 800
 metadata/_custom_type_script = ExtResource("3_ovr")
 
@@ -54,7 +54,7 @@ metadata/_custom_type_script = ExtResource("2_opt")
 
 [sub_resource type="Resource" id="p4_0"]
 script = ExtResource("3_ovr")
-target = "topology:node_count"
+target = "preset:topology:node_count"
 value = 1400
 metadata/_custom_type_script = ExtResource("3_ovr")
 
@@ -66,7 +66,7 @@ metadata/_custom_type_script = ExtResource("2_opt")
 
 [sub_resource type="Resource" id="p5_0"]
 script = ExtResource("3_ovr")
-target = "topology:node_count"
+target = "preset:topology:node_count"
 value = 2200
 metadata/_custom_type_script = ExtResource("3_ovr")
 

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="LobbyOptionSet" format=3 uid="uid://c8c05eqsmh5ds"]
+[gd_resource type="Resource" script_class="LobbyOptionSet" format=3]
 
 [ext_resource type="Script" uid="uid://bubsaqk1bti6h" path="res://ui/frontmatter/lobby_option_set.gd" id="1_set"]
 [ext_resource type="Script" uid="uid://b7oqufqrvbigx" path="res://ui/frontmatter/lobby_option.gd" id="2_opt"]
@@ -6,43 +6,31 @@
 
 [sub_resource type="Resource" id="p0_0"]
 script = ExtResource("3_ovr")
-target = "preset:starting:starter_placement:arrangement"
-value = 0
+target = "preset:starting:starter_placement"
+value = "res://procgen/placement/center_core_starters.tres"
 metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="o0"]
 script = ExtResource("2_opt")
-label = "Grouped"
+label = "Center"
 patches = Array[ExtResource("3_ovr")]([SubResource("p0_0")])
 metadata/_custom_type_script = ExtResource("2_opt")
 
 [sub_resource type="Resource" id="p1_0"]
 script = ExtResource("3_ovr")
-target = "preset:starting:starter_placement:arrangement"
-value = 1
+target = "preset:starting:starter_placement"
+value = "res://procgen/placement/camp_annulus_starters_edge.tres"
 metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="o1"]
 script = ExtResource("2_opt")
-label = "Alternating"
+label = "Edge"
 patches = Array[ExtResource("3_ovr")]([SubResource("p1_0")])
 metadata/_custom_type_script = ExtResource("2_opt")
 
-[sub_resource type="Resource" id="p2_0"]
-script = ExtResource("3_ovr")
-target = "preset:starting:starter_placement:arrangement"
-value = 2
-metadata/_custom_type_script = ExtResource("3_ovr")
-
-[sub_resource type="Resource" id="o2"]
-script = ExtResource("2_opt")
-label = "Random"
-patches = Array[ExtResource("3_ovr")]([SubResource("p2_0")])
-metadata/_custom_type_script = ExtResource("2_opt")
-
 [resource]
-resource_name = "Starter Arrangement"
+resource_name = "Spawn Order (edge-locked)"
 script = ExtResource("1_set")
-options = Array[ExtResource("2_opt")]([SubResource("o0"), SubResource("o1"), SubResource("o2")])
-default_index = 0
+options = Array[ExtResource("2_opt")]([SubResource("o0"), SubResource("o1")])
+default_index = 1
 metadata/_custom_type_script = ExtResource("1_set")

@@ -2,11 +2,17 @@
 
 [ext_resource type="Script" uid="uid://c5oun4i6a7uar" path="res://procgen/modules/starting_points.gd" id="1_gtenw"]
 [ext_resource type="Script" uid="uid://hojbmre85ttl" path="res://procgen/placement/starting_point.gd" id="2_s80oh"]
+[ext_resource type="Script" path="res://procgen/placement/center_core_starters.gd" id="3_ccs"]
 
 [sub_resource type="Resource" id="sp_core"]
 script = ExtResource("2_s80oh")
 id = &"core"
 
+[sub_resource type="Resource" id="ccs_center"]
+script = ExtResource("3_ccs")
+viability_radius = 6.5
+
 [resource]
 script = ExtResource("1_gtenw")
 starting_points = Array[ExtResource("2_s80oh")]([SubResource("sp_core")])
+starter_placement = SubResource("ccs_center")

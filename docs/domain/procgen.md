@@ -6,7 +6,7 @@ Code: `procgen/graph_procgen.gd` (pipeline) + `procgen/graph_procgen_config.gd` 
 
 `GraphProcgen.generate(config, graph) -> Dictionary` runs six stages:
 
-1. **Starting-point assembly** — `config.starting_points` (hand-authored) come first; `_place_random_starters()` rejection-samples up to `n_random_starters` more, each ≥ `viability_radius` from existing anchors. Manual entries always precede random entries in the returned list, so callers can split them by index if needed.
+1. **Starting-point assembly** — with `config.starting.starter_placement` set (every shipped preset, since #742), it REPLACES the manual list wholesale: `starter_placement.plan(camp_sizes, radius, min_dist, rng, shape_mask, random_starter_max_tries)` (`CampAnnulusStarters` for camp-relative rings, `CenterCoreStarters` for a single centred human plus a rejection-sampled random fill, spacing governed by `StarterPlacement.viability_radius`, a `min_dist` multiplier authored per placement instance). With no `starter_placement` authored, the starter list is `config.starting.starting_points` (hand-authored) verbatim — no random fill on that path any more.
 2. **Poisson-disk sample** — `PoissonDiskSampler.sample(shape_mask, min_dist, node_count, anchors, rng)` seeds positions inside the `ShapeMask`, honouring starter anchors. `min_dist = 2·node_radius + node_padding`.
 3. **Delaunay triangulate + prune** — `_triangulate_and_prune(positions, connectivity)` builds the planar candidate edge set, then trims to MST + a `connectivity`-controlled share of shortest extras (0 = MST only, 1 = full triangulation).
 4. **Archetype assignment** — `_assign_archetypes()` runs a target-driven BFS-grow: `config.archetypes` (`ArchetypePolicy`) each claim a `target_ratio` share of nodes, seeds are placed greedily, then grown through the pruned adjacency; leftovers inherit their nearest claimed neighbour. `cluster_jitter` (per-policy) rerolls afterwards to soften borders. Empty `archetypes` → every node stays archetype-less (and content-less).
@@ -38,7 +38,7 @@ for n in starting_nodes:
 
 ## Why `preset.duplicate(true)`
 
-Levels that override fields on the preset (`procgen_play_sandbox` overrides `node_count`, `n_random_starters`, `viability_radius`) duplicate the preset before mutating it — otherwise the on-disk `.tres` resource accumulates the overrides across sessions (since Godot caches resources by path). One preset can then serve multiple sandboxes at different sizes without leaking state.
+Levels that override fields on the preset (`procgen_play_sandbox` overrides `node_count`, `camp_sizes`) duplicate the preset before mutating it — otherwise the on-disk `.tres` resource accumulates the overrides across sessions (since Godot caches resources by path). One preset can then serve multiple sandboxes at different sizes without leaking state.
 
 ## Extending — adding an archetype theme
 

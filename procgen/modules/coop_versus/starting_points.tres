@@ -6,6 +6,7 @@
 
 [sub_resource type="Resource" id="cas_grouped"]
 script = ExtResource("2_j44jg")
+viability_radius = 1.5
 metadata/_custom_type_script = "uid://d1mtqbmhocaxb"
 
 [sub_resource type="Resource" id="sp_core"]

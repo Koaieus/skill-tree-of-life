@@ -134,7 +134,7 @@ func _generate(root: GameRoot, run_seed: int, node_count: int) -> Array:
 	# cross `duplicate(true)` — re-duplicate before mutating.
 	gcfg.topology = gcfg.topology.duplicate(true)
 	gcfg.topology.node_count = node_count
-	gcfg.n_random_starters = 1
+	gcfg.camp_sizes = [2]
 	gcfg.seed = run_seed
 	var result: Dictionary = await GraphProcgen.generate(gcfg, root.graph)
 	return result.get("starting_nodes", [])

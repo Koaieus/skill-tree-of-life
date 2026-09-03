@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="LobbyOptionSet" format=3]
+
+[ext_resource type="Script" uid="uid://bubsaqk1bti6h" path="res://ui/frontmatter/lobby_option_set.gd" id="1_set"]
+[ext_resource type="Script" uid="uid://b7oqufqrvbigx" path="res://ui/frontmatter/lobby_option.gd" id="2_opt"]
+
+[resource]
+resource_name = "Victory Condition"
+script = ExtResource("1_set")
+options = Array[ExtResource("2_opt")]([])
+default_index = -1
+metadata/_custom_type_script = ExtResource("1_set")

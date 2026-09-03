@@ -172,12 +172,13 @@ static func generate(
 		if config.shape.shape_mask != null:
 			var mask_aabb := config.shape.shape_mask.aabb()
 			resolved_radius = 0.5 * minf(mask_aabb.size.x, mask_aabb.size.y)
-		starters = config.starting.starter_placement.plan(config.camp_sizes, resolved_radius, min_dist, rng)
+		starters = config.starting.starter_placement.plan(
+				config.camp_sizes, resolved_radius, min_dist, rng,
+				config.shape.shape_mask, config.starting.random_starter_max_tries)
 	else:
 		for sp in config.starting.starting_points:
 			if sp != null:
 				starters.append(sp)
-		_place_random_starters(starters, config, rng)
 
 	var anchors: Array[Vector2] = []
 	for sp in starters:
@@ -415,49 +416,6 @@ static func _emit_progress(progress_cb: Callable, frac: float, label: String) ->
 	if tree is SceneTree:
 		await (tree as SceneTree).process_frame
 
-
-# ── Random starter placement (issue #15) ──────────────────────────────────
-
-
-## Appends up to [member GraphProcgenConfig.n_random_starters] fresh
-## StartingPoints to `starters`, each rejection-sampled inside the shape
-## mask and required to sit at least `viability_radius` from every prior
-## starter. Bounded retries; warns if any anchor couldn't be placed so a
-## level designer sees the squeeze instead of silently shipping fewer NPCs.
-static func _place_random_starters(
-		starters: Array[StartingPoint],
-		config: GraphProcgenConfig,
-		rng: RandomNumberGenerator,
-) -> void:
-	if config.n_random_starters <= 0 or config.shape.shape_mask == null:
-		return
-	var bounds := config.shape.shape_mask.aabb()
-	if bounds.size.x <= 0.0 or bounds.size.y <= 0.0:
-		return
-	var min_sq := config.viability_radius * config.viability_radius
-	for i in config.n_random_starters:
-		var placed := false
-		for _t in maxi(1, config.starting.random_starter_max_tries):
-			var p := Vector2(
-					rng.randf_range(bounds.position.x, bounds.end.x),
-					rng.randf_range(bounds.position.y, bounds.end.y))
-			if not config.shape.shape_mask.contains(p):
-				continue
-			var ok := true
-			for sp in starters:
-				if p.distance_squared_to(sp.position) < min_sq:
-					ok = false
-					break
-			if not ok:
-				continue
-			var new_sp := StartingPoint.new()
-			new_sp.position = p
-			new_sp.id = StringName("%s_%d" % [config.starting.random_starter_id_prefix, i])
-			starters.append(new_sp)
-			placed = true
-			break
-		if not placed:
-			push_warning("GraphProcgen: couldn't place random starter %d after %d tries — viability_radius too large for shape/anchor density?" % [i, config.starting.random_starter_max_tries])
 
 
 # ── Topology ──────────────────────────────────────────────────────────────

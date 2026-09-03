@@ -96,9 +96,9 @@ const _CORE_CLASS_AI := preload("res://entity/core/basic_enemy_core.tres")
 
 ## The "fixed RunConfig" the issue asks for — a real map, not a token one, but
 ## small enough that a headless join + a few scripted turns finishes fast.
-## `first_level.tres` already authors one starting point + a shape mask; this
-## harness only overrides the size and adds one random starter (below) so the
-## fixed roster's 2 participants each get one.
+## `first_level.tres` already authors a `CenterCoreStarters` + a shape mask;
+## this harness only overrides the size and stamps `camp_sizes = [2]` (below)
+## so the fixed roster's 2 participants each get a starter.
 @export var preset: GraphProcgenConfig = preload("res://procgen/presets/first_level/first_level.tres")
 @export var node_count_override: int = 60
 @export var fixed_seed: int = 90210533
@@ -164,12 +164,13 @@ func _setup_level_as_host_or_solo() -> void:
 	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = node_count_override
-	# 1 authored `starting_points` entry (first_level.tres) + 1 random = the 2
-	# this harness's fixed roster needs. See the class docstring's #551/#553
+	# `first_level.tres` authors a `CenterCoreStarters` (#742): one centred
+	# human plus a random fill sized off `camp_sizes`. 2 total is the 2 this
+	# harness's fixed roster needs. See the class docstring's #551/#553
 	# cross-reference in `docs/domain/multiplayer-harness.md` for why a
 	# roster-sized level would normally compute this instead of hardcoding
 	# it — this harness has no roster to grow past 2.
-	cfg.n_random_starters = 1
+	cfg.camp_sizes = [2]
 	cfg.seed = GameSession.config.seed
 	var result: Dictionary = await GraphProcgen.generate(cfg, graph)
 	var starting_nodes: Array = result.get("starting_nodes", [])

@@ -64,15 +64,18 @@ func resolved_victory_condition() -> VictoryCondition:
 
 ## The preset this run actually generates from (#642 D14) — [member scenario]'s
 ## authored `preset` with every entry in [member overrides] merged onto a
-## DUPLICATE (see [method ScenarioOverride.merge_onto]; the authored asset and
-## its modules are never mutated). Null [member scenario] (or a Scenario with
-## no `preset`) yields null, same shape as [method resolved_victory_condition]'s
-## null-falls-to-default — here the level falls back to its own
-## scene-authored preset instead (#597 D6), one layer up from this function.
+## DUPLICATE of the whole [Scenario] (see [method ScenarioOverride.merge_onto];
+## the authored asset and its modules are never mutated — #742 rooted the
+## merge at [Scenario] rather than at `preset` directly, so this reads `.preset`
+## back off that merged duplicate instead of merging onto `preset` itself).
+## Null [member scenario] (or a Scenario with no `preset`) yields null, same
+## shape as [method resolved_victory_condition]'s null-falls-to-default — here
+## the level falls back to its own scene-authored preset instead (#597 D6),
+## one layer up from this function.
 func resolved_preset() -> GraphProcgenConfig:
 	if scenario == null or scenario.preset == null:
 		return null
-	return ScenarioOverride.merge_onto(scenario.preset, overrides)
+	return ScenarioOverride.merge_onto(scenario, overrides).preset
 
 
 ## Wire form for #528 — "the run's shape crosses the wire; each peer derives

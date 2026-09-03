@@ -12,6 +12,7 @@
 [ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/blocker_options.tres" id="91_blks"]
 [ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/arrangement_options.tres" id="92_arr"]
 [ext_resource type="Resource" path="res://session/scenarios/coop_versus.tres" id="93_scen"]
+[ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/spawn_order_options_edge_locked.tres" id="94_spawn"]
 
 [resource]
 script = ExtResource("1_policy")
@@ -23,5 +24,7 @@ require_distinct_human_camps = true
 map_size_options = ExtResource("90_maps")
 blocker_options = ExtResource("91_blks")
 arrangement_options = ExtResource("92_arr")
+spawn_order_options = ExtResource("94_spawn")
+spawn_order_pickable = false
 budget_overridable = true
 scenario = ExtResource("93_scen")

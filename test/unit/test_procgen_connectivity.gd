@@ -17,7 +17,6 @@ func test_first_level_graph_is_one_component() -> void:
 	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = 120
-	cfg.n_random_starters = 0
 	cfg.seed = 42
 
 	var graph_scene: PackedScene = load("res://graph/graph.tscn")

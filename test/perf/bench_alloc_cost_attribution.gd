@@ -59,7 +59,6 @@ func test_what_makes_an_allocation_expensive() -> void:
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = _NODE_COUNT
 	cfg.seed = _SEED
-	cfg.n_random_starters = 0
 
 	_graph = _GRAPH_SCENE.instantiate()
 	add_child(_graph)

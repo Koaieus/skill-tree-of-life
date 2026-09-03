@@ -6,19 +6,19 @@
 
 [sub_resource type="Resource" id="p0_0"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_small"
+target = "preset:blockers:blocker_per_small"
 value = 0
 metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="p0_1"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_medium"
+target = "preset:blockers:blocker_per_medium"
 value = 0
 metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="p0_2"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_large"
+target = "preset:blockers:blocker_per_large"
 value = 0
 metadata/_custom_type_script = ExtResource("3_ovr")
 
@@ -30,19 +30,19 @@ metadata/_custom_type_script = ExtResource("2_opt")
 
 [sub_resource type="Resource" id="p1_0"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_small"
+target = "preset:blockers:blocker_per_small"
 value = 25
 metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="p1_1"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_medium"
+target = "preset:blockers:blocker_per_medium"
 value = 60
 metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="p1_2"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_large"
+target = "preset:blockers:blocker_per_large"
 value = 250
 metadata/_custom_type_script = ExtResource("3_ovr")
 
@@ -54,19 +54,19 @@ metadata/_custom_type_script = ExtResource("2_opt")
 
 [sub_resource type="Resource" id="p2_0"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_small"
+target = "preset:blockers:blocker_per_small"
 value = 10
 metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="p2_1"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_medium"
+target = "preset:blockers:blocker_per_medium"
 value = 25
 metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="p2_2"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_large"
+target = "preset:blockers:blocker_per_large"
 value = 100
 metadata/_custom_type_script = ExtResource("3_ovr")
 
@@ -78,19 +78,19 @@ metadata/_custom_type_script = ExtResource("2_opt")
 
 [sub_resource type="Resource" id="p3_0"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_small"
+target = "preset:blockers:blocker_per_small"
 value = 6
 metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="p3_1"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_medium"
+target = "preset:blockers:blocker_per_medium"
 value = 14
 metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="p3_2"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_large"
+target = "preset:blockers:blocker_per_large"
 value = 50
 metadata/_custom_type_script = ExtResource("3_ovr")
 
@@ -102,19 +102,19 @@ metadata/_custom_type_script = ExtResource("2_opt")
 
 [sub_resource type="Resource" id="p4_0"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_small"
+target = "preset:blockers:blocker_per_small"
 value = 5
 metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="p4_1"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_medium"
+target = "preset:blockers:blocker_per_medium"
 value = 8
 metadata/_custom_type_script = ExtResource("3_ovr")
 
 [sub_resource type="Resource" id="p4_2"]
 script = ExtResource("3_ovr")
-target = "blockers:blocker_per_large"
+target = "preset:blockers:blocker_per_large"
 value = 25
 metadata/_custom_type_script = ExtResource("3_ovr")
 

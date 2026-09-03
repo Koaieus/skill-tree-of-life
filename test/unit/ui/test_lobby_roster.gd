@@ -862,7 +862,7 @@ func test_the_map_size_ladder_is_authored_in_ascending_order() -> void:
 	for o in _MAP_SIZE_OPTIONS.choices():
 		labels.append(o.label)
 		assert_eq(o.patches.size(), 1, "'%s' patches exactly node_count" % o.label)
-		assert_eq(o.patches[0].target, "topology:node_count")
+		assert_eq(o.patches[0].target, "preset:topology:node_count")
 		sizes.append(int(o.patches[0].value))
 
 	assert_eq(labels, ["XS", "S", "M", "L", "XL", "XXL"] as Array[String],
@@ -891,7 +891,7 @@ func test_the_blocker_ladder_descends_because_the_field_is_a_denominator() -> vo
 	for i in range(1, choices.size()):
 		var small := 0
 		for patch in choices[i].patches:
-			if patch.target == "blockers:blocker_per_small":
+			if patch.target == "preset:blockers:blocker_per_small":
 				small = int(patch.value)
 		assert_true(small > 0, "%s places blockers" % labels[i])
 		if prev != -1:
@@ -1087,10 +1087,12 @@ func test_each_shipped_policy_names_the_scenario_its_lobby_shape_needs() -> void
 				"'%s' names a Scenario carrying a preset" % policy.scenario.resource_name)
 
 	# Only the multi-camp presets carry camp-relative starter placement, which is
-	# the reason the hotseat mapping is what it is.
-	assert_not_null(_COOP_VERSUS_SCENARIO.preset.starting.starter_placement)
-	assert_null(_FIRST_LEVEL_SCENARIO.preset.starting.starter_placement,
-			"#558's finding, pinned: first_level authors no starter_placement")
+	# the reason the hotseat mapping is what it is. `first_level.tres` authors a
+	# real placement too since #742 (CenterCoreStarters, single-spawn-ring), just
+	# not a camp-relative one — see `test_only_routes_with_a_starter_placement_offer_the_arrangement`.
+	assert_true(_COOP_VERSUS_SCENARIO.preset.starting.starter_placement is CampAnnulusStarters)
+	assert_true(_FIRST_LEVEL_SCENARIO.preset.starting.starter_placement is CenterCoreStarters,
+			"#742: first_level authors CenterCoreStarters, not CampAnnulusStarters")
 
 
 ## Every route the shipped menu offers reaches a preset. The companion to
@@ -1168,30 +1170,33 @@ func test_the_shipped_route_with_no_pick_generates_the_authored_preset() -> void
 			authored.content.budget_policy.base_max)
 
 
-## **For #558.** After the hotseat remap, `first_level.tres` — the ONE preset
-## with no `starter_placement` — is reachable from exactly one shipped lobby
-## route: `New Game`, the single-player one. Every camp-offering route now lands
-## on `coop_versus`, which authors a `CampAnnulusStarters` placement.
+## **For #558, updated for #742.** After the hotseat remap, `first_level.tres`
+## is reachable from exactly one shipped lobby route: `New Game`, the
+## single-player one. Every camp-offering route lands on `coop_versus`, which
+## authors a `CampAnnulusStarters` placement — `New Game` authors a REAL
+## placement too since #742 (`CenterCoreStarters`), just not a camp-relative
+## one, so it is the ONE route whose placement is not a `CampAnnulusStarters`.
 ##
 ## That matters to #558 in both directions. Its arrangement control WILL be
 ## observable on every route that offers camps (its own central complaint about
-## itself, discharged). And on `New Game` it will still have nothing to patch —
-## so a `starter_placement` override there is the silent no-op #642 acceptance 8
-## exists to catch, not a bug in the control.
+## itself, discharged). And on `New Game` the arrangement leaf still has
+## nothing to patch (`CenterCoreStarters` carries no `arrangement` field) — so a
+## mispaired override there is still the silent no-op #642 acceptance 8 exists
+## to catch, not a bug in the control.
 ##
-## If a later change gives `first_level` a `starter_placement`, or points a
-## camp-offering route back at it, this test fails and that paragraph needs
-## rewriting — which is the point of asserting it.
-func test_only_the_single_player_route_reaches_the_placement_less_preset() -> void:
+## If a later change points a camp-offering route back at `CenterCoreStarters`,
+## or gives `New Game` a `CampAnnulusStarters`, this test fails and that
+## paragraph needs rewriting — which is the point of asserting it.
+func test_only_the_single_player_route_reaches_the_non_camp_relative_preset() -> void:
 	var tree := MenuGraph.build()
-	var without_placement: Array[StringName] = []
+	var without_camp_placement: Array[StringName] = []
 	for id in [MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOCAL, MenuGraph.ID_HOST, MenuGraph.ID_JOIN]:
 		var policy: LobbyPolicy = tree.get_item(id).route.lobby_policy
-		if policy.scenario.preset.starting.starter_placement == null:
-			without_placement.append(id)
+		if not (policy.scenario.preset.starting.starter_placement is CampAnnulusStarters):
+			without_camp_placement.append(id)
 
-	assert_eq(without_placement, [MenuGraph.ID_NEW_GAME] as Array[StringName],
-			"only New Game reaches a preset with no starter_placement")
+	assert_eq(without_camp_placement, [MenuGraph.ID_NEW_GAME] as Array[StringName],
+			"only New Game reaches a preset with no CampAnnulusStarters")
 	assert_true(tree.get_item(MenuGraph.ID_NEW_GAME).route.lobby_policy.camps.is_empty(),
 			"and that route offers no camps, so nothing there wants camp-relative placement")
 
@@ -1227,7 +1232,7 @@ func test_the_arrangement_ladder_maps_each_label_to_its_own_enum_value() -> void
 	for i in choices.size():
 		assert_eq(choices[i].patches.size(), 1,
 				"'%s' patches exactly the arrangement" % labels[i])
-		assert_eq(choices[i].patches[0].target, "starting:starter_placement:arrangement",
+		assert_eq(choices[i].patches[0].target, "preset:starting:starter_placement:arrangement",
 				"D3: a module override, not a bespoke RunConfig field")
 		assert_eq(int(choices[i].patches[0].value), expected[i],
 				"'%s' must carry its own enum value" % labels[i])
@@ -1262,22 +1267,23 @@ func test_a_picked_arrangement_becomes_one_leaf_override() -> void:
 			CampAnnulusStarters.Arrangement.ALTERNATING, LobbyScreen.KNOB_ARRANGEMENT)
 	var overrides := lobby.build_run_config().overrides
 	assert_eq(overrides.size(), 1)
-	assert_eq(overrides[0].target, "starting:starter_placement:arrangement")
+	assert_eq(overrides[0].target, "preset:starting:starter_placement:arrangement")
 	assert_eq(int(overrides[0].value), CampAnnulusStarters.Arrangement.ALTERNATING)
 
 
 ## Only the routes whose Scenario actually carries a `CampAnnulusStarters` offer
 ## the control — the companion to
-## `test_only_the_single_player_route_reaches_the_placement_less_preset`. New
-## Game reaches `first_level`, which authors no placement, so an arrangement
-## ladder there would be the silent no-op #642 acceptance 8 catches.
+## `test_only_the_single_player_route_reaches_the_non_camp_relative_preset`. New
+## Game reaches `first_level`, which authors a `CenterCoreStarters` (#742) — a
+## real placement, just not a camp-relative one — so an arrangement ladder
+## there would still be the silent no-op #642 acceptance 8 catches.
 func test_only_routes_with_a_starter_placement_offer_the_arrangement() -> void:
 	var tree := MenuGraph.build()
 	for id in [MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOCAL, MenuGraph.ID_HOST, MenuGraph.ID_JOIN]:
 		var policy: LobbyPolicy = tree.get_item(id).route.lobby_policy
-		var has_placement := policy.scenario.preset.starting.starter_placement != null
-		assert_eq(policy.arrangement_options != null, has_placement,
-				"'%s': the arrangement is offered iff there is a placement to patch" % id)
+		var has_camp_placement := policy.scenario.preset.starting.starter_placement is CampAnnulusStarters
+		assert_eq(policy.arrangement_options != null, has_camp_placement,
+				"'%s': the arrangement is offered iff there is a CampAnnulusStarters to patch" % id)
 
 
 # --- what a host reads out loud (#582 acceptance 3) ---------------------------

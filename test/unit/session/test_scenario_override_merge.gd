@@ -7,6 +7,12 @@ extends GutTest
 ## the three ways `set_indexed` fails SILENTLY (typed-array target,
 ## wrong-type value, lossy float-into-int) each get their own test asserting
 ## the preset is UNCHANGED, not merely that a warning fired.
+##
+## #742 re-rooted the merge at [Scenario] rather than at `preset` directly —
+## every preset-targeting override below carries the `preset:` prefix that
+## migration adds, and [method _fresh_scenario] is the wrapper this file needs
+## to keep testing against `coop_versus.tres`'s preset without a lobby-authored
+## [Scenario] `.tres` for every fixture.
 
 const _COOP_VERSUS_PRESET_PATH := "res://procgen/presets/coop_versus/coop_versus.tres"
 const _COOP_VERSUS_CONTENT_PATH := "res://procgen/modules/coop_versus/content.tres"
@@ -18,6 +24,22 @@ func _fresh_preset() -> GraphProcgenConfig:
 	# forgotten mutation in one test can't bleed into the next (same
 	# discipline as `test_coop_versus_preset.gd`'s `_fresh_config`).
 	return (load(_COOP_VERSUS_PRESET_PATH) as GraphProcgenConfig).duplicate(true)
+
+
+## A bare [Scenario] wrapping a fresh `coop_versus.tres` preset copy — this
+## file exercises the merge against an ad-hoc preset rather than through the
+## shipped `coop_versus.tres` [Scenario] asset (`_COOP_VERSUS_SCENARIO_PATH`,
+## used only where a real [RunConfig] end-to-end matters, e.g. the wire test
+## below), so a per-test duplicate is what keeps one test's mutation from
+## bleeding into the next.
+func _fresh_scenario() -> Scenario:
+	var s := Scenario.new()
+	s.preset = _fresh_preset()
+	return s
+
+
+func _merged_preset(scenario: Scenario, overrides: Array[ScenarioOverride]) -> GraphProcgenConfig:
+	return ScenarioOverride.merge_onto(scenario, overrides).preset
 
 
 func _generate(cfg: GraphProcgenConfig) -> Array:
@@ -40,11 +62,11 @@ func _override(target: String, value: Variant) -> ScenarioOverride:
 
 
 func test_a_topology_override_generates_the_overridden_node_count() -> void:
-	var preset := _fresh_preset()
-	var authored_node_count: int = preset.topology.node_count
-	var overrides: Array[ScenarioOverride] = [_override("topology:node_count", 60)]
+	var scenario := _fresh_scenario()
+	var authored_node_count: int = scenario.preset.topology.node_count
+	var overrides: Array[ScenarioOverride] = [_override("preset:topology:node_count", 60)]
 
-	var cfg := ScenarioOverride.merge_onto(preset, overrides)
+	var cfg := _merged_preset(scenario, overrides)
 	cfg.seed = 4242
 	var nodes := await _generate(cfg)
 
@@ -66,7 +88,7 @@ func test_no_overrides_reproduces_the_authored_map_byte_for_byte() -> void:
 	direct.seed = seed_value
 	var direct_nodes := await _generate(direct)
 
-	var merged := ScenarioOverride.merge_onto(_fresh_preset(), [])
+	var merged := _merged_preset(_fresh_scenario(), [])
 	merged.topology = merged.topology.duplicate(true)
 	merged.topology.node_count = 40
 	merged.seed = seed_value
@@ -93,10 +115,10 @@ func test_all_four_lan_knobs_survive_the_wire_and_the_client_matches_the_host() 
 	source.scenario = load(_COOP_VERSUS_SCENARIO_PATH) as Scenario
 	source.seed = 990011
 	source.overrides = [
-		_override("topology:node_count", 60),           # map size — one hop
-		_override("blockers:blocker_per_small", 7),      # blocker density — one hop
-		_override("starting:starter_placement:arrangement", 2),  # RANDOM — two hops
-		_override("content:budget_policy:base_min", 3),  # "go HAM" — two hops
+		_override("preset:topology:node_count", 60),           # map size — one hop
+		_override("preset:blockers:blocker_per_small", 7),      # blocker density — one hop
+		_override("preset:starting:starter_placement:arrangement", 2),  # RANDOM — two hops
+		_override("preset:content:budget_policy:base_min", 3),  # "go HAM" — two hops
 	]
 
 	var dict := source.to_dict()
@@ -135,8 +157,8 @@ func test_authored_content_module_is_never_mutated_across_two_generations() -> v
 	var authored_base_min: int = authored.budget_policy.base_min
 
 	for override_value in [11, 22]:
-		var cfg := ScenarioOverride.merge_onto(
-				_fresh_preset(), [_override("content:budget_policy:base_min", override_value)])
+		var cfg := _merged_preset(
+				_fresh_scenario(), [_override("preset:content:budget_policy:base_min", override_value)])
 		cfg.seed = 7
 		await _generate(cfg)
 
@@ -153,10 +175,14 @@ func test_authored_content_module_is_never_mutated_across_two_generations() -> v
 
 
 func test_runtime_stamped_fields_are_rejected_as_override_targets() -> void:
-	for field_name in ["seed", "camp_sizes", "n_random_starters", "viability_radius"]:
-		var preset := _fresh_preset()
-		var authored_node_count := preset.topology.node_count
-		var cfg := ScenarioOverride.merge_onto(preset, [_override(field_name, 999)])
+	# #742: `n_random_starters` / `viability_radius` dropped out of the deny
+	# list — the legacy random-fill branch they gated is deleted, so a target
+	# naming either no longer resolves at all (a stronger guarantee than the
+	# deny list ever gave them). Only `seed` and `camp_sizes` remain.
+	for field_name in ["preset:seed", "preset:camp_sizes"]:
+		var scenario := _fresh_scenario()
+		var authored_node_count := scenario.preset.topology.node_count
+		var cfg := _merged_preset(scenario, [_override(field_name, 999)])
 		assert_push_warning(field_name)
 		assert_eq(cfg.topology.node_count, authored_node_count,
 				"'%s' must be rejected — the preset must be otherwise unchanged" % field_name)
@@ -166,9 +192,9 @@ func test_runtime_stamped_fields_are_rejected_as_override_targets() -> void:
 
 
 func test_an_unresolvable_target_warns_and_does_not_mutate_the_preset() -> void:
-	var preset := _fresh_preset()
-	var authored_node_count := preset.topology.node_count
-	var cfg := ScenarioOverride.merge_onto(preset, [_override("nope:not_here", 5)])
+	var scenario := _fresh_scenario()
+	var authored_node_count := scenario.preset.topology.node_count
+	var cfg := _merged_preset(scenario, [_override("nope:not_here", 5)])
 	assert_push_warning("nope:not_here")
 	assert_eq(cfg.topology.node_count, authored_node_count, "an unresolvable target must change nothing")
 
@@ -200,10 +226,10 @@ func test_set_indexed_get_indexed_traversal_is_pinned_against_the_real_preset() 
 
 ## 11.1 — a target resolving to a typed ARRAY is rejected, never merged.
 func test_a_typed_array_target_is_rejected_and_the_preset_is_unmodified() -> void:
-	var preset := _fresh_preset()
-	var authored_profiles := preset.content.weight_profiles.duplicate()
-	var cfg := ScenarioOverride.merge_onto(preset, [_override("content:weight_profiles", [])])
-	assert_push_warning("content:weight_profiles")
+	var scenario := _fresh_scenario()
+	var authored_profiles := scenario.preset.content.weight_profiles.duplicate()
+	var cfg := _merged_preset(scenario, [_override("preset:content:weight_profiles", [])])
+	assert_push_warning("preset:content:weight_profiles")
 	assert_eq(cfg.content.weight_profiles, authored_profiles,
 			"an array target must be rejected — the preset must be unchanged, not emptied")
 
@@ -211,11 +237,11 @@ func test_a_typed_array_target_is_rejected_and_the_preset_is_unmodified() -> voi
 ## 11.2 — a value whose type doesn't match the target's declared type is
 ## rejected; the preset keeps its authored value.
 func test_a_type_mismatched_value_is_rejected_and_the_preset_keeps_its_authored_value() -> void:
-	var preset := _fresh_preset()
-	var authored: int = preset.starting.starter_placement.arrangement
-	var cfg := ScenarioOverride.merge_onto(
-			preset, [_override("starting:starter_placement:arrangement", "banana")])
-	assert_push_warning("starting:starter_placement:arrangement")
+	var scenario := _fresh_scenario()
+	var authored: int = scenario.preset.starting.starter_placement.arrangement
+	var cfg := _merged_preset(
+			scenario, [_override("preset:starting:starter_placement:arrangement", "banana")])
+	assert_push_warning("preset:starting:starter_placement:arrangement")
 	assert_eq(cfg.starting.starter_placement.arrangement, authored,
 			"a String written to an int/enum leaf must be rejected outright")
 
@@ -223,15 +249,15 @@ func test_a_type_mismatched_value_is_rejected_and_the_preset_keeps_its_authored_
 ## 11.3 — a float written to an int leaf lands as an EXPLICIT, documented
 ## rounding (never a silent truncation), and warns when that rounding is lossy.
 func test_a_float_into_an_int_target_rounds_explicitly_and_warns_when_lossy() -> void:
-	var lossy_cfg := ScenarioOverride.merge_onto(
-			_fresh_preset(), [_override("content:budget_policy:base_min", 1.7)])
-	assert_push_warning("content:budget_policy:base_min")
+	var lossy_cfg := _merged_preset(
+			_fresh_scenario(), [_override("preset:content:budget_policy:base_min", 1.7)])
+	assert_push_warning("preset:content:budget_policy:base_min")
 	assert_eq(lossy_cfg.content.budget_policy.base_min, 2,
 			"1.7 must round to 2 (nearest), never truncate to 1")
 
 	# A whole-number float is not lossy — no warning, still lands as an int.
-	var clean_cfg := ScenarioOverride.merge_onto(
-			_fresh_preset(), [_override("content:budget_policy:base_min", 4.0)])
+	var clean_cfg := _merged_preset(
+			_fresh_scenario(), [_override("preset:content:budget_policy:base_min", 4.0)])
 	assert_eq(clean_cfg.content.budget_policy.base_min, 4)
 
 
@@ -242,13 +268,91 @@ func test_an_empty_target_is_flagged_as_a_configuration_warning() -> void:
 	var o := ScenarioOverride.new()
 	assert_true(o._get_configuration_warnings().size() > 0, "an empty target patches nothing — warn in the inspector")
 
-	o.target = "topology:node_count"
+	o.target = "preset:topology:node_count"
 	assert_eq(o._get_configuration_warnings().size(), 0, "a non-empty target has no structural complaint")
 
 
 func test_an_empty_target_at_merge_time_warns_and_changes_nothing() -> void:
-	var preset := _fresh_preset()
-	var authored_node_count := preset.topology.node_count
-	var cfg := ScenarioOverride.merge_onto(preset, [_override("", 5)])
+	var scenario := _fresh_scenario()
+	var authored_node_count := scenario.preset.topology.node_count
+	var cfg := _merged_preset(scenario, [_override("", 5)])
 	assert_push_warning("empty target")
 	assert_eq(cfg.topology.node_count, authored_node_count)
+
+
+# ── #742 D1 — rooted at Scenario, not at `preset` ───────────────────────────
+
+
+## `"victory_condition"` needs no `preset:` prefix at all — it is a field on
+## [Scenario] itself, one level ABOVE `preset`, which is the entire reason #742
+## re-rooted the merge here instead of adding a second override list.
+func test_a_bare_target_reaches_the_scenario_itself_no_prefix_needed() -> void:
+	var scenario := _fresh_scenario()
+	assert_null(scenario.victory_condition, "premise: no victory_condition authored")
+	const _LCS_PATH := "res://session/victory/last_camp_standing.tres"
+	var overrides: Array[ScenarioOverride] = [_override("victory_condition", _LCS_PATH)]
+
+	var merged := ScenarioOverride.merge_onto(scenario, overrides)
+
+	assert_true(merged.victory_condition is LastCampStandingCondition,
+			"a bare target resolves against the SCENARIO, one level above `preset`")
+	assert_ne(merged.victory_condition, load(_LCS_PATH),
+			"installed as a private duplicate, never the cached load() instance")
+	assert_null(scenario.victory_condition, "the authored (pre-merge) Scenario is never mutated")
+
+
+# ── #742 D2 — an object-typed leaf accepts a resource-path swap ────────────
+
+
+## The whole point of D2: `target: "preset:starting:starter_placement"` swaps
+## the WHOLE placement object, not a scalar field inside it, so
+## `coop_versus.tres`'s authored `CampAnnulusStarters` becomes the standalone
+## `CenterCoreStarters` asset on the merged copy — installed as a PRIVATE
+## `duplicate(true)`, never the cached `load()` instance, and the authored
+## module is untouched, same guarantee acceptance 4 gives every scalar leaf.
+func test_an_object_leaf_swap_installs_a_private_duplicate_of_the_named_asset() -> void:
+	var scenario := _fresh_scenario()
+	assert_true(scenario.preset.starting.starter_placement is CampAnnulusStarters,
+			"premise: coop_versus.tres authors CampAnnulusStarters")
+
+	const _CENTER_PATH := "res://procgen/placement/center_core_starters.tres"
+	var overrides: Array[ScenarioOverride] = [_override("preset:starting:starter_placement", _CENTER_PATH)]
+	var swapped := ScenarioOverride.merge_onto(scenario, overrides)
+
+	var placement := swapped.preset.starting.starter_placement
+	assert_true(placement is CenterCoreStarters, "the leaf now holds the named asset's class")
+	assert_ne(placement, load(_CENTER_PATH), "installed as a private duplicate, never the cached load() instance")
+
+	# The authored coop_versus.tres module is untouched.
+	var reloaded: GraphProcgenStartingPoints = ResourceLoader.load(
+			"res://procgen/modules/coop_versus/starting_points.tres", "", ResourceLoader.CACHE_MODE_IGNORE)
+	assert_true(reloaded.starter_placement is CampAnnulusStarters,
+			"the authored module must still author CampAnnulusStarters")
+
+
+## D2's class check, from the rejection side: a leaf declared `StarterPlacement`
+## must reject a resource of an unrelated class outright — never install it,
+## never leave the leaf mutated.
+func test_an_object_leaf_swap_of_the_wrong_class_is_rejected() -> void:
+	var scenario := _fresh_scenario()
+	var overrides: Array[ScenarioOverride] = [
+		# A real, loadable asset — just not a StarterPlacement.
+		_override("preset:starting:starter_placement",
+				"res://procgen/modules/coop_versus/starting_points.tres"),
+	]
+	var merged := ScenarioOverride.merge_onto(scenario, overrides)
+	assert_push_warning("preset:starting:starter_placement")
+	assert_true(merged.preset.starting.starter_placement is CampAnnulusStarters,
+			"a wrong-class asset must be rejected — the authored placement stays")
+
+
+## D2's value-shape check: an object-typed leaf accepts a resource PATH
+## (String) only — never an embedded object off the wire (#597 D4's guarantee,
+## extended from scalars).
+func test_an_object_leaf_swap_rejects_a_non_string_value() -> void:
+	var scenario := _fresh_scenario()
+	var overrides: Array[ScenarioOverride] = [_override("preset:starting:starter_placement", 5)]
+	var merged := ScenarioOverride.merge_onto(scenario, overrides)
+	assert_push_warning("preset:starting:starter_placement")
+	assert_true(merged.preset.starting.starter_placement is CampAnnulusStarters,
+			"a non-string value must be rejected — the authored placement stays")

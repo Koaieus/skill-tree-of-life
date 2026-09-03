@@ -95,8 +95,8 @@ func test_gradient_radius_tracks_the_auto_scaled_mask() -> void:
 	var authored: GraphProcgenConfig = load(_PRESET_PATH)
 	var field := authored.content.budget_policy.budget_field as RadialGradientField
 	assert_not_null(field, "budget_field should be a RadialGradientField")
-	assert_eq(authored.n_random_starters, 0,
-		"contenders only — #551 places the starters")
+	assert_not_null(authored.starting.starter_placement,
+		"contenders only — #551 places the starters, no legacy random-fill knob")
 	assert_eq(authored.content.weight_profiles.size(), 1,
 		"archetype weights only; no RadialBandProfile (#552)")
 

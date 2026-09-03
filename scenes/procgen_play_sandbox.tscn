@@ -17,7 +17,6 @@ enemy_colors = Array[Color]([Color(0.95, 0.4, 0.4, 1), Color(1, 0.6, 0.2, 1)])
 core_class = ExtResource("4_0xw0k")
 enemy_core_class = ExtResource("5_12m0o")
 node_count_override = 50
-viability_radius = 400.0
 expansion_steps = 9
 
 [node name="RunBootstrap" type="Node" parent="." index="0"]

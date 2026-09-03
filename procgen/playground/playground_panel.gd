@@ -379,13 +379,18 @@ func _regenerate_graph(reuse_seed: bool = false) -> void:
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.content = cfg.content.duplicate(true)
 	cfg.topology.node_count = int(_graph_node_count_spin.value) if _graph_node_count_spin != null else _GRAPH_PREVIEW_NODE_COUNT
-	cfg.n_random_starters = 0
+	# One lone starter, regardless of which `starter_placement` the preset
+	# authors (#742) — this preview has no roster, and a stray camp/AI fill
+	# would pollute the node-count preview with placements rather than field
+	# content. `[1]` rather than `[]` so `plan()` doesn't warn about an
+	# all-zero `camp_sizes`.
+	cfg.camp_sizes = [1]
 	# Guaranteed placements (e.g. RandomBudgetBoost's fixed `count`) are
 	# calibrated for the preset's full node_count — first_level.tres rolls a
 	# fixed 10 anomalous nodes for 800, which would be ~60% of a 16-node
 	# preview. That drowns the budget-field gradient this tab exists to show,
-	# so the preview skips them entirely (same rationale as zeroing
-	# n_random_starters above — this graph previews the field, not placements).
+	# so the preview skips them entirely (same rationale as leaving
+	# camp_sizes empty above — this graph previews the field, not placements).
 	cfg.content.guaranteed_placements = []
 	# `RunConfig.resolve_seed` is the one sentinel resolver (#457) — an editor
 	# preview is not a run, but it must not be a second place that draws one.

@@ -23,11 +23,14 @@ enum Arrangement { GROUPED, ALTERNATING, RANDOM }
 ## the clamp in [method _effective_arc_span]; see that method's docstring.
 @export var camp_arc_span: float = 0.21
 
-## Margin over `min_dist` the GROUPED arc clamp enforces. Deliberately not
-## 1.0: clamping exactly to `min_dist` would put every clamped configuration
-## on the floating-point boundary of the very rejection test
-## ([PoissonDiskSampler]'s `_grid_ok`) that silently drops a crowded anchor.
-const _ARC_CLAMP_MARGIN := 1.5
+## Deliberately not 1.0: clamping exactly to `min_dist` would put every
+## clamped configuration on the floating-point boundary of the very rejection
+## test ([PoissonDiskSampler]'s `_grid_ok`) that silently drops a crowded
+## anchor. Used to be a private `_ARC_CLAMP_MARGIN` constant here (1.5); #742
+## replaced it with the inherited [member StarterPlacement.viability_radius]
+## so both placements tune spacing through one authored number — every
+## shipped preset authoring this class re-authors `viability_radius = 1.5`
+## to hold the exact margin unchanged.
 
 
 func plan(
@@ -35,6 +38,8 @@ func plan(
 		radius: float,
 		min_dist: float,
 		rng: RandomNumberGenerator,
+		_mask: ShapeMask = null,
+		_max_tries: int = 200,
 ) -> Array[StartingPoint]:
 	var out: Array[StartingPoint] = []
 	var total := 0
@@ -82,12 +87,15 @@ func _plan_grouped(
 
 ## Widens [member camp_arc_span] for THIS camp (never mutates the export —
 ## camp sizes are a runtime input, so this can't be an authoring-time
-## warning) until adjacent members clear `_ARC_CLAMP_MARGIN * min_dist`. A
-## single member has no adjacent spacing to protect, so it's exempt.
+## warning) until adjacent members clear the spacing
+## [method StarterPlacement.degrade_spacing] asks for — a single shot at the
+## full [member StarterPlacement.viability_radius] ask, never degraded (this
+## is a closed-form widen, not a retry loop). A single member has no adjacent
+## spacing to protect, so it's exempt.
 func _effective_arc_span(n: int, r: float, min_dist: float) -> float:
 	if n <= 1 or r <= 0.0:
 		return camp_arc_span
-	var target_chord := _ARC_CLAMP_MARGIN * min_dist
+	var target_chord := degrade_spacing(min_dist, 0, 1)
 	# Chord between two points on a circle of radius r, angular_step apart:
 	# chord = 2r·sin(step/2). Solve for the step that hits target_chord,
 	# clamping the asin argument to 1 (max chord on this circle is 2r — a

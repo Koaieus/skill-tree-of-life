@@ -124,7 +124,7 @@ func _join() -> Dictionary:
 	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
 	gcfg.topology = gcfg.topology.duplicate(true)
 	gcfg.topology.node_count = 60
-	gcfg.n_random_starters = 1
+	gcfg.camp_sizes = [2]
 	gcfg.seed = GameSession.config.seed
 	var result: Dictionary = await GraphProcgen.generate(gcfg, _host_root.graph)
 	var starting_nodes: Array = result.get("starting_nodes", [])

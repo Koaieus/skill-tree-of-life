@@ -27,10 +27,9 @@ extends Resource
 
 ## The hard ceiling on distinct camps in one run (#615 D5), and it has zero
 ## headroom: [code]LobbyScreen._MAX_AI_OPPONENTS[/code] is 4, plus 2 humans is 6
-## participants; `entity/factions/` holds exactly `camp_1..camp_6`; and
-## `first_level.tres` asks procgen for `n_random_starters = 6`. Those three
-## numbers agree today and a free per-slot camp picker fits them precisely —
-## raising any one of them is a change to all three.
+## participants, and `entity/factions/` holds exactly `camp_1..camp_6`. Those
+## two numbers agree today and a free per-slot camp picker fits them
+## precisely — raising either one is a change to both.
 const MAX_CAMPS := 6
 
 ## The camp pool a picker may offer, in dropdown order. Empty means this lobby
@@ -91,37 +90,65 @@ const MAX_CAMPS := 6
 @export var blocker_options: LobbyOptionSet = null
 
 ## The victory-condition ladder this route offers, or null for "no victory
-## control" (#638 scope 3). Null on every shipped policy today, deliberately.
+## control" (#638 scope 3).
 ##
-## [b]The slot exists; the picker does not, and that is #638's own call.[/b]
-## Exactly one [VictoryCondition] subclass ships ([LastCampStandingCondition]),
-## and #638 puts authoring more of them HARD out of scope — "the slot works with
-## one condition in it; with one, the picker simply does not render". So this is
-## authored empty and [method offers_run_section] never counts it.
-##
-## [b]Outstanding: #638 acceptance 4.[/b] Before a ladder can be authored here,
-## a lobby pick needs a way to reach [member Scenario.victory_condition], and
-## there is none — [ScenarioOverride] is a SCALAR leaf patch onto a
-## [GraphProcgenConfig] (D15 rejects TYPE_OBJECT outright) and a [Scenario] is
-## not one. The unit that authors the SECOND condition owns building that
-## channel, because a one-option picker never renders and so acceptance 4 is not
-## observably testable before then.
+## [b]The channel exists now (#742); a second CONDITION still does not.[/b]
+## #642's D15 rejected `TYPE_OBJECT` outright, so a lobby pick had no way to
+## reach [member Scenario.victory_condition] — #742 extended the override
+## channel to a Resource-typed leaf (a `target: "victory_condition"` override
+## whose `value` is a resource path), which is what makes this field wireable
+## at all. Authoring more than [LastCampStandingCondition] is still HARD out of
+## scope (#638's own call) — exactly one condition ships, so every policy that
+## "should offer a choice" authors this as an EMPTY [LobbyOptionSet] rather than
+## a one-entry one: [method OptionChoiceRow.set_choices] hides on an empty
+## ladder the same as on a null one, so the row lands wired (present in
+## [method _build_run_section], contributing overrides through
+## [constant LobbyScreen.KNOB_VICTORY]) but stays invisible until a second
+## condition exists elsewhere and a real option gets appended.
 @export var victory_options: LobbyOptionSet = null
 
 ## The starter-arrangement ladder (#558), or null for "no arrangement control".
 ##
 ## [b]It is a MODULE override, not a bespoke field[/b] (#558 D3, #597 D12): each
-## option writes the leaf `starting:starter_placement:arrangement`, so it rides
-## exactly the [ScenarioOverride] merge path map size and blockers already use
-## and there is no second channel to keep in step.
+## option writes the leaf `preset:starting:starter_placement:arrangement`, so it
+## rides exactly the [ScenarioOverride] merge path map size and blockers already
+## use and there is no second channel to keep in step.
 ##
-## [b]Inert on a preset that authors no `starter_placement`.[/b] `first_level.tres`
-## does not (only `coop_versus.tres` does), so an arrangement override there does
-## not resolve and [method ScenarioOverride.merge_onto] warns, naming the target,
-## rather than no-opping silently (#558 acceptance 4, restated by the owner
-## 2026-08-27). Author this only on a route whose [member scenario] carries a
+## [b]Inert on a preset that authors no `starter_placement`.[/b] (Every shipped
+## preset authors one since #742 — `first_level.tres`'s [CenterCoreStarters] has
+## no `arrangement` field, so this ladder still does not resolve THERE.) An
+## arrangement override on a preset it doesn't fit does not resolve and
+## [method ScenarioOverride.merge_onto] warns, naming the target, rather than
+## no-opping silently (#558 acceptance 4, restated by the owner 2026-08-27).
+## Author this only on a route whose [member scenario] carries a
 ## [CampAnnulusStarters].
 @export var arrangement_options: LobbyOptionSet = null
+
+## The spawn-order ladder this route offers (#742), or null for "no spawn-order
+## control" — center vs. edge. Same MODULE-override pattern as
+## [member arrangement_options]: each option writes the leaf
+## `preset:starting:starter_placement` itself (a WHOLE-object swap, #742 D2 —
+## not a field inside it), pointing at [CenterCoreStarters] or
+## [CampAnnulusStarters].
+##
+## [b]Single-player authors both as real choices[/b] — center is the legacy
+## default (dead-centre human, AI fills the rest of the map), edge means AI
+## territory grows toward you instead. [b]Coop/versus force edge-only[/b]
+## ([CampAnnulusStarters] is the only geometry that respects camp structure at
+## all) — those routes still author this ladder (so the row is SHOWN) but pair
+## it with [member spawn_order_pickable] `= false` (so it is shown-but-disabled,
+## same pattern [member human_camps_pickable] already gives the camp dropdown)
+## and a [member LobbyOptionSet.default_index] pinned to the edge option.
+@export var spawn_order_options: LobbyOptionSet = null
+
+## May the host actually CHANGE [member spawn_order_options]'s pick? Independent
+## of whether the ladder is shown at all ([method _ladder] on a non-empty set) —
+## same split [member human_camps_pickable] draws for the camp dropdown: shown
+## and disabled is how a route displays a rule instead of hiding the control
+## outright. True by default (single-player: a real, host-pickable choice);
+## coop/versus policies set this false and pin
+## [member LobbyOptionSet.default_index] to the edge option.
+@export var spawn_order_pickable: bool = true
 
 ## May the host retune [member BudgetPolicy.base_min] / [member BudgetPolicy.base_max]?
 ## Raw spinners rather than a ladder, and the one control #643 requires to work
@@ -138,7 +165,9 @@ func offers_run_section() -> bool:
 	return (budget_overridable
 			or not _ladder(map_size_options).is_empty()
 			or not _ladder(blocker_options).is_empty()
-			or not _ladder(arrangement_options).is_empty())
+			or not _ladder(arrangement_options).is_empty()
+			or not _ladder(victory_options).is_empty()
+			or not _ladder(spawn_order_options).is_empty())
 
 
 ## [param set]'s choices, or `[]` when it is null — the "unlocked but unauthored"

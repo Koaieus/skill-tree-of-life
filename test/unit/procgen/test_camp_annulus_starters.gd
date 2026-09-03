@@ -135,6 +135,7 @@ func test_arc_clamp_tiny_span_6_6() -> void:
 	var placement := CampAnnulusStarters.new()
 	placement.arrangement = CampAnnulusStarters.Arrangement.GROUPED
 	placement.camp_arc_span = 0.001
+	placement.viability_radius = 1.5
 	var camp_sizes: Array[int] = [6, 6]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
@@ -147,6 +148,7 @@ func test_arc_clamp_holds_under_pressure_8_8() -> void:
 	var placement := CampAnnulusStarters.new()
 	placement.arrangement = CampAnnulusStarters.Arrangement.GROUPED
 	placement.camp_arc_span = 0.01
+	placement.viability_radius = 1.5
 	var camp_sizes: Array[int] = [8, 8]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 11
@@ -158,9 +160,15 @@ func test_arc_clamp_holds_under_pressure_8_8() -> void:
 # ── Full generate() integration (items 7, 8, 9's no-drop half, 10) ───────
 
 
-func test_null_starter_placement_changes_nothing() -> void:
+## Golden freely re-authored (#742) — `first_level.tres` now authors a real
+## [CenterCoreStarters] (lifted off the legacy manual-anchor-plus-random-fill
+## branch this test used to pin byte-for-byte), so the interesting assertion
+## is that it still centres one contender and fills the rest, sized off
+## `camp_sizes` rather than the deleted `n_random_starters` knob.
+func test_first_level_centers_one_starter_and_fills_the_rest() -> void:
 	var authored: GraphProcgenConfig = load(_FIRST_LEVEL_PATH)
-	assert_null(authored.starting.starter_placement, "first_level.tres must not author a starter_placement")
+	assert_true(authored.starting.starter_placement is CenterCoreStarters,
+			"first_level.tres must author a CenterCoreStarters (#742)")
 	assert_true(authored.camp_sizes.is_empty(), "first_level.tres must not author camp_sizes")
 
 	var cfg: GraphProcgenConfig = authored.duplicate(true)
@@ -169,9 +177,31 @@ func test_null_starter_placement_changes_nothing() -> void:
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = 60
 	cfg.seed = 909
+	cfg.camp_sizes = [4]
 	var result := await _generate_full(cfg)
 	var starting_nodes: Array = result.get("starting_nodes", [])
-	assert_eq(starting_nodes.size(), 1 + cfg.n_random_starters)
+	assert_eq(starting_nodes.size(), 4)
+	assert_almost_eq((starting_nodes[0] as SkillNode).position, Vector2.ZERO, Vector2(0.5, 0.5))
+
+
+## The placement-less path still exists (#742) — a preset authoring no
+## `starter_placement` at all falls back to its manual `starting_points`
+## list verbatim, with no random fill.
+func test_null_starter_placement_uses_manual_points_only() -> void:
+	var cfg := GraphProcgenConfig.new()
+	cfg.seed = 909
+	cfg.topology.node_count = 60
+	cfg.topology.node_radius = 32.0
+	cfg.topology.node_padding = 14.0
+	cfg.shape.shape_mask = CircularShapeMask.new()
+	var sp := StartingPoint.new()
+	sp.id = &"core"
+	cfg.starting.starting_points = [sp]
+	assert_null(cfg.starting.starter_placement, "premise: no starter_placement authored")
+
+	var result := await _generate_full(cfg)
+	var starting_nodes: Array = result.get("starting_nodes", [])
+	assert_eq(starting_nodes.size(), 1, "no starter_placement, no random fill — the manual list only")
 	assert_almost_eq((starting_nodes[0] as SkillNode).position, Vector2.ZERO, Vector2(0.5, 0.5))
 
 
@@ -244,6 +274,7 @@ func _minimal_config(camp_sizes: Array[int], arrangement: int, seed_val: int) ->
 	cfg.shape.shape_mask = CircularShapeMask.new()
 	var placement := CampAnnulusStarters.new()
 	placement.arrangement = arrangement
+	placement.viability_radius = 1.5
 	cfg.starting.starter_placement = placement
 	cfg.camp_sizes = camp_sizes
 	return cfg
@@ -342,7 +373,6 @@ func _assert_within_camp_spacing(pts: Array, min_spacing: float) -> void:
 # issue exists to prevent "a dropdown that changes nothing observable".
 
 const _COOP_VERSUS_SCENARIO_PATH := "res://session/scenarios/coop_versus.tres"
-const _FIRST_LEVEL_SCENARIO_PATH := "res://session/scenarios/first_level.tres"
 
 
 func _run_with_arrangement(scenario_path: String, arrangement: Variant) -> RunConfig:
@@ -351,7 +381,7 @@ func _run_with_arrangement(scenario_path: String, arrangement: Variant) -> RunCo
 	cfg.seed = 313131
 	if arrangement != null:
 		var o := ScenarioOverride.new()
-		o.target = "starting:starter_placement:arrangement"
+		o.target = "preset:starting:starter_placement:arrangement"
 		o.value = arrangement
 		cfg.overrides = [o]
 	return cfg
@@ -418,28 +448,33 @@ func test_no_override_reproduces_the_authored_grouped_arrangement() -> void:
 ## #558 acceptance 4, as the owner RESTATED it 2026-08-27 — the body's original
 ## "is unaffected and does not warn" inverted.
 ##
-## `first_level.tres` authors no `starter_placement`, so
-## `get_indexed("starting:starter_placement:arrangement")` on it returns `null`
+## A preset authoring no `starter_placement` at all (every SHIPPED preset now
+## does, since #742's `CenterCoreStarters` lift — this test builds a synthetic
+## placement-less one to keep exercising the mispaired case) has
+## `get_indexed("starting:starter_placement:arrangement")` return `null`
 ## SILENTLY. Under #642 D14 that must not pass quietly: the merge warns, naming
 ## the unresolvable target, and the run still generates. A silent no-op here is
 ## exactly the "dropdown that changes nothing observable" symptom #558 exists to
-## prevent. (No shipped route pairs this ladder with this preset —
-## `test_lobby_roster.gd` pins that — but a mispaired one must be LOUD.)
+## prevent.
 func test_an_arrangement_override_on_a_placement_less_preset_warns_and_still_generates() -> void:
-	var run := _run_with_arrangement(
-			_FIRST_LEVEL_SCENARIO_PATH, CampAnnulusStarters.Arrangement.RANDOM)
-	var authored: GraphProcgenConfig = load(_FIRST_LEVEL_PATH)
-	assert_null(authored.starting.starter_placement,
-			"premise: first_level.tres authors no starter_placement")
+	var placement_less := GraphProcgenConfig.new()
+	placement_less.topology.node_count = 60
+	placement_less.shape.shape_mask = CircularShapeMask.new()
+	assert_null(placement_less.starting.starter_placement,
+			"premise: this synthetic preset authors no starter_placement")
 
-	var cfg := run.resolved_preset()
-	assert_push_warning("starting:starter_placement:arrangement")
+	var scenario := Scenario.new()
+	scenario.preset = placement_less
+	var o := ScenarioOverride.new()
+	o.target = "preset:starting:starter_placement:arrangement"
+	o.value = CampAnnulusStarters.Arrangement.RANDOM
+
+	var cfg := ScenarioOverride.merge_onto(scenario, [o]).preset
+	assert_push_warning("preset:starting:starter_placement:arrangement")
 	assert_null(cfg.starting.starter_placement,
 			"and nothing was conjured onto the preset")
 
-	cfg.topology = cfg.topology.duplicate(true)
-	cfg.topology.node_count = 60
-	cfg.seed = run.seed
+	cfg.seed = 42
 	var result := await _generate_full(cfg)
 	assert_gt((result.get("nodes", []) as Array).size(), 0,
 			"the run still generates — a rejected override is never fatal")

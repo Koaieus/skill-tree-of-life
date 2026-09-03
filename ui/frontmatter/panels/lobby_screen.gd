@@ -141,6 +141,11 @@ const KNOB_BLOCKERS := &"blockers"
 ## seating, not one participant's.
 const KNOB_ARRANGEMENT := &"arrangement"
 const KNOB_BUDGET := &"budget"
+## How a run ENDS (#638, #742). Per-run like every other knob here — a
+## [VictoryCondition] describes the whole board, not one participant's slot.
+const KNOB_VICTORY := &"victory"
+## Center vs. edge (#742) — which [StarterPlacement] the run generates from.
+const KNOB_SPAWN_ORDER := &"spawn_order"
 
 ## Adds a Button to [member content]. Caller connects `.pressed` itself.
 ##
@@ -233,6 +238,8 @@ var _run_section: VBoxContainer
 var _map_size_row: OptionChoiceRow
 var _blocker_row: OptionChoiceRow
 var _arrangement_row: OptionChoiceRow
+var _victory_row: OptionChoiceRow
+var _spawn_order_row: OptionChoiceRow
 var _budget_row: BudgetRangeRow
 
 ## Run-level picks the host made explicitly, keyed by knob (see [constant
@@ -822,6 +829,9 @@ func _build_run_section() -> void:
 	_blocker_row = _add_ladder_row("Blockers:", _policy.blocker_options, KNOB_BLOCKERS)
 	_arrangement_row = _add_ladder_row(
 			"Starters:", _policy.arrangement_options, KNOB_ARRANGEMENT)
+	_victory_row = _add_ladder_row("Victory:", _policy.victory_options, KNOB_VICTORY)
+	_spawn_order_row = _add_ladder_row(
+			"Spawn order:", _policy.spawn_order_options, KNOB_SPAWN_ORDER, _policy.spawn_order_pickable)
 
 	if _policy.budget_overridable:
 		_budget_row = _BUDGET_RANGE_ROW.instantiate()
@@ -848,13 +858,14 @@ func add_run_row(row: Control) -> void:
 ## `%`-unique lookups resolve on `_ready` — a row configured before entering the
 ## tree would fault on `%Label`.
 func _add_ladder_row(
-	title: String, option_set: LobbyOptionSet, knob: StringName
+	title: String, option_set: LobbyOptionSet, knob: StringName, enabled: bool = true
 ) -> OptionChoiceRow:
 	if LobbyPolicy._ladder(option_set).is_empty():
 		return null
 	var row: OptionChoiceRow = _OPTION_CHOICE_ROW.instantiate()
 	add_run_row(row)
 	row.set_choices(title, option_set)
+	row.set_enabled(enabled)
 	row.option_picked.connect(_on_option_picked.bind(knob))
 	return row
 
@@ -929,10 +940,12 @@ func _compose_overrides() -> Array[ScenarioOverride]:
 	_append_ladder_overrides(out, _policy_ladder(KNOB_MAP_SIZE), KNOB_MAP_SIZE)
 	_append_ladder_overrides(out, _policy_ladder(KNOB_BLOCKERS), KNOB_BLOCKERS)
 	_append_ladder_overrides(out, _policy_ladder(KNOB_ARRANGEMENT), KNOB_ARRANGEMENT)
+	_append_ladder_overrides(out, _policy_ladder(KNOB_VICTORY), KNOB_VICTORY)
+	_append_ladder_overrides(out, _policy_ladder(KNOB_SPAWN_ORDER), KNOB_SPAWN_ORDER)
 	if _picked_options.has(KNOB_BUDGET):
 		var pair: Array = _picked_options[KNOB_BUDGET]
-		out.append(_leaf("content:budget_policy:base_min", int(pair[0])))
-		out.append(_leaf("content:budget_policy:base_max", int(pair[1])))
+		out.append(_leaf("preset:content:budget_policy:base_min", int(pair[0])))
+		out.append(_leaf("preset:content:budget_policy:base_max", int(pair[1])))
 	return out
 
 
@@ -944,6 +957,10 @@ func _policy_ladder(knob: StringName) -> LobbyOptionSet:
 			return _policy.map_size_options
 		KNOB_ARRANGEMENT:
 			return _policy.arrangement_options
+		KNOB_VICTORY:
+			return _policy.victory_options
+		KNOB_SPAWN_ORDER:
+			return _policy.spawn_order_options
 		_:
 			return _policy.blocker_options
 

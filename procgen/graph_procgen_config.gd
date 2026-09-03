@@ -45,29 +45,29 @@ extends Resource
 @export var blockers: GraphProcgenBlockers = GraphProcgenBlockers.new()
 
 # ── Runtime (stamped by the level, never authored) ─────────────────────────
-# These four fields sit where an author would expect them next to the
-# modules above, but none of them are authored content — they are written at
-# runtime by the level from the [ParticipantRoster] and the scene
+# These fields sit where an author would expect them next to the modules
+# above, but neither is authored content — it is written at runtime by the
+# level from the [ParticipantRoster] and the scene
 # (`scenes/procgen_play_sandbox.gd`), never crossing the wire, and each peer
-# derives them independently. A module `.tres` on disk must never carry
+# derives it independently. A module `.tres` on disk must never carry
 # `camp_sizes` — that would make it a second source of truth against the
 # roster (#349 D4).
+##
+## [b]`n_random_starters` / `viability_radius` used to live here[/b] (#349 D4)
+## as the runtime-stamped inputs to the legacy, non-camp-aware random-fill
+## branch of [method GraphProcgen.generate]. #742 lifted that branch into
+## [CenterCoreStarters] (a real [StarterPlacement], camp-aware like
+## [CampAnnulusStarters]) — `viability_radius` now lives on
+## [member StarterPlacement.viability_radius], AUTHORED per placement
+## instance rather than stamped, and the starter count is derived from
+## [member camp_sizes] rather than tracked separately. Neither field survives
+## here; a target naming either no longer resolves at all, which is a
+## stronger guarantee than the deny-list [ScenarioOverride._RUNTIME_STAMPED_FIELDS]
+## used to give them.
 @export_group("Runtime (stamped by the level, never authored)")
 
-## Extra anchors placed randomly inside [member GraphProcgenShape.shape_mask]
-## before Poisson body sampling — typically the NPC opponents on a level.
-## Each random anchor is rejection-sampled to keep `> viability_radius` away
-## from every prior anchor (manual + already-placed random). 0 = none.
-@export var n_random_starters: int = 0
-## Min distance from any other starter (manual or random) that a random
-## anchor must respect. "Viability" because the same separation gates several
-## gameplay concerns at once — territory growth space, sensible AI separation,
-## avoiding immediate-conflict starts. Default 0 = no minimum (caller opted in
-## by setting n_random_starters > 0 but didn't specify spacing).
-@export var viability_radius: float = 0.0
 ## Runtime input set on the *duplicated* config by the level (exactly as
-## [member seed] and [member n_random_starters] already are in
-## `procgen_play_sandbox.gd`) — the roster's camp shape, translated out of
-## its [Faction]s (procgen never sees a Faction). Inert unless
-## [member GraphProcgenStartingPoints.starter_placement] is set.
+## [member seed] already is in `procgen_play_sandbox.gd`) — the roster's camp
+## shape, translated out of its [Faction]s (procgen never sees a Faction).
+## Inert unless [member GraphProcgenStartingPoints.starter_placement] is set.
 @export var camp_sizes: Array[int] = []

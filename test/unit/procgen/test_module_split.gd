@@ -61,12 +61,8 @@ func test_node_count_override_does_not_leak_into_the_authored_module() -> void:
 func test_runtime_fields_live_on_config_not_in_any_module() -> void:
 	var cfg := GraphProcgenConfig.new()
 	cfg.camp_sizes = [3, 3]
-	cfg.n_random_starters = 2
-	cfg.viability_radius = 123.0
 	cfg.seed = 7
 	assert_eq(cfg.camp_sizes, [3, 3] as Array[int])
-	assert_eq(cfg.n_random_starters, 2)
-	assert_almost_eq(cfg.viability_radius, 123.0, 0.001)
 	assert_eq(cfg.seed, 7)
 
 	for module_path in [

@@ -119,7 +119,6 @@ func _ensure_fixture() -> void:
 	cfg.seed = _SEED
 	# No AI starters: enemy territory would claim nodes out from under the
 	# ramp and make "200 owned" depend on where the seeder happened to grow.
-	cfg.n_random_starters = 0
 
 	_graph = _GRAPH_SCENE.instantiate()
 	add_child(_graph)

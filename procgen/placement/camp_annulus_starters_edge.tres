@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="CampAnnulusStarters" format=3]
+
+[ext_resource type="Script" path="res://procgen/placement/camp_annulus_starters.gd" id="1_cas"]
+
+[resource]
+script = ExtResource("1_cas")
+arrangement = 2
+annulus_fraction = 0.85
+camp_arc_span = 0.21
+viability_radius = 1.5

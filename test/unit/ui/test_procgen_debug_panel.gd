@@ -157,7 +157,6 @@ func test_it_renders_a_footprint_produced_by_real_procgen() -> void:
 	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = 60
-	cfg.n_random_starters = 0
 	cfg.seed = 7
 
 	var graph: Graph = autofree(load("res://graph/graph.tscn").instantiate()) as Graph

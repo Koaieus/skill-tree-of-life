@@ -60,6 +60,16 @@ func set_value(index: int) -> void:
 	_updating = false
 
 
+## Shows the row's authored default WITHOUT letting the host change it (#742) —
+## same "shown but disabled" pattern [ParticipantRow]'s camp dropdown already
+## gives a policy-locked pick ([member LobbyPolicy.human_camps_pickable]).
+## Independent of [method set_choices]' own visibility: a locked ladder is
+## still SHOWN (the policy displays its rule) — call this after `set_choices`
+## so the ladder's fill doesn't reset it.
+func set_enabled(enabled: bool) -> void:
+	_picker.disabled = not enabled
+
+
 ## The index currently shown — the ladder's authored [member
 ## LobbyOptionSet.default_index] until the host picks, `-1` if the ladder has
 ## no default. NOT the same question as "has the host picked" (see

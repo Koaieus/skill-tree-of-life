@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="CenterCoreStarters" format=3]
+
+[ext_resource type="Script" path="res://procgen/placement/center_core_starters.gd" id="1_ccs"]
+
+[resource]
+script = ExtResource("1_ccs")
+viability_radius = 6.5

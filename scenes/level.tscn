@@ -16,7 +16,6 @@ enemy_colors = Array[Color]([Color(0.95, 0.4, 0.4, 1), Color(1, 0.6, 0.2, 1), Co
 core_class = ExtResource("4_core")
 enemy_core_class = ExtResource("5_nenm1")
 node_count_override = 0
-viability_radius = 300.0
 territory_seeder = ExtResource("6_gik01")
 enemy_territory_size = 3
 

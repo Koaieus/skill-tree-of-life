@@ -141,9 +141,11 @@ func _ensure_fixture() -> void:
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.seed = _SEED
 	# One AI starter for the defender's core — the shipped level's own
-	# n_random_starters=6 would let AI territory grow unpredictably and eat
-	# into the very frontier this bench needs to plant the attacker on.
-	cfg.n_random_starters = 1
+	# `CenterCoreStarters` sized off a real roster's `camp_sizes` would let AI
+	# territory grow unpredictably and eat into the very frontier this bench
+	# needs to plant the attacker on, so this fixture pins the headcount to
+	# exactly 2 (the centred core + one random AI starter) instead.
+	cfg.camp_sizes = [2]
 
 	_graph = _GRAPH_SCENE.instantiate()
 	add_child(_graph)
