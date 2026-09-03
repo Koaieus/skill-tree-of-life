@@ -250,3 +250,136 @@ func test_formula_bearing_row_hides_on_its_effective_neutral() -> void:
 class ZeroFormula extends StatFormula:
 	func compute(_board: StatBoard) -> float:
 		return 0.0
+
+
+# --- acceptance 9/10/11: the cap + carousel ---------------------------------
+
+## `count` rows that are all guaranteed to SHOW: SET has no neutral element, so
+## none of them is ever a hide candidate and none can be swallowed by the
+## rollup. One effect per row keeps them per-source-distinct (#621's "shown per
+## source, never summed"), which is what makes them `count` separate rows.
+func _grant_many(ent: Entity, count: int) -> void:
+	for i in count:
+		_grant(ent, "Aura %d" % i, _mod(&"armor", StatModifier.Operation.SET, float(i + 1)))
+
+
+# paginate() is the whole of the carousel a headless test can catch wrong.
+
+func test_paginate_returns_one_page_when_the_rows_fit() -> void:
+	assert_eq(EffectReadoutPanel.paginate([1, 2, 3, 4], 4).size(), 1)
+	assert_eq(EffectReadoutPanel.paginate([1], 4).size(), 1)
+
+
+func test_paginate_returns_nothing_for_no_rows() -> void:
+	assert_eq(EffectReadoutPanel.paginate([], 4).size(), 0)
+
+
+func test_paginate_balances_pages_instead_of_leaving_a_leftover() -> void:
+	# 11 rows at a cap of 4: three pages (ceil), spread 4/4/3 — never 4/4/4/... + 1.
+	var pages := EffectReadoutPanel.paginate(range(11), 4)
+	assert_eq(pages.size(), 3)
+	assert_eq([pages[0].size(), pages[1].size(), pages[2].size()], [4, 4, 3])
+
+
+func test_paginate_never_exceeds_the_cap_and_never_empties_a_page() -> void:
+	for n in range(1, 40):
+		for cap in [1, 3, 4, 7]:
+			var pages := EffectReadoutPanel.paginate(range(n), cap)
+			for page in pages:
+				assert_between(page.size(), 1, cap,
+					"n=%d cap=%d produced a page of %d" % [n, cap, page.size()])
+
+
+func test_paginate_preserves_every_row_exactly_once_in_order() -> void:
+	var flat: Array = []
+	for page in EffectReadoutPanel.paginate(range(23), 4):
+		flat.append_array(page)
+	assert_eq(flat, range(23) as Array,
+		"waiting out the carousel must show every row, once, in order")
+
+
+# acceptance 10: under the cap, nothing changes.
+
+func test_under_the_cap_there_is_no_carousel_and_no_page_indicator() -> void:
+	var ent := _spawn_entity()
+	_grant_many(ent, 3)
+	var panel := _panel()
+	panel.bind(_node, _graph)
+	assert_false(panel.is_paging(), "three rows under a cap of four must not page")
+	assert_eq(_row_texts(panel).size(), 3, "every row is up at once")
+	assert_eq(panel._header.subheader, panel._authored_subheader,
+		"the authored subheader survives — no page indicator when there is one page")
+
+
+func test_binding_does_not_clobber_the_authored_header() -> void:
+	var panel := _panel()
+	panel.bind(_node, _graph)
+	assert_eq(panel._header.header, "EFFECTS")
+	assert_false(panel._authored_subheader.is_empty(),
+		"the scene authors a subheader; the panel must cache it, not overwrite it")
+
+
+# acceptance 9: over the cap, the panel pages instead of growing.
+
+func test_over_the_cap_the_panel_pages_and_holds_at_the_cap() -> void:
+	var ent := _spawn_entity()
+	_grant_many(ent, 10)
+	var panel := _panel()
+	panel.bind(_node, _graph)
+	assert_true(panel.is_paging())
+	assert_eq(panel._pages.size(), 3, "10 rows at a cap of 4 is three pages")
+	assert_eq(_row_texts(panel).size(), 4, "only one page's worth is mounted at a time")
+	assert_string_contains(panel._header.subheader, "1 / 3")
+
+
+func test_the_carousel_cycles_every_page_and_wraps() -> void:
+	var ent := _spawn_entity()
+	_grant_many(ent, 10)
+	var panel := _panel()
+	panel.bind(_node, _graph)
+	var seen: Array[String] = []
+	for i in panel._pages.size():
+		seen.append_array(_row_texts(panel))
+		panel.advance_page()
+	assert_eq(seen.size(), 10, "one full cycle shows all ten rows")
+	assert_eq(panel._page_index, 0, "the cycle wraps back to the first page")
+	assert_string_contains(panel._header.subheader, "1 / 3")
+
+
+func test_the_panel_never_grows_past_its_authored_envelope() -> void:
+	var ent := _spawn_entity()
+	_grant_many(ent, 24)
+	var panel := _panel()
+	panel.bind(_node, _graph)
+	await wait_process_frames(2)
+	var skin := panel.get_skin()
+	assert_almost_eq(skin.size.y, skin.custom_minimum_size.y, 1.0,
+		"24 effects must not grow the panel past the envelope the scene authored")
+	# Not a vacuous assert: the same fixture with `max_rows_per_page = 24`
+	# measures 817px against the authored 180 — the cap is what holds it.
+
+
+# acceptance 11: an all-hidden panel is suppressed outright, never cycled.
+
+func test_an_all_hidden_panel_has_no_pages_to_cycle() -> void:
+	var ent := _spawn_entity()
+	for i in 6:
+		_grant(ent, "Falloff %d" % i, _mod(&"armor", StatModifier.Operation.MULTIPLY, 1.0))
+	var panel := _panel()
+	panel.bind(_node, _graph)
+	assert_false(panel.has_content())
+	assert_false(panel.is_paging(), "there is no empty framed page to cycle")
+	assert_eq(panel._pages.size(), 0)
+
+
+func test_rebinding_to_a_smaller_node_stops_the_carousel() -> void:
+	var ent := _spawn_entity()
+	_grant_many(ent, 10)
+	var panel := _panel()
+	panel.bind(_node, _graph)
+	assert_true(panel.is_paging())
+	var bare: SkillNode = _SKILL_NODE_SCENE.instantiate()
+	_graph.add_skill_node(bare)
+	panel.bind(bare, _graph)
+	assert_false(panel.is_paging(), "a rebind must not leave the previous node's carousel running")
+	assert_eq(panel._rows.modulate.a, 1.0, "and must not leave the rows parked mid-crossfade")
