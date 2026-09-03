@@ -118,7 +118,8 @@ extends StatBoard
 @export_group("Magic")
 @export var mana: PoolStat				## Casting resource. Max = base + INT//10; regen = floor(log(INT)) per turn.
 @export var mana_per_turn: ScalarStat	## Mana restored at turn start. Base: floor(log(INT)).
-@export var spell_range: ScalarStat		## Percent bonus to magic-spell reach. Scales with INT via intrinsic.
+@export var spell_range: ScalarStat		## Percent bonus to EUCLIDEAN magic-spell reach only. Scales with INT via intrinsic (reduced rate, #727).
+@export var spell_hops: ScalarStat		## Flat integer bonus to HOP-ranged magic-spell reach — HopRangeFinder.max_hops only, NEVER PropagationConfig.max_hops. INT threshold ladder (#727). Node-local via SpellRangeRules.bonus_hops, mirrors spell_range.
 @export var spell_damage: ScalarStat	## Damage behind one spell seed, × the spell's own `power`. Base 1, +1 per 10 INT. Node-local addons add on top per-node via node_board.
 
 @export_group("Melee")
