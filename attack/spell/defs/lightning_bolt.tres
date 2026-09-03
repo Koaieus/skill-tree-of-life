@@ -16,7 +16,7 @@
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="9_range"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="9_vajd0"]
 [ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/progression/multiply_progression.gd" id="13_prog"]
-[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/lightning_bolt_coordinator.tscn" id="14_vfx"]
+[ext_resource type="PackedScene" uid="uid://j8dyliqjpe74" path="res://ui/vfx/coordinator/spells/lightning_bolt_coordinator.tscn" id="14_vfx"]
 
 [sub_resource type="Resource" id="carve_lightning"]
 script = ExtResource("1_tcs")

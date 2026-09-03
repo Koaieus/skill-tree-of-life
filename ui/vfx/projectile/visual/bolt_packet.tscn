@@ -1,8 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://cs7lefs0j3gry"]
 
 [ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/bolt_body.tscn" id="1_base"]
 
-[node name="BoltPacket" instance=ExtResource("1_base")]
+[node name="BoltPacket" unique_id=1428549044 instance=ExtResource("1_base")]
 head_size = 10.0
 trail_length = 2
 trail_stride = 1

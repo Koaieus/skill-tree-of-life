@@ -1,6 +1,6 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bawvklhitllyu"]
 
-[ext_resource type="Script" path="res://ui/vfx/projectile/visual/glowing_dot.gd" id="1"]
+[ext_resource type="Script" uid="uid://qws1w4ujdpc2" path="res://ui/vfx/projectile/visual/glowing_dot.gd" id="1"]
 
-[node name="GlowingDot" type="Node2D"]
+[node name="GlowingDot" type="Node2D" unique_id=1994971624]
 script = ExtResource("1")

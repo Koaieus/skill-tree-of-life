@@ -1,8 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://bmxcvn0itieyf"]
 
 [ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/bolt_body.tscn" id="1_base"]
 
-[node name="BoltSmall" instance=ExtResource("1_base")]
+[node name="BoltSmall" unique_id=2076359397 instance=ExtResource("1_base")]
 head_size = 9.0
 trail_length = 2
 trail_stride = 2

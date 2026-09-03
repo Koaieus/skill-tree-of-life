@@ -1,8 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://bt7bly1exgcj1"]
 
-[ext_resource type="Script" path="res://ui/frontmatter/splash_screen.gd" id="1_splash"]
+[ext_resource type="Script" uid="uid://y2ldco3duaef" path="res://ui/frontmatter/splash_screen.gd" id="1_splash"]
 
-[node name="Splash" type="Control"]
+[node name="Splash" type="Control" unique_id=185166338]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -12,7 +12,7 @@ grow_vertical = 2
 mouse_filter = 0
 script = ExtResource("1_splash")
 
-[node name="Title" type="VBoxContainer" parent="."]
+[node name="Title" type="VBoxContainer" parent="." unique_id=1510854290]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 5
@@ -25,13 +25,13 @@ grow_horizontal = 2
 mouse_filter = 2
 theme_override_constants/separation = 4
 
-[node name="Eyebrow" type="Label" parent="Title"]
+[node name="Eyebrow" type="Label" parent="Title" unique_id=857225196]
 layout_mode = 2
 theme_type_variation = &"TierLabel"
 text = "A GAME OF"
 horizontal_alignment = 1
 
-[node name="Wordmark" type="Label" parent="Title"]
+[node name="Wordmark" type="Label" parent="Title" unique_id=343594431]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CinzelHeader"
@@ -39,7 +39,7 @@ theme_override_font_sizes/font_size = 64
 text = "SKILL TREE OF LIFE"
 horizontal_alignment = 1
 
-[node name="Prompt" type="Label" parent="."]
+[node name="Prompt" type="Label" parent="." unique_id=1967762523]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 7
