@@ -47,7 +47,7 @@ sandbox gallery does, for exactly this reason).
 | `ImpactRing` | `ui/vfx/projectile/visual/impact_ring.tscn`, `impact_ring_absorb.tscn` | Punctuation, and the **sole home of the crit grammar**. `OUT` = impact, `IN` = absorb/gather. |
 | `WavePath` | `ui/vfx/projectile/path/wave_path.gd` | Lerp + transverse sine. "This propagates" rather than "this was thrown". Reverberator / Resonator. |
 | `JitterPath` | `ui/vfx/projectile/path/jitter_path.gd` | Lerp + perpendicular hash noise. Unstable arcing electricity. Spark / the lightning family. |
-| `EdgeEnergize` | `ui/vfx/projectile/visual/edge_energize.tscn` + `edge_energize.gdshader` | A travelling front of light **painted on top of** an edge. |
+| `EdgeEnergize` | `ui/vfx/projectile/visual/edge_energize.tscn` + `edge_energize.gdshader` | A travelling front of light **painted on top of** an edge. **Self-derives its own endpoints** (#687): `_on_context(entry)` reads `origin`/`target` off the entry and sets `edge_origin`/`edge_target`/`top_level` itself — a composing spell forwards `_on_context`, it does not stamp the endpoints. |
 
 ### `ComposedProjectileVisual` — how a spell gets a body AND a ring
 

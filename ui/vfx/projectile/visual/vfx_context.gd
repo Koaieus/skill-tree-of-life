@@ -54,6 +54,27 @@ static func read_bool(entry: Variant, field: StringName, fallback: bool) -> bool
 	return fallback
 
 
+## An endpoint field off an entry ([code]origin[/code]/[code]target[/code],
+## #543 D6), as a [Node2D], or null when absent or the wrong shape. Accepts
+## an [Object] (property lookup, the real [ScheduleEntry] shape) or a
+## [Dictionary] (key lookup), same as [method read_float]/[method read_bool],
+## so a test can stand in for the real entry with a literal.
+static func read_node2d(entry: Variant, field: StringName) -> Node2D:
+	if entry is Object:
+		var obj: Object = entry
+		if field in obj:
+			var v: Variant = obj.get(field)
+			if v is Node2D:
+				return v
+	elif entry is Dictionary:
+		var d: Dictionary = entry
+		if d.has(field):
+			var v: Variant = d[field]
+			if v is Node2D:
+				return v
+	return null
+
+
 ## Normalized hop fraction in 0..1 — the one input a per-hop heat/size ramp
 ## reads (Lightning attenuates outward, Leafblower grows).
 ##

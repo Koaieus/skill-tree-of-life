@@ -14,11 +14,10 @@ extends Node2D
 ## receive every duck-typed call, and this wrapper's own `finished` waits on
 ## both.
 ##
-## [b]`edge_origin`/`edge_target` are not stamped by any coordinator in the
-## shared kit[/b] — only `tint` is (mirroring `ArrowVolleyCoordinator`). This
-## wrapper derives them itself from the [ScheduleEntry] `_on_context` hands
-## over: every entry already carries `origin`/`target` [SkillNode] refs
-## (#543 D6), so no shared-kit change is needed.
+## [b][EdgeEnergize]'s own world-space anchoring is its own to derive[/b]
+## (#687) — its `_on_context` reads `origin`/`target` off the
+## [ScheduleEntry] this wrapper already forwards, so this file just forwards
+## and does not re-derive any of it.
 ##
 ## This is composed as the `body_scene` of a STOCK [ComposedProjectileVisual]
 ## (`resonator_edge_composed_visual.tscn`), which supplies the convergence
@@ -52,12 +51,6 @@ func _ready() -> void:
 	if edge_energize_scene != null:
 		_energize = edge_energize_scene.instantiate() as Node2D
 		if _energize != null:
-			# EdgeEnergize._place() writes `position`/`rotation` in PARENT
-			# space, and this wrapper's parent is the flying, rotating
-			# Projectile (`face_velocity = true`) — top_level is what keeps
-			# the overlay laid along the edge in WORLD space instead of
-			# swimming and spinning with the bolt.
-			_energize.top_level = true
 			add_child(_energize)
 			_track(_energize)
 	_push_tint()
@@ -76,14 +69,6 @@ func _on_progress(t: float) -> void:
 
 func _on_context(entry: Variant) -> void:
 	_forward(&"_on_context", [entry])
-	if _energize == null or not (entry is Object):
-		return
-	var obj: Object = entry
-	var origin_node: Variant = obj.get("origin") if "origin" in obj else null
-	var target_node: Variant = obj.get("target") if "target" in obj else null
-	if origin_node is Node2D and target_node is Node2D:
-		_energize.edge_origin = (origin_node as Node2D).global_position
-		_energize.edge_target = (target_node as Node2D).global_position
 
 
 func _on_crit(tier: int) -> void:

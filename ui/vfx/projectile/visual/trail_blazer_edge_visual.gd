@@ -18,15 +18,10 @@ extends Node2D
 ## around it, so the two loudnesses read apart rather than one lying about
 ## the other.
 ##
-## [b]Escapes the moving [Projectile] parent via [member Node2D.top_level].[/b]
-## [EdgeEnergize] anchors itself with an absolute `edge_origin`/`edge_target`
-## (see its own class docs — "in the parent's space"), but this wrapper's
-## actual parent is a [Projectile] whose own `global_position` moves along
-## the same edge every frame as it flies EDGE's `LinearPath`. Left alone, the
-## overlay would ride glued to wherever the projectile head currently is
-## instead of drawing the whole wire. [BoltBody] escapes an equivalent
-## problem — its own trail segments outliving a moving head — with the exact
-## same flag (`ui/vfx/projectile/visual/bolt_body.gd`).
+## [b][EdgeEnergize] escapes the moving [Projectile] parent on its own[/b]
+## (#687) — its `_on_context` sets [member Node2D.top_level] the moment it
+## derives world-space endpoints from the [ScheduleEntry] this wrapper
+## forwards, so this wrapper no longer has to.
 ##
 ## Visual contract (see [Projectile]):
 ##   inbound  — `_on_launch()`, `_on_progress(t)`, `_on_arrival()`,
@@ -64,6 +59,12 @@ var _overlay_done: bool = false
 var _arrival_handled: bool = false
 var _done_emitted: bool = false
 
+## The slam lands at the hop's own `target`, read straight off `entry` —
+## never back off the overlay's own anchoring, which is its own derived
+## state (#687) and not a value this wrapper reaches into.
+var _slam_target: Vector2 = Vector2.ZERO
+var _has_slam_target: bool = false
+
 
 func _ready() -> void:
 	# Same guard [ComposedProjectileVisual] uses: a `@tool` script that spawns
@@ -72,11 +73,6 @@ func _ready() -> void:
 	# not the editor process, so a live sandbox tab still gets its overlay.
 	if VfxEditorScene.is_edited(self):
 		return
-	# The overlay's `edge_origin`/`edge_target` are authored as absolute world
-	# positions (see class docs); this flag is what makes "this wrapper's
-	# space" actually BE world space regardless of where the owning
-	# [Projectile] currently sits or is travelling to.
-	top_level = true
 	_overlay = EDGE_ENERGIZE_SCENE.instantiate()
 	_overlay.linger_seconds = linger_seconds
 	_overlay.tint = tint
@@ -89,19 +85,20 @@ func _ready() -> void:
 
 func _on_context(entry: Variant) -> void:
 	_is_terminal = VfxContext.read_bool(entry, &"is_terminal", false)
+	var target_node: Node2D = VfxContext.read_node2d(entry, &"target")
+	if target_node != null:
+		_slam_target = target_node.global_position
+		_has_slam_target = true
 	if _overlay == null:
 		return
-	var origin: SkillNode = _read_node(entry, &"origin")
-	if origin != null:
-		_overlay.edge_origin = origin.global_position
-	var target: SkillNode = _read_node(entry, &"target")
-	if target != null:
-		_overlay.edge_target = target.global_position
+	# Endpoints and `top_level` are EdgeEnergize's own to derive from `entry`
+	# (#687) — forwarding is enough.
+	_overlay._on_context(entry)
 	# Heat ramps off the WALK's position (#673: LABEL → VALUE → brushing
-	# ALERT), not off the generic hit magnitude EdgeEnergize's own
-	# `_on_context` would otherwise read — intermediate hops carry no hit at
-	# all (Trail Blazer only deals damage at the junction), so magnitude is
-	# never the honest signal here.
+	# ALERT), not off the generic hit magnitude the call above already tried
+	# — intermediate hops carry no hit at all (Trail Blazer only deals
+	# damage at the junction), so magnitude is never the honest signal here.
+	# This runs AFTER, overwriting whatever that call landed.
 	_overlay.emissive_tier = _heat_for_fraction(VfxContext.read_hop_fraction(entry, 0.0))
 
 
@@ -133,14 +130,6 @@ func _on_arrival() -> void:
 # ------------------------------------------------------------------- internals
 
 
-func _read_node(entry: Variant, field: StringName) -> SkillNode:
-	if entry is Object and field in entry:
-		var v: Variant = entry.get(field)
-		if v is SkillNode:
-			return v
-	return null
-
-
 func _heat_for_fraction(f: float) -> float:
 	var k: float = clampf(f, 0.0, 1.0)
 	if k < 0.5:
@@ -153,7 +142,7 @@ func _heat_for_fraction(f: float) -> float:
 ## The junction detonation (#673) — see class docs for the crit-stacking
 ## rationale.
 func _slam() -> void:
-	var target_pos: Vector2 = _overlay.edge_target if _overlay != null else global_position
+	var target_pos: Vector2 = _slam_target if _has_slam_target else global_position
 
 	var slam := IMPACT_RING_SCENE.instantiate() as ImpactRing
 	slam.top_level = true
