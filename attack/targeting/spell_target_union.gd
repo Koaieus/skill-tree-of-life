@@ -82,6 +82,10 @@ func source_for(node: SkillNode) -> SkillNode:
 ## source-scoped VIEW onto this union. [MagicAttackPlan] serves its existing
 ## per-source valid-target cache out of here instead of walking the graph a
 ## second time, so there is exactly one implementation behind both.
+##
+## It COPIES, so a caller that only needs a membership test in a hot loop
+## should read [member per_source] directly — [method
+## AiController._gather_magic_candidates] does.
 func targets_from(source: SkillNode) -> Dictionary[SkillNode, bool]:
 	var out: Dictionary[SkillNode, bool] = {}
 	var found: Dictionary = per_source.get(source, {})
@@ -116,11 +120,15 @@ static func build(spell: SpellDef, attacker: Entity, graph: Graph,
 
 
 ## [method build] over an EXPLICIT source list, skipping the eligibility
-## question. One caller: [MagicAttackPlan] serving its source-scoped
-## valid-target view for a source that came from outside the union — the AI
-## probes one owned node at a time (#745 rewires that). Building over the one
-## source costs exactly what the pre-#728 single-source gather did, and keeps
-## both views behind one implementation instead of resurrecting the old walk.
+## question. One production caller: [MagicAttackPlan._rebuild_target_cache],
+## serving its source-scoped valid-target view for a stamped source the current
+## union does not list — see there for what still produces one (a stamped
+## caster that has since become ineligible). Pre-#745 the AI drove this
+## constantly, probing one owned node at a time; it now consumes
+## [member per_source] off a single whole-territory [method build] per spell.
+## Building over one source costs exactly what the pre-#728 single-source
+## gather did, and keeps both views behind one implementation instead of
+## resurrecting the old walk.
 static func build_for(spell: SpellDef, attacker: Entity, graph: Graph,
 		sources: Array[SkillNode], plan: AttackPlan = null) -> SpellTargetUnion:
 	var union := SpellTargetUnion.new()

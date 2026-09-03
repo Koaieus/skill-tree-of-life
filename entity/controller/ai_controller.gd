@@ -306,18 +306,51 @@ func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCom
 	return out
 
 
-## Every (known spell × owned casting source × visible hostile target)
+## Every (known spell × eligible casting source × visible hostile target)
 ## combination whose plan validates. No spellbook / no known spells -> no
 ## magic candidates, same as a naive entity that never learned one.
 ##
-## Filters targets via [method AttackPlan.get_node_role] == IN_RANGE (the
-## plan's own cached [method MagicAttackPlan._valid_targets], built once per
-## (spell, source) off ONE [method RangeFinder.gather] traversal — see #385)
-## rather than [method AttackPlan.is_valid], which only checks presence, not
-## reachability: [method AttackPlan.resolve] trusts a set target unconditionally
-## (it exists to preview/commit a UI-picked target, not to re-validate one), so
-## skipping this filter would let the AI "cast" at an out-of-hop-range target
-## and still score a hit.
+## [b]Reachability comes from #728's shared [SpellTargetUnion][/b] (#745) — one
+## [method SpellTargetUnion.build] per spell, whose [method RangeFinder.gather_multi]
+## walks every eligible caster in a single pass.
+##
+## What that replaces: the pre-#745 loop stamped a source onto a fresh probe
+## plan and asked [method AttackPlan.get_node_role]. That falls through to
+## [method MagicAttackPlan._rebuild_target_cache], which builds the plan's
+## union — a WHOLE-TERRITORY gather over every eligible caster — just to read
+## one source's row out of it. A fresh probe per owned node meant that whole
+## build ran once PER OWNED NODE, per spell, per turn. Same candidates, same
+## scores, same order: the range test stops being a traversal and becomes a
+## dictionary lookup.
+##
+## The union's [member SpellTargetUnion.best_source] collapse is deliberately
+## NOT used. It auto-picks a caster by node-local `spell_damage` alone, while
+## the loop below scores every (source, target) pair fully and lets
+## [method AiCombatScorer.pick_best] decide — which strictly dominates that
+## heuristic. Only the ENUMERATION is shared, never the pick.
+##
+## Fog stays here ([param visible_enemies], off [method AiRecon.visible_enemy_nodes]):
+## the union answers reachability only, and each caller applies its own viewer's
+## fog.
+##
+## [b]The intersection is taken from the REACH side[/b] — the smaller one.
+## [member SpellTargetUnion.per_source] is already ownership-filtered, so it
+## holds the hostile nodes inside this spell's ball (a handful), while
+## [param visible_enemies] holds every fog-visible hostile node and grows with
+## the board. Enumerating the reach and testing fog membership therefore costs
+## O(reach) per source instead of O(visible).
+##
+## The fog list's ORDER is then re-imposed via [code]visible_order[/code],
+## because [method AiCombatScorer.pick_best] breaks a score tie by
+## first-appended: appending in the range finder's gather order would silently
+## re-decide ties that the pre-#745 implementation settled the other way. The
+## sort is over the intersection only, which is why it is free.
+##
+## The range test itself stays necessary — [method AttackPlan.is_valid] cannot
+## stand in for it. validate() checks presence and source degree only, and
+## [method AttackPlan.resolve] trusts a set target unconditionally (it exists to
+## preview/commit a UI-picked target, not to re-validate one), so dropping it
+## would let the AI "cast" at an out-of-hop-range target and still score a hit.
 func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
 	var out: Array[AiCombatScorer.ScoredCandidate] = []
 	if entity.spellbook == null or entity.navigator == null:
@@ -326,7 +359,13 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	if spells.is_empty():
 		return out
 	var mana: PoolStat = entity.stat_board.mana if entity.stat_board != null else null
-	var owned := entity.navigator.get_mirrored_nodes()
+	var graph := entity.navigator.graph
+	# Visible enemy -> its index in the fog list, built once for the whole
+	# gather. Doubles as the fog membership test and as the sort key that
+	# restores this function's candidate order — see the note above.
+	var visible_order: Dictionary[SkillNode, int] = {}
+	for i in visible_enemies.size():
+		visible_order[visible_enemies[i]] = i
 	for spell in spells:
 		# MagicAttackPlan.validate() deliberately doesn't gate on mana (a
 		# preview/UI concern, not a plan-shape one) — BattleSystem.launch_attack
@@ -336,14 +375,34 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 		# here, the one place that actually knows the entity's current mana.
 		if mana != null and mana.current < float(spell.mana_cost):
 			continue
-		for source in owned:
+		var union := SpellTargetUnion.build(spell, entity, graph)
+		# `sources` and not `per_source`: the latter is keyed in gather_multi's
+		# own order, while `sources` is a filtered subsequence of
+		# get_mirrored_nodes() — the order the pre-#745 loop walked. It is also
+		# already min_degree-filtered, so the ineligible sources that used to be
+		# probed and then thrown away by is_valid() never enter the loop at all.
+		for source in union.sources:
+			# .get() and not targets_from(): this reads the row, and does not
+			# need the defensive copy that view makes.
+			var reachable: Dictionary = union.per_source.get(source, {})
+			if reachable.is_empty():
+				continue
+			# Sorting the INDICES rather than the nodes keeps this a plain
+			# integer sort with no comparator closure per source.
+			var picked: Array[int] = []
+			for candidate: SkillNode in reachable:
+				var at: int = visible_order.get(candidate, -1)
+				if at >= 0:
+					picked.append(at)
+			if picked.is_empty():
+				continue
+			picked.sort()
 			var probe := MagicAttackPlan.new()
 			probe.attacker = entity
 			probe.spell = spell
 			probe.source = source
-			for target in visible_enemies:
-				if probe.get_node_role(target) != HighlightProvider.HighlightRole.IN_RANGE:
-					continue
+			for at in picked:
+				var target := visible_enemies[at]
 				probe.target = target
 				if not probe.is_valid():
 					probe.target = null

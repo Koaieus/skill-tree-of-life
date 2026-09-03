@@ -38,10 +38,16 @@ var target: SkillNode = null
 var viewer_vision: VisionSystem = null
 
 ## Valid-target set for the current (source, spell) pair, membership-only
-## (#385 perf) — now a VIEW onto [member _union] rather than its own walk, so
-## there is one implementation behind both the pre-source union painting and
-## this source-scoped question. Kept because [AiController] still probes with a
-## source already stamped (#745 rewires that); it costs one dictionary copy.
+## (#385 perf) — a VIEW onto [member _union] rather than its own walk, so there
+## is one implementation behind both the pre-source union painting and this
+## source-scoped question. It costs one dictionary copy.
+##
+## [b]Who still asks the source-scoped question, post-#745.[/b] Not the AI any
+## more — [method AiController._gather_magic_candidates] reads
+## [member SpellTargetUnion.per_source] directly. What remains is the committed
+## player pick: once a target is clicked, [member source] is stamped and both
+## [method get_node_role] and [method get_range_visual] narrow to that one
+## caster's reach, because that is the cast about to happen.
 var _cached_valid_targets: Dictionary[SkillNode, bool] = {}
 var _target_cache_dirty: bool = true
 
@@ -165,8 +171,10 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 		# Before a source is stamped this paints the UNION — every node any
 		# eligible caster can reach. Once one IS stamped the set narrows to
 		# that caster's own reach, matching what [method get_range_visual]
-		# draws, and keeping the source-scoped question answerable for
-		# [AiController], which probes one owned node at a time.
+		# draws: a committed pick shows the cast about to happen, not every
+		# cast that was available a click ago. (Pre-#745 this branch also
+		# served [AiController], which probed one owned node at a time; it now
+		# enumerates the union itself and never asks a plan for a role.)
 		var in_range := _valid_targets().has(node) if source != null \
 				else union().can_target(node)
 		if in_range:
@@ -321,10 +329,15 @@ func _rebuild_target_cache() -> void:
 	if union().per_source.has(source):
 		_cached_valid_targets = union().targets_from(source)
 		return
-	# A source that did not come from the union — [AiController] assigns one
-	# owned node at a time. Build over that ONE source rather than the whole
-	# territory: same code, and exactly the cost the pre-#728 single-source
-	# gather paid, so probing does not become quadratic in owned nodes.
+	# A source that is stamped but absent from the union. Post-#745 the
+	# gameplay path that produced one every probe is gone (the AI enumerates
+	# the union itself), and what is left is an INELIGIBLE stamped source: the
+	# caster dropped below the spell's min_degree between the click and this
+	# repaint (a forced dealloc shaving its degree), or a test / scripted setup
+	# assigned one directly. Answering for that one source rather than
+	# returning empty keeps the narrowed highlight coherent for the frame
+	# before the pick is re-adjudicated. Same code, and exactly the cost the
+	# pre-#728 single-source gather paid.
 	var single: Array[SkillNode] = [source]
 	_cached_valid_targets = SpellTargetUnion.build_for(
 			spell, attacker, _graph_of(source), single, self).targets_from(source)

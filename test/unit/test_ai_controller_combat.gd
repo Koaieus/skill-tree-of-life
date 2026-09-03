@@ -468,3 +468,139 @@ func test_capped_ai_prefers_the_door_over_an_equally_reachable_hostile() -> void
 	assert_lt(walled.get_current_hp(), wall_hp, "the wall is the door — hit it")
 	assert_eq(_nodes[2].get_current_hp(), hostile_hp,
 			"H0 borders nothing of the AI's, so killing it opens no board")
+
+
+# ---------------------------------------------------------------------------
+# #745 characterization — the union rewire is a COST change, not a behaviour one
+# ---------------------------------------------------------------------------
+
+## The pre-#745 enumeration, verbatim, as an oracle: probe one owned node at a
+## time and filter the visible enemies through [method AttackPlan.get_node_role].
+## This is the implementation [method AiController._gather_magic_candidates]
+## replaced with a [SpellTargetUnion] lookup, kept here (and ONLY here) so the
+## claim "same candidates, same scores, same order" is checked rather than
+## asserted in a comment.
+##
+## Deterministic on both sides: [member AttackPlan.resolve_seed] is 0 on a
+## fresh probe and nothing in the scoring path randomizes it, so the totals
+## compare exactly rather than within a tolerance.
+func _legacy_magic_candidates(entity: Entity,
+		visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
+	var out: Array[AiCombatScorer.ScoredCandidate] = []
+	var mana: PoolStat = entity.stat_board.mana
+	for spell in entity.spellbook.spells:
+		if mana != null and mana.current < float(spell.mana_cost):
+			continue
+		for source in entity.navigator.get_mirrored_nodes():
+			var probe := MagicAttackPlan.new()
+			probe.attacker = entity
+			probe.spell = spell
+			probe.source = source
+			for target in visible_enemies:
+				if probe.get_node_role(target) != HighlightProvider.HighlightRole.IN_RANGE:
+					continue
+				probe.target = target
+				if not probe.is_valid():
+					probe.target = null
+					continue
+				var outcome := probe.resolve()
+				var c := AiCombatScorer.score(BattleSystem.AttackMode.MAGIC, outcome,
+						target, entity, _ai.ai_tier)
+				c.source_node = source
+				c.spell = spell
+				out.append(c)
+				probe.target = null
+	return out
+
+
+## Widens the fixture into a board where the enumeration has something to say:
+## two eligible casters, two visible hostile targets in hop range of both, and
+## one owned node that fails the spell's `min_degree` — the case the pre-#745
+## loop probed and then discarded via `is_valid()`, and the union drops before
+## the loop. Returns that ineligible node.
+func _widen_for_magic_characterization() -> SkillNode:
+	_enemy.stat_board.vision_range.base_value = 6000.0
+	_add_edge(_nodes[1], _nodes[2])
+
+	# Owned but isolated: degree 0 < Spark's min_degree (1, the SpellDef
+	# default), so it is never an eligible caster.
+	var orphan := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	orphan.name = "N3_orphan"
+	_graph.add_skill_node(orphan)
+	orphan.global_position = Vector2(150.0, 400.0)
+	_alloc.force_allocate(_enemy, orphan)
+
+	# A second hostile node, one hop past the hostile core.
+	var far_hostile := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	far_hostile.name = "N4_hostile"
+	_graph.add_skill_node(far_hostile)
+	far_hostile.global_position = Vector2(400.0, 0.0)
+	_add_edge(_nodes[2], far_hostile)
+	_alloc.force_allocate(_hostile, far_hostile)
+
+	_enemy.get_spellbook().learn(_SPARK_SPELL)
+	return orphan
+
+
+func test_magic_candidates_match_the_pre_union_enumeration_exactly() -> void:
+	_widen_for_magic_characterization()
+	var visible := AiRecon.visible_enemy_nodes(_enemy)
+	assert_gt(visible.size(), 1, "fixture must offer more than one visible hostile target")
+
+	var expected := _legacy_magic_candidates(_enemy, visible)
+	var actual := _ai._gather_magic_candidates(visible)
+
+	assert_gt(expected.size(), 1,
+			"the oracle must produce a real candidate list, or this test is vacuous")
+	assert_eq(actual.size(), expected.size(), "same number of candidates")
+	for i in mini(actual.size(), expected.size()):
+		var a := actual[i]
+		var e := expected[i]
+		assert_eq(a.source_node, e.source_node, "candidate %d: same casting source" % i)
+		assert_eq(a.target, e.target, "candidate %d: same target" % i)
+		assert_eq(a.spell, e.spell, "candidate %d: same spell" % i)
+		assert_eq(a.total, e.total, "candidate %d: same score" % i)
+
+
+## The oracle comparison above only pins ordering if the fixture's gather order
+## happens to differ from the fog list's. This pins the contract directly:
+## within one casting source, candidates come out in AiRecon.visible_enemy_nodes
+## order, never in RangeFinder.gather_multi's. AiCombatScorer.pick_best breaks a
+## score tie by first-appended, so this IS the tie-break rule.
+func test_candidates_for_one_source_follow_the_fog_list_order() -> void:
+	_widen_for_magic_characterization()
+	var visible := AiRecon.visible_enemy_nodes(_enemy)
+	var candidates := _ai._gather_magic_candidates(visible)
+	assert_gt(candidates.size(), 1, "need more than one candidate to have an order at all")
+
+	# Guard against the check going vacuous: comparing two targets for the same
+	# source is the whole point, so at least one source must emit two.
+	var per_source_count: Dictionary[SkillNode, int] = {}
+	for c in candidates:
+		per_source_count[c.source_node] = per_source_count.get(c.source_node, 0) + 1
+	var widest := 0
+	for n: SkillNode in per_source_count:
+		widest = maxi(widest, per_source_count[n])
+	assert_gt(widest, 1, "no source emits two targets — nothing to order")
+
+	var last_index: Dictionary[SkillNode, int] = {}
+	for c in candidates:
+		var at := visible.find(c.target)
+		assert_gt(at, -1, "every candidate target must be a fog-visible enemy")
+		var previous: int = last_index.get(c.source_node, -1)
+		assert_gt(at, previous,
+				"source %s emitted targets out of fog order (%d after %d)"
+						% [c.source_node.name, at, previous])
+		last_index[c.source_node] = at
+
+
+func test_a_source_below_min_degree_is_never_a_magic_candidate() -> void:
+	var orphan := _widen_for_magic_characterization()
+
+	assert_eq(_enemy.navigator.get_degree(orphan), 0, "the orphan must stay isolated")
+	assert_true(_enemy.navigator.get_mirrored_nodes().has(orphan),
+			"it is still owned — the pre-#745 loop probed it and threw the result away")
+
+	for c in _ai._gather_magic_candidates(AiRecon.visible_enemy_nodes(_enemy)):
+		assert_ne(c.source_node, orphan,
+				"an ineligible caster must not reach the scoring loop at all")
