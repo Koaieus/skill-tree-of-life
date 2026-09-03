@@ -101,7 +101,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not (event.is_pressed() and not event.is_echo()):
 		return
-	if _handle(event):
+	if _handle(event) and is_inside_tree():
 		get_viewport().set_input_as_handled()
 
 
