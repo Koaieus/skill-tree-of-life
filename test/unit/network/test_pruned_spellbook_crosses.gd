@@ -182,3 +182,49 @@ func test_an_unknown_id_is_dropped_loudly() -> void:
 	EntitySnapshot._decode_identity(peer, row, [] as Array)
 
 	assert_eq(_ids_of(peer.spellbook), ["bruiser"], "the known id survived, the unknown one did not")
+
+
+## A row whose membership already agrees leaves the book ALONE — it does not
+## swap in an equal-but-sourceless one. A rebuilt book has no
+## [member SpellBook._sources], which is right for a blocker's loot pool and
+## wrong for a hero: on a REPEAT decode (the mid-run repair, which #715 applies
+## even when the fingerprints agree) pass 2 would not put the sources back,
+## because `_grant_effects` skips a [SpellGrant] already in the effect ledger.
+## The spell would sit in `spells` with nothing behind it, and the next
+## `revoke_effects_from` would find no source to drop.
+func test_an_agreeing_membership_keeps_its_grant_sources() -> void:
+	var source := await _new_graph()
+	var host := _entity_with(source, _pruned(["resonator"]))
+
+	var target := await _new_graph()
+	# Built through `add_spell` rather than handed a ready-made list, so the
+	# spell arrives WITH a source behind it — which is the whole subject here.
+	var peer := _entity_with(target, SpellBook.new(), host.entity_id)
+	var granting_node: SkillNode = autofree(SkillNode.new())
+	peer.spellbook.add_spell(SpellCatalog.RESONATOR, granting_node)
+	assert_eq(_ids_of(peer.spellbook), ["resonator"], "sanity: it already agrees with the row")
+	var before := peer.spellbook
+
+	_cross(source, target)
+
+	assert_true(is_same(peer.spellbook, before), "the very same book object")
+	assert_eq(peer.spellbook.source_count(SpellCatalog.RESONATOR), 1,
+			"and the node behind that spell is still recorded")
+
+
+## Idempotent, like every other step of this decode: the second application of
+## the same bytes changes nothing it did not already change.
+func test_decoding_twice_rebuilds_once() -> void:
+	var source := await _new_graph()
+	var host := _entity_with(source, _pruned(["bruiser", "cyclone"]))
+
+	var target := await _new_graph()
+	var peer := _entity_with(target, _AUTHORED, host.entity_id)
+
+	var bytes := EntitySnapshot.encode(source)
+	EntitySnapshot.decode(bytes, target)
+	var after_first := peer.spellbook
+	EntitySnapshot.decode(bytes, target)
+
+	assert_true(is_same(peer.spellbook, after_first), "the second pass rebuilt nothing")
+	assert_eq(_ids_of(peer.spellbook), ["bruiser", "cyclone"], "and the membership is the host's")

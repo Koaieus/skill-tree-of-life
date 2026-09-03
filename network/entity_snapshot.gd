@@ -371,20 +371,32 @@ static func _decode_identity(e: Entity, row: Array, res: Array) -> void:
 
 ## Rebuild the by-value book [method _encode_spell_ids] sent (#726).
 ##
-## Always a FRESH [SpellBook] — never the entity's own book narrowed in place.
-## What this peer happens to be holding is a level-side assumption
-## ([method GameRoot.spawn_blocker]'s tier default), and reconciling INTO it
-## would make the result depend on that assumption; rebuilding replaces it
-## outright. It also keeps a caller that did hand over an authored `.tres`
-## directly — a fixture, a sandbox — from narrowing that shared const for the
-## rest of the process.
+## [b]A no-op when the membership already agrees, and that guard is what makes
+## this idempotent[/b] — the property every other step of this decode has, and
+## the one a mid-run repair depends on (#715: a resync applies even when the
+## fingerprints agree, because the fold covers neither tags nor effects). A
+## rebuilt book carries no [member SpellBook._sources], which is right for a
+## blocker — `duplicate_pruned` drops them too, the copy being a loot pool whose
+## every spell reads as innate — and WRONG for a hero on a second decode: pass 2
+## would not put them back, because [method _grant_effects] skips a
+## [SpellGrant] whose [EffectInstance] is already in the ledger. The spell would
+## stay in `spells` with nothing behind it, and the next
+## [method Entity.revoke_effects_from] would find no source to drop and keep a
+## spell the authority had already taken away.
 ##
-## The rebuilt book carries no [member SpellBook._sources], which is what
-## `duplicate_pruned` produces too: a loot pool, every spell in it innate.
+## Comparison is by [member SpellDef.id] and in ORDER: the wire form is a list,
+## and the peer's own defs need not be the same objects (a `duplicate` of the
+## authored book holds copies).
+##
+## When it does rebuild it is always a FRESH [SpellBook], never the entity's own
+## book narrowed in place. What this peer holds is a level-side assumption
+## ([method GameRoot.spawn_blocker]'s tier default), and reconciling INTO it
+## would make the result depend on that assumption; and a caller that handed
+## over an authored `.tres` directly — a fixture, a sandbox — does not get that
+## shared const narrowed under it.
 static func _restore_pruned_spellbook(e: Entity, row: Array) -> void:
 	if row.size() <= _R_SPELL_IDS or row[_R_SPELL_IDS] == null:
 		return
-	var book := SpellBook.new()
 	var spells: Array[SpellDef] = []
 	for raw in (row[_R_SPELL_IDS] as Array):
 		var id := StringName(raw)
@@ -396,8 +408,24 @@ static func _restore_pruned_spellbook(e: Entity, row: Array) -> void:
 			)
 			continue
 		spells.append(spell)
+	if _same_membership(e.spellbook, spells):
+		return
+	var book := SpellBook.new()
 	book.spells = spells
 	e.spellbook = book
+
+
+## Does [param book] already hold exactly [param wanted], same ids in the same
+## order? A null book never does — not even against an empty list, since "no
+## book" and "an empty book" are different things to [method Entity.get_spellbook].
+static func _same_membership(book: SpellBook, wanted: Array[SpellDef]) -> bool:
+	if book == null or book.spells.size() != wanted.size():
+		return false
+	for i in wanted.size():
+		var have := book.spells[i]
+		if have == null or have.id != wanted[i].id:
+			return false
+	return true
 
 
 static func _load_interned(res: Array, idx: int) -> Resource:
