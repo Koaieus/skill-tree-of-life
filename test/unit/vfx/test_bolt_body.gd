@@ -186,3 +186,52 @@ func test_arrival_finishes_the_visual() -> void:
 	watch_signals(bolt)
 	bolt._on_arrival()
 	assert_signal_emitted(bolt, "finished")
+
+
+## #663's by-eye pass raised [constant BoltBody.MAX_TRAIL_SEGMENTS] from 4 to 8,
+## because a 4-segment jittered bolt reads as grain rather than an arc. The whole
+## risk in that change is that `back` used to be `(i + 1) / MAX_TRAIL_SEGMENTS`,
+## so raising the constant alone would have re-spread the taper and alpha ramps
+## underneath all eight shipped spells without touching one authored value.
+## [constant BoltBody._TAPER_SPAN] is what holds them still; these three pin it.
+func test_the_scene_authors_a_segment_for_every_slot_the_cap_promises() -> void:
+	var bolt := _spawn()
+	var trail: Node2D = bolt.get_node(^"%Trail")
+	var segments: int = 0
+	for child in trail.get_children():
+		if child is Sprite2D:
+			segments += 1
+	assert_eq(segments, BoltBody.MAX_TRAIL_SEGMENTS,
+			"trail_length can be set to the cap, so the cap's worth of segments must exist to place")
+
+
+func test_raising_the_cap_left_a_four_segment_trail_exactly_where_it_was() -> void:
+	# The pre-#663 ramp, arithmetic: back = (i + 1) / 4, alpha = lerp(0.7, 0.05, back).
+	var expected: Array[float] = [0.5375, 0.375, 0.2125, 0.05]
+	var bolt := _spawn()
+	bolt.trail_length = 4
+	bolt._emitting = true
+	bolt._apply_look()
+	var trail: Node2D = bolt.get_node(^"%Trail")
+	for i in expected.size():
+		var seg: Sprite2D = trail.get_child(i)
+		assert_almost_eq(seg.self_modulate.a, expected[i], 0.001,
+				"segment %d holds the alpha it had when the cap was 4" % i)
+
+
+func test_segments_past_the_taper_span_extend_the_tail_rather_than_re_spread_it() -> void:
+	# The flurry: everything past the span sits at the far end of the ramp, so it
+	# draws at trail_alpha_tail and is spaced apart by trail_stride in history —
+	# several comparable arcs, not a longer fade.
+	var bolt := _spawn()
+	bolt.trail_length = BoltBody.MAX_TRAIL_SEGMENTS
+	bolt.trail_alpha_tail = 0.4
+	bolt._emitting = true
+	bolt._apply_look()
+	var trail: Node2D = bolt.get_node(^"%Trail")
+	for i in range(4, BoltBody.MAX_TRAIL_SEGMENTS):
+		var seg: Sprite2D = trail.get_child(i)
+		assert_almost_eq(seg.self_modulate.a, 0.4, 0.001,
+				"segment %d is past the span, so it carries the tail alpha" % i)
+		assert_almost_eq(seg.scale.x, trail.get_child(3).scale.x, 0.001,
+				"segment %d is past the span, so it is tapered no further than the fourth" % i)

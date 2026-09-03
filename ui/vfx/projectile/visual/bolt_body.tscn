@@ -30,6 +30,26 @@ material = ExtResource("3_mat")
 texture = ExtResource("2_tex")
 visible = false
 
+[node name="Seg4" type="Sprite2D" parent="Trail"]
+material = ExtResource("3_mat")
+texture = ExtResource("2_tex")
+visible = false
+
+[node name="Seg5" type="Sprite2D" parent="Trail"]
+material = ExtResource("3_mat")
+texture = ExtResource("2_tex")
+visible = false
+
+[node name="Seg6" type="Sprite2D" parent="Trail"]
+material = ExtResource("3_mat")
+texture = ExtResource("2_tex")
+visible = false
+
+[node name="Seg7" type="Sprite2D" parent="Trail"]
+material = ExtResource("3_mat")
+texture = ExtResource("2_tex")
+visible = false
+
 [node name="Head" type="Sprite2D" parent="."]
 unique_name_in_owner = true
 material = ExtResource("3_mat")

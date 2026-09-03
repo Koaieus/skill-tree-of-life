@@ -46,7 +46,22 @@ const HEAD_TEXTURE: Texture2D = preload("res://ui/vfx/projectile/visual/bolt_hea
 const SHARED_MATERIAL: CanvasItemMaterial = preload("res://ui/vfx/projectile/visual/bolt_additive_material.tres")
 
 ## Max trail segments authored in the scene. [member trail_length] clamps here.
-const MAX_TRAIL_SEGMENTS: int = 4
+##
+## Raised from 4 to 8 for #663's by-eye pass: at 4 the jittered configs read as a
+## few grains of noise rather than an arc, and the owner's word for what was
+## missing was "a flurry of 5~6 in one projectile". A segment is another quad off
+## [constant HEAD_TEXTURE] and [constant SHARED_MATERIAL], so the extra four cost
+## fill rate and not draw calls — the batch is unaffected
+## (docs/domain/rendering-performance.md).
+const MAX_TRAIL_SEGMENTS: int = 8
+
+## How many segments the taper and alpha ramps SPAN, as distinct from how many
+## exist. Pinned at the old [constant MAX_TRAIL_SEGMENTS] so raising that
+## constant changed nothing: `back` is `(i + 1) / SPAN` clamped to 1, so every
+## config authored against a 4-segment cap keeps the exact ramp it had, and the
+## segments past the fourth extend the tail at tail values instead of
+## re-spreading the ramp underneath eight shipped spells.
+const _TAPER_SPAN: float = 4.0
 
 ## Native pixel size of [constant HEAD_TEXTURE]; [member head_size] divides by
 ## it to reach a sprite scale.
@@ -101,6 +116,25 @@ const _TEXTURE_SIZE: float = 64.0
 
 ## Head scale of the hindmost trail segment, as a fraction of the head's.
 @export_range(0.0, 1.0, 0.05) var trail_taper: float = 0.35
+
+## Alpha at the near end of the trail (the segment right behind the head) and at
+## the far end. Both were hardcoded 0.7 / 0.05 — a dissipating smoke tail, which
+## is the right read for a bolt that is meant to fade and the wrong one for the
+## "flurry" #663 wants, where several arcs should carry comparable weight.
+##
+## Lifting [member trail_alpha_tail] is what turns the segments past the taper
+## span into a flurry rather than a fade: they all sit at the far end of the ramp
+## (see [constant _TAPER_SPAN]), so they draw at this alpha, spaced apart in
+## history by [member trail_stride]. Defaults reproduce the old hardcoded pair
+## exactly.
+@export_range(0.0, 1.0, 0.01) var trail_alpha_head: float = 0.7:
+	set(value):
+		trail_alpha_head = value
+		_apply_look()
+@export_range(0.0, 1.0, 0.01) var trail_alpha_tail: float = 0.05:
+	set(value):
+		trail_alpha_tail = value
+		_apply_look()
 
 ## 0 = a symmetric disc. 1 = the head stretches along travel and squashes
 ## across it by the same factor — the squash-and-stretch the Blunt (piston)
@@ -303,12 +337,12 @@ func _apply_look(progress_hint: float = -1.0) -> void:
 		seg.visible = live and (_emitting or _arrived)
 		if not live:
 			continue
-		var back: float = float(i + 1) / float(MAX_TRAIL_SEGMENTS)
+		var back: float = minf(1.0, float(i + 1) / _TAPER_SPAN)
 		var taper: float = lerpf(1.0, trail_taper, back)
 		seg.scale = Vector2(s * taper, s * taper)
 		# Alpha is the fade channel; the colour value stays at the body tier
 		# (docs/domain/hdr-color.md) so a trail segment still blooms.
-		seg.self_modulate = Color(1.0, 1.0, 1.0, lerpf(0.7, 0.05, back))
+		seg.self_modulate = Color(1.0, 1.0, 1.0, lerpf(trail_alpha_head, trail_alpha_tail, back))
 
 
 func _place_segments() -> void:
