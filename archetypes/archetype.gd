@@ -15,10 +15,11 @@ extends Resource
 ## interprets WHAT the shape is (polygon vs. gem vs., later, arbitrary art); it
 ## just holds the reference.
 ##
-## TODO(#246): wisdom.tres's hexagon is a placeholder pending a bespoke
-## "exudes wealth" motif (coin/laurel/sunburst) once the arbitrary-art bake
-## pipeline lands — not a deliberate design pick. Carried over from the note
-## on the retired enum-based predecessor (#312).
+## TODO: wisdom.tres's hexagon is a placeholder for a bespoke "exudes wealth"
+## motif (coin/laurel/sunburst) — not a deliberate design pick. The
+## arbitrary-art bake pipeline it was waiting on shipped with #246, so the
+## motif is authorable today. Carried over from the note on the retired
+## enum-based predecessor (#312).
 @export var carve_shape: CarveShape = null
 
 ## Read-through to the primary stat's tint. GUARDED because this class is
