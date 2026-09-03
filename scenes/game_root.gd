@@ -808,7 +808,7 @@ func _ensure_controllers() -> void:
 		ent.add_child(ctrl)
 
 
-## Applies each roster participant's authored camp + control-kind onto its
+## Applies each roster participant's authored camp + control-kind + name onto its
 ## already-spawned entity — the roster-driven replacement for deciding
 ## faction or controller from "is this entity named player" (#475).
 ## [param entities_by_participant_id] maps [member Participant.id] to the
@@ -832,6 +832,13 @@ static func apply_roster(entities_by_participant_id: Dictionary, roster: Partici
 		# a second pass — every entity this loop actually touches IS the
 		# seated entity.
 		ent.participant_id = participant.id
+		# The name the lobby slot typed (or a hand-rolled fixture authored) is run
+		# shape like everything else in this loop: it crossed the wire inside the
+		# roster, so every peer's HUD shows the same hero name. Empty means the
+		# roster never named the seat — the spawn-time name ("Player", "Enemy_3")
+		# stays rather than blanking the presentation.
+		if not participant.display_name.is_empty():
+			ent.display_name = participant.display_name
 
 
 static func _find_controller(ent: Entity) -> EntityController:

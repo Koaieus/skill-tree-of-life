@@ -46,7 +46,16 @@ extends VBoxContainer
 ## come round-robin off [constant _PALETTE] across the WHOLE roster and the
 ## per-row picker overrides.
 ##
-## Deliberately minimal: scenic screens and per-player names are #461.
+## [b]A slot's name is its own to type.[/b] The row's Name field commits on
+## Enter or focus loss through the same ask/write split as the pickers, and
+## [method may_edit]'s one locality rule decides whose it is: offline and
+## hot-seat may edit any seat (every seat is this machine's), a host or a
+## client its own seat only, and an AI seat belongs to whoever authors the
+## roster. The name is run shape like colour — it crosses the wire inside the
+## roster, and [method GameRoot.apply_roster] carries it onto the spawned
+## entity, so every machine's HUD shows the same hero name.
+##
+## Deliberately minimal: scenic screens are what remains of #461.
 
 signal start_pressed(run_config: RunConfig)
 
@@ -89,6 +98,14 @@ const _PALETTE := preload("res://ui/theme/player_palette.tres")
 ## picker won't list is a state the player cannot return to.
 const _DEFAULT_PLAYER_CORE := preload("res://entity/core/balanced_core.tres")
 const _DEFAULT_AI_CORE := preload("res://entity/core/basic_enemy_core.tres")
+
+## The longest name a slot may carry. One home for the bound, applied at both
+## ends that can produce a name: the row paints it onto the field's
+## `max_length`, and the writer caps what arrives — a remote pick never saw
+## the field, and must meet the same rule a local typist physically cannot
+## exceed. Same shape as the colour rule (#616/#714: one rule, stated at the
+## writer, expressed in the UI).
+const MAX_NAME_LENGTH := 24
 
 ## AI opponents a fresh lobby offers. One rival camp is what a menu-launched run
 ## produced before this screen authored any AI at all (the level's fallback
@@ -159,6 +176,11 @@ var _picked_cores: Dictionary = {}
 ## Camps a player explicitly chose, by [member Participant.id]. Same
 ## rebuild-survival contract as [member _picked_colors].
 var _picked_camps: Dictionary = {}
+## Names a player explicitly typed, by [member Participant.id]. Same
+## rebuild-survival contract as [member _picked_colors]: an AI-count change
+## rebuilds the roster from scratch, and a typed name must not revert to
+## "Player 1" because a DIFFERENT slot was added.
+var _picked_names: Dictionary = {}
 
 ## --- #714: the roster replicates while the menu is up --------------------------
 ##
@@ -686,7 +708,7 @@ func _on_remote_pick(pick: Dictionary) -> void:
 	var target := _by_id(int(pick.get(PICK_ID, 0)))
 	if may_edit_remotely(target, int(pick.get(PICK_PEER, 0))):
 		if pick.has("display_name"):
-			target.display_name = String(pick["display_name"])
+			_on_name_picked(String(pick["display_name"]), target)
 		if pick.has("color"):
 			_on_color_picked(pick["color"], target)
 		if pick.has("core_class"):
@@ -944,6 +966,8 @@ func _rebuild_participants() -> void:
 			p.core_class = _picked_cores[p.id]
 		if _picked_camps.has(p.id):
 			p.camp = _picked_camps[p.id]
+		if _picked_names.has(p.id):
+			p.display_name = _picked_names[p.id]
 	_refresh_rows()
 
 
@@ -957,8 +981,13 @@ func _refresh_rows() -> void:
 	if _rows_container == null:
 		return
 	for child in _rows_container.get_children():
-		_rows_container.remove_child(child)
+		# `queue_free` FIRST: a focused `%Name` field mid-teardown fires
+		# `focus_exited` from inside `remove_child`'s own exit-tree cascade, and
+		# `is_queued_for_deletion()` is the row's only reliable "this is a
+		# teardown, not a decision" read at that moment (participant_row.gd's
+		# `_commit_name` guard).
 		child.queue_free()
+		_rows_container.remove_child(child)
 	for p in _participants:
 		_add_participant_row(p)
 	_refresh_start_enabled()
@@ -982,6 +1011,7 @@ func _add_participant_row(participant: Participant) -> void:
 	row.color_picked.connect(_on_row_color_picked.bind(participant))
 	row.core_class_picked.connect(_on_row_core_class_picked.bind(participant))
 	row.camp_picked.connect(_on_row_camp_picked.bind(participant))
+	row.name_committed.connect(_on_row_name_committed.bind(participant))
 
 
 ## A row asked for a colour. Local machines write it; a client sends it up
@@ -1007,6 +1037,18 @@ func _on_row_camp_picked(camp: Faction, participant: Participant) -> void:
 		_submit_pick(participant, {"camp": camp})
 		return
 	_on_camp_picked(camp, participant)
+	_broadcast_roster()
+
+
+## A row committed a name. The row already trimmed and capped it (its field's
+## `max_length` is [constant MAX_NAME_LENGTH] and [method
+## ParticipantRow._commit_name] normalizes before emitting), so what a client
+## sends up is what a local host would have written anyway.
+func _on_row_name_committed(text: String, participant: Participant) -> void:
+	if _is_client():
+		_submit_pick(participant, {"display_name": text})
+		return
+	_on_name_picked(text, participant)
 	_broadcast_roster()
 
 
@@ -1051,6 +1093,26 @@ func _on_camp_picked(camp: Faction, participant: Participant) -> void:
 	participant.camp = camp
 	_picked_camps[participant.id] = camp
 	_refresh_rows()
+
+
+## A slot typed a name. Unlike colour, names are not unique across slots — two
+## players may both be "Bob" — so nothing else has to be refreshed; the row
+## repaints its own field. [param name] is normalized here too, not just at the
+## row: a pick that arrived over the wire never saw the field's `max_length`
+## and must meet the same rule a local typist physically cannot exceed.
+func _on_name_picked(name: String, participant: Participant) -> void:
+	var wanted := normalize_name(name)
+	if wanted.is_empty() or wanted == participant.display_name:
+		return
+	participant.display_name = wanted
+	_picked_names[participant.id] = wanted
+
+
+## Trim and cap a slot's name to what [constant MAX_NAME_LENGTH] allows — the
+## one rule, met at both ends that can produce one: the field cannot physically
+## type past its own `max_length`, and this is what a remote pick meets instead.
+static func normalize_name(text: String) -> String:
+	return text.strip_edges().left(MAX_NAME_LENGTH)
 
 
 ## This machine's own id, as far as a lobby can know it: a client's real id is

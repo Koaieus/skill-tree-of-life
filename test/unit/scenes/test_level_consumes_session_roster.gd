@@ -113,6 +113,7 @@ func test_the_session_roster_decides_the_contenders_the_camps_and_the_seat() -> 
 	# covers every seam this unit touches except the no-session fallback.
 	var roster := ParticipantRoster.new()
 	var mine := _participant(1, Participant.Kind.HUMAN, _CAMP_1, 5)
+	mine.display_name = "Bramh"
 	roster.add(mine)
 	roster.add(_participant(2, Participant.Kind.HUMAN, _CAMP_2, 9))
 	roster.add(_participant(3, Participant.Kind.AI, _CAMP_3))
@@ -155,6 +156,11 @@ func test_the_session_roster_decides_the_contenders_the_camps_and_the_seat() -> 
 			"a roster with a human on another peer is a SEAT, not a couch")
 	assert_true(root.seat_policy.seats(root.player),
 			"and the seat is THIS machine's human")
+
+	# PIN (#741): the lobby-typed name is run shape like camp — it rides the
+	# roster to the spawned entity, so the HUD shows what the slot typed.
+	assert_eq(root.player.display_name, "Bramh",
+			"the roster's name is what the HUD will show")
 
 	# GUARD (see the class docstring — this does not bite on the code replaced):
 	# the level must never hand a roster back to the session.

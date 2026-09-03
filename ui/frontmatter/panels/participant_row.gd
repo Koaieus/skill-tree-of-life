@@ -10,9 +10,10 @@ extends HBoxContainer
 ## does it play as". They are separate fields on separate resources (#617 D1)
 ## and are deliberately not collapsed into one picture.
 ##
-## [b]The row asks; it never writes.[/b] Both pickers emit a signal and leave
-## the [Participant] alone — [LobbyScreen] owns the roster, and a row that wrote
-## into it would make "who decided this seat's colour" a two-answer question.
+## [b]The row asks; it never writes.[/b] The pickers and the name field emit a
+## signal and leave the [Participant] alone — [LobbyScreen] owns the roster, and
+## a row that wrote into it would make "who decided this seat's colour" a
+## two-answer question.
 ##
 ## [b]Widget order is a shared contract — four issues land here.[/b] #613 made
 ## the row a scene; #616 added the colour picker; #618 the core picker; #615 the
@@ -28,7 +29,10 @@ extends HBoxContainer
 ## that additive: the row carries [b]no fixed width[/b] (it sizes from its
 ## content — the panel's old `_CONTENT_MAX_WIDTH` cap was retired in #611), and
 ## [code]Name[/code] is the sole `SIZE_EXPAND_FILL` child, so every widget added
-## takes its space from the name label rather than from its neighbours.
+## takes its space from the name field rather than from its neighbours. The
+## field itself was a read-only label until names became editable: it commits on
+## Enter or focus loss ([signal name_committed]) and greys with the seat like
+## the pickers do.
 
 ## A slot chose a hero colour. The lobby owns the roster, so the row asks
 ## rather than writes — it never mutates the [Participant] it was configured
@@ -43,6 +47,11 @@ signal core_class_picked(core: CoreClass)
 ## A slot chose a camp (#615). Same ask-don't-write contract as the other two —
 ## the camp is roster shape, and [LobbyScreen] owns the roster.
 signal camp_picked(camp: Faction)
+
+## A slot committed a name — Enter, or the field losing focus. Same
+## ask-don't-write contract as the pickers: the name is run shape (it crosses
+## the wire inside the roster), and [LobbyScreen] owns the roster.
+signal name_committed(text: String)
 
 ## Edge of the generated colour chips in the picker's dropdown.
 const _CHIP_PX := 16
@@ -75,6 +84,7 @@ func set_editable(editable: bool) -> void:
 func _apply_disabled() -> void:
 	get_node("%ColorPick").disabled = not _editable
 	get_node("%CorePick").disabled = _cores_empty or not _editable
+	get_node("%Name").editable = _editable
 	# Left strictly alone while hidden: a lobby with no [LobbyPolicy] never calls
 	# [method set_camp_choices] at all, and #615's characterization contract is
 	# that such a row is byte-for-byte the pre-#615 one.
@@ -86,10 +96,64 @@ func _apply_disabled() -> void:
 func configure(participant: Participant, local_peer_id: int) -> void:
 	_participant = participant
 	get_node("%Swatch").color = participant.color
-	get_node("%Name").text = participant.display_name
+	_setup_name_field()
+	_paint_name(participant.display_name)
 	get_node("%Seat").text = _describe_seat(participant, local_peer_id)
 	_show_sigil_of(participant.core_class)
 	_show_emblem_of(participant.camp)
+
+
+## Wire the name field. The cap comes from the rule's one home
+## ([constant LobbyScreen.MAX_NAME_LENGTH]) rather than being authored here —
+## two homes for one bound would be two chances to drift. Connections follow
+## the pickers' here-not-in-`_ready` idiom, so a row configured standalone in a
+## test works whether or not it has entered the tree.
+func _setup_name_field() -> void:
+	var edit := get_node("%Name") as LineEdit
+	edit.max_length = LobbyScreen.MAX_NAME_LENGTH
+	if not edit.text_submitted.is_connected(_on_name_submitted):
+		edit.text_submitted.connect(_on_name_submitted)
+	if not edit.focus_exited.is_connected(_on_name_focus_exited):
+		edit.focus_exited.connect(_on_name_focus_exited)
+
+
+## Commit the name field. Enter and focus loss both land here, and the guard
+## comes first because of the focus-loss half: [LobbyScreen._refresh_rows]
+## frees every row on each roster change, and removing a FOCUSED field fires
+## `focus_exited` too. A teardown is not a decision — text that never left the
+## field must not become a pick just because a broadcast landed mid-edit.
+func _commit_name() -> void:
+	# NOT `is_inside_tree()`: Godot's exit-tree cascade visits children — the
+	# `%Name` LineEdit included — BEFORE clearing the row's OWN tree pointer, so
+	# a teardown-triggered `focus_exited` fires while the row still reads
+	# `is_inside_tree() == true`. `is_queued_for_deletion()` is what a caller
+	# tearing this row down sets FIRST (`LobbyScreen._refresh_rows` calls
+	# `queue_free()` before `remove_child()` for exactly this reason).
+	if is_queued_for_deletion():
+		return
+	var wanted := LobbyScreen.normalize_name(get_node("%Name").text)
+	if wanted.is_empty():
+		wanted = _participant.display_name if _participant != null else ""
+	elif _participant != null and wanted != _participant.display_name:
+		name_committed.emit(wanted)
+	# Repaint so the field shows exactly what the roster now holds — the trim
+	# and cap applied on commit, or the participant's own name when an empty
+	# commit was refused.
+	_paint_name(wanted)
+
+
+func _on_name_submitted(_text: String) -> void:
+	_commit_name()
+
+
+func _on_name_focus_exited() -> void:
+	_commit_name()
+
+
+func _paint_name(text: String) -> void:
+	var edit := get_node("%Name") as LineEdit
+	if edit.text != text:
+		edit.text = text
 
 
 ## Paint the camp mark for [param camp] (#617 D4 — display, not selection: the

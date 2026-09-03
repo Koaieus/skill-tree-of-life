@@ -111,3 +111,42 @@ func test_participant_with_no_camp_leaves_entity_untouched() -> void:
 
 	assert_eq(ent.faction, default_faction, "no camp authored — faction must not be overwritten")
 	assert_false(ent.is_human_controlled, "skipped entirely, so the controller flag stays default too")
+
+
+func test_the_roster_names_the_entity() -> void:
+	var roster := ParticipantRoster.new()
+	var named := _make_participant(1, Participant.Kind.HUMAN, _CAMP_1)
+	named.display_name = "Bob"
+	roster.add(named)
+	var ent: Entity = autofree(Entity.new())
+
+	GameRoot.apply_roster({1: ent}, roster)
+
+	assert_eq(ent.display_name, "Bob",
+			"the lobby-typed name is run shape — it crosses the wire and lands on the entity")
+
+
+func test_an_unnamed_participant_leaves_the_spawn_name_alone() -> void:
+	# A hand-rolled roster may carry no name at all; blanking the entity's
+	# spawn-time name ("Player", "Enemy_3") would leave the HUD wordless.
+	var roster := ParticipantRoster.new()
+	roster.add(_make_participant(1, Participant.Kind.AI, _CAMP_2))
+	var ent: Entity = autofree(Entity.new())
+	ent.display_name = "Enemy_3"
+
+	GameRoot.apply_roster({1: ent}, roster)
+
+	assert_eq(ent.display_name, "Enemy_3")
+
+
+func test_a_participant_with_no_camp_is_skipped_entirely_even_with_a_name() -> void:
+	var roster := ParticipantRoster.new()
+	var p := _make_participant(1, Participant.Kind.HUMAN, null)
+	p.display_name = "Bob"
+	roster.add(p)
+	var ent: Entity = autofree(Entity.new())
+	ent.display_name = "Player"
+
+	GameRoot.apply_roster({1: ent}, roster)
+
+	assert_eq(ent.display_name, "Player", "no camp — not seated, so not renamed either")

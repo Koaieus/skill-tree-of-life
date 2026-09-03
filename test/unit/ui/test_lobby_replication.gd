@@ -203,6 +203,33 @@ func test_a_client_may_not_move_the_host_s_row_or_an_ai_row() -> void:
 	assert_eq(_seat_of(_host, 3).color, ai_color, "nor is an AI seat")
 
 
+## #741: a name rides the same intent-up/confirmed-down loop as a colour — the
+## client asks, the host writes it through the same writer a local pick meets,
+## and the answer is what the client ends up showing.
+func test_a_client_s_name_is_applied_by_the_host_and_comes_back_down() -> void:
+	_join()
+	var mine := _my_seat(_client)
+
+	_client._on_row_name_committed("Bob", mine)
+
+	assert_eq(_seat_of(_host, 2).display_name, "Bob", "the host wrote the client's name")
+	assert_eq(_seat_of(_client, 2).display_name, "Bob", "and the answer is what the client shows")
+
+
+## #741: the locality rule, on the name field — a client may name its own seat
+## and nothing else.
+func test_a_client_may_not_rename_the_host_s_seat_or_an_ai_seat() -> void:
+	_join()
+
+	_host._on_remote_pick(LobbyScreen.encode_pick(
+			_seat_of(_client, 1), _CLIENT_PEER, {"display_name": "Sneaky"}))
+	_host._on_remote_pick(LobbyScreen.encode_pick(
+			_seat_of(_client, 3), _CLIENT_PEER, {"display_name": "Also Sneaky"}))
+
+	assert_eq(_seat_of(_host, 1).display_name, "Player 1", "the host's own seat keeps its name")
+	assert_eq(_seat_of(_host, 3).display_name, "AI 1", "and the AI's too")
+
+
 ## Acceptance 6, in the UI, and it reads the same on both machines: a human seat
 ## is yours iff it is at your peer, and the AI belongs to whoever authors the
 ## roster. The rule is symmetric on purpose — the host does not get to dress the

@@ -314,6 +314,112 @@ func test_picking_a_class_writes_it_onto_the_roster() -> void:
 	assert_eq(lobby.build_run_config().participants[0].core_class, _NINJA,
 			"and START hands the pick to the level")
 
+
+# --- #741: a slot types its own name, the roster carries it ------------------
+
+func test_the_row_paints_the_participants_name_and_locks_with_the_seat() -> void:
+	var parts := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
+	var row := _row_for(parts[0])
+
+	var edit: LineEdit = row.get_node("%Name")
+	assert_eq(edit.text, "Player 1", "configure paints the roster's name")
+	assert_true(edit.editable, "a local human seat's name is this machine's to type")
+
+	row.set_editable(false)
+	assert_false(edit.editable, "a locked seat cannot be retyped")
+
+
+func test_enter_commits_the_trimmed_name_and_the_field_agrees() -> void:
+	var parts := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
+	var row := _row_for(parts[0])
+	var heard: Array[String] = []
+	row.name_committed.connect(func(text: String): heard.append(text))
+
+	var edit: LineEdit = row.get_node("%Name")
+	edit.text = "  Bob  "
+	edit.text_submitted.emit("  Bob  ")
+
+	assert_eq(heard, ["Bob"], "the row asks with the trimmed name — it never writes")
+	assert_eq(parts[0].display_name, "Player 1", "and the participant is untouched by the row")
+	assert_eq(edit.text, "Bob", "the field shows exactly what it committed")
+
+
+func test_an_empty_commit_is_refused_and_the_field_falls_back() -> void:
+	var parts := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
+	var row := _row_for(parts[0])
+	var heard: Array[String] = []
+	row.name_committed.connect(func(text: String): heard.append(text))
+
+	var edit: LineEdit = row.get_node("%Name")
+	edit.text = "   "
+	edit.text_submitted.emit("   ")
+
+	assert_eq(heard.size(), 0, "an empty name is not expressable")
+	assert_eq(edit.text, "Player 1", "the field falls back to what the roster holds")
+
+
+func test_a_teardown_focus_loss_is_not_a_commit() -> void:
+	# `_refresh_rows` frees every row on each roster change, and removing a
+	# FOCUSED field fires `focus_exited` too. Mid-edit text must not become a
+	# pick just because a broadcast landed — the teardown guard is what keeps
+	# the commit a decision.
+	var parts := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
+	var row: ParticipantRow = _ROW_SCENE.instantiate()
+	add_child(row)
+	row.configure(parts[0], 0)
+	row.set_core_choices(CoreClass.pickable_for(LobbyScreen.slot_bit_for(parts[0].kind)))
+	var heard: Array[String] = []
+	row.name_committed.connect(func(text: String): heard.append(text))
+	var edit: LineEdit = row.get_node("%Name")
+	edit.text = "Bob"
+	edit.grab_focus()
+	assert_true(edit.has_focus())
+
+	# queue_free FIRST — is_queued_for_deletion() is the only reliable read
+	# during remove_child's own exit-tree cascade (see participant_row.gd's
+	# _commit_name guard and LobbyScreen._refresh_rows).
+	row.queue_free()
+	remove_child(row)
+
+	assert_eq(heard.size(), 0, "focus lost to a teardown, not to a decision")
+
+
+func test_a_committed_name_writes_the_roster_and_survives_a_rebuild() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.COOP_HOTSEAT)
+	var mine: Participant = lobby.participants()[0]
+
+	lobby._on_name_picked("  Bob  ", mine)
+
+	assert_eq(mine.display_name, "Bob", "the writer trims what the row already trimmed")
+	assert_eq(lobby.build_run_config().participants[0].display_name, "Bob",
+			"START hands the name to the run")
+
+	# An AI-count change rebuilds the roster from scratch — the name must
+	# survive it exactly like a colour pick does.
+	lobby._ai_count_row.value = 2.0
+	assert_eq(lobby.participants()[0].display_name, "Bob",
+			"the typed name survived the roster rebuild")
+	assert_eq(lobby.participants().size(), 4, "sanity: the rebuild actually happened")
+
+
+func test_an_empty_or_unchanged_name_pick_writes_nothing() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.COOP_HOTSEAT)
+	var mine: Participant = lobby.participants()[0]
+
+	lobby._on_name_picked("   ", mine)
+	assert_eq(mine.display_name, "Player 1", "empty is refused")
+	lobby._on_name_picked("Player 1", mine)
+	assert_eq(lobby.participants()[0].display_name, "Player 1", "unchanged is a no-op")
+
+
+func test_normalize_name_trims_and_caps() -> void:
+	assert_eq(LobbyScreen.normalize_name("  Bob  "), "Bob")
+	assert_eq(LobbyScreen.normalize_name("   "), "")
+	var long_name := "x".repeat(LobbyScreen.MAX_NAME_LENGTH + 10)
+	assert_eq(LobbyScreen.normalize_name(long_name).length(), LobbyScreen.MAX_NAME_LENGTH,
+			"a remote pick meets the same cap the field's max_length enforces locally")
+
+
 # --- #615: a LobbyPolicy on the route decides who may pick a camp ------------
 
 const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
