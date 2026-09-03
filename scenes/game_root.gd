@@ -609,13 +609,20 @@ func _on_entity_died(entity: Entity) -> void:
 ## tick / `_tick_until_ready` skip it this frame — `queue_free` leaves the node
 ## valid (and group-resident) until frame end, or later still under #479's
 ## reveal gate, so the group removal can't wait for either. Defensive: if the
-## corpse somehow held the turn, clear `current_entity` so the loop isn't
-## stalled on an actor that's about to disappear.
+## corpse somehow held the turn, end that turn so the loop isn't stalled on an
+## actor that's about to disappear.
+##
+## #443: through [method TurnManager.abandon_turn], never by nulling
+## `current_entity` from out here. The field write left the turn silently
+## un-ended — [signal TurnManager.turn_ended] never fired, and the only thing
+## that noticed was an `assert` in `start_turn` that a release build compiles
+## out. See that method for why it deliberately stops there and does not tick
+## on to the next entity.
 func _pull_from_turn_loop(entity: Entity) -> void:
 	entity.remove_from_group(Entity.GROUP)
 	entity.remove_from_group(Entity.READY_GROUP)
-	if turn_manager != null and turn_manager.current_entity == entity:
-		turn_manager.current_entity = null
+	if turn_manager != null:
+		turn_manager.abandon_turn(entity)
 
 
 ## Presentation clock (#479): the killing blow's own reveal has landed (or, per

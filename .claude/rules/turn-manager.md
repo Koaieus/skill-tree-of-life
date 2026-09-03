@@ -48,6 +48,10 @@ Readiness is **group membership, not `current >= cap`** — because the carry-re
 opening turn *after* the sends complete. Found building #533's rung-2 harness;
 `docs/domain/multiplayer-harness.md` carries the long version.
 
+## A turn can end by DEATH — `abandon_turn`, never a raw field write (#443)
+
+`TurnManager.abandon_turn(entity)` clears `current_entity` and emits `turn_ended`; no-op for a bystander or a re-entrant second arrival. `GameRoot._pull_from_turn_loop` is the caller. Nulling the field from outside was the old shape and left `turn_ended` unfired, guarded only by `start_turn`'s `assert` — compiled out of a release build, so the End Turn button / initiative bar / act-gate went stale with nothing to notice. It deliberately does **not** hand the clock on (`end_turn` does): the handoff is command-ordered via `EndTurnCommand`, and advancing the clock locally out of a death handler reopens the group-order sync hazard that command closes. No path reaches it today — chip damage and core overflow kill the *defender*, during the attacker's turn; `abandon_turn`'s docstring carries the long version. The field stays writable: tests and the editor sandbox panels write it deliberately.
+
 ## Discovery
 
 `TurnManager` joins the `"turn_manager"` group (constant `TurnManager.GROUP`) in `_enter_tree`. `Entity._find_turn_manager()` uses `get_tree().get_first_node_in_group(...)`. A tree-walk via `get_children()` missed it — TM lives at `GameRoot/Systems/TurnManager` (sibling of Graph), never a direct child of an Entity ancestor. Single instance per level.
