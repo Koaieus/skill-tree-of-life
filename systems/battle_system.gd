@@ -305,8 +305,12 @@ func _subscribe_union_invalidation() -> void:
 		allocation_system.allocated.connect(_invalidate_plan_union.unbind(3))
 		allocation_system.deallocated.connect(_invalidate_plan_union.unbind(2))
 		allocation_system.force_deallocated.connect(_invalidate_plan_union.unbind(2))
+	# `TurnManager` is not @tool, so in the editor the engine hands this @tool
+	# script a placeholder: `.turn_started` as a PROPERTY read throws there
+	# (gdscript-pitfalls.md), while connecting by name goes through Object's
+	# signal table and works on placeholder and real instance alike.
 	if turn_manager != null:
-		turn_manager.turn_started.connect(_invalidate_plan_union.unbind(1))
+		turn_manager.connect(&"turn_started", _invalidate_plan_union.unbind(1))
 
 
 func _invalidate_plan_union() -> void:
