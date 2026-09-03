@@ -291,7 +291,14 @@ func test_geometry_is_authored_in_the_harness_scenes_at_the_project_viewport() -
 	assert_almost_eq(hero.y, 480.0, 0.001, "and it fills the height, so it is centred")
 	assert_almost_eq(_column_step(), 306.0, 0.001, "hero 190 -> option column 496")
 	assert_almost_eq(FrontmatterLayout.PREVIEW_SCALE, 0.42, 0.0001)
-	assert_almost_eq(FrontmatterLayout.SPLASH_ZOOM, 3.2, 0.0001)
+	# An OWNER TUNING VALUE, raised 2.55 -> 3.2 (2026-08-26) -> 4.5 (2026-09-03,
+	# #734, alongside deleting the splash's own wordmark so the root node's
+	# caption carries the title). Pinned here only as part of "the geometry is
+	# authored where it is authored"; the claims that must not drift are that it
+	# exceeds TREE_ZOOM (asserted below and in `test_splash.gd`) and that the
+	# needle still fits at the BOOM (`test_splash.gd` derives that ceiling).
+	# Expect to update this line whenever the owner re-tunes the opening shot.
+	assert_almost_eq(FrontmatterLayout.SPLASH_ZOOM, 4.5, 0.0001)
 	# #593's per-fan zoom is retired (owner call, 2026-08-26): there are only
 	# two zooms in the whole menu, TREE_ZOOM and SPLASH_ZOOM, so the root is
 	# seen at the same zoom as everything else and only its radius is bigger.
