@@ -351,7 +351,14 @@ func test_which_peer_this_machine_is_comes_from_the_socket() -> void:
 	_META_SCRIPT._stamp_local_peer()
 	assert_eq(GameSession.local_peer_id, NetworkTransport.HOST_PEER_ID,
 			"a host is always peer 1 under Godot's high-level multiplayer")
+
+	# And back to nobody once the socket goes (#716 stops it on every leave), so
+	# the role alone never gets a second, forkable vote.
+	GameSession.local_peer_id = 99
 	Wire.stop()
+	_META_SCRIPT._stamp_local_peer()
+	assert_eq(GameSession.local_peer_id, 0,
+			"a role with no socket behind it is nobody again")
 
 
 # --- the two leaves that never reach a lobby --------------------------------

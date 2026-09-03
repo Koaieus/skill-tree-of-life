@@ -470,6 +470,23 @@ static func is_pending_remote(p: Participant) -> bool:
 	return p != null and p.kind == Participant.Kind.HUMAN and p.peer_id == _PENDING_PEER_ID
 
 
+## Is anybody's seat still waiting for a real id? The whole-roster form of
+## [method is_pending_remote], and the only honest "may START now" question a
+## caller outside this file can ask (#715).
+##
+## [b]Why it is not "has a peer joined".[/b] Since #716 the host offers a seat on
+## [signal CommandLink.peer_cleared] — after the build-gate hello has ROUND-TRIPPED
+## — not on the bare join. So a joined peer and a seated peer are two moments with
+## a network hop between them, and a caller that starts the run on the first one
+## broadcasts a roster still carrying [constant _PENDING_PEER_ID], which the
+## joiner cannot find itself in.
+func has_pending_remote() -> bool:
+	for p in _participants:
+		if is_pending_remote(p):
+			return true
+	return false
+
+
 ## The join half of #554 D2, as a seam the level can call without knowing what
 ## a pending seat looks like: give the roster's waiting human seat the id the
 ## transport just reported. Returns false when there was nothing waiting — a

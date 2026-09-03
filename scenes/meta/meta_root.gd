@@ -339,6 +339,9 @@ func _host_panel() -> HostPanel:
 # stubbed. What it proves, why it is on `turn_started`, and why both halves read
 # nothing without the flag: `docs/domain/multiplayer-harness.md`, "Rung 3".
 const _RUNG3_FLAG := "--lobby="
+## Frames rung 3's host will wait for the joiner to clear the build gate and take
+## its seat — ~10s at 60fps, generous next to a LAN hello round trip.
+const _RUNG3_SEAT_FRAMES := 600
 
 
 func _drive_lobby_from_cmdline() -> void:
@@ -369,13 +372,32 @@ func _drive_lobby_from_cmdline() -> void:
 		_on_join_requested(address, port)
 
 
-## One deferred hop so [method LobbyScreen._on_link_peer_joined] has stamped the
-## waiting seat before START reads the roster off it.
+## Wait for the SEAT, not for the join, before pressing START.
+##
+## [b]This used to be one deferred hop, and #716 made that too short.[/b] The hop
+## was enough while the host stamped the waiting seat on the bare join; since
+## #716 it stamps on [signal CommandLink.peer_cleared], once the build-gate hello
+## has round-tripped, which is a network hop rather than a frame. START fired in
+## between: the broadcast roster still carried [constant LobbyScreen._PENDING_PEER_ID],
+## the joiner found no row with its own id, and its level came up with no seated
+## hero and never took a turn — #715 acceptance 1 and 4, failing only live, where
+## a real socket makes the round trip take longer than a frame.
+##
+## Bounded rather than unbounded: a peer that never clears the gate is a REFUSED
+## peer, and rung 3 should say so and stop instead of hanging until the harness's
+## own timeout kills it.
 func _press_start_when_seated(_peer_id: int) -> void:
-	await get_tree().process_frame
 	var lobby := _lobby_panel()
 	if lobby == null or lobby.screen == null:
 		push_error("rung 3: no lobby to start")
 		return
+	var screen: LobbyScreen = lobby.screen
+	var waited := 0
+	while screen.has_pending_remote() and waited < _RUNG3_SEAT_FRAMES:
+		await get_tree().process_frame
+		waited += 1
+	if screen.has_pending_remote():
+		push_error("rung 3: the peer joined but never took a seat — it did not clear the build gate")
+		return
 	print("[host] rung 3: peer seated — pressing START")
-	lobby.screen._on_start_button_pressed()
+	screen._on_start_button_pressed()
