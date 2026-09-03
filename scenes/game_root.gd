@@ -536,6 +536,18 @@ func _on_peer_joined(peer_id: int) -> void:
 		return
 	if net.role == NetworkTransport.Role.CLIENT:
 		GameSession.local_peer_id = transport.local_peer_id()
+		# Restate BOTH registry copies (#668): `_ready` below pushes a snapshot
+		# of `GameSession.roster` and `.local_peer_id`, and this branch exists
+		# precisely for the case where those were not yet known then. Both, not
+		# just the id — they fail through
+		# [method LootPickRegistry.is_local_collector] in OPPOSITE directions,
+		# and only one of them is safe. A stale `local_peer_id` of 0 answers
+		# false for this peer's own hero (its loot picker never opens — visible);
+		# a stale null `roster` answers true for EVERYONE (every peer opens a
+		# picker — #668 back, and silent).
+		if pick_registry != null:
+			pick_registry.roster = GameSession.roster
+			pick_registry.local_peer_id = GameSession.local_peer_id
 		return
 	LobbyScreen.stamp_pending_remote(GameSession.roster, peer_id)
 	# And ship this peer the world (#715). Host-side this line runs at the tail of

@@ -578,9 +578,35 @@ var _pending_mirror_request: Variant = null
 func _on_loot_offer_received(offer: LootPickOffer) -> void:
 	if offer == null:
 		return
-	_force_settle_pending_mirror_request()
 	var graph: Graph = command_applier.graph if command_applier != null else null
 	var collector: Entity = graph.get_by_entity_id(offer.collector_id) if graph != null else null
+	# #668: the offer arrives on EVERY mirror peer, not just the collector's —
+	# `CommandLink.send_loot_offer` is an unaddressed `transport.send` broadcast.
+	# Without this gate two clients both raise a picker for the same offer and
+	# whichever answers first submits a [PickLootCommand] for a collector that
+	# is not theirs. Bail BEFORE the force-settle below: a foreign offer must
+	# not forfeit this peer's own open picker.
+	#
+	# The roster answers this, never [SeatPolicy] — `scenes/game_root.gd`'s #564
+	# note states the rule ("is_remote_collector answers for a PEER (a roster
+	# question), which is exactly what the per-machine SeatPolicy cannot do"),
+	# and [method LootPickRegistry.is_local_collector] is that method's
+	# receive-side dual — which answers TRUE for a run with no roster (one
+	# machine: everything here is mine), so a hand-authored sandbox keeps
+	# behaving exactly as it did. No registry at all (a headless fixture that
+	# wires only the adapter) skips the question for the same reason.
+	#
+	# A collector that does not resolve in this peer's graph at all bails here
+	# too, where it used to raise a collector-less request that force-settled
+	# into an upward forfeit. That is a behaviour change on the host's close
+	# path (it now waits out its own timeout instead), and an acceptable one:
+	# [constant CommandLink.DEFERRED_KINDS] already withholds a
+	# [constant CommandLink.KIND_LOOT_OFFER] across the only window in which
+	# the graph is incomplete, so an unresolvable collector means the offer was
+	# never for this peer.
+	if pick_registry != null and not pick_registry.is_local_collector(collector):
+		return
+	_force_settle_pending_mirror_request()
 	var request: Variant
 	if offer.kind == LootPickOffer.KIND_SPELL:
 		var spell_candidates: Array[SpellDef] = []

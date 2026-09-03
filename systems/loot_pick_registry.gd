@@ -33,6 +33,9 @@ extends Node
 ## owner call this class's issue settled (a mirror decides nothing and
 ## reproduces nothing it can be told; the resolved outcome rides down as a
 ## confirmed [LootRoundCommand] instead).
+## [i]Inert means it parks nothing, not that it answers nothing:[/i] since #668
+## a mirror peer READS one predicate off it — [method is_local_collector], the
+## ownership gate on an incoming broadcast [LootPickOffer].
 ##
 ## [b]The upward channel and the roster correlation both exist now (#564).[/b]
 ## The intent channel (#548: [CommandLink] `MIRROR` sends,
@@ -178,6 +181,53 @@ func is_remote_collector(collector: Entity) -> bool:
 	if participant == null or participant.kind == Participant.Kind.AI:
 		return false
 	return not participant.is_local(local_peer_id)
+
+
+## Is [param collector] played by a human sitting at THIS peer — the receive-side
+## question, and the reason a mirror's registry is READ even though it parks
+## nothing (#668). [method CommandLink.send_loot_offer] broadcasts a
+## [LootPickOffer] to every connected peer (an unaddressed `transport.send`), so
+## [method LootSystem._on_loot_offer_received] fires on all of them and needs a
+## gate; without one, two clients both raise a picker for the same offer and
+## whichever answers first submits a [PickLootCommand] for a collector that is
+## not theirs. Invisible at one client, where "every mirror peer" and "the right
+## mirror peer" are the same set.
+##
+## [b]Not the negation of [method is_remote_collector].[/b] Two independent
+## predicates over the same roster, and only the last two rows are complements:
+##
+## [codeblock]
+##                              is_remote_collector   is_local_collector
+##   null collector                     false               false
+##   no roster                          false               TRUE
+##   NPC (participant_id == 0)          false               false
+##   AI seat                            false               false
+##   human at another peer              true                false
+##   human at this peer                 false               true
+## [/codeblock]
+##
+## The no-roster row is not an inconsistency — it is the same sentence read from
+## both ends. A run with no roster (a hand-authored sandbox, a headless fixture,
+## an offline level) is ONE machine: nobody is remote and everything is local.
+## Answering `false` there would silently swallow every offer on a harness that
+## never built a roster, which is a worse failure than the bug being fixed —
+## a picker that never opens looks like a hang.
+##
+## Roster-sourced, never [SeatPolicy] — the same rule [method
+## is_remote_collector] follows, stated at `scenes/game_root.gd`'s #564 wiring:
+## the per-machine seat policy structurally cannot answer for a peer, and
+## "which participant sits where" is the roster's half of a run's setup.
+func is_local_collector(collector: Entity) -> bool:
+	if collector == null:
+		return false
+	if roster == null:
+		return true
+	if collector.participant_id == 0:
+		return false
+	var participant := roster.by_id(collector.participant_id)
+	if participant == null or participant.kind == Participant.Kind.AI:
+		return false
+	return participant.is_local(local_peer_id)
 
 
 func pending_count() -> int:
