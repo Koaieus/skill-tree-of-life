@@ -121,5 +121,13 @@ a window resize or refocus makes come and go.
   runs but every subscription below the guard is silently absent, and GUT (hint
   false) can never see it. Guard the OS-facing lines individually:
   `docs/domain/sandbox-framework.md`.
+- **`Resource.duplicate(true)` copies the resource and its sub-resources but NOT
+  the elements of an exported typed `Array[Resource]`** — those stay the very
+  same objects. So a deep-duplicated container gives you your own array and your
+  own plain fields while identity comparisons against the authored consts still
+  hold (`Entity._ready` duplicating a `SpellBook` keeps `SpellCatalog.ALL`
+  identity, by luck rather than design). And the copy has **no `resource_path`**,
+  which is what silently disqualifies it from anything keyed on one — an intern
+  table, a `load()` round-trip (#726).
 - Guarding `_ready()`, never writing a derived value back into an `@export`, and
   the rest: **`docs/domain/godot-workflow.md`**.

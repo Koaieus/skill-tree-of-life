@@ -265,3 +265,38 @@ func test_the_ids_are_interned_once_across_rows() -> void:
 			"each distinct id is sent exactly once, for the whole payload")
 	assert_eq((payload["entities"] as Array)[0][EntitySnapshot._R_SPELL_IDS], [0, 1],
 			"and a row carries slots into that table, not the strings again")
+
+
+## [b]Tripwire, not a rule.[/b] `_restore_pruned_spellbook` compares membership
+## in ORDER, and a rebuilt book's `_sources` is empty — both safe only while the
+## peer's book is never written except by that method. [SpellGrant] is the one
+## thing that would write it out of band, and today none crosses: every
+## SpellGrant in the repo is built with `.new()`, so it has no `resource_path`
+## and [method EntitySnapshot._encode_entity] drops it from the effect list.
+##
+## If this goes red because someone authored a SpellGrant `.tres`, that is not a
+## bug in the `.tres` — it means the reachability argument in
+## `_restore_pruned_spellbook`'s docblock expired and the two hazards it names
+## (an out-of-order membership; `add_spell` appending a second copy of a spell
+## already in `spells`) are now live. Go read it.
+func test_no_spell_grant_is_authored_as_a_resource() -> void:
+	var offenders: Array[String] = []
+	for dir in ["res://entity", "res://attack", "res://skill_node", "res://procgen"]:
+		_collect_spell_grant_resources(dir, offenders)
+	assert_eq(offenders, [] as Array[String],
+			"an authored SpellGrant would cross the wire and write a peer's book out of band")
+
+
+func _collect_spell_grant_resources(dir_path: String, offenders: Array[String]) -> void:
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return
+	for sub in dir.get_directories():
+		_collect_spell_grant_resources(dir_path.path_join(sub), offenders)
+	for file in dir.get_files():
+		if not file.ends_with(".tres"):
+			continue
+		var path := dir_path.path_join(file)
+		var text := FileAccess.get_file_as_string(path)
+		if text.contains("attack/spell/spell_grant.gd"):
+			offenders.append(path)

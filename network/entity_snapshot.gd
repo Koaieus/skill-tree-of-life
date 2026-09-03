@@ -404,9 +404,18 @@ static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array) -
 ## [method Entity.revoke_effects_from] would find no source to drop and keep a
 ## spell the authority had already taken away.
 ##
-## Comparison is by [member SpellDef.id] and in ORDER: the wire form is a list,
-## and the peer's own defs need not be the same objects (a `duplicate` of the
-## authored book holds copies).
+## Comparison is by [member SpellDef.id] and in ORDER, which is safe only
+## because the peer's book is never written except by this method — so its order
+## is always the one that last crossed. [SpellGrant] is what could write it out
+## of band, and no SpellGrant crosses: every one in the repo is built with
+## `.new()` (`GraphProcgenSpellGrants.distribute`, [SkillDustAddon]), so it has
+## no `resource_path` and [method _encode_entity] drops it from the effect list
+## by the same rule it drops a path-less keystone. **Author a SpellGrant `.tres`
+## and this reasoning expires** — `test_pruned_spellbook_crosses.gd` has a
+## tripwire on exactly that. Two things would then need looking at: an
+## unordered compare here, and the fact that `add_spell` on a book whose
+## `_sources` this method left empty APPENDS a second copy of a spell already in
+## `spells`.
 ##
 ## When it does rebuild it is always a FRESH [SpellBook], never the entity's own
 ## book narrowed in place. What this peer holds is a level-side assumption

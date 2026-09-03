@@ -34,5 +34,8 @@ nothing less often and spells spread FASTER — the opposite of the knob's purpo
 `P(book is empty)` is the only lever on spell spread; book size is the other half
 of it (`1/(n+1)` at `m == 1`).
 
-**How to apply:** the roll is seeded per placement by procgen, because every peer
-re-runs the level scene and reproduces it. Never roll it unseeded at spawn.
+**How to apply:** the roll is seeded per placement by procgen. Keep it seeded —
+but the reason changed with #715: a joining client runs NO procgen and so does
+not reproduce the draw at all. The kept spells cross by value instead, as
+interned `SpellDef.id`s on the entity snapshot row (#726), and the seed is now a
+replay input rather than a cross-peer contract. Never roll it unseeded at spawn.
