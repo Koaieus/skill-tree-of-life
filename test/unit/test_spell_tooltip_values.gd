@@ -22,9 +22,9 @@ const _SPELL := "res://attack/spell/defs/lightning_bolt.tres"
 const _SETTLE_FRAMES: int = 5
 
 
-## A caster whose `spell_range` is +100%, i.e. exactly double reach — big enough
-## that any scaling applied to a row is unmistakable in the printed number.
-## SET rather than ADD_BASE so the board's own innate INT → `spell_range`
+## A caster whose `spell_range` is +100%, i.e. exactly double euclidean reach —
+## big enough that any scaling applied to a row is unmistakable in the printed
+## number. SET rather than ADD_BASE so the board's own innate INT → `spell_range`
 ## formula cannot move the expected number out from under the assertions (that
 ## rate is the owner's to tune, per `.claude/rules/stat-knobs-and-bins.md`).
 func _doubled_caster() -> Entity:
@@ -33,6 +33,25 @@ func _doubled_caster() -> Entity:
 	mod.stat_id = &"spell_range"
 	mod.operation = StatModifier.Operation.SET
 	mod.value = 100.0
+	board.add_modifier(mod)
+	var entity: Entity = autofree(Entity.new())
+	entity.stat_board = board
+	return entity
+
+
+## A caster whose `spell_hops` is set to a fixed flat bonus (#727) — the
+## hop-ranged sibling of [method _doubled_caster]. SET rather than ADD_BASE
+## for the same reason: the board's own innate INT threshold ladder must not
+## move the expected number out from under the assertions.
+const _HOP_BONUS := 3.0
+
+
+func _hop_boosted_caster() -> Entity:
+	var board: EntityStatBoard = _BOARD.duplicate(true)
+	var mod := StatModifier.new()
+	mod.stat_id = &"spell_hops"
+	mod.operation = StatModifier.Operation.SET
+	mod.value = _HOP_BONUS
 	board.add_modifier(mod)
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = board
@@ -71,7 +90,24 @@ func test_propagation_hops_are_printed_raw_even_for_a_boosted_caster() -> void:
 	)
 
 
-func test_cast_range_does_scale_with_spell_range() -> void:
+## spell_hops twin of the above — same hard constraint, different stat (#727):
+## neither of the two INT-scaled reach stats may leak into in-flight bounces.
+func test_propagation_hops_are_printed_raw_even_for_a_spell_hops_boosted_caster() -> void:
+	var spell := load(_SPELL) as SpellDef
+	assert_not_null(spell.propagation, "fixture: the spell must propagate")
+	var expected := str(spell.propagation.max_hops)
+
+	var boosted_rows: Dictionary = await _shown_for(_hop_boosted_caster())
+	assert_eq(
+		boosted_rows.get("Hops"), expected,
+		"a spell_hops bonus must not move the bounce count SpellResolver reads raw"
+	)
+
+
+## spell_hops (#727), not spell_range, is what stretches a hop-ranged spell's
+## cast range now — HopRangeFinder.effective_max_hops() is additive
+## (max_hops + spell_hops), never a percent multiplier.
+func test_cast_range_does_scale_with_spell_hops() -> void:
 	var spell := load(_SPELL) as SpellDef
 	var rf := spell.targeting.get(&"range_finder") as HopRangeFinder
 	assert_not_null(rf, "fixture: the spell must be hop-ranged")
@@ -79,8 +115,8 @@ func test_cast_range_does_scale_with_spell_range() -> void:
 	var base_rows: Dictionary = await _shown_for(null)
 	assert_string_contains(str(base_rows.get("Range")), str(rf.max_hops))
 
-	var boosted_rows: Dictionary = await _shown_for(_doubled_caster())
-	assert_string_contains(str(boosted_rows.get("Range")), str(rf.max_hops * 2))
+	var boosted_rows: Dictionary = await _shown_for(_hop_boosted_caster())
+	assert_string_contains(str(boosted_rows.get("Range")), str(rf.max_hops + int(_HOP_BONUS)))
 
 
 ## The tooltip asks the finder for the number instead of re-deriving it, so the

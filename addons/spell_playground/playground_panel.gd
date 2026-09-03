@@ -49,10 +49,23 @@ const MANA: float = 20.0
 ## [SpellRangeRules] reads (`1.0 + spell_range / 100`). The playground exists to
 ## fire a spell at an arbitrary seed, and the real targeting gate is what decides
 ## whether a seed is legal — so the reach is bought with a stat rather than
-## bypassed. 900 % turns Spark's 3 hops into 30, past this graph's diameter, and
-## every other targeting rule (hostile-only, min_degree at the source) still
-## applies and still reports itself in the status line.
+## bypassed. Every other targeting rule (hostile-only, min_degree at the
+## source) still applies and still reports itself in the status line.
+##
+## Euclidean-only since #727 split `spell_range` from `spell_hops` —
+## [HopRangeFinder] no longer reads this stat at all, so a hop-ranged spell's
+## reach is bought with [constant CASTER_SPELL_HOPS_BONUS] instead. Kept large
+## regardless: a euclidean spell's `max_distance` is scene pixels, and 900%
+## still clears the playground world comfortably.
 const CASTER_SPELL_RANGE_BONUS: float = 900.0
+
+## Flat `spell_hops` bonus (#727) granted to the cast-from node, added straight
+## to [HopRangeFinder]'s `max_hops` — see [method HopRangeFinder.effective_max_hops].
+## Spark's authored reach is 3 hops; the playground's non-starter half (16
+## nodes) has a diameter well under 50, so +50 turns any hop-ranged spell's
+## reach into "past this graph's diameter" the same way
+## [constant CASTER_SPELL_RANGE_BONUS] used to via the old shared multiplier.
+const CASTER_SPELL_HOPS_BONUS: int = 50
 
 ## Seconds of dead air between one looped cast finishing and the next Reset.
 ## Short enough that the world is rarely empty — the whole point of Loop is that
@@ -308,13 +321,20 @@ func _reset_board(entity: Entity) -> void:
 
 ## Node-local, and applied once — `force_deallocate` revokes granted effects and
 ## swapped effect-sets, but never a hand-added local modifier, so this survives
-## every Reset.
+## every Reset. Grants both reach stats (#727 split them) so the playground
+## covers euclidean- and hop-ranged spells alike.
 func _grant_caster_reach() -> void:
-	var mod := StatModifier.new()
-	mod.stat_id = &"spell_range"
-	mod.operation = StatModifier.Operation.ADD_BASE
-	mod.value = CASTER_SPELL_RANGE_BONUS
-	caster_node.add_local_modifier(mod)
+	var range_mod := StatModifier.new()
+	range_mod.stat_id = &"spell_range"
+	range_mod.operation = StatModifier.Operation.ADD_BASE
+	range_mod.value = CASTER_SPELL_RANGE_BONUS
+	caster_node.add_local_modifier(range_mod)
+
+	var hops_mod := StatModifier.new()
+	hops_mod.stat_id = &"spell_hops"
+	hops_mod.operation = StatModifier.Operation.ADD_BASE
+	hops_mod.value = CASTER_SPELL_HOPS_BONUS
+	caster_node.add_local_modifier(hops_mod)
 
 
 ## Called by the EditorPlugin whenever a SpellDef becomes the inspected

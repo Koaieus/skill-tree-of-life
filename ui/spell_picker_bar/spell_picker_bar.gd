@@ -58,7 +58,8 @@ func update_gating_context(attacker: Entity, source: SkillNode) -> void:
 	_gating_source = source
 	_refresh_castability()
 	# Propagate caster to buttons so the floating tooltip can compute
-	# dynamic values (e.g. cast range scaled by the spell_range stat).
+	# dynamic values (e.g. cast range scaled by the spell_range / spell_hops
+	# stats, #727).
 	for btn in _buttons_by_spell.values():
 		btn.set_caster(attacker)
 

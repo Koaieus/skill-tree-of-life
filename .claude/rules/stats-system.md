@@ -486,7 +486,8 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `wisdom` | `sensor_range` | ADD_BASE | 1 | ThresholdFormula(wisdom, [3, 8, 21, 55, 149, 404, 1097, 2981, 8104, 22027]) — exactly `floor(ln WIS)`, `ceil(e^n)` per rung (#547). Clear sensing scales with WIS, not DEX |
 | `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
 | `dexterity` | `ranged_damage` | ADD_BASE | 1 | RatioFormula(dexterity, 10) |
-| `intelligence` | `spell_range` | ADD_BASE | 1 | LinearFormula(intelligence) |
+| `intelligence` | `spell_range` | ADD_BASE | 1 | RatioFormula(intelligence, **4**) — euclidean-only reach (%), reduced rate, retune post-LAN (#727) |
+| `intelligence` | `spell_hops` | ADD_BASE | 1 | ThresholdFormula(intelligence, [50, 150, 500, 1000, 5000]) — flat +1..+5 hop-ranged reach, feeds `HopRangeFinder` only, never `PropagationConfig.max_hops`; breakpoints retune post-LAN (#727) |
 | `intelligence` | `spell_damage` | ADD_BASE | 1 | RatioFormula(intelligence, 10) — the magic sibling of blade/ranged (D-32, #274) |
 | `strength` | `blade_size` | ADD_BASE | 1 | RatioFormula(strength, **20**) |
 | `strength` | `blade_damage` | ADD_BASE | 1 | RatioFormula(strength, 10) |
