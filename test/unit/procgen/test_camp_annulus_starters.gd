@@ -387,12 +387,19 @@ func _run_with_arrangement(scenario_path: String, arrangement: Variant) -> RunCo
 	return cfg
 
 
-## Stamps the runtime-only inputs onto the MERGED preset. `topology` gets its
-## own duplicate first: it is a top-level module `.tres` (an ExtResource), and
+## Stamps the runtime-only inputs onto the MERGED preset. `cfg_in` may be the
+## SHARED, cached `.tres` instance itself — `resolved_preset()` only localizes
+## a module an override actually touches (`merge_onto`'s own contract), so a
+## caller with an empty `overrides` list (`_run_with_arrangement(path, null)`)
+## gets the on-disk singleton back verbatim. Top-level `duplicate(true)` first,
+## same discipline every other helper in this file already carries, so the
+## stamps below land on a private copy rather than the cached preset every
+## other test in the process shares. `topology` then needs its OWN duplicate
+## on top: it is a top-level module `.tres` (an ExtResource), and
 ## `duplicate(true)` does not cross that boundary — the same trap
 ## `merge_onto`'s `_localize_module` exists for, arriving from the test side.
 func _stamped(cfg_in: GraphProcgenConfig, camp_sizes: Array[int], seed_val: int) -> GraphProcgenConfig:
-	var cfg := cfg_in
+	var cfg: GraphProcgenConfig = cfg_in.duplicate(true)
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = 200
 	cfg.seed = seed_val

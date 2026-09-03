@@ -79,10 +79,14 @@ func test_the_world_decodes_onto_an_empty_graph_with_refs_resolved() -> void:
 
 	var entity_bytes := EntitySnapshot.encode(source)
 	var graph_bytes := GraphSnapshot.encode(source)
-	# The resync's own order, and the order that serves BOTH shapes.
+	# The resync's own order, and the order that serves BOTH shapes. HP restores
+	# LAST, as a fourth step (see CommandLink._apply_snapshot / GraphSnapshot.restore_hp)
+	# — a pool clamps to a cap the owner's board decides, so it can only be
+	# restored once resolve_graph_refs has finished rebuilding that board.
 	EntitySnapshot.decode(entity_bytes, target)
 	GraphSnapshot.decode(graph_bytes, target)
 	EntitySnapshot.resolve_graph_refs(entity_bytes, target)
+	GraphSnapshot.restore_hp(graph_bytes, target)
 
 	assert_eq(WorldFingerprint.compute(target), WorldFingerprint.compute(source),
 			"a world decoded into nothing must equal the one it came from: %s vs %s"
@@ -111,6 +115,7 @@ func test_the_world_decodes_onto_a_populated_graph_with_refs_resolved() -> void:
 	EntitySnapshot.decode(entity_bytes, target)
 	GraphSnapshot.decode(graph_bytes, target)
 	EntitySnapshot.resolve_graph_refs(entity_bytes, target)
+	GraphSnapshot.restore_hp(graph_bytes, target)
 
 	assert_eq(WorldFingerprint.compute(target), WorldFingerprint.compute(source),
 			"the repair converged: %s vs %s"
