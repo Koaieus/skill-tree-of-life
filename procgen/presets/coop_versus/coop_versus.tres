@@ -1,10 +1,10 @@
-[gd_resource type="Resource" script_class="GraphProcgenConfig" format=3]
+[gd_resource type="Resource" script_class="GraphProcgenConfig" format=3 uid="uid://sup4cjqchsny"]
 
 [ext_resource type="Resource" path="res://procgen/modules/coop_versus/blockers.tres" id="1_tb7gj"]
-[ext_resource type="Resource" path="res://procgen/modules/coop_versus/content.tres" id="2_psq3n"]
-[ext_resource type="Script" path="res://procgen/graph_procgen_config.gd" id="3_cbxn0"]
-[ext_resource type="Resource" path="res://procgen/modules/coop_versus/shape.tres" id="4_p0ftt"]
-[ext_resource type="Resource" path="res://procgen/modules/coop_versus/starting_points.tres" id="5_okdj1"]
+[ext_resource type="Resource" uid="uid://cwjhid5jnhm4f" path="res://procgen/modules/coop_versus/content.tres" id="2_psq3n"]
+[ext_resource type="Script" uid="uid://ddnb4q6ytw0t4" path="res://procgen/graph_procgen_config.gd" id="3_cbxn0"]
+[ext_resource type="Resource" uid="uid://devfg5cq7ujvx" path="res://procgen/modules/coop_versus/shape.tres" id="4_p0ftt"]
+[ext_resource type="Resource" uid="uid://b7wyqjsqw0n0j" path="res://procgen/modules/coop_versus/starting_points.tres" id="5_okdj1"]
 [ext_resource type="Resource" path="res://procgen/modules/coop_versus/topology.tres" id="6_ji8io"]
 
 [resource]

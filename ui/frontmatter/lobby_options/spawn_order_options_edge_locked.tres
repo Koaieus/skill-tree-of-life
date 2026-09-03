@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="LobbyOptionSet" format=3]
+[gd_resource type="Resource" script_class="LobbyOptionSet" format=3 uid="uid://chvfimcvqhenj"]
 
 [ext_resource type="Script" uid="uid://bubsaqk1bti6h" path="res://ui/frontmatter/lobby_option_set.gd" id="1_set"]
 [ext_resource type="Script" uid="uid://b7oqufqrvbigx" path="res://ui/frontmatter/lobby_option.gd" id="2_opt"]

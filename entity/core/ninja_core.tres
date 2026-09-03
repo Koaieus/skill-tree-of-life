@@ -7,7 +7,9 @@
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="5_122wq"]
 [ext_resource type="Script" uid="uid://bqx5b6e0rrtb2" path="res://effects/distance_scale/linear_scale.gd" id="5_scale"]
 [ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="7_effect"]
+[ext_resource type="Script" uid="uid://cfjomnv7kdqqh" path="res://effects/distance_scale/proportional_scale.gd" id="8_aoidj"]
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="8_mw6me"]
+[ext_resource type="Script" uid="uid://b6apvlm4x1tgu" path="res://effects/metric/hop_metric.gd" id="9_bmjmu"]
 [ext_resource type="Script" uid="uid://cyj0to3m0jdxa" path="res://stats_system/composite_stat_modifier.gd" id="9_comp"]
 [ext_resource type="Script" uid="uid://dknxw63lhq13c" path="res://stats_system/formulas/ratio_formula.gd" id="10_7cbeb"]
 [ext_resource type="Resource" uid="uid://cl4uo53xgkvxa" path="res://stats_system/packs/attribute_baseline.tres" id="10_baseline"]
@@ -50,11 +52,35 @@ display_name = "Phantom Strike"
 description = "Nearby owned nodes hit harder, most intense at the core, gone by 5 hops out."
 modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_aoidj"), SubResource("Resource_bmjmu"), SubResource("Resource_hf1oc")])
 
+[sub_resource type="Resource" id="Resource_486ch"]
+script = ExtResource("8_aoidj")
+metadata/_custom_type_script = "uid://cfjomnv7kdqqh"
+
+[sub_resource type="Resource" id="Resource_tf2vw"]
+script = ExtResource("9_bmjmu")
+metadata/_custom_type_script = "uid://b6apvlm4x1tgu"
+
+[sub_resource type="Resource" id="Resource_i5s0a"]
+resource_name = "-1 Armor"
+script = ExtResource("2_mod")
+stat_id = &"armor"
+value = -1.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_7cbeb"]
+script = ExtResource("3_aura")
+metric = SubResource("Resource_tf2vw")
+distance_scale = SubResource("Resource_486ch")
+display_name = "Brittle Armor"
+description = "Reduces armor of owned nodes with distance from Core"
+modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_i5s0a")])
+metadata/_custom_type_script = "uid://n522mioa0d4q"
+
 [sub_resource type="Resource" id="Resource_m5r4m"]
 script = ExtResource("10_7cbeb")
 source_stat_id = &"level"
 divisor = 5.0
-per_phrase = "+1 Deallocation Point per 5 levels"
+per_phrase = "5 levels"
 metadata/_custom_type_script = "uid://dknxw63lhq13c"
 
 [sub_resource type="Resource" id="mod_dealloc"]
@@ -69,9 +95,22 @@ script = ExtResource("2_mod")
 stat_id = &"skill_points"
 value = -3.0
 
+[sub_resource type="Resource" id="Resource_ivgmh"]
+script = ExtResource("10_7cbeb")
+source_stat_id = &"level"
+divisor = 5.0
+per_phrase = "5 levels"
+metadata/_custom_type_script = "uid://dknxw63lhq13c"
+
+[sub_resource type="Resource" id="Resource_55gjb"]
+resource_name = "+1 Max Movement per 5 levels"
+script = ExtResource("2_mod")
+stat_id = &"movement_points"
+formula = SubResource("Resource_ivgmh")
+
 [sub_resource type="Resource" id="mod_budget_pack"]
 script = ExtResource("9_comp")
-children = Array[ExtResource("2_mod")]([SubResource("mod_dealloc"), SubResource("mod_sp")])
+children = Array[ExtResource("2_mod")]([SubResource("mod_dealloc"), SubResource("mod_sp"), SubResource("Resource_55gjb")])
 
 [sub_resource type="Resource" id="Resource_u38nb"]
 script = ExtResource("12_7cbeb")
@@ -83,5 +122,5 @@ pickable_in = 3
 display_name = "Ninja"
 description = "The Phantom — a high deallocation budget for in-turn reshaping and a low skill-point cap that keeps your constellation compact, wrapped around an intense but very-short-range core aura that makes nearby owned nodes hit harder. Rewarded for staying tight, not for sprawling. STR/DEX/INT's flat +10 comes from the shared attribute_baseline.tres pack (D-27, #279), not hand-declared here."
 modifiers = Array[ExtResource("2_mod")]([ExtResource("10_baseline"), SubResource("mod_budget_pack")])
-effects = Array[ExtResource("7_effect")]([SubResource("aura_strike")])
+effects = Array[ExtResource("7_effect")]([SubResource("aura_strike"), SubResource("Resource_7cbeb")])
 sigil = SubResource("Resource_u38nb")

@@ -37,7 +37,7 @@ range_floor = 0.02
 min_tier = 3
 
 [sub_resource type="Resource" id="Resource_u38nb"]
-resource_name = "intelligence +%"
+resource_name = "intelligence -%"
 script = ExtResource("2_pool")
 stat_id = &"intelligence"
 operation = 1

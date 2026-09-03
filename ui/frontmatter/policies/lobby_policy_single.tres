@@ -1,24 +1,19 @@
-[gd_resource type="Resource" script_class="LobbyPolicy" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="LobbyPolicy" format=3 uid="uid://bsubc7ou2qlef"]
 
-[ext_resource type="Script" path="res://ui/frontmatter/lobby_policy.gd" id="1_policy"]
-[ext_resource type="Script" path="res://entity/faction.gd" id="2_faction"]
-[ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/map_size_options.tres" id="90_maps"]
-[ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/blocker_options.tres" id="91_blks"]
+[ext_resource type="Script" uid="uid://70wk1lwe3viq" path="res://ui/frontmatter/lobby_policy.gd" id="1_policy"]
+[ext_resource type="Script" uid="uid://cgfee17sltixd" path="res://entity/faction.gd" id="2_faction"]
+[ext_resource type="Resource" uid="uid://b8kcysx4tc522" path="res://ui/frontmatter/lobby_options/map_size_options.tres" id="90_maps"]
+[ext_resource type="Resource" uid="uid://c6x5pdrjnoy1v" path="res://ui/frontmatter/lobby_options/blocker_options.tres" id="91_blks"]
 [ext_resource type="Resource" path="res://session/scenarios/first_level.tres" id="92_scen"]
 [ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/victory_options.tres" id="93_vic"]
-[ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/spawn_order_options.tres" id="94_spawn"]
+[ext_resource type="Resource" uid="uid://c6f5f5r53f3nk" path="res://ui/frontmatter/lobby_options/spawn_order_options.tres" id="94_spawn"]
 
 [resource]
 script = ExtResource("1_policy")
-camps = Array[ExtResource("2_faction")]([])
-human_camps_pickable = false
-ai_camps_pickable = false
 max_distinct_camps = 1
-require_distinct_human_camps = false
+scenario = ExtResource("92_scen")
 map_size_options = ExtResource("90_maps")
 blocker_options = ExtResource("91_blks")
 victory_options = ExtResource("93_vic")
 spawn_order_options = ExtResource("94_spawn")
-spawn_order_pickable = true
 budget_overridable = true
-scenario = ExtResource("92_scen")

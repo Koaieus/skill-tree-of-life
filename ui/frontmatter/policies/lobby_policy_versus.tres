@@ -1,30 +1,29 @@
-[gd_resource type="Resource" script_class="LobbyPolicy" load_steps=13 format=3]
+[gd_resource type="Resource" script_class="LobbyPolicy" format=3 uid="uid://quwjwyy6s087"]
 
-[ext_resource type="Script" path="res://ui/frontmatter/lobby_policy.gd" id="1_policy"]
-[ext_resource type="Script" path="res://entity/faction.gd" id="2_faction"]
+[ext_resource type="Script" uid="uid://70wk1lwe3viq" path="res://ui/frontmatter/lobby_policy.gd" id="1_policy"]
+[ext_resource type="Script" uid="uid://cgfee17sltixd" path="res://entity/faction.gd" id="2_faction"]
 [ext_resource type="Resource" path="res://entity/factions/camp_1.tres" id="3_camp1"]
 [ext_resource type="Resource" path="res://entity/factions/camp_2.tres" id="4_camp2"]
 [ext_resource type="Resource" path="res://entity/factions/camp_3.tres" id="5_camp3"]
 [ext_resource type="Resource" path="res://entity/factions/camp_4.tres" id="6_camp4"]
 [ext_resource type="Resource" path="res://entity/factions/camp_5.tres" id="7_camp5"]
 [ext_resource type="Resource" path="res://entity/factions/camp_6.tres" id="8_camp6"]
-[ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/map_size_options.tres" id="90_maps"]
-[ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/blocker_options.tres" id="91_blks"]
-[ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/arrangement_options.tres" id="92_arr"]
+[ext_resource type="Resource" uid="uid://b8kcysx4tc522" path="res://ui/frontmatter/lobby_options/map_size_options.tres" id="90_maps"]
+[ext_resource type="Resource" uid="uid://c6x5pdrjnoy1v" path="res://ui/frontmatter/lobby_options/blocker_options.tres" id="91_blks"]
+[ext_resource type="Resource" uid="uid://c8c05eqsmh5ds" path="res://ui/frontmatter/lobby_options/arrangement_options.tres" id="92_arr"]
 [ext_resource type="Resource" path="res://session/scenarios/coop_versus.tres" id="93_scen"]
-[ext_resource type="Resource" path="res://ui/frontmatter/lobby_options/spawn_order_options_edge_locked.tres" id="94_spawn"]
+[ext_resource type="Resource" uid="uid://chvfimcvqhenj" path="res://ui/frontmatter/lobby_options/spawn_order_options_edge_locked.tres" id="94_spawn"]
 
 [resource]
 script = ExtResource("1_policy")
 camps = Array[ExtResource("2_faction")]([ExtResource("3_camp1"), ExtResource("4_camp2"), ExtResource("5_camp3"), ExtResource("6_camp4"), ExtResource("7_camp5"), ExtResource("8_camp6")])
 human_camps_pickable = true
 ai_camps_pickable = true
-max_distinct_camps = 6
-require_distinct_human_camps = true
+scenario = ExtResource("93_scen")
 map_size_options = ExtResource("90_maps")
 blocker_options = ExtResource("91_blks")
 arrangement_options = ExtResource("92_arr")
 spawn_order_options = ExtResource("94_spawn")
 spawn_order_pickable = false
 budget_overridable = true
-scenario = ExtResource("93_scen")
+require_distinct_human_camps = true

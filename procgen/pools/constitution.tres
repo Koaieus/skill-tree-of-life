@@ -53,14 +53,14 @@ pool_weight = 2.0
 max_tier = 3
 
 [sub_resource type="Resource" id="int_debuff"]
-resource_name = "intelligence +%"
+resource_name = "dexterity -%"
 script = ExtResource("2_pool")
-stat_id = &"intelligence"
+stat_id = &"dexterity"
 operation = 1
 tags = Array[StringName]([&"int", &"percent"])
 unit_value = -3.0
 range_floor = -1.0
-pool_weight = 0.25
+pool_weight = 0.5
 max_tier = 3
 
 [sub_resource type="Resource" id="Resource_u38nb"]
