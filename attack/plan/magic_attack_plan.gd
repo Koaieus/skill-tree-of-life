@@ -162,11 +162,14 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 	if _preview_hit_set().has(node):
 		return HighlightRole.PROPAGATION
 	if spell != null and spell.targeting != null and _is_seen(node):
-		# Post-#728 this paints the UNION — every node any eligible caster can
-		# reach — not one pre-picked source's reach. Once a target is committed
-		# the union is still the right set to keep lit: it is what a re-click
-		# would land on.
-		if union().can_target(node):
+		# Before a source is stamped this paints the UNION — every node any
+		# eligible caster can reach. Once one IS stamped the set narrows to
+		# that caster's own reach, matching what [method get_range_visual]
+		# draws, and keeping the source-scoped question answerable for
+		# [AiController], which probes one owned node at a time.
+		var in_range := _valid_targets().has(node) if source != null \
+				else union().can_target(node)
+		if in_range:
 			return HighlightRole.IN_RANGE
 	return HighlightRole.NONE
 
@@ -308,10 +311,19 @@ func _rebuild_union() -> void:
 ## length agree exactly.)
 func _rebuild_target_cache() -> void:
 	_target_cache_dirty = false
+	_cached_valid_targets = {}
 	if source == null:
-		_cached_valid_targets = {}
 		return
-	_cached_valid_targets = union().targets_from(source)
+	if not _union_dirty and _union != null and _union.per_source.has(source):
+		_cached_valid_targets = _union.targets_from(source)
+		return
+	# A source that did not come from the union — [AiController] assigns one
+	# owned node at a time. Build over that ONE source rather than the whole
+	# territory: same code, and exactly the cost the pre-#728 single-source
+	# gather paid, so probing does not become quadratic in owned nodes.
+	var single: Array[SkillNode] = [source]
+	_cached_valid_targets = SpellTargetUnion.build_for(
+			spell, attacker, _graph_of(source), single, self).targets_from(source)
 
 
 ## The node the aim-time preview should resolve against right now: the

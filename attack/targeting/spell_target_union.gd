@@ -105,13 +105,28 @@ func targets_from(source: SkillNode) -> Dictionary[SkillNode, bool]:
 ## no candidate-first path to take; nothing ships such a targeting today.
 static func build(spell: SpellDef, attacker: Entity, graph: Graph,
 		plan: AttackPlan = null) -> SpellTargetUnion:
+	if spell == null or attacker == null:
+		return SpellTargetUnion.new()
+	var sources: Array[SkillNode]
+	if attacker.spellbook != null:
+		sources = attacker.spellbook.eligible_sources(spell, attacker)
+	else:
+		sources = _eligible_sources_without_book(spell, attacker)
+	return build_for(spell, attacker, graph, sources, plan)
+
+
+## [method build] over an EXPLICIT source list, skipping the eligibility
+## question. One caller: [MagicAttackPlan] serving its source-scoped
+## valid-target view for a source that came from outside the union — the AI
+## probes one owned node at a time (#745 rewires that). Building over the one
+## source costs exactly what the pre-#728 single-source gather did, and keeps
+## both views behind one implementation instead of resurrecting the old walk.
+static func build_for(spell: SpellDef, attacker: Entity, graph: Graph,
+		sources: Array[SkillNode], plan: AttackPlan = null) -> SpellTargetUnion:
 	var union := SpellTargetUnion.new()
 	if spell == null or spell.targeting == null or attacker == null or graph == null:
 		return union
-	if attacker.spellbook != null:
-		union.sources = attacker.spellbook.eligible_sources(spell, attacker)
-	else:
-		union.sources = _eligible_sources_without_book(spell, attacker)
+	union.sources = sources
 	if union.sources.is_empty():
 		return union
 
