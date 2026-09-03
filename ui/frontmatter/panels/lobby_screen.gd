@@ -227,6 +227,31 @@ var _link_lost: bool = false
 ## so the refusal wins, and the loss only sets the Start veto.
 var _refusal_shown: bool = false
 
+## --- #736: START must not race a peer through the build gate -------------------
+##
+## Host-only set of peer ids that have connected at the TRANSPORT level
+## ([signal NetworkTransport.peer_joined]) but have not yet cleared
+## [constant CommandLink]'s build gate ([signal CommandLink.peer_cleared]).
+## That gap is the race #736 exists to close: [method has_pending_remote]
+## alone cannot see it, because a pending SEAT and a connecting SOCKET are two
+## different things — #554 D2 authors the seat before anybody dials in, so it
+## reads "pending" both before a peer exists and while one is mid-handshake,
+## and a host that starts in the second case broadcasts a roster the joiner
+## cannot find itself in (the bug this issue is about).
+##
+## [b]Every entry has a removal path[/b] — cleared
+## ([method _on_link_peer_cleared]), refused ([method _on_link_peer_refused]),
+## or dropped ([method _on_link_peer_left], reached even for a peer that never
+## sends a byte: ENet's own keepalive times out a dead socket and [Wire] turns
+## that into [signal NetworkTransport.peer_left] same as an explicit hangup).
+## So the gate this set backs is transient by construction, never permanent.
+##
+## [b]Never seen on a CLIENT.[/b] [method _on_link_peer_joined] only writes it
+## on the host branch — a client's own bare join is about learning ITS OWN id
+## (see [member _local_peer]), not about gating a button it does not own the
+## roster for.
+var _connecting_peers: Dictionary = {}
+
 ## One-shot: this lobby's run has opened and been broadcast (#715). See
 ## [method _on_run_started] for why it is latched before the send.
 var _started: bool = false
@@ -417,13 +442,27 @@ func can_start() -> bool:
 
 ## Why START is refused right now, or `""`. Public so the panel layer can
 ## surface it later without re-deriving the rule (#615 descopes the message UI).
+##
+## [b]The transient #736 gate is checked first[/b], ahead of the policy: a peer
+## mid-handshake is a fact about the WIRE, true regardless of what shape this
+## lobby is, while [member _policy] only ever speaks to the roster it can see —
+## and that roster is exactly what a still-connecting peer has not reached yet.
 func start_blocked_reason() -> String:
+	if not _connecting_peers.is_empty():
+		return ("Waiting for %d peer(s) to finish joining…" % _connecting_peers.size())
 	return "" if _policy == null else _policy.start_blocked_reason(_participants)
 
 
+## [b]Fork 3 (owner call, 2026-09-03): a refusal nobody surfaces is a dead
+## button.[/b] So every recompute also says why, through the same incident line
+## [method _on_transport_link_lost] and [method _on_link_refused] use — except
+## those are terminal (the route out is the panel, not this screen) and outrank
+## a transient wait, so they are left alone rather than overwritten here.
 func _refresh_start_enabled() -> void:
 	if _start_button != null:
 		_start_button.disabled = _link_lost or not can_start()
+	if not _link_lost and not _refusal_shown:
+		_set_status(start_blocked_reason())
 
 
 ## --- #716 item 4: link loss has somewhere to appear ---------------------------
@@ -466,7 +505,15 @@ func _on_link_refused(reason: String) -> void:
 ## Host-side: a joiner did not clear the gate. It was disconnected and never
 ## seated, so the roster is deliberately untouched here — the only trace a
 ## refused peer leaves anywhere is this line.
+##
+## [b]Removal path for [member _connecting_peers][/b] — the refusal already
+## dropped the socket ([method CommandLink._refuse_peer]), so this seat's
+## transient hold on START is over too. Erase-then-refresh BEFORE the explicit
+## message below, so that message is the one left standing rather than
+## whatever [method _refresh_start_enabled] would otherwise have written.
 func _on_link_peer_refused(peer_id: int, reason: String) -> void:
+	_connecting_peers.erase(peer_id)
+	_refresh_start_enabled()
 	_set_status("Refused peer %d — %s" % [peer_id, reason])
 
 
@@ -672,8 +719,14 @@ func _is_client() -> bool:
 ## refused peer never appears in anyone's roster — not even for the one broadcast
 ## it would take to seat it and un-seat it. The seating moved to
 ## [method _on_link_peer_cleared], one signal later.
-func _on_link_peer_joined(_peer_id: int) -> void:
+##
+## [b]It still gates START (#736).[/b] Not seating the peer left nothing marking
+## that this window is even open, so a host who pressed START right here shipped
+## a roster the joiner could not find itself in — see [member _connecting_peers].
+func _on_link_peer_joined(peer_id: int) -> void:
 	if not _is_client():
+		_connecting_peers[peer_id] = true
+		_refresh_start_enabled()
 		return
 	_local_peer = _transport.local_peer_id()
 	_refresh_rows()
@@ -691,11 +744,15 @@ func _on_link_peer_joined(_peer_id: int) -> void:
 func _on_link_peer_cleared(peer_id: int, join_prefs: Dictionary = {}) -> void:
 	if _is_client():
 		return
+	# #736's removal path: the wait this peer's connect opened is over the
+	# instant it clears, whether or not there was still a seat to stamp it into.
+	_connecting_peers.erase(peer_id)
 	if stamp_pending_remote_peer(peer_id):
 		var offered := String(join_prefs.get("display_name", ""))
 		if not offered.is_empty():
 			_on_name_picked(offered, _by_peer_id(peer_id))
 	_broadcast_roster()
+	_refresh_start_enabled()
 
 
 func _by_peer_id(peer_id: int) -> Participant:
@@ -708,9 +765,17 @@ func _by_peer_id(peer_id: int) -> Participant:
 ## A peer dropped: its seat goes back to waiting rather than vanishing, because
 ## #554 D2's seat was authored for procgen up front and only the identity was
 ## ever outstanding.
+##
+## [b]#736's last removal path.[/b] A peer that connects and then goes quiet —
+## never clears, never gets explicitly refused — still ends up here: ENet's own
+## keepalive times the dead socket out, and [method Wire._on_peer_disconnected]
+## turns that into the same [signal NetworkTransport.peer_left] an explicit
+## hangup would. So [member _connecting_peers] cannot grow a permanent entry.
 func _on_link_peer_left(peer_id: int) -> void:
 	if _is_client() or peer_id == _PENDING_PEER_ID:
 		return
+	if _connecting_peers.erase(peer_id):
+		_refresh_start_enabled()
 	var freed := false
 	for p in _participants:
 		if p.kind == Participant.Kind.HUMAN and p.peer_id == peer_id:

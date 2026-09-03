@@ -2,7 +2,9 @@ extends GutTest
 
 ## #716 in the lobby: a joiner clears the build gate before it is seated, a
 ## dropped peer's seat goes back to waiting, and a client whose link dies is
-## told so on screen.
+## told so on screen. #736 adds the host-side half of that same gap: a peer
+## that connected but has not cleared yet blocks START, out loud, until it
+## clears, is refused, or the connection itself gives up on it.
 ##
 ## [b]Three lobbies, one host.[/b] `test_lobby_replication.gd` is the two-lobby
 ## fixture and stays that shape — one host, one client, one rule set. Everything
@@ -121,6 +123,71 @@ func test_a_refused_joiner_is_never_seated_and_the_other_client_is_untouched() -
 	assert_eq(_a.status_text(), "", "nor was it told anything had gone wrong")
 	assert_true(_a_transport.is_linked(), "its link is still up")
 	assert_true(_host_transport.is_linked(), "and so is the host's")
+
+
+# --- #736: a peer connected-but-not-cleared refuses START, and says why ------
+#
+# The bare join above (acceptance 2) seats nobody but is not a no-op any more:
+# it is the exact window a host pressing START used to broadcast a roster the
+# joiner could not find itself in. Owner call, 2026-09-03, fork 2: refuse START
+# only while this window is open, and surface why (fork 3) — solo hosting with
+# nobody connecting at all stays legal, which every OTHER test in this file
+# already exercises by never seeing `_host.can_start()` go false on its own.
+
+func test_a_connecting_peer_blocks_start_and_says_why() -> void:
+	assert_true(_host.can_start(), "sanity: nobody has connected yet")
+
+	_host._on_link_peer_joined(_PEER_A)
+
+	assert_false(_host.can_start(), "a socket connected but has not cleared the gate")
+	assert_true(_host._start_button.disabled)
+	assert_string_contains(_host.status_text(), "Waiting for 1 peer",
+			"fork 3: the refusal is said out loud, not only returned")
+
+
+## The gate opens again the instant the peer clears — [method
+## test_clearing_the_gate_seats_the_peer_and_replicates] pins the roster half of
+## this same call; this pins the START half.
+func test_clearing_the_gate_unblocks_start() -> void:
+	_host._on_link_peer_joined(_PEER_A)
+	assert_false(_host.can_start())
+
+	_join(_a_transport)
+
+	assert_true(_host.can_start(), "cleared — the wait this connect opened is over")
+	assert_eq(_host.status_text(), "", "and the transient line clears with it")
+
+
+## A refused peer is disconnected as part of being refused ([method
+## CommandLink._refuse_peer]) — the window it opened at `peer_joined` must
+## close with it rather than leaving START stuck refused for a connection that
+## no longer exists.
+func test_a_refused_peer_unblocks_start_too() -> void:
+	_mismatch(_a)
+
+	_join(_a_transport)
+
+	assert_true(_host.can_start(),
+			"the refusal's own disconnect closed the #736 window it opened")
+	assert_string_contains(_host.status_text(), "Refused",
+			"the refusal line still wins over the now-empty wait")
+
+
+## The window's last removal path: a peer that connects and then never sends a
+## byte — no clear, no refusal — still leaves via [signal
+## NetworkTransport.peer_left] once the transport gives up on it (ENet's own
+## keepalive in production; driven here the same way
+## [method test_dropping_a_peer_at_the_transport_returns_its_seat_to_waiting]
+## drives an already-seated drop). Without this path #736's fix would trade a
+## silent unplayable run for a START button bricked by a peer that vanished
+## before ever announcing itself.
+func test_a_connecting_peer_that_vanishes_unblocks_start() -> void:
+	_host._on_link_peer_joined(_PEER_A)
+	assert_false(_host.can_start())
+
+	_host_transport.drop_peer(_PEER_A)
+
+	assert_true(_host.can_start(), "the dead connection's hold on START is gone with it")
 
 
 # --- item 3: a drop returns the seat to waiting ------------------------------

@@ -371,8 +371,14 @@ func test_start_releases_the_link_without_closing_the_socket() -> void:
 ## broadcast taken from the button rather than from the run would ship that
 ## sentinel, which [method GameSession.apply_received] refuses outright. So this
 ## also pins WHEN the broadcast happens, not only that it does.
+##
+## [b]Joins through [method _join], not a bare `_on_link_peer_joined`
+## (#736).[/b] The latter is a socket-level connect with the build gate not yet
+## cleared — since #736 that is exactly the state START is refused in, so
+## asserting a broadcast off it would pin the race this issue closes rather than
+## the routing this test is named for.
 func test_start_broadcasts_the_resolved_run_and_routes_the_joiner() -> void:
-	_host._on_link_peer_joined(_CLIENT_PEER)
+	_join()
 	var routed: Array[RunConfig] = []
 	_client.remote_start.connect(func(cfg: RunConfig): routed.append(cfg))
 	var configs: Array[RunConfig] = []
