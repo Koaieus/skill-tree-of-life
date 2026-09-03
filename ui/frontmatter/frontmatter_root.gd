@@ -33,6 +33,11 @@ extends Node2D
 ## than erroring.
 
 const _NODE_VIEW := preload("res://ui/frontmatter/menu_node_view.tscn")
+## The ROOT's view alone, which inherits the one above and adds the splash's
+## bespoke charge ring (#734). Branched on in [method _build_views] rather than
+## exported, because "the root is the one node that can charge up" is a fact
+## about this menu, not a knob.
+const _SPLASH_ROOT_VIEW := preload("res://ui/frontmatter/splash_root_view.tscn")
 const _EDGE_VIEW := preload("res://ui/frontmatter/menu_edge_view.tscn")
 
 ## Emitted once the camera has settled on a new focus. #574/#576 hang off this.
@@ -110,6 +115,30 @@ var _from_pose: Dictionary = {}
 var _to_pose: Dictionary = {}
 var _progress: float = 1.0
 var _settled: bool = false
+## Refuses every [method focus] while raised — the menu's one navigation gate.
+##
+## [b]Raised by [SplashScreen] for the length of its charge (#734), and by
+## nothing else.[/b] Leg 1 of the splash drives the [Camera2D] directly from its
+## own tween for ~0.5s; a player who navigates during that starts a `_transition`
+## that drives [method set_progress] onto the SAME camera, and two tweens fight
+## over one transform. Owner call 2026-09-03: [i]lock input for the charge.[/i]
+##
+## [b]It gates HERE rather than at the splash's `_unhandled_input`, and that is
+## the correction that closes a mouse-shaped hole.[/b] [MenuNodePickRegion] is a
+## [Control], so GUI picking runs before physics picking and before
+## `_unhandled_input` — a CLICK during the charge would reach
+## [method _on_view_activated] and call [method focus] having never passed the
+## splash at all. [method focus] is the one seam the keyboard path
+## ([FrontmatterInput]) and the mouse path both converge on, so it is the only
+## place a lock can be complete. [method back] routes through [method focus] too
+## and is covered for free.
+##
+## [b]A plain var, deliberately not an `@export`.[/b] It is runtime state, not
+## tuning — authored `true` in the inspector it would softlock the whole menu.
+## [method build]'s seeding `focus(root, true)` runs before any splash exists and
+## is unaffected.
+var navigation_locked: bool = false
+
 var _transition: Tween = null
 var _tooltip: MenuTooltip = null
 
@@ -195,6 +224,8 @@ func build(menu_tree: MenuGraph = null) -> void:
 ## (`ui/tooltip_fan/addon_item.gd`), and it is what lets a test assert `t == 0`
 ## and `t == 1` without chasing frames.
 func focus(id: StringName, instant: bool = false) -> void:
+	if navigation_locked:
+		return
 	if not tree.has(id):
 		return
 	if _transition != null and _transition.is_valid():
@@ -604,7 +635,8 @@ func _target_pose(id: StringName, homes: Dictionary, path: Array[StringName]) ->
 func _build_views() -> void:
 	var homes := FrontmatterLayout.solve(tree)
 	for id in tree.ids():
-		var view: MenuNodeView = _NODE_VIEW.instantiate()
+		var scene := _SPLASH_ROOT_VIEW if id == tree.root else _NODE_VIEW
+		var view: MenuNodeView = scene.instantiate()
 		view.name = String(id)
 		_graph_layer.add_child(view)
 		view.bind(FrontmatterLayout.look_of(id))

@@ -10,23 +10,42 @@ extends Control
 ## the very first node of the run."[/i] So press any key -> allocate root ->
 ## allocate Single Player -> allocate New Game must read as the same action four
 ## times, and the only way that reads true is if the splash and the tree are the
-## same picture at two zoom levels. There is no cut and no cross-fade: advancing
-## is [method FrontmatterRoot.focus] on the root, travelling out from
-## [method FrontmatterLayout.splash_camera] to [method FrontmatterLayout.camera_for].
+## same picture at two zoom levels. There is no cut and no cross-fade.
 ##
-## [b]Advancing is three beats, not one.[/b] The root lights up on the press,
-## holds there for [member allocation_hold], and the camera then sets off — with
-## the allocation needle dropping [member spike_lead] INTO that travel rather
-## than before it. The allocation used to be a side effect of the travel, so the
-## one moment the splash exists to sell went past in the same frame it happened;
-## the correction overshot the other way and fired a 845px needle at a node
-## parked 422px down a 960px screen, which is the clipping [member spike_lead]
-## exists to answer.
+## [b]Advancing is a CHARGE and a BOOM, across two camera legs (#734).[/b] Owner,
+## 2026-09-03: [i]"it should ramp up the ring. a bespoke effect, not part of the
+## regular skillnodes. just for this one. the idea is this: click it, and it
+## starts glowing, until BOOM allocation vfx (which is some power needle spike
+## thingy)."[/i] So:
+##
+## [b]Leg 1[/b] — the charge. Starts on the press, runs for
+## [member charge_duration], and zooms out from
+## [method FrontmatterLayout.splash_camera] to
+## [method FrontmatterLayout.charged_camera] while the [ChargeGlow] on the root
+## ramps from [constant Emissive.INERT] toward [constant Emissive.PEAK]. The ring
+## stays UNLIT throughout — the thing being sold is the build-up. This is the
+## "make room NORTH" beat: the root keeps its horizontal slot and only takes the
+## vertical, so the needle has somewhere to land.
+##
+## [b]The BOOM[/b] — at the seam. The root reads allocated, the charge detonates
+## into a shockwave, and the game's own allocation needle drops.
+##
+## [b]Leg 2[/b] — the existing [method FrontmatterRoot.focus] on the root, which
+## from the charged pose is a pure horizontal pan into the hero slot.
+##
+## [b]What this replaced, and why the old knobs are gone.[/b] The root used to
+## snap to its final lit state in one frame, hold there for an `allocation_hold`,
+## and then travel with the needle dropping a `spike_lead` fraction INTO the
+## travel. Both knobs are retired. `spike_lead` existed only to dodge a clipping
+## defect — the needle is `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR` in WORLD
+## units, so at [constant FrontmatterLayout.SPLASH_ZOOM] it was 845px tall on a
+## 960px screen whose root sat 422px down. The BOOM now happens at
+## [constant FrontmatterLayout.TREE_ZOOM] with the root in the hero slot: 264px
+## of needle against 480px of headroom. The defect cannot recur, so the knob that
+## dodged it has nothing left to do.
 ##
 ## [b]This scene therefore paints no background.[/b] The tree is meant to be
-## visible behind the title, hugely magnified — that is the whole effect. The
-## code-composed opaque `ColorRect` this replaces existed because the splash used
-## to be a curtain in front of a menu that had not been built yet.
+## visible behind the title, hugely magnified — that is the whole effect.
 ##
 ## [b]It parks the camera rather than being asked to.[/b] [FrontmatterRoot.build]
 ## ends on `focus(root, true)`, so by the time this node is ready the camera is
@@ -50,54 +69,31 @@ signal advanced
 ## Seconds the prompt takes to fade down and back up once.
 @export_range(0.0, 4.0, 0.05) var pulse_period: float = 1.0
 
-## Seconds the allocated root is held on screen, hugely magnified, before the
-## camera sets off for the tree — the beat between [i]"you allocated it"[/i] and
-## [i]"here is what it opens"[/i].
+## Seconds the charge takes — leg 1, from the press to the BOOM (#734).
 ##
-## [b]It is a fixed logical delay, never an await on the spike's tween.[/b]
-## `.claude/rules/presentation-clock.md` is the rule: a reveal is scheduled off
-## a clock the code owns, so retuning the VFX cannot silently retune the menu.
-## What it holds is the LIT root, not the needle — the needle now drops into the
-## travel this delays (see [member spike_lead]), so this is the anticipation beat
-## between "you pressed it" and "it opens", and the beat a charge-up windup
-## would eventually fill.
+## [b]It is a fixed logical delay, never an await on the charge's own tween.[/b]
+## `.claude/rules/presentation-clock.md` is the rule: the reveal is scheduled off
+## a clock this file owns, so retuning the [ChargeGlow] cannot silently retune
+## the menu, and the glow is handed a `progress` in 0..1 that gates nothing.
+##
+## It replaces the retired `allocation_hold`, which held an ALREADY LIT root
+## doing nothing. Owner, 2026-09-03: [i]"1, could have an easing function thats
+## slow at the start for a graceful move"[/i] — see
+## [method FrontmatterCamera.ease_charge].
 ##
 ## `0.0` runs the whole advance in one frame, which is also what
 ## [member FrontmatterRoot.reduce_motion] collapses it to.
-@export_range(0.0, 3.0, 0.05) var allocation_hold: float = 0.6
-
-## Fraction of the travel that passes before the allocation needle drops.
-##
-## [b]The needle does not need the camera to ARRIVE, only to LEAVE.[/b]
-## [method MenuNodeView.play_allocation_spike] parents the spike to the view, in
-## world space, so its on-screen height is `radius * SPIKE_HEIGHT_FACTOR * zoom`
-## — at the root's authored radius 44 and [constant
-## FrontmatterLayout.SPLASH_ZOOM] that is 845px of needle on a 960px screen whose
-## node centre sits at 422, i.e. half of it off the top, which is what shipped.
-## It fits whole once `264 * zoom <= 422`, so from zoom 1.6 down; [method
-## FrontmatterCamera.ease_travel] is a cubic ease-out on the interpolated SCALE
-## and crosses that at `t = 0.18`. The default clears it with room, and the root
-## still reads at ~1.5x hero size when the needle lands, so the splash keeps the
-## scale the owner asked for (2026-08-26, [i]"zoom it in just a bit more — it's
-## the SPLASH"[/i]).
-##
-## [b]A fraction, not seconds[/b] — the same shape as [member
-## FrontmatterRoot.panel_lead], and for the same reason. What the spike needs is
-## a ZOOM; the zoom is a function of the eased clock, not of wall time, so an
-## absolute delay would land at a different zoom the moment #578's tab retunes
-## [member FrontmatterRoot.travel_duration].
-##
-## `0.0` fires it on the spot, which is the old behaviour and the comparison to
-## judge this against.
-@export_range(0.0, 1.0, 0.01) var spike_lead: float = 0.2
+@export_range(0.0, 3.0, 0.05) var charge_duration: float = 0.5
 
 @onready var _prompt: Label = %Prompt
 
 var _frontmatter: FrontmatterRoot = null
-## One-way latch. A second press while the camera is still travelling must not
+## One-way latch. A second press while the camera is still moving must not
 ## re-trigger the advance — #574 names this explicitly, and without it a held
-## key or a double click restarts the travel from wherever it had got to.
+## key or a double click restarts the motion from wherever it had got to.
 var _advanced: bool = false
+## Leg 1's tween. Held so the BOOM can kill it — see [method _end_charge].
+var _leg_one: Tween = null
 
 
 ## [b]Deliberately NOT guarded by `Engine.is_editor_hint()`.[/b] Nothing below is
@@ -133,8 +129,15 @@ func _pulse() -> void:
 	blink.tween_property(_prompt, "modulate:a", 1.0, pulse_period)
 
 
-## Allocate the root: travel the camera out to tree zoom, light the root up, and
-## get out of the way. Idempotent by the latch — later calls do nothing at all.
+## Allocate the root: charge up, BOOM, then pan out to the tree. Idempotent by
+## the latch — later calls do nothing at all.
+##
+## [b]The charge and the BOOM run on two clocks, and only the timer is
+## authoritative.[/b] The tween below is presentation and gates nothing; the
+## [SceneTreeTimer] is what decides when the BOOM happens
+## (`.claude/rules/presentation-clock.md`). They complete on different frames, so
+## [method _end_charge] writes the charged pose explicitly rather than trusting
+## the tween to have arrived — see there.
 ##
 ## Public because it is the whole behaviour of this node, and a test that has to
 ## synthesize an [InputEventKey] to reach it would be testing Godot's input
@@ -144,106 +147,171 @@ func advance() -> void:
 		return
 	_advanced = true
 	visible = false
-	_allocate_root()
-	if _hold_seconds() <= 0.0:
-		_travel()
+	_lock_navigation()
+	if _charge_seconds() <= 0.0:
+		_boom()
 	else:
-		get_tree().create_timer(_hold_seconds()).timeout.connect(_travel)
+		_start_charge()
+		get_tree().create_timer(_charge_seconds()).timeout.connect(_boom)
 	advanced.emit()
 
 
-## Lights the root up — the half of the advance that happens on the spot.
+## Closes the menu's navigation gate for the length of the charge.
 ##
-## [b]The allocation is done HERE rather than left to [method
-## FrontmatterRoot.focus]'s `_sync_allocation`.[/b] Those two used to be the same
-## call, which is why the camera left the instant the key was pressed: the root
-## could not read as allocated until the travel that allocated it had already
-## started. Splitting them is the whole of the hold. `focus` re-asserts the same
-## flag when it arrives, so this is a lead, not a second source of truth.
+## [b]The lock is the price of leg 1 being a live camera writer.[/b] The old hold
+## was a passive timer that wrote nothing, so a player mashing through it was
+## harmless. Leg 1 drives the [Camera2D] every frame for [member charge_duration];
+## a player who navigates during it starts [FrontmatterRoot]'s own `_transition`
+## onto the same camera and the two fight. Owner call 2026-09-03: [i]lock input
+## for the charge.[/i] You cannot steer during the charge; navigation resumes at
+## the BOOM. One writer at all times, no abort path, and a charge that always
+## completes — so the [ChargeGlow] is never left stranded mid-ramp.
 ##
-## [b]And that lead is exactly why the needle is scheduled elsewhere.[/b] Writing
-## the flag up front is what makes `_sync_allocation` see no transition and fire
-## nothing when the travel starts — so the VFX has to be split off the flag to be
-## delayed at all, or [member spike_lead] would simply hand the spike back to
-## [FrontmatterRoot] at the one instant it must not fire. Flag here, needle in
-## [method _drop_needle].
-func _allocate_root() -> void:
-	if _frontmatter == null or _frontmatter.tree == null:
-		return
-	var root_view := _frontmatter.view_for(_frontmatter.tree.root)
-	if root_view == null:
-		return
-	root_view.allocated = true
-
-
-## The second half: pull back out to the tree. Re-checks everything, because a
-## timer fires a frame or more later and the world may have moved on.
-##
-## [b]The focus guard is the latch, extended over the hold.[/b] The latch stops a
-## SECOND press re-focusing the root; without this, the FIRST press did it —
-## "PRESS ANY BUTTON" invites mashing, so a player can press again during the
-## hold, navigate into SINGLE PLAYER, and be yanked home when the timer fires.
-## The menu is still on the root all through the hold (`build` left it there and
-## nothing has moved it), so this only trips when the player got ahead — and then
-## their own travel has already pulled the camera out of splash zoom, which is
-## the outcome anyway.
-func _travel() -> void:
+## [b]It gates in [FrontmatterRoot], not in this file's `_unhandled_input`.[/b]
+## Consuming events here would look like it kept the splash concern in one place,
+## but [MenuNodePickRegion] is a [Control] and GUI picking runs before
+## `_unhandled_input` — so a CLICK would reach `FrontmatterRoot._on_view_activated`
+## and `focus()` having never passed this node. [method FrontmatterRoot.focus] is
+## the one seam both the keyboard and the mouse path converge on.
+func _lock_navigation() -> void:
 	if _frontmatter == null or not is_instance_valid(_frontmatter):
 		return
-	if _frontmatter.tree == null:
-		return
-	if _frontmatter.focus_id != _frontmatter.tree.root:
-		return
-	_frontmatter.focus(_frontmatter.tree.root)
-	_drop_needle()
+	_frontmatter.navigation_locked = true
 
 
-## Schedules the allocation needle for [member spike_lead] into the travel the
-## caller has just started.
+## Leg 1: the splash's own camera tween, from wherever the camera is now to the
+## charged pose, with the charge ring ramping on the same clock.
 ##
-## [b]A fixed logical delay off the travel's own duration, never an await on the
-## camera or on the spike's own tween[/b] — `.claude/rules/presentation-clock.md`,
-## the same rule [member allocation_hold] answers to. Retuning
-## [constant AllocationVFX.SPIKE_DURATION] must not silently retune the splash.
-func _drop_needle() -> void:
-	var delay := _spike_delay()
-	if delay <= 0.0:
-		_play_spike()
+## [b]It does NOT go through [method FrontmatterRoot.focus].[/b] That would fire
+## `_sync_allocation` — lighting the ring on the press, which is the whole defect
+## — and travel to the HERO pose, which is the leg-2 half being split off.
+## `camera.set_progress` is driven only by the `_transition` tween `focus()`
+## creates, so while the menu is idle nothing else writes the camera and this may
+## drive [method FrontmatterCamera.apply] directly. It is the same access
+## [method _park] already takes.
+func _start_charge() -> void:
+	if _frontmatter == null or _frontmatter.tree == null or _frontmatter.camera == null:
 		return
-	get_tree().create_timer(delay).timeout.connect(_play_spike)
+	var from := _frontmatter.camera.current_transform()
+	var to := FrontmatterLayout.charged_camera(_frontmatter.tree)
+	var glow := _charge_glow()
+	if glow != null:
+		glow.set_progress(0.0)
+	_leg_one = create_tween()
+	_leg_one.tween_method(_drive_charge.bind(from, to), 0.0, 1.0, _charge_seconds())
 
 
-## Seconds into the travel the needle drops. Collapsed to nothing by the
-## accessibility setting exactly as [method _hold_seconds] is — and correct
-## there for a second reason: `reduce_motion` makes [method
-## FrontmatterRoot.focus] snap straight to [constant
-## FrontmatterLayout.TREE_ZOOM], where the needle already fits whole.
-func _spike_delay() -> float:
-	if _frontmatter == null or _frontmatter.reduce_motion:
-		return 0.0
-	return spike_lead * _frontmatter.travel_duration
+## One frame of leg 1. The eased curve lives in [FrontmatterCamera] so the camera
+## owns every easing decision in this menu; the glow takes the RAW `t`, because
+## its own look is not a camera motion.
+func _drive_charge(t: float, from: Transform2D, to: Transform2D) -> void:
+	if _frontmatter == null or not is_instance_valid(_frontmatter):
+		return
+	if _frontmatter.camera != null:
+		_frontmatter.camera.apply(from.interpolate_with(to, FrontmatterCamera.ease_charge(t)))
+	var glow := _charge_glow()
+	if glow != null:
+		glow.set_progress(t)
 
 
-## Plays the game's own allocation spike on the root, re-checking everything —
-## a timer fires a frame or more later and the world may have moved on, the same
-## caution [method _travel] takes.
-func _play_spike() -> void:
+## BOOM — the seam between the two legs, and the one moment this whole node
+## exists to sell.
+##
+## [b]Order is load-bearing, three times over.[/b]
+##
+## 1. [method _end_charge] first, so leg 2 departs from a pose this file WROTE
+##    rather than from wherever the tween happened to have got to.
+## 2. The `allocated` write lands BEFORE the focus guard below. A player who got
+##    ahead trips that guard; writing after it would leave the root never
+##    allocated by the splash at all, and let their own `focus()` fire an
+##    unscheduled spike at an arbitrary zoom. Before it, the mash path stays
+##    exactly what it was. The write is also what makes `_sync_allocation` see no
+##    false->true transition when leg 2 focuses, so it fires no SECOND spike —
+##    the same trick the old code played on the press, relocated to here.
+## 3. The lock is released before the guard AND before leg 2, because leg 2 goes
+##    through the very gate the lock closes.
+func _boom() -> void:
+	_end_charge()
 	if _frontmatter == null or not is_instance_valid(_frontmatter):
 		return
 	if _frontmatter.tree == null:
 		return
 	var root_view := _frontmatter.view_for(_frontmatter.tree.root)
 	if root_view != null:
+		root_view.allocated = true
+	_detonate(root_view)
+	_frontmatter.navigation_locked = false
+	if _frontmatter.focus_id != _frontmatter.tree.root:
+		return
+	_frontmatter.focus(_frontmatter.tree.root)
+
+
+## Ends leg 1 and puts the camera exactly where leg 1 was going.
+##
+## [b]The explicit write is not belt-and-braces, it is the fix for a real
+## desync.[/b] The charge runs on two clocks — a [Tween] for the camera and a
+## [SceneTreeTimer] for this BOOM — and they complete on different frames. If the
+## timer wins, leg 1 is still a few pixels short; [method FrontmatterCamera.travel_to]
+## then snapshots [method FrontmatterCamera.current_transform] as leg 2's origin
+## and the pan starts from the wrong place. It would read as an intermittent jump
+## at the exact instant the player is looking, and would not reproduce on demand.
+## Writing the charged pose here makes leg 2's origin independent of frame
+## ordering, which is why a test can assert it.
+func _end_charge() -> void:
+	if _leg_one != null and _leg_one.is_valid():
+		_leg_one.kill()
+	_leg_one = null
+	if _frontmatter == null or not is_instance_valid(_frontmatter):
+		return
+	if _frontmatter.tree == null or _frontmatter.camera == null:
+		return
+	_frontmatter.camera.apply(FrontmatterLayout.charged_camera(_frontmatter.tree))
+
+
+## The detonation: the bespoke shockwave, then the game's OWN allocation needle.
+##
+## [b]The needle stays reused, the shockwave does not get to be.[/b]
+## [method AllocationVFX.spawn_alloc_spike] is the same "skill point from the
+## heavens" every real allocation drops and must remain so — that is the conceit.
+## The shockwave is bespoke to this one beat and has no second caller, so it
+## lives on the [ChargeGlow] rather than being added to [AllocationVFX].
+##
+## [method ChargeGlow.detonate] is also what TAKES THE CHARGE AWAY. Without it
+## the ring would sit at [constant Emissive.PEAK] forever behind the root's
+## ordinary lit state — brighter than anything else on the screen, permanently,
+## which is a worse artifact than the instant-lit snap this replaced.
+func _detonate(root_view: MenuNodeView) -> void:
+	var glow := _charge_glow()
+	if glow != null:
+		glow.detonate(_charge_seconds() <= 0.0)
+	if root_view != null:
 		root_view.play_allocation_spike()
 
 
-## How long to hold. Collapsed to nothing by the accessibility setting, exactly
-## as [member FrontmatterRoot.travel_duration] is — a player who asked for no
-## motion is not asking for a pause where the motion used to be.
-func _hold_seconds() -> float:
+## The root's charge ring, or null when the frontmatter is not built.
+##
+## Typed through [SplashRootView] rather than found by name or by scanning
+## children: the root's view is an inherited scene with its own script precisely
+## so this lookup can be a property read (`.claude/rules/scene-composition.md`).
+func _charge_glow() -> ChargeGlow:
+	if _frontmatter == null or not is_instance_valid(_frontmatter):
+		return null
+	if _frontmatter.tree == null:
+		return null
+	var view := _frontmatter.view_for(_frontmatter.tree.root) as SplashRootView
+	if view == null:
+		return null
+	return view.charge
+
+
+## How long the charge runs. Collapsed to nothing by the accessibility setting,
+## exactly as [member FrontmatterRoot.travel_duration] is — a player who asked
+## for no motion is not asking for a pause where the motion used to be, and BOTH
+## legs have to collapse or the splash would trade a travel for a stare.
+func _charge_seconds() -> float:
 	if _frontmatter != null and _frontmatter.reduce_motion:
 		return 0.0
-	return allocation_hold
+	return charge_duration
 
 
 ## Whether the attract state has already given way. `false` on a fresh menu.

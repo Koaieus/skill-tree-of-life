@@ -511,6 +511,32 @@ static func splash_camera(tree: MenuGraph) -> Transform2D:
 	return camera_at(_focus_position(tree, root), slot(SPLASH_SLOT_RATIO), SPLASH_ZOOM)
 
 
+## Where the camera sits at the end of the splash's charge — the "make room
+## NORTH" pose the BOOM lands in (#734).
+##
+## [b]The splash advances in two legs, and this is the seam between them.[/b]
+## Leg 1 zooms out from [method splash_camera] to here; leg 2 is the existing
+## [method FrontmatterRoot.focus] on the root, travelling from here to
+## [method camera_for]. Splitting the zoom off the sideways pan is what the
+## owner asked for, and it retires a defect on the way: the allocation needle is
+## `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR` in WORLD units, so firing it at
+## [constant SPLASH_ZOOM] put 845px of needle on a 960px screen whose root sat
+## 422px down. Fired here instead it is 264px against 480px of headroom — the
+## clipping is structurally impossible rather than avoided by a lead knob.
+##
+## [b]Every component is READ, none is written.[/b] The horizontal slot is the
+## parked pose's own, which is what makes [i]"the root stays horizontally centred
+## through leg 1"[/i] true by construction; the vertical is leg 2's own
+## [method hero_slot], which makes [i]"leg 2 is a pure horizontal pan"[/i] true
+## the same way. Restating either as a literal — the current layout reads
+## (720, 480) — would only assert that two hardcoded numbers agree, and would
+## rot the moment `frontmatter_columns.tscn` or the viewport changes.
+static func charged_camera(tree: MenuGraph) -> Transform2D:
+	var root: StringName = tree.root if tree != null else &""
+	var charged_slot := Vector2(slot(SPLASH_SLOT_RATIO).x, hero_slot().y)
+	return camera_at(_focus_position(tree, root), charged_slot, TREE_ZOOM)
+
+
 ## The world position a camera should centre its slot on, falling back to the
 ## root and then to the origin.
 static func _focus_position(tree: MenuGraph, focus_id: StringName) -> Vector2:

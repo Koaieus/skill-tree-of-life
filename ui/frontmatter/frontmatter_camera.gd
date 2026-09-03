@@ -121,3 +121,22 @@ static func ease_travel(t: float) -> float:
 static func ease_sprout(t: float) -> float:
 	var inv := 1.0 - clampf(t, 0.0, 1.0)
 	return 1.0 - inv * inv * inv * inv
+
+
+## Charge easing — the splash's leg 1 alone (#734), and deliberately NOT
+## [method ease_travel].
+##
+## [b]It is eased at BOTH ends, and that is the whole point.[/b] `ease_travel` is
+## a cubic ease-OUT: fastest at `t == 0`, which is exactly wrong for a beat the
+## owner asked to be [i]"slow at the start for a graceful move"[/i]. A pure cubic
+## ease-IN overcorrects the other way — it leaves ~70% of the zoom-out to the
+## last third and the opening reads as a stall rather than as a start. Smoothstep
+## is the honest reading: it leaves gently, gathers pace through the middle, and
+## settles into the BOOM.
+##
+## [b]One function so the feel is a one-line swap.[/b] #567's testing contract
+## sends easing feel to the owner's eye and #578's tab, so nothing asserts the
+## curve — only that leg 1 starts at the parked pose and ends at the charged one,
+## which every monotonic 0->1 easing satisfies.
+static func ease_charge(t: float) -> float:
+	return smoothstep(0.0, 1.0, clampf(t, 0.0, 1.0))

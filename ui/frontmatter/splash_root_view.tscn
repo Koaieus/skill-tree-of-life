@@ -1,0 +1,14 @@
+[gd_scene format=3 uid="uid://cq3n7splashrootv"]
+
+[ext_resource type="PackedScene" path="res://ui/frontmatter/menu_node_view.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/frontmatter/splash_root_view.gd" id="2_view"]
+[ext_resource type="Script" path="res://ui/frontmatter/charge_glow.gd" id="3_glow"]
+
+[node name="MenuNodeView" instance=ExtResource("1_base")]
+script = ExtResource("2_view")
+
+[node name="ChargeGlow" type="Node2D" parent="."]
+unique_name_in_owner = true
+z_index = 1999
+z_as_relative = false
+script = ExtResource("3_glow")
