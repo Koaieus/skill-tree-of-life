@@ -42,3 +42,19 @@ static func multiplier(attacker: Entity, source: SkillNode, board: StatBoard = n
 
 static func _from_percent(bonus: float) -> float:
 	return 1.0 + bonus / 100.0
+
+
+## Flat-integer sibling of [method multiplier], for [HopRangeFinder] only —
+## never [code]PropagationConfig.max_hops[/code] (#727). Same 3-tier fallback,
+## same reasoning: node-local `spell_hops` (an addon on the cast-from node)
+## wins, then the caster's own board (the tooltip's no-cast-from-node preview
+## path), then `0` — a null [param attacker] gets no bonus, so a [CoreClass]
+## aura does not inherit the caster's `spell_hops`.
+static func bonus_hops(attacker: Entity, source: SkillNode, board: StatBoard = null) -> int:
+	if attacker != null and source != null:
+		return int(source.get_local_value(&"spell_hops"))
+	if board != null:
+		var stat: Stat = board.get_stat(&"spell_hops")
+		if stat != null:
+			return int(stat.value)
+	return 0
