@@ -420,7 +420,21 @@ The by-value list is what carries **every** spellbook, not only a pruned one:
 the authored resource object, and a `duplicate` has no `resource_path` — so
 `_R_SPELLBOOK`'s interned path has always been -1 for a live entity. The rebuilt
 book holds the const defs `SpellCatalog.by_id` returns rather than copies of
-them, which is what `SpellDef` identity comparisons (#511) need.
+them, which is what `SpellDef` identity comparisons (#511) need. The ids
+themselves are interned into a `spells` table beside `res`, separate from it
+because a `SpellDef.id` is a wire name and not a path `_load_interned` may
+`load()`.
+
+**The rebuild is a no-op when the membership already agrees**, and that guard is
+the same trap as `_on_resync`'s: *a repeat decode must change nothing it has
+already changed.* A rebuilt book carries no `SpellBook._sources`, which is right
+for a blocker's loot pool and wrong for a hero on the second application — pass 2
+does not put the sources back, because `_grant_effects` skips a `SpellGrant`
+whose `EffectInstance` is already in the ledger, so the spell would sit in
+`spells` with nothing behind it and the next `revoke_effects_from` would find no
+source to drop. Twice now the join path has needed the same property; treat
+"is this step idempotent?" as a standing question for anything added to either
+decode pass.
 
 **What a resync does NOT carry** is the derived tier — `StatBoard` totals,
 `Stat.bins`, aura contributions, vision. The receiver recomputes, exactly as

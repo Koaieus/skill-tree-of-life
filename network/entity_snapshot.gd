@@ -92,16 +92,24 @@ const _R_EFFECTS := 7    ## Array of [res_idx, source_stable_id] (0 = entity-wid
 const _R_TAGS := 8       ## Array of [name, refcount] — see [method _restore_tags]
 const _R_SCENE := 9      ## `scene_file_path` interned into `res`, -1 for none — see [method _materialize]
 const _R_NAME := 10      ## Entity.display_name — carried only so a materialized row is not nameless
-const _R_SPELL_IDS := 11 ## Array of [member SpellDef.id], or null — see [method _encode_spell_ids]
+const _R_SPELL_IDS := 11 ## Array of indices into `spells`, or null — see [method _encode_spell_ids]
 
 
 ## Build the payload for every [Entity] under `graph.entities_container`.
+## [b]Two intern tables, deliberately not one.[/b] `res` holds resource PATHS
+## and is the only thing [method _load_interned] ever calls `load()` on; `spells`
+## holds [member SpellDef.id]s, which are wire names and not loadable. Folding
+## them together would save one small array and put a string in `res` that a
+## future reader is entitled to assume is a path.
 static func encode(graph: Graph) -> PackedByteArray:
 	var table := GraphSnapshot._InternTable.new()
+	var spell_table := GraphSnapshot._InternTable.new()
 	var rows: Array = []
 	for e in entities_of(graph):
-		rows.append(_encode_entity(graph, e, table))
-	return GraphSnapshot._pack({"res": table.paths, "entities": rows})
+		rows.append(_encode_entity(graph, e, table, spell_table))
+	return GraphSnapshot._pack({
+		"res": table.paths, "spells": spell_table.paths, "entities": rows,
+	})
 
 
 ## Pass 1 — everything that needs no [SkillNode]. Run this BEFORE
@@ -116,13 +124,14 @@ static func decode(bytes: PackedByteArray, graph: Graph, spawner := Callable()) 
 		return
 	var payload := GraphSnapshot._unpack(bytes)
 	var res: Array = payload.get("res", [])
+	var spells: Array = payload.get("spells", [])
 	var rows: Array = payload.get("entities", [])
 	_prune_entities(graph, rows)
 	for row in rows:
 		var e := _resolve(graph, row as Array, res, spawner)
 		if e == null:
 			continue
-		_decode_identity(e, row as Array, res)
+		_decode_identity(e, row as Array, res, spells)
 		# Entity-wide grants only (source_stable_id 0) — a node-sourced effect
 		# has nothing to resolve against yet.
 		_grant_effects(e, graph, row as Array, res, false)
@@ -195,9 +204,10 @@ static func bytes_per_entity(graph: Graph) -> float:
 	if entities.is_empty():
 		return 0.0
 	var table := GraphSnapshot._InternTable.new()
+	var spell_table := GraphSnapshot._InternTable.new()
 	var rows: Array = []
 	for e in entities:
-		rows.append(_encode_entity(graph, e, table))
+		rows.append(_encode_entity(graph, e, table, spell_table))
 	return float(GraphSnapshot._pack({"entities": rows}).size()) / float(entities.size())
 
 
@@ -214,7 +224,10 @@ static func entities_of(graph: Graph) -> Array[Entity]:
 	return out
 
 
-static func _encode_entity(graph: Graph, e: Entity, table: GraphSnapshot._InternTable) -> Array:
+static func _encode_entity(
+	graph: Graph, e: Entity, table: GraphSnapshot._InternTable,
+	spell_table: GraphSnapshot._InternTable
+) -> Array:
 	var effects: Array = []
 	for inst in e.get_effects():
 		if inst == null or inst.effect == null or inst.effect.resource_path == "":
@@ -242,7 +255,7 @@ static func _encode_entity(graph: Graph, e: Entity, table: GraphSnapshot._Intern
 	row[_R_CORE_LOC] = graph.get_stable_id(e.core_location) if e.core_location != null else 0
 	row[_R_EFFECTS] = effects
 	row[_R_TAGS] = tags
-	row[_R_SPELL_IDS] = _encode_spell_ids(e.spellbook)
+	row[_R_SPELL_IDS] = _encode_spell_ids(e.spellbook, spell_table)
 	return row
 
 
@@ -276,13 +289,20 @@ static func _encode_entity(graph: Graph, e: Entity, table: GraphSnapshot._Intern
 ## prune chain is documented to be able to run all the way to EMPTY, so a
 ## path-less book with zero spells is a real outcome that must not read as
 ## "this row says nothing about the spellbook".
-static func _encode_spell_ids(book: SpellBook) -> Variant:
+## [b]Interned, not spelled out per row.[/b] Nine authored spells share ~120
+## blocker rows on the shipped preset, so the ids are the most repetitive thing
+## in the payload; [param spell_table] collapses each to an int and sends every
+## distinct id once. Same trick `res` plays on resource paths, and for the same
+## reason interning is what stops a per-entity cost being per-entity.
+static func _encode_spell_ids(
+	book: SpellBook, spell_table: GraphSnapshot._InternTable
+) -> Variant:
 	if book == null or book.resource_path != "":
 		return null
 	var ids: Array = []
 	for spell in book.spells:
 		if spell != null and spell.id != &"":
-			ids.append(String(spell.id))
+			ids.append(spell_table.intern(String(spell.id)))
 	return ids
 
 
@@ -354,7 +374,7 @@ static func _materialize(row: Array, res: Array, spawner: Callable) -> Entity:
 ## `CoreClass.apply()` pushes its identity modifiers onto the board, and those
 ## already ride in the board payload by value. Applying here would double them —
 ## the same trap the effect ordering avoids one method down.
-static func _decode_identity(e: Entity, row: Array, res: Array) -> void:
+static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array) -> void:
 	var cc := _load_interned(res, int(row[_R_CORE_CLASS])) as CoreClass
 	if cc != null:
 		e.core_class = cc
@@ -365,7 +385,7 @@ static func _decode_identity(e: Entity, row: Array, res: Array) -> void:
 	if sb != null:
 		e.spellbook = sb
 	else:
-		_restore_pruned_spellbook(e, row)
+		_restore_pruned_spellbook(e, row, spells)
 	e.entity_tier = int(row[_R_TIER])
 
 
@@ -394,12 +414,18 @@ static func _decode_identity(e: Entity, row: Array, res: Array) -> void:
 ## would make the result depend on that assumption; and a caller that handed
 ## over an authored `.tres` directly — a fixture, a sandbox — does not get that
 ## shared const narrowed under it.
-static func _restore_pruned_spellbook(e: Entity, row: Array) -> void:
+static func _restore_pruned_spellbook(e: Entity, row: Array, interned: Array) -> void:
 	if row.size() <= _R_SPELL_IDS or row[_R_SPELL_IDS] == null:
 		return
 	var spells: Array[SpellDef] = []
-	for raw in (row[_R_SPELL_IDS] as Array):
-		var id := StringName(raw)
+	for idx in (row[_R_SPELL_IDS] as Array):
+		if int(idx) < 0 or int(idx) >= interned.size():
+			push_warning(
+				"EntitySnapshot: entity %d's spellbook names intern slot %d, which the payload does not have"
+				% [e.entity_id, int(idx)]
+			)
+			continue
+		var id := StringName(interned[int(idx)])
 		var spell := SpellCatalog.by_id(id)
 		if spell == null:
 			push_warning(

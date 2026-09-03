@@ -128,7 +128,7 @@ func test_even_a_plainly_authored_book_crosses_by_value() -> void:
 
 	assert_eq(_ids_of(peer.spellbook), ["leafblower", "resonator", "trail_blazer"],
 			"the whole authored membership crossed, by id")
-	assert_eq(EntitySnapshot._encode_spell_ids(_AUTHORED), null,
+	assert_eq(EntitySnapshot._encode_spell_ids(_AUTHORED, GraphSnapshot._InternTable.new()), null,
 			"a book that DOES have a path still says nothing by value")
 
 
@@ -177,11 +177,30 @@ func test_an_unknown_id_is_dropped_loudly() -> void:
 	row[EntitySnapshot._R_FACTION] = -1
 	row[EntitySnapshot._R_SPELLBOOK] = -1
 	row[EntitySnapshot._R_TIER] = 2
-	row[EntitySnapshot._R_SPELL_IDS] = ["bruiser", "no_such_spell"]
+	row[EntitySnapshot._R_SPELL_IDS] = [0, 1]
 
-	EntitySnapshot._decode_identity(peer, row, [] as Array)
+	EntitySnapshot._decode_identity(peer, row, [] as Array, ["bruiser", "no_such_spell"] as Array)
 
 	assert_eq(_ids_of(peer.spellbook), ["bruiser"], "the known id survived, the unknown one did not")
+
+
+## An index the payload's spell table does not have is dropped the same way an
+## unknown id is — loudly, and without punching a null hole in `spells`.
+func test_an_out_of_range_intern_slot_is_dropped() -> void:
+	var target := await _new_graph()
+	var peer := _entity_with(target, _AUTHORED, 0)
+	var row: Array = []
+	row.resize(12)
+	row[EntitySnapshot._R_ENTITY_ID] = peer.entity_id
+	row[EntitySnapshot._R_CORE_CLASS] = -1
+	row[EntitySnapshot._R_FACTION] = -1
+	row[EntitySnapshot._R_SPELLBOOK] = -1
+	row[EntitySnapshot._R_TIER] = 2
+	row[EntitySnapshot._R_SPELL_IDS] = [0, 7]
+
+	EntitySnapshot._decode_identity(peer, row, [] as Array, ["cyclone"] as Array)
+
+	assert_eq(_ids_of(peer.spellbook), ["cyclone"], "the in-range slot survived, the other did not")
 
 
 ## A row whose membership already agrees leaves the book ALONE — it does not
@@ -228,3 +247,21 @@ func test_decoding_twice_rebuilds_once() -> void:
 
 	assert_true(is_same(peer.spellbook, after_first), "the second pass rebuilt nothing")
 	assert_eq(_ids_of(peer.spellbook), ["bruiser", "cyclone"], "and the membership is the host's")
+
+
+## The ids are the most repetitive thing in the payload — nine authored spells
+## across ~120 blocker rows on the shipped preset — so they are INTERNED, and a
+## row carries slot indices rather than the strings. Pinned because "it still
+## round-trips" is exactly what a change that silently stopped interning would
+## also report.
+func test_the_ids_are_interned_once_across_rows() -> void:
+	var source := await _new_graph()
+	for i in 8:
+		_entity_with(source, _pruned(["bruiser", "cyclone"]))
+
+	var payload := GraphSnapshot._unpack(EntitySnapshot.encode(source))
+
+	assert_eq(payload["spells"], ["bruiser", "cyclone"],
+			"each distinct id is sent exactly once, for the whole payload")
+	assert_eq((payload["entities"] as Array)[0][EntitySnapshot._R_SPELL_IDS], [0, 1],
+			"and a row carries slots into that table, not the strings again")
