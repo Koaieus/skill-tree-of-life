@@ -564,16 +564,16 @@ static func splash_camera(tree: MenuGraph) -> Transform2D:
 ## leg 1 is shaped, ending it at [constant TREE_ZOOM] means the camera is fully
 ## out at the instant of the flash.
 ##
-## [b][param end_zoom] is capped where it is authored, against a ceiling this
-## slot decides.[/b] The needle is `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR`
-## in WORLD units — 264 at the root's authored radius 44 — against the
-## [constant CHARGE_SLOT_Y_RATIO] slot's 653px of headroom, so it stays wholly on
-## screen while `264 * end_zoom <= 653`, i.e. below **2.47**.
-## [member SplashScreen.charge_end_zoom] tops its `@export_range` out at 2.4 so
-## the owner cannot dial the defect this issue retired back into existence, and
-## `test_the_needle_is_wholly_on_screen_by_the_time_it_drops` is the guard on it
-## — deriving the ceiling from these same statics rather than restating it, so
-## retuning the slot re-aims the guard instead of invalidating it.
+## [b]Nothing here pins the needle's framing.[/b] The needle is
+## `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR` in WORLD units — 264 at the
+## root's authored radius 44 — against the [constant CHARGE_SLOT_Y_RATIO] slot's
+## 653px of headroom, so it sat wholly on screen only below `653 / 264` =
+## **2.47**. That containment was this issue's original fix, retired because it
+## was a pin on taste: Owner, 2026-09-03: *"looks can differ, and it's a matter
+## of taste, having the thing entirely on screen or partially off screen, is not
+## something we should be pinning with tests. the orchestration as a whole is
+## more important."* [member SplashScreen.charge_end_zoom] follows whatever the
+## scene authors, and `test_splash.gd` pins the orchestration only.
 ##
 ## [b]The horizontal slot is READ, never written.[/b] It is the parked pose's
 ## own, which makes [i]"the root does not drift sideways through leg 1"[/i] true

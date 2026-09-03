@@ -9,8 +9,9 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 0
 script = ExtResource("1_splash")
+charge_camera_fraction = 1.0
+charge_end_zoom = 3.0
 
 [node name="Title" type="VBoxContainer" parent="." unique_id=1510854290]
 unique_name_in_owner = true
@@ -38,6 +39,7 @@ horizontal_alignment = 1
 
 [node name="Prompt" type="Label" parent="." unique_id=1967762523]
 unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.5332294)
 layout_mode = 1
 anchors_preset = 7
 anchor_left = 0.5
@@ -50,7 +52,6 @@ offset_right = 300.0
 offset_bottom = -100.0
 grow_horizontal = 2
 grow_vertical = 0
-mouse_filter = 2
 theme_type_variation = &"TierValue"
 text = "PRESS ANY BUTTON"
 horizontal_alignment = 1

@@ -49,13 +49,13 @@ extends Control
 ## defect — the needle is `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR` in WORLD
 ## units, so at [constant FrontmatterLayout.SPLASH_ZOOM] it was 845px tall on a
 ## 960px screen whose root sat 422px down. The BOOM now happens at
-## [member charge_end_zoom] with the root at the hero slot's height, under a cap
-## that keeps the needle on screen by construction. The defect cannot recur, so the knob that
-## dodged it has nothing left to do — the BOOM now happens at
-## [member charge_end_zoom] 2.2 with the root pushed south to
-## [constant FrontmatterLayout.CHARGE_SLOT_Y_RATIO], where the needle reads 581px
-## against 653px of headroom. The knob's range is capped below the 2.47 at which
-## clipping would resume, so the defect cannot be tuned back in.
+## [member charge_end_zoom] with the root pushed south to
+## [constant FrontmatterLayout.CHARGE_SLOT_Y_RATIO] — but the containment that
+## placement bought is NOT a guard any more. Owner, 2026-09-03: *"looks can
+## differ, and it's a matter of taste, having the thing entirely on screen or
+## partially off screen, is not something we should be pinning with tests. the
+## orchestration as a whole is more important."* The framing follows whatever
+## the scene authors; what is pinned (in `test_splash.gd`) is the orchestration.
 ##
 ## [b]This scene therefore paints no background.[/b] The tree is meant to be
 ## visible behind the title, hugely magnified — that is the whole effect.
@@ -142,14 +142,14 @@ signal advanced
 ## here rather than at tree zoom leaves the remaining zoom-out to ride leg 2's
 ## pan, so the needle flashes mid-motion instead of after the camera has parked.
 ##
-## [b]The range is capped at 2.4 on purpose.[/b] The needle is 264 world units
-## tall against the 653px of headroom
-## [constant FrontmatterLayout.CHARGE_SLOT_Y_RATIO] buys, so it clips above
-## `653 / 264` = **2.47**. The cap is what stops this knob reintroducing the very
-## defect #734 retired; at the default 2.2 the needle reads 581px with 72px to
-## spare, and the root is still 2.2x the size it would be at tree zoom when the
-## flash lands.
-@export_range(1.0, 2.4, 0.05) var charge_end_zoom: float = 2.2
+## [b]The range admits whatever the scene authors — nothing more deliberate
+## than that.[/b] The old 2.4 cap (the `653 / 264` = **2.47** headroom ceiling
+## behind it) was the #734 containment guard, retired with the containment
+## itself: whether the needle sits wholly on screen or rises past the top is
+## taste, not a test — Owner, 2026-09-03: *"the orchestration as a whole is
+## more important."* Keep the range admitting the authored value so the
+## inspector can always re-dial it honestly.
+@export_range(1.0, 3.0, 0.05) var charge_end_zoom: float = 2.2
 
 ## The shape of leg 1's zoom-out — 1.0 is linear, higher holds the splash shot
 ## longer and then opens harder. See [method FrontmatterCamera.ease_charge]; the

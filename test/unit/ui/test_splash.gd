@@ -191,70 +191,15 @@ func test_advancing_drops_the_games_own_allocation_spike_on_the_root() -> void:
 			"press any button plays the same VFX every other allocation plays")
 
 
-## The clipping defect the retired `spike_lead` used to dodge, re-asserted at the
-## pose the BOOM actually happens at — and now the guard on
-## [member SplashScreen.charge_end_zoom]'s cap as well (#734).
-##
-## The needle is 6x the node radius in WORLD units: `44 * 6` = 264. Fired while
-## the camera was still parked at `SPLASH_ZOOM` 3.2 that was 845px of needle on a
-## 960px screen whose root sat 422px down — half of it off the top, which is what
-## shipped. `spike_lead` answered it by delaying the needle into the travel.
-##
-## The BOOM now happens at the CHARGED pose: the root at `hero_slot()`'s y, which
-## is 480px of headroom, and the zoom the owner tunes. At the authored 1.6 that
-## is `264 * 1.6` = 422px against 480px — 58px of clearance. The knob's range
-## tops out at 1.8, below the `480 / 264` = 1.81 at which clipping resumes, so
-## this passes for EVERY value the inspector can produce; it is read off the
-## splash rather than restated so it tracks whatever the owner dials.
-##
-## Nothing here renders — the transform is rebuilt from the same public statics
-## the splash itself uses, so this stays a decidable claim about the geometry.
-func test_the_needle_is_wholly_on_screen_by_the_time_it_drops() -> void:
-	var tree := _frontmatter.tree
-	var at_drop := FrontmatterLayout.charged_camera(tree, _splash.charge_end_zoom)
-	var zoom := FrontmatterLayout.zoom_of(at_drop).y
-	var view := FrontmatterLayout.viewport_size()
-	var world := _root_world()
-	var screen_y := (world.y - at_drop.origin.y) * zoom + view.y * 0.5
-
-	var radius := FrontmatterLayout.look_of(_root()).radius
-	var needle := radius * AllocationVFX.SPIKE_HEIGHT_FACTOR * zoom
-
-	assert_lte(needle, screen_y,
-			"the needle (%.0fpx at zoom %.2f) overshoots the %.0fpx above the root"
-					% [needle, zoom, screen_y])
-
-
-## The top of an `@export_range`, read off the property itself.
-##
-## The point of the cap is that the INSPECTOR cannot reach the defect, so the
-## test has to ask what the inspector would actually offer rather than restate a
-## number beside it — restated, it would go on passing after someone widened the
-## range, which is the one change it exists to catch.
-func _export_range_max(obj: Object, prop: StringName) -> float:
-	for entry in obj.get_property_list():
-		if entry["name"] == prop:
-			return float((entry["hint_string"] as String).split(",")[1])
-	return -1.0
-
-
-func test_the_charge_end_zoom_cannot_be_tuned_into_the_clipping_defect() -> void:
-	# The cap is the guard, so it is asserted as a cap rather than trusted.
-	#
-	# The headroom is the charged slot's own screen y, which `camera_at` holds
-	# the node at REGARDLESS of zoom — so the ceiling is a property of the slot
-	# alone, and reading it back through `charged_camera` means pushing the slot
-	# further south re-aims this guard instead of invalidating it.
-	var world := _root_world()
-	var slot_y := _screen_y(FrontmatterLayout.charged_camera(_frontmatter.tree, 1.0), world)
-	var needle_units := FrontmatterLayout.look_of(_root()).radius \
-			* AllocationVFX.SPIKE_HEIGHT_FACTOR
-	var ceiling := slot_y / needle_units
-
-	assert_lt(_splash.charge_end_zoom, ceiling,
-			"the authored default keeps the needle whole")
-	assert_lte(_export_range_max(_splash, &"charge_end_zoom"), ceiling,
-			"and so does the TOP of its range — the inspector cannot reach the defect")
+## No pin lives on the needle's FRAMING. Wholly on screen or rising past the
+## top is taste, re-dialled by whatever `charge_end_zoom` the scene authors —
+## Owner, 2026-09-03: *"looks can differ, and it's a matter of taste, having
+## the thing entirely on screen or partially off screen, is not something we
+## should be pinning with tests. the orchestration as a whole is more
+## important."* (This replaced two #734 guards that pinned the containment.)
+## What this file pins is that orchestration: the charge builds, the needle
+## belongs to the BOOM and never leaks into leg 1, leg 1 stops short so leg 2
+## finishes the opening, and the menu is steerable again once it lands.
 
 
 func test_leg_one_stops_short_of_tree_zoom_so_leg_two_finishes_the_opening() -> void:

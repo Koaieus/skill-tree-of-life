@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://cq3n7splashrootv"]
+[gd_scene format=3 uid="uid://8hxk0onaqmr8"]
 
 [ext_resource type="PackedScene" path="res://ui/frontmatter/menu_node_view.tscn" id="1_base"]
 [ext_resource type="Script" path="res://ui/frontmatter/splash_root_view.gd" id="2_view"]
