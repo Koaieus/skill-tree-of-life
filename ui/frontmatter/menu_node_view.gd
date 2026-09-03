@@ -219,18 +219,33 @@ func _sync_label() -> void:
 	)
 
 
-## Parks the caption under the rim. The scale, font size and raster box that
+## Parks the caption OVER the rim. The scale, font size and raster box that
 ## make this a [constant _CAPTION_SUPERSAMPLE]x supersample are authored on
 ## `%Title` in `menu_node_view.tscn` (#612) — none of them vary per node. Only
 ## the position does: it reads [member radius], which arrives at runtime via
 ## [method bind].
 ##
-## A [Control]'s `scale` pivots on its own top-left, which is its `position`, so
-## the box has to be laid out in RASTER units and left-aligned to where the
-## scaled box's left edge belongs. Centring by `-_CAPTION_BOX.x * 0.5` rather
-## than by the raster width is the whole of that correction.
+## [b]Above, not below, by owner call 2026-09-03 (#734).[/b] Verbatim:
+## [i]"move the captions of these skillnodes to be above the nodes instead.
+## doesn't matter if they get occluded by vfx for a split second, given ppl know
+## what they are clicking."[/i] It reads as cosmetic and is not: the allocation
+## needle rises NORTH out of the node, so the node has to sit LOW on screen for
+## the needle to fit — and while the caption hung BELOW, pushing the node down
+## ran the caption off the bottom of the screen. Moving it above is what lifts
+## that constraint, and it is what lets [constant FrontmatterLayout.CHARGE_SLOT_Y_RATIO]
+## push the BOOM's slot south far enough to afford a much closer zoom.
+##
+## [b]A [Control]'s `scale` pivots on its own top-left, which is its
+## `position`.[/b] So the box is laid out in RASTER units and its top-left is
+## placed where the SCALED box's top-left belongs — which is why going above
+## subtracts the box's own HEIGHT as well as the gap, rather than just negating
+## the offset. Get that wrong and every caption in the menu sits one box-height
+## off. Centring by `-_CAPTION_BOX.x * 0.5` rather than by the raster width is
+## the same correction on the other axis.
 func _supersample_caption() -> void:
-	_label.position = Vector2(-_CAPTION_BOX.x * 0.5, radius + _LABEL_GAP)
+	_label.position = Vector2(
+		-_CAPTION_BOX.x * 0.5, -(radius + _LABEL_GAP) - _CAPTION_BOX.y
+	)
 
 
 ## Plays the game's own allocation spike over this node — the "skill point from

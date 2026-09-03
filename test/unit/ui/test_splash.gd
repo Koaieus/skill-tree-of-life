@@ -225,16 +225,36 @@ func test_the_needle_is_wholly_on_screen_by_the_time_it_drops() -> void:
 					% [needle, zoom, screen_y])
 
 
+## The top of an `@export_range`, read off the property itself.
+##
+## The point of the cap is that the INSPECTOR cannot reach the defect, so the
+## test has to ask what the inspector would actually offer rather than restate a
+## number beside it — restated, it would go on passing after someone widened the
+## range, which is the one change it exists to catch.
+func _export_range_max(obj: Object, prop: StringName) -> float:
+	for entry in obj.get_property_list():
+		if entry["name"] == prop:
+			return float((entry["hint_string"] as String).split(",")[1])
+	return -1.0
+
+
 func test_the_charge_end_zoom_cannot_be_tuned_into_the_clipping_defect() -> void:
-	# The cap is the guard, so it is asserted as a cap rather than trusted. Every
-	# value the `@export_range` can produce must keep the needle on screen — that
-	# is what makes this knob safe to hand to the owner.
-	var ceiling := FrontmatterLayout.hero_slot().y \
-			/ (FrontmatterLayout.look_of(_root()).radius * AllocationVFX.SPIKE_HEIGHT_FACTOR)
+	# The cap is the guard, so it is asserted as a cap rather than trusted.
+	#
+	# The headroom is the charged slot's own screen y, which `camera_at` holds
+	# the node at REGARDLESS of zoom — so the ceiling is a property of the slot
+	# alone, and reading it back through `charged_camera` means pushing the slot
+	# further south re-aims this guard instead of invalidating it.
+	var world := _root_world()
+	var slot_y := _screen_y(FrontmatterLayout.charged_camera(_frontmatter.tree, 1.0), world)
+	var needle_units := FrontmatterLayout.look_of(_root()).radius \
+			* AllocationVFX.SPIKE_HEIGHT_FACTOR
+	var ceiling := slot_y / needle_units
+
 	assert_lt(_splash.charge_end_zoom, ceiling,
 			"the authored default keeps the needle whole")
-	assert_lte(1.8, ceiling,
-			"and so does the top of its range — the inspector cannot reach the defect")
+	assert_lte(_export_range_max(_splash, &"charge_end_zoom"), ceiling,
+			"and so does the TOP of its range — the inspector cannot reach the defect")
 
 
 func test_leg_one_stops_short_of_tree_zoom_so_leg_two_finishes_the_opening() -> void:
@@ -378,9 +398,13 @@ func test_leg_one_takes_the_vertical_without_drifting_sideways() -> void:
 	assert_almost_eq(_screen_x(charged, world),
 			FrontmatterLayout.slot(FrontmatterLayout.SPLASH_SLOT_RATIO).x, 0.01,
 			"and the slot it holds is the parked pose's own")
-	assert_almost_eq(_screen_y(charged, world), _screen_y(arrived, world), 0.01,
-			"and the root holds its screen HEIGHT from the BOOM onward, so leg 2 "
-					+ "reads as a clean zoom-and-slide rather than a second drop")
+	# Leg 2 is a DIAGONAL now, not a slide: the charged slot sits SOUTH of the
+	# hero slot to buy the needle its headroom, so the root rises as it pans.
+	# Owner-accepted 2026-09-03; this pins the direction rather than the old
+	# "holds its screen height" claim, which that decision made false.
+	assert_gt(_screen_y(charged, world), _screen_y(arrived, world),
+			"the BOOM happens with the root pushed DOWN — that is what affords "
+					+ "the close zoom — and leg 2 lifts it back to the hero slot")
 
 
 func test_reduce_motion_collapses_the_charge_as_well_as_the_travel() -> void:

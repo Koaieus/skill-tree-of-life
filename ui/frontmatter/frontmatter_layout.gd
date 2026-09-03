@@ -389,11 +389,47 @@ static func reset_geometry() -> void:
 ## per-fan THIRD answer to that second question; owner call 2026-08-26 retired
 ## it (see [method zoom_for]), leaving exactly the two.
 const SPLASH_SLOT_RATIO := Vector2(0.5, 0.44)
+
+## How far down the screen the root sits at the BOOM, as a fraction of the
+## viewport height — [method charged_camera]'s slot (#734).
+##
+## [b]It is south of the hero slot on purpose, and that is what buys the
+## zoom.[/b] The allocation needle rises NORTH out of the node, so how close the
+## camera can be at the BOOM is decided by how much screen sits ABOVE the node:
+## the needle stays whole only while `radius * SPIKE_HEIGHT_FACTOR * zoom` fits
+## in it. At the hero slot's 480px that ceiling is 1.81; pushing to 0.68 of a
+## 960px viewport — 653px — raises it to 2.47.
+##
+## [b]It is only affordable because the caption moved ABOVE the node[/b]
+## ([method MenuNodeView._supersample_caption], same owner call). While the
+## caption hung below, pushing the node this far south ran the caption off the
+## bottom of the screen, which is the constraint the owner removed by asking for
+## captions on top. Owner, 2026-09-03: [i]"i'd say push the camera slightly
+## upwards during the charge. which visually pushes the node down. this allows
+## keeping higher zoom while still fitting."[/i]
+##
+## A ratio rather than a marker in `frontmatter_columns.tscn` because it is a
+## CAMERA pose in the splash's choreography, not a place a [Control] is laid out
+## — the same thing [constant SPLASH_SLOT_RATIO] already is, and read the same way.
+const CHARGE_SLOT_Y_RATIO := 0.68
 ## Raised from 2.55 by owner call (2026-08-26): [i]"before allocating, possibly
-## zoom it in just a bit more — it's the SPLASH."[/i] 3.2x a screen-filling node
-## reads as one massive node the player is about to allocate, rather than a
+## zoom it in just a bit more — it's the SPLASH."[/i] A screen-filling node reads
+## as one massive node the player is about to allocate, rather than a
 ## slightly-closer menu.
-const SPLASH_ZOOM := 3.2
+##
+## Raised again from 3.2 by owner call (2026-09-03): [i]"bump up the initial
+## zoom"[/i], landing with the same day's decision to delete the splash's own
+## wordmark and let the ROOT NODE'S OWN CAPTION carry the title (#734). The two
+## go together: at 4.5x the node fills the frame and its caption reads as the
+## game's title, which is the splash's conceit — [i]"the title IS the node you
+## are allocating"[/i] — rather than a label under a big circle.
+##
+## It is affordable now for a structural reason, not just taste. The needle's
+## clipping ceiling is a function of how far DOWN the screen the node sits at the
+## BOOM, and the BOOM no longer happens here — it happens at
+## [method charged_camera], whose slot [constant CHARGE_SLOT_Y_RATIO] pushes
+## south precisely to buy that headroom. This zoom is the opening shot only.
+const SPLASH_ZOOM := 4.5
 
 ## The zoom the tree is navigated at, at every depth and every fan. 1.0 means
 ## one world unit per screen pixel — the only exception in the whole menu is
@@ -528,24 +564,28 @@ static func splash_camera(tree: MenuGraph) -> Transform2D:
 ## leg 1 is shaped, ending it at [constant TREE_ZOOM] means the camera is fully
 ## out at the instant of the flash.
 ##
-## [b]That re-arms the clipping ceiling, so [param end_zoom] is capped where it
-## is authored.[/b] The needle is `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR`
+## [b][param end_zoom] is capped where it is authored, against a ceiling this
+## slot decides.[/b] The needle is `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR`
 ## in WORLD units — 264 at the root's authored radius 44 — against the
-## [method hero_slot] y of 480px of headroom, so it stays wholly on screen only
-## while `264 * end_zoom <= 480`, i.e. below **1.81**.
-## [member SplashScreen.charge_end_zoom] tops its `@export_range` out at 1.8 so
+## [constant CHARGE_SLOT_Y_RATIO] slot's 653px of headroom, so it stays wholly on
+## screen while `264 * end_zoom <= 653`, i.e. below **2.47**.
+## [member SplashScreen.charge_end_zoom] tops its `@export_range` out at 2.4 so
 ## the owner cannot dial the defect this issue retired back into existence, and
-## `test_the_needle_is_wholly_on_screen_by_the_time_it_drops` is the guard on it.
+## `test_the_needle_is_wholly_on_screen_by_the_time_it_drops` is the guard on it
+## — deriving the ceiling from these same statics rather than restating it, so
+## retuning the slot re-aims the guard instead of invalidating it.
 ##
 ## [b]The horizontal slot is READ, never written.[/b] It is the parked pose's
 ## own, which makes [i]"the root does not drift sideways through leg 1"[/i] true
 ## by construction; restating it as a literal — the current layout reads 720 —
-## would only assert that two hardcoded numbers agree. The vertical is
-## [method hero_slot]'s, so the root holds its screen height from the BOOM
-## onward and leg 2 reads as a clean zoom-and-slide.
+## would only assert that two hardcoded numbers agree. The vertical is this
+## file's own ratio, south of the hero slot, so leg 2 rises back up and is a
+## DIAGONAL rather than a pure slide (owner-accepted, 2026-09-03).
 static func charged_camera(tree: MenuGraph, end_zoom: float = TREE_ZOOM) -> Transform2D:
 	var root: StringName = tree.root if tree != null else &""
-	var charged_slot := Vector2(slot(SPLASH_SLOT_RATIO).x, hero_slot().y)
+	var charged_slot := Vector2(
+		slot(SPLASH_SLOT_RATIO).x, viewport_size().y * CHARGE_SLOT_Y_RATIO
+	)
 	return camera_at(_focus_position(tree, root), charged_slot, end_zoom)
 
 

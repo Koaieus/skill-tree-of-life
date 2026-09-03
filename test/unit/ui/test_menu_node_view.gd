@@ -238,14 +238,45 @@ func test_binding_twice_with_different_radii_still_parks_the_caption() -> void:
 
 	view.bind(small, true)
 	var label := view.get_node("%Title") as Label
-	assert_almost_eq(label.position.y, small.radius + 10.0, 0.01, "parked under the first radius")
+	assert_almost_eq(label.position.y, -(small.radius + 10.0) - 24.0, 0.01,
+			"parked over the first radius")
 
 	var big := MenuSlot.Look.new()
 	big.title = "BIG"
 	big.archetype = &"strength"
 	big.radius = 64.0
 	view.bind(big, true)
-	assert_almost_eq(label.position.y, big.radius + 10.0, 0.01, "and re-parked under the second")
+	assert_almost_eq(label.position.y, -(big.radius + 10.0) - 24.0, 0.01,
+			"and re-parked over the second")
+
+
+func test_the_caption_sits_ABOVE_the_node_clear_of_the_rim() -> void:
+	# Owner call 2026-09-03 (#734): captions moved above so the node can be
+	# pushed south for the allocation needle's headroom without running the
+	# caption off the bottom of the screen.
+	#
+	# Asserted as the two claims that matter, not as the literal offset: the
+	# caption's BOTTOM edge is above the rim (it clears the node), and it is
+	# above by the authored gap. A `Control` scales about its own top-left, so
+	# the bottom edge is `position.y + box height` — getting that wrong puts
+	# every caption in the menu one box-height out, which is exactly what a
+	# hand-checked literal would not catch.
+	var look := MenuSlot.Look.new()
+	look.title = "OVER"
+	look.archetype = &"strength"
+	look.radius = 44.0
+	var view: MenuNodeView = _NODE_VIEW.instantiate()
+	add_child_autofree(view)
+	view.bind(look, true)
+
+	var label := view.get_node("%Title") as Label
+	var box_height := label.size.y * label.scale.y
+	var caption_bottom := label.position.y + box_height
+
+	assert_lt(caption_bottom, -look.radius,
+			"the caption clears the rim rather than overlapping the disk")
+	assert_almost_eq(caption_bottom, -(look.radius + 10.0), 0.01,
+			"and sits exactly the authored gap above it")
 
 
 func test_binding_nothing_leaves_the_composites_own_defaults() -> void:

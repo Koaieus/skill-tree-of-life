@@ -45,10 +45,10 @@ extends Control
 ## [member charge_end_zoom] with the root at the hero slot's height, under a cap
 ## that keeps the needle on screen by construction. The defect cannot recur, so the knob that
 ## dodged it has nothing left to do — the BOOM now happens at
-## [member charge_end_zoom] 1.6 with the root at the hero slot's height, where
-## the needle reads 422px against 480px of headroom. The knob's range is capped
-## below the 1.81 at which clipping would resume, so the defect cannot be tuned
-## back in.
+## [member charge_end_zoom] 2.2 with the root pushed south to
+## [constant FrontmatterLayout.CHARGE_SLOT_Y_RATIO], where the needle reads 581px
+## against 653px of headroom. The knob's range is capped below the 2.47 at which
+## clipping would resume, so the defect cannot be tuned back in.
 ##
 ## [b]This scene therefore paints no background.[/b] The tree is meant to be
 ## visible behind the title, hugely magnified — that is the whole effect.
@@ -102,17 +102,19 @@ signal advanced
 ## here rather than at tree zoom leaves the remaining zoom-out to ride leg 2's
 ## pan, so the needle flashes mid-motion instead of after the camera has parked.
 ##
-## [b]The range is capped at 1.8 on purpose.[/b] The needle is 264 world units
-## tall against 480px of headroom at the charged slot, so it clips above
-## `480 / 264` = **1.81**. The cap is what stops this knob reintroducing the very
-## defect #734 retired; at the default 1.6 the needle reads 422px with 58px to
-## spare, and 60% larger on screen than a boom at tree zoom.
-@export_range(1.0, 1.8, 0.05) var charge_end_zoom: float = 1.6
+## [b]The range is capped at 2.4 on purpose.[/b] The needle is 264 world units
+## tall against the 653px of headroom
+## [constant FrontmatterLayout.CHARGE_SLOT_Y_RATIO] buys, so it clips above
+## `653 / 264` = **2.47**. The cap is what stops this knob reintroducing the very
+## defect #734 retired; at the default 2.2 the needle reads 581px with 72px to
+## spare, and the root is still 2.2x the size it would be at tree zoom when the
+## flash lands.
+@export_range(1.0, 2.4, 0.05) var charge_end_zoom: float = 2.2
 
 ## The shape of leg 1's zoom-out — 1.0 is linear, higher holds the splash shot
 ## longer and then opens harder. See [method FrontmatterCamera.ease_charge]; the
 ## feel is the owner's to dial and nothing asserts the curve.
-@export_range(1.0, 6.0, 0.1) var charge_ease_power: float = 2.5
+@export_range(1.0, 6.0, 0.1) var charge_ease_power: float = 3.5
 
 @onready var _prompt: Label = %Prompt
 
