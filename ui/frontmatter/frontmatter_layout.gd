@@ -511,30 +511,42 @@ static func splash_camera(tree: MenuGraph) -> Transform2D:
 	return camera_at(_focus_position(tree, root), slot(SPLASH_SLOT_RATIO), SPLASH_ZOOM)
 
 
-## Where the camera sits at the end of the splash's charge — the "make room
-## NORTH" pose the BOOM lands in (#734).
+## Where the camera sits at the end of the splash's charge — the pose the BOOM
+## lands in (#734).
 ##
 ## [b]The splash advances in two legs, and this is the seam between them.[/b]
 ## Leg 1 zooms out from [method splash_camera] to here; leg 2 is the existing
 ## [method FrontmatterRoot.focus] on the root, travelling from here to
-## [method camera_for]. Splitting the zoom off the sideways pan is what the
-## owner asked for, and it retires a defect on the way: the allocation needle is
-## `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR` in WORLD units, so firing it at
-## [constant SPLASH_ZOOM] put 845px of needle on a 960px screen whose root sat
-## 422px down. Fired here instead it is 264px against 480px of headroom — the
-## clipping is structurally impossible rather than avoided by a lead knob.
+## [method camera_for].
 ##
-## [b]Every component is READ, none is written.[/b] The horizontal slot is the
-## parked pose's own, which is what makes [i]"the root stays horizontally centred
-## through leg 1"[/i] true by construction; the vertical is leg 2's own
-## [method hero_slot], which makes [i]"leg 2 is a pure horizontal pan"[/i] true
-## the same way. Restating either as a literal — the current layout reads
-## (720, 480) — would only assert that two hardcoded numbers agree, and would
-## rot the moment `frontmatter_columns.tscn` or the viewport changes.
-static func charged_camera(tree: MenuGraph) -> Transform2D:
+## [b]Leg 1 does NOT finish the zoom, and that is deliberate.[/b] [param end_zoom]
+## is an INTERMEDIATE zoom, not [constant TREE_ZOOM] — the remaining zoom-out
+## rides leg 2's pan, so the needle flashes while the camera is still opening
+## rather than after it has arrived. Owner, 2026-09-03: [i]"we could keep it
+## closer a bit longer... then more so / faster so when the alloc vfx has just
+## started (its a short flash anyway)"[/i]. Easing alone cannot buy this: however
+## leg 1 is shaped, ending it at [constant TREE_ZOOM] means the camera is fully
+## out at the instant of the flash.
+##
+## [b]That re-arms the clipping ceiling, so [param end_zoom] is capped where it
+## is authored.[/b] The needle is `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR`
+## in WORLD units — 264 at the root's authored radius 44 — against the
+## [method hero_slot] y of 480px of headroom, so it stays wholly on screen only
+## while `264 * end_zoom <= 480`, i.e. below **1.81**.
+## [member SplashScreen.charge_end_zoom] tops its `@export_range` out at 1.8 so
+## the owner cannot dial the defect this issue retired back into existence, and
+## `test_the_needle_is_wholly_on_screen_by_the_time_it_drops` is the guard on it.
+##
+## [b]The horizontal slot is READ, never written.[/b] It is the parked pose's
+## own, which makes [i]"the root does not drift sideways through leg 1"[/i] true
+## by construction; restating it as a literal — the current layout reads 720 —
+## would only assert that two hardcoded numbers agree. The vertical is
+## [method hero_slot]'s, so the root holds its screen height from the BOOM
+## onward and leg 2 reads as a clean zoom-and-slide.
+static func charged_camera(tree: MenuGraph, end_zoom: float = TREE_ZOOM) -> Transform2D:
 	var root: StringName = tree.root if tree != null else &""
 	var charged_slot := Vector2(slot(SPLASH_SLOT_RATIO).x, hero_slot().y)
-	return camera_at(_focus_position(tree, root), charged_slot, TREE_ZOOM)
+	return camera_at(_focus_position(tree, root), charged_slot, end_zoom)
 
 
 ## The world position a camera should centre its slot on, falling back to the

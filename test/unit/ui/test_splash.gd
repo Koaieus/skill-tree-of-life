@@ -133,6 +133,12 @@ func _screen_x(xform: Transform2D, world: Vector2) -> float:
 	return (world.x - xform.origin.x) * zoom + FrontmatterLayout.viewport_size().x * 0.5
 
 
+## Where the root lands vertically, in viewport pixels, under a given camera.
+func _screen_y(xform: Transform2D, world: Vector2) -> float:
+	var zoom := FrontmatterLayout.zoom_of(xform).y
+	return (world.y - xform.origin.y) * zoom + FrontmatterLayout.viewport_size().y * 0.5
+
+
 func _root_world() -> Vector2:
 	return FrontmatterLayout.solve(_frontmatter.tree)[_root()] as Vector2
 
@@ -163,7 +169,8 @@ func test_the_charge_sets_off_at_once_with_the_root_still_unlit() -> void:
 			"and `focus_started` has not fired: that is leg 2, which the BOOM starts")
 
 	var parked := FrontmatterLayout.splash_camera(_frontmatter.tree)
-	var charged := FrontmatterLayout.charged_camera(_frontmatter.tree)
+	var charged := FrontmatterLayout.charged_camera(
+			_frontmatter.tree, _splash.charge_end_zoom)
 	assert_almost_eq(_splash.charge_pose(0.0).origin, parked.origin, Vector2(0.01, 0.01),
 			"leg 1 departs from the parked pose")
 	assert_ne(_splash.charge_pose(0.5).origin, parked.origin,
@@ -184,26 +191,27 @@ func test_advancing_drops_the_games_own_allocation_spike_on_the_root() -> void:
 			"press any button plays the same VFX every other allocation plays")
 
 
-## The clipping defect the retired `spike_lead` used to dodge, re-asserted as a
-## property of the CHOREOGRAPHY rather than of a knob's tuning (#734).
+## The clipping defect the retired `spike_lead` used to dodge, re-asserted at the
+## pose the BOOM actually happens at — and now the guard on
+## [member SplashScreen.charge_end_zoom]'s cap as well (#734).
 ##
-## The needle is 6x the node radius in WORLD units. Fired while the camera was
-## still parked at `SPLASH_ZOOM` 3.2 that was `44 * 6 * 3.2` = 845px of needle on
-## a 960px screen whose root sat 422px down — half of it off the top, which is
-## what shipped. `spike_lead` answered it by delaying the needle into the travel
-## until the zoom had dropped far enough.
+## The needle is 6x the node radius in WORLD units: `44 * 6` = 264. Fired while
+## the camera was still parked at `SPLASH_ZOOM` 3.2 that was 845px of needle on a
+## 960px screen whose root sat 422px down — half of it off the top, which is what
+## shipped. `spike_lead` answered it by delaying the needle into the travel.
 ##
-## The BOOM now happens at the CHARGED pose instead: `TREE_ZOOM` 1.0, with the
-## root already dropped into the hero slot's y. That is `44 * 6 * 1.0` = 264px of
-## needle against 480px of headroom — 216px of clearance, and no knob involved.
-## There is no longer a pose in the choreography at which the needle can clip, so
-## this test now pins the pose rather than a tuning value.
+## The BOOM now happens at the CHARGED pose: the root at `hero_slot()`'s y, which
+## is 480px of headroom, and the zoom the owner tunes. At the authored 1.6 that
+## is `264 * 1.6` = 422px against 480px — 58px of clearance. The knob's range
+## tops out at 1.8, below the `480 / 264` = 1.81 at which clipping resumes, so
+## this passes for EVERY value the inspector can produce; it is read off the
+## splash rather than restated so it tracks whatever the owner dials.
 ##
 ## Nothing here renders — the transform is rebuilt from the same public statics
 ## the splash itself uses, so this stays a decidable claim about the geometry.
 func test_the_needle_is_wholly_on_screen_by_the_time_it_drops() -> void:
 	var tree := _frontmatter.tree
-	var at_drop := FrontmatterLayout.charged_camera(tree)
+	var at_drop := FrontmatterLayout.charged_camera(tree, _splash.charge_end_zoom)
 	var zoom := FrontmatterLayout.zoom_of(at_drop).y
 	var view := FrontmatterLayout.viewport_size()
 	var world := _root_world()
@@ -215,6 +223,35 @@ func test_the_needle_is_wholly_on_screen_by_the_time_it_drops() -> void:
 	assert_lte(needle, screen_y,
 			"the needle (%.0fpx at zoom %.2f) overshoots the %.0fpx above the root"
 					% [needle, zoom, screen_y])
+
+
+func test_the_charge_end_zoom_cannot_be_tuned_into_the_clipping_defect() -> void:
+	# The cap is the guard, so it is asserted as a cap rather than trusted. Every
+	# value the `@export_range` can produce must keep the needle on screen — that
+	# is what makes this knob safe to hand to the owner.
+	var ceiling := FrontmatterLayout.hero_slot().y \
+			/ (FrontmatterLayout.look_of(_root()).radius * AllocationVFX.SPIKE_HEIGHT_FACTOR)
+	assert_lt(_splash.charge_end_zoom, ceiling,
+			"the authored default keeps the needle whole")
+	assert_lte(1.8, ceiling,
+			"and so does the top of its range — the inspector cannot reach the defect")
+
+
+func test_leg_one_stops_short_of_tree_zoom_so_leg_two_finishes_the_opening() -> void:
+	# The owner's correction: "the camera zooms out FAST and A LOT by the time
+	# the alloc vfx hits". Leg 1 ending at TREE_ZOOM is what caused that, and no
+	# easing can fix it — the flash would still land on a parked camera. So leg 1
+	# stops short and leg 2 carries the rest of the zoom out with its slide.
+	var tree := _frontmatter.tree
+	var charged := FrontmatterLayout.charged_camera(tree, _splash.charge_end_zoom)
+	var arrived := FrontmatterLayout.camera_for(tree, _root())
+
+	assert_gt(FrontmatterLayout.zoom_of(charged).x, FrontmatterLayout.TREE_ZOOM,
+			"the BOOM happens closer in than the tree pose — still opening")
+	assert_lt(FrontmatterLayout.zoom_of(charged).x, FrontmatterLayout.SPLASH_ZOOM,
+			"but leg 1 really did zoom out; it is a move, not a hold")
+	assert_gt(FrontmatterLayout.zoom_of(charged).x, FrontmatterLayout.zoom_of(arrived).x,
+			"so leg 2 still has zoom left to travel, which is what it rides its pan on")
 
 
 func test_the_needle_does_not_drop_until_the_charge_has_finished() -> void:
@@ -274,7 +311,8 @@ func test_leg_two_departs_from_the_charged_pose_whichever_clock_wins() -> void:
 	_splash.advance()
 	await get_tree().create_timer(0.25).timeout
 
-	var charged := FrontmatterLayout.charged_camera(_frontmatter.tree)
+	var charged := FrontmatterLayout.charged_camera(
+			_frontmatter.tree, _splash.charge_end_zoom)
 	assert_almost_eq(_frontmatter.camera.transform_at(0.0).origin, charged.origin,
 			Vector2(0.01, 0.01),
 			"leg 2 must pan from the pose leg 1 was aiming at, not from wherever "
@@ -331,7 +369,7 @@ func test_leg_one_takes_the_vertical_without_drifting_sideways() -> void:
 	# catch someone "tidying" those reads into literals.
 	var tree := _frontmatter.tree
 	var parked := FrontmatterLayout.splash_camera(tree)
-	var charged := FrontmatterLayout.charged_camera(tree)
+	var charged := FrontmatterLayout.charged_camera(tree, _splash.charge_end_zoom)
 	var arrived := FrontmatterLayout.camera_for(tree, _root())
 	var world := _root_world()
 
@@ -340,10 +378,9 @@ func test_leg_one_takes_the_vertical_without_drifting_sideways() -> void:
 	assert_almost_eq(_screen_x(charged, world),
 			FrontmatterLayout.slot(FrontmatterLayout.SPLASH_SLOT_RATIO).x, 0.01,
 			"and the slot it holds is the parked pose's own")
-	assert_almost_eq(charged.origin.y, arrived.origin.y, 0.01,
-			"leg 2 is then a pure horizontal pan: the camera y is already there")
-	assert_almost_eq(FrontmatterLayout.zoom_of(charged).x, FrontmatterLayout.TREE_ZOOM,
-			0.0001, "leg 1 is the zoom-out; leg 2 does no zooming at all")
+	assert_almost_eq(_screen_y(charged, world), _screen_y(arrived, world), 0.01,
+			"and the root holds its screen HEIGHT from the BOOM onward, so leg 2 "
+					+ "reads as a clean zoom-and-slide rather than a second drop")
 
 
 func test_reduce_motion_collapses_the_charge_as_well_as_the_travel() -> void:
@@ -404,6 +441,36 @@ func test_detonating_takes_the_charge_away_again() -> void:
 
 	assert_lte(glow.charge_stops(), Emissive.VALUE,
 			"the charge is dismissed — it does not outlive its own detonation")
+
+
+# --- the dev reload key (F5) -------------------------------------------------
+
+func _key(code: Key) -> InputEventKey:
+	var event := InputEventKey.new()
+	event.keycode = code
+	event.pressed = true
+	return event
+
+
+func test_the_reload_key_is_not_a_press_any_button() -> void:
+	# The splash sees `_unhandled_input` BEFORE FrontmatterInput — it is ordered
+	# after the frontmatter in `meta_root.tscn` — and "PRESS ANY BUTTON" takes
+	# the raw event kind, so every InputEventKey advances it. Without the
+	# exclusion F5 would skip the beat it exists to replay and be consumed before
+	# anything could reload.
+	assert_false(SplashScreen.is_any_button(_key(FrontmatterInput.RELOAD_KEY)),
+			"F5 is the dev key, not a press")
+	assert_true(SplashScreen.is_any_button(_key(KEY_SPACE)),
+			"but an ordinary key still means it — the prompt says ANY button")
+
+
+func test_the_reload_key_is_recognised_by_one_shared_constant() -> void:
+	# Asserted through the same predicate the splash excludes on, so the dev key
+	# and its exclusion cannot drift apart into two different keycodes.
+	assert_true(FrontmatterInput.is_reload(_key(FrontmatterInput.RELOAD_KEY)))
+	assert_false(FrontmatterInput.is_reload(_key(KEY_SPACE)))
+	assert_false(FrontmatterInput.is_reload(InputEventJoypadButton.new()),
+			"a gamepad button is never the reload key")
 
 
 # --- the latch ---------------------------------------------------------------

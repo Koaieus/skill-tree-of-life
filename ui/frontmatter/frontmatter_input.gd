@@ -43,6 +43,21 @@ extends Node
 ## [Control] in the panel layer consumes first — typing into the seed field, a
 ## button press — never reaches here.
 
+## The dev reload key. Owner, 2026-09-03: [i]"make F5 reload the game (in
+## frontmatter; helps testing repeatedly)"[/i] — the splash's charge-up is a
+## ~1s beat that has to be judged by eye many times over, and re-launching the
+## editor for each pass is the whole cost this removes.
+##
+## [b]A raw keycode, not an [InputMap] action.[/b] It is a dev affordance rather
+## than a bound control, the same call [DebugClipboard]'s `c` makes, so adding it
+## to `project.godot`'s action list would advertise it as a game input.
+##
+## [b]Const, and read by [SplashScreen].[/b] "PRESS ANY BUTTON" would otherwise
+## swallow it: the splash sits AFTER the frontmatter in `meta_root.tscn` so it
+## sees `_unhandled_input` first, and every [InputEventKey] advances it. One
+## constant means the dev key and the exclusion cannot drift apart.
+const RELOAD_KEY := KEY_F5
+
 ## The frontmatter this drives. Injected as a NodePath by the composing scene
 ## per `.claude/rules/scene-composition.md`.
 @export var frontmatter_path: NodePath
@@ -95,6 +110,10 @@ func _unhandled_input(event: InputEvent) -> void:
 ## resulting focus — no viewport, no frame, no real input map plumbing.
 ## Returns whether the event was consumed.
 func _handle(event: InputEvent) -> bool:
+	if is_reload(event):
+		reload()
+		return true
+
 	# A raised panel owns the keyboard: its own Controls handle up/down/accept,
 	# and the only thing this layer still answers for is the way out.
 	if _panel_is_up():
@@ -112,6 +131,29 @@ func _handle(event: InputEvent) -> bool:
 	if event.is_action_pressed(&"ui_cancel") or event.is_action_pressed(&"ui_left"):
 		return back()
 	return false
+
+
+## Whether [param event] is the dev reload key. Static so [SplashScreen] can ask
+## the same question without holding one of these.
+static func is_reload(event: InputEvent) -> bool:
+	var key := event as InputEventKey
+	return key != null and key.keycode == RELOAD_KEY
+
+
+## Reloads the frontmatter scene from scratch — the whole menu, splash included,
+## rebuilt as if the game had just been launched.
+##
+## [b]Ahead of the panel check in [method _handle], deliberately.[/b] A dev key
+## that stops working because a lobby panel is up is a dev key you cannot trust.
+##
+## [b]Unpausing first is load-bearing.[/b] [member SceneTree.paused] is a
+## SceneTree flag that outlives the reload — [method PauseMenu._restart]'s own
+## docstring says so — so a reload entered from a paused tree would rebuild the
+## menu and leave it frozen, with every tween (the prompt pulse, the charge)
+## silently dead while timers went on firing.
+func reload() -> void:
+	get_tree().paused = false
+	get_tree().reload_current_scene()
 
 
 ## Moves the cursor [param delta] places through the current fan.

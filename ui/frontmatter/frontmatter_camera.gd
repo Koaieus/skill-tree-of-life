@@ -126,17 +126,20 @@ static func ease_sprout(t: float) -> float:
 ## Charge easing — the splash's leg 1 alone (#734), and deliberately NOT
 ## [method ease_travel].
 ##
-## [b]It is eased at BOTH ends, and that is the whole point.[/b] `ease_travel` is
-## a cubic ease-OUT: fastest at `t == 0`, which is exactly wrong for a beat the
-## owner asked to be [i]"slow at the start for a graceful move"[/i]. A pure cubic
-## ease-IN overcorrects the other way — it leaves ~70% of the zoom-out to the
-## last third and the opening reads as a stall rather than as a start. Smoothstep
-## is the honest reading: it leaves gently, gathers pace through the middle, and
-## settles into the BOOM.
+## [b]It is BACK-LOADED, which is the whole feel.[/b] `ease_travel` is a cubic
+## ease-OUT: fastest at `t == 0`, so the camera has done most of its zooming
+## before the charge has visibly built. Owner, 2026-09-03: [i]"the camera zooms
+## out FAST and A LOT by the time the alloc vfx hits. we could keep it closer a
+## bit longer... we play our little animation while it starts zooming out a
+## little, then more so / faster so when the alloc vfx has just started"[/i] —
+## i.e. an ease-IN, which holds the splash shot while the ring winds up and then
+## opens hard into the BOOM.
 ##
-## [b]One function so the feel is a one-line swap.[/b] #567's testing contract
-## sends easing feel to the owner's eye and #578's tab, so nothing asserts the
-## curve — only that leg 1 starts at the parked pose and ends at the charged one,
-## which every monotonic 0->1 easing satisfies.
-static func ease_charge(t: float) -> float:
-	return smoothstep(0.0, 1.0, clampf(t, 0.0, 1.0))
+## [param power] is the shape, not a fixed curve: 1.0 is linear, higher is later
+## and harder. [member SplashScreen.charge_ease_power] exports it so "how late
+## does it kick" is an inspector dial rather than a code edit — #567's testing
+## contract sends easing feel to the owner's eye, so nothing asserts the curve,
+## only that leg 1 runs from the parked pose to the charged one, which every
+## monotonic 0->1 shape satisfies.
+static func ease_charge(t: float, power: float = 2.5) -> float:
+	return pow(clampf(t, 0.0, 1.0), maxf(power, 0.01))

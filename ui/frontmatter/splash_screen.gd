@@ -30,8 +30,10 @@ extends Control
 ## [b]The BOOM[/b] — at the seam. The root reads allocated, the charge detonates
 ## into a shockwave, and the game's own allocation needle drops.
 ##
-## [b]Leg 2[/b] — the existing [method FrontmatterRoot.focus] on the root, which
-## from the charged pose is a pure horizontal pan into the hero slot.
+## [b]Leg 2[/b] — the existing [method FrontmatterRoot.focus] on the root: the
+## slide into the hero slot, carrying the LAST of the zoom-out with it. Leg 1
+## stops at [member charge_end_zoom], short of tree zoom, so the flash lands
+## while the camera is still opening rather than after it has settled.
 ##
 ## [b]What this replaced, and why the old knobs are gone.[/b] The root used to
 ## snap to its final lit state in one frame, hold there for an `allocation_hold`,
@@ -40,9 +42,13 @@ extends Control
 ## defect — the needle is `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR` in WORLD
 ## units, so at [constant FrontmatterLayout.SPLASH_ZOOM] it was 845px tall on a
 ## 960px screen whose root sat 422px down. The BOOM now happens at
-## [constant FrontmatterLayout.TREE_ZOOM] with the root in the hero slot: 264px
-## of needle against 480px of headroom. The defect cannot recur, so the knob that
-## dodged it has nothing left to do.
+## [member charge_end_zoom] with the root at the hero slot's height, under a cap
+## that keeps the needle on screen by construction. The defect cannot recur, so the knob that
+## dodged it has nothing left to do — the BOOM now happens at
+## [member charge_end_zoom] 1.6 with the root at the hero slot's height, where
+## the needle reads 422px against 480px of headroom. The knob's range is capped
+## below the 1.81 at which clipping would resume, so the defect cannot be tuned
+## back in.
 ##
 ## [b]This scene therefore paints no background.[/b] The tree is meant to be
 ## visible behind the title, hugely magnified — that is the whole effect.
@@ -84,6 +90,29 @@ signal advanced
 ## `0.0` runs the whole advance in one frame, which is also what
 ## [member FrontmatterRoot.reduce_motion] collapses it to.
 @export_range(0.0, 3.0, 0.05) var charge_duration: float = 0.5
+
+## How far leg 1 zooms out — an INTERMEDIATE zoom, deliberately short of
+## [constant FrontmatterLayout.TREE_ZOOM] (#734).
+##
+## [b]Leg 1 opens the shot; leg 2 finishes it.[/b] Owner, 2026-09-03: [i]"the
+## camera zooms out FAST and A LOT by the time the alloc vfx hits. we could keep
+## it closer a bit longer, like Hearthstone's intro... we play our little
+## animation while it starts zooming out a little, then more so / faster so when
+## the alloc vfx has just started (its a short flash anyway)"[/i]. Ending leg 1
+## here rather than at tree zoom leaves the remaining zoom-out to ride leg 2's
+## pan, so the needle flashes mid-motion instead of after the camera has parked.
+##
+## [b]The range is capped at 1.8 on purpose.[/b] The needle is 264 world units
+## tall against 480px of headroom at the charged slot, so it clips above
+## `480 / 264` = **1.81**. The cap is what stops this knob reintroducing the very
+## defect #734 retired; at the default 1.6 the needle reads 422px with 58px to
+## spare, and 60% larger on screen than a boom at tree zoom.
+@export_range(1.0, 1.8, 0.05) var charge_end_zoom: float = 1.6
+
+## The shape of leg 1's zoom-out — 1.0 is linear, higher holds the splash shot
+## longer and then opens harder. See [method FrontmatterCamera.ease_charge]; the
+## feel is the owner's to dial and nothing asserts the curve.
+@export_range(1.0, 6.0, 0.1) var charge_ease_power: float = 2.5
 
 @onready var _prompt: Label = %Prompt
 
@@ -196,7 +225,7 @@ func _start_charge() -> void:
 	if _frontmatter == null or _frontmatter.tree == null or _frontmatter.camera == null:
 		return
 	_charge_from = _frontmatter.camera.current_transform()
-	_charge_to = FrontmatterLayout.charged_camera(_frontmatter.tree)
+	_charge_to = FrontmatterLayout.charged_camera(_frontmatter.tree, charge_end_zoom)
 	var glow := _charge_glow()
 	if glow != null:
 		glow.set_progress(0.0)
@@ -216,7 +245,7 @@ func _start_charge() -> void:
 ## leg 1 is asserting the harness's frame delivery, not this file's decision.
 func charge_pose(t: float) -> Transform2D:
 	return _charge_from.interpolate_with(
-		_charge_to, FrontmatterCamera.ease_charge(clampf(t, 0.0, 1.0))
+		_charge_to, FrontmatterCamera.ease_charge(clampf(t, 0.0, 1.0), charge_ease_power)
 	)
 
 
@@ -284,7 +313,9 @@ func _end_charge() -> void:
 		return
 	if _frontmatter.tree == null or _frontmatter.camera == null:
 		return
-	_frontmatter.camera.apply(FrontmatterLayout.charged_camera(_frontmatter.tree))
+	_frontmatter.camera.apply(
+		FrontmatterLayout.charged_camera(_frontmatter.tree, charge_end_zoom)
+	)
 
 
 ## The detonation: the bespoke shockwave, then the game's OWN allocation needle.
@@ -345,8 +376,15 @@ func is_advanced() -> bool:
 ## Deliberately NOT an `ui_accept` check: the prompt says ANY button, so this
 ## takes the raw event kind rather than an action, and a player mashing whatever
 ## is under their thumb gets through.
+## [b]Except the dev reload key.[/b] This node sees `_unhandled_input` BEFORE
+## [FrontmatterInput] (it is ordered after the frontmatter in `meta_root.tscn`),
+## so without this exclusion F5 would read as "any button", advance the splash,
+## and be consumed before the thing that reloads ever saw it — the affordance
+## would appear to do nothing except skip the beat it exists to replay.
 static func is_any_button(event: InputEvent) -> bool:
 	if not event.is_pressed() or event.is_echo():
+		return false
+	if FrontmatterInput.is_reload(event):
 		return false
 	return event is InputEventKey or event is InputEventJoypadButton
 
