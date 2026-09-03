@@ -1,6 +1,6 @@
 # Skill Tree of Life — Design Docs
 
-A Godot 4.4 game where the skill tree *is* the game. Entities live on a graph of skill nodes, allocate territory, and fight turn-based battles for dominance. The skill tree is not a UI — it is the world.
+A Godot 4.7 game where the skill tree *is* the game. Entities live on a graph of skill nodes, allocate territory, and fight turn-based battles for dominance. The skill tree is not a UI — it is the world.
 
 > **Roguelite PvP Skill Trees coming to life: The Skill Tree of Life.** You open a game's skill tree, get trapped inside it, and discover other hostile entities occupy nodes on the same tree. Allocate wisely, weaponize the topology, destroy all that opposes you.
 
@@ -27,6 +27,8 @@ The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, an
 | [skill_node_addons.md](skill_node_addons.md) | Node addons (Armor Ring, Buffer, Gate, Relay, Anti-Magic, etc.), Tech Seeds |
 | [skill_node_specializations.md](skill_node_specializations.md) | Node specializations (Corrupted, Crystallized, Anchor) |
 | [spells.md](spells.md) | Spell catalogue — identity and propagation mechanics for all Blue (INT/magic) spells |
+| [core_movement_plan.md](core_movement_plan.md) | Core-movement interaction plan (#21) — click-source-then-target, drag as accelerator; the phase-gating parts are obsolete post-#60 |
+| [status-tags.md](status-tags.md) | **Proposed, not implemented** — status tags as a second grant channel; moves back to `docs/domain/` once it ships |
 | [info_gating.md](info_gating.md) | Info-gating dimensions (existence/archetype/owner/modifiers/addons/…) — why vision is a vector not a boolean, and how sensor/recon/anti-recon mechanics share one surface |
 
 ## Reading order

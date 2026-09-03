@@ -47,7 +47,7 @@ mise run check-shaders                         # the shader half alone: compile-
 mise run refresh                               # editor/class-cache refresh + a verdict on what it changed
 ```
 
-The full suite costs **~185s** (386 scripts, 3504 tests, 2026-09-02) — a
+The full suite costs **~200s** (403 scripts, 3734 tests, 2026-09-04) — a
 **gate, not a feedback loop.** Earn it **at most once per unit of work**, at
 final green, right before reporting: never to explore, never mid-rebase,
 never **to grep it differently.** Iterate on the cheap ladder instead —
