@@ -3,8 +3,10 @@
 [ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/bolt_body.tscn" id="1_base"]
 
 [node name="LightningBoltBody" unique_id=660930948 instance=ExtResource("1_base")]
-head_size = 10.0
-trail_length = 4
+head_size = 22.0
+trail_length = 6
+stretch_along_velocity = 0.9
+trail_alpha_tail = 0.35
 trail_stride = 2
 trail_taper = 0.25
 hop_scale_start = 1.0

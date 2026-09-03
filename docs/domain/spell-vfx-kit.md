@@ -43,7 +43,7 @@ sandbox gallery does, for exactly this reason).
 
 | Primitive | Files | What it is |
 |---|---|---|
-| `BoltBody` | `ui/vfx/projectile/visual/bolt_body.tscn` + five inherited configs (`bolt_small` / `_blunt` / `_streak` / `_packet` / `_soft`) | The workhorse body. Supersedes `GlowingDot` **for spell use** — `GlowingDot` is not deleted, it has non-spell callers. |
+| `BoltBody` | `ui/vfx/projectile/visual/bolt_body.tscn` + five inherited configs (`bolt_small` / `_blunt` / `_streak` / `_packet` / `_soft`) | The workhorse body. Supersedes `GlowingDot` **for spell use** — `GlowingDot` is not deleted, it has non-spell callers. `MAX_TRAIL_SEGMENTS` is **8** (#663, was 4); `_TAPER_SPAN` stays pinned at 4 so raising the cap re-spread nothing, and segments past the fourth extend the tail at tail values. |
 | `ImpactRing` | `ui/vfx/projectile/visual/impact_ring.tscn`, `impact_ring_absorb.tscn` | Punctuation, and the **sole home of the crit grammar**. `OUT` = impact, `IN` = absorb/gather. |
 | `WavePath` | `ui/vfx/projectile/path/wave_path.gd` | Lerp + transverse sine. "This propagates" rather than "this was thrown". Reverberator / Resonator. |
 | `JitterPath` | `ui/vfx/projectile/path/jitter_path.gd` | Lerp + perpendicular hash noise. Unstable arcing electricity. Spark / the lightning family. |
@@ -137,6 +137,34 @@ Direct proportion rather than a softened curve, because *"bolt size means curren
 damage"* is already learned vocabulary from #663 D3's Lightning/Leafblower
 teaching pair. A splitting spell is saying the same sentence about the same
 quantity, one hop earlier.
+
+#### Per-landing weight: `BoltBody.magnitude_influence` (#663)
+
+The same sentence again, one granularity out: `arc_weight` splits ONE wave across
+a fan, `magnitude` ranks the waves against each other. `ScheduleEntry.magnitude`
+is this landing's authored hit amount as a fraction of the largest landing in the
+same outcome, normalized 0..1 by the compiler because it is the only thing that
+sees a whole outcome at once. It rode `_on_context` from #543 and was read by
+nothing until now.
+
+Deliberately the same opt-in shape as `arc_weight_influence` — default 0.0, so
+all nine configs provably take the old path — so there is one idiom to learn
+rather than two. It only ever **shrinks**: magnitude tops out at 1.0 on the
+biggest entry, so opting in cannot inflate a spell past its authored silhouette.
+`_magnitude` defaults to 1.0, not 0.0 — an opted-in body that never receives an
+entry must draw at full size rather than vanish.
+
+**`SpellDef.power` is NOT the hook for this, and the mistake is inviting.** Power
+is a coefficient, not a damage: `spell_def.gd` is explicit that the seed hit is
+`spell_damage(cast-from node) x power`, so a power-3 spell from a weak caster
+lands softer than a power-1 spell from a strong one. Sizing off power would
+contradict D3's lesson every time the caster and the coefficient disagree.
+
+**Cross-SPELL loudness has no derived answer and stays authored** in each
+config's `head_size`. Nothing in a resolved outcome carries an absolute,
+comparable "how loud is this spell" — magnitude is normalized *within* one cast —
+so "Lightning should read bigger than Spark" is a designer's judgement, made by
+eye against the spell playground's Loop toggle.
 
 **Never put per-arc weight on the wrapper's `modulate`.** `ComposedProjectileVisual`
 is a `Node2D`, so `modulate` cascades to the `ImpactRing` too.
@@ -288,7 +316,11 @@ frame. The named constants an owner is most likely to want to move:
 | `tail_level` (0.45) | same | Body brightness at the trailing end. |
 | `front_width` (0.28) | same | Fraction of the quad the hot front occupies. |
 | `linger_seconds` (2.5) | `edge_energize.tscn` / per-spell override | The burn-in fade — **and the thing that sets peak overlay count**, via `EdgeEnergize.max_live_overlays(linger, beat)`. Read #663's load table before raising it. |
-| `head_size`, `trail_length`, `hop_scale_start/end` | the five `bolt_*.tscn` configs | Per-config silhouette and the #663 D3 size ramp. |
+| `head_size`, `trail_length`, `hop_scale_start/end` | the five `bolt_*.tscn` configs | Per-config silhouette and the #663 D3 size ramp. `head_size` is also the ONLY cross-spell loudness lever — see the magnitude section above for why nothing derives it. |
+| `trail_alpha_head` (0.7) / `trail_alpha_tail` (0.05) | the `bolt_*.tscn` configs | Trail alpha ramp, previously hardcoded. Lifting the tail is what turns the segments past `_TAPER_SPAN` into a *flurry* (several arcs of comparable weight) rather than a fade. |
+| `stretch_along_velocity` (0.0) | the `bolt_*.tscn` configs | Squash-and-stretch along travel — the disc-to-arc knob. Needs a stable facing; on a jagged path pair it with `facing_smoothing_seconds`. |
+| `magnitude_influence` (0.0) | the `bolt_*.tscn` configs | Opt-in per-landing sizing. See above. |
+| `facing_smoothing_seconds` (0.0) | `MagicBounceCoordinator`, forwarded to every `Projectile` | Low-passes `face_velocity`. `JitterPath`'s hard corners throw the snapped facing ~24 degrees off the travel line for one frame at each noise boundary — invisible on a symmetric disc, a wobble on a stretched one. 0.0 snaps, as before. |
 | `radius`, `expand_radius`, `thickness`, `squash` | `impact_ring.tscn` / `impact_ring_absorb.tscn` | Ring geometry. |
 | the `0.12` convergence widening coefficient | `ui/vfx/projectile/visual/impact_ring.gd` `_on_context` | How much each extra converging predecessor widens the ring. In code rather than on the scene, because it is a *rate*, not a per-config silhouette — Resonator is the only spell that will exercise it. |
 

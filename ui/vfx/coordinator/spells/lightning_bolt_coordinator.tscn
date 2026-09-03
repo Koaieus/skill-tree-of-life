@@ -14,6 +14,7 @@ smoothing = 0.1
 script = ExtResource("3_loop")
 
 [node name="LightningBoltCoordinator" unique_id=928422197 instance=ExtResource("1_base")]
+facing_smoothing_seconds = 0.06
 jump_path = SubResource("Resource_jitter")
 edge_path = SubResource("Resource_jitter")
 self_loop_path = SubResource("Resource_loop")

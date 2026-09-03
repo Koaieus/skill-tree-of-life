@@ -3,8 +3,10 @@
 [ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/bolt_body.tscn" id="1_base"]
 
 [node name="BoltPacket" unique_id=1428549044 instance=ExtResource("1_base")]
-head_size = 10.0
-trail_length = 2
+head_size = 18.0
+trail_length = 4
+stretch_along_velocity = 0.5
+trail_alpha_tail = 0.28
 trail_stride = 1
 trail_taper = 0.2
 fade_seconds = 0.18
