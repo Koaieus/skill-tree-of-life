@@ -142,7 +142,8 @@ func test_dropping_a_peer_at_the_transport_returns_its_seat_to_waiting() -> void
 
 	assert_true(LobbyScreen.is_pending_remote(_seat_of(_host, _REMOTE_SEAT)),
 			"the seat is waiting again rather than gone")
-	assert_eq(_host.participants().size(), 3, "two humans and one AI, still")
+	assert_eq(_host.participants().size(), 2 + LobbyScreen.DEFAULT_AI_OPPONENTS,
+			"two humans and the offered AI count, still")
 	assert_eq(seen.size(), 1, "and exactly one roster went out for it")
 	assert_true(LobbyScreen.is_pending_remote(_seat_of(_b, _REMOTE_SEAT)),
 			"which the other client is now showing")

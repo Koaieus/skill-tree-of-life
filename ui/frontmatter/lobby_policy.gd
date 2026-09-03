@@ -25,11 +25,15 @@ extends Resource
 ## hot-seat policy that locks both humans to `camp_1` keeps resolving
 ## COOP_HOTSEAT by construction rather than by a check.
 
-## The hard ceiling on distinct camps in one run (#615 D5), and it has zero
-## headroom: [code]LobbyScreen._MAX_AI_OPPONENTS[/code] is 4, plus 2 humans is 6
-## participants, and `entity/factions/` holds exactly `camp_1..camp_6`. Those
-## two numbers agree today and a free per-slot camp picker fits them
-## precisely — raising either one is a change to both.
+## The hard ceiling on DISTINCT camps in one run (#615 D5) — not on
+## participants, who may share one. `entity/factions/` holds exactly
+## `camp_1..camp_6`, so raising this means authoring more factions.
+##
+## This used to be stated as having zero headroom, back when
+## [code]LobbyScreen.MAX_AI_OPPONENTS[/code] was 4 and a 6-participant lobby
+## could hand every slot its own camp. At 12 opponents a full 14-participant
+## roster no longer can, so a free per-slot camp picker is now genuinely
+## bounded by this constant rather than incidentally fitting inside it.
 const MAX_CAMPS := 6
 
 ## The camp pool a picker may offer, in dropdown order. Empty means this lobby

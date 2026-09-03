@@ -22,6 +22,16 @@ func _ready() -> void:
 	_spinbox.value_changed.connect(_on_spinbox_changed)
 
 
+## The bounds the screen offers, so [constant LobbyScreen._MAX_AI_OPPONENTS] is
+## the one place the ceiling lives rather than a number authored twice in the
+## scene's two controls.
+func set_range(low: float, high: float) -> void:
+	_slider.min_value = low
+	_slider.max_value = high
+	_spinbox.min_value = low
+	_spinbox.max_value = high
+
+
 func set_value(v: float) -> void:
 	_slider.value = v
 	_spinbox.value = v

@@ -157,7 +157,8 @@ func test_a_drop_returns_the_seat_to_waiting() -> void:
 	_host._on_link_peer_left(_CLIENT_PEER)
 
 	assert_true(LobbyScreen.is_pending_remote(_seat_of(_host, 2)))
-	assert_eq(_host.participants().size(), 3, "two humans and one AI, still")
+	assert_eq(_host.participants().size(), 2 + LobbyScreen.DEFAULT_AI_OPPONENTS,
+			"two humans and the offered AI count, still")
 
 
 ## Acceptance 2, upward: the client picks, the host's row moves. And the client's

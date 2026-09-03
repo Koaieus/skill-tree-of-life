@@ -107,11 +107,18 @@ const _DEFAULT_AI_CORE := preload("res://entity/core/basic_enemy_core.tres")
 ## writer, expressed in the UI).
 const MAX_NAME_LENGTH := 24
 
-## AI opponents a fresh lobby offers. One rival camp is what a menu-launched run
-## produced before this screen authored any AI at all (the level's fallback
-## roster is `camp_sizes = [1, 1]`), so this is that behaviour, made visible.
-const _DEFAULT_AI_OPPONENTS := 1
-const _MAX_AI_OPPONENTS := 12
+## AI opponents a fresh lobby offers, and the ceiling the count row is ranged
+## to. Owner-tuned: the original 1 was "what a menu-launched run produced before
+## this screen authored any AI at all" (the level's fallback roster is
+## `camp_sizes = [1, 1]`), i.e. parity with pre-lobby behaviour rather than a
+## chosen default. It is a chosen default now.
+##
+## Both constants are seeded onto the row in [method _ready] — before that they
+## were dead, since [method _ai_opponent_count] only consults
+## [constant DEFAULT_AI_OPPONENTS] when the row is absent and the row authored
+## its own `1` and `0..12` in `ai_count_row.tscn`.
+const DEFAULT_AI_OPPONENTS := 5
+const MAX_AI_OPPONENTS := 12
 
 ## The rows this screen stacks, kept under the name the shipped code and its
 ## tests already use. It is this node: the screen IS its own column now that
@@ -281,8 +288,14 @@ func _ready() -> void:
 
 	if _offers_ai_opponents():
 		_ai_count_row = _AI_COUNT_ROW.instantiate()
-		_ai_count_row.value_changed.connect(func(_v: float): _rebuild_participants())
 		content.add_child(_ai_count_row)
+		# Seed AFTER `add_child` (the row's controls are `@onready`, so they are
+		# null before it enters the tree) and BEFORE connecting `value_changed`:
+		# seeding moves the slider, which would otherwise fire a rebuild against
+		# a roster that does not exist yet.
+		_ai_count_row.set_range(0, MAX_AI_OPPONENTS)
+		_ai_count_row.set_value(DEFAULT_AI_OPPONENTS)
+		_ai_count_row.value_changed.connect(func(_v: float): _rebuild_participants())
 
 	_rows_container = VBoxContainer.new()
 	_rows_container.add_theme_constant_override("separation", 4)
@@ -1010,7 +1023,7 @@ func _rebuild_participants() -> void:
 
 func _ai_opponent_count() -> int:
 	if _ai_count_row == null:
-		return _DEFAULT_AI_OPPONENTS if _offers_ai_opponents() else 0
+		return DEFAULT_AI_OPPONENTS if _offers_ai_opponents() else 0
 	return int(_ai_count_row.value)
 
 
@@ -1244,7 +1257,7 @@ static func assign_default_cores(participants_in: Array[Participant]) -> void:
 ## the moment #563 made the spawn site read the roster.
 ##
 ## Round-robin, so a roster longer than the palette repeats rather than crashing
-## — but the max roster is 14 (2 humans + [constant _MAX_AI_OPPONENTS]) against
+## — but the max roster is 14 (2 humans + [constant MAX_AI_OPPONENTS]) against
 ## twenty colours, so in practice the wrap is unreachable and every slot differs.
 static func assign_default_colors(
 	participants_in: Array[Participant], palette: PlayerPalette
