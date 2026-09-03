@@ -511,6 +511,17 @@ func _on_link_refused(reason: String) -> void:
 ## transient hold on START is over too. Erase-then-refresh BEFORE the explicit
 ## message below, so that message is the one left standing rather than
 ## whatever [method _refresh_start_enabled] would otherwise have written.
+##
+## [b]This line survives only until the next [method _refresh_start_enabled]
+## call, though — not until something else explicit overwrites it.[/b] Unlike
+## the client-side refusal ([method _on_link_refused]), which latches
+## [member _refusal_shown] and so is protected, nothing latches this one: it
+## shares [member _status_label] with the #736 gate reason, and any later
+## roster change (a colour pick, the AI count, another peer connecting) recomputes
+## and can blank it. Deliberate — tracking "was the last write mine" costs more
+## than a status line that outlives its moment, and skipping the empty write
+## would leave a stale "waiting" line behind it. A host that wants the reason
+## after the fact has the trace in [signal CommandLink.logged] instead.
 func _on_link_peer_refused(peer_id: int, reason: String) -> void:
 	_connecting_peers.erase(peer_id)
 	_refresh_start_enabled()
