@@ -39,3 +39,6 @@ pool scoped to `constitution`. Where a pool *lives* tells you nothing about wher
   It cannot catch a `&""` pool at all, since universal pools are legal in any pack.
 - Changing any pool's `archetype_stat` shifts every downstream weighted-pick index. Regenerate
   the procgen goldens with `mise run procgen-golden-regenerate` and justify the diff.
+
+**This is the current shape, not the settled one.** #751 proposes deleting the inner
+`archetype_stat` and making the pack the only gate — rewrite or delete this rule when it lands.
