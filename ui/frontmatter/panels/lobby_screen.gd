@@ -1045,11 +1045,30 @@ func _on_row_camp_picked(camp: Faction, participant: Participant) -> void:
 ## ParticipantRow._commit_name] normalizes before emitting), so what a client
 ## sends up is what a local host would have written anyway.
 func _on_row_name_committed(text: String, participant: Participant) -> void:
+	_maybe_save_default_name(participant, text)
 	if _is_client():
 		_submit_pick(participant, {"display_name": text})
 		return
 	_on_name_picked(text, participant)
 	_broadcast_roster()
+
+
+## Remembers a name typed for what is unambiguously "my own" seat, so the next
+## lobby [method build_participants] seeds with it (#741). Skipped for
+## hot-seat's SECOND slot only: two people share one machine there, and which
+## of them owns "the" saved default is undefined. Every other case — single,
+## hosting, joining — has exactly one local human, so [param participant] IS
+## that human whenever this fires at all (a row this screen did not wire as
+## editable never emits [signal ParticipantRow.name_committed] in the first
+## place).
+func _maybe_save_default_name(participant: Participant, text: String) -> void:
+	if _mode == RunConfig.Mode.COOP_HOTSEAT and participant.id != 1:
+		return
+	var wanted := normalize_name(text)
+	if wanted.is_empty() or wanted == Settings.current.player_name:
+		return
+	Settings.current.player_name = wanted
+	Settings.save_settings()
 
 
 ## A slot chose a colour. The lobby writes it, not the row — this screen owns
@@ -1143,14 +1162,20 @@ static func build_participants(
 		# over the wire when joining — a client's own roster is discarded on
 		# receipt, so what it puts here only has to be a coherent placeholder.
 		var local_peer := _HOST_PEER_ID if network.role == NetworkTransport.Role.HOST else _PENDING_PEER_ID
-		result.append(_make_participant(1, "Player 1", _CAMP_1, Participant.Kind.HUMAN, local_peer))
+		# Seeded only when HOSTING — a CLIENT's own roster here is a throwaway
+		# placeholder [method LobbyScreen._adopt_remote_roster] discards the
+		# instant the host's broadcast lands, so a saved name would flash and
+		# then silently revert to "Player 2", reading as a bug rather than a
+		# skipped step.
+		var seat1_name := _default_name("Player 1") if network.role == NetworkTransport.Role.HOST else "Player 1"
+		result.append(_make_participant(1, seat1_name, _CAMP_1, Participant.Kind.HUMAN, local_peer))
 		var remote_peer := _PENDING_PEER_ID if network.role == NetworkTransport.Role.HOST else _HOST_PEER_ID
 		result.append(_make_participant(2, "Player 2", _CAMP_2, Participant.Kind.HUMAN, remote_peer))
 	elif mode == RunConfig.Mode.COOP_HOTSEAT:
-		result.append(_make_participant(1, "Player 1", _CAMP_1))
+		result.append(_make_participant(1, _default_name("Player 1"), _CAMP_1))
 		result.append(_make_participant(2, "Player 2", _CAMP_1))
 	else:
-		result.append(_make_participant(1, "Player 1", _PLAYER_FACTION))
+		result.append(_make_participant(1, _default_name("Player 1"), _PLAYER_FACTION))
 	var next_id := result.size() + 1
 	for i in maxi(0, ai_opponents):
 		result.append(_make_participant(
@@ -1204,6 +1229,14 @@ static func taken_colors(
 		if p.id != except_id and not out.has(p.color):
 			out.append(p.color)
 	return out
+
+
+## This machine's saved name ([member GameSettings.player_name]), or [param
+## fallback] when nothing is saved. Read once, at roster-build time — it seeds
+## a slot's starting text, never overrides a later pick.
+static func _default_name(fallback: String) -> String:
+	var saved := Settings.current.player_name
+	return saved if not saved.is_empty() else fallback
 
 
 static func _make_participant(

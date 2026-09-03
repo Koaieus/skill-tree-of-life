@@ -46,6 +46,15 @@ const RESOLUTIONS: Array[Vector2i] = [
 ## combat at double speed and still end in a bit-identical world.
 @export_range(0.25, 3.0, 0.05) var combat_time_scale: float = 1.0
 
+@export_group("Player")
+## #741 LAN QoL: the name a fresh lobby seeds a local human seat with, kept
+## in step by [method LobbyScreen._maybe_save_default_name] whenever a commit
+## is unambiguously this machine's own identity to record. Per-machine, not
+## a profile — there is no login, so "whoever last typed a name here" is the
+## whole model, and [LobbyScreen]'s Name field is still the final word: this
+## only saves a re-type next time.
+@export var player_name: String = ""
+
 @export_group("Display")
 @export_enum("Windowed", "Fullscreen", "Borderless") var window_mode: int = WindowMode.WINDOWED
 @export_enum("1280x720", "1600x900", "1920x1080", "2560x1440", "3840x2160") var resolution: int = 2

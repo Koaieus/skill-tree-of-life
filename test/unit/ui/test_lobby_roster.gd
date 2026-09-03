@@ -14,6 +14,31 @@ extends GutTest
 const _CAMP_1 := preload("res://entity/factions/camp_1.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
+## #741: every test in this file may touch [member GameSettings.player_name]
+## through the roster it builds or a row it commits — isolated exactly like
+## `test_settings.gd`, so a run here never reads or clobbers the developer's
+## real `user://settings.cfg`.
+const _SETTINGS_PATH := "user://settings.cfg"
+var _had_previous_settings := false
+var _settings_backup: PackedByteArray
+
+
+func before_each() -> void:
+	_had_previous_settings = FileAccess.file_exists(_SETTINGS_PATH)
+	if _had_previous_settings:
+		_settings_backup = FileAccess.get_file_as_bytes(_SETTINGS_PATH)
+	Settings.current = GameSettings.new()
+
+
+func after_each() -> void:
+	if _had_previous_settings:
+		var f := FileAccess.open(_SETTINGS_PATH, FileAccess.WRITE)
+		f.store_buffer(_settings_backup)
+		f.close()
+	elif FileAccess.file_exists(_SETTINGS_PATH):
+		DirAccess.remove_absolute(_SETTINGS_PATH)
+	Settings.current = GameSettings.new()
+
 
 func _make_lobby(mode: RunConfig.Mode) -> LobbyScreen:
 	var lobby := LobbyScreen.new()
@@ -418,6 +443,65 @@ func test_normalize_name_trims_and_caps() -> void:
 	var long_name := "x".repeat(LobbyScreen.MAX_NAME_LENGTH + 10)
 	assert_eq(LobbyScreen.normalize_name(long_name).length(), LobbyScreen.MAX_NAME_LENGTH,
 			"a remote pick meets the same cap the field's max_length enforces locally")
+
+
+# --- #741: a saved default name seeds a fresh lobby --------------------------
+
+func test_a_fresh_offline_lobby_seeds_the_saved_default_name() -> void:
+	Settings.current.player_name = "Bramh"
+
+	var single := LobbyScreen.build_participants(RunConfig.Mode.SINGLE, null, 0)
+	assert_eq(single[0].display_name, "Bramh", "single-player's one human is unambiguously me")
+
+	var hotseat := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
+	assert_eq(hotseat[0].display_name, "Bramh", "hot-seat's first slot is still me")
+	assert_eq(hotseat[1].display_name, "Player 2",
+			"the second slot is a guest on this machine — no saved identity to seed it with")
+
+
+func test_no_saved_name_falls_back_to_the_authored_default() -> void:
+	assert_eq(Settings.current.player_name, "", "sanity: nothing saved yet")
+	var parts := LobbyScreen.build_participants(RunConfig.Mode.SINGLE, null, 0)
+	assert_eq(parts[0].display_name, "Player 1")
+
+
+func test_hosting_seeds_the_saved_name_but_joining_does_not() -> void:
+	# A CLIENT's own roster here is a throwaway placeholder that
+	# `_adopt_remote_roster` discards the instant the host's broadcast lands —
+	# seeding it would flash the saved name and then silently revert to
+	# "Player 2", which reads as a bug rather than a skipped step.
+	Settings.current.player_name = "Bramh"
+
+	var hosting := LobbyScreen.build_participants(
+			RunConfig.Mode.SINGLE, NetworkConfig.host(0), 0)
+	assert_eq(hosting[0].display_name, "Bramh", "the host's own seat is never thrown away")
+
+	var joining := LobbyScreen.build_participants(
+			RunConfig.Mode.SINGLE, NetworkConfig.join("127.0.0.1", 0), 0)
+	assert_eq(joining[0].display_name, "Player 1",
+			"the client's placeholder roster is not worth seeding")
+
+
+func test_committing_a_name_saves_it_as_the_default() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
+	var mine: Participant = lobby.participants()[0]
+
+	lobby._on_row_name_committed("Bramh", mine)
+
+	assert_eq(Settings.current.player_name, "Bramh",
+			"a solo lobby's one human is unambiguously the machine's own identity")
+
+
+func test_hot_seats_second_slot_never_overwrites_the_saved_default() -> void:
+	Settings.current.player_name = "Bramh"
+	var lobby := _make_lobby(RunConfig.Mode.COOP_HOTSEAT)
+	var guest: Participant = lobby.participants()[1]
+
+	lobby._on_row_name_committed("Guest", guest)
+
+	assert_eq(guest.display_name, "Guest", "the roster itself is still written")
+	assert_eq(Settings.current.player_name, "Bramh",
+			"but a guest typing their own name must not overwrite the operator's saved default")
 
 
 # --- #615: a LobbyPolicy on the route decides who may pick a camp ------------
