@@ -56,10 +56,21 @@ static func resolve_seed(value: int) -> int:
 ## already reads, and because a run with NO scenario (a `RunBootstrap` sandbox,
 ## #597 D6) still has to end somehow — it resolves the same default a
 ## condition-less [Scenario] does, from the same static.
+##
+## [b]Merges [member overrides] first[/b] (#742) — a lobby's `target:
+## "victory_condition"` pick lives in [member overrides] exactly like a preset
+## tweak, and this is the one seam that ever reads [member Scenario.victory_condition]
+## for real generation, so a merge skipped here would make the lobby's pick a
+## no-op regardless of what the override machinery itself does correctly. Goes
+## through [method ScenarioOverride.merge_onto] rather than `scenario`
+## directly — same duplicate-a-copy contract [method resolved_preset] already
+## has, so this can return a Resource that isn't `==` the authored one even
+## with an empty [member overrides] (nothing to override, but merge_onto still
+## duplicates unconditionally, exactly as it always has for `resolved_preset`).
 func resolved_victory_condition() -> VictoryCondition:
 	if scenario == null:
 		return Scenario.default_victory_condition()
-	return scenario.resolved_victory_condition()
+	return ScenarioOverride.merge_onto(scenario, overrides).resolved_victory_condition()
 
 
 ## The preset this run actually generates from (#642 D14) — [member scenario]'s

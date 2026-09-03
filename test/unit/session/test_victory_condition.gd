@@ -216,13 +216,46 @@ func test_run_config_defaults_every_mode_to_last_camp_standing() -> void:
 
 
 ## #638 acceptance 1: the condition is read off the [Scenario], not off the run.
+## #742: resolution now goes through [method ScenarioOverride.merge_onto],
+## which duplicates the [Scenario] unconditionally (same contract
+## [method RunConfig.resolved_preset] already had) — so the resolved condition
+## is never `==` the authored instance even with no overrides. Compared by
+## script/type, the same way [method test_a_scenario_authoring_no_condition_falls_back_without_consulting_mode]
+## already does for its own type-not-identity check.
 func test_run_config_honours_the_scenarios_condition() -> void:
 	var cfg := RunConfig.new()
 	var authored := VictoryCondition.new()
 	cfg.scenario = Scenario.new()
 	cfg.scenario.victory_condition = authored
 
-	assert_eq(cfg.resolved_victory_condition(), authored)
+	assert_eq(cfg.resolved_victory_condition().get_script(), authored.get_script())
+
+
+## #742: the whole point of rooting [ScenarioOverride] at [Scenario] instead of
+## adding a second override list — a lobby's `target: "victory_condition"` pick
+## must actually change what [method RunConfig.resolved_victory_condition]
+## returns, not just what [method ScenarioOverride.merge_onto] returns in
+## isolation (that half is already covered by
+## `test_scenario_override_merge.gd`). This is the one seam real generation
+## reads, so a merge skipped here would make the lobby control a no-op.
+func test_a_victory_condition_override_changes_what_run_config_resolves() -> void:
+	var cfg := RunConfig.new()
+	cfg.scenario = Scenario.new()
+	cfg.scenario.victory_condition = VictoryCondition.new()
+	assert_false(cfg.resolved_victory_condition() is LastCampStandingCondition,
+			"premise: the authored condition is the plain base type, not LastCampStanding")
+
+	var override := ScenarioOverride.new()
+	override.target = "victory_condition"
+	override.value = "res://session/victory/last_camp_standing.tres"
+	cfg.overrides = [override]
+
+	var resolved := cfg.resolved_victory_condition()
+	assert_true(resolved is LastCampStandingCondition,
+			"the override must be reflected in what RunConfig resolves, overriding the authored condition")
+	assert_true(cfg.scenario.victory_condition is VictoryCondition
+			and not (cfg.scenario.victory_condition is LastCampStandingCondition),
+			"the authored (pre-merge) Scenario must never be mutated")
 
 
 ## #638 acceptance 2, with the teeth the spec asks for: the fallback is the
