@@ -65,6 +65,7 @@ const _DENIAL_TEXTS := {
 	"extract_denied": "CAN'T EXTRACT",
 	"temp_upgrade_denied_slot_full": "SLOT FULL",
 	"temp_upgrade_denied_budget": "NO BLADE BUDGET",
+	"spell_denied_no_mana": "GEEN MANA MEER",
 }
 
 
@@ -82,6 +83,7 @@ func _ready() -> void:
 	Events.entity_xp_gained.connect(_on_entity_xp_gained)
 	Events.stat_modifier_changed.connect(_on_stat_modifier_changed)
 	Events.node_action_denied.connect(_on_node_action_denied)
+	Events.ui_action_denied.connect(_on_ui_action_denied)
 
 
 # --- Domain intake → render request -----------------------------------------
@@ -178,6 +180,19 @@ func _on_node_action_denied(node: SkillNode, reason: String) -> void:
 	if node == null or not _node_visible(node):
 		return
 	_emit(node, _denial_text(reason), FloaterStyles.denied())
+
+
+## A HUD-widget-targeted verb was refused (#743) — the [signal
+## Events.ui_action_denied] sibling of [method _on_node_action_denied]. Same
+## reason table, same [method _denial_text], but no [method _node_visible] fog
+## gate (a HUD button the player is looking at is never fogged) and the
+## harsher [method FloaterStyles.denied_alert] register — this path exists for
+## refusals the player caused by directly clicking a widget, which reads as
+## more of an alarm than a board-side gate bump.
+func _on_ui_action_denied(anchor: Node2D, reason: String) -> void:
+	if not is_instance_valid(anchor):
+		return
+	_emit(anchor, _denial_text(reason), FloaterStyles.denied_alert())
 
 
 static func _denial_text(reason: String) -> String:

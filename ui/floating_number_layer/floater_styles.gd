@@ -80,6 +80,23 @@ static func denied() -> FloaterStyle:
 	return s
 
 
+## A HUD-widget-targeted refusal (#743, [signal Events.ui_action_denied]) —
+## same JOB as [method denied] (the "why" behind a refused click) but a louder
+## register: full-saturation red, glowing, at [constant Emissive.ALERT]. The
+## player directly clicked a widget and got turned away, which reads as more
+## pointed than a board-side gate bump — [method denied]'s muted
+## [constant COLOR_DENIED] tested too quiet for that. Per
+## `.claude/rules/hdr-color.md` a glowing colour is always a named tier via
+## [method Emissive.at], never a hand-picked float.
+static func denied_alert() -> FloaterStyle:
+	var s := FloaterStyle.new()
+	s.fill_color = Emissive.at(COLOR_DAMAGE, Emissive.ALERT)
+	s.glow = true
+	s.glow_color = s.fill_color
+	s.float_time = 1.6
+	return s
+
+
 ## XP gained — the reward register: gold and glowing, but smaller than a mythic
 ## modifier, because the per-turn income fires every single turn and must not
 ## shout as loud as a build-defining pickup.
@@ -178,6 +195,7 @@ static func gallery() -> Array[Dictionary]:
 		{"name": "Entity wound",    "text": "+1 WOUNDS",   "style": entity_wound()},
 		{"name": "Entity heal",     "text": "-1 WOUNDS",   "style": entity_heal()},
 		{"name": "Denied",          "text": "TOO FAR FROM CORE", "style": denied()},
+		{"name": "Denied (alert)",  "text": "GEEN MANA MEER",   "style": denied_alert()},
 		{"name": "Modifier (node)", "text": "+10 Strength","style": modifier_node(Color(0.9, 0.5, 0.4))},
 		{"name": "Modifier (core)", "text": "+10 Strength","style": modifier_core(mythic_tint)},
 		{"name": "Modifier removed","text": "+10 STR",     "style": modifier_removed(Color(0.9, 0.5, 0.4))},

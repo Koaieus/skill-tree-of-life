@@ -122,6 +122,15 @@ signal camera_zoom_changed(zoom: float)
 ## decide what "denied" looks like (PlayerInputController's blink+shake today).
 signal node_action_denied(node: SkillNode, reason: String)
 
+## A HUD-widget-targeted verb was denied (#743's spell-picker mana gate is the
+## first case) — the [signal node_action_denied] sibling for a refusal that
+## has no [SkillNode] to anchor at and is not fog-gated (a HUD button is always
+## visible to the machine showing it). [param anchor] is a Node2D the toast can
+## place at directly — typically a widget's own `%FloatAnchor` marker — never a
+## world node. [FloaterDirector] renders both through the same
+## `_denial_text()` / `_DENIAL_TEXTS` table; see its docstring.
+signal ui_action_denied(anchor: Node2D, reason: String)
+
 ## Fired by [AIController] on every AI decision this turn (growth allocation,
 ## attack pick, or "nothing sensible") — ALWAYS, regardless of the
 ## controller's local `debug_trace` toggle. No production listener yet;
