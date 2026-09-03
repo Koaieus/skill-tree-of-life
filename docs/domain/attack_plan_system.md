@@ -72,11 +72,36 @@ re-deriving anything.
   `FIRING_RANGE` (280px) of the target light up as `ORIGIN`.
   `get_node_range()` returns `FIRING_RANGE` for leaves so the overlay
   paints a faint reach circle that brightens when active.
-- **`MagicAttackPlan`** — left-click an owned node to set the source
-  (when unset), then left-click any node within reach (per spell
-  targeting) to set the target. Right-click pops the source and target
-  together — re-sourcing is pop-then-push. Auto-equips `spark.tres` at
-  plan creation since the spell picker UI isn't built yet.
+- **`MagicAttackPlan`** — pick the spell in the tray, then left-click a
+  target directly; the cast-from node is auto-picked and stamped in the
+  same click. Right-click pops target and source together. There is no
+  source-selection step since #728 — see `SpellTargetUnion` below and
+  `docs/design/click_grammar.md`. Auto-equips `spark.tres` at plan
+  creation so a plan is never silently unarmed.
+- **`SpellTargetUnion`** (`attack/targeting/spell_target_union.gd`) — the
+  one shared answer to "what can this spell hit, from anywhere I own, and
+  from where is each target best hit?" Unions every eligible caster's
+  reach and returns `target -> auto-picked source` (max node-local
+  `spell_damage`, lowest `stable_id` breaking the tie — an order-dependent
+  pick would make host and client disagree about the launch command),
+  plus the per-source reach and target sets the reach visual and
+  `AiController` (#745) draw from.
+
+  **The perf lever is the loop order, not the cache.** The obvious
+  implementation calls `Targeting.valid_targets` once per source, and that
+  sweeps all 800 nodes each time. Candidates come from the range finder
+  first instead (`RangeFinder.gather_multi`: a bounded BFS per source for
+  hops, ONE merged sweep for euclidean), and the ownership predicate runs
+  only over those. The union then rides **its own** dirty flag —
+  `state_changed` fires on every hover, so reusing it would re-walk the
+  graph on mouse movement; `BattleSystem` pushes `invalidate_union()` on
+  allocation and turn change instead.
+
+  **Vision is the caller's.** The union answers reachability only.
+  `MagicAttackPlan` filters highlights through the seat's `VisionSystem`;
+  the AI keeps `AiRecon`. Baking one viewer's fog into a function the AI
+  also calls would be wrong under `SeatPolicy` couch handover, where the
+  acting entity is not the viewing seat.
 
 ### Plumbing
 
