@@ -39,7 +39,7 @@ func bind(battle_system: BattleSystem, input_ctl: PlayerInputController) -> void
 	_input_ctl = input_ctl
 	_battle_system = battle_system
 
-	attack_mode_bar.attack_mode_requested.connect(input_ctl.on_attack_mode_requested)
+	attack_mode_bar.attack_mode_requested.connect(_on_mode_requested)
 	if _battle_system != null:
 		_battle_system.attack_plan_changed.connect(_on_attack_plan_changed)
 		_on_attack_plan_changed(_battle_system.attack_plan)
@@ -47,6 +47,19 @@ func bind(battle_system: BattleSystem, input_ctl: PlayerInputController) -> void
 	if input_ctl != null:
 		input_ctl.player_can_act_changed.connect(attack_mode_bar.set_enabled)
 		attack_mode_bar.set_enabled(input_ctl.can_player_act())
+
+
+## #464: a request `BattleSystem` silently drops — AP=0, or mid-swing
+## (`is_launching` flips true with no signal of its own, so nothing disables
+## the bar at the exact moment a swing starts) — never fires
+## `attack_plan_changed`, so the bar's native click visual is left showing a
+## mode that never armed. Re-assert against ground truth after EVERY request,
+## accepted or not; a no-op when it was accepted, since `_on_attack_plan_changed`
+## already ran off the signal by the time this line executes.
+func _on_mode_requested(mode: BattleSystem.AttackMode) -> void:
+	_input_ctl.on_attack_mode_requested(mode)
+	if _battle_system != null:
+		_on_attack_plan_changed(_battle_system.attack_plan)
 
 
 ## Re-point the tray at [param player]. The live body reads `_player` at bind
