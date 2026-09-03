@@ -205,3 +205,48 @@ func test_hostile_source_tints_the_row_toward_red() -> void:
 	var t0: Color = (rows[0] as SlabRow)._slab.tint_color
 	var t1: Color = (rows[1] as SlabRow)._slab.tint_color
 	assert_ne(t0, t1, "a hostile-sourced row must render with a different tint than a friendly one")
+
+
+# --- acceptance 8: a formula-bearing row shows its EFFECTIVE value ----------
+
+## A stand-in for any [StatFormula] whose `compute` reads the board — the
+## acceptance is about which NUMBER the row prints (coefficient vs. effective),
+## not about any particular formula's shape, so a fixed multiplier is the
+## honest fixture. `per_phrase` is left empty on purpose: the readout must not
+## fall back to [method StatModifier.format]'s "per <phrase>" coefficient
+## branch, and an empty phrase makes a regression there visible as a bare
+## coefficient rather than as a differently-worded sentence.
+class FixedFormula extends StatFormula:
+	func compute(_board: StatBoard) -> float:
+		return 3.0
+
+
+func test_formula_bearing_row_shows_effective_not_raw_value() -> void:
+	var ent := _spawn_entity()
+	var mod := _mod(&"armor", StatModifier.Operation.ADD_BASE, 2.0)
+	mod.formula = FixedFormula.new()
+	_grant(ent, "Coil (hops)", mod)
+	var panel := _panel()
+	panel.bind(_node, _graph)
+	var texts := _row_texts(panel)
+	assert_eq(texts.size(), 1)
+	assert_string_contains(texts[0], "+6 Armor", "2.0 coefficient × formula 3.0 — the effective value")
+	assert_false(texts[0].contains("+2 Armor"), "the raw coefficient must never be what the row prints")
+
+
+func test_formula_bearing_row_hides_on_its_effective_neutral() -> void:
+	var ent := _spawn_entity()
+	# Raw .value is a real 2.0 — only the EFFECTIVE value is neutral. Hiding
+	# on the raw value would keep this row; hiding on the effective one drops
+	# it, which is the rule (`get_effective_value`, never `.value`).
+	var mod := _mod(&"armor", StatModifier.Operation.ADD_BASE, 2.0)
+	mod.formula = ZeroFormula.new()
+	_grant(ent, "Coil (hops)", mod)
+	var panel := _panel()
+	panel.bind(_node, _graph)
+	assert_false(panel.has_content(), "a formula that computes to 0 makes the row neutral, raw .value notwithstanding")
+
+
+class ZeroFormula extends StatFormula:
+	func compute(_board: StatBoard) -> float:
+		return 0.0
