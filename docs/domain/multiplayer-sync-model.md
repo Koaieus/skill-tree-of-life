@@ -322,6 +322,17 @@ all: the client's number crept wrong and nothing will ever notice.
 2. **A desync verdict.** `CommandLink._report_sync` finds the two fingerprints
    disagree, and the authority pushes the same pair as one `KIND_RESYNC`.
 
+**A green fingerprint is not a green join** (#715). The fold answers "do our two
+worlds agree", and it answered YES on a join where the client had decoded the
+host's 800 nodes perfectly and then sat there forever without ever taking a turn
+— its roster row still carried `LobbyScreen._PENDING_PEER_ID`, so no hero was
+seated and nothing drove the turn. That is the second time on this path that
+fingerprint agreement was not evidence of correctness; the first is the
+applied-once guard, where the fold covers neither tags nor effects. So a join is
+proved by the peer reaching its FIRST TURN — which is what
+`GameRoot._announce_first_turn_for_rung_3` prints and what harness rung 3 reads
+— never by the fingerprints matching at link-up.
+
 The rejected third was a **periodic dirty-stat push** (#521 D2). A subscriber
 across every board at 2000 nodes is the exact shape this repo has twice shipped
 a quadratic of (`.claude/rules/graph.md`), and it buys a second,
