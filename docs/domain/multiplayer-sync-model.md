@@ -434,7 +434,9 @@ whose `EffectInstance` is already in the ledger, so the spell would sit in
 `spells` with nothing behind it and the next `revoke_effects_from` would find no
 source to drop. Twice now the join path has needed the same property; treat
 "is this step idempotent?" as a standing question for anything added to either
-decode pass.
+decode pass — the companion to *"a green fingerprint is not a green join"*
+above, and for the same reason: neither the fold nor a passing round-trip can
+see a step that quietly did its work twice.
 
 **What a resync does NOT carry** is the derived tier — `StatBoard` totals,
 `Stat.bins`, aura contributions, vision. The receiver recomputes, exactly as
