@@ -92,9 +92,11 @@ func test_participation_override_redistributes_the_clock_pins() -> void:
 
 func test_a_forced_out_unit_gives_up_its_pin() -> void:
 	_sandbox.apply_preset(_SANDROB_SCRIPT.PRESET_CORE)
-	assert_eq(_fan().units_in_fan_order().size(), 6)
+	# Seven since the CORE preset gained its `effects` axis (#621): the readout
+	# panel participates on that preset like every other one.
+	assert_eq(_fan().units_in_fan_order().size(), 7)
 	_sandbox.set_participating("Core", false)
-	assert_eq(_fan().units_in_fan_order().size(), 5,
+	assert_eq(_fan().units_in_fan_order().size(), 6,
 		"gating one unit out must drop exactly one pin")
 
 
@@ -151,6 +153,31 @@ func test_scrub_writes_component_progress_on_participating_units_only() -> void:
 
 
 # --- fixture knobs --------------------------------------------------------------
+
+## #621's readout panel is gated on effects landing on the fixture node, and
+## the bench had no axis for that at all — every preset left it suppressed
+## before it drew, so the one thing about it a headless test cannot judge (a
+## cursor-adjacent panel at a real zoom) could not be judged in the bench
+## either. Past `EffectReadoutPanel.max_rows_per_page` the knob is also what
+## puts the cap + page carousel on screen.
+func test_effect_count_change_reconciles_the_effect_readout_panel() -> void:
+	_sandbox.apply_preset(_sandbox.PRESET_FRIENDLY)
+	assert_true(_participation()["EffectReadout"], "the friendly preset carries 2 aura rows")
+	_sandbox.set_effect_count(0)
+	assert_false(_participation()["EffectReadout"], "no effects gates the readout back out")
+	assert_eq(_sandbox.get_fixture_state()["effects"], 0)
+	_sandbox.set_effect_count(7)
+	assert_true(_participation()["EffectReadout"])
+	assert_eq(_sandbox.get_fixture_state()["effects"], 7)
+
+
+func test_effect_knob_pushes_the_readout_past_its_cap() -> void:
+	_sandbox.set_effect_count(7)
+	var panel := _unit("EffectReadout").get_node("%Panel") as EffectReadoutPanel
+	assert_true(panel.is_paging(), "seven rows past a cap of four must page")
+	_sandbox.set_effect_count(3)
+	assert_false(panel.is_paging(), "and drop back to a single static page under the cap")
+
 
 func test_addon_count_change_reconciles_the_addons_panel() -> void:
 	_sandbox.apply_preset(_SANDROB_SCRIPT.PRESET_UNALLOCATED)

@@ -55,6 +55,9 @@ func _wire_fixture() -> void:
 	%AddonsSpin.value_changed.connect(func(v: float) -> void:
 		_sandbox.set_addon_count(int(v))
 		_sync_controls())
+	%EffectsSpin.value_changed.connect(func(v: float) -> void:
+		_sandbox.set_effect_count(int(v))
+		_sync_controls())
 	%FootprintCheck.toggled.connect(func(on: bool) -> void:
 		_sandbox.set_footprint(on)
 		_sync_controls())
@@ -115,6 +118,7 @@ func _sync_controls() -> void:
 	_apply_blocked(%CoreCheck, "button_pressed", fx["core"])
 	_apply_blocked(%FootprintCheck, "button_pressed", fx["footprint"])
 	%AddonsSpin.set_value_no_signal(float(fx["addons"]))
+	%EffectsSpin.set_value_no_signal(float(fx["effects"]))
 	var part: Dictionary = _sandbox.get_participation()
 	for m in part:
 		var check: CheckButton = get_node_or_null("%Part" + String(m))

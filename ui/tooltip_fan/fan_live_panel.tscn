@@ -109,6 +109,22 @@ tooltip_text = "Real addon scenes attached to the fixture node (0–8)"
 max_value = 8.0
 value = 8.0
 
+[node name="EffectsRow" type="HBoxContainer" parent="Split/Controls/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EffectsLabel" type="Label" parent="Split/Controls/VBox/EffectsRow"]
+layout_mode = 2
+text = "Effects"
+
+[node name="EffectsSpin" type="SpinBox" parent="Split/Controls/VBox/EffectsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Aura rows landing on the fixture node. Past 4 the readout panel caps and pages (#621)."
+max_value = 12.0
+value = 7.0
+
 [node name="FootprintCheck" type="CheckButton" parent="Split/Controls/VBox" unique_id=1965479217]
 unique_name_in_owner = true
 layout_mode = 2

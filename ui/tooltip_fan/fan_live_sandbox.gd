@@ -78,7 +78,8 @@ const PRESET_FRIENDLY := "friendly"
 const PRESET_ENEMY := "enemy"
 const PRESET_CORE := "core"
 
-## The four whole-situation fixtures. `owned`/`core`/`addons`/`footprint` are
+## The four whole-situation fixtures. `owned`/`core`/`addons`/`effects`/
+## `footprint` are
 ## the fixture knobs' values; the entity fields brand the owning [Entity] for
 ## the Owner/Core panels (faction flips the HOSTILE OWNER tag).
 const _PRESETS: Array[Dictionary] = [
@@ -89,17 +90,17 @@ const _PRESETS: Array[Dictionary] = [
 	},
 	{
 		"name": PRESET_FRIENDLY, "owned": true, "core": false, "addons": 2,
-		"footprint": false, "faction": &"player", "display_name": "Dusk",
+		"footprint": false, "effects": 2, "faction": &"player", "display_name": "Dusk",
 		"core_class": _BALANCED_CORE, "level": 12, "color": Color(0.4, 0.9, 1.0),
 	},
 	{
 		"name": PRESET_ENEMY, "owned": true, "core": false, "addons": 8,
-		"footprint": false, "faction": &"npc", "display_name": "Grimjaw",
+		"footprint": false, "effects": 4, "faction": &"npc", "display_name": "Grimjaw",
 		"core_class": _ENEMY_CORE, "level": 7, "color": Color(1.0, 0.45, 0.4),
 	},
 	{
 		"name": PRESET_CORE, "owned": true, "core": true, "addons": 8,
-		"footprint": true, "faction": &"player", "display_name": "Dusk",
+		"footprint": true, "effects": 7, "faction": &"player", "display_name": "Dusk",
 		"core_class": _BALANCED_CORE, "level": 12, "color": Color(0.4, 0.9, 1.0),
 	},
 ]
@@ -158,7 +159,7 @@ var _current_preset := ""
 
 func _ready() -> void:
 	_mount_world()
-	# Open on the richest preset so the tab's first look is the full six-unit
+	# Open on the richest preset so the tab's first look is the full seven-unit
 	# fan, not a bare chip.
 	apply_preset(PRESET_CORE)
 	set_process(true)
@@ -179,7 +180,11 @@ func _mount_world() -> void:
 
 	_entity = Entity.new()  # TODO: replace with scene composition (also prefer entity SCENE instantiate >>> Entity.new())
 	_entity.stat_board = _ENTITY_BOARD.duplicate(true) as EntityStatBoard # TODO: would already be included in Entity scene
-	add_child(_entity)
+	# Under the graph's own entities_container, exactly where GameRoot.spawn_entity
+	# parents a real one — not a cosmetic tidy-up: NodeEffectReadout.gather() finds
+	# aura sources by walking that container, so an entity parented to the bench
+	# root is invisible to #621's readout and its panel never has content.
+	_graph.entities_container.add_child(_entity)
 
 	_enter_hidden_all()
 	_apply_zoom()
@@ -293,6 +298,7 @@ func apply_preset(preset_name: String) -> void:
 	if spec.get("bare", false) and _node.node_board != null:
 		_node.node_board = null
 	_set_addon_count(spec.get("addons", 0))
+	_set_effect_count(spec.get("effects", 0))
 	_set_footprint(spec.get("footprint", false))
 	_after_fixture_change()
 
@@ -333,6 +339,41 @@ func _set_addon_count(count: int) -> void:
 		_node.add_child(_ADDON_SCENES[i % _ADDON_SCENES.size()].instantiate())
 
 
+## Aura/effect rows landing on the fixture node — the knob [EffectReadoutPanel]
+## needs, and the only fixture axis the bench had no way to reach. Without it
+## that panel answers `has_content() == false` for every preset and is suppressed
+## before it ever draws, so the one thing about it that cannot be judged headless
+## (a cursor-adjacent panel at a real zoom) could not be judged here either.
+##
+## Push it past [member EffectReadoutPanel.max_rows_per_page] to watch the cap
+## hold and the page carousel cycle (#621 acceptance 9/10).
+func set_effect_count(count: int) -> void:
+	_current_preset = ""
+	_set_effect_count(count)
+	_after_fixture_change()
+
+
+## `count` granted rows, all of them visibly non-neutral (descending whole
+## numbers, so none is a hide candidate and none is swallowed by the rollup) and
+## each from its OWN effect, since #621 shows aura contributions per source and
+## never summed. One [StatEffect] per row with no authored `modifiers` — the
+## grant goes straight through the instance's own [EffectContext], which is the
+## same seam an [AuraEffect] grants through.
+func _set_effect_count(count: int) -> void:
+	if _entity == null:
+		return
+	for inst in _entity.get_effects():
+		_entity.revoke_effect(inst)
+	for i in count:
+		var effect := StatEffect.new()
+		effect.display_name = "Aura %d" % (i + 1)
+		var mod := StatModifier.new()
+		mod.stat_id = &"armor"
+		mod.operation = StatModifier.Operation.ADD_BASE
+		mod.value = float(count - i)
+		_entity.grant_effect(effect).context.grant(mod, _node)
+
+
 func set_footprint(on: bool) -> void:
 	_current_preset = ""
 	_set_footprint(on)
@@ -371,6 +412,7 @@ func get_fixture_state() -> Dictionary:
 		"owned": _node.owned_by != null,
 		"core": _entity.core_location == _node,
 		"addons": _node.get_addons().size(),
+		"effects": _entity.get_effects().size() if _entity != null else 0,
 		"footprint": _node.has_meta(&"procgen_footprint"),
 		"preset": _current_preset,
 	}
