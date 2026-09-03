@@ -70,6 +70,32 @@ func gather(source: SkillNode, mirror: GraphMirror, attacker: Entity = null) -> 
 	return out
 
 
+## Multi-source sibling of [method gather]: source -> (node -> distance), for
+## every source in [param sources]. What [SpellTargetUnion] asks for when it
+## inverts targeting (#728) — the whole point being that candidates come from
+## the reach model FIRST, so the target predicates run over a bounded set
+## instead of the whole board once per source.
+##
+## The default is one [method gather] per source, which is already the right
+## shape for [HopRangeFinder]: its `gather` is a BOUNDED BFS, touching only
+## nodes within reach, so total cost is O(sum of reachable), not O(sources x V).
+## [EuclideanRangeFinder] overrides it — its `gather` is a full linear scan
+## whether or not anything is in reach, so N sources really would cost N sweeps.
+##
+## Sources are kept separate rather than merged because the caller needs to
+## know WHICH source reaches a target (`spell_damage` is node-local, so the
+## choice is not moot) — a merged traversal answers "nearest source", which is
+## the wrong question.
+func gather_multi(sources: Array[SkillNode], mirror: GraphMirror,
+		attacker: Entity = null) -> Dictionary[SkillNode, Dictionary]:
+	var out: Dictionary[SkillNode, Dictionary] = {}
+	for source in sources:
+		if source == null:
+			continue
+		out[source] = gather(source, mirror, attacker)
+	return out
+
+
 ## The reach bound this finder imposes, in its own metric, or -1.0 when
 ## unbounded. Feeds normalized scales (Linear, Curve) so they know their domain.
 func max_reach() -> float:
@@ -81,6 +107,20 @@ func max_reach() -> float:
 ## Default is empty — subclasses populate rings (Euclidean) or edges
 ## (hop-based) as appropriate.
 func get_visual(_attacker: Entity, _source: SkillNode) -> RangeVisual:
+	return RangeVisual.new()
+
+
+## Reach visual for a whole [SpellTargetUnion] — what the pick-spell-first
+## selection draws before any source is committed (#728). Default empty, same
+## contract as [method get_visual].
+##
+## [b]Not a loop over [method get_visual].[/b] That was the naive shape and it
+## is quadratic: [method HopRangeFinder.get_visual] walks the entire edge list
+## per call, so N eligible casters would walk it N times on an 800-node board.
+## Subclasses fold [method SpellTargetUnion.merged_reach] — the per-source sets
+## the target union was ALREADY built from — into one pass instead. No third
+## traversal of the graph.
+func get_union_visual(_attacker: Entity, _union: SpellTargetUnion) -> RangeVisual:
 	return RangeVisual.new()
 
 

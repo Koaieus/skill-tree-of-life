@@ -43,8 +43,8 @@ origin set, selecting targets   (pivot/source locked, picking members/target)
   behavior — right-clicking a *different* node instantly re-pivoted — let
   one button mean two different things depending on which node it landed on
   (origin-eligible vs. blade-eligible). That ambiguity is exactly what this
-  grammar removes; the fix applies uniformly to melee's pivot and magic's
-  source.
+  grammar removes. Applied to melee's pivot; magic no longer has an origin to
+  re-source (see below), so right-click there just clears the target.
 
 ## Self-targeting resolves through ordinary target validity, no special case
 
@@ -54,9 +54,13 @@ it runs through the mode's normal targeting check:
 - If the origin is a **legal target** (a heal spell whose source can equal
   its target) → resolves normally, cast lands on self.
 - If the origin is **not** a legal target (melee: the pivot is never a
-  valid blade member; an attack spell that excludes self; core-move: a
-  0-hop move isn't valid) → falls through to a **pop** — silent, no
-  `shake_denied` — because this is the expected "never mind," not an error.
+  valid blade member; core-move: a 0-hop move isn't valid) → falls through to
+  a **pop** — silent, no `shake_denied` — because this is the expected
+  "never mind," not an error.
+
+Magic dropped out of this section with #728: with no origin to click, there is
+no "clicked the origin again" case. A spell that can legally target an owned
+node still self-targets by clicking it, like any other target.
 
 This is why `pop()` lives on `AttackPlan` as a named, reusable primitive
 (`attack/plan/attack_plan.gd`) rather than being buried inside the
@@ -72,7 +76,17 @@ one mechanism, not a per-mode exception.
 | Melee | pivot | blade members (toggle, cap = `blade_size`) | pivot + all blade members |
 | Melee, nested (#406) | *(a temp-upgrade card armed via the command tray, e.g. Clamp/Spikes — not a left-click origin)* | a blade member (left-click, resolves the upgrade — arm stays set for repeat placement) | just the arm; a right-click here does **not** touch the pivot/members underneath |
 | Ranged | *(none — firing positions are derived, not chosen)* | target (direct left-click retarget, no origin to pop first) | target |
-| Magic | source | spell target | source + target |
+| Magic | *(none since #728 — the cast-from node is auto-picked, see below)* | spell target (direct left-click, no origin to set first) | source + target |
+
+**Magic is two-level too, since #728.** Picking a spell in the tray unions the
+reach of every owned node that may cast it and paints the result; the player
+left-clicks a target directly and the cast-from node is auto-picked (strongest
+node-local `spell_damage`, lowest stable id breaking a tie). `pop()` is gated on
+the *target* rather than the source for the same reason ranged's is — a null
+source is the resting state now, not a "nothing armed yet" marker. Source
+choice was very nearly always degenerate, and the union is also what lets the
+tray grey a spell no owned node can cast at all. See `MagicAttackPlan` and
+`SpellTargetUnion`.
 
 Ranged has only two states (armed / target-set) because there's no
 separate origin-selection step — a left-click on a different hostile node

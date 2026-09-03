@@ -33,6 +33,11 @@ func before_each() -> void:
 ## Global-reach HOSTILE targeting, generous enough that every fixture's
 ## hovered node is always a legal click target — the preview only previews a
 ## hover that [method MagicAttackPlan._preview_target] accepts as valid.
+##
+## Every spell here also sets `min_degree = 0`. Since #728 the cast-from node
+## is derived rather than clicked, so [SpellDef]'s default `min_degree = 1`
+## would leave these single-owned-node attackers with no eligible caster and
+## nothing to preview. These fixtures are about propagation, not about gating.
 func _hostile_targeting(max_hops: int = 10) -> NodeTargeting:
 	var t := NodeTargeting.new()
 	t.ownership_filter = SkillNode.Ownership.HOSTILE
@@ -84,6 +89,7 @@ func test_preview_mutates_nothing_hp_ownership_or_mana() -> void:
 	var effects: Array[OnHitEffect] = [DamageEffect.new()]
 	var spell := h.make_spell(config, effects, 10.0)
 	spell.targeting = _hostile_targeting()
+	spell.min_degree = 0
 
 	var plan := MagicAttackPlan.new()
 	plan.attacker = attacker
@@ -129,6 +135,7 @@ func test_a_second_preview_still_mutates_nothing() -> void:
 	var effects: Array[OnHitEffect] = [DamageEffect.new()]
 	var spell := h.make_spell(config, effects, 5.0)
 	spell.targeting = _hostile_targeting()
+	spell.min_degree = 0
 
 	var plan := MagicAttackPlan.new()
 	plan.attacker = attacker
@@ -170,6 +177,7 @@ func test_rehovering_the_same_node_does_not_repaint() -> void:
 			h.make_config(h.fan_all(), h.owner_enemy(), h.max_reducer(), {max_hops = 1}),
 			[DamageEffect.new()] as Array[OnHitEffect], 1.0)
 	spell.targeting = _hostile_targeting()
+	spell.min_degree = 0
 
 	var plan := MagicAttackPlan.new()
 	plan.attacker = attacker
@@ -225,6 +233,7 @@ func test_bruiser_climb_is_visible_in_the_preview_before_commit() -> void:
 			h.owner_enemy(), h.max_reducer(), {max_hops = 3})
 	var spell := h.make_spell(config, [DamageEffect.new()] as Array[OnHitEffect], 4.0)
 	spell.targeting = _hostile_targeting()
+	spell.min_degree = 0
 
 	var plan := MagicAttackPlan.new()
 	plan.attacker = attacker
@@ -276,6 +285,7 @@ func test_trail_blazer_walk_and_terminal_junction_are_visible_in_preview() -> vo
 			{max_hops = 50, hop_damage = h.flat_add_progression(2.0)})
 	var spell := h.make_spell(config, [DamageEffect.new()] as Array[OnHitEffect], 1.0)
 	spell.targeting = _hostile_targeting(50)
+	spell.min_degree = 0
 
 	var plan := MagicAttackPlan.new()
 	plan.attacker = attacker

@@ -3,8 +3,14 @@ extends GutTest
 ## MagicAttackPlan: cost/reach/legality against a real Graph + Entity
 ## fixture. Chain Source - InRange - OutOfRange; a HopRangeFinder(max_hops=1)
 ## gates targeting reach, so InRange (1 hop) is a legal click target and
-## OutOfRange (2 hops) is silently rejected — exercising the same
-## Targeting.is_valid_target() path the click handler drives in play.
+## OutOfRange (2 hops) is silently rejected.
+##
+## [b]Re-pointed for #728.[/b] There is no source-selection click any more: the
+## reach of every eligible caster is unioned up front and one left-click on a
+## target both commits it and stamps the auto-picked source. Every legality
+## assertion below is unchanged — `validate()` still demands a source, still
+## gates on min_degree — what changed is that the plan derives the source
+## rather than being handed one, so the click tests assert that derivation.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -84,24 +90,39 @@ func _plan() -> MagicAttackPlan:
 
 # ── Reach (click-driven, real HopRangeFinder over the mirrored graph) ──────
 
-func test_click_source_then_in_range_hostile_sets_target() -> void:
+func test_one_click_on_an_in_range_hostile_sets_target_and_stamps_the_source() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_source)
-	assert_eq(p.source, _source)
 	p._on_node_left_clicked(_in_range_target)
-	assert_eq(p.target, _in_range_target)
+	assert_eq(p.target, _in_range_target, "the clicked node IS the target — no source step first")
+	assert_eq(p.source, _source, "and its caster is auto-picked from the union")
 
 
 func test_click_out_of_range_hostile_is_rejected() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_source)
 	p._on_node_left_clicked(_out_of_range_target)
 	assert_null(p.target)
+	assert_null(p.source, "a rejected click stamps no source either")
 
 
-func test_click_source_must_be_owned_by_attacker() -> void:
+## The old "a source click must land on an owned node" guard is gone with the
+## source click. Its intent survives here: an owned node is not a TARGET of a
+## Hostile-filtered spell, so clicking one commits nothing.
+func test_clicking_an_owned_node_targets_nothing_for_a_hostile_spell() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_in_range_target)  # owned by hostile
+	p._on_node_left_clicked(_source)
+	assert_null(p.target)
+	assert_null(p.source)
+
+
+## Right-click is gated on the target now, not the source — a null source is
+## the resting state post-#728, so the old guard would have made pop() a
+## permanent no-op.
+func test_right_click_clears_both_after_a_pick_and_no_ops_before_one() -> void:
+	var p := _plan()
+	assert_false(p.pop(), "nothing committed yet, nothing to pop")
+	p._on_node_left_clicked(_in_range_target)
+	assert_true(p.pop())
+	assert_null(p.target)
 	assert_null(p.source)
 
 
@@ -128,7 +149,6 @@ func test_validate_gates_on_min_degree() -> void:
 
 func test_validate_passes_with_source_and_reachable_target() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_source)
 	p._on_node_left_clicked(_in_range_target)
 	assert_eq(p.validate(), [] as Array[String])
 	assert_true(p.is_valid())

@@ -19,18 +19,32 @@ extends Button
 ## so the floating [SpellTooltip] (mounted in HudRoot) shows a formatted scene
 ## with dynamic-value highlighting instead of a plain-text Godot tooltip.
 ##
-## [b]Two independent gates (#743).[/b] [method set_castable] (min_degree) and
-## [method set_affordable] (mana) both grey the same shader term, but only
-## `castable` flips the engine [member Button.disabled] — an unaffordable spell
-## stays genuinely clickable so a press can explain itself. [signal spell_picked]
-## is the affordability-gated report of a press: [SpellPickerBar] connects to
-## THAT, never to the raw [signal BaseButton.pressed], because two independent
-## listeners on one native signal can't have one veto the other, and only this
-## button knows whether its own press should count as a pick or a denial.
+## [b]Three independent gates (#743, #728).[/b] All three grey the same shader
+## term, but only one flips the engine [member Button.disabled]:
+##
+## - [method set_actionable] — the bar-wide "your turn, AP left" gate. Genuinely
+##   disabled: there is nothing to explain, the whole bar is already dimmed.
+## - [method set_affordable] — mana (#743). Grey but CLICKABLE.
+## - [method set_has_caster] — does any owned node clear the spell's min_degree
+##   (#728). Grey but CLICKABLE.
+##
+## The last two stay clickable so a press can explain itself; a disabled Button
+## swallows the very click their denial toast needs. [method set_actionable]
+## replaced a `set_castable` that also carried min_degree — that term moved out
+## when #728 removed the pre-picked source it was measured against, and became
+## the bar-wide [method SpellBook.eligible_sources] question instead of a
+## per-source one.
+##
+## [signal spell_picked] is the gated report of a press: [SpellPickerBar]
+## connects to THAT, never to the raw [signal BaseButton.pressed], because two
+## independent listeners on one native signal can't have one veto the other,
+## and only this button knows whether its own press should count as a pick or
+## a denial.
 
-## Emitted on press when [member _affordable] — the pick [SpellPickerBar] acts
-## on. An unaffordable press instead floats the denial (see [method _on_pressed])
-## and this does not fire.
+## Emitted on press when every clickable gate is met — the pick
+## [SpellPickerBar] acts on. A press blocked by mana or by "no eligible caster"
+## instead floats the matching denial (see [method _on_pressed]) and this does
+## not fire.
 signal spell_picked(spell: SpellDef)
 
 const BG_SHADER := preload("res://ui/attack_mode_bar/attack_mode_button.gdshader")
@@ -63,12 +77,13 @@ var _materials: Array[ShaderMaterial] = []
 ## floating tooltip. Written only through [method set_caster].
 var _caster: Entity = null
 
-## Backing state for the two independent gates — see [method set_castable] /
-## [method set_affordable]. Both start true so a freshly-instantiated button
-## (before its bar's first gating pass) reads as pickable, matching
-## [method SpellBook.is_castable]'s "pre-source, don't grey" default.
-var _castable: bool = true
+## Backing state for the three independent gates — see [method set_actionable]
+## / [method set_affordable] / [method set_has_caster]. All start true so a
+## freshly-instantiated button (before its bar's first gating pass) reads as
+## pickable rather than flashing grey for a frame.
+var _actionable: bool = true
 var _affordable: bool = true
+var _has_caster: bool = true
 
 var _hover_tweener: Tween
 var _active_tweener: Tween
@@ -124,12 +139,13 @@ func _push(param: StringName, value: Variant) -> void:
 		mat.set_shader_parameter(param, value)
 
 
-## Toggle castability (min_degree) — flips [member Button.disabled] so engine
-## click-gating + the shader's disabled fade both engage. This gate stays
-## unclickable, unlike [method set_affordable].
-func set_castable(castable: bool) -> void:
-	_castable = castable
-	disabled = not castable
+## Toggle the bar-wide act gate (not your turn / out of AP) — flips
+## [member Button.disabled] so engine click-gating + the shader's disabled fade
+## both engage. The one gate that stays unclickable: the bar is dimmed whole
+## and a per-spell toast would explain nothing the player can act on.
+func set_actionable(actionable: bool) -> void:
+	_actionable = actionable
+	disabled = not actionable
 	_refresh_grey()
 
 
@@ -146,6 +162,23 @@ func set_affordable(affordable: bool) -> void:
 	_refresh_toggle_mode()
 
 
+## Toggle "some owned node can cast this at all" (#728) — min_degree against the
+## attacker's whole territory rather than against one pre-picked source, since
+## there is no longer a source to pick. Grey but clickable, exactly like
+## [method set_affordable]: the press is what earns the `spell_denied_no_caster`
+## toast, and the two dead ends are deliberately different words — no caster is
+## fixed by growing territory, no mana by waiting.
+##
+## Its sibling dead end — casters exist but nothing is in reach — gets NO toast
+## by the owner's 2026-09-03 ruling: that is the ordinary ranged-attack read
+## ("here is my reach, nothing hostile is in it"), and the union's drawn reach
+## is what says so.
+func set_has_caster(has_caster: bool) -> void:
+	_has_caster = has_caster
+	_refresh_grey()
+	_refresh_toggle_mode()
+
+
 ## Tell the bar's selection state onto this button (replaces a bare
 ## [method set_pressed_no_signal] call so [method _refresh_toggle_mode] always
 ## re-runs after a selection change — see its docstring for why a stale
@@ -155,10 +188,10 @@ func set_selected(selected: bool) -> void:
 	_refresh_toggle_mode()
 
 
-## The greyed presentation is one shader term shared by both gates — greyed
-## iff EITHER is unmet. Only [method set_castable] touches `disabled`.
+## The greyed presentation is one shader term shared by all three gates —
+## greyed iff ANY is unmet. Only [method set_actionable] touches `disabled`.
 func _refresh_grey() -> void:
-	_tween_disabled(0.0 if (_castable and _affordable) else 1.0)
+	_tween_disabled(0.0 if (_actionable and _affordable and _has_caster) else 1.0)
 
 
 ## Godot's [ButtonGroup] exclusivity (un-press the sibling, commit
@@ -170,7 +203,8 @@ func _refresh_grey() -> void:
 ## spell itself actually changes, which an unaffordable press deliberately
 ## does not do).
 ##
-## Fix: while unaffordable, turn [member toggle_mode] off instead. A
+## Fix: while unaffordable (or, #728, with no eligible caster — same shape,
+## same reason), turn [member toggle_mode] off instead. A
 ## non-toggle Button still emits [signal BaseButton.pressed] on click (so
 ## [method _on_pressed] still runs and the denial still floats) but never
 ## touches `button_pressed` or the group — nothing to steal, nothing to
@@ -185,13 +219,14 @@ func _refresh_grey() -> void:
 ## transition (native group-driven unpress included) — see [method _on_toggled]
 ## and [method set_selected] — so a stale `true` can't survive a deselect.
 func _refresh_toggle_mode() -> void:
-	toggle_mode = button_pressed or _affordable
+	toggle_mode = button_pressed or (_affordable and _has_caster)
 
 
 ## Tell the button which entity is hovering-as-caster, so [SpellTooltip] can
 ## read that board for the values the caster's stats move off the printed base.
-## Purely presentational — it never gates the button, which [method set_castable]
-## / [method set_affordable] own.
+## Purely presentational — it never gates the button, which
+## [method set_actionable] / [method set_affordable] / [method set_has_caster]
+## own.
 func set_caster(caster: Entity) -> void:
 	_caster = caster
 
@@ -283,6 +318,12 @@ func _on_toggled(toggled_on: bool) -> void:
 ## whether the mana gate lets it through or not; see this file's top
 ## docstring for why [SpellPickerBar] cannot do this check by itself.
 func _on_pressed() -> void:
+	# Structural before resource: "no node of yours can cast this" outranks
+	# "you can't afford it right now", because it's the one the player cannot
+	# fix by waiting a turn.
+	if not _has_caster:
+		Events.ui_action_denied.emit(_float_anchor, "spell_denied_no_caster")
+		return
 	if not _affordable:
 		Events.ui_action_denied.emit(_float_anchor, "spell_denied_no_mana")
 		return

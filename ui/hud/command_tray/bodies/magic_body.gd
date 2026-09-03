@@ -49,12 +49,20 @@ func _refresh() -> void:
 	var plan := _battle_system.attack_plan as MagicAttackPlan
 	var board := _player.stat_board if _player != null else null
 	var mana: float = float(board.mana.current) if board != null and board.mana != null else 0.0
+	# Post-#728 there is no cast-from node until a target is clicked, so the
+	# readout reports the auto-picked caster's degree once one exists and the
+	# best degree the territory offers before that — the number that actually
+	# decides which spells are castable at all.
 	var degree := 0
-	if plan != null and plan.source != null and _player.navigator != null:
-		degree = _player.navigator.get_degree(plan.source)
+	if plan != null and _player.navigator != null:
+		if plan.source != null:
+			degree = _player.navigator.get_degree(plan.source)
+		else:
+			for n in _player.navigator.get_mirrored_nodes():
+				degree = max(degree, _player.navigator.get_degree(n))
 	_context_label.text = "source degree %d · mana %d" % [degree, int(mana)]
 	if plan != null:
-		_spell_bar.update_gating_context(plan.attacker, plan.source)
+		_spell_bar.update_gating_context(plan.attacker)
 	var spell_name := plan.spell.name if plan != null and plan.spell != null else "Spell"
 	_launch_button.text = "Cast %s" % spell_name
 	var can_act := _input_ctl == null or _input_ctl.can_player_act()

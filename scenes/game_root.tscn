@@ -46,7 +46,7 @@ graph = NodePath("../../Graph")
 navigator = NodePath("../../Graph/Navigator")
 turn_manager = NodePath("../TurnManager")
 
-[node name="BattleSystem" type="Node" parent="Systems" unique_id=1847539356 node_paths=PackedStringArray("turn_manager", "allocation_system", "graph", "attack_vfx", "melee_preview")]
+[node name="BattleSystem" type="Node" parent="Systems" unique_id=1847539356 node_paths=PackedStringArray("turn_manager", "allocation_system", "graph", "attack_vfx", "melee_preview", "vision_system")]
 unique_name_in_owner = true
 script = ExtResource("6_battle")
 turn_manager = NodePath("../TurnManager")
@@ -54,6 +54,7 @@ allocation_system = NodePath("../AllocationSystem")
 graph = NodePath("../../Graph")
 attack_vfx = NodePath("../../Graph/AttackVFX")
 melee_preview = NodePath("../../Graph/MeleePreview")
+vision_system = NodePath("../VisionSystem")
 
 [node name="HighlightController" type="Node" parent="Systems" unique_id=39417906 node_paths=PackedStringArray("battle_system", "input_ctl", "allocation_system", "graph", "turn_manager")]
 unique_name_in_owner = true

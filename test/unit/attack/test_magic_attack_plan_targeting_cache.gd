@@ -5,13 +5,20 @@ extends GutTest
 ## PER REPAINT. With a hop-based spell source selected, the old code routed
 ## every one of those through Targeting.is_valid_target -> HopRangeFinder.in_range,
 ## which runs one AStar query (astar.get_id_path) per candidate — an N-node
-## repaint was N graph traversals. MagicAttackPlan now caches its valid-target
-## set off ONE RangeFinder.gather traversal, invalidated by state_changed.
+## repaint was N graph traversals. MagicAttackPlan caches its valid-target set
+## off RangeFinder.gather traversals instead.
 ##
-## This is the acceptance test the issue names: a repaint performs EXACTLY ONE
-## graph traversal. Asserted with a call-counting spy on the mirror's
-## `nodes_within` (what HopRangeFinder.gather calls) — never on ownership
-## internals.
+## Asserted with a call-counting spy on the mirror's `nodes_within` (what
+## HopRangeFinder.gather calls) — never on ownership internals.
+##
+## [b]Re-pointed for #728.[/b] The source is no longer clicked, so "one repaint,
+## one traversal" is now stated per ELIGIBLE CASTER: the union runs one bounded
+## BFS per owned node that can cast the spell, and a repaint costs that many, not
+## one per graph node. #385's original claim survives verbatim in
+## [method test_a_repaint_performs_exactly_one_graph_traversal] (this fixture
+## owns exactly one caster) and in the unchanged-repaint test; the old
+## "changing source" test is replaced by the two things #728 actually promises —
+## that hovering does NOT invalidate, and that an ownership change does.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
@@ -35,6 +42,7 @@ var _attacker: Entity
 var _source: SkillNode
 var _nodes: Array[SkillNode]
 var _plan: MagicAttackPlan
+var _alloc: AllocationSystem
 
 
 func before_each() -> void:
@@ -64,7 +72,13 @@ func before_each() -> void:
 	_attacker.faction = _PLAYER_FACTION
 	_graph.add_child(_attacker)
 	await get_tree().process_frame  # entity._ready wires attacker.navigator
-	_source.owned_by = _attacker
+	# Through the AllocationSystem, not a bare `owned_by =`: #728 reads the
+	# eligible-caster set off `attacker.navigator`, which only a real allocation
+	# populates (see .claude/rules/graph.md).
+	_alloc = autofree(AllocationSystem.new())
+	_alloc.graph = _graph
+	_graph.add_child(_alloc)
+	_alloc.force_allocate(_attacker, _source)
 
 	var targeting := NodeTargeting.new()
 	targeting.ownership_filter = SkillNode.Ownership.HOSTILE
@@ -73,11 +87,14 @@ func before_each() -> void:
 
 	var spell := SpellDef.new()
 	spell.targeting = targeting
+	# A hub owned alone has owned-subgraph degree 0, so SpellDef's default
+	# min_degree = 1 would leave no eligible caster at all. This test measures
+	# traversals, not gating.
+	spell.min_degree = 0
 
 	_plan = autofree(MagicAttackPlan.new())
 	_plan.attacker = _attacker
 	_plan.spell = spell
-	_plan._on_node_left_clicked(_source)  # picks the source, emits state_changed
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
@@ -88,7 +105,7 @@ func _add_edge(a: SkillNode, b: SkillNode) -> void:
 
 
 func test_a_repaint_performs_exactly_one_graph_traversal() -> void:
-	assert_eq(_spy.call_count, 0, "picking the source alone must not traverse yet — lazy rebuild")
+	assert_eq(_spy.call_count, 0, "arming the plan alone must not traverse yet — lazy rebuild")
 
 	# Simulate NodeHighlightOverlay._draw(): get_node_role for every node,
 	# exactly as it iterates graph.get_skill_nodes() once per repaint.
@@ -109,17 +126,37 @@ func test_a_second_repaint_with_no_state_change_costs_nothing_more() -> void:
 	assert_eq(_spy.call_count, 1, "the cache survives an unchanged repaint — still one traversal total")
 
 
-func test_changing_source_invalidates_and_costs_one_more_traversal() -> void:
+## #728 acceptance: "changing the hovered target does not invalidate the union".
+## The union rides its OWN dirty flag precisely so it can survive a hover — the
+## older per-source cache is invalidated by `state_changed`, which every hover
+## emits, and reusing that flag would re-walk the graph on mouse movement.
+func test_hovering_a_new_candidate_does_not_reinvalidate_the_union() -> void:
 	for n in _graph.get_skill_nodes():
 		_plan.get_node_role(n)
 	assert_eq(_spy.call_count, 1)
 
-	var new_source := _nodes[0]
-	new_source.owned_by = _attacker
-	_plan.pop()  # clear the old source — re-sourcing is pop-then-push, not a direct swap
-	_plan._on_node_left_clicked(new_source)
-	assert_eq(_spy.call_count, 1, "picking a new source alone must not traverse yet")
+	for n in _nodes:
+		_plan.set_hover_target(n)
+		for other in _graph.get_skill_nodes():
+			_plan.get_node_role(other)
+
+	assert_eq(_spy.call_count, 1,
+			"moving the cursor across every node must not re-walk the graph even once")
+
+
+## The other half: an ownership change DOES invalidate, and the extra traversal
+## is per newly-eligible caster. Allocating a spoke gives the attacker a second
+## owned node — and gives BOTH nodes owned-subgraph degree 1, so this also pins
+## that the union re-reads eligibility rather than caching a source list.
+func test_an_ownership_change_invalidates_and_costs_one_traversal_per_caster() -> void:
+	for n in _graph.get_skill_nodes():
+		_plan.get_node_role(n)
+	assert_eq(_spy.call_count, 1)
+
+	_alloc.force_allocate(_attacker, _nodes[0])
+	_plan.invalidate_union()  # BattleSystem pushes this off AllocationSystem's signals
+	assert_eq(_spy.call_count, 1, "invalidating alone must not traverse yet — still lazy")
 
 	for n in _graph.get_skill_nodes():
 		_plan.get_node_role(n)
-	assert_eq(_spy.call_count, 2, "a repaint after the source changed rebuilds exactly once more")
+	assert_eq(_spy.call_count, 3, "two eligible casters, one bounded BFS each")

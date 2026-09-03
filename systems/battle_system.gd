@@ -59,6 +59,12 @@ var selected_spell: SpellDef = null:
 @export var graph: Graph
 @export var attack_vfx: AttackVFX
 @export var melee_preview: MeleePreview
+
+## The viewing seat's fog, handed down to each [MagicAttackPlan] so its
+## highlights can be filtered caller-side (#728). Optional — an unwired
+## BattleSystem (tests, the spell playground) simply casts without fog, which
+## is what those callers had before.
+@export var vision_system: VisionSystem
 ## The queue an attack is applied through (#511). Optional: without one,
 ## [method launch_attack] applies straight, which is what every headless
 ## fixture and the editor do. Wired by [CommandApplier] itself at `_ready`
@@ -241,8 +247,10 @@ func can_toggle_temp_upgrade_on(node: SkillNode, upgrade: Variant) -> bool:
 func _new_plan(plan_class: Script) -> AttackPlan:
 	var p: AttackPlan = plan_class.new()
 	p.attacker = turn_manager.current_entity
-	if p is MagicAttackPlan and selected_spell != null:
-		(p as MagicAttackPlan).spell = selected_spell
+	if p is MagicAttackPlan:
+		(p as MagicAttackPlan).viewer_vision = vision_system
+		if selected_spell != null:
+			(p as MagicAttackPlan).spell = selected_spell
 	if p is MeleeAttackPlan:
 		(p as MeleeAttackPlan).swing_cw = next_melee_cw
 	return p
@@ -278,6 +286,34 @@ var _seed_source := RandomNumberGenerator.new()
 func _ready() -> void:
 	Events.skill_node_depleted.connect(_on_node_depleted)
 	_seed_source.randomize()
+	_subscribe_union_invalidation()
+
+
+## The pick-spell-first target union (#728) is cached on the plan and depends on
+## (spell, ownership, turn) — never on the hovered or committed target, which is
+## why it cannot ride [signal AttackPlan.state_changed] like the older caches do.
+## Ownership and turn move it from OUTSIDE the plan, so the invalidation is
+## pushed from here, over the same allocation signals [VisionSystem] listens to
+## for the same reason.
+##
+## It matters more than it used to: with the source set derived from ownership
+## rather than clicked, allocating a high-degree node mid-turn has to make the
+## spell castable immediately — a stale union would keep saying "no caster"
+## while the player looks at the node that fixes it.
+func _subscribe_union_invalidation() -> void:
+	if allocation_system != null:
+		allocation_system.allocated.connect(_invalidate_plan_union.unbind(3))
+		allocation_system.deallocated.connect(_invalidate_plan_union.unbind(2))
+		allocation_system.force_deallocated.connect(_invalidate_plan_union.unbind(2))
+	if turn_manager != null:
+		turn_manager.turn_started.connect(_invalidate_plan_union.unbind(1))
+
+
+func _invalidate_plan_union() -> void:
+	var magic_plan := attack_plan as MagicAttackPlan
+	if magic_plan != null:
+		magic_plan.invalidate_union()
+		attack_plan_state_changed.emit()
 
 
 ## Commit the active plan — the entry point every caller still uses (the HUD

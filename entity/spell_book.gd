@@ -90,6 +90,25 @@ func castable_from(source: SkillNode, attacker: Entity) -> Array[SpellDef]:
 	return result
 
 
+## Every owned node of [param attacker] that may cast [param spell] right now
+## — the inverse of [method castable_from], and the source set the pick-spell-
+## first targeting union is built over (#728).
+##
+## The one home for "can this node cast it": [SpellTargetUnion] and the
+## spell-picker's no-caster gate both call THIS, rather than each re-deriving
+## min_degree against the owned subgraph. Mana is still not part of it, for the
+## same reason [method castable_from] leaves it out — it is per-cast, and the
+## picker layers it on as its own separate gate.
+func eligible_sources(spell: SpellDef, attacker: Entity) -> Array[SkillNode]:
+	var out: Array[SkillNode] = []
+	if spell == null or attacker == null or attacker.navigator == null:
+		return out
+	for n in attacker.navigator.get_mirrored_nodes():
+		if _node_meets_source_requirements(spell, n, attacker):
+			out.append(n)
+	return out
+
+
 ## Does the entity's owned-subgraph degree at [param source] satisfy
 ## [param spell]'s [member SpellDef.min_degree]? Returns true for null source
 ## (the UI uses this to decide "can EVER be cast" before a source is picked).

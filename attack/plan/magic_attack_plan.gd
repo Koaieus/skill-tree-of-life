@@ -1,10 +1,13 @@
 class_name MagicAttackPlan
 extends AttackPlan
 
-## Left-click an owned node to set the casting source (when unset), then
-## left-click a valid target per the equipped spell's targeting. Right-click
-## pops the source (and target with it) back to "no source yet" — see
-## docs/design/click_grammar.md. The active spell comes from
+## [b]Pick the spell first, then click a target (#728).[/b] The equipped spell's
+## reach is unioned across every owned node that may cast it, so the player
+## left-clicks a target directly and the casting source is auto-picked for
+## them; right-click clears the pick. There is no source-selection step any
+## more — see [member source] for why choosing one was never really a choice,
+## and docs/design/click_grammar.md for the grammar this collapsed.
+## The active spell comes from
 ## [BattleSystem.selected_spell] when the plan is constructed by the system;
 ## hand-instantiated plans (tests, AI scoring) can assign [member spell]
 ## directly. Falls back to the bundled default if nothing is selected so the
@@ -12,18 +15,46 @@ extends AttackPlan
 
 const _FALLBACK_SPELL: SpellDef = preload("res://attack/spell/defs/spark.tres")
 
+## The cast-from node. No longer clicked — [method _on_node_left_clicked]
+## stamps it from [method SpellTargetUnion.source_for] the moment a target is
+## picked, and [method validate] still requires it (a cast has to leave from
+## somewhere, and the launch command ships its stable id).
+##
+## Auto-picking is honest rather than lazy: `spell_damage` IS node-local, so
+## the union hands back the strongest caster that reaches each target. The
+## measured spread (Ninja +40%, Serpent ~flat) sat under the bar the owner set
+## for earning a player-facing source affordance, so the choice is made
+## silently here; the heatmap that would expose it is filed separately.
 var source: SkillNode = null
 var spell: SpellDef = null
 var target: SkillNode = null
 
+## The viewing seat's fog, for caller-side vision filtering — set by
+## [BattleSystem], null on the AI's probe plans (they carry their own recon).
+##
+## Vision is applied HERE and not inside [SpellTargetUnion] on purpose: under
+## [SeatPolicy] couch handover the acting entity is not the viewing seat, so a
+## union that baked one viewer's fog in would be wrong for the other caller.
+var viewer_vision: VisionSystem = null
+
 ## Valid-target set for the current (source, spell) pair, membership-only
-## (#385 perf). Rebuilt lazily off ONE [method RangeFinder.gather] traversal
-## instead of the overlay re-deriving it with one [method Targeting.is_valid_target]
-## — and thus one AStar query on [HopRangeFinder] — PER NODE PER REPAINT.
-## Invalidated by [signal state_changed], which every source/spell/target
-## mutation below already emits.
+## (#385 perf) — now a VIEW onto [member _union] rather than its own walk, so
+## there is one implementation behind both the pre-source union painting and
+## this source-scoped question. Kept because [AiController] still probes with a
+## source already stamped (#745 rewires that); it costs one dictionary copy.
 var _cached_valid_targets: Dictionary[SkillNode, bool] = {}
 var _target_cache_dirty: bool = true
+
+## The pick-spell-first target union (#728), lazily built.
+##
+## [b]It gets its OWN dirty flag, deliberately.[/b] [member _target_cache_dirty]
+## rides [signal state_changed], which fires on every TARGET mutation — hovering
+## from one node to the next. Reusing it here would blow the union away on
+## mouse movement, the exact opposite of what it is for. The union depends only
+## on (spell, ownership, turn), so [method set_spell] invalidates it and
+## [BattleSystem] calls [method invalidate_union] on allocation and turn change.
+var _union: SpellTargetUnion = null
+var _union_dirty: bool = true
 
 ## The candidate the player is currently hovering, distinct from the
 ## committed [member target] — pushed in by [method PlayerInputController]'s
@@ -73,16 +104,20 @@ static func from_dict(d: Dictionary, graph: Graph) -> MagicAttackPlan:
 	# Assigned directly, not through set_spell(): that method clears a target
 	# the new spell would reject, and rebuilding a plan must reproduce what the
 	# authority sent rather than re-adjudicate it. Order still matters — the
-	# spell lands before the target so `_target_still_valid` is never consulted
-	# against a stale one.
+	# spell lands before the target so no re-adjudication can run against a
+	# stale one.
 	plan.spell = SpellCatalog.by_id(StringName(d.get("spell", &"")))
 	plan.source = graph.get_by_stable_id(int(d.get("source", 0))) if graph != null else null
 	plan.target = graph.get_by_stable_id(int(d.get("target", 0))) if graph != null else null
 	return plan
 
 
+## Right-click clears the pick. Gated on [member target], not [member source]:
+## post-#728 a null source IS the resting state (nothing is committed until a
+## target is clicked), so the old `source == null` guard would have made
+## right-click a permanent no-op.
 func pop() -> bool:
-	if source == null:
+	if target == null:
 		return false
 	reset()
 	return true
@@ -91,25 +126,20 @@ func pop() -> bool:
 func _on_node_left_clicked(node: SkillNode) -> void:
 	if attacker == null or node == null:
 		return
-	if source == null:
-		if node.owned_by != attacker:
-			return
-		source = node
-		state_changed.emit()
-		return
 	if spell == null or spell.targeting == null:
 		return
-	if not spell.targeting.is_valid_target(self, source, node):
-		# Self-targeting fallthrough: if the source itself isn't a legal
-		# target for this spell (most attack spells), that's "never mind",
-		# not a denial — pop instead of silently dropping the click. A heal
-		# spell that allows self-targeting resolves normally above, no
-		# special case needed. See docs/design/click_grammar.md.
-		if node == source:
-			pop()
+	# One click, not two (#728): the clicked node IS the target, and its caster
+	# is looked up from the union rather than picked by a prior click. A click
+	# on anything the union can't reach is dropped silently — the drawn reach
+	# already explains why, exactly as a ranged attack with nothing in range
+	# does. The old self-targeting "never mind" fallthrough went with the
+	# source step it belonged to.
+	var picked := union().source_for(node)
+	if picked == null:
 		return
-	if target == node:
+	if target == node and source == picked:
 		return
+	source = picked
 	target = node
 	state_changed.emit()
 
@@ -131,10 +161,25 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 		return HighlightRole.HOSTILE_TARGET
 	if _preview_hit_set().has(node):
 		return HighlightRole.PROPAGATION
-	if source != null and spell != null and spell.targeting != null:
-		if _valid_targets().has(node):
+	if spell != null and spell.targeting != null and _is_seen(node):
+		# Post-#728 this paints the UNION — every node any eligible caster can
+		# reach — not one pre-picked source's reach. Once a target is committed
+		# the union is still the right set to keep lit: it is what a re-click
+		# would land on.
+		if union().can_target(node):
 			return HighlightRole.IN_RANGE
 	return HighlightRole.NONE
+
+
+## The viewer's fog, applied caller-side (see [member viewer_vision]). No
+## vision system bound — the AI's probe plans, tests, the spell playground —
+## means no fog, which is the pre-#728 behaviour those callers already had.
+##
+## Highlights need this explicitly because they are painted by an overlay that
+## draws every graph node; click targeting is separately physics-gated by
+## [code]input_pickable[/code], so a fogged node cannot be clicked either way.
+func _is_seen(node: SkillNode) -> bool:
+	return viewer_vision == null or viewer_vision.is_visible(node)
 
 
 ## Push the currently-hovered candidate in from PlayerInputController's hover
@@ -178,12 +223,26 @@ func get_available_spells() -> Array[SpellDef]:
 	return [spell] if spell != null else []
 
 
+## #728: with no source pre-picked, "reach" is the UNION of every eligible
+## caster's reach — a ring per caster for a euclidean spell, the merged BFS
+## frontier for a hop spell. Drawing it is what makes an empty target union
+## read as ordinary futility ("I can see where I reach, nothing hostile is in
+## it") rather than as an unexplained blank, which is why the owner ruled it a
+## requirement rather than a nicety and dropped the second denial toast.
+##
+## Once a target IS committed the visual narrows to the auto-picked caster's
+## own reach: that is the cast about to happen, and showing the whole union
+## alongside it would be noise. Both paths read [member SpellTargetUnion.per_source]
+## — the sets the target union was already built from — so neither re-traverses.
 func get_range_visual() -> RangeVisual:
 	var visual: RangeVisual = null
-	if source != null and spell != null and spell.targeting != null:
+	if spell != null and spell.targeting != null:
 		var finder: RangeFinder = spell.targeting.range_finder
 		if finder != null:
-			visual = finder.get_visual(attacker, source)
+			if source != null:
+				visual = finder.get_visual(attacker, source)
+			else:
+				visual = finder.get_union_visual(attacker, union())
 	# #679: fold the aim-time propagation preview's traversed edges in on top
 	# of the spell's own reach visual — same [RangeVisual], PROPAGATION-tagged
 	# entries, so [EdgeHighlightOverlay] paints both with no overlay change.
@@ -194,12 +253,6 @@ func get_range_visual() -> RangeVisual:
 		for e in preview_edges:
 			visual.edges.append(RangeVisual.EdgeEntry.new(e, 0, 0, HighlightRole.PROPAGATION))
 	return visual
-
-
-func _target_still_valid() -> bool:
-	if spell == null or spell.targeting == null or source == null:
-		return false
-	return spell.targeting.is_valid_target(self, source, target)
 
 
 ## Membership view onto the current (source, spell) valid-target set, rebuilt
@@ -215,44 +268,50 @@ func _invalidate_target_cache() -> void:
 	_preview_dirty = true
 
 
-## ONE traversal ([method RangeFinder.gather], BFS/linear-scan) over the global
-## mirror, then a cheap per-candidate ownership-bit test — not one
-## [method Targeting.is_valid_target] (and thus one AStar query on
-## [HopRangeFinder]) per candidate. Sound ONLY because [AStarSkillTree] flat-costs
-## every edge (see range_finder.gd's `gather` docstring) so `gather`'s hop count
-## and `in_range`'s AStar-path length agree exactly — verified when #385 was
-## filed, not re-derived here. A non-[NodeTargeting] targeting (none shipped
-## today) falls back to the O(N) [method Targeting.valid_targets] walk.
+## The lazily-built [SpellTargetUnion] for the equipped spell (#728). Never
+## null — an unarmed or unownable plan gets an empty union, so callers ask it
+## questions rather than null-checking it.
+func union() -> SpellTargetUnion:
+	if _union_dirty or _union == null:
+		_rebuild_union()
+	return _union
+
+
+## Drop the cached union. Called by [BattleSystem] on allocation and turn
+## change — the two things that move the eligible-source set without touching
+## plan state — and by [method set_spell]. NOT wired to [signal state_changed]:
+## see [member _union].
+func invalidate_union() -> void:
+	_union_dirty = true
+	_target_cache_dirty = true
+	_preview_dirty = true
+
+
+func _rebuild_union() -> void:
+	_union_dirty = false
+	# The attacker's own EntityNavigator mirrors the OWNED subgraph but knows the
+	# whole Graph it mirrors — which is what the union needs, and the only handle
+	# available before a source is picked (`_graph_of` walks up from a node).
+	var graph: Graph = attacker.navigator.graph if attacker != null and attacker.navigator != null else null
+	_union = SpellTargetUnion.build(spell, attacker, graph, self)
+
+
+## A LOOKUP into [member _union], not a second walk (#728). The union already
+## holds every eligible caster's legal-target set, keyed by source, and it built
+## them the cheap way — candidates from the range finder first, then the
+## ownership predicate over only those, never one whole-graph
+## [code]_filter_skill_nodes[/code] sweep per source. So the source-scoped view
+## costs one dictionary copy and shares the union's cache.
+##
+## (#385's soundness argument still underwrites the union itself: [AStarSkillTree]
+## flat-costs every edge, so `gather`'s hop count and `in_range`'s AStar-path
+## length agree exactly.)
 func _rebuild_target_cache() -> void:
-	_cached_valid_targets.clear()
 	_target_cache_dirty = false
-	if source == null or spell == null or spell.targeting == null:
+	if source == null:
+		_cached_valid_targets = {}
 		return
-	var targeting := spell.targeting
-	if not (targeting is NodeTargeting):
-		for sn in targeting.valid_targets(self, source):
-			_cached_valid_targets[sn] = true
-		return
-	var nt := targeting as NodeTargeting
-	var finder: RangeFinder = nt.range_finder
-	if finder == null:
-		# Unlimited reach: every graph node is a range candidate.
-		var full_graph := _graph_of(source)
-		if full_graph == null:
-			return
-		for sn in full_graph.get_skill_nodes():
-			if sn.ownership_bit(attacker) & nt.ownership_filter != 0:
-				_cached_valid_targets[sn] = true
-		return
-	# Global reach (matches HopRangeFinder.in_range / EuclideanRangeFinder.in_range,
-	# neither of which are scoped to owned territory) — the full-graph Navigator
-	# mirror, not attacker.navigator (that's the owned-subgraph EntityNavigator).
-	var graph := _graph_of(source)
-	if graph == null or graph.navigator == null:
-		return
-	for candidate in finder.gather(source, graph.navigator, attacker):
-		if candidate.ownership_bit(attacker) & nt.ownership_filter != 0:
-			_cached_valid_targets[candidate] = true
+	_cached_valid_targets = union().targets_from(source)
 
 
 ## The node the aim-time preview should resolve against right now: the
@@ -264,7 +323,10 @@ func _preview_target() -> SkillNode:
 		return target
 	if _hover_target == null:
 		return null
-	if not _valid_targets().has(_hover_target):
+	# The UNION, not the source-scoped set: while aiming, no source is stamped
+	# yet, so the source-scoped set is empty and every hover would preview
+	# nothing.
+	if not union().can_target(_hover_target):
 		return null
 	return _hover_target
 
@@ -295,12 +357,19 @@ func _rebuild_preview() -> void:
 	_preview_hit_nodes.clear()
 	_preview_edges.clear()
 	var preview_target := _preview_target()
-	if preview_target == null or source == null or spell == null or attacker == null:
+	if preview_target == null or spell == null or attacker == null:
 		return
-	var graph := _graph_of(source)
+	# Pre-commit there is no stamped source, so preview against the caster the
+	# union WOULD pick — which is the cast the player is about to make. Resolving
+	# from some other node would ghost the wrong damage numbers, since
+	# `spell_damage` is node-local.
+	var caster := source if source != null else union().source_for(preview_target)
+	if caster == null:
+		return
+	var graph := _graph_of(caster)
 	if graph == null:
 		return
-	var outcome := SpellResolver.resolve(spell, preview_target, source, attacker, graph)
+	var outcome := SpellResolver.resolve(spell, preview_target, caster, attacker, graph)
 	if outcome.timeline.is_empty():
 		return
 	var lookup := _edge_lookup(graph)
@@ -373,13 +442,22 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	return outcome
 
 
-## Swap the equipped spell mid-plan. Clears the target if the new spell's
-## targeting would reject it, so the player can't accidentally cast with a
-## stale pick. Emits [signal state_changed] so the UI re-paints.
+## Swap the equipped spell mid-plan. Post-#728 the pick is re-adjudicated
+## against the NEW spell's union rather than against the old spell's source:
+## a target the new spell can still reach keeps its place and gets re-stamped
+## with whichever caster is best for it now (which is rarely the same node),
+## and a target it can't reach clears both fields. Anything else would leave a
+## source the new spell may not even be castable from.
 func set_spell(new_spell: SpellDef) -> void:
 	if spell == new_spell:
 		return
 	spell = new_spell
-	if target != null and not _target_still_valid():
-		target = null
+	invalidate_union()
+	if target != null:
+		var picked := union().source_for(target)
+		if picked == null:
+			source = null
+			target = null
+		else:
+			source = picked
 	state_changed.emit()

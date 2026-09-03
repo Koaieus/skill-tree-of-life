@@ -85,10 +85,49 @@ func get_visual(attacker: Entity, source: SkillNode) -> RangeVisual:
 		return visual
 	# Hop distances from source, capped at hops, via the shared mirror BFS.
 	var depths := nav.nodes_within(source, hops)  # {SkillNode: hops}
-	if depths.is_empty():
+	_light_edges(visual, graph, depths, hops)
+	return visual
+
+
+## Union reach for the pick-spell-first selection (#728): ONE edge pass over
+## the MERGED depth map, not [method get_visual] once per eligible caster.
+##
+## Merging is sound because the lit set is exactly "edges whose nearer endpoint
+## still has budget left", and the union of per-source lit sets is the same as
+## the lit set of the per-node MINIMUM depth — which is what
+## [method SpellTargetUnion.merged_reach] holds. `hops_remaining` then fades
+## against the WIDEST caster's budget, so the union's outer edge reads as its
+## own boundary rather than as several overlapping ones.
+func get_union_visual(attacker: Entity, union: SpellTargetUnion) -> RangeVisual:
+	var visual := RangeVisual.new()
+	if union == null or union.sources.is_empty():
 		return visual
-	# Walk live edges; an edge is lit when traversing it from the nearer endpoint
-	# stays within hops. hops_remaining = budget left after that step.
+	if attacker == null or attacker.navigator == null:
+		return visual
+	var graph := attacker.navigator.graph
+	if graph == null:
+		return visual
+	var hops := 0
+	for source in union.sources:
+		hops = max(hops, effective_max_hops(attacker, source))
+	if hops <= 0:
+		return visual
+	var merged := union.merged_reach()
+	var depths: Dictionary[SkillNode, int] = {}
+	for n in merged:
+		depths[n] = int(merged[n])
+	_light_edges(visual, graph, depths, hops)
+	return visual
+
+
+## Walk live edges; an edge is lit when traversing it from the nearer endpoint
+## stays within [param hops]. `hops_remaining` = budget left after that step, so
+## the renderer can fade reach out toward its boundary. Shared by the
+## single-source and union visuals so there is one edge-lighting rule, not two.
+func _light_edges(visual: RangeVisual, graph: Graph,
+		depths: Dictionary[SkillNode, int], hops: int) -> void:
+	if depths.is_empty():
+		return
 	for edge in graph.get_edges():
 		if edge == null or edge.from == null or edge.to == null:
 			continue
@@ -106,4 +145,3 @@ func get_visual(attacker: Entity, source: SkillNode) -> RangeVisual:
 			continue
 		var hops_remaining := hops - depth_of_edge
 		visual.edges.append(RangeVisual.EdgeEntry.new(edge, hops_remaining, hops))
-	return visual

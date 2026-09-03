@@ -3,11 +3,19 @@ extends HBoxContainer
 
 ## Renders the player [SpellBook] as a row of [SpellPickerButton]s. Selecting
 ## one routes through [signal spell_selected] which UIRoot forwards to
-## [member BattleSystem.selected_spell]. The bar self-syncs two independent
-## gates on each button (#743): min_degree against the currently-selected
-## source (spells the source can't satisfy go grey AND unclickable), and mana
-## against the gating attacker's pool (spells it can't afford go grey but
-## STAY clickable — see [SpellPickerButton]'s top docstring for why).
+## [member BattleSystem.selected_spell]. The bar self-syncs three independent
+## gates on each button (#743, #728): the bar-wide act gate (not your turn / no
+## AP — grey AND unclickable), mana against the gating attacker's pool, and
+## whether ANY owned node clears the spell's min_degree. The last two go grey
+## but STAY clickable so the press can float its own denial — see
+## [SpellPickerButton]'s top docstring.
+##
+## [b]min_degree is a territory question now, not a source question (#728).[/b]
+## Before the targeting inversion the bar was fed a pre-picked cast-from node
+## and greyed a spell that node could not satisfy. There is no such node any
+## more, so the gate asks [method SpellBook.eligible_sources] instead — the same
+## predicate [SpellTargetUnion] builds its source set from, so the picker and
+## the highlights can never disagree about whether a spell is castable.
 
 signal spell_selected(spell: SpellDef)
 
@@ -23,11 +31,10 @@ var _buttons_by_spell: Dictionary[SpellDef, SpellPickerButton] = {}
 ## is currently holding; re-pointed (never accumulated) on every call.
 var _mana_subs := SubBag.new()
 
-# The live "what is this spell being cast from?" context — used to grey out
-# buttons whose min_degree isn't met by the current source. Set externally by
-# UIRoot from the active MagicAttackPlan; pass null to clear gating.
+# The live "who is casting?" context. Set externally by the magic tray body
+# from the active MagicAttackPlan; pass null to clear gating. There is no
+# companion `_gating_source` since #728 — see this file's top docstring.
 var _gating_attacker: Entity = null
-var _gating_source: SkillNode = null
 
 # True while the player can act (their turn + AP > 0). When false the bar
 # dims and all buttons go uninteractive — UI cue for "no action points left".
@@ -59,11 +66,11 @@ func sync_selected(spell: SpellDef) -> void:
 		_buttons_by_spell[s].set_selected(s == spell)
 
 
-## Tell the bar which (attacker, source) context to gate against. Pass
-## (null, null) to clear gating (all spells enabled).
-func update_gating_context(attacker: Entity, source: SkillNode) -> void:
+## Tell the bar which attacker to gate against. Pass null to clear gating (all
+## spells enabled). Took a `source` too until #728 removed the source-selection
+## step that supplied one.
+func update_gating_context(attacker: Entity) -> void:
 	_gating_attacker = attacker
-	_gating_source = source
 	_resubscribe_mana(attacker)
 	_refresh_gating()
 	# Propagate caster to buttons so the floating tooltip can compute
@@ -109,12 +116,18 @@ func _rebuild() -> void:
 	_refresh_gating()
 
 
-## Two independent per-spell gates (#743, renamed from `_refresh_castability`
-## now that mana joined min_degree here): [method SpellPickerButton.set_castable]
-## (min_degree — unclickable when unmet) and [method SpellPickerButton.set_affordable]
-## (mana — grey but clickable, see [SpellPickerButton]'s top docstring). `mana_cost`
-## is a flat [member SpellDef.mana_cost] int with no stat pipeline, so this reads
-## the attacker's pool directly and needs no source.
+## Three independent per-spell gates (#743, #728):
+## [method SpellPickerButton.set_actionable] (turn/AP — unclickable when unmet),
+## [method SpellPickerButton.set_affordable] (mana) and
+## [method SpellPickerButton.set_has_caster] (min_degree over the whole owned
+## subgraph); the latter two are grey but clickable — see [SpellPickerButton]'s
+## top docstring.
+##
+## `mana_cost` is a flat [member SpellDef.mana_cost] int with no stat pipeline,
+## so mana reads the attacker's pool directly. The caster gate delegates to
+## [method SpellBook.eligible_sources] rather than re-deriving min_degree here;
+## an entity with no spellbook or navigator yields an empty list, which greys
+## everything — the same conservative default [SpellBook] already takes.
 ##
 ## [param _new_current] is unused — it exists only so this can connect directly
 ## to [signal PoolStat.current_changed] (1 arg) in [method _resubscribe_mana];
@@ -132,10 +145,10 @@ func _refresh_gating(_new_current: Variant = null) -> void:
 	# it explicitly.
 	for spell: SpellDef in _buttons_by_spell.keys():
 		var btn := _buttons_by_spell[spell]
-		var castable := _act_enabled and _book.is_castable(spell, _gating_source, _gating_attacker)
-		btn.set_castable(castable)
+		btn.set_actionable(_act_enabled)
 		var affordable := mana == null or spell.mana_cost <= 0 or mana.available() >= spell.mana_cost
 		btn.set_affordable(affordable)
+		btn.set_has_caster(not _book.eligible_sources(spell, _gating_attacker).is_empty())
 
 
 ## Bar-wide gate. False = no AP / not player's turn; dim the whole bar and

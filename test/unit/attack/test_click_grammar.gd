@@ -5,6 +5,11 @@ extends GutTest
 ## stack, regardless of which node it lands on; a left-click on the armed
 ## origin that fails the mode's own target-validity check falls through to
 ## the same pop instead of a silent no-op. See docs/design/click_grammar.md.
+##
+## [b]Magic left the three-level shape in #728[/b] — with the cast-from node
+## auto-picked there is no origin to arm, so magic now matches ranged: one
+## left-click sets the target, right-click clears it. The magic section below
+## is re-pointed accordingly; melee and ranged are untouched.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -104,64 +109,88 @@ func _magic_targeting(filter: int) -> NodeTargeting:
 	return t  # range_finder left null: unlimited reach, isolates the ownership check
 
 
-func test_magic_left_click_sets_source_when_unset() -> void:
-	var plan: MagicAttackPlan = autofree(MagicAttackPlan.new())
-	plan.attacker = _attacker
-	var a := _spawn(_attacker)
-	plan._on_node_left_clicked(a)
-	assert_eq(plan.source, a, "left-click on an owned node arms the source")
+## Since #728 the eligible-caster set is read off `attacker.navigator`, which
+## only a real allocation populates — `_spawn`'s bare `owned_by =` leaves the
+## mirror empty and every union comes back with no sources (see
+## .claude/rules/graph.md). These magic fixtures therefore allocate for real.
+func _own(node: SkillNode) -> SkillNode:
+	var alloc := _graph.get_node_or_null(^"ClickGrammarAlloc") as AllocationSystem
+	if alloc == null:
+		alloc = AllocationSystem.new()
+		alloc.name = "ClickGrammarAlloc"
+		alloc.graph = _graph
+		_graph.add_child(alloc)
+	alloc.force_allocate(_attacker, node)
+	return node
 
 
-func test_magic_right_click_pops_source_and_target() -> void:
-	var plan: MagicAttackPlan = autofree(MagicAttackPlan.new())
-	plan.attacker = _attacker
+## A spell with no reach limit and no degree requirement, so these tests read
+## as ownership-filter tests and nothing else.
+func _magic_spell(filter: int) -> SpellDef:
 	var spell := SpellDef.new()
-	spell.targeting = _magic_targeting(SkillNode.Ownership.MINE)
-	plan.spell = spell
-	var a := _spawn(_attacker)
-	var b := _spawn(_attacker)
-	plan._on_node_left_clicked(a)
+	spell.targeting = _magic_targeting(filter)
+	spell.min_degree = 0
+	return spell
+
+
+func test_magic_left_click_sets_the_target_and_stamps_a_source_in_one_step() -> void:
+	# Heal-shaped spell (Mine in the filter) so a second owned node is a legal
+	# target — one click, two fields set, no origin step in between.
+	var plan: MagicAttackPlan = autofree(MagicAttackPlan.new())
+	plan.attacker = _attacker
+	plan.spell = _magic_spell(SkillNode.Ownership.MINE)
+	var a := _own(_spawn())
+	var b := _own(_spawn())
+	plan._on_node_left_clicked(b)
+	assert_eq(plan.target, b, "the clicked node IS the target — there is no origin to arm")
+	assert_true(plan.source == a or plan.source == b,
+			"and a caster was auto-picked from the eligible set")
+
+
+func test_magic_right_click_pops_target_and_source() -> void:
+	var plan: MagicAttackPlan = autofree(MagicAttackPlan.new())
+	plan.attacker = _attacker
+	plan.spell = _magic_spell(SkillNode.Ownership.MINE)
+	_own(_spawn())
+	var b := _own(_spawn())
 	plan._on_node_left_clicked(b)
 	assert_eq(plan.target, b, "precondition: target armed")
-	assert_true(plan._on_node_right_clicked(a), "pops source")
-	assert_null(plan.source)
-	assert_null(plan.target, "target cleared with the source")
+	assert_true(plan._on_node_right_clicked(_spawn()), "pops regardless of where it lands")
+	assert_null(plan.target)
+	assert_null(plan.source, "the auto-picked source goes with it")
 
 
 func test_magic_right_click_with_nothing_armed_has_nothing_to_pop() -> void:
 	var plan: MagicAttackPlan = autofree(MagicAttackPlan.new())
 	plan.attacker = _attacker
 	assert_false(plan._on_node_right_clicked(_spawn(_attacker)),
-			"floor state (no source) returns false — caller exits the mode")
+			"floor state (no target) returns false — caller exits the mode")
 
 
-func test_magic_self_target_pops_when_source_is_not_a_legal_target() -> void:
-	# Hostile-only spell: the attacker's own node is never a legal target.
+func test_magic_click_on_an_owned_node_does_nothing_for_a_hostile_spell() -> void:
+	# Hostile-only spell: the attacker's own node is never a legal target, and
+	# post-#728 there is no source step for such a click to land on either — so
+	# it commits nothing at all. (Pre-#728 this was the "invalid self-target
+	# falls through to a pop" case; the pop went with the source step.)
 	var plan: MagicAttackPlan = autofree(MagicAttackPlan.new())
 	plan.attacker = _attacker
-	var spell := SpellDef.new()
-	spell.targeting = _magic_targeting(SkillNode.Ownership.HOSTILE)
-	plan.spell = spell
-	var a := _spawn(_attacker)
+	plan.spell = _magic_spell(SkillNode.Ownership.HOSTILE)
+	var a := _own(_spawn())
 	plan._on_node_left_clicked(a)
-	assert_eq(plan.source, a, "precondition: source armed")
-	plan._on_node_left_clicked(a)  # click the source again
-	assert_null(plan.source, "invalid self-target falls through to a pop, not a denial")
+	assert_null(plan.target)
+	assert_null(plan.source)
 
 
-func test_magic_self_target_resolves_when_source_is_a_legal_target() -> void:
-	# Heal-shaped spell: Mine is in the filter, so the source is a legal
-	# target for itself — resolves normally, no special case.
+func test_magic_self_target_resolves_when_an_owned_node_is_a_legal_target() -> void:
+	# Heal-shaped spell: Mine is in the filter, so a lone owned node is a legal
+	# target for itself — it targets itself and casts from itself.
 	var plan: MagicAttackPlan = autofree(MagicAttackPlan.new())
 	plan.attacker = _attacker
-	var spell := SpellDef.new()
-	spell.targeting = _magic_targeting(SkillNode.Ownership.MINE)
-	plan.spell = spell
-	var a := _spawn(_attacker)
+	plan.spell = _magic_spell(SkillNode.Ownership.MINE)
+	var a := _own(_spawn())
 	plan._on_node_left_clicked(a)
-	plan._on_node_left_clicked(a)  # click the source again
-	assert_eq(plan.source, a, "source untouched — this was a resolve, not a pop")
 	assert_eq(plan.target, a, "self is a legal target, so it resolves as the target")
+	assert_eq(plan.source, a, "and it is its own caster")
 
 
 # ── PlayerInputController integration: two pops reach idle ─────────────────
