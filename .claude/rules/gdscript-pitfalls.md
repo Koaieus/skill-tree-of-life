@@ -45,6 +45,26 @@ and `base_value = v` inside it does not re-enter (nor via `super()`).
 block; you'd silently unhook every subclass. `test_skill_point_stat.gd`'s
 `sp.base_value = ...; assert_eq(sp.current, ...)` is what catches it for `Stat`.
 
+## A subclass's `@onready` is null during the BASE's `_ready` unless you call `super()`
+
+**A subclass that declares `@onready` and overrides a hook the base's `_ready`
+calls must define `_ready()` and call `super()`** — otherwise the override runs
+against a null child and silently does nothing.
+
+**Why:** `@onready` assignments are injected at the top of the `_ready` of the
+script that *declares* them. If the subclass declares no `_ready`, the base's
+runs first, its hook calls dispatch to the subclass's overrides, and those read
+an `@onready` that has not been assigned yet. Nothing errors — a null-guarded
+override just no-ops, and whatever it was meant to push down is never pushed.
+
+**How to apply:** declare `_ready()` in the subclass and call `super()` first.
+The injected assignments land above your line, so the child is resolved before
+the base's hooks run, and any re-sync you add after `super()` is belt-and-braces
+rather than the only thing that works. Live case: `SplashRootView` (#734)
+forwards colour and radius into its `ChargeGlow` through `_sync_identity` /
+`_sync_radius`; without the explicit `_ready`, the glow drew at the default
+radius in the default colour.
+
 ## You cannot disconnect a lambda or an `unbind()` you did not keep
 
 A lambda's `Callable.get_object()` is the **GDScript**, not the node, and
