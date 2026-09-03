@@ -92,6 +92,11 @@ const KEY_PICK := "pick"
 ## trust model [constant LobbyScreen.PICK_PEER] rides on, but a client trivially
 ## acting on another client's behalf.
 const KEY_PEER := "peer"
+## #741: what a joining client would LIKE its seat to carry, rides the hello
+## alongside identity — optional, and never trusted further than any other
+## lobby pick. A bare dict rather than one key each, so a later addition (a
+## preferred colour, say) is one more entry here rather than one more const.
+const KEY_JOIN_PREFS := "join_prefs"
 
 ## #715: this resync (or the request that asked for it) is the JOIN's first
 ## world, not a mid-run repair. Set on both legs of the join race — the host's
@@ -226,7 +231,11 @@ signal link_refused(reason: String)
 ## peer on this signal rather than on [signal NetworkTransport.peer_joined],
 ## which is what makes "a refused peer never appears in anyone's roster" a
 ## property of the wiring rather than of a check somebody has to remember.
-signal peer_cleared(peer_id: int)
+## [param join_prefs] is the cleared peer's [constant KEY_JOIN_PREFS], verbatim
+## and unvalidated — whatever [LobbyScreen] does with a "display_name" inside
+## it goes through the same writer a local pick does (#741); this class only
+## forwards what arrived.
+signal peer_cleared(peer_id: int, join_prefs: Dictionary)
 
 ## #716, host-side: this peer's build does not match ours and it has been
 ## disconnected. The listener is up, every other peer is untouched, and nothing
@@ -289,6 +298,15 @@ var _applying_remote: bool = false
 ## hello against. Filled from [BuildInfo] in [method _ready]; a test sets it
 ## after `add_child` to stage a mismatch without needing two checkouts.
 var build_stamp: Dictionary = {}
+
+## #741: a joining CLIENT's preferred name, carried in its own hello
+## ([constant KEY_JOIN_PREFS]) rather than waited on as a lobby pick — the
+## alternative left the seat showing a generic "Player 2" for one network hop
+## and then a silent revert the instant the joiner typed their own. Set by
+## [method LobbyScreen.bind_link] from [member GameSettings.player_name];
+## empty means the client is not offering one, and this class asks nothing
+## about what the string means or where it goes — that is [LobbyScreen]'s.
+var join_display_name: String = ""
 
 ## Latched once a build mismatch hung the link up. Every payload is dropped
 ## from here on.
@@ -372,11 +390,14 @@ func _on_transport_peer_joined(_peer_id: int) -> void:
 func announce_self() -> void:
 	if transport == null or mode != Mode.MIRROR:
 		return
-	transport.send({
+	var payload := {
 		KEY_KIND: KIND_HELLO,
 		KEY_BUILD: build_stamp,
 		KEY_PEER: transport.local_peer_id(),
-	})
+	}
+	if not join_display_name.is_empty():
+		payload[KEY_JOIN_PREFS] = {"display_name": join_display_name}
+	transport.send(payload)
 	logged.emit("↑ hello (%s)" % describe_build(build_stamp))
 
 
@@ -1031,7 +1052,7 @@ func _gate_peer(payload: Dictionary) -> void:
 		_refuse_peer(peer_id, "build mismatch", theirs)
 		return
 	logged.emit("↑ peer %d cleared (%s)" % [peer_id, describe_build(theirs)])
-	peer_cleared.emit(peer_id)
+	peer_cleared.emit(peer_id, payload.get(KEY_JOIN_PREFS, {}))
 
 
 ## Hang up on ONE peer and keep listening (#716 item 1, acceptance 1).

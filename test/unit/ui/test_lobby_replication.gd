@@ -111,6 +111,44 @@ func test_a_join_stamps_the_host_s_waiting_seat_and_replicates_the_roster() -> v
 			"and the joiner's row carries the id the host stamped")
 
 
+## #741: a joiner's saved name rides its own hello, so the seat never shows the
+## generic "Player 2" even for one hop — [method LobbyScreen.bind_link] wires
+## [member CommandLink.join_display_name] straight from the CLIENT's own
+## machine, and [signal CommandLink.peer_cleared] carries it to the seat's
+## writer BEFORE the roster that seats the joiner is ever broadcast.
+func test_a_joiners_saved_name_is_seated_at_join_not_typed_afterward() -> void:
+	_client._link.join_display_name = "Bramh"
+
+	_join()
+
+	assert_eq(_seat_of(_host, 2).display_name, "Bramh",
+			"the announced name landed on first seating, not a moment later")
+	assert_eq(_seat_of(_client, 2).display_name, "Bramh",
+			"and the joiner's own row already agrees, from the same broadcast")
+
+
+## No announcement, no change — the untouched-placeholder path this whole
+## feature must not disturb.
+func test_a_joiner_with_no_saved_name_still_gets_the_generic_placeholder() -> void:
+	assert_eq(_client._link.join_display_name, "", "sanity: nothing to announce")
+
+	_join()
+
+	assert_eq(_seat_of(_host, 2).display_name, "Player 2")
+
+
+## An announced name meets the exact rule a typed one does — it is not a second,
+## looser door onto the roster.
+func test_an_announced_name_is_normalized_and_capped_like_any_other_pick() -> void:
+	_client._link.join_display_name = "  " + "x".repeat(40) + "  "
+
+	_join()
+
+	var seated := _seat_of(_host, 2).display_name
+	assert_eq(seated.length(), LobbyScreen.MAX_NAME_LENGTH)
+	assert_eq(seated, LobbyScreen.normalize_name(_client._link.join_display_name))
+
+
 ## A drop puts the seat back to waiting rather than deleting it: #554 D2 authored
 ## the seat up front so procgen could see it, and only the identity was ever
 ## outstanding.

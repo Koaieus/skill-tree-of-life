@@ -574,6 +574,10 @@ func bind_link(transport: NetworkTransport) -> void:
 	_link = CommandLink.new()
 	_link.name = "CommandLink"
 	_link.transport = _transport
+	# #741: only a CLIENT's own [method CommandLink.announce_self] ever reads
+	# this — a host announces its WORLD, not an identity — but setting it here
+	# unconditionally means this file is the one place the value comes from.
+	_link.join_display_name = Settings.current.player_name
 	_link.lobby_roster_received.connect(_adopt_remote_roster)
 	_link.lobby_pick_received.connect(_on_remote_pick)
 	# #716: the build gate, on both of its ends. A seat is offered on
@@ -658,11 +662,27 @@ func _on_link_peer_joined(_peer_id: int) -> void:
 ## The peer cleared the build gate, so now it may have a seat — #554 D2's
 ## outstanding half, one step later than it used to be
 ## ([method stamp_pending_remote_peer] is still the writer).
-func _on_link_peer_cleared(peer_id: int) -> void:
+##
+## [b]#741: an announced name goes through [method _on_name_picked], not a
+## direct write.[/b] The joiner's hello is an unvalidated dict same as any
+## other pick — normalized and capped the same way, so a name that arrives at
+## the moment of seating meets the exact rule a name typed a moment later
+## would. Absent or empty leaves the roster's placeholder ("Player 2") alone.
+func _on_link_peer_cleared(peer_id: int, join_prefs: Dictionary = {}) -> void:
 	if _is_client():
 		return
-	stamp_pending_remote_peer(peer_id)
+	if stamp_pending_remote_peer(peer_id):
+		var offered := String(join_prefs.get("display_name", ""))
+		if not offered.is_empty():
+			_on_name_picked(offered, _by_peer_id(peer_id))
 	_broadcast_roster()
+
+
+func _by_peer_id(peer_id: int) -> Participant:
+	for p in _participants:
+		if p.peer_id == peer_id:
+			return p
+	return null
 
 
 ## A peer dropped: its seat goes back to waiting rather than vanishing, because

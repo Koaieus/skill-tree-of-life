@@ -58,7 +58,7 @@ func before_each() -> void:
 	_a = _link(_a_transport, CommandLink.Mode.MIRROR)
 	_b = _link(_b_transport, CommandLink.Mode.MIRROR)
 
-	_host.peer_cleared.connect(func(id: int) -> void: _cleared.append(id))
+	_host.peer_cleared.connect(func(id: int, _join_prefs: Dictionary) -> void: _cleared.append(id))
 	_host.peer_refused.connect(
 			func(id: int, reason: String) -> void: _refused.append("%d:%s" % [id, reason]))
 	_a.link_refused.connect(func(r: String) -> void: _a_refusals.append(r))
