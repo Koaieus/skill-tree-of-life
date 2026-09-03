@@ -72,6 +72,12 @@ signal wave_started(hop_index: int, events_in_wave: int)
 @export var tempo: PresentationTempo = null
 @export var face_velocity: bool = true
 
+## Forwarded to [member Projectile.facing_smoothing_seconds] on every projectile
+## this coordinator spawns. Belongs on the coordinator rather than on the visual
+## because it answers a question about the PATH — a jagged one needs it, a smooth
+## one does not — and the path slots live here too. `0.0` snaps, as before.
+@export_range(0.0, 0.5, 0.005) var facing_smoothing_seconds: float = 0.0
+
 # -- Verb → path slots --------------------------------------------------------
 ## Path for [constant PropagationEvent.Verb.JUMP] (the seed arc). Defaults to
 ## [member projectile_path] → [BezierArcPath].
@@ -275,6 +281,7 @@ func _play_ring(ev: PropagationEvent, entry: ScheduleEntry, flight: float,
 	proj.visual_scene = ring_visual
 	proj.flight_time = flight
 	proj.face_velocity = face_velocity
+	proj.facing_smoothing_seconds = facing_smoothing_seconds
 	proj.crit_tier = ev.max_crit_tier()
 	# Set BEFORE `launch`: the context is where the ring itself comes from, and
 	# `launch` is what instantiates the visual and forwards it.
@@ -381,6 +388,7 @@ func _spawn_projectile(ev: PropagationEvent, origin: SkillNode, share: float,
 	proj.visual_scene = _resolved_visual(ev.verb)
 	proj.flight_time = flight
 	proj.face_velocity = face_velocity
+	proj.facing_smoothing_seconds = facing_smoothing_seconds
 	proj.crit_tier = ev.max_crit_tier()
 	# The whole render context, not just the crit integer (#543 D6). Set
 	# BEFORE `launch`, which is what instantiates the visual and forwards it.

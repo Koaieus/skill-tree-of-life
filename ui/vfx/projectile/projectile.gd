@@ -43,6 +43,26 @@ signal arrived
 ## so an oriented visual (arrow, missile) faces forward. Symmetric visuals
 ## (the default dot) ignore it.
 @export var face_velocity: bool = true
+
+## Time constant for [member face_velocity], in seconds. `0.0` snaps the
+## rotation to the last frame's travel delta, which is what every projectile did
+## before this existed and remains the default.
+##
+## [b]It exists because a jagged path and an oriented visual fight each other.[/b]
+## [JitterPath] at a low `smoothing` is deliberately made of hard corners — the
+## crackle IS the corners — so within a noise segment the travel delta is steady
+## and at each of the ~7 boundaries it lurches sideways for exactly one frame.
+## Snapping to that gives a visual a stable heading interrupted by seven
+## single-frame spins, which reads as a glitch rather than as an arc, and is why
+## [member BoltBody.stretch_along_velocity] was unusable on the lightning family
+## (#663). Smoothing spends the corner over several frames instead, so the
+## silhouette leans into each kink and recovers.
+##
+## Framerate-independent and transcendental-free: the per-frame blend is
+## `delta / constant`, clamped — no `exp`, per
+## `.claude/rules/multiplayer-sync.md`, even though a projectile's facing is
+## pure presentation that no peer recomputes.
+@export_range(0.0, 0.5, 0.005) var facing_smoothing_seconds: float = 0.0
 ## Fallback post-arrival wait when the visual scene exposes no `finished`
 ## signal. With the default [GlowingDot] visual (which DOES emit `finished`)
 ## this is unused — the projectile waits for the trail to fully drain.
@@ -52,6 +72,10 @@ signal arrived
 ## the visual via duck-typed `_on_crit(tier)` so it can add emphasis
 ## (scale, screenshake, color pop). 0 = normal hit; 1+ = crit tier.
 var crit_tier: int = 0
+
+## Whether [member facing_smoothing_seconds]'s filter has a heading to ease from
+## yet. See the seeding note in `_process`.
+var _facing_seeded: bool = false
 
 ## This projectile's slot in the compiled [OutcomeSchedule] — the whole render
 ## context a per-spell visual reads (#543 D6). Set by the coordinator before
@@ -136,7 +160,20 @@ func _process(delta: float) -> void:
 	if face_velocity:
 		var velocity := pos - prev
 		if velocity.length_squared() > 1e-6:
-			rotation = velocity.angle()
+			var heading := velocity.angle()
+			# The first sample seeds the filter outright. Easing in from the
+			# node's authored rotation would make every smoothed projectile
+			# start by swinging round from whatever angle the scene left it at.
+			if facing_smoothing_seconds <= 0.0 or not _facing_seeded:
+				rotation = heading
+				_facing_seeded = true
+			else:
+				# `lerp_angle`, not `lerp` — it takes the short way round, so a
+				# kink across the +/-PI seam eases through it instead of
+				# unwinding the long way.
+				rotation = lerp_angle(
+					rotation, heading, clampf(delta / facing_smoothing_seconds, 0.0, 1.0)
+				)
 	_call_visual(&"_on_progress", [_t])
 
 
