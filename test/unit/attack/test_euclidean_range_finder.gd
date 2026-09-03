@@ -63,3 +63,26 @@ func test_gather_returns_known_reachable_set_including_the_source() -> void:
 
 func test_max_reach_reports_max_distance() -> void:
 	assert_almost_eq(_finder.max_reach(), 100.0, 0.001)
+
+
+## #727 split `spell_range` from `spell_hops`; euclidean reach keeps scaling
+## by `spell_range`, via SpellRangeRules.multiplier's board-preview tier. Board
+## built and set in-code (owner's standing rule): the shipped INT rate is
+## explicitly due for post-LAN retuning, so a golden pinned to it would be red
+## by design — this only pins that the multiplier is still consumed at all.
+func test_effective_distance_still_scales_by_spell_range() -> void:
+	var board: EntityStatBoard = preload("res://entity/default_entity_board.tres").duplicate(true)
+	var mod := StatModifier.new()
+	mod.stat_id = &"spell_range"
+	mod.operation = StatModifier.Operation.SET
+	mod.value = 50.0
+	board.add_modifier(mod)
+
+	var scaled := _finder.effective_distance(null, null, board)
+
+	assert_almost_eq(scaled, _finder.max_distance * 1.5, 0.001,
+			"+50%% spell_range must scale euclidean reach by 1.5x, unaffected by the #727 split")
+
+
+func test_effective_distance_with_no_board_or_attacker_is_unscaled() -> void:
+	assert_almost_eq(_finder.effective_distance(null, null, null), _finder.max_distance, 0.001)
