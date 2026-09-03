@@ -40,6 +40,33 @@ extends Node2D
 
 const FloaterStyles := preload("res://ui/floating_number_layer/floater_styles.gd")
 
+## Player-facing text per [signal Events.node_action_denied] reason string.
+## The reasons are minted by [PlayerInputController] (`_stake_denial_reason` /
+## `_extract_denial_reason` — mirrors of [method AllocationSystem.can_stake] /
+## [method AllocationSystem.can_extract] gate order — plus the allocate and
+## deallocate sites) and by [BattleSystem.can_toggle_temp_upgrade_on]. This
+## table is the single place a raw reason becomes words; an unmapped reason
+## toasts nothing (better silent than snake_case on screen), so a new reason
+## minted without a row here is a missing translation, not a crash.
+const _DENIAL_TEXTS := {
+	"allocate_denied_unreachable": "OUT OF REACH",
+	"deallocate_denied": "CAN'T DEALLOCATE",
+	"stake_denied_not_owned": "NOT YOURS",
+	"stake_denied_at_ceiling": "STAKE AT MAX",
+	"stake_denied_not_adjacent": "TOO FAR FROM CORE",
+	"stake_denied_no_sp": "NEED 1 SP",
+	"stake_denied_no_ap": "NEED 1 AP",
+	"stake_denied": "CAN'T STAKE",
+	"extract_denied_not_owned": "NOT YOURS",
+	"extract_denied_at_floor": "NOTHING TO EXTRACT",
+	"extract_denied_not_adjacent": "TOO FAR FROM CORE",
+	"extract_denied_no_dp": "NEED 1 DP",
+	"extract_denied_no_staked_sp": "NO STAKED SP",
+	"extract_denied": "CAN'T EXTRACT",
+	"temp_upgrade_denied_slot_full": "SLOT FULL",
+	"temp_upgrade_denied_budget": "NO BLADE BUDGET",
+}
+
 
 func _ready() -> void:
 	# #504: the damage NUMBER reads the model, same as the HP bar and the tint.
@@ -54,6 +81,7 @@ func _ready() -> void:
 	Events.entity_healed.connect(_on_entity_healed)
 	Events.entity_xp_gained.connect(_on_entity_xp_gained)
 	Events.stat_modifier_changed.connect(_on_stat_modifier_changed)
+	Events.node_action_denied.connect(_on_node_action_denied)
 
 
 # --- Domain intake → render request -----------------------------------------
@@ -139,6 +167,21 @@ func _on_stat_modifier_changed(
 	var text := modifier.format()
 	var tint: Color = def.tint_color if def != null else Color.WHITE
 	_emit_at_entity(entity, text, FloaterStyles.for_modifier(tint, binding, added), false)
+
+
+## A gated verb was refused. The node already buzzes (#89's shake, generalized
+## #404 — [PlayerInputController._on_node_action_denied]); this adds the WHY as
+## a short toast at the refused node, so "it shook" never has to stand in for
+## "you're out of AP" or "your core is too far". Fog-gated like any
+## node-targeted intake; an unmapped reason stays silent (see [_DENIAL_TEXTS]).
+func _on_node_action_denied(node: SkillNode, reason: String) -> void:
+	if node == null or not _node_visible(node):
+		return
+	_emit(node, _denial_text(reason), FloaterStyles.denied())
+
+
+static func _denial_text(reason: String) -> String:
+	return _DENIAL_TEXTS.get(reason, "") as String
 
 
 # --- Helpers ----------------------------------------------------------------

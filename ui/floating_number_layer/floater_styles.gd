@@ -25,6 +25,10 @@ const COLOR_XP     := Color(1.0, 0.93, 0.62, 1.0)
 ## hue-shifted. A crit stays unambiguously DAMAGE-coloured — the intensity is
 ## carried by motion instead (see [method crit]).
 const COLOR_CRIT := Color(1.0, 0.22, 0.22, 1.0)
+## Denial: the register of [method SkillNode.shake_denied]'s tint, lifted a
+## little for text legibility. Red-family like damage/wound — a refusal is bad
+## news — but quiet: the [method denied] style stays default-size and unglowed.
+const COLOR_DENIED := Color(1.0, 0.4, 0.4, 1.0)
 
 const _CRIT_PUNCH_SCENE: PackedScene = preload(
 		"res://ui/floating_number_layer/crit_punch_toast/crit_punch_toast.tscn")
@@ -64,6 +68,16 @@ static func entity_heal() -> FloaterStyle:
 
 static func plain() -> FloaterStyle:
 	return FloaterStyle.new()
+
+
+## A gated verb's refusal — the "why" behind the denial buzz ([method
+## SkillNode.shake_denied] says the click failed; this says why). Default size,
+## no glow, and a SHORT hold: instructive, not alarming.
+static func denied() -> FloaterStyle:
+	var s := FloaterStyle.new()
+	s.fill_color = COLOR_DENIED
+	s.float_time = 1.2
+	return s
 
 
 ## XP gained — the reward register: gold and glowing, but smaller than a mythic
@@ -163,6 +177,7 @@ static func gallery() -> Array[Dictionary]:
 		{"name": "Node heal",       "text": "+5",          "style": node_heal()},
 		{"name": "Entity wound",    "text": "+1 WOUNDS",   "style": entity_wound()},
 		{"name": "Entity heal",     "text": "-1 WOUNDS",   "style": entity_heal()},
+		{"name": "Denied",          "text": "TOO FAR FROM CORE", "style": denied()},
 		{"name": "Modifier (node)", "text": "+10 Strength","style": modifier_node(Color(0.9, 0.5, 0.4))},
 		{"name": "Modifier (core)", "text": "+10 Strength","style": modifier_core(mythic_tint)},
 		{"name": "Modifier removed","text": "+10 STR",     "style": modifier_removed(Color(0.9, 0.5, 0.4))},
