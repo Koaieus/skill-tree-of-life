@@ -18,17 +18,24 @@ extends Control
 ## starts glowing, until BOOM allocation vfx (which is some power needle spike
 ## thingy)."[/i] So:
 ##
-## [b]Leg 1[/b] — the charge. Starts on the press, runs for
-## [member charge_duration], and zooms out from
-## [method FrontmatterLayout.splash_camera] to
-## [method FrontmatterLayout.charged_camera] while the [ChargeGlow] on the root
-## ramps from [constant Emissive.INERT] toward [constant Emissive.PEAK]. The ring
-## stays UNLIT throughout — the thing being sold is the build-up. This is the
-## "make room NORTH" beat: the root keeps its horizontal slot and only takes the
-## vertical, so the needle has somewhere to land.
+## [b]Leg 1[/b] — the charge, and it is TWO beats rather than one. For the first
+## [member charge_camera_fraction] of [member charge_duration] the camera crawls
+## out from [method FrontmatterLayout.splash_camera] to
+## [method FrontmatterLayout.charged_camera] — "slow slow", zooming a little and
+## taking the tiny pan up. Then it STOPS. For the remaining fraction the frame is
+## perfectly still while the [ChargeGlow] finishes ramping from
+## [constant Emissive.INERT] toward [constant Emissive.PEAK]. The ring stays
+## UNLIT throughout — the thing being sold is the build-up, and the stillness is
+## what lets it read as a wind-up rather than as more camera motion.
 ##
-## [b]The BOOM[/b] — at the seam. The root reads allocated, the charge detonates
-## into a shockwave, and the game's own allocation needle drops.
+## [b]The BOOM[/b] — into that stillness. The root reads allocated, the charge
+## detonates into a shockwave, and the game's own allocation needle drops, all in
+## one frame with nothing else moving. Owner, 2026-09-03: [i]"crescendo: stop
+## zooming/panning (the whole node+spike would still be taking the majority of
+## the screen), the vfx + vfx + vfx all hit."[/i]
+##
+## [b]The settle[/b] — [member settle_pause] of dead air, letting the crescendo
+## land before the menu pulls away from it.
 ##
 ## [b]Leg 2[/b] — the existing [method FrontmatterRoot.focus] on the root: the
 ## slide into the hero slot, carrying the LAST of the zoom-out with it. Leg 1
@@ -87,9 +94,42 @@ signal advanced
 ## slow at the start for a graceful move"[/i] — see
 ## [method FrontmatterCamera.ease_charge].
 ##
+## [b]Raised 0.5 -> 2.2 by owner call 2026-09-03.[/b] Verbatim: [i]"the zoomout
+## (while glowing up): needs to be slower... we could make the glow up last a bit
+## longer too, it's now 1s? could make it 2 or almost 3 even idk."[/i] (It was
+## actually 0.5s, not 1s.) The range reaches 3.0 so the upper end of that guess
+## is dialable without a code edit.
+##
 ## `0.0` runs the whole advance in one frame, which is also what
 ## [member FrontmatterRoot.reduce_motion] collapses it to.
-@export_range(0.0, 3.0, 0.05) var charge_duration: float = 0.5
+@export_range(0.0, 3.0, 0.05) var charge_duration: float = 2.2
+
+## What fraction of the charge the CAMERA moves for. The rest of the charge is
+## held perfectly still while the glow finishes winding up (#734).
+##
+## [b]This is the beat, and nothing else in the file provides it.[/b] Owner,
+## 2026-09-03, laying out the structure: [i]"slow slow little bit of zoomout +
+## the tiny pan up starts / glow rampup starts / crescendo: stop
+## zooming/panning (the whole node+spike would still be taking the majority of
+## the screen), the vfx + vfx + vfx all hit."[/i] So the camera must come to
+## REST before the BOOM rather than still be moving through it: the frame goes
+## quiet, and only then does everything hit at once.
+##
+## The glow keeps ramping across the WHOLE charge, held tail included — the
+## stillness is what makes the crescendo read, so the ring is still building
+## while nothing else moves. See [method charge_pose] for the clamp that
+## implements it and [method FrontmatterCamera.ease_charge] for why the curve
+## has to decelerate into this stop rather than slam into it.
+@export_range(0.05, 1.0, 0.05) var charge_camera_fraction: float = 0.6
+
+## Dead air between the BOOM and leg 2 setting off — the owner's [i]"slight
+## settlement pause"[/i] (2026-09-03), letting the crescendo land before the
+## menu pulls away from it.
+##
+## [b]A fixed logical delay, never an await on the detonation's tween.[/b] Same
+## rule as [member charge_duration] — `.claude/rules/presentation-clock.md` — so
+## retuning [ChargeGlow]'s shockwave cannot silently retune the menu.
+@export_range(0.0, 2.0, 0.05) var settle_pause: float = 0.4
 
 ## How far leg 1 zooms out — an INTERMEDIATE zoom, deliberately short of
 ## [constant FrontmatterLayout.TREE_ZOOM] (#734).
@@ -171,7 +211,9 @@ func _pulse() -> void:
 ## [SceneTreeTimer] is what decides when the BOOM happens
 ## (`.claude/rules/presentation-clock.md`). They complete on different frames, so
 ## [method _end_charge] writes the charged pose explicitly rather than trusting
-## the tween to have arrived — see there.
+## the tween to have arrived — see there. Since the camera finishes its motion at
+## [member charge_camera_fraction] and merely holds after that, a late tween
+## frame is now harmless anyway; the explicit write remains the guarantee.
 ##
 ## Public because it is the whole behaviour of this node, and a test that has to
 ## synthesize an [InputEventKey] to reach it would be testing Godot's input
@@ -246,8 +288,15 @@ func _start_charge() -> void:
 ## firing, so a test that reads the live camera a fixed wall-clock delay into
 ## leg 1 is asserting the harness's frame delivery, not this file's decision.
 func charge_pose(t: float) -> Transform2D:
+	# The camera's own clock, which runs out BEFORE the charge does: past
+	# `charge_camera_fraction` this pins at 1.0, so the pose stops changing and
+	# the frame is still for the rest of the ramp. Clamping here rather than in
+	# the tween keeps this the one place the split is expressed, and keeps it a
+	# pure function a test can sample at any `t`.
+	var window := clampf(charge_camera_fraction, 0.01, 1.0)
+	var camera_t := clampf(clampf(t, 0.0, 1.0) / window, 0.0, 1.0)
 	return _charge_from.interpolate_with(
-		_charge_to, FrontmatterCamera.ease_charge(clampf(t, 0.0, 1.0), charge_ease_power)
+		_charge_to, FrontmatterCamera.ease_charge(camera_t, charge_ease_power)
 	)
 
 
@@ -291,6 +340,26 @@ func _boom() -> void:
 		root_view.allocated = true
 	_detonate(root_view)
 	_frontmatter.navigation_locked = false
+	if _settle_seconds() <= 0.0:
+		_depart()
+		return
+	get_tree().create_timer(_settle_seconds()).timeout.connect(_depart)
+
+
+## Leg 2: the pan into the hero slot, once the crescendo has been allowed to
+## land. Re-checks everything, because a timer fires a frame or more later and
+## the world may have moved on.
+##
+## [b]The focus guard is reachable again, and that is correct.[/b] The lock came
+## off at the BOOM, so a player may steer during [member settle_pause] — and if
+## they did, this must not yank them home a beat later. That is the same
+## protection the guard has always provided, restored to a window where a player
+## can actually reach it.
+func _depart() -> void:
+	if _frontmatter == null or not is_instance_valid(_frontmatter):
+		return
+	if _frontmatter.tree == null:
+		return
 	if _frontmatter.focus_id != _frontmatter.tree.root:
 		return
 	_frontmatter.focus(_frontmatter.tree.root)
@@ -364,6 +433,17 @@ func _charge_seconds() -> float:
 	if _frontmatter != null and _frontmatter.reduce_motion:
 		return 0.0
 	return charge_duration
+
+
+## How long to sit on the crescendo before leg 2 departs. Collapsed by the
+## accessibility setting exactly as the charge is — a player who asked for no
+## motion is not asking for dead air where the motion used to be, and the suite
+## depends on it: `before_each` sets `reduce_motion`, which is the only reason
+## these tests see an immediate advance at all.
+func _settle_seconds() -> float:
+	if _frontmatter != null and _frontmatter.reduce_motion:
+		return 0.0
+	return settle_pause
 
 
 ## Whether the attract state has already given way. `false` on a fresh menu.

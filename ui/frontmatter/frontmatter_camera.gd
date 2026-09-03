@@ -123,23 +123,32 @@ static func ease_sprout(t: float) -> float:
 	return 1.0 - inv * inv * inv * inv
 
 
-## Charge easing — the splash's leg 1 alone (#734), and deliberately NOT
-## [method ease_travel].
+## Charge easing — the splash's leg 1 camera window alone (#734), and
+## deliberately neither [method ease_travel] nor a plain ease-in.
 ##
-## [b]It is BACK-LOADED, which is the whole feel.[/b] `ease_travel` is a cubic
-## ease-OUT: fastest at `t == 0`, so the camera has done most of its zooming
-## before the charge has visibly built. Owner, 2026-09-03: [i]"the camera zooms
-## out FAST and A LOT by the time the alloc vfx hits. we could keep it closer a
-## bit longer... we play our little animation while it starts zooming out a
-## little, then more so / faster so when the alloc vfx has just started"[/i] —
-## i.e. an ease-IN, which holds the splash shot while the ring winds up and then
-## opens hard into the BOOM.
+## [b]Eased at BOTH ends, because leg 1 now comes to REST.[/b] The camera's
+## motion occupies only the first [member SplashScreen.charge_camera_fraction] of
+## the charge and the pose is HELD for the rest, so the curve has to arrive at a
+## standstill. An ease-IN (`pow(t, p)`, what this was) is at its FASTEST exactly
+## where the hold begins — it would slam into the stop, which is the opposite of
+## the beat: owner, 2026-09-03, [i]"crescendo: stop zooming/panning... the vfx +
+## vfx + vfx all hit"[/i]. The frame has to go quiet before the crescendo, not
+## jolt into it.
 ##
-## [param power] is the shape, not a fixed curve: 1.0 is linear, higher is later
-## and harder. [member SplashScreen.charge_ease_power] exports it so "how late
-## does it kick" is an inspector dial rather than a code edit — #567's testing
-## contract sends easing feel to the owner's eye, so nothing asserts the curve,
-## only that leg 1 runs from the parked pose to the charged one, which every
-## monotonic 0->1 shape satisfies.
-static func ease_charge(t: float, power: float = 2.5) -> float:
-	return pow(clampf(t, 0.0, 1.0), maxf(power, 0.01))
+## [b]Slow at BOTH ends is also what was asked for at the start.[/b] Owner:
+## [i]"slow slow little bit of zoomout + the tiny pan up starts"[/i]. So this is
+## a symmetric parametric ease-in-out: [param power] 1.0 is linear, and higher
+## flattens both the departure and the arrival while steepening the middle. At
+## the authored 3.5 the first quarter of the window covers 4% of the distance and
+## the last quarter covers the same 4% — a long crawl out, a committed middle,
+## and a soft settle.
+##
+## Nothing asserts the curve: #567's testing contract sends easing feel to the
+## owner's eye and #578's tab. What IS asserted is that leg 1 runs from the
+## parked pose to the charged one, which every monotonic 0->1 shape satisfies.
+static func ease_charge(t: float, power: float = 3.5) -> float:
+	var c := clampf(t, 0.0, 1.0)
+	var p := maxf(power, 0.01)
+	if c < 0.5:
+		return 0.5 * pow(c * 2.0, p)
+	return 1.0 - 0.5 * pow((1.0 - c) * 2.0, p)

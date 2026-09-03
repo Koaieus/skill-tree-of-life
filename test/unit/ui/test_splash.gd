@@ -308,9 +308,10 @@ func test_the_boom_lands_once_the_charge_is_up() -> void:
 	# a magnified root node with the prompt already gone AND navigation locked.
 	_frontmatter.reduce_motion = false
 	_splash.charge_duration = 0.1
+	_splash.settle_pause = 0.05
 
 	_splash.advance()
-	await get_tree().create_timer(0.3).timeout
+	await get_tree().create_timer(0.4).timeout
 
 	assert_eq(_frontmatter.focus_id, _root())
 	assert_true(_frontmatter.view_for(_root()).allocated)
@@ -326,10 +327,11 @@ func test_leg_two_departs_from_the_charged_pose_whichever_clock_wins() -> void:
 	# across tween frames.
 	_frontmatter.reduce_motion = false
 	_splash.charge_duration = 0.05
+	_splash.settle_pause = 0.05
 	_frontmatter.travel_duration = 2.0
 
 	_splash.advance()
-	await get_tree().create_timer(0.25).timeout
+	await get_tree().create_timer(0.35).timeout
 
 	var charged := FrontmatterLayout.charged_camera(
 			_frontmatter.tree, _splash.charge_end_zoom)
@@ -351,6 +353,7 @@ func test_navigation_is_locked_for_the_length_of_the_charge() -> void:
 	# (GUI picking runs before `_unhandled_input`).
 	_frontmatter.reduce_motion = false
 	_splash.charge_duration = 0.2
+	_splash.settle_pause = 0.05
 
 	_splash.advance()
 	assert_true(_frontmatter.navigation_locked, "the charge raises the gate")
@@ -369,14 +372,102 @@ func test_a_zero_charge_booms_in_the_same_frame() -> void:
 	# The authored escape hatch, and the same branch `reduce_motion` takes. It
 	# removes the CHARGE, not the travel — with motion on, leg 2 then pans out as
 	# usual, which is why this asserts the departure and not the arrival.
+	#
+	# `settle_pause` is zeroed alongside it because the two are separate delays
+	# and "same frame" needs both gone: a zero charge still booms on the spot,
+	# but leg 2 would otherwise wait out the settle before departing. That is
+	# `test_leg_two_waits_out_the_settle_pause_before_departing`'s claim, not
+	# this one's.
 	_frontmatter.reduce_motion = false
 	_splash.charge_duration = 0.0
+	_splash.settle_pause = 0.0
 	var set_off: Array[int] = []
 	_frontmatter.focus_started.connect(func(_id): set_off.append(1))
 
 	_splash.advance()
 
 	assert_eq(set_off.size(), 1)
+
+
+# --- the camera comes to REST before the crescendo ---------------------------
+
+func test_the_camera_stops_before_the_boom_and_the_glow_keeps_ramping() -> void:
+	# The beat the owner asked for and the one nothing here used to provide:
+	# "crescendo: stop zooming/panning... the vfx + vfx + vfx all hit". The
+	# camera has to be STILL when the needle drops, not part-way through a move.
+	_frontmatter.reduce_motion = false
+	_splash.charge_duration = 1.0
+	_splash.charge_camera_fraction = 0.6
+
+	var charged := FrontmatterLayout.charged_camera(
+			_frontmatter.tree, _splash.charge_end_zoom)
+	_splash.advance()
+
+	# Sampled on the pure function, so this is frame-independent.
+	assert_almost_eq(_splash.charge_pose(0.6).origin, charged.origin, Vector2(0.01, 0.01),
+			"the camera has arrived by the end of its own window")
+	assert_almost_eq(_splash.charge_pose(0.8).origin, charged.origin, Vector2(0.01, 0.01),
+			"and is STILL there — the held tail moves nothing")
+	assert_almost_eq(_splash.charge_pose(1.0).origin, charged.origin, Vector2(0.01, 0.01),
+			"right through to the BOOM, which lands in a quiet frame")
+	assert_ne(_splash.charge_pose(0.3).origin, charged.origin,
+			"but it really was still travelling earlier — this is a stop, not a skip")
+
+
+func test_the_camera_window_shrinks_the_motion_rather_than_delaying_it() -> void:
+	# The fraction re-times the SAME move; it must not become a wait followed by
+	# a rush, which would read as a stutter rather than a settle.
+	_frontmatter.reduce_motion = false
+	_splash.charge_duration = 1.0
+	_splash.charge_camera_fraction = 0.5
+	var charged := FrontmatterLayout.charged_camera(
+			_frontmatter.tree, _splash.charge_end_zoom)
+	var parked := FrontmatterLayout.splash_camera(_frontmatter.tree)
+
+	_splash.advance()
+
+	assert_almost_eq(_splash.charge_pose(0.0).origin, parked.origin, Vector2(0.01, 0.01),
+			"it still departs from the parked pose at once")
+	assert_almost_eq(_splash.charge_pose(0.5).origin, charged.origin, Vector2(0.01, 0.01),
+			"and arrives at the end of a HALF window rather than the full charge")
+
+
+# --- the settle pause --------------------------------------------------------
+
+func test_leg_two_waits_out_the_settle_pause_before_departing() -> void:
+	# The owner's "slight settlement pause": the crescendo is allowed to land
+	# before the menu pulls away from it. `focus_started` is leg 2 departing.
+	_frontmatter.reduce_motion = false
+	_splash.charge_duration = 0.05
+	_splash.settle_pause = 0.35
+	var set_off: Array[int] = []
+	_frontmatter.focus_started.connect(func(_id): set_off.append(1))
+
+	_splash.advance()
+	await get_tree().create_timer(0.2).timeout
+
+	assert_true(_frontmatter.view_for(_root()).allocated,
+			"the BOOM has happened — the charge was over long ago")
+	assert_eq(set_off.size(), 0,
+			"but leg 2 has NOT set off: the settle pause is still running")
+
+	await get_tree().create_timer(0.35).timeout
+	assert_eq(set_off.size(), 1, "and now it departs")
+
+
+func test_reduce_motion_collapses_the_settle_pause_too() -> void:
+	# Every knob this file owns has to collapse together, or `reduce_motion`
+	# trades motion for dead air. `before_each` sets it, so the whole suite
+	# depends on this.
+	_frontmatter.reduce_motion = true
+	_splash.charge_duration = 0.5
+	_splash.settle_pause = 0.5
+
+	_splash.advance()
+
+	assert_eq(_frontmatter.focus_id, _root(),
+			"leg 2 has already departed and landed, in the same frame")
+	assert_true(_frontmatter.view_for(_root()).allocated)
 
 
 # --- leg 1 makes room NORTH, and nothing else --------------------------------
