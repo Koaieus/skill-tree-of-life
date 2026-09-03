@@ -700,6 +700,18 @@ func test_a_real_click_reaches_a_menu_node_through_the_whole_shell() -> void:
 const _VIEW_BASELINE_CHILDREN := 3
 
 
+## What [param view] carries before any VFX lands on it.
+##
+## [b]The root is one child heavier than everything else (#734).[/b] Its view is
+## `splash_root_view.tscn`, an inherited scene that ADDS a [ChargeGlow] beside
+## the composite for the splash's charge-up. Read off the view's own type rather
+## than special-cased on the root's id: the claim these tests make is "no VFX
+## leaked", and that claim is about children BEYOND the authored ones, whichever
+## scene authored them.
+func _baseline_children(view: MenuNodeView) -> int:
+	return _VIEW_BASELINE_CHILDREN + (1 if view is SplashRootView else 0)
+
+
 func _graph_layer() -> Node2D:
 	return _root.get_node("%GraphLayer")
 
@@ -769,7 +781,8 @@ func test_a_fresh_build_spawns_zero_vfx() -> void:
 	# view false -> true — the first-focus latch's whole job is to keep that
 	# silent.
 	for id in _root.tree.ids():
-		assert_eq(_root.view_for(id).get_child_count(), _VIEW_BASELINE_CHILDREN,
+		var view := _root.view_for(id)
+		assert_eq(view.get_child_count(), _baseline_children(view),
 				"'%s' carries no leaked spike from the seeding focus" % id)
 	assert_eq(_graph_layer().get_child_count(), _graph_layer_baseline_children(),
 			"the graph layer carries no leaked lift from the seeding focus either")
@@ -836,7 +849,8 @@ func test_a_second_build_on_a_live_shell_spawns_zero_vfx() -> void:
 	_root.build()
 
 	for id in _root.tree.ids():
-		assert_eq(_root.view_for(id).get_child_count(), _VIEW_BASELINE_CHILDREN,
+		var view := _root.view_for(id)
+		assert_eq(view.get_child_count(), _baseline_children(view),
 				"'%s' carries no leaked spike from the second build's seeding focus" % id)
 	assert_eq(_graph_layer().get_child_count(), _graph_layer_baseline_children(),
 			"nor does the graph layer carry a leaked lift")

@@ -114,7 +114,7 @@ func test_advancing_takes_the_prompt_off_screen_and_emits_once() -> void:
 	assert_eq(seen.size(), 1)
 
 
-# --- the hold ----------------------------------------------------------------
+# --- the charge and the BOOM -------------------------------------------------
 
 func _polygons_under(node: Node) -> int:
 	var found := 0
@@ -125,22 +125,40 @@ func _polygons_under(node: Node) -> int:
 	return found
 
 
-func test_the_root_lights_up_before_the_camera_sets_off() -> void:
-	# The beat the splash exists for: allocating the first node has to be
-	# visible AS an allocation, not as the first frame of a camera move. Before
-	# the split these were one call, so the two happened in the same frame.
+## Where the root lands horizontally, in viewport pixels, under a given camera.
+## The forward of [method FrontmatterLayout.screen_to_world], written out so a
+## test can say "it did not drift sideways" as arithmetic.
+func _screen_x(xform: Transform2D, world: Vector2) -> float:
+	var zoom := FrontmatterLayout.zoom_of(xform).x
+	return (world.x - xform.origin.x) * zoom + FrontmatterLayout.viewport_size().x * 0.5
+
+
+func _root_world() -> Vector2:
+	return FrontmatterLayout.solve(_frontmatter.tree)[_root()] as Vector2
+
+
+func test_the_charge_sets_off_at_once_with_the_root_still_unlit() -> void:
+	# The beat the splash exists for, INVERTED by #734. It used to be that the
+	# root lit up on the press and the camera waited; the owner's complaint was
+	# exactly that — "i see no 'glowing up'. i see the ring light up (like
+	# identical to final lit state), then a sudden allocation vfx". Now the
+	# camera leaves on the spot and the ring stays dark while the charge builds.
 	_frontmatter.reduce_motion = false
-	_splash.allocation_hold = 0.6
+	_splash.charge_duration = 0.5
+
 	var set_off: Array[int] = []
 	_frontmatter.focus_started.connect(func(_id): set_off.append(1))
 
 	_splash.advance()
+	# A tween applies its first value on the next process frame, not on creation.
+	await get_tree().create_timer(0.1).timeout
 
-	assert_true(_frontmatter.view_for(_root()).allocated,
-			"the root is allocated on the spot")
+	assert_false(_frontmatter.view_for(_root()).allocated,
+			"the root is NOT lit on the press — the charge is what is happening")
 	assert_eq(set_off.size(), 0,
-			"and the camera has not set off — `focus_started` is what says it did")
-	assert_eq(_camera_origin(), FrontmatterLayout.splash_camera(_frontmatter.tree).origin)
+			"and `focus_started` has not fired: that is leg 2, which the BOOM starts")
+	assert_ne(_camera_origin(), FrontmatterLayout.splash_camera(_frontmatter.tree).origin,
+			"but the camera HAS set off — leg 1 is under way")
 
 
 func test_advancing_drops_the_games_own_allocation_spike_on_the_root() -> void:
@@ -155,32 +173,29 @@ func test_advancing_drops_the_games_own_allocation_spike_on_the_root() -> void:
 			"press any button plays the same VFX every other allocation plays")
 
 
-## The defect this file's `spike_lead` answers, as arithmetic rather than as
-## pixels: the needle is 6x the node radius in WORLD units and the splash parks
-## at 3.2x, so a spike fired while the camera is still parked is `44 * 6 * 3.2`
-## = 845px tall on a 960px screen whose root sits 422px down — half of it off
-## the top, which is what shipped.
+## The clipping defect the retired `spike_lead` used to dodge, re-asserted as a
+## property of the CHOREOGRAPHY rather than of a knob's tuning (#734).
 ##
-## Asserted at the instant the spike is SPAWNED, which is the strictest moment
-## available: `AllocationVFX` ramps `scale.y` from 0 to 1 over the first half of
-## `SPIKE_DURATION`, so the needle reaches full height 0.2s later still, by which
-## point the camera has zoomed out further. Nothing here renders — the transform
-## is rebuilt from the same public statics `FrontmatterCamera` interpolates, so
-## this stays a decidable claim about the geometry and not a look-at-it test.
+## The needle is 6x the node radius in WORLD units. Fired while the camera was
+## still parked at `SPLASH_ZOOM` 3.2 that was `44 * 6 * 3.2` = 845px of needle on
+## a 960px screen whose root sat 422px down — half of it off the top, which is
+## what shipped. `spike_lead` answered it by delaying the needle into the travel
+## until the zoom had dropped far enough.
 ##
-## It fails if anyone retunes SPLASH_ZOOM, the root's authored radius,
-## SPIKE_HEIGHT_FACTOR or `spike_lead` back into the clipping range.
+## The BOOM now happens at the CHARGED pose instead: `TREE_ZOOM` 1.0, with the
+## root already dropped into the hero slot's y. That is `44 * 6 * 1.0` = 264px of
+## needle against 480px of headroom — 216px of clearance, and no knob involved.
+## There is no longer a pose in the choreography at which the needle can clip, so
+## this test now pins the pose rather than a tuning value.
+##
+## Nothing here renders — the transform is rebuilt from the same public statics
+## the splash itself uses, so this stays a decidable claim about the geometry.
 func test_the_needle_is_wholly_on_screen_by_the_time_it_drops() -> void:
 	var tree := _frontmatter.tree
-	var parked := FrontmatterLayout.splash_camera(tree)
-	var arrived := FrontmatterLayout.camera_for(tree, _root())
-	# Exactly what `FrontmatterCamera.transform_at` does with the clock the
-	# splash schedules the needle on.
-	var at_drop := parked.interpolate_with(
-			arrived, FrontmatterCamera.ease_travel(_splash.spike_lead))
+	var at_drop := FrontmatterLayout.charged_camera(tree)
 	var zoom := FrontmatterLayout.zoom_of(at_drop).y
 	var view := FrontmatterLayout.viewport_size()
-	var world := FrontmatterLayout.solve(tree)[_root()] as Vector2
+	var world := _root_world()
 	var screen_y := (world.y - at_drop.origin.y) * zoom + view.y * 0.5
 
 	var radius := FrontmatterLayout.look_of(_root()).radius
@@ -191,76 +206,193 @@ func test_the_needle_is_wholly_on_screen_by_the_time_it_drops() -> void:
 					% [needle, zoom, screen_y])
 
 
-func test_the_needle_does_not_drop_until_the_camera_has_set_off() -> void:
-	# The whole of `spike_lead`: the flag is written on the press so
-	# `_sync_allocation` stays a no-op re-assert, and the VFX is scheduled apart
-	# from it. If the two are ever recombined, the spike lands at 3.2x again and
-	# this catches it without anyone having to look at the screen.
+func test_the_needle_does_not_drop_until_the_charge_has_finished() -> void:
+	# The whole of the charge: the flag and the needle both belong to the BOOM,
+	# and neither may leak forward into leg 1. If they are ever pulled back onto
+	# the press, the root snaps lit at 3.2x again with a needle over it and this
+	# catches it without anyone having to look at the screen.
 	_frontmatter.reduce_motion = false
-	_splash.allocation_hold = 0.05
-	_splash.spike_lead = 0.5
-	_frontmatter.travel_duration = 0.4
+	_splash.charge_duration = 0.25
 	var before := _polygons_under(_frontmatter.view_for(_root()))
 
 	_splash.advance()
 
-	assert_true(_frontmatter.view_for(_root()).allocated,
-			"the root still reads allocated on the spot — only the VFX is delayed")
+	assert_false(_frontmatter.view_for(_root()).allocated,
+			"nothing is allocated yet — the charge is still building")
 	assert_eq(_polygons_under(_frontmatter.view_for(_root())), before,
-			"and no needle yet: the camera has not even set off")
+			"and no needle: the BOOM has not happened")
 
-	# Past the hold, into the travel, but short of the lead (0.5 * 0.4 = 0.2).
+	# Into the charge, but short of its end.
 	await get_tree().create_timer(0.15).timeout
 	assert_eq(_polygons_under(_frontmatter.view_for(_root())), before,
-			"still none — the camera is travelling and the lead has not elapsed")
+			"still none — the charge is running and has not detonated")
 
 	await get_tree().create_timer(0.2).timeout
+	assert_true(_frontmatter.view_for(_root()).allocated,
+			"and now the root reads lit — the BOOM is where that lands")
 	assert_gt(_polygons_under(_frontmatter.view_for(_root())), before,
-			"and there it is, dropped into the travel rather than before it")
+			"and there is the needle, at the seam between the two legs")
 
 
-func test_the_camera_really_does_set_off_once_the_hold_is_up() -> void:
-	# The hold is a deferred call, and nothing else here waits on the timer —
-	# if it ever stopped firing, the game's entry point would softlock on a
-	# magnified root node with the prompt already gone.
+func test_the_boom_lands_once_the_charge_is_up() -> void:
+	# The charge ends on a deferred call, and nothing else here waits on the
+	# timer — if it ever stopped firing, the game's entry point would softlock on
+	# a magnified root node with the prompt already gone AND navigation locked.
 	_frontmatter.reduce_motion = false
-	_splash.allocation_hold = 0.1
+	_splash.charge_duration = 0.1
 
 	_splash.advance()
 	await get_tree().create_timer(0.3).timeout
 
 	assert_eq(_frontmatter.focus_id, _root())
 	assert_true(_frontmatter.view_for(_root()).allocated)
+	assert_false(_frontmatter.navigation_locked,
+			"and the menu is steerable again — a lock left raised is a softlock")
 
 
-func test_pressing_on_through_the_hold_is_not_dragged_back_to_the_root() -> void:
-	# "PRESS ANY BUTTON" invites mashing. The latch stops the SECOND press
-	# re-focusing the root; before the guard in `_travel`, the FIRST press did
-	# it — the player navigated on during the hold and the timer yanked them
-	# home a beat later.
+func test_leg_two_departs_from_the_charged_pose_whichever_clock_wins() -> void:
+	# The charge runs on two clocks — a Tween for the camera, a SceneTreeTimer
+	# for the BOOM — and they finish on different frames. `_end_charge` writes
+	# the charged pose explicitly so leg 2's ORIGIN never depends on which won.
+	# `transform_at(0.0)` is that origin, read as a value rather than chased
+	# across tween frames.
 	_frontmatter.reduce_motion = false
-	_splash.allocation_hold = 0.1
+	_splash.charge_duration = 0.05
+	_frontmatter.travel_duration = 2.0
 
 	_splash.advance()
-	_frontmatter.focus(MenuGraph.ID_SINGLE_PLAYER, true)
-	await get_tree().create_timer(0.3).timeout
+	await get_tree().create_timer(0.25).timeout
 
-	assert_eq(_frontmatter.focus_id, MenuGraph.ID_SINGLE_PLAYER,
-			"the hold expiring is not a route home either")
+	var charged := FrontmatterLayout.charged_camera(_frontmatter.tree)
+	assert_almost_eq(_frontmatter.camera.transform_at(0.0).origin, charged.origin,
+			Vector2(0.01, 0.01),
+			"leg 2 must pan from the pose leg 1 was aiming at, not from wherever "
+					+ "the tween happened to have got to")
 
 
-func test_a_zero_hold_sets_off_in_the_same_frame() -> void:
-	# The authored escape hatch, and the same branch `reduce_motion` takes. It
-	# removes the WAIT, not the travel — with motion on, the camera then tweens
-	# out as usual, which is why this asserts the departure and not the arrival.
+func test_navigation_is_locked_for_the_length_of_the_charge() -> void:
+	# "PRESS ANY BUTTON" invites mashing, and leg 1 is a live camera writer for
+	# the whole charge — a second navigation would start `_transition` driving
+	# the SAME camera and the two would fight. Owner call 2026-09-03: lock input
+	# for the charge.
+	#
+	# Asserted by calling `focus` DIRECTLY, which is honest only because the gate
+	# is on `focus` itself: this covers the keyboard path and the mouse path at
+	# once, where a test driving `_unhandled_input` would miss the click entirely
+	# (GUI picking runs before `_unhandled_input`).
 	_frontmatter.reduce_motion = false
-	_splash.allocation_hold = 0.0
+	_splash.charge_duration = 0.2
+
+	_splash.advance()
+	assert_true(_frontmatter.navigation_locked, "the charge raises the gate")
+
+	_frontmatter.focus(MenuGraph.ID_SINGLE_PLAYER, true)
+	assert_eq(_frontmatter.focus_id, _root(),
+			"you cannot steer during the charge")
+
+	await get_tree().create_timer(0.4).timeout
+	assert_false(_frontmatter.navigation_locked, "and the BOOM releases it")
+	assert_eq(_frontmatter.focus_id, _root(),
+			"the charge finishing lands on the root, which is where it was aimed")
+
+
+func test_a_zero_charge_booms_in_the_same_frame() -> void:
+	# The authored escape hatch, and the same branch `reduce_motion` takes. It
+	# removes the CHARGE, not the travel — with motion on, leg 2 then pans out as
+	# usual, which is why this asserts the departure and not the arrival.
+	_frontmatter.reduce_motion = false
+	_splash.charge_duration = 0.0
 	var set_off: Array[int] = []
 	_frontmatter.focus_started.connect(func(_id): set_off.append(1))
 
 	_splash.advance()
 
 	assert_eq(set_off.size(), 1)
+
+
+# --- leg 1 makes room NORTH, and nothing else --------------------------------
+
+func test_leg_one_takes_the_vertical_without_drifting_sideways() -> void:
+	# The whole claim of the split: leg 1 zooms out and takes the 58px drop with
+	# the root still horizontally centred, so leg 2 is left a PURE horizontal
+	# pan. Both halves are true by construction — `charged_camera` reads its x
+	# from the parked pose and its y from `hero_slot()` — and this is what would
+	# catch someone "tidying" those reads into literals.
+	var tree := _frontmatter.tree
+	var parked := FrontmatterLayout.splash_camera(tree)
+	var charged := FrontmatterLayout.charged_camera(tree)
+	var arrived := FrontmatterLayout.camera_for(tree, _root())
+	var world := _root_world()
+
+	assert_almost_eq(_screen_x(charged, world), _screen_x(parked, world), 0.01,
+			"leg 1 must not move the root sideways — that is leg 2's whole job")
+	assert_almost_eq(_screen_x(charged, world),
+			FrontmatterLayout.slot(FrontmatterLayout.SPLASH_SLOT_RATIO).x, 0.01,
+			"and the slot it holds is the parked pose's own")
+	assert_almost_eq(charged.origin.y, arrived.origin.y, 0.01,
+			"leg 2 is then a pure horizontal pan: the camera y is already there")
+	assert_almost_eq(FrontmatterLayout.zoom_of(charged).x, FrontmatterLayout.TREE_ZOOM,
+			0.0001, "leg 1 is the zoom-out; leg 2 does no zooming at all")
+
+
+func test_reduce_motion_collapses_the_charge_as_well_as_the_travel() -> void:
+	# D10, asserted directly rather than left implied. `reduce_motion` collapses
+	# leg 1 exactly as it collapses `travel_duration` — a player who asked for no
+	# motion is not asking for a half-second stare at an unlit root.
+	_frontmatter.reduce_motion = true
+	_splash.charge_duration = 0.5
+
+	_splash.advance()
+
+	assert_true(_frontmatter.view_for(_root()).allocated,
+			"the BOOM is immediate — the charge collapsed with the travel")
+	assert_eq(_frontmatter.focus_id, _root())
+	assert_false(_frontmatter.navigation_locked,
+			"and no lock outlives an advance that took no time")
+
+
+# --- the charge glow ---------------------------------------------------------
+
+func _charge() -> ChargeGlow:
+	return (_frontmatter.view_for(_root()) as SplashRootView).charge
+
+
+func test_the_root_view_is_the_only_one_that_can_charge_up() -> void:
+	# "Bespoke, just for this one" (owner, 2026-09-03). The charge is an added
+	# child on an INHERITED view scene, so every other node in the menu is the
+	# ordinary `menu_node_view.tscn` with no glow anywhere in it.
+	assert_not_null(_frontmatter.view_for(_root()) as SplashRootView,
+			"the root's view carries the charge")
+	var other := _frontmatter.view_for(MenuGraph.ID_SINGLE_PLAYER)
+	assert_null(other as SplashRootView,
+			"and no other node does — the effect is not part of the regular ones")
+
+
+func test_the_charge_ramps_between_named_emissive_tiers() -> void:
+	# `.claude/rules/hdr-color.md`: the endpoints are NAMED tiers and only the
+	# interpolant between them is computed. INERT sits exactly at the bloom
+	# threshold, so an idle charge cannot glow.
+	var glow := _charge()
+
+	glow.set_progress(0.0)
+	assert_almost_eq(glow.charge_stops(), Emissive.INERT, 0.0001)
+
+	glow.set_progress(1.0)
+	assert_almost_eq(glow.charge_stops(), Emissive.PEAK, 0.0001)
+
+
+func test_detonating_takes_the_charge_away_again() -> void:
+	# The load-bearing half of the BOOM. Left at PEAK the ring would sit
+	# permanently brighter than anything else on screen, behind the root's
+	# ordinary lit state — a worse artifact than the instant-lit snap #734
+	# replaced. The composite underneath takes over from here.
+	var glow := _charge()
+	glow.set_progress(1.0)
+
+	glow.detonate(true)
+
+	assert_lte(glow.charge_stops(), Emissive.VALUE,
+			"the charge is dismissed — it does not outlive its own detonation")
 
 
 # --- the latch ---------------------------------------------------------------
