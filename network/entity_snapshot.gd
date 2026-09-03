@@ -92,6 +92,7 @@ const _R_EFFECTS := 7    ## Array of [res_idx, source_stable_id] (0 = entity-wid
 const _R_TAGS := 8       ## Array of [name, refcount] — see [method _restore_tags]
 const _R_SCENE := 9      ## `scene_file_path` interned into `res`, -1 for none — see [method _materialize]
 const _R_NAME := 10      ## Entity.display_name — carried only so a materialized row is not nameless
+const _R_SPELL_IDS := 11 ## Array of [member SpellDef.id], or null — see [method _encode_spell_ids]
 
 
 ## Build the payload for every [Entity] under `graph.entities_container`.
@@ -229,7 +230,7 @@ static func _encode_entity(graph: Graph, e: Entity, table: GraphSnapshot._Intern
 	for t in e.get_active_tags():
 		tags.append([String(t), e.get_tag_count(t)])
 	var row: Array
-	row.resize(11)
+	row.resize(12)
 	row[_R_SCENE] = table.intern(e.scene_file_path) if e.scene_file_path != "" else -1
 	row[_R_NAME] = e.display_name
 	row[_R_ENTITY_ID] = e.entity_id
@@ -241,7 +242,48 @@ static func _encode_entity(graph: Graph, e: Entity, table: GraphSnapshot._Intern
 	row[_R_CORE_LOC] = graph.get_stable_id(e.core_location) if e.core_location != null else 0
 	row[_R_EFFECTS] = effects
 	row[_R_TAGS] = tags
+	row[_R_SPELL_IDS] = _encode_spell_ids(e.spellbook)
 	return row
+
+
+## The membership of a spellbook that has no `resource_path` to intern, by
+## value — and `null` for every book that HAS one (#726).
+##
+## [b]Which is, in practice, every book.[/b] [method Entity._ready] deep-copies
+## whatever `spellbook` it was handed, so no two entities share the authored
+## `.tres` object — and a `duplicate` carries no `resource_path`. So
+## [constant _R_SPELLBOOK]'s interned path, which predates this, has always been
+## -1 for a live entity and the spellbook has never actually crossed. The `null`
+## branch below is therefore only reachable from a hand-built fixture; it is kept
+## because the two channels answer different questions and the path is the
+## cheaper answer whenever it IS available.
+##
+## [b]What made it visible.[/b] A blocker's book is additionally a #586
+## [method SpellBook.duplicate_pruned] slice — a random subset of its tier's
+## authored book — and since #715 the client does not run the procgen that drew
+## it, so it cannot re-derive the slice either.
+## [method GameRoot.spawn_snapshot_entity] hands the rebuilt blocker its tier's
+## WHOLE authored book instead, and a player inspecting one sees a longer spell
+## list on the client than the host has. The ids are how the slice crosses.
+##
+## [b]ids, not paths[/b] — [member SpellDef.id] is the only legal cross-process
+## reference to a spell (#511, owner call 2026-08-21), resolved back through
+## [method SpellCatalog.by_id]. A def with an empty id is dropped, the same rule
+## [method _encode_entity] applies to a path-less effect one method up: real
+## content is authored, an id-less def is a fixture.
+##
+## [b]`null` and `[]` are different answers[/b] and both are load-bearing: the
+## prune chain is documented to be able to run all the way to EMPTY, so a
+## path-less book with zero spells is a real outcome that must not read as
+## "this row says nothing about the spellbook".
+static func _encode_spell_ids(book: SpellBook) -> Variant:
+	if book == null or book.resource_path != "":
+		return null
+	var ids: Array = []
+	for spell in book.spells:
+		if spell != null and spell.id != &"":
+			ids.append(String(spell.id))
+	return ids
 
 
 static func _intern_of(table: GraphSnapshot._InternTable, r: Resource) -> int:
@@ -322,7 +364,40 @@ static func _decode_identity(e: Entity, row: Array, res: Array) -> void:
 	var sb := _load_interned(res, int(row[_R_SPELLBOOK])) as SpellBook
 	if sb != null:
 		e.spellbook = sb
+	else:
+		_restore_pruned_spellbook(e, row)
 	e.entity_tier = int(row[_R_TIER])
+
+
+## Rebuild the by-value book [method _encode_spell_ids] sent (#726).
+##
+## Always a FRESH [SpellBook] — never the entity's own book narrowed in place.
+## What this peer happens to be holding is a level-side assumption
+## ([method GameRoot.spawn_blocker]'s tier default), and reconciling INTO it
+## would make the result depend on that assumption; rebuilding replaces it
+## outright. It also keeps a caller that did hand over an authored `.tres`
+## directly — a fixture, a sandbox — from narrowing that shared const for the
+## rest of the process.
+##
+## The rebuilt book carries no [member SpellBook._sources], which is what
+## `duplicate_pruned` produces too: a loot pool, every spell in it innate.
+static func _restore_pruned_spellbook(e: Entity, row: Array) -> void:
+	if row.size() <= _R_SPELL_IDS or row[_R_SPELL_IDS] == null:
+		return
+	var book := SpellBook.new()
+	var spells: Array[SpellDef] = []
+	for raw in (row[_R_SPELL_IDS] as Array):
+		var id := StringName(raw)
+		var spell := SpellCatalog.by_id(id)
+		if spell == null:
+			push_warning(
+				"EntitySnapshot: entity %d's spellbook names spell '%s', which SpellCatalog does not know — dropping it"
+				% [e.entity_id, id]
+			)
+			continue
+		spells.append(spell)
+	book.spells = spells
+	e.spellbook = book
 
 
 static func _load_interned(res: Array, idx: int) -> Resource:

@@ -951,12 +951,11 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 ## [EntityStatBoard], its scene, its `scenery` group) comes from that same call,
 ## which is exactly why this lives here and not in [EntitySnapshot].
 ##
-## [b]Known gap: the #586 PRUNED spellbook does not cross.[/b] A
-## `duplicate_pruned` book has no `resource_path` to intern, so the rebuilt
-## blocker carries its tier's WHOLE authored book rather than the host's pruned
-## slice. Loot is a host-only roll that reaches this peer as a command either
-## way, so no exchange is decided from this list here — it is a tooltip-level
-## difference, tracked as #726 rather than solved.
+## [b]The #586 PRUNED spellbook crosses by value (#726).[/b] The tier book this
+## assigns is the WHOLE authored one; the host's is a `duplicate_pruned` slice
+## of it, with no `resource_path` to intern. [method EntitySnapshot._decode_identity]
+## overwrites what this hands out with a fresh book rebuilt from the row's
+## [member SpellDef.id] list, so nothing here needs to know about the prune.
 func spawn_snapshot_entity(
 	entity_id: int, scene_path: String, tier: int, _display_name: String
 ) -> Entity:

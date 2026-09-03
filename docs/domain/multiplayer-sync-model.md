@@ -405,6 +405,23 @@ snapshot: a blocker's `EntityStatBoard` is assigned per tier in code, and
 `EntityStatBoard` refuses to mint a stat it has no field for, so a bare
 instantiate yields a blocker with no health. See `EntitySnapshot._materialize`.
 
+A materialized blocker's **spellbook crosses by value** (#726). The host's is a
+#586 `SpellBook.duplicate_pruned` slice — a `SpellBook.new()` with no
+`resource_path`, so the intern table has nothing to carry, and the client that
+runs no procgen cannot re-derive which slice was kept. The row therefore also
+carries the kept `SpellDef.id`s (`EntitySnapshot._encode_spell_ids`), `null` for
+any book that does have a path, and `[]` distinct from `null` because the prune
+chain may legitimately run to empty. This is the *received* side of the
+determinism rule, not the recomputed one: ids resolve through
+`SpellCatalog.by_id` and nothing is re-rolled.
+
+The by-value list is what carries **every** spellbook, not only a pruned one:
+`Entity._ready` deep-copies whatever book it was handed so no two entities share
+the authored resource object, and a `duplicate` has no `resource_path` — so
+`_R_SPELLBOOK`'s interned path has always been -1 for a live entity. The rebuilt
+book holds the const defs `SpellCatalog.by_id` returns rather than copies of
+them, which is what `SpellDef` identity comparisons (#511) need.
+
 **What a resync does NOT carry** is the derived tier — `StatBoard` totals,
 `Stat.bins`, aura contributions, vision. The receiver recomputes, exactly as
 `GraphSnapshot`'s tier table says. A backstop that shipped derived state would
