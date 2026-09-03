@@ -314,8 +314,12 @@ func _rebuild_target_cache() -> void:
 	_cached_valid_targets = {}
 	if source == null:
 		return
-	if not _union_dirty and _union != null and _union.per_source.has(source):
-		_cached_valid_targets = _union.targets_from(source)
+	# Through union(), not around it: reading _union_dirty directly meant an
+	# allocation with a target already committed left the flag set, so every
+	# repaint rebuilt a throwaway single-source union and the eligible-source
+	# set never refreshed.
+	if union().per_source.has(source):
+		_cached_valid_targets = union().targets_from(source)
 		return
 	# A source that did not come from the union — [AiController] assigns one
 	# owned node at a time. Build over that ONE source rather than the whole

@@ -49,17 +49,16 @@ func _refresh() -> void:
 	var plan := _battle_system.attack_plan as MagicAttackPlan
 	var board := _player.stat_board if _player != null else null
 	var mana: float = float(board.mana.current) if board != null and board.mana != null else 0.0
-	# Post-#728 there is no cast-from node until a target is clicked, so the
-	# readout reports the auto-picked caster's degree once one exists and the
-	# best degree the territory offers before that — the number that actually
-	# decides which spells are castable at all.
+	# Post-#728 there is no cast-from node until a target is clicked, so this
+	# reads 0 until one is auto-picked. Deliberately NOT "the best degree the
+	# territory offers": _refresh runs on attack_plan_state_changed, which
+	# every hover emits, and a max-degree scan is a degree query per owned node
+	# per mouse move — the exact per-point-predicate shape .claude/rules/graph.md
+	# warns about. The picker's caster gate already says whether a spell is
+	# castable at all, and it costs nothing here.
 	var degree := 0
-	if plan != null and _player.navigator != null:
-		if plan.source != null:
-			degree = _player.navigator.get_degree(plan.source)
-		else:
-			for n in _player.navigator.get_mirrored_nodes():
-				degree = max(degree, _player.navigator.get_degree(n))
+	if plan != null and plan.source != null and _player.navigator != null:
+		degree = _player.navigator.get_degree(plan.source)
 	_context_label.text = "source degree %d · mana %d" % [degree, int(mana)]
 	if plan != null:
 		_spell_bar.update_gating_context(plan.attacker)
