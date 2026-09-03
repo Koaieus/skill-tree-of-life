@@ -82,11 +82,12 @@ const _OVERLAY_WIDTH_PARAM: StringName = &"edge_width"
 		emissive_tier = value
 		_apply_look()
 
-## Edge endpoints in the parent's space. The visual needs these UP FRONT — a
-## quad cannot discover the edge by sampling its own flight the way
-## [GlowingDot]'s trail does — so the coordinator stamps them after
-## instantiation, the same stamp precedent [ArrowVolleyCoordinator] already uses
-## for `tint`.
+## Edge endpoints. The visual needs these UP FRONT — a quad cannot discover
+## the edge by sampling its own flight the way [GlowingDot]'s trail does.
+## [method _on_context] derives them (world space, with [member top_level]
+## set alongside — #687) whenever an [param entry] carries `origin`/`target`
+## [SkillNode] refs; absent that, a caller may still stamp them directly in
+## its own parent's space, as the sandbox VFX-primitives tab does.
 @export var edge_origin: Vector2 = Vector2.ZERO:
 	set(value):
 		edge_origin = value
@@ -184,6 +185,19 @@ func _on_crit(tier: int) -> void:
 
 ## Typed [Variant] on purpose — #543's `ScheduleEntry` does not exist yet and a
 ## typed parameter would refuse to parse.
+##
+## [b]Also where the endpoints and [member Node2D.top_level] get set — never
+## in [method _ready].[/b] (#687 D1/D3.) Every coordinator-driven caller
+## routes through this hook with a [code]ScheduleEntry[/code]-shaped
+## [param entry] carrying [code]origin[/code]/[code]target[/code]
+## [SkillNode] refs, so deriving world-space endpoints HERE — instead of in
+## two separate `*_edge_visual.gd` wrappers, which is what #687 found — is
+## the one place both the endpoints and the flag that makes them mean
+## "world space" can never drift apart. The sandbox VFX-primitives tab is
+## the one caller that never sends an [param entry] (it stamps
+## `edge_origin`/`edge_target` itself, in ITS stage's parent space): leaving
+## `top_level` false until this hook actually derives world-space endpoints
+## is what keeps that path correct.
 func _on_context(entry: Variant) -> void:
 	if entry == null:
 		return
@@ -192,6 +206,12 @@ func _on_context(entry: Variant) -> void:
 		# Normalized magnitude leans the resting tier between LABEL and VALUE.
 		# Named tiers at both ends — no hand-picked float (hdr-color.md).
 		emissive_tier = lerpf(Emissive.LABEL, Emissive.VALUE, clampf(magnitude, 0.0, 1.0))
+	var origin_node: Node2D = VfxContext.read_node2d(entry, &"origin")
+	var target_node: Node2D = VfxContext.read_node2d(entry, &"target")
+	if origin_node != null and target_node != null:
+		top_level = true
+		edge_origin = origin_node.global_position
+		edge_target = target_node.global_position
 
 
 # ------------------------------------------------------------------- internals

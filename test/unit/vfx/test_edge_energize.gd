@@ -245,6 +245,38 @@ func test_context_tolerates_null_and_foreign_shapes() -> void:
 	assert_eq(overlay.emissive_tier, authored, "an unread shape changes nothing")
 
 
+# ------------------------------------------------------ endpoint self-derivation (#687)
+
+
+func test_context_with_origin_and_target_derives_world_space_endpoints_and_sets_top_level() -> void:
+	var overlay := _spawn()
+	assert_false(overlay.top_level, "stamped directly (sandbox-style) — no context seen yet")
+	var origin := SkillNode.new()
+	origin.global_position = Vector2(15.0, 25.0)
+	autofree(origin)
+	var target := SkillNode.new()
+	target.global_position = Vector2(415.0, 25.0)
+	autofree(target)
+	overlay._on_context({&"origin": origin, &"target": target})
+	assert_true(overlay.top_level,
+		"deriving world-space endpoints is exactly what top_level must mean here")
+	assert_eq(overlay.edge_origin, origin.global_position)
+	assert_eq(overlay.edge_target, target.global_position)
+
+
+func test_context_without_endpoints_never_touches_top_level() -> void:
+	# The regression this guards: the sandbox VFX-primitives tab instantiates
+	# EdgeEnergize directly and stamps `edge_origin`/`edge_target` itself, in
+	# ITS stage's PARENT space, and never calls `_on_context` at all. An
+	# unconditional `top_level = true` (e.g. moved into `_ready`) would
+	# reinterpret those coordinates as world space and misplace the overlay.
+	var overlay: EdgeEnergize = ENERGIZE.instantiate()
+	add_child_autofree(overlay)
+	assert_false(overlay.top_level, "never received a context — stays parent-space by default")
+	overlay._on_context({&"magnitude": 0.5})
+	assert_false(overlay.top_level, "a context with no origin/target derives nothing")
+
+
 # ---------------------------------------------- the concurrency bound (#663 D7)
 
 

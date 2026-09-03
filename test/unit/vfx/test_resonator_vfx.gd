@@ -99,8 +99,21 @@ func test_edge_visual_composes_a_wave_packet_with_edge_energize_concurrently() -
 
 
 func test_energize_overlay_is_world_space_not_dragged_by_the_bolt() -> void:
+	# #687: top_level is EdgeEnergize's own to set, and it only does so once
+	# it actually derives world-space endpoints from a schedule entry — so
+	# this test must drive one, unlike before the refactor.
 	var visual: ResonatorEdgeVisual = EDGE_VISUAL.instantiate()
 	add_child_autofree(visual)
+	var origin := SkillNode.new()
+	origin.global_position = Vector2(0.0, 0.0)
+	autofree(origin)
+	var target := SkillNode.new()
+	target.global_position = Vector2(300.0, 0.0)
+	autofree(target)
+	var entry := _entry()
+	entry.origin = origin
+	entry.target = target
+	visual._on_context(entry)
 	assert_true(visual._energize.top_level,
 		"the overlay must not swim/spin with a rotating, travelling Projectile parent")
 
