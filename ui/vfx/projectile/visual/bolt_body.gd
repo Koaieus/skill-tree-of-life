@@ -279,7 +279,11 @@ func _apply_look(progress_hint: float = -1.0) -> void:
 	var tier_ramp: float = lerpf(tier_start, tier_end, frac)
 
 	var base: Color = _crit_tint if _has_crit else tint
-	var tier: float = Emissive.ALERT if _has_crit else tier_ramp
+	# `maxf`, not a bare ALERT: a config is free to fly hotter than ALERT (the
+	# tier ramp accepts up to PEAK), and a plain assignment would then make a
+	# crit *dimmer* than the ordinary hit it is supposed to escalate. The crit
+	# grammar is "at least full neon", never "exactly full neon".
+	var tier: float = maxf(tier_ramp, Emissive.ALERT) if _has_crit else tier_ramp
 	var col: Color = Emissive.tint(base, tier)
 	col.a = base.a * clampf(_alpha, 0.0, 1.0)
 	modulate = col

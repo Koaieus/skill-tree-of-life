@@ -76,6 +76,12 @@ layout_mode = 2
 disabled = true
 text = "Cast"
 
+[node name="LoopButton" type="CheckButton" parent="HBox/ControlsColumn/HeaderRow" unique_id=976121072]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Re-cast on a loop — Reset the board, cast, pause, repeat. The projectile is on screen most of the time, so a size or trail change can be judged instead of guessed."
+text = "Loop"
+
 [node name="ResetButton" type="Button" parent="HBox/ControlsColumn/HeaderRow" unique_id=21932576]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(80, 36)

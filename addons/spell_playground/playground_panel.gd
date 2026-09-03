@@ -54,7 +54,15 @@ const MANA: float = 20.0
 ## applies and still reports itself in the status line.
 const CASTER_SPELL_RANGE_BONUS: float = 900.0
 
+## Seconds of dead air between one looped cast finishing and the next Reset.
+## Short enough that the world is rarely empty — the whole point of Loop is that
+## a projectile is on screen while you drag a slider — but not zero, so the
+## impact rings and the post-arrival fade get their beat before the board snaps
+## back underneath them.
+const LOOP_GAP_SECONDS: float = 0.35
+
 @onready var cast_button: Button = %CastButton
+@onready var loop_button: CheckButton = %LoopButton
 @onready var reset_button: Button = %ResetButton
 @onready var reload_button: Button = %ReloadButton
 @onready var status_label: Label = %StatusLabel
@@ -80,6 +88,10 @@ var _selected_target: SkillNode = null
 ## that window would interleave with a mutation loop still walking its beats, so
 ## both buttons are gated on it rather than trying to cancel one in flight.
 var _casting: bool = false
+## Guards the [method _run_loop] driver against a second copy of itself. The
+## toggle can be flipped off and back on inside [constant LOOP_GAP_SECONDS], and
+## two drivers racing would double the cast rate and never settle.
+var _looping: bool = false
 ## Populated from attack/spell/defs/ — every .tres SpellDef in the directory.
 var _listed_spells: Array[SpellDef] = []
 
@@ -139,6 +151,7 @@ func _ready() -> void:
 	_arm_board()
 	_grant_caster_reach()
 	cast_button.pressed.connect(_cast)
+	loop_button.toggled.connect(_on_loop_toggled)
 	reset_button.pressed.connect(_reset_state)
 	reload_button.pressed.connect(reload_requested.emit)
 	spell_damage_slider.value_changed.connect(_on_spell_damage_changed)
@@ -759,6 +772,48 @@ func _cast() -> void:
 	if not launched:
 		status_label.text = "%s · %s → refused: unaffordable, or the plan went invalid" \
 				% [_spell.name, _selected_target.name]
+
+
+## Loop is the by-eye tuning affordance (#663): one cast is a blink — Lightning's
+## body fades in 0.12s — so judging a size, a trail or a tier change means casting,
+## missing it, and casting again. With this on, the panel Resets and re-casts on
+## its own, so the spell is on screen most of the time and a slider drag can be
+## watched rather than inferred.
+##
+## [b]A driver loop, not a tail call from [method _cast].[/b] Re-entering `_cast`
+## from its own end is the obvious shape and the wrong one: each iteration is an
+## `await` that never returns until the loop stops, so a few hundred casts is a
+## few hundred stacked frames. This owns the iteration instead and calls `_cast`
+## as an ordinary coroutine.
+func _on_loop_toggled(pressed: bool) -> void:
+	if pressed:
+		_run_loop()
+
+
+## The driver. Every exit condition is re-checked each pass, because each pass
+## spans several frames of `await` and the panel can be torn down, the toggle
+## flipped, or the target cleared inside any of them.
+func _run_loop() -> void:
+	if _looping:
+		return
+	_looping = true
+	while loop_button.button_pressed and is_inside_tree():
+		if _selected_target == null or not is_instance_valid(_spell):
+			# Nothing to fire at. Drop the toggle rather than spin — a Loop that
+			# silently does nothing looks identical to a Loop that is broken.
+			loop_button.set_pressed_no_signal(false)
+			status_label.text = "Loop stopped — pick a spell and a target first."
+			break
+		# The cascade this spell just ran left nodes depleted and deallocated, so
+		# an un-Reset second cast is a DIFFERENT cast against a smaller board.
+		# Loop exists to show the same shot repeatedly; the Reset is what makes
+		# the repetition mean anything.
+		_reset_state()
+		await _cast()
+		if not is_inside_tree():
+			break
+		await get_tree().create_timer(LOOP_GAP_SECONDS).timeout
+	_looping = false
 
 
 func _replenish_caster() -> void:
