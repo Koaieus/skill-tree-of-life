@@ -94,6 +94,9 @@ var _frontmatter: FrontmatterRoot = null
 var _advanced: bool = false
 ## Leg 1's tween. Held so the BOOM can kill it — see [method _end_charge].
 var _leg_one: Tween = null
+## Leg 1's endpoints, snapshotted at the press. Read by [method charge_pose].
+var _charge_from: Transform2D = Transform2D.IDENTITY
+var _charge_to: Transform2D = Transform2D.IDENTITY
 
 
 ## [b]Deliberately NOT guarded by `Engine.is_editor_hint()`.[/b] Nothing below is
@@ -192,23 +195,39 @@ func _lock_navigation() -> void:
 func _start_charge() -> void:
 	if _frontmatter == null or _frontmatter.tree == null or _frontmatter.camera == null:
 		return
-	var from := _frontmatter.camera.current_transform()
-	var to := FrontmatterLayout.charged_camera(_frontmatter.tree)
+	_charge_from = _frontmatter.camera.current_transform()
+	_charge_to = FrontmatterLayout.charged_camera(_frontmatter.tree)
 	var glow := _charge_glow()
 	if glow != null:
 		glow.set_progress(0.0)
 	_leg_one = create_tween()
-	_leg_one.tween_method(_drive_charge.bind(from, to), 0.0, 1.0, _charge_seconds())
+	_leg_one.tween_method(_drive_charge, 0.0, 1.0, _charge_seconds())
+
+
+## Leg 1's camera pose at clock position `t` (0..1) — the PURE half of the
+## charge, and the same function the tween drives.
+##
+## [b]It exists so a test never has to sample a tween mid-flight.[/b] That is the
+## convention [FrontmatterCamera] already states for
+## [method FrontmatterCamera.transform_at]: assert `t == 0` and `t == 1` rather
+## than chasing intermediate frames. It is not fussiness — a [Tween] stops
+## advancing while the [SceneTree] is paused whereas a [SceneTreeTimer] goes on
+## firing, so a test that reads the live camera a fixed wall-clock delay into
+## leg 1 is asserting the harness's frame delivery, not this file's decision.
+func charge_pose(t: float) -> Transform2D:
+	return _charge_from.interpolate_with(
+		_charge_to, FrontmatterCamera.ease_charge(clampf(t, 0.0, 1.0))
+	)
 
 
 ## One frame of leg 1. The eased curve lives in [FrontmatterCamera] so the camera
 ## owns every easing decision in this menu; the glow takes the RAW `t`, because
 ## its own look is not a camera motion.
-func _drive_charge(t: float, from: Transform2D, to: Transform2D) -> void:
+func _drive_charge(t: float) -> void:
 	if _frontmatter == null or not is_instance_valid(_frontmatter):
 		return
 	if _frontmatter.camera != null:
-		_frontmatter.camera.apply(from.interpolate_with(to, FrontmatterCamera.ease_charge(t)))
+		_frontmatter.camera.apply(charge_pose(t))
 	var glow := _charge_glow()
 	if glow != null:
 		glow.set_progress(t)

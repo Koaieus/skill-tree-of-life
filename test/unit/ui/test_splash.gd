@@ -143,6 +143,12 @@ func test_the_charge_sets_off_at_once_with_the_root_still_unlit() -> void:
 	# exactly that — "i see no 'glowing up'. i see the ring light up (like
 	# identical to final lit state), then a sudden allocation vfx". Now the
 	# camera leaves on the spot and the ring stays dark while the charge builds.
+	#
+	# Leg 1 is asserted through `charge_pose`, its pure half, rather than by
+	# reading the live camera a wall-clock delay in. Sampling the tween would be
+	# asserting the harness's frame delivery — a Tween stops advancing while the
+	# SceneTree is paused while a SceneTreeTimer goes on firing, so a mid-flight
+	# read is answerable by something no part of this file decides.
 	_frontmatter.reduce_motion = false
 	_splash.charge_duration = 0.5
 
@@ -150,15 +156,20 @@ func test_the_charge_sets_off_at_once_with_the_root_still_unlit() -> void:
 	_frontmatter.focus_started.connect(func(_id): set_off.append(1))
 
 	_splash.advance()
-	# A tween applies its first value on the next process frame, not on creation.
-	await get_tree().create_timer(0.1).timeout
 
 	assert_false(_frontmatter.view_for(_root()).allocated,
 			"the root is NOT lit on the press — the charge is what is happening")
 	assert_eq(set_off.size(), 0,
 			"and `focus_started` has not fired: that is leg 2, which the BOOM starts")
-	assert_ne(_camera_origin(), FrontmatterLayout.splash_camera(_frontmatter.tree).origin,
-			"but the camera HAS set off — leg 1 is under way")
+
+	var parked := FrontmatterLayout.splash_camera(_frontmatter.tree)
+	var charged := FrontmatterLayout.charged_camera(_frontmatter.tree)
+	assert_almost_eq(_splash.charge_pose(0.0).origin, parked.origin, Vector2(0.01, 0.01),
+			"leg 1 departs from the parked pose")
+	assert_ne(_splash.charge_pose(0.5).origin, parked.origin,
+			"and it is a MOVE — the camera does not sit still through the charge")
+	assert_almost_eq(_splash.charge_pose(1.0).origin, charged.origin, Vector2(0.01, 0.01),
+			"landing on the charged pose, which is where the BOOM happens")
 
 
 func test_advancing_drops_the_games_own_allocation_spike_on_the_root() -> void:
