@@ -182,6 +182,35 @@ const _TEXTURE_SIZE: float = 64.0
 		arc_weight_influence = clampf(value, 0.0, 1.0)
 		_apply_look()
 
+## How far this landing's [member ScheduleEntry.magnitude] moves the body's size
+## — "how big is THIS hit, against the biggest hit in the same cast", already
+## normalized to 0..1 by the compiler and already delivered to `_on_context`,
+## where it has been read by nothing since #543.
+##
+## [b]This is the honest answer to "bigger spells should look bigger", and
+## [member SpellDef.power] is not.[/b] Power is a coefficient, not a damage:
+## `spell_def.gd` is explicit that the seed hit is `spell_damage(cast-from node)
+## x power`, so a power-3 spell from a weak caster genuinely lands softer than a
+## power-1 spell from a strong one. Sizing off power would tell the player the
+## opposite of what #663 D3 taught them — that bolt size means CURRENT DAMAGE —
+## every time the two disagree. Magnitude is the quantity that vocabulary is
+## already about.
+##
+## 0 = ignored, which is the default and why this is strictly additive. 1 =
+## direct proportion, so the loudest landing in a cast draws at
+## [member head_size] and the lesser ones shrink toward nothing. It only ever
+## shrinks: magnitude tops out at 1.0 on the biggest entry, so opting in cannot
+## inflate a spell past its authored silhouette.
+##
+## Cross-SPELL loudness stays [member head_size], authored per config. Nothing in
+## the resolved outcome carries an absolute, comparable "how loud is this spell"
+## — magnitude is normalized within one cast — so that judgement is the
+## designer's, not a formula's.
+@export_range(0.0, 1.0, 0.05) var magnitude_influence: float = 0.0:
+	set(value):
+		magnitude_influence = clampf(value, 0.0, 1.0)
+		_apply_look()
+
 @onready var _head: Sprite2D = %Head
 @onready var _trail_root: Node2D = %Trail
 
@@ -198,6 +227,10 @@ var _crit_tint: Color = Color.WHITE
 var _has_crit: bool = false
 ## Latest `hop_fraction` seen through `_on_context`, 0..1.
 var _hop_fraction: float = 0.0
+## Latest `magnitude` seen through `_on_context`, 0..1. Defaults to 1.0 — "as
+## loud as it gets" — so a visual that never receives an entry, or receives one
+## without the field, draws at its authored size rather than vanishing.
+var _magnitude: float = 1.0
 
 
 func _ready() -> void:
@@ -277,6 +310,10 @@ func _on_context(entry: Variant) -> void:
 	if frac >= 0.0:
 		_hop_fraction = clampf(frac, 0.0, 1.0)
 		_apply_look()
+	var mag: float = VfxContext.read_float(entry, &"magnitude", -1.0)
+	if mag >= 0.0:
+		_magnitude = clampf(mag, 0.0, 1.0)
+		_apply_look()
 
 
 # ------------------------------------------------------------------- internals
@@ -322,7 +359,7 @@ func _apply_look(progress_hint: float = -1.0) -> void:
 	col.a = base.a * clampf(_alpha, 0.0, 1.0)
 	modulate = col
 
-	var diameter: float = head_size * ramp * _crit_scale * arc_scale()
+	var diameter: float = head_size * ramp * _crit_scale * arc_scale() * magnitude_scale()
 	var s: float = diameter / _TEXTURE_SIZE
 	# Squash-and-stretch along local +X (the [Projectile] rotates us so +X is
 	# forward when `face_velocity` is on). Volume-preserving: whatever the head
@@ -360,3 +397,9 @@ func _place_segments() -> void:
 ## opted out, so the eight non-splitting spells provably take the old path.
 func arc_scale() -> float:
 	return lerpf(1.0, arc_weight, arc_weight_influence)
+
+
+## The size factor this landing's magnitude contributes — 1.0 whenever the config
+## has opted out, so every spell shipped before this provably takes the old path.
+func magnitude_scale() -> float:
+	return lerpf(1.0, _magnitude, magnitude_influence)

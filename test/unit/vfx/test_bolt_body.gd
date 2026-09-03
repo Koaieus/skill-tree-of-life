@@ -235,3 +235,50 @@ func test_segments_past_the_taper_span_extend_the_tail_rather_than_re_spread_it(
 				"segment %d is past the span, so it carries the tail alpha" % i)
 		assert_almost_eq(seg.scale.x, trail.get_child(3).scale.x, 0.001,
 				"segment %d is past the span, so it is tapered no further than the fourth" % i)
+
+
+## "Bigger badder spells look bigger" (#663), wired to the quantity that claim is
+## actually about. `ScheduleEntry.magnitude` — this landing's share of the
+## loudest landing in the same cast — has ridden `_on_context` since #543 and
+## been read by nothing.
+func test_magnitude_is_ignored_until_a_config_opts_in() -> void:
+	var bolt := _spawn()
+	bolt.head_size = 40.0
+	bolt._on_context({&"magnitude": 0.25})
+	assert_almost_eq(bolt.magnitude_scale(), 1.0, 0.001,
+			"influence defaults to 0, so every config shipped before this takes the old path")
+	assert_almost_eq(bolt._head.scale.x * 64.0, 40.0, 0.001, "the head is still its authored diameter")
+
+
+func test_a_quiet_landing_draws_smaller_once_opted_in() -> void:
+	var bolt := _spawn()
+	bolt.head_size = 40.0
+	bolt.magnitude_influence = 1.0
+	bolt._on_context({&"magnitude": 0.25})
+	assert_almost_eq(bolt.magnitude_scale(), 0.25, 0.001, "direct proportion at full influence")
+	assert_almost_eq(bolt._head.scale.x * 64.0, 10.0, 0.001, "a quarter-magnitude landing draws a quarter as wide")
+
+
+func test_magnitude_can_only_shrink_never_inflate() -> void:
+	# The compiler normalizes to 0..1 with 1.0 on the biggest entry, so opting in
+	# must never push a spell past its authored silhouette — including if a
+	# malformed entry hands over something out of range.
+	var bolt := _spawn()
+	bolt.head_size = 40.0
+	bolt.magnitude_influence = 1.0
+	bolt._on_context({&"magnitude": 4.0})
+	assert_almost_eq(bolt.magnitude_scale(), 1.0, 0.001, "clamped at the authored size")
+
+
+func test_a_visual_that_never_sees_an_entry_draws_at_full_size() -> void:
+	# The fallback matters more here than for the hop ramp: defaulting the other
+	# way would make an opted-in body vanish whenever a coordinator hands it no
+	# context.
+	var bolt := _spawn()
+	bolt.head_size = 40.0
+	bolt.magnitude_influence = 1.0
+	assert_almost_eq(bolt.magnitude_scale(), 1.0, 0.001, "no entry means 'as loud as it gets'")
+	bolt._on_context(null)
+	assert_almost_eq(bolt.magnitude_scale(), 1.0, 0.001, "a null entry changes nothing")
+	bolt._on_context({&"beat_index": 1, &"beat_count": 3})
+	assert_almost_eq(bolt.magnitude_scale(), 1.0, 0.001, "an entry without the field changes nothing")
