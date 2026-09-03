@@ -75,7 +75,7 @@ echo "✓ msdfgen 1.13 → $BIN"
 
 [tasks.check]
 depends = ["check-shaders", "lint-editor-hint-guard", "lint-scene-instance-depth", "lint-instanced-anchors", "lint-transcendentals"]
-description = "Headless compile-check of all project scripts (Godot editor import) — also runs check-shaders, lint-editor-hint-guard, lint-scene-instance-depth, lint-instanced-anchors and lint-transcendentals"
+description = "Headless compile-check of all project scripts (Godot editor import), plus GUT hook scripts by hand — also runs check-shaders, lint-editor-hint-guard, lint-scene-instance-depth, lint-instanced-anchors and lint-transcendentals"
 run = '''
 #!/usr/bin/env bash
 set -uo pipefail
@@ -85,6 +85,26 @@ if printf '%s\n' "$out" | grep -qE 'SCRIPT ERROR'; then
   echo "✗ script errors found"
   exit 1
 fi
+
+# GUT's pre_run_script/post_run_script (.gutconfig.json) are referenced only
+# from that JSON, never from a scene, so the editor pass above never loads
+# them — a parse error there doesn't fail here, it makes every `mise run
+# test*` spin forever printing FPS instead of erroring (#737, ~10 minutes to
+# diagnose the first time). Parse-check the whole directory by hand so a
+# second hook script is covered without anyone remembering to add it here.
+hook_failed=0
+while IFS= read -r -d '' f; do
+  hook_out=$(godot --headless --check-only --script "$f" 2>&1)
+  if [ $? -ne 0 ]; then
+    printf '%s\n' "$hook_out"
+    echo "✗ parse error: $f"
+    hook_failed=1
+  fi
+done < <(find test/gut_hooks -name '*.gd' -print0 2>/dev/null)
+if [ "$hook_failed" -ne 0 ]; then
+  exit 1
+fi
+
 echo "✓ all scripts compiled clean"
 '''
 
