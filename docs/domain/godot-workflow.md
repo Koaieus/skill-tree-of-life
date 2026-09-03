@@ -632,3 +632,15 @@ instantiates the target, `await RenderingServer.frame_post_draw`, then
 #589 swarm shipped six units with the suite green throughout while the menu
 crashed on every direct run, and while one unit's headline visual change was
 invisible on screen. Delete the throwaway scene + script afterwards.
+
+## A `:=`-inferred var fed by `Dictionary.keys()`/`.values()` compiles under `check` but fails under GUT*
+
+A typed `Dictionary[SpellDef, int]` erases its key/value types through `.keys()`
+and `.values()` — both hand back an untyped `Array`, so every element is a
+`Variant` as far as the analyser is concerned. `mise run check` lets the
+`:=` inference slide; GUT's load path does not, and you get a compile error on
+a file that just passed the cheap gate.
+
+**How to apply:** annotate the loop var explicitly instead of inferring it —
+`for spell: SpellDef in dict.keys():`, never `for spell in dict.keys():` with a
+downstream `:=`.
