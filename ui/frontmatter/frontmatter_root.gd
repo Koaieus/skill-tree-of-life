@@ -223,6 +223,9 @@ func build(menu_tree: MenuGraph = null) -> void:
 ## caller owning the clock is the repo's convention for an animated unit
 ## (`ui/tooltip_fan/addon_item.gd`), and it is what lets a test assert `t == 0`
 ## and `t == 1` without chasing frames.
+##
+## Refuses outright while [member navigation_locked] is raised — the menu's one
+## navigation gate, and the seam the keyboard and mouse paths both pass through.
 func focus(id: StringName, instant: bool = false) -> void:
 	if navigation_locked:
 		return
