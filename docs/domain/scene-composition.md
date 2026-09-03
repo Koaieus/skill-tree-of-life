@@ -33,6 +33,32 @@ inherited, while bunker/fortification/clamp/spike_ring/skill_dust were each
 standalone scenes attaching the same script. A `z_index` authored into the
 "template" reached none of them. It belonged in `SkillNodeAddon._ready`.
 
+## What an inherited scene CAN and CANNOT change
+
+An inherited scene may **add** nodes freely, and may override exported
+properties on nodes the base authors. It **cannot re-point an instanced child
+at a different `PackedScene`** — if the base authors `Foo` as an instance of
+`foo.tscn`, no inherited scene can make that child an instance of a *derived*
+`foo_variant.tscn` instead. The instance is part of the base's structure, not a
+slot.
+
+So "inherit the scene and swap its guts for a subclass" is not a move Godot
+offers. The three things that are:
+
+1. **Add a sibling** alongside the instanced child and put the new behaviour
+   there. Cheapest, and usually enough — this is what #734's splash charge glow
+   does: `splash_root_view.tscn` inherits `menu_node_view.tscn` and *adds* a
+   `ChargeGlow` next to the composite it cannot replace.
+2. **Export the scene** (`@export var visuals_scene: PackedScene`) on the base
+   and let the composer hand in a variant. Real flexibility, but it adds a knob
+   to the shared class for one caller's benefit.
+3. **Duplicate the parent `.tscn`** — almost always wrong, and a parallel mirror
+   of whatever the original authors.
+
+Reach for 1 first. Reach for 2 only when the *variant itself* has to be the
+child (because something addresses it by its unique name, or the base's own
+script talks to it).
+
 ## Why "pre-packaged with its deps" matters
 
 A scene's `@onready var nodes := $Nodes` (or pre-wired child NodePaths) only
