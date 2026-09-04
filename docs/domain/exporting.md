@@ -68,11 +68,15 @@ labelled.
 `export_filter="all_resources"` plus an `exclude_filter` — not the
 `"resources"` (scene-dependency) filter, which would drop everything this
 project reaches by `load()` at runtime: content-pack `.tres`, procgen pools,
-spell defs.
+spell defs. The sharpest single proof is
+[`carve_atlas.gd`](../../skill_node/visuals/emblem/carve_atlas.gd) — it holds
+the atlas path as a plain `String` const, so Godot records no dependency on it
+and a dependency-based export would ship a game with no emblems on it.
 
 Excluded: the dev-only addons, `test/`, `docs/`, `tools/`, `scratchpad/`,
-`.mise/`, `*.md`. That takes the payload from ~130M of project content to
-**~13M** on top of the 70M engine template.
+`.mise/`, `*.md`, plus the unreferenced source art below. That takes the
+payload from ~130M of project content down to a **76M** linux artifact on top of
+the ~70M engine template.
 
 Two exclusions look obvious and are wrong, both because *shipped code reaches
 into a dev addon*:
@@ -92,6 +96,44 @@ Before adding an exclusion, check for references from outside the directory:
 ```
 grep -rl "res://addons/<name>/" --include="*.tscn" --include="*.tres" --include="*.gd" .
 ```
+
+### Source art is a library, and `all_resources` ships the whole library
+
+`assets/` is a *stock of material*, not a manifest of what the game uses — most
+of it was pulled in from a pack and is being drawn from over time. With
+`all_resources`, everything in it ships whether a scene points at it or not, and
+in 2026-09 that was **17M of the 22M of packed art with zero references**. Those
+directories are excluded rather than deleted: the material is still the pool the
+game is being built out of, and an exclusion is reversible where a delete is a
+trip back to the pack.
+
+What that means when you *use* a new icon: **adding it to a scene is not
+enough** — if it lives under an excluded directory it will render in the editor
+and be missing in the build. Take it off the exclude list in the same commit.
+
+Two traps in writing these globs:
+
+- **`*` crosses `/`.** `assets/*.png` does not mean "the loose pngs in
+  `assets/`" — it matches every png at any depth under it, including the live
+  `emblem_luts/` and `icons/spells/`. Loose files are named individually
+  (`assets/bars.png`, `assets/hexes.png`, …) for exactly that reason.
+- **A directory can be partly live.** `assets/icons/Icon set 1/` ships the pack
+  at three resolutions; `ui/pause_menu.tscn` uses six files from `0.5x/`, so
+  `1x/` and `2x/` are excluded and `0.5x/` stays whole.
+
+The audit is a text grep over what itself ships, and it is trustworthy here
+because the project holds **no binary `.res`/`.scn`/`.theme`** — every reference
+is in a file grep can read. Confirm that still holds before believing a new
+audit:
+
+```
+find . -name '*.res' -o -name '*.scn' -o -name '*.theme' | grep -v '/.godot/'
+```
+
+And **no test can catch an over-aggressive exclusion** — the suite runs in the
+checkout, where every asset exists. The filter only exists in the pack, so
+verification is the export itself: `grep -aF "<name>" <artifact>` on the
+embedded pck answers both "did it go" and "did the live neighbour stay".
 
 ## Verifying an export
 
