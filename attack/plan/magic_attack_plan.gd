@@ -192,6 +192,12 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 	# than an identical-range spell with 1, because the frontier node is a
 	# degree-1 leaf of your own territory and cannot cast it. That asymmetry is
 	# real and authored; this only makes it legible.
+	#
+	# No [method _is_seen] gate, unlike the IN_RANGE branch above: an eligible
+	# caster is by construction a node [member attacker] OWNS, and an entity
+	# cannot be fogged from its own territory. The [SeatPolicy] mismatch
+	# [member viewer_vision] warns about does not reach here either — a plan is
+	# only ever armed for an entity this machine is playing.
 	if source == null and spell != null and union().is_source(node):
 		return HighlightRole.CASTER
 	return HighlightRole.NONE
