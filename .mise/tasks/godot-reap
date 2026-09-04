@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+#MISE description="Kill stray HEADLESS godot processes, never the editor or a playtest: `mise run godot-reap [-- --dry]`"
+"""
+Reap runaway headless Godot processes without touching what a human is using.
+
+Exists because `pkill godot` / `killall godot` is the reflex, and it takes the
+open editor and any manual playtest with it — the editor has to be reopened and
+an in-progress test run is simply lost. Reach for this instead.
+
+The discriminator is `--headless` in argv. Verified against a live desktop
+(2026-09-04) — the three shapes that show up in `ps` are:
+
+    EDITOR    godot --path <proj> --editor
+    PLAYTEST  godot --path <proj> --remote-debug tcp://… --editor-pid <pid> …
+    HEADLESS  godot --headless …            <- the only kind this kills
+
+Neither of the first two ever carries `--headless`, so the filter is exact
+rather than a heuristic.
+
+A peer agent's `mise run test` is also headless and indistinguishable from your
+own stray, and the suite takes ~200s, so destroying one is expensive. GUT runs
+are therefore SKIPPED by default and listed — pass `--include-suites` when you
+actually mean to kill a hung suite. `--dry` kills nothing at all.
+
+That default is not paranoia: the first dry run of this task on a live desktop
+found exactly one headless process, and it was a suite someone was waiting on.
+"""
+import os
+import signal
+import subprocess
+import sys
+import time
+
+DRY = "--dry" in sys.argv[1:]
+INCLUDE_SUITES = "--include-suites" in sys.argv[1:]
+PS_FMT = "pid,etimes,args"
+
+
+def is_suite(args: str) -> bool:
+	return "gut_cmdln" in args
+
+
+def classify(args: str) -> str:
+	if "--headless" in args:
+		return "HEADLESS"
+	if "--editor-pid" in args or "--remote-debug" in args:
+		return "PLAYTEST"
+	if "--editor" in args:
+		return "EDITOR"
+	return "OTHER"
+
+
+def main() -> int:
+	out = subprocess.run(
+		["ps", "-eo", PS_FMT], capture_output=True, text=True, check=True
+	).stdout.splitlines()[1:]
+
+	me = os.getpid()
+	victims, spared, suites = [], [], []
+	for line in out:
+		parts = line.strip().split(None, 2)
+		if len(parts) < 3:
+			continue
+		pid, etimes, args = int(parts[0]), int(parts[1]), parts[2]
+		# Match the binary, not the word: a grep or an editor whose *project path*
+		# contains "godot" is not a Godot process.
+		exe = args.split()[0]
+		if not os.path.basename(exe).startswith("godot"):
+			continue
+		if pid == me:
+			continue
+		if classify(args) != "HEADLESS":
+			spared.append((pid, etimes, args))
+		elif is_suite(args) and not INCLUDE_SUITES:
+			suites.append((pid, etimes, args))
+		else:
+			victims.append((pid, etimes, args))
+
+	for pid, etimes, args in spared:
+		print("  spared  %-8s pid %-7d %s" % (classify(args), pid, args[:90]))
+	for pid, etimes, args in suites:
+		print("  spared  SUITE    pid %-7d up %4ds — GUT run, maybe a peer's."
+			  " --include-suites to kill it" % (pid, etimes))
+
+	if not victims:
+		print("✓ nothing to reap" if (spared or suites) else "✓ no godot processes running")
+		return 0
+
+	for pid, etimes, args in victims:
+		gut = " (GUT suite — killed because --include-suites)" if is_suite(args) else ""
+		verb = "would kill" if DRY else "killing"
+		print("  %s  pid %-7d up %4ds%s\n            %s" % (verb, pid, etimes, gut, args[:110]))
+		if DRY:
+			continue
+		try:
+			os.kill(pid, signal.SIGTERM)
+		except ProcessLookupError:
+			continue
+
+	if DRY:
+		print("\n--dry: nothing was killed")
+		return 0
+
+	# SIGTERM first so Godot can flush; escalate only what refuses to go.
+	time.sleep(2.0)
+	for pid, _etimes, _args in victims:
+		try:
+			os.kill(pid, 0)
+		except ProcessLookupError:
+			continue
+		print("  pid %d ignored SIGTERM — sending SIGKILL" % pid)
+		try:
+			os.kill(pid, signal.SIGKILL)
+		except ProcessLookupError:
+			pass
+
+	print("\n✓ reaped %d headless process(es); %d spared"
+		  % (len(victims), len(spared) + len(suites)))
+	return 0
+
+
+if __name__ == "__main__":
+	sys.exit(main())
