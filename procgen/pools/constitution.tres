@@ -53,14 +53,13 @@ pool_weight = 2.0
 max_tier = 3
 
 [sub_resource type="Resource" id="dex_debuff"]
-resource_name = "dexterity -%"
+resource_name = "dexterity +%"
 script = ExtResource("2_pool")
 stat_id = &"dexterity"
 operation = 1
 archetype_stat = &"constitution"
 unit_value = -3.0
 range_floor = -1.0
-pool_weight = 1.0
 max_tier = 3
 
 [sub_resource type="Resource" id="Resource_u38nb"]
@@ -70,7 +69,6 @@ stat_id = &"min_damage_taken"
 archetype_stat = &"constitution"
 unit_value = -1.0
 pool_weight = 0.3
-tier_bias_k = 0.5
 min_tier = 3
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
