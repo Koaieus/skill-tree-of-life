@@ -75,8 +75,8 @@ and a dependency-based export would ship a game with no emblems on it.
 
 Excluded: the dev-only addons, `test/`, `docs/`, `tools/`, `scratchpad/`,
 `.mise/`, `*.md`, plus the unreferenced source art below. That takes the
-payload from ~130M of project content down to a **76M** linux artifact on top of
-the ~70M engine template.
+payload from ~130M of project content down to **~6M** — a 76M linux artifact,
+almost all of which is the ~70M engine template.
 
 Two exclusions look obvious and are wrong, both because *shipped code reaches
 into a dev addon*:
