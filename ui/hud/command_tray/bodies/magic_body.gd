@@ -15,6 +15,17 @@ extends CommandTrayBodyBase
 ## rows past [constant MAX_VISIBLE_ROWS] live inside %SpellScroll rather than
 ## growing this body further. So a 20-spell book costs exactly the same width
 ## and height as a 3-spell one that already wrapped.
+##
+## %SpellScroll uses [constant ScrollContainer.SCROLL_MODE_RESERVE], NOT
+## `AUTO`. Under `AUTO` the scrollbar only takes its 8px once it appears, which
+## narrows the bar by 8px at the exact moment content overflows — and a
+## narrower [HFlowContainer] can wrap to one MORE row, so a book that needs two
+## rows can land on three and start scrolling a row early. It converges (the
+## bar only ever gets narrower) rather than oscillating, but it means the row
+## count is not a pure function of the spell count. `RESERVE` keeps the gutter
+## reserved whether or not the bar is shown, which makes the layout a
+## single-pass fixed point for 8px of permanent width. Verified against 4.7.1:
+## inner width is 292/292 under RESERVE where AUTO gives 300/292.
 
 ## How many wrapped rows of spell buttons the body shows before %SpellScroll
 ## starts scrolling instead of growing. Owner call (2026-09-04): "the entire
