@@ -21,6 +21,7 @@ enum HighlightRole {
 	HOSTILE_TARGET,   ## Committed enemy target / active core-move landing.
 	FRIENDLY_TARGET,  ## Committed allied target (heals / buffs).
 	IN_RANGE,         ## Valid candidate the provider would accept.
+	CASTER,           ## Owned node eligible to CAST the selected spell (#728 follow-up).
 	INVALID,          ## Hovered-but-rejected (range / ownership / etc.).
 	REACHABLE,        ## Core-move: an owned node reachable within the MP budget.
 	PATH,             ## Edge role: a reachable / on-route edge (core-move).

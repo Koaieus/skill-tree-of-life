@@ -296,3 +296,42 @@ func test_the_hop_reach_visual_is_drawn_even_when_nothing_is_targetable() -> voi
 	assert_false(union.has_targets(), "precondition: this is the (b) dead end — nothing in reach")
 	assert_false(visual.edges.is_empty(),
 			"the reach is still drawn, so the empty target set reads as futility, not a blank")
+
+
+# ── The casters themselves are visible, not just their reach ───────────────
+#
+# The union already published its reach and its targets; the SOURCES it
+# measured from were only reachable as an Array. Painting them is what makes
+# `min_degree` legible — see [method MagicAttackPlan.get_node_role].
+
+func test_is_source_is_the_membership_view_onto_the_eligible_casters() -> void:
+	var open_to_all := _spell(_hostile_hop_targeting(3), 1)
+	var union := SpellTargetUnion.build(open_to_all, _attacker, _graph, _plan_for(open_to_all))
+	for n in _mine:
+		assert_true(union.is_source(n), "every owned node clears min_degree 1")
+	for n in _theirs:
+		assert_false(union.is_source(n), "an enemy node is never a caster of mine")
+	assert_false(union.is_source(null), "null is not a source")
+
+
+func test_a_min_degree_2_spell_casts_from_the_middle_only() -> void:
+	# The Spark-vs-Lightning-Bolt asymmetry, stated as a membership question:
+	# owned degrees along the chain are 1/2/1, so raising min_degree strands
+	# BOTH leaves — including `_mine[2]`, the frontier node nearest the enemy.
+	# Identical authored reach, one hop less of it in the direction that counts.
+	var picky := _spell(_hostile_hop_targeting(3), 2)
+	var union := SpellTargetUnion.build(picky, _attacker, _graph, _plan_for(picky))
+	assert_false(union.is_source(_mine[0]), "a degree-1 leaf cannot cast it")
+	assert_true(union.is_source(_mine[1]), "the degree-2 middle can")
+	assert_false(union.is_source(_mine[2]), "nor can the frontier leaf")
+
+
+func test_is_source_still_answers_when_there_are_no_candidates_at_all() -> void:
+	# `sources` and `per_source` are NOT the same set: a zero-hop spell gathers
+	# nothing targetable, and the casters must still paint. This is the gap the
+	# membership dict exists for rather than reusing `per_source`'s keys.
+	var too_short := _spell(_hostile_hop_targeting(0))
+	var union := SpellTargetUnion.build(too_short, _attacker, _graph, _plan_for(too_short))
+	assert_false(union.has_targets(), "precondition: nothing is targetable")
+	for n in _mine:
+		assert_true(union.is_source(n), "the casters are still casters")

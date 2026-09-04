@@ -29,6 +29,17 @@ extends RefCounted
 ## reach): one is fixed by growing territory, the other by moving.
 var sources: Array[SkillNode] = []
 
+## Membership view onto [member sources], for the per-node question
+## [method MagicAttackPlan.get_node_role] asks on every repaint — an
+## [code]Array.has[/code] there would be 800 x |owned| scans a frame.
+##
+## NOT foldable into [member per_source]'s keys, close as they look:
+## [method build_for] leaves the candidate map empty when the graph has no
+## navigator, so `per_source` can be empty while `sources` is not — and that
+## gap is exactly the "no eligible source" vs "no valid target" distinction
+## the union exists to keep separate.
+var _source_set: Dictionary[SkillNode, bool] = {}
+
 ## source -> (node -> distance in that finder's own metric), straight off
 ## [method RangeFinder.gather_multi]. [b]Everything in reach, targetable or
 ## not[/b] — this is the REACH, and it is what the range visual is drawn from:
@@ -54,6 +65,13 @@ var best_source: Dictionary[SkillNode, SkillNode] = {}
 ## [method has_targets] — see [member sources].
 func has_eligible_sources() -> bool:
 	return not sources.is_empty()
+
+
+## Is [param node] one of the eligible casters this union was built from?
+## What the caster highlight paints, and the membership sibling of
+## [method can_target].
+func is_source(node: SkillNode) -> bool:
+	return node != null and _source_set.has(node)
 
 
 func has_targets() -> bool:
@@ -137,6 +155,9 @@ static func build_for(spell: SpellDef, attacker: Entity, graph: Graph,
 	if spell == null or spell.targeting == null or attacker == null or graph == null:
 		return union
 	union.sources = sources
+	for src in sources:
+		if src != null:
+			union._source_set[src] = true
 	if union.sources.is_empty():
 		return union
 

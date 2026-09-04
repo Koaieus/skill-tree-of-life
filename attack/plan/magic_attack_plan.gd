@@ -179,6 +179,21 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 				else union().can_target(node)
 		if in_range:
 			return HighlightRole.IN_RANGE
+	# LAST, and only while nothing is committed: an owned node can be BOTH an
+	# eligible caster and a legal target ([NodeTargeting] documents
+	# `healing_beam.tres` as `Any` on purpose), and one node gets one ring — so
+	# the target role has to win or a heal loses its click affordance. Once a
+	# target IS picked the whole set collapses to the stamped source's gold
+	# ORIGIN above, the same narrowing [method get_range_visual] does.
+	#
+	# Why paint it at all: the union's reach and its targets were both visible
+	# after #728, but the CASTERS the reach is measured from were not — so a
+	# spell with `min_degree = 2` silently reaches one hop less toward the enemy
+	# than an identical-range spell with 1, because the frontier node is a
+	# degree-1 leaf of your own territory and cannot cast it. That asymmetry is
+	# real and authored; this only makes it legible.
+	if source == null and spell != null and union().is_source(node):
+		return HighlightRole.CASTER
 	return HighlightRole.NONE
 
 

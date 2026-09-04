@@ -37,6 +37,13 @@ const ROLE_COLORS: Dictionary[HighlightProvider.HighlightRole, Color] = {
 	HighlightProvider.HighlightRole.ORIGIN:          Color(1.0, 0.85, 0.0, 0.9),
 	HighlightProvider.HighlightRole.MEMBER:          Color(1.0, 0.55, 0.1, 0.85),
 	HighlightProvider.HighlightRole.IN_RANGE:        Color(0.45, 0.95, 0.45, 0.55),
+	# Cyan, and deliberately in IN_RANGE's alpha band: both are CANDIDATE states
+	# ("could cast from here" / "could hit this"), against the committed picks'
+	# 0.9+ ORIGIN gold and HOSTILE_TARGET red. It reads next to green rather
+	# than against them because casters and targets are shown at the same time
+	# and must stay separable at a glance. REACHABLE/PATH are a similar teal but
+	# belong to the core-move provider, and only one provider paints at a time.
+	HighlightProvider.HighlightRole.CASTER:          Color(0.2, 0.95, 1.0, 0.6),
 	HighlightProvider.HighlightRole.HOSTILE_TARGET:  Color(1.0, 0.2, 0.2, 0.95),
 	HighlightProvider.HighlightRole.FRIENDLY_TARGET: Color(0.2, 0.7, 1.0, 0.95),
 	HighlightProvider.HighlightRole.INVALID:         Color(0.45, 0.45, 0.45, 0.55),

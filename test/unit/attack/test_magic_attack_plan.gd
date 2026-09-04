@@ -171,3 +171,47 @@ func test_resolve_on_invalid_plan_returns_default_outcome() -> void:
 	var outcome := p.resolve()
 	assert_eq(outcome.mana_cost, 0)
 	assert_true(outcome.hits.is_empty())
+
+
+# ── Caster highlighting: the sources the reach is measured FROM ────────────
+#
+# #728 published the union's reach and its targets but never its casters, so a
+# spell whose `min_degree` strands the frontier leaf looked identical to one
+# that does not — same authored hops, quietly one hop less of them. These
+# assert the role, not the pixels; the overlay maps it to a colour.
+
+func test_an_eligible_caster_paints_as_caster_before_anything_is_committed() -> void:
+	var p := _plan()
+	assert_eq(p.get_node_role(_source), HighlightProvider.HighlightRole.CASTER,
+			"the owned node the spell would launch from")
+	assert_eq(p.get_node_role(_in_range_target), HighlightProvider.HighlightRole.IN_RANGE,
+			"targets keep their own role — the two sets are shown together")
+	assert_eq(p.get_node_role(_out_of_range_target), HighlightProvider.HighlightRole.NONE)
+
+
+func test_committing_a_target_collapses_the_casters_to_the_one_picked() -> void:
+	var p := _plan()
+	p._on_node_left_clicked(_in_range_target)
+	assert_eq(p.get_node_role(_source), HighlightProvider.HighlightRole.ORIGIN,
+			"the stamped source is the cast about to happen, not a candidate")
+	assert_eq(p.get_node_role(_in_range_target), HighlightProvider.HighlightRole.HOSTILE_TARGET)
+
+
+func test_a_node_below_min_degree_is_not_painted_as_a_caster() -> void:
+	# The Lightning-Bolt case: `_source` is a degree-1 leaf of its own (single-
+	# node) territory, so raising the bar strands the only caster there is.
+	_spell.min_degree = 2
+	var p := _plan()
+	assert_eq(p.get_node_role(_source), HighlightProvider.HighlightRole.NONE,
+			"nothing to cast from, and the highlight says so")
+
+
+func test_a_node_that_is_both_caster_and_legal_target_paints_as_the_target() -> void:
+	# `healing_beam.tres` is `Any` on purpose ([NodeTargeting]), so an owned
+	# node really can be both. One node gets one ring, and the target role has
+	# to win or a self-heal loses its click affordance.
+	(_spell.targeting as NodeTargeting).ownership_filter = SkillNode.Ownership.MINE | SkillNode.Ownership.HOSTILE
+	var p := _plan()
+	assert_true(p.union().is_source(_source), "precondition: it is still a caster")
+	assert_eq(p.get_node_role(_source), HighlightProvider.HighlightRole.IN_RANGE,
+			"targetable wins over castable-from")

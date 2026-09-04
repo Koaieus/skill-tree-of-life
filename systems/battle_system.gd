@@ -313,11 +313,25 @@ func _subscribe_union_invalidation() -> void:
 		turn_manager.connect(&"turn_started", _invalidate_plan_union.unbind(1))
 
 
+## Emits the PLAN's [signal AttackPlan.state_changed], not this system's
+## [signal attack_plan_state_changed] directly: the latter reaches the HUD
+## bodies and [PlayerInputController] but NOT the highlight overlays, which
+## repaint off [signal HighlightController.provider_state_changed] — i.e. off
+## the plan's own signal. Allocating a node that newly clears a spell's
+## `min_degree` therefore left the painted caster/target sets stale until an
+## unrelated hover forced a repaint. Going through the plan reaches both:
+## [method _on_plan_state_changed] re-emits it here.
+##
+## This is the opposite direction from [method _subscribe_union_invalidation]'s
+## warning and does not reintroduce it — the union must not be INVALIDATED BY
+## `state_changed` (target hover fires it constantly); invalidating it and then
+## announcing the change is fine, and terminates: `state_changed` only sets
+## dirty flags on the plan and re-emits outward.
 func _invalidate_plan_union() -> void:
 	var magic_plan := attack_plan as MagicAttackPlan
 	if magic_plan != null:
 		magic_plan.invalidate_union()
-		attack_plan_state_changed.emit()
+		magic_plan.state_changed.emit()
 
 
 ## Commit the active plan — the entry point every caller still uses (the HUD
