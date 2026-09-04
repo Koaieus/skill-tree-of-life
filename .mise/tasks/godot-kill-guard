@@ -9,9 +9,14 @@ hung probe, and a doc only helps an agent that happens to read it at that
 moment. This refuses at the point of use. Observed 2026-09-04 — an agent
 interrogating the engine took the user's open editor with it.
 
-An explicitly headless-scoped kill (`pkill -f 'godot.*--headless'`) is ALLOWED:
-it already carries the discriminator that makes it safe, and forbidding a
-correct command teaches nothing.
+Two things stay ALLOWED on purpose. An explicitly headless-scoped kill
+(`pkill -f 'godot.*--headless'`) already carries the discriminator that makes it
+safe, and forbidding a correct command teaches nothing. And killing ONE named
+pid (`pgrep -af godot`, then `kill <pid>`) is the escape hatch for a genuinely
+wedged editor — only a kill that targets Godot as a CLASS is refused. There is
+deliberately no `--include-editor` flag on godot-reap: a flag would make "kill
+the editor" a single token again, which is the reflex being removed. Making you
+run `pgrep` first is the entire point.
 
 Contract: reads the PreToolUse payload on stdin, prints a permissionDecision.
 Silence + exit 0 means "no opinion", which is what every non-matching command
@@ -47,8 +52,11 @@ _REASON = (
 	"--headless (the editor and editor-launched playtests never do), skips GUT "
 	"suites unless you pass --include-suites so you cannot destroy a peer "
 	"agent's 200s test run, and takes --dry to list without killing.\n\n"
-	"If you genuinely need a raw kill, scope it yourself with --headless in the "
-	"pattern and this guard will allow it."
+	"If you genuinely need to kill the editor or a running playtest, the escape "
+	"hatch is to name it: `pgrep -af godot` to see what is actually running, then "
+	"`kill <pid>` on the one you mean. Both are allowed. That is deliberately two "
+	"steps — it is the looking, not the killing, that this guard is protecting.\n\n"
+	"A raw pattern kill scoped with --headless is also allowed."
 )
 
 
