@@ -11,9 +11,18 @@ mise run build -- windows --debug
 mise run build -- --dirty       # export from an uncommitted tree, honestly stamped
 ```
 
-Artifacts land at `export/linux/skill-tree-of-life.x86_64` and
-`export/windows/skill-tree-of-life.exe`. Both **embed their pck**, so each is
-one file to copy to the other machine. `export/` is gitignored.
+Artifacts land at `export/linux/skill-tree-of-life-<sha>.x86_64` and
+`export/windows/skill-tree-of-life-<sha>.exe` — the commit is the only version
+this project has, so it goes in the name as well as in the stamp, where a
+directory listing or a chat attachment can read it without launching anything.
+A `--debug` export gets a further `-debug` suffix, so it cannot overwrite the
+release build off the same commit. Nothing is pruned: old builds accumulate
+until you delete them, which is what lets you run two shas side by side.
+
+Both **embed their pck**, so each is one file to copy to the other machine, and
+`export/` is gitignored. Only `mise run build` names and stamps artifacts this
+way — an export from the editor's own dialog still lands at the preset's
+default path with no stamp at all.
 
 ## Templates are a separate task on purpose
 

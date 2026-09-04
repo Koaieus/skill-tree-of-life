@@ -20,7 +20,14 @@ set -euo pipefail
 #      refuses — and the diff itself is written beside the artifacts, so the
 #      state stays reproducible rather than merely labelled.
 #
-#   3. GODOT'S EXIT CODE IS NOT THE CHECK. `--export-release` has returned 0 on
+#   3. THE FILENAME CARRIES THE SHA TOO. The project has no semver or calver,
+#      so the commit is the only version there is, and a stamp inside the pck
+#      is unreadable without launching the thing. `skill-tree-of-life-<sha>`
+#      makes two builds distinguishable in a directory listing, in a chat
+#      attachment, and in the sentence "are we both on de9bb95?" — which is
+#      exactly the question the hello gate answers the hard way.
+#
+#   4. GODOT'S EXIT CODE IS NOT THE CHECK. `--export-release` has returned 0 on
 #      a failed export in 4.x. Every artifact is asserted to exist and be
 #      non-empty afterwards.
 #
@@ -113,13 +120,19 @@ export_one() {
   echo "✓ $preset  $(du -h "$path" | cut -f1)  $path"
 }
 
+# A debug and a release export off the same commit share a sha; without the
+# suffix the second would silently overwrite the first.
+suffix="$sha"
+[ "$mode" = "debug" ] && suffix="$sha-debug"
+
 for p in "${platforms[@]}"; do
   case "$p" in
-    linux)   export_one "Linux"   "$OUT/linux/skill-tree-of-life.x86_64" ;;
-    windows) export_one "Windows" "$OUT/windows/skill-tree-of-life.exe" ;;
+    linux)   export_one "Linux"   "$OUT/linux/skill-tree-of-life-$suffix.x86_64" ;;
+    windows) export_one "Windows" "$OUT/windows/skill-tree-of-life-$suffix.exe" ;;
   esac
 done
 
 echo ""
 echo "Both machines must run the SAME build — the link refuses a sha mismatch"
-echo "at hello and prints both stamps. Host on one, JOIN with its LAN IP on the other."
+echo "at hello and prints both stamps, and the filenames say $suffix on both."
+echo "Host on one, JOIN with its LAN IP on the other."
