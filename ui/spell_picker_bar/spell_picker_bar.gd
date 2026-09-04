@@ -34,6 +34,13 @@ extends HFlowContainer
 ## [constant FULL_BUTTON_PX] so the min width is a constant that the chosen
 ## button size cannot move, which is what makes the decision a pure function of
 ## (available width, spell count) rather than a fixed-point search.
+##
+## [b]Number keys (#718 follow-up).[/b] Tile N carries the keycap for
+## `ui_select_spell_N`, derived from its POSITION via
+## [method PlayerInputController.spell_keycap] — the book is loot-driven and
+## reorders, so nothing here is authored per spell. Spells past the ninth get
+## no chip and stay mouse-only; the key handling itself lives in
+## [PlayerInputController], gated on MAGIC being the live mode.
 
 signal spell_selected(spell: SpellDef)
 
@@ -149,11 +156,19 @@ func _rebuild() -> void:
 	if _group == null:
 		_group = ButtonGroup.new()
 		_group.allow_unpress = false
+	# `_slot` counts the spells actually BUILT, not the loop index — a null
+	# hole in the book is skipped, and the digit that skipped tile would have
+	# taken belongs to the next real one. Off `PlayerInputController` so the
+	# printed glyph and the bound action share one source: a rebind there
+	# cannot leave a stale keycap painted here.
+	var slot := 0
 	for spell in _book.spells:
 		if spell == null:
 			continue
 		var btn: SpellPickerButton = _SpellPickerButton.instantiate()
 		btn.spell = spell
+		btn.key_hint = PlayerInputController.spell_keycap(slot)
+		slot += 1
 		btn.set_caster(_gating_attacker)
 		btn.button_group = _group
 		btn.spell_picked.connect(_on_spell_button_pressed)

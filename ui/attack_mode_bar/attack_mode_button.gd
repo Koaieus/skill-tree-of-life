@@ -54,13 +54,15 @@ const _MODE_STAT_ID := {
 		mode_icon = v
 		_apply_icon()
 
-## Keyboard shortcut chip text shown in the tab's top-left corner (e.g.
-## "1", "Q") — purely cosmetic, doesn't drive the actual [member shortcut].
+## Keyboard shortcut chip text shown in the tab's top-right corner (e.g.
+## "Tab", "Q") — purely cosmetic, doesn't drive the actual [member shortcut].
+## Painted by the shared [KeyChip] (`ui/common/key_chip.tscn`), the same widget
+## the spell tiles and the melee upgrade cards carry.
 @export var key_hint: String = "":
 	set(v):
 		key_hint = v
-		if _key_label != null:
-			_key_label.text = v
+		if _key_chip != null:
+			_key_chip.text = v
 
 var _text_mat := ShaderMaterial.new()
 var _materials: Array[ShaderMaterial] = []
@@ -73,8 +75,7 @@ var _disabled_tweener: Tween
 @onready var color_rect: ColorRect = $ColorRect
 @onready var label: Label = %Label
 @onready var _bg_mat: ShaderMaterial = color_rect.material as ShaderMaterial
-@onready var _key_chip: PanelContainer = %KeyChip
-@onready var _key_label: Label = %KeyChip/KeyLabel
+@onready var _key_chip: KeyChip = %KeyChip
 @onready var _icon: TextureRect = %Icon
 
 
@@ -125,8 +126,8 @@ func _ready() -> void:
 	_push("texture_size", size)
 	enabled = not disabled    # snap GDScript var to .tscn-set Button.disabled
 
-	if _key_label != null:
-		_key_label.text = key_hint
+	if _key_chip != null:
+		_key_chip.text = key_hint
 
 ## Pull the attribute tint for this tab off [StatRegistry] (decision 6). A tab
 ## with no attack mode behind it — Manage — has nothing to resolve here; see
@@ -140,7 +141,7 @@ func _resolve_tint() -> void:
 		tint = def.tint_color
 
 ## Repaints every surface [member tint] drives. A no-op before `_ready`
-## (`_materials` is empty, `_key_chip`/`_key_label` are null) — `_ready`
+## (`_materials` is empty, `_key_chip` is null) — `_ready`
 ## re-runs it once they exist, same shape as [method _apply_icon]. Also the
 ## setter's re-entry point for a POST-`_ready` write (`attack_mode_bar.gd`
 ## assigning the Manage tab's tint after this button's own `_ready` already
@@ -149,11 +150,7 @@ func _resolve_tint() -> void:
 func _apply_tint() -> void:
 	_push("tint", tint)
 	if _key_chip != null:
-		var sb: StyleBoxFlat = _key_chip.get_theme_stylebox(&"panel").duplicate()
-		sb.border_color = tint
-		_key_chip.add_theme_stylebox_override(&"panel", sb)
-	if _key_label != null:
-		_key_label.modulate = tint
+		_key_chip.accent = tint
 
 
 func _apply_icon() -> void:

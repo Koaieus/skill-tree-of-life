@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://b7k2n4x9temp1"]
 
 [ext_resource type="Script" path="res://ui/hud/command_tray/bodies/temp_upgrade_button.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/common/key_chip.tscn" id="2_keychip"]
 
 [node name="TempUpgradeButton" type="PanelContainer"]
 script = ExtResource("1_script")
@@ -32,3 +33,11 @@ layout_mode = 2
 size_flags_vertical = 4
 theme_override_font_sizes/font_size = 11
 mouse_filter = 2
+
+[node name="KeyChip" parent="Row" instance=ExtResource("2_keychip")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+font_size = 9
+h_padding = 3
+v_padding = 0

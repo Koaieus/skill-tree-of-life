@@ -62,12 +62,29 @@ const _LETTER_FONT_SIZE: int = 28
 		spell = value
 		_apply_spell()
 
+## The number key that picks this spell — "1".."9", or "" past the ninth spell
+## in the book (those stay mouse-only, deliberately: there is no tenth digit to
+## give them, and a blank corner says so). Handed IN by [SpellPickerBar] off
+## [method PlayerInputController.spell_keycap] and its POSITION in the book, so
+## a loot drop that reorders the book renumbers the tiles for free and the
+## printed glyph can never drift from the binding.
+@export var key_hint: String = "":
+	set(v):
+		key_hint = v
+		if _key_chip != null:
+			_key_chip.text = v
+
 @onready var _bg: ColorRect = $Bg
 @onready var _ticks: HBoxContainer = %Ticks
 @onready var _icon_rect: TextureRect = %Icon
 @onready var _name_label: Label = %NameLabel
 @onready var _letter_label: Label = %LetterLabel
 @onready var _float_anchor: Node2D = %FloatAnchor
+## Anchored (layout_mode = 1), so it is POSITIONED and never measured — a tile
+## that has to stay inside MagicBody's min-size budget cannot afford a chip in
+## its layout. Sits top-RIGHT: %Ticks is a centred 35px band at the top, so the
+## right corner is the one free of it at both 96px and the wrapped 80px.
+@onready var _key_chip: KeyChip = %KeyChip
 
 var _bg_mat := ShaderMaterial.new()
 var _text_mat := ShaderMaterial.new()
@@ -120,6 +137,8 @@ func _ready() -> void:
 	hovered = 0.0
 	active = 1.0 if button_pressed else 0.0
 	_disabled_strength = 1.0 if disabled else 0.0
+	_key_chip.text = key_hint
+	_key_chip.accent = tint
 	_apply_spell()
 
 

@@ -46,7 +46,7 @@ button_pressed = true
 shortcut = SubResource("Shortcut_gogxr")
 text = "Manage"
 mode_icon = ExtResource("2_manage")
-key_hint = "1"
+key_hint = "Tab"
 
 [node name="MeleeToggleButton" parent="." unique_id=1205266549 instance=ExtResource("1_lgd3m")]
 layout_mode = 2

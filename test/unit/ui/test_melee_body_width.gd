@@ -399,8 +399,14 @@ func test_the_cards_print_the_key_that_arms_them() -> void:
 		var card := row.get_child(i) as TempUpgradeButton
 		var cap := PlayerInputController.temp_upgrade_keycap(i)
 		assert_eq(card.keycap, cap, "card %d must print its own bound key" % i)
-		assert_true((card.get_node("%Title") as Label).text.ends_with("(%s)" % cap),
-				"the keycap rides the title the way Reform's does — got %s"
+		# The glyph moved out of the title and into the shared corner KeyChip
+		# (owner call 2026-09-04: one keycap grammar across tabs, spell tiles
+		# and cards), so the title is now the bare name.
+		var chip := card.get_node("%KeyChip") as KeyChip
+		assert_eq(chip.text, cap, "card %d's chip must print its own bound key" % i)
+		assert_true(chip.visible, "a bound card shows its chip")
+		assert_false((card.get_node("%Title") as Label).text.contains("("),
+				"the keycap is no longer a title suffix — got %s"
 				% (card.get_node("%Title") as Label).text)
 
 

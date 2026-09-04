@@ -1,0 +1,33 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/common/key_chip.gd" id="1_keychip"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_keychip"]
+resource_local_to_scene = true
+content_margin_left = 5.0
+content_margin_top = 1.0
+content_margin_right = 5.0
+content_margin_bottom = 1.0
+bg_color = Color(0, 0, 0, 0)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0, 0.59229046, 0.65951425, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="KeyChip" type="PanelContainer"]
+script = ExtResource("1_keychip")
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_keychip")
+
+[node name="KeyLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 12
+horizontal_alignment = 1
+vertical_alignment = 1

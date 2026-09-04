@@ -714,6 +714,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		if event.is_action_pressed(TEMP_UPGRADE_HOTKEYS[i]) and _arm_temp_upgrade_at(i):
 			get_viewport().set_input_as_handled()
 			return
+	# 1..9 (top row OR keypad, owner call 2026-09-04) pick the Nth spell in the
+	# book. Same positional shape as Z/X above: an index past the book is a
+	# silent unconsumed no-op, so a digit stays free for whatever wants it next.
+	for i in SPELL_HOTKEYS.size():
+		if event.is_action_pressed(SPELL_HOTKEYS[i]) and _select_spell_at(i):
+			get_viewport().set_input_as_handled()
+			return
 
 
 ## The keycaps, in catalog order. `TempUpgradeButton` prints the same character
@@ -725,6 +732,34 @@ const TEMP_UPGRADE_HOTKEYS: Array[StringName] = [
 
 ## Display character per hotkey, parallel to [constant TEMP_UPGRADE_HOTKEYS].
 const TEMP_UPGRADE_KEYCAPS: Array[String] = ["Z", "X"]
+
+
+## Spell-picking hotkeys, in SPELLBOOK ORDER (#718 follow-up). Owner call
+## (2026-09-04): *"spells best be indexed by number key! (regular row OR
+## keypad)"* — each action carries BOTH events, so the two rows are one
+## binding rather than two parallel ones that could drift.
+##
+## Magic-tab-only, exactly as Z/X are melee-only: a stray digit must not be
+## able to yank you out of the tab you are in, and the number row stays
+## claimable by another mode later.
+##
+## Nine, because there are nine non-zero digits. A tenth spell is mouse-only
+## and [method spell_keycap] returns "" for it, which paints NO chip — an
+## absence rather than a wrong glyph.
+const SPELL_HOTKEYS: Array[StringName] = [
+	&"ui_select_spell_1", &"ui_select_spell_2", &"ui_select_spell_3",
+	&"ui_select_spell_4", &"ui_select_spell_5", &"ui_select_spell_6",
+	&"ui_select_spell_7", &"ui_select_spell_8", &"ui_select_spell_9",
+]
+
+
+## The keycap [SpellPickerBar] prints on the tile at book position [param index],
+## or "" when the book has outgrown the bound digits. DERIVED from the index —
+## never authored per tile — because the book is loot-driven and reorders.
+static func spell_keycap(index: int) -> String:
+	if index < 0 or index >= SPELL_HOTKEYS.size():
+		return ""
+	return str(index + 1)
 
 
 ## The keycap `MeleeBody` prints on catalog entry [param index]'s card, or ""
@@ -752,6 +787,48 @@ func _arm_temp_upgrade_at(index: int) -> bool:
 		return false
 	arm_temp_upgrade(MeleeAttackPlan.TEMP_UPGRADE_CATALOG[index])
 	return true
+
+
+## Selects book position [param index] as the active spell, but only while
+## MAGIC is the live attack mode — the picker these mirror only exists in the
+## magic tray, so the digits are modal exactly like the tray is.
+##
+## Writes [member BattleSystem.selected_spell], the SAME terminal
+## [SpellPickerBar] `spell_selected` reaches through [MagicBody] — so the
+## picker's highlight (driven by `selected_spell_changed`) and the plan cannot
+## disagree about what is armed.
+##
+## Returns whether the key was consumed: an empty book, a digit past its size,
+## or the wrong mode all leave the key unconsumed and free downstream.
+func _select_spell_at(index: int) -> bool:
+	if battle_system == null or battle_system.attack_mode != BattleSystem.AttackMode.MAGIC:
+		return false
+	if not can_player_act():
+		return false
+	if player == null or player.spellbook == null:
+		return false
+	var spell := spell_at_slot(player.spellbook, index)
+	if spell == null:
+		return false
+	battle_system.selected_spell = spell
+	return true
+
+
+## The spell the Nth TILE stands for. Counts only non-null entries, exactly as
+## [method SpellPickerBar._rebuild] does when it builds the tiles — a null hole
+## in the book must not silently shift the digits away from the glyphs painted
+## on screen. Returns null for any slot the book does not fill.
+static func spell_at_slot(book: SpellBook, index: int) -> SpellDef:
+	if book == null or index < 0:
+		return null
+	var slot := 0
+	for spell in book.spells:
+		if spell == null:
+			continue
+		if slot == index:
+			return spell
+		slot += 1
+	return null
 
 
 func _is_players_turn() -> bool:

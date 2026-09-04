@@ -41,7 +41,7 @@ enum State {
 	set(v):
 		label_text = v
 		if is_node_ready():
-			_title.text = _titled()
+			_title.text = label_text
 
 ## The keycap that arms this card, e.g. "Z" — passed IN by
 ## [method MeleeBody._build_upgrade_buttons] off
@@ -49,13 +49,17 @@ enum State {
 ## hardcoded here. Empty means "no key bound to this catalog slot", and the card
 ## then prints its bare name rather than an empty pair of brackets.
 ##
-## Rendered the same way the neighbouring Reform button prints its own — as a
-## trailing " (K)" in the title — so the tray teaches one keycap grammar.
+## Rendered as the shared corner [KeyChip] (`ui/common/key_chip.tscn`) — the
+## SAME widget the mode tabs and the spell tiles carry, so the tray teaches one
+## keycap grammar rather than three (owner call 2026-09-04). It replaced a
+## trailing " (K)" in the title; the tooltip still spells the key out in words.
+## Empty text hides the chip outright, so an unbound catalog slot shows an
+## absence rather than an empty box.
 @export var keycap: String = "":
 	set(v):
 		keycap = v
 		if is_node_ready():
-			_title.text = _titled()
+			_key_chip.text = keycap
 			_restyle()
 
 ## The addon's authored glyph. Read off the addon scene by the caller, never
@@ -112,19 +116,20 @@ var state: State:
 			return State.ARMED
 		return State.AVAILABLE if affordable else State.UNAFFORDABLE
 
-## The card's printed name, with the keycap suffix when there is one.
-func _titled() -> String:
-	return label_text if keycap.is_empty() else "%s (%s)" % [label_text, keycap]
-
-
 @onready var _button: Button = %Button
 @onready var _title: Label = %Title
 @onready var _icon: TextureRect = %Icon
+## Sized DOWN from the mode tabs' 12px (owner: *"legible enough yet not too big
+## compared to the button they sit on"*) — this card is a ~34px-tall tile, not a
+## 96px tab, so it takes [constant KeyChip.COMPACT_FONT_SIZE] and tighter
+## padding, authored on the instance in the .tscn.
+@onready var _key_chip: KeyChip = %KeyChip
 
 
 func _ready() -> void:
 	_button.pressed.connect(func() -> void: pressed.emit())
-	_title.text = _titled()
+	_title.text = label_text
+	_key_chip.text = keycap
 	_icon.texture = icon_texture
 	_restyle()
 
@@ -143,6 +148,10 @@ func _ready() -> void:
 func _restyle() -> void:
 	if _title == null:
 		return
+	if _key_chip != null:
+		# The chip rides the card's own accent, so an armed/unaffordable card
+		# and its keycap can never disagree about which upgrade this is.
+		_key_chip.accent = accent
 	var sb := StyleBoxFlat.new()
 	sb.corner_radius_top_left = 9
 	sb.corner_radius_top_right = 9

@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://q7pbhm4e8ui6" path="res://ui/attack_mode_bar/attack_mode_button.gd" id="2_yb27n"]
 [ext_resource type="Shader" uid="uid://dtks7uire567h" path="res://ui/attack_mode_bar/attack_mode_button.gdshader" id="3_bsmqx"]
 [ext_resource type="Shader" uid="uid://be6ivh08s24of" path="res://ui/attack_mode_bar/attack_mode_button_text.gdshader" id="4_kuoad"]
+[ext_resource type="PackedScene" path="res://ui/common/key_chip.tscn" id="5_keychip"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_inglx"]
 
@@ -36,25 +37,6 @@ shader_parameter/disabled_strength = 0.0
 
 [sub_resource type="LabelSettings" id="LabelSettings_ndpa3"]
 font_size = 30
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_yb27n"]
-content_margin_left = 5.0
-content_margin_top = 1.0
-content_margin_right = 5.0
-content_margin_bottom = 1.0
-bg_color = Color(0, 0, 0, 0)
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0, 0.59229046, 0.65951425, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
-
-[sub_resource type="LabelSettings" id="LabelSettings_keychip"]
-font_size = 12
 
 [node name="ActionToggleButton" type="Button" unique_id=1205266549]
 custom_minimum_size = Vector2(128, 64)
@@ -123,19 +105,12 @@ label_settings = SubResource("LabelSettings_ndpa3")
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="KeyChip" type="PanelContainer" parent="MarginContainer" unique_id=-684525413]
+[node name="KeyChip" parent="MarginContainer" unique_id=-684525413 instance=ExtResource("5_keychip")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 8
 size_flags_vertical = 0
-mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_yb27n")
-
-[node name="KeyLabel" type="Label" parent="MarginContainer/KeyChip" unique_id=-1448248260]
-modulate = Color(0, 0.59229046, 0.65951425, 1)
-layout_mode = 2
-label_settings = SubResource("LabelSettings_keychip")
-horizontal_alignment = 1
+accent = Color(0, 0.59229046, 0.65951425, 1)
 
 [connection signal="editor_state_changed" from="." to="." method="update_label_text"]
 [connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]
