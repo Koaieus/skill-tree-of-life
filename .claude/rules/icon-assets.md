@@ -7,8 +7,21 @@ paths:
 # Baked icon assets
 
 `mise run icons:update` rasterizes every `mapping.txt` entry to a flat
-single-colour silhouette at **256px**. Two things that size does not decide for
-you:
+single-colour silhouette at **256px**. Three things that pipeline does not
+decide for you:
+
+## The bake colour is a colour no caller can take back
+
+The default `GAME_ICONS_FG` is `#8CD9FF`, so an icon arrives already cyan — and
+`ArmedMode.icon_tint()` then multiplies an attribute colour over it, which is a
+multiply of two hues rather than a tint of a neutral. `.claude/rules/ui-palette.md`
+says icons are tinted, never recoloured at source; the cyan default predates that
+and contradicts it.
+
+**How to apply:** a new folder pins `#fg #ffffff` on its own line in
+`mapping.txt` (owner call 2026-09-04 — "cyan sounds like a modulation choice down
+the line"). `assets/icons/menu/` is the worked example. Without the directive the
+white is a comment and the next `icons:update` recolours the folder cyan.
 
 ## Turn mipmaps on for any icon drawn below ~64px
 
@@ -40,6 +53,16 @@ rsvg-convert -w 24 -h 24 /tmp/i.svg -o /tmp/i.png   # then upscale 400% to inspe
 
 Thin-stroke and many-part glyphs fragment; bold closed silhouettes hold. Picking
 by name or by the 512px preview is how a "perfect" icon ships as noise.
+
+## `mise run icons:update` is not safe to run casually
+
+It reprocesses **every** folder, then rebakes the CARVE LUTs and repacks the
+atlas — and `test/unit/test_carve_atlas.gd` / `test_texture_carve_bake.gd` assert
+against the committed atlas. It also has live drift: `spells/ATTRIBUTION.md` says
+`lightning_bolt ← chain-lightning.svg`, `spells/mapping.txt` says
+`lorc/lightning-trio.svg`, so a run is a coin flip on whether committed spell art
+moves. To add icons to one folder, hand-run the two-line `sed` + `rsvg-convert`
+from the task against that folder's mapping and leave the rest alone.
 
 Related: `docs/domain/emblem-bake.md` (the CARVE LUT half of the same pipeline),
 `.claude/rules/ui-palette.md` (icons are tinted, never recoloured at the source).

@@ -1,0 +1,22 @@
+# Icon mapping for game-icons.net -> pause-menu buttons (ui/pause_menu.tscn).
+# Format: output_name<TAB>author/source.svg
+# WARNING: TAB SPACED
+# Run `mise run icons:update` to reprocess all.
+#
+# Baked WHITE, not the #8CD9FF the other folders use, via the `#fg` directive
+# below. A baked colour is a colour no caller can take back: `ArmedMode`'s
+# `icon_tint()` multiplies STR-red over a cyan-baked sword and gets mud. White
+# is the neutral base a modulate can actually steer, and it is also exactly what
+# this menu already shipped.
+#fg #ffffff
+#
+# Save/Load are ONE piece of art with its arrow reversed - the same floppy read
+# as write-to-disk and read-from-disk. Restart is circular and Main Menu is a
+# house on purpose: the set they replace used the same back-arrow glyph for
+# both, so the two most consequential buttons in the menu looked alike.
+menu_restart	delapouite/clockwise-rotation.svg
+menu_save	delapouite/save.svg
+menu_load	delapouite/load.svg
+menu_main	delapouite/house.svg
+menu_exit	lord-berandas/power-button.svg
+menu_continue	guard13007/play-button.svg

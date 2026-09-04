@@ -267,7 +267,7 @@ else
   git -C "$REPO_DIR" pull --ff-only 2>/dev/null || true
 fi
 
-echo "→ recoloring @ $FG_COLOR, rasterizing @ ${ICON_SIZE}×${ICON_SIZE}"
+echo "→ recoloring @ $FG_COLOR (per-folder \`#fg\` wins), rasterizing @ ${ICON_SIZE}×${ICON_SIZE}"
 
 total=0
 folders=0
@@ -276,6 +276,20 @@ for mapping in "${mappings[@]}"; do
   dest="$(dirname "$mapping")"
   mkdir -p "$dest"
   count=0
+  # A folder may pin its own foreground with a `#fg <color>` line. It exists
+  # because a baked colour is one no caller can take back: `ArmedMode.icon_tint`
+  # multiplies an attribute colour over the icon, and over a #8CD9FF base that
+  # is a multiply of two hues. `menu/` bakes #ffffff so the pause menu keeps the
+  # white it shipped with and stays steerable by modulate. Without this the
+  # directive would be a comment and the next run would quietly recolour it.
+  fg="$FG_COLOR"
+  folder_fg=$(sed -n 's/^#fg[[:space:]]\+\(#[0-9a-fA-F]\{3,6\}\)[[:space:]]*$/\1/p' "$mapping" | head -1)
+  # An `&&` chain here would be a `set -e` landmine: no directive means the
+  # chain returns 1 and the task dies on the folders that DON'T pin a colour.
+  if [ -n "$folder_fg" ]; then
+    fg="$folder_fg"
+    echo "  · $(basename "$dest")/ pins fg=$fg"
+  fi
   # Third column is an OPTIONAL flags field (`flip_v` today). It exists so a
   # mirrored pair — #664's Stake/Extract arrows are one piece of art and its
   # reflection — is baked from the manifest rather than flipped at runtime:
@@ -291,7 +305,7 @@ for mapping in "${mappings[@]}"; do
     fi
     tmp_svg="$(mktemp /tmp/icon_XXXXXX.svg)"
     # Recolor foreground, strip background rect for transparency
-    sed -e "s/fill=\"#fff\"/fill=\"$FG_COLOR\"/g" \
+    sed -e "s/fill=\"#fff\"/fill=\"$fg\"/g" \
         -e 's|<path d="M0 0h512v512H0z"/>||g' \
         "$svg" > "$tmp_svg"
     # Flip in the VECTOR domain (an extra group on the fixed 512 viewBox) rather
