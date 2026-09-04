@@ -41,7 +41,22 @@ enum State {
 	set(v):
 		label_text = v
 		if is_node_ready():
-			_title.text = v
+			_title.text = _titled()
+
+## The keycap that arms this card, e.g. "Z" — passed IN by
+## [method MeleeBody._build_upgrade_buttons] off
+## [constant PlayerInputController.TEMP_UPGRADE_KEYCAPS] by catalog index, never
+## hardcoded here. Empty means "no key bound to this catalog slot", and the card
+## then prints its bare name rather than an empty pair of brackets.
+##
+## Rendered the same way the neighbouring Reform button prints its own — as a
+## trailing " (K)" in the title — so the tray teaches one keycap grammar.
+@export var keycap: String = "":
+	set(v):
+		keycap = v
+		if is_node_ready():
+			_title.text = _titled()
+			_restyle()
 
 ## The addon's authored glyph. Read off the addon scene by the caller, never
 ## looked up from a parallel table here (#664's established read).
@@ -97,6 +112,11 @@ var state: State:
 			return State.ARMED
 		return State.AVAILABLE if affordable else State.UNAFFORDABLE
 
+## The card's printed name, with the keycap suffix when there is one.
+func _titled() -> String:
+	return label_text if keycap.is_empty() else "%s (%s)" % [label_text, keycap]
+
+
 @onready var _button: Button = %Button
 @onready var _title: Label = %Title
 @onready var _icon: TextureRect = %Icon
@@ -104,7 +124,7 @@ var state: State:
 
 func _ready() -> void:
 	_button.pressed.connect(func() -> void: pressed.emit())
-	_title.text = label_text
+	_title.text = _titled()
 	_icon.texture = icon_texture
 	_restyle()
 
@@ -163,7 +183,8 @@ func _restyle() -> void:
 		# the click. Every pixel the player sees comes from _restyle().
 		_button.disabled = state == State.UNAFFORDABLE
 		_button.button_pressed = armed
-	tooltip_text = "%s — costs %d blade node%s%s" % [
+	tooltip_text = "%s — costs %d blade node%s%s%s" % [
 		label_text, cost, "" if cost == 1 else "s",
+		"" if keycap.is_empty() else "\nPress %s to arm it." % keycap,
 		"\nNot enough blade budget right now." if state == State.UNAFFORDABLE else "",
 	]

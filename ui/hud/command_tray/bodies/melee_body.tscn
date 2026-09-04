@@ -37,6 +37,7 @@ layout_mode = 2
 theme_override_constants/separation = 8
 
 [node name="BladeLabel" type="Label" parent="BodyContent/Row/Info/BladeRow"]
+custom_minimum_size = Vector2(38, 0)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 modulate = Color(0.667, 0.714, 0.824, 0.6)
@@ -45,22 +46,11 @@ text = "Blade:"
 [node name="BladeBlips" parent="BodyContent/Row/Info/BladeRow" instance=ExtResource("3_blips")]
 unique_name_in_owner = true
 layout_mode = 2
-columns = 40
+columns = 24
 fill_color = Color(0.9451, 0.2689, 0.2453, 1)
 pip_size = Vector2(15, 15)
 interactive = true
-
-[node name="Ruler" type="ColorRect" parent="BodyContent/Row/Info/BladeRow"]
-custom_minimum_size = Vector2(2, 15)
-layout_mode = 2
-color = Color(1, 1, 1, 0.18)
-
-[node name="UpgradeBlips" parent="BodyContent/Row/Info/BladeRow" instance=ExtResource("3_blips")]
-unique_name_in_owner = true
-layout_mode = 2
-columns = 40
-pip_size = Vector2(15, 15)
-interactive = true
+collapse_threshold = 15
 
 [node name="CountLabel" type="Label" parent="BodyContent/Row/Info/BladeRow"]
 unique_name_in_owner = true
@@ -68,6 +58,25 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 10
 modulate = Color(0.725, 0.765, 0.863, 0.6)
 text = "pivot + 0"
+
+[node name="SpentRow" type="HBoxContainer" parent="BodyContent/Row/Info"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SpentLabel" type="Label" parent="BodyContent/Row/Info/SpentRow"]
+custom_minimum_size = Vector2(38, 0)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+modulate = Color(0.667, 0.714, 0.824, 0.6)
+text = "Spent:"
+
+[node name="UpgradeBlips" parent="BodyContent/Row/Info/SpentRow" instance=ExtResource("3_blips")]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 24
+pip_size = Vector2(15, 15)
+interactive = true
+collapse_threshold = 15
 
 [node name="UpgradeRow" type="HBoxContainer" parent="BodyContent/Row/Info"]
 unique_name_in_owner = true

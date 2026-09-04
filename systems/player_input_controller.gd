@@ -704,6 +704,54 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	# for anything downstream.
 	if event.is_action_pressed(&"ui_reform_blade") and reform_blade():
 		get_viewport().set_input_as_handled()
+		return
+	# Z / X arm the temp-upgrade cards by CATALOG INDEX, never by name (#718).
+	# `MeleeAttackPlan.TEMP_UPGRADE_CATALOG` is data — the filed "edge sharpener"
+	# should light up on the next key with zero changes here — so the binding is
+	# a positional walk and an out-of-range index is a silent no-op rather than
+	# a crash on a catalog that shrank.
+	for i in TEMP_UPGRADE_HOTKEYS.size():
+		if event.is_action_pressed(TEMP_UPGRADE_HOTKEYS[i]) and _arm_temp_upgrade_at(i):
+			get_viewport().set_input_as_handled()
+			return
+
+
+## The keycaps, in catalog order. `TempUpgradeButton` prints the same character
+## on its card, passed in by `MeleeBody` off THIS list — so the label and the
+## binding can never drift, and adding a third addon means adding one entry.
+const TEMP_UPGRADE_HOTKEYS: Array[StringName] = [
+	&"ui_temp_upgrade_1", &"ui_temp_upgrade_2",
+]
+
+## Display character per hotkey, parallel to [constant TEMP_UPGRADE_HOTKEYS].
+const TEMP_UPGRADE_KEYCAPS: Array[String] = ["Z", "X"]
+
+
+## The keycap `MeleeBody` prints on catalog entry [param index]'s card, or ""
+## when the catalog has outgrown the bound keys (an unbound card just shows no
+## keycap rather than a wrong one).
+static func temp_upgrade_keycap(index: int) -> String:
+	if index < 0 or index >= TEMP_UPGRADE_KEYCAPS.size():
+		return ""
+	return TEMP_UPGRADE_KEYCAPS[index]
+
+
+## Arms catalog entry [param index], but only while MELEE is the active attack
+## mode — the cards these mirror only exist in the melee tray, so the keys are
+## modal exactly like the tray is. Returns whether the key was consumed, so an
+## unbound index leaves the key free for anything downstream.
+##
+## Re-press cancels, because it goes through the same [method arm_temp_upgrade]
+## toggle the card click already uses — one door, not a parallel one.
+func _arm_temp_upgrade_at(index: int) -> bool:
+	if battle_system == null or battle_system.attack_mode != BattleSystem.AttackMode.MELEE:
+		return false
+	if not can_player_act():
+		return false
+	if index < 0 or index >= MeleeAttackPlan.TEMP_UPGRADE_CATALOG.size():
+		return false
+	arm_temp_upgrade(MeleeAttackPlan.TEMP_UPGRADE_CATALOG[index])
+	return true
 
 
 func _is_players_turn() -> bool:

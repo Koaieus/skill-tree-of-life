@@ -33,11 +33,17 @@ static func _upgrade_color(index: int) -> Color:
 	var upgrade: Dictionary = MeleeAttackPlan.TEMP_UPGRADE_CATALOG[index]
 	return _PALETTE.color_for(upgrade.get("id", &""))
 
-## The node a blip is currently forcing hover on, if any — owned exclusively
-## here so at most one SkillNode is ever forced-hovered at a time. Cleared at
-## the top of every _refresh() because a rebuilt grid frees the pip under the
-## cursor without firing its mouse_exited (see CapacityBlips._rebuild()).
-var _hovered_node: SkillNode = null
+## Force-hover refcounts, keyed by SkillNode — owned exclusively here, so the
+## panel is the only thing that can leave a node forced-hovered. Cleared at the
+## top of every _refresh() because a rebuilt grid frees the pip under the cursor
+## without firing its mouse_exited (see CapacityBlips._teardown_children()).
+##
+## A COUNT rather than a single node (#718): a collapsed `◆ × N` chip hovers
+## every node in its run at once, the same node can appear in both the blade and
+## the spend grid, and a cost-2 upgrade binds its node to two spend pips. Any of
+## those means "enter" can arrive twice for one node, and a plain set would let
+## the first "exit" un-hover a node the cursor is still over.
+var _hover_counts: Dictionary = {}
 
 
 func _on_bound() -> void:
@@ -80,21 +86,30 @@ func _on_pip_clicked(node: SkillNode) -> void:
 
 
 func _on_pip_hover_changed(node: SkillNode, hovering: bool) -> void:
+	if node == null or not is_instance_valid(node):
+		return
 	if hovering:
-		if _hovered_node != null and _hovered_node != node and is_instance_valid(_hovered_node):
-			_hovered_node.set_forced_hover(false)
-		_hovered_node = node
-		node.set_forced_hover(true)
-	elif _hovered_node == node:
-		if is_instance_valid(node):
+		var depth: int = int(_hover_counts.get(node, 0))
+		_hover_counts[node] = depth + 1
+		if depth == 0:
+			node.set_forced_hover(true)
+	elif _hover_counts.has(node):
+		var depth: int = int(_hover_counts[node]) - 1
+		if depth > 0:
+			_hover_counts[node] = depth
+		else:
+			_hover_counts.erase(node)
 			node.set_forced_hover(false)
-		_hovered_node = null
 
 
+## Drops EVERY forced hover this panel is holding. The invariant it exists to
+## keep: after this (and therefore after every _refresh()), no node anywhere is
+## left forced-hovered by the tray, however many pips were over it.
 func _clear_hover() -> void:
-	if _hovered_node != null and is_instance_valid(_hovered_node):
-		_hovered_node.set_forced_hover(false)
-	_hovered_node = null
+	for node in _hover_counts:
+		if is_instance_valid(node):
+			(node as SkillNode).set_forced_hover(false)
+	_hover_counts.clear()
 
 
 ## The tray card for one temp upgrade (#465). A real scene rather than the
@@ -119,6 +134,7 @@ func _build_upgrade_buttons() -> void:
 		var tmp := (upgrade.scene as PackedScene).instantiate() as SkillNodeAddon
 		var btn := _UPGRADE_BUTTON.instantiate() as TempUpgradeButton
 		btn.label_text = tmp.get_tooltip_title()
+		btn.keycap = PlayerInputController.temp_upgrade_keycap(i)
 		btn.icon_texture = tmp.icon
 		btn.cost = tmp.temp_upgrade_cost
 		tmp.free()
@@ -153,7 +169,8 @@ func _refresh() -> void:
 	_hint.text = "Right-click a pivot, left-click to grow the blade up to %d connected nodes. The shape is copied and swung once." % max_blades
 
 	# Blade-region grid: used (red, bound to blade_nodes[i]) then unused
-	# (gray, unbound) — the ordering the ruler splits from upgrade spend.
+	# (gray, unbound). Upgrade spend is a SEPARATE row below (#718) — the row
+	# break is the separator now, so there is no divider rule to keep in step.
 	var blade_region_size: int = max(0, max_blades - temp_total)
 	var blade_bound: Array = []
 	var outline_a: Array[Color] = []
