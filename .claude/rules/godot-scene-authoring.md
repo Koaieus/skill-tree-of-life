@@ -49,8 +49,8 @@ their hookup in `_ready`.
 
 An autowrap `Label` measures its height by wrapping at its **current** width, so
 the first layout (width 0) wraps one word per line; and a Control outside a
-Container never *shrinks* when its minimum drops, so that height is permanent.
-`SpellTooltip` sat at 4762px until it was made to fit itself.
+Container never *shrinks* when its minimum drops, so that height is permanent
+(`SpellTooltip` sat at 4762px).
 
 **How to apply:** a floating panel (tooltip, popup card) that autowraps must fit
 itself — `size = Vector2(width, 0.0)` on every populate and per frame while
@@ -84,6 +84,30 @@ something below its parent. Never wrap it in a Container and a spacer to nudge
 it; if you must, `custom_minimum_size` is the only thing that will give it back
 a height.
 
+## A Control's rect is clamped UP to its minimum size — anchors lose to content
+
+The converse of the note above: a `Control` never renders *smaller* than
+`get_combined_minimum_size()`, so a panel whose content outgrows its slot grows
+**out of** it, over whatever is anchored beside it. `clip_contents` does not
+help — clipping does not reduce minimum size.
+
+So any **data-driven child count** is an unbounded dimension: N pips per blade
+node, one 96px tile per looted spell. The Command Tray shipped both and slid
+under the End Turn button (#753).
+
+**How to apply:** bound the content first — a wrapping container
+(`HFlowContainer`, or a low enough `GridContainer.columns`), a collapse rule
+(`CapacityBlips.collapse_threshold`), or a `ScrollContainer` cap — then pin both
+anchors and point `grow_horizontal` at the side you would rather lose. Prefer
+`SCROLL_MODE_RESERVE` over `AUTO`: an auto bar claims its ~8px only on overflow,
+re-wrapping the flow underneath it at the worst moment.
+
+**Pin it with a headless min-size assertion on the CONTENT node**, not the panel
+root — a root with an authored size floor keeps passing until content crosses
+the floor, then jumps straight past the real limit. Eyeballing cannot catch
+"fine today, broken once loot grows the list".
+See `test/unit/ui/test_melee_body_width.gd`.
+
 ## An entity's `stat_board` points at the default `.tres` — never an inline copy
 
 `Entity` is `@tool` and duplicates its board in `_ready`, so opening a scene in
@@ -105,11 +129,9 @@ whole run while XP filled.
 A `Camera2D` transforms the viewport's **default canvas**, and a `Control` that
 is merely a *sibling* of the `Node2D` holding it is on that canvas too — so UI
 authored in screen pixels is panned and *zoomed* with the world, and at a high
-zoom leaves the frame entirely. No error. It takes the Control's mouse rect with
-it, so clicks fall through to whatever is behind.
-
-`meta_root.tscn` shipped like this: the splash's wordmark and its "PRESS ANY
-BUTTON" prompt were never on screen at any zoom.
+zoom leaves the frame entirely. No error, and it takes the Control's mouse rect
+with it, so clicks fall through. `meta_root.tscn` shipped like this: the splash
+wordmark was never on screen at any zoom.
 
 **How to apply:** screen-space UI goes under a `CanvasLayer` — what
 `frontmatter_root.tscn` already does for its tooltip and panels. **Symptom:** UI
