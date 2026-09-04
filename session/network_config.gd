@@ -23,7 +23,21 @@ extends RefCounted
 ## everywhere. Nothing negotiates it — both peers must agree by convention.
 const DEFAULT_PORT := 9099
 
+## Where a DIAL goes when nothing said otherwise — the harness's own machine,
+## since every rung of `docs/domain/multiplayer-harness.md` runs both processes
+## on one box. [b]Never prefilled into a field a human sees[/b] (#752): a joiner
+## who left the box alone dialled itself, and a dial nobody answers used to hang
+## silently. The join panel starts blank and refuses blank instead
+## ([method join_address_problem]); this default is for the command line.
 const DEFAULT_ADDRESS := "127.0.0.1"
+
+## What the join panel says over an address it will not dial (#752). Blank is
+## the one refusal: it used to fall back to [constant DEFAULT_ADDRESS], and
+## that fallback is exactly how a joiner ended up dialling itself. Loopback
+## typed ON PURPOSE is still dialled — two windows on one machine is a real way
+## to test this game, and a wrong dial now fails out loud within
+## [constant Wire.DIAL_TIMEOUT_SEC] rather than hanging.
+const BLANK_ADDRESS_PROBLEM := "Type the host's address — the host reads it out in its lobby."
 
 var role: NetworkTransport.Role = NetworkTransport.Role.OFFLINE
 ## Unread as a HOST — a listener binds every interface, it does not dial one.
@@ -49,6 +63,16 @@ static func join(dial_address: String, dial_port: int = DEFAULT_PORT) -> Network
 	cfg.address = dial_address
 	cfg.port = dial_port
 	return cfg
+
+
+## Why [param address] cannot be dialled, in a sentence for the panel to show —
+## or `""` when it can. Pure, so the rule is pinned without a scene; the panel
+## is only the place the sentence lands. Whitespace is blank: nobody meant to
+## dial three spaces.
+static func join_address_problem(address: String) -> String:
+	if address.strip_edges().is_empty():
+		return BLANK_ADDRESS_PROBLEM
+	return ""
 
 
 ## True when this machine should bring a link up at all. The one question

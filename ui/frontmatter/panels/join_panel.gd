@@ -23,10 +23,19 @@ extends FrontmatterPanel
 ## The address and port the player typed. The shell turns this into
 ## `NetworkConfig.join(address, port)`; this panel does not construct one, for
 ## the same reason [LobbyPanel] does not write [member GameSession.network].
+##
+## [b]Never emitted for an address that cannot be dialled (#752).[/b] The one
+## such address is a blank one — it used to fall back to loopback, and a joiner
+## who left the box alone dialled itself. The refusal is spoken on the panel
+## ([member _status_label]) and the fields stay put for the retry.
 signal join_requested(address: String, port: int)
 
 @onready var fields: NetworkFields = %NetworkFields
 @onready var _join_button: Button = %JoinButton
+## The inline refusal. Blank while nothing is wrong; cleared again by the next
+## press that goes through, so a corrected address does not carry the old
+## complaint into the lobby.
+@onready var _status_label: Label = %StatusLabel
 
 
 func _ready() -> void:
@@ -37,4 +46,16 @@ func _ready() -> void:
 
 
 func _on_join_pressed() -> void:
-	join_requested.emit(fields.address(), fields.port())
+	var address := fields.address()
+	var problem := NetworkConfig.join_address_problem(address)
+	_status_label.text = problem
+	if not problem.is_empty():
+		return
+	join_requested.emit(address, fields.port())
+
+
+## The refusal currently shown, or `""`. Public so a test can read it without
+## reaching into a private child — the same courtesy [method LobbyScreen.status_text]
+## extends.
+func status_text() -> String:
+	return "" if _status_label == null else _status_label.text

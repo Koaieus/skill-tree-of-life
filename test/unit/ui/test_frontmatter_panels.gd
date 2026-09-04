@@ -395,9 +395,11 @@ func test_the_typed_port_reaches_the_relay_from_the_host_panel_too() -> void:
 	assert_eq(seen, [7777])
 
 
-func test_a_blank_address_still_falls_back_rather_than_dialling_nothing() -> void:
-	# The `address()` fallback #573 calls out. Asserted through the panel so the
-	# re-home cannot quietly drop it.
+func test_a_blank_address_is_refused_on_the_panel_rather_than_dialled() -> void:
+	# This used to pin #573's `address()` fallback to loopback. #752 inverted
+	# it: the fallback is how a joiner who left the box alone dialled ITSELF, so
+	# a blank address now goes nowhere and says so. Still asserted through the
+	# panel, so the re-home cannot quietly drop the refusal either.
 	var join := _join()
 	join.fields._address_edit.text = ""
 	join.fields._port_edit.text = "7777"
@@ -406,8 +408,9 @@ func test_a_blank_address_still_falls_back_rather_than_dialling_nothing() -> voi
 	join.join_requested.connect(func(a: String, _p: int): seen.append(a))
 	join._join_button.pressed.emit()
 
-	assert_eq(seen.size(), 1)
-	assert_ne(seen[0], "", "an empty field falls back to the default address")
+	assert_eq(seen, [], "nothing is dialled")
+	assert_eq(join.status_text(), NetworkConfig.BLANK_ADDRESS_PROBLEM,
+			"and the panel says why, with the field left for the retry")
 
 
 func test_the_join_panel_dismisses_via_dismiss() -> void:

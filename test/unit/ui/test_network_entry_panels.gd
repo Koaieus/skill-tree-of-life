@@ -62,26 +62,75 @@ func test_join_emits_the_typed_address_and_port() -> void:
 	assert_eq(_emitted, [["join", "192.168.1.7", 7777]])
 
 
-func test_untouched_fields_carry_the_defaults() -> void:
+func test_untouched_port_fields_carry_the_default() -> void:
 	# 9099 is what the owner asked for as the default on BOTH panels (#582), and
 	# it is the harness's port, so a dev typing nothing types the same number
 	# everywhere. Nothing negotiates it.
 	_host_panel()._host_button.pressed.emit()
-	_join_panel()._join_button.pressed.emit()
+	var join := _join_panel()
+	join.fields._address_edit.text = "192.168.1.7"
+	join._join_button.pressed.emit()
 	assert_eq(_emitted, [
 		["host", NetworkConfig.DEFAULT_PORT],
-		["join", NetworkConfig.DEFAULT_ADDRESS, NetworkConfig.DEFAULT_PORT],
+		["join", "192.168.1.7", NetworkConfig.DEFAULT_PORT],
 	])
 
 
-func test_a_blank_or_junk_field_falls_back_to_the_default() -> void:
-	# A typo'd address should fail at the socket, with a message. An EMPTY one
-	# should not dial "" — there is a sane default and no reason to punish it.
+# --- #752: the address box has no default, and blank is refused --------------
+
+func test_the_address_box_starts_blank_with_a_hint() -> void:
+	# The old prefill was 127.0.0.1: a joiner who left it alone dialled ITSELF
+	# and sat on a dial nothing would answer. A placeholder shows the shape of
+	# an answer without being one.
+	var edit := _join_panel().fields._address_edit
+	assert_eq(edit.text, "")
+	assert_eq(edit.placeholder_text, NetworkFields.ADDRESS_PLACEHOLDER)
+
+
+func test_an_untouched_join_is_refused_on_the_panel_not_dialled() -> void:
+	var panel := _join_panel()
+	panel._join_button.pressed.emit()
+	assert_eq(_emitted, [], "nothing to dial, so nothing is dialled")
+	assert_eq(panel.status_text(), NetworkConfig.BLANK_ADDRESS_PROBLEM)
+
+
+func test_whitespace_is_blank_and_junk_in_the_port_still_falls_back() -> void:
+	# The port keeps its fallback — both ends agree on it by convention. The
+	# address has none: three spaces is nobody's host.
 	var panel := _join_panel()
 	panel.fields._address_edit.text = "   "
 	panel.fields._port_edit.text = "not a port"
 	panel._join_button.pressed.emit()
-	assert_eq(_emitted, [["join", NetworkConfig.DEFAULT_ADDRESS, NetworkConfig.DEFAULT_PORT]])
+	assert_eq(_emitted, [])
+	assert_eq(panel.fields.port(), NetworkConfig.DEFAULT_PORT)
+
+
+func test_a_corrected_address_dials_and_clears_the_refusal() -> void:
+	# The fields stay put for the retry, and the complaint does not follow a
+	# good address into the lobby.
+	var panel := _join_panel()
+	panel._join_button.pressed.emit()
+	assert_ne(panel.status_text(), "")
+	panel.fields._address_edit.text = "10.0.0.4"
+	panel._join_button.pressed.emit()
+	assert_eq(_emitted, [["join", "10.0.0.4", NetworkConfig.DEFAULT_PORT]])
+	assert_eq(panel.status_text(), "")
+
+
+func test_loopback_typed_on_purpose_is_still_dialled() -> void:
+	# Two windows on one machine is a real way to test this game, and a dial
+	# nobody answers now fails out loud (`test_dial_watchdog.gd`) rather than
+	# hanging — so the refusal stays narrow.
+	var panel := _join_panel()
+	panel.fields._address_edit.text = "127.0.0.1"
+	panel._join_button.pressed.emit()
+	assert_eq(_emitted, [["join", "127.0.0.1", NetworkConfig.DEFAULT_PORT]])
+
+
+func test_the_address_rule_is_pure() -> void:
+	assert_eq(NetworkConfig.join_address_problem(""), NetworkConfig.BLANK_ADDRESS_PROBLEM)
+	assert_eq(NetworkConfig.join_address_problem(" \t"), NetworkConfig.BLANK_ADDRESS_PROBLEM)
+	assert_eq(NetworkConfig.join_address_problem("192.168.1.7"), "")
 
 
 func test_a_host_is_offered_no_address_to_dial() -> void:

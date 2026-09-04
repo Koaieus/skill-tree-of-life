@@ -9,7 +9,8 @@ extends VBoxContainer
 ## field, and they need the same one: identical parsing, identical fallbacks,
 ## identical defaults. Two copies of `_port()` would be two answers to "what
 ## does junk in the box mean". This is that answer, once ([JoinPanel] and
-## [HostPanel] both instance it).
+## [HostPanel] both instance it). The address row is the one field with NO
+## fallback (#752) — see [method address].
 ##
 ## [b]A host hides the address row[/b] ([member show_address]) — a listener
 ## binds every interface, it does not dial one, which is also why
@@ -42,27 +43,41 @@ var _address_edit: LineEdit
 var _port_edit: LineEdit
 
 
+## The address box's grey hint: the SHAPE of an answer, not an answer. A real
+## default here is what #752 removed — see [method address].
+const ADDRESS_PLACEHOLDER := "the host's address, e.g. 192.168.1.7"
+
+
 func _ready() -> void:
-	_address_edit = _fill(_address_row, NetworkConfig.DEFAULT_ADDRESS)
+	_address_edit = _fill(_address_row, "", ADDRESS_PLACEHOLDER)
 	_port_edit = _fill(_port_row, str(NetworkConfig.DEFAULT_PORT))
 	_apply_show_address()
 
 
-## Blank falls back to the default rather than dialling "" — a typo'd address
-## should fail at the socket with a message, not here with a silent no-op.
+## Exactly what was typed, trimmed — and blank when nothing was (#752).
+##
+## [b]Blank used to fall back to [constant NetworkConfig.DEFAULT_ADDRESS][/b],
+## on the theory that dialling `""` was worse than dialling a sane default. The
+## default was loopback, so a joiner who left the box alone dialled ITSELF and
+## sat on a dial nothing would ever answer. The sane answer to a blank address
+## is not a guess but a refusal, and that is [JoinPanel]'s to make on the way
+## out ([method NetworkConfig.join_address_problem]); this only reports.
 func address() -> String:
-	var text := _address_edit.text.strip_edges() if _address_edit != null else ""
-	return text if not text.is_empty() else NetworkConfig.DEFAULT_ADDRESS
+	return _address_edit.text.strip_edges() if _address_edit != null else ""
 
 
+## Junk or blank falls back to the default port. Unlike the address there IS a
+## sane default: both ends agree on it by convention, and a host's lobby reads
+## it out beside the address.
 func port() -> int:
 	var text := _port_edit.text.strip_edges() if _port_edit != null else ""
 	return text.to_int() if text.is_valid_int() else NetworkConfig.DEFAULT_PORT
 
 
-func _fill(row: LabelledRow, initial: String) -> LineEdit:
+func _fill(row: LabelledRow, initial: String, placeholder: String = "") -> LineEdit:
 	var edit := LineEdit.new()
 	edit.text = initial
+	edit.placeholder_text = placeholder
 	return row.set_widget(edit) as LineEdit
 
 

@@ -314,7 +314,8 @@ func test_every_lobby_route_writes_a_network_config() -> void:
 	_back_out(2)
 
 	GameSession.network = null
-	_dial()
+	# An address, because a blank one no longer reaches the lobby at all (#752).
+	_dial("10.0.0.4")
 	assert_not_null(GameSession.network, "JOIN states a role")
 	_back_out(2)
 

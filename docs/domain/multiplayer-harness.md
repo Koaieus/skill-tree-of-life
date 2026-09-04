@@ -459,6 +459,48 @@ down before it announces for exactly that reason: announcing first handed
 `EnetTransport._on_wire_status` a role that was about to be wrong, and nothing
 above the seam ever learned the link had died.
 
+## Two machines: a dial that never answers (#752)
+
+Everything above runs on `127.0.0.1`, where a dial either connects or errors
+synchronously. A real LAN has a third outcome that loopback never shows —
+**silence**: a wrong IP, a host that is not up yet, or a firewall eating the
+UDP all look identical to "still dialling". `create_client` returns `OK` the
+instant a socket exists, and ENet's own `connection_failed` only fires once
+its connect retries are exhausted (15–30 s). Three things close that gap:
+
+- **`Wire.DIAL_TIMEOUT_SEC` (8 s).** `Wire.start_client` arms a one-shot
+  `Timer`; if nobody is on the line when it fires, the dial is torn down and
+  reported through the same `link_lost` a dropped link uses, with the endpoint
+  in the reason — *"no answer from 192.168.1.7:9099"* — so a typo is visible in
+  the sentence. The lobby's status line renders it and START stays refused;
+  the route out is Back, and the join panel still holds what was typed.
+  `test_dial_watchdog.gd` pins it, including in real time: a closed loopback
+  port produces silence, not a refusal, even on Linux — ENet swallows the ICMP.
+- **The join panel's address box starts blank, and blank is refused on the
+  panel** (`NetworkConfig.join_address_problem`) rather than falling back to
+  `NetworkConfig.DEFAULT_ADDRESS`. The default was loopback, so a joiner who
+  left the box alone dialled itself. Loopback typed *on purpose* is still
+  dialled — two windows on one machine stays a legitimate test — and the
+  command-line rungs above keep the default, since they run on one box by
+  construction.
+- **The port has to be open on the host.** ENet is UDP; the harness's port is
+  `NetworkConfig.DEFAULT_PORT` (**UDP 9099**), and a joiner on another machine
+  that gets "no answer" from a host that *is* up is almost always this. On
+  **Windows** the first `Host` pops a Defender "allow this app on private
+  networks?" prompt; dismissed, every dial times out exactly as above. Allow
+  it there, or after the fact from an elevated prompt:
+
+  ```
+  netsh advfirewall firewall add rule name="Skill Tree of Life" dir=in action=allow protocol=UDP localport=9099
+  ```
+
+  Linux with a firewall is the same shape (`sudo ufw allow 9099/udp`, or
+  `firewall-cmd --add-port=9099/udp`). The client side needs nothing: replies
+  come back on the socket it dialled from.
+
+**Not yet traced on a real LAN:** `CommandLink._awaiting_resync` for a join
+that races the host's scene load — the one window only real latency exposes.
+
 ## Extending it
 
 - **A different transport** — subclass `NetworkTransport`. Nothing above it

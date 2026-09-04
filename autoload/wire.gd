@@ -43,9 +43,27 @@ signal peer_joined(peer_id: int)
 signal peer_left(peer_id: int)
 
 ## This machine's own link went away without it asking (#716) — a dial that
-## failed, a host that quit, a host that dropped us. Emitted AFTER [method stop]
-## has run, so [member role] already reads OFFLINE.
+## failed or that nobody answered (#752), a host that quit, a host that dropped
+## us. Emitted AFTER [method stop] has run, so [member role] already reads
+## OFFLINE.
 signal link_lost(reason: String)
+
+## How long a dial may go unanswered before this machine gives up on it (#752).
+##
+## [b]Why ENet's own `connection_failed` is not enough.[/b] It does fire — see
+## [method _on_connection_failed] — but only once ENet has exhausted its
+## connect retries, which is on the order of 15–30 seconds, and on a LAN the
+## common failures (a wrong IP, a host not up yet, a firewall eating UDP) all
+## look identical to "still trying" until then. `create_client` itself returns
+## [constant OK] the instant the socket exists. So without this, a joiner who
+## typed the wrong address sat on a "dialling…" caption with nothing telling
+## it to stop waiting. Eight seconds is well past any LAN round trip and well
+## short of a human giving up on the screen.
+const DIAL_TIMEOUT_SEC := 8.0
+
+## Overridable so a test can watch the watchdog fire without spending eight
+## real seconds on it. Production never writes it.
+var dial_timeout_sec: float = DIAL_TIMEOUT_SEC
 
 ## Mirrors [enum NetworkTransport.Role] by value. Declared here rather than
 ## imported so this singleton does not depend on the seam that wraps it — the
@@ -57,6 +75,15 @@ var role: NetworkTransport.Role = NetworkTransport.Role.OFFLINE
 var _peers: PackedInt32Array = PackedInt32Array()
 
 var _peer: ENetMultiplayerPeer
+
+## Armed by [method start_client], disarmed by the server answering or by
+## [method stop]; fires [method _on_dial_watchdog_timeout]. A [Timer] child
+## rather than a [SceneTreeTimer] because a dial that is abandoned early (the
+## player backs out, or re-dials) needs it CANCELLED, not merely ignored.
+var _dial_watchdog: Timer
+## What the live dial is aimed at, for the watchdog's message. `""` when
+## nothing is dialling.
+var _dial_endpoint: String = ""
 
 ## The last line [signal link_changed] carried. A lobby that mounts AFTER a dial
 ## already failed has no signal left to catch — `create_client` errors
@@ -81,6 +108,17 @@ var last_sender_id: int = 0
 ## transport would read back as "nothing bound" only by accident, and would read
 ## back as "still bound" the rest of the time.
 var _binder_id: int = 0
+
+
+func _ready() -> void:
+	_dial_watchdog = Timer.new()
+	_dial_watchdog.name = "DialWatchdog"
+	_dial_watchdog.one_shot = true
+	# A dial happens from the menu, but nothing about a paused tree should be
+	# able to turn "no answer" back into "silent forever".
+	_dial_watchdog.process_mode = Node.PROCESS_MODE_ALWAYS
+	_dial_watchdog.timeout.connect(_on_dial_watchdog_timeout)
+	add_child(_dial_watchdog)
 
 
 ## Take exclusive hold of this singleton's signals, and refuse if somebody else
@@ -146,7 +184,8 @@ func start_host(port: int) -> Error:
 
 
 ## Dial [param address]:[param port]. [constant OK] means the attempt started —
-## success arrives later as [signal link_changed].
+## success arrives later as [signal link_changed], and a dial nobody answers
+## within [member dial_timeout_sec] ends in [signal link_lost] (#752).
 func start_client(address: String, port: int) -> Error:
 	stop()
 	var peer := ENetMultiplayerPeer.new()
@@ -155,7 +194,9 @@ func start_client(address: String, port: int) -> Error:
 		_announce("client: FAILED to dial %s:%d (%s)" % [address, port, error_string(err)])
 		return err
 	_adopt(peer, NetworkTransport.Role.CLIENT)
-	_announce("client: dialling %s:%d…" % [address, port])
+	_dial_endpoint = "%s:%d" % [address, port]
+	_dial_watchdog.start(dial_timeout_sec)
+	_announce("client: dialling %s…" % _dial_endpoint)
 	return OK
 
 
@@ -175,6 +216,7 @@ func start_client(address: String, port: int) -> Error:
 func stop() -> void:
 	if not is_open():
 		return
+	_disarm_dial_watchdog()
 	if _peer != null:
 		_peer.close()
 		_peer = null
@@ -310,6 +352,7 @@ func _on_peer_disconnected(id: int) -> void:
 ## is the moment this machine learns its OWN id, which is what a lobby needs to
 ## stamp its seat before any level exists.
 func _on_connected_to_server() -> void:
+	_disarm_dial_watchdog()
 	_announce("client: connected (my id %d)" % multiplayer.get_unique_id())
 	peer_joined.emit(NetworkTransport.HOST_PEER_ID)
 
@@ -325,6 +368,22 @@ func _on_connection_failed() -> void:
 
 func _on_server_disconnected() -> void:
 	_lost("the host went away")
+
+
+## The dial outlived [member dial_timeout_sec] with nobody on the line (#752).
+## Guarded rather than trusted: a [Timer] that fired on the same frame the
+## server answered, or one whose dial was already torn down another way, must
+## not report a loss over a link that is fine.
+func _on_dial_watchdog_timeout() -> void:
+	if role != NetworkTransport.Role.CLIENT or is_linked():
+		return
+	_lost("no answer from %s" % _dial_endpoint)
+
+
+func _disarm_dial_watchdog() -> void:
+	_dial_endpoint = ""
+	if _dial_watchdog != null:
+		_dial_watchdog.stop()
 
 
 func _lost(reason: String) -> void:
