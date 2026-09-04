@@ -35,6 +35,12 @@ const AUTOPLAY := "autoplay"
 ## The entity-turn budget an autoplay run may spend before it is called a
 ## timeout ([member TurnManager.turns_taken] counts ENTITY turns, not rounds).
 const MAX_TURNS := "max-turns"
+## Seconds an AI pauses before acting. Autoplay pins it to 0 so a run costs
+## seconds rather than minutes — which is also a pace no human has ever played
+## this path at, so it is overridable: `--ai-delay=0.4` is how "does this only
+## break when commands arrive back to back?" gets asked without editing code
+## (#756).
+const AI_DELAY := "ai-delay"
 
 
 ## `--<name>=<v>` -> `v`; `--<name>` alone -> `""`; absent -> [param fallback].
@@ -75,3 +81,12 @@ static func number(
 ) -> int:
 	var raw := value(name, "", args)
 	return fallback if not raw.is_valid_int() else int(raw)
+
+
+## The same, for a flag measured in seconds. Accepts an integer too — `1` is a
+## legal number of seconds, and `is_valid_float` says so.
+static func decimal(
+	name: String, fallback: float, args: PackedStringArray = OS.get_cmdline_user_args()
+) -> float:
+	var raw := value(name, "", args)
+	return fallback if not raw.is_valid_float() else float(raw)

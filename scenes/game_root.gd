@@ -793,7 +793,6 @@ func hand_seat_to_ai(participant: Participant) -> void:
 		ent.add_child(ai)
 	if turn_manager != null and turn_manager.current_entity == ent:
 		ai.take_turn()
-	return ent
 
 
 ## Mirror-side entry for the same handover, off

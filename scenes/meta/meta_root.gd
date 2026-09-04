@@ -372,7 +372,8 @@ func _drive_lobby_from_cmdline() -> void:
 		# In memory only — [Settings] persists on an explicit save, which
 		# nothing on this path calls, so a harness run cannot rewrite the
 		# desktop's own `user://settings.cfg`.
-		Settings.set_value(&"ai_turn_delay", 0.0)
+		Settings.set_value(
+				&"ai_turn_delay", HarnessFlags.decimal(HarnessFlags.AI_DELAY, 0.0))
 	if role == "host":
 		_on_host_requested(port)
 		# AFTER the route that opens the socket, and said out loud because it is

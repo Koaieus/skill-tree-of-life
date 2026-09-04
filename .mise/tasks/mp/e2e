@@ -79,7 +79,7 @@ def spawn(role, log_path, extra):
     # prints to stdout, and reading a run's story out of two interleaved files
     # is exactly the thing this task exists to spare the next person.
     proc = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT, text=True)
-    proc._log = log  # noqa: SLF001 — kept only so `wait_for` can flush/close it
+    proc._log = log  # noqa: SLF001 — closed by `stop`
     return proc
 
 
@@ -125,13 +125,16 @@ def reap():
 
 
 def stop(proc):
-    if proc is None or proc.poll() is not None:
+    """End the process if it is still up, and close its log either way."""
+    if proc is None:
         return
-    proc.terminate()
-    try:
-        proc.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        proc.kill()
+    if proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+    proc._log.close()  # noqa: SLF001
 
 
 def main():
@@ -144,6 +147,8 @@ def main():
                     help="wall-clock ceiling for the whole pair, in seconds")
     ap.add_argument("--boot-timeout", type=int, default=60,
                     help="how long the host gets to open its socket")
+    ap.add_argument("--ai-delay", type=float, default=None,
+                    help="seconds an AI waits before acting (default 0 — see #756)")
     args = ap.parse_args()
 
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -154,6 +159,8 @@ def main():
     extra = ["--port=%d" % port]
     if args.max_turns:
         extra.append("--max-turns=%d" % args.max_turns)
+    if args.ai_delay is not None:
+        extra.append("--ai-delay=%s" % args.ai_delay)
 
     print("rung 4: two processes on 127.0.0.1:%d — logs at .godot/mp-e2e-*.log" % port)
     started = time.monotonic()
@@ -173,20 +180,24 @@ def main():
                 break
             time.sleep(0.25)
         else:
-            print("✗ TIMEOUT — the pair did not finish within %ds "
-                  "(host %s, client %s)" % (
-                      args.timeout,
-                      "exited" if host.poll() is not None else "still running",
-                      "exited" if client.poll() is not None else "still running"))
-            print("  host tail:\n%s" % tail(read_lines(HOST_LOG), 12))
-            print("  client tail:\n%s" % tail(read_lines(CLIENT_LOG), 12))
-            return 1
+            # NOT an early return: a pair that ran out of wall clock is the case
+            # that most needs the six-line diagnosis below — how far each side
+            # got, whether either printed a verdict, where the mirror first
+            # disagreed. Bailing out here with a tail would throw all of it away.
+            stalled = [role for role, p in (("host", host), ("client", client))
+                       if p.poll() is None]
+            print("✗ TIMEOUT — %s still running after %ds" % (
+                " and ".join(stalled), args.timeout))
     finally:
         stop(client)
         stop(host)
-        reap()
 
-    return report(host.returncode, client.returncode, time.monotonic() - started)
+    # AFTER the logs have been read: `godot-reap` only removes strays, but the
+    # order says which one is the source of truth. GUT runs are skipped by its
+    # own default, so a peer agent's suite is safe from this.
+    code = report(host.returncode, client.returncode, time.monotonic() - started)
+    reap()
+    return code
 
 
 def report(host_code, client_code, elapsed):
@@ -196,7 +207,9 @@ def report(host_code, client_code, elapsed):
 
     for role, code, lines in (("host", host_code, host_lines),
                               ("client", client_code, client_lines)):
-        if code == TIMEOUT_EXIT:
+        if code is not None and code < 0:
+            failures.append("%s never finished — killed on signal %d" % (role, -code))
+        elif code == TIMEOUT_EXIT:
             hit = first_match(lines, TIMEOUT_LINE)
             failures.append("%s hit the turn cap — %s" % (
                 role, hit.group(0) if hit else "no RUNG4 TIMEOUT line"))

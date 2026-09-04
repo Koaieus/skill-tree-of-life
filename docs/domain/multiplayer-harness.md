@@ -806,7 +806,9 @@ and a run-end fingerprint whose ownership and topology tiers match while the
 The drift starts on an ordinary `allocate` in the first turn or two, before any
 attack or kill. Nobody had ever played a networked run past turn one, which is
 exactly the blind spot rung 4 was built to look into — see #756 for the log
-evidence and the two candidate causes.
+evidence. `--ai-delay 0.4` was the discriminator: at a human pace the mirror
+still diverges 25 times a run, so this is the replay path and not the
+pre-command check misfiring on commands that arrive back to back.
 
 ## The other harness: replaying an outcome with no network (#539)
 
