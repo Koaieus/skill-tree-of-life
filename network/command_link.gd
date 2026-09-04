@@ -82,6 +82,12 @@ const KEY_BUILD := "build"
 ## sends one, it sends the single row it touched and lets the host answer with
 ## the whole thing.
 const KEY_PICK := "pick"
+## #755: which seat a [constant KIND_SEAT_HANDOVER] is about — a [member
+## Participant.id], never a `peer_id`. The peer whose id it was is by definition
+## gone, and every mirror already resolves a seat by participant id
+## ([method GameRoot._entity_for_participant]); a mirror has no view of a
+## sibling's peer id at all.
+const KEY_PARTICIPANT := "participant"
 ## #716: what the sender CLAIMS its own peer id is, on a client's announce.
 ##
 ## [b]It is never the authority.[/b] [method _gate_peer] acts on
@@ -190,6 +196,25 @@ const KIND_LOBBY := "lobby"
 ## scope: a pick is an INTENT, and the host's [constant KIND_LOBBY] answer is the
 ## confirmation.
 const KIND_LOBBY_PICK := "lobby_pick"
+## #755's downward leg: "the human on this seat is gone; the AI has it now."
+## Sent by the host from [method GameRoot.hand_seat_to_ai] when a seated peer
+## drops mid-run.
+##
+## [b]Not a [Command].[/b] Same shape as [constant KIND_LOOT_OFFER]: it never
+## touches [CommandApplier], because there is nothing to validate and nothing
+## that may refuse it — the peer is already gone, and a gate with no gate behind
+## it is only a way for the mirrors to disagree with the host. It also mutates
+## no world state that [WorldFingerprint] or [EntitySnapshot] carry
+## ([member Entity.is_human_controlled] is in neither), so it cannot desync a
+## compare.
+##
+## [b]Why it has to cross at all[/b], rather than staying the host-local banner
+## it was until #755: [method SeatPolicy.vision_group] keys on
+## [member Entity.is_human_controlled], so a coop ally on a THIRD machine kept
+## seeing through a hero that had become an AI — AI never shares vision, and the
+## host had already stopped. That fog divergence is the argument; the banner
+## every peer now gets is the smaller half.
+const KIND_SEAT_HANDOVER := "seat_handover"
 
 ## The one refusal code today — [method CommandApplier._validate] answers a
 ## bool, so there is nothing finer to report yet. A [StringName], never a UI
@@ -260,6 +285,12 @@ signal lobby_roster_received(roster: ParticipantRoster)
 ## peer edit that seat, is that colour taken) is the LOBBY's rule set, and this
 ## class must not become a second place that decides.
 signal lobby_pick_received(pick: Dictionary)
+
+## #755, client-side: the host handed a dropped peer's seat to the AI. Carries
+## the [member Participant.id], decoded no further here — what a handover MEANS
+## to a level ([method GameRoot._on_seat_handover]) is the level's, same split
+## as [signal lobby_roster_received].
+signal seat_handover_received(participant_id: int)
 
 @export var transport: NetworkTransport
 @export var command_applier: CommandApplier
@@ -545,6 +576,12 @@ var defer_until_resync: bool = false
 ## joining has taken no action to claim from. The whole window is pre-HUD too,
 ## so nothing is listening on `Events.loot_pick_requested` to answer it; letting
 ## it through buys a forfeit against the wrong world, not an answer.
+## [constant KIND_SEAT_HANDOVER]: it names a seat by [member Participant.id]
+## and a peer mid-join has no entities to resolve one against. Nothing is lost
+## by dropping it — the [constant KIND_SETUP] this peer is joining on carries
+## the host's roster as it stands NOW, seat already AI, so the join applies the
+## same flip by the shorter route. Its banner is dropped with it, correctly: it
+## announces something that happened before this peer was in the room.
 ##
 ## [b]Passed[/b]
 ## [constant KIND_SETUP], [constant KIND_SNAPSHOT], [constant KIND_ENTITIES],
@@ -560,7 +597,7 @@ var defer_until_resync: bool = false
 ## joining client has raised none — but it mutates nothing and a swallowed
 ## refusal would strand a waiting submitter forever, which is exactly the
 ## failure #548 refused to ship.
-const DEFERRED_KINDS: Array[String] = [KIND_COMMAND, KIND_LOOT_OFFER]
+const DEFERRED_KINDS: Array[String] = [KIND_COMMAND, KIND_LOOT_OFFER, KIND_SEAT_HANDOVER]
 
 
 ## #561 receive side, host-only. A client asking is treated exactly as the
@@ -739,6 +776,27 @@ func _on_loot_offer(payload: Dictionary) -> void:
 			[offer.request_id, offer.collector_id])
 
 
+## #755 send side, host-only. Broadcast rather than addressed: every mirror
+## needs the flip, and the one peer that does not — the one that left — is not
+## on the link to receive it.
+func send_seat_handover(participant_id: int) -> void:
+	if transport == null or mode != Mode.BROADCAST or participant_id == 0:
+		return
+	transport.send({KEY_KIND: KIND_SEAT_HANDOVER, KEY_PARTICIPANT: participant_id})
+	logged.emit("→ seat %d handed to the AI" % participant_id)
+
+
+## #755 receive side. Decodes and re-emits — see [signal seat_handover_received].
+func _on_seat_handover(payload: Dictionary) -> void:
+	if mode != Mode.MIRROR:
+		return
+	var participant_id := int(payload.get(KEY_PARTICIPANT, 0))
+	if participant_id == 0:
+		return
+	seat_handover_received.emit(participant_id)
+	logged.emit("← seat %d handed to the AI" % participant_id)
+
+
 ## Mirrors off [signal CommandApplier.command_confirmed], NOT `command_applied`:
 ## a refused command never confirms, and since #540 a confirm fires BEFORE the
 ## mutation for every deterministic verb — which is the whole point, because it
@@ -899,6 +957,8 @@ func _on_message_received(payload: Dictionary) -> void:
 			_on_lobby_roster(payload)
 		KIND_LOBBY_PICK:
 			_on_lobby_pick(payload)
+		KIND_SEAT_HANDOVER:
+			_on_seat_handover(payload)
 		_:
 			logged.emit("ignored payload with unknown kind %s" % payload.get(KEY_KIND))
 

@@ -544,6 +544,45 @@ them would let a peer observe an intermediate state that never legally existed.
 
 ---
 
+### A seat handed to the AI, and why fog forced it onto the wire (#755)
+
+A seated peer dropping mid-run is not a rejoinable state (#733, owner call), so
+the host hands its hero to the AI — `GameRoot.hand_seat_to_ai`. That used to be
+entirely host-local. It is now split, and the split is the interesting part:
+
+| | Who runs it | What |
+|---|---|---|
+| Shared | **every** peer, `GameRoot._adopt_seat_handover` | `Participant.kind = AI`, `Entity.is_human_controlled = false`, re-run `_apply_seat_vision()`, raise the banner |
+| Authority | host only, `hand_seat_to_ai` | broadcast `KIND_SEAT_HANDOVER`, swap `PlayerController` → `AIController`, kick the turn if it is this hero's |
+
+**The argument is fog, not the banner.** `SeatPolicy.vision_group` is an
+*allied-humans* reveal keyed on `Entity.is_human_controlled`, and AI never
+shares. With the flip host-local, a coop ally on a **third** machine kept
+revealing through a hero the host had already stopped revealing through — two
+machines drawing different maps of the same authoritative world. No fingerprint
+can see it: `is_human_controlled` is carried by neither `WorldFingerprint` nor
+`EntitySnapshot`, which is also why the handover is a plain message and not a
+`Command`. There is nothing to validate and nothing that may refuse it (the peer
+is *already gone*), and a gate with no gate behind it is only a way for the
+mirrors to disagree.
+
+**The controller swap must stay host-only.** A mirror that grew an
+`AIController` would be a second machine deciding actions for a hero it has no
+authority over — this document's first rule, broken in one line. The mirror
+leaves the now-inert `PlayerController` where it is.
+`test_a_mirror_applies_the_handover_without_growing_a_controller` is that
+regression.
+
+**Ordering.** The broadcast goes out *before* `ai.take_turn()`. The wire is
+reliable-ordered, so sequencing the handover ahead of the AI's first command is
+what stops a mirror seeing an AI act on a seat it still believes a human holds.
+
+**Deferred during a join** (`CommandLink.DEFERRED_KINDS`): it names a seat by
+`Participant.id` and a peer mid-join has no entities to resolve one against.
+Nothing is lost — the `KIND_SETUP` it is joining on carries the host's roster as
+it stands *now*, seat already AI. Its banner drops with it, correctly: it
+announces something that happened before that peer was in the room.
+
 ## Where each subsystem sits
 
 **AI runs on the host only and emits commands into the same queue.** That

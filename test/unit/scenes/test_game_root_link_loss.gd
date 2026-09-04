@@ -192,3 +192,54 @@ func test_a_link_lost_after_the_run_ended_leaves_the_verdict_up() -> void:
 
 	assert_eq(overlay.reading, verdict, "a normal end of run is not a lost connection")
 	assert_true(overlay.visible)
+
+
+# --- #755: the handover crosses the wire ----------------------------------
+
+## Reading the layer's playing request straight off `_current_by_kind`, the way
+## `test_run_end_presentation.gd` does — the layer emits nothing, and the point
+## here is only "a banner for THIS was raised", not how it animates.
+func _playing_main_text() -> String:
+	var layer := _root.hud_root.announcement_layer
+	var playing: AnnouncementRequest = layer._current_by_kind.get(
+			AnnouncementRequest.Kind.TITLE)
+	return "" if playing == null else playing.main_text
+
+
+func test_the_host_announces_the_handover_and_broadcasts_it() -> void:
+	var lines: Array[String] = []
+	_root.command_link.logged.connect(func(line: String) -> void: lines.append(line))
+
+	_root.transport.peer_left.emit(_REMOTE_PEER)
+
+	assert_string_contains(_playing_main_text(), "Guest",
+			"the host's own screen names who left")
+	var sent := lines.filter(func(l: String) -> bool: return l.begins_with("→ seat 2"))
+	assert_eq(sent.size(), 1, "and the mirrors are told exactly once")
+
+
+## The regression that matters: a mirror applies the SHARED half only. An
+## [AIController] here would be a second machine deciding actions for a hero it
+## has no authority over.
+func test_a_mirror_applies_the_handover_without_growing_a_controller() -> void:
+	GameSession.network = NetworkConfig.join("127.0.0.1")
+	_root.command_link.mode = CommandLink.Mode.MIRROR
+
+	_root.command_link.seat_handover_received.emit(2)
+
+	assert_eq(_remote_seat.kind, Participant.Kind.AI, "the mirror's roster agrees")
+	assert_false(_remote.is_human_controlled,
+			"so SeatPolicy.vision_group stops revealing through it, as it has on the host")
+	assert_true(GameRoot._find_controller(_remote) is PlayerController,
+			"the inert controller is left alone — a mirror never drives a hero")
+	assert_string_contains(_playing_main_text(), "Guest",
+			"and this peer is told why its ally started playing differently")
+
+
+func test_a_handover_for_a_seat_this_peer_does_not_know_is_ignored() -> void:
+	_root.command_link.mode = CommandLink.Mode.MIRROR
+
+	_root.command_link.seat_handover_received.emit(99)
+
+	assert_eq(_remote_seat.kind, Participant.Kind.HUMAN)
+	assert_true(_remote.is_human_controlled)

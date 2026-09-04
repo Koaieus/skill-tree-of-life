@@ -429,9 +429,14 @@ func present_link_lost(reason: String) -> void:
 				"%s — the run cannot continue from here" % reason)
 
 
-## A seated peer left and the host handed its hero to the AI
-## ([method GameRoot.hand_seat_to_ai]). Host-side only: a mirror learns of the
-## hero playing on from the commands, not from a banner of its own.
+## A seated peer left and its hero was handed to the AI
+## ([method GameRoot._adopt_seat_handover]). Raised on EVERY peer since #755,
+## not just the host: the handover crosses the wire because the mirrors have to
+## flip [member Entity.is_human_controlled] too (fog is an allied-HUMANS reveal
+## — see that method), and once they are told at all, telling the player is
+## free. Before that a mirror was expected to infer a hero had changed hands
+## from the commands alone, which reads as a teammate who silently started
+## playing differently.
 func announce_peer_left(display_name: String) -> void:
 	if announcement_layer != null:
 		announcement_layer.enqueue_now(AnnouncementRequest.make(

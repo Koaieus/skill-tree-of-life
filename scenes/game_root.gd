@@ -165,6 +165,9 @@ func _ready() -> void:
 		# turn loop would stall on the first one to take a turn. Re-running it is
 		# idempotent (explicit composition always wins) and cheap.
 		command_link.resync_applied.connect(_on_resync_applied)
+		# #755, mirror-side: the host telling us a dropped peer's seat is the
+		# AI's now. See [method _on_seat_handover].
+		command_link.seat_handover_received.connect(_on_seat_handover)
 		# Rung 3's protocol trace, hooked HERE rather than beside its verdict line
 		# at the tail of `_ready` — by then the resync has already been pushed
 		# (host) or applied (client) and the interesting lines are gone. It is what
@@ -638,8 +641,10 @@ func _on_link_lost(reason: String) -> void:
 ## host is the authority, so the AI's turns cross the wire as ordinary confirmed
 ## commands and every mirror watches the hero keep playing.
 ##
-## A client never acts on this: its host leaving is [method _on_link_lost], and
-## a sibling client leaving is the host's to handle.
+## A client never acts on THIS signal: its host leaving is
+## [method _on_link_lost], and a sibling client leaving is the host's to detect.
+## It does hear about the outcome — the host broadcasts the handover and every
+## mirror applies its shared half (#755, [method _adopt_seat_handover]).
 func _on_peer_left(peer_id: int) -> void:
 	var net: NetworkConfig = GameSession.network
 	if net == null or net.role != NetworkTransport.Role.HOST:
@@ -651,26 +656,28 @@ func _on_peer_left(peer_id: int) -> void:
 			hand_seat_to_ai(p)
 
 
-## Both halves of "this seat is the AI's now", on the host.
+## The HOST's half of "this seat is the AI's now" — the authority-only parts,
+## on top of the [method _adopt_seat_handover] every peer runs.
 ##
-## The roster half comes first, and matters beyond the controller:
-## [method LootPickRegistry.is_remote_collector] reads [member Participant.kind],
-## and a HUMAN seat whose peer is gone would park every relic this hero claims
-## on a pick that never comes (#646) — a second hang behind the first. The
-## roster is the host's own copy; a mirror's still says HUMAN, which only makes
-## its [method LootPickRegistry.is_local_collector] answer false, as it should.
+## The broadcast (#755) goes out BEFORE the turn kick, and that order is
+## load-bearing: the wire is reliable-ordered, so sequencing the handover ahead
+## of the AI's first command is what stops a mirror seeing an AI act on a seat
+## it still believes a human holds.
 ##
 ## The entity half swaps the no-op [PlayerController] for an [AIController].
 ## If it is this hero's turn RIGHT NOW the new controller missed
 ## `turn_started`, and the human who would have ended the turn is gone — so the
 ## turn is kicked by hand. Fire-and-forget, as [method EntityController._on_turn_started]
-## calls it.
+## calls it. This half is the host's ALONE: a mirror that grew an
+## [AIController] of its own would be a second machine deciding actions for a
+## hero it has no authority over, which is the whole of
+## `.claude/rules/multiplayer-sync.md` broken in one line.
 func hand_seat_to_ai(participant: Participant) -> void:
-	participant.kind = Participant.Kind.AI
-	var ent := _entity_for_participant(participant.id)
+	var ent := _adopt_seat_handover(participant)
+	if command_link != null:
+		command_link.send_seat_handover(participant.id)
 	if ent == null:
 		return
-	ent.is_human_controlled = false
 	var ai := _find_controller(ent) as AIController
 	if ai == null:
 		var old := _find_controller(ent)
@@ -683,10 +690,53 @@ func hand_seat_to_ai(participant: Participant) -> void:
 		ai = AIController.new()
 		ai.name = "AIController"
 		ent.add_child(ai)
-	if hud_root != null:
-		hud_root.announce_peer_left(ent.display_name)
 	if turn_manager != null and turn_manager.current_entity == ent:
 		ai.take_turn()
+
+
+## Mirror-side entry for the same handover, off
+## [signal CommandLink.seat_handover_received] (#755). Applies the shared half
+## and nothing else — see [method hand_seat_to_ai] for why the controller swap
+## must not follow it here.
+func _on_seat_handover(participant_id: int) -> void:
+	if GameSession.roster == null:
+		return
+	var participant := GameSession.roster.by_id(participant_id)
+	if participant == null:
+		return
+	_adopt_seat_handover(participant)
+
+
+## What EVERY peer does when a seat passes to the AI, host and mirror alike.
+## Returns the seat's [Entity], or null if this peer has none for it.
+##
+## [b]The roster half comes first[/b], and matters beyond the controller:
+## [method LootPickRegistry.is_remote_collector] reads [member Participant.kind],
+## and a HUMAN seat whose peer is gone would park every relic this hero claims
+## on a pick that never comes (#646) — a second hang behind the first.
+##
+## [b]The flag half is why this crosses the wire at all[/b] (#755). Until then
+## the host flipped [member Entity.is_human_controlled] alone and every mirror's
+## copy stayed `true` — but [method SeatPolicy.vision_group] is an ALLIED-HUMANS
+## reveal keyed on exactly that flag, so a coop ally on a third machine went on
+## seeing through a hero the host had already stopped sharing with. Fog is
+## local-view-only, so this was never a desync of the authoritative world; it
+## was two machines drawing different maps of it, which is worse to play with
+## and impossible to notice from a fingerprint.
+##
+## [method _apply_seat_vision] is re-run explicitly because that group is
+## COMPUTED, not reactive: flipping the flag without it leaves the stale fog in
+## place until something else happens to recompute.
+func _adopt_seat_handover(participant: Participant) -> Entity:
+	participant.kind = Participant.Kind.AI
+	var ent := _entity_for_participant(participant.id)
+	if ent == null:
+		return null
+	ent.is_human_controlled = false
+	_apply_seat_vision()
+	if hud_root != null:
+		hud_root.announce_peer_left(ent.display_name)
+	return ent
 
 
 func _entity_for_participant(participant_id: int) -> Entity:
