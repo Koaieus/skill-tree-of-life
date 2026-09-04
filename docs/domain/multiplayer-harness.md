@@ -799,6 +799,15 @@ client holds no world, so its fold cannot match.)
 **It does not close #665.** Same binary, same libm, one machine — it covers the
 wire, not the platform.
 
+**It is RED on master, and that is the finding (#756).** The very first run
+that reached a verdict reported the mirror being force-repaired 15-40 times,
+and a run-end fingerprint whose ownership and topology tiers match while the
+**accumulated** tier (stake/allocation level, regen stacks, node HP) does not.
+The drift starts on an ordinary `allocate` in the first turn or two, before any
+attack or kill. Nobody had ever played a networked run past turn one, which is
+exactly the blind spot rung 4 was built to look into — see #756 for the log
+evidence and the two candidate causes.
+
 ## The other harness: replaying an outcome with no network (#539)
 
 The two-process harness proves *host acts → client mirrors*, which means every

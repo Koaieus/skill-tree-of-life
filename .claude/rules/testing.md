@@ -29,7 +29,9 @@ and the mirror's mid-run divergence count. ~30s. It is a `mise` task rather than
 a test because two worlds cannot share one `SceneTree` once turns tick
 (`Entity.GROUP` is tree-wide) and because a suite is not where a 30s wall-clock
 run belongs. Read the failure, not just the exit code — it names *which* of the
-six agreements broke. See `docs/domain/multiplayer-harness.md`, "Rung 4".
+six agreements broke — and note it is **red on master today** for a real sync
+bug it found (#756), so compare against that baseline rather than expecting a
+clean pass. See `docs/domain/multiplayer-harness.md`, "Rung 4".
 
 The task prints a verdict (counts, each failing test's first assert + line,
 pending, parse-error alarms) and **always keeps the full console output at
