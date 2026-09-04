@@ -22,7 +22,7 @@ archetype_stat = &"dexterity"
 tags = Array[StringName]([&"dex", &"percent"])
 unit_value = 7.0
 range_floor = 3.0
-pool_weight = 4.0
+pool_weight = 5.0
 
 [sub_resource type="Resource" id="mul"]
 resource_name = "dexterity ×"
@@ -32,6 +32,7 @@ operation = 2
 archetype_stat = &"dexterity"
 tags = Array[StringName]([&"dex", &"multiply"])
 unit_value = 0.05
+range_floor = 0.02
 min_tier = 3
 
 [sub_resource type="Resource" id="cc_inc"]
@@ -46,7 +47,8 @@ value_overrides = Dictionary[int, float]({
 3: 50.0,
 4: 100.0
 })
-pool_weight = 1.5
+range_floor = 3.5
+pool_weight = 2.0
 
 [sub_resource type="Resource" id="cm_inc"]
 resource_name = "crit_multiplier +%"
@@ -56,6 +58,7 @@ operation = 1
 archetype_stat = &"dexterity"
 tags = Array[StringName]([&"dex", &"percent", &"crit"])
 unit_value = 5.0
+range_floor = 1.0
 max_tier = 3
 
 [sub_resource type="Resource" id="Resource_u38nb"]
@@ -63,8 +66,9 @@ resource_name = "crit_chance +"
 script = ExtResource("2_pool")
 stat_id = &"crit_chance"
 archetype_stat = &"dexterity"
-unit_value = 0.02
+unit_value = 0.03
 range_floor = 0.01
+pool_weight = 0.7
 min_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 

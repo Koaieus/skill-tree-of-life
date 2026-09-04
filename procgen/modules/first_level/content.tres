@@ -168,7 +168,7 @@ outer_value = 4.0
 [sub_resource type="Resource" id="bp_main"]
 script = ExtResource("18_ma8p6")
 base_min = 1
-base_max = 3
+base_max = 4
 budget_field = SubResource("budget_field")
 role_bonus = {
 &"anomalous": 1.75

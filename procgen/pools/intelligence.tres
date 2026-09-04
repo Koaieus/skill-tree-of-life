@@ -9,7 +9,8 @@ script = ExtResource("2_pool")
 stat_id = &"intelligence"
 archetype_stat = &"intelligence"
 tags = Array[StringName]([&"int", &"flat"])
-unit_value = 2.0
+unit_value = 10.0
+range_floor = 3.0
 pool_weight = 10.0
 
 [sub_resource type="Resource" id="inc"]
@@ -20,6 +21,7 @@ operation = 1
 archetype_stat = &"intelligence"
 tags = Array[StringName]([&"int", &"percent"])
 unit_value = 7.0
+range_floor = 2.0
 pool_weight = 6.0
 max_tier = 3
 
@@ -31,6 +33,8 @@ operation = 2
 archetype_stat = &"intelligence"
 tags = Array[StringName]([&"int", &"multiply"])
 unit_value = 0.05
+range_floor = 0.01
+pool_weight = 2.0
 min_tier = 3
 
 [sub_resource type="Resource" id="mana"]
@@ -40,7 +44,8 @@ stat_id = &"mana"
 archetype_stat = &"intelligence"
 tags = Array[StringName]([&"int", &"flat", &"magic"])
 unit_value = 1.5
-pool_weight = 4.0
+range_floor = 0.5
+pool_weight = 3.0
 
 [sub_resource type="Resource" id="mpt"]
 resource_name = "mana_per_turn +"
@@ -50,6 +55,7 @@ archetype_stat = &"intelligence"
 tags = Array[StringName]([&"int", &"flat", &"magic"])
 unit_value = 2.0
 range_floor = 1.0
+pool_weight = 1.5
 max_tier = 2
 
 [sub_resource type="Resource" id="Resource_0tuuk"]
@@ -60,6 +66,7 @@ operation = 1
 archetype_stat = &"intelligence"
 unit_value = -2.0
 range_floor = -1.0
+pool_weight = 1.5
 max_tier = 3
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 

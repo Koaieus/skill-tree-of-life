@@ -261,7 +261,7 @@ source_stat_id = &"intelligence"
 breakpoints = Array[float]([50.0, 150.0, 500.0, 1000.0, 5000.0])
 
 [sub_resource type="Resource" id="mod_int_to_spell_hops"]
-resource_name = "+1 spell_hops"
+resource_name = "+1 Spell Hops"
 script = ExtResource("12_3edt8")
 stat_id = &"spell_hops"
 formula = SubResource("formula_int_to_spell_hops")

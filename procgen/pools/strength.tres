@@ -22,7 +22,7 @@ archetype_stat = &"strength"
 tags = Array[StringName]([&"str", &"percent"])
 unit_value = 7.0
 range_floor = 3.0
-pool_weight = 4.0
+pool_weight = 5.0
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
@@ -37,7 +37,7 @@ range_floor = 0.02
 min_tier = 3
 
 [sub_resource type="Resource" id="Resource_u38nb"]
-resource_name = "intelligence -%"
+resource_name = "intelligence +%"
 script = ExtResource("2_pool")
 stat_id = &"intelligence"
 operation = 1
