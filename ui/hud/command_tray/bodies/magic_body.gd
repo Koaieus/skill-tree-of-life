@@ -5,11 +5,46 @@ extends CommandTrayBodyBase
 ## verbatim (mana-cost/lock-state logic already lives there — see #114's
 ## explicit "don't rebuild the spell bar from scratch") + a Launch button
 ## whose label mirrors the currently-equipped spell.
+##
+## [b]The spell bar is bounded, not merely wide (#753).[/b] A [Control] is
+## clamped UP to its combined minimum size, so a row of N fixed 96px buttons
+## used to set this body's min width — and the spellbook grows through loot
+## without bound, which is what shoved the whole tray out from under its slot.
+## The fix is two-part and both halves are load-bearing: [SpellPickerBar] is an
+## [HFlowContainer] (min width = ONE button, overflow wraps to rows), and the
+## rows past [constant MAX_VISIBLE_ROWS] live inside %SpellScroll rather than
+## growing this body further. So a 20-spell book costs exactly the same width
+## and height as a 3-spell one that already wrapped.
+
+## How many wrapped rows of spell buttons the body shows before %SpellScroll
+## starts scrolling instead of growing. Owner call (2026-09-04): "the entire
+## Body is to be ~180px, so stacking two rows of 96px elements offers like
+## negative margins.. maybe 80px is still fine" — hence two rows, and
+## [constant SpellPickerBar.COMPACT_BUTTON_PX] once a second row exists.
+const MAX_VISIBLE_ROWS: int = 2
 
 @onready var _context_label: Label = %ContextLabel
 @onready var _spell_bar: SpellPickerBar = %SpellPickerBar
+@onready var _spell_scroll: ScrollContainer = %SpellScroll
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
+
+
+## Wired here rather than in [method _on_bound] because it is pure layout —
+## it must hold in the editor and in a test that never calls [method bind].
+func _ready() -> void:
+	_spell_bar.layout_changed.connect(_on_bar_layout_changed)
+	_on_bar_layout_changed(_spell_bar.get_row_count(), _spell_bar.get_button_px())
+
+
+## Size the scroll viewport to the rows we actually show, capped at
+## [constant MAX_VISIBLE_ROWS]. Growing to a second row lifts the tray a little
+## over the graph (it is bottom-anchored), which is fine; a third row must not,
+## so past the cap the extra rows scroll.
+func _on_bar_layout_changed(row_count: int, button_px: float) -> void:
+	var shown := clampi(row_count, 1, MAX_VISIBLE_ROWS)
+	var h := shown * button_px + (shown - 1) * SpellPickerBar.V_SEPARATION
+	_spell_scroll.custom_minimum_size = Vector2(0.0, h)
 
 
 func _on_bound() -> void:

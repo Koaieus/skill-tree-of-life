@@ -2,7 +2,10 @@
 
 [ext_resource type="Script" uid="uid://daqkkbb3ghsh5" path="res://ui/spell_picker_bar/spell_picker_bar.gd" id="1_picker"]
 
-[node name="SpellPickerBar" type="HBoxContainer" unique_id=1887436598]
+[node name="SpellPickerBar" type="HFlowContainer" unique_id=1887436598]
+custom_minimum_size = Vector2(96, 0)
 size_flags_horizontal = 4
 size_flags_vertical = 8
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 4
 script = ExtResource("1_picker")

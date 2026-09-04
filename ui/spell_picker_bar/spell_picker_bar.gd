@@ -1,5 +1,5 @@
 class_name SpellPickerBar
-extends HBoxContainer
+extends HFlowContainer
 
 ## Renders the player [SpellBook] as a row of [SpellPickerButton]s. Selecting
 ## one routes through [signal spell_selected] which UIRoot forwards to
@@ -16,10 +16,48 @@ extends HBoxContainer
 ## more, so the gate asks [method SpellBook.eligible_sources] instead — the same
 ## predicate [SpellTargetUnion] builds its source set from, so the picker and
 ## the highlights can never disagree about whether a spell is castable.
+##
+## [b]Why [HFlowContainer] and not [HBoxContainer] (#753).[/b] A [Control]'s rect
+## is clamped UP to [method Control.get_combined_minimum_size], so anchors lose
+## to content min size. An HBox of N fixed 96px buttons has a min width of
+## [code]N * 96 + (N - 1) * sep[/code], and the spellbook grows through loot
+## without bound — at 8 spells that is already 824px, which shoved the whole
+## Command Tray out from under its slot. A flow container's min width is ONE
+## button, so the bar can never widen the tray again no matter how big the book
+## gets; overflow becomes rows, and the owning body caps those rows at two and
+## scrolls past them.
+##
+## [b]No layout feedback loop.[/b] [method _relayout] picks the button size from
+## the bar's *available* width ([member Control.size].x, handed down by the
+## tray) versus what the book would need at full size — never from the bar's own
+## minimum size. The .tscn pins [member Control.custom_minimum_size].x at
+## [constant FULL_BUTTON_PX] so the min width is a constant that the chosen
+## button size cannot move, which is what makes the decision a pure function of
+## (available width, spell count) rather than a fixed-point search.
 
 signal spell_selected(spell: SpellDef)
 
+## Emitted when [method _relayout] settles on a different row count or button
+## size. [MagicBody] listens so it can size the scroll viewport to at most
+## [constant MagicBody.MAX_VISIBLE_ROWS] rows of whatever size was chosen.
+signal layout_changed(row_count: int, button_px: float)
+
 const _SpellPickerButton := preload("res://ui/spell_picker_bar/spell_picker_button.tscn")
+
+## Button edge while the whole book fits on one row.
+const FULL_BUTTON_PX: float = 96.0
+
+## Button edge once the book has to wrap. Owner call (2026-09-04): the Magic
+## body is ~180px tall, so two rows of 96 would overflow it — 80 fits.
+const COMPACT_BUTTON_PX: float = 80.0
+
+## Horizontal gap between buttons; mirrors the `h_separation` theme constant the
+## .tscn authors. Kept as a const because the wrap arithmetic needs it before
+## the theme has necessarily resolved (headless, pre-first-frame).
+const H_SEPARATION: int = 8
+
+## Vertical gap between wrapped rows.
+const V_SEPARATION: int = 4
 
 var _group: ButtonGroup
 var _book: SpellBook = null
@@ -40,10 +78,18 @@ var _gating_attacker: Entity = null
 # dims and all buttons go uninteractive — UI cue for "no action points left".
 var _act_enabled: bool = true
 
+# Last values [method _relayout] settled on, so a re-run that changes nothing
+# stays silent. `_layout_published` forces the first emit even when the initial
+# (0 rows, 96px) happens to match these defaults.
+var _row_count: int = 0
+var _button_px: float = FULL_BUTTON_PX
+var _layout_published: bool = false
+
 
 func _ready() -> void:
 	_group = ButtonGroup.new()
 	_group.allow_unpress = false
+	resized.connect(_relayout)
 
 
 ## Bind to the player's spellbook. Replaces any previous binding.
@@ -114,6 +160,63 @@ func _rebuild() -> void:
 		add_child(btn)
 		_buttons_by_spell[spell] = btn
 	_refresh_gating()
+	_relayout()
+
+
+## Number of wrapped rows the current book occupies at the current width.
+func get_row_count() -> int:
+	return _row_count
+
+
+## The button edge currently in force — [constant FULL_BUTTON_PX] or
+## [constant COMPACT_BUTTON_PX].
+func get_button_px() -> float:
+	return _button_px
+
+
+## Pick the button size from the width the tray is actually giving us, then
+## republish the resulting row count. Runs on every resize and after every
+## rebuild; both are safe re-entry points because the result depends only on
+## (available width, live spell count) and applying it cannot change either —
+## see this class's top docstring on why there is no feedback loop.
+##
+## Idempotent by construction: a second pass over an unchanged (width, count)
+## computes the same size, finds nothing to write, and emits nothing.
+func _relayout() -> void:
+	var buttons := _live_buttons()
+	var count := buttons.size()
+	var px := FULL_BUTTON_PX
+	if count > 1:
+		var needed := count * FULL_BUTTON_PX + (count - 1) * H_SEPARATION
+		# size.x is 0 before the first layout pass (and in headless tests);
+		# that reads as "too narrow", which is the safe/bounded branch.
+		if size.x < needed:
+			px = COMPACT_BUTTON_PX
+	var per_row := 1
+	if count > 0:
+		per_row = maxi(1, int(floorf((size.x + H_SEPARATION) / (px + H_SEPARATION))))
+	var rows := 0 if count == 0 else int(ceilf(float(count) / float(per_row)))
+	var px_changed := not is_equal_approx(px, _button_px)
+	if px_changed:
+		for btn in buttons:
+			btn.custom_minimum_size = Vector2(px, px)
+	if _layout_published and not px_changed and rows == _row_count:
+		return
+	_button_px = px
+	_row_count = rows
+	_layout_published = true
+	layout_changed.emit(rows, px)
+
+
+## Children minus the ones [method _rebuild] has already queued for deletion —
+## they linger in [method Node.get_children] until the frame ends and would
+## double the count the wrap arithmetic sees.
+func _live_buttons() -> Array[SpellPickerButton]:
+	var out: Array[SpellPickerButton] = []
+	for child in get_children():
+		if child is SpellPickerButton and not child.is_queued_for_deletion():
+			out.append(child as SpellPickerButton)
+	return out
 
 
 ## Three independent per-spell gates (#743, #728):
