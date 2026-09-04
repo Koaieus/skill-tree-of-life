@@ -753,9 +753,13 @@ godot --headless --path . -- --lobby=client --address=127.0.0.1 --port=9412 --au
 
 **`--autoplay` is the host handing every human seat to the AI.** At the first
 `turn_started`, `GameRoot._autoplay_every_human_seat` walks the roster and calls
-`take_seat_with_ai` on every `Participant.Kind.HUMAN` — the same primitive the
-peer-left path uses (#753), minus the "somebody left" HUD announcement, which is
-the only reason that method was split in two. **The client acts on nothing**: it
+`hand_seat_to_ai` on every `Participant.Kind.HUMAN` — the peer-left path's own
+primitive (#753/#755), unchanged, so the handover is BROADCAST and the mirror's
+roster learns the seat is the AI's rather than believing a human still holds it.
+The flag suppresses exactly one thing, in `_adopt_seat_handover` and on both
+peers: the "somebody left" announcement. Nobody left, and a HUD saying otherwise
+would be the harness lying about the run it is checking.
+**The client acts on nothing**: it
 is a mirror, its hero is driven by the host's confirmed commands, and a second
 AI deciding locally is exactly the divergence this run exists to detect. The
 flag reaches the client anyway, for the zero AI turn delay and its own verdict
