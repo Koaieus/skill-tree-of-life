@@ -337,6 +337,7 @@ func _ready() -> void:
 		victory_system.world_ready = true
 
 	_announce_first_turn_for_rung_3()
+	_arm_rung_4()
 	if auto_start_turn and player != null and turn_manager != null:
 		# Skip the initial tick race: fill the player's clock so they act first.
 		# (start_turn clears the ready-group membership this would otherwise set.)
@@ -366,10 +367,7 @@ func _ready() -> void:
 ## exported build and every test print nothing and parse nothing.
 ## `""` unless this process was launched by `meta_root`'s `--lobby=` driver.
 static func _rung_3_role() -> String:
-	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--lobby="):
-			return arg.trim_prefix("--lobby=")
-	return ""
+	return HarnessFlags.value(HarnessFlags.LOBBY)
 
 
 func _announce_first_turn_for_rung_3() -> void:
@@ -381,12 +379,115 @@ func _announce_first_turn_for_rung_3() -> void:
 			role,
 			entity.display_name if entity != null else "<none>",
 			graph.get_skill_nodes().size(),
-			"authority" if command_link == null or command_link.mode != CommandLink.Mode.MIRROR
-					else "mirror",
+			"authority" if _is_network_authority() else "mirror",
 			seat_policy.seated_entity_id,
 			WorldFingerprint.describe(graph),
 		])
 	turn_manager.turn_started.connect(announce, CONNECT_ONE_SHOT)
+
+
+## --- Rung 4: the run plays itself and says how it ended (#754) ----------------
+##
+## Rung 3 proves two processes reach the same first turn. Rung 4 keeps the same
+## two processes going to a VERDICT — the host hands every human seat to the AI,
+## both ends print one greppable line when [signal Events.run_ended] fires, and
+## both quit so `mise run mp:e2e` can compare the two logs and exit on the
+## difference. See `docs/domain/multiplayer-harness.md`.
+##
+## Everything here is behind `--autoplay` on top of the rung-3 flag, so an
+## ordinary launch, an exported build and the GUT suite are untouched.
+
+## Entity-turns (NOT rounds — [member TurnManager.turns_taken] counts each
+## entity's turn) an autoplay run may spend before it is declared a timeout.
+## Two heroes on the smallest map settle in well under this; the number is a
+## hang detector, not a balance claim, and `--max-turns=N` overrides it.
+const _RUNG4_MAX_TURNS := 400
+
+## Exit code a timed-out autoplay run quits with — distinct from the 1 the
+## engine uses for its own failures, so the harness can tell "the run never
+## ended" from "the process fell over".
+const _RUNG4_TIMEOUT_EXIT := 2
+
+
+func _arm_rung_4() -> void:
+	var role := _rung_3_role()
+	if role.is_empty() or turn_manager == null or not HarnessFlags.has(HarnessFlags.AUTOPLAY):
+		return
+	Events.run_ended.connect(_announce_verdict_for_rung_4.bind(role), CONNECT_ONE_SHOT)
+	var cap := HarnessFlags.number(HarnessFlags.MAX_TURNS, _RUNG4_MAX_TURNS)
+	turn_manager.turn_started.connect(func(_e: Entity) -> void: _watch_turn_cap(role, cap))
+	if not _is_network_authority():
+		# A mirror needs nothing: its own hero is driven by the authority's
+		# confirmed commands, and a second AI deciding locally is exactly the
+		# divergence this run exists to detect.
+		return
+	# Deferred out of the emission: the handover kicks the current entity's turn
+	# ([method hand_seat_to_ai]), and doing that from inside `turn_started`
+	# would re-enter the turn loop underneath the signal that started it.
+	turn_manager.turn_started.connect(
+			func(_e: Entity) -> void: _autoplay_every_human_seat.call_deferred(role),
+			CONNECT_ONE_SHOT)
+
+
+## The host's half of `--autoplay`: every HUMAN seat becomes the AI's.
+##
+## No new mechanism — this is the peer-left handover (#753/#755) invoked
+## deliberately rather than on a dropped socket, which is what makes it worth
+## reusing: the AI's turns cross the wire as ordinary confirmed commands, so the
+## client is exercised as a mirror of a real opponent, not as a process running
+## its own copy of the same policy, and #755's broadcast means the mirror's own
+## roster learns the seat is the AI's rather than believing a human still holds
+## it.
+func _autoplay_every_human_seat(role: String) -> void:
+	if GameSession.roster == null:
+		return
+	var seated := 0
+	for p in GameSession.roster.all():
+		if p.kind == Participant.Kind.HUMAN:
+			hand_seat_to_ai(p)
+			seated += 1
+	print("[%s] rung 4: autoplay — %d human seat(s) handed to the AI" % [role, seated])
+
+
+## One line per process on `run_ended`, and then out.
+##
+## [b]Nothing is awaited before the print.[/b] [method _on_run_ended] routes to
+## the meta-shell after [member run_end_route_delay], and routing tears this
+## graph down — a fingerprint sampled after that would describe a world that no
+## longer exists and mismatch its peer for a reason that is not a sync bug.
+##
+## [member RunOutcome.winning_camp] is null on a DRAW, and the camp's
+## [member Faction.id] is what crosses (a `.tres` path resolves per machine, a
+## display name is presentation) — so the two logs compare as plain strings.
+func _announce_verdict_for_rung_4(outcome: RunOutcome, role: String) -> void:
+	print("[%s] RUNG4 VERDICT — winner=%s | turns=%d | %s" % [
+		role,
+		"draw" if outcome == null or outcome.winning_camp == null
+				else String(outcome.winning_camp.id),
+		0 if outcome == null else outcome.turn_count,
+		WorldFingerprint.describe(graph),
+	])
+	get_tree().quit(0)
+
+
+## The hang detector. A run that cannot end — a stalled turn loop, an AI with
+## nothing legal to do, a victory condition that never fires — must fail loudly
+## and on its own, rather than being killed by the harness's wall clock, because
+## only this side knows how far it actually got.
+func _watch_turn_cap(role: String, cap: int) -> void:
+	if turn_manager.turns_taken < cap:
+		return
+	print("[%s] RUNG4 TIMEOUT — %d entity-turns spent, cap %d | %s" % [
+		role, turn_manager.turns_taken, cap, WorldFingerprint.describe(graph),
+	])
+	get_tree().quit(_RUNG4_TIMEOUT_EXIT)
+
+
+## Is this process the one that decides, rather than one that is told? The same
+## question [CommandApplier.is_authority] answers, asked from the level: a
+## missing link is an offline run, which is its own authority.
+func _is_network_authority() -> bool:
+	return command_link == null or command_link.mode != CommandLink.Mode.MIRROR
 
 
 ## The drain (#504, design B). An attack's world mutation is spread across a
@@ -692,6 +793,7 @@ func hand_seat_to_ai(participant: Participant) -> void:
 		ent.add_child(ai)
 	if turn_manager != null and turn_manager.current_entity == ent:
 		ai.take_turn()
+	return ent
 
 
 ## Mirror-side entry for the same handover, off
@@ -734,7 +836,14 @@ func _adopt_seat_handover(participant: Participant) -> Entity:
 		return null
 	ent.is_human_controlled = false
 	_apply_seat_vision()
-	if hud_root != null:
+	# ...but NOT the announcement, when the handover was asked for rather than
+	# forced (#754). `--autoplay` hands both seats over on purpose and nobody
+	# left; a HUD crying that somebody did would be the harness lying about the
+	# very run it is checking. Read from the flag rather than passed down as an
+	# argument because this method is also the MIRROR's entry
+	# ([method _on_seat_handover]), which is told a seat changed hands and never
+	# why — and both processes carry the flag.
+	if hud_root != null and not HarnessFlags.has(HarnessFlags.AUTOPLAY):
 		hud_root.announce_peer_left(ent.display_name)
 	return ent
 

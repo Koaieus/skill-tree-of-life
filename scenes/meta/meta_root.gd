@@ -338,32 +338,50 @@ func _host_panel() -> HostPanel:
 # Two OS processes driving the REAL menu route — no scene argument, nothing
 # stubbed. What it proves, why it is on `turn_started`, and why both halves read
 # nothing without the flag: `docs/domain/multiplayer-harness.md`, "Rung 3".
-const _RUNG3_FLAG := "--lobby="
 ## Frames rung 3's host will wait for the joiner to clear the build gate and take
 ## its seat — ~10s at 60fps, generous next to a LAN hello round trip.
 const _RUNG3_SEAT_FRAMES := 600
 
+## The ladder index rung 4's autoplay host presses on the Map size row — the
+## FIRST rung of the authored ladder, whatever it is worth today (100 nodes as
+## authored, `ui/frontmatter/lobby_options/map_size_options.tres`). Deliberately
+## an index rather than a node count: the smallest option is a fact about the
+## ladder, and pinning the number here would silently stop being the smallest
+## the day the ladder is retuned. Autoplay wants it because the run is a
+## correctness check on the shipped route, and a default 800-node map spends
+## minutes of procgen and hundreds of turns proving nothing extra.
+const _AUTOPLAY_MAP_SIZE_INDEX := 0
+## AI opponents an autoplay run seats: none. The two HUMAN seats are what rung 4
+## is about — one per process, both handed to the AI by [method
+## GameRoot.hand_seat_to_ai] — so a third camp of NPCs would only lengthen the
+## run and blur which camp's victory is being agreed on.
+const _AUTOPLAY_AI_OPPONENTS := 0
+
 
 func _drive_lobby_from_cmdline() -> void:
-	var role := ""
-	var address := NetworkConfig.DEFAULT_ADDRESS
-	var port := NetworkConfig.DEFAULT_PORT
-	for arg in OS.get_cmdline_user_args():
-		var pair := arg.trim_prefix("--").split("=", true, 1)
-		if pair.size() != 2:
-			continue
-		match pair[0]:
-			"lobby":
-				role = pair[1]
-			"address":
-				address = pair[1]
-			"port":
-				port = int(pair[1])
+	var role := HarnessFlags.value(HarnessFlags.LOBBY)
+	var address := HarnessFlags.value(HarnessFlags.ADDRESS, NetworkConfig.DEFAULT_ADDRESS)
+	var port := HarnessFlags.number(HarnessFlags.PORT, NetworkConfig.DEFAULT_PORT)
 	if role.is_empty():
 		return
 	print("[%s] rung 3: driving the lobby from the command line" % role)
+	if HarnessFlags.has(HarnessFlags.AUTOPLAY):
+		# Both ends, and before any level exists: [AIController] reads this at
+		# its own `_ready` and tracks it through `Settings.changed` afterwards,
+		# so the door has to be `set_value` rather than a write to `current`.
+		# In memory only — [Settings] persists on an explicit save, which
+		# nothing on this path calls, so a harness run cannot rewrite the
+		# desktop's own `user://settings.cfg`.
+		Settings.set_value(&"ai_turn_delay", 0.0)
 	if role == "host":
 		_on_host_requested(port)
+		# AFTER the route that opens the socket, and said out loud because it is
+		# the only moment a launcher can safely start the joiner: a client that
+		# dials before this line gets a refused connection, and a launcher that
+		# instead sleeps a fixed number of seconds is a flaky test waiting for a
+		# slower machine. `mise run mp:e2e` blocks on exactly this string.
+		print("[%s] rung 3: listening on port %d" % [role, port])
+		_apply_autoplay_preset()
 		# The host presses START once a human has actually arrived — which is the
 		# whole thing under test: the seat was authored up front so procgen could
 		# see it, and only its identity was outstanding.
@@ -401,3 +419,35 @@ func _press_start_when_seated(_peer_id: int) -> void:
 		return
 	print("[host] rung 3: peer seated — pressing START")
 	screen._on_start_button_pressed()
+
+
+## Rung 4's small preset (#754 item 4), pressed on the same rows a human would
+## and only under `--autoplay`.
+##
+## [b]Not a hidden procgen path.[/b] The whole claim rung 4 makes is that the
+## SHIPPED lobby route produces two agreeing worlds, so the run it drives has to
+## be a run a host could have set up by hand — a back door that wrote a
+## [RunConfig] directly would prove the back door works. It is also the first
+## thing on this route that crosses a lobby OVERRIDE to the joiner: rung 3
+## touches no row, and #643 acceptance 5 means an untouched row writes nothing,
+## so until now no [ScenarioOverride] had ever been over a real socket.
+##
+## [b]Applied the instant the lobby opens, never at START.[/b] Changing the AI
+## count REBUILDS the roster from scratch ([method
+## LobbyScreen._rebuild_participants]), and every rebuilt remote seat is born
+## back on [constant LobbyScreen._PENDING_PEER_ID] — so the same call made after
+## the join would silently discard the very peer id
+## [method _press_start_when_seated] spent ten seconds waiting for, and START
+## would broadcast a roster the joiner cannot find itself in. Before anybody has
+## joined there is nothing to discard.
+func _apply_autoplay_preset() -> void:
+	if not HarnessFlags.has(HarnessFlags.AUTOPLAY):
+		return
+	var lobby := _lobby_panel()
+	if lobby == null or lobby.screen == null:
+		push_error("rung 4: no lobby to preset")
+		return
+	var screen: LobbyScreen = lobby.screen
+	screen.set_ai_opponents(_AUTOPLAY_AI_OPPONENTS)
+	screen.pick_option(LobbyScreen.KNOB_MAP_SIZE, _AUTOPLAY_MAP_SIZE_INDEX)
+	print("[host] rung 4: autoplay preset — smallest map, %d AI opponents" % _AUTOPLAY_AI_OPPONENTS)

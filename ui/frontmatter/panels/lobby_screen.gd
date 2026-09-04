@@ -1006,6 +1006,52 @@ func _on_option_picked(index: int, knob: StringName) -> void:
 	_picked_options[knob] = index
 
 
+## Make a ladder pick from code, exactly as a host clicking the row would
+## (#754): the widget moves AND [member _picked_options] records it, so the
+## pick reaches [method build_run_config] as a real override rather than a
+## dropdown that merely looks changed.
+##
+## Both halves are needed and neither is redundant. [method
+## OptionChoiceRow.set_value] deliberately does not emit — it is the
+## rebuild-survival view — so the record has to be written here; and writing
+## only the record would leave the visible row disagreeing with the run about to
+## start, which is the kind of lie a harness driving the SHIPPED route exists to
+## avoid. A knob whose ladder its policy never unlocked has no row; the pick is
+## still recorded, and [method _append_ladder_overrides] drops it for want of an
+## option set, which is the same answer that knob gives a human.
+func pick_option(knob: StringName, index: int) -> void:
+	var row := _ladder_row(knob)
+	if row != null:
+		row.set_value(index)
+	_on_option_picked(index, knob)
+
+
+## Set the AI-opponent count from code, as moving the slider would. Unlike
+## [method pick_option] this needs no second write: [method AiCountRow.set_value]
+## drives the real control, whose `value_changed` this screen is already
+## listening to, so the roster rebuild happens on its own. Silently ignored on a
+## route that offers no such control — a client's count is the host's to choose.
+func set_ai_opponents(count: int) -> void:
+	if _ai_count_row != null:
+		_ai_count_row.set_value(count)
+
+
+func _ladder_row(knob: StringName) -> OptionChoiceRow:
+	match knob:
+		KNOB_MAP_SIZE:
+			return _map_size_row
+		KNOB_ARRANGEMENT:
+			return _arrangement_row
+		KNOB_VICTORY:
+			return _victory_row
+		KNOB_SPAWN_ORDER:
+			return _spawn_order_row
+		KNOB_BLOCKERS:
+			return _blocker_row
+		_:
+			return null
+
+
 ## The host retuned the budget. Recorded as a `[min, max]` pair under one knob
 ## rather than two, because they are one control and one decision: a run tuned
 ## to "go HAM" moved both ends.
