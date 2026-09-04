@@ -17,7 +17,7 @@ var _entity: Entity
 ## skill_points.claim(1) runs per force_allocate below, growing the pool cap by
 ## 1 per owned node — a fixture side effect, not a Ninja stat. Captured right
 ## after core_class.apply() so test_statline reads the class's own delta.
-var _skill_points_before_allocation: float
+var _wisdom_before_allocation: float
 
 
 func before_each() -> void:
@@ -46,7 +46,7 @@ func before_each() -> void:
 	_entity.core_class = _NINJA
 	_graph.add_child(_entity)  # _ready → core_class.apply() grants modifiers + aura
 	await get_tree().process_frame
-	_skill_points_before_allocation = _entity.stat_board.skill_points.get_value()
+	_wisdom_before_allocation = _entity.stat_board.wisdom.get_value()
 
 	# Mirror GameRoot.spawn_entity's order: force_allocate the core node, THEN
 	# assign core_location (the setter is what re-derives the aura — see
@@ -64,7 +64,12 @@ func test_statline() -> void:
 	assert_eq(b.intelligence.get_value(), 20.0)
 	# DP buff is level-scaled (+1 per 5 levels) — a level-1 entity sees none yet.
 	assert_eq(b.deallocation_points.get_value(), 3.0, "3 base + 0 class at level 1: formula hasn't kicked in")
-	assert_eq(_skill_points_before_allocation, 0.0, "3 base - 3 class: stays compact")
+	# The class's cost was a `skill_points -3` cap until `1aa8f29` retuned it to
+	# `wisdom x0.5` — same idea (the Phantom pays for its tempo), different
+	# currency. Content invariant, not a value pin (#719): what must survive a
+	# retune is that the bundled cost REACHES the board at all.
+	assert_lt(_wisdom_before_allocation, 10.0,
+			"the class's bundled cost still bites: base wisdom 10, halved by the budget pack")
 
 
 ## Isolates the aura's own contribution from the class's baseline blade_damage

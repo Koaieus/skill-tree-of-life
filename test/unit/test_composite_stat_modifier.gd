@@ -194,14 +194,19 @@ func test_looted_composite_applied_flattened_to_board() -> void:
 func test_ninja_budget_pack_applies_both_stats_through_the_bundle() -> void:
 	var board := _BOARD.duplicate(true) as EntityStatBoard
 	var dp_before: float = board.deallocation_points.get_value()
-	var sp_before: float = board.skill_points.get_value()
+	var wis_before: float = board.wisdom.get_value()
 	for m in _NINJA.modifiers:
 		board.add_modifier(m.duplicate(true))
 	# DP buff is level-scaled (+1 per 5 levels) — a level-1 board sees none yet.
 	assert_eq(board.deallocation_points.get_value(), dp_before + 0.0,
 			"the bundled DP buff still reaches the board")
-	assert_eq(board.skill_points.get_value(), sp_before - 3.0,
-			"the bundled SP tax still reaches the board — you can't cherry-pick the buff")
+	# The bundled cost was `skill_points -3` until `1aa8f29` retuned it to
+	# `wisdom x0.5`. The invariant this test exists for is unchanged and is not
+	# about which stat pays: a composite applies ALL its children, so you cannot
+	# take the buff without the tax. Asserted as a content invariant rather than
+	# a pinned magnitude (#719) so the next retune of the same knob stays green.
+	assert_lt(board.wisdom.get_value(), wis_before,
+			"the bundled wisdom tax still reaches the board — you can't cherry-pick the buff")
 
 
 func test_ninja_budget_pack_is_a_single_lootable_unit() -> void:
