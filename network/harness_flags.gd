@@ -42,9 +42,16 @@ const MAX_TURNS := "max-turns"
 ## Last occurrence wins, matching what a shell user expects from repeating a
 ## flag, and unrelated arguments are skipped rather than rejected — the harness
 ## shares argv with whatever else a launcher appends.
-static func value(name: String, fallback: String = "") -> String:
+##
+## [param args] defaults to this process's own tail and exists so the scan can
+## be tested: a parser whose only input is the real argv can only be checked by
+## launching a process, which is precisely the cost this class is here to keep
+## out of the suite.
+static func value(
+	name: String, fallback: String = "", args: PackedStringArray = OS.get_cmdline_user_args()
+) -> String:
 	var found := fallback
-	for arg in OS.get_cmdline_user_args():
+	for arg in args:
 		var body := arg.trim_prefix("--")
 		if body == name:
 			found = ""
@@ -53,14 +60,18 @@ static func value(name: String, fallback: String = "") -> String:
 	return found
 
 
-## Is the flag present at all, in either form?
-static func has(name: String) -> bool:
-	return value(name, " ") != " "
+## Is the flag present at all, in either form? The sentinel is a space, which no
+## shell word can be — a bare `--autoplay` yields `""`, so "absent" and "present
+## with no value" cannot be told apart by an empty-string check.
+static func has(name: String, args: PackedStringArray = OS.get_cmdline_user_args()) -> bool:
+	return value(name, " ", args) != " "
 
 
 ## `--<name>=<int>`, or [param fallback] when absent or not a number. A flag
 ## given without a value keeps the fallback too: `--max-turns` with nothing
 ## after it is a typo, and a silent `0` would end the run before it began.
-static func number(name: String, fallback: int) -> int:
-	var raw := value(name)
+static func number(
+	name: String, fallback: int, args: PackedStringArray = OS.get_cmdline_user_args()
+) -> int:
+	var raw := value(name, "", args)
 	return fallback if not raw.is_valid_int() else int(raw)

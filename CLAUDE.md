@@ -45,6 +45,8 @@ mise run test:dir -- res://test/unit/          # a directory
 mise run check                                 # headless compile-check of every script + shader
 mise run check-shaders                         # the shader half alone: compile-checks every .gdshader in the tree
 mise run refresh                               # editor/class-cache refresh + a verdict on what it changed
+mise run mp:e2e                                # two processes play the shipped lobby to a verdict
+                                               # (~30s) — the gate for network/ session/ command/
 ```
 
 The full suite costs **~215s** (409 scripts, 3807 tests, 2026-09-04) — a

@@ -212,3 +212,68 @@ func test_the_probe_flag_by_contrast_stays_client_only() -> void:
 	assert_false(Array(host).has("--probe"),
 			"a host receives nothing to re-derive, so the probe there measures an empty table")
 	assert_true(Array(client).has("--probe"), "the mirroring peer is the one that can measure")
+
+
+## --- Rungs 3/4: the shipped lobby route (#754) --------------------------------
+##
+## The launcher's third row takes NO scene. Everything below is one property:
+## the command line it builds must be the one `MetaRoot`'s `--lobby=` driver
+## reads, because those two files are the only agreement there is — a scene
+## positional or a `--role=` here produces a process that boots the menu and
+## then sits on it forever, which looks exactly like a hung link.
+
+
+func test_the_lobby_route_passes_no_scene() -> void:
+	var panel: PanelContainer = await _panel()
+
+	var host: PackedStringArray = panel.build_args(
+			NetworkTransport.Role.HOST, panel.LOBBY_ROUTE)
+
+	var separator := Array(host).find("--")
+	assert_gt(separator, 0, "there is still a `--`")
+	for arg in Array(host).slice(0, separator):
+		assert_false(String(arg).ends_with(".tscn"),
+				"no scene before the separator — rungs 3/4 boot `run/main_scene`")
+
+
+func test_the_lobby_route_asks_for_a_lobby_role_not_a_scene_role() -> void:
+	var panel: PanelContainer = await _panel()
+
+	var host: PackedStringArray = panel.build_args(
+			NetworkTransport.Role.HOST, panel.LOBBY_ROUTE)
+	var client: PackedStringArray = panel.build_args(
+			NetworkTransport.Role.CLIENT, panel.LOBBY_ROUTE)
+
+	assert_true(Array(host).has("--lobby=host"))
+	assert_true(Array(client).has("--lobby=client"))
+	assert_false(Array(host).has("--role=host"),
+			"`--role` is what a sandbox SCENE reads; nothing on this route would see it")
+
+
+## The same toggle, a different word — and the word has to be the one
+## `HarnessFlags.AUTOPLAY` names, or the pair plays nothing and the run never
+## ends.
+func test_the_autopilot_toggle_spells_itself_autoplay_on_the_lobby_route() -> void:
+	var panel: PanelContainer = await _panel()
+	panel.get_node("%AutopilotToggle").button_pressed = true
+
+	var host: PackedStringArray = panel.build_args(
+			NetworkTransport.Role.HOST, panel.LOBBY_ROUTE)
+	var client: PackedStringArray = panel.build_args(
+			NetworkTransport.Role.CLIENT, panel.LOBBY_ROUTE)
+
+	assert_true(Array(host).has("--autoplay"), "the host is the one that hands the seats over")
+	assert_true(Array(client).has("--autoplay"),
+			"and the client, which reads it for the zero AI turn delay and its own verdict line")
+	assert_false(Array(host).has("--autopilot"), "the sandbox-scene spelling stays on the scenes")
+
+
+func test_a_scene_rung_is_untouched_by_all_of_this() -> void:
+	var panel: PanelContainer = await _panel()
+	panel.get_node("%AutopilotToggle").button_pressed = true
+
+	var host: PackedStringArray = panel.build_args(NetworkTransport.Role.HOST, MP_SANDBOX)
+
+	assert_true(Array(host).has(MP_SANDBOX))
+	assert_true(Array(host).has("--role=host"))
+	assert_true(Array(host).has("--autopilot"))

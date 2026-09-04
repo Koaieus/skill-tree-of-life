@@ -21,6 +21,16 @@ mise run test -- -gselect=melee                     # raw GUT flags pass through
 
 Config lives in `.gutconfig.json` at repo root (dirs, log level, exit-on-completion).
 
+**`mise run mp:e2e` is the gate for anything under `network/`, `session/` or
+`command/`, and GUT cannot replace it.** It is rung 4 of the multiplayer harness
+(#754): two headless OS processes drive the shipped lobby over a real socket,
+autoplay a whole run, and are compared on winner, turn count, both fingerprints
+and the mirror's mid-run divergence count. ~30s. It is a `mise` task rather than
+a test because two worlds cannot share one `SceneTree` once turns tick
+(`Entity.GROUP` is tree-wide) and because a suite is not where a 30s wall-clock
+run belongs. Read the failure, not just the exit code — it names *which* of the
+six agreements broke. See `docs/domain/multiplayer-harness.md`, "Rung 4".
+
 The task prints a verdict (counts, each failing test's first assert + line,
 pending, parse-error alarms) and **always keeps the full console output at
 `.godot/gut-last.log`**, junit XML beside it. That log is written **live**

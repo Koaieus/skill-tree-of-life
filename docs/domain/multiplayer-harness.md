@@ -732,6 +732,73 @@ hands its link back at START. Refusal is a `push_warning` plus an
 `ERR_ALREADY_IN_USE` return, never a `push_error`: GUT counts a `push_error` as
 an unexpected error.
 
+## Rung 4: the run plays itself, and the two processes are compared (#754)
+
+Rung 3 stops at the first turn. Rung 4 keeps the same two processes going to a
+**verdict**, and is the first automated coverage the wire has ever had past
+turn one:
+
+```
+mise run mp:e2e                     # the whole thing: spawn, play, compare
+mise run mp:e2e -- --max-turns 80   # entity-turns, not rounds
+```
+
+which is `.mise/tasks/mp/e2e` spawning rung 3's own command line plus
+`--autoplay`:
+
+```
+godot --headless --path . -- --lobby=host   --port=9412 --autoplay
+godot --headless --path . -- --lobby=client --address=127.0.0.1 --port=9412 --autoplay
+```
+
+**`--autoplay` is the host handing every human seat to the AI.** At the first
+`turn_started`, `GameRoot._autoplay_every_human_seat` walks the roster and calls
+`take_seat_with_ai` on every `Participant.Kind.HUMAN` — the same primitive the
+peer-left path uses (#753), minus the "somebody left" HUD announcement, which is
+the only reason that method was split in two. **The client acts on nothing**: it
+is a mirror, its hero is driven by the host's confirmed commands, and a second
+AI deciding locally is exactly the divergence this run exists to detect. The
+flag reaches the client anyway, for the zero AI turn delay and its own verdict
+line.
+
+**The small preset is pressed on the same rows a human would.**
+`MetaRoot._apply_autoplay_preset` picks the smallest rung of the Map size ladder
+and sets the AI-opponent count to zero, through `LobbyScreen.pick_option` /
+`set_ai_opponents` — public doors that move the widget *and* record the pick, so
+`build_run_config` sees a real override. Two consequences worth knowing:
+
+- it is applied **before anybody joins**, because changing the AI count rebuilds
+  the roster and every rebuilt remote seat is born back on `_PENDING_PEER_ID` —
+  the same call made after the join would discard the peer id the host just
+  spent ten seconds waiting for;
+- it is the **first lobby override ever to cross a real socket**. Rung 3 touches
+  no row, and #643 acceptance 5 means an untouched row writes nothing, so until
+  rung 4 no `ScenarioOverride` had been over the wire at all.
+
+**Both ends print one greppable line and quit.** `RUNG4 VERDICT — winner=<camp
+id> | turns=<n> | <fingerprint>` on `Events.run_ended`, synchronously and
+before anything is awaited: `GameRoot._on_run_ended` routes to the meta-shell
+after `run_end_route_delay`, and routing tears the graph down, so a fingerprint
+sampled a moment later would describe a world that no longer exists. A run that
+cannot end instead spends its `--max-turns` budget (default 400 **entity**-turns
+— `TurnManager.turns_taken` counts each entity's turn, not rounds) and prints
+`RUNG4 TIMEOUT`, quitting **2** so the task can tell "never ended" from "fell
+over".
+
+**What `mise run mp:e2e` asserts, and why it is six lines rather than one
+fingerprint compare.** Both processes exit 0 · both printed a verdict · same
+winner and turn count · same first-turn fingerprint · **no mid-run divergence**
+· same run-end fingerprint. The fifth is the one that matters and the one a
+naive fingerprint compare misses entirely: the host *watches* for divergence and
+force-overwrites the mirror with a whole snapshot whenever it finds any, so two
+peers that disagree every single turn still end up holding similar worlds.
+**A repaired run is not a synced run**, and the count of `✗ DIVERGED` lines in
+the client's log is what says so. (The one at link-up is excluded — a joining
+client holds no world, so its fold cannot match.)
+
+**It does not close #665.** Same binary, same libm, one machine — it covers the
+wire, not the platform.
+
 ## The other harness: replaying an outcome with no network (#539)
 
 The two-process harness proves *host acts → client mirrors*, which means every

@@ -29,7 +29,18 @@ const DEFAULT_SCENE := "res://scenes/dev/mp_dev_sandbox.tscn"
 const RUNG_SCENES: Array[Dictionary] = [
 	{"label": "Rung 1 — hand-authored graph (mp_dev_sandbox)", "scene": "res://scenes/dev/mp_dev_sandbox.tscn"},
 	{"label": "Rung 2 — host procgens, client receives (mp_procgen_sandbox)", "scene": "res://scenes/dev/mp_procgen_sandbox.tscn"},
+	{"label": "Rung 3/4 — the shipped lobby (no scene: HOST/JOIN/START)", "scene": ""},
 ]
+
+## An EMPTY scene field is not a mistake — it is rungs 3/4 (#715, #754), which
+## take no scene argument at all because they boot the game's own main scene and
+## drive the real menu from the command line. So the picker's third row clears
+## the field, [method build_args] omits the positional and swaps `--role=` for
+## `--lobby=`, and the autopilot toggle spells itself `--autoplay` on that route.
+##
+## Stated as "the field is empty" rather than as a mode flag on this panel
+## because that is what it already means to `godot`: no scene, `run/main_scene`.
+const LOBBY_ROUTE := ""
 
 ## Window geometry per role, so the two do not land on top of each other.
 const WINDOW_SIZE := Vector2i(960, 600)
@@ -139,15 +150,23 @@ func _on_kill_all() -> void:
 func build_args(role: NetworkTransport.Role, scene: String) -> PackedStringArray:
 	var is_host := role == NetworkTransport.Role.HOST
 	var position := HOST_POSITION if is_host else CLIENT_POSITION
+	var lobby_route := scene.strip_edges() == LOBBY_ROUTE
 	var args: PackedStringArray = [
 		"--path", ProjectSettings.globalize_path("res://"),
-		scene,
+	]
+	if not lobby_route:
+		args.append(scene)
+	args.append_array([
 		"--resolution", "%dx%d" % [WINDOW_SIZE.x, WINDOW_SIZE.y],
 		"--position", "%d,%d" % [position.x, position.y],
 		"--",
-		"--role=%s" % ("host" if is_host else "client"),
+		# Two names for one idea, and neither is a rename waiting to happen: a
+		# sandbox scene reads `--role` and decides its own network role, while
+		# rungs 3/4 read `--lobby` and let [MetaRoot] press HOST or JOIN on the
+		# real menu. The flag says which SURFACE is being driven.
+		"--%s=%s" % ["lobby" if lobby_route else "role", "host" if is_host else "client"],
 		"--port=%d" % int(_port_field.value),
-	]
+	])
 	# `--probe` (#529) goes to exactly the role that can act on it — the peer that
 	# RECEIVES commands. Sent to a host it is a no-op that logs a refusal, which
 	# is noise dressed as a result.
@@ -159,8 +178,14 @@ func build_args(role: NetworkTransport.Role, scene: String) -> PackedStringArray
 	# identically on every peer, because `CommandApplier._apply_mass_allocate`
 	# re-derives affordability from the RECEIVING peer's own board. Host-only
 	# here would desync the first budget-gated verb that crossed.
+	#
+	# On the lobby route the same toggle spells itself `--autoplay` (#754): there
+	# is no verb sweep to run there, the seats are handed to the game's own AI
+	# and the run plays itself to a verdict. Same question — "should this pair
+	# drive itself?" — so it stays one control rather than a second checkbox
+	# that is meaningless on whichever rung is not selected.
 	if _autopilot_toggle.button_pressed:
-		args.append("--autopilot")
+		args.append("--autoplay" if lobby_route else "--autopilot")
 	if not is_host:
 		args.append("--address=%s" % _address_field.text.strip_edges())
 		if _probe_toggle.button_pressed:
@@ -171,7 +196,7 @@ func build_args(role: NetworkTransport.Role, scene: String) -> PackedStringArray
 ## Spawns one instance. Returns its PID, or -1 on failure.
 func _launch(role: NetworkTransport.Role) -> int:
 	var scene := _scene_field.text.strip_edges()
-	if not ResourceLoader.exists(scene):
+	if scene != LOBBY_ROUTE and not ResourceLoader.exists(scene):
 		_write("[color=#e06c60]No such scene: %s[/color]" % scene)
 		return -1
 	var is_host := role == NetworkTransport.Role.HOST
