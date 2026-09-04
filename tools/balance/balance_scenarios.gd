@@ -448,11 +448,23 @@ static func combat_readouts(attacker: BalanceFixture, defender: BalanceFixture) 
 		"turns_to_drop_core_naive": ceili(health_max / mitigated_ranged) if mitigated_ranged > 0.0 else -1,
 		"sp_income_at_level_max": float(defender.entity.stat_board.skill_points.value),
 		"sp_income_at_level_marginal": marginal_sp,
-		# #332: the immortality hazard half — `min_damage_taken` must stay > 0
-		# (the floor is a floor, not a cap; a nonpositive clamp + armor >= raw
-		# makes final <= 0 and the node undepletable). Node-merged read, same
-		# path Mitigation.apply uses. `defender_armor` rides along so the
-		# saturation reading (bunker_stack_L20) has a baseline to compare.
+		# #332 read this pair as an "immortality hazard" and asserted in prose
+		# that `min_damage_taken` must stay > 0. [b]That premise is dead[/b] —
+		# owner call 2026-09-04: "the whole design of sprinkling
+		# `-min_damage_taken` modifiers on the board is to allow to go <0 and
+		# actually heal from having sufficient armor / tanking low hits heals".
+		# It was never the design either: docs/design/combat_system.md has said
+		# `damage_floor` "can go negative (heals)" all along, and
+		# `bunker_addon.tscn` authors -5 on purpose.
+		#
+		# So read these two as a TANKING reading, not a hazard one: a node whose
+		# net floor is negative converts glancing hits into self-heals, which is
+		# a real (intended) defensive wall and is what the numbers below measure.
+		# Undepletability is the balance question — how much armor+floor a node
+		# can stack before nothing dents it — not a correctness bug to clamp
+		# away. Node-merged read, same path Mitigation.apply uses.
+		# `defender_armor` rides along so the saturation reading
+		# (bunker_stack_L20) has a baseline to compare.
 		"defender_armor": float(def_target.get_local_value(&"armor")),
 		"defender_min_damage_taken": float(def_target.get_local_value(&"min_damage_taken")),
 		"defender_dealloc_damage": dealloc_dmg,

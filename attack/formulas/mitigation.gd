@@ -18,6 +18,19 @@ class_name Mitigation
 ## Note the floor is a floor, not a cap: negative `armor` pushes damage *above*
 ## raw, but only becomes visible once `raw - armor > min_damage_taken` (default
 ## 3). At raw=1 / armor=-1 the defender still takes 3.
+##
+## [b]And it cuts the other way, on purpose: a NEGATIVE net `min_damage_taken`
+## makes a glancing hit HEAL the defender.[/b] [method compute] returns the
+## negative number as-is and [method NodeCombat.take_damage] reclassifies the
+## landing to [constant HitInstance.Kind.HEAL] (#381). That is the design, not
+## an underflow to guard — docs/design/combat_system.md has always specified
+## `damage_floor` "can go negative (heals)", `bunker_addon.tscn` authors `-5`,
+## and the owner reaffirmed it 2026-09-04: "the whole design of sprinkling
+## `-min_damage_taken` modifiers on the board is to allow to go <0 and actually
+## heal from having sufficient armor / tanking low hits heals". Anything that
+## clamps this at zero is deleting a mechanic; anything that DROPS such a
+## landing from a render pass is the #332-shaped bug fixed in
+## [ArrowVolleyCoordinator].
 
 static func apply(raw: DamageInstance, defender: SkillNode) -> float:
 	if raw.type == DamageInstance.Type.TRUE:

@@ -91,6 +91,72 @@ func test_one_projectile_per_shot() -> void:
 	await coord.play(outcome)
 
 
+## A landing whose net `min_damage_taken` went negative is reclassified to
+## [constant HitInstance.Kind.HEAL] by [method NodeCombat.take_damage] — the
+## intended bunker/Bulwark tanking path, not an underflow. The coordinator
+## must still draw its arrow.
+func _heal_flipped_hit(structural_key: float) -> DamageInstance:
+	var hit := _hit(structural_key)
+	hit.kind = HitInstance.Kind.HEAL
+	return hit
+
+
+## Regression: the whole volley flipped to heals and NOTHING was drawn.
+## `play()` filtered through `AttackOutcome.damage_hits()`, which keeps only
+## `Kind.DAMAGE`, so the array came back empty and it returned before spawning
+## a single Projectile — while `_commit` had already deducted the AP. Owner
+## call 2026-09-04: "render. every. arrow. damage? render. 0? render. heal?
+## render." See docs/domain/attack-timeline.md.
+func test_heal_flipped_volley_still_draws_every_arrow() -> void:
+	var outcome := AttackOutcome.new()
+	outcome.hits.append(_heal_flipped_hit(0.02))
+	outcome.hits.append(_heal_flipped_hit(0.04))
+	var coord := _mount_coord()
+	coord.play(outcome)
+	var projectiles := coord.get_children().filter(func(c): return c is Projectile)
+	assert_eq(projectiles.size(), 2,
+			"a volley that mitigated below zero still fires every arrow")
+	await coord.play(outcome)
+
+
+## The mixed case, which is what a crit inside a heal-flipped volley produces:
+## one arrow cleared the armour, the rest flipped. Every one of them draws —
+## the surviving damage hit must not be the only thing the player sees leave
+## the bow.
+func test_mixed_damage_and_heal_volley_draws_both() -> void:
+	var outcome := AttackOutcome.new()
+	outcome.hits.append(_heal_flipped_hit(0.02))
+	outcome.hits.append(_hit(0.04))
+	var coord := _mount_coord()
+	coord.play(outcome)
+	var projectiles := coord.get_children().filter(func(c): return c is Projectile)
+	assert_eq(projectiles.size(), 2, "one arrow per landing, whatever it did")
+	await coord.play(outcome)
+
+
+## A genuine [HealInstance] (not a flipped DamageInstance) is what
+## [method AttackRecord.rebuild] constructs for a recorded `Kind.HEAL` — and
+## the record round trip is on the SINGLE-PLAYER path too
+## (`battle_system.gd`'s `_replay_launch`). So the coordinator must survive a
+## hit that is not a DamageInstance at all: it used to type its loop variable
+## `DamageInstance`, which would fail the cast at runtime while `mise run
+## check` stayed green.
+func test_rebuilt_heal_instance_does_not_break_the_loop() -> void:
+	var heal := HealInstance.new()
+	heal.origin = _origin
+	heal.target = _target
+	heal.amount = 5.0
+	heal.effective_amount = 5.0
+	heal.structural_key = 0.02
+	var outcome := AttackOutcome.new()
+	outcome.hits.append(heal)
+	var coord := _mount_coord()
+	coord.play(outcome)
+	var projectiles := coord.get_children().filter(func(c): return c is Projectile)
+	assert_eq(projectiles.size(), 1, "a HealInstance landing still draws an arrow")
+	await coord.play(outcome)
+
+
 func test_play_does_not_return_before_arrows_drain() -> void:
 	# AttackVFX frees the coordinator the instant play() resolves, so an early
 	# return would cut the volley off mid-flight. The drain is a teardown

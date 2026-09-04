@@ -75,6 +75,30 @@ failure *shape*:
   no damage number. Same visual language as a spike-popped blade vertex
   dimming. Legible, and it shows the player their volley overkilled.
 
+### Ranged renders EVERY arrow, whatever the arrow did
+
+**Owner call 2026-09-04**, widening the rule above past the gate:
+
+> *"each arrow should fire, regardless of what they do. render. every. arrow.
+> damage? render. 0? render. heal? render."*
+
+The dud beat is one *outcome* an arrow can have, not the only non-standard one.
+A landing may also mitigate to exactly zero, or — where the defender's net
+`min_damage_taken` is negative, which `bunker_addon.tscn` authors deliberately
+— mitigate *below* zero and be reclassified to `Kind.HEAL` by
+`NodeCombat.take_damage`. All of these still get an arrow.
+
+`ArrowVolleyCoordinator.play` therefore iterates `outcome.hits` directly and
+**must never filter on `HitInstance.kind`.** It used to call
+`AttackOutcome.damage_hits()`, which keeps only `Kind.DAMAGE`; a volley whose
+hits all flipped to heals came back empty and the coordinator returned before
+spawning anything. The player spent the AP and no arrow left the bow. If you
+are about to narrow that iteration again, this paragraph is why you should not.
+
+`damage_hits()` itself is fine and stays — its remaining callers
+(`AiCombatScorer`, `AiBladeRollout`) are *scoring* passes that genuinely want
+damage only. Filter at the call site that means it, never in a render pass.
+
 ## Why: the fiction has to hold
 
 The rule falls out of what an attack visibly *is*.

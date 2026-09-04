@@ -2,8 +2,9 @@
 class_name ArrowVolleyCoordinator
 extends VFXCoordinator
 
-## Ranged-attack volley: one [Projectile] per [member AttackOutcome.hits]
-## (i.e. per scheduled shot), all converging on the same target. Each shot's
+## Ranged-attack volley: one [Projectile] per entry of
+## [member AttackOutcome.hits] — literally every one, per scheduled shot —
+## all converging on the same target. Each shot's
 ## launch is staggered by RangedAttackPlan's authored ramp — recovered here
 ## from the shot's own [ScheduleEntry] window, not a
 ## per-index constant — so a wide volley reads as a flurry of arrival
@@ -23,12 +24,15 @@ extends VFXCoordinator
 ##
 ## Uses the [LightArrow] visual by default — oriented glowing arrow that
 ## sticks into the target node and fades. Arrows are tinted by the
-## attacker's [member Entity.color], read off [member DamageInstance.source]
-## (a [RangedAttackPlan], which carries [code]attacker[/code]).
+## attacker's [member Entity.color], read off [member HitInstance.attacker]
+## (promoted to the base class in #507; the record round-trip drops
+## [member HitInstance.source], so tint must never read it).
 ##
-## Every scheduled shot still flies and arrives — a shot the land-time gate
-## vetoes (#503, target overkilled mid-volley) is not skipped, it lands
-## INERT: see [method _on_arrow_arrived].
+## [b]Every scheduled shot flies and arrives, whatever it did[/b] — there is no
+## filter on outcome here, by owner call (see [method play]). A shot the
+## land-time gate vetoes (#503, target overkilled mid-volley) lands INERT, and
+## a shot that mitigated to zero or flipped to a heal still draws its arrow:
+## see [method _on_arrow_arrived].
 
 const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/light_arrow.tscn")
 
@@ -54,10 +58,18 @@ func play(payload: Variant) -> void:
 	var outcome := payload as AttackOutcome
 	if outcome == null:
 		return
-	# Ranged never produces genuine heals, but `outcome.hits` is
-	# `Array[HitInstance]` (#381) — filter to damage explicitly rather than
-	# relying on every entry being a DamageInstance.
-	var hits := outcome.damage_hits()
+	# EVERY landing gets an arrow — no filter on `kind`, deliberately.
+	# Owner call 2026-09-04: "each arrow should fire, regardless of what they
+	# do. render. every. arrow. damage? render. 0? render. heal? render."
+	#
+	# This used to read `outcome.damage_hits()`, which keeps only
+	# [constant HitInstance.Kind.DAMAGE]. That silently deleted the whole
+	# volley whenever mitigation flipped its hits to HEAL — a shot into a
+	# node whose net `min_damage_taken` is negative (bunker_addon authors
+	# `-5`) mitigates to a negative number, which [method NodeCombat.take_damage]
+	# reclassifies as a heal by design. The player spent the AP and saw
+	# nothing leave the bow.
+	var hits := outcome.hits
 	if hits.is_empty():
 		return
 	if outcome.schedule == null:
@@ -66,7 +78,7 @@ func play(payload: Variant) -> void:
 	var tint := _resolve_tint(hits)
 	var pending: Array[int] = [hits.size()]
 	for i in hits.size():
-		var hit: DamageInstance = hits[i]
+		var hit: HitInstance = hits[i]
 		if hit.origin == null or hit.target == null:
 			pending[0] -= 1
 			continue
@@ -133,7 +145,7 @@ func play(payload: Variant) -> void:
 ## A visual that doesn't implement the hook simply renders no dud; the
 ## coordinator does NOT reach in and retint it, which would couple this file
 ## to that visual's internal emissive choices.
-func _on_arrow_arrived(proj: Projectile, hit: DamageInstance) -> void:
+func _on_arrow_arrived(proj: Projectile, hit: HitInstance) -> void:
 	if not hit.gated or proj.get_child_count() == 0:
 		return
 	var v: Node = proj.get_child(0)
@@ -173,7 +185,7 @@ func _flight_for(entry: ScheduleEntry) -> float:
 # (it is a Variant of resolve-local residue, and this was its one real
 # reader), so a replayed volley has none. Falls back to the LightArrow
 # default when no hit names an attacker.
-func _resolve_tint(hits: Array[DamageInstance]) -> Color:
+func _resolve_tint(hits: Array[HitInstance]) -> Color:
 	for hit in hits:
 		if hit.attacker != null:
 			return hit.attacker.color
