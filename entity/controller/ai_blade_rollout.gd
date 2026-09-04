@@ -366,9 +366,12 @@ static func _primary_target(outcome: AttackOutcome, visible_enemies: Array[Skill
 		enemy_set[e] = true
 	var best: SkillNode = null
 	var best_amount := 0.0
-	# Melee only ever produces damage (#381's damage_hits() filter), so this
-	# stays a no-op filter today — kept explicit so a future melee heal
-	# effect doesn't silently rank itself as "biggest hit."
+	# damage_hits() is right HERE because this is SCORING — a rollout ranks
+	# damage dealt. It is not a claim that melee only produces damage: a blade
+	# into a node whose net `min_damage_taken` is negative flips to Kind.HEAL
+	# exactly as a ranged shot does, and a RENDER pass must never filter it out
+	# (see ArrowVolleyCoordinator). Here it is load-bearing: without it a swing
+	# that healed the defender would rank itself as the biggest hit.
 	for hit in outcome.damage_hits():
 		if hit.target == null or not enemy_set.has(hit.target):
 			continue

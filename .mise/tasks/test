@@ -74,14 +74,14 @@ def build_args(argv):
 def _cost_hint(label):
     """What this run is about to cost, said UP FRONT.
 
-    Only the whole suite earns the warning: ~200s is a gate you spend once at
+    Only the whole suite earns the warning: ~215s is a gate you spend once at
     final green (CLAUDE.md), and the number is here so nobody starts one to
     "just check something" without being told. A narrowed target is the cheap
     rung of the ladder and needs no disclaimer.
     """
     if label != "suite":
         return ""
-    return "(~200s, the whole suite — a gate, not a feedback loop)"
+    return "(~215s, the whole suite — a gate, not a feedback loop)"
 
 
 def _preamble_notes(label):
