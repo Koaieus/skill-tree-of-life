@@ -36,8 +36,29 @@ extends Resource
 ## yet) rather than letting the archetype shape stand in.
 @export var carve_shape: CarveShape = null
 
-## Required degree for [SkillNodes] to have (how many edges they have) before this spell may be fired
+## Required degree for [SkillNodes] to have (how many edges they have) before
+## this spell may be fired — [b]entity degree[/b], measured over the caster's
+## own owned induced subgraph ([method SpellBook._node_meets_source_requirements]
+## via [EntityNavigator]), never graph degree.
 # 	could also opt for encoding this as an named (int)enum
+##
+## [b]It is a reach tax as well as a gate, and that is intended.[/b] Since #728
+## the cast-from node is derived, so raising this shrinks the eligible-caster
+## set — and your frontier nodes are exactly the degree-1 leaves OF YOUR OWN
+## territory. So `min_degree = 2` costs a hop of effective reach in the one
+## direction that matters: Lightning Bolt and Spark both author 3 hops, but the
+## bolt cannot launch from the leaf nearest the enemy and falls back a node.
+##
+## Owner, 2026-09-04, on that asymmetry:
+##
+##   "no the min degree = 2 is perfect. it just bit me that i didn't know why it
+##   wasn't in range."
+##
+## So the number stands and the LEGIBILITY was the defect: the eligible casters
+## now paint their own highlight ([enum HighlightProvider.HighlightRole.CASTER],
+## driven by [method MagicAttackPlan.get_node_role]), which is what makes a
+## missing caster ring visible instead of an unexplained refusal. Do not "fix"
+## a high `min_degree` by lowering it or by widening `max_hops` to compensate.
 @export var min_degree: int = 1
 
 ## Required mana to cast this spell
