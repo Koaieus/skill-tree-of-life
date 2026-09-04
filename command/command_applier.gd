@@ -346,6 +346,28 @@ func refuse_intent(intent_id: int, reason: StringName = &"") -> void:
 	command_applied.emit(refused, false)
 
 
+## The link the pending intent went up on is gone — the host quit, the socket
+## dropped — so neither the confirm nor the refusal this peer is waiting for
+## will ever arrive. Without this the awaiting window stays open forever:
+## [member is_awaiting_confirmation] keeps
+## [method PlayerInputController.can_player_act] closed on every click, with
+## nothing on screen to say why — a silent hang, which is what
+## [method GameRoot._on_link_lost] exists to not ship.
+##
+## Not routed through [method refuse_intent]: that one insists on a matching
+## non-zero id, and here the whole point is that nobody is left to name one.
+## Reports through the same [signal command_applied] refusal route so whatever
+## renders a refusal renders this.
+func abandon_pending_intent(reason: StringName = &"link_lost") -> void:
+	if _pending_intent == null:
+		return
+	var abandoned := _pending_intent
+	last_refusal_reason = reason
+	_pending_intent = null
+	_refresh_awaiting()
+	command_applied.emit(abandoned, false)
+
+
 ## Why the authority refused this peer's last intent, for a diagnostic to read.
 ## A [StringName] code, never presentation text.
 var last_refusal_reason: StringName = &""

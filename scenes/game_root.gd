@@ -499,6 +499,10 @@ func _open_link() -> void:
 	# the client to learn its own. Connected before the socket opens so no
 	# connection can beat the listener.
 	transport.peer_joined.connect(_on_peer_joined)
+	# And the two ways a link ENDS, which until now only the lobby listened to
+	# (#716 surfaced them there; the level never picked them up).
+	transport.peer_left.connect(_on_peer_left)
+	transport.link_lost.connect(_on_link_lost)
 	match net.role:
 		NetworkTransport.Role.HOST:
 			# The hello is what produces the in-sync / DIVERGED verdict, and it
@@ -597,6 +601,102 @@ func _on_peer_joined(peer_id: int) -> void:
 	if command_link != null:
 		command_link.send_resync(
 				"join: the peer is on the link and has no world", true)
+
+
+## This machine's link is gone — the host quit, the socket dropped — and it is
+## not coming back: there is no drop-in mid-game (#733, owner call), so there
+## is no rejoin either. Two things have to happen, and before this neither did:
+##
+## 1. The intent parked in [CommandApplier] waiting for a confirm that will
+##    never arrive is abandoned. Otherwise `is_awaiting_confirmation` stays true
+##    for the rest of the run and [method PlayerInputController.can_player_act]
+##    gates every click closed — a silent hang.
+## 2. The player is told, on the run-end overlay, because the way out (its
+##    main-menu button → [method route_to_meta_now]) is the same one a finished
+##    run takes. The pause menu's leave route was always there; nothing said so.
+##
+## A host whose own socket dies lands here too and is treated the same: its
+## remote seats are all gone at once, and there is nobody left to play on for.
+##
+## After the run has ENDED, only the first half applies. The host pressing its
+## main-menu button stops the wire (`GameSession.end()` → `Wire.stop()`), which
+## every client hears as `link_lost` — while its own victory overlay is up. That
+## is the normal end of a run, not a lost connection, and the overlay says so.
+func _on_link_lost(reason: String) -> void:
+	if command_applier != null:
+		command_applier.abandon_pending_intent(&"link_lost")
+	if victory_system != null and victory_system.outcome != null:
+		return
+	if hud_root != null:
+		hud_root.present_link_lost(reason)
+
+
+## Host-side: a seated peer left mid-run. The run goes on for everyone still
+## here — the alternative is the turn loop parked forever on a hero whose human
+## will never end its turn, which every other player experiences as a hang with
+## no explanation. Its hero is handed to the AI ([method hand_seat_to_ai]): the
+## host is the authority, so the AI's turns cross the wire as ordinary confirmed
+## commands and every mirror watches the hero keep playing.
+##
+## A client never acts on this: its host leaving is [method _on_link_lost], and
+## a sibling client leaving is the host's to handle.
+func _on_peer_left(peer_id: int) -> void:
+	var net: NetworkConfig = GameSession.network
+	if net == null or net.role != NetworkTransport.Role.HOST:
+		return
+	if GameSession.roster == null:
+		return
+	for p in GameSession.roster.all():
+		if p.kind == Participant.Kind.HUMAN and p.peer_id == peer_id:
+			hand_seat_to_ai(p)
+
+
+## Both halves of "this seat is the AI's now", on the host.
+##
+## The roster half comes first, and matters beyond the controller:
+## [method LootPickRegistry.is_remote_collector] reads [member Participant.kind],
+## and a HUMAN seat whose peer is gone would park every relic this hero claims
+## on a pick that never comes (#646) — a second hang behind the first. The
+## roster is the host's own copy; a mirror's still says HUMAN, which only makes
+## its [method LootPickRegistry.is_local_collector] answer false, as it should.
+##
+## The entity half swaps the no-op [PlayerController] for an [AIController].
+## If it is this hero's turn RIGHT NOW the new controller missed
+## `turn_started`, and the human who would have ended the turn is gone — so the
+## turn is kicked by hand. Fire-and-forget, as [method EntityController._on_turn_started]
+## calls it.
+func hand_seat_to_ai(participant: Participant) -> void:
+	participant.kind = Participant.Kind.AI
+	var ent := _entity_for_participant(participant.id)
+	if ent == null:
+		return
+	ent.is_human_controlled = false
+	var ai := _find_controller(ent) as AIController
+	if ai == null:
+		var old := _find_controller(ent)
+		if old != null:
+			# Detached NOW, not only queued: `_find_controller` walks children
+			# in order and a still-parented PlayerController would keep winning
+			# until the frame's free flush.
+			ent.remove_child(old)
+			old.queue_free()
+		ai = AIController.new()
+		ai.name = "AIController"
+		ent.add_child(ai)
+	if hud_root != null:
+		hud_root.announce_peer_left(ent.display_name)
+	if turn_manager != null and turn_manager.current_entity == ent:
+		ai.take_turn()
+
+
+func _entity_for_participant(participant_id: int) -> Entity:
+	if participant_id == 0:
+		return null
+	for node in get_tree().get_nodes_in_group(Entity.GROUP):
+		var ent := node as Entity
+		if ent != null and ent.participant_id == participant_id:
+			return ent
+	return null
 
 
 func _unhandled_input(event: InputEvent) -> void:

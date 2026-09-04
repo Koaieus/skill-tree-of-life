@@ -459,6 +459,39 @@ down before it announces for exactly that reason: announcing first handed
 `EnetTransport._on_wire_status` a role that was about to be wrong, and nothing
 above the seam ever learned the link had died.
 
+## A link that ends mid-run
+
+Everything in the section above is the *lobby's* handling of `link_lost` /
+`peer_left`. The level never listened to either until 2026-09-04 — it
+connected `peer_joined` and `link_changed` and nothing else — so both ends of
+a dropped link mid-run hung in silence. `GameRoot._open_link` now connects both,
+and the two cases are deliberately different:
+
+- **This machine's link died** (`link_lost`: the host quit, the socket dropped).
+  There is no rejoin — "no drop-in mid-game" (#733) cuts both ways — so the run
+  is over *here*. `GameRoot._on_link_lost` does two things. It abandons the
+  intent parked in `CommandApplier` (`abandon_pending_intent`): a mirror's
+  `is_awaiting_confirmation` is derived from that pending intent, and with the
+  authority gone the confirm never comes, so without this every click stays
+  gated closed with nothing on screen. Then it raises the run-end overlay with
+  its `LINK_LOST` reading (`HudRoot.present_link_lost`) — not a `RunOutcome`,
+  `VictorySystem` never fired — because that overlay already carries the one
+  way out, `route_to_meta_now`.
+- **A seated peer left the host** (`peer_left`, host only — a client ignores a
+  sibling leaving). The run goes on for everyone still here.
+  `GameRoot.hand_seat_to_ai` flips the seat's `Participant.kind` to AI on the
+  host's roster copy *first* — `LootPickRegistry.is_remote_collector` reads it,
+  and a HUMAN seat with a dead peer would park every relic that hero claims on a
+  pick nobody sends (#646) — then swaps its `PlayerController` for an
+  `AIController`, and kicks `take_turn()` by hand if it is that hero's turn
+  right now (the new controller missed `turn_started`). The host is the
+  authority, so the AI's turns cross the wire as ordinary confirmed commands and
+  every mirror watches the hero play on; the mirrors' roster copies still say
+  HUMAN, which only makes their `is_local_collector` answer false, as it should.
+
+`test/unit/scenes/test_game_root_link_loss.gd` pins both, on a real
+`game_root.tscn` over its mounted loopback transport.
+
 ## Two machines: a dial that never answers (#752)
 
 Everything above runs on `127.0.0.1`, where a dial either connects or errors

@@ -415,6 +415,30 @@ func _on_run_ended(outcome: RunOutcome) -> void:
 		run_end_overlay.present(_run_end_reading(outcome), outcome.winning_camp)
 
 
+## The wire under this run died. Not a run end — [VictorySystem] never fired,
+## there is no [RunOutcome] — but the way out is the same, so this is the
+## run-end overlay with its own reading rather than a second full-screen
+## surface. Called by [method GameRoot._on_link_lost] on the peer that lost its
+## link; the banner preempts like the run-end one does, for the same reason.
+func present_link_lost(reason: String) -> void:
+	if announcement_layer != null:
+		announcement_layer.enqueue_now(AnnouncementRequest.make(
+				"CONNECTION LOST", reason, AnnouncementRequest.Style.DEATH))
+	if run_end_overlay != null:
+		run_end_overlay.present(RunEndOverlay.Reading.LINK_LOST, null,
+				"%s — the run cannot continue from here" % reason)
+
+
+## A seated peer left and the host handed its hero to the AI
+## ([method GameRoot.hand_seat_to_ai]). Host-side only: a mirror learns of the
+## hero playing on from the commands, not from a banner of its own.
+func announce_peer_left(display_name: String) -> void:
+	if announcement_layer != null:
+		announcement_layer.enqueue_now(AnnouncementRequest.make(
+				"%s disconnected" % display_name, "the AI plays their seat from here",
+				AnnouncementRequest.Style.DEATH))
+
+
 func _run_end_banner(outcome: RunOutcome) -> AnnouncementRequest:
 	var camp := outcome.winning_camp
 	if camp == null:

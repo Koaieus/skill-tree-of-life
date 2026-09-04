@@ -43,6 +43,11 @@ enum Reading {
 	NEUTRAL,
 	## Nobody won.
 	DRAW,
+	## Not an outcome at all: the wire under this run died and there is no
+	## rejoin (#733 — no drop-in mid-game). Raised by
+	## [method HudRoot.present_link_lost], never by a [RunOutcome]. The overlay
+	## is still the right surface because it carries the only way out.
+	LINK_LOST,
 }
 
 const _TITLES: Dictionary = {
@@ -50,6 +55,7 @@ const _TITLES: Dictionary = {
 	Reading.DEFEAT: "DEFEAT",
 	Reading.NEUTRAL: "RUN OVER",
 	Reading.DRAW: "DRAW",
+	Reading.LINK_LOST: "CONNECTION LOST",
 }
 
 ## Crimson from `.claude/rules/ui-palette.md` (health). A defeat title tinted
@@ -77,15 +83,17 @@ func _ready() -> void:
 
 
 ## Raise the overlay for a finished run. [param camp] is the winning camp, or
-## null for a draw; it is what the subtitle names, whatever the reading.
+## null for a draw; it is what the subtitle names, whatever the reading —
+## unless [param subtitle] is given, which a reading with no camp to name
+## ([constant Reading.LINK_LOST]) uses to say what actually happened.
 ##
 ## Coroutine — it returns at the `await` and resumes to reveal the action row.
 ## Callers do not wait on it; the overlay itself is already up by then.
-func present(run_reading: Reading, camp: Faction) -> void:
+func present(run_reading: Reading, camp: Faction, subtitle: String = "") -> void:
 	reading = run_reading
 	title_label.text = _TITLES[run_reading]
 	title_label.add_theme_color_override("font_color", _title_color(camp))
-	subtitle_label.text = _subtitle_for(camp)
+	subtitle_label.text = subtitle if not subtitle.is_empty() else _subtitle_for(camp)
 	action_row.visible = false
 	visible = true
 	if action_row_delay > 0.0:
