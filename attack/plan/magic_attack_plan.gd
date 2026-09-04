@@ -338,6 +338,15 @@ func _rebuild_target_cache() -> void:
 	# returning empty keeps the narrowed highlight coherent for the frame
 	# before the pick is re-adjudicated. Same code, and exactly the cost the
 	# pre-#728 single-source gather paid.
+	#
+	# TODO: remove if the eligibility race turns out to be unreachable. #745
+	# took away the one caller that hit this every frame, and no production
+	# path now stamps a source the union would not list — what is left is the
+	# race above plus tests that assign `source` directly. To settle it, make
+	# this branch push_error() and play a run: if it never fires, this branch
+	# goes AND [method SpellTargetUnion.build_for] stops needing to be a
+	# separate entry point (its only other caller is [method
+	# SpellTargetUnion.build], which would absorb it).
 	var single: Array[SkillNode] = [source]
 	_cached_valid_targets = SpellTargetUnion.build_for(
 			spell, attacker, _graph_of(source), single, self).targets_from(source)

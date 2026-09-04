@@ -126,6 +126,8 @@ static func build(spell: SpellDef, attacker: Entity, graph: Graph,
 ## caster that has since become ineligible). Pre-#745 the AI drove this
 ## constantly, probing one owned node at a time; it now consumes
 ## [member per_source] off a single whole-territory [method build] per spell.
+## That leaves this entry point close to unused — there is a TODO at the call
+## site weighing whether it should fold back into [method build].
 ## Building over one source costs exactly what the pre-#728 single-source
 ## gather did, and keeps both views behind one implementation instead of
 ## resurrecting the old walk.
