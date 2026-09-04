@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+#MISE description="PreToolUse guard: refuse a Bash command that kills Godot indiscriminately"
+"""
+Block `pkill godot` / `killall godot` and friends, and point at `mise run
+godot-reap` instead.
+
+Why a hook rather than a rule: the reflex fires in the middle of debugging a
+hung probe, and a doc only helps an agent that happens to read it at that
+moment. This refuses at the point of use. Observed 2026-09-04 — an agent
+interrogating the engine took the user's open editor with it.
+
+An explicitly headless-scoped kill (`pkill -f 'godot.*--headless'`) is ALLOWED:
+it already carries the discriminator that makes it safe, and forbidding a
+correct command teaches nothing.
+
+Contract: reads the PreToolUse payload on stdin, prints a permissionDecision.
+Silence + exit 0 means "no opinion", which is what every non-matching command
+gets — a guard that cannot parse its input must never block work.
+"""
+import json
+import re
+import sys
+
+# `kill`-family invocation naming godot, in any of the shapes that reach for
+# every process at once. `pgrep godot` piped into kill counts: the pid list is
+# just as indiscriminate as pkill.
+_DANGEROUS = re.compile(
+	r"""(?xi)
+	(?:^|[;&|]|\s)                 # command position, not mid-word
+	(?:sudo\s+)?
+	(?:
+		(?:pkill|killall)\s+[^;&|]*godot   # pkill -f godot, killall godot
+		|
+		kill\b[^;&|]*\$\([^)]*pgrep[^)]*godot   # kill -9 $(pgrep godot)
+	)
+	"""
+)
+
+# The discriminator that makes a kill safe — see .mise/tasks/godot-reap.
+_SCOPED = re.compile(r"--headless", re.I)
+
+_REASON = (
+	"Refused: this kills every Godot process, including the user's open editor "
+	"and any manual playtest — both have to be restarted, and an in-progress "
+	"run is lost.\n\n"
+	"Use `mise run godot-reap` instead. It kills ONLY processes carrying "
+	"--headless (the editor and editor-launched playtests never do), skips GUT "
+	"suites unless you pass --include-suites so you cannot destroy a peer "
+	"agent's 200s test run, and takes --dry to list without killing.\n\n"
+	"If you genuinely need a raw kill, scope it yourself with --headless in the "
+	"pattern and this guard will allow it."
+)
+
+
+def main() -> int:
+	try:
+		payload = json.load(sys.stdin)
+		command = payload.get("tool_input", {}).get("command", "")
+	except Exception:
+		return 0  # unparseable input is not grounds to block a command
+	if not isinstance(command, str) or not _DANGEROUS.search(command):
+		return 0
+	if _SCOPED.search(command):
+		return 0
+	print(json.dumps({
+		"hookSpecificOutput": {
+			"hookEventName": "PreToolUse",
+			"permissionDecision": "deny",
+			"permissionDecisionReason": _REASON,
+		}
+	}))
+	return 0
+
+
+if __name__ == "__main__":
+	sys.exit(main())
