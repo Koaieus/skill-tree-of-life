@@ -8,22 +8,34 @@ func test_pack_loads_as_statpack() -> void:
 	var p: StatPack = _PACK.duplicate(true) as StatPack
 	assert_not_null(p); assert_eq(p.archetype_stat, &"dexterity")
 	assert_true(p.pools.size() > 0)
-func test_dexterity_pool_values() -> void:
+## Shape of the pack's own DEX ladder, not its magnitudes (#719): the owner
+## tunes `unit_value` / `range_floor` / the tier span (b3975d8 and again
+## 2026-09-04 did), and a literal pin goes red on every tune while blaming the
+## pool. What is load-bearing is the mechanism the authored fields feed —
+## pinned on a hand-built pool in test_pool_seed_values.gd — and that THIS pack
+## authors a DEX ADD_BASE pool that mechanism can act on.
+func test_dexterity_pool_shape() -> void:
 	var p: StatPack = _PACK.duplicate(true) as StatPack
+	var found := false
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
-		if pp.stat_id == &"dexterity" and pp.operation == StatModifier.Operation.ADD_BASE:
-			assert_eq(pp.unit_value, 3.0)
-			assert_eq(pp.range_floor, 1.0)
-			assert_eq(pp.min_tier, 1); assert_eq(pp.max_tier, 4)
-			assert_eq(pp.to_entries().size(), 4)
-			# b3975d8 re-tuned this pool (unit 2 → 3) and authored an explicit
-			# `range_floor` of 1.0, so T1 is no longer the zero-width fixed
-			# point the default M=unit_value used to make it (#628): its high
-			# is still unit*V[0] = 3*1 = 3, but its low is now M = 1.
-			var e0 := pp.to_entries()[0]
-			assert_almost_eq(e0.value_range.x, 1.0, 0.001, "T1 low = M (authored range_floor)")
-			assert_almost_eq(e0.value_range.y, 3.0, 0.001, "T1 high = unit x V[0]")
+		if pp.stat_id != &"dexterity" or pp.operation != StatModifier.Operation.ADD_BASE:
+			continue
+		found = true
+		assert_gt(pp.unit_value, 0.0, "DEX is a positive ladder")
+		var entries := pp.to_entries()
+		assert_eq(entries.size(), pp.max_tier - pp.min_tier + 1, "one entry per offered tier")
+		for i in entries.size():
+			var tier := pp.min_tier + i
+			var r: Vector2 = entries[i].value_range
+			assert_true(r.x <= r.y, "T%d rolls a non-inverted range (%s)" % [tier, r])
+		if not pp.value_overrides.has(pp.min_tier):
+			# #628: the first tier's low is the authored floor (or unit_value
+			# when none is authored), its high is unit_value x V[0] = unit_value.
+			var e0: Vector2 = entries[0].value_range
+			assert_almost_eq(e0.x, pp._effective_floor(), 0.001, "T1 low = M")
+			assert_almost_eq(e0.y, pp.unit_value * TierLadder.value(1), 0.001, "T1 high = unit x V[0]")
+	assert_true(found, "the dexterity pack must carry a DEX ADD_BASE pool at all")
 func test_crit_chance_pool_uses_the_override_escape_hatch() -> void:
 	# Content invariant, not a value pin (#719). What matters about this pool
 	# is that it is the repo's exemplar of the `value_overrides` escape hatch

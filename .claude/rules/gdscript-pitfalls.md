@@ -87,6 +87,13 @@ lambdas for callables that only *read* their captures.
 
 Found writing #538's non-mutation test, 2026-08-31.
 
+## A ternary with a bare `[]` arm yields an UNTYPED Array — `check` passes, runtime errors
+
+`var xs: Array[T] = [] if a == null else a.typed()` compiles clean and throws
+*"Trying to assign an array of type Array to Array[T]"* the first time the null
+arm runs. **How to apply:** declare `var xs: Array[T] = []` and assign inside an
+`if` — no ternary around typed arrays. Caught 2026-09-04 in `OptionChoiceRow`.
+
 ## `global_position` on a node not yet in the tree silently writes `position`
 
 There is no parent transform to invert, so the setter falls through to

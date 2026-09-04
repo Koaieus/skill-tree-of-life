@@ -37,7 +37,11 @@ func _ready() -> void:
 func set_choices(title: String, option_set: LobbyOptionSet) -> void:
 	_label.text = title
 	_picker.clear()
-	var choices: Array[LobbyOption] = [] if option_set == null else option_set.choices()
+	# Not a ternary: `[] if x else typed()` yields an untyped Array, and the
+	# assignment to Array[LobbyOption] then errors at runtime for the null arm.
+	var choices: Array[LobbyOption] = []
+	if option_set != null:
+		choices = option_set.choices()
 	visible = not choices.is_empty()
 	for c in choices:
 		_picker.add_item(c.label)
