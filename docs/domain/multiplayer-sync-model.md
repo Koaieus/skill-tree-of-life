@@ -438,6 +438,16 @@ decode pass — the companion to *"a green fingerprint is not a green join"*
 above, and for the same reason: neither the fold nor a passing round-trip can
 see a step that quietly did its work twice.
 
+**A resync carries the turn cursor** (#756): `TurnManager.current_entity` (as an
+`entity_id`, 0 for none), `TurnManager.turns_taken`, and each
+`Entity.turns_taken`. It has to — a peer whose world was encoded *after* the host
+opened its first turn heard none of the `turn_started` emits that produced it,
+and cannot reproduce either number. The receiver `adopt_turn`s the cursor rather
+than `start_turn`ing it: the payload already holds the results of that turn's
+upkeep, so re-running it would apply it twice. It also **reconciles every
+`EntityNavigator`** against the ownership the decode just wrote directly, which
+is the one mirror `GraphSnapshot`'s bypass of `AllocationSystem` invalidates.
+
 **What a resync does NOT carry** is the derived tier — `StatBoard` totals,
 `Stat.bins`, aura contributions, vision. The receiver recomputes, exactly as
 `GraphSnapshot`'s tier table says. A backstop that shipped derived state would
@@ -459,6 +469,7 @@ confirmed-command stream **is** the event log. Nothing extra to design.
 | launch attack | the plan: mode, pivot + blade member `stable_id`s, or target + spell (`AttackPlan.to_dict`) | the same command **plus `AttackRecord`**, a post-apply record of what each landing actually did, stamped by `BattleSystem` during application (#511) | `resolve()` is already pure and side-effect free, but the swing sim is order-dependent and crits roll. Clients reconstruct the recorded effects and replay VFX; they never re-simulate and never re-derive a number |
 | loot pick / relic roll | the pick intent | the resolved result | The host rolls; the shuffles stay host-only |
 | end turn | the command | the command | The host's `TurnManager` is the clock, so `_tick_until_ready`'s group-order tiebreak stops being a hazard |
+| **start turn** (the run's first, and only the first) | — (the authority raises it) | `StartTurnCommand` — the actor, nothing else | The bookend to `end turn`, and it exists for the same reason (#756). Who the clock opens on is a host DECISION; until this command every peer opened on *its own* seated hero, and every later `end_turn` reproduced `_tick_until_ready` from a different cursor. Later turns are handed on by `end_turn` and never by this — the applier refuses one while `current_entity` is non-null |
 | *(every action above, on a client)* | `KIND_INTENT` — the command dict, carrying the `intent_id` **the client minted** (#548) | nothing extra; the confirm is the ordinary `KIND_COMMAND` row above, echoing that same `intent_id` back verbatim | The client has to match a returning confirmation to the intent it sent, or `is_awaiting_confirmation` never closes. The host must **never re-mint**: a received intent goes through the same `submit()` as a local one, and `submit()` mints only when the id is absent |
 | *(any of the above, refused by the host's gate)* | — | `KIND_REFUSAL` — `{intent_id, reason}`, `reason` a `StringName` code and never a UI string (#548) | A refused command never confirms, so nothing crosses on the ordinary leg — and a client waiting on a confirmation that will never arrive is the failure mode this channel most needs to not ship. Its own kind rather than an echoed command with a `refused` flag, so the fingerprint compare and the determinism probe keep one uncomplicated path. There is deliberately **no timeout, retry or heartbeat** for a confirm that is simply lost: ENet's reliable-ordered channel is the guarantee, and a LAN desync is a restart |
 

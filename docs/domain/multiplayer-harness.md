@@ -803,16 +803,45 @@ client holds no world, so its fold cannot match.)
 **It does not close #665.** Same binary, same libm, one machine — it covers the
 wire, not the platform.
 
-**It is RED on master, and that is the finding (#756).** The very first run
-that reached a verdict reported the mirror being force-repaired 15-40 times,
-and a run-end fingerprint whose ownership and topology tiers match while the
-**accumulated** tier (stake/allocation level, regen stacks, node HP) does not.
-The drift starts on an ordinary `allocate` in the first turn or two, before any
-attack or kill. Nobody had ever played a networked run past turn one, which is
-exactly the blind spot rung 4 was built to look into — see #756 for the log
-evidence. `--ai-delay 0.4` was the discriminator: at a human pace the mirror
-still diverges 25 times a run, so this is the replay path and not the
-pre-command check misfiring on commands that arrive back to back.
+**Its first run was RED, and that was the finding (#756).** Nobody had ever
+played a networked run past turn one, which is exactly the blind spot rung 4 was
+built to look into — and the very first run that reached a verdict reported the
+mirror being force-repaired 15-40 times, with a run-end fingerprint whose
+ownership and topology tiers matched while the **accumulated** tier (stake /
+allocation level, regen stacks, node HP) did not. `--ai-delay 0.4` ruled out the
+pre-command check misfiring on back-to-back commands: at a human pace the mirror
+still diverged 25 times a run. Two independent causes, both in the replay path:
+
+- **the turn cursor was never transmitted.** `GameRoot._ready` opened the run's
+  first turn on *this machine's* seated hero, on every peer — so the host opened
+  on Player 1 and the client on Player 2. Every later `EndTurnCommand` then
+  reproduced `_tick_until_ready` from a different starting cursor, and turn-start
+  upkeep ran for the wrong entity on the wrong turn.
+- **a decoded world left its owner mirrors stale.** `GraphSnapshot._decode_node`
+  assigns `owned_by` directly (a snapshot is a world, not a sequence of moves),
+  which is exactly the write `EntityNavigator`'s mutation contract says will
+  drift the mirror — and nothing repaired it. `Entity._on_turn_started` runs the
+  D-9 regen sweep over `navigator.get_mirrored_nodes()`, so a node missing from a
+  joining peer's mirror never healed there while it healed on the authority. The
+  first missing node is the client's own core.
+
+The rule both produced: **the mirror never starts a turn on its own; the cursor
+is received, first as a `StartTurnCommand`, then inside every resync** — and a
+peer that decoded a world reconciles what the decode bypassed. It is green as of
+`fa9c462`, at both paces, and the assertion that made the bug *findable* is the
+divergence count rather than the end-state compare.
+
+**The divergence check moved onto the mirror's own stamp.** It used to run in
+`CommandLink._on_remote_command`, on arrival, behind a "is the applier idle"
+guard — so every command that landed mid-drain was tallied `skipped` rather than
+compared, and one AI turn arriving as a burst of nine commands was compared
+exactly once. Honest, and useless: it could not name the command that diverged
+first. The host's stamp now travels on the command as the transient
+`Command.host_fingerprint` (never in `to_dict` — see `Command.pre_fingerprint`
+for why the outcome fixtures forbid it) and is compared at the mirror's own
+`pre_fingerprint` stamp inside `CommandApplier._drain`, where there is no such
+thing as an unsettled world. Nothing is skipped, and the first `✗` names the
+first command that actually disagreed.
 
 ## The other harness: replaying an outcome with no network (#539)
 
