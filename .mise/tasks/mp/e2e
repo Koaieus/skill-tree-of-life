@@ -1,0 +1,263 @@
+#!/usr/bin/env python3
+#MISE description="Rung 4: autoplay the shipped lobby route in two headless processes and compare their verdicts"
+"""
+One real multiplayer run, end to end, on one machine — `mise run mp:e2e`.
+
+Spawns two headless Godot processes on 127.0.0.1, drives the SHIPPED menu
+(HOST / JOIN / START, the same rows a human presses), hands both heroes to the
+AI, and lets the run play itself to a verdict. Then it compares the two logs.
+
+    mise run mp:e2e                     # the default: smallest map, 400-turn cap
+    mise run mp:e2e -- --port 9412      # a specific port
+    mise run mp:e2e -- --max-turns 80   # tighter cap (entity-turns, not rounds)
+    mise run mp:e2e -- --timeout 240    # wall-clock ceiling per run
+
+What it asserts, and why each is its own line rather than one fingerprint
+compare — a failure has to say WHICH agreement broke:
+
+    1. both processes exit 0            (2 = the turn cap; anything else = crash)
+    2. both printed a RUNG4 VERDICT     (a clean exit with no verdict is a lie)
+    3. same winner, same turn count     the run-level verdict, POV-free
+    4. same first-turn fingerprint      the world the join handshake produced
+    5. no mid-run divergence            the mirror never needed repairing
+    6. same run-end fingerprint         the world the two of them played to
+
+(5) is the one that matters most and the one a naive "compare the fingerprints"
+test would miss entirely: the host WATCHES for divergence and force-overwrites
+the mirror with a snapshot whenever it finds any, so two peers that disagree
+every turn can still end up holding similar worlds. A repaired run is not a
+synced run. See `docs/domain/multiplayer-harness.md`.
+
+Both logs are always kept under `.godot/` — this summary elides most of what a
+run prints, and re-running to see it costs another minute.
+
+NOT a substitute for #665: same binary, same libm, one machine. What it covers
+is the wire, not the platform.
+"""
+import argparse
+import os
+import random
+import re
+import subprocess
+import sys
+import time
+
+ROOT = os.environ.get("MISE_PROJECT_ROOT") or os.getcwd()
+OUT_DIR = os.path.join(ROOT, ".godot")
+HOST_LOG = os.path.join(OUT_DIR, "mp-e2e-host.log")
+CLIENT_LOG = os.path.join(OUT_DIR, "mp-e2e-client.log")
+
+# What the host prints once its socket is actually open (`MetaRoot`'s rung-3
+# driver). Blocking on this rather than sleeping is what keeps the pair
+# reliable on a loaded machine — a fixed sleep is how this kind of test starts
+# failing once a day and gets marked flaky.
+LISTENING = re.compile(r"rung 3: listening on port (\d+)")
+# `GameRoot._announce_first_turn_for_rung_3` / `_announce_verdict_for_rung_4`.
+FIRST_TURN = re.compile(r"rung 3: FIRST TURN — .*?(?P<fp>fp \d+ \(.*\))$")
+VERDICT = re.compile(
+    r"RUNG4 VERDICT — winner=(?P<winner>\S+) \| turns=(?P<turns>\d+) \| .*(?P<fp>fp \d+ \(.*\))$"
+)
+TIMEOUT_LINE = re.compile(r"RUNG4 TIMEOUT — .*")
+# `CommandLink`'s own pre-command check, on the mirror. One per command the
+# mirror was about to apply against a world that did not match the host's.
+DIVERGED = re.compile(r"✗ DIVERGED (?P<when>.*?) — mine \d+, host \d+")
+# The ONE divergence that is not a finding: a joining client holds no world at
+# all, so its fold cannot match. Everything after the join world lands is real.
+JOIN_APPLIED = re.compile(r"resync applied — join:")
+
+TIMEOUT_EXIT = 2
+
+
+def spawn(role, log_path, extra):
+    """Start one headless process with its stdout+stderr going to `log_path`."""
+    args = [
+        "godot", "--headless", "--path", ROOT, "--",
+        "--lobby=%s" % role, "--autoplay",
+    ] + extra
+    log = open(log_path, "w", buffering=1)
+    # Merged, not split: Godot writes engine diagnostics to stderr and game
+    # prints to stdout, and reading a run's story out of two interleaved files
+    # is exactly the thing this task exists to spare the next person.
+    proc = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT, text=True)
+    proc._log = log  # noqa: SLF001 — kept only so `wait_for` can flush/close it
+    return proc
+
+
+def wait_for_line(path, pattern, proc, timeout_s):
+    """Poll `path` until `pattern` shows up, the process dies, or time runs out."""
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        if os.path.exists(path):
+            with open(path, errors="replace") as f:
+                for line in f:
+                    if pattern.search(line):
+                        return line.rstrip("\n")
+        if proc.poll() is not None:
+            return None
+        time.sleep(0.2)
+    return None
+
+
+def read_lines(path):
+    if not os.path.exists(path):
+        return []
+    with open(path, errors="replace") as f:
+        return f.read().splitlines()
+
+
+def first_match(lines, pattern):
+    for line in lines:
+        m = pattern.search(line)
+        if m:
+            return m
+    return None
+
+
+def tail(lines, n=25):
+    return "\n".join("    " + line for line in lines[-n:])
+
+
+def reap():
+    """Never leave a hung pair behind. GUT runs are skipped by `godot-reap`'s
+    own default, so a peer agent's 200s suite is safe from this."""
+    subprocess.run(["mise", "run", "godot-reap"], cwd=ROOT,
+                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def stop(proc):
+    if proc is None or proc.poll() is not None:
+        return
+    proc.terminate()
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="mise run mp:e2e", add_help=True)
+    ap.add_argument("--port", type=int, default=0,
+                    help="TCP/UDP port (default: a random high port, so two runs never collide)")
+    ap.add_argument("--max-turns", type=int, default=0,
+                    help="entity-turn cap before the run calls itself a timeout")
+    ap.add_argument("--timeout", type=int, default=180,
+                    help="wall-clock ceiling for the whole pair, in seconds")
+    ap.add_argument("--boot-timeout", type=int, default=60,
+                    help="how long the host gets to open its socket")
+    args = ap.parse_args()
+
+    os.makedirs(OUT_DIR, exist_ok=True)
+    # A random port by default: a leftover process from a previous run still
+    # holding 9300 would otherwise make this task fail for a reason that has
+    # nothing to do with the code under test.
+    port = args.port or random.randint(9400, 9899)
+    extra = ["--port=%d" % port]
+    if args.max_turns:
+        extra.append("--max-turns=%d" % args.max_turns)
+
+    print("rung 4: two processes on 127.0.0.1:%d — logs at .godot/mp-e2e-*.log" % port)
+    started = time.monotonic()
+    host = None
+    client = None
+    try:
+        host = spawn("host", HOST_LOG, extra)
+        if wait_for_line(HOST_LOG, LISTENING, host, args.boot_timeout) is None:
+            print("✗ the host never opened its socket within %ds" % args.boot_timeout)
+            print(tail(read_lines(HOST_LOG)))
+            return 1
+        client = spawn("client", CLIENT_LOG, extra + ["--address=127.0.0.1"])
+
+        deadline = started + args.timeout
+        while time.monotonic() < deadline:
+            if host.poll() is not None and client.poll() is not None:
+                break
+            time.sleep(0.25)
+        else:
+            print("✗ TIMEOUT — the pair did not finish within %ds "
+                  "(host %s, client %s)" % (
+                      args.timeout,
+                      "exited" if host.poll() is not None else "still running",
+                      "exited" if client.poll() is not None else "still running"))
+            print("  host tail:\n%s" % tail(read_lines(HOST_LOG), 12))
+            print("  client tail:\n%s" % tail(read_lines(CLIENT_LOG), 12))
+            return 1
+    finally:
+        stop(client)
+        stop(host)
+        reap()
+
+    return report(host.returncode, client.returncode, time.monotonic() - started)
+
+
+def report(host_code, client_code, elapsed):
+    host_lines = read_lines(HOST_LOG)
+    client_lines = read_lines(CLIENT_LOG)
+    failures = []
+
+    for role, code, lines in (("host", host_code, host_lines),
+                              ("client", client_code, client_lines)):
+        if code == TIMEOUT_EXIT:
+            hit = first_match(lines, TIMEOUT_LINE)
+            failures.append("%s hit the turn cap — %s" % (
+                role, hit.group(0) if hit else "no RUNG4 TIMEOUT line"))
+        elif code != 0:
+            failures.append("%s exited %d\n%s" % (role, code, tail(lines)))
+
+    host_verdict = first_match(host_lines, VERDICT)
+    client_verdict = first_match(client_lines, VERDICT)
+    for role, verdict, code in (("host", host_verdict, host_code),
+                                ("client", client_verdict, client_code)):
+        if verdict is None and code == 0:
+            failures.append("%s exited cleanly but printed no RUNG4 VERDICT" % role)
+
+    if host_verdict and client_verdict:
+        for field in ("winner", "turns"):
+            h, c = host_verdict.group(field), client_verdict.group(field)
+            if h != c:
+                failures.append("%s disagrees — host %s, client %s" % (field, h, c))
+        if host_verdict.group("fp") != client_verdict.group("fp"):
+            failures.append("run-end world differs\n    host   %s\n    client %s" % (
+                host_verdict.group("fp"), client_verdict.group("fp")))
+
+    host_first = first_match(host_lines, FIRST_TURN)
+    client_first = first_match(client_lines, FIRST_TURN)
+    if host_first is None or client_first is None:
+        failures.append("one of the two never reached a first turn")
+    elif host_first.group("fp") != client_first.group("fp"):
+        failures.append("the join handshake produced two different worlds\n"
+                        "    host   %s\n    client %s" % (
+                            host_first.group("fp"), client_first.group("fp")))
+
+    # Divergence is reported by the MIRROR, which is the only side that can see
+    # it: it compares its own world against the host's stamp on every incoming
+    # command. The host's answer to one is a wholesale snapshot, so a run full
+    # of these can still end with two similar worlds — which is why the count is
+    # asserted rather than inferred from the fingerprints.
+    after_join = client_lines
+    for i, line in enumerate(client_lines):
+        if JOIN_APPLIED.search(line):
+            after_join = client_lines[i + 1:]
+            break
+    diverged = [m.group("when") for m in
+                (DIVERGED.search(line) for line in after_join) if m]
+    if diverged:
+        shown = ", ".join(sorted(set(diverged))[:4])
+        failures.append("the mirror diverged %d time(s) mid-run (%s)" % (len(diverged), shown))
+
+    if host_verdict:
+        print("  verdict: winner=%s after %s entity-turns" % (
+            host_verdict.group("winner"), host_verdict.group("turns")))
+    print("  %d mid-run divergence(s), %.0fs wall clock" % (len(diverged), elapsed))
+
+    if failures:
+        print("\n✗ rung 4 FAILED")
+        for f in failures:
+            print("  · %s" % f)
+        print("\n  full logs: .godot/mp-e2e-host.log  .godot/mp-e2e-client.log")
+        return 1
+    print("\n✓ rung 4: two processes played the shipped route to the same verdict")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
