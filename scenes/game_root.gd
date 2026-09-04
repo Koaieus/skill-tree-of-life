@@ -338,12 +338,7 @@ func _ready() -> void:
 
 	_announce_first_turn_for_rung_3()
 	_arm_rung_4()
-	if auto_start_turn and player != null and turn_manager != null:
-		# Skip the initial tick race: fill the player's clock so they act first.
-		# (start_turn clears the ready-group membership this would otherwise set.)
-		if player.stat_board != null and player.stat_board.initiative != null:
-			player.stat_board.initiative.restore_to_full()
-		turn_manager.start_turn(player)
+	_open_first_turn()
 	_focus_camera_on_player()
 	# LAST. Everything above is what "presentable" means: the world generated,
 	# the HUD composed, the camera already on the player (`request_focus` with a
@@ -352,6 +347,44 @@ func _ready() -> void:
 	_reveal_ready = true
 	if SceneTransition.is_curtain_up():
 		await SceneTransition.fade_in()
+
+
+## Open the run's clock — as a [StartTurnCommand], never as a local call (#756).
+##
+## [b]The mirror never starts a turn on its own.[/b] Before this, every peer ran
+## `turn_manager.start_turn(player)` here on ITS OWN seated hero, so the host
+## opened on Player 1 and the client opened on Player 2. Nothing ever corrected
+## that: `TurnManager.current_entity`, `TurnManager.turns_taken` and each
+## [member Entity.turns_taken] are host DECISIONS, and under
+## `.claude/rules/multiplayer-sync.md` a peer receives a decision or reproduces
+## it — this one was doing neither. Every later [EndTurnCommand] then reproduced
+## `_tick_until_ready` from a different cursor, so turn-start upkeep ran for the
+## wrong entity and the accumulated tier drifted apart (#756).
+##
+## So the authority SUBMITS and the mirror WAITS. A mirror's cursor arrives
+## either as this command coming back down the [constant
+## CommandLink.KIND_COMMAND] leg, or — for a peer whose join world was encoded
+## after the host had already started — inside the resync itself
+## ([method EntitySnapshot.restore_turn_cursor]).
+##
+## The direct call survives only where there is no applier at all (a hand-built
+## test rig): offline play keeps going through the applier like everything else,
+## which is what keeps this one path and not two.
+func _open_first_turn() -> void:
+	if not auto_start_turn or turn_manager == null:
+		return
+	if not _is_network_authority():
+		return
+	if player == null:
+		return
+	if command_applier == null:
+		# Skip the initial tick race: fill the player's clock so they act first.
+		# (start_turn clears the ready-group membership this would otherwise set.)
+		if player.stat_board != null and player.stat_board.initiative != null:
+			player.stat_board.initiative.restore_to_full()
+		turn_manager.start_turn(player)
+		return
+	command_applier.submit(StartTurnCommand.new(player.entity_id))
 
 
 ## Rung 3's verdict line (#715) — the level half of `meta_root`'s

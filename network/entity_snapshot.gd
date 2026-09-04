@@ -93,6 +93,7 @@ const _R_TAGS := 8       ## Array of [name, refcount] — see [method _restore_t
 const _R_SCENE := 9      ## `scene_file_path` interned into `res`, -1 for none — see [method _materialize]
 const _R_NAME := 10      ## Entity.display_name — carried only so a materialized row is not nameless
 const _R_SPELL_IDS := 11 ## Array of indices into `spells`, or null — see [method _encode_spell_ids]
+const _R_TURNS := 12     ## Entity.turns_taken — see [method restore_turn_cursor]
 
 
 ## Build the payload for every [Entity] under `graph.entities_container`.
@@ -109,6 +110,7 @@ static func encode(graph: Graph) -> PackedByteArray:
 		rows.append(_encode_entity(graph, e, table, spell_table))
 	return GraphSnapshot._pack({
 		"res": table.paths, "spells": spell_table.paths, "entities": rows,
+		"turn": _encode_turn_cursor(graph),
 	})
 
 
@@ -243,7 +245,7 @@ static func _encode_entity(
 	for t in e.get_active_tags():
 		tags.append([String(t), e.get_tag_count(t)])
 	var row: Array
-	row.resize(12)
+	row.resize(13)
 	row[_R_SCENE] = table.intern(e.scene_file_path) if e.scene_file_path != "" else -1
 	row[_R_NAME] = e.display_name
 	row[_R_ENTITY_ID] = e.entity_id
@@ -256,6 +258,7 @@ static func _encode_entity(
 	row[_R_EFFECTS] = effects
 	row[_R_TAGS] = tags
 	row[_R_SPELL_IDS] = _encode_spell_ids(e.spellbook, spell_table)
+	row[_R_TURNS] = e.turns_taken
 	return row
 
 
@@ -304,6 +307,68 @@ static func _encode_spell_ids(
 		if spell != null and spell.id != &"":
 			ids.append(spell_table.intern(String(spell.id)))
 	return ids
+
+
+## The level's [TurnManager] cursor — `[current_entity_id, turns_taken]`, with
+## 0 for "nobody is holding the turn". Payload-level rather than a row, because
+## it is the LEVEL's state and not any one entity's.
+##
+## [b]Why it crosses at all (#756).[/b] Who holds the turn, and how many turns
+## have been served, are host DECISIONS. A joining peer whose world was encoded
+## after the host opened its first turn has no way to reproduce either — it
+## heard none of the emits — and every [EndTurnCommand] after that reproduces
+## [method TurnManager._tick_until_ready] from whatever cursor it invented for
+## itself. Turn-start upkeep then runs for the wrong entity on the wrong turn,
+## which moves node HP caps, regen stacks and pool currents: exactly the
+## accumulated-tier drift #756 measured. [member RunOutcome.turn_count] is the
+## same gap read out loud (host 48, client 38).
+static func _encode_turn_cursor(graph: Graph) -> Array:
+	var tm := _turn_manager_of(graph)
+	if tm == null:
+		return [0, 0]
+	var holder := 0
+	if tm.current_entity != null and is_instance_valid(tm.current_entity):
+		holder = tm.current_entity.entity_id
+	return [holder, tm.turns_taken]
+
+
+## Adopt the authority's turn cursor. A FIFTH decode step, run last — after
+## [method GraphSnapshot.restore_hp] — because [method TurnManager.adopt_turn]
+## emits [signal TurnManager.turn_started] and every listener of it (the HUD
+## banner, the initiative bar, the action cluster, the seat handover) reads a
+## world that must already be whole.
+##
+## [param turn_manager] is passed in rather than looked up: this class knows
+## about rows, and [CommandLink] is the one that holds the level's wiring.
+## Optional only in the sense that a null one is a no-op — a caller that has no
+## [TurnManager] has no cursor to repair.
+static func restore_turn_cursor(
+	bytes: PackedByteArray, graph: Graph, turn_manager: TurnManager
+) -> void:
+	if graph == null or turn_manager == null or bytes.is_empty():
+		return
+	var payload := GraphSnapshot._unpack(bytes)
+	var cursor: Array = payload.get("turn", [])
+	if cursor.size() < 2:
+		return
+	var holder_id := int(cursor[0])
+	var holder: Entity = graph.get_by_entity_id(holder_id) if holder_id != 0 else null
+	if holder_id != 0 and holder == null:
+		push_warning(
+			"EntitySnapshot: turn cursor names entity %d, which this peer does not have"
+			% holder_id
+		)
+		return
+	turn_manager.adopt_turn(holder, int(cursor[1]))
+
+
+## The level's single [TurnManager], found the same way [Entity] finds it — by
+## group, never by scene-tree depth. Null in a bare-graph fixture, which is why
+## [method _encode_turn_cursor] has a zero answer.
+static func _turn_manager_of(graph: Graph) -> TurnManager:
+	if graph == null or not graph.is_inside_tree():
+		return null
+	return graph.get_tree().get_first_node_in_group(TurnManager.GROUP) as TurnManager
 
 
 static func _intern_of(table: GraphSnapshot._InternTable, r: Resource) -> int:
@@ -387,6 +452,12 @@ static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array) -
 	else:
 		_restore_pruned_spellbook(e, row, spells)
 	e.entity_tier = int(row[_R_TIER])
+	# #756. Accumulated, not derived: it gates the first-turn upkeep skip, and a
+	# peer whose world arrived as a snapshot never heard the `turn_started`s that
+	# produced it. Guarded on width so a hand-built fixture row predating the
+	# slot decodes as "says nothing" rather than as 0.
+	if row.size() > _R_TURNS:
+		e.turns_taken = int(row[_R_TURNS])
 
 
 ## Rebuild the by-value book [method _encode_spell_ids] sent (#726).

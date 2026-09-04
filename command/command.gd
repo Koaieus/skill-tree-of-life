@@ -50,6 +50,27 @@ var entity_id: int = 0
 ## is never compared.
 var pre_fingerprint: int = 0
 
+## The host's [member pre_fingerprint] for this same command, attached by
+## [method CommandLink._on_remote_command] on the way in (#756). 0 on any
+## locally-originated command, and on a received one whose envelope carried no
+## stamp.
+##
+## [b]Transient applier state, absent from [method to_dict] for exactly the
+## reasons [member pre_fingerprint]'s note gives[/b] — it is the same number,
+## one peer over, and it rides the wire as [CommandLink]'s envelope-level
+## `KEY_FINGERPRINT`. Adding either to the command's own dictionary would
+## invalidate every `test/fixtures/outcome/*.tres`.
+##
+## [b]Why it has to travel ON the command.[/b] The compare it feeds is between
+## the host's stamp and the MIRROR's own stamp, and the mirror does not stamp
+## until [method CommandApplier._drain] pops the command — which may be several
+## commands after it arrived. Comparing at arrival instead meant skipping every
+## command that landed mid-drain, so a burst was compared exactly once and the
+## first command to actually diverge could not be named. Carrying the number
+## alongside the command is what lets both sides be read at the same point of
+## the same queue.
+var host_fingerprint: int = 0
+
 ## Correlates a client's INTENT with the confirmation that comes back (#548).
 ## Minted by the SUBMITTING peer in [method CommandApplier.submit] and echoed
 ## VERBATIM by the authority — the host must never re-mint, or the client's

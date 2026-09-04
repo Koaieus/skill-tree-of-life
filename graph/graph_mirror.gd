@@ -87,6 +87,39 @@ func wire_to(g: Graph) -> void:
 			mirror_add(sn)
 
 
+## Bring the mirror back in line with what [method _should_mirror] says NOW,
+## in both directions — add anything that qualifies and is missing, drop
+## anything mirrored that no longer qualifies (#756).
+##
+## [b]For state that arrived rather than happened.[/b] The mutation contract
+## ([EntityNavigator]'s class doc) is that ownership writes go through
+## [AllocationSystem], which calls [method mirror_add] / [method mirror_remove]
+## — and [method GraphSnapshot._decode_node] deliberately does not: it assigns
+## `owned_by` directly, because a snapshot is a world, not a sequence of moves.
+## So every mirror on a peer that decoded one is stale by exactly the ownership
+## the snapshot brought with it, and the entity-navigator staleness is silent
+## and cumulative: [method Entity._on_turn_started] runs the D-9 regen sweep
+## over `navigator.get_mirrored_nodes()`, so a node missing from the mirror
+## simply never heals on that peer. On a joining client the missing node is its
+## own CORE (allocated by the host before the world was encoded), which is
+## exactly what #756 measured drifting.
+##
+## Cheaper than rebuilding: both [method mirror_add] and [method mirror_remove]
+## are idempotent no-ops for a node already on the right side, so a mirror that
+## never drifted pays one `_should_mirror` per node and writes nothing —
+## including [member EntityNavigator.topology_generation], which an
+## unconditional rebuild would bump and invalidate every [AuraDistanceCache]
+## entry for.
+func reconcile() -> void:
+	if graph == null:
+		return
+	for sn in graph.get_skill_nodes():
+		if _should_mirror(sn):
+			mirror_add(sn)
+		else:
+			mirror_remove(sn)
+
+
 ## Subclass hook: return true if [param node] should enter the mirror when
 ## the graph reports it (added / bootstrap). Default mirrors everything.
 ## Manual-sync subclasses (plan-driven) can ignore this — they don't call

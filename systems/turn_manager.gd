@@ -24,6 +24,25 @@ var current_entity: Entity = null
 var turns_taken: int = 0
 
 
+## True only for the duration of [method adopt_turn]'s [signal turn_started]
+## emit. It is what tells [method Entity._on_turn_started] that this particular
+## turn start is a REPAIR and not a beginning: the snapshot it arrived with
+## already carries the results of that turn's upkeep (every pool's `current`,
+## every node's HP and regen stacks, [member Entity.turns_taken] itself), so
+## running the upkeep again would apply it twice.
+##
+## [b]A flag rather than a second signal.[/b] `turn_started` has seven listeners
+## and six of them are presentation or dispatch — the HUD banner, the initiative
+## bar, the action cluster, the seat handover, the harness announcements,
+## [BattleSystem]'s plan invalidation — and every one of them wants to hear an
+## adopted cursor exactly as it hears an ordinary one. Only ONE listener mutates
+## the world, and it is the one the snapshot has already spoken for. A parallel
+## `turn_adopted` signal would mean re-wiring all six to hear both and would put
+## two spellings of "the turn is now this entity's" in the tree
+## (`.claude/rules/…` — one implementation over swappable state).
+var is_adopting: bool = false
+
+
 ## Group used by Entity to discover the level's TurnManager without coupling
 ## to scene-tree depth. Single instance per level.
 const GROUP := &"turn_manager"
@@ -43,6 +62,45 @@ func start_turn(entity: Entity) -> void:
 	current_entity = entity
 	turns_taken += 1
 	turn_started.emit(entity)
+
+
+## Take the authority's cursor as given (#756) — the resync half of "the mirror
+## never starts a turn on its own".
+##
+## [method start_turn] is a DECISION: it consumes readiness, tallies a turn and
+## fires the upkeep that turning gives you. This is the same cursor arriving as
+## a RESULT, from [method EntitySnapshot.restore_turn_cursor], on a peer that has
+## just had its whole world overwritten by the authority's. So it sets what
+## `start_turn` sets and runs none of what `start_turn` runs — see
+## [member is_adopting] — because the payload it came with is the world AFTER
+## all of that already happened.
+##
+## [param total_turns_taken] is the authority's [member turns_taken], adopted
+## outright: it is what [member RunOutcome.turn_count] reports, and a repaired
+## mirror counting its own was #756's second symptom (host 48, client 38).
+##
+## [b]No [signal turn_ended] for the entity being displaced.[/b] That signal
+## MUTATES ([method Entity._on_turn_ended] moves unused AP into next turn's
+## surplus), and the surplus this repair should end with is already in the board
+## the snapshot just restored. A repair has no presentation semantics and must
+## never acquire any (#521 D1); this is the same rule one level down.
+##
+## A no-op when the cursor already agrees, which is the ordinary case for a
+## mid-run repair — and what keeps this idempotent, like every other step of a
+## resync decode.
+func adopt_turn(entity: Entity, total_turns_taken: int) -> void:
+	turns_taken = total_turns_taken
+	if current_entity == entity:
+		return
+	current_entity = entity
+	if entity == null:
+		return
+	# The authority's acting entity has spent its readiness; a mirror that left
+	# it in the group would serve it again on the next `_tick_until_ready`.
+	entity.remove_from_group(Entity.READY_GROUP)
+	is_adopting = true
+	turn_started.emit(entity)
+	is_adopting = false
 
 
 ## End the current turn, then auto-tick until the next entity is ready and

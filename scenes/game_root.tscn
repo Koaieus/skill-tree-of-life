@@ -192,12 +192,13 @@ unique_name_in_owner = true
 unique_name_in_owner = true
 script = ExtResource("23_transport")
 
-[node name="CommandLink" type="Node" parent="." unique_id=1000000532 node_paths=PackedStringArray("transport", "command_applier", "graph", "loot_pick_registry")]
+[node name="CommandLink" type="Node" parent="." unique_id=1000000532 node_paths=PackedStringArray("transport", "command_applier", "graph", "turn_manager", "loot_pick_registry")]
 unique_name_in_owner = true
 script = ExtResource("24_link")
 transport = NodePath("../Transport")
 command_applier = NodePath("../Systems/CommandApplier")
 graph = NodePath("../Graph")
+turn_manager = NodePath("../Systems/TurnManager")
 loot_pick_registry = NodePath("../Systems/LootPickRegistry")
 
 [connection signal="core_moved" from="Systems/AllocationSystem" to="." method="_on_core_moved"]

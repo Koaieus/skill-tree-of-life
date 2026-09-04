@@ -162,6 +162,34 @@ static func decode(bytes: PackedByteArray, graph: Graph) -> void:
 	for node in stale.values():
 		graph.remove_skill_node(node)
 	_reconcile_edges(graph, payload.get("edges", []) as Array, by_id, edges_before)
+	_reconcile_owner_mirrors(graph)
+
+
+## Every [EntityNavigator] this decode just invalidated (#756).
+##
+## [method _decode_node] sets `owned_by` DIRECTLY — it has to, a snapshot is a
+## world and not a sequence of allocations — and that is precisely the write
+## [EntityNavigator]'s mutation contract says will drift the mirror. Nothing
+## repaired it, so a peer that decoded a world owned nodes its own navigator had
+## never heard of. The symptom is quiet and cumulative rather than loud:
+## [method Entity._on_turn_started] runs the D-9 regen sweep over
+## `navigator.get_mirrored_nodes()`, so an unmirrored node never regens on that
+## peer while it regens on the authority, and the ACCUMULATED fingerprint tier
+## walks apart a fraction of an HP at a time. On a joining client the first
+## missing node is its own core.
+##
+## Here rather than in [CommandLink] because it belongs to the write that broke
+## it: every caller of [method decode] — the join, the resync, the standalone
+## [constant CommandLink.KIND_SNAPSHOT] leg — needs it, and none of them should
+## have to remember.
+##
+## [method Navigator]'s full-graph mirror needs nothing: it mirrors every node
+## regardless of owner, and node add/remove already come through the graph's
+## own structural signals.
+static func _reconcile_owner_mirrors(graph: Graph) -> void:
+	for e in EntitySnapshot.entities_of(graph):
+		if e.navigator != null:
+			e.navigator.reconcile()
 
 
 ## `{Vector2i(lo_id, hi_id): Array[Edge]}` for the graph as it stands — an

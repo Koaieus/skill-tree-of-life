@@ -249,7 +249,20 @@ var is_dead: bool = false
 ## Fixtures that construct an already-established entity (the `tools/balance/`
 ## probes) set this to 1 at build time, which is the honest claim: they are not
 ## on their first turn.
+##
+## [b]Since #756 it DOES cross[/b] — [constant EntitySnapshot._R_TURNS]. The
+## parenthesised gap above was the real one: a peer whose world arrived as a
+## snapshot never counted the turns that produced it, so every entity in it read
+## 0 and the next turn each one served re-granted the first-turn skip. The
+## ordinary case is still that each peer counts for itself, off its own
+## `turn_started`; the snapshot is what makes a peer that missed those emits
+## agree anyway.
 var turns_taken: int = 0
+
+## Resolved once in [method initialize]; read by [method _on_turn_started] to
+## tell an adopted cursor from a turn actually beginning. See
+## [member TurnManager.is_adopting].
+var _turn_manager: TurnManager = null
 
 ## Has this entity's BRAIN concluded it is boxed in, this turn? Host-only,
 ## AI-only, and re-decided every turn by [method AIController.take_turn] from
@@ -364,10 +377,10 @@ func initialize() -> void:
 		if node_hp_baseline != null:
 			node_hp_baseline.value_changed.connect(node_health_cap_changed.emit)
 
-	var tm := _find_turn_manager()
-	if tm != null:
-		tm.turn_started.connect(_on_turn_started)
-		tm.turn_ended.connect(_on_turn_ended)
+	_turn_manager = _find_turn_manager()
+	if _turn_manager != null:
+		_turn_manager.turn_started.connect(_on_turn_started)
+		_turn_manager.turn_ended.connect(_on_turn_ended)
 
 
 #region Effects
@@ -488,6 +501,12 @@ func get_active_tags() -> Array[StringName]:
 ## single move. See [member turns_taken].
 func _on_turn_started(entity: Entity) -> void:
 	if entity != self or stat_board == null:
+		return
+	# An ADOPTED cursor is not a turn beginning (#756) — it is the authority's
+	# turn arriving inside a snapshot that already holds everything the lines
+	# below would compute, [member turns_taken] included. See
+	# [member TurnManager.is_adopting].
+	if _turn_manager != null and _turn_manager.is_adopting:
 		return
 	# Counted before the gate, so the tally stays honest about turns SERVED.
 	turns_taken += 1

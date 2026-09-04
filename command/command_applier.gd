@@ -73,6 +73,19 @@ signal command_applied(command: Command, success: bool)
 ## opted out through is gone rather than left standing with no callers.
 signal command_confirmed(command: Command)
 
+## [member Command.pre_fingerprint] has just been written for a command that is
+## about to be validated — the instant this peer's pre-state for it is knowable,
+## and BEFORE the gate, so a command that goes on to be refused is still
+## compared (#756).
+##
+## Exists so the divergence check happens at the same point of the same queue on
+## both peers. [method CommandLink._on_remote_command] used to compare on
+## ARRIVAL, gated on the applier being idle, which meant a burst of commands was
+## compared once and the first one to actually diverge could not be named. The
+## host's number rides in on [member Command.host_fingerprint]; this is where
+## the mirror's own is produced.
+signal command_stamped(command: Command)
+
 ## A command was submitted on a peer that does NOT decide (#548) — send it
 ## upward as an INTENT. Carries the command with its [member Command.intent_id]
 ## already minted; the authority echoes that id back verbatim on the confirm.
@@ -472,6 +485,11 @@ func _drain() -> void:
 		# an exception. See [member Command.pre_fingerprint].
 		if graph != null:
 			command.pre_fingerprint = WorldFingerprint.compute(graph)
+		# The one moment this peer's pre-state is knowable for THIS command, and
+		# therefore the only honest place to compare it against the host's stamp
+		# (#756). Emitted for every command on every peer; [CommandLink] is the
+		# only listener and it answers on a MIRROR only.
+		command_stamped.emit(command)
 		var success := _validate(command)
 		if success:
 			# THE FLIP, and since #545 there is no branch around it: every verb
@@ -603,6 +621,15 @@ func _validate(command: Command) -> bool:
 		# from the apply so the record is final before the confirm.
 		return battle_system != null \
 				and battle_system.prepare_launch_command(command as LaunchAttackCommand)
+	if command is StartTurnCommand:
+		# The run's opening cursor, and the ONE thing it must not do is open a
+		# second one: every turn after the first is handed on by
+		# `_tick_until_ready` from inside [method TurnManager.end_turn], so a
+		# `start_turn` arriving mid-run would be a duplicate the mirror already
+		# has. `current_entity == null` is that guard, and it is also
+		# [method TurnManager.start_turn]'s own `assert` — which compiles out of
+		# a release build, so it cannot be the gate. See [StartTurnCommand].
+		return turn_manager != null and turn_manager.current_entity == null
 	if command is EndTurnCommand:
 		# No gate, deliberately: [method TurnManager.end_turn] has never had one
 		# and neither did the direct call it replaced (see
@@ -686,6 +713,18 @@ func _apply(command: Command) -> bool:
 			return false
 		@warning_ignore("redundant_await")
 		return await battle_system.apply_launch_command(command as LaunchAttackCommand)
+	if command is StartTurnCommand:
+		if turn_manager == null:
+			return false
+		# The initiative fill that [method GameRoot._ready] used to do inline,
+		# moved here so it happens at the same point of the command stream on
+		# every peer — the actor acts first because its clock is full, and a
+		# mirror that filled its OWN hero's clock instead would tick to a
+		# different entity on the very next [EndTurnCommand].
+		if actor.stat_board != null and actor.stat_board.initiative != null:
+			actor.stat_board.initiative.restore_to_full()
+		turn_manager.start_turn(actor)
+		return true
 	if command is EndTurnCommand:
 		if turn_manager == null:
 			return false

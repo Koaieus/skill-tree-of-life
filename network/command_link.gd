@@ -295,6 +295,12 @@ signal seat_handover_received(participant_id: int)
 @export var transport: NetworkTransport
 @export var command_applier: CommandApplier
 @export var graph: Graph
+
+## The level's clock. Only ever WRITTEN through
+## [method EntitySnapshot.restore_turn_cursor], and only on a mirror: who holds
+## the turn is a host decision that a repaired peer receives rather than
+## reproduces (#756). Wired by `game_root.tscn`.
+@export var turn_manager: TurnManager
 ## #646: the outstanding-pick book, ONLY consulted here for
 ## [signal LootPickRegistry.offer_parked] — the trigger for
 ## [method send_loot_offer]. Null is supported (no registry wired, e.g. every
@@ -374,6 +380,7 @@ func _ready() -> void:
 		command_applier.command_confirmed.connect(_on_command_confirmed)
 		command_applier.intent_submitted.connect(_on_intent_submitted)
 		command_applier.command_applied.connect(_on_command_applied)
+		command_applier.command_stamped.connect(_on_command_stamped)
 	if loot_pick_registry != null:
 		loot_pick_registry.offer_parked.connect(_on_offer_parked)
 
@@ -664,6 +671,10 @@ func _on_resync(payload: Dictionary) -> void:
 	# restored once that board is whole — which pass 2 above is what finishes.
 	# See [method GraphSnapshot.restore_hp].
 	GraphSnapshot.restore_hp(graph_bytes, graph)
+	# FIFTH, and after the HP for the same reason the HP is after pass 2: the
+	# cursor's [signal TurnManager.turn_started] reaches the HUD, and a banner
+	# raised over a half-restored world is the same class of bug one step later.
+	EntitySnapshot.restore_turn_cursor(entity_bytes, graph, turn_manager)
 	# Cleared here, not on the next verdict: the repair has landed, and the very
 	# next compare is the one that says whether it worked.
 	_awaiting_resync = false
@@ -1013,6 +1024,7 @@ func _drain_pending_entities() -> void:
 	var bytes := _pending_entities
 	_pending_entities = PackedByteArray()
 	EntitySnapshot.resolve_graph_refs(bytes, graph, entity_spawner)
+	EntitySnapshot.restore_turn_cursor(bytes, graph, turn_manager)
 
 
 ## An entity snapshot whose pass 2 is still waiting on a graph. Cleared the
@@ -1262,20 +1274,18 @@ func _on_remote_command(payload: Dictionary) -> void:
 	#
 	# The cost, accepted and stated in the issue: divergence detection lags one
 	# command, and a run's FINAL command is never compared at all.
-	var settled := not command_applier.is_applying and command_applier.pending_count() == 0
+	# The host's stamp travels ON the command from here (#756), so the compare
+	# can happen where it belongs — at this peer's own stamp point inside
+	# [method CommandApplier._drain], see [method _on_command_stamped].
+	command.host_fingerprint = int(payload.get(KEY_FINGERPRINT, 0))
 	# The same flag the probe needs, read once — by the time the probe could ask
 	# for itself, `submit` has started a drain and the answer is always "busy".
+	# It no longer gates anything: the RESOLVE/LAND re-derivation still happens
+	# here, on arrival, because it must run before this peer applies, and
+	# `settled` is the honest annotation of what world it read.
 	if probe != null:
-		probe.observe_before_apply(command, settled)
-	if settled:
-		var agrees := _report_sync(WorldFingerprint.compute(graph),
-				int(payload.get(KEY_FINGERPRINT, 0)), "before %s" % command.type_tag())
-		if probe != null:
-			probe.observe_world(command, agrees)
-	elif probe != null:
-		# Counted, not dropped, or the probe's denominator would silently be a
-		# lie ("0 diverged of 412" while only 280 were ever looked at).
-		probe.observe_skipped(command)
+		probe.observe_before_apply(command,
+				not command_applier.is_applying and command_applier.pending_count() == 0)
 	_applying_remote = true
 	# [method CommandApplier.apply_remote], NOT `submit` — since #548 `submit`
 	# is the INTENT door, and on this MIRROR peer it would send the host's own
@@ -1290,6 +1300,45 @@ func _on_remote_command(payload: Dictionary) -> void:
 		await command_applier.applying_changed
 	_applying_remote = false
 	logged.emit("← %s" % command.type_tag())
+
+
+## The divergence check, at the mirror's own [member Command.pre_fingerprint]
+## stamp (#756) — pre-state against pre-state, for EVERY command.
+##
+## [b]What moved, and why.[/b] This used to run in
+## [method _on_remote_command], on arrival, behind a `settled` guard: a command
+## that landed while the applier was mid-drain was compared against a world
+## sitting at no command's boundary, so it had to be skipped instead. Under
+## autoplay — and under any burst, which is what a real turn of an AI looks
+## like — nine commands in a row would arrive inside one drain and exactly one
+## of them was ever looked at. The count was honest (they were tallied
+## `skipped`) and useless: "the mirror diverged 3 times" could not say which
+## command diverged first, which is the only question a sync bug is debugged by.
+##
+## Here there is no such thing as an unsettled world. [method
+## CommandApplier._drain] pops one command, stamps the world it is about to
+## apply it to, and emits — the exact counterpart of the moment the host
+## stamped. Nothing is skipped, and the first `✗` names the first command that
+## actually disagreed.
+##
+## [b]MIRROR only.[/b] The authority's stamp IS the reference; comparing it
+## against itself would be a tautology, and every command it drains carries
+## [member Command.host_fingerprint] 0 anyway.
+func _on_command_stamped(command: Command) -> void:
+	if mode != Mode.MIRROR or command == null:
+		return
+	if command.host_fingerprint == 0:
+		# A received command whose envelope carried no stamp — nothing to
+		# compare against. Counted, not dropped, or the probe's denominator
+		# would silently be a lie ("0 diverged of 412" while only 280 were ever
+		# looked at).
+		if probe != null and _applying_remote:
+			probe.observe_skipped(command)
+		return
+	var agrees := _report_sync(command.pre_fingerprint, command.host_fingerprint,
+			"before %s" % command.type_tag())
+	if probe != null:
+		probe.observe_world(command, agrees)
 
 
 ## Returns the verdict as well as announcing it, so #529's probe can attribute

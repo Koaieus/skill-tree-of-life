@@ -48,6 +48,8 @@ static func _build(d: Dictionary) -> Command:
 			return MoveCoreCommand.from_dict(d)
 		EndTurnCommand.TAG:
 			return EndTurnCommand.from_dict(d)
+		StartTurnCommand.TAG:
+			return StartTurnCommand.from_dict(d)
 		PickLootCommand.TAG:
 			return PickLootCommand.from_dict(d)
 		LootRoundCommand.TAG:
