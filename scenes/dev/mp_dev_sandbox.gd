@@ -161,9 +161,11 @@ func _ready() -> void:
 	_start_link()
 
 
-## Replicates `GameRoot._ready`'s `auto_start_turn` block, targeting `_red`
-## instead of `player` — see the note in `_ready` for why the two must not be
-## the same variable here.
+## Replicates what `GameRoot._open_first_turn` does, targeting `_red` instead of
+## `player` — see the note in `_ready` for why the two must not be the same
+## variable here. A local call rather than a [StartTurnCommand] is safe only
+## because both peers name the SAME entity; #756 is what happens when they do
+## not.
 func _start_opening_turn() -> void:
 	if _red == null or turn_manager == null:
 		return

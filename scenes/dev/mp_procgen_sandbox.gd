@@ -256,10 +256,15 @@ func _setup_level() -> void:
 			await _setup_level_as_host_or_solo()
 
 
-## Replicates `GameRoot._ready`'s `auto_start_turn` block, targeting `_red`
-## directly rather than `player` — turn order is shared simulation state and
-## must start on the same entity regardless of which one this machine is
-## bound to (rung 1's `mp_dev_sandbox.gd` makes the identical argument).
+## Replicates what `GameRoot._open_first_turn` does, targeting `_red` directly
+## rather than `player` — turn order is shared simulation state and must start
+## on the same entity regardless of which one this machine is bound to (rung 1's
+## `mp_dev_sandbox.gd` makes the identical argument, and #756 is that argument
+## being right: the shipped level got this wrong and drifted every run).
+##
+## Still a LOCAL call, not a [StartTurnCommand], and that is safe only because
+## both peers name the same entity here. A sandbox that ever seats them
+## differently must go through the command instead.
 ##
 ## Guarded on `current_entity == null`: `TurnManager.start_turn` ASSERTS that,
 ## and `_greet_if_linked_and_ready` — this method's HOST caller — can re-fire
