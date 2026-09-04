@@ -26,7 +26,7 @@ Setup is one command — [mise](https://mise.jdx.dev) installs the pinned Godot,
 beyond GUT):
 
 ```
-mise install        # godot 4.7.1 + gh + python, ~5s
+mise install        # godot 4.7.2 + gh + python, ~5s
 mise run test       # confirm you're up
 ```
 

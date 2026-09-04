@@ -8,7 +8,7 @@
 [tools]
 # Pinned exactly: the engine decides whether a .tscn even loads, and a project
 # opened by a newer editor is not reopenable by an older one. Bump deliberately.
-godot = "4.7.1-stable"
+godot = "4.7.2-stable"
 # Board tasks (.mise/tasks/gh-project) shell out to gh; auth stays in ~/.config/gh.
 gh = "2"
 # The python file tasks (test, refresh, rules-hygiene, lint-transcendentals) are

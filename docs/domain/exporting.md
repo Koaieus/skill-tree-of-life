@@ -24,8 +24,8 @@ and it derives the version from `godot --version` so a bump to `[tools]` in
 `mise.toml` needs no edit here.
 
 **The directory name is load-bearing**: the engine looks up
-`export_templates/4.7.1.stable/`, with the engine's own `x.y.z.stable`
-spelling — *not* the mise pin's `4.7.1-stable`. Any other spelling reports
+`export_templates/4.7.2.stable/`, with the engine's own `x.y.z.stable`
+spelling — *not* the mise pin's `4.7.2-stable`. Any other spelling reports
 "no export template found for the platform" as though nothing were installed.
 
 ## The build stamps its own commit, and why that is not cosmetic
