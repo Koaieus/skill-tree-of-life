@@ -46,7 +46,8 @@ draw (primary → cost-capped off-attribute → defensive → rare) is replaced 
 - `StatPack.off_phase_op_weights` + `off_weight_for` — D7 removed the
   off-archetype phase entirely. All budget goes to the node's primary
   archetype; **universal** pools (`archetype_stat == &""` — armor,
-  node_health, movement_points, deallocation_points, the intelligence debuff)
+  node_health, movement_points, deallocation_points) — no CURSE is universal
+  as of #718, see "The curse law" below
   are the shared defensive/mobility content, drawn by every node.
 - `CollisionProfile` from `first_level.tres`'s `weight_profiles` — its "zero
   duplicate `(stat,op)`" rule does not compose with aggregation (which
@@ -158,12 +159,55 @@ negative pools:  sign(M) == sign(unit_value)  and  abs(M) <= abs(unit_value)
 positive pools:  M <= unit_value              # unchanged; negative M stays legal (#628)
 ```
 
-The two authored entries, both in `constitution.tres`:
+Two of the authored entries, both in `constitution.tres` (`intelligence +%` was
+re-pointed to `dexterity` in `1aa8f29` and scoped to CON in #718; the shape is
+unchanged):
 
 | Entry | Authoring | Flattens to |
 |---|---|---|
 | `min_damage_taken` | `unit_value = -1.0`, `min_tier = 3` (unchanged) | T3 `-1..-1` cost 4; T4 `-2..-3` cost 8 |
-| `intelligence +%` | `unit_value = -3.0`, `range_floor = -1.0`, `max_tier = 3` | T1 `-1..-3`; T2 `-4..-9`; T3 `-10..-21` |
+| `dexterity -%` | `unit_value = -3.0`, `range_floor = -1.0`, `max_tier = 3` | T1 `-1..-3`; T2 `-4..-9`; T3 `-10..-21` |
+
+## The curse law (#718)
+
+Every downside pool is **archetype-scoped and untagged**. Which of the six
+archetypes taxes what:
+
+| archetype | taxes | reads as |
+|---|---|---|
+| STR | `intelligence -%` | power over thought |
+| CON | `dexterity -%` | armor is heavy |
+| INT | `node_health -%` | the mage's territory is brittle |
+| DEX | `armor -%` | the duelist wears no plate |
+| WIS, PER | — | deliberately curse-free |
+
+Stated as one line: *the two solid archetypes tax the two quick/clever
+attributes; the two quick/clever archetypes tax the two defensive stats.*
+
+Three properties are load-bearing, and none of them is a tuning knob:
+
+- **Explicit `archetype_stat`, never the default.** `StatPool.archetype_stat`
+  defaults to `&""`, which means *universal* — so "I forgot to set it" and "I
+  want this on every node" are the same value. `1aa8f29` re-pointed the CON
+  curse by editing `stat_id` alone and shipped it on all six archetypes.
+- **Empty `tags`.** Tags feed `ArchetypeWeightProfile` (multiplied across every
+  matched tag) *and* `ArchetypePolicy.forbid_tags` (a brick wall). The same
+  curse kept `tags = [&"int", …]` after re-pointing, which handed it a 3x boost
+  on INT nodes and a hard ban on gold/purple.
+- **`armor -%` is INCREASE, not ADD_BASE.** `armor`'s base is 0 and procgen
+  writes `SkillNode.modifiers`, which is *entity*-scoped — a flat curse would
+  mint unbounded negative armor across the whole territory, and
+  `Mitigation.compute` floors at `min_damage_taken` rather than capping. As an
+  INCREASE it scales down accumulated armor: self-limiting, and free until you
+  own armor at all.
+
+WIS/PER being curse-free is a stated asymmetry, not an omission — they are 5% /
+3% of the graph and are already locked out of *all* universal content by their
+`forbid_tags` (#750). Making the pack the only gate is #751.
+
+`test/unit/test_pool_scoping.gd` pins all of this structurally, plus a headless
+sweep of `_get_configuration_warnings()` across every pack and pool — that
+warning is `@tool`-only, so before #718 nothing outside the editor read it.
 
 ### The refund economics are retired — owner call, 2026-08-30
 
@@ -245,7 +289,8 @@ ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
 Per-pack homes: str/dex/int/wis/per/con each carry their attribute's addb+inc+
 mul; dex adds crit_chance+crit_multiplier; int adds mana+mana_per_turn; wis
 adds xp_per_turn (addb+inc); per adds vision_range (inc+addn)+sensor_range;
-con adds node_health+armor (universal) + the intelligence debuff (universal);
+con adds node_health+armor (universal) + the `dexterity -%` curse (CON-scoped
+since #718; universal before that);
 `mobility.tres` (universal pack) carries movement_points+deallocation_points.
 
 ## Budget envelope (first_level.tres)

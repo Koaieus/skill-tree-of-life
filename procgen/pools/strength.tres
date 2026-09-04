@@ -44,7 +44,7 @@ operation = 1
 archetype_stat = &"strength"
 unit_value = -2.0
 range_floor = -1.0
-pool_weight = 2.0
+pool_weight = 1.0
 max_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 

@@ -38,13 +38,16 @@ func test_specimen_flatten_for_strength_node_returns_strength_plus_universal() -
 		if not e.stat_id in stat_ids:
 			stat_ids.append(e.stat_id)
 	assert_true(&"strength" in stat_ids, "strength pools drawn for a STR node")
-	# Universal pools (node_health, armor, movement_points, deallocation_points,
-	# intelligence debuff) are drawn by every node.
+	# Universal pools (node_health, armor, movement_points, deallocation_points)
+	# are drawn by every node. As of #718 no CURSE is universal any more —
+	# every downside pool carries an explicit archetype_stat.
 	assert_true(&"movement_points" in stat_ids, "universal movement_points drawn for a STR node")
 	assert_true(&"node_health" in stat_ids, "universal node_health drawn for a STR node")
 	assert_true(&"armor" in stat_ids, "universal armor drawn for a STR node")
-	# Off-archetype PRIMARY pools (dexterity, intelligence, …) are NOT drawn —
-	# D7 removed the off-archetype phase.
+	# Off-archetype PRIMARY pools (dexterity, wisdom, …) are NOT drawn — D7
+	# removed the off-archetype phase. `intelligence` is deliberately absent
+	# from this list: the STR pack's own `intelligence -%` curse targets it, so
+	# a STR node legitimately draws an intelligence-stat entry (#718).
 	assert_false(&"dexterity" in stat_ids, "dexterity is off-archetype and must NOT be drawn by a STR node (D7)")
 	assert_false(&"wisdom" in stat_ids, "wisdom is off-archetype and must NOT be drawn by a STR node (D7)")
 
@@ -70,10 +73,16 @@ func test_procgen_draw_occasionally_produces_movement_bonus() -> void:
 	assert_true(saw_dealloc, "expected at least one deallocation_points roll across 59 seeded draws")
 
 
-func test_universal_debuff_pool_is_drawable_and_refunds_budget() -> void:
-	# The intelligence INCREASE debuff (unit -5, cost -1) is universal; over
-	# enough draws at a modest budget it should land at least once, producing a
+func test_strength_pack_intelligence_curse_is_drawable() -> void:
+	# The STR pack's `intelligence -%` curse: over enough draws at a modest
+	# budget it should land at least once on a STR node, producing a
 	# negative-INCREASE modifier on intelligence.
+	#
+	# Renamed twice. It stopped "refunding budget" in #637 (cost is always
+	# positive now), and it stopped being *universal* in #718 — it is scoped
+	# `archetype_stat = &"strength"`, so this draw finds it only because the
+	# node's primary IS strength. The old name asserted two things that are no
+	# longer true; the behaviour under test is unchanged.
 	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
 	var saw_int_debuff := false
 	for seed_value in range(1, 80):
@@ -86,7 +95,7 @@ func test_universal_debuff_pool_is_drawable_and_refunds_budget() -> void:
 				break
 		if saw_int_debuff:
 			break
-	assert_true(saw_int_debuff, "intelligence debuff pool should land at least once across seeded draws")
+	assert_true(saw_int_debuff, "the STR pack's intelligence curse should land at least once across seeded draws")
 
 
 func test_value_overrides_stay_under_repo_budget() -> void:

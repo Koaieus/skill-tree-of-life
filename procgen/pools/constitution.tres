@@ -52,15 +52,15 @@ tags = Array[StringName]([&"defense", &"flat"])
 pool_weight = 2.0
 max_tier = 3
 
-[sub_resource type="Resource" id="int_debuff"]
+[sub_resource type="Resource" id="dex_debuff"]
 resource_name = "dexterity -%"
 script = ExtResource("2_pool")
 stat_id = &"dexterity"
 operation = 1
-tags = Array[StringName]([&"int", &"percent"])
+archetype_stat = &"constitution"
 unit_value = -3.0
 range_floor = -1.0
-pool_weight = 0.5
+pool_weight = 1.0
 max_tier = 3
 
 [sub_resource type="Resource" id="Resource_u38nb"]
@@ -77,4 +77,4 @@ metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"constitution"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("nh_inc"), SubResource("ar"), SubResource("int_debuff"), SubResource("Resource_u38nb")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("nh_inc"), SubResource("ar"), SubResource("dex_debuff"), SubResource("Resource_u38nb")])

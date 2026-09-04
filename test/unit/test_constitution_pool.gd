@@ -42,7 +42,12 @@ func test_universal_pools_are_archetype_empty() -> void:
 			assert_eq(pp.archetype_stat, &"", "pool %s should be universal" % String(pp.stat_id))
 
 
-## The CON pack's INT pool — asserts the pool's SHAPE, not its magnitudes.
+## The CON pack's DEX pool — asserts the pool's SHAPE, not its magnitudes.
+##
+## #718 re-pointed this from `intelligence` to `dexterity`. The CON pack's
+## downside pool taxes DEX now ("armor is heavy"), and — the part that actually
+## broke — it is scoped `archetype_stat = &"constitution"` rather than left at
+## the `&""` default, so it rolls on CON nodes instead of on all six archetypes.
 ##
 ## This used to pin `unit_value == -5.0` and `max_tier == 1` outright, so the
 ## 2026-08-07 playtest retune (softer per-tier bite, -5% → -2%, spread across
@@ -56,20 +61,20 @@ func test_universal_pools_are_archetype_empty() -> void:
 ## the 2026-08-07 refund-economics decision) retired the OLD invariant this
 ## test used to pin — a debuff "refunds cost rather than charging it" — the
 ## draw now spends `+T` for a negative pool exactly like any other.
-func test_intelligence_negative_pool() -> void:
+func test_dexterity_negative_pool() -> void:
 	var p: StatPack = _PACK.duplicate(true) as StatPack
 	var found := false
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
-		if pp.stat_id == &"intelligence" and pp.operation == StatModifier.Operation.INCREASE:
+		if pp.stat_id == &"dexterity" and pp.operation == StatModifier.Operation.INCREASE:
 			found = true
-			assert_lt(pp.unit_value, 0.0, "the INT pool in the CON pack rolls a negative value")
+			assert_lt(pp.unit_value, 0.0, "the DEX pool in the CON pack rolls a negative value")
 			assert_gte(pp.max_tier, 1, "reachable on at least one tier")
 			assert_eq(pp.to_entries().size(), pp.max_tier,
 				"one entry per tier up to max_tier")
 			for e in pp.to_entries():
 				assert_gt(e.cost, 0, "cost is always positive — refund economics retired (#637)")
-	assert_true(found, "the CON pack still carries an INT pool at all")
+	assert_true(found, "the CON pack still carries a DEX downside pool at all")
 
 
 ## #637 acceptance 1: min_damage_taken is unchanged in authoring (unit -1.0,
@@ -100,7 +105,8 @@ func test_min_damage_taken_flattens_to_exact_migrated_table() -> void:
 	assert_true(found, "constitution pack still carries min_damage_taken")
 
 
-## #637's sign guarantee for the CON pack's INT pool, as a content invariant
+## #637's sign guarantee for the CON pack's DEX pool (was the INT pool before
+## #718 re-pointed it), as a content invariant
 ## rather than a pinned table (#719): an always-negative pool must STAY
 ## always-negative, so its `range_floor` has to share `unit_value`'s sign and
 ## not exceed its magnitude — otherwise the range crosses zero and a downside
@@ -108,14 +114,14 @@ func test_min_damage_taken_flattens_to_exact_migrated_table() -> void:
 ## T1 -3..-1, T2 -9..-4, T3 -21..-10 at costs 1 2 4) is pinned on a hand-built
 ## pool in test_pool_seed_values.gd, where re-tuning this `.tres` cannot reach
 ## it. See docs/domain/procgen-v4.md.
-func test_intelligence_pool_stays_sign_consistent() -> void:
+func test_dexterity_pool_stays_sign_consistent() -> void:
 	var p: StatPack = _PACK.duplicate(true) as StatPack
 	var found := false
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
-		if pp.stat_id == &"intelligence" and pp.operation == StatModifier.Operation.INCREASE:
+		if pp.stat_id == &"dexterity" and pp.operation == StatModifier.Operation.INCREASE:
 			found = true
-			assert_lt(pp.unit_value, 0.0, "the INT pool in the CON pack is a downside pool")
+			assert_lt(pp.unit_value, 0.0, "the DEX pool in the CON pack is a downside pool")
 			if not is_inf(pp.range_floor):
 				assert_eq(signf(pp.range_floor), signf(pp.unit_value),
 						"range_floor must share unit_value's sign or the range crosses zero")
@@ -124,7 +130,7 @@ func test_intelligence_pool_stays_sign_consistent() -> void:
 			for e in pp.to_entries():
 				assert_gt(e.cost, 0, "cost is always positive — refund economics retired (#637)")
 				assert_lt(e.value_range.y, 0.0, "every tier stays negative at BOTH ends")
-	assert_true(found, "constitution pack still carries the intelligence +% pool")
+	assert_true(found, "constitution pack still carries the dexterity -% pool")
 
 
 ## #637 acceptance 8 — owner-pinned arithmetic, NOT a balance decision this

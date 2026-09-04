@@ -79,7 +79,19 @@ pool_weight = 0.3
 min_tier = 3
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
+[sub_resource type="Resource" id="armor_debuff"]
+resource_name = "armor -%"
+script = ExtResource("2_pool")
+stat_id = &"armor"
+operation = 1
+archetype_stat = &"dexterity"
+unit_value = -3.0
+range_floor = -1.0
+pool_weight = 1.0
+max_tier = 3
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"dexterity"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("cc_inc"), SubResource("cm_inc"), SubResource("Resource_u38nb"), SubResource("Resource_0tuuk")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("cc_inc"), SubResource("cm_inc"), SubResource("Resource_u38nb"), SubResource("Resource_0tuuk"), SubResource("armor_debuff")])

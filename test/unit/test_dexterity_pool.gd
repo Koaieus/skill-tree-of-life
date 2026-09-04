@@ -71,3 +71,35 @@ func test_draw_only_emits_pack_stat_ids() -> void:
 		var sid_owned := (sp as StatPool).stat_id
 		if not (sid_owned in owned): owned.append(sid_owned)
 	for sid in ids: assert_true(sid in owned, "unexpected stat_id rolled: %s (pack owns %s)" % [String(sid), owned])
+
+
+## #718: the DEX pack's own curse — "the duelist wears no plate."
+##
+## Shape only, no magnitudes (#719). Two things are load-bearing and neither is
+## a tuning knob:
+##
+## 1. **INCREASE, not ADD_BASE.** `armor`'s base is 0 and procgen writes
+##    `SkillNode.modifiers`, which is ENTITY-scoped (skill_node.gd's "the
+##    complement of `_local_modifiers` (entity-scoped)") — so a flat armor
+##    curse would mint unbounded *negative* armor across the whole territory,
+##    and `Mitigation.compute` floors at min_damage_taken rather than capping,
+##    i.e. every hit would land at `raw + N`. As an INCREASE it scales down the
+##    armor you actually accumulated: proportional, self-limiting, and free
+##    until you own armor at all.
+## 2. **Negative at both ends.** A downside pool that can roll a buff is not a
+##    downside pool.
+func test_armor_curse_is_a_self_limiting_downside() -> void:
+	var p: StatPack = _PACK.duplicate(true) as StatPack
+	var found := false
+	for sp in p.pools:
+		var pp: StatPool = sp as StatPool
+		if pp.stat_id != &"armor":
+			continue
+		found = true
+		assert_eq(pp.operation, StatModifier.Operation.INCREASE,
+				"the armor curse must be INCREASE — ADD_BASE would mint unbounded negative armor from a zero base")
+		assert_lt(pp.unit_value, 0.0, "the armor pool in the DEX pack is a downside pool")
+		for e in pp.to_entries():
+			assert_lt(e.value_range.y, 0.0, "every tier stays negative at BOTH ends")
+			assert_gt(e.cost, 0, "cost is always positive (#637)")
+	assert_true(found, "the dexterity pack must carry an armor curse at all")
