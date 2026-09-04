@@ -8,6 +8,12 @@ first one. The full console output is ALWAYS kept at .godot/gut-last.log and
 the machine-readable results at .godot/gut-last.xml — if this summary elides
 something you need, grep the log, never re-run. Same spirit as `mise refresh`.
 
+The log is written LIVE, line by line, so `tail -f .godot/gut-last.log` shows
+which script GUT is on while the ~200s suite is still running — and a run that
+is killed or crashes still leaves everything it printed. The verdict below is
+the last thing to arrive, never the first: assume the summary is absent until
+the run ends, and read the log if you need to know what is happening now.
+
 Usage:
     mise run test                              # whole suite (reads .gutconfig.json)
     mise run test -- res://test/unit/foo.gd    # one script   (alias: test:one)
@@ -63,6 +69,37 @@ def build_args(argv):
     if target.endswith(".gd"):
         return [f"-gtest={target}", "-gdir=", *passthrough], target
     return [f"-gdir={target}", *passthrough], target
+
+
+def _cost_hint(label):
+    """What this run is about to cost, said UP FRONT.
+
+    Only the whole suite earns the warning: ~200s is a gate you spend once at
+    final green (CLAUDE.md), and the number is here so nobody starts one to
+    "just check something" without being told. A narrowed target is the cheap
+    rung of the ladder and needs no disclaimer.
+    """
+    if label != "suite":
+        return ""
+    return "(~200s, the whole suite — a gate, not a feedback loop)"
+
+
+def _preamble_notes(label):
+    """The lines under the header — where to look, and what NOT to do.
+
+    "Don't poll" is here rather than in a doc because this is the moment it is
+    needed: an agent that has just started a 200s run is standing at exactly
+    the fork where it either backgrounds the thing or burns three minutes of
+    the user's session re-reading an empty file. The harness wakes you when the
+    process exits; a `sleep`-and-`tail` loop buys nothing and blocks the user
+    out of the conversation while it spins.
+    """
+    notes = [f"  progress: tail -f {os.path.relpath(LOG, ROOT)} — written live, "
+             f"so it shows the script GUT is on right now"]
+    if label == "suite":
+        notes.append("  don't poll: background it (the harness wakes you on exit) "
+                     "and do something else meanwhile")
+    return notes
 
 
 def truncate(s, n=MAX_MSG_CHARS):
@@ -122,19 +159,40 @@ def main():
         except OSError:
             pass
 
-    print(f"Running {label}… ", end="", flush=True)
+    # The PREAMBLE, printed before godot starts and terminated with a newline
+    # so it is a COMPLETE line the moment it is written. It used to be
+    # `end=""`, sharing its line with the verdict, which meant a run in
+    # progress looked like a dangling fragment — or, piped anywhere, like an
+    # empty file. Three minutes of "is this even running?" is exactly the
+    # question this task exists to stop you asking.
+    print(f"Running {label}… {_cost_hint(label)}".rstrip(), flush=True)
+    for note in _preamble_notes(label):
+        print(note, flush=True)
     # Merge stderr INTO stdout rather than capturing both: godot writes engine
     # errors to stderr and GUT to stdout, and concatenating the two streams
     # scrambles the ordering — the log stops matching what you'd see live, and
     # the "last lines are the exit trailer" heuristic below reads stderr's tail.
-    proc = subprocess.run(
-        ["godot", "--headless", "--path", ROOT, "-s", "res://addons/gut/gut_cmdln.gd",
-         *flags, "-gdisable_colors", f"-gjunit_xml_file={XML}"],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-    )
-    console = proc.stdout or ""
-    with open(LOG, "w") as f:
-        f.write(console)
+    #
+    # STREAMED to the log rather than captured and written at the end (Popen,
+    # not `subprocess.run`). Two things this buys, both about the ~200s window
+    # where the old task was a black box:
+    #   * the log is peekable WHILE the suite runs — `tail -f` shows the script
+    #     GUT is on, which is the only way to tell a slow suite from a hung one;
+    #   * a run that is killed, crashes, or times out still leaves its log.
+    #     Previously the single write at the end never happened and the whole
+    #     console output was lost — the one case where you most wanted it.
+    console_lines = []
+    with open(LOG, "w", buffering=1) as f:
+        proc = subprocess.Popen(
+            ["godot", "--headless", "--path", ROOT, "-s", "res://addons/gut/gut_cmdln.gd",
+             *flags, "-gdisable_colors", f"-gjunit_xml_file={XML}"],
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        )
+        for line in proc.stdout:
+            f.write(line)
+            console_lines.append(line)
+        proc.wait()
+    console = "".join(console_lines)
 
     cases = parse_xml()
     alarms = sorted({l.strip() for l in console.splitlines() if ALARM.search(l)})

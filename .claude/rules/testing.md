@@ -23,7 +23,10 @@ Config lives in `.gutconfig.json` at repo root (dirs, log level, exit-on-complet
 
 The task prints a verdict (counts, each failing test's first assert + line,
 pending, parse-error alarms) and **always keeps the full console output at
-`.godot/gut-last.log`**, junit XML beside it. A full run costs **~185s** (387 scripts / 3505 tests, 2026-09-02) — a gate,
+`.godot/gut-last.log`**, junit XML beside it. That log is written **live**
+(`tail -f` it to see which script GUT is on, and a killed run still leaves it),
+while the verdict is the LAST thing printed — an empty summary means "still
+running", not "broken". **Background the run; don't sleep-and-poll.** A full run costs **~185s** (387 scripts / 3505 tests, 2026-09-02) — a gate,
 **run at most once per unit of work**, at final green; iterate on `check` →
 `test:one` → `test:dir`. When the
 summary elided something, grep the log — `grep -F '[Failed]'`, with `-F`, since a
