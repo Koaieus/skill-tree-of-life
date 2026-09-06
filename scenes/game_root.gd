@@ -96,6 +96,25 @@ var _run_end_routed: bool = false
 ## Set at the tail of `_ready`, read by [method is_reveal_ready] — the whole
 ## SceneDirector reveal contract is this one bool.
 var _reveal_ready: bool = false
+
+## How long a joining client waits for the authority's world before asking for
+## it again ([method CommandLink.renew_join_pull], 2026-09-06). Three seconds is
+## well past a LAN round trip and well short of a human deciding the screen is
+## dead. Overridable so a test can watch the renewal without waiting it out.
+const JOIN_PULL_RETRY_SEC := 3.0
+var join_pull_retry_sec: float = JOIN_PULL_RETRY_SEC
+
+## Set by [method _on_resync_applied]: the authority's world has landed at least
+## once, so [method _await_join_world] may stop waiting.
+var _join_world_arrived: bool = false
+## Set by [method _on_link_lost] / [method _on_link_refused]: this machine's
+## link is gone and no world is coming. What ends [method _await_join_world]
+## the OTHER way.
+var _link_ended: bool = false
+## The run-end overlay already says why the link ended — a refusal's reason
+## arrives a message before the hang-up it causes, and the hang-up's generic
+## "the host went away" must not paint over it.
+var _link_end_presented: bool = false
 @onready var graph: Graph = $Graph
 
 # Systems
@@ -165,6 +184,10 @@ func _ready() -> void:
 		# turn loop would stall on the first one to take a turn. Re-running it is
 		# idempotent (explicit composition always wins) and cheap.
 		command_link.resync_applied.connect(_on_resync_applied)
+		# The host turning this peer away with a reason (a join it did not seat,
+		# a build it does not match). It arrives a message BEFORE the drop that
+		# follows it, and it is the sentence a human needs to read.
+		command_link.link_refused.connect(_on_link_refused)
 		# #755, mirror-side: the host telling us a dropped peer's seat is the
 		# AI's now. See [method _on_seat_handover].
 		command_link.seat_handover_received.connect(_on_seat_handover)
@@ -176,10 +199,16 @@ func _ready() -> void:
 		# sample the SAME world, whereas the two FIRST TURN lines are each taken at
 		# their own machine's turn start and so straddle whatever the turn start
 		# itself moves (regen, mana). See [method _announce_first_turn_for_rung_3].
-		var rung3 := _rung_3_role()
-		if not rung3.is_empty():
+		#
+		# Printed on EVERY online run since 2026-09-06, not only under the rung-3
+		# flag: it goes to stdout and so to `user://logs/godot.log`, which is the
+		# only thing a LAN playtest on somebody else's machine can hand back.
+		var trace_role := _rung_3_role()
+		if trace_role.is_empty():
+			trace_role = _online_role_name()
+		if not trace_role.is_empty():
 			command_link.logged.connect(
-					func(line: String) -> void: print("[%s] %s" % [rung3, line]))
+					func(line: String) -> void: print("[%s] %s" % [trace_role, line]))
 	# Entity death (#18): AllocationSystem strips the corpse's nodes off the same
 	# bus signal; GameRoot owns the player-vs-NPC consequence (game-over / despawn).
 	Events.entity_died.connect(_on_entity_died)
@@ -308,6 +337,13 @@ func _ready() -> void:
 	# a fade, an await, a turn start) reopens the hole this comment is about.
 	if _is_network_client() and command_link != null:
 		command_link.defer_until_resync = true
+	# Hooked BEFORE the link opens, not beside the verdict below. A joiner whose
+	# level comes up AFTER the host's has already opened its first turn gets that
+	# turn inside the resync — `EntitySnapshot.restore_turn_cursor` →
+	# `TurnManager.adopt_turn` fires `turn_started` from within `_on_resync` —
+	# so a hook connected after the await had already missed the only turn start
+	# it was there to report (found on a deliberately slow joiner, 2026-09-06).
+	_announce_first_turn_for_rung_3()
 	_open_link()
 	pull_host_world()
 	# And then WAIT for the answer, on the joining side only (#715). Before this,
@@ -315,17 +351,26 @@ func _ready() -> void:
 	# everything below could run against it and the pull repaired it a moment
 	# later. It no longer has one: its graph is empty until the resync lands, and
 	# arming [VictorySystem], starting a turn or lifting the curtain over nothing
-	# is not "a bit early", it is a level with no map. This await IS what the
+	# is not "a bit early", it is a level with no map. This wait IS what the
 	# client's loading bar has been covering since `_setup_level` — the host's
 	# generate and ship, rather than this machine's own procgen.
 	#
-	# Unbounded on purpose, and safe because somebody else bounds it:
-	# [SceneDirector] shows a screen after [constant
-	# SceneDirector.REVEAL_TIMEOUT_S] regardless, and `_reveal_ready` staying
-	# false is the honest report that this peer never got a world. A timeout that
-	# gave up and started a turn on an empty graph would be worse than a wait.
+	# Unbounded for the world, and bounded by the LINK (2026-09-06). It used to be
+	# a bare `await resync_applied`, with [SceneDirector]'s 30s reveal timeout as
+	# the only way out — and a link that died meanwhile (the host refusing this
+	# peer, the host quitting) presented its overlay UNDER the curtain: the
+	# run-end overlay is a layer-100 canvas and [SceneTransition] sits at 101, so
+	# the joiner looked at a black screen with a bar at 0% for the rest of the
+	# timeout. Now the wait ends the moment the link does, and the curtain lifts
+	# on the overlay that says why. While it waits, it re-asks for the world
+	# every [member join_pull_retry_sec] rather than trusting one ask.
 	if _is_network_client() and command_link != null:
-		await command_link.resync_applied
+		if not await _await_join_world():
+			SceneTransition.progress_bar.hide()
+			_reveal_ready = true
+			if SceneTransition.is_curtain_up():
+				await SceneTransition.fade_in()
+			return
 	# #667, second half. The world now exists on EVERY path — offline, host and
 	# client alike — so the run may be judged. Before this line a death (from
 	# the network window above, or from anything else that can fire during
@@ -336,7 +381,6 @@ func _ready() -> void:
 	if victory_system != null:
 		victory_system.world_ready = true
 
-	_announce_first_turn_for_rung_3()
 	_arm_rung_4()
 	_open_first_turn()
 	_focus_camera_on_player()
@@ -596,6 +640,36 @@ func pull_host_world() -> void:
 	command_link.request_resync("join: adopting the host's world", true)
 
 
+## Wait for the authority's world, or for the link to end — whichever comes
+## first. `true` when a world landed. Polled per frame rather than awaited on a
+## signal because there are two signals to wait on, and because the renewal
+## below needs a clock: every [member join_pull_retry_sec] without a world, the
+## pull is sent again ([method CommandLink.renew_join_pull]).
+func _await_join_world() -> bool:
+	var last_pull := Time.get_ticks_msec()
+	while not _join_world_arrived and not _link_ended:
+		if not is_inside_tree():
+			return false
+		await get_tree().process_frame
+		if _join_world_arrived or _link_ended or command_link == null:
+			break
+		var now := Time.get_ticks_msec()
+		if now - last_pull >= int(join_pull_retry_sec * 1000.0):
+			last_pull = now
+			command_link.renew_join_pull("join: still no world, asking again")
+	return _join_world_arrived
+
+
+## What the wire trace is prefixed with on an online run that was not launched
+## through the rung-3 flag: the role the menu set. `""` offline, so an offline
+## level prints nothing.
+static func _online_role_name() -> String:
+	var net: NetworkConfig = GameSession.network
+	if net == null or not net.is_online():
+		return ""
+	return "host" if net.role == NetworkTransport.Role.HOST else "client"
+
+
 ## Half one of bringing the wire up (#531): tell the link which side of it we
 ## are on. [member CommandLink.mode] is the single writer of
 ## [member CommandApplier.is_authority], so this one assignment is also what
@@ -760,11 +834,29 @@ func _on_peer_joined(peer_id: int) -> void:
 ## every client hears as `link_lost` — while its own victory overlay is up. That
 ## is the normal end of a run, not a lost connection, and the overlay says so.
 func _on_link_lost(reason: String) -> void:
+	_link_ended = true
 	if command_applier != null:
 		command_applier.abandon_pending_intent(&"link_lost")
 	if victory_system != null and victory_system.outcome != null:
 		return
-	if hud_root != null:
+	if hud_root != null and not _link_end_presented:
+		_link_end_presented = true
+		hud_root.present_link_lost(reason)
+
+
+## The host turned this peer away, and said why. The hang-up follows one
+## message later and lands in [method _on_link_lost], whose generic reason must
+## not paint over this one — hence the latch. Reachable on the lobby route when
+## the host's level finds no seat carrying this peer's id
+## ([method _on_peer_joined]'s "no drop-in mid-game" refusal).
+func _on_link_refused(reason: String) -> void:
+	_link_ended = true
+	if command_applier != null:
+		command_applier.abandon_pending_intent(&"link_refused")
+	if victory_system != null and victory_system.outcome != null:
+		return
+	if hud_root != null and not _link_end_presented:
+		_link_end_presented = true
 		hud_root.present_link_lost(reason)
 
 
@@ -1311,6 +1403,7 @@ func spawn_snapshot_entity(
 ## fog back on this machine's real subgraph — the seat's vision was derived from
 ## a player that owned nothing at the time.
 func _on_resync_applied(_reason: String) -> void:
+	_join_world_arrived = true
 	_ensure_controllers()
 	_apply_seat_vision()
 	if vision_system != null:

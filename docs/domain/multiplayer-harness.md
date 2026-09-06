@@ -531,8 +531,43 @@ its connect retries are exhausted (15–30 s). Three things close that gap:
   `firewall-cmd --add-port=9099/udp`). The client side needs nothing: replies
   come back on the socket it dialled from.
 
-**Not yet traced on a real LAN:** `CommandLink._awaiting_resync` for a join
-that races the host's scene load — the one window only real latency exposes.
+## A LAN playtest that ended on a black screen (2026-09-06)
+
+Two Linux machines, the shipped lobby: host opens, peer joins, host presses
+START, the host generates and plays — and the joiner fades to the loading
+screen, bar at 0%, and stays there. Loopback (`mise run mp:e2e`, and the same
+pair by hand on the default 800-node map) never reproduced it, so what follows
+is what the code allowed and what changed, not a traced packet.
+
+- **The one human-only path found: the AI-count slider after a join.**
+  `LobbyScreen._rebuild_participants` rebuilt every remote seat back on the
+  pending id and carried nothing across, so a host that touched the slider
+  once a friend was seated pressed START on a roster that no longer named
+  them. The joiner's level found no seat with its own id, and the host's level
+  refused it as a drop-in the moment it adopted the link — a refusal the joiner
+  could not see (next bullet). The rebuild now keeps every stamped `peer_id`
+  and broadcasts the new shape; `test_lobby_replication.gd` pins it.
+- **A link that ends under the curtain was invisible.** The joiner's `_ready`
+  awaited `resync_applied` bare, and the run-end overlay is a layer-100 canvas
+  under `SceneTransition`'s 101 — so a refusal or a lost link while waiting
+  showed black and 0% until the 30s reveal timeout. `GameRoot._await_join_world`
+  now ends on `link_lost` / `link_refused` too, lifts the curtain and leaves the
+  overlay's reason on screen (`test_game_root_join_wait.gd`).
+- **The pull is renewed.** While it waits, the joiner re-asks every
+  `GameRoot.JOIN_PULL_RETRY_SEC` (3s) via `CommandLink.renew_join_pull`; the
+  `_join_world_arrived` latch makes every extra answer a drop. Insurance
+  against whatever a real wire does to the first ask that loopback cannot show.
+- **The slow-joiner order works, and the harness could not tell.** With the
+  client's link held for 20s (past the host's push), the pull was answered and
+  the world applied — but no `FIRST TURN` line printed, because the host's
+  first turn arrives *inside* that resync (`adopt_turn` fires `turn_started`
+  from within `_on_resync`) and the rung-3 hook was connected after the await.
+  It is connected before `_open_link` now. The resync itself is ~40 KB on the
+  shipped preset (entities 8 KB, graph 30 KB), so size is not a suspect.
+- **The wire trace now prints on every online run**, lobby and level, not only
+  under `--lobby=`. On Linux it lands in
+  `~/.local/share/godot/app_userdata/Skill Tree of Life/logs/godot.log`; the
+  next report from another machine should come with both machines' files.
 
 ## Extending it
 

@@ -535,6 +535,22 @@ func request_resync(reason: String, is_join_world: bool = false) -> void:
 	logged.emit("↑ resync requested — %s" % reason)
 
 
+## The join's pull, asked AGAIN (2026-09-06). [method request_resync] latches
+## on [member _awaiting_resync] so a mid-run verdict cannot flood the host, but
+## a joining client with NO world has nothing to flood and nothing to lose: the
+## host answers each ask with a whole world (~40 KB on the shipped preset) and
+## [member _join_world_arrived] drops every answer after the first. So a peer
+## that has been waiting a while asks once more rather than trusting that its
+## first ask, or the host's push, survived whatever happened on the wire — the
+## one window a LAN exposes and loopback never did. A no-op once a join world
+## has landed.
+func renew_join_pull(reason: String) -> void:
+	if _join_world_arrived:
+		return
+	_awaiting_resync = false
+	request_resync(reason, true)
+
+
 ## Latched between asking for a repair and the next agreeing boundary. See
 ## [method request_resync].
 var _awaiting_resync: bool = false

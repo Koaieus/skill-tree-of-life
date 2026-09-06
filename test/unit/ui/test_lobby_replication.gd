@@ -111,6 +111,27 @@ func test_a_join_stamps_the_host_s_waiting_seat_and_replicates_the_roster() -> v
 			"and the joiner's row carries the id the host stamped")
 
 
+## 2026-09-06, from a LAN playtest: a host that moved the AI-count slider AFTER
+## a friend had joined pressed START on a roster that no longer named them —
+## [method LobbyScreen._rebuild_participants] rebuilt every remote seat back on
+## the pending id. The joiner's level then found no seat with its own id and
+## the host's level refused it as a drop-in, behind a black loading screen.
+func test_changing_the_ai_count_after_a_join_keeps_the_joiner_seated() -> void:
+	_join()
+	assert_eq(_seat_of(_host, 2).peer_id, _CLIENT_PEER, "precondition: seated")
+
+	_host.set_ai_opponents(2)
+
+	assert_eq(_host.participants().size(), 4, "the rebuild took: two humans, two AI")
+	assert_eq(_seat_of(_host, 2).peer_id, _CLIENT_PEER,
+			"the joiner's seat survives the rebuild with its id on it")
+	assert_false(_host.has_pending_remote(), "nothing is back to waiting")
+	assert_eq(_seat_of(_host, 1).peer_id, NetworkTransport.HOST_PEER_ID)
+	# And the rebuilt shape reached the joiner rather than waiting for START.
+	assert_eq(_client.participants().size(), 4, "the joiner's lobby shows the new shape")
+	assert_eq(_seat_of(_client, 2).peer_id, _CLIENT_PEER)
+
+
 ## #741: a joiner's saved name rides its own hello, so the seat never shows the
 ## generic "Player 2" even for one hop — [method LobbyScreen.bind_link] wires
 ## [member CommandLink.join_display_name] straight from the CLIENT's own

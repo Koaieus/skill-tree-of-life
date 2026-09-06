@@ -664,6 +664,11 @@ func bind_link(transport: NetworkTransport) -> void:
 	_link.peer_cleared.connect(_on_link_peer_cleared)
 	_link.peer_refused.connect(_on_link_peer_refused)
 	_link.link_refused.connect(_on_link_refused)
+	# The wire's own trace, to stdout and so to `user://logs/godot.log` on every
+	# online lobby — not only under the rung-3 flag. A LAN playtest that goes
+	# wrong on another machine has nothing else to hand back (2026-09-06).
+	var trace_role := "client lobby" if _is_client() else "host lobby"
+	_link.logged.connect(func(line: String) -> void: print("[%s] %s" % [trace_role, line]))
 	add_child(_link)
 	# Set AFTER `add_child`, because [method CommandLink._ready] re-applies the
 	# role onto its (here absent) applier — and because a lobby-time link must
@@ -1127,6 +1132,20 @@ func _offers_ai_opponents() -> bool:
 
 
 func _rebuild_participants() -> void:
+	# A rebuild must not UN-SEAT a peer that already joined. [method
+	# build_participants] is born with every remote seat back on
+	# [constant _PENDING_PEER_ID], and until 2026-09-06 nothing carried the
+	# stamped id across — so a host that touched the AI-count slider after a
+	# friend had joined pressed START on a roster that no longer named them.
+	# The joiner's level then found no seat with its own id, and the host's
+	# level refused it as a drop-in ("the run has already started") the moment
+	# it adopted the link: a black loading screen on the joiner, for a slider
+	# the host moved. Same shape for the join-time [member _connecting_peers]
+	# wait: that map is keyed by peer, not by seat, so it survives untouched.
+	var seated_peers: Dictionary = {}
+	for p in _participants:
+		if p != null and p.kind == Participant.Kind.HUMAN and p.peer_id != _PENDING_PEER_ID:
+			seated_peers[p.id] = p.peer_id
 	_participants = build_participants(_mode, _network, _ai_opponent_count())
 	# Changing the AI count rebuilds the roster from scratch, so re-apply what
 	# the player already chose — a slot's colour must not silently revert to its
@@ -1140,7 +1159,15 @@ func _rebuild_participants() -> void:
 			p.camp = _picked_camps[p.id]
 		if _picked_names.has(p.id):
 			p.display_name = _picked_names[p.id]
+		if p.kind == Participant.Kind.HUMAN and seated_peers.has(p.id):
+			p.peer_id = seated_peers[p.id]
 	_refresh_rows()
+	# And the joiner sees the new shape: a rebuild used to reach it only inside
+	# START's run setup, so its lobby drew a roster the host had already
+	# replaced. Host-only — a client's own roster is a throwaway placeholder
+	# ([method _offers_ai_opponents]), and the host would ADOPT anything it sent.
+	if not _is_client():
+		_broadcast_roster()
 
 
 func _ai_opponent_count() -> int:
