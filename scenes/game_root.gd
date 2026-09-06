@@ -107,7 +107,7 @@ var join_pull_retry_sec: float = JOIN_PULL_RETRY_SEC
 ## Set by [method _on_resync_applied]: the authority's world has landed at least
 ## once, so [method _await_join_world] may stop waiting.
 var _join_world_arrived: bool = false
-## Set by [method _on_link_lost] / [method _on_link_refused]: this machine's
+## Set by [method _on_link_lost] / [method _on_refused_by_host]: this machine's
 ## link is gone and no world is coming. What ends [method _await_join_world]
 ## the OTHER way.
 var _link_ended: bool = false
@@ -187,7 +187,7 @@ func _ready() -> void:
 		# The host turning this peer away with a reason (a join it did not seat,
 		# a build it does not match). It arrives a message BEFORE the drop that
 		# follows it, and it is the sentence a human needs to read.
-		command_link.link_refused.connect(_on_link_refused)
+		command_link.link_refused.connect(_on_refused_by_host)
 		# #755, mirror-side: the host telling us a dropped peer's seat is the
 		# AI's now. See [method _on_seat_handover].
 		command_link.seat_handover_received.connect(_on_seat_handover)
@@ -849,7 +849,7 @@ func _on_link_lost(reason: String) -> void:
 ## not paint over this one — hence the latch. Reachable on the lobby route when
 ## the host's level finds no seat carrying this peer's id
 ## ([method _on_peer_joined]'s "no drop-in mid-game" refusal).
-func _on_link_refused(reason: String) -> void:
+func _on_refused_by_host(reason: String) -> void:
 	_link_ended = true
 	if command_applier != null:
 		command_applier.abandon_pending_intent(&"link_refused")
