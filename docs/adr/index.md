@@ -25,6 +25,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0001](0001-adrs-record-decisions-domain-docs-record-behaviour.md) | ADRs record decisions; domain docs record behaviour | accepted | 2026-09-07 | meta, documentation |
 | [0002](0002-host-authoritative-sync-not-lockstep.md) | Host-authoritative intent-up / confirmed-command-down, not lockstep on a shared seed | accepted | 2026-08-24 | multiplayer, netcode, architecture |
 | [0003](0003-the-entry-point-is-config-not-an-autoload-redirect.md) | The entry point is a config setting, not an autoload redirect | accepted | 2026-09-01 | boot, scenes, exporting |
+| [0004](0004-the-allocation-level-magnitude-ladder-is-linear.md) | The allocation-level magnitude ladder is linear | accepted | 2026-08-05 | stats, balance, skill-node, design |
 
 ## Reading order
 
@@ -36,8 +37,8 @@ what stops the decision being re-run on a dead argument for a fourth time.
 
 ## Backfilling
 
-0002 and 0003 are backfills — decisions taken before the tier existed, extracted
-from a domain doc and a commit message. The bulk migration of decision prose that predates the tier is tracked on **#769**, whose acceptance is the `adr-hygiene` counter reaching zero. Outside that, **backfill on demand, not in sweeps:**
+0002, 0003 and 0004 are backfills — decisions taken before the tier existed, extracted
+from a domain doc, a commit message and an issue thread respectively. The bulk migration of decision prose that predates the tier is tracked on **#769**, whose acceptance is the `adr-hygiene` counter reaching zero. Outside that, **backfill on demand, not in sweeps:**
 when you find yourself re-deriving why something is the way it is, that is the
 signal the decision deserves a record. A backfill says so in a note at the top and
 dates itself to the decision, not to the writing.

@@ -408,6 +408,11 @@ scale-after-bind write to `grant_scaled`.
 
 ### The local-scale ladder (#376) is reapplied at INSERT (#634)
 
+The ladder itself is **linear — `1 : 2 : 3`** — for every scaling modifier
+alike, and MULTIPLY scales its *growth part* (`1 + (X−1)·ladder`), not its whole
+value. Settled, re-affirmed, and not to be re-argued without evidence from play:
+**[ADR 0004](../../docs/adr/0004-the-allocation-level-magnitude-ladder-is-linear.md)**.
+
 A modifier lands on `add_local_modifier` at its AUTHORED (baseline, al=1)
 value — an aura re-grant included, since #623's fix scales the aura's
 *distance*, never the node's allocation ladder, and those are different
