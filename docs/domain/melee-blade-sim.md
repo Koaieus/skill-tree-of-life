@@ -28,7 +28,7 @@ live swing. Same inputs → same outputs.
 | Cheap *per sub-step* | Verlet integration + constraint projection, all `PackedVector2Array` |
 | Stable at any timestep | No mass/force inversion, no force explosion |
 | — | **But a whole swing is milliseconds, not µs.** See "Measured cost" below. |
-| Composable constraints | Distance, clamp, future custom — all behind one `project(positions, inv_masses)` interface |
+| Composable constraints | Distance today (welds included, as braces), future custom — all behind one `project(positions, inv_masses)` interface |
 | One solver, two callers | `resolve()` runs it for hits; the visual swing replays the trajectory |
 
 The cost is fidelity: PBD treats stiffness via solver iterations, not
@@ -45,7 +45,6 @@ attack/melee/
 │   ├── blade_state.gd            descriptor: positions, masses, edges, constraints
 │   ├── blade_constraint.gd       abstract: project(positions, inv_masses)
 │   ├── blade_distance_constraint.gd   pin-joint equivalent (rigid by default)
-│   ├── blade_clamp_constraint.gd      angular range — for SkillNode addon hook
 │   ├── blade_driver.gd           abstract: apply(positions, t)
 │   ├── blade_arc_driver.gd       circular sweep around a center
 │   ├── blade_sim.gd              static simulate(state, drivers, duration, dt, ...) → Trajectory
@@ -152,19 +151,34 @@ Standard PBD distance — the pin-joint replacement. `compliance` exposes
 soft springiness: `0.0` = perfectly rigid, larger = more give per step.
 Default `0.0`.
 
-### `BladeClampConstraint` — extension point for SkillNode addons
+### `ClampAddon` — how a SkillNode addon stiffens the blade
 
-A future SkillNode addon ("clamp node") will inject a clamp constraint
-when its SkillNode is in the blade: the arm particle's angle around the
-pivot is constrained to `[min_angle, max_angle]`. The hook lives at
-**BladeState construction** — `MeleeAttackPlan._build_blade_state()`
-walks the selected SkillNodes and asks each one for its contributed
-constraints. Default contribution: none. Clamp addon overrides to
-contribute a `BladeClampConstraint`. Same pattern can carry any future
-constraint a SkillNode addon dreams up (motor, spring, breakaway).
+A node carrying a `ClampAddon` **welds** the joint it sits on: the joint becomes
+rigid instead of free-pin.
 
-The interface is **not yet wired** — `BladeClampConstraint` is a
-working stub. The hook on SkillNode lands when the addon system does.
+It does this without a new constraint class. A weld at joint J between two arms
+is mathematically equivalent to a **distance constraint between the two arm-tip
+particles**, so `ClampAddon` contributes one `BladeDistanceConstraint` per
+neighbour pair and the existing PBD solver does the rest. Degree-2 — the typical
+hinge — is one brace; higher degrees over-constrain, which PBD tolerates.
+
+Two consequences worth knowing:
+
+- **A brace is not a face.** Area-damage code traverses `state.edges`, the
+  explicit edge list, and phantom braces live in `state.constraints` — so they
+  stay invisible to it. That is the design doc's *"rigidity only, no face"*
+  contract, upheld structurally rather than by convention.
+- **An already-triangulated joint gains nothing.** The braces are redundant and
+  PBD no-ops them, so a clamp spent there is a wasted addon slot. Anything
+  choosing where to place clamps has to ask a graph question — is this joint in a
+  triangle — before spending. That is #771.
+
+> **Superseded design.** This section used to describe a `BladeClampConstraint`
+> that clamped an arm particle's angle around the pivot to `[min_angle,
+> max_angle]`, contributed via a hook on `MeleeAttackPlan._build_blade_state()`,
+> and described it as *"not yet wired"*. The angular-range approach was dropped
+> and `blade_clamp_constraint.gd` is gone from the tree; the phantom-brace weld
+> above is what shipped. Corrected 2026-09-07, found while filing #771.
 
 ### `BladeDriver` (abstract)
 
@@ -325,10 +339,10 @@ so the divergence has to be deliberate and tested, not assumed harmless.
 - **Damping.** Currently Verlet has no velocity damping; chain whips
   forever within the swing duration. For longer sweeps add a `damping`
   parameter on `BladeSim.step` (multiply velocity by `1 - damping * dt`).
-- **Clamp angular range semantics.** The stub clamps the arm's angle
-  around the pivot — good enough for "this node is a hinge with range".
-  More exotic addons (a "motor" that drives angular velocity directly)
-  may want richer constraint shapes.
+- **Richer constraint shapes for addons.** `ClampAddon` welds via phantom
+  braces, which covers rigidity but nothing else. A "motor" addon that drives
+  angular velocity directly, or a "breakaway" that yields past a load, would
+  each want a real constraint class rather than a brace.
 - **Real swept hit detection.** Sample-boundary proximity misses
   tunneling at high speeds. Not visible at current swing rates; revisit
   if/when angular velocities go up.
