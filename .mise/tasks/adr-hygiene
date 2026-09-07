@@ -1,0 +1,261 @@
+#!/usr/bin/env python3
+#MISE description="Report ADR invariant violations: `mise run adr-hygiene [-- --json|--strict]`"
+"""
+ADR hygiene. Reports; fixes nothing — same contract as `rules-hygiene` and
+`gh-project hygiene`. See docs/domain/adr.md.
+
+An ADR tier only works if two properties hold, and neither is self-enforcing:
+
+  IMMUTABILITY  — an accepted record is superseded, never edited. A record that
+                  gets quietly rewritten is worse than no record: it reads as
+                  authoritative while no longer describing what was decided or
+                  why. Checked here by looking for substantive commits landing on
+                  an accepted ADR after its acceptance date.
+
+  BOUNDARY      — `docs/domain/` holds present-tense behaviour and `docs/adr/`
+                  holds dated decisions. DECISION PROSE is the migration counter:
+                  domain pages still carrying "we decided X, and here is why not
+                  Y" that has not been extracted or linked. Advisory, and it is
+                  meant to go to zero.
+
+FOCUS.md was rewritten twice for rot a checker would have caught in three days.
+This tier gets its checker on day one.
+"""
+import datetime
+import glob
+import json
+import os
+import re
+import subprocess
+import sys
+
+ADR = "docs/adr"
+INDEX = f"{ADR}/index.md"
+DOMAIN = "docs/domain"
+
+REQUIRED = ("id", "title", "status", "date", "deciders", "sources")
+STATUSES = ("proposed", "accepted", "superseded", "rejected")
+
+# Phrases that mean a page is recording a DECISION rather than describing
+# behaviour. Deliberately narrow: each one is a dated verdict or a rejected
+# option, not merely a strong opinion.
+DECISION_PROSE = (
+    r"^#+\s*Rejected[:\s]",
+    r"\bre-?decided\b",
+    r"\bOwner call \d{4}-\d{2}-\d{2}\b",
+    r"\bDecided \d{4}-\d{2}-\d{2}\b",
+    r"\bwhy not the alternatives\b",
+)
+
+# Files that legitimately talk about decisions without being one.
+PROSE_EXEMPT = {"adr.md", "issue-workflow.md", "breadcrules.md"}
+
+
+def parse_front_matter(path):
+    """Return (dict, error). Values stay strings/lists; no YAML dep in this repo."""
+    text = open(path, encoding="utf-8").read()
+    if not text.startswith("---\n"):
+        return None, "no YAML frontmatter"
+    end = text.find("\n---\n", 4)
+    if end == -1:
+        return None, "unterminated frontmatter"
+    meta, key = {}, None
+    for line in text[4:end].split("\n"):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if line.startswith("  - ") and key:
+            # `key:` with an empty value parsed to None on the previous line; the
+            # items that follow are what it actually holds.
+            if not isinstance(meta.get(key), list):
+                meta[key] = []
+            meta[key].append(line[4:].strip().strip('"\''))
+            continue
+        if ":" not in line:
+            continue
+        key, _, val = line.partition(":")
+        key = key.strip()
+        val = val.split("#")[0].strip().strip('"\'')
+        if val in ("[]", "null", "~", ""):
+            meta[key] = [] if val == "[]" else None
+        elif val.startswith("[") and val.endswith("]"):
+            meta[key] = [v.strip().strip('"\'') for v in val[1:-1].split(",") if v.strip()]
+        else:
+            meta[key] = val
+    return meta, None
+
+
+def git_touches_after(path, after):
+    """Commits touching `path` after `after`, excluding the one that created it."""
+    try:
+        out = subprocess.run(
+            ["git", "log", "--follow", "--format=%h %ad %s", "--date=short",
+             f"--since={after}", "--", path],
+            capture_output=True, text=True, timeout=15).stdout.strip()
+    except Exception:
+        return []
+    return [l for l in out.split("\n") if l]
+
+
+def main():
+    args = sys.argv[1:]
+    as_json, strict = "--json" in args, "--strict" in args
+    findings, advisories, records = [], [], []
+
+    paths = sorted(p for p in glob.glob(f"{ADR}/[0-9]*.md"))
+    if not paths and not os.path.isdir(ADR):
+        print(f"no {ADR}/ — nothing to check")
+        return 0
+
+    seen_ids = {}
+    for path in paths:
+        name = os.path.basename(path)
+        meta, err = parse_front_matter(path)
+        if err:
+            findings.append({"check": "frontmatter", "file": path, "msg": err})
+            continue
+
+        for field in REQUIRED:
+            if field not in meta or meta[field] in (None, "", []):
+                findings.append({"check": "frontmatter", "file": path,
+                                 "msg": f"missing or empty required field `{field}`"})
+
+        fid = str(meta.get("id", "")).strip()
+        m = re.match(r"^(\d{4})-[a-z0-9-]+\.md$", name)
+        if not m:
+            findings.append({"check": "filename", "file": path,
+                             "msg": "filename must be NNNN-kebab-slug.md"})
+        elif fid.zfill(4) != m.group(1):
+            findings.append({"check": "id-mismatch", "file": path,
+                             "msg": f"frontmatter id `{fid}` != filename number `{m.group(1)}`"})
+
+        if fid in seen_ids:
+            findings.append({"check": "duplicate-id", "file": path,
+                             "msg": f"id {fid} already used by {seen_ids[fid]}"})
+        seen_ids[fid] = name
+
+        status = meta.get("status")
+        if status not in STATUSES:
+            findings.append({"check": "status", "file": path,
+                             "msg": f"status `{status}` not one of {'|'.join(STATUSES)}"})
+
+        date = str(meta.get("date", ""))
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+            findings.append({"check": "date", "file": path,
+                             "msg": f"date `{date}` is not ISO YYYY-MM-DD"})
+
+        body = open(path, encoding="utf-8").read()
+        for section in ("## Context", "## Decision", "## Consequences",
+                        "## Alternatives considered"):
+            if section not in body:
+                findings.append({"check": "sections", "file": path,
+                                 "msg": f"missing `{section}` section"})
+
+        records.append({"id": fid, "name": name, "path": path, "meta": meta,
+                        "status": status, "date": date,
+                        "title": meta.get("title", "")})
+
+    by_id = {r["id"]: r for r in records}
+
+    # Supersede links must resolve, and must resolve BOTH ways. A half-done
+    # supersede leaves two live records that contradict each other.
+    for r in records:
+        sb = r["meta"].get("superseded-by")
+        sup = r["meta"].get("supersedes") or []
+        if isinstance(sup, str):
+            sup = [sup]
+        if sb:
+            sb = str(sb).strip()
+            if sb not in by_id:
+                findings.append({"check": "supersede", "file": r["path"],
+                                 "msg": f"superseded-by `{sb}` names no existing ADR"})
+            elif r["id"] not in [str(x) for x in (by_id[sb]["meta"].get("supersedes") or [])]:
+                findings.append({"check": "supersede", "file": r["path"],
+                                 "msg": f"ADR {sb} does not list {r['id']} in its `supersedes`"})
+            if r["status"] != "superseded":
+                findings.append({"check": "supersede", "file": r["path"],
+                                 "msg": f"has superseded-by but status is `{r['status']}`"})
+        elif r["status"] == "superseded":
+            findings.append({"check": "supersede", "file": r["path"],
+                             "msg": "status is `superseded` but superseded-by is empty"})
+        for s in sup:
+            if str(s).strip() not in by_id:
+                findings.append({"check": "supersede", "file": r["path"],
+                                 "msg": f"supersedes `{s}`, which names no existing ADR"})
+
+    # The index carries exactly one row per record, and no orphan rows.
+    if not os.path.isfile(INDEX):
+        findings.append({"check": "index", "file": INDEX, "msg": "missing"})
+    else:
+        idx = open(INDEX, encoding="utf-8").read()
+        linked = set(re.findall(r"\((\d{4}-[a-z0-9-]+\.md)\)", idx))
+        for r in records:
+            if r["name"] not in linked:
+                findings.append({"check": "index", "file": r["path"],
+                                 "msg": "not listed in docs/adr/index.md"})
+        for orphan in sorted(linked - {r["name"] for r in records}):
+            findings.append({"check": "index", "file": INDEX,
+                             "msg": f"links {orphan}, which does not exist"})
+
+    # ADVISORY: immutability. An accepted record edited after its date.
+    for r in records:
+        if r["status"] != "accepted" or not re.match(r"^\d{4}-\d{2}-\d{2}$", r["date"]):
+            continue
+        after = (datetime.date.fromisoformat(r["date"]) +
+                 datetime.timedelta(days=1)).isoformat()
+        touches = git_touches_after(r["path"], after)
+        if len(touches) > 1:
+            advisories.append({"check": "immutability", "file": r["path"],
+                               "msg": f"{len(touches)} commits after acceptance "
+                                      f"({r['date']}); an accepted ADR is superseded, "
+                                      f"not edited: {touches[0]}"})
+
+    # ADVISORY: the migration counter. Domain pages still holding decision prose.
+    prose = []
+    for doc in sorted(glob.glob(f"{DOMAIN}/*.md")):
+        if os.path.basename(doc) in PROSE_EXEMPT:
+            continue
+        text = open(doc, encoding="utf-8").read()
+        hits = sum(len(re.findall(pat, text, re.M | re.I)) for pat in DECISION_PROSE)
+        if hits:
+            # Linking an ADR does NOT clear the marker. Only moving the prose does
+            # — otherwise the counter measures citations rather than migration,
+            # and it would read as finished while nothing had moved.
+            linked = "docs/adr/" in text or "../adr/" in text
+            prose.append((doc, hits, linked))
+    prose.sort(key=lambda x: -x[1])
+    for doc, hits, linked in prose:
+        advisories.append({"check": "decision-prose", "file": doc,
+                           "msg": f"{hits} decision-prose marker(s) still in a domain doc"
+                                  f"{'; it links an ADR, so extraction is part-done' if linked else ''}"
+                                  f" — candidate for extraction"})
+
+    if as_json:
+        print(json.dumps({"records": len(records), "findings": findings,
+                          "advisories": advisories}, indent=2))
+        return 1 if (findings and strict) else 0
+
+    print(f"ADRs: {len(records)} in {ADR}/")
+    for r in sorted(records, key=lambda x: x["id"]):
+        print(f"  {r['id']}  {r['status']:11s} {r['date']}  {r['title'][:70]}")
+
+    print(f"\nMigration: {len(prose)} of {len(glob.glob(f'{DOMAIN}/*.md'))} domain "
+          f"docs still carry decision prose")
+    for doc, hits, linked in prose[:8]:
+        print(f"  {hits:3d}  {doc}{'  (links an ADR)' if linked else ''}")
+
+    if advisories:
+        print(f"\n{len(advisories)} advisory:")
+        for a in advisories:
+            print(f"  [{a['check']}] {a['file']}\n      {a['msg']}")
+
+    if not findings:
+        print("\n✓ no violations")
+        return 0
+    print(f"\n{len(findings)} violation(s):")
+    for f in findings:
+        print(f"  [{f['check']}] {f.get('file', '-')}\n      {f['msg']}")
+    return 1 if strict else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

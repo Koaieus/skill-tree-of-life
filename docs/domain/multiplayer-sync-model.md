@@ -6,6 +6,8 @@ argument for it was replaced. See `### Rejected: lockstep on the shared seed`
 before re-arguing this: three of the grounds that section used to rest on are
 dead, and picking one up is how this gets re-litigated for a fourth time.
 
+**The *why* now lives in [ADR 0002](../adr/0002-host-authoritative-sync-not-lockstep.md)** — the decision, the grounds it actually rests on, and the alternatives with their dead arguments marked. This page is the *how*. Extraction of the remaining decision prose below is tracked on #769.
+
 This is the architecture every networked and hot-seat feature hangs off. It
 also rewrites what #458 (`CommandBus`) and #463 (versus) are for. Read this before touching input routing, `BattleSystem`'s
 launch path, or the AI controller.

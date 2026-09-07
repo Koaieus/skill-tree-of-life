@@ -1,0 +1,1 @@
+A settled architectural call is recorded in `docs/adr/` — immutable, superseded rather than edited, its rejected-alternatives section marking which grounds are already dead. Check the index before re-arguing one. See docs/domain/adr.md
