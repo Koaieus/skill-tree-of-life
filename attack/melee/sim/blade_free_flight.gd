@@ -140,7 +140,6 @@ static func _build_state(
 		inner.append(source.inner_radii[src] if src < source.inner_radii.size() else 0.0)
 
 	var edges: Array[Vector2i] = []
-	var edge_src: PackedInt32Array = PackedInt32Array()
 	for e_idx in source.edges.size():
 		if source.is_edge_removed(e_idx):
 			continue
@@ -148,7 +147,6 @@ static func _build_state(
 		if not (local_of.has(e.x) and local_of.has(e.y)):
 			continue
 		edges.append(Vector2i(local_of[e.x], local_of[e.y]))
-		edge_src.append(e_idx)
 
 	var state := BladeState.build(positions, 0, edges, radii, inner)
 	# UNPINNED: `build` zeroes the pivot's inverse mass, which is exactly the
@@ -162,10 +160,10 @@ static func _build_state(
 			state.vertex_damage[i] = source.vertex_damage[src]
 		if src < source.vertex_blunting.size():
 			state.vertex_blunting[i] = source.vertex_blunting[src]
-	for i in edge_src.size():
-		var src_e: int = edge_src[i]
-		if src_e < source.edge_damage.size():
-			state.edge_damage[i] = source.edge_damage[src_e]
+	# Nothing per-EDGE is carried across, and there is no source array to carry:
+	# under ADR 0005 an edge holds no stats at all, derived or otherwise. The
+	# fragment's edges come along for RIGIDITY — the constraint rebuild just
+	# below is what they are for — and, once #781 lands, for something to break.
 
 	# Rest lengths and compliance come from the SOURCE's constraints, not from
 	# `build`'s "rest = the distance they happen to be at right now". A blade

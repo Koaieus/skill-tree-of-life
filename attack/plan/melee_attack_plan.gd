@@ -784,15 +784,20 @@ func _fly_severed_fragments(
 			# The scan works in the fragment's own local time; the gate, the
 			# schedule and the record all work in swing time.
 			ev.t += flight.birth_t
+			# An EDGE contact mints no DamageInstance, exactly as on the driven
+			# swing (ADR 0005): edges give rigidity, nodes deal damage. A coasting
+			# fragment's edges still collide — that is what stops one entering a
+			# bunker's interior — and #781's break will consume these events, but
+			# there is no damage for a crit roll or a schedule entry to be about.
+			if ev.is_edge_hit():
+				continue
 			var di := BladeDamageInstance.new(ev, gate)
 			# No disconnection scale (#186 acceptance 3): the SAME coefficient a
 			# driven vertex would carry, and #779's speed curve — applied in
 			# BladeDamageInstance.land_on off `ev.speed`, which for a coasting
 			# fragment is exactly its coasting speed — is the only thing that
 			# makes a fragment hit for less. Or, if it was flung hard, for more.
-			di.amount = (
-					flight.state.edge_damage[ev.edge_idx] if ev.is_edge_hit()
-					else flight.state.vertex_damage[ev.particle_idx])
+			di.amount = flight.state.vertex_damage[ev.particle_idx]
 			di.type = DamageInstance.Type.PHYSICAL
 			di.target = ev.target as SkillNode
 			di.origin = source
