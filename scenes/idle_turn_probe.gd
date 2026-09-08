@@ -51,6 +51,7 @@ func _run() -> void:
 		await get_tree().process_frame
 	await _park_on_player_turn(root)
 	await get_tree().create_timer(float(bench.get("settle_seconds"))).timeout
+	await _apply_zoom_override(float(bench.get("zoom_override")), root)
 
 	# Measurement mode: vsync would clamp the rate and hide everything; the
 	# cap (Settings.max_fps) would too. Headless has no DisplayServer window.
@@ -99,6 +100,36 @@ func _park_on_player_turn(root: GameRoot) -> void:
 		if tm.current_entity != root.player:
 			push_warning("idle bench: could not park on the player's turn — "
 					+ "measuring %s's turn instead" % _turn_owner_name)
+
+
+## Parks the camera on the whole graph at [param wanted] zoom, so the halo
+## census measures a board where halos genuinely ARE on screen (#802). `<= 0`
+## leaves the camera alone.
+##
+## Goes straight at [method GraphCamera.begin_directed_focus] rather than
+## through [CameraDirector] on purpose: the director's job is to decide WHERE
+## to look from gameplay events (#523), and a bench has no gameplay event to
+## express "show me everything" with. The camera clamps the zoom up to its own
+## `_min_zoom_floor`, so this can never ask for more than the level allows.
+##
+## The settle wait is load-bearing: SkillNode halos learn they are on screen
+## from a [VisibleOnScreenNotifier2D], which reports one frame late, and the
+## whole point of this segment is to measure the state AFTER that has settled.
+func _apply_zoom_override(wanted: float, root: GameRoot) -> void:
+	if wanted <= 0.0 or root.camera == null:
+		return
+	var bounds := Rect2()
+	var first := true
+	for n: SkillNode in root.graph.get_skill_nodes():
+		if first:
+			bounds = Rect2(n.global_position, Vector2.ZERO)
+			first = false
+		else:
+			bounds = bounds.expand(n.global_position)
+	if first:
+		return
+	root.camera.begin_directed_focus(bounds.get_center(), wanted, 0.0)
+	await get_tree().create_timer(1.0).timeout
 
 
 ## Average per-frame samples over `sample_seconds`, after discarding

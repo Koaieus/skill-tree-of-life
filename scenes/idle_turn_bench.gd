@@ -36,6 +36,15 @@ extends "res://scenes/procgen_play_sandbox.gd"
 ## node/edge self-shading stays on), [code]glow-off[/code] (WorldEnvironment
 ## injection; cross-checked by the launch-time env patch in the driver, which
 ## is the authoritative number).
+## Camera zoom to park at before measuring, or 0 for "leave it where the level
+## put it". Zooming OUT is what makes the halo population actually VISIBLE: the
+## default view of a 2000-node board has 1 of 307 halos on screen, which says
+## nothing about what a halo costs when someone is looking at it (#802). The
+## camera clamps this up to its own `_min_zoom_floor` (the zoom at which the
+## viewport exactly fills the graph), so `--zoom=0.25` means "as far out as this
+## level allows".
+@export var zoom_override: float = 0.0
+
 @export var segments: Array[String] = ["baseline", "gimbals-off", "cogs-off", "halos-off", "fog-pass-off", "glow-off"]
 
 
@@ -59,6 +68,8 @@ func _apply_cmdline_overrides() -> void:
 				settle_seconds = maxf(0.0, float(parts[1]))
 			"warmup":
 				warmup_seconds = maxf(0.0, float(parts[1]))
+			"zoom":
+				zoom_override = maxf(0.0, float(parts[1]))
 			"seconds":
 				sample_seconds = maxf(0.1, float(parts[1]))
 			"segments":
