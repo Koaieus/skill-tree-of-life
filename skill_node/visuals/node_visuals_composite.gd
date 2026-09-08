@@ -302,6 +302,14 @@ func set_core_halo_style(style: int) -> void:
 	_core_presence.set_halo_style(style)
 
 
+## Forwards [member SkillNode.revealed] down to [CoreHalos]' animation gate
+## (#802), routed through [CorePresence] for the same reason
+## [method set_core_halo_style] is — the halos' nesting is CorePresence's
+## business, not this composite's.
+func set_core_halo_revealed(value: bool) -> void:
+	_core_presence.set_halo_revealed(value)
+
+
 ## Retargets the old CoreMarker glide-in tween onto [CorePresence]: slides the
 ## halo in from `local_offset` while the bloom extinguishes/reignites in
 ## lockstep (see core_presence.gd). Called by SkillNode.play_core_slide_from.

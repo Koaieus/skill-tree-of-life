@@ -83,6 +83,16 @@ func _notification(what: int) -> void:
 
 func _process(delta: float) -> void:
 	anim_time += delta
+	_on_anim_tick()
+
+
+## Virtual: what ONE tick of the shared clock does. The default is a redraw.
+## A component whose animation is a rigid TRANSFORM — a spin about its own
+## centre — overrides this to write that transform instead, so `_draw()` is
+## never re-entered and a frame costs a float write rather than a rebuilt
+## geometry buffer. See CoreHalos/HaloSpinLayer (#802), where that distinction
+## was 5.74ms of a 12.21ms idle frame.
+func _on_anim_tick() -> void:
 	queue_redraw()
 
 

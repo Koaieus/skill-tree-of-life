@@ -465,6 +465,7 @@ func _refresh_core_presence() -> void:
 			sigil = owned_by.core_class.sigil
 		_node_visuals.set_core_sigil(sigil)
 		_node_visuals.set_core_halo_style(core_halo_style)
+		_node_visuals.set_core_halo_revealed(revealed)
 	_refresh_core_health_bar(_is_core)
 
 
@@ -489,6 +490,10 @@ func _apply_sensed_state() -> void:
 		return
 	if _node_visuals != null:
 		_node_visuals.sensed = sensed
+		# Half of CoreHalos' animation gate (#802). `sensed` hides the whole
+		# ShaderStack, but a FULLY fogged node is neither sensed nor revealed —
+		# its halo stayed visible under the fog overlay and kept rebuilding.
+		_node_visuals.set_core_halo_revealed(revealed)
 	z_as_relative = not sensed
 	z_index = ZLayers.GRAPH_DEFAULT + ZLayers.SENSED if sensed else 0
 	# CorePresence needs no explicit hide here — it's nested under ShaderStack,

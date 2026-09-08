@@ -26,13 +26,25 @@ var _halo_color: Color:
 @export var halo_style: CoreHaloStyle = CoreHaloStyle.NONE:
 	set(value):
 		halo_style = value
-		set_animating(halo_style != CoreHaloStyle.NONE)
+		_rebuild_spin_layers()
+		_refresh_animation()
 		_redraw_all()
+
+## Whether this node is out of the fog for the local viewer — pushed down from
+## [member SkillNode.revealed] via [method NodeVisualsComposite.set_core_halo_revealed]
+## (#802). Half of the animation gate below; the other half is on-screen.
+var halo_revealed: bool = true:
+	set(value):
+		if halo_revealed == value:
+			return
+		halo_revealed = value
+		_refresh_animation()
 
 ## Scales the halo radius outward from the rim.
 @export_range(1.0, 2.0, 0.01) var halo_scale: float = 1.3:
 	set(value):
 		halo_scale = value
+		_resize_notifier()
 		_redraw_all()
 
 @export_range(0.5, 3.0, 0.01) var spin_speed: float = 1.0
@@ -42,6 +54,7 @@ var _halo_color: Color:
 @export_range(2, 5, 1) var gimbal_ring_count: int = 3:
 	set(value):
 		gimbal_ring_count = value
+		_resize_notifier()
 		_redraw_all()
 
 ## GIMBAL only: each ring's hoop wall half-width (along its own spin axis) as
@@ -57,6 +70,40 @@ var _halo_color: Color:
 ## rather than duplicating them, so front and back can't drift apart.
 @onready var _back_layer: Node2D = $GimbalBack
 
+## Rigid-geometry layers for the non-GIMBAL styles (#802) — one CanvasItem per
+## independently-spinning ring, drawn once and animated by `rotation`. Empty for
+## NONE and for GIMBAL (whose projected silhouette genuinely changes every
+## frame, so it cannot be a 2D transform).
+var _spin_layers: Array[Node2D] = []
+
+## Exported setters run while the scene is still being instantiated (before
+## this node has entered the tree), and rebuilding the layer children then only
+## to rebuild them again at READY is pure churn — so the rebuild is deferred to
+## READY and every later style change does it for real.
+var _ready_done: bool = false
+
+## Last colour the layers were painted with — see [method _on_identity_changed]
+## for why this component needs an idempotence guard the redraw-every-frame
+## version did not. Alpha < 0 is an impossible [Color], so the first identity
+## write always lands.
+var _painted_color: Color = Color(0.0, 0.0, 0.0, -1.0)
+
+## Set by [VisibleOnScreenNotifier2D] below. Starts false: the notifier emits
+## `screen_entered` on its first served frame when it IS on screen, so the
+## honest default is "assume not, let the server say otherwise" — a fail-OPEN
+## default would leave every off-screen halo animating forever, which is the
+## bug (#802).
+var _on_screen: bool = false
+var _notifier: VisibleOnScreenNotifier2D = null
+
+## Frame stamp + memo for [method gimbal_layer_batch]: the front and back halves
+## share ONE computation per frame instead of each running the full
+## compose -> transform -> project -> depth-split and discarding the other half.
+var _gimbal_frame: int = -1
+var _gimbal_front: Dictionary = {}
+var _gimbal_back: Dictionary = {}
+
+const SPIN_LAYER_SCENE: PackedScene = preload("res://skill_node/visuals/halo_spin_layer.tscn")
 const GIMBAL_SEGMENTS := 28
 ## Local spin axis per ring, expressed in its PARENT ring's frame (composed
 ## via quaternion multiplication below) — never the ring's own normal (Z),
@@ -75,19 +122,177 @@ func _spin() -> float:
 	return anim_time * spin_speed
 
 
-## Keeps the GIMBAL back layer's own redraw in lockstep with this node's —
-## without this, the back layer only redraws once (or never) and the far
-## arcs freeze mid-spin while the front half keeps animating.
-func _process(delta: float) -> void:
-	super._process(delta)
-	if halo_style == CoreHaloStyle.GIMBAL and is_instance_valid(_back_layer):
-		_back_layer.queue_redraw()
-
-
-func _redraw_all() -> void:
+## One tick of the shared clock ([method SkillNodeVisual._on_anim_tick]).
+##
+## For the rotate-able styles this is the whole point of #802: write each
+## layer's `rotation` and DON'T queue a redraw — Godot keeps the geometry it
+## already has, so an animating COG costs a float write instead of a rebuilt
+## circle + ten teeth.
+##
+## GIMBAL still rebuilds, and still has to drive its back layer explicitly:
+## the base class's clock only redraws the node it is declared on, so without
+## this the far arcs freeze mid-spin while the front half keeps animating.
+func _on_anim_tick() -> void:
+	if not _spin_layers.is_empty():
+		_apply_spin_rotations()
+		return
 	queue_redraw()
 	if halo_style == CoreHaloStyle.GIMBAL and is_instance_valid(_back_layer):
 		_back_layer.queue_redraw()
+
+
+## A full invalidation: everything this component has cached or already drawn is
+## thrown away. Called whenever an INPUT changes (style, radius, scale, tint,
+## opacity) rather than every frame — the spin layers hold baked geometry, so
+## they only redraw here.
+func _redraw_all() -> void:
+	_gimbal_frame = -1
+	queue_redraw()
+	for layer in _spin_layers:
+		if is_instance_valid(layer):
+			layer.queue_redraw()
+	if halo_style == CoreHaloStyle.GIMBAL and is_instance_valid(_back_layer):
+		_back_layer.queue_redraw()
+
+
+## Identity and radius both feed BAKED geometry now, so the base class's plain
+## `queue_redraw()` is no longer enough — the spin layers own their own canvas
+## items and would keep the old colour/size.
+##
+## Both channels are therefore also made IDEMPOTENT, which the redraw-every-frame
+## version never needed: the composite loop-sets all three identity values into
+## every child on any one of them changing, and `SkillNode._sync_visuals()`
+## re-pushes `configure(radius)` wholesale. Neither runs per frame today, but an
+## unguarded repaint here would silently undo #802 the day one of them did —
+## the whole win is that these layers are painted once.
+##
+## `_halo_color` is the ONLY identity this component draws with (it reads
+## `entity_tint` and its own `halo_opacity`; `archetype_tint` and `allocated`
+## are not its business), so comparing it is exact, not a heuristic.
+func _on_identity_changed() -> void:
+	var color := _halo_color
+	if color == _painted_color:
+		return
+	_painted_color = color
+	_redraw_all()
+
+
+func configure(new_radius: float) -> void:
+	if is_equal_approx(new_radius, radius):
+		return
+	super(new_radius)
+	_resize_notifier()
+	_redraw_all()
+
+
+## Wires the gate up on ready and re-evaluates it whenever this node's
+## visibility-in-tree changes (the composite hides the whole [CorePresence]
+## for a non-core node and the whole ShaderStack for a sensed one).
+##
+## `super._notification` first — the base uses NOTIFICATION_READY to re-assert
+## the process flag, and `_refresh_animation` is what decides its real value.
+func _notification(what: int) -> void:
+	super._notification(what)
+	match what:
+		NOTIFICATION_READY:
+			_ready_done = true
+			_rebuild_spin_layers()
+			_refresh_animation()
+		NOTIFICATION_VISIBILITY_CHANGED:
+			_refresh_animation()
+
+
+## The animation gate (#802). `set_animating(halo_style != NONE)` keyed off
+## WHAT the halo is and never off whether anyone can see it — so 307 cores on a
+## 2000-node board rebuilt their geometry every frame with exactly one of them
+## on screen, and a fully-fogged node (neither `sensed` nor `revealed`, so the
+## ShaderStack hide never fires) kept animating underneath the fog overlay.
+##
+## Animate iff the item is actually in the tree AND someone could see it. The
+## on-screen half is deliberately OR'd rather than AND'ed with `revealed`: the
+## notifier is the engine's answer and can be silent (headless, a fresh frame),
+## and `revealed` alone is the safe fallback.
+func _refresh_animation() -> void:
+	var live := halo_style != CoreHaloStyle.NONE and is_visible_in_tree()
+	_sync_notifier(live)
+	set_animating(live and (halo_revealed or _on_screen))
+
+
+## The on-screen half of the gate, from the engine rather than a per-frame
+## rect test in GDScript. Created LAZILY and only while the halo could animate
+## at all: `core_presence.tscn` authors GIMBAL onto every SkillNode's CoreHalos,
+## ~1700 of which are non-core and hidden, and a notifier on each of those would
+## be exactly the always-instanced dead child that #172/#238 retired.
+func _sync_notifier(wanted: bool) -> void:
+	if wanted == (_notifier != null):
+		return
+	if wanted:
+		_notifier = VisibleOnScreenNotifier2D.new()
+		_notifier.screen_entered.connect(_on_screen_changed.bind(true))
+		_notifier.screen_exited.connect(_on_screen_changed.bind(false))
+		add_child(_notifier)
+		_resize_notifier()
+	else:
+		_notifier.queue_free()
+		_notifier = null
+		_on_screen = false
+
+
+func _on_screen_changed(value: bool) -> void:
+	_on_screen = value
+	_refresh_animation()
+
+
+## The notifier's rect has to cover the WIDEST style this component can draw —
+## GIMBAL's outermost ring — or a halo would stop animating slightly before it
+## leaves the screen.
+func _resize_notifier() -> void:
+	if _notifier == null:
+		return
+	var r := radius * halo_scale * (1.0 + float(gimbal_ring_count - 1) * GIMBAL_RADIUS_STEP)
+	_notifier.rect = Rect2(-r, -r, r * 2.0, r * 2.0)
+
+
+## Rebuilds the rigid spin layers for the current style. Each entry is one
+## independently-rotating CanvasItem: RINGS gets three (its rings run at 1.0 /
+## 1.5 / 2.0), ORBIT and COG one each, GIMBAL and NONE none.
+##
+## The rates are the SAME numbers the old `_draw_*` methods baked into their
+## angles — a rotation by `offset` and a redraw with every angle shifted by
+## `offset` are the same picture, which is exactly why this substitution is
+## sound for these three styles and not for GIMBAL.
+func _rebuild_spin_layers() -> void:
+	if not _ready_done:
+		return
+	for layer in _spin_layers:
+		if is_instance_valid(layer):
+			layer.queue_free()
+	_spin_layers.clear()
+	for spec in _spin_layer_rates():
+		var layer: Node2D = SPIN_LAYER_SCENE.instantiate()
+		layer.layer_index = _spin_layers.size()
+		layer.spin_rate = spec
+		add_child(layer)
+		_spin_layers.append(layer)
+	_apply_spin_rotations()
+
+
+func _spin_layer_rates() -> PackedFloat32Array:
+	match halo_style:
+		CoreHaloStyle.RINGS:
+			return PackedFloat32Array([1.0, 1.5, 2.0])
+		CoreHaloStyle.ORBIT:
+			return PackedFloat32Array([1.0])
+		CoreHaloStyle.COG:
+			return PackedFloat32Array([0.3])
+		_:
+			return PackedFloat32Array()
+
+
+func _apply_spin_rotations() -> void:
+	var spin := _spin()
+	for layer in _spin_layers:
+		layer.rotation = spin * layer.spin_rate
 
 
 ## Whether GIMBAL is the active preset — the back layer checks this via duck
@@ -108,37 +313,38 @@ func is_gimbal_active() -> bool:
 	return halo_style == CoreHaloStyle.GIMBAL
 
 
+## This node's OWN canvas item now draws the GIMBAL front half and nothing
+## else — every other style lives on its own [HaloSpinLayer] child, which is
+## what lets it be rotated instead of rebuilt (#802).
 func _draw() -> void:
-	if halo_style == CoreHaloStyle.NONE:
+	if halo_style != CoreHaloStyle.GIMBAL:
 		return
+	_draw_batch(self, gimbal_layer_batch(true))
+
+
+## Paints ONE rigid spin layer, in its own un-rotated frame — the layer's
+## `rotation` supplies the angle the old `_draw_*` methods baked into every
+## vertex. Called from [HaloSpinLayer._draw] (duck-typed, like
+## core_halos_back.gd) so all the style knowledge stays here.
+func paint_spin_layer(target: CanvasItem, index: int) -> void:
 	var halo_color := _halo_color
 	var base_r := radius * halo_scale
 	match halo_style:
 		CoreHaloStyle.RINGS:
-			_draw_rings(base_r, halo_color)
+			_paint_dashed_circle(target, base_r * (1.0 + index * 0.18), 10, halo_color)
 		CoreHaloStyle.ORBIT:
-			_draw_orbit(base_r, halo_color)
-		CoreHaloStyle.GIMBAL:
-			_draw_gimbal(base_r, halo_color)
+			_paint_orbit(target, base_r, halo_color)
 		CoreHaloStyle.COG:
-			_draw_cog(base_r, halo_color)
+			_paint_cog(target, base_r, halo_color)
 
 
-func _draw_rings(base_r: float, halo_color: Color) -> void:
-	for i in 3:
-		var r := base_r * (1.0 + i * 0.18)
-		var rate := 1.0 + i * 0.5
-		_draw_dashed_circle(r, _spin() * rate, 10, halo_color)
-
-
-func _draw_orbit(base_r: float, halo_color: Color) -> void:
-	draw_circle(Vector2.ZERO, base_r, halo_color, false, 1.0)
+func _paint_orbit(target: CanvasItem, base_r: float, halo_color: Color) -> void:
+	target.draw_circle(Vector2.ZERO, base_r, halo_color, false, 1.0)
 	# The orbiting dots read as solid beads on a translucent track.
 	var dot_color := Color(halo_color, 1.0)
 	var dot_count := 4
 	for i in dot_count:
-		var theta := _spin() + (TAU / dot_count) * i
-		draw_circle(polar_point(base_r, theta), 2.5, dot_color)
+		target.draw_circle(polar_point(base_r, (TAU / dot_count) * i), 2.5, dot_color)
 
 
 ## Real gyroscope, not a faked tilt: each ring is a hoop (uncapped cylinder
@@ -149,25 +355,42 @@ func _draw_orbit(base_r: float, halo_color: Color) -> void:
 ## phase offset.
 ## See _gimbal_runs()/_draw_run_on() for the shared geometry this and
 ## core_halos_back.gd (the "passes behind the disk" layer) both draw from.
-func _draw_gimbal(base_r: float, halo_color: Color) -> void:
-	var runs := _gimbal_runs(base_r, halo_color)
-	_draw_batch(self, _gimbal_batch(runs["front"]))
+## The ONE gimbal computation for this frame, shared by both halves (#802).
+##
+## `_gimbal_runs()` was previously run TWICE per frame per gimbal: this node
+## computed every ring in full and kept only `runs["front"]`, while
+## core_halos_back.gd re-ran the identical compose -> transform -> project ->
+## depth-split and kept only `runs["back"]`. Each discarded half of a full
+## computation, doubling the dominant term. Memoising on the process-frame
+## counter keeps the invariant that made the duplication deliberate in the
+## first place — the two halves cannot drift into disagreeing geometry —
+## and makes it stronger: they are now literally the same computation, not two
+## that happen to agree. [method _redraw_all] invalidates the stamp, so an
+## input that changes mid-frame is still picked up.
+func gimbal_layer_batch(front: bool) -> Dictionary:
+	var frame := Engine.get_process_frames()
+	if _gimbal_frame != frame:
+		_gimbal_frame = frame
+		var runs := _gimbal_runs(radius * halo_scale, _halo_color)
+		_gimbal_front = _gimbal_batch(runs["front"])
+		_gimbal_back = _gimbal_batch(runs["back"])
+	return _gimbal_front if front else _gimbal_back
 
 
-func _draw_cog(base_r: float, halo_color: Color) -> void:
-	draw_circle(Vector2.ZERO, base_r, halo_color, false, 1.0)
+func _paint_cog(target: CanvasItem, base_r: float, halo_color: Color) -> void:
+	target.draw_circle(Vector2.ZERO, base_r, halo_color, false, 1.0)
 	var teeth := 10
 	var tooth_len := base_r * 0.12
 	for i in teeth:
-		var theta := _spin() * 0.3 + (TAU / teeth) * i
-		draw_line(polar_point(base_r, theta), polar_point(base_r + tooth_len, theta), halo_color, 2.0, true)
+		var theta := (TAU / teeth) * i
+		target.draw_line(polar_point(base_r, theta), polar_point(base_r + tooth_len, theta), halo_color, 2.0, true)
 
 
-func _draw_dashed_circle(r: float, offset: float, dash_count: int, color: Color) -> void:
+func _paint_dashed_circle(target: CanvasItem, r: float, dash_count: int, color: Color) -> void:
 	var step := TAU / dash_count
 	for i in dash_count:
-		var a0 := i * step + offset
-		draw_arc(Vector2.ZERO, r, a0, a0 + step * 0.5, 4, color, 1.5, true)
+		var a0 := i * step
+		target.draw_arc(Vector2.ZERO, r, a0, a0 + step * 0.5, 4, color, 1.5, true)
 
 
 ## Pure geometry — no draw_* calls — so both the front layer (this node) and

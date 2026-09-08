@@ -71,6 +71,21 @@ func set_halo_style(style: int) -> void:
 	halos.halo_style = style
 
 
+## Forwards [member SkillNode.revealed] to the [CoreHalos] child, which uses it
+## as half of its animation gate (#802): a halo that nobody can see must not
+## keep rebuilding its geometry, and a fully-fogged node — neither `sensed` nor
+## `revealed`, so the ShaderStack hide above never fires — is precisely the case
+## that slipped through and animated underneath the fog overlay.
+##
+## EXPLICIT named-child lookup for the same reason [method set_halo_style] is
+## (see its docstring): this is a property of CoreHalos specifically, not a
+## generic per-child capability worth hiding behind duck typing.
+func set_halo_revealed(value: bool) -> void:
+	var halos := get_node_or_null(^"CoreHalos")
+	if halos != null:
+		halos.halo_revealed = value
+
+
 ## Slides children in from `local_offset` (this node's position the instant
 ## before a core move commits, expressed relative to this node — the caller
 ## already computed the world delta) — see the hook contract above. No-op
