@@ -42,9 +42,10 @@ func _ready() -> void:
 ## Now drawn above [PauseMenu] (#765), so a tooltip left showing when Esc hits
 ## must hide rather than freeze mid-air on top of the dimmed menu: `_process`
 ## (which drives [method _fit]/[method _reposition]) stops the instant the
-## tree pauses, same as [PlayerInputController]'s hover source, so nothing
-## would otherwise clear it. `NOTIFICATION_PAUSED` still reaches a PAUSABLE
-## node's `_notification` even though its process callbacks are suspended.
+## tree pauses, same as [SpellPickerButton]'s `mouse_exited` (the hover
+## source), so nothing would otherwise clear it. `NOTIFICATION_PAUSED` still
+## reaches a PAUSABLE node's `_notification` even though its process
+## callbacks are suspended.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PAUSED:
 		hide_tooltip()
