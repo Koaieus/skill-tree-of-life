@@ -51,6 +51,25 @@ func test_tooltip_shrinks_when_a_shorter_spell_is_hovered() -> void:
 	assert_lt(tt.size.y, tall_height, "tooltip kept the taller spell's height")
 
 
+func test_tooltip_hides_when_the_tree_pauses() -> void:
+	# #765: SpellTooltip now draws above PauseMenu, so a tooltip left showing
+	# when Esc hits must hide rather than freeze mid-air on top of the dimmed
+	# menu — its own _process (which would otherwise keep it live) stops the
+	# instant the tree pauses, same as the hover source that would clear it.
+	var tt: SpellTooltip = _TOOLTIP.instantiate()
+	add_child_autofree(tt)
+	await wait_frames(2)
+
+	tt.show_for(load(_TALL) as SpellDef, null)
+	for _i in _SETTLE_FRAMES:
+		await wait_frames(1)
+	assert_true(tt.visible, "precondition: tooltip should be showing")
+
+	get_tree().paused = true
+	assert_false(tt.visible, "tooltip should hide the instant the tree pauses")
+	get_tree().paused = false
+
+
 func test_tooltip_renders_its_content_through_scene_components() -> void:
 	var tt: SpellTooltip = _TOOLTIP.instantiate()
 	add_child_autofree(tt)
