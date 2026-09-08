@@ -63,6 +63,33 @@ counterplay and not a defect — it is noise below the resolution the player act
 real defect and is fixed by edge capsules. Spacing luck for *spikes* is a non-issue
 and no longer an acceptance criterion.
 
+## Where an edge stat could live — the architectural crux of #409
+
+**Owner, 2026-09-08:** *"stats live on 1) `Entity`s, 2) `SkillNode`s. notice how we
+don't have a stat board for Edges yet. i wonder how we would cleanly model something
+like edge damage at all"* — and, on an Entity-level stat: *"it would just be the same
+for each Edge; so still a problem where to put it."*
+
+Right objection: an Entity stat says *how hard my edges cut*, never *which* edges are
+sharpened — and "which" is the whole content of a placed upgrade. But it decomposes:
+
+- **magnitude is a stat** → `Entity` board (`blade_edge_damage`), where stats live.
+- **placement is topology** → a **boolean on `Edge`**, never a `StatBoard`.
+
+`Edge` gains a flag, no third stat-bearing type appears. Same shape as the node side
+already: `SpikeRingAddon` *marks*, the modifier pipeline *supplies the number*.
+
+**Still: option A — edges deal no damage at all — is the recommendation.** The above is
+what to reach for *if* a sharpener is ever wanted; it makes edge damage cheap to build,
+not right to have. A derivation from endpoints' `blade_damage` (min/max/mean) is ruled
+out and must not be re-proposed.
+
+**If A is confirmed, BRIEF 1 grows and simplifies:** `edge_damage` (the StatDef, the
+board roster entry, `default_entity_board.tres`, the min derivation) should be
+**removed**, not left at 0 — a dead derived stat mirrors a rule nobody holds. That also
+makes #785's edge-vs-vertex arbitration (*"an edge emits only if it strictly
+out-damages the best particle on that collider"*) unreachable, so it goes too.
+
 ## OPEN — the one question still on the owner
 
 A fully clamped (rigid) blade rams a bunker. Vertices are discs and stick out past
@@ -118,16 +145,10 @@ pending · 421 scripts`; main checkout with binary built + `mise run refresh`
 
 Not in the DAG yet, to be filed:
 
-- **Edge Sharpener Addon** (`Needs design`) — the only thing that ever raises an
-  edge's `edge_damage` above 0. Park this on it: a *sharpened* edge cuts but still
-  does not interact with spikes, so it sweeps over a spiked node unharmed. That makes
-  sharpened edges **the anti-spike weapon** — plausibly the intended counter (spike
-  investment answered by a different investment), plausibly a hole. Decide deliberately.
-- **`blade_damage` → `blade_node_damage` / `blade_edge_damage`** (`Ready`) — an owner
-  leaning, deliberately NOT folded into BRIEF 1. `edge_damage` is already 0 by default,
-  so the substance is a broad mechanical rename across StatDefs, #779's speed curve,
-  fixtures, procgen pools and localization. Queuing it in front of #780/#781/#782 is
-  rebase debt for all three.
+- **Edge Sharpener is #409**, not a new issue — updated 2026-09-08 and unblocked
+  (its blocker #407 is CLOSED, delivered by #779's speed-scaled damage). `Needs design`.
+- **The `blade_damage` split is deferred, not queued.** Owner: *"hence my lean to keep
+  blade damage as it is right now, though we could split it cleanly."* No issue filed.
 - **Analytic narrow phase for `BladeHitScan`** — #785 measured ~21600 physics queries
   per resolve at 100 vertices / 197 edges. Deliberately not done there: it would make
   the module encode target geometry.
