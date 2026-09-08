@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"spikes"
+display_name = "Spikes"
+description = "Entity-board scalar baseline for the per-node spikes pop budget (#778). Follows the node_health / node_combat_health precedent: the node-local PoolStat cap is minted off node_spikes.tres, a separate def, while this scalar is the aggregate the entity board carries. Base 0 — only SpikeRingAddon grants the real budget, scaling 1:2:3 with stake_level; an unspiked node holds 0 at any stake level. Owner-tunable starting point, not a tuning pass."
+value_type = 0
+default_value = 0.0
+tint_color = Color(0.95, 0.55, 0.4, 1)

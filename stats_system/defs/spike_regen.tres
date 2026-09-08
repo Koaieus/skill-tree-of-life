@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"spike_regen"
+display_name = "Spike Regen"
+description = "Spikes recovered at the owning entity's turn start (#778), independently of the spikes cap — PerTurnMode.ADD, deliberately NOT a percentage of the cap (percentage regen would recreate the unlimited spike behind a stake cost). Authorable both on an entity board (this baseline) and node-locally via get_local_value, same read path as node_healing. Base 0; SpikeRingAddon scales it 1:2:3 with stake_level. Owner-tunable starting point, not a tuning pass."
+value_type = 0
+default_value = 0.0
+tint_color = Color(0.95, 0.6, 0.45, 1)

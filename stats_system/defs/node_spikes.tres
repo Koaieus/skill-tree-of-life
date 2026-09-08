@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="StandardPoolStatDef" format=3]
+
+[ext_resource type="Script" path="res://stats_system/standard_pool_stat_def.gd" id="1_std_pool_def"]
+
+[resource]
+script = ExtResource("1_std_pool_def")
+on_cap_rise = 1
+id = &"node_spikes"
+display_name = "Node Spikes"
+description = "Per-node spikes pop budget (#778), the node-local PoolStat NodeStatBoard._mint_stat should special-case stat id `spikes` into off this def, mirroring node_combat_health for node_health. Cap is built from SpikeRingAddon-granted node-local modifiers on top of the spikes.tres baseline (0) — a 3/3-staked spiked node holds 6. Contact drains remaining spikes by the attacking vertex's blunting and pops it only if the full amount was removed; a lesser remainder just drains through without popping. Regenerates by spike_regen at the owner's turn start via a sparse spent-node sweep (there is no node-local turn-upkeep hook — StatBoard.apply_per_turn_upkeep sweeps entity-board pools only). Resets to full on ownership change. Owner-tunable starting point, not a tuning pass."
+value_type = 0
+default_value = 0.0
+tint_color = Color(0.95, 0.55, 0.4, 1)
+modifier_name = "Max Spikes"

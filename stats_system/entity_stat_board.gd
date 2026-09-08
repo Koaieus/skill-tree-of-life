@@ -69,6 +69,15 @@ extends StatBoard
 ## cascade. Bypasses mitigation (currency-exchange semantics — the cascade also
 ## wounds 1 SP per node, separately). Default 1; fragile-core classes raise it.
 @export var dealloc_damage: ScalarStat
+## Entity-board scalar baseline for the per-node spikes pop budget (#778).
+## Mirrors node_health one field up: the node-local PoolStat cap is minted off
+## a separate def (node_spikes.tres), this scalar is just the aggregate the
+## entity board carries. Base 0 — only SpikeRingAddon grants the real budget.
+@export var spikes: ScalarStat
+## Spikes recovered at this entity's turn start, independently of the spikes
+## cap (#778). Also authorable node-locally via get_local_value, same read
+## path as node_healing. Base 0; SpikeRingAddon scales it with stake_level.
+@export var spike_regen: ScalarStat
 
 @export_group("Economy")
 @export var xp: PoolStat            ## XP pool; fires Entity.leveled_up on fill.
@@ -125,6 +134,18 @@ extends StatBoard
 @export_group("Melee")
 @export var blade_size: ScalarStat		## Max blade-member nodes per melee attack (excl. pivot). Base 1, +STR//10.
 @export var blade_damage: ScalarStat	## Damage per node contact. Base 1, +1 per 10 STR. Node-local addons (e.g. SpikeRing) add on top per-node via node_board.
+## Pop power of the attacking blade vertex against a defender's spikes (#778).
+## Base 1; SpikeRingAddon raises a spiked vertex to 2. Node-local addons add
+## on top per-node via node_board, mirroring blade_damage.
+@export var blunting: ScalarStat
+## M in the speed-scaled blade damage curve f(v) = 1 + (M-1) x v/(v+v_half)
+## (#779) — the multiplier blade_damage (and edge_damage, #785) saturates
+## toward as contact speed grows. Floored at 1, never a penalty.
+@export var blade_speed_multiplier_max: ScalarStat
+## v_half in the same curve (#779) — the per-vertex contact speed at which
+## half of blade_speed_multiplier_max's bonus is collected. Calibrated near a
+## short blade's apex speed so early melee already benefits.
+@export var blade_speed_half: ScalarStat
 
 @export_group("Crit")
 @export var crit_chance: ScalarStat		## Probability (0..1) a hit crits. Baseline 5%.

@@ -380,6 +380,8 @@ This unifies three things previously treated separately: rigidity, the whip, and
 
 **Rigidity scales damage delivery (the balloon principle).** Rigidity isn't only the *hit pattern* — it **scales how much of a face's potential damage actually lands.** A face is potential mass; you cash the full face-damage only if the structure is rigid enough to deliver it. A floppy cycle shears mid-swing and deflates — *an inflated balloon vs. a deflated one.*
 
+> **2026-09-07 (#772 melee design session):** rigidity-in-the-formula was considered here and declined — owner: *"no, at least not now. maybe ever."* **Speed** (#779) is the delivery term instead: `damage = blade_damage × f(speed)`, not rigidity. The balloon principle below stands as design intent, not as an implemented formula.
+
 - A **braced** cycle (a wall of triangles) delivers **full** face damage → peak. A big braced 10-cycle is peak melee.
 - The **same** 10-cycle left as a floppy hoop deflates → reduced damage.
 - **Whips are the dual, not a contradiction:** a deliberately floppy chain converts flop into **tip velocity**, powering its edge/spike crack. Flop is the *point* of a whip.

@@ -11,6 +11,9 @@
 [ext_resource type="Resource" path="res://stats_system/defs/armor.tres" id="def_armor"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_damage.tres" id="def_blade_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="def_blade_size"]
+[ext_resource type="Resource" path="res://stats_system/defs/blade_speed_half.tres" id="def_blade_speed_half"]
+[ext_resource type="Resource" path="res://stats_system/defs/blade_speed_multiplier_max.tres" id="def_blade_speed_multiplier_max"]
+[ext_resource type="Resource" path="res://stats_system/defs/blunting.tres" id="def_blunting"]
 [ext_resource type="Resource" uid="uid://cj6e6uijkdjrc" path="res://stats_system/defs/constitution.tres" id="def_constitution"]
 [ext_resource type="Resource" path="res://stats_system/defs/core_healing.tres" id="def_core_healing"]
 [ext_resource type="Resource" path="res://stats_system/defs/core_health_scaling.tres" id="def_core_health_scaling"]
@@ -41,6 +44,8 @@
 [ext_resource type="Resource" path="res://stats_system/defs/spell_hops.tres" id="def_spell_hops"]
 [ext_resource type="Resource" path="res://stats_system/defs/spell_range.tres" id="def_spell_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/sp_gain_on_levelup.tres" id="def_sp_gain_on_levelup"]
+[ext_resource type="Resource" path="res://stats_system/defs/spike_regen.tres" id="def_spike_regen"]
+[ext_resource type="Resource" path="res://stats_system/defs/spikes.tres" id="def_spikes"]
 [ext_resource type="Resource" uid="uid://vtw8ktmktkgq" path="res://stats_system/defs/strength.tres" id="def_strength"]
 [ext_resource type="Resource" path="res://stats_system/defs/vision_range.tres" id="def_vision_range"]
 [ext_resource type="Resource" uid="uid://dvpjmk8e3m08k" path="res://stats_system/defs/wisdom.tres" id="def_wisdom"]
@@ -81,6 +86,24 @@ base_value = 1.0
 resource_name = "blade_size"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_blade_size")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_blade_speed_half"]
+resource_name = "blade_speed_half"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_blade_speed_half")
+base_value = 800.0
+
+[sub_resource type="Resource" id="scalar_blade_speed_multiplier_max"]
+resource_name = "blade_speed_multiplier_max"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_blade_speed_multiplier_max")
+base_value = 2.0
+
+[sub_resource type="Resource" id="scalar_blunting"]
+resource_name = "blunting"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_blunting")
 base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_constitution"]
@@ -424,6 +447,16 @@ resource_name = "spell_range"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_spell_range")
 
+[sub_resource type="Resource" id="scalar_spike_regen"]
+resource_name = "spike_regen"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_spike_regen")
+
+[sub_resource type="Resource" id="scalar_spikes"]
+resource_name = "spikes"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_spikes")
+
 [sub_resource type="Resource" id="scalar_strength"]
 resource_name = "strength"
 script = ExtResource("2_scalar")
@@ -478,6 +511,8 @@ node_healing_ramp = SubResource("scalar_node_healing_ramp")
 armor = SubResource("scalar_armor")
 min_damage_taken = SubResource("scalar_min_dmg_taken")
 dealloc_damage = SubResource("scalar_dealloc_damage")
+spikes = SubResource("scalar_spikes")
+spike_regen = SubResource("scalar_spike_regen")
 xp = SubResource("pool_xp")
 xp_per_turn = SubResource("scalar_xp_per_turn")
 level = SubResource("scalar_level")
@@ -501,6 +536,9 @@ spell_hops = SubResource("scalar_spell_hops")
 spell_damage = SubResource("scalar_spell_damage")
 blade_size = SubResource("scalar_blade_size")
 blade_damage = SubResource("scalar_blade_damage")
+blunting = SubResource("scalar_blunting")
+blade_speed_multiplier_max = SubResource("scalar_blade_speed_multiplier_max")
+blade_speed_half = SubResource("scalar_blade_speed_half")
 crit_chance = SubResource("scalar_crit_chance")
 crit_multiplier = SubResource("scalar_crit_multiplier")
 intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_wis_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_hops"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_con_to_health"), SubResource("mod_level_to_con")])
