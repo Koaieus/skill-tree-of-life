@@ -84,7 +84,7 @@ const _BROAD_PHASE_MARGIN := 64.0
 ## the pre-#785 edge query used — the collision an edge needs comes mostly
 ## from the TARGET's own disk, so the edge only has to be a line with a hair
 ## of width, not a slab.
-const _EDGE_RADIUS := 0.5
+const EDGE_RADIUS := 0.5
 
 
 static func scan(
@@ -120,7 +120,7 @@ static func scan(
 	# Reused across edge queries; height/transform get rewritten each step.
 	# A CapsuleShape2D's axis is +Y, hence the +PI/2 on every edge transform.
 	var edge_shape := CapsuleShape2D.new()
-	edge_shape.radius = _EDGE_RADIUS
+	edge_shape.radius = EDGE_RADIUS
 	var broad_shape := RectangleShape2D.new()
 
 	var params := PhysicsShapeQueryParameters2D.new()
@@ -138,7 +138,7 @@ static func scan(
 		# instead of ~300. The box is a strict superset of every narrow-phase
 		# shape (particle disks are inside `max_radius` of a position, edge
 		# capsules are inside the convex hull of two positions plus
-		# `_EDGE_RADIUS`), so turning this off can only ADD cost, never
+		# `EDGE_RADIUS`), so turning this off can only ADD cost, never
 		# change the event set — which is what `broad_phase` exists to let a
 		# benchmark verify.
 		if broad_phase and _is_region_empty(
@@ -177,7 +177,7 @@ static func scan(
 				continue
 			var dir := delta / length
 			var mid := a + dir * (radii[e.x] + trimmed * 0.5)
-			edge_shape.height = trimmed + 2.0 * _EDGE_RADIUS
+			edge_shape.height = trimmed + 2.0 * EDGE_RADIUS
 			params.shape = edge_shape
 			params.transform = Transform2D(delta.angle() + PI * 0.5, mid)
 			var e_hits := space_state.intersect_shape(params, _MAX_HITS_PER_QUERY)
@@ -214,7 +214,7 @@ static func _is_region_empty(
 	for p in positions:
 		lo = lo.min(p)
 		hi = hi.max(p)
-	var pad := max_radius + _EDGE_RADIUS + _BROAD_PHASE_MARGIN
+	var pad := max_radius + EDGE_RADIUS + _BROAD_PHASE_MARGIN
 	lo -= Vector2(pad, pad)
 	hi += Vector2(pad, pad)
 	broad_shape.size = hi - lo

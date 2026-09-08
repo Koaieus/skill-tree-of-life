@@ -49,10 +49,14 @@ extends RefCounted
 ## dragged. [BladeHitScan] remains the sole authority for hit events, damage and
 ## pops; this class decides only how fast the clock runs.
 
-## Half-thickness of a blade edge, mirroring [BladeHitScan]'s `_EDGE_RADIUS`.
-## Duplicated rather than shared because the two sensing models are separate by
-## necessity (see the class docstring) — keep them equal.
-const _EDGE_RADIUS := 0.5
+## Half-thickness of a blade edge. [b]Shared with [BladeHitScan], not copied.[/b]
+## The two sensing MODELS are separate by necessity (see the class docstring),
+## but the geometry they sense is one geometry: if the scan's capsules get
+## thicker and drag's do not, a node starts draining without dragging and the
+## divergence is invisible — the models are already allowed to disagree at the
+## margin, so nothing would flag it. One const cannot drift; a comment saying
+## "keep them equal" can.
+const _EDGE_RADIUS := BladeHitScan.EDGE_RADIUS
 
 ## Drag zones — one per fortified defender node, parallel arrays. Positions are
 ## world-space, exactly like [member BladeState.positions].
