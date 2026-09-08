@@ -7,8 +7,11 @@ extends RefCounted
 ##
 ## The model (see the #170 design comment):
 ##   - A blade vertex that sweeps into a spiked, allocated enemy node is popped:
-##     the hostile node takes damage equal to the node's spike power and, at MVP
-##     1/1 HP, dies on contact. It deals no damage to the node that popped it.
+##     the vertex itself dies. The contact deals damage to NOBODY — the spiked
+##     node takes none, and the popping vertex's own hit never lands either:
+##     [method BladeDamageInstance.land_on] returns as soon as [method admit]
+##     refuses the contact, before `super.land_on` (the only place damage is
+##     ever applied) runs.
 ##   - Killing a vertex disconnects everything downstream of it from the pivot /
 ##     handle. Every vertex no longer reachable from the pivot through surviving
 ##     edges is disintegrated (this MVP; the fun free-flight variant is #186).
@@ -82,6 +85,16 @@ class LiveGate extends RefCounted:
 	## stamp [member HitInstance.popped_vertex]; see that member for why the cue
 	## is recorded rather than emitted from here (#536).
 	var _last_pop: Pop = null
+	## particle_idx -> true for every vertex currently in `result.dead_at`
+	## (killed OR disintegrated). Maintained incrementally by [method _kill]
+	## (#795) rather than rebuilt from `result.dead_at` every call — it only
+	## ever grows within a swing.
+	var _removed: Dictionary = {}
+	## vertex index -> Array[int] of neighbour indices, over `_state.edges`.
+	## Built lazily on first use and cached for the rest of this swing (#795):
+	## one O(E) build instead of one O(E) rescan per dequeued BFS vertex.
+	var _adjacency: Dictionary = {}
+	var _adjacency_built: bool = false
 
 	func _init(state: BladeState, attacker: Entity) -> void:
 		_state = state
@@ -137,33 +150,73 @@ class LiveGate extends RefCounted:
 		# animation-replay emitter this replaced could only ever fire on the
 		# machine that swung.
 		_last_pop = pop
-		var removed: Dictionary = {}
-		for k in result.dead_at:
-			removed[k] = true
-		var reachable := BladePopResolver._reachable_from_pivot(_state, removed)
+		_removed[particle_idx] = true
+		var reachable := BladePopResolver._reachable_from_pivot(_state, _removed, _ensure_adjacency())
 		for v in _state.positions.size():
-			if v == _state.pivot_index or removed.has(v):
+			if v == _state.pivot_index or _removed.has(v):
 				continue
 			if not reachable.has(v):
 				result.dead_at[v] = minf(result.dead_at.get(v, INF), t)
+				_removed[v] = true
+
+	## Lazily builds, then caches, this swing's adjacency map (#795) — one
+	## O(E) build total instead of one per [method _kill]/[method admit].
+	func _ensure_adjacency() -> Dictionary:
+		if not _adjacency_built:
+			_adjacency = BladePopResolver._build_adjacency(_state)
+			_adjacency_built = true
+		return _adjacency
+
+	## Explicit invalidation seam (#795, for #781): nothing in this file
+	## mutates `_state.edges` mid-swing today, but #781 (bunker edge breaks)
+	## will remove edges from it mid-swing. Whatever does that MUST call this
+	## before the next [method admit]/[method _kill], or the cached adjacency
+	## goes stale and the BFS walks edges that no longer exist. Discards the
+	## cache; the next [method _kill] rebuilds it from the mutated
+	## `_state.edges` on demand.
+	func invalidate_adjacency() -> void:
+		_adjacency = {}
+		_adjacency_built = false
 
 
-## BFS from the pivot over `state.edges`, skipping any vertex in `removed`.
+## `state.edges` as an undirected adjacency map: vertex index -> Array[int] of
+## neighbour indices, in the same order those neighbours would be discovered
+## by a linear rescan of `state.edges` for that vertex (#795 — preserves
+## [method _reachable_from_pivot]'s traversal order exactly, so caching this
+## instead of rescanning is behaviour-preserving, not just complexity-preserving).
+static func _build_adjacency(state: BladeState) -> Dictionary:
+	var adjacency: Dictionary = {}
+	for e in state.edges:
+		if not adjacency.has(e.x):
+			adjacency[e.x] = [] as Array[int]
+		if not adjacency.has(e.y):
+			adjacency[e.y] = [] as Array[int]
+		(adjacency[e.x] as Array[int]).append(e.y)
+		(adjacency[e.y] as Array[int]).append(e.x)
+	return adjacency
+
+
+## BFS from the pivot over an adjacency map, skipping any vertex in `removed`.
 ## Returns a set (Dictionary) of reachable particle indices.
-static func _reachable_from_pivot(state: BladeState, removed: Dictionary) -> Dictionary:
+##
+## `adjacency` defaults to null (untyped so a caller can omit it, as the
+## characterization test does): when omitted, this builds a fresh map from
+## `state.edges` — still O(V + E) for THIS call, just not amortized across a
+## whole swing. [method _kill] passes its cached map instead, so a swing's
+## repeated pops share the one O(E) build (#795's actual fix; see
+## [method LiveGate._ensure_adjacency]).
+static func _reachable_from_pivot(
+		state: BladeState, removed: Dictionary, adjacency: Variant = null) -> Dictionary:
+	var adj: Dictionary = adjacency if adjacency != null else _build_adjacency(state)
 	var reach: Dictionary = {}
 	var pivot := state.pivot_index
 	reach[pivot] = true
 	var queue: Array[int] = [pivot]
 	while not queue.is_empty():
 		var cur: int = queue.pop_back()
-		for e in state.edges:
-			var other := -1
-			if e.x == cur:
-				other = e.y
-			elif e.y == cur:
-				other = e.x
-			if other < 0 or removed.has(other) or reach.has(other):
+		var neighbours: Array = adj.get(cur, [])
+		for other in neighbours:
+			if removed.has(other) or reach.has(other):
 				continue
 			reach[other] = true
 			queue.append(other)
