@@ -126,9 +126,10 @@ func is_edge_removed(edge_idx: int) -> bool:
 ## between `edges` and `constraints` is not a promise this class makes. A brace
 ## is deliberately NOT dropped — it is not this edge.
 ##
-## Callers driving a [BladePopResolver.LiveGate] must follow this with
-## [method BladePopResolver.LiveGate.invalidate_adjacency]; the gate's own
-## sever path already does.
+## A cached adjacency map does NOT need invalidating after this: `edges` is not
+## spliced, so every edge index stays valid and
+## [method BladePopResolver._reachable_from_pivot] skips this one by index as
+## it walks. That is the whole reason removal is a set rather than a splice.
 func remove_edge(edge_idx: int) -> bool:
 	if edge_idx < 0 or edge_idx >= edges.size() or removed_edges.has(edge_idx):
 		return false

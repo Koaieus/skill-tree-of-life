@@ -235,12 +235,18 @@ class LiveGate extends RefCounted:
 	## The vertex-kill twin of [method _kill]: same record, same reachability
 	## sweep, same "recorded, never announced from here" rule (#536) — only the
 	## thing that died differs. [method BladeState.remove_edge] drops the
-	## distance constraint too, and the adjacency cache is invalidated so the
-	## BFS below does not walk the edge that just vanished (#795's seam, used
-	## for the first time here).
+	## distance constraint too.
+	##
+	## [b]It deliberately does NOT invalidate the adjacency cache.[/b] Severance
+	## is recorded in [member BladeState.removed_edges] rather than spliced out
+	## of `edges`, so every edge index stays stable and the cached map stays
+	## correct — [method _reachable_from_pivot] skips the severed edge by index
+	## as it walks. Rebuilding here would put an O(E) pass back on every
+	## severance and undo #795 (acceptance 7: no per-severance rescan).
+	## [method invalidate_adjacency] remains for a caller that mutates
+	## `_state.edges` itself.
 	func _sever_edge(edge_idx: int, t: float, defender: SkillNode, blunting_spent: float) -> void:
 		_state.remove_edge(edge_idx)
-		invalidate_adjacency()
 		result.severed_at[edge_idx] = minf(result.severed_at.get(edge_idx, INF), t)
 		var pop := Pop.new(-1, t, defender, blunting_spent, edge_idx)
 		result.pops.append(pop)
