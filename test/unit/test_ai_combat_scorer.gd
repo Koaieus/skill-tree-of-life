@@ -256,7 +256,7 @@ func test_shape_risk_tier_gated_prefers_safer_candidate_at_equal_ev() -> void:
 	var risky := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[2], _ai, 1, 5)
 	var safe := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[2], _ai, 1, 0)
 
-	assert_gt(safe.total, risky.total, "equal EV, fewer thinned nodes must score higher at tier > 0")
+	assert_gt(safe.total, risky.total, "equal EV, fewer popped nodes must score higher at tier > 0")
 
 	var naive_risky := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[2], _ai, 0, 5)
 	var naive_safe := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[2], _ai, 0, 0)

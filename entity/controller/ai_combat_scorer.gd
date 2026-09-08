@@ -24,10 +24,10 @@ extends RefCounted
 const _KILL_BONUS := 1000.0
 const _CUT_VERTEX_WEIGHT := 25.0
 const _ENEMY_WEAK_WEIGHT := 5.0
-## SP-turns lost per thinned node (wound now, heals ~1/turn — see
+## SP-turns lost per popped node (wound now, heals ~1/turn — see
 ## [member SkillPointStat.wound]). Scaled by [member AIController.ai_tier] like
 ## every other tier-gated term; melee (slice C, [AiBladeRollout]) is the first
-## real source of a nonzero [param thinned_nodes] into [method score] — a real
+## real source of a nonzero [param popped_nodes] into [method score] — a real
 ## defensive-spike pop count, not the blade's node-selection size.
 const _SHAPE_RISK_WEIGHT := 10.0
 ## What a DOOR is worth to a boxed-in attacker (#604). Applies only while
@@ -126,13 +126,16 @@ static func expected_damage(outcome: AttackOutcome, attacker: Entity = null) -> 
 	return total
 
 
-## Score one resolved candidate. [param thinned_nodes] is the count of the
+## Score one resolved candidate. [param popped_nodes] is the count of the
 ## attacker's own blade vertices this candidate ACTUALLY lost executing (0 for
 ## ranged/magic, which never reshape the attacker's own territory). Merely
 ## selecting nodes for a blade doesn't wound them — only a defender's
 ## defensive-spike pop does (see [BladePopResolver]) — so melee (slice C)
-## passes [member AttackOutcome.thinned_nodes] (the real per-swing pop count
+## passes [member AttackOutcome.popped_nodes] (the real per-swing pop count
 ## [MeleeAttackPlan.resolve] already computes), not blade_nodes.size().
+##
+## Nor does a vertex the pop merely ORPHANED count (#799): it coasts on under
+## #186 and lands its own hits, which are already in this candidate's EV.
 ##
 ## [param loot_system], if supplied, previews [member ScoredCandidate.kill_xp]
 ## via [method LootSystem.preview_kill_xp] (#538) — trailing and defaulted to
@@ -144,7 +147,7 @@ static func expected_damage(outcome: AttackOutcome, attacker: Entity = null) -> 
 ## broader "removed this attack" set to offer (that's BattleSystem cascade
 ## state), so a non-core node depletion previews the plain trickle rate.
 static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target: SkillNode,
-		attacker: Entity, ai_tier: int, thinned_nodes: int = 0,
+		attacker: Entity, ai_tier: int, popped_nodes: int = 0,
 		loot_system: LootSystem = null) -> ScoredCandidate:
 	var c := ScoredCandidate.new()
 	c.mode = mode
@@ -171,7 +174,7 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 		if _is_cut_vertex(target):
 			c.cut_vertex_bonus = _CUT_VERTEX_WEIGHT * ai_tier
 		c.enemy_weak_bonus = _armor_weakness(target) * _ENEMY_WEAK_WEIGHT * ai_tier
-		c.self_shape_risk = float(thinned_nodes) * _SHAPE_RISK_WEIGHT * ai_tier
+		c.self_shape_risk = float(popped_nodes) * _SHAPE_RISK_WEIGHT * ai_tier
 	c.total = c.ev + c.kill_bonus + c.cut_vertex_bonus + c.enemy_weak_bonus \
 			+ c.breakout_bonus - c.self_shape_risk
 	# `door` is appended rather than spliced in: the #512 parity golden freezes

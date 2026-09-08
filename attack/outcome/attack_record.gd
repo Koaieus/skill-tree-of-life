@@ -53,7 +53,7 @@ extends RefCounted
 ##     `attacker` as an `entity_id`; `source` is resolve-local residue.
 ##   * `AttackOutcome.cancellations` — written by `spell_resolver.gd`, read
 ##     only by tests. Cancel VFX rides the timeline's `Verb.CANCEL`.
-##   * `AttackOutcome.thinned_nodes` — read only by [AiCombatScorer], which is
+##   * `AttackOutcome.popped_nodes` — read only by [AiCombatScorer], which is
 ##     host-side scoring and never runs on a peer.
 ##
 ## [b]Known asymmetry, deliberate:[/b] a landing that mitigated to EXACTLY

@@ -378,7 +378,7 @@ What the substrate is for is narrower:
 
 So the substrate is a **follow-on that restores AI/preview accuracy**, not a
 prerequisite. #536 delivered exactly that, and for free: since `resolve_against`
-lands its outcome, an AI candidate's `thinned_nodes`, kill list and
+lands its outcome, an AI candidate's `popped_nodes`, kill list and
 post-mitigation numbers now come out of the real applier run against a detached
 copy, not out of a parallel estimate. Melee's `BladePopResolver.resolve` — the
 up-front batch pass that *was* that parallel estimate, and disagreed with the

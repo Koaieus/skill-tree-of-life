@@ -46,9 +46,10 @@ extends RefCounted
 ##      the #378 swarmify addendum's hard constraint: scan needs a live
 ##      [PhysicsDirectSpaceState2D] and isn't thread-safe.
 ##
-## `thinned_nodes` fed into [method AiCombatScorer.score] is
-## [member AttackOutcome.thinned_nodes] — actual blade vertices lost to a
-## defensive-spike pop this swing ([BladePopResolver]), not blade_nodes.size().
+## `popped_nodes` fed into [method AiCombatScorer.score] is
+## [member AttackOutcome.popped_nodes] — blade vertices a defensive spike
+## actually destroyed this swing ([BladePopResolver]), not blade_nodes.size()
+## and not the wider set of vertices a pop severed (#799).
 ## Merely selecting nodes for a blade doesn't wound them; only a pop does
 ## (see [constant AiCombatScorer._SHAPE_RISK_WEIGHT]'s "wound now, heals
 ## ~1/turn" doc) — so the risk term should read what the swing actually cost,
@@ -331,7 +332,7 @@ static func _resolve_and_score(
 	if primary == null:
 		return null
 	var candidate := AiCombatScorer.score(
-			BattleSystem.AttackMode.MELEE, outcome, primary, entity, ai_tier, outcome.thinned_nodes)
+			BattleSystem.AttackMode.MELEE, outcome, primary, entity, ai_tier, outcome.popped_nodes)
 	candidate.source_node = pivot
 	candidate.blade_nodes = blade_nodes
 	candidate.swing_cw = swing_cw

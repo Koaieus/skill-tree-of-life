@@ -651,7 +651,7 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# #170/#502/#536: ONE pop gate, re-evaluated per event at land time, so it
 	# sees this swing's own cascades. The up-front batch estimate it replaced
 	# could not — and disagreed with this one about a vertex that disintegrates
-	# before it pops. `thinned_nodes` is stamped from this gate's result once
+	# before it pops. `popped_nodes` is stamped from this gate's result once
 	# the apply below has run it.
 	var gate := BladePopResolver.LiveGate.new(blade_state, attacker)
 	last_live_gate = gate
@@ -709,8 +709,12 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 			space_state, exclude)
 	# The AI's shape-risk signal, now a RESULT of the gate rather than a
 	# separate estimate of it: how many of the attacker's own vertices this
-	# swing actually lost.
-	outcome.thinned_nodes = gate.result.dead_at.size()
+	# swing actually DESTROYED. Pops only, never `dead_at.size()` (#799) —
+	# `dead_at` also holds the vertices those pops merely orphaned, and since
+	# #186 an orphan is not a loss: it coasts on as a free fragment and lands
+	# its own hits above. `_fly_severed_fragments` has already added whatever
+	# the coasting rounds got popped for in turn.
+	outcome.popped_nodes += gate.result.vertex_pop_count()
 	return outcome
 
 
@@ -809,6 +813,11 @@ func _fly_severed_fragments(
 		CritRoll.decide_all(sub, CritRoll.stream_for(
 				resolve_seed + round_idx * _FREE_FLIGHT_STREAM_SALT))
 		OutcomeApplier.apply(sub, world)
+		# A coasting vertex a spike destroys is destroyed for real, so it is a
+		# loss on exactly the terms the driven swing's pops are (#799). Its
+		# gate is per-round and local, hence the accumulate here rather than a
+		# single read at the end.
+		outcome.popped_nodes += gate.result.vertex_pop_count()
 		for hit in sub.hits:
 			outcome.hits.append(hit)
 		for f in gate.result.fragments:

@@ -38,11 +38,19 @@ var cancellations: Array[SpellCancellation] = []
 ## re-deriving waves from [member hits]. See
 ## [code]docs/domain/spell-propagation.md[/code].
 var timeline: Array[PropagationEvent] = []
-## Count of the ATTACKER's own blade vertices lost to a defender's defensive-
-## spike pop during this swing (see [BladePopResolver]). Zero for every other
-## plan type — melee is the only mode that can cost the attacker's own shape
-## mid-execution, which is what [AiCombatScorer]'s self-shape-risk term reads.
-var thinned_nodes: int = 0
+## Count of the ATTACKER's own blade vertices a defender's defensive spike
+## actually DESTROYED during this attack — the driven swing's pops plus every
+## coasting fragment's (see [BladePopResolver.Result.vertex_pop_count]). Zero
+## for every other plan type: melee is the only mode that can cost the
+## attacker's own shape mid-execution, which is what [AiCombatScorer]'s
+## self-shape-risk term reads.
+##
+## [b]Pops, not severances (#799).[/b] It was `dead_at.size()` until #799, i.e.
+## every vertex that left the driven blade — which since #186 counts orphans
+## the pop merely cut loose. An orphan is not a loss: it coasts on, still armed,
+## and its hits enter [member hits] like any other landing. Counting it made
+## this term overstate what a pop costs and the AI over-avoid spiked defenders.
+var popped_nodes: int = 0
 ## Which structural clock every landing's [member HitInstance.structural_key]
 ## is expressed in — one per outcome, because an outcome is one mode (#543).
 ## [method OutcomeSchedule.compile] reads it to pick the arithmetic that turns

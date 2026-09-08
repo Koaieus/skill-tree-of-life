@@ -142,7 +142,7 @@ func test_a_popped_vertex_banks_no_expected_damage() -> void:
 
 	assert_gt(outcome.hits.size(), 0,
 			"the swing must produce a contact or this proves nothing")
-	assert_eq(outcome.thinned_nodes, 1, "the spike popped exactly one vertex")
+	assert_eq(outcome.popped_nodes, 1, "the spike popped exactly one vertex")
 	for hit in outcome.hits:
 		assert_eq(hit.effective_amount, 0.0,
 				"the gate refused every contact, so nothing was ever applied")
@@ -154,7 +154,7 @@ func test_a_popped_vertex_banks_no_expected_damage() -> void:
 func test_an_unpopped_swing_still_banks_its_real_damage() -> void:
 	var outcome := _swing(_short_arm)
 
-	assert_eq(outcome.thinned_nodes, 0, "an un-spiked target pops nothing")
+	assert_eq(outcome.popped_nodes, 0, "an un-spiked target pops nothing")
 	assert_gt(AiCombatScorer.expected_damage(outcome, _attacker), 0.0,
 			"a real hit must still score — the fix must not zero everything")
 
@@ -241,7 +241,7 @@ func test_a_mixed_swing_banks_only_the_arm_that_landed() -> void:
 	assert_gt(far_only, 0.0, "the far arm alone must land something to compare against")
 
 	var outcome := _mixed_swing()
-	assert_eq(outcome.thinned_nodes, 1,
+	assert_eq(outcome.popped_nodes, 1,
 			"the long arm popped; the short arm hangs off the pivot and survives it")
 	assert_almost_eq(AiCombatScorer.expected_damage(outcome, _attacker), far_only, 0.001,
 			"the popped arm contributes nothing and the landed arm contributes all of it")
@@ -283,3 +283,110 @@ func test_a_fully_popped_swing_anchors_on_nothing() -> void:
 	assert_gt(outcome.hits.size(), 0, "there were contacts — they just all popped")
 	assert_null(AiBladeRollout._primary_target(outcome, visible),
 			"no damaged node means no candidate")
+
+
+# ---------------------------------------------------------------------------
+# #799 — an ORPHAN is not a loss, however many of them one pop makes
+# ---------------------------------------------------------------------------
+
+## A chain blade, Pivot ── LongArm ── Outboard ── Tip, swung so LongArm pops on
+## the spiked node. Everything past LongArm loses its path to the pivot, so the
+## gate's `dead_at` holds all THREE vertices — but only one of them was
+## destroyed. Since #186 the other two coast on as a free fragment, still armed
+## and still landing their own hits, which is why counting them as losses made
+## the AI's shape-risk term over-avoid spiked defenders.
+##
+## [b]Two orphans, not one, and that is the whole point of the fixture.[/b] A
+## single orphan cannot tell the acceptance apart from an off-by-one: `dead_at`
+## would read 2, and "counts pops" and "counts pops + 1" both produce it. With
+## two, the wrong answers are 3 (`dead_at.size()`, what this issue replaces) and
+## 2, while the right one stays at 1 however long the severed tail gets.
+var _chain_plan: MeleeAttackPlan
+
+
+func _chain_swing() -> AttackOutcome:
+	# Three-node blade, so blade_size has to clear it — before_each authors 2.
+	_attacker.stat_board.blade_size.base_value = 3.0
+	var outboard := _spawn("Outboard", Vector2(_LONG * 2.0, 0.0))
+	var tip := _spawn("Tip", Vector2(_LONG * 3.0, 0.0))
+	await get_tree().process_frame
+	_alloc.force_allocate(_attacker, outboard)
+	_alloc.force_allocate(_attacker, tip)
+	_graph.add_edge(_long_arm, outboard)
+	_graph.add_edge(outboard, tip)
+	await get_tree().process_frame
+	await get_tree().physics_frame
+
+	_chain_plan = MeleeAttackPlan.new()
+	_chain_plan.attacker = _attacker
+	_chain_plan.source = _pivot
+	_chain_plan.blade_nodes = [_long_arm, outboard, tip]
+	assert_true(_chain_plan.is_valid(),
+			"fixture plan should validate: %s" % str(_chain_plan.validate()))
+	return _chain_plan.resolve()
+
+
+func test_an_orphaned_vertex_is_not_counted_as_a_loss() -> void:
+	var outcome := await _chain_swing()
+	var result := _chain_plan.last_live_gate.result
+
+	assert_eq(result.pops.size(), 1, "fixture check: exactly one vertex was destroyed")
+	assert_eq(result.dead_at.size(), 3,
+			"fixture check: that pop orphaned TWO more, so `dead_at` is the wider set")
+	assert_eq(outcome.popped_nodes, 1,
+			"one pop is one loss no matter how many vertices it orphaned")
+
+
+## The same rule on a vertex that is no longer steered. Under the owner's model
+## a severed vertex is not a different KIND of thing — it is the same sim
+## element with one constraint fewer — so a spike that destroys it destroys it
+## on exactly the terms a driven vertex is destroyed on, and it counts.
+##
+## [b]Deliberately mechanism-free.[/b] It names no free-flight symbol and reads
+## no per-round gate: the statement is "put a spike on the severed vertex's
+## path and the loss count goes up by one", which is true of #186's separate
+## coasting pass and stays true under #801, where severance becomes a constraint
+## removal inside one sim and there is no second pass to name.
+##
+## Geometry: the coincident spike is deallocated so the blade actually ROTATES
+## before it pops (the fixture's targets sit on the arms at t=0, which would pop
+## at t≈0.008 with no separation speed and leave the remainder sitting still).
+## SpikedFar sits a quarter turn round at the long arm's radius; the outboard
+## vertex separates there at t≈0.383 and coasts out through the third quadrant.
+## `_ON_PATH` is a sampled point of that coast, well outside the driven blade's
+## own reach — which by then is the pivot alone, the long arm having died.
+const _ON_PATH := Vector2(-246.7, 408.4)
+
+
+func _severed_swing(spike_on_path: bool) -> AttackOutcome:
+	_alloc.force_deallocate(_spiked)
+	var far := _spawn("SpikedFar", Vector2(0.0, _LONG))
+	var outboard := _spawn("Outboard", Vector2(_LONG * 2.0, 0.0))
+	var on_path: SkillNode = _spawn("SpikedOnPath", _ON_PATH) if spike_on_path else null
+	await get_tree().process_frame
+	_alloc.force_allocate(_defender, far)
+	_arm_spike(far, 5.0)
+	_alloc.force_allocate(_attacker, outboard)
+	_graph.add_edge(_long_arm, outboard)
+	if on_path != null:
+		_alloc.force_allocate(_defender, on_path)
+		_arm_spike(on_path, 5.0)
+	await get_tree().process_frame
+	await get_tree().physics_frame
+
+	var plan := MeleeAttackPlan.new()
+	plan.attacker = _attacker
+	plan.source = _pivot
+	plan.blade_nodes = [_long_arm, outboard]
+	assert_true(plan.is_valid(), "fixture plan should validate: %s" % str(plan.validate()))
+	return plan.resolve()
+
+
+func test_a_severed_vertex_that_meets_nothing_costs_only_the_struck_arm() -> void:
+	assert_eq((await _severed_swing(false)).popped_nodes, 1,
+			"control: the severance itself is not a loss, so only the struck arm counts")
+
+
+func test_a_spike_that_destroys_an_unsteered_vertex_still_costs_it() -> void:
+	assert_eq((await _severed_swing(true)).popped_nodes, 2,
+			"the severed vertex met a spike of its own — one constraint fewer, still a loss")

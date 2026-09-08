@@ -37,7 +37,7 @@ extends RefCounted
 ## #498 step 3 retired the batch pass exactly as this file's own comment
 ## promised it would: the estimate now runs THIS gate against a shadow
 ## [CombatWorld], so the AI's shape-risk signal
-## ([member AttackOutcome.thinned_nodes]) is produced by the same code that
+## ([member AttackOutcome.popped_nodes]) is produced by the same code that
 ## produces the real one, against a detached copy of the same world.
 
 ## Per-pop record. `t` is the contact time; `defender` is the spiked node that
@@ -117,6 +117,25 @@ class Result extends RefCounted:
 
 	func is_dead(particle_idx: int, t: float) -> bool:
 		return dead_at.has(particle_idx) and t >= dead_at[particle_idx]
+
+	## How many of the attacker's own VERTICES a defender actually destroyed
+	## (#799) — [member AttackOutcome.popped_nodes]'s one source.
+	##
+	## [b]Deliberately not `dead_at.size()`.[/b] `dead_at` is "stopped being
+	## part of the driven blade", which since #186 conflates two different
+	## things: a vertex a spike destroyed, and a vertex that merely lost its
+	## path to the pivot and coasts on as a free fragment — still armed, still
+	## landing #779-scaled hits. Only the first is a loss. Counting the second
+	## made the AI's shape-risk term over-avoid spiked defenders.
+	##
+	## Edge [Pop]s (#781's bunker seam, no caller today) are excluded by the
+	## `particle_idx >= 0` test: a broken edge destroys structure, not matter.
+	func vertex_pop_count() -> int:
+		var n := 0
+		for pop in pops:
+			if pop.particle_idx >= 0:
+				n += 1
+		return n
 
 
 ## The pop/disconnect gate for one swing (#502): the kill/disconnect predicates

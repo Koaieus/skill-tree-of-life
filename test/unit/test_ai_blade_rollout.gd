@@ -253,11 +253,11 @@ func test_gather_melee_candidates_empty_without_visible_enemy() -> void:
 	assert_eq(candidates.size(), 0)
 
 
-# ── Shape-risk: thinned_nodes is a REAL pop count, tier-gated end to end ────
+# ── Shape-risk: popped_nodes is a REAL pop count, tier-gated end to end ────
 
 ## #378 acceptance: "Shape-risk tier-gated ... ai_tier=1 does [penalize]".
 ## test_ai_combat_scorer.gd already covers this at the scorer-unit level with
-## a synthetic thinned_nodes; this is the full-loop version the slice B
+## a synthetic popped_nodes; this is the full-loop version the slice B
 ## comment flagged as pending — a real defensive-spike pop, produced by an
 ## actual rollout candidate's resolve(), flowing into the tier-gated penalty.
 func test_shape_risk_reflects_a_real_pop_and_is_tier_gated() -> void:
@@ -294,20 +294,20 @@ func test_shape_risk_reflects_a_real_pop_and_is_tier_gated() -> void:
 	var naive := AiBladeRollout.gather_melee_candidates(_ai_entity, visible, 0)
 	var smart := AiBladeRollout.gather_melee_candidates(_ai_entity, visible, 1)
 
-	var risky_smart := _find_thinned(smart)
+	var risky_smart := _find_popped(smart)
 	assert_not_null(risky_smart, "the connecting swing should have popped a vertex")
-	assert_gt(risky_smart.outcome.thinned_nodes, 0, "a real pop, not a synthetic count")
+	assert_gt(risky_smart.outcome.popped_nodes, 0, "a real pop, not a synthetic count")
 	assert_gt(risky_smart.self_shape_risk, 0.0, "ai_tier=1 penalizes a real pop")
 
 	var risky_naive := _find_matching(naive, risky_smart)
 	assert_not_null(risky_naive, "the same physical swing should surface at ai_tier=0 too")
-	assert_gt(risky_naive.outcome.thinned_nodes, 0, "the pop itself doesn't depend on ai_tier")
+	assert_gt(risky_naive.outcome.popped_nodes, 0, "the pop itself doesn't depend on ai_tier")
 	assert_almost_eq(risky_naive.self_shape_risk, 0.0, 0.001, "ai_tier=0 never penalizes shape risk")
 
 
-func _find_thinned(candidates: Array[AiCombatScorer.ScoredCandidate]) -> AiCombatScorer.ScoredCandidate:
+func _find_popped(candidates: Array[AiCombatScorer.ScoredCandidate]) -> AiCombatScorer.ScoredCandidate:
 	for c in candidates:
-		if c.outcome != null and c.outcome.thinned_nodes > 0:
+		if c.outcome != null and c.outcome.popped_nodes > 0:
 			return c
 	return null
 
