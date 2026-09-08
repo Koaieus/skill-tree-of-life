@@ -61,6 +61,12 @@ func tint() -> Color:
 ## wand". The shared silhouette says *these are the same kind of thing*; the
 ## STR/DEX/INT tint from [method tint] carries the difference. The
 ## broadsword/wand similarity is that family resemblance, not a mistake.
+##
+## The MAGIC entry is only the fallback now (#762) — [method icon] prefers the
+## armed [MagicAttackPlan]'s own [member SpellDef.icon] so the badge names the
+## spell about to be cast, not just "some magic is armed". Same baked-silhouette
+## convention as this wand (`.claude/rules/icon-assets.md`), so [method
+## icon_tint]'s flat INT tint still lands correctly on either one.
 const _MODE_ICON := {
 	BattleSystem.AttackMode.MELEE: preload("res://assets/icons/addons/armed_melee.png"),
 	BattleSystem.AttackMode.RANGED: preload("res://assets/icons/addons/armed_ranged.png"),
@@ -83,6 +89,10 @@ func icon() -> Texture2D:
 	var plan := _ctl._active_attack_plan()
 	if plan is MeleeAttackPlan and (plan as MeleeAttackPlan).source == null:
 		return _MELEE_HILT_ICON
+	if plan is MagicAttackPlan:
+		var spell := (plan as MagicAttackPlan).spell
+		if spell != null and spell.icon != null:
+			return spell.icon
 	return _MODE_ICON.get(_ctl.battle_system.attack_mode, null)
 
 

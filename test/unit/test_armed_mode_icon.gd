@@ -31,6 +31,8 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PALETTE := preload("res://ui/theme/action_palette.tres")
+const _SPARK: SpellDef = preload("res://attack/spell/defs/spark.tres")
+const _HEALING_BEAM: SpellDef = preload("res://attack/spell/defs/healing_beam.tres")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -142,9 +144,42 @@ func test_ranged_and_magic_badge_their_own_art() -> void:
 	assert_eq(_ctl.get_armed_icon(), _icon("armed_ranged"))
 	assert_eq(_ctl.get_armed_icon_tint(), _stat_color(&"dexterity"))
 
+	# No `selected_spell` chosen — MagicAttackPlan arms its own bundled
+	# fallback (Spark, #762), so the badge is Spark's card art, not the
+	# generic wand. See `test_magic_badges_the_armed_spells_own_icon` for the
+	# headline case with a spell actually picked.
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MAGIC)
-	assert_eq(_ctl.get_armed_icon(), _icon("armed_magic"))
+	assert_eq(_ctl.get_armed_icon(), _SPARK.icon)
 	assert_eq(_ctl.get_armed_icon_tint(), _stat_color(&"intelligence"))
+
+
+## #762 — the badge names the SPELL, not just "some magic is armed": the
+## player's constant LAN-06 question was "what am I holding", and the generic
+## wand answers that only down to attack mode. `armed_magic` is now the
+## fallback for a null/iconless spell, never the everyday case.
+func test_magic_badges_the_armed_spells_own_icon() -> void:
+	_battle.selected_spell = _SPARK
+	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MAGIC)
+	assert_eq(_ctl.get_armed_icon(), _SPARK.icon,
+			"Spark armed — the badge should show Spark's own card art")
+	assert_ne(_ctl.get_armed_icon(), _icon("armed_magic"),
+			"a real spell icon must displace the generic wand")
+	assert_eq(_ctl.get_armed_icon_tint(), _stat_color(&"intelligence"),
+			"still the INT family colour — only the glyph is spell-specific")
+
+
+## Switching spells mid-arm (the spell-picker bar, live) must move the badge —
+## the same `state_changed` → `attack_plan_state_changed` route
+## `test_setting_the_pivot_fires_the_icon_signal` pins for melee's pivot.
+func test_switching_the_armed_spell_moves_the_badge() -> void:
+	_battle.selected_spell = _SPARK
+	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MAGIC)
+	assert_eq(_ctl.get_armed_icon(), _SPARK.icon)
+
+	_battle.selected_spell = _HEALING_BEAM
+
+	assert_eq(_ctl.get_armed_icon(), _HEALING_BEAM.icon,
+			"re-equipping mid-arm should swap the badge to the new spell")
 
 
 # --- 2b. melee's two phases (#683) -------------------------------------------
@@ -211,7 +246,8 @@ func test_ranged_and_magic_are_untouched_by_the_pivot_split() -> void:
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.RANGED)
 	assert_eq(_ctl.get_armed_icon(), _icon("armed_ranged"))
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MAGIC)
-	assert_eq(_ctl.get_armed_icon(), _icon("armed_magic"))
+	# Unselected spell — the plan's own bundled fallback (Spark, #762).
+	assert_eq(_ctl.get_armed_icon(), _SPARK.icon)
 
 
 # --- 3. the two walks disagree, on purpose -----------------------------------
