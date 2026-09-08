@@ -101,9 +101,12 @@ def apply_patch(kind):
         return
     if kind == "glow":
         text = ENV_RES.read_text()
-        assert "glow_enabled=true" in text, "glow patch: marker not found"
-        ENV_RES.write_text(text.replace("glow_enabled=true",
-                                        "glow_enabled=false"))
+        # .tres serializes with spaces around '=' ("glow_enabled = true"),
+        # unlike project.godot's "key=value" — the assert must match the
+        # actual file format or it fires on every glow run.
+        assert "glow_enabled = true" in text, "glow patch: marker not found"
+        ENV_RES.write_text(text.replace("glow_enabled = true",
+                                        "glow_enabled = false"))
     elif kind == "hdr":
         text = PROJECT.read_text()
         assert "viewport/hdr_2d=true" in text, "hdr patch: marker not found"
