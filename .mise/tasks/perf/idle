@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+#MISE description="Idle-turn perf matrix (#763): stationary frame cost, CPU vs GPU, suspect toggles"
+"""
+The #763 measurement driver: one real run per configuration, each printing its
+own pasteable block, all logs kept under `.godot/perf-idle/<stamp>/`.
+
+    mise run perf:idle                # the curated matrix below (~15-20 min)
+    mise run perf:idle -- --quick     # smoke: 50 nodes, 0.5s samples, 4 runs
+    mise run perf:idle -- --nodes 800 # one windowed + one headless run at N
+    mise run perf:idle -- --only llvmpipe
+
+Every GPU run needs a real display (adapter + driver matter — the whole point
+of #763; xvfb would give llvmpipe and lie). Windows will appear on the desktop
+while it runs: don't focus or resize them, blur doesn't throttle Godot.
+
+The curated matrix, and what each row exists to answer:
+
+    fp-1080-{500,800,2000}    node-count scaling on the real GPU, Tier L's
+                              1080p (the owner's "medium map" Craptop scenario)
+    fp-1080-800-4core         Tier L's 4C/4T parallelism (taskset 0-3 proxy)
+    fp-1080-800-{glowoff,hdroff}
+                              the two named non-gimbal suspects, each patched at
+                              launch time (runtime toggles can't reach them)
+    mobile/compat-1080-2000   renderer method, the variable the issue comment
+                              asked to record
+    fp-1440-2000              FOCUS.md's North Star resolution
+    headless-{500,800,2000}  the CPU floor — no renderer at all; subtract from
+                              the windowed CPU column to see what the renderer
+                              costs the CPU side
+    headless-800-4core       the CPU floor under Tier L core count
+    llvmpipe-1080-800        software-raster pessimism: never read its absolute
+                              numbers, only which side of the CPU/GPU fork
+                              saturates first when fill is 50x slower
+
+Godot is resolved from PATH (mise shim); engine flags precede the scene, user
+args follow the bare `--`. Each run is bounded by a timeout and the matrix
+continues past failures — a partial table beats a dead one.
+"""
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ROOT = os.environ.get("MISE_PROJECT_ROOT") or os.getcwd()
+BENCH_SCENE = "res://scenes/idle_turn_bench.tscn"
+ENV_RES = Path(ROOT) / "ui/theme/default_game_env.tres"
+PROJECT = Path(ROOT) / "project.godot"
+RUN_TIMEOUT_S = 420
+
+# name -> (engine flags, user args, env, patch, taskset_cores)
+# patch: None | "glow" | "hdr" — applied before the run, reverted after.
+
+
+def runs_quick():
+    for nodes in (50,):
+        yield ("fp-quick-%d" % nodes,
+               ["--windowed", "--resolution", "1280x720"],
+               ["--nodes=%d" % nodes, "--settle=1", "--warmup=0.3",
+                "--seconds=0.5"], {}, None, None)
+        yield ("headless-quick-%d" % nodes,
+               ["--headless"],
+               ["--nodes=%d" % nodes, "--settle=1", "--warmup=0.3",
+                "--seconds=0.5"], {}, None, None)
+
+
+def runs_default():
+    fp = ["--windowed", "--resolution", "1920x1080"]
+    # node-count scaling, Tier L resolution
+    for nodes in (500, 800, 2000):
+        yield ("fp-1080-%d" % nodes, fp, ["--nodes=%d" % nodes], {}, None, None)
+        yield ("headless-%d" % nodes, ["--headless"], ["--nodes=%d" % nodes],
+               {}, None, None)
+    # Tier L core count (i5-7300HQ is 4C/4T)
+    yield ("fp-1080-800-4core", fp, ["--nodes=800"], {}, None, [0, 1, 2, 3])
+    yield ("headless-800-4core", ["--headless"], ["--nodes=800"], {}, None,
+           [0, 1, 2, 3])
+    # the non-gimbal suspects — launch-time patches, not runtime toggles
+    yield ("fp-1080-800-glowoff", fp, ["--nodes=800"], {}, "glow", None)
+    yield ("fp-1080-800-hdroff", fp, ["--nodes=800"], {}, "hdr", None)
+    # renderer method at the North Star node count
+    yield ("mobile-1080-2000",
+           ["--rendering-method", "mobile"] + fp, ["--nodes=2000"], {}, None,
+           None)
+    yield ("compat-1080-2000",
+           ["--rendering-method", "gl_compatibility"] + fp, ["--nodes=2000"],
+           {}, None, None)
+    # FOCUS.md's North Star resolution
+    yield ("fp-1440-2000", ["--windowed", "--resolution", "2560x1440"],
+           ["--nodes=2000"], {}, None, None)
+    # software-raster pessimism (llvmpipe) — deltas only, never absolutes
+    yield ("llvmpipe-1080-800",
+           ["--rendering-method", "gl_compatibility"] + fp, ["--nodes=800"],
+           {"LIBGL_ALWAYS_SOFTWARE": "1"}, None, None)
+
+
+def apply_patch(kind):
+    if kind is None:
+        return
+    if kind == "glow":
+        text = ENV_RES.read_text()
+        assert "glow_enabled=true" in text, "glow patch: marker not found"
+        ENV_RES.write_text(text.replace("glow_enabled=true",
+                                        "glow_enabled=false"))
+    elif kind == "hdr":
+        text = PROJECT.read_text()
+        assert "viewport/hdr_2d=true" in text, "hdr patch: marker not found"
+        PROJECT.write_text(text.replace("viewport/hdr_2d=true",
+                                        "viewport/hdr_2d=false"))
+
+
+def revert_patch(kind):
+    if kind == "glow":
+        subprocess.run(["git", "checkout", "--", str(ENV_RES)], cwd=ROOT,
+                       check=False)
+    elif kind == "hdr":
+        subprocess.run(["git", "checkout", "--", str(PROJECT)], cwd=ROOT,
+                       check=False)
+
+
+def run_one(name, engine_flags, user_args, env, patch, cores, log_path):
+    args = ["godot", "--path", ROOT] + engine_flags + [BENCH_SCENE, "--"] \
+        + user_args
+    if cores is not None:
+        args = ["taskset", "-c", ",".join(str(c) for c in cores)] + args
+    merged_env = dict(os.environ)
+    merged_env.update(env)
+    apply_patch(patch)
+    try:
+        log = open(log_path, "w", buffering=1)
+        started = time.monotonic()
+        proc = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT,
+                                text=True, env=merged_env, cwd=ROOT)
+        try:
+            rc = proc.wait(timeout=RUN_TIMEOUT_S)
+            wall = time.monotonic() - started
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            log.close()
+            print("  TIMEOUT after %ds — log: %s" % (RUN_TIMEOUT_S,
+                                                     log_path))
+            return False
+        log.close()
+        if rc != 0:
+            print("  EXIT %d after %.0fs — log: %s" % (rc, wall, log_path))
+            return False
+        print("  ok, %.0fs — log: %s" % (wall, log_path))
+        return True
+    finally:
+        revert_patch(patch)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--quick", action="store_true",
+                    help="tiny smoke matrix (50 nodes, short samples)")
+    ap.add_argument("--nodes", type=int, default=None,
+                    help="single node count: one windowed + one headless run")
+    ap.add_argument("--only", default=None,
+                    help="substring filter on run names")
+    args = ap.parse_args()
+
+    if not shutil.which("godot"):
+        sys.exit("godot not on PATH — run through mise (mise run perf:idle)")
+    if shutil.which("nvidia-smi") is None and os.environ.get("DISPLAY") is None \
+            and not args.quick:
+        print("note: no DISPLAY set — windowed runs will fail")
+
+    if args.nodes is not None:
+        fp = ["--windowed", "--resolution", "1920x1080"]
+        matrix = [
+            ("fp-%d" % args.nodes, fp, ["--nodes=%d" % args.nodes], {}, None,
+             None),
+            ("headless-%d" % args.nodes, ["--headless"],
+             ["--nodes=%d" % args.nodes], {}, None, None),
+        ]
+    elif args.quick:
+        matrix = list(runs_quick())
+    else:
+        matrix = list(runs_default())
+    if args.only:
+        matrix = [r for r in matrix if args.only in r[0]]
+
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    log_dir = Path(ROOT) / ".godot" / "perf-idle" / stamp
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    print("=== #763 idle-turn perf matrix — %d run(s) ===" % len(matrix))
+    ok = 0
+    for (name, engine_flags, user_args, env, patch, cores) in matrix:
+        print("- %s" % name)
+        if run_one(name, engine_flags, user_args, env, patch, cores,
+                   log_dir / ("%s.log" % name)):
+            ok += 1
+    print("=== %d/%d ok — logs: %s ===" % (ok, len(matrix), log_dir))
+    print("digest: grep -A40 '=== #763' %s/*.log | less" % log_dir)
+    sys.exit(0 if ok == len(matrix) else 1)
+
+
+if __name__ == "__main__":
+    main()

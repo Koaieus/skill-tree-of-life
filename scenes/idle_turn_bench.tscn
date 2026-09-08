@@ -1,0 +1,17 @@
+[gd_scene format=3 uid="uid://b763idlebench"]
+
+[ext_resource type="PackedScene" uid="uid://jc4k3v6sfvmn" path="res://scenes/level.tscn" id="1_level"]
+[ext_resource type="Script" path="res://scenes/idle_turn_bench.gd" id="2_bench"]
+[ext_resource type="Script" path="res://scenes/idle_turn_probe.gd" id="3_probe"]
+[ext_resource type="Script" uid="uid://ddlkd4hsdgsi1" path="res://session/run_bootstrap.gd" id="4_boot"]
+[ext_resource type="Resource" path="res://session/runs/idle_turn_bench_run.tres" id="5_run"]
+
+[node name="IdleTurnBench" unique_id=763000000 instance=ExtResource("1_level")]
+script = ExtResource("2_bench")
+
+[node name="RunBootstrap" type="Node" parent="." index="0" unique_id=763000001]
+script = ExtResource("4_boot")
+run_setup = ExtResource("5_run")
+
+[node name="IdleTurnProbe" type="Node" parent="." unique_id=763000002]
+script = ExtResource("3_probe")
