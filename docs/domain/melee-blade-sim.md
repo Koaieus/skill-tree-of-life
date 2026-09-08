@@ -1,6 +1,6 @@
 # Melee blade — PBD physics & deterministic preview
 
-> ⚠️ **MVP damage model:** blade-**nodes** deal damage; edges are inert. STR//10 scales per-node damage, multiplied by a per-contact speed curve (#779 — see "Speed-scaled damage" below). Face/cycle bonus is deferred post-MVP. See [../design/mvp_decisions.md](../design/mvp_decisions.md) §D-1.
+> ⚠️ **Damage model:** blade **vertices** deal `blade_damage`; blade **edges** collide as swept capsules and deal `edge_damage` (#785 — default **0**, so edges add *contact*, not damage, until a sharpener grants it). STR//10 scales per-vertex damage, and both are multiplied by the same per-contact speed curve (#779 — see "Speed-scaled damage" below). Face/cycle bonus is deferred post-MVP and explicitly **rejected** as a geometric filled region. See [../design/mvp_decisions.md](../design/mvp_decisions.md) §D-1 and "Edge collision" below.
 
 ## Goal
 
@@ -410,7 +410,7 @@ is `(samples.size() - 1) * sample_dt`, not `samples.size() * sample_dt`.
 `sample(t: float)` linear-interpolates between adjacent step samples
 for arbitrary real-time playback, clamping at both endpoints.
 
-### `BladeHitScan.scan(trajectory, state, space_state, collision_mask, exclude)`
+### `BladeHitScan.scan(trajectory, state, space_state, graph, collision_mask, exclude, broad_phase)`
 
 Returns `Array[BladeHitEvent]`. **Queries the physics server** — it takes a
 `PhysicsDirectSpaceState2D` and runs shape intersections per element per
@@ -430,10 +430,82 @@ The trajectory step is fine enough (default `1/120s`) that sample-boundary
 proximity is sufficient for hit detection at game speeds; no full
 swept-volume continuous collision needed.
 
-Each particle `BladeHitEvent` is also stamped with `speed` — the contacting
-vertex's own speed at its contact sample, read off `state.speed_history`
-(#779, see "Speed-scaled damage" below). An edge `BladeHitEvent` is never
-stamped (`speed` stays `0.0`); nothing reads it for one today.
+Each `BladeHitEvent` is also stamped with `speed` (#779, see "Speed-scaled
+damage" below): for a vertex, that vertex's own speed at its contact sample,
+read off `state.speed_history`; for an **edge**, the **mean of its two
+endpoints'** — the segment midpoint's speed under rigid motion.
+
+## Edge collision (#785)
+
+Blade edges used to be inert ("D-1 MVP"). Two defects followed, both named on
+#785, and both are properties of *vertex-only* contact rather than of tuning:
+
+1. **Straddle.** Owner, 2026-09-07: *"say a truss blade slams into a bunker,
+   but the initial nodes pass it -- no hitbox on the edge, it could slip in
+   between; then it could hit in the 2nd part of the truss as it sweeps,
+   causing bounces and largely chaotic behavior because the bunker is now in
+   the center of the blade. […] we need SOMETHING against this"*
+2. **Spacing luck.** Whether a spike bit depended on whether the defender
+   happened to land on a vertex hitbox or in the gap between two — invisible,
+   unchosen, and it cut both ways.
+
+**The model.** Each edge is queried as a **capsule along the segment MINUS the
+two endpoint hitbox disks** — it starts at one vertex's rim and stops at the
+other's. That is the answer to "where do these capsules end?": a target sitting
+*on* a hub is inside the hub's own circle and takes **vertex damage only**, so a
+degree-6 hub is never worth vertex + 6× edge. **Faces are rejected** — the
+design deliberately avoids geometric filled regions (`combat_system.md`: trigger
+off cycle presence, a graph fact, not a region with no runtime planarity
+guarantee), and polygon containment per sim step buys nothing capsules don't.
+
+**Anti-double-dip.** Per sim step a target takes **at most one blade-element
+contact — the highest-damage one, never a sum.** An element that contacted but
+lost is still recorded as having contacted, so it cannot come back for a second
+bite at the same target on a later substep; that is what makes the hub rule hold
+across the whole sweep rather than only within one query. Ranking is on the raw
+damage *coefficient* with contact speed as the tiebreak, not on the post-curve
+landed number — the curve needs the wielder's `StatBoard`, which `BladeHitScan`
+deliberately does not take, and the rule's job is to cap a **count**, not to pick
+a maximum to the last decimal. This bounds the counting rule itself, which is
+what `combat_system.md`'s *"tame runaway with the scalars, never the counting
+rule"* asks for — the rule here is already bounded, so no scalar patching is
+needed.
+
+**`edge_damage` is its own stat, default 0** — granted by the paired
+edge-sharpener addon, **not** lerped, min'd or otherwise derived from
+`blade_damage`. Owner's framing: *"Edges.. cut? Blades.. clobber?"* — a vertex
+is mass at the end of a lever (concentrated impact, carries spikes); an edge is
+a line under shear (distributed, carries sharpeners). Deriving it from
+`blade_damage` would count one investment roughly twice on a 100-edge blade and
+compound with blade size. An **edge's** coefficient is the **MIN** of its two
+endpoints' `edge_damage`, and likewise its `blunting` is the min of theirs: the
+sharpener is *paired*, so both ends must carry the grant, and one spiked vertex
+cannot upgrade every edge incident to it for free. (Min-of-endpoints is an
+implementation call, not an owner decision — see #785.)
+
+**A capsule contact is a full contact for every defender effect** — damage,
+`spikes` (#778), and severance. It spends the defender's `spikes` pool by the
+edge's blunting on exactly the #778 ladder ("pop only if full amount is
+removed"), and a full drain severs the **edge**: both endpoints survive, per
+#781's *"the element that owns the contact point is the element that breaks"*.
+There is **no pivot exemption for edges** — the exemption exists so the
+wielder's handle cannot be popped out from under them, and a pivot-incident edge
+is not the handle.
+
+**Severance is a set, not a splice.** `BladeState.removed_edges` records severed
+indices; `state.edges` is never spliced, because a `BladeHitEvent` carries an
+`edge_idx` *into* it and a splice would silently re-point every pending event.
+That also keeps #795's cached adjacency map valid after a severance — the map
+pairs each neighbour with its own edge index, so `_reachable_from_pivot` skips a
+severed edge in O(1) as it walks and the map is built **once per swing**, never
+rebuilt. Losing an edge orphans a fragment by exactly the same criterion as
+losing a vertex, so `_kill` and `_sever_edge` share one `_disintegrate_unreachable`.
+
+**Broad phase.** Per substep, one shape query over the blade's whole bounding
+box; if it comes back empty the ~300 narrow-phase queries are skipped entirely.
+The box is a strict superset of every narrow-phase shape, so the flag can only
+change **cost**, never the event set — `bench_blade_hit_scan.gd` asserts exactly
+that, and reports both settings. See "Measured cost".
 
 ## Speed-scaled damage (#779)
 
@@ -460,9 +532,8 @@ Implementation, entirely in `attack/melee/sim/`:
 
 - **`BladeState.speed_damage_multiplier(speed, m, v_half)`** is the curve
   itself — a static helper taking raw numbers rather than a `BladeHitEvent`
-  or a `StatBoard`, so an edge hit (#785, not landed — edges have no
-  collision yet) can reuse the identical curve once it exists, instead of a
-  second inlined copy. `BladeState.stat_value(board, id, fallback)` is the
+  or a `StatBoard`, so an **edge** hit (#785 — landed) reuses the identical
+  curve instead of a second inlined copy. `BladeState.stat_value(board, id, fallback)` is the
   matching stat-read guard (mirrors `CritRoll.multiplier_for`'s null
   handling), since this unit owns no file `CritRoll` lives in.
 - **`vertex_damage[i]` is a per-particle COEFFICIENT, not the landing
@@ -584,6 +655,40 @@ so the player sees exactly the trajectory the AI scores. Hit signal is
 ignored during ghost play — no damage during preview.
 
 ## Measured cost
+
+### Hit scan (#785)
+
+`test/perf/bench_blade_hit_scan.gd` — a `GutTest` rather than a bare SceneTree
+script, because the scan needs a live `PhysicsDirectSpaceState2D` and that only
+exists inside a scene tree (which is exactly why `bench_blade_sim.gd` excludes
+it). Run: `mise run test:one -- res://test/perf/bench_blade_hit_scan.gd`.
+RX 7900 XTX / Ryzen-class desktop, Godot 4.7.1, headless, 2026-09-08. Blade:
+100 vertices / 197 edges (braced ladder), 145 substeps, 40 defender nodes,
+5 reps.
+
+| defender field | broad phase ON | OFF | speedup |
+|---|---|---|---|
+| dense (defenders on the swept arc) | 29.6 ms | 28.6 ms | 0.97x |
+| empty sweep (defenders off-map) | 0.56 ms | 24.3 ms | **43.6x** |
+
+Read it as a **bound, not a budget**: the dense row is the worst case (every
+substep's bounding box hits something, so the broad phase can never reject and
+costs ~3% for nothing), the empty row is the best. A real map lives between
+them, and *which* end is a property of the map, not of this code. Two
+consequences:
+
+- **~30 ms per resolve at the 100-vertex scale the owner named makes #782's
+  caching load-bearing rather than nice-to-have** — the preview rebuilds
+  continuously, and it must not pay this per rebuild.
+- The remaining cost is ~21600 physics-server shape queries per resolve
+  (297 elements × 145 substeps). Collapsing that to an **analytic** narrow phase
+  (gather the candidate defender set once over the swept arc's box, then
+  point-vs-capsule: a clamped projection and a length compare) is the real fix,
+  and it is the one thing that would let the scan leave the main thread. It is
+  deliberately NOT done here: it would make this module encode target geometry,
+  which it currently refuses to do — targets just publish a `CollisionShape2D`.
+
+### Solver
 
 `test/perf/bench_blade_sim.gd` (headless SceneTree script; run it, don't trust
 this table after the solver changes). It prints **both backends** in one
