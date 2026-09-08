@@ -26,6 +26,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0002](0002-host-authoritative-sync-not-lockstep.md) | Host-authoritative intent-up / confirmed-command-down, not lockstep on a shared seed | accepted | 2026-08-24 | multiplayer, netcode, architecture |
 | [0003](0003-the-entry-point-is-config-not-an-autoload-redirect.md) | The entry point is a config setting, not an autoload redirect | accepted | 2026-09-01 | boot, scenes, exporting |
 | [0004](0004-the-allocation-level-magnitude-ladder-is-linear.md) | The allocation-level magnitude ladder is linear | accepted | 2026-08-05 | stats, balance, skill-node, design |
+| [0005](0005-blade-parts-and-counters-are-orthogonal.md) | Blade parts and their counters are orthogonal — bunkers destroy structure, never matter | accepted | 2026-09-08 | combat, melee, blade, design, balance |
 
 ## Reading order
 
