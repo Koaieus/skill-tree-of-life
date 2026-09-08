@@ -162,9 +162,12 @@ func test_fortification_addon_tooltip_section_regression() -> void:
 	assert_eq(sections.size(), 1)
 	assert_eq(sections[0]["title"], "Fortification")
 	var mods: Array = sections[0]["modifiers"]
-	assert_eq(mods.size(), 1)
+	# Two since #780: node_health, then swing_drag — Fortification's
+	# characteristic second effect. Magnitudes stay the owner's to tune, so
+	# only the CHANNELS are pinned here, in authored order.
+	assert_eq(mods.size(), 2)
 	assert_eq(String(mods[0].stat_id), "node_health")
-	assert_almost_eq(float(mods[0].value), 15.0, 0.001)
+	assert_eq(String(mods[1].stat_id), "swing_drag")
 
 
 func test_spike_ring_keeps_its_authored_title_and_payload() -> void:

@@ -15,7 +15,7 @@
 # in the commit message.
 DIGEST_NODE_COUNT 800
 DIGEST_SEED 424242
-DIGEST_SHA256 96cf8662cd9ea69199116d6b5aabf628b62b9fc095449bd54c1104caa21ede35
+DIGEST_SHA256 d9c3141f0e73547d066ebb5eab372c9037acdfa31a8cca76277c516a29ef93a0
 SEED 424242
 NODE_COUNT 80
 NODE 1 -295.762512 615.662659 blue
@@ -59,6 +59,7 @@ NODE 10 -308.096161 431.112061 blue
     AMOD min_damage_taken 3 -5.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
   ADDON spike_ring_addon
     AMOD blade_damage 0 3.000000 0 -
     AMOD blade_damage 2 1.500000 0 -
@@ -97,6 +98,7 @@ NODE 17 66.441696 512.855774 blue
   MOD intelligence 0 29.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
 NODE 18 78.391083 346.435974 blue
   MOD intelligence 1 40.000000 0 -
 NODE 19 -141.817215 308.727722 blue
@@ -128,6 +130,7 @@ NODE 27 461.657837 488.749451 white
   MOD armor 0 5.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
 NODE 28 287.061981 365.632385 gold
   MOD wisdom 0 8.000000 0 -
   ADDON spike_ring_addon
@@ -179,6 +182,7 @@ NODE 39 -164.019211 15.487778 green
   ADDON clamp_addon
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
 NODE 40 471.791748 219.115479 red
   MOD strength 0 18.000000 0 -
 NODE 41 -742.543213 -312.755371 blue
@@ -192,6 +196,7 @@ NODE 42 -591.822571 -235.559601 blue
   ADDON clamp_addon
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
   SPELL bruiser
   SPELL resonator
 NODE 43 -444.890381 -147.183350 gold
@@ -224,6 +229,7 @@ NODE 49 669.872192 497.837708 red
     AMOD min_damage_taken 3 -5.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
   ADDON spike_ring_addon
     AMOD blade_damage 0 3.000000 0 -
     AMOD blade_damage 2 1.500000 0 -
@@ -232,6 +238,7 @@ NODE 50 902.596191 167.985641 blue
   MOD node_health 1 -1.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
   ADDON spike_ring_addon
     AMOD blade_damage 0 3.000000 0 -
     AMOD blade_damage 2 1.500000 0 -
@@ -256,6 +263,7 @@ NODE 54 713.288147 -93.151428 blue
     AMOD min_damage_taken 3 -5.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
   ADDON spike_ring_addon
     AMOD blade_damage 0 3.000000 0 -
     AMOD blade_damage 2 1.500000 0 -
@@ -322,6 +330,7 @@ NODE 69 -906.890991 -264.231445 blue
   ADDON clamp_addon
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
   ADDON spike_ring_addon
     AMOD blade_damage 0 3.000000 0 -
     AMOD blade_damage 2 1.500000 0 -

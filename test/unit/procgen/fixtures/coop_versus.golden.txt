@@ -15,7 +15,7 @@
 # in the commit message.
 DIGEST_NODE_COUNT 800
 DIGEST_SEED 424242
-DIGEST_SHA256 bab16a91d18071259853a1865b692bc1fb11d4fed3e1c205b6d47b822fc068dc
+DIGEST_SHA256 9a42f53c2c7012ffe3b22dee54a5bee8748132b747ebd9f0b24e97e91570e4a1
 SEED 424242
 NODE_COUNT 80
 NODE 1 -295.762512 615.662659 blue
@@ -29,6 +29,7 @@ NODE 3 -350.373749 845.373474 green
   MOD crit_chance 1 4.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
   ADDON spike_ring_addon
     AMOD blade_damage 0 3.000000 0 -
     AMOD blade_damage 2 1.500000 0 -
@@ -63,6 +64,7 @@ NODE 9 -612.962524 477.240570 green
     AMOD min_damage_taken 3 -5.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
 NODE 10 -308.096161 431.112061 blue
   MOD intelligence 0 46.000000 0 -
   SPELL cyclone
@@ -119,6 +121,7 @@ NODE 21 -887.235474 308.563660 green
   MOD crit_chance 1 4.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
 NODE 22 -903.031921 65.088547 blue
   MOD intelligence 0 8.000000 0 -
 NODE 23 -769.756714 179.902878 green
@@ -225,6 +228,7 @@ NODE 44 -199.621811 -283.132172 red
   MOD strength 0 29.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
 NODE 45 -443.640015 -347.982971 blue
   MOD intelligence 2 1.142074 0 -
 NODE 46 628.049133 192.418304 red
@@ -310,6 +314,7 @@ NODE 69 -906.890991 -264.231445 blue
   MOD intelligence 1 3.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
   SPELL cyclone
 NODE 70 312.068573 -878.345642 green
   MOD dexterity 0 5.000000 0 -
@@ -340,8 +345,10 @@ NODE 76 881.209167 321.560303 white
   MOD constitution 0 2.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
+    AMOD swing_drag 3 1.000000 0 -
 NODE 77 -357.886505 -476.684448 blue
   MOD intelligence 0 41.000000 0 -
   MOD spell_range 1 9.000000 0 -
