@@ -55,21 +55,33 @@ extends StatBoard
 
 ## Node boards are the sparse side — they legitimately mint the stats they
 ## borrow from their owner (`armor`, `node_healing`, `blade_damage`, …), so the
-## registry default applies. The one exception is `node_health`: the entity
-## board's `node_health` is the ScalarStat BASELINE, while the node needs a
-## combat POOL (max + current) built from the `node_combat_health` def. Same id,
-## different Stat class per board — which is precisely a fact about this board
-## class, so it lives here instead of as a hardcoded branch in
+## registry default applies. The exceptions are `node_health` and `spikes`:
+## the entity board's `node_health` / `spikes` are ScalarStat BASELINES, while
+## the node needs a combat POOL (max + current) built from a separate def —
+## `node_combat_health` / `node_spikes` respectively (#778). Same id, different
+## Stat class per board — which is precisely a fact about this board class, so
+## it lives here instead of as a hardcoded branch in
 ## [method SkillNode._ensure_local_stat] reaching into `_extra_stats` directly.
 func _mint_stat(stat_id: StringName) -> Stat:
-	if stat_id != &"node_health":
-		return super(stat_id)
-	var def: StatDef = StatRegistry.get_def(&"node_combat_health")
+	if stat_id == &"node_health":
+		return _mint_pool(stat_id, &"node_combat_health")
+	if stat_id == &"spikes":
+		return _mint_pool(stat_id, &"node_spikes")
+	return super(stat_id)
+
+
+## Shared body of the `node_health` / `spikes` special cases above: mint a
+## [PoolStat] for [param stat_id], sourcing its [StatDef] from [param def_id]
+## — a DIFFERENT id than [param stat_id], which is the whole point of the
+## redirect — and seed its base via [method PoolStat._set_base_minted] so a
+## fresh mint is not treated as a cap CHANGE (#555).
+func _mint_pool(stat_id: StringName, def_id: StringName) -> Stat:
+	var def: StatDef = StatRegistry.get_def(def_id)
 	if def == null:
-		push_warning("NodeStatBoard._mint_stat: node_combat_health def missing")
+		push_warning("NodeStatBoard._mint_stat: %s def missing" % def_id)
 		return null
-	var hp := PoolStat.new()
-	hp.definition = def
-	hp._set_base_minted(def.default_value)  # seed, not a cap change (#555)
-	_extra_stats[stat_id] = hp
-	return hp
+	var pool := PoolStat.new()
+	pool.definition = def
+	pool._set_base_minted(def.default_value)  # seed, not a cap change (#555)
+	_extra_stats[stat_id] = pool
+	return pool
