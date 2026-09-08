@@ -6,7 +6,7 @@
 script = ExtResource("1_stat_def")
 id = &"blade_speed_multiplier_max"
 display_name = "Blade Speed Multiplier Max"
-description = "M in the speed-scaled blade damage curve f(v) = 1 + (M-1) x v/(v+v_half) (#779): the multiplier a vertex's damage saturates toward as its per-contact speed grows without bound. f is floored at 1 (no penalty for a slow blade, only a bonus) and applies to blade_damage and, per #785, edge_damage. Owner-tunable starting point, not a tuning pass — the owner calibrates against hand-built blades at both ends (bare spine, clamped spine, rigid truss)."
+description = "M in the speed-scaled blade damage curve f(v) = 1 + (M-1) x v/(v+v_half) (#779): the multiplier a vertex's damage saturates toward as its per-contact speed grows without bound. f is floored at 1 (no penalty for a slow blade, only a bonus) and applies to blade_damage; an edge carries no damage for it to scale (ADR 0005). Owner-tunable starting point, not a tuning pass — the owner calibrates against hand-built blades at both ends (bare spine, clamped spine, rigid truss)."
 value_type = 1
 default_value = 2.0
 tint_color = Color(0.85, 0.3, 0.3, 1)

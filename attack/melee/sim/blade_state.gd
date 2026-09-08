@@ -50,17 +50,15 @@ var speed_history: Array[PackedFloat32Array] = []
 ## leave the array zeroed, and [method BladePopResolver.LiveGate._blunting_for]
 ## falls back to the `blunting` [StatDef]'s own default.
 var vertex_blunting: PackedFloat32Array
-## Per-EDGE damage coefficient — the exact counterpart of [member
-## vertex_damage], one slot per entry of [member edges], and read the same way
-## (a hit site multiplies it by [method speed_damage_multiplier]). Zeroed in
-## [method build]; both blade-build call sites fill each slot with the MIN of
-## its two endpoints' `get_local_value(&"edge_damage")`.
-##
-## Min, not sum/max/lerp, because the sharpener is PAIRED: an edge is sharp
-## only if both of its ends carry the grant, which falls straight out of a min
-## and needs no per-edge addon hook. The `edge_damage` StatDef defaults to 0,
-## so an unsharpened blade's edges collide but deal nothing (#785 acceptance 4).
-var edge_damage: PackedFloat32Array
+## [b]There is no per-edge damage array, and there is no `edge_damage` stat.[/b]
+## ADR 0005: [b]nodes deal damage, edges give rigidity[/b]. An edge carries no
+## stats at all — not derived from its endpoints by MIN, MAX or mean, because a
+## derivation would make triangulating for rigidity silently multiply damage and
+## collapse "add a node for offence, add an edge for structure" into one choice.
+## Edges still COLLIDE (see [BladeHitScan]); their capsule geometry derives from
+## the endpoints because geometry is physics, not offence. If edge offence is
+## ever wanted back it is #409's to argue against the ADR, with magnitude as an
+## [Entity] stat and placement as a flag on [Edge] — never a value on this class.
 var pivot_index: int = 0
 var edges: Array[Vector2i] = []
 ## Severed edge indices — `edges` itself is never spliced, because a
@@ -69,7 +67,9 @@ var edges: Array[Vector2i] = []
 ## instead: an index in this set is gone for every purpose ([method
 ## BladePopResolver._reachable_from_pivot] does not traverse it, [BladeHitScan]
 ## does not query it, its distance constraint is dropped by [method
-## remove_edge]). #781's bunker break writes here too.
+## remove_edge]). [b]#781's bunker break is the only thing that writes here[/b]
+## — ADR 0005 retired the spike-drain severance that used to, since a spike
+## destroys matter and a bunker destroys structure.
 var removed_edges: Dictionary = {}
 var constraints: Array[BladeConstraint] = []
 
@@ -98,8 +98,6 @@ static func build(
 	s.vertex_damage.resize(positions_.size())  # zero-init; caller fills per-vertex
 	s.vertex_blunting = PackedFloat32Array()
 	s.vertex_blunting.resize(positions_.size())  # zero-init == unfilled; see the member
-	s.edge_damage = PackedFloat32Array()
-	s.edge_damage.resize(edges_.size())  # zero-init; an unsharpened edge deals 0
 	s.inv_masses = PackedFloat32Array()
 	s.inv_masses.resize(positions_.size())
 	for i in positions_.size():
@@ -190,10 +188,10 @@ func pivot_eccentricity() -> int:
 ## a penalty — that variant is explicitly parked (#772 pt. 2 NOTES), not this
 ## issue's to build.
 ##
-## A static helper taking raw numbers, not a [BladeHitEvent] or a
-## [StatBoard], so an edge hit (#785 — not landed; edges have no collision
-## yet) can reuse the identical curve once it exists, instead of a second
-## inlined copy.
+## A static helper taking raw numbers, not a [BladeHitEvent] or a [StatBoard],
+## so the visual playback path and the authority's own resolve share one copy of
+## the curve instead of two inlined ones. It applies to VERTEX contacts only:
+## under ADR 0005 an edge has no damage for a multiplier to scale.
 static func speed_damage_multiplier(speed: float, m: float, v_half: float) -> float:
 	var denom := speed + v_half
 	if denom <= 0.0:

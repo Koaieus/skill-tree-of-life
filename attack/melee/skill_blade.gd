@@ -116,14 +116,8 @@ func build_from_skill_nodes(
 	# the SpikeRingAddon's raise to 2, so it reaches BladePopResolver.LiveGate.
 	for i in skill_nodes.size():
 		state.vertex_blunting[i] = skill_nodes[i].get_local_value(&"blunting")
-	# Per-EDGE damage (#785): the MIN of the two endpoints' own `edge_damage`,
-	# so the paired sharpener has to sit on BOTH ends before an edge cuts.
-	# Default 0, i.e. an unsharpened blade's edges collide but deal nothing.
-	for e_idx in state.edges.size():
-		var e := state.edges[e_idx]
-		state.edge_damage[e_idx] = minf(
-				skill_nodes[e.x].get_local_value(&"edge_damage"),
-				skill_nodes[e.y].get_local_value(&"edge_damage"))
+	# No per-EDGE fill: ADR 0005 — an edge carries no stats. Mirrors the same
+	# absence in melee_attack_plan.gd's build_blade_state.
 	# Dispatch to addons after BladeState is built so they can append
 	# constraints (Clamp's phantom brace). SkillBlade never learns specific
 	# addon types — pure virtual dispatch.
@@ -196,12 +190,13 @@ func _apply_playback_frame(
 	while not pending.is_empty() and pending[0].t <= t:
 		var ev: BladeHitEvent = pending.pop_front()
 		if not ghostly:
-			# Edges are live contacts since #785 — they carry their own
-			# `edge_damage` coefficient (0 until a sharpener grants it) through
-			# the same speed curve as a vertex.
+			# Edges are live CONTACTS (#785) but deal no damage (ADR 0005):
+			# they exist so a bunker cannot slip between two vertices into the
+			# blade's interior. A vertex contact carries the coefficient and
+			# the speed curve; an edge contact carries 0.
 			var is_edge := ev.is_edge_hit()
 			var coeff := (
-					state.edge_damage[ev.edge_idx] if is_edge
+					0.0 if is_edge
 					else state.vertex_damage[ev.particle_idx])
 			var damage := coeff * _speed_multiplier(ev)
 			hit.emit(

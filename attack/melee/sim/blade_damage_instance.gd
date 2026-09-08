@@ -38,8 +38,8 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 			popped_vertex = pop.defender
 		return
 	# #779: `amount` still holds the COEFFICIENT MeleeAttackPlan.resolve_against
-	# stamped it with (vertex_damage[particle_idx], or edge_damage[edge_idx] for
-	# an edge contact under #785 — one curve, both elements) — the curve is
+	# stamped it with — vertex_damage[particle_idx] for a vertex, and a flat 0
+	# for an edge, which carries no damage at all (ADR 0005) — the curve is
 	# applied HERE, once, on the authority's own resolve, never on a peer's
 	# replay. AttackRecord.rebuild() never constructs a BladeDamageInstance (it
 	# rebuilds a plain DamageInstance and carries the post-mitigation number

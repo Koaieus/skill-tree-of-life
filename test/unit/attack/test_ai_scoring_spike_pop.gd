@@ -18,15 +18,21 @@ extends GutTest
 ## TAU circle, so the only way to give one arm a target the OTHER arm cannot
 ## also reach is to put the two targets on different-radius circles.
 ##
-## [b]#785 constrains WHICH arm gets the spike.[/b] Now that blade EDGES collide
-## (swept capsules), an arm's reach is the whole DISC out to its radius, not a
-## ring at it — so the long arm's edge sweeps over everything the short arm can
-## touch, and containment is one-way. The spiked target therefore has to sit on
-## the LONG arm: if it sat on the short one, the long arm's edge would drain and
-## sever against it and no swing could ever be the "landed, popped nothing"
-## control. The long edge does still cross the plain target, but `edge_damage`
-## defaults to 0, so that contact lands nothing and the arithmetic below is
-## unchanged. Do not swap the radii back.
+## [b]Which arm carries the spike is no longer forced, and this note replaces
+## one that said it was.[/b] #785 gave edges swept-capsule collision, which
+## makes an arm's reach the whole DISC out to its radius rather than a ring at
+## it — so the long arm's edge sweeps over everything the short arm can touch,
+## and containment is one-way. That mattered while an edge could drain and
+## sever against a spike: the spiked target had to sit on the LONG arm or no
+## swing could be the "landed, popped nothing" control.
+##
+## [b]ADR 0005 retired that constraint.[/b] Edges never interact with spikes, so
+## the long arm's edge crossing the short arm's target is inert — no drain, no
+## severance, no damage — and either placement now works. The radii are left
+## where #785 put them because swapping them back would churn a
+## characterization fixture for no behavioural difference, NOT because the swap
+## would break anything. The geometry note above survives on its own merits: it
+## is why an inert edge contact still shows up in the event list below.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")

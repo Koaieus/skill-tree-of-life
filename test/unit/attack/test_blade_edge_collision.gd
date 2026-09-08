@@ -1,16 +1,24 @@
 extends GutTest
 
-## #785 — blade EDGES collide, as swept capsules, and `edge_damage` is its own
-## stat. Two defects this closes, both named on the issue:
+## Blade EDGES collide, as swept capsules (#785) — and, under [b]ADR 0005[/b],
+## that is [b]all[/b] they do. [b]Nodes deal damage, edges give rigidity; spikes
+## pop vertices, bunkers break edges.[/b]
 ##
-##   1. [b]Straddle.[/b] A truss blade slams into a bunker and the initial nodes
-##      pass either side of it — with vertex-only hitboxes it slips between them
-##      and only bites deeper in the sweep, "causing bounces and largely chaotic
-##      behavior" (owner, 2026-09-07). An edge capsule catches it on contact.
-##   2. [b]Spacing luck.[/b] Whether a spike bit used to depend on whether the
-##      defender happened to land on a vertex disk or in the gap between two —
-##      invisible, unchosen, and it cut both ways. With the segment covered,
-##      every offset along it contacts.
+## The defect edge collision exists to close is the [b]straddle[/b]: a truss
+## blade slams into a bunker and the initial nodes pass either side of it — with
+## vertex-only hitboxes it slips between them and only bites deeper in the
+## sweep, "causing bounces and largely chaotic behavior" (owner, 2026-09-07). An
+## edge capsule catches it on contact. Keeping a bunker out of the blade's
+## interior is the whole reason edges got hit-scan.
+##
+## #785 also, briefly, gave edges an `edge_damage` stat and enrolled them in the
+## spike system, both derived as the MIN of their endpoints'. ADR 0005 retired
+## both, so half of the tests below pin an [b]absence[/b]: an edge sweeping over
+## a spiked node drains nothing, severs nothing, and lands nothing. Those are
+## worth more than what they replaced — the failure mode they guard against
+## (blunting 0 makes `remaining >= blunting` trivially true, so every contact
+## `deplete(0)`s and severs) is silent, and it is exactly what an obvious "just
+## zero it out" implementation produces.
 ##
 ## Geometry is tested against a STATIC two-sample trajectory rather than a real
 ## swing: the capsule maths is a fact about a pose, and pinning it without the
@@ -85,8 +93,11 @@ func test_a_target_between_two_vertices_is_contacted_by_the_connecting_edge() ->
 # ── Defect 2: spacing luck ─────────────────────────────────────────────────
 
 ## The same pose, walking the target the whole length of the segment. Under
-## vertex-only contact the answer flipped between "hit" and "miss" purely on
-## where the node happened to sit; now every offset connects.
+## vertex-only contact an obstacle sitting in the gap between two vertices was
+## simply not there as far as the blade was concerned; now every offset along
+## the segment connects. (For SPIKES this "spacing luck" is a non-issue — the
+## owner retired it 2026-09-08, since a floppy multi-layer blade hits with
+## something — but for a BUNKER the gap was the straddle defect itself.)
 func test_contact_no_longer_depends_on_where_along_the_segment_a_target_sits() -> void:
 	var graph: Graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
@@ -108,19 +119,34 @@ func test_contact_no_longer_depends_on_where_along_the_segment_a_target_sits() -
 		target.global_position = Vector2(home.x, 0.0)
 		await get_tree().physics_frame
 		var events := BladeHitScan.scan(_held_pose(positions), state, space_state, graph)
-		assert_eq(_events_on(events, target).size(), 1,
+		var on_target := _events_on(events, target)
+		assert_gt(on_target.size(), 0,
 				"a target at x=%.0f along the segment must contact" % home.x)
+		# The EDGE specifically has to be one of them — that is the span being
+		# covered. Near either end a vertex disk also reaches, and since ADR 0005
+		# deleted the per-substep arbitration both simply emit; the count is not
+		# the claim, the coverage is.
+		var by_edge := false
+		for ev in on_target:
+			if ev.is_edge_hit():
+				by_edge = true
+		assert_true(by_edge,
+				"and the EDGE must be what reaches it at x=%.0f" % home.x)
 		target.global_position = home
 		await get_tree().physics_frame
 
 
-# ── Acceptance 2: a hub deals vertex damage, not vertex + one per spoke ────
+# ── A hub deals vertex damage, not vertex + one per spoke ─────────────────
 
-## Six spokes out of one hub, target sitting ON the hub. The capsules are
-## trimmed back to the rim of each endpoint's own disk, and the anti-double-dip
-## rule caps the substep at one contact regardless — so a degree-6 hub is worth
-## one vertex hit, never seven.
-func test_a_target_on_a_hub_takes_one_vertex_contact_not_one_per_spoke() -> void:
+## Six spokes out of one hub, target sitting ON the hub. #785 capped this with a
+## per-substep "highest-damage element wins" arbitration; ADR 0005 deleted that
+## along with edge damage, so the cap is now carried entirely by [b]geometry[/b]
+## — the capsules are trimmed back to the rim of each endpoint's own disk, and
+## whatever they still touch carries no damage to add.
+##
+## The claim is therefore about DAMAGE, not about the raw event count: a
+## degree-6 hub is worth one damaging contact, and it is the vertex's.
+func test_a_target_on_a_hub_takes_one_damaging_contact_not_one_per_spoke() -> void:
 	var graph: Graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
 	var hub := _spawn(graph, "Hub", Vector2.ZERO)
@@ -138,24 +164,31 @@ func test_a_target_on_a_hub_takes_one_vertex_contact_not_one_per_spoke() -> void
 
 	var state := BladeState.build(positions, 0, edges, radii)
 	state.vertex_damage[0] = 5.0
-	for e_idx in state.edges.size():
-		state.edge_damage[e_idx] = 3.0  # sharpened, so the spokes are NOT free
 	var events := BladeHitScan.scan(
 			_held_pose(positions), state, hub.get_world_2d().direct_space_state, graph)
 
-	var on_target := _events_on(events, target)
-	assert_eq(on_target.size(), 1, "the hub is worth ONE contact, not 1 + degree")
-	assert_false(on_target[0].is_edge_hit(), "and it is the vertex's, the highest-damage one")
-	assert_eq(on_target[0].particle_idx, 0)
+	var vertex_hits := 0
+	for ev in _events_on(events, target):
+		if not ev.is_edge_hit():
+			vertex_hits += 1
+			assert_eq(ev.particle_idx, 0, "the only vertex in range is the hub itself")
+	assert_eq(vertex_hits, 1,
+			"the hub is worth ONE damaging contact, not 1 + degree — the spokes' "
+			+ "capsules start at its rim and carry no damage besides")
 
 
-# ── Acceptance 3: overlapping capsules take the higher, never the sum ──────
+# ── Overlapping capsules: nothing to rank, because nothing carries damage ──
 
 ## Two edges splayed at a narrow angle off a shared hub, with a target just
-## outside the hub's disk and inside BOTH capsules. The higher `edge_damage`
-## wins outright; nothing is summed and the loser does not come back for a
-## second bite on a later substep.
-func test_a_target_inside_two_capsules_takes_the_higher_one_only() -> void:
+## outside the hub's disk and inside BOTH capsules. #785 arbitrated this on
+## `edge_damage` — the higher capsule won outright and the loser was suppressed.
+## With edge damage gone there is no ranking left to do and no double-dip to
+## prevent: both capsules contact, and both contribute zero.
+##
+## This is the test that pins WHY the arbitration could be deleted rather than
+## tuned. Its whole job was to stop one contact being counted as vertex + edge
+## damage, and an edge no longer has any damage to count.
+func test_two_overlapping_capsules_contact_and_neither_carries_damage() -> void:
 	var graph: Graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
 	var hub := _spawn(graph, "Hub", Vector2.ZERO)
@@ -169,36 +202,44 @@ func test_a_target_inside_two_capsules_takes_the_higher_one_only() -> void:
 	var state := BladeState.build(
 			positions, 0, [Vector2i(0, 1), Vector2i(0, 2)],
 			[hub.radius, a.radius, b.radius])
-	state.edge_damage[0] = 3.0
-	state.edge_damage[1] = 7.0
 	var events := BladeHitScan.scan(
 			_held_pose(positions), state, hub.get_world_2d().direct_space_state, graph)
 
 	var on_target := _events_on(events, target)
-	assert_eq(on_target.size(), 1, "two overlapping capsules are still one contact")
-	assert_true(on_target[0].is_edge_hit())
-	assert_eq(on_target[0].edge_idx, 1, "the HIGHER-damage capsule is the one that counts")
+	assert_eq(on_target.size(), 2,
+			"both capsules contact — nothing suppresses the second one any more")
+	var seen: Array[int] = []
+	for ev in on_target:
+		assert_true(ev.is_edge_hit(), "no vertex reaches this target")
+		seen.append(ev.edge_idx)
+	seen.sort()
+	assert_eq(seen, [0, 1] as Array[int], "one contact per edge, deduped per collider")
 
 
-# ── Acceptance 4: capsules add contact, not damage, until a sharpener ──────
+# ── Edges carry no stats at all, and no damage ────────────────────────────
 
-func test_edge_damage_defaults_to_zero_on_the_stat_and_on_a_fresh_state() -> void:
-	var def: StatDef = StatRegistry.get_def(&"edge_damage")
-	assert_not_null(def, "edge_damage must be a registered StatDef")
-	assert_eq(def.default_value, 0.0,
-			"default 0 — an unsharpened blade's edges collide but deal nothing")
+## The removal itself, pinned where it can rot loudly. `edge_damage` shipped on
+## master for a day as a derived stat (the MIN of an edge's two endpoints');
+## ADR 0005 struck it — a derivation would make triangulating for RIGIDITY
+## silently multiply DAMAGE, collapsing "add a node for offence, add an edge for
+## structure" into one decision.
+func test_there_is_no_edge_damage_stat_and_no_per_edge_damage_array() -> void:
+	assert_null(StatRegistry.get_def(&"edge_damage"),
+			"ADR 0005: an edge carries no stats, so no `edge_damage` StatDef exists")
 
 	var board: EntityStatBoard = _BOARD.duplicate(true)
-	assert_eq(board.get_stat(&"edge_damage").get_value(), 0.0,
-			"and the shipped entity board carries that 0, not blade_damage's 1")
+	assert_null(board.get_stat(&"edge_damage"),
+			"and the shipped entity board has no slot for one")
 
 	var state := BladeState.build(
 			[Vector2.ZERO, Vector2(100.0, 0.0)], 0, [Vector2i(0, 1)], [10.0, 10.0])
-	assert_eq(state.edge_damage.size(), 1, "one slot per edge")
-	assert_eq(state.edge_damage[0], 0.0, "zero-init, like vertex_damage")
+	assert_false(&"edge_damage" in state,
+			"nor does BladeState carry a per-edge damage array to fill")
+	assert_eq(state.vertex_damage.size(), 2,
+			"the per-VERTEX array survives untouched — nodes are what deal damage")
 
 
-func test_an_unsharpened_edge_contact_lands_nothing() -> void:
+func test_an_edge_contact_lands_no_damage_at_all() -> void:
 	var graph: Graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
 	var pivot := _spawn(graph, "Pivot", Vector2.ZERO)
@@ -212,17 +253,20 @@ func test_an_unsharpened_edge_contact_lands_nothing() -> void:
 	var events := BladeHitScan.scan(
 			_held_pose(positions), state, pivot.get_world_2d().direct_space_state, graph)
 	var on_target := _events_on(events, target)
-	assert_eq(on_target.size(), 1, "the contact still happens")
+	assert_eq(on_target.size(), 1, "the contact still happens — that is the point")
+	assert_true(on_target[0].is_edge_hit())
 
+	# What MeleeAttackPlan.resolve_against stamps for an edge event: a flat 0,
+	# with no coefficient to look up anywhere.
 	var di := DamageInstance.new()
-	di.amount = state.edge_damage[on_target[0].edge_idx]
+	di.amount = 0.0
 	di.type = DamageInstance.Type.PHYSICAL
 	assert_eq(Mitigation.apply(di, target), 0.0,
-			"a zero-coefficient contact lands zero — the min_damage_taken floor "
-			+ "only triggers on a real hit, so capsules add contact, not damage")
+			"a zero-amount contact lands zero — the min_damage_taken floor only "
+			+ "triggers on a real hit, so capsules add contact, not damage")
 
 
-# ── Acceptance 5: a capsule spends spikes exactly as a vertex does ─────────
+# ── An edge NEVER interacts with spikes (ADR 0005) ────────────────────────
 
 class _SpikeFixture extends RefCounted:
 	var graph: Graph
@@ -274,7 +318,11 @@ func _spike_fixture(spike_power: float) -> _SpikeFixture:
 	return f
 
 
-func test_an_edge_contact_that_fully_drains_the_pool_severs_the_edge() -> void:
+## The headline absence. Before ADR 0005 this same contact drained the pool and
+## severed the edge; now it does neither. A spike destroys matter, a bunker
+## destroys structure — an edge is structure, and a spike ring has no purchase
+## on it.
+func test_an_edge_over_a_spiked_node_drains_nothing_and_severs_nothing() -> void:
 	var f: _SpikeFixture = await _spike_fixture(4.0)
 	var pool := f.spiked.node_board.get_stat(&"spikes") as PoolStat
 	var before := pool.current
@@ -282,31 +330,32 @@ func test_an_edge_contact_that_fully_drains_the_pool_severs_the_edge() -> void:
 	var admitted := f.gate.admit(
 			BladeHitEvent.new(0.3, -1, 0, f.spiked), CombatWorld.live())
 
-	assert_false(admitted, "the popping contact itself deals no damage — as for a vertex")
-	assert_lt(pool.current, before, "the capsule spent the defender's spikes")
-	assert_true(f.state.is_edge_removed(0), "and the EDGE is what broke, not a vertex")
-	assert_eq(f.gate.result.severed_at.get(0), 0.3, "severance is recorded at contact time")
-	assert_eq(f.gate.result.dead_at.get(1), 0.3,
-			"the arm hung off that edge alone, so it disintegrates with it")
-	var pop := f.gate.last_pop()
-	assert_not_null(pop, "a severance is a pop record, so the cue reaches the replay")
-	assert_eq(pop.edge_idx, 0)
-	assert_eq(pop.particle_idx, -1, "exactly one of the two is set, per BladeHitEvent's rule")
+	assert_true(admitted, "the contact is admitted — it just carries no damage")
+	assert_eq(pool.current, before, "the defender's spikes are untouched")
+	assert_false(f.state.is_edge_removed(0), "and the edge is intact")
+	assert_eq(f.gate.result.severed_at.size(), 0, "nothing was recorded as severed")
+	assert_eq(f.gate.result.dead_at.size(), 0,
+			"so nothing was orphaned either — the arm still hangs off a live edge")
+	assert_eq(f.gate.result.pops.size(), 0, "and no Pop was minted")
+	assert_null(f.gate.last_pop(), "so the replay gets no pop cue from an edge")
 
 
-func test_an_edge_contact_that_cannot_fully_drain_passes_through_instead() -> void:
-	# "Pop only if full amount is removed" (#778) applies unchanged to an edge:
-	# a remainder below the edge's blunting drains to 0 and lets the contact
-	# land as an ordinary hit.
+## The inverted-#778 trap, pinned. Expressing "edges do not blunt" as
+## `_blunting_for_edge() -> 0.0` would make `remaining >= blunting` trivially
+## true, so a nearly-empty pool would `deplete(0)` and SEVER — quietly turning
+## every edge contact into a guaranteed break. A pool this small is where that
+## bug shows up first, so this is where it is nailed down.
+func test_an_edge_does_not_even_drain_a_nearly_empty_spike_pool() -> void:
 	var f: _SpikeFixture = await _spike_fixture(0.25)
 	var pool := f.spiked.node_board.get_stat(&"spikes") as PoolStat
 
 	var admitted := f.gate.admit(
 			BladeHitEvent.new(0.3, -1, 0, f.spiked), CombatWorld.live())
 
-	assert_true(admitted, "a partial drain never pops — the contact goes through")
-	assert_eq(pool.current, 0.0, "but it still empties what was left")
-	assert_false(f.state.is_edge_removed(0), "and the edge survives")
+	assert_true(admitted, "still admitted")
+	assert_eq(pool.current, 0.25, "0.25 left is 0.25 left — an edge drains nothing")
+	assert_false(f.state.is_edge_removed(0),
+			"and above all it does NOT sever, which a blunting-0 ladder would")
 
 
 func test_a_severed_edge_is_not_scanned_again() -> void:
@@ -377,7 +426,12 @@ func test_removing_an_edge_drops_its_distance_constraint_but_not_a_brace() -> vo
 ## still correct afterwards and is NOT rebuilt.
 func test_severance_does_not_rebuild_the_cached_adjacency_map() -> void:
 	var f: _SpikeFixture = await _spike_fixture(4.0)
-	f.gate.admit(BladeHitEvent.new(0.3, -1, 0, f.spiked), CombatWorld.live())
+	# Driven straight at the seam: since ADR 0005 no spike drain severs an edge,
+	# so `_sever_edge` has no production caller until #781's bunker lands. The
+	# invariant it must keep is the same either way — #795's one adjacency build
+	# per swing has to survive an edge going away mid-swing.
+	f.gate._ensure_adjacency()
+	f.gate._sever_edge(0, 0.3, f.spiked, 0.0)
 
 	assert_true(f.gate._adjacency_built, "the swing's one map is still the live one")
 	var links: Array = f.gate._adjacency.get(0, [])

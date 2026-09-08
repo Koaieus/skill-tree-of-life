@@ -32,11 +32,16 @@ extends RefCounted
 ## mode (a truncated query can drop a collider entirely, not just reorder
 ## it) and stays open — see `test_gap_melee_hit_detection_truncates_a_physics_query`.
 ##
-## Per-element-per-collider dedup: each particle/edge emits at most one
-## event per collider across the whole sweep, on first contact. On top of
-## that, per SUBSTEP a collider takes at most one contact overall — the
-## highest-damage element wins and the rest are recorded as contacted but
-## emit nothing. See [method _resolve_step_contacts].
+## Per-element-per-collider dedup, and that is the whole counting rule: each
+## particle/edge emits at most one event per collider across the whole sweep,
+## on first contact. Nothing arbitrates between elements. #785 briefly added a
+## per-substep "highest-damage element wins" pass on top, to stop an edge
+## double-dipping with its own endpoints; [b]ADR 0005[/b] removed the premise
+## by removing edge damage — [b]nodes deal damage, edges give rigidity[/b] — so
+## an edge contact carries no damage to double-count and the arbitration went
+## with it. A degree-6 hub is still worth one damaging contact because the
+## capsules are trimmed back to their endpoints' rims (geometry), not because
+## a tiebreak suppressed them.
 
 ## Bound on one shape query (one blade element, one substep) — NOT on the
 ## sweep. A blade particle realistically overlaps 0 nodes in ~99% of substeps
@@ -93,10 +98,9 @@ static func scan(
 	var events: Array[BladeHitEvent] = []
 	if space_state == null or trajectory.samples.size() < 2:
 		return events
-	# element key -> { collider: true }. An element that CONTACTED a collider is
-	# recorded here whether or not it won that substep's highest-damage contest
-	# (see below) — losing is still contact, so a loser never comes back for a
-	# second bite at the same target on a later substep.
+	# element key -> { collider: true }. First contact emits; every later
+	# contact between the same element and the same collider is silent, for the
+	# whole sweep.
 	var hit_particle: Dictionary = {}
 	var hit_edge: Dictionary = {}
 	var samples := trajectory.samples
@@ -140,10 +144,6 @@ static func scan(
 		if broad_phase and _is_region_empty(
 				space_state, params, broad_shape, curr, max_radius):
 			continue
-		# (element_kind, element_idx, collider, damage, speed) tuples for THIS
-		# substep, in deterministic loop order: particles ascending, then edges
-		# ascending.
-		var step_contacts: Array = []
 		for p_idx in particle_count:
 			params.shape = particle_shapes[p_idx]
 			params.transform = Transform2D(0.0, curr[p_idx])
@@ -151,13 +151,12 @@ static func scan(
 			_warn_if_truncated(p_hits, "particle", p_idx, t)
 			for h in p_hits:
 				var collider: Object = h.collider
-				var seen = hit_particle.get(p_idx)
-				if seen != null and seen.has(collider):
+				var seen: Dictionary = hit_particle.get_or_add(p_idx, {})
+				if seen.has(collider):
 					continue
-				step_contacts.append([
-					false, p_idx, collider,
-					state.vertex_damage[p_idx] if p_idx < state.vertex_damage.size() else 0.0,
-					_speed_at(state, i, p_idx)])
+				seen[collider] = true
+				events.append(BladeHitEvent.new(
+						t, p_idx, -1, collider, _speed_at(state, i, p_idx)))
 		for e_idx in edges.size():
 			if state.removed_edges.has(e_idx):
 				continue  # severed (#781) — a gone edge collides with nothing
@@ -166,12 +165,13 @@ static func scan(
 			var b := curr[e.y]
 			var delta := b - a
 			var length := delta.length()
-			# The capsule covers the segment MINUS the two endpoint hitbox
-			# disks (#785 decision): it starts at one vertex's rim and stops at
-			# the other's, so a target sitting ON a vertex is inside that
-			# vertex's own circle and takes vertex damage only, never vertex +
-			# one-per-incident-edge. Short edges whose endpoints' disks already
-			# overlap have no exposed span at all and contribute nothing.
+			# The capsule covers the segment MINUS the two endpoint hitbox disks
+			# (#785, kept by ADR 0005 as geometry rather than offence): it starts at
+			# one vertex's rim and stops at the other's, so a target sitting ON a
+			# vertex is inside that vertex's own circle and the hub deals vertex
+			# damage, not vertex + one-per-incident-edge. Short edges whose
+			# endpoints' disks already overlap have no exposed span at all and
+			# contribute nothing.
 			var trimmed := length - radii[e.x] - radii[e.y]
 			if trimmed < 1e-4:
 				continue
@@ -184,100 +184,18 @@ static func scan(
 			_warn_if_truncated(e_hits, "edge", e_idx, t)
 			for h in e_hits:
 				var collider: Object = h.collider
-				var seen = hit_edge.get(e_idx)
-				if seen != null and seen.has(collider):
+				var seen: Dictionary = hit_edge.get_or_add(e_idx, {})
+				if seen.has(collider):
 					continue
-				step_contacts.append([
-					true, e_idx, collider,
-					state.edge_damage[e_idx] if e_idx < state.edge_damage.size() else 0.0,
-					_edge_speed_at(state, i, e)])
-		_resolve_step_contacts(step_contacts, t, hit_particle, hit_edge, events)
+				seen[collider] = true
+				# A structural contact, not a damaging one (ADR 0005): the event
+				# exists so an edge can be stopped by, and eventually broken against,
+				# a bunker (#781). It carries no damage coefficient — there is no
+				# `edge_damage` — and it never reaches the spike gate.
+				events.append(BladeHitEvent.new(
+						t, -1, e_idx, collider, _edge_speed_at(state, i, e)))
 	_stable_sort(events, graph)
 	return events
-
-
-## Anti-double-dip (#785): per substep, a target takes at most one blade-element
-## contact — the highest-damage one, never a sum. Every contender is marked
-## contacted (so a loser cannot come back for a second bite at the same target
-## on a later substep) but only the winner emits a [BladeHitEvent].
-##
-## This bounds the COUNTING RULE itself, which is what `combat_system.md`'s
-## "tame runaway with the scalars, never the counting rule" asks for: a
-## degree-6 hub deals vertex damage, not vertex + 6x edge damage, and a target
-## straddled by two narrow-angled capsules takes the higher of the two.
-##
-## [b]With one carve-out, and it is load-bearing: particles never arbitrate
-## against each other.[/b] Two vertices contacting one target in the same
-## substep BOTH emit, exactly as they did before #785 — that is the pre-existing
-## counting rule, and acceptance 4 ("total blade damage output is unchanged for
-## a blade with no sharpeners") pins it. Arbitrating there is not a stricter
-## reading of the rule, it is a silent nerf plus a bug: `test_ai_blade_rollout`'s
-## fixture has the pop-EXEMPT pivot overlapping the same spiked target as the
-## member vertex, so a vertex-vs-vertex contest let the pivot win the substep
-## and permanently suppress the contact that was supposed to pop. Edges are the
-## element this rule exists to bound; vertices are the baseline it must not move.
-##
-## So the ladder is: every contacting particle emits. An edge emits only if it
-## strictly out-damages the best particle touching the same collider this
-## substep (and then it emits INSTEAD of them, never alongside — that is the
-## "never a sum" half), or if no particle touched at all. With `edge_damage` at
-## its default 0 the out-damages branch can never fire, which is exactly why
-## capsules add contact and not damage until a sharpener is equipped.
-##
-## Ranking is on the raw damage COEFFICIENT, with contact speed as the
-## tiebreak, NOT on the post-curve landed number: the speed curve
-## ([method BladeState.speed_damage_multiplier]) needs the wielder's
-## [StatBoard], which this module deliberately does not take, and the curve is
-## monotonic in speed so the two orderings only ever differ between elements
-## whose coefficients already differ AND whose speeds run the other way — a
-## corner this rule does not need to be exact about, since its job is to cap a
-## count, not to pick a maximum to the last decimal. A full tie resolves to the
-## first contender in scan order (particles before edges, ascending index),
-## which is fully deterministic.
-static func _resolve_step_contacts(
-		step_contacts: Array,
-		t: float,
-		hit_particle: Dictionary,
-		hit_edge: Dictionary,
-		events: Array[BladeHitEvent]) -> void:
-	if step_contacts.is_empty():
-		return
-	var best_particle: Dictionary = {}  # collider -> strongest particle tuple
-	var best_edge: Dictionary = {}      # collider -> strongest edge tuple
-	for c in step_contacts:
-		var collider: Object = c[2]
-		var seen: Dictionary = hit_edge if c[0] else hit_particle
-		(seen.get_or_add(c[1], {}) as Dictionary)[collider] = true
-		var pool: Dictionary = best_edge if c[0] else best_particle
-		var incumbent = pool.get(collider)
-		if incumbent == null or _outranks(c, incumbent):
-			pool[collider] = c
-	for c in step_contacts:
-		var collider: Object = c[2]
-		var champion = best_particle.get(collider)
-		if c[0]:
-			# An edge: only the strongest edge on this collider, and only when
-			# it beats every vertex that touched the same collider this substep.
-			if best_edge.get(collider) != c:
-				continue
-			if champion != null and not _outranks(c, champion):
-				continue
-			events.append(BladeHitEvent.new(t, -1, int(c[1]), collider, float(c[4])))
-		else:
-			# A vertex: emits unless a sharper EDGE displaced the whole substep.
-			var edge_champion = best_edge.get(collider)
-			if edge_champion != null and _outranks(edge_champion, champion):
-				continue
-			events.append(BladeHitEvent.new(t, int(c[1]), -1, collider, float(c[4])))
-
-
-## Strict "deals more than", on (coefficient, speed) in that order — the
-## ranking [method _resolve_step_contacts] arbitrates with. A full tie is NOT
-## an outrank, which is what makes the incumbent (earlier in scan order) win.
-static func _outranks(a: Array, b: Array) -> bool:
-	if not is_equal_approx(float(a[3]), float(b[3])):
-		return float(a[3]) > float(b[3])
-	return float(a[4]) > float(b[4])
 
 
 ## True if nothing at all overlaps the blade's bounding box this substep — the

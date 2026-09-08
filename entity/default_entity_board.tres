@@ -14,7 +14,6 @@
 [ext_resource type="Resource" path="res://stats_system/defs/blade_speed_half.tres" id="def_blade_speed_half"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_speed_multiplier_max.tres" id="def_blade_speed_multiplier_max"]
 [ext_resource type="Resource" path="res://stats_system/defs/blunting.tres" id="def_blunting"]
-[ext_resource type="Resource" path="res://stats_system/defs/edge_damage.tres" id="def_edge_damage"]
 [ext_resource type="Resource" uid="uid://cj6e6uijkdjrc" path="res://stats_system/defs/constitution.tres" id="def_constitution"]
 [ext_resource type="Resource" path="res://stats_system/defs/core_healing.tres" id="def_core_healing"]
 [ext_resource type="Resource" path="res://stats_system/defs/core_health_scaling.tres" id="def_core_health_scaling"]
@@ -106,12 +105,6 @@ resource_name = "blunting"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_blunting")
 base_value = 1.0
-
-[sub_resource type="Resource" id="scalar_edge_damage"]
-resource_name = "edge_damage"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_edge_damage")
-base_value = 0.0
 
 [sub_resource type="Resource" id="scalar_constitution"]
 resource_name = "constitution"
@@ -544,7 +537,6 @@ spell_damage = SubResource("scalar_spell_damage")
 blade_size = SubResource("scalar_blade_size")
 blade_damage = SubResource("scalar_blade_damage")
 blunting = SubResource("scalar_blunting")
-edge_damage = SubResource("scalar_edge_damage")
 blade_speed_multiplier_max = SubResource("scalar_blade_speed_multiplier_max")
 blade_speed_half = SubResource("scalar_blade_speed_half")
 crit_chance = SubResource("scalar_crit_chance")

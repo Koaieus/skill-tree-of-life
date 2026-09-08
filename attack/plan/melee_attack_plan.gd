@@ -644,8 +644,12 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		# BladeDamageInstance.land_on's call, live, when OutcomeApplier
 		# consumes it (docs/domain/attack-timeline.md).
 		var di := BladeDamageInstance.new(ev, gate)
+		# An EDGE contact stamps 0: edges give rigidity, nodes deal damage
+		# (ADR 0005). It still becomes a DamageInstance so the one-per-event
+		# correspondence `last_hits` documents stays exact — the contact is real
+		# (it is what stops a bunker entering the blade), it just carries nothing.
 		di.amount = (
-				blade_state.edge_damage[ev.edge_idx] if ev.is_edge_hit()
+				0.0 if ev.is_edge_hit()
 				else blade_state.vertex_damage[ev.particle_idx])
 		di.type = DamageInstance.Type.PHYSICAL
 		di.target = ev.target as SkillNode
@@ -716,14 +720,8 @@ func build_blade_state() -> BladeState:
 	# read, so preview / AI scoring pop the same vertices the live swing does.
 	for i in selection.size():
 		blade_state.vertex_blunting[i] = selection[i].get_local_value(&"blunting")
-	# Per-EDGE damage (#785), min of the two endpoints' own `edge_damage` — the
-	# sharpener is PAIRED, so both ends must carry it. Mirrors the identical
-	# fill in skill_blade.gd's build_from_skill_nodes.
-	for e_idx in blade_state.edges.size():
-		var e := blade_state.edges[e_idx]
-		blade_state.edge_damage[e_idx] = minf(
-				selection[e.x].get_local_value(&"edge_damage"),
-				selection[e.y].get_local_value(&"edge_damage"))
+	# No per-EDGE fill: ADR 0005 — an edge carries no stats, derived or
+	# otherwise. Its geometry comes from its endpoints, its damage from nowhere.
 	# Dispatch to addons after vertex_damage is populated (mirror
 	# skill_blade.gd's build_from_skill_nodes) — keeps preview/resolve in
 	# parity with the live swing's constraint set (e.g. Clamp's weld brace).

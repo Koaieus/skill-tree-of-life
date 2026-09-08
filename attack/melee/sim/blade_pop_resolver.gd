@@ -47,11 +47,15 @@ extends RefCounted
 ## never pops, so it never reaches [method LiveGate._kill] / mints a Pop).
 class Pop extends RefCounted:
 	var particle_idx: int
-	## The severed EDGE's index into [member BladeState.edges] when this pop is
-	## an edge cut (#785), else -1. Exactly one of `particle_idx` /`edge_idx` is
-	## set, mirroring [BladeHitEvent]'s own convention — an edge capsule is a
-	## full contact for every defender effect, so it pops against spikes just as
-	## a vertex does, and what dies is the edge.
+	## The severed EDGE's index into [member BladeState.edges] when this record
+	## is an edge break, else -1. Exactly one of `particle_idx` / `edge_idx` is
+	## set, mirroring [BladeHitEvent]'s own convention.
+	##
+	## [b]Nothing produces one today[/b] — [method LiveGate._sever_edge] is #781's
+	## seam and has no caller until the bunker lands. Under ADR 0005 a spike
+	## never breaks an edge, so a spike drain can no longer mint an edge Pop; the
+	## record shape is kept because a bunker break needs exactly it, and needs to
+	## reach the replay as a cue the same way a vertex pop does.
 	var edge_idx: int = -1
 	var t: float
 	var defender: SkillNode
@@ -77,8 +81,9 @@ class Pop extends RefCounted:
 ## `pops`: the killing contacts only (drive VFX / hit tracking), in time order.
 class Result extends RefCounted:
 	var dead_at: Dictionary = {}
-	## edge_idx -> time it was severed (#785). The edge counterpart of
-	## `dead_at`; the vertices it orphaned land in `dead_at` as usual.
+	## edge_idx -> time it was severed. The edge counterpart of `dead_at`; the
+	## vertices it orphaned land in `dead_at` as usual. Written only by
+	## [method LiveGate._sever_edge], i.e. by #781's bunker break once it exists.
 	var severed_at: Dictionary = {}
 	var pops: Array[Pop] = []
 
@@ -181,20 +186,22 @@ class LiveGate extends RefCounted:
 		_mark_spent(node, w)
 		return true
 
-	## The edge branch of [method admit] (#785). Deliberately the same ladder as
-	## the vertex branch, in the same order — "a capsule contact is a full
-	## contact for every defender effect" — with three differences forced by the
-	## element being an edge rather than a vertex:
+	## The edge branch of [method admit]. Under [b]ADR 0005[/b] an edge is not a
+	## blunting element at all — [b]spikes pop vertices, bunkers break edges[/b] —
+	## so this branch reads liveness and nothing else: it never touches the
+	## defender's `spikes` pool, never depletes it, and never severs. An edge
+	## sweeping over a spiked node leaves `pool.current` exactly where it was.
 	##
-	## - liveness is "neither endpoint has died and the edge itself is intact",
-	##   since an edge hanging off a popped vertex is no longer swinging;
-	## - there is NO pivot exemption. The exemption exists so the wielder's own
-	##   handle cannot be popped out from under them; a pivot-INCIDENT edge is
-	##   not the handle, and exempting it would make a bunker unable to bite the
-	##   one edge most likely to be driven into it;
-	## - a full drain severs the EDGE ([method _sever_edge]) instead of killing a
-	##   vertex — both endpoints survive, per #781's "the element that owns the
-	##   contact point is the element that breaks".
+	## [b]This is an explicit SKIP of the spike gate, and it has to be.[/b] The
+	## tempting one-liner — give an edge blunting 0 and let the ladder run — is a
+	## bug, not a shortcut: `remaining >= blunting` is then trivially true, so
+	## every edge contact would `deplete(0)` and sever, which is #778's "zero
+	## means unfilled" gotcha inverted. Hence there is no `_blunting_for_edge`
+	## anywhere in this file, and no pool read below.
+	##
+	## Liveness still applies — "neither endpoint has died and the edge itself is
+	## intact", since an edge hanging off a popped vertex is no longer swinging —
+	## and a de-allocated target is still #502's "no dud for melee".
 	func _admit_edge(ev: BladeHitEvent, w: CombatWorld) -> bool:
 		if _state == null or ev.edge_idx < 0 or ev.edge_idx >= _state.edges.size():
 			return false
@@ -207,35 +214,21 @@ class LiveGate extends RefCounted:
 		var node: NodeCombat = w.combat_for(real_node) if real_node != null else null
 		if node == null or not node.is_allocated():
 			return false
-		if _attacker != null and node.ownership_bit(_attacker) == SkillNode.Ownership.MINE:
-			return true
-		var pool := _spikes_pool(node)
-		var remaining := float(pool.current) if pool != null else 0.0
-		if remaining <= 0.0:
-			return true
-		var blunting := _blunting_for_edge(e)
-		if remaining >= blunting:
-			pool.deplete(blunting)
-			_mark_spent(node, w)
-			_sever_edge(ev.edge_idx, ev.t, real_node, blunting)
-			return false
-		pool.deplete(remaining)
-		_mark_spent(node, w)
 		return true
 
-	## An edge's blunting: the MIN of its two endpoints'. Same reasoning as
-	## [member BladeState.edge_damage]'s min — an edge is a line between two
-	## nodes, and it is only as capable of shrugging off spikes as its weaker
-	## end. Using the max would let one spiked vertex upgrade every edge
-	## incident to it for free.
-	func _blunting_for_edge(e: Vector2i) -> float:
-		return minf(_blunting_for(e.x), _blunting_for(e.y))
 
 	## Sever [param edge_idx] and disintegrate whatever it was the only path to.
 	## The vertex-kill twin of [method _kill]: same record, same reachability
 	## sweep, same "recorded, never announced from here" rule (#536) — only the
 	## thing that died differs. [method BladeState.remove_edge] drops the
 	## distance constraint too.
+	##
+	## [b]This is #781's seam, and it currently has no caller.[/b] Its one caller
+	## used to be a full spike drain on an edge contact; ADR 0005 retired that —
+	## [b]a spike destroys matter, a bunker destroys structure[/b], so the thing
+	## that breaks an edge is a rigid blade shattering against a bunker, not a
+	## spike ring. Everything a bunker break needs is already here: the record,
+	## the orphan sweep, and the index-stability invariant below.
 	##
 	## [b]It deliberately does NOT invalidate the adjacency cache.[/b] Severance
 	## is recorded in [member BladeState.removed_edges] rather than spliced out
