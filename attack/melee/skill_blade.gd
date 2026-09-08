@@ -188,8 +188,22 @@ func _apply_playback_frame(
 			# floaters or stat-tracking noise leaks through.
 			if ev.is_edge_hit():
 				continue
-			var damage := state.vertex_damage[ev.particle_idx]
+			var damage := state.vertex_damage[ev.particle_idx] * _speed_multiplier(ev)
 			hit.emit(ev.particle_idx, false, ev.target as SkillNode, ev.t, damage)
+
+
+## The speed-scaled damage curve (#779), read off [member owned_by]'s board —
+## this is the VISUAL playback path (the floater/emit-only site), never the
+## authority's real damage. That number comes off [BladeDamageInstance] at
+## [MeleeAttackPlan] resolve time; this only has to agree with it so a
+## preview/ghost swing shows the same figure the real one will land. Falls
+## back to a 1.0 multiplier for an unowned blade (headless fixtures, the
+## sandbox's ownerless preview) via [method BladeState.stat_value]'s guard.
+func _speed_multiplier(ev: BladeHitEvent) -> float:
+	var board: StatBoard = owned_by.stat_board if owned_by != null else null
+	var m := BladeState.stat_value(board, &"blade_speed_multiplier_max", 1.0)
+	var v_half := BladeState.stat_value(board, &"blade_speed_half", 0.0)
+	return BladeState.speed_damage_multiplier(ev.speed, m, v_half)
 
 
 ## Stop any in-flight playback. Emits playback_finished so awaiters wake up.

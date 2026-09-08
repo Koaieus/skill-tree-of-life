@@ -112,7 +112,7 @@ static func scan(
 					seen = {}
 					hit_particle[p_idx] = seen
 				seen[collider] = true
-				events.append(BladeHitEvent.new(t, p_idx, -1, collider))
+				events.append(BladeHitEvent.new(t, p_idx, -1, collider, _speed_at(state, i, p_idx)))
 		for e_idx in edges.size():
 			var e := edges[e_idx]
 			var a := curr[e.x]
@@ -165,3 +165,18 @@ static func _stable_sort(events: Array[BladeHitEvent], graph: Graph) -> void:
 
 static func _element_idx(ev: BladeHitEvent) -> int:
 	return ev.edge_idx if ev.is_edge_hit() else ev.particle_idx
+
+
+## Contact speed for particle [param p_idx] at sample index [param i] —
+## [member BladeState.speed_history][i][p_idx], the physics-rate value the
+## LAST substep of that sample interval produced (#779). Defensive against a
+## state built before this landed (or a fixture that skipped BladeSim.simulate
+## entirely): an out-of-range history or particle index reads 0.0 rather than
+## crashing the scan.
+static func _speed_at(state: BladeState, i: int, p_idx: int) -> float:
+	if i >= state.speed_history.size():
+		return 0.0
+	var step_speeds := state.speed_history[i]
+	if p_idx >= step_speeds.size():
+		return 0.0
+	return step_speeds[p_idx]

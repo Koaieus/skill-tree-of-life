@@ -1,6 +1,6 @@
 # Melee blade — PBD physics & deterministic preview
 
-> ⚠️ **MVP damage model:** blade-**nodes** deal damage; edges are inert. STR//10 scales per-node damage. Face/cycle bonus is deferred post-MVP. See [../design/mvp_decisions.md](../design/mvp_decisions.md) §D-1.
+> ⚠️ **MVP damage model:** blade-**nodes** deal damage; edges are inert. STR//10 scales per-node damage, multiplied by a per-contact speed curve (#779 — see "Speed-scaled damage" below). Face/cycle bonus is deferred post-MVP. See [../design/mvp_decisions.md](../design/mvp_decisions.md) §D-1.
 
 ## Goal
 
@@ -124,6 +124,8 @@ var positions: PackedVector2Array
 var prev_positions: PackedVector2Array    # owned by BladeSim, do not touch
 var inv_masses: PackedFloat32Array        # 0.0 = static (pivot)
 var radii: PackedFloat32Array             # also used as hit radii
+var vertex_damage: PackedFloat32Array     # per-particle damage COEFFICIENT (#779, see below)
+var speed_history: Array[PackedFloat32Array]  # per-particle speed, one entry per sample (#779)
 var pivot_index: int
 var edges: Array[Vector2i]                # (particle_idx, particle_idx)
 var constraints: Array[BladeConstraint]   # projected each iteration
@@ -133,6 +135,9 @@ Built via `BladeState.build(positions, pivot_idx, edges, radii)`. The
 factory seeds one `BladeDistanceConstraint` per edge with `rest =
 initial distance`. Callers append additional constraints before
 simulating.
+
+`vertex_damage[i]` is **not** the amount a contact lands — see "Speed-scaled
+damage" below for what turns it into one.
 
 ### `BladeConstraint` (abstract)
 
@@ -355,6 +360,109 @@ most one event per collider across the whole sweep, on first contact.
 The trajectory step is fine enough (default `1/120s`) that sample-boundary
 proximity is sufficient for hit detection at game speeds; no full
 swept-volume continuous collision needed.
+
+Each particle `BladeHitEvent` is also stamped with `speed` — the contacting
+vertex's own speed at its contact sample, read off `state.speed_history`
+(#779, see "Speed-scaled damage" below). An edge `BladeHitEvent` is never
+stamped (`speed` stays `0.0`); nothing reads it for one today.
+
+## Speed-scaled damage (#779)
+
+`damage = blade_damage × f(speed)`, evaluated **per contact**, from the
+contacting vertex's own speed at its own contact time — not a blade-wide
+average and not a per-step maximum. The curve is a saturating hyperbolic,
+owner-pinned:
+
+```
+f(v) = 1 + (M - 1) * v / (v + v_half)
+```
+
+`f(0) == 1` exactly (a stationary vertex deals its base coefficient, never a
+penalty); `f(v_half) == 1 + (M-1)/2` (half the bonus collected at `v_half`);
+`f(v → ∞) → M` (bounded — an artificially huge speed lands at the configured
+max, never a proportional runaway number). `M` and `v_half` are `ScalarStat`s
+on the board (`blade_speed_multiplier_max`, `blade_speed_half`; #772's
+`.claude/rules/stat-knobs-and-bins.md`), never hardcoded. Floored at `1.0`
+unconditionally — even a misconfigured `M < 1.0` cannot turn into a penalty;
+that variant (`<1.0` for real, punishing a slow blade) is a separate,
+deliberately parked future issue.
+
+Implementation, entirely in `attack/melee/sim/`:
+
+- **`BladeState.speed_damage_multiplier(speed, m, v_half)`** is the curve
+  itself — a static helper taking raw numbers rather than a `BladeHitEvent`
+  or a `StatBoard`, so an edge hit (#785, not landed — edges have no
+  collision yet) can reuse the identical curve once it exists, instead of a
+  second inlined copy. `BladeState.stat_value(board, id, fallback)` is the
+  matching stat-read guard (mirrors `CritRoll.multiplier_for`'s null
+  handling), since this unit owns no file `CritRoll` lives in.
+- **`vertex_damage[i]` is a per-particle COEFFICIENT, not the landing
+  amount.** It used to be the full per-contact damage read directly by the
+  hit sites; it is now the wielder's localized `blade_damage` (unchanged —
+  this is a pure bonus, base damage was NOT rebalanced down) multiplied by
+  `speed_damage_multiplier` at each hit site.
+- **`speed_history` retains the PHYSICS rate, not the sample rate.**
+  `BladeSim._step` already computed a per-particle `sp_sq` before this landed
+  (feeding the existing velocity-scaled sweep budget) but only kept the
+  step's aggregate max. `_step` now returns each particle's own speed for
+  that substep; `BladeSim.simulate` keeps the LAST substep's return per
+  sample interval — the physics-rate value closest to that sample's time —
+  and appends it to `state.speed_history`, index-parallel to
+  `BladeTrajectory.samples` (including a zero-filled entry at index 0, for
+  the pre-step pose, mirroring `samples[0]`'s meaning, #633). Substeps matter
+  here specifically because #790 made the substep count independent of the
+  sample count — a caller with `substeps > 1` gets a materially better speed
+  estimate than reading it off the sample-to-sample position delta would.
+- **`BladeHitScan.scan` stamps each particle event's `speed`** off
+  `state.speed_history[i][p_idx]` at the event's own sample index `i` —
+  never a rescan, never an average.
+- **The two real damage sites both multiply, at two different clocks, for
+  two different audiences:**
+  - `BladeDamageInstance.land_on` (the authority's own real damage,
+    `attack/melee/sim/blade_damage_instance.gd`) multiplies `amount` — which
+    `MeleeAttackPlan.resolve_against` stamped as the bare coefficient — by
+    `speed_damage_multiplier(_event.speed, ...)`, reading `M`/`v_half` off
+    `attacker.stat_board`, immediately before `super.land_on()` applies it.
+    This runs exactly once per hit, on the authority's own resolve.
+  - `SkillBlade._apply_playback_frame`'s `hit` signal (the VISUAL floater
+    for a live or ghost swing) applies the identical curve, reading
+    `owned_by.stat_board`, so a preview/ghost swing shows the number the real
+    swing will land. It is cosmetic — nothing downstream of that signal is
+    gameplay-authoritative.
+
+### Determinism — safe, and why
+
+Speed-scaled damage means a particle's float POSITION now turns into a
+LANDING AMOUNT — a genuinely new category of consequence. `blade_arc_driver.gd`'s
+`#547` comment used to claim *"a last-ulp difference here moves a particle,
+not a landing"*; that is no longer literally true in spirit; damage now rides
+on exactly the kind of position-derived number #547 was talking about.
+
+**This is still safe, for one reason, and it is not "the math is simple
+enough to agree across platforms."** ADR 0002 settles the actual reason: a
+peer re-simulates the blade only to *draw* it. Every damage number and the
+hit set itself come off the `AttackRecord` the authority captured
+POST-APPLY — `AttackRecord.rebuild()` never constructs a
+`BladeDamageInstance` (it rebuilds a plain `DamageInstance` typed `TRUE`,
+carrying the host's already-computed `effective_amount` straight through
+mitigation), so a peer is physically incapable of re-evaluating `f(speed)`
+against its own, potentially float-divergent, re-simulated positions. The
+authority resolves and lands on a shadow world exactly once; every peer,
+including the host's own live world, replays that one recorded result
+(`.claude/rules/attack-timeline.md`).
+
+**No peer may ever re-decide a landing from its own sim.** If a future change
+ever makes a peer call `BladeDamageInstance.land_on` (or otherwise
+re-evaluate `speed_damage_multiplier` against locally-simulated positions)
+to save wire bytes, that is the day this section's safety argument stops
+holding — see `.claude/rules/multiplayer-sync.md`. Do not "fix" the #547
+comment's cosine by adding quantization or avoiding transcendentals here:
+the transcendental/float-divergence concern is void as a design driver for
+this curve — `speed_damage_multiplier` itself is pure `+ - * /`, and the one
+transcendental-adjacent op anywhere in this path (`sqrt`, deriving a scalar
+speed from `sp_sq` in `BladeSim._step`) is exempt from `lint-transcendentals`
+as IEEE-754 correctly-rounded. The hyperbolic form was chosen on feel, not on
+determinism.
 
 ## Engine-side wiring
 

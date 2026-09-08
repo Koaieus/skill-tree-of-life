@@ -76,6 +76,12 @@ static func simulate(
 	# the docstring above (#633). Do not shift sample()'s indexing instead;
 	# that was considered and rejected in favor of the data meaning what it says.
 	traj.samples = [state.positions.duplicate()]
+	# speed_history[0] parallels samples[0]: zero for every particle, since
+	# nothing has stepped yet (#779). Freshly rebuilt every simulate() call,
+	# never accumulated across calls — see BladeState.speed_history's docstring.
+	var zero_speeds := PackedFloat32Array()
+	zero_speeds.resize(state.positions.size())
+	state.speed_history = [zero_speeds]
 	var steps := int(ceil(duration / dt))
 	var sub := maxi(substeps, 1)
 	var sub_dt := dt / float(sub)
@@ -84,10 +90,14 @@ static func simulate(
 	var length_factor := _length_factor(state.pivot_eccentricity()) if enable_length_scaling else 1.0
 	for step in steps:
 		var t0 := float(step) * dt
+		var step_speeds := zero_speeds
 		for s in sub:
 			var t := t0 + float(s + 1) * sub_dt
-			_step(state, drivers, t, sub_dt, base_iterations, velocity_iter_ref, sub, length_factor)
+			step_speeds = _step(state, drivers, t, sub_dt, base_iterations, velocity_iter_ref, sub, length_factor)
 		traj.samples.append(state.positions.duplicate())
+		# The LAST substep's speeds — the physics rate closest to this
+		# sample's time, not an average or the step's max (#779).
+		state.speed_history.append(step_speeds)
 	return traj
 
 
@@ -100,6 +110,12 @@ static func _length_factor(eccentricity: int) -> float:
 	return 1.0 + LENGTH_ITER_SCALE * float(over)
 
 
+## Returns this substep's per-particle speed (px/s), 0.0 for a static
+## particle (the pivot). #779: the caller retains only the LAST substep's
+## return per sample interval — see BladeState.speed_history's docstring for
+## why an average or this step's max (`max_speed_sq` below, a SEPARATE,
+## pre-existing concept feeding the velocity-scaled sweep budget, not this)
+## would be the wrong value to carry onto a hit event.
 static func _step(
 		state: BladeState,
 		drivers: Array[BladeDriver],
@@ -108,11 +124,13 @@ static func _step(
 		base_iters: int,
 		vel_ref: float,
 		substeps: int,
-		length_factor: float) -> void:
+		length_factor: float) -> PackedFloat32Array:
 	var positions := state.positions
 	var prev := state.prev_positions
 	var inv_masses := state.inv_masses
 	var n := positions.size()
+	var speeds := PackedFloat32Array()
+	speeds.resize(n)
 	# Verlet integrate dynamic particles; track max speed for iter scaling.
 	var max_speed_sq := 0.0
 	for i in n:
@@ -122,6 +140,7 @@ static func _step(
 			prev[i] = p
 			positions[i] = p + v
 			var sp_sq := v.length_squared() / (dt * dt)
+			speeds[i] = sqrt(sp_sq)
 			if sp_sq > max_speed_sq:
 				max_speed_sq = sp_sq
 		else:
@@ -145,3 +164,4 @@ static func _step(
 			c.project(positions, inv_masses)
 	state.positions = positions
 	state.prev_positions = prev
+	return speeds

@@ -14,12 +14,29 @@ var radii: PackedFloat32Array
 ## (no constraint reads it); carried purely so the visual layer can draw a
 ## blade node's disc + rim band matching the SkillNode it was built from.
 var inner_radii: PackedFloat32Array
-## Per-particle blade damage — the FULL per-contact amount for each vertex,
-## not a delta. Zeroed in build(); the caller fills each slot from the source
-## SkillNode's get_local_value(&"blade_damage") (which already merges the
-## wielder's base + any node-local spike modifiers). Read directly by the hit
-## sites — no base added on top.
+## Per-particle blade damage — a COEFFICIENT, not the final landing amount
+## (#779; was the full per-contact amount before speed-scaled damage). Zeroed
+## in build(); the caller fills each slot from the source SkillNode's
+## get_local_value(&"blade_damage") (which already merges the wielder's base +
+## any node-local spike modifiers). A hit site turns this into the actual
+## damage by multiplying with [method speed_damage_multiplier] at the
+## contacting vertex's own contact-time speed — no base added on top, but a
+## curve now sits between this value and what lands.
 var vertex_damage: PackedFloat32Array
+## Per-particle contact speed (px/s), one entry per trajectory sample —
+## `speed_history[k]` parallels what `BladeTrajectory.samples[k]` would be,
+## index for index. Reset to a single all-zero entry (for the pre-step pose,
+## matching `samples[0]`'s "before any solver step" meaning, #633) at the top
+## of every [method BladeSim.simulate] call, then appended to once per sample
+## interval — never accumulated across separate `simulate()` calls.
+##
+## Each appended entry is the LAST substep's per-particle speed for that
+## interval — the physics rate, not the sample rate (#779; see
+## `BladeSim._step`'s `sp_sq` and `docs/domain/melee-blade-sim.md`'s
+## speed-scaled damage section for why an average or a per-step max would be
+## wrong here). [BladeHitScan] reads this to stamp each [BladeHitEvent]'s
+## contact speed.
+var speed_history: Array[PackedFloat32Array] = []
 var pivot_index: int = 0
 var edges: Array[Vector2i] = []
 var constraints: Array[BladeConstraint] = []
@@ -89,3 +106,42 @@ func pivot_eccentricity() -> int:
 				hops[nb] = h + 1
 				queue.append(nb)
 	return max_hops
+
+
+## Speed-scaled damage curve (#779) — the saturating hyperbolic the owner
+## pinned 2026-09-08: `f(v) = 1 + (M - 1) * v / (v + v_half)`.
+##
+## `f(0) == 1.0` exactly, floored — a stationary vertex deals its base
+## coefficient, never a penalty. `f(v_half) == 1 + (m-1)/2` (half the bonus
+## collected); `f(v -> inf) -> m` (bounded, never "infinite speed means
+## infinite damage" per the owner's filing comment). Floored at `1.0`
+## unconditionally, even if a misconfigured `m < 1.0` would otherwise produce
+## a penalty — that variant is explicitly parked (#772 pt. 2 NOTES), not this
+## issue's to build.
+##
+## A static helper taking raw numbers, not a [BladeHitEvent] or a
+## [StatBoard], so an edge hit (#785 — not landed; edges have no collision
+## yet) can reuse the identical curve once it exists, instead of a second
+## inlined copy.
+static func speed_damage_multiplier(speed: float, m: float, v_half: float) -> float:
+	var denom := speed + v_half
+	if denom <= 0.0:
+		# Degenerate config (v_half <= 0 and a zero/negative speed) — never
+		# divide by zero; a slow vertex still deals its base coefficient.
+		return 1.0
+	var f := 1.0 + (m - 1.0) * speed / denom
+	return maxf(1.0, f)
+
+
+## Read a scalar stat off [param board] by [param id], falling back to
+## [param fallback] when the board or the stat itself is missing (a headless
+## fixture, an unowned preview blade with no wielder). Mirrors [method
+## CritRoll.multiplier_for]'s same guard, kept local rather than shared
+## because this unit owns no file [CritRoll] lives in.
+static func stat_value(board: StatBoard, id: StringName, fallback: float) -> float:
+	if board == null:
+		return fallback
+	var stat: Stat = board.get_stat(id)
+	if stat == null:
+		return fallback
+	return stat.get_value()

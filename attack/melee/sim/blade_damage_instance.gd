@@ -37,4 +37,15 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 		if pop != null:
 			popped_vertex = pop.defender
 		return
+	# #779: `amount` still holds the COEFFICIENT MeleeAttackPlan.resolve_against
+	# stamped it with (blade_state.vertex_damage[particle_idx]) — the curve is
+	# applied HERE, once, on the authority's own resolve, never on a peer's
+	# replay. AttackRecord.rebuild() never constructs a BladeDamageInstance (it
+	# rebuilds a plain DamageInstance and carries the post-mitigation number
+	# instead, per ADR 0002 / docs/domain/melee-blade-sim.md's determinism
+	# note), so this multiply cannot run twice.
+	var board: StatBoard = attacker.stat_board if attacker != null else null
+	var m := BladeState.stat_value(board, &"blade_speed_multiplier_max", 1.0)
+	var v_half := BladeState.stat_value(board, &"blade_speed_half", 0.0)
+	amount *= BladeState.speed_damage_multiplier(_event.speed, m, v_half)
 	super.land_on(node, world)
