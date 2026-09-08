@@ -50,8 +50,27 @@ var speed_history: Array[PackedFloat32Array] = []
 ## leave the array zeroed, and [method BladePopResolver.LiveGate._blunting_for]
 ## falls back to the `blunting` [StatDef]'s own default.
 var vertex_blunting: PackedFloat32Array
+## Per-EDGE damage coefficient — the exact counterpart of [member
+## vertex_damage], one slot per entry of [member edges], and read the same way
+## (a hit site multiplies it by [method speed_damage_multiplier]). Zeroed in
+## [method build]; both blade-build call sites fill each slot with the MIN of
+## its two endpoints' `get_local_value(&"edge_damage")`.
+##
+## Min, not sum/max/lerp, because the sharpener is PAIRED: an edge is sharp
+## only if both of its ends carry the grant, which falls straight out of a min
+## and needs no per-edge addon hook. The `edge_damage` StatDef defaults to 0,
+## so an unsharpened blade's edges collide but deal nothing (#785 acceptance 4).
+var edge_damage: PackedFloat32Array
 var pivot_index: int = 0
 var edges: Array[Vector2i] = []
+## Severed edge indices — `edges` itself is never spliced, because a
+## [BladeHitEvent] carries an `edge_idx` INTO it and a splice would silently
+## re-point every pending event past the removal. So removal is recorded here
+## instead: an index in this set is gone for every purpose ([method
+## BladePopResolver._reachable_from_pivot] does not traverse it, [BladeHitScan]
+## does not query it, its distance constraint is dropped by [method
+## remove_edge]). #781's bunker break writes here too.
+var removed_edges: Dictionary = {}
 var constraints: Array[BladeConstraint] = []
 
 
@@ -79,6 +98,8 @@ static func build(
 	s.vertex_damage.resize(positions_.size())  # zero-init; caller fills per-vertex
 	s.vertex_blunting = PackedFloat32Array()
 	s.vertex_blunting.resize(positions_.size())  # zero-init == unfilled; see the member
+	s.edge_damage = PackedFloat32Array()
+	s.edge_damage.resize(edges_.size())  # zero-init; an unsharpened edge deals 0
 	s.inv_masses = PackedFloat32Array()
 	s.inv_masses.resize(positions_.size())
 	for i in positions_.size():
@@ -87,6 +108,40 @@ static func build(
 		var rest := positions_[e.x].distance_to(positions_[e.y])
 		s.constraints.append(BladeDistanceConstraint.new(e.x, e.y, rest))
 	return s
+
+
+## True if [param edge_idx] has been severed this swing — see [member
+## removed_edges].
+func is_edge_removed(edge_idx: int) -> bool:
+	return removed_edges.has(edge_idx)
+
+
+## Sever [param edge_idx]: mark it in [member removed_edges] and drop its
+## [BladeDistanceConstraint], so a re-run of the sim no longer holds its
+## endpoints together. Idempotent. Returns true if this call did the removing.
+##
+## The constraint is matched on its (a, b) endpoint pair rather than by index:
+## [method build] seeds constraints one-per-edge in order, but addons append
+## further constraints afterwards (ClampAddon's phantom brace), so index parity
+## between `edges` and `constraints` is not a promise this class makes. A brace
+## is deliberately NOT dropped — it is not this edge.
+##
+## Callers driving a [BladePopResolver.LiveGate] must follow this with
+## [method BladePopResolver.LiveGate.invalidate_adjacency]; the gate's own
+## sever path already does.
+func remove_edge(edge_idx: int) -> bool:
+	if edge_idx < 0 or edge_idx >= edges.size() or removed_edges.has(edge_idx):
+		return false
+	removed_edges[edge_idx] = true
+	var e := edges[edge_idx]
+	for i in constraints.size():
+		var dc := constraints[i] as BladeDistanceConstraint
+		if dc == null:
+			continue
+		if (dc.a == e.x and dc.b == e.y) or (dc.a == e.y and dc.b == e.x):
+			constraints.remove_at(i)
+			break
+	return true
 
 
 ## Hop count from the pivot to the farthest vertex, walking `constraints`

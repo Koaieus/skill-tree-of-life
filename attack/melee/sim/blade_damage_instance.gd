@@ -2,8 +2,8 @@ class_name BladeDamageInstance
 extends DamageInstance
 
 ## Melee's land-time gate (#502). [method MeleeAttackPlan.resolve] stays pure
-## and up-front — it still emits one of these per non-edge [BladeHitEvent],
-## whether or not the swing will actually land it. The live re-check
+## and up-front — it still emits one of these per [BladeHitEvent], vertex or
+## edge (#785), whether or not the swing will actually land it. The live re-check
 ## (is_allocated() / owned_by / spike-pop, all against the REAL world) happens
 ## here, in [method land_on], which [OutcomeApplier] calls once per hit in
 ## [member HitInstance.arrival_time] order — by then any earlier hit in the
@@ -38,7 +38,8 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 			popped_vertex = pop.defender
 		return
 	# #779: `amount` still holds the COEFFICIENT MeleeAttackPlan.resolve_against
-	# stamped it with (blade_state.vertex_damage[particle_idx]) — the curve is
+	# stamped it with (vertex_damage[particle_idx], or edge_damage[edge_idx] for
+	# an edge contact under #785 — one curve, both elements) — the curve is
 	# applied HERE, once, on the authority's own resolve, never on a peer's
 	# replay. AttackRecord.rebuild() never constructs a BladeDamageInstance (it
 	# rebuilds a plain DamageInstance and carries the post-mitigation number

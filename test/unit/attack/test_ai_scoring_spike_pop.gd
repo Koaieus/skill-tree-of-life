@@ -17,22 +17,32 @@ extends GutTest
 ## widened to a second arm at a second radius: a full swing sweeps a complete
 ## TAU circle, so the only way to give one arm a target the OTHER arm cannot
 ## also reach is to put the two targets on different-radius circles.
+##
+## [b]#785 constrains WHICH arm gets the spike.[/b] Now that blade EDGES collide
+## (swept capsules), an arm's reach is the whole DISC out to its radius, not a
+## ring at it — so the long arm's edge sweeps over everything the short arm can
+## touch, and containment is one-way. The spiked target therefore has to sit on
+## the LONG arm: if it sat on the short one, the long arm's edge would drain and
+## sever against it and no swing could ever be the "landed, popped nothing"
+## control. The long edge does still cross the plain target, but `edge_damage`
+## defaults to 0, so that contact lands nothing and the arithmetic below is
+## unchanged. Do not swap the radii back.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _SPIKE_SCENE := preload("res://skill_node/addons/spike_ring_addon.tscn")
 
-const _NEAR := 150.0
-const _FAR := 320.0
+const _SHORT := 150.0
+const _LONG := 400.0
 
 var _graph: Graph
 var _alloc: AllocationSystem
 var _attacker: Entity
 var _defender: Entity
 var _pivot: SkillNode
-var _near_arm: SkillNode
-var _far_arm: SkillNode
+var _long_arm: SkillNode
+var _short_arm: SkillNode
 var _spiked: SkillNode
 var _plain: SkillNode
 
@@ -67,23 +77,25 @@ func before_each() -> void:
 	_defender.faction = enemy_camp
 	_graph.add_child(_defender)
 
-	# Pivot ── NearArm (r=150, coincident with Spiked)
-	#       └─ FarArm  (r=320, coincident with Plain)
-	# Two radii so neither arm's TAU sweep can reach the other's target.
+	# Pivot ── LongArm  (r=400, coincident with Spiked)
+	#       └─ ShortArm (r=150, coincident with Plain)
+	# Two radii so the SHORT arm's TAU sweep cannot reach the long arm's target;
+	# see the #785 note in the class docstring for why the spike goes on the
+	# long arm rather than the short one.
 	_pivot = _spawn("Pivot", Vector2.ZERO)
-	_near_arm = _spawn("NearArm", Vector2(_NEAR, 0.0))
-	_far_arm = _spawn("FarArm", Vector2(_FAR, 0.0))
-	_graph.add_edge(_pivot, _near_arm)
-	_graph.add_edge(_pivot, _far_arm)
+	_long_arm = _spawn("LongArm", Vector2(_LONG, 0.0))
+	_short_arm = _spawn("ShortArm", Vector2(_SHORT, 0.0))
+	_graph.add_edge(_pivot, _long_arm)
+	_graph.add_edge(_pivot, _short_arm)
 
-	_spiked = _spawn("Spiked", Vector2(_NEAR, 0.0))
-	_plain = _spawn("Plain", Vector2(_FAR, 0.0))
+	_spiked = _spawn("Spiked", Vector2(_LONG, 0.0))
+	_plain = _spawn("Plain", Vector2(_SHORT, 0.0))
 
 	await get_tree().process_frame
 
 	_alloc.force_allocate(_attacker, _pivot)
-	_alloc.force_allocate(_attacker, _near_arm)
-	_alloc.force_allocate(_attacker, _far_arm)
+	_alloc.force_allocate(_attacker, _long_arm)
+	_alloc.force_allocate(_attacker, _short_arm)
 	_attacker.core_location = _pivot
 	_alloc.force_allocate(_defender, _spiked)
 	_alloc.force_allocate(_defender, _plain)
@@ -120,7 +132,7 @@ func _swing(arm: SkillNode) -> AttackOutcome:
 # ---------------------------------------------------------------------------
 
 func test_a_popped_vertex_banks_no_expected_damage() -> void:
-	var outcome := _swing(_near_arm)
+	var outcome := _swing(_long_arm)
 
 	assert_gt(outcome.hits.size(), 0,
 			"the swing must produce a contact or this proves nothing")
@@ -134,7 +146,7 @@ func test_a_popped_vertex_banks_no_expected_damage() -> void:
 
 
 func test_an_unpopped_swing_still_banks_its_real_damage() -> void:
-	var outcome := _swing(_far_arm)
+	var outcome := _swing(_short_arm)
 
 	assert_eq(outcome.thinned_nodes, 0, "an un-spiked target pops nothing")
 	assert_gt(AiCombatScorer.expected_damage(outcome, _attacker), 0.0,
@@ -157,7 +169,7 @@ func test_shadow_effective_amount_agrees_with_live_mitigation() -> void:
 	_plain.add_local_modifier(mod)
 	await get_tree().process_frame
 
-	var outcome := _swing(_far_arm)
+	var outcome := _swing(_short_arm)
 
 	assert_gt(outcome.hits.size(), 0, "the far arm must connect")
 	for hit in outcome.hits:
@@ -171,9 +183,9 @@ func test_shadow_effective_amount_agrees_with_live_mitigation() -> void:
 
 func test_the_ai_prefers_a_swing_that_lands_over_one_that_pops() -> void:
 	var popped := AiCombatScorer.score(BattleSystem.AttackMode.MELEE,
-			_swing(_near_arm), _spiked, _attacker, 0)
+			_swing(_long_arm), _spiked, _attacker, 0)
 	var landed := AiCombatScorer.score(BattleSystem.AttackMode.MELEE,
-			_swing(_far_arm), _plain, _attacker, 0)
+			_swing(_short_arm), _plain, _attacker, 0)
 
 	var candidates: Array[AiCombatScorer.ScoredCandidate] = [popped, landed]
 	assert_eq(AiCombatScorer.pick_best(candidates), landed,
@@ -189,7 +201,7 @@ func test_the_ai_prefers_a_swing_that_lands_over_one_that_pops() -> void:
 ## blade does: NearArm pops on the spiked node while FarArm connects on the
 ## plain one, and only the second contributes.
 ##
-## NearArm carries the HEAVIER raw `blade_damage` on purpose. [method
+## LongArm carries the HEAVIER raw `blade_damage` on purpose. [method
 ## AiBladeRollout._primary_target] ranks by the largest single hit, and the
 ## whole point of #692 is that a popped hit's raw `amount` is a lie — so the
 ## fixture is built to make the lie win if anyone reads it.
@@ -210,21 +222,21 @@ func _mixed_swing() -> AttackOutcome:
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = _attacker
 	plan.source = _pivot
-	plan.blade_nodes = [_near_arm, _far_arm]
+	plan.blade_nodes = [_long_arm, _short_arm]
 	assert_true(plan.is_valid(), "fixture plan should validate: %s" % str(plan.validate()))
 	return plan.resolve()
 
 
 func test_a_mixed_swing_banks_only_the_arm_that_landed() -> void:
-	_heavy_blade(_near_arm, 20.0)
+	_heavy_blade(_long_arm, 20.0)
 	await get_tree().process_frame
 
-	var far_only := AiCombatScorer.expected_damage(_swing(_far_arm), _attacker)
+	var far_only := AiCombatScorer.expected_damage(_swing(_short_arm), _attacker)
 	assert_gt(far_only, 0.0, "the far arm alone must land something to compare against")
 
 	var outcome := _mixed_swing()
 	assert_eq(outcome.thinned_nodes, 1,
-			"the near arm popped; the far arm hangs off the pivot and survives it")
+			"the long arm popped; the short arm hangs off the pivot and survives it")
 	assert_almost_eq(AiCombatScorer.expected_damage(outcome, _attacker), far_only, 0.001,
 			"the popped arm contributes nothing and the landed arm contributes all of it")
 
@@ -234,7 +246,7 @@ func test_a_mixed_swing_banks_only_the_arm_that_landed() -> void:
 ## would then compare the whole swing's EV against the HP of a node that took
 ## none of it, handing out `_KILL_BONUS` for a kill that cannot happen.
 func test_the_primary_target_is_the_node_that_actually_took_damage() -> void:
-	_heavy_blade(_near_arm, 20.0)
+	_heavy_blade(_long_arm, 20.0)
 	await get_tree().process_frame
 
 	var outcome := _mixed_swing()
@@ -259,7 +271,7 @@ func test_the_primary_target_is_the_node_that_actually_took_damage() -> void:
 ## `effective_amount` against a `-1.0` seed would instead have returned the
 ## first gated hit and kept a candidate that can only ever lose.
 func test_a_fully_popped_swing_anchors_on_nothing() -> void:
-	var outcome := _swing(_near_arm)
+	var outcome := _swing(_long_arm)
 	var visible: Array[SkillNode] = [_spiked, _plain]
 
 	assert_gt(outcome.hits.size(), 0, "there were contacts — they just all popped")

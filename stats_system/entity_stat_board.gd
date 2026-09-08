@@ -138,6 +138,14 @@ extends StatBoard
 ## Base 1; SpikeRingAddon raises a spiked vertex to 2. Node-local addons add
 ## on top per-node via node_board, mirroring blade_damage.
 @export var blunting: ScalarStat
+## Damage per blade EDGE contact (#785) — shear along a sharpened edge, the
+## companion to [member blade_damage]'s concentrated vertex impact. Default 0:
+## edges always COLLIDE (so nothing slips between two vertices) but deal
+## nothing until a sharpener grants this. Node-local addons add on top per-node
+## via node_board, mirroring blade_damage; an edge's value is the MIN of its two
+## endpoints' local values, so a "paired" sharpener must sit on both ends.
+## Deliberately NOT derived from blade_damage — see the StatDef description.
+@export var edge_damage: ScalarStat
 ## M in the speed-scaled blade damage curve f(v) = 1 + (M-1) x v/(v+v_half)
 ## (#779) — the multiplier blade_damage (and edge_damage, #785) saturates
 ## toward as contact speed grows. Floored at 1, never a penalty.

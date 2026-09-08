@@ -47,13 +47,25 @@ extends RefCounted
 ## never pops, so it never reaches [method LiveGate._kill] / mints a Pop).
 class Pop extends RefCounted:
 	var particle_idx: int
+	## The severed EDGE's index into [member BladeState.edges] when this pop is
+	## an edge cut (#785), else -1. Exactly one of `particle_idx` /`edge_idx` is
+	## set, mirroring [BladeHitEvent]'s own convention — an edge capsule is a
+	## full contact for every defender effect, so it pops against spikes just as
+	## a vertex does, and what dies is the edge.
+	var edge_idx: int = -1
 	var t: float
 	var defender: SkillNode
 	var position: Vector2
 	var blunting_spent: float
 
-	func _init(particle_idx_: int, t_: float, defender_: SkillNode, blunting_spent_: float) -> void:
+	func _init(
+			particle_idx_: int,
+			t_: float,
+			defender_: SkillNode,
+			blunting_spent_: float,
+			edge_idx_: int = -1) -> void:
 		particle_idx = particle_idx_
+		edge_idx = edge_idx_
 		t = t_
 		defender = defender_
 		blunting_spent = blunting_spent_
@@ -65,6 +77,9 @@ class Pop extends RefCounted:
 ## `pops`: the killing contacts only (drive VFX / hit tracking), in time order.
 class Result extends RefCounted:
 	var dead_at: Dictionary = {}
+	## edge_idx -> time it was severed (#785). The edge counterpart of
+	## `dead_at`; the vertices it orphaned land in `dead_at` as usual.
+	var severed_at: Dictionary = {}
 	var pops: Array[Pop] = []
 
 	func is_dead(particle_idx: int, t: float) -> bool:
@@ -138,7 +153,7 @@ class LiveGate extends RefCounted:
 		var w := world
 		_last_pop = null
 		if ev.is_edge_hit():
-			return false
+			return _admit_edge(ev, w)
 		if result.is_dead(ev.particle_idx, ev.t):
 			return false  # already popped or disintegrated by an earlier LIVE kill
 		var real_node := ev.target as SkillNode
@@ -165,6 +180,72 @@ class LiveGate extends RefCounted:
 		pool.deplete(remaining)
 		_mark_spent(node, w)
 		return true
+
+	## The edge branch of [method admit] (#785). Deliberately the same ladder as
+	## the vertex branch, in the same order — "a capsule contact is a full
+	## contact for every defender effect" — with three differences forced by the
+	## element being an edge rather than a vertex:
+	##
+	## - liveness is "neither endpoint has died and the edge itself is intact",
+	##   since an edge hanging off a popped vertex is no longer swinging;
+	## - there is NO pivot exemption. The exemption exists so the wielder's own
+	##   handle cannot be popped out from under them; a pivot-INCIDENT edge is
+	##   not the handle, and exempting it would make a bunker unable to bite the
+	##   one edge most likely to be driven into it;
+	## - a full drain severs the EDGE ([method _sever_edge]) instead of killing a
+	##   vertex — both endpoints survive, per #781's "the element that owns the
+	##   contact point is the element that breaks".
+	func _admit_edge(ev: BladeHitEvent, w: CombatWorld) -> bool:
+		if _state == null or ev.edge_idx < 0 or ev.edge_idx >= _state.edges.size():
+			return false
+		if _state.is_edge_removed(ev.edge_idx):
+			return false
+		var e := _state.edges[ev.edge_idx]
+		if result.is_dead(e.x, ev.t) or result.is_dead(e.y, ev.t):
+			return false
+		var real_node := ev.target as SkillNode
+		var node: NodeCombat = w.combat_for(real_node) if real_node != null else null
+		if node == null or not node.is_allocated():
+			return false
+		if _attacker != null and node.ownership_bit(_attacker) == SkillNode.Ownership.MINE:
+			return true
+		var pool := _spikes_pool(node)
+		var remaining := float(pool.current) if pool != null else 0.0
+		if remaining <= 0.0:
+			return true
+		var blunting := _blunting_for_edge(e)
+		if remaining >= blunting:
+			pool.deplete(blunting)
+			_mark_spent(node, w)
+			_sever_edge(ev.edge_idx, ev.t, real_node, blunting)
+			return false
+		pool.deplete(remaining)
+		_mark_spent(node, w)
+		return true
+
+	## An edge's blunting: the MIN of its two endpoints'. Same reasoning as
+	## [member BladeState.edge_damage]'s min — an edge is a line between two
+	## nodes, and it is only as capable of shrugging off spikes as its weaker
+	## end. Using the max would let one spiked vertex upgrade every edge
+	## incident to it for free.
+	func _blunting_for_edge(e: Vector2i) -> float:
+		return minf(_blunting_for(e.x), _blunting_for(e.y))
+
+	## Sever [param edge_idx] and disintegrate whatever it was the only path to.
+	## The vertex-kill twin of [method _kill]: same record, same reachability
+	## sweep, same "recorded, never announced from here" rule (#536) — only the
+	## thing that died differs. [method BladeState.remove_edge] drops the
+	## distance constraint too, and the adjacency cache is invalidated so the
+	## BFS below does not walk the edge that just vanished (#795's seam, used
+	## for the first time here).
+	func _sever_edge(edge_idx: int, t: float, defender: SkillNode, blunting_spent: float) -> void:
+		_state.remove_edge(edge_idx)
+		invalidate_adjacency()
+		result.severed_at[edge_idx] = minf(result.severed_at.get(edge_idx, INF), t)
+		var pop := Pop.new(-1, t, defender, blunting_spent, edge_idx)
+		result.pops.append(pop)
+		_last_pop = pop
+		_disintegrate_unreachable(t)
 
 	## The defender's node-local `spikes` [PoolStat], or null if it never
 	## minted one — i.e. an unspiked node ([SpikeRingAddon] is the only source,
@@ -235,7 +316,15 @@ class LiveGate extends RefCounted:
 		# machine that swung.
 		_last_pop = pop
 		_removed[particle_idx] = true
-		var reachable := BladePopResolver._reachable_from_pivot(_state, _removed, _ensure_adjacency())
+		_disintegrate_unreachable(t)
+
+	## Mark every vertex no longer reachable from the pivot as dead at [param t].
+	## Shared by [method _kill] and [method _sever_edge]: losing a vertex and
+	## losing an edge orphan a fragment by exactly the same criterion, and the
+	## BFS reads both `_removed` and [member BladeState.removed_edges].
+	func _disintegrate_unreachable(t: float) -> void:
+		var reachable := BladePopResolver._reachable_from_pivot(
+				_state, _removed, _ensure_adjacency())
 		for v in _state.positions.size():
 			if v == _state.pivot_index or _removed.has(v):
 				continue
@@ -263,35 +352,55 @@ class LiveGate extends RefCounted:
 		_adjacency_built = false
 
 
-## `state.edges` as an undirected adjacency map: vertex index -> Array[int] of
-## neighbour indices, in the same order those neighbours would be discovered
-## by a linear rescan of `state.edges` for that vertex (#795 — preserves
-## [method _reachable_from_pivot]'s traversal order exactly, so caching this
-## instead of rescanning is behaviour-preserving, not just complexity-preserving).
+## `state.edges` as an undirected adjacency map: vertex index -> Array[Vector2i]
+## of (neighbour index, EDGE index), in the same order those neighbours would be
+## discovered by a linear rescan of `state.edges` for that vertex (#795 —
+## preserves [method _reachable_from_pivot]'s traversal order exactly, so
+## caching this instead of rescanning is behaviour-preserving, not just
+## complexity-preserving).
+##
+## The edge index rides along so the BFS can skip a SEVERED edge (#785/#781)
+## without a second lookup — pairing it into the same Vector2i keeps the walk
+## O(V + E) and adds no per-vertex rescan of `state.edges`, which is exactly
+## what #785 acceptance 7 forbids. Removed edges are NOT pruned at build time:
+## the map is built once per swing and edges are severed during it, so the skip
+## has to happen at traversal, and [method LiveGate.invalidate_adjacency] stays
+## available for a caller that mutates `state.edges` itself.
 static func _build_adjacency(state: BladeState) -> Dictionary:
 	var adjacency: Dictionary = {}
-	for e in state.edges:
+	for e_idx in state.edges.size():
+		var e := state.edges[e_idx]
 		if not adjacency.has(e.x):
-			adjacency[e.x] = [] as Array[int]
+			adjacency[e.x] = [] as Array[Vector2i]
 		if not adjacency.has(e.y):
-			adjacency[e.y] = [] as Array[int]
-		(adjacency[e.x] as Array[int]).append(e.y)
-		(adjacency[e.y] as Array[int]).append(e.x)
+			adjacency[e.y] = [] as Array[Vector2i]
+		(adjacency[e.x] as Array[Vector2i]).append(Vector2i(e.y, e_idx))
+		(adjacency[e.y] as Array[Vector2i]).append(Vector2i(e.x, e_idx))
 	return adjacency
 
 
-## BFS from the pivot over an adjacency map, skipping any vertex in `removed`.
+## BFS from the pivot over an adjacency map, skipping any vertex in `removed`
+## and any EDGE in `removed_edges` (#785 — a bunker that snaps an edge, #781,
+## orphans whatever hung off it just as surely as a popped vertex does).
 ## Returns a set (Dictionary) of reachable particle indices.
 ##
 ## `adjacency` defaults to null (untyped so a caller can omit it, as the
 ## characterization test does): when omitted, this builds a fresh map from
 ## `state.edges` — still O(V + E) for THIS call, just not amortized across a
-## whole swing. [method _kill] passes its cached map instead, so a swing's
-## repeated pops share the one O(E) build (#795's actual fix; see
+## whole swing. [method LiveGate._kill] passes its cached map instead, so a
+## swing's repeated pops share the one O(E) build (#795's actual fix; see
 ## [method LiveGate._ensure_adjacency]).
+##
+## `removed_edges` defaults to the state's own [member BladeState.removed_edges]
+## when omitted (`null`), which is where severance is recorded — an explicit
+## `{}` therefore means "walk every edge", not "ask the state".
 static func _reachable_from_pivot(
-		state: BladeState, removed: Dictionary, adjacency: Variant = null) -> Dictionary:
+		state: BladeState,
+		removed: Dictionary,
+		adjacency: Variant = null,
+		removed_edges: Variant = null) -> Dictionary:
 	var adj: Dictionary = adjacency if adjacency != null else _build_adjacency(state)
+	var cut: Dictionary = removed_edges if removed_edges != null else state.removed_edges
 	var reach: Dictionary = {}
 	var pivot := state.pivot_index
 	reach[pivot] = true
@@ -299,7 +408,10 @@ static func _reachable_from_pivot(
 	while not queue.is_empty():
 		var cur: int = queue.pop_back()
 		var neighbours: Array = adj.get(cur, [])
-		for other in neighbours:
+		for link in neighbours:
+			var other: int = (link as Vector2i).x
+			if cut.has((link as Vector2i).y):
+				continue
 			if removed.has(other) or reach.has(other):
 				continue
 			reach[other] = true

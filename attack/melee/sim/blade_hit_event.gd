@@ -8,11 +8,12 @@ var t: float = 0.0
 var particle_idx: int = -1
 var edge_idx: int = -1
 var target: Object = null
-## The contacting vertex's own speed (px/s) at this contact's sample step —
-## the physics rate, not the sample rate (#779; see BladeState.speed_history).
-## 0.0 for an edge hit: edges have no collision yet (#785) and nothing reads
-## this field for one today; BladeHitScan never stamps it for an edge_idx
-## event.
+## The contacting element's speed (px/s) at this contact's sample step — the
+## physics rate, not the sample rate (#779; see BladeState.speed_history). For
+## a vertex that is the vertex's own speed; for an EDGE (#785) it is the mean
+## of its two endpoints', i.e. the segment midpoint's speed under rigid motion.
+## See BladeHitScan._edge_speed_at for why the mean is what keeps a
+## pivot-adjacent edge near-inert without a flag.
 var speed: float = 0.0
 
 
