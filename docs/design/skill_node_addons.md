@@ -40,6 +40,16 @@ These are established mechanics referenced consistently in the design docs.
 
 ---
 
+### Fortification
+
+**Effect:** Two modifiers. `node_health` — more wall to chew through. And `swing_drag`, its characteristic second effect: a melee swing that sweeps across this node bogs down for the **rest of its arc**.
+
+**Stacks with:** Itself, cumulatively and by design. One fortified node is a nuisance; a wall of them stalls a sweep partway. That gradient is the point — **density is the melee analogue of the gaps that counter magic**.
+
+**Notes:** Drag slows the swing's clock, never a vertex's velocity, so it removes nothing: no severance, no cascade, no popped node. A stalled swing simply never sweeps the rest of its arc, which is how a wall **protects what is behind it** — the spatial, gradual, non-deleting counter melee has never had. Angular progress is monotonic: a swing can be slowed to a crawl but can never reverse, and never freezes outright (that hard stall belongs to Bunker). Composes with speed-scaled damage — drag cuts speed, which cuts the damage multiplier — so the two multiply and should be tuned together. Under ADR 0005 this is a **third** defensive effect: a spike destroys matter, a bunker destroys structure, a wall destroys neither and spends the swing's budget instead. Whether it wants a third modifier on top is open. Implementation: `docs/domain/melee-blade-sim.md`, "Fortification drag".
+
+---
+
 ### Buffer
 
 > **Rewritten.** The old inhale/exhale charge-holding model is gone (melee no longer runs on charged Buffer nodes — it is the phantom blade, sized `STR//10+1`; see `combat_system.md`). Buffer is now a **utility** addon: the key that unlocks **temporary reach** for an attack.

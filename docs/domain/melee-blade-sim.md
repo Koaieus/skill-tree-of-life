@@ -47,6 +47,7 @@ attack/melee/
 │   ├── blade_distance_constraint.gd   pin-joint equivalent (rigid by default)
 │   ├── blade_driver.gd           abstract: apply(positions, t)
 │   ├── blade_arc_driver.gd       circular sweep around a center
+│   ├── blade_swing_clock.gd      the swing's angular progress + Fortification drag
 │   ├── blade_sim.gd              static simulate(state, drivers, duration, dt, ...) → Trajectory
 │   ├── blade_trajectory.gd       per-step PackedVector2Array samples
 │   └── blade_hit_scan.gd         deterministic hit events from trajectory + targets
@@ -204,7 +205,12 @@ ease curve (default sine-in-out: 0 → max angular velocity at midpoint
 → 0). One per pivot-adjacent particle is what `MeleeAttackPlan` builds
 for a swing.
 
-### `BladeSim.simulate(state, drivers, duration, dt, base_iterations, velocity_iter_ref, substeps, enable_length_scaling)`
+Progress is `t / duration` unless a `BladeSwingClock` is attached AND that clock
+is already warping, in which case the driver reads `clock.progress()` instead.
+That is the whole of Fortification drag's reach into this class — see
+"Fortification drag" below.
+
+### `BladeSim.simulate(state, drivers, duration, dt, base_iterations, velocity_iter_ref, substeps, enable_length_scaling, linear_damping, initial_velocities, clock)`
 
 Stateless static. `dt` is the **trajectory sample rate** — the caller's
 contract for how many `traj.samples` come out (`duration / dt` of them),
@@ -628,6 +634,119 @@ transcendental-adjacent op anywhere in this path (`sqrt`, deriving a scalar
 speed from `sp_sq` in `BladeSim._step`) is exempt from `lint-transcendentals`
 as IEEE-754 correctly-rounded. The hyperbolic form was chosen on feel, not on
 determinism.
+
+## Fortification drag (#780)
+
+A wall of fortified nodes bogs a blade down. The magnitude is a defender-side,
+node-local stat, `swing_drag`, base 0; `FortificationAddon` authors the grant, so
+an ordinary node drags nothing.
+
+### It acts on the CLOCK, and it had to
+
+The obvious implementation — bleed velocity off the contacting particle — does
+nothing to a rigid blade, i.e. nothing to exactly the blade it is meant to slow.
+Two mechanisms defeat it, in order: the distance constraints fight the damping,
+and then `_step` re-applies the drivers **after** the Verlet integration, so
+`BladeArcDriver.apply()`, a pure function of its argument, overwrites the damped
+position outright. `simulate()`'s `linear_damping` is the wrong channel for the
+same reason — it is the free-flight knob for an *unpinned* fragment, where there
+is no driver to overwrite anything.
+
+What drag can move is the argument. `BladeSwingClock` owns the angular progress
+`f` the driver evaluates its ease at, and every fortified node the blade touches
+adds its `swing_drag` to a running total. The clock then advances at
+
+```
+f += (sub_dt / duration) * 1 / (1 + drag)
+```
+
+for the rest of the swing. One clock per swing, shared by every arc driver: they
+describe one rigid body turning about one pivot, so a per-driver clock would
+shear the blade.
+
+**Monotonic by construction.** `1 / (1 + drag)` is strictly positive for every
+`drag >= 0` and at most 1, and `f` is clamped at 1, so `f` never decreases and
+never overruns. No configuration of fortified nodes can reverse a swing, and
+none can freeze one either — the *hard* stall is #781's bunker. What a wall does
+instead is spend the arc: five nodes at drag 1 leave the swing at a sixth of its
+nominal rate, so within the fixed swing duration it covers roughly a sixth of its
+sweep and everything further round is simply never reached. That is how a wall
+protects what is behind it — no deletion, no severance, no cascade.
+
+**Causal, not global.** A zone's drag is banked only once its own contact has
+happened, so it slows the rest of the arc and never the approach to itself. A
+global warp would be paradoxical: a fortified node at the end of the sweep would
+retroactively stop the swing from ever reaching it.
+
+**Nothing is paid by a swing that never meets one.** `MeleeAttackPlan` attaches a
+clock only when a fortified node is within the blade's reach; otherwise `clock`
+is null, the driver runs its original expression, and the native backend still
+takes the swing. Even an *attached* clock is inert until first contact — the
+driver keeps reading `t / duration` verbatim, so a swing with a fortified node in
+its field that it never touches is **bit-identical** to one with no field at all.
+That exactness is deliberate: accumulating `f` from t=0 would drift in the last
+bits and quietly make the mere presence of a wall change a swing that never met
+it. A warping clock does force the GDScript backend, joining `linear_damping` and
+seeded velocities on the list of things the C++ transliteration does not model.
+
+### Where it sits under ADR 0005
+
+A spike destroys matter, a bunker destroys structure, and **a wall destroys
+neither — it spends the swing's budget instead.** Drag removes no blade part, so
+it is a *third* defensive effect that cannot violate the ADR's vertex/edge
+disjointness rather than an exception to it.
+
+**Sensing is on discs AND rim-trimmed capsules**, which is a question of what the
+swing *touches*, not of which blade part is doing the defending, so it does not
+disturb that either. This is the surviving half of #785's rule that *a capsule
+contact is a full contact for every defender effect*: ADR 0005 retired the damage
+and spikes half of that rule (an edge carries no stats) but never touched the
+drag and bunker-break half, and #785 is now closed, so the rule lives here.
+The gameplay reason it must survive for drag: a *sweep*'s edges cross exactly the
+gaps between the vertex arcs, so disc-only sensing would reintroduce spacing luck
+for drag **magnitude** against a wall. Spacing luck was ruled harmless for spikes
+because threading a single spiked node is not a strategy — a wall is precisely
+the case where it would be, and the density gradient is the whole mechanic.
+
+**Anti-double-dip is live again, for drag only.** ADR 0005 says #785's
+arbitration is unreachable because "with no edge damage there is nothing to
+double-count". That is true of damage and false of drag: a fortified node touched
+by its disc plus two incident capsules would otherwise bank three times. So a
+zone contributes its `swing_drag` **at most once for the whole swing**. Do not
+delete that rule as redundant on the ADR's authority — the ADR is talking about
+damage.
+
+### Two sensing models, and they can disagree
+
+`BladeSwingClock.sense()` is **analytic** — point-in-disc and point-to-segment —
+where `BladeHitScan` queries `PhysicsDirectSpaceState2D`. That is by necessity,
+not preference: `AiBladeRollout` runs `BladeSim.simulate` from
+`WorkerThreadPool` tasks, where a physics-server query is not safe, so the solver
+must never touch the space state.
+
+The consequence to know, because it will look like a bug: **at the margin a node
+can drag the swing without producing a hit event, or produce a hit event without
+having dragged.** `BladeHitScan` remains the sole authority for hit events,
+damage and pops; the clock decides only how fast time runs. Keep the two
+`_EDGE_RADIUS` constants equal.
+
+Sensing runs once per **trajectory sample**, not per substep — a sample is
+1/120 s against a 1.2 s swing, so the granularity costs under 1% of the arc,
+while per-substep sensing would quadruple the only per-step work the solver does
+outside its own constraint sweeps.
+
+### Determinism and the mirror
+
+The drag field is read off the live graph at resolve time. A mirror peer re-runs
+`plan.resolve()` on a throwaway shadow purely to *draw* (`BattleSystem`'s apply
+path), before the record lands, so it builds the field from the same pre-attack
+node states the authority did. Nothing here is a fresh roll and nothing reads the
+clock across a frame boundary; the same swing replays to the same arc.
+
+`SkillBlade.simulate()` takes the clock too, and `MeleePreview` builds a fresh
+one per ghost cycle (a clock banks what it has already touched, so reusing one
+would start cycle 2 already dragged). Without that the ghost would promise an arc
+the committed swing does not deliver.
 
 ## Free-flight severed fragments (#186)
 
