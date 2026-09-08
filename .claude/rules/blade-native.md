@@ -131,3 +131,18 @@ every parity case passes vacuously the moment `_simulate_native` declines a
 fixture, comparing GDScript to GDScript. Verify with a one-liner:
 `mise run test:one -- res://test/unit/attack/test_blade_native_parity.gd` must
 report **14 passed, 0 pending**, not 14 pending.
+
+## `git worktree remove` now fails on any worktree that inited the submodule
+
+Since `native/godot-cpp` exists, a worktree where someone ran
+`git submodule update --init` cannot be torn down the normal way — git refuses
+with *"working trees containing submodules cannot be moved or removed"*, and
+`--force` does not help. This bites teardown, not setup, so it surfaces at the
+end of a unit when the branch is already merged.
+
+**How to apply:** confirm the branch is merged first (`git -C <repo> log
+--oneline master..<branch>` prints nothing, or you have a diffstat receipt that
+its content landed rebased), then delete the worktree directory and let git
+notice: `rm -rf <worktree-dir> && git -C <repo> worktree prune && git -C <repo>
+branch -d <branch>`. Verify the branch is merged **before** the delete — a
+worktree directory is unrecoverable, and unstaged work inside it doubly so.
