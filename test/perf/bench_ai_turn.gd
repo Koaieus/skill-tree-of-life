@@ -31,6 +31,23 @@ extends GutTest
 ## two identical fresh fixtures. The whole point of the exercise is what #798
 ## bought on THIS path; a table with one column cannot say.
 ##
+## [b]Findings, 2026-09-08[/b] (Ryzen 7 7800X3D, master `689fc27`, headless GUT
+## at ~140 fps — so a process frame is ~7 ms of REAL time, not of work):
+##
+## 1. [b]There is no 2.4 s of deliberation.[/b] The turn costs 4979 ms wall
+##    (native) / 5083 ms (GDScript), of which the zero-frame buckets — every
+##    candidate gather, i.e. all the actual thinking — total [b]32.8 ms /
+##    46.5 ms[/b]. 654 of 707 frames sit inside `allocate` + `execute`, parked
+##    on the presentation clock. `ai_turn_delay` is 0 and `_wait` costs
+##    nothing; the waiting is the applier and the reveal clock.
+## 2. [b]#798 bought 13.7 ms of the whole turn[/b] (0.3%). The rollout shape is
+##    #797's exactly — 2 gathers x (8 coarse + 3 full) = 22 `simulate()` calls
+##    — and those 22 calls cost 14 ms native / 26 ms GDScript in total.
+## 3. [b]The solver is 4% of a resolve; the outcome build+apply pass is 71%.[/b]
+##    `BladeHitScan.scan` is 22%. At this fixture's 2-vertex blade the scan is
+##    NOT the dominant term (it is at 100 vertices — see
+##    `bench_blade_hit_scan.gd`, ~29 ms — but the AI never builds one).
+##
 ## Numbers move with the machine — record the CPU alongside any result.
 
 const _GAME_ROOT := preload("res://scenes/game_root.tscn")
