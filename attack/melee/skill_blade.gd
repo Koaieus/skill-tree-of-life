@@ -131,14 +131,21 @@ func build_from_skill_nodes(
 ## call; safe to invoke repeatedly (state is reset to the descriptor's
 ## original positions internally via re-build_from_skill_nodes if needed).
 ## Drivers are auto-built: one BladeArcDriver per pivot-adjacent particle.
+## `clock` is the optional Fortification drag clock (#780) — pass
+## [method MeleeAttackPlan.build_swing_clock] to make a GHOST preview slow down
+## on a wall exactly as the committed swing will. A clock is single-use (it
+## banks the zones it has already touched), so a repeating preview loop must
+## build a fresh one per cycle. Null keeps the nominal, undragged arc.
 func simulate(
 		duration: float = 1.2,
 		dt: float = BladeSim.DEFAULT_DT,
 		iterations: int = BladeSim.DEFAULT_ITERATIONS,
-		velocity_iter_ref: float = 0.0) -> BladeTrajectory:
+		velocity_iter_ref: float = 0.0,
+		clock: BladeSwingClock = null) -> BladeTrajectory:
 	var drivers := _build_swing_drivers(duration)
 	trajectory = BladeSim.simulate(
-			state, drivers, duration, dt, iterations, velocity_iter_ref)
+			state, drivers, duration, dt, iterations, velocity_iter_ref,
+			BladeSim.DEFAULT_SUBSTEPS, true, 0.0, PackedVector2Array(), clock)
 	return trajectory
 
 

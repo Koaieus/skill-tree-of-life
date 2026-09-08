@@ -166,7 +166,16 @@ func _spawn_blade(plan: MeleeAttackPlan) -> void:
 func _run_preview_loop(gen: int) -> void:
 	while gen == _gen and _ghost != null and is_inside_tree():
 		var blade := _ghost
-		var traj := blade.simulate(MeleeAttackPlan.SWING_DURATION)
+		# A fresh drag clock per cycle (#780): the ghost must slow on a wall the
+		# way the committed swing will, and a clock banks what it has already
+		# touched, so reusing one would start cycle 2 already dragged.
+		var live_plan := battle_system.attack_plan as MeleeAttackPlan
+		var clock: BladeSwingClock = null
+		if live_plan != null:
+			clock = live_plan.build_swing_clock(blade.state)
+		var traj := blade.simulate(
+				MeleeAttackPlan.SWING_DURATION, BladeSim.DEFAULT_DT,
+				BladeSim.DEFAULT_ITERATIONS, 0.0, clock)
 		await blade.play(traj, [], true)
 		if gen != _gen or _ghost == null:
 			return

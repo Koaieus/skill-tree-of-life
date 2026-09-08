@@ -13,6 +13,16 @@ var duration: float
 ## Ease curve: float[0..1] -> float[0..1]. Default = sine-in-out.
 @warning_ignore("shadowed_global_identifier")
 var ease: Callable
+## Optional shared swing clock (#780). When it is warping — i.e. the blade has
+## touched at least one fortified node — [method apply] reads its angular
+## progress instead of deriving progress from `t`. Null, or present but not yet
+## warping, leaves the expression below EXACTLY as it was, which is what keeps a
+## swing that never meets Fortification bit-identical (and native-parity-safe).
+##
+## Shared, not per-driver: every arc driver of one swing is the same rigid body
+## turning about one pivot, so they must all read one progress or the blade
+## would shear.
+var clock: BladeSwingClock = null
 
 func _init(
 		particle_: int,
@@ -32,7 +42,7 @@ func _init(
 
 
 func apply(positions: PackedVector2Array, t: float) -> void:
-	var f := clampf(t / duration, 0.0, 1.0) if duration > 0.0 else 0.0
+	var f := _progress(t)
 	var eased: float = ease.call(f)
 	var angle := start_angle + sweep * eased
 	positions[particle] = center + Vector2.from_angle(angle) * radius
@@ -49,3 +59,14 @@ func apply(positions: PackedVector2Array, t: float) -> void:
 ## platforms.
 func _sine_in_out(f: float) -> float:
 	return 0.5 - 0.5 * cos(PI * f)
+
+
+## Angular progress in [0, 1] to evaluate the ease at. The `clock == null` and
+## the not-yet-warping cases both fall through to the ORIGINAL expression,
+## untouched, so drag's mere existence changes no swing that never meets it.
+func _progress(t: float) -> float:
+	if clock != null:
+		var warped := clock.progress()
+		if warped >= 0.0:
+			return warped
+	return clampf(t / duration, 0.0, 1.0) if duration > 0.0 else 0.0

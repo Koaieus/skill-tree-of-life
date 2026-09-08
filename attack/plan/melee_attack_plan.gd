@@ -637,7 +637,14 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	if blade_state == null:
 		return outcome
 	var drivers := build_drivers(blade_state)
-	var trajectory := BladeSim.simulate(blade_state, drivers, SWING_DURATION)
+	# Fortification drag (#780): a wall of fortified nodes bogs the swing's own
+	# clock down, cumulatively, from the moment the blade first touches one. Null
+	# when there is none in reach, which is the ordinary swing.
+	var swing_clock := build_swing_clock(blade_state)
+	var trajectory := BladeSim.simulate(
+			blade_state, drivers, SWING_DURATION, BladeSim.DEFAULT_DT,
+			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS,
+			true, 0.0, PackedVector2Array(), swing_clock)
 	var space_state := source.get_world_2d().direct_space_state
 	var exclude := collect_target_excludes()
 	# #530: the scan itself stable-sorts on SkillNode.stable_id, so the hit
@@ -884,11 +891,7 @@ func get_induced_edges() -> Array:
 	var graph := attacker.navigator.graph
 	if graph == null:
 		return out
-	var selection: Dictionary = {}
-	if source != null:
-		selection[source] = true
-	for b in blade_nodes:
-		selection[b] = true
+	var selection := selection_set()
 	for e in graph.get_edges():
 		if selection.has(e.from) and selection.has(e.to):
 			out.append([e.from, e.to])
@@ -920,6 +923,47 @@ func build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
 	return drivers
 
 
+## Build this swing's [BladeSwingClock] from the graph, or return null when no
+## fortified node is anywhere near the arc (#780).
+##
+## [b]Null is the common case and it matters.[/b] A null clock leaves both
+## [BladeArcDriver] and [method BladeSim.simulate] on the exact expressions they
+## ran before drag existed, native backend included — so Fortification costs a
+## swing that never meets it precisely nothing.
+##
+## Read off the LIVE graph, at the same pre-attack moment on every machine: a
+## mirror peer re-runs `resolve()` on a throwaway shadow purely to DRAW
+## ([BattleSystem]'s apply path), before the record lands, so it builds this
+## field from the same node states the authority did (#780 acceptance 6).
+##
+## Zones are culled to what the blade can physically reach — the farthest
+## particle's distance from the pivot, which is exactly the radius of the
+## widest arc any part of it sweeps.
+func build_swing_clock(blade_state: BladeState) -> BladeSwingClock:
+	if blade_state == null or attacker == null or attacker.navigator == null:
+		return null
+	var graph := attacker.navigator.graph
+	if graph == null:
+		return null
+	var pivot := blade_state.positions[blade_state.pivot_index]
+	var reach := 0.0
+	for i in blade_state.positions.size():
+		var r: float = blade_state.radii[i] if i < blade_state.radii.size() else 0.0
+		reach = maxf(reach, pivot.distance_to(blade_state.positions[i]) + r)
+	var self_set := selection_set()
+	var clock := BladeSwingClock.new(SWING_DURATION)
+	for sn in graph.get_skill_nodes():
+		if _is_blade_side(sn, self_set):
+			continue
+		var amount := float(sn.get_local_value(&"swing_drag"))
+		if amount <= 0.0:
+			continue
+		if pivot.distance_to(sn.global_position) > reach + sn.radius:
+			continue
+		clock.add_zone(sn.global_position, sn.radius, amount)
+	return clock if clock.has_zones() else null
+
+
 func _set_swing_cw(value: bool) -> void:
 	if swing_cw == value:
 		return
@@ -942,11 +986,7 @@ func collect_target_excludes() -> Array[RID]:
 	var graph := attacker.navigator.graph
 	if graph == null:
 		return out
-	var self_set: Dictionary = {}
-	if source != null:
-		self_set[source] = true
-	for b in blade_nodes:
-		self_set[b] = true
+	var self_set := selection_set()
 	for sn in graph.get_skill_nodes():
 		# MINE|ALLY (#384's vocabulary), not `owned_by == attacker`: a blade
 		# must pass through a co-op partner's territory as cleanly as its own.
@@ -955,10 +995,31 @@ func collect_target_excludes() -> Array[RID]:
 		# faction can't change mid-swing, so the only drift is an ally node
 		# deallocating to NEUTRAL mid-cascade and us skipping a hit we could
 		# have landed. Negligible; don't add a land-time re-check for it.
-		var bit := sn.ownership_bit(attacker)
-		if self_set.has(sn) or bit == SkillNode.Ownership.MINE or bit == SkillNode.Ownership.ALLY:
+		if _is_blade_side(sn, self_set):
 			out.append(sn.get_rid())
 	return out
+
+
+## Pivot + members as a set — the blade's own nodes, and nothing else.
+func selection_set() -> Dictionary:
+	var out: Dictionary = {}
+	if source != null:
+		out[source] = true
+	for b in blade_nodes:
+		out[b] = true
+	return out
+
+
+## True if [param sn] belongs to the swinging side: a blade member itself, or
+## MINE/ALLY territory the blade passes through cleanly (#384's vocabulary,
+## never `owned_by == attacker`). The one place that question is answered — both
+## the scan excludes and the drag field (#780) must agree on it, or a blade
+## would bog down on its own wall.
+func _is_blade_side(sn: SkillNode, self_set: Dictionary) -> bool:
+	var bit := sn.ownership_bit(attacker)
+	return self_set.has(sn) \
+			or bit == SkillNode.Ownership.MINE \
+			or bit == SkillNode.Ownership.ALLY
 
 
 func _is_neighbor_of_blade_set(node: SkillNode) -> bool:

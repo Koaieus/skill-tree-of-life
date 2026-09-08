@@ -112,6 +112,12 @@ static func backend() -> StringName:
 ##   from, seeded into `prev_positions` instead of the usual "at rest"
 ##   reset. Empty (the default) means at rest. A free-flight fragment passes
 ##   its velocity at the moment of separation here.
+## - `clock`: optional [BladeSwingClock] (#780). Present only when the swing has
+##   at least one Fortification drag zone in range; then every [BladeArcDriver]
+##   reads its angular progress instead of deriving progress from `t`, and this
+##   loop senses the blade against the zones once per sample. Null — what every
+##   other call passes — leaves both the drivers and this loop on the exact
+##   expressions they used before drag existed.
 static func simulate(
 		state: BladeState,
 		drivers: Array[BladeDriver],
@@ -122,8 +128,17 @@ static func simulate(
 		substeps: int = DEFAULT_SUBSTEPS,
 		enable_length_scaling: bool = true,
 		linear_damping: float = 0.0,
-		initial_velocities: PackedVector2Array = PackedVector2Array()) -> BladeTrajectory:
+		initial_velocities: PackedVector2Array = PackedVector2Array(),
+		clock: BladeSwingClock = null) -> BladeTrajectory:
 	var sub_count := maxi(substeps, 1)
+	# One clock per SWING, shared by every arc driver: they all describe one
+	# rigid body turning about one pivot, so a per-driver clock would shear the
+	# blade. Assigned here rather than by the caller so `simulate` stays the only
+	# thing that has to know a clock exists.
+	if clock != null:
+		for d in drivers:
+			if d is BladeArcDriver:
+				(d as BladeArcDriver).clock = clock
 	if initial_velocities.is_empty():
 		state.prev_positions = state.positions.duplicate()
 	else:
@@ -149,7 +164,12 @@ static func simulate(
 	# free-flight pass (#186) takes the GDScript path by construction rather
 	# than silently losing its drag or its separation velocity. Both knobs are
 	# off in every driven-swing call, so the ordinary swing is untouched.
-	if _native != null and use_native \
+	# A warpable clock joins damping and seeded velocities on the list of things
+	# the C++ transliteration does not model — it derives `f` from `t` inline —
+	# so a dragged swing takes the GDScript path by construction rather than
+	# silently losing its drag. Every swing with no fortified node in range still
+	# passes `null` and still runs native (#798 parity untouched).
+	if _native != null and use_native and clock == null \
 			and is_zero_approx(linear_damping) and initial_velocities.is_empty():
 		# Returns null when the state holds a constraint or driver the native
 		# path doesn't know — then we just fall through to GDScript.
@@ -179,7 +199,14 @@ static func simulate(
 		for s in sub:
 			var t := t0 + float(s + 1) * sub_dt
 			step_speeds = _step(state, drivers, t, sub_dt, base_iterations,
-					velocity_iter_ref, sub, length_factor, linear_damping)
+					velocity_iter_ref, sub, length_factor, linear_damping, clock)
+		# Sense drag once per SAMPLE, not once per substep (#780). A sample is
+		# 1/120 s against a 1.2 s swing, so the granularity costs under 1% of the
+		# arc, while per-substep sensing would quadruple the only per-step work the
+		# solver does outside its own constraint sweeps. Whatever this banks slows
+		# the arc from the NEXT substep on — never the approach to the zone itself.
+		if clock != null:
+			clock.sense(state.positions, state.radii, state.edges, state.removed_edges)
 		traj.samples.append(state.positions.duplicate())
 		# The LAST substep's speeds — the physics rate closest to this
 		# sample's time, not an average or the step's max (#779).
@@ -281,7 +308,8 @@ static func _step(
 		vel_ref: float,
 		substeps: int,
 		length_factor: float,
-		linear_damping: float = 0.0) -> PackedFloat32Array:
+		linear_damping: float = 0.0,
+		clock: BladeSwingClock = null) -> PackedFloat32Array:
 	# Per-substep velocity retention. `linear_damping == 0.0` yields EXACTLY
 	# 1.0, and multiplying a Vector2 by exactly 1.0 is bit-identical to not
 	# multiplying at all — which is what keeps the driven-swing path (and the
@@ -307,6 +335,12 @@ static func _step(
 				max_speed_sq = sp_sq
 		else:
 			prev[i] = positions[i]
+	# Open the substep on the swing clock BEFORE the drivers read it, so a
+	# warping clock hands them this substep's advanced progress (#780). Before
+	# the blade's first fortified contact this only records `t` and the drivers
+	# fall through to their original expression.
+	if clock != null:
+		clock.tick(t, dt)
 	# Drivers override prescribed particles.
 	for d in drivers:
 		d.apply(positions, t)
