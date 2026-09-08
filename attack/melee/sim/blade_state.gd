@@ -55,3 +55,37 @@ static func build(
 		var rest := positions_[e.x].distance_to(positions_[e.y])
 		s.constraints.append(BladeDistanceConstraint.new(e.x, e.y, rest))
 	return s
+
+
+## Hop count from the pivot to the farthest vertex, walking `constraints`
+## (not `edges`) — a phantom brace (ClampAddon's weld) shortens the path a
+## correction has to travel just as much as a real edge does, so the fidelity
+## budget in [BladeSim] must see it too. One BFS, O(vertices + constraints);
+## do not call this per-iteration or per-particle — [BladeSim.simulate] calls
+## it once per resolve and reuses the result for the whole swing.
+##
+## Only [BladeDistanceConstraint] contributes adjacency (the sole concrete
+## [BladeConstraint] today); a future constraint type that doesn't connect
+## exactly two particles is invisible to this walk by construction.
+func pivot_eccentricity() -> int:
+	var adjacency: Dictionary = {}
+	for c in constraints:
+		if c is BladeDistanceConstraint:
+			var dc := c as BladeDistanceConstraint
+			adjacency.get_or_add(dc.a, [] as Array[int]).append(dc.b)
+			adjacency.get_or_add(dc.b, [] as Array[int]).append(dc.a)
+	var hops := {pivot_index: 0}
+	var queue: Array[int] = [pivot_index]
+	var max_hops := 0
+	var qi := 0
+	while qi < queue.size():
+		var cur: int = queue[qi]
+		qi += 1
+		var h: int = hops[cur]
+		if h > max_hops:
+			max_hops = h
+		for nb in adjacency.get(cur, [] as Array[int]):
+			if not hops.has(nb):
+				hops[nb] = h + 1
+				queue.append(nb)
+	return max_hops

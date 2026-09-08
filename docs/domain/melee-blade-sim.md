@@ -199,27 +199,133 @@ ease curve (default sine-in-out: 0 → max angular velocity at midpoint
 → 0). One per pivot-adjacent particle is what `MeleeAttackPlan` builds
 for a swing.
 
-### `BladeSim.simulate(state, drivers, duration, dt, base_iterations, velocity_iter_ref)`
+### `BladeSim.simulate(state, drivers, duration, dt, base_iterations, velocity_iter_ref, substeps, enable_length_scaling)`
 
-Stateless static. Steps `duration / dt` times. Each step:
+Stateless static. `dt` is the **trajectory sample rate** — the caller's
+contract for how many `traj.samples` come out (`duration / dt` of them),
+unchanged by anything below. Internally, each sample interval runs `substeps`
+physics steps at `dt / substeps`:
 
 1. Verlet integrate dynamic particles: `(p, prev) → (p + (p - prev), p)`.
-2. Apply each driver at `t = step * dt`.
-3. Project constraints `iterations` times.
-4. Snapshot positions into trajectory.
+2. Apply each driver at the substep's own absolute time (finer-grained than
+   the sample rate — a driver's kinematic position is exact at whatever time
+   you ask it for, so more substeps is strictly more accurate here too, not
+   just for constraint convergence).
+3. Project constraints some number of times, then move to the next substep.
+4. Once every substep in the interval has run, snapshot positions into
+   trajectory — **one sample per interval, never one per substep.**
 
-**Velocity-scaled iterations.** Stiff constraints can drift when
-particles are moving fast — the per-step correction has less time to
-converge per unit of motion. Setting `velocity_iter_ref > 0` enables
-adaptive iteration count:
+Two axes decide the per-substep iteration count, both multiplying a shared
+sweep *budget* for the interval that then gets split across `substeps`
+(see "Substeps, not iterations" below for why it's split rather than
+multiplied):
+
+**Velocity-scaled budget.** Stiff constraints can drift when particles are
+moving fast — the per-step correction has less time to converge per unit of
+motion. Setting `velocity_iter_ref > 0` enables adaptive scaling:
 
 ```
-iterations = base_iterations * (1 + max_particle_speed / velocity_iter_ref)
+budget = base_iterations * (1 + max_particle_speed / velocity_iter_ref)
 ```
 
-At `max_speed == velocity_iter_ref`, iterations double. At
-`max_speed == 0`, base. Tune `velocity_iter_ref` to "the particle speed
-above which you start seeing rubbery edges". Pass `0` to disable.
+At `max_speed == velocity_iter_ref`, the budget doubles. At `max_speed == 0`,
+it's `base_iterations`. Tune `velocity_iter_ref` to "the particle speed above
+which you start seeing rubbery edges". Pass `0` to disable.
+
+**Length-scaled budget** (#790) — see its own section below.
+
+```
+budget *= length_factor
+iters_per_substep = max(1, round(budget / substeps))
+```
+
+`substeps` and `enable_length_scaling` are both new, defaulted parameters
+(`DEFAULT_SUBSTEPS = 4`, `enable_length_scaling = true`), which is why none of
+`skill_blade.gd`, `melee_attack_plan.gd`, or the AI's coarse rollout call site
+needed to change: they inherit the new defaults automatically. Pass
+`substeps = 1` to get exactly today's one-step-per-sample behaviour, or
+`enable_length_scaling = false` to isolate the substep effect from the length
+effect (this is how `test_blade_sim_substep.gd` proves the substep claim on
+its own, and how `bench_blade_sim.gd` measures "today" as a baseline).
+
+#### Substeps, not iterations
+
+The naive fix for a blade that "looks stretchy" is to raise `base_iterations`.
+That is the wrong lever, and the reasoning is a standard XPBD result (Macklin,
+Müller, Chentanez, Kim & Macklin, *"Small Steps in Physics Simulation"*, 2019):
+**for one PBD/XPBD constraint, per-step error scales with `dt²`, while adding
+more Gauss-Seidel iterations at a fixed `dt` converges sub-linearly and
+plateaus** — each additional pass fixes a shrinking fraction of what's left.
+So for a *fixed total sweep budget* (`substeps × iterations_per_substep`),
+spending it on smaller timesteps beats spending it on more passes per
+timestep, usually by a lot: `4 substeps × 4 iters` (`dt/480`) converges far
+better than `1 substep × 16 iters` (`dt/120`) at the *identical* total sweep
+count — see `bench_blade_sim.gd`'s "isolated substep" comparison
+(`test_substeps_alone_hold_shape_better_at_equal_or_lower_sweep_cost`, in
+`test/unit/attack/test_blade_sim_substep.gd`), which measures a 55-hop whip
+holding its shape at equal-or-lower cost purely from this swap, with the
+length axis switched off so the two effects don't get conflated.
+
+**Do not "simplify" this back into a bigger `base_iterations`.** That was
+tried conceptually (the owner's original instinct — *"raising simulation
+steps to idk 30"*) and costs roughly 2x for materially less benefit than the
+substep redistribution, which is closer to free.
+
+#### Length axis: hop count, not distance (#790)
+
+Fidelity also has to scale with blade **length**, not only with swing speed —
+a long, slow blade got no help from `velocity_iter_ref` even though it looked
+just as stretchy as a fast one. "Length" here means **hop count from the
+pivot**: `BladeState.pivot_eccentricity()`, the graph eccentricity of the
+pivot within `state.constraints` (one BFS, computed once per `simulate()`
+call, never per-step — that repeated cost is exactly what a sibling issue
+found and fixed elsewhere, so don't reintroduce it here).
+
+Two things it is deliberately **not**:
+
+- **Not neighbour spacing** (one constraint's rest length) — a long
+  constraint converges exactly as fast as a short one; rest length has
+  nothing to do with propagation.
+- **Not euclidean pivot-to-vertex distance** — that's what `velocity_iter_ref`
+  already covers, via how fast a particle at that distance actually moves.
+  Adding distance again buys nothing new.
+
+Why hop count is the real bottleneck: this solver is Gauss-Seidel — each
+constraint's projection uses whatever positions the *previous* constraint in
+the sweep just wrote, so a positional correction propagates roughly **one
+constraint per sweep**, in whatever direction `state.constraints`' order
+happens to walk (not necessarily pivot-outward). A blade of eccentricity `L`
+therefore needs on the order of `L` total sweeps just to transmit stiffness
+from the pivot to its farthest vertex — below that, no number of *fast*
+sweeps (small `dt`) fixes it, because propagation distance is a sweep-*count*
+property, not a per-sweep-accuracy property. That is orthogonal to the
+substep argument above: substeps buy numerical accuracy per already-propagated
+constraint; the length axis buys the propagation depth itself.
+
+`BladeSim.LENGTH_BASELINE_HOPS` (3) exempts short blades entirely — the
+owner's own example, a stubby 3-hop blade, already converges at today's
+budget and must keep costing exactly what it does today.
+`BladeSim.LENGTH_ECC_CEILING` (40) clamps how far the budget can climb, so a
+100+ member blade can't run it away; past the ceiling, more hops buy nothing
+further. Both are named constants in `blade_sim.gd`, not inlined into the
+scaling expression, specifically so a future tuning pass is a one-line edit
+instead of an archaeology exercise. They're owner-tunable — chosen so a
+maximally-long, ceiling-clamped blade costs roughly **4x** today's flat total
+sweep count (measured in `bench_blade_sim.gd`'s worst-case chain benchmark);
+that multiple is a starting point, not a spec.
+
+**A rigidly trussed blade pays less than a whip of the same node count**,
+for free: braces (e.g. `ClampAddon`'s phantom weld) shorten paths through
+`state.constraints`, lowering eccentricity — so good bladesmithing already
+buys a cheaper, better-converging sim on the same axis a sibling issue (#772)
+wanted a gradient on.
+
+**A long blade genuinely costs more total sweeps than it does today** once
+past the baseline — that's the intended outcome, not a regression to guard
+against. 16 sweeps cannot converge a 40-hop chain at any timestep; the owner
+ruled to spend more on whips specifically because that's the only lever that
+addresses propagation depth. Don't tune the length multiplier down to
+squeeze under today's flat cost for a long blade — that defeats the axis.
 
 ### `BladeTrajectory`
 
@@ -304,7 +410,16 @@ ignored during ghost play — no damage during preview.
 
 `test/perf/bench_blade_sim.gd` (headless SceneTree script; run it, don't trust
 this table after the solver changes). Solver only — no hit scan. Ryzen-class
-desktop CPU, Godot 4.7.1, 1.2s swing at `dt = 1/120`, 16 base iterations:
+desktop CPU, Godot 4.7.1, 1.2s swing at `dt = 1/120`, 16 base iterations.
+
+**Read this table's `chain`/`+ adaptive iters`/`triangulated mesh` columns as
+pre-#790 numbers with a caveat: `_bench`/`_run` call `BladeSim.simulate` with
+only 6 positional args, so today they also inherit the new `substeps = 4`,
+`enable_length_scaling = true` defaults — a re-run will read noticeably
+higher than the table below for any `k` past `LENGTH_BASELINE_HOPS`, because
+it is now doing more total work for a better-converged result, not because
+anything regressed. That's intended; see the #790 section further down for
+the apples-to-apples "today vs #790" comparison instead.
 
 | blade size k | chain | + adaptive iters (`velocity_iter_ref = 400`) | triangulated mesh |
 |---|---|---|---|
@@ -333,6 +448,33 @@ This is what makes a two-tier evaluation viable: a coarse sim for *ranking*
 candidates and the full-fidelity sim for the chosen few. Ranking does not need
 120 Hz — but a coarse tier ranks on a different sim than `resolve()` executes,
 so the divergence has to be deliberate and tested, not assumed harmless.
+
+### #790: substepped + length-scaled, today vs new — 100-node swing
+
+`bench_blade_sim.gd`'s `_bench_substep_config` (same machine as above). Two
+100-node fixtures: a **braced mesh** (246 constraints — the issue's "~250",
+pivot eccentricity 49, past the ceiling) and a **pure chain/whip** (99
+constraints, pivot eccentricity 99 — the worst case for the length axis).
+"Today" = `dt=1/120, 16 iters, substeps=1, length off`. "#790" =
+`dt=1/120, 16 iters, substeps=4, length on` (the shipped defaults).
+
+| fixture | config | wall-clock | projections | stretch error (lower = better) |
+|---|---|---|---|---|
+| braced mesh, k=100 | today | 199 ms | 566,784 | 76.45 |
+| braced mesh, k=100 | #790 | 792 ms | 2,267,136 | 35.33 |
+| pure chain, k=100 | today | 81 ms | 228,096 | 9.85 |
+| pure chain, k=100 | #790 | 324 ms | 912,384 | **0.017** |
+
+Both fixtures land at **4.00x** projections and wall-clock — `LENGTH_ECC_CEILING`
+/ `LENGTH_ITER_SCALE` were tuned to land near that multiple for a
+ceiling-clamped blade, and this confirms it in practice. Shape-holding
+improves substantially at both densities (2.2x lower stretch error on the
+braced mesh, ~580x on the pure whip, where propagation depth was the whole
+problem). **The 4x wall-clock cost at k=100 is real and worth an owner
+opinion** — a single 100-node whip swing goes from ~80ms to ~320ms
+solver-only (no hit-scan) on this machine; whether that is acceptable inside
+a turn, and whether `LENGTH_ECC_CEILING` should sit closer to or further from
+4x, is a tuning call this issue surfaces but does not make.
 
 ## Open questions / future work
 
