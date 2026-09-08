@@ -36,8 +36,12 @@ earned by something going wrong.
 - **`advisor` is forbidden.** It re-sends the drone's whole transcript to a
   second Opus. You are its advisor, via `SendMessage`.
 - **You are not the merge gate.** Stop when green, report, wait.
-- **Never poll a background task.** The harness wakes you. If a command seems
-  to hang, *bisect it* — never retry with a longer timeout.
+- **Never poll a background task, and end your turn instead.** Launch once with
+  `run_in_background: true`, then no sleep / tail / ls / re-reading the output
+  file, then stop with no further output — the harness wakes you. Nor a string
+  of one-word `idle` turns: those are full model turns. If a command seems to
+  hang, *bisect it* — never retry with a longer timeout.
+  See `.claude/rules/long-running-commands.md`.
 - **Never run the full suite** (you run it once, at the end). Cheap ladder:
   `check` → `test:one` → `test:dir`.
 - **Never write to the main checkout.** Isolated worktree only.

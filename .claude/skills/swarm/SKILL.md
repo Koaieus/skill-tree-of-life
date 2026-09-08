@@ -632,6 +632,17 @@ list is drone's job and wastes tokens. The lever itself is real: the dearest
 worker in the run below cost 35% more than the cheapest for *identical
 code*, entirely in verification it was never asked for.
 
+**Three clauses about the suite, not two — the third is the one you'll drop.**
+Every brief must say: *launch it once with `run_in_background: true`*; *then do
+nothing — no sleep, no tail, no ls, no re-reading the output file*; *then END
+YOUR TURN with no further output.* On 2026-09-08 a brief carried clauses one
+and three and the worker still polled ~a dozen times until the owner killed it
+mid-run. They are independent, so paste all three verbatim — correcting a
+worker mid-run re-derives its whole context and costs more than the polling
+did. `.claude/rules/long-running-commands.md` is the always-on crumb, and the
+same rule binds **you**: an orchestrator polled its own gate ~12 times the
+same day.
+
 **Have workers delegate broad searches downward too, not just you.** When a
 unit needs "where is X handled across the repo", drone already tells the
 worker to spawn a read-only grandchild (opencode: `task` with

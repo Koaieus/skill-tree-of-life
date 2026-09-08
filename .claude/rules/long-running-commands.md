@@ -1,0 +1,1 @@
+Launch a long command (the ~215s suite, `refresh`, a bench) ONCE with `run_in_background: true`, then END YOUR TURN — no sleep, no tail, no re-reading the output file; the harness resumes you on exit, so every poll is a full round-trip bought for nothing, and a brief missing only the no-polling clause still produces a poller. See docs/domain/long-running-commands.md

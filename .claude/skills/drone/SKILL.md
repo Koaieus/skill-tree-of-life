@@ -70,6 +70,15 @@ expensive:
 - `6743ce24`: `check` only — a visual/shader fix with no runtime-testable
   behaviour. Correctly skipped `test:dir` and the full suite entirely.
 
+**When you do earn the full suite, launch it ONCE with `run_in_background: true`
+and then END YOUR TURN with no further output** — no `sleep`, no `tail`, no
+`ls`, no re-reading the output file. The harness resumes you when it exits. A
+poll is a full tool round-trip carrying your whole context, against a result
+that arrives by notification regardless; a worker on 2026-09-08 polled one run
+~a dozen times and the owner killed it mid-suite. And do not replace polling
+with one-word `idle` / `waiting` turns — those are full model turns too. See
+`.claude/rules/long-running-commands.md`.
+
 See `.claude/rules/testing.md`. Do not declare done on "looks right" — run the
 test and read the output. If it will not go green, report that plainly with the
 failure text; a smaller model guessing at a fix it can't verify is worse than a
