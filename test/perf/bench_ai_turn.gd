@@ -293,6 +293,16 @@ func _run_turn(label: String, use_native: bool) -> Dictionary:
 	gut.p("    %-28s : %8.1f ms  (%5.1f%%)"
 			% ["recon + loop bookkeeping", total_ms - named,
 				100.0 * (total_ms - named) / maxf(total_ms, 0.001)])
+	# The headline #797 asks for: wall time is not compute. A bucket that
+	# burned process frames was parked on the presentation clock while the
+	# engine idled (headless GUT runs ~140 fps here, so a frame is ~7 ms of
+	# REAL time, not of work) — only the zero-frame buckets are deliberation.
+	var deliberation := _ms(probe, &"ranged") + _ms(probe, &"magic") + _ms(probe, &"melee_total")
+	gut.p("  --> DELIBERATION (zero-frame, i.e. real compute): %.1f ms  (%.2f%% of the turn)"
+			% [deliberation, 100.0 * deliberation / maxf(total_ms, 0.001)])
+	gut.p("  --> everything else is frame-paced presentation: %d of %d frames sit inside allocate+execute"
+			% [int(probe.buckets.get(&"allocate_frames", 0)) + int(probe.buckets.get(&"execute_frames", 0)),
+				total_frames])
 	gut.p("  melee split (%d gather(s), %d proposals, %d finalists per gather):"
 			% [probe.melee_gathers, int(probe.buckets.get(&"n_proposals", 0)),
 				int(probe.buckets.get(&"n_finalists", 0))])
@@ -358,6 +368,11 @@ func _resolve_micro_split(probe: ProbeAI, ent: Entity) -> void:
 
 	t = Time.get_ticks_usec()
 	for _r in _RESOLVE_REPS:
+		BladePopResolver.LiveGate.new(state, ent)
+	var gate_ms := float(Time.get_ticks_usec() - t) / float(_RESOLVE_REPS) / 1000.0
+
+	t = Time.get_ticks_usec()
+	for _r in _RESOLVE_REPS:
 		plan.resolve()
 	var full_ms := float(Time.get_ticks_usec() - t) / float(_RESOLVE_REPS) / 1000.0
 
@@ -376,8 +391,13 @@ func _resolve_micro_split(probe: ProbeAI, ent: Entity) -> void:
 	gut.p("    %-28s : %8.3f ms" % ["BladeSim.simulate (full)", sim_ms])
 	gut.p("    %-28s : %8.3f ms" % ["BladeHitScan.scan", scan_ms])
 	gut.p("    %-28s : %8.3f ms" % ["plan.resolve() WHOLE", full_ms])
-	gut.p("    %-28s : %8.3f ms" % ["  ...remainder (gate/apply)",
-			full_ms - shadow_ms - state_ms - drivers_ms - sim_ms - scan_ms])
+	gut.p("    %-28s : %8.3f ms" % ["LiveGate.new", gate_ms])
+	# Whatever `resolve_against` costs on top of the stages above: the
+	# DamageInstance loop, OutcomeSchedule.compile, CritRoll.decide_all and
+	# OutcomeApplier.apply (which is where BladeDamageInstance.land_on and its
+	# StatBoard reads live — #797's third named suspect).
+	gut.p("    %-28s : %8.3f ms" % ["  ...remainder (build+apply)",
+			full_ms - shadow_ms - state_ms - drivers_ms - sim_ms - scan_ms - gate_ms])
 	gut.p("    %-28s : %8.3f ms" % ["BladeSim.simulate (COARSE)", coarse_ms])
 	gut.p("    %-28s : %8.2fx" % ["full / coarse", sim_ms / maxf(coarse_ms, 0.00001)])
 
