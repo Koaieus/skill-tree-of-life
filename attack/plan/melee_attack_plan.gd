@@ -615,6 +615,16 @@ var last_live_gate: BladePopResolver.LiveGate = null
 ## heals), so this stays narrowly typed rather than the [AttackOutcome]-wide
 ## [code]Array[HitInstance][/code] (#381).
 var last_hits: Array[DamageInstance] = []
+## Every severed fragment this swing flew, in birth order (#186) — the driven
+## blade's own fragments first, then any fragment a fragment shed. Empty on a
+## swing that lost nothing, which is the overwhelming majority.
+##
+## Exposed because a fragment's flight is a THING THAT HAPPENED and the visual
+## layer will need it: today [MeleePreview] replays [member last_trajectory]
+## only, so a coasting fragment deals its damage without being drawn. Wiring
+## that picture up (together with the pop cue's missing velocity) is its own
+## issue, called out in #186's NOTES and deliberately not ridden in here.
+var last_free_flights: Array[BladeFreeFlight.Flight] = []
 
 
 func resolve_against(world: CombatWorld) -> AttackOutcome:
@@ -689,11 +699,121 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# which is what this pass runs. Un-awaited — see the same call in
 	# [method RangedAttackPlan.resolve_against] for why that is safe.
 	OutcomeApplier.apply(outcome, world)
+	# #186: everything the swing SEVERED is now known — it could not have been
+	# known any earlier, because a pop is decided at land time against the live
+	# world, not at scan time. So free flight is a second round over the same
+	# world, gated and applied by the same machinery, appending to the same
+	# outcome. The hits it produces therefore ride the AttackRecord like any
+	# other landing and a peer replays them; nothing re-derives a solver.
+	_fly_severed_fragments(outcome, world, blade_state, trajectory, gate,
+			space_state, exclude)
 	# The AI's shape-risk signal, now a RESULT of the gate rather than a
 	# separate estimate of it: how many of the attacker's own vertices this
 	# swing actually lost.
 	outcome.thinned_nodes = gate.result.dead_at.size()
 	return outcome
+
+
+## Distinct crit streams per free-flight round (#186). One stream per attack is
+## the rule, but a round is not a re-roll of the same landings — it is a fresh
+## set of them — and reusing `resolve_seed` unsalted would make every round
+## draw the identical sequence. Derived, so the whole attack still reproduces
+## from one seed.
+const _FREE_FLIGHT_STREAM_SALT: int = 0x27D4EB2F
+
+
+## Fly every fragment this swing severed, and every fragment those shed in turn
+## (#186). One round per fragment: re-simulate it as an UNPINNED body from its
+## separation velocity, scan the trajectory, and land what it hits.
+##
+## [b]A round gets its own [BladePopResolver.LiveGate], and must.[/b] The
+## swing's gate has these vertices in `dead_at` — correctly, they have left the
+## DRIVEN blade — so reusing it would refuse every hit the fragment goes on to
+## make. The fragment is a new body; it gets a new gate over its own compacted
+## state. The world is unchanged between them, so a spikes pool the swing
+## already drained is still drained when the fragment arrives (#186 acceptance
+## 2), which is the part that actually has to be shared and is, by being the
+## world rather than the gate.
+##
+## [b]Ordering caveat, deliberate.[/b] These land after the whole driven swing
+## has landed, not interleaved by `t`. On the authority that reordering is
+## invisible: `resolve_against` computes against a SHADOW world and what
+## reaches the live world is the record, whose merged schedule IS in `t` order
+## (recompiled below). The only residue is that two landings on the SAME node,
+## one driven and one free, may see each other's mitigation in shadow order.
+## Interleaving properly would mean an [OutcomeApplier] that can be suspended
+## mid-walk and resumed with hits discovered during it — a real change to the
+## applier, and not one #186 needs.
+func _fly_severed_fragments(
+		outcome: AttackOutcome,
+		world: CombatWorld,
+		root_state: BladeState,
+		root_traj: BladeTrajectory,
+		root_gate: BladePopResolver.LiveGate,
+		space_state: PhysicsDirectSpaceState2D,
+		exclude: Array[RID]) -> void:
+	last_free_flights = []
+	if space_state == null or root_gate == null or root_gate.result.fragments.is_empty():
+		return
+	var graph: Graph = attacker.navigator.graph if attacker != null and attacker.navigator != null else null
+	# Each entry: [source_state, source_trajectory, source_birth_t, fragment].
+	# A queue rather than a single pass because a coasting fragment can be
+	# popped in turn and shed a fragment of its own; every such fragment is
+	# strictly smaller than its parent, so this terminates.
+	var queue: Array = []
+	for f in root_gate.result.fragments:
+		queue.append([root_state, root_traj, 0.0, f])
+	var round_idx := 0
+	while not queue.is_empty():
+		var job: Array = queue.pop_front()
+		var flight := BladeFreeFlight.spawn(
+				job[0] as BladeState, job[1] as BladeTrajectory, float(job[2]),
+				job[3] as BladePopResolver.Fragment, SWING_DURATION)
+		if flight == null:
+			continue  # born at or past the end of the swing — nothing left to fly
+		round_idx += 1
+		last_free_flights.append(flight)
+		var gate := BladePopResolver.LiveGate.new(flight.state, attacker)
+		var events := BladeHitScan.scan(
+				flight.trajectory, flight.state, space_state, graph,
+				0xFFFFFFFF, exclude)
+		var sub := AttackOutcome.new()
+		sub.cadence = ScheduleEntry.Cadence.SWING
+		sub.resolve_seed = resolve_seed
+		for ev in events:
+			# The scan works in the fragment's own local time; the gate, the
+			# schedule and the record all work in swing time.
+			ev.t += flight.birth_t
+			var di := BladeDamageInstance.new(ev, gate)
+			# No disconnection scale (#186 acceptance 3): the SAME coefficient a
+			# driven vertex would carry, and #779's speed curve — applied in
+			# BladeDamageInstance.land_on off `ev.speed`, which for a coasting
+			# fragment is exactly its coasting speed — is the only thing that
+			# makes a fragment hit for less. Or, if it was flung hard, for more.
+			di.amount = (
+					flight.state.edge_damage[ev.edge_idx] if ev.is_edge_hit()
+					else flight.state.vertex_damage[ev.particle_idx])
+			di.type = DamageInstance.Type.PHYSICAL
+			di.target = ev.target as SkillNode
+			di.origin = source
+			di.source = self
+			di.attacker = attacker
+			di.structural_key = ev.t / maxf(0.001, SWING_DURATION)
+			sub.hits.append(di)
+		sub.schedule = OutcomeSchedule.compile(sub)
+		CritRoll.decide_all(sub, CritRoll.stream_for(
+				resolve_seed + round_idx * _FREE_FLIGHT_STREAM_SALT))
+		OutcomeApplier.apply(sub, world)
+		for hit in sub.hits:
+			outcome.hits.append(hit)
+		for f in gate.result.fragments:
+			queue.append([flight.state, flight.trajectory, flight.birth_t, f])
+	if round_idx > 0:
+		# One coherent timeline over driven + free landings. The record carries
+		# each hit's structural key and every peer compiles its own seconds from
+		# it, so this is what stops a fragment's landings from claiming schedule
+		# indices the driven swing already used.
+		outcome.schedule = OutcomeSchedule.compile(outcome)
 
 
 ## Build a fresh BladeState from the current selection. `MeleePreview` does

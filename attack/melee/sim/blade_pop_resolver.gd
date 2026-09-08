@@ -76,6 +76,27 @@ class Pop extends RefCounted:
 		position = defender_.global_position if defender_ != null else Vector2.ZERO
 
 
+## One SEVERANCE EVENT: the set of vertices that stopped being reachable from
+## the pivot at [member t], recorded the moment it happened (#186).
+##
+## [b]This is the free-flight seam, and it is trigger-agnostic on purpose.[/b]
+## A fragment is described by "which vertices left, and when" and by nothing
+## about WHY they left — a spike pop today, a bunker shatter once #781 lands,
+## anything that removes a vertex or an edge tomorrow. Whatever severs feeds
+## [method LiveGate._disintegrate_unreachable], and one implementation of free
+## flight consumes what comes out.
+##
+## `vertices` are indices into the ORIGINATING [BladeState] and are ascending,
+## so a consumer's index remap is deterministic without re-sorting.
+class Fragment extends RefCounted:
+	var t: float
+	var vertices: PackedInt32Array
+
+	func _init(t_: float, vertices_: PackedInt32Array) -> void:
+		t = t_
+		vertices = vertices_
+
+
 ## `dead_at`: particle_idx -> time it became dead (killed OR disintegrated).
 ## A hit by that vertex at `ev.t >= dead_at[idx]` must be dropped.
 ## `pops`: the killing contacts only (drive VFX / hit tracking), in time order.
@@ -86,6 +107,13 @@ class Result extends RefCounted:
 	## [method LiveGate._sever_edge], i.e. by #781's bunker break once it exists.
 	var severed_at: Dictionary = {}
 	var pops: Array[Pop] = []
+	## Severance events in the order they happened (#186). Each entry is one
+	## call to [method LiveGate._disintegrate_unreachable] that actually
+	## orphaned something; the vertices are ALSO in `dead_at`, because they
+	## have genuinely stopped being part of the DRIVEN blade — free flight
+	## re-arms them in a state and a gate of their own rather than by keeping
+	## them alive here. See [MeleeAttackPlan]'s free-flight round.
+	var fragments: Array[Fragment] = []
 
 	func is_dead(particle_idx: int, t: float) -> bool:
 		return dead_at.has(particle_idx) and t >= dead_at[particle_idx]
@@ -165,8 +193,13 @@ class LiveGate extends RefCounted:
 		var node: NodeCombat = w.combat_for(real_node) if real_node != null else null
 		if node == null or not node.is_allocated():
 			return false  # #502: dead target, no dud — indistinguishable from a miss
-		if ev.particle_idx == _state.pivot_index:
-			return true  # pivot / handle is exempt from popping
+		# The pivot / handle is exempt from popping — but a FREE FRAGMENT has no
+		# handle (#186). Its `pivot_index` is only a BFS root, so exempting it
+		# would make one arbitrary vertex of every coasting fragment sail
+		# through spikes without even spending them. The exemption protects the
+		# wielder's grip; a severed fragment is the thing with no grip left.
+		if ev.particle_idx == _state.pivot_index and not _state.is_unpinned:
+			return true
 		if _attacker != null and node.ownership_bit(_attacker) == SkillNode.Ownership.MINE:
 			return true  # your own spike can't pop your own blade
 		var pool := _spikes_pool(node)
@@ -322,14 +355,38 @@ class LiveGate extends RefCounted:
 	## losing an edge orphan a fragment by exactly the same criterion, and the
 	## BFS reads both `_removed` and [member BladeState.removed_edges].
 	func _disintegrate_unreachable(t: float) -> void:
+		# The BFS root. For a driven blade that is the pinned handle, which
+		# cannot die. A free fragment's root CAN (#186) — it is just a vertex —
+		# so re-root onto the lowest surviving one and let whatever no longer
+		# hangs off it become a fragment in its own right. That terminates:
+		# every re-fragmentation is strictly smaller than its parent.
+		var root := _state.pivot_index
+		if _state.is_unpinned and _removed.has(root):
+			root = -1
+			for v in _state.positions.size():
+				if not _removed.has(v):
+					root = v
+					break
+			if root < 0:
+				return  # nothing left to be disconnected from
 		var reachable := BladePopResolver._reachable_from_pivot(
-				_state, _removed, _ensure_adjacency())
+				_state, _removed, _ensure_adjacency(), null, root)
+		# Ascending by construction (the loop counts up), which is the order
+		# Fragment promises its consumer (#186).
+		var orphaned := PackedInt32Array()
 		for v in _state.positions.size():
-			if v == _state.pivot_index or _removed.has(v):
+			if v == root or _removed.has(v):
 				continue
 			if not reachable.has(v):
 				result.dead_at[v] = minf(result.dead_at.get(v, INF), t)
 				_removed[v] = true
+				orphaned.append(v)
+		if not orphaned.is_empty():
+			# #186: RECORDED here, simulated elsewhere. This gate stays a pure
+			# predicate over one swing — it does not own a solver, a physics
+			# query or a second AttackOutcome, and it must not, because it is
+			# also the AI-rollout and preview path.
+			result.fragments.append(Fragment.new(t, orphaned))
 
 	## Lazily builds, then caches, this swing's adjacency map (#795) — one
 	## O(E) build total instead of one per [method _kill]/[method admit].
@@ -393,15 +450,20 @@ static func _build_adjacency(state: BladeState) -> Dictionary:
 ## `removed_edges` defaults to the state's own [member BladeState.removed_edges]
 ## when omitted (`null`), which is where severance is recorded — an explicit
 ## `{}` therefore means "walk every edge", not "ask the state".
+## `root` defaults to -1, meaning [member BladeState.pivot_index] — the handle,
+## for every driven blade. A free fragment (#186) whose root vertex has itself
+## died passes an explicit surviving one instead; see
+## [method LiveGate._disintegrate_unreachable].
 static func _reachable_from_pivot(
 		state: BladeState,
 		removed: Dictionary,
 		adjacency: Variant = null,
-		removed_edges: Variant = null) -> Dictionary:
+		removed_edges: Variant = null,
+		root: int = -1) -> Dictionary:
 	var adj: Dictionary = adjacency if adjacency != null else _build_adjacency(state)
 	var cut: Dictionary = removed_edges if removed_edges != null else state.removed_edges
 	var reach: Dictionary = {}
-	var pivot := state.pivot_index
+	var pivot := root if root >= 0 else state.pivot_index
 	reach[pivot] = true
 	var queue: Array[int] = [pivot]
 	while not queue.is_empty():

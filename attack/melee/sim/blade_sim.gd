@@ -103,6 +103,15 @@ static func backend() -> StringName:
 ##   substeps-vs-iterations regression test — can isolate the substep-only
 ##   claim on a long blade without the length axis also adding budget, which
 ##   would conflate two separate effects.
+## - `linear_damping`: per-second velocity bleed applied to every dynamic
+##   particle (#186's drag on an unpinned fragment). 0 — the default, and
+##   what every driven swing passes — is an exact no-op: the retention
+##   factor is exactly 1.0 and the integrator is bit-identical to the
+##   undamped one, so a fragment with drag 0 coasts undecelerated.
+## - `initial_velocities`: optional per-particle velocity (px/s) to start
+##   from, seeded into `prev_positions` instead of the usual "at rest"
+##   reset. Empty (the default) means at rest. A free-flight fragment passes
+##   its velocity at the moment of separation here.
 static func simulate(
 		state: BladeState,
 		drivers: Array[BladeDriver],
@@ -111,14 +120,37 @@ static func simulate(
 		base_iterations: int = DEFAULT_ITERATIONS,
 		velocity_iter_ref: float = 0.0,
 		substeps: int = DEFAULT_SUBSTEPS,
-		enable_length_scaling: bool = true) -> BladeTrajectory:
-	state.prev_positions = state.positions.duplicate()
+		enable_length_scaling: bool = true,
+		linear_damping: float = 0.0,
+		initial_velocities: PackedVector2Array = PackedVector2Array()) -> BladeTrajectory:
+	var sub_count := maxi(substeps, 1)
+	if initial_velocities.is_empty():
+		state.prev_positions = state.positions.duplicate()
+	else:
+		# Seed the Verlet history so the FIRST substep's implied velocity is
+		# exactly `initial_velocities` (#186): `_step` reads velocity as
+		# `positions - prev_positions` over ONE substep, so the offset is
+		# scaled by the substep dt, not by `dt`. This is the whole reason a
+		# free-flight fragment continues from its separation velocity instead
+		# of restarting from rest.
+		var sub_dt0 := dt / float(sub_count)
+		var seeded := state.positions.duplicate()
+		for i in seeded.size():
+			var v: Vector2 = initial_velocities[i] if i < initial_velocities.size() else Vector2.ZERO
+			seeded[i] = state.positions[i] - v * sub_dt0
+		state.prev_positions = seeded
 	# One BFS per resolve (#790 pin 3), not per step/substep — length_factor
 	# is fixed for the whole swing. Computed here, ahead of the backend split,
 	# so the native path consumes the SAME number rather than re-deriving the
 	# BFS in C++ (#798): one implementation of the length axis, not two.
 	var length_factor := _length_factor(state.pivot_eccentricity()) if enable_length_scaling else 1.0
-	if _native != null and use_native:
+	# The native transliteration takes neither a damping term nor a seeded
+	# Verlet history (it receives `positions`, never `prev_positions`), so a
+	# free-flight pass (#186) takes the GDScript path by construction rather
+	# than silently losing its drag or its separation velocity. Both knobs are
+	# off in every driven-swing call, so the ordinary swing is untouched.
+	if _native != null and use_native \
+			and is_zero_approx(linear_damping) and initial_velocities.is_empty():
 		# Returns null when the state holds a constraint or driver the native
 		# path doesn't know — then we just fall through to GDScript.
 		var native_traj := _simulate_native(state, drivers, duration, dt,
@@ -139,14 +171,15 @@ static func simulate(
 	zero_speeds.resize(state.positions.size())
 	state.speed_history = [zero_speeds]
 	var steps := int(ceil(duration / dt))
-	var sub := maxi(substeps, 1)
+	var sub := sub_count
 	var sub_dt := dt / float(sub)
 	for step in steps:
 		var t0 := float(step) * dt
 		var step_speeds := zero_speeds
 		for s in sub:
 			var t := t0 + float(s + 1) * sub_dt
-			step_speeds = _step(state, drivers, t, sub_dt, base_iterations, velocity_iter_ref, sub, length_factor)
+			step_speeds = _step(state, drivers, t, sub_dt, base_iterations,
+					velocity_iter_ref, sub, length_factor, linear_damping)
 		traj.samples.append(state.positions.duplicate())
 		# The LAST substep's speeds — the physics rate closest to this
 		# sample's time, not an average or the step's max (#779).
@@ -247,7 +280,13 @@ static func _step(
 		base_iters: int,
 		vel_ref: float,
 		substeps: int,
-		length_factor: float) -> PackedFloat32Array:
+		length_factor: float,
+		linear_damping: float = 0.0) -> PackedFloat32Array:
+	# Per-substep velocity retention. `linear_damping == 0.0` yields EXACTLY
+	# 1.0, and multiplying a Vector2 by exactly 1.0 is bit-identical to not
+	# multiplying at all — which is what keeps the driven-swing path (and the
+	# native parity test) untouched by this knob's existence (#186).
+	var damp := maxf(0.0, 1.0 - linear_damping * dt)
 	var positions := state.positions
 	var prev := state.prev_positions
 	var inv_masses := state.inv_masses
@@ -259,7 +298,7 @@ static func _step(
 	for i in n:
 		if inv_masses[i] > 0.0:
 			var p := positions[i]
-			var v := p - prev[i]
+			var v := (p - prev[i]) * damp
 			prev[i] = p
 			positions[i] = p + v
 			var sp_sq := v.length_squared() / (dt * dt)

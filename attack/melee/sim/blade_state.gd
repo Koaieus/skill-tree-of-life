@@ -60,6 +60,16 @@ var vertex_blunting: PackedFloat32Array
 ## ever wanted back it is #409's to argue against the ADR, with magnitude as an
 ## [Entity] stat and placement as a flag on [Edge] — never a value on this class.
 var pivot_index: int = 0
+## True when this state has NO pinned handle — a severed fragment in free
+## flight (#186). Then [member pivot_index] is a connectivity ROOT and nothing
+## more: its inverse mass is not zeroed, it is not exempt from being popped,
+## and [method BladePopResolver.LiveGate._disintegrate_unreachable] re-roots
+## off it if it dies. A driven blade leaves this false, where `pivot_index`
+## means the wielder's own handle and all three of those exemptions apply.
+##
+## Sim-inert: the solver reads [member inv_masses], never this, so the native
+## backend needs no mirror of it.
+var is_unpinned: bool = false
 var edges: Array[Vector2i] = []
 ## Severed edge indices — `edges` itself is never spliced, because a
 ## [BladeHitEvent] carries an `edge_idx` INTO it and a splice would silently
