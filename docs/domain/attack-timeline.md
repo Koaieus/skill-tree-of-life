@@ -298,6 +298,31 @@ do the job they were written for.
 
 `BladeHitEvent.t` is melee's `arrival_time`.
 
+#### Free-flight fragments are a SECOND ROUND, not an interleave (#186)
+
+A spike pop is decided at land time, so *what a swing severed* is not known
+until `OutcomeApplier.apply` has returned. A severed fragment now keeps
+coasting (`docs/domain/melee-blade-sim.md`), which means a set of landings
+that exist only because of a mid-swing pop —
+`MeleeAttackPlan._fly_severed_fragments` runs them as a second round over the
+same world, gated by a fresh `LiveGate` per fragment and applied through this
+same `OutcomeApplier`.
+
+The contract's four items hold: the fragment's events are stamped with real
+swing-time `t` (its local trajectory time plus its `birth_t`), gated at land
+time against the live world, off the same commit-time offense snapshot, and
+resolved against whatever substrate `resolve_against` was handed.
+
+**The residue is ordering.** Free landings land after the whole driven swing
+rather than interleaved by `t`. On the authority that is invisible —
+`resolve_against` computes on a *shadow* and what reaches the live world is
+the record, whose merged schedule is recompiled in `t` order, so both the host
+replay and every peer see one coherent timeline. Two landings on the *same
+node*, one driven and one free, may see each other's mitigation in shadow
+order. Fixing that properly means an `OutcomeApplier` that can be suspended
+mid-walk and resumed with hits discovered during the walk; nothing today needs
+it, and it is written down here rather than left to be rediscovered.
+
 ### Ranged
 
 The degenerate case: candidates sorted by `arrival_time`, gate re-checked per

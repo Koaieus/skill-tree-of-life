@@ -629,6 +629,145 @@ speed from `sp_sq` in `BladeSim._step`) is exempt from `lint-transcendentals`
 as IEEE-754 correctly-rounded. The hyperbolic form was chosen on feel, not on
 determinism.
 
+## Free-flight severed fragments (#186)
+
+A spike pop kills one of the attacker's own blade vertices. Everything
+outboard of it stops being reachable from the driven pivot — and before #186
+those vertices simply **vanished**. That made the *single-spine* blade fail
+catastrophically: one spiked node deleted most of a sweep. Owner, filing the
+#772 design pass:
+
+> *"currently such a swing would fail so hard e.g. the first spiked node they
+> encounter could neuter the entire thing, which is also not what we want"*
+
+Free flight is the partial-success dial. The remainder **keeps coasting** from
+its velocity at the moment of separation: an unpinned body, internal
+constraints only, no driver, nothing steering it. A thin blade *degrades*
+instead of being deleted, next to a truss that just keeps swinging —
+*"possible, spectacular, not reliable"*.
+
+### The seam is "what left, and when" — never "why"
+
+`BladePopResolver.LiveGate._disintegrate_unreachable` is the single place a
+fragment is born, whatever removed the vertex. It now appends a
+`BladePopResolver.Result.Fragment` — `{t, vertices}` and nothing else. No
+trigger information reaches free flight, deliberately:
+
+* a **spike pop** produces one today;
+* **#781's bunker shatter** will produce one through the identical call, and
+  needs no code in `blade_free_flight.gd` at all.
+
+That is how #186 acceptance 5 ("a fragment born from a bunker shatter behaves
+identically") holds *ahead* of #781 landing — not by a second path that
+happens to agree, but by there being one path.
+`test_a_hand_built_fragment_flies_identically` pins it: a `Fragment`
+constructed by hand flies bit-identically to one a pop produced.
+
+### The fragment is a compacted, unpinned `BladeState`
+
+`BladeFreeFlight._build_state` cuts the fragment out with its **own index
+space** (local 0..n-1, with `Flight.vertices` mapping back), so every consumer
+downstream — the hit scan's per-particle loop, the gate's `dead_at`, the
+struct-of-arrays layout — sees an ordinary blade with no holes to
+special-case. Carried across:
+
+| carried | why |
+|---|---|
+| `radii` / `inner_radii` | it collides and draws as the same discs |
+| `vertex_damage`, `vertex_blunting` | **unscaled** — see below |
+| `edge_damage`, for edges whose both ends came along | ditto |
+| constraint `rest` / `compliance`, from the SOURCE constraint | `BladeState.build`'s "rest = current distance" would freeze the mid-swing *stretch* in as the fragment's true shape |
+| a `ClampAddon` phantom brace, when both its ends came along | a braced fragment stays braced, for free |
+
+Not carried: the pin. `is_unpinned` is set, every `inv_masses` entry is 1.0,
+and `pivot_index` degrades to a **connectivity root and nothing more**. Three
+pivot exemptions therefore switch off for a fragment:
+
+1. it is **not exempt from being popped** (`LiveGate.admit`) — the exemption
+   exists to protect the *wielder's grip*, and a severed fragment has no grip;
+   leaving it on would make one arbitrary vertex of every fragment sail
+   through spikes without even spending them;
+2. its inverse mass is not zeroed, so it actually moves;
+3. if the root itself dies, `_disintegrate_unreachable` **re-roots** onto the
+   lowest surviving vertex and whatever no longer hangs off it becomes a
+   fragment in its own right. Recursion terminates: every re-fragmentation is
+   strictly smaller than its parent.
+
+### No disconnection damage scale — and one authored drag
+
+The original #186 body proposed halving a fragment's damage. **Retired.**
+Owner, 2026-09-08:
+
+> *"emergent from speed, no halving, but possible a slight drag on
+> disconnected pieces"*
+
+So there is no disconnection constant and no second damage path. A coasting
+fragment carries the identical coefficients it had while attached, and
+[#779's speed curve](#speed-scaled-damage-779) — applied at land time off the
+contacting vertex's own speed — already gives a coasting fragment less than a
+driven blade, continuously. And *more* if it happens to be flung fast, which
+is the fantasy.
+
+The one authored term is **`BladeFreeFlight.DRAG`** (per-second velocity
+bleed, 0.8 today, owner-tunable). It reaches the solver through two new
+`BladeSim.simulate` parameters, both exact no-ops at their defaults so the
+driven swing is untouched:
+
+* `linear_damping` — per-substep retention is `1.0 - drag * dt`, so **drag 0
+  yields exactly 1.0** and the fragment coasts undecelerated, bit-identical
+  to the undamped integrator. That is what makes acceptance 4's "setting it
+  to 0" a real, testable state rather than a claim.
+* `initial_velocities` — seeds `prev_positions` so the first substep's
+  implied velocity *is* the separation velocity, instead of `simulate`'s usual
+  reset to rest.
+
+Both force the **GDScript** backend: the native transliteration takes neither
+a damping term nor a seeded Verlet history (it receives `positions`, never
+`prev_positions`). A free-flight pass therefore falls back by construction
+rather than silently losing its drag or its momentum, and the parity test is
+untouched because every driven-swing call leaves both at their defaults.
+
+### It runs as a second round, on the authority, after apply
+
+A pop is decided **at land time**, against the live world, inside
+`BladeDamageInstance.land_on`. So what a swing severed cannot be known any
+earlier than `OutcomeApplier.apply` returning — which is why
+`MeleeAttackPlan._fly_severed_fragments` is a second round *after* it, over a
+queue (a coasting fragment can be popped in turn and shed one of its own).
+
+Each round gets its **own `LiveGate`**, and must: the swing's gate has these
+vertices in `dead_at` — correctly, they have left the *driven* blade — so
+reusing it would refuse every hit the fragment goes on to make. What has to
+be shared is the *world*, and it is: a spikes pool the driven swing already
+drained is still drained when the fragment arrives. (A fragment that coasts
+back over a defender with budget left gets popped again. That is correct, and
+it is why `test_free_flight_live_swing.gd` pins the defender's cap at exactly
+1.)
+
+Fragment hits are appended to the **same `AttackOutcome`**, so
+`AttackRecord.capture` picks them up like any other landing and a peer
+**replays** them — it never re-runs a solver, and never needs to know a
+fragment existed. Determinism holds under
+`.claude/rules/multiplayer-sync.md` unchanged.
+
+**Ordering caveat, deliberate.** These land after the whole driven swing has
+landed, not interleaved by `t`. On the authority the reordering is invisible:
+`resolve_against` computes against a *shadow* and what reaches the live world
+is the record, whose merged schedule is recompiled in `t` order. The residue
+is that two landings on the *same node*, one driven and one free, may see
+each other's mitigation in shadow order. Interleaving properly would need an
+`OutcomeApplier` that can be suspended mid-walk and resumed with hits
+discovered during it — a real change to the applier, and not one #186 needs.
+
+### Not yet drawn
+
+`MeleePreview` replays `MeleeAttackPlan.last_trajectory` only, so a coasting
+fragment currently deals its damage **without being drawn**. The flights are
+exposed on `MeleeAttackPlan.last_free_flights` for whoever picks that up;
+`Events.blade_vertex_popped` also still carries a position but no velocity,
+which the same work needs. Called out in #186's NOTES as its own issue and
+deliberately not ridden in.
+
 ## Engine-side wiring
 
 ### `SkillBlade` (visual + playback)
