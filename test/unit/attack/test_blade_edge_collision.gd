@@ -256,8 +256,10 @@ func test_an_edge_contact_lands_no_damage_at_all() -> void:
 	assert_eq(on_target.size(), 1, "the contact still happens — that is the point")
 	assert_true(on_target[0].is_edge_hit())
 
-	# What MeleeAttackPlan.resolve_against stamps for an edge event: a flat 0,
-	# with no coefficient to look up anywhere.
+	# There is no coefficient to look up for an edge anywhere, and
+	# `MeleeAttackPlan.resolve_against` mints no DamageInstance for an edge event
+	# at all — a zero-amount hit would still buy a crit roll and an AttackRecord
+	# line. This is what an edge contact is worth if one is landed anyway.
 	var di := DamageInstance.new()
 	di.amount = 0.0
 	di.type = DamageInstance.Type.PHYSICAL

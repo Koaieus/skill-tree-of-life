@@ -595,11 +595,20 @@ var last_pops: BladePopResolver.Result = null
 ## at the same `t` is the disease, not the fix.
 var last_live_gate: BladePopResolver.LiveGate = null
 ## The [DamageInstance]s (concretely [BladeDamageInstance]) [method resolve]
-## built from [member last_events] — one per event, vertex or edge (#785), in order, whether
-## or not it will actually land (that decision is [member last_live_gate]'s,
-## made at [method BladeDamageInstance.land_on] time). [MeleePreview] consumes
-## these FIFO as its live replay passes each event through the SAME sequence,
-## so its reveal can show [member HitInstance.effective_amount] (set by
+## built from [member last_events] — one per VERTEX event, in order, whether or
+## not it will actually land (that decision is [member last_live_gate]'s, made
+## at [method BladeDamageInstance.land_on] time).
+##
+## [b]An EDGE event has no entry here[/b], so this is a subsequence of
+## [member last_events] rather than a parallel array. ADR 0005: nodes deal
+## damage, edges give rigidity. An edge contact is real — it is what stops a
+## bunker entering the blade's interior — but it carries no damage, and minting
+## a zero-amount [DamageInstance] for it would still buy a crit roll, a
+## schedule entry, a landing beat and a line in the [AttackRecord]. That is a
+## change to the COUNTING RULE with no gameplay content behind it, which is the
+## thing `docs/design/combat_system.md` says to leave alone. Edge contacts live
+## on in [member last_events] for the visual playback and for #781's bunker
+## break. The reveal can show [member HitInstance.effective_amount] (set by
 ## [method SkillNode.take_damage] when the real applier landed it) instead of
 ## re-deriving damage from a freshly rebuilt blade state, which drifts from
 ## what actually landed. Melee only ever produces [DamageInstance]s (never
@@ -639,18 +648,19 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	last_pops = gate.result
 	var di_list: Array[DamageInstance] = []
 	for ev in events:
-		# #502: no pre-filtering by pops/allocation here — every event, vertex
-		# OR edge (#785), becomes a candidate DamageInstance. Whether it actually lands is
+		# An EDGE contact produces no DamageInstance at all (ADR 0005): edges
+		# give rigidity, nodes deal damage. It stays in `last_events` — it is a
+		# real contact, and #781's bunker break is its consumer — but it buys no
+		# crit roll, no schedule entry and no AttackRecord line, because there
+		# is no damage for any of those to be about.
+		if ev.is_edge_hit():
+			continue
+		# #502: no pre-filtering by pops/allocation here — every VERTEX event
+		# becomes a candidate DamageInstance. Whether it actually lands is
 		# BladeDamageInstance.land_on's call, live, when OutcomeApplier
 		# consumes it (docs/domain/attack-timeline.md).
 		var di := BladeDamageInstance.new(ev, gate)
-		# An EDGE contact stamps 0: edges give rigidity, nodes deal damage
-		# (ADR 0005). It still becomes a DamageInstance so the one-per-event
-		# correspondence `last_hits` documents stays exact — the contact is real
-		# (it is what stops a bunker entering the blade), it just carries nothing.
-		di.amount = (
-				0.0 if ev.is_edge_hit()
-				else blade_state.vertex_damage[ev.particle_idx])
+		di.amount = blade_state.vertex_damage[ev.particle_idx]
 		di.type = DamageInstance.Type.PHYSICAL
 		di.target = ev.target as SkillNode
 		di.origin = source

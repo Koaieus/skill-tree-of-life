@@ -1,6 +1,6 @@
 # Melee blade — PBD physics & deterministic preview
 
-> ⚠️ **Damage model:** blade **vertices** deal `blade_damage`; blade **edges** collide as swept capsules and deal `edge_damage` (#785 — default **0**, so edges add *contact*, not damage, until a sharpener grants it). STR//10 scales per-vertex damage, and both are multiplied by the same per-contact speed curve (#779 — see "Speed-scaled damage" below). Face/cycle bonus is deferred post-MVP and explicitly **rejected** as a geometric filled region. See [../design/mvp_decisions.md](../design/mvp_decisions.md) §D-1 and "Edge collision" below.
+> ⚠️ **Damage model:** blade **vertices** deal `blade_damage`; blade **edges** deal **nothing** — they collide as swept capsules and that is all they do ([ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md): *nodes deal damage, edges give rigidity; spikes pop vertices, bunkers break edges*). There is no `edge_damage` stat. STR//10 scales per-vertex damage, and it is multiplied by the per-contact speed curve (#779 — see "Speed-scaled damage" below). Face/cycle bonus is deferred post-MVP and explicitly **rejected** as a geometric filled region. See [../design/mvp_decisions.md](../design/mvp_decisions.md) §D-1 and "Edge collision" below.
 
 ## Goal
 
@@ -458,42 +458,67 @@ design deliberately avoids geometric filled regions (`combat_system.md`: trigger
 off cycle presence, a graph fact, not a region with no runtime planarity
 guarantee), and polygon containment per sim step buys nothing capsules don't.
 
-**Anti-double-dip.** Per sim step a target takes **at most one blade-element
-contact — the highest-damage one, never a sum.** An element that contacted but
-lost is still recorded as having contacted, so it cannot come back for a second
-bite at the same target on a later substep; that is what makes the hub rule hold
-across the whole sweep rather than only within one query. Ranking is on the raw
-damage *coefficient* with contact speed as the tiebreak, not on the post-curve
-landed number — the curve needs the wielder's `StatBoard`, which `BladeHitScan`
-deliberately does not take, and the rule's job is to cap a **count**, not to pick
-a maximum to the last decimal. This bounds the counting rule itself, which is
-what `combat_system.md`'s *"tame runaway with the scalars, never the counting
-rule"* asks for — the rule here is already bounded, so no scalar patching is
-needed.
+**No arbitration between elements — and the hub rule holds anyway.** #785 added a
+per-substep "highest-damage element wins" pass so one contact could not be counted
+as vertex + edge damage. [ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md)
+removed its premise by removing edge damage, so the pass went with it and the
+counting rule is back to what it was before #785: **each element emits at most one
+event per collider across the whole sweep, on first contact, and nothing ranks
+elements against each other.** A degree-6 hub is still worth one *damaging*
+contact, carried entirely by **geometry** — the capsules are trimmed back to the
+rim of each endpoint's own disc, and whatever they still touch has no damage to
+add. Deleting the rule also deleted the need for its own carve-out (*"particles
+never arbitrate against each other"*, which existed because arbitrating vertices
+let `test_ai_blade_rollout`'s pop-exempt pivot suppress the contact that was
+supposed to pop).
 
-**`edge_damage` is its own stat, default 0** — granted by the paired
-edge-sharpener addon, **not** lerped, min'd or otherwise derived from
-`blade_damage`. Owner's framing: *"Edges.. cut? Blades.. clobber?"* — a vertex
-is mass at the end of a lever (concentrated impact, carries spikes); an edge is
-a line under shear (distributed, carries sharpeners). Deriving it from
-`blade_damage` would count one investment roughly twice on a 100-edge blade and
-compound with blade size. An **edge's** coefficient is the **MIN** of its two
-endpoints' `edge_damage`, and likewise its `blunting` is the min of theirs: the
-sharpener is *paired*, so both ends must carry the grant, and one spiked vertex
-cannot upgrade every edge incident to it for free. (Min-of-endpoints is an
-implementation call, not an owner decision — see #785.)
+**An edge contact mints no `DamageInstance` at all.** It stays in
+`MeleeAttackPlan.last_events` — it is a real contact, and #781's bunker break is
+its consumer — but `last_hits` / `AttackOutcome.hits` is a *subsequence* of the
+event list, vertices only. A zero-amount hit would still buy a crit roll, a
+schedule entry, a landing beat and a line in the `AttackRecord`: a change to the
+counting rule with no gameplay content, which is exactly what
+`combat_system.md`'s *"tame runaway with the scalars, never the counting rule"*
+warns against.
 
-**A capsule contact is a full contact for every defender effect** — damage,
-`spikes` (#778), and severance. It spends the defender's `spikes` pool by the
-edge's blunting on exactly the #778 ladder ("pop only if full amount is
-removed"), and a full drain severs the **edge**: both endpoints survive, per
-#781's *"the element that owns the contact point is the element that breaks"*.
-There is **no pivot exemption for edges** — the exemption exists so the
-wielder's handle cannot be popped out from under them, and a pivot-incident edge
-is not the handle.
+**An edge carries no stats at all.** There is no `edge_damage` StatDef, no
+per-edge damage array on `BladeState`, and no edge `blunting`. Not derived from
+the endpoints by MIN, MAX or mean either — #785 shipped the MIN for a day and
+[ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md) struck it on
+the owner's lever test (two spiked balls on a lever deal massive damage
+naturally; the *beam* between them dealing massive damage *"orrrr no that makes
+no sense??"*) and on a structural objection: a truss and a chain with the same
+nodes differ only in their edges, so a derivation would make triangulating for
+**rigidity** silently multiply **damage**, and "add a node for offence, add an
+edge for structure" would stop being a choice. **This ground is dead — do not
+re-propose a gentler derivation.** Edge *geometry* still derives from the
+endpoints (capsule trimmed to each disc's rim, disc radius growing with
+allocation level) because geometry is physics, not offence. If edge offence is
+ever wanted back it is #409's job to argue against the ADR, with magnitude as an
+`Entity` stat and placement as a boolean on `Edge`.
 
-**Severance is a set, not a splice.** `BladeState.removed_edges` records severed
-indices; `state.edges` is never spliced, because a `BladeHitEvent` carries an
+**A capsule contact never touches the spike system.** *A spike destroys matter, a
+bunker destroys structure.* An edge sweeping over a spiked node drains nothing,
+severs nothing and leaves `pool.current` exactly where it was, so a 10-node blade
+still delivers ~10 spike interactions rather than ~19.
+`BladePopResolver.LiveGate._admit_edge` implements this as an **explicit skip** of
+the spike ladder, and it has to: giving an edge blunting `0` instead would make
+`remaining >= blunting` trivially true, so every edge contact would `deplete(0)`
+and sever — #778's "zero means unfilled" gotcha, inverted. There is no
+`_blunting_for_edge`.
+
+Spacing luck for spikes — whether a defender happened to land on a vertex disc or
+in the gap between two — is **not** a defect this needs to fix. Owner,
+2026-09-08: *"blades be floppy as heck, intentionally threading the
+spiked-defender needle would be close to impossible […] so many moving parts it's
+almost guaranteed to hit, and if not, no biggie."* Spacing luck for **bunkers**
+was the real defect, and capsules fix it.
+
+**Severance is a set, not a splice** — and since ADR 0005 the *only* thing that
+will sever an edge is #781's bunker break, a rigid blade shattering against an
+obstacle. `LiveGate._sever_edge`, `BladeState.removed_edges` and `remove_edge()`
+are kept as that seam and currently have no production caller.
+`BladeState.removed_edges` records severed indices; `state.edges` is never spliced, because a `BladeHitEvent` carries an
 `edge_idx` *into* it and a splice would silently re-point every pending event.
 That also keeps #795's cached adjacency map valid after a severance — the map
 pairs each neighbour with its own edge index, so `_reachable_from_pivot` skips a
