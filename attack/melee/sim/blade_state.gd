@@ -37,6 +37,19 @@ var vertex_damage: PackedFloat32Array
 ## wrong here). [BladeHitScan] reads this to stamp each [BladeHitEvent]'s
 ## contact speed.
 var speed_history: Array[PackedFloat32Array] = []
+## Per-particle blunting — how much of a spiked defender's remaining `spikes`
+## pool this vertex drains on contact, and the threshold it must fully clear to
+## pop (#778). The defensive counterpart of [member vertex_damage], filled the
+## same way: zeroed in build(), then each slot written by the caller from the
+## source SkillNode's get_local_value(&"blunting") (wielder board baseline
+## merged with any node-local [SpikeRingAddon] grant).
+##
+## Zero means UNFILLED, not "blunting 0" — a 0 would drain nothing and pop
+## nothing, which is not a state any node can author. Callers that build a
+## state without naming source nodes (fixtures, characterization tests) simply
+## leave the array zeroed, and [method BladePopResolver.LiveGate._blunting_for]
+## falls back to the `blunting` [StatDef]'s own default.
+var vertex_blunting: PackedFloat32Array
 var pivot_index: int = 0
 var edges: Array[Vector2i] = []
 var constraints: Array[BladeConstraint] = []
@@ -64,6 +77,8 @@ static func build(
 	s.inner_radii = PackedFloat32Array(inner_radii_ if not inner_radii_.is_empty() else radii_)
 	s.vertex_damage = PackedFloat32Array()
 	s.vertex_damage.resize(positions_.size())  # zero-init; caller fills per-vertex
+	s.vertex_blunting = PackedFloat32Array()
+	s.vertex_blunting.resize(positions_.size())  # zero-init == unfilled; see the member
 	s.inv_masses = PackedFloat32Array()
 	s.inv_masses.resize(positions_.size())
 	for i in positions_.size():

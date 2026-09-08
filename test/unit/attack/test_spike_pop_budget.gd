@@ -179,3 +179,72 @@ func test_realloc_restores_spent_budget() -> void:
 	alloc.force_deallocate(spiked)
 	alloc.force_allocate(defender, spiked)
 	assert_eq(_spikes_pool(spiked).current, 2.0, "realloc must restore the full budget")
+
+
+# ── End-to-end: blunting reaches admit() through a real build_blade_state ────
+
+const _SPIKE_SCENE := preload("res://skill_node/addons/spike_ring_addon.tscn")
+
+
+## Builds the ATTACKER's blade through the production path: pivot `source`
+## plus one spiked `member`, whose SpikeRingAddon raises its own `blunting`
+## from the def default 1 to 2. Returns the built BladeState — selection order
+## is [source, member], so the spiked vertex is particle 1.
+func _spiked_blade_state(ctx: Dictionary) -> BladeState:
+	var graph: Node = ctx.graph
+	var alloc: AllocationSystem = ctx.alloc
+	var attacker: Entity = ctx.attacker
+	var source := _spawn_node(graph, "Pivot")
+	var member := _spawn_node(graph, "SpikedVertex")
+	await get_tree().process_frame
+	alloc.force_allocate(attacker, source)
+	alloc.force_allocate(attacker, member)
+	member.add_child(_SPIKE_SCENE.instantiate() as SpikeRingAddon)
+	await get_tree().process_frame
+
+	var plan := MeleeAttackPlan.new()
+	plan.attacker = attacker
+	plan.source = source
+	var members: Array[SkillNode] = [member]
+	plan.blade_nodes = members
+	return plan.build_blade_state()
+
+
+## Acceptance 2, end to end (#778's closing gap): a spiked ATTACKING vertex
+## carries blunting 2 out of the real blade build, so against a defender
+## holding 1 remaining spike it drains the remainder and passes THROUGH
+## without popping. Nothing here supplies the override dict — if the
+## production fill were missing, the vertex would read blunting 1, pop, and
+## this test would fail.
+func test_spiked_vertex_blunting_reaches_admit_through_production_build() -> void:
+	var ctx: Dictionary = await _setup(1.0)
+	var spiked: SkillNode = ctx.spiked
+	var state: BladeState = await _spiked_blade_state(ctx)
+	assert_not_null(state, "the plan must build a state")
+	assert_almost_eq(state.vertex_blunting[0], 1.0, 0.001,
+			"plain pivot vertex carries the blunting def default")
+	assert_almost_eq(state.vertex_blunting[1], 2.0, 0.001,
+			"SpikeRingAddon raises the spiked vertex to blunting 2")
+
+	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
+	assert_true(gate.admit(_ev(0.1, 1, spiked), CombatWorld.live()),
+			"blunting 2 vs 1 remaining: drains through, no pop -- damage lands")
+	assert_eq(_spikes_pool(spiked).current, 0.0, "the remainder drained to exactly 0")
+	assert_eq(gate.result.pops.size(), 0, "no killing contact recorded")
+
+
+## The same production-filled state, but the defender holds enough: blunting 2
+## against a cap-2 pool DOES pop, and spends the full 2 (a plain vertex would
+## only have spent 1 and left the node half-loaded).
+func test_spiked_vertex_pops_and_spends_its_full_blunting() -> void:
+	var ctx: Dictionary = await _setup(2.0)
+	var spiked: SkillNode = ctx.spiked
+	var state: BladeState = await _spiked_blade_state(ctx)
+
+	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
+	assert_false(gate.admit(_ev(0.1, 1, spiked), CombatWorld.live()),
+			"blunting 2 vs 2 remaining: the full amount is removed, so it pops")
+	assert_eq(_spikes_pool(spiked).current, 0.0, "a blunting-2 pop spends 2, not 1")
+	assert_eq(gate.result.pops.size(), 1, "exactly one killing contact")
+	assert_almost_eq(gate.result.pops[0].blunting_spent, 2.0, 0.001,
+			"the Pop records the full blunting it spent")

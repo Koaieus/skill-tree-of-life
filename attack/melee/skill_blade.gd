@@ -112,6 +112,10 @@ func build_from_skill_nodes(
 	# any node-local spike modifier) — one localized read per source node.
 	for i in skill_nodes.size():
 		state.vertex_damage[i] = skill_nodes[i].get_local_value(&"blade_damage")
+	# Per-vertex blunting, same localized read (#778) — a spiked vertex carries
+	# the SpikeRingAddon's raise to 2, so it reaches BladePopResolver.LiveGate.
+	for i in skill_nodes.size():
+		state.vertex_blunting[i] = skill_nodes[i].get_local_value(&"blunting")
 	# Dispatch to addons after BladeState is built so they can append
 	# constraints (Clamp's phantom brace). SkillBlade never learns specific
 	# addon types — pure virtual dispatch.

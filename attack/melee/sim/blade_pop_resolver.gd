@@ -108,12 +108,13 @@ class LiveGate extends RefCounted:
 	var _adjacency_built: bool = false
 
 	## `vertex_blunting` is an OPTIONAL particle_idx -> blunting override
-	## (#778). [BladeState] carries no per-vertex `blunting` array today (only
-	## `vertex_damage` — the offensive counterpart, wired by the two blade-build
-	## call sites this class does not own); every particle_idx absent from this
-	## dict reads the `blunting` [StatDef]'s own default via [method _blunting_for].
-	## A caller that CAN name the attacking vertex's source [SkillNode] should
-	## pass its `get_local_value(&"blunting")` here instead of leaving the gap.
+	## (#778), consulted BEFORE the state's own
+	## [member BladeState.vertex_blunting] array. Production never passes it:
+	## both blade-build call sites fill the array from each source node's
+	## `get_local_value(&"blunting")`, so the [SpikeRingAddon] raise to 2
+	## reaches [method admit] end to end. The dict stays as the seam for a
+	## fixture that wants to pin one vertex's blunting against a hand-built
+	## state it never populated. See [method _blunting_for] for the full chain.
 	var _vertex_blunting: Dictionary
 
 	func _init(state: BladeState, attacker: Entity, vertex_blunting: Dictionary = {}) -> void:
@@ -176,10 +177,13 @@ class LiveGate extends RefCounted:
 		var b := node.board()
 		return b.get_stat(&"spikes") as PoolStat if b != null else null
 
-	## This gate's blunting for [param particle_idx] — the caller-supplied
-	## override if one was given at construction, else the `blunting` StatDef's
-	## own authored default (currently 1). See [member _vertex_blunting]'s doc
-	## for why a caller may have nothing to offer here yet.
+	## This gate's blunting for [param particle_idx], in priority order:
+	## the caller-supplied override dict, then the state's own
+	## [member BladeState.vertex_blunting] slot (what production fills), then
+	## the `blunting` [StatDef]'s authored default (currently 1) for a
+	## hand-built state that filled neither. A zero slot counts as unfilled —
+	## blunting 0 would drain nothing and pop nothing, so no authored build
+	## can produce it.
 	static func _blunting_for_dict(vertex_blunting: Dictionary, particle_idx: int) -> float:
 		if vertex_blunting.has(particle_idx):
 			return float(vertex_blunting[particle_idx])
@@ -187,7 +191,13 @@ class LiveGate extends RefCounted:
 		return float(def.default_value) if def != null else 1.0
 
 	func _blunting_for(particle_idx: int) -> float:
-		return _blunting_for_dict(_vertex_blunting, particle_idx)
+		if _vertex_blunting.has(particle_idx):
+			return float(_vertex_blunting[particle_idx])
+		if _state != null and particle_idx < _state.vertex_blunting.size():
+			var from_state := _state.vertex_blunting[particle_idx]
+			if from_state > 0.0:
+				return from_state
+		return _blunting_for_dict({}, particle_idx)
 
 	## Registers [param node]'s real [SkillNode] on its owner's sparse
 	## turn-start refresh set (#778 — Entity._on_turn_started sweeps exactly
