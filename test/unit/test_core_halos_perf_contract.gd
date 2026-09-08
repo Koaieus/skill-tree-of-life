@@ -10,6 +10,16 @@ extends GutTest
 ## every other test in the suite, while putting the 8ms back. So each test pins
 ## the negative — "and it did NOT rebuild" — not just that the picture is right.
 ## See test_core_halos_gimbal.gd for the geometry half of the contract (#138).
+##
+## One test here guards a #138 invariant rather than a #802 one: GIMBAL's back
+## layer must redraw on every tick CoreHalos does, or the far arcs freeze
+## mid-spin while the front half keeps turning (skill-node-visuals.md describes
+## exactly that regression, and says only watching it animate will catch it).
+## #802 put that redraw AFTER an early return in `_on_anim_tick()`, so it now
+## holds only because GIMBAL happens to have no spin layers — an implicit
+## invariant spanning two functions. Give GIMBAL a spin layer (a static outer
+## ring, say) and the back half silently freezes. That is pinned below rather
+## than left to an eyeball.
 
 ## [b]This file must never be gated on an idle machine.[/b] Every assertion here
 ## is STRUCTURAL — draw counts, rotation deltas, process flags, memo stamps —
@@ -169,6 +179,55 @@ func test_the_gimbal_memo_is_stamped_per_frame_and_dropped_on_invalidation() -> 
 	halos.gimbal_layer_batch(true)
 	assert_eq(halos._gimbal_frame, Engine.get_process_frames(),
 			"the memo is stamped with the process frame it was computed on, so the next frame recomputes")
+
+
+# — the #138 back-layer invariant, re-pinned under #802's early return ————————
+
+func test_a_clock_tick_still_redraws_the_gimbal_back_layer() -> void:
+	var halos := await _make(HalosScript.CoreHaloStyle.GIMBAL)
+	var back: Node2D = halos.get_node("GimbalBack")
+	var draws := [0]
+	back.draw.connect(func() -> void: draws[0] += 1)
+
+	# Positive control: the back layer CAN draw, so a later "it drew" cannot
+	# pass vacuously and a later "it didn't" is not just a dead signal.
+	back.queue_redraw()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_gt(draws[0], 0, "positive control: the back layer draws when asked")
+
+	# Silence the ambient clock, so what we measure is OUR tick and not
+	# whatever _process was doing anyway.
+	halos.set_animating(false)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var quiet: int = draws[0]
+	await get_tree().process_frame
+	assert_eq(draws[0], quiet, "control: with the clock stopped the back layer is quiescent")
+
+	halos.anim_time += 0.1
+	halos._on_anim_tick()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_gt(draws[0], quiet,
+			"one tick of the shared clock redraws the BACK half too — without this the far arcs "
+			+ "freeze mid-spin while the front keeps turning (#138). #802 moved this after an early "
+			+ "return, so it holds only while GIMBAL has no spin layers.")
+
+
+func test_the_back_half_geometry_advances_with_the_clock() -> void:
+	# The closest a GDScript test gets to "it is visibly turning": the back
+	# half's OWN drawn geometry differs between two clock values.
+	var halos := await _make(HalosScript.CoreHaloStyle.GIMBAL)
+	halos.anim_time = 0.0
+	halos._redraw_all()
+	var a: PackedVector2Array = halos.gimbal_layer_batch(false)["points"]
+	halos.anim_time = 0.35
+	halos._redraw_all()
+	var b: PackedVector2Array = halos.gimbal_layer_batch(false)["points"]
+
+	assert_gt(a.size(), 0, "the back half has geometry to advance")
+	assert_ne(a, b, "the back half advances with the clock rather than rendering one frozen pose")
 
 
 # — 4. the idempotent seams ————————————————————————————————————————————————————
