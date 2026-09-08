@@ -202,14 +202,40 @@ state; and since ADR 0005 an **edge event mints no `DamageInstance` at all**, so
 `last_damage_instances` is a *subsequence* of `last_events`, not a parallel array
 — a preview that zips the two together will desync.
 
-## #801 — a Fable analysis is pending
+## #801 — the Fable analysis landed; one owner call away from Ready
 
-Commissioned 2026-09-08 to produce **options with real costs, not one
-recommendation**, and to post them on #801. It was asked to treat the native
-question as the crux (per-step granularity must land in both backends or the
-interleaved path is GDScript-only, since parity is pinned bit-identical), to
-engage with #797's numbers, to say what each option does to #781's cost, and to
-argue honestly for keeping `BladeFreeFlight` before dismissing it.
+Full text on #801 (`issuecomment-5590543090`). Four options — A per-sample
+interleave, B optimistic bake + re-bake at severance, C kinematic post-pass,
+D keep `BladeFreeFlight` — each with perf / native / replay / #781 cost, plus an
+8-point acceptance sketch and a table re-pointing every #186 test.
 
-**The owner picks.** When they do, that ruling — attributed and dated — goes on
-#801, and BRIEF C gets written against it.
+**It dissolved the crux this file originally stated.** Neither backend needs
+per-*step* granularity: the state only changes shape at a severance, which is
+rare, so what both need is **continue-from-state per chunk**. Native changes
+become additive (~40 lines: `prev_positions` in, integer `step_offset` /
+`step_count`, per-particle damping, `prev_samples` out), not a redesign. Time
+must be computed as `float(step_offset + s) * dt`, never a float offset, or
+parity breaks.
+
+Three further facts it found, none of which were in the issue body, all verified
+against master:
+
+- The pop gate is fed by `OutcomeApplier` via `BladeDamageInstance.land_on`, not
+  by the scan — so the interleave is sim/scan/**land**, and
+  `_fly_severed_fragments` already demonstrates the per-batch idiom. No
+  suspendable applier is needed.
+- A death is already expressible with **zero C++**: `inv_mass 0` (a frozen corpse,
+  which is #787's snapshot for free), incident constraints dropped, its
+  `BladeArcDriver` dropped — all per-call inputs to native.
+- A **mirror peer runs `plan.resolve()` on a throwaway shadow purely to draw**
+  (`battle_system.gd:512-524`, verified). So the stepping core is the peer's draw
+  path too — a GDScript-only tail costs peers as well, though the outcome is
+  discarded so determinism is untouched.
+
+**Recommended: B**, as two separable units — a GDScript restructure, then the
+native continuation — with a cheaper intermediate that stops after unit one. B is
+bit-identical to A (the bake is a pure function), costs a no-pop swing *nothing*,
+and is strictly cheaper than today on a pop swing.
+
+**Blocked only on the owner confirming B.** Once confirmed: split into the two
+units, move to `Ready`, and write BRIEF C against the interleaved model.
