@@ -60,8 +60,9 @@ attack/melee/
 								  SkillBlade overlaid on the selection and loops
 								  the same sim resolve() runs.
 
-attack/plan/melee_attack_plan.gd  resolve() → builds BladeState → BladeSim.simulate
-											→ BladeHitScan → AttackOutcome
+attack/plan/melee_attack_plan.gd  resolve() → builds BladeState → bake →
+											walk (scan → land) → re-bake at each
+											severance → AttackOutcome (#801)
 ```
 
 ## Data flow
@@ -72,18 +73,18 @@ attack/plan/melee_attack_plan.gd  resolve() → builds BladeState → BladeSim.s
 				 ▼
 			BladeState  ◄── pure descriptor (positions, inv_masses, edges, constraints)
 				 │
-				 ├──► BladeSim.simulate(state, drivers, duration)
+				 ├──► BladeSim.simulate_range(state, drivers, step_offset, count)
 				 │         │
 				 │         ▼
 				 │     BladeTrajectory (samples[step] = PackedVector2Array)
 				 │         │
-				 │         ├──► BladeHitScan.scan(trajectory, state, targets)
+				 │         ├──► BladeHitScan.Sweep.scan_sample(t, pose, speeds)
 				 │         │         │
 				 │         │         ▼
 				 │         │     [HitEvent { t, particle/edge, target }]
 				 │         │         │
-				 │         │         ▼ (resolve only)
-				 │         │     AttackOutcome
+				 │         │         ▼ (resolve only) — landed per SAMPLE, so a
+				 │         │     AttackOutcome         pop re-bakes what follows
 				 │         │
 				 │         └──► SkillBlade.play(trajectory)  ◄── ghost or live
 				 │                   │
@@ -210,7 +211,12 @@ is already warping, in which case the driver reads `clock.progress()` instead.
 That is the whole of Fortification drag's reach into this class — see
 "Fortification drag" below.
 
-### `BladeSim.simulate(state, drivers, duration, dt, base_iterations, velocity_iter_ref, substeps, enable_length_scaling, linear_damping, initial_velocities, clock)`
+### `BladeSim.simulate(state, drivers, duration, dt, base_iterations, velocity_iter_ref, substeps, enable_length_scaling, clock)`
+
+`simulate` is `simulate_range(state, drivers, 0, ceil(duration / dt), …)` — one
+stepping loop, and a continued chunk is the same call with a different **integer**
+`step_offset`. Per-particle damping lives on `BladeState.damping`, not in the
+signature. See "Severance is a constraint removal" below.
 
 Stateless static. `dt` is the **trajectory sample rate** — the caller's
 contract for how many `traj.samples` come out (`duration / dt` of them),
@@ -529,7 +535,7 @@ are kept as that seam and currently have no production caller.
 That also keeps #795's cached adjacency map valid after a severance — the map
 pairs each neighbour with its own edge index, so `_reachable_from_pivot` skips a
 severed edge in O(1) as it walks and the map is built **once per swing**, never
-rebuilt. Losing an edge orphans a fragment by exactly the same criterion as
+rebuilt. Losing an edge severs a remainder by exactly the same criterion as
 losing a vertex, so `_kill` and `_sever_edge` share one `_disintegrate_unreachable`.
 
 **Broad phase.** Per substep, one shape query over the blade's whole bounding
@@ -648,9 +654,9 @@ nothing to a rigid blade, i.e. nothing to exactly the blade it is meant to slow.
 Two mechanisms defeat it, in order: the distance constraints fight the damping,
 and then `_step` re-applies the drivers **after** the Verlet integration, so
 `BladeArcDriver.apply()`, a pure function of its argument, overwrites the damped
-position outright. `simulate()`'s `linear_damping` is the wrong channel for the
-same reason — it is the free-flight knob for an *unpinned* fragment, where there
-is no driver to overwrite anything.
+position outright. `BladeState.damping` is the wrong channel for the same
+reason — it is the **severance** knob, for a particle no driver is steering any
+more, where there is nothing to overwrite it.
 
 What drag can move is the argument. `BladeSwingClock` owns the angular progress
 `f` the driver evaluates its ease at, and every fortified node the blade touches
@@ -686,8 +692,9 @@ driver keeps reading `t / duration` verbatim, so a swing with a fortified node i
 its field that it never touches is **bit-identical** to one with no field at all.
 That exactness is deliberate: accumulating `f` from t=0 would drift in the last
 bits and quietly make the mere presence of a wall change a swing that never met
-it. A warping clock does force the GDScript backend, joining `linear_damping` and
-seeded velocities on the list of things the C++ transliteration does not model.
+it. A warping clock does force the GDScript backend, joining per-particle damping and
+a continued Verlet history (`step_offset > 0`) on the list of things the C++
+transliteration does not model — until #803 adds them.
 
 ### Where it sits under ADR 0005
 
@@ -748,144 +755,223 @@ one per ghost cycle (a clock banks what it has already touched, so reusing one
 would start cycle 2 already dragged). Without that the ghost would promise an arc
 the committed swing does not deliver.
 
-## Free-flight severed fragments (#186)
+## Severance is a constraint removal (#801, supersedes #186's free flight)
 
-A spike pop kills one of the attacker's own blade vertices. Everything
-outboard of it stops being reachable from the driven pivot — and before #186
-those vertices simply **vanished**. That made the *single-spine* blade fail
-catastrophically: one spiked node deleted most of a sweep. Owner, filing the
-#772 design pass:
+When a spike pop kills a blade vertex, everything downstream of it stops being
+reachable from the driven pivot. Before #186 those vertices simply **vanished**,
+which made the *single-spine* blade fail catastrophically: one spiked node
+deleted most of a sweep. Owner, filing the #772 design pass:
 
 > *"currently such a swing would fail so hard e.g. the first spiked node they
 > encounter could neuter the entire thing, which is also not what we want"*
 
-Free flight is the partial-success dial. The remainder **keeps coasting** from
-its velocity at the moment of separation: an unpinned body, internal
-constraints only, no driver, nothing steering it. A thin blade *degrades*
-instead of being deleted, next to a truss that just keeps swinging —
-*"possible, spectacular, not reliable"*.
+The partial-success dial is that the remainder **keeps going**. Owner, 2026-09-08:
+
+> *"leaf node sits on blade, swinging. sim constraint ties it to its neighbour
+> via edge. say its neighbour gets popped, taking its edges with it. leaf node is
+> now fully dislocated. constraint: gone. do we need to track this component
+> separately? no it's the same old same old, just one less restriction. keep
+> simulating displacement and enforce the remaining constraints"*
+
+That is exactly what happens now. **There is no fragment type, no second sim, no
+`is_unpinned`, and no separation-velocity seeding** — the velocities were never
+lost, because the particles never left the state.
+
+### What a death is
+
+Three things, none of which needs C++ (`inv_masses`, the constraint list and the
+driver list are all per-call inputs to the native backend):
+
+1. `inv_mass = 0` — a **frozen corpse**, staying exactly where it died. That is
+   the same expression that pins the pivot, and it is #787's death-time snapshot
+   for free.
+2. every constraint **incident to it** dropped (`BladeState.remove_vertex`),
+   including a `ClampAddon` phantom brace — a weld to a corpse is a weld to a
+   wall.
+3. its `BladeArcDriver` dropped, if it was one of the pivot's driven neighbours.
+   `MeleeAttackPlan._surviving_drivers` also drops the driver of a merely
+   **coasting** vertex: alive, but no longer attached to the handle, so nothing
+   may keep swinging it.
+
+Everything downstream then coasts by plain Verlet, because that is what Verlet
+does to a particle nothing is pulling on. It is in the **same
+`last_trajectory`**, at the **same index** — `#785`'s index-stability invariant
+holds for the whole swing — so `SkillBlade.play` draws it with no new code, and
+#186's "the fragment is not drawn" residue is closed.
+
+`BladeState.removed_vertices` mirrors `removed_edges` exactly: a **recorded set,
+never a splice**, because a `BladeHitEvent` carries a `particle_idx` into
+`positions` and a splice would silently re-point every pending event — and would
+invalidate `Pop.particle_idx`, which #799's counting and #781's bunker seam both
+read.
+
+### Orphans are COASTING, not dead
+
+`BladePopResolver.Result` now says two separate things:
+
+| | means |
+|---|---|
+| `dead_at` | a spike **destroyed** this vertex at this time. Its hits from then on are refused. |
+| `severances` | this **set of vertices** lost its path to the handle at this time. They are not in `dead_at`; they are still armed, still land #779-scaled hits, and can be popped again. |
+
+So `dead_at.size()` and `vertex_pop_count()` now agree by construction rather
+than by filter — which is what #799 was filed about, and #801 removed its
+premise. Only the **pivot** is exempt from popping, unconditionally: it is the
+wielder's grip, and there is no second root to exempt any more.
 
 ### The seam is "what left, and when" — never "why"
 
 `BladePopResolver.LiveGate._disintegrate_unreachable` is the single place a
-fragment is born, whatever removed the vertex. It now appends a
-`BladePopResolver.Result.Fragment` — `{t, vertices}` and nothing else. No
-trigger information reaches free flight, deliberately:
+severance is born, whatever removed the vertex. It appends a
+`BladePopResolver.Severance` — `{t, vertices}` and nothing else. No trigger
+information reaches the continuation, deliberately:
 
 * a **spike pop** produces one today;
-* **#781's bunker shatter** will produce one through the identical call, and
-  needs no code in `blade_free_flight.gd` at all.
+* **#781's bunker break** will produce one through the identical call, and needs
+  no continuation code at all.
 
-That is how #186 acceptance 5 ("a fragment born from a bunker shatter behaves
-identically") holds *ahead* of #781 landing — not by a second path that
-happens to agree, but by there being one path.
-`test_a_hand_built_fragment_flies_identically` pins it: a `Fragment`
-constructed by hand flies bit-identically to one a pop produced.
+`test_the_continuation_is_a_function_of_topology_not_of_trigger` pins it: the
+same constraint set and inverse masses reached by `remove_vertex` and reached by
+hand (the shape an edge break leaves) continue **bit-identically**.
 
-### The fragment is a compacted, unpinned `BladeState`
+### The drag term, now per particle
 
-`BladeFreeFlight._build_state` cuts the fragment out with its **own index
-space** (local 0..n-1, with `Flight.vertices` mapping back), so every consumer
-downstream — the hit scan's per-particle loop, the gate's `dead_at`, the
-struct-of-arrays layout — sees an ordinary blade with no holes to
-special-case. Carried across:
+There is still **no disconnection damage scale**. Owner, 2026-09-08:
 
-| carried | why |
-|---|---|
-| `radii` / `inner_radii` | it collides and draws as the same discs |
-| `vertex_damage`, `vertex_blunting` | **unscaled** — see below |
-| `edge_damage`, for edges whose both ends came along | ditto |
-| constraint `rest` / `compliance`, from the SOURCE constraint | `BladeState.build`'s "rest = current distance" would freeze the mid-swing *stretch* in as the fragment's true shape |
-| a `ClampAddon` phantom brace, when both its ends came along | a braced fragment stays braced, for free |
+> *"emergent from speed, no halving, but possible a slight drag on disconnected
+> pieces"*
 
-Not carried: the pin. `is_unpinned` is set, every `inv_masses` entry is 1.0,
-and `pivot_index` degrades to a **connectivity root and nothing more**. Three
-pivot exemptions therefore switch off for a fragment:
-
-1. it is **not exempt from being popped** (`LiveGate.admit`) — the exemption
-   exists to protect the *wielder's grip*, and a severed fragment has no grip;
-   leaving it on would make one arbitrary vertex of every fragment sail
-   through spikes without even spending them;
-2. its inverse mass is not zeroed, so it actually moves;
-3. if the root itself dies, `_disintegrate_unreachable` **re-roots** onto the
-   lowest surviving vertex and whatever no longer hangs off it becomes a
-   fragment in its own right. Recursion terminates: every re-fragmentation is
-   strictly smaller than its parent.
-
-### No disconnection damage scale — and one authored drag
-
-The original #186 body proposed halving a fragment's damage. **Retired.**
-Owner, 2026-09-08:
-
-> *"emergent from speed, no halving, but possible a slight drag on
-> disconnected pieces"*
-
-So there is no disconnection constant and no second damage path. A coasting
-fragment carries the identical coefficients it had while attached, and
+A coasting vertex carries the identical coefficient it had while attached, and
 [#779's speed curve](#speed-scaled-damage-779) — applied at land time off the
-contacting vertex's own speed — already gives a coasting fragment less than a
-driven blade, continuously. And *more* if it happens to be flung fast, which
-is the fantasy.
+contacting vertex's own speed — already gives it less than a driven blade,
+continuously. And *more* if it happens to be flung fast, which is the fantasy.
 
-The one authored term is **`BladeFreeFlight.DRAG`** (per-second velocity
-bleed, 0.8 today, owner-tunable). It reaches the solver through two new
-`BladeSim.simulate` parameters, both exact no-ops at their defaults so the
-driven swing is untouched:
+The one authored term is **`BladeState.SEVERED_DRAG`** (0.8/s, owner-tunable),
+written into **`BladeState.damping`**, a `PackedFloat32Array`, for exactly the
+`_reachable_from_pivot` complement at each severance. Two exactness properties
+hold and are pinned:
 
-* `linear_damping` — per-substep retention is `1.0 - drag * dt`, so **drag 0
-  yields exactly 1.0** and the fragment coasts undecelerated, bit-identical
-  to the undamped integrator. That is what makes acceptance 4's "setting it
-  to 0" a real, testable state rather than a claim.
-* `initial_velocities` — seeds `prev_positions` so the first substep's
-  implied velocity *is* the separation velocity, instead of `simulate`'s usual
-  reset to rest.
+* an **empty** array — every ordinary swing — makes `_step` skip the multiply
+  outright, so the driven path is bit-identical to one built before the member
+  existed, native parity included;
+* a **zero entry** yields a retention factor of exactly `1.0`, so a coasting
+  vertex at drag 0 coasts undecelerated. #186's acceptance 4 survives, now as a
+  *per-particle* claim.
 
-Both force the **GDScript** backend: the native transliteration takes neither
-a damping term nor a seeded Verlet history (it receives `positions`, never
-`prev_positions`). A free-flight pass therefore falls back by construction
-rather than silently losing its drag or its momentum, and the parity test is
-untouched because every driven-swing call leaves both at their defaults.
+**This is not `BladeSwingClock`'s drag** (#780). That one slows the swing's
+**clock** and removes nothing from the blade; this one bleeds the velocity of a
+particle nothing is driving any more. They cannot share a channel: a driven
+particle's damping is fought by the distance constraints and then overwritten
+outright by its `BladeArcDriver`.
 
-### It runs as a second round, on the authority, after apply
+### The loop: sim → scan → LAND, re-baked at each severance
 
-A pop is decided **at land time**, against the live world, inside
-`BladeDamageInstance.land_on`. So what a swing severed cannot be known any
-earlier than `OutcomeApplier.apply` returning — which is why
-`MeleeAttackPlan._fly_severed_fragments` is a second round *after* it, over a
-queue (a coasting fragment can be popped in turn and shed one of its own).
+The pop gate is reached from `BladeDamageInstance.land_on` **inside**
+`OutcomeApplier.apply`'s walk — so the interleave is sim / scan / **land**, not
+sim / scan / gate: only *applying* produces the world the next pop decision has
+to read. No suspendable applier is needed; the per-batch idiom is
+sub-`AttackOutcome` → `OutcomeSchedule.compile` → same crit rng → `apply` →
+merge, which #186's free-flight round already demonstrated.
 
-Each round gets its **own `LiveGate`**, and must: the swing's gate has these
-vertices in `dead_at` — correctly, they have left the *driven* blade — so
-reusing it would refuse every hit the fragment goes on to make. What has to
-be shared is the *world*, and it is: a spikes pool the driven swing already
-drained is still drained when the fragment arrives. (A fragment that coasts
-back over a defender with budget left gets popped again. That is correct, and
-it is why `test_free_flight_live_swing.gd` pins the defender's cap at exactly
-1.)
+`MeleeAttackPlan.resolve_against`:
 
-Fragment hits are appended to the **same `AttackOutcome`**, so
-`AttackRecord.capture` picks them up like any other landing and a peer
-**replays** them — it never re-runs a solver, and never needs to know a
-fragment existed. Determinism holds under
-`.claude/rules/multiplayer-sync.md` unchanged.
+1. **Optimistically bake** the whole remaining swing in one
+   `BladeSim.simulate_range` call — exactly today's call, so a swing that severs
+   nothing pays **nothing**.
+2. Walk it sample by sample. Per sample: `BladeHitScan.Sweep.scan_sample` →
+   mint `BladeDamageInstance`s → compile → `CritRoll.decide_all` on the swing's
+   **one** rng → `OutcomeApplier.apply`.
+3. If that batch produced a `Pop`, **stop the walk**, rewind, mutate the state
+   at that sample, and re-bake from it. Continue.
+4. One `OutcomeSchedule.compile` over the merged outcome at the end.
 
-**Ordering caveat, deliberate.** These land after the whole driven swing has
-landed, not interleaved by `t`. On the authority the reordering is invisible:
-`resolve_against` computes against a *shadow* and what reaches the live world
-is the record, whose merged schedule is recompiled in `t` order. The residue
-is that two landings on the *same node*, one driven and one free, may see
-each other's mitigation in shadow order. Interleaving properly would need an
-`OutcomeApplier` that can be suspended mid-walk and resumed with hits
-discovered during it — a real change to the applier, and not one #186 needs.
+Because a bake is a pure function of the state, the trajectory this produces is
+**bit-for-bit what a true per-sample interleave would have produced** —
+optimistic execution is an implementation strategy, not a compromise. Solver
+calls per resolve: `1 + severances` (plus one head replay each, below), against
+`145` for a literal per-sample loop, which would have spent the whole of #798's
+gain in marshalling.
 
-### Not yet drawn
+### The head replay, and why it exists (#803 deletes it)
 
-`MeleePreview` replays `MeleeAttackPlan.last_trajectory` only, so a coasting
-fragment currently deals its damage **without being drawn**. The flights are
-exposed on `MeleeAttackPlan.last_free_flights` for whoever picks that up;
-`Events.blade_vertex_popped` also still carries a position but no velocity,
-which the same work needs. Called out in #186's NOTES as its own issue and
-deliberately not ridden in.
+Rewinding to the severance sample needs the **exact Verlet history** there, and
+`prev_positions` at a sample is not recoverable from `samples`: `_step` rewrites
+it once per **substep**, so it is a mid-sample pose. The native backend does not
+emit a per-sample `prev_samples` yet (#803), so the resolve loop instead
+snapshots `(positions, prev_positions, BladeSwingClock.Bank)` at each chunk's
+start and **re-runs the head** of that chunk to land on the severance sample
+exactly. Same backend, same pure function, bit-identical by construction.
+
+That rests on a **prefix property** — a short bake of `k` steps equals the first
+`k` samples of a long one — which holds only because nothing in the solver is a
+function of the run's total length (the adaptive sweep budget keys off
+`velocity_iter_ref` and this substep's own speeds, never off `duration`).
+`test_blade_chunked_parity.gd::test_a_short_bake_is_a_prefix_of_a_long_one`
+exists to say so if that ever stops being true, because fork 1's whole strategy
+dies with it.
+
+Cost is bounded at **one extra partial bake per severance**: the next chunk
+starts *at* the severance, so a replay never spans more than one gap however many
+vertices a wall pops. Once #803 lands, `prev_samples` is read straight off the
+bake and the replay goes away.
+
+### `simulate_range`, and the integer step offset
+
+`BladeSim.simulate` is `simulate_range(0, ceil(duration / dt))`. There is **one
+stepping loop per backend**, not a second integrator for a continued chunk.
+`step_offset == 0` resets the Verlet history; any other offset **trusts
+`state.prev_positions`** as it stands.
+
+Every substep's time is `float(step_offset + local_step) * dt + float(s + 1) *
+sub_dt` — an **integer** global step, never a float `t_start` accumulated across
+chunks, which would drift in the last bits and make a chunked run differ from an
+unchunked one. `test_blade_chunked_parity.gd` pins them bit-identical.
+
+**The `BladeSwingClock` is sim state and is carried across chunks** — one
+instance, never rebuilt. `_f`, banked `drag`, `touched`, `_warping` and `_last_t`
+all persist; a fresh clock mid-swing would un-bank a Fortification wall's drag
+and silently stop it sheltering what is behind it. `capture()` / `restore()`
+rewind it for the head replay. (A *dragged* swing accumulates `_f` in float after
+first contact **by design** and is GDScript-only; the integer-step rule applies
+to the pre-contact segment and to the clock's seed.)
+
+### A dead element is not scanned
+
+`BladeHitScan.Sweep` skips a `removed_vertices` disc, a `removed_edges` capsule,
+and any edge with a removed endpoint. So **`last_events` no longer contains
+events that would be refused at land time** — a #801 change worth knowing for
+#782, which inherits `last_hits` being a subsequence of `last_events`. It is also
+where "a pop swing costs *fewer* physics queries than an unsevered one" comes
+from: dead elements are never queried, and #186's second full scan of the
+fragment tail is gone.
+
+Per-element-per-collider dedup now spans the whole sweep **for a coasting vertex
+too**: under #186 a fragment got a fresh scan and could re-hit a collider it had
+already hit while driven. The documented counting rule says once; this makes it
+true.
+
+### Ordering: the residue is gone, and one new one is named
+
+#186's ordering caveat — two landings on the same node, one driven and one free,
+seeing each other's mitigation in *shadow* order — is **gone**: everything lands
+in true `t` order on the shadow.
+
+One new, deliberate order change replaces it: crits are now rolled per batch,
+**after** earlier landings applied, rather than all up front. The stream is
+identical (batches run in `t` order, `OutcomeSchedule._sorted` breaks a same-`t`
+tie on insertion index, and one rng object is handed to every batch —
+`test_batched_crit_rolls_equal_one_global_roll` pins it). The residue: if a swing
+friendly-fires a node whose depletion changes the **attacker's own**
+`crit_chance` mid-swing, a late hit's crit can differ from what the pre-#801
+order would have given. That is arguably the more correct order; it is recorded
+here so it is not filed as a bug. #186's per-round crit salt is gone with the
+rounds it existed for.
+
+Everything still rides the **same `AttackOutcome`**, so `AttackRecord.capture`
+picks a coasting vertex's landings up like any other and a peer **replays** them
+— it never re-runs a solver and never needs to know a severance happened.
+Determinism holds under `.claude/rules/multiplayer-sync.md` unchanged.
+
 
 ## Engine-side wiring
 
@@ -914,7 +1000,9 @@ deterministic scan, not Godot collision overlap.
 ### `MeleeAttackPlan.resolve()`
 
 ```
-selection → BladeState → drivers → BladeSim.simulate → BladeHitScan
+selection → BladeState → drivers → bake (simulate_range)
+		→ per sample: Sweep.scan_sample → mint → compile → crit → apply
+		→ on a pop: rewind, remove_vertex, re-bake from that sample
 		→ AttackOutcome { hits: DamageInstance[], ap_cost }
 ```
 
@@ -1046,9 +1134,10 @@ a turn, and whether `LENGTH_ECC_CEILING` should sit closer to or further from
 4x, is a tuning call this issue surfaces but does not make.
 ## Open questions / future work
 
-- **Damping.** Currently Verlet has no velocity damping; chain whips
-  forever within the swing duration. For longer sweeps add a `damping`
-  parameter on `BladeSim.step` (multiply velocity by `1 - damping * dt`).
+- **Damping for a DRIVEN blade.** `BladeState.damping` exists (#801) but is
+  written only for severed particles; a driven chain whips forever within the
+  swing duration, because a driver overwrites the damped position anyway. Doing
+  it properly means the clock channel (#780), not the particle one.
 - **Richer constraint shapes for addons.** `ClampAddon` welds via phantom
   braces, which covers rigidity but nothing else. A "motor" addon that drives
   angular velocity directly, or a "breakaway" that yields past a load, would

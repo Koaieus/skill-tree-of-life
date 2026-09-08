@@ -276,52 +276,55 @@ comes from.
 
 ### Melee
 
-**Do not interleave application into `BladeHitScan.scan`.** Its
-`PhysicsShapeQueryParameters2D.exclude` is built once, before the substep loop;
-interleaving would mean rebuilding the exclude list every substep of a 1.2s
-sim, and the scan's purity (`ai_blade_rollout.gd` runs it on
-`WorkerThreadPool`) is worth more than that.
+**The scan stays pure, and the interleave sits one level up (#801).**
+`BladeHitScan` never touches the applier: its
+`PhysicsShapeQueryParameters2D.exclude` is built once per resolve, and its
+purity is load-bearing because `ai_blade_rollout.gd` runs it on
+`WorkerThreadPool`. What `MeleeAttackPlan.resolve_against` does instead is hold
+a `BladeHitScan.Sweep` open across samples and drive **sim → scan → land** one
+sample at a time — the query params and the dedup dictionaries live on the
+Sweep, so nothing is rebuilt per sample.
 
-Instead, **move the ownership filter from query time to consumption time**:
+The **ownership filter runs at consumption time**, not query time:
 
-- `MeleeAttackPlan.collect_target_excludes()` currently excludes
-  `not sn.is_allocated()` from the physics query. Stop excluding on that
-  basis — keep excluding only the attacker's own nodes and the blade members.
-- The applier walks `BladeHitEvent`s in `t` order and re-checks
-  `is_allocated()` / `owned_by` / spike-pop per event.
+- `MeleeAttackPlan.collect_target_excludes()` excludes only the attacker's own
+  nodes and the blade members — never `not sn.is_allocated()`.
+- `BladeDamageInstance.land_on` re-checks `is_allocated()` / `owned_by` /
+  spike-pop per event, live, as `OutcomeApplier` lands it.
 
-`BladePopResolver.resolve()` already gates on `node.is_allocated()` and
-`node.owned_by == attacker`. **Those predicates are already written as
-live-state checks** — they simply never get re-evaluated, because `resolve()`
-completes before a single point of damage lands. This change is what makes them
-do the job they were written for.
+`BladePopResolver.LiveGate`'s predicates are written as live-state checks and
+this is what makes them do the job they were written for.
 
 `BladeHitEvent.t` is melee's `arrival_time`.
 
-#### Free-flight fragments are a SECOND ROUND, not an interleave (#186)
+#### Severance is INTERLEAVED, and the gate is fed by the applier (#801)
 
 A spike pop is decided at land time, so *what a swing severed* is not known
-until `OutcomeApplier.apply` has returned. A severed fragment now keeps
-coasting (`docs/domain/melee-blade-sim.md`), which means a set of landings
-that exist only because of a mid-swing pop —
-`MeleeAttackPlan._fly_severed_fragments` runs them as a second round over the
-same world, gated by a fresh `LiveGate` per fragment and applied through this
-same `OutcomeApplier`.
+until the batch containing that contact has been applied. The gate is reached
+from `BladeDamageInstance.land_on` **inside** `OutcomeApplier.apply`'s walk —
+never from the scan — so the loop is sim / scan / **land**, and only *applying*
+produces the world the next pop decision reads.
 
-The contract's four items hold: the fragment's events are stamped with real
-swing-time `t` (its local trajectory time plus its `birth_t`), gated at land
-time against the live world, off the same commit-time offense snapshot, and
-resolved against whatever substrate `resolve_against` was handed.
+`resolve_against` therefore bakes the swing **optimistically**, walks it sample
+by sample landing each sample's contacts as their own sub-`AttackOutcome`
+(compile → same crit rng → `apply` → merge), and on a pop **re-bakes from that
+sample** with the dead vertex frozen, its constraints and driver gone, and drag
+written onto whatever it orphaned. See `docs/domain/melee-blade-sim.md`.
 
-**The residue is ordering.** Free landings land after the whole driven swing
-rather than interleaved by `t`. On the authority that is invisible —
-`resolve_against` computes on a *shadow* and what reaches the live world is
-the record, whose merged schedule is recompiled in `t` order, so both the host
-replay and every peer see one coherent timeline. Two landings on the *same
-node*, one driven and one free, may see each other's mitigation in shadow
-order. Fixing that properly means an `OutcomeApplier` that can be suspended
-mid-walk and resumed with hits discovered during the walk; nothing today needs
-it, and it is written down here rather than left to be rediscovered.
+**No suspendable `OutcomeApplier` is needed** — that was the objection #186
+recorded, and the per-batch idiom answers it. The contract's four items hold:
+every event carries real swing-time `t`, is gated at land time against the world
+`resolve_against` was handed, off the same commit-time offense snapshot.
+
+**#186's ordering residue is gone.** Landings are no longer split into a driven
+pass and a fragment pass — everything lands in true `t` order on the shadow, so
+two landings on the same node see each other's mitigation in the order they
+actually happened. One deliberate order change replaces it: crits are rolled per
+batch, after earlier landings applied, rather than all up front. The stream is
+provably identical (`test_batched_crit_rolls_equal_one_global_roll`); the residue
+is that a swing that friendly-fires a node whose depletion changes the
+**attacker's own** `crit_chance` can crit differently late in the swing. Recorded
+so it is not filed as a bug.
 
 ### Ranged
 

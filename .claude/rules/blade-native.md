@@ -73,7 +73,8 @@ runs cases at `substeps` 1 / 4 / 8, length scaling on and off, and a blade past
 `LENGTH_ECC_CEILING` — a parity test that only checked `samples` would have
 caught none of it. Cheap parts that run once per resolve (the pivot-eccentricity
 BFS behind `length_factor`) stay in GDScript and are passed in precomputed: one
-definition of the rule, not two.
+definition of the rule, not two. #801 adds two fallback triggers
+(`simulate_range(step_offset > 0)`, non-empty `BladeState.damping`) for #803.
 
 ## No native binary means PENDING, not pass
 

@@ -308,3 +308,64 @@ func test_a_second_pop_in_the_remainder_kills_only_that_vertex() -> void:
 	assert_eq(gate.result.severances.size(), 1,
 			"and it is not re-reported: it never stopped coasting")
 	assert_eq(gate.result.vertex_pop_count(), 2, "two vertices destroyed in total")
+
+
+# ---------------------------------------------------------------- determinism
+
+## The crit stream survives the interleave (#801, and #507's one-stream rule).
+##
+## `resolve_against` no longer builds every DamageInstance and rolls every crit
+## up front — it mints, rolls and LANDS one sample at a time, because a pop
+## decision needs the world as the earlier landings left it. One RNG object
+## handed to every batch's `decide_all` in turn must therefore consume the
+## stream in exactly the order a single `decide_all` over the finished hit list
+## would have: batches run in `t` order, and `OutcomeSchedule._sorted` breaks a
+## same-`t` tie on insertion index, so per-batch order is the global order's
+## blocks. If that ever stops holding, the same `resolve_seed` deals different
+## crits on the authority than a peer reproduces from the record — a desync no
+## test of the sim itself would see. #186's per-round crit salt is gone with the
+## rounds it existed for.
+func test_batched_crit_rolls_equal_one_global_roll() -> void:
+	var ctx: Dictionary = await _setup(1.0)
+	var attacker: Entity = ctx.attacker
+	attacker.stat_board.crit_chance.base_value = 0.5
+	const _SEED := 0x5EED_1234
+	# Several samples, several hits landing on the same one — the tie case.
+	var batches := [[0.10, 0.10], [0.25], [0.40, 0.40, 0.40], [0.75], [0.90, 0.90]]
+
+	var whole := AttackOutcome.new()
+	whole.cadence = ScheduleEntry.Cadence.SWING
+	for batch in batches:
+		for key in batch:
+			whole.hits.append(_crit_hit(attacker, key))
+	whole.schedule = OutcomeSchedule.compile(whole)
+	CritRoll.decide_all(whole, CritRoll.stream_for(_SEED))
+	var expected: Array[int] = []
+	for hit in whole.hits:
+		expected.append(hit.crit_tier)
+
+	var rng := CritRoll.stream_for(_SEED)
+	var batched: Array[int] = []
+	for batch in batches:
+		var sub := AttackOutcome.new()
+		sub.cadence = ScheduleEntry.Cadence.SWING
+		for key in batch:
+			sub.hits.append(_crit_hit(attacker, key))
+		sub.schedule = OutcomeSchedule.compile(sub)
+		CritRoll.decide_all(sub, rng)
+		for hit in sub.hits:
+			batched.append(hit.crit_tier)
+
+	assert_true(expected.has(1), "fixture: the stream must actually crit sometimes")
+	assert_true(expected.has(0), "fixture: and must not crit every time")
+	assert_eq(batched, expected,
+			"one stream, consumed batch by batch, deals the identical crits")
+
+
+func _crit_hit(attacker: Entity, structural_key: float) -> DamageInstance:
+	var di := DamageInstance.new()
+	di.amount = 5.0
+	di.type = DamageInstance.Type.PHYSICAL
+	di.attacker = attacker
+	di.structural_key = structural_key
+	return di
