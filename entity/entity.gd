@@ -259,6 +259,17 @@ var is_dead: bool = false
 ## agree anyway.
 var turns_taken: int = 0
 
+## Sparse spent-set for the `spikes` pop budget (#778): a node lands here the
+## moment a melee contact drains its `spikes` pool ([method mark_spikes_spent],
+## called from [BladePopResolver.LiveGate._mark_spent] on the LIVE world only).
+## [method _on_turn_started] regenerates EXACTLY this set, then clears it — a
+## sweep of a level's hundreds of allocated nodes to top up a pool that is
+## almost always full is explicitly not acceptable (#778). There is
+## deliberately no dormant-node exception: an owner who never takes a turn
+## never drains this set, so a node under a blocker absorbs a finite number
+## of pops for the whole run and that is intended (owner, #778).
+var _spiked_nodes_spent: Dictionary[SkillNode, bool] = {}
+
 ## Resolved once in [method initialize]; read by [method _on_turn_started] to
 ## tell an adopted cursor from a turn actually beginning. See
 ## [member TurnManager.is_adopting].
@@ -499,6 +510,16 @@ func get_active_tags() -> Array[StringName]:
 ## health/mana ADDs were no-ops anyway — what the skip actually removes is a
 ## turn of `xp_per_turn` that used to level a fresh entity before it had made a
 ## single move. See [member turns_taken].
+## Registers [param node] on this entity's sparse spikes-spent set — called
+## by [method BladePopResolver.LiveGate._mark_spent] the moment a melee
+## contact drains the node's `spikes` pool on the LIVE world (never a shadow
+## — see that method's doc). [method _on_turn_started] is the sole reader,
+## regenerating exactly this set once per turn and clearing it.
+func mark_spikes_spent(node: SkillNode) -> void:
+	if node != null:
+		_spiked_nodes_spent[node] = true
+
+
 func _on_turn_started(entity: Entity) -> void:
 	if entity != self or stat_board == null:
 		return
@@ -534,6 +555,23 @@ func _on_turn_started(entity: Entity) -> void:
 				aura.apply(n, aura_value)
 	if core_class != null:
 		core_class.on_turn_started(self)
+	# #778: sparse spikes regen — exactly the nodes marked spent since the
+	# last upkeep, never a sweep of the whole owned subgraph (see
+	# _spiked_nodes_spent's doc for why that sweep is unaffordable). No
+	# dormant-node exception, deliberately: an owner who never reaches this
+	# method never regenerates, and a node under a blocker absorbing a finite
+	# number of pops for the whole run is the intended behaviour (#778).
+	for n in _spiked_nodes_spent:
+		if not is_instance_valid(n):
+			continue
+		var b := n.get_combat().board()
+		var pool := b.get_stat(&"spikes") as PoolStat if b != null else null
+		if pool == null:
+			continue
+		var regen: float = float(n.get_local_value(&"spike_regen"))
+		if regen > 0.0:
+			pool.replenish(regen)
+	_spiked_nodes_spent.clear()
 	dispatch(&"_on_turn_start")
 
 

@@ -1,21 +1,29 @@
 class_name BladePopResolver
 extends RefCounted
 
-## Defensive spike "pop" resolution (#170). Given the raw BladeHitEvents from a
-## swing scan, decides which of the ATTACKER's own blade vertices are killed —
-## and which are then severed from the driven handle and disintegrated.
+## Defensive spike "pop" resolution (#170, budget model #778). Given the raw
+## BladeHitEvents from a swing scan, decides which of the ATTACKER's own blade
+## vertices are killed — and which are then severed from the driven handle and
+## disintegrated.
 ##
-## The model (see the #170 design comment):
-##   - A blade vertex that sweeps into a spiked, allocated enemy node is popped:
-##     the vertex itself dies. The contact deals damage to NOBODY — the spiked
-##     node takes none, and the popping vertex's own hit never lands either:
-##     [method BladeDamageInstance.land_on] returns as soon as [method admit]
-##     refuses the contact, before `super.land_on` (the only place damage is
-##     ever applied) runs.
+## The model (see the #170 design comment, budget rule per #778):
+##   - A blade vertex that sweeps into a spiked, allocated enemy node drains
+##     that node's remaining `spikes` pool by the vertex's own `blunting`.
+##     Remaining >= blunting: the pool depletes by blunting and the vertex
+##     POPS — the vertex itself dies. Remaining < blunting: the remainder
+##     drains to 0 and the vertex is NOT popped, passing through to deal
+##     damage as an ordinary contact (owner: "pop only if full amount is
+##     removed"). Either way the contact deals damage to NOBODY BUT the
+##     defender it pops against — the spiked node itself takes none, and a
+##     popping vertex's own hit never lands: [method BladeDamageInstance.land_on]
+##     returns as soon as [method admit] refuses the contact, before
+##     `super.land_on` (the only place damage is ever applied) runs.
 ##   - Killing a vertex disconnects everything downstream of it from the pivot /
 ##     handle. Every vertex no longer reachable from the pivot through surviving
 ##     edges is disintegrated (this MVP; the fun free-flight variant is #186).
 ##   - The pivot is exempt — popping the wielder's own handle is out of scope.
+##   - An unspiked node (no `spikes` pool minted — only [SpikeRingAddon] ever
+##     mints one) never pops anything, at any stake level.
 ##
 ## Result is post-hoc: it does NOT re-simulate the swing, it only marks each
 ## dead vertex with the time it died so callers can drop that vertex's hits from
@@ -34,18 +42,21 @@ extends RefCounted
 
 ## Per-pop record. `t` is the contact time; `defender` is the spiked node that
 ## popped `particle_idx`; `position` is where to play the pop VFX.
+## `blunting_spent` is how much of the defender's `spikes` pool this contact
+## drained — always the popping vertex's full `blunting` (a partial drain
+## never pops, so it never reaches [method LiveGate._kill] / mints a Pop).
 class Pop extends RefCounted:
 	var particle_idx: int
 	var t: float
 	var defender: SkillNode
 	var position: Vector2
-	var spike_power: float
+	var blunting_spent: float
 
-	func _init(particle_idx_: int, t_: float, defender_: SkillNode, power_: float) -> void:
+	func _init(particle_idx_: int, t_: float, defender_: SkillNode, blunting_spent_: float) -> void:
 		particle_idx = particle_idx_
 		t = t_
 		defender = defender_
-		spike_power = power_
+		blunting_spent = blunting_spent_
 		position = defender_.global_position if defender_ != null else Vector2.ZERO
 
 
@@ -96,9 +107,19 @@ class LiveGate extends RefCounted:
 	var _adjacency: Dictionary = {}
 	var _adjacency_built: bool = false
 
-	func _init(state: BladeState, attacker: Entity) -> void:
+	## `vertex_blunting` is an OPTIONAL particle_idx -> blunting override
+	## (#778). [BladeState] carries no per-vertex `blunting` array today (only
+	## `vertex_damage` — the offensive counterpart, wired by the two blade-build
+	## call sites this class does not own); every particle_idx absent from this
+	## dict reads the `blunting` [StatDef]'s own default via [method _blunting_for].
+	## A caller that CAN name the attacking vertex's source [SkillNode] should
+	## pass its `get_local_value(&"blunting")` here instead of leaving the gap.
+	var _vertex_blunting: Dictionary
+
+	func _init(state: BladeState, attacker: Entity, vertex_blunting: Dictionary = {}) -> void:
 		_state = state
 		_attacker = attacker
+		_vertex_blunting = vertex_blunting
 
 	## The [Pop] this gate's most recent [method admit] produced, or null.
 	func last_pop() -> Pop:
@@ -127,15 +148,68 @@ class LiveGate extends RefCounted:
 			return true  # pivot / handle is exempt from popping
 		if _attacker != null and node.ownership_bit(_attacker) == SkillNode.Ownership.MINE:
 			return true  # your own spike can't pop your own blade
-		var power := node.get_spike_power()
-		if power <= 0.0:
-			return true
-		_kill(ev.particle_idx, ev.t, real_node, power)
-		return false  # the popping contact itself deals no damage
+		var pool := _spikes_pool(node)
+		var remaining := float(pool.current) if pool != null else 0.0
+		if remaining <= 0.0:
+			return true  # unspiked, or already fully spent this swing
+		var blunting := _blunting_for(ev.particle_idx)
+		if remaining >= blunting:
+			pool.deplete(blunting)
+			_mark_spent(node, w)
+			_kill(ev.particle_idx, ev.t, real_node, blunting)
+			return false  # the popping contact itself deals no damage
+		# Remaining < blunting: drain the remainder and let the vertex THROUGH —
+		# "pop only if full amount is removed" (#778). No Pop record: the vertex
+		# survives and its hit lands normally.
+		pool.deplete(remaining)
+		_mark_spent(node, w)
+		return true
 
-	func _kill(particle_idx: int, t: float, defender: SkillNode, power: float) -> void:
+	## The defender's node-local `spikes` [PoolStat], or null if it never
+	## minted one — i.e. an unspiked node ([SpikeRingAddon] is the only source,
+	## see spike_ring_addon.gd). Reads through [method NodeCombat.board], so it
+	## resolves to the SHADOW's own cloned board on a shadow [param node], same
+	## as every other per-world board read in this file (#778 — mirrors how
+	## [method NodeCombat.take_damage] already deletes per-world HP with no
+	## special-casing for which world it's handed).
+	static func _spikes_pool(node: NodeCombat) -> PoolStat:
+		var b := node.board()
+		return b.get_stat(&"spikes") as PoolStat if b != null else null
+
+	## This gate's blunting for [param particle_idx] — the caller-supplied
+	## override if one was given at construction, else the `blunting` StatDef's
+	## own authored default (currently 1). See [member _vertex_blunting]'s doc
+	## for why a caller may have nothing to offer here yet.
+	static func _blunting_for_dict(vertex_blunting: Dictionary, particle_idx: int) -> float:
+		if vertex_blunting.has(particle_idx):
+			return float(vertex_blunting[particle_idx])
+		var def: StatDef = StatRegistry.get_def(&"blunting")
+		return float(def.default_value) if def != null else 1.0
+
+	func _blunting_for(particle_idx: int) -> float:
+		return _blunting_for_dict(_vertex_blunting, particle_idx)
+
+	## Registers [param node]'s real [SkillNode] on its owner's sparse
+	## turn-start refresh set (#778 — Entity._on_turn_started sweeps exactly
+	## this set, never all owned nodes; see entity.gd). Gated to the LIVE world
+	## ONLY: a shadow's owner is the same real [Entity] the live world would
+	## resolve to, and marking through a shadow (AI scoring / preview, or the
+	## authority's own compute-record pass ahead of its live replay) would leak
+	## a real mutation out of a world that must not touch reality — see
+	## docs/domain/attack-timeline.md. The pool DEPLETE above still runs on
+	## whichever world's board [param node] resolves to; only this bookkeeping
+	## step is world-gated.
+	static func _mark_spent(node: NodeCombat, world: CombatWorld) -> void:
+		if world.is_shadow():
+			return
+		var owner := node.owner()
+		var entity := owner.real_entity() if owner != null else null
+		if entity != null:
+			entity.mark_spikes_spent(node.real())
+
+	func _kill(particle_idx: int, t: float, defender: SkillNode, blunting_spent: float) -> void:
 		result.dead_at[particle_idx] = t
-		var pop := Pop.new(particle_idx, t, defender, power)
+		var pop := Pop.new(particle_idx, t, defender, blunting_spent)
 		result.pops.append(pop)
 		# #504: a spike pop is a MODEL event, announced on the mutation clock —
 		# the same clock the damage, the health bar and the shatter are on. It

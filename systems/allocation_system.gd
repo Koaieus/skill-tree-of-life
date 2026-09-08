@@ -146,6 +146,19 @@ func can_deallocate(node: SkillNode, entity: Entity) -> bool:
 	return true
 
 
+## Resets [param node]'s node-local `spikes` pool to full on an OWNERSHIP
+## CHANGE (#778) — "a spent budget is not a trophy for the next allocator."
+## Called from the 0 -> 1 transition in both [method allocate] and
+## [method force_allocate], never from a same-owner restake. A no-op when
+## the node never minted a `spikes` pool (unspiked — only [SpikeRingAddon]
+## mints one).
+func _restore_spikes_to_full(node: SkillNode) -> void:
+	var b := node.get_combat().board()
+	var pool := b.get_stat(&"spikes") as PoolStat if b != null else null
+	if pool != null:
+		pool.restore_to_full()
+
+
 func allocate(node: SkillNode, entity: Entity) -> bool:
 	if not can_allocate(node, entity):
 		return false
@@ -160,6 +173,7 @@ func allocate(node: SkillNode, entity: Entity) -> bool:
 		# effect path — a refill must never re-apply modifiers or re-grant
 		# effects (#337), or they would double-stack silently.
 		node.owned_by = entity
+		_restore_spikes_to_full(node)
 		if entity.navigator != null:
 			entity.navigator.mirror_add(node)
 		node.apply_entity_modifiers_to(board)
@@ -191,6 +205,7 @@ func force_allocate(entity: Entity, node: SkillNode) -> void:
 	if entity == null or node == null:
 		return
 	node.owned_by = entity
+	_restore_spikes_to_full(node)
 	if entity.navigator != null:
 		entity.navigator.mirror_add(node)
 	var board := entity.stat_board
