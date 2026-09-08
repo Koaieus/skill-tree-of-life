@@ -196,15 +196,33 @@ static func scan(
 	return events
 
 
-## Anti-double-dip (#785): per substep, a target takes at most ONE blade-element
+## Anti-double-dip (#785): per substep, a target takes at most one blade-element
 ## contact — the highest-damage one, never a sum. Every contender is marked
-## contacted (so it cannot re-hit the same target on a later substep) but only
-## the winner emits a [BladeHitEvent].
+## contacted (so a loser cannot come back for a second bite at the same target
+## on a later substep) but only the winner emits a [BladeHitEvent].
 ##
 ## This bounds the COUNTING RULE itself, which is what `combat_system.md`'s
 ## "tame runaway with the scalars, never the counting rule" asks for: a
 ## degree-6 hub deals vertex damage, not vertex + 6x edge damage, and a target
 ## straddled by two narrow-angled capsules takes the higher of the two.
+##
+## [b]With one carve-out, and it is load-bearing: particles never arbitrate
+## against each other.[/b] Two vertices contacting one target in the same
+## substep BOTH emit, exactly as they did before #785 — that is the pre-existing
+## counting rule, and acceptance 4 ("total blade damage output is unchanged for
+## a blade with no sharpeners") pins it. Arbitrating there is not a stricter
+## reading of the rule, it is a silent nerf plus a bug: `test_ai_blade_rollout`'s
+## fixture has the pop-EXEMPT pivot overlapping the same spiked target as the
+## member vertex, so a vertex-vs-vertex contest let the pivot win the substep
+## and permanently suppress the contact that was supposed to pop. Edges are the
+## element this rule exists to bound; vertices are the baseline it must not move.
+##
+## So the ladder is: every contacting particle emits. An edge emits only if it
+## strictly out-damages the best particle touching the same collider this
+## substep (and then it emits INSTEAD of them, never alongside — that is the
+## "never a sum" half), or if no particle touched at all. With `edge_damage` at
+## its default 0 the out-damages branch can never fire, which is exactly why
+## capsules add contact and not damage until a sharpener is equipped.
 ##
 ## Ranking is on the raw damage COEFFICIENT, with contact speed as the
 ## tiebreak, NOT on the post-curve landed number: the speed curve
@@ -224,28 +242,42 @@ static func _resolve_step_contacts(
 		events: Array[BladeHitEvent]) -> void:
 	if step_contacts.is_empty():
 		return
-	var best: Dictionary = {}  # collider -> the winning contact tuple
+	var best_particle: Dictionary = {}  # collider -> strongest particle tuple
+	var best_edge: Dictionary = {}      # collider -> strongest edge tuple
 	for c in step_contacts:
 		var collider: Object = c[2]
 		var seen: Dictionary = hit_edge if c[0] else hit_particle
-		var per_element: Dictionary = seen.get_or_add(c[1], {})
-		per_element[collider] = true
-		var incumbent = best.get(collider)
-		if incumbent == null:
-			best[collider] = c
-			continue
-		if float(c[3]) > float(incumbent[3]):
-			best[collider] = c
-		elif is_equal_approx(float(c[3]), float(incumbent[3])) \
-				and float(c[4]) > float(incumbent[4]):
-			best[collider] = c
+		(seen.get_or_add(c[1], {}) as Dictionary)[collider] = true
+		var pool: Dictionary = best_edge if c[0] else best_particle
+		var incumbent = pool.get(collider)
+		if incumbent == null or _outranks(c, incumbent):
+			pool[collider] = c
 	for c in step_contacts:
-		if best.get(c[2]) != c:
-			continue
+		var collider: Object = c[2]
+		var champion = best_particle.get(collider)
 		if c[0]:
-			events.append(BladeHitEvent.new(t, -1, int(c[1]), c[2], float(c[4])))
+			# An edge: only the strongest edge on this collider, and only when
+			# it beats every vertex that touched the same collider this substep.
+			if best_edge.get(collider) != c:
+				continue
+			if champion != null and not _outranks(c, champion):
+				continue
+			events.append(BladeHitEvent.new(t, -1, int(c[1]), collider, float(c[4])))
 		else:
-			events.append(BladeHitEvent.new(t, int(c[1]), -1, c[2], float(c[4])))
+			# A vertex: emits unless a sharper EDGE displaced the whole substep.
+			var edge_champion = best_edge.get(collider)
+			if edge_champion != null and _outranks(edge_champion, champion):
+				continue
+			events.append(BladeHitEvent.new(t, int(c[1]), -1, collider, float(c[4])))
+
+
+## Strict "deals more than", on (coefficient, speed) in that order — the
+## ranking [method _resolve_step_contacts] arbitrates with. A full tie is NOT
+## an outrank, which is what makes the incumbent (earlier in scan order) win.
+static func _outranks(a: Array, b: Array) -> bool:
+	if not is_equal_approx(float(a[3]), float(b[3])):
+		return float(a[3]) > float(b[3])
+	return float(a[4]) > float(b[4])
 
 
 ## True if nothing at all overlaps the blade's bounding box this substep — the
