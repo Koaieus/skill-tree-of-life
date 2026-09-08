@@ -232,10 +232,31 @@ against master:
   path too — a GDScript-only tail costs peers as well, though the outcome is
   discarded so determinism is untouched.
 
-**Recommended: B**, as two separable units — a GDScript restructure, then the
-native continuation — with a cheaper intermediate that stops after unit one. B is
-bit-identical to A (the bake is a pure function), costs a no-pop swing *nothing*,
-and is strictly cheaper than today on a pop swing.
+**OWNER RULED 2026-09-08: option B, both units** (`issuecomment-5590597919`).
+B is bit-identical to A (the bake is a pure function), costs a no-pop swing
+*nothing*, and is strictly cheaper than today on a pop swing. D lost on the point
+that #781's deflection needs a react-mid-swing sim regardless, so keeping free
+flight means maintaining **two** continuation mechanisms.
 
-**Blocked only on the owner confirming B.** Once confirmed: split into the two
-units, move to `Ready`, and write BRIEF C against the interleaved model.
+Split and boarded:
+
+- **#801 is now unit 1** — the GDScript restructure — and is **`Ready`**, milestone
+  Post-LAN. Its tail after a severance runs GDScript, so it needs nothing from
+  `native/` and is landable without a `scons` toolchain. It deletes
+  `BladeFreeFlight`, `BladeState.is_unpinned` and the free-flight branch, and
+  re-points #186's tests as its acceptance.
+- **#803 is unit 2** — the native continuation, ~40 additive lines plus three
+  parity cases. `Backlog`, blocked-by #801.
+
+**The trap both units carry:** time in a continued chunk must be
+`float(step_offset + s) * dt`, never a float offset accumulated across chunks —
+accumulating in float makes chunked differ from unchunked in the last bits, which
+parity pins bit-identical. **Write that parity case first**; if chunked ≠
+unchunked in practice, that is the ground that sends the approach back to design.
+
+### This changes the wave's order
+
+#801 is now `Ready` and **should land before #781**, which was the whole reason
+#781 was held. It does not conflict with #799 (AI scoring) and it *does* conflict
+with #780 (both in the sim's velocity/damping path), so the rule above still
+holds: **#780 first, #801 rebases onto it.**
