@@ -125,7 +125,19 @@ func test_a_peer_leaving_on_its_own_turn_does_not_strand_the_turn() -> void:
 	_root.transport.peer_left.emit(_REMOTE_PEER)
 	# The new controller was kicked by hand; its turn is a coroutine that ends
 	# through the applier like any AI turn.
-	await wait_for_signal(_root.turn_manager.turn_ended, 3.0)
+	#
+	# The budget is deliberately generous and is NOT a perf assertion (#779).
+	# This test's claim is "an AI ends the turn the departed human never
+	# would" — ANY command satisfies it, and measurement shows the AI submits
+	# only `end_turn` here, on master and on #779 alike. What the AI *costs*
+	# to reach that decision is not this test's subject: it merely has to
+	# outlast it. The old 3.0 was never a spec'd budget, just a guard sized
+	# for whatever the AI happened to cost the day it was written — it sat at
+	# ~2.37 s of a 3.0 s limit, i.e. 79% consumed, so any melee-scoring change
+	# reddened it. #779 doubled deliberation to ~4.72 s and tipped it over.
+	# The deliberation cost itself is real and is tracked separately (#797);
+	# do not re-tighten this number to re-detect it — pin it where it belongs.
+	await wait_for_signal(_root.turn_manager.turn_ended, 30.0)
 
 	assert_ne(_root.turn_manager.current_entity, _remote,
 			"the AI ended the turn the human would never have")
