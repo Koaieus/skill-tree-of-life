@@ -44,9 +44,43 @@ not hoped: `test_blade_native_parity.gd` asserts `==` on whole
 `real_t` first, so `(delta * diff) * k` is two float32 multiplies, not one
 double multiply — write the parens the GDScript's left-to-right order implies.
 `PackedFloat32Array` reads become `double` the moment GDScript stores them in a
-`var`. `int(x)` truncates toward zero. Pass authored scalars as
+`var`. `int(x)` truncates toward zero. `round()` is half-away-from-zero
+(`std::round`, not `rint`). Pass authored scalars as
 `PackedFloat64Array`/`PackedVector2Array`, never packed into float32. And never
 add `-ffast-math` / `-march=native` / anything enabling FMA contraction.
+
+`native/SConstruct` **pins `-ffp-contract=off`** for exactly that last reason.
+Do not drop it as redundant: GCC and Clang default to `-ffp-contract=fast`, and
+it only happens to be harmless today because the baseline x86_64 target has no
+FMA. `blade_sim.gdextension` already lists `linux.arm64` and macOS, where FMA
+*is* baseline — there the default silently fuses `a * b + c` and the solver
+drifts on one platform only.
+
+## Every value simulate() produces must cross the boundary — not just positions
+
+The native `simulate()` returns a Dictionary, and a *missing* key is not an
+error anywhere: `speed_history` (#779, what speed-scaled damage reads) once
+simply wasn't returned, which would have zeroed blade damage on every machine
+with a built binary while a GDScript-only CI stayed green. Likewise every
+`simulate()` PARAMETER: `substeps` and `enable_length_scaling` (#790) are
+budget-shaping knobs, and a native path that ignores them runs different physics
+rather than failing.
+
+**How to apply:** when `BladeSim.simulate`'s signature or its `BladeState`
+outputs change, the parity test gains a case for the new axis in the same
+commit. `test_blade_native_parity.gd` compares `speed_history` elementwise and
+runs cases at `substeps` 1 / 4 / 8, length scaling on and off, and a blade past
+`LENGTH_ECC_CEILING` — a parity test that only checked `samples` would have
+caught none of it. Cheap parts that run once per resolve (the pivot-eccentricity
+BFS behind `length_factor`) stay in GDScript and are passed in precomputed: one
+definition of the rule, not two.
+
+## No native binary means PENDING, not pass
+
+The GDScript fallback is a supported state, so the parity file cannot fail
+there — but it must not report *green* either, or "parity verified" means
+nothing on the machines that never ran `scons`. `pending()`, and the suite
+verdict shows it.
 
 ## A cached `ptrw()` aliases every snapshot you pushed
 

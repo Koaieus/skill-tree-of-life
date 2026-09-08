@@ -24,6 +24,22 @@ env = SConscript("godot-cpp/SConstruct", {
 })
 
 env.Append(CPPPATH=["src/"])
+
+# BIT-IDENTICAL parity with the GDScript solver is this extension's contract
+# (test_blade_native_parity.gd), and FMA contraction breaks it: `a * b + c`
+# fused into one instruction keeps the product at full width instead of
+# rounding it to float64/float32 the way GDScript's separate ops do. GCC and
+# Clang default to `-ffp-contract=fast` and WILL fuse. It happens not to bite
+# on baseline x86_64 (no FMA in the SSE2 baseline), which is exactly why this
+# has to be pinned rather than left to luck: `blade_sim.gdextension` already
+# lists linux.arm64 and macos targets, where FMA is baseline and the default
+# would silently drift the solver.
+#
+# MSVC has no such flag — it does not contract across statements by default,
+# and `/fp:precise` (its default) forbids the reassociation that would matter.
+if env.get("CC") and "cl" not in str(env["CC"]):
+    env.Append(CCFLAGS=["-ffp-contract=off"])
+
 sources = Glob("src/*.cpp")
 
 library = env.SharedLibrary(
