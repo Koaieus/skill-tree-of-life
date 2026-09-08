@@ -349,6 +349,31 @@ boundary is not a small error, it is a different attack. If parity ever goes
 red, find the expression that stopped matching -- do not widen the test to
 `approx`.
 
+The build pins **`-ffp-contract=off`** (`native/SConstruct`) to hold that
+threshold. It is not redundant: GCC and Clang default to `-ffp-contract=fast`,
+and bit-identity survives today only because the baseline x86_64 target has no
+FMA. `blade_sim.gdextension` already lists `linux.arm64` and macOS, where FMA
+*is* baseline — there the default would fuse a multiply-add and drift the
+solver on one platform only.
+
+**Everything `simulate()` takes and everything it produces must cross the
+boundary.** Both `simulate()` PARAMETERS and `BladeState` OUTPUTS are silent
+failure modes rather than errors: a native path that ignored `substeps` or
+`enable_length_scaling` (#790) would run different physics, and one that
+omitted `speed_history` (#779) would zero blade damage — in both cases while a
+GDScript-only test run stayed perfectly green. This is exactly what happened
+between the port being written and #790/#779 landing, so when `simulate()`'s
+signature or its state outputs change, the parity test gains a case for the new
+axis in the *same* commit. `length_factor` is the one deliberate exception: it
+crosses precomputed, because the pivot-eccentricity BFS behind it runs once per
+resolve and duplicating it in C++ would put #790's rule in two places for no
+measurable gain.
+
+Note that `test_blade_sim_substep.gd` cannot serve as native coverage — it
+counts projections through a `BladeDistanceConstraint` *subclass*, which the
+fallback rule below deliberately refuses. The substep parity cases in
+`test_blade_native_parity.gd` are what actually exercise the C++ substep loop.
+
 Three ways to land on GDScript, all supported:
 
 - **no binary built** -- the `ClassDB` lookup misses and the game runs anyway.
@@ -565,44 +590,45 @@ this table after the solver changes). It prints **both backends** in one
 invocation when the extension is built. Solver only — no hit scan. Ryzen-class
 desktop CPU, Godot 4.7.1, 1.2s swing at `dt = 1/120`, 16 base iterations.
 
-**Read this table's `chain`/`+ adaptive iters`/`triangulated mesh` columns as
-pre-#790 numbers with a caveat: `_bench`/`_run` call `BladeSim.simulate` with
-only 6 positional args, so today they also inherit the new `substeps = 4`,
-`enable_length_scaling = true` defaults — a re-run will read noticeably
-higher than the table below for any `k` past `LENGTH_BASELINE_HOPS`, because
-it is now doing more total work for a better-converged result, not because
-anything regressed. That's intended; see the #790 section further down for
-the apples-to-apples "today vs #790" comparison instead.
+**All numbers below are at the SHIPPED defaults** (`substeps = 4`,
+`enable_length_scaling = true`) — `_bench`/`_run` pass six positional args and
+inherit the rest, so they measure what `resolve()` actually runs. They read
+noticeably higher than the pre-#790 edition of this table for any `k` past
+`LENGTH_BASELINE_HOPS`: more total work for a better-converged result, not a
+regression. The apples-to-apples "before vs after #790" comparison is its own
+section further down.
 
-### GDScript backend
+### Both backends, side by side (2026-09-08)
 
-| blade size k | chain | + adaptive iters (`velocity_iter_ref = 400`) | triangulated mesh |
+| config | GDScript | native | speedup |
 |---|---|---|---|
-| 5 | 2.9 ms | 7.7 ms | 4.7 ms |
-| 10 | 6.2 ms | 14.4 ms | 11.0 ms |
-| 20 | **13.0 ms** | 27.3 ms | 23.7 ms |
-| 30 | 20.1 ms | 39.9 ms | — |
+| chain k=5 | 3.45 ms | 0.16 ms | 22x |
+| chain k=10 | 9.83 ms | 0.48 ms | 21x |
+| chain k=20 | 29.03 ms | **1.60 ms** | 18x |
+| chain k=30 | 54.91 ms | 3.39 ms | 16x |
+| chain k=20, adaptive iters (`velocity_iter_ref = 400`) | 58.61 ms | 3.34 ms | 18x |
+| triangulated mesh k=20 | 35.16 ms | 1.58 ms | 22x |
+| k=20, `dt=1/60`, 16 iters | 13.50 ms | 0.80 ms | 17x |
+| k=20, `dt=1/30`, 16 iters | 6.85 ms | 0.42 ms | 16x |
+| k=20, `dt=1/30`, 4 iters (the AI coarse tier) | 1.89 ms | **0.15 ms** | 13x |
+| k=20, `dt=1/30`, 2 iters | 1.18 ms | 0.11 ms | 11x |
 
-**Milliseconds per swing, not microseconds.** Cost is ≈ linear in `steps ×
-iterations × constraints`, which works out to ~0.28 µs per constraint
-projection — that is the GDScript interpreter, not the algorithm. Adaptive
-iterations roughly double it; a triangulated mesh roughly doubles it (2×
-the constraints).
+**GDScript is milliseconds per swing, not microseconds.** Cost is ≈ linear in
+`steps × substeps × iterations × constraints`, which works out to ~0.28 µs per
+constraint projection — that is the interpreter, not the algorithm, exactly as
+#796 predicted. Native brings it to ~0.015 µs. Adaptive iterations roughly
+double the work; a triangulated mesh roughly doubles it again (2× the
+constraints).
 
-Cheaper knobs, k=20 chain:
-
-| config | cost | vs full |
-|---|---|---|
-| `dt=1/120`, 16 iters | 12.4 ms | 1× |
-| `dt=1/60`, 16 iters | 6.3 ms | 2× |
-| `dt=1/30`, 16 iters | 3.2 ms | 3.9× |
-| `dt=1/30`, 4 iters | **0.89 ms** | 14× |
-| `dt=1/30`, 2 iters | 0.51 ms | 24× |
-
-This is what makes a two-tier evaluation viable: a coarse sim for *ranking*
-candidates and the full-fidelity sim for the chosen few. Ranking does not need
-120 Hz — but a coarse tier ranks on a different sim than `resolve()` executes,
-so the divergence has to be deliberate and tested, not assumed harmless.
+Note the speedup **shrinks at the cheap end**: a 2-iteration coarse eval spends
+a growing share of its time marshalling packed arrays across the extension
+boundary, a cost fixed per `simulate()` call rather than per constraint. Two
+consequences worth carrying forward. First, the coarse tier is **much less
+necessary than it was** — full fidelity native (1.6 ms) is now cheaper than the
+old GDScript *coarse* tier (1.9 ms), so re-measure before building more tiers on
+top of it. Second, a two-tier scheme ranks on a different sim than `resolve()`
+executes, so any divergence has to be deliberate and tested, not assumed
+harmless.
 
 ### #790: substepped + length-scaled, today vs new — 100-node swing
 
@@ -630,29 +656,6 @@ opinion** — a single 100-node whip swing goes from ~80ms to ~320ms
 solver-only (no hit-scan) on this machine; whether that is acceptable inside
 a turn, and whether `LENGTH_ECC_CEILING` should sit closer to or further from
 4x, is a tuning call this issue surfaces but does not make.
-### Native backend (#798)
-
-Same bench, same machine, same invocation (2026-09-08). Identical output,
-17-26x less of it:
-
-| config | GDScript | native | speedup |
-|---|---|---|---|
-| chain k=5 | 3.06 ms | 0.12 ms | 26x |
-| chain k=10 | 6.10 ms | 0.30 ms | 20x |
-| chain k=20 | 12.35 ms | **0.70 ms** | 18x |
-| chain k=30 | 18.40 ms | 1.08 ms | 17x |
-| chain k=20, adaptive iters | 25.44 ms | 1.40 ms | 18x |
-| triangulated mesh k=20 | 22.82 ms | 1.01 ms | 23x |
-| k=20, `dt=1/30`, 4 iters (the AI coarse tier) | 0.83 ms | **0.073 ms** | 11x |
-
-The interpreter *was* the cost, as #796 predicted: ~0.28 us per constraint
-projection became ~0.015 us. Note the speedup shrinks at the cheap end -- a
-2-iteration coarse eval is 54 us, of which a growing share is marshalling the
-packed arrays across the boundary, a cost that is fixed per `simulate()` call
-rather than per constraint. **The consequence for the two-tier AI is that the
-coarse tier is much less necessary than it was**; re-measure before building
-more tiers on top of it.
-
 ## Open questions / future work
 
 - **Damping.** Currently Verlet has no velocity damping; chain whips
