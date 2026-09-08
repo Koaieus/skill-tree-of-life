@@ -87,9 +87,11 @@ def runs_default():
     yield ("compat-1080-2000",
            ["--rendering-method", "gl_compatibility"] + fp, ["--nodes=2000"],
            {}, None, None)
-    # FOCUS.md's North Star resolution
-    yield ("fp-1440-2000", ["--windowed", "--resolution", "2560x1440"],
-           ["--nodes=2000"], {}, None, None)
+    # FOCUS.md's North Star resolution — the engine --resolution flag is
+    # clobbered by the Settings autoload (user://settings.cfg pins 1920x1080
+    # at _ready), so the bench applies it from a user arg in _setup_level.
+    yield ("fp-1440-2000", ["--windowed"],
+           ["--nodes=2000", "--resolution=2560x1440"], {}, None, None)
     # software-raster pessimism (llvmpipe) — deltas only, never absolutes
     yield ("llvmpipe-1080-800",
            ["--rendering-method", "gl_compatibility"] + fp, ["--nodes=800"],

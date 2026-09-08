@@ -68,3 +68,17 @@ func _apply_cmdline_overrides() -> void:
 				# Off = measure the pre-turn state (no turn open). The default
 				# (on) is the state #763 actually asks about.
 				auto_start_turn = parts[1].to_lower() != "false"
+			"resolution":
+				# The Settings autoload pins the window to user://settings.cfg
+				# (default 1920x1080) at _ready, clobbering the engine's
+				# --resolution flag — so the matrix drives resolution from
+				# here instead, applied in _setup_level AFTER the autoload.
+				# window_set_mode first: setting the size while fullscreen is
+				# a no-op on X11.
+				var size_parts := parts[1].split("x")
+				if size_parts.size() == 2:
+					var size := Vector2i(
+							int(size_parts[0]), int(size_parts[1]))
+					DisplayServer.window_set_mode(
+							DisplayServer.WINDOW_MODE_WINDOWED)
+					DisplayServer.window_set_size(size)

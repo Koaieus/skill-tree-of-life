@@ -266,6 +266,9 @@ func _print_header(bench: Node, root: GameRoot) -> void:
 		" (SOFTWARE RASTERIZER — deltas only, absolutes meaningless)" if _is_software() else "",
 	])
 	print("renderer : %s   hdr_2d=%s   viewport: %s" % [
+		# NB: reads the PROJECT default, not a --rendering-method override —
+		# the engine's startup line ("Forward+" / "Forward Mobile" / "OpenGL")
+		# is the authoritative renderer for patched runs.
 		ProjectSettings.get_setting("rendering/renderer/rendering_method"),
 		ProjectSettings.get_setting("rendering/viewport/hdr_2d"),
 		"%dx%d" % [size.x, size.y] if not headless else "headless (no renderer)",
