@@ -23,6 +23,12 @@ extends Node
 
 const _SOFTWARE_HINTS: Array[String] = ["llvmpipe", "softpipe", "swiftshader"]
 const _BASELINE := "baseline"
+## Plain-int mirrors of CoreHalos.CoreHaloStyle (this probe never types against
+## the leaf component — see blocker_visual.gd for the same mirrors).
+const _STYLE_NONE := 0
+const _STYLE_GIMBAL := 3
+const _STYLE_COG := 4
+const _STYLE_NAMES: Array[String] = ["NONE", "RINGS", "ORBIT", "GIMBAL", "COG"]
 
 var _viewport_rid: RID
 var _baseline_stats: Dictionary = {}
@@ -30,6 +36,7 @@ var _halo_style_before: Dictionary = {}
 var _fog_visible_before := true
 var _injected_env: WorldEnvironment = null
 var _turn_owner_name := "<none>"
+var _frozen: Array[Node] = []
 
 
 func _ready() -> void:
@@ -193,6 +200,78 @@ func _frame_tick() -> void:
 		await RenderingServer.frame_post_draw
 
 
+## Turns off only the halos whose EFFECTIVE style matches `only_style`
+## (`-1` = every style, the old blanket toggle). Isolating matters: the level
+## carries ~10x more cheap COG blockers (#478) than true GIMBAL cores, so a
+## blanket toggle measures "all core halos" and any per-gimbal division of that
+## delta is contaminated by the COGs.
+func _disable_halos(root: GameRoot, only_style: int) -> void:
+	for n: SkillNode in root.graph.get_skill_nodes():
+		if only_style != -1 and _effective_style(n) != only_style:
+			continue
+		_halo_style_before[n.get_instance_id()] = n.core_halo_style
+		n.core_halo_style = _STYLE_NONE
+
+
+func _restore_halos(root: GameRoot) -> void:
+	for n: SkillNode in root.graph.get_skill_nodes():
+		var id := n.get_instance_id()
+		if _halo_style_before.has(id):
+			n.core_halo_style = _halo_style_before[id]
+	_halo_style_before.clear()
+
+
+## The style the node's CoreHalos is ACTUALLY drawing. `core_halo_style == -1`
+## is the "whatever the scene authored" sentinel, so it can't be read directly;
+## ask the live component through the composite instead.
+func _effective_style(n: SkillNode) -> int:
+	var halos := _find_halos(n)
+	return int(halos.halo_style) if halos != null else _STYLE_NONE
+
+
+func _find_halos(n: Node) -> Node:
+	for child in n.get_children():
+		if child.has_method("is_gimbal_active"):
+			return child
+		var found := _find_halos(child)
+		if found != null:
+			return found
+	return null
+
+
+## How many nodes are drawing each halo style RIGHT NOW — the denominator for
+## any per-core cost claim, measured rather than eyeballed.
+##
+## Four buckets, because the gap between them IS the finding: `present` counts
+## every CoreHalos component carrying the style (most sit on non-core nodes
+## with CorePresence hidden, so they never draw but DO still `_process`);
+## `drawing` is visible-in-tree, i.e. actually rebuilding its buffer every
+## frame; `revealed` and `onscreen` are the subsets that a fog-gate or a
+## viewport-cull would keep. `drawing` minus `onscreen` is rebuild work whose
+## pixels nobody can see.
+func _halo_census(root: GameRoot) -> Dictionary:
+	var counts := {}
+	var drawing := {}
+	var revealed := {}
+	var onscreen := {}
+	var view_rect := get_viewport().get_visible_rect()
+	for n: SkillNode in root.graph.get_skill_nodes():
+		var halos := _find_halos(n)
+		if halos == null:
+			continue
+		var style := int(halos.halo_style)
+		counts[style] = int(counts.get(style, 0)) + 1
+		if not (halos as CanvasItem).is_visible_in_tree():
+			continue
+		drawing[style] = int(drawing.get(style, 0)) + 1
+		if n.revealed:
+			revealed[style] = int(revealed.get(style, 0)) + 1
+		if view_rect.has_point(n.get_global_transform_with_canvas().origin):
+			onscreen[style] = int(onscreen.get(style, 0)) + 1
+	return {"present": counts, "drawing": drawing,
+			"revealed": revealed, "onscreen": onscreen}
+
+
 ## — segment toggles ————————————————————————————————————————————————————————————
 ## Each toggle measures one named suspect. Restore is verbatim, not
 ## sentinel-based: [code]core_halo_style = -1[/code] means "whatever the scene
@@ -204,9 +283,22 @@ func _enter_segment(segment: String, root: GameRoot) -> void:
 		_BASELINE:
 			pass
 		"gimbals-off":
+			_disable_halos(root, _STYLE_GIMBAL)
+		"cogs-off":
+			_disable_halos(root, _STYLE_COG)
+		"halos-off":
+			_disable_halos(root, -1)
+		"halos-frozen":
+			# Still drawn, just not re-drawn: stops the animation clock and the
+			# per-frame queue_redraw, keeping the last buffer on screen. This
+			# is the fork that decides the FIX — if frozen ≈ off, the cost is
+			# the per-frame REBUILD (cadence/GPU-animation problem); if frozen
+			# ≈ baseline, it's the draw itself (geometry/batching problem).
 			for n: SkillNode in root.graph.get_skill_nodes():
-				_halo_style_before[n.get_instance_id()] = n.core_halo_style
-				n.core_halo_style = 0 # CoreHaloStyle.NONE
+				var halos := _find_halos(n)
+				if halos != null and (halos as CanvasItem).is_visible_in_tree():
+					_frozen.append(halos)
+					halos.call("set_animating", false)
 		"fog-pass-off":
 			var fog := root.get_node_or_null("Graph/FogOverlay")
 			if fog != null:
@@ -222,12 +314,13 @@ func _exit_segment(segment: String, root: GameRoot) -> void:
 	match segment:
 		_BASELINE:
 			pass
-		"gimbals-off":
-			for n: SkillNode in root.graph.get_skill_nodes():
-				var id := n.get_instance_id()
-				if _halo_style_before.has(id):
-					n.core_halo_style = _halo_style_before[id]
-			_halo_style_before.clear()
+		"gimbals-off", "cogs-off", "halos-off":
+			_restore_halos(root)
+		"halos-frozen":
+			for halos in _frozen:
+				if is_instance_valid(halos):
+					halos.call("set_animating", true)
+			_frozen.clear()
 		"fog-pass-off":
 			var fog := root.get_node_or_null("Graph/FogOverlay")
 			if fog != null:
@@ -279,6 +372,7 @@ func _print_header(bench: Node, root: GameRoot) -> void:
 		root.graph.entities_container.get_child_count(),
 	])
 	print("turn     : %s (parked, stationary)   vsync=off uncapped" % _turn_owner_name)
+	print("halos    : %s" % _format_census(_halo_census(root)))
 	print("sampling : settle=%.1fs warmup=%.1fs sample=%.1fs" % [
 		float(bench.get("settle_seconds")),
 		float(bench.get("warmup_seconds")),
@@ -294,10 +388,27 @@ func _print_header(bench: Node, root: GameRoot) -> void:
 		"-------", "--------"])
 
 
+## "GIMBAL 7 drawing (7 revealed, 3 onscreen) / 1700 present" — the per-core
+## denominator, plus what a fog-gate or viewport-cull would leave.
+func _format_census(census: Dictionary) -> String:
+	var present: Dictionary = census["present"]
+	var parts: Array[String] = []
+	for style in present:
+		if int(style) == _STYLE_NONE:
+			continue
+		parts.append("%s %d drawing (%d revealed, %d onscreen) / %d present" % [
+			_STYLE_NAMES[int(style)] if int(style) < _STYLE_NAMES.size() else str(style),
+			int((census["drawing"] as Dictionary).get(style, 0)),
+			int((census["revealed"] as Dictionary).get(style, 0)),
+			int((census["onscreen"] as Dictionary).get(style, 0)),
+			int(present[style])])
+	return ", ".join(parts) if not parts.is_empty() else "none"
+
+
 func _print_segment(segment: String, stats: Dictionary) -> void:
 	if segment == _BASELINE:
 		_baseline_stats = stats
-	print("%-13s %6d %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %7.0f %8.1f" % [
+	print("%-13s %6d %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %7.2f %8.1f" % [
 		segment, stats.get("frames", 0),
 		stats.get("wall_p50_ms", 0.0), stats.get("wall_p95_ms", 0.0),
 		stats.get("wall_max_ms", 0.0), stats.get("cpu_ms", 0.0),

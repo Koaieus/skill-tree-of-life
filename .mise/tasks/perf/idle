@@ -98,31 +98,36 @@ def runs_default():
            {"LIBGL_ALWAYS_SOFTWARE": "1"}, None, None)
 
 
+# path -> the file's exact bytes before we patched it. Restoring from THIS,
+# never `git checkout -- <file>`: the matrix may be run in a checkout that has
+# unstaged edits to project.godot or the env .tres, and a checkout would
+# silently destroy them (unstaged changes are unrecoverable).
+_ORIGINALS = {}
+
+PATCH_MARKERS = {
+    # .tres serializes with spaces around '=' ("glow_enabled = true"), unlike
+    # project.godot's "key=value" — the marker must match the actual file
+    # format or the assert fires on every run of that config.
+    "glow": (ENV_RES, "glow_enabled = true", "glow_enabled = false"),
+    "hdr": (PROJECT, "viewport/hdr_2d=true", "viewport/hdr_2d=false"),
+}
+
+
 def apply_patch(kind):
     if kind is None:
         return
-    if kind == "glow":
-        text = ENV_RES.read_text()
-        # .tres serializes with spaces around '=' ("glow_enabled = true"),
-        # unlike project.godot's "key=value" — the assert must match the
-        # actual file format or it fires on every glow run.
-        assert "glow_enabled = true" in text, "glow patch: marker not found"
-        ENV_RES.write_text(text.replace("glow_enabled = true",
-                                        "glow_enabled = false"))
-    elif kind == "hdr":
-        text = PROJECT.read_text()
-        assert "viewport/hdr_2d=true" in text, "hdr patch: marker not found"
-        PROJECT.write_text(text.replace("viewport/hdr_2d=true",
-                                        "viewport/hdr_2d=false"))
+    path, marker, replacement = PATCH_MARKERS[kind]
+    text = path.read_text()
+    assert marker in text, "%s patch: marker not found" % kind
+    _ORIGINALS[kind] = text
+    path.write_text(text.replace(marker, replacement))
 
 
 def revert_patch(kind):
-    if kind == "glow":
-        subprocess.run(["git", "checkout", "--", str(ENV_RES)], cwd=ROOT,
-                       check=False)
-    elif kind == "hdr":
-        subprocess.run(["git", "checkout", "--", str(PROJECT)], cwd=ROOT,
-                       check=False)
+    if kind is None or kind not in _ORIGINALS:
+        return
+    path = PATCH_MARKERS[kind][0]
+    path.write_text(_ORIGINALS.pop(kind))
 
 
 def run_one(name, engine_flags, user_args, env, patch, cores, log_path):

@@ -29,11 +29,14 @@ extends "res://scenes/procgen_play_sandbox.gd"
 @export var sample_seconds: float = 2.0
 ## Attribution toggles to sweep, in order, each restored before the next:
 ## [code]baseline[/code] (authored state), [code]gimbals-off[/code] (the #763
-## prime suspect), [code]fog-pass-off[/code] (FogOverlay's fullscreen rect —
+## prime suspect — GIMBAL cores ONLY), [code]cogs-off[/code] (the ~10x more
+## numerous COG blockers, #478 — the other half of what a blanket halo toggle
+## would have measured), [code]halos-off[/code] (both, i.e. the blanket
+## toggle), [code]fog-pass-off[/code] (FogOverlay's fullscreen rect —
 ## node/edge self-shading stays on), [code]glow-off[/code] (WorldEnvironment
 ## injection; cross-checked by the launch-time env patch in the driver, which
 ## is the authoritative number).
-@export var segments: Array[String] = ["baseline", "gimbals-off", "fog-pass-off", "glow-off"]
+@export var segments: Array[String] = ["baseline", "gimbals-off", "cogs-off", "halos-off", "fog-pass-off", "glow-off"]
 
 
 ## Cmdline overrides land here, not in [method _init] — see the class docstring
