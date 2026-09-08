@@ -1,7 +1,7 @@
 # Post-LAN melee wave — the next DAG, and the briefs to dispatch it with
 
-Written 2026-09-08 at the end of the ADR-0005 wave. **Spent when #799, #780, #781
-and #782 have landed and #801 has a ruling.** Delete it then — every decision it
+Written 2026-09-08 at the end of the ADR-0005 wave. **Spent when #799, #780, #801, #781
+and #782 have landed.** Delete it then — every decision it
 mentions lives on an issue, an ADR or a rule.
 
 ## Where things stand
@@ -30,31 +30,30 @@ drops to 1 and the pass count rises accordingly; quote whichever you measured.
 ## The DAG
 
 ```
-#799  ────────────────────────────────────────────►  (independent, land any time)
+#799  ─────────────────────────────►  independent, land any time
 
-#801 (Needs design, ruling pending)
-  └──►  #781  ──┐
-                ├──►  #782
-#780  ──────────┘
+#780  ──►  #801  ──►  #781  ──►  #782
+             └──►  #803 (native continuation, Backlog)
 ```
 
 | issue | state | why it sits where it does |
 |---|---|---|
 | #799 | Ready | Small and mechanical. Touches AI scoring only, collides with nothing. **Start here** if you want a warm-up landing. |
 | #780 | Ready | Fortification drag. Touches the sim's damping/velocity path, which is also where #801 would land — see the conflict note below. |
-| #781 | Ready **but hold for #801** | Bunker break. Under the current sequential resolve it needs its own copy of #186's scaffolding; under #801's interleaved model it is a constraint removal and nothing else. Doing #801 first makes this issue *smaller*, not merely cleaner. |
+| #781 | Ready **but land #801 first** | Bunker break. Under the old sequential resolve it needed its own copy of #186's scaffolding; under #801's ruled model it is a constraint type plus a break event into the existing seam. #801 first makes this issue *smaller*, not merely cleaner. |
 | #782 | Ready, but genuinely last | The preview predicts spike pops, bunker shatters **and** fortification drag. Two of those three do not exist until #780 and #781 land, so starting it first means writing a predictor for behaviour nobody has authored. |
-| #801 | Needs design | A Fable analysis was commissioned 2026-09-08 and posts to the issue. It presents options with costs rather than one answer; the owner picks. |
+| #801 | **Ready** | Unit 1 of the ruled split — the GDScript restructure. Needs nothing from `native/`, so it lands without a `scons` toolchain. **Land it before #781**; that is why #781 was held. |
+| #803 | Backlog, blocked-by #801 | Unit 2 — the native continuation. ~40 additive lines plus three parity cases. |
 | #796 | Ready | The authoritative resolve blocks the main thread. **Not in this wave** — #797 decomposed the premise (see below) and it should be re-read before anyone pulls it. |
 | #771 | `design` | Retitled since the last handoff — now *"AI: build the weapon — clamp the first blade joints unless the pivot is already triangulated"*. Not Ready; not this wave. |
 
 ### The one file conflict to plan around
 
 **#780 and #801 both land in the sim's velocity/damping path.** #780 adds drag
-from fortified defenders; #801 (if the owner takes an interleaving option) changes
-when and how the solver is stepped, and owns the home of #186's existing
-`BladeFreeFlight.DRAG`. Do not run them concurrently. If #801 is still unruled,
-land #780 first and let #801 rebase onto it — #780 is authored gameplay content
+from fortified defenders; #801 changes when and how the
+solver is stepped and moves #186's `BladeFreeFlight.DRAG` to a per-particle array
+on `BladeState`. Do not run them concurrently: land #780 first and let #801
+rebase onto it — #780 is authored gameplay content
 and #801 is a restructure, so the restructure should absorb the churn.
 
 **#781 and #782 do not conflict with each other** (resolver vs. UI), but #782
