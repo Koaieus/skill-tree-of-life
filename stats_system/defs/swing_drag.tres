@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"swing_drag"
+display_name = "Swing Drag"
+description = "How hard this node is to sweep past (#780) — Fortification's characteristic second effect. A DEFENDER-side, node-local scalar, read off the node the blade runs into, never off the wielder. Every fortified node a swing touches adds its drag to a running total, and the swing's angular clock then advances at 1/(1 + total) of its nominal rate for the REST of the arc. So drag never removes a blade part (a spike destroys matter, a bunker destroys structure, a wall destroys neither — ADR 0005) and it never reverses a swing; it only spends the swing's remaining arc. Cumulative and stacking on purpose: one node is a nuisance, a wall of them stalls a sweep partway and protects what is behind it. Base 0 — an ordinary node drags nothing, so a board with nothing fortified is bit-identical to no drag at all. Owner-tunable; the authored magnitude lives on fortification_addon.tscn, not here."
+value_type = 0
+default_value = 0.0
+tint_color = Color(0.55, 0.58, 0.65, 1)
