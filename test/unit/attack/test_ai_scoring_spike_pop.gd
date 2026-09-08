@@ -151,7 +151,10 @@ func test_shadow_effective_amount_agrees_with_live_mitigation() -> void:
 	mod.stat_id = &"armor"
 	mod.operation = StatModifier.Operation.ADD_BONUS
 	mod.value = 2.0
-	_plain.node_board.add_modifier(mod)
+	# Same silent no-op as _heavy_blade carried (#779): without
+	# add_local_modifier this armor never applied, so "on a node with nonzero
+	# armor" was vacuous and the assertion below compared 0 against 0.
+	_plain.add_local_modifier(mod)
 	await get_tree().process_frame
 
 	var outcome := _swing(_far_arm)
@@ -195,7 +198,12 @@ func _heavy_blade(node: SkillNode, bonus: float) -> void:
 	mod.stat_id = &"blade_damage"
 	mod.operation = StatModifier.Operation.ADD_BONUS
 	mod.value = bonus
-	node.node_board.add_modifier(mod)
+	# add_local_modifier, NOT node_board.add_modifier (#779). The bare board
+	# call binds the modifier but never mints the node-local Stat that
+	# get_local_value() reads, so the bonus silently did nothing: both arms
+	# measured blade_damage 2.0 and `raw_best` below was decided by a
+	# coincidental tie-break, not by this fixture's stated margin.
+	node.add_local_modifier(mod)
 
 
 func _mixed_swing() -> AttackOutcome:
