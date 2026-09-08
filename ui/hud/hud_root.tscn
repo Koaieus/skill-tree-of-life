@@ -188,10 +188,6 @@ unique_name_in_owner = true
 [node name="GainedModifierToast" parent="." unique_id=549119865 instance=ExtResource("20_gain_toast")]
 unique_name_in_owner = true
 
-[node name="SpellTooltip" parent="." unique_id=556906459 instance=ExtResource("13_spell_tt")]
-visible = false
-layout_mode = 1
-
 [node name="StatBoardOverlay" type="Control" parent="." unique_id=1359135557]
 unique_name_in_owner = true
 visible = false
@@ -226,3 +222,7 @@ layout_mode = 1
 [node name="RunEndOverlay" parent="." unique_id=1595584225 instance=ExtResource("17_run_end")]
 unique_name_in_owner = true
 visible = false
+
+[node name="SpellTooltip" parent="." unique_id=556906459 instance=ExtResource("13_spell_tt")]
+visible = false
+layout_mode = 1
