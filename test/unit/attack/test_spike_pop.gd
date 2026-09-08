@@ -102,9 +102,12 @@ func test_get_spike_power() -> void:
 			0.001, "unspiked node reports 0")
 
 
-# ── Pop kills the vertex + disconnects the downstream fragment ────────────────
+# ── Pop kills the vertex + severs the downstream remainder ───────────────────
 
-func test_pop_kills_and_disconnects_downstream() -> void:
+## #801: the pop DESTROYS the vertex it hit and SEVERS what was behind it. The
+## severed vertices are not dead — nothing is pulling on them any more, so they
+## coast on through the rest of the same trajectory, armed.
+func test_pop_kills_and_severs_downstream() -> void:
 	var ctx: Dictionary = await _setup()
 	var state := _chain_state()
 	# Vertex 1 (A) sweeps into the spiked node at t=0.3.
@@ -115,10 +118,13 @@ func test_pop_kills_and_disconnects_downstream() -> void:
 	assert_eq(res.pops[0].particle_idx, 1, "vertex 1 was popped")
 	assert_eq(res.pops[0].defender, ctx.spike_node, "pop records the spiked node")
 
-	# A is killed; B(2) and C(3) are severed from the pivot -> disintegrated.
+	# A is killed; B(2) and C(3) lose their path to the pivot and coast.
 	assert_true(res.is_dead(1, 0.3), "killed vertex is dead at contact time")
-	assert_true(res.is_dead(2, 0.3), "downstream B disintegrates on disconnect")
-	assert_true(res.is_dead(3, 0.3), "downstream C disintegrates on disconnect")
+	assert_false(res.is_dead(2, 0.3), "downstream B coasts on — it was not destroyed")
+	assert_false(res.is_dead(3, 0.3), "nor was C")
+	assert_eq(res.severances.size(), 1, "one severance, recorded at the contact time")
+	assert_eq(res.severances[0].t, 0.3, "at the moment the path was lost")
+	assert_eq(Array(res.severances[0].vertices), [2, 3], "B and C, ascending")
 	assert_false(res.is_dead(0, 1.0), "pivot never dies")
 
 
@@ -133,14 +139,18 @@ func test_pre_kill_hits_still_land() -> void:
 	assert_true(res.is_dead(1, 0.3), "the killing contact and later are dropped")
 
 
-func test_disconnected_vertex_drops_its_later_hits() -> void:
+## The inverse of the MVP rule, and the point of #801: a SEVERED vertex keeps
+## its later hits. It is the same sim element with one constraint fewer, still
+## moving, still armed — only the vertex the spike actually destroyed is silenced.
+func test_a_severed_vertex_keeps_landing_its_later_hits() -> void:
 	var ctx: Dictionary = await _setup()
 	var state := _chain_state()
-	# A pops at 0.3; B would hit a plain node at 0.5 but is already disintegrated.
+	# A pops at 0.3; B is severed by it and hits a plain node at 0.5 anyway.
 	var events: Array[BladeHitEvent] = [
 		_ev(0.3, 1, ctx.spike_node), _ev(0.5, 2, ctx.plain_node)]
 	var res := _gate_all(events, state, ctx.attacker)
-	assert_true(res.is_dead(2, 0.5), "severed vertex deals no damage downstream")
+	assert_false(res.is_dead(2, 0.5), "the severed vertex is alive and still swinging")
+	assert_true(res.is_dead(1, 0.5), "the DESTROYED one is the only thing silenced")
 
 
 # ── Guards ───────────────────────────────────────────────────────────────────

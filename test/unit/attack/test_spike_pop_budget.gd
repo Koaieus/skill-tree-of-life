@@ -156,8 +156,11 @@ func test_two_spine_truss_loses_one_vertex_and_keeps_swinging() -> void:
 	var spiked: SkillNode = ctx.spiked
 	var gate := BladePopResolver.LiveGate.new(_two_spine_state(), ctx.attacker)
 	assert_false(gate.admit(_ev(0.1, 1, spiked), CombatWorld.live()), "vertex 1 pops")
-	assert_eq(_sorted_keys(gate.result.dead_at), [1, 2],
-			"only spine A (1, its downstream 2) is lost -- spine B stands untouched")
+	assert_eq(_sorted_keys(gate.result.dead_at), [1],
+			"only vertex 1 is destroyed")
+	assert_eq(gate.result.severances.size(), 1, "and it severed exactly one set")
+	assert_eq(Array(gate.result.severances[0].vertices), [2],
+			"spine A's downstream 2 comes away coasting -- spine B stands untouched")
 
 
 func _sorted_keys(d: Dictionary) -> Array:

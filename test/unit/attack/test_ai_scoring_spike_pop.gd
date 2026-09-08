@@ -297,10 +297,10 @@ func test_a_fully_popped_swing_anchors_on_nothing() -> void:
 ## the AI's shape-risk term over-avoid spiked defenders.
 ##
 ## [b]Two orphans, not one, and that is the whole point of the fixture.[/b] A
-## single orphan cannot tell the acceptance apart from an off-by-one: `dead_at`
-## would read 2, and "counts pops" and "counts pops + 1" both produce it. With
-## two, the wrong answers are 3 (`dead_at.size()`, what this issue replaces) and
-## 2, while the right one stays at 1 however long the severed tail gets.
+## single orphan cannot tell the acceptance apart from an off-by-one: a
+## dead-set of 2 makes "counts pops" and "counts pops + 1" indistinguishable.
+## With two, the wrong answers are 3 (the whole severed set) and 2, while the
+## right one stays at 1 however long the severed tail gets.
 var _chain_plan: MeleeAttackPlan
 
 
@@ -331,8 +331,11 @@ func test_an_orphaned_vertex_is_not_counted_as_a_loss() -> void:
 	var result := _chain_plan.last_live_gate.result
 
 	assert_eq(result.pops.size(), 1, "fixture check: exactly one vertex was destroyed")
-	assert_eq(result.dead_at.size(), 3,
-			"fixture check: that pop orphaned TWO more, so `dead_at` is the wider set")
+	assert_eq(result.severances.size(), 1, "fixture check: it severed one set")
+	assert_eq(result.severances[0].vertices.size(), 2,
+			"fixture check: that pop orphaned TWO more vertices")
+	assert_eq(result.dead_at.size(), 1,
+			"and since #801 they are not in `dead_at` at all — they coast on")
 	assert_eq(outcome.popped_nodes, 1,
 			"one pop is one loss no matter how many vertices it orphaned")
 

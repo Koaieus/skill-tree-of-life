@@ -822,7 +822,7 @@ func _land_batch(
 ## COASTING one (severed from the handle; a driver would keep swinging it as if
 ## the arm were still attached). Everything else is untouched, so an unsevered
 ## swing gets its own list back.
-func _surviving_drivers(
+static func _surviving_drivers(
 		drivers: Array[BladeDriver],
 		state: BladeState,
 		gate: BladePopResolver.LiveGate) -> Array[BladeDriver]:

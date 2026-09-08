@@ -1,10 +1,16 @@
 extends GutTest
 
-## #186 acceptance 1/2/6 end to end: a real swing, real physics, a real spiked
-## defender. The mid-spine vertex pops, the tip is severed, and the tip goes on
-## to hurt something — with its landings in the SAME AttackOutcome the driven
-## swing's are in, which is what makes a peer replay them (acceptance 6) rather
-## than re-derive a solver it does not run.
+## #186 acceptance 1/2/6 end to end, re-pointed onto #801: a real swing, real
+## physics, a real spiked defender. The mid-spine vertex pops, the tip is
+## severed, and the tip goes on to hurt something — with its landings in the
+## SAME AttackOutcome the driven swing's are in, which is what makes a peer
+## replay them (acceptance 6) rather than re-derive a solver it does not run.
+##
+## What changed under #801 is where the tip lives: it is no longer a second body
+## with a trajectory of its own but the same particle in the same
+## `last_trajectory`, coasting because nothing is pulling on it any more. That
+## closes #186's "the fragment is not drawn" residue for free — `SkillBlade.play`
+## already plays `last_trajectory`.
 ##
 ## Severance is by VERTEX POP, per ADR 0005 — never by driving `removed_edges`
 ## through the spike gate.
@@ -121,6 +127,12 @@ func before_each() -> void:
 	await get_tree().physics_frame
 
 
+## Particle indices into the blade state: `build_blade_state` builds
+## `[source] + blade_nodes`, and `_plan` clicks pivot, mid, tip in that order.
+const _MID_IDX := 1
+const _TIP_IDX := 2
+
+
 func _plan() -> MeleeAttackPlan:
 	# Fresh plan every time: MELEE selection is a TOGGLE, so re-clicking the
 	# same nodes on a surviving plan would deselect them.
@@ -135,24 +147,34 @@ func _plan() -> MeleeAttackPlan:
 	return plan
 
 
-func test_the_pop_severs_the_tip_and_the_tip_flies_on() -> void:
+func test_the_pop_severs_the_tip_and_the_tip_coasts_on_in_one_trajectory() -> void:
 	var plan := _plan()
 	plan.resolve()
 
-	assert_eq(plan.last_pops.fragments.size(), 1,
-			"the mid vertex popped and severed exactly one fragment")
-	assert_eq(plan.last_free_flights.size(), 1, "and that fragment flew")
-
-	var flight: BladeFreeFlight.Flight = plan.last_free_flights[0]
-	assert_gt(flight.birth_t, 0.0, "severed mid-sweep, not at t=0")
-	assert_lt(flight.birth_t, MeleeAttackPlan.SWING_DURATION,
+	assert_eq(plan.last_pops.severances.size(), 1,
+			"the mid vertex popped and severed exactly one set")
+	var sev: BladePopResolver.Severance = plan.last_pops.severances[0]
+	assert_eq(Array(sev.vertices), [_TIP_IDX], "the tip, and only the tip")
+	assert_gt(sev.t, 0.0, "severed mid-sweep, not at t=0")
+	assert_lt(sev.t, MeleeAttackPlan.SWING_DURATION,
 			"with swing left to coast through")
-	assert_true(flight.state.is_unpinned, "it flew as a free body")
+	assert_true(plan.last_pops.is_dead(_MID_IDX, sev.t), "the popped vertex is destroyed")
+	assert_false(plan.last_pops.is_dead(_TIP_IDX, MeleeAttackPlan.SWING_DURATION),
+			"the tip is coasting, not dead — it is still armed")
 
-	var start: Vector2 = flight.trajectory.samples[0][0]
-	var end: Vector2 = flight.trajectory.samples[flight.trajectory.samples.size() - 1][0]
+	# THE ONE TRAJECTORY. Under #186 this had to be read off a separate
+	# BladeFreeFlight.Flight, which is why the coasting tip was never drawn.
+	var traj := plan.last_trajectory
+	var at_severance := int(round(sev.t / traj.sample_dt))
+	var start: Vector2 = traj.samples[at_severance][_TIP_IDX]
+	var end: Vector2 = traj.samples[traj.samples.size() - 1][_TIP_IDX]
 	assert_gt(start.distance_to(end), 100.0,
 			"it kept its momentum instead of vanishing where it was cut")
+	# And the corpse does the opposite: frozen where it died, which is #787's
+	# death-time snapshot for free.
+	assert_eq(traj.samples[traj.samples.size() - 1][_MID_IDX],
+			traj.samples[at_severance][_MID_IDX],
+			"the popped vertex has not moved since it died")
 
 
 ## Acceptance 2 + 6: the coasting tip damages what it travels through, and that
@@ -160,13 +182,15 @@ func test_the_pop_severs_the_tip_and_the_tip_flies_on() -> void:
 func test_the_coasting_tip_damages_what_it_travels_through() -> void:
 	# Pass 1: learn where the tip actually goes. Nothing about the geometry of a
 	# free coast is predictable enough to hand-author a target position, so the
-	# victim is placed ON the recorded flight path.
+	# victim is placed ON the recorded path.
 	var scout := _plan()
 	scout.resolve()
-	assert_eq(scout.last_free_flights.size(), 1, "fixture: the tip must be severed")
-	var path: BladeTrajectory = scout.last_free_flights[0].trajectory
-	var mid_sample: int = int(path.samples.size() * 0.6)
-	var victim_pos: Vector2 = path.samples[mid_sample][0]
+	assert_eq(scout.last_pops.severances.size(), 1, "fixture: the tip must be severed")
+	var birth_t: float = scout.last_pops.severances[0].t
+	var path := scout.last_trajectory
+	var born_at := int(round(birth_t / path.sample_dt))
+	var mid_sample: int = born_at + int(float(path.samples.size() - born_at) * 0.5)
+	var victim_pos: Vector2 = path.samples[mid_sample][_TIP_IDX]
 
 	var victim := _spawn("Victim", victim_pos)
 	await get_tree().process_frame
@@ -174,29 +198,25 @@ func test_the_coasting_tip_damages_what_it_travels_through() -> void:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 
-	# Pass 2: the same swing, now with something in the fragment's way. The
+	# Pass 2: the same swing, now with something in the coasting tip's way. The
 	# scout pass ran against a shadow, so the defender's spike is still unspent.
-	var hp_before := victim.get_current_hp()
 	var plan := _plan()
 	# AGAINST THE LIVE WORLD deliberately: `resolve()` computes on a shadow (as
 	# the authority does before replaying its own record), so the real node's HP
 	# would be untouched and this test would be asserting nothing.
 	var outcome := plan.resolve_against(CombatWorld.live())
 
-	assert_eq(plan.last_free_flights.size(), 1, "the tip is severed again")
-	var birth: float = plan.last_free_flights[0].birth_t
-	var free_hits := 0
+	assert_eq(plan.last_pops.severances.size(), 1, "the tip is severed again")
+	var birth: float = plan.last_pops.severances[0].t
+	var coasting_hits := 0
 	for hit in outcome.hits:
 		if hit.target != victim:
 			continue
 		if hit.structural_key * MeleeAttackPlan.SWING_DURATION <= birth:
 			continue
 		# `hp_before > hp_after` is what makes this a LANDING rather than merely
-		# a candidate: the driven tip is dead after `birth`, so its own refused
-		# events would otherwise satisfy a target-and-time filter alone.
+		# a candidate.
 		if hit.hp_before > hit.hp_after:
-			free_hits += 1
-	assert_gt(free_hits, 0,
-			"the fragment's landing rode the SAME outcome — which is what the record captures")
-	assert_lt(victim.get_current_hp(), hp_before,
-			"a handle-less blade is still lethal where it travels")
+			coasting_hits += 1
+	assert_gt(coasting_hits, 0,
+			"the coasting tip's landing rode the SAME outcome — which is what the record captures")

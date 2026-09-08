@@ -143,10 +143,14 @@ func test_reachable_from_pivot_removing_the_cut_vertex_orphans_everything_downst
 # ── _kill via LiveGate.admit: exact dead_at contents + severance cascade ─────
 
 ## Two sequential pops in one swing: first the branch root (5), then the true
-## cut vertex (2). Pins the exact dead_at map after each step, including the
-## cycle fragment {3,4,7,8,9} disintegrating together once its sole gateway
-## is gone — despite forming a cycle among themselves.
-func test_kill_cascade_pins_dead_at_across_two_sequential_pops() -> void:
+## cut vertex (2). Pins the exact `dead_at` map (DESTROYED vertices — the two
+## popped ones and nothing else) and the exact severance sets alongside it,
+## including the cycle fragment {3,4,7,8,9} coming away together once its sole
+## gateway is gone — despite forming a cycle among themselves.
+##
+## Since #801 the two are separate facts: a spike destroys what it touches, and
+## whatever loses its path to the handle keeps coasting.
+func test_kill_cascade_pins_dead_at_and_severances_across_two_pops() -> void:
     var ctx: Dictionary = await _setup()
     var state := _branchy_cycle_state()
     var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
@@ -154,19 +158,27 @@ func test_kill_cascade_pins_dead_at_across_two_sequential_pops() -> void:
     # Pop 1: vertex 5 (branch root) at t=0.3. Kills 5, disintegrates 6.
     assert_false(gate.admit(_ev(0.3, 5, ctx.spike_node), CombatWorld.live()),
             "the popping contact deals no damage")
-    assert_eq(gate.result.dead_at, {5: 0.3, 6: 0.3},
-            "vertex 5 killed, its only downstream vertex 6 disintegrates with it")
+    assert_eq(gate.result.dead_at, {5: 0.3},
+            "vertex 5 is destroyed — and only it")
+    assert_eq(gate.result.severances.size(), 1, "one severance")
+    assert_eq(Array(gate.result.severances[0].vertices), [6],
+            "its only downstream vertex 6 comes away coasting, not dead")
     assert_eq(gate.result.pops.size(), 1, "one killing contact so far")
 
     # Pop 2: vertex 2 (the true cut vertex) at t=0.6. Cuts off the branch's
     # already-dead remainder AND the entire cycle fragment {3,4,7,8,9} in one
     # stroke, since both of the cycle's attachment edges are incident to 2.
     assert_false(gate.admit(_ev(0.6, 2, ctx.spike_node), CombatWorld.live()))
-    assert_eq(gate.result.dead_at,
-            {5: 0.3, 6: 0.3, 2: 0.6, 3: 0.6, 4: 0.6, 7: 0.6, 8: 0.6, 9: 0.6},
-            "cutting vertex 2 takes the whole downstream cycle fragment with it")
+    assert_eq(gate.result.dead_at, {5: 0.3, 2: 0.6},
+            "still only the two vertices spikes actually destroyed")
+    assert_eq(gate.result.severances.size(), 2, "a second severance")
+    assert_eq(Array(gate.result.severances[1].vertices), [3, 4, 7, 8, 9],
+            "cutting vertex 2 takes the whole downstream cycle away, coasting")
     assert_eq(gate.result.pops.size(), 2, "two killing contacts")
 
-    # Only the pivot and the one spine vertex ahead of the cut survive.
+    # Only the pivot and the one spine vertex ahead of the cut stay attached.
     for v in [0, 1]:
         assert_false(gate.result.dead_at.has(v), "vertex %d survives both pops" % v)
+        for sev in gate.result.severances:
+            assert_false(v in Array(sev.vertices),
+                    "vertex %d never comes away from the handle" % v)
