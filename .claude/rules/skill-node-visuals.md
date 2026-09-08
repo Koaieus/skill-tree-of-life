@@ -182,8 +182,17 @@ rotated Z (`_split_ring_runs`) — generically one front run + one back run per
 ring, since a planar ring crosses Z=0 at exactly two points per revolution.
 `CoreHalos._gimbal_runs()` is **pure geometry, no `draw_*` calls** — both
 layers call it and always agree, instead of one recomputing and the other
-reading stale data. **Both layers must recompute every redraw, and both must
-be told to redraw every tick**: Godot only accepts `draw_*` /
+reading stale data. **Both layers must be told to redraw every tick, but they
+share ONE computation per frame** (#802 — it used to be one *each*, with each
+half discarding the other's result, a 2x multiplier on the dominant term):
+`gimbal_layer_batch(front)` memoises on `Engine.get_process_frames()` and hands
+each half its slice, and `_redraw_all()` drops the stamp so a mid-frame input
+change is never served stale. That *strengthens* the no-drift invariant the
+duplication existed for — the halves are now literally the same computation
+rather than two that happen to agree, which is the property
+`test_core_halos_perf_contract.gd` pins (by moving the clock between the two
+calls and requiring the second to ignore it; mere agreement was already true
+before). Godot only accepts `draw_*` /
 `canvas_item_add_*` calls for a CanvasItem while *that* item is the one
 currently drawing, so the shared draw helper (`_draw_batch(target, batch)`,
 fed by `_gimbal_batch(runs)`) takes the target CanvasItem explicitly rather
@@ -192,7 +201,7 @@ target's own canvas item, but only works if that item is presently inside its
 own `_draw()`. `core_halos_back.gd` therefore calls `_halos._gimbal_runs()` +
 `_halos._gimbal_batch()` (data) then draws the result itself in its own
 `_draw()`, rather than asking `CoreHalos` to draw on its behalf.
-And `CoreHalos._process()`/`_redraw_all()` explicitly call
+And `CoreHalos._on_anim_tick()`/`_redraw_all()` explicitly call
 `_back_layer.queue_redraw()` alongside `queue_redraw()` on itself — the base
 class's shared clock (`SkillNodeVisual._process`) only redraws the node it's
 declared on, so without this the back layer draws once and freezes mid-spin
@@ -204,7 +213,7 @@ motion still needs an eyeball pass in the sandbox).
 `CoreHalos` deliberately has no `class_name` (matching every other leaf
 component in this family — only the base classes declare one), so
 `core_halos_back.gd` accesses its parent via untyped `get_parent()` and duck
-typing (`_halos.is_gimbal_active()`, `_halos._gimbal_runs(...)`) rather than
+typing (`_halos.is_gimbal_active()`, `_halos.gimbal_layer_batch(...)`) rather than
 a static `CoreHalos` type reference.
 
 **Inner-face glyphs live in the 3D substrate, not the 2D `_draw()` path.**
@@ -215,6 +224,51 @@ see next section) gets them for free — each band is a real mesh with authored
 UVs (u around the ring, v across the inner wall), so the `SOLID_GLYPH` style
 scrolls an emissive rune strip down the inner face and it wraps the whole hoop.
 Don't try to reintroduce this on the 2D path.
+
+### GIMBAL is the ONLY halo style that may rebuild (#802)
+
+`CoreHalos._draw()` used to render every style into the one shared canvas item,
+which is the only reason RINGS / ORBIT / COG couldn't rotate. They all animate by
+spinning **rigid geometry about the node's own centre** — that is a `CanvasItem`
+transform, not a redraw. Each independently-spinning ring now gets its own
+`HaloSpinLayer` child (`halo_spin_layer.tscn`), painted once, animated by
+`rotation`. Measured: 5.74ms of a 12.21ms idle frame, gone.
+
+- **`SkillNodeVisual._on_anim_tick()` is the seam.** The base class's shared clock
+  calls it once per tick; the default redraws, and a component whose animation is a
+  rigid transform overrides it to write the transform and **not** queue a redraw.
+  Reach for that hook before adding another per-frame `_draw()`.
+- **GIMBAL genuinely resists** — a nested three-axis rotation changes the projected
+  2D silhouette every frame, so it cannot be a 2D transform at any constant factor.
+  That's #804's territory, not a thing to re-attempt here.
+- **Painted-once means the repaint seams must be idempotent.** The composite
+  loop-sets all three identity values into every child whenever any one changes, and
+  `SkillNode._sync_visuals()` re-pushes `configure(radius)` wholesale. Neither runs
+  per frame *today*; an unguarded repaint would silently undo the whole fix the day
+  one did. `CoreHalos` therefore compares the derived `_halo_color` (its only drawn
+  identity — it ignores `archetype_tint`/`allocated`) and the radius before
+  repainting.
+- **Animate on whether anyone can SEE it, never on what the halo IS.**
+  `set_animating(halo_style != NONE)` was the bug in one line: 307 cores rebuilt
+  every frame with one on screen. The gate is visible-in-tree AND (`revealed` OR
+  on-screen), the on-screen half from a `VisibleOnScreenNotifier2D` created lazily
+  and only while the halo could animate — `core_presence.tscn` authors GIMBAL onto
+  every SkillNode, ~1700 of which are hidden non-cores, and a notifier on each would
+  be exactly the always-instanced dead child #172/#238 retired. `_on_screen` starts
+  **false**: fail-open leaves every off-screen halo animating forever.
+- **The fully-fogged node is the case that slipped through.** `sensed` hides the
+  whole ShaderStack, but a node that is neither `sensed` nor `revealed` keeps its
+  stack visible and kept animating under the fog overlay. That is why `revealed` is
+  plumbed `SkillNode` -> `NodeVisualsComposite.set_core_halo_revealed` ->
+  `CorePresence` -> `CoreHalos`.
+- **Non-core nodes were never the problem.** `NodeVisualsComposite._apply_core_active()`
+  already sets `PROCESS_MODE_DISABLED` on the whole `CorePresence` subtree, so the
+  ~1700 hidden halos do not `_process`. Don't re-derive a per-node cost by dividing
+  a delta by the `present` count; divide by `drawing`.
+- **The trade is draw calls.** One CanvasItem per spinning ring costs ~2 extra draw
+  calls per visible halo (measured: 171 calls / +0.76ms GPU for 84 visible halos,
+  against ~7ms of CPU). Good at this scale, but it scales with *visible* halos —
+  see `rendering-performance.md` before putting hundreds on screen.
 
 ### 3D gimbal showcase (#239): the boss-tier looks, on a real SubViewport
 
