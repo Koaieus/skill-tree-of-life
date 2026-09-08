@@ -111,3 +111,23 @@ with the blade.
 `"pipx:scons"` alone makes **every** mise task abort with "pipx is required but
 was not found", not just the build. List `pipx = "latest"` in `[tools]` beside
 it.
+
+## A built `.so` is not a loaded extension — refresh after the first build
+
+`mise run native:build` succeeding does **not** mean `BladeSim.native_available()`
+is true. Godot caches its extension roster in `.godot/extension_list.cfg`, and a
+checkout whose cache predates `native/blade_sim.gdextension` never loads the
+binary no matter how many times you rebuild it. Observed on master immediately
+after #798 landed: the `.so` was on disk and all 13 parity cases still reported
+*"no native binary in this checkout"*.
+
+**How to apply:** after the first `native:build` in any checkout (and after a
+fresh `git worktree`), run `mise run refresh`, then confirm
+`res://native/blade_sim.gdextension` is in `.godot/extension_list.cfg`. The
+gotcha is invisible without it, which is why the parity test's no-binary arm is
+`pending()` and not `pass_test()` — **never soften that back to a pass.** Its
+`test_the_native_path_actually_ran` guard exists for the same reason: without it,
+every parity case passes vacuously the moment `_simulate_native` declines a
+fixture, comparing GDScript to GDScript. Verify with a one-liner:
+`mise run test:one -- res://test/unit/attack/test_blade_native_parity.gd` must
+report **14 passed, 0 pending**, not 14 pending.
