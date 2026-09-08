@@ -11,6 +11,23 @@ extends GutTest
 ## the negative — "and it did NOT rebuild" — not just that the picture is right.
 ## See test_core_halos_gimbal.gd for the geometry half of the contract (#138).
 
+## [b]This file must never be gated on an idle machine.[/b] Every assertion here
+## is STRUCTURAL — draw counts, rotation deltas, process flags, memo stamps —
+## and not one of them is a wall-clock timing, so a co-tenant Godot process is
+## not a confound. Verified empirically: the whole file goes green with the
+## user's editor up and another worktree's GUT suite running alongside it.
+##
+## Naming the trap, because it is a deadlock rather than a slowdown: this repo
+## is worked on with `godot --editor` open as a standing fixture, not a
+## transient. So `pgrep -x godot` — which matches the process NAME and ignores
+## the flags — can never go false, and any "wait for the machine to be quiet"
+## loop built on it hangs until its timeout and then runs anyway, late. If you
+## must serialise something, match the runner (`pgrep -f gut_cmdln`), and never
+## `pkill -f`: that pattern matches your own command line and kills your shell.
+##
+## The standard: if an assertion in this file ever genuinely needs an idle
+## machine, that assertion is flaky in normal use — fix it, don't wait it out.
+
 const HalosScene := preload("res://skill_node/visuals/core_halos.tscn")
 ## CoreHalos declares no `class_name` (every leaf in this family is duck-typed,
 ## see skill-node-visuals.md), so the enum is reached through the script.
