@@ -1,5 +1,20 @@
 {
+  "_comment": [
+    "Trims godot-cpp's generated bindings from ~1000 engine classes to the",
+    "handful this extension links against. Build goes from ~10 min to ~1 min,",
+    "and the .so from megabytes to kilobytes.",
+    "RefCounted is BladeSolverNative's base. The rest are not ours: they are",
+    "what godot-cpp's own src/ and include/ include unconditionally, so",
+    "dropping any of them fails the build with a missing godot_cpp/classes/",
+    "header rather than anything about the blade. Base classes are pulled in",
+    "automatically (build_profile.py walks `inherits`); siblings are not.",
+    "Adding a Godot class to the C++ solver? Add it here too."
+  ],
   "enabled_classes": [
-    "RefCounted"
+    "RefCounted",
+    "Engine",
+    "OS",
+    "SceneTree",
+    "EditorPlugin"
   ]
 }

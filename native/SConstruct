@@ -12,9 +12,15 @@
 # this extension touches, which is the difference between a ~1 min build and a
 # ~10 min one.
 
+# `build_profile` is one of godot-cpp's SCons *Variables*, not one of the three
+# names its SConstruct Import()s (api_version, binding_hooks, customs) — passing
+# it in the exports dict below is silently ignored and you get all ~1000 engine
+# classes generated and compiled. Seeding ARGUMENTS is the supported way to give
+# it a default the caller can still override on the command line.
+ARGUMENTS.setdefault("build_profile", "build_profile.json")
+
 env = SConscript("godot-cpp/SConstruct", {
     "api_version": "4.7",
-    "build_profile": "build_profile.json",
 })
 
 env.Append(CPPPATH=["src/"])

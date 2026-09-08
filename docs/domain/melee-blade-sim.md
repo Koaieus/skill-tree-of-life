@@ -332,6 +332,50 @@ ruled to spend more on whips specifically because that's the only lever that
 addresses propagation depth. Don't tune the length multiplier down to
 squeeze under today's flat cost for a long blade — that defeats the axis.
 
+#### Two backends, one meaning (#798)
+
+Steps 1-3 above exist twice: in GDScript in `blade_sim.gd`, and in C++ in
+`native/src/blade_solver_native.cpp`. The native one runs when the GDExtension
+loaded and `BladeSim.use_native` is true; the GDScript one is the fallback and
+is never removed. `BladeSim.backend()` reports which is live.
+
+**This is not a fast/accurate pair.** The C++ is a literal transliteration --
+same expressions, same evaluation order, same `real_t`(float32) vs `double`
+split, no FMA contraction in the build flags -- and
+`test/unit/attack/test_blade_native_parity.gd` pins the two to **bit-identical**
+output, advanced state included. That threshold is not perfectionism:
+`BladeHitScan` turns positions into a hit *set*, so a 1e-7 drift next to a shape
+boundary is not a small error, it is a different attack. If parity ever goes
+red, find the expression that stopped matching -- do not widen the test to
+`approx`.
+
+Three ways to land on GDScript, all supported:
+
+- **no binary built** -- the `ClassDB` lookup misses and the game runs anyway.
+  This is why the native class is never written as a bare identifier in
+  GDScript: that would make `blade_sim.gd` fail to *parse* on such a machine,
+  which is the opposite of a fallback.
+- **`BladeSim.use_native = false`** -- the differential-test and bench handle.
+- **`BLADE_SIM_BACKEND=gdscript`** in the environment.
+
+Plus one automatic fallback: a `BladeState` holding anything outside the
+transliterated subset -- a constraint that is not exactly a
+`BladeDistanceConstraint`, a driver that is not exactly a `BladeArcDriver`, or
+an arc driver carrying a custom ease -- takes the GDScript path rather than
+being quietly mis-simulated. The checks are `get_script() ==`, not `is`,
+precisely so a subclass that overrides `project()`/`apply()` is not swallowed.
+
+**`BladeHitScan` is deliberately NOT ported**, and this therefore does not
+address #785. It calls `intersect_shape()` against the physics server, which is
+neither freely thread-safe nor a numeric loop. Solver cost is `samples x
+substeps x constraints`; hit-scan cost is `samples x edges`. The two add; only
+the first one got cheap.
+
+**Building it:** `mise run native:build` (append `-- template_release` for
+exports). godot-cpp is a submodule at `native/godot-cpp`, so a fresh clone needs
+a recursive submodule init first. Binaries are **not** committed --
+`native/bin/` is gitignored.
+
 ### `BladeTrajectory`
 
 Pure data: `sample_dt: float`, `samples: Array[PackedVector2Array]`.
@@ -517,7 +561,8 @@ ignored during ghost play — no damage during preview.
 ## Measured cost
 
 `test/perf/bench_blade_sim.gd` (headless SceneTree script; run it, don't trust
-this table after the solver changes). Solver only — no hit scan. Ryzen-class
+this table after the solver changes). It prints **both backends** in one
+invocation when the extension is built. Solver only — no hit scan. Ryzen-class
 desktop CPU, Godot 4.7.1, 1.2s swing at `dt = 1/120`, 16 base iterations.
 
 **Read this table's `chain`/`+ adaptive iters`/`triangulated mesh` columns as
@@ -528,6 +573,8 @@ higher than the table below for any `k` past `LENGTH_BASELINE_HOPS`, because
 it is now doing more total work for a better-converged result, not because
 anything regressed. That's intended; see the #790 section further down for
 the apples-to-apples "today vs #790" comparison instead.
+
+### GDScript backend
 
 | blade size k | chain | + adaptive iters (`velocity_iter_ref = 400`) | triangulated mesh |
 |---|---|---|---|
@@ -583,6 +630,28 @@ opinion** — a single 100-node whip swing goes from ~80ms to ~320ms
 solver-only (no hit-scan) on this machine; whether that is acceptable inside
 a turn, and whether `LENGTH_ECC_CEILING` should sit closer to or further from
 4x, is a tuning call this issue surfaces but does not make.
+### Native backend (#798)
+
+Same bench, same machine, same invocation (2026-09-08). Identical output,
+17-26x less of it:
+
+| config | GDScript | native | speedup |
+|---|---|---|---|
+| chain k=5 | 3.06 ms | 0.12 ms | 26x |
+| chain k=10 | 6.10 ms | 0.30 ms | 20x |
+| chain k=20 | 12.35 ms | **0.70 ms** | 18x |
+| chain k=30 | 18.40 ms | 1.08 ms | 17x |
+| chain k=20, adaptive iters | 25.44 ms | 1.40 ms | 18x |
+| triangulated mesh k=20 | 22.82 ms | 1.01 ms | 23x |
+| k=20, `dt=1/30`, 4 iters (the AI coarse tier) | 0.83 ms | **0.073 ms** | 11x |
+
+The interpreter *was* the cost, as #796 predicted: ~0.28 us per constraint
+projection became ~0.015 us. Note the speedup shrinks at the cheap end -- a
+2-iteration coarse eval is 54 us, of which a growing share is marshalling the
+packed arrays across the boundary, a cost that is fixed per `simulate()` call
+rather than per constraint. **The consequence for the two-tier AI is that the
+coarse tier is much less necessary than it was**; re-measure before building
+more tiers on top of it.
 
 ## Open questions / future work
 
