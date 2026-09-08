@@ -103,15 +103,11 @@ static func backend() -> StringName:
 ##   substeps-vs-iterations regression test — can isolate the substep-only
 ##   claim on a long blade without the length axis also adding budget, which
 ##   would conflate two separate effects.
-## - `linear_damping`: per-second velocity bleed applied to every dynamic
-##   particle (#186's drag on an unpinned fragment). 0 — the default, and
-##   what every driven swing passes — is an exact no-op: the retention
-##   factor is exactly 1.0 and the integrator is bit-identical to the
-##   undamped one, so a fragment with drag 0 coasts undecelerated.
-## - `initial_velocities`: optional per-particle velocity (px/s) to start
-##   from, seeded into `prev_positions` instead of the usual "at rest"
-##   reset. Empty (the default) means at rest. A free-flight fragment passes
-##   its velocity at the moment of separation here.
+## - `damping` lives on the state ([member BladeState.damping]), not here: a
+##   severance leaves SOME particles coasting and the rest driven, so the bleed
+##   is per-particle (#801). An empty array — what every ordinary swing has —
+##   skips the multiply entirely, and a zero entry multiplies by exactly 1.0,
+##   so "drag 0 is bit-identical to undamped" holds per particle.
 ## - `clock`: optional [BladeSwingClock] (#780). Present only when the swing has
 ##   at least one Fortification drag zone in range; then every [BladeArcDriver]
 ##   reads its angular progress instead of deriving progress from `t`, and this
@@ -127,79 +123,111 @@ static func simulate(
 		velocity_iter_ref: float = 0.0,
 		substeps: int = DEFAULT_SUBSTEPS,
 		enable_length_scaling: bool = true,
-		linear_damping: float = 0.0,
-		initial_velocities: PackedVector2Array = PackedVector2Array(),
+		clock: BladeSwingClock = null) -> BladeTrajectory:
+	return simulate_range(
+			state, drivers, 0, int(ceil(duration / dt)), dt, base_iterations,
+			velocity_iter_ref, substeps, enable_length_scaling, clock)
+
+
+## Run `step_count` steps of the swing starting at GLOBAL step `step_offset`,
+## and return the trajectory for exactly that span (#801).
+##
+## [b]This is the only stepping loop.[/b] [method simulate] is
+## `simulate_range(0, ceil(duration / dt))` — there is no second integrator for
+## a continued chunk, which is the whole point: a chunk is the same function
+## called with a different offset.
+##
+## [b]`step_offset` is an INTEGER and that is load-bearing.[/b] Every substep's
+## time is `float(step_offset + local_step) * dt + float(s + 1) * sub_dt`, so a
+## run split into chunks is BIT-IDENTICAL to the unchunked one. Carrying a float
+## `t_start` across chunks instead would drift in the last bits, and
+## `test_blade_chunked_parity.gd` pins that it does not.
+##
+## `step_offset == 0` resets the Verlet history (`prev_positions = positions`,
+## i.e. at rest). Any other offset [b]trusts [member BladeState.prev_positions]
+## as it stands[/b] — that is the continue-from-state path, and the caller is
+## responsible for the state being exactly what the previous chunk left (see
+## [method MeleeAttackPlan.resolve_against], which replays the head of the
+## current chunk to land on it exactly).
+##
+## The returned trajectory's `samples[0]` is the pose AT `step_offset` — before
+## this chunk's first step — so local sample `j` is global sample
+## `step_offset + j`, and the two chunks of a split run overlap in exactly one
+## sample. Same for [member BladeState.speed_history], which this rebuilds
+## chunk-local (zeros for `samples[0]`, then the last substep's speeds) rather
+## than accumulating across calls.
+static func simulate_range(
+		state: BladeState,
+		drivers: Array[BladeDriver],
+		step_offset: int,
+		step_count: int,
+		dt: float = DEFAULT_DT,
+		base_iterations: int = DEFAULT_ITERATIONS,
+		velocity_iter_ref: float = 0.0,
+		substeps: int = DEFAULT_SUBSTEPS,
+		enable_length_scaling: bool = true,
 		clock: BladeSwingClock = null) -> BladeTrajectory:
 	var sub_count := maxi(substeps, 1)
 	# One clock per SWING, shared by every arc driver: they all describe one
 	# rigid body turning about one pivot, so a per-driver clock would shear the
 	# blade. Assigned here rather than by the caller so `simulate` stays the only
-	# thing that has to know a clock exists.
+	# thing that has to know a clock exists. A CONTINUED chunk is handed the same
+	# clock instance the previous chunk ticked (#780 is sim state: `_f`, banked
+	# `drag` and `touched` all carry) — building a fresh one mid-swing would
+	# un-bank a Fortification wall's drag and stop it sheltering what is behind it.
 	if clock != null:
 		for d in drivers:
 			if d is BladeArcDriver:
 				(d as BladeArcDriver).clock = clock
-	if initial_velocities.is_empty():
+	if step_offset == 0:
 		state.prev_positions = state.positions.duplicate()
-	else:
-		# Seed the Verlet history so the FIRST substep's implied velocity is
-		# exactly `initial_velocities` (#186): `_step` reads velocity as
-		# `positions - prev_positions` over ONE substep, so the offset is
-		# scaled by the substep dt, not by `dt`. This is the whole reason a
-		# free-flight fragment continues from its separation velocity instead
-		# of restarting from rest.
-		var sub_dt0 := dt / float(sub_count)
-		var seeded := state.positions.duplicate()
-		for i in seeded.size():
-			var v: Vector2 = initial_velocities[i] if i < initial_velocities.size() else Vector2.ZERO
-			seeded[i] = state.positions[i] - v * sub_dt0
-		state.prev_positions = seeded
 	# One BFS per resolve (#790 pin 3), not per step/substep — length_factor
 	# is fixed for the whole swing. Computed here, ahead of the backend split,
 	# so the native path consumes the SAME number rather than re-deriving the
 	# BFS in C++ (#798): one implementation of the length axis, not two.
 	var length_factor := _length_factor(state.pivot_eccentricity()) if enable_length_scaling else 1.0
-	# The native transliteration takes neither a damping term nor a seeded
-	# Verlet history (it receives `positions`, never `prev_positions`), so a
-	# free-flight pass (#186) takes the GDScript path by construction rather
-	# than silently losing its drag or its separation velocity. Both knobs are
-	# off in every driven-swing call, so the ordinary swing is untouched.
-	# A warpable clock joins damping and seeded velocities on the list of things
-	# the C++ transliteration does not model — it derives `f` from `t` inline —
-	# so a dragged swing takes the GDScript path by construction rather than
-	# silently losing its drag. Every swing with no fortified node in range still
-	# passes `null` and still runs native (#798 parity untouched).
+	var damping := state.damping
+	# The native transliteration takes neither a per-particle damping term nor a
+	# continued Verlet history (it receives `positions`, never `prev_positions`,
+	# and derives `t` from a step index that always starts at 0), so a coasting
+	# tail after a severance (#801) takes the GDScript path by construction
+	# rather than silently losing its drag or restarting from rest. All three
+	# knobs are off in every unsevered swing, so the ordinary swing is untouched.
+	# A warpable clock is on the same list — it derives `f` from `t` inline — so
+	# a dragged swing (#780) takes GDScript too. Every swing with no fortified
+	# node in range and nothing severed still runs native (#798 parity untouched).
 	if _native != null and use_native and clock == null \
-			and is_zero_approx(linear_damping) and initial_velocities.is_empty():
+			and step_offset == 0 and damping.is_empty():
 		# Returns null when the state holds a constraint or driver the native
 		# path doesn't know — then we just fall through to GDScript.
-		var native_traj := _simulate_native(state, drivers, duration, dt,
+		var native_traj := _simulate_native(state, drivers, float(step_count) * dt, dt,
 				base_iterations, velocity_iter_ref, substeps, length_factor)
 		if native_traj != null:
 			return native_traj
 	var traj := BladeTrajectory.new()
 	traj.sample_dt = dt
-	# samples[0] is the pose BEFORE any solver step — prepended so
-	# samples[k] means "pose at simulated time k*dt" for every k, matching
-	# the docstring above (#633). Do not shift sample()'s indexing instead;
-	# that was considered and rejected in favor of the data meaning what it says.
+	# samples[0] is the pose BEFORE any solver step of THIS chunk — prepended so
+	# samples[j] means "pose at simulated time (step_offset + j)*dt" for every j,
+	# matching the docstring above (#633). Do not shift sample()'s indexing
+	# instead; that was considered and rejected in favor of the data meaning
+	# what it says.
 	traj.samples = [state.positions.duplicate()]
 	# speed_history[0] parallels samples[0]: zero for every particle, since
-	# nothing has stepped yet (#779). Freshly rebuilt every simulate() call,
-	# never accumulated across calls — see BladeState.speed_history's docstring.
+	# nothing has stepped yet (#779). Freshly rebuilt every call, never
+	# accumulated across calls — see BladeState.speed_history's docstring.
 	var zero_speeds := PackedFloat32Array()
 	zero_speeds.resize(state.positions.size())
 	state.speed_history = [zero_speeds]
-	var steps := int(ceil(duration / dt))
 	var sub := sub_count
 	var sub_dt := dt / float(sub)
-	for step in steps:
-		var t0 := float(step) * dt
+	for local_step in step_count:
+		# The INTEGER global step index — never an accumulated float offset.
+		var t0 := float(step_offset + local_step) * dt
 		var step_speeds := zero_speeds
 		for s in sub:
 			var t := t0 + float(s + 1) * sub_dt
 			step_speeds = _step(state, drivers, t, sub_dt, base_iterations,
-					velocity_iter_ref, sub, length_factor, linear_damping, clock)
+					velocity_iter_ref, sub, length_factor, damping, clock)
 		# Sense drag once per SAMPLE, not once per substep (#780). A sample is
 		# 1/120 s against a 1.2 s swing, so the granularity costs under 1% of the
 		# arc, while per-substep sensing would quadruple the only per-step work the
@@ -308,13 +336,15 @@ static func _step(
 		vel_ref: float,
 		substeps: int,
 		length_factor: float,
-		linear_damping: float = 0.0,
+		damping: PackedFloat32Array = PackedFloat32Array(),
 		clock: BladeSwingClock = null) -> PackedFloat32Array:
-	# Per-substep velocity retention. `linear_damping == 0.0` yields EXACTLY
-	# 1.0, and multiplying a Vector2 by exactly 1.0 is bit-identical to not
-	# multiplying at all — which is what keeps the driven-swing path (and the
-	# native parity test) untouched by this knob's existence (#186).
-	var damp := maxf(0.0, 1.0 - linear_damping * dt)
+	# Per-particle, per-substep velocity retention (#801). An EMPTY array — every
+	# ordinary swing — skips the multiply outright, so the driven path and the
+	# native parity test are untouched by this knob's existence; and a zero entry
+	# yields EXACTLY 1.0, and multiplying a Vector2 by exactly 1.0 is
+	# bit-identical to not multiplying at all, so "drag 0 coasts undecelerated"
+	# survives per particle rather than only for a whole body (#186).
+	var has_damping := not damping.is_empty()
 	var positions := state.positions
 	var prev := state.prev_positions
 	var inv_masses := state.inv_masses
@@ -326,7 +356,9 @@ static func _step(
 	for i in n:
 		if inv_masses[i] > 0.0:
 			var p := positions[i]
-			var v := (p - prev[i]) * damp
+			var v := p - prev[i]
+			if has_damping:
+				v *= maxf(0.0, 1.0 - float(damping[i]) * dt)
 			prev[i] = p
 			positions[i] = p + v
 			var sp_sq := v.length_squared() / (dt * dt)

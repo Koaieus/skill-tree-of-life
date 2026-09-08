@@ -118,6 +118,44 @@ func is_warping() -> bool:
 	return _warping
 
 
+## Everything on this clock that a substep MUTATES, captured so the resolve loop
+## can rewind it (#801). [b]The clock is sim state[/b] — `_f`, banked `drag`,
+## which zones it has `touched` — so replaying a span of the swing to recover an
+## exact pose must replay the clock with it. Restoring a FRESH clock instead
+## would un-bank a Fortification wall's drag mid-swing and silently stop it
+## sheltering what is behind it. The zone arrays are not in here: they are built
+## once before the sim and never change.
+class Bank extends RefCounted:
+	var f: float
+	var drag: float
+	var touched: Dictionary
+	var warping: bool
+	var last_t: float
+
+
+## Capture [Bank] — the mutable half of this clock. `touched` is duplicated, so
+## a later `sense()` cannot write through the snapshot.
+func capture() -> Bank:
+	var b := Bank.new()
+	b.f = _f
+	b.drag = drag
+	b.touched = touched.duplicate()
+	b.warping = _warping
+	b.last_t = _last_t
+	return b
+
+
+## Rewind to [param b] — the exact inverse of [method capture].
+func restore(b: Bank) -> void:
+	if b == null:
+		return
+	_f = b.f
+	drag = b.drag
+	touched = b.touched.duplicate()
+	_warping = b.warping
+	_last_t = b.last_t
+
+
 ## Time-warp factor in (0, 1]: the fraction of nominal angular rate the swing
 ## still advances at. Strictly positive for every `drag >= 0`, which is what
 ## makes progress non-decreasing AND keeps a hard stall out of this issue.

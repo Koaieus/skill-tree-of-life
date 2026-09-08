@@ -5,6 +5,21 @@ extends RefCounted
 ## Mutates in place during stepping — positions advance, prev_positions
 ## get rewritten. Re-build before re-running if you need a fresh start.
 
+## Per-second velocity bleed written into [member damping] for a vertex that
+## has stopped being reachable from the handle (#186's authored term, #801's
+## home for it).
+##
+## [b]Owner-tunable, and 0 is a meaningful setting.[/b] At 0 the retention
+## factor is exactly 1.0 and a coasting vertex is indistinguishable from an
+## undamped Verlet body, which a test pins. At 0.8/s a vertex severed at the
+## start of a 1.2 s swing keeps roughly 40% of its speed by the end of it —
+## enough that a long coast reads as losing steam without stalling mid-screen.
+##
+## [b]Not [BladeSwingClock]'s drag.[/b] That one slows the swing's CLOCK and
+## removes nothing from the blade (#780); this one bleeds a particle nothing is
+## driving any more. See [member damping].
+const SEVERED_DRAG: float = 0.8
+
 var positions: PackedVector2Array
 var prev_positions: PackedVector2Array
 var inv_masses: PackedFloat32Array
@@ -60,16 +75,36 @@ var vertex_blunting: PackedFloat32Array
 ## ever wanted back it is #409's to argue against the ADR, with magnitude as an
 ## [Entity] stat and placement as a flag on [Edge] — never a value on this class.
 var pivot_index: int = 0
-## True when this state has NO pinned handle — a severed fragment in free
-## flight (#186). Then [member pivot_index] is a connectivity ROOT and nothing
-## more: its inverse mass is not zeroed, it is not exempt from being popped,
-## and [method BladePopResolver.LiveGate._disintegrate_unreachable] re-roots
-## off it if it dies. A driven blade leaves this false, where `pivot_index`
-## means the wielder's own handle and all three of those exemptions apply.
+## Per-particle, per-second velocity bleed, consumed by [method BladeSim._step]
+## (#801). [b]Empty means "no damping anywhere"[/b] and is the ordinary swing:
+## the integrator then skips the multiply outright, so a driven blade is
+## bit-identical to one built before this member existed. A zero ENTRY is the
+## same claim per particle — the retention factor is exactly `1.0` — so a
+## coasting vertex at drag 0 coasts undecelerated (#186 acceptance 4, now a
+## per-particle property).
 ##
-## Sim-inert: the solver reads [member inv_masses], never this, so the native
-## backend needs no mirror of it.
-var is_unpinned: bool = false
+## Written by [method MeleeAttackPlan.resolve_against] at each severance, for
+## exactly the complement of [method BladePopResolver._reachable_from_pivot] —
+## the vertices that have stopped being pulled by the handle. [b]This is not
+## #780's channel.[/b] Fortification drag slows the swing's CLOCK
+## ([BladeSwingClock]) and removes nothing from the blade; this bleeds the
+## velocity of a particle nothing is driving any more. A driven particle's
+## damping is fought by the distance constraints and then overwritten outright
+## by its [BladeArcDriver], which is precisely why the two cannot share a
+## channel.
+var damping: PackedFloat32Array = PackedFloat32Array()
+## Destroyed vertex indices — the twin of [member removed_edges], and the same
+## reason for being a set rather than a splice: a [BladeHitEvent] carries a
+## `particle_idx` INTO [member positions], and #785's index-stability invariant
+## says that index means the same thing on every peer for the whole swing.
+##
+## A vertex in here is a FROZEN CORPSE: [method remove_vertex] zeroes its
+## inverse mass so it stays exactly where it died (which is also #787's
+## death-time snapshot, for free), drops every constraint incident to it, and
+## the caller drops its [BladeArcDriver] if it had one. [BladeHitScan] then
+## queries neither its disc nor any edge touching it. Everything that hung off
+## it simply stops being pulled — see [member damping].
+var removed_vertices: Dictionary = {}
 var edges: Array[Vector2i] = []
 ## Severed edge indices — `edges` itself is never spliced, because a
 ## [BladeHitEvent] carries an `edge_idx` INTO it and a splice would silently
@@ -151,6 +186,51 @@ func remove_edge(edge_idx: int) -> bool:
 			constraints.remove_at(i)
 			break
 	return true
+
+
+## Destroy vertex [param idx]: freeze it in place, drop every constraint
+## incident to it, and record it in [member removed_vertices]. Idempotent;
+## returns true if this call did the removing.
+##
+## [b]This is the whole of a death (#801), and it needs no C++.[/b] `inv_mass 0`
+## is the same expression [method build] uses to pin the pivot, so the solver
+## already knows how to leave a particle alone; the incident constraints going
+## means nothing downstream is pulled by it any more, which is the entire
+## "severance is a constraint removal" model. The vertex's [BladeArcDriver], if
+## it had one, is dropped by the CALLER — drivers are not state, they are the
+## argument [method BladeSim.simulate_range] is given.
+##
+## A phantom brace (ClampAddon's weld) incident to a dead vertex goes too: it is
+## a constraint reaching a particle that no longer moves, so keeping it would
+## weld the survivors to a corpse.
+func remove_vertex(idx: int) -> bool:
+	if idx < 0 or idx >= positions.size() or removed_vertices.has(idx):
+		return false
+	removed_vertices[idx] = true
+	inv_masses[idx] = 0.0
+	for i in range(constraints.size() - 1, -1, -1):
+		var dc := constraints[i] as BladeDistanceConstraint
+		if dc == null:
+			continue
+		if dc.a == idx or dc.b == idx:
+			constraints.remove_at(i)
+	return true
+
+
+## True if [param idx] has been destroyed this swing — see
+## [member removed_vertices].
+func is_vertex_removed(idx: int) -> bool:
+	return removed_vertices.has(idx)
+
+
+## Set [param idx]'s per-second velocity bleed (see [member damping]), sizing
+## the array on first write so an unsevered swing never carries one.
+func set_damping(idx: int, value: float) -> void:
+	if idx < 0 or idx >= positions.size():
+		return
+	if damping.size() != positions.size():
+		damping.resize(positions.size())
+	damping[idx] = value
 
 
 ## Hop count from the pivot to the farthest vertex, walking `constraints`

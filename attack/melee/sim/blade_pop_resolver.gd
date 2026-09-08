@@ -20,14 +20,17 @@ extends RefCounted
 ##     `super.land_on` (the only place damage is ever applied) runs.
 ##   - Killing a vertex disconnects everything downstream of it from the pivot /
 ##     handle. Every vertex no longer reachable from the pivot through surviving
-##     edges is disintegrated (this MVP; the fun free-flight variant is #186).
+##     edges is recorded as a SEVERANCE (#801) — it keeps coasting in the same
+##     trajectory, because nothing is pulling on it any more; it is not killed.
 ##   - The pivot is exempt — popping the wielder's own handle is out of scope.
 ##   - An unspiked node (no `spikes` pool minted — only [SpikeRingAddon] ever
 ##     mints one) never pops anything, at any stake level.
 ##
-## Result is post-hoc: it does NOT re-simulate the swing, it only marks each
-## dead vertex with the time it died so callers can drop that vertex's hits from
-## that moment on.
+## Result is a RECORD, not a solver: it marks each dead vertex with the time it
+## died (so callers drop that vertex's hits from then on) and each severance
+## with the set it orphaned. Re-baking the trajectory around those facts is
+## [method MeleeAttackPlan.resolve_against]'s job, not this file's — see
+## docs/domain/attack-timeline.md.
 ##
 ## [b]There is exactly one implementation of these predicates: [LiveGate].[/b]
 ## There used to be two — a pure `resolve()` batch pass for the AI/preview
@@ -77,18 +80,25 @@ class Pop extends RefCounted:
 
 
 ## One SEVERANCE EVENT: the set of vertices that stopped being reachable from
-## the pivot at [member t], recorded the moment it happened (#186).
+## the pivot at [member t], recorded the moment it happened (#801).
 ##
-## [b]This is the free-flight seam, and it is trigger-agnostic on purpose.[/b]
-## A fragment is described by "which vertices left, and when" and by nothing
-## about WHY they left — a spike pop today, a bunker shatter once #781 lands,
-## anything that removes a vertex or an edge tomorrow. Whatever severs feeds
-## [method LiveGate._disintegrate_unreachable], and one implementation of free
-## flight consumes what comes out.
+## [b]These vertices are COASTING, not dead.[/b] Nothing is pulling on them any
+## more, so plain Verlet keeps carrying them through the rest of the same
+## trajectory — armed, still landing #779-scaled hits, still poppable. They are
+## deliberately NOT in [member Result.dead_at]; the only thing this record
+## drives is [method MeleeAttackPlan.resolve_against] writing
+## [member BladeState.damping] for exactly this set before it re-bakes the tail.
+## (Under #186 they were a second BODY, which is the model this replaced.)
 ##
-## `vertices` are indices into the ORIGINATING [BladeState] and are ascending,
-## so a consumer's index remap is deterministic without re-sorting.
-class Fragment extends RefCounted:
+## [b]Trigger-agnostic on purpose.[/b] A severance is described by "which
+## vertices left the handle, and when" and by nothing about WHY — a spike pop
+## today, #781's bunker break tomorrow. Whatever severs feeds
+## [method LiveGate._disintegrate_unreachable], and there is one continuation.
+##
+## `vertices` are indices into [BladeState] — index-stable for the whole swing
+## (#785), never compacted — and are ascending, so a consumer's iteration is
+## deterministic without re-sorting.
+class Severance extends RefCounted:
 	var t: float
 	var vertices: PackedInt32Array
 
@@ -97,8 +107,11 @@ class Fragment extends RefCounted:
 		vertices = vertices_
 
 
-## `dead_at`: particle_idx -> time it became dead (killed OR disintegrated).
-## A hit by that vertex at `ev.t >= dead_at[idx]` must be dropped.
+## `dead_at`: particle_idx -> time a spike DESTROYED it. A hit by that vertex
+## at `ev.t >= dead_at[idx]` must be dropped. Since #801 this holds destroyed
+## vertices only — a vertex that merely lost its path to the handle coasts on
+## and is recorded in `severances` instead, so `dead_at.size()` and
+## [method vertex_pop_count] now agree by construction rather than by filter.
 ## `pops`: the killing contacts only (drive VFX / hit tracking), in time order.
 class Result extends RefCounted:
 	var dead_at: Dictionary = {}
@@ -107,13 +120,12 @@ class Result extends RefCounted:
 	## [method LiveGate._sever_edge], i.e. by #781's bunker break once it exists.
 	var severed_at: Dictionary = {}
 	var pops: Array[Pop] = []
-	## Severance events in the order they happened (#186). Each entry is one
+	## Severance events in the order they happened (#801). Each entry is one
 	## call to [method LiveGate._disintegrate_unreachable] that actually
-	## orphaned something; the vertices are ALSO in `dead_at`, because they
-	## have genuinely stopped being part of the DRIVEN blade — free flight
-	## re-arms them in a state and a gate of their own rather than by keeping
-	## them alive here. See [MeleeAttackPlan]'s free-flight round.
-	var fragments: Array[Fragment] = []
+	## orphaned something. The vertices are deliberately NOT in `dead_at`: they
+	## are coasting, not destroyed, and they go on hitting things in the same
+	## trajectory. Each vertex appears in at most one entry.
+	var severances: Array[Severance] = []
 
 	func is_dead(particle_idx: int, t: float) -> bool:
 		return dead_at.has(particle_idx) and t >= dead_at[particle_idx]
@@ -121,12 +133,12 @@ class Result extends RefCounted:
 	## How many of the attacker's own VERTICES a defender actually destroyed
 	## (#799) — [member AttackOutcome.popped_nodes]'s one source.
 	##
-	## [b]Deliberately not `dead_at.size()`.[/b] `dead_at` is "stopped being
-	## part of the driven blade", which since #186 conflates two different
-	## things: a vertex a spike destroyed, and a vertex that merely lost its
-	## path to the pivot and coasts on as a free fragment — still armed, still
-	## landing #779-scaled hits. Only the first is a loss. Counting the second
-	## made the AI's shape-risk term over-avoid spiked defenders.
+	## [b]Kept as a `pops` walk, not switched to `dead_at.size()`.[/b] Since
+	## #801 an orphan never enters `dead_at` at all, so the two agree — but they
+	## agree for a reason that lives in `_disintegrate_unreachable`, and the
+	## EDGE exclusion below is this method's own. #799 filed the conflation
+	## (#186 put orphans in `dead_at`, which made the AI's shape-risk term
+	## over-avoid spiked defenders); #801 removed the premise.
 	##
 	## Edge [Pop]s (#781's bunker seam, no caller today) are excluded by the
 	## `particle_idx >= 0` test: a broken edge destroys structure, not matter.
@@ -168,6 +180,12 @@ class LiveGate extends RefCounted:
 	## (#795) rather than rebuilt from `result.dead_at` every call — it only
 	## ever grows within a swing.
 	var _removed: Dictionary = {}
+	## particle_idx -> true for every vertex already reported in
+	## `result.severances`. Separate from `_removed` precisely because a coasting
+	## vertex is still THERE — it is not removed from the sim, it is only no
+	## longer pulled — so it must not enter the BFS's removed set. This dict only
+	## stops the same vertex being reported twice (#801).
+	var _orphaned: Dictionary = {}
 	## vertex index -> Array[int] of neighbour indices, over `_state.edges`.
 	## Built lazily on first use and cached for the rest of this swing (#795):
 	## one O(E) build instead of one O(E) rescan per dequeued BFS vertex.
@@ -212,12 +230,13 @@ class LiveGate extends RefCounted:
 		var node: NodeCombat = w.combat_for(real_node) if real_node != null else null
 		if node == null or not node.is_allocated():
 			return false  # #502: dead target, no dud — indistinguishable from a miss
-		# The pivot / handle is exempt from popping — but a FREE FRAGMENT has no
-		# handle (#186). Its `pivot_index` is only a BFS root, so exempting it
-		# would make one arbitrary vertex of every coasting fragment sail
-		# through spikes without even spending them. The exemption protects the
-		# wielder's grip; a severed fragment is the thing with no grip left.
-		if ev.particle_idx == _state.pivot_index and not _state.is_unpinned:
+		# The pivot / handle is exempt from popping — popping the wielder's own
+		# grip is out of scope. Since #801 there is exactly one state per swing
+		# and exactly one pivot in it, so this is unconditional: a coasting
+		# vertex has no handle of its own to be exempt by, and pops like any
+		# other (#186 acceptance: "its root is not exempt", now true because
+		# there is no second root).
+		if ev.particle_idx == _state.pivot_index:
 			return true
 		if _attacker != null and node.ownership_bit(_attacker) == SkillNode.Ownership.MINE:
 			return true  # your own spike can't pop your own blade
@@ -374,38 +393,28 @@ class LiveGate extends RefCounted:
 	## losing an edge orphan a fragment by exactly the same criterion, and the
 	## BFS reads both `_removed` and [member BladeState.removed_edges].
 	func _disintegrate_unreachable(t: float) -> void:
-		# The BFS root. For a driven blade that is the pinned handle, which
-		# cannot die. A free fragment's root CAN (#186) — it is just a vertex —
-		# so re-root onto the lowest surviving one and let whatever no longer
-		# hangs off it become a fragment in its own right. That terminates:
-		# every re-fragmentation is strictly smaller than its parent.
+		# The BFS root is always the pinned handle, and it cannot die (the
+		# exemption in `admit`). #186's re-rooting is gone with the second body
+		# it existed for: there is one state, one pivot, one trajectory.
 		var root := _state.pivot_index
-		if _state.is_unpinned and _removed.has(root):
-			root = -1
-			for v in _state.positions.size():
-				if not _removed.has(v):
-					root = v
-					break
-			if root < 0:
-				return  # nothing left to be disconnected from
 		var reachable := BladePopResolver._reachable_from_pivot(
 				_state, _removed, _ensure_adjacency(), null, root)
 		# Ascending by construction (the loop counts up), which is the order
-		# Fragment promises its consumer (#186).
+		# Severance promises its consumer.
 		var orphaned := PackedInt32Array()
 		for v in _state.positions.size():
-			if v == root or _removed.has(v):
+			if v == root or _removed.has(v) or _orphaned.has(v):
 				continue
 			if not reachable.has(v):
-				result.dead_at[v] = minf(result.dead_at.get(v, INF), t)
-				_removed[v] = true
+				_orphaned[v] = true
 				orphaned.append(v)
 		if not orphaned.is_empty():
-			# #186: RECORDED here, simulated elsewhere. This gate stays a pure
+			# RECORDED here, simulated elsewhere (#801). This gate stays a pure
 			# predicate over one swing — it does not own a solver, a physics
 			# query or a second AttackOutcome, and it must not, because it is
-			# also the AI-rollout and preview path.
-			result.fragments.append(Fragment.new(t, orphaned))
+			# also the AI-rollout and preview path. The RESOLVE loop reads this
+			# and does the state mutation.
+			result.severances.append(Severance.new(t, orphaned))
 
 	## Lazily builds, then caches, this swing's adjacency map (#795) — one
 	## O(E) build total instead of one per [method _kill]/[method admit].

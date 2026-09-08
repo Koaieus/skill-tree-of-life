@@ -87,80 +87,111 @@ const _BROAD_PHASE_MARGIN := 64.0
 const EDGE_RADIUS := 0.5
 
 
-static func scan(
-		trajectory: BladeTrajectory,
-		state: BladeState,
-		space_state: PhysicsDirectSpaceState2D,
-		graph: Graph,
-		collision_mask: int = 0xFFFFFFFF,
-		exclude: Array[RID] = [],
-		broad_phase: bool = true) -> Array[BladeHitEvent]:
-	var events: Array[BladeHitEvent] = []
-	if space_state == null or trajectory.samples.size() < 2:
-		return events
+## One resolve's sweep, held open across samples (#801).
+##
+## [b]Why this is an object and not a loop.[/b] The interleaved resolve scans
+## ONE sample, lands what it found, and only then steps on — so the dedup
+## dictionaries, the query shapes and the params have to outlive a single
+## sample. They are exactly the state a whole-trajectory `scan` used to keep on
+## its stack. Holding them here is what makes the per-element-per-collider
+## counting rule span the whole sweep even when the trajectory is re-baked
+## underneath it: a vertex that already hit a collider while driven does not hit
+## it again while coasting.
+##
+## [method BladeHitScan.scan] is this class over a finished trajectory, so there
+## is one implementation of the query geometry, not two.
+class Sweep extends RefCounted:
+	var _state: BladeState
+	var _space_state: PhysicsDirectSpaceState2D
+	var _graph: Graph
+	var _params: PhysicsShapeQueryParameters2D
+	var _particle_shapes: Array[CircleShape2D] = []
+	var _edge_shape := CapsuleShape2D.new()
+	var _broad_shape := RectangleShape2D.new()
+	var _max_radius: float = 0.0
+	var _broad_phase: bool
 	# element key -> { collider: true }. First contact emits; every later
 	# contact between the same element and the same collider is silent, for the
 	# whole sweep.
-	var hit_particle: Dictionary = {}
-	var hit_edge: Dictionary = {}
-	var samples := trajectory.samples
-	var dt := trajectory.sample_dt
-	var particle_count := state.positions.size()
-	var edges := state.edges
-	var radii := state.radii
+	var _hit_particle: Dictionary = {}
+	var _hit_edge: Dictionary = {}
 
-	var particle_shapes: Array[CircleShape2D] = []
-	for p in particle_count:
-		var c := CircleShape2D.new()
-		c.radius = radii[p]
-		particle_shapes.append(c)
-	var max_radius := 0.0
-	for p in particle_count:
-		max_radius = maxf(max_radius, radii[p])
-	# Reused across edge queries; height/transform get rewritten each step.
-	# A CapsuleShape2D's axis is +Y, hence the +PI/2 on every edge transform.
-	var edge_shape := CapsuleShape2D.new()
-	edge_shape.radius = EDGE_RADIUS
-	var broad_shape := RectangleShape2D.new()
+	func _init(
+			state: BladeState,
+			space_state: PhysicsDirectSpaceState2D,
+			graph: Graph,
+			collision_mask: int = 0xFFFFFFFF,
+			exclude: Array[RID] = [],
+			broad_phase: bool = true) -> void:
+		_state = state
+		_space_state = space_state
+		_graph = graph
+		_broad_phase = broad_phase
+		for p in state.positions.size():
+			var c := CircleShape2D.new()
+			c.radius = state.radii[p]
+			_particle_shapes.append(c)
+			_max_radius = maxf(_max_radius, state.radii[p])
+		_edge_shape.radius = EDGE_RADIUS
+		_params = PhysicsShapeQueryParameters2D.new()
+		_params.collision_mask = collision_mask
+		_params.collide_with_areas = true
+		_params.collide_with_bodies = false
+		_params.exclude = exclude
 
-	var params := PhysicsShapeQueryParameters2D.new()
-	params.collision_mask = collision_mask
-	params.collide_with_areas = true
-	params.collide_with_bodies = false
-	params.exclude = exclude
-
-	for i in range(1, samples.size()):
-		var t: float = float(i) * dt
-		var curr := samples[i]
-		# Broad phase (#785): ONE query per substep over the blade's whole
+	## Query one pose and return the contacts it newly makes, in this file's
+	## total order (see [method BladeHitScan._stable_sort]). `speeds` is the
+	## per-particle contact speed for this sample — [BladeState.speed_history]'s
+	## entry for it — passed explicitly rather than read off the state, because
+	## a re-baked chunk rebuilds that history chunk-local (#801).
+	##
+	## A DESTROYED vertex is not queried at all, and neither is an edge touching
+	## one or a severed edge: a dead element is not swinging, so it mints no
+	## event to be refused later. That is where the interleave's "a pop swing
+	## costs FEWER physics queries" comes from.
+	func scan_sample(
+			t: float,
+			curr: PackedVector2Array,
+			speeds: PackedFloat32Array) -> Array[BladeHitEvent]:
+		var events: Array[BladeHitEvent] = []
+		if _space_state == null or curr.is_empty():
+			return events
+		# Broad phase (#785): ONE query per sample over the blade's whole
 		# bounding box. A blade sweeping empty space — the overwhelmingly
-		# common substep at 100 vertices / 200 edges — then costs 1 query
+		# common sample at 100 vertices / 200 edges — then costs 1 query
 		# instead of ~300. The box is a strict superset of every narrow-phase
 		# shape (particle disks are inside `max_radius` of a position, edge
 		# capsules are inside the convex hull of two positions plus
 		# `EDGE_RADIUS`), so turning this off can only ADD cost, never
 		# change the event set — which is what `broad_phase` exists to let a
 		# benchmark verify.
-		if broad_phase and _is_region_empty(
-				space_state, params, broad_shape, curr, max_radius):
-			continue
-		for p_idx in particle_count:
-			params.shape = particle_shapes[p_idx]
-			params.transform = Transform2D(0.0, curr[p_idx])
-			var p_hits := space_state.intersect_shape(params, _MAX_HITS_PER_QUERY)
-			_warn_if_truncated(p_hits, "particle", p_idx, t)
+		if _broad_phase and BladeHitScan._is_region_empty(
+				_space_state, _params, _broad_shape, curr, _max_radius):
+			return events
+		var removed_v := _state.removed_vertices
+		for p_idx in _particle_shapes.size():
+			if removed_v.has(p_idx):
+				continue
+			_params.shape = _particle_shapes[p_idx]
+			_params.transform = Transform2D(0.0, curr[p_idx])
+			var p_hits := _space_state.intersect_shape(_params, _MAX_HITS_PER_QUERY)
+			BladeHitScan._warn_if_truncated(p_hits, "particle", p_idx, t)
 			for h in p_hits:
 				var collider: Object = h.collider
-				var seen: Dictionary = hit_particle.get_or_add(p_idx, {})
+				var seen: Dictionary = _hit_particle.get_or_add(p_idx, {})
 				if seen.has(collider):
 					continue
 				seen[collider] = true
 				events.append(BladeHitEvent.new(
-						t, p_idx, -1, collider, _speed_at(state, i, p_idx)))
+						t, p_idx, -1, collider, _speed_of(speeds, p_idx)))
+		var edges := _state.edges
+		var radii := _state.radii
 		for e_idx in edges.size():
-			if state.removed_edges.has(e_idx):
+			if _state.removed_edges.has(e_idx):
 				continue  # severed (#781) — a gone edge collides with nothing
 			var e := edges[e_idx]
+			if removed_v.has(e.x) or removed_v.has(e.y):
+				continue  # hanging off a corpse (#801) — not swinging either
 			var a := curr[e.x]
 			var b := curr[e.y]
 			var delta := b - a
@@ -177,14 +208,14 @@ static func scan(
 				continue
 			var dir := delta / length
 			var mid := a + dir * (radii[e.x] + trimmed * 0.5)
-			edge_shape.height = trimmed + 2.0 * EDGE_RADIUS
-			params.shape = edge_shape
-			params.transform = Transform2D(delta.angle() + PI * 0.5, mid)
-			var e_hits := space_state.intersect_shape(params, _MAX_HITS_PER_QUERY)
-			_warn_if_truncated(e_hits, "edge", e_idx, t)
+			_edge_shape.height = trimmed + 2.0 * EDGE_RADIUS
+			_params.shape = _edge_shape
+			_params.transform = Transform2D(delta.angle() + PI * 0.5, mid)
+			var e_hits := _space_state.intersect_shape(_params, _MAX_HITS_PER_QUERY)
+			BladeHitScan._warn_if_truncated(e_hits, "edge", e_idx, t)
 			for h in e_hits:
 				var collider: Object = h.collider
-				var seen: Dictionary = hit_edge.get_or_add(e_idx, {})
+				var seen: Dictionary = _hit_edge.get_or_add(e_idx, {})
 				if seen.has(collider):
 					continue
 				seen[collider] = true
@@ -193,9 +224,50 @@ static func scan(
 				# a bunker (#781). It carries no damage coefficient — there is no
 				# `edge_damage` — and it never reaches the spike gate.
 				events.append(BladeHitEvent.new(
-						t, -1, e_idx, collider, _edge_speed_at(state, i, e)))
-	_stable_sort(events, graph)
+						t, -1, e_idx, collider,
+						0.5 * (_speed_of(speeds, e.x) + _speed_of(speeds, e.y))))
+		BladeHitScan._stable_sort(events, _graph)
+		return events
+
+	static func _speed_of(speeds: PackedFloat32Array, idx: int) -> float:
+		return speeds[idx] if idx < speeds.size() else 0.0
+
+
+## Scan a finished trajectory — [Sweep] driven over every sample, which is what
+## the AI rollout, the benchmarks and the characterization fixtures want. The
+## live resolve drives the [Sweep] itself, one sample at a time (#801).
+##
+## Concatenating per-sample batches is byte-identical to sorting the whole set
+## afterwards: `t` is the comparator's primary key and it is constant within a
+## sample, so the batches are already the total order's blocks.
+static func scan(
+		trajectory: BladeTrajectory,
+		state: BladeState,
+		space_state: PhysicsDirectSpaceState2D,
+		graph: Graph,
+		collision_mask: int = 0xFFFFFFFF,
+		exclude: Array[RID] = [],
+		broad_phase: bool = true) -> Array[BladeHitEvent]:
+	var events: Array[BladeHitEvent] = []
+	if space_state == null or trajectory.samples.size() < 2:
+		return events
+	var sweep := Sweep.new(
+			state, space_state, graph, collision_mask, exclude, broad_phase)
+	var dt := trajectory.sample_dt
+	for i in range(1, trajectory.samples.size()):
+		events.append_array(sweep.scan_sample(
+				float(i) * dt, trajectory.samples[i], speeds_at(state, i)))
 	return events
+
+
+## [BladeState.speed_history]'s entry for sample [param i], or an empty array
+## when the state was built without one (a fixture that skipped
+## [method BladeSim.simulate_range] entirely) — [method Sweep._speed_of] then
+## reads 0.0 rather than the scan crashing.
+static func speeds_at(state: BladeState, i: int) -> PackedFloat32Array:
+	if i < 0 or i >= state.speed_history.size():
+		return PackedFloat32Array()
+	return state.speed_history[i]
 
 
 ## True if nothing at all overlaps the blade's bounding box this substep — the
@@ -248,31 +320,3 @@ static func _stable_sort(events: Array[BladeHitEvent], graph: Graph) -> void:
 
 static func _element_idx(ev: BladeHitEvent) -> int:
 	return ev.edge_idx if ev.is_edge_hit() else ev.particle_idx
-
-
-## Contact speed for particle [param p_idx] at sample index [param i] —
-## [member BladeState.speed_history][i][p_idx], the physics-rate value the
-## LAST substep of that sample interval produced (#779). Defensive against a
-## state built before this landed (or a fixture that skipped BladeSim.simulate
-## entirely): an out-of-range history or particle index reads 0.0 rather than
-## crashing the scan.
-static func _speed_at(state: BladeState, i: int, p_idx: int) -> float:
-	if i >= state.speed_history.size():
-		return 0.0
-	var step_speeds := state.speed_history[i]
-	if p_idx >= step_speeds.size():
-		return 0.0
-	return step_speeds[p_idx]
-
-
-## Contact speed for an EDGE at sample index [param i] — the MEAN of its two
-## endpoints' speeds, which is the speed of the segment's midpoint under rigid
-## motion and so the honest "how fast did this edge arrive" figure.
-##
-## The mean is also what keeps #785's NOTES true without a flag: a
-## pivot-adjacent edge has one endpoint pinned at the pivot (speed 0), so its
-## mean speed is roughly half its outer vertex's, and under #779's curve it
-## earns almost nothing. "Edges are inert near the handle" survives as an
-## emergent property of the geometry rather than a carve-out.
-static func _edge_speed_at(state: BladeState, i: int, e: Vector2i) -> float:
-	return 0.5 * (_speed_at(state, i, e.x) + _speed_at(state, i, e.y))

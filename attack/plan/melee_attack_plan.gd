@@ -615,16 +615,6 @@ var last_live_gate: BladePopResolver.LiveGate = null
 ## heals), so this stays narrowly typed rather than the [AttackOutcome]-wide
 ## [code]Array[HitInstance][/code] (#381).
 var last_hits: Array[DamageInstance] = []
-## Every severed fragment this swing flew, in birth order (#186) — the driven
-## blade's own fragments first, then any fragment a fragment shed. Empty on a
-## swing that lost nothing, which is the overwhelming majority.
-##
-## Exposed because a fragment's flight is a THING THAT HAPPENED and the visual
-## layer will need it: today [MeleePreview] replays [member last_trajectory]
-## only, so a coasting fragment deals its damage without being drawn. Wiring
-## that picture up (together with the pop cue's missing velocity) is its own
-## issue, called out in #186's NOTES and deliberately not ridden in here.
-var last_free_flights: Array[BladeFreeFlight.Flight] = []
 
 
 func resolve_against(world: CombatWorld) -> AttackOutcome:
@@ -633,38 +623,157 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	outcome.resolve_seed = resolve_seed
 	if not is_valid():
 		return outcome
-	var blade_state := build_blade_state()
-	if blade_state == null:
+	var state := build_blade_state()
+	if state == null:
 		return outcome
-	var drivers := build_drivers(blade_state)
+	var drivers := build_drivers(state)
 	# Fortification drag (#780): a wall of fortified nodes bogs the swing's own
 	# clock down, cumulatively, from the moment the blade first touches one. Null
-	# when there is none in reach, which is the ordinary swing.
-	var swing_clock := build_swing_clock(blade_state)
-	var trajectory := BladeSim.simulate(
-			blade_state, drivers, SWING_DURATION, BladeSim.DEFAULT_DT,
-			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS,
-			true, 0.0, PackedVector2Array(), swing_clock)
+	# when there is none in reach, which is the ordinary swing. ONE instance for
+	# the whole swing, carried across every chunk — see BladeSwingClock.Bank.
+	var clock := build_swing_clock(state)
 	var space_state := source.get_world_2d().direct_space_state
 	var exclude := collect_target_excludes()
-	# #530: the scan itself stable-sorts on SkillNode.stable_id, so the hit
-	# SET a pop cascade sees below never depends on physics broadphase order —
-	# nothing here re-sorts.
-	var events := BladeHitScan.scan(
-			trajectory, blade_state, space_state, attacker.navigator.graph,
-			0xFFFFFFFF, exclude)
-	last_trajectory = trajectory
-	last_events = events
-	# #170/#502/#536: ONE pop gate, re-evaluated per event at land time, so it
-	# sees this swing's own cascades. The up-front batch estimate it replaced
-	# could not — and disagreed with this one about a vertex that disintegrates
-	# before it pops. `popped_nodes` is stamped from this gate's result once
-	# the apply below has run it.
-	var gate := BladePopResolver.LiveGate.new(blade_state, attacker)
+	var graph: Graph = attacker.navigator.graph if attacker != null and attacker.navigator != null else null
+	# #170/#502/#536: ONE pop gate for the whole swing, re-evaluated per event at
+	# land time, so it sees this swing's own cascades. Since #801 it also sees
+	# them EARLY ENOUGH TO MATTER: a death lands before the samples after it are
+	# simulated, so the solver can react to it.
+	var gate := BladePopResolver.LiveGate.new(state, attacker)
 	last_live_gate = gate
 	last_pops = gate.result
-	var di_list: Array[DamageInstance] = []
-	for ev in events:
+	# #530: each batch stable-sorts on SkillNode.stable_id, so the hit SET a pop
+	# cascade sees never depends on physics broadphase order.
+	var sweep: BladeHitScan.Sweep = null
+	if space_state != null:
+		sweep = BladeHitScan.Sweep.new(state, space_state, graph, 0xFFFFFFFF, exclude)
+
+	var dt := BladeSim.DEFAULT_DT
+	var total_steps := int(ceil(SWING_DURATION / dt))
+	var trajectory := BladeTrajectory.new()
+	trajectory.sample_dt = dt
+	trajectory.samples = [state.positions.duplicate()]
+	var zero_speeds := PackedFloat32Array()
+	zero_speeds.resize(state.positions.size())
+	var speed_history: Array[PackedFloat32Array] = [zero_speeds]
+	var events: Array[BladeHitEvent] = []
+	var hits: Array[DamageInstance] = []
+	# ONE crit stream for the whole swing, handed to every batch's `decide_all`
+	# in turn (#507). Batches run in `t` order and `OutcomeSchedule._sorted` is
+	# stable on insertion, so the stream is consumed in exactly the order a
+	# single `decide_all` over the finished hit list would have consumed it —
+	# which is why an unsevered swing rolls the identical crits it did before
+	# the interleave. #186's per-round salt is gone with the rounds.
+	var rng := CritRoll.stream_for(resolve_seed)
+
+	var chunk_start := 0
+	while chunk_start < total_steps:
+		# The pose (and clock) this chunk starts from, kept so a severance can
+		# be landed on EXACTLY — see the replay below.
+		var snap_positions := state.positions.duplicate()
+		var snap_prev := state.prev_positions.duplicate()
+		var snap_bank: BladeSwingClock.Bank = clock.capture() if clock != null else null
+		# OPTIMISTIC BAKE: the whole remaining swing in one call, assuming
+		# nothing dies. Because a bake is a pure function of the state, walking
+		# it sample by sample and re-baking from the first death produces the
+		# bit-identical trajectory a true per-sample interleave would (#801) —
+		# at one solver call per SEVERANCE instead of one per sample.
+		var chunk := BladeSim.simulate_range(
+				state, drivers, chunk_start, total_steps - chunk_start, dt,
+				BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS,
+				true, clock)
+		var chunk_speeds := state.speed_history
+		var severed_at := -1
+		for j in range(1, chunk.samples.size()):
+			var step := chunk_start + j
+			var pose: PackedVector2Array = chunk.samples[j]
+			var speeds: PackedFloat32Array = chunk_speeds[j]
+			trajectory.samples.append(pose)
+			speed_history.append(speeds)
+			if sweep == null:
+				continue
+			var batch := sweep.scan_sample(float(step) * dt, pose, speeds)
+			if batch.is_empty():
+				continue
+			events.append_array(batch)
+			var pops_before := gate.result.pops.size()
+			_land_batch(outcome, batch, state, gate, world, rng, hits)
+			if gate.result.pops.size() != pops_before:
+				severed_at = step
+				break
+		if severed_at < 0:
+			break
+		# REPLAY THE HEAD. The bake above ran past the death, so `state` is at
+		# the end of the swing, not at `severed_at` — and the exact Verlet
+		# history at a sample is not recoverable from `samples` (`_step` rewrites
+		# `prev_positions` once per SUBSTEP, so it is a mid-sample pose). So
+		# rewind to this chunk's snapshot and re-run the head; being the same
+		# pure function of the same inputs it lands bit-identically on the pose
+		# already appended above.
+		#
+		# [b]#803 deletes this.[/b] Once the native backend emits `prev_samples`
+		# the state at any sample is read straight off the bake and the replay
+		# goes away — this is a workaround for a missing output, never "how we do
+		# it". Cost meanwhile: one extra partial bake per severance, never more,
+		# because the next chunk starts AT the severance, so a replay can never
+		# span more than one gap however many vertices a wall pops.
+		state.positions = snap_positions
+		state.prev_positions = snap_prev
+		if clock != null:
+			clock.restore(snap_bank)
+		if severed_at > chunk_start:
+			BladeSim.simulate_range(
+					state, drivers, chunk_start, severed_at - chunk_start, dt,
+					BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS,
+					true, clock)
+		# THE WHOLE OF A SEVERANCE: a corpse frozen where it died, its
+		# constraints and its driver gone, and drag written onto whatever it was
+		# holding on. Nothing else — everything downstream then coasts by plain
+		# Verlet, because that is what Verlet does to a particle nothing is
+		# pulling on.
+		for pop in gate.result.pops:
+			if pop.particle_idx >= 0:
+				state.remove_vertex(pop.particle_idx)
+		for severance in gate.result.severances:
+			for v in severance.vertices:
+				state.set_damping(v, BladeState.SEVERED_DRAG)
+		drivers = _surviving_drivers(drivers, state, gate)
+		chunk_start = severed_at
+	state.speed_history = speed_history
+	last_trajectory = trajectory
+	last_events = events
+	last_hits = hits
+	# One coherent timeline over every batch. The record carries each hit's
+	# structural key and every peer compiles its own seconds from it.
+	outcome.schedule = OutcomeSchedule.compile(outcome)
+	# The AI's shape-risk signal: how many of the attacker's own vertices this
+	# swing actually DESTROYED. Pops only (#799) — a vertex that merely lost its
+	# path to the handle coasts on in this same trajectory and is not a loss.
+	outcome.popped_nodes += gate.result.vertex_pop_count()
+	return outcome
+
+
+## Mint, crit and LAND one sample's contacts, appending what landed to
+## [param outcome] and [param hits].
+##
+## [b]The interleave is sim / scan / LAND, not sim / scan / gate.[/b] The pop
+## gate is reached from [method BladeDamageInstance.land_on] inside
+## [method OutcomeApplier.apply]'s walk — only APPLYING produces the world the
+## next pop decision has to read. This is the per-batch idiom #186's free-flight
+## round already used (sub-outcome → compile → same crit rng → apply → merge),
+## in a loop; no suspendable applier is needed.
+func _land_batch(
+		outcome: AttackOutcome,
+		batch: Array[BladeHitEvent],
+		state: BladeState,
+		gate: BladePopResolver.LiveGate,
+		world: CombatWorld,
+		rng: RandomNumberGenerator,
+		hits: Array[DamageInstance]) -> void:
+	var sub := AttackOutcome.new()
+	sub.cadence = ScheduleEntry.Cadence.SWING
+	sub.resolve_seed = resolve_seed
+	for ev in batch:
 		# An EDGE contact produces no DamageInstance at all (ADR 0005): edges
 		# give rigidity, nodes deal damage. It stays in `last_events` — it is a
 		# real contact, and #781's bunker break is its consumer — but it buys no
@@ -675,9 +784,13 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		# #502: no pre-filtering by pops/allocation here — every VERTEX event
 		# becomes a candidate DamageInstance. Whether it actually lands is
 		# BladeDamageInstance.land_on's call, live, when OutcomeApplier
-		# consumes it (docs/domain/attack-timeline.md).
+		# consumes it (docs/domain/attack-timeline.md). There is no
+		# disconnection scale (#186 acceptance 3): a coasting vertex carries the
+		# SAME coefficient a driven one would, and #779's speed curve — applied
+		# off `ev.speed`, which for a coasting vertex is its coasting speed — is
+		# the only thing that makes it hit for less. Or, flung hard, for more.
 		var di := BladeDamageInstance.new(ev, gate)
-		di.amount = blade_state.vertex_damage[ev.particle_idx]
+		di.amount = state.vertex_damage[ev.particle_idx]
 		di.type = DamageInstance.Type.PHYSICAL
 		di.target = ev.target as SkillNode
 		di.origin = source
@@ -689,152 +802,41 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		# [member PresentationTempo.swing_duration], which is what lets the
 		# picture be stretched without re-simulating the blade.
 		di.structural_key = ev.t / maxf(0.001, SWING_DURATION)
-		outcome.hits.append(di)
-		di_list.append(di)
-	last_hits = di_list
-	# Seconds, once, before `decide_all` consumes its stream in landing order.
-	outcome.schedule = OutcomeSchedule.compile(outcome)
-	# Every blade landing rolls its own crit (#507 — owner call: "a hit can
-	# crit"), off the stamped seed, never `randf()`. So a wide blade sweeping
-	# many nodes gets more lottery tickets than a narrow one; settled as
-	# intended, not a reason to fall back to one roll per swing.
-	# `decide_all` sorts by the compiled schedule index itself, so this does not
-	# depend on BladeHitScan emitting events in `t` order.
-	CritRoll.decide_all(outcome, CritRoll.stream_for(resolve_seed))
+		sub.hits.append(di)
+	if sub.hits.is_empty():
+		return
+	sub.schedule = OutcomeSchedule.compile(sub)
+	CritRoll.decide_all(sub, rng)
 	# Melee selects on physics, so nothing above read `world`: every live read
 	# it makes is inside `BladeDamageInstance.land_on` -> `LiveGate.admit`,
 	# which is what this pass runs. Un-awaited — see the same call in
 	# [method RangedAttackPlan.resolve_against] for why that is safe.
-	OutcomeApplier.apply(outcome, world)
-	# #186: everything the swing SEVERED is now known — it could not have been
-	# known any earlier, because a pop is decided at land time against the live
-	# world, not at scan time. So free flight is a second round over the same
-	# world, gated and applied by the same machinery, appending to the same
-	# outcome. The hits it produces therefore ride the AttackRecord like any
-	# other landing and a peer replays them; nothing re-derives a solver.
-	_fly_severed_fragments(outcome, world, blade_state, trajectory, gate,
-			space_state, exclude)
-	# The AI's shape-risk signal, now a RESULT of the gate rather than a
-	# separate estimate of it: how many of the attacker's own vertices this
-	# swing actually DESTROYED. Pops only, never `dead_at.size()` (#799) —
-	# `dead_at` also holds the vertices those pops merely orphaned, and since
-	# #186 an orphan is not a loss: it coasts on as a free fragment and lands
-	# its own hits above. `_fly_severed_fragments` has already added whatever
-	# the coasting rounds got popped for in turn.
-	outcome.popped_nodes += gate.result.vertex_pop_count()
-	return outcome
+	OutcomeApplier.apply(sub, world)
+	for hit in sub.hits:
+		outcome.hits.append(hit)
+		hits.append(hit)
 
 
-## Distinct crit streams per free-flight round (#186). One stream per attack is
-## the rule, but a round is not a re-roll of the same landings — it is a fresh
-## set of them — and reusing `resolve_seed` unsalted would make every round
-## draw the identical sequence. Derived, so the whole attack still reproduces
-## from one seed.
-const _FREE_FLIGHT_STREAM_SALT: int = 0x27D4EB2F
-
-
-## Fly every fragment this swing severed, and every fragment those shed in turn
-## (#186). One round per fragment: re-simulate it as an UNPINNED body from its
-## separation velocity, scan the trajectory, and land what it hits.
-##
-## [b]A round gets its own [BladePopResolver.LiveGate], and must.[/b] The
-## swing's gate has these vertices in `dead_at` — correctly, they have left the
-## DRIVEN blade — so reusing it would refuse every hit the fragment goes on to
-## make. The fragment is a new body; it gets a new gate over its own compacted
-## state. The world is unchanged between them, so a spikes pool the swing
-## already drained is still drained when the fragment arrives (#186 acceptance
-## 2), which is the part that actually has to be shared and is, by being the
-## world rather than the gate.
-##
-## [b]Ordering caveat, deliberate.[/b] These land after the whole driven swing
-## has landed, not interleaved by `t`. On the authority that reordering is
-## invisible: `resolve_against` computes against a SHADOW world and what
-## reaches the live world is the record, whose merged schedule IS in `t` order
-## (recompiled below). The only residue is that two landings on the SAME node,
-## one driven and one free, may see each other's mitigation in shadow order.
-## Interleaving properly would mean an [OutcomeApplier] that can be suspended
-## mid-walk and resumed with hits discovered during it — a real change to the
-## applier, and not one #186 needs.
-func _fly_severed_fragments(
-		outcome: AttackOutcome,
-		world: CombatWorld,
-		root_state: BladeState,
-		root_traj: BladeTrajectory,
-		root_gate: BladePopResolver.LiveGate,
-		space_state: PhysicsDirectSpaceState2D,
-		exclude: Array[RID]) -> void:
-	last_free_flights = []
-	if space_state == null or root_gate == null or root_gate.result.fragments.is_empty():
-		return
-	var graph: Graph = attacker.navigator.graph if attacker != null and attacker.navigator != null else null
-	# Each entry: [source_state, source_trajectory, source_birth_t, fragment].
-	# A queue rather than a single pass because a coasting fragment can be
-	# popped in turn and shed a fragment of its own; every such fragment is
-	# strictly smaller than its parent, so this terminates.
-	var queue: Array = []
-	for f in root_gate.result.fragments:
-		queue.append([root_state, root_traj, 0.0, f])
-	var round_idx := 0
-	while not queue.is_empty():
-		var job: Array = queue.pop_front()
-		var flight := BladeFreeFlight.spawn(
-				job[0] as BladeState, job[1] as BladeTrajectory, float(job[2]),
-				job[3] as BladePopResolver.Fragment, SWING_DURATION)
-		if flight == null:
-			continue  # born at or past the end of the swing — nothing left to fly
-		round_idx += 1
-		last_free_flights.append(flight)
-		var gate := BladePopResolver.LiveGate.new(flight.state, attacker)
-		var events := BladeHitScan.scan(
-				flight.trajectory, flight.state, space_state, graph,
-				0xFFFFFFFF, exclude)
-		var sub := AttackOutcome.new()
-		sub.cadence = ScheduleEntry.Cadence.SWING
-		sub.resolve_seed = resolve_seed
-		for ev in events:
-			# The scan works in the fragment's own local time; the gate, the
-			# schedule and the record all work in swing time.
-			ev.t += flight.birth_t
-			# An EDGE contact mints no DamageInstance, exactly as on the driven
-			# swing (ADR 0005): edges give rigidity, nodes deal damage. A coasting
-			# fragment's edges still collide — that is what stops one entering a
-			# bunker's interior — and #781's break will consume these events, but
-			# there is no damage for a crit roll or a schedule entry to be about.
-			if ev.is_edge_hit():
-				continue
-			var di := BladeDamageInstance.new(ev, gate)
-			# No disconnection scale (#186 acceptance 3): the SAME coefficient a
-			# driven vertex would carry, and #779's speed curve — applied in
-			# BladeDamageInstance.land_on off `ev.speed`, which for a coasting
-			# fragment is exactly its coasting speed — is the only thing that
-			# makes a fragment hit for less. Or, if it was flung hard, for more.
-			di.amount = flight.state.vertex_damage[ev.particle_idx]
-			di.type = DamageInstance.Type.PHYSICAL
-			di.target = ev.target as SkillNode
-			di.origin = source
-			di.source = self
-			di.attacker = attacker
-			di.structural_key = ev.t / maxf(0.001, SWING_DURATION)
-			sub.hits.append(di)
-		sub.schedule = OutcomeSchedule.compile(sub)
-		CritRoll.decide_all(sub, CritRoll.stream_for(
-				resolve_seed + round_idx * _FREE_FLIGHT_STREAM_SALT))
-		OutcomeApplier.apply(sub, world)
-		# A coasting vertex a spike destroys is destroyed for real, so it is a
-		# loss on exactly the terms the driven swing's pops are (#799). Its
-		# gate is per-round and local, hence the accumulate here rather than a
-		# single read at the end.
-		outcome.popped_nodes += gate.result.vertex_pop_count()
-		for hit in sub.hits:
-			outcome.hits.append(hit)
-		for f in gate.result.fragments:
-			queue.append([flight.state, flight.trajectory, flight.birth_t, f])
-	if round_idx > 0:
-		# One coherent timeline over driven + free landings. The record carries
-		# each hit's structural key and every peer compiles its own seconds from
-		# it, so this is what stops a fragment's landings from claiming schedule
-		# indices the driven swing already used.
-		outcome.schedule = OutcomeSchedule.compile(outcome)
+## [param drivers] minus every driver on a vertex the swing has stopped
+## driving — a destroyed one (frozen; a driver would move a corpse) and a
+## COASTING one (severed from the handle; a driver would keep swinging it as if
+## the arm were still attached). Everything else is untouched, so an unsevered
+## swing gets its own list back.
+func _surviving_drivers(
+		drivers: Array[BladeDriver],
+		state: BladeState,
+		gate: BladePopResolver.LiveGate) -> Array[BladeDriver]:
+	var coasting: Dictionary = {}
+	for severance in gate.result.severances:
+		for v in severance.vertices:
+			coasting[v] = true
+	var kept: Array[BladeDriver] = []
+	for d in drivers:
+		var ad := d as BladeArcDriver
+		if ad != null and (state.is_vertex_removed(ad.particle) or coasting.has(ad.particle)):
+			continue
+		kept.append(d)
+	return kept
 
 
 ## Build a fresh BladeState from the current selection. `MeleePreview` does

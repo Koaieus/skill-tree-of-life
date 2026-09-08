@@ -145,7 +145,7 @@ func simulate(
 	var drivers := _build_swing_drivers(duration)
 	trajectory = BladeSim.simulate(
 			state, drivers, duration, dt, iterations, velocity_iter_ref,
-			BladeSim.DEFAULT_SUBSTEPS, true, 0.0, PackedVector2Array(), clock)
+			BladeSim.DEFAULT_SUBSTEPS, true, clock)
 	return trajectory
 
 

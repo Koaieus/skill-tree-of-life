@@ -81,7 +81,7 @@ func _simulate(
 	return BladeSim.simulate(
 			state, drivers, _DURATION, BladeSim.DEFAULT_DT,
 			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS,
-			true, 0.0, PackedVector2Array(), clock)
+			true, clock)
 
 
 ## `count` drag zones strung along the arc the DRIVEN particle sweeps, starting
