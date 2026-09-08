@@ -6,6 +6,16 @@ extends RefCounted
 ## in particular "Substeps, not iterations" for why the constraint-sweep
 ## budget below is spent on smaller timesteps rather than more passes per
 ## timestep, and why blade length is measured in hops, not distance.
+##
+## Two interchangeable backends (#798): a GDScript one (below) and a C++
+## GDExtension one (native/src/blade_solver_native.cpp). The native path is a
+## strict transliteration — same expressions, same evaluation order, same
+## real_t/double split — and test_blade_native_parity.gd pins the two to
+## BIT-IDENTICAL output. Neither is a "fast approximate" mode.
+##
+## Which one runs: native when the extension loaded AND [member use_native] is
+## true. A checkout with no built binary silently takes the GDScript path, so
+## `mise run test` is green on a machine that has never run `scons`.
 
 const DEFAULT_DT: float = 1.0 / 120.0
 const DEFAULT_ITERATIONS: int = 16
@@ -42,6 +52,40 @@ const LENGTH_ECC_CEILING: int = 40
 ## ceiling. Tuned alongside LENGTH_ECC_CEILING for the ~4x target above.
 const LENGTH_ITER_SCALE: float = 0.08
 
+## Set false to force the GDScript solver even when the extension is loaded.
+## This is the differential-test and bench handle — flip it, run, flip back.
+## Not a project setting on purpose: the two backends agree bit-for-bit, so
+## there is nothing for a player to choose between.
+static var use_native: bool = true
+
+## The BladeSolverNative instance, or null when the extension isn't loaded.
+## Resolved through ClassDB rather than by name: writing `BladeSolverNative`
+## as a bare identifier would make THIS SCRIPT fail to parse on any machine
+## without the binary, which is exactly the fallback the extension exists to
+## avoid. Instantiated eagerly (static-var init) because AiBladeRollout calls
+## simulate() from WorkerThreadPool tasks; the method is pure, so one shared
+## instance serves every thread.
+static var _native: Object = _acquire_native()
+
+
+static func _acquire_native() -> Object:
+	if OS.get_environment("BLADE_SIM_BACKEND") == "gdscript":
+		return null
+	if not ClassDB.class_exists(&"BladeSolverNative"):
+		return null
+	return ClassDB.instantiate(&"BladeSolverNative")
+
+
+## True when the GDExtension loaded — independent of [member use_native].
+static func native_available() -> bool:
+	return _native != null
+
+
+## &"native" or &"gdscript" — whichever the next simulate() will actually use
+## for a canonical state. Reported by the bench and the parity test.
+static func backend() -> StringName:
+	return &"native" if (_native != null and use_native) else &"gdscript"
+
 
 ## Run a full sim, return a per-step trajectory.
 ##
@@ -69,6 +113,18 @@ static func simulate(
 		substeps: int = DEFAULT_SUBSTEPS,
 		enable_length_scaling: bool = true) -> BladeTrajectory:
 	state.prev_positions = state.positions.duplicate()
+	# One BFS per resolve (#790 pin 3), not per step/substep — length_factor
+	# is fixed for the whole swing. Computed here, ahead of the backend split,
+	# so the native path consumes the SAME number rather than re-deriving the
+	# BFS in C++ (#798): one implementation of the length axis, not two.
+	var length_factor := _length_factor(state.pivot_eccentricity()) if enable_length_scaling else 1.0
+	if _native != null and use_native:
+		# Returns null when the state holds a constraint or driver the native
+		# path doesn't know — then we just fall through to GDScript.
+		var native_traj := _simulate_native(state, drivers, duration, dt,
+				base_iterations, velocity_iter_ref, substeps, length_factor)
+		if native_traj != null:
+			return native_traj
 	var traj := BladeTrajectory.new()
 	traj.sample_dt = dt
 	# samples[0] is the pose BEFORE any solver step — prepended so
@@ -85,9 +141,6 @@ static func simulate(
 	var steps := int(ceil(duration / dt))
 	var sub := maxi(substeps, 1)
 	var sub_dt := dt / float(sub)
-	# One BFS per resolve (#790 pin 3), not per step/substep — length_factor
-	# is fixed for the whole swing.
-	var length_factor := _length_factor(state.pivot_eccentricity()) if enable_length_scaling else 1.0
 	for step in steps:
 		var t0 := float(step) * dt
 		var step_speeds := zero_speeds
@@ -98,6 +151,76 @@ static func simulate(
 		# The LAST substep's speeds — the physics rate closest to this
 		# sample's time, not an average or the step's max (#779).
 		state.speed_history.append(step_speeds)
+	return traj
+
+
+## Flatten state + drivers into packed buffers and hand them to the extension.
+##
+## Returns null — meaning "caller, use GDScript" — if anything in the state is
+## outside the transliterated subset. The type checks are deliberately EXACT
+## (`get_script() ==`, not `is`): a hypothetical subclass overriding project()
+## or apply() would be silently ignored by the C++ loop, so it must fall back.
+##
+## `length_factor` arrives precomputed (see simulate) rather than being
+## re-derived in C++ — the BFS runs once per resolve, so porting it would buy
+## nothing and would put the length axis's definition in two places.
+static func _simulate_native(
+		state: BladeState,
+		drivers: Array[BladeDriver],
+		duration: float,
+		dt: float,
+		base_iterations: int,
+		velocity_iter_ref: float,
+		substeps: int,
+		length_factor: float) -> BladeTrajectory:
+	var constraint_ab := PackedInt32Array()
+	var constraint_scalars := PackedFloat64Array()
+	for c in state.constraints:
+		if c.get_script() != BladeDistanceConstraint:
+			return null
+		var dc := c as BladeDistanceConstraint
+		constraint_ab.append(dc.a)
+		constraint_ab.append(dc.b)
+		constraint_scalars.append(dc.rest)
+		constraint_scalars.append(dc.compliance)
+
+	var driver_particles := PackedInt32Array()
+	var driver_centers := PackedVector2Array()
+	var driver_scalars := PackedFloat64Array()
+	for d in drivers:
+		if d.get_script() != BladeArcDriver:
+			return null
+		var ad := d as BladeArcDriver
+		# Only the default sine-in-out ease is transliterated. A custom
+		# Callable would need a per-step call back into GDScript, which is the
+		# whole cost this port removes — so it falls back instead.
+		if ad.ease.get_object() != ad or ad.ease.get_method() != &"_sine_in_out":
+			return null
+		driver_particles.append(ad.particle)
+		driver_centers.append(ad.center)
+		driver_scalars.append(ad.radius)
+		driver_scalars.append(ad.start_angle)
+		driver_scalars.append(ad.sweep)
+		driver_scalars.append(ad.duration)
+
+	# Dynamic call: `_native` is a plain Object here (see _acquire_native).
+	var out: Dictionary = _native.call(
+			&"simulate",
+			state.positions, state.inv_masses,
+			constraint_ab, constraint_scalars,
+			driver_particles, driver_centers, driver_scalars,
+			duration, dt, base_iterations, velocity_iter_ref,
+			substeps, length_factor)
+
+	var traj := BladeTrajectory.new()
+	traj.sample_dt = dt
+	traj.samples.assign(out["samples"])
+	# simulate()'s contract is that the state advances in place — including
+	# speed_history (#779), which the native loop builds on the same rule the
+	# GDScript one does: zeros for sample 0, then the LAST substep's speeds.
+	state.positions = out["positions"]
+	state.prev_positions = out["prev_positions"]
+	state.speed_history.assign(out["speed_history"])
 	return traj
 
 

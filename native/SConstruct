@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+# Build the blade solver GDExtension (#798).
+#
+#   cd native && scons target=template_debug     # what the editor + headless runs load
+#   cd native && scons target=template_release   # what exported builds load
+#
+# or, from anywhere: `mise run native:build`.
+#
+# godot-cpp is a submodule at native/godot-cpp. `api_version=4.7` pins the
+# extension API to the engine mise installs (see [tools] in mise.toml);
+# `build_profile` trims the generated bindings down to the handful of classes
+# this extension touches, which is the difference between a ~1 min build and a
+# ~10 min one.
+
+env = SConscript("godot-cpp/SConstruct", {
+    "api_version": "4.7",
+    "build_profile": "build_profile.json",
+})
+
+env.Append(CPPPATH=["src/"])
+sources = Glob("src/*.cpp")
+
+library = env.SharedLibrary(
+    "bin/libbladesim{}{}".format(env["suffix"], env["SHLIBSUFFIX"]),
+    source=sources,
+)
+
+Default(library)

@@ -35,7 +35,32 @@ class _CountingConstraint extends BladeDistanceConstraint:
 
 
 func _initialize() -> void:
-	print("--- BladeSim.simulate, solver only, %.1fs swing ---" % DURATION)
+	# #798: both backends in one invocation, so the before/after is a single
+	# table on a single machine rather than two runs you have to trust.
+	if BladeSim.native_available():
+		_table("gdscript", false)
+		_table("native (C++ GDExtension)", true)
+	else:
+		print("BladeSolverNative not loaded — GDScript only. Build it with `mise run native:build`.")
+		_table("gdscript", false)
+	# #790's sweep-count rows count constraint projections through a
+	# BladeDistanceConstraint SUBCLASS, which the native path deliberately
+	# refuses (see BladeSim._simulate_native's exact get_script() check) — so
+	# they are a GDScript measurement by construction and run once, outside
+	# the per-backend tables, rather than printing the same numbers twice.
+	BladeSim.use_native = false
+	print("")
+	print("--- #790: 100-node / ~250-constraint swing, today's settings vs substepped ---")
+	_bench_substep_config("braced mesh (realistic density)", 100, true)
+	print("--- #790: 100-node WHIP (worst case for the length axis — pivot ecc ~99) ---")
+	_bench_substep_config("pure chain (whip)", 100, false)
+	quit()
+
+
+func _table(backend: String, native: bool) -> void:
+	BladeSim.use_native = native
+	print("")
+	print("=== backend: %s === (%.1fs swing, solver only)" % [backend, DURATION])
 	for k in [5, 10, 20, 30]:
 		_bench("chain", k, false, 0.0)
 	for k in [5, 10, 20, 30]:
@@ -49,12 +74,6 @@ func _initialize() -> void:
 	_bench_knobs("quarter rate", 20, 1.0 / 30.0, 16)
 	_bench_knobs("quarter rate, 4 iters", 20, 1.0 / 30.0, 4)
 	_bench_knobs("quarter rate, 2 iters", 20, 1.0 / 30.0, 2)
-
-	print("--- #790: 100-node / ~250-constraint swing, today's settings vs substepped ---")
-	_bench_substep_config("braced mesh (realistic density)", 100, true)
-	print("--- #790: 100-node WHIP (worst case for the length axis — pivot ecc ~99) ---")
-	_bench_substep_config("pure chain (whip)", 100, false)
-	quit()
 
 
 ## Straight chain from the pivot — the whippy extreme.

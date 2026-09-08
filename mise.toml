@@ -11,6 +11,13 @@
 godot = "4.7.2-stable"
 # Board tasks (.mise/tasks/gh-project) shell out to gh; auth stays in ~/.config/gh.
 gh = "2"
+# SCons builds the blade solver GDExtension (#798, native/). Only needed to
+# (re)build that binary — the game runs fine without it, on BladeSim's GDScript
+# fallback — but it lives here so `mise install` stays the whole setup.
+# pipx is listed explicitly because mise's `pipx:` backend shells out to it and
+# errors out of EVERY task (not just native:build) if it is missing.
+pipx = "latest"
+"pipx:scons" = "latest"
 # The python file tasks (test, refresh, rules-hygiene, lint-transcendentals) are
 # stdlib-only and want nothing newer than 3.7 — pinned so `mise install` is the
 # whole setup, not because the version is delicate.
@@ -118,6 +125,22 @@ echo "✓ all scripts compiled clean"
 # used to hardcode a two-scene probe list; #682 replaced that with a full
 # `.gdshader`/`.gdshaderinc` tree walk after a shader outside both scenes
 # broke and the gate stayed green.
+
+[tasks."native:build"]
+description = "Build the blade solver GDExtension (#798): `mise run native:build`, or `-- template_release` for exports"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$MISE_PROJECT_ROOT/native"
+if [ ! -f godot-cpp/SConstruct ]; then
+  echo "native/godot-cpp is empty. Fetch the submodule first:" >&2
+  echo "    git submodule update --init --recursive" >&2
+  exit 1
+fi
+# template_debug is what the editor AND a headless `godot --script` / GUT run
+# load; template_release is only ever loaded by an exported build.
+scons target="${1:-template_debug}" -j"$(nproc)"
+'''
 
 [tasks.check-script]
 description = "Parse-check a single GDScript file: `mise run check-script -- path/to.gd`"

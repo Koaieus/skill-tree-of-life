@@ -23,3 +23,11 @@ docs/handoffs/swarm-*.md
 # Export artifacts + the generated build stamp (see .mise/tasks/build).
 /export/
 /build_stamp.cfg
+
+# The blade solver GDExtension (#798). Sources and the .gdextension are
+# tracked; per-platform binaries are BUILT, not committed — `mise run
+# native:build`. A checkout without them still runs: BladeSim falls back to
+# its GDScript solver (see attack/melee/sim/blade_sim.gd).
+/native/bin/
+/native/.sconsign.dblite
+/native/src/*.os

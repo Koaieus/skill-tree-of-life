@@ -1,0 +1,22 @@
+; The blade solver GDExtension (#798) — see docs/domain/melee-blade-sim.md.
+;
+; The binaries are NOT committed; build them with `mise run native:build`
+; (Linux/macOS) or `scons` inside native/. A missing binary is a supported
+; state: BladeSim falls back to the GDScript solver.
+
+[configuration]
+
+entry_symbol = "blade_sim_library_init"
+compatibility_minimum = "4.7"
+reloadable = false
+
+[libraries]
+
+linux.debug.x86_64 = "res://native/bin/libbladesim.linux.template_debug.x86_64.so"
+linux.release.x86_64 = "res://native/bin/libbladesim.linux.template_release.x86_64.so"
+linux.debug.arm64 = "res://native/bin/libbladesim.linux.template_debug.arm64.so"
+linux.release.arm64 = "res://native/bin/libbladesim.linux.template_release.arm64.so"
+windows.debug.x86_64 = "res://native/bin/libbladesim.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://native/bin/libbladesim.windows.template_release.x86_64.dll"
+macos.debug = "res://native/bin/libbladesim.macos.template_debug.framework"
+macos.release = "res://native/bin/libbladesim.macos.template_release.framework"
