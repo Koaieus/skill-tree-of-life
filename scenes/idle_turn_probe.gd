@@ -96,14 +96,39 @@ func _park_on_player_turn(root: GameRoot) -> void:
 
 ## Average per-frame samples over `sample_seconds`, after discarding
 ## `warmup_seconds`. Samples once per drawn frame, like overlay_perf_harness.
+##
+## [b]TIME_PROCESS gotcha[/b]: [code]Performance.TIME_PROCESS[/code] is NOT a
+## per-frame value — the engine accumulates the MAX process-step duration
+## within each 1-second reporting window and resets at the window boundary
+## (main.cpp: process_max = MAX(...), set_process_time at the fps-print
+## reset). Averaging per-frame reads is therefore wrong: one spike anywhere
+## in the window (e.g. the bench's own park/end_turn phase, or a segment
+## transition) contaminates every later read in that window — this probe
+## once read 94ms of "process time" on a frame whose wall time was 6.9ms.
+## So the cpu column is collected as: discard warmup, align to the first
+## reset boundary (a value DROP — maxima can only rise within a window),
+## then record each complete window's max plus the final partial window's
+## max. "cpu proc" is the mean worst process frame per second — the honest
+## CPU floor, and the same semantics apply to TIME_PHYSICS_PROCESS.
 func _measure(warmup_seconds: float, sample_seconds: float) -> Dictionary:
 	var deadline := Time.get_ticks_usec() + int(warmup_seconds * 1_000_000.0)
+	var last_cpu := 0.0
 	while Time.get_ticks_usec() < deadline:
-		await RenderingServer.frame_post_draw
+		await _frame_tick()
+		last_cpu = Performance.get_monitor(Performance.TIME_PROCESS)
+	# Align: wait for the first reset boundary so every recorded window is
+	# fully inside the sample.
+	while true:
+		await _frame_tick()
+		var cpu := Performance.get_monitor(Performance.TIME_PROCESS)
+		if cpu < last_cpu:
+			last_cpu = cpu
+			break
+		last_cpu = cpu
 
 	var wall_us: Array[int] = []
-	var cpu_us: Array[int] = []
-	var phys_us: Array[int] = []
+	var cpu_maxima_ms: Array[float] = []
+	var phys_maxima_ms: Array[float] = []
 	var rs_us: Array[int] = []
 	var gpu_ms: Array[float] = []
 	var draws: Array[int] = []
@@ -112,26 +137,41 @@ func _measure(warmup_seconds: float, sample_seconds: float) -> Dictionary:
 
 	var prev := Time.get_ticks_usec()
 	deadline = prev + int(sample_seconds * 1_000_000.0)
+	var window_max_us := int(last_cpu * 1_000_000.0)
+	var phys_max_us := 0
 	while Time.get_ticks_usec() < deadline:
-		await RenderingServer.frame_post_draw
+		await _frame_tick()
 		var now := Time.get_ticks_usec()
 		wall_us.append(now - prev)
 		prev = now
-		cpu_us.append(int(Performance.get_monitor(Performance.TIME_PROCESS) * 1_000_000.0))
-		phys_us.append(int(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1_000_000.0))
+		var cpu := Performance.get_monitor(Performance.TIME_PROCESS)
+		if cpu * 1_000_000.0 < window_max_us:
+			# Engine reset its reporting window: finalize the one that ended.
+			cpu_maxima_ms.append(window_max_us / 1000.0)
+			phys_maxima_ms.append(phys_max_us / 1000.0)
+			window_max_us = int(cpu * 1_000_000.0)
+			phys_max_us = 0
+		else:
+			window_max_us = maxi(window_max_us, int(cpu * 1_000_000.0))
+		phys_max_us = maxi(phys_max_us,
+				int(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1_000_000.0))
 		rs_us.append(RenderingServer.get_frame_setup_time_cpu())
 		gpu_ms.append(RenderingServer.viewport_get_measured_render_time_gpu(_viewport_rid))
 		draws.append(int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)))
 		objects.append(int(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)))
 		prims.append(int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)))
+	# The final partial window — aligned start, so its max is honest.
+	cpu_maxima_ms.append(window_max_us / 1000.0)
+	phys_maxima_ms.append(phys_max_us / 1000.0)
 
 	return {
 		"frames": wall_us.size(),
 		"wall_p50_ms": _pct_ms(wall_us, 0.50),
 		"wall_p95_ms": _pct_ms(wall_us, 0.95),
 		"wall_max_ms": _pct_ms(wall_us, 1.0),
-		"cpu_ms": _mean_us_as_ms(cpu_us),
-		"phys_ms": _mean_us_as_ms(phys_us),
+		"cpu_ms": _mean(cpu_maxima_ms),
+		"cpu_max_ms": _max_f(cpu_maxima_ms),
+		"phys_ms": _mean(phys_maxima_ms),
 		"rs_ms": _mean_us_as_ms(rs_us),
 		"gpu_ms": _mean(gpu_ms),
 		"gpu_p95_ms": _pct_f(gpu_ms, 0.95),
@@ -139,6 +179,18 @@ func _measure(warmup_seconds: float, sample_seconds: float) -> Dictionary:
 		"objects": _mean_i(objects),
 		"prims_k": _mean_i(prims) / 1000.0,
 	}
+
+
+## One engine frame. [signal RenderingServer.frame_post_draw] never fires
+## under the headless dummy renderer (no draw happens — the main loop still
+## ticks, but the signal is posted by the real rasterizer), so a headless
+## run awaiting it hangs forever with the game alive at full uncapped fps.
+## [signal SceneTree.process_frame] fires either way.
+func _frame_tick() -> void:
+	if DisplayServer.get_name() == "headless":
+		await get_tree().process_frame
+	else:
+		await RenderingServer.frame_post_draw
 
 
 ## — segment toggles ————————————————————————————————————————————————————————————
@@ -206,7 +258,7 @@ func _inject_glow_off_environment(root: GameRoot) -> void:
 func _print_header(bench: Node, root: GameRoot) -> void:
 	var adapter := RenderingServer.get_video_adapter_name()
 	var headless := DisplayServer.get_name() == "headless"
-	var size := get_viewport().size
+	var size: Vector2i = get_viewport().size
 	print("\n=== #763 idle-turn bench ===")
 	print("godot    : %s" % Engine.get_version_info()["string"])
 	print("adapter  : %s%s" % [
@@ -229,25 +281,26 @@ func _print_header(bench: Node, root: GameRoot) -> void:
 		float(bench.get("warmup_seconds")),
 		float(bench.get("sample_seconds")),
 	])
-	print("ms = milliseconds per frame. cpu = engine process step, rs = draw-list build, gpu = raster")
-	print("%-13s %6s %8s %8s %8s %8s %8s %8s %8s %7s %8s" % [
-		"segment", "frames", "wall p50", "wall p95", "cpu proc", "cpu phys",
-		"rs setup", "gpu", "gpu p95", "draws", "prims k"])
-	print("%-13s %6s %8s %8s %8s %8s %8s %8s %8s %7s %8s" % [
+	print("ms = milliseconds per frame. cpu = mean worst process frame per second (TIME_PROCESS is a per-second max — see code)")
+	print("%-13s %6s %8s %8s %8s %8s %8s %8s %8s %8s %7s %8s" % [
+		"segment", "frames", "wall p50", "wall p95", "wall max", "cpu proc",
+		"cpu max", "cpu phys", "rs setup", "gpu", "gpu p95", "draws"])
+	print("%-13s %6s %8s %8s %8s %8s %8s %8s %8s %8s %7s %8s" % [
 		"---------------", "------", "--------", "--------", "--------",
-		"--------", "--------", "--------", "--------", "-------", "--------"])
+		"--------", "--------", "--------", "--------", "--------",
+		"-------", "--------"])
 
 
 func _print_segment(segment: String, stats: Dictionary) -> void:
 	if segment == _BASELINE:
 		_baseline_stats = stats
-	print("%-13s %6d %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %7.0f %8.1f" % [
+	print("%-13s %6d %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %7.0f %8.1f" % [
 		segment, stats.get("frames", 0),
 		stats.get("wall_p50_ms", 0.0), stats.get("wall_p95_ms", 0.0),
-		stats.get("cpu_ms", 0.0), stats.get("phys_ms", 0.0),
+		stats.get("wall_max_ms", 0.0), stats.get("cpu_ms", 0.0),
+		stats.get("cpu_max_ms", 0.0), stats.get("phys_ms", 0.0),
 		stats.get("rs_ms", 0.0), stats.get("gpu_ms", 0.0),
-		stats.get("gpu_p95_ms", 0.0), stats.get("draws", 0.0),
-		stats.get("prims_k", 0.0)])
+		stats.get("gpu_p95_ms", 0.0), stats.get("draws", 0.0)])
 	if segment != _BASELINE and not _baseline_stats.is_empty():
 		print("  %-11s | wall %+.2f | cpu %+.2f | gpu %+.2f" % [
 			"delta base",
@@ -262,6 +315,13 @@ func _print_footer() -> void:
 	print("fixing: .claude/rules/graph.md's CPU-first triage). gimbals-off answers")
 	print("the 80% suspicion. The p95 wall column is the 'comfortably, not")
 	print("just-in-time' number: Tier L wants p50 well under 10ms at 1080p.")
+	print("cpu proc = mean worst process frame per second (the engine reports")
+	print("TIME_PROCESS as a per-second MAX, so per-frame averaging would let a")
+	print("single pre-window spike contaminate the whole column — the probe")
+	print("aligns to the engine's reset boundaries instead; wall max flags any")
+	print("in-window spike). HEADLESS: the main loop is throttled to ~145 fps")
+	print("regardless of work (6.9ms floor wall), so the headless wall column is")
+	print("a floor, not a cost — the headless cpu column is the honest CPU floor.")
 	print("(The engine's own per-second 'fps' lines above come from")
 	print("project.godot print_fps=true — a cross-check, not the measurement.)")
 	print("=== end #763 idle-turn bench ===")
@@ -302,6 +362,15 @@ func _mean(samples: Array[float]) -> float:
 	for s in samples:
 		total += s
 	return total / samples.size()
+
+
+func _max_f(samples: Array[float]) -> float:
+	if samples.is_empty():
+		return 0.0
+	var best := 0.0
+	for s in samples:
+		best = maxf(best, s)
+	return best
 
 
 func _pct_f(samples: Array[float], fraction: float) -> float:
