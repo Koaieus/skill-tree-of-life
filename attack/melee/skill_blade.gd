@@ -18,6 +18,17 @@ extends Node2D
 signal hit(hitter_idx: int, is_edge: bool, target: SkillNode, t: float, damage: float)
 signal playback_finished
 
+## How far below its authored tier a blade part sits while forming (#559) — a
+## VALUE dimmer on `modulate`, so the [BladeStyle] tiers underneath are dimmed
+## and restored rather than re-authored (`.claude/rules/hdr-color.md`). At 0.45
+## an [constant Emissive.VALUE] rim lands well under the bloom threshold, which
+## is the whole point: the blade powers UP.
+const _FORM_DIM: float = 0.45
+## Scale a vertex pops in from.
+const _FORM_SCALE: float = 0.4
+## Scale an addon stamp punches to.
+const _STAMP_SCALE: float = 1.22
+
 const SCENE := preload("res://attack/melee/skill_blade.tscn")
 const BLADE_NODE := preload("res://attack/melee/blade_node.tscn")
 const BLADE_EDGE := preload("res://attack/melee/blade_edge.tscn")
@@ -53,6 +64,14 @@ var _edge_visuals: Array[BladeEdge] = []
 var _nodes_container: Node2D
 var _edges_container: Node2D
 var _active_tween: Tween
+## The SkillNodes [method build_from_skill_nodes] was last built from, in
+## [BladeState] particle order. Only the wind-up reads it.
+var _source_nodes: Array[SkillNode] = []
+## The single Tween driving the wind-up (#559). One tween with parallel,
+## delayed tweeners rather than a coroutine chain, so [method stop] can kill
+## the whole sequence in one call and [method play] cannot end up fighting a
+## leftover form tweener for `modulate`.
+var _form_tween: Tween
 
 
 func _ready() -> void:
@@ -90,6 +109,11 @@ func build_from_skill_nodes(
 	owned_by = owner_entity
 	# A rebuild is a fresh blade: last swing's deaths must not de-light it.
 	pop_result = null
+	# Held so the wind-up (#559) can ask which vertices carry an addon without
+	# re-deriving it from the plan — [BladeState] deliberately keeps no handle
+	# on the SkillNodes it was built from, and `apply_to_blade` below is a pure
+	# virtual dispatch that tells us nothing about who dispatched.
+	_source_nodes = skill_nodes.duplicate()
 	_clear_visuals()
 	var positions: Array[Vector2] = []
 	var radii: Array[float] = []
@@ -164,6 +188,10 @@ func play(
 	if traj == null or traj.samples.is_empty():
 		playback_finished.emit()
 		return
+	# The wind-up hands the blade over here fully formed; anything still in
+	# flight (a flare relaxing back down) would keep writing `modulate` under
+	# the swing. Settle it rather than race it.
+	_finish_form()
 	modulate = Color(1.0, 1.0, 1.0, 0.35) if ghostly else Color.WHITE
 	var pending: Array[BladeHitEvent] = hits.duplicate()
 	var dur := traj.duration()
@@ -234,10 +262,187 @@ func _speed_multiplier(ev: BladeHitEvent) -> float:
 
 ## Stop any in-flight playback. Emits playback_finished so awaiters wake up.
 func stop() -> void:
+	_finish_form()
 	if _active_tween != null and _active_tween.is_valid():
 		_active_tween.kill()
 		_active_tween = null
 		playback_finished.emit()
+
+
+## Stage the committed swing's WIND-UP (#559) and return the seconds it
+## occupies. [b]Never awaited by anyone[/b] — this starts a Tween and returns
+## immediately; [BattleSystem] waits out the returned length on its own beat
+## clock, so a dropped frame or a killed tween cannot move when the swing
+## begins (`.claude/rules/presentation-clock.md`).
+##
+## The sequence, owner-authored (#559 decision 4):
+## [codeblock]
+## (pivot focus, the camera's beat) -> vertices form in, staggered by hop
+## distance from the pivot -> addon stamps land on the vertices that carry one
+## -> the whole blade ramps up in glow -> a flare marks the replay start
+## [/codeblock]
+##
+## [b]Vertices spawn under-lit, not translucent.[/b] Alpha is the fade channel
+## and colour VALUE is the dimmer (`.claude/rules/hdr-color.md`), so the
+## appear-in rides `modulate:a` + `scale` while the glow ramp rides the rgb
+## channels back up to 1.0 — the authored [BladeStyle] tiers are never
+## re-picked, they are only dimmed and restored. The flare is a momentary
+## overshoot to [constant Emissive.PEAK] on the blade's own `modulate`, which
+## is precisely what that tier is reserved for.
+##
+## [param lead] delays the whole sequence, covering the camera's pivot beat.
+## [param stamp_time] is spent only when some vertex actually carries an addon.
+## Every duration is authored on [PresentationTempo]; passing 0.0 for all five
+## reproduces pre-#559 behaviour exactly (the blade is simply there).
+func form_in(lead: float, stagger_span: float, stamp_time: float,
+		glow_ramp: float, flare_time: float) -> float:
+	_finish_form()
+	if _node_visuals.is_empty():
+		return 0.0
+	lead = maxf(0.0, lead)
+	stagger_span = maxf(0.0, stagger_span)
+	glow_ramp = maxf(0.0, glow_ramp)
+	flare_time = maxf(0.0, flare_time)
+	var stamped := _stamped_vertices()
+	var stamp := maxf(0.0, stamp_time) if not stamped.is_empty() else 0.0
+	var total := lead + stagger_span + stamp + glow_ramp + flare_time
+	if total <= 0.0:
+		form_instantly()
+		return 0.0
+
+	var hops := _hop_distances()
+	var max_hop: int = 0
+	for h in hops:
+		max_hop = maxi(max_hop, h)
+	# Each vertex's own pop is a fraction of the span, floored so a one-hop
+	# blade still reads as an animation rather than a cut.
+	var pop := maxf(0.06, stagger_span * 0.5)
+
+	var tween := create_tween()
+	tween.set_parallel(true)
+	_form_tween = tween
+	var glow_at := lead + stagger_span + stamp
+
+	for i in _node_visuals.size():
+		var bn := _node_visuals[i]
+		var at: float = lead
+		if max_hop > 0:
+			at += stagger_span * (float(hops[i]) / float(max_hop))
+		# Set the start state NOW: a Tween delay does not pre-apply it, so
+		# without this the whole blade flashes at full for one frame.
+		bn.modulate = Color(_FORM_DIM, _FORM_DIM, _FORM_DIM, 0.0)
+		bn.scale = Vector2(_FORM_SCALE, _FORM_SCALE)
+		tween.tween_property(bn, "modulate:a", 1.0, pop).set_delay(at)
+		tween.tween_property(bn, "scale", Vector2.ONE, pop).set_delay(at) \
+				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		if stamp > 0.0 and stamped.has(i):
+			# The stamp: a punch on the same property, strictly after the form
+			# tweener has finished writing it. Parallel tweeners with disjoint
+			# delay windows hand the property off cleanly.
+			var stamp_at := lead + stagger_span
+			if max_hop > 0:
+				stamp_at = lead + stagger_span + stamp * (float(hops[i]) / float(max_hop)) * 0.5
+			tween.tween_property(bn, "scale", Vector2.ONE * _STAMP_SCALE, stamp * 0.4) \
+					.set_delay(stamp_at)
+			tween.tween_property(bn, "scale", Vector2.ONE, stamp * 0.6) \
+					.set_delay(stamp_at + stamp * 0.4)
+		for channel in ["modulate:r", "modulate:g", "modulate:b"]:
+			tween.tween_property(bn, channel, 1.0, glow_ramp).set_delay(glow_at)
+
+	for j in _edge_visuals.size():
+		var be := _edge_visuals[j]
+		var e: Vector2i = state.edges[j]
+		var at_e: float = lead
+		if max_hop > 0:
+			at_e += stagger_span * (float(maxi(hops[e.x], hops[e.y])) / float(max_hop))
+		be.modulate = Color(_FORM_DIM, _FORM_DIM, _FORM_DIM, 0.0)
+		tween.tween_property(be, "modulate:a", 1.0, pop).set_delay(at_e)
+		for channel in ["modulate:r", "modulate:g", "modulate:b"]:
+			tween.tween_property(be, channel, 1.0, glow_ramp).set_delay(glow_at)
+
+	if flare_time > 0.0:
+		var flare := Emissive.at(Color.WHITE, Emissive.PEAK)
+		flare.a = modulate.a
+		tween.tween_property(self, "modulate", flare, flare_time * 0.35) \
+				.set_delay(glow_at + glow_ramp)
+		tween.tween_property(self, "modulate", Color.WHITE, flare_time * 0.65) \
+				.set_delay(glow_at + glow_ramp + flare_time * 0.35)
+	return total
+
+
+## The zero-length wind-up: every beat authored (or gated) to 0, so the blade
+## is simply there, fully formed and fully lit. This is what a SEATED actor
+## gets — #559's sharpening on decision 1 is that the sequence still RUNS for
+## every actor, and only its durations collapse, so the await point #796 needs
+## survives on the one machine that most needs it.
+func form_instantly() -> void:
+	_finish_form()
+
+
+## Kill any in-flight wind-up and snap every visual to its settled state.
+## Idempotent, and safe on a blade that never formed — the settled state is
+## exactly what [method _spawn_visuals] leaves behind.
+func _finish_form() -> void:
+	if _form_tween != null and _form_tween.is_valid():
+		_form_tween.kill()
+	_form_tween = null
+	for bn in _node_visuals:
+		bn.modulate = Color.WHITE
+		bn.scale = Vector2.ONE
+	for be in _edge_visuals:
+		be.modulate = Color.WHITE
+	modulate.r = 1.0
+	modulate.g = 1.0
+	modulate.b = 1.0
+
+
+## Which vertex indices carry at least one addon, so the stamp beat lands on
+## them and only them. An unadorned blade returns empty, which is what makes
+## the beat zero-length.
+func _stamped_vertices() -> Dictionary:
+	var out: Dictionary = {}
+	for i in _source_nodes.size():
+		var sn := _source_nodes[i]
+		if sn != null and is_instance_valid(sn) and not sn.get_addons().is_empty():
+			out[i] = true
+	return out
+
+
+## Hop distance from the pivot for every vertex, measured INSIDE
+## [member BladeState.edges] — the phantom blade's own induced subgraph, braces
+## excluded (`.claude/rules/degree.md`; [ClampAddon] contributes to
+## `state.constraints`, never to `edges`). A vertex unreachable through those
+## edges keeps distance 0 rather than staying unformed.
+func _hop_distances() -> PackedInt32Array:
+	var n := _node_visuals.size()
+	var out := PackedInt32Array()
+	out.resize(n)
+	out.fill(0)
+	if state == null or n == 0:
+		return out
+	var adj: Array[PackedInt32Array] = []
+	adj.resize(n)
+	for i in n:
+		adj[i] = PackedInt32Array()
+	for e in state.edges:
+		if e.x < n and e.y < n:
+			adj[e.x].append(e.y)
+			adj[e.y].append(e.x)
+	var seen := {}
+	var frontier := PackedInt32Array([state.pivot_index])
+	seen[state.pivot_index] = true
+	var depth := 0
+	while not frontier.is_empty():
+		var next := PackedInt32Array()
+		for v in frontier:
+			out[v] = depth
+			for w in adj[v]:
+				if not seen.has(w):
+					seen[w] = true
+					next.append(w)
+		frontier = next
+		depth += 1
+	return out
 
 
 func _build_swing_drivers(duration: float) -> Array[BladeDriver]:
