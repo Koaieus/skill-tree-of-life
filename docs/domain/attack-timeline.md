@@ -1,10 +1,11 @@
 # The attack timeline contract
 
-**Decided 2026-08-20**, out of the #488 discussion. This is what every attack
-mode is being built *towards* — a single contract all three modes fulfil, so
-that adding a fourth mode, or an on-hit effect, or an ammo type, is a matter of
-satisfying a written spec rather than re-deriving what "when does this happen"
-means from three different code paths.
+This is what every attack mode is built *towards* — a single contract all three
+modes fulfil, so that adding a fourth mode, or an on-hit effect, or an ammo type,
+is a matter of satisfying a written spec rather than re-deriving what "when does
+this happen" means from three different code paths. Why the contract has this
+shape, and the two timelines that lost, are
+[ADR 0011](../adr/0011-one-attack-timeline-contract-for-every-mode.md).
 
 The game-design side of attacks (damage formulas, the color triangle,
 dismemberment) lives in `../design/combat_system.md`. The *code shape* of the
@@ -77,12 +78,9 @@ failure *shape*:
 
 ### Ranged renders EVERY arrow, whatever the arrow did
 
-**Owner call 2026-09-04**, widening the rule above past the gate:
-
-> *"each arrow should fire, regardless of what they do. render. every. arrow.
-> damage? render. 0? render. heal? render."*
-
-The dud beat is one *outcome* an arrow can have, not the only non-standard one.
+The rule above widens past the gate: the dud beat is one *outcome* an arrow can
+have, not the only non-standard one
+([ADR 0012](../adr/0012-every-arrow-renders-whatever-it-did.md)).
 A landing may also mitigate to exactly zero, or — where the defender's net
 `min_damage_taken` is negative, which `bunker_addon.tscn` authors deliberately
 — mitigate *below* zero and be reclassified to `Kind.HEAL` by

@@ -32,6 +32,8 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0008](0008-a-growth-capped-npc-breaks-out-through-a-bordering-door.md) | A growth-capped NPC breaks out through a bordering door, at every AI tier | accepted | 2026-08-26 | ai, dormant-core, allocation, balance |
 | [0009](0009-the-victory-condition-is-a-swappable-resource.md) | The victory condition is a swappable resource; last-camp-standing is the first, not the only one | accepted | 2026-08-21 | victory, session, architecture |
 | [0010](0010-contest-membership-is-a-rule-the-condition-owns.md) | Contest membership is a predicate the victory condition owns, not a flag on Faction | accepted | 2026-08-22 | victory, session, architecture, entity |
+| [0011](0011-one-attack-timeline-contract-for-every-mode.md) | One attack timeline contract for every mode — resolve up front, gate at land time, never re-plan | accepted | 2026-08-20 | combat, attacks, architecture, timing |
+| [0012](0012-every-arrow-renders-whatever-it-did.md) | Every arrow renders, whatever the landing did — a render pass never filters on outcome | accepted | 2026-09-04 | combat, attacks, vfx, ranged |
 
 ## Reading order
 
