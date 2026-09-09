@@ -558,7 +558,7 @@ Same field, one level down: `NodeStatBoard.intrinsic_modifiers` (`skill_node/def
 |---|---|---|
 | `RatioFormula(source, divisor)` | `floor(source / divisor)` | "per 20 STR" (generated) |
 | `LinearFormula(source)` | `source` | "per PER" (generated) |
-| `ThresholdFormula(source, breakpoints)` | count of ascending breakpoints reached | "per ×10 INT" for a geometric ladder, else the bare abbrev |
+| `ThresholdFormula(source, breakpoints)` | count of ascending breakpoints reached | "per ×10 INT" for a geometric ladder, else "at 50 / 150 / 500 INT" — names the ladder, never wrapped in "per" (#773) |
 | `ExpressionFormula(text, inputs)` | anything | authored `per_phrase`, or nothing |
 
 **No transcendental in a formula string — `log` / `exp` / `pow` / `sin` / `cos` / `tan`;
@@ -595,6 +595,20 @@ multiline** — a formula-bound modifier renders as a single-Label glass slab (`
 in a hover tooltip, and prose would blow the line budget. Nothing may derive the phrase by
 parsing the expression string. `test_formula_descriptions.gd` fails on an undescribed
 formula reachable from the shipped boards.
+
+**`describe_per()` is the phrase; `describe_clause()` (#773) is what actually
+renders.** `StatModifier._with_per_clause` calls `formula.describe_clause()`, not
+`describe_per()` directly — the base class's default `describe_clause()` just
+wraps `describe_per()` in `" per %s"`, which is right for every ratio/linear/
+authored shape. `ThresholdFormula` overrides `describe_clause()` alone (not
+`describe_per()`) for its non-geometric, unauthored ladder: that shape has no
+ratio, so `" per WIS"` would misdescribe it as a rate it doesn't have.
+`describe_per()` still returns the bare abbreviation there — kept non-empty
+on purpose, since `test_every_board_intrinsic_formula_is_described` requires
+every shipped formula to answer *something* — but `describe_clause()` renders
+the ladder itself instead: `" at 50 / 150 / 500 / 1000 / 5000 INT"`, no "per"
+anywhere. A future formula shape that needs the same escape hatch overrides
+`describe_clause()`, not `describe_per()`.
 
 **An authored `per_phrase` is the only copy of that prose — an editor round-trip has
 already eaten all three once.** `fe0c625` re-serialized `level_scaling.tres` and

@@ -341,12 +341,16 @@ func format_effective(board: StatBoard = null) -> String:
 	return _format_value(name, as_percent, value_type, get_effective_value(board))
 
 
-## Appends " per <phrase>" to `sentence` when the bound formula offers one.
-## An empty phrase (an [ExpressionFormula] nobody authored yet) degrades to
-## the bare sentence rather than to a dangling "per".
+## Appends the bound formula's own clause to `sentence` — [method
+## StatFormula.describe_clause], not a hardcoded " per <phrase>": most
+## formula shapes ARE a "per" rate and use the base class's default clause,
+## but [ThresholdFormula]'s non-geometric ladder (#773) is not a rate at all
+## and overrides the clause to say so without the word "per". An empty clause
+## (an [ExpressionFormula] nobody authored a phrase for yet) degrades to the
+## bare sentence rather than to a dangling connective.
 func _with_per_clause(sentence: String) -> String:
-	var phrase := formula.describe_per()
-	return sentence if phrase.is_empty() else "%s per %s" % [sentence, phrase]
+	var clause := formula.describe_clause()
+	return sentence if clause.is_empty() else "%s%s" % [sentence, clause]
 
 
 ## `value_type`-aware (#622) — ADD_BASE / INCREASE / ADD_BONUS route their

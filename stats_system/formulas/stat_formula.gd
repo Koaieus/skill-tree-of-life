@@ -54,6 +54,24 @@ func describe_per() -> String:
 	return per_phrase
 
 
+## The full connective clause [method StatModifier._with_per_clause] appends
+## after a modifier's sentence — e.g. `" per 20 STR"`, `" per ×10 INT"`, or
+## `""` when [method describe_per] has nothing to say. Base implementation
+## always spells the connective as "per", which is honest for every ratio/
+## linear/authored shape this base class describes.
+##
+## Override this — not [method describe_per] — for a formula shape where "per"
+## itself would misdescribe the rule (#773): [ThresholdFormula] overrides it
+## for a non-geometric ladder, whose steps have no ratio to be "per" of. Doing
+## the override here rather than baking a connective word into
+## [method StatModifier] keeps that word a per-formula-shape decision instead
+## of a hardcoded assumption every future formula shape inherits whether it
+## fits or not.
+func describe_clause() -> String:
+	var phrase := describe_per()
+	return "" if phrase.is_empty() else " per %s" % phrase
+
+
 ## Abbreviation for a source stat, matching the Attributes Panel's axis
 ## labels (`Strength` → `STR`). Lives here so generated phrases and the
 ## panel share one convention — see [method StatDef.get_abbrev].

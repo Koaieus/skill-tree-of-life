@@ -164,6 +164,63 @@ func test_a_ladder_not_starting_at_its_ratio_is_not_geometric() -> void:
 	assert_eq(_threshold(&"wisdom", [1.0, 10.0, 100.0] as Array[float]).describe_per(), "WIS")
 
 
+# --- describe_clause (#773) --------------------------------------------------
+#
+# describe_per()'s bare-abbreviation fallback above is what
+# test_every_board_intrinsic_formula_is_described (test_formula_descriptions.gd)
+# needs to stay non-empty — it is NOT what a player sees any more.
+# StatModifier._with_per_clause renders describe_CLAUSE, and that is pinned
+# here, right next to the geometric clause it must stay unchanged for.
+
+func test_geometric_ladder_clause_is_unchanged() -> void:
+	assert_eq(_shipped(&"mana_per_turn").describe_clause(), " per ×10 INT")
+
+
+func test_non_geometric_ladder_clause_names_the_ladder_not_a_ratio() -> void:
+	# The exact shipped shape (#773) — INT -> spell_hops, [50, 150, 500, 1000,
+	# 5000] — and the owner's narrowed acceptance wording verbatim: name the
+	# breakpoints, and the word "per" must not appear.
+	var f := _shipped(&"spell_hops")
+	assert_not_null(f, "default board grants spell_hops via a ThresholdFormula")
+	var clause := f.describe_clause()
+	assert_eq(clause, " at 50 / 150 / 500 / 1000 / 5000 INT")
+	assert_false(clause.contains("per"), "a non-geometric ladder is not a ratio")
+
+
+func test_non_geometric_ladder_full_sentence_has_no_per() -> void:
+	# The bug as reported: the LOOT CARD sentence, not just the isolated
+	# clause. StatModifier.format() is what every consumer (tooltips, the
+	# inspector's resource_name, the loot pick card) actually renders.
+	var m := StatModifier.new()
+	m.stat_id = &"spell_hops"
+	m.value = 1.0
+	m.formula = _threshold(&"intelligence", [50.0, 150.0, 500.0, 1000.0, 5000.0] as Array[float])
+	assert_eq(m.format(), "+1 Spell Hops at 50 / 150 / 500 / 1000 / 5000 INT")
+
+
+func test_short_non_geometric_ladder_is_not_truncated() -> void:
+	# Five rungs is the shipped case (spell_hops) — no ellipsis.
+	var f := _threshold(&"wisdom", [3.0, 8.0, 21.0, 55.0, 149.0] as Array[float])
+	assert_eq(f.describe_clause(), " at 3 / 8 / 21 / 55 / 149 WIS")
+
+
+func test_long_non_geometric_ladder_truncates_to_fit_the_loot_card() -> void:
+	# None shipped today (sensor_range's real 10-rung ladder carries an
+	# authored per_phrase and never reaches this branch), but the shape must
+	# degrade gracefully if one ever does: first 3 rungs, ellipsis, last rung.
+	var f := _threshold(&"wisdom",
+		[3.0, 8.0, 21.0, 55.0, 149.0, 404.0, 1097.0, 2981.0, 8104.0, 22027.0] as Array[float])
+	assert_eq(f.describe_clause(), " at 3 / 8 / 21 / … / 22027 WIS")
+
+
+func test_authored_per_phrase_still_wins_and_keeps_the_per_wrapper() -> void:
+	# per_phrase is an authored override, not a ladder shape — it stays a
+	# "per" clause (sensor_range's shipped "log(WIS)" is exactly this case).
+	var f := _threshold(&"wisdom", [3.0, 8.0, 21.0] as Array[float])
+	f.per_phrase = "log(WIS)"
+	assert_eq(f.describe_clause(), " per log(WIS)")
+
+
 # --- 4. Wire form ------------------------------------------------------------
 
 func test_threshold_formula_round_trips_through_the_codec() -> void:

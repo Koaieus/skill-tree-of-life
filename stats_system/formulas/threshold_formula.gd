@@ -85,6 +85,12 @@ func compute(board: StatBoard) -> float:
 ## array [method compute] walks, so the two cannot drift apart. A ladder whose
 ## shape has no one-line name (`floor(ln(WIS))`) falls back to the source
 ## abbreviation, and an authored [member per_phrase] still wins over both.
+##
+## The non-geometric fallback stays a bare abbreviation here (never empty —
+## [code]test_every_board_intrinsic_formula_is_described[/code] requires
+## every shipped formula to answer something), but it is no longer what gets
+## shown to a player on that path: see [method describe_clause] below, which
+## is what [StatModifier] actually renders.
 func describe_per() -> String:
 	if not per_phrase.is_empty():
 		return per_phrase
@@ -93,6 +99,30 @@ func describe_per() -> String:
 	if ratio <= 0.0:
 		return abbr
 	return "×%s %s" % [_trim(ratio), abbr]
+
+
+## Overrides [StatFormula.describe_clause] for the one shape [method
+## describe_per] cannot honestly answer (#773, owner-narrowed 2026-09-07):
+## a non-geometric ladder has no ratio, so wrapping its bare abbreviation in
+## " per WIS" reads as "+1 per point of WIS" — a rate the ladder does not
+## have. An authored [member per_phrase] and the geometric ladder both ARE
+## honest "per" rates, so both keep the base class's default " per <phrase>"
+## wrapping (delegated via `super()`) unchanged. Only the non-geometric,
+## unauthored case renders its own clause instead — the ladder itself, named
+## with "at" rather than "per":
+##
+##   "+1 Spell Hops at 50 / 150 / 500 / 1000 / 5000 INT"
+##
+## Truncated to the first three rungs plus the last past 5 entries (see
+## [method _ladder_list]) so a long ladder (WIS's ten-rung sensor-range curve,
+## if it ever loses its authored `per_phrase`) still fits the loot pick card
+## this was reported from.
+func describe_clause() -> String:
+	if not per_phrase.is_empty() or _common_ratio() > 0.0:
+		return super()
+	if breakpoints.is_empty():
+		return ""
+	return " at %s %s" % [_ladder_list(), _abbrev(StatFormula.base_of(source_stat_id))]
 
 
 ## The constant multiplier between consecutive breakpoints, or `-1.0` when the
@@ -109,3 +139,21 @@ func _common_ratio() -> float:
 		if not is_equal_approx(breakpoints[i] / breakpoints[i - 1], ratio):
 			return -1.0
 	return ratio
+
+
+## "50 / 150 / 500 / 1000 / 5000" for a short ladder. Past 5 rungs (none
+## shipped today — the longest, WIS's sensor-range ladder, carries an
+## authored `per_phrase` and never reaches this branch) truncates to the
+## first 3 plus the last, ellipsis between, so the rendered clause stays on
+## one line on the loot pick card the owner flagged this on.
+func _ladder_list() -> String:
+	var strs: Array[String] = []
+	if breakpoints.size() > 5:
+		for b in breakpoints.slice(0, 3):
+			strs.append(_trim(b))
+		strs.append("…")
+		strs.append(_trim(breakpoints[-1]))
+	else:
+		for b in breakpoints:
+			strs.append(_trim(b))
+	return " / ".join(strs)
