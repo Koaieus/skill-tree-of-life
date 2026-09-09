@@ -29,6 +29,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0005](0005-blade-parts-and-counters-are-orthogonal.md) | Blade parts and their counters are orthogonal — bunkers destroy structure, never matter | accepted | 2026-09-08 | combat, melee, blade, design, balance |
 | [0006](0006-unreferenced-art-is-deleted-and-re-cut-not-excluded.md) | Unreferenced purchased art is deleted and re-cut from a pipeline, not excluded from the export | accepted | 2026-09-04 | exporting, assets, build |
 | [0007](0007-spell-vfx-is-fog-oblivious.md) | Spell VFX is fog-oblivious — every spell visual draws over fog, or none does | accepted | 2026-08-30 | vfx, spells, fog, rendering |
+| [0008](0008-a-growth-capped-npc-breaks-out-through-a-bordering-door.md) | A growth-capped NPC breaks out through a bordering door, at every AI tier | accepted | 2026-08-26 | ai, dormant-core, allocation, balance |
 
 ## Reading order
 

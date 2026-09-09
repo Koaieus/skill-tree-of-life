@@ -34,7 +34,7 @@ NOT:
   which is what lets the *player* clear one and what makes the forced-dealloc
   cascade and XP gating treat a cleared blocker as a real kill. Moving the
   filter into `Entity.attitude_to` would silently disarm the player too.
-- **It is not absolute.** It is the NPC's *default stance*, re-decided every
+- **It is not absolute.** It is the NPC's *default stance*, re-evaluated every
   turn.
 
 The exception is being **growth-capped**: an NPC with no unowned node adjacent
@@ -45,13 +45,12 @@ So `AIController` asks `AiRecon.is_growth_capped()` once per turn and sets
 and unlocks — for that turn only — the cores that `borders_territory()`. Kill,
 relic, expand.
 
-The bordering half is not decoration. **Owner call 2026-08-26:** *"beware that
-if surrounded by friendlies, there is no door available"* — an entity capped by
-its own allies has nothing to break through, and without the border test it
-would unlock some core across the map and spend AP opening a door it cannot
-walk through. The wall is adjacent by definition; a core further out only
-becomes reachable once a node beside it is allocated, which a capped entity
-cannot do anyway.
+The bordering half is not decoration: an entity capped by its own allies has
+nothing to break through, and the wall — when there is one — is adjacent by
+definition. A core further out only becomes reachable once a node beside it is
+allocated, which a capped entity cannot do anyway. Why the unlock is bordering
+rather than global, and what happens without the test, is
+[ADR 0008](../adr/0008-a-growth-capped-npc-breaks-out-through-a-bordering-door.md).
 
 Five details that are load-bearing:
 
@@ -90,18 +89,12 @@ worth taking and the next AP re-evaluates back onto the door.
 
 It is deliberately NOT ordered against the `ai_tier` terms (cut-vertex 25/tier,
 weak-point 5/tier — 75 at most): at 500 it outranks all of them, so a capped
-NPC is door-first at every tier. **Owner call 2026-08-26**, weighing exactly
-that. Being unable to grow is existential where those terms are refinements for
-winning a fight you can already fight — and the tier layer keeps its meaning
-*among* doors, since every door carries the same +500 and cut-vertex /
-weak-point preference still decides which one.
-
-Deliberately not built: any analysis of *which* faction is capping the NPC, or
-a proximity filter on which cores unlock (preference *among* unlocked
-candidates is the breakout bonus's job, above). If an NPC is walled in by camps rather
-than cores there is no adjacent core to unlock, so frontier-empty is
-behaviourally identical and far simpler; and "unlock all" is self-limiting
-because candidate enumeration only ever yields in-reach targets.
+NPC is door-first at every tier. The tier layer keeps its meaning *among* doors,
+since every door carries the same +500 and cut-vertex / weak-point preference
+still decides which one. Why the bonus sits above the tier terms rather than
+inside them, and the four shapes this deliberately is not — a faction analysis,
+a proximity filter, a global unlock, a tier-gated bonus — are
+[ADR 0008](../adr/0008-a-growth-capped-npc-breaks-out-through-a-bordering-door.md).
 
 ## Sizes, boards, and loot tiers
 
