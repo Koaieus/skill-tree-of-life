@@ -268,7 +268,11 @@ func test_a_right_click_mid_swing_is_refused_like_it_is_in_game() -> void:
 	assert_true(battle.is_launching, "the swing must still be in flight to test this")
 	_right_click()
 	assert_not_null(plan.source, "a swing in flight must keep the plan it is swinging")
-	for _i in 240:
+	# Budget covers the #559 wind-up as well as the swing itself — a committed
+	# melee is staged now (form beat, then swing), so "in flight" lasts longer
+	# than SWING_DURATION. Ticks, not seconds, because the headless frame rate
+	# varies by an order of magnitude between machines.
+	for _i in 900:
 		if not battle.is_launching:
 			break
 		await get_tree().process_frame
