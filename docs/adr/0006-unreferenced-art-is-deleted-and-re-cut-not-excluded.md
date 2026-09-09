@@ -15,7 +15,7 @@ tags: [exporting, assets, build]
 
 # ADR 0006 — Unreferenced purchased art is deleted and re-cut, not excluded
 
-> **Backfilled 2026-09-07** from `docs/domain/exporting.md`, which recorded this
+> **Backfilled 2026-09-09** from `docs/domain/exporting.md`, which recorded this
 > decision before the ADR tier existed (see
 > [ADR 0001](0001-adrs-record-decisions-domain-docs-record-behaviour.md)). The
 > date above is the date of the call, not of this file.
@@ -62,8 +62,8 @@ stale.*
   `armed_*` LUTs (~348K) are emitted by the icon bake and referenced by nothing.
 - **The pipeline gained a knob to make the re-cut faithful** — `icons:update`
   learned a per-folder `#fg` directive, because the six were baked WHITE rather
-  than the pipeline's default cyan (**owner call:** *"cyan sounds like a modulation
-  choice down the line"*).
+  than the pipeline's default cyan (**owner call 2026-09-04:** *"cyan sounds like a
+  modulation choice down the line"*).
 
 ## Alternatives considered
 

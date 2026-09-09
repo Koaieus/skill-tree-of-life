@@ -17,7 +17,7 @@ tags: [multiplayer, netcode, determinism, loot, procgen]
 
 # ADR 0013 — Host-only rolls, and the seed as a procgen input
 
-> **Backfilled 2026-09-07** from `docs/domain/multiplayer-sync-model.md`, which
+> **Backfilled 2026-09-09** from `docs/domain/multiplayer-sync-model.md`, which
 > recorded this decision before the ADR tier existed (see
 > [ADR 0001](0001-adrs-record-decisions-domain-docs-record-behaviour.md)). The
 > date above is the date of the call, not of this file.

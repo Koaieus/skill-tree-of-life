@@ -167,8 +167,10 @@ spike is decided per landing inside `BladeDamageInstance.land_on`, off
 (The old batch `BladePopResolver.resolve` answered it in one call during the
 scan; text describing that arrangement is stale.) Either way, order-dependence
 *inside* a deterministic function was never the divergence risk it was written up
-as — given the same inputs every peer produces the same order and the same set. The portability of the *inputs*
-(ground A) is the separate problem, and it is the one that bites.
+as — given the same inputs every peer produces the same order and the same set. The portability of the *inputs* is the
+separate problem, and it is the one that bites — it is ground A of
+[ADR 0002](../adr/0002-host-authoritative-sync-not-lockstep.md)'s lockstep
+rejection, and the reason the blade is re-simulated only to draw it.
 
 **Current information decision: every client gets full world state; hiding
 is a UI concern.** No fog gating exists anywhere in planning today, so this
@@ -180,8 +182,9 @@ authoritative-reveal payload would want; see `presentation/README.md`.
 
 ## The resync backstop
 
-**Settled #521 (2026-08-24), built in #560 + #561. Additive under the decision
-above — it reopens nothing.** `AttackRecord` remains the only thing that mutates
+**Settled #521 (2026-08-24), built in #560 + #561. Additive under
+[ADR 0002](../adr/0002-host-authoritative-sync-not-lockstep.md) — it reopens
+nothing.** `AttackRecord` remains the only thing that mutates
 a peer's live world during combat (`.claude/rules/attack-timeline.md`), and a
 confirmed command remains the only thing that advances it. What the backstop
 adds is a *repair*, for the one bug class the model above has no answer to at

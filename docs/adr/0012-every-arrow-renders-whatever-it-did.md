@@ -8,13 +8,15 @@ supersedes: []
 superseded-by: null
 sources:
   - "#488"
+  - "#332"
+  - "33a4cef"
   - "docs/domain/attack-timeline.md"
 tags: [combat, attacks, vfx, ranged]
 ---
 
 # ADR 0012 — Every arrow renders, whatever the landing did
 
-> **Backfilled 2026-09-07** from `docs/domain/attack-timeline.md`, which recorded
+> **Backfilled 2026-09-09** from `docs/domain/attack-timeline.md`, which recorded
 > this decision before the ADR tier existed (see
 > [ADR 0001](0001-adrs-record-decisions-domain-docs-record-behaviour.md)). The
 > date above is the date of the call, not of this file.

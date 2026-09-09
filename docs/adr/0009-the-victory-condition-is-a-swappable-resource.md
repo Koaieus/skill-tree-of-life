@@ -14,7 +14,7 @@ tags: [victory, session, architecture]
 
 # ADR 0009 — The victory condition is a swappable resource
 
-> **Backfilled 2026-09-07** from `docs/domain/victory-system.md`, which recorded
+> **Backfilled 2026-09-09** from `docs/domain/victory-system.md`, which recorded
 > this decision before the ADR tier existed (see
 > [ADR 0001](0001-adrs-record-decisions-domain-docs-record-behaviour.md)). The
 > date above is the date of the call, not of this file.
