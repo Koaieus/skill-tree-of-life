@@ -146,3 +146,40 @@ func test_a_rebuild_clears_a_previous_swings_deaths() -> void:
 
 	assert_null(blade.pop_result,
 			"a rebuilt blade must not inherit the last swing's dead set")
+
+
+## #781 — a bunker break severs an EDGE while BOTH vertices it hangs off
+## survive (ADR 0005), so the edge visual has no endpoint death to read its
+## own de-lighting off; SkillBlade must drive it explicitly off
+## [member BladePopResolver.Result.severed_at] as playback crosses that time.
+func test_a_severed_edge_visual_reads_disabled_once_playback_passes_its_break_time() -> void:
+	var graph := _GRAPH_SCENE.instantiate()
+	add_child_autofree(graph)
+	var pivot := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	var member := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	graph.skill_nodes_container.add_child(pivot)
+	graph.skill_nodes_container.add_child(member)
+	member.position = Vector2(80.0, 0.0)
+	await get_tree().process_frame
+
+	var blade := SkillBlade.SCENE.instantiate() as SkillBlade
+	add_child_autofree(blade)
+	var nodes: Array[SkillNode] = [pivot, member]
+	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null)
+	blade.pop_result = BladePopResolver.Result.new()
+	blade.pop_result.severed_at[0] = 0.15  # the pivot-member edge, index 0
+
+	var traj := BladeTrajectory.new()
+	traj.sample_dt = 0.05
+	traj.samples = []
+	for k in range(7):  # duration 0.30s, well past the break time above
+		traj.samples.append(PackedVector2Array([Vector2.ZERO, Vector2(80.0, 0.0)]))
+
+	var edge := blade.get_edge_visuals()[0]
+	assert_false(edge.severed, "fixture: nothing severed before playback runs")
+	await blade.play(traj)
+
+	assert_true(edge.severed,
+			"playback crossed the recorded break time, so the edge visual must read severed")
+	assert_true(edge.is_disabled(),
+			"a severed edge draws de-lit exactly like a dead vertex does")

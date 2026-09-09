@@ -194,6 +194,13 @@ func _apply_playback_frame(
 			_node_visuals[i].global_position = positions[i]
 		if pop_result != null:
 			_node_visuals[i].disabled = pop_result.is_dead(i, t)
+	if pop_result != null:
+		for i in _edge_visuals.size():
+			# Edge index into state.edges is stable for the whole swing
+			# (#785/#801), and _edge_visuals was spawned in that same order —
+			# see _spawn_visuals — so i indexes both alike.
+			_edge_visuals[i].severed = pop_result.severed_at.has(i) \
+					and t >= pop_result.severed_at[i]
 	while not pending.is_empty() and pending[0].t <= t:
 		var ev: BladeHitEvent = pending.pop_front()
 		if not ghostly:
@@ -308,3 +315,10 @@ func _apply_style() -> void:
 ## fake [BladePopResolver.Result].
 func get_node_visuals() -> Array[BladeNode]:
 	return _node_visuals
+
+
+## The spawned edge visuals, in [member BladeState.edges] order — the edge
+## counterpart of [method get_node_visuals], for the same look-tuning /
+## test-inspection use (#781's bunker break de-lights one of these).
+func get_edge_visuals() -> Array[BladeEdge]:
+	return _edge_visuals

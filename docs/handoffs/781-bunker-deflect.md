@@ -44,3 +44,11 @@ pre-approved by the owner, 02:10), `mise gh-project -- status 781 done`, `mise r
   before closing; `MeleePreview` keeps its clock in a local, so a stall readout needs
   the ghost's field/clock exposed on the preview (small edit).
 - `.claude/rules/stats-system.md` lists no node-local defender stats, so nothing was added.
+- `test_bunker_break_live.gd` (agent-written, agent killed mid-work): rigid break,
+  zero-bunker null field, determinism and popped_nodes==0 pass; the FLOPPY case's
+  "bunker still takes damage" assert is PENDING — hp stayed 10.0. Find out whether the
+  floppy chain simply never reaches the plate on that fixture (it curls inward) or
+  whether a CONTACT_SLOP-deep overlap is invisible to `intersect_shape`. If the latter,
+  raise CONTACT_SLOP (2px) and re-check the penetration-budget test.
+- `skill_blade.gd` / `blade_edge.gd`: severed-edge playback hiding, check clean,
+  `test_blade_style.gd` additions green.

@@ -33,17 +33,28 @@ signal endpoints_changed
 		tint = value
 		queue_redraw()
 
+## Set directly by [SkillBlade] once THIS edge itself has broken (#781's
+## bunker structural break) — independent of [method is_disabled]'s endpoint
+## read below, because ADR 0005 severs an edge while BOTH the vertices it
+## hangs off survive ("bunkers destroy structure, never matter"). There is
+## nothing on either endpoint to read this off of; it has to be told.
+@export var severed: bool = false:
+	set(value):
+		severed = value
+		queue_redraw()
+
 
 func _process(_delta: float) -> void:
 	queue_redraw()
 
 
-## An edge is de-lit the moment either vertex it hangs off is — a severed piece
-## should not stay strung to the blade by a glowing wire. Read off the endpoints
-## rather than tracked here, so there is no second copy of "who is dead" to go
-## stale (the model's copy is [BladePopResolver.Result.dead_at]).
+## De-lit the moment either vertex it hangs off is dead, or the edge itself
+## broke. The endpoint half is read off them rather than tracked here, so
+## there is no second copy of "who is dead" to go stale (the model's copy is
+## [BladePopResolver.Result.dead_at]); the severed half has no such source on
+## either endpoint, so [member severed] is the one place it lives.
 func is_disabled() -> bool:
-	return (from != null and from.disabled) or (to != null and to.disabled)
+	return severed or (from != null and from.disabled) or (to != null and to.disabled)
 
 
 func _draw() -> void:
