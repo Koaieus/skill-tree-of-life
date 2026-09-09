@@ -17,8 +17,9 @@ extends RefCounted
 ## Array[Dictionary]}` — `starting_nodes[i]` is the SkillNode that landed on
 ## `config.starting.starting_points[i]`, for the caller to wire as entity cores, and
 ## each `blockers` entry is `{"node": SkillNode, "size": int, "prune_seed":
-## int}` (`size` being a [GameRoot.BlockerSize] int, `prune_seed` the #586
-## loot-book prune's seed) for the caller to hand to `spawn_blocker`.
+## int, "footprint": Array[SkillNode]}` (`size` being a [GameRoot.BlockerSize]
+## int, `prune_seed` the #586 loot-book prune's seed, `footprint` the #777
+## bonus nodes the blocker also owns) for the caller to hand to `spawn_blocker`.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BLOCKER_NODE_SCENE := preload("res://skill_node/blocker_node.tscn")
@@ -255,6 +256,12 @@ static func generate(
 	var blocker_seeds: Dictionary[int, int] = {}
 	for idx: int in blocker_sizes:
 		blocker_seeds[idx] = blocker_rng.randi()
+	# Bonus-node footprints (#777), drawn LAST off the same stream so every
+	# draw above — the cores, the sizes, the prune seeds — is byte-for-byte
+	# what a pre-#777 seed produced. Appending is the whole reason this is a
+	# separate pass rather than a branch inside the placement loop.
+	var blocker_footprints := _place_blocker_footprints(
+			blocker_sizes, placement_ctx, config, blocker_rng)
 
 	await _emit_progress(progress_cb, 0.45, "Rolling content")
 	var nodes: Array[SkillNode] = []
@@ -390,10 +397,17 @@ static func generate(
 	# unchanged.
 	var blockers: Array[Dictionary] = []
 	for idx: int in blocker_sizes:
+		# #777 — the footprint crosses as NODES, not indices: `spawn_blocker` is
+		# the consumer and it force-allocates them, so resolving here keeps the
+		# index basis (which only `generate` can map) out of the level scene.
+		var footprint: Array[SkillNode] = []
+		for f: int in blocker_footprints.get(idx, PackedInt32Array()):
+			footprint.append(nodes[f])
 		blockers.append({
 			"node": nodes[idx],
 			"size": int(blocker_sizes[idx]),
 			"prune_seed": int(blocker_seeds[idx]),
+			"footprint": footprint,
 		})
 
 	await _emit_progress(progress_cb, 1.0, "Done")
@@ -924,6 +938,108 @@ static func _place_blocker_indices(
 			out[eligible[i]] = int(tier[1])
 		eligible = eligible.slice(count)
 	return out
+
+
+
+## Grow each placed blocker's bonus-node FOOTPRINT (#777) — the pass that turns
+## a Dormant Core from "the node it sits on" into territory whose extent reads
+## its size.
+##
+## Per blocker, in the same insertion (tier) order [method
+## _place_blocker_indices] produced: roll `randi_range` over the tier's authored
+## [method GraphProcgenBlockers.footprint_range], then grow that many nodes by
+## repeatedly picking a random ELIGIBLE node adjacent to what the blocker
+## already holds.
+##
+## [b]Randomized frontier growth, not "BFS then sample".[/b] Sampling `n` nodes
+## out of the hop-ball could hand a blocker a hop-2 node without the hop-1 that
+## connects it — and then `blocker_footprint_falloff.tres` measures hops over
+## the OWNED subgraph, where that node is unreachable and takes no falloff at
+## all. Growing through the frontier makes the footprint connected by
+## construction, which is also what bounds the max hop at the rolled count and
+## so keeps `node_health` off zero without a stat floor (#777 decision 5).
+##
+## Eligibility is the placement pass's own filter plus the claim set: never a
+## starter core, never a keystone, never inside a starter's [member
+## GraphProcgenBlockers.blocker_min_hops_from_core] ball (the safe radius covers
+## the whole footprint, not just the core — #777 decision 6), and never a node
+## another blocker already holds as a core or a footprint node. Short of
+## candidates, a blocker shrinks its footprint rather than stealing a claim or
+## reaching inside a camp.
+##
+## Returns index → [PackedInt32Array] of bonus-node indices (core excluded);
+## a blocker that rolled 0, or found nothing to grow into, is simply absent.
+static func _place_blocker_footprints(
+		blocker_sizes: Dictionary,
+		ctx: PlacementContext,
+		config: GraphProcgenConfig,
+		rng: RandomNumberGenerator,
+) -> Dictionary:
+	var out: Dictionary = {}
+	if blocker_sizes.is_empty():
+		return out
+	var mods := config.blockers
+	# Nothing authored anywhere → skip the walk (and every draw it would make),
+	# so a preset that opts out generates exactly what it did before #777.
+	var wants_footprints := false
+	for size: int in [0, 1, 2]:
+		if mods.footprint_range(size).y > 0:
+			wants_footprints = true
+			break
+	if not wants_footprints:
+		return out
+
+	var keystones: Array = ctx.keystones
+	var starter_count := ctx.starter_indices.size()
+	var too_close := {}
+	if mods.blocker_min_hops_from_core > 0:
+		for st in ctx.starter_indices:
+			for n in ctx.nodes_within_hops(st, mods.blocker_min_hops_from_core):
+				too_close[n] = true
+	# Every blocker core is claimed up front — a core placed later in the tier
+	# order must not be swallowed by an earlier blocker's footprint.
+	var claimed: Dictionary[int, bool] = {}
+	for idx: int in blocker_sizes:
+		claimed[idx] = true
+
+	for idx: int in blocker_sizes:
+		var span := mods.footprint_range(int(blocker_sizes[idx]))
+		var want := rng.randi_range(span.x, span.y)
+		if want <= 0:
+			continue
+		var grown := PackedInt32Array()
+		# The live frontier: eligible, unclaimed nodes adjacent to the blocker's
+		# current territory. Rebuilt incrementally as the walk grows.
+		var frontier: Array[int] = []
+		var in_frontier: Dictionary[int, bool] = {}
+		var push_neighbours := func(n: int) -> void:
+			for nb: int in ctx.adjacency[n]:
+				if claimed.has(nb) or in_frontier.has(nb):
+					continue
+				if nb < starter_count:
+					continue
+				if nb < keystones.size() and keystones[nb] != null:
+					continue
+				if too_close.has(nb):
+					continue
+				in_frontier[nb] = true
+				frontier.append(nb)
+		push_neighbours.call(idx)
+		while grown.size() < want and not frontier.is_empty():
+			var pick := rng.randi() % frontier.size()
+			var node_idx: int = frontier[pick]
+			# Swap-remove: order in `frontier` is not meaningful, and the draw
+			# above already randomized the choice.
+			frontier[pick] = frontier[frontier.size() - 1]
+			frontier.resize(frontier.size() - 1)
+			in_frontier.erase(node_idx)
+			claimed[node_idx] = true
+			grown.append(node_idx)
+			push_neighbours.call(node_idx)
+		if not grown.is_empty():
+			out[idx] = grown
+	return out
+
 
 
 # ── Addon roll (second pass) ─────────────────────────────────────────────

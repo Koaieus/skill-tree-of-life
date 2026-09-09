@@ -215,7 +215,7 @@ func test_prune_leaves_the_authored_resource_untouched() -> void:
 	gr.allocation_system = _alloc
 
 	for seed_value in [11, 22, 33, 44]:
-		gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, seed_value, 1.0)
+		gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, [], seed_value, 1.0)
 	assert_eq(_MEDIUM_SPELLBOOK.spells.size(), 3, "the authored resource is left whole")
 
 
@@ -227,7 +227,7 @@ func test_prune_actually_varies_what_a_tier_offers() -> void:
 
 	var sizes := {}
 	for seed_value in 40:
-		var b := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, seed_value, 1.0)
+		var b := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, [], seed_value, 1.0)
 		sizes[b.spellbook.spells.size()] = true
 	assert_true(sizes.has(0), "some medium blockers offer nothing at all")
 	assert_true(sizes.has(3), "some keep the whole book")
@@ -241,6 +241,6 @@ func test_same_prune_seed_spawns_the_same_book_on_every_peer() -> void:
 	gr.graph = _graph
 	gr.allocation_system = _alloc
 
-	var a := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, 4242, 1.0)
-	var b := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, 4242, 1.0)
+	var a := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, [], 4242, 1.0)
+	var b := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, [], 4242, 1.0)
 	assert_eq(a.spellbook.spells, b.spellbook.spells, "same seed → same book")

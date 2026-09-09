@@ -38,6 +38,12 @@ const _BLOCKER_SPELLBOOKS: Dictionary = {
 	BlockerSize.LARGE: preload("res://entity/blocker/blocker_spellbook_large.tres"),
 }
 
+## The #777 bonus-node falloff every Dormant Core carries: `node_health
+## ADD_BASE -5` scaled by hops from the core over its own subgraph. One shared
+## resource, granted by [method spawn_blocker] — [AuraEffect] is stateless by
+## contract, so every blocker on the board holds this same instance.
+const _BLOCKER_FALLOFF := preload("res://effects/blocker_footprint_falloff.tres")
+
 ## Dev shortcut (#244): `F2` flips FogOverlay.intensity between fully opaque
 ## (ship default, 1.0) and the dimmer "almost black" (0.88) that lets a dev see
 ## enemy positions through unsensed fog.
@@ -1334,8 +1340,8 @@ func spawn_entity(
 ## rebuilding a blocker on a peer that ran no procgen. `0`, the default, is
 ## every ordinary caller and mints as before.
 func spawn_blocker(size: BlockerSize, core_location: SkillNode,
-		spell_prune_seed: int = 0, spell_prune_m: float = 0.0,
-		preassigned_id: int = 0) -> Entity:
+		footprint: Array[SkillNode] = [], spell_prune_seed: int = 0,
+		spell_prune_m: float = 0.0, preassigned_id: int = 0) -> Entity:
 	var ent := _BLOCKER_SCENE.instantiate() as Entity
 	# Before `add_child`: `Graph._mint_entity_id` assigns only to an entity whose
 	# id is still 0, so stamping first is adoption rather than a second mint.
@@ -1359,6 +1365,21 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 	if core_location != null:
 		allocation_system.force_allocate(ent, core_location)
 		ent.core_location = core_location
+		# The core FIRST, then the bonus nodes: `force_allocate` is the setup
+		# primitive, so nothing here checks adjacency — but the footprint is
+		# grown connected at placement time and the falloff below measures hops
+		# over the owned subgraph, which only reads right once the core is in it.
+		for node in footprint:
+			if node != null and node != core_location:
+				allocation_system.force_allocate(ent, node)
+	# Granted unconditionally, footprint or not (#777 decision 4): the aura is
+	# inert on a lone core — ProportionalScale puts the source itself at scale
+	# 0, so `recompute` grants nothing there — and a grant that is always
+	# present is what makes the peer rebuild idempotent. `spawn_snapshot_entity`
+	# spawns with a null core, so this instance starts empty and the snapshot's
+	# `core_location` assignment fills it: that setter dispatches
+	# `_on_core_moved`, which is a full recompute (see Entity.core_location).
+	ent.grant_effect(_BLOCKER_FALLOFF)
 	return ent
 
 
@@ -1395,7 +1416,10 @@ func spawn_snapshot_entity(
 			+ "the roster should have spawned it. Refusing to invent one.")
 		return null
 	var size := clampi(tier - 1, 0, BlockerSize.size() - 1) as BlockerSize
-	return spawn_blocker(size, null, 0, 0.0, entity_id)
+	# Empty footprint: on a joining peer every owned node arrives through
+	# `GraphSnapshot`'s per-node `owner_id`, so there is nothing to allocate
+	# here and nothing about the footprint to serialize (#777 decision 9).
+	return spawn_blocker(size, null, [], 0, 0.0, entity_id)
 
 
 ## The authority's world has landed (#715). Anything [method spawn_snapshot_entity]

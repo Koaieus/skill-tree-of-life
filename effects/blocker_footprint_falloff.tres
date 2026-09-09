@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="AuraEffect" load_steps=6 format=3]
+
+[ext_resource type="Script" uid="uid://n522mioa0d4q" path="res://effects/aura_effect.gd" id="1_aura"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
+[ext_resource type="Script" uid="uid://cfjomnv7kdqqh" path="res://effects/distance_scale/proportional_scale.gd" id="3_scale"]
+[ext_resource type="Script" uid="uid://b6apvlm4x1tgu" path="res://effects/metric/hop_metric.gd" id="4_metric"]
+
+[sub_resource type="Resource" id="hop_metric"]
+script = ExtResource("4_metric")
+metadata/_custom_type_script = "uid://b6apvlm4x1tgu"
+
+[sub_resource type="Resource" id="per_hop"]
+script = ExtResource("3_scale")
+per_unit = 1.0
+metadata/_custom_type_script = "uid://cfjomnv7kdqqh"
+
+[sub_resource type="Resource" id="mod_node_health"]
+resource_name = "-5 Node Health"
+script = ExtResource("2_mod")
+stat_id = &"node_health"
+value = -5.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[resource]
+script = ExtResource("1_aura")
+metric = SubResource("hop_metric")
+distance_scale = SubResource("per_hop")
+display_name = "Dormant Reach"
+description = "The Dormant Core's grip thins with distance: each hop out from the core costs an owned node 5 Node Health. The core itself is untouched."
+modifiers = Array[ExtResource("2_mod")]([SubResource("mod_node_health")])
+metadata/_custom_type_script = "uid://n522mioa0d4q"

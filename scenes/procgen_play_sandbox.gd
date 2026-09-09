@@ -205,7 +205,9 @@ func _setup_level() -> void:
 	# Nothing else about this loop cares where it sits: blocker placement excludes
 	# every starter core, so it cannot collide with a core just force-allocated.
 	for placement in result.get("blockers", []):
-		spawn_blocker(placement.get("size"), placement.get("node"),
+		var footprint: Array[SkillNode] = []
+		footprint.assign(placement.get("footprint", []))
+		spawn_blocker(placement.get("size"), placement.get("node"), footprint,
 				placement.get("prune_seed", 0), cfg.blockers.blocker_spell_prune_m)
 
 	if not seated:

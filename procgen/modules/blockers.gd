@@ -23,9 +23,53 @@ const MIN_BLOCKER_PER := 5
 ## [constant MIN_BLOCKER_PER] is clamped up to it at placement time. The
 ## `size` value in a returned placement is the [GameRoot.BlockerSize] int
 ## (0/1/2).
-@export_range(0, 200, 1, "or_greater") var blocker_per_small: int = 10
-@export_range(0, 200, 1, "or_greater") var blocker_per_medium: int = 25
+@export_range(0, 200, 1, "or_greater") var blocker_per_small: int = 30
+@export_range(0, 200, 1, "or_greater") var blocker_per_medium: int = 50
 @export_range(0, 200, 1, "or_greater") var blocker_per_large: int = 100
+
+## Bonus-node FOOTPRINT per tier (#777). A Dormant Core no longer holds only the
+## node it sits on: at placement time it rolls `randi_range(min, max)` extra
+## nodes and grows into them, so size finally reads on the BOARD as territory
+## rather than only in a tooltip.
+##
+## The roll is uniform and inclusive on both ends, so a small can still land on
+## `0` and behave exactly like the pre-#777 blocker. Growth is a randomized
+## frontier walk over nodes adjacent to what the blocker already holds — the
+## footprint is always CONNECTED, which is what makes the falloff aura's
+## hop-from-core well-defined over the owned subgraph.
+##
+## [b]The range IS the clamp on the falloff.[/b] `blocker_footprint_falloff.tres`
+## deducts 5 `node_health` per hop from the core with no floor of its own, and
+## the only thing keeping that off zero is that a footprint of `n` nodes reaches
+## at most hop `n`. Raising a max past `authored node_health / 5` gives the far
+## rim of a big blocker nothing to lose (large: 80/5 = hop 16; small: 20/5 = 4).
+##
+## Never a hard guarantee: a blocker short of eligible neighbours (map edge,
+## another blocker's claim, a starter's safe radius) shrinks its footprint to
+## what fits rather than dropping the blocker or stealing a claimed node.
+@export_range(0, 12, 1) var footprint_small_min: int = 0
+@export_range(0, 12, 1) var footprint_small_max: int = 2
+@export_range(0, 12, 1) var footprint_medium_min: int = 2
+@export_range(0, 12, 1) var footprint_medium_max: int = 4
+@export_range(0, 12, 1) var footprint_large_min: int = 4
+@export_range(0, 12, 1) var footprint_large_max: int = 6
+
+
+## The `[min, max]` bonus-node range for a [GameRoot.BlockerSize] int, ordered
+## and floored at 0 so an inspector typo (max below min) narrows to a point
+## instead of making `randi_range` fail.
+func footprint_range(size: int) -> Vector2i:
+	var lo := footprint_small_min
+	var hi := footprint_small_max
+	if size == 1:
+		lo = footprint_medium_min
+		hi = footprint_medium_max
+	elif size == 2:
+		lo = footprint_large_min
+		hi = footprint_large_max
+	lo = maxi(0, lo)
+	return Vector2i(lo, maxi(lo, hi))
+
 
 ## Safe radius around every camp core (#300): no blocker may spawn within this
 ## many hops of ANY starter core — the human's and every AI camp's alike, since
