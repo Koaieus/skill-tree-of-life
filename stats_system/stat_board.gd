@@ -24,20 +24,19 @@ extends Resource
 @export_group("Scaling Rules")
 @export var intrinsic_modifiers: Array[StatModifier] = []
 
-## Fired exactly once per sparse stat, the moment [method _mint_stat] first
-## creates it — never again for that id, since [member _extra_stats] entries
-## are never erased (#810). This is the ONLY hook a listener has for "a
-## sparse stat now exists to subscribe to" — [method get_stat] on a
-## not-yet-minted id returns null, so without this signal a listener that
-## wants `board.get_stat(id).value_changed` at node-ready time has nothing to
+## Fired exactly once per sparse stat, the moment it is filed under
+## [member _extra_stats] — never again for that id, since those entries are
+## never erased (#810). This is the ONLY hook a listener has for "a sparse
+## stat now exists to subscribe to" — [method get_stat] on a not-yet-minted
+## id returns null, so without this signal a listener that wants
+## `board.get_stat(id).value_changed` at node-ready time has nothing to
 ## connect to.
 ##
-## Emitted from the single mint site ([method _mint_stat], right after
-## `_extra_stats[stat_id] = s`) — one emit site only. A subclass override that
-## mints through a different path (e.g. [method NodeStatBoard._mint_pool]'s
-## `node_health`/`spikes` redirect) does NOT go through this line and does NOT
-## emit this signal; that is an existing, separate mint path this issue does
-## not touch.
+## Emitted from the single choke point, [method _register_minted] — every
+## `_extra_stats` writer (the default [method _mint_stat], and
+## [method NodeStatBoard._mint_pool]'s `node_health`/`spikes` redirect) routes
+## through it rather than assigning the dictionary directly, so a future
+## third mint path cannot silently skip the emit (#812).
 signal stat_created(id: StringName, stat: Stat)
 
 @export_group("")
@@ -202,6 +201,15 @@ func _mint_stat(stat_id: StringName) -> Stat:
 		(s as PoolStat)._set_base_minted(def.default_value)
 	else:
 		s.base_value = def.default_value
+	return _register_minted(stat_id, s)
+
+
+## File [param s] under [member _extra_stats] as [param stat_id] and fire
+## [signal stat_created] — the one choke point every mint path (this board's
+## own [method _mint_stat] and [method NodeStatBoard._mint_pool]) must call
+## instead of writing `_extra_stats[stat_id] = ...` directly, so the signal
+## cannot be forgotten by a future third path (#812).
+func _register_minted(stat_id: StringName, s: Stat) -> Stat:
 	_extra_stats[stat_id] = s
 	stat_created.emit(stat_id, s)
 	return s

@@ -74,7 +74,9 @@ func _mint_stat(stat_id: StringName) -> Stat:
 ## [PoolStat] for [param stat_id], sourcing its [StatDef] from [param def_id]
 ## — a DIFFERENT id than [param stat_id], which is the whole point of the
 ## redirect — and seed its base via [method PoolStat._set_base_minted] so a
-## fresh mint is not treated as a cap CHANGE (#555).
+## fresh mint is not treated as a cap CHANGE (#555). Files it via
+## [method _register_minted] rather than writing `_extra_stats` directly, so
+## [signal stat_created] fires here too (#812).
 func _mint_pool(stat_id: StringName, def_id: StringName) -> Stat:
 	var def: StatDef = StatRegistry.get_def(def_id)
 	if def == null:
@@ -83,5 +85,4 @@ func _mint_pool(stat_id: StringName, def_id: StringName) -> Stat:
 	var pool := PoolStat.new()
 	pool.definition = def
 	pool._set_base_minted(def.default_value)  # seed, not a cap change (#555)
-	_extra_stats[stat_id] = pool
-	return pool
+	return _register_minted(stat_id, pool)
