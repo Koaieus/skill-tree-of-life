@@ -25,11 +25,31 @@ set -euo pipefail
 #      is unreadable without launching the thing. `skill-tree-of-life-<sha>`
 #      makes two builds distinguishable in a directory listing, in a chat
 #      attachment, and in the sentence "are we both on de9bb95?" — which is
-#      exactly the question the hello gate answers the hard way.
+#      exactly the question the hello gate answers the hard way. The commit's
+#      calendar DATE leads that name (`-<date>-<sha>`) because two shas never
+#      say which one is newer, and a directory listing sorts on the date.
 #
-#   4. GODOT'S EXIT CODE IS NOT THE CHECK. `--export-release` has returned 0 on
-#      a failed export in 4.x. Every artifact is asserted to exist and be
-#      non-empty afterwards.
+#   4. AN EXPORT IS A DIRECTORY, NOT A FILE. Godot copies each GDExtension
+#      library NEXT TO the executable — you cannot dlopen out of a pck, which
+#      is what "failed to copy shared object" is telling you. Handing someone
+#      the bare executable therefore drops them silently onto BladeSim's
+#      GDScript solver (11-22x slower per swing, and nothing says so). One
+#      directory per build keeps the binary and its libraries together, and
+#      restores what per-sha naming was for: a flat `export/linux/` shared ONE
+#      `.so` across every build in it, and `rm` never touched it.
+#
+#   5. GODOT'S EXIT CODE IS NOT THE CHECK. `--export-release` has returned 0 on
+#      a failed export in 4.x. Every artifact — executable AND every library
+#      the preflight said would ship — is asserted to exist and be non-empty
+#      afterwards.
+#
+#   6. A DECLARED-BUT-MISSING LIBRARY IS CAUGHT BEFORE GODOT RUNS. The exporter
+#      hard-fails on a `.gdextension` that names a binary the tree does not
+#      have — a different thing from the runtime fallback the extension was
+#      designed around (#806: the Windows export was broken for a day because
+#      no `.dll` has ever existed here). The preflight below reads the same
+#      `[libraries]` keys the engine would and refuses at second zero, naming
+#      the command that cures it.
 #
 # Templates are NOT fetched here — `mise run build:templates` is a ~1GB
 # download that only matters when the engine pin in mise.toml moves.
@@ -52,6 +72,103 @@ for arg in "$@"; do
   esac
 done
 [ ${#platforms[@]} -eq 0 ] && platforms=(linux windows)
+
+# Every export target this script knows: the preset name, the CPU architecture
+# the preset is pinned to (`binary_format/architecture` in export_presets.cfg)
+# and the executable's extension. The architecture is here and not only there
+# because the preflight needs it to pick `[libraries]` keys.
+target_of() {
+  case "$1" in
+    linux)   echo "Linux x86_64 .x86_64" ;;
+    windows) echo "Windows x86_64 .exe" ;;
+  esac
+}
+
+# ── preflight: a declared library must exist ───────────────────────────────
+# See header note 6. This runs before anything slow, and before the stamp, so
+# a missing binary costs a message instead of an asset import plus an export.
+
+# Both bundled editor addons ship .gdextension files, and the presets drop them
+# on the floor. So does anything under a .gdignore (native/godot-cpp), and so
+# does a nested worktree checkout, which has its own gitignored native/bin.
+preset_exclude_filter=$(sed -n 's/^exclude_filter="\(.*\)"$/\1/p' export_presets.cfg | head -1)
+
+is_exported_path() {
+  local path="$1" dir pat
+  case "$path" in .worktrees/*) return 1 ;; esac
+  dir=$(dirname "$path")
+  while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
+    [ -f "$dir/.gdignore" ] && return 1
+    dir=$(dirname "$dir")
+  done
+  local IFS=,
+  for pat in $preset_exclude_filter; do
+    pat="${pat#"${pat%%[![:space:]]*}"}"
+    [ -z "$pat" ] && continue
+    # shellcheck disable=SC2053  # the filter IS a glob; that is the point
+    [[ "$path" == $pat ]] && return 1
+  done
+  return 0
+}
+
+# The libraries one export would ship: every `[libraries]` key whose feature
+# tags are ALL satisfied by this export. That subset rule is the engine's own,
+# and it is what makes an `editor`-only key (both addons) and a `debug` key on
+# a release run invisible here, with no platform special-cased as "tolerant".
+declared_libraries() {
+  local platform="$1" arch="$2" gdext="$3" key value tag ok
+  sed -n '/^\[libraries\]/,/^\[/p' "$gdext" \
+    | sed -n 's/^[[:space:]]*\([A-Za-z0-9._]\+\)[[:space:]]*=[[:space:]]*"\(.*\)"[[:space:]]*$/\1 \2/p' \
+    | while read -r key value; do
+        ok=1
+        for tag in ${key//./ }; do
+          case "$tag" in
+            "$platform"|"$mode"|"$arch") ;;
+            *) ok=0 ;;
+          esac
+        done
+        # A path is either res:// (project-relative) or relative to the
+        # .gdextension's own directory — the bundled git plugin uses the latter.
+        case "$value" in
+          res://*) value="${value#res://}" ;;
+          *)       value="$(dirname "$gdext")/$value" ;;
+        esac
+        [ "$ok" = 1 ] && printf '%s\n' "$value"
+      done
+}
+
+# Every library path, repo-relative, that `$1`/`$2` would try to ship.
+shipped_libraries() {
+  local platform="$1" arch="$2" gdext lib
+  while IFS= read -r gdext; do
+    gdext="${gdext#./}"
+    is_exported_path "$gdext" || continue
+    while IFS= read -r lib; do
+      [ -n "$lib" ] && is_exported_path "$lib" && printf '%s\n' "$lib"
+    done < <(declared_libraries "$platform" "$arch" "$gdext")
+  done < <(find . -name '*.gdextension' | sort)
+}
+
+missing_any=0
+for p in "${platforms[@]}"; do
+  read -r _preset arch _ext <<<"$(target_of "$p")"
+  missing=()
+  while IFS= read -r lib; do
+    # -e, not -f: a macOS library is a .framework directory.
+    [ -e "$lib" ] || missing+=("$lib")
+  done < <(shipped_libraries "$p" "$arch")
+  [ ${#missing[@]} -eq 0 ] && continue
+  missing_any=1
+  echo "✗ the $p export declares a GDExtension library that does not exist:"
+  printf '    %s\n' "${missing[@]}"
+  echo ""
+  echo "  Godot's exporter hard-fails on a declared-but-missing library — this is"
+  echo "  NOT the runtime fallback BladeSim is designed around (#806). Build it:"
+  echo ""
+  echo "      mise run native:build -- template_$mode $p"
+  echo ""
+done
+[ "$missing_any" -eq 1 ] && exit 1
 
 # ── identity ───────────────────────────────────────────────────────────────
 branch=$(git rev-parse --abbrev-ref HEAD)
@@ -105,10 +222,16 @@ echo "→ importing assets…"
 godot --headless --import >/dev/null 2>&1 || true
 
 export_one() {
-  local preset="$1" path="$2"
-  mkdir -p "$(dirname "$path")"
-  rm -f "$path"
-  echo "→ exporting $preset ($mode) → $path"
+  local platform="$1" preset="$2" arch="$3" ext="$4"
+  # Two statements: bash expands every word of a `local` before assigning any
+  # of them, so `path` cannot read `dir` on the same line under `set -u`.
+  local dir="$OUT/$platform/$name"
+  local path="$dir/$name$ext"
+  # The whole directory goes, so a rebuild cannot leave one stale library from
+  # the previous run sitting beside the new executable.
+  rm -rf "$dir"
+  mkdir -p "$dir"
+  echo "→ exporting $preset ($mode) → $dir/"
   local log
   log=$(godot --headless "--export-$mode" "$preset" "$path" 2>&1) || true
   if [ ! -s "$path" ]; then
@@ -116,23 +239,36 @@ export_one() {
     echo "✗ $preset export produced nothing at $path"
     exit 1
   fi
+  # Header note 5: the executable alone is not the artifact. Every library the
+  # preflight cleared has to have landed beside it, or this build silently runs
+  # on a slower fallback with nothing to say so.
+  local lib
+  while IFS= read -r lib; do
+    if [ ! -s "$dir/$(basename "$lib")" ]; then
+      printf '%s\n' "$log"
+      echo "✗ $preset export did not copy $(basename "$lib") next to the executable"
+      exit 1
+    fi
+  done < <(shipped_libraries "$platform" "$arch")
   printf '%s\n' "$log" | grep -iE '^(ERROR|WARNING)' | head -5 || true
-  echo "✓ $preset  $(du -h "$path" | cut -f1)  $path"
+  echo "✓ $preset  $(du -sh "$dir" | cut -f1)  $dir/"
 }
 
 # A debug and a release export off the same commit share a sha; without the
-# suffix the second would silently overwrite the first.
+# suffix the second would silently overwrite the first. The date is the
+# COMMIT's, not the build's — the same build made twice keeps one name.
 suffix="$sha"
 [ "$mode" = "debug" ] && suffix="$sha-debug"
+name="skill-tree-of-life-$(git show -s --format=%cd --date=format:%Y-%m-%d HEAD)-$suffix"
 
 for p in "${platforms[@]}"; do
-  case "$p" in
-    linux)   export_one "Linux"   "$OUT/linux/skill-tree-of-life-$suffix.x86_64" ;;
-    windows) export_one "Windows" "$OUT/windows/skill-tree-of-life-$suffix.exe" ;;
-  esac
+  read -r preset arch ext <<<"$(target_of "$p")"
+  export_one "$p" "$preset" "$arch" "$ext"
 done
 
 echo ""
+echo "Ship the whole directory — the executable alone loses the GDExtension"
+echo "libraries beside it, and with them the native blade solver."
 echo "Both machines must run the SAME build — the link refuses a sha mismatch"
-echo "at hello and prints both stamps, and the filenames say $suffix on both."
+echo "at hello and prints both stamps, and the directories say $name on both."
 echo "Host on one, JOIN with its LAN IP on the other."

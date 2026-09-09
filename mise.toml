@@ -18,6 +18,7 @@ gh = "2"
 # errors out of EVERY task (not just native:build) if it is missing.
 pipx = "latest"
 "pipx:scons" = "latest"
+# The Windows cross toolchain is NOT here on purpose — see native:build below.
 # The python file tasks (test, refresh, rules-hygiene, lint-transcendentals) are
 # stdlib-only and want nothing newer than 3.7 — pinned so `mise install` is the
 # whole setup, not because the version is delicate.
@@ -127,7 +128,7 @@ echo "✓ all scripts compiled clean"
 # broke and the gate stayed green.
 
 [tasks."native:build"]
-description = "Build the blade solver GDExtension (#798): `mise run native:build`, or `-- template_release` for exports"
+description = "Build the blade solver GDExtension (#798): `mise run native:build`, `-- template_release` for exports, `-- template_release windows` to cross-compile"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -139,7 +140,37 @@ if [ ! -f godot-cpp/SConstruct ]; then
 fi
 # template_debug is what the editor AND a headless `godot --script` / GUT run
 # load; template_release is only ever loaded by an exported build.
-scons target="${1:-template_debug}" -j"$(nproc)"
+args=(target="${1:-template_debug}")
+# A second argument cross-compiles. Godot's exporter hard-fails on a declared
+# but missing library (#806), so a Windows export needs the .dll to exist even
+# though the game runs fine on the GDScript fallback without it.
+#
+# The toolchain is pinned HERE and not in [tools] because it is ~620MB — an
+# order of magnitude past everything else `mise install` fetches, for a thing
+# most sessions never touch. `mise exec` installs on first use, so a clone that
+# only ever builds for Linux never downloads it, and the pin is still one
+# version every checkout resolves rather than a distro package installed by
+# hand. The empty runner for every other build means the host path pays
+# nothing, not even a wrapper process.
+runner=()
+if [ -n "${2:-}" ]; then
+  args+=(platform="$2")
+  if [ "$2" = "windows" ]; then
+    if [ "$(uname -s)" != "Linux" ]; then
+      echo "✗ the pinned cross toolchain is a Linux build — cross-compiling for" >&2
+      echo "  Windows from $(uname -s) needs a different asset in the line below." >&2
+      exit 1
+    fi
+    # use_llvm on top of use_mingw because the toolchain is llvm-mingw: it
+    # ships clang under the mingw triple names, and godot-cpp's non-llvm branch
+    # reaches for `x86_64-w64-mingw32-gcc-ar`, which llvm-mingw does not have
+    # (it has llvm-ar, which the llvm branch asks for). `bin_path` repeats the
+    # version because mise does not glob it.
+    args+=(use_mingw=yes use_llvm=yes)
+    runner=(mise exec "github:mstorsjo/llvm-mingw[matching=ucrt-ubuntu-22.04-x86_64,bin_path=llvm-mingw-20260826-ucrt-ubuntu-22.04-x86_64/bin]@20260826" --)
+  fi
+fi
+"${runner[@]}" scons "${args[@]}" -j"$(nproc)"
 '''
 
 [tasks.check-script]
