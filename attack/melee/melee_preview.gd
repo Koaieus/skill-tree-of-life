@@ -24,6 +24,20 @@ const _FADE: float = 0.4
 ## written onto a blade from outside is erased on the next rebuild.
 @export var blade_style: BladeStyle = null
 
+## Trajectory samples the aim-time prediction resolves per frame (#821).
+##
+## A melee resolve is a ~72 sample physics scan; run whole it is a multi-frame
+## stall on the one input the player is watching for an answer to. Stepping it
+## trades a finished arc later for a partial arc NOW — the picture the player
+## actually wants while still choosing nodes ("roughly where does this go").
+##
+## The knob is per FRAME, not per click: whatever the blade's size, the stall a
+## click costs is one budget's worth of samples, and a bigger blade simply takes
+## more frames to finish. Raising it shortens the wait for the full arc and
+## lengthens the worst frame; 0 or less resolves the whole swing in one frame,
+## which is the pre-#821 behaviour.
+@export var prediction_slice_steps: int = 12
+
 ## Master switch for the IDLE loop only — a committed [method launch] ignores it.
 ##
 ## The preview loop is the one part of melee that auto-drives (play → rebuild,
@@ -51,7 +65,10 @@ var _ghost: SkillBlade
 ## sandbox's stall readout (#780/#781) has nothing else to ask.
 ##
 ## [b]#782: this is the resolved swing's clock, at its END state[/b], not a
-## per-cycle one being filled in as the ghost animates. The preview no longer
+## per-cycle one being filled in as the ghost animates. (#821 qualifies that
+## by exactly one window: while the prediction is still being sliced the clock
+## is at the end of the samples resolved SO FAR, and reaches the swing's end
+## when the last slice lands.) The preview no longer
 ## simulates — it replays [method MeleeAttackPlan.prediction]'s trajectory — so
 ## there is no per-cycle clock left to watch. The clock's twin, the bunker
 ## field, is pushed onto the ghost's `state.obstacles` for the same readout.
@@ -79,6 +96,9 @@ var _live_swing: bool = false
 
 
 func _ready() -> void:
+	# Idle costs nothing: `_process` is the #821 slice pump and is armed only
+	# while a prediction is actually part-way resolved.
+	set_process(false)
 	if battle_system != null:
 		battle_system.attack_plan_changed.connect(_on_plan_changed)
 		battle_system.attack_plan_state_changed.connect(_refresh)
@@ -114,11 +134,41 @@ func _refresh() -> void:
 		# marks. A machine with no preview mounted never calls this and pays
 		# nothing, which is the shape `BattleSystem`'s draw-only resolve already
 		# wants.
-		melee.refresh_prediction()
+		#
+		# #821: one SLICE of it, not the whole resolve. The click gets a
+		# partial arc in this very frame and `_process` extends it; the plan's
+		# own invalidation cancels an in-flight run, so a click landing
+		# mid-slice can never be answered with the previous selection's swing.
+		_pump_prediction(melee)
 		_spawn_blade(melee)
 		_run_preview_loop(_gen)
 	else:
+		set_process(false)
 		_teardown()
+
+
+## Resolve one frame's worth of the aim-time prediction, and keep `_process`
+## running exactly while there is more to do.
+##
+## The budget is spent per FRAME, which is the whole point (#821 decision 5):
+## no single frame blocks, regardless of blade size.
+func _pump_prediction(plan: MeleeAttackPlan) -> void:
+	var complete := plan.advance_prediction(prediction_slice_steps)
+	set_process(not complete)
+
+
+## The slice pump. Deliberately NOT the preview loop — that loop is parked on
+## `blade.play` for the length of a swing cycle, which is exactly the window
+## the prediction has to finish inside.
+func _process(_delta: float) -> void:
+	if _live_swing or battle_system == null or not preview_enabled:
+		set_process(false)
+		return
+	var plan := battle_system.attack_plan as MeleeAttackPlan
+	if plan == null or not plan.is_valid():
+		set_process(false)
+		return
+	_pump_prediction(plan)
 
 
 ## The ghost currently mounted, or null. For a sandbox that wants to poke at the
@@ -306,12 +356,18 @@ func _run_preview_loop(gen: int) -> void:
 		# Warm on the first cycle and a no-op on every later one — the loop
 		# outlives the `_refresh` that primed it, and a plan re-validated
 		# mid-loop would otherwise replay nothing.
-		live_plan.refresh_prediction()
-		var prediction := live_plan.prediction()
-		if prediction == null or prediction.trajectory == null:
+		_pump_prediction(live_plan)
+		# #821: the PARTIAL is a valid picture. `SkillBlade.play` reads the
+		# sample count once, at the top, so a cycle started mid-slice arcs as
+		# far as the prediction had got and the NEXT cycle — a swing plus a fade
+		# later, by which time the slices are long done — arcs the whole way.
+		var prediction := live_plan.prediction_partial()
+		if prediction == null or prediction.trajectory == null \
+				or prediction.trajectory.samples.size() < 2:
 			# No trajectory means no swing to replay. Returning (rather than
 			# continuing) is deliberate: `play(null)` finishes instantly, so
-			# looping here would spin the frame.
+			# looping here would spin the frame — and so would a one-sample
+			# trajectory, whose duration is zero.
 			return
 		last_clock = prediction.clock
 		# The sandbox's strain readout reads the field off the ghost (#781), and

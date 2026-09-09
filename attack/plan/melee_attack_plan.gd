@@ -647,6 +647,252 @@ class SwingResult extends RefCounted:
 	var obstacles: BladeObstacleField = null
 
 
+
+## One resumable run of the swing resolve — the loop [method
+## MeleeAttackPlan._resolve_swing] used to hold inline, hoisted into an object
+## so it can be driven either straight through (the authoritative path: one
+## optimistic bake of the whole remaining swing per severance) or a slice at a
+## time across frames (#821's aim-time preview).
+##
+## [b]There is still exactly ONE chunked loop.[/b] Slicing is not a second code
+## path — [method advance] takes a step budget, and an unbounded budget (<= 0)
+## reproduces the old whole-remainder bake exactly. Everything the severance
+## head-replay already did to stitch a chunk boundary is what a slice boundary
+## rides on: one [BladeSwingClock] instance carried across, one
+## [BladeObstacleField] carried across, and [member BladeState.speed_history]
+## accumulated out of each bake's chunk-local array.
+##
+## [b]Those three histories are chunk-local BY DESIGN[/b] — `clock.history`,
+## `obstacles.history` and `state.speed_history` are rebuilt per bake, so a
+## sliced caller has to stitch them rather than assume they accumulate. Getting
+## it wrong is not a visible glitch: a fresh clock mid-swing un-banks a
+## Fortification wall's drag and silently stops it sheltering what is behind it
+## (`test_blade_chunked_parity.gd:200-203`). That an arbitrary boundary is
+## bit-identical to no boundary at all is pinned by
+## `test_a_dragged_swing_is_bit_identical_across_a_chunk_boundary`.
+##
+## A slice boundary differs from a severance boundary in exactly one way: there
+## is nothing to rewind to. The bake ran to the boundary and stopped, so the
+## state, the clock and the field are already where the next bake continues
+## from — nothing is restored, which is the shape that parity test runs.
+class SwingResolve extends RefCounted:
+	## The bundle, LIVE. `outcome`, `pops`, `live_gate`, `clock` and `obstacles`
+	## are set before the first step; `trajectory`, `events` and `hits` the
+	## moment the guards pass — and they are the very arrays the run appends to,
+	## so a PARTIAL run is readable and grows in place. See
+	## [method MeleeAttackPlan.prediction_partial].
+	var result: SwingResult = SwingResult.new()
+
+	var _plan: MeleeAttackPlan = null
+	var _world: CombatWorld = null
+	var _outcome: AttackOutcome = null
+	var _state: BladeState = null
+	var _drivers: Array[BladeDriver] = []
+	var _clock: BladeSwingClock = null
+	var _obstacles: BladeObstacleField = null
+	var _gate: BladePopResolver.LiveGate = null
+	var _sweep: BladeHitScan.Sweep = null
+	var _trajectory: BladeTrajectory = null
+	var _speed_history: Array[PackedFloat32Array] = []
+	var _events: Array[BladeHitEvent] = []
+	var _hits: Array[DamageInstance] = []
+	var _rng: RandomNumberGenerator = null
+	var _dt: float = BladeSim.DEFAULT_DT
+	var _total_steps: int = 0
+	## The GLOBAL sample index the next bake starts from. Moves to a severance
+	## sample (rewound) or to the end of the last bake (a slice boundary).
+	var _chunk_start: int = 0
+	var _done: bool = false
+
+
+	func _init(plan: MeleeAttackPlan, world: CombatWorld) -> void:
+		_plan = plan
+		_world = world
+		_outcome = AttackOutcome.new()
+		result.outcome = _outcome
+		_outcome.cadence = ScheduleEntry.Cadence.SWING
+		_outcome.resolve_seed = plan.resolve_seed
+		if not plan.is_valid():
+			_done = true
+			return
+		_state = plan.build_blade_state()
+		if _state == null:
+			_done = true
+			return
+		_drivers = plan.build_drivers(_state)
+		# The defender field (#811) carries both kinds; the clock is its
+		# accumulator half. Fortification drag (#780) bogs the swing's own clock
+		# down cumulatively from the moment the blade first touches a wall, and a
+		# bunker's grip stall (#781) is expressed on the same clock — so a swing
+		# with any defender in reach gets one, and a swing with none gets neither.
+		# ONE clock for the whole swing, carried across every chunk — see
+		# BladeSwingClock.Bank. An untouched clock is bit-inert
+		# (test_blade_swing_drag pins it) and the field already forces the GDScript
+		# backend, so a plates-only swing pays nothing extra for having one.
+		_obstacles = _state.obstacles
+		if _obstacles != null:
+			_clock = BladeSwingClock.new(MeleeAttackPlan.SWING_DURATION)
+		var space_state := plan.source.get_world_2d().direct_space_state
+		var exclude := plan.collect_target_excludes()
+		var graph: Graph = plan.attacker.navigator.graph \
+				if plan.attacker != null and plan.attacker.navigator != null else null
+		# #170/#502/#536: ONE pop gate for the whole swing, re-evaluated per event at
+		# land time, so it sees this swing's own cascades. Since #801 it also sees
+		# them EARLY ENOUGH TO MATTER: a death lands before the samples after it are
+		# simulated, so the solver can react to it.
+		_gate = BladePopResolver.LiveGate.new(_state, plan.attacker)
+		result.live_gate = _gate
+		result.pops = _gate.result
+		result.clock = _clock
+		result.obstacles = _obstacles
+		# #530: each batch stable-sorts on SkillNode.stable_id, so the hit SET a pop
+		# cascade sees never depends on physics broadphase order.
+		if space_state != null:
+			_sweep = BladeHitScan.Sweep.new(_state, space_state, graph, 0xFFFFFFFF, exclude)
+
+		_total_steps = int(ceil(MeleeAttackPlan.SWING_DURATION / _dt))
+		_trajectory = BladeTrajectory.new()
+		_trajectory.sample_dt = _dt
+		_trajectory.samples = [_state.positions.duplicate()]
+		var zero_speeds := PackedFloat32Array()
+		zero_speeds.resize(_state.positions.size())
+		_speed_history = [zero_speeds]
+		# ONE crit stream for the whole swing, handed to every batch's `decide_all`
+		# in turn (#507). Batches run in `t` order and `OutcomeSchedule._sorted` is
+		# stable on insertion, so the stream is consumed in exactly the order a
+		# single `decide_all` over the finished hit list would have consumed it —
+		# which is why an unsevered swing rolls the identical crits it did before
+		# the interleave. #186's per-round salt is gone with the rounds.
+		_rng = CritRoll.stream_for(plan.resolve_seed)
+		# Published now, not at the end: these three ARE the partial picture.
+		result.trajectory = _trajectory
+		result.events = _events
+		result.hits = _hits
+
+
+	func is_done() -> bool:
+		return _done
+
+
+	## How far the trajectory has been resolved, 0..1. For a surface that wants
+	## to say "still computing" — nothing does yet (#821 raised it as a design
+	## question rather than inventing an answer).
+	func progress() -> float:
+		if _total_steps <= 0:
+			return 1.0
+		return clampf(float(_chunk_start) / float(_total_steps), 0.0, 1.0)
+
+
+	## Resolve at most [param max_steps] more trajectory samples; true when the
+	## whole swing is resolved. A budget of 0 or less means "the rest of it",
+	## which is the authoritative path's single call.
+	func advance(max_steps: int) -> bool:
+		if _done:
+			return true
+		var budget := max_steps
+		while _chunk_start < _total_steps:
+			var remaining := _total_steps - _chunk_start
+			# OPTIMISTIC BAKE: the whole remaining swing in one call, assuming
+			# nothing dies. Because a bake is a pure function of the state, walking
+			# it sample by sample and re-baking from the first death produces the
+			# bit-identical trajectory a true per-sample interleave would (#801) —
+			# at one solver call per SEVERANCE instead of one per sample. A budget
+			# caps the same call short; the boundary it creates is stitched exactly
+			# like a severance boundary, minus the rewind.
+			var count := remaining if budget <= 0 else mini(budget, remaining)
+			var chunk := BladeSim.simulate_range(
+					_state, _drivers, _chunk_start, count, _dt,
+					BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS,
+					true, _clock)
+			var chunk_speeds := _state.speed_history
+			var severed_at := -1
+			for j in range(1, chunk.samples.size()):
+				var step := _chunk_start + j
+				var pose: PackedVector2Array = chunk.samples[j]
+				var speeds: PackedFloat32Array = chunk_speeds[j]
+				_trajectory.samples.append(pose)
+				_speed_history.append(speeds)
+				var pops_before := _gate.result.pops.size()
+				if _sweep != null:
+					var batch := _sweep.scan_sample(float(step) * _dt, pose, speeds)
+					if not batch.is_empty():
+						_events.append_array(batch)
+						_plan._land_batch(_outcome, batch, _state, _gate, _world, _rng, _hits)
+				# A bunker break (#781) is decided INSIDE the bake, by the field, at
+				# the substep the strain crossed the threshold — so it is checked
+				# per sample whether or not anything was hit, and severs exactly
+				# like a pop: stop, rewind, apply, re-bake.
+				var broke := _obstacles != null and _obstacles.has_break_at(step)
+				if _gate.result.pops.size() != pops_before or broke:
+					severed_at = step
+					break
+			if severed_at < 0:
+				# A PLAIN BOUNDARY. The bake ran to `_chunk_start + count` and the
+				# state, the clock and the field are all standing there — nothing to
+				# rewind, nothing to restore. When `count` was the whole remainder
+				# this ends the loop, which is the pre-#821 shape verbatim.
+				_chunk_start += count
+			else:
+				# REWIND TO THE DEATH. The bake above ran past it, so `state` is at the
+				# end of the swing, not at `severed_at`. The bake recorded the exact
+				# state at every sample — `prev_samples` alongside `samples`, and the
+				# clock its own bank (#803) — so landing on the severance sample is a
+				# read, not a re-run. (`_step` rewrites `prev_positions` once per
+				# SUBSTEP, so it is a mid-sample pose that `samples` alone could never
+				# recover; #801 re-baked the head of the chunk to get it before both
+				# backends emitted it.) Duplicated because `_step` writes through the
+				# reference, and the trajectory keeps these same arrays.
+				#
+				# The three histories are indexed CHUNK-LOCAL, so the index is
+				# relative to this bake's own start — never the global step.
+				var local := severed_at - _chunk_start
+				_state.positions = chunk.samples[local].duplicate()
+				_state.prev_positions = chunk.prev_samples[local].duplicate()
+				if _clock != null:
+					_clock.restore(_clock.history[local])
+				if _obstacles != null:
+					_obstacles.restore(_obstacles.history[local])
+				# THE WHOLE OF A SEVERANCE: a corpse frozen where it died, its
+				# constraints and its driver gone, and drag written onto whatever it was
+				# holding on. Nothing else — everything downstream then coasts by plain
+				# Verlet, because that is what Verlet does to a particle nothing is
+				# pulling on.
+				# The bank restored just above IS the one the break was armed in — the
+				# field banks once per sample, after that sample's substeps — so the
+				# break is consumed HERE, off the rewound field, with nothing re-run.
+				if _obstacles != null:
+					var brk := _obstacles.consume_break()
+					if brk != null:
+						_gate._sever_edge(brk.edge_idx, float(severed_at) * _dt, brk.defender, 0.0)
+				for pop in _gate.result.pops:
+					if pop.particle_idx >= 0:
+						_state.remove_vertex(pop.particle_idx)
+				for severance in _gate.result.severances:
+					for v in severance.vertices:
+						_state.set_damping(v, BladeState.SEVERED_DRAG)
+				_drivers = MeleeAttackPlan._surviving_drivers(_drivers, _state, _gate)
+				_chunk_start = severed_at
+			if budget > 0:
+				budget -= count
+				if budget <= 0:
+					break
+		if _chunk_start < _total_steps:
+			return false
+		_finish()
+		return true
+
+
+	func _finish() -> void:
+		_done = true
+		_state.speed_history = _speed_history
+		# One coherent timeline over every batch. The record carries each hit's
+		# structural key and every peer compiles its own seconds from it.
+		_outcome.schedule = OutcomeSchedule.compile(_outcome)
+		# The AI's shape-risk signal: how many of the attacker's own vertices this
+		# swing actually DESTROYED. Pops only (#799) — a vertex that merely lost its
+		# path to the handle coasts on in this same trajectory and is not a loss.
+		_outcome.popped_nodes += _gate.result.vertex_pop_count()
+
 ## The prediction [MeleePreview] draws and [method get_node_role] marks off:
 ## this exact selection, resolved once against a shadow world, cached until the
 ## selection changes (#782). Null when nothing has asked for one yet, when the
@@ -668,6 +914,14 @@ var _prediction: SwingResult = null
 ## the whole life of this plan. The acceptance-5 counter (#782): N preview
 ## cycles on an unchanged selection must leave this at 1.
 var prediction_runs: int = 0
+## The slice run in flight, or null. Non-null exactly between the first
+## [method advance_prediction] of a selection and the one that completes it or
+## the [method _invalidate_prediction] that cancels it (#821).
+var _pending_prediction: SwingResolve = null
+## The shadow world [member _pending_prediction] is resolving against, held
+## open across frames and freed on completion or cancellation. Never the live
+## world — a prediction mutates nothing real.
+var _pending_world: CombatWorld = null
 ## Defenders the cached prediction says will pop a vertex or shatter an edge,
 ## as a set — read by [method get_node_role] with no work of its own.
 var _predicted_defenders: Dictionary[SkillNode, bool] = {}
@@ -699,25 +953,101 @@ func prediction() -> SwingResult:
 ## more entry on the list of accepted mispredicts, not a reason to show the
 ## player a roll that has not happened yet.
 func refresh_prediction() -> void:
+	# ONE implementation, driven to the end: an unbounded budget makes
+	# [method advance_prediction] bake the whole remaining swing in one call,
+	# which is exactly what this method used to do inline.
+	while not advance_prediction(0):
+		pass
+
+
+## Resolve at most [param max_steps] more trajectory samples of the current
+## selection's prediction, and report whether a COMPLETE one is now cached.
+## A budget of 0 or less means "the whole remaining swing", which is
+## [method refresh_prediction].
+##
+## [b]#821: this is the aim-time path.[/b] A melee resolve is a ~72 sample
+## physics scan and it used to run whole, synchronously, on every node click
+## while aiming — a multi-frame stall on the one input the player is watching
+## for an answer to. It is draw-only and nothing replays it, so it carries none
+## of the determinism obligations the authoritative resolve does and can simply
+## be stepped: [MeleePreview] pumps a frame's worth per frame and draws the
+## partial arc it has, which is the picture the player wants ("roughly where
+## does this go") sooner than a finished one would arrive.
+##
+## Threading it was the rejected alternative — [WorkerThreadPool] is #796's
+## answer for the AUTHORITATIVE resolve, which has #559's wind-up to hide
+## behind. Here there is no wind-up, and a partial picture beats a whole one
+## that arrives later.
+##
+## The in-flight run holds the shadow world open across frames; every input to
+## the resolve routes through [method _invalidate_prediction], which cancels it
+## and frees that shadow, so a superseded slice can never finish or overwrite a
+## fresher prediction.
+func advance_prediction(max_steps: int) -> bool:
 	if _prediction != null:
-		return
+		return true
 	if not is_valid():
-		return
-	var world := CombatWorld.shadow()
-	prediction_runs += 1
-	_prediction = _resolve_swing(world)
-	world.free_shadow()
+		_cancel_pending_prediction()
+		return false
+	if _pending_prediction == null:
+		_pending_world = CombatWorld.shadow()
+		_pending_prediction = SwingResolve.new(self, _pending_world)
+		# Counted per RUN, not per slice: one logical prediction per selection is
+		# what this number has always meant (#782 acceptance 5, #821 acceptance 4).
+		prediction_runs += 1
+	if not _pending_prediction.advance(max_steps):
+		return false
+	_prediction = _pending_prediction.result
+	_cancel_pending_prediction()
 	for pop in _prediction.pops.pops:
 		if pop.defender != null:
 			_predicted_defenders[pop.defender] = true
+	return true
 
 
-## Drop the cached prediction. Called from every site that emits
-## [signal HighlightProvider.state_changed] — the selection, the swing
-## direction and the temp-upgrade set are all inputs to the resolve.
+## The prediction to DRAW: the completed one when there is one, otherwise the
+## partial an in-flight slice run has produced so far. Its trajectory, events
+## and hits are the live arrays the run is still appending to — read them, never
+## hold them past an invalidation.
+##
+## [method prediction] stays the strict accessor (complete or nothing); this is
+## the one surface that wants a half-drawn arc.
+func prediction_partial() -> SwingResult:
+	if _prediction != null:
+		return _prediction
+	return _pending_prediction.result if _pending_prediction != null else null
+
+
+## True while a sliced resolve is part-way through. For a caller deciding
+## whether to keep pumping.
+func is_predicting() -> bool:
+	return _pending_prediction != null
+
+
+## Drop the cached prediction, and CANCEL any slice run in flight. Called from
+## every site that emits [signal HighlightProvider.state_changed] — the
+## selection, the swing direction and the temp-upgrade set are all inputs to the
+## resolve.
 func _invalidate_prediction() -> void:
 	_prediction = null
 	_predicted_defenders.clear()
+	_cancel_pending_prediction()
+
+
+## Release the in-flight run and its shadow world. The run is simply dropped:
+## it holds no handle on anything real (its landings went into the shadow), so
+## letting it go IS the cancellation — nothing left alive can write a stale
+## result over a fresher one.
+func _cancel_pending_prediction() -> void:
+	_pending_prediction = null
+	if _pending_world != null:
+		_pending_world.free_shadow()
+		_pending_world = null
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		_cancel_pending_prediction()
 
 
 ## Drop the prediction and tell the surfaces. Every site in this plan that used
@@ -751,147 +1081,14 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 ## [SwingResult] for why the artifacts come back in a bundle instead of being
 ## written onto this plan.
 func _resolve_swing(world: CombatWorld) -> SwingResult:
-	var result := SwingResult.new()
-	var outcome := AttackOutcome.new()
-	result.outcome = outcome
-	outcome.cadence = ScheduleEntry.Cadence.SWING
-	outcome.resolve_seed = resolve_seed
-	if not is_valid():
-		return result
-	var state := build_blade_state()
-	if state == null:
-		return result
-	var drivers := build_drivers(state)
-	# The defender field (#811) carries both kinds; the clock is its
-	# accumulator half. Fortification drag (#780) bogs the swing's own clock
-	# down cumulatively from the moment the blade first touches a wall, and a
-	# bunker's grip stall (#781) is expressed on the same clock — so a swing
-	# with any defender in reach gets one, and a swing with none gets neither.
-	# ONE clock for the whole swing, carried across every chunk — see
-	# BladeSwingClock.Bank. An untouched clock is bit-inert
-	# (test_blade_swing_drag pins it) and the field already forces the GDScript
-	# backend, so a plates-only swing pays nothing extra for having one.
-	var obstacles := state.obstacles
-	var clock: BladeSwingClock = BladeSwingClock.new(SWING_DURATION) if obstacles != null else null
-	var space_state := source.get_world_2d().direct_space_state
-	var exclude := collect_target_excludes()
-	var graph: Graph = attacker.navigator.graph if attacker != null and attacker.navigator != null else null
-	# #170/#502/#536: ONE pop gate for the whole swing, re-evaluated per event at
-	# land time, so it sees this swing's own cascades. Since #801 it also sees
-	# them EARLY ENOUGH TO MATTER: a death lands before the samples after it are
-	# simulated, so the solver can react to it.
-	var gate := BladePopResolver.LiveGate.new(state, attacker)
-	result.live_gate = gate
-	result.pops = gate.result
-	result.clock = clock
-	result.obstacles = obstacles
-	# #530: each batch stable-sorts on SkillNode.stable_id, so the hit SET a pop
-	# cascade sees never depends on physics broadphase order.
-	var sweep: BladeHitScan.Sweep = null
-	if space_state != null:
-		sweep = BladeHitScan.Sweep.new(state, space_state, graph, 0xFFFFFFFF, exclude)
-
-	var dt := BladeSim.DEFAULT_DT
-	var total_steps := int(ceil(SWING_DURATION / dt))
-	var trajectory := BladeTrajectory.new()
-	trajectory.sample_dt = dt
-	trajectory.samples = [state.positions.duplicate()]
-	var zero_speeds := PackedFloat32Array()
-	zero_speeds.resize(state.positions.size())
-	var speed_history: Array[PackedFloat32Array] = [zero_speeds]
-	var events: Array[BladeHitEvent] = []
-	var hits: Array[DamageInstance] = []
-	# ONE crit stream for the whole swing, handed to every batch's `decide_all`
-	# in turn (#507). Batches run in `t` order and `OutcomeSchedule._sorted` is
-	# stable on insertion, so the stream is consumed in exactly the order a
-	# single `decide_all` over the finished hit list would have consumed it —
-	# which is why an unsevered swing rolls the identical crits it did before
-	# the interleave. #186's per-round salt is gone with the rounds.
-	var rng := CritRoll.stream_for(resolve_seed)
-
-	var chunk_start := 0
-	while chunk_start < total_steps:
-		# OPTIMISTIC BAKE: the whole remaining swing in one call, assuming
-		# nothing dies. Because a bake is a pure function of the state, walking
-		# it sample by sample and re-baking from the first death produces the
-		# bit-identical trajectory a true per-sample interleave would (#801) —
-		# at one solver call per SEVERANCE instead of one per sample.
-		var chunk := BladeSim.simulate_range(
-				state, drivers, chunk_start, total_steps - chunk_start, dt,
-				BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS,
-				true, clock)
-		var chunk_speeds := state.speed_history
-		var severed_at := -1
-		for j in range(1, chunk.samples.size()):
-			var step := chunk_start + j
-			var pose: PackedVector2Array = chunk.samples[j]
-			var speeds: PackedFloat32Array = chunk_speeds[j]
-			trajectory.samples.append(pose)
-			speed_history.append(speeds)
-			var pops_before := gate.result.pops.size()
-			if sweep != null:
-				var batch := sweep.scan_sample(float(step) * dt, pose, speeds)
-				if not batch.is_empty():
-					events.append_array(batch)
-					_land_batch(outcome, batch, state, gate, world, rng, hits)
-			# A bunker break (#781) is decided INSIDE the bake, by the field, at
-			# the substep the strain crossed the threshold — so it is checked
-			# per sample whether or not anything was hit, and severs exactly
-			# like a pop: stop, rewind, apply, re-bake.
-			var broke := obstacles != null and obstacles.has_break_at(step)
-			if gate.result.pops.size() != pops_before or broke:
-				severed_at = step
-				break
-		if severed_at < 0:
-			break
-		# REWIND TO THE DEATH. The bake above ran past it, so `state` is at the
-		# end of the swing, not at `severed_at`. The bake recorded the exact
-		# state at every sample — `prev_samples` alongside `samples`, and the
-		# clock its own bank (#803) — so landing on the severance sample is a
-		# read, not a re-run. (`_step` rewrites `prev_positions` once per
-		# SUBSTEP, so it is a mid-sample pose that `samples` alone could never
-		# recover; #801 re-baked the head of the chunk to get it before both
-		# backends emitted it.) Duplicated because `_step` writes through the
-		# reference, and the trajectory keeps these same arrays.
-		var local := severed_at - chunk_start
-		state.positions = chunk.samples[local].duplicate()
-		state.prev_positions = chunk.prev_samples[local].duplicate()
-		if clock != null:
-			clock.restore(clock.history[local])
-		if obstacles != null:
-			obstacles.restore(obstacles.history[local])
-		# THE WHOLE OF A SEVERANCE: a corpse frozen where it died, its
-		# constraints and its driver gone, and drag written onto whatever it was
-		# holding on. Nothing else — everything downstream then coasts by plain
-		# Verlet, because that is what Verlet does to a particle nothing is
-		# pulling on.
-		# The bank restored just above IS the one the break was armed in — the
-		# field banks once per sample, after that sample's substeps — so the
-		# break is consumed HERE, off the rewound field, with nothing re-run.
-		if obstacles != null:
-			var brk := obstacles.consume_break()
-			if brk != null:
-				gate._sever_edge(brk.edge_idx, float(severed_at) * dt, brk.defender, 0.0)
-		for pop in gate.result.pops:
-			if pop.particle_idx >= 0:
-				state.remove_vertex(pop.particle_idx)
-		for severance in gate.result.severances:
-			for v in severance.vertices:
-				state.set_damping(v, BladeState.SEVERED_DRAG)
-		drivers = _surviving_drivers(drivers, state, gate)
-		chunk_start = severed_at
-	state.speed_history = speed_history
-	result.trajectory = trajectory
-	result.events = events
-	result.hits = hits
-	# One coherent timeline over every batch. The record carries each hit's
-	# structural key and every peer compiles its own seconds from it.
-	outcome.schedule = OutcomeSchedule.compile(outcome)
-	# The AI's shape-risk signal: how many of the attacker's own vertices this
-	# swing actually DESTROYED. Pops only (#799) — a vertex that merely lost its
-	# path to the handle coasts on in this same trajectory and is not a loss.
-	outcome.popped_nodes += gate.result.vertex_pop_count()
-	return result
+	var run := SwingResolve.new(self, world)
+	# Unbounded: one optimistic bake per severance, exactly the loop this method
+	# ran inline before #821 hoisted it into [SwingResolve]. The slice budget is
+	# the ONLY thing the preview varies — see that class for why there is not a
+	# second chunked path.
+	while not run.advance(0):
+		pass
+	return run.result
 
 
 ## Mint, crit and LAND one sample's contacts, appending what landed to
