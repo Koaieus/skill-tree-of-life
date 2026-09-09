@@ -103,13 +103,14 @@ grep -rl "res://addons/<name>/" --include="*.tscn" --include="*.tres" --include=
 2026-09 that was **17M of the 22M of packed art with zero references**, mostly
 purchased packs kept for six files each.
 
-That was first fixed by excluding them and then fixed properly by **deleting
-them** (owner call 2026-09-04): the six pause-menu icons that justified keeping
-`Icon set 1` were re-cut from game-icons.net through `mise run icons:update`, and
-the packs went. Prefer that order — an exclusion is the holding pattern, a
-delete plus a pipeline-baked replacement is the answer, and it leaves nothing to
-go stale. The archives still in `assets/` (`icons.zip`, `border_pack.rar`, …)
-are repo weight only: Godot has no importer for them, so they were never packed.
+They are gone: the packs were deleted and the six pause-menu icons that
+justified keeping `Icon set 1` re-cut from game-icons.net through
+`mise run icons:update`. **An exclusion is the holding pattern; a delete plus a
+pipeline-baked replacement is the answer** — the grounds, and why the exclusion
+that came first was reverted rather than kept, are
+[ADR 0006](../adr/0006-unreferenced-art-is-deleted-and-re-cut-not-excluded.md).
+The archives still in `assets/` (`icons.zip`, `border_pack.rar`, …) are repo
+weight only: Godot has no importer for them, so they were never packed.
 
 If you do reach for an exclusion, two traps:
 
