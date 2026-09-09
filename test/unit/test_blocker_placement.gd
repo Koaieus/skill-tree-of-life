@@ -269,3 +269,203 @@ func _prune_seeds(blockers: Array) -> Array[int]:
 		assert_true(placement.has("prune_seed"), "every placement carries a prune seed")
 		out.append(int(placement.get("prune_seed")))
 	return out
+
+
+# ── #777: the bonus-node footprint ───────────────────────────────────────────
+
+func _footprint_of(placement: Dictionary) -> Array:
+	assert_true(placement.has("footprint"), "every placement carries a footprint")
+	return placement.get("footprint") as Array
+
+
+## Every placement's footprint sits inside its tier's authored range — the
+## count is the ONLY thing #777 pins, because the ranges themselves are the
+## owner's to tune (`owner_tunes_agents`).
+func test_footprint_count_is_within_the_authored_range_per_tier() -> void:
+	var cfg := _build_config(300, 8112)
+	cfg.blockers.blocker_min_hops_from_core = 0
+	cfg.blockers.blocker_per_small = 20
+	cfg.blockers.blocker_per_medium = 40
+	cfg.blockers.blocker_per_large = 80
+	var result: Dictionary = await _generate(cfg)
+	var blockers: Array = result.get("blockers", [])
+	assert_gt(blockers.size(), 0, "expected some blocker placements")
+	var saw_medium := false
+	for placement in blockers:
+		var size: int = placement.get("size")
+		var span := cfg.blockers.footprint_range(size)
+		var n := _footprint_of(placement).size()
+		assert_between(n, span.x, span.y,
+				"a %s blocker's footprint must sit in [%d, %d]"
+				% [GameRoot.BlockerSize.keys()[size], span.x, span.y])
+		if size == GameRoot.BlockerSize.MEDIUM:
+			saw_medium = true
+	assert_true(saw_medium, "the sample includes a tier whose range floor is > 0")
+
+
+## The whole point of growing through a frontier rather than sampling a hop
+## ball: a footprint is CONNECTED to its core, so the falloff aura's
+## hop-from-core is defined for every node it owns.
+func test_footprint_is_connected_to_its_core() -> void:
+	var cfg := _build_config(300, 616)
+	cfg.blockers.blocker_min_hops_from_core = 0
+	var graph_scene: PackedScene = load("res://graph/graph.tscn")
+	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
+	add_child(graph)
+	await get_tree().process_frame
+	var result: Dictionary = await GraphProcgen.generate(cfg, graph)
+	for placement in result.get("blockers", []):
+		var owned := {(placement.get("node") as SkillNode).get_instance_id(): true}
+		var pending: Array = _footprint_of(placement).duplicate()
+		# Repeatedly absorb any pending node adjacent to what is already owned.
+		# A footprint that never drains is disconnected from its core.
+		var progressed := true
+		while progressed and not pending.is_empty():
+			progressed = false
+			for i in range(pending.size() - 1, -1, -1):
+				var node: SkillNode = pending[i]
+				for nb in graph.get_neighbours(node):
+					if owned.has(nb.get_instance_id()):
+						owned[node.get_instance_id()] = true
+						pending.remove_at(i)
+						progressed = true
+						break
+		assert_eq(pending.size(), 0,
+				"footprint of the blocker at %s is disconnected from its core"
+				% str((placement.get("node") as SkillNode).position))
+
+
+## No node belongs to two Dormant Cores, and no footprint node is a core, a
+## starter or a keystone — the claim set covers cores placed LATER in the tier
+## order, not just the ones already grown.
+func test_footprints_never_overlap_a_claim_a_starter_or_a_keystone() -> void:
+	var cfg := _build_config(300, 2024)
+	cfg.blockers.blocker_min_hops_from_core = 0
+	var sp := StartingPoint.new()
+	sp.position = Vector2.ZERO
+	cfg.starting.starting_points.append(sp)
+	var kp := KeystonePlacement.new()
+	kp.keystone = _KEYSTONE
+	cfg.content.guaranteed_placements.append(kp)
+	var result: Dictionary = await _generate(cfg)
+
+	var starter_ids := {}
+	for sn in result.get("starting_nodes", []):
+		starter_ids[(sn as SkillNode).get_instance_id()] = true
+	var claimed := {}
+	for placement in result.get("blockers", []):
+		var core: SkillNode = placement.get("node")
+		assert_false(claimed.has(core.get_instance_id()), "a core is claimed once")
+		claimed[core.get_instance_id()] = true
+	var total_footprint := 0
+	for placement in result.get("blockers", []):
+		for node: SkillNode in _footprint_of(placement):
+			total_footprint += 1
+			assert_false(claimed.has(node.get_instance_id()),
+					"node at %s is claimed twice" % str(node.position))
+			assert_false(starter_ids.has(node.get_instance_id()),
+					"a footprint node must not be a starter core")
+			assert_null(node.keystone, "a footprint node must not be a keystone")
+			claimed[node.get_instance_id()] = true
+	assert_gt(total_footprint, 0, "expected the sample to grow some footprints")
+
+
+## #777 decision 6 — the safe radius guards the whole TERRITORY, not just the
+## node the Dormant Core sits on. A 3-node footprint reaching into a camp's
+## opening ball is exactly the "boxed in by boulders" failure #300 named.
+func test_no_footprint_node_inside_the_core_safe_radius() -> void:
+	var cfg := _build_config(300, 31337)
+	cfg.starting.starter_placement = CenterCoreStarters.new()
+	cfg.camp_sizes = [3]
+	cfg.blockers.blocker_min_hops_from_core = 6
+	var graph_scene: PackedScene = load("res://graph/graph.tscn")
+	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
+	add_child(graph)
+	await get_tree().process_frame
+	var result: Dictionary = await GraphProcgen.generate(cfg, graph)
+
+	var starting_nodes: Array = result.get("starting_nodes", [])
+	var forbidden := _hops_from(graph, result.get("nodes", []), starting_nodes, 6)
+	var seen_any := false
+	for placement in result.get("blockers", []):
+		for node: SkillNode in _footprint_of(placement):
+			seen_any = true
+			assert_false(forbidden.has(node.get_instance_id()),
+					"footprint node at %s is within 6 hops of a core" % str(node.position))
+	assert_true(seen_any, "expected footprints to exist outside the safe radius")
+
+
+func _footprint_positions(blockers: Array) -> Array:
+	var out := []
+	for placement in blockers:
+		var per := []
+		for node: SkillNode in (placement.get("footprint") as Array):
+			per.append(node.position)
+		out.append(per)
+	return out
+
+
+func test_same_seed_same_footprints() -> void:
+	var result_a: Dictionary = await _generate(_build_config(200, 5150))
+	var result_b: Dictionary = await _generate(_build_config(200, 5150))
+	var fa := _footprint_positions(result_a.get("blockers", []))
+	assert_gt(fa.size(), 0, "expected some blocker placements")
+	assert_eq(fa, _footprint_positions(result_b.get("blockers", [])),
+			"same seed must yield identical footprints")
+
+
+## The footprint draws are APPENDED to the blocker stream, after the cores and
+## the prune seeds — so turning footprints on cannot move a blocker or change
+## what it offers. Same guard, and same reason, as
+## `test_prune_seed_stream_does_not_shift_placements`.
+func test_footprint_stream_does_not_shift_placements_or_prune_seeds() -> void:
+	var cfg_off := _build_config(200, 5150)
+	cfg_off.blockers.footprint_small_min = 0
+	cfg_off.blockers.footprint_small_max = 0
+	cfg_off.blockers.footprint_medium_min = 0
+	cfg_off.blockers.footprint_medium_max = 0
+	cfg_off.blockers.footprint_large_min = 0
+	cfg_off.blockers.footprint_large_max = 0
+	var off: Dictionary = await _generate(cfg_off)
+	var on: Dictionary = await _generate(_build_config(200, 5150))
+
+	assert_eq(_positions(on.get("blockers", [])), _positions(off.get("blockers", [])),
+			"footprints must not move a single blocker")
+	assert_eq(_prune_seeds(on.get("blockers", [])), _prune_seeds(off.get("blockers", [])),
+			"footprints must not change a single prune seed")
+	var grown := 0
+	for placement in on.get("blockers", []):
+		grown += (placement.get("footprint") as Array).size()
+	assert_gt(grown, 0, "the on-config actually grew something")
+
+
+## Shrink-to-fit, not steal-a-claim: a range asking for more neighbours than the
+## map can spare hands back what fits and drops nobody. Every tier at denom 5 on
+## a small board saturates the eligible pool by construction.
+func test_footprint_shrinks_to_fit_a_saturated_board() -> void:
+	var cfg := _build_config(60, 4711)
+	cfg.blockers.blocker_min_hops_from_core = 0
+	cfg.blockers.blocker_per_small = 5
+	cfg.blockers.blocker_per_medium = 5
+	cfg.blockers.blocker_per_large = 5
+	cfg.blockers.footprint_small_min = 6
+	cfg.blockers.footprint_small_max = 6
+	cfg.blockers.footprint_medium_min = 6
+	cfg.blockers.footprint_medium_max = 6
+	cfg.blockers.footprint_large_min = 6
+	cfg.blockers.footprint_large_max = 6
+	var result: Dictionary = await _generate(cfg)
+	var blockers: Array = result.get("blockers", [])
+	assert_eq(blockers.size(), 36, "the blocker COUNT is never what shrinks (3 × 60/5)")
+	var claimed := {}
+	var short := 0
+	for placement in blockers:
+		claimed[(placement.get("node") as SkillNode).get_instance_id()] = true
+		var n := _footprint_of(placement).size()
+		assert_lte(n, 6, "never more than the roll")
+		if n < 6:
+			short += 1
+		for node: SkillNode in _footprint_of(placement):
+			assert_false(claimed.has(node.get_instance_id()), "still no double claim")
+			claimed[node.get_instance_id()] = true
+	assert_gt(short, 0, "a saturated board must actually shrink some footprint")

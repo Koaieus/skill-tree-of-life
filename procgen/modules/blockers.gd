@@ -23,6 +23,22 @@ const MIN_BLOCKER_PER := 5
 ## [constant MIN_BLOCKER_PER] is clamped up to it at placement time. The
 ## `size` value in a returned placement is the [GameRoot.BlockerSize] int
 ## (0/1/2).
+##
+## [b]Rebalanced in #777.[/b] The defaults were 10/25/100 when a Dormant Core
+## held exactly one node; a footprint roughly triples its board share, and that
+## combination would have put ~42% of an 800-node map under a blocker. 30/50/100
+## is 50 blockers and ~20.5% owned — and the lobby's "Regular" rung is authored
+## to the same three numbers, so a direct sandbox launch and the lobby's normal
+## play the same game.
+##
+## The rest of the lobby ladder (`ui/frontmatter/lobby_options/blocker_options.tres`)
+## was re-pitched against the same footprint cost, since every rung got denser
+## for free: Few 40/80/125, Lots 20/35/70 (~29% owned), Heavy 15/25/50 (~41%).
+## The old Lots (6/14/50) and Heavy (5/8/25) claimed 74% and >100% of the board
+## respectively once footprints landed — "Heavy" would have silently degraded
+## into "every eligible node is a blocker", because a tier count clamps to the
+## eligible pool and footprints shrink to fit. A rung has to stay PLACEABLE to
+## mean anything.
 @export_range(0, 200, 1, "or_greater") var blocker_per_small: int = 30
 @export_range(0, 200, 1, "or_greater") var blocker_per_medium: int = 50
 @export_range(0, 200, 1, "or_greater") var blocker_per_large: int = 100

@@ -244,3 +244,100 @@ func test_same_prune_seed_spawns_the_same_book_on_every_peer() -> void:
 	var a := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, [], 4242, 1.0)
 	var b := gr.spawn_blocker(GameRoot.BlockerSize.MEDIUM, null, [], 4242, 1.0)
 	assert_eq(a.spellbook.spells, b.spellbook.spells, "same seed → same book")
+
+
+# ── #777: the bonus-node footprint and its falloff ───────────────────────────
+
+## A straight chain hanging off `_nodes[2]`, so a blocker cored at `_nodes[2]`
+## has somewhere to grow. Returns the new nodes in hop order (hop 1 first).
+func _extend_chain(count: int) -> Array[SkillNode]:
+	var out: Array[SkillNode] = []
+	var prev: SkillNode = _nodes[2]
+	for i in count:
+		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
+		sn.name = "F%d" % i
+		_graph.skill_nodes_container.add_child(sn)
+		_add_edge(prev, sn)
+		prev = sn
+		out.append(sn)
+		_nodes.append(sn)
+	await get_tree().process_frame
+	return out
+
+
+func _game_root() -> GameRoot:
+	var gr := GameRoot.new()
+	autofree(gr)
+	gr.graph = _graph
+	gr.allocation_system = _alloc
+	return gr
+
+
+func test_spawn_blocker_force_allocates_every_footprint_node() -> void:
+	var chain := await _extend_chain(3)
+	var blocker := _game_root().spawn_blocker(GameRoot.BlockerSize.MEDIUM, _nodes[2], chain)
+	assert_eq(_nodes[2].owned_by, blocker, "the core is still the core")
+	assert_eq(blocker.core_location, _nodes[2], "core_location is the CORE, not a footprint node")
+	for node in chain:
+		assert_eq(node.owned_by, blocker, "footprint node %s is owned" % node.name)
+
+
+## The acceptance formula, read through the live `node_health` path (#660)
+## rather than any stored value: cap = the owner's CON-derived baseline minus
+## 5 per hop from the core, over the owned subgraph. The core is at hop 0 and
+## keeps its full authored HP — [ProportionalScale] puts the source at scale 0.
+func test_footprint_node_health_falls_off_five_per_hop() -> void:
+	var chain := await _extend_chain(3)
+	_game_root().spawn_blocker(GameRoot.BlockerSize.MEDIUM, _nodes[2], chain)
+	await get_tree().process_frame
+	var base := _nodes[2].get_max_hp()
+	assert_eq(base, 40.0, "tier-2 board → an unmodified node caps at 40")
+	for hop in range(1, chain.size() + 1):
+		assert_eq(chain[hop - 1].get_max_hp(), base - 5.0 * hop,
+				"hop %d caps at base − 5×%d" % [hop, hop])
+
+
+## The clamp is the footprint bound, not a stat floor (#777 decision 5): a
+## small tops out at hop 2 (20 − 10 = 10), so nothing ever reaches zero.
+func test_a_small_blockers_deepest_footprint_node_still_has_health() -> void:
+	var chain := await _extend_chain(2)
+	_game_root().spawn_blocker(GameRoot.BlockerSize.SMALL, _nodes[2], chain)
+	await get_tree().process_frame
+	assert_eq(_nodes[2].get_max_hp(), 20.0, "tier-1 board → 20 at the core")
+	assert_eq(chain[0].get_max_hp(), 15.0, "hop 1")
+	assert_eq(chain[1].get_max_hp(), 10.0, "hop 2 — half, never zero")
+
+
+## An explicit empty footprint is the default, and the aura is granted anyway:
+## the grant is what makes a peer rebuild idempotent, and on a lone core it is
+## inert because the only node in scope is the source itself.
+func test_a_footprintless_blocker_is_todays_blocker_with_an_inert_aura() -> void:
+	var blocker := _game_root().spawn_blocker(GameRoot.BlockerSize.MEDIUM, _nodes[2])
+	await get_tree().process_frame
+	assert_eq(_nodes[2].get_max_hp(), 40.0, "the lone core keeps its full HP")
+	var owned := 0
+	for sn in _nodes:
+		if sn.owned_by == blocker:
+			owned += 1
+	assert_eq(owned, 1, "one node, exactly as before #777")
+	var falloff := 0
+	for inst in blocker.get_effects():
+		if inst.effect is AuraEffect and inst.effect.display_name == "Dormant Reach":
+			falloff += 1
+			assert_eq(inst.node_targets().size(), 0, "inert: the source is at scale 0")
+	assert_eq(falloff, 1, "granted exactly once")
+
+
+## Deallocating a footprint node re-derives the aura rather than leaving a
+## stale cap behind — the kill-strip cascade is the normal way a Dormant Core
+## loses territory, so this is the path players actually take.
+func test_losing_a_footprint_node_re_derives_the_remaining_caps() -> void:
+	var chain := await _extend_chain(3)
+	var blocker := _game_root().spawn_blocker(GameRoot.BlockerSize.MEDIUM, _nodes[2], chain)
+	await get_tree().process_frame
+	assert_eq(chain[2].get_max_hp(), 25.0, "hop 3 before the cut")
+	_alloc.force_deallocate(chain[0])
+	await get_tree().process_frame
+	# hop 1 is gone, so the outer two are no longer reachable over owned nodes.
+	assert_eq(chain[0].owned_by, null, "the cut node is unowned")
+	assert_eq(_nodes[2].get_max_hp(), 40.0, "the core is untouched by the cut")

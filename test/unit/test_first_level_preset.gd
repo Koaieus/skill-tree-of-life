@@ -20,9 +20,13 @@ func test_preset_loads() -> void:
 	assert_eq(cfg.content.weight_profiles.size(), 1, "profiles: archetype only (radial band profile deleted in #552)")
 	assert_not_null(cfg.content.budget_policy)
 	assert_eq(cfg.content.guaranteed_placements.size(), 3)
-	assert_eq(cfg.blockers.blocker_per_small, 10, "blocker_per_small default (#477)")
-	assert_eq(cfg.blockers.blocker_per_medium, 25, "blocker_per_medium default (#477)")
-	assert_eq(cfg.blockers.blocker_per_large, 100, "blocker_per_large default (#477)")
+	# Rebalanced in #777: the footprint pass roughly triples a blocker's board
+	# share, so the density that shipped with one-node blockers (10/25/100) would
+	# have put ~42% of an 800-node map under a Dormant Core. 30/50/100 lands at
+	# ~20.5%, and the lobby's "Regular" rung is authored to the same values.
+	assert_eq(cfg.blockers.blocker_per_small, 30, "blocker_per_small default (#477, #777)")
+	assert_eq(cfg.blockers.blocker_per_medium, 50, "blocker_per_medium default (#477, #777)")
+	assert_eq(cfg.blockers.blocker_per_large, 100, "blocker_per_large default (#477, #777)")
 
 
 func test_modifiers_rolled_on_nodes() -> void:
