@@ -527,9 +527,11 @@ almost guaranteed to hit, and if not, no biggie."* Spacing luck for **bunkers**
 was the real defect, and capsules fix it.
 
 **Severance is a set, not a splice** — and since ADR 0005 the *only* thing that
-will sever an edge is #781's bunker break, a rigid blade shattering against an
+severs an edge is #781's bunker break, a rigid blade shattering against an
 obstacle. `LiveGate._sever_edge`, `BladeState.removed_edges` and `remove_edge()`
-are kept as that seam and currently have no production caller.
+were kept as that seam through #785/#799/#801 with no production caller;
+`BladeObstacleField` (see "Bunker deflection (#781)" below) is now its first
+and, per ADR 0005, only caller.
 `BladeState.removed_edges` records severed indices; `state.edges` is never spliced, because a `BladeHitEvent` carries an
 `edge_idx` *into* it and a splice would silently re-point every pending event.
 That also keeps #795's cached adjacency map valid after a severance — the map
@@ -757,6 +759,205 @@ one per ghost cycle (a clock banks what it has already touched, so reusing one
 would start cycle 2 already dragged). Without that the ghost would promise an arc
 the committed swing does not deliver.
 
+## Bunker deflection (#781)
+
+A node with `deflection > 0` — base 0, only `BunkerAddon` authors it — is a
+solid obstacle. `BladeObstacleField` (`attack/melee/sim/blade_obstacle_field.gd`)
+pushes every vertex disc and every rim-trimmed edge capsule back out of the
+plate's disc, every solver iteration, **after** the distance constraints —
+`BladeSim._step` runs it last in the pass so the pass ends outside every plate.
+Most blades flop around a bunker and nothing happens; a blade too rigid to yield
+gets driven a fixed distance into the plate and then **breaks** — never the
+vertex that touched it (ADR 0005: a spike destroys matter, a bunker destroys
+structure). This is `attack/plan/melee_attack_plan.gd`'s `build_obstacle_field`
+attaching a field to `BladeState.obstacles` (mirroring `build_swing_clock`'s
+cull and blade-side exclusion), and the resolve loop's `consume_break` handling
+inside `resolve_against` (below) is what actually severs it.
+
+### The metric is the DRIVER's residual, never the contact point or the constraint residual
+
+The issue's own first formulation measured the *contacting vertex's* own
+unresolved pushout (`required - |final - pre-projection|`), and ADR 0005 named
+the PBD *distance-constraint residual* as the strain. Both are wrong for the
+same reason: a driven particle is not pinned during the projection pass — only
+the pivot carries `inv_mass 0` — so a rigid body resolves either metric
+**completely**, by rotating back **as a whole**, and both read "fully resolved"
+in exactly the case that should shatter.
+
+Measured 2026-09-09 on hand-built blades (`test/unit/attack/test_bunker_deflect.gd`),
+default solver config — `BladeSim.DEFAULT_ITERATIONS` 16 over `DEFAULT_SUBSTEPS`
+4, 60px node spacing, 24px vertex radius, 32px plate:
+
+| blade | driver residual (peak, px) |
+|---|---|
+| bare spine, 4 nodes | 0.74 |
+| bare spine, 8 nodes | 0.42 |
+| bare spine, 8 nodes, double sweep speed | 1.68 |
+| clamped spine (welded joints) | 16.31 — breaks its tip edge |
+| truss (induced) | 40.18 — breaks edge 10, the tip rung |
+
+At 32 iterations the same five rows read 0.84 / — / — / 37.94 / 71.62: more
+sweeps make a floppy blade resolve the pushout *more* completely (its number
+falls toward 0) and leave a rigid one exactly as stalled, so raising fidelity
+**sharpens the separation, never shifts the verdict** — this is what
+`SHATTER_DISTANCE`'s doc comment means by "bounded, not eliminated" (see
+"#790: substepped + length-scaled" above for the fidelity axis itself).
+**The issue body's contact-point metric and ADR 0005's distance-constraint
+residual both read exactly 0.00 on every rigid case measured** — the clamped
+spine and the truss alike — while the driver residual is the only one of the
+three that separates floppy (under 2px) from rigid (16–72px).
+
+The metric in one sentence: each substep, the arc drivers place the grip
+particles where the swing *should* be, and the projection pass then moves them
+to where the blade *can* be. For a floppy blade a bunker contact is absorbed by
+a fold — the grip keeps up with its own driver and the unresolved advance is
+~0. For a rigid blade no fold exists — the whole body pushes back against the
+driver, so the grip ends the substep roughly where it started, and the
+unresolved advance is close to the full `speed * dt`. Summed over a contact,
+clamped at `>= 0` (a step where the blade catches up *subtracts*, which is the
+bleed that washes out a transient hold — acceptance item 12 in the issue),
+crossing `SHATTER_DISTANCE` arms a break. No rigidity computation is needed —
+whether the blade yielded *is* the rigidity measurement, per the issue's "do
+not add a hop-count or rigidity rule" decision.
+
+### What breaks, and how the edge is chosen
+
+ADR 0005: contact and failure need not coincide. The contact is usually at a
+vertex — discs stick out past the capsules, which are trimmed to each
+endpoint's rim — so the vertex survives and the force goes into its incident
+edges. Each substep `BladeObstacleField.end_substep` banks the unresolved drive
+onto every *live* edge incident to a pushed vertex, in proportion to
+`|normal . edge_direction|` — how squarely the plate's push runs along it — and
+onto any edge directly touched by its own capsule contact, at full share. Once
+a zone's accumulated strain crosses `SHATTER_DISTANCE` (8px), the most-strained
+live edge banked against that zone breaks, ties going to the lowest index
+(`_pick_edge`). On a truss this is the outermost triangulated rung, not
+necessarily the edge nearest the contact vertex — whichever edge actually
+carried the load.
+
+### The grip: a hard stall, not a break
+
+A contact on a *driven* particle — a pivot neighbour, per `BladeArcDriver` —
+calls `BladeSwingClock.stall()` instead of accumulating strain: the clock
+freezes (`warp()` returns exactly 0 from then on, still monotonic — `_f` gains
+nothing, never loses it), the grip sits on the plate, nothing pops or breaks,
+and everything outboard keeps simulating on its own momentum. Owner,
+2026-09-07: *"hard stall works and is less punishing than a shatter; remainder
+of blade parts continue simulating and can flail and whip."* This is what
+dissolves the exploit the owner named — *"picking handle directly next to
+enemy bunker so driven handle guarantees to clip the bunker"* — because doing
+so stalls your own swing on the first substep and sweeps almost nothing.
+Self-punishing, no exemption, no third mechanic.
+
+### Sim state, rewind, and where the sever actually lands
+
+`BladeObstacleField` is sim state, exactly like `BladeSwingClock`: per-zone
+strain, per-zone edge-load banks, the driven-particle history and the pending
+break are captured/restored by its own `Bank` class, in lockstep with
+`MeleeAttackPlan.resolve_against`'s chunked replay (`snap_field` alongside
+`snap_bank`). A break is never applied directly — `end_substep` only *arms* a
+`BladeObstacleField.Break` (edge index, the GLOBAL step it armed on, the
+defender). The resolve loop's per-sample walk checks
+`obstacles.has_break_at(step)` exactly alongside a pop
+(`gate.result.pops.size()` changing): either one stops the walk, rewinds to the
+chunk's snapshot, and replays the head to land bit-identically on the
+severance sample — the same "#803 deletes this" head-replay workaround the
+pop path already pays for (see "The head replay" above). *Only after* that
+replay does the loop call `obstacles.consume_break()` and sever through
+`BladePopResolver.LiveGate._sever_edge` — the identical call a spike pop
+takes, so the identical `_disintegrate_unreachable` cascade fires and every
+`edge_idx`/`particle_idx` stability invariant from #785/#799/#801 is
+untouched. `BladeObstacleField` itself never mutates `state.constraints` or
+`state.edges`; an optimistic bake stays a pure function the loop can rewind.
+Self-limiting by construction, same as any severance: once the edge is gone
+that region is floppy, so the next contact yields, and the blade flows past —
+one break, then through.
+
+### The zero-bunker structural guard
+
+`build_obstacle_field` attaches a field to `BladeState.obstacles` only when a
+node with `deflection > 0` is within the blade's reach; with none, `obstacles`
+stays null. No field means no accumulator is ever allocated and no pushout
+ever runs — the strain metric is never "did this vertex move?" in general,
+only ever "how much of *this bunker's* requested pushout went unmet," so a map
+with zero bunkers cannot produce a break by construction, at any blade size or
+speed. This is the owner's false-positive concern, 2026-09-08, answered
+structurally rather than by tuning: *"a false positive would be devastating…
+a false negative is basically wallhacks like clipping through solids."*
+
+### The penetration budget
+
+`SHATTER_DISTANCE` (8px) doubles as the visual penetration budget. Because the
+pushout runs every solver iteration regardless of accumulated strain, a vertex
+can never rest deeper than `CONTACT_SLOP` (1px) plus one substep's travel —
+measured max observed penetration across the classification tests is 1.00px,
+i.e. exactly the slop. `CONTACT_SLOP` is not zero on purpose: `BladeHitScan`
+has to *see* the overlap for the ordinary mitigated hit to register (two
+exactly-tangent circles are not a reliable physics-query overlap), and it also
+keeps a resting contact from jittering. `CONTACT_HYSTERESIS` (4px) keeps a
+contact "ongoing" across the jitter of entering and leaving the slop band every
+substep, so strain doesn't spuriously reset mid-contact — only once nothing is
+within the band does a zone's accumulator reset. Edge capsules get no slop:
+an edge deals no damage, so nothing needs to see it touch.
+
+### The hit still lands — this mechanism doesn't gate it
+
+The mitigated hit the issue asks for ("still lands the hit [bunker reduces it
+anyway]") is not something this mechanism produces — it is the ordinary
+`BladeHitScan` contact between the vertex disc and the bunker's collision
+shape, already running `Mitigation.compute` against the bunker's `armor` /
+`min_damage_taken` before this issue existed. `BladeObstacleField` adds the
+deflection and the break on top; it never suppresses or replaces that hit.
+
+### No pop budget — `node_health` IS the budget
+
+Unlike `SpikeRingAddon`'s `spikes` pool (#778), a break costs the bunker
+nothing beyond what it already pays every hit. Owner, 2026-09-08: *"Plate
+integrity (or we would call it `tegridy` of course) is a great idea but i
+think we could at best hint at it in a comment while we pick option 2. Bunker
+nodes still take damage! Although likely less than usual they are not
+immortal. Spikes are offensively useful so we limit their defensive use."*
+Every contact still lands a mitigated hit (above), so a bunker that keeps
+stopping blades chips its own `node_health` every time; `armor` /
+`min_damage_taken` only slow that, never stop it. `BladeObstacleField`'s class
+doc *hints*, rather than builds, a dedicated `plate_integrity` pool as the
+coherent next step if HP ever proves too coarse a meter — a comment, not a
+stat, not a def, not plumbing.
+
+### The GDScript-backend consequence
+
+`BladeSim.simulate_range` takes the native backend only when
+`clock == null and obstacles == null and step_offset == 0 and damping.is_empty()`
+— an attached field forces the GDScript solver, joining the drag clock,
+per-particle damping and a continued Verlet history on the list of things the
+C++ transliteration does not model (until #798/#803 close the gap). An
+ordinary swing with no bunker in reach is untouched and still takes native.
+
+### The ghost jams, and does not break
+
+`MeleePreview`'s ghost loop builds its own fresh `BladeObstacleField` per
+cycle, the same way it builds its own fresh `BladeSwingClock` (a field banks
+what it has already touched, so reusing one across cycles would start cycle 2
+already strained). The ghost therefore **jams** on a plate exactly the way the
+committed swing will — a rigid blade stops dead against it — but it never
+*breaks* one: the break is decided and applied only inside
+`MeleeAttackPlan.resolve_against`'s resolve loop, which the ghost never runs.
+Showing a stalled, unbroken blade is the honest promise: the ghost previews
+the arc the AI scores, not the outcome a live severance would produce.
+
+### Known residue: a second break by the same vertex against the same bunker lands no second hit
+
+`BladeHitScan`'s counting rule is per-element-per-collider dedup across the
+*whole sweep*, on first contact ("Edge collision (#785)" above) — a vertex
+that has already produced a hit event against a given collider does not
+produce a second one against the same collider, however many more times they
+touch. If a vertex's incident edge breaks against a bunker, and that same
+vertex (now less constrained) drifts back into the *same* bunker's disc later
+in the same swing, `BladeObstacleField` can still accumulate strain and arm a
+second edge break there — but the mitigated hit that "still lands" alongside a
+break does not repeat, because the vertex/bunker pair already emitted its one
+event. The break is real; the damage from the second contact is not.
+
 ## Severance is a constraint removal (#801, supersedes #186's free flight)
 
 When a spike pop kills a blade vertex, everything downstream of it stops being
@@ -829,8 +1030,10 @@ severance is born, whatever removed the vertex. It appends a
 information reaches the continuation, deliberately:
 
 * a **spike pop** produces one today;
-* **#781's bunker break** will produce one through the identical call, and needs
-  no continuation code at all.
+* **#781's bunker break** produces one through the identical call
+  (`BladeObstacleField`'s pending break is severed via
+  `BladePopResolver.LiveGate._sever_edge`, see "Bunker deflection" below), and
+  needed no continuation code at all.
 
 `test_the_continuation_is_a_function_of_topology_not_of_trigger` pins it: the
 same constraint set and inverse masses reached by `remove_vertex` and reached by
@@ -1180,6 +1383,8 @@ a turn, and whether `LENGTH_ECC_CEILING` should sit closer to or further from
 4. `attack/melee/sim/blade_constraint.gd` + `blade_distance_constraint.gd`
 5. `attack/melee/sim/blade_driver.gd` + `blade_arc_driver.gd`
 6. `attack/melee/sim/blade_hit_scan.gd`
-7. `attack/melee/skill_blade.gd` (visual wrapper)
-8. `attack/plan/melee_attack_plan.gd` (`resolve()`)
-9. `attack/melee/melee_preview.gd` (ghost loop)
+7. `attack/melee/sim/blade_swing_clock.gd` (Fortification drag, #780)
+8. `attack/melee/sim/blade_obstacle_field.gd` (Bunker deflection, #781)
+9. `attack/melee/skill_blade.gd` (visual wrapper)
+10. `attack/plan/melee_attack_plan.gd` (`resolve()`, `build_obstacle_field`)
+11. `attack/melee/melee_preview.gd` (ghost loop)

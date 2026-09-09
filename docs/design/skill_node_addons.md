@@ -20,13 +20,73 @@ These are established mechanics referenced consistently in the design docs.
 
 ---
 
-### Armor Ring
+### Armor Ring — shipped as **Bunker** (`skill_node/addons/bunker_addon.gd`)
 
-**Effect:** Increases this node's damage resistance — reduces `taken` for all attack types hitting this specific node. The node-level version of the `armor` entity stat.
+> The code and every other doc (`docs/domain/melee-blade-sim.md`, ADR 0005,
+> `docs/domain/attack-timeline.md`) call this addon **Bunker**; "Armor Ring" is
+> this doc's older name for the same `bunker_addon.tscn` — the icon mapping
+> (`assets/icons/addons/mapping.txt`: `addon_bunker → quoting/bunker-assault.svg`)
+> and the class docstring's "Casemate plating" flavor confirm it's one addon,
+> not two.
 
-**Stacks with:** Entity-level `armor` stat. A node's effective armor is its share of the entity total plus any Armor Ring modifier.
+**Effect:** Two authored modifiers (`bunker_addon.tscn`) — `+5 armor` and
+`-5 min_damage_taken` — reduce `taken` for every attack type hitting this
+specific node, the node-level version of the `armor` entity stat. **Plus a
+third, characteristic effect shipped in #781: `+1 deflection`.** Above 0,
+`deflection` makes the node a solid obstacle a melee blade cannot pass
+through — every vertex disc and edge capsule that penetrates its plate is
+pushed back out inside the solver. Most blades (floppy ones) simply flop
+around it: no pop, no break, the mitigated hit still lands as normal. **A
+blade too rigid to yield — driven a fixed distance into the plate — breaks**,
+but per [ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md) a
+bunker **destroys structure, never matter**: the contacting vertex survives,
+and the edge that carried the most load into the plate breaks instead. A
+driven grip particle (one of the wielder's own pivot-adjacent nodes) touching
+the plate instead **hard-stalls the swing's clock** — the swing bogs to a
+dead halt right there, mitigated hit still landing, nothing popped, while the
+rest of the blade keeps flailing on its own momentum.
 
-**Notes:** The simplest defensive addon. Makes individual nodes harder to dislodge. A cluster of Armor Ring nodes is a fortified zone that requires sustained pressure to break through.
+**Stacks with:** Entity-level `armor` stat, exactly as before. `deflection`
+does not stack usefully with itself on one node (presence, not magnitude, is
+what matters today) but a ring of Bunker nodes is a wall a rigid blade must
+break through edge by edge, each break costing the plate's own `node_health`.
+
+**Notes:** The simplest defensive addon, now with a second job: it doesn't
+just make individual nodes harder to dislodge, it makes a shape a blade
+cannot simply run over. Owner rulings that shaped the shipped behaviour:
+
+- **The physical stop, not just a damage reduction.** Owner, 2026-09-07:
+  *"maybe this sole exception should shatter/break the blade (or like, just
+  pop the offending node hitting the bunker; but still landing the hit
+  [bunker reduces it anyway]). immovable object hit by infinite force -> just
+  take out the offender. BUT can we reliably detect it like 'we can't sim the
+  next step because a rigid blade is trying to pass through a bunker that
+  deflects it'? because this is really an exception, most blades should be
+  able to mitigate this - flop *around* it or let part of floppy blade flip
+  direction just fine, i think"* — the "pop the offending node" framing was
+  later superseded (below), but the floppy-flops/rigid-breaks split is exactly
+  what shipped.
+- **A bunker destroys structure, never matter.** Owner, 2026-09-08, verbatim:
+  *"yes: bunkers destroy structure, never matter"* — matter is vertices,
+  structure is edges (ADR 0005). This is why the contacting vertex is never
+  the thing that breaks.
+- **The grip is a hard stall, not a break.** Owner, 2026-09-07: *"hard stall
+  works and is less punishing than a shatter; remainder of blade parts
+  continue simulating and can flail and whip."* This is what defeats the
+  handle-next-to-bunker exploit the owner named in the same comment
+  (*"picking handle directly next to enemy bunker so driven handle guarantees
+  to clip the bunker"*) — doing so now stalls your own swing immediately.
+- **No separate pop budget.** Owner, 2026-09-08: *"Plate integrity (or we
+  would call it `tegridy` of course) is a great idea but i think we could at
+  best hint at it in a comment while we pick option 2. Bunker nodes still
+  take damage! Although likely less than usual they are not immortal. Spikes
+  are offensively useful so we limit their defensive use."* A bunker's own
+  `node_health` is the budget — every break still lands a mitigated hit on
+  the plate itself, so a bunker that keeps stopping blades eventually dies to
+  them. Unlike Spikes' `spikes` pool (#778), which meters a *dual-use*
+  addon's defensive half, Bunker is purely defensive and pays no second cost.
+
+Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
 
 ---
 
