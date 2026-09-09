@@ -9,6 +9,7 @@ paths:
   - "procgen/graph_procgen_config.gd"
   - "scenes/game_root.gd"
   - "effects/blocker_footprint_falloff.tres"
+  - "entity/blocker/blocker_core.tres"
 ---
 
 A **Dormant Core** is an entity that holds a small patch of territory — a core

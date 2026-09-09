@@ -171,7 +171,9 @@ func test_spawn_blocker_spawns_with_tiered_board_and_spellbook() -> void:
 	assert_eq(blocker.core_location, _nodes[2], "core force-allocated")
 	assert_eq(_nodes[2].owned_by, blocker, "blocked node owned by the blocker")
 	assert_eq(_nodes[2].get_max_hp(), 40.0, "tier-2 board → node HP 40")
-	assert_null(blocker.core_class, "no CoreClass")
+	assert_eq(blocker.core_class, _BLOCKER_CORE,
+			"the scene authors the Dormant Core class — that is what carries the falloff")
+	assert_eq(blocker.core_class.pickable_in, 0, "and no lobby slot may choose it")
 	assert_not_null(blocker.spellbook, "spellbook is a non-null resource")
 	assert_eq(blocker.spellbook.spells.size(), 3, "medium spellbook carries its authored tier (#586 re-tier)")
 
@@ -266,6 +268,7 @@ func _extend_chain(count: int) -> Array[SkillNode]:
 
 
 const _FALLOFF := preload("res://effects/blocker_footprint_falloff.tres")
+const _BLOCKER_CORE := preload("res://entity/blocker/blocker_core.tres")
 
 
 ## The authored `-5` per hop, read off the resource rather than pinned here:
@@ -321,9 +324,10 @@ func test_a_small_blockers_deepest_footprint_node_still_has_health() -> void:
 	assert_eq(chain[1].get_max_hp(), 20.0 - per_hop * 2.0, "hop 2")
 
 
-## An explicit empty footprint is the default, and the aura is granted anyway:
-## the grant is what makes a peer rebuild idempotent, and on a lone core it is
-## inert because the only node in scope is the source itself.
+## An explicit empty footprint is the default, and the aura still arrives — it
+## rides `blocker_core.tres`'s `effects` array, so [method Entity._ready] grants
+## it on every blocker regardless. On a lone core it is inert: the only node in
+## scope is the source, and [ProportionalScale] puts that at scale 0.
 func test_a_footprintless_blocker_is_todays_blocker_with_an_inert_aura() -> void:
 	var blocker := _game_root().spawn_blocker(GameRoot.BlockerSize.MEDIUM, _nodes[2])
 	await get_tree().process_frame

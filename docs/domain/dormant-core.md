@@ -134,7 +134,18 @@ cut vertex and wall off a pocket. The kill-strip is the door.
 Every Dormant Core carries `effects/blocker_footprint_falloff.tres`, one shared
 `AuraEffect`: `reach: null`, `scope: OWNED`, `metric: HopMetric`,
 `distance_scale: ProportionalScale(per_unit = 1.0)`, one modifier
-`node_health ADD_BASE -5`. So an owned node caps at **the size's CON-derived
+`node_health ADD_BASE -5`.
+
+**It arrives through the ordinary `CoreClass.effects` seam, not a `grant_effect`
+call.** `blocker_entity.tscn` authors `core_class = entity/blocker/blocker_core.tres`,
+and `Entity._ready` applies it on `add_child` — so `spawn_blocker` contains no
+line about the aura at all, and retuning or replacing it is an inspector edit.
+That class exists to be a Dormant Core's *composition*, never a pick: it carries
+no modifiers, no sigil and no turn hook, sets `pickable_in = 0`, is absent from
+`core_class_roster.tres`, and is filed under `entity/blocker/` rather than
+`entity/core/` so `CoreClass.load_all()` cannot enumerate it as a phantom
+selectable class. (It landed as a follow-up to #777, which first hardcoded a
+`preload` + `grant_effect` in `GameRoot`.) So an owned node caps at **the size's CON-derived
 `node_health` baseline minus 5 per hop from the core**, and `ProportionalScale`
 puts the source itself at scale 0 — the core keeps its full authored HP.
 
@@ -150,9 +161,10 @@ nodes reaches at most hop `n`. At the authored ranges the worst cases are a
 large at hop 6 (80 − 30 = 50) and a small at hop 2 (20 − 10 = 10). Raising a
 `footprint_*_max` past `node_health / 5` is what would need a stat minimum.
 
-The aura is granted **unconditionally**, footprint or not: on a lone core it is
-inert (the only node in scope is the source, at scale 0), and a grant that is
-always present is what makes the peer rebuild idempotent.
+Because the class carries it, the aura is present on **every** blocker,
+footprint or not: on a lone core it is inert (the only node in scope is the
+source, at scale 0). That unconditional presence is also what makes the peer
+rebuild idempotent.
 
 ### Density had to move with it
 
@@ -174,7 +186,10 @@ core as `EntitySnapshot`'s `core_location`, and the aura as an ordinary
 entity-wide effect row whose re-grant is idempotent. `spawn_snapshot_entity`
 therefore spawns with an EMPTY footprint — and the caps still land, because
 assigning `Entity.core_location` dispatches `_on_core_moved`, which is a full
-aura recompute over the world the graph half just decoded.
+aura recompute over the world the graph half just decoded. Routing the aura
+through the core class made this *more* robust, not less: the peer grants it
+from its own authored scene rather than depending on the wire interning the
+effect's resource path.
 
 
 ## Sizes, boards, and loot tiers

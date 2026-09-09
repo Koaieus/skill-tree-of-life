@@ -1,9 +1,11 @@
-[gd_scene load_steps=3 format=3 uid="uid://b300blkentity1"]
+[gd_scene load_steps=4 format=3 uid="uid://b300blkentity1"]
 
 [ext_resource type="Script" uid="uid://dwxok6qi3pfce" path="res://entity/entity.gd" id="1_entity"]
 [ext_resource type="Resource" path="res://entity/factions/blocker.tres" id="2_blocker_faction"]
+[ext_resource type="Resource" path="res://entity/blocker/blocker_core.tres" id="3_blocker_core"]
 
 [node name="BlockerEntity" type="Node" groups=["scenery"]]
 script = ExtResource("1_entity")
 color = Color(0.55, 0.55, 0.58, 1)
 faction = ExtResource("2_blocker_faction")
+core_class = ExtResource("3_blocker_core")

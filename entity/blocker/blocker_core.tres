@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CoreClass" load_steps=4 format=3]
+
+[ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="1_core"]
+[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="2_effect"]
+[ext_resource type="Resource" path="res://effects/blocker_footprint_falloff.tres" id="3_falloff"]
+
+[resource]
+script = ExtResource("1_core")
+pickable_in = 0
+display_name = "Dormant Core"
+description = "What a Dormant Core is made of, rather than a class anyone picks: no modifiers, no sigil, no turn hook — just the #777 falloff aura, which thins its territory's Node Health by 5 per hop out from the core. pickable_in is 0 and this resource is absent from core_class_roster.tres, so no lobby slot can choose it; it lives under entity/blocker/ rather than entity/core/ for the same reason."
+effects = Array[ExtResource("2_effect")]([ExtResource("3_falloff")])
+metadata/_custom_type_script = "uid://ci0mmuifd3c71"

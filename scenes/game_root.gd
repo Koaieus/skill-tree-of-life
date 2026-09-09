@@ -38,12 +38,6 @@ const _BLOCKER_SPELLBOOKS: Dictionary = {
 	BlockerSize.LARGE: preload("res://entity/blocker/blocker_spellbook_large.tres"),
 }
 
-## The #777 bonus-node falloff every Dormant Core carries: `node_health
-## ADD_BASE -5` scaled by hops from the core over its own subgraph. One shared
-## resource, granted by [method spawn_blocker] — [AuraEffect] is stateless by
-## contract, so every blocker on the board holds this same instance.
-const _BLOCKER_FALLOFF := preload("res://effects/blocker_footprint_falloff.tres")
-
 ## Dev shortcut (#244): `F2` flips FogOverlay.intensity between fully opaque
 ## (ship default, 1.0) and the dimmer "almost black" (0.88) that lets a dev see
 ## enemy positions through unsensed fog.
@@ -1317,10 +1311,24 @@ func spawn_entity(
 	return ent
 
 
-## Spawn a removable blocker entity (#300) owning [param core_location]. A
-## blocker is a plain [Entity] — no controller, no [CoreClass] — whose tiered
-## board ([param size] → CON/armor/health, no initiative) and the size's
-## spellbook are authored under `entity/blocker/`. Parents under
+## Spawn a removable blocker entity (#300) owning [param core_location] and
+## [param footprint]. A blocker is a plain [Entity] — no controller — whose
+## tiered board ([param size] → CON/armor/health, no initiative) and the size's
+## spellbook are authored under `entity/blocker/`.
+##
+## [b]The #777 falloff aura is NOT granted here.[/b] `blocker_entity.tscn`
+## authors `core_class = blocker_core.tres`, whose `effects` array carries it,
+## so [method Entity._ready] grants it on `add_child` below — the ordinary
+## entity-wide effect seam, reached with no code. That class is deliberately
+## not a pickable one: `pickable_in = 0`, absent from `core_class_roster.tres`,
+## and filed under `entity/blocker/` rather than `entity/core/`.
+##
+## The aura is inert on a footprintless blocker — [ProportionalScale] puts the
+## source itself at scale 0, so a lone core is the only node in scope and takes
+## nothing. It is also inert at grant time on the [method spawn_snapshot_entity]
+## path, which spawns with a null core; the snapshot's later `core_location`
+## assignment is what fills it, since that setter dispatches `_on_core_moved`
+## (a full recompute — see [member Entity.core_location]). Parents under
 ## `graph.entities_container` and force-allocates the core, exactly like
 ## [method spawn_entity] (procgen setup, not a gameplay action). Returns the
 ## entity, with [member Entity.entity_tier] set to size + 1 (1/2/3).
@@ -1367,19 +1375,11 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 		ent.core_location = core_location
 		# The core FIRST, then the bonus nodes: `force_allocate` is the setup
 		# primitive, so nothing here checks adjacency — but the footprint is
-		# grown connected at placement time and the falloff below measures hops
-		# over the owned subgraph, which only reads right once the core is in it.
+		# grown connected at placement time and the class's falloff aura measures
+		# hops over the owned subgraph, which only reads right with the core in it.
 		for node in footprint:
 			if node != null and node != core_location:
 				allocation_system.force_allocate(ent, node)
-	# Granted unconditionally, footprint or not (#777 decision 4): the aura is
-	# inert on a lone core — ProportionalScale puts the source itself at scale
-	# 0, so `recompute` grants nothing there — and a grant that is always
-	# present is what makes the peer rebuild idempotent. `spawn_snapshot_entity`
-	# spawns with a null core, so this instance starts empty and the snapshot's
-	# `core_location` assignment fills it: that setter dispatches
-	# `_on_core_moved`, which is a full recompute (see Entity.core_location).
-	ent.grant_effect(_BLOCKER_FALLOFF)
 	return ent
 
 
