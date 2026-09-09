@@ -99,7 +99,7 @@ Entry points: `docs/GDD.md` (master GDD) · `docs/design/index.md` (full index w
 
 ## Issue tracking
 
-GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`); board via `mise gh-project -- list|add|status|…`.
+GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`); board via `mise gh-project -- list|add|status|…`. **`add` already lands the issue in `Backlog`** — only call `status` after for a different lane.
 
 **The status ladder is the pipeline** — `Backlog` → `Needs design` (the `/swarmify` inbox) → `Ready` → `In progress` → `In review` → `Done`. `Ready` *is* the swarm queue and **a drone never touches a non-`Ready` issue**; `Ready` and `Needs design` are in turn prioritised by [docs/FOCUS.md](docs/FOCUS.md), which wins on **what to pull first** and never on state — the board is authoritative for status, dependencies and what shipped.
 
