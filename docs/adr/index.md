@@ -30,6 +30,8 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0006](0006-unreferenced-art-is-deleted-and-re-cut-not-excluded.md) | Unreferenced purchased art is deleted and re-cut from a pipeline, not excluded from the export | accepted | 2026-09-04 | exporting, assets, build |
 | [0007](0007-spell-vfx-is-fog-oblivious.md) | Spell VFX is fog-oblivious — every spell visual draws over fog, or none does | accepted | 2026-08-30 | vfx, spells, fog, rendering |
 | [0008](0008-a-growth-capped-npc-breaks-out-through-a-bordering-door.md) | A growth-capped NPC breaks out through a bordering door, at every AI tier | accepted | 2026-08-26 | ai, dormant-core, allocation, balance |
+| [0009](0009-the-victory-condition-is-a-swappable-resource.md) | The victory condition is a swappable resource; last-camp-standing is the first, not the only one | accepted | 2026-08-21 | victory, session, architecture |
+| [0010](0010-contest-membership-is-a-rule-the-condition-owns.md) | Contest membership is a predicate the victory condition owns, not a flag on Faction | accepted | 2026-08-22 | victory, session, architecture, entity |
 
 ## Reading order
 

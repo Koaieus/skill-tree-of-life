@@ -20,12 +20,12 @@ inherits latching, signal timing and the death trigger for free.
 
 ## The rule
 
-**Owner call 2026-08-21:** "be the only camp that survives — no living hostile
-entities remain. **Dormant Cores do not count** (`blocker` in code — see
-`docs/domain/dormant-core.md`); they are inert scenery, not a
-camp that can win or lose." And, pluggable, "because multiplayer setups will
-want different conditions" — last-camp-standing is "the first and the default,
-not the only one".
+**Last camp standing:** you win by being the only camp that survives, with no
+living hostile entities left. **Dormant Cores do not count** (`blocker` in code —
+see `docs/domain/dormant-core.md`); they are inert scenery, not a camp that can
+win or lose. It is the default condition, not the only possible one — why the
+rule is a swappable resource rather than something `VictorySystem` hardcodes is
+[ADR 0009](../adr/0009-the-victory-condition-is-a-swappable-resource.md).
 
 Two consequences that are easy to get wrong:
 
@@ -41,24 +41,16 @@ the same rule.
 
 ## Contest membership is a rule the condition owns (#517)
 
-*Was* `Faction.counts_for_victory`, a bool per camp. That could not express a
-**per-entity** exception without minting a faction for it, so it became a
-predicate instead.
-
-**Owner call 2026-08-22:** *"i feel like the game mode decides the victory
-conditions, and entities themselves just should be agnostic of all this... i
-think a predicate (customizable to any condition) would be a more useful
-construct than a single bool... i feel like victorycond would be the one to
-apply them anyway."*
+Who counts as a contestant is a predicate the condition owns, not a flag on
+`Faction` — the grounds, and the per-camp bool it replaced, are
+[ADR 0010](../adr/0010-contest-membership-is-a-rule-the-condition-owns.md).
 
 `VictoryCondition.contestants` is a `ContestantRule`, defaulting to
 `session/victory/rules/exclude_scenery.tres` — everyone except members of the
 Godot group `scenery`, which `entity/blocker/blocker_entity.tscn` authors on
 itself. `Entity` gains no field and learns nothing about victory; a group *is*
-the engine's per-unit tag, and it is the same shape XCOM 2 (unit traits queried
-by the mission objective) and Unreal (`AGameMode` owns match state, actors carry
-`Tags`) landed on. **A null rule means everyone counts** — never a crash, never
-a run that can no longer end.
+the engine's per-unit tag. **A null rule means everyone counts** — never a crash,
+never a run that can no longer end.
 
 Four things to keep straight:
 
@@ -77,17 +69,12 @@ Four things to keep straight:
   four creation paths. A materialised *view* computed from the same rule stays
   purely additive if save/replay/spectating ever wants one.
 - **Bespoke run-end logic is a `VictoryCondition` subclass**, not a cleverer
-  rule. Owner call 2026-08-22: the per-entity exception is *"a free consequence,
-  not the justification"* — take it because a group read costs the same either
-  way, but do not grow `ContestantRule` to anticipate a tutorial.
+  rule. Do not grow `ContestantRule` to anticipate a tutorial.
 
-**A historical trap, still worth knowing:** Dormant Cores and AI opponents both sat
-on `npc.tres` (`entity.gd`'s default faction, and what
-`procgen_play_sandbox.gd` hands every AI participant). Under the old per-camp
-flag, opting `npc.tres` out would have left one counting camp at spawn and ended
-every run instantly — invisible to a hand-built two-camp test. Per-entity
-membership removes that whole failure class: the handle is on the *scene*, not
-on a resource other entities share.
+Membership sits on the *scene*, never on a resource other entities share — which
+is what keeps Dormant Cores separable from the AI opponents they share `npc.tres`
+with. [ADR 0010](../adr/0010-contest-membership-is-a-rule-the-condition-owns.md)
+records the run-ends-at-spawn failure that shape was chosen to remove.
 
 ### The sibling flag: `Faction.targeted_by_ai`
 
@@ -95,7 +82,8 @@ on a resource other entities share.
 NOT follow contest membership off `Faction`. "Worth an NPC's AP" is genuinely
 camp-level — you shoot at camps, not individuals. (A per-entity version reading
 the same `scenery` group would be a drop-in, since `AiRecon` already resolves
-the flag per owning entity, but that is its own decision.)
+the flag per owning entity, but that is its own decision — see
+[ADR 0010](../adr/0010-contest-membership-is-a-rule-the-condition-owns.md).)
 
 `targeted_by_ai` is filtered inside `AiRecon.visible_enemy_nodes()` — the one
 chokepoint every NPC target list flows through (growth's directional bias, the
