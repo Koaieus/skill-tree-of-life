@@ -1008,7 +1008,7 @@ func test_picks_across_two_modules_compose() -> void:
 
 	var resolved := lobby.build_run_config().resolved_preset()
 	assert_eq(resolved.topology.node_count, 100)
-	assert_eq(resolved.blockers.blocker_per_small, 5)
+	assert_eq(resolved.blockers.blocker_per_small, 15, "Heavy's rung, re-pitched in #777")
 	assert_eq(resolved.content.budget_policy.base_max, 33)
 
 
