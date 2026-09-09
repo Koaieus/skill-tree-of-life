@@ -368,9 +368,17 @@ func _on_preview_toggled(on: bool) -> void:
 ## locked at every slider position. Only the NEXT compiled schedule reads it
 ## (an in-flight swing already froze its rate at launch), which is #820's
 ## acceptance floor, not a shortfall.
+##
+## [b]The slider is a SPEED and the knob is a DURATION, so this reciprocates.[/b]
+## The same inverted-convention trap #818 was filed for: a schedule rate
+## MULTIPLIES duration, so feeding the slider straight through would label 3.00x
+## onto a swing that crawls at a third speed. The slider reads the way a player
+## expects — right is faster — and the reciprocal happens here, once, at the one
+## place that knows the slider is phrased in speed.
 func _on_speed_changed(value: float) -> void:
-	_battle.presentation_rate_scale = value
-	_speed_value.text = "%.2fx" % value
+	var speed: float = maxf(0.01, value)
+	_battle.presentation_rate_scale = 1.0 / speed
+	_speed_value.text = "%.2fx" % speed
 
 
 ## Force the outermost N vertices of the LIVE ghost de-lit, for tuning the look
