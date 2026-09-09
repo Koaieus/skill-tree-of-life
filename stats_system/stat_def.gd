@@ -59,14 +59,21 @@ func get_abbrev() -> String:
 ## handling — callers own sign prefixing and [member display_as_percent].
 ##
 ## INT always rounds to a whole number, regardless of an upstream fractional
-## artifact. FLOAT (and BOOL, which has no numeric display path today — this
-## just falls through unchanged) prints a whole value bare and otherwise keeps
-## two decimals, trimmed of one trailing zero — mirrors
-## [method StatModifier._trim], which stays independent since MULTIPLY/SET
-## are deliberately NOT type-aware (#622 acceptance 3).
+## artifact. FLOAT prints a whole value bare and otherwise keeps two decimals,
+## trimmed of one trailing zero — mirrors [method StatModifier._trim], which
+## stays independent since MULTIPLY/SET are deliberately NOT type-aware (#622
+## acceptance 3). BOOL (#805, the first ValueType with a live consumer —
+## `deflection`) renders "True"/"False" rather than a magnitude: a BOOL stat
+## is presence, not an amount, so there is no quantity to round or trim.
+## Callers wanting the "bare trait line, no sign, no number" grammar a BOOL
+## MODIFIER earns ([method StatModifier._format_value]) skip this path
+## entirely rather than reading through it — this is the direct-value path
+## (e.g. [StatValueRow] binding a stat's own computed value).
 static func format_number(value_type: ValueType, v: float) -> String:
 	if value_type == ValueType.INT:
 		return str(roundi(v))
+	if value_type == ValueType.BOOL:
+		return "True" if v != 0.0 else "False"
 	if is_equal_approx(v, roundf(v)):
 		return str(int(v))
 	return ("%.2f" % v).trim_suffix("0")

@@ -973,8 +973,9 @@ func build_swing_clock(blade_state: BladeState) -> BladeSwingClock:
 
 
 ## Build this swing's [BladeObstacleField] from the graph, or return null when
-## no deflecting node (`deflection > 0` — only [BunkerAddon] authors it) is
-## anywhere near the arc (#781). Null is the common case and it is
+## no deflecting node (`deflection` true — a BOOL stat, presence only, §805;
+## only [BunkerAddon] authors it) is anywhere near the arc (#781). Null is the
+## common case and it is
 ## load-bearing: with no field there is no accumulator, no pushout and no
 ## GDScript fallback — a map with zero bunkers cannot produce a break, by
 ## construction, at any blade size or speed. Same cull, same blade-side
@@ -993,7 +994,7 @@ func build_obstacle_field(blade_state: BladeState) -> BladeObstacleField:
 	for sn in graph.get_skill_nodes():
 		if _is_blade_side(sn, self_set):
 			continue
-		if float(sn.get_local_value(&"deflection")) <= 0.0:
+		if not bool(sn.get_local_value(&"deflection")):
 			continue
 		if pivot.distance_to(sn.global_position) > reach + sn.radius:
 			continue

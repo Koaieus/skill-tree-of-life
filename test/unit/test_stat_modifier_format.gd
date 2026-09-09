@@ -171,6 +171,34 @@ func test_display_as_percent_multiply_is_unscaled() -> void:
 	)
 
 
+# --- #805: BOOL renders as a bare trait line — no sign, no number ----------------
+# `deflection` is the first (and today the only) live BOOL StatDef.
+
+func test_bool_add_base_is_a_bare_trait_line() -> void:
+	assert_eq(_mod(&"deflection", StatModifier.Operation.ADD_BASE, 1.0).format(), "Deflection")
+
+
+func test_bool_add_bonus_is_a_bare_trait_line() -> void:
+	assert_eq(_mod(&"deflection", StatModifier.Operation.ADD_BONUS, 1.0).format(), "Deflection")
+
+
+func test_bool_set_is_a_bare_trait_line() -> void:
+	assert_eq(_mod(&"deflection", StatModifier.Operation.SET, 1.0).format(), "Deflection")
+
+
+## INCREASE / MULTIPLY on a BOOL stat are a content error — there is no
+## magnitude to scale — so they still render the bare trait line but push a
+## warning rather than silently falling through to a meaningless number.
+func test_bool_increase_warns_and_still_renders_a_bare_trait_line() -> void:
+	assert_eq(_mod(&"deflection", StatModifier.Operation.INCREASE, 18.0).format(), "Deflection")
+	assert_push_warning("content error")
+
+
+func test_bool_multiply_warns_and_still_renders_a_bare_trait_line() -> void:
+	assert_eq(_mod(&"deflection", StatModifier.Operation.MULTIPLY, 2.0).format(), "Deflection")
+	assert_push_warning("content error")
+
+
 # --- CompositeStatModifier.format() joins with ", " ------------------------------
 
 func test_composite_format_joins_with_comma_space() -> void:

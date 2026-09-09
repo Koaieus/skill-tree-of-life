@@ -6,7 +6,8 @@ extends BladeConstraint
 ##
 ## [b]One object per swing, or none.[/b] [method MeleeAttackPlan.build_blade_state]
 ## attaches one to [member BladeState.obstacles] only when a node with
-## `deflection > 0` (only [BunkerAddon] authors it) is within the blade's reach.
+## `deflection` true (a BOOL stat, presence only, §805; only [BunkerAddon]
+## authors it) is within the blade's reach.
 ## A map with no bunker therefore has NO field — no accumulator exists to be
 ## measured, nothing is allocated, and the solver runs the plain native path.
 ## That is the owner's false-positive guard, structurally: the strain metric is

@@ -357,7 +357,21 @@ func _with_per_clause(sentence: String) -> String:
 ## a percent display is already whole-number-of-percent regardless of the
 ## underlying stat's type). MULTIPLY / SET keep `_trim(v)` untouched — neither
 ## is type-aware; see [StatDef.format_number]'s docstring for why.
+##
+## BOOL (#805, owner call) renders as a bare TRAIT LINE — the stat's own name,
+## no sign, no number — regardless of op, ahead of the match below: two
+## presence bunkers are not "twice as solid", so there is no magnitude for
+## ADD_BASE/ADD_BONUS/SET to carry, and neither op the match otherwise handles
+## is skipped for a BOOL stat. INCREASE/MULTIPLY on a BOOL stat are a content
+## error (a percent-of / multiple-of a presence flag means nothing) — `push_warning`
+## rather than silently falling through, per the same "reject and keep running"
+## shape the rest of the modifier pipeline uses.
 func _format_value(name: String, as_percent: bool, value_type: StatDef.ValueType, v: float) -> String:
+	if value_type == StatDef.ValueType.BOOL:
+		if operation == Operation.INCREASE or operation == Operation.MULTIPLY:
+			push_warning("%s: BOOL stat has no magnitude — %s is a content error"
+					% [name, Operation.keys()[operation]])
+		return name
 	match operation:
 		Operation.ADD_BASE:
 			if as_percent:

@@ -448,6 +448,50 @@ Run to list all current stat IDs:
 grep -h "^id = " stats_system/defs/*.tres | sort
 ```
 
+## `StatDef.ValueType.BOOL` (#805) — a stat that is presence, not a magnitude
+
+`deflection` (#781/#805) is the first, and today the only, `StatDef` authored
+`value_type = BOOL`. Pick BOOL over INT for a stat whose only meaningful
+question is "granted or not" — where a magnitude would be actively misleading
+(a second source doesn't make it "twice as present"). `armor`, `blunting`,
+`spike_regen`, `swing_drag` stay INT/FLOAT deliberately; they're read as real
+magnitudes (summed, accumulated, thresholded). `deflection` is read as
+`bool(sn.get_local_value(&"deflection"))` in exactly one place,
+`MeleeAttackPlan.build_obstacle_field` — never `float(...) <= 0.0`.
+
+Two branches this traffic exercises for the first time:
+
+- **`Stat._coerce`**: `v != 0.0` — hands back a real GDScript `bool`, not a
+  float that merely compares true-ish. `get_local_value` on a bunkered node
+  returns that bool directly.
+- **`ModifierPoolEntry`'s BOOL branch** clamps a rolled ADD_BASE/ADD_BONUS to
+  `1.0`/`0.0`. Stays untravelled for `deflection` — it's addon-authored, in no
+  procgen pool. Don't build a pool entry just to reach it.
+
+**Display is a separate concern from the read, and has two doors, both
+type-aware (#622):**
+
+- `StatDef.format_number(BOOL, v)` → `"True"` / `"False"` — the direct-value
+  path (`StatValueRow` binding a stat's own computed value).
+- `StatModifier._format_value` — a BOOL modifier renders as a **bare trait
+  line**: the stat's display name alone, no sign, no number, regardless of
+  op (owner call, 2026-09-09: "presence, not magnitude" all the way down to
+  the tooltip — no per-addon opt-out, every future BOOL stat inherits this for
+  free). `+5 bonus Armor` next to a BOOL modifier reads `Deflection`, not
+  `+1 bonus Deflection`. **INCREASE / MULTIPLY on a BOOL stat is a content
+  error** (there's no magnitude to scale) — `push_warning`s rather than
+  silently falling through, same "reject and keep running" shape as the rest
+  of the pipeline; still renders the bare trait line rather than erroring.
+  `contribution_text` (the stat-name-omitted "+10"/"×1.5" form used by the
+  editor visualizer and the #70 per-leaf allocation floaters) is untouched —
+  out of scope, not itself type-aware today.
+
+**The no-mint invariant holds across this whole sparse node-local defender
+tier** (`deflection`, `swing_drag`, `blunting`, `spike_regen`) — reading any of
+them off a node that never had the granting addon returns the def default and
+mints nothing on either board. Pinned by `test_defender_stat_no_mint.gd`
+(generalizes `test_stake_level_poolstat.gd`'s single-stat pin).
+
 ## `level` is a plain ScalarStat, written imperatively (#200)
 
 `level` lives on the board as an ordinary `ScalarStat` (id `level`, INT, default 1) — **not** a bespoke derived/read-only class and **not** a `fill_count` on `PoolStat`. It exists so level-scaling formula modifiers (`+level × 1 STR`, #194) can `board.get_stat(&"level")` and auto-recalc: `Entity._on_xp_replenished` does `stat_board.level.base_value += 1`, and `base_value`'s setter emits `value_changed`, which walks the same reactive path as any formula source (PER→vision, etc.). No new mechanism.

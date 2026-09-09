@@ -154,7 +154,22 @@ func test_bunker_addon_tooltip_section_regression() -> void:
 	assert_eq(String(mods[1].stat_id), "min_damage_taken")
 	assert_almost_eq(float(mods[1].value), -5.0, 0.001)
 	assert_eq(String(mods[2].stat_id), "deflection")
+	# #805: deflection is BOOL now — the AUTHORED value stays 1.0 (presence),
+	# but it renders as a bare trait line, never "+1 bonus Deflection": two
+	# bunkers are not "twice as solid".
 	assert_almost_eq(float(mods[2].value), 1.0, 0.001)
+	assert_eq(mods[2].format(), "Deflection",
+			"a BOOL modifier renders as the bare stat name — no sign, no number")
+
+
+## #805 acceptance 3 — Stat._coerce's BOOL branch (`v != 0.0`) hands back a
+## real GDScript bool, not a float that merely compares true-ish.
+func test_bunkered_node_deflection_reads_as_a_real_bool_not_a_float() -> void:
+	var sn := _make_node("BunkerHost2")
+	_attach(sn, _BUNKER_SCENE)
+	var v: Variant = sn.get_local_value(&"deflection")
+	assert_eq(typeof(v), TYPE_BOOL, "Stat._coerce's BOOL branch must hand back a real bool")
+	assert_true(v)
 
 
 func test_fortification_addon_tooltip_section_regression() -> void:
