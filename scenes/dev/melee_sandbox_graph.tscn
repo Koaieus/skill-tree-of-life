@@ -1297,5 +1297,9 @@ to = NodePath("../../Nodes/L3")
 from = NodePath("../../Nodes/B1")
 to = NodePath("../../Nodes/L3")
 
+[node name="Edge_B2_T2" parent="Edges" parent_id_path=PackedInt32Array(983028403) index="21" unique_id=847263159 node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/B2")
+to = NodePath("../../Nodes/T2")
+
 [node name="EdgeMesh" parent="." index="4" unique_id=-1447774240]
 multimesh = SubResource("MultiMesh_onwfv")
