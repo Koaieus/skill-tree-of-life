@@ -3,9 +3,10 @@
 **This produced a number, not a feature — and the question it was built for is
 now closed.** It existed to settle #463's open question (confirm-down versus
 lockstep + snapshot recovery) by measurement instead of another round of
-argument. **Decided 2026-08-24: confirm-down.** #463's decision comment records
-the answer and the reasoning; `docs/domain/multiplayer-sync-model.md` is the
-architecture it serves.
+argument. That question is settled — the verdict, the grounds and what this
+probe did and did not contribute to it are recorded in
+[ADR 0002](../adr/0002-host-authoritative-sync-not-lockstep.md);
+`docs/domain/multiplayer-sync-model.md` is the architecture it serves.
 
 **The probe stays, as a permanent desync canary.** It is the cheapest signal
 that a peer and the authority have stopped agreeing, and — because it asks
