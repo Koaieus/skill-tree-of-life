@@ -120,7 +120,7 @@ func _click_build(members: Array[SkillNode]) -> MeleeAttackPlan:
 	return plan
 
 
-func _launch_and_settle(max_ticks: int = 300) -> void:
+func _launch_and_settle(max_ticks: int = 900) -> void:
 	_bs.launch_attack()
 	var ticks := 0
 	while _bs.is_launching and ticks < max_ticks:

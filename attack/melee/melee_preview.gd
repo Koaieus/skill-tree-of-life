@@ -56,6 +56,10 @@ var _ghost: SkillBlade
 ## there is no per-cycle clock left to watch. The clock's twin, the bunker
 ## field, is pushed onto the ghost's `state.obstacles` for the same readout.
 var last_clock: BladeSwingClock = null
+# The blade [method begin_windup] claimed for the committed swing, or null when
+# no wind-up staged one. What makes [method launch] a HANDOFF rather than a
+# re-spawn (#559 decision 2).
+var _windup_blade: SkillBlade = null
 # Generation token so in-flight playback coroutines self-cancel when the
 # selection changes underneath them. Bump on every spawn/teardown.
 var _gen: int = 0
@@ -153,7 +157,13 @@ func current_blade() -> SkillBlade:
 ## finished a full second before the last damage number. Null (a sandbox, a
 ## test) keeps the authored 1.0 pace.
 func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
-	_spawn_blade(plan)
+	# #559 decision 2: [method begin_windup] already claimed the ghost the
+	# player has been watching and formed it back up, so the live swing takes
+	# it over as-is. A caller that skipped the wind-up entirely (a sandbox, a
+	# fixture calling `launch` straight) still gets one spawned here.
+	if _windup_blade == null or _windup_blade != _ghost:
+		_spawn_blade(plan)
+	_windup_blade = null
 	var blade := _ghost
 	if blade == null:
 		return
@@ -184,6 +194,70 @@ func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
 		_ghost = null
 	blade.queue_free()
 	_live_swing = false
+
+
+## Stage the wind-up for a swing that has just committed, and return the
+## seconds it occupies (0.0 when every beat is zero-length). Called by
+## [method BattleSystem._commit] BEFORE [method launch], and never awaited —
+## [BattleSystem] waits out the returned length on its own beat clock, so no
+## animation gates the mutation loop (`.claude/rules/presentation-clock.md`).
+##
+## [b]This is a HANDOFF, never a re-predict (#559 decision 2).[/b] The ghost
+## the player has been watching loop is CLAIMED rather than rebuilt: nothing
+## here calls [method MeleeAttackPlan.refresh_prediction], so
+## [member MeleeAttackPlan.prediction_runs] cannot move during a launch. With
+## #782 the ghost is already a real resolve of the current world and the
+## authority re-resolved at submit; a third resolve of the same swing would buy
+## nothing and cost a frame hitch.
+##
+## [param seated] collapses every beat to zero — [b]the sequence still runs[/b].
+## #559's sharpening on decision 1: gating the sequence itself on the seat
+## predicate would delete the await point #796 needs on the one machine that is
+## typically the authority. The seated path is literally acceptance 5's
+## escape-hatch configuration, not a separate code path.
+func begin_windup(plan: MeleeAttackPlan, tempo: PresentationTempo,
+		seated: bool) -> float:
+	if plan == null:
+		return 0.0
+	if _ghost == null:
+		_spawn_blade(plan)
+	else:
+		# Cancel the preview loop's in-flight coroutine (it re-checks `_gen`
+		# after every await) and put the SAME SkillBlade back at rest, rather
+		# than freeing the one the player is looking at and instancing another.
+		_gen += 1
+		_ghost.stop()
+		_rebuild_blade(_ghost, plan)
+	var blade := _ghost
+	if blade == null:
+		return 0.0
+	# Claim the ghost for the whole commit — from here until `launch` releases
+	# it, `_refresh` must not tear it down (see that method's docstring: a
+	# freed blade under an awaiting coroutine is a permanent hang).
+	_live_swing = true
+	_windup_blade = blade
+	blade.modulate = Color.WHITE
+	if seated or tempo == null:
+		blade.form_instantly()
+		return 0.0
+	return blade.form_in(tempo.melee_windup_lead(), tempo.melee_windup_form_span,
+			tempo.melee_windup_stamp_time, tempo.melee_windup_glow_ramp,
+			tempo.melee_windup_flare)
+
+
+## Re-author an EXISTING blade from [param plan]'s current selection, resetting
+## every vertex to its rest position. Shared by the preview loop's per-cycle
+## reset and by [method begin_windup]'s claim — one implementation, so the two
+## cannot drift on what "back to rest" means.
+func _rebuild_blade(blade: SkillBlade, plan: MeleeAttackPlan) -> void:
+	var selection: Array[SkillNode] = [plan.source]
+	selection.append_array(plan.blade_nodes)
+	blade.swing_cw = plan.swing_cw
+	blade.build_from_skill_nodes(
+			selection, plan.source, plan.get_induced_edges(), plan.attacker)
+	# The rebuild freed and recreated every vertex visual, so decoration
+	# applied by a listener is gone — same event, same signal.
+	blade_spawned.emit(blade)
 
 
 func _spawn_blade(plan: MeleeAttackPlan) -> void:
@@ -256,20 +330,14 @@ func _run_preview_loop(gen: int) -> void:
 		var plan := battle_system.attack_plan as MeleeAttackPlan
 		if plan == null or not plan.is_valid():
 			return
-		var selection: Array[SkillNode] = [plan.source]
-		selection.append_array(plan.blade_nodes)
-		blade.swing_cw = plan.swing_cw
-		blade.build_from_skill_nodes(
-				selection, plan.source, plan.get_induced_edges(), plan.attacker)
+		_rebuild_blade(blade, plan)
 		blade.modulate.a = 0.35
-		# The rebuild freed and recreated every vertex visual, so decoration
-		# applied by a listener is gone — same event, same signal.
-		blade_spawned.emit(blade)
 
 
 func _teardown() -> void:
 	_gen += 1
 	last_clock = null
+	_windup_blade = null
 	if _ghost != null:
 		_ghost.stop()
 		_ghost.queue_free()

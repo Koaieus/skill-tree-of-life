@@ -267,9 +267,69 @@ func _clamp_target(ideal: Vector2, at_zoom: float, ctx: CameraContext) -> Vector
 
 
 ## #524's trigger. See [method _build_attack_request] for the rule.
+##
+## [b]Melee is staged pivot-first (#559 decision 7).[/b] That ordering is
+## decided by what EXISTS when, not by taste: the swept AABB IS the trajectory
+## and exists only once the record does, while the pivot exists before it — so
+## only pivot-framing can precede the swing. The pivot point is raised now, the
+## full span widens onto it after [member PresentationTempo.melee_windup_lead],
+## which is the same beat [method BattleSystem._stage_melee_windup] delays the
+## blade's form-in by.
+##
+## The widen is a detached coroutine on a tree timer, never awaited by anyone —
+## `_on_attack_committed` fires inside `BattleSystem._commit`, where an await
+## would gate the mutation loop.
 func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 	var request := _build_attack_request(outcome, attacker)
 	if request == null:
+		return
+	var pivot := _melee_pivot_focus(attacker)
+	if pivot == null:
+		request_focus(request)
+		return
+	request_focus(pivot)
+	_widen_after(pivot.hold, request)
+
+
+## The pivot-only focus a committed MELEE opens on, or null when there is no
+## melee pivot to frame — a ranged/magic commit, an unwired battle system, a
+## pivot the local seat cannot see, or a zero-length lead beat (acceptance 5's
+## escape hatch, where there is no beat to fill and the span should simply
+## land).
+##
+## The pivot is read off the live [MeleeAttackPlan] rather than off the
+## outcome: an [AttackOutcome] carries hits, and "which node the swing hangs
+## off" is a plan fact. [member BattleSystem.attack_plan] is guaranteed live
+## here — `_commit` holds it through the whole launch (#406).
+func _melee_pivot_focus(attacker: Entity) -> FocusRequest:
+	if battle_system == null:
+		return null
+	var melee := battle_system.attack_plan as MeleeAttackPlan
+	if melee == null or melee.source == null or not is_instance_valid(melee.source):
+		return null
+	var lead := battle_system.tempo().melee_windup_lead()
+	if lead <= 0.0:
+		return null
+	var points := PackedVector2Array()
+	_append_if_visible(points, melee.source)
+	if points.is_empty():
+		return null
+	var req := FocusRequest.point(points[0], default_focus_duration, false,
+			&"attack_pivot")
+	# Held for exactly the lead beat, so the pivot focus does not release (and
+	# snap the zoom back) in the gap before the span widens onto it.
+	req.hold = lead
+	req.empty_reason = &"fogged"
+	return req
+
+
+## Raise [param request] after [param seconds]. Detached on purpose — see
+## [method _on_attack_committed].
+func _widen_after(seconds: float, request: FocusRequest) -> void:
+	var tree := get_tree()
+	if seconds > 0.0 and tree != null:
+		await tree.create_timer(seconds).timeout
+	if not is_inside_tree():
 		return
 	request_focus(request)
 

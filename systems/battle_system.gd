@@ -39,6 +39,10 @@ signal attack_plan_state_changed
 ## owner colour + schedule a staggered ripple. See docs/domain/allocation-vfx.md.
 signal cascade_started(layers: Array, defender: Entity)
 
+## The in-flight launch's [AttackRecord] just became available. Private
+## plumbing for [method await_record_ready] — park on that, never on this.
+signal record_ready
+
 ## The currently-selected spell for magic attacks. Updated by the spell-picker
 ## UI; consumed by [method _new_plan] when constructing a [MagicAttackPlan].
 ## Null means "use the plan's bundled fallback". Live mutation is supported:
@@ -84,6 +88,26 @@ var seat_policy: SeatPolicy = null
 ## every level's inspector, and an instance var cannot leak across test files
 ## the way a process-global would (#815).
 var presentation_rate_scale: float = 1.0
+
+## The wind-up SHAPE a committed melee is staged on (#559). Null takes
+## [method PresentationTempo.shared_default] — the authored `.tres`, which is
+## what every level uses. A plain instance var rather than an `@export`,
+## deliberately: shape is authored content, not per-level inspector surface,
+## and a fixture that wants zero-length beats hands over its own copy instead
+## of mutating the one shared default out from under every other test (#815).
+var presentation_tempo: PresentationTempo = null
+
+## See [method await_record_ready]. False means the record is already in hand,
+## which is every path that exists today.
+var _record_pending: bool = false
+
+## Latched by [method drain_pending_mutations] for the rest of the current
+## launch. The wind-up (#559) put a SECOND clock on this path, so a drain that
+## released the first one would otherwise be followed by `_apply_outcome`
+## minting a fresh real-time clock against a tree that is going away — the
+## drain has to outlive the clock it drained. Cleared on entry to
+## [method _commit]. See [method _new_beat_clock].
+var _draining: bool = false
 
 var command_applier: CommandApplier = null
 
@@ -622,6 +646,7 @@ func _can_afford(plan: AttackPlan, outcome: AttackOutcome) -> bool:
 ## `attack_vfx.play`.
 func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	is_launching = true
+	_draining = false
 	var entity := plan.attacker
 	var board: StatBoard = entity.stat_board if entity != null else null
 	var ap_pool: PoolStat = board.action_points if board != null else null
@@ -655,6 +680,11 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	_vfx_running = false
 	var melee_plan: MeleeAttackPlan = plan as MeleeAttackPlan
 	if melee_plan != null and melee_preview != null:
+		# #559: the wind-up. The ONLY awaited beat between the commit and the
+		# swing, and it shifts when the mutation loop starts — it compiles
+		# nothing, reorders nothing, and waits on no animation. With every
+		# duration authored to 0.0 the world applies exactly as it did before.
+		await _stage_melee_windup(melee_plan, entity)
 		# Melee: the MeleePreview (which has the ghost mounted) animates the
 		# swing on the same `BladeHitEvent.t` clock the applier lands hits on,
 		# so the blade now visibly reaches a node as that node takes its hit.
@@ -705,6 +735,84 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	# plan to be cleared by the time it goes false.
 	is_launching = false
 	_reset()
+
+
+## The wind-up shape in force, authored `.tres` unless a caller overrode it.
+func tempo() -> PresentationTempo:
+	return presentation_tempo if presentation_tempo != null \
+			else PresentationTempo.shared_default()
+
+
+## [b]"The record is ready" — the swing beat's one await point, and the seam
+## #796 drives.[/b] Returns immediately unless something has declared the
+## record outstanding via [method hold_record].
+##
+## [b]Today this is a satisfied no-op on every path that exists[/b], and it is
+## named and awaited anyway. Since #545 the [AttackRecord] is final BEFORE the
+## confirm — the authority computes it inside the synchronous
+## [method prepare_launch_command], and a mirror receives setup and outcome in
+## the same command — so by the time [method _commit] reaches the swing there
+## is nothing left to wait for.
+##
+## It exists so #796 has a seam to cite rather than guess at. When the melee
+## resolve moves off the synchronous `_validate` and onto a [WorkerThreadPool],
+## the thing that becomes asynchronous is exactly this, and nothing else in
+## [method _commit] has to move. Per #559 decision 3 the AUTHORITY has no floor
+## here — there is no swing to start without a record, so the form loop holds
+## until it exists — while a mirror already holds one and never parks at all.
+##
+## [b]Awaited on the seated path too.[/b] The typical authority IS the seated
+## local player, so a `seats()` early-return would delete this await on the one
+## machine #796 needs it on (#559, sharpening on decision 1).
+func await_record_ready() -> void:
+	if not _record_pending:
+		return
+	await record_ready
+
+
+## Declare the in-flight launch's record OUTSTANDING, so the swing beat parks
+## in [method await_record_ready] until [method release_record]. Nothing in
+## production calls this yet — #796 is what will.
+func hold_record() -> void:
+	_record_pending = true
+
+
+## Release a parked swing beat. Idempotent, and a no-op when nothing held.
+func release_record() -> void:
+	if not _record_pending:
+		return
+	_record_pending = false
+	record_ready.emit()
+
+
+## Stage a committed melee swing's wind-up (#559): focus the pivot, form the
+## blade staggered by hop distance, stamp the addons, ramp the glow, flare —
+## then let the swing begin.
+##
+## [b]An awaited beat on its own timer, never a wait on an animation.[/b]
+## [method MeleePreview.begin_windup] starts a Tween and returns the length it
+## staged; the wait below is that length on a [BeatClock], so a dropped frame,
+## a muted animation or a killed tween cannot move when the swing starts. The
+## clock is parked in [member _beat_clock] for the same reason the mutation
+## loop's is: [method drain_pending_mutations] must be able to cut a wind-up
+## short on scene teardown, or `_commit` sits on a timer belonging to a tree
+## that is going away.
+##
+## [b]This runs for EVERY actor.[/b] The seat predicate gates the beat
+## DURATIONS — zero-length for a seated actor, which is acceptance 5's escape
+## hatch — and never the sequence's existence. See [method await_record_ready]
+## for why that distinction is load-bearing.
+##
+## Nothing here compiles or touches [OutcomeSchedule]: this shifts WHEN the
+## mutation loop starts and changes nothing about what lands or in what order.
+func _stage_melee_windup(melee_plan: MeleeAttackPlan, actor: Entity) -> void:
+	var seated := seat_policy != null and seat_policy.seats(actor)
+	var staged := melee_preview.begin_windup(melee_plan, tempo(), seated)
+	if staged > 0.0:
+		await _new_beat_clock().advance_to(staged)
+		_beat_clock = null
+	@warning_ignore("redundant_await")
+	await await_record_ready()
 
 
 ## Runs [MeleePreview] to completion, then reports. See `launch_attack` for why
@@ -759,10 +867,8 @@ func _run_attack_vfx(outcome: AttackOutcome, coord_scene: PackedScene) -> void:
 ## making the clock depend on that is exactly the thing that must not matter.
 ## A fixture that wants the whole outcome on one line says so out loud.
 func _apply_outcome(outcome: AttackOutcome) -> void:
-	_beat_clock = BeatClock.instant_clock() if instant_mutation \
-			else BeatClock.for_tree(get_tree())
 	@warning_ignore("redundant_await")
-	await OutcomeApplier.apply(outcome, CombatWorld.live(), _beat_clock)
+	await OutcomeApplier.apply(outcome, CombatWorld.live(), _new_beat_clock())
 	# The release beat, on the same clock and for the same reasons: instant
 	# under `instant_mutation`, and cut short by `drain_pending_mutations`.
 	# Melee doesn't want it — it has a whole swing left to watch — and asking
@@ -778,8 +884,20 @@ func _apply_outcome(outcome: AttackOutcome) -> void:
 ## mutation loop interrupted mid-window, which would leave the world valid but
 ## permanently wrong. No-op when no attack is in flight.
 func drain_pending_mutations() -> void:
+	_draining = true
 	if _beat_clock != null:
 		_beat_clock.drain()
+
+
+## Mint (and park) the clock for one beat of the current launch — the wind-up's
+## and the mutation loop's alike. Parked in [member _beat_clock] so
+## [method drain_pending_mutations] can reach whichever one is live, and made
+## instant once a drain has happened so the beats AFTER it land synchronously
+## rather than on a doomed tree's timers.
+func _new_beat_clock() -> BeatClock:
+	_beat_clock = BeatClock.instant_clock() if instant_mutation or _draining \
+			else BeatClock.for_tree(get_tree())
+	return _beat_clock
 
 
 ## Forced-deallocation cascade. Runs when a (non-core) node hits 0 HP: the

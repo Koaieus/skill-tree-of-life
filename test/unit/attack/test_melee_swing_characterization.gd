@@ -121,7 +121,7 @@ func _launch() -> void:
 	await _await_launch_settle()
 
 
-func _await_launch_settle(max_ticks: int = 300) -> int:
+func _await_launch_settle(max_ticks: int = 900) -> int:
 	var ticks := 0
 	while _bs.is_launching and ticks < max_ticks:
 		await get_tree().process_frame

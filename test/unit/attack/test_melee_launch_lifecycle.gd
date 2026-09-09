@@ -64,7 +64,7 @@ func before_each() -> void:
 ## Pumps frames until `_bs.is_launching` clears or `max_ticks` is exhausted —
 ## used as the observation point for the bug this file pins: without the
 ## fix, is_launching never clears and this loop runs out the clock.
-func _await_launch_settle(max_ticks: int = 300) -> int:
+func _await_launch_settle(max_ticks: int = 900) -> int:
 	var ticks := 0
 	while _bs.is_launching and ticks < max_ticks:
 		await get_tree().process_frame
