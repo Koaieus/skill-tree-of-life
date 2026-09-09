@@ -36,3 +36,11 @@ conflict. If a native .so exists in the worktree, `mise run native:build` after.
 Then: `mise run test` once (match script count to `git ls-files 'test/unit/**/test_*.gd'`),
 commit with `Closes #781`, `git merge --ff-only` from the main checkout (merge is
 pre-approved by the owner, 02:10), `mise gh-project -- status 781 done`, `mise run worktree:rm -- 781`.
+
+## Residue after the agents closed out (02:35)
+- Docs landed (59a7be4). Sandbox graph got a truss triangle (B2-T1-T2) but the PANEL
+  controls (bunker-on-click toggle, rigidity OptionButton, strain readout) were NOT
+  built — the issue's tuning-surface item 2 is open. File a follow-up issue or do it
+  before closing; `MeleePreview` keeps its clock in a local, so a stall readout needs
+  the ghost's field/clock exposed on the preview (small edit).
+- `.claude/rules/stats-system.md` lists no node-local defender stats, so nothing was added.
