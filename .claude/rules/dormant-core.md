@@ -8,10 +8,12 @@ paths:
   - "procgen/graph_procgen.gd"
   - "procgen/graph_procgen_config.gd"
   - "scenes/game_root.gd"
+  - "effects/blocker_footprint_falloff.tres"
 ---
 
-A **Dormant Core** is a single-node entity that holds a node and never moves or
-acts. See docs/domain/dormant-core.md for tiers, loot books, and the prune math.
+A **Dormant Core** is an entity that holds a small patch of territory — a core
+node plus a rolled 0-6 bonus nodes, size-keyed — and never moves or acts. See
+docs/domain/dormant-core.md for tiers, footprints, loot books, and the prune math.
 
 **Player-facing text says "Dormant Core"; code says `blocker`.** Every
 identifier — `BlockerSize`, `spawn_blocker`, `blocker.tres`, `blocker_per_*` —

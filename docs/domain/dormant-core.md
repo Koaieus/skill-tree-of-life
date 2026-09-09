@@ -1,8 +1,8 @@
 # Dormant Cores
 
-A **Dormant Core** is a single-node entity that holds one SkillNode and never
-moves or acts. It has no initiative, no vision, and no AI; it exists to deny a
-node until someone kills it, and to pay out when they do. Mechanically it is a
+A **Dormant Core** is an entity that holds a small patch of territory and never
+moves or acts. It has no initiative, no vision, and no AI; it exists to deny that
+territory until someone kills it, and to pay out when they do. Mechanically it is a
 real `Entity` (`entity/blocker/blocker_entity.tscn`) so damage, the allocation
 gate, death cleanup, and loot are all existing systems rather than a special
 case.
@@ -95,6 +95,87 @@ still decides which one. Why the bonus sits above the tier terms rather than
 inside them, and the four shapes this deliberately is not — a faction analysis,
 a proximity filter, a global unlock, a tier-gated bonus — are
 [ADR 0008](../adr/0008-a-growth-capped-npc-breaks-out-through-a-bordering-door.md).
+
+## The footprint, and the falloff that shapes it (#777)
+
+Until #777 a Dormant Core held exactly the node it sat on, at every size — so
+size was legible only through a visual and a tooltip, and whether the thing
+landed on a bunker or a spike addon was a coin flip rather than a shape.
+
+Now `GraphProcgen` rolls a **bonus-node footprint** per placement and
+`GameRoot.spawn_blocker` force-allocates it alongside the core. The ranges are
+authored per size on `GraphProcgenBlockers` (`footprint_small_min` … ), default
+**small 0-2, medium 2-4, large 4-6** — so a small can still roll 0 and behave
+exactly like the pre-#777 blocker, and size finally reads on the board as
+territory, which is the game's own vocabulary for "how much is here".
+
+**The footprint is grown, not sampled.** From the core, the pass repeatedly
+picks a random eligible node adjacent to what the blocker already holds. That
+makes it **connected by construction**, which two things depend on:
+
+- the falloff below measures hops over the blocker's OWN subgraph, so a node
+  reachable only through someone else's territory would take no falloff at all;
+- the max hop is bounded by the rolled count, which is the whole clamp (below).
+
+Eligibility is the placement pass's own filter plus a claim set: never a starter
+core, never a keystone, never inside a starter's `blocker_min_hops_from_core`
+ball — **the safety radius covers the whole footprint, not just the core**, since
+a 3-node blocker reaching into a camp's opening ball is exactly the "boxed in by
+boulders" failure #300 named — and never a node another Dormant Core already
+holds. Short of candidates, a blocker **shrinks its footprint**; the blocker
+count and the tier ladder never shrink.
+
+There is deliberately **no connectivity guard**. Owner call, 2026-09-07:
+*"dormant cores are called 'blockers' for a reason"* — a footprint may sit on a
+cut vertex and wall off a pocket. The kill-strip is the door.
+
+### The falloff
+
+Every Dormant Core carries `effects/blocker_footprint_falloff.tres`, one shared
+`AuraEffect`: `reach: null`, `scope: OWNED`, `metric: HopMetric`,
+`distance_scale: ProportionalScale(per_unit = 1.0)`, one modifier
+`node_health ADD_BASE -5`. So an owned node caps at **the size's CON-derived
+`node_health` baseline minus 5 per hop from the core**, and `ProportionalScale`
+puts the source itself at scale 0 — the core keeps its full authored HP.
+
+**Not a scaled `SET`.** `distance_scale` multiplies the modifier's *value*, so
+`SET X` scaled by `s(h)` yields `X · s(h)`; getting `X − 5h` out of that needs
+`s(h) = 1 − 5h/X`, i.e. the scale would have to know X, coupling the two knobs
+`AuraEffect` deliberately keeps orthogonal. The additive spelling also composes
+with every other `node_health` source instead of bypassing them.
+
+**The footprint range IS the clamp.** `node_health` has no floor, and nothing
+stops `-5/hop` going negative past hop `X/5` — except that a footprint of `n`
+nodes reaches at most hop `n`. At the authored ranges the worst cases are a
+large at hop 6 (80 − 30 = 50) and a small at hop 2 (20 − 10 = 10). Raising a
+`footprint_*_max` past `node_health / 5` is what would need a stat minimum.
+
+The aura is granted **unconditionally**, footprint or not: on a lone core it is
+inert (the only node in scope is the source, at scale 0), and a grant that is
+always present is what makes the peer rebuild idempotent.
+
+### Density had to move with it
+
+A footprint roughly triples a Dormant Core's board share, so the density that
+shipped alongside one-node blockers (10/25/100) would have put **~42%** of an
+800-node map under one. Both the `GraphProcgenBlockers` class defaults and the
+lobby's **"Regular"** rung now read **30/50/100** — 50 blockers, ~20.5% owned —
+so a direct sandbox launch and the lobby's normal play the same game. The rest
+of the ladder was re-pitched against the same cost (Few 40/80/125, Lots
+20/35/70, Heavy 15/25/50); the old high rungs claimed 74% and >100% of the
+board once footprints landed, and a rung that cannot be placed silently
+degrades into "every eligible node is a blocker".
+
+### Multiplayer: nothing new on the wire
+
+A joining peer runs no procgen, and needs no footprint field either. Ownership
+of every footprint node crosses as `GraphSnapshot`'s per-node `owner_id`, the
+core as `EntitySnapshot`'s `core_location`, and the aura as an ordinary
+entity-wide effect row whose re-grant is idempotent. `spawn_snapshot_entity`
+therefore spawns with an EMPTY footprint — and the caps still land, because
+assigning `Entity.core_location` dispatches `_on_core_moved`, which is a full
+aura recompute over the world the graph half just decoded.
+
 
 ## Sizes, boards, and loot tiers
 
