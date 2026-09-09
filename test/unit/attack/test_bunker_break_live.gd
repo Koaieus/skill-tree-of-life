@@ -28,6 +28,12 @@ const _SPACING := 150.0
 ## matches test_bunker_deflect.gd's `_field_on_arc` convention.
 const _TURNS := 0.15
 
+## A point on the FLOPPY fixture's own tip path (sample 95 of its free swing),
+## where the plate is guaranteed a vertex contact. Kept as a constant rather
+## than derived, because deriving it means simulating the swing to place the
+## obstacle that changes the swing.
+const _FLOPPY_PLATE := Vector2(-253.0, -204.5)
+
 const _MID_IDX := 1
 const _TIP_IDX := 2
 
@@ -53,14 +59,11 @@ func _make_entity(graph: Graph) -> Entity:
 ## `rigid`: weld `mid` with a real ClampAddon instance. `with_bunker`: attach a
 ## real BunkerAddon to the defender's node; when false the defender node is
 ## plain territory (acceptance 8's "no bunker" map).
-## `bunker_pos`, when given, overrides the arc-formula placement below. Used
-## for the FLOPPY fixture: a floppy tip curls sharply inward under a full-turn
-## sweep instead of tracing the nominal radius (the reference classification
-## test's "a long floppy arm curls in ... its plate sits on a mid-chain
-## circle" trick) — measured empirically off this exact fixture's own
-## trajectory, not off the rigid one's arc-formula spot, which the floppy tip
-## never comes near.
-func _setup(rigid: bool, with_bunker: bool, bunker_pos: Vector2 = Vector2.INF) -> Dictionary:
+## The FLOPPY fixture does NOT come through here — a floppy tip curls sharply
+## inward instead of tracing the nominal radius, so its plate sits on a point
+## read off its own trajectory (`_FLOPPY_PLATE`), the reference classification
+## test's same trick. See `_setup_floppy_whip`.
+func _setup(rigid: bool, with_bunker: bool) -> Dictionary:
 	var graph := _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
 	var attacker := _make_entity(graph)
@@ -75,10 +78,8 @@ func _setup(rigid: bool, with_bunker: bool, bunker_pos: Vector2 = Vector2.INF) -
 	graph.add_edge(pivot, mid)
 	graph.add_edge(mid, tip)
 
-	if bunker_pos == Vector2.INF:
-		var r := _SPACING * 2.0  # tip's distance from the pivot
-		var angle := _TURNS * TAU
-		bunker_pos = Vector2.from_angle(angle) * r
+	var r := _SPACING * 2.0  # tip's distance from the pivot
+	var bunker_pos := Vector2.from_angle(_TURNS * TAU) * r
 	var bunker := _spawn(graph, "Bunker", bunker_pos)
 
 	await get_tree().process_frame
@@ -214,11 +215,12 @@ func _setup_floppy_whip() -> Dictionary:
 	graph.add_edge(a, b)
 	graph.add_edge(b, tip)
 
-	# On the arc `tip` sweeps at a turn round — same convention as the rigid
-	# fixture's arc formula, just off the longer chain's own reach.
-	var r := _SPACING * 3.0
-	var bunker_pos := Vector2.from_angle(_TURNS * TAU) * r
-	var bunker := _spawn(graph, "Bunker", bunker_pos)
+	# NOT the rigid fixture's arc formula: a floppy tip curls hard inward and
+	# never comes within 39px of the nominal radius (measured off this exact
+	# fixture). This is a point the free tip actually passes through, read off
+	# its own trajectory — see the class docstring's note on the reference
+	# classification test's same trick.
+	var bunker := _spawn(graph, "Bunker", _FLOPPY_PLATE)
 
 	await get_tree().process_frame
 
@@ -234,10 +236,16 @@ func _setup_floppy_whip() -> Dictionary:
 	var bunker_addon := _BUNKER_SCENE.instantiate() as SkillNodeAddon
 	bunker.add_child(bunker_addon)
 
+	# Deliberately blunter than the rigid fixture's +20: this test wants the
+	# plate to be CHIPPED, not killed. At +20 the mitigated hit is 17.5 against
+	# 10 node_health, and a dead defender core drags the whole death cascade
+	# into a test about a blade that flops. At +5 it lands 2.15 — non-zero, so
+	# the hit is real, and visibly mitigated (bunker's +5 armor / −5
+	# min_damage_taken take a +5 blade under the floor entirely).
 	var sharp := StatModifier.new()
 	sharp.stat_id = &"blade_damage"
 	sharp.operation = StatModifier.Operation.ADD_BONUS
-	sharp.value = 20.0
+	sharp.value = 5.0
 	tip.add_local_modifier(sharp)
 	b.add_local_modifier(sharp)
 
@@ -269,16 +277,8 @@ func test_a_floppy_blade_never_breaks_and_still_damages_the_bunker() -> void:
 			edge_pops += 1
 	assert_eq(edge_pops, 0, "no edge Pop for a floppy contact")
 
-	var hp_after := bunker.get_current_hp()
-	# UNVERIFIED (2026-09-09): on this fixture hp stayed put — either the curled
-	# floppy chain never lands a scannable contact here, or a 1px-slop contact
-	# is not seen by the physics query. Decide which before un-pending: see
-	# docs/handoffs/781-bunker-deflect.md.
-	if hp_after >= hp_before:
-		pending("floppy contact landed no damage on this fixture (hp %s -> %s)" % [hp_before, hp_after])
-	else:
-		assert_lt(hp_after, hp_before,
-				"the bunker still takes the mitigated hit even when nothing breaks")
+	assert_lt(bunker.get_current_hp(), hp_before,
+			"the bunker still takes the mitigated hit even when nothing breaks")
 
 
 # ---------------------------------------------------------------- acceptance e
