@@ -695,8 +695,8 @@ global warp would be paradoxical: a fortified node at the end of the sweep would
 retroactively stop the swing from ever reaching it.
 
 **Nothing is paid by a swing that never meets one.** `MeleeAttackPlan` attaches a
-clock only when a fortified node is within the blade's reach; otherwise `clock`
-is null, the driver runs its original expression, and the native backend still
+clock only when the swing has a defender field at all (since #811 the clock and
+the field travel together); otherwise `clock` is null, the driver runs its original expression, and the native backend still
 takes the swing. Even an *attached* clock is inert until first contact — the
 driver keeps reading `t / duration` verbatim, so a swing with a fortified node in
 its field that it never touches is **bit-identical** to one with no field at all.
@@ -735,24 +735,101 @@ zone contributes its `swing_drag` **at most once for the whole swing**. Do not
 delete that rule as redundant on the ADR's authority — the ADR is talking about
 damage.
 
-### Two sensing models, and they can disagree
+### One defender field, built by the physics engine (#811, ADR 0014)
 
-`BladeSwingClock.sense()` is **analytic** — point-in-disc and point-to-segment —
-where `BladeHitScan` queries `PhysicsDirectSpaceState2D`. That is by necessity,
-not preference: `AiBladeRollout` runs `BladeSim.simulate` from
-`WorkerThreadPool` tasks, where a physics-server query is not safe, so the solver
-must never touch the space state.
+There is **one** contact test in the melee solver and the physics engine finds
+what it tests against. Read
+**[ADR 0014](../adr/0014-one-physics-built-defender-field.md)** for the decision
+and its dead alternatives; this section is what the code does.
 
-The consequence to know, because it will look like a bug: **at the margin a node
-can drag the swing without producing a hit event, or produce a hit event without
-having dragged.** `BladeHitScan` remains the sole authority for hit events,
-damage and pops; the clock decides only how fast time runs. Keep the two
-`_EDGE_RADIUS` constants equal.
+`BladeDefenderZones.query()` issues a single `intersect_shape` against the two
+collision layer bits a `SkillNode` toggles off its own `swing_drag` /
+`deflection` local values (#810: bit 2 `swing_drag`, bit 3 `deflection`; bit 1,
+Godot's default, is untouched so `intersect_point` mouse picking keeps working).
+The result is an **immutable** parallel-array table — centres, radii, drag
+magnitudes, deflect flags, source nodes. `BladeObstacleField` wraps one and owns
+every mutable accumulator; `BladeSwingClock` owns the banked drag.
 
-Sensing runs once per **trajectory sample**, not per substep — a sample is
-1/120 s against a 1.2 s swing, so the granularity costs under 1% of the arc,
-while per-substep sensing would quadruple the only per-step work the solver does
-outside its own constraint sweeps.
+**Two zone kinds, asymmetric on purpose.** `deflection` is a BOOL stat (presence
+only); `swing_drag` is a magnitude. A plate is pushed out of, meters strain, arms
+a break and can stall the grip. A wall is **sensed and nothing more** —
+`project()` skips it in the pushout and banks its drag on the clock instead.
+A wall never enters the field's `_near` set, which is not a neutral "was sensed"
+set: it gates the strain accumulator, so a wall in it could shatter a blade,
+which is a plate-only effect (ADR 0005, #781). **A node carrying both stats is
+ONE zone of both kinds**, latched once — the drag latch keys on the zone index,
+so a doubled zone would double its wall.
+
+**Where the models used to disagree, they cannot now.** Before #811,
+`BladeSwingClock.sense()` re-implemented the geometry analytically and its own
+docstring admitted that at the margin a node could drag without producing a hit
+event, or produce one without having dragged. That whole class of divergence is
+gone: `BladeHitScan` is still the sole authority for hit events, damage and pops,
+but it and the field now agree on *who is in range* by construction, because one
+query answers it.
+
+**Cadence.** The wall test runs inside `project()`, i.e. once per solver
+**substep** rather than #780's once per trajectory sample — four times finer.
+The reach is unchanged (`zone radius + particle radius` for a disc, `zone radius
++ EDGE_RADIUS` for a capsule, no slop, no hysteresis), so only onset moved, and
+only earlier-or-equal. The `_f` seed a first contact takes reads `_last_t`, which
+`BladeSim._step` already advances per substep — that is what makes the finer
+cadence safe.
+
+### The query radius is generous on purpose — never re-tighten it
+
+`MeleeAttackPlan._blade_reach` bounded both deleted zone walks by the blade's
+**rest** reach. Swinging a floppy blade straightens it: a 5-node W blade whose
+rest reach is 432 px was measured whipping to 714.6 px, so every fortified or
+bunkered node in that 65%-wide annulus silently failed to defend while
+`BladeHitScan` — sensing off the live pose — damaged it normally (#808).
+`test/unit/attack/test_blade_whip_reach.gd` is that fixture, and it derives the
+measurement rather than pasting it.
+
+What replaces it is `MeleeAttackPlan.whip_bound()`: BFS over the blade's own
+induced subgraph (at most `blade_size + 1` vertices) summing rest edge lengths
+from the pivot — 721.1 px for that W, within 1% of the measured whip — times
+`BladeDefenderZones.STRETCH_MARGIN` for XPBD's soft constraints, plus the widest
+blade disc and an edge half-thickness.
+
+**With the predicate on the collision mask, the radius is no longer what makes
+the work cheap**, so it is a pure trade with graceful degradation in one
+direction only: too large costs a few float compares per substep, too small
+silently drops a defender. A severed fragment can coast outside even this
+bound — "coasting blade parts can go anywhere", owner, 2026-09-09 — and is
+covered iff the radius happens to cover it. That is accepted, not a bound anyone
+relies on.
+
+**A generous field must be broad-phased.** On `first_level` (114 `swing_drag`
+carriers, 89 `deflection`, 18 both) a size-4 blade pulls dozens of zones in, and
+`project()` runs per solver iteration. Walked naively that cost +29% on a
+prediction. `project()` therefore recomputes the blade's AABB from the current
+pose each iteration and rejects any zone outside it grown by its own radius —
+exact, needing no safety margin, and it brings the cost back to noise. Keep that
+reject if you touch `project()`.
+
+### Building it once per pivot, and why that is safe
+
+`MeleeAttackPlan.build_blade_state()` normally queries for itself. `AiBladeRollout`
+does not: it builds every proposal's state with an **empty** zone set first (which
+is how it gets the whip bound), takes the widest bound per pivot, issues **one**
+query per pivot, and hands the same immutable instance to all of that pivot's
+proposals. Each proposal still gets its own `BladeObstacleField` wrapper and its
+own `BladeSwingClock`, so the ≤32 concurrent `WorkerThreadPool` sims share only
+data nobody writes. 12682 us vs 18447 us at 192 proposals.
+
+**The coarse tier gained Fortification drag here**, which it never had — it built
+no clock at all, so a wall that bogs the real swing down ranked as empty ground.
+
+**The blade side is excluded by RID**, via `collect_target_excludes()` — the same
+list `BladeHitScan` gets. The old `_is_blade_side` predicate was a second
+implementation of that membership and is deleted; a blade bogging down on its own
+wall would have been the symptom of the two drifting apart.
+
+**The native backend stays off for any swing that has a field.**
+`BladeSim.simulate_range` gates native on `clock == null and obstacles == null`,
+and one merged field means more swings qualify than before. Accepted under #811;
+giving the native backend a constraint hook is #813.
 
 ### Determinism and the mirror
 
@@ -777,10 +854,11 @@ plate's disc, every solver iteration, **after** the distance constraints —
 Most blades flop around a bunker and nothing happens; a blade too rigid to yield
 gets driven a fixed distance into the plate and then **breaks** — never the
 vertex that touched it (ADR 0005: a spike destroys matter, a bunker destroys
-structure). This is `attack/plan/melee_attack_plan.gd`'s `build_obstacle_field`
-attaching a field to `BladeState.obstacles` (mirroring `build_swing_clock`'s
-cull and blade-side exclusion), and the resolve loop's `consume_break` handling
-inside `resolve_against` (below) is what actually severs it.
+structure). This is `attack/plan/melee_attack_plan.gd`'s
+`build_defender_zones` + `attach_defender_field` hanging a field off
+`BladeState.obstacles` (one query, both zone kinds — see "One defender field"
+above), and the resolve loop's `consume_break` handling inside `resolve_against`
+(below) is what actually severs it.
 
 ### The metric is the DRIVER's residual, never the contact point or the constraint residual
 
@@ -884,9 +962,9 @@ one break, then through.
 
 ### The zero-bunker structural guard
 
-`build_obstacle_field` attaches a field to `BladeState.obstacles` only when a
-node with `deflection > 0` is within the blade's reach; with none, `obstacles`
-stays null. No field means no accumulator is ever allocated and no pushout
+`attach_defender_field` hangs a field off `BladeState.obstacles` only when the
+defender query came back with something — since #811 that means a wall *or* a
+plate; with neither, `obstacles` stays null. No field means no accumulator is ever allocated and no pushout
 ever runs — the strain metric is never "did this vertex move?" in general,
 only ever "how much of *this bunker's* requested pushout went unmet," so a map
 with zero bunkers cannot produce a break by construction, at any blade size or
@@ -1513,5 +1591,6 @@ it. Nothing here re-decides one.
 7. `attack/melee/sim/blade_swing_clock.gd` (Fortification drag, #780)
 8. `attack/melee/sim/blade_obstacle_field.gd` (Bunker deflection, #781)
 9. `attack/melee/skill_blade.gd` (visual wrapper)
-10. `attack/plan/melee_attack_plan.gd` (`resolve()`, `build_obstacle_field`)
-11. `attack/melee/melee_preview.gd` (ghost loop, #782 prediction replay)
+10. `attack/melee/sim/blade_defender_zones.gd` (the one physics query, #811)
+11. `attack/plan/melee_attack_plan.gd` (`resolve()`, `build_defender_zones`, `whip_bound`)
+12. `attack/melee/melee_preview.gd` (ghost loop, #782 prediction replay)

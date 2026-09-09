@@ -3,6 +3,14 @@ extends GutTest
 ## #780 — Fortification's swing drag: a wall of fortified nodes bogs a blade
 ## down by slowing the SWING'S CLOCK, never a vertex's velocity.
 ##
+## #811 re-pointed the SENSING half of these tests: the clock no longer holds
+## zones or tests geometry — [BladeObstacleField] carries the merged defender
+## field (walls + plates) and banks a wall contact onto the clock as its
+## projection pass finds one. Every assertion below is still about the same
+## quantity (`clock.drag`, `clock.touched`, `clock.progress()`, swept arc);
+## what changed is that the zones are authored on the field via
+## `add_drag_zone` and hang off `state.obstacles`.
+##
 ## Everything here runs on HAND-BUILT blades and hand-placed drag zones, per the
 ## issue's own NOTES: AI-built blades sit at the floppy end and under-report
 ## drag's bite. Nothing pins an authored `.tres` magnitude — the number on
@@ -95,13 +103,14 @@ func _clock_on_arc(
 		amount: float = 1.0,
 		from_turns: float = 0.10,
 		step_turns: float = 0.015) -> BladeSwingClock:
-	var clock := BladeSwingClock.new(_DURATION)
+	var field := BladeObstacleField.new()
 	var pivot := state.positions[state.pivot_index]
 	var r := pivot.distance_to(state.positions[_DRIVEN_IDX])
 	for i in count:
 		var a := (from_turns + float(i) * step_turns) * TAU
-		clock.add_zone(pivot + Vector2.from_angle(a) * r, _RADIUS, amount)
-	return clock
+		field.add_drag_zone(pivot + Vector2.from_angle(a) * r, _RADIUS, amount)
+	state.obstacles = field
+	return BladeSwingClock.new(_DURATION)
 
 
 ## A hand-built RIGID blade: a triangulated ladder that actually holds its shape
@@ -176,8 +185,10 @@ func test_a_drag_zone_that_is_never_touched_changes_nothing_bit_exactly() -> voi
 	var traj_bare := _simulate(bare, null)
 
 	var clocked := _arm()
+	var far_field := BladeObstacleField.new()
+	far_field.add_drag_zone(Vector2(100000.0, 100000.0), _RADIUS, 5.0)
+	clocked.obstacles = far_field
 	var far := BladeSwingClock.new(_DURATION)
-	far.add_zone(Vector2(100000.0, 100000.0), _RADIUS, 5.0)
 	var traj_clocked := _simulate(clocked, far)
 
 	assert_false(far.is_warping(),
@@ -257,6 +268,7 @@ func test_the_swings_angular_progress_never_decreases_in_any_configuration() -> 
 			var state: BladeState = _truss() if rigid else _arm()
 			var clock := _clock_on_arc(state, maxi(cfg.count, 1), cfg.amount, 0.04, 0.015)
 			if cfg.count == 0:
+				state.obstacles = null
 				clock = BladeSwingClock.new(_DURATION)
 			var rec := ProgressRecorder.new(clock)
 			_simulate(state, clock, rec)
@@ -330,7 +342,6 @@ func test_a_stacked_wall_cannot_make_the_clock_run_backwards() -> void:
 	# The invariant at its source: `f` itself, ticked directly with drag piled
 	# on between ticks, including an absurd magnitude.
 	var clock := BladeSwingClock.new(_DURATION)
-	clock.add_zone(Vector2.ZERO, 1.0, 1.0)
 	# Force the warping branch without needing a contact.
 	clock.touched[0] = true
 	clock.drag = 1.0
@@ -351,14 +362,16 @@ func test_a_wall_stalls_the_swing_and_nodes_further_round_are_not_reached() -> v
 	var state := _arm()
 	var pivot := state.positions[state.pivot_index]
 	var arc_r := pivot.distance_to(state.positions[_DRIVEN_IDX])
-	var clock := BladeSwingClock.new(_DURATION)
+	var field := BladeObstacleField.new()
 	# A dense wall early in the arc...
 	for i in 6:
 		var a := (0.02 + float(i) * 0.012) * TAU
-		clock.add_zone(pivot + Vector2.from_angle(a) * arc_r, _RADIUS, 4.0)
+		field.add_drag_zone(pivot + Vector2.from_angle(a) * arc_r, _RADIUS, 4.0)
 	# ...and one lone node most of the way round, behind it.
-	var sheltered := clock.zone_drags.size()
-	clock.add_zone(pivot + Vector2.from_angle(0.75 * TAU) * arc_r, _RADIUS, 4.0)
+	var sheltered := field.zones.size()
+	field.add_drag_zone(pivot + Vector2.from_angle(0.75 * TAU) * arc_r, _RADIUS, 4.0)
+	state.obstacles = field
+	var clock := BladeSwingClock.new(_DURATION)
 
 	var traj := _simulate(state, clock)
 	var swept := _swept(traj, pivot)
@@ -376,8 +389,10 @@ func test_a_zone_banks_its_drag_at_most_once_however_many_parts_touch_it() -> vo
 	# node touched by a disc AND both incident capsules is still one node's worth
 	# of drag. Placed mid-edge so the capsule sees it too.
 	var state := _arm()
+	var field := BladeObstacleField.new()
+	field.add_drag_zone(Vector2(_SPACING * 1.5, 0.0), _RADIUS, 2.0)
+	state.obstacles = field
 	var clock := BladeSwingClock.new(_DURATION)
-	clock.add_zone(Vector2(_SPACING * 1.5, 0.0), _RADIUS, 2.0)
 	_simulate(state, clock)
 	assert_eq(clock.touched.size(), 1, "one zone, one entry")
 	assert_eq(clock.drag, 2.0,
@@ -391,11 +406,9 @@ func test_a_node_in_the_gap_between_two_vertices_still_drags_via_the_capsule() -
 	# the gaps between the vertex arcs, so disc-only sensing would reintroduce
 	# spacing luck for drag magnitude against a wall.
 	var state := _arm()
-	var clock := BladeSwingClock.new(_DURATION)
 	# Midway between vertices 1 and 2, and small enough that neither disc
 	# reaches it — only the rim-trimmed capsule between them can.
-	clock.add_zone(Vector2(_SPACING * 1.5, 0.0), 2.0, 1.0)
-	clock.sense(state.positions, state.radii, state.edges, state.removed_edges)
+	var clock := _sense_once(state, Vector2(_SPACING * 1.5, 0.0), 2.0, 1.0)
 	assert_eq(clock.touched.size(), 1,
 			"a node sitting in the gap must be sensed by the edge capsule")
 
@@ -403,11 +416,24 @@ func test_a_node_in_the_gap_between_two_vertices_still_drags_via_the_capsule() -
 func test_a_severed_edge_senses_nothing() -> void:
 	var state := _arm()
 	state.remove_edge(1)  # the 1-2 edge
-	var clock := BladeSwingClock.new(_DURATION)
-	clock.add_zone(Vector2(_SPACING * 1.5, 0.0), 2.0, 1.0)
-	clock.sense(state.positions, state.radii, state.edges, state.removed_edges)
+	var clock := _sense_once(state, Vector2(_SPACING * 1.5, 0.0), 2.0, 1.0)
 	assert_eq(clock.touched.size(), 0,
 			"a severed edge (#781) is gone and must touch nothing")
+
+
+## One wall zone, one projection pass, at the blade's REST pose — the direct
+## replacement for `BladeSwingClock.sense()`, which #811 deleted. The contact
+## test now lives in [method BladeObstacleField.project], so exercising the
+## geometry means running one pass of the field rather than calling the clock.
+func _sense_once(state: BladeState, center: Vector2, radius: float,
+		amount: float) -> BladeSwingClock:
+	var field := BladeObstacleField.new()
+	field.add_drag_zone(center, radius, amount)
+	state.obstacles = field
+	var clock := BladeSwingClock.new(_DURATION)
+	field.prepare(state, [] as Array[BladeDriver], clock)
+	field.project(state.positions, state.inv_masses)
+	return clock
 
 
 # ── Acceptance 6: determinism ──────────────────────────────────────────────

@@ -118,12 +118,13 @@ static func backend() -> StringName:
 ##   is per-particle (#801). An empty array — what every ordinary swing has —
 ##   skips the multiply entirely, and a zero entry multiplies by exactly 1.0,
 ##   so "drag 0 is bit-identical to undamped" holds per particle.
-## - `clock`: optional [BladeSwingClock] (#780). Present only when the swing has
-##   at least one Fortification drag zone in range; then every [BladeArcDriver]
-##   reads its angular progress instead of deriving progress from `t`, and this
-##   loop senses the blade against the zones once per sample. Null — what every
-##   other call passes — leaves both the drivers and this loop on the exact
-##   expressions they used before drag existed.
+## - `clock`: optional [BladeSwingClock] (#780). Present whenever the swing has
+##   a defender field at all — every [BladeArcDriver] then reads its angular
+##   progress instead of deriving progress from `t`, and [BladeObstacleField]
+##   banks a wall contact onto it as its projection pass finds one (#811). Null
+##   — what a fieldless swing passes — leaves both the drivers and this loop on
+##   the exact expressions they used before drag existed. A field with walls in
+##   it and a null clock senses no drag at all, so the two travel together.
 static func simulate(
 		state: BladeState,
 		drivers: Array[BladeDriver],
@@ -201,7 +202,10 @@ static func simulate_range(
 	# both change after a severance — so it meters the right particles.
 	var obstacles := state.obstacles
 	if obstacles != null:
-		obstacles.prepare(state, drivers)
+		# The clock goes in with it (#811): a wall contact is sensed by the
+		# field's projection pass and banked straight onto the clock, so the
+		# field needs the swing's accumulator, not just its geometry.
+		obstacles.prepare(state, drivers, clock)
 	# The native transliteration continues from `prev_positions`, takes the
 	# integer step offset and the per-particle damping array (#803), so a
 	# re-baked tail after a severance (#801) runs native like the head did. The
@@ -253,13 +257,12 @@ static func simulate_range(
 			var t := t0 + float(s + 1) * sub_dt
 			step_speeds = _step(state, drivers, t, sub_dt, base_iterations,
 					velocity_iter_ref, sub, length_factor, damping, clock)
-		# Sense drag once per SAMPLE, not once per substep (#780). A sample is
-		# 1/120 s against a 1.2 s swing, so the granularity costs under 1% of the
-		# arc, while per-substep sensing would quadruple the only per-step work the
-		# solver does outside its own constraint sweeps. Whatever this banks slows
-		# the arc from the NEXT substep on — never the approach to the zone itself.
+		# Drag is no longer sensed here (#811): BladeObstacleField.project tests
+		# both zone kinds against one geometry, inside the substep, and banks a
+		# wall contact on the clock as it finds it. What is left is the per-sample
+		# bank the resolve loop rewinds to. Whatever was banked slows the arc from
+		# the NEXT substep on — never the approach to the zone itself.
 		if clock != null:
-			clock.sense(state.positions, state.radii, state.edges, state.removed_edges)
 			clock.history.append(clock.capture())
 		if obstacles != null:
 			obstacles.history.append(obstacles.capture())

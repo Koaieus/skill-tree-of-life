@@ -24,11 +24,9 @@ extends GutTest
 ## own vertices and one [BladeHitScan] physics query per vertex and edge, and
 ## (b) the [CombatWorld] shadow snapshot of whatever it lands on — which since
 ## #695 is per NODE TOUCHED, not per node owned, and a swing touches a handful.
-## Graph size enters only through the three O(total nodes) culling walks
-## ([method MeleeAttackPlan.build_swing_clock],
-## [method MeleeAttackPlan.build_obstacle_field],
-## [method AttackPlan.collect_target_excludes]); running on the real 800-node
-## level is what keeps those honest.
+## Graph size used to enter through three O(total nodes) culling walks; #809
+## and #811 removed all three, and running on the real 800-node level is what
+## keeps that honest.
 ##
 ## Numbers move with the machine — record the CPU alongside any result you cite.
 ##
@@ -114,6 +112,52 @@ extends GutTest
 ## but `build_swing_clock`'s equivalent is not measured here because
 ## `build_drivers` doesn't call it — the AI coarse pass never builds a swing
 ## clock at all, only [BladeSim.simulate]'s pure driver/state pair.
+##
+## [b]After #811, same machine, same day.[/b] The two O(map) zone walks are
+## gone: one [method BladeDefenderZones.query] against #810's collision bits
+## replaces both, and the rest-pose cull they shared (65% short, #808) is
+## replaced by the generous chain-length whip bound. Same fixture, same seed:
+## [codeblock]
+## blade | vertices | refresh_prediction (med) |   worst | vs #809
+##     1 |        2 |                 4866 us |  5763 us |  -45%
+##     2 |        3 |                 7381 us |  7453 us |  -35%
+##     3 |        4 |                 9168 us |  9233 us |  -30%
+##     4 |        5 |                16098 us | 16420 us |   +2% (noise)
+## [/codeblock]
+## [codeblock]
+## build_blade_state                                               135 us ( 0.8%)
+##   ...of which build_defender_zones                               36 us ( 0.2%)   <- was 1688-1761
+##   ...of which everything else (get_induced_edges incl.)          99 us ( 0.6%)
+## build_defender_zones (one intersect_shape)                       36 us ( 0.2%)   <- replaces BOTH walks
+## collect_target_excludes                                          13 us ( 0.1%)
+## CombatWorld.shadow() mint                                         3 us ( 0.0%)
+## world.free_shadow()                                               1 us ( 0.0%)
+## refresh_prediction (whole)                                    16070 us
+## [/codeblock]
+## `build_swing_clock` (1719-1758 us) and `build_obstacle_field` (1688-1761 us)
+## are gone from the attribution entirely — the methods no longer exist. What
+## replaces them costs 36 us, ~96x less, and it is CORRECT where they were not.
+##
+## [b]Defender carriers on `first_level`[/b]
+## (`test_defender_carrier_count_on_first_level`, #811 acceptance 5): 114 nodes
+## carry `swing_drag`, 89 carry `deflection`, 18 carry both — 185 distinct
+## carriers on an 800-node map, which is what
+## [constant BladeDefenderZones._MAX_ZONES] (512) has to clear.
+##
+## [b]Blade size 4 is the whole story of that +2%.[/b] The whip bound is
+## deliberately generous, so a size-4 blade on this map pulls dozens of zones
+## into its field where the old rest-pose cull found a handful — and the field
+## is walked per SOLVER ITERATION, not per sample. Measured naively that cost
+## +29% (20414 us). [method BladeObstacleField.project]'s AABB broad phase —
+## recomputed from the current pose every iteration, so it needs no safety
+## margin — brings it back to noise. Keep that reject if you touch `project`.
+##
+## [b]The 192x term after #811.[/b] The coarse pass now issues ONE defender
+## query per PIVOT and shares the immutable zone set across that pivot's
+## proposals. Measured at 192 proposals, blade size 4: 12682 us shared vs
+## 18447 us if every proposal queried for itself (the shape #811 refused) —
+## and against 338495 us before #809. Note the coarse tier also GAINED
+## fortification drag here, which it never had.
 ##
 ## The budget assert below is a REGRESSION catch, not the target: it is set well
 ## clear of the numbers above so it fires on a structural regression (the
@@ -345,7 +389,6 @@ func test_prediction_cost_attribution() -> void:
 		return
 
 	var build := 0
-	var clock_build := 0
 	var field_build := 0
 	var excludes := 0
 	var mint := 0
@@ -359,11 +402,7 @@ func test_prediction_cost_attribution() -> void:
 		build += Time.get_ticks_usec() - t
 
 		t = Time.get_ticks_usec()
-		plan.build_swing_clock(state)
-		clock_build += Time.get_ticks_usec() - t
-
-		t = Time.get_ticks_usec()
-		plan.build_obstacle_field(state)
+		plan.build_defender_zones(state)
 		field_build += Time.get_ticks_usec() - t
 
 		t = Time.get_ticks_usec()
@@ -388,10 +427,10 @@ func test_prediction_cost_attribution() -> void:
 	gut.p("attribution at blade size %d (mean of %d):" % [size, _SAMPLES])
 	for row in [
 			["build_blade_state", build],
-			["  ...of which build_obstacle_field", field_build],
+			["  ...of which build_defender_zones", field_build],
 			["  ...of which everything else (get_induced_edges incl.)", build - field_build],
-			["build_swing_clock", clock_build],
-			["build_obstacle_field", field_build], ["collect_target_excludes", excludes],
+			["build_defender_zones (one intersect_shape)", field_build],
+			["collect_target_excludes", excludes],
 			["CombatWorld.shadow() mint", mint], ["world.free_shadow()", release]]:
 		gut.p("  %-56s %7.0f us (%4.1f%%)"
 			% [row[0], float(row[1]) / n, 100.0 * float(row[1]) / maxf(float(whole), 1.0)])
@@ -424,18 +463,67 @@ func test_coarse_pass_cost_at_192_proposals() -> void:
 	if probe.blade_nodes.size() < size:
 		return
 
+	# (a) what the rollout actually does since #811: ONE defender query per
+	#     pivot, shared across that pivot's proposals.
 	var t := Time.get_ticks_usec()
+	var shared := _plan_of_size(size).build_defender_zones(_plan_of_size(size).build_blade_state(
+			BladeDefenderZones.new()))
+	for _i in _PROPOSAL_COUNT:
+		var plan := _plan_of_size(size)
+		var state := plan.build_blade_state(shared)
+		plan.build_drivers(state)
+	var total := Time.get_ticks_usec() - t
+
+	# (b) the same loop letting every proposal query for itself — the shape
+	#     #811 explicitly refused ("do not issue 192 queries"). Kept measured
+	#     so the sharing has a number attached rather than an argument.
+	var t2 := Time.get_ticks_usec()
 	for _i in _PROPOSAL_COUNT:
 		var plan := _plan_of_size(size)
 		var state := plan.build_blade_state()
 		plan.build_drivers(state)
-	var total := Time.get_ticks_usec() - t
+	var unshared := Time.get_ticks_usec() - t2
 
 	gut.p("")
 	gut.p("coarse-pass calling-thread cost at %d proposals, blade size %d:"
 			% [_PROPOSAL_COUNT, size])
-	gut.p("  %-56s %7.0f us" % ["total (build_blade_state + build_drivers x %d)" % _PROPOSAL_COUNT, total])
+	gut.p("  %-56s %7.0f us" % ["total, ONE shared query (what #811 ships)", total])
 	gut.p("  %-56s %7.2f us" % ["per proposal", float(total) / float(_PROPOSAL_COUNT)])
 	gut.p("  %-56s %7.2f" % ["frames @144Hz", float(total) / _FRAME_BUDGET_USEC])
+	gut.p("  %-56s %7.0f us" % ["total, a query PER proposal (refused)", unshared])
 	assert_gt(total, 0, "the coarse-pass run must have measured something")
+
+
+## The measurement #811's acceptance 5 asks for: how many nodes on the shipped
+## `first_level` map actually carry each defender stat — i.e. how many
+## colliders [method BladeDefenderZones.query] can ever return, which is what
+## its `_MAX_ZONES` cap has to clear.
+##
+## Counted off the COLLISION BITS, not off the stat boards: that is what the
+## query matches on, so this doubles as an end-to-end check that #810's
+## registry actually reaches every carrier.
+func test_defender_carrier_count_on_first_level() -> void:
+	await _ensure_fixture()
+	if _frontline == null:
+		return
+	var drag := 0
+	var deflect := 0
+	var both := 0
+	var nodes := _graph.get_skill_nodes()
+	for sn in nodes:
+		var d := sn.get_collision_layer_value(SkillNode.DRAG_COLLISION_LAYER)
+		var f := sn.get_collision_layer_value(SkillNode.DEFLECT_COLLISION_LAYER)
+		if d:
+			drag += 1
+		if f:
+			deflect += 1
+		if d and f:
+			both += 1
+	gut.p("")
+	gut.p("defender carriers on first_level (%d nodes):" % nodes.size())
+	gut.p("  %-56s %7d" % ["swing_drag (Fortification)", drag])
+	gut.p("  %-56s %7d" % ["deflection (Bunker)", deflect])
+	gut.p("  %-56s %7d" % ["both", both])
+	gut.p("  %-56s %7d" % ["BladeDefenderZones._MAX_ZONES cap", 512])
+	assert_gt(nodes.size(), 0, "the carrier count run must have seen a map")
 

@@ -4,16 +4,36 @@ extends BladeConstraint
 ## Bunker deflection (#781): the solid obstacles a swing cannot pass through,
 ## and the strain meter that breaks a blade too rigid to go around them.
 ##
+## [b]Since #811 this is THE defender field — both kinds.[/b] It wraps one
+## immutable [BladeDefenderZones] (the physics query's result) and is the only
+## thing in the solver that tests the blade against a defender. Two zone kinds,
+## asymmetric on purpose:
+##
+## - a [b]plate[/b] (`deflection`, a BOOL stat — presence only, §805; only
+##   [BunkerAddon] authors it) is pushed out of, meters strain, arms a break and
+##   can stall the grip;
+## - a [b]wall[/b] (`swing_drag`, a magnitude; [FortificationAddon]) is SENSED
+##   and nothing more — [method project] skips it in the pushout and banks its
+##   drag on the [BladeSwingClock] instead. A wall spends the swing's budget; it
+##   does not stop the blade, and it must never shatter one. That is why a wall
+##   never enters [member _near], which is not a neutral "was sensed" set: it
+##   gates the strain accumulator that arms breaks and stalls grips, both of
+##   which are plate-only effects (ADR 0005, #781).
+##
+## A node carrying both stats is ONE zone that is both kinds, latched once.
+##
 ## [b]One object per swing, or none.[/b] [method MeleeAttackPlan.build_blade_state]
-## attaches one to [member BladeState.obstacles] only when a node with
-## `deflection` true (a BOOL stat, presence only, §805; only [BunkerAddon]
-## authors it) is within the blade's reach.
-## A map with no bunker therefore has NO field — no accumulator exists to be
+## attaches one to [member BladeState.obstacles] only when some defender of
+## either kind is inside the swing's whip bound.
+## A map with no defender therefore has NO field — no accumulator exists to be
 ## measured, nothing is allocated, and the solver runs the plain native path.
 ## That is the owner's false-positive guard, structurally: the strain metric is
 ## never "did this vertex move?" in general, it is only ever "how much of the
 ## drive this bunker's pushout refused" — and without a bunker there is nothing
-## to refuse.
+## to refuse. [b]The native backend is off for any swing that HAS a field[/b]
+## ([method BladeSim.simulate_range] gates on `clock == null and obstacles ==
+## null`), so merging the two zone sets means more swings take the GDScript
+## path than before — accepted under #811, tracked separately as #813.
 ##
 ## [b]Pushout.[/b] Projected every solver iteration AFTER the distance
 ## constraints (see [method BladeSim._step]), so the pass ends with every vertex
@@ -78,8 +98,13 @@ extends BladeConstraint
 ## `plate_integrity` pool (the owner's "tegridy") is the coherent next option —
 ## a hint, not a plan; nothing here anticipates it.
 ##
-## Analytic, allocation-free per substep, no physics-server calls: safe from
-## [AiBladeRollout]'s worker threads.
+## [b]Analytic, allocation-free per substep, no physics-server calls: safe from
+## [AiBladeRollout]'s worker threads.[/b] The physics IS what found the zones —
+## one [method PhysicsDirectSpaceState2D.intersect_shape] per pivot, on the main
+## thread — but by the time the solver sees them they are plain arrays on a
+## shared, immutable [BladeDefenderZones]. Everything mutable lives on THIS
+## object, one per swing, so a pivot's whole rollout can share one zone set
+## without racing.
 
 ## How far a vertex disc may sink into a bunker disc before the pushout acts, in
 ## px. Not zero on purpose: [BladeHitScan] has to SEE the contact so the
@@ -135,11 +160,19 @@ class Bank extends RefCounted:
 	var current_step: int
 
 
-## Obstacle zones — one per deflecting defender node, parallel arrays. World
-## space, exactly like [member BladeState.positions]. Built once, never mutated.
-var zone_centers: PackedVector2Array = PackedVector2Array()
-var zone_radii: PackedFloat32Array = PackedFloat32Array()
-var zone_defenders: Array[SkillNode] = []
+## The defenders this swing can meet — immutable, built once by
+## [method BladeDefenderZones.query], and possibly SHARED with every other
+## proposal at the same pivot. Never mutated from here.
+var zones: BladeDefenderZones = BladeDefenderZones.new()
+
+## World-space centre / collision radius / source node of each zone. Forwarded
+## rather than duplicated: [member zones] is the one copy.
+var zone_centers: PackedVector2Array:
+	get: return zones.centers
+var zone_radii: PackedFloat32Array:
+	get: return zones.radii
+var zone_defenders: Array[SkillNode]:
+	get: return zones.defenders
 
 # ── Sim state (in Bank) ──────────────────────────────────────────────────────
 ## Per zone: accumulated unresolved drive (px) over the CURRENT contact. Reset
@@ -169,6 +202,7 @@ var history: Array[Bank] = []
 
 # ── Per-run scratch (rebuilt by prepare / per substep) ──────────────────────
 var _state: BladeState
+var _clock: BladeSwingClock = null
 var _driven: PackedInt32Array = PackedInt32Array()
 var _driven_set: Dictionary = {}
 var _driven_targets: PackedVector2Array = PackedVector2Array()
@@ -178,6 +212,8 @@ var _contact_edges: Dictionary = {}
 ## particle -> the outward normal it was last pushed along this substep.
 var _contact_normals: Dictionary = {}
 ## zone -> true while some part is within CONTACT_HYSTERESIS of it this substep.
+## PLATES only: a wall never enters this set, so it can never meter strain,
+## arm a break or stall a grip (#811 — see the class docstring).
 var _near: Dictionary = {}
 ## particle -> Array[int] of incident live edge indices. A reference-type
 ## Array on purpose: a packed array read back out of a Dictionary is a copy,
@@ -193,16 +229,51 @@ var trace_rows: Array[PackedFloat32Array] = []
 var _trace_pre: PackedVector2Array = PackedVector2Array()
 
 
+## False once this field was handed someone else's zone set — appending to a
+## SHARED set would silently give a sibling proposal an extra defender.
+var _owns_zones: bool = true
+
+
+## Wrap [param zones_] — the production path, where the zone set arrives
+## prebuilt (and possibly shared). Defaults to an empty own set that
+## [method add_zone] / [method add_drag_zone] can then author into.
+func _init(zones_: BladeDefenderZones = null) -> void:
+	if zones_ != null:
+		zones = zones_
+		_owns_zones = false
+	_size_accumulators()
+
+
+func _size_accumulators() -> void:
+	_strain.resize(zones.size())
+	_edge_residual.clear()
+	for _z in zones.size():
+		_edge_residual.append({})
+
+
+## Author one plate by hand — fixtures and the sandbox only; the production
+## path builds its zones with [method BladeDefenderZones.query].
 func add_zone(center: Vector2, radius: float, defender: SkillNode = null) -> void:
-	zone_centers.append(center)
-	zone_radii.append(radius)
-	zone_defenders.append(defender)
-	_strain.append(0.0)
-	_edge_residual.append({})
+	_author(center, radius, 0.0, true, defender)
+
+
+## Author one wall by hand, same caveat as [method add_zone].
+func add_drag_zone(center: Vector2, radius: float, amount: float,
+		defender: SkillNode = null) -> void:
+	_author(center, radius, amount, false, defender)
+
+
+func _author(center: Vector2, radius: float, drag: float, deflect: bool,
+		defender: SkillNode) -> void:
+	assert(_owns_zones, "cannot author into a SHARED BladeDefenderZones")
+	zones.add(center, radius, drag, deflect, defender)
+	_strain.resize(zones.size())
+	while _edge_residual.size() < zones.size():
+		_edge_residual.append({})
 
 
 func has_zones() -> bool:
-	return not zone_radii.is_empty()
+	return not zones.is_empty()
 
 
 ## Accumulated unresolved drive against zone [param z] right now, in px — the
@@ -221,10 +292,16 @@ func max_strain() -> float:
 ## Bind to the run about to step: which particles are driven (the pivot
 ## neighbours [BladeArcDriver] prescribes — read off the LIVE driver list, since
 ## [method MeleeAttackPlan._surviving_drivers] shrinks it after a severance) and
-## the live edge incidence. Called by [method BladeSim.simulate_range] at the top
-## of every call, including a head replay.
-func prepare(state: BladeState, drivers: Array[BladeDriver]) -> void:
+## the live edge incidence — plus [param clock], the swing's own accumulator,
+## which [method project] banks a wall contact straight onto (#811; the clock
+## owns the once-per-swing latch, so this class keeps no second one). Called by
+## [method BladeSim.simulate_range] at the top of every call, including a head
+## replay. A null clock means walls sense nothing: every production caller
+## passes one whenever the zone set has a wall in it.
+func prepare(state: BladeState, drivers: Array[BladeDriver],
+		clock: BladeSwingClock = null) -> void:
 	_state = state
+	_clock = clock
 	var driven := PackedInt32Array()
 	_driven_set.clear()
 	for d in drivers:
@@ -263,21 +340,85 @@ func after_drivers(positions: PackedVector2Array) -> void:
 		_trace_pre = positions.duplicate()
 
 
-## The pushout. Runs once per solver iteration, after the distance constraints.
+## The pushout, and the swing's only contact test. Runs once per solver
+## iteration, after the distance constraints.
+##
+## [b]Both zone kinds walk the same geometry, once.[/b] For every zone this
+## tests each blade vertex disc and each rim-trimmed edge capsule against the
+## zone disc — the geometry [BladeHitScan] queries the physics server for and
+## the geometry #780's deleted `BladeSwingClock.sense` re-implemented. What
+## differs is what a contact DOES:
+##
+## - a plate (`deflects_at(z)`) is pushed out of, to within
+##   [constant CONTACT_SLOP], and marks [member _near] so the strain meter runs;
+## - a wall banks its drag on [member _clock] and is [b]skipped in the pushout
+##   entirely[/b] — it never moves a vertex, never marks `_near`, and so can
+##   never arm a break or stall a grip. A wall spends the swing's budget; it
+##   does not stop the blade.
+##
+## A wall's contact test is the exact reach #780 used — `zone radius + particle
+## radius` for a disc, `zone radius + EDGE_RADIUS` for a capsule, with no
+## [constant CONTACT_SLOP] and no [constant CONTACT_HYSTERESIS] — so moving the
+## sensing here did not move the boundary, only the cadence (per solver
+## substep now, rather than per trajectory sample; strictly finer, and onset
+## can only move earlier-or-equal).
+##
+## A wall also does not skip the pivot. The pushout does (`inv_masses[i] <= 0`:
+## the pivot and any corpse are not pushed), but a fortified node overlapping
+## the pivot did drag under #780 and still does.
 func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> void:
 	var edges := _state.edges
 	var radii := _state.radii
 	var removed_edges := _state.removed_edges
 	var n := positions.size()
-	for z in zone_radii.size():
-		var c := zone_centers[z]
-		var zr := zone_radii[z]
+	if n == 0 or zones.is_empty():
+		return
+	# Broad phase, recomputed from THIS iteration's positions so it needs no
+	# safety margin: a zone disc can only touch blade geometry inside the
+	# blade's AABB grown by the widest blade disc, the edge half-thickness, the
+	# hysteresis band and the zone's own radius. #811 widened the query radius
+	# deliberately (see MeleeAttackPlan.whip_bound), so on a wall-heavy map this
+	# field can hold dozens of zones while the blade is near none of them —
+	# without this reject the per-iteration walk is O(zones x blade), measured
+	# at +29% on a blade-size-4 prediction on `first_level`.
+	var lo := positions[0]
+	var hi := positions[0]
+	var widest := 0.0
+	for i in n:
+		lo = lo.min(positions[i])
+		hi = hi.max(positions[i])
+		if i < radii.size():
+			widest = maxf(widest, radii[i])
+	var pad := widest + _EDGE_RADIUS + CONTACT_HYSTERESIS
+	lo -= Vector2(pad, pad)
+	hi += Vector2(pad, pad)
+	for z in zones.size():
+		var c := zones.centers[z]
+		var zr := zones.radii[z]
+		if c.x < lo.x - zr or c.x > hi.x + zr or c.y < lo.y - zr or c.y > hi.y + zr:
+			continue
+		var deflect := zones.deflects[z] != 0
+		# A wall that has already banked has nothing left to learn — the same
+		# early-out #780's `touched` check was, asked of the one latch that
+		# exists now (the clock's).
+		var wants_drag := zones.drags[z] > 0.0 and _clock != null \
+				and not _clock.has_banked(z)
+		if not deflect and not wants_drag:
+			continue
 		for i in n:
+			var p := positions[i]
+			var pr: float = radii[i] if i < radii.size() else 0.0
+			var d2 := p.distance_squared_to(c)
+			if wants_drag:
+				var touch := zr + pr
+				if d2 <= touch * touch:
+					_clock.bank_drag(z, zones.drags[z])
+					wants_drag = false
+			if not deflect:
+				continue
 			if inv_masses[i] <= 0.0:
 				continue  # the pivot, or a corpse — neither is pushed
-			var reach := zr + radii[i] - CONTACT_SLOP
-			var p := positions[i]
-			var d2 := p.distance_squared_to(c)
+			var reach := zr + pr - CONTACT_SLOP
 			if d2 >= (reach + CONTACT_HYSTERESIS) * (reach + CONTACT_HYSTERESIS):
 				continue
 			_near[z] = true
@@ -288,15 +429,13 @@ func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> v
 			positions[i] = c + normal * reach
 			_contact_particles[i] = z
 			_contact_normals[i] = normal
+		if not deflect and not wants_drag:
+			continue  # wall, already banked by a disc — skip the capsule pass
 		var cap_reach := zr + _EDGE_RADIUS
 		for e_idx in edges.size():
 			if removed_edges.has(e_idx):
-				continue
+				continue  # severed (#781) — a gone edge touches nothing
 			var e := edges[e_idx]
-			var wa := inv_masses[e.x]
-			var wb := inv_masses[e.y]
-			if wa + wb <= 0.0:
-				continue
 			var a := positions[e.x]
 			var b := positions[e.y]
 			var delta := b - a
@@ -310,6 +449,17 @@ func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> v
 			var u := clampf((c - p0).dot(seg) / (trimmed * trimmed), 0.0, 1.0)
 			var q := p0 + seg * u
 			var d2 := q.distance_squared_to(c)
+			if wants_drag and d2 <= cap_reach * cap_reach:
+				_clock.bank_drag(z, zones.drags[z])
+				wants_drag = false
+				if not deflect:
+					break
+			if not deflect:
+				continue
+			var wa := inv_masses[e.x]
+			var wb := inv_masses[e.y]
+			if wa + wb <= 0.0:
+				continue
 			if d2 >= (cap_reach + CONTACT_HYSTERESIS) * (cap_reach + CONTACT_HYSTERESIS):
 				continue
 			_near[z] = true
@@ -319,10 +469,10 @@ func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> v
 			var normal := (q - c) / d if d > 1e-6 else Vector2(-dir.y, dir.x)
 			var push := normal * (cap_reach - d)
 			# q's barycentric coordinate along the FULL a..b segment.
-			var s := (radii[e.x] + trimmed * u) / length
-			var wa_s := (1.0 - s) * wa
-			var wb_s := s * wb
-			var denom := (1.0 - s) * wa_s + s * wb_s
+			var sfrac := (radii[e.x] + trimmed * u) / length
+			var wa_s := (1.0 - sfrac) * wa
+			var wb_s := sfrac * wb
+			var denom := (1.0 - sfrac) * wa_s + sfrac * wb_s
 			if denom <= 0.0:
 				continue
 			positions[e.x] = a + push * (wa_s / denom)

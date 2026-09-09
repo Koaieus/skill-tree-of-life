@@ -135,7 +135,7 @@ func _process(_delta: float) -> void:
 ## Worst per-zone strain on the PREDICTED swing's field, against the constant it
 ## is measured for, plus the grip stall. Reads the live objects (#781) — never a
 ## mirror of them — so "no plate in reach" is reported as the structural zero it
-## is: `build_obstacle_field` allocated nothing.
+## is: the defender query came back empty, so no field was allocated (#811).
 func _refresh_strain() -> void:
 	var blade: SkillBlade = _preview.current_blade() if _preview != null else null
 	var field: BladeObstacleField = blade.state.obstacles if blade != null and blade.state != null else null

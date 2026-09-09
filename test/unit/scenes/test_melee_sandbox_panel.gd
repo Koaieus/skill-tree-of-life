@@ -154,7 +154,8 @@ func test_bunker_paint_plates_a_node_and_strips_it_again() -> void:
 	assert_true(target.has_addon(BunkerAddon), "paint must attach a real addon")
 	assert_gt(float(target.get_local_value(&"deflection")), 0.0,
 			"and the addon's grant must reach the node board — a plate with no "
-			+ "deflection is invisible to build_obstacle_field")
+			+ "deflection carries no collision bit and is invisible to the "
+			+ "defender query (#810/#811)")
 	_panel._toggle_bunker(target)
 	await get_tree().process_frame
 	assert_false(target.has_addon(BunkerAddon), "a second click strips it")

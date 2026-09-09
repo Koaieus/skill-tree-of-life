@@ -639,10 +639,10 @@ class SwingResult extends RefCounted:
 	var pops: BladePopResolver.Result = null
 	var live_gate: BladePopResolver.LiveGate = null
 	var hits: Array[DamageInstance] = []
-	## The swing's own drag clock and bunker field, at their END state. Null
-	## exactly when [method MeleeAttackPlan.build_swing_clock] /
-	## [method MeleeAttackPlan.build_obstacle_field] returned null — the
-	## ordinary swing, which allocates neither.
+	## The swing's own drag clock and defender field, at their END state. Both
+	## null exactly when [method MeleeAttackPlan.build_defender_zones] came back
+	## empty — the ordinary swing, which allocates neither. Since #811 they
+	## travel together: one field, one clock, or neither.
 	var clock: BladeSwingClock = null
 	var obstacles: BladeObstacleField = null
 
@@ -762,18 +762,17 @@ func _resolve_swing(world: CombatWorld) -> SwingResult:
 	if state == null:
 		return result
 	var drivers := build_drivers(state)
-	# Fortification drag (#780): a wall of fortified nodes bogs the swing's own
-	# clock down, cumulatively, from the moment the blade first touches one. Null
-	# when there is none in reach, which is the ordinary swing. ONE instance for
-	# the whole swing, carried across every chunk — see BladeSwingClock.Bank.
-	var clock := build_swing_clock(state)
-	# A bunker's grip stall (#781) is expressed on the clock, so a swing with
-	# plates in reach but no wall still gets one. An untouched clock is
-	# bit-inert (test_blade_swing_drag pins it), and the field already forces
-	# the GDScript backend, so this costs nothing extra.
+	# The defender field (#811) carries both kinds; the clock is its
+	# accumulator half. Fortification drag (#780) bogs the swing's own clock
+	# down cumulatively from the moment the blade first touches a wall, and a
+	# bunker's grip stall (#781) is expressed on the same clock — so a swing
+	# with any defender in reach gets one, and a swing with none gets neither.
+	# ONE clock for the whole swing, carried across every chunk — see
+	# BladeSwingClock.Bank. An untouched clock is bit-inert
+	# (test_blade_swing_drag pins it) and the field already forces the GDScript
+	# backend, so a plates-only swing pays nothing extra for having one.
 	var obstacles := state.obstacles
-	if clock == null and obstacles != null:
-		clock = BladeSwingClock.new(SWING_DURATION)
+	var clock: BladeSwingClock = BladeSwingClock.new(SWING_DURATION) if obstacles != null else null
 	var space_state := source.get_world_2d().direct_space_state
 	var exclude := collect_target_excludes()
 	var graph: Graph = attacker.navigator.graph if attacker != null and attacker.navigator != null else null
@@ -985,7 +984,15 @@ static func _surviving_drivers(
 ## NOT call this — it builds its own via `SkillBlade.build_from_skill_nodes`
 ## (see C8, the three-way construction duplication). Kept public for callers
 ## within this plan.
-func build_blade_state() -> BladeState:
+##
+## [param zones] is the defender set to hang a [BladeObstacleField] off (#811).
+## Null means "find them yourself" — one [method BladeDefenderZones.query] at
+## this blade's own whip bound, which is what a single swing wants. A caller
+## evaluating MANY blades at one pivot passes a prebuilt, shared set instead
+## ([AiBladeRollout]: 192 proposals, 6 queries), and an EMPTY set means "no
+## field at all", which is how that caller gets a bare state to measure the
+## shared bound from.
+func build_blade_state(zones: BladeDefenderZones = null) -> BladeState:
 	if source == null:
 		return null
 	var selection: Array[SkillNode] = [source]
@@ -1023,11 +1030,20 @@ func build_blade_state() -> BladeState:
 	for i in selection.size():
 		for addon in selection[i].get_addons():
 			addon.apply_to_blade(blade_state, i)
-	# Bunker field (#781) — the defender-side twin of the drag clock, attached
-	# here so every consumer of this state (the resolve, the AI rollout) deflects
-	# off the same plates. Null for the ordinary swing.
-	blade_state.obstacles = build_obstacle_field(blade_state)
+	# The merged defender field (#780 walls + #781 plates, one query since #811)
+	# — attached here so every consumer of this state (the resolve, the AI
+	# rollout) meets the same defenders. Null for the ordinary swing.
+	attach_defender_field(blade_state, zones if zones != null else build_defender_zones(blade_state))
 	return blade_state
+
+
+## Hang a [BladeObstacleField] on [param blade_state] for [param zones], or
+## leave it null when there is no defender in reach — the ordinary swing, and
+## the case that keeps the native solver backend reachable
+## ([method BladeSim.simulate_range] gates on it).
+static func attach_defender_field(blade_state: BladeState, zones: BladeDefenderZones) -> void:
+	blade_state.obstacles = BladeObstacleField.new(zones) \
+			if zones != null and not zones.is_empty() else null
 
 
 ## [SkillNode, SkillNode] pairs over the live graph, restricted to the
@@ -1105,83 +1121,113 @@ func build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
 	return drivers
 
 
-## Build this swing's [BladeSwingClock] from the graph, or return null when no
-## fortified node is anywhere near the arc (#780).
+## Ask the physics engine which defenders this swing can meet (#811).
 ##
-## [b]Null is the common case and it matters.[/b] A null clock leaves both
-## [BladeArcDriver] and [method BladeSim.simulate] on the exact expressions they
-## ran before drag existed, native backend included — so Fortification costs a
-## swing that never meets it precisely nothing.
+## [b]One query replaces two O(map) walks.[/b] #780's `build_swing_clock` and
+## #781's `build_obstacle_field` each walked all ~800 [SkillNode]s and resolved
+## a stat on every one — 1744 us and 1701 us on `first_level`, measured with
+## ZERO defenders present, i.e. entirely the cost of asking. Since #810 the
+## predicate is a collision layer bit, so the broadphase answers it: mask =
+## `swing_drag` bit | `deflection` bit, and the result is O(defenders in range).
 ##
-## Read off the LIVE graph, at the same pre-attack moment on every machine: a
-## mirror peer re-runs `resolve()` on a throwaway shadow purely to DRAW
-## ([BattleSystem]'s apply path), before the record lands, so it builds this
-## field from the same node states the authority did (#780 acceptance 6).
+## [b]Read off the LIVE graph, at the same pre-attack moment on every
+## machine.[/b] A mirror peer re-runs `resolve()` on a throwaway shadow purely
+## to DRAW ([BattleSystem]'s apply path) before the record lands, and
+## [CombatWorld.shadow] has no physics space of its own — so this queries the
+## live [World2D], exactly as [BladeHitScan] already does from
+## [method _resolve_swing]. The set is frozen once, before the first sample, and
+## never rebuilt mid-swing: a plate popped on wave N keeps its zone for the rest
+## of the swing, which is #781's behaviour unchanged.
 ##
-## Zones are culled to what the blade can physically reach — the farthest
-## particle's distance from the pivot, which is exactly the radius of the
-## widest arc any part of it sweeps.
-func build_swing_clock(blade_state: BladeState) -> BladeSwingClock:
-	if blade_state == null or attacker == null or attacker.navigator == null:
-		return null
-	var graph := attacker.navigator.graph
-	if graph == null:
-		return null
-	var pivot := blade_state.positions[blade_state.pivot_index]
-	var reach := _blade_reach(blade_state)
-	var self_set := selection_set()
-	var clock := BladeSwingClock.new(SWING_DURATION)
-	for sn in graph.get_skill_nodes():
-		if _is_blade_side(sn, self_set):
-			continue
-		var amount := float(sn.get_local_value(&"swing_drag"))
-		if amount <= 0.0:
-			continue
-		if pivot.distance_to(sn.global_position) > reach + sn.radius:
-			continue
-		clock.add_zone(sn.global_position, sn.radius, amount)
-	return clock if clock.has_zones() else null
+## The blade side is excluded by RID via [method collect_target_excludes] — the
+## same list [BladeHitScan] gets, so "a node I or an ally own never defends
+## against my own swing" is answered once instead of by a second membership
+## predicate.
+func build_defender_zones(blade_state: BladeState) -> BladeDefenderZones:
+	if blade_state == null:
+		return BladeDefenderZones.new()
+	return query_defender_zones(
+			blade_state.positions[blade_state.pivot_index], whip_bound(blade_state))
 
 
-## Build this swing's [BladeObstacleField] from the graph, or return null when
-## no deflecting node (`deflection` true — a BOOL stat, presence only, §805;
-## only [BunkerAddon] authors it) is anywhere near the arc (#781). Null is the
-## common case and it is
-## load-bearing: with no field there is no accumulator, no pushout and no
-## GDScript fallback — a map with zero bunkers cannot produce a break, by
-## construction, at any blade size or speed. Same cull, same blade-side
-## exclusion and the same live-graph read as [method build_swing_clock], so a
-## mirror peer redrawing the swing builds the identical field.
-func build_obstacle_field(blade_state: BladeState) -> BladeObstacleField:
-	if blade_state == null or attacker == null or attacker.navigator == null:
-		return null
-	var graph := attacker.navigator.graph
-	if graph == null:
-		return null
-	var pivot := blade_state.positions[blade_state.pivot_index]
-	var reach := _blade_reach(blade_state)
-	var self_set := selection_set()
-	var field := BladeObstacleField.new()
-	for sn in graph.get_skill_nodes():
-		if _is_blade_side(sn, self_set):
-			continue
-		if not bool(sn.get_local_value(&"deflection")):
-			continue
-		if pivot.distance_to(sn.global_position) > reach + sn.radius:
-			continue
-		field.add_zone(sn.global_position, sn.radius, sn)
-	return field if field.has_zones() else null
+## [method build_defender_zones] with the disc given explicitly — the seam a
+## caller with MANY blades at one pivot builds its shared set through
+## ([AiBladeRollout] takes the widest whip bound over that pivot's proposals and
+## issues ONE query for all of them; the result is immutable, so sharing it is
+## safe even though those proposals are then simulated concurrently).
+func query_defender_zones(center: Vector2, radius: float) -> BladeDefenderZones:
+	if source == null or attacker == null or attacker.navigator == null:
+		return BladeDefenderZones.new()
+	var world := source.get_world_2d()
+	if world == null:
+		return BladeDefenderZones.new()
+	return BladeDefenderZones.query(
+			world.direct_space_state, center, radius,
+			collect_target_excludes(), attacker.navigator.graph)
 
 
-## The widest arc any part of the blade sweeps: the farthest particle's
-## distance from the pivot plus its own radius.
-static func _blade_reach(blade_state: BladeState) -> float:
-	var pivot := blade_state.positions[blade_state.pivot_index]
-	var reach := 0.0
-	for i in blade_state.positions.size():
-		var r: float = blade_state.radii[i] if i < blade_state.radii.size() else 0.0
-		reach = maxf(reach, pivot.distance_to(blade_state.positions[i]) + r)
-	return reach
+## The radius the defender query asks about: how far from the pivot any part of
+## this blade could plausibly get during the swing.
+##
+## [b]Not the rest reach.[/b] The deleted `_blade_reach` bounded the swing by
+## the farthest particle's CURRENT distance from the pivot, which is 65% short
+## — swinging a floppy blade straightens it. A 5-node W blade whose rest reach
+## is 432 px was measured whipping out to 714.6 px, and every fortified or
+## bunkered node in that annulus silently failed to drag or deflect while
+## [BladeHitScan], which senses off the live pose, damaged them normally (#808).
+##
+## [b]The chain-length bound.[/b] BFS from the pivot over the blade's own
+## induced subgraph — at most `blade_size + 1` vertices — summing rest edge
+## lengths, which is what the chain measures once pulled straight. For that W
+## blade it gives 721.1 px against the measured 714.6, i.e. within 1%. Then
+## [constant BladeDefenderZones.STRETCH_MARGIN] for XPBD's soft distance
+## constraints, plus the widest blade disc and an edge half-thickness so a
+## defender the blade merely grazes is still returned.
+##
+## Deliberately generous, and never to be re-tightened: with the predicate on
+## the collision mask, a wider radius costs the solver a few float compares per
+## substep and costs the QUERY nothing, while a narrower one silently drops
+## defenders. A severed fragment can coast outside even this — #808's "coasting
+## blade parts can go anywhere" — and is covered iff the radius happens to
+## cover it; that is an accepted, one-directional degradation, not a bound
+## anyone relies on.
+static func whip_bound(blade_state: BladeState) -> float:
+	var n := blade_state.positions.size()
+	if n == 0:
+		return 0.0
+	var adjacency: Array[PackedInt32Array] = []
+	adjacency.resize(n)
+	for i in n:
+		adjacency[i] = PackedInt32Array()
+	for e_idx in blade_state.edges.size():
+		if blade_state.removed_edges.has(e_idx):
+			continue
+		var e := blade_state.edges[e_idx]
+		if e.x == e.y:
+			continue
+		adjacency[e.x].append(e.y)
+		adjacency[e.y].append(e.x)
+	var dist := PackedFloat32Array()
+	dist.resize(n)
+	dist.fill(-1.0)
+	var pivot := blade_state.pivot_index
+	dist[pivot] = 0.0
+	var queue: Array[int] = [pivot]
+	var head := 0
+	var farthest := 0.0
+	while head < queue.size():
+		var v: int = queue[head]
+		head += 1
+		for w in adjacency[v]:
+			if dist[w] >= 0.0:
+				continue
+			dist[w] = dist[v] + blade_state.positions[v].distance_to(blade_state.positions[w])
+			farthest = maxf(farthest, dist[w])
+			queue.append(w)
+	var widest := 0.0
+	for r in blade_state.radii:
+		widest = maxf(widest, r)
+	return farthest * BladeDefenderZones.STRETCH_MARGIN + widest + BladeHitScan.EDGE_RADIUS
 
 
 func _set_swing_cw(value: bool) -> void:
@@ -1203,14 +1249,19 @@ func _set_swing_cw(value: bool) -> void:
 ## #809: starts from the pre-mirrored owned subgraphs — [member
 ## Entity.navigator]'s own [method GraphMirror.get_mirrored_nodes] (MINE) plus
 ## every ALLIED entity's own navigator (ALLY) — instead of filtering all of
-## [method Graph.get_skill_nodes] through [method _is_blade_side] per node.
+## [method Graph.get_skill_nodes] through a per-node ownership predicate.
 ## `self_set` (the selection itself) is still unioned in explicitly: a blade
 ## member is always MINE by construction ([method _can_be_blade] gates
 ## selection on `owned_by == attacker`), so this is redundant on every path
 ## that exists today, but it keeps the exact "self_set OR MINE OR ALLY"
-## membership [method _is_blade_side] still answers for [method
-## build_swing_clock] / [method build_obstacle_field] (#807/#808, untouched
-## here) rather than silently narrowing it.
+## membership rather than silently narrowing it.
+##
+## [b]This is now the ONE answer to "is that node on my side".[/b] Since #811
+## it is also the defender query's exclude list
+## ([method build_defender_zones]) — the deleted `_is_blade_side` was a second
+## implementation of the same membership, and a blade that bogged down on its
+## own wall would have been the symptom of the two drifting apart (#384's
+## vocabulary throughout: ownership bits, never `owned_by == attacker`).
 ##
 ## Allies are enumerated via [constant Entity.GROUP] (the same whole-tree
 ## roll call [TurnManager] / [VictorySystem] / [GameRoot] already use), not
@@ -1266,18 +1317,6 @@ func selection_set() -> Dictionary:
 	for b in blade_nodes:
 		out[b] = true
 	return out
-
-
-## True if [param sn] belongs to the swinging side: a blade member itself, or
-## MINE/ALLY territory the blade passes through cleanly (#384's vocabulary,
-## never `owned_by == attacker`). The one place that question is answered — both
-## the scan excludes and the drag field (#780) must agree on it, or a blade
-## would bog down on its own wall.
-func _is_blade_side(sn: SkillNode, self_set: Dictionary) -> bool:
-	var bit := sn.ownership_bit(attacker)
-	return self_set.has(sn) \
-			or bit == SkillNode.Ownership.MINE \
-			or bit == SkillNode.Ownership.ALLY
 
 
 func _is_neighbor_of_blade_set(node: SkillNode) -> bool:

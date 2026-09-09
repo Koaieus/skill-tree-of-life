@@ -35,6 +35,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0011](0011-one-attack-timeline-contract-for-every-mode.md) | One attack timeline contract for every mode — resolve up front, gate at land time, never re-plan | accepted | 2026-08-20 | combat, attacks, architecture, timing |
 | [0012](0012-every-arrow-renders-whatever-it-did.md) | Every arrow renders, whatever the landing did — a render pass never filters on outcome | accepted | 2026-09-04 | combat, attacks, vfx, ranged |
 | [0013](0013-host-only-rolls-and-the-seed-is-a-procgen-input.md) | Loot and relic rolls stay host-only, and the run seed is a procgen input rather than a determinism contract | accepted | 2026-08-21 | multiplayer, netcode, determinism, loot, procgen |
+| [0014](0014-one-physics-built-defender-field.md) | One physics-built defender field — the solver consumes data, it does not query | accepted | 2026-09-09 | combat, melee, blade, physics, performance, determinism |
 
 ## Reading order
 

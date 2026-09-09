@@ -75,8 +75,11 @@ caught none of it. Cheap parts that run once per resolve (the pivot-eccentricity
 BFS behind `length_factor`) stay in GDScript and are passed in precomputed: one
 definition of the rule, not two. Since #803 the C++ entry point is
 `simulate_range` (continued `prev_positions`, integer `step_offset`, per-particle
-`damping` in; `prev_samples` out) and the only fallback trigger left is a
-non-null `BladeSwingClock`. Two transliteration details that only the
+`damping` in; `prev_samples` out). The fallback triggers are a non-null
+`BladeSwingClock` **or** a non-null `BladeObstacleField` — and since #811 those
+two travel together and cover every swing near ANY defender, wall or plate, so
+the native path is reached less often than it used to be. Giving the native
+backend a constraint hook is #813; do not smuggle one in. Two transliteration details that only the
 continuation cases catch: damping multiplies `v` BEFORE the speed is read (so
 `speed_history` sees the damped velocity), and `t0` is `(double)(offset + step)
 * dt` — integers added, then widened, never a float origin carried across chunks.

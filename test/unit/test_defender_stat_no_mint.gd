@@ -65,12 +65,17 @@ func test_reading_the_sparse_defender_family_returns_the_def_default_and_mints_n
 			"reading the whole defender family must not have minted a single stat")
 
 
-## The realistic form of the same assertion: a full-graph
-## [method MeleeAttackPlan.build_obstacle_field] pass (via
-## [method MeleeAttackPlan.build_blade_state], the seam a live swing actually
-## runs) over a map with zero bunkers touches `deflection` on every node in the
-## graph and `blunting` on every blade vertex — and must still mint nothing.
-func test_full_graph_obstacle_field_pass_with_no_bunkers_mints_nothing() -> void:
+## The realistic form of the same assertion, through
+## [method MeleeAttackPlan.build_blade_state] — the seam a live swing actually
+## runs — over a map with zero defenders.
+##
+## #811 made this structurally stronger rather than obsolete. The defender pass
+## no longer walks the graph asking every node for `deflection`: it is one
+## [method BladeDefenderZones.query] against the collision bits #810 keeps in
+## sync, so a node with no defender stat is never even returned, let alone
+## read. `blunting` on every blade vertex is still a real per-node read, and
+## the no-mint claim still has to hold for it.
+func test_a_live_blade_state_build_with_no_defenders_mints_nothing() -> void:
 	var pivot := _make_node("Pivot")
 	var tip := _make_node("Tip")
 	tip.global_position = Vector2(150.0, 0.0)
@@ -106,4 +111,4 @@ func test_full_graph_obstacle_field_pass_with_no_bunkers_mints_nothing() -> void
 
 	for sn in [pivot, tip, plain]:
 		assert_eq(sn.node_board.get_dynamic_stat_ids(), baselines[sn],
-				"%s must not have minted a stat from the obstacle-field read" % sn.name)
+				"%s must not have minted a stat from the defender pass" % sn.name)

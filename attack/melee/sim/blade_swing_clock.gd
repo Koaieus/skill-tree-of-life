@@ -38,31 +38,22 @@ extends RefCounted
 ## itself. A global warp would be paradoxical: a fortified node at the end of
 ## the sweep would retroactively prevent the swing from ever reaching it.
 ##
-## [b]Two sensing models, deliberately (see docs/domain/melee-blade-sim.md).[/b]
-## This class senses contact ANALYTICALLY — point-in-disc and
-## point-to-segment — where [BladeHitScan] senses it through
-## `PhysicsDirectSpaceState2D`. That is by necessity, not by preference:
-## [AiBladeRollout] runs [method BladeSim.simulate] from `WorkerThreadPool`
-## tasks, where a physics-server query is not safe, so the solver must never
-## touch the space state. The consequence to know: at the margin a node can
-## drag the swing without producing a hit EVENT, or produce one without having
-## dragged. [BladeHitScan] remains the sole authority for hit events, damage and
-## pops; this class decides only how fast the clock runs.
-
-## Half-thickness of a blade edge. [b]Shared with [BladeHitScan], not copied.[/b]
-## The two sensing MODELS are separate by necessity (see the class docstring),
-## but the geometry they sense is one geometry: if the scan's capsules get
-## thicker and drag's do not, a node starts draining without dragging and the
-## divergence is invisible — the models are already allowed to disagree at the
-## margin, so nothing would flag it. One const cannot drift; a comment saying
-## "keep them equal" can.
-const _EDGE_RADIUS := BladeHitScan.EDGE_RADIUS
-
-## Drag zones — one per fortified defender node, parallel arrays. Positions are
-## world-space, exactly like [member BladeState.positions].
-var zone_centers: PackedVector2Array = PackedVector2Array()
-var zone_radii: PackedFloat32Array = PackedFloat32Array()
-var zone_drags: PackedFloat32Array = PackedFloat32Array()
+## [b]One sensing model, since #811.[/b] This class no longer senses anything.
+## It is handed a contact — [method bank_drag] — by [BladeObstacleField], which
+## carries the single merged defender field and tests the blade against it with
+## the same geometry its bunker pushout uses. What this class owns is the
+## ACCUMULATOR and the physics above it: which zones have been banked, how much
+## drag they add up to, and how that warps the arc.
+##
+## Before #811 there were three hand-rolled implementations of "blade vertex
+## disc / rim-trimmed edge capsule vs. node disc" — [BladeHitScan]'s physics
+## query, this class's analytic `sense()`, and the obstacle field's pushout —
+## kept in step only by a shared const and a comment. The seam they were
+## separated by ("the solver must never touch the space state, because
+## [AiBladeRollout] simulates off-thread") turned out to be narrower than it
+## looked: the FIELD is built on the main thread by one physics query and then
+## consumed as plain arrays, so the off-thread solver queries nothing. See
+## docs/adr/0014-one-physics-built-defender-field.md.
 
 ## Nominal swing duration — the same value the drivers were built with.
 var duration: float = 1.2
@@ -70,8 +61,12 @@ var duration: float = 1.2
 ## Accumulated drag from every zone touched so far. Never decreases.
 var drag: float = 0.0
 
-## Zone indices already counted. A zone contributes its drag AT MOST ONCE for
-## the whole swing — never disc + capsule, never once per incident edge.
+## Indices into [member BladeObstacleField.zones] already counted. A zone
+## contributes its drag AT MOST ONCE for the whole swing — never disc +
+## capsule, never once per incident edge, and never twice for a node that
+## carries `deflection` as well as `swing_drag` (that is ONE zone of two kinds,
+## #811). This is the only latch: [BladeObstacleField.project] asks
+## [method has_banked] rather than keeping a second set of its own.
 var touched: Dictionary = {}
 
 ## Warped angular progress. Meaningful only once [member _warping] is true; see
@@ -106,20 +101,6 @@ func _init(duration_: float = 1.2) -> void:
 	duration = duration_
 
 
-## Register one fortified defender node as a drag zone. `radius` is the node's
-## own collision radius; `amount` its `swing_drag`.
-func add_zone(center: Vector2, radius: float, amount: float) -> void:
-	if amount <= 0.0:
-		return
-	zone_centers.append(center)
-	zone_radii.append(radius)
-	zone_drags.append(amount)
-
-
-func has_zones() -> bool:
-	return not zone_drags.is_empty()
-
-
 ## True once at least one zone has been touched — i.e. once this clock is
 ## actually diverging from nominal time.
 func is_warping() -> bool:
@@ -140,8 +121,10 @@ var history: Array[Bank] = []
 ## which zones it has `touched` — so replaying a span of the swing to recover an
 ## exact pose must replay the clock with it. Restoring a FRESH clock instead
 ## would un-bank a Fortification wall's drag mid-swing and silently stop it
-## sheltering what is behind it. The zone arrays are not in here: they are built
-## once before the sim and never change.
+## sheltering what is behind it. The zones themselves are not in here: they
+## live on [BladeDefenderZones], are built once before the sim, and never
+## change — which is also what lets one zone set be SHARED across a pivot's
+## whole rollout while each swing banks its own drag (#811).
 class Bank extends RefCounted:
 	var f: float
 	var drag: float
@@ -152,7 +135,7 @@ class Bank extends RefCounted:
 
 
 ## Capture [Bank] — the mutable half of this clock. `touched` is duplicated, so
-## a later `sense()` cannot write through the snapshot.
+## a later [method bank_drag] cannot write through the snapshot.
 func capture() -> Bank:
 	var b := Bank.new()
 	b.f = _f
@@ -186,7 +169,7 @@ func warp() -> float:
 
 
 ## Freeze the swing where it is (#781's grip rule). Seeds the accumulator from
-## the nominal progress exactly as first contact in [method sense] does, so the
+## the nominal progress exactly as first contact in [method bank_drag] does, so the
 ## drivers hold THIS substep's angle from here on. Idempotent.
 func stall() -> void:
 	if _stalled:
@@ -221,94 +204,34 @@ func progress() -> float:
 	return _f if _warping else -1.0
 
 
-## Test the blade's current pose against every untouched zone and bank the drag
-## of each one it overlaps.
+## Bank zone [param z]'s drag, once, because some part of the blade has just
+## touched it. Called by [method BladeObstacleField.project] the moment its
+## contact test passes; a second call for the same zone is a no-op.
 ##
-## Called once per TRAJECTORY SAMPLE, not once per substep: a sample is 1/120 s
-## against a 1.2 s swing, so the granularity costs under 1% of the arc, and
-## paying it per substep would quadruple a cost that is already the only
-## per-step work the solver does outside its own constraint sweeps.
+## [b]Causal, never global.[/b] The drag applies to the REST of the arc and
+## never to the approach: on first contact the accumulator is SEEDED from the
+## nominal progress the drivers have been reading up to now, and only then does
+## this clock take over. A global warp would be paradoxical — a fortified node
+## at the end of the sweep would retroactively prevent the swing from ever
+## reaching it.
 ##
-## [b]Discs AND rim-trimmed capsules[/b] (#785's Decisions: "a capsule contact
-## is a full contact for every defender effect — damage, spikes, fortification
-## drag and the bunker break"). Vertex-only sensing would be a head-on-ram
-## model, which is the bunker's case; a SWEEP is the opposite — its edges cross
-## exactly the gaps between the vertex arcs, so sensing discs alone would
-## reintroduce spacing luck for drag MAGNITUDE against a wall. Spacing luck was
-## ruled harmless for spikes because threading one spiked node is not a
-## strategy; a wall is precisely the case where it would be, and the density
-## gradient is the whole point of this mechanic.
-##
-## The capsule is trimmed back to each endpoint's disc rim exactly as
-## [BladeHitScan] trims it, so a hub does not count once per incident edge —
-## though `touched` would have caught that anyway.
-func sense(
-		positions: PackedVector2Array,
-		radii: PackedFloat32Array,
-		edges: Array[Vector2i],
-		removed_edges: Dictionary) -> void:
-	if zone_drags.is_empty() or touched.size() == zone_drags.size():
+## [b]The seed reads [member _last_t], which is per-SUBSTEP.[/b]
+## [method BladeSim._step] calls [method tick] before the drivers apply, so by
+## the time the projection pass reaches here `_last_t` is this substep's own
+## time, not the sample's. That is what lets the contact be sensed at the
+## solver's cadence (four times finer than #780's per-sample `sense()`) without
+## the seed going stale — checked when the sensing moved, #811.
+func bank_drag(z: int, amount: float) -> void:
+	if amount <= 0.0 or touched.has(z):
 		return
-	for z in zone_drags.size():
-		if touched.has(z):
-			continue
-		if not _zone_overlaps(z, positions, radii, edges, removed_edges):
-			continue
-		touched[z] = true
-		drag += zone_drags[z]
-		if not _warping:
-			# Seed the accumulator from the progress the drivers have been
-			# reading nominally up to now, then take over from here. The zone's
-			# own drag applies to the REST of the arc, never to the approach.
-			_warping = true
-			_f = clampf(_last_t / duration, 0.0, 1.0) if duration > 0.0 else 0.0
+	touched[z] = true
+	drag += amount
+	if not _warping:
+		_warping = true
+		_f = clampf(_last_t / duration, 0.0, 1.0) if duration > 0.0 else 0.0
 
 
-## True if zone [param z] overlaps any blade disc or any rim-trimmed edge
-## capsule at this pose.
-func _zone_overlaps(
-		z: int,
-		positions: PackedVector2Array,
-		radii: PackedFloat32Array,
-		edges: Array[Vector2i],
-		removed_edges: Dictionary) -> bool:
-	var c := zone_centers[z]
-	var zr := zone_radii[z]
-	for i in positions.size():
-		var reach := zr + (radii[i] if i < radii.size() else 0.0)
-		if c.distance_squared_to(positions[i]) <= reach * reach:
-			return true
-	var cap_reach := zr + _EDGE_RADIUS
-	var cap_reach_sq := cap_reach * cap_reach
-	for e_idx in edges.size():
-		if removed_edges.has(e_idx):
-			continue  # severed (#781) — a gone edge touches nothing
-		var e := edges[e_idx]
-		var a := positions[e.x]
-		var b := positions[e.y]
-		var delta := b - a
-		var length := delta.length()
-		if length <= 0.0:
-			continue
-		var ra := radii[e.x] if e.x < radii.size() else 0.0
-		var rb := radii[e.y] if e.y < radii.size() else 0.0
-		var trimmed := length - ra - rb
-		if trimmed < 1e-4:
-			continue  # discs already overlap; no exposed span (mirrors BladeHitScan)
-		var dir := delta / length
-		var p0 := a + dir * ra
-		var p1 := p0 + dir * trimmed
-		if _point_segment_distance_squared(c, p0, p1) <= cap_reach_sq:
-			return true
-	return false
-
-
-## Squared distance from [param p] to segment [param a]-[param b] — the clamped
-## projection, no transcendentals, no allocation.
-static func _point_segment_distance_squared(p: Vector2, a: Vector2, b: Vector2) -> float:
-	var ab := b - a
-	var len_sq := ab.length_squared()
-	if len_sq <= 0.0:
-		return p.distance_squared_to(a)
-	var u := clampf((p - a).dot(ab) / len_sq, 0.0, 1.0)
-	return p.distance_squared_to(a + ab * u)
+## True if zone [param z] has already banked its drag this swing — the latch
+## [method BladeObstacleField.project] early-outs a wall contact on.
+func has_banked(z: int) -> bool:
+	return touched.has(z)

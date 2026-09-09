@@ -270,8 +270,12 @@ static func _coarse_rank_and_select(proposals: Array, entity: Entity, enemy_posi
 	var scored := []
 	# Build every BladeState/driver set on the CALLING thread (touches
 	# SkillNode positions/stats) before handing pure data to worker tasks.
-	var task_ids: Array[int] = []
-	var task_targets := []
+	#
+	# PASS A — geometry only. `build_blade_state` is handed an EMPTY defender
+	# set, so it skips the field entirely; what we want from it here is the
+	# blade's whip bound, which needs the built state (#811).
+	var built := []
+	var bounds: Dictionary = {}
 	for proposal in proposals:
 		var pivot: SkillNode = proposal[0]
 		var blade_nodes: Array[SkillNode] = proposal[1]
@@ -283,15 +287,43 @@ static func _coarse_rank_and_select(proposals: Array, entity: Entity, enemy_posi
 		# so setting it afterwards would rank a trajectory the finalist
 		# resolve then never reproduces.
 		probe.swing_cw = proposal[2]
-		var state := probe.build_blade_state()
+		var state := probe.build_blade_state(BladeDefenderZones.new())
 		if state == null:
 			continue
 		var drivers := probe.build_drivers(state)
+		bounds[pivot] = maxf(
+				float(bounds.get(pivot, 0.0)), MeleeAttackPlan.whip_bound(state))
+		built.append([proposal, state, drivers, probe])
+	# PASS B — ONE physics query per PIVOT, not one per proposal (#811). Up to
+	# 192 proposals share at most 6 pivots, and a pivot's zone set is immutable
+	# ([BladeDefenderZones]), so every proposal at that pivot can hold the same
+	# instance while each gets its own mutable [BladeObstacleField] wrapper and
+	# its own [BladeSwingClock]. Issuing it here also keeps the only
+	# physics-server call on the CALLING thread, which is what lets the tasks
+	# below consume the field as plain arrays.
+	var zones_by_pivot: Dictionary = {}
+	var task_ids: Array[int] = []
+	for entry in built:
+		var proposal: Array = entry[0]
+		var pivot: SkillNode = proposal[0]
+		var state: BladeState = entry[1]
+		var drivers: Array[BladeDriver] = entry[2]
+		var probe: MeleeAttackPlan = entry[3]
+		if not zones_by_pivot.has(pivot):
+			zones_by_pivot[pivot] = probe.query_defender_zones(
+					pivot.global_position, float(bounds.get(pivot, 0.0)))
+		MeleeAttackPlan.attach_defender_field(state, zones_by_pivot[pivot])
+		# The coarse tier GAINS fortification drag here: before #811 it never
+		# built a clock at all, so a wall that would bog the real swing down
+		# ranked as if it were empty ground.
+		var clock: BladeSwingClock = BladeSwingClock.new(MeleeAttackPlan.SWING_DURATION) \
+				if state.obstacles != null else null
 		var slot := [proposal, INF]
 		scored.append(slot)
 		var id := WorkerThreadPool.add_task(func() -> void:
 			var traj := BladeSim.simulate(
-					state, drivers, MeleeAttackPlan.SWING_DURATION, _COARSE_DT, _COARSE_ITERS)
+					state, drivers, MeleeAttackPlan.SWING_DURATION, _COARSE_DT,
+					_COARSE_ITERS, 0.0, BladeSim.DEFAULT_SUBSTEPS, true, clock)
 			slot[1] = _closest_approach(traj, enemy_positions))
 		task_ids.append(id)
 	for id in task_ids:

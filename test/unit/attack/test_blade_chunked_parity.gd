@@ -208,11 +208,11 @@ func test_a_dragged_swing_is_bit_identical_across_a_chunk_boundary() -> void:
 	var whole := BladeSim.simulate(
 			whole_state, _drivers(whole_state), DURATION, DT,
 			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS, true,
-			_wall_clock())
+			_wall_clock(whole_state))
 
 	var split_state := _chain(5)
 	var split_drivers := _drivers(split_state)
-	var clock := _wall_clock()
+	var clock := _wall_clock(split_state)
 	var head := BladeSim.simulate_range(
 			split_state, split_drivers, 0, cut, DT, BladeSim.DEFAULT_ITERATIONS,
 			0.0, BladeSim.DEFAULT_SUBSTEPS, true, clock)
@@ -231,7 +231,7 @@ func test_the_clock_rewinds_and_re_ticks_to_the_same_bank() -> void:
 	var cut := 50
 	var state := _chain(5)
 	var drivers := _drivers(state)
-	var clock := _wall_clock()
+	var clock := _wall_clock(state)
 	var snap_positions := state.positions.duplicate()
 	var bank := clock.capture()
 	BladeSim.simulate_range(
@@ -251,7 +251,10 @@ func test_the_clock_rewinds_and_re_ticks_to_the_same_bank() -> void:
 
 
 ## A drag zone parked where the chain sweeps, so the clock actually warps.
-func _wall_clock() -> BladeSwingClock:
-	var clock := BladeSwingClock.new(DURATION)
-	clock.add_zone(Vector2(0.0, SPACING * 2.0), 30.0, 1.0)
-	return clock
+## Since #811 the zone lives on the state's defender field, not on the clock —
+## the clock is the accumulator half only.
+func _wall_clock(state: BladeState) -> BladeSwingClock:
+	var field := BladeObstacleField.new()
+	field.add_drag_zone(Vector2(0.0, SPACING * 2.0), 30.0, 1.0)
+	state.obstacles = field
+	return BladeSwingClock.new(DURATION)
