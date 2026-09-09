@@ -164,21 +164,39 @@ func entry_for(hit: HitInstance) -> ScheduleEntry:
 ## [param scale] is a debug/sandbox multiplier ([member
 ## BattleSystem.presentation_rate_scale]) — 1.0 everywhere in a real run.
 ##
-## [b]TODO (#819):[/b] the seat factor is 1.0 today, so this is ambient behaviour
-## unchanged. #819 is the issue that makes a non-seated actor's swing play faster.
+## #819: a non-seated actor's swing plays faster — see [method
+## _seat_rate_factor].
 static func actor_rate(seat_policy: SeatPolicy, actor: Entity,
 		scale: float = 1.0) -> float:
 	var seat_factor := _seat_rate_factor(seat_policy, actor)
 	return maxf(0.01, ambient_rate() * seat_factor * maxf(0.01, scale))
 
 
+## Conservative authored default for [method _seat_rate_factor]'s non-seated
+## branch — the owner's to retune (#819 decision 5). Below 1.0, which, because
+## this composes into a rate that MULTIPLIES duration, plays FASTER than the
+## seated baseline.
+const _NON_SEATED_RATE_FACTOR := 0.6
+
+
 ## How much faster (or slower) [param actor]'s presentation runs on THIS machine
 ## because of who is sitting at it. 1.0 = the seated player's own pacing, which
-## is also today's behaviour for everyone. See [method actor_rate].
+## stays today's behaviour for a seated actor. An actor this machine does NOT
+## seat plays at [constant _NON_SEATED_RATE_FACTOR] instead — #797 measured
+## NPC swing playback as the dominant cost of an AI turn, and the owner's
+## ruling 2026-09-08 was that playback rate, not time-slicing, is the lever.
+##
+## A null [param seat_policy] is UNSEATED too (the null guard sits in front of
+## [method SeatPolicy.seats] rather than short-circuiting to 1.0), matching
+## how [method CameraDirector._build_attack_request] treats an unwired policy
+## — [member BattleSystem.seat_policy] is null only outside a wired level, and
+## nothing there should sit at today's seated pace by accident. A null
+## [param actor] falls out of the same check for free: [method SeatPolicy.seats]
+## already answers `false` for it. See [method actor_rate].
 static func _seat_rate_factor(seat_policy: SeatPolicy, actor: Entity) -> float:
-	if seat_policy == null or actor == null:
+	if seat_policy != null and seat_policy.seats(actor):
 		return 1.0
-	return 1.0
+	return _NON_SEATED_RATE_FACTOR
 
 
 static func ambient_rate() -> float:

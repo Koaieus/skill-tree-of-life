@@ -79,6 +79,8 @@ const _KNOBS: Array[Array] = [
 @onready var _rigidity: OptionButton = %RigiditySelect
 @onready var _bunker_paint: CheckBox = %BunkerPaintToggle
 @onready var _strain_label: Label = %StrainLabel
+@onready var _speed_slider: HSlider = %PlaybackSpeedSlider
+@onready var _speed_value: Label = %PlaybackSpeedValue
 
 var _wielder: Entity
 var _quarry: Entity
@@ -336,6 +338,8 @@ func _wire_controls() -> void:
 	_rigidity.item_selected.connect(_on_rigidity_selected)
 	_rearm_toggle.toggled.connect(func(_on: bool) -> void: _refresh_status())
 	Events.skill_node_damaged.connect(_on_node_damaged)
+	_speed_slider.value_changed.connect(_on_speed_changed)
+	_on_speed_changed(_speed_slider.value)
 
 
 func _on_blade_size_changed(_value: float) -> void:
@@ -355,6 +359,18 @@ func _apply_blade_size() -> void:
 func _on_preview_toggled(on: bool) -> void:
 	_preview.preview_enabled = on
 	_refresh_status()
+
+
+## #820: the sandbox's playback-speed slider. Sets
+## [member BattleSystem.presentation_rate_scale] — the debug-only multiplier
+## [method OutcomeSchedule.actor_rate] folds in alongside #819's seat factor —
+## rather than a second path onto the tween, so the blade and its hits stay
+## locked at every slider position. Only the NEXT compiled schedule reads it
+## (an in-flight swing already froze its rate at launch), which is #820's
+## acceptance floor, not a shortfall.
+func _on_speed_changed(value: float) -> void:
+	_battle.presentation_rate_scale = value
+	_speed_value.text = "%.2fx" % value
 
 
 ## Force the outermost N vertices of the LIVE ghost de-lit, for tuning the look
