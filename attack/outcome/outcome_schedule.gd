@@ -90,6 +90,36 @@ func beat_interval() -> float:
 	return maxf(0.001, shape.beat_interval * rate)
 
 
+## Melee: the [param playback_rate] a [SkillBlade] must draw at for its tween to
+## end exactly when this schedule does — [b]the clock leads, the tween
+## follows[/b] (#818).
+##
+## [param sim_duration] is the constant the structural key was normalized BY —
+## [constant MeleeAttackPlan.SWING_DURATION], the divisor at
+## `melee_attack_plan.gd:945`. Deliberately not
+## [method BladeTrajectory.duration], which happens to equal it at today's
+## sample count and would make the derivation true by coincidence rather than
+## by construction: a rebaked or truncated trajectory would silently drift.
+## The wall-clock span this schedule occupies is
+## [member PresentationTempo.swing_duration] times [member rate], because
+## melee's structural key is normalized swing position.
+##
+## [b]The two knobs have inverted conventions and that is the whole trap[/b]:
+## the compiler MULTIPLIES duration by `rate` (`arrive_at *= rate`), while
+## [method SkillBlade.play] DIVIDES by `playback_rate`
+## (`wall_duration = dur / playback_rate`). So this is a ratio, not a copy of
+## `rate` — passing `rate` straight through would double the desync rather than
+## fix it. Derived here rather than at the call site so there is exactly one
+## place that knows which way each knob points.
+##
+## Hit scheduling is untouched: hits stay on trajectory time at every rate, the
+## invariant #619 established.
+func blade_playback_rate(sim_duration: float) -> float:
+	var shape: PresentationTempo = tempo if tempo != null else PresentationTempo.shared_default()
+	var wall: float = maxf(0.001, shape.swing_duration * rate)
+	return maxf(0.0001, sim_duration / wall)
+
+
 ## Seconds a magic bolt is in the air, rate included. Clamped to
 ## [method beat_interval] for the same reason the compiler clamps it: a
 ## lead-in longer than the beat would have wave N+1 launch before wave N lands.

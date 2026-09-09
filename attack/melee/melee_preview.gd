@@ -146,7 +146,13 @@ func current_blade() -> SkillBlade:
 ## mutation, which is no longer the shape of this call; the no-rescan rule
 ## survives on the drift argument alone. #502's landing gate lives in
 ## [BladeDamageInstance.land_on] and needs nothing from here.
-func launch(plan: MeleeAttackPlan) -> void:
+## [param schedule] is the compiled presentation timeline this swing's hits land
+## on. It is what the blade's playback rate is DERIVED from (#818): the schedule
+## already folds in the player's `combat_time_scale`, and without it the tween
+## drew at 1.0 while the hits arrived on a rate-scaled clock — at 2.0x the arc
+## finished a full second before the last damage number. Null (a sandbox, a
+## test) keeps the authored 1.0 pace.
+func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
 	_spawn_blade(plan)
 	var blade := _ghost
 	if blade == null:
@@ -162,7 +168,12 @@ func launch(plan: MeleeAttackPlan) -> void:
 	# tears the preview loop's blade down, and cleared on every exit below so a
 	# early return can't leave previews permanently frozen.
 	_live_swing = true
-	await blade.play(traj, events, false)
+	# Derived, never a second independent number: `blade_playback_rate` owns the
+	# inverted-convention arithmetic (schedule multiplies, `play` divides).
+	var playback_rate := 1.0
+	if schedule != null:
+		playback_rate = schedule.blade_playback_rate(MeleeAttackPlan.SWING_DURATION)
+	await blade.play(traj, events, false, playback_rate)
 	if gen != _gen or blade != _ghost:
 		_live_swing = false
 		return

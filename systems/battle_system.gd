@@ -639,7 +639,7 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 		# Melee: the MeleePreview (which has the ghost mounted) animates the
 		# swing on the same `BladeHitEvent.t` clock the applier lands hits on,
 		# so the blade now visibly reaches a node as that node takes its hit.
-		_run_melee_preview(melee_plan)
+		_run_melee_preview(melee_plan, outcome)
 	elif attack_vfx != null:
 		var coord_scene: PackedScene = null
 		var magic_plan: MagicAttackPlan = plan as MagicAttackPlan
@@ -692,9 +692,18 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 ## this is a named coroutine rather than an inline un-awaited call: GDScript
 ## cannot hold a handle to a `-> void` coroutine, so the completion report has
 ## to be a signal the caller can park on.
-func _run_melee_preview(melee_plan: MeleeAttackPlan) -> void:
+##
+## Compiles the schedule here if nothing has yet — the same `if null` guard
+## [ArrowVolleyCoordinator] and [MagicBounceCoordinator] use, and for the same
+## reason: the blade has to know the rate its hits will land on, and this runs
+## BEFORE `_apply_outcome`, which is where [method OutcomeApplier.apply] would
+## otherwise compile it. Compiling early changes nothing — the applier reuses
+## this instance rather than minting a second one, and the compile is pure.
+func _run_melee_preview(melee_plan: MeleeAttackPlan, outcome: AttackOutcome) -> void:
 	_vfx_running = true
-	await melee_preview.launch(melee_plan)
+	if outcome != null and outcome.schedule == null:
+		outcome.schedule = OutcomeSchedule.compile(outcome)
+	await melee_preview.launch(melee_plan, outcome.schedule if outcome != null else null)
 	_vfx_running = false
 	_vfx_finished.emit()
 
