@@ -1,0 +1,38 @@
+# Handoff: #781 bunker deflection — worktree `issue-781-bunker-deflect-a-blade-and-shatter-the-r`
+
+Written 2026-09-09 02:30 by the warp session that ran out of context. Delete once spent.
+
+## Landed on the branch (commit f1dae0f, tests green: attack dir 346/346)
+Sim core: `attack/melee/sim/blade_obstacle_field.gd` (design + numbers in its docstring),
+`BladeState.obstacles`, hooks in `blade_sim.gd`, `BladeSwingClock.stall()`, plan
+`build_obstacle_field` + the break path in `resolve_against`, `deflection` StatDef +
+roster + bunker_addon.tscn grant, `test/unit/attack/test_bunker_deflect.gd`.
+Metric decision + measurement table: issue comment
+https://github.com/Koaieus/skill-tree-of-life/issues/781#issuecomment-5593860454
+
+## In flight when the session ended (uncommitted, same worktree)
+Three Sonnet agents were dispatched at ~02:25; their edits may be partial. Inspect
+`git -C <worktree> status` before touching anything:
+- `test/unit/attack/test_bunker_break_live.gd` + severed-edge hiding in
+  `attack/melee/skill_blade.gd` (`pop_result.severed_at` → disable the BladeEdge visual)
+- `addons/melee_sandbox/melee_sandbox_panel.{gd,tscn}` bunker/rigidity/strain readout
+- `docs/domain/melee-blade-sim.md` "Bunker deflection (#781)" section,
+  `docs/design/skill_node_addons.md` bunker entry, `.claude/rules/stats-system.md`
+Run `mise run check` + `test:dir -- res://test/unit/attack/`; commit what is green,
+drop what is not.
+
+## MUST DO before merge: rebase onto master (#803 landed at 9389d41)
+Peer message 02:28: the head replay in `MeleeAttackPlan.resolve_against` is gone.
+Rewind is now `local := severed_at - chunk_start; state.positions =
+chunk.samples[local].duplicate(); state.prev_positions =
+chunk.prev_samples[local].duplicate(); clock.restore(clock.history[local])`.
+Port the field the same way: `BladeObstacleField` needs a chunk-local
+`history: Array[Bank]` appended once per sample in `BladeSim.simulate_range`
+(GDScript path only — the field forces it), and the loop restores
+`obstacles.restore(obstacles.history[local])` then `consume_break()` (the bank at
+sample `severed_at` already holds the armed break, so consume works without a replay).
+Keep `and obstacles == null` on the native gate in `blade_sim.gd` through the
+conflict. If a native .so exists in the worktree, `mise run native:build` after.
+Then: `mise run test` once (match script count to `git ls-files 'test/unit/**/test_*.gd'`),
+commit with `Closes #781`, `git merge --ff-only` from the main checkout (merge is
+pre-approved by the owner, 02:10), `mise gh-project -- status 781 done`, `mise run worktree:rm -- 781`.
