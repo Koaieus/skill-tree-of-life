@@ -157,8 +157,8 @@ static func simulate(
 ## i.e. at rest). Any other offset [b]trusts [member BladeState.prev_positions]
 ## as it stands[/b] — that is the continue-from-state path, and the caller is
 ## responsible for the state being exactly what the previous chunk left (see
-## [method MeleeAttackPlan.resolve_against], which replays the head of the
-## current chunk to land on it exactly).
+## [method MeleeAttackPlan.resolve_against], which reads it off the previous
+## bake's [member BladeTrajectory.prev_samples] at the severance sample).
 ##
 ## The returned trajectory's `samples[0]` is the pose AT `step_offset` — before
 ## this chunk's first step — so local sample `j` is global sample

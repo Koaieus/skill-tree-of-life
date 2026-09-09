@@ -73,8 +73,23 @@ runs cases at `substeps` 1 / 4 / 8, length scaling on and off, and a blade past
 `LENGTH_ECC_CEILING` — a parity test that only checked `samples` would have
 caught none of it. Cheap parts that run once per resolve (the pivot-eccentricity
 BFS behind `length_factor`) stay in GDScript and are passed in precomputed: one
-definition of the rule, not two. #801 adds two fallback triggers
-(`simulate_range(step_offset > 0)`, non-empty `BladeState.damping`) for #803.
+definition of the rule, not two. Since #803 the C++ entry point is
+`simulate_range` (continued `prev_positions`, integer `step_offset`, per-particle
+`damping` in; `prev_samples` out) and the only fallback trigger left is a
+non-null `BladeSwingClock`. Two transliteration details that only the
+continuation cases catch: damping multiplies `v` BEFORE the speed is read (so
+`speed_history` sees the damped velocity), and `t0` is `(double)(offset + step)
+* dt` — integers added, then widened, never a float origin carried across chunks.
+
+## A stale binary is no binary
+
+A `.so` built before #803 loads fine and has no `simulate_range`; `Object.call()`
+on a missing method returns null without an error, so the crash would be
+`out["samples"]` a line later on every swing. `_acquire_native` therefore
+requires `has_method(&"simulate_range")` and otherwise warns and returns null —
+the GDScript fallback, at GDScript cost. **After pulling a change to
+`native/src/`, rebuild** (`mise run native:build`); the warning in the log is the
+tell that you did not.
 
 ## No native binary means PENDING, not pass
 
@@ -131,7 +146,7 @@ gotcha is invisible without it, which is why the parity test's no-binary arm is
 every parity case passes vacuously the moment `_simulate_native` declines a
 fixture, comparing GDScript to GDScript. Verify with a one-liner:
 `mise run test:one -- res://test/unit/attack/test_blade_native_parity.gd` must
-report **14 passed, 0 pending**, not 14 pending.
+report **18 passed, 0 pending**, not 18 pending.
 
 ## `git worktree remove` now fails on any worktree that inited the submodule
 

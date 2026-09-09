@@ -692,9 +692,11 @@ driver keeps reading `t / duration` verbatim, so a swing with a fortified node i
 its field that it never touches is **bit-identical** to one with no field at all.
 That exactness is deliberate: accumulating `f` from t=0 would drift in the last
 bits and quietly make the mere presence of a wall change a swing that never met
-it. A warping clock does force the GDScript backend, joining per-particle damping and
-a continued Verlet history (`step_offset > 0`) on the list of things the C++
-transliteration does not model — until #803 adds them.
+it. A warping clock is the **one** thing that still forces the GDScript backend:
+it accumulates `_f` in float after first contact by design, so the C++
+transliteration does not model it. Per-particle damping and a continued Verlet
+history (`step_offset > 0`) used to be on that list too; #803 taught the native
+loop both, so a severed swing runs native end to end.
 
 ### Where it sits under ADR 0005
 
@@ -888,32 +890,33 @@ merge, which #186's free-flight round already demonstrated.
 Because a bake is a pure function of the state, the trajectory this produces is
 **bit-for-bit what a true per-sample interleave would have produced** —
 optimistic execution is an implementation strategy, not a compromise. Solver
-calls per resolve: `1 + severances` (plus one head replay each, below), against
-`145` for a literal per-sample loop, which would have spent the whole of #798's
-gain in marshalling.
+calls per resolve: `1 + severances`, against `145` for a literal per-sample
+loop, which would have spent the whole of #798's gain in marshalling.
 
-### The head replay, and why it exists (#803 deletes it)
+### Landing on the severance sample: `prev_samples` (#803)
 
 Rewinding to the severance sample needs the **exact Verlet history** there, and
 `prev_positions` at a sample is not recoverable from `samples`: `_step` rewrites
-it once per **substep**, so it is a mid-sample pose. The native backend does not
-emit a per-sample `prev_samples` yet (#803), so the resolve loop instead
-snapshots `(positions, prev_positions, BladeSwingClock.Bank)` at each chunk's
-start and **re-runs the head** of that chunk to land on the severance sample
-exactly. Same backend, same pure function, bit-identical by construction.
+it once per **substep**, so it is a mid-sample pose. So both backends emit it:
+`BladeTrajectory.prev_samples[k]` is `prev_positions` as the state held it after
+step `k`, parallel to `samples` index for index. The resolve loop lands on a
+severance at local sample `j` by **reading** `samples[j]` / `prev_samples[j]`
+off the bake it already has, and the swing clock — sim state too — keeps a
+chunk-local `history` of `Bank`s the same way, so `restore(history[j])` rewinds
+it without re-ticking. A rewind is two array copies; the parity suite pins that
+a continuation seeded from `prev_samples` equals the run that never stopped, on
+both backends.
 
-That rests on a **prefix property** — a short bake of `k` steps equals the first
-`k` samples of a long one — which holds only because nothing in the solver is a
-function of the run's total length (the adaptive sweep budget keys off
-`velocity_iter_ref` and this substep's own speeds, never off `duration`).
+Before #803 the native loop emitted no `prev_samples`, and #801 instead
+snapshotted the chunk's start and **re-ran the head** to land on the sample —
+one extra partial bake per severance, in GDScript. That replay is gone; it was a
+workaround for a missing output, never the design. The **prefix property** it
+rested on — a short bake of `k` steps equals the first `k` samples of a long one,
+because nothing in the solver is a function of the run's total length — is still
+worth keeping true (the optimistic bake itself assumes nothing downstream of a
+sample affects it), and
 `test_blade_chunked_parity.gd::test_a_short_bake_is_a_prefix_of_a_long_one`
-exists to say so if that ever stops being true, because fork 1's whole strategy
-dies with it.
-
-Cost is bounded at **one extra partial bake per severance**: the next chunk
-starts *at* the severance, so a replay never spans more than one gap however many
-vertices a wall pops. Once #803 lands, `prev_samples` is read straight off the
-bake and the replay goes away.
+still says so.
 
 ### `simulate_range`, and the integer step offset
 
@@ -930,8 +933,9 @@ unchunked one. `test_blade_chunked_parity.gd` pins them bit-identical.
 **The `BladeSwingClock` is sim state and is carried across chunks** — one
 instance, never rebuilt. `_f`, banked `drag`, `touched`, `_warping` and `_last_t`
 all persist; a fresh clock mid-swing would un-bank a Fortification wall's drag
-and silently stop it sheltering what is behind it. `capture()` / `restore()`
-rewind it for the head replay. (A *dragged* swing accumulates `_f` in float after
+and silently stop it sheltering what is behind it. `simulate_range` records a
+`capture()` per sample into `clock.history`, and `restore(history[j])` rewinds it
+to a severance. (A *dragged* swing accumulates `_f` in float after
 first contact **by design** and is GDScript-only; the integer-step rule applies
 to the pre-contact segment and to the clock's seed.)
 
@@ -1105,6 +1109,25 @@ old GDScript *coarse* tier (1.9 ms), so re-measure before building more tiers on
 top of it. Second, a two-tier scheme ranks on a different sim than `resolve()`
 executes, so any divergence has to be deliberate and tested, not assumed
 harmless.
+
+### #803: what a severance costs (2026-09-09)
+
+Same harness (`_bench_pop_swing`), same machine class (Ryzen 7 7800X3D), a
+k=20 chain severed at vertex 8 on sample 48 of 144, run exactly as
+`resolve_against` runs it: one optimistic whole bake, rewind off `prev_samples`,
+`remove_vertex` + drag on the coasting set, re-bake the tail.
+
+| | native | GDScript |
+|---|---|---|
+| no-pop swing (whole bake) | 1.61 ms | 29.0 ms |
+| re-baked tail alone | 0.50 ms | 10.4 ms |
+| **pop swing** (bake + rewind + tail) | **2.11 ms** | 39.4 ms |
+| bound: whole + tail | 2.10 ms | 39.4 ms |
+
+A pop swing costs the no-pop swing plus the tail and nothing measurable else —
+the rewind is two array duplicates, ~10 µs. Before #803 the same severance on a
+native machine paid the whole bake native, then the head replay **and** the tail
+in GDScript (≈ 9.7 + 10.4 ms): roughly 22 ms of solver, now 2.1 ms.
 
 ### #790: substepped + length-scaled, today vs new — 100-node swing
 
