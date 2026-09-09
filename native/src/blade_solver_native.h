@@ -84,6 +84,46 @@ public:
             double p_velocity_iter_ref,
             int64_t p_substeps,
             double p_length_factor) const;
+
+    // The same stepping loop with a BladeSwingClock and/or a BladeObstacleField
+    // riding along (#813) — what a swing near ANY defender takes, which since
+    // #811 is most of them.
+    //
+    // `p_field` is the IMMUTABLE half of the run: the zone set
+    // (BladeDefenderZones' four parallel arrays), the live edge set, the driven
+    // particles and the particle->incident-edge CSR that
+    // BladeObstacleField.prepare() just built, plus the four tuning constants
+    // (CONTACT_SLOP / CONTACT_HYSTERESIS / SHATTER_DISTANCE / EDGE_RADIUS) —
+    // passed rather than duplicated so each keeps ONE definition, in GDScript.
+    //
+    // `p_sim` is the MUTABLE half: BladeSwingClock's six fields and
+    // BladeObstacleField.Bank's eight, as plain values. They come back advanced
+    // in `clock_state` / `field_state`, plus one Bank-shaped Dictionary per
+    // sample in `clock_history` / `field_history` — the resolve loop's rewind
+    // reads all of it, so a missing key here is a silently un-rewindable swing.
+    //
+    // Shaped as "zones in -> contacts + pushout out": the zone set crosses as
+    // plain arrays that any consumer can read, not as a solver-private blob, so
+    // an analytic BladeHitScan could later be built on the same input.
+    Dictionary simulate_range_field(
+            const PackedVector2Array &p_positions,
+            const PackedVector2Array &p_prev_positions,
+            const PackedFloat32Array &p_inv_masses,
+            const PackedInt32Array &p_constraint_ab,
+            const PackedFloat64Array &p_constraint_scalars,
+            const PackedInt32Array &p_driver_particles,
+            const PackedVector2Array &p_driver_centers,
+            const PackedFloat64Array &p_driver_scalars,
+            const PackedFloat32Array &p_damping,
+            int64_t p_step_offset,
+            int64_t p_step_count,
+            double p_dt,
+            int64_t p_base_iterations,
+            double p_velocity_iter_ref,
+            int64_t p_substeps,
+            double p_length_factor,
+            const Dictionary &p_field,
+            const Dictionary &p_sim) const;
 };
 
 } // namespace godot

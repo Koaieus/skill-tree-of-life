@@ -63,6 +63,9 @@ func _initialize() -> void:
 	print("--- #796: what a k=100 swing costs on the backend that actually runs it ---")
 	_bench_k100_backends("braced mesh", 100, true)
 	_bench_k100_backends("pure chain (whip)", 100, false)
+	print("--- #813: the same swing with a defender field + swing clock on it ---")
+	_bench_k100_defended("braced mesh", 100, true)
+	_bench_k100_defended("pure chain (whip)", 100, false)
 	quit()
 
 
@@ -240,6 +243,50 @@ func _dense_or_chain(k: int, dense: bool, counter: Array) -> BladeState:
 
 func _drivers_for(state: BladeState) -> Array[BladeDriver]:
 	return [BladeArcDriver.new(1, state.positions[0], SPACING, 0.0, TAU, DURATION)]
+
+
+## The row #813 exists for: the SAME k=100 swing carrying a BladeSwingClock and
+## a BladeObstacleField — the shape EVERY swing near a wall or a plate has had
+## since #811, and the shape that took the GDScript path whole until #813 ported
+## the field. One wall and one plate, both on the arc the blade really sweeps.
+func _bench_k100_defended(label: String, k: int, dense: bool) -> void:
+	# Zone centres are read off the blade's OWN trajectory, never off its rest
+	# span: a k=100 chain whips so hard that a zone at the span is one the blade
+	# never reaches, and the row would then time the broad-phase reject instead
+	# of the contact path (`.claude/rules/melee-fixtures.md`). The `drag=` and
+	# `peak_strain=` columns are the receipt that it really did make contact.
+	var probe: BladeState = _dense_mesh(k) if dense else _chain(k)
+	BladeSim.use_native = BladeSim.native_available()
+	var probe_traj := BladeSim.simulate(probe, _drivers_for(probe), DURATION,
+			BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0,
+			BladeSim.DEFAULT_SUBSTEPS, true)
+	var last := probe_traj.samples.size() - 1
+	var wall_at: Vector2 = (probe_traj.samples[last / 3] as PackedVector2Array)[k / 2]
+	var plate_at: Vector2 = (probe_traj.samples[last * 2 / 3] as PackedVector2Array)[k / 2]
+
+	for native in [false, true]:
+		if native and not BladeSim.native_available():
+			continue
+		BladeSim.use_native = native
+		var state: BladeState = _dense_mesh(k) if dense else _chain(k)
+		var field := BladeObstacleField.new()
+		field.add_defender_zone(wall_at, 32.0, 1.0, false)
+		field.add_defender_zone(plate_at, 32.0, 0.0, true)
+		state.obstacles = field
+		var clock := BladeSwingClock.new(DURATION)
+		var t0 := Time.get_ticks_usec()
+		BladeSim.simulate(state, _drivers_for(state), DURATION,
+				BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0,
+				BladeSim.DEFAULT_SUBSTEPS, true, clock)
+		var us := Time.get_ticks_usec() - t0
+		var peak := 0.0
+		for b: BladeObstacleField.Bank in field.history:
+			for v in b.strain:
+				peak = maxf(peak, v)
+		print("  %-20s %-26s %7d us   drag=%.1f peak_strain=%.2f" % [
+				label, "native (C++ GDExtension)" if native else "gdscript",
+				us, clock.drag, peak])
+	BladeSim.use_native = false
 
 
 ## The #790 rows above count projections through a constraint SUBCLASS, which

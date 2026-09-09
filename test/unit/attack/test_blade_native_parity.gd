@@ -463,3 +463,333 @@ func test_a_continuation_seeded_from_prev_samples_equals_one_that_never_stopped(
 func test_backend_reports_gdscript_when_forced() -> void:
 	BladeSim.use_native = false
 	assert_eq(BladeSim.backend(), &"gdscript", "forced backend is reported")
+
+
+# ── The defender half (#813) ──────────────────────────────────────────────────
+# Since #811 a BladeSwingClock and a BladeObstacleField travel together and
+# cover every swing near ANY defender, so these are not an edge case — they are
+# most swings on a shipped map. Everything the pair MUTATES has to cross the
+# boundary and come back: the clock's warp accumulator, the field's strain, its
+# load-share bank and its armed break, plus one Bank per sample of each for the
+# resolve loop's rewind. A backend that returned perfect positions and an empty
+# `field.history` would pass every assertion in the first half of this file
+# while silently un-arming every bunker break, which is why the cases below
+# compare the BANKS bank-for-bank and not just the trajectory.
+
+const _DEF_DURATION := 1.2
+const _DEF_SPACING := 60.0
+const _DEF_RADIUS := 24.0
+const _ZONE_RADIUS := 32.0
+
+
+## The straight arm test_bunker_deflect.gd uses, at radii the plate can meet.
+func _arm(n: int) -> BladeState:
+	var positions: Array[Vector2] = []
+	var edges: Array[Vector2i] = []
+	var radii: Array[float] = []
+	for i in n:
+		positions.append(Vector2(float(i) * _DEF_SPACING, 0.0))
+		radii.append(_DEF_RADIUS)
+		if i > 0:
+			edges.append(Vector2i(i - 1, i))
+	return BladeState.build(positions, 0, edges, radii)
+
+
+## The same arm welded at every joint — the rigid body that JAMS on a plate
+## instead of folding around it, which is the only thing that meters strain.
+func _clamped_arm(n: int) -> BladeState:
+	var s := _arm(n)
+	for i in range(1, n - 1):
+		ClampAddon.append_weld_braces(s, i)
+	return s
+
+
+func _arm_drivers(state: BladeState) -> Array[BladeDriver]:
+	var out: Array[BladeDriver] = []
+	var pivot := state.positions[state.pivot_index]
+	for e in state.edges:
+		var other := -1
+		if e.x == state.pivot_index:
+			other = e.y
+		elif e.y == state.pivot_index:
+			other = e.x
+		if other < 0:
+			continue
+		var offset := state.positions[other] - pivot
+		out.append(BladeArcDriver.new(
+				other, pivot, offset.length(), offset.angle(), TAU, _DEF_DURATION))
+	return out
+
+
+## One zone `turns` of a turn round the arc the tip sweeps — the placement
+## `.claude/rules/melee-fixtures.md` insists on, read off the blade's own reach
+## rather than off its rest span.
+func _zone_on_arc(state: BladeState, turns: float, drag: float, deflect: bool,
+		reach: float = 1.0) -> BladeObstacleField:
+	var f := BladeObstacleField.new()
+	var pivot := state.positions[state.pivot_index]
+	var r := pivot.distance_to(state.positions[state.positions.size() - 1])
+	f.add_defender_zone(pivot + Vector2.from_angle(turns * TAU) * (r * reach),
+			_ZONE_RADIUS, drag, deflect)
+	return f
+
+
+## Build one defended run and step it on `native`. Returns the whole mutable
+## world afterwards, because "identical" here means the accumulators too.
+func _defended_run(native: bool, clamped: bool, k: int, turns: float,
+		drag: float, deflect: bool, with_clock: bool, reach: float = 1.0,
+		step_offset: int = 0, step_count: int = -1) -> Dictionary:
+	BladeSim.use_native = native
+	var s: BladeState = _clamped_arm(k) if clamped else _arm(k)
+	var field := _zone_on_arc(s, turns, drag, deflect, reach)
+	s.obstacles = field
+	var clock: BladeSwingClock = BladeSwingClock.new(_DEF_DURATION) if with_clock else null
+	var steps := step_count if step_count >= 0 else _steps(_DEF_DURATION)
+	var traj := BladeSim.simulate_range(
+			s, _arm_drivers(s), step_offset, steps, BladeSim.DEFAULT_DT,
+			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS, true, clock)
+	return {traj = traj, state = s, field = field, clock = clock}
+
+
+func _assert_clock_banks(label: String, gd: BladeSwingClock, nat: BladeSwingClock) -> void:
+	assert_eq(nat.history.size(), gd.history.size(), "%s: clock history length" % label)
+	if nat.history.size() != gd.history.size():
+		return
+	for k in gd.history.size():
+		var a: BladeSwingClock.Bank = gd.history[k]
+		var b: BladeSwingClock.Bank = nat.history[k]
+		assert_eq(b.f, a.f, "%s: clock bank %d f" % [label, k])
+		assert_eq(b.drag, a.drag, "%s: clock bank %d drag" % [label, k])
+		assert_eq(b.last_t, a.last_t, "%s: clock bank %d last_t" % [label, k])
+		assert_eq(b.warping, a.warping, "%s: clock bank %d warping" % [label, k])
+		assert_eq(b.stalled, a.stalled, "%s: clock bank %d stalled" % [label, k])
+		# keys(), not the Dictionary: this pins the ORDER zones were banked in,
+		# which is the first-wins tie-break BladeDefenderZones' stable-id
+		# ordering exists to make reproducible.
+		assert_eq(b.touched.keys(), a.touched.keys(), "%s: clock bank %d touched" % [label, k])
+
+
+func _assert_field_banks(label: String, gd: BladeObstacleField, nat: BladeObstacleField) -> void:
+	assert_eq(nat.history.size(), gd.history.size(), "%s: field history length" % label)
+	if nat.history.size() != gd.history.size():
+		return
+	for k in gd.history.size():
+		var a: BladeObstacleField.Bank = gd.history[k]
+		var b: BladeObstacleField.Bank = nat.history[k]
+		assert_eq(b.strain, a.strain, "%s: field bank %d strain" % [label, k])
+		assert_eq(b.driven_last, a.driven_last, "%s: field bank %d driven_last" % [label, k])
+		assert_eq(b.driven_last_target, a.driven_last_target,
+				"%s: field bank %d driven_last_target" % [label, k])
+		assert_eq(b.break_edge, a.break_edge, "%s: field bank %d break_edge" % [label, k])
+		assert_eq(b.break_step, a.break_step, "%s: field bank %d break_step" % [label, k])
+		assert_eq(b.break_zone, a.break_zone, "%s: field bank %d break_zone" % [label, k])
+		assert_eq(b.current_step, a.current_step, "%s: field bank %d current_step" % [label, k])
+		assert_eq(b.edge_residual.size(), a.edge_residual.size(),
+				"%s: field bank %d residual zones" % [label, k])
+		for z in mini(a.edge_residual.size(), b.edge_residual.size()):
+			var ad: Dictionary = a.edge_residual[z]
+			var bd: Dictionary = b.edge_residual[z]
+			# Keys in order, then each load: `_pick_edge` sorts the keys, but a
+			# load that landed on the wrong edge picks a different edge to break.
+			assert_eq(bd.keys(), ad.keys(), "%s: bank %d zone %d residual keys" % [label, k, z])
+			for e_idx in ad.keys():
+				assert_eq(bd.get(e_idx), ad.get(e_idx),
+						"%s: bank %d zone %d edge %s load" % [label, k, z, e_idx])
+
+
+func _assert_defended_identical(label: String, clamped: bool, k: int, turns: float,
+		drag: float, deflect: bool, with_clock: bool = true,
+		reach: float = 1.0) -> void:
+	if not BladeSim.native_available():
+		pending("%s: no native binary in this checkout — parity unverified." % label)
+		return
+	var gd := _defended_run(false, clamped, k, turns, drag, deflect, with_clock, reach)
+	var nat := _defended_run(true, clamped, k, turns, drag, deflect, with_clock, reach)
+	var gd_traj: BladeTrajectory = gd.traj
+	var nat_traj: BladeTrajectory = nat.traj
+	assert_eq(nat_traj.samples.size(), gd_traj.samples.size(), "%s: sample count" % label)
+	if nat_traj.samples.size() != gd_traj.samples.size():
+		return
+	for j in gd_traj.samples.size():
+		assert_eq(nat_traj.samples[j], gd_traj.samples[j], "%s: sample %d" % [label, j])
+		assert_eq(nat_traj.prev_samples[j], gd_traj.prev_samples[j],
+				"%s: prev_sample %d" % [label, j])
+		if nat_traj.samples[j] != gd_traj.samples[j]:
+			return
+	var gd_state: BladeState = gd.state
+	var nat_state: BladeState = nat.state
+	assert_eq(nat_state.positions, gd_state.positions, "%s: state.positions" % label)
+	assert_eq(nat_state.prev_positions, gd_state.prev_positions, "%s: state.prev_positions" % label)
+	assert_eq(nat_state.speed_history.size(), gd_state.speed_history.size(),
+			"%s: speed_history length" % label)
+	for j in mini(nat_state.speed_history.size(), gd_state.speed_history.size()):
+		assert_eq(nat_state.speed_history[j], gd_state.speed_history[j],
+				"%s: speed_history %d" % [label, j])
+	if with_clock:
+		_assert_clock_banks(label, gd.clock, nat.clock)
+	_assert_field_banks(label, gd.field, nat.field)
+	# consume_break() stays in GDScript on both paths; what #813 moved is which
+	# backend ARMED it. Compare the landing, not just the accumulator.
+	var gd_break: BladeObstacleField.Break = (gd.field as BladeObstacleField).consume_break()
+	var nat_break: BladeObstacleField.Break = (nat.field as BladeObstacleField).consume_break()
+	assert_eq(nat_break == null, gd_break == null, "%s: break armed-ness agrees" % label)
+	if gd_break != null and nat_break != null:
+		assert_eq(nat_break.edge_idx, gd_break.edge_idx, "%s: break edge" % label)
+		assert_eq(nat_break.step, gd_break.step, "%s: break step" % label)
+
+
+func test_a_dragged_swing_matches_bit_for_bit() -> void:
+	# A wall: sensed, banked on the clock, never pushed out of. The clock's `_f`
+	# then accumulates in float from the contact substep on, and every arc
+	# driver reads it instead of `t / duration` — so this is the one case where
+	# the two backends' DRIVERS disagree if the accumulation order slipped.
+	_assert_defended_identical("wall drag", false, 4, 0.15, 1.5, false)
+
+
+func test_an_undragged_clocked_swing_is_still_bit_inert() -> void:
+	# The clock exists but its zone sits where the blade never goes, so it never
+	# warps and `progress()` keeps declining to answer. #780's acceptance 5 is a
+	# bit-exactness claim; it has to survive the backend split too.
+	_assert_defended_identical("untouched wall", false, 4, 0.15, 1.5, false, true, 10.0)
+	if not BladeSim.native_available():
+		return
+	var gd := _defended_run(false, false, 4, 0.15, 1.5, false, true, 10.0)
+	assert_false((gd.clock as BladeSwingClock).is_warping(),
+			"the fixture really is a wall the blade never reaches")
+
+
+func test_a_plate_pushout_matches_bit_for_bit() -> void:
+	# A plate: pushed out of every solver iteration, after the distance
+	# constraints. A floppy arm folds around it and banks little.
+	_assert_defended_identical("plate pushout", false, 4, 0.15, 0.0, true)
+
+
+func test_the_strain_bank_and_break_arming_match() -> void:
+	# A welded arm cannot fold, so the driver residual accumulates and an edge
+	# breaks — the load share, `_pick_edge`'s ascending-keys tie-break and the
+	# GLOBAL step the break is stamped with all cross the boundary here.
+	_assert_defended_identical("clamped spine break", true, 4, 0.15, 0.0, true)
+	if not BladeSim.native_available():
+		return
+	# Guards the guard: two backends that both armed NOTHING would agree.
+	var nat := _defended_run(true, true, 4, 0.15, 0.0, true, true)
+	assert_true((nat.field as BladeObstacleField)._break_edge >= 0,
+			"the clamped-spine fixture really does arm a break on the native path")
+
+
+func test_a_zone_that_is_both_wall_and_plate_matches() -> void:
+	# One zone of two kinds, latched once (#811) — never disc + capsule, never
+	# once per incident edge. The latch lives on the clock, so a native path
+	# keeping a second one of its own would double the wall's drag while every
+	# position assertion stayed green until the arc had visibly slowed.
+	_assert_defended_identical("both kinds", true, 4, 0.15, 1.5, true)
+
+
+func test_a_defended_chunked_run_equals_an_unchunked_one() -> void:
+	# The #803 continuation, now carrying the clock's accumulator and the
+	# field's banks across the boundary. A chunk that rebuilt either from
+	# scratch would un-bank a wall's drag mid-swing and stop it sheltering what
+	# is behind it — and nothing in the trajectory would say so until the second
+	# half of the sweep drifted.
+	if not BladeSim.native_available():
+		pending("no native binary in this checkout — parity unverified.")
+		return
+	var total := _steps(_DEF_DURATION)
+	var head_len := total / 2
+	var whole := _defended_run(true, true, 4, 0.15, 1.5, true, true)
+
+	BladeSim.use_native = true
+	var s := _clamped_arm(4)
+	var field := _zone_on_arc(s, 0.15, 1.5, true)
+	s.obstacles = field
+	var clock := BladeSwingClock.new(_DEF_DURATION)
+	var drivers := _arm_drivers(s)
+	var head := BladeSim.simulate_range(s, drivers, 0, head_len, BladeSim.DEFAULT_DT,
+			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS, true, clock)
+	var tail := BladeSim.simulate_range(s, drivers, head_len, total - head_len,
+			BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0,
+			BladeSim.DEFAULT_SUBSTEPS, true, clock)
+
+	var whole_traj: BladeTrajectory = whole.traj
+	assert_eq(head.samples[0], whole_traj.samples[0], "chunked: head entry pose")
+	for j in head.samples.size():
+		assert_eq(head.samples[j], whole_traj.samples[j], "chunked: head sample %d" % j)
+	for j in tail.samples.size():
+		assert_eq(tail.samples[j], whole_traj.samples[head_len + j],
+				"chunked: tail sample %d" % j)
+	# The clock is sim state: a chunk boundary must not reset the accumulator.
+	assert_eq(clock.drag, (whole.clock as BladeSwingClock).drag, "chunked: banked drag")
+	assert_eq(clock.progress(), (whole.clock as BladeSwingClock).progress(),
+			"chunked: warped progress")
+	assert_eq(field._strain, (whole.field as BladeObstacleField)._strain, "chunked: strain")
+	assert_eq(field._break_edge, (whole.field as BladeObstacleField)._break_edge,
+			"chunked: armed break survives the boundary")
+	# history is CHUNK-LOCAL and rebuilt per call, like speed_history (#803).
+	assert_eq(tail.samples.size(), field.history.size(),
+			"chunked: field history parallels the tail's samples")
+	assert_eq(tail.samples.size(), clock.history.size(),
+			"chunked: clock history parallels the tail's samples")
+
+
+func test_a_traced_field_falls_back_to_gdscript() -> void:
+	# `trace` is a diagnostic the classification test and the melee sandbox read,
+	# and it is deliberately NOT transliterated — so a traced field must decline
+	# the native path rather than silently return no rows.
+	if not BladeSim.native_available():
+		pending("no native binary in this checkout — fallback path unverified.")
+		return
+	BladeSim.use_native = true
+	var s := _clamped_arm(4)
+	var field := _zone_on_arc(s, 0.15, 0.0, true)
+	field.trace = true
+	s.obstacles = field
+	var clock := BladeSwingClock.new(_DEF_DURATION)
+	assert_null(BladeSim._simulate_native(s, _arm_drivers(s), 0, _steps(_DEF_DURATION),
+			BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0,
+			BladeSim.DEFAULT_SUBSTEPS, 1.0, clock, field),
+			"a traced field is outside the transliterated subset")
+	BladeSim.simulate(s, _arm_drivers(s), _DEF_DURATION, BladeSim.DEFAULT_DT,
+			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS, true, clock)
+	assert_gt(field.trace_rows.size(), 0, "the GDScript path still produced trace rows")
+
+
+func test_the_native_defender_path_actually_ran() -> void:
+	# The counterpart of test_the_native_path_actually_ran, and it earns its
+	# keep more: every defended case above would pass VACUOUSLY the moment
+	# _simulate_native declined the fixture, comparing GDScript to GDScript.
+	if not BladeSim.native_available():
+		pending("no native binary in this checkout — parity unverified.")
+		return
+	assert_true(BladeSim._native_field,
+			"the built binary has #813's simulate_range_field")
+	BladeSim.use_native = true
+	var s := _clamped_arm(4)
+	var field := _zone_on_arc(s, 0.15, 1.5, true)
+	s.obstacles = field
+	var clock := BladeSwingClock.new(_DEF_DURATION)
+	field.prepare(s, _arm_drivers(s), clock)
+	s.prev_positions = s.positions.duplicate()
+	var traj := BladeSim._simulate_native(s, _arm_drivers(s), 0, _steps(_DEF_DURATION),
+			BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0,
+			BladeSim.DEFAULT_SUBSTEPS, 1.0, clock, field)
+	assert_not_null(traj, "a defended fixture is inside the native subset")
+	if traj == null:
+		return
+	assert_gt(traj.samples.size(), 1, "the C++ loop emitted samples")
+	# Every value the pair MUTATES came back — the #779 lesson, applied to the
+	# fourteen new ones. A missing key is not an error on either side.
+	assert_eq(clock.history.size(), traj.samples.size(), "clock history parallels samples")
+	assert_eq(field.history.size(), traj.samples.size(), "field history parallels samples")
+	assert_true(clock.is_warping(), "the C++ loop banked the wall's drag on the clock")
+	assert_gt(clock.drag, 0.0, "drag crossed back")
+	# max_strain() is 0 by the END of a swing that has flowed past the plate —
+	# the accumulator resets the first substep nothing is near it. The history
+	# is where the metering is visible, and the history is what the resolve
+	# loop rewinds onto, so that is what this pins.
+	var peak_strain := 0.0
+	for b: BladeObstacleField.Bank in field.history:
+		for v in b.strain:
+			peak_strain = maxf(peak_strain, v)
+	assert_gt(peak_strain, 0.0, "the strain the C++ metered crossed back")
+	assert_true(field._break_edge >= 0, "the armed break crossed back")
+	assert_gt(field.history.size(), 1, "the field banked once per sample")

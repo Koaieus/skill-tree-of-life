@@ -263,6 +263,16 @@ func add_drag_zone(center: Vector2, radius: float, amount: float,
 	_author(center, radius, amount, false, defender)
 
 
+## Author one node that is BOTH kinds — 18 of `first_level`'s 185 defender
+## carriers are (#811), and neither shorthand above can express it. Same
+## fixtures-and-sandbox caveat as those two. [b]Not the same as calling both[/b]:
+## that would be two zones, and the once-per-swing drag latch keys on the zone
+## index, so the wall would pay twice.
+func add_defender_zone(center: Vector2, radius: float, drag: float, deflect: bool,
+		defender: SkillNode = null) -> void:
+	_author(center, radius, drag, deflect, defender)
+
+
 func _author(center: Vector2, radius: float, drag: float, deflect: bool,
 		defender: SkillNode) -> void:
 	assert(_owns_zones, "cannot author into a SHARED BladeDefenderZones")
@@ -604,6 +614,133 @@ func restore(b: Bank) -> void:
 	_break_step = b.break_step
 	_break_zone = b.break_zone
 	_current_step = b.current_step
+	_contact_particles.clear()
+	_contact_edges.clear()
+	_contact_normals.clear()
+	_near.clear()
+
+
+# ── The native boundary (#813) ────────────────────────────────────────────────
+# The C++ backend runs [method project] and [method end_substep] itself rather
+# than calling back into GDScript per solver iteration — a callback there fires
+# in the innermost loop, and the crossing would eat most of the 22x this exists
+# to unlock. So the field crosses as data: the immutable half once
+# ([method native_inputs]), the accumulators in and out
+# ([method native_state] / [method apply_native_state]), and one Bank-shaped
+# Dictionary per sample back ([method bank_from_native]).
+#
+# These are [method capture] / [method restore] in Dictionary clothing. Change
+# them together with those two and with the C++ `FieldCtx`: a field that stops
+# crossing is not an error on either side, it is a silently different swing.
+
+
+## False when this field is outside the native backend's transliterated subset,
+## so [method BladeSim.simulate_range] falls back. Only [member trace] takes it
+## out: the diagnostic rows feed the classification test and the melee sandbox
+## readout, both of which run one swing at a time, so the GDScript path is
+## exactly the right place for them.
+func native_supported() -> bool:
+	return not trace
+
+
+## The immutable half of the run about to step: the zone set, the live edge set,
+## the driven particles, the incidence [method prepare] just built, and the four
+## tuning constants. The constants are PASSED rather than restated in C++ so each
+## keeps one definition — the same reason `length_factor` is precomputed (#798).
+func native_inputs() -> Dictionary:
+	var edge_count := _state.edges.size()
+	var edges_flat := PackedInt32Array()
+	edges_flat.resize(edge_count * 2)
+	var edge_removed := PackedByteArray()
+	edge_removed.resize(edge_count)
+	for e_idx in edge_count:
+		var e := _state.edges[e_idx]
+		edges_flat[e_idx * 2] = e.x
+		edges_flat[e_idx * 2 + 1] = e.y
+		edge_removed[e_idx] = 1 if _state.removed_edges.has(e_idx) else 0
+	# `_incident` as a CSR over particles. The per-particle lists stay in the
+	# ascending-edge-index order [method prepare] appended them in, because the
+	# load share sums into shared edge banks in that order — this is summation
+	# order, not merely a layout.
+	var n := _state.positions.size()
+	var incident_offsets := PackedInt32Array()
+	incident_offsets.resize(n + 1)
+	var incident_edges := PackedInt32Array()
+	for i in n:
+		incident_offsets[i] = incident_edges.size()
+		var inc: Array = _incident.get(i, [])
+		for e_idx: int in inc:
+			incident_edges.append(e_idx)
+	incident_offsets[n] = incident_edges.size()
+	return {
+		"has_field": true,
+		"has_clock": _clock != null,
+		"clock_duration": _clock.duration if _clock != null else 0.0,
+		"zone_centers": zones.centers,
+		"zone_radii": zones.radii,
+		"zone_drags": zones.drags,
+		"zone_deflects": zones.deflects,
+		"edges": edges_flat,
+		"edge_removed": edge_removed,
+		"vertex_radii": _state.radii,
+		"driven": _driven,
+		"incident_offsets": incident_offsets,
+		"incident_edges": incident_edges,
+		"contact_slop": CONTACT_SLOP,
+		"contact_hysteresis": CONTACT_HYSTERESIS,
+		"shatter_distance": SHATTER_DISTANCE,
+		"edge_radius": _EDGE_RADIUS,
+	}
+
+
+## The accumulators as plain values — the same eight fields [Bank] carries.
+func native_state() -> Dictionary:
+	var residual: Array = []
+	for d: Dictionary in _edge_residual:
+		residual.append(d.duplicate())
+	return {
+		"strain": _strain.duplicate(),
+		"edge_residual": residual,
+		"driven_last": _driven_last.duplicate(),
+		"driven_last_target": _driven_last_target.duplicate(),
+		"break_edge": _break_edge,
+		"break_step": _break_step,
+		"break_zone": _break_zone,
+		"current_step": _current_step,
+	}
+
+
+## Turn one of the C++ loop's per-sample Dictionaries back into a [Bank].
+static func bank_from_native(d: Dictionary) -> Bank:
+	var b := Bank.new()
+	b.strain = d["strain"]
+	b.edge_residual = []
+	for e: Dictionary in (d["edge_residual"] as Array):
+		b.edge_residual.append(e)
+	b.driven_last = d["driven_last"]
+	b.driven_last_target = d["driven_last_target"]
+	b.break_edge = d["break_edge"]
+	b.break_step = d["break_step"]
+	b.break_zone = d["break_zone"]
+	b.current_step = d["current_step"]
+	return b
+
+
+## Adopt the state the C++ loop left — the inverse of [method native_state], and
+## what lets [method consume_break] land a natively-armed break unchanged.
+func apply_native_state(d: Dictionary) -> void:
+	_strain = d["strain"]
+	_edge_residual = []
+	for e: Dictionary in (d["edge_residual"] as Array):
+		_edge_residual.append(e)
+	_driven_last = d["driven_last"]
+	_driven_last_target = d["driven_last_target"]
+	_break_edge = d["break_edge"]
+	_break_step = d["break_step"]
+	_break_zone = d["break_zone"]
+	_current_step = d["current_step"]
+	# The per-substep scratch never survives a substep on either path; clearing
+	# it here mirrors [method restore] rather than leaving GDScript's stale.
 	_contact_particles.clear()
 	_contact_edges.clear()
 	_contact_normals.clear()

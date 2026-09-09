@@ -235,3 +235,48 @@ func bank_drag(z: int, amount: float) -> void:
 ## [method BladeObstacleField.project] early-outs a wall contact on.
 func has_banked(z: int) -> bool:
 	return touched.has(z)
+
+
+# ── The native boundary (#813) ────────────────────────────────────────────────
+# The C++ backend advances this clock itself rather than calling back into
+# GDScript per substep, so the mutable half crosses as plain values and comes
+# back advanced — plus one such Dictionary per sample, which is [member history].
+# The three functions below are [method capture] / [method restore] in
+# Dictionary clothing: keep them beside those two, and change all of them
+# together, because a field that stops crossing is not an error anywhere.
+
+
+## The mutable half as a plain Dictionary — the same six fields [Bank] carries.
+func native_state() -> Dictionary:
+	return {
+		"f": _f,
+		"drag": drag,
+		"touched": touched.duplicate(),
+		"warping": _warping,
+		"last_t": _last_t,
+		"stalled": _stalled,
+	}
+
+
+## Turn one of the C++ loop's per-sample Dictionaries back into a [Bank]. The
+## packed/dictionary values are already fresh copies made on the far side.
+static func bank_from_native(d: Dictionary) -> Bank:
+	var b := Bank.new()
+	b.f = d["f"]
+	b.drag = d["drag"]
+	b.touched = d["touched"]
+	b.warping = d["warping"]
+	b.last_t = d["last_t"]
+	b.stalled = d["stalled"]
+	return b
+
+
+## Adopt the state the C++ loop left — the inverse of [method native_state],
+## and the reason a chunk that ran native can be continued by either backend.
+func apply_native_state(d: Dictionary) -> void:
+	_f = d["f"]
+	drag = d["drag"]
+	touched = d["touched"]
+	_warping = d["warping"]
+	_last_t = d["last_t"]
+	_stalled = d["stalled"]

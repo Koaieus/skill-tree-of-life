@@ -67,6 +67,13 @@ static var use_native: bool = true
 ## instance serves every thread.
 static var _native: Object = _acquire_native()
 
+## True when the loaded binary also has #813's defender entry point. A `.so`
+## built between #803 and #813 has `simulate_range` and not this one, and must
+## keep its plain-swing native path rather than losing it — so this is a
+## SECOND capability flag, not a stricter test inside [method _acquire_native].
+static var _native_field: bool = (_native != null
+		and _native.has_method(&"simulate_range_field"))
+
 
 static func _acquire_native() -> Object:
 	if OS.get_environment("BLADE_SIM_BACKEND") == "gdscript":
@@ -207,17 +214,15 @@ static func simulate_range(
 		# field needs the swing's accumulator, not just its geometry.
 		obstacles.prepare(state, drivers, clock)
 	# The native transliteration continues from `prev_positions`, takes the
-	# integer step offset and the per-particle damping array (#803), so a
-	# re-baked tail after a severance (#801) runs native like the head did. The
-	# two things it does not model are a warpable clock — it derives `f` from
-	# `t` inline, and a dragged swing (#780) accumulates `_f` in float by
-	# design — and a bunker field (#781), whose pushout and strain accumulator
-	# live in GDScript. Either in range and the swing takes GDScript, whole.
-	if _native != null and use_native and clock == null and obstacles == null:
-		# Returns null when the state holds a constraint or driver the native
-		# path doesn't know — then we just fall through to GDScript.
+	# integer step offset and the per-particle damping array (#803), and since
+	# #813 it carries the warpable clock (#780) and the defender field (#781)
+	# too — so a swing near a wall or a plate, which since #811 is most swings,
+	# runs native like a swing in open ground does. It still declines a state
+	# holding a constraint or driver it does not know; then we fall through.
+	if _native != null and use_native:
 		var native_traj := _simulate_native(state, drivers, step_offset, step_count, dt,
-				base_iterations, velocity_iter_ref, substeps, length_factor)
+				base_iterations, velocity_iter_ref, substeps, length_factor,
+				clock, obstacles)
 		if native_traj != null:
 			return native_traj
 	var traj := BladeTrajectory.new()
@@ -289,6 +294,16 @@ static func simulate_range(
 ## (#803). The earlier shape passed `float(step_count) * dt` and let the C++
 ## `ceil` it back — a float round trip that happened to be exact for a run
 ## from 0 and would not have been for an offset.
+##
+## A `clock` and/or an `obstacles` field routes to `simulate_range_field`
+## instead (#813), with the clock's six mutable fields and the field's eight
+## crossing as plain values and coming back advanced, plus one Bank-shaped
+## Dictionary per sample for each. That is the alternative to a per-iteration
+## constraint callback into GDScript, which would fire in the solver's
+## innermost loop and cost more than the backend saves. Declines, all falling
+## back to GDScript rather than approximating: a binary predating #813, a
+## `BladeObstacleField` subclass or one with [member BladeObstacleField.trace]
+## on, and a `radii` array that does not parallel `positions`.
 static func _simulate_native(
 		state: BladeState,
 		drivers: Array[BladeDriver],
@@ -298,7 +313,9 @@ static func _simulate_native(
 		base_iterations: int,
 		velocity_iter_ref: float,
 		substeps: int,
-		length_factor: float) -> BladeTrajectory:
+		length_factor: float,
+		clock: BladeSwingClock = null,
+		obstacles: BladeObstacleField = null) -> BladeTrajectory:
 	# The GDScript loop would index-error on these; the C++ refuses them with
 	# an error and an empty Dictionary. Decline up front so the GDScript path
 	# produces the error, not a null-Dictionary crash a line later.
@@ -337,14 +354,77 @@ static func _simulate_native(
 		driver_scalars.append(ad.duration)
 
 	# Dynamic call: `_native` is a plain Object here (see _acquire_native).
-	var out: Dictionary = _native.call(
-			&"simulate_range",
-			state.positions, state.prev_positions, state.inv_masses,
-			constraint_ab, constraint_scalars,
-			driver_particles, driver_centers, driver_scalars,
-			state.damping, step_offset, step_count,
-			dt, base_iterations, velocity_iter_ref,
-			substeps, length_factor)
+	var out: Dictionary
+	var defended := clock != null or obstacles != null
+	if not defended:
+		out = _native.call(
+				&"simulate_range",
+				state.positions, state.prev_positions, state.inv_masses,
+				constraint_ab, constraint_scalars,
+				driver_particles, driver_centers, driver_scalars,
+				state.damping, step_offset, step_count,
+				dt, base_iterations, velocity_iter_ref,
+				substeps, length_factor)
+	else:
+		if not _native_field:
+			return null  # a binary older than #813; the field half is GDScript
+		var field_inputs: Dictionary
+		if obstacles != null:
+			# Exact, like the constraint and driver checks above and for the
+			# same reason: a subclass overriding project() or end_substep()
+			# would be silently ignored by the C++ loop.
+			if obstacles.get_script() != BladeObstacleField:
+				return null
+			if not obstacles.native_supported():
+				return null
+			# The C++ capsule pass indexes `radii[e.x]` unguarded, exactly as
+			# the GDScript one does — a short array is an index error there and
+			# would be a read past the end here, so decline instead.
+			if state.radii.size() != state.positions.size():
+				return null
+			field_inputs = obstacles.native_inputs()
+		else:
+			# A clock with no field: nothing can bank drag, so this is the
+			# plain loop plus `_last_t` bookkeeping — but the clock's history
+			# still has to come back, so it goes through the same entry point.
+			field_inputs = {
+				"has_field": false,
+				"has_clock": true,
+				"clock_duration": clock.duration,
+			}
+		var sim_state: Dictionary = {}
+		if clock != null:
+			sim_state["clock_state"] = clock.native_state()
+		if obstacles != null:
+			sim_state["field_state"] = obstacles.native_state()
+		out = _native.call(
+				&"simulate_range_field",
+				state.positions, state.prev_positions, state.inv_masses,
+				constraint_ab, constraint_scalars,
+				driver_particles, driver_centers, driver_scalars,
+				state.damping, step_offset, step_count,
+				dt, base_iterations, velocity_iter_ref,
+				substeps, length_factor, field_inputs, sim_state)
+		# The C++ ERR_FAILs to an empty Dictionary on a malformed boundary.
+		# Falling back is the honest response: GDScript then runs the same
+		# swing and produces the real error, rather than a null a line later.
+		if out.is_empty():
+			return null
+		# `history[0]` is the bank ON ENTRY, and it is GDScript's to take —
+		# captured here, before apply_native_state moves the objects on. The
+		# C++ returns [1..step_count], parallel to `samples[1..]`.
+		if clock != null:
+			var clock_hist: Array[BladeSwingClock.Bank] = [clock.capture()]
+			for h: Dictionary in (out["clock_history"] as Array):
+				clock_hist.append(BladeSwingClock.bank_from_native(h))
+			clock.apply_native_state(out["clock_state"])
+			clock.history = clock_hist
+		if obstacles != null:
+			var field_hist: Array[BladeObstacleField.Bank] = [obstacles.capture()]
+			for h: Dictionary in (out["field_history"] as Array):
+				field_hist.append(BladeObstacleField.bank_from_native(h))
+			obstacles.apply_native_state(out["field_state"])
+			obstacles.history = field_hist
 
 	var traj := BladeTrajectory.new()
 	traj.sample_dt = dt

@@ -75,14 +75,49 @@ caught none of it. Cheap parts that run once per resolve (the pivot-eccentricity
 BFS behind `length_factor`) stay in GDScript and are passed in precomputed: one
 definition of the rule, not two. Since #803 the C++ entry point is
 `simulate_range` (continued `prev_positions`, integer `step_offset`, per-particle
-`damping` in; `prev_samples` out). The fallback triggers are a non-null
-`BladeSwingClock` **or** a non-null `BladeObstacleField` — and since #811 those
-two travel together and cover every swing near ANY defender, wall or plate, so
-the native path is reached less often than it used to be. Giving the native
-backend a constraint hook is #813; do not smuggle one in. Two transliteration details that only the
+`damping` in; `prev_samples` out), and since #813 a second one,
+`simulate_range_field`, for a swing that has a `BladeSwingClock` and/or a
+`BladeObstacleField` — which since #811 is every swing near ANY defender, wall
+or plate, i.e. most of them. Two transliteration details that only the
 continuation cases catch: damping multiplies `v` BEFORE the speed is read (so
 `speed_history` sees the damped velocity), and `t0` is `(double)(offset + step)
 * dt` — integers added, then widened, never a float origin carried across chunks.
+
+## The defender half crosses as DATA, never as a callback (#813)
+
+`BladeObstacleField.project()` runs once per constraint-projection iteration, so
+a callback into GDScript there would have eaten most of what the backend buys
+(k=100, solver only: native 27 ms braced / 16 ms whip vs GDScript 597 / 251).
+The clock and the field are transliterated instead, and their state crosses as
+plain values — `native_inputs()` (immutable: zones, live edges, driven
+particles, `prepare()`'s incidence as a CSR, and the four tuning constants,
+**passed rather than restated in C++**), `native_state()` in,
+`clock_state` / `field_state` / `clock_history` / `field_history` back.
+
+**How to apply:** `native_state()` / `bank_from_native()` / `apply_native_state()`
+are `capture()` / `restore()` in Dictionary clothing — change those, and the C++
+`FieldCtx`, together. Four traps the plain solver never hits:
+
+- **`_strain` is float32 storage with double arithmetic** — read widens, add and
+  `maxf` in double, the **store narrows**, and `< SHATTER_DISTANCE` compares the
+  narrowed value. A double accumulator "for accuracy" is a different solver.
+  `_edge_residual`'s values are the opposite: plain GDScript floats, i.e. doubles.
+- **`_contact_particles` / `_contact_edges` / `_contact_normals` iterate in
+  INSERTION order, and that is a summation order** — several particles bank onto
+  one edge per substep, and a particle touched by zone 3 then zone 7 keeps zone
+  7's *value* at zone 3's *position*. A key-sorted map is not equivalent; they
+  are godot `Dictionary`s in the C++ for that reason (Variant cost is per
+  contact, not per iteration).
+- **Two sqrt precisions in one function** — `delta.length()` is the engine's
+  float32 `Vector2::length()`, `var d := sqrt(d2)` is GDScript's double sqrt.
+  Call the godot-cpp `Vector2` methods, never hand-expand either.
+- **The pushout mutates `positions` mid-loop** — zone z+1 sees zone z's
+  correction. Batching the pushes is a different solver.
+
+Declines (falling back, never approximating): a binary predating #813 — a
+SECOND capability flag, `BladeSim._native_field`, because a #803 binary must
+keep its plain-swing native path — a `BladeObstacleField` subclass,
+`field.trace` on, and a `radii` array not parallel to `positions`.
 
 ## A stale binary is no binary
 
@@ -149,7 +184,7 @@ gotcha is invisible without it, which is why the parity test's no-binary arm is
 every parity case passes vacuously the moment `_simulate_native` declines a
 fixture, comparing GDScript to GDScript. Verify with a one-liner:
 `mise run test:one -- res://test/unit/attack/test_blade_native_parity.gd` must
-report **18 passed, 0 pending**, not 18 pending.
+report **26 passed, 0 pending**, not 26 pending.
 
 ## `git worktree remove` now fails on any worktree that inited the submodule
 
