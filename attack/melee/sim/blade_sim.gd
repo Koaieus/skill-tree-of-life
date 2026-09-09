@@ -197,13 +197,19 @@ static func simulate_range(
 	# BFS in C++ (#798): one implementation of the length axis, not two.
 	var length_factor := _length_factor(state.pivot_eccentricity()) if enable_length_scaling else 1.0
 	var damping := state.damping
+	# Bunker field (#781): bind it to THIS call's driver list and edge set —
+	# both change after a severance — so it meters the right particles.
+	var obstacles := state.obstacles
+	if obstacles != null:
+		obstacles.prepare(state, drivers)
 	# The native transliteration continues from `prev_positions`, takes the
 	# integer step offset and the per-particle damping array (#803), so a
 	# re-baked tail after a severance (#801) runs native like the head did. The
-	# one thing it does not model is a warpable clock — it derives `f` from `t`
-	# inline, and a dragged swing (#780) accumulates `_f` in float by design —
-	# so a swing with a fortified node in range takes GDScript, whole.
-	if _native != null and use_native and clock == null:
+	# two things it does not model are a warpable clock — it derives `f` from
+	# `t` inline, and a dragged swing (#780) accumulates `_f` in float by
+	# design — and a bunker field (#781), whose pushout and strain accumulator
+	# live in GDScript. Either in range and the swing takes GDScript, whole.
+	if _native != null and use_native and clock == null and obstacles == null:
 		# Returns null when the state holds a constraint or driver the native
 		# path doesn't know — then we just fall through to GDScript.
 		var native_traj := _simulate_native(state, drivers, step_offset, step_count, dt,
@@ -224,6 +230,11 @@ static func simulate_range(
 	# speed_history is — see BladeSwingClock.history.
 	if clock != null:
 		clock.history = [clock.capture()]
+	# The bunker field banks the same way, and for the same rewind (#781/#803):
+	# the bank at the severance sample already holds the ARMED break, so
+	# `restore` + `consume_break` lands it without re-running the head.
+	if obstacles != null:
+		obstacles.history = [obstacles.capture()]
 	# speed_history[0] parallels samples[0]: zero for every particle, since
 	# nothing has stepped yet (#779). Freshly rebuilt every call, never
 	# accumulated across calls — see BladeState.speed_history's docstring.
@@ -236,6 +247,8 @@ static func simulate_range(
 		# The INTEGER global step index — never an accumulated float offset.
 		var t0 := float(step_offset + local_step) * dt
 		var step_speeds := zero_speeds
+		if obstacles != null:
+			obstacles.begin_sample(step_offset + local_step + 1)
 		for s in sub:
 			var t := t0 + float(s + 1) * sub_dt
 			step_speeds = _step(state, drivers, t, sub_dt, base_iterations,
@@ -248,6 +261,8 @@ static func simulate_range(
 		if clock != null:
 			clock.sense(state.positions, state.radii, state.edges, state.removed_edges)
 			clock.history.append(clock.capture())
+		if obstacles != null:
+			obstacles.history.append(obstacles.capture())
 		traj.samples.append(state.positions.duplicate())
 		traj.prev_samples.append(state.prev_positions.duplicate())
 		# The LAST substep's speeds — the physics rate closest to this
@@ -405,6 +420,9 @@ static func _step(
 	# Drivers override prescribed particles.
 	for d in drivers:
 		d.apply(positions, t)
+	var obstacles := state.obstacles
+	if obstacles != null:
+		obstacles.after_drivers(positions)
 	# Sweep budget for this SAMPLE INTERVAL: scale up when particles are
 	# moving fast, and when the blade is long (hop count), then split that
 	# budget across the substeps composing this interval — spending it on
@@ -415,10 +433,16 @@ static func _step(
 		budget *= 1.0 + max_speed / vel_ref
 	budget *= length_factor
 	var iters := maxi(1, int(round(budget / float(substeps))))
-	# Project constraints.
+	# Project constraints. The bunker field goes LAST in every iteration so the
+	# pass ends outside every plate (#781) — that ordering is what makes
+	# SHATTER_DISTANCE a visual penetration budget and not just a gameplay one.
 	for _i in iters:
 		for c in state.constraints:
 			c.project(positions, inv_masses)
+		if obstacles != null:
+			obstacles.project(positions, inv_masses)
+	if obstacles != null:
+		obstacles.end_substep(positions, clock)
 	state.positions = positions
 	state.prev_positions = prev
 	return speeds

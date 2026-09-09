@@ -117,6 +117,16 @@ var edges: Array[Vector2i] = []
 ## destroys matter and a bunker destroys structure.
 var removed_edges: Dictionary = {}
 var constraints: Array[BladeConstraint] = []
+## The swing's bunker field (#781), or null — which is every swing with no
+## deflecting node in reach, and the only case the native backend takes.
+## Projected by [method BladeSim._step] after [member constraints] each
+## iteration, so the pass ends outside every plate. NOT in `constraints`: it is
+## one object for every bunker at once, it carries sim state the resolve loop
+## rewinds ([method BladeObstacleField.capture]), and [method remove_edge] /
+## [method pivot_eccentricity] must not see it as an edge. Attached by
+## [method MeleeAttackPlan.build_blade_state]; single-use, like a
+## [BladeSwingClock] — a ghost preview builds a fresh one per cycle.
+var obstacles: BladeObstacleField = null
 
 
 ## Build a state from particle data and a list of edges. Seeds one

@@ -173,6 +173,13 @@ func _run_preview_loop(gen: int) -> void:
 		var clock: BladeSwingClock = null
 		if live_plan != null:
 			clock = live_plan.build_swing_clock(blade.state)
+			# And a fresh bunker field (#781), for the same reason: the ghost
+			# must jam on a plate the way the committed swing will. (It jams
+			# rather than breaks — the break is the resolve loop's, so the ghost
+			# shows a rigid blade stopped dead, which is the honest promise.)
+			blade.state.obstacles = live_plan.build_obstacle_field(blade.state)
+			if clock == null and blade.state.obstacles != null:
+				clock = BladeSwingClock.new(MeleeAttackPlan.SWING_DURATION)
 		var traj := blade.simulate(
 				MeleeAttackPlan.SWING_DURATION, BladeSim.DEFAULT_DT,
 				BladeSim.DEFAULT_ITERATIONS, 0.0, clock)

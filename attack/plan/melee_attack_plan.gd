@@ -632,6 +632,13 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# when there is none in reach, which is the ordinary swing. ONE instance for
 	# the whole swing, carried across every chunk — see BladeSwingClock.Bank.
 	var clock := build_swing_clock(state)
+	# A bunker's grip stall (#781) is expressed on the clock, so a swing with
+	# plates in reach but no wall still gets one. An untouched clock is
+	# bit-inert (test_blade_swing_drag pins it), and the field already forces
+	# the GDScript backend, so this costs nothing extra.
+	var obstacles := state.obstacles
+	if clock == null and obstacles != null:
+		clock = BladeSwingClock.new(SWING_DURATION)
 	var space_state := source.get_world_2d().direct_space_state
 	var exclude := collect_target_excludes()
 	var graph: Graph = attacker.navigator.graph if attacker != null and attacker.navigator != null else null
@@ -685,15 +692,18 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 			var speeds: PackedFloat32Array = chunk_speeds[j]
 			trajectory.samples.append(pose)
 			speed_history.append(speeds)
-			if sweep == null:
-				continue
-			var batch := sweep.scan_sample(float(step) * dt, pose, speeds)
-			if batch.is_empty():
-				continue
-			events.append_array(batch)
 			var pops_before := gate.result.pops.size()
-			_land_batch(outcome, batch, state, gate, world, rng, hits)
-			if gate.result.pops.size() != pops_before:
+			if sweep != null:
+				var batch := sweep.scan_sample(float(step) * dt, pose, speeds)
+				if not batch.is_empty():
+					events.append_array(batch)
+					_land_batch(outcome, batch, state, gate, world, rng, hits)
+			# A bunker break (#781) is decided INSIDE the bake, by the field, at
+			# the substep the strain crossed the threshold — so it is checked
+			# per sample whether or not anything was hit, and severs exactly
+			# like a pop: stop, rewind, apply, re-bake.
+			var broke := obstacles != null and obstacles.has_break_at(step)
+			if gate.result.pops.size() != pops_before or broke:
 				severed_at = step
 				break
 		if severed_at < 0:
@@ -712,11 +722,20 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		state.prev_positions = chunk.prev_samples[local].duplicate()
 		if clock != null:
 			clock.restore(clock.history[local])
+		if obstacles != null:
+			obstacles.restore(obstacles.history[local])
 		# THE WHOLE OF A SEVERANCE: a corpse frozen where it died, its
 		# constraints and its driver gone, and drag written onto whatever it was
 		# holding on. Nothing else — everything downstream then coasts by plain
 		# Verlet, because that is what Verlet does to a particle nothing is
 		# pulling on.
+		# The bank restored just above IS the one the break was armed in — the
+		# field banks once per sample, after that sample's substeps — so the
+		# break is consumed HERE, off the rewound field, with nothing re-run.
+		if obstacles != null:
+			var brk := obstacles.consume_break()
+			if brk != null:
+				gate._sever_edge(brk.edge_idx, float(severed_at) * dt, brk.defender, 0.0)
 		for pop in gate.result.pops:
 			if pop.particle_idx >= 0:
 				state.remove_vertex(pop.particle_idx)
@@ -867,6 +886,10 @@ func build_blade_state() -> BladeState:
 	for i in selection.size():
 		for addon in selection[i].get_addons():
 			addon.apply_to_blade(blade_state, i)
+	# Bunker field (#781) — the defender-side twin of the drag clock, attached
+	# here so every consumer of this state (the resolve, the AI rollout) deflects
+	# off the same plates. Null for the ordinary swing.
+	blade_state.obstacles = build_obstacle_field(blade_state)
 	return blade_state
 
 
@@ -934,10 +957,7 @@ func build_swing_clock(blade_state: BladeState) -> BladeSwingClock:
 	if graph == null:
 		return null
 	var pivot := blade_state.positions[blade_state.pivot_index]
-	var reach := 0.0
-	for i in blade_state.positions.size():
-		var r: float = blade_state.radii[i] if i < blade_state.radii.size() else 0.0
-		reach = maxf(reach, pivot.distance_to(blade_state.positions[i]) + r)
+	var reach := _blade_reach(blade_state)
 	var self_set := selection_set()
 	var clock := BladeSwingClock.new(SWING_DURATION)
 	for sn in graph.get_skill_nodes():
@@ -950,6 +970,46 @@ func build_swing_clock(blade_state: BladeState) -> BladeSwingClock:
 			continue
 		clock.add_zone(sn.global_position, sn.radius, amount)
 	return clock if clock.has_zones() else null
+
+
+## Build this swing's [BladeObstacleField] from the graph, or return null when
+## no deflecting node (`deflection > 0` — only [BunkerAddon] authors it) is
+## anywhere near the arc (#781). Null is the common case and it is
+## load-bearing: with no field there is no accumulator, no pushout and no
+## GDScript fallback — a map with zero bunkers cannot produce a break, by
+## construction, at any blade size or speed. Same cull, same blade-side
+## exclusion and the same live-graph read as [method build_swing_clock], so a
+## mirror peer redrawing the swing builds the identical field.
+func build_obstacle_field(blade_state: BladeState) -> BladeObstacleField:
+	if blade_state == null or attacker == null or attacker.navigator == null:
+		return null
+	var graph := attacker.navigator.graph
+	if graph == null:
+		return null
+	var pivot := blade_state.positions[blade_state.pivot_index]
+	var reach := _blade_reach(blade_state)
+	var self_set := selection_set()
+	var field := BladeObstacleField.new()
+	for sn in graph.get_skill_nodes():
+		if _is_blade_side(sn, self_set):
+			continue
+		if float(sn.get_local_value(&"deflection")) <= 0.0:
+			continue
+		if pivot.distance_to(sn.global_position) > reach + sn.radius:
+			continue
+		field.add_zone(sn.global_position, sn.radius, sn)
+	return field if field.has_zones() else null
+
+
+## The widest arc any part of the blade sweeps: the farthest particle's
+## distance from the pivot plus its own radius.
+static func _blade_reach(blade_state: BladeState) -> float:
+	var pivot := blade_state.positions[blade_state.pivot_index]
+	var reach := 0.0
+	for i in blade_state.positions.size():
+		var r: float = blade_state.radii[i] if i < blade_state.radii.size() else 0.0
+		reach = maxf(reach, pivot.distance_to(blade_state.positions[i]) + r)
+	return reach
 
 
 func _set_swing_cw(value: bool) -> void:
