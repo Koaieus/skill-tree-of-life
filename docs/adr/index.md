@@ -36,6 +36,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0012](0012-every-arrow-renders-whatever-it-did.md) | Every arrow renders, whatever the landing did — a render pass never filters on outcome | accepted | 2026-09-04 | combat, attacks, vfx, ranged |
 | [0013](0013-host-only-rolls-and-the-seed-is-a-procgen-input.md) | Loot and relic rolls stay host-only, and the run seed is a procgen input rather than a determinism contract | accepted | 2026-08-21 | multiplayer, netcode, determinism, loot, procgen |
 | [0014](0014-one-physics-built-defender-field.md) | One physics-built defender field — the solver consumes data, it does not query | accepted | 2026-09-09 | combat, melee, blade, physics, performance, determinism |
+| [0015](0015-hidden-information-is-trusted-friends-until-a-competitive-release.md) | Hidden information is trusted-friends until a competitive release; the sync model keeps machine enforcement reachable, and lockstep is closed | accepted | 2026-09-09 | multiplayer, netcode, fog, hidden-information, architecture, melee |
 
 ## Reading order
 
