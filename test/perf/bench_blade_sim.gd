@@ -48,6 +48,12 @@ func _initialize() -> void:
 	# refuses (see BladeSim._simulate_native's exact get_script() check) — so
 	# they are a GDScript measurement by construction and run once, outside
 	# the per-backend tables, rather than printing the same numbers twice.
+	# #803: a pop swing is one whole bake plus one re-baked tail, on whichever
+	# backend is live — so its solver cost is bounded by "no-pop swing + tail",
+	# and this row is the measurement acceptance 5 asks for. Both backends.
+	if BladeSim.native_available():
+		_bench_pop_swing("native (C++ GDExtension)", true)
+	_bench_pop_swing("gdscript", false)
 	BladeSim.use_native = false
 	print("")
 	print("--- #790: 100-node / ~250-constraint swing, today's settings vs substepped ---")
@@ -74,6 +80,50 @@ func _table(backend: String, native: bool) -> void:
 	_bench_knobs("quarter rate", 20, 1.0 / 30.0, 16)
 	_bench_knobs("quarter rate, 4 iters", 20, 1.0 / 30.0, 4)
 	_bench_knobs("quarter rate, 2 iters", 20, 1.0 / 30.0, 2)
+
+
+## #803 — the cost of a severance. A k=20 chain, severed at vertex 8 one
+## third of the way through the swing: the resolve loop bakes the whole swing
+## once (optimistically), reads the state at the severance sample off the bake,
+## mutates, and re-bakes the tail. So a pop swing's SOLVER cost is exactly
+## whole + tail, and the row states all three so the bound is visible. Before
+## #803 the tail ran GDScript regardless of backend (and a head replay ran too).
+func _bench_pop_swing(backend: String, native: bool) -> void:
+	BladeSim.use_native = native
+	var k := 20
+	var steps := int(ceil(DURATION / (1.0 / 120.0)))
+	var cut := steps / 3
+	var whole_us := 0.0
+	var tail_us := 0.0
+	var pop_us := 0.0
+	for _r in REPS:
+		# No-pop swing: one whole bake.
+		var w := _chain(k)
+		var wd: Array[BladeDriver] = [BladeArcDriver.new(1, w.positions[0], SPACING, 0.0, TAU, DURATION)]
+		var t0 := Time.get_ticks_usec()
+		BladeSim.simulate(w, wd, DURATION)
+		whole_us += float(Time.get_ticks_usec() - t0)
+		# Pop swing, as resolve_against runs it: whole bake, rewind to the
+		# severance sample off prev_samples, sever, re-bake the tail.
+		var s := _chain(k)
+		var sd: Array[BladeDriver] = [BladeArcDriver.new(1, s.positions[0], SPACING, 0.0, TAU, DURATION)]
+		t0 = Time.get_ticks_usec()
+		var bake := BladeSim.simulate(s, sd, DURATION)
+		s.positions = bake.samples[cut].duplicate()
+		s.prev_positions = bake.prev_samples[cut].duplicate()
+		s.remove_vertex(8)
+		for i in range(9, k):
+			s.set_damping(i, BladeState.SEVERED_DRAG)
+		var t1 := Time.get_ticks_usec()
+		BladeSim.simulate_range(s, sd, cut, steps - cut)
+		var t2 := Time.get_ticks_usec()
+		tail_us += float(t2 - t1)
+		pop_us += float(t2 - t0)
+	print("--- #803: k=20 chain severed at vertex 8, sample %d of %d [%s] ---" % [cut, steps, backend])
+	print("  no-pop swing (whole bake)        %9.1f us" % (whole_us / float(REPS)))
+	print("  re-baked tail alone              %9.1f us" % (tail_us / float(REPS)))
+	print("  pop swing (bake + rewind + tail) %9.1f us   bound: whole + tail = %.1f us" % [
+			pop_us / float(REPS), (whole_us + tail_us) / float(REPS)])
 
 
 ## Straight chain from the pivot — the whippy extreme.

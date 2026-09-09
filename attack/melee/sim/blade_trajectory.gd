@@ -8,6 +8,15 @@ var sample_dt: float = 0.0
 ## k*sample_dt. samples[0] is the pre-step pose (t=0) — [BladeSim.simulate]
 ## prepends it, so this array always means what it says (#633).
 var samples: Array[PackedVector2Array] = []
+## prev_samples[k] = the solver's Verlet history at sample k — `prev_positions`
+## as [BladeState] held it after step k — parallel to [member samples] index for
+## index (#803). [b]Not derivable from samples:[/b] `BladeSim._step` rewrites
+## `prev_positions` once per SUBSTEP, so this is a mid-sample pose, and
+## `samples[k] - prev_samples[k]` is the velocity over one sub_dt, not one dt.
+## It exists so a caller can land on any sample EXACTLY and continue from it
+## with [method BladeSim.simulate_range] — the read that replaced #801's head
+## replay. Both backends emit it.
+var prev_samples: Array[PackedVector2Array] = []
 
 
 ## samples[0] is t=0 (the pre-step pose); samples[N-1] is the last simulated

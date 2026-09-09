@@ -668,11 +668,6 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 
 	var chunk_start := 0
 	while chunk_start < total_steps:
-		# The pose (and clock) this chunk starts from, kept so a severance can
-		# be landed on EXACTLY — see the replay below.
-		var snap_positions := state.positions.duplicate()
-		var snap_prev := state.prev_positions.duplicate()
-		var snap_bank: BladeSwingClock.Bank = clock.capture() if clock != null else null
 		# OPTIMISTIC BAKE: the whole remaining swing in one call, assuming
 		# nothing dies. Because a bake is a pure function of the state, walking
 		# it sample by sample and re-baking from the first death produces the
@@ -703,29 +698,20 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 				break
 		if severed_at < 0:
 			break
-		# REPLAY THE HEAD. The bake above ran past the death, so `state` is at
-		# the end of the swing, not at `severed_at` — and the exact Verlet
-		# history at a sample is not recoverable from `samples` (`_step` rewrites
-		# `prev_positions` once per SUBSTEP, so it is a mid-sample pose). So
-		# rewind to this chunk's snapshot and re-run the head; being the same
-		# pure function of the same inputs it lands bit-identically on the pose
-		# already appended above.
-		#
-		# [b]#803 deletes this.[/b] Once the native backend emits `prev_samples`
-		# the state at any sample is read straight off the bake and the replay
-		# goes away — this is a workaround for a missing output, never "how we do
-		# it". Cost meanwhile: one extra partial bake per severance, never more,
-		# because the next chunk starts AT the severance, so a replay can never
-		# span more than one gap however many vertices a wall pops.
-		state.positions = snap_positions
-		state.prev_positions = snap_prev
+		# REWIND TO THE DEATH. The bake above ran past it, so `state` is at the
+		# end of the swing, not at `severed_at`. The bake recorded the exact
+		# state at every sample — `prev_samples` alongside `samples`, and the
+		# clock its own bank (#803) — so landing on the severance sample is a
+		# read, not a re-run. (`_step` rewrites `prev_positions` once per
+		# SUBSTEP, so it is a mid-sample pose that `samples` alone could never
+		# recover; #801 re-baked the head of the chunk to get it before both
+		# backends emitted it.) Duplicated because `_step` writes through the
+		# reference, and the trajectory keeps these same arrays.
+		var local := severed_at - chunk_start
+		state.positions = chunk.samples[local].duplicate()
+		state.prev_positions = chunk.prev_samples[local].duplicate()
 		if clock != null:
-			clock.restore(snap_bank)
-		if severed_at > chunk_start:
-			BladeSim.simulate_range(
-					state, drivers, chunk_start, severed_at - chunk_start, dt,
-					BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS,
-					true, clock)
+			clock.restore(clock.history[local])
 		# THE WHOLE OF A SEVERANCE: a corpse frozen where it died, its
 		# constraints and its driver gone, and drag written onto whatever it was
 		# holding on. Nothing else — everything downstream then coasts by plain

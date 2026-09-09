@@ -73,7 +73,17 @@ static func _acquire_native() -> Object:
 		return null
 	if not ClassDB.class_exists(&"BladeSolverNative"):
 		return null
-	return ClassDB.instantiate(&"BladeSolverNative")
+	var native: Object = ClassDB.instantiate(&"BladeSolverNative")
+	# A binary built before #803 loads fine and has no `simulate_range` — and a
+	# `call()` on a missing method is null, not an error, so the crash would be
+	# `out["samples"]` a line later on every swing. Treat a stale binary as no
+	# binary: the GDScript fallback is a supported state, a half-loaded
+	# extension is not. `mise run native:build` cures it.
+	if native == null or not native.has_method(&"simulate_range"):
+		push_warning("BladeSolverNative predates #803 (no simulate_range) — "
+				+ "using the GDScript solver. Rebuild: `mise run native:build`.")
+		return null
+	return native
 
 
 ## True when the GDExtension loaded — independent of [member use_native].
@@ -187,20 +197,16 @@ static func simulate_range(
 	# BFS in C++ (#798): one implementation of the length axis, not two.
 	var length_factor := _length_factor(state.pivot_eccentricity()) if enable_length_scaling else 1.0
 	var damping := state.damping
-	# The native transliteration takes neither a per-particle damping term nor a
-	# continued Verlet history (it receives `positions`, never `prev_positions`,
-	# and derives `t` from a step index that always starts at 0), so a coasting
-	# tail after a severance (#801) takes the GDScript path by construction
-	# rather than silently losing its drag or restarting from rest. All three
-	# knobs are off in every unsevered swing, so the ordinary swing is untouched.
-	# A warpable clock is on the same list — it derives `f` from `t` inline — so
-	# a dragged swing (#780) takes GDScript too. Every swing with no fortified
-	# node in range and nothing severed still runs native (#798 parity untouched).
-	if _native != null and use_native and clock == null \
-			and step_offset == 0 and damping.is_empty():
+	# The native transliteration continues from `prev_positions`, takes the
+	# integer step offset and the per-particle damping array (#803), so a
+	# re-baked tail after a severance (#801) runs native like the head did. The
+	# one thing it does not model is a warpable clock — it derives `f` from `t`
+	# inline, and a dragged swing (#780) accumulates `_f` in float by design —
+	# so a swing with a fortified node in range takes GDScript, whole.
+	if _native != null and use_native and clock == null:
 		# Returns null when the state holds a constraint or driver the native
 		# path doesn't know — then we just fall through to GDScript.
-		var native_traj := _simulate_native(state, drivers, float(step_count) * dt, dt,
+		var native_traj := _simulate_native(state, drivers, step_offset, step_count, dt,
 				base_iterations, velocity_iter_ref, substeps, length_factor)
 		if native_traj != null:
 			return native_traj
@@ -212,6 +218,12 @@ static func simulate_range(
 	# instead; that was considered and rejected in favor of the data meaning
 	# what it says.
 	traj.samples = [state.positions.duplicate()]
+	# prev_samples[0] parallels it: the Verlet history on entry (#803).
+	traj.prev_samples = [state.prev_positions.duplicate()]
+	# The clock's per-sample history is chunk-local for the same reason
+	# speed_history is — see BladeSwingClock.history.
+	if clock != null:
+		clock.history = [clock.capture()]
 	# speed_history[0] parallels samples[0]: zero for every particle, since
 	# nothing has stepped yet (#779). Freshly rebuilt every call, never
 	# accumulated across calls — see BladeState.speed_history's docstring.
@@ -235,7 +247,9 @@ static func simulate_range(
 		# the arc from the NEXT substep on — never the approach to the zone itself.
 		if clock != null:
 			clock.sense(state.positions, state.radii, state.edges, state.removed_edges)
+			clock.history.append(clock.capture())
 		traj.samples.append(state.positions.duplicate())
+		traj.prev_samples.append(state.prev_positions.duplicate())
 		# The LAST substep's speeds — the physics rate closest to this
 		# sample's time, not an average or the step's max (#779).
 		state.speed_history.append(step_speeds)
@@ -252,15 +266,28 @@ static func simulate_range(
 ## `length_factor` arrives precomputed (see simulate) rather than being
 ## re-derived in C++ — the BFS runs once per resolve, so porting it would buy
 ## nothing and would put the length axis's definition in two places.
+##
+## `step_offset` / `step_count` cross the boundary as the INTEGERS they are
+## (#803). The earlier shape passed `float(step_count) * dt` and let the C++
+## `ceil` it back — a float round trip that happened to be exact for a run
+## from 0 and would not have been for an offset.
 static func _simulate_native(
 		state: BladeState,
 		drivers: Array[BladeDriver],
-		duration: float,
+		step_offset: int,
+		step_count: int,
 		dt: float,
 		base_iterations: int,
 		velocity_iter_ref: float,
 		substeps: int,
 		length_factor: float) -> BladeTrajectory:
+	# The GDScript loop would index-error on these; the C++ refuses them with
+	# an error and an empty Dictionary. Decline up front so the GDScript path
+	# produces the error, not a null-Dictionary crash a line later.
+	if state.prev_positions.size() != state.positions.size():
+		return null
+	if not state.damping.is_empty() and state.damping.size() != state.positions.size():
+		return null
 	var constraint_ab := PackedInt32Array()
 	var constraint_scalars := PackedFloat64Array()
 	for c in state.constraints:
@@ -293,16 +320,18 @@ static func _simulate_native(
 
 	# Dynamic call: `_native` is a plain Object here (see _acquire_native).
 	var out: Dictionary = _native.call(
-			&"simulate",
-			state.positions, state.inv_masses,
+			&"simulate_range",
+			state.positions, state.prev_positions, state.inv_masses,
 			constraint_ab, constraint_scalars,
 			driver_particles, driver_centers, driver_scalars,
-			duration, dt, base_iterations, velocity_iter_ref,
+			state.damping, step_offset, step_count,
+			dt, base_iterations, velocity_iter_ref,
 			substeps, length_factor)
 
 	var traj := BladeTrajectory.new()
 	traj.sample_dt = dt
 	traj.samples.assign(out["samples"])
+	traj.prev_samples.assign(out["prev_samples"])
 	# simulate()'s contract is that the state advances in place — including
 	# speed_history (#779), which the native loop builds on the same rule the
 	# GDScript one does: zeros for sample 0, then the LAST substep's speeds.

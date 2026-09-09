@@ -118,6 +118,15 @@ func is_warping() -> bool:
 	return _warping
 
 
+## The [Bank] at every sample of the chunk [method BladeSim.simulate_range] last
+## ran with this clock, parallel to that chunk's `samples` (`history[0]` is the
+## bank on entry) — chunk-local and rebuilt every call, exactly like
+## [member BladeState.speed_history] (#803). A severance at local sample `j`
+## rewinds with `restore(history[j])`, which lands on the same bank a replay of
+## the head would have re-ticked to, without running one.
+var history: Array[Bank] = []
+
+
 ## Everything on this clock that a substep MUTATES, captured so the resolve loop
 ## can rewind it (#801). [b]The clock is sim state[/b] — `_f`, banked `drag`,
 ## which zones it has `touched` — so replaying a span of the swing to recover an

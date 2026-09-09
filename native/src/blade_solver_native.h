@@ -1,8 +1,9 @@
 /* Native blade PBD solver — the C++ half of #798.
  *
  * See docs/domain/melee-blade-sim.md ("Backends") and attack/melee/sim/blade_sim.gd.
- * This file mirrors BladeSim.simulate + BladeSim._step +
- * BladeDistanceConstraint.project ONLY. BladeHitScan is deliberately not here:
+ * This file mirrors BladeSim.simulate_range + BladeSim._step +
+ * BladeDistanceConstraint.project ONLY (simulate() is the whole-swing
+ * reduction of simulate_range, on both sides). BladeHitScan is deliberately not here:
  * it touches the physics server.
  *
  * `p_length_factor` arrives PRECOMPUTED from GDScript (BladeSim._length_factor
@@ -31,6 +32,11 @@ protected:
 public:
     // Pure: no member state is touched, so one shared instance is safe to call
     // from every WorkerThreadPool task AiBladeRollout spawns.
+    //
+    // The whole-swing shape (#798): Verlet history at rest, step 0,
+    // ceil(duration / dt) steps, no damping. Kept verbatim as the additive
+    // contract #803 promised; it is simulate_range with those inputs and
+    // nothing else, exactly as BladeSim.simulate is to BladeSim.simulate_range.
     Dictionary simulate(
             const PackedVector2Array &p_positions,
             const PackedFloat32Array &p_inv_masses,
@@ -40,6 +46,39 @@ public:
             const PackedVector2Array &p_driver_centers,
             const PackedFloat64Array &p_driver_scalars,
             double p_duration,
+            double p_dt,
+            int64_t p_base_iterations,
+            double p_velocity_iter_ref,
+            int64_t p_substeps,
+            double p_length_factor) const;
+
+    // THE stepping loop (#803) — BladeSim.simulate_range transliterated.
+    // Continues from `p_prev_positions` as given (the caller resets it to
+    // `p_positions` for a run starting at rest), runs `p_step_count` steps
+    // whose GLOBAL index starts at `p_step_offset`, and bleeds each particle's
+    // velocity by `p_damping[i]` per second when that array is non-empty.
+    //
+    // `p_step_offset` is an INTEGER and that is load-bearing: every substep's
+    // time is `(double)(step_offset + local) * dt + (double)(s + 1) * sub_dt`,
+    // so a run split into chunks is bit-identical to the unchunked one. A
+    // float time origin carried across chunks would not be.
+    //
+    // Returns, parallel to `samples`, a `prev_samples` array: the Verlet
+    // history AFTER each step — a mid-sample pose (`prev` is rewritten per
+    // substep) that is not derivable from `samples` and is what a severance
+    // rewinds onto.
+    Dictionary simulate_range(
+            const PackedVector2Array &p_positions,
+            const PackedVector2Array &p_prev_positions,
+            const PackedFloat32Array &p_inv_masses,
+            const PackedInt32Array &p_constraint_ab,
+            const PackedFloat64Array &p_constraint_scalars,
+            const PackedInt32Array &p_driver_particles,
+            const PackedVector2Array &p_driver_centers,
+            const PackedFloat64Array &p_driver_scalars,
+            const PackedFloat32Array &p_damping,
+            int64_t p_step_offset,
+            int64_t p_step_count,
             double p_dt,
             int64_t p_base_iterations,
             double p_velocity_iter_ref,

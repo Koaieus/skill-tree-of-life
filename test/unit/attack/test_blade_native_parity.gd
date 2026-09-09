@@ -102,6 +102,23 @@ func _assert_identical(
 		if b != a:
 			return
 
+	# prev_samples (#803) is what a severance rewinds onto — a mid-sample pose
+	# `_step` rewrote per SUBSTEP, so it is not derivable from `samples` and a
+	# backend that got it wrong would start every re-baked tail from a lie
+	# while every assertion above stayed green.
+	assert_eq(nat_traj.prev_samples.size(), nat_traj.samples.size(),
+			"%s: prev_samples parallels samples" % label)
+	assert_eq(nat_traj.prev_samples.size(), gd_traj.prev_samples.size(),
+			"%s: prev_samples length" % label)
+	if nat_traj.prev_samples.size() != gd_traj.prev_samples.size():
+		return
+	for k3 in gd_traj.prev_samples.size():
+		var pa: PackedVector2Array = gd_traj.prev_samples[k3]
+		var pb: PackedVector2Array = nat_traj.prev_samples[k3]
+		assert_eq(pb, pa, "%s: prev_sample %d" % [label, k3])
+		if pb != pa:
+			return
+
 	# simulate() advances the BladeState in place; both backends must leave it
 	# in the same place, or a caller that re-simulates from it diverges.
 	var gd_state: BladeState = gd[1]
@@ -245,7 +262,7 @@ func test_the_native_path_actually_ran() -> void:
 	var s := _chain(8)
 	s.prev_positions = s.positions.duplicate()
 	var traj := BladeSim._simulate_native(
-			s, _drivers(s), DURATION, 1.0 / 120.0, 16, 0.0,
+			s, _drivers(s), 0, _steps(DURATION), 1.0 / 120.0, 16, 0.0,
 			BladeSim.DEFAULT_SUBSTEPS, 1.4)
 	assert_not_null(traj, "the canonical fixture is inside the native subset")
 	if traj == null:
@@ -253,6 +270,194 @@ func test_the_native_path_actually_ran() -> void:
 	assert_gt(traj.samples.size(), 1, "the C++ loop emitted samples")
 	assert_eq(s.speed_history.size(), traj.samples.size(),
 			"the C++ loop wrote a parallel speed_history")
+	assert_eq(traj.prev_samples.size(), traj.samples.size(),
+			"the C++ loop wrote a parallel prev_samples")
+
+
+# ── #803: continuation ─────────────────────────────────────────────────────
+#
+# Every case below that continues a run does so through `_simulate_native`
+# DIRECTLY for the native arm, never through `simulate_range`: before #803 the
+# range call fell back to GDScript for any continued or damped chunk, so a case
+# written against it would have compared GDScript to GDScript and passed
+# vacuously. `_simulate_native` returning null is a failure here, not a fallback.
+
+
+static func _steps(dur: float, dt: float = 1.0 / 120.0) -> int:
+	return int(ceil(dur / dt))
+
+
+## The native tail of a split run, or null if the C++ declined the state.
+func _native_tail(s: BladeState, d: Array[BladeDriver], offset: int, count: int,
+		dt: float = 1.0 / 120.0) -> BladeTrajectory:
+	return BladeSim._simulate_native(
+			s, d, offset, count, dt, 16, 0.0, BladeSim.DEFAULT_SUBSTEPS,
+			BladeSim._length_factor(s.pivot_eccentricity()))
+
+
+## `a`'s local sample `j` equals `b`'s global sample `offset + j` — samples,
+## prev_samples and the state's speed_history alike, bit for bit. The speed
+## comparison starts at local sample 1: `speed_history[0]` is all-zero for
+## every chunk BY CONTRACT (nothing has stepped yet in this call), so a
+## continued chunk's [0] never equals the unbroken run's speeds at the cut.
+func _assert_tail_matches(a: BladeTrajectory, a_state: BladeState,
+		b: BladeTrajectory, b_state: BladeState, offset: int, what: String) -> void:
+	assert_eq(a.samples.size() + offset, b.samples.size(), "%s: covers the rest" % what)
+	if a.samples.size() + offset != b.samples.size():
+		return
+	for j in a.samples.size():
+		assert_eq(a.samples[j], b.samples[offset + j], "%s: sample %d" % [what, offset + j])
+		assert_eq(a.prev_samples[j], b.prev_samples[offset + j],
+				"%s: prev_sample %d" % [what, offset + j])
+		if j > 0:
+			assert_eq(a_state.speed_history[j], b_state.speed_history[offset + j],
+					"%s: speed %d" % [what, offset + j])
+		if a.samples[j] != b.samples[offset + j]:
+			return
+
+
+## Parity case 1: chunked == unchunked, on the native backend — the trap the
+## issue names. Time inside the C++ chunk must be `(step_offset + s) * dt` with
+## an INTEGER offset; a float `t_start` carried across the boundary drifts in
+## the last bits and this is what says so.
+func test_a_chunked_native_run_is_bit_identical_to_an_unchunked_one() -> void:
+	if not BladeSim.native_available():
+		pending("no native binary in this checkout — continuation parity unverified.")
+		return
+	var steps := _steps(DURATION)
+	var cut := steps / 3
+	BladeSim.use_native = true
+	var whole_state := _chain(8)
+	var whole := BladeSim.simulate(whole_state, _drivers(whole_state), DURATION)
+	var whole_speeds := whole_state.speed_history
+
+	var s := _chain(8)
+	var d := _drivers(s)
+	var head := BladeSim.simulate_range(s, d, 0, cut)
+	for j in head.samples.size():
+		assert_eq(head.samples[j], whole.samples[j], "head sample %d" % j)
+	var tail := _native_tail(s, d, cut, steps - cut)
+	assert_not_null(tail, "the C++ accepted a continued chunk")
+	if tail == null:
+		return
+	whole_state.speed_history = whole_speeds
+	_assert_tail_matches(tail, s, whole, whole_state, cut, "native tail")
+
+	# And the same split on GDScript lands on the same bits, so the two
+	# backends agree on a CHUNKED run, not only on a whole one.
+	BladeSim.use_native = false
+	var g := _chain(8)
+	var gd := _drivers(g)
+	BladeSim.simulate_range(g, gd, 0, cut)
+	var g_tail := BladeSim.simulate_range(g, gd, cut, steps - cut)
+	_assert_tail_matches(g_tail, g, whole, whole_state, cut, "gdscript tail")
+
+
+## Parity case 2: per-particle damping — a coasting set behind a dead vertex,
+## exactly what a severance writes — agrees bit for bit, and so does a uniform
+## array (every particle damped alike). Guarded against vacuity: the damped
+## tail must DIFFER from the undamped one, or two zeros would agree perfectly.
+func test_per_particle_and_uniform_damping_match_bit_for_bit() -> void:
+	if not BladeSim.native_available():
+		pending("no native binary in this checkout — damping parity unverified.")
+		return
+	var steps := _steps(DURATION)
+	var cut := 20
+	for uniform in [false, true]:
+		var label := "uniform" if uniform else "per-particle"
+		var undamped: BladeTrajectory = null
+		var tails: Array[BladeTrajectory] = []
+		var states: Array[BladeState] = []
+		for native in [true, false]:
+			BladeSim.use_native = native
+			var s := _chain(8)
+			var d := _drivers(s)
+			BladeSim.simulate_range(s, d, 0, cut)
+			if uniform:
+				for i in s.positions.size():
+					s.set_damping(i, BladeState.SEVERED_DRAG)
+			else:
+				# A severance at vertex 3: corpse frozen, 4..7 coast with drag.
+				s.remove_vertex(3)
+				for i in range(4, s.positions.size()):
+					s.set_damping(i, BladeState.SEVERED_DRAG)
+			var tail: BladeTrajectory = _native_tail(s, d, cut, steps - cut) if native \
+					else BladeSim.simulate_range(s, d, cut, steps - cut)
+			assert_not_null(tail, "%s: the C++ accepted a damped chunk" % label)
+			if tail == null:
+				return
+			tails.append(tail)
+			states.append(s)
+			if not native:
+				# The vacuity guard, on the GDScript arm: same head, same
+				# topology, no damping array.
+				var u := _chain(8)
+				var ud := _drivers(u)
+				BladeSim.simulate_range(u, ud, 0, cut)
+				if not uniform:
+					u.remove_vertex(3)
+				undamped = BladeSim.simulate_range(u, ud, cut, steps - cut)
+		_assert_tail_matches(tails[0], states[0], tails[1], states[1], 0, label)
+		assert_ne(tails[1].samples[-1], undamped.samples[-1],
+				"%s: the drag actually bled something" % label)
+
+
+## Parity case 2b: an all-zero array is bit-identical to no array at all on the
+## NATIVE backend too. `1.0 - 0.0 * dt` is exactly 1.0 and `v * 1.0` is `v`, so
+## the multiply the array switches on must be a no-op per particle, not merely
+## close — or every unsevered swing would diverge the moment the member existed.
+func test_all_zero_damping_is_bit_identical_to_none_on_native() -> void:
+	if not BladeSim.native_available():
+		pending("no native binary in this checkout — damping parity unverified.")
+		return
+	var steps := _steps(DURATION)
+	# Calling the native path directly skips simulate_range's step-0 reset of
+	# the Verlet history, so seed it at rest here — the same thing.
+	var bare := _chain(8)
+	var bare_d := _drivers(bare)
+	bare.prev_positions = bare.positions.duplicate()
+	var bare_traj := _native_tail(bare, bare_d, 0, steps)
+	var zero := _chain(8)
+	var zero_d := _drivers(zero)
+	zero.prev_positions = zero.positions.duplicate()
+	zero.damping.resize(zero.positions.size())
+	var zero_traj := _native_tail(zero, zero_d, 0, steps)
+	assert_not_null(bare_traj, "bare native run")
+	assert_not_null(zero_traj, "zero-damped native run")
+	if bare_traj == null or zero_traj == null:
+		return
+	_assert_tail_matches(zero_traj, zero, bare_traj, bare, 0, "zero damping")
+
+
+## Parity case 3: a continuation SEEDED from `prev_samples` — a fresh state
+## given `samples[k]` and `prev_samples[k]` off a finished bake, which is how
+## `MeleeAttackPlan.resolve_against` lands on a severance sample — equals the
+## run that never stopped. Both backends; this is the read that replaced the
+## head replay.
+func test_a_continuation_seeded_from_prev_samples_equals_one_that_never_stopped() -> void:
+	if not BladeSim.native_available():
+		pending("no native binary in this checkout — continuation parity unverified.")
+		return
+	var steps := _steps(DURATION)
+	var k := 37
+	BladeSim.use_native = true
+	var whole_state := _chain(8)
+	var whole := BladeSim.simulate(whole_state, _drivers(whole_state), DURATION)
+	var whole_speeds := whole_state.speed_history
+	for native in [true, false]:
+		BladeSim.use_native = native
+		var s := _chain(8)
+		var d := _drivers(s)
+		s.positions = whole.samples[k].duplicate()
+		s.prev_positions = whole.prev_samples[k].duplicate()
+		var tail: BladeTrajectory = _native_tail(s, d, k, steps - k) if native \
+				else BladeSim.simulate_range(s, d, k, steps - k)
+		assert_not_null(tail, "seeded continuation ran")
+		if tail == null:
+			return
+		whole_state.speed_history = whole_speeds
+		_assert_tail_matches(tail, s, whole, whole_state, k,
+				"seeded %s" % ("native" if native else "gdscript"))
 
 
 func test_backend_reports_gdscript_when_forced() -> void:

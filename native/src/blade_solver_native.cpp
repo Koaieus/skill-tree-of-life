@@ -51,6 +51,15 @@ void BladeSolverNative::_bind_methods() {
                     "duration", "dt", "base_iterations", "velocity_iter_ref",
                     "substeps", "length_factor"),
             &BladeSolverNative::simulate);
+    ClassDB::bind_method(
+            D_METHOD("simulate_range",
+                    "positions", "prev_positions", "inv_masses",
+                    "constraint_ab", "constraint_scalars",
+                    "driver_particles", "driver_centers", "driver_scalars",
+                    "damping", "step_offset", "step_count",
+                    "dt", "base_iterations", "velocity_iter_ref",
+                    "substeps", "length_factor"),
+            &BladeSolverNative::simulate_range);
 }
 
 Dictionary BladeSolverNative::simulate(
@@ -67,16 +76,61 @@ Dictionary BladeSolverNative::simulate(
         double p_velocity_iter_ref,
         int64_t p_substeps,
         double p_length_factor) const {
+    // BladeSim.simulate's `int(ceil(duration / dt))`, and its
+    // `state.prev_positions = positions.duplicate()` at step 0: the history is
+    // at rest, so `prev` IS `positions`.
+    const int64_t steps = (int64_t)Math::ceil(p_duration / p_dt);
+    return simulate_range(
+            p_positions, p_positions, p_inv_masses,
+            p_constraint_ab, p_constraint_scalars,
+            p_driver_particles, p_driver_centers, p_driver_scalars,
+            PackedFloat32Array(), 0, steps,
+            p_dt, p_base_iterations, p_velocity_iter_ref,
+            p_substeps, p_length_factor);
+}
+
+Dictionary BladeSolverNative::simulate_range(
+        const PackedVector2Array &p_positions,
+        const PackedVector2Array &p_prev_positions,
+        const PackedFloat32Array &p_inv_masses,
+        const PackedInt32Array &p_constraint_ab,
+        const PackedFloat64Array &p_constraint_scalars,
+        const PackedInt32Array &p_driver_particles,
+        const PackedVector2Array &p_driver_centers,
+        const PackedFloat64Array &p_driver_scalars,
+        const PackedFloat32Array &p_damping,
+        int64_t p_step_offset,
+        int64_t p_step_count,
+        double p_dt,
+        int64_t p_base_iterations,
+        double p_velocity_iter_ref,
+        int64_t p_substeps,
+        double p_length_factor) const {
     const int64_t n = p_positions.size();
     const int64_t constraint_count = p_constraint_ab.size() / 2;
     const int64_t driver_count = p_driver_particles.size();
+    // GDScript would index-error on the same inputs; fail as loudly.
+    ERR_FAIL_COND_V_MSG(p_prev_positions.size() != n, Dictionary(),
+            "prev_positions must parallel positions (a continued chunk needs the Verlet history it left).");
+    ERR_FAIL_COND_V_MSG(p_inv_masses.size() != n, Dictionary(),
+            "inv_masses must parallel positions.");
+    ERR_FAIL_COND_V_MSG(p_damping.size() != 0 && p_damping.size() != n, Dictionary(),
+            "damping must be empty or parallel positions.");
 
-    // Working buffers. `positions` starts as a copy of the caller's array;
-    // `prev` mirrors BladeSim.simulate's `state.prev_positions = positions.duplicate()`.
+    // Working buffers, both copies of the caller's arrays. `prev` is taken AS
+    // GIVEN — resetting it to `positions` is the caller's decision (step 0),
+    // never this loop's; that is what makes a continued chunk possible.
     PackedVector2Array positions_buf = p_positions;
-    PackedVector2Array prev_buf = p_positions;
+    PackedVector2Array prev_buf = p_prev_positions;
     Vector2 *positions = positions_buf.ptrw();
     Vector2 *prev = prev_buf.ptrw();
+
+    // Per-particle, per-substep velocity retention (#801/#803). An EMPTY array
+    // — every ordinary swing — skips the multiply outright, exactly as
+    // BladeSim._step's `has_damping` does, so the undamped path is untouched
+    // by this knob's existence.
+    const bool has_damping = p_damping.size() > 0;
+    const float *damping = has_damping ? p_damping.ptr() : nullptr;
 
     const float *inv_masses = p_inv_masses.ptr();
     const int32_t *cab = p_constraint_ab.ptr();
@@ -93,8 +147,17 @@ Dictionary BladeSolverNative::simulate(
     PackedVector2Array snap;
     snap.resize(n);
     memcpy(snap.ptrw(), p_positions.ptr(), (size_t)n * sizeof(Vector2));
-    // samples[0] is the pose BEFORE any solver step (#633).
+    // samples[0] is the pose BEFORE any solver step of THIS chunk (#633).
     samples.push_back(snap);
+
+    // prev_samples[k] parallels samples[k]: the Verlet history as it stands at
+    // that sample (#803). [0] is the history on entry. Fresh copies, for the
+    // same aliasing reason as `samples`.
+    TypedArray<PackedVector2Array> prev_samples;
+    PackedVector2Array prev_snap;
+    prev_snap.resize(n);
+    memcpy(prev_snap.ptrw(), p_prev_positions.ptr(), (size_t)n * sizeof(Vector2));
+    prev_samples.push_back(prev_snap);
 
     // speed_history[0] parallels samples[0]: zero for every particle, since
     // nothing has stepped yet (#779).
@@ -112,14 +175,18 @@ Dictionary BladeSolverNative::simulate(
     speeds_buf.resize(n);
     float *speeds = speeds_buf.ptrw();
 
-    const int steps = (int)Math::ceil(p_duration / p_dt);
-    // BladeSim.simulate's `var sub := maxi(substeps, 1)`.
+    // GDScript's `for local_step in step_count` runs zero times on a negative
+    // count rather than erroring; match it.
+    const int64_t steps = p_step_count > 0 ? p_step_count : 0;
+    // BladeSim.simulate_range's `var sub := maxi(substeps, 1)`.
     const int64_t sub = p_substeps > 1 ? p_substeps : 1;
     const double sub_dt = p_dt / (double)sub;
     const double sub_dt_sq = sub_dt * sub_dt;
 
-    for (int step = 0; step < steps; step++) {
-        const double t0 = (double)step * p_dt;
+    for (int64_t step = 0; step < steps; step++) {
+        // The INTEGER global step index — added as integers, THEN widened —
+        // never an accumulated float offset (#803's trap).
+        const double t0 = (double)(p_step_offset + step) * p_dt;
 
         for (int64_t s = 0; s < sub; s++) {
             const double t = t0 + (double)(s + 1) * sub_dt;
@@ -130,7 +197,17 @@ Dictionary BladeSolverNative::simulate(
             for (int64_t i = 0; i < n; i++) {
                 if ((double)inv_masses[i] > 0.0) {
                     const Vector2 p = positions[i];
-                    const Vector2 v = p - prev[i];
+                    Vector2 v = p - prev[i];
+                    if (has_damping) {
+                        // `v *= maxf(0.0, 1.0 - float(damping[i]) * dt)` — the
+                        // retention is a double expression, narrowed to real_t
+                        // ONCE at the Vector2 multiply. Applied BEFORE the speed
+                        // below, so speed_history sees the damped velocity, as
+                        // GDScript's does. A zero entry yields exactly 1.0, and
+                        // `v * 1.0f` is `v` bit for bit.
+                        const double retention = 1.0 - (double)damping[i] * sub_dt;
+                        v = v * (real_t)(retention > 0.0 ? retention : 0.0);
+                    }
                     prev[i] = p;
                     positions[i] = p + v;
                     const real_t v_len_sq = v.x * v.x + v.y * v.y;
@@ -214,12 +291,18 @@ Dictionary BladeSolverNative::simulate(
         speed_snap.resize(n);
         memcpy(speed_snap.ptrw(), speeds, (size_t)n * sizeof(float));
         speed_history.push_back(speed_snap);
+
+        PackedVector2Array prev_step_snap;
+        prev_step_snap.resize(n);
+        memcpy(prev_step_snap.ptrw(), prev, (size_t)n * sizeof(Vector2));
+        prev_samples.push_back(prev_step_snap);
     }
 
     // The caller writes these straight back onto its BladeState, so
     // simulate()'s in-place mutation contract survives the round trip.
     Dictionary out;
     out["samples"] = samples;
+    out["prev_samples"] = prev_samples;
     out["speed_history"] = speed_history;
     out["positions"] = positions_buf;
     out["prev_positions"] = prev_buf;
