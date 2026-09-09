@@ -1348,8 +1348,8 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 	ent.entity_id = preassigned_id
 	ent.name = "Blocker_%s" % BlockerSize.keys()[size].to_lower()
 	# #587 — the player-facing name is "Dormant Core", never "Blocker": these
-	# are single-node entities that hold a node but never move or act, and
-	# `blocker` is the mechanic, not the thing. The node NAME stays `Blocker_*`
+	# hold a patch of territory but never move or act, and `blocker` is the
+	# mechanic, not the thing. The node NAME stays `Blocker_*`
 	# so scene-tree lookups and the group are untouched; only `display_name`
 	# reaches a tooltip.
 	ent.display_name = "Dormant Core (%s)" % BlockerSize.keys()[size].capitalize()
@@ -1388,8 +1388,9 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 ##
 ## [b]Only a BLOCKER, and refusing anything else is the point.[/b] Since #715 a
 ## joining client runs no procgen, so the entities procgen spawns that the roster
-## never names — one per removable blocker (#477), ~120 on the shipped preset —
-## have no other way to exist here, and their nodes would otherwise decode as
+## never names — one per removable blocker (#477), 50 on the shipped preset since
+## #777's density rebalance — have no other way to exist here, and their nodes
+## would otherwise decode as
 ## unowned and move the ownership fold. Every OTHER entity is the roster's, and
 ## the roster spawns the same set on every peer by construction
 ## ([method ProcgenPlaySandbox._seat_the_roster]): a row asking for one of those

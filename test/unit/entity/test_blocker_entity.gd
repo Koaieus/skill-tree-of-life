@@ -265,6 +265,15 @@ func _extend_chain(count: int) -> Array[SkillNode]:
 	return out
 
 
+const _FALLOFF := preload("res://effects/blocker_footprint_falloff.tres")
+
+
+## The authored `-5` per hop, read off the resource rather than pinned here:
+## the amount is the owner's to tune, and only its SHAPE is this issue's.
+func _falloff_per_hop() -> float:
+	return -(_FALLOFF.modifiers[0] as StatModifier).value
+
+
 func _game_root() -> GameRoot:
 	var gr := GameRoot.new()
 	autofree(gr)
@@ -291,10 +300,11 @@ func test_footprint_node_health_falls_off_five_per_hop() -> void:
 	_game_root().spawn_blocker(GameRoot.BlockerSize.MEDIUM, _nodes[2], chain)
 	await get_tree().process_frame
 	var base := _nodes[2].get_max_hp()
+	var per_hop := _falloff_per_hop()
 	assert_eq(base, 40.0, "tier-2 board → an unmodified node caps at 40")
 	for hop in range(1, chain.size() + 1):
-		assert_eq(chain[hop - 1].get_max_hp(), base - 5.0 * hop,
-				"hop %d caps at base − 5×%d" % [hop, hop])
+		assert_eq(chain[hop - 1].get_max_hp(), base - per_hop * hop,
+				"hop %d caps at base − %s×%d" % [hop, per_hop, hop])
 
 
 ## The clamp is the footprint bound, not a stat floor (#777 decision 5): a
@@ -303,9 +313,12 @@ func test_a_small_blockers_deepest_footprint_node_still_has_health() -> void:
 	var chain := await _extend_chain(2)
 	_game_root().spawn_blocker(GameRoot.BlockerSize.SMALL, _nodes[2], chain)
 	await get_tree().process_frame
+	var per_hop := _falloff_per_hop()
 	assert_eq(_nodes[2].get_max_hp(), 20.0, "tier-1 board → 20 at the core")
-	assert_eq(chain[0].get_max_hp(), 15.0, "hop 1")
-	assert_eq(chain[1].get_max_hp(), 10.0, "hop 2 — half, never zero")
+	assert_eq(chain[0].get_max_hp(), 20.0 - per_hop, "hop 1")
+	assert_gt(chain[1].get_max_hp(), 0.0,
+			"hop 2 is the deepest a small ever grows, and it still has health")
+	assert_eq(chain[1].get_max_hp(), 20.0 - per_hop * 2.0, "hop 2")
 
 
 ## An explicit empty footprint is the default, and the aura is granted anyway:
@@ -322,7 +335,7 @@ func test_a_footprintless_blocker_is_todays_blocker_with_an_inert_aura() -> void
 	assert_eq(owned, 1, "one node, exactly as before #777")
 	var falloff := 0
 	for inst in blocker.get_effects():
-		if inst.effect is AuraEffect and inst.effect.display_name == "Dormant Reach":
+		if inst.effect == _FALLOFF:
 			falloff += 1
 			assert_eq(inst.node_targets().size(), 0, "inert: the source is at scale 0")
 	assert_eq(falloff, 1, "granted exactly once")
@@ -335,9 +348,15 @@ func test_losing_a_footprint_node_re_derives_the_remaining_caps() -> void:
 	var chain := await _extend_chain(3)
 	var blocker := _game_root().spawn_blocker(GameRoot.BlockerSize.MEDIUM, _nodes[2], chain)
 	await get_tree().process_frame
-	assert_eq(chain[2].get_max_hp(), 25.0, "hop 3 before the cut")
+	var per_hop := _falloff_per_hop()
+	assert_eq(chain[2].get_max_hp(), 40.0 - per_hop * 3.0, "hop 3 before the cut")
 	_alloc.force_deallocate(chain[0])
 	await get_tree().process_frame
-	# hop 1 is gone, so the outer two are no longer reachable over owned nodes.
 	assert_eq(chain[0].owned_by, null, "the cut node is unowned")
 	assert_eq(_nodes[2].get_max_hp(), 40.0, "the core is untouched by the cut")
+	# hop 1 is gone, so the outer two are no longer reachable over OWNED nodes —
+	# a HopMetric aura scoped to the subgraph simply stops seeing them, and they
+	# fall back to the owner's undiminished baseline rather than keeping a stale
+	# cap. This is the kill-strip cascade's normal shape, so it is worth pinning.
+	assert_eq(chain[1].get_max_hp(), 40.0, "an orphaned node loses the falloff, not the owner")
+	assert_eq(chain[2].get_max_hp(), 40.0, "and so does the one behind it")
