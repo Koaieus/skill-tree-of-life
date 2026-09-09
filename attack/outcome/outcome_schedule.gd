@@ -172,11 +172,28 @@ static func actor_rate(seat_policy: SeatPolicy, actor: Entity,
 	return maxf(0.01, ambient_rate() * seat_factor * maxf(0.01, scale))
 
 
-## Conservative authored default for [method _seat_rate_factor]'s non-seated
-## branch — the owner's to retune (#819 decision 5). Below 1.0, which, because
-## this composes into a rate that MULTIPLIES duration, plays FASTER than the
-## seated baseline.
-const _NON_SEATED_RATE_FACTOR := 0.6
+## Authored default for [method _seat_rate_factor]'s non-seated branch. Below
+## 1.0 plays FASTER than the seated baseline, because this composes into a rate
+## that MULTIPLIES duration.
+##
+## [b]1.0 as of 2026-09-10 — the seat is the wrong axis, by owner call.[/b] It
+## shipped at 0.6 out of #819's arithmetic (#797 measured an AI turn at ~5 s
+## wall, 80% of it swing playback). The owner then ruled that a swing you did
+## NOT choose is the one you most need to read:
+##
+## [i]"why would we want to speed up swings for non-local actors? [...] you need
+## to see it form before it swings at you and kills you dead"[/i]
+##
+## That is right, and it says the predicate is measuring the wrong thing.
+## "Is this my seat" answers IMPATIENCE; what wants speeding up is what is
+## IRRELEVANT — a swing you cannot see, or one that lands on nobody you own.
+## Two NPCs trading blows in the fog can go fast; a blade coming at your
+## territory cannot. That predicate is vision + ownership, not [SeatPolicy],
+## and it is filed separately.
+##
+## Held at 1.0 rather than deleted: the door, its composition and its tests are
+## all still right, and only the factor feeding it was wrong.
+const _NON_SEATED_RATE_FACTOR := 1.0
 
 
 ## How much faster (or slower) [param actor]'s presentation runs on THIS machine

@@ -1,10 +1,19 @@
 extends GutTest
 
-## #819 — a non-local actor's melee swing plays at a faster presentation rate.
-## [method OutcomeSchedule.actor_rate] is the one composer; this file exercises
-## its seat predicate and the resulting schedule shape, never the chosen
-## multiplier — the owner's to retune (#819 decision 5), so every assertion
-## here is directional (`assert_lt`/`assert_eq`), not a pinned number.
+## #819 — [method OutcomeSchedule.actor_rate], the one composer of a melee
+## replay's presentation rate. This file exercises the DOOR: that ambient rate,
+## seat factor and sandbox scale compose, that the #818 blade contract survives
+## a non-1.0 rate, and that no rate ever reorders a hit.
+##
+## [b]It no longer asserts that a non-seated actor is faster.[/b] #819 shipped
+## that on 2026-09-10 and the owner overruled it the same night — a swing you
+## did not choose is the one you most need to READ, so the seat is the wrong
+## axis (see [constant OutcomeSchedule._NON_SEATED_RATE_FACTOR], held at 1.0).
+## The successor predicate is relevance — vision + ownership — and it brings its
+## own directional tests. What survives here is everything that was never about
+## the seat.
+##
+## No assertion pins the chosen multiplier; those are the owner's to retune.
 ##
 ## The convention trap (#819's own unit-clarification comment): the compiled
 ## `rate` MULTIPLIES duration, so "faster" is a SMALLER rate and a SHORTER
@@ -67,35 +76,38 @@ func _swing_outcome() -> AttackOutcome:
 
 # -- Acceptance 1: a non-seated actor's schedule is strictly shorter ----------
 
-func test_a_non_seated_actors_schedule_is_strictly_shorter_than_a_seated_ones() -> void:
+## Owner call 2026-09-10, verbatim: [i]"why would we want to speed up swings for
+## non-local actors? [...] you need to see it form before it swings at you and
+## kills you dead"[/i]. So an incoming swing plays at YOUR pacing, and this
+## asserts the parity rather than the gap #819 originally shipped.
+func test_an_incoming_swing_plays_at_the_same_pace_as_your_own() -> void:
 	var policy := SeatPolicy.seat(1)
 	var mine := _entity(1, true)
 	var theirs := _entity(2, false)
 
-	var seated_rate := OutcomeSchedule.actor_rate(policy, mine)
-	var non_seated_rate := OutcomeSchedule.actor_rate(policy, theirs)
-
-	var seated := OutcomeSchedule.compile(_beat_outcome(), _beat_tempo(), seated_rate)
-	var non_seated := OutcomeSchedule.compile(_beat_outcome(), _beat_tempo(), non_seated_rate)
-
-	assert_lt(non_seated.duration(), seated.duration(),
-			"a non-seated actor's swing must occupy less wall-clock time, " +
-			"at the same combat_time_scale")
-
-
-func test_the_gap_holds_at_a_non_default_combat_time_scale_too() -> void:
-	# `combat_time_scale` is read ambiently by `ambient_rate()`; this file has
-	# no live Settings autoload, so both sides fold in the same 1.0 ambient
-	# rate here regardless — the assertion still has to hold, since the seat
-	# factor composes multiplicatively with whatever the ambient rate is.
-	var policy := SeatPolicy.seat(1)
-	var mine := _entity(1, true)
-	var theirs := _entity(2, false)
 	var seated := OutcomeSchedule.compile(_beat_outcome(), _beat_tempo(),
-			OutcomeSchedule.actor_rate(policy, mine, 2.0))
+			OutcomeSchedule.actor_rate(policy, mine))
 	var non_seated := OutcomeSchedule.compile(_beat_outcome(), _beat_tempo(),
-			OutcomeSchedule.actor_rate(policy, theirs, 2.0))
-	assert_lt(non_seated.duration(), seated.duration())
+			OutcomeSchedule.actor_rate(policy, theirs))
+
+	assert_almost_eq(non_seated.duration(), seated.duration(), 0.0001,
+			"a swing you did not choose is the one you most need to read — " +
+			"the seat must not shorten it")
+
+
+## The sandbox scale (#820) is a real, composing input to the same door, and
+## unlike the seat factor it is SUPPOSED to change the span. Guards the
+## composition itself, so holding the seat factor at 1.0 cannot quietly make
+## `actor_rate` a constant function nobody would notice was broken.
+func test_the_sandbox_scale_still_stretches_the_span() -> void:
+	var policy := SeatPolicy.seat(1)
+	var mine := _entity(1, true)
+	var normal := OutcomeSchedule.compile(_beat_outcome(), _beat_tempo(),
+			OutcomeSchedule.actor_rate(policy, mine, 1.0))
+	var slowed := OutcomeSchedule.compile(_beat_outcome(), _beat_tempo(),
+			OutcomeSchedule.actor_rate(policy, mine, 2.0))
+	assert_lt(normal.duration(), slowed.duration(),
+			"scale MULTIPLIES duration, so 2.0 is slow motion")
 
 
 # -- Acceptance 4: a seated actor's pacing is unchanged from today -----------
@@ -116,26 +128,25 @@ func test_a_couch_seats_every_human_so_every_human_keeps_todays_pace() -> void:
 			0.0001, "couch seats every human, so a hot-seat partner's pace is unchanged too")
 
 
-func test_a_couch_still_speeds_up_an_npc() -> void:
+func test_an_npc_on_a_couch_keeps_todays_pace_too() -> void:
 	var policy := SeatPolicy.couch()
 	var npc := _entity(3, false)
-	assert_lt(OutcomeSchedule.actor_rate(policy, npc), OutcomeSchedule.ambient_rate(),
-			"an AI is nobody's seat even on a couch")
+	assert_almost_eq(OutcomeSchedule.actor_rate(policy, npc), OutcomeSchedule.ambient_rate(),
+			0.0001, "an AI swinging at you is exactly the case that must stay readable")
 
 
-# -- Decision 4: the predicate is SeatPolicy.seats(actor), null is unseated --
+# -- An unwired or unresolvable actor must still produce a SANE rate ---------
 
-func test_a_null_seat_policy_is_treated_as_unseated() -> void:
+func test_a_null_seat_policy_still_composes_a_usable_rate() -> void:
 	var npc := _entity(3, false)
-	assert_lt(OutcomeSchedule.actor_rate(null, npc), OutcomeSchedule.ambient_rate(),
-			"an unwired BattleSystem must not silently default to the seated pace")
+	assert_almost_eq(OutcomeSchedule.actor_rate(null, npc), OutcomeSchedule.ambient_rate(),
+			0.0001, "an unwired BattleSystem must not invent a pace of its own")
 
 
-func test_an_unresolved_actor_is_treated_as_unseated() -> void:
+func test_an_unresolved_actor_still_composes_a_usable_rate() -> void:
 	var policy := SeatPolicy.seat(1)
-	assert_lt(OutcomeSchedule.actor_rate(policy, null), OutcomeSchedule.ambient_rate(),
-			"an actor that fails to resolve is unseated, exactly as " +
-			"CommandApplier._pre_roll and CameraDirector._build_attack_request treat it")
+	assert_almost_eq(OutcomeSchedule.actor_rate(policy, null), OutcomeSchedule.ambient_rate(),
+			0.0001, "an actor that fails to resolve must not hang the presentation")
 
 
 # -- Acceptance 3: the rate scales the span, never a hit's order or identity --
@@ -152,14 +163,15 @@ func test_the_rate_never_reorders_or_retargets_a_hit() -> void:
 
 # -- Acceptance 2: the #818 blade contract holds at a non-1.0 actor rate -----
 
-## Same shape as `test_melee_playback_follows_schedule.gd`'s contract tests,
-## but driven off `OutcomeSchedule.actor_rate`'s non-seated branch specifically
-## — the door #819 opens, not an arbitrary rate.
-func test_the_blade_stays_locked_to_the_schedule_at_a_non_seated_actor_rate() -> void:
+## Same shape as `test_melee_playback_follows_schedule.gd`'s contract tests, but
+## driven through `OutcomeSchedule.actor_rate` — the door — rather than an
+## arbitrary rate. Uses the sandbox scale to reach a non-1.0 rate, since the
+## seat factor no longer produces one.
+func test_the_blade_stays_locked_to_the_schedule_at_a_non_default_actor_rate() -> void:
 	var policy := SeatPolicy.seat(1)
 	var npc := _entity(9, false)
-	var rate := OutcomeSchedule.actor_rate(policy, npc)
-	assert_lt(rate, 1.0, "precondition: a non-seated actor really does compose to a faster rate")
+	var rate := OutcomeSchedule.actor_rate(policy, npc, 0.5)
+	assert_lt(rate, 1.0, "precondition: the door really does compose to a non-1.0 rate")
 
 	var schedule := OutcomeSchedule.compile(_swing_outcome(), _swing_tempo(), rate)
 	var sim_duration := 1.2
@@ -168,7 +180,7 @@ func test_the_blade_stays_locked_to_the_schedule_at_a_non_seated_actor_rate() ->
 
 	assert_almost_eq(wall, schedule.duration(), 0.0001,
 			"the blade's derived draw time must match the schedule's own span " +
-			"even at the non-seated rate")
+			"even at a non-default rate")
 	for i in schedule.entries.size():
 		var drawn_at: float = schedule.entries[i].structural_key * sim_duration / playback_rate
 		assert_almost_eq(drawn_at, schedule.entries[i].arrive_at, 0.0001,
