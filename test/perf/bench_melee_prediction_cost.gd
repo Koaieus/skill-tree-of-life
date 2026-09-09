@@ -159,6 +159,26 @@ extends GutTest
 ## and against 338495 us before #809. Note the coarse tier also GAINED
 ## fortification drag here, which it never had.
 ##
+## [b]After #821, same machine, same fixture.[/b] The aim-time resolve is now
+## time-sliced: a click buys ONE slice and the preview pumps one per frame, so
+## the number acceptance 1 asks for is the worst single
+## [method MeleeAttackPlan.advance_prediction] call, not the whole resolve
+## (`test_sliced_prediction_worst_slice_cost`, 12-sample slices):
+## [codeblock]
+## blade | whole resolve (worst) | first slice (worst) | later slice | frames @144Hz
+##     1 |               7941 us |             2856 us |     1764 us |          0.41
+##     2 |               9903 us |             3024 us |     1881 us |          0.44
+##     3 |              11708 us |             3124 us |     1989 us |          0.45
+##     4 |              18847 us |             3544 us |     2360 us |          0.51
+## [/codeblock]
+## The worst single-frame stall while clicking nodes went from 18847 us (2.71
+## frames @144Hz) to 3544 us (0.51) — inside one frame budget at every blade
+## size, which is what acceptance 1 asked for. The first slice is the dear one
+## because it carries the whole fixed setup; later slices are pure sim/scan.
+## The whole-resolve column is unchanged work, just spread out: the total is
+## still what the ramp above measures, and the authoritative resolve still runs
+## it in one call.
+##
 ## The budget assert below is a REGRESSION catch, not the target: it is set well
 ## clear of the numbers above so it fires on a structural regression (the
 ## whole-subgraph shadow snapshot #695 removed coming back) rather than on
