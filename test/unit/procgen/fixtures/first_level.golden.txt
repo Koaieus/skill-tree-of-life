@@ -15,7 +15,7 @@
 # in the commit message.
 DIGEST_NODE_COUNT 800
 DIGEST_SEED 424242
-DIGEST_SHA256 d9c3141f0e73547d066ebb5eab372c9037acdfa31a8cca76277c516a29ef93a0
+DIGEST_SHA256 af1f3f5187fe820468df67588bb5c069641e12d784859c122a0ffa17cd0c1b0b
 SEED 424242
 NODE_COUNT 80
 NODE 1 -295.762512 615.662659 blue
@@ -56,6 +56,7 @@ NODE 10 -308.096161 431.112061 blue
   MOD intelligence 0 23.000000 0 -
   ADDON bunker_addon
     AMOD armor 3 5.000000 0 -
+    AMOD deflection 3 1.000000 0 -
     AMOD min_damage_taken 3 -5.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
@@ -83,6 +84,7 @@ NODE 15 -498.227844 339.935638 white
   MOD node_health 1 6.000000 0 -
   ADDON bunker_addon
     AMOD armor 3 5.000000 0 -
+    AMOD deflection 3 1.000000 0 -
     AMOD min_damage_taken 3 -5.000000 0 -
   ADDON clamp_addon
   ADDON spike_ring_addon
@@ -117,6 +119,7 @@ NODE 23 -769.756714 179.902878 green
   MOD dexterity 0 2.000000 0 -
   ADDON bunker_addon
     AMOD armor 3 5.000000 0 -
+    AMOD deflection 3 1.000000 0 -
     AMOD min_damage_taken 3 -5.000000 0 -
 NODE 24 374.788879 750.595032 white
   MOD armor 0 6.000000 0 -
@@ -190,6 +193,7 @@ NODE 41 -742.543213 -312.755371 blue
   MOD intelligence 1 12.000000 0 -
   ADDON bunker_addon
     AMOD armor 3 5.000000 0 -
+    AMOD deflection 3 1.000000 0 -
     AMOD min_damage_taken 3 -5.000000 0 -
 NODE 42 -591.822571 -235.559601 blue
   MOD intelligence 0 17.000000 0 -
@@ -203,6 +207,7 @@ NODE 43 -444.890381 -147.183350 gold
   MOD wisdom 1 14.000000 0 -
   ADDON bunker_addon
     AMOD armor 3 5.000000 0 -
+    AMOD deflection 3 1.000000 0 -
     AMOD min_damage_taken 3 -5.000000 0 -
 NODE 44 -199.621811 -283.132172 red
   MOD armor 0 1.000000 0 -
@@ -226,6 +231,7 @@ NODE 49 669.872192 497.837708 red
   MOD strength 1 5.000000 0 -
   ADDON bunker_addon
     AMOD armor 3 5.000000 0 -
+    AMOD deflection 3 1.000000 0 -
     AMOD min_damage_taken 3 -5.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
@@ -260,6 +266,7 @@ NODE 54 713.288147 -93.151428 blue
   MOD intelligence 0 40.000000 0 -
   ADDON bunker_addon
     AMOD armor 3 5.000000 0 -
+    AMOD deflection 3 1.000000 0 -
     AMOD min_damage_taken 3 -5.000000 0 -
   ADDON fortification_addon
     AMOD node_health 3 15.000000 0 -
@@ -272,6 +279,7 @@ NODE 55 893.596680 -156.708939 blue
   MOD intelligence 1 10.000000 0 -
   ADDON bunker_addon
     AMOD armor 3 5.000000 0 -
+    AMOD deflection 3 1.000000 0 -
     AMOD min_damage_taken 3 -5.000000 0 -
 NODE 56 523.530396 -131.020203 white
   MOD deallocation_points 0 2.000000 0 -
@@ -288,6 +296,7 @@ NODE 58 392.805084 -336.953735 red
   MOD strength 0 4.000000 0 -
   ADDON bunker_addon
     AMOD armor 3 5.000000 0 -
+    AMOD deflection 3 1.000000 0 -
     AMOD min_damage_taken 3 -5.000000 0 -
   ADDON clamp_addon
 NODE 59 179.468231 -440.602417 purple
@@ -304,6 +313,7 @@ NODE 62 396.405457 -590.503906 red
   MOD strength 1 18.000000 0 -
   ADDON bunker_addon
     AMOD armor 3 5.000000 0 -
+    AMOD deflection 3 1.000000 0 -
     AMOD min_damage_taken 3 -5.000000 0 -
 NODE 63 220.847809 -657.238037 red
   MOD strength 0 3.000000 0 -
@@ -313,6 +323,7 @@ NODE 64 64.935852 -297.369690 red
   MOD strength 1 5.000000 0 -
   ADDON bunker_addon
     AMOD armor 3 5.000000 0 -
+    AMOD deflection 3 1.000000 0 -
     AMOD min_damage_taken 3 -5.000000 0 -
 NODE 65 -733.670715 -496.543060 white
   MOD constitution 0 6.000000 0 -

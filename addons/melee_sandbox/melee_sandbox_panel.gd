@@ -397,10 +397,12 @@ func _on_rigidity_selected(index: int) -> void:
 			n.add_child(_CLAMP_SCENE.instantiate())
 		elif not braced and clamp != null:
 			clamp.queue_free()
-	# The armed plan caches nothing about rigidity, but the ghost is mid-cycle
-	# on the OLD constraint set; reforming rebuilds it from the graph as it now
-	# stands.
-	_input_ctl.reform_blade()
+	# Nothing to re-arm: the preview loop calls `build_from_skill_nodes` every
+	# cycle, which re-runs `apply_to_blade` on each carrier, so the ghost picks
+	# the new constraint set up within one cycle on its own. (`reform_blade`
+	# would be actively wrong here — it restores the LAST LAUNCHED blade out of
+	# the reform slot, so flipping rigidity mid-selection would replace the
+	# nodes you were picking.)
 	_refresh_status()
 
 
