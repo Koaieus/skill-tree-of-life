@@ -72,6 +72,49 @@ extends GutTest
 ## and it belongs to the whole melee path, commit included, not to the preview:
 ## filed as #807, which this bench's attribution test is the measurement for.
 ##
+## [b]After #809, same machine, same day.[/b] #809 split two of those three
+## O(total graph) walks out and fixed them: [method
+## MeleeAttackPlan.get_induced_edges] now walks [method Graph.get_neighbours]
+## (cached adjacency) over the selection instead of scanning every [Edge], and
+## [method AttackPlan.collect_target_excludes] now starts from [member
+## Entity.navigator]'s pre-built mirror plus each ally's, instead of filtering
+## every [SkillNode]. [method MeleeAttackPlan.build_swing_clock] / [method
+## MeleeAttackPlan.build_obstacle_field] are the still-open remainder — out of
+## #809's scope on purpose, pending the sensing-model decision in #808:
+## [codeblock]
+## build_blade_state                                             1771-1800 us (11.6-11.7%)
+##   ...of which build_obstacle_field                             1688-1761 us (11.1-11.3%)
+##   ...of which everything else (get_induced_edges incl.)          39-84 us ( 0.2-0.5%)  <- was 217 us
+## build_swing_clock                                             1719-1758 us (11.3%)      <- unchanged, #808
+## build_obstacle_field                                          1688-1761 us (11.1%)      <- unchanged, #808
+## collect_target_excludes                                          18 us  ( 0.1%)         <- was 516 us (29x)
+## CombatWorld.shadow() mint                                       2-3 us  ( 0.0%)
+## world.free_shadow()                                               1 us  ( 0.0%)
+## refresh_prediction (whole)                                15202-15529 us
+## [/codeblock]
+## `get_induced_edges`'s own share of `build_blade_state` (i.e. `build_blade_state`
+## minus the `build_obstacle_field` time it contains) dropped from 217 us to
+## 39-84 us across runs; `collect_target_excludes` dropped from 516 us to a
+## flat 18 us. `refresh_prediction (whole)` barely moves (15864 -> ~15200-15500
+## us) because the two fixed walks were never its biggest cost —
+## `build_swing_clock` / `build_obstacle_field` (#808) and the sim/scan/land
+## interleave still dominate.
+##
+## [b]The 192x term, made visible (`test_coarse_pass_cost_at_192_proposals`).[/b]
+## Neither this bench's own per-call attribution nor `bench_ai_turn.gd` (a
+## 4-node fixture, where this is free) shows what [method
+## AiBladeRollout._coarse_rank_and_select] actually pays on the shipped
+## 800-node map: it calls [method MeleeAttackPlan.build_blade_state] + [method
+## MeleeAttackPlan.build_drivers] on the CALLING thread, once per surviving
+## proposal, up to `_MAX_PIVOTS (6) x _MAX_BLADE_SIZE_SAFETY (16) x 2
+## directions` = 192 times, before any [WorkerThreadPool] task starts. At
+## blade size 4, 192 repetitions measured 338495 us total — ~1763 us/proposal,
+## ~49 frames @144Hz. That whole figure moves with #809's `build_blade_state`
+## fix (the `get_induced_edges` share collapsed the same way per call above),
+## but `build_swing_clock`'s equivalent is not measured here because
+## `build_drivers` doesn't call it — the AI coarse pass never builds a swing
+## clock at all, only [BladeSim.simulate]'s pure driver/state pair.
+##
 ## The budget assert below is a REGRESSION catch, not the target: it is set well
 ## clear of the numbers above so it fires on a structural regression (the
 ## whole-subgraph shadow snapshot #695 removed coming back) rather than on
@@ -344,13 +387,55 @@ func test_prediction_cost_attribution() -> void:
 	gut.p("")
 	gut.p("attribution at blade size %d (mean of %d):" % [size, _SAMPLES])
 	for row in [
-			["build_blade_state", build], ["build_swing_clock", clock_build],
+			["build_blade_state", build],
+			["  ...of which build_obstacle_field", field_build],
+			["  ...of which everything else (get_induced_edges incl.)", build - field_build],
+			["build_swing_clock", clock_build],
 			["build_obstacle_field", field_build], ["collect_target_excludes", excludes],
 			["CombatWorld.shadow() mint", mint], ["world.free_shadow()", release]]:
-		gut.p("  %-28s %7.0f us (%4.1f%%)"
+		gut.p("  %-56s %7.0f us (%4.1f%%)"
 			% [row[0], float(row[1]) / n, 100.0 * float(row[1]) / maxf(float(whole), 1.0)])
-	gut.p("  %-28s %7.0f us" % ["refresh_prediction (whole)", float(whole) / n])
+	gut.p("  %-56s %7.0f us" % ["refresh_prediction (whole)", float(whole) / n])
 	gut.p("  the remainder is the sim/scan/land interleave itself — solver +")
 	gut.p("  BladeHitScan queries + the shadow snapshot the landings force.")
 	assert_gt(whole, 0, "the attribution run must have measured something")
+
+
+## #809: [method AiBladeRollout._coarse_rank_and_select] builds a
+## [BladeState] + driver set on the CALLING thread for every surviving
+## proposal — up to `_MAX_PIVOTS (6) x _MAX_BLADE_SIZE_SAFETY (16) x 2
+## directions` = 192 — before any [WorkerThreadPool] task starts. Neither
+## `bench_ai_turn.gd` (a 4-node fixture, where this walk is free) nor the
+## per-call attribution above (one call, not 192) makes that multiplier
+## visible; this does, on the same 800-node level.
+##
+## Same two calls `_coarse_rank_and_select` makes per proposal
+## ([method MeleeAttackPlan.build_blade_state], [method
+## MeleeAttackPlan.build_drivers]), repeated 192 times at the largest blade
+## size the ramp above measures — a stand-in for "worst pivot/size/direction
+## count survives free rejection", not a claim that every AI turn hits it.
+func test_coarse_pass_cost_at_192_proposals() -> void:
+	await _ensure_fixture()
+	if _frontline == null:
+		return
+	const _PROPOSAL_COUNT := 6 * 16 * 2  # _MAX_PIVOTS x _MAX_BLADE_SIZE_SAFETY x 2
+	var size: int = _BLADE_SIZES[-1]
+	var probe := _plan_of_size(size)
+	if probe.blade_nodes.size() < size:
+		return
+
+	var t := Time.get_ticks_usec()
+	for _i in _PROPOSAL_COUNT:
+		var plan := _plan_of_size(size)
+		var state := plan.build_blade_state()
+		plan.build_drivers(state)
+	var total := Time.get_ticks_usec() - t
+
+	gut.p("")
+	gut.p("coarse-pass calling-thread cost at %d proposals, blade size %d:"
+			% [_PROPOSAL_COUNT, size])
+	gut.p("  %-56s %7.0f us" % ["total (build_blade_state + build_drivers x %d)" % _PROPOSAL_COUNT, total])
+	gut.p("  %-56s %7.2f us" % ["per proposal", float(total) / float(_PROPOSAL_COUNT)])
+	gut.p("  %-56s %7.2f" % ["frames @144Hz", float(total) / _FRAME_BUDGET_USEC])
+	assert_gt(total, 0, "the coarse-pass run must have measured something")
 

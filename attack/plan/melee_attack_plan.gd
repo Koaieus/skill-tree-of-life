@@ -1032,6 +1032,26 @@ func build_blade_state() -> BladeState:
 
 ## [SkillNode, SkillNode] pairs over the live graph, restricted to the
 ## current selection — i.e. the induced subgraph of pivot + members.
+##
+## #809: walks [method Graph.get_neighbours] (cached adjacency, O(degree))
+## over the selection instead of scanning every [Edge] in the level
+## (O(total graph)) — the selection is at most `blade_size + 1` nodes, so this
+## is O(selection x degree) instead of O(edges).
+##
+## [b]Order changed on purpose, and is now explicit rather than incidental.[/b]
+## The old scan emitted pairs in edge-CHILD order (whatever [method
+## Graph.get_edges] happened to return); this emits them sorted by the LOWER
+## endpoint's [member SkillNode.stable_id], ties broken by [method
+## Graph.get_neighbours]'s own per-node order. Every consumer (`BladeState`'s
+## constraint list, `AttackPlan`'s wire payload) treats this as a set of
+## pairs, never a golden sequence, so a stable-but-different order is a
+## behavioural no-op — see `.claude/rules/degree.md`'s neighbouring guidance
+## and the #809 acceptance note on iteration order.
+##
+## Self-loops are preserved at their true multiplicity: [method
+## Graph.get_neighbours] lists a self-looped node as its own neighbour TWICE
+## per loop edge (`graph.gd`'s adjacency build), so a node's self-loop count
+## is that occurrence count halved.
 func get_induced_edges() -> Array:
 	var out: Array = []
 	if attacker == null or attacker.navigator == null:
@@ -1040,9 +1060,23 @@ func get_induced_edges() -> Array:
 	if graph == null:
 		return out
 	var selection := selection_set()
-	for e in graph.get_edges():
-		if selection.has(e.from) and selection.has(e.to):
-			out.append([e.from, e.to])
+	var ordered: Array = selection.keys()
+	ordered.sort_custom(func(a: SkillNode, b: SkillNode) -> bool: return a.stable_id < b.stable_id)
+	for sn in ordered:
+		var self_loop_hits := 0
+		for neighbour in graph.get_neighbours(sn):
+			if neighbour == sn:
+				self_loop_hits += 1
+				continue
+			if not selection.has(neighbour):
+				continue
+			# Only take the pair from its lower-stable_id side, so an A-B edge
+			# (or a repeated A-B multi-edge) surfaces exactly once per
+			# underlying [Edge] rather than once from each endpoint's list.
+			if neighbour.stable_id > sn.stable_id:
+				out.append([sn, neighbour])
+		for _i in self_loop_hits / 2:
+			out.append([sn, sn])
 	return out
 
 
@@ -1165,24 +1199,62 @@ func _set_swing_cw(value: bool) -> void:
 ## ground that was never allocated (no visible difference, per contract).
 ## The live ownership/allocation gate moves to consumption time; see
 ## [BladeDamageInstance.land_on] / [BladePopResolver.LiveGate].
+##
+## #809: starts from the pre-mirrored owned subgraphs — [member
+## Entity.navigator]'s own [method GraphMirror.get_mirrored_nodes] (MINE) plus
+## every ALLIED entity's own navigator (ALLY) — instead of filtering all of
+## [method Graph.get_skill_nodes] through [method _is_blade_side] per node.
+## `self_set` (the selection itself) is still unioned in explicitly: a blade
+## member is always MINE by construction ([method _can_be_blade] gates
+## selection on `owned_by == attacker`), so this is redundant on every path
+## that exists today, but it keeps the exact "self_set OR MINE OR ALLY"
+## membership [method _is_blade_side] still answers for [method
+## build_swing_clock] / [method build_obstacle_field] (#807/#808, untouched
+## here) rather than silently narrowing it.
+##
+## Allies are enumerated via [constant Entity.GROUP] (the same whole-tree
+## roll call [TurnManager] / [VictorySystem] / [GameRoot] already use), not
+## [member Graph.entities_container] — a plan's `attacker` isn't guaranteed to
+## sit under that container (fixtures parent entities straight onto the
+## graph), while every live [Entity] is unconditionally in its group from
+## [method Entity._ready].
+##
+## [b]Order changed on purpose.[/b] The old scan walked [method
+## Graph.get_skill_nodes]'s child order; [method GraphMirror.get_mirrored_nodes]
+## is explicit that its own order is dictionary-iteration, not stable — so
+## this sorts the union by [member SkillNode.stable_id] before minting RIDs.
+## Physics-server exclude lists are unordered by nature (see [method
+## BladeHitScan.Sweep]'s call site), so this is a determinism/legibility
+## choice, not a correctness one; #809's acceptance note on iteration order.
 func collect_target_excludes() -> Array[RID]:
 	var out: Array[RID] = []
 	if attacker == null or attacker.navigator == null:
 		return out
-	var graph := attacker.navigator.graph
-	if graph == null:
-		return out
-	var self_set := selection_set()
-	for sn in graph.get_skill_nodes():
-		# MINE|ALLY (#384's vocabulary), not `owned_by == attacker`: a blade
-		# must pass through a co-op partner's territory as cleanly as its own.
-		# Excluding at SCAN time — the blade never queries these colliders — is
-		# deliberate despite the land-time-gate rule (docs/domain/attack-timeline.md):
-		# faction can't change mid-swing, so the only drift is an ally node
-		# deallocating to NEUTRAL mid-cascade and us skipping a hit we could
-		# have landed. Negligible; don't add a land-time re-check for it.
-		if _is_blade_side(sn, self_set):
-			out.append(sn.get_rid())
+	var seen: Dictionary = {}
+	var nodes: Array[SkillNode] = []
+	for sn in selection_set():
+		if sn != null and not seen.has(sn):
+			seen[sn] = true
+			nodes.append(sn)
+	for sn in attacker.navigator.get_mirrored_nodes():
+		if not seen.has(sn):
+			seen[sn] = true
+			nodes.append(sn)
+	var tree := attacker.get_tree()
+	if tree != null:
+		for node in tree.get_nodes_in_group(Entity.GROUP):
+			var ally := node as Entity
+			if ally == null or ally == attacker or ally.navigator == null:
+				continue
+			if attacker.attitude_to(ally) != Entity.Attitude.ALLIED:
+				continue
+			for sn in ally.navigator.get_mirrored_nodes():
+				if not seen.has(sn):
+					seen[sn] = true
+					nodes.append(sn)
+	nodes.sort_custom(func(a: SkillNode, b: SkillNode) -> bool: return a.stable_id < b.stable_id)
+	for sn in nodes:
+		out.append(sn.get_rid())
 	return out
 
 
