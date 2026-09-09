@@ -24,6 +24,22 @@ extends Resource
 @export_group("Scaling Rules")
 @export var intrinsic_modifiers: Array[StatModifier] = []
 
+## Fired exactly once per sparse stat, the moment [method _mint_stat] first
+## creates it — never again for that id, since [member _extra_stats] entries
+## are never erased (#810). This is the ONLY hook a listener has for "a
+## sparse stat now exists to subscribe to" — [method get_stat] on a
+## not-yet-minted id returns null, so without this signal a listener that
+## wants `board.get_stat(id).value_changed` at node-ready time has nothing to
+## connect to.
+##
+## Emitted from the single mint site ([method _mint_stat], right after
+## `_extra_stats[stat_id] = s`) — one emit site only. A subclass override that
+## mints through a different path (e.g. [method NodeStatBoard._mint_pool]'s
+## `node_health`/`spikes` redirect) does NOT go through this line and does NOT
+## emit this signal; that is an existing, separate mint path this issue does
+## not touch.
+signal stat_created(id: StringName, stat: Stat)
+
 @export_group("")
 
 
@@ -187,6 +203,7 @@ func _mint_stat(stat_id: StringName) -> Stat:
 	else:
 		s.base_value = def.default_value
 	_extra_stats[stat_id] = s
+	stat_created.emit(stat_id, s)
 	return s
 
 

@@ -10,6 +10,29 @@ const EmblemSpec = preload("res://skill_node/visuals/emblem/emblem_spec.gd")
 @warning_ignore("shadowed_global_identifier")
 const EmblemResolver = preload("res://skill_node/visuals/emblem/emblem_resolver.gd")
 
+## Collision layer bits (1-based, Godot's [method Area2D.set_collision_layer_value]
+## convention) toggled on/off as this node's sparse DEFENDER stats come and go
+## (#810) — the physics-queryable half of "does this node carry `swing_drag`
+## / `deflection`", consumed by #811's merged obstacle-field build via
+## `intersect_shape`. **Additive** to layer 1, the untouched Godot default this
+## node's `Area2D` root has never set explicitly and that `intersect_point`
+## mouse picking depends on staying set (`systems/player_input_controller.gd`,
+## `ui/hud/minimap_panel/minimap_panel.gd`, `ui/frontmatter/menu_node_view.gd`)
+## — never written here, only read by never touching it.
+const DRAG_COLLISION_LAYER := 2
+const DEFLECT_COLLISION_LAYER := 3
+
+## Which physics layer number each sparse defender stat's presence toggles —
+## the registry [method _sync_defender_bit] writes against, keyed on the
+## STAT ID rather than on which addon (or bare granted [StatModifier]) put a
+## nonzero value there. `swing_drag` is a magnitude (any nonzero drag counts);
+## `deflection` is `ValueType.BOOL` (presence only) but reads the same way —
+## `Stat._coerce` already collapses a bool stat's value to `0.0`/`1.0`.
+const _DEFENDER_LAYER_BITS: Dictionary = {
+	&"swing_drag": DRAG_COLLISION_LAYER,
+	&"deflection": DEFLECT_COLLISION_LAYER,
+}
+
 signal radius_changed
 signal owner_changed
 signal archetype_changed
@@ -1242,6 +1265,63 @@ func _init_node_board() -> void:
 	# the pool's just-cloned state and overwrite what the author set.
 	node_board.stake_level.base_value = float(_stake_level_backing)
 	node_board.stake_level.set_current(float(_allocation_level_backing))
+	# #810: the collision-bit registry. Connected here (once, guarded by
+	# `_node_board_ready` above) rather than in the template, same reasoning as
+	# `stake_level.current_changed` two lines up — a signal connection is not a
+	# resource property, and `node_board` is a fresh instance from this point on.
+	node_board.stat_created.connect(_on_node_stat_created)
+	# Belt-and-braces for a `node_board` that arrived already carrying a minted
+	# defender stat (an authored board assigned pre-ready, or a future decode
+	# path) — `duplicate(true)` above would have carried it over, and its mint
+	# (and `stat_created` emission) already happened before the connect just
+	# above could see it. No such .tres is authored today; this is the "for any
+	# already-minted stat at ready" half of #810's acceptance.
+	for id in _DEFENDER_LAYER_BITS:
+		var existing := node_board.get_stat(id)
+		if existing != null:
+			_watch_defender_stat(id, existing)
+
+
+## [signal StatBoard.stat_created] handler (#810) — fires once, the moment
+## [method StatBoard._mint_stat] first mints a sparse stat on [member
+## node_board]. Every mint on this board reaches here, including ids nothing
+## below cares about (`armor`, `node_healing`, …); the dictionary lookup is
+## the whole filter.
+func _on_node_stat_created(id: StringName, stat: Stat) -> void:
+	if _DEFENDER_LAYER_BITS.has(id):
+		_watch_defender_stat(id, stat)
+
+
+## Subscribe once to [param stat]'s [signal Stat.value_changed] and sync the
+## collision bit immediately, covering both callers: the freshly-minted path
+## ([method _on_node_stat_created]) and the already-minted defensive path in
+## [method _init_node_board]. One connection for the stat's whole lifetime —
+## [member StatBoard._extra_stats] never erases an entry once created
+## (`stats_system/stat_board.gd:248`), so there is never a matching disconnect
+## to write, and this must never be called twice for the same [param stat].
+##
+## Tolerates a DEFERRED emission fine: [method Stat._emit_value_changed] may
+## coalesce inside [method StatBoard.begin_batch]/[method StatBoard.end_batch]
+## (e.g. [method apply_entity_modifiers_to]'s batch, or a future node-board
+## batch), and this handler only reads [method Stat.get_value] when it
+## eventually fires — never assumes the toggle is synchronous with whatever
+## `add_modifier`/`remove_modifier` call caused it.
+func _watch_defender_stat(id: StringName, stat: Stat) -> void:
+	stat.value_changed.connect(_sync_defender_bit.bind(id, stat))
+	_sync_defender_bit(id, stat)
+
+
+## The registry's single writer (#810 acceptance 3): keyed on [param stat]'s
+## own LOCAL value, never on which addon — or bare granted [StatModifier],
+## the #406 temporary-upgrade path included — put a nonzero value there. A
+## node that never has the stat never reaches this at all; that is correct,
+## not a missed case (#810).
+func _sync_defender_bit(id: StringName, stat: Stat) -> void:
+	# float(), not a bare `!= 0.0` — get_value() on a BOOL stat (`deflection`)
+	# returns a real GDScript `bool` (Stat._coerce), and a cross-type
+	# bool/float comparison is not the numeric coercion this wants. float()
+	# converts bool -> 0.0/1.0 the same as it does an int or a float.
+	set_collision_layer_value(_DEFENDER_LAYER_BITS[id], float(stat.get_value()) != 0.0)
 
 
 ## Push the authored [member stake_level] backing into the node-board pool's
