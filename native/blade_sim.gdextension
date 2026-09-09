@@ -1,8 +1,11 @@
 ; The blade solver GDExtension (#798) — see docs/domain/melee-blade-sim.md.
 ;
 ; The binaries are NOT committed; build them with `mise run native:build`
-; (Linux/macOS) or `scons` inside native/. A missing binary is a supported
-; state: BladeSim falls back to the GDScript solver.
+; (host platform) or `-- template_release windows` to cross-compile. A missing
+; binary is a supported state AT RUNTIME ONLY — BladeSim falls back to the
+; GDScript solver — but the EXPORTER hard-fails on a key declared here whose
+; file is absent, so `mise run build` refuses up front for any platform it is
+; asked to export (#806).
 
 [configuration]
 

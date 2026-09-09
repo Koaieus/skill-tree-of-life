@@ -409,9 +409,17 @@ substeps x constraints`; hit-scan cost is `samples x edges`. The two add; only
 the first one got cheap.
 
 **Building it:** `mise run native:build` (append `-- template_release` for
-exports). godot-cpp is a submodule at `native/godot-cpp`, so a fresh clone needs
-a recursive submodule init first. Binaries are **not** committed --
-`native/bin/` is gitignored.
+exports, and a platform after that -- `-- template_release windows` -- to
+cross-compile, on the llvm-mingw toolchain `mise.toml` pins). godot-cpp is a submodule at
+`native/godot-cpp`, so a fresh clone needs a recursive submodule init first.
+Binaries are **not** committed -- `native/bin/` is gitignored.
+
+A missing binary is a supported state at *runtime*, but not at *export*: the
+exporter hard-fails on a `.gdextension` key whose file is absent, so
+`mise run build` refuses up front for every platform it is asked to export
+(#806, [exporting.md](exporting.md)). And the library ships *beside* the
+executable rather than inside the pck, so a build handed over without it runs
+on the GDScript solver with nothing to say so.
 
 ### `BladeTrajectory`
 

@@ -1,7 +1,7 @@
 # Exporting a build
 
-`mise run build` produces the two artifacts a LAN session needs, and nothing
-else — no packaging, no upload.
+`mise run build` produces the two build directories a LAN session needs, and
+nothing else — no packaging, no upload.
 
 ```
 mise run build:templates        # once per engine bump: ~1GB of export templates
@@ -11,18 +11,63 @@ mise run build -- windows --debug
 mise run build -- --dirty       # export from an uncommitted tree, honestly stamped
 ```
 
-Artifacts land at `export/linux/skill-tree-of-life-<sha>.x86_64` and
-`export/windows/skill-tree-of-life-<sha>.exe` — the commit is the only version
-this project has, so it goes in the name as well as in the stamp, where a
-directory listing or a chat attachment can read it without launching anything.
-A `--debug` export gets a further `-debug` suffix, so it cannot overwrite the
-release build off the same commit. Nothing is pruned: old builds accumulate
-until you delete them, which is what lets you run two shas side by side.
+An export is a **directory**, one per build:
+`export/linux/skill-tree-of-life-<date>-<sha>/` holding
+`skill-tree-of-life-<date>-<sha>.x86_64`, and the same shape under
+`export/windows/` with a `.exe`. The commit is the only version this project
+has, so it goes in the name as well as in the stamp, where a directory listing
+or a chat attachment can read it without launching anything; the date leads
+because two shas never say which one is newer. A `--debug` export gets a
+further `-debug` suffix, so it cannot overwrite the release build off the same
+commit. Nothing is pruned: old builds accumulate until you delete them, which
+is what lets you run two shas side by side.
 
-Both **embed their pck**, so each is one file to copy to the other machine, and
+**Copy the whole directory, not the executable.** The build embeds its pck, but
+a GDExtension library cannot be `dlopen`ed out of a pack, so Godot copies each
+one *next to* the binary. Hand someone the bare executable and they get a build
+that runs — silently on `BladeSim`'s GDScript solver, 11-22x slower per swing
+([melee-blade-sim.md](melee-blade-sim.md)), with nothing to tell them, because
+the missing class is swallowed by design. This is also why the export is a
+directory at all: a flat `export/<platform>/` gave every build in it the *same*
+`.so`, which is exactly what per-sha naming exists to prevent.
+
 `export/` is gitignored. Only `mise run build` names and stamps artifacts this
 way — an export from the editor's own dialog still lands at the preset's
 default path with no stamp at all.
+
+## A declared library must exist before Godot is called
+
+The exporter **hard-fails** on a `.gdextension` that names a binary the tree
+does not have. That is not the runtime fallback the extension was designed
+around — `BladeSolverNative` resolves through `ClassDB` so a binary-less
+checkout still *runs*, but the exporter has no such tolerance, and #806 lost a
+day to a Windows preset that could not have worked since the extension landed
+(no `.dll` has ever existed in this repo).
+
+So `mise run build` reads every `.gdextension` in the tree first and refuses in
+a fraction of a second, naming the cure:
+
+```
+mise run native:build -- template_release windows
+```
+
+The cross toolchain is llvm-mingw, pinned in `mise.toml` — but deliberately
+**not** in `[tools]`: it is ~620MB, an order of magnitude past everything else
+`mise install` fetches, for a thing most sessions never touch. `native:build`
+runs the cross-compile under `mise exec`, which installs on first use, so a
+clone that only ever builds for Linux never downloads it. The pin is still one
+version every checkout resolves, which is why it is llvm-mingw rather than the
+distro's `mingw-w64-gcc` — the latter is a package installed by hand, per
+machine, at whatever version that machine happens to have.
+
+It picks the same `[libraries]` keys the engine would, by the engine's own
+feature-subset rule: a key applies when *all* its tags are satisfied by this
+export. That is what makes the bundled addons' `editor`-only keys and a `debug`
+key on a release run invisible, without special-casing any platform as
+"tolerant". Paths under a `.gdignore`, inside `.worktrees/`, or dropped by the
+preset's `exclude_filter` are skipped for the same reason the engine skips
+them. After the export, every library the preflight cleared is asserted to have
+landed beside the executable — the other end of the same hole.
 
 ## Templates are a separate task on purpose
 
