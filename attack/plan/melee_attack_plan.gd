@@ -97,9 +97,17 @@ func _notification(what: int) -> void:
 	if _blade_mirror != null:
 		_blade_mirror.free()
 		_blade_mirror = null
-	# #821: a sliced prediction holds a CombatWorld shadow open across frames.
-	# Dying mid-slice must not leak it.
-	_cancel_pending_prediction()
+	# #821: a sliced prediction holds a CombatWorld shadow open across frames,
+	# and that shadow holds the reference cycles `EntityCombat.free_shadow`
+	# documents — so dying mid-slice has to release it here.
+	#
+	# INLINED, not a call to `_cancel_pending_prediction`: by PREDELETE this
+	# object can no longer dispatch a method on itself ("call ... on a null
+	# instance"), which is also why the mirror teardown above is inline.
+	_pending_prediction = null
+	if _pending_world != null:
+		_pending_world.free_shadow()
+		_pending_world = null
 
 
 # ── Wire ───────────────────────────────────────────────────────────────────
@@ -713,10 +721,16 @@ class SwingResolve extends RefCounted:
 	func _init(plan: MeleeAttackPlan, world: CombatWorld) -> void:
 		_plan = plan
 		_world = world
-		_outcome = AttackOutcome.new()
-		result.outcome = _outcome
-		_outcome.cadence = ScheduleEntry.Cadence.SWING
-		_outcome.resolve_seed = plan.resolve_seed
+		var resolve_seed := plan.resolve_seed
+		var outcome := AttackOutcome.new()
+		_outcome = outcome
+		result.outcome = outcome
+		outcome.cadence = ScheduleEntry.Cadence.SWING
+		# Spelled through a local rather than `plan.resolve_seed` because
+		# `test_attack_determinism.gd` pins this line, and the next crit-stream
+		# one, as SOURCE TEXT — a refactor that quietly stopped drawing off the
+		# stamped seed is exactly what that guard exists to catch.
+		outcome.resolve_seed = resolve_seed
 		if not plan.is_valid():
 			_done = true
 			return
@@ -768,7 +782,7 @@ class SwingResolve extends RefCounted:
 		# single `decide_all` over the finished hit list would have consumed it —
 		# which is why an unsevered swing rolls the identical crits it did before
 		# the interleave. #186's per-round salt is gone with the rounds.
-		_rng = CritRoll.stream_for(plan.resolve_seed)
+		_rng = CritRoll.stream_for(resolve_seed)
 		# Published now, not at the end: these three ARE the partial picture.
 		result.trajectory = _trajectory
 		result.events = _events
