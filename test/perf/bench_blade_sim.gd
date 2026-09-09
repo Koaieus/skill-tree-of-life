@@ -60,6 +60,9 @@ func _initialize() -> void:
 	_bench_substep_config("braced mesh (realistic density)", 100, true)
 	print("--- #790: 100-node WHIP (worst case for the length axis — pivot ecc ~99) ---")
 	_bench_substep_config("pure chain (whip)", 100, false)
+	print("--- #796: what a k=100 swing costs on the backend that actually runs it ---")
+	_bench_k100_backends("braced mesh", 100, true)
+	_bench_k100_backends("pure chain (whip)", 100, false)
 	quit()
 
 
@@ -237,3 +240,28 @@ func _dense_or_chain(k: int, dense: bool, counter: Array) -> BladeState:
 
 func _drivers_for(state: BladeState) -> Array[BladeDriver]:
 	return [BladeArcDriver.new(1, state.positions[0], SPACING, 0.0, TAU, DURATION)]
+
+
+## The #790 rows above count projections through a constraint SUBCLASS, which
+## `_simulate_native` refuses by an exact `get_script()` check — so they are a
+## GDScript measurement BY CONSTRUCTION and say nothing about what a k=100 swing
+## costs today. This row runs the same #790 configuration on the plain
+## constraints the native backend accepts, on both backends.
+##
+## It exists because #796's body quotes the GDScript numbers (324 ms / 792 ms) as
+## the main-thread stall, and #798 landed a backend after those were measured.
+## Read THIS row as that issue's "before", not the table in its body.
+func _bench_k100_backends(label: String, k: int, dense: bool) -> void:
+	for native in [false, true]:
+		if native and not BladeSim.native_available():
+			continue
+		BladeSim.use_native = native
+		var state: BladeState = _dense_mesh(k) if dense else _chain(k)
+		var t0 := Time.get_ticks_usec()
+		BladeSim.simulate(state, _drivers_for(state), DURATION,
+				BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0,
+				BladeSim.DEFAULT_SUBSTEPS, true)
+		var us := Time.get_ticks_usec() - t0
+		print("  %-20s %-26s %7d us" % [
+				label, "native (C++ GDExtension)" if native else "gdscript", us])
+	BladeSim.use_native = false
