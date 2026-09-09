@@ -295,6 +295,31 @@ this is what makes them do the job they were written for.
 
 `BladeHitEvent.t` is melee's `arrival_time`.
 
+#### The preview resolves too, on its own shadow (#782)
+
+Melee's aim-time preview is a **real** `_resolve_swing` against a
+`CombatWorld.shadow()`, run once per selection change and replayed by
+`MeleePreview` — the same shadow path `AiCombatScorer` has used since #498 step
+3, and the same one `BattleSystem._compute_record` runs at commit. Three
+consequences for this contract:
+
+- **It publishes nothing.** `_resolve_swing` returns a `SwingResult` bundle;
+  only `resolve_against` writes it onto the plan's `last_*` fields. So a
+  prediction can never overwrite the artifacts `MeleePreview.launch` replays for
+  the swing the authority actually landed.
+- **It announces nothing**, for the reason a shadow never does
+  (`CombatWorld.is_shadow`) — the pop cue rides the mutation clock, and racing
+  two timers at the same `t` is the disease.
+- **It is a prediction, not an authority.** It may differ from the host's
+  resolve: by a last-ulp float difference across platforms (`#547`), and — a
+  second, smaller source #782 adds — because the preview runs on the unstamped
+  (0) crit stream while the committed swing stamps a fresh one, so a crit-driven
+  kill that cascades can change a later defender's board. Both are **accepted
+  mispredicts**. Neither lets a peer re-decide a landing from its own sim; that
+  rule is unchanged.
+
+See `docs/domain/melee-blade-sim.md`, "The preview is a real resolve, replayed".
+
 #### Severance is INTERLEAVED, and the gate is fed by the applier (#801)
 
 A spike pop is decided at land time, so *what a swing severed* is not known

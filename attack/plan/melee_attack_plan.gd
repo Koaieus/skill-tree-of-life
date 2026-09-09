@@ -169,7 +169,7 @@ func _on_node_left_clicked(node: SkillNode) -> void:
 		if node.owned_by != attacker:
 			return
 		_set_pivot(node)
-		state_changed.emit()
+		_notify_selection_changed()
 		return
 	if node == source:
 		# Self-targeting fallthrough: the pivot is never a valid blade member,
@@ -186,7 +186,7 @@ func _on_node_left_clicked(node: SkillNode) -> void:
 	elif _try_select_path(node):
 		changed = true
 	if changed:
-		state_changed.emit()
+		_notify_selection_changed()
 
 
 # ── Reform (#466) ──────────────────────────────────────────────────────────
@@ -283,7 +283,7 @@ func try_reform(pivot: SkillNode, members: Array[SkillNode]) -> bool:
 		push_warning("MeleeAttackPlan.try_reform: rebuilt blade differs, refused")
 		_clear_pivot()
 		return false
-	state_changed.emit()
+	_notify_selection_changed()
 	return true
 
 
@@ -305,6 +305,10 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 		return HighlightRole.ORIGIN
 	if blade_nodes.has(node):
 		return HighlightRole.MEMBER
+	# #782: what the cached prediction says will bite back. A pure dictionary
+	# read — never a rebuild; see [member _prediction].
+	if _predicted_defenders.has(node):
+		return HighlightRole.PREDICTED_THREAT
 	if source != null \
 			and attacker != null \
 			and node.owned_by == attacker \
@@ -393,14 +397,14 @@ func apply_temp_upgrade(node: SkillNode, upgrade: Dictionary) -> bool:
 	var addon := (upgrade.scene as PackedScene).instantiate() as SkillNodeAddon
 	addon.is_temporary = true
 	node.add_child(addon)
-	state_changed.emit()
+	_notify_selection_changed()
 	return true
 
 
 ## Refund `node`'s temp upgrade, if any — frees the attached addon.
 func remove_temp_upgrade(node: SkillNode) -> void:
 	if _free_temp_addons(node):
-		state_changed.emit()
+		_notify_selection_changed()
 
 
 ## `node`'s currently-attached is_temporary addon matching `upgrade`'s
@@ -519,7 +523,7 @@ func reset() -> void:
 	if source == null and blade_nodes.is_empty():
 		return
 	_clear_pivot()
-	state_changed.emit()
+	_notify_selection_changed()
 
 
 func _deselect_blade(node: SkillNode) -> void:
@@ -617,15 +621,146 @@ var last_live_gate: BladePopResolver.LiveGate = null
 var last_hits: Array[DamageInstance] = []
 
 
+## Everything one swing resolution produced, in one bundle (#782).
+##
+## [b]Why this exists.[/b] [method resolve_against] used to publish its
+## artifacts straight onto the [code]last_*[/code] fields, which made "resolve a
+## swing" and "declare that swing the committed one" the same act. The preview
+## needs the first without the second: it resolves the CURRENT selection against
+## a throwaway shadow purely to draw it, and must not touch the artifacts
+## [MeleePreview.launch] replays for the swing the authority actually landed.
+## So [method _resolve_swing] is the single implementation, and the two callers
+## differ only in where they put the result — see the repo rule against parallel
+## mirrors of the same logic.
+class SwingResult extends RefCounted:
+	var outcome: AttackOutcome = null
+	var trajectory: BladeTrajectory = null
+	var events: Array[BladeHitEvent] = []
+	var pops: BladePopResolver.Result = null
+	var live_gate: BladePopResolver.LiveGate = null
+	var hits: Array[DamageInstance] = []
+	## The swing's own drag clock and bunker field, at their END state. Null
+	## exactly when [method MeleeAttackPlan.build_swing_clock] /
+	## [method MeleeAttackPlan.build_obstacle_field] returned null — the
+	## ordinary swing, which allocates neither.
+	var clock: BladeSwingClock = null
+	var obstacles: BladeObstacleField = null
+
+
+## The prediction [MeleePreview] draws and [method get_node_role] marks off:
+## this exact selection, resolved once against a shadow world, cached until the
+## selection changes (#782). Null when nothing has asked for one yet, when the
+## plan is invalid, or from the moment the selection moves until the next
+## [method refresh_prediction].
+##
+## [b]Nothing here rebuilds it lazily on read.[/b] A melee resolve is a ~70
+## sample physics scan plus a shadow snapshot — an order of magnitude past
+## [MagicAttackPlan]'s graph walk, which CAN afford to rebuild inside
+## [method get_node_role]. Doing that here would fire a full resolve per overlay
+## repaint, and worse: a committed swing's forced-dealloc cascade emits
+## [signal HighlightProvider.state_changed] per step, so a repaint-driven
+## rebuild would resolve the half-dead plan once per cascade step, mid-swing.
+## The refresh is therefore PUSHED, by the one surface that wants it —
+## [method MeleePreview._refresh], which already gates on `_live_swing` and
+## `is_valid()`. A machine with no preview mounted pays nothing.
+var _prediction: SwingResult = null
+## How many times [method refresh_prediction] has actually run a resolve, for
+## the whole life of this plan. The acceptance-5 counter (#782): N preview
+## cycles on an unchanged selection must leave this at 1.
+var prediction_runs: int = 0
+## Defenders the cached prediction says will pop a vertex or shatter an edge,
+## as a set — read by [method get_node_role] with no work of its own.
+var _predicted_defenders: Dictionary[SkillNode, bool] = {}
+
+
+## The cached prediction for the current selection, or null if there is none.
+## A pure read — see [member _prediction] for why this never rebuilds.
+func prediction() -> SwingResult:
+	return _prediction
+
+
+## Resolve the current selection against a throwaway shadow and cache it.
+##
+## Idempotent per selection: a second call with the cache still warm is a no-op,
+## which is what keeps [member prediction_runs] at 1 across a preview loop that
+## rebuilds its ghost forever. [method _invalidate_prediction] is what makes the
+## next call do work again.
+##
+## The shadow is freed on every path — it holds the reference cycles
+## [method EntityCombat.free_shadow] documents. What survives it is safe to
+## keep: a [BladePopResolver.Pop] names its defender by [SkillNode] (identity,
+## not state), and the trajectory is plain geometry.
+##
+## [b]The seed is deliberately NOT stamped.[/b] A preview runs on the unstamped
+## (0) crit stream; the committed swing stamps a fresh one. Pops and shatters do
+## not read damage — a pop is spike pool vs. blunting, a shatter is strain — so
+## the two agree in every ordinary case. They can part only where a crit-driven
+## kill cascades and changes a later defender's board mid-swing. That is one
+## more entry on the list of accepted mispredicts, not a reason to show the
+## player a roll that has not happened yet.
+func refresh_prediction() -> void:
+	if _prediction != null:
+		return
+	if not is_valid():
+		return
+	var world := CombatWorld.shadow()
+	prediction_runs += 1
+	_prediction = _resolve_swing(world)
+	world.free_shadow()
+	for pop in _prediction.pops.pops:
+		if pop.defender != null:
+			_predicted_defenders[pop.defender] = true
+
+
+## Drop the cached prediction. Called from every site that emits
+## [signal HighlightProvider.state_changed] — the selection, the swing
+## direction and the temp-upgrade set are all inputs to the resolve.
+func _invalidate_prediction() -> void:
+	_prediction = null
+	_predicted_defenders.clear()
+
+
+## Drop the prediction and tell the surfaces. Every site in this plan that used
+## to emit [signal HighlightProvider.state_changed] goes through here instead:
+## the selection, the swing direction and the temp-upgrade set are all inputs to
+## the resolve, so "the state changed" and "the prediction is stale" are the same
+## event and must never be able to drift apart.
+func _notify_selection_changed() -> void:
+	_invalidate_prediction()
+	state_changed.emit()
+
+
 func resolve_against(world: CombatWorld) -> AttackOutcome:
+	var swing := _resolve_swing(world)
+	# Publishing is all that separates the committed resolve from the preview
+	# one. An invalid plan leaves the previous swing's artifacts in place
+	# rather than nulling them — behaviour this refactor preserves, because
+	# `_resolve_swing` returns early with a null trajectory and the guard below
+	# is what used to be the early `return outcome`.
+	if swing.trajectory != null:
+		last_trajectory = swing.trajectory
+		last_events = swing.events
+		last_hits = swing.hits
+	if swing.live_gate != null:
+		last_live_gate = swing.live_gate
+		last_pops = swing.pops
+	return swing.outcome
+
+
+## The one implementation of "swing this blade and land what it hits". See
+## [SwingResult] for why the artifacts come back in a bundle instead of being
+## written onto this plan.
+func _resolve_swing(world: CombatWorld) -> SwingResult:
+	var result := SwingResult.new()
 	var outcome := AttackOutcome.new()
+	result.outcome = outcome
 	outcome.cadence = ScheduleEntry.Cadence.SWING
 	outcome.resolve_seed = resolve_seed
 	if not is_valid():
-		return outcome
+		return result
 	var state := build_blade_state()
 	if state == null:
-		return outcome
+		return result
 	var drivers := build_drivers(state)
 	# Fortification drag (#780): a wall of fortified nodes bogs the swing's own
 	# clock down, cumulatively, from the moment the blade first touches one. Null
@@ -647,8 +782,10 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# them EARLY ENOUGH TO MATTER: a death lands before the samples after it are
 	# simulated, so the solver can react to it.
 	var gate := BladePopResolver.LiveGate.new(state, attacker)
-	last_live_gate = gate
-	last_pops = gate.result
+	result.live_gate = gate
+	result.pops = gate.result
+	result.clock = clock
+	result.obstacles = obstacles
 	# #530: each batch stable-sorts on SkillNode.stable_id, so the hit SET a pop
 	# cascade sees never depends on physics broadphase order.
 	var sweep: BladeHitScan.Sweep = null
@@ -745,9 +882,9 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		drivers = _surviving_drivers(drivers, state, gate)
 		chunk_start = severed_at
 	state.speed_history = speed_history
-	last_trajectory = trajectory
-	last_events = events
-	last_hits = hits
+	result.trajectory = trajectory
+	result.events = events
+	result.hits = hits
 	# One coherent timeline over every batch. The record carries each hit's
 	# structural key and every peer compiles its own seconds from it.
 	outcome.schedule = OutcomeSchedule.compile(outcome)
@@ -755,7 +892,7 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# swing actually DESTROYED. Pops only (#799) — a vertex that merely lost its
 	# path to the handle coasts on in this same trajectory and is not a loss.
 	outcome.popped_nodes += gate.result.vertex_pop_count()
-	return outcome
+	return result
 
 
 ## Mint, crit and LAND one sample's contacts, appending what landed to
@@ -1017,7 +1154,7 @@ func _set_swing_cw(value: bool) -> void:
 	if swing_cw == value:
 		return
 	swing_cw = value
-	state_changed.emit()
+	_notify_selection_changed()
 
 
 ## RIDs to feed BladeHitScan as the physics-query exclude list — covers only

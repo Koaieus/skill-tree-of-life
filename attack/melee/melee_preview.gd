@@ -4,8 +4,15 @@ extends Node2D
 
 ## Watches BattleSystem. When the active plan is a valid MeleeAttackPlan,
 ## mounts a translucent SkillBlade overlaid on the selection and loops the
-## same swing sim that resolve() runs. On commit, BattleSystem awaits
-## launch() to play the swing live with damage application.
+## swing [method MeleeAttackPlan.resolve] would produce for it. On commit,
+## BattleSystem awaits launch() to play the swing live with damage application.
+##
+## [b]#782: the ghost is a PREDICTION, not a lookalike.[/b] The loop replays the
+## trajectory and pop outcome of one real resolve against a shadow world — the
+## same [method MeleeAttackPlan._resolve_swing] the authority runs — so the arc
+## the player watches, the vertices that go dark and the edges that part are the
+## ones the committed swing will produce. Run once per selection change, never
+## per cycle. See docs/domain/melee-blade-sim.md.
 
 const _FADE: float = 0.4
 
@@ -19,10 +26,10 @@ const _FADE: float = 0.4
 
 ## Master switch for the IDLE loop only — a committed [method launch] ignores it.
 ##
-## The preview loop is the one part of melee that auto-drives (simulate → play →
-## rebuild, forever), so anything hosting it needs a way to say "stop": the melee
-## sandbox tab drops this the moment its tab loses focus, rather than burning a
-## swing sim per frame behind a hidden panel.
+## The preview loop is the one part of melee that auto-drives (play → rebuild,
+## forever), so anything hosting it needs a way to say "stop": the melee sandbox
+## tab drops this the moment its tab loses focus, rather than animating a blade
+## behind a hidden panel.
 @export var preview_enabled: bool = true:
 	set(value):
 		if preview_enabled == value:
@@ -38,12 +45,16 @@ signal blade_spawned(blade: SkillBlade)
 
 var _ghost: SkillBlade
 
-## The swing clock the CURRENT preview cycle is running on, or null when the
-## ghost swings unimpeded. A HANDLE on the live object, never a copy — read it
-## for `is_stalled()` / `drag`, never write it. Exists because the clock is
-## otherwise a local of `_run_preview_loop` and the melee sandbox's stall
-## readout (#780/#781) has nothing else to ask. The field it pairs with needs
-## no twin: that one already lives on `current_blade().state.obstacles`.
+## The swing clock of the PREDICTION the preview is replaying, or null when the
+## swing meets no fortified node. A HANDLE on the live object, never a copy —
+## read it for `is_stalled()` / `drag`, never write it. Exists because the melee
+## sandbox's stall readout (#780/#781) has nothing else to ask.
+##
+## [b]#782: this is the resolved swing's clock, at its END state[/b], not a
+## per-cycle one being filled in as the ghost animates. The preview no longer
+## simulates — it replays [method MeleeAttackPlan.prediction]'s trajectory — so
+## there is no per-cycle clock left to watch. The clock's twin, the bunker
+## field, is pushed onto the ghost's `state.obstacles` for the same readout.
 var last_clock: BladeSwingClock = null
 # Generation token so in-flight playback coroutines self-cancel when the
 # selection changes underneath them. Bump on every spawn/teardown.
@@ -90,7 +101,17 @@ func _refresh() -> void:
 		return
 	var plan := battle_system.attack_plan
 	if preview_enabled and plan is MeleeAttackPlan and plan.is_valid():
-		_spawn_blade(plan as MeleeAttackPlan)
+		var melee := plan as MeleeAttackPlan
+		# #782: the PUSH that keeps the prediction off the repaint path. This is
+		# the only surface that wants one, it already knows the selection is
+		# valid and the swing is not live, and it runs synchronously inside the
+		# `attack_plan_state_changed` dispatch — so the overlay's own repaint,
+		# queued in that same dispatch and drawn at frame end, sees the fresh
+		# marks. A machine with no preview mounted never calls this and pays
+		# nothing, which is the shape `BattleSystem`'s draw-only resolve already
+		# wants.
+		melee.refresh_prediction()
+		_spawn_blade(melee)
 		_run_preview_loop(_gen)
 	else:
 		_teardown()
@@ -172,29 +193,47 @@ func _spawn_blade(plan: MeleeAttackPlan) -> void:
 	blade_spawned.emit(blade)
 
 
+## Replay the PREDICTED swing, forever, until the selection changes.
+##
+## [b]#782: this loop no longer simulates.[/b] It used to run its own
+## [method SkillBlade.simulate] every cycle, with a fresh drag clock and a fresh
+## bunker field — which was both the expensive half of an always-running surface
+## and, since #801, wrong: the authoritative resolve REBAKES from each severance
+## sample, so a plain sim could not reproduce an arc that loses a vertex partway
+## through. Replaying [method MeleeAttackPlan.prediction]'s own trajectory makes
+## the ghost arc the resolved arc by construction, drag and stall included, and
+## drops the per-cycle sim to nothing.
+##
+## The front-loading note that "a clock banks what it has touched, so the loop
+## must build a fresh one per cycle" is therefore not broken but DISSOLVED:
+## there is no per-cycle clock left to bank anything.
+##
+## What the ghost shows, it shows on the swing's own clock: `pop_result` de-lits
+## each doomed vertex AT its pop time rather than pre-greying it, so the player
+## watches the spike take it. That is the more informative read, and is the
+## choice here — not the ghosting failing to apply.
 func _run_preview_loop(gen: int) -> void:
 	while gen == _gen and _ghost != null and is_inside_tree():
 		var blade := _ghost
-		# A fresh drag clock per cycle (#780): the ghost must slow on a wall the
-		# way the committed swing will, and a clock banks what it has already
-		# touched, so reusing one would start cycle 2 already dragged.
 		var live_plan := battle_system.attack_plan as MeleeAttackPlan
-		var clock: BladeSwingClock = null
-		last_clock = null
-		if live_plan != null:
-			clock = live_plan.build_swing_clock(blade.state)
-			# And a fresh bunker field (#781), for the same reason: the ghost
-			# must jam on a plate the way the committed swing will. (It jams
-			# rather than breaks — the break is the resolve loop's, so the ghost
-			# shows a rigid blade stopped dead, which is the honest promise.)
-			blade.state.obstacles = live_plan.build_obstacle_field(blade.state)
-			if clock == null and blade.state.obstacles != null:
-				clock = BladeSwingClock.new(MeleeAttackPlan.SWING_DURATION)
-			last_clock = clock
-		var traj := blade.simulate(
-				MeleeAttackPlan.SWING_DURATION, BladeSim.DEFAULT_DT,
-				BladeSim.DEFAULT_ITERATIONS, 0.0, clock)
-		await blade.play(traj, [], true)
+		if live_plan == null:
+			return
+		# Warm on the first cycle and a no-op on every later one — the loop
+		# outlives the `_refresh` that primed it, and a plan re-validated
+		# mid-loop would otherwise replay nothing.
+		live_plan.refresh_prediction()
+		var prediction := live_plan.prediction()
+		if prediction == null or prediction.trajectory == null:
+			# No trajectory means no swing to replay. Returning (rather than
+			# continuing) is deliberate: `play(null)` finishes instantly, so
+			# looping here would spin the frame.
+			return
+		last_clock = prediction.clock
+		# The sandbox's strain readout reads the field off the ghost (#781), and
+		# the ghost no longer builds one — hand it the predicted swing's.
+		blade.state.obstacles = prediction.obstacles
+		blade.pop_result = prediction.pops
+		await blade.play(prediction.trajectory, [], true)
 		if gen != _gen or _ghost == null:
 			return
 		var fade := create_tween()

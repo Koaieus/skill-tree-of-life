@@ -951,17 +951,16 @@ per-particle damping and a continued Verlet history on the list of things the
 C++ transliteration does not model (until #798/#803 close the gap). An
 ordinary swing with no bunker in reach is untouched and still takes native.
 
-### The ghost jams, and does not break
+### The ghost jams, and does not break — superseded by #782
 
-`MeleePreview`'s ghost loop builds its own fresh `BladeObstacleField` per
-cycle, the same way it builds its own fresh `BladeSwingClock` (a field banks
-what it has already touched, so reusing one across cycles would start cycle 2
-already strained). The ghost therefore **jams** on a plate exactly the way the
-committed swing will — a rigid blade stops dead against it — but it never
-*breaks* one: the break is decided and applied only inside
-`MeleeAttackPlan.resolve_against`'s resolve loop, which the ghost never runs.
-Showing a stalled, unbroken blade is the honest promise: the ghost previews
-the arc the AI scores, not the outcome a live severance would produce.
+Until #782 `MeleePreview`'s loop built its own fresh `BladeObstacleField` and
+`BladeSwingClock` per ghost cycle and ran its own `SkillBlade.simulate`. It
+therefore **jammed** on a plate the way the committed swing would, but never
+*broke* one, because the break is decided inside the resolve loop the ghost
+never ran. That was the honest promise available at the time.
+
+It is no longer what happens: the ghost now replays a real resolve, so it shows
+the break. See "The preview is a real resolve, replayed (#782)" below.
 
 ### Known residue: a second break by the same vertex against the same bunker lands no second hit
 
@@ -1376,6 +1375,108 @@ opinion** — a single 100-node whip swing goes from ~80ms to ~320ms
 solver-only (no hit-scan) on this machine; whether that is acceptable inside
 a turn, and whether `LENGTH_ECC_CEILING` should sit closer to or further from
 4x, is a tuning call this issue surfaces but does not make.
+## The preview is a real resolve, replayed (#782)
+
+**The ghost is not a lookalike of the swing. It is the swing.**
+
+`MeleePreview` used to simulate: one `SkillBlade.simulate` per ghost cycle,
+forever, with a fresh clock and a fresh obstacle field each time. What it could
+show was therefore limited to what a bare sim produces — an arc, dragged and
+stalled — and nothing a *defender* does. #772 established why that is not a
+cosmetic gap:
+
+> blade contact is *"complex emergent movement resulting from the XPBD sim"* —
+> kinks, lag, tail whip — so **no rule, tooltip or heuristic can tell a player
+> what will hit**.
+
+You cannot teach a rule for chaotic output. You can only show the outcome of
+*this specific swing*. And the AI already had exactly that: since #498 step 3
+`AiCombatScorer` runs the pop gate against a shadow `CombatWorld`. The AI could
+see what the player could not.
+
+So the preview runs the same thing. Once per selection change,
+`MeleeAttackPlan.refresh_prediction()` resolves the current selection against a
+throwaway `CombatWorld.shadow()` and caches the result; the ghost loop replays
+that result's `BladeTrajectory` and hands the blade its `BladePopResolver.Result`
+as `pop_result`. There is **no second predictor** — see the repo rule against
+parallel mirrors. `_resolve_swing(world) -> SwingResult` is the one
+implementation; `resolve_against` is that call plus publishing onto the
+`last_*` fields, and the preview is that call without the publishing.
+
+### Replay, not re-simulation — and #801 is why
+
+A per-cycle re-simulation could not reproduce the resolved arc even in
+principle. Since #801 the resolve **re-bakes from each severance sample**: a
+vertex that dies mid-swing is frozen, its constraints and driver dropped, and
+the remaining chunk re-solved from that pose. A plain `simulate()` over an
+intact blade takes a different path from that moment on. So a ghost that
+simulated would diverge from the committed swing exactly when the interesting
+thing happened.
+
+Replaying the resolved trajectory makes them equal by construction — drag,
+stall, severance and all — and costs nothing per cycle, which is a straight
+improvement on the sim it replaced.
+
+A consequence worth stating: the front-loaded warning that "a clock banks what
+it has touched, so the preview must build a fresh one per cycle" is not broken
+but **dissolved**. There is no per-cycle clock left to bank anything. The
+prediction's own clock and obstacle field, at their end state, are what the
+melee sandbox's stall/strain readout now reads.
+
+### What it shows, and when
+
+- **The vertex that dies** goes de-lit **at its pop time**, not pre-greyed:
+  `SkillBlade._apply_playback_frame` already asks `pop_result.is_dead(i, t)` per
+  frame. The player watches the spike take it, which is the informative read.
+- **The edge that parts** likewise, via `pop_result.severed_at`.
+- **The node that does it** is marked `HighlightRole.PREDICTED_THREAT`, read off
+  `MeleeAttackPlan.get_node_role`. One role covers spikes and bunkers alike,
+  because `LiveGate._sever_edge` mints a `Pop` with a `defender` exactly as
+  `_kill` does — matter and structure fail differently but are reported the same
+  way.
+- **Fortification drag is shown by the arc alone.** A drag zone carries no
+  `Pop`, so no node is marked for it. That is the deliberate answer to the
+  "two sensing models" seam above: drag sensing is analytic and `BladeHitScan`
+  is the physics-server authority, so a node can drag the swing without minting
+  a hit event. Marking a node for drag would surface that disagreement as a
+  per-node claim the scan may not honour. The arc, which is the thing drag
+  actually changes, carries no such ambiguity.
+- **Spacing luck stays visible.** Edges have collision since #785 but vertices
+  and edges are still discrete, and #772 rejected making spikes strictly
+  stronger to remove the thread-through. The preview does not remove the luck —
+  it shows you which side of it this selection landed on.
+
+### The cache: pushed, never lazy
+
+`MagicAttackPlan` rebuilds its preview lazily, inside `get_node_role`. Melee
+must not: a melee resolve is a ~70-sample physics scan (9-16 ms on the shipped
+800-node level — `test/perf/bench_melee_prediction_cost.gd`), and
+`get_node_role` runs once per node per overlay repaint. Worse, a committed
+swing's forced-dealloc cascade emits `state_changed` per step, so a
+repaint-driven rebuild would resolve a half-dead plan repeatedly, mid-swing.
+
+So the refresh is **pushed** by the one surface that wants it —
+`MeleePreview._refresh`, which already gates on `_live_swing` and `is_valid()`.
+`get_node_role` only ever reads. Every site that emits `state_changed` goes
+through `_notify_selection_changed`, so "the state changed" and "the prediction
+is stale" cannot drift apart. A machine with no preview mounted (a headless
+peer, an AI turn) never predicts and pays nothing.
+
+### It is a prediction, not an authority
+
+Under host-authoritative sync the host resolves and every peer replays the
+`AttackRecord`. A client's preview is a **local** resolve and may in principle
+differ from the host's — `blade_arc_driver.gd`'s #547 note warns *"don't start
+relying on it to agree across platforms"*, and #779/#781 made particle floats
+gameplay-relevant for the first time. A second, smaller source of the same
+thing: the preview runs on the unstamped (0) crit stream while the committed
+swing stamps a fresh one, so a crit-driven kill that cascades can change a later
+defender's board and part the two.
+
+Both are **accepted mispredicts**. The rule they must never break is the one in
+`.claude/rules/multiplayer-sync.md`: a peer *receives* a landing or *reproduces*
+it. Nothing here re-decides one.
+
 ## Open questions / future work
 
 - **Damping for a DRIVEN blade.** `BladeState.damping` exists (#801) but is
@@ -1405,4 +1506,4 @@ a turn, and whether `LENGTH_ECC_CEILING` should sit closer to or further from
 8. `attack/melee/sim/blade_obstacle_field.gd` (Bunker deflection, #781)
 9. `attack/melee/skill_blade.gd` (visual wrapper)
 10. `attack/plan/melee_attack_plan.gd` (`resolve()`, `build_obstacle_field`)
-11. `attack/melee/melee_preview.gd` (ghost loop)
+11. `attack/melee/melee_preview.gd` (ghost loop, #782 prediction replay)

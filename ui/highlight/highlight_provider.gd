@@ -28,6 +28,7 @@ enum HighlightRole {
 	PROPAGATION,      ## Aim-time propagation preview (#679), driven by [MagicAttackPlan].
 	ALLOCATABLE,      ## Manage mode: unowned node the player can allocate (adjacent + SP gated).
 	PENDING_REMAINDER, ## Mass-allocate confirm: on the route but past the SP-affordable prefix.
+	PREDICTED_THREAT, ## Melee aim-time prediction (#782): this defender pops a vertex or shatters an edge.
 }
 
 ## Fires whenever the provider's internal state shifts (pivot picked, blade

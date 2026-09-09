@@ -122,16 +122,18 @@ func _ready() -> void:
 	_on_visibility_changed()
 
 
-## The strain readout is the only thing here that polls: the ghost's field is
-## rebuilt inside `MeleePreview`'s own loop, sample by sample, and there is no
-## signal on "the accumulator moved" — nor should there be, at one per substep.
-## Cheap (two array reads) and off whenever the tab is not live.
+## The strain readout is the only thing here that polls. Since #782 the ghost no
+## longer simulates — it replays the predicted swing — so what this reads is that
+## swing's field at its END state: the strain the plates actually took, not an
+## accumulator filling in as the animation runs. There is still no signal to
+## subscribe to, and polling stays the cheap answer (two array reads), off
+## whenever the tab is not live.
 func _process(_delta: float) -> void:
 	_refresh_strain()
 
 
-## Worst per-zone strain on the GHOST's field, against the constant it is
-## measured for, plus the grip stall. Reads the live objects (#781) — never a
+## Worst per-zone strain on the PREDICTED swing's field, against the constant it
+## is measured for, plus the grip stall. Reads the live objects (#781) — never a
 ## mirror of them — so "no plate in reach" is reported as the structural zero it
 ## is: `build_obstacle_field` allocated nothing.
 func _refresh_strain() -> void:
