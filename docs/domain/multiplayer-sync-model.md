@@ -1,12 +1,10 @@
 # The multiplayer sync model
 
-**Decided 2026-08-18 in #473. Re-opened by the owner 2026-08-22, measured by
-#529, and re-decided unchanged on 2026-08-24** — the conclusion held, every
-argument for it was replaced. See `### Rejected: lockstep on the shared seed`
-before re-arguing this: three of the grounds that section used to rest on are
-dead, and picking one up is how this gets re-litigated for a fourth time.
-
-**The *why* now lives in [ADR 0002](../adr/0002-host-authoritative-sync-not-lockstep.md)** — the decision, the grounds it actually rests on, and the alternatives with their dead arguments marked. This page is the *how*. Extraction of the remaining decision prose below is tracked on #769.
+**This page is the *how*. The *why* is
+[ADR 0002](../adr/0002-host-authoritative-sync-not-lockstep.md)** — the decision,
+the grounds it actually rests on, and every alternative with its dead arguments
+marked as dead. **Read it before re-arguing this**: the call has already been
+made three times, and three of the grounds it originally rested on are retired.
 
 This is the architecture every networked and hot-seat feature hangs off. It
 also rewrites what #458 (`CommandBus`) and #463 (versus) are for. Read this before touching input routing, `BattleSystem`'s
@@ -18,7 +16,7 @@ shape.
 
 ---
 
-## The decision
+## The model
 
 **Host-authoritative, intent-up / confirmed-command-down.**
 
@@ -62,9 +60,12 @@ the host a full mutation window ahead of everyone it was telling.
 
 ---
 
-## Why, and why not the alternatives
+## What the model rests on
 
-### Four facts about this codebase that decided it
+Four properties of this codebase that the model is shaped around. Which of them
+were *arguments* when the model was chosen, and which of those arguments have
+since been retired, is
+[ADR 0002](../adr/0002-host-authoritative-sync-not-lockstep.md).
 
 1. **The mutation surface is ~9 verbs, not 863 lines.** `PlayerInputController`
    is mostly *local plan-building* — the armed-mode stack, hover, pin, the
@@ -75,18 +76,14 @@ the host a full mutation window ahead of everyone it was telling.
    `AllocationSystem` entry point is synchronous, gated, `-> bool`, and takes
    `(node, entity)` — already wire-shaped once `SkillNode` becomes `stable_id`.
 
-2. **Mutation used to be entangled with animation; #504 fixed that
-   specifically, and the fix is required under *every* model.** Before design
-   B, `BattleSystem.launch_attack` resolved a pure `AttackOutcome` but landed
-   damage *inside* `await attack_vfx.play(...)` / `await melee_preview.launch(...)`,
-   so the authoritative world change happened at animation time, ordered by
-   frames — exactly what lockstep, host authority, and state diff all forbid.
-   As of #504 the VFX call is un-awaited and mutation runs on its own
-   `OutcomeApplier`/`BeatClock` loop, paced by authored `arrival_time`, not by
-   animation completion — see docs/domain/presentation-clock.md. VFX is now a
-   pure observer in fact, not just in intent, which is what this section's
-   architecture assumed all along. `BattleSystem.is_launching` is already the
-   reentrancy guard #458 asked for.
+2. **Mutation is not entangled with animation (#504).** Damage used to land
+   *inside* `await attack_vfx.play(...)` / `await melee_preview.launch(...)`, so
+   the authoritative world change happened at animation time, ordered by frames.
+   Since #504 the VFX call is un-awaited and mutation runs on its own
+   `OutcomeApplier`/`BeatClock` loop, paced by authored `arrival_time` — see
+   [presentation-clock.md](presentation-clock.md). VFX is a pure observer in fact,
+   not just in intent. `BattleSystem.is_launching` is the reentrancy guard #458
+   asked for.
 
 3. **Combat is nearly RNG-free — but not entirely.** Initiative, allocation
    gating, mitigation, blade hit-scan and AI scoring are pure arithmetic. Three
@@ -95,10 +92,10 @@ the host a full mutation window ahead of everyone it was telling.
      back to `crit_rng.randomize()` when none is injected.
    - `systems/loot_system.gd:335,449,461` and
      `skill_node/addons/skill_dust_addon.gd:173` — global unseeded
-     `Array.shuffle()`. **Not a hazard under the chosen model** (owner call
-     2026-08-21, below): the roll is host-only and its *result* is what crosses
-     the wire, so there is nothing for a peer to reproduce. It was a hazard
-     under lockstep, which is why it is listed here — see the rejection below.
+     `Array.shuffle()`. **Not a hazard here:** the roll is host-only and its
+     *result* is what crosses the wire, so there is nothing for a peer to
+     reproduce — see
+     [ADR 0013](../adr/0013-host-only-rolls-and-the-seed-is-a-procgen-input.md).
    - `attack/spell/propagation/step/random_pick_step.gd:24-26` — same null-RNG
      fallback.
 
@@ -108,120 +105,17 @@ the host a full mutation window ahead of everyone it was telling.
    `allocation_system.allocate()` / `battle_system.launch_attack()` straight.
    Its *decisions* are deterministic; its *timing* is not.
 
-### Rejected: lockstep on the shared seed
+## The determinism obligation
 
-**Re-opened by the owner 2026-08-22, measured by #529, and rejected again
-2026-08-24 — on entirely different grounds.** The conclusion did not move; every
-premise did. If you are about to re-litigate this, read which arguments are dead
-before picking one up.
+**This model does not buy freedom from determinism; it bounds it.** Derived
+stats are recomputed **locally on every peer** — nothing about `max_hp`, mana
+regen, or any board total rides a record. So the stat pipeline must produce
+identical results on every machine, and that obligation is real today.
 
-> **Owner call 2026-08-24:** *"getting that whole list of things cross platform
-> deterministic would take more time than i'd now want to spend on that, this
-> game doesn't do that much crazy stuff, nor a lot of commands (1 at a time with
-> massive margins before and after mostly)"* — and, on a mixed lobby being
-> likely: *"Yes — Windows/Linux mix likely."*
+**The obligation reaches exactly one subsystem: the stat pipeline** — which is
+what makes it auditable with a grep.
 
-#### The three original grounds are all retired. Do not re-use them.
-
-1. **"There is no authority at all."** Aimed at *pure P2P* lockstep. What was
-   actually proposed on 2026-08-22 was **lockstep + snapshot recovery with the
-   host still refereeing**, so an authority survives. Dead.
-2. **The unseeded `Array.shuffle()` calls.** Host-only rolls are exempt and the
-   pick travels as a result (owner call 2026-08-21, above). Dead.
-3. **Hidden information / fog.** **Withdrawn by the owner**, on the record, in
-   #463's 2026-08-24 decision comment: the fog vision withholds *derived*
-   state, which is compatible with full replication of tiers 1-2. Dead **as
-   stated** — but see ground B below, which is a different claim aimed at a
-   different layer, not this one coming back.
-
-#### What #529 actually measured, and what it did not
-
-Two clean sweeps (773 commands, then 478 at `bc24e31`), zero divergences. That
-is real, and it is **narrower than it reads**:
-
-- The **RESOLVE** column answers "is the plan+seed resolution reproducible" —
-  the half a confirmed record was never needed for.
-- The **LAND** column (added 2026-08-24) answers the half lockstep would stand
-  on: post-mitigation damage, HP bars, `h_hpm`, the gated bit, forced-dealloc
-  cascades. It also came back clean — 30 ok, 0 diverged, 84 landings.
-- **Both were taken on one machine, one binary, one libm.** They measure
-  *pipeline order*, not floating-point portability. The question that decides
-  this model cannot be asked on a single machine, which is why a clean probe
-  did not carry the decision.
-
-#### The live grounds
-
-**A. Cross-platform libm, and it is unfixable by discipline.**
-IEEE 754 specifies `+ - * / sqrt` to be correctly rounded. It specifies
-**nothing** about `sin` / `cos` / `tan` / `exp` / `log` / `pow` — every
-platform's libm ships its own approximation and they disagree in the last bits.
-`attack/melee/sim/blade_arc_driver.gd` uses both (`Vector2.from_angle` at :38,
-`cos` at :42), the XPBD sim integrates those positions over dozens of substeps,
-and the hitscan sorts by the result. A 1-ulp difference flips two hits' order.
-
-Under record-down that is **cosmetic**: a peer re-simulates the blade only to
-*draw* it, and every damage number and the hit set itself come off the
-`AttackRecord`. Under lockstep the same ulp decides **who gets hit**. Same code,
-same rounding, one is invisible and the other is a desync — and no amount of
-care in gameplay code prevents it. Only fixed-point or deleting the trig would,
-and neither is worth a LAN date.
-
-**B. Lockstep is contradictory with partial information — not merely awkward.**
-This is *not* ground 3 returning. Ground 3 was about replicating tiers 1-2 and
-was correctly withdrawn. This is about **inputs**.
-
-Lockstep's defining property is that every peer derives the same result from the
-same inputs. Deny a peer an input and it cannot derive. The owner's own
-health-bar case is the proof:
-
-> **Owner, 2026-08-24:** *"health bars of damaged nodes which are persistently
-> shown and have a current + max ... max is a derivation of the entity stats x
-> node-local stats, which **is information you might not have** yet these should
-> not be question marks but real and correct values"*
-
-That asks for an **output** while denying its **inputs**. There is exactly one
-way that works: someone else computes it and hands you the number. That is
-record-down's normal case and lockstep's impossibility.
-
-The smell inverts too. Under record-down the received value **is** the model on
-that peer — there is no locally-computed truth for it to disagree with, so no
-`shown_health` beside `health`. You only get that second variable if you go
-lockstep and then bolt fog on top.
-
-**C. Lockstep's two claimed benefits were already harvested here.**
-The 2026-08-22 pitch offered "the VFX-duration lag disappears outright" and
-"total host/client code symmetry". Both landed **inside this model** the next
-day: #540 moved the confirm to the validate->apply flip point and `CommandLink`
-broadcasts off `command_confirmed`; #536 collapsed `BattleSystem` and #545 made
-the authority replay its own record exactly as a peer does. What remains on
-lockstep's side of the ledger is **wire size** — kilobytes, on a LAN.
-
-It is also **slower for the acting client**, which inverts the usual intuition.
-The host must resolve under both models (affordability gating needs
-`outcome.ap_cost`, which comes out of the resolve), so lockstep does not save
-the crunch — it duplicates it, once per peer, serially from the client's point
-of view. Record-down replaces the client's re-resolve with a deserialize of a
-few packed arrays: microseconds against milliseconds.
-
-**D. It enlarges the determinism surface from one subsystem to everything.**
-See the section below — this is the ground most likely to be forgotten, because
-it is about the code that has not been written yet.
-
-### The determinism obligation that survives — both models owed it
-
-**Record-down does not buy freedom from determinism; it bounds it.** Derived
-stats are recomputed **locally on every peer** under this model — nothing about
-`max_hp`, mana regen, or any board total rides a record. So the stat pipeline
-must produce identical results on every machine, and that obligation is real
-today.
-
-| model | what must be cross-platform deterministic |
-|---|---|
-| lockstep | stat pipeline **+** combat resolution **+** the XPBD blade sim + hitscan order **+** every crit roll **+** every future gameplay formula |
-| **record-down (chosen)** | the stat pipeline |
-
-The chosen model keeps the obligation inside one subsystem that can be audited
-with a grep. As of 2026-08-24 that audit returns exactly one live hit: **#547**,
+As of 2026-08-24 that audit returns exactly one live hit: **#547**,
 `floor(log(INT)/log(10.0))` in `entity/default_entity_board.tres:179`, which is
 already wrong at INT 1000 on glibc (returns 2, should be 3) and libm-dependent
 at every power of ten.
@@ -284,30 +178,7 @@ of this model, not a rewrite of it — `RevealEvent`'s `from_value`/`to_value`
 in the parked `presentation/` classes is already the shape a fog-gated or
 authoritative-reveal payload would want; see `presentation/README.md`.
 
-### Rejected: full state replication / snapshots
-
-The largest model change on the table. No `StatBoard` wire format exists;
-`Stat._modifiers` is memory-only; `EffectInstance` grant-ledgers carry no
-provenance for revocation; addons are dynamically-spawned children. And it is
-2000 nodes × boards × addons per sync.
-
-Its one genuine upside is that the serializer *is* save/load (#23) — but that is
-a separate, parked feature, and buying it here to get versus is backwards.
-
-### Deferred, not rejected: fog-filtered state deltas
-
-The only model where hidden information is *technically* enforced: the host
-sends each client only what its `InfoLevel` permits. This is the correct
-destination and it is where this design is aimed. It is deferred because it
-needs the same `StatBoard` wire format that state replication needs.
-
-The owner's call was **"socially real now, structured so this is reachable"** —
-every peer holds the full world and the UI declines to draw what your fog does
-not cover. Because the host already owns every decision and clients never mutate
-directly, moving here later swaps *what gets broadcast* (confirmed command →
-filtered delta) behind one seam, without touching input, AI, or the systems.
-
-### The resync backstop
+## The resync backstop
 
 **Settled #521 (2026-08-24), built in #560 + #561. Additive under the decision
 above — it reopens nothing.** `AttackRecord` remains the only thing that mutates
@@ -456,13 +327,6 @@ is the one mirror `GraphSnapshot`'s bypass of `AllocationSystem` invalidates.
 be asserting agreement on quantities the sync layer deliberately never
 transmits.
 
-### Not a separate option: event sourcing
-
-Effectively the chosen model plus persistence. If a run log is ever wanted, the
-confirmed-command stream **is** the event log. Nothing extra to design.
-
----
-
 ## What crosses the wire, per action
 
 | Action | Up (intent) | Down (confirmed) | Why |
@@ -479,15 +343,10 @@ confirmed-command stream **is** the event log. Nothing extra to design.
 already known to whoever received the request, so the pick command carries
 `(entity_id, request_id, chosen_indices)` and nothing more (#509).
 
-> **Owner call 2026-08-21:** *"loot picks are just 'hey i picked <this
-> statmodifier>', users cannot distinguish a same-seed roll from a random roll
-> given that looting is done by 1 player and invisible to others -- the
-> resulting pick however needs to be communicated back to host so they can
-> broadcast or whatever if needed"*
-
-This supersedes the earlier reading — carried in §"Four facts" fact 3 and in the
-lockstep rejection — that the loot/skill-dust `Array.shuffle()` calls were a
-per-client divergence hazard needing a seeded RNG.
+The roll itself stays host-side and is not reproduced anywhere, which is why the
+loot and skill-dust `Array.shuffle()` calls need no seeded RNG —
+[ADR 0013](../adr/0013-host-only-rolls-and-the-seed-is-a-procgen-input.md), which
+supersedes the earlier reading that they were a per-client divergence hazard.
 
 ### The lobby roster, at the same model and a different scope (#714)
 
@@ -850,16 +709,11 @@ the same encoding the obvious one.
   **host-only** and need no determinism guarantee at all — their unseeded
   `Array.shuffle()` calls are not a hazard under this model.
 
-  This supersedes what this section said before 2026-08-21 — *"`Array.shuffle()`
-  with no argument is a desync. Every gameplay-affecting roll draws from a
-  `GameSession` sub-stream."*
-
-  > **Owner call 2026-08-21:** *"we don't care about that seed beyond the
-  > procgen using it, for now. possibly forever."*
-
-  Consequence, and it is deliberate: **the same seed reproduces the same map,
-  not the same fights.** #457's `GameSession` seed is a procgen input; it is not
-  a determinism contract over combat or loot.
+  **The same seed reproduces the same map, not the same fights.** #457's
+  `GameSession` seed is a procgen input; it is not a determinism contract over
+  combat or loot, and it never was one for anything a peer merely receives — see
+  [ADR 0013](../adr/0013-host-only-rolls-and-the-seed-is-a-procgen-input.md) for
+  the seeded-sub-stream rule it replaced.
 
   **And since #715 it is not a CROSS-PEER contract at all.** The seed reproduces
   a map *on one machine* — a replay input, so a run can be re-rolled from what

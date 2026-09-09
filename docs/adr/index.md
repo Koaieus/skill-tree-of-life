@@ -34,6 +34,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0010](0010-contest-membership-is-a-rule-the-condition-owns.md) | Contest membership is a predicate the victory condition owns, not a flag on Faction | accepted | 2026-08-22 | victory, session, architecture, entity |
 | [0011](0011-one-attack-timeline-contract-for-every-mode.md) | One attack timeline contract for every mode — resolve up front, gate at land time, never re-plan | accepted | 2026-08-20 | combat, attacks, architecture, timing |
 | [0012](0012-every-arrow-renders-whatever-it-did.md) | Every arrow renders, whatever the landing did — a render pass never filters on outcome | accepted | 2026-09-04 | combat, attacks, vfx, ranged |
+| [0013](0013-host-only-rolls-and-the-seed-is-a-procgen-input.md) | Loot and relic rolls stay host-only, and the run seed is a procgen input rather than a determinism contract | accepted | 2026-08-21 | multiplayer, netcode, determinism, loot, procgen |
 
 ## Reading order
 
@@ -45,8 +46,11 @@ what stops the decision being re-run on a dead argument for a fourth time.
 
 ## Backfilling
 
-0002, 0003 and 0004 are backfills — decisions taken before the tier existed, extracted
-from a domain doc, a commit message and an issue thread respectively. The bulk migration of decision prose that predates the tier is tracked on **#769**, whose acceptance is the `adr-hygiene` counter reaching zero. Outside that, **backfill on demand, not in sweeps:**
+0002, 0003, 0004 and 0006-0013 are backfills — decisions taken before the tier existed,
+extracted from domain docs, a commit message and issue threads. 0006-0013 are the bulk
+migration of pre-tier decision prose out of `docs/domain/`, done on **#769**; the
+`adr-hygiene` counter it was measured by now reads zero. With that swept,
+**backfill on demand, not in sweeps:**
 when you find yourself re-deriving why something is the way it is, that is the
 signal the decision deserves a record. A backfill says so in a note at the top and
 dates itself to the decision, not to the writing.

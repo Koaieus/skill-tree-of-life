@@ -39,14 +39,15 @@ evidence.
 **Owner call 2026-09-07:** *"all three options speak to me. amount of work is no
 issue, i want what's cleanest going forward."*
 
-The cleanest end state is that a `docs/domain/` page describes **current
-behaviour only**, and every "we decided X on date D, and here is why not Y" passage
-in it has moved to an ADR that the page links. That is a real migration and it is
-tracked — `mise run adr-hygiene` reports every domain doc still carrying decision
-prose, so the migration has a number that goes to zero rather than a vibe.
+A `docs/domain/` page describes **current behaviour only**. Every "we decided X on
+date D, and here is why not Y" passage belongs in an ADR that the page links.
 
-Until a page is migrated, its decision prose remains authoritative. **The
-migration is per-page and mechanical; do not half-migrate a page.**
+That was a real migration of seven pages, finished on #769, and
+`mise run adr-hygiene` still counts it — the counter reads **0**, and anything
+that puts it back above zero is a page growing a decision layer again. **When you
+add a decision, do not half-migrate a page:** the dated verdict and its rejected
+options move together, or the page reads as authoritative while half the reasoning
+sits elsewhere.
 
 ### What is *not* an ADR
 
