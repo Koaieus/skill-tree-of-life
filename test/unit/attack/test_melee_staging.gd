@@ -161,10 +161,22 @@ func test_the_first_hit_lands_strictly_after_the_form_beat_ends() -> void:
 	Events.skill_node_damaged.disconnect(probe)
 
 	assert_gt(first_hit_at[0], 0.0, "the fixture swing must land a hit at all")
-	assert_gt(first_hit_at[0], form_beat_end,
-			"the swing's first hit must land strictly after the form beat ends "
-			+ "(form beat ends at %.3fs, hit landed at %.3fs)"
-			% [form_beat_end, first_hit_at[0]])
+	# Measured wall-clock against a LOGICAL boundary, so it needs slop. The form
+	# beat runs on a [BeatClock] tree timer, which fires on accumulated frame
+	# deltas — landing at 1.9973 s against a 2.0 s bound is quantization, not a
+	# staging failure, and a zero-tolerance `assert_gt` here failed intermittently
+	# (caught 2026-09-10: it passed under `test:dir` and failed under `test:one`
+	# on the same commit).
+	#
+	# The slop cannot make this vacuous, which is the point of the stretched beat
+	# injected above: WITHOUT staging the first hit lands inside a 1.2 s swing —
+	# 800 ms below the bound, sixteen times this tolerance. The assertion still
+	# fails loudly if the swing stops waiting for the form beat at all.
+	var slop := 0.05
+	assert_gt(first_hit_at[0], form_beat_end - slop,
+			"the swing's first hit must land after the form beat ends "
+			+ "(form beat ends at %.3fs, hit landed at %.3fs, slop %.3fs)"
+			% [form_beat_end, first_hit_at[0], slop])
 
 
 func test_a_committed_melee_opens_the_camera_on_the_pivot_alone() -> void:
