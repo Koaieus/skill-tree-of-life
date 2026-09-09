@@ -28,6 +28,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0004](0004-the-allocation-level-magnitude-ladder-is-linear.md) | The allocation-level magnitude ladder is linear | accepted | 2026-08-05 | stats, balance, skill-node, design |
 | [0005](0005-blade-parts-and-counters-are-orthogonal.md) | Blade parts and their counters are orthogonal — bunkers destroy structure, never matter | accepted | 2026-09-08 | combat, melee, blade, design, balance |
 | [0006](0006-unreferenced-art-is-deleted-and-re-cut-not-excluded.md) | Unreferenced purchased art is deleted and re-cut from a pipeline, not excluded from the export | accepted | 2026-09-04 | exporting, assets, build |
+| [0007](0007-spell-vfx-is-fog-oblivious.md) | Spell VFX is fog-oblivious — every spell visual draws over fog, or none does | accepted | 2026-08-30 | vfx, spells, fog, rendering |
 
 ## Reading order
 

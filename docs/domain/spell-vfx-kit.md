@@ -296,11 +296,12 @@ Two further properties worth not breaking:
   additive-on-lifted goes white fast); only the moving front reaches `ALERT`.
   See [hdr-color.md](hdr-color.md).
 
-**Fog-oblivious, on purpose** (owner call 2026-08-30), matching every existing
-spell visual: `GlowingDot` bolts already fly over `FogOverlay`, and
-`AllocationVFX` z-promotes to `ZLayers.SPELL_VFX` specifically to win over it. A
-fog-aware overlay sitting next to fog-oblivious bolts would read as a bug.
-Fog-awareness is a one-line upgrade whenever fog-gating arrives — `#include`
+**Nothing in the kit reads the vision field.** It draws over `FogOverlay`, the
+way `GlowingDot` bolts already do and the way `AllocationVFX` z-promotes to
+`ZLayers.SPELL_VFX` to do — the whole layer is fog-oblivious, and that is the
+rule rather than an omission
+([ADR 0007](../adr/0007-spell-vfx-is-fog-oblivious.md)). Fog-awareness is a
+one-line upgrade whenever fog-gating arrives — `#include`
 `ui/vision_field.gdshaderinc` and multiply alpha by `vision_field_dim(world_pos)`,
 the reader role #413 designed that file for.
 
