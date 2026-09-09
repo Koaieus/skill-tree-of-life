@@ -853,17 +853,18 @@ Self-punishing, no exemption, no third mechanic.
 
 `BladeObstacleField` is sim state, exactly like `BladeSwingClock`: per-zone
 strain, per-zone edge-load banks, the driven-particle history and the pending
-break are captured/restored by its own `Bank` class, in lockstep with
-`MeleeAttackPlan.resolve_against`'s chunked replay (`snap_field` alongside
-`snap_bank`). A break is never applied directly — `end_substep` only *arms* a
-`BladeObstacleField.Break` (edge index, the GLOBAL step it armed on, the
-defender). The resolve loop's per-sample walk checks
-`obstacles.has_break_at(step)` exactly alongside a pop
-(`gate.result.pops.size()` changing): either one stops the walk, rewinds to the
-chunk's snapshot, and replays the head to land bit-identically on the
-severance sample — the same "#803 deletes this" head-replay workaround the
-pop path already pays for (see "The head replay" above). *Only after* that
-replay does the loop call `obstacles.consume_break()` and sever through
+break are captured/restored by its own `Bank` class, and it keeps a chunk-local
+`history` of those banks — one per sample, appended by `BladeSim.simulate_range`
+right where `BladeSwingClock.history` and `prev_samples` are (#803). A break is
+never applied directly — `end_substep` only *arms* a `BladeObstacleField.Break`
+(edge index, the GLOBAL step it armed on, the defender). The resolve loop's
+per-sample walk checks `obstacles.has_break_at(step)` exactly alongside a pop
+(`gate.result.pops.size()` changing): either one stops the walk and rewinds to
+the severance sample by *reading* it — `chunk.samples[local]`,
+`chunk.prev_samples[local]`, `clock.history[local]`, `obstacles.history[local]`
+— with nothing re-run. The field banks once per sample, **after** that sample's
+substeps, so the bank at `local` already holds the break armed; the loop then
+calls `obstacles.consume_break()` and severs through
 `BladePopResolver.LiveGate._sever_edge` — the identical call a spike pop
 takes, so the identical `_disintegrate_unreachable` cascade fires and every
 `edge_idx`/`particle_idx` stability invariant from #785/#799/#801 is
