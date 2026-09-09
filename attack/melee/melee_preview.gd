@@ -37,6 +37,14 @@ const _FADE: float = 0.4
 signal blade_spawned(blade: SkillBlade)
 
 var _ghost: SkillBlade
+
+## The swing clock the CURRENT preview cycle is running on, or null when the
+## ghost swings unimpeded. A HANDLE on the live object, never a copy — read it
+## for `is_stalled()` / `drag`, never write it. Exists because the clock is
+## otherwise a local of `_run_preview_loop` and the melee sandbox's stall
+## readout (#780/#781) has nothing else to ask. The field it pairs with needs
+## no twin: that one already lives on `current_blade().state.obstacles`.
+var last_clock: BladeSwingClock = null
 # Generation token so in-flight playback coroutines self-cancel when the
 # selection changes underneath them. Bump on every spawn/teardown.
 var _gen: int = 0
@@ -89,8 +97,9 @@ func _refresh() -> void:
 
 
 ## The ghost currently mounted, or null. For a sandbox that wants to poke at the
-## live blade's visuals (force a vertex de-lit, re-push a [BladeStyle]) — nothing
-## in the game reads this.
+## live blade's visuals (force a vertex de-lit, re-push a [BladeStyle]) or at
+## its sim state (#781's strain readout reads `.state.obstacles` off it) —
+## nothing in the game reads this.
 func current_blade() -> SkillBlade:
 	return _ghost
 
@@ -171,6 +180,7 @@ func _run_preview_loop(gen: int) -> void:
 		# touched, so reusing one would start cycle 2 already dragged.
 		var live_plan := battle_system.attack_plan as MeleeAttackPlan
 		var clock: BladeSwingClock = null
+		last_clock = null
 		if live_plan != null:
 			clock = live_plan.build_swing_clock(blade.state)
 			# And a fresh bunker field (#781), for the same reason: the ghost
@@ -180,6 +190,7 @@ func _run_preview_loop(gen: int) -> void:
 			blade.state.obstacles = live_plan.build_obstacle_field(blade.state)
 			if clock == null and blade.state.obstacles != null:
 				clock = BladeSwingClock.new(MeleeAttackPlan.SWING_DURATION)
+			last_clock = clock
 		var traj := blade.simulate(
 				MeleeAttackPlan.SWING_DURATION, BladeSim.DEFAULT_DT,
 				BladeSim.DEFAULT_ITERATIONS, 0.0, clock)
@@ -208,6 +219,7 @@ func _run_preview_loop(gen: int) -> void:
 
 func _teardown() -> void:
 	_gen += 1
+	last_clock = null
 	if _ghost != null:
 		_ghost.stop()
 		_ghost.queue_free()

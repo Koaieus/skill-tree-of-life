@@ -910,6 +910,23 @@ shape, already running `Mitigation.compute` against the bunker's `armor` /
 `min_damage_taken` before this issue existed. `BladeObstacleField` adds the
 deflection and the break on top; it never suppresses or replaces that hit.
 
+### Where you tune it: the melee sandbox tab
+
+Threshold tuning is deliberately hand-driven, per the owner (*"Opt 1. The
+tuning will in part need a test and in part an extension to the melee sandbox
+tab"*), and the two halves are `test/unit/attack/test_bunker_deflect.gd` (which
+pins the CLASSIFICATION — floppy yields, braced breaks — never the constant)
+and three controls on `addons/melee_sandbox/melee_sandbox_panel.tscn`:
+
+| Control | What it does |
+|---|---|
+| **Bunker paint** | While on, a left-click adds/strips a real `BunkerAddon` on the clicked node instead of selecting it. Paint the plates, then swing at them. |
+| **Rigidity** | `Floppy` / `Braced` — strips or welds a `ClampAddon` onto every node the wielder owns, so one control moves the whole board between the ends of the range without hand-clicking a dozen nodes. |
+| **strain readout** | Worst per-zone strain on the *ghost's* live field against `SHATTER_DISTANCE`, plus `GRIP STALLED` when a driven contact has frozen the swing clock. It reads the live `BladeObstacleField` off `MeleePreview.current_blade().state.obstacles` and the clock off `MeleePreview.last_clock` — never a mirror, so "no plate in reach" reports the structural zero above rather than printing `0.0` as though it had measured something. |
+
+**Do not tune against AI-built blades** (#771): they sit at the floppy end and
+will never trigger the break, so they report nothing about it.
+
 ### No pop budget — `node_health` IS the budget
 
 Unlike `SpikeRingAddon`'s `spikes` pool (#778), a break costs the bunker

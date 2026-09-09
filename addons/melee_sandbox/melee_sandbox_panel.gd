@@ -40,6 +40,10 @@ const _WORLD_SCENE: PackedScene = preload("res://scenes/dev/melee_sandbox_graph.
 const _SANDBOX_WORLD: Script = preload("res://scenes/dev/sandbox_world.gd")
 const _MELEE_BODY_SCENE: PackedScene = preload("res://ui/hud/command_tray/bodies/melee_body.tscn")
 const _DEFAULT_STYLE: BladeStyle = preload("res://attack/melee/default_blade_style.tres")
+## #781's tuning surface: the two addons that put a swing at either end of the
+## rigidity range, painted onto the authored board at runtime.
+const _BUNKER_SCENE: PackedScene = preload("res://skill_node/addons/bunker_addon.tscn")
+const _CLAMP_SCENE: PackedScene = preload("res://skill_node/addons/clamp_addon.tscn")
 
 ## Room left around the authored layout when it is fitted to the panel.
 const _FIT_MARGIN: float = 40.0
@@ -72,6 +76,9 @@ const _KNOBS: Array[Array] = [
 @onready var _reset_button: Button = %ResetBtn
 @onready var _status: Label = %StatusLabel
 @onready var _knob_box: VBoxContainer = %StyleKnobs
+@onready var _rigidity: OptionButton = %RigiditySelect
+@onready var _bunker_paint: CheckBox = %BunkerPaintToggle
+@onready var _strain_label: Label = %StrainLabel
 
 var _wielder: Entity
 var _quarry: Entity
@@ -113,6 +120,32 @@ func _ready() -> void:
 	_world.size_changed.connect(_layout_world)
 	visibility_changed.connect(_on_visibility_changed)
 	_on_visibility_changed()
+
+
+## The strain readout is the only thing here that polls: the ghost's field is
+## rebuilt inside `MeleePreview`'s own loop, sample by sample, and there is no
+## signal on "the accumulator moved" — nor should there be, at one per substep.
+## Cheap (two array reads) and off whenever the tab is not live.
+func _process(_delta: float) -> void:
+	_refresh_strain()
+
+
+## Worst per-zone strain on the GHOST's field, against the constant it is
+## measured for, plus the grip stall. Reads the live objects (#781) — never a
+## mirror of them — so "no plate in reach" is reported as the structural zero it
+## is: `build_obstacle_field` allocated nothing.
+func _refresh_strain() -> void:
+	var blade: SkillBlade = _preview.current_blade() if _preview != null else null
+	var field: BladeObstacleField = blade.state.obstacles if blade != null and blade.state != null else null
+	if field == null:
+		_strain_label.text = "strain — · no plate in reach"
+		return
+	var stalled: bool = _preview.last_clock != null and _preview.last_clock.is_stalled()
+	_strain_label.text = "strain %.1f / %.0f px%s" % [
+		field.max_strain(),
+		BladeObstacleField.SHATTER_DISTANCE,
+		" · GRIP STALLED" if stalled else "",
+	]
 
 
 ## Sandbox-host contract. A [BladeStyle] selected in the Inspector becomes the
@@ -254,7 +287,13 @@ func _on_world_gui_input(event: InputEvent) -> void:
 		return
 	var hit := _pick_node_at(graph.to_local(mb.position))
 	if mb.button_index == MOUSE_BUTTON_LEFT:
-		if hit != null:
+		if hit != null and _bunker_paint.button_pressed:
+			# Paint mode swallows the selection channel whole. Deliberate: a
+			# click that both plated a node and picked it into the blade would
+			# be two edits nobody asked for at once.
+			_toggle_bunker(hit)
+			_world_container.accept_event()
+		elif hit != null:
 			_input_ctl.route_left_click(hit)
 			_world_container.accept_event()
 	elif mb.button_index == MOUSE_BUTTON_RIGHT:
@@ -292,6 +331,7 @@ func _wire_controls() -> void:
 	_blade_size.value_changed.connect(_on_blade_size_changed)
 	_delit_spin.value_changed.connect(_on_delit_changed)
 	_preview_toggle.toggled.connect(_on_preview_toggled)
+	_rigidity.item_selected.connect(_on_rigidity_selected)
 	_rearm_toggle.toggled.connect(func(_on: bool) -> void: _refresh_status())
 	Events.skill_node_damaged.connect(_on_node_damaged)
 
@@ -320,6 +360,48 @@ func _on_preview_toggled(on: bool) -> void:
 ## [member SkillBlade.pop_result] — the model always wins.
 func _on_delit_changed(_value: float) -> void:
 	_apply_forced_delit(_preview.current_blade())
+
+
+## Add or strip a [BunkerAddon] on one node. Plain `add_child` / `queue_free`:
+## [SkillNode] keeps its addon ledger off `child_entered_tree` / `child_exiting`,
+## so attaching one at runtime is the same act the scene file performs.
+func _toggle_bunker(node: SkillNode) -> void:
+	for a in node.get_addons():
+		if a is BunkerAddon:
+			a.queue_free()
+			_refresh_status()
+			return
+	if not node.can_attach_addon(BunkerAddon):
+		return
+	node.add_child(_BUNKER_SCENE.instantiate())
+	_refresh_status()
+
+
+## Put the WIELDER's whole territory at one end of the rigidity range (#781):
+## Braced welds a [ClampAddon] onto every node that can take one, Floppy strips
+## them. Territory-wide rather than per-selected-node because the blade is
+## rebuilt from the graph on every pick, and the point of the control is to
+## flip the whole board's answer between "flops around the plate" and "drives
+## into it until an edge breaks" without hand-clicking a dozen nodes.
+func _on_rigidity_selected(index: int) -> void:
+	var braced := index == 1
+	for n in graph.get_skill_nodes():
+		if n.owned_by != _wielder:
+			continue
+		var clamp: SkillNodeAddon = null
+		for a in n.get_addons():
+			if a is ClampAddon:
+				clamp = a
+				break
+		if braced and clamp == null and n.can_attach_addon(ClampAddon):
+			n.add_child(_CLAMP_SCENE.instantiate())
+		elif not braced and clamp != null:
+			clamp.queue_free()
+	# The armed plan caches nothing about rigidity, but the ghost is mid-cycle
+	# on the OLD constraint set; reforming rebuilds it from the graph as it now
+	# stands.
+	_input_ctl.reform_blade()
+	_refresh_status()
 
 
 func _on_blade_spawned(blade: SkillBlade) -> void:
@@ -422,6 +504,9 @@ func set_live(live: bool) -> void:
 	_world.process_mode = Node.PROCESS_MODE_INHERIT if live else Node.PROCESS_MODE_DISABLED
 	if _preview != null:
 		_preview.preview_enabled = live and _preview_toggle.button_pressed
+	# The strain readout is this panel's only per-frame work; a dormant tab
+	# should cost nothing at all, same rule the preview loop follows.
+	set_process(live)
 
 
 # ── Status / re-arm ──────────────────────────────────────────────────────────

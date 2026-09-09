@@ -144,6 +144,91 @@ func test_forced_de_lit_survives_a_preview_rebuild() -> void:
 			"a rebuilt ghost must not silently drop the forced de-lit")
 
 
+# ── #781's tuning surface ────────────────────────────────────────────────────
+
+func test_bunker_paint_plates_a_node_and_strips_it_again() -> void:
+	var target := _node("E_E")
+	assert_false(target.has_addon(BunkerAddon), "the authored board plates nothing")
+	_panel._bunker_paint.button_pressed = true
+	_panel._toggle_bunker(target)
+	assert_true(target.has_addon(BunkerAddon), "paint must attach a real addon")
+	assert_gt(float(target.get_local_value(&"deflection")), 0.0,
+			"and the addon's grant must reach the node board — a plate with no "
+			+ "deflection is invisible to build_obstacle_field")
+	_panel._toggle_bunker(target)
+	await get_tree().process_frame
+	assert_false(target.has_addon(BunkerAddon), "a second click strips it")
+
+
+func test_bunker_paint_swallows_the_selection_channel() -> void:
+	# Painting and selecting on the same click would be two edits nobody asked
+	# for. The panel's click router must pick one.
+	_panel._bunker_paint.button_pressed = true
+	var plan: MeleeAttackPlan = _panel._battle.attack_plan as MeleeAttackPlan
+	_panel._on_world_gui_input(_left_click_at(_node("E_E")))
+	assert_true(_node("E_E").has_addon(BunkerAddon), "the click painted")
+	assert_null(plan.source, "and did NOT reach the selection channel")
+
+
+func test_the_rigidity_control_moves_the_whole_wielder_territory() -> void:
+	_panel._on_rigidity_selected(1)
+	var braced := 0
+	for n in _panel.graph.get_skill_nodes():
+		if n.owned_by == _wielder() and n.has_addon(ClampAddon):
+			braced += 1
+	assert_gt(braced, 1, "Braced must weld the wielder's own nodes, not one of them")
+	for n in _panel.graph.get_skill_nodes():
+		assert_false(n.owned_by != _wielder() and n.has_addon(ClampAddon),
+				"and must never reach across the board into the quarry")
+	_panel._on_rigidity_selected(0)
+	await get_tree().process_frame
+	for n in _panel.graph.get_skill_nodes():
+		assert_false(n.has_addon(ClampAddon), "Floppy strips every one of them back")
+
+
+func test_the_strain_readout_reports_the_structural_zero() -> void:
+	# Acceptance 8 in miniature, at the readout: with no plate in reach the
+	# field is never ALLOCATED, and the label must say so rather than print 0.0
+	# as though it had measured something.
+	_panel._input_ctl.route_left_click(_node("Hilt"))
+	_panel._input_ctl.route_left_click(_node("Guard"))
+	_panel._refresh_strain()
+	assert_string_contains(_panel._strain_label.text, "no plate in reach")
+
+
+func test_a_painted_plate_shows_up_in_the_strain_readout() -> void:
+	# The whole point of the tuning surface: paint a plate, and the accumulator
+	# the threshold is stated against becomes visible in px.
+	_panel._toggle_bunker(_node("E_E"))
+	_panel._blade_size.value = 8
+	for n in ["Hilt", "Guard", "B1", "B2", "B3"]:
+		_panel._input_ctl.route_left_click(_node(n))
+	# One preview cycle has to have run: the ghost's field is attached inside
+	# MeleePreview's own loop, after its simulate().
+	await get_tree().create_timer(0.4).timeout
+	_panel._refresh_strain()
+	assert_string_contains(_panel._strain_label.text, "px",
+			"a plate in reach must read out in world units, not '—'")
+	assert_false(_panel._strain_label.text.contains("no plate in reach"))
+	await get_tree().create_timer(0.6).timeout
+
+
+func test_a_dormant_tab_stops_polling_the_strain_readout() -> void:
+	_panel.set_live(false)
+	assert_false(_panel.is_processing(), "a hidden tab must not poll per frame")
+	_panel.set_live(true)
+	assert_true(_panel.is_processing())
+
+
+## A left-click carrier aimed at one node, in the panel's own coordinates.
+func _left_click_at(node: SkillNode) -> InputEventMouseButton:
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_LEFT
+	ev.pressed = true
+	ev.position = _panel.graph.to_global(node.position)
+	return ev
+
+
 ## Grow a launchable blade off the hilt and hand back the live plan.
 func _build_blade() -> MeleeAttackPlan:
 	_panel._blade_size.value = 8

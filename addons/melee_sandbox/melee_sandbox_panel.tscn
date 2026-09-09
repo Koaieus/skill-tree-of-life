@@ -97,6 +97,31 @@ layout_mode = 2
 tooltip_text = "Show the outermost N ghost vertices as popped (HDR → SDR). A real swing overrides this from the pop resolver."
 max_value = 20.0
 
+[node name="RigidityRow" type="HBoxContainer" parent="VBox/Bar/Controls" unique_id=1204471833]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="RigidityLabel" type="Label" parent="VBox/Bar/Controls/RigidityRow" unique_id=1204471834]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Rigidity"
+
+[node name="RigiditySelect" type="OptionButton" parent="VBox/Bar/Controls/RigidityRow" unique_id=1204471835]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Both ends of #781's rigidity range, on the wielder's own nodes: Floppy strips every ClampAddon, Braced welds one onto every node that can take it. A floppy blade yields around a plate; a braced one drives into it until an edge breaks."
+item_count = 2
+popup/item_0/text = "Floppy"
+popup/item_0/id = 0
+popup/item_1/text = "Braced"
+popup/item_1/id = 1
+
+[node name="BunkerPaintToggle" type="CheckBox" parent="VBox/Bar/Controls" unique_id=1204471836]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "While on, a left-click ADDS or REMOVES a BunkerAddon on the clicked node instead of selecting it — paint the plates you want the blade driven into."
+text = "Bunker paint"
+
 [node name="PreviewToggle" type="CheckBox" parent="VBox/Bar/Controls" unique_id=1330415290]
 unique_name_in_owner = true
 layout_mode = 2
@@ -129,6 +154,14 @@ modulate = Color(0.725, 0.765, 0.863, 0.7)
 layout_mode = 2
 theme_override_font_sizes/font_size = 10
 text = "blade 0/2 · AP 2 · preview on"
+
+[node name="StrainLabel" type="Label" parent="VBox/Bar/Controls" unique_id=1204471837]
+unique_name_in_owner = true
+modulate = Color(0.725, 0.765, 0.863, 0.7)
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+tooltip_text = "The ghost's live BladeObstacleField: worst per-zone accumulated unresolved drive, against SHATTER_DISTANCE, plus whether a grip contact has stalled the swing clock. \"no plate in reach\" is the structural zero — no field is allocated at all."
+text = "strain —"
 
 [node name="TrayHost" type="MarginContainer" parent="VBox/Bar" unique_id=989767586]
 unique_name_in_owner = true
