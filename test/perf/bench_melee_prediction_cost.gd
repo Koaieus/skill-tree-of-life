@@ -527,3 +527,66 @@ func test_defender_carrier_count_on_first_level() -> void:
 	gut.p("  %-56s %7d" % ["BladeDefenderZones._MAX_ZONES cap", 512])
 	assert_gt(nodes.size(), 0, "the carrier count run must have seen a map")
 
+
+## [b]#821 acceptance 1: the worst single-frame stall while clicking nodes.[/b]
+##
+## Before: one click ran a whole [method MeleeAttackPlan.refresh_prediction] —
+## the `worst` column of the ramp above, several frames long. After: a click
+## costs ONE slice, and the pump costs one slice per frame after that, so the
+## number that matters is the worst single
+## [method MeleeAttackPlan.advance_prediction] call.
+##
+## The first slice of a run is always the dear one — it pays the whole fixed
+## setup ([method MeleeAttackPlan.build_blade_state], the defender query, the
+## excludes, the shadow mint) on top of its own samples. That is exactly the
+## frame a click lands on, so it is measured rather than averaged away.
+func test_sliced_prediction_worst_slice_cost() -> void:
+	await _ensure_fixture()
+	if _frontline == null:
+		return
+
+	# The shipped per-frame budget, read off the preview rather than restated.
+	var probe_preview := MeleePreview.new()
+	var slice: int = probe_preview.prediction_slice_steps
+	probe_preview.free()
+
+	gut.p("")
+	gut.p("#821 — worst SINGLE-FRAME stall, %d-sample slices" % slice)
+	gut.p("blade | whole resolve (worst) | first slice (worst) | later slice (worst) | frames @144Hz")
+	gut.p("------+------------------------+---------------------+---------------------+--------------")
+
+	var overall_worst := 0.0
+	for size in _BLADE_SIZES:
+		var probe := _plan_of_size(size)
+		if probe.blade_nodes.size() < size:
+			continue
+		var whole_worst := 0.0
+		var first_worst := 0.0
+		var later_worst := 0.0
+		for _s in _SAMPLES:
+			var one_shot := _plan_of_size(size)
+			var t := Time.get_ticks_usec()
+			one_shot.refresh_prediction()
+			whole_worst = maxf(whole_worst, float(Time.get_ticks_usec() - t))
+
+			var sliced := _plan_of_size(size)
+			t = Time.get_ticks_usec()
+			var done := sliced.advance_prediction(slice)
+			first_worst = maxf(first_worst, float(Time.get_ticks_usec() - t))
+			var guard := 0
+			while not done and guard < 500:
+				guard += 1
+				t = Time.get_ticks_usec()
+				done = sliced.advance_prediction(slice)
+				later_worst = maxf(later_worst, float(Time.get_ticks_usec() - t))
+			assert_eq(sliced.prediction_runs, 1,
+					"however many slices, one logical prediction (#821 acceptance 4)")
+		var worst := maxf(first_worst, later_worst)
+		overall_worst = maxf(overall_worst, worst)
+		gut.p("%5d | %19.0f us | %16.0f us | %16.0f us | %13.2f"
+			% [size, whole_worst, first_worst, later_worst, worst / _FRAME_BUDGET_USEC])
+
+	gut.p("")
+	assert_lt(overall_worst, _FRAME_BUDGET_USEC,
+		"#821 acceptance 1: no single frame may exceed one frame budget "
+		+ "(%.0f us @144Hz)" % _FRAME_BUDGET_USEC)

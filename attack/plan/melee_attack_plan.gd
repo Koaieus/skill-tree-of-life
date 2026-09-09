@@ -92,9 +92,14 @@ func _init() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_PREDELETE and _blade_mirror != null:
+	if what != NOTIFICATION_PREDELETE:
+		return
+	if _blade_mirror != null:
 		_blade_mirror.free()
 		_blade_mirror = null
+	# #821: a sliced prediction holds a CombatWorld shadow open across frames.
+	# Dying mid-slice must not leak it.
+	_cancel_pending_prediction()
 
 
 # ── Wire ───────────────────────────────────────────────────────────────────
@@ -1043,11 +1048,6 @@ func _cancel_pending_prediction() -> void:
 	if _pending_world != null:
 		_pending_world.free_shadow()
 		_pending_world = null
-
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_PREDELETE:
-		_cancel_pending_prediction()
 
 
 ## Drop the prediction and tell the surfaces. Every site in this plan that used
