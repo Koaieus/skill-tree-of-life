@@ -18,6 +18,26 @@ extends GutTest
 ## `test_ai_scoring_spike_pop.gd`: this geometry is angular, and that file's
 ## nodes sit at radii close enough to the sweep circle to pop the arm at t~=0
 ## from the side, in BOTH directions, which silently makes the test vacuous.
+##
+## [b]On `best.swing_cw` (#822, investigated 2026-09-10): deliberately NOT
+## asserted.[/b] Every owned node is a candidate PIVOT
+## ([AiBladeRollout]'s own class doc, `ai_blade_rollout.gd:13`), and the owner
+## ruled the attacker's own core is a legitimate blade member too — [i]"sure it
+## can, its an owned node, AND MORE. possibly later we'd even add bonuses on
+## copy to blade node"[/i] (Koaieus, 2026-09-10, on #822). This fixture only
+## ever allocates the attacker two nodes, so "Arm" is ALSO a viable pivot —
+## sweeping "Pivot" (the attacker's own core, per [member Entity.core_location]
+## below) as its one member — and that swing genuinely lands `PlainBehind` for
+## real damage before it ever meets the spike, legitimately outscoring the
+## canonical `pivot=Pivot, members=[Arm], cw=true` swing below.
+## `gather_melee_candidates`' overall winner therefore has `swing_cw == false`
+## correctly: the rollout found a better attack, not a fabricated one — a
+## drone verified this by re-resolving both candidates
+## `gather_melee_candidates` returns through a fresh, independent
+## `MeleeAttackPlan.resolve()` and got the identical `ev` back both times.
+## What #822 is actually about — a POPPED contact fabricating EV — is asserted
+## directly below, candidate-to-candidate on `pivot=Pivot`'s own two
+## directions, instead of through the overall winner.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
@@ -138,24 +158,53 @@ func test_the_winning_candidate_reports_its_direction() -> void:
 	var best := AiCombatScorer.pick_best(candidates)
 	assert_gt(best.ev, 0.0,
 			"the best swing banks real damage — CCW-only, every candidate scores 0")
-	# NOT asserted, and deliberately so (#779 -> #771). The rollout fabricates
-	# the CCW candidate's EV: that swing meets the spike first, pops, and banks
-	# NOTHING -- `_ev(false)` above resolves it at a true 0.0 -- yet the rollout
-	# scores it as if it had landed. Measured in this fixture:
-	#
-	#   master:  candidate CW 3.0  | candidate CCW 3.0     | true CW 3.0, CCW 0.0
-	#   #779:    candidate CW 3.0  | candidate CCW 3.2287  | true CW 3.0, CCW 0.0
-	#
-	# So this assertion passed on master only because the two fabricated
-	# numbers tied EXACTLY at 3.0 and `pick_best` broke the tie by ordering --
-	# never because the rollout preferred the correct direction. #779's speed
-	# multiplier gives the two directions genuinely different vertex speeds,
-	# which moved CCW off the tie and flipped the coin.
-	#
-	# Re-pinning this to CCW would enshrine a choice the fixture itself proves
-	# is worthless, and widening the fixture's margin would just tune a
-	# fabricated number until it happens to lose -- the same thing with extra
-	# steps. The cause is the rollout's estimate diverging from the real
-	# resolve on a POPPED contact, which is #771's subject, not #779's.
-	# Restore this assertion when #771 makes the popped swing score 0.
-	pending("#771: the rollout scores the popped CCW swing 3.2287 when its " 			+ "true EV is 0.0; it tied at 3.0 on master and only passed on tie-break order")
+	# `best.swing_cw` is NOT asserted here — see the class doc's "On
+	# `best.swing_cw`" note for why the overall winner is the wrong thing to
+	# pin, and the two tests below for the claim #822 actually cares about.
+
+
+## #822: the popped candidate must score exactly what it banks — nothing —
+## compared candidate-to-candidate against its own CW twin, not through
+## `gather_melee_candidates`' overall winner (which a different, legitimate
+## pivot wins outright — see the class doc).
+func test_the_canonical_popped_swing_scores_zero_and_loses_to_its_cw_twin() -> void:
+	var visible: Array[SkillNode] = [_spiked_ahead, _plain_behind]
+	var popped := AiBladeRollout._resolve_and_score(
+			_attacker, _pivot, [_arm], false, visible, 0)
+	assert_null(popped,
+			"pivot=Pivot/members=[Arm]/CCW meets the spike first and banks nothing " +
+			"— _primary_target must find no landed hit to score")
+
+	var cw := AiBladeRollout._resolve_and_score(
+			_attacker, _pivot, [_arm], true, visible, 0)
+	assert_not_null(cw, "pivot=Pivot/members=[Arm]/CW lands PlainBehind before the spike")
+	assert_gt(cw.ev, 0.0, "and its ev is the real damage it banked")
+	assert_almost_eq(cw.ev, _ev(true), 0.001,
+			"the candidate's ev must equal a fresh, independent resolve of the same plan")
+	# The comparison the old best.swing_cw assertion stood in for: on THIS
+	# pivot/members pair, CW's positive ev beats CCW's null/0.0 on merit —
+	# never on tie-break order, and never by widening a margin.
+
+
+## The direct regression #822 asks for: a candidate's ev can never silently
+## drift from a fresh plan.resolve() of the identical (pivot, members, cw) —
+## for a POPPED candidate specifically, since a popped contact is where the
+## rollout's accounting was suspected to fabricate damage. Both candidates
+## this fixture's rollout actually returns pop SpikedAhead (after already
+## landing PlainBehind), so both exercise the popped path.
+func test_rollout_ev_matches_a_fresh_resolve_for_a_popped_candidate() -> void:
+	var visible: Array[SkillNode] = [_spiked_ahead, _plain_behind]
+	var candidates := AiBladeRollout.gather_melee_candidates(_attacker, visible, 0)
+	assert_gt(candidates.size(), 0, "the rollout must find a melee candidate")
+	for c in candidates:
+		assert_gt(c.outcome.popped_nodes, 0,
+				"this fixture's candidates are expected to pop SpikedAhead")
+		var direct_plan := MeleeAttackPlan.new()
+		direct_plan.attacker = _attacker
+		direct_plan.source = c.source_node
+		direct_plan.blade_nodes = c.blade_nodes
+		direct_plan.swing_cw = c.swing_cw
+		var direct_ev := AiCombatScorer.expected_damage(direct_plan.resolve(), _attacker)
+		assert_almost_eq(c.ev, direct_ev, 0.001,
+				"pivot=%s cw=%s: rollout ev must match a fresh independent resolve" % [
+						c.source_node.name, c.swing_cw])
