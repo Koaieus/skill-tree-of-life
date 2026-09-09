@@ -300,7 +300,15 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 ## CritRoll.apply] is a no-op on a number that already includes the crit.
 ## [member HitInstance.is_crit] and `crit_tier` still ride along, because the
 ## VFX layer reads them for emphasis.
-static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
+## [param rate] is THIS MACHINE'S presentation rate for the actor whose attack
+## this is — the multiplier [method OutcomeSchedule.compile] folds into every
+## arrival time. Negative (the default) means "read the ambient
+## [member GameSettings.combat_time_scale]", which is what every caller outside
+## [method BattleSystem.apply_launch_command] wants. It is a parameter rather
+## than an ambient read because the rate is a per-actor, per-machine decision
+## (#819) and a record is pure data with no opinion about seats — see
+## [method OutcomeSchedule.actor_rate], the one place that composes it.
+static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOutcome:
 	var outcome := AttackOutcome.new()
 	if d.is_empty():
 		return outcome
@@ -430,7 +438,7 @@ static func rebuild(d: Dictionary, graph: Graph) -> AttackOutcome:
 	# crossed plus this machine's own rate (#543 D4) — never decoded, because
 	# they were never encoded. One compile, so the applier's wait and the VFX
 	# layer read the same schedule object rather than two agreeing copies.
-	outcome.schedule = OutcomeSchedule.compile(outcome, _tempo_of(d))
+	outcome.schedule = OutcomeSchedule.compile(outcome, _tempo_of(d), rate)
 	return outcome
 
 

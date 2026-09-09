@@ -256,6 +256,12 @@ func _ready() -> void:
 	# inert — see [method CommandApplier._pre_roll].
 	if command_applier != null:
 		command_applier.seat_policy = seat_policy
+	# And BattleSystem, which asks it once more when it mints a replay's
+	# seconds — [method OutcomeSchedule.actor_rate], the melee rate door
+	# (#819/#820). Same reason as the two above: pushed from the one place that
+	# owns the policy rather than re-derived downstream.
+	if battle_system != null:
+		battle_system.seat_policy = seat_policy
 	# #564: NOT seat_policy — is_remote_collector answers for a PEER (a
 	# roster question), which is exactly what the per-machine SeatPolicy
 	# cannot do. GameSession.roster is null outside an active run (a

@@ -146,6 +146,41 @@ func entry_for(hit: HitInstance) -> ScheduleEntry:
 ## live [code]Settings[/code] autoload (a `--script` run, a bare unit test).
 ## Static and defensive on purpose: the compiler must stay callable from a
 ## pure context.
+## The ONE place that composes the `rate` argument every melee schedule on this
+## machine compiles with — the door #819 (per-actor pacing) and #820 (the melee
+## sandbox's playback slider) both drive, so neither becomes a second path that
+## scales the tween alone.
+##
+## [b]Convention: this number MULTIPLIES duration.[/b] 0.5 is twice as fast,
+## 2.0 is half speed. [method SkillBlade.play]'s `playback_rate` runs the other
+## way and is DERIVED from the resulting schedule by
+## [method blade_playback_rate] — never composed here, never passed alongside.
+##
+## [param seat_policy] and [param actor] answer "is this the machine's own
+## actor", the same question [method CommandApplier._pre_roll] and
+## [method CameraDirector._build_attack_request] ask. A null policy or a null
+## actor is treated as UNSEATED, exactly as those two treat it.
+##
+## [param scale] is a debug/sandbox multiplier ([member
+## BattleSystem.presentation_rate_scale]) — 1.0 everywhere in a real run.
+##
+## [b]TODO (#819):[/b] the seat factor is 1.0 today, so this is ambient behaviour
+## unchanged. #819 is the issue that makes a non-seated actor's swing play faster.
+static func actor_rate(seat_policy: SeatPolicy, actor: Entity,
+		scale: float = 1.0) -> float:
+	var seat_factor := _seat_rate_factor(seat_policy, actor)
+	return maxf(0.01, ambient_rate() * seat_factor * maxf(0.01, scale))
+
+
+## How much faster (or slower) [param actor]'s presentation runs on THIS machine
+## because of who is sitting at it. 1.0 = the seated player's own pacing, which
+## is also today's behaviour for everyone. See [method actor_rate].
+static func _seat_rate_factor(seat_policy: SeatPolicy, actor: Entity) -> float:
+	if seat_policy == null or actor == null:
+		return 1.0
+	return 1.0
+
+
 static func ambient_rate() -> float:
 	var loop := Engine.get_main_loop()
 	var tree := loop as SceneTree

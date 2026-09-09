@@ -70,6 +70,21 @@ var selected_spell: SpellDef = null:
 ## fixture and the editor do. Wired by [CommandApplier] itself at `_ready`
 ## rather than by a second NodePath export, so "the applier that will call me
 ## back" and "the applier I submit to" cannot be two different objects.
+## Who THIS machine plays, pushed in by [GameRoot] alongside the copies
+## [CameraDirector] and [CommandApplier] already get. Read only through
+## [method OutcomeSchedule.actor_rate], so the seat question has one asker here
+## rather than a second copy of the rule. Null outside a wired level, which
+## [method OutcomeSchedule.actor_rate] treats as unseated.
+var seat_policy: SeatPolicy = null
+
+## A debug multiplier on every presentation rate this system compiles, for the
+## melee sandbox's playback slider (#820). [b]Sandbox-only[/b]: it never writes
+## [member GameSettings.combat_time_scale] and never persists. Deliberately a
+## plain instance var and not an `@export` — a tuning knob has no business in
+## every level's inspector, and an instance var cannot leak across test files
+## the way a process-global would (#815).
+var presentation_rate_scale: float = 1.0
+
 var command_applier: CommandApplier = null
 
 ## Design B (#504): the clock the CURRENT attack's mutation loop is walking, or
@@ -523,7 +538,11 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 		if plan is MeleeAttackPlan and melee_preview != null:
 			plan.resolve()
 	# Everyone, authority included, from here down.
-	var outcome := AttackRecord.rebuild(command.record, graph)
+	# Seconds are minted here, on THIS machine, at THIS machine's rate for this
+	# actor — the one melee rate door (#819/#820). Passed rather than left
+	# ambient because [AttackRecord] is pure data with no opinion about seats.
+	var outcome := AttackRecord.rebuild(command.record, graph,
+			OutcomeSchedule.actor_rate(seat_policy, plan.attacker, presentation_rate_scale))
 	@warning_ignore("redundant_await")
 	await _commit(plan, outcome)
 	return true
