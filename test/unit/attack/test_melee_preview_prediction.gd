@@ -212,9 +212,13 @@ func test_the_mounted_ghost_replays_the_predicted_pops() -> void:
 
 	var blade := _preview.current_blade()
 	assert_not_null(blade, "a valid selection mounts a ghost")
-	assert_same(blade.pop_result, plan.prediction().pops,
+	# `prediction_partial` rather than `prediction` since #821: a click buys one
+	# SLICE, so the completed cache is still empty here. Both accessors return
+	# the same bundle — the run publishes `pops` and `obstacles` before its first
+	# step precisely so a half-resolved swing still draws.
+	assert_same(blade.pop_result, plan.prediction_partial().pops,
 			"the ghost replays the prediction's own pop result, not a copy")
-	assert_same(blade.state.obstacles, plan.prediction().obstacles,
+	assert_same(blade.state.obstacles, plan.prediction_partial().obstacles,
 			"and the predicted swing's own obstacle field, for the strain readout")
 
 
@@ -395,3 +399,182 @@ func test_changing_the_selection_earns_a_fresh_resolve() -> void:
 	plan.refresh_prediction()
 	assert_eq(plan.prediction_runs, armed + 2,
 			"the swing direction is an input to the resolve")
+
+
+# ── #821: the aim-time resolve is time-sliced across frames ─────────────────
+
+## Total trajectory samples in one swing — what a slice run has to reach.
+func _swing_steps() -> int:
+	return int(ceil(MeleeAttackPlan.SWING_DURATION / BladeSim.DEFAULT_DT))
+
+
+## Drive a plan's prediction to completion `budget` samples at a time, and
+## report how many slices it took.
+func _slice_to_completion(plan: MeleeAttackPlan, budget: int) -> int:
+	var slices := 0
+	while not plan.advance_prediction(budget):
+		slices += 1
+		assert_lt(slices, _swing_steps() * 4, "the slice loop must terminate")
+		if slices > _swing_steps() * 4:
+			break
+	return slices
+
+
+## [b]Acceptance 2 — parity is the whole acceptance.[/b] A resolve chopped into
+## slices must land on the SAME trajectory, the same pops and the same predicted
+## defenders as the single-shot one.
+##
+## The fixture carries a Fortification, so the swing runs with a real defender
+## field and a real drag clock under it. That is the case where a botched stitch
+## is SILENT rather than visible: `clock.history`, `obstacles.history` and
+## `state.speed_history` are chunk-local by design, and a fresh clock mid-swing
+## un-banks the wall's drag and stops it sheltering what is behind it
+## (`test_blade_chunked_parity.gd:200-203`). The bit-identity of an arbitrary
+## boundary is pinned upstream by
+## `test_a_dragged_swing_is_bit_identical_across_a_chunk_boundary`; this is that
+## guarantee carried through a whole melee resolve.
+func test_a_sliced_prediction_is_identical_to_a_single_shot_one() -> void:
+	await _setup(Vector2.from_angle(_TURNS * TAU) * _SPACING)
+	_blocker.add_child(_FORT_SCENE.instantiate() as SkillNodeAddon)
+	await _arm()
+
+	var whole_plan := _twin_plan()
+	whole_plan.refresh_prediction()
+	var whole := whole_plan.prediction()
+	assert_not_null(whole, "fixture: the single-shot resolve must produce a swing")
+	assert_not_null(whole.obstacles,
+			"fixture: a Fortification in reach must give the swing a defender field")
+	assert_not_null(whole.clock, "fixture: and its drag clock")
+
+	var sliced_plan := _twin_plan()
+	var slices := _slice_to_completion(sliced_plan, 3)
+	assert_gt(slices, 3, "fixture: three samples at a time must take many slices")
+	var sliced := sliced_plan.prediction()
+	assert_not_null(sliced, "the slice run completes")
+
+	assert_eq(sliced.trajectory.samples.size(), whole.trajectory.samples.size(),
+			"a sliced swing is the same length as an unsliced one")
+	var first_mismatch := -1
+	for i in mini(sliced.trajectory.samples.size(), whole.trajectory.samples.size()):
+		if sliced.trajectory.samples[i] != whole.trajectory.samples[i]:
+			first_mismatch = i
+			break
+	assert_eq(first_mismatch, -1,
+			"every sample is bit-identical — a mismatch at %d means the chunk-local "
+			% first_mismatch + "histories were not stitched across a slice boundary")
+
+	assert_eq(sliced.pops.pops.size(), whole.pops.pops.size(),
+			"the same vertices pop")
+	for i in mini(sliced.pops.pops.size(), whole.pops.pops.size()):
+		assert_eq(sliced.pops.pops[i].particle_idx, whole.pops.pops[i].particle_idx,
+				"pop %d hits the same vertex" % i)
+		assert_eq(sliced.pops.pops[i].t, whole.pops.pops[i].t,
+				"pop %d lands at the same time" % i)
+		assert_same(sliced.pops.pops[i].defender, whole.pops.pops[i].defender,
+				"pop %d names the same defender" % i)
+	assert_eq(sliced.pops.severed_at, whole.pops.severed_at,
+			"the same edges shatter, at the same times")
+	assert_eq(sliced.events.size(), whole.events.size(), "the same contacts land")
+	assert_eq(sliced.clock.drag, whole.clock.drag,
+			"and the wall banked the same drag — the trap this test exists for")
+	assert_eq(sliced.outcome.popped_nodes, whole.outcome.popped_nodes,
+			"the AI's shape-risk signal is the same number either way")
+
+
+## [b]Acceptance 4.[/b] `prediction_runs` counts one logical prediction per
+## SELECTION, not one per slice — the same number #782 pinned at 1 across a
+## preview loop, unmoved by the resolve now arriving in pieces.
+func test_prediction_runs_counts_one_per_selection_not_one_per_slice() -> void:
+	await _setup(Vector2.from_angle(_TURNS * TAU) * _SPACING)
+	await _arm()
+
+	var plan := _twin_plan()
+	var slices := _slice_to_completion(plan, 2)
+	assert_gt(slices, 10, "fixture: two samples at a time must take many slices")
+	assert_eq(plan.prediction_runs, 1, "many slices, one logical prediction")
+
+	# And a finished one still costs nothing to ask for again.
+	for _i in 20:
+		plan.advance_prediction(2)
+	assert_eq(plan.prediction_runs, 1, "a warm cache resolves nothing")
+
+
+## [b]Acceptance-2 decision: a partial trajectory IS a valid picture.[/b] The
+## first N steps are readable immediately, off the same bundle the finished run
+## publishes, and later ranges EXTEND that bundle rather than replacing it —
+## which is what lets the mounted ghost hold a handle on it.
+func test_a_partial_run_is_readable_and_extends_in_place() -> void:
+	await _setup(Vector2.from_angle(_TURNS * TAU) * _SPACING)
+	await _arm()
+
+	var plan := _twin_plan()
+	assert_false(plan.advance_prediction(4), "four samples is not a whole swing")
+	assert_true(plan.is_predicting(), "the run is still in flight")
+	assert_null(plan.prediction(),
+			"the strict accessor stays empty until the run finishes")
+
+	var partial := plan.prediction_partial()
+	assert_not_null(partial, "the partial is readable straight away")
+	assert_eq(partial.trajectory.samples.size(), 5,
+			"the rest pose plus the four samples resolved so far")
+	assert_lt(partial.trajectory.samples.size(), _swing_steps(),
+			"fixture: a whole swing is longer than one slice")
+
+	plan.advance_prediction(4)
+	assert_same(plan.prediction_partial(), partial,
+			"a later range extends the SAME bundle — the ghost holds a handle on it")
+	assert_eq(partial.trajectory.samples.size(), 9, "and the arc grew in place")
+
+	_slice_to_completion(plan, 4)
+	assert_same(plan.prediction(), partial,
+			"and the finished prediction is that same bundle, complete")
+
+
+## [b]Acceptance 3.[/b] A click landing mid-slice supersedes the run in flight:
+## the stale one is dropped rather than allowed to finish, so it can never
+## overwrite the fresher prediction. Every input to the resolve routes through
+## `_invalidate_prediction`, which is where the cancellation lives.
+func test_a_click_mid_slice_yields_the_new_selection_never_the_old() -> void:
+	await _setup(Vector2.from_angle(_TURNS * TAU) * _SPACING)
+	var plan := await _arm()
+
+	plan._invalidate_prediction()
+	assert_false(plan.advance_prediction(4), "fixture: the run must still be in flight")
+	var stale := plan.prediction_partial()
+	assert_eq(stale.trajectory.samples[0].size(), 3,
+			"fixture: the superseded run describes a three-vertex blade")
+
+	# Drop the tip through the real click path — the same invalidation every
+	# state change shares.
+	plan._on_node_left_clicked(_tip)
+	assert_not_same(plan.prediction_partial(), stale,
+			"the superseded run is dropped, never resumed")
+
+	plan.refresh_prediction()
+	var fresh := plan.prediction()
+	assert_not_same(fresh, stale, "the completed prediction is not the stale run's")
+	assert_eq(fresh.trajectory.samples[0].size(), 2,
+			"it describes the NEW selection — two vertices, the tip is gone")
+
+
+## [b]Acceptance 1, from the behaviour side.[/b] The click itself buys ONE
+## slice, not a whole resolve — that is the stall the issue is about — and the
+## preview's own per-frame pump finishes it a handful of frames later.
+func test_the_mounted_preview_slices_the_resolve_across_frames() -> void:
+	await _setup(Vector2.from_angle(_TURNS * TAU) * _SPACING)
+	var plan := await _arm()
+
+	assert_true(plan.is_predicting(),
+			"arming buys one slice, not the whole resolve (#821)")
+	assert_null(plan.prediction(), "so the completed cache is still empty")
+	assert_lt(plan.prediction_partial().trajectory.samples.size(), _swing_steps(),
+			"the arc drawn on the click frame is a partial one")
+
+	for _i in 30:
+		await get_tree().process_frame
+		if plan.prediction() != null:
+			break
+	assert_not_null(plan.prediction(),
+			"the preview's per-frame pump finishes it without another click")
+	assert_eq(plan.prediction().trajectory.samples.size(), _swing_steps() + 1,
+			"and what it finishes on is the whole swing")
