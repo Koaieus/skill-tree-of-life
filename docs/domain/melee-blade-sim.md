@@ -844,6 +844,49 @@ one per ghost cycle (a clock banks what it has already touched, so reusing one
 would start cycle 2 already dragged). Without that the ghost would promise an arc
 the committed swing does not deliver.
 
+### A defender the space hasn't seen yet (#814)
+
+`intersect_shape` answers against the physics server's broadphase, and a
+collider's *new state* — a just-added `Area2D`, or an existing one that moved or
+flipped a collision-layer bit — only reaches that broadphase on the next physics
+tick, not the instant the script call returns. Measured directly while building
+this guard: toggling `swing_drag` on a `SkillNode` already resting in the space
+was picked up immediately (layer bits are read per-candidate at query time, not
+part of broadphase indexing), but **repositioning** that same node into range in
+the same frame was not — `intersect_shape` still returned the pre-move miss.
+`.claude/rules/melee-fixtures.md`'s "two extra teeth" is this same gap from the
+fixture side (`test_blade_whip_reach.gd`'s addon-then-`physics_frame` dance
+exists because of it); this is the production side, which had no guard at all
+before #814.
+
+**The fix is a debug-only cross-check, not a production-side correction.**
+`BladeDefenderZones.query()` — the only call site, gated `OS.is_debug_build()` —
+re-walks `graph.get_skill_nodes()` for anything carrying `swing_drag > 0` or
+`deflection` within the query's own `whip_bound` disc, diffs it against what
+`intersect_shape` actually returned, and `push_warning`s the node's name for
+anything the physics query silently dropped. The gate matters: that walk is
+exactly the O(map) cost ADR 0014 deleted from the release path (36 us vs. 1744 +
+1701 us), so it must never run outside a debug build.
+
+**Deliberately warn-only — no forced sync, no graph-walk fallback in
+production.** Two ways to go further were considered and rejected:
+
+- **Force the node into the space** (e.g. `await get_tree().physics_frame`
+  before querying) would make `_resolve_swing` yield. `.claude/rules/
+  attack-timeline.md` requires the resolve complete synchronously before the
+  mutation loop replays the `AttackRecord` — turning that into a structural
+  change far larger than this issue, to close a window the turn-based cadence
+  (addons attach at allocation/procgen time, frames before any swing) makes
+  narrow in practice.
+- **Fall back to a graph walk when the query looks incomplete** would
+  re-introduce, in production, the second contact model ADR 0014 spent #811
+  deleting — one week old at the time of #814, and undoing its whole point to
+  guard a window this narrow.
+
+So production stays exactly as ADR 0014 left it: one physics query, silent
+in release, loud in debug. If this ever needs revisiting, it is a new decision,
+not a reopening of ADR 0014 — that ADR is unedited by #814.
+
 ## Bunker deflection (#781)
 
 A node with `deflection > 0` — base 0, only `BunkerAddon` authors it — is a

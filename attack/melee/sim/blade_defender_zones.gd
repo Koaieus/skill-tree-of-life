@@ -161,7 +161,47 @@ static func query(
 				float(sn.get_local_value(&"swing_drag")),
 				bool(sn.get_local_value(&"deflection")),
 				sn)
+	# Debug-only cross-check (#814): the physics query above silently returns
+	# nothing for a defender the space hasn't seen yet — an Area2D isn't in
+	# the broadphase until a physics frame has run past it, and a
+	# same-frame `FortificationAddon` attach + resolve (or any test that
+	# skips `await get_tree().physics_frame`) hits exactly that window. Guard
+	# is behind `is_debug_build()` so the release path keeps #811's 36 us: the
+	# walk this drives is the very O(map) cost that query replaced, so it
+	# must never run outside a debug build. See `.claude/rules/melee-fixtures.md`.
+	if OS.is_debug_build() and graph != null:
+		_debug_cross_check(zones, graph, center, radius, exclude)
 	return zones
+
+
+## The graph-walk half of the #814 guard: everything the query SHOULD have
+## found, found the old way (#780/#781's pre-#811 walks), compared against
+## what it actually found. Never called outside [method query]'s
+## `is_debug_build()` gate — see that call site for why.
+static func _debug_cross_check(
+		zones: BladeDefenderZones,
+		graph: Graph,
+		center: Vector2,
+		radius: float,
+		exclude: Array[RID]) -> void:
+	for sn in graph.get_skill_nodes():
+		if sn == null or exclude.has(sn.get_rid()):
+			continue
+		var drag := float(sn.get_local_value(&"swing_drag"))
+		var deflect := bool(sn.get_local_value(&"deflection"))
+		if drag <= 0.0 and not deflect:
+			continue
+		if sn.global_position.distance_to(center) > radius + sn.radius:
+			continue
+		if zones.defenders.has(sn):
+			continue
+		push_warning(
+				("BladeDefenderZones: %s carries %s within whip_bound %.1f but " +
+				"the physics query missed it — an Area2D not yet in the physics " +
+				"space? (#814)") % [
+						sn.name,
+						"swing_drag" if drag > 0.0 else "deflection",
+						radius])
 
 
 ## The cap handed to [method PhysicsDirectSpaceState2D.intersect_shape], which
