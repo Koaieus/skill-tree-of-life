@@ -86,38 +86,22 @@ continuation cases catch: damping multiplies `v` BEFORE the speed is read (so
 ## The defender half crosses as DATA, never as a callback (#813)
 
 `BladeObstacleField.project()` runs once per constraint-projection iteration, so
-a callback into GDScript there would have eaten most of what the backend buys
-(k=100, solver only: native 27 ms braced / 16 ms whip vs GDScript 597 / 251).
-The clock and the field are transliterated instead, and their state crosses as
-plain values — `native_inputs()` (immutable: zones, live edges, driven
-particles, `prepare()`'s incidence as a CSR, and the four tuning constants,
-**passed rather than restated in C++**), `native_state()` in,
-`clock_state` / `field_state` / `clock_history` / `field_history` back.
+a GDScript callback there would eat most of what the backend buys. The clock and
+the field are transliterated instead and their state crosses as plain values —
+`native_state()` / `bank_from_native()` / `apply_native_state()` are `capture()`
+/ `restore()` in Dictionary clothing, so change those and the C++ `FieldCtx`
+together. Four traps the plain solver does not have (worked through, with the
+decline list and the bench numbers, in `docs/domain/melee-blade-sim.md`):
 
-**How to apply:** `native_state()` / `bank_from_native()` / `apply_native_state()`
-are `capture()` / `restore()` in Dictionary clothing — change those, and the C++
-`FieldCtx`, together. Four traps the plain solver never hits:
-
-- **`_strain` is float32 storage with double arithmetic** — read widens, add and
-  `maxf` in double, the **store narrows**, and `< SHATTER_DISTANCE` compares the
-  narrowed value. A double accumulator "for accuracy" is a different solver.
-  `_edge_residual`'s values are the opposite: plain GDScript floats, i.e. doubles.
-- **`_contact_particles` / `_contact_edges` / `_contact_normals` iterate in
-  INSERTION order, and that is a summation order** — several particles bank onto
-  one edge per substep, and a particle touched by zone 3 then zone 7 keeps zone
-  7's *value* at zone 3's *position*. A key-sorted map is not equivalent; they
-  are godot `Dictionary`s in the C++ for that reason (Variant cost is per
-  contact, not per iteration).
-- **Two sqrt precisions in one function** — `delta.length()` is the engine's
-  float32 `Vector2::length()`, `var d := sqrt(d2)` is GDScript's double sqrt.
-  Call the godot-cpp `Vector2` methods, never hand-expand either.
-- **The pushout mutates `positions` mid-loop** — zone z+1 sees zone z's
-  correction. Batching the pushes is a different solver.
-
-Declines (falling back, never approximating): a binary predating #813 — a
-SECOND capability flag, `BladeSim._native_field`, because a #803 binary must
-keep its plain-swing native path — a `BladeObstacleField` subclass,
-`field.trace` on, and a `radii` array not parallel to `positions`.
+- **`_strain` is float32 storage with double arithmetic** — the store narrows,
+  and `< SHATTER_DISTANCE` compares the narrowed value, so a double accumulator
+  "for accuracy" is a different solver. `_edge_residual`'s values are doubles.
+- **The contact dictionaries iterate in INSERTION order, and that is a
+  summation order** — a key-sorted map is not equivalent.
+- **Two sqrt precisions in one function** — `Vector2::length()` is float32,
+  `sqrt(d2)` is double; call the godot-cpp methods, never hand-expand.
+- **The pushout mutates `positions` mid-loop** — batching the pushes is a
+  different solver.
 
 ## A stale binary is no binary
 
@@ -146,25 +130,14 @@ every trajectory sample ends up equal to the last one. No error.
 **How to apply:** push an explicit fresh copy (`resize` + `memcpy`), never the
 live buffer.
 
-## `build_profile` is a SCons Variable, not an Import
+## Two build-config traps, both silent
 
-Passing it in `SConscript("godot-cpp/SConstruct", {...})` is **silently
-ignored** — godot-cpp's SConstruct only `Import()`s `api_version`,
-`binding_hooks` and `customs` — and you get all ~1000 engine classes generated
-and compiled (2072 files, ~10 min) instead of 28 (~1 min).
-
-**How to apply:** `ARGUMENTS.setdefault("build_profile", "build_profile.json")`
-before the `SConscript` call. The profile must list the classes **godot-cpp's
-own `src/`** includes (`Engine`, `OS`, `SceneTree`, `EditorPlugin`) as well as
-yours; base classes come along automatically, siblings do not. Omitting one
-fails as a missing `godot_cpp/classes/*.hpp`, which reads like nothing to do
-with the blade.
-
-## mise's `pipx:` backend needs `pipx` listed too
-
-`"pipx:scons"` alone makes **every** mise task abort with "pipx is required but
-was not found", not just the build. List `pipx = "latest"` in `[tools]` beside
-it.
+`build_profile` is a SCons **Variable**, not one of the three names godot-cpp's
+SConstruct `Import()`s — pass it in the exports dict and it is ignored, and you
+compile ~1000 engine classes (10 min) instead of 28 (1 min). And mise's `pipx:`
+backend needs `pipx` listed in `[tools]` beside `pipx:scons`, or **every** mise
+task aborts. Both worked through in
+`docs/domain/melee-blade-sim.md` → "Building it".
 
 ## A built `.so` is not a loaded extension — refresh after the first build
 
@@ -184,19 +157,14 @@ gotcha is invisible without it, which is why the parity test's no-binary arm is
 every parity case passes vacuously the moment `_simulate_native` declines a
 fixture, comparing GDScript to GDScript. Verify with a one-liner:
 `mise run test:one -- res://test/unit/attack/test_blade_native_parity.gd` must
-report **26 passed, 0 pending**, not 26 pending.
+report **28 passed, 0 pending**, not 28 pending.
 
-## `git worktree remove` now fails on any worktree that inited the submodule
+## `git worktree remove` fails on any worktree that inited the submodule
 
-Since `native/godot-cpp` exists, a worktree where someone ran
-`git submodule update --init` cannot be torn down the normal way — git refuses
-with *"working trees containing submodules cannot be moved or removed"*, and
-`--force` does not help. This bites teardown, not setup, so it surfaces at the
-end of a unit when the branch is already merged.
-
-**How to apply:** confirm the branch is merged first (`git -C <repo> log
---oneline master..<branch>` prints nothing, or you have a diffstat receipt that
-its content landed rebased), then delete the worktree directory and let git
-notice: `rm -rf <worktree-dir> && git -C <repo> worktree prune && git -C <repo>
-branch -d <branch>`. Verify the branch is merged **before** the delete — a
-worktree directory is unrecoverable, and unstaged work inside it doubly so.
+Since `native/godot-cpp` exists, git refuses with *"working trees containing
+submodules cannot be moved or removed"*, and `--force` does not help. It bites
+TEARDOWN, so it surfaces with the branch already merged. **Verify the branch is
+merged first** — a worktree directory is unrecoverable, and unstaged work inside
+it doubly so — then `rm -rf <worktree-dir> && git -C <repo> worktree prune &&
+git -C <repo> branch -d <branch>`. Longer version, including what counts as a
+merge receipt, in `docs/domain/melee-blade-sim.md` → "Building it".

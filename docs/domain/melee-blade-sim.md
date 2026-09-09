@@ -401,6 +401,66 @@ transliterated subset -- a constraint that is not exactly a
 an arc driver carrying a custom ease -- takes the GDScript path rather than
 being quietly mis-simulated. The checks are `get_script() ==`, not `is`,
 precisely so a subclass that overrides `project()`/`apply()` is not swallowed.
+#813 added four more entries to that list; the whole of it is under
+"The GDScript-backend consequence — retired by #813" below.
+
+##### The defender half crosses as DATA, never as a callback (#813)
+
+`simulate_range_field` is the second C++ entry point: the same stepping loop
+with a `BladeSwingClock` and/or a `BladeObstacleField` riding along. There is
+still **one** loop — `run_range` takes a `FieldCtx *` that is null for a
+fieldless swing — because a second integrator would be two definitions of the
+thing the bit-exactness contract is about.
+
+The issue offered an alternative: a generic per-iteration constraint callback
+across the boundary. Rejected on cost. `BladeObstacleField.project()` runs once
+per constraint-projection *iteration* — the innermost loop, millions of
+crossings a swing — so a callback there eats most of what the backend buys. So
+the state crosses instead: `native_inputs()` for the immutable half (zones,
+live edges, driven particles, `prepare()`'s incidence flattened to a CSR, and
+`CONTACT_SLOP` / `CONTACT_HYSTERESIS` / `SHATTER_DISTANCE` / `EDGE_RADIUS`
+**passed rather than restated in C++**, for the same one-definition reason
+`length_factor` is precomputed), `native_state()` in, and `clock_state` /
+`field_state` / `clock_history` / `field_history` back. `native_state()` /
+`bank_from_native()` / `apply_native_state()` on both classes are `capture()` /
+`restore()` in Dictionary clothing — change those, and the C++ `FieldCtx`,
+together.
+
+One shape decision worth keeping: the zone set crosses as
+`BladeDefenderZones`' four plain parallel arrays under their own keys, not as a
+solver-private blob. `BladeHitScan` consumes the same disc / rim-trimmed-capsule
+geometry and is the last piece that cannot leave the main thread, so nothing
+here forecloses building it on the same input.
+
+Four transliteration traps this half has and the plain solver does not:
+
+- **`_strain` is float32 storage with double arithmetic.** The read widens, the
+  add and the `maxf` happen in double, the **store narrows**, and
+  `< SHATTER_DISTANCE` then compares the narrowed value. Keeping a double
+  accumulator "for accuracy" is a different solver. `_edge_residual`'s values
+  are the opposite — plain GDScript floats, i.e. doubles.
+- **`_contact_particles` / `_contact_edges` / `_contact_normals` iterate in
+  INSERTION order, and that order is a summation order.** Several particles can
+  bank onto one edge in a substep, and a particle pushed by zone 3 and then
+  zone 7 keeps zone 7's *value* at zone 3's *insertion position*. A key-sorted
+  map is not equivalent; the C++ uses godot `Dictionary`s for exactly this, and
+  the Variant cost is per *contact*, not per iteration.
+  `test_a_multi_zone_cluster_matches_bit_for_bit` is what pins it — every
+  single-zone case agrees no matter how the walk is ordered.
+- **Two sqrt precisions inside one function.** `delta.length()` is the engine's
+  float32 `Vector2::length()`; `var d := sqrt(d2)` is GDScript's double `sqrt`
+  of a float32-valued double. Call the godot-cpp `Vector2` methods
+  (`length`, `distance_squared_to`, `dot`), never hand-expand either.
+- **The pushout mutates `positions` in place mid-loop.** Zone z+1 sees zone z's
+  correction, and a zone's capsule pass sees its own disc pushouts. Batching the
+  pushes and applying them at the end is a different solver.
+
+Measured, `bench_blade_sim.gd`'s `#813` row (k=100, one wall + one plate placed
+on the blade's own trajectory, solver only): braced mesh 1134.6 ms GDScript vs
+**49.5 ms** native; whip 723.0 ms vs **30.8 ms**. Both rows print the banked
+`drag` and the peak `strain`, because a zone placed at the rest span is one a
+whipped k=100 blade never reaches — that row times the broad-phase reject and
+still shows a plausible speedup.
 
 **`BladeHitScan` is deliberately NOT ported**, and this therefore does not
 address #785. It calls `intersect_shape()` against the physics server, which is
@@ -413,6 +473,42 @@ exports, and a platform after that -- `-- template_release windows` -- to
 cross-compile, on the llvm-mingw toolchain `mise.toml` pins). godot-cpp is a submodule at
 `native/godot-cpp`, so a fresh clone needs a recursive submodule init first.
 Binaries are **not** committed -- `native/bin/` is gitignored.
+
+##### `build_profile` is a SCons Variable, not an Import
+
+Passing it in `SConscript("godot-cpp/SConstruct", {...})` is **silently
+ignored** — godot-cpp's SConstruct only `Import()`s `api_version`,
+`binding_hooks` and `customs` — and you get all ~1000 engine classes generated
+and compiled (2072 files, ~10 min) instead of 28 (~1 min).
+
+**How to apply:** `ARGUMENTS.setdefault("build_profile", "build_profile.json")`
+before the `SConscript` call. The profile must list the classes **godot-cpp's
+own `src/`** includes (`Engine`, `OS`, `SceneTree`, `EditorPlugin`) as well as
+yours; base classes come along automatically, siblings do not. Omitting one
+fails as a missing `godot_cpp/classes/*.hpp`, which reads like nothing to do
+with the blade.
+
+##### `git worktree remove` now fails on any worktree that inited the submodule
+
+Since `native/godot-cpp` exists, a worktree where someone ran
+`git submodule update --init` cannot be torn down the normal way — git refuses
+with *"working trees containing submodules cannot be moved or removed"*, and
+`--force` does not help. This bites teardown, not setup, so it surfaces at the
+end of a unit when the branch is already merged.
+
+**How to apply:** confirm the branch is merged first (`git -C <repo> log
+--oneline master..<branch>` prints nothing, or you have a diffstat receipt that
+its content landed rebased), then delete the worktree directory and let git
+notice: `rm -rf <worktree-dir> && git -C <repo> worktree prune && git -C <repo>
+branch -d <branch>`. Verify the branch is merged **before** the delete — a
+worktree directory is unrecoverable, and unstaged work inside it doubly so.
+
+##### mise's `pipx:` backend needs `pipx` listed too
+
+`"pipx:scons"` alone makes **every** mise task abort with "pipx is required but
+was not found", not just the build. List `pipx = "latest"` in `[tools]` beside
+it.
+
 
 A missing binary is a supported state at *runtime*, but not at *export*: the
 exporter hard-fails on a `.gdextension` key whose file is absent, so
@@ -702,11 +798,14 @@ driver keeps reading `t / duration` verbatim, so a swing with a fortified node i
 its field that it never touches is **bit-identical** to one with no field at all.
 That exactness is deliberate: accumulating `f` from t=0 would drift in the last
 bits and quietly make the mere presence of a wall change a swing that never met
-it. A warping clock is the **one** thing that still forces the GDScript backend:
-it accumulates `_f` in float after first contact by design, so the C++
-transliteration does not model it. Per-particle damping and a continued Verlet
-history (`step_offset > 0`) used to be on that list too; #803 taught the native
-loop both, so a severed swing runs native end to end.
+it. A warping clock used to be the **one** thing that still forced the GDScript
+backend, because it accumulates `_f` in float after first contact by design.
+#813 transliterated exactly that: `clock_tick` advances the accumulator per
+substep inside the C++ loop, and the six fields `BladeSwingClock.Bank` carries
+cross the boundary and come back advanced. Per-particle damping and a continued
+Verlet history (`step_offset > 0`) were on that list before it; #803 taught the
+native loop both. A severed, dragged, defended swing now runs native end to
+end — see "Two backends, one meaning" for what is left on the decline list.
 
 ### Where it sits under ADR 0005
 
@@ -826,10 +925,20 @@ list `BladeHitScan` gets. The old `_is_blade_side` predicate was a second
 implementation of that membership and is deleted; a blade bogging down on its own
 wall would have been the symptom of the two drifting apart.
 
-**The native backend stays off for any swing that has a field.**
-`BladeSim.simulate_range` gates native on `clock == null and obstacles == null`,
-and one merged field means more swings qualify than before. Accepted under #811;
-giving the native backend a constraint hook is #813.
+**The native backend stays off for any swing that has a field — until #813.**
+`BladeSim.simulate_range` gated native on `clock == null and obstacles == null`,
+and one merged field meant most swings on a shipped map hit that gate. Accepted
+under #811 as a deliberate trade, and closed by #813, which transliterated the
+field's pushout and its strain metering rather than exposing a per-iteration
+constraint callback: the callback would fire in the solver's innermost loop and
+cost more than the backend saves. Measured k=100, solver only, one wall and one
+plate on the blade's own trajectory: 1134.6 ms GDScript vs 49.5 ms native on a
+braced mesh, 723.0 ms vs 30.8 ms on a whip (`bench_blade_sim.gd`'s `#813` row).
+
+**ADR 0014's Consequences predicted this would stand** — *"the native backend is
+off for any swing that HAS a field"* — and #813 resolved it. The ADR is not
+edited (`.claude/rules/adr.md`: superseded, never rewritten), so a reader
+following that trail should arrive here for the correction.
 
 ### Determinism and the mirror
 
@@ -1071,14 +1180,32 @@ doc *hints*, rather than builds, a dedicated `plate_integrity` pool as the
 coherent next step if HP ever proves too coarse a meter — a comment, not a
 stat, not a def, not plumbing.
 
-### The GDScript-backend consequence
+### The GDScript-backend consequence — retired by #813
 
-`BladeSim.simulate_range` takes the native backend only when
-`clock == null and obstacles == null and step_offset == 0 and damping.is_empty()`
-— an attached field forces the GDScript solver, joining the drag clock,
-per-particle damping and a continued Verlet history on the list of things the
-C++ transliteration does not model (until #798/#803 close the gap). An
-ordinary swing with no bunker in reach is untouched and still takes native.
+This section used to say the native backend ran only when
+`clock == null and obstacles == null and step_offset == 0 and damping.is_empty()`.
+**All four conjuncts are gone:** #803 taught the C++ loop a continued Verlet
+history and per-particle damping, and #813 taught it the swing clock and the
+defender field. A swing with a bunker in reach now takes the native path like
+any other.
+
+What is left is a decline list, not a gate — every entry falls back to GDScript
+rather than approximating, and each is a thing the transliteration deliberately
+does not cover:
+
+- a constraint or driver outside the subset (exact `get_script()`, so a
+  subclass overriding `project()` or `apply()` can never be silently ignored) —
+  including a `BladeArcDriver` with a custom ease, whose per-step Callable is
+  the very cost the backend removes;
+- a `BladeObstacleField` **subclass**, for the same reason;
+- `field.trace` on: the diagnostic rows the classification test and the melee
+  sandbox read are not transliterated;
+- a `radii` array that does not parallel `positions` (the capsule pass indexes
+  it unguarded on both sides);
+- a binary that predates #813, via `BladeSim._native_field`. That is a *second*
+  capability flag rather than a stricter `_acquire_native` on purpose: a `.so`
+  built between #803 and #813 must keep its plain-swing native path, not lose
+  it.
 
 ### The ghost jams, and does not break — superseded by #782
 

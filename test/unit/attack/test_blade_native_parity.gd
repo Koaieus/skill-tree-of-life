@@ -603,8 +603,17 @@ func _assert_defended_identical(label: String, clamped: bool, k: int, turns: flo
 	if not BladeSim.native_available():
 		pending("%s: no native binary in this checkout — parity unverified." % label)
 		return
-	var gd := _defended_run(false, clamped, k, turns, drag, deflect, with_clock, reach)
-	var nat := _defended_run(true, clamped, k, turns, drag, deflect, with_clock, reach)
+	_assert_worlds_identical(label,
+			_defended_run(false, clamped, k, turns, drag, deflect, with_clock, reach),
+			_defended_run(true, clamped, k, turns, drag, deflect, with_clock, reach),
+			with_clock)
+
+
+## Two stepped worlds — trajectory, state, clock, field, banks and the armed
+## break — compared at zero tolerance. Split out of the case above so the
+## multi-zone case below pins exactly the same surface rather than a subset.
+func _assert_worlds_identical(label: String, gd: Dictionary, nat: Dictionary,
+		with_clock: bool = true) -> void:
 	var gd_traj: BladeTrajectory = gd.traj
 	var nat_traj: BladeTrajectory = nat.traj
 	assert_eq(nat_traj.samples.size(), gd_traj.samples.size(), "%s: sample count" % label)
@@ -793,3 +802,131 @@ func test_the_native_defender_path_actually_ran() -> void:
 	assert_gt(peak_strain, 0.0, "the strain the C++ metered crossed back")
 	assert_true(field._break_edge >= 0, "the armed break crossed back")
 	assert_gt(field.history.size(), 1, "the field banked once per sample")
+
+
+# ── Multi-zone: where the ORDERING subtleties live ────────────────────────────
+# Every case above authors ONE zone, and with one zone the two orderings the
+# port's rule file warns about cannot arise at all. Both need a cluster:
+#
+#   - two particles banking onto the SAME edge in one substep, so the order the
+#     contact dictionary is walked in IS the summation order of a shared float;
+#   - a particle pushed by zone A and then by zone B, which keeps B's VALUE at
+#     A's INSERTION POSITION — the exact behaviour a key-sorted map would get
+#     wrong, and the reason `_contact_particles` is a godot Dictionary in the
+#     C++ rather than a std::map.
+#
+# `test_blade_swing_drag.gd` (7 drag zones) and `test_bunker_deflect.gd` are
+# multi-zone but assert qualitative thresholds, so they are not a substitute for
+# a bank-for-bank comparison.
+
+
+## The pose the blade really passes through at `frac` of the swing, on a FREE
+## swing with no field — so the cluster below can be built on it and is
+## guaranteed to be met, rather than placed on the rest span a whipped blade
+## never reaches (`.claude/rules/melee-fixtures.md`).
+func _probe_pose(clamped: bool, k: int, frac: float) -> PackedVector2Array:
+	BladeSim.use_native = false
+	var s: BladeState = _clamped_arm(k) if clamped else _arm(k)
+	var traj := BladeSim.simulate(s, _arm_drivers(s), _DEF_DURATION, BladeSim.DEFAULT_DT,
+			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS, true)
+	return traj.samples[int(float(traj.samples.size() - 1) * frac)]
+
+
+## Five zones straddling particles 2 and 3 at `pose`: two walls and three
+## OVERLAPPING plates. The overlap is the point — one plate wide enough to hold
+## both particles gives the shared-edge sum, and plates that overlap each other
+## give a particle two zones in one iteration. The walls are in so the drag
+## latch and the pushout share one walk over a zone list that is not all plates.
+func _cluster_field(pose: PackedVector2Array) -> BladeObstacleField:
+	var f := BladeObstacleField.new()
+	var a := pose[2]
+	var b := pose[3]
+	f.add_defender_zone(a.lerp(b, -0.4), 30.0, 0.75, false)
+	f.add_defender_zone(a, 30.0, 0.0, true)
+	f.add_defender_zone(a.lerp(b, 0.5), 34.0, 0.0, true)
+	f.add_defender_zone(b, 30.0, 0.0, true)
+	f.add_defender_zone(b.lerp(a, -0.4), 30.0, 0.5, false)
+	return f
+
+
+func _cluster_run(native: bool, pose: PackedVector2Array) -> Dictionary:
+	BladeSim.use_native = native
+	var s := _clamped_arm(4)
+	var field := _cluster_field(pose)
+	s.obstacles = field
+	var clock := BladeSwingClock.new(_DEF_DURATION)
+	var traj := BladeSim.simulate(s, _arm_drivers(s), _DEF_DURATION, BladeSim.DEFAULT_DT,
+			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS, true, clock)
+	return {traj = traj, state = s, field = field, clock = clock}
+
+
+## `project()`'s own contact band. Deliberately the HYSTERESIS bound and not the
+## bare pushout bound: the pushout ends every iteration with the vertex sitting
+## AT `zr + pr - CONTACT_SLOP`, so a sample pose is never strictly inside it and
+## a stricter test here would report "no contact" on a blade visibly jammed.
+func _in_contact_band(p: Vector2, pr: float, c: Vector2, zr: float) -> bool:
+	return p.distance_to(c) < zr + pr - BladeObstacleField.CONTACT_SLOP \
+			+ BladeObstacleField.CONTACT_HYSTERESIS
+
+
+func test_a_multi_zone_cluster_matches_bit_for_bit() -> void:
+	if not BladeSim.native_available():
+		pending("no native binary in this checkout — parity unverified.")
+		return
+	var pose := _probe_pose(true, 4, 0.2)
+	_assert_worlds_identical("zone cluster",
+			_cluster_run(false, pose), _cluster_run(true, pose))
+
+
+func test_the_cluster_really_produces_both_contact_orderings() -> void:
+	# Guards the guard. The case above would agree perfectly on a cluster the
+	# blade merely flew past, and then it would pin nothing that a single zone
+	# does not already pin. This asserts the two structural preconditions that
+	# make the orderings reachable, read off the trajectory the fixture actually
+	# produced: an edge with BOTH endpoints in one plate's contact band, and a
+	# particle in two plates' bands at once. (Sample granularity, not substep — evidence
+	# the geometry is there, not a proof of the substep it happened on.)
+	var nat := _cluster_run(BladeSim.native_available(), _probe_pose(true, 4, 0.2))
+	var traj: BladeTrajectory = nat.traj
+	var state: BladeState = nat.state
+	var field: BladeObstacleField = nat.field
+	var shared_edge := false
+	var double_covered := false
+	for sample: PackedVector2Array in traj.samples:
+		for i in sample.size():
+			var covering := 0
+			for z in field.zones.size():
+				if not field.zones.deflects_at(z):
+					continue
+				if _in_contact_band(sample[i], state.radii[i], field.zones.centers[z], field.zones.radii[z]):
+					covering += 1
+			if covering >= 2:
+				double_covered = true
+		for z in field.zones.size():
+			if not field.zones.deflects_at(z):
+				continue
+			var c: Vector2 = field.zones.centers[z]
+			var zr: float = field.zones.radii[z]
+			for e in state.edges:
+				if _in_contact_band(sample[e.x], state.radii[e.x], c, zr) \
+						and _in_contact_band(sample[e.y], state.radii[e.y], c, zr):
+					shared_edge = true
+	assert_true(shared_edge,
+			"an edge has both endpoints in one plate's contact band, so two particles bank onto it")
+	assert_true(double_covered,
+			"a particle sits in two plates' bands at once, so its contact zone is overwritten")
+	assert_gt(field.zones.size(), 1, "the cluster really is multi-zone")
+	assert_gt((nat.clock as BladeSwingClock).touched.size(), 0,
+			"a wall banked its drag, so the pushout and the latch shared one walk")
+	# Two plates metering in the SAME swing is what makes the per-zone banks
+	# distinguishable — one plate would agree no matter how the zone loop is
+	# ordered. (Not both walls: the first one's drag warps the clock, so the
+	# swing may legitimately never reach the second.)
+	var metering := 0
+	for b: BladeObstacleField.Bank in field.history:
+		var live := 0
+		for d: Dictionary in b.edge_residual:
+			if not d.is_empty():
+				live += 1
+		metering = maxi(metering, live)
+	assert_gt(metering, 1, "more than one plate banked load in the same swing")

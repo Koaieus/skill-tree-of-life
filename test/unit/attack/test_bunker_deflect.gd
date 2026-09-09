@@ -13,6 +13,22 @@ const _RADIUS := 24.0
 const _BUNKER_RADIUS := 32.0
 
 
+## #813 put the defender path on the C++ backend, and these cases attach a
+## [BladeObstacleField] — so on any machine with a built `.so` they would
+## silently switch backends while the docstring above still claims the
+## reference path. Pinned rather than left to drift: what they assert is the
+## SEMANTICS of the shatter classification, and the cross-backend
+## risk already has an owner — `test_blade_native_parity.gd`, which compares
+## the two bit-for-bit over this exact surface. A native regression in the
+## defender path belongs there, not here as a mystery.
+func before_all() -> void:
+	BladeSim.use_native = false
+
+
+func after_all() -> void:
+	BladeSim.use_native = true
+
+
 func _arm(n: int = 4) -> BladeState:
 	var positions: Array[Vector2] = []
 	var edges: Array[Vector2i] = []
