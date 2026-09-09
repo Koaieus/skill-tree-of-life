@@ -1,6 +1,7 @@
 # Post-LAN melee wave — what remains
 
-Rewritten 2026-09-08 22:45 after #799, #780 and #801 landed. **Spent when #781 and #782
+Rewritten 2026-09-08 22:45 after #799, #780 and #801 landed; amended 2026-09-09 13:15
+after #781 and #803 landed and the release check filed #806. **Spent when #782 and #806
 have landed.** Delete it then.
 
 master = `3df07cb`, pushed. Suite there: `0 failing · 3958 passing · 14 pending ·
@@ -15,23 +16,29 @@ master = `3df07cb`, pushed. Suite there: `0 failing · 3958 passing · 14 pendin
 | #780 | `d86b967` | Fortification drag on the swing's CLOCK. Closed. |
 | #801 | `3df07cb` | Severance is a constraint removal. `BladeFreeFlight` deleted. Closed. |
 | #802 | `cfcb039` | Halo perf (not this wave; landed by a parallel session). |
-| #803 | — | Native continuation. **Now `Ready`** — #801 unblocked it. |
+| #803 | `1058c34` | Native continuation — the re-baked tail on the C++ solver. Closed. |
+| #781 | `8784a22`+ | Bunker break. Closed. |
 
 ## What remains
 
 ```
-#781 (bunker break)  ──►  #782 (melee preview)
-#803 (native continuation, independent, Ready)
+#782 (melee preview, Ready — #781 has landed, so it is unblocked)
+#806 (Windows export broken by #798, Ready/P0 — release blocker)
 ```
 
-**The briefs are posted on the issues themselves**, not here — #781 and #782 each carry a
-lead comment dated 2026-09-08 with the full front-loading, written against landed master.
-Read those, not this file.
+**The briefs are posted on the issues themselves**, not here — #782 carries a lead comment
+dated 2026-09-08 with the full front-loading. Read that, not this file.
 
-- **#781** — Ready. Second severance source into #801's seam. Owner's bunker ruling is
-  `issuecomment-5588314071`.
-- **#782** — Ready, but wants #781 *merged*, not merely in flight: it predicts bunker
-  shatters among other things.
+- **#782** — Ready and now unblocked: #781 landed, and it wanted #781 *merged*, not merely
+  in flight, because it predicts bunker shatters among other things.
+- **#806** — Ready, **P0**. #798's `.gdextension` declares a `windows.release.x86_64`
+  library that has never existed, and Godot's exporter hard-fails on a declared-but-missing
+  library, so `mise run build` cannot produce a Windows artifact. Found by the 2026-09-09
+  release check, one day after #798 landed — no gate covers exporting, so `check`, the
+  suite and `mp:e2e` are all green with the Windows export broken. Needs
+  `sudo pacman -S mingw-w64-gcc` (not installed) before the `.dll` can be cross-compiled.
+  The issue also carries the fix for the missing pre-export guard and the fact that a
+  GDExtension `.so` ships *beside* the binary rather than inside the pck.
 - **#796** — Ready but **re-scope before pulling**. #797 decomposed its premise: an AI turn
   is ~4979 ms wall but **32.8 ms of compute**, 654 of 707 frames parked on the presentation
   clock. Whether an NPC pays full swing playback is a *pacing* decision, not a perf bug,
