@@ -125,7 +125,7 @@ boulders" failure #300 named — and never a node another Dormant Core already
 holds. Short of candidates, a blocker **shrinks its footprint**; the blocker
 count and the tier ladder never shrink.
 
-There is deliberately **no connectivity guard**. Owner call, 2026-09-07:
+There is deliberately **no connectivity guard**. Owner call, 2026-09-09:
 *"dormant cores are called 'blockers' for a reason"* — a footprint may sit on a
 cut vertex and wall off a pocket. The kill-strip is the door.
 

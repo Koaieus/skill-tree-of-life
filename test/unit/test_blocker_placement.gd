@@ -1,7 +1,8 @@
 extends GutTest
 
 ## Acceptance for #477 — removable-blocker placement (#300). Verifies
-## [GraphProcgen.generate] returns a `blockers` array of `{node, size, prune_seed}`
+## [GraphProcgen.generate] returns a `blockers` array of `{node, size, prune_seed,
+## footprint}`
 ## placements, that the per-tier density is `floor(node_count / denom)`, that
 ## placements never land on a starter core or a keystone node, that no node is
 ## picked twice, and that placements are seed-deterministic.
