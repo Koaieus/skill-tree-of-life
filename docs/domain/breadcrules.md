@@ -122,3 +122,50 @@ and **point to the payload** (so a caring agent can dive). Both, in one line.
 Same small-rule discipline as everywhere else: **lead with the rule.** The
 difference is only *length* and *placement* — a breadcrule is a rule compressed
 until only the hook and the crumb remain.
+
+## Measured, 2026-09-10: the claim carries, the crumb is a bonus
+
+A read-only sweep of **527 sessions** across both harnesses (342 Claude Code
+`.jsonl`, 2026-08-12→09-10; 185 opencode sessions from `opencode.db`,
+2026-07-02→09-08) counted, per breadcrule, how often an agent *genuinely opened*
+the doc it points at — matching structured tool-call fields only (`Read` with a
+`file_path`, or a `cat`/`sed -n`/`head` with the path as a direct argument and no
+intervening redirect). **A raw string grep overcounts 5–10×** and must not be
+used: the crumb is re-injected every turn, and agents paste doc paths into
+heredocs (briefs, issue bodies, subagent prompts) constantly.
+
+Doc-reads split the crumbs sharply:
+
+| Followed often | Followed rarely (1–2 sessions, usually its own author) |
+|---|---|
+| `multiplayer-sync-model` (41), `attack-timeline` (23), `godot-workflow` (16), `sandbox-framework` (15) | `ownership-vocabulary`, `presentation-clock`, `degree`, `modal-system` |
+
+The doc-read mechanism fires for **living subsystems an agent is actively
+working in**, and essentially never for the rest.
+
+**But the doc-read is not where the value is.** The strongest result in the
+corpus came from a crumb whose doc *nobody has ever opened*:
+`long-running-commands.md`, 0 genuine reads in 527 sessions. Sessions that
+backgrounded a long command and then immediately polled it (`sleep`, `tail -f`)
+fell from **60/91 (66%) before the crumb existed to 2/17 (12%) after** — and
+both residuals were a trivial `sleep 1`, not the old `sleep 60` loops. The
+one-line claim changed behaviour on its own.
+
+Two consequences for how to write one:
+
+1. **Budget the claim, not the pointer.** The line has to be self-sufficient,
+   because for most crumbs the line is *all* an agent will ever read. A crumb
+   that leans on "the doc explains it" is a crumb that does nothing. This is why
+   `CRUMB_MAX` is generous rather than minimal — the claim is the product.
+2. **A rarely-followed crumb is unproven, not dead.** No crumb older than three
+   weeks showed literal zero engagement, and the counter-evidence hunt found
+   **no case** of an agent committing the anti-pattern a live crumb warns
+   against (`degree`'s `get_neighbours().size()`, `modal-system`'s
+   `get_tree().paused`) — every raw hit was the crumb's own text quoted into a
+   brief. Absence of doc-reads is not evidence a crumb is idle.
+
+Caveats: medium confidence on aggregates, medium-**low** on any single "dead"
+verdict — several crumbs have live windows measured in days at n=1–2. The
+long-running-commands before/after is the high-confidence finding because it is
+a large-n behavioural comparison rather than a doc-open count. Worth re-running
+once `red-green`, `adr` and `long-running-commands` have a real exposure window.

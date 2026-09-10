@@ -22,7 +22,11 @@ import re
 import sys
 
 RULES = ".claude/rules"
-ALWAYS_ON_BUDGET = 4000   # bytes across the always-on RULE tier
+# Raised 4000 -> 5000 on 2026-09-10 (+25%) on measured evidence: a 527-session
+# sweep found the crumb LINE changes behaviour on its own (long-running-commands
+# cut sleep-polling 66% -> 12% with zero reads of its doc), so the tier buys more
+# than the doc-follow theory credited it with. See docs/domain/breadcrules.md.
+ALWAYS_ON_BUDGET = 5000   # bytes across the always-on RULE tier
 CLAUDE_MD_BUDGET = 12000  # CLAUDE.md is always-on too, and is the biggest single payload
 USER_TIER_BUDGET = 3000   # ~/.claude: the memory index + global unscoped rules
 # What a session actually pays before it reads anything. Raised 16000 -> 16500 on
