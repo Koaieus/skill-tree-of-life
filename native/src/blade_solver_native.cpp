@@ -10,12 +10,12 @@ using namespace godot;
 
 /* Transliteration notes — read before "cleaning up" any expression here.
  *
- * The goal is BIT-IDENTICAL agreement with the GDScript path, not merely
- * "close enough". test/unit/attack/test_blade_native_parity.gd pins it at
- * exact equality, and test_melee_swing_characterization.gd would notice drift
- * through the hit set. That is only achievable because every expression below
- * keeps the SAME evaluation order and the SAME real_t/double split as the
- * GDScript it mirrors:
+ * This is a transliteration of the GDScript solver it replaced (#847), and
+ * the recorded goldens in test/unit/attack/test_blade_goldens.gd pin it BIT-
+ * IDENTICAL to what that solver produced; test_melee_swing_characterization.gd
+ * would notice drift through the hit set. Those goldens only hold because
+ * every expression below keeps the SAME evaluation order and the SAME
+ * real_t/double split as the GDScript it was transliterated from:
  *
  *   - Vector2 components are real_t (float32). Vector2 * <GDScript float>
  *     narrows the scalar to real_t first, so `(delta * diff) * k` is two

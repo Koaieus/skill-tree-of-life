@@ -25,9 +25,10 @@ is what lets you run two shas side by side.
 **Copy the whole directory, not the executable.** The build embeds its pck, but
 a GDExtension library cannot be `dlopen`ed out of a pack, so Godot copies each
 one *next to* the binary. Hand someone the bare executable and they get a build
-that runs — silently on `BladeSim`'s GDScript solver, 11-22x slower per swing
-([melee-blade-sim.md](melee-blade-sim.md)), with nothing to tell them, because
-the missing class is swallowed by design. This is also why the export is a
+that boots but cannot simulate a melee swing — since #847 there is no GDScript
+solver to fall back on; `BladeSim` push_errors and returns null
+([melee-blade-sim.md](melee-blade-sim.md)) — because the missing class is
+swallowed at load time by design. This is also why the export is a
 directory at all: a flat `export/<platform>/` gave every build in it the *same*
 `.so`, which is exactly what per-sha naming exists to prevent.
 

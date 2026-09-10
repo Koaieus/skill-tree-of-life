@@ -32,8 +32,8 @@ set -euo pipefail
 #   4. AN EXPORT IS A DIRECTORY, NOT A FILE. Godot copies each GDExtension
 #      library NEXT TO the executable — you cannot dlopen out of a pck, which
 #      is what "failed to copy shared object" is telling you. Handing someone
-#      the bare executable therefore drops them silently onto BladeSim's
-#      GDScript solver (11-22x slower per swing, and nothing says so). One
+#      the bare executable therefore hands them a build that cannot simulate
+#      a melee swing at all (no GDScript fallback since #847). One
 #      directory per build keeps the binary and its libraries together, and
 #      restores what per-sha naming was for: a flat `export/linux/` shared ONE
 #      `.so` across every build in it, and `rm` never touched it.

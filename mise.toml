@@ -12,8 +12,9 @@ godot = "4.7.2-stable"
 # Board tasks (.mise/tasks/gh-project) shell out to gh; auth stays in ~/.config/gh.
 gh = "2"
 # SCons builds the blade solver GDExtension (#798, native/). Only needed to
-# (re)build that binary — the game runs fine without it, on BladeSim's GDScript
-# fallback — but it lives here so `mise install` stays the whole setup.
+# (re)build that binary — `native:fetch` normally supplies it, and since #847
+# the game does not simulate a swing without it — so it lives here so
+# `mise install` stays the whole setup.
 # pipx is listed explicitly because mise's `pipx:` backend shells out to it and
 # errors out of EVERY task (not just native:build) if it is missing.
 pipx = "latest"
@@ -150,8 +151,8 @@ fi
 # load; template_release is only ever loaded by an exported build.
 args=(target="${1:-template_debug}")
 # A second argument cross-compiles. Godot's exporter hard-fails on a declared
-# but missing library (#806), so a Windows export needs the .dll to exist even
-# though the game runs fine on the GDScript fallback without it.
+# but missing library (#806), so a Windows export needs the .dll to exist —
+# and since #847 the game needs it too: there is no GDScript fallback.
 #
 # The toolchain is pinned HERE and not in [tools] because it is ~620MB — an
 # order of magnitude past everything else `mise install` fetches, for a thing
@@ -204,12 +205,15 @@ names=(
   libbladesim.windows.template_release.x86_64.dll
 )
 
-# Non-fatal from here on: no gh, no Release yet, or no network all mean "the
-# game still runs" (the GDScript fallback, #798) — `mise install` must not go
-# red for a machine that simply hasn't published or can't reach a Release.
+# Non-fatal from here on: no gh, no Release yet, or no network must not turn
+# `mise install` red for a machine that simply can't reach a Release — but
+# since #847 the game will NOT simulate a swing without the binary (every
+# swing push_errors, the goldens fail), so each exit says so and names the
+# build task.
 if ! command -v gh >/dev/null 2>&1; then
-  echo "⚠ gh CLI not found — the blade solver falls back to GDScript without" >&2
-  echo "  a binary. Build from source instead: mise run native:build" >&2
+  echo "⚠ gh CLI not found — no blade solver binary fetched, and the game will" >&2
+  echo "  not run a melee swing without one (#847). Build from source instead:" >&2
+  echo "    mise run native:build" >&2
   exit 0
 fi
 
@@ -226,9 +230,9 @@ trap 'rm -rf "$tmp"' EXIT
 tag="$(gh release list --limit 50 --json tagName -q \
   '[.[] | select(.tagName | startswith("native-bin-"))][0].tagName' 2>/dev/null)"
 if [ -z "$tag" ]; then
-  echo "⚠ no native-bin-* GitHub Release found (or GitHub unreachable) — the" >&2
-  echo "  blade solver falls back to GDScript without a binary. Build from" >&2
-  echo "  source instead:" >&2
+  echo "⚠ no native-bin-* GitHub Release found (or GitHub unreachable) — no" >&2
+  echo "  blade solver binary fetched, and the game will not run a melee swing" >&2
+  echo "  without one (#847). Build from source instead:" >&2
   echo "    mise run native:build" >&2
   echo "    mise run native:build -- template_debug windows   (and template_release)" >&2
   exit 0
@@ -237,9 +241,9 @@ fi
 # checksums.txt (sha256sum format, written by native:publish alongside the
 # four binaries) is the acceptance-2 integrity check.
 if ! gh release download "$tag" --dir "$tmp" --pattern 'checksums.txt' --clobber >/dev/null 2>&1; then
-  echo "⚠ Release $tag has no checksums.txt (or GitHub is unreachable) — the" >&2
-  echo "  blade solver falls back to GDScript without a binary. Build from" >&2
-  echo "  source instead: mise run native:build" >&2
+  echo "⚠ Release $tag has no checksums.txt (or GitHub is unreachable) — no" >&2
+  echo "  blade solver binary fetched, and the game will not run a melee swing" >&2
+  echo "  without one (#847). Build from source instead: mise run native:build" >&2
   exit 0
 fi
 

@@ -1497,16 +1497,16 @@ loop, which would have spent the whole of #798's gain in marshalling.
 ### Landing on the severance sample: `prev_samples` (#803)
 
 Rewinding to the severance sample needs the **exact Verlet history** there, and
-`prev_positions` at a sample is not recoverable from `samples`: `_step` rewrites
-it once per **substep**, so it is a mid-sample pose. So both backends emit it:
+`prev_positions` at a sample is not recoverable from `samples`: the solver
+rewrites it once per **substep**, so it is a mid-sample pose. So the solver
+emits it:
 `BladeTrajectory.prev_samples[k]` is `prev_positions` as the state held it after
 step `k`, parallel to `samples` index for index. The resolve loop lands on a
 severance at local sample `j` by **reading** `samples[j]` / `prev_samples[j]`
 off the bake it already has, and the swing clock — sim state too — keeps a
 chunk-local `history` of `Bank`s the same way, so `restore(history[j])` rewinds
 it without re-ticking. A rewind is two array copies; `test_blade_chunked_parity.gd` pins that
-a continuation seeded from `prev_samples` equals the run that never stopped, on
-both backends.
+a continuation seeded from `prev_samples` equals the run that never stopped.
 
 Before #803 the native loop emitted no `prev_samples`, and #801 instead
 snapshotted the chunk's start and **re-ran the head** to land on the sample —
