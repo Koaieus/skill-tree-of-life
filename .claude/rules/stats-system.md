@@ -538,7 +538,7 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `dexterity` | `ranged_damage` | ADD_BASE | 1 | RatioFormula(dexterity, 10) |
 | `intelligence` | `spell_range` | ADD_BASE | 1 | RatioFormula(intelligence, **4**) — euclidean-only reach (%), reduced rate, retune post-LAN (#727) |
 | `intelligence` | `spell_hops` | ADD_BASE | 1 | ThresholdFormula(intelligence, [50, 150, 500, 1000, 5000]) — flat +1..+5 hop-ranged reach, feeds `HopRangeFinder` only, never `PropagationConfig.max_hops`; breakpoints retune post-LAN (#727) |
-| `intelligence` | `spell_damage` | ADD_BASE | 1 | RatioFormula(intelligence, 10) — the magic sibling of blade/ranged (D-32, #274) |
+| `intelligence` | `spell_damage` | ADD_BASE | 1 | KneeSqrtFormula(intelligence, divisor=10, knee=500) — linear below the knee (byte-identical to the old RatioFormula(intelligence, 10)), sqrt-compressed above it (#760) |
 | `strength` | `blade_size` | ADD_BASE | 1 | RatioFormula(strength, **20**) |
 | `strength` | `blade_damage` | ADD_BASE | 1 | RatioFormula(strength, 10) |
 | `constitution` + `node_health_scaling` | `node_health` | ADD_BASE | 1 | `node_health_scaling * constitution` (D-26 precedent, #298) — the rate is the **stat**, not the coefficient (see below) |
@@ -560,6 +560,7 @@ Same field, one level down: `NodeStatBoard.intrinsic_modifiers` (`skill_node/def
 | `RatioFormula(source, divisor)` | `floor(source / divisor)` | "per 20 STR" (generated) |
 | `LinearFormula(source)` | `source` | "per PER" (generated) |
 | `ThresholdFormula(source, breakpoints)` | count of ascending breakpoints reached | "per ×10 INT" for a geometric ladder, else "at 50 / 150 / 500 INT" — names the ladder, never wrapped in "per" (#773) |
+| `KneeSqrtFormula(source, divisor, knee)` | `floor(min(source, sqrt(knee * source)) / divisor)` — linear below `knee`, sqrt above (#760) | "10 INT" below the knee (generated, matches RatioFormula); own `describe_clause()` above it — "scaling with INT, with diminishing returns past 500 INT", never wrapped in "per" |
 | `ExpressionFormula(text, inputs)` | anything | authored `per_phrase`, or nothing |
 
 **No transcendental in a formula string — `log` / `exp` / `pow` / `sin` / `cos` / `tan`;

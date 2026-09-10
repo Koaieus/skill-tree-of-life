@@ -57,6 +57,7 @@
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="script_linear"]
 [ext_resource type="Script" uid="uid://dknxw63lhq13c" path="res://stats_system/formulas/ratio_formula.gd" id="script_ratio"]
 [ext_resource type="Script" uid="uid://tni13fhowqha" path="res://stats_system/formulas/threshold_formula.gd" id="script_threshold"]
+[ext_resource type="Script" path="res://stats_system/formulas/knee_sqrt_formula.gd" id="script_knee_sqrt"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -300,7 +301,7 @@ stat_id = &"ranged_damage"
 formula = SubResource("formula_dex_to_ranged_damage")
 
 [sub_resource type="Resource" id="formula_int_to_spell_damage"]
-script = ExtResource("script_ratio")
+script = ExtResource("script_knee_sqrt")
 source_stat_id = &"intelligence"
 
 [sub_resource type="Resource" id="mod_int_to_spell_damage"]

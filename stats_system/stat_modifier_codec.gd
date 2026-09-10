@@ -32,6 +32,7 @@ const TAG_LINEAR: StringName = &"linear"
 const TAG_RATIO: StringName = &"ratio"
 const TAG_EXPRESSION: StringName = &"expression"
 const TAG_THRESHOLD: StringName = &"threshold"
+const TAG_KNEE_SQRT: StringName = &"knee_sqrt"
 
 
 ## Rebuild one modifier from its wire form. Returns null for a null/empty dict
@@ -75,6 +76,8 @@ static func formula_from_dict(d: Variant) -> StatFormula:
 			f = ExpressionFormula.new()
 		TAG_THRESHOLD:
 			f = ThresholdFormula.new()
+		TAG_KNEE_SQRT:
+			f = KneeSqrtFormula.new()
 		_:
 			push_warning("StatModifierCodec: unknown formula type tag '%s'" % tag)
 			return null
