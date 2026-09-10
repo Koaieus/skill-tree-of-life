@@ -151,13 +151,36 @@ fell from **60/91 (66%) before the crumb existed to 2/17 (12%) after** — and
 both residuals were a trivial `sleep 1`, not the old `sleep 60` loops. The
 one-line claim changed behaviour on its own.
 
-Two consequences for how to write one:
+**And that 66% baseline is not a naive one.** Owner account, 2026-09-10:
+agent polling had already been fought "in increasingly aggressive ways" —
+in-conversation corrections, sharper wording in dispatch briefs — and none of it
+stuck. The crumb is what finally worked. So the escalation that mattered was
+**tier, not tone**: the same instruction failed while it lived in a conversation
+or a brief and held once it was injected into every turn of every session. That
+is the real argument for the always-on tier existing at all.
+
+Honest caveat: `c11196c` landed the crumb, its doc, *and* a no-polling clause in
+`drone`/`swarm`/`relay` as **one commit**, so the before/after credits the whole
+intervention. The crumb is the component that reaches every session — the skill
+clauses only reach agents running those skills, and the sweep counted all
+sessions — but it did not act alone.
+
+Three consequences for how to write one:
 
 1. **Budget the claim, not the pointer.** The line has to be self-sufficient,
    because for most crumbs the line is *all* an agent will ever read. A crumb
    that leans on "the doc explains it" is a crumb that does nothing. This is why
    `CRUMB_MAX` is generous rather than minimal — the claim is the product.
-2. **A rarely-followed crumb is unproven, not dead.** No crumb older than three
+2. **The crumb that worked is an imperative, not an observation.** Compare a
+   neutral statement of fact with the one that moved the number: *"Launch a long
+   command ONCE with `run_in_background: true`, then END YOUR TURN — no sleep,
+   no tail follow, no re-reading the output file; the harness resumes you on
+   exit, so every poll is a full round-trip bought for nothing."* It names the
+   action, **enumerates the specific forbidden moves** so there is no
+   almost-compliant reading left, and gives the reason in one clause. At 322B
+   it sits near the top of the crumb range and earns it. When a crumb exists to
+   stop a *behaviour* rather than to route a *lookup*, write it this way.
+3. **A rarely-followed crumb is unproven, not dead.** No crumb older than three
    weeks showed literal zero engagement, and the counter-evidence hunt found
    **no case** of an agent committing the anti-pattern a live crumb warns
    against (`degree`'s `get_neighbours().size()`, `modal-system`'s
