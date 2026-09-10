@@ -22,6 +22,17 @@ extends Resource
 @export var id: StringName = &""
 
 @export var name: String
+
+## Snappy one-liner shown under the header in [SpellTooltip] (#764) — the
+## LAN-08 finding was that nobody reads a wall of text mid-turn. Capped at 80
+## chars, pinned by `test_spell_tooltip_sections.gd` over
+## [constant SpellCatalog.ALL]. [member description] stays the long form,
+## reserved for the spell catalogue (#853) and no longer rendered here.
+@export var tagline: String = ""
+
+## Long-form flavour text. No longer rendered in [SpellTooltip] (#764) — the
+## four derived sections replace it there. Kept for the spell catalogue
+## (#853), which shows it as-is.
 @export_multiline var description: String
 ## Spell-card iconography. Rendered in the spell picker (top, large) and in
 ## tooltips. Optional — falls back to a glyph derived from the spell name.

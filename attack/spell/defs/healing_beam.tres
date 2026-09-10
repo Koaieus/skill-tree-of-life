@@ -70,4 +70,5 @@ propagation = SubResource("Resource_hhwjj")
 on_hit_effects = Array[ExtResource("2_bsxsi")]([SubResource("heal_beam")])
 vfx_coordinator_scene = ExtResource("11_lbkbe")
 targeting = SubResource("Resource_to57e")
+tagline = "Beams healing into any node nearby, ally or enemy."
 metadata/_custom_type_script = "uid://ber34us1t16kb"

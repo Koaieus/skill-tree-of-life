@@ -124,6 +124,25 @@ func get_union_visual(_attacker: Entity, _union: SpellTargetUnion) -> RangeVisua
 	return RangeVisual.new()
 
 
+## Player-facing "how far this reaches" line for [SpellTooltip]'s Cast section
+## (#764). [param board] is the same no-cast-from-node preview path
+## [method spell_range_multiplier] documents — pass a caster's board to get
+## the number their own stats moved, never re-derive the scaling here. Empty
+## base; subclasses format their own metric (hops vs. straight-line units).
+func get_description(_board: StatBoard = null) -> String:
+	return ""
+
+
+## Shared number formatting for subclass [method get_description]s — whole
+## number when the value already is one, one decimal otherwise. Matches
+## [method SpellTooltip._format_num]; kept here too so a range description is
+## legible read in isolation (as [SpellTooltip] does) without re-deriving it.
+static func _fmt_num(v: float) -> String:
+	if is_equal_approx(v, roundf(v)):
+		return str(int(v))
+	return "%.1f" % v
+
+
 ## Per-source reach multiplier — delegated to [SpellRangeRules], which owns the
 ## rule. A reach model answers "is this within N of that"; deciding what N is
 ## for a given caster is a stat question, and used to live here only by accident.

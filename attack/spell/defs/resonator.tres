@@ -73,3 +73,4 @@ on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
 crit_conditions = Array[ExtResource("2_crit_base")]([SubResource("crit_conv")])
 vfx_coordinator_scene = ExtResource("12_ww832")
 targeting = SubResource("targeting")
+tagline = "Fans out; converging branches add and crit hard."

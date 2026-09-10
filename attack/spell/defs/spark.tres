@@ -50,3 +50,4 @@ propagation = SubResource("prop_spark")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_spark")])
 vfx_coordinator_scene = ExtResource("10_ds1j3")
 targeting = SubResource("targeting_hostile_3hop")
+tagline = "Cheap poke: 5 damage to one enemy node within 3 hops."

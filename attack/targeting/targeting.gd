@@ -32,6 +32,13 @@ func get_kind() -> TargetingKind:
 	return TargetingKind.NODE
 
 
+## Player-facing "who/what this can hit" line for [SpellTooltip]'s Cast
+## section (#764). Empty base — nothing worth saying about the abstract
+## contract. Subclasses override; see [method NodeTargeting.get_description].
+func get_description() -> String:
+	return ""
+
+
 ## True iff [param candidate] is an acceptable target given [param source]
 ## under [param plan]. The click handler routes a selected node here.
 @abstract func is_valid_target(plan: AttackPlan, source: SkillNode, candidate: SkillNode) -> bool

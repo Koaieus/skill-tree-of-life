@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3 uid="uid://byuujrcff7ex7"]
+[gd_scene load_steps=6 format=3 uid="uid://byuujrcff7ex7"]
 
 [ext_resource type="Script" uid="uid://dco2juuyxbk6v" path="res://ui/spell_tooltip/spell_tooltip.gd" id="1_j4qkg"]
 [ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
 [ext_resource type="PackedScene" uid="uid://cjwsps8ttexc" path="res://ui/tooltip_fan/panel_header.tscn" id="3_header"]
 [ext_resource type="PackedScene" path="res://ui/theme/scanline_overlay.tscn" id="4_scanlines"]
+[ext_resource type="PackedScene" path="res://ui/spell_tooltip/spell_tooltip_section.tscn" id="5_section"]
 
 [node name="SpellTooltip" type="MarginContainer"]
 script = ExtResource("1_j4qkg")
@@ -50,13 +51,13 @@ theme_type_variation = &"TierValue"
 theme_override_font_sizes/font_size = 15
 text = "◈ 0"
 
-[node name="DescriptionLabel" type="Label" parent="Padded/Content"]
+[node name="TaglineLabel" type="Label" parent="Padded/Content"]
 unique_name_in_owner = true
 modulate = Color(1, 1, 1, 0.72)
 layout_mode = 2
 mouse_filter = 2
 theme_override_font_sizes/font_size = 11
-text = "Description"
+text = "Tagline"
 autowrap_mode = 3
 
 [node name="HSeparator" type="HSeparator" parent="Padded/Content"]
@@ -64,20 +65,25 @@ modulate = Color(1, 1, 1, 0.35)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="StatsGrid" type="VBoxContainer" parent="Padded/Content"]
+[node name="CastSection" parent="Padded/Content" instance=ExtResource("5_section")]
 unique_name_in_owner = true
 layout_mode = 2
-mouse_filter = 2
-theme_override_constants/separation = 3
+header_text = "Cast"
 
-[node name="PropagationLabel" type="Label" parent="Padded/Content"]
+[node name="OnArrivalSection" parent="Padded/Content" instance=ExtResource("5_section")]
 unique_name_in_owner = true
 layout_mode = 2
-mouse_filter = 2
-theme_type_variation = &"TierInert"
-theme_override_font_sizes/font_size = 10
-text = "Propagation"
-autowrap_mode = 3
+header_text = "On arrival"
+
+[node name="ThenSection" parent="Padded/Content" instance=ExtResource("5_section")]
+unique_name_in_owner = true
+layout_mode = 2
+header_text = "Then"
+
+[node name="CritsSection" parent="Padded/Content" instance=ExtResource("5_section")]
+unique_name_in_owner = true
+layout_mode = 2
+header_text = "Crits"
 
 [node name="Scanlines" parent="." instance=ExtResource("4_scanlines")]
 layout_mode = 2

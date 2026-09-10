@@ -82,3 +82,4 @@ propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
 vfx_coordinator_scene = ExtResource("13_ihn2u")
 targeting = SubResource("targeting")
+tagline = "Chips the toughest neighbour each hop; never kills alone."

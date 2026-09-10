@@ -70,6 +70,14 @@ func max_reach() -> float:
 	return float(max_hops)
 
 
+## "Within N hops", N being [method effective_max_hops] for [param board] —
+## the same scaled number the tooltip used to re-derive by hand. See
+## [method RangeFinder.get_description].
+func get_description(board: StatBoard = null) -> String:
+	var eff := effective_max_hops(null, null, board)
+	return "Within %d hop%s" % [eff, "" if eff == 1 else "s"]
+
+
 func get_visual(attacker: Entity, source: SkillNode) -> RangeVisual:
 	var visual := RangeVisual.new()
 	var hops := effective_max_hops(attacker, source)

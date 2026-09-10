@@ -11,20 +11,20 @@ extends MarginContainer
 ## Reusable outside the HUD: instantiate the scene, call [method show_for] with
 ## the spell and an optional caster entity, then [method hide_tooltip] on exit.
 
-## Accent worn by any value the caster's own stats moved off the spell's printed
-## base. Gold reads as "this is yours" — a pure positive, the only register
-## `.claude/rules/ui-palette.md` allows it in. Deliberately left at the row's
-## default LABEL tier rather than lifted to VALUE: a *blooming* gold is a louder
-## claim on a register already spoken for by XP gain and mythic pickups.
-const DYNAMIC_COLOR: Color = Color(1.0, 0.85, 0.4)
-
-const _ROW := preload("res://ui/spell_tooltip/spell_stat_row.tscn")
+## Gold accent for a caster-scaled value lives on
+## [constant SpellTooltipSection.DYNAMIC_COLOR] — the section rows are the only
+## place one still renders (#764 collapsed the old per-row [SpellStatRow]
+## grid into the four derived sections). Gold reads as "this is yours" — a
+## pure positive, the only register `.claude/rules/ui-palette.md` allows it
+## in.
 
 @onready var _header: PanelHeader = %Header
 @onready var _mana_label: Label = %ManaLabel
-@onready var _description_label: Label = %DescriptionLabel
-@onready var _stats_grid: VBoxContainer = %StatsGrid
-@onready var _propagation_label: Label = %PropagationLabel
+@onready var _tagline_label: Label = %TaglineLabel
+@onready var _cast_section: SpellTooltipSection = %CastSection
+@onready var _on_arrival_section: SpellTooltipSection = %OnArrivalSection
+@onready var _then_section: SpellTooltipSection = %ThenSection
+@onready var _crits_section: SpellTooltipSection = %CritsSection
 
 var _spell: SpellDef = null
 var _caster: Entity = null
@@ -101,80 +101,103 @@ func _populate() -> void:
 	_header.bind(_spell.name, "Requires degree ≥ %d" % _spell.min_degree)
 	_mana_label.text = "◈ %d" % _spell.mana_cost
 
-	if _spell.description != "":
-		_description_label.text = _spell.description
-		_description_label.show()
+	if _spell.tagline != "":
+		_tagline_label.text = _spell.tagline
+		_tagline_label.show()
 	else:
-		_description_label.hide()
+		_tagline_label.hide()
 
-	for child in _stats_grid.get_children():
-		child.queue_free()
+	_populate_cast_section()
+	_populate_on_arrival_section()
+	_populate_then_section()
+	_populate_crits_section()
 
-	var has_prop := _spell.propagation != null
-	# RAW, never scaled: `SpellResolver` seeds `hops_remaining` straight off
-	# `config.max_hops`, so no caster stat moves a spell's bounce count today —
-	# and per the owner's 2026-09-02 ruling none may until propagation has a
-	# tuning model of its own, bounce count being superlinear in effect where
-	# reach is not. A tooltip that scaled this over-reported for every caster
-	# above baseline INT while the combat readout showed the true number.
-	var hops := _spell.propagation.max_hops if has_prop else 0
 
-	var impact := _impact_damage()
-	_add_stat_row(&"Damage", _format_num(impact), not is_equal_approx(impact, _spell.power))
+## Section 1 (#764) — fully derived here: [Targeting]/[NodeTargeting] and
+## [RangeFinder] live under `attack/targeting/` and `attack/range_finder/`,
+## both mine to describe. Who it can hit, then how far.
+func _populate_cast_section() -> void:
+	var lines: PackedStringArray = []
+	var dynamic: Array[int] = []
 
-	if has_prop:
-		var prop := _spell.propagation
-		# A 0-hop propagation is impact-only — printing "Hops 0" is noise.
-		if hops > 0:
-			_add_stat_row(&"Hops", str(hops), false)
+	if _spell.targeting != null:
+		var who := _spell.targeting.get_description()
+		if who != "":
+			lines.append(who)
 
-		if prop.hop_damage != null:
-			var hd := prop.hop_damage.get_description()
-			if hd != "":
-				_add_stat_row(&"Progression", hd, false)
-
-		var prop_desc := prop.get_description()
-		if prop_desc != "":
-			_propagation_label.text = prop_desc
-			_propagation_label.modulate = Color(0.7, 0.85, 1.0)
-			_propagation_label.show()
-		else:
-			_propagation_label.hide()
-	else:
-		_propagation_label.hide()
-
-	# Range info from the targeting's range_finder (if any).
 	var rf := _resolve_range_finder()
 	if rf != null:
-		if rf is HopRangeFinder:
-			var hrf := rf as HopRangeFinder
-			var eff_r: int = hrf.effective_max_hops(null, null, _caster_board())
-			var r_dynamic: bool = eff_r != hrf.max_hops
-			_add_stat_row(&"Range", "%d hop%s" % [eff_r, "" if eff_r == 1 else "s"], r_dynamic)
-		elif rf is EuclideanRangeFinder:
-			var erf := rf as EuclideanRangeFinder
-			var eff_r: float = erf.effective_distance(null, null, _caster_board())
-			var r_dynamic: bool = not is_equal_approx(eff_r, erf.max_distance)
-			_add_stat_row(&"Range", _format_num(eff_r), r_dynamic)
+		var raw_desc := rf.get_description(null)
+		var eff_desc := rf.get_description(_caster_board())
+		if eff_desc != "":
+			lines.append(eff_desc)
+			if eff_desc != raw_desc:
+				dynamic.append(lines.size() - 1)
 
-	# Target kind
-	if _spell.targeting != null:
-		var target_desc := _targeting_description(_spell.targeting)
-		if target_desc != "":
-			_add_stat_row(&"Target", target_desc, false)
+	_cast_section.bind(lines, dynamic)
 
 
-## Append one [SpellStatRow]. `dynamic` marks a value the caster's stats moved
-## off the spell's printed base — the row then wears [constant DYNAMIC_COLOR].
-func _add_stat_row(label: StringName, value: String, dynamic: bool) -> void:
-	var row: SpellStatRow = _ROW.instantiate()
-	_stats_grid.add_child(row)
-	row.bind(
-		String(label),
-		value,
-		DYNAMIC_COLOR if dynamic else Color(1.0, 1.0, 1.0, 0.0),
-		dynamic
-	)
+## Sections 2-4 (#764) — the composed resources they read
+## ([OnHitEffect] / crit condition / [PropagationConfig].reducer) live under
+## `attack/spell/on_hit/`, `attack/spell/crit/`, `attack/spell/propagation/`,
+## none of them mine right now (#850-852 rewrite them onto the final
+## `LandingCondition`/`ScaleDamageEffect` shape — see #849). So this reads
+## whatever `get_description()` each ALREADY exposes via duck typing and
+## renders nothing for the rest; [method SpellTooltipSection.bind] already
+## collapses an empty section, so a spell with no describers yet just shows
+## fewer sections rather than a blank line.
+func _populate_on_arrival_section() -> void:
+	var lines: PackedStringArray = []
+	for effect in _spell.on_hit_effects:
+		if effect != null and effect.has_method(&"get_description"):
+			var d: String = effect.get_description()
+			if d != "":
+				lines.append(d)
+
+	var prop := _spell.propagation
+	if prop != null and prop.max_hops > 0 and prop.reducer != null \
+			and prop.reducer.has_method(&"get_description"):
+		var rd: String = prop.reducer.get_description()
+		if rd != "":
+			lines.append(rd)
+
+	_on_arrival_section.bind(lines)
+
+
+## [PropagationConfig] itself is mine to CALL (not to edit) — its
+## [method PropagationConfig.get_description] already exists and composes
+## filter/step/reducer/hops. A 0-hop or step-less config is single-target in
+## every sense that matters here, so that's said plainly rather than via a
+## "0 hops" reading of a describer built for the propagating case.
+func _populate_then_section() -> void:
+	var lines: PackedStringArray = []
+	var prop := _spell.propagation
+	var propagates := prop != null and prop.step != null and prop.max_hops > 0
+	if not propagates:
+		lines.append("Single target.")
+	else:
+		if prop.has_method(&"get_description"):
+			var d: String = prop.get_description()
+			if d != "":
+				lines.append(d)
+		if prop.hop_damage != null and prop.hop_damage.has_method(&"get_description"):
+			var hd: String = prop.hop_damage.get_description()
+			if hd != "":
+				lines.append(hd)
+	_then_section.bind(lines)
+
+
+## Same duck-typing as [method _populate_on_arrival_section] — today's
+## `CritCondition` subclasses have no `get_description()` yet (#851 adds it on
+## `LandingCondition`), so this renders empty/hidden until that lands.
+func _populate_crits_section() -> void:
+	var lines: PackedStringArray = []
+	for cond in _spell.crit_conditions:
+		if cond != null and cond.has_method(&"get_description"):
+			var d: String = cond.get_description()
+			if d != "":
+				lines.append(d)
+	_crits_section.bind(lines)
 
 
 ## The mana chip wears the Mana stat's own palette colour — [StatDef.tint_color]
@@ -187,14 +210,6 @@ func _tint_mana_label() -> void:
 	_mana_label.add_theme_color_override(
 		&"font_color", Emissive.at(def.tint_color, Emissive.LABEL)
 	)
-
-
-## Impact damage for the hovered caster (D-32) — delegated to
-## [method SpellResolver.impact_damage], which owns the expression. The raw
-## [member SpellDef.power] coefficient is meaningless on its own, so the row
-## shows the computed number and goes gold whenever the caster moved it.
-func _impact_damage() -> float:
-	return SpellResolver.impact_damage(_spell, null, _caster_board())
 
 
 ## The hovered caster's board, or null. Every dynamic number on this tooltip is
@@ -210,27 +225,6 @@ func _resolve_range_finder() -> RangeFinder:
 	if _spell.targeting == null:
 		return null
 	return _spell.targeting.get(&"range_finder") as RangeFinder
-
-
-func _targeting_description(t: Targeting) -> String:
-	# #384: the two Single*NodeTargeting subclasses collapsed into one
-	# NodeTargeting keyed by ownership_filter — describe by filter value,
-	# not by subclass.
-	if t is NodeTargeting:
-		match (t as NodeTargeting).ownership_filter:
-			SkillNode.Ownership.HOSTILE:
-				return "Enemy-occupied node"
-			SkillNode.Ownership.MINE:
-				return "Own node"
-			SkillNode.Ownership.ALLY:
-				return "Ally node"
-	return "Single node"
-
-
-func _format_num(v: float) -> String:
-	if is_equal_approx(v, roundf(v)):
-		return str(int(v))
-	return "%.1f" % v
 
 
 ## Re-fit the free-floating panel to its content width-first. Two layout facts

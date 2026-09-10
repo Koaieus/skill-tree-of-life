@@ -287,19 +287,6 @@ func _rebuild_ticks(n: int) -> void:
 		_ticks.add_child(tick)
 
 
-func _tooltip_for(s: SpellDef) -> String:
-	var lines: Array[String] = []
-	lines.append("%s — %d mana" % [s.name, s.mana_cost])
-	lines.append("Requires node degree ≥ %d" % s.min_degree)
-	if s.description != "":
-		lines.append(s.description)
-	if s.propagation != null:
-		var prop := s.propagation.get_description()
-		if prop != "":
-			lines.append(prop)
-	return "\n".join(lines)
-
-
 # --- Shader plumbing -------------------------------------------------------
 
 func _process(_delta: float) -> void:

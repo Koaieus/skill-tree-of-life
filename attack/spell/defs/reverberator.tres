@@ -91,3 +91,4 @@ on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
 crit_conditions = Array[ExtResource("2_crit_base")]([SubResource("crit_self_loop")])
 vfx_coordinator_scene = ExtResource("12_ww832")
 targeting = SubResource("targeting")
+tagline = "Climbs toward hubs; a self-loop crits and folds back in."

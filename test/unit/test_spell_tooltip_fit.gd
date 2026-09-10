@@ -85,7 +85,12 @@ func test_tooltip_renders_its_content_through_scene_components() -> void:
 	assert_string_contains(header.subheader, str(spell.min_degree))
 	assert_string_contains(tt.get_node("%ManaLabel").text, str(spell.mana_cost))
 
-	var rows := tt.get_node("%StatsGrid").get_children()
-	assert_gt(rows.size(), 0, "stat rows should be built")
-	for row in rows:
-		assert_is(row, SpellStatRow, "rows must be the row scene, not code-built Labels")
+	# The four marked sections (#764) — each an instance of the SAME reusable
+	# scene, never code-composed Labels. Cast is guaranteed non-empty (it's
+	# fully derived today); the other three collapse to nothing until
+	# #850-852 land their describers, so this only pins the scene identity.
+	var cast := tt.get_node("%CastSection") as SpellTooltipSection
+	assert_gt(cast.line_texts().size(), 0, "Cast section should have derived content")
+	for section_name in ["%CastSection", "%OnArrivalSection", "%ThenSection", "%CritsSection"]:
+		var section := tt.get_node(section_name)
+		assert_is(section, SpellTooltipSection, "%s must be the section scene" % section_name)

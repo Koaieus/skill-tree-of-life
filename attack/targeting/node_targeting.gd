@@ -36,3 +36,28 @@ func is_valid_target(plan: AttackPlan, source: SkillNode, candidate: SkillNode) 
 	if range_finder != null and not range_finder.in_range(plan.attacker, source, candidate):
 		return false
 	return true
+
+
+## Player-facing "who this can hit" line for [SpellTooltip]'s Cast section
+## (#764), worded through the shared ownership-bit vocabulary (#384) — the
+## SAME ONE [OwnerFilter] speaks, kept independent here since that class
+## lives under `attack/spell/propagation/`, owned by other in-flight work.
+##
+## [b]Any (15) reads as "any node," never falls through to a bare "node."[/b]
+## That fall-through was the bug LAN-08 surfaced on Healing Beam, which
+## authors Any on purpose (heals either side) — see this file's top docstring.
+func get_description() -> String:
+	if ownership_filter & 15 == 15:
+		return "Hits any node."
+	var parts: PackedStringArray = []
+	if ownership_filter & SkillNode.Ownership.MINE:
+		parts.append("own")
+	if ownership_filter & SkillNode.Ownership.ALLY:
+		parts.append("ally")
+	if ownership_filter & SkillNode.Ownership.HOSTILE:
+		parts.append("enemy-occupied")
+	if ownership_filter & SkillNode.Ownership.NEUTRAL:
+		parts.append("unallocated")
+	if parts.is_empty():
+		return "Hits nothing."
+	return "Hits %s node." % " or ".join(parts)

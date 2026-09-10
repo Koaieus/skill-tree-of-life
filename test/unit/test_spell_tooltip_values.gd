@@ -58,34 +58,39 @@ func _hop_boosted_caster() -> Entity:
 	return entity
 
 
-func _rows(tt: SpellTooltip) -> Dictionary:
-	var out: Dictionary = {}
-	for row in tt.get_node("%StatsGrid").get_children():
-		out[(row as SpellStatRow).row_label] = (row as SpellStatRow).value
-	return out
+## Joined plain text of a named section (%CastSection, %ThenSection, …) — the
+## rows moved off the flat %StatsGrid into the four derived sections (#764),
+## so a value that used to be one row's `.value` is now a substring of its
+## section's text.
+func _section_text(tt: SpellTooltip, unique_name: String) -> String:
+	var section := tt.get_node(unique_name) as SpellTooltipSection
+	return " ".join(section.line_texts())
 
 
-func _shown_for(caster: Entity) -> Dictionary:
+func _shown_for(caster: Entity) -> SpellTooltip:
 	var tt: SpellTooltip = _TOOLTIP.instantiate()
 	add_child_autofree(tt)
 	await wait_frames(2)
 	tt.show_for(load(_SPELL) as SpellDef, caster)
 	for _i in _SETTLE_FRAMES:
 		await wait_frames(1)
-	return _rows(tt)
+	return tt
 
 
 func test_propagation_hops_are_printed_raw_even_for_a_boosted_caster() -> void:
 	var spell := load(_SPELL) as SpellDef
 	assert_not_null(spell.propagation, "fixture: the spell must propagate")
-	var expected := str(spell.propagation.max_hops)
+	var expected := "%d hop" % spell.propagation.max_hops
 
-	var base_rows: Dictionary = await _shown_for(null)
-	assert_eq(base_rows.get("Hops"), expected, "no caster: hops must be the authored number")
+	var base_tt := await _shown_for(null)
+	assert_string_contains(
+		_section_text(base_tt, "%ThenSection"), expected,
+		"no caster: hops must be the authored number"
+	)
 
-	var boosted_rows: Dictionary = await _shown_for(_doubled_caster())
-	assert_eq(
-		boosted_rows.get("Hops"), expected,
+	var boosted_tt := await _shown_for(_doubled_caster())
+	assert_string_contains(
+		_section_text(boosted_tt, "%ThenSection"), expected,
 		"+100%% spell_range must not move the bounce count SpellResolver reads raw"
 	)
 
@@ -95,11 +100,11 @@ func test_propagation_hops_are_printed_raw_even_for_a_boosted_caster() -> void:
 func test_propagation_hops_are_printed_raw_even_for_a_spell_hops_boosted_caster() -> void:
 	var spell := load(_SPELL) as SpellDef
 	assert_not_null(spell.propagation, "fixture: the spell must propagate")
-	var expected := str(spell.propagation.max_hops)
+	var expected := "%d hop" % spell.propagation.max_hops
 
-	var boosted_rows: Dictionary = await _shown_for(_hop_boosted_caster())
-	assert_eq(
-		boosted_rows.get("Hops"), expected,
+	var boosted_tt := await _shown_for(_hop_boosted_caster())
+	assert_string_contains(
+		_section_text(boosted_tt, "%ThenSection"), expected,
 		"a spell_hops bonus must not move the bounce count SpellResolver reads raw"
 	)
 
@@ -112,21 +117,23 @@ func test_cast_range_does_scale_with_spell_hops() -> void:
 	var rf := spell.targeting.get(&"range_finder") as HopRangeFinder
 	assert_not_null(rf, "fixture: the spell must be hop-ranged")
 
-	var base_rows: Dictionary = await _shown_for(null)
-	assert_string_contains(str(base_rows.get("Range")), str(rf.max_hops))
+	var base_tt := await _shown_for(null)
+	assert_string_contains(_section_text(base_tt, "%CastSection"), str(rf.max_hops))
 
-	var boosted_rows: Dictionary = await _shown_for(_hop_boosted_caster())
-	assert_string_contains(str(boosted_rows.get("Range")), str(rf.max_hops + int(_HOP_BONUS)))
+	var boosted_tt := await _shown_for(_hop_boosted_caster())
+	assert_string_contains(
+		_section_text(boosted_tt, "%CastSection"), str(rf.max_hops + int(_HOP_BONUS))
+	)
 
 
 ## The tooltip asks the finder for the number instead of re-deriving it, so the
 ## two can no longer drift. Pin the delegation itself: whatever the finder says
-## for this board is what the row prints.
+## for this board is what the Cast section prints.
 func test_the_range_row_is_whatever_the_finder_says() -> void:
 	var spell := load(_SPELL) as SpellDef
 	var rf := spell.targeting.get(&"range_finder") as HopRangeFinder
 	var caster := _doubled_caster()
 	var from_finder := rf.effective_max_hops(null, null, caster.stat_board)
 
-	var rows: Dictionary = await _shown_for(caster)
-	assert_string_contains(str(rows.get("Range")), str(from_finder))
+	var tt := await _shown_for(caster)
+	assert_string_contains(_section_text(tt, "%CastSection"), str(from_finder))

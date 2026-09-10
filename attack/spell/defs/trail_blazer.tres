@@ -74,3 +74,4 @@ propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("1_p8d3l")]([SubResource("dmg")])
 vfx_coordinator_scene = ExtResource("14_1jkab")
 targeting = SubResource("targeting")
+tagline = "Walks a string, building damage to a junction slam."

@@ -68,3 +68,4 @@ propagation = SubResource("prop_lightning")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_lightning")])
 vfx_coordinator_scene = ExtResource("14_vfx")
 targeting = SubResource("targeting_lightning")
+tagline = "Full hit, then chains outward, halving each hop."

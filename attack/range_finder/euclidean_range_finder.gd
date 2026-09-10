@@ -103,3 +103,10 @@ func get_union_visual(attacker: Entity, union: SpellTargetUnion) -> RangeVisual:
 ## than re-derive it. [param board] is its no-cast-from-node path.
 func effective_distance(attacker: Entity, source: SkillNode, board: StatBoard = null) -> float:
 	return max_distance * spell_range_multiplier(attacker, source, board)
+
+
+## "Within N units", N being [method effective_distance] for [param board].
+## See [method RangeFinder.get_description].
+func get_description(board: StatBoard = null) -> String:
+	var eff := effective_distance(null, null, board)
+	return "Within %s units" % _fmt_num(eff)

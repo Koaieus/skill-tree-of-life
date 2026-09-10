@@ -89,3 +89,4 @@ on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg")])
 crit_conditions = Array[ExtResource("2_crit_base")]([SubResource("crit_leaf")])
 vfx_coordinator_scene = ExtResource("17_vfx")
 targeting = SubResource("targeting")
+tagline = "Flows downhill and crits the leaf it dead-ends on."
