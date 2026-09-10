@@ -264,6 +264,7 @@ for name in "${names[@]}"; do
     if [ "$force" -ne 1 ]; then
       echo "⚠ native/bin/$name differs from Release $tag — keeping your local" >&2
       echo "  build; mise run native:fetch -- --force to replace it" >&2
+      kept_mismatch=1
       continue
     fi
   fi
@@ -271,7 +272,11 @@ for name in "${names[@]}"; do
 done
 
 if [ -z "${want[*]:-}" ]; then
-  echo "✓ all four binaries present and verified — nothing to fetch"
+  if [ "${kept_mismatch:-0}" -eq 1 ]; then
+    echo "✓ nothing to fetch — every gap is a kept local build, see warnings above"
+  else
+    echo "✓ all four binaries present and verified — nothing to fetch"
+  fi
   exit 0
 fi
 
