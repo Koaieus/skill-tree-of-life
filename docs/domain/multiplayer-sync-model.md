@@ -96,7 +96,7 @@ since been retired, is
      *result* is what crosses the wire, so there is nothing for a peer to
      reproduce — see
      [ADR 0013](../adr/0013-host-only-rolls-and-the-seed-is-a-procgen-input.md).
-   - `attack/spell/propagation/step/random_pick_step.gd:24-26` — same null-RNG
+   - `attack/spell/propagation/spread/random_pick_spread.gd:22-25` — same null-RNG
      fallback.
 
 4. **AI is frame-shaped and calls systems directly.**

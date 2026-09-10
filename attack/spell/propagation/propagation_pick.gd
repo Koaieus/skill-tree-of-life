@@ -37,6 +37,9 @@ var came_from: Array[SkillNode] = []
 ## When non-empty, REPLACES the child's lineage: the ring a closing hop just
 ## walked, ending at [member node] (see [method CycloneSpread.closed_ring]).
 ## Empty means the ordinary lineage — the parent's `visited` plus [member node].
+## The empty sentinel is safe because a real ring always carries at least the
+## landed node (`closed_ring` never returns []); never use [] to mean "closed
+## but trivial".
 var lineage_override: Array[SkillNode] = []
 
 
