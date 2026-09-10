@@ -16,14 +16,7 @@ extends VBoxContainer
 ## the Crits section is empty on most spells today, and every section is
 ## empty for a caster-less/effect-less fixture in a test.
 
-const _ROW_FONT_SIZE: int = 11
-
-## Accent worn by a row the composer marks dynamic — the caster's own stats
-## moved this value off the spell's printed base. Matches
-## [constant SpellTooltip.DYNAMIC_COLOR]; kept as its own constant rather than
-## a cross-scene reference, same reasoning [SpellStatRow] documents for its
-## own palette pulls.
-const DYNAMIC_COLOR: Color = Color(1.0, 0.85, 0.4)
+const _LINE := preload("res://ui/spell_tooltip/spell_tooltip_line.tscn")
 
 @onready var _header_label: Label = %HeaderLabel
 @onready var _rows: VBoxContainer = %Rows
@@ -45,8 +38,10 @@ func _ready() -> void:
 ## Populate this section's rows and show/hide it as a whole. [param lines] is
 ## plain player-facing text, one per row, in the order the composer wants
 ## them read. [param dynamic_indices] names which entries in [param lines]
-## get [constant DYNAMIC_COLOR] — the same "caster's stats moved this" accent
-## [SpellStatRow] uses, e.g. a Cast section's scaled range line.
+## get [constant SpellTooltipLine.DYNAMIC_COLOR] — the "caster's stats moved
+## this" gold accent, e.g. a Cast section's scaled range line. Each row is a
+## [SpellTooltipLine] instance, never a bare code-built [code]Label[/code] —
+## `.claude/rules/scene-composition.md`.
 func bind(lines: PackedStringArray, dynamic_indices: Array[int] = []) -> void:
 	for child in _rows.get_children():
 		child.queue_free()
@@ -54,14 +49,9 @@ func bind(lines: PackedStringArray, dynamic_indices: Array[int] = []) -> void:
 		var text := lines[i]
 		if text.is_empty():
 			continue
-		var label := Label.new()
-		label.text = text
-		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		label.add_theme_font_size_override(&"font_size", _ROW_FONT_SIZE)
-		label.theme_type_variation = &"TierInert"
-		if dynamic_indices.has(i):
-			label.add_theme_color_override(&"font_color", DYNAMIC_COLOR)
-		_rows.add_child(label)
+		var line: SpellTooltipLine = _LINE.instantiate()
+		_rows.add_child(line)
+		line.bind(text, dynamic_indices.has(i))
 	visible = _rows.get_child_count() > 0
 
 
@@ -71,5 +61,5 @@ func bind(lines: PackedStringArray, dynamic_indices: Array[int] = []) -> void:
 func line_texts() -> PackedStringArray:
 	var out: PackedStringArray = []
 	for child in _rows.get_children():
-		out.append((child as Label).text)
+		out.append((child as SpellTooltipLine).text)
 	return out

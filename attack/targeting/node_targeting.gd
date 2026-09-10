@@ -47,7 +47,11 @@ func is_valid_target(plan: AttackPlan, source: SkillNode, candidate: SkillNode) 
 ## That fall-through was the bug LAN-08 surfaced on Healing Beam, which
 ## authors Any on purpose (heals either side) — see this file's top docstring.
 func get_description() -> String:
-	if ownership_filter & 15 == 15:
+	const ALL_BITS := (
+		SkillNode.Ownership.NEUTRAL | SkillNode.Ownership.MINE
+		| SkillNode.Ownership.ALLY | SkillNode.Ownership.HOSTILE
+	)
+	if (ownership_filter & ALL_BITS) == ALL_BITS:
 		return "Hits any node."
 	var parts: PackedStringArray = []
 	if ownership_filter & SkillNode.Ownership.MINE:
@@ -60,4 +64,4 @@ func get_description() -> String:
 		parts.append("unallocated")
 	if parts.is_empty():
 		return "Hits nothing."
-	return "Hits %s node." % " or ".join(parts)
+	return "Hits %s nodes." % " or ".join(parts)
