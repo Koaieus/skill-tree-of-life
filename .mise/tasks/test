@@ -36,6 +36,12 @@ OUT_DIR = os.path.join(ROOT, ".godot")
 LOG = os.path.join(OUT_DIR, "gut-last.log")
 XML = os.path.join(OUT_DIR, "gut-last.xml")
 
+# The substring the solver-parity tests use when they skip for want of a
+# compiled GDExtension. `native/bin/` is gitignored build output, so EVERY
+# fresh worktree starts without one — see NATIVE_UNVERIFIED below for why that
+# needs its own line in the verdict rather than a slot in the pending count.
+NATIVE_SKIP_MARKER = "no native binary"
+
 MAX_TESTS_SHOWN = 15
 MAX_MSG_CHARS = 240
 
@@ -150,6 +156,26 @@ def report_failures(cases):
         print(f"\n  …and {failing - shown} more failing tests — see the log.")
 
 
+def primary_checkout() -> str:
+    """Absolute path of the primary checkout, or "" if it cannot be determined.
+
+    `git worktree list --porcelain` always lists the primary first, which is
+    the one place a built `native/bin/` is likely to already exist — so it is
+    what a fix-it hint should point at from inside a worktree.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=ROOT, capture_output=True, text=True, timeout=5,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    for line in out.splitlines():
+        if line.startswith("worktree "):
+            return line[len("worktree "):].strip()
+    return ""
+
+
 def main():
     flags, label = build_args(sys.argv)
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -230,6 +256,24 @@ def main():
         report_failures(cases)
     for suite, test, status, msg in other[:5]:
         print(f"\n{status}: {suite}::{test}" + (f" — {truncate(msg, 120)}" if msg.strip() else ""))
+
+    # A missing native binary makes the solver-parity tests report PENDING, not
+    # FAIL, so the verdict above reads green while the backend that actually
+    # ships went untested. This is not a footnote worth five slots in the
+    # pending list: #823 was reviewed and merged on a run carrying 26 of these,
+    # each honestly reported as "pre-existing, unrelated". They were neither.
+    # `native/bin/` is gitignored build output, so every fresh worktree starts
+    # this way and "26 pending" is exactly what a routine run looks like.
+    native_skips = [c for c in other if NATIVE_SKIP_MARKER in (c[3] or "")]
+    if native_skips:
+        print(f"\n⚠ NATIVE BACKEND UNVERIFIED — {len(native_skips)} test(s) skipped "
+              f"for want of a compiled binary.")
+        print("  The verdict above is green over the backend that ships. Fix it, "
+              "then re-read the verdict:")
+        primary = primary_checkout()
+        if primary and os.path.realpath(primary) != os.path.realpath(ROOT):
+            print(f"    cp -a {os.path.join(primary, 'native/bin')}/. native/bin/")
+        print("    mise run native:build   # or, if this checkout changed native/src")
 
     if alarms:
         print("\nrun health:")

@@ -276,6 +276,26 @@ if [ -e "$dir" ]; then
 fi
 
 git worktree add "$dir" -b "$slug"
+
+# native/bin/ is gitignored build output, so a fresh worktree has no compiled
+# GDExtension — and the solver-parity tests then report PENDING rather than
+# FAILING, which means GUT prints a GREEN verdict over the backend that ships.
+# #823 was reviewed and merged on a run carrying 26 of those. Seed the binary
+# so a new worktree is honest from its first `mise run test`.
+#
+# COPY, not a symlink, and that is load-bearing: a symlinked native/bin would
+# make `mise run native:build` inside a worktree write the MAIN checkout's
+# binary, and a worktree must never write there. A stale copy is cheap to
+# refresh; a clobbered primary is not.
+if [ -d native/bin ] && [ -n "$(ls -A native/bin 2>/dev/null)" ]; then
+  mkdir -p "$dir/native/bin"
+  cp -a native/bin/. "$dir/native/bin/"
+  echo "✓ native binary seeded from this checkout ($(ls -1 native/bin | wc -l | tr -d ' ') file(s))"
+else
+  echo "⚠ no native binary here to seed — parity tests will skip and the suite"
+  echo "  will still print green. Build it: mise run native:build"
+fi
+
 echo "✓ worktree ready: $dir (branch $slug)"
 echo "  cd $dir"
 '''
