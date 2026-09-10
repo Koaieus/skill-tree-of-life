@@ -133,6 +133,16 @@ var _customs: PackedColorArray = PackedColorArray()
 ## exactly `elapsed` as unborn; the pool's own bookkeeping never rounds.
 var _spawn_times: PackedFloat64Array = PackedFloat64Array()
 
+## CPU-side union of every live-or-not DISPLACED extent pushed since the last
+## [method clear], in this node's local space — [constant Vector2.INF] /
+## `-Vector2.INF` sentinels mean "nothing spawned yet" (#839). Pushed to
+## `multimesh.custom_aabb` so 2D canvas-item culling (all-or-nothing, unlike
+## 3D's per-primitive clip) sees the shard's full flight, not just its
+## un-displaced spawn quad — the auto AABB `MultiMesh` would otherwise compute
+## on its own.
+var _bounds_min: Vector2 = Vector2.INF
+var _bounds_max: Vector2 = -Vector2.INF
+
 
 func _ready() -> void:
 	_init_multimesh()
@@ -154,16 +164,23 @@ func _ready() -> void:
 ## trap, same hook as `Graph._notification`). Empty it just before the writer
 ## reads the tree, rebuild it from the mirrors right after. Runtime never
 ## sees either notification.
+##
+## `custom_aabb` (#839) is derived state exactly like the instance buffer — a
+## plain `MultiMesh` property that WOULD serialize — so it rides the same
+## guard: zeroed pre-save, restored post-save from the `_bounds_min`/`_bounds_max`
+## CPU mirrors (untouched by either notification, so no recompute is needed).
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_EDITOR_PRE_SAVE:
 			if multimesh != null:
 				multimesh.visible_instance_count = 0
 				multimesh.instance_count = 0
+				multimesh.custom_aabb = AABB()
 		NOTIFICATION_EDITOR_POST_SAVE:
 			_capacity = 0
 			if _used > 0 and multimesh != null:
 				_grow(_used)
+			_push_bounds()
 
 
 # ------------------------------------------------------------ the reference
@@ -266,6 +283,12 @@ func spawn_shatter(origin: Vector2, radius: float, tint: Color, seed_velocity: V
 		var custom := Color(v.x, v.y, spawn_time - time_base, pack_shard(k, n))
 		_spawn_times[slot] = spawn_time
 		_push_shard(slot, origin, side, color, custom)
+	# The n shards of this shatter differ only by their radial kick (fixed
+	# speed, varying angle), so the true per-shard max of |shard_velocity()|
+	# is bounded — triangle inequality — by |seed_velocity| + kick_speed
+	# without looping every cell again. O(1) per shatter, per decision #3.
+	_merge_extent(origin, side * 0.5 + (seed_velocity.length() + kick_speed) * window)
+	_push_bounds()
 	_max_expiry = maxf(_max_expiry, spawn_time + window)
 	return first
 
@@ -281,8 +304,11 @@ func clear() -> void:
 	_colors = PackedColorArray()
 	_customs = PackedColorArray()
 	_spawn_times = PackedFloat64Array()
+	_bounds_min = Vector2.INF
+	_bounds_max = -Vector2.INF
 	if multimesh != null:
 		multimesh.visible_instance_count = 0
+		_push_bounds()
 
 
 ## Slots handed out since the last [method clear] (expired ones included).
@@ -325,6 +351,7 @@ func shard_custom(slot: int) -> Color:
 func set_window(value: float) -> void:
 	window = maxf(value, 0.0001)
 	_set_uniform(&"shatter_window", window)
+	_recompute_bounds()
 
 
 func set_flight_start(value: float) -> void:
@@ -371,6 +398,47 @@ func _set_uniform(uniform: StringName, value: float) -> void:
 	var mat := material as ShaderMaterial
 	if mat != null:
 		mat.set_shader_parameter(uniform, value)
+
+
+## Widen the CPU-side union rect (never shrinks on its own — only a full
+## [method _recompute_bounds] or [method clear] can shrink it) to cover a
+## square of the given half-extent centred on `origin`. Caller pushes.
+func _merge_extent(origin: Vector2, half_extent: float) -> void:
+	var reach := Vector2(half_extent, half_extent)
+	_bounds_min = _bounds_min.min(origin - reach)
+	_bounds_max = _bounds_max.max(origin + reach)
+
+
+## `_bounds_min`/`_bounds_max` -> `multimesh.custom_aabb`. Empty (nothing
+## spawned since the last [method clear]) pushes the default `AABB()`, which
+## Godot reads as "no custom AABB set" — harmless, since `visible_instance_count`
+## is 0 right alongside it. A non-empty box carries a non-zero Z size even
+## though this is a 2D field: an all-zero-volume AABB is indistinguishable
+## from that same "unset" default.
+func _push_bounds() -> void:
+	if multimesh == null:
+		return
+	if _bounds_min.x > _bounds_max.x:
+		multimesh.custom_aabb = AABB()
+		return
+	var size := _bounds_max - _bounds_min
+	multimesh.custom_aabb = AABB(Vector3(_bounds_min.x, _bounds_min.y, -0.5), Vector3(size.x, size.y, 1.0))
+
+
+## O(`_used`) rebuild for when [member window] changes after shards are
+## already in flight (#839 decision 4) — the incremental per-shatter bound
+## [method spawn_shatter] pushes is a safe but loose upper bound (triangle
+## inequality over the kick), so a full rebuild reads each slot's OWN pushed
+## velocity (the `_customs` mirror) instead of re-deriving it from a
+## seed/kick split the pool no longer has once shards from different
+## shatters share the pool.
+func _recompute_bounds() -> void:
+	_bounds_min = Vector2.INF
+	_bounds_max = -Vector2.INF
+	for slot in _used:
+		var vel := Vector2(_customs[slot].r, _customs[slot].g)
+		_merge_extent(_origins[slot], _sides[slot] * 0.5 + vel.length() * window)
+	_push_bounds()
 
 
 ## Fresh buffer every `_ready` (editor and runtime both) so the runtime

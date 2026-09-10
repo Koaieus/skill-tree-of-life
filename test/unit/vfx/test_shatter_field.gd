@@ -212,6 +212,113 @@ func test_clear_empties_the_pool() -> void:
 	assert_eq(field.spawn_shatter(Vector2.ZERO, 24.0, TINT, Vector2.ZERO, 0.0, 8), 0)
 
 
+# ---------------------------------------------------------------- custom_aabb
+# #839 — 2D canvas-item culling is all-or-nothing off `MultiMesh`'s
+# auto-computed (un-displaced) AABB, so an off-screen origin whose shards fly
+# on screen was culled outright. `spawn_shatter` now pushes a CPU-tracked
+# union rect of the DISPLACED extent as `multimesh.custom_aabb`.
+
+
+func test_spawn_pushes_a_custom_aabb_covering_the_displaced_extent() -> void:
+	var field := _field()
+	var origin := Vector2(300.0, 200.0)
+	var radius := 24.0
+	var kick := 400.0
+	field.spawn_shatter(origin, radius, TINT, Vector2.ZERO, 0.0, 8, kick)
+	var side := 2.0 * radius * ShatterField.OVERSIZE
+	# Zero seed velocity: every cell's shard_velocity() is exactly the kick, so
+	# the per-shatter upper bound (|seed| + kick_speed) is exact here, not just
+	# a bound — keeps the expected value unambiguous.
+	var extent := side * 0.5 + kick * WINDOW
+	# custom_aabb is a plain MultiMesh property (not per-instance GPU data), so
+	# unlike the instance buffer it DOES round-trip under the dummy driver —
+	# confirmed here rather than assumed (#839 acceptance 5).
+	var aabb: AABB = field.multimesh.custom_aabb
+	assert_true(aabb.has_volume(), "a real box, not the MultiMesh unset default")
+	assert_almost_eq(aabb.position.x, origin.x - extent, 0.01)
+	assert_almost_eq(aabb.position.y, origin.y - extent, 0.01)
+	assert_almost_eq(aabb.size.x, extent * 2.0, 0.01, "contains the furthest displaced shard's quad corner")
+	assert_almost_eq(aabb.size.y, extent * 2.0, 0.01)
+
+
+func test_a_moving_source_widens_the_box_by_its_momentum() -> void:
+	# Non-zero seed velocity (#787's actual case): a shard's kick can point
+	# opposite its momentum, so |shard_velocity()| per cell is at most, not
+	# always exactly, |V| + kick_speed — the formula is an upper bound here,
+	# not an exact reach. Assert containment (the box reaches AT LEAST that
+	# far), not an exact size.
+	var field := _field()
+	var origin := Vector2(1000.0, -500.0)
+	var radius := 12.0
+	var kick := 90.0
+	field.spawn_shatter(origin, radius, TINT, V, 0.0, 6, kick)
+	var side := 2.0 * radius * ShatterField.OVERSIZE
+	var expected_extent := side * 0.5 + (V.length() + kick) * WINDOW
+	var aabb: AABB = field.multimesh.custom_aabb
+	assert_true(aabb.position.x <= origin.x - expected_extent + 0.01, "reaches the seed-velocity + kick corner (min x)")
+	assert_true(aabb.position.y <= origin.y - expected_extent + 0.01, "(min y)")
+	assert_true(aabb.position.x + aabb.size.x >= origin.x + expected_extent - 0.01, "(max x)")
+	assert_true(aabb.position.y + aabb.size.y >= origin.y + expected_extent - 0.01, "(max y)")
+
+
+func test_two_far_apart_shatters_union_into_one_box() -> void:
+	var field := _field()
+	var origin_a := Vector2(-2000.0, 0.0)
+	var origin_b := Vector2(3000.0, 500.0)
+	var radius := 10.0
+	var kick := 50.0
+	field.spawn_shatter(origin_a, radius, TINT, Vector2.ZERO, 0.0, 4, kick)
+	field.spawn_shatter(origin_b, radius, TINT, Vector2.ZERO, 0.0, 4, kick)
+	var side := 2.0 * radius * ShatterField.OVERSIZE
+	var extent := side * 0.5 + kick * WINDOW
+	var aabb: AABB = field.multimesh.custom_aabb
+	assert_almost_eq(aabb.position.x, origin_a.x - extent, 0.01, "covers the first shatter's near corner")
+	assert_almost_eq(aabb.position.y, origin_a.y - extent, 0.01)
+	assert_almost_eq(aabb.position.x + aabb.size.x, origin_b.x + extent, 0.01, "and the second shatter's far corner")
+	assert_almost_eq(aabb.position.y + aabb.size.y, origin_b.y + extent, 0.01)
+
+
+func test_changing_window_after_spawn_rescales_the_box_proportionally() -> void:
+	var field := _field()
+	var origin := Vector2.ZERO
+	var radius := 10.0
+	var kick := 200.0
+	field.spawn_shatter(origin, radius, TINT, Vector2.ZERO, 0.0, 6, kick)
+	var side := 2.0 * radius * ShatterField.OVERSIZE
+	var base: AABB = field.multimesh.custom_aabb
+	var expected_base := (side * 0.5 + kick * WINDOW) * 2.0
+	assert_almost_eq(base.size.x, expected_base, 0.01, "sanity: unchanged window matches the spawn-time box")
+
+	field.window = WINDOW * 2.0
+	var wider: AABB = field.multimesh.custom_aabb
+	var expected_wide := (side * 0.5 + kick * (WINDOW * 2.0)) * 2.0
+	assert_almost_eq(wider.size.x, expected_wide, 0.01, "raising window widens the box proportionally")
+	assert_true(wider.size.x > base.size.x)
+
+	field.window = WINDOW * 0.5
+	var narrower: AABB = field.multimesh.custom_aabb
+	var expected_narrow := (side * 0.5 + kick * (WINDOW * 0.5)) * 2.0
+	assert_almost_eq(narrower.size.x, expected_narrow, 0.01, "lowering window narrows the box proportionally")
+	assert_true(narrower.size.x < base.size.x)
+
+
+func test_clear_empties_the_bounds_and_the_next_spawn_starts_fresh() -> void:
+	var field := _field()
+	field.spawn_shatter(Vector2(500.0, 500.0), 24.0, TINT, Vector2.ZERO, 0.0, 8, 300.0)
+	field.clear()
+	assert_eq(field.multimesh.custom_aabb, AABB(), "an empty pool pushes the MultiMesh unset default")
+
+	var origin := Vector2(10.0, 10.0)
+	var radius := 5.0
+	var kick := 20.0
+	field.spawn_shatter(origin, radius, TINT, Vector2.ZERO, 0.0, 1, kick)
+	var side := 2.0 * radius * ShatterField.OVERSIZE
+	var extent := side * 0.5 + kick * WINDOW
+	var aabb: AABB = field.multimesh.custom_aabb
+	assert_almost_eq(aabb.position.x, origin.x - extent, 0.01, "no leftover extent from before clear()")
+	assert_almost_eq(aabb.size.x, extent * 2.0, 0.01)
+
+
 # ------------------------------------------------------------ never self-timed
 
 
