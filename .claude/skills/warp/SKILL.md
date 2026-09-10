@@ -55,7 +55,25 @@ mise gh-project -- status <n> in-progress
 (Project is linked to the repo — issues appear automatically.)
 Move the issue out of Backlog/Ready so other agents don't pick it up.
 
-**3. Implement**
+**3a. Decide the test, and make it red first**
+
+Before writing the fix, answer one question: **does this change earn a test?**
+Done is *"a failing test to make green, or an exact behavioural spec"* — and the
+second half is the right answer for visual/tuning/refactor work, not a cop-out.
+If the issue went through `swarmify`, its `## Acceptance spec` already names the
+test; use that one.
+
+If it earns a test, write it **before** the implementation and watch it fail —
+red→green, never test-after. A test written against already-working code proves
+nothing about the bug it was supposed to pin. The repo-specific catch: a new
+test file referencing a `class_name` or method you haven't written yet is a
+**parse error, not a red test**, and GUT silently skips it while reporting the
+suite green. So stub the seam first, `mise run refresh` if the `class_name` is
+new, then confirm `test:one` actually *ran* your file and failed on *your*
+assert line. Full story, including when to skip tests entirely:
+**`docs/domain/red-green.md`**.
+
+**3b. Implement**
 Same repo, same rules — `.claude/rules/*` apply unchanged inside a worktree.
 Two things specific to running in a *fresh* worktree:
 - It has no `.godot/` yet (gitignored, per-checkout). The first
@@ -68,10 +86,11 @@ Two things specific to running in a *fresh* worktree:
 - If you introduce or rename a `class_name`, the worktree needs its own cache
   refresh (`mise run refresh`) — the main checkout's refresh doesn't propagate.
 
-**4. Test before presenting anything**
+**4. Confirm before presenting anything**
 
-The full suite is a **gate**, not a feedback loop — measured 2026-08-28 at
-**~162s, 335 scripts, 2948 tests** — so reach for it **once**, right before
+Step 3a already gave you a green `test:one`. This step widens that to the suite.
+The full suite is a **gate**, not a feedback loop — measured 2026-09-04 at
+**~215s, 409 scripts, 3807 tests** — so reach for it **once**, right before
 step 5. While iterating, use the cheap ladder instead:
 
 ```bash
@@ -84,7 +103,7 @@ mise run test                                      # full suite — ONCE, right 
 Don't skip the full run to save time — the approval step in #5 assumes tests
 already pass; surfacing red tests at approval time wastes the review. But
 don't re-run it mid-iteration either — that's what `test:one`/`test:dir` are
-for, and a 162s round trip on every edit is exactly the waste this ladder
+for, and a 215s round trip on every edit is exactly the waste this ladder
 exists to avoid.
 
 **5. Pending approval — stop and ask**

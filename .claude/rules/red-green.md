@@ -1,0 +1,1 @@
+When a change is testable the test goes FIRST and must be seen RED — and here "red" is not the default: a test file with a parse error is silently skipped while the suite reports green, so confirm your test actually ran and failed on your assert. Not every change earns one (visual/tuning work does not). See docs/domain/red-green.md

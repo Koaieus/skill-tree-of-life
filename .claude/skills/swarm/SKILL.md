@@ -623,7 +623,7 @@ the same amount of code as the cheapest and cost 35% more, entirely in
 verification it was never asked for. That is the lever.
 
 **Bound verification explicitly in every prompt.** Drone already carries the
-ladder (`check` → `test:one` → `test:dir` → full, ~162s for the full suite as
+ladder (`check` → `test:one` → `test:dir` → full, ~215s for the full suite as
 of 2026-08-28) and the cap that goes with it — full suite **at most once**,
 at final green, never to explore, never per edit; no new test harnesses
 unless the brief names one; no `xvfb` unless a shader changed. Adding a
@@ -799,13 +799,13 @@ per-merge; a train cuts that to roughly 2–4.
 **On a red batch, bisect.** Re-run the suite (or the narrower `test:dir` for
 the failing area) against successive merge points until you isolate the
 offending branch — that costs ~log2(n) extra suite runs, paid only in the
-failure case, and is still cheaper than paying the full 162s on every merge
+failure case, and is still cheaper than paying the full 215s on every merge
 whether or not anything ever breaks.
 
 **The suite is a gate on code, not a ritual owed to every train.** "Once per
 batch" replaces "once per merge" — it does not mean "always." A batch that
 touched no `.gd`/`.tscn` (a docs-only or skills-only train, say) cannot be
-observed by a 162s Godot test run at all; running one anyway is the same
+observed by a 215s Godot test run at all; running one anyway is the same
 mistake this whole cluster tells a *drone* not to make, just committed by the
 orchestrator instead. Match the check to what actually changed: `mise run
 check` if any script changed, the full suite once the batch is runtime-

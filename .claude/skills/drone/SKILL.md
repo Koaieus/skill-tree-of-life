@@ -45,9 +45,23 @@ Read anything you like. Write only what you own.
 
 ## Red-green
 
-Your prompt gives you an acceptance test, or an exact spec. **The full suite
-is a gate, not a feedback loop** — measured 2026-08-28 at **~162s, 335
-scripts, 2948 tests** — so you earn it **at most once**, at your final green,
+Your prompt gives you an acceptance test, or an exact spec.
+
+**If it names a test, get it RED before you write the fix.** Red→green, in that
+order — a test written against already-working code proves nothing. The
+repo-specific catch: a new test file referencing a `class_name` or method that
+does not exist yet is a **parse error, not a red test**, and GUT silently skips
+it while still reporting the suite green. So stub the seam first, `mise run
+refresh` if the `class_name` is new, then check `test:one` actually *ran* your
+file (no `Ignoring script` under `run health:`) and failed on *your* assert
+line. See `docs/domain/red-green.md`.
+
+**If it gives an exact spec instead, that is the whole answer — do not author a
+test to feel thorough.** Visual acceptance ("does it look right"), tuning, and
+pure refactors get `check` and the existing suite, nothing more.
+
+**The full suite is a gate, not a feedback loop** — measured 2026-09-04 at
+**~215s, 409 scripts, 3807 tests** — so you earn it **at most once**, at your final green,
 immediately before reporting. Never to explore, never mid-rebase, never "to
 see where things stand." Use the cheap ladder instead while you iterate:
 
