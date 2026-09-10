@@ -553,14 +553,27 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 		if plan == null:
 			return false
 		attack_plan = plan
-		# Melee draws off `last_trajectory` / `last_events`, which only
-		# [method MeleeAttackPlan.resolve_against] fills in. Its returned
-		# outcome is DISCARDED — the record is what lands, and `resolve()` runs
-		# against a throwaway shadow, so re-simulating to DRAW mutates nothing
-		# (see [AttackRecord]). Skipped when there is no preview mounted, so a
-		# headless peer pays nothing for an animation it won't play.
+		# Melee draws off `last_trajectory` / `last_events`, which only a
+		# resolve fills in. The outcome that resolve produces is DISCARDED —
+		# the record is what lands, and it runs against a throwaway shadow, so
+		# re-simulating to DRAW mutates nothing (see [AttackRecord]). Skipped
+		# when there is no preview mounted, so a headless peer pays nothing for
+		# an animation it won't play.
+		#
+		# #796: started here, STEPPED, never baked whole before this method
+		# returns. [method MeleePreview.begin_replay] kicks off [method
+		# MeleeAttackPlan.begin_replay_resolve] and arms the frame pump that
+		# advances it — by the time [method launch] needs the trajectory,
+		# it may already be complete (the wind-up's own seconds are a free
+		# head start) or still stepping, which [method
+		# MeleeAttackPlan.replay_duration] / [SkillBlade]'s duration override
+		# both handle. Fidelity is a settings knob: this resim is draw-only
+		# per ADR 0002, so a spectating peer may downgrade it for free.
 		if plan is MeleeAttackPlan and melee_preview != null:
-			plan.resolve()
+			var low_fidelity := Settings.current.melee_peer_sim_fidelity \
+					== GameSettings.PeerSimFidelity.LOW
+			var substeps := 1 if low_fidelity else BladeSim.DEFAULT_SUBSTEPS
+			melee_preview.begin_replay(plan, substeps, not low_fidelity)
 	# Everyone, authority included, from here down.
 	# Seconds are minted here, on THIS machine, at THIS machine's rate for this
 	# actor — the one melee rate door (#819/#820). Passed rather than left

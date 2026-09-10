@@ -108,6 +108,13 @@ func _notification(what: int) -> void:
 	if _pending_world != null:
 		_pending_world.free_shadow()
 		_pending_world = null
+	# #796: same trap, same fix, for a mirror's committed-swing replay resolve
+	# — it also holds a shadow open across frames. INLINED for the same
+	# PREDELETE reason as above; not a call to `advance_replay_resolve`.
+	_replay_run = null
+	if _replay_world != null:
+		_replay_world.free_shadow()
+		_replay_world = null
 
 
 # ── Wire ───────────────────────────────────────────────────────────────────
@@ -716,11 +723,23 @@ class SwingResolve extends RefCounted:
 	## sample (rewound) or to the end of the last bake (a slice boundary).
 	var _chunk_start: int = 0
 	var _done: bool = false
+	## #796: the peer draw-only resim's fidelity knob. Both default to the
+	## authoritative/aim-time values (`BladeSim.DEFAULT_SUBSTEPS`, scaling on) —
+	## only [method MeleeAttackPlan.begin_replay_resolve] ever passes anything
+	## else, and it does so because ADR 0002 makes that call's whole run
+	## draw-only: no hit, pop or damage number this class produces is kept, so
+	## degrading its solve buys nothing to lose.
+	var _substeps: int = BladeSim.DEFAULT_SUBSTEPS
+	var _enable_length_scaling: bool = true
 
 
-	func _init(plan: MeleeAttackPlan, world: CombatWorld) -> void:
+	func _init(plan: MeleeAttackPlan, world: CombatWorld,
+			substeps: int = BladeSim.DEFAULT_SUBSTEPS,
+			enable_length_scaling: bool = true) -> void:
 		_plan = plan
 		_world = world
+		_substeps = substeps
+		_enable_length_scaling = enable_length_scaling
 		var resolve_seed := plan.resolve_seed
 		var outcome := AttackOutcome.new()
 		_outcome = outcome
@@ -802,6 +821,16 @@ class SwingResolve extends RefCounted:
 		return clampf(float(_chunk_start) / float(_total_steps), 0.0, 1.0)
 
 
+	## The trajectory-TIME length this run will finish at, known from the swing
+	## duration up front — unlike [method BladeTrajectory.duration], which
+	## derives purely from `samples.size()` and so underreports while a slice
+	## run is still mid-flight. #796: a mirror's [method MeleePreview.launch]
+	## needs the real span to size its playback tween BEFORE the resim driving
+	## it has finished.
+	func total_duration() -> float:
+		return float(_total_steps) * _dt
+
+
 	## Resolve at most [param max_steps] more trajectory samples; true when the
 	## whole swing is resolved. A budget of 0 or less means "the rest of it",
 	## which is the authoritative path's single call.
@@ -821,8 +850,8 @@ class SwingResolve extends RefCounted:
 			var count := remaining if budget <= 0 else mini(budget, remaining)
 			var chunk := BladeSim.simulate_range(
 					_state, _drivers, _chunk_start, count, _dt,
-					BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS,
-					true, _clock)
+					BladeSim.DEFAULT_ITERATIONS, 0.0, _substeps,
+					_enable_length_scaling, _clock)
 			var chunk_speeds := _state.speed_history
 			var severed_at := -1
 			for j in range(1, chunk.samples.size()):
@@ -944,6 +973,17 @@ var _pending_world: CombatWorld = null
 ## Defenders the cached prediction says will pop a vertex or shatter an edge,
 ## as a set — read by [method get_node_role] with no work of its own.
 var _predicted_defenders: Dictionary[SkillNode, bool] = {}
+
+## #796: a MIRROR's committed-swing draw-only resim, in flight, or null. Not
+## the aim-time [member _pending_prediction] — that one runs before a commit
+## and is cancellable; this one runs AFTER a commit, for a swing that is
+## already decided ([AttackRecord] already applied elsewhere per ADR 0002), so
+## it always runs to completion rather than being invalidated mid-flight.
+var _replay_run: SwingResolve = null
+## The shadow world [member _replay_run] resolves against, held open across
+## frames and freed on completion — never the live world, same contract as
+## [member _pending_world].
+var _replay_world: CombatWorld = null
 
 
 ## The cached prediction for the current selection, or null if there is none.
@@ -1072,6 +1112,68 @@ func _cancel_pending_prediction() -> void:
 func _notify_selection_changed() -> void:
 	_invalidate_prediction()
 	state_changed.emit()
+
+
+## #796: start a MIRROR's committed-swing draw-only resim, stepped across
+## frames rather than baked whole before [method MeleePreview.launch] can even
+## begin. Per ADR 0002 every hit, pop and damage number this swing will show
+## already comes off the confirmed [AttackRecord], replayed on the real world
+## by [method BattleSystem.apply_launch_command] — this run exists only to
+## draw a plausible arc, so [param substeps] / [param enable_length_scaling]
+## are a pure graphics knob with zero correctness consequence.
+##
+## Idempotent: a second call while one is already in flight is a no-op, so a
+## caller need not track whether it already started one.
+##
+## Publishes [member last_trajectory] / [member last_events] / [member
+## last_pops] / [member last_live_gate] to the run's LIVE arrays immediately,
+## the same "published now, not at the end" shape [SwingResolve] already uses
+## for the aim-time preview — a reader that looks at them before the run
+## finishes sees the partial picture and nothing stale.
+func begin_replay_resolve(substeps: int, enable_length_scaling: bool) -> void:
+	if _replay_run != null:
+		return
+	_replay_world = CombatWorld.shadow()
+	_replay_run = SwingResolve.new(self, _replay_world, substeps, enable_length_scaling)
+	last_trajectory = _replay_run.result.trajectory
+	last_events = _replay_run.result.events
+	last_hits = _replay_run.result.hits
+	last_pops = _replay_run.result.pops
+	last_live_gate = _replay_run.result.live_gate
+
+
+## Step the in-flight replay resolve by at most [param max_steps] samples.
+## True once it is fully resolved — including when nothing was in flight, so a
+## caller can call this unconditionally every frame. Frees the shadow world on
+## the completing call, same as [method _cancel_pending_prediction].
+func advance_replay_resolve(max_steps: int) -> bool:
+	if _replay_run == null:
+		return true
+	if not _replay_run.advance(max_steps):
+		return false
+	_replay_run = null
+	if _replay_world != null:
+		_replay_world.free_shadow()
+		_replay_world = null
+	return true
+
+
+## True while a mirror's committed-swing resim is still stepping. For
+## [MeleePreview]'s frame pump to know whether there is work to do.
+func is_replaying() -> bool:
+	return _replay_run != null
+
+
+## The trajectory-time length the in-flight replay resolve will finish at, or
+## the already-finished trajectory's own duration once there is no run left.
+## For [method MeleePreview.launch] to size its playback tween correctly
+## whether or not the resim driving it is done — see [method
+## SwingResolve.total_duration] for why [method BladeTrajectory.duration]
+## cannot answer this mid-flight.
+func replay_duration() -> float:
+	if _replay_run != null:
+		return _replay_run.total_duration()
+	return last_trajectory.duration() if last_trajectory != null else 0.0
 
 
 func resolve_against(world: CombatWorld) -> AttackOutcome:

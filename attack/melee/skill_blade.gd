@@ -180,11 +180,19 @@ func simulate(
 ##     0.5 takes twice the wall-clock to play the same trajectory. See the
 ##     sim/presentation invariant in docs/domain/melee-blade-sim.md — hit
 ##     scheduling stays in trajectory time regardless of this knob (#619).
+##   - duration_override: >= 0.0 overrides [method BladeTrajectory.duration] as
+##     the tween's trajectory-time span. #796: a mirror's committed-swing resim
+##     may still be stepping when this call starts (`traj.samples` grows in
+##     place as it does), so `traj.duration()` would underreport and cut the
+##     tween short. [method MeleeAttackPlan.replay_duration] is the real span
+##     in that case; every other caller leaves this at -1 and keeps deriving
+##     duration from the (already complete) trajectory exactly as before.
 func play(
 		traj: BladeTrajectory,
 		hits: Array[BladeHitEvent] = [],
 		ghostly: bool = false,
-		playback_rate: float = 1.0) -> void:
+		playback_rate: float = 1.0,
+		duration_override: float = -1.0) -> void:
 	if traj == null or traj.samples.is_empty():
 		playback_finished.emit()
 		return
@@ -194,7 +202,7 @@ func play(
 	_finish_form()
 	modulate = Color(1.0, 1.0, 1.0, 0.35) if ghostly else Color.WHITE
 	var pending: Array[BladeHitEvent] = hits.duplicate()
-	var dur := traj.duration()
+	var dur := duration_override if duration_override >= 0.0 else traj.duration()
 	# tween_method interpolates the VALUE range [0, dur] linearly over
 	# `wall_duration` wall-clock seconds — the callback argument is always
 	# trajectory time, never wall-clock time, no matter how the two differ.

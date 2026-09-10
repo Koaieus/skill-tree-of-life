@@ -13,6 +13,13 @@ extends Resource
 
 enum WindowMode { WINDOWED, FULLSCREEN, BORDERLESS }
 
+## #796: a spectating peer's melee blade resim is draw-only (ADR 0002) — every
+## hit, pop and damage number it shows already comes off the confirmed
+## [AttackRecord], so this trades solve cost for visual smoothness with zero
+## correctness consequence. LOW is `substeps = 1`, length scaling off, roughly
+## pre-#790 cost; HIGH matches what the authority itself solves.
+enum PeerSimFidelity { LOW, HIGH }
+
 ## Indexed by the `resolution` export below; keep the two in lockstep.
 const RESOLUTIONS: Array[Vector2i] = [
 	Vector2i(1280, 720),
@@ -61,3 +68,7 @@ const RESOLUTIONS: Array[Vector2i] = [
 @export_enum("Disabled", "Enabled", "Adaptive") var vsync_mode: int = DisplayServer.VSYNC_ENABLED
 ## 0 = uncapped.
 @export_range(0, 300, 1) var max_fps: int = 0
+## Defaults LOW: no tier detection exists to pick it automatically (#796), and
+## the owner's stated worry is weak PCs, so the safe default costs a
+## spectating peer nothing extra rather than assuming headroom it may not have.
+@export_enum("Low", "High") var melee_peer_sim_fidelity: int = PeerSimFidelity.LOW

@@ -38,6 +38,16 @@ const _FADE: float = 0.4
 ## which is the pre-#821 behaviour.
 @export var prediction_slice_steps: int = 12
 
+## Trajectory samples a MIRROR's committed-swing draw-only resim steps per
+## frame (#796) — same shape as [member prediction_slice_steps], different
+## consumer. That one exists so an AIMING click never stalls; this one exists
+## so a COMMITTED swing's resim never bakes whole before [method launch] can
+## start drawing it. Kept as its own knob rather than reusing the aim-time one
+## because the two have different windows to finish in: the aim-time one only
+## has to finish "soon" after a click, this one only has to stay ahead of
+## [method launch]'s own playback — see [method MeleeAttackPlan.replay_duration].
+@export var replay_slice_steps: int = 12
+
 ## Master switch for the IDLE loop only — a committed [method launch] ignores it.
 ##
 ## The preview loop is the one part of melee that auto-drives (play → rebuild,
@@ -157,11 +167,37 @@ func _pump_prediction(plan: MeleeAttackPlan) -> void:
 	set_process(not complete)
 
 
+## Start a MIRROR's committed-swing draw-only resim (#796) and arm the frame
+## pump that steps it. Called by [BattleSystem] the moment a REPLAY command's
+## record lands — well before [method begin_windup] / [method launch] run —
+## so the wind-up's own seconds are free head start on top of whatever
+## [member replay_slice_steps] buys per frame.
+##
+## [param substeps] / [param enable_length_scaling] are the peer sim-fidelity
+## graphics setting: draw-only per ADR 0002, so degrading them costs nothing
+## real. Idempotent — see [method MeleeAttackPlan.begin_replay_resolve].
+func begin_replay(plan: MeleeAttackPlan, substeps: int, enable_length_scaling: bool) -> void:
+	plan.begin_replay_resolve(substeps, enable_length_scaling)
+	set_process(true)
+
+
 ## The slice pump. Deliberately NOT the preview loop — that loop is parked on
 ## `blade.play` for the length of a swing cycle, which is exactly the window
 ## the prediction has to finish inside.
 func _process(_delta: float) -> void:
-	if _live_swing or battle_system == null or not preview_enabled:
+	if battle_system == null:
+		set_process(false)
+		return
+	var replay_plan := battle_system.attack_plan as MeleeAttackPlan
+	if replay_plan != null and replay_plan.is_replaying():
+		# #796: a committed swing's resim keeps stepping regardless of
+		# `_live_swing` / `preview_enabled` — [method launch]'s docstring
+		# already establishes both are ignored for a committed swing, and this
+		# is what [method launch] is waiting on.
+		var complete := replay_plan.advance_replay_resolve(replay_slice_steps)
+		set_process(not complete)
+		return
+	if _live_swing or not preview_enabled:
 		set_process(false)
 		return
 	var plan := battle_system.attack_plan as MeleeAttackPlan
@@ -233,7 +269,11 @@ func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
 	var playback_rate := 1.0
 	if schedule != null:
 		playback_rate = schedule.blade_playback_rate(MeleeAttackPlan.SWING_DURATION)
-	await blade.play(traj, events, false, playback_rate)
+	# #796: a MIRROR's resim may still be stepping — `plan.replay_duration()`
+	# is the swing's real trajectory-time span either way (in flight or
+	# already finished; see its docstring), so `play` always sizes its tween
+	# correctly rather than reading a partial `traj.duration()`.
+	await blade.play(traj, events, false, playback_rate, plan.replay_duration())
 	if gen != _gen or blade != _ghost:
 		_live_swing = false
 		return
