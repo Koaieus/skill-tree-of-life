@@ -51,10 +51,10 @@ add `-ffast-math` / `-march=native` / anything enabling FMA contraction.
 
 `native/SConstruct` **pins `-ffp-contract=off`** for exactly that last reason.
 Do not drop it as redundant: GCC and Clang default to `-ffp-contract=fast`, and
-it only happens to be harmless today because the baseline x86_64 target has no
-FMA. `blade_sim.gdextension` already lists `linux.arm64` and macOS, where FMA
-*is* baseline — there the default silently fuses `a * b + c` and the solver
-drifts on one platform only.
+it only happens to be harmless today because both platforms this extension
+targets — linux and windows x86_64, the whole matrix as of #844 — have no FMA
+in their SSE2 baseline. The pin still matters as insurance against a future
+compiler or flag change on either one.
 
 ## Every value simulate() produces must cross the boundary — not just positions
 

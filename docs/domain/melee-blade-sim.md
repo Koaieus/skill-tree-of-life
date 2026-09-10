@@ -363,10 +363,10 @@ red, find the expression that stopped matching -- do not widen the test to
 
 The build pins **`-ffp-contract=off`** (`native/SConstruct`) to hold that
 threshold. It is not redundant: GCC and Clang default to `-ffp-contract=fast`,
-and bit-identity survives today only because the baseline x86_64 target has no
-FMA. `blade_sim.gdextension` already lists `linux.arm64` and macOS, where FMA
-*is* baseline — there the default would fuse a multiply-add and drift the
-solver on one platform only.
+and bit-identity survives today only because both platforms this extension
+actually targets — linux and windows x86_64, the whole matrix as of #844 — have
+no FMA in their SSE2 baseline. The pin still matters: it is one less axis a
+future compiler or flag change could drift on.
 
 **Everything `simulate()` takes and everything it produces must cross the
 boundary.** Both `simulate()` PARAMETERS and `BladeState` OUTPUTS are silent
@@ -473,6 +473,19 @@ exports, and a platform after that -- `-- template_release windows` -- to
 cross-compile, on the llvm-mingw toolchain `mise.toml` pins). godot-cpp is a submodule at
 `native/godot-cpp`, so a fresh clone needs a recursive submodule init first.
 Binaries are **not** committed -- `native/bin/` is gitignored.
+
+##### The supported matrix is exactly what's declared, and exactly what's built (#844)
+
+`blade_sim.gdextension` declares **four** keys: linux and windows x86_64, each
+debug and release. That used to be eight -- linux/windows arm64 and macOS
+debug/release were declared with no binary behind them, which #806 already
+turned into a hard export failure and #816 would otherwise turn into "the game
+cannot run there at all." **Declare nothing you do not build.** Re-add a
+target the day a machine actually needs it, in the same change that adds its
+binary -- never ahead of one. `mise run native:build -- <target> windows`
+cross-compiles either `template_debug` or `template_release` for Windows; the
+task was already platform/target-orthogonal, so there is no separate
+"debug cross-compile" path to maintain.
 
 ##### `build_profile` is a SCons Variable, not an Import
 
