@@ -1,4 +1,4 @@
-# Spell propagation — refactor toward filter / step / merger
+# Spell propagation — filter / spread / mint / merger
 
 Engineering-side architecture doc for the spell propagation pipeline. The
 design-side (what spells *do* and why) lives in `docs/design/spells.md`;
@@ -6,6 +6,13 @@ this doc covers the code shape that has to support it.
 
 Session-handoff format: where we are, where we're going, why, and the
 migration queue.
+
+**The pipeline in one line (hub #849, settled 2026-09-10 → #850 / #851 / #852):**
+per landing, on **departure** the filter *narrows* → the spread *selects* → the
+config *mints*; on **arrival** the reducer *merges* → the effects
+*transform / emit* → the conditions *elevate*. Every stage has exactly one
+role and no class does another's job — a spell's tooltip is generated from
+the stages (#764) because of that.
 
 ---
 
@@ -108,42 +115,55 @@ Stock subclasses (slot into one or more `PropagationConfig`s):
 - `ExpressionFilter` — `Expression`-backed escape hatch for one-offs,
   modeled on `StatFormula`'s expression layer
 
-### `PropagationStep`
+### `PropagationSpread` (was `PropagationStep` until #852)
 
 ```gdscript
 @tool
 @abstract
-class_name PropagationStep
+class_name PropagationSpread
 extends Resource
 
-@abstract func step(
-    current_node: SkillNode,
+@abstract func select(
+    current: SkillNode,
+    eligible: Array[SkillNode],
     payload: CastSpell,
-    candidates: Array[SkillNode],
-    ctx: PropagationContext) -> Array[CastSpell]
+    ctx: PropagationContext) -> Array[PropagationPick]
 ```
 
-Receives the **already filtered** candidate list. Mints one `CastSpell`
-per outgoing copy, applies any payload mutations (damage scaling,
-hops--, custom).
+Receives the **already narrowed** candidate list and answers one question:
+*where does this landing's expansion go, and with what share?* It returns
+`PropagationPick`s and **nothing else** — a spread never constructs a
+`CastSpell`, never does damage math, never writes `hops_remaining`. The
+payload is read-only inside `select`.
 
-Stock subclasses:
+`PropagationPick` (`propagation/propagation_pick.gd`, RefCounted) is a
+destination plus the facts the spread decided about it, every one typed:
+`node`, `share` (the child's `arrival_share` IS this number), and the curl's
+stamps — `arrival_bearing`, `turn_sign`, `closed_cycle`, `came_from`,
+`lineage_override` (non-empty = the ring a closing hop walked, replacing the
+child's `visited`). No dictionary: every writer of a field is one grep away.
 
-- `FanAllStep` — one copy per candidate, `damage *= damage_multiplier_per_hop`
+Stock subclasses (`propagation/spread/`):
+
+- `FanAllSpread` — one full-share pick per eligible node
   (covers Lightning / Crunch / Flood / Resonator)
-- `TakeTopNStep` — sort by a ranker, take top N (collapses
+- `TakeTopNSpread` — sort by a ranker, take top N (collapses
   `HighestDegreePropagation` + `RankedStatPropagation` into one configurable
   shape: the ranker is composable too). Sorting and picking ONLY — narrowing
   the set first is `RankThresholdFilter` / `TopTiesFilter` on the filter side.
   `NodeRanker` and its subclasses live in `propagation/ranker/`, not under
-  `step/`, because filter and step both consume them (#850).
-- `RandomPickStep` — `RandomWalkPropagation` equivalent, RNG-threaded
-- `NoStep` — empty array (single-target spells)
-- `TrailBlazerStep` — walks one path along a chain. Pure selection since #851:
-  it mints one child per surviving candidate and nothing else.
+  `spread/`, because filter and spread both consume them (#850).
+- `RandomPickSpread` — `RandomWalkPropagation` equivalent, RNG-threaded
+- `NoSpread` — empty array (single-target spells)
+- `TrailBlazerSpread` — walks one path along a chain. Pure selection since
+  #851: every surviving candidate at full share and nothing else.
+- `CycloneSpread` — ranks the eligible nodes by turn (`Curl.rank`) and picks
+  one per authored rank; the rank coefficient (× `closing_gain` on a closing
+  hop) is the pick's `share`. **The damage split happens in `mint`, nowhere
+  else** — the spread only decides the number.
 
-**A step never transforms damage on arrival, and never decides that the walk
-is over** (#851, hub #849 Seam C). Both used to happen inside
+**A spread never transforms damage on arrival, and never decides that the
+walk is over** (#851, hub #849 Seam C). Both used to happen inside
 `TrailBlazerStep`, decided at departure time from the *previous* node — which
 is why a cast seeded straight onto a junction was never slammed. They are now:
 
@@ -252,12 +272,25 @@ the scalar knobs that don't deserve their own class:
 
 ```gdscript
 @export var filter: PropagationFilter
-@export var step: PropagationStep
+@export var spread: PropagationSpread
 @export var reducer: IncidentReducer
 @export var max_hops: int = 0
 @export var max_visits_per_node: int = 1   # 1 = never-revisit; INT_MAX = uncapped
 @export var hop_damage: HopDamageProgression = null   # null = damage carried verbatim
+
+func mint(payload: CastSpell, pick: PropagationPick) -> CastSpell
 ```
+
+**`mint` is the one place a child `CastSpell` is built** (#852, hub #849
+Seam B — *owner: "Step returns picks; config mints."*). It absorbed the old
+`PropagationStep._propagate_to`: `damage = (hop_damage.apply(parent, seed,
+hop_index) if hop_damage else parent) × pick.share`; `hops_remaining - 1`;
+`hop_index + 1`; `visited` = parent trail + destination (or the pick's
+`lineage_override`); caster / graph / rng threaded; then the pick's stamps
+copied verbatim (`arrival_share = share`, `arrival_bearing`, `turn_sign`,
+`closed_cycle`, `came_from`). The resolver calls `select` once per landing and
+`mint` once per pick. Progression first, share second, so an authored ramp
+composes with a spread's split.
 
 This replaces `SpellPropagation` entirely. `SpellDef.propagation` retypes
 to `PropagationConfig`.
@@ -283,12 +316,12 @@ scaled it was the tooltip, which lied about the depth it printed — fixed
 2026-09-02 (`b51c66f`).
 
 **Why it cannot take a global modifier at all**, independent of tuning taste:
-`max_hops` means two different things depending on whether the step
+`max_hops` means two different things depending on whether the walk
 self-terminates. Trailblazer's 999 is a *backstop* — it walks one path and its
 filter stops it at the first junction (entity degree > 2), so "+2 hops" does
 nothing to it — while Cyclone's 8 is a *limiter*, and the same "+2" takes it
 from 8 bounces to 10. One modifier, wildly different effect per spell. Any
-future propagation tuning has to be **per-step-strategy, not a board stat**.
+future propagation tuning has to be **per-spread-strategy, not a board stat**.
 
 Bounce count is superlinear in effect, unlike reach. Keep this in view when
 adding any reach stat: it feeds `HopRangeFinder` only.
@@ -311,7 +344,7 @@ hop n = f(hop n-1)     f = the spell's HopDamageProgression
   board. Reading `state.current_node` would let the defender buff the spell
   landing on them.
 - It is evaluated **once, at the seed**, and stamped on `CastSpell.seed_damage`
-  (copied verbatim by `_propagate_to`, like `seed_node`). Re-reading per hop
+  (copied verbatim by `PropagationConfig.mint`, like `seed_node`). Re-reading per hop
   would compound INT — INT² by hop 2. The formula itself lives in
   `SpellResolver.impact_damage()` — the number the primary target takes;
   `CastSpell.seed_damage` is the same float carried forward for hop
@@ -369,17 +402,19 @@ while wave not empty:
             eff.apply(state, outcome)
         ctx.global_visit_count[state.current_node] += 1
 
-    # 4. compute next wave: cap visits, narrow through the filter, then step.
-    #    The visit cap runs FIRST — the filter is set-level, so a TopTiesFilter
-    #    must tie-break among reachable candidates, not pick a winner the cap
-    #    then deletes. For a pairwise filter the two orders are identical.
+    # 4. compute next wave: cap visits, filter NARROWS, spread SELECTS,
+    #    config MINTS. The visit cap runs FIRST — the filter is set-level, so a
+    #    TopTiesFilter must tie-break among reachable candidates, not pick a
+    #    winner the cap then deletes. For a pairwise filter the two orders are
+    #    identical.
     next_wave = []
     for state in merged:
         if state.hops_remaining <= 0: continue
         candidates = [nb for nb in graph.get_neighbours(state.current_node)
                       if ctx.visit_count(nb) < config.max_visits_per_node]
         candidates = config.filter.narrow(state.current_node, candidates, state, ctx)
-        next_wave.append_array(config.step.step(state.current_node, state, candidates, ctx))
+        for pick in config.spread.select(state.current_node, candidates, state, ctx):
+            next_wave.append(config.mint(state, pick))
     wave = next_wave
 ```
 
@@ -399,7 +434,7 @@ Notes:
 
 ## Why this shape
 
-- **Filter / Step / Merger are orthogonal axes.** Mixing-and-matching
+- **Filter / Spread / Merger are orthogonal axes.** Mixing-and-matching
   three small subclasses + a handful of scalars gives a combinatorial
   space of spell behaviours. The design-side `spells.md` already
   enumerates a dozen distinct spells expressible this way.
@@ -435,9 +470,10 @@ Notes:
   just additional independent hits gated by `max_visits_per_node`.
 - **Putting damage scaling on the Step subclass exclusively** — would
   force every spell to use a Step variant just to change falloff.
-  Keeping `damage_multiplier_per_hop` as a scalar on `PropagationConfig`
-  + letting `FanAllStep` read it covers 90% of cases without subclass
-  proliferation. Custom Step subclasses can still override.
+  Keeping the progression on `PropagationConfig` (`hop_damage`) covers 90%
+  of cases without subclass proliferation. #852 took this to its end: the
+  spread does *no* damage math at all — a spread that wants a split hands
+  over a `share` and `PropagationConfig.mint` multiplies.
 
 ---
 
@@ -535,9 +571,10 @@ var hits: Array[HitInstance] = []    # shared refs into `hits`; empty for CANCEL
 
 Cyclone splits its damage across turn-ranks, and rank is the whole mechanic: the
 sharp turn circulates, the wide turns radiate. The VFX layer cannot recover it.
-`CycloneStep` holds the coefficient as a **local**, multiplies `damage` by it and
-drops it; `CycloneReducer` then **sums** every incident, and the crit multiplies
-again at landing. A landed amount is not invertible.
+`CycloneSpread` hands the coefficient over as the pick's `share`, `mint`
+multiplies `damage` by it and the coefficient is gone; `CycloneReducer` then
+**sums** every incident, and the crit multiplies again at landing. A landed
+amount is not invertible.
 
 Three things make the shape what it is:
 
@@ -572,7 +609,7 @@ Cyclone's closing hop is the payoff of the whole #703 redesign (the crit, plus
 node**. Lighting the ring *as* a ring needs the ring, and it lives in
 `CastSpell.visited` — a resolver-local the event never carried.
 
-- **The resolver stamps it where the crit is stamped.** `CycloneStep.closed_ring()`
+- **The resolver stamps it where the crit is stamped.** `CycloneSpread.closed_ring()`
   truncates `visited` to *exactly* the loop on every close (that truncation is
   what makes every `CycleCondition` crit a real simple cycle of length ≥ 3),
   and `CycloneReducer` hands a closer's lineage through whole. So the stamp is one
@@ -659,9 +696,10 @@ place that can:
    cycle, the merged payload resets outright (empty veto, trail restarted)
    rather than unioning in a non-closer's veto. Without that, an unrelated front
    silently weakens someone else's reset — a reset that sometimes isn't one.
-3. **Where is it stamped?** At **mint, in the step**, if the answer depends on
-   the parent's state. By landing time `_propagate_to` has already mutated the
-   child's copy and a reset may have cleared it, so the fact is unrecoverable.
+3. **Where is it stamped?** At **select, on the pick** (copied onto the child
+   by `mint`), if the answer depends on the parent's state. By landing time
+   `mint` has already built the child's copy and a reset may have cleared it,
+   so the fact is unrecoverable.
    The crit condition then just *reads* the stamped flag — the Design A split
    `ConvergenceCondition` documents, and the reason `CycleCondition` is
    a one-line predicate rather than a re-derivation.
