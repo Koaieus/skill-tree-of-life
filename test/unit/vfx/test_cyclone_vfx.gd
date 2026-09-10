@@ -3,7 +3,7 @@ extends GutTest
 ## #709 acceptance: Cyclone's coordinator used to point both verb slots at a
 ## BARE [code]bolt_streak.tscn[/code] — no [ComposedProjectileVisual], therefore
 ## no [ImpactRing], therefore no crit grammar at all. Since [ImpactRing] is the
-## sole home of that grammar (#663 D6), every [CycleCritCondition] crit the
+## sole home of that grammar (#663 D6), every [CycleCondition] crit the
 ## spell rolled rendered as literally nothing: #703 measured 31 of them on a
 ## single hex wheel and a player saw none.
 ##
@@ -687,7 +687,7 @@ func test_a_tint_stamped_before_the_ring_exists_still_lands() -> void:
 
 
 func test_the_closure_crit_reaches_every_overlay() -> void:
-	# The closing hop IS a crit (CycleCritCondition), and EdgeEnergize leans one
+	# The closing hop IS a crit (CycleCondition), and EdgeEnergize leans one
 	# stop into one. A crit that stopped at the wrapper would be invisible.
 	var calm := _energizers(_flash(_ring_nodes(3)))
 	var flash := _flash(_ring_nodes(3))

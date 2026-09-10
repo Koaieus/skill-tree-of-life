@@ -1,6 +1,6 @@
 @tool
-class_name LeafCritCondition
-extends CritCondition
+class_name LeafCondition
+extends LandingCondition
 
 ## Crits when the target is a leaf of ITS OWNER'S territory — degree 1 within
 ## the owner's induced subgraph, matching [DegreeFilter]. A node whose only

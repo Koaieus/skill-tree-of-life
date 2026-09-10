@@ -517,7 +517,7 @@ node**. Lighting the ring *as* a ring needs the ring, and it lives in
 
 - **The resolver stamps it where the crit is stamped.** `CycloneStep.closed_ring()`
   truncates `visited` to *exactly* the loop on every close (that truncation is
-  what makes every `CycleCritCondition` crit a real simple cycle of length ≥ 3),
+  what makes every `CycleCondition` crit a real simple cycle of length ≥ 3),
   and `CycloneReducer` hands a closer's lineage through whole. So the stamp is one
   line — `ev.closed_ring = state.visited.duplicate()` when `state.closed_cycle` —
   and `closed_ring` is non-empty on exactly the landings that closed something.
@@ -606,7 +606,7 @@ place that can:
    the parent's state. By landing time `_propagate_to` has already mutated the
    child's copy and a reset may have cleared it, so the fact is unrecoverable.
    The crit condition then just *reads* the stamped flag — the Design A split
-   `ConvergenceCritCondition` documents, and the reason `CycleCritCondition` is
+   `ConvergenceCondition` documents, and the reason `CycleCondition` is
    a one-line predicate rather than a re-derivation.
 
 The payoff for getting (1) right is not just correctness — but Cyclone is also

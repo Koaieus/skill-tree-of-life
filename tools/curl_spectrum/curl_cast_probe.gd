@@ -77,7 +77,7 @@ static func build(terrain: CurlTerrain, caster_index: int, parent: Node) -> Curl
 ## a sweep can move `rank_coefficients` / `closing_gain` without editing
 ## `cyclone.tres` — the same live-tuning door the spell playground uses.
 ##
-## [param include_crits] defaults to FALSE and the shipped [CycleCritCondition]
+## [param include_crits] defaults to FALSE and the shipped [CycleCondition]
 ## is stripped when it is: a crit doubles what a closing hop LANDS without
 ## changing what it forwards, so leaving it in would add a term the operator
 ## has no counterpart for on top of the one (`closing_gain`) this probe exists
@@ -95,7 +95,7 @@ func wave_damage(
 		step.set(key, overrides[key])
 	config.step = step
 	if not include_crits:
-		var no_crits: Array[CritCondition] = []
+		var no_crits: Array[LandingCondition] = []
 		spell.crit_conditions = no_crits
 	var outcome := SpellResolver.resolve(
 			spell, nodes[target_index], nodes[caster_index], attacker, graph)

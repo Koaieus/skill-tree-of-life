@@ -98,7 +98,7 @@ extends Resource
 ## the universal [code]crit_chance[/code] stat roll. Multiple conditions
 ## run as OR — if ANY returns true, the hit crits. Follows the same
 ## composed-resource pattern as [member on_hit_effects].
-@export var crit_conditions: Array[CritCondition] = []
+@export var crit_conditions: Array[LandingCondition] = []
 
 ## The visual coordinator scene the battle layer plays once resolution
 ## produces an outcome. Scene root must be a [VFXCoordinator] subclass.

@@ -52,7 +52,7 @@ func test_resonator_preset_well_formed() -> void:
 	assert_not_null(s.propagation, "Resonator has propagation")
 	assert_not_null(s.crit_conditions, "Resonator has crit_conditions")
 	assert_eq(s.crit_conditions.size(), 1)
-	assert_true(s.crit_conditions[0] is ConvergenceCritCondition,
+	assert_true(s.crit_conditions[0] is ConvergenceCondition,
 			"Resonator crits on convergence")
 	var p := s.propagation as PropagationConfig
 	assert_true(p.reducer is SumDamageReducer, "Resonator sums incidents")
@@ -68,14 +68,14 @@ func test_resonator_preset_well_formed() -> void:
 
 
 func test_convergence_condition_single_incident_no_crit() -> void:
-	var c := ConvergenceCritCondition.new()
+	var c := ConvergenceCondition.new()
 	var state := CastSpell.new()
 	state.incident_count = 1
 	assert_false(c.evaluate(state, null, null), "1 incident → no crit")
 
 
 func test_convergence_condition_two_incidents_crit() -> void:
-	var c := ConvergenceCritCondition.new()
+	var c := ConvergenceCondition.new()
 	var state := CastSpell.new()
 	state.incident_count = 2
 	assert_true(c.evaluate(state, null, null), "2 incidents → crit")
@@ -84,14 +84,14 @@ func test_convergence_condition_two_incidents_crit() -> void:
 func test_convergence_condition_three_incidents_crit() -> void:
 	# Note: odd >2 still crits under Resonator's rule — the parity-rule
 	# variant lives in Chromatic Cascade (#355), not here.
-	var c := ConvergenceCritCondition.new()
+	var c := ConvergenceCondition.new()
 	var state := CastSpell.new()
 	state.incident_count = 3
 	assert_true(c.evaluate(state, null, null), "3 incidents → crit under simple rule")
 
 
 func test_convergence_condition_null_state_no_crit() -> void:
-	var c := ConvergenceCritCondition.new()
+	var c := ConvergenceCondition.new()
 	assert_false(c.evaluate(null, null, null))
 
 

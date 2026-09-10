@@ -28,7 +28,7 @@ extends Resource
 ## [FlatAddProgression], whose compression is the point.
 ##
 ## Mirrors the [code]StatFormula[/code] pattern in the stats system and the
-## [PropagationFilter] / [IncidentReducer] / [CritCondition] pattern here.
+## [PropagationFilter] / [IncidentReducer] / [LandingCondition] pattern here.
 ## Renamed off "…Ramp" in #274; the old [code]HopDamage[/code] name collided
 ## with [code]Propagation…[/code] in conversation.
 

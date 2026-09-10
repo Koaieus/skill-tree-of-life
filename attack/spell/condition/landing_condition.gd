@@ -1,6 +1,6 @@
 @tool
 @abstract
-class_name CritCondition
+class_name LandingCondition
 extends Resource
 
 ## A spell-specific predicate that elevates a hit to a critical strike.

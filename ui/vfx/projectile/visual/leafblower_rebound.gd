@@ -4,7 +4,7 @@ extends Node2D
 
 ## Leafblower's crit-only "backwash" companion (#676) — the gust hit a dead
 ## end and splashed back. Fires ONLY when the arrival carries a crit tier
-## ([LeafCritCondition]: the target's own territory degree is 1, at most
+## ([LeafCondition]: the target's own territory degree is 1, at most
 ## 2-3 impacts per cast); an ordinary arrival leaves this a silent no-op that
 ## reports done immediately, so it never becomes ~25 one-shot systems per
 ## cast. Nothing else in the game bounces backward, which is what makes the

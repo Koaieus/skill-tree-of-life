@@ -130,7 +130,7 @@ func test_cyclone_preset_well_formed() -> void:
 	assert_true(p.step is CycloneStep, "the curl")
 	assert_true(p.reducer is CycloneReducer, "converging fronts ADD — that is the payoff")
 	assert_eq(s.crit_conditions.size(), 1, "one condition: the loop closed")
-	assert_true(s.crit_conditions[0] is CycleCritCondition)
+	assert_true(s.crit_conditions[0] is CycleCondition)
 
 
 ## The one genuine invariant in the tuning, and the reason the numbers are not
@@ -371,7 +371,7 @@ func test_the_seed_and_every_open_hop_carry_no_ring() -> void:
 	assert_true(out.timeline[0].closed_ring.is_empty(),
 			"a JUMP closes nothing — the seed must not carry a ring")
 	# `closed_ring` is stamped exactly where `closed_cycle` is, and
-	# CycleCritCondition is the only reader of that flag — so the two counts are
+	# CycleCondition is the only reader of that flag — so the two counts are
 	# the same number seen twice. A ring stamped on a non-closing landing (or
 	# missing from a closing one) shows up here as a mismatch.
 	var crits: int = 0

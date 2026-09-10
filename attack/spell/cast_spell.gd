@@ -82,7 +82,7 @@ var hop_index: int = 0
 ## this [CastSpell]. Stamped by [SpellResolver] at the grouping pass
 ## ([code]spell_resolver.gd[/code] ~L52) — see #352. 1 = single incident
 ## (no convergence); 2+ = converging branches. Read by
-## [ConvergenceCritCondition] to gate the convergence crit. Stamped upstream
+## [ConvergenceCondition] to gate the convergence crit. Stamped upstream
 ## of the reducer so it is set even on the [code]reducer == null[/code]
 ## "first-wins" short-circuit path.
 var incident_count: int = 1
@@ -119,8 +119,8 @@ var came_from: Array[SkillNode] = []
 ## True when the hop that produced this payload landed on a node already in its
 ## own lineage's [member visited] trail — i.e. it CLOSED a cycle.
 ##
-## Stamped at mint by [CycloneStep], read by [CycleCritCondition]. This is the
-## Design A split [ConvergenceCritCondition] documents: the step/reducer does
+## Stamped at mint by [CycloneStep], read by [CycleCondition]. This is the
+## Design A split [ConvergenceCondition] documents: the step/reducer does
 ## the math and stamps the fact, the crit condition owns the policy and stays a
 ## read-only predicate. The trail cannot be re-derived at landing time, because
 ## a closing mint RESETS [member visited] to just the landed node.

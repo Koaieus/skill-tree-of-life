@@ -4,7 +4,7 @@ extends GutTest
 ## fluttering [CubicBezierPath] edge, and a [BoltBody]-Streak body that GROWS
 ## per hop (its own leafblower_body.tscn, hop_scale 0.5 -> 4.0 — an 8x span,
 ## deliberately mirroring Lightning's 8x shrink so the teaching pair is symmetric),
-## plus a crit-only backwash rebound on [LeafCritCondition] hits. Half of the
+## plus a crit-only backwash rebound on [LeafCondition] hits. Half of the
 ## deliberate teaching pair with Lightning Bolt (#674): same fan verb,
 ## opposite body-size ramp — see test_lightning_bolt_vfx.gd for the other half.
 

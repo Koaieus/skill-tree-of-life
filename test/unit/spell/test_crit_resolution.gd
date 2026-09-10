@@ -19,7 +19,7 @@ const _ANY_OWNERSHIP := SkillNode.Ownership.NEUTRAL | SkillNode.Ownership.MINE \
 # ── Condition predicates ─────────────────────────────────────────────────────
 
 func test_self_loop_condition_null_target_returns_false() -> void:
-	var c := SelfLoopCritCondition.new()
+	var c := SelfLoopCondition.new()
 	assert_false(c.evaluate(null, null, null))
 
 
@@ -30,7 +30,7 @@ func test_self_loop_condition_no_self_loops_returns_false() -> void:
 	# self-loop edge to land here", not "does this node have a self-loop").
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1]], self)
-	var c := SelfLoopCritCondition.new()
+	var c := SelfLoopCondition.new()
 	var n := graph.get_skill_nodes()
 	var state := CastSpell.new()
 	state.predecessor = n[1]
@@ -42,7 +42,7 @@ func test_self_loop_condition_seed_landing_on_self_loop_node_returns_false() -> 
 	# crit. The first hit doesn't crit by design (#353).
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 0]], self)  # self-loop on N0
-	var c := SelfLoopCritCondition.new()
+	var c := SelfLoopCondition.new()
 	var n := graph.get_skill_nodes()
 	var state := CastSpell.new()
 	state.predecessor = null
@@ -54,7 +54,7 @@ func test_self_loop_condition_target_via_self_loop_edge_returns_true() -> void:
 	# just traversed the self-loop edge → crit.
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1], [1, 1]], self)
-	var c := SelfLoopCritCondition.new()
+	var c := SelfLoopCondition.new()
 	var n := graph.get_skill_nodes()
 	var state := CastSpell.new()
 	state.predecessor = n[1]
@@ -67,7 +67,7 @@ func test_self_loop_condition_edge_hop_into_self_loop_node_returns_false() -> vo
 	# node's static topology.
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1], [1, 1]], self)
-	var c := SelfLoopCritCondition.new()
+	var c := SelfLoopCondition.new()
 	var n := graph.get_skill_nodes()
 	var state := CastSpell.new()
 	state.predecessor = n[0]
@@ -75,12 +75,12 @@ func test_self_loop_condition_edge_hop_into_self_loop_node_returns_false() -> vo
 
 
 func test_leaf_condition_null_target_returns_false() -> void:
-	var c := LeafCritCondition.new()
+	var c := LeafCondition.new()
 	assert_false(c.evaluate(null, null, null))
 
 
 func test_leaf_condition_null_state_or_graph_returns_false() -> void:
-	var c := LeafCritCondition.new()
+	var c := LeafCondition.new()
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1]], self)
 	var n := graph.get_skill_nodes()
@@ -97,7 +97,7 @@ func test_leaf_condition_non_leaf_returns_false() -> void:
 	var graph := helper.make_graph([[0, 1], [1, 2]], self)
 	var def := helper.make_entity(graph, "D")
 	helper.assign_owner(graph, def, [0, 1, 2])
-	var c := LeafCritCondition.new()
+	var c := LeafCondition.new()
 	var state := CastSpell.new()
 	state.graph = graph
 	var n := graph.get_skill_nodes()
@@ -110,7 +110,7 @@ func test_leaf_condition_degree_1_returns_true() -> void:
 	var graph := helper.make_graph([[0, 1], [1, 2]], self)
 	var def := helper.make_entity(graph, "D")
 	helper.assign_owner(graph, def, [0, 1, 2])
-	var c := LeafCritCondition.new()
+	var c := LeafCondition.new()
 	var state := CastSpell.new()
 	state.graph = graph
 	var n := graph.get_skill_nodes()
@@ -128,7 +128,7 @@ func test_leaf_condition_reads_entity_degree_not_graph_degree() -> void:
 	var def := helper.make_entity(graph, "D")
 	helper.assign_owner(graph, atk, [0])
 	helper.assign_owner(graph, def, [1, 2])
-	var c := LeafCritCondition.new()
+	var c := LeafCondition.new()
 	var state := CastSpell.new()
 	state.graph = graph
 	var n := graph.get_skill_nodes()
@@ -259,7 +259,7 @@ func test_condition_path_self_loop_crits() -> void:
 	# Wave 0: 1 hit (predecessor=null, no crit — first hit doesn't crit, #353).
 	# Wave 1: 1's neighbours after enemy filter: {1, 1} (self-loop contributes
 	# two copies). With reducer=null, first-wins; the surviving state has
-	# predecessor=1 AND current_node=1 → SelfLoopCritCondition fires (#353
+	# predecessor=1 AND current_node=1 → SelfLoopCondition fires (#353
 	# predicate: state.predecessor == target).
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1], [1, 1]], self)  # 1 has a self-loop
@@ -272,7 +272,7 @@ func test_condition_path_self_loop_crits() -> void:
 	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), null,
 			{max_hops = 2, max_visits_per_node = 2})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
-	spell.crit_conditions = [SelfLoopCritCondition.new()]
+	spell.crit_conditions = [SelfLoopCondition.new()]
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	# `resolve` LANDS its outcome in the world it resolved against (#536), so
@@ -299,7 +299,7 @@ func test_condition_path_leaf_crits() -> void:
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), null, {max_hops = 1})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
-	spell.crit_conditions = [LeafCritCondition.new()]
+	spell.crit_conditions = [LeafCondition.new()]
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	# `resolve` LANDS its outcome in the world it resolved against (#536), so
@@ -332,7 +332,7 @@ func test_both_paths_can_fire_tier_2() -> void:
 	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), null,
 			{max_hops = 2, max_visits_per_node = 2})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
-	spell.crit_conditions = [SelfLoopCritCondition.new()]
+	spell.crit_conditions = [SelfLoopCondition.new()]
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	# `resolve` LANDS its outcome in the world it resolved against (#536), so
@@ -374,7 +374,7 @@ func test_zero_damage_landing_never_crits() -> void:
 	atk.stat_board.get_stat(&"crit_chance").base_value = 1.0
 	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 0.0)
-	spell.crit_conditions = [SelfLoopCritCondition.new()]
+	spell.crit_conditions = [SelfLoopCondition.new()]
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	assert_eq(outcome.hits.size(), 0)
@@ -396,7 +396,7 @@ func test_entity_without_board_still_supports_condition_path() -> void:
 	var config := helper.make_config(helper.fan_all(), helper.owner(_ANY_OWNERSHIP), null,
 			{max_hops = 2, max_visits_per_node = 2})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
-	spell.crit_conditions = [SelfLoopCritCondition.new()]
+	spell.crit_conditions = [SelfLoopCondition.new()]
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
 	var hits_on_1: Array = H.new().hits_by_node(outcome).get(n[1], [])

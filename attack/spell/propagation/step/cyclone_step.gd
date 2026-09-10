@@ -38,7 +38,7 @@ extends PropagationStep
 ## same-signed faces, i.e. they co-rotate, which is the wheel the spell is for.
 ##
 ## [b]Closing a loop boosts the coefficient[/b] ([member closing_gain]) rather
-## than merely lighting up [CycleCritCondition]. The crit is sparkle on the
+## than merely lighting up [CycleCondition]. The crit is sparkle on the
 ## landing; the gain feeds FORWARD, so a ring that closes gets sustain and a
 ## lone triangle is worth killing over instead of fizzling at c_1 per hop.
 ## Owner call 2026-09-01.
@@ -151,7 +151,7 @@ func _arrival_position(current_node: SkillNode, payload: CastSpell) -> Vector2:
 ## hops later [method Array.find] returned the FIRST occurrence and the guard
 ## waved through a vertex-repeating closed walk. Truncating on every close is
 ## what keeps the trail all-distinct, and the all-distinct trail is what makes
-## every [CycleCritCondition] crit a real simple cycle of length >= 3.
+## every [CycleCondition] crit a real simple cycle of length >= 3.
 static func closed_ring(trail: Array[SkillNode], idx: int) -> Array[SkillNode]:
 	var landed: SkillNode = trail[idx]
 	var forward: Array[SkillNode] = trail.slice(idx + 1)

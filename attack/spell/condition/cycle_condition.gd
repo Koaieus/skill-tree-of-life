@@ -1,13 +1,13 @@
 @tool
-class_name CycleCritCondition
-extends CritCondition
+class_name CycleCondition
+extends LandingCondition
 
 ## Crits when this landing CLOSED a cycle — the front stepped onto a node its
 ## own lineage had already struck, completing a loop through the graph.
 ##
 ## Reads [member CastSpell.closed_cycle], which [CycloneStep] stamps at mint
 ## and [CycloneReducer] ORs across converging fronts. This is the same Design A
-## split [ConvergenceCritCondition] documents: the step/reducer does the math
+## split [ConvergenceCondition] documents: the step/reducer does the math
 ## and stamps the fact, the condition owns the policy and stays a read-only
 ## predicate over the landed state.
 ##
@@ -20,7 +20,7 @@ extends CritCondition
 ## One of Cyclone's two crit conditions (#696, #699), and the ODD half of the
 ## pair: this fires where a single lineage laps home onto its own trail, which
 ## is the only way an odd ring can be closed, since its two arms differ by one
-## and pass mid-edge instead of meeting. [ConvergenceCritCondition] covers the
+## and pass mid-edge instead of meeting. [ConvergenceCondition] covers the
 ## even half, where the arms are equal and merge head-on at hop L/2.
 
 func evaluate(state: CastSpell, _target: SkillNode, _outcome: AttackOutcome) -> bool:

@@ -21,7 +21,7 @@ extends HopDamageProgression
 ## standing as the trap marker. Want the relative behaviour? That is a
 ## different progression — [ScaledAddProgression] — chosen deliberately.
 ##
-## Pairs with [SumDamageReducer] + [ConvergenceCritCondition] on the Resonator
+## Pairs with [SumDamageReducer] + [ConvergenceCondition] on the Resonator
 ## (#352), where the convergence crit is the only multiplicative in the spell.
 
 @export var increment: float = 0.0

@@ -1,6 +1,6 @@
 @tool
-class_name SelfLoopCritCondition
-extends CritCondition
+class_name SelfLoopCondition
+extends LandingCondition
 
 ## Crits when the spell traversed a self-loop edge to land here — i.e. the
 ## branch's predecessor IS its current node. A self-loop edge node-fans two

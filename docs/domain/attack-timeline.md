@@ -538,7 +538,7 @@ assumption melee's physics exemption already relies on.
 
 The other half was magic's alone, and it closed the same way it was predicted
 to: `SpellResolver` **lands each wave before expanding the next one**, so
-`config.filter.allows(...)` on wave N+1 selects against a world in which wave
+`config.filter.narrow(...)` on wave N+1 selects against a world in which wave
 N's kills have already happened. Melee and ranged needed nothing structural —
 their candidate sets were always allowed to freeze at resolve, and their gates
 already ran at land time against whichever world they were handed.

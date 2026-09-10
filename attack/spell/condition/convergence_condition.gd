@@ -1,6 +1,6 @@
 @tool
-class_name ConvergenceCritCondition
-extends CritCondition
+class_name ConvergenceCondition
+extends LandingCondition
 
 ## Crits when ≥2 BFS wavefronts converged at this landing — i.e. two or more
 ## branches of the spell reached the same node in the same wave and were
