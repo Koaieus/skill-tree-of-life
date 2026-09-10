@@ -88,7 +88,6 @@ var _direct_native := false
 
 
 func before_each() -> void:
-	BladeSim.use_native = true
 	_direct_native = false
 	# The binary is mandatory (#816). A checkout without it must FAIL here, not
 	# report PENDING while the suite prints green — that is how #823 shipped 26
@@ -96,10 +95,6 @@ func before_each() -> void:
 	assert_eq(BladeSim.backend(), &"native",
 			"the native blade solver is loaded — run `mise run native:fetch` "
 			+ "(or `mise run native:build`) and `mise run refresh`")
-
-
-func after_each() -> void:
-	BladeSim.use_native = true
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -663,15 +658,3 @@ func test_the_goldens_are_not_vacuous() -> void:
 				live += 1
 		metering = maxi(metering, live)
 	assert_gt(metering, 1, "more than one plate banked load in the cluster swing")
-
-
-## Acceptance 4 — the GDScript reference solver reproduces the same goldens.
-## This is the one-time proof that the fixtures recorded off the C++ ARE the
-## reference's output, made while both backends still exist. #847 deletes the
-## GDScript solver and this test with it; the verdict is recorded on #846.
-func test_the_gdscript_reference_solver_reproduces_every_golden() -> void:
-	BladeSim.use_native = false
-	assert_eq(BladeSim.backend(), &"gdscript", "forced onto the reference solver")
-	for case_name in _CASES:
-		_assert_matches_golden(case_name, _serialize(case_name, _build(case_name)),
-				"gdscript replay")

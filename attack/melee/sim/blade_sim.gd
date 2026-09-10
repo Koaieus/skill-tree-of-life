@@ -7,15 +7,18 @@ extends RefCounted
 ## budget below is spent on smaller timesteps rather than more passes per
 ## timestep, and why blade length is measured in hops, not distance.
 ##
-## Two interchangeable backends (#798): a GDScript one (below) and a C++
-## GDExtension one (native/src/blade_solver_native.cpp). The native path is a
-## strict transliteration — same expressions, same evaluation order, same
-## real_t/double split — and test_blade_native_parity.gd pins the two to
-## BIT-IDENTICAL output. Neither is a "fast approximate" mode.
+## One backend (#847): the C++ GDExtension in native/src/blade_solver_native.cpp,
+## reached through [method _simulate_native]. The GDScript solver that used to
+## live here was a bit-identical mirror of it and is gone — every melee feature
+## was being written twice. The binary is MANDATORY: `mise run native:fetch`
+## (or `native:build`) puts it in native/bin/, and a checkout without it gets a
+## `push_error` naming that command the first time a swing is simulated — never
+## a parse error (see [member _native]) and never a silent stand-in.
 ##
-## Which one runs: native when the extension loaded AND [member use_native] is
-## true. A checkout with no built binary silently takes the GDScript path, so
-## `mise run test` is green on a machine that has never run `scons`.
+## What stays GDScript-side: BladeState / drivers / constraints as descriptors,
+## the pop-gate loop, and `_length_factor`'s BFS, computed here and passed in.
+## The determinism pin is test_blade_goldens.gd: twenty recorded trajectories
+## the shipped binary must reproduce bit-for-bit.
 
 const DEFAULT_DT: float = 1.0 / 120.0
 const DEFAULT_ITERATIONS: int = 16
@@ -52,56 +55,47 @@ const LENGTH_ECC_CEILING: int = 40
 ## ceiling. Tuned alongside LENGTH_ECC_CEILING for the ~4x target above.
 const LENGTH_ITER_SCALE: float = 0.08
 
-## Set false to force the GDScript solver even when the extension is loaded.
-## This is the differential-test and bench handle — flip it, run, flip back.
-## Not a project setting on purpose: the two backends agree bit-for-bit, so
-## there is nothing for a player to choose between.
-static var use_native: bool = true
-
 ## The BladeSolverNative instance, or null when the extension isn't loaded.
 ## Resolved through ClassDB rather than by name: writing `BladeSolverNative`
 ## as a bare identifier would make THIS SCRIPT fail to parse on any machine
-## without the binary, which is exactly the fallback the extension exists to
-## avoid. Instantiated eagerly (static-var init) because AiBladeRollout calls
-## simulate() from WorkerThreadPool tasks; the method is pure, so one shared
-## instance serves every thread.
+## without the binary, which would turn "run `mise run native:fetch`" into a
+## name-resolution error under `mise run check`. Instantiated eagerly
+## (static-var init) because AiBladeRollout calls simulate() from
+## WorkerThreadPool tasks; the method is pure, so one shared instance serves
+## every thread.
 static var _native: Object = _acquire_native()
 
-## True when the loaded binary also has #813's defender entry point. A `.so`
-## built between #803 and #813 has `simulate_range` and not this one, and must
-## keep its plain-swing native path rather than losing it — so this is a
-## SECOND capability flag, not a stricter test inside [method _acquire_native].
-static var _native_field: bool = (_native != null
-		and _native.has_method(&"simulate_range_field"))
+## The one-line cure, spelled the same way in every error this file raises.
+const _FETCH_HINT := "run `mise run native:fetch` (or `mise run native:build`), then `mise run refresh`"
 
 
 static func _acquire_native() -> Object:
-	if OS.get_environment("BLADE_SIM_BACKEND") == "gdscript":
-		return null
 	if not ClassDB.class_exists(&"BladeSolverNative"):
 		return null
 	var native: Object = ClassDB.instantiate(&"BladeSolverNative")
-	# A binary built before #803 loads fine and has no `simulate_range` — and a
-	# `call()` on a missing method is null, not an error, so the crash would be
-	# `out["samples"]` a line later on every swing. Treat a stale binary as no
-	# binary: the GDScript fallback is a supported state, a half-loaded
-	# extension is not. `mise run native:build` cures it.
-	if native == null or not native.has_method(&"simulate_range"):
-		push_warning("BladeSolverNative predates #803 (no simulate_range) — "
-				+ "using the GDScript solver. Rebuild: `mise run native:build`.")
+	# A binary built before #803 loads fine and has no `simulate_range`; one
+	# built before #813 has no `simulate_range_field`. A `call()` on a missing
+	# method is null, not an error, so the crash would be `out["samples"]` a
+	# line later on every swing. A stale binary is no binary — same error, same
+	# cure — rather than a half-loaded extension.
+	if (native == null or not native.has_method(&"simulate_range")
+			or not native.has_method(&"simulate_range_field")):
+		push_error("BladeSolverNative is stale (built before #813) — " + _FETCH_HINT)
 		return null
 	return native
 
 
-## True when the GDExtension loaded — independent of [member use_native].
+## True when the GDExtension loaded. False is a broken checkout, not a mode:
+## every simulate() will push_error and return null.
 static func native_available() -> bool:
 	return _native != null
 
 
-## &"native" or &"gdscript" — whichever the next simulate() will actually use
-## for a canonical state. Reported by the bench and the parity test.
+## &"native" when the extension loaded, &"missing" otherwise. The only backend
+## there is; kept as a name because the bench and the goldens' before_each
+## report it.
 static func backend() -> StringName:
-	return &"native" if (_native != null and use_native) else &"gdscript"
+	return &"native" if _native != null else &"missing"
 
 
 ## Run a full sim, return a per-step trajectory.
@@ -185,7 +179,6 @@ static func simulate_range(
 		substeps: int = DEFAULT_SUBSTEPS,
 		enable_length_scaling: bool = true,
 		clock: BladeSwingClock = null) -> BladeTrajectory:
-	var sub_count := maxi(substeps, 1)
 	# One clock per SWING, shared by every arc driver: they all describe one
 	# rigid body turning about one pivot, so a per-driver clock would shear the
 	# blade. Assigned here rather than by the caller so `simulate` stays the only
@@ -203,8 +196,9 @@ static func simulate_range(
 	# is fixed for the whole swing. Computed here, ahead of the backend split,
 	# so the native path consumes the SAME number rather than re-deriving the
 	# BFS in C++ (#798): one implementation of the length axis, not two.
+	# `enable_length_scaling` is a budget-shaping knob and crosses as this
+	# factor; `substeps` crosses as itself (the C++ clamps it to >= 1).
 	var length_factor := _length_factor(state.pivot_eccentricity()) if enable_length_scaling else 1.0
-	var damping := state.damping
 	# Bunker field (#781): bind it to THIS call's driver list and edge set —
 	# both change after a severance — so it meters the right particles.
 	var obstacles := state.obstacles
@@ -213,78 +207,35 @@ static func simulate_range(
 		# field's projection pass and banked straight onto the clock, so the
 		# field needs the swing's accumulator, not just its geometry.
 		obstacles.prepare(state, drivers, clock)
-	# The native transliteration continues from `prev_positions`, takes the
-	# integer step offset and the per-particle damping array (#803), and since
-	# #813 it carries the warpable clock (#780) and the defender field (#781)
-	# too — so a swing near a wall or a plate, which since #811 is most swings,
-	# runs native like a swing in open ground does. It still declines a state
-	# holding a constraint or driver it does not know; then we fall through.
-	if _native != null and use_native:
-		var native_traj := _simulate_native(state, drivers, step_offset, step_count, dt,
-				base_iterations, velocity_iter_ref, substeps, length_factor,
-				clock, obstacles)
-		if native_traj != null:
-			return native_traj
-	var traj := BladeTrajectory.new()
-	traj.sample_dt = dt
-	# samples[0] is the pose BEFORE any solver step of THIS chunk — prepended so
-	# samples[j] means "pose at simulated time (step_offset + j)*dt" for every j,
-	# matching the docstring above (#633). Do not shift sample()'s indexing
-	# instead; that was considered and rejected in favor of the data meaning
-	# what it says.
-	traj.samples = [state.positions.duplicate()]
-	# prev_samples[0] parallels it: the Verlet history on entry (#803).
-	traj.prev_samples = [state.prev_positions.duplicate()]
-	# The clock's per-sample history is chunk-local for the same reason
-	# speed_history is — see BladeSwingClock.history.
-	if clock != null:
-		clock.history = [clock.capture()]
-	# The bunker field banks the same way, and for the same rewind (#781/#803):
-	# the bank at the severance sample already holds the ARMED break, so
-	# `restore` + `consume_break` lands it without re-running the head.
-	if obstacles != null:
-		obstacles.history = [obstacles.capture()]
-	# speed_history[0] parallels samples[0]: zero for every particle, since
-	# nothing has stepped yet (#779). Freshly rebuilt every call, never
-	# accumulated across calls — see BladeState.speed_history's docstring.
-	var zero_speeds := PackedFloat32Array()
-	zero_speeds.resize(state.positions.size())
-	state.speed_history = [zero_speeds]
-	var sub := sub_count
-	var sub_dt := dt / float(sub)
-	for local_step in step_count:
-		# The INTEGER global step index — never an accumulated float offset.
-		var t0 := float(step_offset + local_step) * dt
-		var step_speeds := zero_speeds
-		if obstacles != null:
-			obstacles.begin_sample(step_offset + local_step + 1)
-		for s in sub:
-			var t := t0 + float(s + 1) * sub_dt
-			step_speeds = _step(state, drivers, t, sub_dt, base_iterations,
-					velocity_iter_ref, sub, length_factor, damping, clock)
-		# Drag is no longer sensed here (#811): BladeObstacleField.project tests
-		# both zone kinds against one geometry, inside the substep, and banks a
-		# wall contact on the clock as it finds it. What is left is the per-sample
-		# bank the resolve loop rewinds to. Whatever was banked slows the arc from
-		# the NEXT substep on — never the approach to the zone itself.
-		if clock != null:
-			clock.history.append(clock.capture())
-		if obstacles != null:
-			obstacles.history.append(obstacles.capture())
-		traj.samples.append(state.positions.duplicate())
-		traj.prev_samples.append(state.prev_positions.duplicate())
-		# The LAST substep's speeds — the physics rate closest to this
-		# sample's time, not an average or the step's max (#779).
-		state.speed_history.append(step_speeds)
+	if _native == null:
+		push_error("BladeSim: no native blade solver in this checkout — " + _FETCH_HINT)
+		return null
+	var traj := _simulate_native(state, drivers, step_offset, step_count, dt,
+			base_iterations, velocity_iter_ref, substeps, length_factor,
+			clock, obstacles)
+	if traj == null:
+		# `_simulate_native` explains which check declined; this names the swing.
+		push_error("BladeSim: the native solver declined this swing (%d particles, "
+				% state.positions.size()
+				+ "%d constraints, %d drivers) — see the error above"
+				% [state.constraints.size(), drivers.size()])
+	# Null is DELIBERATE. A synthesised zero-step trajectory would turn a missing
+	# binary into a swing that hits nothing — green for every "nothing severed"
+	# test and invisible in play — which is the #823 failure (26 cases reviewed
+	# as verified off a fallback) that #816 exists to kill. The callers
+	# (MeleeAttackPlan.resolve_against, AiBladeRollout, SkillBlade) deref it on
+	# the next line and stop there, with the push_error above as the cause.
 	return traj
 
 
 ## Flatten state + drivers into packed buffers and hand them to the extension.
 ##
-## Returns null — meaning "caller, use GDScript" — if anything in the state is
+## Returns null — after a push_error saying why — if anything in the state is
 ## outside the transliterated subset. The type checks are deliberately EXACT
-## (`get_script() ==`, not `is`): a hypothetical subclass overriding project()
-## or apply() would be silently ignored by the C++ loop, so it must fall back.
+## (`get_script() ==`, not `is`): a subclass overriding project() or apply()
+## would be silently ignored by the C++ loop, and there is no second solver to
+## hand it to, so it is refused rather than approximated. Every decline below
+## is a programming error at the call site, not a supported state.
 ##
 ## `length_factor` arrives precomputed (see simulate) rather than being
 ## re-derived in C++ — the BFS runs once per resolve, so porting it would buy
@@ -300,10 +251,7 @@ static func simulate_range(
 ## crossing as plain values and coming back advanced, plus one Bank-shaped
 ## Dictionary per sample for each. That is the alternative to a per-iteration
 ## constraint callback into GDScript, which would fire in the solver's
-## innermost loop and cost more than the backend saves. Declines, all falling
-## back to GDScript rather than approximating: a binary predating #813, a
-## `BladeObstacleField` subclass or one with [member BladeObstacleField.trace]
-## on, and a `radii` array that does not parallel `positions`.
+## innermost loop and cost more than the backend saves.
 static func _simulate_native(
 		state: BladeState,
 		drivers: Array[BladeDriver],
@@ -316,18 +264,17 @@ static func _simulate_native(
 		length_factor: float,
 		clock: BladeSwingClock = null,
 		obstacles: BladeObstacleField = null) -> BladeTrajectory:
-	# The GDScript loop would index-error on these; the C++ refuses them with
-	# an error and an empty Dictionary. Decline up front so the GDScript path
-	# produces the error, not a null-Dictionary crash a line later.
+	# The C++ refuses these with an error and an empty Dictionary; decline up
+	# front with a message that names the array, not a null crash a line later.
 	if state.prev_positions.size() != state.positions.size():
-		return null
+		return _decline("prev_positions does not parallel positions")
 	if not state.damping.is_empty() and state.damping.size() != state.positions.size():
-		return null
+		return _decline("damping does not parallel positions")
 	var constraint_ab := PackedInt32Array()
 	var constraint_scalars := PackedFloat64Array()
 	for c in state.constraints:
 		if c.get_script() != BladeDistanceConstraint:
-			return null
+			return _decline("constraint %s is not a plain BladeDistanceConstraint" % c)
 		var dc := c as BladeDistanceConstraint
 		constraint_ab.append(dc.a)
 		constraint_ab.append(dc.b)
@@ -339,13 +286,13 @@ static func _simulate_native(
 	var driver_scalars := PackedFloat64Array()
 	for d in drivers:
 		if d.get_script() != BladeArcDriver:
-			return null
+			return _decline("driver %s is not a plain BladeArcDriver" % d)
 		var ad := d as BladeArcDriver
 		# Only the default sine-in-out ease is transliterated. A custom
 		# Callable would need a per-step call back into GDScript, which is the
-		# whole cost this port removes — so it falls back instead.
+		# whole cost the backend removes — a new ease is a C++ change.
 		if ad.ease.get_object() != ad or ad.ease.get_method() != &"_sine_in_out":
-			return null
+			return _decline("BladeArcDriver.ease is not the built-in _sine_in_out")
 		driver_particles.append(ad.particle)
 		driver_centers.append(ad.center)
 		driver_scalars.append(ad.radius)
@@ -365,23 +312,23 @@ static func _simulate_native(
 				state.damping, step_offset, step_count,
 				dt, base_iterations, velocity_iter_ref,
 				substeps, length_factor)
+		if out.is_empty():
+			return _decline("BladeSolverNative.simulate_range refused the inputs")
 	else:
-		if not _native_field:
-			return null  # a binary older than #813; the field half is GDScript
 		var field_inputs: Dictionary
 		if obstacles != null:
 			# Exact, like the constraint and driver checks above and for the
 			# same reason: a subclass overriding project() or end_substep()
 			# would be silently ignored by the C++ loop.
 			if obstacles.get_script() != BladeObstacleField:
-				return null
+				return _decline("obstacles %s is not a plain BladeObstacleField" % obstacles)
 			if not obstacles.native_supported():
-				return null
-			# The C++ capsule pass indexes `radii[e.x]` unguarded, exactly as
-			# the GDScript one does — a short array is an index error there and
-			# would be a read past the end here, so decline instead.
+				return _decline("BladeObstacleField.trace is diagnostic-only and outside "
+						+ "the native solver's subset since #847")
+			# The C++ capsule pass indexes `radii[e.x]` unguarded — a short
+			# array would be a read past the end, so decline instead.
 			if state.radii.size() != state.positions.size():
-				return null
+				return _decline("radii does not parallel positions")
 			field_inputs = obstacles.native_inputs()
 		else:
 			# A clock with no field: nothing can bank drag, so this is the
@@ -405,11 +352,10 @@ static func _simulate_native(
 				state.damping, step_offset, step_count,
 				dt, base_iterations, velocity_iter_ref,
 				substeps, length_factor, field_inputs, sim_state)
-		# The C++ ERR_FAILs to an empty Dictionary on a malformed boundary.
-		# Falling back is the honest response: GDScript then runs the same
-		# swing and produces the real error, rather than a null a line later.
+		# The C++ ERR_FAILs to an empty Dictionary on a malformed boundary,
+		# having printed its own reason.
 		if out.is_empty():
-			return null
+			return _decline("BladeSolverNative.simulate_range_field refused the inputs")
 		# `history[0]` is the bank ON ENTRY, and it is GDScript's to take —
 		# captured here, before apply_native_state moves the objects on. The
 		# C++ returns [1..step_count], parallel to `samples[1..]`.
@@ -431,12 +377,18 @@ static func _simulate_native(
 	traj.samples.assign(out["samples"])
 	traj.prev_samples.assign(out["prev_samples"])
 	# simulate()'s contract is that the state advances in place — including
-	# speed_history (#779), which the native loop builds on the same rule the
-	# GDScript one does: zeros for sample 0, then the LAST substep's speeds.
+	# speed_history (#779): zeros for sample 0, then the LAST substep's speeds.
 	state.positions = out["positions"]
 	state.prev_positions = out["prev_positions"]
 	state.speed_history.assign(out["speed_history"])
 	return traj
+
+
+## Every refusal in [method _simulate_native] goes through here so the reason
+## is printed once, at the check that knows it. Always returns null.
+static func _decline(why: String) -> BladeTrajectory:
+	push_error("BladeSim: cannot simulate natively — " + why)
+	return null
 
 
 ## Multiplier on the total sweep budget for one sample interval. 1.0 at or
@@ -446,86 +398,3 @@ static func _simulate_native(
 static func _length_factor(eccentricity: int) -> float:
 	var over := maxi(0, mini(eccentricity, LENGTH_ECC_CEILING) - LENGTH_BASELINE_HOPS)
 	return 1.0 + LENGTH_ITER_SCALE * float(over)
-
-
-## Returns this substep's per-particle speed (px/s), 0.0 for a static
-## particle (the pivot). #779: the caller retains only the LAST substep's
-## return per sample interval — see BladeState.speed_history's docstring for
-## why an average or this step's max (`max_speed_sq` below, a SEPARATE,
-## pre-existing concept feeding the velocity-scaled sweep budget, not this)
-## would be the wrong value to carry onto a hit event.
-static func _step(
-		state: BladeState,
-		drivers: Array[BladeDriver],
-		t: float,
-		dt: float,
-		base_iters: int,
-		vel_ref: float,
-		substeps: int,
-		length_factor: float,
-		damping: PackedFloat32Array = PackedFloat32Array(),
-		clock: BladeSwingClock = null) -> PackedFloat32Array:
-	# Per-particle, per-substep velocity retention (#801). An EMPTY array — every
-	# ordinary swing — skips the multiply outright, so the driven path and the
-	# native parity test are untouched by this knob's existence; and a zero entry
-	# yields EXACTLY 1.0, and multiplying a Vector2 by exactly 1.0 is
-	# bit-identical to not multiplying at all, so "drag 0 coasts undecelerated"
-	# survives per particle rather than only for a whole body (#186).
-	var has_damping := not damping.is_empty()
-	var positions := state.positions
-	var prev := state.prev_positions
-	var inv_masses := state.inv_masses
-	var n := positions.size()
-	var speeds := PackedFloat32Array()
-	speeds.resize(n)
-	# Verlet integrate dynamic particles; track max speed for iter scaling.
-	var max_speed_sq := 0.0
-	for i in n:
-		if inv_masses[i] > 0.0:
-			var p := positions[i]
-			var v := p - prev[i]
-			if has_damping:
-				v *= maxf(0.0, 1.0 - float(damping[i]) * dt)
-			prev[i] = p
-			positions[i] = p + v
-			var sp_sq := v.length_squared() / (dt * dt)
-			speeds[i] = sqrt(sp_sq)
-			if sp_sq > max_speed_sq:
-				max_speed_sq = sp_sq
-		else:
-			prev[i] = positions[i]
-	# Open the substep on the swing clock BEFORE the drivers read it, so a
-	# warping clock hands them this substep's advanced progress (#780). Before
-	# the blade's first fortified contact this only records `t` and the drivers
-	# fall through to their original expression.
-	if clock != null:
-		clock.tick(t, dt)
-	# Drivers override prescribed particles.
-	for d in drivers:
-		d.apply(positions, t)
-	var obstacles := state.obstacles
-	if obstacles != null:
-		obstacles.after_drivers(positions)
-	# Sweep budget for this SAMPLE INTERVAL: scale up when particles are
-	# moving fast, and when the blade is long (hop count), then split that
-	# budget across the substeps composing this interval — spending it on
-	# smaller steps rather than more passes per step (#790).
-	var budget := float(base_iters)
-	if vel_ref > 0.0:
-		var max_speed := sqrt(max_speed_sq)
-		budget *= 1.0 + max_speed / vel_ref
-	budget *= length_factor
-	var iters := maxi(1, int(round(budget / float(substeps))))
-	# Project constraints. The bunker field goes LAST in every iteration so the
-	# pass ends outside every plate (#781) — that ordering is what makes
-	# SHATTER_DISTANCE a visual penetration budget and not just a gameplay one.
-	for _i in iters:
-		for c in state.constraints:
-			c.project(positions, inv_masses)
-		if obstacles != null:
-			obstacles.project(positions, inv_masses)
-	if obstacles != null:
-		obstacles.end_substep(positions, clock)
-	state.positions = positions
-	state.prev_positions = prev
-	return speeds
