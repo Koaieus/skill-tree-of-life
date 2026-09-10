@@ -10,7 +10,11 @@ shader_type canvas_item;
 // The lighting math lives in lighting.gdshaderinc (shared with rim_ring.gdshader)
 // so the disk and its rim read as lit from one source and neither re-derives it.
 
-#include "res://skill_node/visuals/lighting.gdshaderinc"
+// #257 — the dome BODY (lighting + carve dent) is shared with the shatter
+// shard shader; this file supplies its own `instance uniform`s and composes
+// alpha (edge falloff + vision fog) around it. See inner_disk_body.gdshaderinc's
+// header for why the shared function's parameters are `p_`-prefixed.
+#include "res://skill_node/visuals/inner_disk_body.gdshaderinc"
 // #414 — self-shade against the shared vision-darkness field, per fragment,
 // exactly as `edge_mesh.gdshader` does (#413). This REPLACES
 // `FogOverlay._apply_per_element_dimming` sampling the fog once at the node's
@@ -86,10 +90,6 @@ instance uniform int carve_slice = -1;
 // static 1.0/0.0 split and a single-carve node never reads TIME.
 instance uniform int carve_slice_b = -1;
 
-// Full A-to-B-and-back period, seconds. A tuning value, not a derived one —
-// eyeball it in the sandbox before treating it as settled.
-const float CARVE_ALTERNATE_PERIOD = 4.0;
-
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
 }
@@ -97,74 +97,10 @@ void vertex() {
 
 void fragment() {
 	vec2 p = (UV - 0.5) * 2.0;
-	vec3 normal = sn_dome_normal(p);
-
-	// Crossfade weight between slot A and slot B. Sinusoidal ping-pong, no
-	// flat hold at either end — a hold-phase version is a possible follow-up
-	// if this reads as too blended at the midpoint; needs an eyeball pass
-	// either way (see godot-shaders.md — this can't be judged headless).
-	float mix_a = 1.0;
-	float mix_b = 0.0;
-	if (carve_slice_b >= 0) {
-		float phase = fract(TIME / CARVE_ALTERNATE_PERIOD) * TAU;
-		mix_a = 0.5 + 0.5 * cos(phase);
-		mix_b = 1.0 - mix_a;
-	}
-
-	vec2 bump_sum = vec2(0.0);
-	bool carved = false;
-
-	if (carve_kind == 2 && mix_a > 0.0) {
-		vec4 lut = texture(gem_lut, UV);
-		// lut.a is antialiased COVERAGE (see InnerDisk._gem_coverage), so it
-		// scales the perturbation instead of gating it. A `> 0.5` branch here
-		// snapped every partially-covered pixel fully in or fully out and
-		// stair-stepped the gem's outline — the soft bake was being discarded.
-		if (lut.a > 0.0) {
-			vec3 bump = sn_gem_bump(lut);
-			bump_sum += bump.yz * lut.a * mix_a;
-			carved = true;
-		}
-	} else if (carve_kind == 3 && carve_slice >= 0 && mix_a > 0.0) {
-		vec4 lut = texture(carve_atlas, vec3(UV, float(carve_slice)));
-		// Same blend-weight treatment as the gem branch above, deliberately:
-		// #246's bake still writes a HARD 0/1 mask here, so today this behaves
-		// as a gate — but weighting rather than branching means the outline
-		// antialiases for free the moment that bake picks up the gem's
-		// coverage ramp, instead of needing this shader changed too.
-		if (lut.a > 0.0) {
-			vec3 bump = sn_texture_bump(lut);
-			bump_sum += bump.yz * lut.a * mix_a;
-			carved = true;
-		}
-	} else if (carve_kind == 1 && mix_a > 0.0) {
-		vec2 wp = vec2(p.x / carve_squish, p.y);
-		vec3 bowl = sn_bowl_drop(wp, carve_sides, carve_radius, well_depth * mix_a);
-		if (bowl.x > 0.0) {
-			// Chain rule: q.x = p.x / carve_squish, so d/d(p.x) = d/d(q.x) / carve_squish.
-			bump_sum += vec2(bowl.y / carve_squish, bowl.z);
-			carved = true;
-		}
-	}
-
-	if (carve_slice_b >= 0 && mix_b > 0.0) {
-		vec4 lut = texture(carve_atlas, vec3(UV, float(carve_slice_b)));
-		if (lut.a > 0.0) {
-			vec3 bump = sn_texture_bump(lut);
-			bump_sum += bump.yz * lut.a * mix_b;
-			carved = true;
-		}
-	}
-
-	if (carved) {
-		float z_dome = sqrt(max(0.0001, 1.0 - dot(p, p)));
-		vec2 grad_dome = -p / z_dome;
-		vec2 grad_total = grad_dome - bump_sum;
-		normal = normalize(vec3(-grad_total, 1.0));
-	}
-
-	vec3 light_dir = sn_light_dir(highlight_position);
-	vec3 final_color = sn_disk_color(normal, light_dir, tint_color.rgb, tint_mix, allocated, highlight_intensity);
+	vec3 final_color = sn_inner_disk_shade(
+			p, tint_color, tint_mix, allocated, highlight_position, highlight_intensity,
+			carve_kind, carve_sides, carve_squish, carve_radius, well_depth,
+			carve_slice, carve_slice_b, gem_lut, carve_atlas);
 
 	float r2 = dot(p, p);
 	float edge_alpha = 1.0 - smoothstep(0.96, 1.0, r2);

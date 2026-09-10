@@ -3,14 +3,18 @@ class_name AllocationVFX
 extends Node2D
 
 const ZLayers = preload("res://ui/z_layers.gd")
+const InnerDiskShatterField := preload("res://skill_node/visuals/inner_disk_shatter_field.tscn")
 
 ## Listens to AllocationSystem (allocate / dealloc) and BattleSystem
 ## (cascade_started) and spawns transient world-space effects:
 ##   - alloc spike   : "skill point from the heavens" on every allocation
 ##   - dealloc lift  : floating colored disk on voluntary deallocation
-##   - shatter       : vibrate + particle burst on forced deallocation,
-##                     staggered by BFS-distance-from-impact when part of a
-##                     battle cascade
+##   - shatter       : #257's InnerDisk fragmentation on forced deallocation —
+##                     an intact-disc crescendo (cracks glow, rays leak out)
+##                     THEN the disc comes apart into flying shards, staggered
+##                     by BFS-distance-from-impact when part of a battle
+##                     cascade. Real dome shading, not a snapshot texture —
+##                     see `skill_node/visuals/inner_disk_shatter.gdshader`.
 ##
 ## Mounted under Graph (sibling of AttackVFX) so world coords match.
 ## See docs/domain/allocation-vfx.md for the design rationale.
@@ -36,10 +40,9 @@ const LIFT_DURATION: float = 0.30
 const LIFT_RISE_FACTOR: float = 1.5  # multiplied by node radius
 const LIFT_END_SCALE: float = 0.6
 
-const SHATTER_VIBRATE_DURATION: float = 0.8
-const SHATTER_VIBRATE_AMPLITUDE: float = 2.5
-const SHATTER_VIBRATE_FREQ: float = 60.0  # hz
-const SHATTER_BURST_DURATION: float = 2.40
+## #257's ShatterField-driven node death replaced the old vibrate + particle
+## pair outright; only the particle burst consts below survive, for
+## `_spawn_pop_burst` (#170, untouched by #257 — see its own doc).
 const SHATTER_PARTICLE_COUNT: int = 24
 const SHATTER_PARTICLE_LIFETIME: float = 0.35
 const SHATTER_OUTWARD_SPEED: float = 220.0
@@ -89,6 +92,64 @@ const CASCADE_STEP: float = 0.35
 ## (non-cascade) force-dealloc has no entry and reads live values at zero delay.
 var _cascade_snapshot: Dictionary[SkillNode, Dictionary] = {}
 
+# --- #257 node-death shatter tuning (exposed on this node so #838's live tab
+# tunes it via the Inspector — no new resource type, per the issue's own
+# "the tuning resource is almost certainly just the material" call; these are
+# the CPU-side half of the same knobs, the rest live on the material .tres) --
+
+## Seconds a shatter takes from spawn (cascade delay) to fully faded — the
+## crescendo AND the flight together. Pushed to `ShatterField.window`.
+@export_range(0.1, 5.0, 0.01, "or_greater") var shatter_window: float = 1.4:
+	set(value):
+		shatter_window = value
+		_push_shatter_tuning()
+## Progress (0..1 of `shatter_window`) at which the disc lets go and shards
+## start flying — before this the shard field draws one intact, cracking
+## disc. Pushed to `ShatterField.flight_start` (`p0`).
+@export_range(0.0, 1.0, 0.01) var shatter_flight_start: float = 0.6:
+	set(value):
+		shatter_flight_start = value
+		_push_shatter_tuning()
+## Shards a dying node's disc splits into. Capped at `ShatterField.MAX_CELLS`
+## (32) — the half-float packing budget.
+@export_range(1, 32, 1) var shatter_shard_count: int = 14
+## Each shard's own outward push speed (px/s) — the WHOLE of its velocity, a
+## dying node is stationary so there is no momentum to inherit (#257 decision
+## 7). "Sending far could be hella fun" (the issue body) is this knob.
+@export_range(0.0, 2000.0, 1.0) var shatter_fling_speed: float = 90.0
+## Tier a shard's COLOR is lifted to at spawn. Pinned to INERT (0 stops, the
+## identity lift) — anything higher would make the pre-flight intact-disc
+## crescendo render brighter than the live InnerDisk, breaking #257
+## acceptance 2. The shader's own crack-glow/ray HDR boost is independent of
+## this (see `inner_disk_shatter.gdshader`'s header). Still an `@export`
+## (not a `const`) so the live tab can SEE why, and because `ShatterField`
+## itself expects a real tier to push.
+@export var shatter_spawn_tier: Emissive.Tier = Emissive.Tier.INERT:
+	set(value):
+		shatter_spawn_tier = value
+		_push_shatter_tuning()
+## Tier a shard has dimmed to by the time it's fully faded. Matches
+## [member shatter_spawn_tier] by default (fade_stops = 0) — alpha alone
+## carries the fade-out, per `.claude/rules/hdr-color.md`.
+@export var shatter_end_tier: Emissive.Tier = Emissive.Tier.INERT:
+	set(value):
+		shatter_end_tier = value
+		_push_shatter_tuning()
+
+## #257's node-death shard field. One per AllocationVFX (one graph's worth of
+## node deaths pool together, same idiom as `SkillBlade._shard_field`), an
+## inherited `shatter_field.tscn` with its own `resource_local_to_scene`
+## material (`inner_disk_shatter_material.tres`). Must stay a non-moving
+## parent of this — `elapsed`/spawn origin math both assume it (see
+## `ShatterField`'s class docs) — which `self` (this AllocationVFX, mounted
+## once under Graph) satisfies.
+var _shard_field: ShatterField
+## This field's own clock, advanced every frame regardless of whether
+## anything is currently live in the pool — the one per-frame write
+## `ShatterField.elapsed` contracts for (`ui/vfx/shatter/shatter_field.gd`'s
+## class docs: "the ONLY per-frame call"). Run-long is fine; the pool only
+## ever stores spawn times relative to its own `time_base`.
+var _shatter_clock: float = 0.0
 
 
 func _ready() -> void:
@@ -97,16 +158,48 @@ func _ready() -> void:
 	# parent_z + child_z and could land below a fog-promoted node.
 	z_as_relative = false
 	z_index = ZLayers.SPELL_VFX
+	_shard_field = get_node_or_null("ShatterField") as ShatterField
+	if _shard_field == null:
+		_shard_field = InnerDiskShatterField.instantiate() as ShatterField
+		_shard_field.name = "ShatterField"
+		add_child(_shard_field)
+	_push_shatter_tuning()
+	# Ticks in the editor too (no `is_editor_hint()` gate) — #838's live tab
+	# is exactly where this needs to be SEEN playing.
+	set_process(true)
 	bind(allocation_system, battle_system)
 
-func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) -> void:
-	# `_ready()` runs unguarded in the editor too (this script has no other
-	# is_editor_hint gate), and the NodePath-resolved systems are bare `Node`s
-	# there — their scripts only attach when actually running. Skip wiring
-	# entirely rather than touching a placeholder's signals (see
-	# `.claude/rules/gdscript-pitfalls.md`).
-	if Engine.is_editor_hint():
+
+func _process(delta: float) -> void:
+	if _shard_field == null:
 		return
+	_shatter_clock += delta
+	_shard_field.elapsed = _shatter_clock
+
+
+func _push_shatter_tuning() -> void:
+	if _shard_field == null:
+		return
+	_shard_field.window = shatter_window
+	_shard_field.flight_start = shatter_flight_start
+	_shard_field.spawn_tier = shatter_spawn_tier
+	_shard_field.end_tier = shatter_end_tier
+
+
+## The shard field #257's node deaths spawn into — exposed for the live tab
+## and test inspection, same as `SkillBlade.get_shard_field()`.
+func get_shard_field() -> ShatterField:
+	return _shard_field
+
+func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) -> void:
+	# NO blanket `Engine.is_editor_hint()` guard here (removed while wiring
+	# #257's shatter into this file) — `Engine.is_editor_hint()` is TRUE
+	# inside a live sandbox tab too, and AllocationSystem/BattleSystem are
+	# `@tool` (#260), so the signals below are real there, not placeholders.
+	# A blanket guard would leave #838's live tab "silently half-built": every
+	# signal-driven VFX (this shatter included) simply never firing, no error.
+	# See `docs/domain/sandbox-framework.md`'s "Engine.is_editor_hint() is TRUE
+	# inside a live tab" section and `.claude/rules/gdscript-pitfalls.md`.
 	if _allocation_system != null:
 		allocation_system = _allocation_system
 		allocation_system.allocated.connect(_on_allocated)
@@ -392,38 +485,23 @@ func _spawn_lift(world_pos: Vector2, disk_radius: float, color: Color) -> void:
 	spawn_dealloc_lift(self, world_pos, disk_radius, color)
 
 
-## Node "death" animation: start vibrating and then *pop* shatter into pieces
-func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay: float) -> void:
-	# Wrapper Node2D holds the vibrating snapshot disk; particles spawn at
-	# burst time as a sibling. Whole thing self-frees when both children are done.
-	var stage := Node2D.new()
-	add_child(stage)  # before `global_position` — see [method spawn_alloc_spike].
-	stage.global_position = world_pos
-	var disk := _make_snapshot_disk(disk_radius, color)
-	stage.add_child(disk)
-	# Stay visible through the pre-vibrate delay — the real SkillNode's owned
-	# fill clears immediately on force_deallocate, so the snapshot has to stand
-	# in continuously or the node visibly vanishes until its cascade ring fires.
-
-	var tween := create_tween()
-	if delay > 0.0:
-		tween.tween_interval(delay)
-	# Vibrate: tiny sine-driven offset, amplitude ramping up over the duration.
-	var steps := int(SHATTER_VIBRATE_DURATION * 60.0)
-	
-	for s in steps:
-		var u := float(s) / float(steps)
-		var vibration_intensity := lerpf(0., SHATTER_VIBRATE_AMPLITUDE, u)
-		var dx := sin(u * SHATTER_VIBRATE_FREQ * TAU) * vibration_intensity
-		var dy := cos(u * SHATTER_VIBRATE_FREQ * TAU * 0.7) * vibration_intensity
-		tween.tween_property(disk, "position", Vector2(dx, dy),
-				SHATTER_VIBRATE_DURATION / float(steps))
-	# Burst: hide disk, emit particles.
-	tween.tween_callback(func() -> void:
-		disk.visible = false
-		_emit_burst(stage, disk_radius, color))
-	tween.tween_interval(SHATTER_BURST_DURATION)
-	tween.tween_callback(stage.queue_free)
+## Node "death" animation (#257): fragments the dying node's own dome into
+## [member _shard_field] — an intact-disc crescendo (cracks glow, rays leak
+## out) through the cascade `delay`, then the disc comes apart at
+## `shatter_flight_start`. Replaces the old vibrate + particle-burst pair
+## outright, same handoff shape: the real SkillNode's InnerDisk hides at
+## `force_deallocate` (see `skill_node.gd`), the shard field takes over.
+## Returns the first pool slot (`ShatterField.spawn_shatter`'s own return),
+## for test inspection — nothing in gameplay reads it.
+func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay: float) -> int:
+	if _shard_field == null:
+		return -1
+	var spawn_time := _shatter_clock + delay
+	var origin := _shard_field.to_local(world_pos)
+	# A dying node is stationary — its shards' entire velocity is their own
+	# radial kick, never inherited momentum (#257 decision 7).
+	return _shard_field.spawn_shatter(origin, disk_radius, color, Vector2.ZERO, spawn_time,
+			shatter_shard_count, shatter_fling_speed)
 
 
 ## Blade-pop burst (#170): a self-freeing one-shot spray at the contact point.

@@ -1,0 +1,23 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://skill_node/visuals/inner_disk_shatter.gdshader" id="1_shader"]
+
+[resource]
+resource_local_to_scene = true
+shader = ExtResource("1_shader")
+shader_parameter/crack_width = 0.06
+shader_parameter/crack_glow_stops = 2.0
+shader_parameter/ray_peak_ev = 3.0
+shader_parameter/ray_angle_width = 0.35
+shader_parameter/ray_length = 0.9
+shader_parameter/tint_mix = 0.6
+shader_parameter/allocated = true
+shader_parameter/highlight_position = Vector2(-0.35, -0.35)
+shader_parameter/highlight_intensity = 0.85
+shader_parameter/carve_kind = 0
+shader_parameter/carve_sides = 3.0
+shader_parameter/carve_squish = 1.0
+shader_parameter/carve_radius = 0.75
+shader_parameter/well_depth = 0.35
+shader_parameter/carve_slice = -1
+shader_parameter/carve_slice_b = -1
