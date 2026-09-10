@@ -6,7 +6,7 @@
 script = ExtResource("1_stat_def")
 id = &"blade_size"
 display_name = "Blade Size"
-description = "Maximum number of blade-member nodes a melee attack can include, excluding the pivot. Base 1, +1 per 10 STR."
+description = "Maximum number of blade-member nodes a melee attack can include, excluding the pivot. Base 1, +1 per 20 STR."
 value_type = 0
 default_value = 1.0
 tint_color = Color(0.85, 0.3, 0.3, 1)

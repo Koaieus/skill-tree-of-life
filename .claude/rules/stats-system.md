@@ -597,6 +597,21 @@ in a hover tooltip, and prose would blow the line budget. Nothing may derive the
 parsing the expression string. `test_formula_descriptions.gd` fails on an undescribed
 formula reachable from the shipped boards.
 
+**A `StatDef.description`'s own "+N per D STAT" prose is a SEPARATE, hand-written
+field from `describe_per()`/`format()` above — it drifts independently, and did**
+(#825: `blade_size.tres` said "per 10 STR" while `formula_str_to_blade_size` had
+long since moved to `divisor = 20.0`, sizing an AI budget pass 2x optimistic).
+`test/unit/test_stat_def_description_ratio_agreement.gd` guards every
+`RatioFormula`-backed intrinsic on `default_entity_board.tres` and the four
+`entity/blocker/blocker_*_board.tres` — it reads the divisor off the live formula
+and the ratio off the target stat's `description` and asserts they agree, so it
+stays green across a retune (divisors are owner-tuned, e.g. #776) and only reds
+on real drift. A description with no "per N STAT" phrase is skipped, not failed
+— not every stat spells its ratio out in prose. The durable fix — compose
+`description` from the formula instead of hand-writing the ratio, so this class
+of drift can't recur — is proposed but not built (bigger than #825, touches the
+tooltip path).
+
 **`describe_per()` is the phrase; `describe_clause()` (#773) is what actually
 renders.** `StatModifier._with_per_clause` calls `formula.describe_clause()`, not
 `describe_per()` directly — the base class's default `describe_clause()` just
