@@ -48,13 +48,24 @@ func _process(_delta: float) -> void:
 	queue_redraw()
 
 
-## De-lit the moment either vertex it hangs off is dead, or the edge itself
-## broke. The endpoint half is read off them rather than tracked here, so
-## there is no second copy of "who is dead" to go stale (the model's copy is
-## [BladePopResolver.Result.dead_at]); the severed half has no such source on
-## either endpoint, so [member severed] is the one place it lives.
+## Reads only [member severed] (#787's structural break, #781's future
+## caller) — untouched by this issue per the owner's decision 8. An endpoint
+## DEATH used to de-lit through this same predicate; it now drives its own
+## fuse-burn draw off [method death_progress] instead, so it is no longer
+## folded in here. There is still no second copy of "who is dead": the
+## endpoint half reads live off [BladeNode.death_progress], which itself
+## reads off [BladePopResolver.Result.dead_at] every frame.
 func is_disabled() -> bool:
-	return severed or (from != null and from.disabled) or (to != null and to.disabled)
+	return severed
+
+
+## The endpoint-death ramp this edge draws its fuse-burn against: the higher
+## of its two ends' own [member BladeNode.death_progress]. Not stored — a pure
+## read of the live endpoints, so it can never go stale relative to them.
+func death_progress() -> float:
+	var a := from.death_progress if from != null else 0.0
+	var b := to.death_progress if to != null else 0.0
+	return maxf(a, b)
 
 
 func _draw() -> void:
@@ -65,4 +76,36 @@ func _draw() -> void:
 	if (b - a).length_squared() < 0.01:
 		return
 	var s: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
-	draw_line(a, b, s.edge_color(tint, is_disabled()), s.edge_width, true)
+	if severed:
+		# #781's structural break — visually unchanged from the old bool
+		# `disabled` de-lit (owner decision 8: "leave the severed branch
+		# visually unchanged").
+		draw_line(a, b, s.edge_color(tint, true), s.edge_width, true)
+		return
+	var p := death_progress()
+	if p >= 1.0:
+		return  # fully burned away
+	if p <= 0.0:
+		draw_line(a, b, s.edge_color(tint, false), s.edge_width, true)
+		return
+	_draw_fuse_burn(a, b, p, s)
+
+
+## "The line erodes from B's end toward its surviving endpoint with a bright
+## travelling tip, thinning to nothing" (owner decision 7). `a`/`b` are
+## RECOMPUTED every frame from the live endpoints (never snapshotted at pop
+## time, per decision 7) — a coasting fragment keeps stretching the line as it
+## drifts, exactly like a still-driven one.
+func _draw_fuse_burn(a: Vector2, b: Vector2, progress: float, s: BladeStyle) -> void:
+	var dead_is_from := (from.death_progress if from != null else 0.0) \
+			>= (to.death_progress if to != null else 0.0)
+	var dead_point := a if dead_is_from else b
+	var live_point := b if dead_is_from else a
+	var tip := dead_point.lerp(live_point, progress)
+	var color := s.edge_color(tint, false)
+	color.a *= 1.0 - progress
+	draw_line(tip, live_point, color, s.edge_width, true)
+	# A brighter travelling tip marks the burn front.
+	var tip_color := Emissive.at(s.base_for(false, tint), Emissive.ALERT)
+	tip_color.a *= 1.0 - progress
+	draw_circle(tip, s.edge_width * 0.9, tip_color)

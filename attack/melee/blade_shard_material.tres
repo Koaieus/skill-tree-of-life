@@ -1,0 +1,11 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://attack/melee/blade_shard.gdshader" id="1_shader"]
+
+[resource]
+resource_local_to_scene = true
+shader = ExtResource("1_shader")
+shader_parameter/seam_gap = 0.03
+shader_parameter/inner_frac = 0.75
+shader_parameter/rim_lift_stops = 0.5
+shader_parameter/fill_alpha = 0.7

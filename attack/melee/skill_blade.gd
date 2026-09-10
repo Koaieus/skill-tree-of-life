@@ -32,6 +32,11 @@ const _STAMP_SCALE: float = 1.22
 const SCENE := preload("res://attack/melee/skill_blade.tscn")
 const BLADE_NODE := preload("res://attack/melee/blade_node.tscn")
 const BLADE_EDGE := preload("res://attack/melee/blade_edge.tscn")
+## An inherited scene of #835's `shatter_field.tscn`, material overridden to
+## `blade_shard_material.tres` (`resource_local_to_scene`, so every
+## `instantiate()` — one per SkillBlade — gets its own uniform set rather than
+## scrubbing together). See `get_shard_field`.
+const BLADE_SHARD_FIELD := preload("res://attack/melee/blade_shard_field.tscn")
 
 @export var owned_by: Entity
 
@@ -44,8 +49,10 @@ const BLADE_EDGE := preload("res://attack/melee/blade_edge.tscn")
 
 ## The swing's pop outcome, set by the caller BEFORE [method play] when one is
 ## known ([member MeleeAttackPlan.last_pops]). Vertices it reports dead go
-## [member BladeNode.disabled] at exactly the `t` they died — the interim "pop"
-## look (#256). Null (the preview loop) means nothing ever de-lights.
+## [member BladeNode.death_progress] from 0 to 1 across [member BladeStyle.pop_window]
+## starting at exactly the `t` they died (#787, replacing #256's de-lit
+## interim), and spawn their shards into [member _shard_field] the frame
+## playback crosses that `t`. Null (the preview loop) means nothing ever dies.
 ##
 ## Read, never derived: the blade must not decide who died. That answer belongs
 ## to [BladePopResolver], which the same swing's `resolve()` already ran.
@@ -63,7 +70,23 @@ var _node_visuals: Array[BladeNode] = []
 var _edge_visuals: Array[BladeEdge] = []
 var _nodes_container: Node2D
 var _edges_container: Node2D
+## #787's shard field, one per blade — mounted directly under THIS node
+## (`Nodes`/`Edges`'s sibling), which is the static one: nothing ever writes
+## `SkillBlade`'s own transform, only its children's (`BladeNode.global_position`
+## each frame). A field under a moving `BladeNode` would re-seed its fracture
+## pattern every frame instead (`ui/vfx/shatter/shatter_field.gd`'s class docs).
+var _shard_field: ShatterField
 var _active_tween: Tween
+## Pending shard spawns for the CURRENT playback: `.x` = the vertex's dead_at,
+## `.y` = its particle index, ascending by `.x` (Vector2's default sort order),
+## rebuilt from [member pop_result] on every [method play] and on every
+## backward seek — the same "pending, drained once" shape [method play]'s hit
+## events already use. See [method _apply_playback_frame].
+var _pending_pops: PackedVector2Array = PackedVector2Array()
+## The trajectory time [method _apply_playback_frame] was last called with —
+## how a backward seek (a scrub) is detected, since nothing else here
+## accumulates (`.claude/rules/presentation-clock.md`).
+var _last_frame_t: float = -INF
 ## The SkillNodes [method build_from_skill_nodes] was last built from, in
 ## [BladeState] particle order. Only the wind-up reads it.
 var _source_nodes: Array[SkillNode] = []
@@ -85,6 +108,15 @@ func _ready() -> void:
 		_nodes_container = Node2D.new()
 		_nodes_container.name = "Nodes"
 		add_child(_nodes_container)
+	_shard_field = get_node_or_null("ShardField") as ShatterField
+	if _shard_field == null:
+		_shard_field = BLADE_SHARD_FIELD.instantiate() as ShatterField
+		_shard_field.name = "ShardField"
+		add_child(_shard_field)
+	# `style`'s setter can run before this node exists (property
+	# deserialization on instantiate) and no-ops on a null field; catch it up
+	# now that one exists.
+	_push_shard_look()
 
 
 ## True when the selected node set can form a valid blade.
@@ -107,8 +139,12 @@ func build_from_skill_nodes(
 		induced_edges: Array,
 		owner_entity: Entity) -> void:
 	owned_by = owner_entity
-	# A rebuild is a fresh blade: last swing's deaths must not de-light it.
+	# A rebuild is a fresh blade: last swing's deaths must not de-light it, and
+	# its shards must not still be flying.
 	pop_result = null
+	_pending_pops = PackedVector2Array()
+	if _shard_field != null:
+		_shard_field.clear()
 	# Held so the wind-up (#559) can ask which vertices carry an addon without
 	# re-deriving it from the plan — [BladeState] deliberately keeps no handle
 	# on the SkillNodes it was built from, and `apply_to_blade` below is a pure
@@ -201,6 +237,17 @@ func play(
 	# the swing. Settle it rather than race it.
 	_finish_form()
 	modulate = Color(1.0, 1.0, 1.0, 0.35) if ghostly else Color.WHITE
+	# A fresh play() is a fresh clock: drop anything the LAST swing's pool
+	# still had in flight (#835's pool caveat — a spawn after the pool is
+	# empty re-bases `time_base` to this swing's own spawn times) and
+	# re-derive the pending shard spawns from `pop_result` as it stands now.
+	if _shard_field != null:
+		var pop_style: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
+		_shard_field.window = pop_style.pop_window
+		_shard_field.flight_start = 0.0
+		_shard_field.clear()
+	_last_frame_t = -INF
+	_rebuild_pending_pops()
 	var pending: Array[BladeHitEvent] = hits.duplicate()
 	var dur := duration_override if duration_override >= 0.0 else traj.duration()
 	# tween_method interpolates the VALUE range [0, dur] linearly over
@@ -224,12 +271,22 @@ func _apply_playback_frame(
 		traj: BladeTrajectory,
 		pending: Array[BladeHitEvent],
 		ghostly: bool) -> void:
+	# Scrub-safety (#787 acceptance 3): a backward seek is the only thing that
+	# can invalidate the shard pool's forward-only assumption (#835's pool
+	# caveat) — nothing here otherwise accumulates. Detect it off the LAST `t`
+	# this was called with and react exactly as the pool caveat prescribes:
+	# clear() + re-drain the pending spawns, never just a smaller `elapsed`.
+	if t < _last_frame_t:
+		if _shard_field != null:
+			_shard_field.clear()
+		_rebuild_pending_pops()
+	_last_frame_t = t
 	var positions := traj.sample(t)
 	for i in _node_visuals.size():
 		if i < positions.size():
 			_node_visuals[i].global_position = positions[i]
 		if pop_result != null:
-			_node_visuals[i].disabled = pop_result.is_dead(i, t)
+			_node_visuals[i].death_progress = _death_progress_at(i, t)
 	if pop_result != null:
 		for i in _edge_visuals.size():
 			# Edge index into state.edges is stable for the whole swing
@@ -237,6 +294,17 @@ func _apply_playback_frame(
 			# see _spawn_visuals — so i indexes both alike.
 			_edge_visuals[i].severed = pop_result.severed_at.has(i) \
 					and t >= pop_result.severed_at[i]
+	if _shard_field != null:
+		# Set BEFORE draining: spawn_shatter's own rebase check
+		# (`elapsed >= _max_expiry`) reads the field's `elapsed`.
+		_shard_field.elapsed = t
+		while not _pending_pops.is_empty() and _pending_pops[0].x <= t:
+			var due := _pending_pops[0]
+			_pending_pops = _pending_pops.slice(1)
+			if not ghostly:
+				# #787 decision 11: the ghost/preview drives death_progress
+				# like any swing but spawns no shards.
+				_spawn_shard_for(int(roundf(due.y)), due.x, traj)
 	while not pending.is_empty() and pending[0].t <= t:
 		var ev: BladeHitEvent = pending.pop_front()
 		if not ghostly:
@@ -261,6 +329,86 @@ func _apply_playback_frame(
 ## preview/ghost swing shows the same figure the real one will land. Falls
 ## back to a 1.0 multiplier for an unowned blade (headless fixtures, the
 ## sandbox's ownerless preview) via [method BladeState.stat_value]'s guard.
+## death_progress at trajectory time `t` for vertex `idx` — a pure function
+## of [member pop_result], never a stored ramp
+## (`.claude/rules/presentation-clock.md`): 0 before the vertex died, then
+## `(t - dead_at) / window` clamped to [0, 1]. Called only when [member
+## pop_result] is non-null, same gate [method _apply_playback_frame] applied.
+func _death_progress_at(idx: int, t: float) -> float:
+	if not pop_result.dead_at.has(idx):
+		return 0.0
+	var dead_t: float = pop_result.dead_at[idx]
+	if t < dead_t:
+		return 0.0
+	var s: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
+	return clampf((t - dead_t) / s.pop_window, 0.0, 1.0)
+
+
+## Rebuilds [member _pending_pops] from [member pop_result]: one entry per
+## `dead_at` vertex, `.x` the death time and `.y` the particle index, sorted
+## ascending by time (Vector2's default sort compares `.x` then `.y`) so
+## [method _apply_playback_frame] can drain it with the same
+## `while pending[0].t <= t` shape [method play]'s hit events already use.
+## Called on every [method play] and every backward seek (#835's pool caveat:
+## a rewind clears the field, so its pending spawns must be re-derived too).
+func _rebuild_pending_pops() -> void:
+	_pending_pops = PackedVector2Array()
+	if pop_result == null:
+		return
+	for idx in pop_result.dead_at:
+		_pending_pops.append(Vector2(float(pop_result.dead_at[idx]), float(idx)))
+	_pending_pops.sort()
+
+
+## Fragments vertex `idx` into [member _shard_field] at the moment it died
+## (#787 decision 5). `dead_t` is trajectory time, matching `traj`'s own
+## clock; the field's `elapsed` is already trajectory time too (set by
+## [method _apply_playback_frame] just before this is called).
+func _spawn_shard_for(idx: int, dead_t: float, traj: BladeTrajectory) -> void:
+	if _shard_field == null or idx < 0 or idx >= _node_visuals.size():
+		return
+	var bn := _node_visuals[idx]
+	var s: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
+	var tint_color := s.base_for(bn.is_pivot, entity_tint())
+	var vel := seed_velocity(traj, idx, dead_t)
+	var origin := _shard_field.to_local(bn.global_position)
+	_shard_field.spawn_shatter(
+			origin, bn.radius, tint_color, vel, dead_t,
+			s.pop_shard_count, s.pop_kick_speed)
+
+
+## The velocity a popped vertex hands its shards (#787 acceptance 4): the last
+## MOVING sample pair before `dead_t`, `(sample[k] - sample[k-1]) / dt`. Walks
+## back past any STALLED pair rather than reading the first one it finds —
+## [method BladeState.remove_vertex] zeroes the dead vertex's `inv_mass`, so
+## every sample from `dead_at` onward is identical to the last, and diffing
+## that pair would read zero momentum for a vertex that was very much moving
+## right up to the moment it died. Zero at `t = 0` (nothing to diff against
+## yet) is the owner's accepted floor, not a bug. Never [member
+## BladeTrajectory.prev_samples] — that is a mid-SUBSTEP pose, not one `dt`
+## apart from `samples`.
+static func seed_velocity(traj: BladeTrajectory, idx: int, dead_t: float) -> Vector2:
+	if traj == null or traj.samples.size() < 2 or traj.sample_dt <= 0.0:
+		return Vector2.ZERO
+	var dt := traj.sample_dt
+	var k := mini(int(dead_t / dt), traj.samples.size() - 1)
+	while k >= 1:
+		var a := traj.samples[k]
+		var b := traj.samples[k - 1]
+		if idx < a.size() and idx < b.size() \
+				and a[idx].distance_squared_to(b[idx]) > 0.0001:
+			return (a[idx] - b[idx]) / dt
+		k -= 1
+	return Vector2.ZERO
+
+
+## The shard field this blade's pops spawn into (#787) — exposed for
+## look-tuning (`addons/melee_sandbox`) and test inspection, same as [method
+## get_node_visuals].
+func get_shard_field() -> ShatterField:
+	return _shard_field
+
+
 func _speed_multiplier(ev: BladeHitEvent) -> float:
 	var board: StatBoard = owned_by.stat_board if owned_by != null else null
 	var m := BladeState.stat_value(board, &"blade_speed_multiplier_max", 1.0)
@@ -521,6 +669,24 @@ func _apply_style() -> void:
 	for be in _edge_visuals:
 		be.style = style
 		be.tint = tint
+	_push_shard_look()
+
+
+## Pushes the two [BladeStyle] knobs the shard shader CAN read off this
+## blade's own [BladeStyle] onto [member _shard_field]'s material — fill
+## alpha and the rim-over-fill EV lift, mirroring [method BladeCircle._draw]'s
+## own fill_color/rim_color split. `inner_frac` stays a fixed material default
+## (see `blade_shard.gdshader`'s own comment): it is a per-SOURCE-NODE ratio,
+## and there is no spare per-shard channel to carry it.
+func _push_shard_look() -> void:
+	if _shard_field == null:
+		return
+	var mat := _shard_field.material as ShaderMaterial
+	if mat == null:
+		return
+	var s: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
+	mat.set_shader_parameter(&"fill_alpha", s.fill_alpha)
+	mat.set_shader_parameter(&"rim_lift_stops", maxf(s.rim_tier - s.fill_tier, 0.0))
 
 
 ## The spawned vertex visuals, pivot included, in [BladeState] particle order —

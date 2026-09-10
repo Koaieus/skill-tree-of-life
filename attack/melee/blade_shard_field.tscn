@@ -1,0 +1,7 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/vfx/shatter/shatter_field.tscn" id="1_base"]
+[ext_resource type="Material" path="res://attack/melee/blade_shard_material.tres" id="2_mat"]
+
+[node name="BladeShardField" instance=ExtResource("1_base")]
+material = ExtResource("2_mat")

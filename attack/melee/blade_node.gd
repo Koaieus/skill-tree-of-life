@@ -43,14 +43,24 @@ const DEFAULT_STYLE: BladeStyle = preload("res://attack/melee/default_blade_styl
 		tint = value
 		_reconfigure()
 
-## Interim pop state (#256): this vertex is dead, so it reads de-lit (HDR → SDR)
-## instead of disappearing. Driven by [member SkillBlade.pop_result] during a
-## live swing; also settable by hand for look tuning.
-@export var disabled: bool = false:
+## Pop state (#787), replacing the old #256 de-lit interim: `0.0` while alive,
+## then `clampf((t - dead_at) / window, 0.0, 1.0)` for the rest of the swing —
+## driven every playback frame by [member SkillBlade._apply_playback_frame] as
+## a pure function of (dead_at, t), never a fired-once animation
+## (`.claude/rules/presentation-clock.md`). Also settable by hand for look
+## tuning (`addons/melee_sandbox`'s forced de-lit slider).
+##
+## The instant this leaves 0.0 the disc stops drawing entirely — "pop is
+## immediate, no glow up first" (owner, 2026-09-10) — and [SkillBlade] spawns
+## this vertex's shards into its [ShatterField] on that same transition. The
+## float only continues to matter after that instant for [BladeEdge]'s
+## fuse-burn draw, which needs a ramp to erode along.
+@export_range(0.0, 1.0) var death_progress: float = 0.0:
 	set(value):
-		if disabled == value:
+		var clamped := clampf(value, 0.0, 1.0)
+		if death_progress == clamped:
 			return
-		disabled = value
+		death_progress = clamped
 		_reconfigure()
 
 @onready var _visual: Node2D = $Visuals/BladeCircle
@@ -65,7 +75,7 @@ func _reconfigure() -> void:
 		return
 	_visual.configure(
 			radius, inner_radius, is_pivot,
-			style if style != null else DEFAULT_STYLE, tint, disabled)
+			style if style != null else DEFAULT_STYLE, tint, death_progress)
 
 
 ## Returns the point on this node's circumference facing `world_target`.

@@ -96,6 +96,27 @@ extends Resource
 		disabled_alpha = value
 		emit_changed()
 
+## Seconds a popped vertex's shards take to fly out and fade, and the span
+## [BladeEdge]'s fuse-burn erodes an incident edge over (#787). ~20% of the
+## 1.2s swing duration, owner-authored.
+@export_range(0.05, 2.0, 0.01) var pop_window: float = 0.25:
+	set(value):
+		pop_window = maxf(value, 0.0001)
+		emit_changed()
+## Shards a popped vertex's disc splits into. Capped at
+## [constant ShatterField.MAX_CELLS] (32) — the half-float packing budget.
+@export_range(1, 32, 1) var pop_shard_count: int = 8:
+	set(value):
+		pop_shard_count = value
+		emit_changed()
+## Each shard's own outward push speed (px/s), on top of the vertex's momentum
+## at the moment it died — "some force with the fragmentation" (owner,
+## 2026-09-10).
+@export_range(0.0, 2000.0, 1.0) var pop_kick_speed: float = 140.0:
+	set(value):
+		pop_kick_speed = value
+		emit_changed()
+
 
 ## The blade's base hue for one part, identity tint applied. `entity_color` is
 ## the wielder's colour; pass [constant Color.TRANSPARENT] for an ownerless

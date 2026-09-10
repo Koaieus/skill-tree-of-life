@@ -135,12 +135,12 @@ func test_forced_de_lit_survives_a_preview_rebuild() -> void:
 	_panel._input_ctl.route_left_click(_node("Hilt"))
 	_panel._input_ctl.route_left_click(_node("Guard"))
 	_panel._delit_spin.value = 1
-	assert_true(_panel._preview.current_blade().get_node_visuals()[-1].disabled,
+	assert_true(_panel._preview.current_blade().get_node_visuals()[-1].death_progress >= 1.0,
 			"the tip goes de-lit immediately")
 	# The preview loop rebuilds every vertex visual each cycle; re-selecting is
 	# the same rebuild, and the decoration must come back with it.
 	_panel._input_ctl.route_left_click(_node("B1"))
-	assert_true(_panel._preview.current_blade().get_node_visuals()[-1].disabled,
+	assert_true(_panel._preview.current_blade().get_node_visuals()[-1].death_progress >= 1.0,
 			"a rebuilt ghost must not silently drop the forced de-lit")
 
 

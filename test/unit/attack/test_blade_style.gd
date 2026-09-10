@@ -97,7 +97,7 @@ func test_blade_takes_its_tint_from_the_wielder() -> void:
 	assert_eq(visuals.size(), 2, "one visual per vertex")
 	for v in visuals:
 		assert_eq(v.tint, entity.color, "every vertex gets the same identity tint")
-		assert_false(v.disabled, "a fresh blade has nothing dead on it")
+		assert_eq(v.death_progress, 0.0, "a fresh blade has nothing dead on it")
 
 
 func test_blade_carries_both_radii_from_the_source_skill_nodes() -> void:

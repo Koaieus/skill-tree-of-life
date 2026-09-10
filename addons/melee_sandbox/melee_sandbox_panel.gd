@@ -442,7 +442,10 @@ func _apply_forced_delit(blade: SkillBlade) -> void:
 	var visuals := blade.get_node_visuals()
 	var forced := int(_delit_spin.value)
 	for i in visuals.size():
-		visuals[i].disabled = forced > 0 and i >= visuals.size() - forced
+		# #787: `disabled` became `death_progress`. Forced tip de-lit is a look
+		# tool, not a real pop — pin it fully dead (1.0) rather than deriving
+		# a ramp nothing is driving.
+		visuals[i].death_progress = 1.0 if (forced > 0 and i >= visuals.size() - forced) else 0.0
 
 
 ## Tops the quarry up through a spam session: refill anything that took a hit, so
