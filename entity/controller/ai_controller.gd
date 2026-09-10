@@ -49,6 +49,15 @@ extends EntityController
 
 const _DEFAULT_TURN_DELAY := 0.4
 
+## No-run fallback base for [member rng]'s seed (#823 D5) — `GameSession` may
+## hold no live run at all (`dev_sandbox.tscn`, most unit fixtures). A fixed,
+## distinctly-named constant, deliberately NOT [constant RunConfig
+## .resolve_seed]'s own `1`: a real run can legitimately resolve to seed 1,
+## and sharing the value would make "no run" and "a run that drew 1"
+## indistinguishable while staring at a divergence. Never `randomize()` —
+## reproducible is the whole point (tests/replays pin [member rng] directly).
+const _NO_RUN_RNG_BASE_SEED := 823
+
 ## Synced from Settings.current.ai_turn_delay at _ready unless a caller
 ## already overrode it (tests set this explicitly before add_child, to a
 ## value other than the compile-time default, to control pacing/avoid
@@ -57,7 +66,21 @@ const _DEFAULT_TURN_DELAY := 0.4
 ## Tier-gates [AiCombatScorer]'s cut-vertex / enemy-weak-point / self-shape-
 ## risk bonuses. 0 = naive, picks by raw EV. Kept here (not on the scorer)
 ## since it's the controller's single behavior-shaping knob.
-@export var ai_tier: int = 0
+@export var ai_tier: int = 1
+## Seeded off [code]GameSession.config.seed[/code] (#823 D5, owner 2026-09-10:
+## "AI only runs by authority so option 1 should be fine even for
+## multiplayer") mixed with a per-ENTITY discriminator — every AI on the
+## board sharing the bare run seed would draw the identical sequence, so
+## e.g. requirement 6's `rng.randi_range(ai_tier, ai_tier + 1)` would pick the
+## same handle length for every AI on turn 1. Null sentinel: [method _ready]
+## seeds a real one unless a caller already set one (tests set this
+## explicitly before add_child, exactly as they already do for
+## [member turn_delay]). Never [method RandomNumberGenerator.randomize] —
+## reproducible is the point.
+## Plain var, not `@export`: RandomNumberGenerator is RefCounted, not a
+## Resource/Node/built-in, and `@export` only accepts those. Tests set it
+## the same way regardless — directly, before `add_child`.
+var rng: RandomNumberGenerator = null
 ## Verbose `print_rich` trace of candidate scoring / chosen action to the
 ## console. [signal Events.ai_decision] fires regardless of this toggle —
 ## this only gates the local console sink.
@@ -82,11 +105,40 @@ func _ready() -> void:
 	if turn_delay == _DEFAULT_TURN_DELAY:
 		turn_delay = Settings.current.ai_turn_delay
 	Settings.changed.connect(_on_settings_changed)
+	if rng == null:
+		rng = RandomNumberGenerator.new()
+		rng.seed = _resolve_rng_seed()
 
 
 func _on_settings_changed(key: StringName, value: Variant) -> void:
 	if key == &"ai_turn_delay":
 		turn_delay = value
+
+
+## The run seed (or [constant _NO_RUN_RNG_BASE_SEED] with no live run) mixed
+## with a per-entity discriminator, so every AI on the board draws its own
+## sequence rather than the one shared stream `GameSession.config.seed` would
+## give them all. The discriminator must be STABLE and REPRODUCIBLE — the same
+## on every machine and across a reload of the same run — so it is never
+## `entity_id` (minted by entry order into `entities_container`, the same
+## per-process-order trap `.claude/rules/graph.md` calls out for accessors)
+## and never `get_instance_id()`. [member Entity.core_location]'s
+## [method Graph.get_stable_id] is: one core per entity, and procgen assigns
+## starting nodes deterministically off the same resolved seed. Falls back to
+## [member Entity.display_name] for a coreless fixture entity (most unit
+## tests) — good enough there since nothing in a fixture asks two same-named
+## entities to roll independently in the same test.
+func _resolve_rng_seed() -> int:
+	var base := GameSession.config.seed \
+			if GameSession.is_active() else _NO_RUN_RNG_BASE_SEED
+	var discriminator := ""
+	if entity != null:
+		if entity.core_location != null and entity.navigator != null \
+				and entity.navigator.graph != null:
+			discriminator = "core:%d" % entity.navigator.graph.get_stable_id(entity.core_location)
+		else:
+			discriminator = "name:%s" % entity.display_name
+	return hash("%d:%s" % [base, discriminator])
 
 
 func take_turn() -> void:
@@ -290,7 +342,7 @@ func _best_attack_candidate(visible_enemies: Array[SkillNode]) -> AiCombatScorer
 ## / steerable-proposal / two-tier-evaluation pipeline. Empty when the entity
 ## has no territory to pivot from or no candidate reaches a visible enemy.
 func _gather_melee_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
-	return AiBladeRollout.gather_melee_candidates(entity, visible_enemies, ai_tier)
+	return AiBladeRollout.gather_melee_candidates(entity, visible_enemies, ai_tier, rng)
 
 
 func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
@@ -452,6 +504,16 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 			# so leaving it alone makes an AI swing whichever way the player
 			# last chose, which is neither what was scored nor reproducible.
 			plan.swing_cw = candidate.swing_cw
+			# #823 requirement 9: arm the SAME handle the rollout scored —
+			# same shape [member AiCombatScorer.ScoredCandidate.swing_cw]
+			# above is, and same reason: a phantom clamp only ever existed to
+			# be scored (`MeleeAttackPlan.ai_phantom_clamp_nodes`), so
+			# launching without turning it into a real temp-upgrade addon
+			# would execute a floppier blade than the one that won. No new
+			# command (owner, 2026-08-21: AI is host-only, so direct calls
+			# are fine) — the same door `apply_temp_upgrade`'s UI caller uses.
+			for node in candidate.clamp_nodes:
+				bs.toggle_temp_upgrade_on(node, MeleeAttackPlan.CLAMP_UPGRADE)
 		_:
 			return false
 	if not bs.attack_plan.is_valid():

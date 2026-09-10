@@ -131,9 +131,9 @@ func test_prune_pivots_rejects_out_of_reach_and_keeps_in_reach() -> void:
 	assert_false(kept.has(far_pivot), "a pivot 10000px away with 0 reach cannot survive")
 
 
-# ── _greedy_chain: steers toward the target, bounded by max_size ───────────
+# ── _grow_path: a genuine consecutive-from-pivot walk (#823) ───────────
 
-func test_greedy_chain_picks_nearer_neighbour_first() -> void:
+func test_grow_path_picks_nearer_neighbour_first() -> void:
 	var pivot := _spawn("Pivot")
 	var near := _spawn("Near")
 	var far := _spawn("Far")
@@ -141,9 +141,32 @@ func test_greedy_chain_picks_nearer_neighbour_first() -> void:
 	near.global_position = Vector2(50.0, 0.0)
 	far.global_position = Vector2(0.0, 500.0)
 	var adjacency := {pivot: [near, far], near: [pivot], far: [pivot]}
-	var chain := AiBladeRollout._greedy_chain(pivot, adjacency, Vector2(60.0, 0.0), 2)
-	assert_eq(chain.size(), 2)
-	assert_eq(chain[0], near, "the neighbour closer to the target is picked first")
+	var path := AiBladeRollout._grow_path(pivot, adjacency, Vector2(60.0, 0.0), 2)
+	assert_eq(path.size(), 1,
+		"far is not a neighbour of near, so a genuine path stops at 1 " +
+		"(unlike the retired tree-growing _greedy_chain, which would " +
+		"have picked both off the pivot directly)")
+	assert_eq(path[0], near, "the neighbour closer to the target is picked first")
+
+
+func test_grow_path_walks_consecutively_from_the_tip() -> void:
+	var pivot := _spawn("Pivot")
+	var n1 := _spawn("N1")
+	var n2 := _spawn("N2")
+	pivot.global_position = Vector2.ZERO
+	n1.global_position = Vector2(50.0, 0.0)
+	n2.global_position = Vector2(100.0, 0.0)
+	var adjacency := {pivot: [n1], n1: [pivot, n2], n2: [n1]}
+	var path := AiBladeRollout._grow_path(pivot, adjacency, Vector2(200.0, 0.0), 5)
+	assert_eq(path, [n1, n2], "a real chain walks outward from the tip, not just the pivot")
+
+
+func test_grow_path_stops_when_no_neighbours_left() -> void:
+	var pivot := _spawn("Pivot")
+	pivot.global_position = Vector2.ZERO
+	var adjacency := {pivot: []}
+	var path := AiBladeRollout._grow_path(pivot, adjacency, Vector2(100.0, 0.0), 5)
+	assert_eq(path.size(), 0, "no owned neighbours -> empty path, not an infinite loop")
 
 
 # ── _coarse_rank_and_select: the WorkerThreadPool tier actually filters ─────
@@ -175,11 +198,12 @@ func test_coarse_rank_selects_the_nearer_finalists() -> void:
 	var chain_c: Array[SkillNode] = [m_c]
 	var chain_b: Array[SkillNode] = [m_b]
 	# A proposal carries its swing direction as its third element (#692
-	# follow-up). These four sit at fixed positions with no arc driving them,
-	# so direction is inert here — the ranking under test is the distance one.
+	# follow-up) and its phantom clamp targets as its fourth (#823). These
+	# four sit at fixed positions with no arc driving them and no clamps, so
+	# direction/clamps are inert here — the ranking under test is the distance one.
 	var proposals := [
-		[pivot, chain_d, false], [pivot, chain_a, false],
-		[pivot, chain_c, false], [pivot, chain_b, false]]
+		[pivot, chain_d, false, [] as Array[SkillNode]], [pivot, chain_a, false, [] as Array[SkillNode]],
+		[pivot, chain_c, false, [] as Array[SkillNode]], [pivot, chain_b, false, [] as Array[SkillNode]]]
 	var enemy_positions: Array[Vector2] = [enemy_pos]
 	var finalists := AiBladeRollout._coarse_rank_and_select(proposals, _ai_entity, enemy_positions)
 
@@ -191,14 +215,6 @@ func test_coarse_rank_selects_the_nearer_finalists() -> void:
 	assert_true(kept.has(m_b), "second-closest candidate must survive coarse ranking")
 	assert_true(kept.has(m_c), "third-closest candidate must survive coarse ranking")
 	assert_false(kept.has(m_d), "farthest candidate must be dropped by coarse ranking, not kept by luck")
-
-
-func test_greedy_chain_stops_when_no_neighbours_left() -> void:
-	var pivot := _spawn("Pivot")
-	pivot.global_position = Vector2.ZERO
-	var adjacency := {pivot: []}
-	var chain := AiBladeRollout._greedy_chain(pivot, adjacency, Vector2(100.0, 0.0), 5)
-	assert_eq(chain.size(), 0, "no owned neighbours -> empty chain, not an infinite loop")
 
 
 # ── Full pipeline: pivot prune -> proposals -> coarse rank -> full resolve ──

@@ -243,6 +243,43 @@ func set_damping(idx: int, value: float) -> void:
 	damping[idx] = value
 
 
+## Whether [param particle_idx] already sits in a triangle within [param
+## edges] — i.e. two of its neighbours are directly connected to each other.
+## Mirrors [method ClampAddon.append_weld_braces]'s own neighbour-pair walk
+## exactly: if this is true, welding [param particle_idx] would only append a
+## redundant constraint (already-rigid geometry), which is #823's "free
+## rigidity" case.
+##
+## Static and edge-list-based, not an instance method reading [member edges]
+## directly, so a caller without a built [BladeState] yet can ask the same
+## question over its own index-mapped induced-edge list — see
+## [method AiBladeRollout._induced_edges_index]. `.claude/rules/degree.md`:
+## the question is always asked within a blade's own INDUCED edges, never
+## whole-board degree.
+static func edges_form_triangle_at(edges: Array[Vector2i], particle_idx: int) -> bool:
+	var neighbours: Array[int] = []
+	for e in edges:
+		if e.x == particle_idx:
+			neighbours.append(e.y)
+		elif e.y == particle_idx:
+			neighbours.append(e.x)
+	for i in neighbours.size():
+		for j in range(i + 1, neighbours.size()):
+			var a := neighbours[i]
+			var b := neighbours[j]
+			for e2 in edges:
+				if (e2.x == a and e2.y == b) or (e2.x == b and e2.y == a):
+					return true
+	return false
+
+
+## Instance convenience over [method edges_form_triangle_at] against this
+## state's own [member edges] — the question a live [BladeState] (post-build,
+## pre- or post-brace) asks about one of its own particles.
+func is_triangulated(particle_idx: int) -> bool:
+	return edges_form_triangle_at(edges, particle_idx)
+
+
 ## Hop count from the pivot to the farthest vertex, walking `constraints`
 ## (not `edges`) — a phantom brace (ClampAddon's weld) shortens the path a
 ## correction has to travel just as much as a real edge does, so the fidelity

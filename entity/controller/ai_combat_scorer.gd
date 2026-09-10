@@ -58,6 +58,14 @@ class ScoredCandidate:
 	var spell: SpellDef = null
 	## Blade member selection for MELEE candidates; empty for RANGED/MAGIC.
 	var blade_nodes: Array[SkillNode] = []
+	## #823: handle members this MELEE candidate was scored with a phantom
+	## [ClampAddon] weld on (subset of [member blade_nodes]); empty for
+	## RANGED/MAGIC and for a floppy melee candidate with no rigidified
+	## joints. [method AIController._execute_candidate] MUST re-apply these as
+	## real temp-upgrade toggles on launch — same identity contract as
+	## [member swing_cw]: a caller that drops this executes a swing the
+	## scorer never valued.
+	var clamp_nodes: Array[SkillNode] = []
 	## Swing direction for MELEE candidates; unused (false) for RANGED/MAGIC.
 	## Part of the candidate's identity, not a presentation detail — the blade
 	## is a PBD chain that lags its driver, so the two directions trace

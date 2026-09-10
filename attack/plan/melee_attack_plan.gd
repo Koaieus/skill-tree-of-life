@@ -25,6 +25,18 @@ var source: SkillNode = null
 ## reachable from the pivot through this list + the pivot via graph edges.
 var blade_nodes: Array[SkillNode] = []
 
+## AI-ONLY, TRANSIENT (#823). Members [method build_blade_state] should weld
+## as if they carried a real [ClampAddon], with NO board mutation — a proposal
+## the rollout is scoring, not a real attached addon. Read by
+## [method build_blade_state] right after the real addon-dispatch loop, so
+## both the coarse-tier probe (which calls `build_blade_state` directly) and
+## the finalist tier (`resolve()` -> ... -> `build_blade_state` internally)
+## see the same phantom braces — a parameter on `build_blade_state` alone
+## would reach only the former. Deliberately absent from [method to_dict]:
+## a launched swing carries real addons via [method AIController._execute_candidate]'s
+## `toggle_temp_upgrade_on` calls, never a phantom set crossing the wire.
+var ai_phantom_clamp_nodes: Array[SkillNode] = []
+
 const CLAMP_UPGRADE: Dictionary = {
 	id = &"clamp",
 	scene = preload("res://skill_node/addons/clamp_addon.tscn"),
@@ -1343,6 +1355,13 @@ func build_blade_state(zones: BladeDefenderZones = null) -> BladeState:
 	for i in selection.size():
 		for addon in selection[i].get_addons():
 			addon.apply_to_blade(blade_state, i)
+	# #823: phantom clamps the AI rollout is SCORING, not real attached
+	# addons — same static ClampAddon uses for a real one
+	# (ClampAddon.apply_to_blade delegates to this exact function), applied
+	# after real addons so a phantom never shadows a real weld's constraint.
+	for node in ai_phantom_clamp_nodes:
+		if sn_to_idx.has(node):
+			ClampAddon.append_weld_braces(blade_state, sn_to_idx[node])
 	# The merged defender field (#780 walls + #781 plates, one query since #811)
 	# — attached here so every consumer of this state (the resolve, the AI
 	# rollout) meets the same defenders. Null for the ordinary swing.
