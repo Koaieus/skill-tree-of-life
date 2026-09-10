@@ -175,8 +175,11 @@ Files:
 > glow, reverted the `VIEWPORT_ENVIRONMENT_ENABLED` forcing that was actually
 > carrying it, and lost the pass again (see `docs/domain/hdr-color.md`, failure
 > mode 5). `70_bloom_tab.tscn` is the
-> reference for the baked form; the rest are still on the export and should be
-> migrated. Reload rebuilds the **whole tab** from its `.tscn` via
+> reference for the baked form; most tabs are baked now (`70_bloom_tab.tscn`,
+> `18_tooltip_fan_tab.tscn`, `40_allocation_tab.tscn` (#838) among them) — a
+> handful (spell / node_visuals / gimbal_3d / statboard / procgen / loot /
+> toast) are still on the legacy export and should be migrated as they're
+> touched. Reload rebuilds the **whole tab** from its `.tscn` via
 > `SandboxHost.reload_tab()`, so reload and cold open take the same path.
 
 - `sandbox_live_tab.gd` (`SandboxLiveTab`) + `sandbox_live_tab.tscn` (the

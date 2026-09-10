@@ -6,5 +6,10 @@
 [node name="Allocation VFX" instance=ExtResource("1_base")]
 tab_title = "Allocation VFX"
 tab_id = &"allocation"
-panel_scene = ExtResource("2_panel")
 loader_method = &"load_object"
+
+[node name="TitleLabel" parent="Layout/Toolbar" index="0"]
+text = "Allocation VFX"
+
+[node name="AllocationSandboxPanel" parent="Layout/Split/PanelHost" index="0" instance=ExtResource("2_panel")]
+layout_mode = 2
