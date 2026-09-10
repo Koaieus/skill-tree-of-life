@@ -226,11 +226,21 @@ func _on_entity_dying(victim: Entity) -> void:
 	# ERASE, not a paid-tombstone, and that is checked rather than assumed: a
 	# LATER `cascade_started` for this same victim would rebuild the ledger from
 	# {} and re-pay those nodes at 1x on top of the bonus rate. It cannot
-	# happen. `BattleSystem._on_node_depleted` emits `cascade_started` at the
-	# TOP, before the strip loop that chips health and can kill; and once death
-	# has stripped ownership, its own `defender = node.owned_by; if defender ==
-	# null: return` guard turns every subsequent depletion for this victim into
-	# an early return. So no cascade for a victim can follow its `entity_dying`.
+	# happen from a live COMBAT cascade: `BattleSystem._on_node_depleted` emits
+	# `cascade_started` at the TOP, before the strip loop that chips health and
+	# can kill, so every combat-cascade emission for this victim fires while it
+	# is still alive; once death has stripped ownership, its own
+	# `defender = node.owned_by; if defender == null: return` guard turns every
+	# subsequent depletion into an early return.
+	#
+	# `BattleSystem` DOES fire one more `cascade_started` for this victim right
+	# here in the same `entity_dying` phase (#837's core-outward death wave,
+	# announced before `AllocationSystem.deallocate_all_owned` strips the rest
+	# of the board) — but that one is presentation, not a new combat cascade:
+	# the kill XP `_award_kill_xp` just paid above already covers the WHOLE
+	# board via `_held_nodes(victim)`'s union, so a trickle payment on top of it
+	# would double-count. See `_on_cascade_started`'s `defender.is_dead` guard,
+	# which is what makes ERASE-then-ignore correct instead of ERASE-then-hope.
 	_removed_this_attack.erase(victim)
 	# Still the pre-strip world: the corpse owns its nodes, so an effect can
 	# inspect the territory it just took (the Predator's BLITZ will want this).
@@ -326,8 +336,17 @@ func _on_attack_launched(_mode: int, _spell: SpellDef) -> void:
 ## the strip, so the defender is still knowable. Pays the whole set, and records
 ## it so a kill later in the same attack can upgrade it to the bonus rate
 ## instead of double-paying or losing it.
+##
+## `defender.is_dead` skips #837's entity-death wave: BattleSystem announces
+## that one too (same signal, reused on purpose — the issue's decision #3, so
+## AllocationVFX needs no change), but it fires from `entity_dying`, which
+## `Entity.die()` only emits AFTER latching `is_dead = true` — a live combat
+## cascade never sees that flag set, since `_on_node_depleted` emits BEFORE its
+## own strip loop can kill the defender. The death wave's nodes are already
+## covered by `_award_kill_xp`'s whole-board union (`_held_nodes`); trickling
+## them too would double-pay the kill.
 func _on_cascade_started(layers: Array, defender: Entity) -> void:
-	if defender == null:
+	if defender == null or defender.is_dead:
 		return
 	var ledger: Dictionary = _removed_this_attack.get(defender, {})
 	var newly := 0
