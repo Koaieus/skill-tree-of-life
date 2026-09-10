@@ -8,7 +8,7 @@ numbers and a recommendation; freezing a coefficient is an owner pinning call
 
 Cyclone's propagation, measured as a **linear operator on directed edges**
 instead of simulated. Keep a front's state on the edge it arrived along and
-`CycloneStep` becomes a fixed non-negative matrix: growth per wave is its
+`CycloneSpread` becomes a fixed non-negative matrix: growth per wave is its
 spectral radius, by power iteration on `2|E| x 2|E|`, no cast required. That is
 how #703's table was produced; #705 pointed the same operator at the ground
 procgen actually makes.

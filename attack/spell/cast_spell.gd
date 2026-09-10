@@ -2,8 +2,9 @@ class_name CastSpell
 extends RefCounted
 
 ## The in-flight carrier for a spell propagating through the graph. One
-## instance represents the spell *at one node*; [PropagationSpread] mints
-## fresh instances for each neighbour it propagates into.
+## instance represents the spell *at one node*; a [PropagationSpread] selects
+## the neighbours it propagates into and [method PropagationConfig.mint] builds
+## the fresh instance for each (#852).
 ##
 ## Each instance becomes one entry in the resolved outcome chain: trace
 ## [member predecessor] → [member current_node] to draw the spell's path,
@@ -38,8 +39,9 @@ var arrival_bearing: Vector2 = Vector2.ZERO
 ## in ([member CycloneSpread.closing_gain]).
 ##
 ## It exists because the number is otherwise destroyed the instant it is used.
-## [CycloneSpread] holds it as a local, multiplies [member damage] by it and drops
-## it; [CycloneReducer] then SUMS every incident, and the crit multiplies again
+## [CycloneSpread] hands it over as [member PropagationPick.share], the mint
+## multiplies [member damage] by it and it is gone from the arithmetic;
+## [CycloneReducer] then SUMS every incident, and the crit multiplies again
 ## at landing. So a landed amount cannot be inverted back to "which rank made
 ## this", and rank is the entire mechanic — the sharp turn circulates, the wide
 ## turns radiate. The VFX layer has to be TOLD, exactly as it is told
@@ -109,18 +111,19 @@ var rng: RandomNumberGenerator = null
 ## (owner's spec for Cyclone: [i]"it makes the cast-from an array, and the
 ## step/propagation needs to veto all of them for travel"[/i]).
 ##
-## [b]Empty means free[/b], which is what makes the reset branchless: a step
-## that closed a cycle mints its children with an empty set, so the filter is
-## one membership test with no "did we just reset?" special case. Populated at
-## MINT by [CycloneSpread]; merged by [CycloneReducer]. Distinct from
+## [b]Empty means free[/b], which is what makes the reset branchless: a spread
+## that closed a cycle picks its children with an empty set, so the filter is
+## one membership test with no "did we just reset?" special case. Decided at
+## SELECT by [CycloneSpread] (copied onto the child by the mint); merged by
+## [CycloneReducer]. Distinct from
 ## [member predecessor], which stays the single canonical "the projectile flew
 ## from here" reader for VFX.
 var came_from: Array[SkillNode] = []
 ## True when the hop that produced this payload landed on a node already in its
 ## own lineage's [member visited] trail — i.e. it CLOSED a cycle.
 ##
-## Stamped at mint by [CycloneSpread], read by [CycleCondition]. This is the
-## Design A split [ConvergenceCondition] documents: the step/reducer does
+## Decided at select by [CycloneSpread], read by [CycleCondition]. This is the
+## Design A split [ConvergenceCondition] documents: the spread/reducer does
 ## the math and stamps the fact, the crit condition owns the policy and stays a
 ## read-only predicate. The trail cannot be re-derived at landing time, because
 ## a closing mint RESETS [member visited] to just the landed node.

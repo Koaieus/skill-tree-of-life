@@ -12,7 +12,7 @@ extends Resource
 ## [code]seed = spell_damage(source) × SpellDef.power[/code] — the caster's
 ## board stat times the spell's one absolute coefficient. This class owns the
 ## [i]shape[/i] of the walk, not the magnitude: a hop IS a re-cast
-## ([method PropagationSpread._propagate_to] mints a fresh [CastSpell] from its
+## ([method PropagationConfig.mint] builds a fresh [CastSpell] from its
 ## predecessor), so the per-hop term is re-cast efficiency.
 ##
 ## [b]A progression DECLARES whether it scales with the caster.[/b] Picking
