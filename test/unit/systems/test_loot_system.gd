@@ -121,6 +121,24 @@ func test_killer_gains_xp_on_kill() -> void:
 			"kill XP = per_node * (held + core)")
 
 
+func test_entity_death_wave_awards_no_trickle_xp() -> void:
+	# The core-outward death wave (#837) reuses `cascade_started` on purpose (so
+	# AllocationVFX needs no change) — but LootSystem also listens to
+	# `cascade_started` for its per-node trickle (#182). Without the
+	# `defender.is_dead` guard in `_on_cascade_started`, this wave's own
+	# emission would trickle-pay the victim's nodes AGAIN on top of the kill's
+	# already-covers-the-whole-board `_kill_xp_total`, over-paying the kill.
+	_loot.xp_per_node_killed = 2.0
+	_loot.entity_kill_bonus = 1.0
+	var waves: Array = []
+	_battle.cascade_started.connect(func(layers: Array, _d: Entity) -> void: waves.append(layers))
+	var before := _killer.stat_board.xp.current
+	_kill_victim()  # direct core kill: no node-cascade precedes it, so the death wave is the ONLY wave
+	assert_gt(waves.size(), 0, "precondition: the entity-death wave actually fired")
+	assert_eq(_killer.stat_board.xp.current, before + 4.0,
+			"kill XP is exactly the whole-board total — the wave must not trickle on top of it")
+
+
 func test_kill_xp_ignores_victim_level() -> void:
 	# The rework: level is no longer an axis. D-19 already pins enemy level to
 	# starting node count, so paying for both double-counted one fact.

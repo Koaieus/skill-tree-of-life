@@ -657,6 +657,12 @@ func _on_health_depleted() -> void:
 func die() -> void:
 	if is_dead:
 		return
+	# Load-bearing ORDER, not just an idempotency latch: this must be set
+	# before `entity_dying` emits below, because `LootSystem._on_cascade_started`
+	# (#837) reads `defender.is_dead` to tell BattleSystem's core-outward
+	# death wave apart from a live combat cascade — both fire the same
+	# `cascade_started` signal, and only this ordering makes "already true by
+	# the time the death wave's own entity_dying handler runs" hold.
 	is_dead = true
 	died.emit()
 	# Before the bus phases: effects see the corpse fully intact (nodes still
