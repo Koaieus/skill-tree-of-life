@@ -159,6 +159,14 @@ fixture, comparing GDScript to GDScript. Verify with a one-liner:
 `mise run test:one -- res://test/unit/attack/test_blade_native_parity.gd` must
 report **28 passed, 0 pending**, not 28 pending.
 
+`mise run native:fetch` (#845) runs this same `mise run refresh` itself after
+it actually writes a binary — measured, not assumed: a totally fresh checkout
+with no `.godot/` at all picks the extension up on its very first headless
+pass with no refresh needed (there is no stale cache to be wrong), but an
+*existing* checkout gaining a binary later hits exactly this gotcha, so
+`native:fetch` refreshes unconditionally on the "wrote something new" path
+and is a no-op cost-wise on the steady-state "already present" path.
+
 ## `git worktree remove` fails on any worktree that inited the submodule
 
 Since `native/godot-cpp` exists, git refuses with *"working trees containing

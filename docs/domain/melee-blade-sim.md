@@ -474,6 +474,35 @@ cross-compile, on the llvm-mingw toolchain `mise.toml` pins). godot-cpp is a sub
 `native/godot-cpp`, so a fresh clone needs a recursive submodule init first.
 Binaries are **not** committed -- `native/bin/` is gitignored.
 
+##### Fetching it: no CI, a GitHub Release instead (#845)
+
+There is no CI in this repo — `.github/workflows/` is empty, and standing one
+up just to cross-build four files is a whole new axis. Instead the owner
+cross-builds by hand and **publishes**: `mise run native:publish -- <tag>`
+builds all four binaries (`native:build` for each target/platform pair),
+writes a `checksums.txt` (`sha256sum` of the four) alongside them, and
+attaches all five to a **prerelease** GitHub Release via `gh release create`.
+Binaries stay gitignored regardless — committing them means a rebuilt blob in
+git history on every solver edit.
+
+`mise run native:fetch` is the matching pull side, and **runs automatically
+after `mise install`** (a `[hooks] postinstall` in `mise.toml`) so
+`mise install` stays literally the whole setup CLAUDE.md promises, even once
+#847 makes the extension mandatory. It resolves the newest Release
+**explicitly** rather than asking `gh` for "the latest release" — a
+prerelease is deliberately excluded from that resolution, which would
+otherwise make every Release this project ever publishes invisible to a bare
+`gh release download`. A binary already on disk with a matching
+`checksums.txt` entry is skipped (idempotent); anything else downloads,
+verifies by sha256, and only then overwrites — a checksum mismatch is a loud
+failure, never a silently-installed truncated file. **Non-fatal when there is
+no Release yet, `gh` is missing, or GitHub is unreachable**: it warns and
+points at `mise run native:build`, because the GDScript fallback (#798) means
+the game still runs either way, and a hard failure there would break
+`mise install` for every offline or pre-Release machine. `mise run
+worktree:new` falls back to the same task when the source checkout it would
+otherwise copy from has nothing to seed.
+
 ##### The supported matrix is exactly what's declared, and exactly what's built (#844)
 
 `blade_sim.gdextension` declares **four** keys: linux and windows x86_64, each
