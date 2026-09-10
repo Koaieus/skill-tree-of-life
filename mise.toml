@@ -479,10 +479,9 @@ fi
 git worktree add "$dir" -b "$slug"
 
 # native/bin/ is gitignored build output, so a fresh worktree has no compiled
-# GDExtension — and the solver-parity tests then report PENDING rather than
-# FAILING, which means GUT prints a GREEN verdict over the backend that ships.
-# #823 was reviewed and merged on a run carrying 26 of those. Seed the binary
-# so a new worktree is honest from its first `mise run test`.
+# GDExtension — and since #847 the binary is mandatory: every simulated swing
+# push_errors and test_blade_goldens.gd fails outright without it. Seed the
+# binary so a new worktree works from its first `mise run test`.
 #
 # COPY, not a symlink, and that is load-bearing: a symlinked native/bin would
 # make `mise run native:build` inside a worktree write the MAIN checkout's
@@ -502,8 +501,8 @@ else
   echo "⚠ no native binary here to seed — trying mise run native:fetch in the new worktree…"
   (cd "$dir" && mise run native:fetch) || true
   if [ ! -d "$dir/native/bin" ] || [ -z "$(ls -A "$dir/native/bin" 2>/dev/null)" ]; then
-    echo "⚠ still no native binary — parity tests will skip and the suite will"
-    echo "  still print green. Build it: mise run native:build"
+    echo "⚠ still no native binary — every blade swing will push_error and the"
+    echo "  goldens will fail until you build it: mise run native:build"
   fi
 fi
 

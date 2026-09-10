@@ -9,9 +9,8 @@ set -euo pipefail
 # reviewable fixture diff in a commit that says why.
 #
 # Shape, same as procgen-golden-regenerate: flip the test's `_REGENERATE` const
-# to true, run THAT ONE SCRIPT in its own godot process (so nothing else in the
-# suite can flip BladeSim.use_native mid-record, and the test's own before_each
-# still fails the run if the native binary is missing), then flip the const
+# to true, run THAT ONE SCRIPT in its own godot process (so the test's own
+# before_each still fails the run if the native binary is missing), then flip the const
 # back — always, even on failure. It deliberately does NOT re-run to confirm
 # green: review the diff, re-run
 #   mise run test:one -- res://test/unit/attack/test_blade_goldens.gd
