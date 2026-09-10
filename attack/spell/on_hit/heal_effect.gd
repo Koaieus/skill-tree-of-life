@@ -21,5 +21,10 @@ func apply(state: CastSpell, outcome: AttackOutcome) -> void:
 	heal.origin = state.predecessor if state.predecessor != null else state.source
 	outcome.hits.append(heal)
 
-func get_description() -> String:
-	return "Heals the node it lands on."
+## Same D-32 number as [method DamageEffect.get_description] — heal amount
+## reuses [code]spell_damage[/code] (see this file's top docstring: "yes,
+## DAMAGE!") so the same [method SpellResolver.impact_damage] call applies.
+func get_description(spell: SpellDef = null, board: StatBoard = null) -> String:
+	if spell == null:
+		return "Heals the node it lands on."
+	return "Heals %s." % _fmt_num(SpellResolver.impact_damage(spell, null, board))

@@ -22,5 +22,10 @@ func apply(state: CastSpell, outcome: AttackOutcome) -> void:
 	hit.origin = state.predecessor if state.predecessor != null else state.source
 	outcome.hits.append(hit)
 
-func get_description() -> String:
-	return "Deals magic damage."
+## No [param spell] (no preview context) reads as the generic fragment;
+## otherwise quotes the D-32 impact number, unscaled ([param board] null) or
+## scaled by the caster's board — see [method OnHitEffect.get_description].
+func get_description(spell: SpellDef = null, board: StatBoard = null) -> String:
+	if spell == null:
+		return "Deals magic damage."
+	return "Deals %s damage." % _fmt_num(SpellResolver.impact_damage(spell, null, board))

@@ -137,31 +137,35 @@ func _populate_cast_section() -> void:
 	_cast_section.bind(lines, dynamic)
 
 
-## Sections 2-4 (#764) — the composed resources they read
-## ([OnHitEffect] / crit condition / [PropagationConfig].reducer) live under
-## `attack/spell/on_hit/`, `attack/spell/crit/`, `attack/spell/propagation/`,
-## none of them mine right now (#850-852 rewrite them onto the final
-## `LandingCondition`/`ScaleDamageEffect` shape — see #849). So this reads
-## whatever `get_description()` each ALREADY exposes via duck typing and
-## renders nothing for the rest; [method SpellTooltipSection.bind] already
-## collapses an empty section, so a spell with no describers yet just shows
-## fewer sections rather than a blank line.
+## Section 2 (#764) — [OnHitEffect] (`attack/spell/on_hit/`, mine) called
+## directly, no more duck typing now that #851 landed [code]get_description()[/code]
+## on every subclass. Each effect gets the unscaled reading first (gold rule
+## matches the Cast section's range line: mark the row dynamic only when the
+## caster's board actually moved the D-32 number) then the caster-scaled one.
+## The reducer's line ([PropagationConfig], mine to CALL not to edit — #852's
+## job to rewrite) is unaffected by either.
 func _populate_on_arrival_section() -> void:
 	var lines: PackedStringArray = []
+	var dynamic: Array[int] = []
+	var board := _caster_board()
+
 	for effect in _spell.on_hit_effects:
-		if effect != null and effect.has_method(&"get_description"):
-			var d: String = effect.get_description()
-			if d != "":
-				lines.append(d)
+		if effect == null:
+			continue
+		var raw_desc := effect.get_description(_spell, null)
+		var eff_desc := effect.get_description(_spell, board)
+		if eff_desc != "":
+			lines.append(eff_desc)
+			if eff_desc != raw_desc:
+				dynamic.append(lines.size() - 1)
 
 	var prop := _spell.propagation
-	if prop != null and prop.max_hops > 0 and prop.reducer != null \
-			and prop.reducer.has_method(&"get_description"):
-		var rd: String = prop.reducer.get_description()
+	if prop != null and prop.max_hops > 0 and prop.reducer != null:
+		var rd := prop.reducer.get_description()
 		if rd != "":
 			lines.append(rd)
 
-	_on_arrival_section.bind(lines)
+	_on_arrival_section.bind(lines, dynamic)
 
 
 ## [PropagationConfig] itself is mine to CALL (not to edit) — its
@@ -187,16 +191,19 @@ func _populate_then_section() -> void:
 	_then_section.bind(lines)
 
 
-## Same duck-typing as [method _populate_on_arrival_section] — today's
-## `CritCondition` subclasses have no `get_description()` yet (#851 adds it on
-## `LandingCondition`), so this renders empty/hidden until that lands.
+## Section 4 (#764) — [LandingCondition] (`attack/spell/condition/`, mine)
+## called directly; #851 landed [code]get_description()[/code] on every
+## subclass. No number to scale here, so no dynamic marking. Empty
+## [member SpellDef.crit_conditions] collapses the section via
+## [method SpellTooltipSection.bind].
 func _populate_crits_section() -> void:
 	var lines: PackedStringArray = []
 	for cond in _spell.crit_conditions:
-		if cond != null and cond.has_method(&"get_description"):
-			var d: String = cond.get_description()
-			if d != "":
-				lines.append(d)
+		if cond == null:
+			continue
+		var d := cond.get_description()
+		if d != "":
+			lines.append(d)
 	_crits_section.bind(lines)
 
 
