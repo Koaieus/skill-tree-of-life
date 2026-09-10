@@ -68,7 +68,22 @@ const RESOLUTIONS: Array[Vector2i] = [
 @export_enum("Disabled", "Enabled", "Adaptive") var vsync_mode: int = DisplayServer.VSYNC_ENABLED
 ## 0 = uncapped.
 @export_range(0, 300, 1) var max_fps: int = 0
-## Defaults LOW: no tier detection exists to pick it automatically (#796), and
-## the owner's stated worry is weak PCs, so the safe default costs a
-## spectating peer nothing extra rather than assuming headroom it may not have.
-@export_enum("Low", "High") var melee_peer_sim_fidelity: int = PeerSimFidelity.LOW
+## A spectating peer's blade resim is draw-only (ADR 0002), so this is a pure
+## graphics knob — every hit, pop and damage number comes off the [AttackRecord]
+## regardless. LOW is substeps 1 + no length scaling.
+##
+## [b]Defaults HIGH[/b] — owner call 2026-09-10, against measurement. LOW is a
+## much weaker lever than it looks: #790 pinned trajectory sampling to 1/120
+## [i]independent[/i] of the substep rate precisely so hit-scan would not inflate
+## with it, so substeps divide only the solver half. A measured k=51 resolve near
+## 100 defenders (native, Tier H) is 65 ms whole; LOW takes that to ~40 ms, a
+## 1.6x saving, not the 4x the substep ratio suggests.
+##
+## What actually keeps a peer honest is [member MeleePreview.replay_slice_steps],
+## not this: the minimum viable slice is 120/fps and its cost is ~5.4% of a frame
+## at HIGH regardless of fps, so the "can I sim a frame's worth within a frame"
+## bar is met at either fidelity. At the shipped slice of 12 the resim completes
+## in 12 of the swing's 72 frames and then costs nothing — a front-loaded burst,
+## not a sustained tax. This stays as the escape hatch for a machine that cannot
+## hold even that.
+@export_enum("Low", "High") var melee_peer_sim_fidelity: int = PeerSimFidelity.HIGH
