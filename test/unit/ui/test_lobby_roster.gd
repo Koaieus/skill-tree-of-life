@@ -310,7 +310,10 @@ func test_the_row_renders_a_class_that_has_no_sigil() -> void:
 	assert_eq(row.get_node("%Seat").text, "AI")
 
 
-func test_a_human_slot_is_never_offered_the_enemy_core() -> void:
+func test_every_core_is_offered_to_both_slot_kinds() -> void:
+	# #840: any core is pickable by any slot — the old asymmetry (enemy core
+	# AI-only, Balanced player-only) is gone. Every authored core now carries
+	# `pickable_in = 3`, so both pickers offer the identical roster.
 	var parts := LobbyScreen.build_participants(RunConfig.Mode.SINGLE, null, 1)
 	var human_row := _row_for(parts[0])
 	var ai_row := _row_for(parts[1])
@@ -322,8 +325,8 @@ func test_a_human_slot_is_never_offered_the_enemy_core() -> void:
 			out.append(pick.get_item_metadata(i))
 		return out
 
-	assert_false(offered.call(human_row).has(_BASIC_ENEMY), "AI-only core")
-	assert_false(offered.call(ai_row).has(_BALANCED), "player-only core")
+	assert_true(offered.call(human_row).has(_BASIC_ENEMY), "opt-in WIS core reaches human slots too")
+	assert_true(offered.call(ai_row).has(_BALANCED), "AI can mirror the player exactly")
 	assert_true(offered.call(human_row).has(_NINJA), "shared cores reach both")
 	assert_true(offered.call(ai_row).has(_NINJA))
 
@@ -338,6 +341,53 @@ func test_picking_a_class_writes_it_onto_the_roster() -> void:
 	assert_eq(human.core_class, _NINJA)
 	assert_eq(lobby.build_run_config().participants[0].core_class, _NINJA,
 			"and START hands the pick to the level")
+
+
+# --- #840: any core is pickable by any slot, and the AI default stops cheating --
+
+## Sum of `ADD_BASE`-style flat `value`s a core grants to `stat_id`, ignoring
+## formula-driven entries (neither core under test has one on wisdom) — this
+## is deliberately a property of the modifiers array, not the resource's
+## identity, so the assert survives the owner re-authoring which core is the
+## AI default (#840 comment, 2026-09-10 correction).
+func _summed_stat_contribution(core: CoreClass, stat_id: StringName) -> float:
+	var total := 0.0
+	for m in core.modifiers:
+		if m.stat_id == stat_id:
+			total += m.value
+	return total
+
+
+func test_balanced_core_is_pickable_by_ai_slots() -> void:
+	assert_true(CoreClass.pickable_for(CoreClass.PICKABLE_AI).has(_BALANCED),
+			"an AI slot can be a literal mirror of the player")
+
+
+func test_basic_enemy_core_is_pickable_by_player_slots() -> void:
+	assert_true(CoreClass.pickable_for(CoreClass.PICKABLE_PLAYER).has(_BASIC_ENEMY),
+			"a human who wants the WIS head start can opt into it")
+
+
+func test_default_cores_give_ai_and_human_the_same_wisdom_head_start() -> void:
+	var parts: Array[Participant] = [Participant.new(), Participant.new()]
+	parts[0].kind = Participant.Kind.HUMAN
+	parts[1].kind = Participant.Kind.AI
+
+	LobbyScreen.assign_default_cores(parts)
+
+	var human_wisdom := _summed_stat_contribution(parts[0].core_class, &"wisdom")
+	var ai_wisdom := _summed_stat_contribution(parts[1].core_class, &"wisdom")
+	assert_lte(ai_wisdom, human_wisdom,
+			"the AI default must not out-WIS the human default (30 vs 10 today)")
+
+
+func test_human_slot_still_defaults_to_balanced_core() -> void:
+	var parts: Array[Participant] = [Participant.new()]
+	parts[0].kind = Participant.Kind.HUMAN
+
+	LobbyScreen.assign_default_cores(parts)
+
+	assert_eq(parts[0].core_class, _BALANCED, "regression guard — green today")
 
 
 # --- #741: a slot types its own name, the roster carries it ------------------

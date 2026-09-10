@@ -97,7 +97,11 @@ const _PALETTE := preload("res://ui/theme/player_palette.tres")
 ## defaults must themselves be pickable in their own slot kind — a default the
 ## picker won't list is a state the player cannot return to.
 const _DEFAULT_PLAYER_CORE := preload("res://entity/core/balanced_core.tres")
-const _DEFAULT_AI_CORE := preload("res://entity/core/basic_enemy_core.tres")
+## #840, 2026-09-10: was `basic_enemy_core.tres` ("Wise Cheater" as of this
+## issue) — that gave every AI slot a silent +30 WIS head start over the human
+## default's +10. Both constants now name the same resource on purpose; the
+## AI's WIS-heavy option still exists, it is just opt-in like everything else.
+const _DEFAULT_AI_CORE := preload("res://entity/core/balanced_core.tres")
 
 ## The longest name a slot may carry. One home for the bound, applied at both
 ## ends that can produce a name: the row paints it onto the field's
@@ -1392,8 +1396,11 @@ static func slot_bit_for(kind: Participant.Kind) -> int:
 
 
 ## Seat every slot on its default class (#618 D5). Every slot gets one, AI
-## included — "the enemies would receive default enemy core by default but
-## should also be pickable" (owner, 2026-08-26).
+## included — AI slots are pickable, same as a human's (owner, 2026-08-26).
+## #840, 2026-09-10: the AI default flipped from the WIS-heavy "Wise Cheater"
+## core to `_DEFAULT_PLAYER_CORE` itself — AI no longer starts with a silent
+## stat head start over the human default; both sides may still opt INTO the
+## WIS-heavy core through the same per-slot picker.
 static func assign_default_cores(participants_in: Array[Participant]) -> void:
 	for p in participants_in:
 		if p.core_class == null:
