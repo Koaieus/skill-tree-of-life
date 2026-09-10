@@ -71,21 +71,14 @@ a DIGEST-only diff is sub-1e-6 drift) and justified in the commit. A new
 
 ## Float semantics in the C++ are the goldens' semantics — do not "improve" them
 
-The C++ is a transliteration of the GDScript solver it replaced, and the
-goldens (#846) were recorded from it while both existed and verified equal.
-So `Vector2 * <double>` narrows the scalar to `real_t` first and
-`(delta * diff) * k` is two float32 multiplies, not one double multiply;
-`PackedFloat32Array` reads widen to `double` where a GDScript `var` did;
-`int(x)` truncates toward zero; `round()` is half-away-from-zero (`std::round`,
-not `rint`); authored scalars cross as `PackedFloat64Array` /
-`PackedVector2Array`, never packed into float32. Any of these "cleaned up" is
-a different solver, and the goldens go red for it — which is the point.
-
-`native/SConstruct` **pins `-ffp-contract=off`** for golden stability across
-compilers and flags: GCC and Clang default to `-ffp-contract=fast`, and it only
-happens to be harmless today because linux and windows x86_64 — the whole
-matrix as of #844 — have no FMA in their SSE2 baseline. Never add
-`-ffast-math` / `-march=native` / anything enabling contraction.
+`Vector2 * <double>` narrows first, `PackedFloat32Array` reads widen where a
+GDScript `var` did, `int()` truncates, `round()` is half-away-from-zero,
+authored scalars cross as float64. Any of these "cleaned up" is a different
+solver and the goldens go red — that is the point. `native/SConstruct` pins
+`-ffp-contract=off` for golden stability across compilers and flags (the
+x86_64 SSE2 baseline has no FMA, so it is insurance, not a fix); never add
+`-ffast-math` / `-march=native`. Detail: `docs/domain/melee-blade-sim.md` →
+"One backend, a mandatory binary".
 
 ## Every value simulate() produces must cross the boundary — not just positions
 
