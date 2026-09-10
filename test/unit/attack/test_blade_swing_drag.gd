@@ -18,23 +18,24 @@ extends GutTest
 ## SHAPE (more fortified nodes ⇒ more drag ⇒ less arc) and the invariants
 ## (monotonic, exactly inert when untouched).
 
-## Records the clock's angular progress once per SUBSTEP, from inside the real
-## sim. Appended after the arc drivers so it reads the same `f` they just used.
-## This is how acceptance 3 gets asserted on the actual quantity rather than on
-## a particle's angle, which the constraint sweeps nudge off the driven arc by
-## ~1e-4 rad (they run AFTER the drivers, and a driven particle is not pinned).
-class ProgressRecorder extends BladeDriver:
-	var clock: BladeSwingClock
+## The clock's angular progress once per SAMPLE, read off the history the sim
+## banks ([member BladeSwingClock.history], one [BladeSwingClock.Bank] per
+## trajectory sample, `[0]` the state on entry). This is how acceptance 3 gets
+## asserted on the actual quantity rather than on a particle's angle, which the
+## constraint sweeps nudge off the driven arc by ~1e-4 rad (they run AFTER the
+## drivers, and a driven particle is not pinned).
+##
+## Until #847 this was a recording [BladeDriver] appended to the driver list and
+## sampled every SUBSTEP from inside the GDScript loop. The native solver
+## refuses a driver it cannot transliterate, so the series is now the per-sample
+## bank — 4x coarser (145 points over the swing, was ~577), the same `f`.
+## `warping == false` means "not warping yet"; normalised to nominal progress
+## so the series is continuous across the moment drag first lands.
+static func _progress_series(clock: BladeSwingClock) -> Array[float]:
 	var seen: Array[float] = []
-
-	func _init(clock_: BladeSwingClock) -> void:
-		clock = clock_
-
-	func apply(_positions: PackedVector2Array, t: float) -> void:
-		# -1.0 means "not warping yet"; normalise to nominal progress so the
-		# recorded series is continuous across the moment drag first lands.
-		var f := clock.progress()
-		seen.append(f if f >= 0.0 else clampf(t / _DURATION, 0.0, 1.0))
+	for b: BladeSwingClock.Bank in clock.history:
+		seen.append(b.f if b.warping else clampf(b.last_t / _DURATION, 0.0, 1.0))
+	return seen
 
 
 const _DURATION := 1.2
@@ -48,20 +49,8 @@ const _RADIUS := 24.0
 ## (BladeState.build seeds a fully-rigid distance constraint per edge), which is
 ## exactly the blade drag is meant to act on and the one particle damping cannot
 ## touch.
-## #813 put the defender path on the C++ backend, and these cases attach a
-## [BladeObstacleField] — so on any machine with a built `.so` they would
-## silently switch backends while the docstring above still claims the
-## reference path. Pinned rather than left to drift: what they assert is the
-## SEMANTICS of drag on a hand-built blade, and the cross-backend
-## risk already has an owner — `test_blade_native_parity.gd`, which compares
-## the two bit-for-bit over this exact surface. A native regression in the
-## defender path belongs there, not here as a mystery.
-func before_all() -> void:
-	BladeSim.use_native = false
-
-
-func after_all() -> void:
-	BladeSim.use_native = true
+## Since #847 there is one backend, the native one; a checkout without the
+## binary fails every case here loudly rather than switching solvers.
 
 
 func _arm(n: int = 4) -> BladeState:
@@ -95,15 +84,9 @@ func _drivers(state: BladeState, sweep: float = TAU) -> Array[BladeDriver]:
 	return out
 
 
-func _simulate(
-		state: BladeState,
-		clock: BladeSwingClock,
-		recorder: ProgressRecorder = null) -> BladeTrajectory:
-	var drivers := _drivers(state)
-	if recorder != null:
-		drivers.append(recorder)
+func _simulate(state: BladeState, clock: BladeSwingClock) -> BladeTrajectory:
 	return BladeSim.simulate(
-			state, drivers, _DURATION, BladeSim.DEFAULT_DT,
+			state, _drivers(state), _DURATION, BladeSim.DEFAULT_DT,
 			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS,
 			true, clock)
 
@@ -277,7 +260,7 @@ func test_the_warp_factor_falls_as_drag_rises_and_stays_in_zero_one() -> void:
 
 func test_the_swings_angular_progress_never_decreases_in_any_configuration() -> void:
 	# Acceptance 3, asserted DIRECTLY on `f` — the quantity the arc driver
-	# evaluates its ease at — sampled every substep of a real sim, for a floppy
+	# evaluates its ease at — banked every sample of a real sim, for a floppy
 	# spine and a rigid truss, from no wall at all up to an absurd one.
 	for rigid in [false, true]:
 		for cfg in _WALL_CONFIGS:
@@ -286,13 +269,15 @@ func test_the_swings_angular_progress_never_decreases_in_any_configuration() -> 
 			if cfg.count == 0:
 				state.obstacles = null
 				clock = BladeSwingClock.new(_DURATION)
-			var rec := ProgressRecorder.new(clock)
-			_simulate(state, clock, rec)
-			assert_gt(rec.seen.size(), 100, "the recorder must have run")
-			for i in range(1, rec.seen.size()):
-				assert_gte(rec.seen[i], rec.seen[i - 1],
-						"f fell at substep %d (rigid=%s, %s)" % [i, rigid, cfg])
-			assert_lte(rec.seen[-1], 1.0, "f must never exceed a completed sweep")
+			_simulate(state, clock)
+			var seen := _progress_series(clock)
+			# 145 = ceil(1.2 / (1/120)) steps + the entry sample; not a
+			# vacuous series off a swing that never ran.
+			assert_gt(seen.size(), 100, "the clock must have banked a history")
+			for i in range(1, seen.size()):
+				assert_gte(seen[i], seen[i - 1],
+						"f fell at sample %d (rigid=%s, %s)" % [i, rigid, cfg])
+			assert_lte(seen[-1], 1.0, "f must never exceed a completed sweep")
 
 
 ## No wall, a nuisance, a wall, a heavy wall, an absurd one.

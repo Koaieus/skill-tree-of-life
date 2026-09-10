@@ -13,20 +13,16 @@ const _RADIUS := 24.0
 const _BUNKER_RADIUS := 32.0
 
 
-## #813 put the defender path on the C++ backend, and these cases attach a
-## [BladeObstacleField] — so on any machine with a built `.so` they would
-## silently switch backends while the docstring above still claims the
-## reference path. Pinned rather than left to drift: what they assert is the
-## SEMANTICS of the shatter classification, and the cross-backend
-## risk already has an owner — `test_blade_native_parity.gd`, which compares
-## the two bit-for-bit over this exact surface. A native regression in the
-## defender path belongs there, not here as a mystery.
-func before_all() -> void:
-	BladeSim.use_native = false
-
-
-func after_all() -> void:
-	BladeSim.use_native = true
+## Since #847 there is one backend, the native one; a checkout without the
+## binary fails every case here loudly rather than switching solvers. The
+## per-substep `trace_rows` these cases used to read were a GDScript-loop
+## diagnostic, so the same two quantities are now read off the per-SAMPLE
+## [BladeObstacleField.Bank] history the sim returns (4 substeps per sample):
+## `contact_samples` — samples that ended with a plate still banked (strain or
+## residual on any zone; both reset the substep nothing is near) — where
+## `rows` counted contact substeps, and `drive_peak` — the highest banked
+## strain at any sample — where it was the running peak over substeps. Every
+## threshold below carries the value the native run measured beside it.
 
 
 func _arm(n: int = 4) -> BladeState:
@@ -109,23 +105,23 @@ func _simulate(state: BladeState, clock: BladeSwingClock = null, iters: int = Bl
 func _run(state: BladeState, tip_idx: int, iters: int = BladeSim.DEFAULT_ITERATIONS,
 		turns: float = 0.15, sweep: float = TAU) -> Dictionary:
 	var field := _field_on_arc(state, turns, tip_idx)
-	field.trace = true
 	state.obstacles = field
 	var clock := BladeSwingClock.new(_DURATION)
 	var traj := BladeSim.simulate(
 			state, _drivers(state, sweep), _DURATION, BladeSim.DEFAULT_DT,
 			iters, 0.0, BladeSim.DEFAULT_SUBSTEPS, true, clock)
 	var peak := 0.0
-	var acc := 0.0
-	var contact_peak := 0.0
-	var contact_acc := 0.0
-	for row in field.trace_rows:
-		acc = maxf(0.0, acc + row[0])
-		peak = maxf(peak, acc)
-		contact_acc = maxf(0.0, contact_acc + row[1])
-		contact_peak = maxf(contact_peak, contact_acc)
-	return {traj = traj, field = field, clock = clock, rows = field.trace_rows.size(),
-			drive_peak = peak, contact_peak = contact_peak,
+	var contact_samples := 0
+	for b: BladeObstacleField.Bank in field.history:
+		var banked := false
+		for z in b.strain.size():
+			peak = maxf(peak, b.strain[z])
+			if b.strain[z] > 0.0 or not b.edge_residual[z].is_empty():
+				banked = true
+		if banked:
+			contact_samples += 1
+	return {traj = traj, field = field, clock = clock, contact_samples = contact_samples,
+			drive_peak = peak,
 			broke = field._break_edge >= 0,
 			break_edge = field._break_edge, break_step = field._break_step}
 
@@ -159,8 +155,8 @@ func test_readout_the_strain_metric_across_the_rigidity_range() -> void:
 				{name = "clamped spine", state = _clamped_arm(), tip = 3, sweep = TAU},
 				{name = "truss", state = _truss(), tip = 6, sweep = TAU}]:
 			var r := _run(cfg.state, cfg.tip, iters, 0.15, cfg.sweep)
-			gut.p("[iters=%d] %-16s contact substeps=%4d | drive peak=%7.2f | contact-point peak=%5.2f | break edge=%d at step %d | max pen=%.2f"
-					% [iters, cfg.name, r.rows, r.drive_peak, r.contact_peak,
+			gut.p("[iters=%d] %-16s contact samples=%4d | drive peak=%7.2f | break edge=%d at step %d | max pen=%.2f"
+					% [iters, cfg.name, r.contact_samples, r.drive_peak,
 					r.break_edge, r.break_step, _max_penetration(r.traj, cfg.state, r.field)])
 	pass_test("readout only")
 
@@ -176,8 +172,13 @@ func test_a_floppy_blade_yields_around_a_plate_and_never_breaks() -> void:
 			{state = _arm(8), tip = 2, sweep = 2.0 * TAU},
 			{state = _arm(6), tip = 2, sweep = -2.0 * TAU}]:
 		var r := _run(cfg.state, cfg.tip, BladeSim.DEFAULT_ITERATIONS, 0.15, cfg.sweep)
-		assert_gt(r.rows, 0, "the floppy blade must actually have met the plate")
+		assert_gt(r.contact_samples, 0, "the floppy blade must actually have met the plate")
 		assert_false(r.broke, "a bare spine must flop around the plate, never break (sweep=%s)" % cfg.sweep)
+		# Threshold unchanged from the substep-rate version. A per-sample peak
+		# can only read LOWER than the per-substep one it replaces (it is the
+		# same accumulator, observed less often): measured 0.51 / 0.24 / 0.94 px
+		# on the native run 2026-09-11 against 0.74 / 0.42 / 1.68 on the last
+		# GDScript-trace run, against a threshold of SHATTER_DISTANCE * 0.5.
 		assert_lt(r.drive_peak, BladeObstacleField.SHATTER_DISTANCE * 0.5,
 				"a floppy blade's strain must stay well clear of the threshold, not merely under it")
 
@@ -260,8 +261,11 @@ func test_a_floppy_contact_leaves_the_accumulator_at_zero_once_released() -> voi
 	# before the swing ends — so by the end nothing is near it and the bank
 	# must have RESET, not kept the transient's partial credit.
 	var r := _run(_arm(), 3)
-	assert_gt(r.rows, 0, "must have touched")
-	assert_lt(r.rows, 60, "and must have flopped clear long before the swing ended")
+	assert_gt(r.contact_samples, 0, "must have touched")
+	# Was `rows < 60` contact substeps; 15 samples is the same span at the
+	# sample rate. Measured on the native run 2026-09-11: 3 contact samples
+	# (the substep-rate GDScript run read 12 rows), so the margin is unchanged.
+	assert_lt(r.contact_samples, 15, "and must have flopped clear long before the swing ended")
 	assert_gt(r.drive_peak, 0.0, "the transient hold did bank something while it lasted")
 	assert_eq(r.field.max_strain(), 0.0,
 			"once the blade has flopped past, the bank must read zero — not partial credit")
