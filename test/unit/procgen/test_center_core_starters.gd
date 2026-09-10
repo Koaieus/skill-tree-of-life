@@ -89,6 +89,19 @@ func test_same_camp_spacing_permitted_closer_than_cross_camp_floor() -> void:
 		% closest_same_camp)
 
 
+## Guards [method StarterPlacement.required_spacing] directly: at a low
+## `viability_radius` (1.5 is authored today, e.g. `coop_versus/starting_points.tres`),
+## an un-guarded `0.5 * viability_radius * min_dist` full ask (0.75 * min_dist)
+## sits BELOW `min_dist` — so the degrade curve would start under its own
+## floor and an early attempt could place two same-camp starters overlapping.
+## `required_spacing` clamps the same-camp full ask up to `min_dist`.
+func test_same_camp_spacing_never_starts_below_min_dist() -> void:
+	var placement := StarterPlacement.new()
+	placement.viability_radius = 1.5
+	assert_eq(placement.required_spacing(_MIN_DIST, 0, 200, true), _MIN_DIST,
+		"a low viability_radius must not let the same-camp curve start under min_dist")
+
+
 # ── Acceptance 3 — determinism ─────────────────────────────────────────────
 func test_deterministic_across_identically_seeded_rng() -> void:
 	var placement := CenterCoreStarters.new()
@@ -149,24 +162,36 @@ func test_crowded_map_warns_when_cross_camp_floor_is_unsatisfiable() -> void:
 ## `LobbyScreen.MAX_AI_OPPONENTS`). If this goes red, the floor is too
 ## aggressive for the authored `viability_radius` and that is the owner's
 ## number to adjust, not this test's to weaken.
+##
+## Two shapes, both real per `lobby_screen.gd`'s own docstring/comments — AI
+## is always one shared camp (`_NPC_FACTION`), never split — so 2 humans +
+## 12 AI is either coop (both humans on `camp_1`, `[2, 12]`) or versus (one
+## human per camp, `[1, 1, 12]`). Versus has the most cross-camp pairs and is
+## the stricter case for a non-degrading floor, so both are swept rather than
+## just the coop shape.
 const _CENTER_CORE_STARTERS_PATH := "res://procgen/placement/center_core_starters.tres"
 const _FIRST_LEVEL_SHAPE_PATH := "res://procgen/modules/first_level/shape.tres"
 
 
 func test_shipped_preset_places_the_max_roster() -> void:
-	var placement: CenterCoreStarters = (load(_CENTER_CORE_STARTERS_PATH) as CenterCoreStarters).duplicate(true)
 	var shape: GraphProcgenShape = load(_FIRST_LEVEL_SHAPE_PATH)
 	var mask: ShapeMask = shape.shape_mask
-	var camp_sizes: Array[int] = [2, 12]
 	var min_dist := 150.0 # 2 * node_radius(32) + node_padding(86), first_level.tres's topology
 	var bounds := mask.aabb()
 	var radius := 0.5 * minf(bounds.size.x, bounds.size.y)
 
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 909
-	var pts := placement.plan(camp_sizes, radius, min_dist, rng, mask, 200)
+	var shapes: Array[Array] = [[2, 12], [1, 1, 12]]
+	for shape_sizes in shapes:
+		var camp_sizes: Array[int] = []
+		for n in shape_sizes:
+			camp_sizes.append(n)
+		var placement: CenterCoreStarters = (load(_CENTER_CORE_STARTERS_PATH) as CenterCoreStarters).duplicate(true)
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 909
+		var pts := placement.plan(camp_sizes, radius, min_dist, rng, mask, 200)
 
-	assert_eq(pts.size(), 14,
-		"first_level.tres's authored CenterCoreStarters (viability_radius=%.1f) "
-		% placement.viability_radius
-		+ "must still place all 14 contenders of the max roster under the non-degrading cross-camp floor")
+		assert_eq(pts.size(), 14,
+			"first_level.tres's authored CenterCoreStarters (viability_radius=%.1f) "
+			% placement.viability_radius
+			+ "must still place all 14 contenders (camp_sizes %s) under the non-degrading cross-camp floor"
+			% str(camp_sizes))
