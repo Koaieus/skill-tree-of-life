@@ -9,7 +9,7 @@
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_owner"]
-[ext_resource type="Script" uid="uid://bdvx7u7771m3t" path="res://attack/spell/propagation/step/take_top_n_step.gd" id="6_step"]
+[ext_resource type="Script" uid="uid://bdvx7u7771m3t" path="res://attack/spell/propagation/spread/take_top_n_spread.gd" id="6_step"]
 [ext_resource type="Script" uid="uid://7wdkvrd3qinr" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="7_ljvxs"]
 [ext_resource type="Script" uid="uid://kvd7y10ttqsx" path="res://attack/spell/propagation/ranker/stat_ranker.gd" id="7_ranker"]
 [ext_resource type="Script" uid="uid://dra06averh54c" path="res://attack/spell/propagation/reducer/max_damage_reducer.gd" id="8_reducer"]
@@ -56,7 +56,7 @@ ranker = SubResource("ranker_hp")
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
 filter = SubResource("Resource_885nj")
-step = SubResource("step_top")
+spread = SubResource("step_top")
 reducer = SubResource("reducer_max")
 max_hops = 4
 max_visits_per_node = 2

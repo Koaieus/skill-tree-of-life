@@ -1,11 +1,13 @@
 @tool
-class_name CycloneStep
-extends PropagationStep
+class_name CycloneSpread
+extends PropagationSpread
 
 ## Cyclone's curl (#703, superseding the parity design of #699). Ranks the
 ## filtered candidates by the turn the front makes to reach them — measured from
-## the edge it arrived on, in one fixed rotational direction — and mints one
-## child per rank, carrying a decaying share of the incoming damage.
+## the edge it arrived on, in one fixed rotational direction — and picks one
+## child per rank, carrying a decaying share of the incoming damage. The share
+## rides the [PropagationPick]; [method PropagationConfig.mint] is where the
+## damage is actually split (#852).
 ##
 ## [b]The whole spell is three numbers.[/b] Rank 1 is the sharpest turn, so it
 ## hugs the face the front is circling; ranks 2 and 3 are wider turns that
@@ -44,14 +46,14 @@ extends PropagationStep
 ## Owner call 2026-09-01.
 ##
 ## Every knob is an export because the owner tunes them live — the spell
-## playground re-reads step exports on each Cast (`playground_panel.gd`).
+## playground re-reads spread exports on each Cast (`playground_panel.gd`).
 
 
 ## Shortest ring worth remembering. Below this the "cycle" is the reversal edge
 ## itself, which is a footprint the lineage would ping-pong on forever.
 const MIN_RING := 3
 
-## Damage share minted at each turn-rank: index 0 is the sharpest turn. Entries
+## Damage share picked at each turn-rank: index 0 is the sharpest turn. Entries
 ## beyond the candidate count are ignored; a rank with no coefficient is not
 ## travelled at all, so the array length doubles as the fan width.
 @export var rank_coefficients := PackedFloat32Array([0.70, 0.40, 0.20])
@@ -66,17 +68,16 @@ const MIN_RING := 3
 @export var clockwise: bool = true
 
 
-func step(
-		current_node: SkillNode,
+func select(
+		current: SkillNode,
+		eligible: Array[SkillNode],
 		payload: CastSpell,
-		candidates: Array[SkillNode],
-		config: PropagationConfig,
-		_ctx: PropagationContext) -> Array[CastSpell]:
-	var out: Array[CastSpell] = []
-	if candidates.is_empty() or rank_coefficients.is_empty():
+		_ctx: PropagationContext) -> Array[PropagationPick]:
+	var out: Array[PropagationPick] = []
+	if eligible.is_empty() or rank_coefficients.is_empty():
 		return out
 	var ranked := Curl.rank(
-			_arrival_position(current_node, payload), current_node, candidates, clockwise)
+			_arrival_position(current, payload), current, eligible, clockwise)
 	for rank_index in ranked.size():
 		if rank_index >= rank_coefficients.size():
 			break
@@ -84,37 +85,36 @@ func step(
 		if coefficient <= 0.0:
 			continue
 		var nb: SkillNode = ranked[rank_index]
-		var child := _propagate_to(nb, payload, config)
+		var pick := PropagationPick.new()
+		pick.node = nb
 		# Normalised: a heading, not a displacement, so a long edge cannot
 		# outvote a short one when CycloneReducer averages several of them.
-		child.arrival_bearing = (nb.global_position - current_node.global_position).normalized()
-		# `payload.visited`, never `child.visited`: the base mint has already
-		# appended the destination to the child's copy, so asking the child
-		# would answer "yes" every single hop.
+		pick.arrival_bearing = (nb.global_position - current.global_position).normalized()
+		# `payload.visited` is the PARENT's trail: the destination is not on it
+		# yet (the mint appends it), so `find` really asks "have we been here".
 		var idx := payload.visited.find(nb)
 		if idx < 0:
-			child.closed_cycle = false
+			pick.closed_cycle = false
 			var arrived: Array[SkillNode] = [payload.current_node]
-			child.came_from = arrived
+			pick.came_from = arrived
 		else:
-			child.closed_cycle = true
-			var cleared: Array[SkillNode] = []
-			child.came_from = cleared
-			child.visited = closed_ring(payload.visited, idx)
+			pick.closed_cycle = true
+			pick.lineage_override = closed_ring(payload.visited, idx)
 			coefficient *= closing_gain
-		# Scales whatever `hop_damage` produced rather than replacing it, so an
-		# authored ramp still composes with the curl's split.
-		child.damage *= coefficient
-		# Stamped, not derivable (#704). Once `damage` has been multiplied the
-		# coefficient is gone: CycloneReducer SUMS every incident and the crit
+		# The share scales whatever `hop_damage` produces rather than replacing
+		# it — the mint applies the progression first, then multiplies by this
+		# — so an authored ramp still composes with the curl's split.
+		#
+		# Stamped, not derivable (#704): once `damage` has been multiplied the
+		# coefficient is gone. CycloneReducer SUMS every incident and the crit
 		# multiplies again at landing, so no downstream reader can invert a
-		# landed amount back to the rank that produced it. The VFX layer needs
+		# landed amount back to the rank that produced it; the VFX layer needs
 		# it to draw the spine heavier than the offshoots, which is the whole
-		# mechanic. `closing_gain` is already folded in above, deliberately —
-		# a closing rank-1 arc really is carrying more than an ordinary one.
-		child.arrival_share = coefficient
-		child.turn_sign = 1.0 if clockwise else -1.0
-		out.append(child)
+		# mechanic. `closing_gain` is already folded in, deliberately — a
+		# closing rank-1 arc really is carrying more than an ordinary one.
+		pick.share = coefficient
+		pick.turn_sign = 1.0 if clockwise else -1.0
+		out.append(pick)
 	return out
 
 

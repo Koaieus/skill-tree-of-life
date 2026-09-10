@@ -14,7 +14,7 @@
 [ext_resource type="Script" uid="uid://bcsqfpmj6geu6" path="res://attack/spell/propagation/filter/rank_threshold_filter.gd" id="7_degree"]
 [ext_resource type="Script" uid="uid://d4ebg3m3p66u1" path="res://attack/spell/propagation/ranker/degree_ranker.gd" id="7_degree_ranker"]
 [ext_resource type="Script" uid="uid://dpm0inm5l0utx" path="res://attack/spell/propagation/filter/composite_filter.gd" id="8_composite"]
-[ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/step/fan_all_step.gd" id="9_step"]
+[ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="9_step"]
 [ext_resource type="Script" uid="uid://dra06averh54c" path="res://attack/spell/propagation/reducer/max_damage_reducer.gd" id="10_reducer"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="11_l5r25"]
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="11_targeting"]
@@ -62,7 +62,7 @@ script = ExtResource("9_step")
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
 filter = SubResource("filter_composite")
-step = SubResource("step_fan")
+spread = SubResource("step_fan")
 reducer = SubResource("reducer_max")
 max_hops = 7
 hop_damage = SubResource("prog_rampup")

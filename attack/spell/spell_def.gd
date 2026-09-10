@@ -5,7 +5,7 @@ extends Resource
 ## Authored spell data — identity, cost, propagation strategy, on-hit effects,
 ## and the VFX coordinator scene. The "what it does" half is composition:
 ## pick a [PropagationConfig] (which itself composes [PropagationFilter] /
-## [PropagationStep] / [IncidentReducer]) and an array of [OnHitEffect] for
+## [PropagationSpread] / [IncidentReducer]) and an array of [OnHitEffect] for
 ## what happens per node (damage is the default first entry).
 
 ## Stable wire name for this spell — the only legal way to refer to a
@@ -85,7 +85,7 @@ extends Resource
 @export var power: float = 0.0
 
 ## How this spell propagates from the seed target. Composes
-## [PropagationFilter] (what neighbours count), [PropagationStep] (how
+## [PropagationFilter] (what neighbours count), [PropagationSpread] (how
 ## payloads fan), and [IncidentReducer] (what happens when branches
 ## converge). See [code]docs/domain/spell-propagation.md[/code].
 @export var propagation: PropagationConfig = null

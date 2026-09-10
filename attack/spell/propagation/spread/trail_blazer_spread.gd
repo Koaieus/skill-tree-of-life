@@ -1,6 +1,6 @@
 @tool
-class_name TrailBlazerStep
-extends PropagationStep
+class_name TrailBlazerSpread
+extends PropagationSpread
 
 ## Single-path "string walker" for The Trail Blazer, a true "Line Killer".
 ##
@@ -12,8 +12,10 @@ extends PropagationStep
 ##   (never back into [member CastSpell.visited]).
 ## - [b]degree > 2[/b] — a junction. The walk ends there, slammed.
 ##
-## Neither half of that ending is this class's job any more (#851). The step is
-## pure selection: it mints one child per surviving candidate and nothing else.
+## Neither half of that ending is this class's job any more (#851). The spread
+## is pure selection: it picks every surviving candidate at full share and
+## nothing else — the child itself is minted by [method PropagationConfig.mint]
+## (#852).
 ##   - The [b]slam[/b] is a [ScaleDamageEffect] gated on [JunctionCondition],
 ##     authored before [DamageEffect] on the spell's `on_hit_effects`. It fires
 ##     where the spell LANDS, which is also why a cast seeded directly onto a
@@ -45,8 +47,8 @@ extends PropagationStep
 ## [FlatAddProgression] with [code]increment = 2[/code]).
 ##
 ## On a pure string the filter + visit cap leave exactly one candidate per hop
-## (the unvisited next node); when multiple candidates survive, all of them get
-## minted in parallel — no random pick.
+## (the unvisited next node); when multiple candidates survive, all of them are
+## picked in parallel — no random pick.
 ##
 ## Example — seed A, string B-C-D-E, junction F (degree 3), with the stock
 ## `FlatAddProgression(2)` on the propagation config, a `ScaleDamageEffect`
@@ -55,24 +57,22 @@ extends PropagationStep
 ##   A=1  B=3  C=5  D=7  E=9  →  F = (9 + 2) × 2 = 22 (slam, then stops).
 
 
-func step(
-		_current_node: SkillNode,
-		payload: CastSpell,
-		candidates: Array[SkillNode],
-		config: PropagationConfig,
-		ctx: PropagationContext) -> Array[CastSpell]:
-	if candidates.is_empty() or ctx.graph == null:
+func select(
+		_current: SkillNode,
+		eligible: Array[SkillNode],
+		_payload: CastSpell,
+		ctx: PropagationContext) -> Array[PropagationPick]:
+	if eligible.is_empty() or ctx.graph == null:
 		return []
 
-	# The per-hop progression runs inside `_propagate_to` (config.hop_damage —
-	# typically FlatAddProgression(2) for the stock Trailblazer), so
-	# `next.damage` already carries the progressed total. Nothing else happens
-	# here: a junction candidate is minted exactly like a chain candidate, and
-	# the arrival decides the rest.
-	var result: Array[CastSpell] = []
-	for candidate in candidates:
-		result.append(_propagate_to(candidate, payload, config))
-	return result
+	# The per-hop progression runs inside `PropagationConfig.mint`
+	# (config.hop_damage — typically FlatAddProgression(2) for the stock
+	# Trailblazer). Nothing else happens here: a junction candidate is picked
+	# exactly like a chain candidate, and the arrival decides the rest.
+	var out: Array[PropagationPick] = []
+	for candidate in eligible:
+		out.append(PropagationPick.to(candidate))
+	return out
 
 
 func get_description() -> String:

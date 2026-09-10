@@ -36,8 +36,8 @@ func test_lightning_preset_well_formed() -> void:
 	assert_not_null(p.hop_damage, "lightning has a hop progression")
 	assert_true(p.hop_damage is MultiplyProgression, "lightning uses MultiplyProgression")
 	assert_almost_eq(p.hop_damage.factor, 0.5, 0.001)
-	assert_not_null(p.step, "lightning has a step (FanAll)")
-	assert_true(p.step is FanAllStep)
+	assert_not_null(p.spread, "lightning has a step (FanAll)")
+	assert_true(p.spread is FanAllSpread)
 	assert_not_null(p.reducer, "lightning has a reducer (MaxDamage)")
 	assert_true(p.reducer is MaxDamageReducer)
 
@@ -46,7 +46,7 @@ func test_leafblower_preset_well_formed() -> void:
 	var s: SpellDef = _LEAFBLOWER
 	_assert_well_formed(s, "leafblower.tres")
 	var p := s.propagation as PropagationConfig
-	assert_true(p.step is FanAllStep)
+	assert_true(p.spread is FanAllSpread)
 	assert_true(p.filter is CompositeFilter, "leafblower composes owner + degree filter")
 	assert_not_null(p.hop_damage, "leafblower has a hop progression")
 	assert_true(p.hop_damage is MultiplyProgression, "leafblower uses MultiplyProgression")
@@ -57,8 +57,8 @@ func test_bruiser_preset_well_formed() -> void:
 	var s: SpellDef = _BRUISER
 	_assert_well_formed(s, "bruiser.tres")
 	var p := s.propagation as PropagationConfig
-	assert_true(p.step is TakeTopNStep)
-	var step := p.step as TakeTopNStep
+	assert_true(p.spread is TakeTopNSpread)
+	var step := p.spread as TakeTopNSpread
 	assert_not_null(step.ranker, "bruiser step has a ranker")
 	assert_true(step.ranker is StatRanker)
 	# Authored explicitly rather than left on the export default, so the intent
@@ -72,7 +72,7 @@ func test_reverberator_preset_well_formed() -> void:
 	var s: SpellDef = _REVERBERATOR
 	_assert_well_formed(s, "reverberator.tres")
 	var p := s.propagation as PropagationConfig
-	assert_true(p.step is FanAllStep, "reverberator fans to every candidate that clears the degree filter")
+	assert_true(p.spread is FanAllSpread, "reverberator fans to every candidate that clears the degree filter")
 	assert_true(p.filter is CompositeFilter, "reverberator composes owner + degree filter")
 	assert_true(p.reducer is SumDamageReducer, "reverberator uses SUM merger")
 	assert_not_null(p.hop_damage, "reverberator has a hop progression")

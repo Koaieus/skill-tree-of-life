@@ -116,7 +116,7 @@ func _hub_positions(spokes: int) -> Dictionary:
 ## resource other tests in this file preload.
 func _retuned(closing_gain: float) -> SpellDef:
 	var spell: SpellDef = _CYCLONE.duplicate(true)
-	(spell.propagation.step as CycloneStep).closing_gain = closing_gain
+	(spell.propagation.spread as CycloneSpread).closing_gain = closing_gain
 	return spell
 
 
@@ -127,7 +127,7 @@ func test_cyclone_preset_well_formed() -> void:
 	var s: SpellDef = _CYCLONE
 	assert_eq(s.id, &"cyclone")
 	var p := s.propagation as PropagationConfig
-	assert_true(p.step is CycloneStep, "the curl")
+	assert_true(p.spread is CycloneSpread, "the curl")
 	assert_true(p.reducer is CycloneReducer, "converging fronts ADD — that is the payoff")
 	assert_eq(s.crit_conditions.size(), 1, "one condition: the loop closed")
 	assert_true(s.crit_conditions[0] is CycleCondition)
@@ -137,7 +137,7 @@ func test_cyclone_preset_well_formed() -> void:
 ## free: below 1 individually so a lone thread dies, above 1 in sum so
 ## convergence pays. Break either and the spell stops typing terrain.
 func test_the_coefficients_satisfy_c1_below_one_below_their_sum() -> void:
-	var step := _CYCLONE.propagation.step as CycloneStep
+	var step := _CYCLONE.propagation.spread as CycloneSpread
 	assert_gt(step.rank_coefficients.size(), 1, "a single rank cannot fan")
 	var total := 0.0
 	var previous := INF
@@ -243,7 +243,7 @@ func test_a_tree_gets_nothing() -> void:
 	# early" would still pass if a leaf learned to reverse, or if the arrival
 	# edge stopped being dropped — both of which give a tree circulation it must
 	# never have.
-	var step := _CYCLONE.propagation.step as CycloneStep
+	var step := _CYCLONE.propagation.spread as CycloneSpread
 	var fan := 0.0
 	for c in step.rank_coefficients:
 		fan += c
@@ -331,7 +331,7 @@ func test_converging_fronts_add_rather_than_take_the_strongest() -> void:
 # The closing hop is the payoff of the whole #703 redesign, and until #710 it
 # lit at most ONE node. `PropagationEvent.closed_ring` is the ring itself,
 # stamped where the crit is stamped: the resolver copies `state.visited` on
-# every closing landing, because `CycloneStep.closed_ring()` has already
+# every closing landing, because `CycloneSpread.closed_ring()` has already
 # truncated that trail to exactly the loop.
 
 

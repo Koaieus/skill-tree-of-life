@@ -443,7 +443,7 @@ func _ensure_topology() -> void:
 		# Self-loop: per graph theory each endpoint counts independently, so a
 		# single self-loop edge contributes the node itself twice (degree +2).
 		# Consumers that BFS already dedupe via their own visited sets; this
-		# keeps spell propagation (FanAllStep etc.) consistent with the
+		# keeps spell propagation (FanAllSpread etc.) consistent with the
 		# "self-loop weaponisable by SUM merger" mechanic. See Resonator.
 		if e.from == e.to:
 			if _adjacency.has(e.from):

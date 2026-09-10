@@ -4,7 +4,7 @@ extends RefCounted
 ## The other half of #705: what a [b]real cast[/b] does on a real graph, so the
 ## linear model in [CurlOperator] can be checked against it instead of trusted.
 ##
-## [CurlOperator] cannot represent [member CycloneStep.closing_gain], the
+## [CurlOperator] cannot represent [member CycloneSpread.closing_gain], the
 ## momentum merge, or the merge's collapse of N fronts into one — all three need
 ## the front's history — so the rules the sweep cannot price are priced here, by
 ## resolving the shipped `cyclone.tres` through [SpellResolver] on a graph built
@@ -73,7 +73,7 @@ static func build(terrain: CurlTerrain, caster_index: int, parent: Node) -> Curl
 ## Damage landing per wave for a cast seeded on [param target_index] from the
 ## caster's own node, normalised to the seed impact: `[1.0, E_1, E_2, …]`.
 ##
-## [param overrides] is applied to a DUPLICATE of the shipped [CycloneStep], so
+## [param overrides] is applied to a DUPLICATE of the shipped [CycloneSpread], so
 ## a sweep can move `rank_coefficients` / `closing_gain` without editing
 ## `cyclone.tres` — the same live-tuning door the spell playground uses.
 ##
@@ -90,10 +90,10 @@ func wave_damage(
 	var nodes := graph.get_skill_nodes()
 	var spell: SpellDef = _CYCLONE.duplicate(true)
 	var config: PropagationConfig = spell.propagation
-	var step: CycloneStep = config.step.duplicate(true)
+	var step: CycloneSpread = config.spread.duplicate(true)
 	for key in overrides:
 		step.set(key, overrides[key])
-	config.step = step
+	config.spread = step
 	if not include_crits:
 		var no_crits: Array[LandingCondition] = []
 		spell.crit_conditions = no_crits

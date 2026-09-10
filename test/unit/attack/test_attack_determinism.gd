@@ -86,7 +86,7 @@ func _resolve_random_pick(world: Dictionary, rng: RandomNumberGenerator) -> Atta
 	var helper: H = world.helper
 	var graph: Graph = world.graph
 	var config := helper.make_config(
-		helper.random_pick_step(), helper.owner_enemy(), null, {max_hops = 1})
+		helper.random_pick_spread(), helper.owner_enemy(), null, {max_hops = 1})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var nodes: Array = graph.get_skill_nodes()
 	return SpellResolver.resolve(spell, nodes[1], nodes[0], world.attacker, graph, rng)
@@ -109,7 +109,7 @@ func test_the_fingerprint_is_sensitive_to_a_different_seed() -> void:
 		var world := _make_branching_world()
 		seen[str(fingerprint(_resolve_random_pick(world, _seeded(s))))] = true
 	assert_gt(seen.size(), 1,
-		"RandomPickStep must pick differently across seeds, or this fixture " +
+		"RandomPickSpread must pick differently across seeds, or this fixture " +
 		"has no observable branch and the reproducibility tests are vacuous")
 
 

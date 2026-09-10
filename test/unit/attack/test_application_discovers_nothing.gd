@@ -224,7 +224,7 @@ func test_magic_application_appends_no_landing_and_re_aims_none() -> void:
 ## an earlier one hit.
 func _spell(power: float) -> SpellDef:
 	var config := PropagationConfig.new()
-	config.step = FanAllStep.new()
+	config.spread = FanAllSpread.new()
 	var f := OwnerFilter.new()
 	f.ownership_filter = SkillNode.Ownership.HOSTILE
 	config.filter = f

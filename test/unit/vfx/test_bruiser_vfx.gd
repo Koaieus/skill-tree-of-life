@@ -51,7 +51,7 @@ func test_jump_and_edge_visuals_are_the_same_composed_blunt_body() -> void:
 
 
 func test_self_loop_slot_is_left_at_kit_defaults() -> void:
-	# TakeTopNStep walks distinct neighbours; a self-loop cannot occur.
+	# TakeTopNSpread walks distinct neighbours; a self-loop cannot occur.
 	var coord := _spawn_coordinator()
 	assert_null(coord.self_loop_path, "SELF_LOOP is unreachable for Bruiser")
 	assert_null(coord.self_loop_visual, "SELF_LOOP is unreachable for Bruiser")

@@ -13,7 +13,7 @@
 [ext_resource type="Script" uid="uid://co0vk1n8rkrcy" path="res://attack/spell/propagation/filter/expression_filter.gd" id="5_80ntq"]
 [ext_resource type="Script" uid="uid://dpm0inm5l0utx" path="res://attack/spell/propagation/filter/composite_filter.gd" id="6_b6rlo"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="7_riwgb"]
-[ext_resource type="Script" uid="uid://gx2iw0u2exix" path="res://attack/spell/propagation/step/trail_blazer_step.gd" id="8_6uaym"]
+[ext_resource type="Script" uid="uid://gx2iw0u2exix" path="res://attack/spell/propagation/spread/trail_blazer_spread.gd" id="8_6uaym"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="9_en1rl"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="10_53qeu"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="11_o13bb"]
@@ -60,7 +60,7 @@ script = ExtResource("8_6uaym")
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("7_riwgb")
 filter = SubResource("filter_composite")
-step = SubResource("step_killer")
+spread = SubResource("step_killer")
 max_hops = 999
 hop_damage = SubResource("prog_flat")
 

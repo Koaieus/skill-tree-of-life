@@ -92,7 +92,7 @@ node within its own land", and it reads 0 for an unallocated node.
 
 ## History
 
-`DegreeFilter`, `DegreeRanker`, `TrailBlazerStep`, `ExpressionFilter` and
+`DegreeFilter`, `DegreeRanker`, `TrailBlazerSpread`, `ExpressionFilter` and
 `LeafCritCondition` all hand-rolled graph degree while the cast gate
 (`SpellBook._node_meets_source_requirements`, `MagicAttackPlan`) used entity
 degree via the navigator mirror. Leafblower therefore gated on entity degree
@@ -100,7 +100,7 @@ and then walked on graph degree — and on a contested board a defender's
 dangling leaf is routinely adjacent to two enemy nodes, so graph degree read
 it as a hub and hid it from the very walk the spell exists to perform.
 
-**`TrailBlazerStep` was still on graph degree until 2026-08-07** — the same bug,
+**`TrailBlazerSpread` was still on graph degree until 2026-08-07** — the same bug,
 missed by the same reasoning, and it survived a full sweep of this file. Its
 junction test (`degree > 2`) now reads entity degree: the spell punishes the
 DEFENDER's constellation shape, so an unrelated enemy node adjacent to the

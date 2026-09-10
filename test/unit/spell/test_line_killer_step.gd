@@ -1,10 +1,12 @@
 extends GutTest
 
-## TrailBlazerStep: the "string walker". Three layers of coverage —
-##   1. step() in isolation — since #851 it is PURE SELECTION, so the only
-##      branch left to assert is that there is none: a junction candidate
-##      mints exactly like a chain candidate. The slam's own arithmetic lives
-##      in `test_scale_damage_effect.gd`, which is where it moved to;
+## TrailBlazerSpread: the "string walker". Three layers of coverage —
+##   1. select() + the config's mint in isolation (`_expand`) — since #851 the
+##      spread is PURE SELECTION and since #852 the child is built by
+##      `PropagationConfig.mint`, so the only branch left to assert is that
+##      there is none: a junction candidate mints exactly like a chain
+##      candidate. The slam's own arithmetic lives in
+##      `test_scale_damage_effect.gd`, which is where it moved to;
 ##   2. fan-out — every surviving candidate propagates, no random single pick
 ##      (cb1caa0). A string can't distinguish the two, so these use branches;
 ##   3. an end-to-end resolve through SpellResolver on a real string graph,
@@ -29,7 +31,7 @@ func _ctx(graph: Graph) -> PropagationContext:
 
 ## Give EVERY node in the graph one owner and return it.
 ##
-## Load-bearing, not boilerplate: `TrailBlazerStep` reads
+## Load-bearing, not boilerplate: `TrailBlazerSpread` reads
 ## [method SkillNode.get_entity_degree], which is degree within the OWNER's
 ## induced subgraph. An unowned node has no owner to induce a subgraph from, so
 ## the accessor's null guard returns 0 — and a 0 never trips the `> 2` junction
@@ -48,6 +50,16 @@ func _own_all(graph: Graph) -> Entity:
 		indices.append(i)
 	h.assign_owner(graph, defender, indices)
 	return defender
+
+
+## The departure pair the resolver runs per landing — spread selects, config
+## mints — so the branch tests below still read the CHILD that results.
+func _expand(spread: PropagationSpread, config: PropagationConfig, current: SkillNode,
+		payload: CastSpell, eligible: Array[SkillNode], ctx: PropagationContext) -> Array[CastSpell]:
+	var out: Array[CastSpell] = []
+	for pick in spread.select(current, eligible, payload, ctx):
+		out.append(config.mint(payload, pick))
+	return out
 
 
 func _payload(damage: float, current: SkillNode, hops: int = 5) -> CastSpell:
@@ -73,7 +85,7 @@ func _trail_blazer_config(opts: Dictionary = {}) -> PropagationConfig:
 	# guaranteed by `max_visits_per_node = 1` (never revisit), not by this.
 	var o := {max_hops = 999, hop_damage = h.flat_add_progression(2.0)}
 	o.merge(opts)
-	return h.make_config(TrailBlazerStep.new(), h.composite_filter(children), null, o)
+	return h.make_config(TrailBlazerSpread.new(), h.composite_filter(children), null, o)
 
 
 ## The stock Trailblazer slam, now an on-hit effect authored before the damage
@@ -90,16 +102,16 @@ func _trail_blazer_effects() -> Array[OnHitEffect]:
 	return [_slam(), DamageEffect.new()] as Array[OnHitEffect]
 
 
-# ── step() branch logic ──────────────────────────────────────────────────
+# ── select() + mint branch logic ──────────────────────────────────────────────────
 
 func test_continue_hop_adds_increment_and_keeps_walking() -> void:
 	# node1 has degree 2 (0-1-2) → a continuation, not a slam.
 	var graph := h.make_graph([[0, 1], [1, 2]], self)
 	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
-	var step := TrailBlazerStep.new()
+	var step := TrailBlazerSpread.new()
 	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
-	var out := step.step(nodes[0], _payload(3.0, nodes[0]), [nodes[1]] as Array[SkillNode], config, _ctx(graph))
+	var out := _expand(step, config, nodes[0], _payload(3.0, nodes[0]), [nodes[1]] as Array[SkillNode], _ctx(graph))
 	assert_eq(out.size(), 1, "one branch minted")
 	assert_almost_eq(out[0].damage, 5.0, 0.001, "3 + 2 increment")
 	assert_eq(out[0].hops_remaining, 4, "decremented, walk continues")
@@ -116,11 +128,11 @@ func test_junction_candidate_mints_exactly_like_a_chain_candidate() -> void:
 	var graph := h.make_graph([[0, 1], [0, 2], [0, 3]], self)
 	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
-	var step := TrailBlazerStep.new()
+	var step := TrailBlazerSpread.new()
 	var config := h.make_config(step, null, null,
 			{max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
-	var out := step.step(nodes[1], _payload(9.0, nodes[1]),
-			[nodes[0]] as Array[SkillNode], config, _ctx(graph))
+	var out := _expand(step, config, nodes[1], _payload(9.0, nodes[1]),
+			[nodes[0]] as Array[SkillNode], _ctx(graph))
 	assert_eq(out.size(), 1, "one branch minted")
 	assert_almost_eq(out[0].damage, 11.0, 0.001,
 			"9 + 2 — the ramp and nothing else; NO x2 slam at mint time")
@@ -131,8 +143,8 @@ func test_junction_candidate_mints_exactly_like_a_chain_candidate() -> void:
 func test_empty_candidates_ends_walk() -> void:
 	var graph := h.make_graph([[0, 1]], self)
 	var nodes := graph.get_skill_nodes()
-	var config := h.make_config(TrailBlazerStep.new(), null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
-	var out := TrailBlazerStep.new().step(nodes[0], _payload(3.0, nodes[0]), [] as Array[SkillNode], config, _ctx(graph))
+	var config := h.make_config(TrailBlazerSpread.new(), null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
+	var out := _expand(TrailBlazerSpread.new(), config, nodes[0], _payload(3.0, nodes[0]), [] as Array[SkillNode], _ctx(graph))
 	assert_eq(out.size(), 0, "no candidate → no branch")
 
 
@@ -147,11 +159,11 @@ func test_branch_mints_every_surviving_candidate_not_a_random_one() -> void:
 	var graph := h.make_graph([[0, 1], [1, 3], [0, 2], [2, 4]], self)
 	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
-	var step := TrailBlazerStep.new()
+	var step := TrailBlazerSpread.new()
 	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
 	var candidates := [nodes[1], nodes[2]] as Array[SkillNode]
 
-	var out := step.step(nodes[0], _payload(3.0, nodes[0]), candidates, config, _ctx(graph))
+	var out := _expand(step, config, nodes[0], _payload(3.0, nodes[0]), candidates, _ctx(graph))
 
 	assert_eq(out.size(), 2, "both candidates propagate — no random single pick")
 	var landed := [out[0].current_node, out[1].current_node]
@@ -169,11 +181,11 @@ func test_branch_mints_junction_and_chain_candidates_in_parallel() -> void:
 		[[0, 1], [1, 3], [0, 2], [2, 4], [2, 5], [2, 6]], self)
 	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
-	var step := TrailBlazerStep.new()
+	var step := TrailBlazerSpread.new()
 	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
 	var candidates := [nodes[1], nodes[2]] as Array[SkillNode]
 
-	var out := step.step(nodes[0], _payload(3.0, nodes[0]), candidates, config, _ctx(graph))
+	var out := _expand(step, config, nodes[0], _payload(3.0, nodes[0]), candidates, _ctx(graph))
 
 	assert_eq(out.size(), 2, "chain and junction both minted")
 	for cast in out:

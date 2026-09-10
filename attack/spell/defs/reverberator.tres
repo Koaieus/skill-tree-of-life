@@ -20,7 +20,7 @@
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="9_range"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="9_uku7o"]
 [ext_resource type="Script" uid="uid://swy0lo6vcopg" path="res://attack/spell/propagation/reducer/sum_damage_reducer.gd" id="10_reducer"]
-[ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/step/fan_all_step.gd" id="10_step"]
+[ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="10_step"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/reverberator_coordinator.tscn" id="12_ww832"]
 
 [sub_resource type="Resource" id="carve_reverberator"]
@@ -63,7 +63,7 @@ script = ExtResource("10_step")
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
 filter = SubResource("filter_composite")
-step = SubResource("step_fan")
+spread = SubResource("step_fan")
 reducer = SubResource("reducer_sum")
 max_hops = 5
 max_visits_per_node = 6

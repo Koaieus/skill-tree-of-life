@@ -176,7 +176,7 @@ func _populate_on_arrival_section() -> void:
 func _populate_then_section() -> void:
 	var lines: PackedStringArray = []
 	var prop := _spell.propagation
-	var propagates := prop != null and prop.step != null and prop.max_hops > 0
+	var propagates := prop != null and prop.spread != null and prop.max_hops > 0
 	if not propagates:
 		lines.append("Single target.")
 	else:

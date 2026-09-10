@@ -84,7 +84,7 @@ func test_edge_visual_is_the_trail_blazer_wrapper() -> void:
 
 
 func test_self_loop_slot_is_left_at_kit_defaults() -> void:
-	# TrailBlazerStep walks a degree-2 string; it never revisits a node.
+	# TrailBlazerSpread walks a degree-2 string; it never revisits a node.
 	var coord := _spawn_coordinator()
 	assert_null(coord.self_loop_path, "SELF_LOOP is unreachable for Trail Blazer")
 	assert_null(coord.self_loop_visual, "SELF_LOOP is unreachable for Trail Blazer")

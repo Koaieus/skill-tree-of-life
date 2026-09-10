@@ -6,7 +6,7 @@ extends PropagationFilter
 ## the same metric. The one implementation of "candidate vs current on a
 ## metric" — it absorbed both the old `DegreeFilter` (degree, hardcoded) and
 ## the old `CurrentThresholdPass` (any ranker, but buried inside
-## [TakeTopNStep]) in #850. Pair it with [DegreeRanker] for the degree-flow
+## [TakeTopNSpread]) in #850. Pair it with [DegreeRanker] for the degree-flow
 ## spells (Leafblower, Reverberator), with any other ranker for the rest.
 ##
 ## Pairwise, so the inherited [method PropagationFilter.narrow] loop is the

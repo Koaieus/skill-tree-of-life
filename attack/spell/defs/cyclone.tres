@@ -16,7 +16,7 @@
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="8_targeting"]
 [ext_resource type="Script" uid="uid://duy3yt7dr5o8t" path="res://attack/range_finder/euclidean_range_finder.gd" id="9_range"]
 [ext_resource type="Script" uid="uid://0qb4hd77pkw3" path="res://attack/spell/propagation/reducer/cyclone_reducer.gd" id="10_reducer"]
-[ext_resource type="Script" uid="uid://bpwyniiutjmiy" path="res://attack/spell/propagation/step/cyclone_step.gd" id="10_step"]
+[ext_resource type="Script" uid="uid://bpwyniiutjmiy" path="res://attack/spell/propagation/spread/cyclone_spread.gd" id="10_step"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/cyclone_coordinator.tscn" id="12_vfx"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="17_d7ays"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="18_53rww"]
@@ -52,7 +52,7 @@ rank_coefficients = PackedFloat32Array(0.7, 0.4, 0.2)
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
 filter = SubResource("filter_composite")
-step = SubResource("step_cyclone")
+spread = SubResource("step_cyclone")
 reducer = SubResource("reducer_cyclone")
 max_hops = 8
 max_visits_per_node = 999

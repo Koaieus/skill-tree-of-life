@@ -298,7 +298,7 @@ func test_a_counter_clockwise_cast_flips_the_bow() -> void:
 	coord._turn_sign = -1.0
 	var authored: WavePath = coord.edge_path
 	var flipped: WavePath = coord._handed_path(PropagationEvent.Verb.EDGE, authored)
-	assert_lt(flipped.handedness, 0.0, "flipping CycloneStep.clockwise must flip the picture")
+	assert_lt(flipped.handedness, 0.0, "flipping CycloneSpread.clockwise must flip the picture")
 	assert_almost_eq(flipped.amplitude, authored.amplitude, 0.001,
 		"the width knob is untouched — handedness is its own field, not a sign on amplitude")
 

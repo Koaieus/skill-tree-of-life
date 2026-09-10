@@ -34,7 +34,7 @@ func score(node: SkillNode, _payload: CastSpell, ctx: PropagationContext) -> flo
 	return float(v)
 
 
-## Player-facing, via [method TakeTopNStep.get_description] into the spell
+## Player-facing, via [method TakeTopNSpread.get_description] into the spell
 ## tooltip — so an accessor token is spelled out rather than printed raw:
 ## `node_health__current` reads "current node_health", not the `__` join.
 func get_description() -> String:

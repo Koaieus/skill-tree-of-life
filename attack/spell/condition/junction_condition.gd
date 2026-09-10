@@ -9,7 +9,7 @@ extends LandingCondition
 ## than an implementation detail: the Trailblazer is about the DEFENDER's
 ## constellation shape, so an unrelated enemy node brushing past the string
 ## must not read as a junction. This is the identical read
-## [TrailBlazerStep] made inline until #851 — see `docs/domain/degree.md`.
+## [TrailBlazerSpread] made inline until #851 — see `docs/domain/degree.md`.
 ##
 ## Drives both halves of the Trailblazer's ending: the [ScaleDamageEffect]
 ## slam that fires here, and (as the mirrored `from_entity_degree <= 2` clause

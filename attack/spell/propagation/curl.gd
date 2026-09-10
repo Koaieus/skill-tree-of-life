@@ -6,7 +6,7 @@ class_name Curl
 ## it arrived on.
 ##
 ## [b]Why this exists at all.[/b] A set of neighbours has no handedness — that
-## is why a rotation-blind [FanAllStep] is perfectly symmetric, and why parity
+## is why a rotation-blind [FanAllSpread] is perfectly symmetric, and why parity
 ## kept surfacing as Cyclone's mechanic (#699): parity is what is left over
 ## when the curl is missing. But the graph IS planar — procgen builds edges from
 ## a Delaunay triangulation and only ever prunes (docs/domain/procgen.md) — and
@@ -17,7 +17,7 @@ class_name Curl
 ## Rank 1 is the [i]sharpest[/i] turn in the chosen direction, which hugs the
 ## face the front is circling; ranks 2, 3, … are progressively wider turns that
 ## radiate outward. Feeding those ranks decaying damage coefficients is what
-## makes circulation reinforce and offshoots diminish — see [CycloneStep].
+## makes circulation reinforce and offshoots diminish — see [CycloneSpread].
 ##
 ## [b]No transcendental, because it is cheaper — not because a rule forbids
 ## it.[/b] `atan2` is the obvious way to sort by angle. The transcendental ban in

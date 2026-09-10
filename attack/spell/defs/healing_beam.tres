@@ -10,7 +10,7 @@
 [ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/progression/multiply_progression.gd" id="5_ar4gq"]
 [ext_resource type="Script" uid="uid://dra06averh54c" path="res://attack/spell/propagation/reducer/max_damage_reducer.gd" id="6_lt0sj"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="7_g1pe3"]
-[ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/step/fan_all_step.gd" id="8_lbkbe"]
+[ext_resource type="Script" uid="uid://bqrga3k1hmfut" path="res://attack/spell/propagation/spread/fan_all_spread.gd" id="8_lbkbe"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="10_a0ybc"]
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="10_g1pe3"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="11_55cfo"]
@@ -40,7 +40,7 @@ metadata/_custom_type_script = "uid://bqrga3k1hmfut"
 
 [sub_resource type="Resource" id="Resource_hhwjj"]
 script = ExtResource("7_g1pe3")
-step = SubResource("Resource_1733n")
+spread = SubResource("Resource_1733n")
 reducer = SubResource("Resource_4wewy")
 max_hops = 3
 hop_damage = SubResource("Resource_1sde5")

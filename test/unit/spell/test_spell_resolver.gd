@@ -67,8 +67,8 @@ func test_multiple_on_hit_effects_run_in_order_per_state() -> void:
 	a.label = &"A"
 	var b := _RecordingEffect.new()
 	b.label = &"B"
-	# Single-target via NoStep + max_hops 0.
-	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
+	# Single-target via NoSpread + max_hops 0.
+	var config := helper.make_config(helper.no_spread(), helper.owner_enemy(), null, {max_hops = 0})
 	var spell := helper.make_spell(config, [a, b], 10.0)
 	var n := graph.get_skill_nodes()
 	SpellResolver.resolve(spell, n[1], n[0], atk, graph)
@@ -156,7 +156,7 @@ func test_landing_with_both_damage_and_heal_effects_lands_both() -> void:
 	helper.give_big_hp(def)
 	helper.assign_owner(graph, def, [1])
 	helper.assign_owner(graph, atk, [0])
-	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
+	var config := helper.make_config(helper.no_spread(), helper.owner_enemy(), null, {max_hops = 0})
 	var spell := helper.make_spell(config, [DamageEffect.new(), HealEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
@@ -177,7 +177,7 @@ func test_zero_damage_utility_landing_still_emits_event() -> void:
 	helper.give_big_hp(def)
 	helper.assign_owner(graph, def, [1])
 	helper.assign_owner(graph, atk, [0])
-	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
+	var config := helper.make_config(helper.no_spread(), helper.owner_enemy(), null, {max_hops = 0})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 0.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)

@@ -5,7 +5,7 @@ extends LandingCondition
 ## Crits when this landing CLOSED a cycle — the front stepped onto a node its
 ## own lineage had already struck, completing a loop through the graph.
 ##
-## Reads [member CastSpell.closed_cycle], which [CycloneStep] stamps at mint
+## Reads [member CastSpell.closed_cycle], which [CycloneSpread] stamps at mint
 ## and [CycloneReducer] ORs across converging fronts. This is the same Design A
 ## split [ConvergenceCondition] documents: the step/reducer does the math
 ## and stamps the fact, the condition owns the policy and stays a read-only

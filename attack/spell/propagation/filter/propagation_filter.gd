@@ -11,7 +11,7 @@ extends Resource
 ## defaults to looping [method allows]. A filter whose rule genuinely needs the
 ## whole set at once — "the ones tying for highest degree" — overrides
 ## [method narrow] instead, and that is the ONLY place set-level narrowing
-## lives (it used to be a parallel `RankPass` chain inside [TakeTopNStep];
+## lives (it used to be a parallel `RankPass` chain inside [TakeTopNSpread];
 ## #850 deleted it). Filter logic that doesn't fit a stock subclass goes in
 ## [ExpressionFilter] or a one-off subclass.
 

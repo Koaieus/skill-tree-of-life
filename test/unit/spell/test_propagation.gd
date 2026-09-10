@@ -1,6 +1,6 @@
 extends GutTest
 
-## Coverage for the wave-based propagation pipeline: FanAllStep + filter
+## Coverage for the wave-based propagation pipeline: FanAllSpread + filter
 ## chains + merger semantics + max_visits_per_node enforcement + cancel
 ## telemetry + self-loop convergence (the Resonator setup).
 
@@ -191,7 +191,7 @@ func test_max_visits_cap_allows_bounded_revisits() -> void:
 
 
 func test_self_loop_sum_merger_compounds_returns() -> void:
-	# 0(atk) - 1, plus 1 has a self-loop. With FanAllStep + SUM + revisits,
+	# 0(atk) - 1, plus 1 has a self-loop. With FanAllSpread + SUM + revisits,
 	# the self-loop's two returns at node 1 merge into one doubled hit on
 	# the next wave.
 	var helper := H.new()
@@ -343,12 +343,12 @@ func test_core_distance_filter_admits_closer_rejects_farther() -> void:
 # ── Seeded random pick ───────────────────────────────────────────────────────
 
 
-func test_random_pick_step_seeded_picks_one_deterministically() -> void:
+func test_random_pick_spread_seeded_picks_one_deterministically() -> void:
 	var ctx := _setup_full_enemy([[0, 1], [1, 2], [1, 3], [1, 4]], [0], [1, 2, 3, 4])
 	var helper: SpellTestHelper = ctx[0]
 	var graph: Graph = ctx[1]
 	var atk: Entity = ctx[2]
-	var config := helper.make_config(helper.random_pick_step(), helper.owner_enemy(), helper.max_reducer(),
+	var config := helper.make_config(helper.random_pick_spread(), helper.owner_enemy(), helper.max_reducer(),
 			{max_hops = 1})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()

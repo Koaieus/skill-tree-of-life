@@ -82,7 +82,7 @@ func _setup(lethal: bool) -> Dictionary:
 	# fan_all + owner_enemy, two hops deep, and a node may be visited twice —
 	# which is exactly what lets wave 2 come back to the seed.
 	var config := PropagationConfig.new()
-	config.step = FanAllStep.new()
+	config.spread = FanAllSpread.new()
 	var f := OwnerFilter.new()
 	f.ownership_filter = SkillNode.Ownership.HOSTILE
 	config.filter = f

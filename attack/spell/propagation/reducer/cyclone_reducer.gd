@@ -4,7 +4,7 @@ extends IncidentReducer
 
 ## Cyclone's merge: damage SUMS, lineage does not (#703).
 ##
-## [b]Summing is the entire payoff.[/b] [CycloneStep] hands each front a share
+## [b]Summing is the entire payoff.[/b] [CycloneSpread] hands each front a share
 ## of its damage below 1, so a thread that never meets another thread decays
 ## and dies. The only way power comes back is convergence, and this is where
 ## convergence pays: 0.70 arriving alongside 0.70 leaves as 1.40, stronger than
@@ -68,7 +68,7 @@ func reduce(incidents: Array[CastSpell], node: SkillNode, _ctx: PropagationConte
 ## side, that strength; combined: this strength that direction"[/i].
 ##
 ## The physical reading is momentum, and it is what keeps the curl coherent
-## through a convergence — [CycloneStep] ranks its turns against this, so
+## through a convergence — [CycloneSpread] ranks its turns against this, so
 ## without it a merge would snap the storm's heading to whichever predecessor
 ## the reducer happened to keep and the wheel would wobble on every collision.
 ##

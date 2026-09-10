@@ -3,7 +3,7 @@ extends GutTest
 ## #707 — the outcome→VFX seam for Cyclone's curl.
 ##
 ## #704 asked whether rank could be DERIVED at the VFX layer. It cannot, and the
-## code is what settles it: [CycloneStep] holds the turn-rank coefficient as a
+## code is what settles it: [CycloneSpread] holds the turn-rank coefficient as a
 ## local, multiplies `damage` by it and drops it on the floor; [CycloneReducer]
 ## then SUMS every incident, and the crit multiplies again at landing. A landed
 ## amount is not invertible back to the rank that produced it — so rank, which
@@ -93,12 +93,12 @@ func _hub_positions(spokes: int) -> Dictionary:
 ## resource the rest of this file preloads.
 func _mirrored() -> SpellDef:
 	var spell: SpellDef = _CYCLONE.duplicate(true)
-	(spell.propagation.step as CycloneStep).clockwise = false
+	(spell.propagation.spread as CycloneSpread).clockwise = false
 	return spell
 
 
-func _step() -> CycloneStep:
-	return (_CYCLONE.propagation as PropagationConfig).step as CycloneStep
+func _step() -> CycloneSpread:
+	return (_CYCLONE.propagation as PropagationConfig).spread as CycloneSpread
 
 
 func _events_at(outcome: AttackOutcome, beat: int) -> Array[PropagationEvent]:
@@ -257,7 +257,7 @@ func test_the_turn_sign_follows_the_authored_handedness() -> void:
 		if ev.beat == 0:
 			continue
 		assert_almost_eq(ev.turn_sign, -1.0, 0.0001,
-			"flipping CycloneStep.clockwise must flip the sign the picture reads")
+			"flipping CycloneSpread.clockwise must flip the sign the picture reads")
 
 
 func test_the_seed_has_no_handedness_and_neither_does_a_non_curl_spell() -> void:

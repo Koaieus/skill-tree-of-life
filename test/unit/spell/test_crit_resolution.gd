@@ -147,7 +147,7 @@ func test_stat_path_no_crit_when_chance_zero() -> void:
 	helper.assign_owner(graph, def, [1])
 	helper.assign_owner(graph, atk, [0])
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
-	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
+	var config := helper.make_config(helper.no_spread(), helper.owner_enemy(), null, {max_hops = 0})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
@@ -165,7 +165,7 @@ func test_stat_path_crits_when_chance_one() -> void:
 	helper.assign_owner(graph, def, [1])
 	helper.assign_owner(graph, atk, [0])
 	atk.stat_board.get_stat(&"crit_chance").base_value = 1.0
-	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
+	var config := helper.make_config(helper.no_spread(), helper.owner_enemy(), null, {max_hops = 0})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
@@ -187,7 +187,7 @@ func test_heal_can_crit() -> void:
 	helper.assign_owner(graph, atk, [0])
 	atk.stat_board.get_stat(&"crit_chance").base_value = 1.0
 	atk.stat_board.get_stat(&"crit_multiplier").base_value = 2.0
-	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
+	var config := helper.make_config(helper.no_spread(), helper.owner_enemy(), null, {max_hops = 0})
 	var spell := helper.make_spell(config, [HealEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
@@ -207,7 +207,7 @@ func test_stat_path_multiplies_damage_on_crit() -> void:
 	helper.assign_owner(graph, atk, [0])
 	atk.stat_board.get_stat(&"crit_chance").base_value = 1.0
 	atk.stat_board.get_stat(&"crit_multiplier").base_value = 3.0
-	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
+	var config := helper.make_config(helper.no_spread(), helper.owner_enemy(), null, {max_hops = 0})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
@@ -235,7 +235,7 @@ func test_stat_path_reproduces_crits_under_seed() -> void:
 	helper.assign_owner(graph, def, [1])
 	helper.assign_owner(graph, atk, [0])
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.5
-	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
+	var config := helper.make_config(helper.no_spread(), helper.owner_enemy(), null, {max_hops = 0})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()
 
@@ -372,7 +372,7 @@ func test_zero_damage_landing_never_crits() -> void:
 	helper.assign_owner(graph, def, [1])
 	helper.assign_owner(graph, atk, [0])
 	atk.stat_board.get_stat(&"crit_chance").base_value = 1.0
-	var config := helper.make_config(helper.no_step(), helper.owner_enemy(), null, {max_hops = 0})
+	var config := helper.make_config(helper.no_spread(), helper.owner_enemy(), null, {max_hops = 0})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 0.0)
 	spell.crit_conditions = [SelfLoopCondition.new()]
 	var n := graph.get_skill_nodes()

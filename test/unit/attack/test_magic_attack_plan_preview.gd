@@ -229,7 +229,7 @@ func test_bruiser_climb_is_visible_in_the_preview_before_commit() -> void:
 	# The real Bruiser shape: enemy-only, single highest-node_health neighbour
 	# per hop, max-damage reduction, 3 hops.
 	var config := h.make_config(
-			h.take_top_n(h.stat_ranker(&"node_health"), 1, TakeTopNStep.Direction.HIGHEST),
+			h.take_top_n(h.stat_ranker(&"node_health"), 1, TakeTopNSpread.Direction.HIGHEST),
 			h.owner_enemy(), h.max_reducer(), {max_hops = 3})
 	var spell := h.make_spell(config, [DamageEffect.new()] as Array[OnHitEffect], 4.0)
 	spell.targeting = _hostile_targeting()
@@ -267,7 +267,7 @@ func test_trail_blazer_walk_and_terminal_junction_are_visible_in_preview() -> vo
 	# reach accepts the hover. max_hops=50 — well past the spell DEF's
 	# current max_hops=20 (#679: "do not assume 20") — to prove nothing in
 	# the PREVIEW path imposes its own cap; termination comes entirely from
-	# TrailBlazerStep hitting the junction, exactly like a real cast.
+	# TrailBlazerSpread hitting the junction, exactly like a real cast.
 	var graph := h.make_graph(
 			[[8, 0], [0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [5, 7]], self)
 	_resync_navigator(graph)
@@ -281,7 +281,7 @@ func test_trail_blazer_walk_and_terminal_junction_are_visible_in_preview() -> vo
 	var deg2 := ExpressionFilter.new()
 	deg2.expression = "to_degree >= 2"
 	var filter := h.composite_filter([h.owner_enemy(), deg2])
-	var config := h.make_config(TrailBlazerStep.new(), filter, null,
+	var config := h.make_config(TrailBlazerSpread.new(), filter, null,
 			{max_hops = 50, hop_damage = h.flat_add_progression(2.0)})
 	var spell := h.make_spell(config, [DamageEffect.new()] as Array[OnHitEffect], 1.0)
 	spell.targeting = _hostile_targeting(50)

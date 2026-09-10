@@ -150,12 +150,12 @@ func make_spell(prop: PropagationConfig, on_hits: Array[OnHitEffect], power: flo
 ## Compose a PropagationConfig from parts. `opts` keys: max_hops (int, 0),
 ## max_visits_per_node (int, 1), hop_damage (HopDamageProgression, null).
 func make_config(
-		step: PropagationStep,
+		spread: PropagationSpread,
 		filter: PropagationFilter,
 		reducer: IncidentReducer,
 		opts: Dictionary = {}) -> PropagationConfig:
 	var c := PropagationConfig.new()
-	c.step = step
+	c.spread = spread
 	c.filter = filter
 	c.reducer = reducer
 	c.max_hops = int(opts.get("max_hops", 0))
@@ -166,19 +166,19 @@ func make_config(
 
 # ── Tiny constructors so tests read declaratively ──────────────────────────
 
-func fan_all() -> FanAllStep:
-	return FanAllStep.new()
+func fan_all() -> FanAllSpread:
+	return FanAllSpread.new()
 
 
-func no_step() -> NoStep:
-	return NoStep.new()
+func no_spread() -> NoSpread:
+	return NoSpread.new()
 
 
-func take_top_n(ranker: NodeRanker, n: int = 1, direction: int = TakeTopNStep.Direction.HIGHEST) -> TakeTopNStep:
-	var s := TakeTopNStep.new()
+func take_top_n(ranker: NodeRanker, n: int = 1, direction: int = TakeTopNSpread.Direction.HIGHEST) -> TakeTopNSpread:
+	var s := TakeTopNSpread.new()
 	s.ranker = ranker
 	s.take_count = n
-	s.direction = direction as TakeTopNStep.Direction
+	s.direction = direction as TakeTopNSpread.Direction
 	return s
 
 
@@ -257,8 +257,8 @@ func core_distance_filter(direction: int = CoreDistanceFilter.Direction.TOWARD) 
 	return f
 
 
-func random_pick_step() -> RandomPickStep:
-	return RandomPickStep.new()
+func random_pick_spread() -> RandomPickSpread:
+	return RandomPickSpread.new()
 
 
 func multiply_progression(factor: float = 1.0) -> MultiplyProgression:

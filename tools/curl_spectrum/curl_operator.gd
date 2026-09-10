@@ -4,7 +4,7 @@ extends RefCounted
 ## Cyclone's propagation as a [b]linear operator on directed edges[/b] (#705).
 ##
 ## Keep the walk's state on the edge it arrived along rather than on the node it
-## stands at, and [CycloneStep] becomes a fixed non-negative matrix: a front in
+## stands at, and [CycloneSpread] becomes a fixed non-negative matrix: a front in
 ## state `(u → v)` mints one child per turn-rank `r`, in state `(v → w_r)`,
 ## carrying `rank_coefficients[r]` of its damage. Damage is conserved-then-
 ## scaled and [CycloneReducer] SUMS on convergence, so total damage per wave is
@@ -131,7 +131,7 @@ func spectral_radius(coefficients: PackedFloat32Array) -> float:
 ## landing on wave `k` for a seed impact of 1.0.
 ##
 ## Seeding on a directed-edge state rather than "on a node" is not a
-## simplification — it is what the resolver does. [method CycloneStep._arrival_position]
+## simplification — it is what the resolver does. [method CycloneSpread._arrival_position]
 ## falls back to the cast-from node, so the opening fan is ranked from a real
 ## direction and the arrival edge is dropped, exactly like every later hop.
 func wave_energies(

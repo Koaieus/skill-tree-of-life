@@ -195,7 +195,7 @@ static func resolve_against(
 			# The ring the closing hop just walked, ending at this landing
 			# (#710). Empty on every landing that did not close one; the
 			# reducer has already picked the dominating closer's lineage, so
-			# `state.visited` IS that ring — CycloneStep truncates it to
+			# `state.visited` IS that ring — CycloneSpread truncates it to
 			# exactly the loop on every close. Copied, because the walk keeps
 			# extending the payload's own array after this.
 			if state.closed_cycle:
@@ -245,10 +245,10 @@ static func resolve_against(
 		for i in range(wave_first, outcome.hits.size()):
 			OutcomeApplier.land_one(outcome.hits[i], world)
 
-		# 4. Expand next wave through filter + step.
+		# 4. Expand next wave: filter narrows → spread selects → config mints.
 		var next_wave: Array[CastSpell] = []
 		for state in merged:
-			if state.hops_remaining <= 0 or config.step == null:
+			if state.hops_remaining <= 0 or config.spread == null:
 				_mark_terminal(event_of, state)
 				continue
 			# Always enforce max_visits_per_node FIRST, and even if the filter
@@ -267,14 +267,15 @@ static func resolve_against(
 			# loop; a set-level filter overrides it.
 			if config.filter != null:
 				capped = config.filter.narrow(state.current_node, capped, state, ctx)
-			var stepped: Array[CastSpell] = config.step.step(
-					state.current_node, state, capped, config, ctx)
-			# "Ended by terminal rule" includes a step that CHOSE to stop —
-			# TrailBlazerStep sets `hops_remaining = 0` at a junction, and its
-			# slam is exactly this entry. Emitting nothing is the same ending.
-			if stepped.is_empty():
+			var picks: Array[PropagationPick] = config.spread.select(
+					state.current_node, capped, state, ctx)
+			# "Ended by terminal rule" includes a spread that CHOSE nothing —
+			# a walk whose filter left nothing eligible ends here, and its
+			# last landing is the entry the VFX marks terminal.
+			if picks.is_empty():
 				_mark_terminal(event_of, state)
-			next_wave.append_array(stepped)
+			for pick in picks:
+				next_wave.append(config.mint(state, pick))
 		ctx.wave_index += 1
 		wave = next_wave
 

@@ -10,7 +10,7 @@ extends OnHitEffect
 ##
 ## [b]Effects run before departure, so a scaled arrival is what the next hop
 ## inherits.[/b] That is deliberate and it is the whole reason this can replace
-## an in-step slam: [TrailBlazerStep] used to multiply at child-mint and zero
+## an in-step slam: [TrailBlazerSpread] used to multiply at child-mint and zero
 ## the hop counter in the same breath, which meant the scale was decided one
 ## node early, from the previous node's point of view. Here the scale is
 ## decided where it lands. A spell that scales mid-walk therefore compounds —
@@ -51,7 +51,7 @@ func apply(state: CastSpell, _outcome: AttackOutcome) -> void:
 
 ## ENTITY degree for [constant Mode.MULTIPLY_BY_DEGREE], matching every other
 ## territory-shape rule in the propagation pipeline — and matching what
-## `TrailBlazerStep._terminal_damage` was actually handed before #851 (its
+## `TrailBlazerSpread._terminal_damage` was actually handed before #851 (its
 ## docstring said "graph degree", the value passed in was the entity degree it
 ## had just computed; the code was right and the prose was wrong).
 func _scaled(state: CastSpell) -> float:

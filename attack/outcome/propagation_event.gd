@@ -71,7 +71,7 @@ var visit_index: int = 0
 ## it. One scalar per landing would flatten exactly that.
 ##
 ## A float rather than the rank ordinal, deliberately: the ordinal loses
-## [member CycloneStep.closing_gain], so a closing rank-1 arc would draw
+## [member CycloneSpread.closing_gain], so a closing rank-1 arc would draw
 ## identically to an ordinary one — and a share is directly usable as a
 ## brightness or width scalar with no lookup table.
 var incident_shares: PackedFloat32Array = PackedFloat32Array()
@@ -80,13 +80,13 @@ var incident_shares: PackedFloat32Array = PackedFloat32Array()
 ## [member target] — empty on every landing that closed nothing (#710).
 ##
 ## The closing hop is Cyclone's payoff (the crit, plus
-## [member CycloneStep.closing_gain] feeding forward as sustain) and it used to
+## [member CycloneSpread.closing_gain] feeding forward as sustain) and it used to
 ## light, at most, one node. Lighting the ring AS a ring needs the ring, and
 ## nothing downstream can re-derive it: the walk that found it is
 ## [member CastSpell.visited], a resolver-local the event never carried.
 ##
 ## [b]Array order IS the storm's rotation[/b], so no [member turn_sign] read is
-## needed to lap it. [method CycloneStep.closed_ring] returns the ring in walk
+## needed to lap it. [method CycloneSpread.closed_ring] returns the ring in walk
 ## order, which means consecutive pairs are its edges and the wraparound pair
 ## [code]ring[-1] → ring[0][/code] is the edge the closer just crossed — the Nth
 ## edge, not a seam to skip. Edges are derived at the VFX layer from those

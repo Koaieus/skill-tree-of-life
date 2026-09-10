@@ -11,7 +11,7 @@ extends PropagationFilter
 ## picked as canonical. See [CycloneReducer].
 ##
 ## [b]An empty set allows everything[/b], and that is load-bearing rather than a
-## degenerate case: [CycloneStep] mints a cycle-closing child with an empty
+## degenerate case: [CycloneSpread] mints a cycle-closing child with an empty
 ## `came_from`, so "the veto resets when the cycle completes" needs no branch
 ## here at all. This filter is one membership test, forever.
 ##

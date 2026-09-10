@@ -2,7 +2,7 @@ class_name CastSpell
 extends RefCounted
 
 ## The in-flight carrier for a spell propagating through the graph. One
-## instance represents the spell *at one node*; [PropagationStep] mints
+## instance represents the spell *at one node*; [PropagationSpread] mints
 ## fresh instances for each neighbour it propagates into.
 ##
 ## Each instance becomes one entry in the resolved outcome chain: trace
@@ -28,17 +28,17 @@ var predecessor: SkillNode = null
 ## going now" has a better answer than "whichever predecessor the reducer
 ## happened to keep". [CycloneReducer] writes the damage-weighted mean here,
 ## so a strong front from the west and a weak one from the south leave heading
-## west-by-south. [CycloneStep] measures its turn ranking against it.
+## west-by-south. [CycloneSpread] measures its turn ranking against it.
 ##
 ## [constant Vector2.ZERO] means "unset" (and also means two fronts cancelled
 ## head-on) — readers fall back to [member predecessor], then [member source].
 var arrival_bearing: Vector2 = Vector2.ZERO
 ## The fraction of the incoming damage THIS front was minted with — the turn-rank
 ## coefficient that was actually applied, with any closing bonus already folded
-## in ([member CycloneStep.closing_gain]).
+## in ([member CycloneSpread.closing_gain]).
 ##
 ## It exists because the number is otherwise destroyed the instant it is used.
-## [CycloneStep] holds it as a local, multiplies [member damage] by it and drops
+## [CycloneSpread] holds it as a local, multiplies [member damage] by it and drops
 ## it; [CycloneReducer] then SUMS every incident, and the crit multiplies again
 ## at landing. So a landed amount cannot be inverted back to "which rank made
 ## this", and rank is the entire mechanic — the sharp turn circulates, the wide
@@ -96,7 +96,7 @@ var caster: Entity = null
 ## The graph the spell walks. Held on the state so propagation strategies
 ## don't need it threaded as a separate argument.
 var graph: Graph = null
-## Optional RNG used by stochastic propagation strategies ([RandomPickStep]
+## Optional RNG used by stochastic propagation strategies ([RandomPickSpread]
 ## and friends). Threaded through every hop so the same seed reproduces the
 ## same walk. Null = the propagation falls back to a fresh, time-seeded
 ## RandomNumberGenerator. Tests inject a seeded one via [method
@@ -112,14 +112,14 @@ var rng: RandomNumberGenerator = null
 ## [b]Empty means free[/b], which is what makes the reset branchless: a step
 ## that closed a cycle mints its children with an empty set, so the filter is
 ## one membership test with no "did we just reset?" special case. Populated at
-## MINT by [CycloneStep]; merged by [CycloneReducer]. Distinct from
+## MINT by [CycloneSpread]; merged by [CycloneReducer]. Distinct from
 ## [member predecessor], which stays the single canonical "the projectile flew
 ## from here" reader for VFX.
 var came_from: Array[SkillNode] = []
 ## True when the hop that produced this payload landed on a node already in its
 ## own lineage's [member visited] trail — i.e. it CLOSED a cycle.
 ##
-## Stamped at mint by [CycloneStep], read by [CycleCondition]. This is the
+## Stamped at mint by [CycloneSpread], read by [CycleCondition]. This is the
 ## Design A split [ConvergenceCondition] documents: the step/reducer does
 ## the math and stamps the fact, the crit condition owns the policy and stays a
 ## read-only predicate. The trail cannot be re-derived at landing time, because

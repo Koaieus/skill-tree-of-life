@@ -1,8 +1,8 @@
 @tool
-class_name TakeTopNStep
-extends PropagationStep
+class_name TakeTopNSpread
+extends PropagationSpread
 
-## Sorts the candidates with the configured [member ranker], takes the top
+## Sorts the eligible nodes with the configured [member ranker], takes the top
 ## [member take_count]. [member direction] picks max or min ranking. Stable
 ## tie-break (preserves scene order from [method Graph.get_neighbours]).
 ##
@@ -22,23 +22,22 @@ enum Direction { HIGHEST, LOWEST }
 @export_range(1, 16) var take_count: int = 1
 
 
-func step(
+func select(
 		_current: SkillNode,
+		eligible: Array[SkillNode],
 		payload: CastSpell,
-		candidates: Array[SkillNode],
-		config: PropagationConfig,
-		ctx: PropagationContext) -> Array[CastSpell]:
-	if candidates.is_empty() or ranker == null:
+		ctx: PropagationContext) -> Array[PropagationPick]:
+	if eligible.is_empty() or ranker == null:
 		return []
 
 	var dir_sign := 1.0 if direction == Direction.LOWEST else -1.0
-	var sorted := candidates.duplicate()
+	var sorted := eligible.duplicate()
 	sorted.sort_custom(func(a: SkillNode, b: SkillNode) -> bool:
 		return dir_sign * ranker.score(a, payload, ctx) < dir_sign * ranker.score(b, payload, ctx))
 	var k: int = min(take_count, sorted.size())
-	var out: Array[CastSpell] = []
+	var out: Array[PropagationPick] = []
 	for i in k:
-		out.append(_propagate_to(sorted[i], payload, config))
+		out.append(PropagationPick.to(sorted[i]))
 	return out
 
 

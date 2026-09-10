@@ -43,7 +43,7 @@ extends ProjectilePath
 ## held only at runtime is invisible to whoever opens the scene).
 ##
 ## Cyclone (#708) sets it from [member PropagationEvent.turn_sign] so the
-## picture turns the way [member CycloneStep.clockwise] actually says. Every
+## picture turns the way [member CycloneSpread.clockwise] actually says. Every
 ## other spell on this path leaves it at 1.0 and is untouched by construction.
 @export_range(-1.0, 1.0, 2.0) var handedness: float = 1.0
 

@@ -42,7 +42,7 @@ extends Node2D
 signal finished
 
 ## Shortest polyline that is a ring at all. Matches [constant
-## CycloneStep.MIN_RING] in spirit, but stated as the geometric floor this
+## CycloneSpread.MIN_RING] in spirit, but stated as the geometric floor this
 ## visual needs: two nodes have one edge and a wraparound onto the same edge.
 const MIN_RING_NODES: int = 3
 

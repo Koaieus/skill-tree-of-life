@@ -9,7 +9,7 @@ extends PropagationFilter
 ## Set-level by nature: "is this candidate the best" is unanswerable without
 ## the rest of the set, so this overrides [method PropagationFilter.narrow]
 ## and derives [method allows] from it. Replaces the old `TopTiesPass`, which
-## lived inside [TakeTopNStep] (#850).
+## lived inside [TakeTopNSpread] (#850).
 
 enum Direction { HIGHEST, LOWEST }
 
