@@ -927,7 +927,7 @@ substep inside the C++ loop, and the six fields `BladeSwingClock.Bank` carries
 cross the boundary and come back advanced. Per-particle damping and a continued
 Verlet history (`step_offset > 0`) were on that list before it; #803 taught the
 native loop both. A severed, dragged, defended swing now runs native end to
-end — see "Two backends, one meaning" for what is left on the decline list.
+end — see "The decline list" for what the native solver refuses.
 
 ### Where it sits under ADR 0005
 
