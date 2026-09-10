@@ -37,6 +37,14 @@ signal attack_plan_state_changed
 ## node at BFS graph-distance `i` from the impact node; `layers[0] == [impact]`.
 ## Emitted BEFORE the synchronous force_deallocate loop so VFX can snapshot
 ## owner colour + schedule a staggered ripple. See docs/domain/allocation-vfx.md.
+##
+## Two independent emitters (#837 added the second): [method _on_node_depleted]
+## for a non-core node reaching 0 HP (impact = that node), and
+## [method _on_entity_dying] for the entity itself dying (impact = its core) —
+## the whole-board strip [AllocationSystem.deallocate_all_owned] runs
+## un-staggered. Both fire BEFORE their respective strip; neither sequences the
+## other (#257 scenario 2 just chains: the node-cascade's own wave completes,
+## then a chip death fires this one separately).
 signal cascade_started(layers: Array, defender: Entity)
 
 ## The in-flight launch's [AttackRecord] just became available. Private
@@ -324,6 +332,7 @@ var _seed_source := RandomNumberGenerator.new()
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	Events.skill_node_depleted.connect(_on_node_depleted)
+	Events.entity_dying.connect(_on_entity_dying)
 	_seed_source.randomize()
 	_subscribe_union_invalidation()
 
@@ -1034,6 +1043,41 @@ func _on_node_depleted(node: SkillNode, source: Variant = null) -> void:
 	# along for AI scoring and for a client that wants to draw the toast.
 	if recorded.is_empty() and source is HitInstance:
 		(source as HitInstance).deallocations = entries
+
+
+## Entity-death cascade wave (#837). `AllocationSystem.deallocate_all_owned`
+## strips a dying entity's whole board un-staggered and MUST keep the core
+## last (it is the only path that ever force-deallocates a core — islanding
+## checks need it gone last). The wanted VISUAL wave is the opposite: core
+## FIRST, rippling outward — so this computes and announces that layering
+## separately, and `deallocate_all_owned` keeps iterating however it needs to;
+## the delay map `AllocationVFX` builds off `cascade_started` is keyed by node,
+## so the two orders never have to agree (decision #2 on the issue).
+##
+## Subscribed to `entity_dying` (the PRE-cleanup phase — the corpse still owns
+## its nodes) rather than `entity_died` (the CLEANUP phase, where
+## `AllocationSystem`'s own handler runs the strip): `Events`' own two-phase
+## contract guarantees every `entity_dying` handler finishes before any
+## `entity_died` handler runs, so the wave is announced before the strip with
+## no new cross-system reference and no dependence on scene connection order.
+##
+## Reuses [method _cascade_layers] unchanged, with the core as impact and every
+## other currently-owned node as the cascade set — same BFS, same orphan
+## handling for a disconnected owned island (issue acceptance #5).
+func _on_entity_dying(entity: Entity) -> void:
+	if entity == null or graph == null:
+		return
+	var core := entity.core_location
+	if core == null:
+		return
+	var owned: Array[SkillNode] = []
+	for n in graph.get_skill_nodes():
+		if n != core and n.owned_by == entity:
+			owned.append(n)
+	if owned.is_empty():
+		return
+	var layers: Array = _cascade_layers(core, owned)
+	cascade_started.emit(layers, entity)
 
 
 ## BFS the cascade set from [param impact] over graph edges restricted to
