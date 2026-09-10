@@ -28,12 +28,14 @@ extends RefCounted
 ##      then [method _build_archetype] rigidifies a HANDLE consecutive from
 ##      the pivot (free where the joint is already triangulated or pre-
 ##      clamped, else a phantom [ClampAddon] weld, up to a tier-rolled target
-##      length — D4) and spends whatever budget is left on a naive greedy
-##      REACH extension (#824 refines the preference). A HANDFUL of proposals
-##      per pivot, not an enumeration: this archetype plus at most one shorter
-##      reach variant, in both swing directions — bounded independent of
-##      `blade_size`, which is what makes #824's cap lift (16 -> 64)
-##      affordable. See `.claude/rules/blade-budget-and-clamps.md`. No UCB/
+##      length — D4) and spends whatever budget is left on a REACH extension
+##      that prefers spiked, far-from-core nodes ([method _reach_score],
+##      #824) — its own walk from the handle's tip, not a continuation of the
+##      centroid-directed path. A HANDFUL of proposals per pivot, not an
+##      enumeration: this archetype plus at most one shorter reach variant, in
+##      both swing directions — bounded independent of `blade_size`, which is
+##      what makes #824's cap lift (16 -> 64) affordable. See
+##      `.claude/rules/blade-budget-and-clamps.md`. No UCB/
 ##      bandit allocation across pivots: the reach-bound in (1) is already a
 ##      cheap admissible bound, and a cheap bound is exactly the case where
 ##      best-first search beats rollout/bandit-style budget allocation (see
@@ -64,9 +66,14 @@ extends RefCounted
 ## Pivots kept after the free reach-bound rejection, nearest-to-an-enemy
 ## first — bounds proposal generation regardless of territory size.
 const _MAX_PIVOTS := 6
-## Blade sizes beyond this are not sane for v1's stat scaling; a guard
-## against a pathological board making the chain-growth loop unbounded.
-const _MAX_BLADE_SIZE_SAFETY := 16
+## D6 (#824): 64, not 16 — 50+-member blades are mid-game, not endgame
+## (owner, #813 relay); the old 16 meant the AI swung roughly a third of its
+## weapon at mid-game budgets and spent nothing on the upgrade half. Still a
+## guard, not a real ceiling — a pathological board making the chain-growth
+## loop unbounded — and only affordable because #823's generator is bounded
+## (≤4 proposals/pivot) independent of `blade_size`. NOT tier-gated: this is
+## a bug fix and applies at `ai_tier = 0` too.
+const _MAX_BLADE_SIZE_SAFETY := 64
 ## D4's tier ladder tops out here — t3 -> handle target 3-4. Clamped
 ## defensively so an out-of-range `ai_tier` can't silently exceed the
 ## authored ladder.
@@ -104,8 +111,17 @@ static func gather_melee_candidates(
 	if pivot_infos.is_empty():
 		return out
 
+	# #824: hop distance from the entity's own core, for the reach phase's
+	# "prefer spiked nodes far from core" preference — computed once per
+	# entity, not per candidate. Empty (never rejects a candidate; distance
+	# just reads 0 for everyone, so only the spike preference survives) when
+	# the entity has no core yet, which core-move / early-setup fixtures hit.
+	var core_distances: Dictionary[SkillNode, int] = {}
+	if entity.core_location != null:
+		core_distances = entity.navigator.hop_distances_from(entity.core_location)
+
 	var proposals := _propose_blade_selections(
-			pivot_infos, adjacency, target_centroid, ai_tier, rng)
+			pivot_infos, adjacency, target_centroid, ai_tier, rng, core_distances)
 	if proposals.is_empty():
 		return out
 
@@ -252,7 +268,8 @@ static func _default_rng() -> RandomNumberGenerator:
 ## this a wider search rather than a second scoring path (#537 D4).
 static func _propose_blade_selections(
 		pivot_infos: Array, adjacency: Dictionary, target_centroid: Vector2,
-		ai_tier: int = 1, rng: RandomNumberGenerator = null) -> Array:
+		ai_tier: int = 1, rng: RandomNumberGenerator = null,
+		core_distances: Dictionary = {}) -> Array:
 	var actual_rng := rng if rng != null else _default_rng()
 	var out := []
 	for info in pivot_infos:
@@ -267,7 +284,8 @@ static func _propose_blade_selections(
 		# tier-ladder... accidental truss, all good").
 		var tier := clampi(ai_tier, 0, _MAX_AI_TIER)
 		var handle_target := actual_rng.randi_range(tier, tier + 1)
-		var archetype := _build_archetype(pivot, adjacency, target_centroid, max_size, handle_target)
+		var archetype := _build_archetype(
+				pivot, adjacency, target_centroid, max_size, handle_target, core_distances)
 		var members: Array[SkillNode] = archetype.members
 		if members.is_empty():
 			continue
@@ -288,26 +306,39 @@ static func _propose_blade_selections(
 
 ## The two-step archetype (#771 hub D1) for one pivot: rigidify a handle
 ## consecutive from the pivot outward, THEN spend whatever budget remains on a
-## naive greedy reach extension. Single pass, budget-correct by construction —
-## `spent` never exceeds `max_size`, the ONE budget shared between members and
-## clamps (`.claude/rules/blade-budget-and-clamps.md`). Returns
+## reach extension that prefers spiked, far-from-core nodes (#824). Single
+## pass, budget-correct by construction — `spent` never exceeds `max_size`,
+## the ONE budget shared between members and clamps
+## (`.claude/rules/blade-budget-and-clamps.md`). Returns
 ## {members: Array[SkillNode], clamps: Array[SkillNode] (subset of members)}.
 ##
-## [b]Member selection is unconditionally geometric — [method _grow_path]
-## decides `path` before this function ever runs.[/b] Requirement 3 is a
-## BUDGET rule, not a selection bias: free rigidity (an already-triangulated
-## joint, or one already carrying a procgen [ClampAddon]) is taken when the
-## walk happens to pass through it, never hunted for. A tier-0 blade that
-## comes out rigid over already-triangulated territory does so by accident,
-## exactly as the owner specified.
+## [b]HANDLE member selection is unconditionally geometric — [method
+## _grow_path] decides `path` before this function ever runs.[/b] Requirement
+## 3 (#823) is a BUDGET rule, not a selection bias: free rigidity (an
+## already-triangulated joint, or one already carrying a procgen
+## [ClampAddon]) is taken when the walk happens to pass through it, never
+## hunted for. A tier-0 blade that comes out rigid over already-triangulated
+## territory does so by accident, exactly as the owner specified.
+##
+## REACH member selection (#824) is a SEPARATE walk from the handle's tip
+## (see [method _reach_score]/[method _extend_reach] below) — it does NOT
+## consume the rest of `path`. `path` is grown toward the enemy centroid,
+## which is what makes it right for the handle (D2's rigidity mechanic is
+## about consecutive-from-pivot joints, not about where the enemy is); reach
+## has already cleared the free reach-bound rejection by the time this runs,
+## so what's left to optimize is #824's own preference, not centroid
+## direction. This is also why #823's hazard 2 (triangle look-ahead reading
+## `[pivot] + path` rather than just the paid members) is untouched by #824:
+## the triangulation check below only ever queries `edges` for handle-range
+## `path` indices, and reach members never reach that check at all.
 static func _build_archetype(
 		pivot: SkillNode, adjacency: Dictionary, target_centroid: Vector2,
-		max_size: int, handle_target: int) -> Dictionary:
+		max_size: int, handle_target: int, core_distances: Dictionary = {}) -> Dictionary:
 	var path := _grow_path(pivot, adjacency, target_centroid, max_size)
 	# Triangulation is checked against the FULL candidate path up front, not
-	# incrementally as `members` grows — `members` ends up an exact PREFIX of
-	# `path` (both phases below only ever consume `path` in order, never
-	# skip), so a path node's real graph neighbours are the right set to ask
+	# incrementally as `members` grows — the HANDLE phase below (only) ends up
+	# an exact PREFIX of `path` (it only ever consumes `path` in order, never
+	# skips), so a path node's real graph neighbours are the right set to ask
 	# "already triangulated" against even before this walk has reached them.
 	# Checking only nodes-added-so-far would miss the ordinary case: the
 	# THIRD vertex of a Pivot-C-N1 triangle is N1, one step further out than
@@ -338,13 +369,16 @@ static func _build_archetype(
 			# stays a plain member; it was already paid for above.
 			handle_open = false
 		i += 1
-	# Reach extension — naive greedy, exactly the walk order [method
-	# _grow_path] already produced. #824 refines the preference (spiked
-	# nodes, distance from core); this issue only owns "don't enumerate".
-	while i < path.size() and spent < max_size:
-		members.append(path[i])
-		spent += 1
-		i += 1
+	# Reach extension (#824) — its OWN outward walk from the handle's tip
+	# (pivot, if the handle is empty), scored by _reach_score rather than
+	# continuing along `path`. See this function's doc comment for why that's
+	# safe w.r.t. #823's hazard 2.
+	if spent < max_size:
+		var selected: Dictionary = {pivot: true}
+		for m in members:
+			selected[m] = true
+		var tip: SkillNode = members[-1] if not members.is_empty() else pivot
+		members.append_array(_extend_reach(tip, adjacency, selected, core_distances, max_size - spent))
 	return {members = members, clamps = clamps}
 
 
@@ -374,6 +408,68 @@ static func _grow_path(pivot: SkillNode, adjacency: Dictionary, target_pos: Vect
 		selected[best] = true
 		tip = best
 	return path
+
+
+## #824 — dwarfs [method _reach_score]'s distance term so a spiked node
+## always outranks a plain one regardless of how far the plain one is; the
+## owner's phrasing ("mostly preferring spiked nodes ... far from core") is
+## spike-first, distance as the tiebreak/amplifier among spikes.
+const _SPIKE_REACH_BONUS := 1000.0
+
+
+## #824's reach-phase preference: how attractive [param node] is as the next
+## pick, once the handle is settled and centroid direction has already done
+## its job (this pivot cleared [method _reach_bound]; the actual swing
+## direction and contact are judged downstream by the coarse rank + finalist
+## resolve, never estimated here — see the class doc's point 3). Spiked
+## nodes dominate — [SpikeRingAddon]'s own `blade_damage` modifiers
+## (+3, x1.5 — node-local, NOT scaled by allocation level; what scales with
+## `stake_level` is `addon_slots` and the defensive pop budget, per the #771
+## hub correction) — tie-broken/amplified by hop distance from [param
+## entity]'s core ([param distances], #824's `GraphMirror.hop_distances_from`
+## helper — 0 for anything it didn't reach, which never outranks a real
+## candidate since every candidate here is drawn from owned-territory
+## `adjacency` already).
+static func _reach_score(node: SkillNode, distances: Dictionary) -> float:
+	var score: float = float(distances.get(node, 0))
+	if node.has_addon(SpikeRingAddon):
+		score += _SPIKE_REACH_BONUS
+	return score
+
+
+## #824's reach-phase walk: from [param tip], greedily pick the
+## highest-[method _reach_score] unselected neighbour, move the tip there,
+## repeat up to [param budget] times or until the tip runs out of unselected
+## neighbours (a dead end reads as a "flail" tip — the walk simply stops
+## there rather than backtracking to find more). A single consecutive walk,
+## like [method _grow_path], but steered by #824's preference instead of
+## centroid direction: at a fork, a neighbour carrying a spike ("pocket
+## picking" a nearby prize) can outrank one that's merely further along —
+## the minor variation the owner rates as not worth a named archetype (D1),
+## folded into ONE score rather than a second proposal (the ≤4/pivot bound
+## stays a property of [method _propose_blade_selections]'s variant count,
+## untouched here). [param selected] is mutated: entries this walk adds stay
+## marked so a caller building on top of it never re-picks them.
+static func _extend_reach(tip: SkillNode, adjacency: Dictionary, selected: Dictionary,
+		distances: Dictionary, budget: int) -> Array[SkillNode]:
+	var added: Array[SkillNode] = []
+	var cur := tip
+	for _i in budget:
+		var best: SkillNode = null
+		var best_score := -INF
+		for nb in adjacency.get(cur, []):
+			if selected.has(nb):
+				continue
+			var s := _reach_score(nb, distances)
+			if s > best_score:
+				best_score = s
+				best = nb
+		if best == null:
+			break
+		added.append(best)
+		selected[best] = true
+		cur = best
+	return added
 
 
 ## [param selection]'s own induced edges as an index-mapped [Array[Vector2i]]

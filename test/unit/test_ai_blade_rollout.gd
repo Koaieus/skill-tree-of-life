@@ -377,6 +377,113 @@ func test_proposal_count_per_pivot_stays_bounded_as_blade_size_grows() -> void:
 						% [max_size, proposals.size()])
 
 
+## #824 requirement 1: the cap lift itself is only real if a big-budget
+## entity can actually PROPOSE a blade past the old 16-member ceiling.
+func test_cap_lift_proposes_blades_longer_than_the_old_sixteen_cap_at_tier_zero() -> void:
+	var chain := _build_long_straight_chain(40)
+	await get_tree().process_frame
+	var adjacency := AiBladeRollout._owned_adjacency(_ai_entity)
+	var target: Vector2 = chain[-1].global_position
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	# ai_tier 0 — the cap lift is NOT tier-gated (D6), so this must hold even
+	# at the tier that never deliberately seeks rigidity.
+	var proposals := AiBladeRollout._propose_blade_selections(
+			[[chain[0], 32]], adjacency, target, 0, rng)
+	assert_gt(proposals.size(), 0)
+	var longest := 0
+	for p in proposals:
+		var members: Array[SkillNode] = p[1]
+		longest = maxi(longest, members.size())
+	assert_gt(longest, 16,
+			"a blade_size=32 entity must be able to propose a blade past the old " +
+			"_MAX_BLADE_SIZE_SAFETY=16 ceiling")
+
+
+# ── Requirement 2: reach prefers spiked nodes far from core ────────────────
+
+## Two otherwise-equal candidates one hop from a handle-free pivot (empty
+## handle: handle_target 0 means the rigidify loop never runs, so `members`
+## enters the reach phase empty and `_extend_reach` picks straight off the
+## pivot) — the SPIKED one must win even though it is the CLOSER one to core,
+## matching the owner's "mostly preferring spiked nodes ... far from core"
+## (spike-first, distance as amplifier/tiebreak among spikes).
+func test_reach_prefers_a_spiked_node_over_a_farther_plain_one() -> void:
+	var pivot := _spawn("Pivot")
+	var plain_far := _spawn("PlainFar")
+	var spiked_near := _spawn("SpikedNear")
+	pivot.global_position = Vector2.ZERO
+	plain_far.global_position = Vector2(50.0, 50.0)
+	spiked_near.global_position = Vector2(50.0, -50.0)
+	var adjacency := {pivot: [plain_far, spiked_near], plain_far: [pivot], spiked_near: [pivot]}
+	var spike_scene := preload("res://skill_node/addons/spike_ring_addon.tscn")
+	var spike := spike_scene.instantiate() as SpikeRingAddon
+	spiked_near.add_child(spike)
+	await get_tree().process_frame
+	# core_distances hand-built rather than routed through a real
+	# EntityNavigator (#824's graph_mirror.gd helper is covered directly in
+	# test_graph_mirror.gd) — plain_far reads FARTHER from core than
+	# spiked_near, so a distance-only ranking would pick it; the spike must
+	# still win.
+	var core_distances: Dictionary = {pivot: 0, plain_far: 5, spiked_near: 1}
+
+	var archetype := AiBladeRollout._build_archetype(
+			pivot, adjacency, pivot.global_position, 1, 0, core_distances)
+	var members: Array[SkillNode] = archetype.members
+	assert_eq(members, [spiked_near],
+			"the spiked candidate wins despite being the closer-to-core one")
+
+
+## Among two UNspiked candidates, the reach walk prefers the one farther from
+## core — the "far from core" half of the preference in isolation.
+func test_reach_prefers_the_farther_from_core_candidate_when_neither_is_spiked() -> void:
+	var pivot := _spawn("Pivot")
+	var near := _spawn("Near")
+	var far := _spawn("Far")
+	pivot.global_position = Vector2.ZERO
+	near.global_position = Vector2(50.0, 50.0)
+	far.global_position = Vector2(50.0, -50.0)
+	var adjacency := {pivot: [near, far], near: [pivot], far: [pivot]}
+	var core_distances: Dictionary = {pivot: 0, near: 1, far: 5}
+
+	var archetype := AiBladeRollout._build_archetype(
+			pivot, adjacency, pivot.global_position, 1, 0, core_distances)
+	var members: Array[SkillNode] = archetype.members
+	assert_eq(members, [far], "with no spike to decide it, distance from core breaks the tie")
+
+
+## The reach walk continues from wherever the HANDLE left off, not from the
+## pivot — a handle_target that actually rigidifies a couple of joints must
+## still hand off correctly to #824's preference-scored continuation.
+func test_reach_continues_from_the_handle_tip() -> void:
+	var pivot := _spawn("Pivot")
+	var handle := _spawn("Handle")
+	var branch_a := _spawn("BranchA")
+	var branch_b := _spawn("BranchB")
+	pivot.global_position = Vector2.ZERO
+	handle.global_position = Vector2(50.0, 0.0)
+	branch_a.global_position = Vector2(100.0, 50.0)
+	branch_b.global_position = Vector2(100.0, -50.0)
+	var adjacency := {
+		pivot: [handle], handle: [pivot, branch_a, branch_b],
+		branch_a: [handle], branch_b: [handle],
+	}
+	var spike_scene := preload("res://skill_node/addons/spike_ring_addon.tscn")
+	var spike := spike_scene.instantiate() as SpikeRingAddon
+	branch_b.add_child(spike)
+	await get_tree().process_frame
+	var core_distances: Dictionary = {pivot: 0, handle: 1, branch_a: 2, branch_b: 2}
+
+	# max_size 2, handle_target 1: handle takes exactly `handle` (plain — no
+	# triangle, no attachable clamp slot filled — this fixture has none), then
+	# one reach slot remains for the branch choice.
+	var archetype := AiBladeRollout._build_archetype(
+			pivot, adjacency, handle.global_position, 2, 1, core_distances)
+	var members: Array[SkillNode] = archetype.members
+	assert_eq(members, [handle, branch_b],
+			"reach picks the spiked branch off the handle's tip, not the pivot")
+
+
 # ── Requirements 4/5: phantom clamps score exactly what a real one would ───
 
 func test_phantom_clamp_matches_a_real_one_at_build_blade_state() -> void:

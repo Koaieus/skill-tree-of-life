@@ -189,8 +189,14 @@ class ProbeAI:
 		var pivot_infos := AiBladeRollout._prune_pivots(adjacency, enemy_positions)
 		if pivot_infos.is_empty():
 			return out
+		# #824 — mirror gather_melee_candidates's own core_distances computation
+		# exactly (a silent {} default here would drift from the shipped
+		# generator's actual reach preference, per this method's own doc above).
+		var core_distances: Dictionary[SkillNode, int] = {}
+		if entity.core_location != null:
+			core_distances = entity.navigator.hop_distances_from(entity.core_location)
 		var proposals := AiBladeRollout._propose_blade_selections(
-				pivot_infos, adjacency, target_centroid, ai_tier, rng)
+				pivot_infos, adjacency, target_centroid, ai_tier, rng, core_distances)
 		if probe != null:
 			probe.bump(&"melee_prep", Time.get_ticks_usec() - t)
 			probe.bump(&"n_proposals", proposals.size())

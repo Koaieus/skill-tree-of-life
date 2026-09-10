@@ -209,6 +209,16 @@ func nodes_within(source: SkillNode, max_hops: int) -> Dictionary[SkillNode, int
 	return result
 
 
+## Hop distance from [param anchor] to every mirrored node — [method
+## nodes_within]'s unbounded form, named for what callers actually want
+## ("how far is X from anchor") instead of a `max_hops = -1` magic value
+## repeated at every call site. Introduced for #824's AI reach preference
+## ([code]entity.navigator.hop_distances_from(entity.core_location)[/code]),
+## but generic: any anchor, not just a core.
+func hop_distances_from(anchor: SkillNode) -> Dictionary[SkillNode, int]:
+	return nodes_within(anchor, -1)
+
+
 ## Fewest-hops path of nodes from [param from_node] to [param to_node]
 ## (inclusive of both ends), or [] if either isn't mirrored or no path exists.
 ## Hop count is [code]path.size() - 1[/code]. Relies on the unit-cost +

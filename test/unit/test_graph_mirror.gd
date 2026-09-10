@@ -118,3 +118,35 @@ func test_mirror_add_is_idempotent() -> void:
 	m.mirror_add(n[0])
 	assert_eq(m.get_mirrored_nodes().size(), 2, "re-adding mints no second vertex")
 	assert_eq(m.get_degree(n[0]), 1, "and no duplicate connection")
+
+
+## #824 — the named distance-from-core helper is a thin, unbounded wrapper
+## over nodes_within; this pins that it agrees with nodes_within(-1) directly
+## rather than re-deriving hop counts by hand.
+func test_hop_distances_from_matches_nodes_within_unbounded() -> void:
+	var n := _add_nodes(4)
+	_connect(n[0], n[1])
+	_connect(n[1], n[2])
+	_connect(n[2], n[3])
+	await get_tree().process_frame
+
+	var m := _mirror_all(n)
+	var distances := m.hop_distances_from(n[0])
+	assert_eq(distances, m.nodes_within(n[0], -1),
+		"hop_distances_from is exactly nodes_within's unbounded form")
+	assert_eq(distances[n[0]], 0)
+	assert_eq(distances[n[1]], 1)
+	assert_eq(distances[n[2]], 2)
+	assert_eq(distances[n[3]], 3)
+
+
+func test_hop_distances_from_an_unmirrored_anchor_is_empty() -> void:
+	var n := _add_nodes(2)
+	_connect(n[0], n[1])
+	await get_tree().process_frame
+
+	var m := GraphMirror.new()
+	autofree(m)
+	m.graph = _graph
+	m.mirror_add(n[1]) # n[0] deliberately left out of the mirror
+	assert_true(m.hop_distances_from(n[0]).is_empty())
