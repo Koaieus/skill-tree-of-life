@@ -30,10 +30,10 @@ env.Append(CPPPATH=["src/"])
 # fused into one instruction keeps the product at full width instead of
 # rounding it to float64/float32 the way GDScript's separate ops do. GCC and
 # Clang default to `-ffp-contract=fast` and WILL fuse. It happens not to bite
-# on baseline x86_64 (no FMA in the SSE2 baseline), which is exactly why this
-# has to be pinned rather than left to luck: `blade_sim.gdextension` already
-# lists linux.arm64 and macos targets, where FMA is baseline and the default
-# would silently drift the solver.
+# on baseline x86_64 (no FMA in the SSE2 baseline) — the whole matrix
+# `blade_sim.gdextension` declares as of #844 is linux + windows x86_64 — so
+# this pin is insurance against a future compiler or flag change drifting the
+# solver, not a fix for FMA baseline today.
 #
 # MSVC has no such flag — it does not contract across statements by default,
 # and `/fp:precise` (its default) forbids the reassociation that would matter.

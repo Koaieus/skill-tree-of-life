@@ -477,7 +477,7 @@ Binaries are **not** committed -- `native/bin/` is gitignored.
 ##### The supported matrix is exactly what's declared, and exactly what's built (#844)
 
 `blade_sim.gdextension` declares **four** keys: linux and windows x86_64, each
-debug and release. That used to be eight -- linux/windows arm64 and macOS
+debug and release. That used to be eight -- linux arm64 and macOS
 debug/release were declared with no binary behind them, which #806 already
 turned into a hard export failure and #816 would otherwise turn into "the game
 cannot run there at all." **Declare nothing you do not build.** Re-add a
