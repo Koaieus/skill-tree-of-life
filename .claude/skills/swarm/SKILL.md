@@ -518,7 +518,17 @@ those does the work is not established. Keep the nudge below as the
 fallback — it is still needed whenever a worker does idle.
 
 So on every idle notification, **check the branch before reacting**: no commits
-plus a worktree means nudge, not merge. The cause is unsettled — see #595, which
+plus a worktree means nudge, not merge.
+
+**And never infer from an idle notification that a worker's BACKGROUND COMMAND
+has finished.** Verified 2026-09-10: an orchestrator saw a worker idle while
+waiting on its own `test:dir` run, concluded the run had "already drained", and
+nudged it saying so. The worker checked `ps`, found the godot process alive
+mid-suite, and correctly pushed back on the orchestrator's premise. A worker
+idles when it ends a turn — which is exactly what it is *supposed* to do while a
+backgrounded command runs (`.claude/rules/long-running-commands.md`). Treat that
+idle as "waiting, correctly", not as "stuck". If you nudge anyway, tell it to
+*read its output file once* rather than asserting what the file says. The cause is unsettled — see #595, which
 records the two candidates, the verified upstream lineage (`anthropics/claude-code`
 #28075, #29163 — both CLOSED, and #29163 is a different API surface), and the
 one-line experiment that would settle it (spawn, wait, *then* brief — the only
@@ -652,8 +662,28 @@ trust the skill. The savings are real: the orientation cost lands in a cheap
 throwaway context instead of the worker's, and nesting is confirmed permitted
 in both harnesses.
 
-**Plan for running out.** Assume the window may close mid-swarm, and make
-that survivable rather than catastrophic:
+**Plan for running out — and note that the window is not the only thing that
+can kill a worker.** Verified 2026-09-10: two workers were terminated
+mid-flight by an **API spend limit**, with no warning to them or to the
+orchestrator, in the same minute. One had committed its finished unit and lost
+nothing; the other had committed nothing and would have lost everything, and
+was saved only because the orchestrator went into its worktree and committed
+the tree by hand. **Put "COMMIT EARLY AND OFTEN, even partial, even ugly" in
+every brief as its own line** — not as a consequence of the budget rule, since
+an external kill ignores budgets entirely.
+
+When a worker does die, **check its worktree before assuming the unit is
+lost**: `git -C .worktrees/<slug> log master..HEAD` plus `git status
+--porcelain`. In that run one issue was already committed and merged as-is, and
+the other's entire working set — including both `.uid` sidecars — was sitting
+untracked on disk and needed only `git add` by explicit path. Then verify it
+yourself rather than paying a fresh drone to reload the context: a killed
+drone's work is a *claim of incompleteness*, and that claim is often wrong (that
+unit turned out complete and correct; `check` plus its own test file settled it
+in two minutes — the same discriminator the abandoned-draft rule above
+prescribes).
+
+Assume the window may close mid-swarm, and make that survivable:
 
 - Workers commit **after each unit**, never only at the end. A killed worker
   then loses one unit, not two.
@@ -717,6 +747,13 @@ git diff master...<branch>                         # then content
    verdict. The verdict is your own **authoritative full suite**, run once
    per **batch** of merges rather than after every individual fast-forward
    (the merge train, §6) — never the worker's claim standing in for it.
+   **A narrow `test:dir` green says nothing about fallout outside that
+   directory**, and the drone cannot know what it missed: a change to a
+   default, a constant, or an eligibility rule is read by tests that never
+   import the file it edited. Cheap pre-empt when writing the brief —
+   `grep -rn "<the old value>" test/` — and expect stale *characterization*
+   tests, which get re-pointed onto the new invariant rather than deleted (one
+   may have lost its subject entirely). See `.claude/rules/testing.md`.
 
 Then **branch on quality**, in decreasing order of frequency:
 

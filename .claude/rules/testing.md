@@ -39,8 +39,19 @@ The task prints a verdict (counts, each failing test's first assert + line,
 pending, parse-error alarms) and **always keeps the full console output at
 `.godot/gut-last.log`**, junit XML beside it. That log is written **live**
 (`tail -f` it to see which script GUT is on, and a killed run still leaves it),
-while the verdict is the LAST thing printed — an empty summary means "still
-running", not "broken". **Background the run; don't sleep-and-poll.** A full run costs **~215s** (409 scripts / 3807 tests, 2026-09-04) — a gate,
+while the verdict is the FIRST line of the summary block — an empty summary
+means "still running", not "broken". **Background the run; don't sleep-and-poll.**
+
+**Read the verdict with `grep`, never `tail`.** The `✓/✗ N failing · …` line
+leads the summary and is followed by each failing test, the pending list, any
+native-backend warning, and Godot's always-present exit trailer — so a
+`tail -10`/`-20` shows you the RID-leak trailer and *no verdict at all*, which
+reads exactly like a clean run. This is not hypothetical: an orchestrator
+reported a FAILING suite as green off a `tail` on 2026-09-10, twice in one
+session. Use:
+```
+mise run test 2>&1 | grep -E "failing ·|ERROR task"
+``` A full run costs **~215s** (409 scripts / 3807 tests, 2026-09-04) — a gate,
 **run at most once per unit of work**, at final green; iterate on `check` →
 `test:one` → `test:dir`. When the
 summary elided something, grep the log — `grep -F '[Failed]'`, with `-F`, since a
@@ -79,3 +90,4 @@ flag there? Verify the `scripts` count actually drops.
 - **A `MultiMesh` push-then-read-back test asserts NOTHING under headless.** `get_instance_transform_2d()` returns identity from the dummy driver, so the assert passes against an all-zero transform — the blind spot that hid #413's invisible edges. Assert the pushed value as a pure function instead. See `docs/domain/godot-workflow.md`.
 - **A leaked `get_tree().paused` is caught by a suite-level guard (#737), not by hunting the leaking test.** `ui/pause_menu.gd`'s `_toggle` is the only writer of that flag in the repo, and it is sticky SceneTree state GUT never resets between scripts — a `Tween` (`create_tween()`, default `TWEEN_PAUSE_BOUND`) silently STOPS while paused, while a `SceneTreeTimer` (`process_always = true` by default) keeps firing, so a tween-sampling test fails downstream reading like a bug in the code under test. `test/gut_hooks/pause_leak_pre_run_hook.gd` (wired as `.gutconfig.json`'s `pre_run_script`) fails the just-finished script's last real test and resets the flag whenever it catches one leaked — see `PauseStateGuard` (`test/gut_hooks/pause_state_guard.gd`) and `test/unit/test_pause_state_guard.gd`. The guard is a safety net, not a license to sample tweens: **prefer asserting on the pure function a tween drives** (`transform_at`/`charge_pose` style, per `FrontmatterCamera`) **over sampling the tween itself** — it doesn't depend on suite ordering to pass.
 - **A parse error in a `pre_run_script`/`post_run_script` hook doesn't fail the run — it makes `godot` spin forever printing `Project FPS:` lines, which reads exactly like a hang, and `mise run check`'s editor pass does not catch it** (the file isn't referenced by any scene, so nothing pulls it into that pass — same gap `.claude/rules/godot-workflow.md` names for `--check-only --script`, just via a different door). Cause: GUT's `_validate_hook_script` fails to `load()` the broken script, `_init_run` aborts before anything calls `quit()`, and the process just idles. `var x := gut.get_tree()` is the concrete trigger in `pause_leak_pre_run_hook.gd` — `gut` is untyped, so `:=` can't infer a type from the call (same family as the `:=`-on-Variant gotcha above). Diagnose with `godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gtest=<any file> -gdir= -glog=3` run directly (not through the python wrapper, which buffers all output until exit) — the `SCRIPT ERROR: Parse Error` prints immediately, before the spin.
+- **A narrow `test:dir` green does not mean a change is contained — and the author is the last person who can tell.** A drone verified #840 (lobby AI default core flipped, every core made pickable by every slot) with `test:dir -- res://test/unit/ui/` and was green and honest; three tests in `test/unit/session/` were asserting exactly the behaviour the issue existed to remove, and only the full suite found them. The tell is behavioural, not structural: a change to a **default, a constant, or a pickability/eligibility rule** is read by tests that never import the file you edited. Before trusting a narrow run, `grep -rn` the *old* value across `test/` — `grep -rn "basic_enemy_core" test/` would have found all three in one call. When such a change lands, expect stale **characterization** tests, and re-point them onto the new invariant rather than deleting them: two of those three had lost their subject entirely (there is no "player-only core" left once every core is `pickable_in = 3`), so deleting would have silently dropped the coverage.
