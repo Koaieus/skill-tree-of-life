@@ -46,12 +46,22 @@ const _CAPTURE := false
 ## values captured at 5349743. The scoring term is new behaviour, deliberately
 ## added, and it moved the trace strings only — it could not be recaptured on
 ## the pre-#512 controller because it did not exist there.
+##
+## [b]Second amendment, #823[/b] — `weak=0.0` -> `weak=-0.0`. This fixture never
+## set `ai_tier` explicitly, so it rode the controller's default; #823
+## requirement 8 flips that default 0 -> 1, and the weak-point term (unlike
+## melee's shape-risk) is *computed* rather than hardcoded once tier-gating
+## opens, landing on a `-0.0` float for this geometry. Pre-existing
+## [AiCombatScorer] behaviour — #823 touches no ranged/magic scoring code —
+## simply never exercised by this golden until the default it silently
+## inherited moved. Recaptured with [constant _CAPTURE] the same way; every
+## other field is byte-identical to the pre-#823 golden.
 const _GOLDEN := {
 	"ap": 0.0,
 	"current_entity": "Player",
 	"decisions": [
-		"[RANGED→N3] ev=6.0 kill=no cut=0.0 weak=0.0 risk=0.0 total=506.0 door=500.0",
-		"[RANGED→N3] ev=6.0 kill=yes cut=0.0 weak=0.0 risk=0.0 total=1506.0 door=500.0",
+		"[RANGED→N3] ev=6.0 kill=no cut=0.0 weak=-0.0 risk=0.0 total=506.0 door=500.0",
+		"[RANGED→N3] ev=6.0 kill=yes cut=0.0 weak=-0.0 risk=0.0 total=1506.0 door=500.0",
 	],
 	"enemy_owned": ["N0", "N1", "N2"],
 	"initiative": 0.0,
