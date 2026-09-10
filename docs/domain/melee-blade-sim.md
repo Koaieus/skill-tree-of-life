@@ -346,8 +346,8 @@ squeeze under today's flat cost for a long blade — that defeats the axis.
 
 #### Golden trajectories: the determinism contract (#846)
 
-The parity test below pins the C++ to the GDScript reference; #847 deletes that
-reference, so the contract moved to **recorded goldens**:
+A parity test used to pin the C++ to the GDScript reference; #847 deleted that
+reference, so the contract is **recorded goldens**:
 `test/unit/attack/test_blade_goldens.gd` replays twenty worlds on the native
 backend and compares each to its fixture under
 `test/unit/attack/fixtures/blade_goldens/<case>.golden.txt`, exact text, first
@@ -363,7 +363,7 @@ differing line reported.
   anything authoritative; the only peer-side caller is `SkillBlade`, pure
   visuals. The claim is only "the build under test reproduces its own
   recordings".
-- **Coverage:** the parity test's axes — the swing clock, the defender field
+- **Coverage:** the retired parity test's axes — the swing clock, the defender field
   (wall, plate, both, five-zone cluster), `simulate` / `simulate_range`
   (chunked, seeded from `prev_samples`) / `simulate_range_field` (whole and
   chunked), a bare spine, an induced truss, a welded (clamped) spine that
@@ -382,84 +382,107 @@ differing line reported.
   1e-6 — precisely the class the file exists for.
 - **Regeneration is an act, never a re-baseline:** `mise run native:goldens`
   (`.mise/tasks/native/goldens`) flips the test's `_REGENERATE` const, runs the
-  one script in its own godot process (so nothing else can flip
-  `BladeSim.use_native` mid-record, and `before_each` still refuses to record
+  one script in its own godot process (so `before_each` still refuses to record
   without the binary), and flips it back under `trap`. It does not re-run to
   confirm green; the human does, and the commit says why the output changed.
 - **A missing binary is a failure**, not `pending()` — under #816 the binary is
   mandatory, and a PENDING that reads as green is how #823 was reviewed on 26
   unverified cases. `mise run native:fetch` then `mise run refresh`.
 - **Vacuity guards:** `test_every_golden_case_runs_on_the_native_path` re-runs
-  every case through `_simulate_native` directly and requires a trajectory (the
-  routed path falls through to GDScript silently for a state outside the
-  transliterated subset), and `test_the_goldens_are_not_vacuous` checks the
+  every case through `_simulate_native` directly and requires a trajectory
+  (recorded while the routed path could still fall through to GDScript; kept
+  because a decline is now a `null`, which the serialiser must never see), and
+  `test_the_goldens_are_not_vacuous` checks the
   worlds do something — the wall warps the clock, the spine breaks, the
   cluster meters two plates.
-- **Reference agreement (acceptance 4):**
-  `test_the_gdscript_reference_solver_reproduces_every_golden` forces
-  `use_native = false` and replays the same fixtures. Green on 2026-09-11 with
-  both backends present — the verdict is on #846. That test leaves with #847;
-  the goldens do not.
+- **Reference agreement (acceptance 4):** a one-time
+  `test_the_gdscript_reference_solver_reproduces_every_golden` replayed the same
+  fixtures through the GDScript solver. 20/20 exact on 2026-09-11 with both
+  backends present — the verdict is on #846. #847 deleted that test with the
+  reference; the goldens are what remains.
 
-#### Two backends, one meaning (#798)
+#### One backend, a mandatory binary (#798, #847)
 
-Steps 1-3 above exist twice: in GDScript in `blade_sim.gd`, and in C++ in
-`native/src/blade_solver_native.cpp`. The native one runs when the GDExtension
-loaded and `BladeSim.use_native` is true; the GDScript one is the fallback and
-is never removed. `BladeSim.backend()` reports which is live.
+Steps 1-3 above live in exactly one place: C++, in
+`native/src/blade_solver_native.cpp`, reached from `blade_sim.gd` through a
+`ClassDB` dynamic call. #798 landed it as a bit-identical transliteration of the
+GDScript solver, with a parity test pinning the two; #847 deleted the GDScript
+body (531 lines) once #846's goldens had been recorded off the C++ and verified
+against it, because every melee feature was being written twice — #813's port
+needed a 15-item trap list to land, and the owner's read was *"each addition to
+melee needing 10 issues to track performance."* What stays in GDScript:
+`BladeState`, drivers and constraints as descriptors, the pop/gate loop, the
+`_length_factor` BFS (computed once per resolve, ahead of the boundary, and
+passed in — one definition of the length axis), and the dispatch site.
 
-**This is not a fast/accurate pair.** The C++ is a literal transliteration --
-same expressions, same evaluation order, same `real_t`(float32) vs `double`
-split, no FMA contraction in the build flags -- and
-`test/unit/attack/test_blade_native_parity.gd` pins the two to **bit-identical**
-output, advanced state included. That threshold is not perfectionism:
-`BladeHitScan` turns positions into a hit *set*, so a 1e-7 drift next to a shape
-boundary is not a small error, it is a different attack. If parity ever goes
-red, find the expression that stopped matching -- do not widen the test to
-`approx`.
+**The binary is mandatory.** `mise run native:fetch` (run by `mise install`)
+or `mise run native:build` puts it in `native/bin/`, `mise run refresh` lists
+it, and `BladeSim.backend()` reports `&"native"`. Without it:
 
-The build pins **`-ffp-contract=off`** (`native/SConstruct`) to hold that
-threshold. It is not redundant: GCC and Clang default to `-ffp-contract=fast`,
-and bit-identity survives today only because both platforms this extension
-actually targets — linux and windows x86_64, the whole matrix as of #844 — have
-no FMA in their SSE2 baseline. The pin still matters: it is one less axis a
-future compiler or flag change could drift on.
+- `mise run check` is **still clean** — `blade_sim.gd` never names
+  `BladeSolverNative` as an identifier, so a missing extension is not a parse
+  error. This is deliberate; a directly-typed call would be cleaner and would
+  turn the fix-it message into a name-resolution failure.
+- the first simulated swing `push_error`s
+  *"no native blade solver in this checkout — run `mise run native:fetch` (or
+  `mise run native:build`), then `mise run refresh`"* and `simulate_range`
+  returns **`null`**. Not a zero-step trajectory: a swing that hits nothing
+  reads green to every "nothing severed" test, which is the #823 failure. The
+  callers (`MeleeAttackPlan.resolve_against`, `AiBladeRollout`, `SkillBlade`)
+  deref the null on the next line and stop there; none guards it, because a
+  guard is a fallback wearing a hat.
+- `test_blade_goldens.gd` **fails** in `before_each`, never `pending()`.
+
+A binary predating #813 (has `simulate_range`, lacks `simulate_range_field`) is
+treated as no binary by `_acquire_native`, with a "stale" error naming the same
+cure — there is no half-GDScript path for it to keep.
+
+**Float semantics are frozen by the goldens, not by a reference.** The C++
+still reads like the transliteration it is — same expressions, same evaluation
+order, same `real_t`(float32) vs `double` split — and the goldens were
+recorded from exactly that. `BladeHitScan` turns positions into a hit *set*, so
+a 1e-7 drift next to a shape boundary is not a small error, it is a different
+attack; a "cleanup" that moves a golden by one ulp is a solver change and is
+reviewed as one (`mise run native:goldens`, fixture diff, commit says why).
+
+The build pins **`-ffp-contract=off`** (`native/SConstruct`) for **golden
+stability across compilers and optimisation flags**: GCC and Clang default to
+`-ffp-contract=fast`, and the goldens survive today only because both platforms
+this extension targets — linux and windows x86_64, the whole matrix as of #844
+— have no FMA in their SSE2 baseline. It is insurance against a future compiler
+or flag drifting the recordings, and NOT a cross-platform or multiplayer claim
+(peers replay the recorded `AttackRecord`; see the goldens section above).
 
 **Everything `simulate()` takes and everything it produces must cross the
 boundary.** Both `simulate()` PARAMETERS and `BladeState` OUTPUTS are silent
 failure modes rather than errors: a native path that ignored `substeps` or
 `enable_length_scaling` (#790) would run different physics, and one that
-omitted `speed_history` (#779) would zero blade damage — in both cases while a
-GDScript-only test run stayed perfectly green. This is exactly what happened
+omitted `speed_history` (#779) would zero blade damage — in both cases while
+every behavioural test stayed perfectly green. This is exactly what happened
 between the port being written and #790/#779 landing, so when `simulate()`'s
-signature or its state outputs change, the parity test gains a case for the new
-axis in the *same* commit. `length_factor` is the one deliberate exception: it
-crosses precomputed, because the pivot-eccentricity BFS behind it runs once per
-resolve and duplicating it in C++ would put #790's rule in two places for no
-measurable gain.
+signature or its state outputs change, `test_blade_goldens.gd` gains a case
+for the new axis in the *same* commit. `length_factor` is the one deliberate
+exception: it crosses precomputed, because the pivot-eccentricity BFS behind
+it runs once per resolve and duplicating it in C++ would put #790's rule in two
+places for no measurable gain.
 
-Note that `test_blade_sim_substep.gd` cannot serve as native coverage — it
-counts projections through a `BladeDistanceConstraint` *subclass*, which the
-fallback rule below deliberately refuses. The substep parity cases in
-`test_blade_native_parity.gd` are what actually exercise the C++ substep loop.
+**Solver-side hooks are gone with the GDScript loop.** A test used to be able
+to count sweeps with a `BladeDistanceConstraint` subclass or record the clock
+per substep with a `BladeDriver` subclass; the native solver refuses both by
+exact `get_script()` check (a subclass overriding `project()`/`apply()` would
+otherwise be silently ignored), and there is nothing left to fall back to.
+What a test observes now is what crosses the boundary: the trajectory,
+`state.speed_history`, the per-sample `clock.history` / `field.history` banks,
+and `_length_factor` itself. `test_blade_sim_substep.gd` pins the length axis
+on the factor and the substep claim on stretch error; `test_bunker_deflect.gd`
+and `test_blade_swing_drag.gd` read the banks (4x coarser than the substep
+rows they replaced, thresholds annotated with the measured values). The "at
+equal-or-lower sweep cost" half of the substep claim, and
+`BladeObstacleField.trace`'s diagnostic rows, have no producer until #848's
+resident solver object can report them.
 
-Three ways to land on GDScript, all supported:
-
-- **no binary built** -- the `ClassDB` lookup misses and the game runs anyway.
-  This is why the native class is never written as a bare identifier in
-  GDScript: that would make `blade_sim.gd` fail to *parse* on such a machine,
-  which is the opposite of a fallback.
-- **`BladeSim.use_native = false`** -- the differential-test and bench handle.
-- **`BLADE_SIM_BACKEND=gdscript`** in the environment.
-
-Plus one automatic fallback: a `BladeState` holding anything outside the
-transliterated subset -- a constraint that is not exactly a
-`BladeDistanceConstraint`, a driver that is not exactly a `BladeArcDriver`, or
-an arc driver carrying a custom ease -- takes the GDScript path rather than
-being quietly mis-simulated. The checks are `get_script() ==`, not `is`,
-precisely so a subclass that overrides `project()`/`apply()` is not swallowed.
-#813 added four more entries to that list; the whole of it is under
-"The GDScript-backend consequence — retired by #813" below.
+Every other decline is a `push_error` naming the check, then `null` — the full
+list is under "The decline list" below.
 
 ##### The defender half crosses as DATA, never as a callback (#813)
 
@@ -544,8 +567,8 @@ git history on every solver edit.
 
 `mise run native:fetch` is the matching pull side, and **runs automatically
 after `mise install`** (a `[hooks] postinstall` in `mise.toml`) so
-`mise install` stays literally the whole setup CLAUDE.md promises, even once
-#847 makes the extension mandatory. It resolves the newest Release
+`mise install` stays literally the whole setup CLAUDE.md promises, now that
+#847 has made the extension mandatory. It resolves the newest Release
 **explicitly** rather than asking `gh` for "the latest release" — a
 prerelease is deliberately excluded from that resolution, which would
 otherwise make every Release this project ever publishes invisible to a bare
@@ -554,9 +577,9 @@ otherwise make every Release this project ever publishes invisible to a bare
 verifies by sha256, and only then overwrites — a checksum mismatch is a loud
 failure, never a silently-installed truncated file. **Non-fatal when there is
 no Release yet, `gh` is missing, or GitHub is unreachable**: it warns and
-points at `mise run native:build`, because the GDScript fallback (#798) means
-the game still runs either way, and a hard failure there would break
-`mise install` for every offline or pre-Release machine. `mise run
+points at `mise run native:build` — a hard failure there would break
+`mise install` for every offline machine, and the checkout is already loud
+about the missing binary the first time a swing is simulated (#847). `mise run
 worktree:new` falls back to the same task when the source checkout it would
 otherwise copy from has nothing to seed.
 
@@ -784,7 +807,7 @@ Implementation, entirely in `attack/melee/sim/`:
   this is a pure bonus, base damage was NOT rebalanced down) multiplied by
   `speed_damage_multiplier` at each hit site.
 - **`speed_history` retains the PHYSICS rate, not the sample rate.**
-  `BladeSim._step` already computed a per-particle `sp_sq` before this landed
+  The solver substep already computed a per-particle `sp_sq` before this landed
   (feeding the existing velocity-scaled sweep budget) but only kept the
   step's aggregate max. `_step` now returns each particle's own speed for
   that substep; `BladeSim.simulate` keeps the LAST substep's return per
@@ -842,7 +865,7 @@ comment's cosine by adding quantization or avoiding transcendentals here:
 the transcendental/float-divergence concern is void as a design driver for
 this curve — `speed_damage_multiplier` itself is pure `+ - * /`, and the one
 transcendental-adjacent op anywhere in this path (`sqrt`, deriving a scalar
-speed from `sp_sq` in `BladeSim._step`) is exempt from `lint-transcendentals`
+speed from `sp_sq` in the solver substep) is exempt from `lint-transcendentals`
 as IEEE-754 correctly-rounded. The hyperbolic form was chosen on feel, not on
 determinism.
 
@@ -971,7 +994,7 @@ query answers it.
 The reach is unchanged (`zone radius + particle radius` for a disc, `zone radius
 + EDGE_RADIUS` for a capsule, no slop, no hysteresis), so only onset moved, and
 only earlier-or-equal. The `_f` seed a first contact takes reads `_last_t`, which
-`BladeSim._step` already advances per substep — that is what makes the finer
+the solver substep already advances — that is what makes the finer
 cadence safe.
 
 ### The query radius is generous on purpose — never re-tighten it
@@ -1101,7 +1124,7 @@ A node with `deflection > 0` — base 0, only `BunkerAddon` authors it — is a
 solid obstacle. `BladeObstacleField` (`attack/melee/sim/blade_obstacle_field.gd`)
 pushes every vertex disc and every rim-trimmed edge capsule back out of the
 plate's disc, every solver iteration, **after** the distance constraints —
-`BladeSim._step` runs it last in the pass so the pass ends outside every plate.
+the solver's iteration runs it last so the pass ends outside every plate.
 Most blades flop around a bunker and nothing happens; a blade too rigid to yield
 gets driven a fixed distance into the plate and then **breaks** — never the
 vertex that touched it (ADR 0005: a spike destroys matter, a bunker destroys
@@ -1279,32 +1302,35 @@ doc *hints*, rather than builds, a dedicated `plate_integrity` pool as the
 coherent next step if HP ever proves too coarse a meter — a comment, not a
 stat, not a def, not plumbing.
 
-### The GDScript-backend consequence — retired by #813
+### The decline list (was: the GDScript-backend consequence, retired by #813)
 
 This section used to say the native backend ran only when
 `clock == null and obstacles == null and step_offset == 0 and damping.is_empty()`.
 **All four conjuncts are gone:** #803 taught the C++ loop a continued Verlet
 history and per-particle damping, and #813 taught it the swing clock and the
-defender field. A swing with a bunker in reach now takes the native path like
-any other.
+defender field. A swing with a bunker in reach takes the native path like any
+other — and since #847 there is no other path.
 
-What is left is a decline list, not a gate — every entry falls back to GDScript
-rather than approximating, and each is a thing the transliteration deliberately
-does not cover:
+What is left is a decline list, not a gate. Every entry is a `push_error`
+naming the check followed by a `null` from `simulate_range` — a programming
+error at the call site, never a supported state — and each is a thing the
+transliteration deliberately does not cover:
 
 - a constraint or driver outside the subset (exact `get_script()`, so a
   subclass overriding `project()` or `apply()` can never be silently ignored) —
   including a `BladeArcDriver` with a custom ease, whose per-step Callable is
-  the very cost the backend removes;
+  the very cost the backend removes; a new ease is a C++ change;
 - a `BladeObstacleField` **subclass**, for the same reason;
-- `field.trace` on: the diagnostic rows the classification test and the melee
-  sandbox read are not transliterated;
-- a `radii` array that does not parallel `positions` (the capsule pass indexes
-  it unguarded on both sides);
-- a binary that predates #813, via `BladeSim._native_field`. That is a *second*
-  capability flag rather than a stricter `_acquire_native` on purpose: a `.so`
-  built between #803 and #813 must keep its plain-swing native path, not lose
-  it.
+- `field.trace` on: the diagnostic rows were produced by the GDScript loop and
+  have no native producer (their consumer, `test_bunker_deflect.gd`, reads the
+  per-sample banks instead since #847);
+- `prev_positions`, `damping` or `radii` arrays that do not parallel
+  `positions` (the capsule pass indexes `radii` unguarded);
+- an empty Dictionary back from the C++, which has already printed its own
+  `ERR_FAIL` reason.
+
+Verified against shipped content on 2026-09-11: no authored scene, resource or
+spawn path builds any of these — they exist only in tests and benches.
 
 ### The ghost jams, and does not break — superseded by #782
 
@@ -1430,7 +1456,7 @@ hold and are pinned:
 
 * an **empty** array — every ordinary swing — makes `_step` skip the multiply
   outright, so the driven path is bit-identical to one built before the member
-  existed, native parity included;
+  existed (the goldens' `severed_coasting_tail` case pins it);
 * a **zero entry** yields a retention factor of exactly `1.0`, so a coasting
   vertex at drag 0 coasts undecelerated. #186's acceptance 4 survives, now as a
   *per-particle* claim.
@@ -1478,7 +1504,7 @@ step `k`, parallel to `samples` index for index. The resolve loop lands on a
 severance at local sample `j` by **reading** `samples[j]` / `prev_samples[j]`
 off the bake it already has, and the swing clock — sim state too — keeps a
 chunk-local `history` of `Bank`s the same way, so `restore(history[j])` rewinds
-it without re-ticking. A rewind is two array copies; the parity suite pins that
+it without re-ticking. A rewind is two array copies; `test_blade_chunked_parity.gd` pins that
 a continuation seeded from `prev_samples` equals the run that never stopped, on
 both backends.
 
@@ -1641,8 +1667,9 @@ consequences:
 ### Solver
 
 `test/perf/bench_blade_sim.gd` (headless SceneTree script; run it, don't trust
-this table after the solver changes). It prints **both backends** in one
-invocation when the extension is built. Solver only — no hit scan. Ryzen-class
+this table after the solver changes). Since #847 it measures the one backend
+and exits non-zero without the binary; the GDScript columns below are the
+historical record from when both existed. Solver only — no hit scan. Ryzen-class
 desktop CPU, Godot 4.7.1, 1.2s swing at `dt = 1/120`, 16 base iterations.
 
 **All numbers below are at the SHIPPED defaults** (`substeps = 4`,
