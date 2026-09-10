@@ -122,7 +122,12 @@ func test_the_session_roster_decides_the_contenders_the_camps_and_the_seat() -> 
 	GameSession.roster = roster
 	GameSession.local_peer_id = 5
 
-	var root := await _launch()
+	# 300 nodes, not the 40 the other launches use: since #758 the cross-camp
+	# spawn separation is a non-degrading floor (`viability_radius * min_dist`,
+	# 6.5x on `first_level.tres`), and three camps cannot clear it on a 40-node
+	# disc — placement warns and trims to one starter, which is the *correct*
+	# crowded-map behaviour and not what this test pins. The roster seam is.
+	var root := await _launch(_SANDBOX, 300)
 
 	# PIN: `first_level.tres` authors ONE starting point, so a level that read
 	# anything other than the roster yields one starter, not four. A short list
