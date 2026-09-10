@@ -27,3 +27,7 @@ func evaluate(state: CastSpell, _target: SkillNode, _outcome: AttackOutcome) -> 
 	if state == null:
 		return false
 	return state.closed_cycle
+
+
+func get_description() -> String:
+	return "where the trail closes a loop"

@@ -1,7 +1,10 @@
 extends GutTest
 
 ## TrailBlazerStep: the "string walker". Three layers of coverage —
-##   1. step() branch logic in isolation (continue vs slam, each terminal mode);
+##   1. step() in isolation — since #851 it is PURE SELECTION, so the only
+##      branch left to assert is that there is none: a junction candidate
+##      mints exactly like a chain candidate. The slam's own arithmetic lives
+##      in `test_scale_damage_effect.gd`, which is where it moved to;
 ##   2. fan-out — every surviving candidate propagates, no random single pick
 ##      (cb1caa0). A string can't distinguish the two, so these use branches;
 ##   3. an end-to-end resolve through SpellResolver on a real string graph,
@@ -61,7 +64,9 @@ func _payload(damage: float, current: SkillNode, hops: int = 5) -> CastSpell:
 ## step in #351; renamed in #274 — the increment is absolute on purpose).
 func _trail_blazer_config(opts: Dictionary = {}) -> PropagationConfig:
 	var deg2 := ExpressionFilter.new()
-	deg2.expression = "to_degree >= 2"
+	# The from-side clause IS the stop (#851): nothing is eligible to leave a
+	# junction, so the walk ends there without a step zeroing a counter.
+	deg2.expression = "from_entity_degree <= 2 and to_degree >= 2"
 	var children: Array[PropagationFilter] = [h.owner_enemy(), deg2]
 	# Mirrors `trail_blazer.tres`: the hop budget is a SAFETY BACKSTOP, not a
 	# tuning knob. The walk is meant to end at a junction, and termination is
@@ -69,6 +74,20 @@ func _trail_blazer_config(opts: Dictionary = {}) -> PropagationConfig:
 	var o := {max_hops = 999, hop_damage = h.flat_add_progression(2.0)}
 	o.merge(opts)
 	return h.make_config(TrailBlazerStep.new(), h.composite_filter(children), null, o)
+
+
+## The stock Trailblazer slam, now an on-hit effect authored before the damage
+## effect rather than an `if` inside the step. Mirrors `trail_blazer.tres`.
+func _slam() -> ScaleDamageEffect:
+	var e := ScaleDamageEffect.new()
+	e.when = JunctionCondition.new()
+	e.mode = ScaleDamageEffect.Mode.MULTIPLY
+	e.factor = 2.0
+	return e
+
+
+func _trail_blazer_effects() -> Array[OnHitEffect]:
+	return [_slam(), DamageEffect.new()] as Array[OnHitEffect]
 
 
 # ── step() branch logic ──────────────────────────────────────────────────
@@ -86,78 +105,27 @@ func test_continue_hop_adds_increment_and_keeps_walking() -> void:
 	assert_eq(out[0].hops_remaining, 4, "decremented, walk continues")
 
 
-func test_terminal_multiply_constant_slams_and_stops() -> void:
-	# node0 has degree 3 (star 0-1,0-2,0-3) → a junction.
+## The invariant that replaces the three old terminal-mode tests: the step no
+## longer knows what a junction is. Its damage arithmetic and its hop counter
+## are the same for a degree-4 junction as for a degree-2 link, and if anyone
+## ever puts the slam back into the step this is what goes red. The slam's own
+## numbers moved to `test_scale_damage_effect.gd`, unchanged.
+func test_junction_candidate_mints_exactly_like_a_chain_candidate() -> void:
+	# node0 is a degree-3 junction of the star 0-1,0-2,0-3; node1 is a plain
+	# degree-1 neighbour. Both are minted by the same rule.
 	var graph := h.make_graph([[0, 1], [0, 2], [0, 3]], self)
 	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
-	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_CONSTANT
-	step.terminal_multiplier = 2.0
-	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
-	var out := step.step(nodes[1], _payload(9.0, nodes[1]), [nodes[0]] as Array[SkillNode], config, _ctx(graph))
-	assert_almost_eq(out[0].damage, 22.0, 0.001, "(9 + 2) × 2")
-	assert_eq(out[0].hops_remaining, 0, "slam terminates the walk")
-
-
-func test_terminal_square() -> void:
-	var graph := h.make_graph([[0, 1], [0, 2], [0, 3]], self)
-	_own_all(graph)
-	var nodes := graph.get_skill_nodes()
-	var step := TrailBlazerStep.new()
-	step.terminal_mode = TrailBlazerStep.TerminalMode.SQUARE
-	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(1.0)})
-	var out := step.step(nodes[1], _payload(5.0, nodes[1]), [nodes[0]] as Array[SkillNode], config, _ctx(graph))
-	assert_almost_eq(out[0].damage, 36.0, 0.001, "(5 + 1)² = 36")
-
-
-func test_terminal_multiply_by_degree_scales_with_junction() -> void:
-	# node0 degree 4 (0-1,0-2,0-3,0-4).
-	var graph := h.make_graph([[0, 1], [0, 2], [0, 3], [0, 4]], self)
-	_own_all(graph)
-	var nodes := graph.get_skill_nodes()
-	var step := TrailBlazerStep.new()
-	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_BY_DEGREE
-	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(1.0)})
-	var out := step.step(nodes[1], _payload(5.0, nodes[1]), [nodes[0]] as Array[SkillNode], config, _ctx(graph))
-	assert_almost_eq(out[0].damage, 24.0, 0.001, "(5 + 1) × degree 4")
-
-
-## The ONLY fixture in this file that can distinguish entity degree from graph
-## degree — see docs/domain/degree.md. Every other test either leaves nodes
-## unowned (both accessors collapse to 0 / to graph degree) or gives one entity
-## the whole graph (the two are equal by construction).
-##
-##   DEF: 0 — 1 — 2        node 1: graph degree 3, entity degree 2
-##            |
-##   ATK:     3
-##
-## A foreign node brushing the string must NOT read as a junction. On graph
-## degree node 1 is a 3 and the walk slams to a halt on the defender's own
-## chain; on entity degree it is a 2 and the walk carries on, which is the
-## spell's entire premise.
-func test_foreign_neighbour_is_not_a_junction() -> void:
-	var graph := h.make_graph([[0, 1], [1, 2], [1, 3]], self)
-	var defender := h.make_entity(graph, "DEF", Color.BLUE)
-	var attacker := h.make_entity(graph, "ATK", Color.RED)
-	h.assign_owner(graph, defender, [0, 1, 2])
-	h.assign_owner(graph, attacker, [3])
-	var nodes := graph.get_skill_nodes()
-
-	assert_eq(nodes[1].get_graph_degree(graph), 3, "graph degree sees the ATK node")
-	assert_eq(nodes[1].get_entity_degree(graph), 2, "entity degree does not")
-
-	var step := TrailBlazerStep.new()
-	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_CONSTANT
-	step.terminal_multiplier = 2.0
 	var config := h.make_config(step, null, null,
 			{max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
-
-	var out := step.step(nodes[0], _payload(3.0, nodes[0]),
-			[nodes[1]] as Array[SkillNode], config, _ctx(graph))
-
-	assert_almost_eq(out[0].damage, 5.0, 0.001, "3 + 2 — a continuation, NOT a ×2 slam")
-	assert_eq(out[0].hops_remaining, 4, "the walk carries on past the foreign neighbour")
+	var out := step.step(nodes[1], _payload(9.0, nodes[1]),
+			[nodes[0]] as Array[SkillNode], config, _ctx(graph))
+	assert_eq(out.size(), 1, "one branch minted")
+	assert_almost_eq(out[0].damage, 11.0, 0.001,
+			"9 + 2 — the ramp and nothing else; NO x2 slam at mint time")
+	assert_eq(out[0].hops_remaining, 4,
+			"the step does not zero the counter; the filter stops the walk")
 
 
 func test_empty_candidates_ends_walk() -> void:
@@ -193,29 +161,24 @@ func test_branch_mints_every_surviving_candidate_not_a_random_one() -> void:
 		assert_almost_eq(cast.damage, 5.0, 0.001, "each branch carries 3 + 2")
 
 
-func test_branch_slams_the_junction_and_continues_the_string_in_parallel() -> void:
-	# Off seed 0: node 1 is degree 2 (continue), node 2 is degree 4 (junction).
-	# Both must be minted, each resolving on its own branch rule.
+func test_branch_mints_junction_and_chain_candidates_in_parallel() -> void:
+	# Off seed 0: node 1 is degree 2, node 2 is degree 4 (a junction). Both
+	# must be minted, and since #851 both carry the SAME ramped damage — the
+	# junction's extra is applied when it lands, by the on-hit effect.
 	var graph := h.make_graph(
 		[[0, 1], [1, 3], [0, 2], [2, 4], [2, 5], [2, 6]], self)
 	_own_all(graph)
 	var nodes := graph.get_skill_nodes()
 	var step := TrailBlazerStep.new()
-	step.terminal_mode = TrailBlazerStep.TerminalMode.MULTIPLY_CONSTANT
-	step.terminal_multiplier = 2.0
 	var config := h.make_config(step, null, null, {max_hops = 5, hop_damage = h.flat_add_progression(2.0)})
 	var candidates := [nodes[1], nodes[2]] as Array[SkillNode]
 
 	var out := step.step(nodes[0], _payload(3.0, nodes[0]), candidates, config, _ctx(graph))
 
-	assert_eq(out.size(), 2, "continuation and junction both minted")
+	assert_eq(out.size(), 2, "chain and junction both minted")
 	for cast in out:
-		if cast.current_node == nodes[1]:
-			assert_almost_eq(cast.damage, 5.0, 0.001, "continuation: 3 + 2")
-			assert_eq(cast.hops_remaining, 4, "continuation keeps walking")
-		else:
-			assert_almost_eq(cast.damage, 10.0, 0.001, "junction slam: (3 + 2) × 2")
-			assert_eq(cast.hops_remaining, 0, "junction terminates its branch")
+		assert_almost_eq(cast.damage, 5.0, 0.001, "each branch carries 3 + 2, junction included")
+		assert_eq(cast.hops_remaining, 4, "neither branch is terminated by the step")
 
 
 # ── end-to-end through the resolver ──────────────────────────────────────
@@ -231,7 +194,7 @@ func test_walks_string_and_slams_junction_end_to_end() -> void:
 	h.assign_owner(graph, defender, [0, 1, 2, 3, 4, 5, 6, 7])
 	h.assign_owner(graph, attacker, [8, 9])
 
-	var effects: Array[OnHitEffect] = [DamageEffect.new()]
+	var effects := _trail_blazer_effects()
 	var spell := h.make_spell(_trail_blazer_config(), effects, 1.0)
 	var nodes := graph.get_skill_nodes()
 	var rng := RandomNumberGenerator.new()
@@ -272,7 +235,7 @@ func test_seeded_mid_string_splits_into_two_probes_walking_both_ways() -> void:
 	h.assign_owner(graph, defender, [0, 1, 2, 3, 4, 5, 6])
 	h.assign_owner(graph, attacker, [7, 8])
 
-	var effects: Array[OnHitEffect] = [DamageEffect.new()]
+	var effects := _trail_blazer_effects()
 	var spell := h.make_spell(_trail_blazer_config(), effects, 1.0)
 	var nodes := graph.get_skill_nodes()
 	var rng := RandomNumberGenerator.new()
@@ -292,6 +255,44 @@ func test_seeded_mid_string_splits_into_two_probes_walking_both_ways() -> void:
 			"E: (X + 2A) × 2 slam")
 	assert_almost_eq(h.total_damage_on(out, nodes[5]), 0.0, 0.001, "past junction, stopped")
 	assert_almost_eq(h.total_damage_on(out, nodes[6]), 0.0, 0.001, "past junction, stopped")
+
+
+## The ONE intended behaviour change in #851. **Owner, 2026-09-10: "Seed slams
+## too"** — "when it reaches a junction" includes the first landing.
+##
+## It was never true before, and not by design: the slam was decided at
+## child-mint inside the step, so hop 0 had no mint to be decided at. A cast
+## seeded directly onto a junction took plain seed damage and then walked
+## outward off the junction. Now the slam is an on-hit effect that fires where
+## the spell lands, and the stop is a `from_entity_degree <= 2` filter clause
+## that a junction fails — so both halves of "junction" apply to the seed for
+## the same reason they apply to every other landing.
+##
+##   ATK: 7 — 8        DEF star: 1,2,3 around centre 0 (entity degree 3)
+func test_seed_on_a_junction_slams_and_does_not_depart() -> void:
+	var graph := h.make_graph([[0, 1], [0, 2], [0, 3], [7, 8]], self)
+	var attacker := h.make_entity(graph, "ATK", Color.RED)
+	var defender := h.make_entity(graph, "DEF", Color.BLUE)
+	h.give_big_hp(defender)
+	h.assign_owner(graph, defender, [0, 1, 2, 3])
+	h.assign_owner(graph, attacker, [7, 8])
+
+	var spell := h.make_spell(_trail_blazer_config(), _trail_blazer_effects(), 1.0)
+	var nodes := graph.get_skill_nodes()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+
+	var out := SpellResolver.resolve(spell, nodes[0], nodes[7], attacker, graph, rng)
+
+	var x: float = h.seed_multiplier(nodes[7]) * spell.power
+	assert_almost_eq(h.total_damage_on(out, nodes[0]), x * 2.0, 0.001,
+			"the seed IS the junction, so it is slammed: X x 2")
+	for i in [1, 2, 3]:
+		assert_almost_eq(h.total_damage_on(out, nodes[i]), 0.0, 0.001,
+				"nothing may leave a junction — arm %d untouched" % i)
+	assert_eq(out.timeline.size(), 1, "one landing, no departure")
+	assert_true(out.timeline[0].is_terminal,
+			"the walk ENDED here, structurally — not merely by landing nothing else")
 
 
 # ── the hop budget is a backstop, not a limiter ───────────────────────────
@@ -321,7 +322,7 @@ func test_long_string_walks_past_the_old_20_hop_backstop_and_still_slams() -> vo
 	h.assign_owner(graph, defender, defender_nodes)
 	h.assign_owner(graph, attacker, [28, 29])
 
-	var effects: Array[OnHitEffect] = [DamageEffect.new()]
+	var effects := _trail_blazer_effects()
 	var spell := h.make_spell(_trail_blazer_config(), effects, 1.0)
 	var nodes := graph.get_skill_nodes()
 	var rng := RandomNumberGenerator.new()

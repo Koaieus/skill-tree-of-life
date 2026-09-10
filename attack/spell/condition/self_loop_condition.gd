@@ -19,3 +19,7 @@ func evaluate(state: CastSpell, target: SkillNode, _outcome: AttackOutcome) -> b
 	if state == null or target == null:
 		return false
 	return state.predecessor == target
+
+
+func get_description() -> String:
+	return "across a self-loop"

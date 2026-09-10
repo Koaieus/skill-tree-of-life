@@ -10,7 +10,18 @@ extends PropagationStep
 ##
 ## - [b]degree 2[/b] — a link in the chain. Take damage, ramp, keep walking
 ##   (never back into [member CastSpell.visited]).
-## - [b]degree > 2[/b] — a junction. Slam: apply [member terminal_mode] and stop.
+## - [b]degree > 2[/b] — a junction. The walk ends there, slammed.
+##
+## Neither half of that ending is this class's job any more (#851). The step is
+## pure selection: it mints one child per surviving candidate and nothing else.
+##   - The [b]slam[/b] is a [ScaleDamageEffect] gated on [JunctionCondition],
+##     authored before [DamageEffect] on the spell's `on_hit_effects`. It fires
+##     where the spell LANDS, which is also why a cast seeded directly onto a
+##     junction is now slammed (it never was before — the old code decided the
+##     slam at child-mint, so hop 0 had no chance to qualify).
+##   - The [b]stop[/b] is the filter: `from_entity_degree <= 2` on the spell's
+##     [ExpressionFilter]. The walk ends at a junction because nothing is
+##     eligible to leave one, not because a step zeroed a counter.
 ##
 ## So it runs down an entire trail for as long as that trail is a chain of
 ## degree-2 nodes. Launched at the tip of a trail, the first jump lands on a
@@ -26,32 +37,22 @@ extends PropagationStep
 ## This walked GRAPH degree until 2026-08-07; the step-level tests missed it
 ## because their fixtures left every node unowned (see the header of
 ## `test/unit/spell/test_line_killer_step.gd`) and the end-to-end ones missed it
-## because on a fully-owned string the two degrees coincide.
+## because on a fully-owned string the two degrees coincide. Both readers of
+## that fact now live elsewhere — [JunctionCondition] and the filter clause —
+## and `docs/domain/degree.md` is the rule.
 ##
 ## The per-hop ramp comes from [member PropagationConfig.hop_damage] (typically
-## [FlatAddProgression] with [code]increment = 2[/code]), running until the walk
-## reaches a junction — the *slam* node — where [member terminal_mode] applies
-## and the walk stops.
+## [FlatAddProgression] with [code]increment = 2[/code]).
 ##
 ## On a pure string the filter + visit cap leave exactly one candidate per hop
 ## (the unvisited next node); when multiple candidates survive, all of them get
 ## minted in parallel — no random pick.
 ##
 ## Example — seed A, string B-C-D-E, junction F (degree 3), with the stock
-## `FlatAddProgression(2)` on the propagation config, `terminal_mode =
-## MULTIPLY_CONSTANT` (×2) and a seed of 1 (`spell_damage × power`):
+## `FlatAddProgression(2)` on the propagation config, a `ScaleDamageEffect`
+## (MULTIPLY ×2, when = [JunctionCondition]) and a seed of 1
+## (`spell_damage × power`):
 ##   A=1  B=3  C=5  D=7  E=9  →  F = (9 + 2) × 2 = 22 (slam, then stops).
-
-enum TerminalMode {
-	SQUARE,               ## slam = accumulated² — steep quadratic spike.
-	MULTIPLY_BY_DEGREE,   ## slam = accumulated × the junction's graph degree.
-	MULTIPLY_CONSTANT,    ## slam = accumulated × terminal_multiplier.
-}
-
-## How the junction (degree > 2) slam damage is derived from the running total.
-@export var terminal_mode: TerminalMode = TerminalMode.MULTIPLY_CONSTANT
-## Multiplier used only when [member terminal_mode] is MULTIPLY_CONSTANT.
-@export var terminal_multiplier: float = 2.0
 
 
 func step(
@@ -64,49 +65,15 @@ func step(
 		return []
 
 	# The per-hop progression runs inside `_propagate_to` (config.hop_damage —
-	# typically FlatAddProgression(2) for the stock Trailblazer). The base
-	# `next.damage` already carries the progressed total; the historical
-	# `accumulated = payload.damage + per_hop_increment` line is now just
-	# `next.damage` straight out of `_propagate_to`. We only override damage
-	# when the candidate is a junction (the slam case).
+	# typically FlatAddProgression(2) for the stock Trailblazer), so
+	# `next.damage` already carries the progressed total. Nothing else happens
+	# here: a junction candidate is minted exactly like a chain candidate, and
+	# the arrival decides the rest.
 	var result: Array[CastSpell] = []
 	for candidate in candidates:
-		# ENTITY degree, never graph degree. The walk is about the DEFENDER's
-		# constellation shape, so a junction means "three of THEIR nodes meet
-		# here" — an enemy node brushing past the string is not a junction and
-		# must not stop the walk. See docs/domain/degree.md.
-		var degree := candidate.get_entity_degree(ctx.graph)
-		var next := _propagate_to(candidate, payload, config)
-		if degree > 2:
-			# Junction reached — slam and terminate the walk.
-			next.damage = _terminal_damage(next.damage, degree)
-			next.hops_remaining = 0
-		result.append(next)
+		result.append(_propagate_to(candidate, payload, config))
 	return result
 
 
-func _terminal_damage(accumulated: float, degree: int) -> float:
-	match terminal_mode:
-		TerminalMode.SQUARE:
-			return accumulated * accumulated
-		TerminalMode.MULTIPLY_BY_DEGREE:
-			return accumulated * float(degree)
-		TerminalMode.MULTIPLY_CONSTANT:
-			return accumulated * terminal_multiplier
-	return accumulated
-
-
 func get_description() -> String:
-	var slam := ""
-	match terminal_mode:
-		TerminalMode.SQUARE:
-			slam = "squares the total"
-		TerminalMode.MULTIPLY_BY_DEGREE:
-			slam = "multiplies by the junction's degree"
-		TerminalMode.MULTIPLY_CONSTANT:
-			slam = "×%s" % _fmt(terminal_multiplier)
-	return "Walks a single path, then %s at the first junction." % slam
-
-
-func _fmt(v: float) -> String:
-	return str(int(v)) if is_equal_approx(v, roundf(v)) else "%.1f" % v
+	return "Walks a single path along a chain of degree-2 nodes."

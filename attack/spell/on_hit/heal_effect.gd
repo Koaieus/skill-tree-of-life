@@ -20,3 +20,6 @@ func apply(state: CastSpell, outcome: AttackOutcome) -> void:
 	heal.target = state.current_node
 	heal.origin = state.predecessor if state.predecessor != null else state.source
 	outcome.hits.append(heal)
+
+func get_description() -> String:
+	return "Heals the node it lands on."

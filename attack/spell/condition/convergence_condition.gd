@@ -21,3 +21,7 @@ func evaluate(state: CastSpell, _target: SkillNode, _outcome: AttackOutcome) -> 
 	if state == null:
 		return false
 	return state.incident_count >= 2
+
+
+func get_description() -> String:
+	return "where two or more branches converge"

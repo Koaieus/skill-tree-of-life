@@ -16,3 +16,8 @@ extends Resource
 
 
 @abstract func apply(state: CastSpell, outcome: AttackOutcome) -> void
+
+## Player-facing fragment naming what this effect does at a landing. Composed
+## into spell copy; draft wording until #764.
+func get_description() -> String:
+	return ""

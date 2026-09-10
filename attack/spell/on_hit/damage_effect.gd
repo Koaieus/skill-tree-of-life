@@ -21,3 +21,6 @@ func apply(state: CastSpell, outcome: AttackOutcome) -> void:
 	hit.target = state.current_node
 	hit.origin = state.predecessor if state.predecessor != null else state.source
 	outcome.hits.append(hit)
+
+func get_description() -> String:
+	return "Deals magic damage."

@@ -139,6 +139,63 @@ Stock subclasses:
   `step/`, because filter and step both consume them (#850).
 - `RandomPickStep` — `RandomWalkPropagation` equivalent, RNG-threaded
 - `NoStep` — empty array (single-target spells)
+- `TrailBlazerStep` — walks one path along a chain. Pure selection since #851:
+  it mints one child per surviving candidate and nothing else.
+
+**A step never transforms damage on arrival, and never decides that the walk
+is over** (#851, hub #849 Seam C). Both used to happen inside
+`TrailBlazerStep`, decided at departure time from the *previous* node — which
+is why a cast seeded straight onto a junction was never slammed. They are now:
+
+- the **slam** — a `ScaleDamageEffect` gated on a `JunctionCondition`, authored
+  before `DamageEffect` in `SpellDef.on_hit_effects`;
+- the **stop** — a `from_entity_degree <= 2` clause on the spell's
+  `ExpressionFilter`. The walk ends at a junction because nothing is eligible
+  to leave one.
+
+### `LandingCondition`
+
+```gdscript
+@tool
+@abstract
+class_name LandingCondition
+extends Resource
+
+@abstract func evaluate(state: CastSpell, target: SkillNode, outcome: AttackOutcome) -> bool
+```
+
+A pure, read-only predicate over ONE landing — `CritCondition` until #851, when
+it acquired a second consumer and was named for the question instead of for an
+answer. Two consumers today:
+
+- **crits** — `SpellDef.crit_conditions`, OR-ed per landing by
+  `SpellResolver._stamp_crit_conditions`. That export keeps its name: the
+  *slot* is the crit consumer, the predicate is not.
+- **conditional on-hit effects** — `ScaleDamageEffect.when`.
+
+Stock subclasses: `LeafCondition`, `SelfLoopCondition`, `CycleCondition`,
+`ConvergenceCondition`, `JunctionCondition` (entity degree > 2), in
+`attack/spell/condition/`.
+
+### `ScaleDamageEffect`
+
+An `OnHitEffect` that scales `CastSpell.damage` in place — `MULTIPLY` /
+`SQUARE` / `MULTIPLY_BY_DEGREE`, optionally gated by a `LandingCondition`
+(null = always) — and emits nothing itself. Author it **before** `DamageEffect`
+and the damage effect emits the scaled number; effects already run in order
+over the one mutable `CastSpell`, so this is that contract used, not a new one.
+
+Two consequences worth stating rather than rediscovering:
+
+- **Effects run before departure**, so a scaled arrival is what the next hop
+  inherits. A mid-walk scale therefore compounds; a one-shot spike wants a
+  condition that also ends the walk.
+- **It scales the MERGED arrival**, after the `IncidentReducer`, where the old
+  in-step slam scaled each branch before the merge. Under `MULTIPLY` the two
+  agree by distributivity (and under max / first-wins outright), which is why
+  the Trailblazer's goldens did not move; under `SQUARE` with a summing
+  reducer they genuinely differ, and scaling the merged arrival is the
+  intended reading.
 
 ### `IncidentReducer`
 
@@ -227,8 +284,8 @@ scaled it was the tooltip, which lied about the depth it printed — fixed
 
 **Why it cannot take a global modifier at all**, independent of tuning taste:
 `max_hops` means two different things depending on whether the step
-self-terminates. Trailblazer's 999 is a *backstop* — `trail_blazer_step.gd`
-walks one path and stops at the first junction (degree > 2), so "+2 hops" does
+self-terminates. Trailblazer's 999 is a *backstop* — it walks one path and its
+filter stops it at the first junction (entity degree > 2), so "+2 hops" does
 nothing to it — while Cyclone's 8 is a *limiter*, and the same "+2" takes it
 from 8 bounces to 10. One modifier, wildly different effect per spell. Any
 future propagation tuning has to be **per-step-strategy, not a board stat**.
