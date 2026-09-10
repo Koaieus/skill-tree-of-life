@@ -86,10 +86,12 @@ func test_the_lobby_seats_every_slot_on_a_default_core() -> void:
 	var parts := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 2)
 	for p in parts:
 		assert_not_null(p.core_class, "%s must reach the level with a class" % p.display_name)
-		if p.kind == Participant.Kind.AI:
-			assert_eq(p.core_class, _BASIC_ENEMY)
-		else:
-			assert_eq(p.core_class, _BALANCED)
+		# #840, 2026-09-10: BOTH kinds now default to Balanced. The AI used to
+		# seat on basic_enemy_core ("Wise Cheater"), which handed every AI slot
+		# a silent +30 WIS head start over the human default. The WIS-heavy core
+		# is still there — it is just opt-in now, like every other choice.
+		assert_eq(p.core_class, _BALANCED,
+				"%s defaults to Balanced regardless of kind" % p.display_name)
 
 
 ## A default the picker will not list is a state the player could never get back
@@ -112,15 +114,34 @@ func test_pickable_in_defaults_to_neither_on_an_unauthored_core() -> void:
 			"and it is in no slot's dropdown")
 
 
-func test_a_player_only_core_appears_only_in_human_slots() -> void:
-	# balanced_core is authored player-side (owner call, 2026-08-26).
-	assert_true(CoreClass.pickable_for(CoreClass.PICKABLE_PLAYER).has(_BALANCED))
-	assert_false(CoreClass.pickable_for(CoreClass.PICKABLE_AI).has(_BALANCED))
+## #840, 2026-09-10 — these two used to be `test_a_player_only_core_appears_
+## only_in_human_slots` / `..._an_ai_only_core_...`, pinning `balanced_core` as
+## player-side-only and `basic_enemy_core` as AI-side-only (owner call,
+## 2026-08-26). #840 REMOVED that split on purpose: any core is pickable by any
+## slot. There is no single-sided core left for those tests to be about, so the
+## coverage is re-pointed onto the invariant that replaced them rather than
+## deleted — an authored core is offered to BOTH slots.
+##
+## The guard that still matters is unchanged and lives in
+## `test_pickable_in_defaults_to_neither_on_an_unauthored_core`: "pickable
+## everywhere" must not become "pickable by accident".
+func test_the_two_former_single_sided_cores_are_now_offered_to_both_slots() -> void:
+	for core in [_BALANCED, _BASIC_ENEMY]:
+		assert_true(CoreClass.pickable_for(CoreClass.PICKABLE_PLAYER).has(core),
+				"%s is pickable player-side" % core.display_name)
+		assert_true(CoreClass.pickable_for(CoreClass.PICKABLE_AI).has(core),
+				"%s is pickable AI-side" % core.display_name)
 
 
-func test_an_ai_only_core_appears_only_in_ai_slots() -> void:
-	assert_true(CoreClass.pickable_for(CoreClass.PICKABLE_AI).has(_BASIC_ENEMY))
-	assert_false(CoreClass.pickable_for(CoreClass.PICKABLE_PLAYER).has(_BASIC_ENEMY))
+func test_every_authored_core_is_offered_to_both_slots() -> void:
+	var for_player := CoreClass.pickable_for(CoreClass.PICKABLE_PLAYER)
+	var for_ai := CoreClass.pickable_for(CoreClass.PICKABLE_AI)
+	assert_false(for_player.is_empty(), "the player picker is not empty")
+	assert_eq(for_player.size(), for_ai.size(),
+			"#840: neither slot kind has a core the other cannot pick")
+	for core in for_player:
+		assert_true(for_ai.has(core),
+				"%s is offered AI-side too" % core.display_name)
 
 
 func test_the_three_shared_cores_appear_on_both_sides() -> void:
