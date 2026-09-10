@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+#MISE description="Re-record the blade solver's golden trajectories (test_blade_goldens.gd, #846) — a DELIBERATE act after an intentional sim change, never a way to make a red test green"
+set -euo pipefail
+
+# The goldens under test/unit/attack/fixtures/blade_goldens/ are the solver's
+# determinism contract: the shipped native build must reproduce them bit for
+# bit. Regeneration is ONLY ever this task — never automatic, never a side
+# effect of a failing run — so an intentional solver change lands as a
+# reviewable fixture diff in a commit that says why.
+#
+# Shape, same as procgen-golden-regenerate: flip the test's `_REGENERATE` const
+# to true, run THAT ONE SCRIPT in its own godot process (so nothing else in the
+# suite can flip BladeSim.use_native mid-record, and the test's own before_each
+# still fails the run if the native binary is missing), then flip the const
+# back — always, even on failure. It deliberately does NOT re-run to confirm
+# green: review the diff, re-run
+#   mise run test:one -- res://test/unit/attack/test_blade_goldens.gd
+# yourself, and commit the fixtures with the justification.
+
+ROOT="${MISE_PROJECT_ROOT:-.}"
+SCRIPT="$ROOT/test/unit/attack/test_blade_goldens.gd"
+
+if ! ls "$ROOT"/native/bin/libbladesim.* >/dev/null 2>&1; then
+	echo "✗ no native binary under native/bin/ — the goldens are recorded from the" >&2
+	echo "  C++ solver only. Fetch it first: mise run native:fetch" >&2
+	exit 1
+fi
+
+cleanup() {
+	sed -i 's/^const _REGENERATE := true$/const _REGENERATE := false/' "$SCRIPT"
+}
+trap cleanup EXIT
+
+sed -i 's/^const _REGENERATE := false$/const _REGENERATE := true/' "$SCRIPT"
+grep -q '^const _REGENERATE := true$' "$SCRIPT" || {
+	echo "✗ could not find 'const _REGENERATE := false' to flip in $SCRIPT" >&2
+	exit 1
+}
+
+echo "Recording blade goldens on the native solver…"
+godot --headless --path "$ROOT" -s res://addons/gut/gut_cmdln.gd \
+	-gtest="res://test/unit/attack/test_blade_goldens.gd" -gdir= \
+	-gdisable_colors -gexit 2>&1 | grep -E "rewritten|\[Failed\]|native blade solver|Ignoring script|Parse Error" || true
+
+echo
+echo "Fixtures rewritten under test/unit/attack/fixtures/blade_goldens/ — review"
+echo "the diff (git diff --stat), re-run the test to confirm it is green, then"
+echo "commit with a message justifying why the solver's output was supposed to change."
