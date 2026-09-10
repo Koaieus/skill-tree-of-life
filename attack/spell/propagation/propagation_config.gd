@@ -88,10 +88,17 @@ func mint(payload: CastSpell, pick: PropagationPick) -> CastSpell:
 	return next
 
 
+## Player-facing "Then" line for [SpellTooltip] (#764). A null [member spread]
+## or a zero-hop config never leaves the seed, and every sense that matters
+## here reads as "single target" rather than as a spread describer built for
+## the propagating case saying "0 hops" — owned here, not in UI code, so
+## every caller (tooltip today, #853's catalogue tomorrow) gets the same
+## answer without re-deriving the collapse.
 func get_description() -> String:
+	if spread == null or max_hops <= 0:
+		return "Single target."
 	var parts: PackedStringArray = []
-	if spread != null:
-		parts.append(spread.get_description())
+	parts.append(spread.get_description())
 	if filter != null:
 		var fd := filter.get_description()
 		if fd != "":

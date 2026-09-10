@@ -43,5 +43,7 @@ func select(
 
 func get_description() -> String:
 	var word := "highest" if direction == Direction.HIGHEST else "lowest"
-	var metric := ranker.get_description() if ranker != null else "ranked"
-	return "Chains to %d %s-%s neighbour(s)." % [take_count, word, metric]
+	var metric := ranker.get_description() if ranker != null else "rank"
+	if take_count == 1:
+		return "Chains to whichever node has the %s %s." % [word, metric]
+	return "Chains to the %d nodes with the %s %s." % [take_count, word, metric]

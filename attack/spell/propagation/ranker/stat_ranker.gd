@@ -3,7 +3,7 @@ class_name StatRanker
 extends NodeRanker
 
 ## Reads a stat value off the candidate via [method SkillNode.get_local_value].
-## Use cases: rank by current node_health (Bruiser homes to the most wounded
+## Use cases: rank by remaining node health (Bruiser homes to the most wounded
 ## target), by armor (Heavy Bolt), by any future board-stat ranking.
 ##
 ## [param stat_id] accepts #333's accessor tokens — `<stat_id>__<accessor>` —
@@ -34,11 +34,19 @@ func score(node: SkillNode, _payload: CastSpell, ctx: PropagationContext) -> flo
 	return float(v)
 
 
-## Player-facing, via [method TakeTopNSpread.get_description] into the spell
-## tooltip — so an accessor token is spelled out rather than printed raw:
-## `node_health__current` reads "current node_health", not the `__` join.
+## Player-facing, via [method TakeTopNSpread.get_description],
+## [method TopTiesFilter.get_description] and [method RankThresholdFilter.get_description]
+## into the spell tooltip (#764) — the human [member StatDef.display_name],
+## never the raw snake_case id: `node_health__current` reads "remaining node
+## health", not "current node_health" (still a leaked identifier) and
+## certainly not the bare `__` join.
 func get_description() -> String:
+	var base_id := StatFormula.base_of(stat_id)
+	var def: StatDef = StatRegistry.get_def(base_id)
+	var name := def.display_name.to_lower() if def != null else String(base_id).replace("_", " ")
 	var accessor := StatFormula.accessor_of(stat_id)
-	if accessor == &"":
-		return String(stat_id)
-	return "%s %s" % [accessor, StatFormula.base_of(stat_id)]
+	if accessor == &"current":
+		return "remaining %s" % name
+	if accessor != &"":
+		return "%s %s" % [String(accessor), name]
+	return name

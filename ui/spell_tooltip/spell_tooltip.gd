@@ -168,24 +168,23 @@ func _populate_on_arrival_section() -> void:
 	_on_arrival_section.bind(lines, dynamic)
 
 
-## [PropagationConfig] itself is mine to CALL (not to edit) — its
-## [method PropagationConfig.get_description] already exists and composes
-## filter/step/reducer/hops. A 0-hop or step-less config is single-target in
-## every sense that matters here, so that's said plainly rather than via a
-## "0 hops" reading of a describer built for the propagating case.
+## Section 3 (#764 half 2b) — [PropagationConfig] (`attack/spell/propagation/`,
+## mine) called directly; its own [method PropagationConfig.get_description]
+## now owns the single-target collapse (null/step-less/zero-hop spread), so
+## this no longer re-derives it. A null [member SpellDef.propagation] (an
+## invalid def — [method SpellDef.validate] flags it) is the one case the
+## config itself cannot answer for.
 func _populate_then_section() -> void:
 	var lines: PackedStringArray = []
 	var prop := _spell.propagation
-	var propagates := prop != null and prop.spread != null and prop.max_hops > 0
-	if not propagates:
+	if prop == null:
 		lines.append("Single target.")
 	else:
-		if prop.has_method(&"get_description"):
-			var d: String = prop.get_description()
-			if d != "":
-				lines.append(d)
-		if prop.hop_damage != null and prop.hop_damage.has_method(&"get_description"):
-			var hd: String = prop.hop_damage.get_description()
+		var d := prop.get_description()
+		if d != "":
+			lines.append(d)
+		if prop.hop_damage != null:
+			var hd := prop.hop_damage.get_description()
 			if hd != "":
 				lines.append(hd)
 	_then_section.bind(lines)

@@ -59,7 +59,6 @@ func allows(from: SkillNode, to: SkillNode, payload: CastSpell, ctx: Propagation
 	return false
 
 
-## Draft copy — #764 rewrites all stage copy into player words in one pass.
 func get_description() -> String:
 	var metric := ranker.get_description() if ranker != null else "rank"
 	match compare:

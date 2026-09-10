@@ -19,4 +19,4 @@ func reduce(incidents: Array[CastSpell], node: SkillNode, _ctx: PropagationConte
 
 
 func get_description() -> String:
-	return "Fizzles on overlap (≥2 incidents → no effect)."
+	return "Fizzles where two or more branches overlap."

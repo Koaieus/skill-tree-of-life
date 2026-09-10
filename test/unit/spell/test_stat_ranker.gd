@@ -84,10 +84,10 @@ func test_default_stat_id_is_the_current_accessor() -> void:
 # ── The description is player-facing, so the token must not leak ────────────
 
 func test_description_spells_out_an_accessor_token() -> void:
-	assert_eq(_ranker(&"node_health__current").get_description(), "current node_health",
-		"the `__` join is authoring grammar, not tooltip text")
+	assert_eq(_ranker(&"node_health__current").get_description(), "remaining node health",
+		"the human StatDef display name, not the raw snake_case id or the `__` join")
 	assert_eq(_ranker(&"armor").get_description(), "armor",
-		"a bare id is printed unchanged")
+		"a bare id already reads as its own display name, lowercased")
 
 
 # ── Load-time validation of authored content ────────────────────────────────

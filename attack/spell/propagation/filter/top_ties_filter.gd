@@ -51,8 +51,7 @@ func narrow(
 	return out
 
 
-## Draft copy — #764 rewrites all stage copy into player words in one pass.
 func get_description() -> String:
 	var metric := ranker.get_description() if ranker != null else "rank"
 	var word := "highest" if direction == Direction.HIGHEST else "lowest"
-	return "Only into the neighbours tied for %s %s." % [word, metric]
+	return "Only into nodes tied for the %s %s." % [word, metric]

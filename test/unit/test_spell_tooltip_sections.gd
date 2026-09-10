@@ -1,14 +1,13 @@
 extends GutTest
 
-## #764 — the tagline cap and the Cast/On-arrival/Crits sections. Cast is fully
-## derived ([Targeting]/[NodeTargeting] + [RangeFinder] live under
-## `attack/targeting/` and `attack/range_finder/`). On-arrival and Crits are
-## half 2a (#851 landed [code]get_description()[/code] on every [OnHitEffect]/
-## [LandingCondition] subclass, called directly now, no more duck typing).
-##
-## Then is deliberately NOT pinned here yet: its describer lives on
-## [PropagationConfig]/spread classes that #852 is still rewriting (hub #849,
-## "Refactor first"). Follow-up tracked on #764 directly.
+## #764 — the tagline cap and all four marked sections. Cast is fully derived
+## ([Targeting]/[NodeTargeting] + [RangeFinder] live under `attack/targeting/`
+## and `attack/range_finder/`). On-arrival and Crits are half 2a (#851 landed
+## [code]get_description()[/code] on every [OnHitEffect]/[LandingCondition]
+## subclass). Then is half 2b (#852 landed every spread's
+## [code]get_description()[/code]; [method PropagationConfig.get_description]
+## owns the single-target collapse). All four sections are called directly now,
+## no has_method duck typing left in `spell_tooltip.gd`.
 
 const _TOOLTIP := preload("res://ui/spell_tooltip/spell_tooltip.tscn")
 
@@ -16,6 +15,14 @@ const _TOOLTIP := preload("res://ui/spell_tooltip/spell_tooltip.tscn")
 const _SETTLE_FRAMES: int = 5
 
 const _TAGLINE_CAP: int = 80
+
+## ~4 lines at the section's 280px width, ~42 chars/line — proposed default,
+## owner-tunable; this test enforces whatever the constant says, never words.
+const _SECTION_CAP: int = 170
+
+const _SECTION_NAMES: Array[String] = [
+	"%CastSection", "%OnArrivalSection", "%ThenSection", "%CritsSection",
+]
 
 
 func _section_lines(spell: SpellDef, unique_name: String) -> PackedStringArray:
@@ -39,6 +46,10 @@ func _on_arrival_lines(spell: SpellDef) -> PackedStringArray:
 
 func _crits_lines(spell: SpellDef) -> PackedStringArray:
 	return await _section_lines(spell, "%CritsSection")
+
+
+func _then_lines(spell: SpellDef) -> PackedStringArray:
+	return await _section_lines(spell, "%ThenSection")
 
 
 func test_every_authored_tagline_is_within_the_cap() -> void:
@@ -123,3 +134,28 @@ func test_on_arrival_line_names_the_impact_damage_number() -> void:
 	var lines := await _on_arrival_lines(spell)
 	assert_eq(lines.size(), 1, "fixture: Spark has exactly one on-hit effect, no reducer")
 	assert_string_contains(lines[0], OnHitEffect._fmt_num(expected))
+
+
+## Then (#764 half 2b) — Spark's propagation authors a filter but no spread
+## (single-target by design, see `spark.tres`), so [method PropagationConfig
+## .get_description]'s collapse must fire and nothing else may sneak in.
+func test_sparks_then_section_is_exactly_the_single_target_line() -> void:
+	var lines := await _then_lines(SpellCatalog.SPARK)
+	assert_eq(lines, PackedStringArray(["Single target."]))
+
+
+## Copy budget (#764 half 2b) — each MARKED SECTION's composed text (every
+## line joined, matching how a section actually renders) stays within the
+## proposed cap over every authored spell. Empty sections (e.g. Crits on a
+## spell with no crit_conditions) trivially pass.
+func test_every_sections_composed_text_is_within_the_cap() -> void:
+	for spell in SpellCatalog.ALL:
+		for section_name in _SECTION_NAMES:
+			var lines := await _section_lines(spell, section_name)
+			var joined := " ".join(lines)
+			assert_lt(
+				joined.length(), _SECTION_CAP + 1,
+				"%s %s: %d chars (cap %d): %s" % [
+					spell.id, section_name, joined.length(), _SECTION_CAP, joined
+				]
+			)
