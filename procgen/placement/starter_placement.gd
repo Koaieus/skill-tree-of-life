@@ -75,8 +75,32 @@ func plan(
 ## widening asks once, never retries) passes `attempt = 0, max_attempts = 1`
 ## and gets back the full ask, unattenuated.
 func degrade_spacing(min_dist: float, attempt: int, max_attempts: int) -> float:
-	var full := viability_radius * min_dist
+	return _lerp_toward_floor(viability_radius * min_dist, min_dist, attempt, max_attempts)
+
+
+## The spacing a camp-aware placement should demand between two ALREADY-PLACED
+## points on try [param attempt] of [param max_attempts] — #758's fix for the
+## bimodality [method degrade_spacing] alone couldn't prevent (an enemy
+## opening right on top of the player, or nothing finding them at all).
+##
+## [param same_camp] false (any two starters in DIFFERENT camps): the full
+## `viability_radius * min_dist` ask, EVERY attempt, never degrading. Owner,
+## 2026-09-10: "this is the assertion that kills the bimodality" — a
+## cross-camp pair sitting inside each other's floor is exactly the dice roll
+## this exists to remove, so nothing here is allowed to shrink it.
+##
+## [param same_camp] true: half that ask, still degrading toward `min_dist` on
+## the same curve [method degrade_spacing] uses — the escape valve that lets a
+## crowded shape place a large camp at all, paid for by the cross-camp
+## guarantee above rather than by weakening it.
+func required_spacing(min_dist: float, attempt: int, max_attempts: int, same_camp: bool) -> float:
+	if not same_camp:
+		return viability_radius * min_dist
+	return _lerp_toward_floor(0.5 * viability_radius * min_dist, min_dist, attempt, max_attempts)
+
+
+func _lerp_toward_floor(full: float, floor_dist: float, attempt: int, max_attempts: int) -> float:
 	if max_attempts <= 1:
 		return full
 	var t := clampf(float(attempt) / float(max_attempts - 1), 0.0, 1.0)
-	return lerpf(full, min_dist, t)
+	return lerpf(full, floor_dist, t)
