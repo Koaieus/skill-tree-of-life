@@ -169,6 +169,325 @@ func test_grow_path_stops_when_no_neighbours_left() -> void:
 	assert_eq(path.size(), 0, "no owned neighbours -> empty path, not an infinite loop")
 
 
+# ── _build_archetype: rigidify-then-reach (#823) ────────────────────────────
+
+func test_archetype_no_clamp_when_pivot_adjacent_joint_already_triangulated() -> void:
+	var pivot := _spawn("Pivot")
+	var c := _spawn("C")
+	var n1 := _spawn("N1")
+	pivot.global_position = Vector2.ZERO
+	c.global_position = Vector2(50.0, 0.0)
+	n1.global_position = Vector2(50.0, 50.0)
+	_add_edge(pivot, c)
+	_add_edge(c, n1)
+	_add_edge(pivot, n1) # closes the triangle Pivot-C-N1
+	_alloc.force_allocate(_ai_entity, pivot)
+	_ai_entity.core_location = pivot
+	_alloc.force_allocate(_ai_entity, c)
+	_alloc.force_allocate(_ai_entity, n1)
+	await get_tree().process_frame
+
+	var adjacency := AiBladeRollout._owned_adjacency(_ai_entity)
+	var archetype := AiBladeRollout._build_archetype(pivot, adjacency, c.global_position, 2, 2)
+	var clamps: Array[SkillNode] = archetype.clamps
+	assert_true(clamps.is_empty(),
+			"the pivot-adjacent joint is already part of a triangle — clamping it would only " +
+			"add a redundant constraint")
+
+
+func test_archetype_procgen_clamp_is_free_rigidity() -> void:
+	var pivot := _spawn("Pivot")
+	var c := _spawn("C")
+	var n1 := _spawn("N1")
+	pivot.global_position = Vector2.ZERO
+	c.global_position = Vector2(50.0, 0.0)
+	n1.global_position = Vector2(100.0, 0.0)
+	_add_edge(pivot, c)
+	_add_edge(c, n1)
+	_alloc.force_allocate(_ai_entity, pivot)
+	_ai_entity.core_location = pivot
+	_alloc.force_allocate(_ai_entity, c)
+	_alloc.force_allocate(_ai_entity, n1)
+	var clamp_scene := preload("res://skill_node/addons/clamp_addon.tscn")
+	var real_clamp := clamp_scene.instantiate() as ClampAddon
+	c.add_child(real_clamp)
+	await get_tree().process_frame
+
+	var adjacency := AiBladeRollout._owned_adjacency(_ai_entity)
+	var archetype := AiBladeRollout._build_archetype(pivot, adjacency, n1.global_position, 3, 2)
+	var members: Array[SkillNode] = archetype.members
+	var clamps: Array[SkillNode] = archetype.clamps
+	assert_true(members.has(c) and members.has(n1), "both handle nodes are still selected")
+	assert_false(clamps.has(c), "C already carries a procgen ClampAddon — free, never spent")
+	assert_true(members.size() + clamps.size() <= 3, "budget respected: C cost only 1, not 2")
+
+
+func test_archetype_never_proposes_a_clamp_on_a_full_slot_node() -> void:
+	var pivot := _spawn("Pivot")
+	var c := _spawn("C")
+	var n1 := _spawn("N1")
+	pivot.global_position = Vector2.ZERO
+	c.global_position = Vector2(50.0, 0.0)
+	n1.global_position = Vector2(100.0, 0.0)
+	_add_edge(pivot, c)
+	_add_edge(c, n1)
+	_alloc.force_allocate(_ai_entity, pivot)
+	_ai_entity.core_location = pivot
+	_alloc.force_allocate(_ai_entity, c)
+	_alloc.force_allocate(_ai_entity, n1)
+	# force_allocate gives allocation_level 1 -> addon_slots == 1; filling it
+	# with a DIFFERENT addon (not Clamp) leaves no slot AND no `has_addon`
+	# free-rigidity match, so this specifically exercises the slot gate.
+	var spike_scene := preload("res://skill_node/addons/spike_ring_addon.tscn")
+	var spike := spike_scene.instantiate() as SpikeRingAddon
+	c.add_child(spike)
+	await get_tree().process_frame
+
+	var adjacency := AiBladeRollout._owned_adjacency(_ai_entity)
+	var archetype := AiBladeRollout._build_archetype(pivot, adjacency, n1.global_position, 2, 1)
+	var clamps: Array[SkillNode] = archetype.clamps
+	assert_false(clamps.has(c), "C's single addon_slot is already spent on the spike ring")
+
+
+func test_archetype_consecutive_gap_does_not_extend_the_handle() -> void:
+	var pivot := _spawn("Pivot")
+	var n1 := _spawn("N1")
+	var n2 := _spawn("N2")
+	pivot.global_position = Vector2.ZERO
+	n1.global_position = Vector2(50.0, 0.0)
+	n2.global_position = Vector2(100.0, 0.0)
+	_add_edge(pivot, n1)
+	_add_edge(n1, n2)
+	_alloc.force_allocate(_ai_entity, pivot)
+	_ai_entity.core_location = pivot
+	_alloc.force_allocate(_ai_entity, n1)
+	_alloc.force_allocate(_ai_entity, n2)
+	var spike_scene := preload("res://skill_node/addons/spike_ring_addon.tscn")
+	var spike := spike_scene.instantiate() as SpikeRingAddon
+	n1.add_child(spike) # N1's one slot is spent -> can't be clamped
+	await get_tree().process_frame
+
+	var adjacency := AiBladeRollout._owned_adjacency(_ai_entity)
+	var archetype := AiBladeRollout._build_archetype(pivot, adjacency, n2.global_position, 3, 2)
+	var members: Array[SkillNode] = archetype.members
+	var clamps: Array[SkillNode] = archetype.clamps
+	assert_true(members.has(n2), "N2 is still reached as a plain reach member")
+	assert_true(clamps.is_empty(),
+			"N1 (consecutive-from-pivot) can't be clamped, so N2's clamp would buy nothing " +
+			"(#771 D2) and must not be proposed even though N2 itself could take one")
+
+
+# ── D4 tier ladder + #823 requirement 3's "accidental, never sought" ───────
+
+## A long, unclamped, untriangulated straight line so the handle never runs
+## into a triangulation freebie or a slot/budget gap — clamps.size() tracks
+## handle_target exactly, which is what lets this pin the RNG draw itself.
+func _build_long_straight_chain(count: int) -> Array[SkillNode]:
+	var pivot := _spawn("Pivot")
+	pivot.global_position = Vector2.ZERO
+	var chain: Array[SkillNode] = [pivot]
+	for i in count:
+		var n := _spawn("N%d" % i)
+		n.global_position = Vector2(50.0 * (i + 1), 0.0)
+		_add_edge(chain[-1], n)
+		chain.append(n)
+	for n in chain:
+		_alloc.force_allocate(_ai_entity, n)
+	_ai_entity.core_location = pivot
+	return chain
+
+
+func test_tier_ladder_bounds_the_handle_target() -> void:
+	var chain := _build_long_straight_chain(6)
+	await get_tree().process_frame
+	var adjacency := AiBladeRollout._owned_adjacency(_ai_entity)
+	var target: Vector2 = chain[-1].global_position
+
+	var rng0 := RandomNumberGenerator.new()
+	rng0.seed = 42
+	var proposals0 := AiBladeRollout._propose_blade_selections(
+			[[chain[0], 10]], adjacency, target, 0, rng0)
+	assert_gt(proposals0.size(), 0)
+	var clamps0: Array[SkillNode] = proposals0[0][3]
+	assert_true(clamps0.size() == 0 or clamps0.size() == 1,
+			"ai_tier=0 rolls a handle target of 0 or 1, got %d" % clamps0.size())
+
+	var rng3 := RandomNumberGenerator.new()
+	rng3.seed = 42
+	var proposals3 := AiBladeRollout._propose_blade_selections(
+			[[chain[0], 10]], adjacency, target, 3, rng3)
+	assert_gt(proposals3.size(), 0)
+	var clamps3: Array[SkillNode] = proposals3[0][3]
+	assert_true(clamps3.size() == 3 or clamps3.size() == 4,
+			"ai_tier=3 rolls a handle target of 3 or 4, got %d" % clamps3.size())
+
+
+func test_tier_zero_can_land_accidentally_rigid_without_steering() -> void:
+	var pivot := _spawn("Pivot")
+	var a := _spawn("A")
+	var b := _spawn("B")
+	pivot.global_position = Vector2.ZERO
+	a.global_position = Vector2(50.0, 0.0)
+	b.global_position = Vector2(50.0, 50.0)
+	_add_edge(pivot, a)
+	_add_edge(a, b)
+	_add_edge(pivot, b) # Pivot-A-B is a natural triangle in the topology
+	_alloc.force_allocate(_ai_entity, pivot)
+	_ai_entity.core_location = pivot
+	_alloc.force_allocate(_ai_entity, a)
+	_alloc.force_allocate(_ai_entity, b)
+	await get_tree().process_frame
+
+	var adjacency := AiBladeRollout._owned_adjacency(_ai_entity)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var proposals := AiBladeRollout._propose_blade_selections(
+			[[pivot, 2]], adjacency, a.global_position, 0, rng)
+	assert_gt(proposals.size(), 0)
+	var members: Array[SkillNode] = proposals[0][1]
+	var clamps: Array[SkillNode] = proposals[0][3]
+	assert_true(clamps.is_empty(),
+			"tier 0 never deliberately spends a clamp here, regardless of what it rolls")
+	assert_eq(members.size(), 2, "both triangle members are still reached")
+
+	# The resulting BLADE is genuinely rigid — the triangle's own induced
+	# edges, not a clamp, make it so ("accidental truss, all good").
+	var plan := MeleeAttackPlan.new()
+	plan.attacker = _ai_entity
+	plan.source = pivot
+	plan.blade_nodes = members
+	var state := plan.build_blade_state()
+	assert_true(state.is_triangulated(1), "the induced Pivot-A-B triangle rigidifies A for free")
+
+
+# ── Requirement 1: a handful per pivot, bounded as blade_size grows ────────
+
+func test_proposal_count_per_pivot_stays_bounded_as_blade_size_grows() -> void:
+	var chain := _build_long_straight_chain(70)
+	await get_tree().process_frame
+	var adjacency := AiBladeRollout._owned_adjacency(_ai_entity)
+	var target: Vector2 = chain[-1].global_position
+	for max_size in [2, 16, 64]:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 1
+		var proposals := AiBladeRollout._propose_blade_selections(
+				[[chain[0], max_size]], adjacency, target, 1, rng)
+		assert_true(proposals.size() <= 4,
+				"blade_size=%d: expected at most 4 proposals for one pivot, got %d" \
+						% [max_size, proposals.size()])
+
+
+# ── Requirements 4/5: phantom clamps score exactly what a real one would ───
+
+func test_phantom_clamp_matches_a_real_one_at_build_blade_state() -> void:
+	var source := _spawn("Source")
+	var joint := _spawn("Joint")
+	var tip := _spawn("Tip")
+	_add_edge(source, joint)
+	_add_edge(joint, tip)
+	await get_tree().process_frame
+	_alloc.force_allocate(_ai_entity, source)
+	_alloc.force_allocate(_ai_entity, joint)
+	_alloc.force_allocate(_ai_entity, tip)
+
+	var real_plan := MeleeAttackPlan.new()
+	real_plan.attacker = _ai_entity
+	real_plan.source = source
+	var members: Array[SkillNode] = [joint, tip]
+	real_plan.blade_nodes = members
+	var clamp_scene := preload("res://skill_node/addons/clamp_addon.tscn")
+	var real_clamp := clamp_scene.instantiate() as ClampAddon
+	joint.add_child(real_clamp)
+	await get_tree().process_frame
+	var real_state := real_plan.build_blade_state()
+
+	joint.remove_child(real_clamp)
+	real_clamp.free()
+	var phantom_plan := MeleeAttackPlan.new()
+	phantom_plan.attacker = _ai_entity
+	phantom_plan.source = source
+	phantom_plan.blade_nodes = members
+	phantom_plan.ai_phantom_clamp_nodes = [joint]
+	var phantom_state := phantom_plan.build_blade_state()
+
+	assert_eq(phantom_state.constraints.size(), real_state.constraints.size(),
+			"a phantom clamp must append exactly the same brace count as a real one")
+	var real_pairs: Dictionary = {}
+	for c in real_state.constraints:
+		if c is BladeDistanceConstraint:
+			real_pairs[Vector2i((c as BladeDistanceConstraint).a, (c as BladeDistanceConstraint).b)] = true
+	for c in phantom_state.constraints:
+		if c is BladeDistanceConstraint:
+			var dc := c as BladeDistanceConstraint
+			assert_true(real_pairs.has(Vector2i(dc.a, dc.b)) or real_pairs.has(Vector2i(dc.b, dc.a)),
+					"phantom constraint (%d,%d) has no real-clamp counterpart" % [dc.a, dc.b])
+
+
+## Same claim, one level up — the FINALIST resolve (`plan.resolve()`, which
+## builds its own BladeState internally) must see the phantom clamp too, not
+## only a direct `build_blade_state()` call (#823 requirement 4's explicit
+## warning: a parameter alone would reach the coarse tier and not this one).
+## If `ai_phantom_clamp_nodes` only reached `build_blade_state()` when called
+## directly, a phantom-clamped `resolve()` would silently swing unclamped —
+## same geometry, fewer constraints, a DIFFERENT trajectory — and this EV
+## comparison would catch it.
+func test_phantom_clamp_reaches_the_finalist_resolve() -> void:
+	var source := _spawn("Source")
+	var joint := _spawn("Joint")
+	var tip := _spawn("Tip")
+	var target := _spawn("Target")
+	_add_edge(source, joint)
+	_add_edge(joint, tip)
+	source.global_position = Vector2.ZERO
+	joint.global_position = Vector2(60.0, 0.0)
+	# Coincident with tip's authored position (mirrors
+	# test_gather_melee_candidates_scores_a_real_hit): guarantees shape overlap
+	# at t=0 regardless of swing angle/timing, for both plans identically.
+	tip.global_position = Vector2(120.0, 0.0)
+	target.global_position = Vector2(120.0, 0.0)
+	_alloc.force_allocate(_ai_entity, source)
+	_ai_entity.core_location = source
+	_alloc.force_allocate(_ai_entity, joint)
+	_alloc.force_allocate(_ai_entity, tip)
+	_alloc.force_allocate(_hostile, target)
+	_hostile.core_location = target
+	await get_tree().process_frame
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+
+	var members: Array[SkillNode] = [joint, tip]
+
+	var real_plan := MeleeAttackPlan.new()
+	real_plan.attacker = _ai_entity
+	real_plan.source = source
+	real_plan.blade_nodes = members
+	var clamp_scene := preload("res://skill_node/addons/clamp_addon.tscn")
+	var real_clamp := clamp_scene.instantiate() as ClampAddon
+	joint.add_child(real_clamp)
+	await get_tree().process_frame
+	assert_true(real_plan.is_valid())
+	var real_outcome := real_plan.resolve()
+	var real_ev := AiCombatScorer.expected_damage(real_outcome, _ai_entity)
+
+	joint.remove_child(real_clamp)
+	real_clamp.free()
+	await get_tree().process_frame
+
+	var phantom_plan := MeleeAttackPlan.new()
+	phantom_plan.attacker = _ai_entity
+	phantom_plan.source = source
+	phantom_plan.blade_nodes = members
+	phantom_plan.ai_phantom_clamp_nodes = [joint]
+	assert_true(phantom_plan.is_valid())
+	var phantom_outcome := phantom_plan.resolve()
+	var phantom_ev := AiCombatScorer.expected_damage(phantom_outcome, _ai_entity)
+
+	assert_almost_eq(phantom_ev, real_ev, 0.001,
+			"a phantom clamp must reach resolve() and produce the identical swing a real " +
+			"ClampAddon would, not the unclamped one build_blade_state alone would give the coarse tier")
+
+
+
 # ── _coarse_rank_and_select: the WorkerThreadPool tier actually filters ─────
 
 ## Fixtures elsewhere in this file have <= _FINALIST_COUNT proposals, so every
