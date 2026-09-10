@@ -15,13 +15,14 @@ extends HBoxContainer
 ## a row that wrote into it would make "who decided this seat's colour" a
 ## two-answer question.
 ##
-## [b]Widget order is a shared contract — four issues land here.[/b] #613 made
+## [b]Widget order is a shared contract — five issues land here.[/b] #613 made
 ## the row a scene; #616 added the colour picker; #618 the core picker; #615 the
-## camp dropdown and #617 the faction emblem. The authored order is, left to
-## right:
+## camp dropdown and #617 the faction emblem; #841 the core un-override
+## control, right beside the picker it un-overrides. The authored order is,
+## left to right:
 ##
 ## [codeblock]
-##   Emblem? | Swatch | ColorPick | Sigil | CorePick | Camp? | Name | Seat
+##   Emblem? | Swatch | ColorPick | Sigil | CorePick | CoreReset? | Camp? | Name | Seat
 ## [/codeblock]
 ##
 ## Only the widgets whose issue has landed exist as nodes; the rest are named
@@ -43,6 +44,11 @@ signal color_picked(color: Color)
 ## [signal color_picked]; the sigil is not a separate pick, it rides along on
 ## [member CoreClass.sigil].
 signal core_class_picked(core: CoreClass)
+
+## This row's un-override control was pressed (#841). Reset-only — it asks
+## [LobbyScreen] to forget this seat's explicit core pick and resume following
+## the AI preset; it never re-picks a value itself.
+signal core_reset_requested()
 
 ## A slot chose a camp (#615). Same ask-don't-write contract as the other two —
 ## the camp is roster shape, and [LobbyScreen] owns the roster.
@@ -84,6 +90,7 @@ func set_editable(editable: bool) -> void:
 func _apply_disabled() -> void:
 	get_node("%ColorPick").disabled = not _editable
 	get_node("%CorePick").disabled = _cores_empty or not _editable
+	get_node("%CoreReset").disabled = not _editable
 	get_node("%Name").editable = _editable
 	# Left strictly alone while hidden: a lobby with no [LobbyPolicy] never calls
 	# [method set_camp_choices] at all, and #615's characterization contract is
@@ -101,6 +108,20 @@ func configure(participant: Participant, local_peer_id: int) -> void:
 	get_node("%Seat").text = _describe_seat(participant, local_peer_id)
 	_show_sigil_of(participant.core_class)
 	_show_emblem_of(participant.camp)
+	var reset_btn := get_node("%CoreReset") as Button
+	if not reset_btn.pressed.is_connected(_on_core_reset_pressed):
+		reset_btn.pressed.connect(_on_core_reset_pressed)
+
+
+## Show or hide the un-override control (#841). [LobbyScreen] decides this,
+## not the row: whether a pick is "an override" depends on the preset and
+## [member LobbyScreen._picked_cores], neither of which the row can see.
+func set_core_overridden(overridden: bool) -> void:
+	get_node("%CoreReset").visible = overridden
+
+
+func _on_core_reset_pressed() -> void:
+	core_reset_requested.emit()
 
 
 ## Wire the name field. The cap comes from the rule's one home

@@ -46,6 +46,14 @@ layout_mode = 2
 size_flags_vertical = 4
 tooltip_text = "Core class"
 
+[node name="CoreReset" type="Button" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Stop following this seat's own pick and resume following the AI core preset"
+text = "Reset"
+
 [node name="Camp" type="OptionButton" parent="."]
 unique_name_in_owner = true
 visible = false

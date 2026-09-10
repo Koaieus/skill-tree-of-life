@@ -136,6 +136,7 @@ var content: VBoxContainer:
 
 const _PARTICIPANT_ROW := preload("res://ui/frontmatter/panels/participant_row.tscn")
 const _AI_COUNT_ROW := preload("res://ui/frontmatter/panels/ai_count_row.tscn")
+const _CORE_PRESET_ROW := preload("res://ui/frontmatter/panels/core_preset_row.tscn")
 const _OPTION_CHOICE_ROW := preload("res://ui/frontmatter/panels/option_choice_row.tscn")
 const _BUDGET_RANGE_ROW := preload("res://ui/frontmatter/panels/budget_range_row.tscn")
 const _ROW_SCENE := preload("res://ui/common/labelled_row.tscn")
@@ -180,6 +181,12 @@ var _policy: LobbyPolicy = null
 var _seed_edit: LineEdit
 var _start_button: Button
 var _ai_count_row: AiCountRow
+var _core_preset_row: CorePresetRow
+## The AI core preset (#841). `null` is the sentinel — "no preset armed" —
+## and it is what a fresh lobby starts on, so a lobby that never touches this
+## row behaves byte-for-byte as it did before the row existed. Applies to AI
+## slots only; see [method apply_core_preset].
+var _core_preset: CoreClass = null
 var _participants: Array[Participant] = []
 var _rows_container: VBoxContainer
 ## Colours a player explicitly chose, by [member Participant.id] — survives the
@@ -325,6 +332,14 @@ func _ready() -> void:
 		_ai_count_row.set_range(0, MAX_AI_OPPONENTS)
 		_ai_count_row.set_value(DEFAULT_AI_OPPONENTS)
 		_ai_count_row.value_changed.connect(func(_v: float): _rebuild_participants())
+
+		# #841: gated the same as the count row above it — a client authors no
+		# AI slots at all ([method _offers_ai_opponents]), so it has nothing to
+		# template.
+		_core_preset_row = _CORE_PRESET_ROW.instantiate()
+		content.add_child(_core_preset_row)
+		_core_preset_row.set_choices(CoreClass.pickable_for(CoreClass.PICKABLE_AI))
+		_core_preset_row.preset_changed.connect(_on_core_preset_changed)
 
 	_rows_container = VBoxContainer.new()
 	_rows_container.add_theme_constant_override("separation", 4)
@@ -1157,14 +1172,17 @@ func _rebuild_participants() -> void:
 	for p in _participants:
 		if _picked_colors.has(p.id):
 			p.color = _picked_colors[p.id]
-		if _picked_cores.has(p.id):
-			p.core_class = _picked_cores[p.id]
 		if _picked_camps.has(p.id):
 			p.camp = _picked_camps[p.id]
 		if _picked_names.has(p.id):
 			p.display_name = _picked_names[p.id]
 		if p.kind == Participant.Kind.HUMAN and seated_peers.has(p.id):
 			p.peer_id = seated_peers[p.id]
+	# #841: cores are resolved together, not folded into the loop above like
+	# colour/camp/name — the preset's fallback-to-kind-default path has to see
+	# the WHOLE roster through [method assign_default_cores], not one
+	# participant reapplying a stale pick.
+	apply_core_preset(_participants, _picked_cores, _core_preset)
 	_refresh_rows()
 	# And the joiner sees the new shape: a rebuild used to reach it only inside
 	# START's run setup, so its lobby drew a roster the host had already
@@ -1208,11 +1226,18 @@ func _add_participant_row(participant: Participant) -> void:
 		row.set_camp_choices(
 				_policy.camp_choices(), _policy.may_pick_camp(participant.kind))
 	row.set_editable(may_edit(participant, _local_peer_id(), _offers_ai_opponents()))
+	# #841: an AI row holding an explicit pick shows the un-override control.
+	# Never inferred by comparing the row's core to the preset (acceptance 7 —
+	# a pick that happens to equal the preset is still tracked as an override)
+	# and never shown on a human row, which the preset never touches at all.
+	row.set_core_overridden(
+			participant.kind == Participant.Kind.AI and _picked_cores.has(participant.id))
 	# Through the row-signal handlers rather than straight onto the writers: on a
 	# CLIENT a pick is a request, and only the handler knows that. The writers
 	# below stay the single place a roster is actually changed, local or remote.
 	row.color_picked.connect(_on_row_color_picked.bind(participant))
 	row.core_class_picked.connect(_on_row_core_class_picked.bind(participant))
+	row.core_reset_requested.connect(_on_row_core_reset.bind(participant))
 	row.camp_picked.connect(_on_row_camp_picked.bind(participant))
 	row.name_committed.connect(_on_row_name_committed.bind(participant))
 
@@ -1232,6 +1257,28 @@ func _on_row_core_class_picked(core: CoreClass, participant: Participant) -> voi
 		_submit_pick(participant, {"core_class": core})
 		return
 	_on_core_class_picked(core, participant)
+	_broadcast_roster()
+
+
+## An AI row's reset control (#841). Reset-only, per the owner's 2026-09-10
+## call — the row cannot be re-pinned in one click, and this affordance only
+## ever clears, never sets. AI seats are never remotely editable at all
+## ([method may_edit_remotely]), so a client can never reach this — no
+## `_is_client()` branch is needed the way the pickers above need one.
+func _on_row_core_reset(participant: Participant) -> void:
+	_picked_cores.erase(participant.id)
+	apply_core_preset(_participants, _picked_cores, _core_preset)
+	_refresh_rows()
+	_broadcast_roster()
+
+
+## The AI core preset row changed (#841). Local-only, same as the AI-count
+## row beside it: a client offers neither control ([method
+## _offers_ai_opponents]), so this never fires there.
+func _on_core_preset_changed(core: CoreClass) -> void:
+	_core_preset = core
+	apply_core_preset(_participants, _picked_cores, _core_preset)
+	_refresh_rows()
 	_broadcast_roster()
 
 
@@ -1405,6 +1452,36 @@ static func assign_default_cores(participants_in: Array[Participant]) -> void:
 	for p in participants_in:
 		if p.core_class == null:
 			p.core_class = _DEFAULT_AI_CORE if p.kind == Participant.Kind.AI else _DEFAULT_PLAYER_CORE
+
+
+## The core-preset resolution rule (#841): a participant's core is its
+## [param picked_cores] entry if it has one, else [param preset] — AI slots
+## only, humans are never templated — else the kind default [method
+## assign_default_cores] alone would pick.
+##
+## [b]An explicit pick always wins, even one that equals the preset's own
+## value.[/b] [param picked_cores] carries provenance as its own state (a
+## [Participant.id] is a key in it or it is not); nothing here ever compares
+## a resolved core back against [param preset] to guess whether a pick was
+## "real" (#841 acceptance 7 — value coincidence is never provenance).
+##
+## [b][param preset] IS the sentinel, as `null`.[/b] With no preset armed,
+## every AI slot with no pick falls through to [method assign_default_cores]
+## exactly as it would with this function never having been called at all
+## (#841 acceptance 6) — the two-line body below only ever nulls a slot's
+## class when neither an explicit pick nor a live preset claims it, and
+## [method assign_default_cores] is what fills that null back in.
+static func apply_core_preset(
+	participants_in: Array[Participant], picked_cores: Dictionary, preset: CoreClass
+) -> void:
+	for p in participants_in:
+		if picked_cores.has(p.id):
+			p.core_class = picked_cores[p.id]
+		elif preset != null and p.kind == Participant.Kind.AI:
+			p.core_class = preset
+		else:
+			p.core_class = null
+	assign_default_cores(participants_in)
 
 
 ## Hand every slot a distinct colour off [param palette], in roster order

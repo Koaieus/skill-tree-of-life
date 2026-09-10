@@ -390,6 +390,210 @@ func test_human_slot_still_defaults_to_balanced_core() -> void:
 	assert_eq(parts[0].core_class, _BALANCED, "regression guard — green today")
 
 
+# --- #841: a preset row templates AI cores, and per-row overrides stick ------
+#
+# `LobbyScreen.apply_core_preset` is the resolution rule, exercised directly
+# against hand-built participants — no scene needed for the seven acceptance
+# bullets. `_SERPENT` mirrors the owner's own worked example on the issue.
+
+const _SERPENT := preload("res://entity/core/serpent_core.tres")
+
+
+func _make_ai(id: int) -> Participant:
+	var p := Participant.new()
+	p.id = id
+	p.kind = Participant.Kind.AI
+	return p
+
+
+func _make_human(id: int) -> Participant:
+	var p := Participant.new()
+	p.id = id
+	p.kind = Participant.Kind.HUMAN
+	return p
+
+
+func test_core_preset_templates_every_ai_with_no_pick() -> void:
+	# Acceptance 1.
+	var human := _make_human(1)
+	var ai1 := _make_ai(2)
+	var ai2 := _make_ai(3)
+	var parts: Array[Participant] = [human, ai1, ai2]
+
+	LobbyScreen.apply_core_preset(parts, {}, _SERPENT)
+
+	assert_eq(ai1.core_class, _SERPENT)
+	assert_eq(ai2.core_class, _SERPENT)
+	assert_eq(human.core_class, _BALANCED, "the preset never templates a human seat")
+
+
+func test_core_preset_covers_a_newly_seated_ai_id() -> void:
+	# Acceptance 2 — a raised AI count births a fresh [Participant.id] with no
+	# `_picked_cores` entry, which resolves the same as any other un-picked id.
+	var ai1 := _make_ai(2)
+	var parts: Array[Participant] = [ai1]
+	var picked := {}
+	LobbyScreen.apply_core_preset(parts, picked, _SERPENT)
+	assert_eq(ai1.core_class, _SERPENT)
+
+	var ai2 := _make_ai(3)
+	parts.append(ai2)
+	LobbyScreen.apply_core_preset(parts, picked, _SERPENT)
+
+	assert_eq(ai2.core_class, _SERPENT, "the newly seated id resolves to the live preset")
+
+
+func test_one_ai_given_a_pick_only_that_one_changes() -> void:
+	# Acceptance 3.
+	var ai1 := _make_ai(2)
+	var ai2 := _make_ai(3)
+	var parts: Array[Participant] = [ai1, ai2]
+	var picked := {2: _NINJA}
+
+	LobbyScreen.apply_core_preset(parts, picked, _SERPENT)
+
+	assert_eq(ai1.core_class, _NINJA, "the picked one keeps its own pick")
+	assert_eq(ai2.core_class, _SERPENT, "the untouched one follows the preset")
+
+
+func test_preset_change_moves_every_ai_except_the_overridden_one() -> void:
+	# Acceptance 4.
+	var ai1 := _make_ai(2)
+	var ai2 := _make_ai(3)
+	var parts: Array[Participant] = [ai1, ai2]
+	var picked := {2: _NINJA}
+
+	LobbyScreen.apply_core_preset(parts, picked, _SERPENT)
+	LobbyScreen.apply_core_preset(parts, picked, _BALANCED)
+
+	assert_eq(ai1.core_class, _NINJA, "still on its own pick")
+	assert_eq(ai2.core_class, _BALANCED, "followed the preset to its new value")
+
+
+func test_clearing_the_pick_resumes_following_the_preset() -> void:
+	# Acceptance 5.
+	var ai := _make_ai(2)
+	var parts: Array[Participant] = [ai]
+	var picked := {2: _NINJA}
+
+	LobbyScreen.apply_core_preset(parts, picked, _SERPENT)
+	assert_eq(ai.core_class, _NINJA)
+
+	picked.erase(2)
+	LobbyScreen.apply_core_preset(parts, picked, _SERPENT)
+
+	assert_eq(ai.core_class, _SERPENT, "cleared, so it follows the preset again")
+
+
+func test_sentinel_preset_behaves_exactly_as_assign_default_cores() -> void:
+	# Acceptance 6 — the assert most likely to catch a botched null check.
+	var via_preset: Array[Participant] = [_make_human(1), _make_ai(2), _make_ai(3)]
+	LobbyScreen.apply_core_preset(via_preset, {}, null)
+
+	var via_default: Array[Participant] = [_make_human(1), _make_ai(2), _make_ai(3)]
+	LobbyScreen.assign_default_cores(via_default)
+
+	for i in via_preset.size():
+		assert_eq(via_preset[i].core_class, via_default[i].core_class,
+				"no preset armed changes nothing")
+
+
+func test_a_pick_equal_to_the_preset_still_resolves_independently() -> void:
+	# Acceptance 7 — THE bullet a naive implementation (comparing the row's
+	# resolved core against the preset) fails. Provenance is `_picked_cores`
+	# holding the id, never a value comparison.
+	var ai := _make_ai(2)
+	var parts: Array[Participant] = [ai]
+	var picked := {2: _BASIC_ENEMY}
+
+	LobbyScreen.apply_core_preset(parts, picked, _BASIC_ENEMY)
+	assert_eq(ai.core_class, _BASIC_ENEMY, "premise: the pick and the preset coincide")
+
+	LobbyScreen.apply_core_preset(parts, picked, _NINJA)
+
+	assert_eq(ai.core_class, _BASIC_ENEMY,
+			"tracked as its own state — it does not follow the preset's move")
+
+
+func test_shrink_then_grow_ai_count_keeps_the_core_override() -> void:
+	# Regression guard, per the owner's 2026-09-10 correction: #643's existing
+	# rebuild-survival contract already covers this for free, so the assert is
+	# that the override SURVIVES, not the reverse.
+	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
+	lobby.set_ai_opponents(5)
+	var target: Participant = null
+	for p in lobby.participants():
+		if p.kind == Participant.Kind.AI:
+			target = p
+	lobby._on_core_class_picked(_NINJA, target)
+	assert_eq(target.core_class, _NINJA)
+	var target_id := target.id
+
+	lobby.set_ai_opponents(4)
+	lobby.set_ai_opponents(5)
+
+	var reseated: Participant = null
+	for p in lobby.participants():
+		if p.id == target_id:
+			reseated = p
+	assert_not_null(reseated, "the id that was dropped comes back on the regrow")
+	assert_eq(reseated.core_class, _NINJA, "and its override rides along, same as colour/name")
+
+
+func test_reset_affordance_shows_only_when_the_row_is_overridden() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
+	lobby.set_ai_opponents(1)
+	var ai: Participant = lobby.participants()[1]
+	assert_eq(ai.kind, Participant.Kind.AI, "premise: index 1 is the sole AI slot")
+
+	var row: ParticipantRow = lobby._rows_container.get_child(1)
+	assert_false(row.get_node("%CoreReset").visible, "not overridden yet")
+
+	lobby._on_core_class_picked(_NINJA, ai)
+	lobby._refresh_rows()
+	row = lobby._rows_container.get_child(1)
+	assert_true(row.get_node("%CoreReset").visible, "an explicit pick shows the reset control")
+
+	row.get_node("%CoreReset").pressed.emit()
+
+	row = lobby._rows_container.get_child(1)
+	assert_false(row.get_node("%CoreReset").visible, "reset cleared the override, so it hides again")
+	assert_eq(ai.core_class, _BALANCED, "and the seat falls back to the kind default with no preset armed")
+
+
+func test_setting_the_preset_templates_every_live_ai_row() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
+	lobby.set_ai_opponents(2)
+
+	lobby._core_preset_row.preset_changed.emit(_SERPENT)
+
+	for p in lobby.participants():
+		if p.kind == Participant.Kind.AI:
+			assert_eq(p.core_class, _SERPENT)
+
+
+func test_raising_ai_count_after_preset_armed_seats_new_ai_on_it() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
+	lobby.set_ai_opponents(1)
+	lobby._core_preset_row.preset_changed.emit(_SERPENT)
+
+	lobby.set_ai_opponents(3)
+
+	for p in lobby.participants():
+		if p.kind == Participant.Kind.AI:
+			assert_eq(p.core_class, _SERPENT, "a newly seated AI takes the live preset")
+
+
+func test_a_client_lobby_offers_no_core_preset_row() -> void:
+	# Owner, 2026-09-10: gate it the same as the AI-count row beside it — a
+	# client authors no AI slots at all, so it has nothing to template.
+	var lobby := LobbyScreen.new()
+	lobby.configure(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.join("10.0.0.4", 7777))
+	add_child_autofree(lobby)
+
+	assert_null(lobby._core_preset_row)
+
+
 # --- #741: a slot types its own name, the roster carries it ------------------
 
 func test_the_row_paints_the_participants_name_and_locks_with_the_seat() -> void:
