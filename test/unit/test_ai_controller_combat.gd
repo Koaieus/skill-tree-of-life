@@ -334,6 +334,54 @@ func test_melee_candidate_is_gathered_and_can_be_executed_through_take_turn() ->
 	assert_ne(_tm.current_entity, _enemy, "turn should have ended normally")
 
 
+## #823 requirement 9: a scored candidate's clamp_nodes must land on the
+## LAUNCHED plan as real temp-upgrade addons, beside blade_nodes/swing_cw —
+## execution has to match scoring, not just reach/direction. Drives
+## `_execute_candidate` directly with a synthetic candidate rather than
+## through the full rollout, so this is a claim about the execution wiring
+## specifically, independent of what the generator would have proposed here.
+func test_execute_candidate_arms_the_scored_clamp_as_a_real_addon() -> void:
+	_enemy.stat_board.blade_size.base_value = 3.0 # member (1) + clamp (1), with headroom
+	# Plain state, not `_tm.start_turn(_enemy)` — that would also fire the
+	# AI's own turn_started listener and race the manual _execute_candidate
+	# call below with a real independent take_turn(). request_attack_mode's
+	# fresh plan only needs `turn_manager.current_entity` to stamp `attacker`.
+	_tm.current_entity = _enemy
+	var candidate := AiCombatScorer.ScoredCandidate.new()
+	candidate.mode = BattleSystem.AttackMode.MELEE
+	candidate.source_node = _nodes[0]
+	var members: Array[SkillNode] = [_nodes[1]]
+	candidate.blade_nodes = members
+	candidate.swing_cw = true
+	candidate.clamp_nodes = [_nodes[1]]
+
+	assert_false(_nodes[1].has_addon(ClampAddon), "sanity: no clamp before execution")
+	# A temp upgrade is PER-SWING (`.claude/rules/blade-budget-and-clamps.md`)
+	# — `apply_temp_upgrade`'s "refunded when the plan resets" is the same
+	# lifecycle a player's own clamp click gets, and `launch_attack`'s normal
+	# post-swing plan reset frees it same as it would a human's. So the
+	# durable claim is not "the addon outlives the swing" (it must not — see
+	# `test_melee_temp_upgrade.gd`) but that it was REALLY attached, as a
+	# real SkillNodeAddon, at some point during execution — i.e. it rode the
+	# actual resolve, not a scoring-only fiction. `child_entered_tree` is the
+	# same signal `SkillNode._on_addon_added` itself listens on, so this
+	# observes the identical event production code reacts to.
+	# An Array, not a bool local — a lambda captures outer locals BY VALUE
+	# (`.claude/rules/testing.md`), so a bare `var seen := false` written
+	# inside the callback would silently mutate its own copy and never
+	# reach this assertion.
+	var seen_real_clamp: Array[bool] = []
+	_nodes[1].child_entered_tree.connect(func(c: Node) -> void:
+		if c is ClampAddon:
+			seen_real_clamp.append(true))
+	var launched: bool = await _ai._execute_candidate(candidate)
+	assert_true(launched, "a valid melee candidate must launch")
+	assert_true(not seen_real_clamp.is_empty(),
+			"the scored clamp must be armed as a REAL SkillNodeAddon on the launched plan " +
+			"(even though it is then refunded post-swing like any temp upgrade), or the " +
+			"swing that resolved is floppier than the one that was scored")
+
+
 # ---------------------------------------------------------------------------
 # Dormant Cores: scenery, until they're the wall (#604)
 # ---------------------------------------------------------------------------

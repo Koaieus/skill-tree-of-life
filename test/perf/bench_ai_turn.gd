@@ -127,7 +127,11 @@ class ProbeAI:
 	## into prep / coarse / finalist-resolve instead of arriving as one number.
 	func _gather_melee_candidates(ve: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
 		var t_all := Time.get_ticks_usec()
-		var out := ProbeAI.gather_melee_decomposed(entity, ve, ai_tier, self)
+		# `rng` is the SAME field the base class's own _ready() seeded — this
+		# override never calls super(), so it has to thread it through by
+		# hand to stay a sequencing copy of the shipped path (#823), not a
+		# second RNG stream.
+		var out := ProbeAI.gather_melee_decomposed(entity, ve, ai_tier, self, rng)
 		bump(&"melee_total", Time.get_ticks_usec() - t_all)
 		melee_gathers += 1
 		return out
@@ -156,8 +160,13 @@ class ProbeAI:
 	## [method AiBladeRollout.gather_melee_candidates]'s body, stage by stage,
 	## every stage still the shipped static. `probe` may be null (the agreement
 	## test calls it that way to get the result without recording anything).
+	## `rng` is REQUIRED, not defaulted (#823) — this is a sequencing copy, so
+	## the caller must supply the exact same generator (or an identically-
+	## seeded twin) the real path would use; a silent default here is exactly
+	## the kind of drift this probe exists to catch.
 	static func gather_melee_decomposed(
-			entity: Entity, visible_enemies: Array[SkillNode], ai_tier: int, probe: ProbeAI
+			entity: Entity, visible_enemies: Array[SkillNode], ai_tier: int, probe: ProbeAI,
+			rng: RandomNumberGenerator
 	) -> Array[AiCombatScorer.ScoredCandidate]:
 		var out: Array[AiCombatScorer.ScoredCandidate] = []
 		if entity == null or entity.navigator == null or visible_enemies.is_empty():
@@ -181,7 +190,7 @@ class ProbeAI:
 		if pivot_infos.is_empty():
 			return out
 		var proposals := AiBladeRollout._propose_blade_selections(
-				pivot_infos, adjacency, target_centroid)
+				pivot_infos, adjacency, target_centroid, ai_tier, rng)
 		if probe != null:
 			probe.bump(&"melee_prep", Time.get_ticks_usec() - t)
 			probe.bump(&"n_proposals", proposals.size())
@@ -197,7 +206,7 @@ class ProbeAI:
 		t = Time.get_ticks_usec()
 		for f in finalists:
 			var candidate := AiBladeRollout._resolve_and_score(
-					entity, f[0], f[1], f[2], visible_enemies, ai_tier)
+					entity, f[0], f[1], f[2], visible_enemies, ai_tier, f[3])
 			if candidate != null:
 				out.append(candidate)
 		if probe != null:
@@ -440,8 +449,15 @@ func test_the_decomposition_agrees_with_the_real_rollout() -> void:
 	# Give the AI something to swing at: the fixture starts with one node
 	# each, so grow the guest one hop toward the host.
 	var enemies := AiRecon.visible_enemy_nodes(remote)
-	var real := AiBladeRollout.gather_melee_candidates(remote, enemies, 0)
-	var mine := ProbeAI.gather_melee_decomposed(remote, enemies, 0, null)
+	# Identically-seeded but SEPARATE instances (#823) — the two paths must
+	# agree because every stage is the shipped static, not because they
+	# happen to share one generator's mutable draw position.
+	var rng_real := RandomNumberGenerator.new()
+	rng_real.seed = 823
+	var rng_mine := RandomNumberGenerator.new()
+	rng_mine.seed = 823
+	var real := AiBladeRollout.gather_melee_candidates(remote, enemies, 0, rng_real)
+	var mine := ProbeAI.gather_melee_decomposed(remote, enemies, 0, null, rng_mine)
 	assert_eq(mine.size(), real.size(), "same candidate count")
 	for i in mini(mine.size(), real.size()):
 		assert_eq(mine[i].source_node, real[i].source_node, "same pivot at %d" % i)
