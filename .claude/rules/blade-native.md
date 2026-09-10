@@ -4,17 +4,23 @@ paths:
   - "native/**"
 ---
 
-# The blade solver's C++ backend (#798)
+# The blade solver's C++ backend (#798, the ONLY backend since #847)
 
-The repo's only GDExtension source. Full context:
-`docs/domain/melee-blade-sim.md` → "Two backends, one meaning".
+The repo's only GDExtension source, and the only blade solver: the GDScript
+mirror is deleted, the binary is mandatory (`mise run native:fetch` /
+`native:build`), and a checkout without it gets a `push_error` naming that
+command — at simulate time, never at parse time. Full context:
+`docs/domain/melee-blade-sim.md` → "One backend, a mandatory binary".
 
 ## Never name a GDExtension class as a bare identifier in GDScript
 
 `BladeSolverNative.simulate(...)` is a **parse-time** "identifier not declared"
-on any machine where the binary wasn't built — so `blade_sim.gd` fails to load
-entirely, taking the GDScript fallback down with it. The fallback then protects
-nothing, and `mise run check` passes or fails depending on which machine ran it.
+on any machine where the binary is missing — so `blade_sim.gd` fails to load
+entirely and `mise run check` goes red with a name-resolution error instead of
+the message that names the fix. That is the whole reason the dynamic call
+survived #847's cleanup: the error surface is `BladeSim.simulate_range`'s
+`push_error("... run \`mise run native:fetch\` ...")` followed by a `null`
+return, and `check` stays clean with or without a binary.
 
 **How to apply:** go through `ClassDB` and call dynamically.
 
@@ -30,13 +36,30 @@ var out: Dictionary = _native.call(&"simulate", ...)
 var: `AiBladeRollout` calls `simulate()` from `WorkerThreadPool` tasks, and a
 lazy init would race. One shared instance is fine — the method is pure.
 
+## A missing binary returns null, and no caller may guard it
+
+`simulate_range` returns `null` after its `push_error` — for a missing binary
+AND for every `_simulate_native` decline (a constraint/driver/field subclass,
+a custom ease, `BladeObstacleField.trace`, an array that does not parallel
+`positions`). Not an empty trajectory: a zero-step swing hits nothing, which
+reads GREEN to every "nothing severed" test — the #823 failure (26 cases
+reviewed as verified off a fallback) that #816 exists to kill. The callers
+(`MeleeAttackPlan.resolve_against`, `AiBladeRollout`, `SkillBlade`) deref it
+on the next line and stop there, with the push_error as the cause.
+
+**How to apply:** never add an `if traj == null` fallback at a call site — a
+guard is a fallback wearing a hat. A test that needs a solver-side hook (a
+counting constraint, a recording driver) cannot have one any more; re-point it
+onto what crosses the boundary: `BladeTrajectory`, `state.speed_history`,
+`clock.history` / `field.history` banks (per sample), or `_length_factor`.
+
 ## Golden trajectories are the solver's determinism contract (#846)
 
 Parity-with-GDScript is **retired**: `test_blade_goldens.gd` replays twenty
 recorded worlds (`test/unit/attack/fixtures/blade_goldens/`) on the native
 backend, and a one-ulp drift anywhere is red. Not a cross-machine pin — it
-catches an *unintended* solver change (FMA, flags, a refactor) once #847 has
-deleted the reference. Full contract: `docs/domain/melee-blade-sim.md` →
+catches an *unintended* solver change (FMA, flags, a refactor), which nothing
+else can now that #847 has deleted the GDScript reference. Full contract: `docs/domain/melee-blade-sim.md` →
 "Golden trajectories".
 
 **How to apply:** an intentional output change is re-recorded with
@@ -46,52 +69,39 @@ a DIGEST-only diff is sub-1e-6 drift) and justified in the commit. A new
 `simulate_range` axis gets a `_CASES` entry in the same commit. No binary is a
 **failure** in `before_each`, never `pending()`.
 
-## The two backends must stay BIT-identical, and can
+## Float semantics in the C++ are the goldens' semantics — do not "improve" them
 
-> Until #847 deletes the GDScript solver. The parity test below is the
-> reference-agreement proof for the goldens above; the goldens outlive it.
+The C++ is a transliteration of the GDScript solver it replaced, and the
+goldens (#846) were recorded from it while both existed and verified equal.
+So `Vector2 * <double>` narrows the scalar to `real_t` first and
+`(delta * diff) * k` is two float32 multiplies, not one double multiply;
+`PackedFloat32Array` reads widen to `double` where a GDScript `var` did;
+`int(x)` truncates toward zero; `round()` is half-away-from-zero (`std::round`,
+not `rint`); authored scalars cross as `PackedFloat64Array` /
+`PackedVector2Array`, never packed into float32. Any of these "cleaned up" is
+a different solver, and the goldens go red for it — which is the point.
 
-
-Not "within tolerance": `BladeHitScan` turns solver positions into a hit *set*,
-so a last-ulp drift near a shape boundary is a different attack, not a smaller
-one. Exactness is achievable because GDScript and godot-cpp run the same
-`real_t` operators over the same libm, so a transliteration that preserves
-**evaluation order** and the **float32/double split** agrees exactly — verified,
-not hoped: `test_blade_native_parity.gd` asserts `==` on whole
-`PackedVector2Array`s.
-
-**How to apply:** in the C++, `Vector2 * <double>` narrows the scalar to
-`real_t` first, so `(delta * diff) * k` is two float32 multiplies, not one
-double multiply — write the parens the GDScript's left-to-right order implies.
-`PackedFloat32Array` reads become `double` the moment GDScript stores them in a
-`var`. `int(x)` truncates toward zero. `round()` is half-away-from-zero
-(`std::round`, not `rint`). Pass authored scalars as
-`PackedFloat64Array`/`PackedVector2Array`, never packed into float32. And never
-add `-ffast-math` / `-march=native` / anything enabling FMA contraction.
-
-`native/SConstruct` **pins `-ffp-contract=off`** for exactly that last reason.
-Do not drop it as redundant: GCC and Clang default to `-ffp-contract=fast`, and
-it only happens to be harmless today because both platforms this extension
-targets — linux and windows x86_64, the whole matrix as of #844 — have no FMA
-in their SSE2 baseline. The pin still matters as insurance against a future
-compiler or flag change on either one.
+`native/SConstruct` **pins `-ffp-contract=off`** for golden stability across
+compilers and flags: GCC and Clang default to `-ffp-contract=fast`, and it only
+happens to be harmless today because linux and windows x86_64 — the whole
+matrix as of #844 — have no FMA in their SSE2 baseline. Never add
+`-ffast-math` / `-march=native` / anything enabling contraction.
 
 ## Every value simulate() produces must cross the boundary — not just positions
 
 The native `simulate()` returns a Dictionary, and a *missing* key is not an
 error anywhere: `speed_history` (#779, what speed-scaled damage reads) once
-simply wasn't returned, which would have zeroed blade damage on every machine
-with a built binary while a GDScript-only CI stayed green. Likewise every
+simply wasn't returned, which would have zeroed blade damage on every swing while
+every behavioural test stayed green. Likewise every
 `simulate()` PARAMETER: `substeps` and `enable_length_scaling` (#790) are
 budget-shaping knobs, and a native path that ignores them runs different physics
 rather than failing.
 
 **How to apply:** when `BladeSim.simulate`'s signature or its `BladeState`
-outputs change, the parity test gains a case for the new axis in the same
-commit. `test_blade_native_parity.gd` compares `speed_history` elementwise and
-runs cases at `substeps` 1 / 4 / 8, length scaling on and off, and a blade past
-`LENGTH_ECC_CEILING` — a parity test that only checked `samples` would have
-caught none of it. Cheap parts that run once per resolve (the pivot-eccentricity
+outputs change, `test_blade_goldens.gd` gains a `_CASES` entry for the new axis
+in the same commit — its serialisation covers `speed_history`, `prev_samples`
+and the clock/field banks, and its cases already span `substeps` 1 / 4 / 8,
+length scaling on and off, and a blade past `LENGTH_ECC_CEILING`. Cheap parts that run once per resolve (the pivot-eccentricity
 BFS behind `length_factor`) stay in GDScript and are passed in precomputed: one
 definition of the rule, not two. Since #803 the C++ entry point is
 `simulate_range` (continued `prev_positions`, integer `step_offset`, per-particle
@@ -125,24 +135,13 @@ decline list and the bench numbers, in `docs/domain/melee-blade-sim.md`):
 
 ## A stale binary is no binary
 
-A `.so` built before #803 loads fine and has no `simulate_range`; `Object.call()`
-on a missing method returns null without an error, so the crash would be
-`out["samples"]` a line later on every swing. `_acquire_native` therefore
-requires `has_method(&"simulate_range")` and otherwise warns and returns null —
-the GDScript fallback, at GDScript cost. **After pulling a change to
-`native/src/`, rebuild** (`mise run native:build`); the warning in the log is the
-tell that you did not.
-
-## No native binary means PENDING, not pass
-
-> Parity file only. `test_blade_goldens.gd` FAILS without the binary (#846) —
-> under #816 it is mandatory and `mise run native:fetch` is the one-line cure.
-
-
-The GDScript fallback is a supported state, so the parity file cannot fail
-there — but it must not report *green* either, or "parity verified" means
-nothing on the machines that never ran `scons`. `pending()`, and the suite
-verdict shows it.
+A `.so` built before #803 loads fine and has no `simulate_range`; one built
+before #813 has no `simulate_range_field`. `Object.call()` on a missing method
+returns null without an error, so the crash would be `out["samples"]` a line
+later on every swing. `_acquire_native` therefore requires **both** methods and
+otherwise `push_error`s "stale (built before #813) — run `mise run
+native:fetch`" and returns null — the same broken-checkout state as no binary.
+**After pulling a change to `native/src/`, rebuild** (`mise run native:build`).
 
 ## A cached `ptrw()` aliases every snapshot you pushed
 
@@ -169,19 +168,17 @@ task aborts. Both worked through in
 is true. Godot caches its extension roster in `.godot/extension_list.cfg`, and a
 checkout whose cache predates `native/blade_sim.gdextension` never loads the
 binary no matter how many times you rebuild it. Observed on master immediately
-after #798 landed: the `.so` was on disk and all 13 parity cases still reported
+after #798 landed: the `.so` was on disk and every native test still reported
 *"no native binary in this checkout"*.
 
 **How to apply:** after the first `native:build` in any checkout (and after a
 fresh `git worktree`), run `mise run refresh`, then confirm
 `res://native/blade_sim.gdextension` is in `.godot/extension_list.cfg`. The
-gotcha is invisible without it, which is why the parity test's no-binary arm is
-`pending()` and not `pass_test()` — **never soften that back to a pass.** Its
-`test_the_native_path_actually_ran` guard exists for the same reason: without it,
-every parity case passes vacuously the moment `_simulate_native` declines a
-fixture, comparing GDScript to GDScript. Verify with a one-liner:
-`mise run test:one -- res://test/unit/attack/test_blade_native_parity.gd` must
-report **28 passed, 0 pending**, not 28 pending.
+gotcha is invisible without it, which is why `test_blade_goldens.gd`'s
+`before_each` FAILS on `BladeSim.backend() != &"native"` rather than skipping
+— **never soften that to `pending()`.** Verify with a one-liner:
+`mise run test:one -- res://test/unit/attack/test_blade_goldens.gd` must
+report every case passed, 0 pending.
 
 `mise run native:fetch` (#845) runs this same `mise run refresh` itself after
 it actually writes a binary — measured, not assumed: a totally fresh checkout
