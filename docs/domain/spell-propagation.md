@@ -56,12 +56,27 @@ is the model.
 class_name PropagationFilter
 extends Resource
 
+## Pairwise — the 95% case. A set-level filter DERIVES this from `narrow`.
 @abstract func allows(
     from_node: SkillNode,
     to_node: SkillNode,
     payload: CastSpell,
     ctx: PropagationContext) -> bool
+
+## Set-level. Defaults to the `allows` loop; override only when the rule
+## genuinely needs the whole candidate set at once.
+func narrow(
+    from_node: SkillNode,
+    candidates: Array[SkillNode],
+    payload: CastSpell,
+    ctx: PropagationContext) -> Array[SkillNode]
 ```
+
+**Set-level narrowing lives here and nowhere else** (#850, hub #849 Seam A).
+It used to have a second home: a `RankPass` chain (`CurrentThresholdPass`,
+`TopTiesPass`) inside `TakeTopNStep`, which was filtering by another name and
+which no `.tres` ever composed. Those three classes and `DegreeFilter` are
+deleted; `TakeTopNStep` is now purely "sort by ranker, take N".
 
 Stock subclasses (slot into one or more `PropagationConfig`s):
 
@@ -70,17 +85,26 @@ Stock subclasses (slot into one or more `PropagationConfig`s):
 - `MaxVisitsFilter` — reads `ctx.global_visit_count[to_node]` against
   `PropagationConfig.max_visits_per_node`; this is what subsumes both
   the old `revisit_visited` boolean and a future per-node hit cap
-- `DegreeFilter` — strict-less / less-or-equal / strict-greater /
-  greater-or-equal vs. current degree, measured inside each node's own
-  territory (Leafblower ships less-or-equal). See `docs/domain/degree.md`
-  for why entity degree and not graph degree.
+- `RankThresholdFilter` — a `NodeRanker` score compared against the CURRENT
+  node's: strict-less / less-or-equal / strict-greater / greater-or-equal.
+  With `DegreeRanker` that is degree measured inside each node's own
+  territory, which is what Leafblower (less-or-equal) and Reverberator
+  (greater-or-equal) ship; see `docs/domain/degree.md` for why entity degree
+  and not graph degree. With any other ranker it is the same rule on another
+  metric — one implementation of "candidate vs current", not two.
+- `TopTiesFilter` — set-level: keeps the candidates tying for highest (or
+  lowest) `NodeRanker` score. Overrides `narrow`.
 - `NoSelfLoopFilter` — vetoes `to == from`. Self-loops are first-class here,
   so a spell that refuses them has to say so; leaving it to emerge from
   another rule is what shipped Cyclone with the opposite behaviour (#699).
 - `CoreDistanceFilter` — closer-to-Core / farther-from-Core (Homing
   Decoring, Corifugal Bolt)
 - `CompositeFilter` — AND/OR-combine children (matches `RangeFinder`'s
-  composite pattern)
+  composite pattern). `narrow` in AND mode narrows SEQUENTIALLY, each child
+  over the previous one's survivors — the AND of pairwise children, and the
+  thing that gives a set-level child its meaning ("tied for highest *among
+  what the earlier filters left*"), so order matters once one is present.
+  OR mode is the union of each child's narrowing of the full set.
 - `ExpressionFilter` — `Expression`-backed escape hatch for one-offs,
   modeled on `StatFormula`'s expression layer
 
@@ -109,7 +133,10 @@ Stock subclasses:
   (covers Lightning / Crunch / Flood / Resonator)
 - `TakeTopNStep` — sort by a ranker, take top N (collapses
   `HighestDegreePropagation` + `RankedStatPropagation` into one configurable
-  shape: the ranker is composable too)
+  shape: the ranker is composable too). Sorting and picking ONLY — narrowing
+  the set first is `RankThresholdFilter` / `TopTiesFilter` on the filter side.
+  `NodeRanker` and its subclasses live in `propagation/ranker/`, not under
+  `step/`, because filter and step both consume them (#850).
 - `RandomPickStep` — `RandomWalkPropagation` equivalent, RNG-threaded
 - `NoStep` — empty array (single-target spells)
 
@@ -285,12 +312,16 @@ while wave not empty:
             eff.apply(state, outcome)
         ctx.global_visit_count[state.current_node] += 1
 
-    # 4. compute next wave: filter candidates, then step
+    # 4. compute next wave: cap visits, narrow through the filter, then step.
+    #    The visit cap runs FIRST — the filter is set-level, so a TopTiesFilter
+    #    must tie-break among reachable candidates, not pick a winner the cap
+    #    then deletes. For a pairwise filter the two orders are identical.
     next_wave = []
     for state in merged:
         if state.hops_remaining <= 0: continue
         candidates = [nb for nb in graph.get_neighbours(state.current_node)
-                      if config.filter.allows(state.current_node, nb, state, ctx)]
+                      if ctx.visit_count(nb) < config.max_visits_per_node]
+        candidates = config.filter.narrow(state.current_node, candidates, state, ctx)
         next_wave.append_array(config.step.step(state.current_node, state, candidates, ctx))
     wave = next_wave
 ```

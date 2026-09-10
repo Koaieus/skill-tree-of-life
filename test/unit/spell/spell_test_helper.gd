@@ -204,9 +204,21 @@ func owner(ownership_filter: int) -> OwnerFilter:
 	return f
 
 
-func degree_filter(compare: int = DegreeFilter.Compare.LESS) -> DegreeFilter:
-	var f := DegreeFilter.new()
-	f.compare = compare as DegreeFilter.Compare
+func rank_threshold_filter(
+		compare: int = RankThresholdFilter.Compare.LESS,
+		ranker: NodeRanker = null) -> RankThresholdFilter:
+	var f := RankThresholdFilter.new()
+	f.ranker = ranker if ranker != null else degree_ranker()
+	f.compare = compare as RankThresholdFilter.Compare
+	return f
+
+
+func top_ties_filter(
+		direction: int = TopTiesFilter.Direction.HIGHEST,
+		ranker: NodeRanker = null) -> TopTiesFilter:
+	var f := TopTiesFilter.new()
+	f.ranker = ranker if ranker != null else degree_ranker()
+	f.direction = direction as TopTiesFilter.Direction
 	return f
 
 

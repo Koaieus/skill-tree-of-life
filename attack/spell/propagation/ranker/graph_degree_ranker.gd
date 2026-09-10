@@ -4,7 +4,8 @@ extends NodeRanker
 
 ## Live GRAPH degree of the candidate — whole-board connectivity, not
 ## territory-relative. Not wired into any shipped spell today (2026-08-15):
-## Reverberator climbs territory degree via [DegreeFilter] instead (#417),
+## Reverberator climbs territory degree via [RankThresholdFilter] + [DegreeRanker]
+## instead (#417),
 ## and Resonator fans to every neighbour and crits on convergence (#352) —
 ## neither reads a ranker at all. Kept as a ready piece for a future spell
 ## that deliberately wants "most connected on the whole board" (e.g. a

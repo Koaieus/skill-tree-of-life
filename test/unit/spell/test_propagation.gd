@@ -229,13 +229,14 @@ func test_self_loop_sum_merger_compounds_returns() -> void:
 
 
 func test_degree_filter_strict_less_routes_downhill() -> void:
-	# Hub 1 (deg 3) - leaves 2, 3, 4. Seed at hub, fan with DegreeFilter(LESS)
-	# → propagates only to the lower-degree neighbours (all leaves).
+	# Hub 1 (deg 3) - leaves 2, 3, 4. Seed at hub, fan with
+	# RankThresholdFilter(DegreeRanker, LESS) → propagates only to the
+	# lower-degree neighbours (all leaves).
 	var ctx := _setup_full_enemy([[0, 1], [1, 2], [1, 3], [1, 4]], [0], [1, 2, 3, 4])
 	var helper: SpellTestHelper = ctx[0]
 	var graph: Graph = ctx[1]
 	var atk: Entity = ctx[2]
-	var filter := helper.composite_filter([helper.owner_enemy(), helper.degree_filter()])
+	var filter := helper.composite_filter([helper.owner_enemy(), helper.rank_threshold_filter()])
 	var config := helper.make_config(helper.fan_all(), filter, helper.max_reducer(), {max_hops = 1})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
 	var n := graph.get_skill_nodes()

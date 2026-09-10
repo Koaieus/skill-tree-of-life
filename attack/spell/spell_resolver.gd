@@ -251,16 +251,22 @@ static func resolve_against(
 			if state.hops_remaining <= 0 or config.step == null:
 				_mark_terminal(event_of, state)
 				continue
-			var candidates: Array[SkillNode] = []
-			for nb in graph.get_neighbours(state.current_node):
-				if config.filter == null or config.filter.allows(state.current_node, nb, state, ctx):
-					candidates.append(nb)
-			# Always enforce max_visits_per_node, even if filter is null —
-			# without it, the resolver would loop forever on connected graphs.
+			# Always enforce max_visits_per_node FIRST, and even if the filter
+			# is null — without it, the resolver would loop forever on
+			# connected graphs. Ahead of the filter rather than behind it
+			# because the filter is now set-level (#850): a [TopTiesFilter]
+			# must tie-break among candidates that can actually be reached,
+			# not pick a winner the cap then deletes. For a pairwise filter
+			# the two orders are identical — independent predicates commute.
 			var capped: Array[SkillNode] = []
-			for nb in candidates:
+			for nb in graph.get_neighbours(state.current_node):
 				if ctx.visit_count(nb) < config.max_visits_per_node:
 					capped.append(nb)
+			# ONE set-level question per landing, not one per candidate. The
+			# base [PropagationFilter.narrow] is the old pairwise `allows`
+			# loop; a set-level filter overrides it.
+			if config.filter != null:
+				capped = config.filter.narrow(state.current_node, capped, state, ctx)
 			var stepped: Array[CastSpell] = config.step.step(
 					state.current_node, state, capped, config, ctx)
 			# "Ended by terminal rule" includes a step that CHOSE to stop —
