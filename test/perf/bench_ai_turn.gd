@@ -26,10 +26,9 @@ extends GutTest
 ## same finalists so a drift in either is a red test, not a silently wrong
 ## table.
 ##
-## [b]Both backends in one run.[/b] `BladeSim.use_native` is a plain static
-## bool, so a single process can measure native and GDScript back to back on
-## two identical fresh fixtures. The whole point of the exercise is what #798
-## bought on THIS path; a table with one column cannot say.
+## [b]One backend[/b] since #847 deleted the GDScript solver; the findings
+## below were taken while both still existed and keep both columns as the
+## record of what #798 bought on this path.
 ##
 ## [b]Findings, 2026-09-08[/b] (Ryzen 7 7800X3D, master `689fc27`, headless GUT
 ## at ~140 fps — so a process frame is ~7 ms of REAL time, not of work):
@@ -66,19 +65,16 @@ const _REMOTE_PEER := 2
 const _RESOLVE_REPS := 5
 
 var _saved_ai_delay: float
-var _saved_use_native: bool
 
 
 func before_each() -> void:
 	GameSession.end()
 	_saved_ai_delay = Settings.current.ai_turn_delay
-	_saved_use_native = BladeSim.use_native
 	Settings.current.ai_turn_delay = 0.0
 
 
 func after_each() -> void:
 	Settings.current.ai_turn_delay = _saved_ai_delay
-	BladeSim.use_native = _saved_use_native
 	GameSession.end()
 
 
@@ -294,9 +290,8 @@ func _ms(probe: ProbeAI, key: StringName) -> float:
 	return float(int(probe.buckets.get(key, 0))) / 1000.0
 
 
-## One full turn under one backend. Returns the probe plus the wall clock.
-func _run_turn(label: String, use_native: bool) -> Dictionary:
-	BladeSim.use_native = use_native
+## One full turn. Returns the probe plus the wall clock.
+func _run_turn(label: String) -> Dictionary:
 	var fx := await _build_fixture()
 	var root: GameRoot = fx["root"]
 	var remote: Entity = fx["remote"]
@@ -434,15 +429,13 @@ func _resolve_micro_split(probe: ProbeAI, ent: Entity) -> void:
 	gut.p("    %-28s : %8.2fx" % ["full / coarse", sim_ms / maxf(coarse_ms, 0.00001)])
 
 
-func test_bench_ai_turn_native_backend() -> void:
-	if not BladeSim.native_available():
-		pending("no native binary in this checkout — build with `mise run native:build`, then `mise run refresh`")
-		return
-	await _run_turn("AI turn on #797's 4-node fixture", true)
-
-
-func test_bench_ai_turn_gdscript_backend() -> void:
-	await _run_turn("AI turn on #797's 4-node fixture", false)
+func test_bench_ai_turn() -> void:
+	# The binary is mandatory (#847): a missing one is a failure here, never
+	# PENDING, and `mise run native:fetch` is the one-line cure.
+	assert_eq(BladeSim.backend(), &"native",
+			"the native blade solver is loaded — run `mise run native:fetch` "
+			+ "(or `mise run native:build`) and `mise run refresh`")
+	await _run_turn("AI turn on #797's 4-node fixture")
 
 
 ## The decomposition is a re-sequencing of [AiBladeRollout]'s statics, not a

@@ -17,60 +17,32 @@ const DURATION := 1.2
 const REPS := 20
 
 
-## Counts constraint projections without touching blade_distance_constraint.gd
-## (not owned by this unit) — shares a counter box across every constraint
-## in a state. Mirrors test/unit/attack/test_blade_sim_substep.gd's copy;
-## kept separate on purpose (perf harness vs correctness test, different
-## lifetimes) rather than a shared prod dependency for two measurement tools.
-class _CountingConstraint extends BladeDistanceConstraint:
-	var _counter: Array
-
-	func _init(a_: int, b_: int, rest_: float, counter: Array) -> void:
-		super(a_, b_, rest_)
-		_counter = counter
-
-	func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> void:
-		_counter[0] += 1
-		super.project(positions, inv_masses)
-
-
 func _initialize() -> void:
-	# #798: both backends in one invocation, so the before/after is a single
-	# table on a single machine rather than two runs you have to trust.
-	if BladeSim.native_available():
-		_table("gdscript", false)
-		_table("native (C++ GDExtension)", true)
-	else:
-		print("BladeSolverNative not loaded — GDScript only. Build it with `mise run native:build`.")
-		_table("gdscript", false)
-	# #790's sweep-count rows count constraint projections through a
-	# BladeDistanceConstraint SUBCLASS, which the native path deliberately
-	# refuses (see BladeSim._simulate_native's exact get_script() check) — so
-	# they are a GDScript measurement by construction and run once, outside
-	# the per-backend tables, rather than printing the same numbers twice.
-	# #803: a pop swing is one whole bake plus one re-baked tail, on whichever
-	# backend is live — so its solver cost is bounded by "no-pop swing + tail",
-	# and this row is the measurement acceptance 5 asks for. Both backends.
-	if BladeSim.native_available():
-		_bench_pop_swing("native (C++ GDExtension)", true)
-	_bench_pop_swing("gdscript", false)
-	BladeSim.use_native = false
+	# #847: one backend. A checkout without the binary has nothing to measure.
+	if not BladeSim.native_available():
+		print("BladeSolverNative not loaded — nothing to bench. `mise run native:fetch` (or `native:build`), then `mise run refresh`.")
+		quit(1)
+		return
+	_table("native (C++ GDExtension)")
+	# #803: a pop swing is one whole bake plus one re-baked tail — so its solver
+	# cost is bounded by "no-pop swing + tail", and this row is the measurement
+	# acceptance 5 asks for.
+	_bench_pop_swing("native (C++ GDExtension)")
 	print("")
-	print("--- #790: 100-node / ~250-constraint swing, today's settings vs substepped ---")
+	print("--- #790: 100-node / ~250-constraint swing, flat settings vs substepped ---")
 	_bench_substep_config("braced mesh (realistic density)", 100, true)
 	print("--- #790: 100-node WHIP (worst case for the length axis — pivot ecc ~99) ---")
 	_bench_substep_config("pure chain (whip)", 100, false)
-	print("--- #796: what a k=100 swing costs on the backend that actually runs it ---")
-	_bench_k100_backends("braced mesh", 100, true)
-	_bench_k100_backends("pure chain (whip)", 100, false)
+	print("--- #796: what a k=100 swing costs ---")
+	_bench_k100("braced mesh", 100, true, false)
+	_bench_k100("pure chain (whip)", 100, false, false)
 	print("--- #813: the same swing with a defender field + swing clock on it ---")
-	_bench_k100_defended("braced mesh", 100, true)
-	_bench_k100_defended("pure chain (whip)", 100, false)
+	_bench_k100("braced mesh", 100, true, true)
+	_bench_k100("pure chain (whip)", 100, false, true)
 	quit()
 
 
-func _table(backend: String, native: bool) -> void:
-	BladeSim.use_native = native
+func _table(backend: String) -> void:
 	print("")
 	print("=== backend: %s === (%.1fs swing, solver only)" % [backend, DURATION])
 	for k in [5, 10, 20, 30]:
@@ -94,8 +66,7 @@ func _table(backend: String, native: bool) -> void:
 ## mutates, and re-bakes the tail. So a pop swing's SOLVER cost is exactly
 ## whole + tail, and the row states all three so the bound is visible. Before
 ## #803 the tail ran GDScript regardless of backend (and a head replay ran too).
-func _bench_pop_swing(backend: String, native: bool) -> void:
-	BladeSim.use_native = native
+func _bench_pop_swing(backend: String) -> void:
 	var k := 20
 	var steps := int(ceil(DURATION / (1.0 / 120.0)))
 	var cut := steps / 3
@@ -198,13 +169,13 @@ func _total_stretch_error(state: BladeState) -> float:
 	return total
 
 
-## Builds `k` nodes densely-braced (if `dense`) or as a pure whip, with every
-## constraint counted, then runs it at TODAY's flat settings and at the
-## substepped + length-scaled config (#790), reporting wall-clock, total
-## constraint-projection count, and the shape-holding metric for both.
+## Builds `k` nodes densely-braced (if `dense`) or as a pure whip, then runs it
+## at the pre-#790 flat settings and at the substepped + length-scaled config,
+## reporting wall-clock and the shape-holding metric for both. The projection
+## count this row used to print came from a counting constraint subclass the
+## native solver refuses (#847); wall-clock is the proxy now.
 func _bench_substep_config(label: String, k: int, dense: bool) -> void:
-	var old_counter: Array = [0]
-	var old_state := _dense_or_chain(k, dense, old_counter)
+	var old_state: BladeState = _dense_mesh(k) if dense else _chain(k)
 	var old_ecc := old_state.pivot_eccentricity()
 	var t0 := Time.get_ticks_usec()
 	BladeSim.simulate(
@@ -213,8 +184,7 @@ func _bench_substep_config(label: String, k: int, dense: bool) -> void:
 	var old_us := Time.get_ticks_usec() - t0
 	var old_error := _total_stretch_error(old_state)
 
-	var new_counter: Array = [0]
-	var new_state := _dense_or_chain(k, dense, new_counter)
+	var new_state: BladeState = _dense_mesh(k) if dense else _chain(k)
 	t0 = Time.get_ticks_usec()
 	BladeSim.simulate(
 			new_state, _drivers_for(new_state), DURATION,
@@ -223,92 +193,52 @@ func _bench_substep_config(label: String, k: int, dense: bool) -> void:
 	var new_error := _total_stretch_error(new_state)
 
 	print("%s: k=%d constraints=%d pivot_ecc=%d" % [label, k, old_state.constraints.size(), old_ecc])
-	print("  today   (dt=1/120, 16 it, substeps=1, length off): %6d us, %8d projections, stretch_error=%.3f"
-			% [old_us, old_counter[0], old_error])
-	print("  #790    (dt=1/120, %d it, substeps=%d, length on): %6d us, %8d projections, stretch_error=%.3f"
-			% [BladeSim.DEFAULT_ITERATIONS, BladeSim.DEFAULT_SUBSTEPS, new_us, new_counter[0], new_error])
-	print("  projection ratio (new/old): %.2fx   wall-clock ratio (new/old): %.2fx"
-			% [float(new_counter[0]) / float(old_counter[0]), float(new_us) / float(old_us)])
-
-
-func _dense_or_chain(k: int, dense: bool, counter: Array) -> BladeState:
-	var s: BladeState = _dense_mesh(k) if dense else _chain(k)
-	var counted: Array[BladeConstraint] = []
-	for c in s.constraints:
-		var dc := c as BladeDistanceConstraint
-		counted.append(_CountingConstraint.new(dc.a, dc.b, dc.rest, counter))
-	s.constraints = counted
-	return s
+	print("  flat    (dt=1/120, 16 it, substeps=1, length off): %6d us, stretch_error=%.3f"
+			% [old_us, old_error])
+	print("  #790    (dt=1/120, %d it, substeps=%d, length on): %6d us, stretch_error=%.3f"
+			% [BladeSim.DEFAULT_ITERATIONS, BladeSim.DEFAULT_SUBSTEPS, new_us, new_error])
+	print("  wall-clock ratio (new/old): %.2fx" % (float(new_us) / float(old_us)))
 
 
 func _drivers_for(state: BladeState) -> Array[BladeDriver]:
 	return [BladeArcDriver.new(1, state.positions[0], SPACING, 0.0, TAU, DURATION)]
 
 
-## The row #813 exists for: the SAME k=100 swing carrying a BladeSwingClock and
-## a BladeObstacleField — the shape EVERY swing near a wall or a plate has had
-## since #811, and the shape that took the GDScript path whole until #813 ported
-## the field. One wall and one plate, both on the arc the blade really sweeps.
-func _bench_k100_defended(label: String, k: int, dense: bool) -> void:
-	# Zone centres are read off the blade's OWN trajectory, never off its rest
-	# span: a k=100 chain whips so hard that a zone at the span is one the blade
-	# never reaches, and the row would then time the broad-phase reject instead
-	# of the contact path (`.claude/rules/melee-fixtures.md`). The `drag=` and
-	# `peak_strain=` columns are the receipt that it really did make contact.
-	var probe: BladeState = _dense_mesh(k) if dense else _chain(k)
-	BladeSim.use_native = BladeSim.native_available()
-	var probe_traj := BladeSim.simulate(probe, _drivers_for(probe), DURATION,
-			BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0,
-			BladeSim.DEFAULT_SUBSTEPS, true)
-	var last := probe_traj.samples.size() - 1
-	var wall_at: Vector2 = (probe_traj.samples[last / 3] as PackedVector2Array)[k / 2]
-	var plate_at: Vector2 = (probe_traj.samples[last * 2 / 3] as PackedVector2Array)[k / 2]
-
-	for native in [false, true]:
-		if native and not BladeSim.native_available():
-			continue
-		BladeSim.use_native = native
-		var state: BladeState = _dense_mesh(k) if dense else _chain(k)
+## The k=100 swing — #796's main-thread-stall number — bare, and (#813) carrying
+## a BladeSwingClock and a BladeObstacleField, the shape EVERY swing near a wall
+## or a plate has had since #811. One wall and one plate, both on the arc the
+## blade really sweeps: zone centres are read off the blade's OWN trajectory,
+## never off its rest span — a k=100 chain whips so hard that a zone at the
+## span is one the blade never reaches, and the row would then time the
+## broad-phase reject instead of the contact path
+## (`.claude/rules/melee-fixtures.md`). The `drag=` and `peak_strain=` columns
+## are the receipt that it really did make contact.
+func _bench_k100(label: String, k: int, dense: bool, defended: bool) -> void:
+	var state: BladeState = _dense_mesh(k) if dense else _chain(k)
+	var clock: BladeSwingClock = null
+	if defended:
+		var probe: BladeState = _dense_mesh(k) if dense else _chain(k)
+		var probe_traj := BladeSim.simulate(probe, _drivers_for(probe), DURATION,
+				BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0,
+				BladeSim.DEFAULT_SUBSTEPS, true)
+		var last := probe_traj.samples.size() - 1
+		var wall_at: Vector2 = (probe_traj.samples[last / 3] as PackedVector2Array)[k / 2]
+		var plate_at: Vector2 = (probe_traj.samples[last * 2 / 3] as PackedVector2Array)[k / 2]
 		var field := BladeObstacleField.new()
 		field.add_defender_zone(wall_at, 32.0, 1.0, false)
 		field.add_defender_zone(plate_at, 32.0, 0.0, true)
 		state.obstacles = field
-		var clock := BladeSwingClock.new(DURATION)
-		var t0 := Time.get_ticks_usec()
-		BladeSim.simulate(state, _drivers_for(state), DURATION,
-				BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0,
-				BladeSim.DEFAULT_SUBSTEPS, true, clock)
-		var us := Time.get_ticks_usec() - t0
-		var peak := 0.0
-		for b: BladeObstacleField.Bank in field.history:
-			for v in b.strain:
-				peak = maxf(peak, v)
-		print("  %-20s %-26s %7d us   drag=%.1f peak_strain=%.2f" % [
-				label, "native (C++ GDExtension)" if native else "gdscript",
-				us, clock.drag, peak])
-	BladeSim.use_native = false
-
-
-## The #790 rows above count projections through a constraint SUBCLASS, which
-## `_simulate_native` refuses by an exact `get_script()` check — so they are a
-## GDScript measurement BY CONSTRUCTION and say nothing about what a k=100 swing
-## costs today. This row runs the same #790 configuration on the plain
-## constraints the native backend accepts, on both backends.
-##
-## It exists because #796's body quotes the GDScript numbers (324 ms / 792 ms) as
-## the main-thread stall, and #798 landed a backend after those were measured.
-## Read THIS row as that issue's "before", not the table in its body.
-func _bench_k100_backends(label: String, k: int, dense: bool) -> void:
-	for native in [false, true]:
-		if native and not BladeSim.native_available():
-			continue
-		BladeSim.use_native = native
-		var state: BladeState = _dense_mesh(k) if dense else _chain(k)
-		var t0 := Time.get_ticks_usec()
-		BladeSim.simulate(state, _drivers_for(state), DURATION,
-				BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0,
-				BladeSim.DEFAULT_SUBSTEPS, true)
-		var us := Time.get_ticks_usec() - t0
-		print("  %-20s %-26s %7d us" % [
-				label, "native (C++ GDExtension)" if native else "gdscript", us])
-	BladeSim.use_native = false
+		clock = BladeSwingClock.new(DURATION)
+	var t0 := Time.get_ticks_usec()
+	BladeSim.simulate(state, _drivers_for(state), DURATION,
+			BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0,
+			BladeSim.DEFAULT_SUBSTEPS, true, clock)
+	var us := Time.get_ticks_usec() - t0
+	if not defended:
+		print("  %-20s %7d us" % [label, us])
+		return
+	var peak := 0.0
+	for b: BladeObstacleField.Bank in state.obstacles.history:
+		for v in b.strain:
+			peak = maxf(peak, v)
+	print("  %-20s %7d us   drag=%.1f peak_strain=%.2f" % [label, us, clock.drag, peak])
