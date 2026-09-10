@@ -228,6 +228,27 @@ CPU-computed values in a plain script property too (see `Edge.render_transform`
 have something real to read — the mirror isn't redundant, it's the only
 thing `mise run test` can ever see.
 
+## A 2D `MultiMesh`'s colour and custom data are HALF floats on the compatibility renderer
+
+Probed 2026-09-10 under `--rendering-driver opengl3` (#835): an instance
+pushed `custom_data.w = 2049.0` reads back `2048.0` in the shader, and an
+instance colour of `1 + 2^-12` reads back `1.0`, while `30000.0` survives only
+because it happens to be representable. So on that backend `INSTANCE_CUSTOM`
+and `COLOR` carry **10-bit mantissas**: integers are exact only up to 2048, and
+a value of a few thousand has a spacing of 2 to 4. Instance *transforms* stay
+full float. (The Vulkan/RD path could not be probed under xvfb; design for the
+weaker one.)
+
+**How to apply:** anything packed into those eight floats must be exact in a
+half — integer packs under 2048 (`graph/edge.gd`'s vis-state + clamp-code
+pack tops out around 300; `ShatterField.pack_shard` caps cells at 32 for the
+same reason), and a clock value must be stored *relative* to a recent base
+rather than as absolute seconds (`ShatterField.time_base`), or a run-long
+clock silently loses the whole animation window to spacing. If a per-instance
+value needs more bits than that, derive it in the shader from something
+full-precision instead — the shard field hashes its fracture seed from
+`MODEL_MATRIX[3].xy`, the instance origin, and spends no channel on it.
+
 ## Related
 
 - [overlay-field-rendering.md](overlay-field-rendering.md) — the fullscreen

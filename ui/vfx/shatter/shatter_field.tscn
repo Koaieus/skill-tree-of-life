@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/vfx/shatter/shatter_field.gd" id="1_script"]
+[ext_resource type="Material" path="res://ui/vfx/shatter/shatter_shard_material.tres" id="2_mat"]
+
+[node name="ShatterField" type="MultiMeshInstance2D"]
+material = ExtResource("2_mat")
+script = ExtResource("1_script")

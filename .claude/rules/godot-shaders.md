@@ -2,6 +2,7 @@
 description: .gdshader — headless import does NOT compile GLSL; PlaceholderTexture2D collapses UVs
 paths:
   - "**/*.gdshader"
+  - "**/*.gdshaderinc"
 ---
 
 # Shaders
@@ -22,6 +23,19 @@ xvfb-run -a godot --path . --rendering-driver opengl3 --quit-after 30 \
 
 Empty grep = clean. opengl3 (llvmpipe) needs no GPU, and reproduces codegen bugs
 that production's Vulkan backend hits too.
+
+## A varying may only be assigned inside `vertex()` itself — a shared include exposes a MACRO
+
+`SHADER ERROR: Varying may not be assigned in the 'foo' function.` A function in
+a `.gdshaderinc` cannot capture `VERTEX`/`INSTANCE_CUSTOM` into varyings on the
+consumer's behalf; the write has to be textually inside `vertex()`. So an
+include that owns varyings ships an object-like `#define` the consumer expands
+there (`ui/vfx/shatter/shatter_motion.gdshaderinc`'s `SHATTER_VERTEX`).
+
+**And the macro must be object-like:** a zero-argument function-like
+`#define X()` is rejected by Godot's preprocessor, which leaves the raw `#` for
+the tokenizer — `Tokenizer: Unknown character #35: '#'`, with no file or line.
+`#define X(a)` and `#define X` both work. Found on #835.
 
 ## `min(dx, dy)` for a border falloff creases at the corners
 

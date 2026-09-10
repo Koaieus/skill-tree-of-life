@@ -30,6 +30,29 @@ const ALERT := 2.0    ## Full neon. Reserve it, or nothing reads as loud.
 const PEAK := 3.0     ## A momentary overshoot above ALERT — an ignition flash
 					   ## relaxing back down, never a resting state.
 
+## The same five stops as an inspector-facing choice, for an `@export` that must
+## name a tier rather than hold a float (`.claude/rules/hdr-color.md`: a tier is
+## authored by name, never as a hand-picked number). `stops()` maps back onto
+## the constants above; the two lists must stay in lockstep.
+enum Tier { INERT, LABEL, VALUE, ALERT, PEAK }
+
+
+## EV stops for a named [enum Tier].
+static func stops(tier: Tier) -> float:
+	match tier:
+		Tier.INERT:
+			return INERT
+		Tier.LABEL:
+			return LABEL
+		Tier.VALUE:
+			return VALUE
+		Tier.ALERT:
+			return ALERT
+		Tier.PEAK:
+			return PEAK
+	return INERT
+
+
 ## Neutral base for untinted emissive content — the Arcane Terminal off-white
 ## (CON's `oklch(0.92 0.02 250)`, per `.claude/rules/ui-palette.md`). Anything with
 ## its own identity colour should pass that instead.
