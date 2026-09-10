@@ -30,7 +30,32 @@ var out: Dictionary = _native.call(&"simulate", ...)
 var: `AiBladeRollout` calls `simulate()` from `WorkerThreadPool` tasks, and a
 lazy init would race. One shared instance is fine — the method is pure.
 
+## Golden trajectories are the solver's determinism contract (#846)
+
+Parity-with-GDScript is **retired** as the contract: `test_blade_goldens.gd`
+replays twenty recorded worlds (`test/unit/attack/fixtures/blade_goldens/`) on
+the native backend and fails on the first differing line — a one-ulp drift
+anywhere is red. It is what catches an FMA contraction slipping back in, a
+compiler or flag change, or a "harmless" refactor of the loop once #847 has
+deleted the GDScript reference; it is **not** a cross-machine or multiplayer
+pin (owner correction on #846 — peers replay the recorded `AttackRecord`).
+
+**How to apply:** when the solver's output is *supposed* to change, re-record
+with **`mise run native:goldens`** — the only regeneration path, never
+automatic, never a side effect of a red run — review the fixture diff (rows are
+6-decimal for reading; the `DIGEST <section>` lines are the bit-exact SHA-256
+of the raw float bytes, so a diff touching only DIGEST lines is sub-1e-6
+drift), and say WHY in the commit. When `simulate_range`'s signature or a
+`BladeState` output gains an axis, add a case to `_CASES` in the same commit;
+`_Sink.row()` renders and hashes in one walk, so a value can't reach the text
+and miss the digest. A missing binary is a **failure** in `before_each`, never
+`pending()`; `mise run native:fetch` cures it.
+
 ## The two backends must stay BIT-identical, and can
+
+> Until #847 deletes the GDScript solver. The parity test below is the
+> reference-agreement proof for the goldens above; the goldens outlive it.
+
 
 Not "within tolerance": `BladeHitScan` turns solver positions into a hit *set*,
 so a last-ulp drift near a shape boundary is a different attack, not a smaller
@@ -114,6 +139,10 @@ the GDScript fallback, at GDScript cost. **After pulling a change to
 tell that you did not.
 
 ## No native binary means PENDING, not pass
+
+> Parity file only. `test_blade_goldens.gd` FAILS without the binary (#846) —
+> under #816 it is mandatory and `mise run native:fetch` is the one-line cure.
+
 
 The GDScript fallback is a supported state, so the parity file cannot fail
 there — but it must not report *green* either, or "parity verified" means

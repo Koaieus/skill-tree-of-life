@@ -344,6 +344,63 @@ ruled to spend more on whips specifically because that's the only lever that
 addresses propagation depth. Don't tune the length multiplier down to
 squeeze under today's flat cost for a long blade — that defeats the axis.
 
+#### Golden trajectories: the determinism contract (#846)
+
+The parity test below pins the C++ to the GDScript reference; #847 deletes that
+reference, so the contract moved to **recorded goldens**:
+`test/unit/attack/test_blade_goldens.gd` replays twenty worlds on the native
+backend and compares each to its fixture under
+`test/unit/attack/fixtures/blade_goldens/<case>.golden.txt`, exact text, first
+differing line reported.
+
+- **What it guards:** an *unintended* change to the shipped solver — FMA
+  contraction slipping back in, a compiler upgrade, an optimisation flag, a
+  refactor that reorders one expression. Each moves a trajectory by a few px
+  without changing any outcome, so no behavioural test (severance, pop, bunker,
+  preview) can see it, and a silently different sim is a silently different
+  game. It is **not** a cross-machine / multiplayer pin (owner, 2026-09-10):
+  peers replay the recorded `AttackRecord` and never re-run the solver for
+  anything authoritative; the only peer-side caller is `SkillBlade`, pure
+  visuals. The claim is only "the build under test reproduces its own
+  recordings".
+- **Coverage:** the parity test's axes — the swing clock, the defender field
+  (wall, plate, both, five-zone cluster), `simulate` / `simulate_range`
+  (chunked, seeded from `prev_samples`) / `simulate_range_field` (whole and
+  chunked), a bare spine, an induced truss, a welded (clamped) spine that
+  breaks, a swing that severs (per-particle drag) and a uniformly damped one,
+  substeps 1/4/8, adaptive iterations, length scaling off and past the ceiling,
+  the coarse AI tier. Every world is serialised whole: samples, `prev_samples`,
+  the advanced state (`positions`, `prev_positions`, `damping`, liveness,
+  `speed_history`), and for defended swings every clock bank, every field bank
+  with its per-zone `edge_residual`, and the armed `Break`.
+- **Fixture format, two tiers** (same idea as the procgen golden): human rows
+  at 6 decimals — one sample per line, so a legitimate change diffs readably —
+  plus one `DIGEST <section>` line per trajectory / state / clock / field:
+  SHA-256 over the *exact* bytes (float32 payloads as float32, scalars as
+  float64, ints as int64). The digest is the bit-exact assertion; the rows are
+  for the reviewer. A diff that touches only `DIGEST` lines is drift below
+  1e-6 — precisely the class the file exists for.
+- **Regeneration is an act, never a re-baseline:** `mise run native:goldens`
+  (`.mise/tasks/native/goldens`) flips the test's `_REGENERATE` const, runs the
+  one script in its own godot process (so nothing else can flip
+  `BladeSim.use_native` mid-record, and `before_each` still refuses to record
+  without the binary), and flips it back under `trap`. It does not re-run to
+  confirm green; the human does, and the commit says why the output changed.
+- **A missing binary is a failure**, not `pending()` — under #816 the binary is
+  mandatory, and a PENDING that reads as green is how #823 was reviewed on 26
+  unverified cases. `mise run native:fetch` then `mise run refresh`.
+- **Vacuity guards:** `test_every_golden_case_runs_on_the_native_path` re-runs
+  every case through `_simulate_native` directly and requires a trajectory (the
+  routed path falls through to GDScript silently for a state outside the
+  transliterated subset), and `test_the_goldens_are_not_vacuous` checks the
+  worlds do something — the wall warps the clock, the spine breaks, the
+  cluster meters two plates.
+- **Reference agreement (acceptance 4):**
+  `test_the_gdscript_reference_solver_reproduces_every_golden` forces
+  `use_native = false` and replays the same fixtures. Green on 2026-09-11 with
+  both backends present — the verdict is on #846. That test leaves with #847;
+  the goldens do not.
+
 #### Two backends, one meaning (#798)
 
 Steps 1-3 above exist twice: in GDScript in `blade_sim.gd`, and in C++ in
