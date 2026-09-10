@@ -167,6 +167,9 @@ func test_a_severance_on_the_final_sample_re_bakes_nothing() -> void:
 	var drivers: Array[BladeDriver] = []
 	var steps := int(ceil(_SWING / _DT))
 	var pose := state.positions.duplicate()
+	# A non-zero offset trusts `prev_positions` as the previous chunk left it —
+	# a fresh state has none, and the solver refuses the mismatch (#847).
+	state.prev_positions = state.positions.duplicate()
 	var tail := BladeSim.simulate_range(state, drivers, steps, 0, _DT)
 	assert_eq(tail.samples.size(), 1, "the pose it started at, and nothing after it")
 	assert_eq(tail.samples[0], pose, "which is exactly where the swing had got to")

@@ -14,29 +14,11 @@ const DURATION := 1.2
 const SPACING := 40.0
 
 
-## Counts constraint projections without touching blade_distance_constraint.gd
-## (not owned by this unit) — wraps it, sharing a counter box across every
-## constraint built for one state so a test can read total projections
-## performed. Dividing by constraint count converts that into "sweeps"
-## (one pass over every constraint), the unit the issue's budget is stated in.
-class _CountingConstraint extends BladeDistanceConstraint:
-	var _counter: Array
-
-	func _init(a_: int, b_: int, rest_: float, counter: Array) -> void:
-		super(a_, b_, rest_)
-		_counter = counter
-
-	func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> void:
-		_counter[0] += 1
-		super.project(positions, inv_masses)
-
-
 ## Straight whip chain from the pivot (index 0) — the whippy extreme, and
 ## the shape [BladeState.pivot_eccentricity] should read as exactly n - 1
 ## hops, since every constraint is a chain link with no bracing to shorten
-## the path. `counter`, if given, makes every constraint a _CountingConstraint
-## sharing that one box.
-static func _chain(n: int, counter: Array = []) -> BladeState:
+## the path.
+static func _chain(n: int) -> BladeState:
 	var pos: Array[Vector2] = []
 	var edges: Array[Vector2i] = []
 	var radii: Array[float] = []
@@ -45,14 +27,7 @@ static func _chain(n: int, counter: Array = []) -> BladeState:
 		radii.append(10.0)
 		if i > 0:
 			edges.append(Vector2i(i - 1, i))
-	var state := BladeState.build(pos, 0, edges, radii)
-	if not counter.is_empty():
-		var counted: Array[BladeConstraint] = []
-		for c in state.constraints:
-			var dc := c as BladeDistanceConstraint
-			counted.append(_CountingConstraint.new(dc.a, dc.b, dc.rest, counter))
-		state.constraints = counted
-	return state
+	return BladeState.build(pos, 0, edges, radii)
 
 
 ## One BladeArcDriver on the pivot-adjacent particle — mirrors what
@@ -105,30 +80,32 @@ func test_pivot_eccentricity_is_hop_count_not_distance() -> void:
 
 
 func test_sweep_budget_rises_with_eccentricity_then_clamps_at_the_ceiling() -> void:
-	# velocity_iter_ref = 0.0 disables the (unrelated, already-existing) speed
-	# axis, so any budget difference below is attributable to length alone.
-	var short_counter: Array = [0]
-	var short_state := _chain(BladeSim.LENGTH_BASELINE_HOPS + 1, short_counter)
-	BladeSim.simulate(short_state, _drivers_for(short_state), DURATION,
-			BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS)
-	var short_sweeps := float(short_counter[0]) / float(short_state.constraints.size())
-
-	var long_counter: Array = [0]
-	var long_state := _chain(BladeSim.LENGTH_ECC_CEILING + 1, long_counter)
-	BladeSim.simulate(long_state, _drivers_for(long_state), DURATION,
-			BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS)
-	var long_sweeps := float(long_counter[0]) / float(long_state.constraints.size())
-
-	var beyond_counter: Array = [0]
-	var beyond_state := _chain(BladeSim.LENGTH_ECC_CEILING * 3, beyond_counter)
-	BladeSim.simulate(beyond_state, _drivers_for(beyond_state), DURATION,
-			BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS)
-	var beyond_sweeps := float(beyond_counter[0]) / float(beyond_state.constraints.size())
-
-	assert_gt(long_sweeps, short_sweeps,
+	# The length axis is one multiplier on the sweep budget, `_length_factor`,
+	# computed GDScript-side from the pivot eccentricity and handed to the
+	# native solver as a number (#790 pin 3, #798). Until #847 this test
+	# counted the solver's constraint projections through a counting subclass;
+	# the native solver refuses subclasses, so the pin is on the factor itself,
+	# read off the same hop counts the old fixtures had.
+	var short_ecc := _chain(BladeSim.LENGTH_BASELINE_HOPS + 1).pivot_eccentricity()
+	var long_ecc := _chain(BladeSim.LENGTH_ECC_CEILING + 1).pivot_eccentricity()
+	var beyond_ecc := _chain(BladeSim.LENGTH_ECC_CEILING * 3).pivot_eccentricity()
+	assert_eq(BladeSim._length_factor(short_ecc), 1.0,
+			"a blade at the baseline hop count pays the length axis nothing")
+	assert_gt(BladeSim._length_factor(long_ecc), BladeSim._length_factor(short_ecc),
 			"a blade past the baseline hop count must get a bigger sweep budget than a short one")
-	assert_almost_eq(long_sweeps, beyond_sweeps, 0.5,
+	assert_eq(BladeSim._length_factor(beyond_ecc), BladeSim._length_factor(long_ecc),
 			"budget must be clamped at LENGTH_ECC_CEILING — an even longer blade buys nothing more")
+	# And the factor is what the swing actually consumes: a blade past the
+	# baseline moves differently with the axis on than off, where the baseline
+	# blade (next test) does not.
+	var on := _chain(BladeSim.LENGTH_ECC_CEILING + 1)
+	var off := _chain(BladeSim.LENGTH_ECC_CEILING + 1)
+	BladeSim.simulate(on, _drivers_for(on), DURATION,
+			BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS, true)
+	BladeSim.simulate(off, _drivers_for(off), DURATION,
+			BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS, false)
+	assert_ne(on.positions, off.positions,
+			"a long blade's swing must differ with the length axis on — the factor reaches the solver")
 
 
 func test_short_blade_costs_no_more_than_it_did_before_length_scaling_existed() -> void:
@@ -152,28 +129,26 @@ func test_short_blade_costs_no_more_than_it_did_before_length_scaling_existed() 
 
 # ── Substeps-over-iterations, isolated from the length axis ─────────────────
 
-func test_substeps_alone_hold_shape_better_at_equal_or_lower_sweep_cost() -> void:
+func test_substeps_alone_hold_shape_better_than_flat_iterations() -> void:
 	# A 55-hop whip — long enough that Gauss-Seidel propagation is the
 	# bottleneck (owner's rationale: ~1 constraint per sweep). Length
 	# scaling is explicitly OFF on both sides so this isolates exactly the
 	# substep-vs-iteration claim (Macklin et al. 2019): same total sweep
 	# budget, spent as smaller steps instead of more passes per step.
+	# The "at equal-or-lower sweep cost" half of that claim was pinned by
+	# counting projections through a constraint subclass, which the native
+	# solver refuses (#847); it returns when #848's resident solver object
+	# reports its iteration count. Only the shape-holding half is pinned here.
 	var n := 56
-	var old_counter: Array = [0]
-	var old_state := _chain(n, old_counter)
+	var old_state := _chain(n)
 	BladeSim.simulate(old_state, _drivers_for(old_state), DURATION,
 			BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0, 1, false)
-	var old_sweeps: int = int(old_counter[0]) / old_state.constraints.size()
 	var old_error := _total_stretch_error(old_state)
 
-	var new_counter: Array = [0]
-	var new_state := _chain(n, new_counter)
+	var new_state := _chain(n)
 	BladeSim.simulate(new_state, _drivers_for(new_state), DURATION,
 			BladeSim.DEFAULT_DT, BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS, false)
-	var new_sweeps: int = int(new_counter[0]) / new_state.constraints.size()
 	var new_error := _total_stretch_error(new_state)
 
-	assert_lte(new_sweeps, old_sweeps,
-			"substepping must not cost MORE total sweeps than today for the same base_iterations")
 	assert_lt(new_error, old_error,
-			"substepping (smaller dt) must hold a long whip's shape better than the old flat-iteration config, at equal-or-lower sweep cost")
+			"substepping (smaller dt) must hold a long whip's shape better than the old flat-iteration config")
