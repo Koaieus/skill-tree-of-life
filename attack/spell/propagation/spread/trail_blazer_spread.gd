@@ -38,7 +38,7 @@ extends PropagationSpread
 ## sitting next to the string must not read as a junction and halt the walk.
 ## This walked GRAPH degree until 2026-08-07; the step-level tests missed it
 ## because their fixtures left every node unowned (see the header of
-## `test/unit/spell/test_line_killer_step.gd`) and the end-to-end ones missed it
+## `test/unit/spell/test_trail_blazer_spread.gd`) and the end-to-end ones missed it
 ## because on a fully-owned string the two degrees coincide. Both readers of
 ## that fact now live elsewhere — [JunctionCondition] and the filter clause —
 ## and `docs/domain/degree.md` is the rule.

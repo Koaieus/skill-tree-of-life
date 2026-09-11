@@ -57,13 +57,13 @@ metadata/_custom_type_script = "uid://bs86s2grue8eq"
 [sub_resource type="Resource" id="reducer_sum"]
 script = ExtResource("10_reducer")
 
-[sub_resource type="Resource" id="step_fan"]
+[sub_resource type="Resource" id="spread_fan"]
 script = ExtResource("10_step")
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
 filter = SubResource("filter_composite")
-spread = SubResource("step_fan")
+spread = SubResource("spread_fan")
 reducer = SubResource("reducer_sum")
 max_hops = 5
 max_visits_per_node = 6

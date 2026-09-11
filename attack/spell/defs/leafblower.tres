@@ -56,13 +56,13 @@ factor = 1.5
 [sub_resource type="Resource" id="reducer_max"]
 script = ExtResource("10_reducer")
 
-[sub_resource type="Resource" id="step_fan"]
+[sub_resource type="Resource" id="spread_fan"]
 script = ExtResource("9_step")
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
 filter = SubResource("filter_composite")
-spread = SubResource("step_fan")
+spread = SubResource("spread_fan")
 reducer = SubResource("reducer_max")
 max_hops = 7
 hop_damage = SubResource("prog_rampup")

@@ -36,13 +36,13 @@ factor = 0.5
 [sub_resource type="Resource" id="reducer_max"]
 script = ExtResource("7_reducer")
 
-[sub_resource type="Resource" id="step_fan"]
+[sub_resource type="Resource" id="spread_fan"]
 script = ExtResource("6_step")
 
 [sub_resource type="Resource" id="prop_lightning"]
 script = ExtResource("4_config")
 filter = SubResource("filter_enemy")
-spread = SubResource("step_fan")
+spread = SubResource("spread_fan")
 reducer = SubResource("reducer_max")
 max_hops = 3
 hop_damage = SubResource("prog_falloff")

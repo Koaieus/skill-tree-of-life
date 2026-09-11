@@ -442,7 +442,7 @@ So enemy WIS 80 → the enemy runs **2× the player's level**; WIS 180 → 3×. 
 
 **Read the *caster's* node, not the target's — this is the trap.** `SkillNode.get_local_value()` merges the node's own board with **`owned_by`'s** board (`skill_node/skill_node.gd:412`). Reading `spell_damage` off `state.current_node` would therefore read the **defender's** board and let an enemy's territory buff the spell landing on it. The correct read is the **cast-from node**, `state.source` — exactly the pattern `RangedDamageFormula` already uses with `firing_node.get_local_value(&"ranged_damage")`.
 
-**Evaluated once, at seed.** `CastSpell.damage` is a *running product*: `SpellResolver` sets `seed_state.damage = spell.base_damage × config.seed_damage_fraction`, then each `PropagationStep` does `next.damage = payload.damage × config.damage_multiplier_per_hop`. `DamageEffect` only reads it. So the INT term belongs in the seed expression:
+**Evaluated once, at seed.** `CastSpell.damage` is a *running product*: `SpellResolver` sets `seed_state.damage = spell.base_damage × config.seed_damage_fraction`, then each `PropagationStep` (pre-#852 name; now `PropagationSpread` / the filter+spread split) does `next.damage = payload.damage × config.damage_multiplier_per_hop`. `DamageEffect` only reads it. So the INT term belongs in the seed expression:
 
 ```
 seed.damage = base_damage × int_scaling × spell_damage(source_node) × seed_damage_fraction
@@ -763,7 +763,7 @@ Plus: C1 followed by the owner re-allocating `X` on their turn → grace dropped
 
 **Question:** Resonator should propagate to the largest-degree node(s) each hop (ties → more than one). It doesn't. What is "degree" when propagation targets by it? (#240 spinoff)
 
-**Resolution (settled):** **Resonator propagates to the highest-degree neighbour(s), ties included.** `attack/spell/defs/resonator.tres:37` wires `step_fan` (`FanAllStep` — "goes everywhere the filter allowed"), which contradicts both the intent and `DegreeRanker`'s own docstring (*"Drives Silencing Bolt / Resonator targeting (max-degree fan)"*). The machinery already exists: `TakeTopNStep` + `DegreeRanker`. Two gaps: the `.tres` must be rewired, and `TakeTopNStep` takes exactly `take_count` after a stable sort — it has **no tie-inclusive mode**, so "the largest degree node(s)" with three-way tie currently yields one. Needs an `include_ties` option. This needs a test; it is the explicitly-requested deliverable.
+**Resolution (settled):** **Resonator propagates to the highest-degree neighbour(s), ties included.** `attack/spell/defs/resonator.tres:37` wires `step_fan` (`FanAllStep` — "goes everywhere the filter allowed"; pre-#852 name, now `PropagationSpread` / the filter+spread split), which contradicts both the intent and `DegreeRanker`'s own docstring (*"Drives Silencing Bolt / Resonator targeting (max-degree fan)"*). The machinery already exists: `TakeTopNStep` + `DegreeRanker` (same pre-#852 naming). Two gaps: the `.tres` must be rewired, and `TakeTopNStep` takes exactly `take_count` after a stable sort — it has **no tie-inclusive mode**, so "the largest degree node(s)" with three-way tie currently yields one. Needs an `include_ties` option. This needs a test; it is the explicitly-requested deliverable.
 
 **Open fork — which degree does propagation targeting read?** Three definitions are live and they disagree:
 
@@ -826,7 +826,7 @@ Three layers, each answering exactly one question — *who casts* (`spell_damage
 
 > **Doubling `spell_damage` doubles every hit, and no propagation knob changes value.**
 
-**Why the propagation layer owns shape but never magnitude.** A hop **is a re-cast** — `PropagationStep._propagate_to` mints a fresh `CastSpell` from its predecessor, so "the hit node casts the spell again at its neighbour" is the implementation, not an analogy. Under that reading the geometric factor is *re-cast efficiency*, a property of the walk; `power` is a property of the spell. Different layers, different questions.
+**Why the propagation layer owns shape but never magnitude.** A hop **is a re-cast** — `PropagationStep._propagate_to` (pre-#852 name; now `PropagationSpread` / the filter+spread split) mints a fresh `CastSpell` from its predecessor, so "the hit node casts the spell again at its neighbour" is the implementation, not an analogy. Under that reading the geometric factor is *re-cast efficiency*, a property of the walk; `power` is a property of the spell. Different layers, different questions.
 
 **The dimensional bug this exposed.** `AddRamp(increment = 2.0)` put an **absolute** number in the ratio layer. At INT 1000 a Resonator seed is ~100 and the ramp still adds +2 per hop — the ramp decays to rounding error and the spell silently becomes flat at high level. Trailblazer had the same defect. The additive term is therefore a **fraction of seed** (`damage + seed × seed_fraction_per_hop`), which keeps growth **linear in hops** — preserving D-30/#352's "the convergence crit is the only multiplicative source" — while scaling 1:1 with INT. The ramps were authored before anything scaled with INT, so this was latent, not wrong at the time.
 

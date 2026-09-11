@@ -54,13 +54,13 @@ children = Array[ExtResource("3_ef7vp")]([SubResource("filter_enemy"), SubResour
 script = ExtResource("15_prog")
 increment = 2.0
 
-[sub_resource type="Resource" id="step_killer"]
+[sub_resource type="Resource" id="spread_killer"]
 script = ExtResource("8_6uaym")
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("7_riwgb")
 filter = SubResource("filter_composite")
-spread = SubResource("step_killer")
+spread = SubResource("spread_killer")
 max_hops = 999
 hop_damage = SubResource("prog_flat")
 

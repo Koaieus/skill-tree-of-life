@@ -45,14 +45,14 @@ children = Array[ExtResource("4_filter_base")]([SubResource("filter_enemy"), Sub
 [sub_resource type="Resource" id="reducer_cyclone"]
 script = ExtResource("10_reducer")
 
-[sub_resource type="Resource" id="step_cyclone"]
+[sub_resource type="Resource" id="spread_cyclone"]
 script = ExtResource("10_step")
 rank_coefficients = PackedFloat32Array(0.7, 0.4, 0.2)
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
 filter = SubResource("filter_composite")
-spread = SubResource("step_cyclone")
+spread = SubResource("spread_cyclone")
 reducer = SubResource("reducer_cyclone")
 max_hops = 8
 max_visits_per_node = 999

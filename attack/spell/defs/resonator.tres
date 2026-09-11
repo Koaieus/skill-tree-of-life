@@ -40,13 +40,13 @@ increment = 2.0
 [sub_resource type="Resource" id="reducer_sum"]
 script = ExtResource("7_reducer")
 
-[sub_resource type="Resource" id="step_fan"]
+[sub_resource type="Resource" id="spread_fan"]
 script = ExtResource("6_step")
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
 filter = SubResource("filter_enemy")
-spread = SubResource("step_fan")
+spread = SubResource("spread_fan")
 reducer = SubResource("reducer_sum")
 max_hops = 6
 hop_damage = SubResource("prog_flat_add")

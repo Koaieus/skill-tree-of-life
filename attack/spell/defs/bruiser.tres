@@ -49,14 +49,14 @@ script = ExtResource("8_reducer")
 [sub_resource type="Resource" id="ranker_hp"]
 script = ExtResource("7_ranker")
 
-[sub_resource type="Resource" id="step_top"]
+[sub_resource type="Resource" id="spread_top"]
 script = ExtResource("6_step")
 ranker = SubResource("ranker_hp")
 
 [sub_resource type="Resource" id="prop"]
 script = ExtResource("4_config")
 filter = SubResource("Resource_885nj")
-spread = SubResource("step_top")
+spread = SubResource("spread_top")
 reducer = SubResource("reducer_max")
 max_hops = 4
 max_visits_per_node = 2
