@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+#MISE description="Land a branch on master, serialised: `mise run land -- <branch> [--closes <n>]` — flock, rebase, check + test:dir on the touched dirs, ff-only, board → in-review"
+#
+# The merge token, mechanised (#857). One locked command replaces the by-hand
+# rebase / ladder / ff dance the lead used to do per unit:
+#
+#   1. exclusive flock on .godot/land.lock in the MAIN checkout — a second
+#      caller waits (and says so) rather than racing the fast-forward;
+#   2. refuse unless the branch exists and the main checkout is clean and on
+#      master;
+#   3. rebase the branch onto master INSIDE its own worktree if one exists,
+#      else in a detached throwaway worktree — the branch is never checked out
+#      in the main checkout;
+#   4. `mise run check` always, plus `mise run test:dir` for every
+#      test/unit/<dir>/ the branch touches (test files directly, or by the
+#      top-level dir of a non-test file when test/unit/<dir>/ exists) — a
+#      rebased tree is a tree nobody tested;
+#   5. `git merge --ff-only`; then, with --closes, an empty landing commit
+#      `land: #<n> <slug>` carrying `Closes #<n>` (it cannot amend the drone's
+#      tip) and the board move to in-review.
+#
+# Non-zero, reason on stdout, on: dirty/off-master main checkout, missing
+# branch, rebase conflict (aborted, conflicting files listed), red check or
+# test:dir (verdict lines printed), a non-ff. Never runs the full suite, never
+# pushes — both stay with the lead at the train gate.
+set -uo pipefail
+
+usage="usage: mise run land -- <branch> [--closes <issue-number>]"
+branch=""
+closes=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --closes) closes="${2:?$usage}"; shift 2 ;;
+    --closes=*) closes="${1#--closes=}"; shift ;;
+    -h|--help) echo "$usage"; exit 0 ;;
+    -*) echo "✗ unknown flag: $1"; echo "$usage"; exit 2 ;;
+    *) if [ -n "$branch" ]; then echo "✗ one branch at a time"; echo "$usage"; exit 2; fi
+       branch="$1"; shift ;;
+  esac
+done
+[ -n "$branch" ] || { echo "$usage"; exit 2; }
+if [ -n "$closes" ] && ! [[ "$closes" =~ ^[0-9]+$ ]]; then
+  echo "✗ --closes wants an issue number, got: $closes"; exit 2
+fi
+
+# The MAIN checkout, wherever this was invoked from (a drone's worktree
+# included): the common git dir's parent is the primary worktree.
+here="${MISE_PROJECT_ROOT:-$PWD}"
+common=$(git -C "$here" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) \
+  || { echo "✗ not inside a git checkout: $here"; exit 1; }
+main=$(dirname "$common")
+
+fail() { echo "✗ $*"; exit 1; }
+
+# --- 1. the merge token ----------------------------------------------------
+mkdir -p "$main/.godot"
+lock="$main/.godot/land.lock"
+exec 9>"$lock"
+if ! flock -n 9; then
+  echo "… waiting for the merge token ($lock is held by another land)"
+  flock 9
+fi
+echo "▶ land $branch → master (token acquired)"
+
+# --- 2. preconditions ------------------------------------------------------
+git -C "$main" rev-parse --verify --quiet "refs/heads/$branch" >/dev/null \
+  || fail "no such branch: $branch"
+[ "$branch" != "master" ] || fail "refusing to land master onto itself"
+on=$(git -C "$main" symbolic-ref --short -q HEAD || echo "(detached)")
+[ "$on" = "master" ] || fail "main checkout is on '$on', not master: $main"
+dirty=$(git -C "$main" status --porcelain --untracked-files=no)
+if [ -n "$dirty" ]; then
+  echo "$dirty" | head -20
+  fail "main checkout has uncommitted changes — commit or park them first: $main"
+fi
+if git -C "$main" merge-base --is-ancestor "$branch" master; then
+  echo "✓ nothing to land: $branch is already contained in master"
+  exit 0
+fi
+
+# --- 3. a worktree to rebase in --------------------------------------------
+wt=""
+tmp_wt=""
+wt=$(git -C "$main" worktree list --porcelain | awk -v b="refs/heads/$branch" '
+  /^worktree /{p=substr($0,10)} /^branch /{if($2==b){print p; exit}}')
+if [ -n "$wt" ]; then
+  [ "$wt" != "$main" ] || fail "$branch is checked out in the main checkout — land only works on worktree branches"
+  wdirty=$(git -C "$wt" status --porcelain --untracked-files=no)
+  if [ -n "$wdirty" ]; then
+    echo "$wdirty" | head -20
+    fail "the branch's worktree has uncommitted changes — the drone must commit first: $wt"
+  fi
+  echo "  rebasing inside the branch's worktree: $wt"
+else
+  tmp_wt="$main/.worktrees/land-tmp-$$"
+  git -C "$main" worktree add --detach "$tmp_wt" "$branch" >/dev/null 2>&1 \
+    || fail "could not create a throwaway worktree at $tmp_wt"
+  wt="$tmp_wt"
+  # Same seeding as worktree:new: the GDExtension is mandatory since #847 and
+  # gitignored, so a bare worktree fails every blade test without it.
+  if [ -d "$main/native/bin" ] && [ -n "$(ls -A "$main/native/bin" 2>/dev/null)" ]; then
+    mkdir -p "$wt/native/bin" && cp -a "$main/native/bin/." "$wt/native/bin/"
+  fi
+  echo "  no worktree holds $branch — rebasing in a throwaway: $wt"
+fi
+cleanup() {
+  if [ -n "$tmp_wt" ] && [ -d "$tmp_wt" ]; then
+    git -C "$main" worktree remove --force "$tmp_wt" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+# --- 4. rebase -------------------------------------------------------------
+if ! git -C "$wt" rebase master >/dev/null 2>&1; then
+  echo "✗ rebase of $branch onto master conflicts in:"
+  git -C "$wt" diff --name-only --diff-filter=U | sed 's/^/    /'
+  git -C "$wt" rebase --abort >/dev/null 2>&1 || true
+  echo "  rebase aborted; $branch is untouched at $(git -C "$main" rev-parse --short "$branch")."
+  echo "  resolve it in the branch's worktree (git rebase master there), commit, and land again."
+  exit 1
+fi
+sha=$(git -C "$wt" rev-parse HEAD)
+if [ -n "$tmp_wt" ]; then
+  # Detached rebase moved only HEAD; point the branch at the rebased tip so
+  # what lands (or what fails below) is what the branch now says.
+  git -C "$main" branch -f "$branch" "$sha" >/dev/null
+fi
+echo "  rebased: $branch is now $(git -C "$main" rev-parse --short "$sha") on master $(git -C "$main" rev-parse --short master)"
+
+# --- 5. the ladder on the rebased tree -------------------------------------
+files=$(git -C "$main" diff --name-only "master..$sha")
+dirs=""
+singles=""
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  case "$f" in
+    test/unit/*/*) d="test/unit/${f#test/unit/}"; d="${d%%/*}"; dirs="$dirs ${d}" ;;
+    test/unit/*.gd) singles="$singles $f" ;;
+    */*) top="${f%%/*}"; [ -d "$main/test/unit/$top" ] && dirs="$dirs $top" ;;
+  esac
+done <<< "$files"
+dirs=$(printf '%s\n' $dirs | sort -u | tr '\n' ' ')
+singles=$(printf '%s\n' $singles | sort -u | tr '\n' ' ')
+
+run_step() {  # run_step <label> <cmd...>; prints the verdict lines on red
+  local label="$1"; shift
+  local log
+  log=$(mktemp)
+  echo "  $label …"
+  if (cd "$wt" && "$@") >"$log" 2>&1; then
+    grep -E '^✓' "$log" | tail -1 | sed 's/^/    /'
+    rm -f "$log"
+    return 0
+  fi
+  echo "✗ $label is red on the rebased tree:"
+  # The verdict + failure block the task printed, minus Godot's exit trailer.
+  grep -vE '^\s*$|ObjectDB instances were leaked|resources still in use at exit|PagedAllocator' "$log" | tail -40 | sed 's/^/    /'
+  echo "    (full output: $log)"
+  return 1
+}
+
+run_step "mise run check" mise run check || exit 1
+for d in $dirs; do
+  run_step "mise run test:dir -- res://test/unit/$d/" mise run test:dir -- "res://test/unit/$d/" || exit 1
+done
+for s in $singles; do
+  run_step "mise run test:one -- res://$s" mise run test:one -- "res://$s" || exit 1
+done
+[ -n "$dirs$singles" ] || echo "    (no test/unit/<dir>/ maps to the touched files — check only)"
+
+# --- 6. fast-forward -------------------------------------------------------
+if ! out=$(git -C "$main" merge --ff-only "$sha" 2>&1); then
+  echo "$out" | sed 's/^/    /'
+  fail "master could not fast-forward to $branch — master moved under the rebase? land again."
+fi
+echo "  master fast-forwarded to $(git -C "$main" rev-parse --short master)"
+
+if [ -n "$closes" ]; then
+  slug="${branch#issue-${closes}-}"
+  slug="${slug#wt-}"
+  git -C "$main" commit --quiet --allow-empty -m "land: #${closes} ${slug}" -m "Closes #${closes}" \
+    || fail "landing commit failed (master already holds $branch)"
+  echo "  landing commit $(git -C "$main" rev-parse --short master): land: #${closes} ${slug} (Closes #${closes})"
+  if (cd "$main" && mise run gh-project -- status "$closes" in-review) >/dev/null 2>&1; then
+    echo "  board: #${closes} → in-review"
+  else
+    echo "  ⚠ board move failed (mise gh-project -- status $closes in-review) — move it by hand"
+  fi
+fi
+
+echo "LANDED $branch $(git -C "$main" rev-parse --short "$sha") master=$(git -C "$main" rev-parse --short master)"
