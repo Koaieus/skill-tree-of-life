@@ -3,8 +3,9 @@
 Every full-screen "answer this before you carry on" surface in the game is one
 [`ModalBase`](../../ui/modal/modal_base.gd) inherited scene plus one
 [`ModalBodyBase`](../../ui/modal/modal_body_base.gd) body scene, serialized
-through HudRoot's modal queue. Three exist today —
-`LootPicker`, `SpellLootPicker`, `MassActionConfirmPanel` — and #199's
+through HudRoot's modal queue. Four exist today —
+`LootPicker`, `SpellLootPicker`, `MassActionConfirmPanel`, `SpellCatalogueModal` (#853,
+raised from the pause menu, `PROCESS_MODE_ALWAYS` so it works over the pause) — and #199's
 level-up bonus picker is the next one.
 
 ## The three pieces
