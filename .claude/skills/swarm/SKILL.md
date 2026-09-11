@@ -1,14 +1,24 @@
 ---
 name: swarm
-description: Direct a team of parallel subagents through pre-planned, parallelizable work — one big issue split into units, or several small issues at once. Read the issues ONCE, delegate exploration downward to `drone` (opencode) or `Explore(model=haiku)` (Claude Code) subagents, cluster the work by shared context into a DAG, dispatch each unit as a backgrounded worker, and act on each completion immediately — merge, fix-then-merge, resume, or abandon-to-in-review. Use when the user says "swarm #<n>" / "swarm #<n>, #<m>", or asks to parallelize bulk/mechanical work across subagents. Only invoke as the strongest available model, or as Sonnet when the plan is already written down.
+description: Direct a team of parallel subagents through pre-planned, parallelizable work — one big issue split into units, or several small issues at once. Read the issues ONCE, delegate exploration downward to `drone` (opencode) or `Explore(model=haiku)` (Claude Code) subagents, cluster the work by shared context into a DAG, dispatch each unit as a backgrounded worker, and act on each completion immediately — merge, fix-then-merge, resume, or abandon-to-in-review. Use when the user says "swarm #<n>" / "swarm #<n>, #<m>", "relay these" (a relay is a swarm with one drone in flight), or asks to parallelize bulk/mechanical work across subagents. Invoke as the strongest available model, or as Sonnet with an Opus `planner` subagent doing the DAG/fences/tiers (the planner fork, #857), or as Sonnet when the plan is already written down.
 ---
 
 # Swarm
 
-One strong orchestrator, many fast workers. You are the **source of wisdom**,
-the **DAG holder**, and the **reviewer-merger**. The workers do the typing —
-each in its own worktree, each in its own context window — and report back to
-you when they hit something they can't resolve alone.
+One strong planner, many fast workers, one Sage. You are the **DAG holder**
+and the **train gate**; in a Sage run (`.claude/agents/sage.md`) the review
+and the landing of each unit are Sage's, and your per-unit cost is one wake.
+The workers do the typing — each in its own worktree, each in its own context
+window — and ask Sage, not you, when they hit something they can't resolve
+alone.
+
+**Wake arithmetic (#857).** A subagent's *stop* always wakes its spawner,
+whatever it wrote, so count wakes per unit, not messages. With Sage landing:
+the drone stops once to yield to Sage (your wake), Sage reviews, approves and
+runs `mise run land` in the same turn, nothing reaches you — **N+1 wakes for
+N clean units**, the +1 being Sage's single `LANDED:` message. A failed land
+costs one drone resume and no extra wake of yours. Without Sage, you are the
+reviewer and lander and pay 2–3 wakes per unit.
 
 ## Why this skill exists — token economy through delegation
 
@@ -41,9 +51,10 @@ downward**, and **keep the orchestrator's context small enough that the late
 merge turns stay cheap.** Everything below is mechanics in service of that.
 
 > This is a **process** skill, and it is [`warp`](../warp/SKILL.md) with a fan-out.
-> Read `warp`'s SKILL.md first — its rebase → `--ff-only` merge discipline applies
-> here unchanged, once per worker branch, and is not repeated below. Read
-> `.claude/rules/testing.md` too.
+> Read `warp`'s SKILL.md first — its rebase → `--ff-only` merge discipline is
+> what `mise run land` mechanises, once per worker branch, and is not repeated
+> below. Read `.claude/rules/testing.md` too. [`relay`](../relay/SKILL.md) is
+> this skill at wave size 1.
 
 ## Harness primitives — what the worker model actually is
 
@@ -270,6 +281,27 @@ example is `.claude/skills/relief/SKILL.md` — this section is your
 obligations as the outgoing side; that skill is what the incoming session
 follows.
 
+## The planner fork — a Sonnet lead with an Opus planner (#857)
+
+Whoever spawns the drones eats one wake per drone stop; that is the
+structural lever, and in the trial it was an Opus at 150k+. The supported
+alternative: **a Sonnet session runs this skill and spawns a short-lived Opus
+`planner` subagent** (`Agent`, `model: "opus"`, no `name`, `run_in_background:
+false`) that does §1–§2 — reads the issues with comments, runs the probes,
+builds the DAG, fences and tier tags, writes one brief per unit to
+`docs/handoffs/swarm-brief-<n>.md` (gitignored under `swarm-*.md`) and the
+roster into the ledger — and returns. Its context dies with it. The Sonnet
+lead then spawns Sage and the drones from those files, receives every stop
+cheaply, runs the train gate, pushes, reconciles.
+
+The risk, stated honestly: **mid-run judgement lands on Sonnet** — a blocked
+fork, a relief, a drone that disagrees with its issue. Two mitigations, and
+they are the whole reason the shape is allowed: Sage exists for exactly that
+class of question (drones ask it, not you), and the planner can be re-invoked
+as a subagent for a re-plan (hand it the ledger and the question). If a run
+is small enough that you are the Opus anyway, be the planner yourself — the
+fork is about who pays the wakes, not about ceremony.
+
 ## The cycle
 
 ### 1. Read the issues ONCE, then delegate exploration downward
@@ -369,6 +401,21 @@ yourself with six workers, look for the two clusters you failed to merge.
 list into its prompt as an ownership boundary: *"you own exactly these paths;
 if the task seems to need a file you don't own, stop and report it."*
 
+**Every unit carries a tier tag (#857).** `sonnet` is the default — a
+Sage-backed Sonnet that lands the same diff with 1–2 exchanges is cheaper
+than an Opus at ~50 turns / 200k+. Tag `opus` when the unit has **design
+freedom** (a new scene or system, a new surface), **deletes or reshapes >300
+lines across modules**, or **carries a fork the issue's comments do not
+close**. `haiku` only for pure mechanical churn (rename, mass replace). The
+tag decides the drone's `model`, how you review it (§5: `--stat` only on
+`sonnet`, full diff on `opus`), and what the ledger logs. The tier fork is
+settled on numbers, not now: the ledger's roster logs **per issue**
+`model / ctx at report / tool calls / Sage exchanges / findings at review`,
+and a Sonnet past **3** Sage exchanges is mis-tiered by definition (Sage
+flags it in `LANDED:`). Trial data so far is split — #758 landed Sonnet at
+155k with 1 exchange; #764 retired at 250k after 4, but that was two
+half-units in one drone, so the datum is per-drone, not per-issue.
+
 **Shared-file work (one `.tres` every unit must touch, a registry every unit
 appends to) is yours.** Do it in the main checkout before you dispatch, or as
 an integration commit after you merge. Never hand it to two workers in one
@@ -398,14 +445,29 @@ If the work won't come apart into units at all, that's a real answer: run `warp`
 ### The merge contract — never make a deep-context drone merge
 
 A drone **commits inside its own worktree and stops** (`drone` mandates exactly
-this: commit before reporting, never rebase, never merge, never touch `master`).
-Its commits are the handoff.
+this: commit before reporting, never rebase, never merge, never touch `master`,
+never run `land`). Its commits are the handoff.
 
-You then rebase and fast-forward. Do not message/resume a worker to "rebase
-and merge your branch" — a drone 150k tokens deep costs a fortune per turn,
-and the work is already committed and reachable by branch name. You have the
-cheap context for merging; spend yours, not theirs. If a rebase conflicts,
-resolve it yourself upstream of the merge.
+**The landing is one locked command: `mise run land -- <branch> [--closes
+<n>]`** (`.mise/tasks/land`, #857). It takes the serial merge token (a
+`flock` on `.godot/land.lock` — a second caller waits and says so), rebases
+the branch onto `master` inside its own worktree, runs `mise run check` plus
+`test:dir` for every `test/unit/<dir>/` the branch touches (a rebased tree is
+a tree nobody tested), fast-forwards, adds the empty `land: #<n> <slug>`
+commit carrying `Closes #<n>`, and moves the board to `in-review`. It refuses
+— non-zero, reason on stdout — on a dirty main checkout, a rebase conflict
+(aborted, files listed), a red `check`/`test:dir`, or a non-ff. It never runs
+the full suite and never pushes.
+
+**Who runs it:** in a Sage run, **Sage**, in the same turn as its `approved`;
+you never rebase or fast-forward by hand in a Sage run — if `land` fails,
+Sage hands the printed reason to the drone, which resolves in its worktree
+and re-asks. Without Sage, you run `land` — from your own cheap context. Do
+not message/resume a worker to "rebase and merge your branch" **and do not
+have it run `land` either**: the drone's stop already woke you, its resume is
+a turn at 150k+, and a second stop wakes you again — strictly worse than the
+same command from Sage's already-awake turn or yours. The old rule holds for
+the old reason; `land` just moved the dance into one call.
 
 ### 3. Dispatch — check the roster, claim the kanban, then fire one parallel wave
 
@@ -418,8 +480,11 @@ put 20 commits of pure scaffolding on the 2026-08-28 run before it was
 ignored. Write it, never commit it; anything that must outlive the run goes
 to the issue, a design doc, or a rule file. Contents:
 
-- A **roster table**: unit / brief file / drone name / state
-  (`dispatched@HH:MM` → `reported` → `merged` | `rejected→redispatched`).
+- A **roster table**: unit / brief file / drone name / tier / state
+  (`dispatched@HH:MM` → `reported` → `landed <sha>` | `rejected→redispatched`)
+  plus the per-issue metrics (#857): `model / ctx at report / tool calls /
+  Sage exchanges / findings at review` — filled from the drone's report and
+  Sage's `LANDED:` message. This is the evidence the tier fork is settled on.
 - **Unpersisted decisions and swings** — each reduced to a pointer once it
   lands in its real home (issue, doc, rule file), per
   `.claude/rules/handoffs.md`. Never the only place a decision lives.
@@ -563,35 +628,40 @@ run in parallel). Per `Agent` call:
 same worktree-first line as above. Then `Invoke the drone skill, then do the
 following.`
 
-#### Both harnesses — the briefing body
+#### Both harnesses — the bare-number brief (#857)
 
-**Just `"Invoke the drone skill, then do the following:"` and the unit.** The
-`drone` skill carries every standing rule the worker needs — worktree-first,
-hard-stop on repeated failure, explicit-path `git add`, "don't ask the user",
-verification caps, the read-only-grandchild delegation, the terse report format.
-Restating any of those in N briefs is N × (tokens for content the worker
-already loads by invoking `drone`). The brief carries only what is *specific
-to this unit*:
+**`"Invoke the drone skill, then do the following:"` and ~15 lines.** The
+`drone` skill carries every standing rule — worktree-first, hard-stop,
+explicit-path `git add`, verification caps, the report format, ask-Sage-then-
+stop. The **issue** carries the spec: the drone reads `gh issue view <n>` and
+`gh issue view <n> --comments` itself, at start and again before it asks for
+review (drift check — a comment that lands mid-run is the drone's to notice,
+not yours to relay). `Ready` means exactly "a drone given only the number, its
+comments and a fence can act" (`swarmify`'s criterion); if you find yourself
+restating a decision from the issue, the brief is becoming a second spec —
+stop. What the brief carries, and nothing else:
 
-- **Owned paths.** The exact file list the worker may edit. Drone's
-  ownership-bounded-editing rule is generic; the path list is per-unit.
-- **Acceptance test.** A worker that can run
-  `mise run test:one -- res://test/unit/test_foo.gd` and see green knows it is
-  done; one that can't will report "looks right" and be wrong.
-- **What "done" means in this unit's own words.** Restating the issue's
-  acceptance in one line, deferring to the issue body for the rest.
-- **A turn/time budget.** Name an explicit ceiling — turns and wall-clock —
-  as an independent tripwire alongside the worker's own context self-check.
-  `tooltip-fan` (#621) ran 290 turns over 41 minutes before being killed
-  mid-tool-call; a token-only budget catches that failure too late. `drone`
-  already tells the worker to commit the partial and report on blowing its
-  budget — you only have to name the number.
+- **Issue number(s)** — `#<n>`, plus the parent hub if there is one.
+- **Owned paths** — the exact fence. Generic ownership rule is drone's; the
+  list is per-unit.
+- **Seams** — who else touches what this run: "`#m` (drone `foo`) owns
+  `ui/hud/`; the seam is `HudRoot.compose()`, committed on master at `<sha>`."
+- **Tier** — `sonnet` | `opus`, and that it decides the drone's model.
+- **"Sage is your advisor"** — `SendMessage` to `Sage` for questions and for
+  the review before reporting; **never `main`** except for a stop.
+- **A turn/time budget.** An explicit ceiling — turns and wall-clock — as an
+  independent tripwire (`tooltip-fan` #621 ran 290 turns / 41 minutes before
+  being killed; a token-only budget catches that too late).
+- **COMMIT EARLY AND OFTEN, even partial** — its own line (an API spend limit
+  killed two drones in one minute on 2026-09-10; a budget never fires for
+  that).
+- **The three suite clauses**, if the unit may earn a full suite at all
+  (§3b) — otherwise "never the full suite; Sage lands, main gates".
 
-Hard-stop / verification caps / "ask the orchestrator not the user" /
-explicit-path `git add` / commit-before-report / report-format / delegate-
-read-only-searches — **drone's job, not yours.** If you find yourself writing
-any of those into a brief, stop; you are spending tokens against the point of
-the skill.
+Acceptance restated, "what done means", file maps, house rules by name,
+recent commits to `git show` — **none of it.** That was the thick brief, and
+it drifted from the issue every time a comment landed. If the issue cannot
+carry it, the issue is not `Ready`; bounce it, don't patch it in a brief.
 
 The one standing rule worth naming in the brief anyway, in one line, is the
 **hard-stop escalation channel** — because it differs by harness and the
@@ -757,10 +827,13 @@ git diff master...<branch>                         # then content
 
 Then **branch on quality**, in decreasing order of frequency:
 
-- **Perfect — merge to `master` now.** Rebase onto current `master`,
-  fast-forward, amend `Closes #<n>` (§6), push or queue, move the issue to
-  `in-review` on the kanban. Do not let it sit. The authoritative suite runs
-  once per batch, not on this individual merge — see §6.
+- **Perfect — land it now.** In a Sage run this branch is Sage's, not
+  yours: Sage approved and ran `mise run land` in the same turn, so the
+  drone's stop is the *only* thing you receive — check `--stat` for the
+  fence (§5), note the report's numbers in the ledger, and move on. Without
+  Sage: `mise run land -- <branch> --closes <n>` from your own context (§6).
+  Do not let it sit. The authoritative suite runs once per train, not on
+  this individual landing.
 - **Almost perfect — fix it yourself, then merge.** The diff is 95% right and
   the gap is a one-line thing the worker would burn a full escalation round
   to arrive at. You are the smart model and the cheap context — make the
@@ -787,36 +860,40 @@ paths above. The blocker itself is signal, not a failure of the worker.
 
 ### 5. Review
 
-You are the reviewer. The workers are smaller models and had no advisor —
-**unless you spawned a Sage.** `.claude/agents/sage.md` is a persistent Fable
-advisor + reviewer teammate: spawn one at dispatch (`Agent` with
-`subagent_type: "sage"`, `name: "Sage"`, backgrounded; its spawn message
-carries only the run-specific part — issues, DAG, seams, roster) and tell
-every drone brief "Sage (`SendMessage` to: "Sage") is your advisor; ask it
-for a review BEFORE you report." Drones' questions and first-pass reviews
-then land on Sage's context instead of yours; you still read every diff
-before merging — Sage's `REVIEW #n <slug>:` line is an input to your gate,
-not the gate. **Routing is one recipient per message, never both:** the
-drone's review request goes to Sage; the drone's report is its final turn
-text (the completion notification brings it to you — do NOT tell drones to
-`SendMessage main` on top, the trial's briefs did and you received every
-report twice, Sage a third time); Sage's verdict to you is one line. And
-make the review a real gate: do not merge a unit whose `REVIEW` line has not
-arrived — two of the trial's six merged without one (one drone never asked,
-one asked as Sage retired). Trial 2026-09-11 (6 drones, up to 4 concurrent, owner absent):
-4 reviews, 5 real findings all acted on, one laundered owner quote caught,
-one 26-minute drone stall while Sage ran a sibling's audit; the orchestrator
-finished the run at ~180k. Verdict: net positive at 4+ concurrent drones or
-an absent owner; below that, you are the cheaper reviewer.
+**Sage is THE reviewer for `sonnet`-tier units; you read `--stat` only.**
+`.claude/agents/sage.md` is a persistent Fable advisor + reviewer + lander
+teammate: spawn one at dispatch (`Agent` with `subagent_type: "sage"`,
+`name: "Sage"`, backgrounded; its spawn message carries only the run-specific
+part — issues, DAG, seams, tiers, roster) and every brief says "Sage is your
+advisor; ask it for a review BEFORE you report." Drones' questions and
+reviews land on Sage's context, Sage runs `land` on `approved`, and your
+per-unit read is:
 
 ```bash
-git diff master...<worktreeBranch> --stat     # shape first
-git diff master...<worktreeBranch>            # then read it
+git diff master...<branch> --stat     # sonnet tier: the fence check, and that is all
+git diff master...<branch>            # opus tier / design units: the full diff, yours
 ```
 
-Verify the ownership boundary actually held (`--stat` shows any file a
-worker shouldn't have touched) before you look at content. Nothing merges
-unreviewed.
+The token premise of the whole shape depends on this: the trial's lead read
+every diff *with* Sage present and still finished at ~180k. A Sonnet-tier
+unit gets one reviewer, Sage; an Opus-tier or design unit (new scene, solver
+cut, anything a player would notice) gets two — Sage first, then you on the
+full diff. **Routing is one recipient per message, never both:** the drone's
+review request goes to Sage; its report is its final turn text (the
+completion notification brings it to you — never tell a drone to
+`SendMessage main` on top); Sage's one `LANDED:` message per run comes at the
+end. **The gate is `land`, not a `REVIEW` line:** a unit Sage has not
+approved cannot have been landed by Sage, and `master` moving by exactly that
+branch is the evidence — reconcile at §6. Trial 2026-09-11 (6 drones, up to
+4 concurrent, owner absent): 4 reviews, 5 real findings all acted on, one
+laundered owner quote caught, one gameplay gap missed (now in Sage's
+mandate), one 26-minute drone stall while Sage ran a sibling's audit, two
+units merged unreviewed under the per-unit `REVIEW` protocol; the lead
+finished at ~180k. Verdict: net positive at 4+ concurrent drones or an
+absent owner; below that, be the reviewer yourself and run `land` yourself.
+
+Without Sage: you are the reviewer for every tier, the `--stat` first and the
+content second, and nothing lands unreviewed.
 
 **Do not accept a worker's claim that a failure is pre-existing.** Two
 workers in one run reported "975/976, the failure is a pre-existing baseline
@@ -838,13 +915,18 @@ game looks like, either drive it (`mise run play`) or say plainly
 to the user that you confirmed the plumbing and not the pixels. Don't let
 "tests pass, shader compiles" quietly stand in for "it looks right".
 
-### 6. Merge, one branch at a time — but test once per batch (the merge train)
+### 6. Land, one branch at a time — but test once per train
 
-Per branch, in sequence, exactly as `warp` step 6 describes: rebase the
-branch onto `master` from inside its worktree, then fast-forward `master`.
-Sequential is not a limitation — each rebase re-tests the *next* branch
-against the merged result of the previous ones, which is the only place a
-cross-unit break surfaces.
+Per branch, in sequence: `mise run land -- <branch> [--closes <n>]` — the
+rebase-inside-its-worktree, `check` + `test:dir`, `--ff-only` dance of
+`warp` step 6 as one locked call (merge contract, above). Sequential is not a
+limitation — the `flock` enforces it, and each rebase re-tests the *next*
+branch against the landed result of the previous ones, which is the only
+place a cross-unit break surfaces. **In a Sage run, Sage runs it and you
+never rebase by hand;** what stays yours, always: the full suite once per
+train, the push, and the reconcile — Sage's `LANDED: #n <sha>, …` against
+`git log master`, one line per unit, every sha present and nothing on
+`master` that no `LANDED:` entry claims.
 
 **The authoritative full suite runs once per batch of merges, not once per
 merge.** Owner call, 2026-08-28: *"orchestrator holds all the cards, if they
@@ -873,14 +955,16 @@ means the decomposition leaked — fix the decomposition's consequence, not
 just the conflict.
 
 **Closing the issue(s).** Workers never write `Closes #<n>` themselves —
-you add it, because only you know which branch is last. Amend it on before
-that branch's rebase, while you're still upstream of the merge:
+`land --closes <n>` adds it as an empty `land: #<n> <slug>` commit on top of
+the fast-forward (it cannot amend the drone's tip), and only the *last*
+branch for an issue gets the flag, because only the planner knows which one
+that is — say so in the DAG and in Sage's spawn message:
 
-- **One issue, N units** — one `Closes #<n>`, on your integration commit, or
-  amended onto the *final* branch's tip. Not on the others: whichever merged
-  first would close the issue while the rest of the work is still in flight.
-- **N independent issues** — one `Closes #<n>` per branch, each naming its
-  own issue. Every branch is the last one for its issue.
+- **One issue, N units** — `--closes` on the *final* branch's land only. Not
+  on the others: whichever landed first would close the issue while the rest
+  of the work is still in flight.
+- **N independent issues** — `--closes` on every land, each naming its own
+  issue. Every branch is the last one for its issue.
 
 `Closes` fires on **push**, not on the local fast-forward. So merging does
 not close anything. Check `git status -sb` before you claim an issue is
@@ -888,9 +972,9 @@ done, and remember `master` may carry unrelated commits (yours, or another
 agent's) that a push would ship alongside your work — surface that and let
 the user decide.
 
-Because the close is deferred to the push, move the issue on the kanban as
-each one lands, so the board reflects reality even though the issue is still
-open:
+Because the close is deferred to the push, `land --closes` moves the issue
+to `in-review` as it lands, so the board reflects reality even though the
+issue is still open (it prints a ⚠ if the board call failed — then by hand):
 
 ```bash
 mise gh-project -- status <n> in-review     # branch landed on master, awaiting push
