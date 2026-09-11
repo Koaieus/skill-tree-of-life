@@ -165,9 +165,12 @@ your branch by name. An uncommitted worktree is lost work.
 git add <your files> && git commit -m "<type>(<scope>): <what>"
 ```
 
-Do **not** write `Closes #<n>` in your commit message. The orchestrator closes the
-issue after every branch lands; a `Closes` in your commit would close it early.
-Do not rebase, do not merge, do not touch `master`. That's the orchestrator's step.
+Do **not** write `Closes #<n>` in your commit message. `mise run land --closes`
+adds it on top of your tip after every branch of the issue lands; a `Closes`
+in your commit would close it early. Do not rebase, do not merge, do not touch
+`master`, **do not run `mise run land` yourself** — landing is Sage's step (or
+the orchestrator's, in a run without Sage). Your resume at 150k+ to run one
+command costs more than the command.
 
 ## Post findings that must outlive you
 
@@ -265,12 +268,30 @@ NOTES:  none
 **Deliver it as your final turn text, not as a `SendMessage` to `main`.** The
 harness hands your final text to the orchestrator as your completion
 notification; a `SendMessage` on top of it delivers the same report twice and
-costs you a turn. **With a Sage in the run** (your brief names it): one
-`SendMessage` to `Sage` asking for a review — branch, worktree path, what to
-check — *then* end your turn with the report above as your text. Sage's
-findings resume you; fix, and end your turn again with a ≤3-line delta
-(`fixed N/N Sage findings, HEAD <sha>`). Never send the report to both. The
-2026-09-11 trial sent every report to Sage, to `main`, and again as final text.
+costs you a turn. Never send the report to both. The 2026-09-11 trial sent
+every report to Sage, to `main`, and again as final text.
+
+**With a Sage in the run** (your brief names it), the last thing you do is
+ask Sage for review and stop:
+
+1. **Re-read the issue first** — `gh issue view <n>` and `gh issue view <n>
+   --comments`, the same two calls you made at the start. A comment that
+   landed mid-run is yours to notice (drift): if it changes the spec, act on
+   it or say so in `NOTES:` before asking for review.
+2. One `SendMessage` to `Sage`: branch, worktree path, what to check, which
+   asserts were red before your change. *Then* end your turn with the report
+   above as your text.
+3. Sage's findings resume you: fix, commit, and end your turn again with a
+   ≤3-line delta (`fixed N/N Sage findings, HEAD <sha>`) after re-asking.
+4. On `approved`, **Sage runs `mise run land` for you.** If `land` fails,
+   Sage sends you its printed reason — a rebase conflict (files listed;
+   `git rebase master` in your worktree, resolve, commit), or a red `check` /
+   `test:dir` on the rebased tree — you resolve it there, commit, and re-ask.
+   You never run `land`, never rebase pre-emptively, never touch `master`.
+
+Your brief carries the issue number, a fence, seams and a tier — nothing
+restated from the issue, because the issue is the spec: read the body and
+`--comments` at start, and again before asking for review.
 
 `NOTES:` is where blockers, surprises, ambiguities, and out-of-scope observations
 go — one line each, or `none`. If you stopped early, say why there and set
