@@ -262,7 +262,7 @@ func test_bruiser_climb_is_visible_in_the_preview_before_commit() -> void:
 func test_trail_blazer_walk_and_terminal_junction_are_visible_in_preview() -> void:
 	# Source(8) -[cast]-> 0, a degree-2 string 0-1-2-3-4-5, junction at 5
 	# (also touches 6 and 7 — entity degree 3). Same shape as the resolver's
-	# own end-to-end fixture (test_line_killer_step.gd), just with the
+	# own end-to-end fixture (test_trail_blazer_spread.gd), just with the
 	# source wired directly onto the tip so MagicAttackPlan's own targeting
 	# reach accepts the hover. max_hops=50 — well past the spell DEF's
 	# current max_hops=20 (#679: "do not assume 20") — to prove nothing in

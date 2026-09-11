@@ -5,7 +5,7 @@ extends GutTest
 ## Most of this file is TRANSPLANTED coverage, not new coverage: the three
 ## slam-mode arithmetic cases (×2 → 22, SQUARE → 36, MULTIPLY_BY_DEGREE → 24)
 ## and the entity-vs-graph-degree junction case all lived in
-## `test_line_killer_step.gd` while the slam lived inside `TrailBlazerSpread`.
+## `test_trail_blazer_spread.gd` while the slam lived inside `TrailBlazerSpread`.
 ## The numbers are deliberately unchanged so the coverage moved rather than
 ## being re-derived — see the enumeration on issue #851.
 
@@ -60,7 +60,7 @@ func test_junction_is_false_at_degree_two_and_true_at_degree_three() -> void:
 	assert_false(c.evaluate(_landing(1.0, cn[1], chain), cn[1], null), "degree 2 is not")
 
 
-## Transplanted from `test_line_killer_step.gd::test_foreign_neighbour_is_not_a
+## Transplanted from `test_trail_blazer_spread.gd::test_foreign_neighbour_is_not_a
 ## _junction` — the ONE fixture that can tell entity degree from graph degree.
 ##
 ##   DEF: 0 — 1 — 2        node 1: graph degree 3, entity degree 2
