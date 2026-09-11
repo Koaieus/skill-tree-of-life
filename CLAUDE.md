@@ -21,7 +21,7 @@ godot --editor .                                  # open project in editor
 godot --path . scenes/dev_sandbox.tscn            # hand-authored, fully baked — instant
 godot --path . scenes/first_level_sandbox.tscn    # THE one to reach for: a real 800-node
                                                   # playthrough, run authored in session/runs/
-godot --path . scenes/procgen_play_sandbox.tscn   # small procgen proof-of-concept, 50 nodes
+godot --path . scenes/procgen_play_sandbox.tscn   # small procgen proof-of-concept, 120 nodes
 ```
 
 `run/main_scene` is `scenes/meta/meta_root.tscn` — the frontmatter menu, i.e.

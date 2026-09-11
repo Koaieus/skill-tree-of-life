@@ -50,7 +50,7 @@ const _DEFAULT_TERRITORY_SEEDER := preload("res://procgen/placement/territory_se
 ## Overrides applied to a duplicate of `preset` — leaves the on-disk preset
 ## untouched so the same resource can serve multiple sandboxes at different
 ## sizes. 0 = inherit from preset.
-@export var node_count_override: int = 50
+@export var node_count_override: int = 120
 
 ## Shared allocation-pick strategy (#275, D-24) — greedy BFS ball by default.
 ## Injectable so a different level scene can swap in another AllocationPolicy
