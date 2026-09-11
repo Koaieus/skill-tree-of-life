@@ -11,7 +11,7 @@ const _HUD_ROOT := preload("res://ui/hud/hud_root.tscn")
 
 const _OTHER_OVERLAY_NAMES := [
 	"StatBoardOverlay", "PauseMenu", "LootPicker", "SpellLootPicker",
-	"MassActionConfirmPanel", "RunEndOverlay",
+	"MassActionConfirmPanel", "RunEndOverlay", "SpellCatalogueModal",
 ]
 
 
