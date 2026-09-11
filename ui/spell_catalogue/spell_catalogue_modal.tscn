@@ -1,0 +1,41 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/modal/modal_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/spell_catalogue/spell_catalogue_modal.gd" id="2_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_catalogue"]
+content_margin_left = 28.0
+content_margin_top = 22.0
+content_margin_right = 28.0
+content_margin_bottom = 22.0
+bg_color = Color(0.09, 0.09, 0.12, 0.85)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.4, 0.95, 1, 0.45)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="SpellCatalogueModal" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
+cancellable = true
+
+[node name="Panel" parent="Center" index="0"]
+theme_override_styles/panel = SubResource("StyleBoxFlat_catalogue")
+
+[node name="Title" parent="Center/Panel/VBox" index="0"]
+theme_override_font_sizes/font_size = 24
+text = "SPELL CATALOGUE"
+
+[node name="Subtitle" parent="Center/Panel/VBox" index="1"]
+text = "Every spell in the tree"
+
+[node name="CancelButton" parent="Center/Panel/VBox/ButtonRow" index="0"]
+visible = false
+
+[node name="ConfirmButton" parent="Center/Panel/VBox/ButtonRow" index="1"]
+disabled = false
+text = "CLOSE"

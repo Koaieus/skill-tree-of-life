@@ -30,7 +30,15 @@ title = "MULTIPLAYER"
 subtitle = "+8 PLAYERS"
 archetype = &"dexterity"
 
-[node name="OptionsSlot" type="Control" parent="Row/OptionsVBox" index="2"]
+[node name="SpellCatalogueSlot" type="Control" parent="Row/OptionsVBox" index="2"]
+custom_minimum_size = Vector2(0, 132)
+layout_mode = 2
+script = ExtResource("2_slot")
+menu_id = &"spell_catalogue"
+title = "SPELL CATALOGUE"
+archetype = &"intelligence"
+
+[node name="OptionsSlot" type="Control" parent="Row/OptionsVBox" index="3"]
 custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 script = ExtResource("2_slot")
@@ -38,7 +46,7 @@ menu_id = &"options"
 title = "OPTIONS"
 archetype = &"perception"
 
-[node name="ExitSlot" type="Control" parent="Row/OptionsVBox" index="3"]
+[node name="ExitSlot" type="Control" parent="Row/OptionsVBox" index="4"]
 custom_minimum_size = Vector2(0, 132)
 layout_mode = 2
 script = ExtResource("2_slot")

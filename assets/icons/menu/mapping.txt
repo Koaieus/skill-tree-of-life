@@ -20,3 +20,4 @@ menu_load	delapouite/load.svg
 menu_main	delapouite/house.svg
 menu_exit	lord-berandas/power-button.svg
 menu_continue	guard13007/play-button.svg
+menu_catalogue	delapouite/spell-book.svg

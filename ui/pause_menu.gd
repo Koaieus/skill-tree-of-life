@@ -5,6 +5,11 @@ extends Control
 ## and flips the SceneTree pause flag together. The node runs in
 ## PROCESS_MODE_ALWAYS (set in the scene) so it still catches the un-pause key
 ## and drives its buttons while the rest of the tree is frozen.
+## The player asked to read the spell catalogue (#853). Emitted, not acted on:
+## the catalogue is a modal-system modal and [HudRoot] owns the modal queue,
+## so it is the one that presents it — same split as every other modal.
+signal spell_catalogue_requested
+
 @export var active: bool:
 	set(v):
 		if v == active: return
@@ -108,6 +113,12 @@ func leave_run() -> void:
 ## then closes. (Editor: stops the play session.)
 func _on_exit_button_pressed() -> void:
 	get_tree().quit()
+
+
+## Ask for the catalogue; the menu stays up (and the tree paused) underneath
+## it, so closing the catalogue lands the player back here.
+func _on_spell_catalogue_button_pressed() -> void:
+	spell_catalogue_requested.emit()
 
 
 func _on_continue_button_pressed() -> void:

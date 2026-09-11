@@ -42,6 +42,7 @@ func test_every_registered_id_is_a_menu_graph_panel_constant() -> void:
 		MenuGraph.PANEL_HOST,
 		MenuGraph.PANEL_SETTINGS,
 		MenuGraph.PANEL_EXIT_CONFIRM,
+		MenuGraph.PANEL_SPELL_CATALOGUE,
 	]
 	for id in _panels.panel_ids():
 		assert_true(id in known, "'%s' is not a MenuGraph panel id" % id)
@@ -60,8 +61,9 @@ func test_every_panel_the_menu_tree_names_is_registered() -> void:
 				"leaf '%s' names panel '%s', which nothing supplies" % [id, item.panel])
 
 
-func test_all_six_panels_are_registered() -> void:
-	assert_eq(_panels.panel_ids().size(), 6)
+func test_all_seven_panels_are_registered() -> void:
+	assert_eq(_panels.panel_ids().size(), 7)
+	assert_true(_panels.has_panel(MenuGraph.PANEL_SPELL_CATALOGUE))
 	assert_true(_panels.has_panel(MenuGraph.PANEL_SETTINGS))
 	assert_true(_panels.has_panel(MenuGraph.PANEL_LOAD))
 	assert_true(_panels.has_panel(MenuGraph.PANEL_EXIT_CONFIRM))

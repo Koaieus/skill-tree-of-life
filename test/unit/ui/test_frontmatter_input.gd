@@ -90,6 +90,8 @@ func test_down_steps_forward_through_the_siblings() -> void:
 	_send(_key(KEY_DOWN))
 	assert_eq(_input.cursor, MenuGraph.ID_MULTIPLAYER)
 	_send(_key(KEY_DOWN))
+	assert_eq(_input.cursor, MenuGraph.ID_SPELL_CATALOGUE)
+	_send(_key(KEY_DOWN))
 	assert_eq(_input.cursor, MenuGraph.ID_OPTIONS)
 
 

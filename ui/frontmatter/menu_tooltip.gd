@@ -59,6 +59,7 @@ const DESCRIPTIONS := {
 	MenuGraph.ID_LOCAL: "Same device, same screen.",
 	MenuGraph.ID_HOST: "Open a game for others to join.",
 	MenuGraph.ID_JOIN: "Enter a session by code.",
+	MenuGraph.ID_SPELL_CATALOGUE: "Every spell in the tree, in full.",
 	MenuGraph.ID_OPTIONS: "Tune the experience.",
 	MenuGraph.ID_EXIT: "Leave the tree.",
 }

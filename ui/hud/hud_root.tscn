@@ -23,6 +23,7 @@
 [ext_resource type="PackedScene" uid="uid://cv81a0y70nvs2" path="res://ui/hud/minimap_panel/minimap_panel.tscn" id="21_minimap"]
 [ext_resource type="PackedScene" path="res://ui/hud/armed_mode_icon/armed_mode_icon.tscn" id="22_armed_icon"]
 [ext_resource type="PackedScene" uid="uid://c26eoebnjw1lg" path="res://ui/mass_action_confirm/mass_action_confirm_panel.tscn" id="22_mass_action"]
+[ext_resource type="PackedScene" path="res://ui/spell_catalogue/spell_catalogue_modal.tscn" id="23_spell_catalogue"]
 
 [node name="HudRoot" type="Control" unique_id=1012524231]
 process_mode = 1
@@ -215,6 +216,11 @@ visible = false
 layout_mode = 1
 
 [node name="MassActionConfirmPanel" parent="." unique_id=422834914 instance=ExtResource("22_mass_action")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+
+[node name="SpellCatalogueModal" parent="." instance=ExtResource("23_spell_catalogue")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1

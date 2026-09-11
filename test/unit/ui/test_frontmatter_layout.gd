@@ -91,7 +91,7 @@ func test_every_leaf_names_a_panel_and_no_branch_does() -> void:
 func test_the_tree_is_the_one_in_the_issue() -> void:
 	assert_eq(_tree.children_of(MenuGraph.ID_ROOT), _ids([
 		MenuGraph.ID_SINGLE_PLAYER, MenuGraph.ID_MULTIPLAYER,
-		MenuGraph.ID_OPTIONS, MenuGraph.ID_EXIT,
+		MenuGraph.ID_SPELL_CATALOGUE, MenuGraph.ID_OPTIONS, MenuGraph.ID_EXIT,
 	]))
 	assert_eq(_tree.children_of(MenuGraph.ID_SINGLE_PLAYER), _ids([
 		MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOAD_GAME,
@@ -397,10 +397,12 @@ func test_the_root_fan_owns_its_own_gaps() -> void:
 	var gaps: Array[float] = []
 	for i in range(1, options.size()):
 		gaps.append(positions[options[i]].y - positions[options[i - 1]].y)
-	assert_eq(gaps.size(), 3)
+	assert_eq(gaps.size(), 4)
 	assert_almost_eq(gaps[0], 190.0, 0.001, "SINGLE PLAYER -> MULTIPLAYER, authored")
-	assert_almost_eq(gaps[1], 150.0, 0.001, "MULTIPLAYER -> OPTIONS")
+	assert_almost_eq(gaps[1], 150.0, 0.001, "MULTIPLAYER -> SPELL CATALOGUE")
 	assert_almost_eq(gaps[2], 132.0, 0.001,
+			"SPELL CATALOGUE -> OPTIONS is two leaves, and pays for nobody's peek stack")
+	assert_almost_eq(gaps[3], 132.0, 0.001,
 			"OPTIONS -> EXIT is two leaves, and pays for nobody's peek stack")
 	assert_true(gaps[0] < 201.0, "no neighbour's subtree forces the root fan's pitch")
 

@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://ui/frontmatter/panels/frontmatter_panel.tscn" id="1_base"]
+[ext_resource type="Script" path="res://ui/spell_catalogue/spell_catalogue_panel.gd" id="2_script"]
+[ext_resource type="PackedScene" path="res://ui/spell_catalogue/spell_catalogue_list.tscn" id="3_list"]
+
+[node name="SpellCataloguePanel" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
+panel_id = &"spell_catalogue"
+title = "SPELL CATALOGUE"
+
+[node name="List" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" index="0" instance=ExtResource("3_list")]
+unique_name_in_owner = true
+layout_mode = 2

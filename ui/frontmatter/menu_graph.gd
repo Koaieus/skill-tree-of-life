@@ -118,6 +118,8 @@ const PANEL_JOIN := &"join"
 const PANEL_HOST := &"host"
 const PANEL_SETTINGS := &"settings"
 const PANEL_EXIT_CONFIRM := &"exit_confirm"
+## The read-only spell catalogue (#853) — every authored spell, long-form.
+const PANEL_SPELL_CATALOGUE := &"spell_catalogue"
 
 ## Item ids. Same reason as the panel ids, plus these are the focus tokens the
 ## camera (#570) and the input map (#576) address.
@@ -129,6 +131,7 @@ const ID_MULTIPLAYER := &"multiplayer"
 const ID_LOCAL := &"local"
 const ID_HOST := &"host"
 const ID_JOIN := &"join"
+const ID_SPELL_CATALOGUE := &"spell_catalogue"
 const ID_OPTIONS := &"options"
 const ID_EXIT := &"exit"
 
@@ -189,6 +192,9 @@ static func build() -> MenuGraph:
 			Route.new(RunConfig.Mode.COOP_HOTSEAT, NetworkTransport.Role.CLIENT,
 					POLICY_VERSUS)))
 
+	# The catalogue (#853) opens a read-only panel, so like OPTIONS it has no
+	# route — reading about spells is not a way into a run.
+	tree.add(_leaf(ID_SPELL_CATALOGUE, ID_ROOT, PANEL_SPELL_CATALOGUE))
 	tree.add(_leaf(ID_OPTIONS, ID_ROOT, PANEL_SETTINGS))
 	tree.add(_leaf(ID_EXIT, ID_ROOT, PANEL_EXIT_CONFIRM))
 	return tree

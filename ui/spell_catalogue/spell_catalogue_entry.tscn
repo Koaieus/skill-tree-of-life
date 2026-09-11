@@ -1,0 +1,120 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://ui/spell_catalogue/spell_catalogue_entry.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
+[ext_resource type="PackedScene" uid="uid://cjwsps8ttexc" path="res://ui/tooltip_fan/panel_header.tscn" id="3_header"]
+[ext_resource type="PackedScene" path="res://ui/spell_tooltip/spell_tooltip_section.tscn" id="4_section"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_entry"]
+
+[node name="SpellCatalogueEntry" type="PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxEmpty_entry")
+script = ExtResource("1_script")
+
+[node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
+layout_mode = 2
+
+[node name="Padded" type="MarginContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 14
+
+[node name="Content" type="VBoxContainer" parent="Padded"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="HeaderRow" type="HBoxContainer" parent="Padded/Content"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="Icon" type="TextureRect" parent="Padded/Content/HeaderRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Header" parent="Padded/Content/HeaderRow" instance=ExtResource("3_header")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+header = "SPELL NAME"
+subheader = "Requires degree ≥ 0"
+
+[node name="ManaLabel" type="Label" parent="Padded/Content/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"TierValue"
+theme_override_font_sizes/font_size = 16
+text = "◈ 0"
+
+[node name="TaglineLabel" type="Label" parent="Padded/Content"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.72)
+layout_mode = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 12
+text = "Tagline"
+autowrap_mode = 3
+
+[node name="HSeparator" type="HSeparator" parent="Padded/Content"]
+modulate = Color(1, 1, 1, 0.35)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Sections" type="HBoxContainer" parent="Padded/Content"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 18
+
+[node name="CastSection" parent="Padded/Content/Sections" instance=ExtResource("4_section")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 0.9
+header_text = "Cast"
+
+[node name="OnArrivalSection" parent="Padded/Content/Sections" instance=ExtResource("4_section")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+header_text = "On arrival"
+
+[node name="ThenSection" parent="Padded/Content/Sections" instance=ExtResource("4_section")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.3
+header_text = "Then"
+
+[node name="CritsSection" parent="Padded/Content/Sections" instance=ExtResource("4_section")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+header_text = "Crits"
+
+[node name="HSeparator2" type="HSeparator" parent="Padded/Content"]
+modulate = Color(1, 1, 1, 0.2)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="DescriptionLabel" type="Label" parent="Padded/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"TierLabel"
+theme_override_font_sizes/font_size = 12
+text = "Description"
+autowrap_mode = 3

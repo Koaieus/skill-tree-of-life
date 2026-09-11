@@ -7,6 +7,7 @@
 [ext_resource type="Texture2D" uid="uid://ci7fc1wq5c8mj" path="res://assets/icons/menu/menu_main.png" id="5_fijdv"]
 [ext_resource type="Texture2D" uid="uid://df8cxilgg1wmk" path="res://assets/icons/menu/menu_exit.png" id="6_lpidc"]
 [ext_resource type="Texture2D" uid="uid://dyya8keqdf0of" path="res://assets/icons/menu/menu_continue.png" id="7_b1mq0"]
+[ext_resource type="Texture2D" path="res://assets/icons/menu/menu_catalogue.png" id="8_catalogue"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bcxn4"]
 content_margin_left = 10.0
@@ -97,6 +98,13 @@ text = "LOAD"
 icon = ExtResource("4_jyvtb")
 expand_icon = true
 
+[node name="SpellCatalogueButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "SPELL CATALOGUE"
+icon = ExtResource("8_catalogue")
+expand_icon = true
+
 [node name="ToMainMenuButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer" unique_id=2023258104]
 layout_mode = 2
 text = "MAIN MENU"
@@ -129,6 +137,7 @@ horizontal_alignment = 1
 text = "seed —  ·  —"
 
 [connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/RestartButton" to="." method="_on_restart_button_pressed"]
+[connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/SpellCatalogueButton" to="." method="_on_spell_catalogue_button_pressed"]
 [connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/ToMainMenuButton" to="." method="_on_to_main_menu_button_pressed"]
 [connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/ExitButton" to="." method="_on_exit_button_pressed"]
 [connection signal="pressed" from="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer/ContinueButton" to="." method="_on_continue_button_pressed"]

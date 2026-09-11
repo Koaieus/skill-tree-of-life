@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/spell_catalogue/spell_catalogue_body.gd" id="1_body"]
+[ext_resource type="PackedScene" path="res://ui/spell_catalogue/spell_catalogue_list.tscn" id="2_list"]
+
+[node name="SpellCatalogueBody" type="VBoxContainer"]
+layout_mode = 2
+script = ExtResource("1_body")
+
+[node name="List" parent="." instance=ExtResource("2_list")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(760, 560)
+layout_mode = 2

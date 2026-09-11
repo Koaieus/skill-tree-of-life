@@ -32,6 +32,7 @@ extends Control
 @onready var loot_picker: LootPicker = %LootPicker
 @onready var mass_action_confirm_panel: MassActionConfirmPanel = %MassActionConfirmPanel
 @onready var spell_loot_picker: SpellLootPicker = %SpellLootPicker
+@onready var spell_catalogue_modal: SpellCatalogueModal = %SpellCatalogueModal
 @onready var run_end_overlay: RunEndOverlay = %RunEndOverlay
 @onready var pause_menu: PauseMenu = %PauseMenu
 @onready var tooltip_fan: TooltipFan = %TooltipFan
@@ -101,6 +102,12 @@ func _ready() -> void:
 			spell_loot_picker.closed.connect(_on_modal_closed)
 		if mass_action_confirm_panel != null:
 			mass_action_confirm_panel.closed.connect(_on_modal_closed)
+		# The catalogue (#853) is read-only and has no request; it still goes
+		# through the queue so its Esc is its own and not the pause menu's.
+		if spell_catalogue_modal != null:
+			spell_catalogue_modal.closed.connect(_on_modal_closed)
+			if pause_menu != null:
+				pause_menu.spell_catalogue_requested.connect(_on_spell_catalogue_requested)
 
 
 ## Let go of the hero's board when the level goes away. A Stat is a Resource
@@ -183,6 +190,8 @@ func bind_systems(
 		loot_picker.bind(_input_ctl)
 	if spell_loot_picker != null:
 		spell_loot_picker.bind(_input_ctl)
+	if spell_catalogue_modal != null:
+		spell_catalogue_modal.bind(_input_ctl)
 	# The allocation system is the panel's affordability oracle, not its
 	# trigger — a level without one still shows the confirm (dimmed), rather
 	# than arming a request no surface ever presents.
@@ -287,6 +296,16 @@ func _on_mass_action_pending_changed(request: MassActionRequest) -> void:
 		mass_action_confirm_panel.dismiss()
 		return
 	_enqueue_modal(func() -> void: mass_action_confirm_panel.present(request))
+
+
+## The pause menu's SPELL CATALOGUE item (#853). The menu stays up beneath the
+## modal — `_set_modal_busy` blocks its Esc while the catalogue is showing, and
+## `closed` hands Esc back — so closing the catalogue lands on the pause menu,
+## which is where the player came from.
+func _on_spell_catalogue_requested() -> void:
+	if spell_catalogue_modal == null:
+		return
+	_enqueue_modal(func() -> void: spell_catalogue_modal.present())
 
 
 func _enqueue_modal(show_request: Callable) -> void:
