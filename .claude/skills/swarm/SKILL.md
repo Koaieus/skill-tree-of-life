@@ -787,7 +787,20 @@ paths above. The blocker itself is signal, not a failure of the worker.
 
 ### 5. Review
 
-You are the reviewer. The workers are smaller models and had no advisor.
+You are the reviewer. The workers are smaller models and had no advisor —
+**unless you spawned a Sage.** `.claude/agents/sage.md` is a persistent Fable
+advisor + reviewer teammate: spawn one at dispatch (`Agent` with
+`subagent_type: "sage"`, `name: "Sage"`, backgrounded; its spawn message
+carries only the run-specific part — issues, DAG, seams, roster) and tell
+every drone brief "Sage (`SendMessage` to: "Sage") is your advisor; ask it
+for a review BEFORE you report." Drones' questions and first-pass reviews
+then land on Sage's context instead of yours; you still read every diff
+before merging — Sage's `REVIEW #n <slug>:` line is an input to your gate,
+not the gate. Trial 2026-09-11 (6 drones, up to 4 concurrent, owner absent):
+4 reviews, 5 real findings all acted on, one laundered owner quote caught,
+one 26-minute drone stall while Sage ran a sibling's audit; the orchestrator
+finished the run at ~180k. Verdict: net positive at 4+ concurrent drones or
+an absent owner; below that, you are the cheaper reviewer.
 
 ```bash
 git diff master...<worktreeBranch> --stat     # shape first
