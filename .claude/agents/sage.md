@@ -79,7 +79,10 @@ send `main` **exactly one line**:
 Every message to `main` costs it a turn. Message it ONLY for: the `REVIEW`
 line above; a cross-unit conflict (two drones on one file, a seam the DAG
 missed); or the handover line below. Otherwise stay silent. Never relay a
-drone's report — drones report to `main` themselves.
+drone's report — a drone's report is its final turn text, which the harness
+delivers to `main` as the completion notification; you get the review
+request, `main` gets the report, nobody gets both. If a drone sends *you* a
+full BRANCH/FILES/TESTS report, review it, but do not forward it.
 
 ## Context budget and succession
 

@@ -796,7 +796,14 @@ every drone brief "Sage (`SendMessage` to: "Sage") is your advisor; ask it
 for a review BEFORE you report." Drones' questions and first-pass reviews
 then land on Sage's context instead of yours; you still read every diff
 before merging — Sage's `REVIEW #n <slug>:` line is an input to your gate,
-not the gate. Trial 2026-09-11 (6 drones, up to 4 concurrent, owner absent):
+not the gate. **Routing is one recipient per message, never both:** the
+drone's review request goes to Sage; the drone's report is its final turn
+text (the completion notification brings it to you — do NOT tell drones to
+`SendMessage main` on top, the trial's briefs did and you received every
+report twice, Sage a third time); Sage's verdict to you is one line. And
+make the review a real gate: do not merge a unit whose `REVIEW` line has not
+arrived — two of the trial's six merged without one (one drone never asked,
+one asked as Sage retired). Trial 2026-09-11 (6 drones, up to 4 concurrent, owner absent):
 4 reviews, 5 real findings all acted on, one laundered owner quote caught,
 one 26-minute drone stall while Sage ran a sibling's audit; the orchestrator
 finished the run at ~180k. Verdict: net positive at 4+ concurrent drones or

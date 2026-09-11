@@ -262,6 +262,16 @@ DID:    Hoisted get_edges() out of the neighbour loop; added the adjacency cache
 NOTES:  none
 ```
 
+**Deliver it as your final turn text, not as a `SendMessage` to `main`.** The
+harness hands your final text to the orchestrator as your completion
+notification; a `SendMessage` on top of it delivers the same report twice and
+costs you a turn. **With a Sage in the run** (your brief names it): one
+`SendMessage` to `Sage` asking for a review — branch, worktree path, what to
+check — *then* end your turn with the report above as your text. Sage's
+findings resume you; fix, and end your turn again with a ≤3-line delta
+(`fixed N/N Sage findings, HEAD <sha>`). Never send the report to both. The
+2026-09-11 trial sent every report to Sage, to `main`, and again as final text.
+
 `NOTES:` is where blockers, surprises, ambiguities, and out-of-scope observations
 go — one line each, or `none`. If you stopped early, say why there and set
 `TESTS:` to what you actually observed. Anything you put in `NOTES:` that a
