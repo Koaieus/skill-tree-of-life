@@ -13,9 +13,10 @@ extends GutTest
 ##   1. Mana-per-turn is exact at every power of ten and on both sides of it —
 ##      the range the issue asked for, plus the top of the ladder, which the
 ##      issue's range could not see.
-##   2. Sensor-range's replacement is EXACTLY `floor(ln(WIS))` for every
-##      integer WIS in range. This migration changes no value; it only removes
-##      the libm dependence.
+##   2. Sensor-range's replacement is EXACTLY `floor(ln(PER))` for every
+##      integer PER in range. The #547 migration (log -> threshold) changed no
+##      value; the source stat itself later moved from WIS to PER (owner call
+##      2026-09-11 — PER has two jobs, vision + sensor range; WIS has one).
 ##   3. The ladder saturates at `breakpoints.size()`, deliberately, and the
 ##      shipped ladders saturate above anything reachable.
 ##   4. The wire form round-trips — a new StatFormula subclass with no codec
@@ -96,38 +97,38 @@ func test_shipped_sensor_ladder_reproduces_natural_log_exactly() -> void:
 		probes.append(boundary - 1)
 		probes.append(boundary)
 	for w in probes:
-		_board.wisdom.base_value = float(w)
+		_board.perception.base_value = float(w)
 		var expected := floorf(log(maxf(1.0, float(w))))
-		assert_eq(f.compute(_board), expected, "WIS %d -> floor(ln) = %d"
+		assert_eq(f.compute(_board), expected, "PER %d -> floor(ln) = %d"
 			% [w, int(expected)])
 
 
 func test_the_sensor_ladder_only_reproduces_ln_because_its_input_is_integral() -> void:
 	# `ceil(e^n)` is the right rung for INTEGER input and the wrong one for
 	# reals: `floor(ln x)` is already 1 at x = 2.71828, while the rung sits at
-	# 3.0. That gap is unreachable only because `wisdom` is a
+	# 3.0. That gap is unreachable only because `perception` is a
 	# `StatDef.ValueType.INT` stat and `Stat._coerce` `roundi`s it, so the
 	# formula never sees a fraction — the OLD `floor(log(wisdom))` read the
-	# same rounded integer, which is why this migration changes no value.
+	# same rounded integer, which is why the #547 migration changed no value.
 	#
-	# Flip wisdom (or intelligence) to FLOAT and that stops being true. This
-	# test is the tripwire: re-rung the ladder on the `e^n` literals, or don't
-	# flip the type.
-	for stat_id in [&"wisdom", &"intelligence"]:
+	# Flip perception (or intelligence) to FLOAT and that stops being true.
+	# This test is the tripwire: re-rung the ladder on the `e^n` literals, or
+	# don't flip the type.
+	for stat_id in [&"perception", &"intelligence"]:
 		var def: StatDef = StatRegistry.get_def(stat_id)
 		assert_not_null(def, "%s has a StatDef" % stat_id)
 		assert_eq(def.value_type, StatDef.ValueType.INT,
 			"%s must stay INT — the threshold ladders are rung for integers" % stat_id)
-	_board.wisdom.base_value = 2.9
-	assert_eq(float(_board.wisdom.get_value()), 3.0,
+	_board.perception.base_value = 2.9
+	assert_eq(float(_board.perception.get_value()), 3.0,
 		"a fractional base still reads back as an integer")
 
 
 func test_sensor_phrase_is_still_the_authored_one() -> void:
-	# The ladder IS floor(ln WIS), so "log(WIS)" stays honest prose. The
+	# The ladder IS floor(ln PER), so "log(PER)" stays honest prose. The
 	# Attributes Panel renders it (test_attribute_rules) and the transcendental
 	# lint reads `formula = ` lines only, never `per_phrase`.
-	assert_eq(_shipped(&"sensor_range").describe_per(), "log(WIS)")
+	assert_eq(_shipped(&"sensor_range").describe_per(), "log(PER)")
 
 
 # --- 3. Saturation is a decision, not an accident ---------------------------
@@ -215,7 +216,7 @@ func test_long_non_geometric_ladder_truncates_to_fit_the_loot_card() -> void:
 
 func test_authored_per_phrase_still_wins_and_keeps_the_per_wrapper() -> void:
 	# per_phrase is an authored override, not a ladder shape — it stays a
-	# "per" clause (sensor_range's shipped "log(WIS)" is exactly this case).
+	# "per" clause (sensor_range's shipped "log(PER)" is exactly this case).
 	var f := _threshold(&"wisdom", [3.0, 8.0, 21.0] as Array[float])
 	f.per_phrase = "log(WIS)"
 	assert_eq(f.describe_clause(), " per log(WIS)")

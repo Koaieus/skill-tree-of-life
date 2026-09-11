@@ -530,10 +530,10 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | Input stat | Target stat | Op | value | formula |
 |---|---|---|---|---|
 | `perception` | `vision_range` | INCREASE | 2 | LinearFormula(perception) — at PER=3 → +6% |
+| `perception` | `sensor_range` | ADD_BASE | 1 | ThresholdFormula(perception, [3, 8, 21, 55, 149, 404, 1097, 2981, 8104, 22027]) — exactly `floor(ln PER)`, `ceil(e^n)` per rung (#547, moved from WIS to PER — owner call 2026-09-11: PER has two jobs, vision + sensor range; WIS has one, XP/turn) |
 | `intelligence` | `mana` | ADD_BASE | 1 | RatioFormula(intelligence, 10) |
 | `intelligence` | `mana_per_turn` | ADD_BASE | 1 | ThresholdFormula(intelligence, [10, 100, 1000, 1e4, 1e5, 1e6]) — one per decade (#547) |
 | `wisdom` | `xp_per_turn` | ADD_BASE | 1 | RatioFormula(wisdom, **2**) |
-| `wisdom` | `sensor_range` | ADD_BASE | 1 | ThresholdFormula(wisdom, [3, 8, 21, 55, 149, 404, 1097, 2981, 8104, 22027]) — exactly `floor(ln WIS)`, `ceil(e^n)` per rung (#547). Clear sensing scales with WIS, not DEX |
 | `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
 | `dexterity` | `ranged_damage` | ADD_BASE | 1 | RatioFormula(dexterity, 10) |
 | `intelligence` | `spell_range` | ADD_BASE | 1 | RatioFormula(intelligence, **4**) — euclidean-only reach (%), reduced rate, retune post-LAN (#727) |

@@ -37,22 +37,22 @@ func test_strength_lists_both_blade_rules_with_the_real_divisors() -> void:
 
 func test_wisdom_reports_the_current_xp_rule_not_the_retired_decade_one() -> void:
 	var lines := _lines(&"wisdom")
-	assert_eq(lines.size(), 2, "xp_per_turn + sensor_range")
+	assert_eq(lines.size(), 1, "xp_per_turn only — sensor_range moved to perception")
 	assert_string_contains(lines[0], "per 2 WIS")
 	assert_false(lines[0].contains("decade"), "the decade rule is long gone")
-
-
-func test_wisdom_also_drives_sensor_range() -> void:
-	var lines := _lines(&"wisdom")
-	assert_string_contains(lines[1], "log(WIS)")
 
 
 func test_perception_line_carries_the_live_value() -> void:
 	_board.perception.base_value = 30.0
 	var lines := _lines(&"perception")
-	assert_eq(lines.size(), 1)
+	assert_eq(lines.size(), 2, "vision_range + sensor_range")
 	assert_string_contains(lines[0], "per PER")
 	assert_string_contains(lines[0], "-> %s" % str(_board.vision_range.value))
+
+
+func test_perception_also_drives_sensor_range() -> void:
+	var lines := _lines(&"perception")
+	assert_string_contains(lines[1], "log(PER)")
 
 
 func test_constitution_is_no_longer_blank() -> void:

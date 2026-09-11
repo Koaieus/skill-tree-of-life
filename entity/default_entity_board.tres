@@ -224,17 +224,17 @@ script = ExtResource("12_3edt8")
 stat_id = &"xp_per_turn"
 formula = SubResource("formula_wis_to_xp_pt")
 
-[sub_resource type="Resource" id="formula_wis_to_sensor"]
+[sub_resource type="Resource" id="formula_per_to_sensor"]
 script = ExtResource("script_threshold")
-source_stat_id = &"wisdom"
+source_stat_id = &"perception"
 breakpoints = Array[float]([3.0, 8.0, 21.0, 55.0, 149.0, 404.0, 1097.0, 2981.0, 8104.0, 22027.0])
-per_phrase = "log(WIS)"
+per_phrase = "log(PER)"
 
-[sub_resource type="Resource" id="mod_wis_to_sensor"]
+[sub_resource type="Resource" id="mod_per_to_sensor"]
 resource_name = "+1 Sensor Range"
 script = ExtResource("12_3edt8")
 stat_id = &"sensor_range"
-formula = SubResource("formula_wis_to_sensor")
+formula = SubResource("formula_per_to_sensor")
 
 [sub_resource type="Resource" id="formula_str_to_blade_damage"]
 script = ExtResource("script_ratio")
@@ -544,4 +544,4 @@ blade_speed_multiplier_max = SubResource("scalar_blade_speed_multiplier_max")
 blade_speed_half = SubResource("scalar_blade_speed_half")
 crit_chance = SubResource("scalar_crit_chance")
 crit_multiplier = SubResource("scalar_crit_multiplier")
-intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_wis_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_hops"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_con_to_health"), SubResource("mod_level_to_con")])
+intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_per_to_sensor"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_hops"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_con_to_health"), SubResource("mod_level_to_con")])

@@ -21,8 +21,8 @@ extends StatFormula
 ## A sorted list of integers compared with `>=` has no such failure mode.
 ##
 ## Any monotone step function of one stat is authorable here, not just decades:
-## `[3, 8, 21, 55, 149, 404]` reproduces `floor(ln(WIS))` exactly for every
-## integer WIS, because `ceil(e^n)` is where each step actually lands.
+## `[3, 8, 21, 55, 149, 404]` reproduces `floor(ln(PER))` exactly for every
+## integer PER, because `ceil(e^n)` is where each step actually lands.
 ##
 ## [b]It saturates.[/b] A finite list cannot climb forever, so the value tops
 ## out at `breakpoints.size()`. That is a deliberate authoring obligation, not
@@ -114,7 +114,7 @@ func describe_per() -> String:
 ##   "+1 Spell Hops at 50 / 150 / 500 / 1000 / 5000 INT"
 ##
 ## Truncated to the first three rungs plus the last past 5 entries (see
-## [method _ladder_list]) so a long ladder (WIS's ten-rung sensor-range curve,
+## [method _ladder_list]) so a long ladder (PER's ten-rung sensor-range curve,
 ## if it ever loses its authored `per_phrase`) still fits the loot pick card
 ## this was reported from.
 func describe_clause() -> String:
@@ -142,7 +142,7 @@ func _common_ratio() -> float:
 
 
 ## "50 / 150 / 500 / 1000 / 5000" for a short ladder. Past 5 rungs (none
-## shipped today — the longest, WIS's sensor-range ladder, carries an
+## shipped today — the longest, PER's sensor-range ladder, carries an
 ## authored `per_phrase` and never reaches this branch) truncates to the
 ## first 3 plus the last, ellipsis between, so the rendered clause stays on
 ## one line on the loot pick card the owner flagged this on.
