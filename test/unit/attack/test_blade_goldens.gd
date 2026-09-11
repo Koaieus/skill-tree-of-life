@@ -79,6 +79,15 @@ const _CASES: Array[StringName] = [
 	&"defended_chunked",
 ]
 
+## Cases serialized in DIGEST-only mode — every value still hashed into the
+## section digest, but the readable per-sample rows are dropped. Only
+## `long_blade_clamped_factor` (k=48) needs it: its readable rows alone were
+## 112K of the fixture directory's 688K, and the digest pins the identical
+## determinism contract at a fraction of the size.
+const _DIGEST_ONLY_CASES: Array[StringName] = [
+	&"long_blade_clamped_factor",
+]
+
 ## When true, the `_range` helper reproduces `BladeSim.simulate_range`'s
 ## preamble and calls `_simulate_native` directly, asserting it did NOT
 ## decline. That is the vacuity guard: since #847 `simulate_range` has no
@@ -384,23 +393,34 @@ func _probe_pose(clamped: bool, k: int, frac: float) -> PackedVector2Array:
 # ── Serialisation ─────────────────────────────────────────────────────────────
 # Text rows for the reviewer, exact bytes for the digest. Both are produced by
 # ONE walk over the world (`_Sink`), so a value can never be in one and not the
-# other.
+# other — except in `terse` mode (see `_DIGEST_ONLY_CASES`), which still hashes
+# every value but drops the rendered row, so only the DIGEST lines are kept.
 
 
 class _Sink extends RefCounted:
 	var lines: PackedStringArray = []
 	var _bytes := PackedByteArray()
+	var _terse: bool
+
+	func _init(terse: bool = false) -> void:
+		_terse = terse
 
 	func line(text: String) -> void:
-		lines.append(text)
+		if not _terse:
+			lines.append(text)
 
-	## One row: a label, then every value both rendered and hashed.
+	## One row: a label, then every value both rendered and hashed. In terse
+	## mode the values still get hashed — the digest must cover every row — but
+	## the rendered line is dropped.
 	func row(label: String, values: Array) -> void:
-		var parts: PackedStringArray = [label]
+		var parts: PackedStringArray = [label] if not _terse else PackedStringArray()
 		for v in values:
-			parts.append(_render(v))
-			_bytes.append_array(_exact(v))
-		lines.append(" ".join(parts))
+			var bytes := _exact(v)
+			if not _terse:
+				parts.append(_render(v))
+			_bytes.append_array(bytes)
+		if not _terse:
+			lines.append(" ".join(parts))
 
 	func flush_digest(section: String) -> void:
 		var ctx := HashingContext.new()
@@ -452,7 +472,7 @@ class _Sink extends RefCounted:
 
 
 func _serialize(case_name: StringName, w: Dictionary) -> String:
-	var sink := _Sink.new()
+	var sink := _Sink.new(case_name in _DIGEST_ONLY_CASES)
 	sink.line("CASE %s" % case_name)
 	var state: BladeState = w.state
 	for entry: Array in w.trajs:
