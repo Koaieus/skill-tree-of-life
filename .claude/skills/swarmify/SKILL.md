@@ -129,8 +129,17 @@ Post a comment (or edit the body) with an `## Acceptance spec` section containin
 - **NOTES** — descoped asides, parked for their own future issue. Never let one
   ride the Ready unit.
 
-This comment is what the `swarm` orchestrator (or a `warp` run) pastes into the
-worker prompt. Make it copy-paste complete.
+This comment is what a `swarm` drone reads, by itself, in place of a brief.
+**The Ready criterion (#857): a drone given only the issue number, its
+comments, and a fence can act** — every decision is in the body or in a dated
+owner comment, none in a chat log, a handoff file, or the orchestrator's
+head. The swarm brief is bare (issue #, owned paths, seams, tier, "Sage is
+your advisor") and restates nothing; if you find yourself thinking "the
+orchestrator will explain that part", it is not Ready. Test it before you
+promote: read the body and `--comments` cold, as a Sonnet with no chat
+history would, and ask whether a single unsettled fork remains. #847's
+publish-a-Release pre-step lived in a post-review comment and rewrote
+acceptance 7 — fine, because it was *on the issue*, dated, the owner's.
 
 ### 5. If it's a hub, decompose into Ready children
 

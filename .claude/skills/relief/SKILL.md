@@ -127,6 +127,22 @@ stop reading and say what is missing: the ledger is stale, and the fix is to
 ask the outgoing session one specific question (its cheapest possible act)
 rather than to keep reconstructing state yourself.
 
+## In a Sage run — what relief inherits
+
+When the run has a Sage (`.claude/agents/sage.md`, #857), **Sage keeps
+landing.** It is a persistent teammate, not the outgoing orchestrator's
+context: drones keep asking it, it keeps approving and running `mise run land`,
+and none of that pauses for the handover. What relief inherits is the lead's
+half only — the ledger (roster, tiers, per-issue metrics), the remaining
+dispatches, and the train gate: **reconcile Sage's `LANDED: #n <sha>, …` list
+against `git log master`** (ask Sage for the list as it stands — one message —
+if the ledger is behind), run the full suite once on the train, push, and
+close out the board. Relief never rebases by hand and never re-reviews a
+`sonnet`-tier unit Sage already landed; an `opus`-tier unit still in flight
+gets relief's full-diff read, as it would have the outgoing lead's. If Sage is
+past ~150k it will have written `docs/handoffs/swarm-sage-handover.md` and
+said so — spawning its successor is relief's job too.
+
 ## Fable advisor — optional colour, not contract
 
 `relief-1` used a Fable advisor subagent for strategy, and the owner credited
