@@ -322,9 +322,6 @@ static func _simulate_native(
 			# would be silently ignored by the C++ loop.
 			if obstacles.get_script() != BladeObstacleField:
 				return _decline("obstacles %s is not a plain BladeObstacleField" % obstacles)
-			if not obstacles.native_supported():
-				return _decline("BladeObstacleField.trace is diagnostic-only and outside "
-						+ "the native solver's subset since #847")
 			# The C++ capsule pass indexes `radii[e.x]` unguarded — a short
 			# array would be a read past the end, so decline instead.
 			if state.radii.size() != state.positions.size():

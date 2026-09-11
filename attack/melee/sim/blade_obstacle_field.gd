@@ -220,15 +220,6 @@ var _near: Dictionary = {}
 ## and appending to it would be lost.
 var _incident: Dictionary = {}
 
-## Diagnostic trace for the classification test and the melee sandbox readout —
-## off by default, costs nothing when off. Each entry is one substep with at
-## least one contact: `[unresolved_drive, contact_unresolved]` — the metric in
-## use, and the issue's first formulation for comparison.
-var trace: bool = false
-var trace_rows: Array[PackedFloat32Array] = []
-var _trace_pre: PackedVector2Array = PackedVector2Array()
-
-
 ## False once this field was handed someone else's zone set — appending to a
 ## SHARED set would silently give a sibling proposal an extra defender.
 var _owns_zones: bool = true
@@ -346,8 +337,6 @@ func begin_sample(step: int) -> void:
 func after_drivers(positions: PackedVector2Array) -> void:
 	for k in _driven.size():
 		_driven_targets[k] = positions[_driven[k]]
-	if trace:
-		_trace_pre = positions.duplicate()
 
 
 ## The pushout, and the swing's only contact test. Runs once per solver
@@ -547,8 +536,6 @@ func end_substep(positions: PackedVector2Array, clock: BladeSwingClock) -> void:
 				_bank_load(z, e_idx, unresolved * absf(normal.dot(dir / len)))
 		for e_idx in _contact_edges:
 			_bank_load(_contact_edges[e_idx], e_idx, unresolved)
-	if trace:
-		trace_rows.append(PackedFloat32Array([unresolved, _contact_unresolved(positions)]))
 	if _break_edge < 0:
 		for z in _strain.size():
 			if _strain[z] < SHATTER_DISTANCE:
@@ -632,15 +619,6 @@ func restore(b: Bank) -> void:
 # These are [method capture] / [method restore] in Dictionary clothing. Change
 # them together with those two and with the C++ `FieldCtx`: a field that stops
 # crossing is not an error on either side, it is a silently different swing.
-
-
-## False when this field is outside the native backend's transliterated subset,
-## so [method BladeSim.simulate_range] falls back. Only [member trace] takes it
-## out: the diagnostic rows feed the classification test and the melee sandbox
-## readout, both of which run one swing at a time, so the GDScript path is
-## exactly the right place for them.
-func native_supported() -> bool:
-	return not trace
 
 
 ## The immutable half of the run about to step: the zone set, the live edge set,
@@ -781,16 +759,3 @@ func _pick_edge(z: int) -> int:
 	return best
 
 
-## Diagnostic only: the issue's first metric — the contacting vertices' own
-## unresolved pushout (`required - |F - P|`, max over contacts) this substep.
-func _contact_unresolved(positions: PackedVector2Array) -> float:
-	if _trace_pre.is_empty():
-		return 0.0
-	var worst := 0.0
-	for i in _contact_particles:
-		var z: int = _contact_particles[i]
-		var p := _trace_pre[i]
-		var required := zone_radii[z] + _state.radii[i] - CONTACT_SLOP - p.distance_to(zone_centers[z])
-		var actual := positions[i].distance_to(p)
-		worst = maxf(worst, required - actual)
-	return worst
