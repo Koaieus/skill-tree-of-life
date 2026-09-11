@@ -79,11 +79,12 @@ const _CASES: Array[StringName] = [
 	&"defended_chunked",
 ]
 
-## When true, the `_range` helper bypasses `BladeSim.simulate_range`'s fallback
-## and calls `_simulate_native` directly, asserting it did NOT decline. That is
-## the vacuity guard: `simulate_range` silently falls through to GDScript for a
-## state outside the transliterated subset, and a golden recorded off that
-## fallback would pin the wrong solver while reading as native.
+## When true, the `_range` helper reproduces `BladeSim.simulate_range`'s
+## preamble and calls `_simulate_native` directly, asserting it did NOT
+## decline. That is the vacuity guard: since #847 `simulate_range` has no
+## GDScript fallback to fall through to — `_simulate_native` push_errors and
+## returns null on a declined state — so this exists only to prove the
+## direct call equals the routed call: the two preambles have not diverged.
 var _direct_native := false
 
 
@@ -605,12 +606,11 @@ func test_the_native_solver_reproduces_every_golden() -> void:
 
 
 ## Guards the guard: every case's every chunk is INSIDE the transliterated
-## subset, so `simulate_range` really did run the C++ for it. A case the native
-## path declined would have been recorded off the GDScript fallback and would
-## keep passing on it after #847 deleted... nothing, because the fallback would
-## be gone and the call would error — but until then it would pin the wrong
-## solver. `_range` asserts non-null per chunk; the output must also equal the
-## fallback-capable path's, or the two preambles have diverged.
+## subset, so `simulate_range` really did run the C++ for it. Since #847 there
+## is no GDScript fallback for a declined case to quietly fall through to —
+## `_simulate_native` push_errors and returns null instead — so this exists to
+## prove the direct call equals the routed call: the two preambles have not
+## diverged.
 func test_every_golden_case_runs_on_the_native_path() -> void:
 	for case_name in _CASES:
 		_direct_native = true
