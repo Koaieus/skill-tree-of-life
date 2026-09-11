@@ -1,6 +1,6 @@
 ---
 name: relay
-description: Orchestrate a chain of Ready issues as one Sonnet `warp` drone each, with you as advisor and sole merge gate — read almost nothing yourself, front-load each brief with discovered context, gate every merge, and run the full suite once at the end. Use when the user names several issues to land in sequence ("#A → #B → #C as Sonnet warps"), says "relay these", or asks you to orchestrate warps without doing the implementation. Prefer this over `swarm` when the issues are already Ready and merges must serialise.
+description: Orchestrate a chain of Ready issues as one Sonnet `warp` drone each, with you as advisor and sole merge gate — read almost nothing yourself, front-load each brief with discovered context, gate every merge, and run the full suite once at the end. Use when the user names several issues to land in sequence ("#A → #B → #C as Sonnet warps"), says "relay these", or asks you to orchestrate warps without doing the implementation. Since #857 this is `swarm` at wave size 1 — the body is a pointer; run `swarm` with one drone in flight.
 ---
 
 # Relay — a swarm at wave size 1
