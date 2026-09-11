@@ -92,10 +92,12 @@ harness-aware escalation channel — goes in its `task` prompt (opencode) or
 its `SendMessage` brief (Claude Code). The standing flow rules (worktree
 first, hard-stop, explicit-path `git add`, verification caps, report format)
 do *not* go in the brief — `drone` carries them, and the brief opens with
-`"Invoke the drone skill, then do the following:"`. Leaving the standing
-rules implicit because "drone has them" is correct; leaving the *unit
-specifics* implicit because "it's in the issue" is the standard way a swarm
-goes wrong.
+`"Invoke the drone skill, then do the following:"`. The *spec* does not go
+in the brief either: a `Ready` issue is spec-complete for a bare-number
+drone (`swarmify`'s criterion, #857), so the brief carries only what the
+issue cannot know — the fence, the seams, the tier, Sage's name. What must
+never be implicit is the fence and the seams: those are the standard way a
+swarm goes wrong.
 
 ## Gate — do not swarm the wrong work
 
