@@ -134,13 +134,13 @@ singles=""
 while IFS= read -r f; do
   [ -n "$f" ] || continue
   case "$f" in
-    test/unit/*/*) d="test/unit/${f#test/unit/}"; d="${d%%/*}"; dirs="$dirs ${d}" ;;
+    test/unit/*/*) d="${f#test/unit/}"; dirs="$dirs ${d%%/*}" ;;
     test/unit/*.gd) singles="$singles $f" ;;
     */*) top="${f%%/*}"; [ -d "$main/test/unit/$top" ] && dirs="$dirs $top" ;;
   esac
 done <<< "$files"
-dirs=$(printf '%s\n' $dirs | sort -u | tr '\n' ' ')
-singles=$(printf '%s\n' $singles | sort -u | tr '\n' ' ')
+dirs=$(printf '%s\n' $dirs | sort -u | xargs)
+singles=$(printf '%s\n' $singles | sort -u | xargs)
 
 run_step() {  # run_step <label> <cmd...>; prints the verdict lines on red
   local label="$1"; shift
@@ -148,7 +148,7 @@ run_step() {  # run_step <label> <cmd...>; prints the verdict lines on red
   log=$(mktemp)
   echo "  $label …"
   if (cd "$wt" && "$@") >"$log" 2>&1; then
-    grep -E '^✓' "$log" | tail -1 | sed 's/^/    /'
+    grep -E '✓' "$log" | tail -1 | sed -E 's/^(\[[^]]*\] )?/    /'
     rm -f "$log"
     return 0
   fi
