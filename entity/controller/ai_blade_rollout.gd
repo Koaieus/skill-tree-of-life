@@ -278,10 +278,11 @@ static func _propose_blade_selections(
 		if max_size <= 0:
 			continue
 		# D4: target handle length = randi_range(tier, tier + 1), tier maxed
-		# at 3 (t0 -> 0-1 ... t3 -> 3-4) — the ONE place rigidity-seeking
-		# lives (#771 hub, owner 2026-09-10: "0-1 means sometimes no clamping
-		# attempt at all, just flop... all rigidity-seeking lives in the
-		# tier-ladder... accidental truss, all good").
+		# at 3 (t0 -> 0-1 ... t3 -> 3-4). All rigidity-seeking lives in this
+		# tier ladder and nowhere else (#771 hub, owner 2026-09-10: "0-1
+		# means sometimes no clamping attempt at all, just flop. or
+		# accidental truss, all good. t0 AI accidentally making a functional
+		# blade is cool, they just dont pursue it as effectively.").
 		var tier := clampi(ai_tier, 0, _MAX_AI_TIER)
 		var handle_target := actual_rng.randi_range(tier, tier + 1)
 		var archetype := _build_archetype(
