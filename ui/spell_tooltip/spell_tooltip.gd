@@ -107,103 +107,20 @@ func _populate() -> void:
 	else:
 		_tagline_label.hide()
 
-	_populate_cast_section()
-	_populate_on_arrival_section()
-	_populate_then_section()
-	_populate_crits_section()
+	_populate_sections()
 
 
-## Section 1 (#764) — fully derived here: [Targeting]/[NodeTargeting] and
-## [RangeFinder] live under `attack/targeting/` and `attack/range_finder/`,
-## both mine to describe. Who it can hit, then how far.
-func _populate_cast_section() -> void:
-	var lines: PackedStringArray = []
-	var dynamic: Array[int] = []
-
-	if _spell.targeting != null:
-		var who := _spell.targeting.get_description()
-		if who != "":
-			lines.append(who)
-
-	var rf := _resolve_range_finder()
-	if rf != null:
-		var raw_desc := rf.get_description(null)
-		var eff_desc := rf.get_description(_caster_board())
-		if eff_desc != "":
-			lines.append(eff_desc)
-			if eff_desc != raw_desc:
-				dynamic.append(lines.size() - 1)
-
-	_cast_section.bind(lines, dynamic)
-
-
-## Section 2 (#764) — [OnHitEffect] (`attack/spell/on_hit/`, mine) called
-## directly, no more duck typing now that #851 landed [code]get_description()[/code]
-## on every subclass. Each effect gets the unscaled reading first (gold rule
-## matches the Cast section's range line: mark the row dynamic only when the
-## caster's board actually moved the D-32 number) then the caster-scaled one.
-## The reducer's line ([PropagationConfig], mine to CALL not to edit — #852's
-## job to rewrite) is unaffected by either.
-func _populate_on_arrival_section() -> void:
-	var lines: PackedStringArray = []
-	var dynamic: Array[int] = []
-	var board := _caster_board()
-
-	for effect in _spell.on_hit_effects:
-		if effect == null:
-			continue
-		var raw_desc := effect.get_description(_spell, null)
-		var eff_desc := effect.get_description(_spell, board)
-		if eff_desc != "":
-			lines.append(eff_desc)
-			if eff_desc != raw_desc:
-				dynamic.append(lines.size() - 1)
-
-	var prop := _spell.propagation
-	if prop != null and prop.max_hops > 0 and prop.reducer != null:
-		var rd := prop.reducer.get_description()
-		if rd != "":
-			lines.append(rd)
-
-	_on_arrival_section.bind(lines, dynamic)
-
-
-## Section 3 (#764 half 2b) — [PropagationConfig] (`attack/spell/propagation/`,
-## mine) called directly; its own [method PropagationConfig.get_description]
-## now owns the single-target collapse (null/step-less/zero-hop spread), so
-## this no longer re-derives it. A null [member SpellDef.propagation] (an
-## invalid def — [method SpellDef.validate] flags it) is the one case the
-## config itself cannot answer for.
-func _populate_then_section() -> void:
-	var lines: PackedStringArray = []
-	var prop := _spell.propagation
-	if prop == null:
-		lines.append("Single target.")
-	else:
-		var d := prop.get_description()
-		if d != "":
-			lines.append(d)
-		if prop.hop_damage != null:
-			var hd := prop.hop_damage.get_description()
-			if hd != "":
-				lines.append(hd)
-	_then_section.bind(lines)
-
-
-## Section 4 (#764) — [LandingCondition] (`attack/spell/condition/`, mine)
-## called directly; #851 landed [code]get_description()[/code] on every
-## subclass. No number to scale here, so no dynamic marking. Empty
-## [member SpellDef.crit_conditions] collapses the section via
-## [method SpellTooltipSection.bind].
-func _populate_crits_section() -> void:
-	var lines: PackedStringArray = []
-	for cond in _spell.crit_conditions:
-		if cond == null:
-			continue
-		var d := cond.get_description()
-		if d != "":
-			lines.append(d)
-	_crits_section.bind(lines)
+## The four marked sections (#764) — derived ONCE, in [SpellSections], and
+## shared with the spell catalogue (#853): this tooltip hands the caster's
+## board over so caster-moved numbers come back marked dynamic (gold); the
+## catalogue passes none and gets base numbers. Nothing about a spell is
+## derived in this file.
+func _populate_sections() -> void:
+	var sections := SpellSections.build(_spell, _caster_board())
+	_cast_section.bind(sections.cast.lines, sections.cast.dynamic)
+	_on_arrival_section.bind(sections.on_arrival.lines, sections.on_arrival.dynamic)
+	_then_section.bind(sections.then.lines, sections.then.dynamic)
+	_crits_section.bind(sections.crits.lines, sections.crits.dynamic)
 
 
 ## The mana chip wears the Mana stat's own palette colour — [StatDef.tint_color]
@@ -218,19 +135,11 @@ func _tint_mana_label() -> void:
 	)
 
 
-## The hovered caster's board, or null. Every dynamic number on this tooltip is
-## computed by *asking its owner* with this board — the finder for reach, the
-## resolver for damage — never by re-deriving the expression here. A private
-## copy of the hop-scaling formula is exactly what made the tooltip disagree
-## with the game about propagation depth.
+## The hovered caster's board, or null — what [SpellSections] asks each
+## resource's describer with, so every dynamic number is the owner's own
+## (the finder for reach, the effect for damage), never re-derived here.
 func _caster_board() -> StatBoard:
 	return _caster.stat_board if _caster != null else null
-
-
-func _resolve_range_finder() -> RangeFinder:
-	if _spell.targeting == null:
-		return null
-	return _spell.targeting.get(&"range_finder") as RangeFinder
 
 
 ## Re-fit the free-floating panel to its content width-first. Two layout facts
