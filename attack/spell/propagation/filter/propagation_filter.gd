@@ -21,7 +21,18 @@ extends Resource
 ## A PAIRWISE filter overrides this and gets [method narrow] for free. A
 ## SET-LEVEL filter overrides [method narrow] and DERIVES this from it, by
 ## narrowing the one-element set — never by asserting [code]true[/code], so
-## the two answers cannot drift apart.
+## the derivation cannot rot when the set rule changes.
+##
+## [b]For a set-level filter this is a strictly WEAKER question than
+## [method narrow], and no implementation can close that gap.[/b] Narrowing a
+## one-element set asks "does this candidate tie for first among itself",
+## which is trivially yes — so [method TopTiesFilter.allows] admits candidates
+## [method TopTiesFilter.narrow] rejects, by construction rather than by
+## oversight. Read it as "could this candidate ever survive", and take the real
+## verdict from [method narrow] only. That is why [SpellResolver] calls
+## [method narrow] and never loops this, and why [method CompositeFilter.narrow]
+## chains its children'"'"'s [method narrow] rather than their [method allows].
+## `test_set_level_filters.gd` pins the gap so nobody "fixes" it.
 @abstract func allows(
 		from_node: SkillNode,
 		to_node: SkillNode,

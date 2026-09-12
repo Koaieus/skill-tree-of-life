@@ -237,3 +237,58 @@ func test_visit_cap_runs_before_the_filter_so_a_spent_node_cannot_win_a_tie() ->
 		targets.append((hit.target as SkillNode).name)
 	assert_eq(targets, ["N2", "N0", "N1"] as Array[String],
 			"the spent node never enters the tie, so the live joint-lowest wins")
+
+
+## --- what `allows` can and cannot answer for a set-level filter -------------
+##
+## [PropagationFilter]'s docstring says a set-level filter derives `allows`
+## from `narrow` "never by asserting true, so the two answers cannot drift
+## apart". Read as "the two agree", that is FALSE and cannot be made true:
+## narrowing a ONE-element set asks "does this candidate tie for first among
+## itself", which is trivially yes. So `allows` is necessarily the weaker
+## question — *could* this candidate ever survive — and the full-set verdict
+## lives only in `narrow`.
+##
+## Pinned because the stronger reading is an easy and expensive mistake: it is
+## why [SpellResolver] calls `narrow` and never loops `allows`, and why
+## [method CompositeFilter.narrow] chains its children's `narrow` rather than
+## their `allows`. A future filter author who "fixes" `allows` to agree will
+## find this test explaining why it can't.
+
+func test_set_level_allows_is_weaker_than_narrow_and_that_is_the_contract() -> void:
+	var nodes := _n()
+	var candidates := _hub_neighbours()
+	var ties := TopTiesFilter.new()
+	ties.ranker = DegreeRanker.new()
+	ties.direction = TopTiesFilter.Direction.LOWEST
+
+	# Leaf N1 has entity degree 2; leaves N2/N3 tie for lowest at degree 1.
+	var kept := ties.narrow(nodes[0], candidates, null, _ctx)
+	assert_eq(_names(kept), ["N2", "N3"], "narrow keeps only the degree-1 tie")
+
+	# ...yet `allows` admits the very node `narrow` just rejected.
+	var loser: SkillNode = candidates[0]
+	assert_false(kept.has(loser), "N1 lost the tie")
+	assert_true(ties.allows(nodes[0], loser, null, _ctx),
+		"a lone candidate trivially ties with itself — this is the documented "
+		+ "weaker question, not a bug")
+
+
+func test_composite_allows_matches_chained_allows_for_pairwise_children() -> void:
+	# For purely PAIRWISE children the weaker question is the exact one, so a
+	# composite's `allows` is its children's AND — the case that is safe to use.
+	var nodes := _n()
+	var composite := CompositeFilter.new()
+	composite.mode = CompositeFilter.Mode.AND
+	var gate := RankThresholdFilter.new()
+	gate.ranker = DegreeRanker.new()
+	gate.compare = RankThresholdFilter.Compare.LESS
+	composite.children = [gate] as Array[PropagationFilter]
+
+	for c in _hub_neighbours():
+		assert_eq(composite.allows(nodes[0], c, null, _ctx),
+			gate.allows(nodes[0], c, null, _ctx),
+			"one pairwise child: composite.allows == that child's allows (%s)" % c.name)
+		assert_eq(composite.narrow(nodes[0], [c] as Array[SkillNode], null, _ctx).is_empty(),
+			not gate.allows(nodes[0], c, null, _ctx),
+			"and narrow agrees with it, pairwise (%s)" % c.name)
