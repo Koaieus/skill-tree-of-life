@@ -104,6 +104,36 @@ func required_spacing(min_dist: float, attempt: int, max_attempts: int, same_cam
 	return _lerp_toward_floor(full, min_dist, attempt, max_attempts)
 
 
+## Remember which camp a point was placed FOR, on the point itself.
+##
+## [method CenterCoreStarters.plan] compares each candidate against the points
+## already placed and needs each one's camp. Reading it as `camp_of[j]` — the
+## participant-slot lookup — indexed by the OUTPUT position is correct only
+## while the two indices agree, and they stop agreeing the moment a slot is
+## skipped (which `plan` does, deliberately, when a contender is unplaceable:
+## see `test_crowded_map_warns_when_cross_camp_floor_is_unsatisfiable`). After
+## one skip every later output slot is offset, and a CROSS-camp pair reads as
+## same-camp — halving the floor #758 added precisely to stop an enemy opening
+## on top of you, in exactly the crowded map where that matters most.
+##
+## Stored in metadata rather than as an `@export` because it is a placement-time
+## working fact, not authored content: a `.tres` StartingPoint has no camp, and
+## the run's roster is what assigns one.
+func _stamp_camp(point: StartingPoint, camp: int) -> void:
+	point.set_meta(&"camp", camp)
+
+
+## The camp of the point at [param slot] of an ALREADY-PLACED list — read off
+## the point, never off a participant-slot lookup. See [method _stamp_camp].
+## Falls back to the slot index for a point nothing stamped, which is the
+## identity answer whenever no slot was skipped.
+func camp_of_placed(placed: Array[StartingPoint], slot: int) -> int:
+	if slot < 0 or slot >= placed.size():
+		return -1
+	var p := placed[slot]
+	return p.get_meta(&"camp", slot) if p != null else -1
+
+
 func _lerp_toward_floor(full: float, floor_dist: float, attempt: int, max_attempts: int) -> float:
 	if max_attempts <= 1:
 		return full

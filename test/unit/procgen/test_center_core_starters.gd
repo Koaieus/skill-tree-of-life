@@ -195,3 +195,56 @@ func test_shipped_preset_places_the_max_roster() -> void:
 			% placement.viability_radius
 			+ "must still place all 14 contenders (camp_sizes %s) under the non-degrading cross-camp floor"
 			% str(camp_sizes))
+
+
+# ── The camp lookup must follow the POINT, not the slot ──────────────────────
+#
+## `plan` compares each new candidate against every already-placed point, and
+## asks `camp_of[j]` whether that point is a camp-mate — where `j` indexes the
+## OUTPUT array. Those two indices agree only while nothing has been dropped.
+##
+## They can disagree: `test_crowded_map_warns_when_cross_camp_floor_is_
+## unsatisfiable` above pins that an unplaceable contender is SKIPPED, not
+## substituted, so the output is short. Once one slot is skipped, every later
+## output index is offset from the participant index `camp_of` is keyed by —
+## and a cross-camp pair can then be compared as if it were same-camp, which
+## halves the floor #758 added expressly to stop an enemy opening on top of
+## you. The point's own camp has to travel WITH the point.
+
+func test_placed_points_carry_their_own_camp_through_a_skipped_slot() -> void:
+	# camp_sizes [1, 1, 1, 1]: participants 0..3, each its own camp. If
+	# participant 1 is skipped, output slot 1 holds participant 2 (camp 2)
+	# while camp_of[1] still says camp 1 — so slot 2's cross-camp check
+	# against it would read "same camp" and halve the required spacing.
+	var lookup := CenterCoreStarters._camp_lookup([1, 1, 1, 1] as Array[int])
+	assert_eq(lookup, [0, 1, 2, 3] as Array[int],
+			"premise: camp_of is keyed by PARTICIPANT slot")
+
+	var placement := CenterCoreStarters.new()
+	placement.viability_radius = 3.0
+	var mask := CircularShapeMask.new()
+	mask.radius = 4000.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	var pts := placement.plan([1, 1, 1, 1] as Array[int], 4000.0, _MIN_DIST, rng, mask, 200)
+
+	# With room to spare nothing is skipped, so every returned point must be
+	# able to name its own participant slot — the property that stays true
+	# when something IS skipped.
+	assert_eq(pts.size(), 4, "premise: a roomy mask places all four")
+	for i in pts.size():
+		assert_eq(placement.camp_of_placed(pts, i), lookup[i],
+			"point %d must report the camp of the participant it belongs to" % i)
+
+
+func test_camp_of_placed_follows_the_point_when_a_slot_is_skipped() -> void:
+	# The direct statement of the invariant, without needing a geometry that
+	# skips: a point knows its own camp, so a short array still answers right.
+	var placement := CenterCoreStarters.new()
+	var a := StartingPoint.new()
+	var b := StartingPoint.new()
+	placement._stamp_camp(a, 0)
+	placement._stamp_camp(b, 2)   # participant 1 was skipped; this is camp 2
+	var short_output: Array[StartingPoint] = [a, b]
+	assert_eq(placement.camp_of_placed(short_output, 1), 2,
+		"slot 1 of a SHORT array holds a camp-2 point — not camp_of[1]'s camp 1")

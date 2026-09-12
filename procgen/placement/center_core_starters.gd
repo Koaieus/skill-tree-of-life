@@ -43,6 +43,7 @@ func plan(
 	var center := StartingPoint.new()
 	center.position = Vector2.ZERO
 	center.id = &"core"
+	_stamp_camp(center, 0)
 	out.append(center)
 	if total == 1:
 		return out
@@ -73,7 +74,13 @@ func plan(
 				continue
 			var ok := true
 			for j in out.size():
-				var same_camp := camp_of[j] == my_camp
+				# The placed point's OWN camp, not `camp_of[j]`: `j` indexes
+				# the output and `camp_of` the participant slots, and an
+				# unplaceable contender is skipped below rather than
+				# substituted — so after one skip the two disagree and a
+				# cross-camp pair would be compared on the halved same-camp
+				# ask. See [method StarterPlacement._stamp_camp].
+				var same_camp := camp_of_placed(out, j) == my_camp
 				var required := required_spacing(min_dist, attempt, tries, same_camp)
 				if p.distance_squared_to(out[j].position) < required * required:
 					ok = false
@@ -83,6 +90,7 @@ func plan(
 			var new_sp := StartingPoint.new()
 			new_sp.position = p
 			new_sp.id = StringName("enemy_%d" % (i - 1))
+			_stamp_camp(new_sp, my_camp)
 			out.append(new_sp)
 			placed = true
 			break
