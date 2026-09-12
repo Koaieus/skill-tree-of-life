@@ -95,6 +95,20 @@ damage, no walk needed. Keep it (consistent, rewards target selection) or gate
 it (the Trailblazer's identity is the *walk*; "click the junction" shouldn't
 outrank "find the string")? No test pins either reading yet.
 
+## Suite state
+
+`452 scripts · 4235 passed · 1 failing`, no `SCRIPT ERROR` in run-health.
+
+The one failure is **`test_splash.gd::test_the_needle_does_not_drop_until_the_
+charge_has_finished`, and it is not mine** — it fails identically on a suite run
+that started before half these commits, it reproduces standalone, and nothing in
+this session touches `ui/frontmatter/splash_*`. It is a wall-clock timing
+assertion (`charge_duration = 0.25`, then real timers at 0.15s and 0.2s) sitting
+under the recent splash-tuning lineage (`4e8a56d`, `e4bb8e8`, `d3eaba1`,
+`ab3c81b` — explicitly taste work, "the needle's framing is taste not a pin").
+Left alone per CLAUDE.md's shared-checkout guidance: it looks like someone's
+in-flight visual tuning, and the right move is to ask before touching it.
+
 ## Also delivered
 
 `docs/handoffs/post-lan-swarmify-dag.md` — the swarmify clustering DAG for

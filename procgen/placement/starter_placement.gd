@@ -125,13 +125,19 @@ func _stamp_camp(point: StartingPoint, camp: int) -> void:
 
 ## The camp of the point at [param slot] of an ALREADY-PLACED list — read off
 ## the point, never off a participant-slot lookup. See [method _stamp_camp].
-## Falls back to the slot index for a point nothing stamped, which is the
-## identity answer whenever no slot was skipped.
+##
+## An unstamped point answers -1, i.e. UNKNOWN, which no real camp index
+## equals — so a caller comparing `camp_of_placed(...) == my_camp` reads
+## "different camp" and demands the full non-degrading spacing. That is the
+## conservative direction on purpose: an unknown neighbour treated as a
+## camp-mate would halve the very floor this exists to protect. Falling back to
+## `slot` would be wrong as well as unsafe — the slot index only equals the
+## camp when every camp has exactly one member (for `[2, 2]`, slot 2 is camp 1).
 func camp_of_placed(placed: Array[StartingPoint], slot: int) -> int:
 	if slot < 0 or slot >= placed.size():
 		return -1
 	var p := placed[slot]
-	return p.get_meta(&"camp", slot) if p != null else -1
+	return p.get_meta(&"camp", -1) if p != null else -1
 
 
 func _lerp_toward_floor(full: float, floor_dist: float, attempt: int, max_attempts: int) -> float:
