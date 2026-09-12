@@ -73,7 +73,7 @@ static func _cast(def: SpellDef, board: StatBoard) -> Lines:
 	var out := Lines.new()
 	if def.targeting != null:
 		out.add(def.targeting.get_description())
-	var rf := _range_finder_of(def)
+	var rf := def.targeting.get_range_finder() if def.targeting != null else null
 	if rf != null:
 		out.add_scaled(rf.get_description(null), rf.get_description(board))
 	return out
@@ -120,8 +120,3 @@ static func _crits(def: SpellDef) -> Lines:
 		out.add(cond.get_description())
 	return out
 
-
-static func _range_finder_of(def: SpellDef) -> RangeFinder:
-	if def.targeting == null:
-		return null
-	return def.targeting.get(&"range_finder") as RangeFinder

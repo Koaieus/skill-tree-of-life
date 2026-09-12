@@ -115,3 +115,39 @@ func test_any_composite_accepts_all_four() -> void:
 	assert_true(t.is_valid_target(_plan, _source, _mine_node))
 	assert_true(t.is_valid_target(_plan, _source, _ally_node))
 	assert_true(t.is_valid_target(_plan, _source, _hostile_node))
+
+
+## --- get_range_finder: the ONE way to ask a Targeting for its reach model ---
+##
+## Three call sites used to spell this three different ways — a reflective
+## `targeting.get(&"range_finder")` in SpellSections, a bare `.range_finder`
+## property read in EdgeHighlightOverlay (a runtime crash the day a second
+## Targeting subclass exists), and a `as NodeTargeting` cast in
+## SpellTargetUnion. One virtual on the base is the whole answer.
+
+func test_base_targeting_has_no_range_finder() -> void:
+	# The contract that makes the overlay's read safe: asking ANY Targeting is
+	# legal and answers null when the subclass has no reach model.
+	var bare := _BareTargeting.new()
+	assert_null(bare.get_range_finder(),
+			"Targeting.get_range_finder must answer null on a subclass with no finder")
+
+
+func test_node_targeting_returns_its_own_finder() -> void:
+	var t := NodeTargeting.new()
+	var finder := HopRangeFinder.new()
+	t.range_finder = finder
+	assert_eq(t.get_range_finder(), finder,
+			"NodeTargeting.get_range_finder must hand back its authored range_finder")
+
+
+func test_node_targeting_without_a_finder_answers_null() -> void:
+	assert_null(NodeTargeting.new().get_range_finder(),
+			"An unbounded NodeTargeting (no range_finder authored) answers null")
+
+
+## A minimal non-NodeTargeting subclass — the case the overlay's property read
+## would have crashed on.
+class _BareTargeting extends Targeting:
+	func is_valid_target(_plan: AttackPlan, _source: SkillNode, _candidate: SkillNode) -> bool:
+		return true

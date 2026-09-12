@@ -65,3 +65,9 @@ func get_description() -> String:
 	if parts.is_empty():
 		return "Hits nothing."
 	return "Hits %s nodes." % " or ".join(parts)
+
+
+## The authored [member range_finder] — null means unlimited reach, exactly as
+## [method is_valid_target] reads it. See [method Targeting.get_range_finder].
+func get_range_finder() -> RangeFinder:
+	return range_finder

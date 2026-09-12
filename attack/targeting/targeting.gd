@@ -39,6 +39,20 @@ func get_description() -> String:
 	return ""
 
 
+## This targeting's reach model, or null when it bounds nothing — the ONE way
+## to ask a [Targeting] how far it reaches.
+##
+## Virtual rather than a base `@export` because reach is NOT universal: an
+## EDGE- or SELF-kind targeting has no finder to hold. Before this existed the
+## question was asked three different ways — a reflective
+## `targeting.get(&"range_finder")`, a bare `.range_finder` property read that
+## would crash on the first non-[NodeTargeting] subclass, and an
+## `as NodeTargeting` cast — which is three implementations of one contract
+## (`.claude/rules/scene-composition.md`'s sibling rule: no parallel mirrors).
+func get_range_finder() -> RangeFinder:
+	return null
+
+
 ## True iff [param candidate] is an acceptable target given [param source]
 ## under [param plan]. The click handler routes a selected node here.
 @abstract func is_valid_target(plan: AttackPlan, source: SkillNode, candidate: SkillNode) -> bool

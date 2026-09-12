@@ -86,8 +86,11 @@ func _rebuild() -> void:
 func _provider_scene(provider: HighlightProvider, want_ring: bool) -> PackedScene:
 	if provider is MagicAttackPlan:
 		var mp := provider as MagicAttackPlan
-		if mp.spell != null and mp.spell.targeting != null \
-				and mp.spell.targeting.range_finder != null:
-			var f: RangeFinder = mp.spell.targeting.range_finder
+		# Through the virtual, never the `NodeTargeting` property: this field
+		# is typed [Targeting], so a bare `.range_finder` read is a crash the
+		# day a second subclass ships.
+		var f: RangeFinder = mp.spell.targeting.get_range_finder() \
+				if mp.spell != null and mp.spell.targeting != null else null
+		if f != null:
 			return f.ring_scene if want_ring else f.edge_scene
 	return _DEFAULT_RING_SCENE if want_ring else _DEFAULT_EDGE_SCENE
