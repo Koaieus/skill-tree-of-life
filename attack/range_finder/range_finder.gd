@@ -134,9 +134,12 @@ func get_description(_board: StatBoard = null) -> String:
 
 
 ## Shared number formatting for subclass [method get_description]s — whole
-## number when the value already is one, one decimal otherwise. Matches
-## [method SpellTooltip._format_num]; kept here too so a range description is
-## legible read in isolation (as [SpellTooltip] does) without re-deriving it.
+## number when the value already is one, one decimal otherwise. Twin of
+## [method OnHitEffect._fmt_num], which is the same four lines for the same
+## reason on the other describer hierarchy; #853 moved the rendering out of
+## SpellTooltip, so the `SpellTooltip._format_num` this used to point at no
+## longer exists. Two copies across two unrelated Resource trees is the cost
+## of neither tree depending on the other — fold them only if a third appears.
 static func _fmt_num(v: float) -> String:
 	if is_equal_approx(v, roundf(v)):
 		return str(int(v))

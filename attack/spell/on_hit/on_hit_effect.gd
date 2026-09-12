@@ -32,9 +32,10 @@ func get_description(_spell: SpellDef = null, _board: StatBoard = null) -> Strin
 
 
 ## Shared number formatting for subclass [method get_description]s — whole
-## number when the value already is one, one decimal otherwise. Mirrors
-## [method RangeFinder._fmt_num]; kept local so an effect's own describer
-## reads correctly in isolation.
+## number when the value already is one, one decimal otherwise. Twin of
+## [method RangeFinder._fmt_num] — same four lines, different Resource tree;
+## kept local so an effect's own describer reads correctly in isolation and
+## neither hierarchy has to depend on the other. Fold them if a third appears.
 static func _fmt_num(v: float) -> String:
 	if is_equal_approx(v, roundf(v)):
 		return str(int(v))

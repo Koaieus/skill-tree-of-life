@@ -48,7 +48,13 @@ func narrow(
 	if children.is_empty():
 		return candidates.duplicate()
 	if mode == Mode.AND:
-		var surviving: Array[SkillNode] = candidates
+		# Duplicated, not aliased: every other exit from this method hands back
+		# a fresh array (the empty-children path duplicates, the OR path builds
+		# one), and a caller that got the SAME array it passed in from one
+		# branch and a copy from another is the kind of asymmetry that bites
+		# once someone mutates the result. An all-null `children` array is the
+		# case that would otherwise return the input itself.
+		var surviving: Array[SkillNode] = candidates.duplicate()
 		for f in children:
 			if f == null:
 				continue

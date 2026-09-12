@@ -113,3 +113,72 @@ func test_lightning_cast_chains_with_halving_falloff() -> void:
 	assert_almost_eq(helper.total_damage_on(outcome, n[1]), seed_dmg, 0.001)
 	assert_almost_eq(helper.total_damage_on(outcome, n[2]), seed_dmg * 0.5, 0.001)
 	assert_almost_eq(helper.total_damage_on(outcome, n[3]), seed_dmg * 0.25, 0.001)
+
+
+## --- catalogue-wide lints ----------------------------------------------------
+##
+## Everything above pins five hand-picked presets. These two sweep
+## [constant SpellCatalog.ALL], so a spell added later is covered the day it
+## lands rather than the day someone remembers to add a case.
+
+## #851 moved the TrailBlazer's junction slam out of the step and into a
+## [ScaleDamageEffect]. That effect scales `state.damage` IN PLACE and emits
+## nothing; [DamageEffect] is what emits. So a ScaleDamageEffect authored AFTER
+## the DamageEffect it means to scale leaves this landing's damage untouched —
+## silently. It still reaches the next hop (mint reads `payload.damage`), so it
+## isn't a total no-op and this is deliberately NOT a `SpellDef.validate()`
+## error: validate() is a hard runtime gate in `BattleSystem.launch_attack`, and
+## an author who genuinely wants "scale the next hop, not this landing" must not
+## be locked out of casting. An authoring-time lint is the right altitude — if a
+## spell ever wants that ordering on purpose, add it to the exemption below with
+## a reason.
+func test_no_shipped_spell_scales_damage_after_emitting_it() -> void:
+	for spell in SpellCatalog.ALL:
+		if spell == null:
+			continue
+		assert_eq(_late_scale_index(spell.on_hit_effects), -1,
+			"%s authors a ScaleDamageEffect after its DamageEffect — the scale "
+			% spell.name + "cannot reach damage that effect already emitted")
+
+
+## The detector above, proven on a synthetic bad spell — a catalogue sweep that
+## has only ever been green cannot tell you it would catch anything.
+func test_the_effect_order_lint_actually_catches_a_late_scale() -> void:
+	var damage := DamageEffect.new()
+	var scale := ScaleDamageEffect.new()
+	assert_eq(_late_scale_index([damage, scale] as Array[OnHitEffect]), 1,
+			"scale AFTER damage is the failure the catalogue sweep looks for")
+	assert_eq(_late_scale_index([scale, damage] as Array[OnHitEffect]), -1,
+			"scale BEFORE damage is the correct authoring (the Trailblazer's)")
+	assert_eq(_late_scale_index([scale] as Array[OnHitEffect]), -1,
+			"a scale with nothing to emit after it is not this defect")
+
+
+## Index of the first [ScaleDamageEffect] authored after a [DamageEffect] has
+## already emitted, or -1 when the ordering is sound.
+func _late_scale_index(effects: Array[OnHitEffect]) -> int:
+	var emitted_at := -1
+	for i in effects.size():
+		var eff: OnHitEffect = effects[i]
+		if eff is DamageEffect and emitted_at < 0:
+			emitted_at = i
+		elif eff is ScaleDamageEffect and emitted_at >= 0:
+			return i
+	return -1
+
+
+## A spread with no hops never runs, and hops with no spread never leave the
+## seed — either way the authored half is dead weight the tooltip then has to
+## collapse (see [method PropagationConfig.get_description]). Catches a preset
+## that lost one half to an editor refresh.
+func test_every_shipped_spell_authors_hops_and_spread_together() -> void:
+	for spell in SpellCatalog.ALL:
+		if spell == null or spell.propagation == null:
+			continue
+		var p := spell.propagation
+		var propagates: bool = p.max_hops > 0
+		var has_spread: bool = p.spread != null and not (p.spread is NoSpread)
+		assert_eq(propagates, has_spread,
+			("%s: max_hops=%d but spread=%s — a spell either propagates "
+			+ "(hops > 0 AND a real spread) or it does not.")
+			% [spell.name, p.max_hops, p.spread])

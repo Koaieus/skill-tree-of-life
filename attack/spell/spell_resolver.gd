@@ -335,9 +335,15 @@ static func impact_damage(spell: SpellDef, source: SkillNode, board: StatBoard =
 ##
 ## Stamps a starting [member HitInstance.crit_tier] of 1 when any condition
 ## fires. The UNIVERSAL stat roll is then layered on top by
-## [method CritRoll.decide_all] once the whole cast has resolved, which is what
-## makes tier 2 ("both paths fired") mean the same thing it always did while
-## leaving exactly one implementation of the stat roll for all three modes.
+## [method CritRoll.decide], per hit, at the end of the wave that produced it
+## (step 3b of [method resolve_against]) — NOT by a single
+## [method CritRoll.decide_all] at the end of the cast, which is what this said
+## until #536 made each wave land before the next one departs. The draw
+## sequence is bit-identical either way (see the argument at step 3b); only its
+## position relative to the landings moved. Ranged and melee still call
+## `decide_all`. Tier 2 ("both paths fired") means what it always did, and
+## there is still exactly one implementation of the stat roll for all three
+## modes.
 ##
 ## [param hit] is a [HitInstance], not a [DamageInstance] specifically (#381) —
 ## heals crit too, since a heal landing at the base-class level has no way to
