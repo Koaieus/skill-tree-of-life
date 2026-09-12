@@ -588,8 +588,16 @@ static func _coarse_rank_and_select(proposals: Array, entity: Entity, enemy_posi
 	return out
 
 
+## [param traj] may be NULL — [method BladeSim.simulate] answers null (after its
+## own `push_error` naming the cause) when the native solver is missing, stale,
+## or declines the inputs, and since #847 there is no GDScript fallback to catch
+## that. This runs inside a [WorkerThreadPool] task, so dereferencing it would
+## bury that diagnosis under a nil-access crash on a worker thread. A swing that
+## could not be simulated scores INF — ranked last, never chosen.
 static func _closest_approach(traj: BladeTrajectory, enemy_positions: Array[Vector2]) -> float:
 	var best := INF
+	if traj == null:
+		return best
 	for sample in traj.samples:
 		for i in sample.size():
 			for ep in enemy_positions:

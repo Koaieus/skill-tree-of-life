@@ -864,6 +864,15 @@ class SwingResolve extends RefCounted:
 					_state, _drivers, _chunk_start, count, _dt,
 					BladeSim.DEFAULT_ITERATIONS, 0.0, _substeps,
 					_enable_length_scaling, _clock)
+			if chunk == null:
+				# The native solver declined this bake and has already
+				# push_error'd why (#847 — there is no GDScript fallback to
+				# fall back ON). Stop with the trajectory resolved so far
+				# rather than crashing on `chunk.samples` one line down: the
+				# error above is the diagnosis, and a nil-access here would
+				# bury it.
+				_done = true
+				return true
 			var chunk_speeds := _state.speed_history
 			var severed_at := -1
 			for j in range(1, chunk.samples.size()):

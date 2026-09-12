@@ -761,3 +761,25 @@ func _find_matching(
 		if c.source_node == reference.source_node and c.blade_nodes == reference.blade_nodes:
 			return c
 	return null
+
+
+## --- the post-#847 null contract -------------------------------------------
+##
+## #847 deleted the GDScript solver, which made `null` a REAL return value of
+## [method BladeSim.simulate]: a missing/stale native binary, or any input the
+## C++ declines, now yields a `push_error` and null. The coarse-rollout scorer
+## fed that straight into `traj.samples` — inside a `WorkerThreadPool` task, so
+## the diagnosis the push_error just printed would be buried under a nil-access
+## crash on a worker thread. A declined swing must SCORE badly, not crash.
+
+func test_closest_approach_survives_a_declined_trajectory() -> void:
+	var score: float = AiBladeRollout._closest_approach(null, [Vector2.ZERO] as Array[Vector2])
+	assert_eq(score, INF,
+			"A declined (null) trajectory must score INF — it never approached anything")
+
+
+func test_closest_approach_survives_a_trajectory_with_no_samples() -> void:
+	# The other shape a refusal can take: a real object that never stepped.
+	var empty := BladeTrajectory.new()
+	var score: float = AiBladeRollout._closest_approach(empty, [Vector2.ZERO] as Array[Vector2])
+	assert_eq(score, INF, "A trajectory with no samples approached nothing either")
