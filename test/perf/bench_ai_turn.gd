@@ -57,6 +57,32 @@ const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
 
 const _HOST_PEER := 1
 const _REMOTE_PEER := 2
+const _SPARK_SPELL := preload("res://attack/spell/defs/spark.tres")
+
+## #537/#834's own fixture — #797's chain, scaled up: a single 225-node path,
+## the acting AI owning the first 210, the defender owning the last 15. A
+## CHAIN, not a filled grid: [method GraphMirror.get_leaf_nodes] is strict
+## graph-theoretic degree-1 WITHIN the owned induced subgraph
+## (`graph/graph_mirror.gd:169`), and a filled rectangular block has none —
+## every interior AND every edge node keeps a lateral same-owner neighbour, so
+## [method RangedAttackPlan.get_firing_positions] (every owned LEAF) comes back
+## empty and ranged is silently unreachable however large the block is. A
+## chain has exactly two: the core and the frontier tip — which is also
+## exactly the shape [method AiBladeRollout._grow_path] wants (ONE consecutive
+## path from a pivot), so melee needs no branching either. That is >= #537
+## D2's own "~200 owned" bar for the acting side, with the defender directly
+## adjacent (one hop, Euclidean spacing well inside default `range`) — so
+## ranged, magic (Spark, 3 hops) and melee all see real candidate VOLUME
+## rather than the fog/hop gate emptying the pool before the two-tier split
+## even runs. #834's own arithmetic (STR ~1260 for a 64-member blade) is read
+## as `blade_size` directly (`.claude/rules/stat-knobs-and-bins.md`: a
+## hand-built fixture may write a derived stat's cache directly rather than
+## plumb the STR formula) — clamped to 64 by
+## AiBladeRollout._MAX_BLADE_SIZE_SAFETY regardless.
+const _LARGE_REMOTE_OWNED := 210
+const _LARGE_LOCAL_OWNED := 15
+const _LARGE_SPACING := 100.0
+const _LARGE_BLADE_SIZE := 80.0
 
 ## Repetitions for the per-resolve micro-split. The split re-runs a finalist's
 ## `resolve()` and its individual stages against the board as the turn left it;
@@ -266,6 +292,73 @@ func _build_fixture() -> Dictionary:
 	return {"root": root, "local": local, "remote": remote, "seat": remote_seat}
 
 
+## [method _build_fixture]'s big sibling — see the class doc above. Owns the
+## grid directly (no [Graph] scene wrapper split) so ownership assignment is a
+## plain double loop.
+func _build_large_fixture() -> Dictionary:
+	GameSession.network = NetworkConfig.host()
+	GameSession.local_peer_id = _HOST_PEER
+
+	var root: GameRoot = _GAME_ROOT.instantiate()
+	root.auto_start_turn = false
+	root.route_to_meta_on_run_end = false
+	add_child_autofree(root)
+	await wait_frames(6)
+
+	var total := _LARGE_REMOTE_OWNED + _LARGE_LOCAL_OWNED
+	var chain: Array[SkillNode] = []
+	for i in total:
+		var sn := _SKILL_NODE.instantiate() as SkillNode
+		sn.name = "C%d" % i
+		sn.position = Vector2(i * _LARGE_SPACING, 0.0)
+		root.graph.add_skill_node(sn)
+		chain.append(sn)
+	for i in total - 1:
+		root.graph.add_edge(chain[i], chain[i + 1])
+
+	var local := root.spawn_entity(
+			"Host", Color.CYAN, chain[total - 1], _BALANCED)
+	var remote := root.spawn_entity("Guest", Color.ORANGE, chain[0], _BALANCED)
+	await wait_frames(1)
+
+	var alloc := root.allocation_system
+	for i in range(1, _LARGE_REMOTE_OWNED):
+		alloc.force_allocate(remote, chain[i])
+	for i in range(_LARGE_REMOTE_OWNED, total - 1):
+		alloc.force_allocate(local, chain[i])
+
+	remote.stat_board.blade_size.base_value = _LARGE_BLADE_SIZE
+	remote.stat_board.vision_range.base_value = 4000.0
+	remote.get_spellbook().learn(_SPARK_SPELL)
+	# Unlike #797's own 4-node fixture (no spellbook at all, so the mana gate
+	# never fires), this one actually exercises magic — top up mana so the
+	# turn's very first cast isn't starved before upkeep would have minted any.
+	remote.stat_board.mana.set_current(9999.0)
+
+	var roster := ParticipantRoster.new()
+	var host_seat := Participant.new()
+	host_seat.id = 1
+	host_seat.kind = Participant.Kind.HUMAN
+	host_seat.camp = _CAMP_1
+	host_seat.peer_id = _HOST_PEER
+	roster.add(host_seat)
+	var remote_seat := Participant.new()
+	remote_seat.id = 2
+	remote_seat.kind = Participant.Kind.HUMAN
+	remote_seat.camp = _CAMP_2
+	remote_seat.peer_id = _REMOTE_PEER
+	roster.add(remote_seat)
+	GameSession.roster = roster
+	GameRoot.apply_roster({1: local, 2: remote}, roster)
+	root._ensure_controllers()
+	root.bind_player(local)
+	await wait_frames(1)
+	gut.p("--- large fixture: %d-node chain, remote owns %d, local owns %d ---"
+			% [total, remote.navigator.get_mirrored_nodes().size(),
+				local.navigator.get_mirrored_nodes().size()])
+	return {"root": root, "local": local, "remote": remote}
+
+
 ## Swap `remote`'s controller for a [ProbeAI] — the same swap
 ## [method GameRoot.hand_seat_to_ai] performs, minus the transport event, so
 ## the bench is not also measuring the handover.
@@ -290,9 +383,12 @@ func _ms(probe: ProbeAI, key: StringName) -> float:
 	return float(int(probe.buckets.get(key, 0))) / 1000.0
 
 
-## One full turn. Returns the probe plus the wall clock.
-func _run_turn(label: String) -> Dictionary:
-	var fx := await _build_fixture()
+## One full turn. Returns the probe plus the wall clock. [param fixture_builder]
+## is [method _build_fixture] (#797's 4-node board) or [method
+## _build_large_fixture] (#537/#834's >= 200-owned grid) — a first-class
+## method reference (Godot 4 Callables), not a string lookup.
+func _run_turn(label: String, fixture_builder: Callable) -> Dictionary:
+	var fx: Dictionary = await fixture_builder.call()
 	var root: GameRoot = fx["root"]
 	var remote: Entity = fx["remote"]
 	var probe := await _install_probe(root, remote)
@@ -330,6 +426,16 @@ func _run_turn(label: String) -> Dictionary:
 	gut.p("  --> everything else is frame-paced presentation: %d of %d frames sit inside allocate+execute"
 			% [int(probe.buckets.get(&"allocate_frames", 0)) + int(probe.buckets.get(&"execute_frames", 0)),
 				total_frames])
+	# #537's own "count it before trusting the arithmetic" ask — the LAST
+	# ranged/magic gather's exhaustive-vs-promoted split (AIController.
+	# last_{ranged,magic}_{candidate,promoted}_count). Diagnostic only, not
+	# shipped as permanent gate code, so this is exactly the number the issue
+	# asked to be reported even if the counter itself doesn't ship.
+	gut.p("  candidate gate (last gather of each mode, K=%d):" % AIController._CANDIDATE_GATE_K)
+	gut.p("    %-28s : %4d exhaustive -> %4d promoted"
+			% ["ranged", probe.last_ranged_candidate_count, probe.last_ranged_promoted_count])
+	gut.p("    %-28s : %4d exhaustive -> %4d promoted"
+			% ["magic", probe.last_magic_candidate_count, probe.last_magic_promoted_count])
 	gut.p("  melee split (%d gather(s), %d proposals, %d finalists per gather):"
 			% [probe.melee_gathers, int(probe.buckets.get(&"n_proposals", 0)),
 				int(probe.buckets.get(&"n_finalists", 0))])
@@ -435,7 +541,35 @@ func test_bench_ai_turn() -> void:
 	assert_eq(BladeSim.backend(), &"native",
 			"the native blade solver is loaded — run `mise run native:fetch` "
 			+ "(or `mise run native:build`) and `mise run refresh`")
-	await _run_turn("AI turn on #797's 4-node fixture")
+	await _run_turn("AI turn on #797's 4-node fixture", _build_fixture)
+
+
+## #537 (folds #834) — the fixture #797's 4-node board cannot see: the acting
+## AI owns >= 200 nodes, a `blade_size` past #824's 64 cap, a known spell, and
+## a defender column directly adjacent. D2's bar (owner, 2026-09-13 amendment):
+## "sub-second deliberation at ~200 owned" — reported below off the
+## DELIBERATION bucket, never off wall clock (#797's own caution: wall clock is
+## dominated by the presentation clock, not compute). Reported, not asserted:
+## the fixture's magic gather reads 0 exhaustive candidates (a fixture gap —
+## `SpellTargetUnion.build` finds 210 eligible sources but an empty
+## `per_source` for all of them; not yet root-caused, so it is flagged rather
+## than silently trusted) and the honest measured number sits a few percent
+## over the bar, entirely on melee_prep (D6/#834's own question — see below),
+## which this issue's scope is to MEASURE, not fix. A hard assert here would
+## either paper over the magic gap or gate this file on melee cost this unit
+## never touches; a printed number is the honest artifact.
+func test_bench_ai_turn_large_owned_fixture() -> void:
+	assert_eq(BladeSim.backend(), &"native",
+			"the native blade solver is loaded — run `mise run native:fetch` "
+			+ "(or `mise run native:build`) and `mise run refresh`")
+	var result := await _run_turn(
+			"AI turn on #537/#834's >= 200-owned grid fixture", _build_large_fixture)
+	var probe: ProbeAI = result["probe"]
+	var deliberation := _ms(probe, &"ranged") + _ms(probe, &"magic") + _ms(probe, &"melee_total")
+	gut.p("")
+	gut.p("  D2 bar: sub-second deliberation at ~200 owned -> %.1f ms (melee_prep alone: %.1f ms)"
+			% [deliberation, _ms(probe, &"melee_prep")])
+	assert_gt(deliberation, 0.0, "the large-fixture turn must have measured something")
 
 
 ## The decomposition is a re-sequencing of [AiBladeRollout]'s statics, not a
