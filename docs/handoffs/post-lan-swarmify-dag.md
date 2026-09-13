@@ -61,8 +61,12 @@ into this milestone. Treat it as a priority carryover, not a guess.
 > reducer deliberately keeps the cast ctx. Found a real bug while verifying:
 > five stages read entity degree off the LIVE node, not `ctx.world` — split
 > out as **#860 (Ready, blocked-by #356)** because it moves goldens. #355 is
-> now `blocked-by` #356 as a structured edge. **#397 is still `Backlog` and
-> still the next bite** — pure design forks, needs the owner conversation.
+> now `blocked-by` #356 as a structured edge. #397 **Ready** too: fork 1
+> was already settled by master (`max_hops = 999`, tests pin it), fork 2 pinned
+> by the owner as "spare the tip — tips are Leafblower's" (clause becomes
+> `to_entity_degree >= 2`; the body's "already reads entity degree" was false,
+> `to_degree` is graph degree), fork 3 parked in NOTES. **Cluster 1 is fully
+> spent; the next bite is #537, then Cluster 2.**
 
 > **CORRECTED 2026-09-12 — all three seams have already SHIPPED.** The first
 > index of this doc read #849's body and planned the seams as future work. They
