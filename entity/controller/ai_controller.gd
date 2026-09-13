@@ -71,6 +71,17 @@ const _NO_RUN_RNG_BASE_SEED := 823
 ## gate-accurately scored, identically to the pre-#537 exhaustive behaviour.
 const _CANDIDATE_GATE_K := 3
 
+## Diagnostic only (#537's "count it before trusting the arithmetic" ask) —
+## how many candidates PASS 1 validated (cheaply) before the two-tier gate
+## trimmed to [constant _CANDIDATE_GATE_K], and how many survived, for the
+## LAST gather of each mode this turn. Read by
+## `test/perf/bench_ai_turn.gd`'s candidate-count instrumentation; nothing in
+## this class's own control flow reads them back.
+var last_ranged_candidate_count: int = 0
+var last_ranged_promoted_count: int = 0
+var last_magic_candidate_count: int = 0
+var last_magic_promoted_count: int = 0
+
 ## Synced from Settings.current.ai_turn_delay at _ready unless a caller
 ## already overrode it (tests set this explicitly before add_child, to a
 ## value other than the compile-time default, to control pacing/avoid
@@ -382,6 +393,8 @@ func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCom
 			func(a: SkillNode, b: SkillNode) -> bool:
 				return AiCombatScorer.cheap_estimate(a, raw_damage) > AiCombatScorer.cheap_estimate(b, raw_damage),
 			_CANDIDATE_GATE_K)
+	last_ranged_candidate_count = reachable.size()
+	last_ranged_promoted_count = order.size()
 	order.sort()
 	for i in order:
 		var target := reachable[i]
@@ -523,6 +536,8 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 			func(a: Array, b: Array) -> bool:
 				return AiCombatScorer.cheap_estimate(a[2], a[3]) > AiCombatScorer.cheap_estimate(b[2], b[3]),
 			_CANDIDATE_GATE_K)
+	last_magic_candidate_count = pre.size()
+	last_magic_promoted_count = order.size()
 	order.sort()
 	for i in order:
 		var entry: Array = pre[i]
