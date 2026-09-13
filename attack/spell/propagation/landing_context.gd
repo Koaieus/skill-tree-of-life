@@ -59,6 +59,11 @@ func visit_count(n: SkillNode) -> int:
 	return cast.visit_count(n)
 
 
+## See [method PropagationContext.entity_degree_of].
+func entity_degree_of(n: SkillNode) -> int:
+	return cast.entity_degree_of(n)
+
+
 ## Test/fixture convenience: build a [LandingContext] from the pieces a unit
 ## test already has lying around, without wiring a whole cast. [param cast_]
 ## defaults to a fresh [PropagationContext] rather than null, so a condition or
@@ -67,6 +72,15 @@ func visit_count(n: SkillNode) -> int:
 ## [member PropagationContext.outcome] left unset (fresh or handed-in) is filled
 ## with a fresh [AttackOutcome] for the same reason: [OnHitEffect]s append to it
 ## unconditionally.
+##
+## Same fill for [member PropagationContext.graph] (#860): older fixtures set
+## only [member CastSpell.graph] on the payload, back when a degree read took
+## the graph as an explicit argument off [code]state[/code] rather than off
+## [code]lctx.cast[/code] — [ExpressionFilter] and [DegreeRanker] already read
+## [code]lctx.cast.graph[/code], so this brings every fixture onto the one
+## field [method PropagationContext.entity_degree_of] needs, without a
+## per-test edit. A [param cast_] handed in with its own [member graph] (real
+## or deliberately null) is never overwritten.
 static func for_test(
 		payload_: CastSpell = null,
 		node_: SkillNode = null,
@@ -74,6 +88,8 @@ static func for_test(
 		incidents_: Array[CastSpell] = []) -> LandingContext:
 	var lctx := LandingContext.new()
 	lctx.cast = cast_ if cast_ != null else PropagationContext.new()
+	if lctx.cast.graph == null and cast_ == null and payload_ != null:
+		lctx.cast.graph = payload_.graph
 	if lctx.cast.outcome == null:
 		lctx.cast.outcome = AttackOutcome.new()
 	lctx.node = node_

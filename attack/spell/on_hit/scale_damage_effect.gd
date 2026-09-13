@@ -47,15 +47,17 @@ func apply(lctx: LandingContext) -> void:
 		return
 	if when != null and not when.evaluate(lctx):
 		return
-	state.damage = _scaled(state)
+	state.damage = _scaled(state, lctx)
 
 
 ## ENTITY degree for [constant Mode.MULTIPLY_BY_DEGREE], matching every other
 ## territory-shape rule in the propagation pipeline — and matching what
 ## `TrailBlazerSpread._terminal_damage` was actually handed before #851 (its
 ## docstring said "graph degree", the value passed in was the entity degree it
-## had just computed; the code was right and the prose was wrong).
-func _scaled(state: CastSpell) -> float:
+## had just computed; the code was right and the prose was wrong). Read
+## against THIS cast's world ([method LandingContext.entity_degree_of], #860),
+## not off the live node, for the same reason [JunctionCondition] is.
+func _scaled(state: CastSpell, lctx: LandingContext) -> float:
 	match mode:
 		Mode.MULTIPLY:
 			return state.damage * factor
@@ -64,7 +66,7 @@ func _scaled(state: CastSpell) -> float:
 		Mode.MULTIPLY_BY_DEGREE:
 			if state.graph == null:
 				return state.damage
-			return state.damage * float(state.current_node.get_entity_degree(state.graph))
+			return state.damage * float(lctx.entity_degree_of(state.current_node))
 	return state.damage
 
 

@@ -6,7 +6,7 @@ extends PropagationSpread
 ##
 ## The initial hit lands as normal. From there the walk jumps to every hostile
 ## neighbour and reads its [b]entity degree[/b] — how many of its edges run to
-## nodes owned by the [b]same[/b] entity ([method SkillNode.get_entity_degree]):
+## nodes owned by the [b]same[/b] entity ([method LandingContext.entity_degree_of]):
 ##
 ## - [b]degree 2[/b] — a link in the chain. Take damage, ramp, keep walking
 ##   (never back into [member CastSpell.visited]).

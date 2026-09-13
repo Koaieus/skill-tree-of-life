@@ -16,8 +16,10 @@ extends PropagationFilter
 ##                                                 ([method SkillNode.get_graph_degree])
 ##   [b]from_entity_degree, to_entity_degree[/b] — int, degree inside each
 ##                                                 node's own TERRITORY (0 if
-##                                                 unallocated,
-##                                                 [method SkillNode.get_entity_degree])
+##                                                 unallocated), read against
+##                                                 THIS cast's world
+##                                                 ([method LandingContext.entity_degree_of],
+##                                                 #860) — never the live node
 ##   to_owned_by_caster, to_unallocated    — bool
 ##   damage, hops_remaining, hop_index     — payload state
 ##   visit_count                           — lctx.visit_count(to)
@@ -51,8 +53,8 @@ func allows(to: SkillNode, lctx: LandingContext) -> bool:
 	var inputs: Array = [
 		from.get_graph_degree(ctx.graph),
 		to.get_graph_degree(ctx.graph),
-		from.get_entity_degree(ctx.graph),
-		to.get_entity_degree(ctx.graph),
+		lctx.entity_degree_of(from),
+		lctx.entity_degree_of(to),
 		# Both ownership reads go through the cast's world (#536), so a node
 		# this same cast killed reads as unallocated here — see
 		# [member PropagationContext.world]. `to_owned_by_caster` is the MINE

@@ -8,8 +8,10 @@ extends LandingCondition
 ## else dangles off its owner's land and counts as a leaf, even though its
 ## whole-graph degree is 2. See `docs/domain/degree.md`.
 ##
-## The resolver supplies the graph via [member CastSpell.graph]; the entity is
-## the node's own [member SkillNode.owned_by] (the accessor's default).
+## Read against THIS cast's world ([method LandingContext.entity_degree_of],
+## #860), not off the live node — a node this same cast made a leaf on an
+## earlier wave (by deallocating its other neighbour) must read as one here,
+## even though the live node still reports its pre-cast degree.
 
 
 func evaluate(lctx: LandingContext) -> bool:
@@ -17,7 +19,7 @@ func evaluate(lctx: LandingContext) -> bool:
 	var target := lctx.node
 	if target == null or state == null or state.graph == null:
 		return false
-	return target.get_entity_degree(state.graph) == 1
+	return lctx.entity_degree_of(target) == 1
 
 
 func get_description() -> String:

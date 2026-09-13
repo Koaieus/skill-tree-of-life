@@ -94,6 +94,52 @@ func local_value_of(node: SkillNode, stat_id: StringName) -> Variant:
 	return slice.get_local_value(stat_id) if slice != null else node.get_local_value(stat_id)
 
 
+## [param node]'s degree within the induced subgraph of ITS OWNER, as read in
+## [member world] (#860) — the fourth form on top of the three
+## `.claude/rules/degree.md` already names, for exactly the moment those three
+## don't cover: a question asked mid-cast, where ownership can have moved
+## under this same cast's own earlier waves.
+##
+## [b]The one place a propagation predicate asks "how many of this node's
+## neighbours does its owner also own."[/b] [JunctionCondition], [LeafCondition],
+## [ScaleDamageEffect]'s [code]MULTIPLY_BY_DEGREE[/code], [ExpressionFilter]'s
+## [code]from_entity_degree[/code]/[code]to_entity_degree[/code] and
+## [DegreeRanker] all go through this rather than
+## [method SkillNode.get_entity_degree] — that reads [member SkillNode.owned_by]
+## directly, so a neighbour THIS cast deallocated on an earlier wave still
+## counts there. The node still reports the old number, by design: a shadow
+## never writes back to the real [SkillNode] (docs/domain/attack-timeline.md),
+## so [code]node.get_entity_degree()[/code] and this can legitimately disagree
+## for the whole life of a shadow resolve.
+##
+## No [code]entity[/code] override parameter, unlike [method SkillNode.get_entity_degree] —
+## every site above always means "this node's own owner"; add one the day a
+## caller actually needs someone else's territory.
+func entity_degree_of(node: SkillNode) -> int:
+	if node == null or graph == null:
+		return 0
+	var owner_entity := _owner_in_world(node)
+	if owner_entity == null:
+		return 0
+	var count := 0
+	for n in graph.get_neighbours(node):
+		if _owner_in_world(n) == owner_entity:
+			count += 1
+	return count
+
+
+## [param node]'s owner as read in [member world] — [member world.combat_for]
+## then [method NodeCombat.owner] then [method EntityCombat.real_entity], the
+## same three-call chain [method ownership_bit_of] already climbs, just
+## returning the [Entity] itself rather than a bit relative to [member caster].
+## Private: [method entity_degree_of] is the one caller, and this must not grow
+## into a second [method ownership_bit_of].
+func _owner_in_world(node: SkillNode) -> Entity:
+	var slice := world.combat_for(node)
+	var o := slice.owner() if slice != null else null
+	return o.real_entity() if o != null else null
+
+
 func visit_count(node: SkillNode) -> int:
 	return int(global_visit_count.get(node, 0))
 

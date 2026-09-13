@@ -76,6 +76,38 @@ double-counts. This is the same reason `get_graph_degree` doesn't add it either
 and `GraphMirror.get_degree` must — AStar holds no self-edge, the adjacency
 index does.
 
+## The fourth form: inside a cast, ask the world (#860)
+
+`SkillNode.get_entity_degree(graph)` reads `owned_by` directly, off the LIVE
+node. That's wrong for exactly one caller shape: a predicate running mid-cast,
+where a propagating spell's own EARLIER wave can have deallocated one of the
+node's neighbours, and a LATER wave asks a degree question that must see that
+kill. `docs/domain/attack-timeline.md`'s whole premise is that an attack
+resolves on a shadow and lands there as it goes — nothing but a replayed
+`AttackRecord` mutates the real world — so the live node legitimately still
+reports its pre-cast number for the entire life of that shadow resolve. Asking
+the node is asking the wrong world.
+
+`PropagationContext.entity_degree_of(node)` / `LandingContext.entity_degree_of(node)`
+answer the same question ("how many of this node's neighbours does its owner
+also own") against `member PropagationContext.world` instead: for each
+neighbour, `world.combat_for(neighbour).owner()?.real_entity()` compared to
+the node's own world-side owner. On a LIVE world this is definitionally the
+same answer as the node's own `get_entity_degree` (`combat_for` on a live
+world just returns the node's own slice), which is what keeps every
+pre-#860 golden that never triggers a mid-cast kill unchanged. It only
+diverges once a shadow has actually stripped someone.
+
+Five call sites in `attack/spell/` go through this now — never
+`get_entity_degree` — because a Trailblazer/Bruiser/Leafblower-style walk is
+exactly the shape that can kill its own future landing's neighbour:
+[JunctionCondition], [LeafCondition], `ScaleDamageEffect`'s
+`MULTIPLY_BY_DEGREE`, `ExpressionFilter`'s `from_entity_degree`/
+`to_entity_degree`, and [DegreeRanker]. It takes no `entity` override
+parameter the way `SkillNode.get_entity_degree` does — every current caller
+means "this node's own owner"; add one only when a caller genuinely needs
+someone else's territory.
+
 ## The one place they diverge: parallel edges
 
 `_adjacency` appends per edge; AStar dedupes by point pair. Two edges between
