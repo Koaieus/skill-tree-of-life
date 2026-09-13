@@ -14,6 +14,7 @@
 [ext_resource type="Resource" uid="uid://cj6e6uijkdjrc" path="res://stats_system/defs/constitution.tres" id="def_constitution"]
 [ext_resource type="Resource" path="res://stats_system/defs/core_healing.tres" id="def_core_healing"]
 [ext_resource type="Resource" path="res://stats_system/defs/core_health_scaling.tres" id="def_core_health_scaling"]
+[ext_resource type="Resource" path="res://stats_system/defs/core_kill_xp.tres" id="def_core_kill_xp"]
 [ext_resource type="Resource" path="res://stats_system/defs/crit_chance.tres" id="def_crit_chance"]
 [ext_resource type="Resource" path="res://stats_system/defs/crit_multiplier.tres" id="def_crit_multiplier"]
 [ext_resource type="Resource" uid="uid://cimwxtc82ck7f" path="res://stats_system/defs/deallocation_points.tres" id="def_dealloc"]
@@ -413,6 +414,12 @@ resource_name = "xp_per_turn"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_xp_per_turn")
 
+[sub_resource type="Resource" id="scalar_core_kill_xp"]
+resource_name = "core_kill_xp"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_core_kill_xp")
+base_value = 60.0
+
 [resource]
 resource_local_to_scene = true
 script = ExtResource("1_board")
@@ -434,6 +441,7 @@ min_damage_taken = SubResource("scalar_min_dmg_taken")
 dealloc_damage = SubResource("scalar_dealloc_damage")
 xp = SubResource("pool_xp")
 xp_per_turn = SubResource("scalar_xp_per_turn")
+core_kill_xp = SubResource("scalar_core_kill_xp")
 level = SubResource("scalar_level")
 skill_points = SubResource("sp_skill_points")
 wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")

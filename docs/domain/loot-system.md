@@ -133,25 +133,33 @@ the wider live subgraph. What DOES need the pre-strip world is the XP
 
 ## The XP reward (`_award_kill_xp`)
 
-XP is paid for **territory removed**, and for nothing else. One axis, two
-payment points:
+XP is paid for **territory removed**, plus a flat bonus when the core itself
+died. One rate, no multiplier, no rate-switching (#774):
 
 ```
-per node removed    = xp_per_node_killed(5)                        (the trickle)
-entity killing blow = xp_per_node_killed(5)
-                      · (|removed_this_attack ∪ held_at_death| + 1)
-                      · entity_kill_bonus(2)
-                      − the trickle already paid on the ledger
-                      + tier_xp_base(10) · tier²                   (the payout)
+XP = xp_per_node_killed(5) × |nodes this attack removed, core included|
+     + victim.stat_board.core_kill_xp.value           (only if the core died)
 ```
 
-The **tier bonus** (`tier_xp_base × entity_tier²`, #300) is a flat size-shaped
-reward on top of the territory term — one knob so a fixed-size victim (a
-removable blocker) is worth a predictable, tunable amount regardless of how
-much territory it held: +10 / +40 / +90 for tier 1 / 2 / 3 at the default
-`tier_xp_base` 10. Players and NPCs keep the default tier 3, so ordinary kills
-just gain a flat +90 on top of the territory term. It is paid once per kill,
-not per node, and rides the same HOSTILE gate as the territory term.
+The core node is simply one of the counted nodes — there is no folded-in "+1"
+for it anywhere in the arithmetic (#774 decision 1, owner, 2026-09-07: "no
+more killing entity that has many nodes makes those nodes count for more XP,
+it just muddies the calculations"). The old `entity_kill_bonus` multiplier and
+the `tier_xp_base × entity_tier²` tier term are both gone; the size-shaped
+reward for a fixed-size victim now lives entirely in `core_kill_xp`
+(`stats_system/defs/core_kill_xp.tres`), a per-board stat rather than a
+multiplier on the whole payout — owner-tunable per entity and reachable by a
+modifier like any other stat. Defaults: 60 on `default_entity_board.tres`
+(players/NPCs), 20 / 40 / 60 on the small / medium / large blocker boards.
+
+`_kill_xp_total(removed_node_count, kills_entity, victim)` is the one place
+this formula is written — shared by `_award_kill_xp` (which builds the correct
+SET before calling it) and `preview_kill_xp` (which passes a count straight
+through). Never duplicate this arithmetic elsewhere.
+
+**NO NETTING.** `_award_kill_xp` doesn't price the whole board and subtract
+what the trickle already paid — it builds the SET of nodes not yet paid and
+prices that set once:
 
 - `removed_this_attack` — the **attack-scoped removal ledger**: every node the
   current attack has taken off this defender. Fed by BattleSystem's
@@ -159,10 +167,15 @@ not per node, and rides the same HOSTILE gate as the territory term.
   on every `attack_launched`.
 - `held_at_death` — non-core nodes the victim still owns when it dies
   (`_held_nodes`, off the pre-strip navigator mirror).
-- `+ 1` — the core it died on, so a landless D-19 elite isn't worth zero.
+- the core the victim died on — always counted, so a landless D-19 elite still
+  pays its `core_kill_xp` bonus.
 
-Both knobs are `@export`. Territory scale is paid **as XP, deliberately not as
-looted stats** (see the #173 correction above).
+These three sources are **unioned**, then whatever the ledger already paid as
+trickle (iff `award_xp_on_node_kill`) is excluded from that union before
+pricing — a set difference, not an arithmetic correction. Both
+`xp_per_node_killed` and `core_kill_xp` are `@export`/per-board stats.
+Territory scale is paid **as XP, deliberately not as looted stats** (see the
+#173 correction above).
 
 **Why `level` is gone.** The old base term was `xp_per_victim_level · victim.level`.
 D-19 pins an enemy's level to its starting node count — so "level" and
@@ -201,24 +214,23 @@ progresses and the total doesn't move. Pinned by
 in an earlier attack already collected its trickle and is not re-counted at bonus
 rate later.
 
-### Whittle vs. snipe — still ~2×, now for a legible reason
+### Whittle vs. snipe — pay identically for territory now (#774)
 
-At defaults against a 20-node enemy:
+At defaults against a 20-node enemy on the default board (`core_kill_xp` 60):
 
 | path | trickle | killing blow | total |
 |---|---|---|---|
-| kill in one attack (snipe, or cut the arm out from under it) | — | `20 · 5 · 2` | **200** |
-| break 19 limbs over earlier attacks, then the core | `19 · 5` = 95 | `1 · 5 · 2` = 10 | **105** |
+| kill in one attack (snipe, or cut the arm out from under it) | — | `20 · 5 + 60` | **160** |
+| break 19 limbs over earlier attacks, then the core | `19 · 5` = 95 | `1 · 5 + 60` = 65 | **160** |
 
-The gap **is** `entity_kill_bonus`: only what *this* attack removes earns the
-multiplier. Whether ~2× is the right premium is a balance question (#248) — lower
-`entity_kill_bonus` toward 1.0 to close it, raise it to push harder toward
-decapitation. What the shape guarantees is that neither path pays nothing, the
-two are one knob apart, and nothing in between is ambiguous.
-
-> Alternative not taken: paying off the victim's **high-water** node count, which
-> would make whittle and snipe pay identically. Rejected — it erases the tactical
-> distinction the bonus exists to create.
+The union/NO NETTING rule above makes this identical **by construction** — the
+territory term is always `xp_per_node_killed × total nodes removed`, whichever
+attack removed them, and `core_kill_xp` is added exactly once regardless of
+path. The old `entity_kill_bonus` multiplier that made a snipe worth ~2× a
+whittle-then-kill is gone (#774, owner: it "muddies the calculations"). What
+premium a fixed-size victim (a blocker) is worth now comes entirely from
+`core_kill_xp` being nonzero and size-shaped on its own board (20 / 40 / 60 for
+small / medium / large) — not from a kill-order bonus.
 
 ### Why the trickle rides `cascade_started`
 

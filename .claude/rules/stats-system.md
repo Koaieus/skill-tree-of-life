@@ -449,6 +449,12 @@ Run to list all current stat IDs:
 grep -h "^id = " stats_system/defs/*.tres | sort
 ```
 
+- **`core_kill_xp` (#774)** — a flat, board-authored scalar `loot_system.gd`
+  adds once on top of the territory term when the victim's own core dies. Not
+  a multiplier, not derived: 60 on `default_entity_board.tres` (players/NPCs),
+  20 / 40 / 60 on the small / medium / large blocker boards — tune per board
+  like any other stat, reachable by a modifier same as the rest.
+
 ## `StatDef.ValueType.BOOL` (#805) — a stat that is presence, not a magnitude
 
 `deflection` (#781/#805) is the first, and today the only, `StatDef` authored

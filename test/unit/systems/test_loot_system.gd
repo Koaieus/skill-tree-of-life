@@ -54,12 +54,10 @@ func before_each() -> void:
 	# split guarantees the snapshot reads still-owned nodes before the strip.
 	_loot = LootSystem.new()
 	_loot.turn_manager = _tm  # killer attribution source
-	# XP tests set `xp_per_node_killed` / `entity_kill_bonus` explicitly; the
-	# core loot draw keep-count follows `victim.entity_tier` (#300), so
-	# keep-count tests pin that. The tier bonus (`tier_xp_base × tier²`) is
-	# zeroed here — these tests pin the TERRITORY term; the tier term has its
-	# own file (test_entity_tier_rewards.gd).
-	_loot.tier_xp_base = 0.0
+	# XP tests set `xp_per_node_killed` explicitly; the core bonus
+	# (`core_kill_xp`, #774) is zeroed below once the victim's board exists —
+	# these tests pin the TERRITORY term; the bonus term has its own file
+	# (test_entity_tier_rewards.gd).
 	add_child_autofree(_loot)
 
 	_alloc = AllocationSystem.new()
@@ -92,6 +90,7 @@ func before_each() -> void:
 	_graph.add_child(_victim)
 
 	await get_tree().process_frame  # _ready: navigators, health wiring, core_class.apply
+	_victim.stat_board.core_kill_xp.base_value = 0.0  # isolate the territory term; see above
 
 	_alloc.force_allocate(_killer, _nodes[0])
 	_killer.core_location = _nodes[0]
@@ -114,7 +113,6 @@ func _kill_victim() -> void:
 func test_killer_gains_xp_on_kill() -> void:
 	# Victim holds N1 (core) + N2 → 2 nodes destroyed by the killing blow.
 	_loot.xp_per_node_killed = 2.0
-	_loot.entity_kill_bonus = 1.0  # isolate the node term
 	var before := _killer.stat_board.xp.current
 	_kill_victim()
 	assert_eq(_killer.stat_board.xp.current, before + 4.0,
@@ -129,7 +127,6 @@ func test_entity_death_wave_awards_no_trickle_xp() -> void:
 	# emission would trickle-pay the victim's nodes AGAIN on top of the kill's
 	# already-covers-the-whole-board `_kill_xp_total`, over-paying the kill.
 	_loot.xp_per_node_killed = 2.0
-	_loot.entity_kill_bonus = 1.0
 	var waves: Array = []
 	_battle.cascade_started.connect(func(layers: Array, _d: Entity) -> void: waves.append(layers))
 	var before := _killer.stat_board.xp.current
@@ -143,7 +140,6 @@ func test_kill_xp_ignores_victim_level() -> void:
 	# The rework: level is no longer an axis. D-19 already pins enemy level to
 	# starting node count, so paying for both double-counted one fact.
 	_loot.xp_per_node_killed = 1.0
-	_loot.entity_kill_bonus = 1.0
 	_victim.level = 17
 	_kill_victim()
 	assert_eq(_killer.stat_board.xp.current, 2.0,
@@ -154,17 +150,18 @@ func test_kill_xp_scales_with_territory_held_at_death() -> void:
 	# Strip N2 first: the same victim, one node smaller, pays proportionally less.
 	_alloc.force_deallocate(_nodes[2])
 	_loot.xp_per_node_killed = 1.0
-	_loot.entity_kill_bonus = 1.0
 	_kill_victim()
 	assert_eq(_killer.stat_board.xp.current, 1.0, "core-only victim pays for its core alone")
 
 
-func test_entity_kill_bonus_multiplies_the_payout() -> void:
-	# The premium that makes going for the throat worth more than grinding limbs.
+func test_core_kill_bonus_is_additive_not_multiplicative() -> void:
+	# #774: `entity_kill_bonus` (a multiplier on the WHOLE payout) is gone —
+	# the core bonus is now `core_kill_xp`, added flat on top of the territory
+	# term, never multiplying it.
 	_loot.xp_per_node_killed = 1.0
-	_loot.entity_kill_bonus = 2.0
+	_victim.stat_board.core_kill_xp.base_value = 2.0
 	_kill_victim()
-	assert_eq(_killer.stat_board.xp.current, 4.0, "2 nodes * 1 XP * 2.0 bonus")
+	assert_eq(_killer.stat_board.xp.current, 4.0, "2 nodes * 1 XP + 2 core bonus, not (2+1)*bonus")
 
 
 func test_xp_award_routes_through_level_up() -> void:
@@ -172,7 +169,6 @@ func test_xp_award_routes_through_level_up() -> void:
 	# levels the killer and mints 1 SP (proves we go through the pool, not a
 	# raw set_current that would skip it).
 	_loot.xp_per_node_killed = 5.0
-	_loot.entity_kill_bonus = 1.0
 	var lvl_before := _killer.level
 	var sp_before := _killer.stat_board.skill_points.current
 	_kill_victim()
@@ -184,15 +180,14 @@ func test_xp_award_routes_through_level_up() -> void:
 
 
 func test_a_big_kill_cascades_through_several_levels() -> void:
-	# The rework multiplied award SIZE by ~40x: at defaults, a first_level enemy
-	# (20 nodes) pays 20 * 5 * 2 = 200 XP into a pool whose cap starts at 5. That
-	# only works because the xp def is OVERFLOW mode — `on_pool_filled` re-enters
-	# `set_current` with the excess and cascades. If that ever regresses to KEEP
-	# or RESET, a 200 XP kill silently pays ONE level and bins the rest.
-	_loot.xp_per_node_killed = 5.0
-	_loot.entity_kill_bonus = 2.0
+	# A big award needs to cascade through multiple level-ups on a pool whose
+	# cap starts at 5. That only works because the xp def is OVERFLOW mode —
+	# `on_pool_filled` re-enters `set_current` with the excess and cascades. If
+	# that ever regresses to KEEP or RESET, a 20 XP kill silently pays ONE
+	# level and bins the rest.
+	_loot.xp_per_node_killed = 10.0
 	var lvl_before := _killer.level
-	# Victim holds 2 nodes → 2 * 5 * 2 = 20 XP. Caps run 5 then 10 (growth_flat 5),
+	# Victim holds 2 nodes → 2 * 10 = 20 XP. Caps run 5 then 10 (growth_flat 5),
 	# consuming 15 across two level-ups; the remaining 5 sits in the new cap-15 pool.
 	_kill_victim()
 	assert_eq(_killer.level, lvl_before + 2, "a 20 XP award cascades through both level-ups")
@@ -214,7 +209,6 @@ func test_ally_kill_grants_no_xp() -> void:
 	# victim → ALLIED, so even a real killing blow earns nothing.
 	_killer.faction = _NPC_FACTION
 	_loot.xp_per_node_killed = 1.0
-	_loot.entity_kill_bonus = 1.0
 	var before := _killer.stat_board.xp.current
 	_kill_victim()
 	assert_eq(_killer.stat_board.xp.current, before, "an ally kill pays no XP")
@@ -242,7 +236,6 @@ func test_bystander_enemy_gains_no_xp_from_anothers_kill() -> void:
 	await get_tree().process_frame
 
 	_loot.xp_per_node_killed = 1.0
-	_loot.entity_kill_bonus = 1.0
 	var bystander_before: float = bystander.stat_board.xp.current
 	_kill_victim()  # _tm.current_entity = _killer, not bystander
 	assert_eq(bystander.stat_board.xp.current, bystander_before,
@@ -283,7 +276,6 @@ func test_node_kill_switch_suppresses_the_trickle() -> void:
 func test_drop_skill_dust_off_suppresses_relic() -> void:
 	_loot.drop_skill_dust_on_death = false
 	_loot.xp_per_node_killed = 1.0  # sub-cap → no level-up reset, current is observable
-	_loot.entity_kill_bonus = 1.0
 	var before := _killer.stat_board.xp.current
 	_kill_victim()
 	assert_null(_find_dust(_nodes[1]), "dust drop disabled → no relic on former core")
@@ -464,7 +456,6 @@ func test_loot_and_xp_fire_on_mid_cascade_death() -> void:
 	# fires RE-ENTRANTLY while BattleSystem is still iterating the cascade loop.
 	# The rewards must still land (and not crash) on this real combat trigger.
 	_loot.xp_per_node_killed = 1.0
-	_loot.entity_kill_bonus = 1.0
 	_tm.current_entity = _killer
 	var xp_before := _killer.stat_board.xp.current
 	_victim.stat_board.health.set_current(1.0)

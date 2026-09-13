@@ -87,6 +87,16 @@ extends StatBoard
 ## modifiers can bind to it and auto-recalc via base_value's value_changed, and
 ## so it stays moddable like every other stat. `Entity.level` proxies `.value`.
 @export var level: ScalarStat
+## The killing-blow bonus LootSystem pays when THIS entity's core dies (#774,
+## replacing the deleted `LootSystem.tier_xp_base × entity_tier²` term). A
+## board stat, not a hardcoded export, so it is authored per board (20/40/60 on
+## the small/medium/large blocker boards, 60 on the default) and readable
+## through the normal modifier pipeline — an innate or a core-granted modifier
+## can scale it. `LootSystem` reads `victim.stat_board.core_kill_xp.value`,
+## never the def's `default_value` directly. NEVER a loot candidate — its
+## `base_value` lives in neither the intrinsic nor the core-register array, so
+## it is uncopyable by construction (see docs/domain/loot-system.md).
+@export var core_kill_xp: ScalarStat
 
 @export_group( "Allocation")
 ## Allocation budget — careful tracking via SkillPointStat (current/wounded/max

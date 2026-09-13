@@ -1,13 +1,16 @@
 extends GutTest
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
-## Entity tier rewards (#300): the kill-XP bonus is `tier_xp_base × entity_tier²`
-## on top of the territory term, and it rides the same HOSTILE gate. A 1-node
-## (core-only) victim pays exactly `territory(10) + tier bonus`; a grown victim
-## scales its territory term the same as any NPC and layers the flat tier bonus
-## on top. Tracked via `Events.entity_xp_gained` (the amount ASKED FOR, not the
-## amount that fit under the pool cap — a fill carries its excess into the next
-## level, so the honest number is the grant).
+## #774 retired the tier-scaled XP bonus entirely: `tier_xp_base ×
+## entity_tier²` and the `entity_kill_bonus` multiplier are both gone, replaced
+## by a per-board `core_kill_xp` ScalarStat (owner, 2026-09-13: "so we could
+## author any formula for an innate or core specific stat modifier"). This file
+## used to pin tier→XP scaling; it now pins the two facts that replaced it:
+## `entity_tier` has NO effect on the kill-XP payout any more (its remaining
+## job, the SkillDust loot fraction, is `test_loot_system.gd`'s — #775), and
+## `core_kill_xp` is what actually drives the bonus, read live off the STAT so
+## a modifier can move it. Per `owner_tunes_agents_test`: `core_kill_xp` is set
+## on the hand-built victim board here, never asserted at a shipped `.tres` value.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -37,6 +40,7 @@ func before_each() -> void:
 
 	_loot = LootSystem.new()
 	_loot.turn_manager = _tm
+	_loot.xp_per_node_killed = 5.0
 	add_child_autofree(_loot)
 
 	_alloc = AllocationSystem.new()
@@ -55,6 +59,7 @@ func before_each() -> void:
 	_graph.add_child(_victim)
 
 	await get_tree().process_frame  # _ready: navigators + health wiring
+	_victim.stat_board.core_kill_xp.base_value = 8.0
 
 	_add_node("K0")
 	_add_node("V0")
@@ -84,18 +89,6 @@ func _kill_victim() -> void:
 	_victim.core_location.take_damage(10000.0, null)
 
 
-## Grows the victim from its 1 core to `total` nodes (core included) by
-## chaining fresh nodes off its existing territory and force-allocating them.
-func _grow_victim(total: int) -> void:
-	var victim_nodes := 1  # the V0 core already owned
-	while victim_nodes < total:
-		var prev: SkillNode = _nodes.back()
-		_add_node("V%d" % _nodes.size())
-		_add_edge(prev, _nodes.back())
-		_alloc.force_allocate(_victim, _nodes.back())
-		victim_nodes += 1
-
-
 func _add_node(node_name: String) -> void:
 	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	sn.name = node_name
@@ -110,55 +103,63 @@ func _add_edge(a: SkillNode, b: SkillNode) -> void:
 	_graph.edges_container.add_child(e)
 
 
-# ── Tier bonus ────────────────────────────────────────────────────────────────
+# ── entity_tier no longer affects the XP payout (#774) ───────────────────────
 
-func test_tier_1_victim_pays_20_xp() -> void:
+func test_entity_tier_does_not_change_the_kill_payout() -> void:
+	# Footprintless victim (core only): 1 node * 5 + 8 core bonus = 13,
+	# regardless of what entity_tier reads.
 	_victim.entity_tier = 1
 	_kill_victim()
-	assert_eq(_xp_gained, 20.0, "10 territory (core only) + 10 tier bonus")
+	assert_eq(_xp_gained, 13.0, "1 node * xp_per_node_killed + core_kill_xp")
 
 
-func test_tier_2_victim_pays_50_xp() -> void:
-	_victim.entity_tier = 2
-	_kill_victim()
-	assert_eq(_xp_gained, 50.0, "10 territory + 40 tier bonus")
-
-
-func test_tier_3_victim_pays_100_xp() -> void:
-	_victim.entity_tier = 3
-	_kill_victim()
-	assert_eq(_xp_gained, 100.0, "10 territory + 90 tier bonus")
-
-
-func test_grown_tier_3_victim_pays_300_xp() -> void:
-	# 20 territory nodes + the core = 21 counted → 5 × 21 × 2 = 210 territory,
-	# + 90 tier bonus = 300.
-	_grow_victim(21)
-	_victim.entity_tier = 3
-	_kill_victim()
-	assert_eq(_xp_gained, 300.0, "210 territory + 90 tier bonus")
-
-
-func test_tier_bonus_is_paid_once_not_per_node() -> void:
-	# A grown tier-1 victim pays the SAME +10 bonus as a core-only tier-1 —
-	# the bonus is a flat per-kill term, not a per-node multiplier.
-	_grow_victim(5)
+func test_a_higher_tier_victim_pays_the_same_as_a_lower_one() -> void:
 	_victim.entity_tier = 1
 	_kill_victim()
-	# 4 territory + core = 5 counted → 5 × 5 × 2 = 50 territory + 10 = 60.
-	assert_eq(_xp_gained, 60.0, "tier bonus stays flat regardless of territory")
+	var tier1_gained := _xp_gained
+
+	# Fresh fixture, same board values, tier 3 this time.
+	_xp_gained = 0.0
+	var victim2: Entity = autofree(Entity.new())
+	victim2.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	_graph.add_child(victim2)
+	await get_tree().process_frame
+	victim2.stat_board.core_kill_xp.base_value = 8.0
+	victim2.entity_tier = 3
+	_add_node("V1")
+	_add_edge(_nodes[0], _nodes[2])
+	_alloc.force_allocate(victim2, _nodes[2])
+	victim2.core_location = _nodes[2]
+
+	_tm.current_entity = _killer
+	victim2.stat_board.health.set_current(1.0)
+	_nodes[2].take_damage(10000.0, null)
+
+	assert_eq(_xp_gained, tier1_gained, "tier no longer sizes the XP bonus — only core_kill_xp does")
 
 
-func test_tier_xp_base_is_respected_when_overridden() -> void:
-	_loot.tier_xp_base = 100.0
-	_victim.entity_tier = 1
+# ── core_kill_xp drives the bonus, read live off the stat ───────────────────
+
+func test_core_kill_xp_stat_sizes_the_bonus() -> void:
+	_victim.stat_board.core_kill_xp.base_value = 40.0
 	_kill_victim()
-	assert_eq(_xp_gained, 110.0, "10 territory + 100 × 1²")
+	assert_eq(_xp_gained, 45.0, "1 node * 5 + 40")
 
 
-func test_ally_kill_pays_no_tier_bonus() -> void:
-	# The tier bonus rides the same HOSTILE gate as the territory term.
+func test_a_modifier_on_core_kill_xp_changes_the_bonus() -> void:
+	# The stat is read, not the def — a modifier granted onto it moves the
+	# payout through the normal pipeline, no bespoke mechanism.
+	var mod := StatModifier.new()
+	mod.stat_id = &"core_kill_xp"
+	mod.operation = StatModifier.Operation.ADD_BASE
+	mod.value = 10.0
+	_victim.stat_board.add_modifier(mod)
+	_kill_victim()
+	assert_eq(_xp_gained, 5.0 + 8.0 + 10.0, "core_kill_xp moved by the modifier, not just its base_value")
+
+
+func test_ally_kill_pays_no_xp_at_all() -> void:
+	# The core bonus rides the same HOSTILE gate as the territory term.
 	_killer.faction = _NPC_FACTION
-	_victim.entity_tier = 2
 	_kill_victim()
-	assert_eq(_xp_gained, 0.0, "an ally kill pays no XP at all, bonus included")
+	assert_eq(_xp_gained, 0.0, "an ally kill pays no XP at all, core bonus included")

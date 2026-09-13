@@ -82,37 +82,33 @@ extends Node
 @export var drop_skill_dust_on_death: bool = true
 @export var award_spell_loot_on_death: bool = true
 
-## ── XP reward (#68, #173, reworked off `level`) ───────────────────────────────
-## XP is paid for TERRITORY REMOVED and nothing else. One currency, one axis:
+## ── XP reward (#68, #173, #774 — strictly additive) ───────────────────────────
+## XP is paid for TERRITORY REMOVED, plus a flat bonus when the core itself
+## died. One rate, no multiplier, no rate-switching:
 ##
-##   per node removed    = xp_per_node_killed                    (the trickle)
-##   entity killing blow = xp_per_node_killed
-##                         * (|removed_this_attack UNION held_at_death| + 1)
-##                         * entity_kill_bonus, minus the trickle already paid
+##   XP = xp_per_node_killed × |nodes this attack removed, core included|
+##        + (victim.stat_board.core_kill_xp.value, only if the core died)
 ##
-## The killing blow multiplies EVERY node this attack took off the defender —
-## the ones the cascade already stripped (`removed_this_attack`, the ledger),
-## the ones still standing when the core popped (`held_at_death`), and the core
-## itself. The two sets OVERLAP mid-cascade (the ledger is recorded before the
-## strip loop walks it), so they're unioned, not summed — and the union is
-## invariant: a node moves from one side to the other as the loop progresses and
-## the total doesn't move.
+## #774 (owner, 2026-09-07): "no more killing entity that has many nodes makes
+## those nodes count for more XP, it just muddies the calculations" — a node is
+## worth the same whether it fell mid-cascade, in the islanding sweep, or in the
+## same blow that took the core. The old `entity_kill_bonus` multiplier and
+## `tier_xp_base × entity_tier²` tier term are BOTH gone; the core bonus is now
+## a per-board stat (`core_kill_xp`) so it is owner-tunable per blocker size and
+## reachable by a modifier, same as any other stat — see docs/domain/loot-system.md.
 ##
-## THAT INVARIANCE IS THE POINT. Reading only `held_at_death` made the payout
-## depend on *where in BattleSystem's cascade loop* the chip damage happened to
-## kill the core — measured at 35 XP vs 15 XP for the identical attack on an
-## identical victim, differing only in the defender's starting health. Worse, it
-## paid you LESS the more of the victim you had actually destroyed. Same defect
-## on the magic path: a fork that killed on hop 2 left later hops landing on an
-## already-stripped corpse. The ledger is what makes the payout a function of
-## what the player removed rather than of internal loop ordering.
+## The core node is simply one of the counted nodes (#774 decision 1) — there is
+## no "+1 for the core" folded into the arithmetic anywhere; a caller passes the
+## count it actually removed, core included when the core died.
 ##
-## `level` used to be the base term's axis (`xp_per_victim_level * victim.level`)
-## and it was a double-count dressed as a second signal: D-19 pins an enemy's
-## level to its starting node count, so "level" and "territory" were already the
-## same number, and killing a grown empire paid twice for one fact. Node count is
-## the honest axis — it's what the player actually fought through — so the level
-## term is gone and the territory term is the whole reward.
+## NO NETTING. `_award_kill_xp` still has to avoid double-paying a node the
+## trickle already covered (`_on_cascade_started`, off `award_xp_on_node_kill`)
+## — it does that by building the CORRECT SET before calling `_kill_xp_total`
+## once (every node in `{core} ∪ held ∪ ledger` NOT already paid by the ledger),
+## never by computing the whole-board total and subtracting what was paid
+## earlier. `preview_kill_xp` takes the count directly and never nets anything,
+## by construction — the whole point is a number that doesn't move depending on
+## when in the cascade it's asked, per #538.
 ##
 ## Why XP and not looted stats: territory modifiers are only LENT by the graph
 ## (granted on allocation, released back to neutral on death), so copying them
@@ -120,25 +116,13 @@ extends Node
 ## is the honest reward for the scale of the kill; the stat loot draws strictly
 ## from the core (see `_draw_payload`). See #173 discussion.
 
-## XP for removing one node — the whittling trickle (#182). Paid per node the
-## attack takes off the board: the node actually depleted AND everything the
-## cascade islands off it. Islanded nodes are not "collateral" — they left the
-## defender's subgraph because of your hit, and the arm you severed is the thing
-## you destroyed.
+## XP for removing one node — the whittling trickle (#182), and (#774) the
+## per-node rate for a killing blow too; there is only one rate now. Paid per
+## node the attack takes off the board: the node actually depleted AND
+## everything the cascade islands off it. Islanded nodes are not "collateral" —
+## they left the defender's subgraph because of your hit, and the arm you
+## severed is the thing you destroyed.
 @export var xp_per_node_killed: float = 5.0
-
-## Multiplier on the entity killing blow, on top of the per-node rate. The kill
-## is worth strictly more than dismantling the same territory node by node —
-## that premium is what makes going for the throat a real alternative to
-## grinding the limbs.
-@export var entity_kill_bonus: float = 2.0
-
-## Flat base of the per-kill tier bonus (#300): a kill pays
-## `tier_xp_base × victim.entity_tier²` on top of the territory term. With the
-## default 10.0 that's +10 / +40 / +90 for a tier 1 / 2 / 3 victim — the axis
-## that lets a removable blocker be worth a fixed, size-shaped reward
-## (blockers land on 20/50/100 after the territory formula pays its one node).
-@export var tier_xp_base: float = 10.0
 
 ## ── Core loot draw (#173) ─────────────────────────────────────────────────────
 ## The SkillDust draw is CORE-ONLY: the victim's class-identity mods plus
@@ -275,20 +259,22 @@ func _resolve_killer(victim: Entity) -> Entity:
 
 # ── #68: XP reward ───────────────────────────────────────────────────────────
 
-## Pure formula (#538): what `removed_node_count` removals off `victim` are
-## worth. Shared by [method _award_kill_xp] (which then nets off trickle
-## already paid mid-cascade — see below) and [method preview_kill_xp] (which
-## does NOT net that off — the whole point is a number that doesn't move
-## depending on when in the cascade it's asked). `removed_node_count` excludes
-## the core; `kills_entity` folds in the core, the [member entity_kill_bonus]
-## multiplier, and the #300 tier bonus. Never duplicate this arithmetic
-## anywhere else — a second copy is exactly the parallel-mirrors shape
+## Pure formula (#538, reworked #774): what `removed_node_count` removals off
+## `victim` are worth. Shared by [method _award_kill_xp] (which builds the
+## correct SET before calling this — see that method's doc for why that's not
+## netting) and [method preview_kill_xp] (which passes the count straight
+## through). `removed_node_count` is the WHOLE count, core included when the
+## core died — there is no folded-in "+1" here; the caller decides what counts
+## (#774 decision 1: "the core node IS one of the N nodes"). `kills_entity`
+## gates ONLY the core bonus, read live off `victim.stat_board.core_kill_xp` so
+## a modifier can move it. Never duplicate this arithmetic anywhere else — a
+## second copy is exactly the parallel-mirrors shape
 ## `.claude/rules/no-parallel-mirrors` forbids.
 func _kill_xp_total(removed_node_count: int, kills_entity: bool, victim: Entity) -> float:
-	if not kills_entity:
-		return xp_per_node_killed * float(removed_node_count)
-	var tier_bonus := tier_xp_base * float(victim.entity_tier * victim.entity_tier)
-	return xp_per_node_killed * float(removed_node_count + 1) * entity_kill_bonus + tier_bonus
+	var total := xp_per_node_killed * float(removed_node_count)
+	if kills_entity:
+		total += victim.stat_board.core_kill_xp.value
+	return total
 
 
 func _award_kill_xp(victim: Entity, killer: Entity) -> void:
@@ -300,25 +286,28 @@ func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 	# self-kill `_resolve_killer` already excludes) earns nothing.
 	if killer.attitude_to(victim) != Entity.Attitude.HOSTILE:
 		return
-	# Everything this attack took off the victim, whichever side of the cascade
-	# it currently sits on, plus the core it died on. `_held_nodes` excludes
-	# the core (it answers "territory"), but for the reward the core IS a node the
-	# killer had to destroy — and without it a landless enemy (D-19's core-only
-	# elite) would be worth a flat zero.
-	var removed: Dictionary = _removed_this_attack.get(victim, {})
-	# UNION, not sum: mid-cascade, a node sits in both sets (the ledger records
-	# the whole cascade before the strip loop walks it). The union is what makes
-	# the payout invariant to where in that loop the core happened to die.
-	var counted := removed.duplicate()
+	# Every node this attack removed: the core itself (#774 decision 1 — just
+	# one of the nodes, no special-casing), everything still standing when the
+	# core popped (`_held_nodes`, territory), and everything the ledger already
+	# recorded (`_removed_this_attack` — the two OVERLAP mid-cascade, since the
+	# ledger is written before the strip loop walks it, so union rather than
+	# sum keeps the total invariant to where in that loop the core died).
+	var ledger: Dictionary = _removed_this_attack.get(victim, {})
+	var counted := ledger.duplicate()
+	if victim.core_location != null:
+		counted[victim.core_location] = true
 	for n in _held_nodes(victim):
 		counted[n] = true
-	var total := _kill_xp_total(counted.size(), true, victim)
-	# The ledger's nodes already collected their trickle at 1x — pay only the
-	# difference, so the kill is worth exactly `total` however the attack was
-	# sequenced.
-	var already_paid := xp_per_node_killed * float(removed.size()) \
-			if award_xp_on_node_kill else 0.0
-	_grant_xp(killer, total - already_paid)
+	# NO NETTING (#774): build the SET of nodes not yet paid, then price it
+	# once. A node in the ledger already collected its trickle at
+	# `_on_cascade_started` time (iff `award_xp_on_node_kill`) — exclude it
+	# here rather than pricing the whole set and subtracting what was paid,
+	# so this is a set difference, not an arithmetic correction.
+	var unpaid := counted.duplicate()
+	if award_xp_on_node_kill:
+		for n in ledger:
+			unpaid.erase(n)
+	_grant_xp(killer, _kill_xp_total(unpaid.size(), true, victim))
 
 
 ## Read-only. What this many removals on `victim` would pay `killer` in XP —

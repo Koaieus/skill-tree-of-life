@@ -7,13 +7,23 @@ extends GutTest
 ## owned-subgraph at the instant of death. BattleSystem's cascade strips nodes
 ## one at a time and chips the defender's core HP per node, so the core can die
 ## anywhere inside that loop — and everything already stripped had vanished from
-## the count. Measured on this exact fixture: **35 XP vs 15 XP** for the same
-## attack on the same victim, differing only in the defender's starting health.
-## It paid you LESS the more of the victim you had actually destroyed.
+## the count. Measured on this exact fixture (pre-#774 numbers): **35 XP vs 15
+## XP** for the same attack on the same victim, differing only in the
+## defender's starting health. It paid you LESS the more of the victim you had
+## actually destroyed.
 ##
 ## Chain: K (killer core) – V (victim core) – A – B – C – D
 ## Depleting A (a cut vertex) islands B/C/D, so the cascade removes 4 nodes and
 ## deals 4 chip damage. Vary health to move the death around inside that loop.
+##
+## #774 reworked the payout to strictly additive (`xp_per_node_killed × nodes
+## removed, core included, + core_kill_xp only if the core died` — no
+## multiplier, no netting), but the INVARIANT this file exists to pin —
+## "the payout depends on what the attack removed, never on cascade
+## iteration order" — is unchanged, so the scenarios below survive with the
+## new arithmetic substituted in. Per `owner_tunes_agents_test`: `core_kill_xp`
+## is set on the hand-built victim board here, never asserted at a shipped
+## `.tres` value.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -23,10 +33,10 @@ const _EDGE_SCENE := preload("res://graph/edge.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
 const _PER_NODE := 5.0
-const _BONUS := 2.0
+const _CORE_BONUS := 7.0
 ## The victim owns 5 nodes (core + 4). Whatever the sequencing, a kill that
-## removes all of them is worth 5 * 5 * 2.
-const _WHOLE_VICTIM_XP := 5.0 * _PER_NODE * _BONUS
+## removes all of them is worth 5 nodes at the per-node rate plus the core bonus.
+const _WHOLE_VICTIM_XP := 5.0 * _PER_NODE + _CORE_BONUS
 
 var _graph: Graph
 var _loot: LootSystem
@@ -69,8 +79,6 @@ func before_each() -> void:
 	_loot.turn_manager = _tm
 	_loot.battle_system = _battle
 	_loot.xp_per_node_killed = _PER_NODE
-	_loot.entity_kill_bonus = _BONUS
-	_loot.tier_xp_base = 0.0  # pin the TERRITORY term; tier bonus has its own file
 	add_child_autofree(_loot)  # _ready connects the ledger to _battle
 
 	_killer = autofree(Entity.new())
@@ -82,6 +90,7 @@ func before_each() -> void:
 	_victim.core_class = _BALANCED
 	_graph.add_child(_victim)
 	await get_tree().process_frame
+	_victim.stat_board.core_kill_xp.base_value = _CORE_BONUS
 
 	_alloc.force_allocate(_killer, _nodes[0])
 	_killer.core_location = _nodes[0]
@@ -119,10 +128,10 @@ func test_payout_is_invariant_to_where_in_the_cascade_the_core_dies() -> void:
 
 func test_same_attack_surviving_the_whole_cascade_pays_the_same() -> void:
 	# Health 4 → dies on the LAST cascade node, 0 unstripped. Pre-ledger this
-	# paid 15 where the case above paid 35.
+	# paid 15 where the case above paid 35 (pre-#774 numbers).
 	var late := _cut_the_arm_with_health(4.0)
 	assert_eq(late, _WHOLE_VICTIM_XP,
-			"identical attack, identical payout — not 15 vs 35")
+			"identical attack, identical payout regardless of where the core popped")
 
 
 func test_a_clean_decapitation_pays_the_same_as_dismantling_in_one_attack() -> void:
@@ -140,20 +149,23 @@ func test_a_clean_decapitation_pays_the_same_as_dismantling_in_one_attack() -> v
 
 func test_a_non_killing_cut_pays_the_trickle_only() -> void:
 	# The victim survives (health high enough to eat 4 chip damage). Four nodes
-	# left the board; each pays 1x, none pays the kill bonus.
+	# left the board; each pays 1x, no core bonus (the core never died).
 	_victim.stat_board.health.set_current(100.0)
 	var before := _killer.stat_board.xp.current
 	var lvl_before := _killer.level
 	_nodes[2].take_damage(10000.0, null)
 	assert_false(_victim.is_dead, "the victim survives this one")
 	assert_eq(_xp_gained(before, lvl_before), 4.0 * _PER_NODE,
-			"4 removed nodes at the plain rate, no bonus")
+			"4 removed nodes at the plain rate, no core bonus")
 
 
-func test_whittling_across_attacks_pays_less_than_one_decisive_blow() -> void:
-	# The whittle/snipe distinction survives — but it's now decided by WHICH
-	# ATTACK removed the node (player-visible), not by cascade iteration order.
-	# Attack 1: cut the arm, victim survives → 4 nodes at 1x.
+func test_whittling_across_attacks_pays_the_same_as_one_decisive_blow() -> void:
+	# #774 (owner, 2026-09-07): the strictly-additive rework deliberately drops
+	# the old whittle/snipe premium — "no more killing entity that has many
+	# nodes makes those nodes count for more XP". A node is worth the same
+	# whether it fell in an earlier attack or the killing blow, and the core
+	# bonus applies exactly once regardless of when the rest of the board went.
+	# Attack 1: cut the arm, victim survives → 4 nodes at 1x, no core bonus.
 	_victim.stat_board.health.set_current(100.0)
 	var before := _killer.stat_board.xp.current
 	var lvl_before := _killer.level
@@ -164,9 +176,9 @@ func test_whittling_across_attacks_pays_less_than_one_decisive_blow() -> void:
 	_victim.core_location.take_damage(10000.0, null)
 	assert_true(_victim.is_dead)
 	var total := _xp_gained(before, lvl_before)
-	assert_eq(total, 4.0 * _PER_NODE + 1.0 * _PER_NODE * _BONUS,
-			"limbs at 1x from the earlier attack, only the core earns the bonus")
-	assert_lt(total, _WHOLE_VICTIM_XP, "strictly worse than one decisive attack")
+	assert_eq(total, 4.0 * _PER_NODE + (1.0 * _PER_NODE + _CORE_BONUS),
+			"limbs at 1x from the earlier attack, only the core kill pays the bonus")
+	assert_eq(total, _WHOLE_VICTIM_XP, "no premium for a decisive attack anymore — same total either way")
 
 
 func test_ledger_is_scoped_to_one_attack() -> void:
@@ -174,6 +186,18 @@ func test_ledger_is_scoped_to_one_attack() -> void:
 	_nodes[2].take_damage(10000.0, null)  # 4 nodes into the ledger
 	_battle.attack_launched.emit(0, null)
 	assert_eq(_loot._removed_this_attack.size(), 0, "a new attack starts an empty ledger")
+
+
+## #774 acceptance: a node pays IDENTICALLY whether the trickle
+## (`award_xp_on_node_kill`) is on or off — the kill-side total absorbs
+## whatever the trickle didn't already pay, never double-counting or
+## under-paying. Same chain, same mid-cascade death as the invariance test
+## above — only the switch differs.
+func test_total_payout_is_the_same_with_the_trickle_switched_off() -> void:
+	_loot.award_xp_on_node_kill = false
+	var without_trickle := _cut_the_arm_with_health(2.0)
+	assert_eq(without_trickle, _WHOLE_VICTIM_XP,
+			"same total with the trickle switched off — nothing double-paid or lost")
 
 
 func test_game_root_wires_the_ledger_at_scene_load() -> void:

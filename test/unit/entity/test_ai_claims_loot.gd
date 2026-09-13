@@ -91,8 +91,10 @@ func before_each() -> void:
 	_loot.turn_manager = _tm
 	_loot.command_applier = _applier
 	_loot.xp_per_node_killed = 0.0
-	_loot.entity_kill_bonus = 0.0
-	_loot.tier_xp_base = 0.0
+	# #774: entity_kill_bonus/tier_xp_base are gone; award_xp_on_kill is the
+	# clean full-stop this fixture wants (the core bonus is now a board stat,
+	# not zeroable via a LootSystem export).
+	_loot.award_xp_on_kill = false
 	_loot.loot_rounds = 2  # #775: rounds is now a constant, not victim.entity_tier
 	add_child_autofree(_loot)
 	_loot.battle_system = _bs

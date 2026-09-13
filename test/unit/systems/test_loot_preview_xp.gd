@@ -1,8 +1,9 @@
 extends GutTest
 
-## LootSystem.preview_kill_xp (#538). A read-only, non-mutating preview of what
-## `_award_kill_xp` would pay a killer for a given removal — used by the AI
-## scorer to rank candidate attacks by XP without actually committing them.
+## LootSystem.preview_kill_xp (#538, reworked #774). A read-only, non-mutating
+## preview of what `_award_kill_xp` would pay a killer for a given removal —
+## used by the AI scorer to rank candidate attacks by XP without actually
+## committing them.
 ##
 ## Pinned signature (ORCHESTRATOR PIN on #538 — the issue's premise assumed
 ## `AttackOutcome` already carries a deallocation/killed-entity set; it does
@@ -10,9 +11,17 @@ extends GutTest
 ##
 ##   preview_kill_xp(killer, victim, removed_node_count, kills_entity) -> float
 ##
+## #774 changed what the arguments mean, not the shape: `removed_node_count` is
+## now the WHOLE count of nodes removed, core included when the core died (no
+## folded-in "+1" anywhere — #774 decision 1), and `kills_entity` gates ONLY
+## the flat `core_kill_xp` board-stat bonus, replacing the deleted
+## `entity_kill_bonus` multiplier and `tier_xp_base × entity_tier²` term.
+##
 ## `_award_kill_xp` and `preview_kill_xp` share one extracted formula
 ## (`_kill_xp_total`) — this file pins the two against each other rather than
 ## re-deriving a second copy of the arithmetic (`.claude/rules/no-parallel-mirrors`).
+## Per `owner_tunes_agents_test`: `core_kill_xp` is set on the hand-built
+## victim board here, never asserted at a shipped `.tres` value.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -23,8 +32,7 @@ const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
 const _PER_NODE := 5.0
-const _BONUS := 2.0
-const _TIER_BASE := 10.0
+const _CORE_BONUS := 12.0
 
 var _graph: Graph
 var _loot: LootSystem
@@ -78,8 +86,6 @@ func before_each() -> void:
 	_loot.turn_manager = _tm
 	_loot.battle_system = _battle
 	_loot.xp_per_node_killed = _PER_NODE
-	_loot.entity_kill_bonus = _BONUS
-	_loot.tier_xp_base = _TIER_BASE
 	add_child_autofree(_loot)
 
 	_killer = autofree(Entity.new())
@@ -91,9 +97,9 @@ func before_each() -> void:
 	_victim.faction = _NPC_FACTION
 	_victim.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_victim.core_class = _BALANCED
-	_victim.entity_tier = 2  # tier bonus = 10 * 2^2 = 40
 	_graph.add_child(_victim)
 	await get_tree().process_frame
+	_victim.stat_board.core_kill_xp.base_value = _CORE_BONUS
 
 	_alloc.force_allocate(_killer, _nodes[0])
 	_killer.core_location = _nodes[0]
@@ -110,13 +116,13 @@ func _xp_gained(before: float, lvl_before: int) -> float:
 	return consumed + _killer.stat_board.xp.current - before
 
 
-# ── 1: pinned against a real cascade (trickle + kill bonus + tier bonus) ──────
+# ── 1: pinned against a real cascade (trickle + core bonus, no multiplier) ────
 
 func test_preview_matches_a_whole_cascades_real_payout() -> void:
-	# Whole territory (4 non-core nodes) + core = 5 nodes counted → kill-total
-	# 5 * 5 * 2 = 50, + tier bonus 40 = 90.
-	var expected_preview := _loot.preview_kill_xp(_killer, _victim, 4, true)
-	assert_eq(expected_preview, 90.0, "5*(4+1)*2 + 10*2^2")
+	# Whole victim: 4 territory nodes + the core = 5 nodes counted (#774
+	# decision 1 — the core is just one of them) → 5 * 5 + 12 = 37.
+	var expected_preview := _loot.preview_kill_xp(_killer, _victim, 5, true)
+	assert_eq(expected_preview, 37.0, "5*5 + 12")
 
 	var before := _killer.stat_board.xp.current
 	var lvl_before := _killer.level
@@ -126,17 +132,17 @@ func test_preview_matches_a_whole_cascades_real_payout() -> void:
 
 	var real_payout := _xp_gained(before, lvl_before)
 	assert_eq(real_payout, expected_preview,
-			"preview equals trickle + kill bonus + tier bonus summed across the whole cascade")
+			"preview equals trickle + kill total summed across the whole cascade")
 
 
 func _capture_mid_cascade_preview(_layers: Array, defender: Entity) -> void:
 	if defender == _victim:
 		_saw_cascade = true
-		_mid_cascade_value = _loot.preview_kill_xp(_killer, _victim, 4, true)
+		_mid_cascade_value = _loot.preview_kill_xp(_killer, _victim, 5, true)
 
 
 func test_calling_it_mid_cascade_matches_calling_it_before() -> void:
-	var before_value := _loot.preview_kill_xp(_killer, _victim, 4, true)
+	var before_value := _loot.preview_kill_xp(_killer, _victim, 5, true)
 	_battle.cascade_started.connect(_capture_mid_cascade_preview)
 
 	_victim.stat_board.health.set_current(2.0)
@@ -157,41 +163,49 @@ func test_calling_it_twice_returns_the_same_number() -> void:
 
 func test_removals_with_no_kill_preview_trickle_only() -> void:
 	var preview := _loot.preview_kill_xp(_killer, _victim, 3, false)
-	assert_eq(preview, 3.0 * _PER_NODE, "trickle only, no core/bonus/tier")
+	assert_eq(preview, 3.0 * _PER_NODE, "trickle only, no core bonus")
 
 
-func test_a_kill_previews_trickle_plus_core_plus_bonus_plus_tier() -> void:
-	var preview := _loot.preview_kill_xp(_killer, _victim, 2, true)
-	# (2 territory + 1 core) * PER_NODE * BONUS + tier
-	assert_eq(preview, (2.0 + 1.0) * _PER_NODE * _BONUS + _TIER_BASE * 4.0)
+func test_a_kill_previews_trickle_plus_core_bonus() -> void:
+	# 3 nodes (territory + core, #774 decision 1) at the per-node rate, plus
+	# the flat core bonus — no multiplier anywhere.
+	var preview := _loot.preview_kill_xp(_killer, _victim, 3, true)
+	assert_eq(preview, 3.0 * _PER_NODE + _CORE_BONUS)
+
+
+func test_a_footprintless_kill_previews_exactly_one_node_plus_the_bonus() -> void:
+	# #774 acceptance: a footprintless blocker kill pays exactly
+	# xp_per_node_killed + core_kill_xp.
+	var preview := _loot.preview_kill_xp(_killer, _victim, 1, true)
+	assert_eq(preview, _PER_NODE + _CORE_BONUS)
 
 
 # ── 4: gates ─────────────────────────────────────────────────────────────────
 
 func test_ally_kill_previews_zero() -> void:
 	_victim.faction = _PLAYER_FACTION  # same faction as killer now
-	var preview := _loot.preview_kill_xp(_killer, _victim, 4, true)
+	var preview := _loot.preview_kill_xp(_killer, _victim, 5, true)
 	assert_eq(preview, 0.0)
 
 
 func test_self_kill_previews_zero() -> void:
-	var preview := _loot.preview_kill_xp(_killer, _killer, 4, true)
+	var preview := _loot.preview_kill_xp(_killer, _killer, 5, true)
 	assert_eq(preview, 0.0)
 
 
 func test_award_xp_on_kill_false_previews_zero() -> void:
 	_loot.award_xp_on_kill = false
-	var preview := _loot.preview_kill_xp(_killer, _victim, 4, true)
+	var preview := _loot.preview_kill_xp(_killer, _victim, 5, true)
 	assert_eq(preview, 0.0)
 
 
 func test_null_killer_previews_zero() -> void:
-	assert_eq(_loot.preview_kill_xp(null, _victim, 4, true), 0.0)
+	assert_eq(_loot.preview_kill_xp(null, _victim, 5, true), 0.0)
 
 
 func test_dead_killer_previews_zero() -> void:
 	_killer.is_dead = true
-	assert_eq(_loot.preview_kill_xp(_killer, _victim, 4, true), 0.0)
+	assert_eq(_loot.preview_kill_xp(_killer, _victim, 5, true), 0.0)
 
 
 # ── 5: non-mutating ──────────────────────────────────────────────────────────
@@ -207,7 +221,7 @@ func test_leaves_world_fingerprint_unchanged_and_emits_nothing() -> void:
 	Events.entity_xp_gained.connect(_count_xp_event)
 
 	var before := WorldFingerprint.compute(_graph)
-	_loot.preview_kill_xp(_killer, _victim, 4, true)
+	_loot.preview_kill_xp(_killer, _victim, 5, true)
 	_loot.preview_kill_xp(_killer, _victim, 0, false)
 	var after := WorldFingerprint.compute(_graph)
 
