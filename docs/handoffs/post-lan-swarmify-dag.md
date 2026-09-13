@@ -27,9 +27,9 @@ into this milestone. Treat it as a priority carryover, not a guess.
 | 768 | Turn-order bar reads full at every tie | needs-design | `ui/hud` (turn order widget, inside `hud_root.gd`'s roster) | UI/UX fork: display initiative+queue, not initiative alone |
 | 770 | Lobby: procgen addon density controllable/off | needs-design | `ui/frontmatter/panels/lobby_panel.gd`, `procgen/pools/addon_policy.gd` | LAN finding: expose existing `AddonPolicy.slot_*` knob in lobby |
 | 771 | AI: build the weapon — clamp first blade joints unless triangulated | in-progress | `attack/plan/`, `ai_blade_rollout.gd`, `skill_node/addons/clamp_addon.gd` | AI competence fix, currently being worked |
-| 774 | Kill XP over-tuned — additive payout, xp_reward as board stat | needs-design | `systems/loot_system.gd`, `stats_system/defs/xp.tres` | Balance/formula fix |
-| 775 | Loot: scale looted modifier coeff by blocker size + MERGE grants | needs-design | `systems/loot_system.gd`, blocker board `.tres` | Balance + new merge mechanism |
-| 776 | Rebalance "+1 X per Y Z" intrinsics (thin default, stacking = spec) | needs-design | `entity/default_entity_board.tres`, blocker boards | Balance retune, same board files as #775 |
+| 774 | Kill XP over-tuned — additive payout, xp_reward as board stat | **Ready** (09-13) | `systems/loot_system.gd`, `stats_system/defs/xp.tres` | Balance/formula fix |
+| 775 | Loot: scale looted modifier coeff by blocker size + MERGE grants | **Ready** (09-13) | `systems/loot_system.gd`, blocker board `.tres` | Balance + new merge mechanism |
+| 776 | Rebalance "+1 X per Y Z" intrinsics (thin default, stacking = spec) | **Ready** (09-13) | `entity/default_entity_board.tres`, blocker boards | Balance retune, same board files as #775 |
 | 783 | Procgen: node radius scales with modifier budget | needs-design | `procgen/graph_procgen.gd`, `procgen/modules/topology.gd` | Legibility/visual + map-size-estimate math |
 | 784 | Blockers: chance to pre-Stake their squatted node | needs-design | `procgen/graph_procgen.gd` (archetype/budget loop) | Balance/territory reward, mechanism mostly exists |
 | 786 | Implement the Halo core class | needs-design | `entity/core/`, `skill_node/addons` (spike ring) | New core class, needs remaining design after #772/#785 |
@@ -97,7 +97,39 @@ those files is gone**. Re-point both issues onto current master during the
 swarmify pass before briefing any drone off them.
 
 ### Cluster 2 — Loot & intrinsic-modifier balance (#774, #775, #776)
-**Why they cluster:** all three are 2026-09-07 owner post-LAN quotes about the
+
+> **SPENT 2026-09-13 (swarmify pass, owner in the loop):** all three **Ready**,
+> `design` dropped, each with a full `## Acceptance spec` comment dated
+> 2026-09-13 — read those, not the bodies, whose fork lists they supersede.
+> The owner's own order stands: **#776 → #775 → #774, serial** (shared
+> `loot_system.gd` between #775/#774; shared board `.tres` set between
+> #776/#774 — #774 adds a `core_kill_xp` scalar to the same four boards #776
+> re-divisors). What each became:
+> - **#776** — INT is the *only* runaway source (owner: "designed to be a
+>   runaway primary attribute. The others less so"). #760's `KneeSqrtFormula`
+>   → pure `SqrtFormula` (`√INT / d`, knee deleted, `TAG_SQRT`), spell_damage
+>   only. Every other ratio keeps `RatioFormula` with owner-given starting
+>   divisors (xp/turn per 5 WIS, ranged per 20 DEX, spell_range per 50 INT,
+>   ×2 on blade_damage/blade_size). INCREASE passthroughs + ladders untouched.
+>   Mana/mana-regen divisors parked to **#766** (pointer posted there). Tuning
+>   surface split out as **#861** (Ready — attribute-override sliders on the
+>   statboard visualizer).
+> - **#775** — fraction keyed off `entity_tier`, exponential
+>   `[0.25, 0.5, 1.0, 2.0]` as a `LootSystem` export (tier 4 = bosses, parked);
+>   draw count becomes a constant `loot_rounds = 3`; merge key = wire form minus
+>   `value`, search intrinsics then `core_modifiers`, a file-backed class grant
+>   is privatised (duplicate + rebind) on first merge. New `Entity` verb; class
+>   grants keep going through `grant_core_modifier` untouched. #792 stays
+>   `blockedBy` #775 and owns all display.
+> - **#774** — the core node counts among the N nodes (N × node XP + 1 core
+>   bonus); `tier_xp_base × tier²` and `entity_kill_bonus` both deleted in
+>   favour of a per-board `core_kill_xp` scalar (20/40/60 blockers, 60 player,
+>   starting values). Kill-strip stays separate; "every node pays once" with the
+>   ledger as the paid-set. Level curve untouched (owner: "Current is fine").
+> **Next bite: Cluster 3** (#791 → #792 → #829) — #792 is now spec-able since
+> #775's merge shape is pinned on the issue.
+
+**Why they cluster (original index):** all three are 2026-09-07 owner post-LAN quotes about the
 same runaway-power problem, and all three edit `systems/loot_system.gd` and/or
 the board `.tres` files (`entity/default_entity_board.tres`, the three blocker
 boards). #775 depends conceptually on #776's retuned rates (merging into a
@@ -298,9 +330,9 @@ from the LAN milestone, already has an owner-prescribed shape (mirror
 `AiBladeRollout`'s two-tier pattern), and touches no files any other open issue
 touches — zero collision risk, fast swarmify pass.
 
-**Cluster 2 (loot/balance) third**, given how much direct owner engagement
-it already has (verbatim post-LAN quotes) — but dispatch its three issues
-*serially*, per the collision warnings above, not as a swarm wave.
+**Cluster 2 (loot/balance) third** — **spent 2026-09-13**, all three Ready
+plus #861; dispatch *serially* (#776 → #775 → #774), per the collision warnings
+above, not as a swarm wave.
 
 Everything else (lobby cluster, mana/AP, melee presentation-clock cluster,
 spikes cloud, bench hygiene) can queue behind those three in whatever order
