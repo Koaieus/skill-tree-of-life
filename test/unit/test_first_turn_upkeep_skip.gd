@@ -40,15 +40,16 @@ func test_first_turn_does_not_level_a_fresh_entity() -> void:
 
 
 func test_second_turn_runs_a_normal_upkeep() -> void:
-	# Asserted through `level`, not `xp.current`: WIS 10 gives xp_per_turn = 5
-	# against a level-1 xp cap of exactly 5, so one real upkeep fills the pool
-	# outright and OVERFLOW carries the remainder (0) — `current` lands back on
-	# 0.0 and would read as "nothing happened". The level-up IS the income.
-	var level_before: int = _entity.level
+	# Asserted through `xp.current` directly rather than a level-up: whether a
+	# single tick's xp_per_turn income fills the level-1 xp cap (5) outright,
+	# as it did at the old WIS/2 divisor, depends on the RatioFormula divisor's
+	# owner-tuned value (#776) — this test must not repin that number, only
+	# that turn 2 actually ticks income turn 1 skipped.
+	var xp_before: float = _entity.stat_board.xp.current
 	_entity._on_turn_started(_entity)  # skipped
-	assert_eq(_entity.level, level_before, "precondition: turn 1 changed nothing")
+	assert_eq(_entity.stat_board.xp.current, xp_before, "precondition: turn 1 changed nothing")
 	_entity._on_turn_started(_entity)
-	assert_gt(_entity.level, level_before,
+	assert_gt(_entity.stat_board.xp.current, xp_before,
 			"the gate is first-turn only: turn 2 is an ordinary upkeep")
 
 

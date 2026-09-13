@@ -208,19 +208,26 @@ func test_enemy_core_grants_elevated_wis_and_matching_xp_per_turn() -> void:
 	var balanced := _make_entity(_graph, null)
 	await get_tree().process_frame
 	var baseline_wis: float = balanced.stat_board.wisdom.value
+	var baseline_xp_per_turn: float = balanced.stat_board.xp_per_turn.value
 
 	var entity := _make_entity(_graph, _ENEMY_CORE)
 	await get_tree().process_frame
+
+	# xp_per_turn's RatioFormula divisor is owner-tuned (#776) — read it off
+	# the live board rather than pinning it a second time here.
+	var divisor := 5.0
+	for m in entity.stat_board.intrinsic_modifiers:
+		if m.stat_id == &"xp_per_turn" and m.formula is RatioFormula:
+			divisor = (m.formula as RatioFormula).divisor
 
 	# basic_enemy_core.tres's WIS grant is a TBD (#268) difficulty dial, not a
 	# tuned value — assert the relationship (D-15), not a specific number.
 	assert_gt(entity.stat_board.wisdom.value, baseline_wis,
 			"basic_enemy_core should grant elevated WIS (TBD #268 placeholder)")
-	@warning_ignore("integer_division")
-	assert_eq(int(entity.stat_board.xp_per_turn.value), int(entity.stat_board.wisdom.value) / 2,
-			"xp_per_turn should track WIS // 2 (D-15) for the granted WIS")
-	assert_gt(entity.stat_board.xp_per_turn.value, 10,
-			"elevated-WIS enemy income must exceed the pinned baseline of 10")
+	assert_eq(int(entity.stat_board.xp_per_turn.value), int(floor(entity.stat_board.wisdom.value / divisor)),
+			"xp_per_turn should track WIS // divisor (D-15) for the granted WIS")
+	assert_gt(entity.stat_board.xp_per_turn.value, baseline_xp_per_turn,
+			"elevated-WIS enemy income must exceed a baseline entity's income")
 
 
 # ── 7. graceful exhaustion ───────────────────────────────────────────────

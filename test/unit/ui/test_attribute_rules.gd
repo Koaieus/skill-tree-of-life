@@ -31,14 +31,14 @@ func test_unknown_attribute_is_empty() -> void:
 func test_strength_lists_both_blade_rules_with_the_real_divisors() -> void:
 	var lines := _lines(&"strength")
 	assert_eq(lines.size(), 2, "blade damage + blade size")
-	assert_string_contains(lines[0], "per 10 STR")
-	assert_string_contains(lines[1], "per 20 STR")
+	assert_string_contains(lines[0], "per 20 STR")
+	assert_string_contains(lines[1], "per 40 STR")
 
 
 func test_wisdom_reports_the_current_xp_rule_not_the_retired_decade_one() -> void:
 	var lines := _lines(&"wisdom")
 	assert_eq(lines.size(), 1, "xp_per_turn only — sensor_range moved to perception")
-	assert_string_contains(lines[0], "per 2 WIS")
+	assert_string_contains(lines[0], "per 5 WIS")
 	assert_false(lines[0].contains("decade"), "the decade rule is long gone")
 
 

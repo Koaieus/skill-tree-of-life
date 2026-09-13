@@ -27,20 +27,26 @@ func _make_entity(core_class: CoreClass = null) -> Entity:
 	return ent
 
 
-## Decision 1 (D-15): xp_per_turn intrinsic is WIS // 2, integer division —
-## replacing the old floor(log10(WIS)) step function.
-func test_xp_per_turn_is_wisdom_floor_div_2() -> void:
+## Decision 1 (D-15): xp_per_turn intrinsic is WIS // divisor, integer division
+## — replacing the old floor(log10(WIS)) step function. Divisor is 5 as of the
+## #776 rebalance pass (was 2) — a RatioFormula divisor, owner-tunable, so this
+## reads it off the live board rather than hardcoding the number twice.
+func test_xp_per_turn_is_wisdom_floor_div_divisor() -> void:
 	var ent: Entity = await _make_entity()
 	var board := ent.stat_board
+	var divisor := 5.0
+	for m in board.intrinsic_modifiers:
+		if m.stat_id == &"xp_per_turn" and m.formula is RatioFormula:
+			divisor = (m.formula as RatioFormula).divisor
 
 	board.wisdom.base_value = 20.0
-	assert_eq(int(board.xp_per_turn.value), 10, "WIS 20 -> xp_per_turn 10")
+	assert_eq(int(board.xp_per_turn.value), int(floor(20.0 / divisor)), "WIS 20 floors correctly")
 
 	board.wisdom.base_value = 21.0
-	assert_eq(int(board.xp_per_turn.value), 10, "WIS 21 still floors to 10 (integer division)")
+	assert_eq(int(board.xp_per_turn.value), int(floor(21.0 / divisor)), "WIS 21 still floors (integer division)")
 
 	board.wisdom.base_value = 100.0
-	assert_eq(int(board.xp_per_turn.value), 50, "WIS 100 -> xp_per_turn 50")
+	assert_eq(int(board.xp_per_turn.value), int(floor(100.0 / divisor)), "WIS 100 floors correctly")
 
 
 ## Decision 3: BalancedCore grants +10 to all five attributes at base,
@@ -155,6 +161,9 @@ func test_starting_sp_is_above_1() -> void:
 ## relationship, not a specific number.
 func test_basic_enemy_core_xp_per_turn_derives_from_wisdom_not_double_counted() -> void:
 	var ent: Entity = await _make_entity(_ENEMY_CORE)
-	@warning_ignore("integer_division")
-	assert_eq(int(ent.stat_board.xp_per_turn.value), int(ent.stat_board.wisdom.value) / 2,
-			"BasicEnemyCore: xp_per_turn must derive from WIS // 2, not double-counted")
+	var divisor := 5.0
+	for m in ent.stat_board.intrinsic_modifiers:
+		if m.stat_id == &"xp_per_turn" and m.formula is RatioFormula:
+			divisor = (m.formula as RatioFormula).divisor
+	assert_eq(int(ent.stat_board.xp_per_turn.value), int(floor(ent.stat_board.wisdom.value / divisor)),
+			"BasicEnemyCore: xp_per_turn must derive from WIS // divisor, not double-counted")
