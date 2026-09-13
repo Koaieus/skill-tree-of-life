@@ -577,6 +577,9 @@ func _on_attribute_reset_requested() -> void:
 	if _board == null or _board.resource_path == "":
 		return
 	var authored := _read_authored_attribute_values()
+	if authored.is_empty():
+		push_warning("StatBoardGraph: Reset could not re-read '%s' from disk; overrides left as-is." % _board.resource_path)
+		return
 	for id in authored:
 		var stat := _board.get_stat(id)
 		if stat != null:
@@ -631,6 +634,18 @@ func _save_board_preserving_overrides() -> void:
 		if stat != null:
 			current[id] = stat.base_value
 	var authored := _read_authored_attribute_values()
+	# If the disk re-read failed (file missing, parse error, I/O hiccup) or
+	# came back short, the restore loop below would be a partial no-op and
+	# the save would write the live overrides straight into the .tres —
+	# silently. Refuse the save outright rather than risk that; the user's
+	# new modifier stays in memory and they can retry once the read works.
+	if authored.size() != current.size():
+		push_warning(
+			"StatBoardGraph: skipped saving '%s' — could not re-read its authored attribute values from disk (%d of %d), so an active override might have been written through." % [
+				_board.resource_path, authored.size(), current.size(),
+			]
+		)
+		return
 	for id in authored:
 		var stat := _board.get_stat(id)
 		if stat != null:
