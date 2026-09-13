@@ -19,8 +19,9 @@ extends GutTest
 ## Two shapes, because "discovers a target" has two distinct failure modes:
 ##
 ##   **A. Application APPENDS a landing.** The live seam is on-hit effects:
-##      they hold the [AttackOutcome] and append to it (`eff.apply(state,
-##      outcome)` in [SpellResolver]), which is legal during RESOLUTION and must
+##      they hold the [AttackOutcome] and append to it (`eff.apply(lctx)` in
+##      [SpellResolver], via [LandingContext].cast.outcome), which is legal
+##      during RESOLUTION and must
 ##      never happen from inside [OutcomeApplier]. Checked by re-applying a
 ##      finished outcome and asserting it did not grow.
 ##
