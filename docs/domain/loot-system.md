@@ -247,19 +247,41 @@ claim-time concern.
 
 `rounds` (the number of pick-1-of-3 **rounds**, not "N of a flat M" since
 #323 — and named `pick_count` until 2026-08-22, when it collided with the
-per-round count that no longer exists) is the victim's **tier** (`Entity.entity_tier`, #300), against the
-pool's **total** size across all three buckets:
+per-round count that no longer exists) is a **constant**, `LootSystem.loot_rounds`
+(#775 — was `Entity.entity_tier`, #300), against the pool's **total** size
+across all three buckets:
 
 ```
-N = victim.entity_tier     clamped to [0, total supply], then to supply-1 whenever supply ≥ 2
+N = loot_rounds     clamped to [0, total supply], then to supply-1 whenever supply ≥ 2
 ```
 
-Players and NPCs keep the default `entity_tier` 3, so an ordinary kill offers 3
-rounds; removable blockers author 1 / 2 / 3 for small / medium / large. This
-replaces the old level-scaled `core_keep_base + core_keep_per_level · level`
-formula — level was a stale axis for loot (see the kill-XP "why `level` is
-gone" note above), and tier gives blockers a fixed, authored keep-count without
-a per-entity formula.
+Every kill offers the same `loot_rounds` (default 3) regardless of victim
+tier — the reduced per-round *value* (below) is what a small blocker pays in,
+not a shorter draw. This replaces the old level-scaled
+`core_keep_base + core_keep_per_level · level` formula — level was a stale axis
+for loot (see the kill-XP "why `level` is gone" note above) — and then #300's
+tier-scaled round count, retired in favour of the fraction below.
+
+### Loot value scales with victim tier (#775)
+
+Each drawn candidate's coefficient (`StatModifier.value`, or every leaf's
+`value` inside a `loots_as_unit = true` composite that survives whole) is
+multiplied by `LootSystem.loot_fraction_by_tier[clampi(victim.entity_tier - 1,
+0, size - 1)]` — an exponential ladder, authored `[0.25, 0.5, 1.0, 2.0]` (owner,
+2026-09-13: *"1: 0.25 2: 0.5 3: 1 (4: 2? Maybe reserved for bosses)"*). Players
+and ordinary NPCs default to `entity_tier = 3` → the full 1.0 rate; removable
+blockers author 1 / 2 / 3 for small / medium / large → 0.25 / 0.5 / 1.0. The
+scale is applied to the **duplicate** entering the loot pool, in `_draw_payload`
+— never to the victim's own modifier, which keeps computing at full strength
+for as long as the victim is alive (a dormant core's intrinsics still "work" by
+being lootable, per the owner: *"a dormant core DOES use its intrinsics — by
+exposing them as loot"*).
+
+An `INT`-typed target stat (`spell_hops`, `blade_size`, `xp_per_turn`) coerces
+once, at the end of the pipeline — a lone 0.25 coefficient can read as **+0**
+until a second copy stacks it past a whole number. Accepted as-is (owner,
+2026-09-13): showing the player the effective value is #792's job, not this
+system's.
 
 **Why N is capped below the supply.** A keep-count that reaches the full supply
 turns every round into a no-choice auto-grant and the picker never pops. It did
@@ -286,11 +308,63 @@ only a real pickup fires), it runs one round per `rounds`, each as its own
 4. **2–3 survivors** → weighted-sample up to 3 ("roll a bucket by weight, then a
    member") and emit `Events.loot_pick_requested(LootPickRequest)` for a
    **pick-1** choice.
-5. The chosen mod is granted **immediately**, via `Entity.grant_core_modifier`
-   (so it lands in the collector's register too — re-lootable later) — before
-   the next round's `would_cycle` check runs. The un-picked offer members are
-   NOT removed from the pool; they're eligible again in a later round's fresh
-   sample ("single pick, then new draw, the next pick is always clean").
+5. The chosen mod is granted **immediately**, via `Entity.absorb_core_modifier`
+   (#775 — the merge verb; see below) — before the next round's `would_cycle`
+   check runs. The un-picked offer members are NOT removed from the pool;
+   they're eligible again in a later round's fresh sample ("single pick, then
+   new draw, the next pick is always clean").
+
+### The merge (#775) — equivalent grants add coefficients, not copies
+
+`Entity.absorb_core_modifier(m)` is what `SkillDustAddon._grant_mod` calls
+instead of `grant_core_modifier` directly. A `CompositeStatModifier` candidate
+**always appends whole** (never merges — a bundle's identity is the point of
+keeping it one atom). A plain candidate is matched by
+`StatModifierCodec.merge_key(m)` — its wire form (`to_dict()`) with `"value"`
+erased, so "same stat, same op, same formula" without caring how much of it —
+against, **in order**:
+
+1. **`collector.stat_board.intrinsic_modifiers`** — the collector's own board
+   rules. A file-backed match here (should never happen post-`duplicate(true)`,
+   but guarded) is **skipped as a target**, not privatised — the search just
+   continues into the next bucket.
+2. **`collector.core_modifiers`** — previously-granted atoms, including
+   class-template grants.
+
+**No match** → the ordinary `grant_core_modifier` append. **A match whose
+`resource_path` is non-empty** (a FILE-BACKED shared instance — a class-template
+grant is the SAME `.tres` sub-resource on every entity of that class, per
+`CoreClass.apply`'s no-duplication contract) is **privatised first**:
+`StatBoard.privatize_register_entry` swaps the register slot for an unshared
+`duplicate(true)`, rebinds it on the board, and the merge lands on the
+duplicate — the shared original, and every other entity of that class, is
+never touched. Otherwise the match is mutated in place: `target.value += m.value`
+(the setter already `emit_changed()`s — no rebind, no dirty-marking). Either
+way, exactly one `Events.stat_modifier_changed(collector, target, CORE, true)`
+fires, carrying the **merged target** — never the just-absorbed copy — so a
+display surface (#792) has one hook to refresh from regardless of merge vs.
+append.
+
+**The merge key includes the formula dict, so a divisor mismatch silently
+appends instead of merging.** A player's `blade_damage /20` and a board still
+carrying `/10` for the same stat are different keys — pinned as visible
+behaviour, not a bug: every future owner divisor pass (`.claude/rules/stats-system.md`'s
+intrinsic table) must move all four boards (`default_entity_board.tres` +
+the three `entity/blocker/blocker_*_board.tres`) in lockstep, or loot of that
+rule quietly stops merging between them.
+
+**Late-join:** `Stat._reconcile_modifiers` matches an incoming wire form
+against a bound modifier's FULL `to_dict()` (value included), so a joiner
+whose board still authors `1.0` for a rule the host merged to `1.25` would
+otherwise fail to match, mint a fresh bound `1.25` instance, and leave the
+stale `1.0` sitting in the register/intrinsics array unbound.
+`StatBoard.read_dict` closes this by running `sync_register_from_wire` on
+`intrinsic_modifiers` **before** the per-stat reconcile (privatising a
+file-backed match the same way the merge does), and firing a `restoring(d)`
+signal `Entity` uses to do the same for `core_modifiers` — so by the time the
+reconcile runs, the register's own entry already carries the wire's value and
+gets kept in place. The register entry IS the bound instance afterward; no
+separate re-pointing step exists.
 
 **Why per-round, not one up-front filter.** Two candidates can each be
 individually cycle-safe yet jointly cyclic — a single filter checked once

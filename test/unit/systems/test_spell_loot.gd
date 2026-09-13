@@ -398,7 +398,7 @@ func test_innate_spell_is_offered_as_a_candidate() -> void:
 
 func test_spell_draft_fires_only_after_stat_rounds_resolve() -> void:
 	_loot.drop_skill_dust_on_death = true  # re-enable stat loot to exercise ordering
-	_victim.entity_tier = 1  # a real stat round (N=1, but M > N via node grant + innates)
+	_victim.entity_tier = 1  # #775: sizes the loot fraction now; rounds is `_loot.loot_rounds`
 	_victim.spellbook = SpellBook.new()
 	var spell := _mk_spell("Bonus")
 	_grant_from(_victim.spellbook, spell, _victim.core_location)

@@ -54,10 +54,13 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 ## into the active slot happens via [member BattleSystem.selected_spell].
 @export var spellbook: SpellBook = null
 
-## Reward tier (#300): sizes the killing-blow XP bonus (`tier_xp_base × tier²`,
-## see LootSystem) and the SkillDust pick count (`victim.entity_tier`). Players
-## and ordinary NPCs keep the default 3, so nothing changes by omission;
-## removable-node blockers author 1/2/3 for small/medium/large.
+## Reward tier (#300): sizes the SkillDust loot FRACTION
+## (`LootSystem.loot_fraction_by_tier[tier-1]`, #775 — was the pick count,
+## which is now a constant, [member LootSystem.loot_rounds]). No longer sizes
+## the killing-blow XP bonus (#774 deleted the tier-scaled term in favour of
+## a per-board `core_kill_xp` stat). Players and ordinary NPCs keep the
+## default 3 → loot at the full 1.0 rate; removable-node blockers author
+## 1/2/3 for small/medium/large → loot at 0.25/0.5/1.0.
 @export var entity_tier: int = 3
 
 ## Wire identity (#509) — the only legal way a [Command] refers to an entity,
@@ -226,6 +229,95 @@ func grant_core_modifier(m: StatModifier) -> void:
 	if stat_board != null:
 		stat_board.add_modifier(m)
 
+
+## The merge verb (#775) — SkillDust pickup routes an equivalent grant through
+## here instead of [method grant_core_modifier], so a 6th looted copy of the
+## same rule adds to one modifier's `value` rather than holding a 6th copy.
+## Class-template grants (`CoreClass.apply`) do NOT go through this — they
+## must keep appending the shared template untouched (decision 7); this is
+## purely the loot-side merge.
+##
+## A [CompositeStatModifier] candidate never merges — it always appends whole
+## through [method grant_core_modifier], same as a no-match plain candidate.
+## A plain candidate is matched by [method StatModifier.merge_key] (same
+## stat_id/operation/formula, ignoring `value`) against, in order,
+## [member EntityStatBoard.intrinsic_modifiers] then [member core_modifiers] —
+## intrinsics first because the owner's own example merges a looted copy into
+## the default board rule. No match → the ordinary grant.
+##
+## A matched target in [member core_modifiers] with a non-empty
+## [member Resource.resource_path] is a FILE-BACKED shared instance (a
+## class-template grant — `CoreClass.apply` installs the same `.tres`
+## modifier object on every entity of that class). Merging into it in place
+## would move every entity's stat and the file on disk. Privatised via
+## [method StatBoard.privatize_register_entry] first: swap the register slot
+## for an unshared `duplicate(true)`, rebind it on the board, merge into the
+## duplicate instead — the shared original is never touched. An intrinsic
+## should never be file-backed post-`duplicate(true)` (#775 spec, decision 6),
+## but as a guard a file-backed INTRINSIC match is skipped as a target
+## entirely (search continues into `core_modifiers`) rather than privatised —
+## intrinsics don't get the swap-the-slot treatment core_modifiers does.
+##
+## Owns the WHOLE `stat_modifier_changed` emit for a SkillDust grant (#70: one
+## event per leaf on an append, one event carrying the merged target on a
+## merge) — [SkillDustAddon._grant_mod] used to do this itself; folded in here
+## so the merge path and the append path cannot emit a different shape by
+## accident.
+func absorb_core_modifier(m: StatModifier) -> void:
+	if m == null:
+		return
+	if m is CompositeStatModifier or stat_board == null:
+		grant_core_modifier(m)
+		for leaf in m.flatten():
+			Events.stat_modifier_changed.emit(self, leaf, ModifierBinding.Kind.CORE, true)
+		return
+	var key := StatModifierCodec.merge_key(m)
+	# Intrinsics first (the owner's own example merges into the default board
+	# rule) — but a file-backed one is not a valid target, so skip it rather
+	# than returning it.
+	var target: StatModifier = _find_merge_target(stat_board.intrinsic_modifiers, key, true)
+	var in_intrinsics := target != null
+	if target == null:
+		target = _find_merge_target(core_modifiers, key, false)
+	if target == null:
+		grant_core_modifier(m)
+		Events.stat_modifier_changed.emit(self, m, ModifierBinding.Kind.CORE, true)
+		return
+	if not in_intrinsics and not target.resource_path.is_empty():
+		target = stat_board.privatize_register_entry(core_modifiers, target)
+	target.value += m.value
+	Events.stat_modifier_changed.emit(self, target, ModifierBinding.Kind.CORE, true)
+
+
+## First plain (non-composite) entry in [param mods] whose merge key matches
+## [param key], or null. Shared helper for [method absorb_core_modifier]'s two
+## search buckets. [param skip_file_backed] excludes a file-backed entry from
+## matching at all (the intrinsics bucket — see that method's doc); the
+## `core_modifiers` bucket passes false and privatises a file-backed match
+## instead of skipping it.
+static func _find_merge_target(mods: Array[StatModifier], key: Dictionary,
+		skip_file_backed: bool) -> StatModifier:
+	var untyped: Array = mods  # untyped: element `is` narrows cleanly (see stats-system.md)
+	for entry in untyped:
+		if entry == null or entry is CompositeStatModifier:
+			continue
+		if skip_file_backed and not (entry as StatModifier).resource_path.is_empty():
+			continue
+		if StatModifierCodec.merge_key(entry) == key:
+			return entry
+	return null
+
+
+## Listens for [signal StatBoard.restoring] — fired by
+## [method StatBoard.read_dict] BEFORE its per-stat reconcile, so
+## [member core_modifiers] gets the same pre-sync-then-privatise treatment
+## [method StatBoard.sync_register_from_wire] gives `intrinsic_modifiers`
+## itself (#775 late-join amendment; see that method's doc for why this must
+## run before, not after, the reconcile).
+func _on_stat_board_restoring(d: Dictionary) -> void:
+	if stat_board != null:
+		stat_board.sync_register_from_wire(core_modifiers, d)
+
 ## `hook name -> Array[EffectInstance]`. Bucketed once at grant time by asking
 ## each effect which optional hooks it implements, so `dispatch` touches only
 ## interested effects rather than walking every attachment on every event.
@@ -359,6 +451,12 @@ func initialize() -> void:
 	if stat_board != null:
 		stat_board = stat_board.duplicate(true)
 		stat_board.apply_intrinsics()
+		# #775 late-join amendment: a decoded snapshot pre-syncs
+		# `stat_board.intrinsic_modifiers` itself (`StatBoard.read_dict`);
+		# `core_modifiers` lives here instead, so the board cannot reach it
+		# and asks us to via this signal — same helper, same timing (BEFORE
+		# the per-stat reconcile that follows).
+		stat_board.restoring.connect(_on_stat_board_restoring)
 		if core_class != null:
 			core_class.apply(self)
 		if stat_board.xp != null:

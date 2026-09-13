@@ -347,24 +347,115 @@ func test_lootable_supply_is_the_union_of_all_three_buckets() -> void:
 	assert_eq(dust.candidates.size(), expected, "M = union of the three buckets")
 
 
-func test_keep_count_is_victim_tier() -> void:
-	# #300: N = victim.entity_tier (replaces the old level-scaled core_keep
-	# formula), clamped to the TOTAL pool across all three buckets.
+func test_keep_count_is_constant_regardless_of_tier() -> void:
+	# #775: round count is now a constant (loot_rounds), no longer scaled by
+	# victim.entity_tier (the reduced per-round VALUE is compensated by more
+	# rounds, not by tier-scaled round count).
 	_victim.entity_tier = 2
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
-	assert_eq(dust.rounds, 2, "N = victim.entity_tier = 2")
+	assert_eq(dust.rounds, _loot.loot_rounds, "N = loot_rounds regardless of tier")
 
 
 func test_keep_count_never_saturates_the_supply() -> void:
 	# A keep-count that reaches M turns pick-1-of-3-per-round into "take
 	# everything" — the picker never pops. The draw must always leave at least
-	# one on the table, so an absurdly high tier is still capped below M.
-	_victim.entity_tier = 100
+	# one on the table, so an absurdly high loot_rounds is still capped below M.
+	_loot.loot_rounds = 100
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
 	assert_lt(dust.rounds, dust.candidates.size(),
 			"N is capped below M so the choice survives")
+
+
+# ── #775: loot value scales with victim tier, merge on equivalent grants ────
+
+func test_loot_candidates_are_scaled_by_the_victims_loot_fraction() -> void:
+	# Tier 1 (small blocker) draws every candidate at 0.25x the victim's own
+	# value; the victim's own modifiers are untouched.
+	_victim.entity_tier = 1
+	var original_wis := _find_victim_core_mod(&"wisdom")
+	assert_not_null(original_wis, "precondition: BalancedCore grants +10 Wisdom")
+	var original_value := original_wis.value
+	_kill_victim()
+	var dust := _find_dust(_nodes[1])
+	var scaled: StatModifier = null
+	for m in dust.candidates:
+		if m.stat_id == &"wisdom" and m.operation == StatModifier.Operation.ADD_BASE and m.formula == null:
+			scaled = m
+	assert_not_null(scaled, "the wisdom grant is still a candidate")
+	assert_eq(scaled.value, original_value * 0.25, "candidate value is scaled by tier-1's 0.25 fraction")
+	assert_eq(original_wis.value, original_value, "the victim's OWN modifier is never scaled")
+
+
+func test_loot_fraction_scales_every_leaf_of_a_composite_that_survives_whole() -> void:
+	var pack := CompositeStatModifier.new()
+	pack.loots_as_unit = true
+	pack.children = [_mk_mod(&"deallocation_points", 4.0), _mk_mod(&"skill_points", -2.0)]
+	_victim.core_modifiers.append(pack)
+	_victim.stat_board.add_modifier(pack)
+
+	_victim.entity_tier = 2  # fraction 0.5
+	_kill_victim()
+	var dust := _find_dust(_nodes[1])
+	var found: CompositeStatModifier = null
+	for m in dust.candidates:
+		if m is CompositeStatModifier:
+			found = m
+	assert_not_null(found, "the true pack survives whole as one candidate")
+	assert_eq(found.children[0].value, 2.0, "leaf 1 scaled: 4.0 * 0.5")
+	assert_eq(found.children[1].value, -1.0, "leaf 2 scaled: -2.0 * 0.5")
+
+
+func test_player_tier_loots_at_full_value() -> void:
+	# entity_tier default 3 -> loot_fraction_by_tier[2] == 1.0 -> unchanged.
+	var original_wis := _find_victim_core_mod(&"wisdom")
+	var original_value := original_wis.value
+	_kill_victim()
+	var dust := _find_dust(_nodes[1])
+	var scaled: StatModifier = null
+	for m in dust.candidates:
+		if m.stat_id == &"wisdom" and m.operation == StatModifier.Operation.ADD_BASE and m.formula == null:
+			scaled = m
+	assert_not_null(scaled)
+	assert_eq(scaled.value, original_value, "tier 3 (default) loots at the full 1.0 rate")
+
+
+func test_pickup_merges_equivalent_grants_instead_of_stacking_copies() -> void:
+	# Two relics offering the SAME rule (same stat/op/formula, one candidate
+	# each so the pick is deterministic) add coefficients into one modifier
+	# on claim rather than holding two — the SkillDustAddon claim path routes
+	# through Entity.absorb_core_modifier (#775), not grant_core_modifier.
+	var relic_a := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	relic_a.name = "RelicA"
+	_graph.skill_nodes_container.add_child(relic_a)
+	_add_edge(_nodes[0], relic_a)
+	var dust_a := SkillDustAddon.new()
+	dust_a.candidates = [_mk_mod(&"armor", 5.0)]
+	dust_a.weights = [1.0]
+	dust_a.rounds = 1
+	relic_a.add_child(dust_a)
+
+	var relic_b := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	relic_b.name = "RelicB"
+	_graph.skill_nodes_container.add_child(relic_b)
+	_add_edge(_nodes[0], relic_b)
+	var dust_b := SkillDustAddon.new()
+	dust_b.candidates = [_mk_mod(&"armor", 5.0)]
+	dust_b.weights = [1.0]
+	dust_b.rounds = 1
+	relic_b.add_child(dust_b)
+
+	_killer.stat_board.skill_points.grant(5)
+	assert_true(_alloc.allocate(relic_a, _killer), "killer claims relic A")
+	assert_eq(_killer.core_modifiers.size(), 1, "first grant appends")
+	var merged := _killer.core_modifiers[0]
+	assert_eq(merged.value, 5.0)
+
+	assert_true(_alloc.allocate(relic_b, _killer), "killer claims relic B")
+	assert_eq(_killer.core_modifiers.size(), 1, "second equivalent grant merged, not appended")
+	assert_eq(_killer.core_modifiers[0], merged, "merged into the SAME instance")
+	assert_eq(merged.value, 10.0, "two +5 armor grants merged into one +10")
 
 
 func test_loot_and_xp_fire_on_mid_cascade_death() -> void:
@@ -400,20 +491,28 @@ func test_addon_tooltip_sections_surface_skilldust_payload() -> void:
 
 func test_pickup_auto_resolves_picked_core_mods_to_collector_core() -> void:
 	# No HUD in this harness → each round auto-resolves (random 1 of up to 3).
-	# Exactly `rounds` mods land on the collector's board AND its register
-	# (#185/#323 — a looted grant is re-lootable through the register), not the
-	# relic's core node.
-	_victim.entity_tier = 2  # N = 2 rounds → a real choice
+	# Exactly `rounds` mods land on the collector (#185/#323 — a looted grant
+	# is re-lootable through the register), not the relic's core node.
+	#
+	# Counted via `stat_modifier_changed`, not `core_modifiers.size()` (#775):
+	# the killer's board is the SAME default board template as the victim's,
+	# so an innate-bucket pick can legitimately MERGE into the killer's own
+	# matching intrinsic instead of appending a register entry — decision 9
+	# guarantees exactly one event per landed grant either way.
+	_loot.loot_rounds = 2  # N = 2 rounds → a real choice (#775: constant, not tier-scaled)
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
 	assert_eq(dust.rounds, 2, "N = 2")
 	_killer.stat_board.skill_points.grant(5)  # ensure SP to afford the allocation
-	var reg_before := _killer.core_modifiers.size()
+	var grants: Array = []
+	var handler := func(_e: Entity, m: StatModifier, _k: ModifierBinding.Kind, _a: bool) -> void:
+		grants.append(m)
+	Events.stat_modifier_changed.connect(handler)
 	# Killer allocates the neutral relic (adjacent to its N0 core).
 	var ok := _alloc.allocate(_nodes[1], _killer)
+	Events.stat_modifier_changed.disconnect(handler)
 	assert_true(ok, "killer can allocate the neutral relic node")
-	assert_eq(_killer.core_modifiers.size(), reg_before + 2,
-			"exactly N=2 rounds each grant one modifier into the collector's register")
+	assert_eq(grants.size(), 2, "exactly N=2 rounds each land one grant on the collector")
 	await get_tree().process_frame  # queue_free is deferred to frame end
 	assert_null(_find_dust(_nodes[1]), "dust consumes itself once every round has resolved")
 
@@ -425,20 +524,29 @@ func test_pickup_auto_resolves_picked_core_mods_to_collector_core() -> void:
 
 func test_no_handler_auto_resolves_a_strict_subset() -> void:
 	# Real NPC play: nobody claims the pick → SkillDustAddon auto-resolves a
-	# RANDOM 1-of-3 each round. Exactly N rounds' worth of mods must land in the
-	# collector's register (not the whole pool, not zero). XP is zeroed so a
-	# level-up doesn't also mutate the board via mod_level_to_con mid-test.
+	# RANDOM 1-of-3 each round. Exactly N rounds' worth of grants must land on
+	# the collector (not the whole pool, not zero). XP is zeroed so a level-up
+	# doesn't also mutate the board via mod_level_to_con mid-test.
+	#
+	# Counted via `stat_modifier_changed`, not `core_modifiers.size()` (#775):
+	# the killer's board is the SAME default board template as the victim's,
+	# so an innate-bucket pick can legitimately MERGE into the killer's own
+	# matching intrinsic instead of appending a register entry — decision 9
+	# guarantees exactly one event per landed grant either way.
 	_loot.xp_per_node_killed = 0.0
-	_victim.entity_tier = 2
-	var reg_before := _killer.core_modifiers.size()
+	_loot.loot_rounds = 2
+	var grants: Array = []
+	var handler := func(_e: Entity, m: StatModifier, _k: ModifierBinding.Kind, _a: bool) -> void:
+		grants.append(m)
+	Events.stat_modifier_changed.connect(handler)
 	_kill_victim()
 	var dust := _find_dust(_nodes[1])
 	assert_eq(dust.rounds, 2, "N rounds to run")
 	_killer.stat_board.skill_points.grant(5)
 	var ok := _alloc.allocate(_nodes[1], _killer)
+	Events.stat_modifier_changed.disconnect(handler)
 	assert_true(ok, "killer allocates the relic")
-	assert_eq(_killer.core_modifiers.size(), reg_before + 2,
-			"auto-resolve grants exactly N=2 rounds' worth of mods")
+	assert_eq(grants.size(), 2, "auto-resolve grants exactly N=2 rounds' worth of mods")
 
 
 func test_claimed_request_suppresses_auto_resolve_until_picker_resolves() -> void:
@@ -447,14 +555,19 @@ func test_claimed_request_suppresses_auto_resolve_until_picker_resolves() -> voi
 	# resolve() — and the NEXT round's request doesn't fire until it does,
 	# since `_grant_and_advance` (the resolver) is what drives `_advance_round`.
 	_loot.xp_per_node_killed = 0.0
-	_victim.entity_tier = 2
+	_loot.loot_rounds = 2
 	var captured: Array[LootPickRequest] = []
 	var handler := func(req: LootPickRequest) -> void:
 		req.claim = LootPickRequest.Claim.LOCAL
 		captured.append(req)
 	Events.loot_pick_requested.connect(handler)
+	# See the note above: a pick can merge rather than append, so count grants
+	# via the event, not `core_modifiers.size()`.
+	var grants: Array = []
+	var grant_handler := func(_e: Entity, m: StatModifier, _k: ModifierBinding.Kind, _a: bool) -> void:
+		grants.append(m)
+	Events.stat_modifier_changed.connect(grant_handler)
 
-	var reg_before := _killer.core_modifiers.size()
 	_kill_victim()
 	_killer.stat_board.skill_points.grant(5)
 	var ok := _alloc.allocate(_nodes[1], _killer)
@@ -463,20 +576,18 @@ func test_claimed_request_suppresses_auto_resolve_until_picker_resolves() -> voi
 	assert_gt(captured[0].candidates.size(), 1,
 		"a round offers a real choice — one survivor auto-grants instead")
 	# Nothing granted yet — auto-resolve was suppressed, round 1 is pending.
-	assert_eq(_killer.core_modifiers.size(), reg_before,
-		"claimed → round 1 still pending, nothing granted yet")
+	assert_eq(grants.size(), 0, "claimed → round 1 still pending, nothing granted yet")
 	assert_false(captured[0].is_resolved(), "request awaits the player's pick")
 
 	# Resolve round 1 → round 2's request fires (still connected to `handler`).
 	captured[0].resolve([captured[0].candidates[0]])
-	assert_eq(_killer.core_modifiers.size(), reg_before + 1,
-		"round 1's pick landed in the register")
+	assert_eq(grants.size(), 1, "round 1's pick landed")
 	assert_eq(captured.size(), 2, "resolving round 1 drove round 2's request")
 
 	captured[1].resolve([captured[1].candidates[0]])
-	assert_eq(_killer.core_modifiers.size(), reg_before + 2,
-		"round 2's pick landed too — N=2 rounds total")
+	assert_eq(grants.size(), 2, "round 2's pick landed too — N=2 rounds total")
 	Events.loot_pick_requested.disconnect(handler)
+	Events.stat_modifier_changed.disconnect(grant_handler)
 
 
 # ── #323: sequential would_cycle filtering closes the joint-cycle gap ────────
@@ -552,12 +663,18 @@ func test_npc_loots_a_relic_dropped_by_a_player_victim() -> void:
 	var dust := _find_dust(_nodes[1])
 	assert_not_null(dust, "a player's death still drops a relic")
 
-	var reg_before := _killer.core_modifiers.size()
+	# Counted via the event, not register growth (#775: a pick can legitimately
+	# MERGE into a matching intrinsic on the killer's own — identical template —
+	# board instead of appending a register entry).
+	var grants: Array = []
+	var handler := func(_e: Entity, m: StatModifier, _k: ModifierBinding.Kind, _a: bool) -> void:
+		grants.append(m)
+	Events.stat_modifier_changed.connect(handler)
 	_killer.stat_board.skill_points.grant(5)
 	var ok := _alloc.allocate(_nodes[1], _killer)
+	Events.stat_modifier_changed.disconnect(handler)
 	assert_true(ok, "an NPC entity can allocate a relic a player dropped")
-	assert_gt(_killer.core_modifiers.size(), reg_before,
-			"the NPC claimant receives the SkillDust payload like anyone else")
+	assert_gt(grants.size(), 0, "the NPC claimant receives the SkillDust payload like anyone else")
 
 
 # ── D-27/#279: loots_as_unit pack expansion ───────────────────────────────────
@@ -620,6 +737,13 @@ func _attr_sum(e: Entity) -> float:
 	var b := e.stat_board
 	return (b.strength.value + b.dexterity.value + b.intelligence.value
 			+ b.constitution.value + b.wisdom.value)
+
+
+func _find_victim_core_mod(id: StringName) -> StatModifier:
+	for m in _victim.core_modifiers:
+		if m.stat_id == id:
+			return m
+	return null
 
 
 func _find_dust(node: SkillNode) -> SkillDustAddon:

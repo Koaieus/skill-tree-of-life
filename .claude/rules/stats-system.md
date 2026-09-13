@@ -785,6 +785,23 @@ deliberate and will bite if "tidied":
   `depleted` (a `health` pool at 0 kills it). A snapshot transports a state that
   already happened; it must not re-run its consequences. `current_changed` /
   `value_changed` are emitted by hand instead, so UI still updates.
+- **`StatBoard.read_dict` pre-syncs the REGISTER before the reconcile above
+  runs (#775 late-join amendment).** `Stat._reconcile_modifiers` matches an
+  incoming wire form against a bound modifier's FULL `to_dict()` (value
+  included) — so if a remote merge (see loot-system.md) moved a stat's
+  value (host: `1.0 → 1.25`), a joiner whose `intrinsic_modifiers` /
+  `Entity.core_modifiers` register still says `1.0` would otherwise fail to
+  match, mint a FRESH bound `1.25` instance for the stat, and leave the stale
+  `1.0` sitting in the register, unbound. `StatBoard.sync_register_from_wire`
+  (called on `intrinsic_modifiers` inside `read_dict`, and via the `restoring`
+  signal on `Entity.core_modifiers`) moves each register entry's `value` to
+  match its own wire form FIRST — privatising through
+  `StatBoard.privatize_register_entry` if the entry is file-backed — so
+  the reconcile then matches on the register's own instance and keeps it. The
+  register entry IS the bound instance afterward; nothing needs re-pointing.
+  `StatModifierCodec.merge_key(m)` (`to_dict()` minus `"value"`) is the shared
+  comparison both this and `Entity.absorb_core_modifier`'s loot-merge use, so
+  neither can drift on what "equivalent" means.
 
 ## No metadata-driven stat panel — wire each stat by id
 

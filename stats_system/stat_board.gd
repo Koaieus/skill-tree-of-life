@@ -39,6 +39,14 @@ extends Resource
 ## third mint path cannot silently skip the emit (#812).
 signal stat_created(id: StringName, stat: Stat)
 
+## Fired by [method read_dict] BEFORE the per-stat reconcile loop runs
+## (#775 late-join amendment). [Entity] connects this to pre-sync
+## [member Entity.core_modifiers] the same way [method read_dict] itself
+## pre-syncs [member intrinsic_modifiers] via [method sync_register_from_wire]
+## — the register lives off-board, so the board cannot reach it. [param d] is
+## the same wire dict [method read_dict] is about to reconcile from.
+signal restoring(d: Dictionary)
+
 @export_group("")
 
 
@@ -610,6 +618,18 @@ func to_dict() -> Dictionary:
 ## Batched: a whole board's worth of modifier churn is one notification wave,
 ## not one per modifier.
 func read_dict(d: Dictionary) -> void:
+	# #775 late-join amendment: pre-sync BEFORE the per-stat reconcile below.
+	# `Stat._reconcile_modifiers` (stat.gd) matches an incoming wire form
+	# against the FULL `to_dict()` of what's already bound — so a modifier a
+	# remote merge moved (host: 1.0 → 1.25) would otherwise fail to match this
+	# board's still-1.0 register entry, mint a FRESH bound instance for the
+	# stat, and leave the register pointing at the now-unbound original. Pre-
+	# syncing the register's own `value` to what the payload already carries
+	# for that key means the reconcile below matches on the register's SAME
+	# instance and keeps it — the register entry then IS the bound instance,
+	# with no separate re-pointing step needed afterward.
+	restoring.emit(d)
+	sync_register_from_wire(intrinsic_modifiers, d)
 	begin_batch()
 	for key in d:
 		var s := _ensure_stat(StringName(key))
@@ -617,6 +637,52 @@ func read_dict(d: Dictionary) -> void:
 			continue
 		s.read_dict(d[key] as Dictionary, self)
 	end_batch()
+
+
+## For each plain (non-composite) modifier in [param register] whose
+## [method StatModifierCodec.merge_key] matches an entry under its own
+## `stat_id` in wire dict [param d], move its `value` to match — privatising
+## first ([method privatize_register_entry]) if the entry is file-backed. See
+## [method read_dict]'s doc for why this must run BEFORE the per-stat
+## reconcile. Public: [Entity] calls this for [member Entity.core_modifiers],
+## which lives off-board (see [signal restoring]).
+func sync_register_from_wire(register: Array[StatModifier], d: Dictionary) -> void:
+	var untyped: Array = register.duplicate()  # untyped: element `is` narrows cleanly (see stats-system.md)
+	for m in untyped:
+		if m == null or m is CompositeStatModifier:
+			continue
+		var mod: StatModifier = m
+		var stat_dict: Dictionary = d.get(String(mod.stat_id), {}) as Dictionary
+		var mods: Array = stat_dict.get("mods", [])
+		var key := StatModifierCodec.merge_key(mod)
+		for md in mods:
+			if not (md is Dictionary) or StatModifierCodec.merge_key_of_dict(md) != key:
+				continue
+			var incoming: float = float((md as Dictionary).get("value", mod.value))
+			if not is_equal_approx(incoming, mod.value):
+				var target := mod
+				if not mod.resource_path.is_empty():
+					target = privatize_register_entry(register, mod)
+				target.value = incoming
+			break
+
+
+## Swap [param register]'s slot for [param old] with an unshared
+## `duplicate(true)`, rebinding it on this board in [param old]'s place.
+## [param old] itself is left untouched — the whole point when it is a
+## FILE-BACKED shared instance (a class-template grant applying the same
+## `.tres` modifier to every entity of a class; merging or re-valuing it in
+## place would move every one of them and the file on disk). Returns the new
+## private instance, now both the register's entry and the board's bound one.
+## Shared by [method sync_register_from_wire] and [Entity.absorb_core_modifier]
+## (the loot-merge side) so the two privatisation paths cannot drift.
+func privatize_register_entry(register: Array[StatModifier], old: StatModifier) -> StatModifier:
+	var dup := old.duplicate(true) as StatModifier
+	var idx := register.find(old)
+	remove_modifier(old)
+	register[idx] = dup
+	add_modifier(dup)
+	return dup
 
 
 ## Deep-clone this board INCLUDING its live state — every modifier already

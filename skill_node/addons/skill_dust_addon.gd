@@ -614,19 +614,18 @@ func _weighted_sample(pool_indices: Array[int], count: int) -> Array[int]:
 
 
 ## Pour ONE mod onto the collector. Routes through [method
-## Entity.grant_core_modifier] (#323) rather than a raw `stat_board.add_modifier`
-## — a looted grant re-enters the collector's [member Entity.core_modifiers]
-## register exactly like a class grant, which is the only thing that makes a
-## `loots_as_unit` pack survive ANOTHER loot round-trip if this collector later
-## dies (closes #185's re-lootability gap via the register).
+## Entity.absorb_core_modifier] (#775) rather than a raw `stat_board.add_modifier`
+## — an equivalent existing grant (same stat/op/formula) adds coefficients
+## instead of holding another copy; a genuinely new one still lands in
+## [member Entity.core_modifiers] exactly like a class grant, which is what
+## makes a `loots_as_unit` pack survive ANOTHER loot round-trip if this
+## collector later dies (closes #185's re-lootability gap via the register).
+## The `stat_modifier_changed` emit (#70: per-leaf on append, the merged
+## target on a merge) lives on that method now, not here.
 func _grant_mod(collector: Entity, m: StatModifier) -> void:
 	if collector.core_location == null:
 		return
-	collector.grant_core_modifier(m)
-	# #70: emit per LEAF — honest about each stat gained. A bundle's buff and
-	# debuff are separate floaters; either alone may be no "mythic" at all.
-	for leaf in m.flatten():
-		Events.stat_modifier_changed.emit(collector, leaf, ModifierBinding.Kind.CORE, true)
+	collector.absorb_core_modifier(m)
 
 
 ## Shimmering sparkle ring (#168) — richer than the old static 8-dot draw:

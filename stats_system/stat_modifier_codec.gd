@@ -106,3 +106,34 @@ static func array_from_dicts(dicts: Variant) -> Array[StatModifier]:
 		if m != null:
 			out.append(m)
 	return out
+
+
+## The merge key (#775): a modifier's wire form with [code]"value"[/code]
+## erased — "same stat, same op, same formula" without caring how much of it.
+## Shared by [method Entity.absorb_core_modifier] (does an incoming grant
+## match an existing one?) and [method StatBoard.sync_register_from_wire]
+## (does a register entry's key match what the wire says this stat carries?),
+## so neither can drift on what "equivalent" means. The codec already defines
+## the wire form this key is derived from, so it lives here rather than on
+## [StatModifier] itself (out of this drone's fence — see the #775/#774
+## swarm brief) or on [Stat] (same fence).
+##
+## Works on the ENCODED form on purpose — [method merge_key_of_dict] is the
+## same erasure applied directly to a wire dict, without minting a
+## [StatModifier] first, which is what a late-join reconcile needs (it is
+## comparing against payload dicts, not live objects). A [CompositeStatModifier]
+## candidate never merges (see [method Entity.absorb_core_modifier]) — this is
+## only ever compared between plain modifiers, so no dispatch is needed here:
+## a composite's `to_dict()` carries a `"children"` block and a `"composite"`
+## type tag, which already fails to match a plain modifier's key with no
+## special-casing.
+static func merge_key(m: StatModifier) -> Dictionary:
+	return merge_key_of_dict(m.to_dict())
+
+
+## See [method merge_key] — the same erasure, applied to an already-encoded
+## wire dict instead of a live [StatModifier].
+static func merge_key_of_dict(d: Dictionary) -> Dictionary:
+	var out := d.duplicate()
+	out.erase("value")
+	return out

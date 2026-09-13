@@ -146,16 +146,31 @@ extends Node
 ## These are the modifiers that VANISH with the entity — everything on its owned
 ## nodes merely returns to the graph, so drawing those would duplicate live mods.
 ## The whole core set is offered as pick-N-from-M candidates (M = core supply);
-## N (keep-count) equals the victim's [member Entity.entity_tier] (#300), so a
-## higher-tier kill lets you keep more of their identity. When N >= M there's no
-## real choice → auto-grant all.
+## N (keep-count) is a CONSTANT [member loot_rounds] (#775 — was
+## [member Entity.entity_tier], #300, until the value-per-round was cut by
+## tier and rounds went constant to compensate; see [method _loot_fraction]).
+## When N >= M there's no real choice → auto-grant all.
 ##
-##   N = victim.entity_tier, clamp [0, M]
+##   N = loot_rounds, clamp [0, M]
 
 ## Optional packed scene for the dust addon (inspector-set). Falls back to a bare
 ## `SkillDustAddon.new()` when unset — the addon's visual is script-driven, so the
 ## fallback still renders.
 @export var skill_dust_scene: PackedScene = null
+
+## Loot value scale, keyed off `victim.entity_tier` (#775 — exponential per the
+## owner, 2026-09-13: "1: 0.25 2: 0.5 3: 1 (4: 2? Maybe reserved for bosses)").
+## Indexed `clampi(tier - 1, 0, size - 1)`, so a player (default tier 3) loots
+## at the full 1.0 rate and a small blocker's copies draw at a quarter value.
+## Applied in [method _draw_payload], never on the victim's own board — a
+## dormant core's intrinsics still power ITS OWN stats at full strength; only
+## the DUPLICATE that enters the loot pool is scaled down.
+@export var loot_fraction_by_tier: Array[float] = [0.25, 0.5, 1.0, 2.0]
+
+## How many pick-1-of-3 rounds every kill offers, regardless of victim tier
+## (#775 — replaces the old `victim.entity_tier` round count: "reduction in
+## loot value should be compensated by increasing the loot draw amount").
+@export var loot_rounds: int = 3
 
 ## ── Provenance buckets (#323) ─────────────────────────────────────────────────
 ## The draw is a weighted union of three source-array reads — see [method
@@ -445,15 +460,20 @@ func _draw_payload(victim: Entity) -> Dictionary:
 		[_expand_for_loot(_core_modifiers(victim)), weight_bucket_class],
 		[_expand_for_loot(_innate_modifiers(victim)), weight_bucket_innate],
 	]
+	var fraction := _loot_fraction(victim)
 	for bucket in buckets:
 		var mods: Array = bucket[0]
 		var weight: float = bucket[1]
 		for m in mods:
-			candidates.append((m as StatModifier).duplicate(true))
+			var copy := (m as StatModifier).duplicate(true)
+			_scale_loot_value(copy, fraction)
+			candidates.append(copy)
 			weights.append(weight)
 
 	var supply := candidates.size()
-	var rounds := clampi(victim.entity_tier, 0, supply)
+	# #775: a constant round count for every tier — the reduced-per-round value
+	# is compensated by more rounds, not by scaling round count with tier.
+	var rounds := clampi(loot_rounds, 0, supply)
 	# Keep the draw a genuine choice whenever one is possible. N == M is a
 	# no-choice by construction (the addon auto-grants and the picker skips it),
 	# so a keep-count that saturates the supply silently deletes the entire
@@ -463,6 +483,28 @@ func _draw_payload(victim: Entity) -> Dictionary:
 		rounds = mini(rounds, supply - 1)
 
 	return {"candidates": candidates, "weights": weights, "rounds": rounds}
+
+
+## The loot-value scale for a victim of this tier (#775), clamped to the last
+## authored entry so a tier beyond the array (today: none) still gets a number
+## rather than an out-of-bounds error.
+func _loot_fraction(victim: Entity) -> float:
+	if loot_fraction_by_tier.is_empty():
+		return 1.0
+	var idx := clampi(victim.entity_tier - 1, 0, loot_fraction_by_tier.size() - 1)
+	return loot_fraction_by_tier[idx]
+
+
+## Scale [param copy]'s contribution by [param fraction] IN PLACE, on the
+## DUPLICATE only — never the victim's own modifier (the caller always hands
+## this a fresh `duplicate(true)`). A `loots_as_unit` composite survives
+## `_expand_for_loot` whole, so every LEAF is scaled (composite `duplicate(true)`
+## deep-copies `children` — see `.claude/rules/stats-system.md` — so mutating a
+## leaf here never reaches the victim's own pack). A plain modifier is its own
+## single leaf via `flatten()`, so one code path covers both.
+func _scale_loot_value(copy: StatModifier, fraction: float) -> void:
+	for leaf in copy.flatten():
+		leaf.value *= fraction
 
 
 ## The non-core nodes the victim still owns at death — the TERRITORY signal

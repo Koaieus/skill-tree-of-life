@@ -93,6 +93,7 @@ func before_each() -> void:
 	_loot.xp_per_node_killed = 0.0
 	_loot.entity_kill_bonus = 0.0
 	_loot.tier_xp_base = 0.0
+	_loot.loot_rounds = 2  # #775: rounds is now a constant, not victim.entity_tier
 	add_child_autofree(_loot)
 	_loot.battle_system = _bs
 	_bs.attack_launched.connect(_loot._on_attack_launched)
@@ -113,7 +114,7 @@ func before_each() -> void:
 
 	_victim = _make_entity("Victim", _PLAYER_FACTION)
 	_victim.core_class = _BALANCED # +10 STR/DEX/INT — the stat-round candidates
-	_victim.entity_tier = 2        # N = 2 stat rounds
+	_victim.entity_tier = 2        # #775: sizes the loot FRACTION now, not round count
 	_graph.entities_container.add_child(_victim)
 
 	await get_tree().process_frame
@@ -149,16 +150,23 @@ func _spell_ids(e: Entity) -> Array[StringName]:
 
 
 func test_an_ai_kill_ends_with_the_relic_claimed_and_both_payouts_taken() -> void:
-	var mods_before := _ai_entity.core_modifiers.size()
 	assert_false(_spell_ids(_ai_entity).has(_LOOT_SPELL.id), "fixture guard: not known yet")
+	# Counted via the event, not `core_modifiers.size()` (#775): the AI's board
+	# is the SAME default board template as the victim's, so a stat round can
+	# legitimately MERGE into the AI's own matching intrinsic instead of
+	# appending a register entry — decision 9 guarantees one event either way.
+	var grants: Array = []
+	var handler := func(_e: Entity, m: StatModifier, _k: ModifierBinding.Kind, _a: bool) -> void:
+		grants.append(m)
+	Events.stat_modifier_changed.connect(handler)
 
 	_tm.start_turn(_ai_entity)
 	await get_tree().create_timer(0.4).timeout
 
+	Events.stat_modifier_changed.disconnect(handler)
 	assert_true(_victim.is_dead, "the AI finished the kill")
 	assert_eq(_nodes[2].owned_by, _ai_entity, "and allocated the relic it dropped")
-	assert_eq(_ai_entity.core_modifiers.size(), mods_before + 2,
-			"two stat rounds, each auto-resolved to a random 1 of the offer")
+	assert_eq(grants.size(), 2, "two stat rounds, each auto-resolved to a random 1 of the offer")
 	assert_true(_spell_ids(_ai_entity).has(_LOOT_SPELL.id),
 			"and the terminal spell round handed over a spell the victim knew")
 
