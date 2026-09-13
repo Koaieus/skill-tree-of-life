@@ -10,6 +10,12 @@
 ##   new intrinsic modifier without leaving the visualizer. Disk-backed
 ##   boards are written back via `ResourceSaver`; runtime boards mutate in
 ##   memory only.
+## - An `AttributeOverrideBar` (editor-only, #861) sits in the same toolbar
+##   with one SpinBox per attribute stat + `level`. It writes straight into
+##   the DISPLAYED board's `Stat.base_value`, in memory only — never through
+##   `ResourceSaver`, and never onto a live entity's board. It exists so a
+##   disk-backed board's intrinsic rows can be read at any attribute spread
+##   without spawning an entity and grinding to it.
 ##
 ## Refresh strategy: a 4 Hz timer drives `refresh()` for value updates;
 ## `_board.changed` triggers a full `_rebuild()` so inspector edits
@@ -35,7 +41,12 @@ const _GROUP_LAYOUT := [
 		"title": "Attributes",
 		"x": 40.0,
 		"tint": Color(0.55, 0.30, 0.30, 0.35),
-		"stats": [&"strength", &"dexterity", &"intelligence", &"wisdom", &"perception"],
+		# constitution added #861 -- it had no node before, so its own
+		# intrinsic contributions (health, node_health) were invisible.
+		"stats": [
+			&"strength", &"dexterity", &"intelligence", &"wisdom",
+			&"perception", &"constitution",
+		],
 	},
 	{
 		"title": "Pools",
@@ -50,10 +61,13 @@ const _GROUP_LAYOUT := [
 		"title": "Derived",
 		"x": 680.0,
 		"tint": Color(0.45, 0.40, 0.25, 0.35),
+		# blade_damage/blade_size added #861 -- STR-scaling intrinsics with
+		# no node before, so their breakdown rows were invisible.
 		"stats": [
 			&"vision_range", &"sensor_range", &"node_health",
 			&"core_health_scaling", &"node_health_scaling",
 			&"xp_per_turn", &"mana_per_turn", &"initiative_speed",
+			&"blade_damage", &"blade_size",
 		],
 	},
 ]
@@ -72,6 +86,19 @@ const _ROW_H := 130.0
 const _ROW_Y0 := 60.0
 const _NODE_W := 280.0
 
+## Attribute stats the override bar exposes a SpinBox for, plus `level`
+## (#861). A deliberately separate list from `_GROUP_LAYOUT`'s Attributes
+## group even though the two now agree in content — one says "what gets a
+## graph node", the other "what the tuning surface offers"; `level` is in
+## this list without a node of its own; a future attribute could gain a node
+## without becoming a slider.
+const _OVERRIDE_IDS: Array[StringName] = [
+	&"strength", &"dexterity", &"intelligence",
+	&"wisdom", &"perception", &"constitution", &"level",
+]
+
+const _OVERRIDE_BAR_SCENE := preload("res://addons/stat_board_visualizer/attribute_override_bar.tscn")
+
 @onready var _refresh_timer: Timer = %RefreshTimer
 @onready var _add_dialog: ConfirmationDialog = %AddDialog
 
@@ -85,6 +112,7 @@ var _connected_stats: Array[Stat] = []
 # Toolbar widgets — appended to `get_menu_hbox()` at runtime.
 var _board_label: Label
 var _add_btn: Button
+var _override_bar: HBoxContainer  # AttributeOverrideBar instance (#861)
 
 
 func _ready() -> void:
@@ -159,6 +187,14 @@ func _build_toolbar() -> void:
 	rebuild_btn.pressed.connect(_rebuild)
 	bar.add_child(rebuild_btn)
 
+	bar.add_child(VSeparator.new())
+	_override_bar = _OVERRIDE_BAR_SCENE.instantiate()
+	_override_bar.call(&"populate", _OVERRIDE_IDS)
+	_override_bar.connect(&"override_changed", _on_attribute_override_changed)
+	_override_bar.connect(&"reset_requested", _on_attribute_reset_requested)
+	_override_bar.visible = false  # _rebuild() reveals it only for a disk-backed board.
+	bar.add_child(_override_bar)
+
 
 # --- Rebuild + node creation ---------------------------------------------
 
@@ -178,6 +214,15 @@ func _rebuild() -> void:
 
 	_board_label.text = _board_display_name()
 	_add_btn.disabled = _board == null
+	# The override bar is for a DISK-BACKED board only (#861) — gated on
+	# `resource_path`, not `Engine.is_editor_hint()`: a live entity's board
+	# (runtime F3 overlay, or a sandbox-host live tab showing one in-editor)
+	# is a `duplicate()` with no resource_path either way, while the hint
+	# alone would wrongly show the bar in that second case.
+	var override_active := _board != null and _board.resource_path != ""
+	_override_bar.visible = override_active
+	if override_active:
+		_sync_override_bar_display()
 	if _board == null:
 		return
 
@@ -507,4 +552,91 @@ func _on_modifier_confirmed(mod: StatModifier) -> void:
 
 	# Persist disk-backed boards in the editor; runtime boards live in memory.
 	if _board.resource_path != "" and Engine.is_editor_hint():
-		ResourceSaver.save(_board, _board.resource_path)
+		_save_board_preserving_overrides()
+
+
+# --- Attribute override bar (#861) ----------------------------------------
+#
+# Writes straight into the DISPLAYED board's `Stat.base_value`, in memory
+# only — the setter is `Stat._set_base_value`, which just assigns + notifies
+# (no cap policy involved; these are plain ScalarStats, never PoolStats).
+# `refresh()` (below) picks the new value up immediately rather than waiting
+# for the 4 Hz timer, since a slider drag wants to feel live.
+
+func _on_attribute_override_changed(id: StringName, value: float) -> void:
+	if _board == null or _board.resource_path == "":
+		return
+	var stat := _board.get_stat(id)
+	if stat == null:
+		return
+	stat.base_value = value
+	refresh()
+
+
+func _on_attribute_reset_requested() -> void:
+	if _board == null or _board.resource_path == "":
+		return
+	var authored := _read_authored_attribute_values()
+	for id in authored:
+		var stat := _board.get_stat(id)
+		if stat != null:
+			stat.base_value = authored[id]
+	_sync_override_bar_display()
+	refresh()
+
+
+func _sync_override_bar_display() -> void:
+	for id in _OVERRIDE_IDS:
+		var stat := _board.get_stat(id)
+		if stat != null:
+			_override_bar.call(&"set_displayed_value", id, stat.base_value)
+
+
+## Fresh disk read of every `_OVERRIDE_IDS` stat's authored `base_value`,
+## ignoring whatever the resource cache currently holds (which, for the
+## board this panel is showing, IS this in-memory object — so a cached read
+## would just hand back our own override). Shared by Reset and by
+## `_save_board_preserving_overrides`, so both restore to the same values.
+func _read_authored_attribute_values() -> Dictionary:
+	if _board == null or _board.resource_path == "":
+		return {}
+	var fresh := ResourceLoader.load(
+		_board.resource_path, "", ResourceLoader.CacheMode.CACHE_MODE_IGNORE
+	) as StatBoard
+	if fresh == null:
+		return {}
+	var out: Dictionary = {}
+	for id in _OVERRIDE_IDS:
+		var stat := fresh.get_stat(id)
+		if stat != null:
+			out[id] = stat.base_value
+	return out
+
+
+## `_on_modifier_confirmed` saves the WHOLE board resource, and an active
+## slider override lives on the very same `Stat.base_value` fields that
+## save would serialize — so a bare `ResourceSaver.save` here would leak
+## "STR = 1000" into the `.tres` the moment a user also adds a modifier
+## (#861's "in memory only, never through ResourceSaver" would silently
+## break). Swap every overridden attribute back to its authored value, save,
+## then restore whatever was on screen — the `.tres` only ever sees authored
+## numbers, and the visualizer doesn't visibly flicker (this all runs inside
+## one call, well under a frame).
+func _save_board_preserving_overrides() -> void:
+	if _board == null or _board.resource_path == "":
+		return
+	var current: Dictionary = {}
+	for id in _OVERRIDE_IDS:
+		var stat := _board.get_stat(id)
+		if stat != null:
+			current[id] = stat.base_value
+	var authored := _read_authored_attribute_values()
+	for id in authored:
+		var stat := _board.get_stat(id)
+		if stat != null:
+			stat.base_value = authored[id]
+	ResourceSaver.save(_board, _board.resource_path)
+	for id in current:
+		var stat := _board.get_stat(id)
+		if stat != null:
+			stat.base_value = current[id]

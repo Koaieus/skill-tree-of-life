@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/stat_board_visualizer/attribute_override_bar.gd" id="1_bar"]
+
+[node name="AttributeOverrideBar" type="HBoxContainer"]
+script = ExtResource("1_bar")
+theme_override_constants/separation = 4
