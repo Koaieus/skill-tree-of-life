@@ -56,6 +56,13 @@ const _CAPTURE := false
 ## simply never exercised by this golden until the default it silently
 ## inherited moved. Recaptured with [constant _CAPTURE] the same way; every
 ## other field is byte-identical to the pre-#823 golden.
+##
+## [b]Third amendment, #776[/b] — `sp` 2.0 -> 0.0. The rebalance pass raised
+## the `xp_per_turn` RatioFormula's WIS divisor 2 -> 5, so the enemy's turn-
+## start upkeep tick no longer fills the level-1 xp cap and the level-up SP
+## grant this golden captured never fires. Every other field — ownership, AP,
+## mana, initiative, current_entity, the decision trace — is byte-identical
+## to the pre-#776 golden; only the stat-economy-driven `sp` moved.
 const _GOLDEN := {
 	"ap": 0.0,
 	"current_entity": "Player",
@@ -67,7 +74,7 @@ const _GOLDEN := {
 	"initiative": 0.0,
 	"mana": 11.0,
 	"ownership": {"N0": "Enemy", "N1": "Enemy", "N2": "Enemy", "N3": "Hostile"},
-	"sp": 2.0,
+	"sp": 0.0,
 }
 
 var _graph: Graph

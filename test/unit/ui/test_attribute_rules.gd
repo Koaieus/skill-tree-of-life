@@ -28,17 +28,34 @@ func test_unknown_attribute_is_empty() -> void:
 	assert_eq(_lines(&"not_a_stat").size(), 0)
 
 
+## The live RatioFormula divisor for `stat_id`'s intrinsic — read off the
+## board rather than hardcoded, so a future owner retune (#776 already moved
+## these once) doesn't repin a number here a second time.
+func _ratio_divisor(stat_id: StringName) -> float:
+	for m in _board.intrinsic_modifiers:
+		if m.stat_id == stat_id and m.formula is RatioFormula:
+			return (m.formula as RatioFormula).divisor
+	fail_test("no RatioFormula intrinsic targets '%s'" % stat_id)
+	return 0.0
+
+
+static func _trim(v: float) -> String:
+	if is_equal_approx(v, roundf(v)):
+		return "%d" % roundi(v)
+	return str(v)
+
+
 func test_strength_lists_both_blade_rules_with_the_real_divisors() -> void:
 	var lines := _lines(&"strength")
 	assert_eq(lines.size(), 2, "blade damage + blade size")
-	assert_string_contains(lines[0], "per 20 STR")
-	assert_string_contains(lines[1], "per 40 STR")
+	assert_string_contains(lines[0], "per %s STR" % _trim(_ratio_divisor(&"blade_damage")))
+	assert_string_contains(lines[1], "per %s STR" % _trim(_ratio_divisor(&"blade_size")))
 
 
 func test_wisdom_reports_the_current_xp_rule_not_the_retired_decade_one() -> void:
 	var lines := _lines(&"wisdom")
 	assert_eq(lines.size(), 1, "xp_per_turn only — sensor_range moved to perception")
-	assert_string_contains(lines[0], "per 5 WIS")
+	assert_string_contains(lines[0], "per %s WIS" % _trim(_ratio_divisor(&"xp_per_turn")))
 	assert_false(lines[0].contains("decade"), "the decade rule is long gone")
 
 
