@@ -66,7 +66,10 @@ into this milestone. Treat it as a priority carryover, not a guess.
 > by the owner as "spare the tip — tips are Leafblower's" (clause becomes
 > `to_entity_degree >= 2`; the body's "already reads entity degree" was false,
 > `to_degree` is graph degree), fork 3 parked in NOTES. **Cluster 1 is fully
-> spent; the next bite is #537, then Cluster 2.**
+> spent.** #537 also **Ready** (2026-09-13): the 08-31 spec stood, re-verified
+> against master, D2 kept post-LAN ("sub-second deliberation at ~200 owned"),
+> #834 folded in and closed (same bench fixture). **Next bite: Cluster 2**
+> (#776 → #775 → #774, serial, wants its own owner conversation).
 
 > **CORRECTED 2026-09-12 — all three seams have already SHIPPED.** The first
 > index of this doc read #849's body and planned the seams as future work. They
