@@ -8,8 +8,8 @@ extends IncidentReducer
 ## [member PropagationConfig.reducer] is null.
 
 
-func reduce(incidents: Array[CastSpell], node: SkillNode, _ctx: PropagationContext) -> CastSpell:
-	var merged := _merge_payload_defaults(incidents, node)
+func reduce(incidents: Array[CastSpell], _cast: PropagationContext) -> CastSpell:
+	var merged := _merge_payload_defaults(incidents)
 	merged.damage = incidents[0].damage
 	return merged
 

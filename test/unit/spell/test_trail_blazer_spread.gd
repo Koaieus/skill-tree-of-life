@@ -57,7 +57,8 @@ func _own_all(graph: Graph) -> Entity:
 func _expand(spread: PropagationSpread, config: PropagationConfig, current: SkillNode,
 		payload: CastSpell, eligible: Array[SkillNode], ctx: PropagationContext) -> Array[CastSpell]:
 	var out: Array[CastSpell] = []
-	for pick in spread.select(current, eligible, payload, ctx):
+	var lctx := LandingContext.for_test(payload, current, ctx)
+	for pick in spread.select(eligible, lctx):
 		out.append(config.mint(payload, pick))
 	return out
 

@@ -16,7 +16,7 @@ extends Resource
 ## [ExpressionFilter] or a one-off subclass.
 
 
-## Pairwise: may the spell hop from [param from_node] to [param to_node]?
+## Pairwise: may the spell hop from [member LandingContext.node] to [param to_node]?
 ##
 ## A PAIRWISE filter overrides this and gets [method narrow] for free. A
 ## SET-LEVEL filter overrides [method narrow] and DERIVES this from it, by
@@ -33,11 +33,7 @@ extends Resource
 ## [method narrow] and never loops this, and why [method CompositeFilter.narrow]
 ## chains its children'"'"'s [method narrow] rather than their [method allows].
 ## `test_set_level_filters.gd` pins the gap so nobody "fixes" it.
-@abstract func allows(
-		from_node: SkillNode,
-		to_node: SkillNode,
-		payload: CastSpell,
-		ctx: PropagationContext) -> bool
+@abstract func allows(to_node: SkillNode, lctx: LandingContext) -> bool
 
 
 ## Set-level: which of [param candidates] survive? Order is preserved, so the
@@ -46,14 +42,10 @@ extends Resource
 ##
 ## The default is exactly the pairwise loop, so overriding [method allows]
 ## alone is enough for a stock filter.
-func narrow(
-		from_node: SkillNode,
-		candidates: Array[SkillNode],
-		payload: CastSpell,
-		ctx: PropagationContext) -> Array[SkillNode]:
+func narrow(candidates: Array[SkillNode], lctx: LandingContext) -> Array[SkillNode]:
 	var out: Array[SkillNode] = []
 	for c in candidates:
-		if allows(from_node, c, payload, ctx):
+		if allows(c, lctx):
 			out.append(c)
 	return out
 

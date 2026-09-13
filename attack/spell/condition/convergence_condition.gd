@@ -17,10 +17,10 @@ extends LandingCondition
 ## policy ([code]>= 2[/code]). Swappable for parity-rule or colour-rule
 ## variants (see #355 Chromatic Cascade) without touching the reducer.
 
-func evaluate(state: CastSpell, _target: SkillNode, _outcome: AttackOutcome) -> bool:
-	if state == null:
+func evaluate(lctx: LandingContext) -> bool:
+	if lctx.payload == null:
 		return false
-	return state.incident_count >= 2
+	return lctx.payload.incident_count >= 2
 
 
 func get_description() -> String:

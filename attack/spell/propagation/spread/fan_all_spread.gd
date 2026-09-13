@@ -7,11 +7,7 @@ extends PropagationSpread
 ## allowed."
 
 
-func select(
-		_current: SkillNode,
-		eligible: Array[SkillNode],
-		_payload: CastSpell,
-		_ctx: PropagationContext) -> Array[PropagationPick]:
+func select(eligible: Array[SkillNode], _lctx: LandingContext) -> Array[PropagationPick]:
 	var out: Array[PropagationPick] = []
 	for nb in eligible:
 		out.append(PropagationPick.to(nb))

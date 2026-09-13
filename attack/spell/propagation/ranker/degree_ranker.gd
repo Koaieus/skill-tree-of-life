@@ -10,10 +10,10 @@ extends NodeRanker
 ## deliberately the metric — that's [GraphDegreeRanker].
 
 
-func score(node: SkillNode, _payload: CastSpell, ctx: PropagationContext) -> float:
-	if ctx.graph == null or node == null:
+func score(node: SkillNode, lctx: LandingContext) -> float:
+	if lctx.cast.graph == null or node == null:
 		return 0.0
-	return float(node.get_entity_degree(ctx.graph))
+	return float(node.get_entity_degree(lctx.cast.graph))
 
 
 func get_description() -> String:

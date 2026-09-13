@@ -38,9 +38,10 @@ extends IncidentReducer
 ## still stamped for other spells' filters and for telemetry.
 
 
-func reduce(incidents: Array[CastSpell], node: SkillNode, _ctx: PropagationContext) -> CastSpell:
+func reduce(incidents: Array[CastSpell], _cast: PropagationContext) -> CastSpell:
 	var winner := MaxDamageReducer.strongest(incidents)
-	var merged := _merge_payload_defaults(incidents, node)
+	var merged := _merge_payload_defaults(incidents)
+	var node := incidents[0].current_node
 
 	var total := 0.0
 	var closer: CastSpell = null

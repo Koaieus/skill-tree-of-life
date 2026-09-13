@@ -8,7 +8,7 @@ extends Resource
 ## [TakeTopNSpread] flips the comparison via its [code]direction[/code] enum.
 
 
-@abstract func score(node: SkillNode, payload: CastSpell, ctx: PropagationContext) -> float
+@abstract func score(node: SkillNode, lctx: LandingContext) -> float
 
 
 func get_description() -> String:

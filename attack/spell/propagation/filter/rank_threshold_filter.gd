@@ -42,11 +42,12 @@ enum Compare {
 ## a [DegreeRanker] scores 0.0 on both sides, so the "or equal" compares admit
 ## rather than refuse (the old hardcoded `DegreeFilter` refused outright). No
 ## shipped `.tres` and no test resolves without a graph.
-func allows(from: SkillNode, to: SkillNode, payload: CastSpell, ctx: PropagationContext) -> bool:
+func allows(to: SkillNode, lctx: LandingContext) -> bool:
+	var from := lctx.node
 	if ranker == null or from == null or to == null:
 		return false
-	var cur := ranker.score(from, payload, ctx)
-	var nb := ranker.score(to, payload, ctx)
+	var cur := ranker.score(from, lctx)
+	var nb := ranker.score(to, lctx)
 	# Scores are floats even when the metric is an integer degree, so the
 	# "or equal" half goes through [method @GlobalScope.is_equal_approx]
 	# rather than `==`.

@@ -24,7 +24,7 @@ var _expr: Expression = null
 var _last_text: String = ""
 
 
-func reduce(incidents: Array[CastSpell], node: SkillNode, _ctx: PropagationContext) -> CastSpell:
+func reduce(incidents: Array[CastSpell], _cast: PropagationContext) -> CastSpell:
 	if _expr == null or _last_text != expression:
 		_expr = Expression.new()
 		var err := _expr.parse(expression, [
@@ -34,7 +34,7 @@ func reduce(incidents: Array[CastSpell], node: SkillNode, _ctx: PropagationConte
 		if err != OK:
 			push_warning("ExpressionReducer parse error: %s" % _expr.get_error_text())
 			_expr = null
-			return _fallback(incidents, node)
+			return _fallback(incidents)
 		_last_text = expression
 	var dmgs: Array = []
 	var smin: float = incidents[0].damage
@@ -50,11 +50,11 @@ func reduce(incidents: Array[CastSpell], node: SkillNode, _ctx: PropagationConte
 		incidents.size(), dmgs, smax, smin, ssum, avg,
 	], null, false)
 	if _expr.has_execute_failed():
-		return _fallback(incidents, node)
+		return _fallback(incidents)
 	var resolved: float = float(result)
 	if resolved < 0.0:
 		return null
-	var merged := _merge_payload_defaults(incidents, node)
+	var merged := _merge_payload_defaults(incidents)
 	merged.damage = resolved
 	return merged
 
@@ -63,7 +63,7 @@ func get_description() -> String:
 	return "Custom reduce: %s" % expression
 
 
-func _fallback(incidents: Array[CastSpell], node: SkillNode) -> CastSpell:
-	var merged := _merge_payload_defaults(incidents, node)
+func _fallback(incidents: Array[CastSpell]) -> CastSpell:
+	var merged := _merge_payload_defaults(incidents)
 	merged.damage = incidents[0].damage
 	return merged

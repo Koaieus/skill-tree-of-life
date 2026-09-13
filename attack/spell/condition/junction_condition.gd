@@ -16,7 +16,9 @@ extends LandingCondition
 ## on the spell's [ExpressionFilter]) the fact that the walk cannot leave.
 
 
-func evaluate(state: CastSpell, target: SkillNode, _outcome: AttackOutcome) -> bool:
+func evaluate(lctx: LandingContext) -> bool:
+	var state := lctx.payload
+	var target := lctx.node
 	if state == null or target == null or state.graph == null:
 		return false
 	return target.get_entity_degree(state.graph) > 2

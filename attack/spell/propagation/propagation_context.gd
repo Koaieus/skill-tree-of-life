@@ -48,6 +48,13 @@ var crit_rng: RandomNumberGenerator = null
 ## every answer below is identical to reading the node directly.
 var world: CombatWorld = CombatWorld.live()
 
+## The single [AttackOutcome] this cast resolves into (#356). One outcome
+## exists per [method SpellResolver.resolve_against] call, so it is a CAST
+## fact rather than a per-landing one — this is what retires the
+## [code]outcome[/code] positional parameter [LandingCondition.evaluate] used
+## to take (and the [code]null[/code] the crit path passed for it).
+var outcome: AttackOutcome = null
+
 
 ## [param node]'s ownership relation to [member caster] in [member world] —
 ## exactly one [enum SkillNode.Ownership] bit. The ONE place a propagation

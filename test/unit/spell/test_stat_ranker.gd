@@ -62,17 +62,17 @@ func test_ranks_by_current_health_where_the_cap_ties() -> void:
 
 	var by_cap := _ranker(&"node_health")
 	assert_almost_eq(
-		by_cap.score(wounded, null, null), by_cap.score(healthy, null, null), 0.001,
+		by_cap.score(wounded, null), by_cap.score(healthy, null), 0.001,
 		"ranking by cap is a tie — this is the bug, pinned")
 
 	var by_current := _ranker(&"node_health__current")
 	assert_lt(
-		by_current.score(wounded, null, null), by_current.score(healthy, null, null),
+		by_current.score(wounded, null), by_current.score(healthy, null),
 		"the more-damaged node must rank lower, so HIGHEST picks the healthy one")
 
 
 func test_score_of_a_null_node_is_zero() -> void:
-	assert_almost_eq(_ranker(&"node_health__current").score(null, null, null), 0.0, 0.001)
+	assert_almost_eq(_ranker(&"node_health__current").score(null, null), 0.0, 0.001)
 
 
 func test_default_stat_id_is_the_current_accessor() -> void:
@@ -189,13 +189,13 @@ func test_ranker_reads_the_cast_s_own_damage_on_a_shadow() -> void:
 	pctx.world = world
 	var r := _ranker(&"node_health__current")
 
-	assert_gt(r.score(a, null, pctx), r.score(b, null, pctx),
+	assert_gt(r.score(a, LandingContext.for_test(null, null, pctx)), r.score(b, LandingContext.for_test(null, null, pctx)),
 		"before any damage, `a` is the healthier of the two")
 
 	# Damage `a` on the SHADOW only — exactly what an earlier wave does.
 	world.combat_for(a).take_damage(5.0, null)
 
-	assert_lt(r.score(a, null, pctx), r.score(b, null, pctx),
+	assert_lt(r.score(a, LandingContext.for_test(null, null, pctx)), r.score(b, LandingContext.for_test(null, null, pctx)),
 		"the ranker must see this cast's own damage, not pre-cast HP")
 	assert_almost_eq(_hp(a).current, 9.0, 0.001,
 		"and the live node must be untouched — nothing but a replayed record mutates it")
@@ -211,7 +211,7 @@ func test_live_world_reads_identically_to_the_node() -> void:
 	pctx.graph = ctx.graph  # world defaults to CombatWorld.live()
 	var r := _ranker(&"node_health__current")
 
-	assert_almost_eq(r.score(node, null, pctx), 4.0, 0.001,
+	assert_almost_eq(r.score(node, LandingContext.for_test(null, null, pctx)), 4.0, 0.001,
 		"on a live world combat_for returns the node's own slice — same answer, one path")
-	assert_almost_eq(r.score(node, null, null), 4.0, 0.001,
+	assert_almost_eq(r.score(node, null), 4.0, 0.001,
 		"and a null ctx falls back to the same read")

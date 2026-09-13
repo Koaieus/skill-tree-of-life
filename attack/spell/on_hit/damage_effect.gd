@@ -11,7 +11,8 @@ extends OnHitEffect
 ## the first projectile flies from the cast-from node, not from nowhere.
 
 
-func apply(state: CastSpell, outcome: AttackOutcome) -> void:
+func apply(lctx: LandingContext) -> void:
+	var state := lctx.payload
 	if state.current_node == null or state.damage <= 0.0:
 		return
 	var hit := DamageInstance.new()
@@ -20,7 +21,7 @@ func apply(state: CastSpell, outcome: AttackOutcome) -> void:
 	hit.source = state
 	hit.target = state.current_node
 	hit.origin = state.predecessor if state.predecessor != null else state.source
-	outcome.hits.append(hit)
+	lctx.cast.outcome.hits.append(hit)
 
 ## No [param spell] (no preview context) reads as the generic fragment;
 ## otherwise quotes the D-32 impact number, unscaled ([param board] null) or

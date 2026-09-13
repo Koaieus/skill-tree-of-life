@@ -15,7 +15,9 @@ extends LandingCondition
 ## with a self-loop also doesn't crit: predecessor is the upstream node, not
 ## the target.
 
-func evaluate(state: CastSpell, target: SkillNode, _outcome: AttackOutcome) -> bool:
+func evaluate(lctx: LandingContext) -> bool:
+	var state := lctx.payload
+	var target := lctx.node
 	if state == null or target == null:
 		return false
 	return state.predecessor == target

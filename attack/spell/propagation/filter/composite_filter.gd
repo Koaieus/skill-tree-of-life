@@ -11,18 +11,18 @@ enum Mode { AND, OR }
 @export var children: Array[PropagationFilter] = []
 
 
-func allows(from: SkillNode, to: SkillNode, payload: CastSpell, ctx: PropagationContext) -> bool:
+func allows(to: SkillNode, lctx: LandingContext) -> bool:
 	if children.is_empty():
 		return true
 	match mode:
 		Mode.AND:
 			for f in children:
-				if f != null and not f.allows(from, to, payload, ctx):
+				if f != null and not f.allows(to, lctx):
 					return false
 			return true
 		Mode.OR:
 			for f in children:
-				if f != null and f.allows(from, to, payload, ctx):
+				if f != null and f.allows(to, lctx):
 					return true
 			return false
 	return true
@@ -40,11 +40,7 @@ func allows(from: SkillNode, to: SkillNode, payload: CastSpell, ctx: Propagation
 ## candidate set, in candidate order, so it stays the set-level reading of
 ## "any child admits it" without a child ever seeing a set another child
 ## already cut.
-func narrow(
-		from: SkillNode,
-		candidates: Array[SkillNode],
-		payload: CastSpell,
-		ctx: PropagationContext) -> Array[SkillNode]:
+func narrow(candidates: Array[SkillNode], lctx: LandingContext) -> Array[SkillNode]:
 	if children.is_empty():
 		return candidates.duplicate()
 	if mode == Mode.AND:
@@ -58,7 +54,7 @@ func narrow(
 		for f in children:
 			if f == null:
 				continue
-			surviving = f.narrow(from, surviving, payload, ctx)
+			surviving = f.narrow(surviving, lctx)
 			if surviving.is_empty():
 				return surviving
 		return surviving
@@ -66,7 +62,7 @@ func narrow(
 	for f in children:
 		if f == null:
 			continue
-		for n in f.narrow(from, candidates, payload, ctx):
+		for n in f.narrow(candidates, lctx):
 			if not admitted.has(n):
 				admitted.append(n)
 	# Union in CANDIDATE order, not child order — the step's tie-break is

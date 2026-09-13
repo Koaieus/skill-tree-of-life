@@ -21,14 +21,10 @@ extends PropagationSpread
 ## [method SpellResolver.resolve] before any spell composes it.
 
 
-func select(
-		_current: SkillNode,
-		eligible: Array[SkillNode],
-		payload: CastSpell,
-		_ctx: PropagationContext) -> Array[PropagationPick]:
+func select(eligible: Array[SkillNode], lctx: LandingContext) -> Array[PropagationPick]:
 	if eligible.is_empty():
 		return []
-	var rng := payload.rng
+	var rng := lctx.payload.rng
 	if rng == null:
 		rng = RandomNumberGenerator.new()
 	var pick: SkillNode = eligible[rng.randi_range(0, eligible.size() - 1)]

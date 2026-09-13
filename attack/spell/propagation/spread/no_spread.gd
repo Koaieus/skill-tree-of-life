@@ -7,8 +7,7 @@ extends PropagationSpread
 ## intentionally.
 
 
-func select(_current: SkillNode, _eligible: Array[SkillNode], _payload: CastSpell,
-		_ctx: PropagationContext) -> Array[PropagationPick]:
+func select(_eligible: Array[SkillNode], _lctx: LandingContext) -> Array[PropagationPick]:
 	return []
 
 

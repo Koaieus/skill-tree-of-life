@@ -23,12 +23,8 @@ extends PropagationFilter
 ## stop covering it silently.
 
 
-func allows(
-		from_node: SkillNode,
-		to_node: SkillNode,
-		_payload: CastSpell,
-		_ctx: PropagationContext) -> bool:
-	return from_node != to_node
+func allows(to_node: SkillNode, lctx: LandingContext) -> bool:
+	return lctx.node != to_node
 
 
 func get_description() -> String:

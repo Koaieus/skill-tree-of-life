@@ -19,7 +19,9 @@ enum Direction { TOWARD, AWAY }
 @export var direction: Direction = Direction.TOWARD
 
 
-func allows(from: SkillNode, to: SkillNode, _payload: CastSpell, ctx: PropagationContext) -> bool:
+func allows(to: SkillNode, lctx: LandingContext) -> bool:
+	var ctx := lctx.cast
+	var from := lctx.node
 	if ctx.graph == null or from == null or to == null:
 		return false
 	var core := _resolve_target_core(ctx)

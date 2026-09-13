@@ -177,9 +177,10 @@ func test_converging_fronts_combine_their_heading_by_strength() -> void:
 	weak.arrival_bearing = Vector2.UP
 	var incidents: Array[CastSpell] = [strong, weak]
 	for c in incidents:
+		c.current_node = node
 		c.visited = [] as Array[SkillNode]
 		c.came_from = [] as Array[SkillNode]
-	var merged := CycloneReducer.new().reduce(incidents, node, PropagationContext.new())
+	var merged := CycloneReducer.new().reduce(incidents, PropagationContext.new())
 	assert_gt(merged.arrival_bearing.x, 0.0, "still mostly heading the strong way")
 	assert_lt(merged.arrival_bearing.y, 0.0, "but pulled toward the weak front")
 	assert_gt(absf(merged.arrival_bearing.x), absf(merged.arrival_bearing.y) * 5.0,
@@ -199,9 +200,10 @@ func test_a_head_on_collision_keeps_the_survivors_heading() -> void:
 	west.arrival_bearing = Vector2.LEFT
 	var incidents: Array[CastSpell] = [east, west]
 	for c in incidents:
+		c.current_node = node
 		c.visited = [] as Array[SkillNode]
 		c.came_from = [] as Array[SkillNode]
-	var merged := CycloneReducer.new().reduce(incidents, node, PropagationContext.new())
+	var merged := CycloneReducer.new().reduce(incidents, PropagationContext.new())
 	assert_ne(merged.arrival_bearing, Vector2.ZERO, "a stalled front has no turn to rank")
 
 
@@ -322,7 +324,7 @@ func test_converging_fronts_add_rather_than_take_the_strongest() -> void:
 		c.visited = [] as Array[SkillNode]
 		c.came_from = [] as Array[SkillNode]
 		incidents.append(c)
-	var merged := CycloneReducer.new().reduce(incidents, null, PropagationContext.new())
+	var merged := CycloneReducer.new().reduce(incidents, PropagationContext.new())
 	assert_almost_eq(merged.damage, 8.0, 0.001, "summed, not max'd")
 
 
@@ -412,17 +414,19 @@ func test_a_merge_carries_the_closers_ring_not_the_strongest_fronts_trail() -> v
 	var loop: Array[SkillNode] = [nodes[0], nodes[1], nodes[2]]
 	var trail: Array[SkillNode] = [nodes[3], nodes[2]]
 	var closer := CastSpell.new()
+	closer.current_node = nodes[2]
 	closer.damage = 1.0
 	closer.closed_cycle = true
 	closer.visited = loop
 	closer.came_from = [] as Array[SkillNode]
 	var bruiser := CastSpell.new()
+	bruiser.current_node = nodes[2]
 	bruiser.damage = 9.0
 	bruiser.closed_cycle = false
 	bruiser.visited = trail
 	bruiser.came_from = [] as Array[SkillNode]
 	var incidents: Array[CastSpell] = [bruiser, closer]
-	var merged := CycloneReducer.new().reduce(incidents, nodes[2], PropagationContext.new())
+	var merged := CycloneReducer.new().reduce(incidents, PropagationContext.new())
 	assert_true(merged.closed_cycle, "one closer among the incidents closes the merge")
 	assert_eq(merged.visited, loop,
 			"the merged landing carries the CLOSER's ring, not the 9-damage front's trail")

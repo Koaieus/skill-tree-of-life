@@ -26,12 +26,8 @@ extends PropagationFilter
 ## is a rule that can stop covering it silently.
 
 
-func allows(
-		_from_node: SkillNode,
-		to_node: SkillNode,
-		payload: CastSpell,
-		_ctx: PropagationContext) -> bool:
-	return not payload.came_from.has(to_node)
+func allows(to_node: SkillNode, lctx: LandingContext) -> bool:
+	return not lctx.payload.came_from.has(to_node)
 
 
 func get_description() -> String:

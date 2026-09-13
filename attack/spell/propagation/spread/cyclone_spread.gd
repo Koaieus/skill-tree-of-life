@@ -68,11 +68,9 @@ const MIN_RING := 3
 @export var clockwise: bool = true
 
 
-func select(
-		current: SkillNode,
-		eligible: Array[SkillNode],
-		payload: CastSpell,
-		_ctx: PropagationContext) -> Array[PropagationPick]:
+func select(eligible: Array[SkillNode], lctx: LandingContext) -> Array[PropagationPick]:
+	var current := lctx.node
+	var payload := lctx.payload
 	var out: Array[PropagationPick] = []
 	if eligible.is_empty() or rank_coefficients.is_empty():
 		return out

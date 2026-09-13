@@ -10,10 +10,10 @@ extends IncidentReducer
 ## creates interesting topology-puzzle play.
 
 
-func reduce(incidents: Array[CastSpell], node: SkillNode, _ctx: PropagationContext) -> CastSpell:
+func reduce(incidents: Array[CastSpell], _cast: PropagationContext) -> CastSpell:
 	if incidents.size() > 1:
 		return null
-	var merged := _merge_payload_defaults(incidents, node)
+	var merged := _merge_payload_defaults(incidents)
 	merged.damage = incidents[0].damage
 	return merged
 

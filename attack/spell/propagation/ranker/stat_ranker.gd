@@ -16,18 +16,18 @@ extends NodeRanker
 @export var stat_id: StringName = &"node_health__current"
 
 
-## Reads through [method PropagationContext.local_value_of], never off the node
+## Reads through [method LandingContext.local_value_of], never off the node
 ## directly: on a shadow world that is how the ranker sees damage this very cast
 ## dealt on an earlier wave. Ranking by a pool CAP hid the distinction — a cap
 ## does not move mid-cast — so `node_health__current` is what makes it matter.
-## A null [param ctx] (unit tests, hand-built configs) reads the live node,
+## A null [param lctx] (unit tests, hand-built configs) reads the live node,
 ## which is the same answer [CombatWorld.live] would have given.
-func score(node: SkillNode, _payload: CastSpell, ctx: PropagationContext) -> float:
+func score(node: SkillNode, lctx: LandingContext) -> float:
 	if node == null:
 		return 0.0
 	# A node with no such stat answers null, and `float(null)` is an error rather
 	# than a 0 — so this guard is load-bearing, not defensive padding.
-	var v: Variant = ctx.local_value_of(node, stat_id) if ctx != null \
+	var v: Variant = lctx.local_value_of(node, stat_id) if lctx != null \
 		else node.get_local_value(stat_id)
 	if v == null:
 		return 0.0

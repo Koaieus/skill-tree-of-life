@@ -334,9 +334,10 @@ func test_core_distance_filter_admits_closer_rejects_farther() -> void:
 	propagation_ctx.caster = atk
 	propagation_ctx.seed_node = n[4]  # owned by def, non-caster → its core is the target
 	var filter := helper.core_distance_filter()
-	assert_true(filter.allows(n[3], n[2], null, propagation_ctx),
+	var lctx := LandingContext.for_test(null, n[3], propagation_ctx)
+	assert_true(filter.allows(n[2], lctx),
 			"node 2 is closer to the core (n0) than node 3")
-	assert_false(filter.allows(n[3], n[4], null, propagation_ctx),
+	assert_false(filter.allows(n[4], lctx),
 			"node 4 is farther from the core (n0) than node 3")
 
 

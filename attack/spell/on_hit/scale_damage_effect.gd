@@ -41,10 +41,11 @@ enum Mode {
 @export var factor: float = 2.0
 
 
-func apply(state: CastSpell, _outcome: AttackOutcome) -> void:
+func apply(lctx: LandingContext) -> void:
+	var state := lctx.payload
 	if state == null or state.current_node == null:
 		return
-	if when != null and not when.evaluate(state, state.current_node, _outcome):
+	if when != null and not when.evaluate(lctx):
 		return
 	state.damage = _scaled(state)
 

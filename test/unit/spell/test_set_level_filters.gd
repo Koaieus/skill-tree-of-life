@@ -32,6 +32,10 @@ func before_each() -> void:
 	_ctx.caster = atk
 
 
+func _lctx(node: SkillNode) -> LandingContext:
+	return LandingContext.for_test(null, node, _ctx)
+
+
 func _n() -> Array[SkillNode]:
 	return _graph.get_skill_nodes()
 
@@ -56,7 +60,7 @@ func test_base_narrow_is_the_pairwise_allows_loop_and_keeps_order() -> void:
 	# OwnerFilter is pairwise-only; its inherited `narrow` must reproduce the
 	# loop the resolver used to run inline, order preserved.
 	var f := _helper.owner_enemy()
-	var kept := f.narrow(_n()[0], _hub_neighbours(), null, _ctx)
+	var kept := f.narrow(_hub_neighbours(), _lctx(_n()[0]))
 	assert_eq(_names(kept), ["N1", "N2", "N3"] as Array[String],
 			"every neighbour is enemy-owned, order preserved")
 
@@ -65,7 +69,7 @@ func test_base_narrow_drops_exactly_what_allows_rejects() -> void:
 	# Nodes 1/2/3 belong to the defender; give node 2 to the caster so the
 	# enemy-only filter must drop it and only it.
 	_helper.assign_owner(_graph, _ctx.caster, [2])
-	var kept := _helper.owner_enemy().narrow(_n()[0], _hub_neighbours(), null, _ctx)
+	var kept := _helper.owner_enemy().narrow(_hub_neighbours(), _lctx(_n()[0]))
 	assert_eq(_names(kept), ["N1", "N3"] as Array[String], "the caster's own node is out")
 
 
@@ -77,43 +81,43 @@ func test_base_narrow_drops_exactly_what_allows_rejects() -> void:
 ## higher and leaf 4 strictly lower.
 func test_rank_threshold_less_keeps_only_strictly_lower() -> void:
 	var f := _helper.rank_threshold_filter(RankThresholdFilter.Compare.LESS)
-	assert_eq(_names(f.narrow(_n()[0], _hub_neighbours(), null, _ctx)),
+	assert_eq(_names(f.narrow(_hub_neighbours(), _lctx(_n()[0]))),
 			["N1", "N2", "N3"] as Array[String], "hub deg 3 > every neighbour")
-	assert_false(f.allows(_n()[1], _n()[0], null, _ctx), "hub is not below leaf 1")
-	assert_true(f.allows(_n()[1], _n()[4], null, _ctx), "leaf 4 (deg 1) is below leaf 1 (deg 2)")
+	assert_false(f.allows(_n()[0], _lctx(_n()[1])), "hub is not below leaf 1")
+	assert_true(f.allows(_n()[4], _lctx(_n()[1])), "leaf 4 (deg 1) is below leaf 1 (deg 2)")
 
 
 func test_rank_threshold_less_rejects_a_tie() -> void:
 	var f := _helper.rank_threshold_filter(RankThresholdFilter.Compare.LESS)
-	assert_false(f.allows(_n()[2], _n()[3], null, _ctx),
+	assert_false(f.allows(_n()[3], _lctx(_n()[2])),
 			"two degree-1 leaves tie, and LESS is strict")
 
 
 func test_rank_threshold_less_or_equal_admits_the_tie() -> void:
 	var f := _helper.rank_threshold_filter(RankThresholdFilter.Compare.LESS_OR_EQUAL)
-	assert_true(f.allows(_n()[2], _n()[3], null, _ctx), "a tie passes ≤")
-	assert_true(f.allows(_n()[1], _n()[4], null, _ctx), "and so does strictly lower")
-	assert_false(f.allows(_n()[1], _n()[0], null, _ctx), "but not strictly higher")
+	assert_true(f.allows(_n()[3], _lctx(_n()[2])), "a tie passes ≤")
+	assert_true(f.allows(_n()[4], _lctx(_n()[1])), "and so does strictly lower")
+	assert_false(f.allows(_n()[0], _lctx(_n()[1])), "but not strictly higher")
 
 
 func test_rank_threshold_greater_keeps_only_strictly_higher() -> void:
 	var f := _helper.rank_threshold_filter(RankThresholdFilter.Compare.GREATER)
-	assert_true(f.allows(_n()[1], _n()[0], null, _ctx), "hub (3) is above leaf 1 (2)")
-	assert_false(f.allows(_n()[2], _n()[3], null, _ctx), "a tie fails strict >")
-	assert_eq(f.narrow(_n()[0], _hub_neighbours(), null, _ctx).size(), 0,
+	assert_true(f.allows(_n()[0], _lctx(_n()[1])), "hub (3) is above leaf 1 (2)")
+	assert_false(f.allows(_n()[3], _lctx(_n()[2])), "a tie fails strict >")
+	assert_eq(f.narrow(_hub_neighbours(), _lctx(_n()[0])).size(), 0,
 			"nothing is above the hub")
 
 
 func test_rank_threshold_greater_or_equal_admits_the_tie() -> void:
 	var f := _helper.rank_threshold_filter(RankThresholdFilter.Compare.GREATER_OR_EQUAL)
-	assert_true(f.allows(_n()[2], _n()[3], null, _ctx), "a tie passes ≥")
-	assert_true(f.allows(_n()[1], _n()[0], null, _ctx), "and so does strictly higher")
-	assert_false(f.allows(_n()[1], _n()[4], null, _ctx), "but not strictly lower")
+	assert_true(f.allows(_n()[3], _lctx(_n()[2])), "a tie passes ≥")
+	assert_true(f.allows(_n()[0], _lctx(_n()[1])), "and so does strictly higher")
+	assert_false(f.allows(_n()[4], _lctx(_n()[1])), "but not strictly lower")
 
 
 func test_rank_threshold_without_a_ranker_admits_nothing() -> void:
 	var f := RankThresholdFilter.new()  # ranker left null
-	assert_false(f.allows(_n()[0], _n()[1], null, _ctx))
+	assert_false(f.allows(_n()[1], _lctx(_n()[0])))
 
 
 # ── TopTiesFilter: set-level ───────────────────────────────────────────────
@@ -122,7 +126,7 @@ func test_rank_threshold_without_a_ranker_admits_nothing() -> void:
 func test_top_ties_highest_keeps_every_node_tying_for_max() -> void:
 	# Among [1 (deg 2), 2 (deg 1), 3 (deg 1)] the max is leaf 1, alone.
 	var f := _helper.top_ties_filter(TopTiesFilter.Direction.HIGHEST)
-	assert_eq(_names(f.narrow(_n()[0], _hub_neighbours(), null, _ctx)),
+	assert_eq(_names(f.narrow(_hub_neighbours(), _lctx(_n()[0]))),
 			["N1"] as Array[String])
 
 
@@ -130,21 +134,21 @@ func test_top_ties_lowest_keeps_every_node_tying_for_min() -> void:
 	# The min is degree 1, and BOTH leaves 2 and 3 sit there — ties, plural,
 	# is the whole point of the class.
 	var f := _helper.top_ties_filter(TopTiesFilter.Direction.LOWEST)
-	assert_eq(_names(f.narrow(_n()[0], _hub_neighbours(), null, _ctx)),
+	assert_eq(_names(f.narrow(_hub_neighbours(), _lctx(_n()[0]))),
 			["N2", "N3"] as Array[String], "both minima survive, in candidate order")
 
 
 func test_top_ties_empty_in_empty_out() -> void:
 	var f := _helper.top_ties_filter()
-	assert_eq(f.narrow(_n()[0], [] as Array[SkillNode], null, _ctx).size(), 0)
+	assert_eq(f.narrow([] as Array[SkillNode], _lctx(_n()[0])).size(), 0)
 
 
 func test_top_ties_allows_is_derived_from_narrow_not_asserted() -> void:
 	# A set of one trivially ties for first, so the pairwise question is true
 	# for any scorable node — and false once the ranker cannot score at all.
 	var f := _helper.top_ties_filter()
-	assert_true(f.allows(_n()[0], _n()[2], null, _ctx), "a lone candidate ties with itself")
-	assert_false(TopTiesFilter.new().allows(_n()[0], _n()[2], null, _ctx),
+	assert_true(f.allows(_n()[2], _lctx(_n()[0])), "a lone candidate ties with itself")
+	assert_false(TopTiesFilter.new().allows(_n()[2], _lctx(_n()[0])),
 			"no ranker → narrow returns empty → allows is false, by derivation")
 
 
@@ -161,7 +165,7 @@ func test_composite_and_chains_a_set_level_child_behind_a_pairwise_one() -> void
 		_helper.owner_enemy(),
 		_helper.top_ties_filter(TopTiesFilter.Direction.LOWEST),
 	] as Array[PropagationFilter])
-	assert_eq(_names(f.narrow(_n()[0], _hub_neighbours(), null, _ctx)),
+	assert_eq(_names(f.narrow(_hub_neighbours(), _lctx(_n()[0]))),
 			["N2"] as Array[String])
 
 
@@ -176,7 +180,7 @@ func test_composite_and_order_matters_once_a_set_level_child_is_present() -> voi
 		_helper.top_ties_filter(TopTiesFilter.Direction.LOWEST),
 		_helper.owner_enemy(),
 	] as Array[PropagationFilter])
-	assert_eq(set_level_first.narrow(_n()[0], _hub_neighbours(), null, _ctx).size(), 0,
+	assert_eq(set_level_first.narrow(_hub_neighbours(), _lctx(_n()[0])).size(), 0,
 			"the set-level child picked a node the pairwise child was always going to cut")
 
 
@@ -186,13 +190,13 @@ func test_composite_or_is_the_union_in_candidate_order() -> void:
 		_helper.owner_enemy(),                                        # → 1, 2
 		_helper.top_ties_filter(TopTiesFilter.Direction.LOWEST),      # → 2, 3
 	] as Array[PropagationFilter], CompositeFilter.Mode.OR)
-	assert_eq(_names(f.narrow(_n()[0], _hub_neighbours(), null, _ctx)),
+	assert_eq(_names(f.narrow(_hub_neighbours(), _lctx(_n()[0]))),
 			["N1", "N2", "N3"] as Array[String], "union, deduped, in candidate order")
 
 
 func test_composite_with_no_children_narrows_nothing() -> void:
 	var f := _helper.composite_filter([] as Array[PropagationFilter])
-	assert_eq(_names(f.narrow(_n()[0], _hub_neighbours(), null, _ctx)),
+	assert_eq(_names(f.narrow(_hub_neighbours(), _lctx(_n()[0]))),
 			["N1", "N2", "N3"] as Array[String])
 
 
@@ -263,13 +267,13 @@ func test_set_level_allows_is_weaker_than_narrow_and_that_is_the_contract() -> v
 	ties.direction = TopTiesFilter.Direction.LOWEST
 
 	# Leaf N1 has entity degree 2; leaves N2/N3 tie for lowest at degree 1.
-	var kept := ties.narrow(nodes[0], candidates, null, _ctx)
+	var kept := ties.narrow(candidates, _lctx(nodes[0]))
 	assert_eq(_names(kept), ["N2", "N3"], "narrow keeps only the degree-1 tie")
 
 	# ...yet `allows` admits the very node `narrow` just rejected.
 	var loser: SkillNode = candidates[0]
 	assert_false(kept.has(loser), "N1 lost the tie")
-	assert_true(ties.allows(nodes[0], loser, null, _ctx),
+	assert_true(ties.allows(loser, _lctx(nodes[0])),
 		"a lone candidate trivially ties with itself — this is the documented "
 		+ "weaker question, not a bug")
 
@@ -286,9 +290,9 @@ func test_composite_allows_matches_chained_allows_for_pairwise_children() -> voi
 	composite.children = [gate] as Array[PropagationFilter]
 
 	for c in _hub_neighbours():
-		assert_eq(composite.allows(nodes[0], c, null, _ctx),
-			gate.allows(nodes[0], c, null, _ctx),
+		assert_eq(composite.allows(c, _lctx(nodes[0])),
+			gate.allows(c, _lctx(nodes[0])),
 			"one pairwise child: composite.allows == that child's allows (%s)" % c.name)
-		assert_eq(composite.narrow(nodes[0], [c] as Array[SkillNode], null, _ctx).is_empty(),
-			not gate.allows(nodes[0], c, null, _ctx),
+		assert_eq(composite.narrow([c] as Array[SkillNode], _lctx(nodes[0])).is_empty(),
+			not gate.allows(c, _lctx(nodes[0])),
 			"and narrow agrees with it, pairwise (%s)" % c.name)

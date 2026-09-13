@@ -20,7 +20,7 @@ const _ANY_OWNERSHIP := SkillNode.Ownership.NEUTRAL | SkillNode.Ownership.MINE \
 
 func test_self_loop_condition_null_target_returns_false() -> void:
 	var c := SelfLoopCondition.new()
-	assert_false(c.evaluate(null, null, null))
+	assert_false(c.evaluate(LandingContext.for_test(null, null)))
 
 
 func test_self_loop_condition_no_self_loops_returns_false() -> void:
@@ -34,7 +34,7 @@ func test_self_loop_condition_no_self_loops_returns_false() -> void:
 	var n := graph.get_skill_nodes()
 	var state := CastSpell.new()
 	state.predecessor = n[1]
-	assert_false(c.evaluate(state, n[0], null))
+	assert_false(c.evaluate(LandingContext.for_test(state, n[0])))
 
 
 func test_self_loop_condition_seed_landing_on_self_loop_node_returns_false() -> void:
@@ -46,7 +46,7 @@ func test_self_loop_condition_seed_landing_on_self_loop_node_returns_false() -> 
 	var n := graph.get_skill_nodes()
 	var state := CastSpell.new()
 	state.predecessor = null
-	assert_false(c.evaluate(state, n[0], null), "seed (predecessor=null) never crits")
+	assert_false(c.evaluate(LandingContext.for_test(state, n[0])), "seed (predecessor=null) never crits")
 
 
 func test_self_loop_condition_target_via_self_loop_edge_returns_true() -> void:
@@ -58,7 +58,7 @@ func test_self_loop_condition_target_via_self_loop_edge_returns_true() -> void:
 	var n := graph.get_skill_nodes()
 	var state := CastSpell.new()
 	state.predecessor = n[1]
-	assert_true(c.evaluate(state, n[1], null), "self-loop traversal crits")
+	assert_true(c.evaluate(LandingContext.for_test(state, n[1])), "self-loop traversal crits")
 
 
 func test_self_loop_condition_edge_hop_into_self_loop_node_returns_false() -> void:
@@ -71,12 +71,12 @@ func test_self_loop_condition_edge_hop_into_self_loop_node_returns_false() -> vo
 	var n := graph.get_skill_nodes()
 	var state := CastSpell.new()
 	state.predecessor = n[0]
-	assert_false(c.evaluate(state, n[1], null))
+	assert_false(c.evaluate(LandingContext.for_test(state, n[1])))
 
 
 func test_leaf_condition_null_target_returns_false() -> void:
 	var c := LeafCondition.new()
-	assert_false(c.evaluate(null, null, null))
+	assert_false(c.evaluate(LandingContext.for_test(null, null)))
 
 
 func test_leaf_condition_null_state_or_graph_returns_false() -> void:
@@ -86,9 +86,9 @@ func test_leaf_condition_null_state_or_graph_returns_false() -> void:
 	var n := graph.get_skill_nodes()
 	var state := CastSpell.new()
 	state.graph = null
-	assert_false(c.evaluate(state, n[0], null))
+	assert_false(c.evaluate(LandingContext.for_test(state, n[0])))
 	state.graph = graph
-	assert_false(c.evaluate(null, n[0], null))
+	assert_false(c.evaluate(LandingContext.for_test(null, n[0])))
 
 
 func test_leaf_condition_non_leaf_returns_false() -> void:
@@ -101,7 +101,7 @@ func test_leaf_condition_non_leaf_returns_false() -> void:
 	var state := CastSpell.new()
 	state.graph = graph
 	var n := graph.get_skill_nodes()
-	assert_false(c.evaluate(state, n[1], null))
+	assert_false(c.evaluate(LandingContext.for_test(state, n[1])))
 
 
 func test_leaf_condition_degree_1_returns_true() -> void:
@@ -115,7 +115,7 @@ func test_leaf_condition_degree_1_returns_true() -> void:
 	state.graph = graph
 	var n := graph.get_skill_nodes()
 	assert_eq(graph.get_neighbours(n[0]).size(), 1)
-	assert_true(c.evaluate(state, n[0], null))
+	assert_true(c.evaluate(LandingContext.for_test(state, n[0])))
 
 
 ## The leaf test is on the ENTITY-induced subgraph, not the whole graph: a node
@@ -133,7 +133,7 @@ func test_leaf_condition_reads_entity_degree_not_graph_degree() -> void:
 	state.graph = graph
 	var n := graph.get_skill_nodes()
 	assert_eq(graph.get_neighbours(n[1]).size(), 2, "N1 graph degree is 2")
-	assert_true(c.evaluate(state, n[1], null), "…but only 1 of those is D's → leaf")
+	assert_true(c.evaluate(LandingContext.for_test(state, n[1])), "…but only 1 of those is D's → leaf")
 
 
 # ── Stat-path crit via SpellResolver ───────────────────────────────────────

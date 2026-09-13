@@ -6,8 +6,8 @@ extends IncidentReducer
 ## spells that fan widely but shouldn't compound when they overlap.
 
 
-func reduce(incidents: Array[CastSpell], node: SkillNode, _ctx: PropagationContext) -> CastSpell:
-	var merged := _merge_payload_defaults(incidents, node)
+func reduce(incidents: Array[CastSpell], _cast: PropagationContext) -> CastSpell:
+	var merged := _merge_payload_defaults(incidents)
 	merged.damage = strongest(incidents).damage
 	return merged
 

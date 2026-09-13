@@ -28,6 +28,10 @@ func _ctx(graph: Graph) -> PropagationContext:
 	return c
 
 
+func _lctx(current: SkillNode, payload: CastSpell, graph: Graph) -> LandingContext:
+	return LandingContext.for_test(payload, current, _ctx(graph))
+
+
 func _payload(current: SkillNode, damage: float, seed_damage: float = -1.0) -> CastSpell:
 	var p := CastSpell.new()
 	p.seed_node = current
@@ -133,7 +137,7 @@ func test_fan_all_selects_every_eligible_at_full_share_without_touching_payload(
 	var nodes := graph.get_skill_nodes()
 	var eligible := [nodes[1], nodes[2], nodes[3]] as Array[SkillNode]
 	var payload := _payload(nodes[0], 5.0)
-	var picks := FanAllSpread.new().select(nodes[0], eligible, payload, _ctx(graph))
+	var picks := FanAllSpread.new().select(eligible, _lctx(nodes[0], payload, graph))
 	assert_eq(picks.size(), 3, "one pick per eligible node")
 	for i in picks.size():
 		assert_eq(picks[i].node, eligible[i], "in eligible order")
@@ -164,7 +168,7 @@ func test_cyclone_select_shares_are_the_rank_coefficients_in_turn_order() -> voi
 	payload.visited = [nodes[5], nodes[0]] as Array[SkillNode]
 	var eligible := [nodes[1], nodes[2], nodes[3], nodes[4]] as Array[SkillNode]
 
-	var picks := spread.select(nodes[0], eligible, payload, _ctx(graph))
+	var picks := spread.select(eligible, _lctx(nodes[0], payload, graph))
 
 	var ranked := Curl.rank(nodes[5].global_position, nodes[0], eligible, spread.clockwise)
 	assert_eq(picks.size(), spread.rank_coefficients.size(), "one pick per authored rank")
@@ -189,7 +193,7 @@ func test_cyclone_select_closing_hop_folds_closing_gain_into_share_and_hands_ove
 	payload.predecessor = nodes[1]
 	payload.visited = [nodes[0], nodes[1], nodes[2]] as Array[SkillNode]
 
-	var picks := spread.select(nodes[2], [nodes[0]] as Array[SkillNode], payload, _ctx(graph))
+	var picks := spread.select([nodes[0]] as Array[SkillNode], _lctx(nodes[2], payload, graph))
 
 	assert_eq(picks.size(), 1)
 	var pick := picks[0]

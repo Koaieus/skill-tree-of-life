@@ -15,7 +15,10 @@ extends Resource
 ## [code]Engine.is_editor_hint()[/code] where appropriate.
 
 
-@abstract func apply(state: CastSpell, outcome: AttackOutcome) -> void
+## [param lctx]'s [code]payload[/code] is what used to be [code]state[/code];
+## [code]lctx.cast.outcome[/code] is what used to be the [code]outcome[/code]
+## param (#356).
+@abstract func apply(lctx: LandingContext) -> void
 
 ## Player-facing line for this effect in [SpellTooltip]'s On-arrival section
 ## (#764). [param spell] supplies [member SpellDef.power] for an effect that

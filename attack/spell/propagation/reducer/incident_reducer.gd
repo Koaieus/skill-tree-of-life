@@ -15,10 +15,13 @@ extends Resource
 ## knobs.
 
 
-@abstract func reduce(
-		incidents: Array[CastSpell],
-		node: SkillNode,
-		ctx: PropagationContext) -> CastSpell
+## [b]Deliberately NOT a [LandingContext][/b] (#356): the reducer MAKES the
+## landing, so none exists yet when it runs. Pre-landing stages take the cast
+## ledger; at-landing stages take the landing. [param cast]'s [code]_ctx[/code]
+## underscore in every stock reducer stays available for one that wants
+## [method PropagationContext.visit_count] or [member PropagationContext.world] —
+## it is no longer positionally dead-by-design, just unused by anything shipped.
+@abstract func reduce(incidents: Array[CastSpell], cast: PropagationContext) -> CastSpell
 
 
 func get_description() -> String:
@@ -27,10 +30,12 @@ func get_description() -> String:
 
 ## Build a resolved payload that carries the merged metadata (max hops_left,
 ## union of visited, any-non-null caster/source/rng). Subclasses call this
-## then set the resolved damage themselves.
-static func _merge_payload_defaults(incidents: Array[CastSpell], node: SkillNode) -> CastSpell:
+## then set the resolved damage themselves. [param node] is dropped as a
+## parameter (#356) — the resolver groups incidents by [code]current_node[/code],
+## so it was always [code]incidents[0].current_node[/code].
+static func _merge_payload_defaults(incidents: Array[CastSpell]) -> CastSpell:
 	var merged := CastSpell.new()
-	merged.current_node = node
+	merged.current_node = incidents[0].current_node
 	merged.seed_node = incidents[0].seed_node
 	# Immutable across the whole cast, like seed_node — a merged payload that
 	# lost it would hand ScaledAddProgression a seed of 0 past a convergence.

@@ -19,18 +19,18 @@ func test_skips_zero_damage_state() -> void:
 	state.current_node = n[1]
 	state.source = n[0]
 	state.damage = 0.0
-	var outcome := AttackOutcome.new()
-	DamageEffect.new().apply(state, outcome)
-	assert_eq(outcome.hits.size(), 0)
+	var lctx := LandingContext.for_test(state, n[1])
+	DamageEffect.new().apply(lctx)
+	assert_eq(lctx.cast.outcome.hits.size(), 0)
 
 
 func test_skips_null_current_node() -> void:
 	var state := CastSpell.new()
 	state.damage = 10.0
 	state.current_node = null
-	var outcome := AttackOutcome.new()
-	DamageEffect.new().apply(state, outcome)
-	assert_eq(outcome.hits.size(), 0)
+	var lctx := LandingContext.for_test(state, null)
+	DamageEffect.new().apply(lctx)
+	assert_eq(lctx.cast.outcome.hits.size(), 0)
 
 
 func test_origin_is_source_on_seed() -> void:
@@ -44,8 +44,9 @@ func test_origin_is_source_on_seed() -> void:
 	state.source = n[0]
 	state.predecessor = null  # seed
 	state.damage = 7.0
-	var outcome := AttackOutcome.new()
-	DamageEffect.new().apply(state, outcome)
+	var lctx := LandingContext.for_test(state, n[1])
+	DamageEffect.new().apply(lctx)
+	var outcome := lctx.cast.outcome
 	assert_eq(outcome.hits.size(), 1)
 	assert_eq(outcome.hits[0].origin, n[0], "seed origin = source")
 	assert_eq(outcome.hits[0].type, DamageInstance.Type.MAGIC)
@@ -60,6 +61,6 @@ func test_origin_is_predecessor_on_hop() -> void:
 	state.source = n[0]
 	state.predecessor = n[1]  # hop, not seed
 	state.damage = 3.0
-	var outcome := AttackOutcome.new()
-	DamageEffect.new().apply(state, outcome)
-	assert_eq(outcome.hits[0].origin, n[1], "hop origin = predecessor")
+	var lctx := LandingContext.for_test(state, n[2])
+	DamageEffect.new().apply(lctx)
+	assert_eq(lctx.cast.outcome.hits[0].origin, n[1], "hop origin = predecessor")

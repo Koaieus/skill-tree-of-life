@@ -22,25 +22,17 @@ enum Direction { HIGHEST, LOWEST }
 ## all — and it stays correct by construction if the set rule ever changes.
 ## The real gate is [method narrow], which is why
 ## [method CompositeFilter.narrow] chains `narrow` and not `allows`.
-func allows(
-		from: SkillNode,
-		to: SkillNode,
-		payload: CastSpell,
-		ctx: PropagationContext) -> bool:
-	return not narrow(from, [to] as Array[SkillNode], payload, ctx).is_empty()
+func allows(to: SkillNode, lctx: LandingContext) -> bool:
+	return not narrow([to] as Array[SkillNode], lctx).is_empty()
 
 
-func narrow(
-		_from: SkillNode,
-		candidates: Array[SkillNode],
-		payload: CastSpell,
-		ctx: PropagationContext) -> Array[SkillNode]:
+func narrow(candidates: Array[SkillNode], lctx: LandingContext) -> Array[SkillNode]:
 	if candidates.is_empty() or ranker == null:
 		return []
 
 	var scores: Array[float] = []
 	for c in candidates:
-		scores.append(ranker.score(c, payload, ctx))
+		scores.append(ranker.score(c, lctx))
 
 	var target: float = scores.max() if direction == Direction.HIGHEST else scores.min()
 

@@ -57,12 +57,8 @@ extends PropagationSpread
 ##   A=1  B=3  C=5  D=7  E=9  →  F = (9 + 2) × 2 = 22 (slam, then stops).
 
 
-func select(
-		_current: SkillNode,
-		eligible: Array[SkillNode],
-		_payload: CastSpell,
-		ctx: PropagationContext) -> Array[PropagationPick]:
-	if eligible.is_empty() or ctx.graph == null:
+func select(eligible: Array[SkillNode], lctx: LandingContext) -> Array[PropagationPick]:
+	if eligible.is_empty() or lctx.cast.graph == null:
 		return []
 
 	# The per-hop progression runs inside `PropagationConfig.mint`

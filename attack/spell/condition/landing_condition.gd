@@ -22,7 +22,13 @@ extends Resource
 ## virtual hook for truly bespoke logic.
 
 
-@abstract func evaluate(state: CastSpell, target: SkillNode, outcome: AttackOutcome) -> bool
+## [param lctx]'s [code]payload[/code] is what used to be [code]state[/code],
+## [code]node[/code] is what used to be [code]target[/code] (both prod callers
+## passed [code]state.current_node[/code] anyway, so the separate param was
+## redundant) and [code]lctx.cast.outcome[/code] is what used to be
+## [code]outcome[/code] — no longer a positional [code]null[/code] the crit
+## path had to pass (#356).
+@abstract func evaluate(lctx: LandingContext) -> bool
 
 
 ## Player-facing fragment naming the shape this fires on — "on a leaf", "at a

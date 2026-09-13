@@ -7,8 +7,8 @@ extends IncidentReducer
 ## (damage carries through unchanged).
 
 
-func reduce(incidents: Array[CastSpell], node: SkillNode, _ctx: PropagationContext) -> CastSpell:
-	var merged := _merge_payload_defaults(incidents, node)
+func reduce(incidents: Array[CastSpell], _cast: PropagationContext) -> CastSpell:
+	var merged := _merge_payload_defaults(incidents)
 	var total: float = 0.0
 	for inc in incidents:
 		total += inc.damage

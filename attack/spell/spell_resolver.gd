@@ -99,6 +99,10 @@ static func resolve_against(
 	# wave changes the world, and this is what makes the next wave's filter
 	# READ that world instead of the untouched real nodes.
 	ctx.world = world
+	# One outcome per resolve_against -- a CAST fact (#356), so it lives here
+	# rather than being threaded per-landing or passed as `null` the way the
+	# crit path used to.
+	ctx.outcome = outcome
 
 	var seed_state := CastSpell.new()
 	seed_state.seed_node = target
@@ -135,6 +139,10 @@ static func resolve_against(
 		# otherwise default to 1; the null "first-wins" short-circuit returns
 		# incidents[0] raw). See #352.
 		var merged: Array[CastSpell] = []
+		# state -> the LandingContext built for it, right after the reducer returns
+		# (#356) -- reused for both this landing's arrival (effects, crit
+		# conditions) and its departure (filter, spread), one object either way.
+		var lctx_of: Dictionary = {}  ## CastSpell -> LandingContext
 		# node -> every predecessor its converging incidents arrived from, in
 		# incident order (#542). The reducer folds N incidents into one merged
 		# CastSpell with a single CHOSEN predecessor (see
@@ -152,12 +160,18 @@ static func resolve_against(
 			var incidents: Array[CastSpell] = []
 			for inc in (groups[node] as Array):
 				incidents.append(inc)
-			var resolved: CastSpell = _apply_reducer(config.reducer, incidents, node, ctx)
+			var resolved: CastSpell = _apply_reducer(config.reducer, incidents, ctx)
 			if resolved == null:
 				_record_cancel(outcome, node, ctx.wave_index, incidents)
 				continue
 			resolved.incident_count = incidents.size()
 			merged.append(resolved)
+			var lctx := LandingContext.new()
+			lctx.cast = ctx
+			lctx.node = node
+			lctx.payload = resolved
+			lctx.incidents = incidents
+			lctx_of[resolved] = lctx
 			var preds: Array[SkillNode] = []
 			var shares := PackedFloat32Array()
 			for inc in incidents:
@@ -174,15 +188,16 @@ static func resolve_against(
 		# landings in one wave are distinct CastSpell objects.
 		var event_of: Dictionary = {}
 		for state in merged:
+			var lctx: LandingContext = lctx_of[state]
 			# Every `HitInstance` this landing's effects append belongs to this
-			# event (#381: was two parallel lists with a ≤1-per-landing parity
-			# assert between the headless and VFX paths — dead since #474 made
+			# event (#381: was two parallel lists with a <=1-per-landing parity
+			# assert between the headless and VFX paths -- dead since #474 made
 			# VFX a pure observer of an outcome BattleSystem already applied in
 			# full; see the #381 plan). Each new hit rolls its own crit.
 			var pre := outcome.hits.size()
 			for eff in spell.on_hit_effects:
 				if eff != null:
-					eff.apply(state, outcome)
+					eff.apply(lctx)
 			var ev := PropagationEvent.new()
 			ev.beat = state.hop_index
 			ev.predecessor = state.predecessor
@@ -195,7 +210,7 @@ static func resolve_against(
 			# The ring the closing hop just walked, ending at this landing
 			# (#710). Empty on every landing that did not close one; the
 			# reducer has already picked the dominating closer's lineage, so
-			# `state.visited` IS that ring — CycloneSpread truncates it to
+			# `state.visited` IS that ring -- CycloneSpread truncates it to
 			# exactly the loop on every close. Copied, because the walk keeps
 			# extending the payload's own array after this.
 			if state.closed_cycle:
@@ -214,8 +229,8 @@ static func resolve_against(
 				# shared crit roll reads its board), and one place that cannot
 				# be forgotten beats N places that can.
 				hit.attacker = ctx.caster
-				_stamp_crit_conditions(spell, state, hit)
-				# Magic's structural parameter is purely ORDINAL — which wave
+				_stamp_crit_conditions(spell, lctx, hit)
+				# Magic's structural parameter is purely ORDINAL -- which wave
 				# this landing belongs to, nothing more. The compiler turns it
 				# into seconds; this walk never names one (#543).
 				hit.structural_key = float(state.hop_index)
@@ -224,7 +239,7 @@ static func resolve_against(
 			event_of[state] = ev
 			ctx.bump_visit(state.current_node)
 
-		# 3b. Settle this wave's crits, then LAND it — before step 4's filter
+		# 3b. Settle this wave's crits, then LAND it -- before step 4's filter
 		# asks the world anything (#536). This is the whole gating fix: a
 		# filter reading `ownership_bit` on the next line now sees a node this
 		# wave killed as dead.
@@ -232,7 +247,7 @@ static func resolve_against(
 		# Two passes, not one interleaved pass, so the crit stream is consumed
 		# exactly as the old single `CritRoll.decide_all` at the end of the walk
 		# consumed it: that call iterated `in_arrival_order`, which for magic is
-		# the hop ordinal ascending with an index-stable tiebreak — i.e. wave by
+		# the hop ordinal ascending with an index-stable tiebreak -- i.e. wave by
 		# wave, append order within a wave, which is exactly this. #543 made
 		# that key structural rather than a float, which leaves this identity
 		# TRUE BY CONSTRUCTION instead of true by an arithmetic argument about
@@ -248,16 +263,17 @@ static func resolve_against(
 		# 4. Expand next wave: filter narrows → spread selects → config mints.
 		var next_wave: Array[CastSpell] = []
 		for state in merged:
+			var lctx: LandingContext = lctx_of[state]
 			if state.hops_remaining <= 0 or config.spread == null:
 				_mark_terminal(event_of, state)
 				continue
 			# Always enforce max_visits_per_node FIRST, and even if the filter
-			# is null — without it, the resolver would loop forever on
+			# is null -- without it, the resolver would loop forever on
 			# connected graphs. Ahead of the filter rather than behind it
 			# because the filter is now set-level (#850): a [TopTiesFilter]
 			# must tie-break among candidates that can actually be reached,
 			# not pick a winner the cap then deletes. For a pairwise filter
-			# the two orders are identical — independent predicates commute.
+			# the two orders are identical -- independent predicates commute.
 			var capped: Array[SkillNode] = []
 			for nb in graph.get_neighbours(state.current_node):
 				if ctx.visit_count(nb) < config.max_visits_per_node:
@@ -266,10 +282,9 @@ static func resolve_against(
 			# base [PropagationFilter.narrow] is the old pairwise `allows`
 			# loop; a set-level filter overrides it.
 			if config.filter != null:
-				capped = config.filter.narrow(state.current_node, capped, state, ctx)
-			var picks: Array[PropagationPick] = config.spread.select(
-					state.current_node, capped, state, ctx)
-			# "Ended by terminal rule" includes a spread that CHOSE nothing —
+				capped = config.filter.narrow(capped, lctx)
+			var picks: Array[PropagationPick] = config.spread.select(capped, lctx)
+			# "Ended by terminal rule" includes a spread that CHOSE nothing --
 			# a walk whose filter left nothing eligible ends here, and its
 			# last landing is the entry the VFX marks terminal.
 			if picks.is_empty():
@@ -350,12 +365,12 @@ static func impact_damage(spell: SpellDef, source: SkillNode, board: StatBoard =
 ## opt out.
 static func _stamp_crit_conditions(
 		spell: SpellDef,
-		state: CastSpell,
+		lctx: LandingContext,
 		hit: HitInstance) -> void:
 	if hit == null or hit.amount <= 0.0:
 		return
 	for cond in spell.crit_conditions:
-		if cond != null and cond.evaluate(state, state.current_node, null):
+		if cond != null and cond.evaluate(lctx):
 			hit.crit_tier += 1
 			# One condition passing is enough to count the condition path;
 			# additional conditions don't stack the tier further.
@@ -367,11 +382,10 @@ static func _stamp_crit_conditions(
 static func _apply_reducer(
 		reducer: IncidentReducer,
 		incidents: Array[CastSpell],
-		node: SkillNode,
 		ctx: PropagationContext) -> CastSpell:
 	if reducer == null:
 		return incidents[0]
-	return reducer.reduce(incidents, node, ctx)
+	return reducer.reduce(incidents, ctx)
 
 
 ## Stamps the movement verb from the landed state — never from geometry (a

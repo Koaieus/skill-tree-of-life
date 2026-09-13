@@ -23,10 +23,10 @@ extends LandingCondition
 ## and pass mid-edge instead of meeting. [ConvergenceCondition] covers the
 ## even half, where the arms are equal and merge head-on at hop L/2.
 
-func evaluate(state: CastSpell, _target: SkillNode, _outcome: AttackOutcome) -> bool:
-	if state == null:
+func evaluate(lctx: LandingContext) -> bool:
+	if lctx.payload == null:
 		return false
-	return state.closed_cycle
+	return lctx.payload.closed_cycle
 
 
 func get_description() -> String:

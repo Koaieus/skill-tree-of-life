@@ -11,7 +11,8 @@ extends OnHitEffect
 ## present (hops); falls back to [member CastSpell.source] for the seed so
 ## the first projectile flies from the cast-from node, not from nowhere.
 
-func apply(state: CastSpell, outcome: AttackOutcome) -> void:
+func apply(lctx: LandingContext) -> void:
+	var state := lctx.payload
 	if state.current_node == null or state.damage <= 0.0:
 		return
 	var heal := HealInstance.new()
@@ -19,7 +20,7 @@ func apply(state: CastSpell, outcome: AttackOutcome) -> void:
 	heal.source = state
 	heal.target = state.current_node
 	heal.origin = state.predecessor if state.predecessor != null else state.source
-	outcome.hits.append(heal)
+	lctx.cast.outcome.hits.append(heal)
 
 ## Same D-32 number as [method DamageEffect.get_description] — heal amount
 ## reuses [code]spell_damage[/code] (see this file's top docstring: "yes,

@@ -14,6 +14,16 @@ config *mints*; on **arrival** the reducer *merges* → the effects
 role and no class does another's job — a spell's tooltip is generated from
 the stages (#764) because of that.
 
+**Every stage but the reducer takes a `LandingContext`, not a decomposed arg
+list (#356).** Lifetime decides the home: per-cast facts (`outcome`, the
+world, the crit RNG) live on `PropagationContext`; per-landing facts (the
+landed node, the resolved payload, the incidents that fed it) live on the new
+`LandingContext`, built once per landing right after the reducer returns and
+reused for that landing's whole life — arrival (effects, crit conditions) and
+departure (filter, spread) alike. `IncidentReducer` is the one exception: it
+*makes* the landing, so none exists yet when it runs, and it takes
+`PropagationContext` directly. See "`LandingContext`" below.
+
 ---
 
 ## Where we are
@@ -64,19 +74,12 @@ class_name PropagationFilter
 extends Resource
 
 ## Pairwise — the 95% case. A set-level filter DERIVES this from `narrow`.
-@abstract func allows(
-    from_node: SkillNode,
-    to_node: SkillNode,
-    payload: CastSpell,
-    ctx: PropagationContext) -> bool
+## `from_node` is `lctx.node`; `payload` is `lctx.payload`.
+@abstract func allows(to_node: SkillNode, lctx: LandingContext) -> bool
 
 ## Set-level. Defaults to the `allows` loop; override only when the rule
 ## genuinely needs the whole candidate set at once.
-func narrow(
-    from_node: SkillNode,
-    candidates: Array[SkillNode],
-    payload: CastSpell,
-    ctx: PropagationContext) -> Array[SkillNode]
+func narrow(candidates: Array[SkillNode], lctx: LandingContext) -> Array[SkillNode]
 ```
 
 **Set-level narrowing lives here and nowhere else** (#850, hub #849 Seam A).
@@ -123,11 +126,8 @@ Stock subclasses (slot into one or more `PropagationConfig`s):
 class_name PropagationSpread
 extends Resource
 
-@abstract func select(
-    current: SkillNode,
-    eligible: Array[SkillNode],
-    payload: CastSpell,
-    ctx: PropagationContext) -> Array[PropagationPick]
+## `current` is `lctx.node`; `payload` is `lctx.payload`.
+@abstract func select(eligible: Array[SkillNode], lctx: LandingContext) -> Array[PropagationPick]
 ```
 
 Receives the **already narrowed** candidate list and answers one question:
@@ -181,7 +181,9 @@ is why a cast seeded straight onto a junction was never slammed. They are now:
 class_name LandingCondition
 extends Resource
 
-@abstract func evaluate(state: CastSpell, target: SkillNode, outcome: AttackOutcome) -> bool
+## `state` is `lctx.payload`; `target` is `lctx.node`; `outcome` is
+## `lctx.cast.outcome` — no longer a positional `null` the crit path had to pass.
+@abstract func evaluate(lctx: LandingContext) -> bool
 ```
 
 A pure, read-only predicate over ONE landing — `CritCondition` until #851, when
@@ -226,11 +228,12 @@ class_name IncidentReducer
 extends Resource
 
 ## Returns the resolved incident, or null to CANCEL (no effect lands,
-## no further propagation from this node in this wave).
-@abstract func reduce(
-    incidents: Array[CastSpell],
-    node: SkillNode,
-    ctx: PropagationContext) -> CastSpell
+## no further propagation from this node in this wave). Takes the CAST
+## ledger, not a LandingContext (#356) — the reducer MAKES the landing, so
+## none exists yet when it runs. `node` was dropped as a parameter: the
+## resolver groups incidents by `current_node`, so it was always
+## `incidents[0].current_node`.
+@abstract func reduce(incidents: Array[CastSpell], cast: PropagationContext) -> CastSpell
 ```
 
 Stock subclasses:
@@ -259,11 +262,51 @@ var graph: Graph
 var caster: Entity
 var seed_node: SkillNode
 var rng: RandomNumberGenerator
+var outcome: AttackOutcome    # one per resolve_against (#356) — a cast fact
 ```
 
 Branches read & mutate it freely. The resolver bumps
 `global_visit_count[node]` after each successful merger application.
-`MaxVisitsFilter` reads it before allowing onward copies.
+`MaxVisitsFilter` reads it before allowing onward copies. `outcome` is set once,
+up front in `resolve_against`, and is what retires the `outcome` positional
+parameter `LandingCondition.evaluate` used to take (and the `null` the crit
+path passed for it).
+
+### `LandingContext` (#356)
+
+Per-landing state, built by the resolver once per node a wave resolves onto —
+right after `IncidentReducer.reduce` returns — and reused for that landing's
+whole lifetime: arrival (`OnHitEffect`s, crit `LandingCondition`s) *and*
+departure (`PropagationFilter`, `PropagationSpread`).
+
+```gdscript
+class_name LandingContext
+extends RefCounted
+
+var cast: PropagationContext   # the per-cast ledger this landing belongs to
+var node: SkillNode            # the landed node — `from` on departure, `target` on arrival
+var payload: CastSpell         # the reducer's resolved state — mutable; effects mutate it IN ORDER
+var incidents: Array[CastSpell]  # what arrived here this wave, before the merge — provenance only
+
+func ownership_bit_of(n: SkillNode) -> int
+func is_allocated_in_world(n: SkillNode) -> bool
+func local_value_of(n: SkillNode, stat_id: StringName) -> Variant
+func visit_count(n: SkillNode) -> int
+```
+
+**Fields are fixed at construction, but `payload` is not immutable through
+them.** It is the one mutable `CastSpell` that on-hit effects mutate in
+order — `ScaleDamageEffect` running before `DamageEffect` relies on exactly
+that, and this did not change. The four forwarding accessors exist so a
+stage never reaches through `.cast` for the questions the world contract
+answers — `ExpressionFilter` and `StatRanker` go through `lctx.*`, never
+`lctx.cast.*`.
+
+`LandingContext.for_test(payload, node, cast, incidents)` is the fixture
+convenience every isolated stage test uses — all four params optional, `cast`
+defaults to a fresh `PropagationContext` (with a fresh `AttackOutcome` filled
+in if none is set), so a hand-built condition/effect test never dereferences
+a null.
 
 ### `PropagationConfig`
 
@@ -388,18 +431,20 @@ while wave not empty:
     # 1. group by target node
     incidents_by_node = group(wave, key=current_node)
 
-    # 2. merge per node
+    # 2. merge per node, then build this landing's LandingContext (#356)
     merged = []
     for node, incidents in incidents_by_node:
-        resolved = config.reducer.reduce(incidents, node, ctx)
+        resolved = config.reducer.reduce(incidents, ctx)
         if resolved == null:    # CANCEL — no effect, no propagation from here
             continue
+        lctx_of[resolved] = LandingContext.new(cast=ctx, node=node, payload=resolved, incidents=incidents)
         merged.append(resolved)
 
     # 3. apply effects to merged incidents, bump ctx.global_visit_count
     for state in merged:
+        lctx = lctx_of[state]
         for eff in spell.on_hit_effects:
-            eff.apply(state, outcome)
+            eff.apply(lctx)
         ctx.global_visit_count[state.current_node] += 1
 
     # 4. compute next wave: cap visits, filter NARROWS, spread SELECTS,
@@ -409,11 +454,12 @@ while wave not empty:
     #    identical.
     next_wave = []
     for state in merged:
+        lctx = lctx_of[state]
         if state.hops_remaining <= 0: continue
         candidates = [nb for nb in graph.get_neighbours(state.current_node)
                       if ctx.visit_count(nb) < config.max_visits_per_node]
-        candidates = config.filter.narrow(state.current_node, candidates, state, ctx)
-        for pick in config.spread.select(state.current_node, candidates, state, ctx):
+        candidates = config.filter.narrow(candidates, lctx)
+        for pick in config.spread.select(candidates, lctx):
             next_wave.append(config.mint(state, pick))
     wave = next_wave
 ```

@@ -71,14 +71,14 @@ func test_convergence_condition_single_incident_no_crit() -> void:
 	var c := ConvergenceCondition.new()
 	var state := CastSpell.new()
 	state.incident_count = 1
-	assert_false(c.evaluate(state, null, null), "1 incident → no crit")
+	assert_false(c.evaluate(LandingContext.for_test(state, null)), "1 incident → no crit")
 
 
 func test_convergence_condition_two_incidents_crit() -> void:
 	var c := ConvergenceCondition.new()
 	var state := CastSpell.new()
 	state.incident_count = 2
-	assert_true(c.evaluate(state, null, null), "2 incidents → crit")
+	assert_true(c.evaluate(LandingContext.for_test(state, null)), "2 incidents → crit")
 
 
 func test_convergence_condition_three_incidents_crit() -> void:
@@ -87,12 +87,12 @@ func test_convergence_condition_three_incidents_crit() -> void:
 	var c := ConvergenceCondition.new()
 	var state := CastSpell.new()
 	state.incident_count = 3
-	assert_true(c.evaluate(state, null, null), "3 incidents → crit under simple rule")
+	assert_true(c.evaluate(LandingContext.for_test(state, null)), "3 incidents → crit under simple rule")
 
 
 func test_convergence_condition_null_state_no_crit() -> void:
 	var c := ConvergenceCondition.new()
-	assert_false(c.evaluate(null, null, null))
+	assert_false(c.evaluate(LandingContext.for_test(null, null)))
 
 
 # ── end-to-end through the resolver ───────────────────────────────────────

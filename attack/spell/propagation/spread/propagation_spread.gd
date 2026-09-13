@@ -18,12 +18,9 @@ extends Resource
 
 ## One pick per child to mint, in the order they should be minted (a stable
 ## order is what keeps the crit stream deterministic across peers).
-## [param eligible] is what the filter left; [param payload] is read-only here.
-@abstract func select(
-		current: SkillNode,
-		eligible: Array[SkillNode],
-		payload: CastSpell,
-		ctx: PropagationContext) -> Array[PropagationPick]
+## [param eligible] is what the filter left; [member LandingContext.payload]
+## is read-only here.
+@abstract func select(eligible: Array[SkillNode], lctx: LandingContext) -> Array[PropagationPick]
 
 
 func get_description() -> String:

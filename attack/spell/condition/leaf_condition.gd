@@ -12,7 +12,9 @@ extends LandingCondition
 ## the node's own [member SkillNode.owned_by] (the accessor's default).
 
 
-func evaluate(state: CastSpell, target: SkillNode, _outcome: AttackOutcome) -> bool:
+func evaluate(lctx: LandingContext) -> bool:
+	var state := lctx.payload
+	var target := lctx.node
 	if target == null or state == null or state.graph == null:
 		return false
 	return target.get_entity_degree(state.graph) == 1

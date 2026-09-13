@@ -22,18 +22,14 @@ enum Direction { HIGHEST, LOWEST }
 @export_range(1, 16) var take_count: int = 1
 
 
-func select(
-		_current: SkillNode,
-		eligible: Array[SkillNode],
-		payload: CastSpell,
-		ctx: PropagationContext) -> Array[PropagationPick]:
+func select(eligible: Array[SkillNode], lctx: LandingContext) -> Array[PropagationPick]:
 	if eligible.is_empty() or ranker == null:
 		return []
 
 	var dir_sign := 1.0 if direction == Direction.LOWEST else -1.0
 	var sorted := eligible.duplicate()
 	sorted.sort_custom(func(a: SkillNode, b: SkillNode) -> bool:
-		return dir_sign * ranker.score(a, payload, ctx) < dir_sign * ranker.score(b, payload, ctx))
+		return dir_sign * ranker.score(a, lctx) < dir_sign * ranker.score(b, lctx))
 	var k: int = min(take_count, sorted.size())
 	var out: Array[PropagationPick] = []
 	for i in k:
