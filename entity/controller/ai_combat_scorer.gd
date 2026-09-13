@@ -203,6 +203,40 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 
 
 
+## Cheap pre-filter estimate for the ranged/magic two-tier gate (#537 D1/D3/D4)
+## — every term here is a value already sitting on the board
+## ([member SkillNode.get_local_value], [method Entity.get_current_hp]), never
+## a second simulator. [param raw_damage] is the caller's own already-computed
+## un-mitigated seed hit — [code]ranged_damage[/code] for a ranged candidate,
+## [code]spell_damage(source) × power[/code] for magic (see
+## [code]attack/spell/spell_def.gd[/code]'s doc on that formula) — so this
+## function itself touches no plan, no resolve, no shadow world.
+##
+## Mirrors [method score]'s shape (EV, clamped to what the target can actually
+## absorb, plus a kill bonus and the same cut-vertex/weak-point bonuses) so the
+## cheap tier's ranking correlates with what the gate-accurate tier will
+## actually decide, rather than ranking on raw power alone — a naive
+## raw-damage-only heuristic is exactly what would drop a low-power near-kill
+## behind a high-power dud (see the D5 rank-stability test). NOT tier-gated
+## ([param ai_tier] plays no part): this is a volume cut, not a behavior
+## tuning knob, and it runs before [member AIController.ai_tier] would apply to
+## anything.
+static func cheap_estimate(target: SkillNode, raw_damage: float) -> float:
+	if target == null:
+		return -INF
+	var target_hp := target.get_current_hp()
+	if target_hp <= 0.0:
+		return -INF
+	var mitigated := maxf(0.0, raw_damage - float(target.get_local_value(&"armor")))
+	var score := minf(mitigated, target_hp)
+	if mitigated >= target_hp:
+		score += _KILL_BONUS
+	if _is_cut_vertex(target):
+		score += _CUT_VERTEX_WEIGHT
+	score += _armor_weakness(target) * _ENEMY_WEAK_WEIGHT
+	return score
+
+
 ## Highest-[member ScoredCandidate.total] entry, or null if [param candidates]
 ## is empty. Ties keep the first entry (stable — callers build candidates in a
 ## deterministic order).

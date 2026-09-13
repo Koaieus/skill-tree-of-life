@@ -581,11 +581,36 @@ static func _coarse_rank_and_select(proposals: Array, entity: Entity, enemy_posi
 		task_ids.append(id)
 	for id in task_ids:
 		WorkerThreadPool.wait_for_task_completion(id)
-	scored.sort_custom(func(a, b): return a[1] < b[1])
+	var order := top_k_indices(scored, func(a, b): return a[1] < b[1], _FINALIST_COUNT)
 	var out := []
-	for i in mini(_FINALIST_COUNT, scored.size()):
+	for i in order:
 		out.append(scored[i][0])
 	return out
+
+
+## Generic top-K promotion (#537 D3). Ranks [param items] by [param is_better]
+## (the [method Array.sort_custom] contract: true iff its first argument
+## should sort ahead of its second) and returns the best [param k] as INDICES
+## into [param items], in RANK order (best first) — never re-sorted into
+## [param items]'s own order, since the caller's enumeration order can itself
+## be load-bearing (a fog list, a spell/source loop) and this helper has no
+## opinion on it.
+##
+## The single top-K selection contract shared by melee's own coarse → finalist
+## split above and [AIController]'s ranged/magic two-tier gates — factored out
+## rather than reimplemented per mode (`.claude/rules/` forbids two accessor
+## impls of one contract). A caller that needs the promoted subset back in its
+## OWN order (ranged/magic, whose downstream tie-break and fog-order
+## characterization tests pin the ORIGINAL enumeration order, not score order)
+## sorts this return value again — see [method AIController._gather_ranged_candidates].
+static func top_k_indices(items: Array, is_better: Callable, k: int) -> Array[int]:
+	var order: Array[int] = []
+	for i in items.size():
+		order.append(i)
+	order.sort_custom(func(a: int, b: int) -> bool: return is_better.call(items[a], items[b]))
+	if order.size() > k:
+		order = order.slice(0, k)
+	return order
 
 
 ## [param traj] may be NULL — [method BladeSim.simulate] answers null (after its

@@ -58,6 +58,19 @@ const _DEFAULT_TURN_DELAY := 0.4
 ## reproducible is the whole point (tests/replays pin [member rng] directly).
 const _NO_RUN_RNG_BASE_SEED := 823
 
+## Two-tier gate for ranged + magic (#537 D1/D3): a cheap ungated heuristic
+## ([method AiCombatScorer.cheap_estimate]) ranks every candidate, and only
+## the top K get a real gate-accurate [method AttackPlan.resolve] (the
+## [code]EntityCombat.snapshot()[/code] cost #537 exists to budget). Mirrors
+## [constant AiBladeRollout._FINALIST_COUNT]'s shape and value — the #537 D1
+## arithmetic that justified the whole approach assumed the same K across all
+## three modes (`3 modes x 3 finalists x 11.58ms ~= 104ms`), so this stays in
+## lockstep with melee's own constant rather than drifting to a tuned number
+## nobody asked for (D2: "the worst has passed", not a millisecond target).
+## Below this count, gating is a no-op — every candidate is both cheaply AND
+## gate-accurately scored, identically to the pre-#537 exhaustive behaviour.
+const _CANDIDATE_GATE_K := 3
+
 ## Synced from Settings.current.ai_turn_delay at _ready unless a caller
 ## already overrode it (tests set this explicitly before add_child, to a
 ## value other than the compile-time default, to control pacing/avoid
@@ -345,14 +358,36 @@ func _gather_melee_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	return AiBladeRollout.gather_melee_candidates(entity, visible_enemies, ai_tier, rng)
 
 
+## Two-tier gated (#537 D1/D3): [method AttackPlan.is_valid] is the cheap PASS
+## 1 — no shadow world, no snapshot (see [method AttackPlan.validate]) — so
+## every reachable target is enumerated and cheaply ranked for free. Only the
+## top [constant _CANDIDATE_GATE_K] then pay for the real
+## [method AttackPlan.resolve] in PASS 2. `order.sort()` after the promotion
+## restores fog-list order among the survivors: below the gate (the common
+## case in every existing fixture — visible-enemy counts rarely exceed K) this
+## is byte-for-byte the old exhaustive enumeration, same order, same scores.
 func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
 	var out: Array[AiCombatScorer.ScoredCandidate] = []
+	var raw_damage: float = float(entity.stat_board.ranged_damage.value) \
+			if entity.stat_board != null and entity.stat_board.ranged_damage != null else 0.0
+	var reachable: Array[SkillNode] = []
 	for target in visible_enemies:
 		var plan := RangedAttackPlan.new()
 		plan.attacker = entity
 		plan.target = target
-		if not plan.is_valid():
-			continue
+		if plan.is_valid():
+			reachable.append(target)
+	var order := AiBladeRollout.top_k_indices(
+			reachable,
+			func(a: SkillNode, b: SkillNode) -> bool:
+				return AiCombatScorer.cheap_estimate(a, raw_damage) > AiCombatScorer.cheap_estimate(b, raw_damage),
+			_CANDIDATE_GATE_K)
+	order.sort()
+	for i in order:
+		var target := reachable[i]
+		var plan := RangedAttackPlan.new()
+		plan.attacker = entity
+		plan.target = target
 		var outcome := plan.resolve()
 		out.append(AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, target, entity, ai_tier))
 	return out
@@ -403,6 +438,14 @@ func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCom
 ## [method AttackPlan.resolve] trusts a set target unconditionally (it exists to
 ## preview/commit a UI-picked target, not to re-validate one), so dropping it
 ## would let the AI "cast" at an out-of-hop-range target and still score a hit.
+## Two-tier gated since #537 (D1/D3) — PASS 1 below enumerates every
+## (spell, source, target) combination exactly as before (still cheap:
+## [method AttackPlan.is_valid] never resolves), then PASS 2 promotes only the
+## top [constant _CANDIDATE_GATE_K], globally across every spell and source
+## this turn, to a real gate-accurate [method AttackPlan.resolve]. Below the
+## gate — every existing fixture, whose spell/source/target counts are small —
+## this is byte-for-byte the old exhaustive behaviour: same candidates, same
+## order, same scores.
 func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
 	var out: Array[AiCombatScorer.ScoredCandidate] = []
 	if entity.spellbook == null or entity.navigator == null:
@@ -418,6 +461,14 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	var visible_order: Dictionary[SkillNode, int] = {}
 	for i in visible_enemies.size():
 		visible_order[visible_enemies[i]] = i
+
+	# PASS 1 — identity only, no resolve. Each entry is
+	# [SpellDef, SkillNode source, SkillNode target, float raw_damage];
+	# raw_damage is the seed-hit formula's own un-mitigated input
+	# (spell_damage(source) x power — attack/spell/spell_resolver.gd:321),
+	# constant per (spell, source) so it's read once per source, not once per
+	# target.
+	var pre: Array = []
 	for spell in spells:
 		# MagicAttackPlan.validate() deliberately doesn't gate on mana (a
 		# preview/UI concern, not a plan-shape one) — BattleSystem.launch_attack
@@ -449,6 +500,7 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 			if picked.is_empty():
 				continue
 			picked.sort()
+			var raw_damage := float(source.get_local_value(&"spell_damage")) * spell.power
 			var probe := MagicAttackPlan.new()
 			probe.attacker = entity
 			probe.spell = spell
@@ -456,15 +508,37 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 			for at in picked:
 				var target := visible_enemies[at]
 				probe.target = target
-				if not probe.is_valid():
-					probe.target = null
-					continue
-				var outcome := probe.resolve()
-				var c := AiCombatScorer.score(BattleSystem.AttackMode.MAGIC, outcome, target, entity, ai_tier)
-				c.source_node = source
-				c.spell = spell
-				out.append(c)
+				if probe.is_valid():
+					pre.append([spell, source, target, raw_damage])
 				probe.target = null
+
+	# PASS 2 — cheap-rank the WHOLE turn's magic candidates (across every
+	# spell/source) and promote only the top K to a real resolve.
+	# `order.sort()` restores PASS 1's own enumeration order among the
+	# survivors: the #745 characterization tests pin THAT order (fog order
+	# within a source, source order within union.sources, spell order within
+	# the spellbook), never cheap-score order.
+	var order := AiBladeRollout.top_k_indices(
+			pre,
+			func(a: Array, b: Array) -> bool:
+				return AiCombatScorer.cheap_estimate(a[2], a[3]) > AiCombatScorer.cheap_estimate(b[2], b[3]),
+			_CANDIDATE_GATE_K)
+	order.sort()
+	for i in order:
+		var entry: Array = pre[i]
+		var spell: SpellDef = entry[0]
+		var source: SkillNode = entry[1]
+		var target: SkillNode = entry[2]
+		var probe := MagicAttackPlan.new()
+		probe.attacker = entity
+		probe.spell = spell
+		probe.source = source
+		probe.target = target
+		var outcome := probe.resolve()
+		var c := AiCombatScorer.score(BattleSystem.AttackMode.MAGIC, outcome, target, entity, ai_tier)
+		c.source_node = source
+		c.spell = spell
+		out.append(c)
 	return out
 
 
