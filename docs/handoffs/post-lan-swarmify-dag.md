@@ -54,6 +54,16 @@ into this milestone. Treat it as a priority carryover, not a guess.
 
 ### Cluster 1 — Spell propagation pipeline hub (#849, #356, #397)
 
+> **SPENT 2026-09-13 (swarmify pass):** #849 **closed** (comment names the
+> three landed seams). #356 **Ready** — fork pinned as a new immutable
+> `LandingContext` (owner: "Option 1 seems cleanest OOP split"), full
+> acceptance spec on the issue, `outcome` moves onto `PropagationContext`,
+> reducer deliberately keeps the cast ctx. Found a real bug while verifying:
+> five stages read entity degree off the LIVE node, not `ctx.world` — split
+> out as **#860 (Ready, blocked-by #356)** because it moves goldens. #355 is
+> now `blocked-by` #356 as a structured edge. **#397 is still `Backlog` and
+> still the next bite** — pure design forks, needs the owner conversation.
+
 > **CORRECTED 2026-09-12 — all three seams have already SHIPPED.** The first
 > index of this doc read #849's body and planned the seams as future work. They
 > are not: **#850 (Seam A) and #851 (Seam C) closed 2026-09-10, #852 (Seam B)
@@ -132,7 +142,9 @@ whether AP design has to also subsume mana's role.
 competence fix; #788 explicitly says it "expands #771"; #832 is a budget-
 accounting prerequisite split out of #771/#824's own notes. All three touch
 `attack/plan/melee_attack_plan.gd` and/or `ai_blade_rollout.gd`.
-**Order:** #771 lands first (in-progress, don't disturb) → #832 (fixes the
+**Order:** #771 lands first (in-progress, don't disturb — but `hygiene`
+2026-09-13 reports #771 as a hub with all 3 children closed, so it may just
+need closing) → #832 (fixes the
 budget API gap that #771's own follow-on work needs) → #788 (needs #779/#780
 *played* first per the issue itself, so this is the last of the three
 regardless).
