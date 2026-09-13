@@ -79,7 +79,10 @@ func _trail_blazer_config(opts: Dictionary = {}) -> PropagationConfig:
 	var deg2 := ExpressionFilter.new()
 	# The from-side clause IS the stop (#851): nothing is eligible to leave a
 	# junction, so the walk ends there without a step zeroing a counter.
-	deg2.expression = "from_entity_degree <= 2 and to_degree >= 2"
+	# The to-side clause is entity, not graph, degree (#397) — a graph-degree
+	# read would admit a tip whose only foreign neighbour pads its board-wide
+	# count without making it a link in the DEFENDER's own chain.
+	deg2.expression = "from_entity_degree <= 2 and to_entity_degree >= 2"
 	var children: Array[PropagationFilter] = [h.owner_enemy(), deg2]
 	# Mirrors `trail_blazer.tres`: the hop budget is a SAFETY BACKSTOP, not a
 	# tuning knob. The walk is meant to end at a junction, and termination is
@@ -268,6 +271,47 @@ func test_seeded_mid_string_splits_into_two_probes_walking_both_ways() -> void:
 			"E: (X + 2A) × 2 slam")
 	assert_almost_eq(h.total_damage_on(out, nodes[5]), 0.0, 0.001, "past junction, stopped")
 	assert_almost_eq(h.total_damage_on(out, nodes[6]), 0.0, 0.001, "past junction, stopped")
+
+
+## #397 acceptance (swarmify 2026-09-13). **Owner: "Spare it — tips are
+## Leafblower's."** A tip is a degree-1 node in its OWNER's own territory; the
+## authored filter used to read `to_degree >= 2` (whole-GRAPH degree), so a tip
+## with one foreign neighbour padding its board-wide count slipped through and
+## got hit anyway. That neighbour must not count.
+##
+##   DEF string: A(0) — B(1) — C(2)      N(3) neutral, adjacent to A
+##   ATK: 4 — 5 (disjoint, casts from 5)
+##
+## A's graph degree is 2 (B, N) but entity degree is 1 (only B is DEF's) — the
+## exact fixture `docs/domain/degree.md` says is needed to tell the two
+## accessors apart. Seeded on C, the walk must reach B and stop one node short
+## of the tip.
+func test_walk_ends_one_short_of_a_tip_and_spares_it() -> void:
+	var graph := h.make_graph([[0, 1], [1, 2], [0, 3], [4, 5]], self)
+	var attacker := h.make_entity(graph, "ATK", Color.RED)
+	var defender := h.make_entity(graph, "DEF", Color.BLUE)
+	h.give_big_hp(defender)
+	h.assign_owner(graph, defender, [0, 1, 2])
+	h.assign_owner(graph, attacker, [4, 5])
+	# Node 3 (N) stays unowned — the neutral node adjacent to the tip.
+
+	var effects := _trail_blazer_effects()
+	var spell := h.make_spell(_trail_blazer_config(), effects, 1.0)
+	var nodes := graph.get_skill_nodes()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+
+	var out := SpellResolver.resolve(spell, nodes[2], nodes[5], attacker, graph, rng)
+
+	var x: float = h.seed_multiplier(nodes[5]) * spell.power
+	var a := 2.0
+	assert_almost_eq(h.total_damage_on(out, nodes[2]), x, 0.001, "C: seed X")
+	assert_almost_eq(h.total_damage_on(out, nodes[1]), x + a, 0.001,
+			"B: the walk's last landing — X + A")
+	assert_almost_eq(h.total_damage_on(out, nodes[0]), 0.0, 0.001,
+			"A: the tip is spared — that's Leafblower's node")
+	assert_almost_eq(h.total_damage_on(out, nodes[3]), 0.0, 0.001,
+			"N: never a candidate, not owned by anyone this cast cares about")
 
 
 ## The ONE intended behaviour change in #851. **Owner, 2026-09-10: "Seed slams
