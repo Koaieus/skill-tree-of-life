@@ -122,18 +122,18 @@ extends StatBoard
 @export_group("Ranged")
 @warning_ignore("shadowed_global_identifier")
 @export var range: ScalarStat			## Per-leaf firing distance in scene pixels. Localized on leaves.
-@export var ranged_damage: ScalarStat	## Damage per shot. Base 1, +1 per 10 DEX. Node-local addons add on top per-node via node_board.
+@export var ranged_damage: ScalarStat	## Damage per shot. Base 1, +1 per 20 DEX. Node-local addons add on top per-node via node_board.
 
 @export_group("Magic")
 @export var mana: PoolStat				## Casting resource. Max = base + INT//10; regen = floor(log(INT)) per turn.
 @export var mana_per_turn: ScalarStat	## Mana restored at turn start. Base: floor(log(INT)).
 @export var spell_range: ScalarStat		## Percent bonus to EUCLIDEAN magic-spell reach only. Scales with INT via intrinsic (reduced rate, #727).
 @export var spell_hops: ScalarStat		## Flat integer bonus to HOP-ranged magic-spell reach — HopRangeFinder.max_hops only, NEVER PropagationConfig.max_hops. INT threshold ladder (#727). Node-local via SpellRangeRules.bonus_hops, mirrors spell_range.
-@export var spell_damage: ScalarStat	## Damage behind one spell seed, × the spell's own `power`. Base 1, +1 per 10 INT. Node-local addons add on top per-node via node_board.
+@export var spell_damage: ScalarStat	## Damage behind one spell seed, × the spell's own `power`. Base 1, scales with √INT (sqrt transfer, #776). Node-local addons add on top per-node via node_board.
 
 @export_group("Melee")
-@export var blade_size: ScalarStat		## Max blade-member nodes per melee attack (excl. pivot). Base 1, +STR//10.
-@export var blade_damage: ScalarStat	## Damage per node contact. Base 1, +1 per 10 STR. Node-local addons (e.g. SpikeRing) add on top per-node via node_board.
+@export var blade_size: ScalarStat		## Max blade-member nodes per melee attack (excl. pivot). Base 1, +STR//40.
+@export var blade_damage: ScalarStat	## Damage per node contact. Base 1, +1 per 20 STR. Node-local addons (e.g. SpikeRing) add on top per-node via node_board.
 ## Pop power of the attacking blade vertex against a defender's spikes (#778).
 ## Base 1; SpikeRingAddon raises a spiked vertex to 2. Node-local addons add
 ## on top per-node via node_board, mirroring blade_damage.

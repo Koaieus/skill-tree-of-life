@@ -12,6 +12,16 @@ extends GutTest
 
 const BOARD := preload("res://entity/default_entity_board.tres")
 
+## The two ends of the attribute range (10 -> 20000, the same span #760/#776
+## reason about) must be told apart by a MEANINGFUL spread, not just a
+## strictly-increasing one — this is what makes the sqrt transfer legible
+## rather than merely monotonic. Stated as a shape claim on `f(20000) - f(10)`
+## at whatever divisor the test hands the formula, never on a divisor-scaled
+## literal, so it survives the owner retuning the shipped default. Carried
+## over from the deleted KneeSqrtFormula test of the same name (was `high /
+## low >= MIN_SPREAD` there; additive here since a sqrt's low end can be 0).
+const MIN_SPREAD := 4.0
+
 var _board: EntityStatBoard = null
 
 
@@ -61,6 +71,18 @@ func test_sublinear_everywhere() -> void:
 		var f4x := f.compute(_board)
 		assert_true(f4x <= 2.0 * fx + 1.0,
 			"f(%d)=%.1f should be <= 2*f(%d)+1=%.1f" % [int_value * 4, f4x, int_value, 2.0 * fx + 1.0])
+
+
+# --- 3. Differentiation floor ------------------------------------------------
+
+func test_differentiation_floor_between_the_extremes() -> void:
+	var f := _sqrt(&"intelligence", 1.0)
+	_board.intelligence.base_value = 10.0
+	var low := f.compute(_board)
+	_board.intelligence.base_value = 20000.0
+	var high := f.compute(_board)
+	assert_true(high - low >= MIN_SPREAD,
+			"f(20000) - f(10) = %.2f must be >= MIN_SPREAD %.1f" % [high - low, MIN_SPREAD])
 
 
 func test_negative_source_is_clamped_not_nan() -> void:

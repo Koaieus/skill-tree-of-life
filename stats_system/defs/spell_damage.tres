@@ -6,7 +6,7 @@
 script = ExtResource("1_stat_def")
 id = &"spell_damage"
 display_name = "Spell Damage"
-description = "Damage the caster puts behind one spell seed, multiplied by the spell's own power coefficient. Base 1, +1 per 10 INT. Node-local addons (e.g. a mana font) add on top per-node."
+description = "Damage the caster puts behind one spell seed, multiplied by the spell's own power coefficient. Base 1, scales with √INT (a sqrt transfer, not a flat per-point rate — #776). Node-local addons (e.g. a mana font) add on top per-node."
 value_type = 0
 default_value = 1.0
 tint_color = Color(0.55, 0.65, 1.0, 1)
