@@ -226,6 +226,16 @@ func test_the_needle_does_not_drop_until_the_charge_has_finished() -> void:
 	# catches it without anyone having to look at the screen.
 	_frontmatter.reduce_motion = false
 	_splash.charge_duration = 0.25
+	# #862: `before_each` builds a whole FrontmatterRoot synchronously, and
+	# nothing has yielded to the engine since — so the FIRST frame processed
+	# after `advance()` reports a `delta` covering that entire build, not just
+	# whatever really elapses after this point. Confirmed by instrumentation:
+	# `get_tree().create_timer(0.15).timeout` was resolving in ~2ms of real
+	# wall time, one frame in, occasionally alongside the 0.25s BOOM timer in
+	# THE SAME frame — both swallowed by that one inflated delta. Draining it
+	# here, before either timer exists, is what makes the 0.15s checkpoint
+	# below actually mean 0.15 real seconds.
+	await get_tree().process_frame
 	var before := _polygons_under(_frontmatter.view_for(_root()))
 
 	_splash.advance()
