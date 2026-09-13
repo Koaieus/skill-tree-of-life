@@ -50,6 +50,7 @@
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="script_linear"]
 [ext_resource type="Script" uid="uid://dknxw63lhq13c" path="res://stats_system/formulas/ratio_formula.gd" id="script_ratio"]
 [ext_resource type="Script" uid="uid://tni13fhowqha" path="res://stats_system/formulas/threshold_formula.gd" id="script_threshold"]
+[ext_resource type="Script" path="res://stats_system/formulas/sqrt_formula.gd" id="script_sqrt"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -168,7 +169,7 @@ formula = SubResource("formula_int_to_mana_pt")
 [sub_resource type="Resource" id="formula_wis_to_xp_pt"]
 script = ExtResource("script_ratio")
 source_stat_id = &"wisdom"
-divisor = 2.0
+divisor = 5.0
 
 [sub_resource type="Resource" id="mod_wis_to_xp_pt"]
 resource_name = "+1 XP / Turn"
@@ -179,6 +180,7 @@ formula = SubResource("formula_wis_to_xp_pt")
 [sub_resource type="Resource" id="formula_str_to_blade_damage"]
 script = ExtResource("script_ratio")
 source_stat_id = &"strength"
+divisor = 20.0
 
 [sub_resource type="Resource" id="mod_str_to_blade_damage"]
 resource_name = "+1 Blade Damage"
@@ -189,7 +191,7 @@ formula = SubResource("formula_str_to_blade_damage")
 [sub_resource type="Resource" id="formula_str_to_blade_size"]
 script = ExtResource("script_ratio")
 source_stat_id = &"strength"
-divisor = 20.0
+divisor = 40.0
 
 [sub_resource type="Resource" id="mod_str_to_blade_size"]
 resource_name = "+1 Blade Size"
@@ -211,7 +213,7 @@ formula = SubResource("formula_dex_to_range")
 [sub_resource type="Resource" id="formula_int_to_spell_range"]
 script = ExtResource("script_ratio")
 source_stat_id = &"intelligence"
-divisor = 4.0
+divisor = 50.0
 
 [sub_resource type="Resource" id="mod_int_to_spell_range"]
 resource_name = "+1 Spell Range"
@@ -233,6 +235,7 @@ formula = SubResource("formula_int_to_spell_hops")
 [sub_resource type="Resource" id="formula_dex_to_ranged_damage"]
 script = ExtResource("script_ratio")
 source_stat_id = &"dexterity"
+divisor = 20.0
 
 [sub_resource type="Resource" id="mod_dex_to_ranged_damage"]
 resource_name = "+1 Ranged Damage"
@@ -241,8 +244,9 @@ stat_id = &"ranged_damage"
 formula = SubResource("formula_dex_to_ranged_damage")
 
 [sub_resource type="Resource" id="formula_int_to_spell_damage"]
-script = ExtResource("script_ratio")
+script = ExtResource("script_sqrt")
 source_stat_id = &"intelligence"
+divisor = 1.0
 
 [sub_resource type="Resource" id="mod_int_to_spell_damage"]
 resource_name = "+1 Spell Damage"

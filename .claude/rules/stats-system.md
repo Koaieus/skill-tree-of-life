@@ -533,14 +533,14 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `perception` | `sensor_range` | ADD_BASE | 1 | ThresholdFormula(perception, [3, 8, 21, 55, 149, 404, 1097, 2981, 8104, 22027]) — exactly `floor(ln PER)`, `ceil(e^n)` per rung (#547, moved from WIS to PER — owner call 2026-09-11: PER has two jobs, vision + sensor range; WIS has one, XP/turn) |
 | `intelligence` | `mana` | ADD_BASE | 1 | RatioFormula(intelligence, 10) |
 | `intelligence` | `mana_per_turn` | ADD_BASE | 1 | ThresholdFormula(intelligence, [10, 100, 1000, 1e4, 1e5, 1e6]) — one per decade (#547) |
-| `wisdom` | `xp_per_turn` | ADD_BASE | 1 | RatioFormula(wisdom, **2**) |
+| `wisdom` | `xp_per_turn` | ADD_BASE | 1 | RatioFormula(wisdom, **5**) — #776 divisor pass, starting value |
 | `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
-| `dexterity` | `ranged_damage` | ADD_BASE | 1 | RatioFormula(dexterity, 10) |
-| `intelligence` | `spell_range` | ADD_BASE | 1 | RatioFormula(intelligence, **4**) — euclidean-only reach (%), reduced rate, retune post-LAN (#727) |
+| `dexterity` | `ranged_damage` | ADD_BASE | 1 | RatioFormula(dexterity, **20**) — #776 divisor pass, starting value |
+| `intelligence` | `spell_range` | ADD_BASE | 1 | RatioFormula(intelligence, **50**) — euclidean-only reach (%), #776 divisor pass, starting value (#727) |
 | `intelligence` | `spell_hops` | ADD_BASE | 1 | ThresholdFormula(intelligence, [50, 150, 500, 1000, 5000]) — flat +1..+5 hop-ranged reach, feeds `HopRangeFinder` only, never `PropagationConfig.max_hops`; breakpoints retune post-LAN (#727) |
-| `intelligence` | `spell_damage` | ADD_BASE | 1 | KneeSqrtFormula(intelligence, divisor=10, knee=500) — linear below the knee (byte-identical to the old RatioFormula(intelligence, 10)), sqrt-compressed above it (#760) |
-| `strength` | `blade_size` | ADD_BASE | 1 | RatioFormula(strength, **20**) |
-| `strength` | `blade_damage` | ADD_BASE | 1 | RatioFormula(strength, 10) |
+| `intelligence` | `spell_damage` | ADD_BASE | 1 | SqrtFormula(intelligence, divisor=1) — pure sqrt transfer, no knee (#776 amendment, superseding #760's KneeSqrtFormula); `divisor` a drone starting value, not the owner's |
+| `strength` | `blade_size` | ADD_BASE | 1 | RatioFormula(strength, **40**) — #776 divisor pass, starting value |
+| `strength` | `blade_damage` | ADD_BASE | 1 | RatioFormula(strength, **20**) — #776 divisor pass, starting value |
 | `constitution` + `node_health_scaling` | `node_health` | ADD_BASE | 1 | `node_health_scaling * constitution` (D-26 precedent, #298) — the rate is the **stat**, not the coefficient (see below) |
 | `constitution` + `core_health_scaling` | `health` | ADD_BASE | 1 | `core_health_scaling * constitution` (D-21/D-26, #276) — the rate is the **stat**, not the coefficient (see below) |
 | `level` | `constitution` | ADD_BASE | 1 | `level_scaling.tres` (`level - 1`) — TBD (#268), +1 CON per level |
@@ -560,7 +560,7 @@ Same field, one level down: `NodeStatBoard.intrinsic_modifiers` (`skill_node/def
 | `RatioFormula(source, divisor)` | `floor(source / divisor)` | "per 20 STR" (generated) |
 | `LinearFormula(source)` | `source` | "per PER" (generated) |
 | `ThresholdFormula(source, breakpoints)` | count of ascending breakpoints reached | "per ×10 INT" for a geometric ladder, else "at 50 / 150 / 500 INT" — names the ladder, never wrapped in "per" (#773) |
-| `KneeSqrtFormula(source, divisor, knee)` | `floor(min(source, sqrt(knee * source)) / divisor)` — linear below `knee`, sqrt above (#760) | "10 INT" below the knee (generated, matches RatioFormula); own `describe_clause()` above it — "scaling with INT, with diminishing returns past 500 INT", never wrapped in "per" |
+| `SqrtFormula(source, divisor)` | `floor(sqrt(max(source, 0)) / divisor)` — pure sqrt transfer (#760, made knee-free by #776) | "√INT" at divisor 1, else "N √INT" (generated) — `describe_per()` bakes the `√` in so the default `" per %s"` wrap reads "per 20 √INT", never the bare "per N INT" a linear rate would claim |
 | `ExpressionFormula(text, inputs)` | anything | authored `per_phrase`, or nothing |
 
 **No transcendental in a formula string — `log` / `exp` / `pow` / `sin` / `cos` / `tan`;
