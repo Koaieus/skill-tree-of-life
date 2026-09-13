@@ -590,7 +590,22 @@ func _widen_for_magic_characterization() -> SkillNode:
 	return orphan
 
 
-func test_magic_candidates_match_the_pre_union_enumeration_exactly() -> void:
+## #537 D1/D5 retired the exact-parity claim this test used to pin (Sage
+## fence extension, 2026-09-13): above `AIController._CANDIDATE_GATE_K` a
+## cheap heuristic now trims the sweep before it pays for a
+## [method AttackPlan.resolve], so the promoted set is a K-sized SUBSET of the
+## exhaustive one, not the whole thing. What must still hold — and does not
+## hold vacuously, since `_widen_for_magic_characterization`'s 4 combos
+## exceed K=3 — is (i) every promoted candidate really came from the
+## exhaustive sweep, (ii) the promoted count is exactly `min(K, exhaustive
+## count)`, and (iii) the sweep's own TRUE best candidate always survives the
+## gate (D5: a gate that drops the true winner is worse than no gate at all).
+func _same_magic_candidate(
+		a: AiCombatScorer.ScoredCandidate, b: AiCombatScorer.ScoredCandidate) -> bool:
+	return a.source_node == b.source_node and a.target == b.target and a.spell == b.spell
+
+
+func test_magic_candidates_are_a_gate_accurate_subset_of_the_exhaustive_sweep() -> void:
 	_widen_for_magic_characterization()
 	var visible := AiRecon.visible_enemy_nodes(_enemy)
 	assert_gt(visible.size(), 1, "fixture must offer more than one visible hostile target")
@@ -600,14 +615,31 @@ func test_magic_candidates_match_the_pre_union_enumeration_exactly() -> void:
 
 	assert_gt(expected.size(), 1,
 			"the oracle must produce a real candidate list, or this test is vacuous")
-	assert_eq(actual.size(), expected.size(), "same number of candidates")
-	for i in mini(actual.size(), expected.size()):
-		var a := actual[i]
-		var e := expected[i]
-		assert_eq(a.source_node, e.source_node, "candidate %d: same casting source" % i)
-		assert_eq(a.target, e.target, "candidate %d: same target" % i)
-		assert_eq(a.spell, e.spell, "candidate %d: same spell" % i)
-		assert_eq(a.total, e.total, "candidate %d: same score" % i)
+	assert_gt(expected.size(), AIController._CANDIDATE_GATE_K,
+			"fixture guard: the exhaustive count must exceed K, or the gate never engages "
+			+ "and this test would pass vacuously")
+	assert_eq(actual.size(), mini(AIController._CANDIDATE_GATE_K, expected.size()),
+			"promoted count is exactly min(K, exhaustive count)")
+
+	for a in actual:
+		var found := false
+		for e in expected:
+			if _same_magic_candidate(a, e):
+				found = true
+				break
+		assert_true(found, "a promoted candidate must be one the exhaustive sweep " +
+				"actually produced: %s" % a.trace)
+
+	var true_winner: AiCombatScorer.ScoredCandidate = AiCombatScorer.pick_best(expected)
+	assert_not_null(true_winner, "fixture guard: the oracle must have a best candidate")
+	var winner_survived := false
+	for a in actual:
+		if _same_magic_candidate(a, true_winner):
+			winner_survived = true
+			break
+	assert_true(winner_survived,
+			"the exhaustive sweep's true best candidate must survive the two-tier gate (#537 D5): %s"
+					% true_winner.trace)
 
 
 ## The oracle comparison above only pins ordering if the fixture's gather order
