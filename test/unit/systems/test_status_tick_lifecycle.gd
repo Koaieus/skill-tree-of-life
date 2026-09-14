@@ -28,6 +28,36 @@ class SpyDef:
 			node.take_damage(damage_per_tick, null)
 
 
+## Plain tick/remove journal — no side effects of its own. Used for the
+## bystanders in the signal-level re-entrancy test below.
+class TrackedDef:
+	extends StatusDef
+	var ticks: Array = []
+	var removed: int = 0
+
+	func _on_tick(_node: NodeCombat, before: float, after: float) -> void:
+		ticks.append([before, after])
+
+	func _on_removed(_node: NodeCombat) -> void:
+		removed += 1
+
+
+## The def that DOES the cascading: from inside its own `_on_tick` (itself
+## mid-[method NodeCombat.tick_statuses], itself mid-[signal Events.turn_started]),
+## force-deallocates a SIBLING node still queued behind it in the same emit,
+## then force-deallocates the node it is CURRENTLY ticking.
+class CascadeDef:
+	extends TrackedDef
+	var alloc: AllocationSystem
+	var also_kill: SkillNode
+
+	func _on_tick(node: NodeCombat, before: float, after: float) -> void:
+		super(node, before, after)
+		if also_kill != null:
+			alloc.force_deallocate(also_kill)
+		alloc.force_deallocate(node.real())
+
+
 var _graph: Graph
 var _alloc: AllocationSystem
 var _tm: TurnManager
@@ -214,3 +244,64 @@ func test_deallocate_all_owned_clears_every_owned_nodes_statuses() -> void:
 	_tm.start_turn(a)
 	assert_eq(d_core.ticks.size(), 0)
 	assert_eq(d_node.ticks.size(), 0)
+
+
+# ── Signal-level re-entrancy (Sage review, hub amendment 2026-09-14) ────────
+#
+# #872 pins the SLICE-level half (a status vanishing mid-tick_statuses).
+# This is the SIGNAL-level half: a SkillNode disconnecting itself — and a
+# sibling — from Events.turn_started WHILE that signal is mid-emit, with
+# other subscribers still queued behind it in connection order.
+
+func test_force_dealloc_from_inside_a_tick_does_not_crash_and_stops_both_nodes() -> void:
+	var a: Entity = autofree(_make_entity("A"))
+	_graph.entities_container.add_child(a)
+	await get_tree().process_frame
+
+	var n1 := _new_node()
+	var n2 := _new_node()
+	var n3 := _new_node()
+	await get_tree().process_frame
+	_alloc.force_allocate(a, n1)
+	a.core_location = n1
+	_alloc.force_allocate(a, n2)
+	_alloc.force_allocate(a, n3)
+
+	# Subscribe order n1 -> n2 -> n3: Events.turn_started calls handlers in
+	# connection order, so n2's cascade (below) fires with n3 still queued.
+	var d1 := TrackedDef.new()
+	d1.id = &"d1"
+	d1.power_max = 5.0
+	n1.get_combat().apply_status(d1, 3.0)
+
+	var d2 := CascadeDef.new()
+	d2.id = &"d2"
+	d2.power_max = 5.0
+	d2.alloc = _alloc
+	d2.also_kill = n3
+	n2.get_combat().apply_status(d2, 3.0)
+
+	var d3 := TrackedDef.new()
+	d3.id = &"d3"
+	d3.power_max = 5.0
+	n3.get_combat().apply_status(d3, 3.0)
+
+	# The test completing at all (no engine abort on a mid-emit disconnect)
+	# is itself part of the assertion.
+	_tm.start_turn(a)
+
+	assert_eq(d1.ticks.size(), 1, "n1 (unaffected bystander) ticked exactly once")
+	assert_true(n2.get_combat().get_statuses().is_empty(), "n2's own cascade cleared its status")
+	assert_eq(d2.removed, 1, "n2's _on_removed fired exactly once")
+	assert_true(n3.get_combat().get_statuses().is_empty(), "n3 was cleared before its own turn in the emit")
+	assert_eq(d3.ticks.size(), 0, "n3's _on_tick must never fire — cleared before it ran")
+
+	for n in [n1, n2, n3]:
+		assert_eq(n._status_tick_connected, Events.turn_started.is_connected(Callable(n, "_on_status_tick_turn_started")),
+				"%s's connected flag must agree with the live signal connection" % n.name)
+
+	_tm.current_entity = null  # bypass end_turn's auto-tick-to-ready
+	_tm.start_turn(a)
+	assert_eq(d1.ticks.size(), 2, "n1 keeps ticking on a's next turn")
+	assert_eq(d2.ticks.size(), 1, "n2 stayed unsubscribed — no further tick")
+	assert_eq(d3.ticks.size(), 0, "n3 stayed unsubscribed — no further tick")
