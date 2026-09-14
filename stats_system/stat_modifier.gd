@@ -294,16 +294,21 @@ func contribution_text(board: StatBoard = null) -> String:
 ## | SET       | "Armor is 3" |
 ##
 ## A formula-bound modifier appends the formula's own qualifier — "+1 Blade
-## Size **per 20 STR**" (#289) — and renders `value` (the COEFFICIENT) rather
-## than the effective value, because the clause now carries the variable part.
+## Size **per 20 STR**" (#289) — and renders the COEFFICIENT rather than the
+## effective value, because the clause now carries the variable part.
 ## Without the clause the coefficient was actively misleading: an unbound
 ## keystone modifier printed a bare "+1 Blade Size" that meant nothing, which
 ## is what #231's audit found. Use [method contribution_text] when you want
-## the live computed number instead.
+## the live computed number instead. The coefficient shown is the formula's
+## [method StatFormula.display_coefficient] of `value`, and `value` is handed
+## to the clause: a [RatioFormula] uses both to normalise a merged rule to a
+## unit numerator — `value 4/3` over `/5` reads "+1 … per 3.75 WIS", not
+## "+1.33 … per 5 WIS" (#891) — while every other shape prints `value` as is.
 func format() -> String:
 	var parts := _display_parts()
 	if formula != null:
-		return _with_per_clause(_format_value(parts[0], parts[1], parts[2], value))
+		var coefficient := formula.display_coefficient(value)
+		return _with_per_clause(_format_value(parts[0], parts[1], parts[2], coefficient))
 	return _format_value(parts[0], parts[1], parts[2], get_effective_value())
 
 
@@ -349,7 +354,7 @@ func format_effective(board: StatBoard = null) -> String:
 ## (an [ExpressionFormula] nobody authored a phrase for yet) degrades to the
 ## bare sentence rather than to a dangling connective.
 func _with_per_clause(sentence: String) -> String:
-	var clause := formula.describe_clause()
+	var clause := formula.describe_clause(value)
 	return sentence if clause.is_empty() else "%s%s" % [sentence, clause]
 
 

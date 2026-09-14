@@ -47,10 +47,23 @@ func compute(_board: StatBoard) -> float:
 	return 0.0
 
 
+## The coefficient [method StatModifier.format] prints ahead of this formula's
+## clause, given the modifier's [member StatModifier.value]. Base: the value
+## itself. A shape that normalises its display to a unit numerator
+## ([RatioFormula], #891) overrides this together with [method describe_per]
+## so the two halves of the sentence move as one — "+1 … per 3.75 WIS" and
+## "+20 … per WIS" are the same rule as "+1.33 … per 5 WIS" and "+1 … per
+## 0.05 WIS", written the way a player reads a rate.
+func display_coefficient(value: float) -> float:
+	return value
+
+
 ## The "per" qualifier for this formula. Base implementation returns the
 ## authored [member per_phrase]; shape-aware subclasses override to generate
-## it, honouring an authored override when one is present.
-func describe_per() -> String:
+## it, honouring an authored override when one is present. [param value] is
+## the modifier's coefficient, for the shapes whose phrase depends on it
+## (see [method display_coefficient]); every other shape ignores it.
+func describe_per(_value: float = 1.0) -> String:
 	return per_phrase
 
 
@@ -58,7 +71,8 @@ func describe_per() -> String:
 ## after a modifier's sentence — e.g. `" per 20 STR"`, `" per ×10 INT"`, or
 ## `""` when [method describe_per] has nothing to say. Base implementation
 ## always spells the connective as "per", which is honest for every ratio/
-## linear/authored shape this base class describes.
+## linear/authored shape this base class describes. [param value] is passed
+## through to [method describe_per] untouched.
 ##
 ## Override this — not [method describe_per] — for a formula shape where "per"
 ## itself would misdescribe the rule (#773): [ThresholdFormula] overrides it
@@ -67,8 +81,8 @@ func describe_per() -> String:
 ## [method StatModifier] keeps that word a per-formula-shape decision instead
 ## of a hardcoded assumption every future formula shape inherits whether it
 ## fits or not.
-func describe_clause() -> String:
-	var phrase := describe_per()
+func describe_clause(value: float = 1.0) -> String:
+	var phrase := describe_per(value)
 	return "" if phrase.is_empty() else " per %s" % phrase
 
 

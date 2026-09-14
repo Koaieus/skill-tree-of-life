@@ -91,7 +91,7 @@ func compute(board: StatBoard) -> float:
 ## every shipped formula to answer something), but it is no longer what gets
 ## shown to a player on that path: see [method describe_clause] below, which
 ## is what [StatModifier] actually renders.
-func describe_per() -> String:
+func describe_per(_value: float = 1.0) -> String:
 	if not per_phrase.is_empty():
 		return per_phrase
 	var abbr := _abbrev(StatFormula.base_of(source_stat_id))
@@ -117,9 +117,9 @@ func describe_per() -> String:
 ## [method _ladder_list]) so a long ladder (PER's ten-rung sensor-range curve,
 ## if it ever loses its authored `per_phrase`) still fits the loot pick card
 ## this was reported from.
-func describe_clause() -> String:
+func describe_clause(_value: float = 1.0) -> String:
 	if not per_phrase.is_empty() or _common_ratio() > 0.0:
-		return super()
+		return super(_value)
 	if breakpoints.is_empty():
 		return ""
 	return " at %s %s" % [_ladder_list(), _abbrev(StatFormula.base_of(source_stat_id))]

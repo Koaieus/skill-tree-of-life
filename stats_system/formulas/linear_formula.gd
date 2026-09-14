@@ -43,7 +43,7 @@ func compute(board: StatBoard) -> float:
 
 ## "PER" — a passthrough has no divisor, so the phrase is just the source.
 ## An authored [member per_phrase] wins when set.
-func describe_per() -> String:
+func describe_per(_value: float = 1.0) -> String:
 	if not per_phrase.is_empty():
 		return per_phrase
 	return _abbrev(StatFormula.base_of(source_stat_id))

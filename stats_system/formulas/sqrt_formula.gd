@@ -75,7 +75,7 @@ func compute(board: StatBoard) -> float:
 ## [member per_phrase] still wins. The base [method describe_clause] wraps
 ## this in " per %s", so the rendered clause reads " per 20 √INT" — honest,
 ## since that IS the rule, unlike a bare "per N INT" would be.
-func describe_per() -> String:
+func describe_per(_value: float = 1.0) -> String:
 	if not per_phrase.is_empty():
 		return per_phrase
 	var abbr := _abbrev(StatFormula.base_of(source_stat_id))
