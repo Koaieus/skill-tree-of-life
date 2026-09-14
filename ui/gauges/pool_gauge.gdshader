@@ -29,6 +29,10 @@ uniform vec4 preview_color : source_color = vec4(1.0, 1.0, 1.0, 0.25);
 // surplus_color. 0 = disabled (resting state), so plain PoolGauges are
 // unaffected. Cell branch only — surplus is a battery concept (DP/MP).
 uniform float surplus = 0.0;
+// How many surplus SLOTS the strip lays out — held at the sweep's high-water
+// mark by SurplusPoolGauge until the display lands, so a receding gold cell
+// keeps its slot and the strip never re-lays out mid-animation (#882).
+uniform float surplus_slots = 0.0;
 uniform vec4 surplus_color : source_color = vec4(0.91, 0.67, 0.30, 0.85);
 // Force the battery (cell) branch even when cell_count is 0. A SurplusPoolStat
 // pool whose cap is SET to 0 (Pacifist) still wants cells — its whole budget is
@@ -67,9 +71,7 @@ void fragment() {
 
 	// Battery mode when we have real cells, a nonzero surplus to append, or a
 	// pool that always wants cells (force_cells). Otherwise a smooth bar.
-	// ceil, not round: a surplus cell mid-sweep (0 < surplus < 1) still owns its
-	// slot, so the strip does not re-lay out under the animation (#882).
-	float surp = max(0.0, ceil(surplus - 0.001));
+	float surp = max(0.0, floor(surplus_slots + 0.5));
 	bool cell_mode = cell_count >= 0.5 || surp >= 0.5 || force_cells >= 0.5;
 
 	if (!cell_mode) {

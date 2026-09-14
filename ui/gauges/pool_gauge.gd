@@ -38,7 +38,7 @@ signal level_segment_held(new_max: float)
 			# A scripted animation (e.g. the level-up wrap) or a bind owns the
 			# motion; never spawn a drain trail or a sweep that would fight it.
 			drain_from = v
-			shown_current = v
+			_spark.snap(self, ^"shown_current", v)
 		elif is_battery():
 			# Cells sweep — the display recedes or grows one cell per step, from
 			# wherever it is now. No ghost: the sweep IS the spend feedback.

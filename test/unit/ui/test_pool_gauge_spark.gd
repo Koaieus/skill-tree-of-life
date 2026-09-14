@@ -135,11 +135,42 @@ func test_spending_surplus_sweeps_the_trailing_cell() -> void:
 	assert_almost_eq(gauge.shown_surplus, 1.0, 0.01)
 
 
+## MP is spent surplus-first, so a big move empties the trailing gold cells and
+## then bites into `current` — two signals on two properties. The spec: the
+## next cell never starts before the one before it is gone, so the second sweep
+## WAITS for the first (surplus fires first), and the strip keeps every slot
+## the sweep passes through until the display lands.
+func test_a_spend_across_both_bins_sweeps_them_in_turn() -> void:
+	var gauge := _bind_mp(3.0, 3.0, 2)
+	await get_tree().process_frame
+
+	_board.movement_points.deplete(4.0)
+	assert_eq(roundi(_board.movement_points.current), 1, "2 from surplus, 2 from current")
+	assert_almost_eq(float(_uniform(gauge, &"surplus_slots")), 2.0, 0.01, "both gold slots stay laid out")
+
+	await wait_seconds(_STEP * 1.5)
+	assert_between(gauge.shown_surplus, 0.2, 0.8, "the surplus is receding…")
+	assert_almost_eq(gauge.shown_current, 3.0, 0.01, "…and `current` has not started")
+	assert_almost_eq(float(_uniform(gauge, &"surplus_slots")), 2.0, 0.01, "no re-layout mid-sweep")
+
+	await wait_seconds(_STEP * 1.5)
+	assert_almost_eq(gauge.shown_surplus, 0.0, 0.01, "surplus gone")
+	assert_between(gauge.shown_current, 1.8, 2.7, "now `current` recedes")
+	assert_almost_eq(float(_uniform(gauge, &"surplus_slots")), 0.0, 0.01, "the gold slots left once the display landed")
+
+	await wait_seconds(_STEP * 2.0)
+	assert_almost_eq(gauge.shown_current, 1.0, 0.01)
+
+
 ## A hot-seat handover repaints the gauge from a different hero's pools. That is
 ## a bind, not a spend — nothing sweeps, nothing burns.
 func test_a_rebind_snaps_instead_of_sweeping() -> void:
 	var gauge := _bind_mp(4.0, 4.0)
 	await get_tree().process_frame
+
+	# Rebind MID-sweep: the old hero's sweep must not keep driving the display.
+	_board.movement_points.set_current(2.0)
+	await wait_seconds(_STEP * 0.5)
 
 	var other := _BOARD.duplicate(true) as EntityStatBoard
 	other.movement_points.base_value = 4.0
@@ -149,6 +180,8 @@ func test_a_rebind_snaps_instead_of_sweeping() -> void:
 	gauge = _mp_gauge()
 	assert_almost_eq(gauge.shown_current, 1.0, 0.01, "binding a hero with fewer points must not read as a spend")
 	assert_eq(float(_uniform(gauge, &"spark_energy")), 0.0, "…and must not burn")
+	await wait_seconds(_STEP * 1.0)
+	assert_almost_eq(gauge.shown_current, 1.0, 0.01, "the abandoned sweep stays abandoned")
 
 
 # ── The Skill Points bar ────────────────────────────────────────────────────

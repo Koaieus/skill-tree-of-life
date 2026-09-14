@@ -18,15 +18,21 @@ extends PoolGauge
 		# cells are already strip cells, so the distance needs no conversion.
 		# The shader keeps a partially-receded surplus cell's slot until it is
 		# gone, so the strip never re-lays out under the sweep (#882).
+		# The strip holds every slot the sweep will pass through until the
+		# display lands (see `shown_surplus`).
+		_push(&"surplus_slots", ceilf(maxf(shown_surplus, v) - 0.001))
 		_spark.sweep(self, ^"shown_surplus", v, v - shown_surplus,
 				cell_step_time, spark_time, EDGE_SURPLUS)
 
 ## The surplus the shader is drawing right now — lags [member surplus] while a
-## trailing cell sweeps. [GaugeSpark] tweens it.
+## trailing cell sweeps. [GaugeSpark] tweens it. The slot count only follows
+## once it lands, so the strip never re-lays out under the animation.
 var shown_surplus: float = 0.0:
 	set(v):
 		shown_surplus = v
 		_push(&"surplus", v)
+		if is_equal_approx(v, surplus):
+			_push(&"surplus_slots", ceilf(surplus - 0.001))
 
 @export var surplus_color: Color = Color(0.9084, 0.6684, 0.3042, 0.85):
 	set(v):
@@ -44,4 +50,5 @@ func _ready() -> void:
 	# _push_all() on the base doesn't know about these; push them after the
 	# base wiring (and material duplicate) is done.
 	_push(&"surplus", shown_surplus)
+	_push(&"surplus_slots", ceilf(maxf(surplus, shown_surplus) - 0.001))
 	_push(&"surplus_color", surplus_color)

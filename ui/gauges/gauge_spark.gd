@@ -29,6 +29,12 @@ var _push: Callable
 ## the same gauge run side by side and a repeat on the same property replaces
 ## only its own.
 var _sweeps: Dictionary = {}
+## Sweeps waiting their turn, property -> bound `_start` call, in arrival order.
+## Sweeps are SERIAL: a Movement spend that empties the surplus bin and then
+## bites into `current` fires two signals on two properties, and the spec is
+## that the next cell never starts before the one before it is gone — so the
+## second waits, and a repeat on a waiting property replaces its target.
+var _pending: Dictionary = {}
 var _cool_tween: Tween
 
 ## While true every [method sweep] snaps — the window a binder opens around its
@@ -77,7 +83,16 @@ func sweep(target: Object, property: NodePath, to: Variant, cells: float,
 	if snapping or _host == null or not _host.is_inside_tree() or duration <= 0.0:
 		snap(target, property, to)
 		return
+	if is_sweeping() and not _sweeps.has(property):
+		_pending[property] = _start.bind(target, property, to, cells, duration, cool_time, edge)
+		return
+	_start(target, property, to, cells, duration, cool_time, edge)
+
+
+func _start(target: Object, property: NodePath, to: Variant, cells: float,
+		duration: float, cool_time: float, edge: float) -> void:
 	_stop(property)
+	_pending.erase(property)
 	_push.call(&"spark_edge", edge)
 	_push.call(&"spark_out", 1.0 if cells < 0.0 else 0.0)
 	if _cool_tween and _cool_tween.is_valid():
@@ -94,6 +109,9 @@ func sweep(target: Object, property: NodePath, to: Variant, cells: float,
 ## crossing to be hot about.
 func snap(target: Object, property: NodePath, to: Variant) -> void:
 	_stop(property)
+	_pending.erase(property)
+	if snapping:
+		_pending.clear()
 	target.set_indexed(property, to)
 	if not is_sweeping():
 		if _cool_tween and _cool_tween.is_valid():
@@ -119,6 +137,10 @@ func _stop(property: NodePath) -> void:
 func _on_landed(property: NodePath, cool_time: float) -> void:
 	_sweeps.erase(property)
 	if is_sweeping():
+		return
+	if not _pending.is_empty():
+		var next: Callable = _pending[_pending.keys()[0]]
+		next.call()
 		return
 	if _cool_tween and _cool_tween.is_valid():
 		_cool_tween.kill()
