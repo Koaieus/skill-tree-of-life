@@ -115,8 +115,9 @@ func test_physical_damage_mitigates_less_as_armor_breaks() -> void:
 	var raw := DamageInstance.new()
 	raw.amount = 50.0
 	raw.type = DamageInstance.Type.PHYSICAL
-	assert_almost_eq(Mitigation.apply(raw, _nodes[0]), 3.0, 0.001,
-			"full armor floors the hit at min_damage_taken (3)")
+	var floor_min := float(_nodes[0].get_local_value(&"min_damage_taken"))
+	assert_almost_eq(Mitigation.apply(raw, _nodes[0]), floor_min, 0.001,
+			"full armor floors the hit at the board's min_damage_taken")
 	for _i in 5:
 		_combat().apply_status(_def, 0.2)
 	assert_almost_eq(_armor(), 0.0, 0.001)
