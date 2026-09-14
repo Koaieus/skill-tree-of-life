@@ -108,11 +108,11 @@ rest.
 
 **Non-zero means hand back, never resolve.** `land` prints the reason
 (conflicting files after an aborted rebase; the red verdict lines of `check`
-or `test:dir`; a dirty main checkout; a non-ff). Send the drone the printed
+or `test:dir`; a main checkout dirty in a file the branch also touches; a non-ff). Send the drone the printed
 reason verbatim with "resolve in your worktree, commit, and ask me again";
 the drone rebases/fixes and re-asks, and you review the delta and land
 again. **One retry.** A unit that fails `land` a second time, or whose main-
-checkout blocker is not the drone's to fix (dirty main checkout), goes to
+checkout blocker is not the drone's to fix (main checkout dirty in an overlapping file), goes to
 `main` immediately as the exception line below.
 
 Never run the full suite as part of a land, never push, never `git` anything

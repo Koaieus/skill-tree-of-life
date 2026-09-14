@@ -457,7 +457,7 @@ the branch onto `master` inside its own worktree, runs `mise run check` plus
 `test:dir` for every `test/unit/<dir>/` the branch touches (a rebased tree is
 a tree nobody tested), amends `Closes #<n>` onto the tip if the drone's
 message lacks it, fast-forwards, and moves the board to `in-review`. It refuses
-— non-zero, reason on stdout — on a dirty main checkout, a rebase conflict
+— non-zero, reason on stdout — on a main checkout dirty in a file the branch touches, a rebase conflict
 (aborted, files listed), a red `check`/`test:dir`, or a non-ff. It never runs
 the full suite and never pushes.
 
