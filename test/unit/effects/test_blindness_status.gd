@@ -63,9 +63,8 @@ func before_each() -> void:
 
 
 ## Both stats are derived (a PER-scaled term and an INCREASE ride on
-## `base_value`) and both are INT-typed (the read rounds), so solve the affine
-## map base → effective over a wide span for the entity base that lands the
-## node-local EFFECTIVE value on `target`.
+## `base_value`), so solve the affine map base → effective for the entity base
+## that lands the node-local EFFECTIVE value on `target`.
 func _set_local(stat_id: StringName, target: float) -> void:
 	var s: Stat = _entity.stat_board.get_stat(stat_id)
 	s.base_value = 0.0
@@ -101,13 +100,14 @@ func _has_blind_modifier(stat_id: StringName) -> bool:
 	return not _blind_modifiers(stat_id).is_empty()
 
 
-## Both the exact factor on the one modifier and the (INT-rounded) local read.
+## Both the exact factor on the one modifier and the merged local read
+## (`get_local_value` composes entity + node bins raw, so 10 × ⅔ reads 6.67).
 func _assert_factor(stat_id: StringName, factor: float, why: String) -> void:
 	var mods := _blind_modifiers(stat_id)
 	assert_eq(mods.size(), 1, "%s: exactly one blind multiplier (%s)" % [stat_id, why])
 	if mods.size() == 1:
 		assert_almost_eq(mods[0].value, factor, 0.001, "%s: factor (%s)" % [stat_id, why])
-	assert_eq(int(_local(stat_id)), roundi(10.0 * factor), "%s: local read (%s)" % [stat_id, why])
+	assert_almost_eq(_local(stat_id), 10.0 * factor, 0.01, "%s: local read (%s)" % [stat_id, why])
 
 
 # ── Numbers ──────────────────────────────────────────────────────────────────

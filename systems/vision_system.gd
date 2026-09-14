@@ -76,8 +76,17 @@ const _RETIRE_RADIUS := 1.0
 # Per-viewer Stat connections (entity-side vision/sensor) and per-node
 # Node-board stat subscriptions (node-side vision overrides via addons). Rebuilt
 # eagerly on every recompute — cheap, no leak from stale owners.
+const _LOCAL_STAT_IDS: Array[StringName] = [&"vision_range", &"sensor_range"]
+
 var _bound_entity_stats: Array[Stat] = []
 var _bound_local_stats: Array[Stat] = []
+## The owned nodes' boards watched for a LATE mint of `vision_range` /
+## `sensor_range` (#873): a node-local stat is sparse — it exists only once a
+## local modifier lands on it — so a rebind can't subscribe to one that is
+## not there yet. `StatBoard.stat_created` is the documented hook for exactly
+## that; without it a Blindness landing between two allocation events would
+## never re-evaluate the fog.
+var _bound_local_boards: Array[StatBoard] = []
 
 var _visible: Dictionary = {}   # SkillNode → true (logical)
 var _sensed: Dictionary = {}    # SkillNode → true (logical)
@@ -210,15 +219,35 @@ func _rebind_local_stats(owner_nodes: Array) -> void:
 		if is_instance_valid(ls) and ls.value_changed.is_connected(_request_recompute):
 			ls.value_changed.disconnect(_request_recompute)
 	_bound_local_stats.clear()
+	for b in _bound_local_boards:
+		if is_instance_valid(b) and b.stat_created.is_connected(_on_local_stat_created):
+			b.stat_created.disconnect(_on_local_stat_created)
+	_bound_local_boards.clear()
 	for n in owner_nodes:
-		for stat_id in [&"vision_range", &"sensor_range"]:
-			var sn := n as SkillNode
-			if sn.node_board == null:
-				continue
+		var sn := n as SkillNode
+		if sn.node_board == null:
+			continue
+		sn.node_board.stat_created.connect(_on_local_stat_created)
+		_bound_local_boards.append(sn.node_board)
+		for stat_id in _LOCAL_STAT_IDS:
 			var ls := sn.node_board.get_stat(stat_id)
 			if ls != null:
-				ls.value_changed.connect(_request_recompute)
-				_bound_local_stats.append(ls)
+				_bind_local_stat(ls)
+
+
+func _bind_local_stat(ls: Stat) -> void:
+	if not ls.value_changed.is_connected(_request_recompute):
+		ls.value_changed.connect(_request_recompute)
+	_bound_local_stats.append(ls)
+
+
+## A watched owned node just minted a local stat — if it is one of ours, bind
+## it and re-evaluate: the mint itself is the first value change.
+func _on_local_stat_created(id: StringName, stat: Stat) -> void:
+	if id not in _LOCAL_STAT_IDS:
+		return
+	_bind_local_stat(stat)
+	_request_recompute()
 
 
 func _recompute() -> void:
