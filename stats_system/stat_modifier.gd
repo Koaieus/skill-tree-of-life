@@ -77,7 +77,19 @@ enum Operation {
 ## Optional. When set, effective value becomes `value * formula.compute(board)`,
 ## so `value` reads as the coefficient and the formula contributes the variable
 ## part. When null, effective value is just `value` (plain static modifier).
-@export var formula: StatFormula = null
+##
+## Has a setter for the same reason `stat_id`/`operation`/`value` do (#893):
+## `formula` is the LAST field in export/declaration order, so on
+## deserialization it is also the last setter to fire — wiring it into
+## `_update_resource_name()` makes that final recompute the complete one,
+## regardless of which combination of fields a given `.tres` actually
+## authors. Before this, a formula-bearing modifier's name was clobbered by
+## the `value` setter's recompute (formula not yet assigned) the moment the
+## resource was loaded.
+@export var formula: StatFormula = null:
+	set(v):
+		formula = v
+		_update_resource_name()
 ## Tie-breaker — currently only consulted for SET (the only op where
 ## composition order matters). Higher wins.
 @export var priority: int = 0
@@ -88,10 +100,14 @@ enum Operation {
 ## useless per-class default ("StatModifier" for every entry — #467). Reuses
 ## [method format] rather than building a second string — same pattern as
 ## [StatPool]'s `_update_resource_name`. Wired off `stat_id` / `operation` /
-## `value`; `formula` and `priority` don't need it (neither is part of
-## [method format]'s coefficient-first rendering for an unbound modifier, and a
-## formula swap without a stat_id/op/value change is not a case this ships
-## with today).
+## `value` / `formula` (#893) — `priority` alone stays unwired, since it isn't
+## part of [method format]'s coefficient-first rendering for an unbound
+## modifier. `formula`'s setter matters even though [method format] already
+## reads it on every call: `formula` is the LAST field in declaration order,
+## so during `.tres` deserialization it is also the last setter to fire, and
+## wiring it makes that final recompute the complete one — without it, the
+## `value` setter's earlier recompute (formula not yet assigned) was the one
+## that stuck, silently dropping the "per …" clause on every load.
 ##
 ## [method format] resolves the stat's display name through the `StatRegistry`
 ## autoload, which is unavailable (resolves to `null`, not a placeholder) while
