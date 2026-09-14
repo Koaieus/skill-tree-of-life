@@ -603,6 +603,35 @@ func tick_statuses() -> void:
 			remove_status(id)
 
 
+## Cure by [param heal_amount] (#875, hub #868 D7): every `&"debuff"`-tagged
+## status on the node loses `heal_amount * def.cure_per_hp` power — a def that
+## authors no [member StatusDef.cure_per_hp] (`0.0`, the default) is never
+## touched. A status cured to `<= 0` goes through [method remove_status] so
+## [method StatusDef._on_removed] fires normally; one that survives gets
+## [method StatusDef._on_applied] re-run at its new power so a planted
+## modifier (Blindness's factor) follows it down — there is no separate
+## "on cured" hook, `_on_applied` is already idempotent for that shape (#873).
+## Iterates a COPY and re-checks the row is still live, same as
+## [method tick_statuses] — a hook can remove a sibling or the node itself.
+func cure_debuffs(heal_amount: float) -> void:
+	if heal_amount <= 0.0:
+		return
+	var rows: Array[NodeStatus] = []
+	rows.assign(_statuses.values())
+	for row in rows:
+		if row.def.cure_per_hp <= 0.0 or not row.def.tags.has(&"debuff"):
+			continue
+		var id := row.def.id
+		if _statuses.get(id) != row:
+			continue  # vanished from an earlier row's hook this same call
+		var after := maxf(row.power - heal_amount * row.def.cure_per_hp, 0.0)
+		if after <= 0.0:
+			remove_status(id)
+		else:
+			row.power = after
+			row.def._on_applied(self, after)
+
+
 ## Drop the status [param id]; [method StatusDef._on_removed] fires exactly once.
 ## Unknown ids are ignored.
 func remove_status(id: StringName) -> void:
