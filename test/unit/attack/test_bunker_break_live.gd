@@ -283,14 +283,23 @@ func test_a_floppy_blade_never_breaks_and_still_damages_the_bunker() -> void:
 
 # ---------------------------------------------------------------- acceptance e
 
+## Both passes resolve on their own SHADOW, not the live world. The two fixtures
+## are superimposed — `_setup` authors absolute positions, so `ctx_b`'s nodes sit
+## exactly on `ctx_a`'s in the test's single World2D — and a +20 blade kills a
+## 10 HP bunker core, so a live pass A leaves pass B a world whose bunkers are
+## already dead and disowned. That made these two "identical" swings two
+## different swings: since #867 a disowned plate stops deflecting mid-swing and
+## #864 drops it from the query outright, so pass B ran with no field at all.
+## A shadow is the right world for a determinism claim anyway — it is the one
+## the authority computes its own record on (`.claude/rules/attack-timeline.md`).
 func test_the_same_rigid_swing_reproduces_bit_identically() -> void:
 	var ctx_a: Dictionary = await _setup(true, true)
 	var ctx_b: Dictionary = await _setup(true, true)
 	var plan_a: MeleeAttackPlan = ctx_a.plan
 	var plan_b: MeleeAttackPlan = ctx_b.plan
 
-	plan_a.resolve_against(CombatWorld.live())
-	plan_b.resolve_against(CombatWorld.live())
+	plan_a.resolve()
+	plan_b.resolve()
 
 	assert_eq(plan_a.last_trajectory.samples.size(), plan_b.last_trajectory.samples.size(),
 			"fixture: both swings must run the same number of samples")
