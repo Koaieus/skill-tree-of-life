@@ -152,3 +152,4 @@ so a future measurement pass over "did warned drones actually see fewer
 runaway sessions" is a `sort | uniq -c` rather than transcript archaeology.
 This append can never affect the hook's exit code or stdout — see
 `_append_ledger`.
+See also `.mise/tasks/drone-budget-guard` (2026-09-14): the PreToolUse sibling that *denies* for subagents — whole-file Reads of >400-line files, and everything but commit-and-report past 300k — reusing this hook's tail-read.

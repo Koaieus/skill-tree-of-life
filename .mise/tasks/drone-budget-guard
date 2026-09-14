@@ -32,6 +32,7 @@ import sys
 
 _HARD_STOP = 300_000
 _MAX_WHOLE_READ_LINES = 400
+_BINARY_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".pdf", ".ipynb", ".svg"}
 _COMMIT_AND_REPORT = re.compile(r"\bgit\b.*\b(add|commit|status|diff|log|rev-parse)\b")
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -73,7 +74,8 @@ def _run(payload):
     # Rule 1 — whole-file Reads of big files, at any context size.
     if tool == "Read" and "offset" not in tool_input and "limit" not in tool_input:
         path = tool_input.get("file_path") or ""
-        if os.path.isfile(path) and _line_count(path, _MAX_WHOLE_READ_LINES) > _MAX_WHOLE_READ_LINES:
+        is_text = os.path.splitext(path)[1].lower() not in _BINARY_EXTS
+        if is_text and os.path.isfile(path) and _line_count(path, _MAX_WHOLE_READ_LINES) > _MAX_WHOLE_READ_LINES:
             _deny(
                 f"drone-budget-guard: {os.path.basename(path)} is over {_MAX_WHOLE_READ_LINES} lines. "
                 "Whole-file Reads of big files are what put loot-rebalance-2 at 204k context before its "
