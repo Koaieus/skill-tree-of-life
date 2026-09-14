@@ -115,9 +115,10 @@ func test_the_sensor_ladder_only_reproduces_ln_because_its_input_is_integral() -
 	# `ceil(e^n)` is the right rung for INTEGER input and the wrong one for
 	# reals: `floor(ln x)` is already 1 at x = 2.71828, while the rung sits at
 	# 3.0. That gap is unreachable only because `perception` is a
-	# `StatDef.ValueType.INT` stat and `Stat._coerce` `roundi`s it, so the
-	# formula never sees a fraction — the OLD `floor(log(wisdom))` read the
-	# same rounded integer, which is why the #547 migration changed no value.
+	# `StatDef.ValueType.INT` stat and `Stat._coerce` truncates it toward zero
+	# (#890 — it `roundi`ed before), so the formula never sees a fraction — the
+	# OLD `floor(log(wisdom))` read the same integer, which is why the #547
+	# migration changed no value.
 	#
 	# Flip perception (or intelligence) to FLOAT and that stops being true.
 	# This test is the tripwire: re-rung the ladder on the `e^n` literals, or
@@ -128,8 +129,8 @@ func test_the_sensor_ladder_only_reproduces_ln_because_its_input_is_integral() -
 		assert_eq(def.value_type, StatDef.ValueType.INT,
 			"%s must stay INT — the threshold ladders are rung for integers" % stat_id)
 	_board.perception.base_value = 2.9
-	assert_eq(float(_board.perception.get_value()), 3.0,
-		"a fractional base still reads back as an integer")
+	assert_eq(float(_board.perception.get_value()), 2.0,
+		"a fractional base still reads back as an integer — floored, not rounded (#890)")
 
 
 func test_sensor_phrase_is_still_the_authored_one() -> void:

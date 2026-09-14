@@ -21,6 +21,7 @@ paths:
 
 - **SET** short-circuits everything; highest `priority` wins, last-in breaks ties at equal priority. **Convention:** class-identity SETs (e.g. `pacifist_core.tres` SETting `movement_points`/`deallocation_points` to 0) author `priority = 100` so the anchor sits above any node/keystone/addon SET (those default to 0). Keep class SETs at this tier; leave node content below it.
 - **INCREASE** sums additively (PoE-style). Five +20% = ×2.0, NOT (1.2)⁵.
+- **Coercion happens ONCE, at the end, and it is the stat's** (`Stat._coerce`, ADR 0016 / #890): an INT-typed stat **floors its finished total toward zero** (`int(v)` — `10.5 → 10`, `-2.6 → -2`, `0.9 → 0`); FLOAT passes through; BOOL is `v != 0.0`. Nothing else in the pipeline rounds — no bin, no formula (a `RatioFormula` is a line, #891). **Why:** the floor must sit *after* the bins so `% increased` on a ratio target yields `+1 +1 +1` rather than a burst, and a fractional rule (`+1 per 3.75 WIS`) hands out nothing until the step is actually attained. **How to apply:** never `roundi`/`floor` inside a formula or modifier to "make it whole" — the stat does it; a test that wants an exact integer picks a fixture that isn't fractional. A pool's `available()` still `roundi`s its own `current` (that's the current's rounding, not the total's), and display formatting (`StatDef.format_number`, `StatModifier._format_value`) keeps its `roundi` because it formats an already-coerced number.
 
 ## Board classes (#332)
 
