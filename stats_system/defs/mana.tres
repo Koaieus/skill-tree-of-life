@@ -8,6 +8,6 @@ on_cap_rise = 1
 per_turn_mode = 2
 id = &"mana"
 display_name = "Mana"
-description = "Magic resource pool. Used for casting spells. Max = base + INT//10; regen = floor(log(INT)) per turn."
+description = "Magic resource pool. Used for casting spells. Max = base + rolled grants + a token INT scaling; regen comes from rolled Mana/Turn grants."
 tint_color = Color(0.0, 0.72, 0.881, 1)
 modifier_name = "Max Mana"

@@ -51,11 +51,13 @@ func _shipped(stat_id: StringName) -> ThresholdFormula:
 # --- 1. Mana per turn --------------------------------------------------------
 
 func test_shipped_mana_ladder_is_exact_at_every_decade() -> void:
+	# #766 — the ladder now starts three decades later ([1000, 1e4, 1e5, 1e6]
+	# instead of [10, 100, 1e3, 1e4, 1e5, 1e6]): the board's rolled
+	# `mana_per_turn +` grants are the real regen source, INT a token amount.
 	var f := _shipped(&"mana_per_turn")
 	assert_not_null(f, "default board grants mana_per_turn via a ThresholdFormula")
-	# The issue's range. INT 1000 -> 3 is the bug; the rest are regression cover.
-	var cases := {1: 0, 9: 0, 10: 1, 11: 1, 99: 1, 100: 2, 101: 2,
-		999: 2, 1000: 3, 1001: 3}
+	var cases := {1: 0, 9: 0, 999: 0, 1000: 1, 1001: 1,
+		9999: 1, 10000: 2, 10001: 2}
 	for int_value in cases:
 		_board.intelligence.base_value = float(int_value)
 		assert_eq(f.compute(_board), float(cases[int_value]),
@@ -63,11 +65,10 @@ func test_shipped_mana_ladder_is_exact_at_every_decade() -> void:
 
 
 func test_shipped_mana_ladder_keeps_climbing_past_the_issues_range() -> void:
-	# The blind spot in the acceptance range: a ladder ending at 1000 passes
-	# every case above and is newly WRONG at 10000, where both the old formula
-	# and the correct answer give 4.
+	# The ladder tops out at 4 rungs now (#766) — confirm it climbs all the
+	# way to the top and then saturates rather than stopping short.
 	var f := _shipped(&"mana_per_turn")
-	for pair in [[10000, 4], [100000, 5], [1000000, 6]]:
+	for pair in [[99999, 2], [100000, 3], [999999, 3], [1000000, 4], [5000000, 4]]:
 		_board.intelligence.base_value = float(pair[0])
 		assert_eq(f.compute(_board), float(pair[1]),
 			"INT %d -> %d mana/turn" % pair)
@@ -151,8 +152,12 @@ func test_missing_source_stat_returns_zero() -> void:
 
 func test_geometric_ladder_generates_its_own_multiplier_phrase() -> void:
 	# Read off the same array compute() walks, so the shown number and the
-	# computed number cannot drift — the RatioFormula principle.
-	assert_eq(_shipped(&"mana_per_turn").describe_per(), "×10 INT")
+	# computed number cannot drift — the RatioFormula principle. Hand-built,
+	# not the shipped mana_per_turn: #766 moved that ladder's first rung off
+	# its common ratio (starts at 1000, steps by ×10), so it is no longer
+	# this shape — see test_a_ladder_not_starting_at_its_ratio_is_not_geometric.
+	assert_eq(_threshold(&"intelligence", [10.0, 100.0, 1000.0] as Array[float])
+		.describe_per(), "×10 INT")
 
 
 func test_non_geometric_ladder_falls_back_to_the_bare_abbreviation() -> void:
@@ -174,7 +179,10 @@ func test_a_ladder_not_starting_at_its_ratio_is_not_geometric() -> void:
 # here, right next to the geometric clause it must stay unchanged for.
 
 func test_geometric_ladder_clause_is_unchanged() -> void:
-	assert_eq(_shipped(&"mana_per_turn").describe_clause(), " per ×10 INT")
+	# Hand-built, not the shipped mana_per_turn — see the comment on
+	# test_geometric_ladder_generates_its_own_multiplier_phrase (#766).
+	assert_eq(_threshold(&"intelligence", [10.0, 100.0, 1000.0] as Array[float])
+		.describe_clause(), " per ×10 INT")
 
 
 func test_non_geometric_ladder_clause_names_the_ladder_not_a_ratio() -> void:

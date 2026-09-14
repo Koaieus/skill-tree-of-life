@@ -5,7 +5,7 @@
 script = ExtResource("1_stat_def")
 id = &"mana_per_turn"
 display_name = "Mana / Turn"
-description = "Mana restored at turn start. Scales as floor(log(INT)); at INT=10 that's 2 per turn."
+description = "Mana restored at turn start. Comes from rolled board grants; INT contributes only a token amount."
 value_type = 0
 default_value = 0.0
 tint_color = Color(0.3, 0.5, 0.9, 1)
