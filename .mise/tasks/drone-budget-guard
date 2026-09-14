@@ -7,7 +7,8 @@ subagent it enforces the two rules the swarm post-mortem of 2026-09-14
 (docs/handoffs/swarm-2026-09-14-audit.md while it lives; the drone skill's
 budget section after) found were ADVISORY-ONLY and ignored by every drone:
 
-  1. No whole-file `Read` of a big file. `loot-rebalance-2` was at 204k
+  1. No whole-file `Read` of a big file — except for `Explore` agents, whose
+     whole job is reading and who are short-lived (usually haiku). `loot-rebalance-2` was at 204k
      context before its first edit: six 30–40 KB whole-file Reads. A Read
      without `offset`/`limit` on a file over _MAX_WHOLE_READ_LINES is denied
      with the instruction to grep and read a range instead.
@@ -32,6 +33,7 @@ import sys
 
 _HARD_STOP = 300_000
 _MAX_WHOLE_READ_LINES = 400
+_READ_EXEMPT_AGENT_TYPES = {"Explore"}
 _BINARY_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".pdf", ".ipynb", ".svg"}
 _COMMIT_AND_REPORT = re.compile(r"\bgit\b.*\b(add|commit|status|diff|log|rev-parse)\b")
 
@@ -71,8 +73,10 @@ def _run(payload):
     tool = payload.get("tool_name") or ""
     tool_input = payload.get("tool_input") or {}
 
-    # Rule 1 — whole-file Reads of big files, at any context size.
-    if tool == "Read" and "offset" not in tool_input and "limit" not in tool_input:
+    # Rule 1 — whole-file Reads of big files, at any context size. Explore
+    # agents are exempt: reading whole files IS their unit of work.
+    agent_type = payload.get("agent_type") or ""
+    if tool == "Read" and agent_type not in _READ_EXEMPT_AGENT_TYPES and "offset" not in tool_input and "limit" not in tool_input:
         path = tool_input.get("file_path") or ""
         is_text = os.path.splitext(path)[1].lower() not in _BINARY_EXTS
         if is_text and os.path.isfile(path) and _line_count(path, _MAX_WHOLE_READ_LINES) > _MAX_WHOLE_READ_LINES:

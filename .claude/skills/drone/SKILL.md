@@ -123,12 +123,17 @@ was at **204k before its first edit** (six 30–40 KB whole-file Reads plus
 said "at 300k, commit-and-report". A denial is not an error to route around
 — it is the instruction.
 
-**Commit at first green, not at the end.** First commit no later than
-~150k context, then commit each further green slice. `landing-context`
-(#356) first committed at 292k on tool call 177 of 203; `loot-rebalance-2`
-at 340k on call 116 of 168, and its #774 half was uncommitted WIP when the
-owner killed it. A kill of a drone that commits early is a clean handoff; a
-kill of one that doesn't loses the unit.
+**Your first commit is the red test, before any implementation.** Once
+you have a plan and the issue has a testable claim, write the failing
+test(s), see them RED, and `git commit` them — *then* implement. That commit
+is reviewable on its own (Sage can check the spec landed before the code
+did), it makes red-green auditable instead of asserted, and it means a kill
+at any later point hands over a plan plus a spec, not nothing. Then commit
+each further green slice. Issues with nothing to test (visual/tuning work)
+skip the red commit and take the same rule as "commit the first coherent
+slice, no later than ~150k". `landing-context` (#356) first committed at
+292k on tool call 177 of 203; `loot-rebalance-2` at 340k on call 116 of
+168, and its #774 half was uncommitted WIP when the owner killed it.
 
 **The brief is the issue.** If your brief carries the decisions (a
 `swarm-brief-*.md` does), do not `gh issue view` at the start — the two
