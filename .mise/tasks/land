@@ -15,9 +15,11 @@
 #      test/unit/<dir>/ the branch touches (test files directly, or by the
 #      top-level dir of a non-test file when test/unit/<dir>/ exists) — a
 #      rebased tree is a tree nobody tested;
-#   5. `git merge --ff-only`; then, with --closes, an empty landing commit
-#      `land: #<n> <slug>` carrying `Closes #<n>` (it cannot amend the drone's
-#      tip) and the board move to in-review.
+#   5. `git merge --ff-only`; with --closes, the branch tip carries
+#      `Closes #<n>` — appended by amending the tip right after the rebase
+#      when the drone's message lacks it (so the tested sha IS the landed
+#      sha; never an empty `land:` commit, owner call 2026-09-15) — and the
+#      board moves to in-review.
 #
 # Non-zero, reason on stdout, on: dirty/off-master main checkout, missing
 # branch, rebase conflict (aborted, conflicting files listed), red check or
@@ -127,6 +129,16 @@ if [ -n "$tmp_wt" ]; then
 fi
 echo "  rebased: $branch is now $(git -C "$main" rev-parse --short "$sha") on master $(git -C "$main" rev-parse --short master)"
 
+# --- 4b. the closing line rides the tip, not an empty commit ----------------
+if [ -n "$closes" ] && ! git -C "$wt" log -1 --format=%B | grep -qiE "^(closes|fixes|resolves) #${closes}\b"; then
+  git -C "$wt" commit --quiet --amend -m "$(git -C "$wt" log -1 --format=%B)
+
+Closes #${closes}" || fail "could not amend Closes #${closes} onto the tip of $branch"
+  sha=$(git -C "$wt" rev-parse HEAD)
+  [ -n "$tmp_wt" ] && git -C "$main" branch -f "$branch" "$sha" >/dev/null
+  echo "  amended tip $(git -C "$main" rev-parse --short "$sha"): + Closes #${closes}"
+fi
+
 # --- 5. the ladder on the rebased tree -------------------------------------
 files=$(git -C "$main" diff --name-only "master..$sha")
 dirs=""
@@ -176,11 +188,6 @@ fi
 echo "  master fast-forwarded to $(git -C "$main" rev-parse --short master)"
 
 if [ -n "$closes" ]; then
-  slug="${branch#issue-${closes}-}"
-  slug="${slug#wt-}"
-  git -C "$main" commit --quiet --allow-empty -m "land: #${closes} ${slug}" -m "Closes #${closes}" \
-    || fail "landing commit failed (master already holds $branch)"
-  echo "  landing commit $(git -C "$main" rev-parse --short master): land: #${closes} ${slug} (Closes #${closes})"
   if (cd "$main" && mise run gh-project -- status "$closes" in-review) >/dev/null 2>&1; then
     echo "  board: #${closes} → in-review"
   else

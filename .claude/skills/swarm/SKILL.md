@@ -455,8 +455,8 @@ never run `land`). Its commits are the handoff.
 `flock` on `.godot/land.lock` — a second caller waits and says so), rebases
 the branch onto `master` inside its own worktree, runs `mise run check` plus
 `test:dir` for every `test/unit/<dir>/` the branch touches (a rebased tree is
-a tree nobody tested), fast-forwards, adds the empty `land: #<n> <slug>`
-commit carrying `Closes #<n>`, and moves the board to `in-review`. It refuses
+a tree nobody tested), amends `Closes #<n>` onto the tip if the drone's
+message lacks it, fast-forwards, and moves the board to `in-review`. It refuses
 — non-zero, reason on stdout — on a dirty main checkout, a rebase conflict
 (aborted, files listed), a red `check`/`test:dir`, or a non-ff. It never runs
 the full suite and never pushes.
@@ -962,8 +962,8 @@ means the decomposition leaked — fix the decomposition's consequence, not
 just the conflict.
 
 **Closing the issue(s).** Workers never write `Closes #<n>` themselves —
-`land --closes <n>` adds it as an empty `land: #<n> <slug>` commit on top of
-the fast-forward (it cannot amend the drone's tip), and only the *last*
+`land --closes <n>` amends it onto the branch tip right after the rebase
+(no empty `land:` commit — owner call 2026-09-15), and only the *last*
 branch for an issue gets the flag, because only the planner knows which one
 that is — say so in the DAG and in Sage's spawn message:
 

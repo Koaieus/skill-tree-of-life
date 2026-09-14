@@ -100,8 +100,8 @@ mise run land -- <branch> --closes <n>      # from any checkout of this repo —
 `land` takes the serial merge token (a `flock` — a second land waits), rebases
 the branch onto `master` inside the drone's worktree, runs `mise run check`
 and `test:dir` for the test dirs the branch touches, fast-forwards `master`,
-adds the empty `land: #<n> <slug>` commit carrying `Closes #<n>`, and moves
-the issue to `in-review`. Its last line is `LANDED <branch> <sha> …`. Note the
+amends `Closes #<n>` onto the branch tip when the drone's message lacks it
+(never an empty `land:` commit), and moves the issue to `in-review`. Its last line is `LANDED <branch> <sha> …`. Note the
 sha. Pass `--closes` only when this unit is the LAST for its issue — a
 multi-unit issue gets `--closes` on its final branch, plain `land` on the
 rest.
