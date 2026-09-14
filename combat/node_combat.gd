@@ -542,26 +542,86 @@ func refill(silent: bool = false) -> void:
 
 
 # ── Status slice (#872) ──────────────────────────────────────────────────────
+#
+# State only. Nothing here subscribes to a turn, clears on dealloc or reaches
+# the wire — #879 wires the lifecycle, #878 applies on hit. Every hook on the
+# def gets THIS slice as `node`, so a poison's `_on_tick` deals damage through
+# `take_damage` and lands live or shadow exactly like the rest of the file.
 
-func apply_status(_def: StatusDef, _power: float) -> void:
-	pass
+## Put [param def] on this node at [param power], or re-apply it per
+## [member StatusDef.reapply]; the result is clamped to
+## [member StatusDef.power_max] and handed to [method StatusDef._on_applied].
+## No-op on an unallocated node for a `CLEAR` def (owner, 2026-09-14: nothing
+## owns it, nothing would tick it), on a null def, and on a non-positive power.
+func apply_status(def: StatusDef, power: float) -> void:
+	if def == null or power <= 0.0:
+		return
+	if def.on_dealloc == StatusDef.OnDealloc.CLEAR and not is_allocated():
+		return
+	var row: NodeStatus = _statuses.get(def.id)
+	var next: float
+	if row == null:
+		row = NodeStatus.new(def, 0.0)
+		_statuses[def.id] = row
+		next = power
+	else:
+		match def.reapply:
+			StatusDef.Reapply.ACCUMULATE:
+				next = row.power + power
+			_:
+				next = maxf(row.power, power)
+	row.power = minf(next, def.power_max)
+	def._on_applied(self, row.power)
 
 
+## One tick for every status on the node: [method StatusDef._on_tick] first
+## (damage, effects), then flat decay by [member StatusDef.decay_per_tick],
+## then removal at `<= 0`. Iterates a COPY and re-checks each row is still the
+## one on the slice before touching it — a tick can `take_damage` into a kill
+## cascade that `clear_statuses()` this very node, or a hook can remove a
+## sibling; either way a vanished status is skipped, never resurrected.
 func tick_statuses() -> void:
-	pass
+	var rows: Array[NodeStatus] = []
+	rows.assign(_statuses.values())
+	for row in rows:
+		var id := row.def.id
+		if _statuses.get(id) != row:
+			continue  # vanished mid-tick
+		var before := row.power
+		var after := maxf(before - row.def.decay_per_tick, 0.0)
+		row.def._on_tick(self, before, after)
+		if _statuses.get(id) != row:
+			continue  # the hook removed it (or the node was cleared under us)
+		row.power = after
+		if after <= 0.0:
+			remove_status(id)
 
 
-func remove_status(_id: StringName) -> void:
-	pass
+## Drop the status [param id]; [method StatusDef._on_removed] fires exactly once.
+## Unknown ids are ignored.
+func remove_status(id: StringName) -> void:
+	var row: NodeStatus = _statuses.get(id)
+	if row == null:
+		return
+	_statuses.erase(id)
+	row.def._on_removed(self)
 
 
+## Drop every status, each through [method remove_status].
 func clear_statuses() -> void:
-	pass
+	for id in _statuses.keys():
+		remove_status(id)
 
 
-func get_status_power(_id: StringName) -> float:
-	return 0.0
+## Current power of status [param id], `0.0` when absent.
+func get_status_power(id: StringName) -> float:
+	var row: NodeStatus = _statuses.get(id)
+	return row.power if row != null else 0.0
 
 
+## The rows a UI reads, in application order — the live rows, not copies:
+## read `def` / `power` / `normalised()`, never write.
 func get_statuses() -> Array[NodeStatus]:
-	return []
+	var rows: Array[NodeStatus] = []
+	rows.assign(_statuses.values())
+	return rows
