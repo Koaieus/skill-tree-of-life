@@ -167,6 +167,40 @@ func test_landing_with_both_damage_and_heal_effects_lands_both() -> void:
 	assert_eq(outcome.timeline[0].hits.size(), 2, "the event carries both hits")
 
 
+func test_landing_with_a_status_effect_resolves_on_a_shadow_only() -> void:
+	# #878 acceptance: a spell with [DamageEffect, ApplyStatusEffect] resolves
+	# against `resolve()`'s own internal shadow (`CombatWorld.shadow()` at the
+	# top of the function) — the shadow slice carries the status, the live
+	# node does not.
+	var helper := H.new()
+	var graph := helper.make_graph([[0, 1]], self)
+	var atk := helper.make_entity(graph, "A")
+	var def := helper.make_entity(graph, "D")
+	helper.give_big_hp(def)
+	helper.assign_owner(graph, def, [1])
+	helper.assign_owner(graph, atk, [0])
+	var config := helper.make_config(helper.no_spread(), helper.owner_enemy(), null, {max_hops = 0})
+	var status_def: StatusDef = preload("res://test/fixtures/status/test_status.tres")
+	var status_effect := ApplyStatusEffect.new()
+	status_effect.def = status_def
+	status_effect.power = 2.0
+	var spell := helper.make_spell(config, [DamageEffect.new(), status_effect], 10.0)
+	var n := graph.get_skill_nodes()
+	var outcome := SpellResolver.resolve(spell, n[1], n[0], atk, graph)
+	assert_eq(outcome.hits.size(), 2, "one damage hit AND one status hit from the single landing")
+	assert_eq(outcome.hits[1].kind, HitInstance.Kind.STATUS)
+	assert_eq(outcome.hits[1].attacker, atk, "the resolver stamps the caster onto every hit it appends")
+	# A status hit's `amount` is 0.0 until `land_on` sets it to `power`, and
+	# `CritRoll.decide` runs BEFORE the land pass and skips any hit with
+	# `amount <= 0.0` — so this hit never consumes the seeded crit stream. A
+	# future refactor that sets `amount` at construction would silently shift
+	# every crit roll after it; that is what this assert guards.
+	assert_false(outcome.hits[1].is_crit,
+			"a status hit must not consume the seeded crit roll")
+	assert_almost_eq(n[1].get_combat().get_status_power(&"test_status"), 0.0, 0.0001,
+			"resolved on a shadow: the live node must not carry the status")
+
+
 func test_zero_damage_utility_landing_still_emits_event() -> void:
 	# power 0 → DamageEffect appends no hit, but the probe must still
 	# render its path, so the landing gets an event with null damage.
