@@ -1,7 +1,7 @@
 ---
 id: 0016
 title: A ratio intrinsic contributes a line, not a stair; an INT stat floors its finished total once
-status: proposed
+status: accepted
 date: 2026-09-14
 deciders: owner
 supersedes: []
