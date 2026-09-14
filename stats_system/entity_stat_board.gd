@@ -120,6 +120,13 @@ extends StatBoard
 ## next turn (#152). A modifier target like any other stat, so class identity
 ## tunes it (Pacifist raises, Berserker → 0) with no bespoke mechanism.
 @export var ap_transfer_rate: ScalarStat
+## Once-per-turn kill-AP budget (#888). Default 1/1, REFILL. `LootSystem`
+## spends 1 tempo to refund 1 `action_points` on a HOSTILE killing blow; the
+## cap IS the once-per-turn latch (`tempo.available() < 1` → no reward), so a
+## chain kill past the cap earns nothing more that turn. Source-agnostic on
+## purpose — future tempo sources (#887) drain this same pool, a relic raising
+## the cap grants extra rewards/turn, and a modifier setting it to 0 opts out.
+@export var tempo: PoolStat
 
 @export_group("Turn Order")
 @export var initiative: PoolStat				## Turn clock; cap = action threshold (100). Cyclic — carries overshoot.

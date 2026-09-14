@@ -15,7 +15,7 @@ func before_each() -> void:
 
 
 func _refill_pools() -> Array:
-	return [_board.action_points, _board.deallocation_points, _board.movement_points]
+	return [_board.action_points, _board.deallocation_points, _board.movement_points, _board.tempo]
 
 
 func test_refill_pools_restore_to_cap() -> void:

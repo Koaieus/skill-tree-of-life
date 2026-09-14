@@ -2,8 +2,8 @@
 class_name LootSystem
 extends Node
 
-## Authority for killing-blow rewards (#68 XP, #69/#173 SkillDust loot,
-## #204 spellbook draft). Reacts to `Events.entity_dying(victim)` — the
+## Authority for killing-blow rewards (#68 XP, #888 tempo, #69/#173 SkillDust
+## loot, #204 spellbook draft). Reacts to `Events.entity_dying(victim)` — the
 ## PRE-cleanup phase, while the corpse still owns its nodes (so the XP payout
 ## can count the territory held at death, and the spell draft can still
 ## read core-sourced spells before the strip). The phase split guarantees this
@@ -15,6 +15,14 @@ extends Node
 ##     (Entity._on_xp_replenished). Don't bypass the pool — a raw `set_current`
 ##     would skip the level-up. The complementary per-node trickle rides
 ##     BattleSystem's `cascade_started` instead of this phase.
+##   * Tempo award (#888) — a HOSTILE killing blow spends 1 `tempo` to refund
+##     1 `action_points` on the killer, gated the same way as the XP reward
+##     (HOSTILE attitude, killer alive). The pool's own cap IS the
+##     once-per-turn latch: once `tempo.available() < 1` no further kill this
+##     turn pays out, so a multi-kill chain still nets exactly one refund
+##     unless a modifier raised the cap. `tempo` REFILLs at turn start like
+##     `action_points`/`deallocation_points`/`movement_points` — no bespoke
+##     upkeep wiring.
 ##   * SkillDust drop (#323 re-cut) — a weighted draw over THREE provenance
 ##     buckets (node grants on the victim's owned subgraph, class/register
 ##     grants, board innates) is attached to the victim's former core node as a
@@ -79,6 +87,7 @@ extends Node
 ## NodePaths, swapped logic. See docs/domain/sandbox-framework.md.)
 @export var award_xp_on_kill: bool = true
 @export var award_xp_on_node_kill: bool = true
+@export var award_tempo_on_kill: bool = true
 @export var drop_skill_dust_on_death: bool = true
 @export var award_spell_loot_on_death: bool = true
 
@@ -214,6 +223,7 @@ func _on_entity_dying(victim: Entity) -> void:
 		return
 	var killer := _resolve_killer(victim)
 	_award_kill_xp(victim, killer)
+	_award_kill_tempo(victim, killer)
 	_drop_skill_dust(victim)
 	# Retire this victim's ledger the moment it has been paid out. The other
 	# clear (`_on_attack_launched`) is wired only when `battle_system` is set,
@@ -308,6 +318,36 @@ func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 		for n in ledger:
 			unpaid.erase(n)
 	_grant_xp(killer, _kill_xp_total(unpaid.size(), true, victim))
+
+
+# ── #888: Tempo award ─────────────────────────────────────────────────────────
+
+## A HOSTILE killing blow spends 1 `tempo` to refund 1 `action_points` on the
+## killer. Same guards as `_award_kill_xp` (killer null/dead, HOSTILE-only,
+## the same `entity_dying` phase so it rides the reveal clock during replay
+## exactly as kill-XP does) plus one more: the pool itself. `tempo.available()
+## < 1` IS the once-per-turn latch (owner, #888) — no separate bool, no
+## per-attack ledger — so a second kill this turn, or a chain-kill spell
+## dropping two victims in one cast, pays out at most once unless a modifier
+## raised the cap above 1. A modifier setting the cap to 0 opts the entity out
+## entirely. Assumes `_commit` already deducted this attack's `ap_cost` before
+## the replay in which the death fires (#888 decision 5), so the killer always
+## has headroom under the `action_points` cap when the refund lands — breaks
+## only if an `ap_cost = 0` attack ever kills.
+func _award_kill_tempo(victim: Entity, killer: Entity) -> void:
+	if not award_tempo_on_kill:
+		return
+	if killer == null or killer.is_dead:
+		return
+	if killer.attitude_to(victim) != Entity.Attitude.HOSTILE:
+		return
+	var board := killer.stat_board
+	if board == null or board.tempo == null or board.action_points == null:
+		return
+	if board.tempo.available() < 1:
+		return
+	board.tempo.deplete(1)
+	board.action_points.replenish(1)
 
 
 ## Read-only. What this many removals on `victim` would pay `killer` in XP —
