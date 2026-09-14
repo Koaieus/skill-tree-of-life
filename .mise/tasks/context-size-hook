@@ -261,8 +261,8 @@ _SUBAGENT_NUDGES = {
     150_000: "Implementer? Your first commit (the red test) should be in by now — "
              "if it isn't, commit what you have before the next edit.",
     200_000: "Halfway to the 300k hard stop: commit anything uncommitted now, and if "
-             "you're cycling on one failing thing, escalate to Sage instead of trying again.",
-    250_000: "Flag yourself: SendMessage the orchestrator/Sage with what's committed and "
+             "you're cycling on one failing thing, escalate to your designated advisor instead of trying again.",
+    250_000: "Flag yourself: tell your designated advisor what's committed and "
              "what's left. What remains is one finish-or-handoff, not another phase.",
     300_000: "HARD STOP: drone-budget-guard now denies every tool but SendMessage and "
              "git add/commit/status/diff/log. Commit, then report.",

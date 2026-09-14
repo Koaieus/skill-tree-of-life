@@ -111,14 +111,20 @@ you). Don't chase it. Compare against `master` before blaming your diff.
 
 ## Stuck is a signal to escalate, not to try once more
 
+**Your designated advisor** is whoever your brief names for questions: Sage
+when the run has one, otherwise the orchestrator (`SendMessage` to `main`,
+or opencode's stop-and-`NOTES:`), and only in a run with neither, the
+`advisor` tool. "Escalate" below always means *that* — the same address
+your review request goes to.
+
 **Three failed cycles on the same thing is a loop. Stop and ask.** A cycle
 is edit → run the test → still red (or a check/refresh/bench that keeps not
 saying what you expected). On the third one, the next action is not a
-fourth attempt — it is one `SendMessage` to `Sage` (opencode: stop with the
-question in `NOTES:`): what you're trying to make true, the exact assert or
+fourth attempt — it is one message to your designated advisor: what you're
+trying to make true, the exact assert or
 error text, what the three attempts changed, and your current hypothesis.
-Then **end your turn and wait** — no "one more try while I wait". Sage is a
-bigger model with fresh eyes and none of your sunk cost, and one exchange
+Then **end your turn and wait** — no "one more try while I wait". The advisor
+is a bigger model with fresh eyes and none of your sunk cost, and one exchange
 costs the team less than the 20 turns you were about to spend.
 
 Why this is a rule and not advice: no drone in the 2026-09-13 corpus ever
@@ -131,7 +137,7 @@ killed by the owner, not rescued. The model that got you into the loop is
 the wrong model to get you out of it — that's not a judgement on you, it's
 what a fresh context is *for*.
 
-Sage's answer can be "hand it back" — then commit the partial (red test
+The advisor's answer can be "hand it back" — then commit the partial (red test
 included) and report with the loop in `NOTES:`. That is a successful
 outcome, not a failed one.
 
@@ -273,8 +279,9 @@ don't touch issue status or labels.
   orchestrator is a larger model holding the whole plan — it *is* the advisor,
   and it reviews your diff. Calling advisor re-sends your whole transcript to
   a second Opus — at 150k+ that is the most expensive single call you can
-  make. Stuck goes to Sage (see "Stuck is a signal"); only in a run with **no
-  Sage and no reachable orchestrator** is one advisor call the lesser cost.
+  make. Stuck goes to your designated advisor (see "Stuck is a signal"); the
+  tool is that advisor only in a run with **no Sage and no reachable
+  orchestrator**.
 - **Do not ask the user anything** (Claude Code: `AskUserQuestion`; opencode:
   `question`). A swarm runs unattended. Ambiguity goes to the *orchestrator*:
   - **opencode**: stop and put the specific question in `NOTES:`. Your `task`
