@@ -10,7 +10,8 @@
 [ext_resource type="Resource" path="res://attack/spell/defs/trail_blazer.tres" id="7_trail_blazer"]
 [ext_resource type="Resource" path="res://attack/spell/defs/reverberator.tres" id="8_reverberator"]
 [ext_resource type="Resource" path="res://attack/spell/defs/healing_beam.tres" id="9_healing_beam"]
+[ext_resource type="Resource" path="res://attack/spell/defs/dazzle.tres" id="10_dazzle"]
 
 [resource]
 script = ExtResource("1_book")
-spells = Array[ExtResource("1_spell_def")]([ExtResource("2_spark"), ExtResource("3_lightning"), ExtResource("4_bruiser"), ExtResource("5_leafblower"), ExtResource("6_resonator"), ExtResource("7_trail_blazer"), ExtResource("8_reverberator"), ExtResource("9_healing_beam")])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("2_spark"), ExtResource("3_lightning"), ExtResource("4_bruiser"), ExtResource("5_leafblower"), ExtResource("6_resonator"), ExtResource("7_trail_blazer"), ExtResource("8_reverberator"), ExtResource("9_healing_beam"), ExtResource("10_dazzle")])

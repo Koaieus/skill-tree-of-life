@@ -187,3 +187,36 @@ func test_vision_shrinks_while_blinded_and_grows_back_at_expiry() -> void:
 		_combat().tick_statuses()
 	await get_tree().process_frame
 	assert_true(vision.is_visible(_nodes[1]), "expired: N1 is back inside the radius")
+
+
+# ── Authored content loads and is wired (values are the owner's knobs) ───────
+
+func test_authored_blindness_and_dazzle_load_and_are_in_the_debug_book() -> void:
+	var blind := load("res://effects/status/blindness.tres") as BlindnessStatus
+	assert_not_null(blind, "blindness.tres is a BlindnessStatus")
+	if blind == null:
+		return
+	assert_eq(blind.id, &"blindness")
+	assert_true(&"debuff" in blind.tags, "tagged as a debuff")
+	assert_gt(blind.blind_factor, 0.0)
+	assert_lt(blind.blind_factor, 1.0, "a factor below 1 — blindness shrinks, never grows")
+
+	var dazzle := load("res://attack/spell/defs/dazzle.tres") as SpellDef
+	assert_not_null(dazzle, "dazzle.tres is a SpellDef")
+	if dazzle == null:
+		return
+	var applier: ApplyStatusEffect = null
+	var has_damage := false
+	for fx in dazzle.on_hit_effects:
+		if fx is ApplyStatusEffect:
+			applier = fx
+		elif fx is DamageEffect:
+			has_damage = true
+	assert_true(has_damage, "dazzle also deals (a little) damage")
+	assert_not_null(applier, "dazzle composes an ApplyStatusEffect")
+	if applier != null:
+		assert_eq(applier.def, blind, "…that applies the authored Blindness def")
+		assert_gt(applier.power, 0.0)
+
+	var book := load("res://entity/spellbook_debug.tres") as SpellBook
+	assert_true(dazzle in book.spells, "dazzle is in the debug spellbook")

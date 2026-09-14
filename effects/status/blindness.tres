@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="BlindnessStatus" format=3]
+
+[ext_resource type="Script" uid="uid://bx6v4guitql5c" path="res://effects/status/blindness.gd" id="1_blind"]
+
+[resource]
+script = ExtResource("1_blind")
+id = &"blindness"
+display_name = "Blindness"
+description = "The node sees and senses half as far, recovering over 3 turns."
+tint = Color(0.85, 0.85, 0.35, 1)
+tags = Array[StringName]([&"debuff"])
+power_max = 3.0
+decay_per_tick = 1.0
+reapply = 0
+cure_per_hp = 0.0
+on_dealloc = 0
+blind_factor = 0.5

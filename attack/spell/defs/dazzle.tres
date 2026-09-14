@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="SpellDef" format=3]
+
+[ext_resource type="Texture2D" uid="uid://co6hckurtll2q" path="res://assets/icons/spells/laser_burst.png" id="1_icon"]
+[ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
+[ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
+[ext_resource type="Script" uid="uid://c2q50hhtuf7g7" path="res://attack/spell/on_hit/apply_status_effect.gd" id="3_status"]
+[ext_resource type="Resource" path="res://effects/status/blindness.tres" id="3_blindness"]
+[ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
+[ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_filter"]
+[ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="6_targeting"]
+[ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]
+[ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_vfx"]
+
+[sub_resource type="Resource" id="dmg_dazzle"]
+script = ExtResource("3_dmg")
+
+[sub_resource type="Resource" id="blind_dazzle"]
+script = ExtResource("3_status")
+def = ExtResource("3_blindness")
+power = 3.0
+
+[sub_resource type="Resource" id="filter_enemy"]
+script = ExtResource("5_filter")
+
+[sub_resource type="Resource" id="prop_dazzle"]
+script = ExtResource("4_config")
+filter = SubResource("filter_enemy")
+
+[sub_resource type="Resource" id="range_3hop"]
+script = ExtResource("7_range")
+
+[sub_resource type="Resource" id="targeting_hostile_3hop"]
+script = ExtResource("6_targeting")
+range_finder = SubResource("range_3hop")
+
+[resource]
+script = ExtResource("1_spell")
+id = &"dazzle"
+name = "Dazzle"
+tagline = "A flash that blinds one nearby enemy node."
+description = "Deal a little damage to a single enemy-occupied node within 3 hops and blind it: the node sees and senses less, recovering over 3 turns."
+icon = ExtResource("1_icon")
+mana_cost = 1
+power = 0.4
+propagation = SubResource("prop_dazzle")
+on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_dazzle"), SubResource("blind_dazzle")])
+vfx_coordinator_scene = ExtResource("10_vfx")
+targeting = SubResource("targeting_hostile_3hop")
