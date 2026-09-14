@@ -45,9 +45,14 @@ static func fingerprint(outcome: AttackOutcome) -> Array[String]:
 	if outcome == null:
 		return out
 	for hit: HitInstance in outcome.hits:
+		var kind_label := "DAMAGE"
+		if hit.kind == HitInstance.Kind.HEAL:
+			kind_label = "HEAL"
+		elif hit.kind == HitInstance.Kind.STATUS:
+			kind_label = "STATUS"
 		out.append("%s|%s|%.6f|%.6f|%s|%d|%.6f|%.6f|%s|%s" % [
 			_id_of(hit.target),
-			"HEAL" if hit.kind == HitInstance.Kind.HEAL else "DAMAGE",
+			kind_label,
 			hit.amount,
 			hit.effective_amount,
 			str(hit.is_crit),

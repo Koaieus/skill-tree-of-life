@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="StatusDef" format=3]
+
+[ext_resource type="Script" path="res://effects/status/status_def.gd" id="1_stat"]
+
+[resource]
+script = ExtResource("1_stat")
+id = &"test_status"
+display_name = "Test Status"
+tint = Color(0, 1, 0, 1)
+power_max = 5.0
+decay_per_tick = 1.0
+reapply = 0
+cure_per_hp = 0.0
+on_dealloc = 0

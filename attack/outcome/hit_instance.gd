@@ -14,8 +14,11 @@ extends RefCounted
 ## a [DamageInstance] to [constant Kind.HEAL] when post-[Mitigation] damage
 ## goes negative (a Bulwark-style `min_damage_taken` underflow — see
 ## `.claude/rules/stats-system.md`'s "Damage mitigation" section). A
-## [HealInstance] never reclassifies; heals aren't mitigated.
-enum Kind { DAMAGE, HEAL }
+## [HealInstance] never reclassifies; heals aren't mitigated. [StatusInstance]
+## (#878) adds a third value — never reclassified either, and deliberately
+## excluded from [method AttackOutcome.damage_hits]'s filter, so an AI scorer
+## or a "damage dealt" reader does not see a status application as a hit.
+enum Kind { DAMAGE, HEAL, STATUS }
 var kind: Kind = Kind.DAMAGE
 
 var amount: float = 0.0

@@ -108,6 +108,15 @@ const KEY_HIT_HP_MAX := "h_hpm"
 ## flattened side list, because a landing pops at most one vertex.
 ## See [member HitInstance.popped_vertex] for why a cue is on the wire at all.
 const KEY_HIT_POP := "h_pop"
+## [member StatusInstance.def]'s `resource_path`, "" for every non-STATUS hit
+## (#878). Same pattern as [constant KEY_TEMPO]/`_tempo_path` — the def is
+## authored content both peers already have on disk, so shipping the path
+## (never a live reference) is what lets a peer's [method rebuild] reproduce
+## which status landed. [member StatusInstance.power] itself needs no new
+## array: [constant KEY_HIT_AMOUNT] already carries every hit's
+## `effective_amount`, and [method StatusInstance.land_on] writes `power`
+## there at land time, so a status rides that array for free.
+const KEY_HIT_STATUS_DEF := "h_sdef"
 ## Forced deallocations, flattened across ALL hits (#518) — one entry per
 ## cascaded node, plus [constant KEY_DEALLOC_COUNT] giving how many belong to
 ## each hit, in hit order. Same parallel-scalars discipline as the hit arrays:
@@ -173,6 +182,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	var hp_after := PackedFloat64Array()
 	var hp_max := PackedFloat64Array()
 	var pops := PackedInt32Array()
+	var status_defs := PackedStringArray()
 	# Flattened across all hits; `dealloc_counts` slices it back apart.
 	var dealloc_counts := PackedInt32Array()
 	var dealloc_nodes := PackedInt32Array()
@@ -205,6 +215,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		hp_after.append(hit.hp_after)
 		hp_max.append(hit.hp_max)
 		pops.append(_id_of(hit.popped_vertex, graph))
+		var status_hit := hit as StatusInstance
+		status_defs.append(status_hit.def.resource_path if status_hit != null and status_hit.def != null else "")
 		dealloc_counts.append(hit.deallocations.size())
 		for e in hit.deallocations:
 			# The id, never the reference (`.claude/rules/multiplayer-sync.md`).
@@ -268,6 +280,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		KEY_HIT_HP_AFTER: hp_after,
 		KEY_HIT_HP_MAX: hp_max,
 		KEY_HIT_POP: pops,
+		KEY_HIT_STATUS_DEF: status_defs,
 		KEY_DEALLOC_COUNT: dealloc_counts,
 		KEY_DEALLOC_NODE: dealloc_nodes,
 		KEY_DEALLOC_LEVEL: dealloc_levels,
@@ -328,6 +341,7 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	var hp_after: PackedFloat64Array = d.get(KEY_HIT_HP_AFTER, PackedFloat64Array())
 	var hp_max: PackedFloat64Array = d.get(KEY_HIT_HP_MAX, PackedFloat64Array())
 	var pops: PackedInt32Array = d.get(KEY_HIT_POP, PackedInt32Array())
+	var status_defs: PackedStringArray = d.get(KEY_HIT_STATUS_DEF, PackedStringArray())
 	var dealloc_counts: PackedInt32Array = d.get(KEY_DEALLOC_COUNT, PackedInt32Array())
 	var dealloc_nodes: PackedInt32Array = d.get(KEY_DEALLOC_NODE, PackedInt32Array())
 	var dealloc_levels: PackedInt32Array = d.get(KEY_DEALLOC_LEVEL, PackedInt32Array())
@@ -348,6 +362,16 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 		var hit: HitInstance
 		if kinds[i] == int(HitInstance.Kind.HEAL):
 			hit = HealInstance.new()
+		elif kinds[i] == int(HitInstance.Kind.STATUS):
+			var si := StatusInstance.new()
+			var def_path: String = status_defs[i] if i < status_defs.size() else ""
+			if not def_path.is_empty():
+				if ResourceLoader.exists(def_path):
+					si.def = load(def_path) as StatusDef
+				else:
+					push_warning("AttackRecord: status def %s not found on this machine" % def_path)
+			si.power = amount
+			hit = si
 		else:
 			var di := DamageInstance.new()
 			# Already mitigated on the host. TRUE is the one path
