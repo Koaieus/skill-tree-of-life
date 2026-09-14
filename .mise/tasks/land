@@ -21,7 +21,8 @@
 #      sha; never an empty `land:` commit, owner call 2026-09-15) — and the
 #      board moves to in-review.
 #
-# Non-zero, reason on stdout, on: dirty/off-master main checkout, missing
+# Non-zero, reason on stdout, on: main checkout dirty in a file the branch
+# also touches / off-master main checkout, missing
 # branch, rebase conflict (aborted, conflicting files listed), red check or
 # test:dir (verdict lines printed), a non-ff. Never runs the full suite, never
 # pushes — both stay with the lead at the train gate.
@@ -70,10 +71,18 @@ git -C "$main" rev-parse --verify --quiet "refs/heads/$branch" >/dev/null \
 [ "$branch" != "master" ] || fail "refusing to land master onto itself"
 on=$(git -C "$main" symbolic-ref --short -q HEAD || echo "(detached)")
 [ "$on" = "master" ] || fail "main checkout is on '$on', not master: $main"
-dirty=$(git -C "$main" status --porcelain --untracked-files=no)
+# A dirty main checkout is fine as long as the branch does not touch the same
+# files — that is git's own ff rule, and the owner's open editor resaves .tres
+# files continuously (owner call 2026-09-15). Refuse only on the intersection.
+dirty=$(git -C "$main" status --porcelain --untracked-files=no | cut -c4- | sed 's/.* -> //')
 if [ -n "$dirty" ]; then
-  echo "$dirty" | head -20
-  fail "main checkout has uncommitted changes — commit or park them first: $main"
+  touched=$(git -C "$main" diff --name-only "master...$branch")
+  overlap=$(comm -12 <(echo "$dirty" | sort -u) <(echo "$touched" | sort -u))
+  if [ -n "$overlap" ]; then
+    echo "$overlap" | sed 's/^/    /'
+    fail "main checkout has uncommitted changes to files $branch also changes — commit or park them first: $main"
+  fi
+  echo "  (main checkout is dirty in $(echo "$dirty" | wc -l) file(s) the branch does not touch — proceeding)"
 fi
 if git -C "$main" merge-base --is-ancestor "$branch" master; then
   echo "✓ nothing to land: $branch is already contained in master"
