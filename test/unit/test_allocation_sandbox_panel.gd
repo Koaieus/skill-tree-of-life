@@ -66,3 +66,26 @@ func test_reset_world_rearms_a_played_cell() -> void:
 	_panel.reset_world()
 
 	assert_null(nodes[0].owned_by, "reset must strip the played allocation")
+
+
+## #870 — cascade_mid (cell 7, nodes 23-27: `0-0-0-0-X`, core at 27) force-
+## deallocates its 4th node (26). That's a cut vertex: nodes 23-25 are cut off
+## from the core and must island (force-dealloc) right along with it. This is
+## the actual regression pin — `EntityCombat.nodes_islanded_by_removing`
+## reads `Entity.navigator`, which only a real (non-editor) `_ready` wires up
+## for a programmatically-minted entity; a live sandbox tab's `Entity.new()`
+## needs its own explicit `initialize()` call (see melee_sandbox /
+## spell_playground / outcome_playground for the established idiom), which
+## `_make_cell` was missing.
+func test_cascade_mid_islands_the_nodes_behind_the_depleted_one() -> void:
+	var nodes: Array = _panel.graph.get_skill_nodes()
+	var e = _entities()[7]  # cascade_mid
+	for i in range(23, 28):
+		assert_eq(nodes[i].owned_by, e, "cascade_mid must start fully allocated")
+
+	await _panel.play_beat()
+
+	for i in range(23, 27):
+		assert_null(nodes[i].owned_by,
+				"node %d must be swept by the cascade (islanded or depleted)" % i)
+	assert_eq(nodes[27].owned_by, e, "the core itself must survive the cascade")

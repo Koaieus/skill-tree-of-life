@@ -145,6 +145,15 @@ func _make_cell(row: int, col: int, kind: String, title: String, color: Color) -
 	cell.entity.color = color
 	cell.entity.stat_board = _DEFAULT_BOARD.duplicate(true) as EntityStatBoard
 	graph.entities_container.add_child(cell.entity)
+	# The editor never runs `_ready` (Entity's own guard), so a live tab that
+	# mints an entity in code — same as melee_sandbox / spell_playground /
+	# outcome_playground — must say when bring-up happens: board, intrinsics,
+	# `health.depleted` wiring and, load-bearing for the bottom row's cascade,
+	# `navigator` (#870). Without this, `EntityCombat.nodes_islanded_by_removing`
+	# reads a null `host.navigator` and silently answers "nothing islanded" —
+	# force_dealloc_first still pops (it never islands anything), but
+	# cascade_mid's ripple and core_death's whole-board wave both go missing.
+	cell.entity.initialize()
 
 	# Per-cell live label (world-space; scales with the panel).
 	cell.label = Label.new()
