@@ -5,9 +5,9 @@
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="1_p8d3l"]
 [ext_resource type="Script" uid="uid://ci08q7vcgbwdx" path="res://skill_node/visuals/emblem/texture_carve_shape.gd" id="1_tcs"]
 [ext_resource type="Texture2D" uid="uid://dl1u6tr2mv3ay" path="res://assets/icons/spells/trailblazer.png" id="1_x1qvp"]
-[ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="2_x1qvp"]
-[ext_resource type="Script" uid="uid://cexyu24pelcth" path="res://attack/spell/on_hit/scale_damage_effect.gd" id="2_scale"]
 [ext_resource type="Script" uid="uid://cphervtwmb1th" path="res://attack/spell/condition/junction_condition.gd" id="2_junction"]
+[ext_resource type="Script" uid="uid://cexyu24pelcth" path="res://attack/spell/on_hit/scale_damage_effect.gd" id="2_scale"]
+[ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="2_x1qvp"]
 [ext_resource type="Script" uid="uid://7wdkvrd3qinr" path="res://attack/spell/propagation/filter/propagation_filter.gd" id="3_ef7vp"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="4_bn2u6"]
 [ext_resource type="Script" uid="uid://co0vk1n8rkrcy" path="res://attack/spell/propagation/filter/expression_filter.gd" id="5_80ntq"]
@@ -33,8 +33,6 @@ script = ExtResource("2_junction")
 [sub_resource type="Resource" id="slam"]
 script = ExtResource("2_scale")
 when = SubResource("cond_junction")
-mode = 0
-factor = 2.0
 
 [sub_resource type="Resource" id="dmg"]
 script = ExtResource("2_x1qvp")
@@ -75,6 +73,7 @@ range_finder = SubResource("range")
 script = ExtResource("9_en1rl")
 id = &"trail_blazer"
 name = "The Trailblazer"
+tagline = "Slams double damage on any junction it lands on, ramped by the string it walked."
 description = "Every landing on a junction (degree > 2) instantly slams for double damage and stops the walk there — including a seed cast directly onto one. Each degree-2 node passed through first adds +2 damage before hopping onward. The walk ends one node short of a tip rather than finishing it — a free-floating tip is Leafblower's to punish. Cast on a node at the end of a long string for maximum devastation."
 icon = ExtResource("1_x1qvp")
 carve_shape = SubResource("carve_trailblazer")
@@ -85,4 +84,3 @@ propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("1_p8d3l")]([SubResource("slam"), SubResource("dmg")])
 vfx_coordinator_scene = ExtResource("14_1jkab")
 targeting = SubResource("targeting")
-tagline = "Slams double damage on any junction it lands on, ramped by the string it walked."

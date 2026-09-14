@@ -1,18 +1,17 @@
-[gd_resource type="Resource" script_class="AuraEffect" load_steps=8 format=3]
+[gd_resource type="Resource" script_class="AuraEffect" format=3 uid="uid://dofure3v35v0j"]
 
 [ext_resource type="Script" uid="uid://n522mioa0d4q" path="res://effects/aura_effect.gd" id="1_aura"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="2_mod"]
 [ext_resource type="Script" uid="uid://cfjomnv7kdqqh" path="res://effects/distance_scale/proportional_scale.gd" id="3_scale"]
 [ext_resource type="Script" uid="uid://b6apvlm4x1tgu" path="res://effects/metric/hop_metric.gd" id="4_metric"]
 
+[sub_resource type="Resource" id="per_hop"]
+script = ExtResource("3_scale")
+metadata/_custom_type_script = "uid://cfjomnv7kdqqh"
+
 [sub_resource type="Resource" id="hop_metric"]
 script = ExtResource("4_metric")
 metadata/_custom_type_script = "uid://b6apvlm4x1tgu"
-
-[sub_resource type="Resource" id="per_hop"]
-script = ExtResource("3_scale")
-per_unit = 1.0
-metadata/_custom_type_script = "uid://cfjomnv7kdqqh"
 
 [sub_resource type="Resource" id="mod_node_health"]
 resource_name = "-5 Node Health"

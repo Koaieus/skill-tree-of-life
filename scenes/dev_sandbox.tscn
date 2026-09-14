@@ -514,7 +514,7 @@ resource_name = "xp_per_turn"
 script = ExtResource("11_uulnk")
 definition = ExtResource("61_ng2ll")
 
-[sub_resource type="Resource" id="Resource_ibn4y"]
+[sub_resource type="Resource" id="Resource_1733n"]
 resource_local_to_scene = true
 script = ExtResource("46_ou200")
 strength = SubResource("scalar_strength")
@@ -565,7 +565,7 @@ crit_chance = SubResource("scalar_crit_chance")
 crit_multiplier = SubResource("scalar_crit_multiplier")
 intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_wis_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_hops"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_con_to_health"), SubResource("mod_level_to_con")])
 
-[sub_resource type="Resource" id="Resource_cvuqc"]
+[sub_resource type="Resource" id="Resource_4wewy"]
 resource_local_to_scene = true
 script = ExtResource("46_ou200")
 strength = SubResource("scalar_strength")
@@ -616,28 +616,28 @@ crit_chance = SubResource("scalar_crit_chance")
 crit_multiplier = SubResource("scalar_crit_multiplier")
 intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_to_vision"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_wis_to_sensor"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_hops"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_con_to_health"), SubResource("mod_level_to_con")])
 
-[sub_resource type="Resource" id="Resource_5484d"]
+[sub_resource type="Resource" id="Resource_5smxi"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_42wg5"]
+[sub_resource type="Resource" id="Resource_1sde5"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_hch10"]
+[sub_resource type="Resource" id="Resource_wph1b"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_rxmal"]
+[sub_resource type="Resource" id="Resource_hk07i"]
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_hch10")
-addon_slots = SubResource("Resource_5484d")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_42wg5")])
+stake_level = SubResource("Resource_wph1b")
+addon_slots = SubResource("Resource_5smxi")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_1sde5")])
 
 [sub_resource type="Resource" id="mod_dex_2"]
 resource_name = "+2 Dexterity"
@@ -651,28 +651,28 @@ script = ExtResource("2_mod")
 stat_id = &"strength"
 value = 2.0
 
-[sub_resource type="Resource" id="Resource_xkbxa"]
+[sub_resource type="Resource" id="Resource_dn4kc"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_cxgca"]
+[sub_resource type="Resource" id="Resource_ph4qk"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_ettse"]
+[sub_resource type="Resource" id="Resource_hosk5"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_bvfgh"]
+[sub_resource type="Resource" id="Resource_i20lm"]
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_ettse")
-addon_slots = SubResource("Resource_xkbxa")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_cxgca")])
+stake_level = SubResource("Resource_hosk5")
+addon_slots = SubResource("Resource_dn4kc")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_ph4qk")])
 
 [sub_resource type="Resource" id="mod_hp_5"]
 resource_name = "+5 Max Health"
@@ -687,30 +687,30 @@ stat_id = &"strength"
 value = 5.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
-[sub_resource type="Resource" id="Resource_t867q"]
+[sub_resource type="Resource" id="Resource_bjjvr"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_h1iqp"]
+[sub_resource type="Resource" id="Resource_tihqh"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_42dig"]
+[sub_resource type="Resource" id="Resource_7w62q"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_sdo1i"]
+[sub_resource type="Resource" id="Resource_v35nn"]
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_42dig")
-addon_slots = SubResource("Resource_t867q")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_h1iqp")])
+stake_level = SubResource("Resource_7w62q")
+addon_slots = SubResource("Resource_bjjvr")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_tihqh")])
 
-[sub_resource type="Resource" id="Resource_4mj8p"]
+[sub_resource type="Resource" id="Resource_tx111"]
 resource_local_to_scene = true
 resource_name = "×1.5 Blade Damage"
 script = ExtResource("2_mod")
@@ -731,30 +731,30 @@ script = ExtResource("2_mod")
 stat_id = &"perception"
 value = 2.0
 
-[sub_resource type="Resource" id="Resource_6qa84"]
+[sub_resource type="Resource" id="Resource_xhlyp"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_q1fud"]
+[sub_resource type="Resource" id="Resource_wcpfy"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_x3sjv"]
+[sub_resource type="Resource" id="Resource_0r3ny"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_m3bdv"]
+[sub_resource type="Resource" id="Resource_ch6bb"]
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_x3sjv")
-addon_slots = SubResource("Resource_6qa84")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_q1fud")])
+stake_level = SubResource("Resource_0r3ny")
+addon_slots = SubResource("Resource_xhlyp")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_wcpfy")])
 
-[sub_resource type="Resource" id="Resource_o2bc6"]
+[sub_resource type="Resource" id="Resource_5ns4p"]
 resource_local_to_scene = true
 resource_name = "+5 bonus Armor"
 script = ExtResource("2_mod")
@@ -792,28 +792,28 @@ script = ExtResource("2_mod")
 stat_id = &"xp_per_turn"
 value = 2.0
 
-[sub_resource type="Resource" id="Resource_pxovo"]
+[sub_resource type="Resource" id="Resource_n1rav"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_gljov"]
+[sub_resource type="Resource" id="Resource_wrquo"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_v34r8"]
+[sub_resource type="Resource" id="Resource_o1gci"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_sr7nn"]
+[sub_resource type="Resource" id="Resource_bykwf"]
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_v34r8")
-addon_slots = SubResource("Resource_pxovo")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_gljov")])
+stake_level = SubResource("Resource_o1gci")
+addon_slots = SubResource("Resource_n1rav")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_wrquo")])
 
 [sub_resource type="Resource" id="mod_xp_2_b"]
 resource_name = "+2 XP / Turn"
@@ -821,31 +821,31 @@ script = ExtResource("2_mod")
 stat_id = &"xp_per_turn"
 value = 2.0
 
-[sub_resource type="Resource" id="Resource_8wuwo"]
+[sub_resource type="Resource" id="Resource_fb1g3"]
 resource_local_to_scene = true
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
-[sub_resource type="Resource" id="Resource_yvhgt"]
+[sub_resource type="Resource" id="Resource_7yiaw"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_m1q8d"]
+[sub_resource type="Resource" id="Resource_1oloa"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_2wsug"]
+[sub_resource type="Resource" id="Resource_n6wys"]
 resource_name = "stake_level"
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_m1q8d")
-addon_slots = SubResource("Resource_8wuwo")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_yvhgt")])
+stake_level = SubResource("Resource_1oloa")
+addon_slots = SubResource("Resource_fb1g3")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_7yiaw")])
 
 [sub_resource type="Resource" id="mod_per_2_b"]
 resource_name = "+2 Perception"
@@ -859,58 +859,58 @@ script = ExtResource("2_mod")
 stat_id = &"intelligence"
 value = 2.0
 
-[sub_resource type="Resource" id="Resource_d2aob"]
+[sub_resource type="Resource" id="Resource_pdhjk"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_5oo0l"]
+[sub_resource type="Resource" id="Resource_v4i6i"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_xdkdl"]
+[sub_resource type="Resource" id="Resource_iwijj"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_c7xk5"]
+[sub_resource type="Resource" id="Resource_eh457"]
 resource_name = "stake_level"
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_xdkdl")
-addon_slots = SubResource("Resource_d2aob")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_5oo0l")])
+stake_level = SubResource("Resource_iwijj")
+addon_slots = SubResource("Resource_pdhjk")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_v4i6i")])
 
 [sub_resource type="Resource" id="mod_dex_1_b"]
 resource_name = "+1 Dexterity"
 script = ExtResource("2_mod")
 stat_id = &"dexterity"
 
-[sub_resource type="Resource" id="Resource_5kwsy"]
+[sub_resource type="Resource" id="Resource_vyprv"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_4wwfy"]
+[sub_resource type="Resource" id="Resource_am3yw"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_fb6lc"]
+[sub_resource type="Resource" id="Resource_ywmey"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_m8r88"]
+[sub_resource type="Resource" id="Resource_mdu4w"]
 resource_name = "stake_level"
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_fb6lc")
-addon_slots = SubResource("Resource_5kwsy")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_4wwfy")])
+stake_level = SubResource("Resource_ywmey")
+addon_slots = SubResource("Resource_vyprv")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_am3yw")])
 
 [sub_resource type="Resource" id="mod_hp_5_b"]
 resource_name = "+5 Max Health"
@@ -918,149 +918,149 @@ script = ExtResource("2_mod")
 stat_id = &"health"
 value = 5.0
 
-[sub_resource type="Resource" id="Resource_f2lyu"]
+[sub_resource type="Resource" id="Resource_216l2"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_kpugk"]
+[sub_resource type="Resource" id="Resource_3uy4o"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_xvcc1"]
+[sub_resource type="Resource" id="Resource_ou200"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_8uq18"]
+[sub_resource type="Resource" id="Resource_dje0j"]
 resource_name = "stake_level"
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_xvcc1")
-addon_slots = SubResource("Resource_f2lyu")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_kpugk")])
+stake_level = SubResource("Resource_ou200")
+addon_slots = SubResource("Resource_216l2")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_3uy4o")])
 
-[sub_resource type="Resource" id="Resource_ktvri"]
+[sub_resource type="Resource" id="Resource_egfkr"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_6j0vv"]
+[sub_resource type="Resource" id="Resource_smy7u"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_irdy3"]
+[sub_resource type="Resource" id="Resource_jhvit"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_x63s4"]
+[sub_resource type="Resource" id="Resource_txqql"]
 resource_name = "stake_level"
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_irdy3")
-addon_slots = SubResource("Resource_ktvri")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_6j0vv")])
+stake_level = SubResource("Resource_jhvit")
+addon_slots = SubResource("Resource_egfkr")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_smy7u")])
 
-[sub_resource type="Resource" id="Resource_v4784"]
+[sub_resource type="Resource" id="Resource_koxs1"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_r0mj0"]
+[sub_resource type="Resource" id="Resource_x25t5"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_4bg4c"]
+[sub_resource type="Resource" id="Resource_ipsmi"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_t0y8d"]
+[sub_resource type="Resource" id="Resource_ro5n8"]
 resource_name = "stake_level"
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_4bg4c")
-addon_slots = SubResource("Resource_v4784")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_r0mj0")])
+stake_level = SubResource("Resource_ipsmi")
+addon_slots = SubResource("Resource_koxs1")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_x25t5")])
 
-[sub_resource type="Resource" id="Resource_80xxj"]
+[sub_resource type="Resource" id="Resource_umpxd"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_adho7"]
+[sub_resource type="Resource" id="Resource_3j5cd"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_dclck"]
+[sub_resource type="Resource" id="Resource_3ndxe"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_dbp7p"]
+[sub_resource type="Resource" id="Resource_7xfcf"]
 resource_name = "stake_level"
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_dclck")
-addon_slots = SubResource("Resource_80xxj")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_adho7")])
+stake_level = SubResource("Resource_3ndxe")
+addon_slots = SubResource("Resource_umpxd")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_3j5cd")])
 
-[sub_resource type="Resource" id="Resource_2yyim"]
+[sub_resource type="Resource" id="Resource_bvapc"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_q5w7r"]
+[sub_resource type="Resource" id="Resource_ng2ll"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_4ahp5"]
+[sub_resource type="Resource" id="Resource_fc0lb"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_v52cw"]
+[sub_resource type="Resource" id="Resource_ibn4y"]
 resource_name = "stake_level"
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_4ahp5")
-addon_slots = SubResource("Resource_2yyim")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_q5w7r")])
+stake_level = SubResource("Resource_fc0lb")
+addon_slots = SubResource("Resource_bvapc")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_ng2ll")])
 
-[sub_resource type="Resource" id="Resource_ospiv"]
+[sub_resource type="Resource" id="Resource_cvuqc"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_c5qhp"]
+[sub_resource type="Resource" id="Resource_5484d"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_osjlj"]
+[sub_resource type="Resource" id="Resource_42wg5"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_8xsle"]
+[sub_resource type="Resource" id="Resource_hch10"]
 resource_name = "stake_level"
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_osjlj")
-addon_slots = SubResource("Resource_ospiv")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_c5qhp")])
+stake_level = SubResource("Resource_42wg5")
+addon_slots = SubResource("Resource_cvuqc")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_5484d")])
 
 [sub_resource type="Resource" id="mod_vision_100"]
 resource_name = "+100 Vision Range"
@@ -1074,31 +1074,31 @@ script = ExtResource("2_mod")
 stat_id = &"health"
 value = 3.0
 
-[sub_resource type="Resource" id="Resource_7ub80"]
+[sub_resource type="Resource" id="Resource_rxmal"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
-[sub_resource type="Resource" id="Resource_08vjc"]
+[sub_resource type="Resource" id="Resource_xkbxa"]
 resource_name = "+1 Addon Slots"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
 
-[sub_resource type="Resource" id="Resource_tlcs7"]
+[sub_resource type="Resource" id="Resource_cxgca"]
 resource_name = "stake_level"
 script = ExtResource("8_umwfs")
 definition = ExtResource("49_v0kkn")
 base_value = 1.0
 
-[sub_resource type="Resource" id="Resource_h77wp"]
+[sub_resource type="Resource" id="Resource_ettse"]
 resource_name = "stake_level"
 script = ExtResource("48_54w3d")
-stake_level = SubResource("Resource_tlcs7")
-addon_slots = SubResource("Resource_7ub80")
-intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_08vjc")])
+stake_level = SubResource("Resource_cxgca")
+addon_slots = SubResource("Resource_rxmal")
+intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_xkbxa")])
 
-[sub_resource type="Resource" id="Resource_scqup"]
+[sub_resource type="Resource" id="Resource_bvfgh"]
 resource_local_to_scene = true
 resource_name = "×1.5 Blade Damage"
 script = ExtResource("2_mod")
@@ -1174,13 +1174,13 @@ script = ExtResource("2_mod")
 stat_id = &"perception"
 value = 2.0
 
-[sub_resource type="QuadMesh" id="QuadMesh_h1vuy"]
+[sub_resource type="QuadMesh" id="QuadMesh_t867q"]
 
-[sub_resource type="MultiMesh" id="MultiMesh_bcvsi"]
+[sub_resource type="MultiMesh" id="MultiMesh_h1iqp"]
 use_colors = true
 use_custom_data = true
 visible_instance_count = 0
-mesh = SubResource("QuadMesh_h1vuy")
+mesh = SubResource("QuadMesh_t867q")
 
 [node name="DevSandbox" unique_id=381943754 instance=ExtResource("1_base")]
 script = ExtResource("1_dev")
@@ -1198,7 +1198,7 @@ display_name = "Red Player"
 color = Color(0.9, 0.2, 0.2, 1)
 faction = ExtResource("1_player_faction")
 is_human_controlled = true
-stat_board = SubResource("Resource_ibn4y")
+stat_board = SubResource("Resource_1733n")
 core_class = ExtResource("42_core")
 spellbook = ExtResource("50_spellbook_debug")
 core_location = NodePath("../../Nodes/Core")
@@ -1206,7 +1206,7 @@ core_location = NodePath("../../Nodes/Core")
 [node name="Enemy" parent="Graph/Entities" parent_id_path=PackedInt32Array(1851662701, 1129644954) index="1" unique_id=8800001 node_paths=PackedStringArray("core_location") instance=ExtResource("10_entity")]
 display_name = "Blue Enemy"
 color = Color(0.25, 0.45, 0.95, 1)
-stat_board = SubResource("Resource_cvuqc")
+stat_board = SubResource("Resource_4wewy")
 core_class = ExtResource("58_enemy_core")
 core_location = NodePath("../../Nodes/Enemy_Core")
 
@@ -1215,7 +1215,7 @@ z_index = 1001
 z_as_relative = false
 owned_by = NodePath("../../Entities/Player")
 base_type_color = Color(0.94509804, 0.27058825, 0.24705882, 1)
-node_board = SubResource("Resource_rxmal")
+node_board = SubResource("Resource_hk07i")
 
 [node name="Up" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="1" unique_id=1730649151 instance=ExtResource("9_skill")]
 z_index = 1001
@@ -1232,7 +1232,7 @@ position = Vector2(151, 78)
 owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_2")])
 base_type_color = Color(0.94509804, 0.27058825, 0.24705882, 1)
-node_board = SubResource("Resource_bvfgh")
+node_board = SubResource("Resource_i20lm")
 
 [node name="ClampAddon" parent="Graph/Nodes/Right" index="3" unique_id=1193177963 instance=ExtResource("48_owpne")]
 
@@ -1243,10 +1243,10 @@ position = Vector2(43, 148)
 owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5"), SubResource("Resource_f63mm")])
 base_type_color = Color(0.94509804, 0.27058825, 0.24705882, 1)
-node_board = SubResource("Resource_sdo1i")
+node_board = SubResource("Resource_v35nn")
 
 [node name="SpikeRingAddon" parent="Graph/Nodes/Down" index="3" unique_id=1569558765 instance=ExtResource("45_df164")]
-local_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_4mj8p")])
+local_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_tx111")])
 
 [node name="Left" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="4" unique_id=1010139945 instance=ExtResource("9_skill")]
 z_index = 1001
@@ -1263,10 +1263,10 @@ position = Vector2(163, -64)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_per_2")])
 archetype = ExtResource("44_arch_per")
 base_type_color = Color(0.69411767, 0.40392157, 0.96862745, 1)
-node_board = SubResource("Resource_m3bdv")
+node_board = SubResource("Resource_ch6bb")
 
 [node name="BunkerAddon" parent="Graph/Nodes/NE" index="3" unique_id=631414463 instance=ExtResource("48_qk0se")]
-local_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_o2bc6"), SubResource("Resource_u38nb")])
+local_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_5ns4p"), SubResource("Resource_u38nb")])
 
 [node name="Up_Out" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="6" unique_id=1748015269 instance=ExtResource("9_skill")]
 z_index = 1001
@@ -1282,7 +1282,7 @@ z_as_relative = false
 position = Vector2(261, -41)
 owned_by = NodePath("../../Entities/Enemy")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_str_1"), SubResource("mod_xp_2")])
-node_board = SubResource("Resource_sr7nn")
+node_board = SubResource("Resource_bykwf")
 
 [node name="Down_Out" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="8" unique_id=8800201 node_paths=PackedStringArray("owned_by", "self_loops") instance=ExtResource("9_skill")]
 z_index = 1001
@@ -1292,7 +1292,7 @@ owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_xp_2_b")])
 base_type_color = Color(0.9019608, 0.73333335, 0.27450982, 1)
 self_loops = [NodePath("../../Edges/Edge_DownOut_self")]
-node_board = SubResource("Resource_2wsug")
+node_board = SubResource("Resource_n6wys")
 
 [node name="Left_Out" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="9" unique_id=8800202 instance=ExtResource("9_skill")]
 z_index = 1001
@@ -1308,7 +1308,7 @@ position = Vector2(-203, 103)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_int_2_b")])
 archetype = ExtResource("44_arch_int")
 base_type_color = Color(0.2901961, 0.5882353, 1, 1)
-node_board = SubResource("Resource_c7xk5")
+node_board = SubResource("Resource_eh457")
 
 [node name="ClampAddon" parent="Graph/Nodes/SW" index="3" unique_id=442806284 instance=ExtResource("48_owpne")]
 
@@ -1320,7 +1320,7 @@ owned_by = NodePath("../../Entities/Enemy")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_dex_1_b")])
 archetype = ExtResource("44_arch_dex")
 base_type_color = Color(0.31764707, 0.7764706, 0.44705883, 1)
-node_board = SubResource("Resource_m8r88")
+node_board = SubResource("Resource_mdu4w")
 
 [node name="Bridge_S" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="12" unique_id=8800205 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
@@ -1330,14 +1330,14 @@ owned_by = NodePath("../../Entities/Player")
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hp_5_b")])
 archetype = ExtResource("44_arch_con")
 base_type_color = Color(0.85882354, 0.9019608, 0.9490196, 1)
-node_board = SubResource("Resource_8uq18")
+node_board = SubResource("Resource_dje0j")
 
 [node name="Enemy_Core" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="13" unique_id=8800206 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
 z_as_relative = false
 position = Vector2(507, 83)
 owned_by = NodePath("../../Entities/Enemy")
-node_board = SubResource("Resource_x63s4")
+node_board = SubResource("Resource_txqql")
 
 [node name="Enemy_N" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="14" unique_id=8800207 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
@@ -1345,14 +1345,14 @@ z_as_relative = false
 position = Vector2(467, -47)
 owned_by = NodePath("../../Entities/Enemy")
 archetype = ExtResource("44_arch_con")
-node_board = SubResource("Resource_t0y8d")
+node_board = SubResource("Resource_ro5n8")
 
 [node name="Enemy_E" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="15" unique_id=8800208 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
 z_as_relative = false
 position = Vector2(607, 123)
 owned_by = NodePath("../../Entities/Enemy")
-node_board = SubResource("Resource_dbp7p")
+node_board = SubResource("Resource_7xfcf")
 
 [node name="Enemy_S" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="16" unique_id=8800209 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
@@ -1361,7 +1361,7 @@ position = Vector2(507, 213)
 owned_by = NodePath("../../Entities/Enemy")
 archetype = ExtResource("44_arch_con")
 base_type_color = Color(0.85882354, 0.9019608, 0.9490196, 1)
-node_board = SubResource("Resource_v52cw")
+node_board = SubResource("Resource_ibn4y")
 
 [node name="BunkerAddon" type="Node2D" parent="Graph/Nodes/Enemy_S" index="3" unique_id=430748007]
 z_index = 1
@@ -1373,7 +1373,7 @@ z_index = 1001
 z_as_relative = false
 position = Vector2(397, 143)
 owned_by = NodePath("../../Entities/Enemy")
-node_board = SubResource("Resource_8xsle")
+node_board = SubResource("Resource_hch10")
 
 [node name="Watchtower" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="18" unique_id=9000001 instance=ExtResource("9_skill")]
 z_index = 1001
@@ -1382,10 +1382,10 @@ position = Vector2(300, -260)
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_vision_100"), SubResource("mod_hp_3")])
 archetype = ExtResource("44_arch_per")
 base_type_color = Color(0.69411767, 0.40392157, 0.96862745, 1)
-node_board = SubResource("Resource_h77wp")
+node_board = SubResource("Resource_ettse")
 
 [node name="SpikeRingAddon" parent="Graph/Nodes/Watchtower" index="3" unique_id=1349571620 instance=ExtResource("45_df164")]
-local_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_scqup")])
+local_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_bvfgh")])
 
 [node name="Juggler" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="19" unique_id=9000002 instance=ExtResource("9_skill")]
 z_index = 1001
@@ -1606,7 +1606,7 @@ from = NodePath("../../Nodes/Down_Out")
 to = NodePath("../../Nodes/Down_Out")
 
 [node name="EdgeMesh" parent="Graph" parent_id_path=PackedInt32Array(1851662701) index="4" unique_id=-1447774240]
-multimesh = SubResource("MultiMesh_bcvsi")
+multimesh = SubResource("MultiMesh_h1iqp")
 
 [node name="UI" parent="." index="4" unique_id=2075892469]
 visible = false

@@ -44,12 +44,12 @@
 [ext_resource type="Resource" path="res://stats_system/defs/spell_damage.tres" id="def_spell_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/spell_hops.tres" id="def_spell_hops"]
 [ext_resource type="Resource" path="res://stats_system/defs/spell_range.tres" id="def_spell_range"]
-[ext_resource type="Resource" path="res://stats_system/defs/sp_gain_on_levelup.tres" id="def_sp_gain_on_levelup"]
-[ext_resource type="Resource" path="res://stats_system/defs/spike_regen.tres" id="def_spike_regen"]
 [ext_resource type="Resource" path="res://stats_system/defs/spikes.tres" id="def_spikes"]
+[ext_resource type="Resource" path="res://stats_system/defs/spike_regen.tres" id="def_spike_regen"]
+[ext_resource type="Resource" path="res://stats_system/defs/sp_gain_on_levelup.tres" id="def_sp_gain_on_levelup"]
 [ext_resource type="Resource" uid="uid://vtw8ktmktkgq" path="res://stats_system/defs/strength.tres" id="def_strength"]
-[ext_resource type="Resource" path="res://stats_system/defs/vision_range.tres" id="def_vision_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/tempo.tres" id="def_tempo"]
+[ext_resource type="Resource" path="res://stats_system/defs/vision_range.tres" id="def_vision_range"]
 [ext_resource type="Resource" uid="uid://dvpjmk8e3m08k" path="res://stats_system/defs/wisdom.tres" id="def_wisdom"]
 [ext_resource type="Resource" uid="uid://dj0fpcgn42hcn" path="res://stats_system/defs/wound_heal_per_turn.tres" id="def_wound_heal_per_turn"]
 [ext_resource type="Resource" uid="uid://b04rych6tmpxr" path="res://stats_system/defs/xp.tres" id="def_xp"]
@@ -58,8 +58,8 @@
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="script_expr"]
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="script_linear"]
 [ext_resource type="Script" uid="uid://dknxw63lhq13c" path="res://stats_system/formulas/ratio_formula.gd" id="script_ratio"]
+[ext_resource type="Script" uid="uid://cu48nr8jgyso" path="res://stats_system/formulas/sqrt_formula.gd" id="script_sqrt"]
 [ext_resource type="Script" uid="uid://tni13fhowqha" path="res://stats_system/formulas/threshold_formula.gd" id="script_threshold"]
-[ext_resource type="Script" path="res://stats_system/formulas/sqrt_formula.gd" id="script_sqrt"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -67,13 +67,6 @@ script = ExtResource("3_pool")
 current = 2.0
 definition = ExtResource("def_ap")
 base_value = 2.0
-
-[sub_resource type="Resource" id="pool_tempo"]
-resource_name = "tempo"
-script = ExtResource("3_pool")
-current = 1.0
-definition = ExtResource("def_tempo")
-base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_ap_transfer_rate"]
 resource_name = "ap_transfer_rate"
@@ -132,6 +125,12 @@ resource_name = "core_health_scaling"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_core_health_scaling")
 base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_core_kill_xp"]
+resource_name = "core_kill_xp"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_core_kill_xp")
+base_value = 60.0
 
 [sub_resource type="Resource" id="scalar_crit_chance"]
 resource_name = "crit_chance"
@@ -194,12 +193,23 @@ script = ExtResource("script_linear")
 source_stat_id = &"perception"
 
 [sub_resource type="Resource" id="mod_per_to_vision"]
-resource_name = "+2% increased Vision Range"
+resource_name = "+1% increased Vision Range per PER"
 script = ExtResource("12_3edt8")
 stat_id = &"vision_range"
 operation = 1
-value = 2.0
 formula = SubResource("formula_per_to_vision")
+
+[sub_resource type="Resource" id="formula_per_to_sensor"]
+script = ExtResource("script_threshold")
+source_stat_id = &"perception"
+breakpoints = Array[float]([3.0, 8.0, 21.0, 55.0, 149.0, 404.0, 1097.0, 2981.0, 8104.0, 22027.0])
+per_phrase = "log(PER)"
+
+[sub_resource type="Resource" id="mod_per_to_sensor"]
+resource_name = "+1 Sensor Range per log(PER)"
+script = ExtResource("12_3edt8")
+stat_id = &"sensor_range"
+formula = SubResource("formula_per_to_sensor")
 
 [sub_resource type="Resource" id="formula_int_to_mana"]
 script = ExtResource("script_ratio")
@@ -207,7 +217,7 @@ source_stat_id = &"intelligence"
 divisor = 1000.0
 
 [sub_resource type="Resource" id="mod_int_to_mana"]
-resource_name = "+1 Max Mana"
+resource_name = "+1 Max Mana per 1000 INT"
 script = ExtResource("12_3edt8")
 stat_id = &"mana"
 formula = SubResource("formula_int_to_mana")
@@ -215,10 +225,11 @@ formula = SubResource("formula_int_to_mana")
 [sub_resource type="Resource" id="formula_int_to_mana_pt"]
 script = ExtResource("script_threshold")
 source_stat_id = &"intelligence"
-breakpoints = Array[float]([1000.0, 10000.0, 100000.0, 1000000.0])
+breakpoints = Array[float]([10.0, 100.0, 1000.0, 10000.0, 100000.0])
+per_phrase = "10-fold of INT"
 
 [sub_resource type="Resource" id="mod_int_to_mana_pt"]
-resource_name = "+1 Mana / Turn"
+resource_name = "+1 Mana / Turn at 100 / 1000 / 10000 / 100000 INT"
 script = ExtResource("12_3edt8")
 stat_id = &"mana_per_turn"
 formula = SubResource("formula_int_to_mana_pt")
@@ -229,22 +240,10 @@ source_stat_id = &"wisdom"
 divisor = 5.0
 
 [sub_resource type="Resource" id="mod_wis_to_xp_pt"]
-resource_name = "+1 XP / Turn"
+resource_name = "+1 XP / Turn per 5 WIS"
 script = ExtResource("12_3edt8")
 stat_id = &"xp_per_turn"
 formula = SubResource("formula_wis_to_xp_pt")
-
-[sub_resource type="Resource" id="formula_per_to_sensor"]
-script = ExtResource("script_threshold")
-source_stat_id = &"perception"
-breakpoints = Array[float]([3.0, 8.0, 21.0, 55.0, 149.0, 404.0, 1097.0, 2981.0, 8104.0, 22027.0])
-per_phrase = "log(PER)"
-
-[sub_resource type="Resource" id="mod_per_to_sensor"]
-resource_name = "+1 Sensor Range"
-script = ExtResource("12_3edt8")
-stat_id = &"sensor_range"
-formula = SubResource("formula_per_to_sensor")
 
 [sub_resource type="Resource" id="formula_str_to_blade_damage"]
 script = ExtResource("script_ratio")
@@ -252,7 +251,7 @@ source_stat_id = &"strength"
 divisor = 20.0
 
 [sub_resource type="Resource" id="mod_str_to_blade_damage"]
-resource_name = "+1 Blade Damage"
+resource_name = "+1 Blade Damage per 20 STR"
 script = ExtResource("12_3edt8")
 stat_id = &"blade_damage"
 formula = SubResource("formula_str_to_blade_damage")
@@ -263,7 +262,7 @@ source_stat_id = &"strength"
 divisor = 40.0
 
 [sub_resource type="Resource" id="mod_str_to_blade_size"]
-resource_name = "+1 Blade Size"
+resource_name = "+1 Blade Size per 40 STR"
 script = ExtResource("12_3edt8")
 stat_id = &"blade_size"
 formula = SubResource("formula_str_to_blade_size")
@@ -273,7 +272,7 @@ script = ExtResource("script_linear")
 source_stat_id = &"dexterity"
 
 [sub_resource type="Resource" id="mod_dex_to_range"]
-resource_name = "+1% increased Range"
+resource_name = "+1% increased Range per DEX"
 script = ExtResource("12_3edt8")
 stat_id = &"range"
 operation = 1
@@ -285,7 +284,7 @@ source_stat_id = &"intelligence"
 divisor = 50.0
 
 [sub_resource type="Resource" id="mod_int_to_spell_range"]
-resource_name = "+1 Spell Range"
+resource_name = "+1 Spell Range per 50 INT"
 script = ExtResource("12_3edt8")
 stat_id = &"spell_range"
 formula = SubResource("formula_int_to_spell_range")
@@ -296,7 +295,7 @@ source_stat_id = &"intelligence"
 breakpoints = Array[float]([50.0, 150.0, 500.0, 1000.0, 5000.0])
 
 [sub_resource type="Resource" id="mod_int_to_spell_hops"]
-resource_name = "+1 Spell Hops"
+resource_name = "+1 Spell Hops at 50 / 150 / 500 / 1000 / 5000 INT"
 script = ExtResource("12_3edt8")
 stat_id = &"spell_hops"
 formula = SubResource("formula_int_to_spell_hops")
@@ -307,7 +306,7 @@ source_stat_id = &"dexterity"
 divisor = 20.0
 
 [sub_resource type="Resource" id="mod_dex_to_ranged_damage"]
-resource_name = "+1 Ranged Damage"
+resource_name = "+1 Ranged Damage per 20 DEX"
 script = ExtResource("12_3edt8")
 stat_id = &"ranged_damage"
 formula = SubResource("formula_dex_to_ranged_damage")
@@ -318,7 +317,7 @@ source_stat_id = &"intelligence"
 divisor = 1.0
 
 [sub_resource type="Resource" id="mod_int_to_spell_damage"]
-resource_name = "+1 Spell Damage"
+resource_name = "+1 Spell Damage per √INT"
 script = ExtResource("12_3edt8")
 stat_id = &"spell_damage"
 formula = SubResource("formula_int_to_spell_damage")
@@ -330,7 +329,7 @@ inputs = Array[StringName]([&"node_health_scaling", &"constitution"])
 per_phrase = "CON × node scaling"
 
 [sub_resource type="Resource" id="mod_con_to_node_health"]
-resource_name = "+1 Node Health"
+resource_name = "+1 Node Health per CON × node scaling"
 script = ExtResource("12_3edt8")
 stat_id = &"node_health"
 formula = SubResource("formula_con_to_node_health")
@@ -342,13 +341,13 @@ inputs = Array[StringName]([&"core_health_scaling", &"constitution"])
 per_phrase = "CON × core scaling"
 
 [sub_resource type="Resource" id="mod_con_to_health"]
-resource_name = "+1 Max Health"
+resource_name = "+1 Max Health per CON × core scaling"
 script = ExtResource("12_3edt8")
 stat_id = &"health"
 formula = SubResource("formula_con_to_health")
 
 [sub_resource type="Resource" id="mod_level_to_con"]
-resource_name = "+1 Constitution"
+resource_name = "+1 Constitution per level"
 script = ExtResource("12_3edt8")
 stat_id = &"constitution"
 formula = ExtResource("formula_level_scaling")
@@ -477,6 +476,13 @@ script = ExtResource("2_scalar")
 definition = ExtResource("def_strength")
 base_value = 10.0
 
+[sub_resource type="Resource" id="pool_tempo"]
+resource_name = "tempo"
+script = ExtResource("3_pool")
+current = 1.0
+definition = ExtResource("def_tempo")
+base_value = 1.0
+
 [sub_resource type="Resource" id="scalar_vision_range"]
 resource_name = "vision_range"
 script = ExtResource("2_scalar")
@@ -506,12 +512,6 @@ resource_name = "xp_per_turn"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_xp_per_turn")
 
-[sub_resource type="Resource" id="scalar_core_kill_xp"]
-resource_name = "core_kill_xp"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_core_kill_xp")
-base_value = 60.0
-
 [resource]
 resource_local_to_scene = true
 script = ExtResource("1_board")
@@ -535,8 +535,8 @@ spikes = SubResource("scalar_spikes")
 spike_regen = SubResource("scalar_spike_regen")
 xp = SubResource("pool_xp")
 xp_per_turn = SubResource("scalar_xp_per_turn")
-core_kill_xp = SubResource("scalar_core_kill_xp")
 level = SubResource("scalar_level")
+core_kill_xp = SubResource("scalar_core_kill_xp")
 skill_points = SubResource("sp_skill_points")
 wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
 sp_gain_on_levelup = SubResource("scalar_sp_gain_on_levelup")

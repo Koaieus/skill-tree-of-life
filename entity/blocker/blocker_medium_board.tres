@@ -50,8 +50,8 @@
 [ext_resource type="Script" uid="uid://dn253es0cni7j" path="res://stats_system/formulas/expression_formula.gd" id="script_expr"]
 [ext_resource type="Script" uid="uid://bp3s3wrx2o27j" path="res://stats_system/formulas/linear_formula.gd" id="script_linear"]
 [ext_resource type="Script" uid="uid://dknxw63lhq13c" path="res://stats_system/formulas/ratio_formula.gd" id="script_ratio"]
+[ext_resource type="Script" uid="uid://cu48nr8jgyso" path="res://stats_system/formulas/sqrt_formula.gd" id="script_sqrt"]
 [ext_resource type="Script" uid="uid://tni13fhowqha" path="res://stats_system/formulas/threshold_formula.gd" id="script_threshold"]
-[ext_resource type="Script" path="res://stats_system/formulas/sqrt_formula.gd" id="script_sqrt"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -101,6 +101,12 @@ resource_name = "core_health_scaling"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_core_health_scaling")
 base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_core_kill_xp"]
+resource_name = "core_kill_xp"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_core_kill_xp")
+base_value = 40.0
 
 [sub_resource type="Resource" id="scalar_crit_chance"]
 resource_name = "crit_chance"
@@ -415,12 +421,6 @@ resource_name = "xp_per_turn"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_xp_per_turn")
 
-[sub_resource type="Resource" id="scalar_core_kill_xp"]
-resource_name = "core_kill_xp"
-script = ExtResource("2_scalar")
-definition = ExtResource("def_core_kill_xp")
-base_value = 40.0
-
 [resource]
 resource_local_to_scene = true
 script = ExtResource("1_board")
@@ -442,8 +442,8 @@ min_damage_taken = SubResource("scalar_min_dmg_taken")
 dealloc_damage = SubResource("scalar_dealloc_damage")
 xp = SubResource("pool_xp")
 xp_per_turn = SubResource("scalar_xp_per_turn")
-core_kill_xp = SubResource("scalar_core_kill_xp")
 level = SubResource("scalar_level")
+core_kill_xp = SubResource("scalar_core_kill_xp")
 skill_points = SubResource("sp_skill_points")
 wound_heal_per_turn = SubResource("scalar_wound_heal_per_turn")
 sp_gain_on_levelup = SubResource("scalar_sp_gain_on_levelup")
