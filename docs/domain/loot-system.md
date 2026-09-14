@@ -1,13 +1,16 @@
-# Loot system (#68 XP reward + #69/#173 SkillDust)
+# Loot system (#68 XP reward + #888 tempo + #69/#173 SkillDust)
 
 `systems/loot_system.gd` is the authority for **killing-blow rewards**. It reacts
-to `Events.entity_dying(victim)` and does two things:
+to `Events.entity_dying(victim)` and does three things:
 
 1. **XP reward (#68, #173, #182)** — the killer gains XP for the **territory**
    the victim held at death (its core included). Never for its level. A
    per-node trickle rides `BattleSystem.cascade_started` alongside this (see
    below — it can't ride `Events.skill_node_depleted`).
-2. **SkillDust drop (#69/#173, re-cut #323)** — the victim's former core node
+2. **Tempo award (#888)** — a HOSTILE killing blow spends 1 `tempo` to refund
+   1 `action_points`, once per turn, the pool's own cap acting as the latch.
+   See "The tempo award" below.
+3. **SkillDust drop (#69/#173, re-cut #323)** — the victim's former core node
    becomes a claimable relic carrying a `SkillDustAddon`, a **weighted draw
    over three provenance buckets** offered as N **rounds of pick-1-of-3**.
 
