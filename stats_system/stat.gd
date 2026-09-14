@@ -69,7 +69,7 @@ var _modifiers: Array[StatModifier] = []
 ##
 ## ADD_BASE / INCREASE / ADD_BONUS keep a running scalar sum — additions are
 ## pure float adds; FP drift over many add/remove cycles is negligible (stat
-## values are small, INT stats coerce via roundi). MULTIPLY intentionally
+## values are small, INT stats truncate toward zero in _coerce). MULTIPLY intentionally
 ## keeps the *list* and walks it on read: a running product would require
 ## division on remove (FP-drift trap) and a value-of-0 modifier would wedge
 ## it. The multiplier list is typically tiny (0–2), so the walk is cheap.
@@ -568,7 +568,12 @@ func _coerce(v: float) -> Variant:
 		return v
 	match definition.value_type:
 		StatDef.ValueType.INT:
-			return roundi(v)
+			# #890 / ADR 0016 decision 2: an INT stat FLOORS its finished
+			# total, truncating toward zero — the pipeline's only rounding,
+			# applied once after the bins so `% increased` on a ratio target
+			# yields +1 +1 +1 rather than a burst. Pools round their own
+			# `current` separately (PoolStat.available()).
+			return int(v)
 		StatDef.ValueType.BOOL:
 			return v != 0.0
 		_:
