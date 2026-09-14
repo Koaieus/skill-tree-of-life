@@ -106,6 +106,34 @@ func deflects_at(z: int) -> bool:
 	return z >= 0 and z < deflects.size() and deflects[z] != 0
 
 
+## Whether [param sn] is eligible to defend at all, ahead of any stat read
+## (#864).
+##
+## [b]Territory defends; terrain does not.[/b] `swing_drag` and `deflection`
+## are LOCAL modifiers authored the instant a [FortificationAddon] /
+## [BunkerAddon] is parented, and procgen attaches addons at generation time —
+## when the whole board is still unowned. So the physics query's collision-bit
+## predicate, which is keyed on the local value and nothing else by #810's
+## design, cheerfully returned a map's worth of unowned walls and plates: a
+## swing across neutral ground was dragged and deflected by fortifications
+## nobody had paid for.
+##
+## [b]The bit is deliberately NOT where this is fixed.[/b] [method
+## SkillNode._sync_defender_bit] is the registry's single writer and its
+## contract is "this node carries the stat" — pinned on bare, unallocated
+## nodes by `test/unit/test_skill_node_defender_collision_bits.gd`. Allocation
+## is a second, cheaper question, and one `is_allocated()` per *hit* is
+## O(defenders in reach), never the O(map) walk #811 deleted.
+##
+## This is the same gate [method BladePopResolver.Gate.admit] already applies
+## to a spike pop — "a de-allocated target is still #502's no-dud for melee" —
+## so all three defensive addons now answer the ownership question the same
+## way. A disowned node keeps its addon, its visual and its stat; what it loses
+## is the right to stop a blade.
+static func _defends(sn: SkillNode) -> bool:
+	return sn.is_allocated()
+
+
 ## Every defender node whose own disc overlaps a disc of [param radius] centred
 ## on [param center], in [member SkillNode.stable_id] order.
 ##
@@ -149,7 +177,7 @@ static func query(
 	var found: Array[SkillNode] = []
 	for hit in hits:
 		var sn := hit.get("collider") as SkillNode
-		if sn != null:
+		if sn != null and _defends(sn):
 			found.append(sn)
 	found.sort_custom(func(a: SkillNode, b: SkillNode) -> bool:
 		var a_id := graph.get_stable_id(a) if graph != null else a.stable_id
@@ -186,6 +214,11 @@ static func _debug_cross_check(
 		exclude: Array[RID]) -> void:
 	for sn in graph.get_skill_nodes():
 		if sn == null or exclude.has(sn.get_rid()):
+			continue
+		# Same eligibility gate the query applies (#864) — without it this guard
+		# would "helpfully" warn about every unowned wall on the map, i.e. about
+		# the fix itself.
+		if not _defends(sn):
 			continue
 		var drag := float(sn.get_local_value(&"swing_drag"))
 		var deflect := bool(sn.get_local_value(&"deflection"))
