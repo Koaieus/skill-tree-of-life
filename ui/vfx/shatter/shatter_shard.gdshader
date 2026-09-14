@@ -5,7 +5,9 @@ shader_type canvas_item;
 // Consumers do not use this — #787 draws a blade wedge's fill + rim and #257
 // re-runs the InnerDisk dome inside the cell — but every one of them is this
 // file with a different body: `SHATTER_VERTEX` in vertex(), then in
-// fragment() unspin -> cell test -> your look -> `shatter_fade()`.
+// fragment() unspin -> cell test -> your look -> `shatter_fade()`. That last
+// call also carries the release bloom (#871, `shard_bloom_stops`): a consumer
+// gets "bloom at release, fizzle out" for free and must not re-derive it.
 #include "res://ui/vfx/shatter/shatter_motion.gdshaderinc"
 
 // Gap between shards at the seams, in disc-radius units.

@@ -10,7 +10,7 @@ const InnerDiskShatterField := preload("res://skill_node/visuals/inner_disk_shat
 ##   - alloc spike   : "skill point from the heavens" on every allocation
 ##   - dealloc lift  : floating colored disk on voluntary deallocation
 ##   - shatter       : #257's InnerDisk fragmentation on forced deallocation —
-##                     an intact-disc crescendo (cracks glow, rays leak out)
+##                     an intact-disc crescendo (cracks glow, disc shatters)
 ##                     THEN the disc comes apart into flying shards, staggered
 ##                     by BFS-distance-from-impact when part of a battle
 ##                     cascade. Real dome shading, not a snapshot texture —
@@ -136,16 +136,40 @@ var _cascade_snapshot: Dictionary[SkillNode, Dictionary] = {}
 		shatter_end_tier = value
 		_push_shatter_tuning()
 
-## #871 stub — filled in below.
-@export var shatter_shard_bloom_tier: Emissive.Tier = Emissive.Tier.ALERT
+## Tier a shard's colour is lifted to AT release (#871) — the "explode" flash
+## the owner wanted on the pieces, decaying back to the spawn tier by the time
+## the shard has faded ("glow and bloom and *explode* — move a bit then
+## fizzle"). Separate from [member shatter_spawn_tier] on purpose: that one
+## must stay INERT so the still-intact disc pixel-matches the live InnerDisk,
+## while this only applies once the disc has come apart. Pushed as the
+## material's `shard_bloom_stops` (one value per material — it is the field's
+## material, never per node) via `Emissive.stops()`, never a hand float.
+@export var shatter_shard_bloom_tier: Emissive.Tier = Emissive.Tier.ALERT:
+	set(value):
+		shatter_shard_bloom_tier = value
+		_push_shatter_tuning()
 
 
-static func crack_glow_at(_prog: float, _flight_start: float) -> float:
-	return 0.0
+## CPU reference of `inner_disk_shatter.gdshader`'s `shatter_crescendo()`:
+## the crack-seam glow, 0..1, for `prog` in [0, 1] of the shatter window.
+## Line for line: `if (prog >= p0) return 0.0; return clamp(prog / p0, 0, 1)`.
+## The crack phase ENDS at [member shatter_flight_start] — from there only
+## shards draw, so the seams are never lit after the disc lets go (#871).
+static func crack_glow_at(prog: float, flight_start: float) -> float:
+	if prog >= flight_start:
+		return 0.0
+	return clampf(prog / flight_start, 0.0, 1.0)
 
 
-static func shard_bloom_at(_prog: float, _flight_start: float) -> float:
-	return 0.0
+## CPU reference of `shatter_motion.gdshaderinc`'s `shatter_bloom_ramp()`:
+## the release bloom, 0..1. Line for line: `if (prog < p0) return 0.0;
+## return 1.0 - shatter_fade_ramp(prog)` with `shatter_fade_ramp` being
+## `ShatterField.fade_ramp_at` — 0 while the disc is intact, exactly 1 at
+## release, linearly down to 0 at progress 1 (#871).
+static func shard_bloom_at(prog: float, flight_start: float) -> float:
+	if prog < flight_start:
+		return 0.0
+	return 1.0 - ShatterField.fade_ramp_at(prog, flight_start)
 
 
 ## #257's node-death shard field. One per AllocationVFX (one graph's worth of
@@ -196,6 +220,11 @@ func _push_shatter_tuning() -> void:
 	_shard_field.flight_start = shatter_flight_start
 	_shard_field.spawn_tier = shatter_spawn_tier
 	_shard_field.end_tier = shatter_end_tier
+	# The field owns the motion uniforms; this one is the consumer's look, so
+	# it goes straight onto the field's (scene-local) material.
+	var mat := _shard_field.material as ShaderMaterial
+	if mat != null:
+		mat.set_shader_parameter(&"shard_bloom_stops", Emissive.stops(shatter_shard_bloom_tier))
 
 
 ## The shard field #257's node deaths spawn into — exposed for the live tab
@@ -498,9 +527,10 @@ func _spawn_lift(world_pos: Vector2, disk_radius: float, color: Color) -> void:
 
 
 ## Node "death" animation (#257): fragments the dying node's own dome into
-## [member _shard_field] — an intact-disc crescendo (cracks glow, rays leak
-## out) through the cascade `delay`, then the disc comes apart at
-## `shatter_flight_start`. Replaces the old vibrate + particle-burst pair
+## [member _shard_field] — an intact-disc crescendo (the crack seams glow)
+## through the cascade `delay`, then the disc comes apart at
+## `shatter_flight_start` and the shards bloom, fly and fizzle (#871; the rim
+## is untouched). Replaces the old vibrate + particle-burst pair
 ## outright, same handoff shape: the real SkillNode's InnerDisk hides at
 ## `force_deallocate` (see `skill_node.gd`), the shard field takes over.
 ## Returns the first pool slot (`ShatterField.spawn_shatter`'s own return),

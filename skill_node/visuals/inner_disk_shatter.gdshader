@@ -14,10 +14,12 @@ shader_type canvas_item;
 // other (deliberate overdraw, `.claude/rules/rendering-performance.md`) with
 // glowing cracks overlaid at the seams. At p0 the render swaps to each shard's
 // OWN Voronoi cell and the piece flies per `shatter_motion.gdshaderinc`'s
-// curve. Past the disc's rim, the same crack seams leak supernova rays
-// (decision 5) — `shatter_seam_distance()` is the ONE seam authority for
-// cracks, cell split AND rays, so none of the three can visually disagree
-// (#257 acceptance 4).
+// curve, blooming at release and fizzling out (`shatter_fade`, #871).
+// `shatter_seam_distance()` is the ONE seam authority for cracks AND the cell
+// split, so the disc breaks along the cracks it was showing (#257
+// acceptance 4). Nothing draws outside the disc: #257's "supernova rays"
+// past the rim were the rim-glow / rim-burst read #871 removed — the rim is
+// the live node's, and it stays dark through a death.
 #include "res://ui/vfx/shatter/shatter_motion.gdshaderinc"
 #include "res://skill_node/visuals/inner_disk_body.gdshaderinc"
 
@@ -27,17 +29,10 @@ shader_type canvas_item;
 
 // Disk-space half-width of a glowing crack seam, pre-explosion.
 uniform float crack_width : hint_range(0.001, 0.3) = 0.06;
-// EV stops a crack glows above its base tint at crescendo peak. Emissive.ALERT
-// (2.0) — "full neon", appropriate for a disc about to come apart.
+// EV stops a crack glows above its base tint at crescendo peak (the instant
+// before the disc lets go). Emissive.ALERT (2.0) — "full neon", appropriate
+// for a disc about to come apart.
 uniform float crack_glow_stops : hint_range(0.0, 6.0) = 2.0;
-// EV stops a supernova ray peaks at. Emissive.PEAK (3.0) — "a momentary
-// overshoot .. relaxing back down", exactly the ignition-flash read wanted.
-uniform float ray_peak_ev : hint_range(0.0, 8.0) = 3.0;
-// Angular tolerance (in the same seed-distance units `shatter_seam_distance`
-// returns, evaluated on the disc's rim) a ray fans out from its crack.
-uniform float ray_angle_width : hint_range(0.02, 2.0) = 0.35;
-// How far past the disc rim (disc-radius units) a ray reaches at its peak.
-uniform float ray_length : hint_range(0.1, 3.0) = 0.9;
 
 // --- Identity tint rides COLOR, never a uniform ---
 //
@@ -49,9 +44,9 @@ uniform float ray_length : hint_range(0.1, 3.0) = 0.9;
 // AllocationVFX pins `spawn_tier` to `Emissive.Tier.INERT` (0 stops) so that
 // lift is the identity and `COLOR` IS the node's plain SDR tint — which is
 // what makes the intact-disc phase pixel-match `inner_disk.gdshader`'s own
-// `instance uniform tint_color` (#257 acceptance 2). The crescendo/ray HDR
-// boost below is applied explicitly on top via `exp2(...)`, independent of
-// ShatterField's own tier-fade mechanic.
+// `instance uniform tint_color` (#257 acceptance 2). The crack-glow HDR boost
+// below is applied explicitly on top via `exp2(...)`; the shards' own
+// release bloom is `shatter_motion.gdshaderinc`'s `shard_bloom_stops`.
 
 // --- Per-node dome look — PLAIN uniforms, not `instance uniform`s. A
 // MultiMesh's instances share one CanvasItem (#835 decision 6), so nothing
@@ -85,14 +80,16 @@ void vertex() {
 	SHATTER_VERTEX;
 }
 
-// 0 at spawn, rises to 1 at p0 (the crescendo peak), then decays back to 0
-// across the flight as the shard fades — `shatter_fade_ramp` already owns
-// that second half, so this reuses it rather than re-deriving a fall curve.
+// Crack glow, 0..1: 0 at spawn, rising to 1 as `prog` reaches p0 — and gone
+// from p0 on, when the intact disc stops being drawn and only shards remain.
+// `AllocationVFX.crack_glow_at` is the CPU reference of this exact formula;
+// keep the two in lockstep (#871).
 float shatter_crescendo(float prog) {
 	float p0 = shatter_flight_start;
-	float rise = p0 > 0.0 ? clamp(prog / p0, 0.0, 1.0) : 1.0;
-	float fall = 1.0 - shatter_fade_ramp(prog);
-	return rise * fall;
+	if (prog >= p0) {
+		return 0.0;
+	}
+	return clamp(prog / p0, 0.0, 1.0);
 }
 
 vec3 shatter_dome(vec2 p, vec4 tint) {
@@ -114,8 +111,8 @@ void fragment() {
 
 	// Godot's canvas_item fragment() cannot `return` early (SHADER ERROR:
 	// "Using 'return' in the 'fragment' processor function is incorrect."),
-	// so the three regions are one if/else-if chain rather than three guard
-	// clauses — see `.claude/rules/godot-shaders.md`.
+	// so the regions are one if/else-if chain rather than guard clauses —
+	// see `.claude/rules/godot-shaders.md`.
 	if (r <= 1.0 && intact) {
 		// No shard has moved yet (#257 acceptance 3) — every shard's quad is
 		// still the same un-rotated, un-displaced square, so drawing the
@@ -136,25 +133,16 @@ void fragment() {
 		if (margin < 0.0) {
 			discard;
 		}
+		// `shatter_fade` carries the release bloom (#871): the piece lights
+		// up as it lets go, then dims and fades out across its flight.
 		vec3 dome = shatter_dome(p, tint);
 		float seam_aa = max(fwidth(margin), 0.0001);
 		float rim_aa = max(fwidth(r), 0.0001);
 		float shape = smoothstep(0.0, seam_aa, margin) * (1.0 - smoothstep(1.0 - rim_aa, 1.0, r));
 		COLOR = shatter_fade(vec4(dome, shape), prog);
-	} else if (crescendo > 0.0) {
-		// Outside the disc: supernova rays leaking out through the cracks
-		// (#257 decision 5), evaluated at this fragment's angle projected
-		// onto the rim so a ray points straight out through its own crack.
-		vec2 rim_dir = p / max(r, 0.0001);
-		float rim_seam = abs(shatter_seam_distance(rim_dir, s));
-		float ray_shape = smoothstep(ray_angle_width, 0.0, rim_seam);
-		float dist_falloff = 1.0 - smoothstep(0.0, ray_length, r - 1.0);
-		float ray_alpha = ray_shape * dist_falloff * crescendo;
-		if (ray_alpha <= 0.0) {
-			discard;
-		}
-		COLOR = vec4(tint.rgb * exp2(ray_peak_ev), ray_alpha);
 	} else {
+		// Outside the disc: nothing. The rim is the live node's own and stays
+		// as it was (#871) — no rays, no bursts.
 		discard;
 	}
 }

@@ -61,6 +61,12 @@ uniform float shatter_flight_start : hint_range(0.0, 1.0) = 0.0;
 // EV stops the colour drops across the flight (spawn tier - end tier). The
 // colour value is the dimmer; alpha is the fade channel and runs out last.
 uniform float shatter_fade_stops = 1.0;
+// EV stops a shard's colour is lifted by AT release (#871): the "explode"
+// flash. Ramps back down to 0 across the flight with `shatter_bloom_ramp`,
+// so shards bloom then fizzle. One value per MATERIAL (a named tier, pushed
+// by the consumer via `Emissive.stops()` — `.claude/rules/hdr-color.md`);
+// per-shard variation, if ever wanted, rides INSTANCE_CUSTOM, never here.
+uniform float shard_bloom_stops : hint_range(0.0, 8.0) = 0.0;
 // Peak spin rate in rad/s; each shard's own rate is hashed in [-max, +max].
 uniform float shatter_spin_max = 6.0;
 // Where the Voronoi seeds sit, in disc-radius units, and how far a seed may
@@ -263,12 +269,25 @@ float shatter_fade_ramp(float prog) {
 	return clamp((prog - p0) / (1.0 - p0), 0.0, 1.0);
 }
 
+// Post-release bloom, 0..1: 0 while the source is still intact (before
+// `p0`), exactly 1 at release, decaying linearly to 0 at progress 1 — the
+// mirror image of `shatter_fade_ramp`. `AllocationVFX.shard_bloom_at` is the
+// CPU reference of this exact formula; keep the two in lockstep.
+float shatter_bloom_ramp(float prog) {
+	if (prog < shatter_flight_start) {
+		return 0.0;
+	}
+	return 1.0 - shatter_fade_ramp(prog);
+}
+
 // Tier drop then fade: colour value falls `shatter_fade_stops` EV across the
 // flight (the dimmer), alpha holds through the first half and reaches exactly
 // 0 at progress 1 (the fade channel). `ShatterField.fade_alpha_at`.
+// The bloom (#871) rides the same call: `shard_bloom_stops` EV on top at
+// release, gone by the end — the fizzle IS this dimming plus the alpha fade.
 vec4 shatter_fade(vec4 color, float prog) {
 	float ramp = shatter_fade_ramp(prog);
-	color.rgb *= exp2(-shatter_fade_stops * ramp);
+	color.rgb *= exp2(shard_bloom_stops * shatter_bloom_ramp(prog) - shatter_fade_stops * ramp);
 	color.a *= 1.0 - smoothstep(0.5, 1.0, ramp);
 	return color;
 }
