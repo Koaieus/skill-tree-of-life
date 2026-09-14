@@ -244,3 +244,31 @@ func test_binding_the_sp_bar_does_not_sweep() -> void:
 
 	assert_eq(float(_uniform(_sp_bar(), &"spark_energy")), 0.0, "a bind paints; it does not spend")
 	assert_almost_eq(_sp_bar().shown_fractions.x, 0.4, 0.001)
+
+
+## The trailing runs are mirrored: a wound GROWS right-to-left (its boundary
+## `b1` walks left into the allocated headroom) and a heal DEPLETES left-to-
+## right (the same boundary walks back). There is no flip to author — the
+## partial cell is whatever side of the moving boundary the run is on — but
+## the direction flag must read the mirror correctly, or the lift would tail
+## the wrong cell.
+func test_healing_a_wound_depletes_left_to_right() -> void:
+	var sp := _board.skill_points
+	sp.base_value = 10.0
+	sp.set_current(4.0)
+	sp.wound(2)
+	_panel.bind(_board)
+	var bar := _sp_bar()
+	bar.cell_step_time = _STEP
+	await get_tree().process_frame
+
+	sp.heal(1)
+	assert_eq(float(_uniform(bar, &"spark_edge")), 1.0, "the allocated|wounded boundary moves")
+	assert_eq(float(_uniform(bar, &"spark_out")), 1.0, "a healed cell is leaving")
+
+	await wait_seconds(_STEP * 0.5)
+	assert_between(bar.shown_fractions.y, 0.12, 0.18,
+			"half a cell healed: the LEFTMOST wounded cell is receding toward the right")
+
+	await wait_seconds(_STEP * 0.8)
+	assert_almost_eq(bar.shown_fractions.y, 0.1, 0.001)

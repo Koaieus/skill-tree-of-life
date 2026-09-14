@@ -260,10 +260,13 @@ func _bounds_of(f: Vector3) -> PackedFloat32Array:
 
 ## Sweep the display to the model. The boundary that moved furthest is the one
 ## that changed a run's membership and the one whose crossing cell burns —
-## `spark_edge` names it for the shader (0..3, the `_bounds_of` order). In
-## practice only one moves per event: spending an SP shifts `b0` alone, and a
-## wound trades allocated for wounded, which moves `b1` alone; b3 never moves.
-## The duration is that boundary's distance in cells, at one step per cell.
+## `spark_edge` names it for the shader (0..3, the `_bounds_of` order). A
+## spend shifts `b0` alone and a wound `b1` alone; a heal, stake or extract is
+## a TRANSFER between the to-spend run and a trailing one, so two boundaries
+## move the same distance at once — both sweep together (one tween carries all
+## three shares), and on the tie the trailing run's edge takes the lift, since
+## the wound or the stake is the story, not the point coming home. b3 never
+## moves. The duration is that boundary's distance in cells, one step per cell.
 ##
 ## A boundary moving LEFT grows the run on its right (a wound grows the wounded
 ## run leftward out of the allocated headroom) — so the trailing runs originate
@@ -279,7 +282,7 @@ func _push_fractions() -> void:
 	var edge := 0
 	for i in 4:
 		var d := now[i] - was[i]
-		if absf(d) > absf(cells) + 0.001:
+		if absf(d) >= absf(cells) - 0.001 and absf(d) > 0.001:
 			cells = d
 			edge = i
 	# Signed for the shader's sake: the to-spend run sits LEFT of `b0` and
