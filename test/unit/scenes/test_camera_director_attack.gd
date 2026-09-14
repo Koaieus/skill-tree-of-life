@@ -77,14 +77,150 @@ func _entity(human: bool) -> Entity:
 
 # --- the trigger ------------------------------------------------------------
 
-func test_a_seated_actors_attack_is_never_framed() -> void:
+func test_a_seated_actors_ranged_attack_is_never_framed() -> void:
 	# On a couch `seats()` is true for every human, so a hot-seat partner's
-	# swing is the driving player's own swing — auto-focusing it would be the
-	# yank the issue forbids.
+	# shot is the driving player's own shot — auto-focusing it would be the
+	# yank #524 forbids. #866 carved MELEE out of this rule and nothing else:
+	# with no melee plan live, the seat early-out is exactly as it was.
 	_dir.seat_policy = SeatPolicy.couch()
 	var hero := _entity(true)
 	var hits: Array[HitInstance] = [_hit(_node_at(Vector2.ZERO), _node_at(Vector2(400, 0)))]
 	assert_null(_dir._build_attack_request(_outcome(hits), hero))
+
+
+func test_a_seated_actors_ranged_attack_is_still_unframed_with_a_battle_system() -> void:
+	# The same rule, asserted through the live seam rather than through an
+	# unwired `battle_system`: a mounted BattleSystem whose plan is not a
+	# MeleeAttackPlan must not turn a ranged commit into a director's shot.
+	_dir.seat_policy = SeatPolicy.couch()
+	_dir.battle_system = _battle_system(null)
+	var hero := _entity(true)
+	var hits: Array[HitInstance] = [_hit(_node_at(Vector2.ZERO), _node_at(Vector2(400, 0)))]
+	assert_null(_dir._build_attack_request(_outcome(hits), hero),
+			"ranged/magic keep today's behaviour exactly (#866)")
+
+
+# --- #866: every melee commit gets the director's shot -----------------------
+
+func test_a_seated_melee_commit_is_framed_like_everyone_elses() -> void:
+	# The inversion. Owner call 2026-09-14: a melee commit is a *director's
+	# shot* — "take away camera control for the duration of the move" — and it
+	# is unified across seated, AI and remote, so the seat predicate no longer
+	# reaches the melee branch at all.
+	_dir.seat_policy = SeatPolicy.couch()
+	var pivot := _node_at(Vector2.ZERO)
+	_dir.battle_system = _battle_system(_melee_plan(pivot))
+	var hero := _entity(true)
+	var hits: Array[HitInstance] = [_hit(pivot, _node_at(Vector2(400, 0)))]
+	var req := _dir._build_attack_request(_outcome(hits), hero)
+	assert_not_null(req, "your own swing is framed now")
+	assert_true(req.mandatory,
+			"and mandatorily — a pan you made while aiming must not eat the shot")
+
+
+func test_the_pivot_pulls_five_times_as_hard_as_any_other_vertex() -> void:
+	# The pan target: weighted average of the blade's node positions, pivot
+	# weight x5, every other vertex 1. An unweighted centroid of these two
+	# points would sit at x=500.
+	var others := PackedVector2Array([Vector2(1000, 0)])
+	var center := CameraDirector.weighted_blade_center(Vector2.ZERO, others)
+	assert_almost_eq(center.x, 1000.0 / 6.0, 0.001,
+			"5 parts pivot to 1 part vertex, not a flat mean")
+	assert_almost_eq(center.y, 0.0, 0.001)
+
+
+func test_the_centroid_translates_as_the_blade_sweeps() -> void:
+	# The rubber band: "expect blades of 20, 40, 100 in size — a centroid would
+	# surely translate, the pivot never moves." Five vertices swinging from one
+	# side of the pivot to the other must drag the shot with them.
+	var before := PackedVector2Array()
+	var after := PackedVector2Array()
+	for i in 5:
+		before.append(Vector2(-600, i * 10))
+		after.append(Vector2(600, i * 10))
+	var a := CameraDirector.weighted_blade_center(Vector2.ZERO, before)
+	var b := CameraDirector.weighted_blade_center(Vector2.ZERO, after)
+	assert_lt(a.x, -100.0, "the shot leans toward where the blade actually is")
+	assert_gt(b.x, 100.0, "and follows it across")
+	assert_almost_eq(a.x, -b.x, 0.001, "symmetrically about the unmoving pivot")
+
+
+func test_an_empty_blade_tracks_the_pivot_alone() -> void:
+	assert_eq(CameraDirector.weighted_blade_center(Vector2(7, 9), PackedVector2Array()),
+			Vector2(7, 9), "no vertices is the pivot, not a divide by zero")
+
+
+func test_the_track_target_is_the_pivot_when_no_blade_is_mounted() -> void:
+	# The live seam, with no MeleePreview wired: the tracking target still
+	# resolves to the plan's pivot rather than to the origin.
+	var pivot := _node_at(Vector2(1234, -567))
+	_dir.battle_system = _battle_system(_melee_plan(pivot))
+	assert_eq(_dir.melee_track_target(), Vector2(1234, -567))
+
+
+# --- #866: the hard input lock ----------------------------------------------
+
+func test_a_committed_melee_locks_the_camera_until_it_releases() -> void:
+	_dir.seat_policy = SeatPolicy.couch()
+	var cam := _camera()
+	var pivot := _node_at(Vector2.ZERO)
+	_dir.battle_system = _battle_system(_melee_plan(pivot))
+	var hits: Array[HitInstance] = [_hit(pivot, _node_at(Vector2(400, 0)))]
+
+	_dir._on_attack_committed(_outcome(hits), _entity(true))
+	assert_true(_dir.is_melee_locked(), "the shot takes camera control for its duration")
+	assert_true(cam.is_input_locked(), "and the camera itself is what enforces it")
+
+	_dir._on_manual_input()
+	assert_true(_dir.is_focusing(),
+			"HARD lock: manual input does not break the shot, it is ignored")
+
+	_dir.release()
+	assert_false(_dir.is_melee_locked(), "release is the one door back")
+	assert_false(cam.is_input_locked(),
+			"and manual input works normally the instant the shot releases")
+
+
+func test_a_locked_camera_ignores_the_wheel_entirely() -> void:
+	var cam := _camera()
+	var before := cam.player_zoom_target()
+	var fired := []
+	cam.manual_input_received.connect(func() -> void: fired.append(1))
+
+	cam.set_input_locked(true)
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_WHEEL_UP
+	ev.pressed = true
+	cam._unhandled_input(ev)
+
+	assert_eq(cam.player_zoom_target(), before, "the wheel does nothing while locked")
+	assert_eq(fired.size(), 0,
+			"and the director is never even told — the grace clock must not reset, "
+			+ "or the input would cancel the NEXT shot instead of this one")
+
+	cam.set_input_locked(false)
+	cam._unhandled_input(ev)
+	assert_eq(fired.size(), 1, "the very next input after release is normal")
+
+
+func _camera() -> GraphCamera:
+	var cam := GraphCamera.new()
+	_holder.add_child(cam)
+	_dir.camera = cam
+	return cam
+
+
+func _melee_plan(pivot: SkillNode) -> MeleeAttackPlan:
+	var plan := MeleeAttackPlan.new()
+	plan.source = pivot
+	return plan
+
+
+func _battle_system(plan: AttackPlan) -> BattleSystem:
+	var bs := BattleSystem.new()
+	_holder.add_child(bs)
+	bs.attack_plan = plan
+	return bs
 
 
 func test_an_ai_attack_is_framed_on_a_couch() -> void:

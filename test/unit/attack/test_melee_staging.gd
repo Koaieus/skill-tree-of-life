@@ -227,10 +227,12 @@ func test_a_committed_melee_opens_the_camera_on_the_pivot_alone() -> void:
 	assert_eq(plan.source, _pivot, "fixture sanity: the pivot is what was framed")
 
 
-func test_a_seated_actor_raises_no_pivot_focus() -> void:
-	# Constraint: the pivot FOCUS stays non-local-only. Nobody yanks their own
-	# camera on their own turn (#524/#556), and #559 does not change that —
-	# only the beat DURATIONS follow the seat, never the camera rule.
+func test_a_seated_actor_gets_the_same_pivot_focus_as_everyone_else() -> void:
+	# INVERTED by #866. #559's constraint 2 ("nobody yanks their own camera")
+	# is superseded for melee: the owner's call 2026-09-14 is a unified
+	# director's shot on every melee commit, seated included — *"take away
+	# camera control for the duration of the move"*. The seat predicate now
+	# reaches neither the beat durations (#865) nor the camera (#866).
 	var director := CameraDirector.new()
 	director.battle_system = _bs
 	director.graph = _graph
@@ -238,9 +240,21 @@ func test_a_seated_actor_raises_no_pivot_focus() -> void:
 	add_child_autofree(director)
 	_arm_plan()
 
+	var pivot_focus := director._melee_pivot_focus(_attacker)
+	assert_not_null(pivot_focus, "a seated commit opens on its pivot too")
+	assert_eq(pivot_focus.points[0], _pivot.global_position)
+
+	# And the span that widens onto it after the lead beat — this is the half
+	# the seat early-out used to kill outright.
 	var outcome := AttackOutcome.new()
-	assert_null(director._build_attack_request(outcome, _attacker),
-			"a seated actor's commit frames nothing at all")
+	var hit := DamageInstance.new()
+	hit.amount = 1.0
+	hit.origin = _pivot
+	hit.target = _target
+	hit.structural_key = 0.0
+	outcome.hits = [hit] as Array[HitInstance]
+	assert_not_null(director._build_attack_request(outcome, _attacker),
+			"a seated actor's melee commit is framed like anyone else's (#866)")
 
 
 # --- Acceptance 2: the local path is a handoff, never a re-predict ------------

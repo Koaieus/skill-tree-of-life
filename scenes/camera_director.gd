@@ -74,9 +74,28 @@ const ZOOM_LATTICE := 0.25
 ## level constructs during `_setup_level`, not a node in the scene.
 var seat_policy: SeatPolicy = null
 
+## How much harder the PIVOT pulls on the tracking centroid than any other blade
+## vertex (#866). The owner's number: *"pan camera to weighted average of node
+## blade, with pivot taking e.g. an x5 weight compared to others"*. The pivot is
+## the one vertex that never moves, so weighting it is what keeps a 100-vertex
+## blade's shot anchored on the swing's origin instead of drifting off with the
+## arc's far end.
+const MELEE_PIVOT_TRACK_WEIGHT := 5.0
+
 var _seconds_since_manual: float = INF
 var _active: bool = false
 var _remaining: float = 0.0
+
+## True for the duration of a melee director's shot (#866): the camera is the
+## director's, HARD — manual pan/zoom is ignored entirely rather than merely
+## losing a grace race, and the shot runs its full course. Owner picked "hard
+## lock" over "soft break-in". Cleared by [method release], which is the single
+## door back to the player's hands.
+var _melee_locked: bool = false
+
+## True while the shot is FOLLOWING the live blade rather than easing to a fixed
+## target — set once the pivot-lead beat is over and the span request goes up.
+var _melee_tracking: bool = false
 
 
 func _ready() -> void:
@@ -140,6 +159,22 @@ func release() -> void:
 
 func is_focusing() -> bool:
 	return _active
+
+
+## TODO(#866): the weighted centroid. Stubbed to the pivot alone so the seam
+## exists for the red tests.
+static func weighted_blade_center(pivot: Vector2, others: PackedVector2Array,
+		pivot_weight: float = MELEE_PIVOT_TRACK_WEIGHT) -> Vector2:
+	return pivot
+
+
+## TODO(#866): the per-frame tracking target.
+func melee_track_target() -> Vector2:
+	return Vector2.ZERO
+
+
+func is_melee_locked() -> bool:
+	return _melee_locked
 
 
 ## Snapshot the live camera into the plain values [method decide] reads.

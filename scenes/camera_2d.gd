@@ -89,6 +89,11 @@ var _directed: bool = false
 var _stored_target_zoom: float = 1.0
 var _pan_tween: Tween = null
 
+## #866's hard input lock. While set, manual pan and zoom are dropped BEFORE
+## [signal manual_input_received] would fire — so the director's shot is neither
+## cancelled nor even told about the input, and the grace clock does not reset.
+var _input_locked: bool = false
+
 
 func _ready() -> void:
 	_target_zoom = zoom.x
@@ -181,6 +186,15 @@ func end_directed_focus() -> void:
 
 func is_directed() -> bool:
 	return _directed
+
+
+## TODO(#866): the hard input lock. Stored but not yet honoured.
+func set_input_locked(locked: bool) -> void:
+	_input_locked = locked
+
+
+func is_input_locked() -> bool:
+	return _input_locked
 
 
 ## The player's own zoom target — what [method end_directed_focus] restores.
