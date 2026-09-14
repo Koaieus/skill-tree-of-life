@@ -27,26 +27,33 @@ func _make_entity(core_class: CoreClass = null) -> Entity:
 	return ent
 
 
-## Decision 1 (D-15): xp_per_turn intrinsic is WIS // divisor, integer division
-## — replacing the old floor(log10(WIS)) step function. Divisor is 5 as of the
-## #776 rebalance pass (was 2) — a RatioFormula divisor, owner-tunable, so this
-## reads it off the live board rather than hardcoding the number twice.
-func test_xp_per_turn_is_wisdom_floor_div_divisor() -> void:
+## Decision 1 (D-15), restated by #891 / ADR 0016: the xp_per_turn intrinsic
+## is a LINE — WIS / divisor, no floor in the formula — and the INT stat floors
+## its finished total once. Divisor is a RatioFormula field, owner-tunable, so
+## this reads it off the live board rather than hardcoding the number twice;
+## the WIS fixtures are chosen so the quotient is fractional at the default
+## divisor (5): 13 → 2, 15 → 3, 21 → 4.
+func test_xp_per_turn_is_the_wisdom_line_floored_by_the_stat() -> void:
 	var ent: Entity = await _make_entity()
 	var board := ent.stat_board
 	var divisor := 5.0
+	var rule: StatModifier = null
 	for m in board.intrinsic_modifiers:
 		if m.stat_id == &"xp_per_turn" and m.formula is RatioFormula:
 			divisor = (m.formula as RatioFormula).divisor
+			rule = m
+	assert_not_null(rule, "the board carries a WIS → xp_per_turn ratio rule")
 
-	board.wisdom.base_value = 20.0
-	assert_eq(int(board.xp_per_turn.value), int(floor(20.0 / divisor)), "WIS 20 floors correctly")
-
-	board.wisdom.base_value = 21.0
-	assert_eq(int(board.xp_per_turn.value), int(floor(21.0 / divisor)), "WIS 21 still floors (integer division)")
-
-	board.wisdom.base_value = 100.0
-	assert_eq(int(board.xp_per_turn.value), int(floor(100.0 / divisor)), "WIS 100 floors correctly")
+	for wis in [13, 15, 21, 100]:
+		board.wisdom.base_value = float(wis)
+		assert_almost_eq(
+			rule.get_effective_value(board), float(wis) / divisor, 1e-9,
+			"WIS %d: the rule contributes the unfloored line" % wis
+		)
+		assert_eq(
+			int(board.xp_per_turn.value), int(float(wis) / divisor),
+			"WIS %d: the stat floors the total" % wis
+		)
 
 
 ## Decision 3: BalancedCore grants +10 to all five attributes at base,

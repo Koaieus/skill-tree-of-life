@@ -4,8 +4,8 @@ extends GutTest
 ## and the number it shows is the number it divides by.
 ##
 ## Two halves:
-##   1. RatioFormula computes exactly what the ExpressionFormulas it replaced
-##      computed (characterization — the migration must be behaviour-neutral).
+##   1. RatioFormula computes the unfloored quotient — a line, not a stair
+##      (#891; the #776 equivalence-to-`floor(...)` test is retired by design).
 ##   2. Every formula reachable from the shipped boards yields a non-empty
 ##      "per" phrase, so a future formula can't ship undescribed.
 
@@ -34,28 +34,26 @@ func _expr(text: String, inputs: Array[StringName]) -> ExpressionFormula:
 	return f
 
 
-# --- 1. Characterization: RatioFormula == the expression it replaced ---------
+# --- 1. A ratio is a line (#891, ADR 0016) -----------------------------------
+#
+# The #776 characterization — RatioFormula == the `floor(...)` expression it
+# replaced across a range — is retired by design: its contract WAS the stair.
+# The formula now contributes `source / divisor` continuously and the target
+# stat floors the finished total once (#890).
 
-func test_ratio_matches_replaced_expression_across_the_range() -> void:
-	# The six migrated intrinsics, as (source, divisor, old expression).
-	var cases := [
-		[&"intelligence", 10.0, "floor(float(intelligence) / 10.0)"],
-		[&"wisdom", 2.0, "floor(float(wisdom) / 2.0)"],
-		[&"dexterity", 10.0, "floor(float(dexterity) / 10.0)"],
-		[&"strength", 10.0, "floor(float(strength) / 10.0)"],
-		[&"strength", 20.0, "floor(strength / 20.)"],
-	]
+func test_ratio_is_the_unfloored_quotient_across_the_range() -> void:
+	var cases := [[&"intelligence", 10.0], [&"wisdom", 2.0], [&"strength", 20.0]]
 	for case in cases:
 		var source: StringName = case[0]
-		var ratio := _ratio(source, case[1])
-		var old := _expr(case[2], [source] as Array[StringName])
+		var divisor: float = case[1]
+		var ratio := _ratio(source, divisor)
 		var stat := _board.get_stat(source)
 		assert_not_null(stat, "board carries %s" % source)
 		for v in [0, 1, 9, 10, 19, 20, 21, 55, 100]:
 			stat.base_value = float(v)
-			assert_eq(
-				ratio.compute(_board), old.compute(_board),
-				"%s=%d under /%s" % [source, v, case[1]]
+			assert_almost_eq(
+				ratio.compute(_board), float(v) / divisor, 1e-9,
+				"%s=%d under /%s" % [source, v, divisor]
 			)
 
 

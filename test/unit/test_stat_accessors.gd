@@ -90,12 +90,12 @@ func test_linear_reads_pool_current_and_cap_distinctly() -> void:
 
 func test_ratio_reads_pool_current_via_decorated_token() -> void:
 	_set_health(10.0, 7.0)
-	# divisor 1 collapses `floor(curr/1)` to `curr`, so curr vs cap read
+	# divisor 1 collapses `curr/1` to `curr`, so curr vs cap read
 	# distinctly even at the uninteresting divisor.
 	assert_eq(_ratio(&"health", 1.0).compute(_board), 10.0, "bare reads cap")
 	assert_eq(_ratio(&"health__current", 1.0).compute(_board), 7.0, "decorated reads current")
-	# And at a non-trivial divisor so the floor() path is also exercised.
-	assert_eq(_ratio(&"health__current", 3.0).compute(_board), 2.0, "floor(7/3) = 2")
+	# And at a non-trivial divisor — the quotient is a line, not a stair (#891).
+	assert_almost_eq(_ratio(&"health__current", 3.0).compute(_board), 7.0 / 3.0, 1e-9, "7/3, unfloored")
 
 
 func test_expression_reads_pool_current_via_decorated_token() -> void:
