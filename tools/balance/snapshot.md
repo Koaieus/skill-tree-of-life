@@ -22,7 +22,7 @@
 | defender_node_max_hp | 24.000 |
 | defender_owned_nodes | 12 |
 | hits_to_drop_node | 8 |
-| mana_max | 12.000 |
+| mana_max | 10.000 |
 | mana_regen_per_turn | 1.000 |
 | melee_damage_raw | 2.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
@@ -58,7 +58,7 @@
 | defender_node_max_hp | 39.000 |
 | defender_owned_nodes | 45 |
 | hits_to_drop_node | 13 |
-| mana_max | 13.000 |
+| mana_max | 10.000 |
 | mana_regen_per_turn | 1.000 |
 | melee_damage_raw | 2.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
@@ -82,7 +82,7 @@
 |---|---|
 | attacker_level | 50 |
 | attacker_owned_nodes | 111 |
-| casts_before_dry | 3 |
+| casts_before_dry | 2 |
 | cheapest_cast_cost | 1 |
 | damage_per_ap_melee | 4.000 |
 | damage_per_ap_ranged | 4.000 |
@@ -94,7 +94,7 @@
 | defender_node_max_hp | 69.000 |
 | defender_owned_nodes | 111 |
 | hits_to_drop_node | 18 |
-| mana_max | 16.000 |
+| mana_max | 10.000 |
 | mana_regen_per_turn | 1.000 |
 | melee_damage_raw | 4.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
@@ -118,7 +118,7 @@
 |---|---|
 | attacker_level | 100 |
 | attacker_owned_nodes | 221 |
-| casts_before_dry | 4 |
+| casts_before_dry | 2 |
 | cheapest_cast_cost | 1 |
 | damage_per_ap_melee | 6.000 |
 | damage_per_ap_ranged | 6.000 |
@@ -130,7 +130,7 @@
 | defender_node_max_hp | 119.000 |
 | defender_owned_nodes | 221 |
 | hits_to_drop_node | 20 |
-| mana_max | 21.000 |
+| mana_max | 10.000 |
 | mana_regen_per_turn | 2.000 |
 | melee_damage_raw | 6.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
@@ -237,7 +237,7 @@
 | defender_node_max_hp | 39.000 |
 | defender_owned_nodes | 45 |
 | hits_to_drop_node | 13 |
-| mana_max | 13.000 |
+| mana_max | 10.000 |
 | mana_regen_per_turn | 1.000 |
 | melee_damage_raw | 2.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
