@@ -109,6 +109,32 @@ Two Godot facts that will bite you in a fresh worktree, both in
 `mise run check` is red repo-wide already (a `CoreHealthBar` baseline issue, not
 you). Don't chase it. Compare against `master` before blaming your diff.
 
+## Stuck is a signal to escalate, not to try once more
+
+**Three failed cycles on the same thing is a loop. Stop and ask.** A cycle
+is edit → run the test → still red (or a check/refresh/bench that keeps not
+saying what you expected). On the third one, the next action is not a
+fourth attempt — it is one `SendMessage` to `Sage` (opencode: stop with the
+question in `NOTES:`): what you're trying to make true, the exact assert or
+error text, what the three attempts changed, and your current hypothesis.
+Then **end your turn and wait** — no "one more try while I wait". Sage is a
+bigger model with fresh eyes and none of your sunk cost, and one exchange
+costs the team less than the 20 turns you were about to spend.
+
+Why this is a rule and not advice: no drone in the 2026-09-13 corpus ever
+escalated a loop. `ai-gating` (#537) read `bench_ai_turn.gd` ten times
+across 20+ edit cycles chasing a benchmark; `loot-rebalance-2` cycled
+Read→Edit→`test:one` on `test_loot_system.gd` five times over; `tooltip-fan`
+(#621) ran 66 test commands in 290 turns. Every one of them was inside "it
+will be green now" for 100+ tool calls, and every one was eventually
+killed by the owner, not rescued. The model that got you into the loop is
+the wrong model to get you out of it — that's not a judgement on you, it's
+what a fresh context is *for*.
+
+Sage's answer can be "hand it back" — then commit the partial (red test
+included) and report with the loop in `NOTES:`. That is a successful
+outcome, not a failed one.
+
 ## Context budget and stop compliance
 
 **Two of these rules are now enforced by a hook, not by your goodwill.**
@@ -245,8 +271,10 @@ don't touch issue status or labels.
 
 - **Do not call `advisor` (Claude Code only — opencode has no such tool).** The
   orchestrator is a larger model holding the whole plan — it *is* the advisor,
-  and it reviews your diff. Calling advisor spends time re-deriving context
-  you don't have.
+  and it reviews your diff. Calling advisor re-sends your whole transcript to
+  a second Opus — at 150k+ that is the most expensive single call you can
+  make. Stuck goes to Sage (see "Stuck is a signal"); only in a run with **no
+  Sage and no reachable orchestrator** is one advisor call the lesser cost.
 - **Do not ask the user anything** (Claude Code: `AskUserQuestion`; opencode:
   `question`). A swarm runs unattended. Ambiguity goes to the *orchestrator*:
   - **opencode**: stop and put the specific question in `NOTES:`. Your `task`
