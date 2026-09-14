@@ -45,6 +45,11 @@ var _board: NodeStatBoard
 ## [member SkillNode._tags] through [method _tag_store], so there is still only
 ## one tag dictionary per real node.
 var _tags: Dictionary[StringName, int] = {}
+## The status slice (#872): every [StatusDef] currently on this node, keyed by
+## [member StatusDef.id]. Unlike [member _tags], this is the ONE store live AND
+## shadow — [SkillNode] has no status field, the slice is its sole owner, and a
+## [method snapshot] clones the rows so a shadow tick never moves the live one.
+var _statuses: Dictionary[StringName, NodeStatus] = {}
 
 
 func _init(p_host: SkillNode = null) -> void:
@@ -99,6 +104,8 @@ func snapshot(owner_combat: EntityCombat) -> NodeCombat:
 	shadow._real = host
 	if host != null:
 		shadow._tags = host._tags.duplicate()
+		for id in _statuses:
+			shadow._statuses[id] = _statuses[id].clone()
 		host._init_node_board()
 		# clone_live, not duplicate(true) — see its doc on StatBoard.
 		shadow._board = host.node_board.clone_live() as NodeStatBoard
@@ -532,3 +539,29 @@ func refill(silent: bool = false) -> void:
 	hp.restore_to_full()
 	if host != null:
 		host.notify_refilled(prev, hp.current, silent)
+
+
+# ── Status slice (#872) ──────────────────────────────────────────────────────
+
+func apply_status(_def: StatusDef, _power: float) -> void:
+	pass
+
+
+func tick_statuses() -> void:
+	pass
+
+
+func remove_status(_id: StringName) -> void:
+	pass
+
+
+func clear_statuses() -> void:
+	pass
+
+
+func get_status_power(_id: StringName) -> float:
+	return 0.0
+
+
+func get_statuses() -> Array[NodeStatus]:
+	return []
