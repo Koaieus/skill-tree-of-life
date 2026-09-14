@@ -129,6 +129,37 @@ func _zeroed_tempo() -> PresentationTempo:
 # --- Acceptance 1: the swing begins after the form beat -----------------------
 
 func test_the_first_hit_lands_strictly_after_the_form_beat_ends() -> void:
+	await _assert_first_hit_lands_after_the_form_beat()
+
+
+## #865: the seated path runs the SAME sequence — `begin_windup`'s
+## `form_instantly(); return 0.0` branch is gone, so acceptance 1's stretched-beat
+## assertion must hold identically with the local seat pinned on the attacker.
+func test_the_first_hit_lands_after_the_form_beat_on_the_seated_path_too() -> void:
+	assert_ne(_attacker.entity_id, 0, "SeatPolicy.seat needs a minted id")
+	_bs.seat_policy = SeatPolicy.seat(_attacker.entity_id)
+	await _assert_first_hit_lands_after_the_form_beat()
+
+
+## #865: one tempo shape, shared by seated and incoming swings — the owner
+## explicitly refused a second seated set of numbers. A seated commit stages a
+## nonzero wind-up of exactly the length an AI/remote commit stages.
+func test_a_seated_commit_stages_the_same_nonzero_windup_as_an_incoming_swing() -> void:
+	var plan := _arm_plan()
+	await get_tree().process_frame
+	var tempo := _bs.tempo()
+	assert_gt(tempo.melee_windup_seconds(false), 0.0,
+			"the authored default must stage a wind-up at all")
+
+	var seated_length := _preview.begin_windup(plan, tempo, true)
+	assert_gt(seated_length, 0.0,
+			"a seated commit no longer collapses every beat to zero (#865)")
+	var incoming_length := _preview.begin_windup(plan, tempo, false)
+	assert_almost_eq(seated_length, incoming_length, 0.0001,
+			"and it is the SAME shape — no second seated set of durations")
+
+
+func _assert_first_hit_lands_after_the_form_beat() -> void:
 	# The SHAPE is injected, not read off the authored `.tres` — twice over on
 	# purpose. Authored durations are the owner's to tune, so pinning one here
 	# would make a tuning pass a test failure; and a form beat STRETCHED past
