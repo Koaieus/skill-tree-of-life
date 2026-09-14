@@ -882,17 +882,30 @@ class SwingResolve extends RefCounted:
 				_trajectory.samples.append(pose)
 				_speed_history.append(speeds)
 				var pops_before := _gate.result.pops.size()
+				var landed := false
 				if _sweep != null:
 					var batch := _sweep.scan_sample(float(step) * _dt, pose, speeds)
 					if not batch.is_empty():
+						landed = true
 						_events.append_array(batch)
 						_plan._land_batch(_outcome, batch, _state, _gate, _world, _rng, _hits)
+				# #867: a landing's forced-dealloc cascade can disown a DEFENDER —
+				# a wall or plate this swing itself destroyed, directly or by
+				# islanding it. That severs exactly like a bunker break does: the
+				# rest of this bake was computed with the zone still in the field,
+				# so it is thrown away and re-baked without it, and the zone stops
+				# mattering from this sample on rather than at the next swing.
+				# Asked only on a sample that landed something, because a cascade
+				# has no other door into a swing; then it is O(defenders in reach),
+				# never the O(map) walk #811 deleted.
+				var disowned := landed and _obstacles != null \
+						and _obstacles.has_disowned_defender(_world)
 				# A bunker break (#781) is decided INSIDE the bake, by the field, at
 				# the substep the strain crossed the threshold — so it is checked
 				# per sample whether or not anything was hit, and severs exactly
 				# like a pop: stop, rewind, apply, re-bake.
 				var broke := _obstacles != null and _obstacles.has_break_at(step)
-				if _gate.result.pops.size() != pops_before or broke:
+				if _gate.result.pops.size() != pops_before or broke or disowned:
 					severed_at = step
 					break
 			if severed_at < 0:
@@ -933,6 +946,14 @@ class SwingResolve extends RefCounted:
 					var brk := _obstacles.consume_break()
 					if brk != null:
 						_gate._sever_edge(brk.edge_idx, float(severed_at) * _dt, brk.defender, 0.0)
+					# #867: and retire whatever the cascade disowned — AFTER the
+					# restore above, which puts back the pre-death strain and any
+					# armed break, and after `consume_break`, because a break armed
+					# by THIS sample's substeps was armed by a plate that was still
+					# alive for them. Unconditional rather than gated on
+					# `disowned`: a pop or a break severance can disown a defender
+					# too, the call is idempotent, and the walk is O(zones).
+					_obstacles.retire_disowned_defenders(_world)
 				for pop in _gate.result.pops:
 					if pop.particle_idx >= 0:
 						_state.remove_vertex(pop.particle_idx)
@@ -1476,9 +1497,15 @@ func build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
 ## to DRAW ([BattleSystem]'s apply path) before the record lands, and
 ## [CombatWorld.shadow] has no physics space of its own — so this queries the
 ## live [World2D], exactly as [BladeHitScan] already does from
-## [method _resolve_swing]. The set is frozen once, before the first sample, and
-## never rebuilt mid-swing: a plate popped on wave N keeps its zone for the rest
-## of the swing, which is #781's behaviour unchanged.
+## [method _resolve_swing].
+##
+## [b]Queried once; FILTERED live.[/b] The set is never re-queried mid-swing —
+## one `intersect_shape` per swing is the whole point of #811, and a defender
+## cannot join a swing it was out of reach of at t=0. But it no longer survives
+## its own destruction either: #867 retires a zone whose node the swing itself
+## disowned, at the re-bake boundary the severance already creates
+## ([method BladeObstacleField.retire_disowned_defenders]). So "unallocated
+## nodes do not defend" (#864) holds at every sample, not only the first.
 ##
 ## The blade side is excluded by RID via [method collect_target_excludes] — the
 ## same list [BladeHitScan] gets, so "a node I or an ally own never defends

@@ -174,6 +174,24 @@ var zone_radii: PackedFloat32Array:
 var zone_defenders: Array[SkillNode]:
 	get: return zones.defenders
 
+## Per zone: the `swing_drag` magnitude and the `deflection` flag THE SOLVER
+## SEES — the authored values until this swing disowns a defender (#867), zero
+## from that moment on. Both backends read these and never [member zones]'
+## own.
+##
+## [b]Not a second copy of the zone set.[/b] A packed-array assignment in
+## GDScript is copy-on-write, so these share `zones`' storage byte for byte
+## until the first retirement writes a zero into one — which is what lets the
+## shared, immutable `zones` (up to 192 sibling [AiBladeRollout] proposals may
+## hold the same instance, concurrently) stay untouched without every ordinary
+## swing paying for a duplicate.
+##
+## [b]Deliberately NOT in [Bank].[/b] Retirement is a fact about the world, not
+## sim state: the resolve loop's rewind restores the accumulators to an earlier
+## sample and must never resurrect a defender the swing has already destroyed.
+var _live_drags: PackedFloat32Array = PackedFloat32Array()
+var _live_deflects: PackedByteArray = PackedByteArray()
+
 # ── Sim state (in Bank) ──────────────────────────────────────────────────────
 ## Per zone: accumulated unresolved drive (px) over the CURRENT contact. Reset
 ## to 0 the first substep the zone touches nothing, and after a break.
@@ -240,6 +258,15 @@ func _size_accumulators() -> void:
 	_edge_residual.clear()
 	for _z in zones.size():
 		_edge_residual.append({})
+	_adopt_authored_zone_values()
+
+
+## Point [member _live_drags] / [member _live_deflects] at what the zone set
+## currently authors. Called wherever the zone COUNT changes — construction and
+## [method _author] — never after a retirement, which would undo it.
+func _adopt_authored_zone_values() -> void:
+	_live_drags = zones.drags
+	_live_deflects = zones.deflects
 
 
 ## Author one plate by hand — fixtures and the sandbox only; the production
@@ -271,6 +298,7 @@ func _author(center: Vector2, radius: float, drag: float, deflect: bool,
 	_strain.resize(zones.size())
 	while _edge_residual.size() < zones.size():
 		_edge_residual.append({})
+	_adopt_authored_zone_values()
 
 
 func has_zones() -> bool:
@@ -396,11 +424,11 @@ func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> v
 		var zr := zones.radii[z]
 		if c.x < lo.x - zr or c.x > hi.x + zr or c.y < lo.y - zr or c.y > hi.y + zr:
 			continue
-		var deflect := zones.deflects[z] != 0
+		var deflect := _live_deflects[z] != 0
 		# A wall that has already banked has nothing left to learn — the same
 		# early-out #780's `touched` check was, asked of the one latch that
 		# exists now (the clock's).
-		var wants_drag := zones.drags[z] > 0.0 and _clock != null \
+		var wants_drag := _live_drags[z] > 0.0 and _clock != null \
 				and not _clock.has_banked(z)
 		if not deflect and not wants_drag:
 			continue
@@ -411,7 +439,7 @@ func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> v
 			if wants_drag:
 				var touch := zr + pr
 				if d2 <= touch * touch:
-					_clock.bank_drag(z, zones.drags[z])
+					_clock.bank_drag(z, _live_drags[z])
 					wants_drag = false
 			if not deflect:
 				continue
@@ -449,7 +477,7 @@ func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> v
 			var q := p0 + seg * u
 			var d2 := q.distance_squared_to(c)
 			if wants_drag and d2 <= cap_reach * cap_reach:
-				_clock.bank_drag(z, zones.drags[z])
+				_clock.bank_drag(z, _live_drags[z])
 				wants_drag = false
 				if not deflect:
 					break
@@ -573,6 +601,74 @@ func consume_break() -> Break:
 	return b
 
 
+## True if some zone the solver is still honouring has lost its allocation in
+## [param world] (#867) — the resolve loop's cue that the bake in flight was
+## computed against a defender that no longer exists and has to be thrown away.
+##
+## O(zones in reach), and the loop only asks it on a sample that actually landed
+## a hit, because a cascade has no other door into a swing.
+func has_disowned_defender(world: CombatWorld) -> bool:
+	for z in zones.size():
+		if _is_disowned(z, world):
+			return true
+	return false
+
+
+## Drop every defender that is no longer allocated in [param world] out of the
+## solver's view: from here on its drag banks nothing and its plate pushes
+## nothing, which is #867's "an unallocated node never interacts with an
+## incoming blade" applied live instead of only at swing start.
+##
+## [b]Idempotent and monotone[/b] — a retired zone can never come back, so the
+## resolve loop may call this at every boundary without tracking which zones it
+## has already handled. Everything else about the zone survives: its centre, its
+## radius, its `defender` (so a [Break] already armed can still name it), and
+## any drag its wall had already banked on the clock. "Stops mattering from the
+## moment it deallocates" is not "never mattered".
+##
+## [b]Call it AFTER [method restore][/b]. The bank a severance rewinds to
+## carries the pre-death strain and any armed break; retiring first would simply
+## be undone.
+func retire_disowned_defenders(world: CombatWorld) -> void:
+	for z in zones.size():
+		if not _is_disowned(z, world):
+			continue
+		_live_drags[z] = 0.0
+		_live_deflects[z] = 0
+		# Whatever was banked against it is meaningless now — the same reset
+		# [method consume_break] performs, for the same reason.
+		_strain[z] = 0.0
+		_edge_residual[z].clear()
+		if _break_zone == z:
+			# A plate that no longer exists breaks nothing.
+			_break_edge = -1
+			_break_step = -1
+			_break_zone = -1
+
+
+## Whether zone [param z] is still armed as a defender yet no longer allocated.
+##
+## [b]Allocation is asked of the WORLD, never of the real [SkillNode].[/b] The
+## authority resolves on a shadow, where the cascade strips
+## [member NodeCombat._owner] and leaves `owned_by` on the real node untouched
+## until the record is replayed — so a live-node read would keep honouring a
+## defender this very swing has already destroyed. Same rule
+## [method BladePopResolver.LiveGate.admit] follows; see
+## docs/domain/attack-timeline.md.
+func _is_disowned(z: int, world: CombatWorld) -> bool:
+	if _live_drags[z] <= 0.0 and _live_deflects[z] == 0:
+		return false  # already retired, or never a defender of either kind
+	if world == null:
+		return false
+	# Null in a fixture that authored its zones by hand — there is no node to
+	# ask, and such a zone is the fixture's own business.
+	var sn: SkillNode = zones.defenders[z] if z < zones.defenders.size() else null
+	if sn == null:
+		return false
+	var slice := world.combat_for(sn)
+	return slice == null or not slice.is_allocated()
+
+
 func capture() -> Bank:
 	var b := Bank.new()
 	b.strain = _strain.duplicate()
@@ -656,8 +752,8 @@ func native_inputs() -> Dictionary:
 		"clock_duration": _clock.duration if _clock != null else 0.0,
 		"zone_centers": zones.centers,
 		"zone_radii": zones.radii,
-		"zone_drags": zones.drags,
-		"zone_deflects": zones.deflects,
+		"zone_drags": _live_drags,
+		"zone_deflects": _live_deflects,
 		"edges": edges_flat,
 		"edge_removed": edge_removed,
 		"vertex_radii": _state.radii,

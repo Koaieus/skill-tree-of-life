@@ -20,15 +20,20 @@ extends GutTest
 ##    is that statement.
 ##
 ## 2. A plate the swing KILLS must stop deflecting from the kill onward. The
-##    observable is geometric and needs no new accessor: the fixture's plate sits
-##    on a point the FREE tip passes straight through, so with deflection live
-##    every vertex is held out at `zone_radius + vertex_radius - CONTACT_SLOP`
-##    and can never enter the plate's own disc — while a retired plate lets the
-##    natural arc run back through the centre. So "some vertex ended up strictly
-##    inside the dead plate's disc" is exactly "the plate stopped deflecting",
-##    and `test_a_plate_that_survives_deflects_for_the_whole_swing` is the
-##    control that proves the geometry is a real discriminator rather than a
-##    swing that never came near.
+##    observable is a DIFFERENCE between two runs of one fixture that differ only
+##    in `blade_damage` — a number the solver never reads. So the two swings are
+##    physically the same swing right up to the sample the plate dies on, and any
+##    divergence after it is the retirement and nothing else. On master the two
+##    trajectories are bit-identical for the whole swing, which is the bug stated
+##    as an equation.
+##
+##    A geometric assertion was tried first and is wrong: the plate deflects for
+##    the substeps BEFORE its death, which throws the blade off the free arc it
+##    was placed on, so "did a vertex end up inside the dead plate's disc" is
+##    answered by where the perturbed whip went rather than by whether the plate
+##    was retired. `test_a_plate_that_survives_deflects_for_the_whole_swing`
+##    keeps the geometric claim where it IS exact — a live plate holds every
+##    vertex out of its own disc, all swing.
 ##
 ## Geometry is `test_bunker_break_live.gd`'s FLOPPY fixture verbatim
 ## (pivot - a - b - tip at 150 px, no clamp), including its `_FLOPPY_PLATE`
@@ -158,7 +163,8 @@ func _setup(addons: Array[PackedScene], allocate_defender: bool,
 
 	return {
 		"graph": graph, "attacker": attacker, "defender": defender,
-		"pivot": pivot, "plate": plate, "camp": camp, "plan": plan,
+		"pivot": pivot, "a": a, "b": b, "tip": tip,
+		"plate": plate, "camp": camp, "plan": plan,
 	}
 
 
@@ -239,11 +245,31 @@ func test_a_plate_that_survives_deflects_for_the_whole_swing() -> void:
 			"a live plate holds every vertex out of its own disc all swing")
 
 
+## The sample the plate's HP hit zero on, from the outcome's own timeline.
+## `structural_key` is the hit's fraction of [constant
+## MeleeAttackPlan.SWING_DURATION] (`test_severed_swing_live.gd` reads it the
+## same way); -1 if nothing killed it.
+func _death_sample(outcome: AttackOutcome, plate: SkillNode, dt: float) -> int:
+	for hit in outcome.hits:
+		if hit.target != plate or hit.hp_after > 0.0 or hit.hp_before <= 0.0:
+			continue
+		return int(round(hit.structural_key * MeleeAttackPlan.SWING_DURATION / dt))
+	return -1
+
+
 ## #867 bullet 2, RED on master: the plate is killed by the contact that reaches
 ## it, the cascade disowns it there and then — and the rest of the swing must
 ## behave as if it had never been a plate at all.
+##
+## Two runs of the same fixture, differing only in `blade_damage`. The solver
+## never reads that number, so the swings are identical until the plate dies;
+## master then keeps deflecting on both and the two trajectories stay
+## bit-identical to the last sample.
 func test_a_plate_killed_mid_swing_stops_deflecting_from_that_moment() -> void:
-	var ctx: Dictionary = await _setup([_BUNKER_SCENE], true, 200.0)
+	# ONE fixture, two passes. Two fixtures would not do: they would share the
+	# test's single World2D, so each swing's physics query would find BOTH
+	# plates (`.claude/rules/melee-fixtures.md`, reason 3's cousin).
+	var ctx: Dictionary = await _setup([_BUNKER_SCENE], true, 1.0)
 	var plan: MeleeAttackPlan = ctx.plan
 	var plate: SkillNode = ctx.plate
 
@@ -251,13 +277,44 @@ func test_a_plate_killed_mid_swing_stops_deflecting_from_that_moment() -> void:
 	assert_not_null(state.obstacles, "fixture: an owned bunker attaches a field")
 	assert_eq(state.obstacles.zone_radii.size(), 1, "fixture: exactly one zone")
 
-	plan.resolve_against(CombatWorld.live())
+	# Pass B, the control: a blunt blade, so the plate survives and deflects all
+	# swing. On a SHADOW, which is the authority's own compute path
+	# (`.claude/rules/attack-timeline.md`) and leaves the live plate untouched
+	# for pass A.
+	var world_b := CombatWorld.shadow()
+	plan.resolve_against(world_b)
+	var b := plan.last_trajectory
+	assert_true(world_b.combat_for(plate).is_allocated(),
+			"fixture: the control's plate must survive the whole swing")
+	world_b.free_shadow()
 
-	# Fixture teeth: it really did die, and mid-swing rather than never.
-	assert_eq(plate.get_current_hp(), 0.0, "fixture: the plate must be depleted")
-	assert_false(plate.is_allocated(),
+	# Pass A: the identical swing with a lethal coefficient. `blade_damage` feeds
+	# `BladeState.vertex_damage`, which only the damage path reads — never the
+	# solver — so A and B are the same physics until the plate dies. The
+	# `first_divergence >= death` assertion below is what holds that premise.
+	_sharpen(ctx.b, 200.0)
+	_sharpen(ctx.tip, 200.0)
+	var world_a := CombatWorld.shadow()
+	var killed := plan.resolve_against(world_a)
+	var a := plan.last_trajectory
+	var death := _death_sample(killed, plate, a.sample_dt)
+	assert_false(world_a.combat_for(plate).is_allocated(),
 			"fixture: the depletion cascade must have disowned the plate")
+	world_a.free_shadow()
 
-	assert_lt(_closest_approach(plan.last_trajectory, _FLOPPY_PLATE), plate.radius,
-			"#867 bullet 2: a disowned plate stops deflecting — the rest of the "
-			+ "swing runs back through where it stood")
+	assert_eq(a.samples.size(), b.samples.size(),
+			"fixture: both swings must run the same number of samples")
+	assert_gt(death, 0, "fixture: the killing hit must be somewhere mid-swing")
+
+	var first_divergence := -1
+	for i in a.samples.size():
+		if a.samples[i] != b.samples[i]:
+			first_divergence = i
+			break
+
+	assert_gt(first_divergence, 0,
+			"#867 bullet 2: a disowned plate must stop deflecting — on master "
+			+ "these two swings are bit-identical to the last sample")
+	assert_gte(first_divergence, death,
+			"#867 bullet 2: and only FROM the kill — nothing before it may move, "
+			+ "since blade_damage is not an input to the solver")
