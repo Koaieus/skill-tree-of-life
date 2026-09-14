@@ -116,12 +116,16 @@ void fragment() {
 			float shine = sin((UV.x - TIME * shine_speed) * 10.0) * 0.5 + 0.5;
 			col.rgb = mix(col.rgb, shine_tint(), glow_color.a * pow(shine, 6.0));
 		}
-		// The cell the sweeping boundary is crossing burns in its own colour —
-		// spark_edge picks the boundary (0..3 = b0..b3, in cells). The allocated
-		// headroom is background, not a run, and never lifts.
+		// Every cell a boundary is crossing burns in its own colour. A transfer
+		// (heal, stake, extract) walks two boundaries at once, so both partial
+		// cells light; spark_edge (0..3 = b0..b3, in cells) only adds the named
+		// edge's cool tail once it lands. The allocated headroom is background,
+		// not a run, and never lifts.
 		float edge = (spark_edge < 0.5 ? b0 : spark_edge < 1.5 ? b1 : spark_edge < 2.5 ? b2 : b3) * n;
 		bool in_run = pos / n < b0 || pos / n >= b1;
-		if (in_run && spark_hits(idx, edge)) {
+		bool burning = spark_hits(idx, edge)
+				|| spark_crossing(idx, b0 * n) || spark_crossing(idx, b1 * n) || spark_crossing(idx, b2 * n);
+		if (in_run && burning) {
 			col.rgb = spark_lift(col.rgb);
 			pulse = 1.0;  // the wound pulse is not the story while a cell burns
 		}

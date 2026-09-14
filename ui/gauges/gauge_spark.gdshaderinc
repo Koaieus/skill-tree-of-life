@@ -71,6 +71,15 @@ bool spark_hits(float _idx, float _edge) {
 	return spark_out > 0.5 ? _edge < _idx + 0.999 : _edge <= _idx + 1.001;
 }
 
+// Whether a boundary at `_edge` is strictly inside the slot at `_idx` right
+// now — a partial cell, whichever direction it is going and whether or not it
+// is the named `spark_edge`. A gauge with several boundaries moving at once (a
+// SP transfer walks two) lights every partial cell with this and keeps
+// spark_hits for the named edge's cool tail.
+bool spark_crossing(float _idx, float _edge) {
+	return spark_energy > 0.001 && _edge > _idx + 0.001 && _edge < _idx + 0.999;
+}
+
 // The crossing cell's own colour, lifted to `spark_stops` by the current heat —
 // a spent Move cell ignites in the Move tint, a surplus cell in gold.
 vec3 spark_lift(vec3 _own) {
