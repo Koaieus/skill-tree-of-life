@@ -11,8 +11,11 @@ extends GutTest
 ##
 ## Two things pinned here, deliberately loose on the exact numbers (owner
 ## tunes, agents test — `.claude/rules/stat-knobs-and-bins.md`):
-##   1. Shape + monotonicity + sublinearity of both intrinsics, on a
-##      hand-built board — never the shipped divisor/ladder values.
+##   1. Shape + monotonicity + token-sized bounds of both intrinsics: reads
+##      the SHIPPED boards as input (same `_mod_for` pattern as
+##      `test_threshold_formula.gd`'s `_shipped()`), but asserts only shape
+##      (RatioFormula/ThresholdFormula off intelligence), monotonicity, and
+##      generous bounds — never the divisor or ladder as a literal.
 ##   2. Parity: all four boards (default + three blockers) carry
 ##      byte-identical mana intrinsic formula dicts, the #775 merge premise.
 

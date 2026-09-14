@@ -50,28 +50,35 @@ func _shipped(stat_id: StringName) -> ThresholdFormula:
 
 # --- 1. Mana per turn --------------------------------------------------------
 
-func test_shipped_mana_ladder_is_exact_at_every_decade() -> void:
-	# #766 — the ladder now starts three decades later ([1000, 1e4, 1e5, 1e6]
-	# instead of [10, 100, 1e3, 1e4, 1e5, 1e6]): the board's rolled
-	# `mana_per_turn +` grants are the real regen source, INT a token amount.
+func test_shipped_mana_ladder_is_exact_at_every_rung() -> void:
+	# #766 moved the ladder (owner tunes the rungs; this reads them off the
+	# shipped formula rather than pinning the literals) — but the property
+	# from #547 survives the move unconditionally: glibc's `log` lands one
+	# ulp under at an exact decade, so a rung must be exact AT the boundary
+	# itself, not just nearby.
 	var f := _shipped(&"mana_per_turn")
 	assert_not_null(f, "default board grants mana_per_turn via a ThresholdFormula")
-	var cases := {1: 0, 9: 0, 999: 0, 1000: 1, 1001: 1,
-		9999: 1, 10000: 2, 10001: 2}
-	for int_value in cases:
-		_board.intelligence.base_value = float(int_value)
-		assert_eq(f.compute(_board), float(cases[int_value]),
-			"INT %d -> %d mana/turn" % [int_value, cases[int_value]])
+	var rungs: Array[float] = f.breakpoints
+	assert_gt(rungs.size(), 0, "the shipped ladder has at least one rung")
+	for i in rungs.size():
+		var bp: float = rungs[i]
+		for pair in [[bp - 1.0, float(i)], [bp, float(i + 1)], [bp + 1.0, float(i + 1)]]:
+			_board.intelligence.base_value = pair[0]
+			assert_eq(f.compute(_board), pair[1],
+				"INT %s -> %s mana/turn (rung %d)" % [pair[0], pair[1], i])
 
 
-func test_shipped_mana_ladder_keeps_climbing_past_the_issues_range() -> void:
-	# The ladder tops out at 4 rungs now (#766) — confirm it climbs all the
-	# way to the top and then saturates rather than stopping short.
+func test_shipped_mana_ladder_saturates_rather_than_stopping_short() -> void:
+	# Below the first rung: nothing yet. Well past the last: saturates at
+	# the ladder's own length, never climbs further and never stops short.
 	var f := _shipped(&"mana_per_turn")
-	for pair in [[99999, 2], [100000, 3], [999999, 3], [1000000, 4], [5000000, 4]]:
-		_board.intelligence.base_value = float(pair[0])
-		assert_eq(f.compute(_board), float(pair[1]),
-			"INT %d -> %d mana/turn" % pair)
+	var rungs: Array[float] = f.breakpoints
+	assert_gt(rungs.size(), 0, "the shipped ladder has at least one rung")
+	_board.intelligence.base_value = rungs[0] - 1.0
+	assert_eq(f.compute(_board), 0.0, "below the first rung grants nothing yet")
+	_board.intelligence.base_value = rungs[-1] * 5.0
+	assert_eq(f.compute(_board), float(rungs.size()),
+		"well past the last rung saturates at the ladder's length")
 
 
 func test_mana_no_longer_goes_NEGATIVE_at_zero_intelligence() -> void:
