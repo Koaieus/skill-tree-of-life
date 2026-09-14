@@ -10,10 +10,15 @@ extends Camera2D
 @export_range(0.0, 1.0, 0.01) var zoom_duration: float = 0.15
 @export var zoom_step: float = 0.25
 
-## Seconds a tracking focus (#866) takes to close the distance to its moving
-## target. Smaller is tighter; at or below one frame's delta the follow is a
-## hard weld. Purely a feel knob — the owner tunes it by look.
+## The rubber band's time constant (#866/#894): seconds the tracking spring
+## takes to close most of the distance to its moving target. Smaller is a
+## stiffer band; larger lags further behind the swing. The ONE feel knob for
+## the follow — the owner tunes it by look, never pin it.
 @export_range(0.01, 2.0, 0.01) var follow_smoothing: float = 0.25
+
+## Largest spring step, as a fraction of [member follow_smoothing]. A frame
+## longer than that is sub-stepped so a hitch cannot blow the integrator up.
+const FOLLOW_MAX_STEP_RATIO := 0.1
 
 const MIN_ZOOM := 0.25
 const MAX_ZOOM := 2.00
@@ -102,6 +107,8 @@ var _input_locked: bool = false
 ## True between [method begin_directed_follow] and [method end_directed_focus].
 var _follow_active: bool = false
 var _follow_target: Vector2 = Vector2.ZERO
+## The spring's momentum (#894) — what makes the follow a band and not a lerp.
+var _follow_velocity: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -156,26 +163,44 @@ func _process(delta: float) -> void:
 		if not _directed:
 			global_position += input_dir * pan_speed * delta
 	_follow(delta)
+	var before := global_position
 	_clamp_position()
+	if global_position != before:
+		# The band hit the map edge: drop the momentum it wound up against the
+		# wall, or it would fling the camera back when the target returns.
+		_follow_velocity = Vector2.ZERO
 
 
-## The rubber band (#866). A director's shot that TRACKS re-aims every frame, so
-## it cannot be a tween: retargeting one per frame restarts its ease and the
-## camera crawls. Instead the initial pan runs as a tween ([method
+## The rubber band (#866, #894). A director's shot that TRACKS re-aims every
+## frame, so it cannot be a tween: retargeting one per frame restarts its ease
+## and the camera crawls. Instead the initial pan runs as a tween ([method
 ## begin_directed_focus], the pivot-lead beat) and this takes over the moment
-## that tween is done, closing a fixed fraction of the remaining distance per
-## second. The result reads as a lag-behind follow rather than a rigid weld,
-## which is what makes a 100-vertex blade's sweep legible.
+## that tween is done.
 ##
-## No `exp`/`pow` damping: `lint-transcendentals` is repo-wide, and a plain
-## clamped ratio is stable at every frame rate this runs at.
+## It is a [b]critically damped spring[/b], not a lerp (#894, owner: *"more
+## like pulling the camera with a rubber band"*). A lerp's biggest step is
+## always its first, which reads as a snap onto every goalpost move; a spring
+## carries momentum, so it eases out of rest, keeps gliding after the target
+## stops, and — critically damped — never overshoots. Semi-implicit Euler with
+## `k = ω²`, `c = 2ω`, `ω = 1 / follow_smoothing`, sub-stepped so `ω·dt` stays
+## small: no `exp`/`sqrt`/`pow` (`lint-transcendentals` is repo-wide) and
+## stable at every frame rate this runs at.
 func _follow(delta: float) -> void:
 	if not _directed or not _follow_active:
 		return
 	if _pan_tween != null and _pan_tween.is_valid() and _pan_tween.is_running():
 		return
-	var t := clampf(delta / maxf(0.0001, follow_smoothing), 0.0, 1.0)
-	global_position = global_position.lerp(_follow_target, t)
+	var tau := maxf(0.0001, follow_smoothing)
+	var omega := 1.0 / tau
+	var remaining := delta
+	var max_step := tau * FOLLOW_MAX_STEP_RATIO
+	while remaining > 0.0:
+		var dt := minf(remaining, max_step)
+		remaining -= dt
+		var accel := (_follow_target - global_position) * (omega * omega) \
+				- _follow_velocity * (2.0 * omega)
+		_follow_velocity += accel * dt
+		global_position += _follow_velocity * dt
 
 
 ## Ease the camera toward [param target] at [param zoom_target], on behalf of
@@ -217,6 +242,7 @@ func end_directed_focus() -> void:
 		return
 	_directed = false
 	_follow_active = false
+	_follow_velocity = Vector2.ZERO
 	if _pan_tween != null and _pan_tween.is_valid():
 		_pan_tween.kill()
 	_pan_tween = null
@@ -231,6 +257,7 @@ func begin_directed_follow(target: Vector2, zoom_target: float, duration: float)
 	begin_directed_focus(target, zoom_target, duration)
 	_follow_active = true
 	_follow_target = target
+	_follow_velocity = Vector2.ZERO
 
 
 ## Move a live follow's goalpost. A no-op unless [method begin_directed_follow]

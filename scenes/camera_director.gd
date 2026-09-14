@@ -94,8 +94,17 @@ var _remaining: float = 0.0
 var _melee_locked: bool = false
 
 ## True while the shot is FOLLOWING the live blade rather than easing to a fixed
-## target — set once the pivot-lead beat is over and the span request goes up.
+## target — set once the whole wind-up is spent and the swing is actually
+## moving (#894). Follow MODE on the camera opens earlier, at the widen beat
+## ([member _melee_following]); this flag only gates the per-frame goalpost.
 var _melee_tracking: bool = false
+
+## True from the widen beat on: the camera is in follow mode, so a later
+## goalpost push is not swallowed (`set_follow_target` is a no-op outside a
+## follow). Split from [member _melee_tracking] on purpose — the owner's
+## complaint (#894) was the centroid pan running through the form-in, not the
+## span widening.
+var _melee_following: bool = false
 
 
 func _ready() -> void:
@@ -113,9 +122,13 @@ func _process(delta: float) -> void:
 	_seconds_since_manual += delta
 	if not _active:
 		return
-	# The rubber band (#866): re-aim at the live blade's weighted centroid every
-	# frame. Pure presentation — it READS the blade the mutation loop is already
-	# driving and never gates it (`.claude/rules/presentation-clock.md`).
+	# The rubber band (#866): move the goalpost onto the live blade's weighted
+	# centroid every frame; [method GraphCamera._follow] springs after it. Pure
+	# presentation — it READS the blade the mutation loop is already driving
+	# and never gates it (`.claude/rules/presentation-clock.md`). Gated on the
+	# swing having STARTED (#894): through the form-in the blade sits at rest,
+	# so pushing its centroid then would pan the camera off the pivot before
+	# anything moves — the "block average" pan the owner saw.
 	if _melee_tracking and camera != null and _live_melee_plan() != null:
 		camera.set_follow_target(melee_track_target())
 	_remaining -= delta
@@ -148,7 +161,7 @@ func request_focus(request: FocusRequest) -> FocusDecision:
 	if not decision.act:
 		return decision
 	if camera != null:
-		if _melee_tracking:
+		if _melee_following:
 			camera.begin_directed_follow(decision.target, decision.zoom_target,
 					decision.duration)
 		else:
@@ -172,6 +185,7 @@ func release() -> void:
 	_active = false
 	_remaining = 0.0
 	_melee_tracking = false
+	_melee_following = false
 	if _melee_locked:
 		_melee_locked = false
 		if camera != null:
@@ -262,12 +276,33 @@ func is_melee_locked() -> bool:
 	return _melee_locked
 
 
+## True while the per-frame centroid push is live — i.e. the swing has
+## started. Follow MODE may be open before this (see [member _melee_following]).
 func is_tracking() -> bool:
 	return _melee_tracking
 
 
+## Seconds after commit at which centroid tracking arms: the WHOLE wind-up
+## (#894), the same total [method BattleSystem._stage_melee_windup] waits out
+## before [method MeleePreview.launch] starts the swing — lead + form + stamp +
+## glow + flare, with the stamp beat spent only when some blade node carries an
+## addon ([method SkillBlade._stamped_vertices]' rule, read off the plan here
+## because the blade is behind the preview). Zero for a ranged/magic commit or
+## an unwired battle system.
 func melee_track_arm_delay() -> float:
-	return battle_system.tempo().melee_windup_lead()
+	var melee := _live_melee_plan()
+	if melee == null:
+		return 0.0
+	return battle_system.tempo().melee_windup_seconds(_plan_has_addons(melee))
+
+
+func _plan_has_addons(melee: MeleeAttackPlan) -> bool:
+	if not melee.source.get_addons().is_empty():
+		return true
+	for n in melee.blade_nodes:
+		if n != null and is_instance_valid(n) and not n.get_addons().is_empty():
+			return true
+	return false
 
 
 ## Take the camera for a melee shot. Idempotent: a multi-hit commit re-raises
@@ -424,11 +459,14 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 	var is_melee := _live_melee_plan() != null
 	if is_melee:
 		_lock_for_melee_shot()
+		# The centroid push waits for the swing itself (#894), on its own
+		# detached clock — the widen below is the earlier beat.
+		_arm_tracking_after(melee_track_arm_delay())
 	var pivot := _melee_pivot_focus(attacker)
 	if pivot == null:
 		# No lead beat to fill (a ranged commit, or acceptance 5's zeroed
-		# tempo) — the span simply lands, and a melee one starts tracking now.
-		_melee_tracking = is_melee
+		# tempo) — the span simply lands, in follow mode for a melee one.
+		_melee_following = is_melee
 		request_focus(request)
 		return
 	request_focus(pivot)
@@ -477,9 +515,21 @@ func _widen_after(seconds: float, request: FocusRequest) -> void:
 	if not is_inside_tree():
 		return
 	# The lead beat is over: the span widens and, for a melee shot, the camera
-	# stops easing to a fixed point and starts following the blade.
-	_melee_tracking = _melee_locked
+	# opens follow mode so the goalpost can move once the swing starts.
+	_melee_following = _melee_locked
 	request_focus(request)
+
+
+## Arm the per-frame centroid push after [param seconds] — the whole wind-up
+## (#894). Detached like [method _widen_after], and re-checks the lock on wake
+## so a shot that [method release]d in the meantime cannot re-arm itself.
+func _arm_tracking_after(seconds: float) -> void:
+	var tree := get_tree()
+	if seconds > 0.0 and tree != null:
+		await tree.create_timer(seconds).timeout
+	if not is_inside_tree():
+		return
+	_melee_tracking = _melee_locked
 
 
 ## Frame a committed attack's from->to span.
