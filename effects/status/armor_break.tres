@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ArmorBreakStatus" format=3]
+
+[ext_resource type="Script" path="res://effects/status/armor_break.gd" id="1_break"]
+
+[resource]
+script = ExtResource("1_break")
+id = &"armor_break"
+display_name = "Armor Break"
+description = "The node's armor is chipped away, recovering over 4 turns."
+tint = Color(0.85, 0.45, 0.15, 1)
+tags = Array[StringName]([&"debuff"])
+power_max = 1.0
+decay_per_tick = 0.25
+reapply = 1
+cure_per_hp = 0.05
+on_dealloc = 0
