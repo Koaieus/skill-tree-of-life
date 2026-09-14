@@ -246,6 +246,48 @@ The ledger is deliberately **plain state on LootSystem, not a payload on the
 bus** — it's transient per-attack bookkeeping, not a domain fact anyone else
 should be reading.
 
+## The tempo award (`_award_kill_tempo`, #888)
+
+A once-per-turn +1 AP reward for a killing blow, owner's proposal LAN-10:
+*"get 1 AP on landing an entity-killing blow, max 1 of those per turn (killing
+a Blocker would also count, making killing them more fun instead of tedious
+and a drag)"*. Same gate as the XP reward — HOSTILE attitude
+(`killer.attitude_to(victim)`), killer alive — plus one more: the pool itself.
+
+Represented as a board stat, **`tempo`** (`stats_system/defs/tempo.tres`,
+`PoolStat`, cap 1, `per_turn_mode = REFILL`), not a hardcoded rule or a
+`CoreClass._on_killing_blow` hook — the same seam `ap_transfer_rate` already
+uses, so a class or relic can raise or zero the cap with a plain modifier. A
+reward does `tempo.deplete(1)` + `action_points.replenish(1)`:
+
+- **The cap IS the once-per-turn latch.** `tempo.available() < 1` → no
+  reward, so a chain-kill spell dropping two victims in one cast still nets
+  exactly one refund. No separate bool, no per-attack ledger, unlike the XP
+  trickle above.
+- **Source-agnostic on purpose.** `tempo` is named for the budget, not for
+  this one source — future tempo sources (#887, severance/consolidation)
+  drain the same pool, so the cap stays the single latch. A relic raising the
+  cap to 2 grants two rewards/turn; a modifier setting it to 0 opts an entity
+  out entirely.
+- **Blockers count with no special case.** They're faction-less, and
+  `Entity.attitude_to` reads a null faction as HOSTILE, so a Blocker victim
+  pays out exactly like a real entity.
+- **The refund always fits under the `action_points` cap.** `_commit`
+  deducts `ap_cost` before `_apply_outcome` runs the replay in which the
+  death fires (see `.claude/rules/attack-timeline.md`), so the killer is at
+  ≤ cap−1 `action_points` when `entity_dying` lands — this breaks only if an
+  `ap_cost = 0` attack ever kills.
+- **Rides the reveal clock during replay exactly as the XP reward does** — it
+  fires off the same `Events.entity_dying(victim)` phase, so a peer reproduces
+  it from the same `AttackRecord` rather than opening its own turn (see
+  `.claude/rules/multiplayer-sync.md`).
+- **Independent of `core_kill_xp`** (#774) — same event, different award; the
+  two payouts don't interact.
+
+`award_tempo_on_kill` is a per-side-effect kill-switch, same shape as
+`award_xp_on_kill` / `award_xp_on_node_kill`, for a sandbox tab to neuter the
+reward while keeping 1:1 wiring with the real system.
+
 ## The loot draw (`_draw_payload`, #323) — the three-bucket weighted union
 
 The candidate pool is the union of the three provenance buckets above, each

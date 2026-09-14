@@ -118,7 +118,7 @@ the cap-change policy must never touch. Those two facts coexist; don't "fix"
 either by letting `current` exceed the cap.
 
 Authored today: `on_cap_rise = FOLLOW` on `health`, `node_combat_health`,
-`skill_points`, `movement_points`, `mana`, `action_points`; `PIN` on
+`skill_points`, `movement_points`, `mana`, `action_points`, `tempo`; `PIN` on
 `deallocation_points`, `stake_level`, `xp`, `initiative`. `on_cap_fall = FOLLOW`
 on `node_combat_health` alone; every other pool CLAMPs. **FOLLOW on both axes is
 not just two policies** — it is the discriminator `PoolStat.stores_missing()`
@@ -211,7 +211,7 @@ Scene-authored ownership (e.g. dev_sandbox `owned_by = NodePath(...)`) doesn't g
 
 | Verb | `PerTurnMode` | Operation | Pools |
 |---|---|---|---|
-| Reset-to-cap | `REFILL` | `restore_to_full()` | `action_points`, `deallocation_points`, `movement_points` |
+| Reset-to-cap | `REFILL` | `restore_to_full()` | `action_points`, `deallocation_points`, `movement_points`, `tempo` |
 | Top-up by a rate | `ADD` | `current += <rate stat>.value` (clamped) | `mana` (+`mana_per_turn`), `xp` (+`xp_per_turn`), `health` (+`core_healing`) |
 | Bespoke | `CUSTOM` | `PoolStat._custom_turn_upkeep(board)` override | `skill_points` (heals `wound_heal_per_turn` wounds) |
 

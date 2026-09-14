@@ -63,6 +63,15 @@ const _CAPTURE := false
 ## grant this golden captured never fires. Every other field — ownership, AP,
 ## mana, initiative, current_entity, the decision trace — is byte-identical
 ## to the pre-#776 golden; only the stat-economy-driven `sp` moved.
+##
+## [b]Fourth amendment, #888[/b] — added `tempo`. New field on the board
+## (kill-AP budget, cap 1, REFILL), not a value that moved: this fixture's AI
+## never lands a killing blow (`kill=yes` above is the scorer's PREDICTION,
+## N3 stays the hostile's), so `tempo` sits at its untouched cap, 1.0, same as
+## every other field. Proves the new pool rides the queue path identically to
+## a direct call, same as `ap` already does — the award itself has its own
+## coverage in `test/unit/systems/test_loot_kill_tempo.gd`, which actually
+## kills something.
 const _GOLDEN := {
 	"ap": 0.0,
 	"current_entity": "Player",
@@ -75,6 +84,7 @@ const _GOLDEN := {
 	"mana": 11.0,
 	"ownership": {"N0": "Enemy", "N1": "Enemy", "N2": "Enemy", "N3": "Hostile"},
 	"sp": 0.0,
+	"tempo": 1.0,
 }
 
 var _graph: Graph
@@ -209,6 +219,7 @@ func _snapshot() -> Dictionary:
 		"enemy_owned": _owned_names(_enemy),
 		"sp": board.skill_points.current,
 		"ap": board.action_points.current,
+		"tempo": board.tempo.current,
 		"mana": board.mana.current,
 		"initiative": board.initiative.current,
 		"current_entity": _tm.current_entity.display_name if _tm.current_entity != null else "",
