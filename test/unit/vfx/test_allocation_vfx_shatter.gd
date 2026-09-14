@@ -71,3 +71,52 @@ func test_spawn_shatter_gives_each_shard_only_its_radial_kick_no_inherited_momen
 		var velocity := Vector2(custom.r, custom.g)
 		var expected := ShatterField.radial_kick(k, 4, 140.0)
 		assert_almost_eq(velocity, expected, Vector2.ONE * 0.01)
+
+
+# --- #871: crack seams glow first, the DISC shatters, no rim rays ------------
+# Timing contract only (CPU reference curves mirroring the shader); the look
+# itself is judged under a renderer. Authored numbers are the owner's to tune,
+# so nothing below pins a literal stop count or window.
+
+
+func test_crack_glow_ramps_up_to_flight_start_then_is_gone() -> void:
+	var p0 := 0.6
+	assert_almost_eq(AllocationVFX.crack_glow_at(0.0, p0), 0.0, 0.0001)
+	var prev := 0.0
+	for i in range(1, 10):
+		var g := AllocationVFX.crack_glow_at(p0 * float(i) / 10.0, p0)
+		assert_true(g >= prev, "crack glow must not dip before the disc lets go")
+		prev = g
+	assert_true(prev > 0.5, "crack glow should be nearly peaked just before flight_start")
+	# The crack phase ENDS at flight_start — from here on only shards draw.
+	assert_almost_eq(AllocationVFX.crack_glow_at(p0, p0), 0.0, 0.0001)
+	assert_almost_eq(AllocationVFX.crack_glow_at(0.9, p0), 0.0, 0.0001)
+
+
+func test_shard_bloom_peaks_at_release_and_fizzles_to_zero() -> void:
+	var p0 := 0.6
+	assert_almost_eq(AllocationVFX.shard_bloom_at(0.0, p0), 0.0, 0.0001)
+	assert_almost_eq(AllocationVFX.shard_bloom_at(p0 * 0.5, p0), 0.0, 0.0001)
+	assert_almost_eq(AllocationVFX.shard_bloom_at(p0, p0), 1.0, 0.0001)
+	var mid := AllocationVFX.shard_bloom_at(lerpf(p0, 1.0, 0.5), p0)
+	assert_true(mid > 0.0 and mid < 1.0, "bloom decays across the flight")
+	assert_almost_eq(AllocationVFX.shard_bloom_at(1.0, p0), 0.0, 0.0001)
+
+
+func test_shard_bloom_is_a_named_tier_pushed_onto_the_material() -> void:
+	_vfx.shatter_shard_bloom_tier = Emissive.Tier.PEAK
+	var mat := _vfx.get_shard_field().material as ShaderMaterial
+	var pushed: Variant = mat.get_shader_parameter(&"shard_bloom_stops")
+	assert_not_null(pushed, "shard_bloom_stops uniform is not on the material")
+	assert_almost_eq(float(pushed), Emissive.stops(Emissive.Tier.PEAK), 0.0001)
+	_vfx.shatter_shard_bloom_tier = Emissive.Tier.INERT
+	assert_almost_eq(float(mat.get_shader_parameter(&"shard_bloom_stops")), 0.0, 0.0001)
+
+
+func test_shatter_shader_has_no_rim_ray_uniforms() -> void:
+	# #871: the supernova rays fanned past the rim along each seam were the
+	# "rim glows and bursts" read. The disc shatters; nothing draws outside it.
+	var mat := _vfx.get_shard_field().material as ShaderMaterial
+	for u in mat.shader.get_shader_uniform_list():
+		assert_false(String(u.name).begins_with("ray_"),
+				"rim ray uniform survived: %s" % u.name)

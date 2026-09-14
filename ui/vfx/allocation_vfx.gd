@@ -136,6 +136,18 @@ var _cascade_snapshot: Dictionary[SkillNode, Dictionary] = {}
 		shatter_end_tier = value
 		_push_shatter_tuning()
 
+## #871 stub — filled in below.
+@export var shatter_shard_bloom_tier: Emissive.Tier = Emissive.Tier.ALERT
+
+
+static func crack_glow_at(_prog: float, _flight_start: float) -> float:
+	return 0.0
+
+
+static func shard_bloom_at(_prog: float, _flight_start: float) -> float:
+	return 0.0
+
+
 ## #257's node-death shard field. One per AllocationVFX (one graph's worth of
 ## node deaths pool together, same idiom as `SkillBlade._shard_field`), an
 ## inherited `shatter_field.tscn` with its own `resource_local_to_scene`
