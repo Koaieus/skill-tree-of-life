@@ -88,6 +88,7 @@ var _alloc: AllocationSystem
 var _battle: BattleSystem
 var _input_ctl: PlayerInputController
 var _preview: MeleePreview
+var _vfx: AllocationVFX
 var _tray: CommandTrayBodyBase
 
 ## The style every blade in this world draws from. **The shipped
@@ -175,6 +176,7 @@ func _build_systems() -> void:
 	_battle = world.battle_system
 	_input_ctl = world.input_controller
 	_preview = world.melee_preview
+	_vfx = world.allocation_vfx
 	_preview.blade_style = _style
 	# Every ghost is rebuilt from scratch each preview cycle, so panel-applied
 	# decoration has to be re-applied per spawn, not once.
@@ -228,6 +230,7 @@ func arm_world() -> void:
 	# authored ownership on the same SkillNode instances, so the last blade is
 	# constructible again and Reset → Reform reproduces it.
 	_rearm_pending = false
+	_mute_vfx()
 	for n in graph.get_skill_nodes():
 		if n.owned_by != null:
 			_alloc.force_deallocate(n)
@@ -239,6 +242,7 @@ func arm_world() -> void:
 		var owner_entity: Entity = _authored_owner.get(n)
 		if owner_entity != null:
 			_alloc.force_allocate(owner_entity, n)
+	_unmute_vfx()
 	_wielder.core_location = _node_named("Hilt")
 	_quarry.core_location = _node_named("E_Core")
 	# TurnManager is never TICKED here (the standing editor rule) — `current_entity`
@@ -247,6 +251,22 @@ func arm_world() -> void:
 	_battle.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	_apply_blade_size()
 	_refresh_status()
+
+
+## Mute cosmetics for arm_world's teardown + re-authoring beat: the silent
+## re-arm below drives the REAL force_deallocate / force_allocate primitives
+## (full fidelity, same as the allocation sandbox's identical setup beat),
+## which would otherwise spew a shatter + spike on every authored node — on
+## first open, and again on every Reset (#869). `AllocationVFX.muted`
+## early-returns the handlers so nothing spawns at all.
+func _mute_vfx() -> void:
+	if _vfx != null:
+		_vfx.muted = true
+
+
+func _unmute_vfx() -> void:
+	if _vfx != null:
+		_vfx.muted = false
 
 
 func _node_named(n: String) -> SkillNode:
