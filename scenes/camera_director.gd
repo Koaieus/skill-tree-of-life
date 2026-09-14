@@ -262,6 +262,14 @@ func is_melee_locked() -> bool:
 	return _melee_locked
 
 
+func is_tracking() -> bool:
+	return _melee_tracking
+
+
+func melee_track_arm_delay() -> float:
+	return battle_system.tempo().melee_windup_lead()
+
+
 ## Take the camera for a melee shot. Idempotent: a multi-hit commit re-raises
 ## focuses through here and must not double-latch anything.
 func _lock_for_melee_shot() -> void:

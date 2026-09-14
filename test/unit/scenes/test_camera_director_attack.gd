@@ -342,3 +342,49 @@ func test_an_attack_in_the_map_corner_still_ends_up_on_screen() -> void:
 	var shown := decision.resulting_rect(VIEWPORT)
 	assert_true(shown.encloses(req.bounds()),
 			"the span survived the pan clamp: %s vs %s" % [shown, req.bounds()])
+
+
+# --- #894: centroid tracking waits for the swing; the follow is a spring ------
+
+func _tempo(lead: float, form: float, stamp: float = 0.0, glow: float = 0.0,
+		flare: float = 0.0) -> PresentationTempo:
+	var t := PresentationTempo.new()
+	t.melee_windup_pivot_focus = lead
+	t.melee_windup_form_span = form
+	t.melee_windup_stamp_time = stamp
+	t.melee_windup_glow_ramp = glow
+	t.melee_windup_flare = flare
+	return t
+
+
+func test_the_track_arm_delay_is_the_whole_windup_not_the_lead() -> void:
+	# Owner, 2026-09-15: the wind-up "plays the block average camera movement
+	# before the actual melee swing starts". The swing starts when the whole
+	# wind-up (lead + form + stamp + glow + flare) is spent, so that is the beat
+	# the centroid tracking arms on — not the lead, which is only the pivot hold.
+	var pivot := _node_at(Vector2.ZERO)
+	var bs := _battle_system(_melee_plan(pivot))
+	bs.presentation_tempo = _tempo(1.0, 2.0, 4.0, 8.0, 16.0)
+	_dir.battle_system = bs
+	assert_almost_eq(_dir.melee_track_arm_delay(), 27.0, 0.001,
+			"an unadorned blade spends no stamp beat, every other beat counts")
+
+
+func test_centroid_tracking_does_not_move_the_camera_before_the_swing() -> void:
+	_dir.seat_policy = SeatPolicy.couch()
+	var cam := _camera()
+	var pivot := _node_at(Vector2.ZERO)
+	var bs := _battle_system(_melee_plan(pivot))
+	bs.presentation_tempo = _tempo(0.1, 0.3)
+	_dir.battle_system = bs
+	var hits: Array[HitInstance] = [_hit(pivot, _node_at(Vector2(400, 0)))]
+
+	_dir._on_attack_committed(_outcome(hits), _entity(true))
+	assert_false(_dir.is_tracking(), "commit: the pivot beat, nothing tracks")
+	await wait_seconds(0.2)
+	assert_true(cam.is_following(),
+			"after the lead the span has widened and the follow is open...")
+	assert_false(_dir.is_tracking(),
+			"...but the blade is still forming, so the centroid is not the goalpost yet")
+	await wait_seconds(0.3)
+	assert_true(_dir.is_tracking(), "the swing has started: now the band pulls")
