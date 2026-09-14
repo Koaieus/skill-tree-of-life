@@ -1,0 +1,7 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://ui/tooltip_fan/status_row.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://cq8lbrs0slbr0" path="res://ui/tooltip_fan/slab_row.tscn" id="2_base"]
+
+[node name="StatusRow" instance=ExtResource("2_base")]
+script = ExtResource("1_script")

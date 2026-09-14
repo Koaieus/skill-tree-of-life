@@ -372,6 +372,69 @@ func test_an_all_hidden_panel_has_no_pages_to_cycle() -> void:
 	assert_eq(panel._pages.size(), 0)
 
 
+# --- #876: status readout row (sibling gather off NodeCombat.get_statuses) --
+
+## A bare test def — content (#873 Blindness, #877 armor break) lands on
+## sibling issues; this issue only needs the plumbing shape.
+func _status_def(display: String, power_max: float = 3.0, tint: Color = Color.WHITE) -> StatusDef:
+	var def := StatusDef.new()
+	def.id = StringName(display.to_lower())
+	def.display_name = display
+	def.tint = tint
+	def.power_max = power_max
+	return def
+
+
+func test_status_row_shows_display_name_and_normalised_power() -> void:
+	var ent := _spawn_entity()
+	_node.owned_by = ent
+	_node.get_combat().apply_status(_status_def("Blinded", 3.0), 1.5)
+	var panel := _panel()
+	panel.bind(_node, _graph)
+	assert_true(panel.has_content())
+	var texts := _row_texts(panel)
+	assert_eq(texts.size(), 1)
+	assert_string_contains(texts[0], "Blinded")
+	assert_string_contains(texts[0], "0.5")
+
+
+func test_two_statuses_show_two_rows_with_normalised_power() -> void:
+	var ent := _spawn_entity()
+	_node.owned_by = ent
+	_node.get_combat().apply_status(_status_def("Blinded", 3.0), 1.5)
+	_node.get_combat().apply_status(_status_def("Poisoned", 4.0), 4.0)
+	var panel := _panel()
+	panel.bind(_node, _graph)
+	var texts := _row_texts(panel)
+	assert_eq(texts.size(), 2)
+	var joined := "\n".join(texts)
+	assert_string_contains(joined, "Blinded")
+	assert_string_contains(joined, "0.5")
+	assert_string_contains(joined, "Poisoned")
+	assert_string_contains(joined, "1.00")
+
+
+func test_no_statuses_has_no_status_section() -> void:
+	var ent := _spawn_entity()
+	_node.owned_by = ent
+	var panel := _panel()
+	panel.bind(_node, _graph)
+	assert_false(panel.has_content())
+	assert_eq(_row_texts(panel).size(), 0)
+
+
+func test_unbinding_removes_the_status_row() -> void:
+	var ent := _spawn_entity()
+	_node.owned_by = ent
+	_node.get_combat().apply_status(_status_def("Blinded"), 1.5)
+	var panel := _panel()
+	panel.bind(_node, _graph)
+	assert_true(panel.has_content())
+	panel.bind(null, _graph)
+	assert_false(panel.has_content())
+	assert_eq(_row_texts(panel).size(), 0)
+
+
 func test_rebinding_to_a_smaller_node_stops_the_carousel() -> void:
 	var ent := _spawn_entity()
 	_grant_many(ent, 10)

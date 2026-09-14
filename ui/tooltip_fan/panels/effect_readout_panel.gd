@@ -8,6 +8,14 @@ extends FanPanel
 ## generic "tinted text" vocabulary, reused rather than inventing a new row
 ## component (the issue's own decision).
 ##
+## [b]Status rows (#876, sibling gather).[/b] Below the aura/effect rows, one
+## [StatusRow] per entry in [method NodeCombat.get_statuses] — the node's OWN
+## status state, never [NodeEffectReadout]'s entity walk. Deliberately a
+## separate loop in [method _rebuild_rows] rather than folded into the
+## aura/effect gather above, so the hide/rollup rules there stay untouched.
+## Both row kinds share the same cap + carousel/pagination below.
+##
+
 ## [b]HIDING RULE (settled).[/b] A row hides when its EFFECTIVE value
 ## ([method StatModifier.get_effective_value] — never the raw `.value`; a
 ## formula-bearing modifier's coefficient is not what the node is actually
@@ -58,6 +66,7 @@ extends FanPanel
 ## scene surgery for three characters of chrome.
 
 const _SLAB_ROW_SCENE: PackedScene = preload("res://ui/tooltip_fan/slab_row.tscn")
+const _STATUS_ROW_SCENE: PackedScene = preload("res://ui/tooltip_fan/status_row.tscn")
 
 const _ROW_STAGGER_STEP := 0.12
 const _ROW_STAGGER_CAP := 0.85
@@ -172,6 +181,12 @@ func _rebuild_rows() -> void:
 			continue  # negligible in aggregate too — hide for real
 		shown.append(_build_rollup_row(stat_id, op, combined, group.size(), def))
 
+	# Sibling gather (#876): the node's own status state (NodeCombat's status
+	# slice), never NodeEffectReadout's entity walk above — kept as its own
+	# loop so the aura/effect gather + hide/rollup logic above is untouched.
+	for status in _bound_node.get_combat().get_statuses():
+		shown.append({"status": status})
+
 	_has_rows = not shown.is_empty()
 	_pages = paginate(shown, max_rows_per_page)
 	_page_index = 0
@@ -231,9 +246,15 @@ func _render_current_page() -> void:
 	if _pages.is_empty():
 		return
 	for row_data in _pages[_page_index]:
-		var row := _SLAB_ROW_SCENE.instantiate() as SlabRow
-		_rows.add_child(row)
-		row.bind_text(row_data["text"], row_data["tint"])
+		var row: SlabRow
+		if row_data.has("status"):
+			row = _STATUS_ROW_SCENE.instantiate() as StatusRow
+			_rows.add_child(row)
+			(row as StatusRow).bind(row_data["status"])
+		else:
+			row = _SLAB_ROW_SCENE.instantiate() as SlabRow
+			_rows.add_child(row)
+			row.bind_text(row_data["text"], row_data["tint"])
 		_row_setters.append(row.set_progress)
 	_apply_row_stagger()
 
