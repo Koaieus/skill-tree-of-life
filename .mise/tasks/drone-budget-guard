@@ -25,6 +25,7 @@ every drone; any error here must ALLOW. Hence the blanket try/except.
 Context size comes from the same tail-read of the subagent transcript the
 context-size hook uses — imported from it rather than copied.
 """
+import importlib.machinery
 import importlib.util
 import json
 import os
@@ -41,7 +42,11 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def _ctx_hook():
-    spec = importlib.util.spec_from_file_location("ctx_hook", os.path.join(_HERE, "context-size-hook"))
+    # An explicit SourceFileLoader: spec_from_file_location returns None for a
+    # file with no .py extension, which fail-open turned into "rule 2 never
+    # fires" — caught only because the selftest asserts, not eyeballs.
+    path = os.path.join(_HERE, "context-size-hook")
+    spec = importlib.util.spec_from_loader("ctx_hook", importlib.machinery.SourceFileLoader("ctx_hook", path))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

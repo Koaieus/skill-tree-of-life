@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+#MISE description="Self-test for drone-budget-guard: synthetic payloads + transcripts, asserts the allow/deny matrix. `mise run drone-budget-guard-selftest`"
+import json, os, subprocess, sys, tempfile
+
+HOOK = os.path.join(os.path.dirname(os.path.abspath(__file__)), "drone-budget-guard")
+tmp = tempfile.mkdtemp()
+os.makedirs(os.path.join(tmp, "sess", "subagents"))
+big = os.path.join(tmp, "big.gd"); open(big, "w").write("\n".join(map(str, range(500))) + "\n")
+small = os.path.join(tmp, "small.gd"); open(small, "w").write("\n".join(map(str, range(50))) + "\n")
+png = os.path.join(tmp, "big.png"); open(png, "wb").write(b"\n" * 1000)
+
+def transcript(agent, ctx):
+    rec = {"type": "assistant", "message": {"usage": {"input_tokens": ctx, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}}}
+    open(os.path.join(tmp, "sess", "subagents", f"agent-{agent}.jsonl"), "w").write(json.dumps(rec) + "\n")
+transcript("hot", 310_000); transcript("cool", 100_000)
+
+def run(payload):
+    p = subprocess.run([HOOK], input=payload if isinstance(payload, str) else json.dumps(payload), capture_output=True, text=True)
+    return p.returncode, p.stdout.strip()
+
+base = {"session_id": "sess", "transcript_path": os.path.join(tmp, "sess.jsonl")}
+def sub(agent, tool, tool_input, agent_type="general-purpose"):
+    return {**base, "agent_id": agent, "agent_type": agent_type, "tool_name": tool, "tool_input": tool_input}
+
+cases = [
+    ("main session, big whole Read -> allow", {**base, "tool_name": "Read", "tool_input": {"file_path": big}}, False),
+    ("subagent big whole Read -> deny", sub("cool", "Read", {"file_path": big}), True),
+    ("subagent big ranged Read -> allow", sub("cool", "Read", {"file_path": big, "offset": 10, "limit": 40}), False),
+    ("subagent small whole Read -> allow", sub("cool", "Read", {"file_path": small}), False),
+    ("subagent binary whole Read -> allow", sub("cool", "Read", {"file_path": png}), False),
+    ("Explore big whole Read -> allow", sub("cool", "Read", {"file_path": big}, agent_type="Explore"), False),
+    ("310k Edit -> deny", sub("hot", "Edit", {"file_path": small}), True),
+    ("310k test run -> deny", sub("hot", "Bash", {"command": "mise run test:one -- x"}), True),
+    ("310k git commit -> allow", sub("hot", "Bash", {"command": "cd w && git add a b && git commit -m m"}), False),
+    ("310k SendMessage -> allow", sub("hot", "SendMessage", {"to": "Sage", "message": "x"}), False),
+    ("100k Edit -> allow", sub("cool", "Edit", {"file_path": small}), False),
+    ("garbage stdin -> silent exit 0", "garbage", False),
+]
+failed = 0
+for name, payload, expect_deny in cases:
+    code, out = run(payload)
+    denied = '"permissionDecision": "deny"' in out
+    ok = code == 0 and denied == expect_deny
+    print(("[ok] " if ok else "[FAIL] ") + name + ("" if ok else f"  (exit={code}, out={out[:120]!r})"))
+    failed += not ok
+print("\nall checks passed" if not failed else f"\n{failed} check(s) FAILED")
+sys.exit(1 if failed else 0)

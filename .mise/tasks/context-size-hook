@@ -248,7 +248,38 @@ def _run(payload):
     _append_ledger(session_id, kind, tier, elapsed_min)
 
     approx_k = max(1, round(tokens / 1000))
-    return f"CONTEXT SIZE SO FAR: ~{approx_k}k (crossed {crossed_local}, ~{elapsed_min} min into session)"
+    line = f"CONTEXT SIZE SO FAR: ~{approx_k}k (crossed {crossed_local}, ~{elapsed_min} min into session)"
+    nudge = _nudge(kind, tier)
+    return f"{line} — {nudge}" if nudge else line
+
+
+# The number alone was read and ignored by every drone in the 2026-09-13
+# corpus (404k, 427k, 331k, 306k). Each tier now carries the one action it
+# implies — escalating, and for a subagent ending at the deny in
+# drone-budget-guard (owner call, 2026-09-14). Keep each to one sentence.
+_SUBAGENT_NUDGES = {
+    150_000: "Implementer? Your first commit (the red test) should be in by now — "
+             "if it isn't, commit what you have before the next edit.",
+    200_000: "Halfway to the 300k hard stop: commit anything uncommitted now, and if "
+             "you're cycling on one failing thing, escalate to Sage instead of trying again.",
+    250_000: "Flag yourself: SendMessage the orchestrator/Sage with what's committed and "
+             "what's left. What remains is one finish-or-handoff, not another phase.",
+    300_000: "HARD STOP: drone-budget-guard now denies every tool but SendMessage and "
+             "git add/commit/status/diff/log. Commit, then report.",
+}
+_MAIN_NUDGES = {
+    150_000: "Past the ~150k target: finish the unit in flight, take on nothing new.",
+    200_000: "Finish up: persist every decision to its home (handoff skill) and stop "
+             "taking work.",
+    250_000: "Hand off to a fresh session now — every further turn here is bought at "
+             "full price.",
+}
+
+
+def _nudge(kind, tier):
+    if kind == "main":
+        return _MAIN_NUDGES.get(min(tier, 250_000))
+    return _SUBAGENT_NUDGES.get(min(tier, 300_000))
 
 
 def main():
