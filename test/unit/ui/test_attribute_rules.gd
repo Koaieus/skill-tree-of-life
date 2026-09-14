@@ -78,11 +78,20 @@ func test_constitution_is_no_longer_blank() -> void:
 
 
 func test_intelligence_covers_mana_and_its_regen() -> void:
+	# #766 made the innate INT->mana / INT->mana_per_turn scaling very
+	# conservative (RatioFormula divisor 1000; the regen ladder starts three
+	# decades later and no longer starts on its own common ratio, so its
+	# clause is no longer "×10 INT" — see test_a_ladder_not_starting_at_its_
+	# ratio_is_not_geometric). The rates are the owner's to retune; this
+	# checks the readout still surfaces BOTH rules and that the max-mana one
+	# still renders as a ratio ("per N INT"), without pinning N.
 	var lines := _lines(&"intelligence")
 	assert_gte(lines.size(), 2)
 	var joined := "\n".join(lines)
-	assert_string_contains(joined, "per 10 INT")
-	assert_string_contains(joined, "per ×10 INT")
+	assert_string_contains(joined, "Max Mana")
+	assert_string_contains(joined, "Mana / Turn")
+	assert_string_contains(joined, " per ")
+	assert_string_contains(joined, " INT")
 
 
 func test_no_hardcoded_rule_strings_remain_in_the_source() -> void:
