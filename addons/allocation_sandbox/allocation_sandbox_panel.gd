@@ -137,8 +137,7 @@ func _make_cell(row: int, col: int, kind: String, title: String, color: Color) -
 	for j in range(cell.nodes.size() - 1):
 		graph.add_edge(cell.nodes[j], cell.nodes[j + 1])
 
-	# Entity (one per cell → its own EntityNavigator). Parented under the graph's
-	# Entities container so Entity._ready auto-creates the navigator.
+	# Entity (one per cell → its own EntityNavigator, via initialize() below).
 	cell.entity = Entity.new()
 	cell.entity.name = "Owner_%d_%d" % [row, col]
 	cell.entity.display_name = cell.entity.name
