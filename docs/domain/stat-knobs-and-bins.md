@@ -344,7 +344,7 @@ ever express decades.
 - **The ladder saturates at `breakpoints.size()`.** Extend it past anything the
   stat can plausibly reach, and pin the top rung in a test — a range that stops
   below the top of the array cannot see the saturation.
-- Everything else stays a `RatioFormula` (`floor(source / N)`) or a
+- Everything else stays a `RatioFormula` (`source / N` — a line; the INT stat floors once, #891) or a
   `LinearFormula`. See `.claude/rules/stats-system.md` → *Formula classes*.
 - `mise run lint-transcendentals` fails on a new `log`/`exp`/`pow`/trig in a
   gameplay formula string or gameplay code path. Its allowlist is the record of

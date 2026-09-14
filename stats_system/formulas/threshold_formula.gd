@@ -28,7 +28,8 @@ extends StatFormula
 ## out at `breakpoints.size()`. That is a deliberate authoring obligation, not
 ## a bug: extend the list past any value the stat can plausibly reach (the
 ## shipped mana ladder runs to 1e6 INT), and pin the top of it in a test.
-## Use [RatioFormula] for the far more common ungated `floor(source / N)`.
+## Use [RatioFormula] for the far more common ungated `source / N` line (the
+## INT target floors its finished total once — #891).
 
 ## The stat being compared. Accepts a bare `<stat_id>` (reads the computed
 ## value / cap) or a `<stat_id>__<accessor>` token (reads a named accessor —
