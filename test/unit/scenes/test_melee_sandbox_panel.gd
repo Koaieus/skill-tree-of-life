@@ -53,6 +53,24 @@ func test_a_melee_plan_is_armed_on_open() -> void:
 			"an attack is illegal without a current entity")
 
 
+func test_arm_world_mutes_vfx_so_teardown_and_rearm_stay_silent() -> void:
+	# #869: `arm_world` tears the board down and re-authors ownership through
+	# the REAL `force_deallocate` / `force_allocate` primitives — with VFX
+	# live, that plays a full shatter (dealloc) + spike (alloc) sweep on every
+	# authored node, on first open AND on every Reset. The allocation sandbox
+	# solved this identically: `AllocationSandboxPanel._mute_vfx`/`_unmute_vfx`
+	# bracket the same silent re-arm around `AllocationVFX.muted`.
+	var vfx: AllocationVFX = _panel._vfx
+	var field := vfx.get_shard_field()
+	var shards_before := field.used_slots()
+	var spikes_before := vfx.get_child_count()
+	_panel.arm_world()
+	assert_eq(field.used_slots(), shards_before,
+			"re-arming must not shatter every authored node's disk")
+	assert_eq(vfx.get_child_count(), spikes_before,
+			"re-arming must not spike every authored node either")
+
+
 func test_clicks_grow_a_blade_through_the_real_input_channel() -> void:
 	var battle: BattleSystem = _panel._battle
 	var plan := battle.attack_plan as MeleeAttackPlan
