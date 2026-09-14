@@ -8,10 +8,13 @@ extends StatusDef
 ##
 ## The def is shared and stateless, so the per-node handle is FOUND rather
 ## than stored: the modifiers are [BlindModifier]s, and the one on a node's
-## stat is located by type in that stat's multiplier bin. A tick edits the
-## found modifier's `value` in place (replace, never stack); removal strips
-## both. Works on a shadow too — a cloned board carries its own copies, found
-## the same way, and [method NodeCombat.remove_local_modifier] takes them.
+## stat is located by type in that stat's multiplier bin. A tick REPLACES the
+## found modifier with a fresh one (never stacks, never edits in place): a
+## static modifier is SHARED between a live board and its shadow clone
+## (`StatBoard._localize` copies only formula-bearing ones), so writing a
+## found modifier's `value` from a shadow resolve would mutate the live world
+## before any [AttackRecord] replays. Remove + add lands on whichever board
+## the [NodeCombat] owns and leaves the other alone.
 ##
 ## Sensor range is cut as-is by owner call (2026-09-14): PER scales it up and
 ## procgen rolls it on nodes, so a base-1 node sensing nothing while blinded
@@ -65,15 +68,14 @@ func factor_for(power: float) -> float:
 func _set_factor(node: NodeCombat, power: float) -> void:
 	var f := factor_for(power)
 	for stat_id in STAT_IDS:
-		var m := _find(node, stat_id)
-		if m == null:
-			m = BlindModifier.new()
-			m.stat_id = stat_id
-			m.operation = StatModifier.Operation.MULTIPLY
-			m.value = f
-			node.add_local_modifier(m)
-		else:
-			m.value = f  # the setter emits `changed`; the stat re-reads live
+		var old := _find(node, stat_id)
+		if old != null:
+			node.remove_local_modifier(old)
+		var m := BlindModifier.new()
+		m.stat_id = stat_id
+		m.operation = StatModifier.Operation.MULTIPLY
+		m.value = f
+		node.add_local_modifier(m)
 
 
 ## The [BlindModifier] on [param node]'s local [param stat_id], or null.

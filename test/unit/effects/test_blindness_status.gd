@@ -21,9 +21,11 @@ var _alloc: AllocationSystem
 var _entity: Entity
 var _nodes: Array[SkillNode]
 var _def: BlindnessStatus
+var _shadows: Array[EntityCombat] = []
 
 
 func before_each() -> void:
+	_shadows = []
 	_graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(_graph)
 
@@ -110,6 +112,11 @@ func _assert_factor(stat_id: StringName, factor: float, why: String) -> void:
 	assert_almost_eq(_local(stat_id), 10.0 * factor, 0.01, "%s: local read (%s)" % [stat_id, why])
 
 
+func after_each() -> void:
+	for sh in _shadows:
+		sh.free_shadow()
+
+
 # ── Numbers ──────────────────────────────────────────────────────────────────
 
 func test_power_3_halves_then_recovers_over_three_ticks() -> void:
@@ -160,6 +167,33 @@ func test_remove_status_strips_both_modifiers() -> void:
 	for stat_id in _STATS:
 		assert_almost_eq(_local(stat_id), 10.0, 0.001, "%s: back to baseline" % stat_id)
 		assert_false(_has_blind_modifier(stat_id), "%s: modifier stripped" % stat_id)
+
+
+# ── Shadow isolation ─────────────────────────────────────────────────────────
+
+## A static (formula-less) modifier is SHARED between a live board and its
+## clone (`StatBoard._localize`), so a shadow resolve must never edit a found
+## modifier in place — that would write the live world before any
+## AttackRecord replays (attack-timeline rule). Replace, never mutate.
+func test_shadow_apply_never_writes_the_live_modifier() -> void:
+	_set_local(&"vision_range", 10.0)
+	_combat().apply_status(_def, 1.0)
+	var live_mods := _blind_modifiers(&"vision_range")
+	assert_eq(live_mods.size(), 1)
+	if live_mods.is_empty():
+		return
+	var live_value: float = live_mods[0].value
+
+	var shadow_world := _entity.get_combat().snapshot()
+	_shadows.append(shadow_world)
+	var shadow := shadow_world.shadow_for(_nodes[0])
+	shadow.apply_status(_def, 3.0)
+
+	assert_almost_eq(float(shadow.get_local_value(&"vision_range")), 5.0, 0.01,
+		"the shadow reads the full-power factor")
+	assert_almost_eq(live_mods[0].value, live_value, 0.001,
+		"the live modifier instance is untouched by the shadow resolve")
+	_assert_factor(&"vision_range", _def.factor_for(1.0), "live world unchanged")
 
 
 # ── VisionSystem behaviour ───────────────────────────────────────────────────

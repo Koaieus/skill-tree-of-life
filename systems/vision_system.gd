@@ -227,8 +227,9 @@ func _rebind_local_stats(owner_nodes: Array) -> void:
 		var sn := n as SkillNode
 		if sn.node_board == null:
 			continue
-		sn.node_board.stat_created.connect(_on_local_stat_created)
-		_bound_local_boards.append(sn.node_board)
+		if not sn.node_board.stat_created.is_connected(_on_local_stat_created):
+			sn.node_board.stat_created.connect(_on_local_stat_created)
+			_bound_local_boards.append(sn.node_board)
 		for stat_id in _LOCAL_STAT_IDS:
 			var ls := sn.node_board.get_stat(stat_id)
 			if ls != null:
