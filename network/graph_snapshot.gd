@@ -63,6 +63,7 @@ const _R_MODS := 9    ## Array of StatModifierCodec dicts — the node's own res
 const _R_ADDONS := 10 ## Array[int], indices into `res`, one per attached addon in child order
 const _R_KEYSTONE := 11 ## index into `res`, -1 for none — SkillNode.keystone
 const _R_EFFECTS := 12  ## Array[int], indices into `res` — SkillNode.effects (direct grants, independent of a keystone)
+const _R_STATUSES := 13 ## Array of `[def_idx, power]` pairs (#879) — def_idx indexes into `res`, power is the raw float (not quantized — WorldFingerprint quantizes its own fold independently, same split as HP)
 
 
 ## Builds the payload for the WHOLE graph in one shot: `res` (the interned
@@ -305,8 +306,12 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	for e in node.effects:
 		if e != null and e.resource_path != "":
 			effect_idx.append(table.intern(e.resource_path))
+	var status_pairs: Array = []
+	for s in node.get_combat().get_statuses():
+		if s.def.resource_path != "":
+			status_pairs.append([table.intern(s.def.resource_path), s.power])
 	var row: Array
-	row.resize(13)
+	row.resize(14)
 	row[_R_STABLE_ID] = graph.get_stable_id(node)
 	row[_R_ARCHETYPE] = archetype_idx
 	row[_R_OWNER_ID] = owner_id
@@ -320,6 +325,7 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	row[_R_ADDONS] = addon_idx
 	row[_R_KEYSTONE] = keystone_idx
 	row[_R_EFFECTS] = effect_idx
+	row[_R_STATUSES] = status_pairs
 	return row
 
 
@@ -355,7 +361,24 @@ static func _decode_node(
 	# residual modifiers reconcile on top, reproducing the source's full list.
 	_reconcile_modifiers(node, row)
 	node.restore_current_hp(float(row[_R_HP]) / 100.0)
+	_reconcile_statuses(node, row, res)
 	return node
+
+
+## Statuses restore as "become exactly this" (#879), like HP: wipe the slice
+## and re-apply each decoded row. Reusing [method NodeCombat.apply_status]
+## rather than writing the dict directly means the 0→1 tick-subscription hook
+## still fires correctly, and a decoded power is never above `power_max` (the
+## source clamped it the same way), so REFRESH/ACCUMULATE both land on the
+## exact value the source held. Run AFTER `owned_by` is assigned above — a
+## `CLEAR` def's apply_status is a no-op on an unallocated node, same rule as
+## a live apply.
+static func _reconcile_statuses(node: SkillNode, row: Array, res: Array) -> void:
+	node.get_combat().clear_statuses()
+	for pair in (row[_R_STATUSES] as Array):
+		var def := _interned(res, int((pair as Array)[0])) as StatusDef
+		if def != null:
+			node.get_combat().apply_status(def, float((pair as Array)[1]))
 
 
 ## The authored tier, assigned only where it actually differs — a redundant

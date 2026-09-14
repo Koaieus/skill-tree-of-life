@@ -62,6 +62,11 @@ func start_turn(entity: Entity) -> void:
 	current_entity = entity
 	turns_taken += 1
 	turn_started.emit(entity)
+	# Sparse status-tick channel (#879): emitted AFTER `turn_started` above
+	# returns, so Entity._on_turn_started's upkeep (regen included) has
+	# already run — never from `adopt_turn`, which is a resync repair, not a
+	# real turn begin.
+	Events.turn_started.emit(entity)
 
 
 ## Take the authority's cursor as given (#756) — the resync half of "the mirror

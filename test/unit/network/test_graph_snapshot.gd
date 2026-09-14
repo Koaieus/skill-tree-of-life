@@ -16,6 +16,7 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _CLAMP_ADDON := preload("res://skill_node/addons/clamp_addon.tscn")
 const _TITAN_KEYSTONE := preload("res://entity/keystone/instances/titan_keystone.tres")
+const _TEST_STATUS := preload("res://test/fixtures/status/test_status.tres")
 
 
 func _new_graph() -> Graph:
@@ -101,6 +102,47 @@ func test_non_pristine_round_trip_fingerprints_agree() -> void:
 	assert_not_null(decoded_keystone_node, "decoded graph is missing the keystone node's stable_id")
 	assert_eq(decoded_keystone_node.keystone, _TITAN_KEYSTONE,
 			"keystone did not survive the round trip — a joining client would silently lose its grant")
+
+
+## #879's Resync acceptance: a node's `(status id, power)` survives the round
+## trip, [WorldFingerprint] actually folds it (not just carries it inert), and
+## decode leaves the node genuinely SUBSCRIBED to the sparse tick channel —
+## not merely holding the right dict entry. `apply_status`/`clear_statuses`
+## do the restore (see `GraphSnapshot._reconcile_statuses`), so the same
+## 0→1 subscription hook that a live application would trigger fires here too.
+func test_status_round_trip_preserves_id_and_power_and_ticks_after_decode() -> void:
+	var source := await _procgen_graph(12, 20260914)
+	var target := await _new_graph()
+
+	var source_owner := _new_owner(source)
+	var target_owner := _new_owner(target)  # same mint order -> entity_id 1 on both
+
+	var node: SkillNode = source.get_skill_nodes()[0]
+	node.owned_by = source_owner
+	node.get_combat().apply_status(_TEST_STATUS, 3.0)
+
+	var bytes := GraphSnapshot.encode(source)
+	GraphSnapshot.decode(bytes, target)
+
+	assert_eq(WorldFingerprint.compute(target), WorldFingerprint.compute(source),
+			"decoded graph diverged from source: %s vs %s" %
+			[WorldFingerprint.describe(target), WorldFingerprint.describe(source)])
+
+	var decoded := target.get_by_stable_id(source.get_stable_id(node))
+	assert_not_null(decoded, "decoded graph is missing the statused node's stable_id")
+	assert_eq(decoded.get_combat().get_status_power(&"test_status"), 3.0,
+			"status id/power did not survive the round trip")
+
+	# The mirror ticks afterwards: decode must have re-subscribed the node to
+	# Events.turn_started, not just written the power into the dict.
+	Events.turn_started.emit(target_owner)
+	assert_lt(decoded.get_combat().get_status_power(&"test_status"), 3.0,
+			"decoded node must be subscribed to the sparse tick channel after resync")
+
+	# WorldFingerprint actually folds status power: a divergence must move it.
+	decoded.get_combat().apply_status(_TEST_STATUS, 10.0)  # REFRESH, clamps to power_max 5
+	assert_ne(WorldFingerprint.compute(target), WorldFingerprint.compute(source),
+			"a status power difference between peers must move the fingerprint")
 
 
 ## Size guard (#527's acceptance): don't generate 2000 nodes inside the unit

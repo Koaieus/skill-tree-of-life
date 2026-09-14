@@ -4,9 +4,10 @@ extends RefCounted
 ## A cheap "do two peers hold the same world?" checksum, for the multiplayer
 ## harness AND #527's join handshake.
 ##
-## Folds three tiers ([GraphSnapshot]'s own tier table): ownership, topology (node identity +
-## edges), and ACCUMULATED per-node state — stake level, allocation level,
-## regen stacks, and node HP. It does NOT fold derived [StatBoard] totals: the
+## Folds four tiers ([GraphSnapshot]'s own tier table): ownership, topology (node identity +
+## edges), ACCUMULATED per-node state — stake level, allocation level,
+## regen stacks, and node HP — and per-node STATUSES (#879: `(id, power)`
+## pairs, see [method _status_rows]). It does NOT fold derived [StatBoard] totals: the
 ## tier table says totals never cross the wire, so folding them would assert
 ## agreement on a quantity the sync layer deliberately does not transmit — a
 ## fingerprint that can fail for reasons the sync layer cannot cause is a
@@ -81,10 +82,35 @@ static func _accumulated_rows(graph: Graph) -> Array:
 	return rows
 
 
+## One row per node holding ≥ 1 status (#879 — omitted entirely otherwise, so
+## the common case adds nothing to fold): `[stable_id, id_hash_0, power_0,
+## id_hash_1, power_1, …]`, PAIRS SORTED BY STATUS ID first — so two peers
+## holding the same statuses in different application order still fold equal
+## (this is what makes it safe to fold as one variable-length row instead of
+## one row per status, unlike the fixed-shape rows above). `power` quantizes
+## the same way HP does (`roundi(power * 100)`, see the class docstring) —
+## a raw float would make the fold depend on engine float-formatting.
+static func _status_rows(graph: Graph) -> Array:
+	var rows: Array = []
+	for node in graph.get_skill_nodes():
+		var pairs: Array = []
+		for s in node.get_combat().get_statuses():
+			pairs.append([String(s.def.id), roundi(s.power * 100.0)])
+		if pairs.is_empty():
+			continue
+		pairs.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+		var row: Array = [graph.get_stable_id(node)]
+		for pair in pairs:
+			row.append(String(pair[0]).hash())
+			row.append(pair[1])
+		rows.append(row)
+	return rows
+
+
 static func compute(graph: Graph) -> int:
 	if graph == null:
 		return 0
-	var rows := _ownership_rows(graph) + _topology_rows(graph) + _accumulated_rows(graph)
+	var rows := _ownership_rows(graph) + _topology_rows(graph) + _accumulated_rows(graph) + _status_rows(graph)
 	return _fold_rows(rows)
 
 
@@ -100,9 +126,10 @@ static func describe(graph: Graph) -> String:
 	for node in nodes:
 		if node.owned_by != null:
 			owned += 1
-	return "%d nodes, %d owned, fp %d (own %d / topo %d / accum %d)" % [
+	return "%d nodes, %d owned, fp %d (own %d / topo %d / accum %d / status %d)" % [
 		nodes.size(), owned, compute(graph),
 		_fold_rows(_ownership_rows(graph)),
 		_fold_rows(_topology_rows(graph)),
 		_fold_rows(_accumulated_rows(graph)),
+		_fold_rows(_status_rows(graph)),
 	]

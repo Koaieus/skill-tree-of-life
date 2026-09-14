@@ -262,22 +262,28 @@ read is already correct.
   [status-tags.md](../design/status-tags.md) (it moved to `docs/design/` while
   unimplemented; it moves back here once shipped).
 - **Presentation** — icon + `get_description()` rendering in the HUD.
-- **Node-local effect bin** — a coherent-but-empty sibling to `node_board`. The
-  stat side is symmetric (entity `stat_board` ↔ per-node `node_board`, combined on
-  read); the effect side is not, and deliberately so. **Effects are push, stats are
-  pull**: a `node_board` hosts anywhere because "combine on read" needs no
-  dispatcher, but an effect instance's home is decided by *who fires its hooks*, and
-  every hook today (`_on_turn_start`, `_on_node_allocated`, `_on_core_moved`,
-  `_on_level_up`, `_on_killing_blow`) is an **entity/subgraph** event. So even a
-  node-granted effect is *hosted* at the entity (instance keyed by `source_node`).
-  Note the two axes are orthogonal: an aura may *radiate from* its carrier node
-  (geometry — the `source_node ?? core_location` origin rule, #240) while still being
-  *dispatched by* the entity (host). **Trigger to fill this cell:** the first effect
-  authored to react to a node's *own* lifecycle (`skill_node_depleted`, addon
-  stamped, node damaged) and mutate *only* node-local state. That effect belongs
-  hosted on the `SkillNode`, which then grows its own `_on_*` dispatch + a per-node
-  `EffectInstance` bin. Until such content exists, don't build the node-as-dispatch-host
-  machinery — it's speculative double-plumbing.
+- **Node-local effect bin — SHIPPED (#868 hub, #872/#878/#879).** This cell used
+  to describe a coherent-but-empty sibling to `node_board`, waiting on "the first
+  effect authored to react to a node's *own* lifecycle and mutate *only*
+  node-local state." Poison/Blindness/Armor Break were exactly that trigger, and
+  the bin that shipped is narrower than the speculative one this entry used to
+  sketch — not a generic `EffectInstance` bin with its own `_on_*` dispatch, but
+  a purpose-built **status slice**: `StatusDef` (`effects/status/status_def.gd`,
+  a `.tres`-authored resource — id, tags, `power_max`, `decay_per_tick`,
+  `reapply` policy, `cure_per_hp`, `on_dealloc`, display identity) plus a
+  per-node `NodeStatus{power}` row, held on `NodeCombat._statuses` (#872) beside
+  `_tags`/`_board` — "on NodeCombat, like node HP" (owner). Application is a
+  `StatusInstance : HitInstance` pushed by `ApplyStatusEffect : OnHitEffect`
+  (#878), landed via `NodeCombat.apply_status`/`land_on` on whichever
+  `CombatWorld` the applier hands in — same shadow/live split as every other
+  hit. Ticking is a **sparse** subscription (#879): a node with ≥ 1 status
+  connects once to `Events.turn_started` (fired after `Entity._on_turn_started`'s
+  own upkeep, never on an adopted resync cursor) and disconnects on its last —
+  never a territory sweep. All statuses void on any deallocation path
+  (`AllocationSystem.clear_statuses()` on `deallocate`/`force_deallocate`/
+  `deallocate_all_owned`) — `StatusDef.OnDealloc` reserves a `LINGER` door but
+  only `CLEAR` is built. `network/graph_snapshot.gd` carries `(status id,
+  power)` rows in resync, and `WorldFingerprint` folds them.
 
 ## Known limits — file an issue to extend
 
@@ -293,7 +299,7 @@ core is the origin rule `ctx.source_node ?? ctx.core_location`, resolved once in
 
 | You want… | Status | Extend via |
 |---|---|---|
-| An effect that reacts to a **node's own** lifecycle and mutates only that node | Not supported (all dispatch is entity-scoped) | Node-local effect bin — see Deferred above |
+| An effect that reacts to a **node's own** lifecycle and mutates only that node | Supported for the status shape (poison/blind/armor-break) via `NodeCombat`'s status slice (#872/#878/#879) — see Deferred above. General `EffectInstance`-hosted-on-a-node dispatch is still not built | Node-local effect bin — see Deferred above |
 | A hook that **returns a value** to change *whether* something happens (LifeLine veto) | Not supported (hooks are fire-and-forget `void`) | Query hook — LifeLine, Deferred above |
 | An effect on an **unallocated** node (map/environment hazard) | Not supported (node effects are dormant until owned) | A distinct `NodeHazardEffect` feature — no issue yet |
 | A spell/tag grant that **survives its granting node** on death | Handled *outside* the ledger (`SpellBook` innate/permanent add) | Spellbook looting — [#204](https://github.com/Koaieus/skill-tree-of-life/issues/204) |

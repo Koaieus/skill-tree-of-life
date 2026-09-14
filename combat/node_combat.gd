@@ -558,6 +558,7 @@ func apply_status(def: StatusDef, power: float) -> void:
 		return
 	if def.on_dealloc == StatusDef.OnDealloc.CLEAR and not is_allocated():
 		return
+	var had_status := not _statuses.is_empty()
 	var row: NodeStatus = _statuses.get(def.id)
 	var next: float
 	if row == null:
@@ -572,6 +573,11 @@ func apply_status(def: StatusDef, power: float) -> void:
 				next = maxf(row.power, power)
 	row.power = minf(next, def.power_max)
 	def._on_applied(self, row.power)
+	# Sparse tick subscription (#879): the FIRST status on a live node connects
+	# it to Events.turn_started; a shadow (`host == null`) never subscribes —
+	# it's discarded within the same synchronous resolve that created it.
+	if host != null and not had_status:
+		host._subscribe_status_tick()
 
 
 ## One tick for every status on the node: [method StatusDef._on_tick] first
@@ -605,6 +611,11 @@ func remove_status(id: StringName) -> void:
 		return
 	_statuses.erase(id)
 	row.def._on_removed(self)
+	# Sparse tick subscription (#879): the LAST status leaving drops it. Fires
+	# from every step of [method clear_statuses] too — the one that empties
+	# the slice is the one that unsubscribes.
+	if host != null and _statuses.is_empty():
+		host._unsubscribe_status_tick()
 
 
 ## Drop every status, each through [method remove_status].

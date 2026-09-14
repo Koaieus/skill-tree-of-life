@@ -3,6 +3,11 @@
 > Lives in `docs/design/` because the tag-set mechanic below doesn't exist
 > yet. Once it's implemented, move this back to `docs/domain/` (it was
 > originally drafted there) and update it to reflect the actual shape shipped.
+>
+> **Not to be confused with what DID ship (#868 hub, #872/#878/#879):** node
+> statuses (poison, blindness, armor break) are a purpose-built `StatusDef` +
+> `NodeCombat` status slice, not this doc's refcounted tag-set channel — see
+> `docs/domain/effect-system.md`'s Deferred section, "Node-local effect bin".
 
 Prompted by designing **LifeLine** (already stubbed in
 [effect-system.md](effect-system.md)'s Deferred section: *"kept alive despite

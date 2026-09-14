@@ -140,3 +140,16 @@ signal ui_action_denied(anchor: Node2D, reason: String)
 ## `entity` is the deciding AI, `summary` a short human-readable description
 ## of the decision.
 signal ai_decision(entity: Entity, summary: String)
+
+## Sparse status-tick channel (#879). Re-emitted by [method TurnManager.start_turn]
+## for a REAL turn begin only — never [method TurnManager.adopt_turn]'s resync
+## cursor (#756's `is_adopting`) — and only AFTER [signal TurnManager.turn_started]'s
+## own emit has returned, so every listener of that signal (including
+## [method Entity._on_turn_started]'s upkeep / [method SkillNode.apply_turn_regen])
+## has already run. A [SkillNode] with ≥ 1 status connects to this once (on its
+## first status) and disconnects on its last, checks `entity == owned_by`, then
+## calls [method NodeCombat.tick_statuses] — never a territory sweep. Distinct
+## from [signal TurnManager.turn_started] on purpose: that one's seven listeners
+## (HUD, initiative bar, action cluster, …) all want to hear an adopted cursor
+## too; this one exists so a status tick never has to.
+signal turn_started(entity: Entity)

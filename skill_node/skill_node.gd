@@ -226,6 +226,14 @@ var _addons: Array[SkillNodeAddon] = []
 # CoreMarker reflects the *current* owner's core_location, not a stale one.
 var _bound_owner: Entity = null
 
+## Sparse turn-start tick subscription (#879): true while this node has ≥ 1
+## status and is therefore connected to [signal Events.turn_started]. Never
+## toggled directly — [method NodeCombat.apply_status] / [method
+## NodeCombat.remove_status] flip it on the 0→1 / 1→0 transition, so a node
+## with statuses never sweeps the whole territory and one with none is never
+## even listening.
+var _status_tick_connected: bool = false
+
 ## Canonical ledger of node-LOCAL modifiers (addons, direct grants, effect
 ## node-grants) — the complement of [member modifiers] (entity-scoped). Kept
 ## as the PARENT instances (composites stay whole) so the local-scale mutator
@@ -1197,6 +1205,37 @@ func notify_healed(_prev: float, _after: float, effective: float, source: Varian
 	if effective > 0.0:
 		healed.emit(effective, source)
 		Events.skill_node_healed.emit(self, effective, source)
+
+
+## Connect once to the sparse turn-start channel (#879) — [method
+## NodeCombat.apply_status] calls this on the slice's 0→1 status transition.
+## Guarded here too (not just at the call site) so nothing can double-connect.
+func _subscribe_status_tick() -> void:
+	if _status_tick_connected:
+		return
+	Events.turn_started.connect(_on_status_tick_turn_started)
+	_status_tick_connected = true
+
+
+## Drop the subscription (#879) — [method NodeCombat.remove_status] calls
+## this on the slice's 1→0 transition, including the step of [method
+## NodeCombat.clear_statuses] that empties it. A no-op when not connected.
+func _unsubscribe_status_tick() -> void:
+	if not _status_tick_connected:
+		return
+	Events.turn_started.disconnect(_on_status_tick_turn_started)
+	_status_tick_connected = false
+
+
+## [signal Events.turn_started] handler — fires for every entity's REAL turn
+## start only (never an adopted cursor, #756), after that entity's own
+## turn-start upkeep has already run. This node only acts on its own owner's
+## turn; [method NodeCombat.tick_statuses] itself tolerates a status (or the
+## whole node) vanishing mid-emit — e.g. a poison kill re-entering this same
+## emit via the forced-dealloc cascade.
+func _on_status_tick_turn_started(entity: Entity) -> void:
+	if entity == owned_by:
+		_combat.tick_statuses()
 
 # ── Internals ──────────────────────────────────────────────────────────────
 
