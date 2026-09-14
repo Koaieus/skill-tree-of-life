@@ -72,6 +72,15 @@ const _CAPTURE := false
 ## a direct call, same as `ap` already does — the award itself has its own
 ## coverage in `test/unit/systems/test_loot_kill_tempo.gd`, which actually
 ## kills something.
+##
+## [b]Fifth amendment, #766[/b] — `mana` 11.0 -> 10.0. The mana rework made
+## the board's base mana pool the real source (10) and the INT->mana
+## RatioFormula intrinsic "very conservative" (divisor 1000, a rounding error
+## at this fixture's INT) — owner call, 2026-09-14: keep both, very
+## conservative. This fixture's enemy never had enough INT to move the
+## intrinsic off zero, so the golden's mana simply drops to the new base.
+## Every other field — ownership, AP, SP, tempo, initiative, current_entity,
+## the decision trace — is byte-identical to the pre-#766 golden.
 const _GOLDEN := {
 	"ap": 0.0,
 	"current_entity": "Player",
@@ -81,7 +90,7 @@ const _GOLDEN := {
 	],
 	"enemy_owned": ["N0", "N1", "N2"],
 	"initiative": 0.0,
-	"mana": 11.0,
+	"mana": 10.0,
 	"ownership": {"N0": "Enemy", "N1": "Enemy", "N2": "Enemy", "N3": "Hostile"},
 	"sp": 0.0,
 	"tempo": 1.0,
