@@ -101,9 +101,12 @@ sentences at once (see the table under *Alternatives*).
   tests that pinned a rounded total are re-pointed, and the landing report lists
   them. Display formatting (`stat_def.gd:74`, `stat_modifier.gd`) keeps its
   `roundi` — it formats an already-coerced number.
-- **`mana` is a FLOAT pool**, so `INT 15 / 10` now contributes a cap of 1.5
-  rather than 1. Harmless at the planned `/1000` divisor; noted so nobody reads a
-  `.5` cap as a bug.
+- **`mana` is an INT pool** (`stats_system/defs/mana.tres` authors no
+  `value_type`, so it takes the default), so its cap is coerced by the same INT
+  floor as every scalar — `INT 15 / 10` contributes 1.5 and the cap floors it.
+  Invisible at the planned `/1000` divisor (`10 + 10/1000 → 10` either way);
+  noted so nobody expects a `.5` cap. (Corrected by #891's drone from an
+  earlier "FLOAT pool" line, 2026-09-15.)
 - **"When is my next +1" moves out of the representation.** If it is wanted, it
   is a computed per-modifier readout ("next +1 from this rule at 12360 STR, → +3
   after your 200% inc") — parked on #889, not a reason to keep the stair.

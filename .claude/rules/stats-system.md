@@ -532,7 +532,7 @@ recalculates on every holding entity's board already works.
 
 ## Intrinsic scaling (entity/default_entity_board.tres)
 
-These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_modifiers` on the default board — all entities get them. Keep them inline in the board .tres (not separate files). Effective contribution = `modifier.value × formula.compute(board)`; with `value = 1` the formula reads through. **Update this table when adding or changing one.**
+These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_modifiers` on the default board — all entities get them. Keep them inline in the board .tres (not separate files). Effective contribution = `modifier.value × formula.compute(board)`; with `value = 1` the formula reads through. A `RatioFormula` row below is a line — `+1 per 20 STR` contributes `0.05 × STR` continuously and the INT target floors once at the end (#891), so a merged loot copy (`value 1.25`) moves the step to 16 STR rather than doing nothing until four copies stack. **Update this table when adding or changing one.**
 
 | Input stat | Target stat | Op | value | formula |
 |---|---|---|---|---|
@@ -564,7 +564,7 @@ Same field, one level down: `NodeStatBoard.intrinsic_modifiers` (`skill_node/def
 
 | Class | Shape | Describes itself as |
 |---|---|---|
-| `RatioFormula(source, divisor)` | `floor(source / divisor)` | "per 20 STR" (generated) |
+| `RatioFormula(source, divisor)` | `source / divisor` — a LINE, no floor (#891, ADR 0016); the INT target floors the finished total once | "per 20 STR" (generated); a merged `value` normalises to a unit numerator — `value 4/3` over `/5` reads "+1 … per 3.75 WIS", and below one point of source it flips to "+20 … per WIS", never "+1 per 0.05" |
 | `LinearFormula(source)` | `source` | "per PER" (generated) |
 | `ThresholdFormula(source, breakpoints)` | count of ascending breakpoints reached | "per ×10 INT" for a geometric ladder, else "at 50 / 150 / 500 INT" — names the ladder, never wrapped in "per" (#773) |
 | `SqrtFormula(source, divisor)` | `floor(sqrt(max(source, 0)) / divisor)` — pure sqrt transfer (#760, made knee-free by #776) | "√INT" at divisor 1, else "N √INT" (generated) — `describe_per()` bakes the `√` in so the default `" per %s"` wrap reads "per 20 √INT", never the bare "per N INT" a linear rate would claim |
@@ -590,10 +590,14 @@ this holds today — it breaks silently the moment a bin is sorted by a float or
 into an unordered container. Relevant the instant anyone restructures the bin walk for
 perf (#470): keep the order, and pin an aggregate against a shuffled insertion order.
 
-**`floor(stat / N)` must be a `RatioFormula`, never an `ExpressionFormula`.**
-With `divisor` a typed field, `describe_per()` renders the same number `compute()`
-divides by, so the shown rule and the computed rule cannot disagree — the property
-`ThresholdFormula` reads its multiplier off `breakpoints` for the same reason.
+**`stat / N` must be a `RatioFormula`, never an `ExpressionFormula` — and never
+`floor(stat / N)` in either (#891).** A ratio is a line; the stat floors. With
+`divisor` a typed field, `describe_per(value)` renders `divisor / value` and
+`display_coefficient(value)` renders `1` (or `value / divisor` per point once the
+step drops below 1), both off the same two fields `compute()` multiplies, so the
+shown rule and the computed rule cannot disagree — the property `ThresholdFormula`
+reads its multiplier off `breakpoints` for the same reason. `format()` hands the
+modifier's `value` to both; no other formula shape reads it.
 
 **Every formula owes a one-line `per_phrase`.** `StatModifier.format()` appends it —
 "+1 Blade Size **per 20 STR**" — and renders the modifier's `value` (the coefficient)

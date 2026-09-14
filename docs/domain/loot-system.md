@@ -402,6 +402,17 @@ fires, carrying the **merged target** — never the just-absorbed copy — so a
 display surface (#792) has one hook to refresh from regardless of merge vs.
 append.
 
+**A merged ratio rule is a line and reads as one (#891, ADR 0016).** The
+`RatioFormula` contributes `value × source / divisor` with no floor; the INT
+target floors its finished total once, so a `+1 XP / Turn per 5 WIS` intrinsic
+merged with a t1 copy (`value 1.25`) hands out its next point at WIS 4 rather
+than sitting inert until four copies stack. `StatModifier.format()` normalises
+the merged coefficient back to a unit numerator — `value 4/3` over `/5` renders
+`+1 XP / Turn per 3.75 WIS`, and once the step drops below one point of source
+it flips to `+20 XP / Turn per WIS` (never `+1 per 0.05`). At `value 1` the
+string is byte-identical to the unlooted rule, so nothing churns until a merge
+actually happens.
+
 **The merge key includes the formula dict, so a divisor mismatch silently
 appends instead of merging.** A player's `blade_damage /20` and a board still
 carrying `/10` for the same stat are different keys — pinned as visible
