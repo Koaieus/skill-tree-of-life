@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+#MISE description="PreToolUse hook: for SUBAGENTS only, deny whole-file Reads of big files, and past 300k context deny everything but commit-and-report. Not meant to be run directly."
+"""
+A Claude Code PreToolUse hook, wired in .claude/settings.json for every tool.
+Main sessions are never touched (no `agent_id` → silent exit 0). For a
+subagent it enforces the two rules the swarm post-mortem of 2026-09-14
+(docs/handoffs/swarm-2026-09-14-audit.md while it lives; the drone skill's
+budget section after) found were ADVISORY-ONLY and ignored by every drone:
+
+  1. No whole-file `Read` of a big file. `loot-rebalance-2` was at 204k
+     context before its first edit: six 30–40 KB whole-file Reads. A Read
+     without `offset`/`limit` on a file over _MAX_WHOLE_READ_LINES is denied
+     with the instruction to grep and read a range instead.
+  2. Past _HARD_STOP tokens the only allowed actions are commit-and-report:
+     `SendMessage`, and `Bash` whose command is a git add/commit/status/diff/
+     log. Two drones went to 404k and 427k past a rule that said "at 300k
+     your next action is commit-and-report"; the drone skill's wording was
+     tightened twice and never once obeyed, so it's a deny now.
+
+FAIL-OPEN IS THE TOP PROPERTY (the opposite of context-size-hook, which
+fails closed = silent). A hook that denies on its own exception would brick
+every drone; any error here must ALLOW. Hence the blanket try/except.
+
+Context size comes from the same tail-read of the subagent transcript the
+context-size hook uses — imported from it rather than copied.
+"""
+import importlib.util
+import json
+import os
+import re
+import sys
+
+_HARD_STOP = 300_000
+_MAX_WHOLE_READ_LINES = 400
+_COMMIT_AND_REPORT = re.compile(r"\bgit\b.*\b(add|commit|status|diff|log|rev-parse)\b")
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def _ctx_hook():
+    spec = importlib.util.spec_from_file_location("ctx_hook", os.path.join(_HERE, "context-size-hook"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _deny(reason):
+    print(json.dumps({"hookSpecificOutput": {
+        "hookEventName": "PreToolUse",
+        "permissionDecision": "deny",
+        "permissionDecisionReason": reason,
+    }}))
+
+
+def _line_count(path, cap):
+    """Lines in `path`, stopping at `cap` (we only need to know 'over')."""
+    n = 0
+    with open(path, "rb") as f:
+        for _ in f:
+            n += 1
+            if n > cap:
+                break
+    return n
+
+
+def _run(payload):
+    agent_id = payload.get("agent_id")
+    if not agent_id:
+        return  # main session: never gated here
+    tool = payload.get("tool_name") or ""
+    tool_input = payload.get("tool_input") or {}
+
+    # Rule 1 — whole-file Reads of big files, at any context size.
+    if tool == "Read" and "offset" not in tool_input and "limit" not in tool_input:
+        path = tool_input.get("file_path") or ""
+        if os.path.isfile(path) and _line_count(path, _MAX_WHOLE_READ_LINES) > _MAX_WHOLE_READ_LINES:
+            _deny(
+                f"drone-budget-guard: {os.path.basename(path)} is over {_MAX_WHOLE_READ_LINES} lines. "
+                "Whole-file Reads of big files are what put loot-rebalance-2 at 204k context before its "
+                "first edit. `grep -n` for the symbols you need, then Read with offset/limit (or "
+                "`sed -n 'a,bp'`) — a range, not the file."
+            )
+            return
+
+    # Rule 2 — the hard stop.
+    session_id = payload.get("session_id")
+    transcript_path = payload.get("transcript_path")
+    if not session_id or not transcript_path:
+        return
+    target = os.path.join(os.path.dirname(transcript_path), session_id, "subagents", f"agent-{agent_id}.jsonl")
+    tokens = _ctx_hook()._read_last_usage_total(target)
+    if tokens is None or tokens < _HARD_STOP:
+        return
+    if tool == "SendMessage":
+        return
+    if tool == "Bash" and _COMMIT_AND_REPORT.search(tool_input.get("command") or ""):
+        return
+    _deny(
+        f"drone-budget-guard: context is ~{tokens // 1000}k, past the {_HARD_STOP // 1000}k hard stop. "
+        "The only actions left to you are commit-and-report: `git add <files> && git commit` of whatever "
+        "is uncommitted, then your final BRANCH:/FILES:/TESTS:/DID:/NOTES: report (SendMessage or your "
+        "final turn). No more reads, edits, or test runs — hand the rest to the orchestrator in NOTES:."
+    )
+
+
+def main():
+    payload = json.load(sys.stdin)
+    _run(payload)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception:
+        pass  # fail-open: an exception must never deny
+    sys.exit(0)

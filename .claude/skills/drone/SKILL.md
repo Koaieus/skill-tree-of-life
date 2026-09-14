@@ -111,6 +111,31 @@ you). Don't chase it. Compare against `master` before blaming your diff.
 
 ## Context budget and stop compliance
 
+**Two of these rules are now enforced by a hook, not by your goodwill.**
+`.mise/tasks/drone-budget-guard` (PreToolUse, subagents only, 2026-09-14)
+*denies* (1) a whole-file `Read` of any file over 400 lines — `grep -n` the
+symbols, then Read a range with `offset`/`limit` or `sed -n 'a,bp'` — and
+(2) past **300k context, every tool call except `SendMessage` and a
+`git add/commit/status/diff/log` Bash**. It exists because the 2026-09-13
+audit found every drone ignored the advisory version: `loot-rebalance-2`
+was at **204k before its first edit** (six 30–40 KB whole-file Reads plus
+40 KB of `gh issue view`), and two drones ran to 404k/427k past a rule that
+said "at 300k, commit-and-report". A denial is not an error to route around
+— it is the instruction.
+
+**Commit at first green, not at the end.** First commit no later than
+~150k context, then commit each further green slice. `landing-context`
+(#356) first committed at 292k on tool call 177 of 203; `loot-rebalance-2`
+at 340k on call 116 of 168, and its #774 half was uncommitted WIP when the
+owner killed it. A kill of a drone that commits early is a clean handoff; a
+kill of one that doesn't loses the unit.
+
+**The brief is the issue.** If your brief carries the decisions (a
+`swarm-brief-*.md` does), do not `gh issue view` at the start — the two
+issues cost `loot-rebalance-2` 40 KB of context for facts its 4 KB brief
+already held. Re-reading for drift before review (below) stays, as
+`--comments` only.
+
 **Your dispatch brief names a turn/time budget alongside any file-ownership
 one** (e.g. "budget ~40 turns / 20 minutes"). Treat it as a stop condition,
 not a target: on blowing it, **commit the partial and report** — do not push
@@ -288,8 +313,8 @@ every report to Sage, to `main`, and again as final text.
 **With a Sage in the run** (your brief names it), the last thing you do is
 ask Sage for review and stop:
 
-1. **Re-read the issue first** — `gh issue view <n>` and `gh issue view <n>
-   --comments`, the same two calls you made at the start. A comment that
+1. **Re-read the issue first** — `gh issue view <n> --comments` (the body is
+   in your brief; only comments can have moved). A comment that
    landed mid-run is yours to notice (drift): if it changes the spec, act on
    it or say so in `NOTES:` before asking for review.
 2. One `SendMessage` to `Sage`: branch, worktree path, what to check, which

@@ -620,8 +620,13 @@ run in parallel). Per `Agent` call:
 - `subagent_type: "general-purpose"` (the default if omitted) or `"claude"` —
   both carry the full tool set. Never `Explore`/`Plan`: they have no
   `Edit`/`Write`.
-- `model: "sonnet"`, or `"haiku"` for ultra-mechanical work (rename, mass
-  string-replace, boilerplate).
+- `model:` is **mandatory and must equal the ledger's tier** — `"opus"` for
+  an opus-tiered unit, `"sonnet"` otherwise, `"haiku"` only for
+  ultra-mechanical work (rename, mass string-replace, boilerplate). An
+  omitted `model` inherits the *lead's* (same trap as the Explore pin in
+  CLAUDE.md): wave 2 of 2026-09-13 passed no `model` at all, and wave 1
+  dispatched both opus-tiered units (#356, #537) as `sonnet`. Read the
+  param back against the ledger row before sending.
 - A **minimal** prompt. The real brief comes in step 2; anything here is
   not read. (Backgrounding is the default now; don't pass
   `run_in_background` — named teammates are always async regardless.)
