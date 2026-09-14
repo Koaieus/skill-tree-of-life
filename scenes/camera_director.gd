@@ -113,6 +113,11 @@ func _process(delta: float) -> void:
 	_seconds_since_manual += delta
 	if not _active:
 		return
+	# The rubber band (#866): re-aim at the live blade's weighted centroid every
+	# frame. Pure presentation — it READS the blade the mutation loop is already
+	# driving and never gates it (`.claude/rules/presentation-clock.md`).
+	if _melee_tracking and camera != null and _live_melee_plan() != null:
+		camera.set_follow_target(melee_track_target())
 	_remaining -= delta
 	if _remaining <= 0.0:
 		release()
@@ -122,6 +127,12 @@ func _process(delta: float) -> void:
 ## flight dies this frame, and [method decide] refuses for
 ## [member manual_grace_seconds] afterwards.
 func _on_manual_input() -> void:
+	# ...unless a melee director's shot has the camera (#866). The lock is HARD:
+	# [GraphCamera] already drops the input before emitting, so reaching here
+	# while locked means a second caller — and it still must not cancel the shot
+	# or reset the grace clock.
+	if _melee_locked:
+		return
 	_seconds_since_manual = 0.0
 	if _active:
 		release()
@@ -137,7 +148,12 @@ func request_focus(request: FocusRequest) -> FocusDecision:
 	if not decision.act:
 		return decision
 	if camera != null:
-		camera.begin_directed_focus(decision.target, decision.zoom_target, decision.duration)
+		if _melee_tracking:
+			camera.begin_directed_follow(decision.target, decision.zoom_target,
+					decision.duration)
+		else:
+			camera.begin_directed_focus(decision.target, decision.zoom_target,
+					decision.duration)
 	_active = true
 	_remaining = decision.duration + decision.hold
 	if _remaining <= 0.0:
@@ -149,10 +165,17 @@ func request_focus(request: FocusRequest) -> FocusDecision:
 
 
 ## Hand the camera back. Position stays where the action ended; only zoom
-## returns (#515 decision 5).
+## returns (#515 decision 5) — #866 keeps exactly that, no restore-to-pre-shot
+## framing. This is also the SOLE door out of the melee input lock: the shot
+## runs its full course and the player's hands work again the instant it ends.
 func release() -> void:
 	_active = false
 	_remaining = 0.0
+	_melee_tracking = false
+	if _melee_locked:
+		_melee_locked = false
+		if camera != null:
+			camera.set_input_locked(false)
 	if camera != null:
 		camera.end_directed_focus()
 
@@ -161,20 +184,90 @@ func is_focusing() -> bool:
 	return _active
 
 
-## TODO(#866): the weighted centroid. Stubbed to the pivot alone so the seam
-## exists for the red tests.
+## [b]The pan target of a melee director's shot, as a pure function (#866).[/b]
+## The weighted average of the blade's vertex positions with the pivot counted
+## [param pivot_weight] times and every other vertex once.
+##
+## Weighted rather than flat because the two ends of a blade are not equivalent:
+## the pivot is pinned ([member BladeState.inv_masses] is 0 there) while the far
+## vertices sweep a full arc, so a flat centroid of a 40-vertex blade would ride
+## the arc's outer end and leave the swing's origin off-screen. Owner's number:
+## *"pivot taking e.g. an x5 weight compared to others"*.
+##
+## An empty blade is the pivot itself, never a division by zero.
 static func weighted_blade_center(pivot: Vector2, others: PackedVector2Array,
 		pivot_weight: float = MELEE_PIVOT_TRACK_WEIGHT) -> Vector2:
-	return pivot
+	var w := maxf(0.0, pivot_weight)
+	var total := w
+	var acc := pivot * w
+	for p in others:
+		acc += p
+		total += 1.0
+	if total <= 0.0:
+		return pivot
+	return acc / total
 
 
-## TODO(#866): the per-frame tracking target.
+## Where the shot should be looking THIS FRAME — the live blade's weighted
+## centroid. Read off [method MeleePreview.current_blade] rather than off the
+## plan or a re-predict: the whole point of the rubber band is the vertices'
+## animated positions mid-swing, and the preview's ghost IS the blade being
+## swung (the handoff #559/#865 preserve). Degrades to the pivot alone whenever
+## no blade is mounted — a headless peer, a fixture, the gap before the ghost
+## spawns — which is the same point the lead beat already panned to.
 func melee_track_target() -> Vector2:
-	return Vector2.ZERO
+	var melee := _live_melee_plan()
+	if melee == null:
+		return Vector2.ZERO
+	var pivot := melee.source.global_position
+	return weighted_blade_center(pivot, _live_blade_vertices())
+
+
+## The blade's non-pivot vertex world positions, or empty. The pivot is dropped
+## by INDEX ([member BladeState.pivot_index]) rather than by position, so a
+## vertex that happens to sit on top of the pivot still counts once.
+func _live_blade_vertices() -> PackedVector2Array:
+	var out := PackedVector2Array()
+	if battle_system == null or battle_system.melee_preview == null:
+		return out
+	var blade := battle_system.melee_preview.current_blade()
+	if blade == null or not is_instance_valid(blade):
+		return out
+	var pivot_idx := blade.state.pivot_index if blade.state != null else -1
+	var visuals := blade.get_node_visuals()
+	for i in visuals.size():
+		if i == pivot_idx:
+			continue
+		var v := visuals[i]
+		if v != null and is_instance_valid(v):
+			out.append(v.global_position)
+	return out
+
+
+## The [MeleeAttackPlan] a melee commit is hanging off, or null for a
+## ranged/magic commit, an unwired battle system, or a freed pivot. This is the
+## one predicate that decides whether an attack takes the #866 treatment or
+## #524's seat-gated one — melee is what the owner unified, and ranged/magic
+## director's cuts are explicitly parked for a future issue.
+func _live_melee_plan() -> MeleeAttackPlan:
+	if battle_system == null:
+		return null
+	var melee := battle_system.attack_plan as MeleeAttackPlan
+	if melee == null or melee.source == null or not is_instance_valid(melee.source):
+		return null
+	return melee
 
 
 func is_melee_locked() -> bool:
 	return _melee_locked
+
+
+## Take the camera for a melee shot. Idempotent: a multi-hit commit re-raises
+## focuses through here and must not double-latch anything.
+func _lock_for_melee_shot() -> void:
+	_melee_locked = true
+	if camera != null:
+		camera.set_input_locked(true)
 
 
 ## Snapshot the live camera into the plain values [method decide] reads.
@@ -318,8 +411,16 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 	var request := _build_attack_request(outcome, attacker)
 	if request == null:
 		return
+	# #866's director's shot, for EVERY melee commit — seated, AI, remote alike.
+	# The lock goes up before the first focus and comes down only in `release`.
+	var is_melee := _live_melee_plan() != null
+	if is_melee:
+		_lock_for_melee_shot()
 	var pivot := _melee_pivot_focus(attacker)
 	if pivot == null:
+		# No lead beat to fill (a ranged commit, or acceptance 5's zeroed
+		# tempo) — the span simply lands, and a melee one starts tracking now.
+		_melee_tracking = is_melee
 		request_focus(request)
 		return
 	request_focus(pivot)
@@ -337,10 +438,8 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 ## off" is a plan fact. [member BattleSystem.attack_plan] is guaranteed live
 ## here — `_commit` holds it through the whole launch (#406).
 func _melee_pivot_focus(attacker: Entity) -> FocusRequest:
-	if battle_system == null:
-		return null
-	var melee := battle_system.attack_plan as MeleeAttackPlan
-	if melee == null or melee.source == null or not is_instance_valid(melee.source):
+	var melee := _live_melee_plan()
+	if melee == null:
 		return null
 	var lead := battle_system.tempo().melee_windup_lead()
 	if lead <= 0.0:
@@ -349,7 +448,10 @@ func _melee_pivot_focus(attacker: Entity) -> FocusRequest:
 	_append_if_visible(points, melee.source)
 	if points.is_empty():
 		return null
-	var req := FocusRequest.point(points[0], default_focus_duration, false,
+	# Mandatory for the same reason the span is (#866): this is the lead beat of
+	# a shot the player's own commit just asked for, and they were holding the
+	# camera a moment ago.
+	var req := FocusRequest.point(points[0], default_focus_duration, true,
 			&"attack_pivot")
 	# Held for exactly the lead beat, so the pivot focus does not release (and
 	# snap the zoom back) in the gap before the span widens onto it.
@@ -366,16 +468,29 @@ func _widen_after(seconds: float, request: FocusRequest) -> void:
 		await tree.create_timer(seconds).timeout
 	if not is_inside_tree():
 		return
+	# The lead beat is over: the span widens and, for a melee shot, the camera
+	# stops easing to a fixed point and starts following the blade.
+	_melee_tracking = _melee_locked
 	request_focus(request)
 
 
-## Frame a committed attack's from->to span, for a NON-LOCAL actor only.
+## Frame a committed attack's from->to span.
 ##
-## [b]The seat predicate is the whole rule.[/b] On a couch `seats()` is true
-## for every human, so a hot-seat partner's actions never yank the camera of
-## the person actually driving; behind a wire only the pinned hero is seated,
-## so AI and remote humans alike are framed (#515 decision 2). Returns null
-## when no focus should be built at all.
+## [b]For ranged and magic, the seat predicate is the whole rule.[/b] On a couch
+## `seats()` is true for every human, so a hot-seat partner's actions never yank
+## the camera of the person actually driving; behind a wire only the pinned hero
+## is seated, so AI and remote humans alike are framed (#515 decision 2).
+## Returns null when no focus should be built at all.
+##
+## [b]MELEE is carved out of that rule (#866).[/b] Owner call 2026-09-14,
+## superseding #827's constraint 2 and the "seat predicate is the whole rule"
+## docstrings #524/#525/#515 built on it for the ATTACK path: every melee commit
+## — yours, an AI's, a remote human's — gets the same director's shot, *"take
+## away camera control for the duration of the move"*. The command path (#525)
+## keeps its seat gate untouched, and ranged/magic director's cuts are parked
+## for their own issue. Such a request is also MANDATORY: the player has just
+## spent the aim phase with their hands on the camera, so a grace-window refusal
+## would make their own shot the one that never fires.
 ##
 ## The span is the AABB of every contributing node's world position, filtered
 ## through [method VisionSystem.is_visible] FIRST — `is_sensed` does not count,
@@ -384,7 +499,8 @@ func _widen_after(seconds: float, request: FocusRequest) -> void:
 func _build_attack_request(outcome: AttackOutcome, attacker: Entity) -> FocusRequest:
 	if outcome == null or outcome.hits.is_empty():
 		return null
-	if seat_policy != null and seat_policy.seats(attacker):
+	var is_melee := _live_melee_plan() != null
+	if not is_melee and seat_policy != null and seat_policy.seats(attacker):
 		return null
 	var points := PackedVector2Array()
 	# The schedule owns "how long does this take" (#543) — hand-computing a
@@ -401,6 +517,7 @@ func _build_attack_request(outcome: AttackOutcome, attacker: Entity) -> FocusReq
 	var request := FocusRequest.span(points, default_focus_duration,
 			last_arrival + release_tail_seconds, &"attack")
 	request.empty_reason = &"fogged"
+	request.mandatory = is_melee
 	return request
 
 

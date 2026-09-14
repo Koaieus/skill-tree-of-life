@@ -10,6 +10,11 @@ extends Camera2D
 @export_range(0.0, 1.0, 0.01) var zoom_duration: float = 0.15
 @export var zoom_step: float = 0.25
 
+## Seconds a tracking focus (#866) takes to close the distance to its moving
+## target. Smaller is tighter; at or below one frame's delta the follow is a
+## hard weld. Purely a feel knob — the owner tunes it by look.
+@export_range(0.01, 2.0, 0.01) var follow_smoothing: float = 0.25
+
 const MIN_ZOOM := 0.25
 const MAX_ZOOM := 2.00
 
@@ -94,6 +99,10 @@ var _pan_tween: Tween = null
 ## cancelled nor even told about the input, and the grace clock does not reset.
 var _input_locked: bool = false
 
+## True between [method begin_directed_follow] and [method end_directed_focus].
+var _follow_active: bool = false
+var _follow_target: Vector2 = Vector2.ZERO
+
 
 func _ready() -> void:
 	_target_zoom = zoom.x
@@ -103,6 +112,13 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# #866's HARD lock, ahead of every branch below: a director's shot owns the
+	# camera outright for its duration. Dropping the event here (rather than
+	# only skipping the effect) is what keeps [signal manual_input_received]
+	# silent — otherwise the director's grace clock would reset on input the
+	# player's hands never got, and the *next* shot would be the one refused.
+	if _input_locked:
+		return
 	# Panning: middle mouse button drag
 	if event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
 			# Announce FIRST: the director's cancel is synchronous, so by the
@@ -130,14 +146,36 @@ func _process(delta: float) -> void:
 	# start/end instead of tracking the glide.
 	_update_limits()
 	var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
-	if input_dir != Vector2.ZERO:
+	# The lock swallows the arrow keys whole — no motion AND no announcement,
+	# the same rule `_unhandled_input` applies to the mouse.
+	if input_dir != Vector2.ZERO and not _input_locked:
 		# Read, announce, THEN apply-or-skip. Gating the whole branch on
 		# `_directed` would mean the signal never fires while a focus holds the
 		# camera, and arrow keys could never break in at all.
 		manual_input_received.emit()
 		if not _directed:
 			global_position += input_dir * pan_speed * delta
+	_follow(delta)
 	_clamp_position()
+
+
+## The rubber band (#866). A director's shot that TRACKS re-aims every frame, so
+## it cannot be a tween: retargeting one per frame restarts its ease and the
+## camera crawls. Instead the initial pan runs as a tween ([method
+## begin_directed_focus], the pivot-lead beat) and this takes over the moment
+## that tween is done, closing a fixed fraction of the remaining distance per
+## second. The result reads as a lag-behind follow rather than a rigid weld,
+## which is what makes a 100-vertex blade's sweep legible.
+##
+## No `exp`/`pow` damping: `lint-transcendentals` is repo-wide, and a plain
+## clamped ratio is stable at every frame rate this runs at.
+func _follow(delta: float) -> void:
+	if not _directed or not _follow_active:
+		return
+	if _pan_tween != null and _pan_tween.is_valid() and _pan_tween.is_running():
+		return
+	var t := clampf(delta / maxf(0.0001, follow_smoothing), 0.0, 1.0)
+	global_position = global_position.lerp(_follow_target, t)
 
 
 ## Ease the camera toward [param target] at [param zoom_target], on behalf of
@@ -178,17 +216,44 @@ func end_directed_focus() -> void:
 	if not _directed:
 		return
 	_directed = false
+	_follow_active = false
 	if _pan_tween != null and _pan_tween.is_valid():
 		_pan_tween.kill()
 	_pan_tween = null
 	_apply_zoom_target(_stored_target_zoom)
 
 
+## Start a HELD focus that keeps re-aiming (#866), as opposed to
+## [method begin_directed_focus]'s one-shot target+duration. The initial ease is
+## the same tween; [method set_follow_target] then moves the goalpost every frame
+## and [method _follow] closes the gap once the tween is spent.
+func begin_directed_follow(target: Vector2, zoom_target: float, duration: float) -> void:
+	begin_directed_focus(target, zoom_target, duration)
+	_follow_active = true
+	_follow_target = target
+
+
+## Move a live follow's goalpost. A no-op unless [method begin_directed_follow]
+## is what opened the focus, so a stale per-frame push after release cannot drag
+## the player's camera.
+func set_follow_target(target: Vector2) -> void:
+	if _follow_active:
+		_follow_target = target
+
+
+func is_following() -> bool:
+	return _follow_active
+
+
 func is_directed() -> bool:
 	return _directed
 
 
-## TODO(#866): the hard input lock. Stored but not yet honoured.
+## Take the camera away from the player outright, for the duration of a
+## director's shot (#866). Owner call 2026-09-14: *"take away camera control for
+## the duration of the move"* — HARD, not a grace race. See the guards in
+## [method _unhandled_input] and [method _process] for why the input is dropped
+## rather than merely ignored.
 func set_input_locked(locked: bool) -> void:
 	_input_locked = locked
 
