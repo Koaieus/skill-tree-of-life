@@ -61,33 +61,47 @@ const DEFAULT_PATH := "res://attack/outcome/default_presentation_tempo.tres"
 ## authored from the volley's distance SPAN, never from `distance / speed`.
 @export var volley_flight_time: float = 0.8
 
+## [b]One shape, shared by every melee commit — seated, AI and remote alike.[/b]
+## The owner refused a second seated set of numbers (2026-09-14, #865): *"AI/
+## remote seated attacks should at best last more less the same, or just
+## slightly faster. but the same would be fine too (more legible about what's
+## coming in)"*. So there is exactly one wind-up below, and the seat predicate
+## no longer reaches these values at all.
+##
 ## Melee: seconds the camera holds the PIVOT alone, before the blade starts to
 ## form (#559). This is the beat the pan lives in — [CameraDirector] raises a
 ## point focus on the pivot at commit and widens to the attack's full span only
 ## after it, because the swept span IS the trajectory and exists only once the
-## record does, while the pivot exists before it.
+## record does, while the pivot exists before it. #866's tracking shot consumes
+## it unchanged as its pivot-lead pan.
 @export var melee_windup_pivot_focus: float = 0.25
 
 ## Melee: seconds across which the blade's vertices animate in, staggered by
 ## HOP DISTANCE from the pivot — the nearest hop lands at 0, the farthest at
 ## this. Hop distance is measured inside [member BladeState.edges], the phantom
 ## blade's own induced subgraph (`.claude/rules/degree.md`).
-@export var melee_windup_form_span: float = 0.25
+##
+## Retuned 2026-09-14 (#865) from 0.25 to 1.0 — with the seated path now staging
+## the real sequence, the form beat is the moment the swing reads as *yours*, and
+## the owner sized the whole form side at ~1.5 s: *"1s topology (or 1.5?), .5s
+## upgrades, .5s glow up idk, flare .1s can tweak later"*. Provisional; the owner
+## tunes these by look.
+@export var melee_windup_form_span: float = 1.0
 
 ## Melee: seconds the applied addons take to "stamp" onto their vertices, after
 ## the form. [b]Zero-length when the blade carries no addons[/b] — an unadorned
 ## swing simply does not pay this beat.
-@export var melee_windup_stamp_time: float = 0.1
+@export var melee_windup_stamp_time: float = 0.5
 
 ## Melee: seconds the formed blade spends ramping from under-lit to its
 ## authored glow. The vertices spawn dimmed (a value dimmer, never a re-picked
 ## emissive float — `.claude/rules/hdr-color.md`) and come up together.
-@export var melee_windup_glow_ramp: float = 0.15
+@export var melee_windup_glow_ramp: float = 0.5
 
 ## Melee: the ignition flare that marks the replay start — a momentary
 ## overshoot to [constant Emissive.PEAK] relaxing back down, exactly what that
 ## tier exists for. The last beat before the swing.
-@export var melee_windup_flare: float = 0.08
+@export var melee_windup_flare: float = 0.1
 
 
 ## Melee: seconds the whole swing occupies on screen. The blade sim's own

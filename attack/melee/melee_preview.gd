@@ -300,13 +300,23 @@ func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
 ## authority re-resolved at submit; a third resolve of the same swing would buy
 ## nothing and cost a frame hitch.
 ##
-## [param seated] collapses every beat to zero — [b]the sequence still runs[/b].
-## #559's sharpening on decision 1: gating the sequence itself on the seat
-## predicate would delete the await point #796 needs on the one machine that is
-## typically the authority. The seated path is literally acceptance 5's
-## escape-hatch configuration, not a separate code path.
+## [b]There is no seated shape any more (#865, reversing #559 decision 2).[/b]
+## The seated branch used to `form_instantly()` and return 0.0 on the theory
+## that the aim-time ghost had already been watched; the owner's call
+## (2026-09-10, *"your own blade gets the maximum treatment sure"*) is that the
+## wind-up is the payoff for a swing you spent the aim phase building, not a
+## third viewing. So [param _seated] no longer branches anything — one sequence,
+## one set of authored durations, seated and incoming alike (#866 gives both the
+## same camera shot for the same reason).
+##
+## It stays in the signature because [method BattleSystem._stage_melee_windup]
+## still computes the seat predicate and because the escape hatch is now purely
+## the authored tempo: zero every beat and this returns 0.0 for everyone, which
+## is acceptance 5 unchanged. Gating the sequence's EXISTENCE on the seat would
+## still be wrong — it would delete the await point #796 needs on the machine
+## that is typically the authority.
 func begin_windup(plan: MeleeAttackPlan, tempo: PresentationTempo,
-		seated: bool) -> float:
+		_seated: bool) -> float:
 	if plan == null:
 		return 0.0
 	if _ghost == null:
@@ -327,7 +337,9 @@ func begin_windup(plan: MeleeAttackPlan, tempo: PresentationTempo,
 	_live_swing = true
 	_windup_blade = blade
 	blade.modulate = Color.WHITE
-	if seated or tempo == null:
+	# A sandbox or fixture with no authored tempo still gets a formed blade —
+	# there is simply no sequence to stage, so nothing is returned to wait out.
+	if tempo == null:
 		blade.form_instantly()
 		return 0.0
 	return blade.form_in(tempo.melee_windup_lead(), tempo.melee_windup_form_span,

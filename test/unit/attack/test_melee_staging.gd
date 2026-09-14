@@ -312,7 +312,8 @@ func test_the_hook_is_awaited_on_the_seated_path_too() -> void:
 
 	assert_true(_bs.is_launching, "a seated actor parks on the hook exactly as a remote one does")
 	assert_signal_emit_count(Events, "skill_node_damaged", 0,
-			"zero-length beats are not the same thing as no await point")
+			"the staged beats are not the same thing as the await point — "
+			+ "the hook holds the swing however long the wind-up has been over for")
 
 	_bs.release_record()
 	await _await_launch_settle()
