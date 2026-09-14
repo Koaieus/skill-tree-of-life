@@ -166,7 +166,8 @@ formula = SubResource("formula_int_to_mana")
 [sub_resource type="Resource" id="formula_int_to_mana_pt"]
 script = ExtResource("script_threshold")
 source_stat_id = &"intelligence"
-breakpoints = Array[float]([1000.0, 10000.0, 100000.0, 1000000.0])
+breakpoints = Array[float]([10.0, 100.0, 1000.0, 10000.0, 100000.0])
+per_phrase = "10-fold of INT"
 
 [sub_resource type="Resource" id="mod_int_to_mana_pt"]
 resource_name = "+1 Mana / Turn"
