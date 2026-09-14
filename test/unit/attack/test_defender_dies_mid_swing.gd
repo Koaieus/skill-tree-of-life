@@ -115,6 +115,19 @@ func _setup(addons: Array[PackedScene], allocate_defender: bool,
 	var alloc := AllocationSystem.new()
 	alloc.graph = graph
 	add_child_autofree(alloc)
+	# The LIVE forced-dealloc cascade's entry point. A depleted node reaches it
+	# through `Events.skill_node_depleted`, so without a BattleSystem mounted the
+	# plate would die and stay allocated — `test_bunker_break_live.gd` gets away
+	# without one only because it never asks about ownership afterwards.
+	var turns: TurnManager = autofree(TurnManager.new())
+	add_child(turns)
+	turns.current_entity = attacker
+	var battle: BattleSystem = autofree(BattleSystem.new())
+	battle.turn_manager = turns
+	battle.allocation_system = alloc
+	battle.graph = graph
+	add_child(battle)
+
 	for n in [pivot, a, b, tip]:
 		alloc.force_allocate(attacker, n)
 	attacker.core_location = pivot
@@ -190,9 +203,14 @@ func test_an_unowned_node_carrying_all_three_addons_does_nothing() -> void:
 			"#867 bullet 1: an unowned bunker breaks nothing")
 	assert_eq(plate.get_current_hp(), hp_before,
 			"#867 bullet 1: an unowned node takes no damage either (#502's no-dud)")
+	# A contact still MINTS a DamageInstance — the gate refuses at land time, so
+	# the tell is `hp_before == hp_after` rather than the absence of the hit
+	# (test_severed_swing_live.gd reads a landing the same way).
 	for hit in outcome.hits:
-		assert_ne(hit.target, plate,
-				"#867 bullet 1: no hit may land on an unowned node")
+		if hit.target != plate:
+			continue
+		assert_eq(hit.hp_before, hit.hp_after,
+				"#867 bullet 1: a contact on an unowned node must land nothing")
 	# And the swing is geometrically untouched: the tip runs straight through
 	# where the unowned plate sits.
 	assert_lt(_closest_approach(plan.last_trajectory, _FLOPPY_PLATE), plate.radius,
