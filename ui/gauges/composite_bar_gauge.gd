@@ -26,14 +26,19 @@ signal segment_hovered(bucket: Bucket)
 signal segment_unhovered
 
 var _hovered_bucket: int = -1
-## The ignition band, shared with [PoolGauge]. See [GaugeSpark].
+## The segment sweep, shared with [PoolGauge]. See [GaugeSpark].
 var _spark := GaugeSpark.new(self, _push)
-## Bucket boundaries, in strip cells, as of the last reconcile — what a fresh
-## set of buckets is diffed against to work out which cells changed hands.
-var _prev_bounds: PackedFloat32Array = PackedFloat32Array()
 ## Set while [method set_buckets] is writing its four properties one at a time;
-## every one of them pushes, and the intermediate states are not events.
+## the intermediate states are not events, so only the last write sweeps.
 var _batching: bool = false
+
+## The bucket shares the shader is drawing right now — `(to_spend, wounded,
+## staked)` over the pool max — lagging the model while a run's boundary sweeps
+## one cell per [member cell_step_time] (#882). [GaugeSpark] tweens it.
+var shown_fractions: Vector3 = Vector3.ZERO:
+	set(v):
+		shown_fractions = v
+		_push(&"fractions", v)
 
 @export var to_spend: float = 1.0:
 	set(v):
@@ -103,8 +108,13 @@ var _batching: bool = false
 		spark_stops = v
 		_push(&"spark_stops", v)
 
-## How long one ignition takes to cool back to [member glow_stops].
+## How long the crossing cell takes to cool back to [member glow_stops] once a
+## sweep lands.
 @export_range(0.05, 2.0, 0.01) var spark_time: float = 0.45
+
+## Seconds a run's boundary spends crossing ONE cell — see
+## [member PoolGauge.cell_step_time]; same knob, same pacing.
+@export_range(0.02, 1.0, 0.01) var cell_step_time: float = 0.25
 
 @export_range(0.0, 20.0, 0.5) var corner_radius: float = 5.0:
 	set(v):
@@ -125,14 +135,17 @@ var _batching: bool = false
 ## PoolGauge; usually bound to the pool's max, same as AP/DP/Move).
 @export_range(0.0, 24.0, 1.0) var cell_count: float = 0.0:
 	set(v):
+		var old := cell_count
 		cell_count = v
 		_push(&"cell_count", v)
 		# The strip just re-scaled (the SP cap moved). That is not points
-		# changing hands, so rebase the boundaries in the new coordinate system
-		# rather than diffing across it — a level-up would otherwise read as
-		# every bucket moving at once. Bind cell_count BEFORE the buckets so the
-		# gain that came with the new cap still gets its own ignition.
-		_prev_bounds = _bounds()
+		# changing hands, so keep the displayed boundaries on the CELLS they
+		# were on rather than on their old shares of a strip that no longer
+		# exists — a level-up would otherwise sweep every run at once. Bind
+		# cell_count BEFORE the buckets so the gain that came with the new cap
+		# still gets its own sweep.
+		if old > 0.0 and v > 0.0 and not is_equal_approx(old, v):
+			_spark.snap(self, ^"shown_fractions", shown_fractions * (old / v))
 
 @export_range(-45.0, 45.0, 0.5) var skew_degrees: float = -15.0:
 	set(v):
@@ -149,7 +162,7 @@ func _ready() -> void:
 		material = preload("res://ui/gauges/composite_bar_gauge_material.tres").duplicate()
 	resized.connect(_push_size)
 	_push_size()
-	_push_fractions()
+	shown_fractions = _target_fractions()
 	_push(&"color_0", color_to_spend)
 	_push(&"color_1", color_wounded)
 	_push(&"color_2", color_staked)
@@ -228,71 +241,53 @@ func end_snap() -> void:
 	_spark.snapping = false
 
 
-## Where each bucket boundary falls, in strip cells: `[to_spend | allocated |
-## wounded | staked]`, so the runs are `[0, b0)`, `[b0, b1)`, `[b1, b2)`,
-## `[b2, b3)`.
-func _bounds() -> PackedFloat32Array:
-	var denom := maxf(max_value, to_spend + wounded + staked)
-	if denom <= 0.0 or cell_count <= 0.0:
-		return PackedFloat32Array([0.0, 0.0, 0.0, 0.0])
-	var per_cell := cell_count / denom
-	var b0 := to_spend * per_cell
-	var allocated := maxf(0.0, denom - to_spend - wounded - staked)
-	var b1 := b0 + allocated * per_cell
-	var b2 := b1 + wounded * per_cell
-	return PackedFloat32Array([b0, b1, b2, b2 + staked * per_cell])
-
-
-## Diff the runs against the last reconcile and ignite whichever changed.
-##
-## [b]One band burns at a time[/b], so when two runs move together the LAST
-## ignition wins — deliberately ordered to-spend, wounded, staked, because a
-## forced deallocation moves both and the wound is the story. In practice only
-## one run moves per event: spending an SP shifts `b0` alone, and a wound trades
-## allocated for wounded, which moves `b1` alone.
-func _reconcile_spark() -> void:
-	var now := _bounds()
-	if _prev_bounds.size() != 4:
-		_prev_bounds = now
-		return
-	var was := _prev_bounds
-	_prev_bounds = now
-	# The to-spend run reads left-to-right like every other fill; the trailing
-	# wounded/staked runs originate from the right instead.
-	_ignite_run(0.0, was[0], 0.0, now[0], color_to_spend, false)
-	_ignite_run(was[1], was[2], now[1], now[2], color_wounded, true)
-	_ignite_run(was[2], was[3], now[2], now[3], color_staked, true)
-
-
-## Ignite the cells one run gained or gave up. Whichever of its two edges moved
-## further is the one that changed the run's membership; a run that grew is
-## arriving, one that shrank is leaving.
-##
-## The colour handed to [GaugeSpark] is always the state on the OTHER side of
-## the change, so the slot stays occupied for the whole burn: `run_color` when
-## cells are leaving it, and the allocated background they are displacing when
-## cells are arriving.
-func _ignite_run(was_lo: float, was_hi: float, now_lo: float, now_hi: float,
-		run_color: Color, anchor_right: bool) -> void:
-	var d_lo := now_lo - was_lo
-	var d_hi := now_hi - was_hi
-	if absf(d_lo) < 0.001 and absf(d_hi) < 0.001:
-		return
-	var edge_is_hi := absf(d_hi) >= absf(d_lo)
-	var outgoing := d_hi < 0.0 if edge_is_hi else d_lo > 0.0
-	var lo: float = minf(was_hi, now_hi) if edge_is_hi else minf(was_lo, now_lo)
-	var hi: float = maxf(was_hi, now_hi) if edge_is_hi else maxf(was_lo, now_lo)
-	_spark.ignite(lo, hi, outgoing, run_color if outgoing else color_allocated,
-			anchor_right, spark_time)
-
-func _push_fractions() -> void:
+## The model's bucket shares, `(to_spend, wounded, staked)` over the pool max —
+## what [member shown_fractions] sweeps toward.
+func _target_fractions() -> Vector3:
 	var denom := maxf(max_value, to_spend + wounded + staked)
 	if denom <= 0.0:
-		_push(&"fractions", Vector3(0.0, 0.0, 0.0))
-	else:
-		_push(&"fractions", Vector3(to_spend / denom, wounded / denom, staked / denom))
-	if not _batching:
-		_reconcile_spark()
+		return Vector3.ZERO
+	return Vector3(to_spend / denom, wounded / denom, staked / denom)
+
+
+## Where each run boundary falls for a given set of shares, in strip cells:
+## `[to_spend | allocated | wounded | staked]`, so the runs are `[0, b0)`,
+## `[b0, b1)`, `[b1, b2)`, `[b2, b3)` — the same arithmetic as the shader's.
+func _bounds_of(f: Vector3) -> PackedFloat32Array:
+	var n := cell_count
+	return PackedFloat32Array([f.x * n, (1.0 - f.y - f.z) * n, (1.0 - f.z) * n, n])
+
+
+## Sweep the display to the model. The boundary that moved furthest is the one
+## that changed a run's membership and the one whose crossing cell burns —
+## `spark_edge` names it for the shader (0..3, the `_bounds_of` order). In
+## practice only one moves per event: spending an SP shifts `b0` alone, and a
+## wound trades allocated for wounded, which moves `b1` alone; b3 never moves.
+## The duration is that boundary's distance in cells, at one step per cell.
+##
+## A boundary moving LEFT grows the run on its right (a wound grows the wounded
+## run leftward out of the allocated headroom) — so the trailing runs originate
+## from the right and the to-spend run from the left, with no anchor to choose:
+## the geometry falls out of which way the boundary travels.
+func _push_fractions() -> void:
+	if _batching:
+		return
+	var target := _target_fractions()
+	var was := _bounds_of(shown_fractions)
+	var now := _bounds_of(target)
+	var cells := 0.0
+	var edge := 0
+	for i in 4:
+		var d := now[i] - was[i]
+		if absf(d) > absf(cells) + 0.001:
+			cells = d
+			edge = i
+	# Signed for the shader's sake: the to-spend run sits LEFT of `b0` and
+	# shrinks when it moves left, the trailing runs sit RIGHT of their boundary
+	# and shrink when it moves right.
+	var leaving := cells < 0.0 if edge == 0 else cells > 0.0
+	_spark.sweep(self, ^"shown_fractions", target, -absf(cells) if leaving else absf(cells),
+			cell_step_time, spark_time, float(edge))
 
 func _push(param: StringName, value: Variant) -> void:
 	if material is ShaderMaterial:

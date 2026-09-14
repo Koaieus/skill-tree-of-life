@@ -104,25 +104,25 @@ void fragment() {
 		}
 
 		float local_x = mod(sheared_x, cell_w);
-
-		// Ignition geometry — identical to the pool battery's, and anchored per
-		// spark: the blue to-spend run originates from the left like every other
-		// l->r fill, the trailing wounded/staked runs from the right.
-		bool sparking = spark_hits(idx);
-		vec2 cell_window = spark_cell_window(cell_w, cell_gap,
-				sparking ? spark_extent() : 1.0);
-		// The SLOT is always drawn at full width; the window only decides which
-		// of the two states each half of it shows.
+		// The SLOT is always drawn at full width; a run boundary mid-sweep (the
+		// display lagging the model, #882) splits the cell it is inside — so each
+		// fragment classifies itself by its own continuous position along the
+		// strip, not by its slot's centre. Same geometry as the pool battery's.
 		float gap_mask = step(cell_gap * 0.5, local_x) * step(local_x, cell_w - cell_gap * 0.5);
+		float pos = strip_pos(idx, local_x, cell_w, cell_gap);
 
-		float cell_u = (idx + 0.5) / n;
-		vec4 col = bucket_color(cell_u, b0, b1, b2, b3, pulse, glow);
+		vec4 col = bucket_color(pos / n, b0, b1, b2, b3, pulse, glow);
 		if (glow) {
 			float shine = sin((UV.x - TIME * shine_speed) * 10.0) * 0.5 + 0.5;
 			col.rgb = mix(col.rgb, shine_tint(), glow_color.a * pow(shine, 6.0));
 		}
-		if (sparking) {
-			col = spark_blend(col, local_x, cell_window);
+		// The cell the sweeping boundary is crossing burns in its own colour —
+		// spark_edge picks the boundary (0..3 = b0..b3, in cells). The allocated
+		// headroom is background, not a run, and never lifts.
+		float edge = (spark_edge < 0.5 ? b0 : spark_edge < 1.5 ? b1 : spark_edge < 2.5 ? b2 : b3) * n;
+		bool in_run = pos / n < b0 || pos / n >= b1;
+		if (in_run && spark_hits(idx, edge)) {
+			col.rgb = spark_lift(col.rgb);
 			pulse = 1.0;  // the wound pulse is not the story while a cell burns
 		}
 		COLOR = vec4(col.rgb, col.a * pulse * gap_mask);

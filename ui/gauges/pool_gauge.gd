@@ -9,6 +9,10 @@ extends ColorRect
 
 const DRAIN_FADE_TIME := 0.9
 
+## `spark_edge` values for pool_gauge.gdshader — which boundary is sweeping.
+const EDGE_FILL := 0.0
+const EDGE_SURPLUS := 1.0
+
 ## A scripted fill ([method animate_to] or [method play_level_segment]) reached
 ## its end. One signal for both, because the caller driving a multi-level
 ## replay needs a single "that beat is done, give me the next" edge — see
@@ -23,27 +27,40 @@ signal fill_finished
 ## fires the instant XP lands, well ahead of the bar).
 signal level_segment_held(new_max: float)
 
+## The MODEL value. What the shader draws is [member shown_current], which a
+## battery walks toward this at [member cell_step_time] per cell (#882); a
+## smooth bar shows it at once and leaves the drain ghost behind on a loss.
 @export var current: float = 1.0:
 	set(v):
 		var old := current
 		current = v
 		if _suppress_drain or _snapping:
-			# A scripted animation (e.g. the level-up wrap) owns the motion;
-			# never spawn a drain trail that would fight it.
+			# A scripted animation (e.g. the level-up wrap) or a bind owns the
+			# motion; never spawn a drain trail or a sweep that would fight it.
 			drain_from = v
+			shown_current = v
+		elif is_battery():
+			# Cells sweep — the display recedes or grows one cell per step, from
+			# wherever it is now. No ghost: the sweep IS the spend feedback.
+			drain_from = v
+			_spark.sweep(self, ^"shown_current", v,
+					_cell_of(v) - _cell_of(shown_current), cell_step_time, spark_time, EDGE_FILL)
 		elif v < old:
 			# Freeze the ghost at the old value, then tween it down to the
 			# new one so the loss reads as a fading trail, not a snap.
 			drain_from = old
 			_animate_drain_to(v)
-			spark_cells(_cell_of(v), _cell_of(old), true, fill_color)
+			shown_current = v
 		else:
 			drain_from = v
-			if v > old:
-				# Arriving: the slot it is filling shows `empty_color` behind the
-				# fill for as long as the fill is still growing into it.
-				spark_cells(_cell_of(old), _cell_of(v), false, empty_color)
-		_push(&"current", current)
+			shown_current = v
+
+## The value the shader is drawing right now — lags [member current] while a
+## battery sweeps. Read-only for callers; [GaugeSpark] tweens it.
+var shown_current: float = 1.0:
+	set(v):
+		shown_current = v
+		_push(&"current", v)
 
 @export var min_value: float = 0.0:
 	set(v):
@@ -102,8 +119,15 @@ signal level_segment_held(new_max: float)
 		spark_stops = v
 		_push(&"spark_stops", v)
 
-## How long one ignition takes to cool from [member spark_stops] to rest.
+## How long the crossing cell takes to cool from [member spark_stops] back to
+## rest once a sweep lands.
 @export_range(0.05, 2.0, 0.01) var spark_time: float = 0.45
+
+## Seconds a battery's display spends crossing ONE cell (#882). A spend or a
+## refill of k cells takes k times this — a segment costs what a segment costs,
+## however many are queued (the same call as #320 for the XP cascade), so the
+## eye can count them. Smooth bars ignore it.
+@export_range(0.02, 1.0, 0.01) var cell_step_time: float = 0.25
 
 @export var drain_color: Color = Color(0.9, 0.3, 0.3, 0.5):
 	set(v):
@@ -201,8 +225,8 @@ signal level_segment_held(new_max: float)
 
 var _drain_tween: Tween
 var _level_tween: Tween
-## The ignition band — one cell burning at a time, cooling to rest. Composed,
-## and shared with [CompositeBarGauge]; see [GaugeSpark].
+## The segment sweep — the display walking to the model one cell per step, hot
+## while it does. Composed, and shared with [CompositeBarGauge]; see [GaugeSpark].
 var _spark := GaugeSpark.new(self, _push)
 ## Set while a (re)bind is painting a gauge for the first time — see
 ## [method begin_snap]. Suppresses the drain ghost; [GaugeSpark] carries the
@@ -223,7 +247,7 @@ func _push_size() -> void:
 	_push(&"size", size)
 
 func _push_all() -> void:
-	_push(&"current", current)
+	_push(&"current", shown_current)
 	_push(&"min_value", min_value)
 	_push(&"max_value", max_value)
 	_push(&"drain_from", drain_from)
@@ -397,32 +421,16 @@ func snap_to(value: float) -> void:
 	end_snap()
 
 
-## Ignite the strip cells in [code][lo, hi)[/code] — see [method GaugeSpark.ignite].
-## Indices are into the RENDERED strip, so a [SurplusPoolGauge]'s trailing
-## surplus cells are addressable as [code]cell_count + n[/code]; the band cannot
-## be expressed in stat units because the strip mixes two bins.
-##
-## `color` is the state on the OTHER side of the change — the bin a leaving cell
-## came from, or the one an arriving cell is displacing. The shader cannot work
-## it out for itself: by the time it draws, the model has already moved, and it
-## needs both states to keep the slot occupied for the whole burn.
-func spark_cells(lo: float, hi: float, outgoing: bool, color: Color) -> void:
-	if _suppress_drain:
-		# A scripted fill (a level-up wrap) steps `current` many times; it owns
-		# the motion and must not strobe the strip.
-		return
-	_spark.ignite(lo, hi, outgoing, color, false, spark_time)
+## Whether this gauge renders the battery strip (and so sweeps) rather than
+## the smooth bar — the same test the shader makes for `cell_mode`.
+func is_battery() -> bool:
+	return cell_count >= 0.5 or force_cells
 
 
-## Which strip cell a stat value sits at — the cap-relative fill in cells, which
-## is where a `current` move lands. Surplus cells live past `cell_count`.
-##
-## A pool need not be integral (a regen tick or a fractional modifier can park
-## `current` at 3.5), and the shader tests the band against whole cell indices —
-## so a raw fractional bound would produce a band no cell ever matches, and the
-## spark would silently do nothing for exactly those values. [method spark_cells]
-## widens to whole cells for that reason: a partial move ignites the cell it is
-## in.
+## Where a stat value sits along the strip, in cells — the cap-relative fill,
+## which is what a sweep's distance is measured in. Surplus cells live past
+## `cell_count`. Fractional is fine (a regen tick can park `current` at 3.5):
+## the shader draws a fractional edge as a partial cell.
 func _cell_of(value: float) -> float:
 	var span := max_value - min_value
 	if span <= 0.0:

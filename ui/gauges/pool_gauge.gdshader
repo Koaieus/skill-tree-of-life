@@ -4,7 +4,8 @@ shader_type canvas_item;
 // bars (Health/Mana/XP) and the skewed "battery" cells (AP/DP/Move) via
 // cell_count: 0 = smooth continuous bar, N = N skewed parallelogram cells.
 // drain_from renders a fading ghost trail between the new (lower) value
-// and the previous one, so a stat/HP drop reads as felt power loss.
+// and the previous one, so a stat/HP drop reads as felt power loss — smooth
+// bars only; the battery cells sweep instead (#882, gauge_spark.gdshaderinc).
 uniform vec2 size = vec2(120.0, 20.0);
 uniform float current = 1.0;
 uniform float min_value = 0.0;
@@ -66,7 +67,9 @@ void fragment() {
 
 	// Battery mode when we have real cells, a nonzero surplus to append, or a
 	// pool that always wants cells (force_cells). Otherwise a smooth bar.
-	float surp = max(0.0, floor(surplus + 0.5));
+	// ceil, not round: a surplus cell mid-sweep (0 < surplus < 1) still owns its
+	// slot, so the strip does not re-lay out under the animation (#882).
+	float surp = max(0.0, ceil(surplus - 0.001));
 	bool cell_mode = cell_count >= 0.5 || surp >= 0.5 || force_cells >= 0.5;
 
 	if (!cell_mode) {
@@ -122,51 +125,44 @@ void fragment() {
 		}
 
 		float local_x = mod(sheared_x, cell_w);
-
-		// Ignition geometry: a burning cell grows out of / collapses back into
-		// one edge of its own slot, so the strip itself never moves.
-		bool sparking = spark_hits(idx);
-		vec2 cell_window = spark_cell_window(cell_w, cell_gap,
-				sparking ? spark_extent() : 1.0);
-		float gap_mask = step(cell_window.x, local_x) * step(local_x, cell_window.y);
+		// The slot is always drawn at full width; what moves is which state each
+		// part of it shows. `pos` is this fragment's position along the strip in
+		// cells, so a fractional edge (the display mid-sweep) splits the cell it
+		// is inside — anchored at the fill origin, slanted like its neighbours,
+		// with the slot's resting empty_color behind the receding edge.
+		float gap_mask = step(cell_gap * 0.5, local_x) * step(local_x, cell_w - cell_gap * 0.5);
+		float pos = strip_pos(idx, local_x, cell_w, cell_gap);
 
 		// Fill fractions are relative to the cap, so multiply by base_n.
 		float filled_upto = fill_frac * base_n;
-		float drain_upto = drain_frac * base_n;
 		float preview_upto = preview_frac * base_n;
-		// Surplus cells are the band [base_n, base_n + surp); past that (the
-		// n>=1 placeholder slot at rest) is an ordinary empty cell, not gold.
-		bool is_surplus = idx >= base_n - 0.001 && idx < base_n + surp - 0.001;
-		bool leaving = sparking && spark_out > 0.5;
-		bool filled = !is_surplus && idx < filled_upto - 0.001;
-		// A leaving cell's drain ghost is suppressed: the spark IS the spend
-		// feedback here, and the two would otherwise diverge — the ghost band
-		// shrinks from the right over DRAIN_FADE_TIME while the spark band
-		// stands still.
-		bool draining = !leaving && !is_surplus && !filled && idx < drain_upto - 0.001;
-		bool previewing = !leaving && !is_surplus && !filled && !draining && idx < preview_upto - 0.001;
+		// Surplus cells are the band [base_n, base_n + surplus) — fractional at
+		// the top while a surplus cell sweeps; past that (the n>=1 placeholder slot
+		// at rest) is an ordinary empty cell, not gold. No drain ghost in this
+		// branch: the sweep IS the spend feedback, and the two would diverge.
+		float surplus_upto = base_n + max(0.0, surplus);
+		// Slot membership by `idx`, the split within a slot by `pos` (inclusive,
+		// so a cell resting exactly full keeps its last column).
+		bool surplus_slot = idx >= base_n - 0.5;
+		bool is_surplus = surplus_slot && pos <= surplus_upto;
+		bool filled = !surplus_slot && pos <= filled_upto;
+		bool previewing = !surplus_slot && !filled && pos <= preview_upto;
 
 		vec4 col = filled ? fill_color : empty_color;
-		if (leaving) {
-			// Burn in the bin it LEFT — past the cap that means gold, because a
-			// Movement point is spent out of the surplus bin first, and by now
-			// the fragment would compute an ordinary empty cell for itself.
-			col = spark_color;
-		} else if (is_surplus) {
+		if (is_surplus) {
 			col = surplus_color;  // trailing surplus cell — available, spent first
-		} else if (draining) {
-			col = drain_color;
 		} else if (previewing) {
 			col = preview_color;
 		}
-		if (filled || is_surplus || leaving) {
+		if (filled || is_surplus) {
 			float shine = sin((UV.x - TIME * shine_speed) * 10.0) * 0.5 + 0.5;
 			col.rgb = mix(col.rgb, shine_tint(), glow_color.a * pow(shine, 6.0));
-		}
-		if (sparking) {
-			// The cell's OWN colour lifted, not glow_color's — a spent Move cell
-			// should ignite in the Move tint, and a surplus cell in gold.
-			col.rgb = mix(col.rgb, lift_peak(col.rgb, spark_stops), spark_energy);
+			// The cell the sweeping edge is crossing burns in its OWN colour —
+			// spark_edge 0 is the fill edge, 1 the surplus edge.
+			float edge = spark_edge < 0.5 ? filled_upto : surplus_upto;
+			if (spark_hits(idx, edge)) {
+				col.rgb = spark_lift(col.rgb);
+			}
 		}
 		COLOR = vec4(col.rgb, col.a * gap_mask);
 	}
