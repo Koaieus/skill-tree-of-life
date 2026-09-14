@@ -123,15 +123,29 @@ too late, which is why time/turns is a second, independent tripwire.
 context-size signal (a `CONTEXT SIZE SO FAR: ~<n>k` marker, injected at
 150k/200k/250k and every 50k after) means you no longer have to guess:
 
-- **At ~250k, seriously reconsider taking another turn at all.** Past that
-  point, finishing the current unit is usually worth less than handing off a
-  clean partial — commit what exists and report rather than grinding toward
-  a finish line that costs more than it's worth.
-- **Request retirement proactively, the moment you judge yourself past
-  budget — do not wait to be told.** No drone in the corpus that produced
-  this rule ever self-reported "I am too expensive, retire me"; relief was
-  always owner-initiated. Saying it first is the correct call, not an
-  admission of failure.
+- **At ~250k, this is not advisory — flag yourself before your next tool
+  call.** `SendMessage` (or opencode's stop-and-`NOTES:`) to the orchestrator
+  or Sage: state your context size and exactly what's committed so far, and
+  ask to be replaced or told to wrap up. Do this *instead of* continuing,
+  not after finishing "one more thing" — the soft phrasing this rule used to
+  carry ("seriously reconsider") was tried and failed twice in a row
+  (`landing-context` #356: killed at 330k+/200+ tool calls after the
+  deliverable was already done and reviewed; `loot-rebalance-2` #775→#774,
+  2026-09-13: killed at 429k/168 tool calls, roughly double every budget in
+  its own brief). Neither drone self-flagged; both were caught only by the
+  owner reading a number. **No drone in the corpus has ever self-reported
+  "I am too expensive, retire me" under the old wording** — so the wording
+  is the bug. Flagging first is the correct call, not an admission of
+  failure, and it costs the team one message against a run that otherwise
+  costs everyone's shared rate-limit window.
+- **At ~300k, you get at most one more action: commit-and-report.** Do not
+  ask a question, do not run one more check, do not wait for a reply to your
+  250k flag. Whatever is uncommitted gets `git add <files> && git commit`,
+  then your final-turn report (`BRANCH:`/`FILES:`/`TESTS:`/`DID:`/`NOTES:`)
+  as your literal next and last output. If you have already sent Sage a
+  review request and are only idling on its reply, that's fine — but any
+  action *you* initiate past 300k must be exactly the one commit-and-report,
+  not a return to the task.
 
 **A stop instruction outranks your current plan.** If the orchestrator (or
 the owner, relayed through it) tells you to stop, finish up, or hand off,
