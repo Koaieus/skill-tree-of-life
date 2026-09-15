@@ -95,6 +95,8 @@ tint_color = Color(0.5, 0.5, 0.5, 1)
 modifier_name = "My Stat"   # noun phrase for "+5 My Stat"; empty falls back to display_name
 ```
 
+Is lower better? Set `lower_is_better = true` (default `false`) — it drives `DeltaChip` polarity colouring via `StatDef.is_improvement(delta)` (#729); see `.claude/rules/stats-system.md`.
+
 **There are no `display_*` fields.** `display_type` / `display_group` / `display_order` / `parent_stat_id` and the `DisplayType` enum were **retired in #120** when the only consumer (`ui/stats_panel.gd`) was deleted — don't author them, they're silently dropped. HudRoot's cards hardcode the stat ids they bind, so **making a stat visible means wiring it into a specific card** (`attributes_panel.gd`, `combat_readout.gd`, `hero_sigil_card.gd`, …) by id. See `.claude/rules/stats-system.md` → "Display contract — RETIRED in #120" and `docs/domain/stat-ui-visibility.md`.
 
 **1b. Add it to `stats_system/stat_def_roster.tres`** — one `ExtResource` line plus one entry in the `defs` array.

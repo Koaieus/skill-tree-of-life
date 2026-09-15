@@ -49,6 +49,8 @@ For entity-absent fallback: `get_local_value(id)` uses `StatRegistry.get_def(id)
 
 **A new `StatDef` must be added to `stats_system/stat_def_roster.tres`, not just dropped in `defs/`.** `StatRegistry` reads that authored roster and **never scans the directory** — a scan finds nothing inside an exported PCK (the exporter rewrites every `.tres` into `.res` + `.tres.remap`), which shipped a build where *every* stat lookup failed while the editor and the whole suite stayed green. That is #597 D13, "directory scan for editor and test code, authored array for runtime". `test/unit/test_stat_def_roster.gd` fails if the directory and the roster drift apart, so this is enforced, not remembered. See `docs/domain/exporting.md`.
 
+**`StatDef.lower_is_better` (#729) is which way is "up" for a stat — `false` by default (more is better), set `true` for a stat where less is the win (`min_damage_taken`, `dealloc_damage`).** `StatDef.is_improvement(delta: float) -> bool` is the one accessor: `delta < 0.0 if lower_is_better else delta > 0.0`, `0.0` never an improvement either way. It's a **DELTA predicate only** — it can't judge an absolute value, just whether a change is better or worse — so only `DeltaChip.pop(delta, decimals, suffix, def)` consumes it (the optional `def` colours the chip by polarity while the arrow/sign stay arithmetic truth). `StatValueRow`, `ModSlabRow`, floaters and `StatModifier.format()` stay untouched.
+
 ### Node regen stats (`node_healing` / `node_healing_ramp`, D-9 #270)
 
 Two **node-local** scalars read through `get_local_value` — so a single node can be tuned to regen faster than its owner's baseline. `node_healing` is the flat per-turn heal; `node_healing_ramp` is the extra granted per consecutive undamaged turn.
