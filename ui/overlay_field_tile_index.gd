@@ -86,6 +86,7 @@ var _degenerate: bool = true
 # as a == b. gather_tile_order's dedupe reads these and nothing else.
 var _ends_a: Array[Vector2] = []
 var _ends_b: Array[Vector2] = []
+var _has_segments: bool = false
 
 
 ## `circles` is `Array[Vector4]`: `(world_x, world_y, radius, tag)`. `tag` is
@@ -131,6 +132,7 @@ func _reset() -> void:
 	_cones = []
 	_ends_a.clear()
 	_ends_b.clear()
+	_has_segments = false
 	circle_count = 0
 	primitive_count = 0
 	_degenerate = true
@@ -191,6 +193,8 @@ func _bin(union_smoothness: float) -> bool:
 	# is the single cell containing the centre — the pre-cone behaviour, and
 	# the reason the fog path's gather is unchanged.
 	for i in primitive_count:
+		if _ends_a[i] != _ends_b[i]:
+			_has_segments = true
 		var lo := _cell_of(_ends_a[i].min(_ends_b[i]))
 		var hi := _cell_of(_ends_a[i].max(_ends_b[i]))
 		for cx in range(lo.x, hi.x + 1):
@@ -224,6 +228,14 @@ func gather_tile_order(world_pos: Vector2) -> Array:
 		for dy in [-1, 0, 1]:
 			var cell := centre + Vector2i(dx, dy)
 			var bucket: Array = _cells.get(cell, [])
+			if not _has_segments:
+				# No segment in the set, so no primitive is in more than one
+				# cell and the filter below provably accepts everything. Kept
+				# as a separate branch purely for cost: this is FogOverlay's
+				# per-element CPU pass, the one measured hot path in
+				# docs/domain/overlay-field-rendering.md.
+				out.append_array(bucket)
+				continue
 			for i in bucket:
 				# Projection dedupe — see the class docstring. A primitive is
 				# taken only from the tile owning its projection, so a segment
