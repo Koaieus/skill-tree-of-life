@@ -61,9 +61,10 @@ an issue goes **on** the issue.
 add|rm <name>` flips a label. `hygiene [--json]` reports board invariant
 violations and fixes nothing — run it whenever you look at the board.
 
-The headline invariant: **`Backlog` means "no live parent."** A child may sit at
-any pipeline stage under an `In progress` hub (that's what grinding a hub down
-looks like), but never parked in `Backlog`, where nobody pulls from.
+The headline invariant used to be *"`Backlog` means no live parent"* — retired
+2026-09-15 with the hub rules below: it policed a hub's status as hand-set
+intent, and a derived status carries none. A child's status is its own; the
+hub's is a summary of the children.
 
 ## Hubs: a parent never carries work
 

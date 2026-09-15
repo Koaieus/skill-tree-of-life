@@ -107,7 +107,7 @@ GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`); board via `mise gh-p
 
 **A parent never carries work** — a hub's status is derived from its children (`mise gh-project -- hygiene --fix`, and `land` syncs it per landing); never set a hub's status by hand, never leave a hub's own acceptance spec on the hub, and never park optional follow-ups as children.
 
-Board commands, the full ladder, the `Backlog`-means-no-live-parent invariant, the hub rules, roadmap fields, sub-issues, and why attribution is load-bearing: **`docs/domain/issue-workflow.md`**.
+Board commands, the full ladder, the hub rules, roadmap fields, sub-issues, and why attribution is load-bearing: **`docs/domain/issue-workflow.md`**.
 
 ## Godot conventions
 

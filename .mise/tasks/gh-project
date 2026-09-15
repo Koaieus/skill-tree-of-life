@@ -433,10 +433,12 @@ cmd_blocking() {
 # Ready (that is the swarm queue). `--fix` applies exactly that plus the
 # mechanical closed→Done mirror; `--fix --dry-run` prints what it would do.
 #
-# What stays report-only is judgement: a child parked in `Backlog` under an
-# active parent (promote the child, or demote the hub), a `Done` item still
-# open, a hub with a child missing from the board (never derived — you'd
-# close a hub over a child you can't see).
+# What stays report-only is judgement: a `Done` item still open, a hub with an
+# open child missing from the board (never derived — you'd close a hub over a
+# child you can't see). The old `parked_child` check ("Backlog means no live
+# parent") is retired with this: it policed a hub's status as hand-set INTENT,
+# and a derived status carries none — a Backlog sibling next to an In progress
+# sibling contradicts nothing.
 cmd_hygiene() {
   local as_json=false do_fix=false dry_run=false
   for a in "$@"; do
@@ -503,12 +505,6 @@ cmd_hygiene() {
           done_still_open:
             [ $every[] | select(.state == "OPEN" and .status == "Done")
               | { number, title, detail: "board says Done" } ],
-          parked_child:
-            [ $all[] | select(.parent != null and .status == "Backlog")
-              | select(($st[.parent|tostring] // "Backlog") as $p
-                       | $p != "Backlog" and $p != "—")
-              | { number, title, parent, parent_status: ($st[.parent|tostring]),
-                  detail: "parent #\(.parent) is \($st[.parent|tostring])" } ],
           forked_ready:
             [ $all[] | select(.status == "Ready")
               | select(.labels | any(. == "design" or . == "blocked"))
@@ -551,8 +547,6 @@ cmd_hygiene() {
     "A closed issue sitting in \`Ready\` gets pulled by a drone. Re-enable \`Item closed\` (Status → Done)."
   _section done_still_open "Done on the board, but still OPEN" \
     "The board lies about finished work. Either close it, or move it back to a live column."
-  _section parked_child "Child parked under an active parent" \
-    "Backlog means not scheduled, but the parent says otherwise. Promote the child, or demote the hub."
   _section forked_ready "Ready, but still carries design/blocked" \
     "A drone must not touch an open fork. Move to needs-design, or drop the label if it is settled."
   _section unmilestoned_ready "Ready with no milestone" \
@@ -583,8 +577,10 @@ cmd_hygiene() {
         [ "$dry_run" = true ] && continue
         cmd_status "$n" "$slug" >/dev/null || echo "  ✗ status failed for #$n"
         if [ "$close" = 1 ]; then
-          gh issue close "$n" --comment "Every child is closed — a parent never carries work, so the hub is done (auto-closed by \`gh-project hygiene --fix\`)." >/dev/null \
-            || echo "  ✗ close failed for #$n"
+          if [ "$(gh issue view "$n" --json state -q .state)" = "OPEN" ]; then
+            gh issue close "$n" --comment "Every child is closed — a parent never carries work, so the hub is done (auto-closed by \`gh-project hygiene --fix\`)." >/dev/null \
+              || echo "  ✗ close failed for #$n"
+          fi
         fi
       done
 }
@@ -756,7 +752,7 @@ Examples:
 
 Agents — machine-readable listing:
   mise run --quiet gh-project -- list ready --json | jq -r '.[].number'
-  mise run --quiet gh-project -- hygiene --json | jq -r '.parked_child[].number'
+  mise run --quiet gh-project -- hygiene --json | jq -r '.hub_drift[].number'
   (mise's task banner goes to STDERR; don't merge it with 2>&1 or you'll
    corrupt the JSON on stdout.)
 EOF
