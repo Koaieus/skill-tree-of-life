@@ -42,12 +42,12 @@ uniform float crack_width : hint_range(0.001, 0.3) = 0.06;
 // EV stops a crack glows above its base tint at crescendo peak (the instant
 // before the disc lets go). Emissive.ALERT (2.0) — "full neon", appropriate
 // for a disc about to come apart.
-uniform float crack_glow_stops : hint_range(0.0, 6.0) = 2.0;
+uniform float crack_glow_stops : hint_range(0.0, 6.0) = 3.0;
 // Disk-space reach of a lit crack's light bleeding across the dome around it
 // at crescendo peak — the halo grows with the crescendo from nothing to this.
 // Bloom alone can't supply it: at a live node's ~24px radius a `crack_width`
 // seam is one pixel wide and throws no visible halo (#871, reopened).
-uniform float crack_spill_width : hint_range(0.0, 1.0) = 0.15;
+uniform float crack_spill_width : hint_range(0.0, 1.0) = 0.25;
 
 // --- Crack beams (#871, reopened) — pushed by AllocationVFX, see
 // `shatter_ray_tier` / `shatter_ray_onset` there ---

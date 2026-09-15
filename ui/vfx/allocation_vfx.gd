@@ -144,7 +144,7 @@ var _cascade_snapshot: Dictionary[SkillNode, Dictionary] = {}
 ## while this only applies once the disc has come apart. Pushed as the
 ## material's `shard_bloom_stops` (one value per material — it is the field's
 ## material, never per node) via `Emissive.stops()`, never a hand float.
-@export var shatter_shard_bloom_tier: Emissive.Tier = Emissive.Tier.ALERT:
+@export var shatter_shard_bloom_tier: Emissive.Tier = Emissive.Tier.PEAK:
 	set(value):
 		shatter_shard_bloom_tier = value
 		_push_shatter_tuning()
