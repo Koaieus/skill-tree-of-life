@@ -240,4 +240,4 @@ does not have to carry them.
   long-running-command detail on the premise that a typed subagent receives
   them; the only evidence so far is a ~29k cache write on a subagent's
   first request (CLAUDE.md-sized). If the premise is false, ~10 lines go
-  back into the body. Run 2026-09-15 as `smoke-drone`.
+  back into the body. Run 2026-09-15 as `smoke-drone` (haiku, landed 7f548a8): **premise true** — it started on its `prompt` with `name` set (no idle), 5 tool calls / 32 s, and reported CLAUDE.md + always-on rules fully visible, no skill loaded. Nothing goes back into the agent body; the `swarm` skill's teammate-idle lore is stale for this type (n=1, haiku — ledger idle counts on the first real swarm, see #906).
