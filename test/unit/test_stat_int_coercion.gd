@@ -87,3 +87,33 @@ func test_pool_available_still_rounds_current_to_nearest() -> void:
 	p.base_value = 10.0
 	p.current = 2.6
 	assert_eq(p.available(), 3, "PoolStat.available() keeps roundi(current)")
+
+
+# --- #895: a merged (node-local) read floors the same as a bare one ----------
+
+func _overlay(op: int, value: float) -> ModifierBins:
+	# A stand-in for a node board's bins for the same id.
+	var s := _int_stat(0.0)
+	s.add_modifier(_mod(&"test_int", op, value))
+	return s.bins
+
+
+func test_merged_int_read_floors_the_finished_total() -> void:
+	var s := _int_stat(1.0)
+	var overlays: Array[ModifierBins] = [_overlay(StatModifier.Operation.ADD_BASE, 0.5)]
+	assert_eq(s.get_value_with(overlays), 1, "1 + 0.5 from a node-local line must floor to 1")
+
+
+func test_merged_int_read_is_a_real_int() -> void:
+	var s := _int_stat(1.0)
+	var overlays: Array[ModifierBins] = [_overlay(StatModifier.Operation.ADD_BASE, 7.0)]
+	assert_eq(typeof(s.get_value_with(overlays)), TYPE_INT)
+	assert_eq(s.get_value_with(overlays), 8)
+
+
+func test_merged_float_read_keeps_its_fraction() -> void:
+	var s := _float_stat(1.0)
+	var o := _float_stat(0.0)
+	o.add_modifier(_mod(&"test_float", StatModifier.Operation.ADD_BASE, 0.5))
+	var overlays: Array[ModifierBins] = [o.bins]
+	assert_almost_eq(float(s.get_value_with(overlays)), 1.5, 0.0001)

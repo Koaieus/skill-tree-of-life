@@ -11,7 +11,7 @@ extends StatBoard
 ## [b]Bake what the node owns; stay sparse for what it borrows.[/b] The split
 ## is not a memory compromise — it falls out of how a combined read works.
 ## [method SkillNode.get_local_value] merges an owned node's value as
-## [code]ModifierBins.compute(entity_stat.base_value, [entity.bins, node.bins])[/code],
+## [code]entity_stat.get_value_with([node.bins])[/code] (a merged fold, coerced once — #895),
 ## so for any id the entity ALSO carries, a node-board stat's own `base_value`
 ## is silently discarded and only its bins count. Authoring `armor = 5` here
 ## would do nothing, with no error. Therefore:

@@ -36,7 +36,8 @@ var board: StatBoard = null
 
 ## N-source compose. SET short-circuits; otherwise sum bins, walk all
 ## multiplier lists, run the pipeline once. Callers are responsible for
-## final type coercion via Stat._coerce.
+## final type coercion — read through [method Stat.get_value_with] rather than
+## calling this directly, so the INT floor is not skipped (#895).
 static func compute(base: float, sources: Array[ModifierBins]) -> float:
 	var win_bins := _pick_set_winner_bins(sources)
 	if win_bins != null:

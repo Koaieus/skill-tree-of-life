@@ -479,6 +479,19 @@ func get_value() -> Variant:
 	return _coerce(_cached_raw_value)
 
 
+## The multi-source sibling of [method get_value]: this stat's own bins plus
+## [param overlays] (e.g. a node-local board's bins for the same id) folded
+## through [method ModifierBins.compute] ONCE, then coerced exactly as
+## [method get_value] is. The only door for a merged read — #895: reading
+## [method ModifierBins.compute] raw skipped #890's once-at-the-end INT floor,
+## so a node-local ratio line contributed its fraction on the local path only.
+## Not memoized: overlays are the caller's and can change under us.
+func get_value_with(overlays: Array[ModifierBins]) -> Variant:
+	var sources: Array[ModifierBins] = [bins]
+	sources.append_array(overlays)
+	return _coerce(ModifierBins.compute(base_value, sources))
+
+
 ## Read this stat through a formula accessor — the ONLY door the formula
 ## layer has into a stat's extra state (#333). `&""` is the computed value /
 ## cap (the bare-token form, what every formula reads today). Named

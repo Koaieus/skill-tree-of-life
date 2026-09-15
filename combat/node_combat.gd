@@ -185,8 +185,10 @@ func get_local_value(stat_id: StringName) -> Variant:
 		if es != null:
 			if ns == null:
 				return es.get_value()
-			var sources: Array[ModifierBins] = [es.bins, ns.bins]
-			return ModifierBins.compute(es.base_value, sources)
+			# #895: through the Stat so the merged total is coerced like a
+			# bare read — a raw ModifierBins.compute skipped #890's INT floor.
+			var overlays: Array[ModifierBins] = [ns.bins]
+			return es.get_value_with(overlays)
 	if ns != null:
 		return ns.get_value()
 	var def: StatDef = StatRegistry.get_def(stat_id)
