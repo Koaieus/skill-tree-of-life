@@ -84,7 +84,9 @@ and the owner alike — see the #729/#901 session):
    all closed → `Done` + closed · every open child `In review` → `In review` ·
    any child `Ready`/`In progress`/`In review` → `In progress` · children only
    `Backlog`/`Needs design` → left alone (filing state stays yours). Derivation
-   only moves a hub *forward*.
+   follows the children up *or back* — a reopened child or a new `Ready` sibling
+   takes an `In review` hub back to `In progress`. `--fix` is a single pass, so
+   a nested hub (a child that is itself a hub) settles across two runs.
 4. **A hub is never `Ready`.** `Ready` is the swarm queue; a container there
    gets pulled by a drone with nothing to do. Derivation moves it to
    `In progress`.
