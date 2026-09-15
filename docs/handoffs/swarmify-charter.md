@@ -28,11 +28,12 @@ This file only orders the work and names couplings.
 3. **Sage vs `advisor`** (charter follow-up, owner call): trial `advisor` as
    the named advisor on the next relay; compare `agent-cost` per landed unit
    against a Sage run. The agent file already lets the brief decide.
-4. **#906 — `swarm` charter, `Needs design`.** Pass run 2026-09-15; sizing
-   settled, three forks open with the owner's reasoning verbatim and the
-   experiment that settles each (advisor-vs-Sage on the next relay, a
-   deliberate `/compact` with a drone in flight, idle count per dispatch).
-   Read the #906 comment before re-arguing any of it.
+4. **#906 — DONE 2026-09-15.** `docs/charters/swarm.md` + skill re-derived
+   (414b93e); Sage never lands; drones get `advisor` once-early. The next
+   swarm/relay is the first run of all three charters together — ledger
+   the idle count, advisor calls and `priced` per unit; the open
+   experiments (deliberate `/compact` with a drone in flight, advisor
+   caching) are on the charter.
 
 ## Live numbers
 
@@ -40,4 +41,4 @@ This file only orders the work and names couplings.
   agent: 1.37M / 325k / 25 turns (`mise run agent-cost -- --latest 3`).
 - Budget markers: 150k/200k/250k; guard hard stop 300k; drone retires at 250k.
 
-Delete this file once #903–#905 have landed and #906 is `Ready`.
+Delete this file once #903–#905 have landed.
