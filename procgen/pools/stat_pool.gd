@@ -237,9 +237,15 @@ func to_entries() -> Array[ModifierPoolEntry]:
 	return out
 
 
+## Id-segment token (`<stat>_<op>_<arch>_t<tier>`, see [method to_entries]) —
+## NOT a display string. `addb`/`addn` stay the odd-one-out abbreviation on
+## purpose (#729 decision 7): they're pinned by `test_pool_seed_values.gd` /
+## `test_composite_field.gd` as entry ids, and renaming them would churn every
+## entry id for nothing. [method _op_symbol] is the display vocabulary —
+## [method format_table] uses that instead.
 func _op_short() -> String:
 	match operation:
-		StatModifier.Operation.ADD_BASE: return "addb" # the default op wears the qualified name — #729
+		StatModifier.Operation.ADD_BASE: return "addb"
 		StatModifier.Operation.INCREASE: return "inc"
 		StatModifier.Operation.MULTIPLY: return "mul"
 		StatModifier.Operation.ADD_BONUS: return "addn"
@@ -248,7 +254,7 @@ func _op_short() -> String:
 
 func _op_symbol() -> String:
 	match operation:
-		StatModifier.Operation.ADD_BASE: return "+" if unit_value >= 0. else "-"  # sign only, not polarity: a stat where lower is better reads backwards here — #729
+		StatModifier.Operation.ADD_BASE: return "+" if unit_value >= 0. else "-"
 		StatModifier.Operation.INCREASE: return "+%" if unit_value >= 0. else "-%"
 		StatModifier.Operation.MULTIPLY: return "×"
 		StatModifier.Operation.ADD_BONUS: return "+b" if unit_value >= 0. else "-b"
@@ -269,7 +275,7 @@ func format_table() -> String:
 	var lines: PackedStringArray = []
 	var arch := String(archetype_stat) if archetype_stat != &"" else "—"
 	lines.append("  stat=%s op=%s archetype=%s tags=%s" % [
-			String(stat_id), _op_short(), arch, str(tags)])
+			String(stat_id), _op_symbol(), arch, str(tags)])
 	lines.append("  tier  L..H                  cost  weight   mean     tags")
 	lines.append("  ----  --------------------  ----  -------  -------  ----")
 	var is_mul := operation == StatModifier.Operation.MULTIPLY
