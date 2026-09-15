@@ -630,8 +630,10 @@ run in parallel). Per `Agent` call:
 - `model:` is **mandatory and must equal the ledger's tier** — `"opus"` for
   an opus-tiered unit, `"sonnet"` otherwise, `"haiku"` only for
   ultra-mechanical work (rename, mass string-replace, boilerplate). An
-  omitted `model` inherits the *lead's* (same trap as the Explore pin in
-  CLAUDE.md): wave 2 of 2026-09-13 passed no `model` at all, and wave 1
+  omitted `model` falls back to the `drone` frontmatter's `sonnet` (any
+  other `subagent_type` inherits the *lead's* — the Explore-pin trap in
+  CLAUDE.md), so an opus-tiered unit dispatched without `model` silently
+  runs as sonnet: wave 2 of 2026-09-13 passed no `model` at all, and wave 1
   dispatched both opus-tiered units (#356, #537) as `sonnet`. Read the
   param back against the ledger row before sending.
 - **The full brief in `prompt`.** The drone agent acts on whichever arrives

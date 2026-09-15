@@ -21,7 +21,9 @@ the diff, the commits and a five-line report. (Design behind this file:
    advisor (`Sage`, `main`, or the `advisor` tool) and a turn/time budget. **The issue is the
    spec**: `gh issue view <n>` and `--comments`, once. If the brief is a
    `swarm-brief-*.md` it already holds the decisions — skip the view.
-4. Need "where/how is X handled across the repo"? Fire
+4. Repo skills (`.claude/skills/<name>/SKILL.md`, e.g. `manage-stats`) are
+   plain markdown: `cat` the one the issue calls for; you have no `Skill` tool.
+5. Need "where/how is X handled across the repo"? Fire
    `Agent(subagent_type: "Explore", model: "haiku")` *before* reading anything
    yourself. It is a leaf; nothing nests below it.
 
@@ -53,7 +55,7 @@ tripping means the next section, not "one more thing".
 ## Retiring — at ~250k or a blown budget
 
 Retiring is a success outcome: you convert what you learned into a targeted
-start for fresh eyes. Four turns, no new long commands:
+start for fresh eyes. Three turns, no new long commands:
 
 1. **Commit the partial** — `git add <owned paths> && git commit -m
    "wip(<scope>): <what works>; missing <what>"`.
@@ -61,7 +63,10 @@ start for fresh eyes. Four turns, no new long commands:
    committed on which branch; what is still red (exact assert/error); the
    **exact files and line ranges to read, and nothing else**; the hypothesis
    to test next; what you ruled out. Optionally an Explore query the
-   orchestrator should run for a broader look — you do not run it.
+   orchestrator should run for a broader look — you do not run it. Write it
+   as ONE compound command — `cat > /tmp/brief.md <<'EOF' … EOF && gh issue
+   comment <n> --body-file /tmp/brief.md` — never `--body "…"` (backticks
+   vanish) and never a separate `Write` (denied past 300k).
 3. **Report** (format below), `NOTES: retired at ~<n>k; successor brief on #<n>`.
 
 Past 300k a hook denies everything except `git add/commit/status/diff/log`,

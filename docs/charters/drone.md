@@ -215,7 +215,9 @@ does not have to carry them.
 - **Warp drones seem to land more per token than swarm drones** (owner,
   2026-09-15, a feeling). Measured the same day over 509 transcripts
   (34 warp, 160 drone): **not true per file** — median final context 171k
-  vs 158k, integral 14.1M vs 12.4M, parity at sonnet, drone cheaper at
+  vs 158k, integral 14.1M vs 12.4M (both ~2× inflated: counted per
+  assistant record, not per request — re-derive with `agent-cost --json`
+  before quoting; the ratio stands), parity at sonnet, drone cheaper at
   opus; orientation shape identical. What differs is the *unit*: a warp file
   is a whole issue landed, a drone file is a file-fenced fraction that stops
   on out-of-scope needs and resumes as a new transcript (17/160 drone files
@@ -232,5 +234,10 @@ does not have to carry them.
   to this charter; its dispatch section should say `Agent(subagent_type:
   "drone", model: <tier>)` with the brief in `prompt`.
 - A one-shot smoke: spawn a `drone` on a trivial fenced task with `model:
-  haiku` and confirm it worktrees, commits, reports in format, and never
-  loads a skill.
+  haiku` and confirm it worktrees, commits, reports in format, never loads
+  a skill — **and states in `NOTES:` whether it sees CLAUDE.md and the
+  always-on rules.** The agent file dropped the test-ladder, red-green and
+  long-running-command detail on the premise that a typed subagent receives
+  them; the only evidence so far is a ~29k cache write on a subagent's
+  first request (CLAUDE.md-sized). If the premise is false, ~10 lines go
+  back into the body.
