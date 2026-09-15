@@ -15,11 +15,21 @@ shader_type canvas_item;
 // glowing cracks overlaid at the seams. At p0 the render swaps to each shard's
 // OWN Voronoi cell and the piece flies per `shatter_motion.gdshaderinc`'s
 // curve, blooming at release and fizzling out (`shatter_fade`, #871).
-// `shatter_seam_distance()` is the ONE seam authority for cracks AND the cell
-// split, so the disc breaks along the cracks it was showing (#257
-// acceptance 4). Nothing draws outside the disc: #257's "supernova rays"
-// past the rim were the rim-glow / rim-burst read #871 removed — the rim is
-// the live node's, and it stays dark through a death.
+// `shatter_seam_distance()` is the ONE seam authority for cracks, the cell
+// split AND the beams, so the disc breaks along the cracks it was showing
+// (#257 acceptance 4).
+//
+// The crescendo is an earth's-crust read (#871, reopened): the cracks light
+// up (`crack_glow_stops`), their light bleeds across the dome around them
+// (`crack_spill_width`), and LATE in the phase (`ray_onset`) light beams
+// fire out of the cracks — rooted inside the disc on the seam
+// (`ray_root`), through the rim, reaching `ray_length` past it at the burst.
+// The beams are anchored to the cracks and gated off with the intact disc,
+// so they never light the rim as a ring and never outlive the release —
+// which is what #257's rim-anchored, flight-long "supernova rays" did (the
+// "rim glows / ~10 bursts along the rim" read the first #871 fix removed).
+// The rim is the live node's and stays itself; the beams simply draw over
+// whatever surrounds the disc (`ZLayers.SPELL_VFX`).
 #include "res://ui/vfx/shatter/shatter_motion.gdshaderinc"
 #include "res://skill_node/visuals/inner_disk_body.gdshaderinc"
 
@@ -33,6 +43,30 @@ uniform float crack_width : hint_range(0.001, 0.3) = 0.06;
 // before the disc lets go). Emissive.ALERT (2.0) — "full neon", appropriate
 // for a disc about to come apart.
 uniform float crack_glow_stops : hint_range(0.0, 6.0) = 2.0;
+// Disk-space reach of a lit crack's light bleeding across the dome around it
+// at crescendo peak — the halo grows with the crescendo from nothing to this.
+// Bloom alone can't supply it: at a live node's ~24px radius a `crack_width`
+// seam is one pixel wide and throws no visible halo (#871, reopened).
+uniform float crack_spill_width : hint_range(0.0, 1.0) = 0.15;
+
+// --- Crack beams (#871, reopened) — pushed by AllocationVFX, see
+// `shatter_ray_tier` / `shatter_ray_onset` there ---
+//
+// EV stops a beam peaks at, the instant before the disc lets go.
+// Emissive.PEAK (3.0) — the ignition-flash read.
+uniform float ray_stops : hint_range(0.0, 8.0) = 3.0;
+// Fraction of the crack phase the cracks light on their own before beams
+// start — `shatter_ray_ramp()`'s onset.
+uniform float ray_onset : hint_range(0.0, 1.0) = 0.55;
+// Angular tolerance (in the seed-distance units `shatter_seam_distance`
+// returns, evaluated on the disc's rim) a beam fans out from its crack.
+uniform float ray_angle_width : hint_range(0.01, 1.0) = 0.08;
+// How far past the disc rim (disc-radius units) a beam reaches at its peak.
+// The shard quad is `SHATTER_OVERSIZE` (2x) the disc, so at most 1.0.
+uniform float ray_length : hint_range(0.1, 1.0) = 0.8;
+// Disc radius a beam takes root at, inside the disc on its crack — it grows
+// from here through the rim, so the beam visibly comes OUT of the crack.
+uniform float ray_root : hint_range(0.0, 1.0) = 0.55;
 
 // --- Identity tint rides COLOR, never a uniform ---
 //
@@ -92,6 +126,51 @@ float shatter_crescendo(float prog) {
 	return clamp(prog / p0, 0.0, 1.0);
 }
 
+// Beam ramp, 0..1: 0 until the crescendo reaches `ray_onset`, smoothly up to
+// 1 at p0, and gone from p0 on with the intact disc. The `crescendo` factor
+// keeps it pointwise <= `shatter_crescendo` (a bare smoothstep overshoots a
+// line near 1) — a beam never leads its own crack.
+// `AllocationVFX.ray_glow_at` is the CPU reference of this exact formula;
+// keep the two in lockstep (#871).
+float shatter_ray_ramp(float prog) {
+	float p0 = shatter_flight_start;
+	if (prog >= p0) {
+		return 0.0;
+	}
+	float crescendo = clamp(prog / p0, 0.0, 1.0);
+	return crescendo * smoothstep(ray_onset, 1.0, crescendo);
+}
+
+// A crack's beam at `p`, 0..1: this fragment's angle projected onto the rim
+// so a beam points straight out through its own crack (the seam it meets the
+// rim at), rooted at `ray_root` inside the disc, at full strength on the rim,
+// and fading to nothing `ray_length * ramp` past it — the beam grows OUT of
+// the crack as the crescendo builds.
+float shatter_ray(vec2 p, float r, ShatterShard s, float ramp) {
+	if (ramp <= 0.0) {
+		return 0.0;
+	}
+	vec2 rim_dir = p / max(r, 0.0001);
+	float rim_seam = abs(shatter_seam_distance(rim_dir, s));
+	float reach = 1.0 + ray_length * ramp;
+	// 0 on the rim, 1 at the beam's tip.
+	float out_t = clamp((r - 1.0) / max(reach - 1.0, 0.0001), 0.0, 1.0);
+	// A needle, not a sausage: the beam narrows toward its tip and its
+	// strength falls off quadratically, so the tip dissolves.
+	float width = ray_angle_width * mix(1.0, 0.25, out_t);
+	float shape = smoothstep(width, 0.0, rim_seam);
+	float inner = smoothstep(ray_root, 1.0, r);
+	float outer = (1.0 - out_t) * (1.0 - out_t);
+	return shape * min(inner, outer) * ramp;
+}
+
+// A beam's colour at strength `ray`: the tint lifted toward `ray_stops` by
+// the beam's own strength, so the root is the ignition flash and the tip
+// relaxes back to the crack's own colour.
+vec3 shatter_ray_color(vec4 tint, float ray) {
+	return tint.rgb * exp2(ray_stops * ray);
+}
+
 vec3 shatter_dome(vec2 p, vec4 tint) {
 	return sn_inner_disk_shade(p, tint, tint_mix, allocated, highlight_position,
 			highlight_intensity, carve_kind, carve_sides, carve_squish, carve_radius,
@@ -106,6 +185,7 @@ void fragment() {
 	float prog = shatter_progress(s);
 	bool intact = prog < shatter_flight_start;
 	float crescendo = shatter_crescendo(prog);
+	float ray_ramp = shatter_ray_ramp(prog);
 	vec2 p = shatter_unspin(shatter_disc_point(), s, prog);
 	float r = length(p);
 
@@ -122,7 +202,16 @@ void fragment() {
 		vec3 dome = shatter_dome(p, tint);
 		float seam = abs(shatter_seam_distance(p, s));
 		float glow = smoothstep(crack_width, 0.0, seam) * crescendo;
-		vec3 rgb = mix(dome, tint.rgb * exp2(crack_glow_stops), glow);
+		// The crack's own light bleeding over the dome: a soft halo that
+		// widens with the crescendo, quadratic so the seam core stays the
+		// brightest line in it.
+		float spill_reach = max(crack_spill_width * crescendo, crack_width);
+		float spill = smoothstep(spill_reach, 0.0, seam);
+		spill = spill * spill * spill * crescendo;
+		vec3 rgb = mix(dome, tint.rgb * exp2(crack_glow_stops), max(glow, spill));
+		// The beam's root, drawn over the dome from `ray_root` out to the rim.
+		float ray = shatter_ray(p, r, s, ray_ramp);
+		rgb = mix(rgb, shatter_ray_color(tint, ray), ray);
 		float r2 = dot(p, p);
 		float edge_alpha = 1.0 - smoothstep(0.96, 1.0, r2);
 		COLOR = vec4(rgb, edge_alpha);
@@ -140,9 +229,23 @@ void fragment() {
 		float rim_aa = max(fwidth(r), 0.0001);
 		float shape = smoothstep(0.0, seam_aa, margin) * (1.0 - smoothstep(1.0 - rim_aa, 1.0, r));
 		COLOR = shatter_fade(vec4(dome, shape), prog);
+	} else if (intact && s.cell == 0) {
+		// Outside the disc, still intact: only a crack's beam, firing out
+		// through the seam it meets the rim at — nothing else, and nothing
+		// at all once the disc has let go. The rim is the live node's own
+		// and stays as it was (#871); the beam just draws over it.
+		// Drawn by ONE shard only: pre-p0 every shard's quad covers the same
+		// area and sees every seed, and the beam's alpha is its falloff —
+		// N shards alpha-blending the same beam would compound it to
+		// `1 - (1 - ray)^N` and re-grow the fat rim halo (the inside-the-disc
+		// overdraw is harmless, it is opaque over opaque).
+		float ray = shatter_ray(p, r, s, ray_ramp);
+		if (ray <= 0.0) {
+			discard;
+		}
+		COLOR = vec4(shatter_ray_color(tint, ray), ray);
 	} else {
-		// Outside the disc: nothing. The rim is the live node's own and stays
-		// as it was (#871) — no rays, no bursts.
+		// Shards in flight draw nothing past the disc — no rays, no bursts.
 		discard;
 	}
 }

@@ -93,6 +93,36 @@ func test_crack_glow_ramps_up_to_flight_start_then_is_gone() -> void:
 	assert_almost_eq(AllocationVFX.crack_glow_at(0.9, p0), 0.0, 0.0001)
 
 
+func test_crack_rays_fire_late_in_the_crescendo_and_are_gone_at_release() -> void:
+	# #871 reopened: "the earth's crust cracks, the cracks light up, UNTIL
+	# light beams fire out of them" — beams are a late phase of the same
+	# crescendo, never before `onset`, never after the disc lets go.
+	var p0 := 0.6
+	var onset := 0.6
+	assert_almost_eq(AllocationVFX.ray_glow_at(0.0, p0, onset), 0.0, 0.0001)
+	assert_almost_eq(AllocationVFX.ray_glow_at(p0 * onset * 0.5, p0, onset), 0.0, 0.0001,
+			"no beams while the cracks are still only lighting up")
+	assert_almost_eq(AllocationVFX.ray_glow_at(p0 * onset, p0, onset), 0.0, 0.0001,
+			"beams start from zero at onset")
+	var prev := 0.0
+	for i in range(1, 10):
+		var prog := lerpf(p0 * onset, p0, float(i) / 10.0)
+		var g := AllocationVFX.ray_glow_at(prog, p0, onset)
+		assert_true(g >= prev, "beams only grow toward the burst")
+		prev = g
+	assert_true(prev > 0.5, "beams should be nearly peaked just before flight_start")
+	# Never draw a ray during shard flight — that is the old "still glowing
+	# after the burst" complaint from another angle.
+	assert_almost_eq(AllocationVFX.ray_glow_at(p0, p0, onset), 0.0, 0.0001)
+	assert_almost_eq(AllocationVFX.ray_glow_at(0.9, p0, onset), 0.0, 0.0001)
+	# The crack glow is the beams' floor: a beam never leads its own crack.
+	for i in range(0, 101):
+		var prog := p0 * float(i) / 100.0
+		assert_true(AllocationVFX.ray_glow_at(prog, p0, onset)
+				<= AllocationVFX.crack_glow_at(prog, p0) + 0.0001,
+				"ray ramp must trail the crack glow")
+
+
 func test_shard_bloom_peaks_at_release_and_fizzles_to_zero() -> void:
 	var p0 := 0.6
 	assert_almost_eq(AllocationVFX.shard_bloom_at(0.0, p0), 0.0, 0.0001)
@@ -113,10 +143,17 @@ func test_shard_bloom_is_a_named_tier_pushed_onto_the_material() -> void:
 	assert_almost_eq(float(mat.get_shader_parameter(&"shard_bloom_stops")), 0.0, 0.0001)
 
 
-func test_shatter_shader_has_no_rim_ray_uniforms() -> void:
-	# #871: the supernova rays fanned past the rim along each seam were the
-	# "rim glows and bursts" read. The disc shatters; nothing draws outside it.
+func test_crack_beams_are_a_named_tier_and_onset_pushed_onto_the_material() -> void:
+	# #871 reopened: #257's rim-anchored rays were the "rim glows and bursts"
+	# read and went; what came back are beams anchored to the CRACKS, gated
+	# by `ray_glow_at` (see the timing test above) so nothing draws past the
+	# rim once the disc has let go. Their peak is a tier, never a hand float.
+	_vfx.shatter_ray_tier = Emissive.Tier.ALERT
+	_vfx.shatter_ray_onset = 0.7
 	var mat := _vfx.get_shard_field().material as ShaderMaterial
-	for u in mat.shader.get_shader_uniform_list():
-		assert_false(String(u.name).begins_with("ray_"),
-				"rim ray uniform survived: %s" % u.name)
+	var pushed: Variant = mat.get_shader_parameter(&"ray_stops")
+	assert_not_null(pushed, "ray_stops uniform is not on the material")
+	assert_almost_eq(float(pushed), Emissive.stops(Emissive.Tier.ALERT), 0.0001)
+	assert_almost_eq(float(mat.get_shader_parameter(&"ray_onset")), 0.7, 0.0001)
+	_vfx.shatter_ray_tier = Emissive.Tier.INERT
+	assert_almost_eq(float(mat.get_shader_parameter(&"ray_stops")), 0.0, 0.0001)

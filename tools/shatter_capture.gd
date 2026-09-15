@@ -18,10 +18,12 @@ const KICK_SPEED := 90.0
 const CROP_SIZE := 400
 
 # t=0.84 is flight_start(0.6) * window(1.4) - the boom instant; 1.4 is the end
-# of the window; 1.45 confirms a clean blank aftermath.
+# of the window; 1.45 confirms a clean blank aftermath. 0.46 is the beam
+# onset (ray_onset 0.55 * 0.84) and 0.55-0.82 sample the beams growing out of
+# the cracks (#871, reopened).
 const CAPTURE_TIMES := [
-	0.0, 0.3, 0.5, 0.6, 0.7, 0.78, 0.82, 0.84, 0.86, 0.90, 0.98, 1.05, 1.15,
-	1.30, 1.40, 1.45,
+	0.0, 0.3, 0.46, 0.55, 0.62, 0.70, 0.76, 0.82, 0.84, 0.86, 0.90, 0.98, 1.05,
+	1.15, 1.30, 1.45,
 ]
 
 

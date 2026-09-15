@@ -150,6 +150,24 @@ var _cascade_snapshot: Dictionary[SkillNode, Dictionary] = {}
 		_push_shatter_tuning()
 
 
+## Tier the crack-anchored light beams peak at, the instant before the disc
+## lets go (#871 reopened). PEAK — "a momentary overshoot .. relaxing back
+## down" — is exactly an ignition flash; pushed as the material's `ray_stops`
+## via `Emissive.stops()`, never a hand float.
+@export var shatter_ray_tier: Emissive.Tier = Emissive.Tier.PEAK:
+	set(value):
+		shatter_ray_tier = value
+		_push_shatter_tuning()
+## Fraction of the crack phase (0..1 of [member shatter_flight_start]) the
+## cracks light up on their own before beams start firing out of them —
+## [method ray_glow_at]'s `onset`. 0.55 of a 0.84s crack phase is ~0.46s in,
+## the "t≈0.5 → 0.84" window the owner described. Pushed as `ray_onset`.
+@export_range(0.0, 1.0, 0.01) var shatter_ray_onset: float = 0.55:
+	set(value):
+		shatter_ray_onset = value
+		_push_shatter_tuning()
+
+
 ## CPU reference of `inner_disk_shatter.gdshader`'s `shatter_crescendo()`:
 ## the crack-seam glow, 0..1, for `prog` in [0, 1] of the shatter window.
 ## Line for line: `if (prog >= p0) return 0.0; return clamp(prog / p0, 0, 1)`.
@@ -159,6 +177,21 @@ static func crack_glow_at(prog: float, flight_start: float) -> float:
 	if prog >= flight_start:
 		return 0.0
 	return clampf(prog / flight_start, 0.0, 1.0)
+
+
+## CPU reference of `inner_disk_shatter.gdshader`'s `shatter_ray_ramp()`:
+## the crack-anchored light beams, 0..1. Line for line: `if (prog >= p0)
+## return 0.0; c = clamp(prog / p0, 0, 1); return c * smoothstep(onset, 1, c)`.
+## The beams are the LATE phase of the same crescendo [method crack_glow_at]
+## drives — dark until the cracks have lit to `onset` (a fraction of the crack
+## phase), then a smooth rise to 1 at the burst, never above the crack glow
+## itself, and gone with the intact disc (#871 reopened: "cracks lighting up,
+## until light beams fire out of them").
+static func ray_glow_at(prog: float, flight_start: float, onset: float) -> float:
+	if prog >= flight_start:
+		return 0.0
+	var crescendo := clampf(prog / flight_start, 0.0, 1.0)
+	return crescendo * smoothstep(onset, 1.0, crescendo)
 
 
 ## CPU reference of `shatter_motion.gdshaderinc`'s `shatter_bloom_ramp()`:
@@ -225,6 +258,8 @@ func _push_shatter_tuning() -> void:
 	var mat := _shard_field.material as ShaderMaterial
 	if mat != null:
 		mat.set_shader_parameter(&"shard_bloom_stops", Emissive.stops(shatter_shard_bloom_tier))
+		mat.set_shader_parameter(&"ray_stops", Emissive.stops(shatter_ray_tier))
+		mat.set_shader_parameter(&"ray_onset", shatter_ray_onset)
 
 
 ## The shard field #257's node deaths spawn into — exposed for the live tab
