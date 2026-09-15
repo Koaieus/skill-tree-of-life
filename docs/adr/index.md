@@ -38,6 +38,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0014](0014-one-physics-built-defender-field.md) | One physics-built defender field — the solver consumes data, it does not query | accepted | 2026-09-09 | combat, melee, blade, physics, performance, determinism |
 | [0015](0015-hidden-information-is-trusted-friends-until-a-competitive-release.md) | Hidden information is trusted-friends until a competitive release; the sync model keeps machine enforcement reachable, and lockstep is closed | accepted | 2026-09-09 | multiplayer, netcode, fog, hidden-information, architecture, melee |
 | [0016](0016-a-ratio-contributes-a-line-and-the-stat-floors-once.md) | A ratio intrinsic contributes a line, not a stair; an INT stat floors its finished total once | accepted | 2026-09-14 | stats, balance, loot, formulas, design |
+| [0017](0017-combat-quantities-are-int-and-a-merged-read-floors-once.md) | Damage, armor, health, ranges and hop counts are INT stats; a merged (node-local) read floors exactly as a bare one | accepted | 2026-09-15 | stats, balance, combat, design |
 
 ## Reading order
 
