@@ -34,6 +34,38 @@ func test_pop_default_precision_negative_keeps_sign() -> void:
 	assert_eq(label.text, "▼-2")
 
 
+## #729 — a `def` argument lets the colour carry polarity while the arrow/sign
+## stay arithmetic truth. `min_damage_taken` is `lower_is_better`, so a -1
+## delta (the floor dropping — good) reads GREEN, and a +1 delta reads RED.
+func test_pop_with_lower_is_better_def_colours_negative_delta_positive() -> void:
+	var chip: DeltaChip = _CHIP_SCENE.instantiate()
+	add_child_autofree(chip)
+	var def: StatDef = StatRegistry.get_def(&"min_damage_taken")
+	chip.pop(-1.0, 0, "", def)
+	var label: Label = chip.get_node(^"%Label")
+	assert_eq(label.text, "▼-1")
+	assert_eq(label.modulate, chip.positive_color)
+
+
+func test_pop_with_lower_is_better_def_colours_positive_delta_negative() -> void:
+	var chip: DeltaChip = _CHIP_SCENE.instantiate()
+	add_child_autofree(chip)
+	var def: StatDef = StatRegistry.get_def(&"min_damage_taken")
+	chip.pop(1.0, 0, "", def)
+	var label: Label = chip.get_node(^"%Label")
+	assert_eq(label.text, "▲+1")
+	assert_eq(label.modulate, chip.negative_color)
+
+
+func test_pop_with_no_def_keeps_sign_only_colouring() -> void:
+	var chip: DeltaChip = _CHIP_SCENE.instantiate()
+	add_child_autofree(chip)
+	chip.pop(-1.0)
+	var label: Label = chip.get_node(^"%Label")
+	assert_eq(label.text, "▼-1")
+	assert_eq(label.modulate, chip.negative_color)
+
+
 func test_combat_value_row_pops_at_row_precision() -> void:
 	var row: CombatValueRow = _COMBAT_VALUE_ROW_SCENE.instantiate()
 	row.decimals = 2

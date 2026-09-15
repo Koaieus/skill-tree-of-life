@@ -39,20 +39,26 @@ func _ready() -> void:
 		_label.add_theme_font_size_override(&"font_size", font_size)
 
 
-## Pops the chip in showing `delta` (sign determines color/arrow), formatted
-## at the caller's own precision/suffix -- the row already knows how it
-## renders its value, so the chip never looks the stat up itself. Sign stays
-## arithmetic (`%+.*f`) so a negative delta keeps its `-` (e.g. ▼-2%, the
-## arrow reads as redundant with the sign -- that's the chip's grammar).
+## Pops the chip in showing `delta`, formatted at the caller's own
+## precision/suffix -- the row already knows how it renders its value, so the
+## chip never looks the stat up itself. Sign stays arithmetic (`%+.*f`) so a
+## negative delta keeps its `-` (e.g. ▼-2%, the arrow reads as redundant with
+## the sign -- that's the chip's grammar): the ARROW is always the sign.
+##
+## `def` (#729) decides the COLOUR instead: `def.is_improvement(delta)` when a
+## [StatDef] is passed (a `-1 min_damage_taken` chip reads `▼-1` in GREEN —
+## sign stays arithmetic truth, colour carries "is this good"). `def == null`
+## falls back to the old sign-only colouring, unchanged.
 ## Auto-hides after LIFETIME seconds. Safe to call in-editor for preview.
-func pop(delta: float, decimals: int = 0, suffix: String = "") -> void:
+func pop(delta: float, decimals: int = 0, suffix: String = "", def: StatDef = null) -> void:
 	if not is_inside_tree() or _panel == null or _label == null:
 		return
 	var positive := delta >= 0.0
 	var arrow := "▲" if positive else "▼"
 	var magnitude := "%+.*f" % [decimals, delta]
 	_label.text = "%s%s%s" % [arrow, magnitude, suffix]
-	_label.modulate = positive_color if positive else negative_color
+	var good := def.is_improvement(delta) if def != null else delta > 0.0
+	_label.modulate = positive_color if good else negative_color
 
 	_panel.scale = Vector2(0.8, 0.8)
 	_panel.offset_top += 3.0
