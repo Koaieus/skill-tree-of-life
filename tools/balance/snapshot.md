@@ -207,8 +207,8 @@
 
 | Readout | Value |
 |---|---|
-| aura_coverage_fraction | 0.117 |
-| aura_covered_nodes | 13 |
+| aura_coverage_fraction | 0.360 |
+| aura_covered_nodes | 40 |
 | cascade_chip_per_turn | 1.000 |
 | core_healing_per_turn | 1.000 |
 | core_healing_vs_cascade_chip_rate | 1.000 |
@@ -316,7 +316,7 @@ _fails this run._
 | melee_dpa_over_ranged_dpa | TBD | 0.750 (range not yet pinned) | channel parity — read from the sniper fixture (DEX-over-STR skew), not a mirror match: every mirror scenario uses plain BalancedCore where STR==DEX and this would read 1.000 by construction |
 | hits_to_drop_node | TBD | 13 (range not yet pinned) | baseline TTK |
 | sp_income_at_level | TBD | 2.000 (range not yet pinned) | progression tempo |
-| aura_coverage_fraction | TBD | 0.117 (range not yet pinned) | D-10 sanctuary bubble — what fraction of territory the heal aura covers must stay bounded, or it out-heals the forced-dealloc chip damage and the core's death clock stops ticking |
+| aura_coverage_fraction | TBD | 0.360 (range not yet pinned) | D-10 sanctuary bubble — what fraction of territory the heal aura covers must stay bounded, or it out-heals the forced-dealloc chip damage and the core's death clock stops ticking |
 | core_node_ttk_under_sustained_pressure | TBD | -1 (range not yet pinned) | D-10 magnitude — the core-node heal is deliberately not a full reset, so sustained pressure must still grind it down; a reading of -1 (never depleted within the simulated cap) means the aura re-exempted the core from D-9 attrition |
 | baseline_raw_damage_vs_mitigation_at_matched_level | TBD | 3.000 (range not yet pinned) | D-11/D-14 — confirms no dead zone re-forms via bulk alone: a leveled defender should be slower to kill but never effectively immune to an uninvested attacker |
 | spell_dpa_over_melee_dpa | TBD | 7.000 (range not yet pinned) | channel parity (#366, sibling of melee_dpa_over_ranged_dpa) — the magic channel's strongest seeded cast (max per-spell spell_dpa across the real pool) against melee, both mitigated at the same defender node, AP read as 1; seed = spell_damage × power (D-32), so the ratio tracks INT-vs-STR/DEX investment |
