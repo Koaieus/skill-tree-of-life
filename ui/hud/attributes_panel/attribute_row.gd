@@ -81,7 +81,7 @@ func _flush_delta() -> void:
 	var was := _rendered(_delta_baseline)
 	if shown == was:
 		return
-	_chip.pop(shown.to_float() - was.to_float())
+	_chip.pop(shown.to_float() - was.to_float(), 0, "", StatRegistry.get_def(attr_id))
 
 
 ## Renders at the same precision [method set_value] does (whole numbers) —

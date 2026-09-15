@@ -66,6 +66,22 @@ func test_pop_with_no_def_keeps_sign_only_colouring() -> void:
 	assert_eq(label.modulate, chip.negative_color)
 
 
+## #729 acceptance 3 — CombatValueRow.stat_id resolves the def, so a
+## min_damage_taken row's floor dropping (3 -> 2, delta -1) reads GREEN.
+func test_combat_value_row_with_stat_id_colours_chip_by_polarity() -> void:
+	var row: CombatValueRow = _COMBAT_VALUE_ROW_SCENE.instantiate()
+	row.stat_id = &"min_damage_taken"
+	add_child_autofree(row)
+	row.set_value(3.0)
+	await get_tree().process_frame
+	row.set_value(2.0)
+	await get_tree().process_frame
+	var chip: DeltaChip = row.get_node(^"%DeltaChip")
+	var label: Label = chip.get_node(^"%Label")
+	assert_eq(label.text, "▼-1")
+	assert_eq(label.modulate, chip.positive_color)
+
+
 func test_combat_value_row_pops_at_row_precision() -> void:
 	var row: CombatValueRow = _COMBAT_VALUE_ROW_SCENE.instantiate()
 	row.decimals = 2

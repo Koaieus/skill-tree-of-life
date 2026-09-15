@@ -24,6 +24,12 @@ extends HBoxContainer
 		if _label != null:
 			_label.text = v
 
+## Which board stat this row displays (#729) — resolves a [StatDef] for the
+## chip's polarity colouring. Empty for a row that isn't a real stat (a
+## derived value like Combat Card Magic's potency/reach), which leaves the
+## chip on its old sign-only colouring.
+@export var stat_id: StringName = &""
+
 ## ALERT tier (#390) — a node-local override is exactly the "genuine
 ## punctuation" the tier vocabulary reserves ALERT for: the value differs
 ## from baseline right now.
@@ -69,7 +75,8 @@ func _flush_delta() -> void:
 	var was := _rendered(_delta_baseline)
 	if shown == was:
 		return
-	_chip.pop(shown.to_float() - was.to_float(), decimals, _last_suffix)
+	var def: StatDef = StatRegistry.get_def(stat_id) if stat_id != &"" else null
+	_chip.pop(shown.to_float() - was.to_float(), decimals, _last_suffix, def)
 
 
 ## Renders at the row's own [member decimals] precision — same rule as
