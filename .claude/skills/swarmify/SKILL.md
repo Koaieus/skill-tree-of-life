@@ -67,7 +67,10 @@ A fork is anything a drone would have to *decide*:
 - **Unstated acceptance** — no failing test, no exact spec.
 - **Unowned surfaces** — two plausible implementations landing on different
   modules means the *approach* is undecided.
-- **Cross-issue dependencies** — recorded, not disqualifying (step 6).
+- **Cross-issue dependencies** — recorded as `--blocked-by` relations *and*
+  in the spec prose (step 7), never disqualifying; the orchestrator
+  sequences them. Only a dependency on a decision nobody has made keeps an
+  issue out of `Ready`.
 
 List them numbered — `AskUserQuestion` for clean choices, prose for the rest.
 
