@@ -409,10 +409,13 @@ func _run_preview_loop(gen: int) -> void:
 		# outlives the `_refresh` that primed it, and a plan re-validated
 		# mid-loop would otherwise replay nothing.
 		_pump_prediction(live_plan)
-		# #821: the PARTIAL is a valid picture. `SkillBlade.play` reads the
-		# sample count once, at the top, so a cycle started mid-slice arcs as
-		# far as the prediction had got and the NEXT cycle — a swing plus a fade
-		# later, by which time the slices are long done — arcs the whole way.
+		# #821: the PARTIAL is a head start, not a first cycle. The run appends
+		# to this same trajectory in place, so a cycle started mid-slice is
+		# sized to the WHOLE swing (`prediction_duration`, the #796 shape
+		# `launch` already uses) and `play` picks up each slice as it lands
+		# behind the playhead — the player sees `1 2 3 … 9` once, never
+		# `1 2 - pause - 1 2 3 … 9`. Should the playhead ever outrun the pump,
+		# `BladeTrajectory.sample` holds at the frontier pose until it catches up.
 		var prediction := live_plan.prediction_partial()
 		if prediction == null or prediction.trajectory == null \
 				or prediction.trajectory.samples.size() < 2:
@@ -426,7 +429,8 @@ func _run_preview_loop(gen: int) -> void:
 		# the ghost no longer builds one — hand it the predicted swing's.
 		blade.state.obstacles = prediction.obstacles
 		blade.pop_result = prediction.pops
-		await blade.play(prediction.trajectory, [], true)
+		await blade.play(prediction.trajectory, [], true, 1.0,
+				live_plan.prediction_duration())
 		if gen != _gen or _ghost == null:
 			return
 		var fade := create_tween()

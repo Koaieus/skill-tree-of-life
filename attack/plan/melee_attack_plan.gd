@@ -1125,6 +1125,19 @@ func is_predicting() -> bool:
 	return _pending_prediction != null
 
 
+## The trajectory-time length the in-flight slice run will finish at, or the
+## completed prediction's own duration once there is one. The aim-time twin of
+## [method replay_duration], for the same reason: [method MeleePreview]'s loop
+## sizes its playback tween off this so the ghost mounted on the click frame
+## keeps arcing as the slices land behind the playhead, rather than ending at
+## the first slice's [method BladeTrajectory.duration] and starting over.
+func prediction_duration() -> float:
+	if _pending_prediction != null:
+		return _pending_prediction.total_duration()
+	return _prediction.trajectory.duration() \
+			if _prediction != null and _prediction.trajectory != null else 0.0
+
+
 ## Drop the cached prediction, and CANCEL any slice run in flight. Called from
 ## every site that emits [signal HighlightProvider.state_changed] — the
 ## selection, the swing direction and the temp-upgrade set are all inputs to the

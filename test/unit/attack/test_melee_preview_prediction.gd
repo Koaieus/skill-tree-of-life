@@ -578,3 +578,25 @@ func test_the_mounted_preview_slices_the_resolve_across_frames() -> void:
 			"the preview's per-frame pump finishes it without another click")
 	assert_eq(plan.prediction().trajectory.samples.size(), _swing_steps() + 1,
 			"and what it finishes on is the whole swing")
+
+
+## The partial arc is a HEAD START, not a first cycle. The ghost mounted on the
+## click frame keeps arcing as the slices land behind the playhead — the tween
+## is sized to the whole swing, not to the samples resolved so far — so the
+## player sees `1 2 3 … 9` once, never `1 2 - pause - 1 2 3 … 9`.
+func test_the_partial_arc_continues_into_the_whole_swing_without_restarting() -> void:
+	await _setup(Vector2.from_angle(_TURNS * TAU) * _SPACING)
+	var plan := await _arm()
+	assert_true(plan.is_predicting(), "fixture: the click frame is mid-slice")
+	var blade := _preview.current_blade()
+	assert_not_null(blade, "fixture: the click mounted a ghost")
+	watch_signals(blade)
+
+	# The first slice is 12 samples = 0.1s of swing; 0.6s is well past that and
+	# well short of the 1.2s a whole swing takes.
+	await get_tree().create_timer(0.6).timeout
+
+	assert_not_null(plan.prediction(), "fixture: the slices are long done by now")
+	assert_signal_not_emitted(blade, "playback_finished",
+			"the first cycle plays the WHOLE swing, growing under the playhead")
+	assert_same(_preview.current_blade(), blade, "and the ghost was never rebuilt")
