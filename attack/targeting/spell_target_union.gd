@@ -11,7 +11,7 @@ extends RefCounted
 ## every eligible caster's reach, with the source auto-picked per target.
 ##
 ## [b]It is not moot, though[/b], which is why [member best_source] exists at
-## all: `spell_damage` is node-local (a [CoreAura] can grant more of it the
+## all: `spell_damage` is node-local (an [AuraEffect] can grant more of it the
 ## closer to the core), so the same spell on the same target hits differently
 ## depending on which owned node casts it. This picks the strongest available
 ## caster per target, silently — measured spread (Ninja +40%, Serpent ~flat)

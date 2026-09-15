@@ -57,14 +57,16 @@ The stack counter itself is **runtime state on `SkillNode` (`regen_stacks`), not
 
 Turn-start refill-to-full is **gone** (D-9) — damage persists across turns. `SkillNode.refill()` survives for the allocation path only, and the resulting dealloc/realloc full-heal is an **accepted interaction, not a bug** (it costs DP/MP and needs topology permitting the dealloc without islanding). See `docs/domain/node-hp.md`.
 
-### CoreClass auras (D-10, #270)
+### CoreClass auras (D-10, #270; ported onto `AuraEffect` in #720)
 
-`CoreClass.aura` holds a `CoreAura` resource; `HealAura` is the first concrete one. `value_at_hop(h) = base × (1 − h/range)`, clamped at 0, with **both `base` and `range` authored — never derived**. Deriving range from base would make a strong aura automatically a wide one, and covered-node count grows ~quadratically in radius; bounding coverage is the whole point, since an aura blanketing most of an entity's territory out-heals the chip damage driving the forced-dealloc death clock.
+A class's turn-start healing aura is `HealAuraEffect` (`effects/heal_aura_effect.gd`), an `AuraEffect` subclass authored on `CoreClass.effects` like any other class effect (Ninja/Serpent) — there is no separate `CoreClass.aura` field or standalone `CoreAura`/`HealAura` pair anymore. The falloff is whatever `reach`/`metric`/`distance_scale` the resource carries: Balanced pairs `HopRangeFinder(max_hops 4)` with `ExpressionScale("5 - d")` for an absolute 5,4,3,2,1 ladder over hops 0–4 (#900's scale-returns-the-value shape, not a derived range).
 
-- **Aura parameters live on the resource, NOT the stat board.** Don't add `aura_heal_base`/`aura_heal_range` as stats.
-- **Hop distance is measured over the OWNED subgraph** (`entity.navigator`) via `RangeFinder.gather`, never the global navigator and never `in_range` in a loop — see `.claude/rules/graph.md`.
+- **`base` lives on the effect resource, NOT the stat board.** Don't add `aura_heal_base`/`aura_heal_range` as stats.
+- **Hop distance is measured over the OWNED subgraph** (`entity.navigator`, reached through `EffectContext.navigator`) via `RangeFinder.gather`, never the global navigator and never `in_range` in a loop — see `.claude/rules/graph.md`.
+- **A payload-channel subclass, not a membership one** (see `docs/domain/effect-system.md`'s payload seam): the heal is a per-turn amount, so `HealAuraEffect` overrides `_on_turn_start(ctx)` rather than `_grant_to` — `_grant_to` is a deliberate no-op, and `_has_payload()` reads `base > 0.0 or distance_scale != null` since this channel carries no `modifiers`.
 - The aura heals **through** the damage gate but **grants no ramp**; it's additive outside the ramp term: `total = (node_healing + stacks × ramp) + aura_at_hop`.
-- The resource is a **channel, not a payload** — armor/damage auras are equally valid. Don't hardcode "aura == healing" into its shape.
+- **Clamped at 0 regardless of `discard`.** A negative computed value would be damage with no `AttackRecord` behind it (`.claude/rules/attack-timeline.md`), so `_on_turn_start` does an explicit `maxf(computed, 0.0)` before healing rather than relying on the `discard` policy, which only ever decided whether a MODIFIER-channel value was worth granting.
+- `AuraEffect` itself is a **channel, not a payload** — armor/damage auras are equally valid alongside heal ones. Don't hardcode "aura == healing" into its shape.
 
 ### Node combat health
 
@@ -332,7 +334,7 @@ array, edit it and every class composing it changes):
 
 **A `CoreClass` `.tres` is a leaf (D-27).** It never references another
 `CoreClass` — shared batches live inside its typed arrays (`modifiers` via a
-pack, `effects` via a shared `Effect`/`CoreAura` `.tres`) instead. Packs live
+pack, `effects` via a shared `Effect` `.tres`, e.g. an `AuraEffect` subclass) instead. Packs live
 outside `entity/core/` (`stats_system/packs/`) so `CoreClass.load_all()` never
 picks one up as a phantom selectable class. Two class-level mechanisms
 (`inherits: CoreClass`, then `composes: Array[CoreClass]`) were built and

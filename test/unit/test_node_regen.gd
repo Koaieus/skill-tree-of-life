@@ -1,6 +1,7 @@
 extends GutTest
 
-## D-9 gated/ramping node regen + D-10 CoreClass healing aura (#270).
+## D-9 gated/ramping node regen + D-10 CoreClass healing aura (#270, ported
+## onto AuraEffect as HealAuraEffect in #720).
 ##
 ## Fixtures follow .claude/rules/scene-composition.md (instantiate scenes,
 ## don't hand-compose) and .claude/rules/graph.md (populate a Graph via
@@ -136,7 +137,13 @@ func test_turn_start_no_longer_refills_to_full() -> void:
 			"regression guard: turn start must not refill to full (D-9 removed that sweep)")
 
 
-# ── D-10: CoreClass healing aura ─────────────────────────────────────────
+# ── D-10: CoreClass healing aura (HealAuraEffect on AuraEffect, #720) ─────
+#
+# Driven through Entity._on_turn_started — the production path — never a
+# hand-rolled `_distances`/`values_from` call. Every node is pre-damaged
+# (`_true_damage`) immediately before the turn so D-9's base-regen gate reads
+# "damaged this turn" and contributes exactly 0, isolating the aura's own
+# heal as a clean before/after delta.
 
 func _chain(core: SkillNode, length: int, entity: Entity, alloc: AllocationSystem) -> Array[SkillNode]:
 	var chain: Array[SkillNode] = [core]
@@ -150,21 +157,55 @@ func _chain(core: SkillNode, length: int, entity: Entity, alloc: AllocationSyste
 	return chain
 
 
+## Builds a `HealAuraEffect` over an owned-subgraph hop reach with an
+## `ExpressionScale` formula — the same two knobs (`reach`, `distance_scale`)
+## every authored aura uses, `metric` left `null` (reach's own hop distances).
+func _heal_aura(base: float, max_hops: int, formula: String,
+		discard: AuraEffect.Discard = AuraEffect.Discard.NON_POSITIVE) -> HealAuraEffect:
+	var aura := HealAuraEffect.new()
+	aura.base = base
+	var reach := HopRangeFinder.new()
+	reach.max_hops = max_hops
+	aura.reach = reach
+	var scale := ExpressionScale.new()
+	scale.formula = formula
+	aura.distance_scale = scale
+	aura.discard = discard
+	return aura
+
+
+## +[param delta] max node HP via an entity-board modifier — headroom so a
+## heal can land in full without clipping against the cap, and pre-damage can
+## be read back as an exact "gate suppressed the base term" delta.
+func _bump_node_health_cap(delta: float) -> void:
+	var mod := StatModifier.new()
+	mod.stat_id = &"node_health"
+	mod.operation = StatModifier.Operation.ADD_BASE
+	mod.value = delta
+	_entity.stat_board.node_health.add_modifier(mod)
+
+
 func test_aura_falloff_by_hop() -> void:
 	var core := _make_node("Core")
 	_alloc.force_allocate(_entity, core)
 	_entity.core_location = core
 	var chain := _chain(core, 3, _entity, _alloc)  # hop1, hop2, hop3
-	var aura := HealAura.new()
-	aura.base = 10.0
-	aura.hop_range = 3.0
+	_bump_node_health_cap(90.0)
+	var aura := _heal_aura(10.0, 3, "v * (1 - d / max)")
+	_entity.grant_effect(aura)
 
-	var values := aura.values_from(core, _entity.navigator)
-	# value_at_hop(h) = base * (1 - h/range): 10, 6.667, 3.333, 0 for base 10 / range 3.
-	assert_almost_eq(values.get(core, -1.0), 10.0, 0.001, "core's own node heals base (hop 0)")
-	assert_almost_eq(values.get(chain[1], -1.0), 20.0 / 3.0, 0.001, "hop 1")
-	assert_almost_eq(values.get(chain[2], -1.0), 10.0 / 3.0, 0.001, "hop 2")
-	assert_false(values.has(chain[3]), "hop 3 (== range) clamps to 0 and is omitted")
+	for n in chain:
+		_true_damage(n, 50.0)
+	_entity._on_turn_started(_entity)
+
+	# LinearScale-equivalent formula: base * (1 - d/max) = 10, 6.667, 3.333, 0
+	# for base 10 / max_hops 3 — floored once, here, per ADR 0017 (health is
+	# an INT quantity end to end), and the rim (hop == max_hops) computes
+	# exactly 0 and heals nothing.
+	assert_almost_eq(_hp_pool(core).current, 60.0, 0.001, "core's own node heals base (hop 0)")
+	assert_almost_eq(_hp_pool(chain[1]).current, 56.0, 0.001, "hop 1: 6.667 floors to 6")
+	assert_almost_eq(_hp_pool(chain[2]).current, 53.0, 0.001, "hop 2: 3.333 floors to 3")
+	assert_almost_eq(_hp_pool(chain[3]).current, 50.0, 0.001, "hop 3 (== max_hops) computes 0, heals nothing")
 
 
 func test_aura_base_and_range_independent() -> void:
@@ -172,27 +213,41 @@ func test_aura_base_and_range_independent() -> void:
 	_alloc.force_allocate(_entity, core)
 	_entity.core_location = core
 	var chain := _chain(core, 3, _entity, _alloc)
+	_bump_node_health_cap(290.0)  # headroom across two turns' worth of damage+heal
 
-	var weak := HealAura.new()
-	weak.base = 10.0
-	weak.hop_range = 3.0
-	var strong := HealAura.new()
-	strong.base = 20.0
-	strong.hop_range = 3.0  # same range, only base doubles
+	var aura := _heal_aura(10.0, 3, "v * (1 - d / max)")
+	_entity.grant_effect(aura)
 
-	var weak_values := weak.values_from(core, _entity.navigator)
-	var strong_values := strong.values_from(core, _entity.navigator)
+	var nodes: Array[SkillNode] = [core, chain[1], chain[2], chain[3]]
+	for n in nodes:
+		_true_damage(n, 50.0)
+	var before_weak: Dictionary[SkillNode, float] = {}
+	for n in nodes:
+		before_weak[n] = _hp_pool(n).current
+	_entity._on_turn_started(_entity)
+	var weak_core_heal: float = _hp_pool(core).current - before_weak[core]
+	var weak_hop1_heal: float = _hp_pool(chain[1]).current - before_weak[chain[1]]
 
-	# Same coverage set (which nodes are touched) ...
-	assert_eq(weak_values.keys().size(), strong_values.keys().size(),
-			"raising base alone must not change how many nodes are covered")
-	for node in weak_values:
-		assert_true(strong_values.has(node), "coverage set must be identical")
-	# ... but the healed amounts scale with base.
-	assert_almost_eq(strong_values[core], 20.0, 0.001)
-	assert_almost_eq(strong_values[chain[1]], 40.0 / 3.0, 0.001)
-	assert_almost_eq(strong_values[chain[1]], weak_values[chain[1]] * 2.0, 0.001,
-			"doubling base doubles the healed amount at a given hop")
+	# Raising base alone must not change coverage — same `reach`, only the
+	# magnitude scales. Re-damage every node so the D-9 gate isolates turn 2's
+	# heal the same way it isolated turn 1's.
+	aura.base = 20.0
+	for n in nodes:
+		_true_damage(n, 50.0)
+	var before_strong: Dictionary[SkillNode, float] = {}
+	for n in nodes:
+		before_strong[n] = _hp_pool(n).current
+	_entity._on_turn_started(_entity)
+	var strong_core_heal: float = _hp_pool(core).current - before_strong[core]
+	var strong_hop1_heal: float = _hp_pool(chain[1]).current - before_strong[chain[1]]
+	var strong_hop3_heal: float = _hp_pool(chain[3]).current - before_strong[chain[3]]
+
+	assert_almost_eq(strong_core_heal, weak_core_heal * 2.0, 0.001,
+			"doubling base doubles the healed amount at hop 0")
+	assert_almost_eq(strong_hop1_heal, weak_hop1_heal * 2.0, 0.001,
+			"doubling base doubles the healed amount at hop 1")
+	assert_almost_eq(strong_hop3_heal, 0.0, 0.001,
+			"coverage unchanged: the rim (hop == max_hops) still computes 0")
 
 
 func test_aura_hop_distance_uses_owned_subgraph() -> void:
@@ -212,37 +267,33 @@ func test_aura_hop_distance_uses_owned_subgraph() -> void:
 	_graph.add_edge(core, enemy)
 	_graph.add_edge(enemy, target)
 
-	var aura := HealAura.new()
-	aura.base = 10.0
-	aura.hop_range = 3.0  # would reach a global-shortcut 2-hop target, not a 4-hop one
+	_bump_node_health_cap(90.0)
+	# max_hops 3 would reach a global-shortcut 2-hop target, not a 4-hop one.
+	var aura := _heal_aura(10.0, 3, "v * (1 - d / max)")
+	_entity.grant_effect(aura)
 
-	var values := aura.values_from(core, _entity.navigator)
-	assert_false(values.has(target),
-			"target is 4 owned-hops away (out of range); a global shortcut through unowned territory must not shrink that")
-	assert_almost_eq(values.get(chain[1], -1.0), 20.0 / 3.0, 0.001, "sanity: owned hop-1 node still measured correctly")
+	for n in [core, chain[1], target]:
+		_true_damage(n, 50.0)
+	_entity._on_turn_started(_entity)
+
+	assert_almost_eq(_hp_pool(target).current, 50.0, 0.001,
+			"target is 4 owned-hops away (out of range); a global shortcut through unowned territory must not shrink that — no heal lands")
+	assert_almost_eq(_hp_pool(chain[1]).current, 56.0, 0.001, "sanity: owned hop-1 node still measured correctly")
 
 
 func test_aura_heals_through_damage_gate_and_grants_no_ramp() -> void:
 	var core := _make_node("Core")
 	# Give this node lots of headroom so the aura heal can't clip against max
 	# and distort the "exactly the aura's value" assertion.
-	var big_max := StatModifier.new()
-	big_max.stat_id = &"node_health"
-	big_max.operation = StatModifier.Operation.ADD_BASE
-	big_max.value = 90.0
-	_entity.stat_board.node_health.add_modifier(big_max)
+	_bump_node_health_cap(90.0)
 
 	_alloc.force_allocate(_entity, core)
 	_entity.core_location = core
 	var hp := _hp_pool(core)
 	assert_almost_eq(hp.value, 100.0, 0.001, "sanity: max bumped to 100")
 
-	var cc := CoreClass.new()
-	var aura := HealAura.new()
-	aura.base = 10.0
-	aura.hop_range = 3.0
-	cc.aura = aura
-	_entity.core_class = cc
+	var aura := _heal_aura(10.0, 3, "v * (1 - d / max)")
+	_entity.grant_effect(aura)
 
 	# Damage well below max so the aura's heal has headroom to land in full —
 	# healing 10 after only 5 damage would clip against the cap regardless of
@@ -257,3 +308,84 @@ func test_aura_heals_through_damage_gate_and_grants_no_ramp() -> void:
 	assert_almost_eq(hp.current, 60.0, 0.001,
 			"aura heals through combat: gate suppresses the base term only")
 	assert_eq(core.regen_stacks, 0, "aura healing must not grant ramp")
+
+
+## New coverage (#720 acceptance 2): the Balanced formula's exact ladder, and
+## proof the reach bound is the walk bound — a node one hop past `max_hops`
+## is never visited at all, not merely healed for 0.
+func test_aura_exact_ladder_5_minus_d_over_four_hops() -> void:
+	var core := _make_node("Core")
+	_alloc.force_allocate(_entity, core)
+	_entity.core_location = core
+	var chain := _chain(core, 5, _entity, _alloc)  # hop1..hop5
+	_bump_node_health_cap(40.0)
+
+	var aura := _heal_aura(5.0, 4, "5 - d")
+	_entity.grant_effect(aura)
+
+	for n in chain:
+		_true_damage(n, 20.0)
+	_entity._on_turn_started(_entity)
+
+	assert_almost_eq(_hp_pool(core).current, 25.0, 0.001, "hop 0 heals 5")
+	assert_almost_eq(_hp_pool(chain[1]).current, 24.0, 0.001, "hop 1 heals 4")
+	assert_almost_eq(_hp_pool(chain[2]).current, 23.0, 0.001, "hop 2 heals 3")
+	assert_almost_eq(_hp_pool(chain[3]).current, 22.0, 0.001, "hop 3 heals 2")
+	assert_almost_eq(_hp_pool(chain[4]).current, 21.0, 0.001, "hop 4 heals 1")
+	assert_almost_eq(_hp_pool(chain[5]).current, 20.0, 0.001,
+			"hop 5 is past max_hops 4 — never visited by the walk, no heal")
+
+
+## New coverage (#720 acceptance 2): a formula that goes negative past its own
+## zero ring, under `discard NONE` (nothing excluded from the walk) — the
+## clamp in `HealAuraEffect._on_turn_start`, not `discard`, is what keeps a
+## negative result from ever landing as damage.
+func test_aura_clamps_negative_result_to_zero_regardless_of_discard() -> void:
+	var core := _make_node("Core")
+	_alloc.force_allocate(_entity, core)
+	_entity.core_location = core
+	var chain := _chain(core, 4, _entity, _alloc)  # hop1..hop4
+	_bump_node_health_cap(40.0)
+
+	var aura := _heal_aura(3.0, 4, "3 - d", AuraEffect.Discard.NONE)
+	_entity.grant_effect(aura)
+
+	for n in chain:
+		_true_damage(n, 20.0)
+	var before_hop3 := _hp_pool(chain[3]).current
+	var before_hop4 := _hp_pool(chain[4]).current
+	_entity._on_turn_started(_entity)
+
+	assert_almost_eq(_hp_pool(chain[3]).current, before_hop3, 0.001,
+			"hop 3: '3 - d' computes exactly 0, heals nothing")
+	assert_almost_eq(_hp_pool(chain[4]).current, before_hop4, 0.001,
+			"hop 4: '3 - d' computes -1 under discard NONE — clamped to 0, never damages")
+
+
+## New coverage (#720 acceptance 3): an allocation/deallocation inside reach,
+## between turns, must not throw and must not double-heal — HealAuraEffect's
+## `_grant_to` is a no-op, so the inherited #626 incremental topology paths
+## (and the full-rebuild fallback they take when `metric` is null) do nothing
+## for this channel regardless of which one runs.
+func test_alloc_dealloc_inside_reach_is_a_no_op_for_the_heal_channel() -> void:
+	var core := _make_node("Core")
+	_alloc.force_allocate(_entity, core)
+	_entity.core_location = core
+	var chain := _chain(core, 2, _entity, _alloc)  # hop1, hop2
+	_bump_node_health_cap(40.0)
+
+	var aura := _heal_aura(5.0, 4, "5 - d")
+	_entity.grant_effect(aura)
+
+	var extra := _make_node("Extra")
+	_graph.add_edge(chain[2], extra)
+	_alloc.force_allocate(_entity, extra)
+	_alloc.force_deallocate(extra)
+
+	for n in chain:
+		_true_damage(n, 20.0)
+	_entity._on_turn_started(_entity)
+
+	assert_almost_eq(_hp_pool(core).current, 25.0, 0.001,
+			"heal still lands normally after the no-op topology churn")
+	assert_almost_eq(_hp_pool(chain[1]).current, 24.0, 0.001)

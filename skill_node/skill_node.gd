@@ -1137,9 +1137,10 @@ func notify_refilled(prev: float, after: float, silent: bool) -> void:
 ## - else (already full) -> reset the stack.
 ##
 ## Aura healing (D-10) is [i]not[/i] computed here — it ignores this gate and
-## grants no ramp, so the caller applies it separately via
-## [method CoreAura.apply] / [method heal_damage] on top of whatever this
-## method does. Folding it in here would wrongly gate it on damage-this-turn.
+## grants no ramp, so it lands separately via [HealAuraEffect]'s
+## `_on_turn_start` hook (#720), which calls [method heal_damage] on top of
+## whatever this method does. Folding it in here would wrongly gate it on
+## damage-this-turn.
 func apply_turn_regen() -> void:
 	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
 	if hp == null:

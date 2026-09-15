@@ -137,17 +137,22 @@ const _AURA_BRANCHING_FACTOR := 3
 
 static func _core_adjacent_aura(root: Node, name: String, level: int) -> Dictionary:
 	var aura_class := CoreClass.new()
-	var aura := HealAura.new()
+	var aura := HealAuraEffect.new()
 	aura.base = 10.0
-	aura.hop_range = 3.0
-	aura_class.aura = aura
+	var reach := HopRangeFinder.new()
+	reach.max_hops = 3
+	aura.reach = reach
+	aura_class.effects = [aura]
 
 	var attacker := await BalanceFixture.build(root, level, _BALANCED)
 	var defender := await BalanceFixture.build(
 		root, level, aura_class, BalanceFixture.Topology.TREE, _AURA_BRANCHING_FACTOR)
 
 	var core := defender.core_node()
-	var aura_values := aura.values_from(core, defender.entity.navigator)
+	# Coverage reads the effect's own walk (`_distances`, inherited from
+	# AuraEffect) rather than re-deriving membership by hand — reach IS
+	# membership (#900), so this is exactly what `_on_turn_start` iterates.
+	var aura_values := aura._distances(core, defender.entity.navigator)
 	var owned := defender.owned_count()
 	var readouts: Dictionary = {
 		"defender_level": level,

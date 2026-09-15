@@ -237,7 +237,7 @@ is what catches it).
 | Bulwark | `EuclideanRangeFinder` / `HopRangeFinder` | inherited | `FlatScale` |
 | Halo | `HopRangeFinder(shell+1)` | inherited | `ShellScale` |
 | Ninja | `HopRangeFinder(2)` | inherited | `LinearScale` (falling, `strength` buff) |
-| heal ramp (#720) | `HopRangeFinder(4)` | inherited | `ExpressionScale("5 - d")` |
+| Balanced heal (`HealAuraEffect`, #720) | `HopRangeFinder(4)` | inherited | `ExpressionScale("5 - d")` |
 | Serpent A | `null` | `HopMetric` | `ProportionalScale` (positive mods) |
 | Serpent B | `null` | `EuclideanMetric` | `ProportionalScale` (negative mods) |
 
@@ -267,10 +267,15 @@ an incremental path**, `_topology_changed`, which is three branches cheapest-fir
    what moved) or `_apply_membership_update` (one that doesn't: only the changed
    node can need touching, so one metric read and one grant-or-revoke).
 
-`AuraEffect` also owns the **payload seam** the two channels share:
+`AuraEffect` also owns the **payload seam** the channels share:
 `_has_payload()` and `_grant_to(ctx, node, distance, bound)` — the scale is evaluated *inside* the seam now, per modifier leaf, since it needs each leaf's authored value. `TagAuraEffect` is those two
 methods and nothing else — the walk, the knobs, the origin rule and the batching
-below are inherited, not copied.
+below are inherited, not copied. `HealAuraEffect` (#720) is a third shape on the
+same seam: its payload is a per-turn amount rather than a membership grant, so
+it overrides `_on_turn_start(ctx)` instead of `_grant_to` (which it leaves a
+no-op) and reuses `_distances`/`_bound` directly from inside that hook — the
+inherited `_topology_changed` incremental paths still run on alloc/dealloc but
+stay harmless, since `_grant_to` never grants anything for this channel.
 
 Reach queries go through `RangeFinder.gather`, never `in_range` in a loop — see
 `.claude/rules/graph.md`.

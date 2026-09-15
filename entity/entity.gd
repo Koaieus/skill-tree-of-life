@@ -599,8 +599,9 @@ func get_active_tags() -> Array[StringName]:
 ## Listens for TurnManager.turn_started. Each entity self-handles its own
 ## start-of-turn upkeep so we don't grow a god-mode TurnManager. Per-turn
 ## bookkeeping today: replenish pools (per each pool's per_turn_mode, including
-## skill_points' CUSTOM wound-heal), run the gated node regen sweep (D-9) plus
-## the class aura (D-10), run the class hook.
+## skill_points' CUSTOM wound-heal), run the gated node regen sweep (D-9), run
+## the class hook, then dispatch `_on_turn_start` — which is where a class's
+## healing aura (D-10, `HealAuraEffect` on `CoreClass.effects`, #720) lands.
 ##
 ## NONE of it runs on the entity's FIRST turn: you open the game in the state
 ## you spawned in, not one free tick of income richer. Every pool is authored at
@@ -637,20 +638,14 @@ func _on_turn_started(entity: Entity) -> void:
 	stat_board.apply_per_turn_upkeep()
 	# D-9: turn-start refill-to-full is gone. Every owned node instead runs a
 	# gated, ramping regen (SkillNode.apply_turn_regen) — damage persists
-	# across turns. D-10's class aura is layered on top, computed once per
-	# turn over the OWNED subgraph (never graph.navigator — see
-	# .claude/rules/graph.md "Reach queries") and applied outside the D-9
-	# gate: it heals through combat and grants no ramp.
+	# across turns. D-10's class aura (now a HealAuraEffect on
+	# core_class.effects, #720) is layered on top via the `_on_turn_start`
+	# dispatch below: it walks the OWNED subgraph itself (never
+	# graph.navigator — see .claude/rules/graph.md "Reach queries") and heals
+	# outside this gate, through combat and with no ramp.
 	if navigator != null:
-		var aura: CoreAura = core_class.aura if core_class != null else null
-		var aura_values: Dictionary[SkillNode, float] = {}
-		if aura != null and core_location != null:
-			aura_values = aura.values_from(core_location, navigator)
 		for n in navigator.get_mirrored_nodes():
 			n.apply_turn_regen()
-			var aura_value: float = aura_values.get(n, 0.0)
-			if aura_value > 0.0:
-				aura.apply(n, aura_value)
 	if core_class != null:
 		core_class.on_turn_started(self)
 	# #778: sparse spikes regen — exactly the nodes marked spent since the

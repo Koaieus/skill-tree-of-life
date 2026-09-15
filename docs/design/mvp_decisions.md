@@ -653,7 +653,7 @@ The flag reframes `CompositeStatModifier` from *"loot bundle"* to *"modifier pac
 
 - **A `CoreClass` `.tres` is a leaf.** It declares its own identity and references shared parts. No class ever references another class.
 - **Shared modifier batches** are file-backed `CompositeStatModifier` `.tres`, `loots_as_unit = false` for plain reuse, `true` when balanced only as a unit.
-- **Shared effects/auras** are file-backed `Effect` / `CoreAura` `.tres` in `effects`. The heal-somewhat-at-turn-start core aura is the first real case — wanted on effectively every core. Every effect in-tree today is an inline `SubResource`; convert on the second consumer, not before.
+- **Shared effects/auras** are file-backed `Effect` (an `AuraEffect` subclass, e.g. `HealAuraEffect`, #720) `.tres` in `effects`. The heal-somewhat-at-turn-start core aura is the first real case — wanted on effectively every core. Every effect in-tree today is an inline `SubResource`; convert on the second consumer, not before.
 - **Packs live outside `entity/core/`** so they never touch `CoreClass.load_all()`.
 
 **Pure append, not override-by-`stat_id`** (carried from the first resolution, still correct). The stat pipeline already stacks modifiers — multiple modifiers on one stat is the native semantic. "Weaker than the base" is a **negative modifier**, not an override rule.
