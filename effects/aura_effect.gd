@@ -33,7 +33,7 @@ extends Effect
 ## subclass swaps is the pair [method _has_payload] / [method _grant_to]:
 ## "is anything configured" and "put one grant on this node at this distance".
 ## [TagAuraEffect] is that in ~15 lines on the tag channel; #720 ports
-## [HealAura]'s per-turn healing onto the same seam (its payload lands from
+## [HealAuraEffect]'s per-turn healing onto the same seam (its payload lands from
 ## `_on_turn_start` rather than on membership, so it will override the hook and
 ## reuse [method _distances] — the seam is deliberately per-node-per-scale, not
 ## per-modifier, so a non-modifier payload fits without a second walk).

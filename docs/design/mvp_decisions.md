@@ -188,7 +188,7 @@ Verified in `systems/battle_system.gd` — the cascade set is seeded with the **
 
 **Follow-up (noted, not scoped):** a **NodeAddon that provides a healing aura** — small, but better than nothing — is a prime candidate once the AuraEffect parameterisation lands. It gives non-core territory a way to buy local regen.
 
-**Impl status:** Not built. Depends on D-9. Same child issue.
+**Impl status:** ✅ Landed. `HealAuraEffect` (`effects/heal_aura_effect.gd`, #720) on `CoreClass.effects`, over the shared `AuraEffect` walk. CON scaling (#896) added `@export var con_coefficient`: the value handed to `distance_scale.scale(d, bound, v)` is `v = base + con_coefficient × sqrt(CON)`, CON read live off `ctx.entity.stat_board` every `_on_turn_start`, never cached. `max_hops` does not scale with CON, ever — only the payload does. `entity/core/balanced_core.tres` anchors L1 (CON 10) at the same 5 HP the old flat `base 5` gave. **The `Shape`/`Scaling` prose above predates #900** (`DistanceScale.scale` consumes the value, it does not multiply onto it) **and #896** — per the owner's call on #896 (2026-09-15), this file may be stale where it disagrees with the code; the code wins.
 
 ---
 

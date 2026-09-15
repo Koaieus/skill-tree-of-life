@@ -60,21 +60,25 @@ see D-9 in `docs/design/mvp_decisions.md`.
 
 ## The CoreClass healing aura (D-10)
 
-A `CoreClass` may carry a `CoreAura` (`effects/core_aura.gd`) — e.g.
-`HealAura` (`effects/heal_aura.gd`) — radiating from the entity's
-`core_location`. `Entity._on_turn_started` computes
-`aura.values_from(core_location, navigator)` once per turn (one BFS over the
-**owned** subgraph via `HopRangeFinder.gather`, never `graph.navigator` — see
-`.claude/rules/graph.md` "Reach queries"), then calls `aura.apply(node,
-value)` for every node the aura reaches.
+A `CoreClass` may carry a `HealAuraEffect` (`effects/heal_aura_effect.gd`) —
+an `AuraEffect` subclass authored on `CoreClass.effects` like any other class
+effect, radiating from the entity's `core_location` (there is no separate
+`CoreClass.aura` field, and no standalone `CoreAura`/`HealAura` pair — #720
+ported the channel onto `AuraEffect`). `Entity._on_turn_started` dispatches
+`_on_turn_start`, where `HealAuraEffect` walks the **owned** subgraph via the
+shared `AuraEffect._distances` (`reach`/`metric`, never `graph.navigator` —
+see `.claude/rules/graph.md` "Reach queries") and calls `node.heal_damage`
+for every node it reaches.
 
 This runs **outside** `apply_turn_regen`'s gate: the aura heals through
 combat (applies even to a node that took damage this turn) and grants no
-ramp (never touches `regen_stacks`). `base` and `range` are authored
-directly on the `CoreAura` resource, not board stats — see D-10 in
-`docs/design/mvp_decisions.md` for the full rationale (why two independent
-knobs, why flat-not-percent, why the aura doesn't need to bribe the core
-forward).
+ramp (never touches `regen_stacks`). `base` and `con_coefficient` (#896:
+`v = base + con_coefficient × sqrt(CON)`, CON read live off the board every
+turn) are authored directly on the `HealAuraEffect` resource, not board
+stats — see D-10 in `docs/design/mvp_decisions.md` for the rationale (why
+flat-not-percent, why the aura doesn't need to bribe the core forward; its
+"Impl status" line is current, some of its `Shape`/`Scaling` prose predates
+#900/#896 and may not match the code).
 
 ## Promotion history (why the pool, not a bare field)
 
