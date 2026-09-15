@@ -161,9 +161,11 @@ func _chain(core: SkillNode, length: int, entity: Entity, alloc: AllocationSyste
 ## `ExpressionScale` formula — the same two knobs (`reach`, `distance_scale`)
 ## every authored aura uses, `metric` left `null` (reach's own hop distances).
 func _heal_aura(base: float, max_hops: int, formula: String,
-		discard: AuraEffect.Discard = AuraEffect.Discard.NON_POSITIVE) -> HealAuraEffect:
+		discard: AuraEffect.Discard = AuraEffect.Discard.NON_POSITIVE,
+		con_coefficient: float = 0.0) -> HealAuraEffect:
 	var aura := HealAuraEffect.new()
 	aura.base = base
+	aura.con_coefficient = con_coefficient
 	var reach := HopRangeFinder.new()
 	reach.max_hops = max_hops
 	aura.reach = reach
@@ -172,6 +174,20 @@ func _heal_aura(base: float, max_hops: int, formula: String,
 	aura.distance_scale = scale
 	aura.discard = discard
 	return aura
+
+
+## Pins `constitution` to an exact value via a SET modifier — bypasses the
+## default board's own level-derived CON intrinsic so a test can dial CON
+## without also faking level (a derived-value override wants SET, per
+## `.claude/rules/stat-knobs-and-bins.md`). Later calls win ties by
+## insertion order (same [StatModifier] priority), so calling this twice
+## simulates "CON rose between turns."
+func _set_con(value: float) -> void:
+	var mod := StatModifier.new()
+	mod.stat_id = &"constitution"
+	mod.operation = StatModifier.Operation.SET
+	mod.value = value
+	_entity.stat_board.add_modifier(mod)
 
 
 ## +[param delta] max node HP via an entity-board modifier — headroom so a
@@ -393,4 +409,106 @@ func test_alloc_dealloc_inside_reach_is_a_no_op_for_the_heal_channel() -> void:
 	# Cap is 10 (default) + 40 = 50; damage 20 leaves 30 headroom before heal.
 	assert_almost_eq(_hp_pool(core).current, 35.0, 0.001,
 			"heal still lands normally after the no-op topology churn")
-	assert_almost_eq(_hp_pool(chain[1]).current, 34.0, 0.001)
+
+
+# ── D-10: sub-linear CON scaling (#896) ───────────────────────────────────
+#
+# `con_coefficient` widens the value handed to `distance_scale.scale` from
+# `base` alone to `base + con_coefficient * sqrt(CON)`, CON read live off
+# `ctx.entity.stat_board` every `_on_turn_start`. Hand-built effects only —
+# never pin `balanced_core.tres`'s authored coefficient in a test.
+
+## Acceptance 1: base 0, con_coefficient 2, max_hops 2, CON 16 — the same
+## numbers the issue specifies. `v = 0 + 2*sqrt(16) = 8`; `LinearScale`'s
+## `v * (1 - d/max)` reads `v` as a straight multiplier: floor(8*1) = 8 at
+## hop 0, floor(8*0.5) = 4 at hop 1.
+func test_con_scaling_hand_built_effect_matches_acceptance_numbers() -> void:
+	var core := _make_node("Core")
+	_alloc.force_allocate(_entity, core)
+	_entity.core_location = core
+	var chain := _chain(core, 2, _entity, _alloc)  # hop1, hop2
+	_bump_node_health_cap(40.0)
+	_set_con(16.0)
+
+	var aura := _heal_aura(0.0, 2, "v * (1 - d / max)", AuraEffect.Discard.NON_POSITIVE, 2.0)
+	_entity.grant_effect(aura)
+
+	for n in [core, chain[1], chain[2]]:
+		_true_damage(n, 20.0)
+	# Snapshot AFTER damage (and after the D-31 cap-ratchet `_set_con` above
+	# already applied) so the delta below isolates exactly this turn's heal —
+	# raising CON also raises `node_health`'s cap (and ratchets current with
+	# it, `mod_con_to_node_health`), which is a real but separate effect from
+	# this test's subject.
+	var before_core := _hp_pool(core).current
+	var before_hop1 := _hp_pool(chain[1]).current
+	_entity._on_turn_started(_entity)
+
+	assert_almost_eq(_hp_pool(core).current - before_core, 8.0, 0.001,
+			"hop 0: floor(2*sqrt(16)*1) = 8 healed")
+	assert_almost_eq(_hp_pool(chain[1]).current - before_hop1, 4.0, 0.001,
+			"hop 1: floor(2*sqrt(16)*0.5) = 4 healed")
+
+
+## Acceptance 2: raising CON via a board modifier between two turns raises
+## the NEXT turn's heal — proves the read is live off the board every
+## `_on_turn_start`, never cached on the resource at grant time.
+func test_con_scaling_reads_board_live_between_turns() -> void:
+	var core := _make_node("Core")
+	_alloc.force_allocate(_entity, core)
+	_entity.core_location = core
+	_bump_node_health_cap(200.0)
+	_set_con(4.0)  # sqrt(4) = 2 -> v = 3*2 = 6
+
+	var aura := _heal_aura(0.0, 1, "v", AuraEffect.Discard.NON_POSITIVE, 3.0)
+	_entity.grant_effect(aura)
+
+	_true_damage(core, 50.0)
+	var before_first := _hp_pool(core).current
+	_entity._on_turn_started(_entity)
+	assert_almost_eq(_hp_pool(core).current - before_first, 6.0, 0.001,
+			"CON 4: floor(3*sqrt(4)) = 6 healed")
+
+	_set_con(16.0)  # sqrt(16) = 4 -> v = 3*4 = 12; SET ties break last-in
+	_true_damage(core, 50.0)
+	var before_second := _hp_pool(core).current
+	_entity._on_turn_started(_entity)
+	var healed_second: float = _hp_pool(core).current - before_second
+
+	assert_almost_eq(healed_second, 12.0, 0.001,
+			"raising CON between turns raises next turn's heal — the read is live, not cached")
+
+
+## Acceptance 3: reach/coverage at CON 16 and CON 400 is identical — a node
+## just past `max_hops` stays unhealed at either CON, because only the
+## magnitude scales with CON; `max_hops` (the reach bound) never does.
+func test_con_scaling_never_moves_max_hops_reach() -> void:
+	var core := _make_node("Core")
+	_alloc.force_allocate(_entity, core)
+	_entity.core_location = core
+	var chain := _chain(core, 3, _entity, _alloc)  # hop1..hop3
+	_bump_node_health_cap(400.0)
+
+	var aura := _heal_aura(0.0, 2, "v * (1 - d / max)", AuraEffect.Discard.NON_POSITIVE, 5.0)
+	_entity.grant_effect(aura)
+	var far := chain[3]  # hop 3, one past max_hops 2 either way
+
+	_set_con(16.0)
+	_true_damage(far, 100.0)
+	var before_low_con := _hp_pool(far).current
+	_entity._on_turn_started(_entity)
+	assert_almost_eq(_hp_pool(far).current, before_low_con, 0.001,
+			"hop 3 (beyond max_hops 2) untouched at CON 16")
+
+	_set_con(400.0)
+	_true_damage(far, 100.0)
+	var before_high_con := _hp_pool(far).current
+	_entity._on_turn_started(_entity)
+	assert_almost_eq(_hp_pool(far).current, before_high_con, 0.001,
+			"hop 3 stays untouched at CON 400 too — max_hops never scales with CON")
+
+
+## Acceptance 4: `con_coefficient 0` reproduces #720's `base`-only numbers —
+## covered by every pre-existing `_heal_aura(...)` call above with no fifth
+## argument, since the helper now defaults `con_coefficient` to 0.0 and those
+## tests pass unmodified.

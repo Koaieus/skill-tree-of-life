@@ -35,13 +35,26 @@ extends AuraEffect
 ## `.claude/rules/stats-system.md` "Aura parameters live on the resource").
 @export var base: float = 0.0
 
+## D-10 sub-linear scaling (#896): the flat [member base] plus this times
+## [code]sqrt(CON)[/code] is the value handed to [member
+## AuraEffect.distance_scale] — CON read LIVE off [code]ctx.entity.stat_board[/code]
+## every [method _on_turn_start], never cached on the resource, so a
+## mid-run CON grant raises next turn's heal (a board stat read as a formula
+## input — `.claude/rules/stat-knobs-and-bins.md`). Sub-linear on purpose
+## (D-10, `docs/design/mvp_decisions.md`): node_health grows ~linearly with
+## CON, so a flat aura decays into irrelevance as levels climb, but matching
+## that growth 1:1 would keep the fortress dominant forever — `sqrt` sits
+## between the two. `max_hops` (on [member AuraEffect.reach]) deliberately
+## does NOT scale with either term; only the payload does.
+@export var con_coefficient: float = 0.0
+
 
 ## Anything to radiate? This channel carries no [member modifiers], so the
 ## base [Effect]'s emptiness check would always read false — a bare [member
-## base] or an authored [member AuraEffect.distance_scale] both count as
-## "configured".
+## base], a nonzero [member con_coefficient], or an authored [member
+## AuraEffect.distance_scale] all count as "configured".
 func _has_payload() -> bool:
-	return base > 0.0 or distance_scale != null
+	return base > 0.0 or con_coefficient > 0.0 or distance_scale != null
 
 
 ## No-op. This channel's payload lands from [method _on_turn_start], never
@@ -67,11 +80,21 @@ func _on_turn_start(ctx: EffectContext) -> void:
 		return
 	var dists := _distances(source, mirror)
 	var bound := _bound(dists)
+	# CON read live, once per turn-start (not cached on the resource, not
+	# per-node — every node this walk touches shares the same source CON).
+	# `entity` can be null off a shadow slice with no live entity behind it;
+	# treat that the same as CON 0, matching `con_coefficient 0`'s no-op.
+	var con: float = 0.0
+	if ctx.entity != null and ctx.entity.stat_board != null:
+		var raw: Variant = ctx.entity.stat_board.get_value(&"constitution")
+		if raw != null:
+			con = float(raw)
+	var magnitude: float = base + con_coefficient * sqrt(con)
 	for node in dists:
 		if not is_instance_valid(node):
 			continue
 		var d: float = dists[node]
-		var computed: float = base if distance_scale == null else distance_scale.scale(d, bound, base)
+		var computed: float = magnitude if distance_scale == null else distance_scale.scale(d, bound, magnitude)
 		# Clamped here, not via `discard` (see class doc): a negative result
 		# heals 0, it never damages. Floored once, here, per ADR 0017 —
 		# health is an INT quantity end to end.
