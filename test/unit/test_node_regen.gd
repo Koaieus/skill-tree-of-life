@@ -212,13 +212,16 @@ func test_aura_base_and_range_independent() -> void:
 	var core := _make_node("Core")
 	_alloc.force_allocate(_entity, core)
 	_entity.core_location = core
-	var chain := _chain(core, 3, _entity, _alloc)
+	# max_hops 2 (not 3): every d/max below divides evenly, so flooring
+	# (ADR 0017) can't break the "doubling base doubles the heal" relationship
+	# the way it would at a hop whose raw value isn't already integral.
+	var chain := _chain(core, 2, _entity, _alloc)
 	_bump_node_health_cap(290.0)  # headroom across two turns' worth of damage+heal
 
-	var aura := _heal_aura(10.0, 3, "v * (1 - d / max)")
+	var aura := _heal_aura(10.0, 2, "v * (1 - d / max)")
 	_entity.grant_effect(aura)
 
-	var nodes: Array[SkillNode] = [core, chain[1], chain[2], chain[3]]
+	var nodes: Array[SkillNode] = [core, chain[1], chain[2]]
 	for n in nodes:
 		_true_damage(n, 50.0)
 	var before_weak: Dictionary[SkillNode, float] = {}
@@ -240,13 +243,13 @@ func test_aura_base_and_range_independent() -> void:
 	_entity._on_turn_started(_entity)
 	var strong_core_heal: float = _hp_pool(core).current - before_strong[core]
 	var strong_hop1_heal: float = _hp_pool(chain[1]).current - before_strong[chain[1]]
-	var strong_hop3_heal: float = _hp_pool(chain[3]).current - before_strong[chain[3]]
+	var strong_hop2_heal: float = _hp_pool(chain[2]).current - before_strong[chain[2]]
 
 	assert_almost_eq(strong_core_heal, weak_core_heal * 2.0, 0.001,
 			"doubling base doubles the healed amount at hop 0")
 	assert_almost_eq(strong_hop1_heal, weak_hop1_heal * 2.0, 0.001,
 			"doubling base doubles the healed amount at hop 1")
-	assert_almost_eq(strong_hop3_heal, 0.0, 0.001,
+	assert_almost_eq(strong_hop2_heal, 0.0, 0.001,
 			"coverage unchanged: the rim (hop == max_hops) still computes 0")
 
 
@@ -327,12 +330,13 @@ func test_aura_exact_ladder_5_minus_d_over_four_hops() -> void:
 		_true_damage(n, 20.0)
 	_entity._on_turn_started(_entity)
 
-	assert_almost_eq(_hp_pool(core).current, 25.0, 0.001, "hop 0 heals 5")
-	assert_almost_eq(_hp_pool(chain[1]).current, 24.0, 0.001, "hop 1 heals 4")
-	assert_almost_eq(_hp_pool(chain[2]).current, 23.0, 0.001, "hop 2 heals 3")
-	assert_almost_eq(_hp_pool(chain[3]).current, 22.0, 0.001, "hop 3 heals 2")
-	assert_almost_eq(_hp_pool(chain[4]).current, 21.0, 0.001, "hop 4 heals 1")
-	assert_almost_eq(_hp_pool(chain[5]).current, 20.0, 0.001,
+	# Cap is 10 (default) + 40 = 50; damage 20 leaves 30 headroom before heal.
+	assert_almost_eq(_hp_pool(core).current, 35.0, 0.001, "hop 0 heals 5")
+	assert_almost_eq(_hp_pool(chain[1]).current, 34.0, 0.001, "hop 1 heals 4")
+	assert_almost_eq(_hp_pool(chain[2]).current, 33.0, 0.001, "hop 2 heals 3")
+	assert_almost_eq(_hp_pool(chain[3]).current, 32.0, 0.001, "hop 3 heals 2")
+	assert_almost_eq(_hp_pool(chain[4]).current, 31.0, 0.001, "hop 4 heals 1")
+	assert_almost_eq(_hp_pool(chain[5]).current, 30.0, 0.001,
 			"hop 5 is past max_hops 4 — never visited by the walk, no heal")
 
 
@@ -386,6 +390,7 @@ func test_alloc_dealloc_inside_reach_is_a_no_op_for_the_heal_channel() -> void:
 		_true_damage(n, 20.0)
 	_entity._on_turn_started(_entity)
 
-	assert_almost_eq(_hp_pool(core).current, 25.0, 0.001,
+	# Cap is 10 (default) + 40 = 50; damage 20 leaves 30 headroom before heal.
+	assert_almost_eq(_hp_pool(core).current, 35.0, 0.001,
 			"heal still lands normally after the no-op topology churn")
-	assert_almost_eq(_hp_pool(chain[1]).current, 24.0, 0.001)
+	assert_almost_eq(_hp_pool(chain[1]).current, 34.0, 0.001)
