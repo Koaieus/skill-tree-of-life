@@ -243,7 +243,9 @@ git add <your files> && git commit -m "<type>(<scope>): <what>"
 
 Do **not** write `Closes #<n>` in your commit message. `mise run land --closes`
 adds it on top of your tip after every branch of the issue lands; a `Closes`
-in your commit would close it early. Do not rebase, do not merge, do not touch
+in your commit would close it early. **Never touch your issue's parent hub**
+— not its status, not a "closing this too" comment: `land` derives the hub from
+its children. Do not rebase, do not merge, do not touch
 `master`, **do not run `mise run land` yourself** — landing is Sage's step (or
 the orchestrator's, in a run without Sage). Your resume at 150k+ to run one
 command costs more than the command.

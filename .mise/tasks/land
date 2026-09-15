@@ -202,6 +202,11 @@ if [ -n "$closes" ]; then
   else
     echo "  ⚠ board move failed (mise gh-project -- status $closes in-review) — move it by hand"
   fi
+  # A parent never carries work, so the hub follows its children: this is
+  # what moves a hub to in-review the moment its last child lands. Hub → Done
+  # + close waits for the push (`Closes #n` fires there) and the next
+  # `gh-project hygiene --fix` at the train gate. Non-fatal, same as above.
+  if (cd "$main" && mise run --quiet gh-project -- sync-parent "$closes") 2>/dev/null | sed 's/^/  board: /'; then :; fi
 fi
 
 echo "LANDED $branch $(git -C "$main" rev-parse --short "$sha") master=$(git -C "$main" rev-parse --short master)"

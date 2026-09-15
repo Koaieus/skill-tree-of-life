@@ -105,7 +105,9 @@ GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`); board via `mise gh-p
 
 **Reading an issue is two calls** — `gh issue view <n>` prints the body, `--comments` prints ONLY the comments (and prints nothing, exit 0, on a 0-comment issue — that's not a broken call, just what zero comments looks like), and the comments usually hold the decisions. **Never pass `gh --body "..."` with backticks**: the shell silently deletes the span — heredoc to the scratchpad, `--body-file`. **Attribute owner decisions to the owner, verbatim**, dated, as an owner call — never laundered into your own reasoning.
 
-Board commands, the full ladder, the `Backlog`-means-no-live-parent invariant, roadmap fields, sub-issues, and why attribution is load-bearing: **`docs/domain/issue-workflow.md`**.
+**A parent never carries work** — a hub's status is derived from its children (`mise gh-project -- hygiene --fix`, and `land` syncs it per landing); never set a hub's status by hand, never leave a hub's own acceptance spec on the hub, and never park optional follow-ups as children.
+
+Board commands, the full ladder, the `Backlog`-means-no-live-parent invariant, the hub rules, roadmap fields, sub-issues, and why attribution is load-bearing: **`docs/domain/issue-workflow.md`**.
 
 ## Godot conventions
 

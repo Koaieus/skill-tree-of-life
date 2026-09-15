@@ -144,7 +144,13 @@ acceptance 7 — fine, because it was *on the issue*, dated, the owner's.
 ### 5. If it's a hub, decompose into Ready children
 
 An epic (sub-issues > 0, or too big for one worker) is not itself `Ready` — its
-*children* are. Split it **along whatever seam the design actually has** — one
+*children* are, and **a parent never carries work** (owner call 2026-09-15,
+`docs/domain/issue-workflow.md` §Hubs): the moment you split, the hub's own
+acceptance spec — including the defect the hub itself describes — moves into a
+child ("child 0"), the hub keeps only the problem statement, decisions and DAG,
+and you never set its status again: `land` and `hygiene --fix` derive it. A
+follow-up that is *not* required for the hub to be done is a sibling linking
+back, never a child. Split it **along whatever seam the design actually has** — one
 decision, one coherent unit of work. Where that seam also happens to be a file
 boundary, say so; where it doesn't, split anyway and record the overlap. A child
 that spans a shared file is still `Ready`; the orchestrator sequences it.

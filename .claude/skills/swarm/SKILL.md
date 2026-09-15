@@ -456,7 +456,8 @@ never run `land`). Its commits are the handoff.
 the branch onto `master` inside its own worktree, runs `mise run check` plus
 `test:dir` for every `test/unit/<dir>/` the branch touches (a rebased tree is
 a tree nobody tested), amends `Closes #<n>` onto the tip if the drone's
-message lacks it, fast-forwards, and moves the board to `in-review`. It refuses
+message lacks it, fast-forwards, moves the board to `in-review` and derives
+the parent hub's status from its children (`gh-project sync-parent`). It refuses
 — non-zero, reason on stdout — on a main checkout dirty in a file the branch touches, a rebase conflict
 (aborted, files listed), a red `check`/`test:dir`, or a non-ff. It never runs
 the full suite and never pushes.
@@ -991,6 +992,15 @@ If a worker reported a blocker and stopped, put the issue back to `ready` (or
 `backlog`) with a comment saying what blocked it — never leave it
 `in-progress` with nobody on it. A stuck `in-progress` is the one state that
 silently blocks the next swarm.
+
+### 6b. After the push: `mise gh-project -- hygiene --fix`
+
+`Closes #n` fires on push, and a hub goes `Done` + closed only once every child
+is closed — so right after the train's push, run `hygiene --fix` once. It
+derives every hub from its children (a parent never carries work,
+`docs/domain/issue-workflow.md` §Hubs) and mirrors closed→`Done`; anything it
+still reports is judgement (a parked child, an unboarded child) and goes in
+the report, not in a paragraph of hub-status reasoning.
 
 ### 7. Teardown
 

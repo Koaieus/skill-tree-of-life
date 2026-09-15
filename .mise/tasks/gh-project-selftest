@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+#MISE description="Self-test for gh-project's hub derivation (lib/hub_derive.jq): fixture boards in, expected actions out. `mise run gh-project-selftest`"
+import json, os, subprocess, sys
+
+JQ = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib", "hub_derive.jq")
+
+def item(n, status, state="OPEN", parent=None, kids=0, done=0):
+    return {"number": n, "state": state, "status": status, "parent": parent, "kids_total": kids, "kids_done": done}
+
+def derive(items):
+    p = subprocess.run(["jq", "-c", "include \"hub_derive\"; derive", "-L", os.path.dirname(JQ)],
+                       input=json.dumps(items), capture_output=True, text=True)
+    if p.returncode != 0:
+        print(p.stderr); sys.exit(1)
+    return json.loads(p.stdout)
+
+cases = [
+    ("hollow hub In progress -> Done + close (closed kids archived off the board)",
+     [item(1, "In progress", kids=2, done=2)],
+     [{"number": 1, "from": "In progress", "to": "Done", "close": True}], []),
+    ("last child In review -> hub In review",
+     [item(1, "In progress", kids=2, done=1), item(3, "In review", parent=1)],
+     [{"number": 1, "from": "In progress", "to": "In review", "close": False}], []),
+    ("a child Ready -> hub In progress (from Needs design)",
+     [item(1, "Needs design", kids=2), item(2, "Ready", parent=1), item(3, "Backlog", parent=1)],
+     [{"number": 1, "from": "Needs design", "to": "In progress", "close": False}], []),
+    ("children only Backlog/Needs design -> no action",
+     [item(1, "Needs design", kids=2), item(2, "Backlog", parent=1), item(3, "Needs design", parent=1)],
+     [], []),
+    ("a hub is never Ready -> In progress even with idle children",
+     [item(1, "Ready", kids=1), item(2, "Backlog", parent=1)],
+     [{"number": 1, "from": "Ready", "to": "In progress", "close": False}], []),
+    ("OPEN child missing from the board -> unboarded, no action",
+     [item(1, "In progress", kids=2, done=1)],
+     [], [{"number": 1, "missing": 1}]),
+    ("closed hub -> nothing",
+     [item(1, "Done", "CLOSED", kids=1, done=1)],
+     [], []),
+    ("already derived -> idempotent",
+     [item(1, "In review", kids=2, done=1), item(3, "In review", parent=1)],
+     [], []),
+    ("leaf issues are never touched",
+     [item(1, "Ready"), item(2, "In progress")],
+     [], []),
+]
+failed = 0
+for name, items, want_actions, want_unboarded in cases:
+    out = derive(items)
+    got = [{k: a[k] for k in ("number", "from", "to", "close")} for a in out["actions"]]
+    ok = got == want_actions and out["unboarded"] == want_unboarded
+    print(("✓" if ok else "✗"), name)
+    if not ok:
+        failed += 1
+        print("   got:", json.dumps(out))
+print(f"{len(cases) - failed}/{len(cases)} passed")
+sys.exit(1 if failed else 0)

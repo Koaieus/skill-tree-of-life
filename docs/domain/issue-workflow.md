@@ -65,6 +65,41 @@ The headline invariant: **`Backlog` means "no live parent."** A child may sit at
 any pipeline stage under an `In progress` hub (that's what grinding a hub down
 looks like), but never parked in `Backlog`, where nobody pulls from.
 
+## Hubs: a parent never carries work
+
+**Owner call, 2026-09-15** (option A of three, after the mix of "hub that is
+also a bug" and "hub that is only a container" kept tripping agents, `hygiene`
+and the owner alike — see the #729/#901 session):
+
+1. **A parent never carries work.** If swarmify splits an issue, *all* of its
+   work moves into children — including the defect the hub itself describes,
+   which becomes "child 0: the original problem". The hub keeps the problem
+   statement, the decisions, and the DAG; never an acceptance spec of its own.
+2. **A child is work *required* for the parent to be done.** Anything optional
+   or "may follow later" is a **sibling** that links back to the origin, not a
+   child — trailing children are why hubs sat open forever.
+3. **A hub's status is derived, never hand-set.** From its children, by
+   `.mise/tasks/lib/hub_derive.jq` (`mise run gh-project-selftest` pins it):
+   all closed → `Done` + closed · every open child `In review` → `In review` ·
+   any child `Ready`/`In progress`/`In review` → `In progress` · children only
+   `Backlog`/`Needs design` → left alone (filing state stays yours). Derivation
+   only moves a hub *forward*.
+4. **A hub is never `Ready`.** `Ready` is the swarm queue; a container there
+   gets pulled by a drone with nothing to do. Derivation moves it to
+   `In progress`.
+
+Who runs it: `mise run land --closes <n>` calls `gh-project sync-parent <n>`
+after moving the child to `in-review`, so the hub follows the moment its last
+child lands. **The push gap:** `Closes #n` fires on *push*, so hub → `Done` +
+closed happens at the next `mise gh-project -- hygiene --fix` — the swarm
+train gate runs it right after the push. `hygiene` reports drift as
+`hub_drift`; `--fix --dry-run` previews. A hub with an *open* child missing
+from the board is never derived (`unboarded_child`) — `add` the child first.
+
+If a hub with every child closed still has unshipped scope, the fix is a new
+child, not keeping the hub open by hand. The old `hollow_hub` exemption for "a
+`Ready` parent with its own scope" (#240) is retired with this.
+
 ## Sub-issues
 
 The repo uses the parent/sub-issue model. File a child under its epic with `gh

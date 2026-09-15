@@ -426,18 +426,27 @@ cmd_blocking() {
 # Backlog accumulated. So: one query, prints violations, cannot rot because it
 # reads live state. Run it whenever you look at the board.
 #
-# THE PARENT/CHILD INVARIANT — `Backlog` means "no live parent."
+# THE HUB INVARIANT (owner call 2026-09-15, option A) — a parent never carries
+# work, so its status is DERIVED from its children by lib/hub_derive.jq and
+# never hand-set: all closed → Done + closed; every open child In review → In
+# review; any child Ready/In progress/In review → In progress; a hub is never
+# Ready (that is the swarm queue). `--fix` applies exactly that plus the
+# mechanical closed→Done mirror; `--fix --dry-run` prints what it would do.
 #
-#   A child may sit at ANY stage of the pipeline (Needs design / Ready / In
-#   progress) while its parent hub is In progress. That IS what grinding a hub
-#   down looks like. The one illegal combination is a child parked in `Backlog`
-#   under an active parent: the parent says "we are doing this", `Backlog` says
-#   "not scheduled", and the child then sits in the one column nobody pulls
-#   from. Repair is a judgement call — promote the child, or demote the parent
-#   if you are not really grinding it — so this reports and never fixes.
+# What stays report-only is judgement: a child parked in `Backlog` under an
+# active parent (promote the child, or demote the hub), a `Done` item still
+# open, a hub with a child missing from the board (never derived — you'd
+# close a hub over a child you can't see).
 cmd_hygiene() {
-  local as_json=false
-  [ "${1:-}" = "--json" ] && as_json=true
+  local as_json=false do_fix=false dry_run=false
+  for a in "$@"; do
+    case "$a" in
+      --json) as_json=true ;;
+      --fix) do_fix=true ;;
+      --dry-run) dry_run=true ;;
+      *) echo "✗ unknown flag: $a (hygiene [--json] [--fix [--dry-run]])"; exit 2 ;;
+    esac
+  done
 
   local raw
   raw=$(gh api graphql --paginate -f id="$PROJECT_ID" -f query='
@@ -462,7 +471,7 @@ cmd_hygiene() {
       }' --jq '.data.node.items.nodes[] | select(.content.number != null)')
 
   local report
-  report=$(printf '%s\n' "$raw" | jq -s '
+  report=$(printf '%s\n' "$raw" | jq -s -L "$(dirname "$0")/lib" 'include "hub_derive";
       [ .[] | { number: .content.number,
                 title:  .content.title,
                 state:  .content.state,
@@ -473,10 +482,18 @@ cmd_hygiene() {
                 kids_total: (.content.subIssuesSummary.total // 0),
                 kids_done:  (.content.subIssuesSummary.completed // 0) } ]
       | . as $every
+      | ($every | derive) as $hubs
       | map(select(.state == "OPEN"))
       | . as $all
       | ($all | map({ (.number|tostring): .status }) | add // {}) as $st
       | {
+          hub_drift:
+            [ $hubs.actions[] | . as $a | ($every[] | select(.number == $a.number)) as $h
+              | { number, from, to, close, title: $h.title,
+                  detail: "\(.from) → \(.to)\(if .close then " + close" else "" end): \(.reason)" } ],
+          unboarded_child:
+            [ $hubs.unboarded[] | . as $u | ($every[] | select(.number == $u.number)) as $h
+              | { number, title: $h.title, detail: "\(.missing) child(ren) not on the board — not derived" } ],
           no_status:
             [ $every[] | select(.status == "—")
               | { number, title, detail: .state } ],
@@ -500,10 +517,6 @@ cmd_hygiene() {
           unmilestoned_ready:
             [ $all[] | select(.status == "Ready" and .milestone == null)
               | { number, title, detail: "" } ],
-          hollow_hub:
-            [ $all[] | select(.kids_total > 0 and .kids_total == .kids_done)
-              | select(.status == "In progress")
-              | { number, title, detail: "\(.status) — all \(.kids_total) child(ren) closed" } ],
           stale_label:
             [ $all[] | select(.labels | index("swarmable"))
               | { number, title, detail: .status } ]
@@ -544,17 +557,88 @@ cmd_hygiene() {
     "A drone must not touch an open fork. Move to needs-design, or drop the label if it is settled."
   _section unmilestoned_ready "Ready with no milestone" \
     "Invisible to \`roadmap\`. Until this is zero the roadmap cannot be the planning surface."
-  # In progress ONLY. A `Ready` parent whose children happen to be closed is
-  # not a violation — it still has its own scope and simply hasn't been picked
-  # up (#240 was the false positive that taught this). The real failure is a hub
-  # still claiming to be actively worked with nothing left under it.
-  _section hollow_hub "Hub still In progress with every child closed" \
-    "Nothing left to grind. Close it, or file what actually remains."
+  # The old `hollow_hub` check exempted a `Ready` parent "with its own scope"
+  # (#240). That exemption is retired: a parent never carries work, so a hub
+  # whose children are all closed IS done — residual scope becomes a child.
+  _section hub_drift "Hub status differs from what its children imply" \
+    "Never hand-set a hub: mise gh-project -- hygiene --fix"
+  _section unboarded_child "Hub with a child missing from the board" \
+    "Not derived until every child is an item: mise gh-project -- add <child>"
   _section stale_label "Still carries the retired \`swarmable\` label" \
     "Ready is the swarm queue now. Drop the label: mise gh-project -- label <n> rm swarmable"
 
   echo ""
   if [ "$total" -eq 0 ]; then echo "✓ board is clean"; else echo "$total violation(s)"; fi
+
+  [ "$do_fix" = true ] || return 0
+  echo ""
+  local mode="▶ fixing"; [ "$dry_run" = true ] && mode="▶ would fix (dry run)"
+  echo "$mode: hub_drift + closed_not_done"
+  # Each line: <number>\t<status-slug>\t<close 0|1>\t<reason>
+  printf '%s' "$report" | jq -r '
+      (.hub_drift[] | [ .number, (.to | ascii_downcase | sub(" "; "-")), (if .close then 1 else 0 end), .detail ] | @tsv),
+      (.closed_not_done[] | [ .number, "done", 0, "closed → Done mirror" ] | @tsv)' \
+    | while IFS=$'\t' read -r n slug close why; do
+        echo "  #$n → $slug$([ "$close" = 1 ] && echo " + close"): $why"
+        [ "$dry_run" = true ] && continue
+        cmd_status "$n" "$slug" >/dev/null || echo "  ✗ status failed for #$n"
+        if [ "$close" = 1 ]; then
+          gh issue close "$n" --comment "Every child is closed — a parent never carries work, so the hub is done (auto-closed by \`gh-project hygiene --fix\`)." >/dev/null \
+            || echo "  ✗ close failed for #$n"
+        fi
+      done
+}
+
+# --- sync-parent: derive ONE hub's status from its children ------------------
+# The per-landing hook `land` calls after moving a child to in-review, so the
+# hub follows the same lib/hub_derive.jq rules the moment its last child
+# lands, without a full-board query. Note the push gap: `Closes #n` fires on
+# PUSH, so hub → Done + close happens at the next `hygiene --fix`, not here.
+cmd_sync_parent() {
+  local issue=$1
+  [ -n "$issue" ] || { echo "usage: gh-project sync-parent <issue>"; exit 2; }
+  local parent
+  parent=$(gh issue view "$issue" --json parent -q '.parent.number // empty' 2>/dev/null)
+  if [ -z "$parent" ]; then echo "· #$issue has no parent"; return 0; fi
+  # The hub + its children as derive() items; project status via projectItems
+  # filtered to THIS project.
+  local raw items
+  raw=$(gh api graphql -f owner="${REPO%/*}" -f repo="${REPO#*/}" -F n="$parent" -f query='
+      query($owner:String!,$repo:String!,$n:Int!){
+        repository(owner:$owner,name:$repo){ issue(number:$n){
+          number state
+          subIssuesSummary{ total completed }
+          projectItems(first:20){ nodes{ project{ id } fieldValueByName(name:"Status"){ ... on ProjectV2ItemFieldSingleSelectValue{ name } } } }
+          subIssues(first:100){ nodes{
+            number state
+            projectItems(first:20){ nodes{ project{ id } fieldValueByName(name:"Status"){ ... on ProjectV2ItemFieldSingleSelectValue{ name } } } }
+          } }
+        } }
+      }' 2>/dev/null) || { echo "✗ could not read hub #$parent"; return 1; }
+  # The hub + its children as derive() items; project status via projectItems
+  # filtered to THIS project.
+  local plan
+  plan=$(printf '%s' "$raw" | jq -c -L "$(dirname "$0")/lib" --arg pid "$PROJECT_ID" '
+      include "hub_derive";
+      def st: [ .projectItems.nodes[] | select(.project.id == $pid) | .fieldValueByName.name ] | first // "—";
+      .data.repository.issue as $hub
+      | [ { number: $hub.number, state: $hub.state, status: ($hub | st), parent: null,
+            kids_total: $hub.subIssuesSummary.total, kids_done: $hub.subIssuesSummary.completed },
+          ($hub.subIssues.nodes[] | { number, state, status: st, parent: $hub.number, kids_total: 0, kids_done: 0 }) ]
+      | derive')
+  local n_unb; n_unb=$(printf '%s' "$plan" | jq '.unboarded | length')
+  if [ "$n_unb" -gt 0 ]; then
+    echo "· hub #$parent has a child not on the board — not derived (mise gh-project -- add <child>)"; return 0
+  fi
+  local line
+  line=$(printf '%s' "$plan" | jq -r '.actions[0] // empty | [ .number, (.to | ascii_downcase | sub(" "; "-")), (if .close then 1 else 0 end), .reason ] | @tsv')
+  if [ -z "$line" ]; then echo "· hub #$parent already matches its children"; return 0; fi
+  IFS=$'\t' read -r n slug close why <<<"$line"
+  cmd_status "$n" "$slug" >/dev/null && echo "✓ hub #$n → $slug: $why"
+  if [ "$close" = 1 ]; then
+    gh issue close "$n" --comment "Every child is closed — a parent never carries work, so the hub is done (auto-closed by \`gh-project sync-parent\`)." >/dev/null \
+      && echo "✓ hub #$n closed"
+  fi
 }
 
 # --- roadmap: milestone swim-lanes with progress -----------------------------
@@ -645,7 +729,8 @@ Roadmap (milestone spine + target dates):
 
 Board hygiene:
   label <n> [<add|rm> <name>]  Read or flip a label (blocked|design|…)
-  hygiene [--json]             Report board invariant violations (see below)
+  hygiene [--json] [--fix [--dry-run]]  Report board invariant violations; --fix derives hub statuses
+  sync-parent <n>              Derive <n>'s parent hub status from its children (land's hook)
 
 Dependencies (native GitHub issue links, distinct from the `blocked` label):
   blocked-by <n> [<blocker>|clear]  Read or set what blocks issue <n>
@@ -662,6 +747,9 @@ Examples:
   mise gh-project -- target 240 2026-08-15
   mise gh-project -- status 240 ready      # passed the design gate
   mise gh-project -- hygiene              # what is inconsistent on the board
+  mise gh-project -- hygiene --fix        # derive every hub's status from its children (+ closed→Done)
+  mise gh-project -- hygiene --fix --dry-run
+  mise gh-project -- sync-parent 901      # derive just #901's hub (what `land` runs)
   mise gh-project -- blocked-by 571       # what blocks #571
   mise gh-project -- blocked-by 571 570   # #571 is blocked by #570
   mise gh-project -- blocking 570         # what #570 blocks
@@ -688,6 +776,7 @@ case "$CMD" in
   estimate) cmd_estimate "${2:-}" "${3:-}" ;;
   label)    cmd_label "${2:-}" "${3:-}" "${4:-}" ;;
   hygiene)  shift; cmd_hygiene "$@" ;;
+  sync-parent) cmd_sync_parent "${2:-}" ;;
   blocked-by) cmd_blocked_by "${2:-}" "${3:-}" ;;
   blocking)   cmd_blocking "${2:-}" ;;
   swarmq)   echo "✗ swarmq is retired — Ready IS the queue now. Use: mise gh-project -- list ready" >&2; exit 1 ;;
