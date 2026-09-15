@@ -44,7 +44,9 @@ func _spawn_owning_whole_chain() -> Entity:
 	var ent := autofree(Entity.new()) as Entity
 	ent.display_name = "E"
 	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(ent)
+	# entities_container, not the Graph itself: NodeEffectReadout.gather walks
+	# that container, so an entity parented elsewhere reports zero grant rows.
+	_graph.entities_container.add_child(ent)
 	await get_tree().process_frame
 	for n in _chain:
 		_alloc.force_allocate(ent, n)
@@ -53,12 +55,29 @@ func _spawn_owning_whole_chain() -> Entity:
 	return ent
 
 
+## `armor` is an INT-typed stat, so it reports a whole number however the
+## modifier pipeline got there. Fine for the integer ladders below; the
+## fractional LinearScale case uses [method _crit_mod] instead.
 func _armor_mod(value: float, op: int = StatModifier.Operation.ADD_BONUS) -> StatModifier:
 	var m := StatModifier.new()
 	m.stat_id = &"armor"
 	m.operation = op
 	m.value = value
 	return m
+
+
+## A FLOAT-typed stat (`value_type = 1`), for the assertions that care about
+## 6.67 rather than 6.
+func _crit_mod(value: float) -> StatModifier:
+	var m := StatModifier.new()
+	m.stat_id = &"crit_chance"
+	m.operation = StatModifier.Operation.ADD_BONUS
+	m.value = value
+	return m
+
+
+func _crit(n: SkillNode) -> float:
+	return float(n.get_local_value(&"crit_chance"))
 
 
 func _expr(formula: String) -> ExpressionScale:
@@ -147,11 +166,14 @@ func test_library_scales_equal_their_formula_spellings(params = use_parameters([
 ## The LinearScale numbers spelled out, so a regression names itself.
 func test_linear_spelling_reproduces_ten_six_point_seven_three_point_three() -> void:
 	var ent: Entity = await _spawn_owning_whole_chain()
-	ent.grant_effect(_aura("v * (1 - d / max)", 3, [_armor_mod(10.0)]))
+	# crit_chance carries a non-zero board baseline, so assert the DELTA the
+	# aura contributed rather than the absolute stat.
+	var base := _crit(_chain[0])
+	ent.grant_effect(_aura("v * (1 - d / max)", 3, [_crit_mod(10.0)]))
 
-	assert_almost_eq(_armor(_chain[0]), 10.0, 0.001)
-	assert_almost_eq(_armor(_chain[1]), 6.667, 0.01)
-	assert_almost_eq(_armor(_chain[2]), 3.333, 0.01)
+	assert_almost_eq(_crit(_chain[0]) - base, 10.0, 0.001)
+	assert_almost_eq(_crit(_chain[1]) - base, 6.667, 0.01)
+	assert_almost_eq(_crit(_chain[2]) - base, 3.333, 0.01)
 	assert_eq(_grant_rows(_chain[3]), 0, "the rim ring computes 0 and is discarded")
 
 
@@ -202,18 +224,27 @@ func test_uses_bound_tracks_whether_the_formula_mentions_max() -> void:
 	assert_false(_expr("5 - d").uses_bound(), "no 'max' → the bound is irrelevant")
 	assert_false(_expr("v * maxi(d, 1)").uses_bound(),
 			"'maxi' is a different token — word boundaries, not substrings")
+	assert_almost_eq(_expr("v * maxf(d, 1.0)").scale(0.0, -1.0, 10.0), 10.0, 0.001,
+			"and maxf still resolves as the built-in function it is")
 
 
 # ── Acceptance 6: parse errors and hot-editing ─────────────────────────────
 
 ## A broken formula must not take the game down, and must not silently grant
 ## garbage: the aura simply lands nothing.
+func test_parse_error_pushes_exactly_one_error_however_often_it_is_asked() -> void:
+	var scale := _expr("5 - (((")
+	for i in 5:
+		assert_almost_eq(scale.scale(float(i), 5.0, 1.0), 0.0, 0.001, "an unparseable formula is inert")
+	assert_push_error_count(1,
+			"the failure is latched — one error per edit, not one per node per recompute")
+
+
 func test_parse_error_grants_nothing_and_does_not_crash() -> void:
 	var ent: Entity = await _spawn_owning_whole_chain()
-	var scale := _expr("5 - (((")
-	assert_almost_eq(scale.scale(0.0, 5.0, 1.0), 0.0, 0.001, "an unparseable formula is inert")
 	ent.grant_effect(_aura("5 - (((", 3, [_armor_mod(10.0)], AuraEffect.Discard.NONE))
-	assert_almost_eq(_armor(_chain[0]), 0.0, 0.001)
+	assert_almost_eq(_armor(_chain[0]), 0.0, 0.001, "a broken aura lands nothing, and does not crash")
+	assert_push_error_count(1)
 
 
 ## The setter invalidates the cached Expression — an inspector hot-edit in the

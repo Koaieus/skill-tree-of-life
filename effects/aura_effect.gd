@@ -327,7 +327,11 @@ func get_description() -> String:
 		return description
 	var body := describe_modifiers(modifiers)
 	if reach == null:
-		return "%s to every node in your constellation" % body
+		body = "%s to every node in your constellation" % body
+	# The formula text is never parsed back into English (#900) — the shape
+	# speaks only through the clause its author wrote on the scale.
+	if distance_scale != null and not distance_scale.phrase.is_empty():
+		return "%s, %s" % [body, distance_scale.phrase]
 	return body
 
 

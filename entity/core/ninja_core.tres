@@ -46,6 +46,7 @@ max_hops = 5
 
 [sub_resource type="Resource" id="aura_strike"]
 script = ExtResource("3_aura")
+discard = 0
 reach = SubResource("reach_2hop")
 distance_scale = SubResource("scale_falling")
 display_name = "Phantom Strike"
@@ -69,6 +70,7 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_7cbeb"]
 script = ExtResource("3_aura")
+discard = 0
 metric = SubResource("Resource_tf2vw")
 distance_scale = SubResource("Resource_486ch")
 display_name = "Brittle Armor"
