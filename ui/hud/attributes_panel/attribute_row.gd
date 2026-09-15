@@ -77,9 +77,16 @@ func _flush_delta() -> void:
 	_delta_pending = false
 	if is_nan(_delta_baseline) or _chip == null:
 		return
-	var delta := _last_value - _delta_baseline
-	if delta != 0.0:
-		_chip.pop(delta)
+	if _rendered(_last_value) == _rendered(_delta_baseline):
+		return
+	_chip.pop(_last_value - _delta_baseline)
+
+
+## Renders at the same precision [method set_value] does (whole numbers) —
+## the pop/no-pop decision compares THESE strings, not the raw floats, so a
+## fractional delta that would truncate to "+0" never fires the chip.
+func _rendered(v: float) -> String:
+	return str(int(v))
 
 
 func _set_ember(active: bool) -> void:

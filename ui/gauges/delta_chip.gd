@@ -39,15 +39,19 @@ func _ready() -> void:
 		_label.add_theme_font_size_override(&"font_size", font_size)
 
 
-## Pops the chip in showing `delta` (sign determines color/arrow), then
-## auto-hides after LIFETIME seconds. Safe to call in-editor for preview.
-func pop(delta: float) -> void:
+## Pops the chip in showing `delta` (sign determines color/arrow), formatted
+## at the caller's own precision/suffix -- the row already knows how it
+## renders its value, so the chip never looks the stat up itself. Sign stays
+## arithmetic (`%+.*f`) so a negative delta keeps its `-` (e.g. ▼-2%, the
+## arrow reads as redundant with the sign -- that's the chip's grammar).
+## Auto-hides after LIFETIME seconds. Safe to call in-editor for preview.
+func pop(delta: float, decimals: int = 0, suffix: String = "") -> void:
 	if not is_inside_tree() or _panel == null or _label == null:
 		return
 	var positive := delta >= 0.0
 	var arrow := "▲" if positive else "▼"
-	var sign_str := "+" if positive else ""
-	_label.text = "%s%s%d" % [arrow, sign_str, int(delta)]
+	var magnitude := "%+.*f" % [decimals, delta]
+	_label.text = "%s%s%s" % [arrow, magnitude, suffix]
 	_label.modulate = positive_color if positive else negative_color
 
 	_panel.scale = Vector2(0.8, 0.8)

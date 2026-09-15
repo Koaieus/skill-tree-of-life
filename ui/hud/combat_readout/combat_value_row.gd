@@ -65,9 +65,18 @@ func _flush_delta() -> void:
 	_delta_pending = false
 	if is_nan(_delta_baseline) or _override_active or _chip == null:
 		return
-	var delta := _last_value - _delta_baseline
-	if delta != 0.0:
-		_chip.pop(delta)
+	if _rendered(_last_value) == _rendered(_delta_baseline):
+		return
+	_chip.pop(_last_value - _delta_baseline, decimals, _last_suffix)
+
+
+## Renders at the row's own [member decimals] precision — same rule as
+## [method _render], minus the suffix (identical on both sides of a delta,
+## so it can't be what makes the strings differ). The pop/no-pop decision
+## compares THESE strings, not the raw floats, so a sub-precision delta
+## (e.g. +0.4 on a 0-decimal row) never fires the chip.
+func _rendered(v: float) -> String:
+	return ("%." + str(decimals) + "f") % v
 
 
 func set_sliver(text: String) -> void:
