@@ -330,6 +330,15 @@ the judgement calls that are correct to keep.
   pick does land.
 - When a tab "does nothing", diff what its systems subscribe to against an
   editor-hint grep of those scripts before suspecting the panel.
+- The hint also turns on the engine's **editor debug overlays**: a
+  `VisibleOnScreenNotifier2D` paints its rect in translucent magenta, a
+  `CollisionShape2D` its shape, a `Camera2D` its limits — inside a live tab
+  exactly as in the 2D editor. Any such node created in code as an internal
+  mechanism (the halo on-screen gate, #802) must switch its overlay off
+  (`show_rect = false`); that is what the purple AABBs on every core in the
+  Spell tab were (#892). Don't reach for an alpha-0 modulate instead — the
+  canvas cull pass returns on alpha before it evaluates the visibility
+  notifier, so the overlay would vanish along with the gate it exists for.
 
 ## Cross-refs
 

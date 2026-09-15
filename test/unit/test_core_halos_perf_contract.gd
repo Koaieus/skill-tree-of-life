@@ -120,6 +120,19 @@ func test_on_screen_defaults_closed() -> void:
 	halos.free()
 
 
+func test_the_on_screen_notifier_never_paints_its_editor_debug_rect() -> void:
+	# The notifier is an engine node with an editor-only debug overlay: under
+	# `Engine.is_editor_hint()` it draws its rect in translucent magenta, and the
+	# sandbox tabs run INSIDE the editor process — so every core in the Spell
+	# tab grew a purple AABB (#892). `show_rect` is the engine's off switch;
+	# alpha-0 modulate is NOT an alternative (the cull pass bails on alpha before
+	# it ever evaluates the visibility notifier, which would kill the #802 gate).
+	var halos := await _make(HalosScript.CoreHaloStyle.GIMBAL)
+	assert_not_null(halos._notifier, "a live halo owns its on-screen notifier")
+	assert_false(halos._notifier.show_rect,
+			"the notifier is an internal gate, never an editor overlay")
+
+
 func test_an_unseen_halo_stops_processing_and_resumes_when_seen() -> void:
 	var halos := await _make(HalosScript.CoreHaloStyle.COG)
 	assert_true(halos.is_processing(), "a revealed halo animates")

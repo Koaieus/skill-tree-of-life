@@ -223,11 +223,19 @@ func _refresh_animation() -> void:
 ## at all: `core_presence.tscn` authors GIMBAL onto every SkillNode's CoreHalos,
 ## ~1700 of which are non-core and hidden, and a notifier on each of those would
 ## be exactly the always-instanced dead child that #172/#238 retired.
+##
+## `show_rect` is off because the engine paints the notifier's rect in
+## translucent magenta under `Engine.is_editor_hint()`, and the sandbox tabs
+## run INSIDE the editor process — so every core in the Spell tab grew a purple
+## AABB (#892). Not an alpha-0 modulate instead: the canvas cull pass returns on
+## `modulate.a < 0.007` BEFORE it evaluates the visibility notifier, which would
+## silently kill this gate in the real game.
 func _sync_notifier(wanted: bool) -> void:
 	if wanted == (_notifier != null):
 		return
 	if wanted:
 		_notifier = VisibleOnScreenNotifier2D.new()
+		_notifier.show_rect = false
 		_notifier.screen_entered.connect(_on_screen_changed.bind(true))
 		_notifier.screen_exited.connect(_on_screen_changed.bind(false))
 		add_child(_notifier)
