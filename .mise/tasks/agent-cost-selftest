@@ -52,6 +52,9 @@ check("effective weights", r["effective_tokens"] == int(15 * 1.0 + 1100 * 1.25 +
 check("wall minutes", round(r["wall_min"]) == 3)
 check("issue + worktree hints", r["issue"] == "#123" and r["worktree"] == "foo-bar")
 check("model stripped", r["model"] == "sonnet-5")
+check("priced = eff × model weight (sonnet baseline)", r["priced_tokens"] == r["effective_tokens"])
+check("model weight lookup", ac._model_weight("claude-haiku-4-5-20251001") == 0.5 and ac._model_weight("claude-opus-5") == 2.5
+      and ac._model_weight("claude-fable-5-1") == 5.0 and ac._model_weight("mystery-model") == 1.0)
 
 os.environ["AGENT_COST_PROJECTS_DIR"] = root
 check("name → id via parent transcript", ac._ids_by_name(root, "drone-foo", 7) == ["abc123"])

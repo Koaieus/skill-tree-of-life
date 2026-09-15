@@ -146,7 +146,9 @@ against them.
 `mise run agent-cost -- --name <drone> | --branch <slug> | --id <agentId> |
 --latest N` computes the integral (and effective tokens, turns, tool calls,
 wall-clock) from the subagent transcript, deduping the several assistant
-records one API call writes. `mise run land` prints it en passant for the
+records one API call writes, and a `priced` column that scales `eff` by model tier
+(haiku ½, sonnet 1, opus 2.5, Fable 5 — owner ratios, 2026-09-15) so a Haiku
+Explore and a Fable Sage compare on one axis. `mise run land` prints it en passant for the
 landed branch. It is a best estimate — cross-agent chatter (a Fable Sage
 answering a Sonnet drone is two turns at very different rates) is not
 modelled — and the price weights live in one place in the script so they

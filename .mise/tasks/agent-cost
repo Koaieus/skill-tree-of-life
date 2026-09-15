@@ -42,6 +42,17 @@ from datetime import datetime
 # input, cache writes ~125%, output ~500%. Same ratios across current tiers.
 _WEIGHTS = {"input": 1.0, "cache_creation": 1.25, "cache_read": 0.10, "output": 5.0}
 
+# Relative price per model tier, in units of "one Sonnet token" — `priced` =
+# eff × this, so a haiku Explore and a Fable Sage compare on one axis. Owner
+# ratios (2026-09-15): haiku ≈ ½ sonnet, opus ≈ 2–3× sonnet, Fable ≈ 2× opus.
+# Matched by substring of the model id; unknown models price as sonnet.
+_MODEL_WEIGHTS = (("haiku", 0.5), ("sonnet", 1.0), ("opus", 2.5), ("fable", 5.0))
+
+
+def _model_weight(model_id):
+    m = (model_id or "").lower()
+    return next((w for tier, w in _MODEL_WEIGHTS if tier in m), 1.0)
+
 
 def _projects_dir():
     override = os.environ.get("AGENT_COST_PROJECTS_DIR")
@@ -163,6 +174,7 @@ def analyse(path):
     ctxs = [p["input"] + p["cache_creation"] + p["cache_read"] for p in requests.values()]
     totals = {k: sum(p[k] for p in requests.values()) for k in _WEIGHTS}
     effective = sum(totals[k] * w for k, w in _WEIGHTS.items())
+    priced = effective * _model_weight(models.most_common(1)[0][0] if models else "")
     wall_min = None
     if first_ts and last_ts:
         f = datetime.fromisoformat(first_ts.replace("Z", "+00:00"))
@@ -186,6 +198,7 @@ def analyse(path):
         "integral_ctx": sum(ctxs),
         "tokens": totals,
         "effective_tokens": int(effective),
+        "priced_tokens": int(priced),
         "wall_min": wall_min,
         "started": first_ts,
         "issue": f"#{issue.group(1)}" if issue else "",
@@ -199,7 +212,7 @@ def _k(n):
 
 
 def _table(rows):
-    head = f"{'agent':9} {'model':12} {'turns':>5} {'calls':>5} {'final':>6} {'peak':>6} {'Σctx':>7} {'eff':>7} {'out':>5} {'wall':>5}  top tools / hints"
+    head = f"{'agent':9} {'model':12} {'turns':>5} {'calls':>5} {'final':>6} {'peak':>6} {'Σctx':>7} {'eff':>7} {'priced':>7} {'out':>5} {'wall':>5}  top tools / hints"
     lines = [head]
     for r in rows:
         top = ", ".join(f"{t} {n}" for t, n in list(r["tools"].items())[:4])
@@ -208,18 +221,20 @@ def _table(rows):
         lines.append(
             f"{r['agent_id'][:8]:9} {r['model'][:12]:12} {r['turns']:>5} {r['tool_calls']:>5} "
             f"{_k(r['final_ctx']):>6} {_k(r['peak_ctx']):>6} {_k(r['integral_ctx']):>7} "
-            f"{_k(r['effective_tokens']):>7} {_k(r['tokens']['output']):>5} {wall:>5}  {top}  {hint}".rstrip()
+            f"{_k(r['effective_tokens']):>7} {_k(r['priced_tokens']):>7} {_k(r['tokens']['output']):>5} {wall:>5}  {top}  {hint}".rstrip()
         )
     if len(rows) > 1:
         lines.append(
             f"{'TOTAL':9} {'':12} {sum(r['turns'] for r in rows):>5} {sum(r['tool_calls'] for r in rows):>5} "
             f"{'':>6} {'':>6} {_k(sum(r['integral_ctx'] for r in rows)):>7} "
-            f"{_k(sum(r['effective_tokens'] for r in rows)):>7} {_k(sum(r['tokens']['output'] for r in rows)):>5}"
+            f"{_k(sum(r['effective_tokens'] for r in rows)):>7} {_k(sum(r['priced_tokens'] for r in rows)):>7} {_k(sum(r['tokens']['output'] for r in rows)):>5}"
         )
     lines.append(
         "  Σctx = Σ over API calls of context at that call (the cost integral); eff = "
         + " + ".join(f"{w:g}·{k}" for k, w in _WEIGHTS.items())
-        + " — a best estimate, priced per agent alone, cross-agent chatter not modelled."
+        + "; priced = eff × model tier ("
+        + ", ".join(f"{t} {w:g}" for t, w in _MODEL_WEIGHTS)
+        + ", sonnet units) — a best estimate, priced per agent alone, cross-agent chatter not modelled."
     )
     return "\n".join(lines)
 
