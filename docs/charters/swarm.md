@@ -228,4 +228,5 @@ and the per-unit budget are tuned from those rows, never from memory.
 - **Idle count per dispatch** on the first sonnet/opus swarm under law 13;
   if it stays zero, drop the nudge/file-pointer fallback from the skill.
 - `.claude/agents/sage.md` was patched for law 10 (reviewer only, never
-  lands) and deserves its own charter.
+  lands) and deserves its own charter; `relay` and `relief` still carry
+  their own dated lore and should be re-derived from this charter too.
