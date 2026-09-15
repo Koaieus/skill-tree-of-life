@@ -202,10 +202,17 @@ does not have to carry them.
   then wakes the orchestrator. The agent file is written so the brief
   decides; the choice is a per-run orchestrator call until settled.
 - **Warp drones seem to land more per token than swarm drones** (owner,
-  2026-09-15, a feeling, not a measurement). Worth a transcript
-  investigation before the next swarm: if it holds, find what `warp` gives
-  a drone that the bare-number brief does not, and fold it into this
-  charter's laws.
+  2026-09-15, a feeling). Measured the same day over 509 transcripts
+  (34 warp, 160 drone): **not true per file** — median final context 171k
+  vs 158k, integral 14.1M vs 12.4M, parity at sonnet, drone cheaper at
+  opus; orientation shape identical. What differs is the *unit*: a warp file
+  is a whole issue landed, a drone file is a file-fenced fraction that stops
+  on out-of-scope needs and resumes as a new transcript (17/160 drone files
+  open with a bare "continue"; 0/34 warp). Per *completed issue* drone cost
+  is therefore understated here and likely higher — the tax is coordination
+  and fragmentation, not method. Lever: one drone per whole issue with a
+  cheap lander (the `relay` shape), fewer resume-legs. Untested: pairing
+  warp and drone runs on the same issue (script was `/tmp/warp_vs_drone.py`).
 
 - Scope `drone-budget-guard` rule 1 to `agent_type == "drone"` (and other
   implementation types) explicitly, rather than "everything but Explore",
