@@ -34,8 +34,10 @@ text = "Defense"
 unique_name_in_owner = true
 layout_mode = 2
 row_label = "Armor"
+stat_id = &"armor"
 
 [node name="FloorRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="1" unique_id=1918733521 instance=ExtResource("3_row")]
 unique_name_in_owner = true
 layout_mode = 2
 row_label = "Damage floor"
+stat_id = &"min_damage_taken"

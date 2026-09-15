@@ -34,9 +34,11 @@ unique_name_in_owner = true
 layout_mode = 2
 row_label = "Damage / leaf"
 override_color = Color(1.6466165, 1.3793468, 0.7557179, 1)
+stat_id = &"ranged_damage"
 
 [node name="RangeRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="1" unique_id=1367928722 instance=ExtResource("3_row")]
 unique_name_in_owner = true
 layout_mode = 2
 row_label = "Range"
 override_color = Color(1.6466165, 1.3793468, 0.7557179, 1)
+stat_id = &"range"
