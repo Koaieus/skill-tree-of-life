@@ -299,6 +299,103 @@ World-space bins beat a screen-space viewport cull (the "cheap interim step" in
 #133): the cull does nothing when zoomed out to the whole graph, and needs a
 refresh on every camera move.
 
+## Shipped: the rounded-cone primitive (#897)
+
+Territory is the *owned induced subgraph*, so the aura wants a band along each
+owned edge, not just a disc per node. The primitive is a **rounded cone** — two
+endpoints with radii, i.e. a trapezoid plus its two end circles, as one
+closed-form distance. `ra == rb` degrades to a capsule, `a == b` to a disc.
+
+**The distance is normalized, and that is the whole trick.** Define
+
+```
+d(p) = min over t in [0,1] of |p - lerp(a, b, t)| / lerp(ra, rb, t)
+```
+
+i.e. the factor the configuration must be scaled by for `p` to land on the hull
+of the two discs. Level sets are scaled hulls, `d == 1` is the hull itself, and
+`d` reduces *exactly* to `|p - a| / ra` at each end — so `field_smin`, the
+`falloff` exponent and the `smoothstep` fade all apply to a cone with no change
+whatsoever, and the band's width interpolates along the edge. A Euclidean
+rounded-cone SDF would not have that property.
+
+`ui/overlay_field_cone.gd` is the CPU reference; `field_cone_distance` /
+`field_cone_project` in `ui/overlay_field.gdshaderinc` are the GLSL twins.
+`test_overlay_field_cone.gd` pins the closed form against a brute-force sample
+of the definition above, which is the only real check that the derivation — and
+therefore the shader — is right.
+
+### Two traps in the closed form
+
+Minimizing the ratio gives a *linear* equation, so there is one stationary
+point `t*`. Both traps are about not trusting it:
+
+- **`t*` can sit past the pole.** `h(t)` has a pole at `t = -ra/(rb - ra)`, and
+  in the nested case (one disc inside the other) the stationary point lands on
+  the far branch. `a=(0,0) ra=10`, `b=(5,0) rb=1`, `p=(20,0)` yields `t* = 4`,
+  which clamps to `1` and reports `15` where the true minimum is `h(0) = 2`.
+  The fix is to take `min(h(0), h(1), h(clamp(t*)))` — correct always, and
+  identical to `h(clamp(t*))` whenever that is meaningful.
+- **A disc is `0/0`.** Every owned node ships as a degenerate cone regardless of
+  degree (otherwise an isolated node vanishes), and there both numerator and
+  denominator are zero. `clamp(NaN, 0, 1)` is *undefined* in GLSL, so the
+  `l2 > 0 && |den| > 1e-8` guard is load-bearing, not tidiness.
+
+The primitive is C1 across the cap→flank seam (pinned numerically): a crease
+there is exactly the Mach band `field_smin` exists to avoid.
+
+### The projection-dedupe invariant
+
+A circle occupies one cell; a segment genuinely crosses many, so a cone is
+bucketed into **every cell its AABB touches**. The alternative — inflating
+`cell_size` to half the longest segment — makes every cell on the board hostage
+to one long Delaunay bridge, so per-pixel cost would stop being local density.
+
+Multi-cell bucketing means one gather's 3×3 can meet the same primitive
+several times, and **`field_smin` is not idempotent**: `smin(d, d, k) == d - k/4`.
+A double-fold would darken the field in a *grid-correlated* pattern — the
+worst kind of artefact, because it looks like structure. So:
+
+> A primitive contributes only from the tile whose cell contains `q`, the
+> clamped orthogonal projection of the query point onto the segment.
+
+`q` is the orthogonal projection, **not** the argmin `t*` of the distance —
+they differ, and only the former is needed here.
+
+This is exact, not merely duplicate-free. If the cone contributes at `p` at all
+then `|p - c(t)| < (1 + k) * max_radius == cell_size` for some `t` on the
+segment; `q` is the segment's closest point, so `|p - q| <= cell_size` and
+`q`'s cell is inside `p`'s 3×3. Dropping the primitive when `q`'s cell falls
+outside the 3×3 therefore drops nothing that could have contributed. `cell_size`
+stays `(1 + k) * max_radius` — there is no pathological long-edge case to warn
+about.
+
+CPU and GPU can disagree about `q`'s cell on a knife-edge (the same
+floating-point boundary the grid-origin margin below is about). That changes
+which tile a primitive is folded *from*, hence fold order, never membership —
+it is folded exactly once either way. No CPU consumer needs cone lockstep;
+`VisionSourceIndex`, which does need lockstep, is on the circle path.
+
+### Why the fog path did not move
+
+`OverlayFieldTileIndex` runs **one** bucketing and **one** gather over cones,
+with circles fed in as degenerate ones — no second implementation of the same
+contract. The fog path is unchanged because of two properties, not by
+inspection:
+
+1. For a circle, `project` returns the stored centre with no arithmetic, so its
+   cell *is* the cell it was bucketed into and the dedupe test always passes.
+   The dedupe filters and never reorders, so the traversal order the shader and
+   `VisionSourceIndex` share is untouched.
+2. Only the *serialization* forks: `build()` still emits the 1-texel
+   `circles_texture`, `build_cones()` emits `primitives_texture` — two RGBAF
+   texels per primitive, `(ax, ay, ra, tag)` then `(bx, by, rb, unused)`.
+   `fog.gdshader` and `vision_field.gdshaderinc` were not edited.
+
+`test_tile_gather_fold_order_drift.gd` and `test_vision_source_index.gd` guard
+this, unmodified. One note on sizing: the flat tile-index buffer is as long as
+total bucket occupancy, no longer `circle_count`.
+
 ## Known limit, deliberately
 
 `AuraOverlay.MAX_ENTITIES = 32` is a *colour-array* bound, not a circle bound
