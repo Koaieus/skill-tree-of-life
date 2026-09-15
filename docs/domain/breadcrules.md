@@ -22,6 +22,16 @@ seed. Don't paste the line into `CLAUDE.md`.
 <the one-line claim / pointer>. See docs/domain/<topic>.md
 ```
 
+## Charters are the same split for skills and agents
+
+A `.claude/skills/<name>/SKILL.md` or `.claude/agents/<name>.md` is read by a
+fresh agent that wants instructions only; the incident history and reasoning
+that produced those instructions is a tax on it. That history lives in
+`docs/charters/<name>.md` — the *source* the instruction file is re-derived
+from when a wish changes — and the file carries one pointer to it, the same
+way a breadcrule points at its doc. Protocol in `docs/charters/README.md`;
+the scoped rule `.claude/rules/charters.md` fires when either file is edited.
+
 ## Why: the always-on tier costs context every turn
 
 Rules load in two tiers, and the difference is the whole point:

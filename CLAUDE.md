@@ -127,6 +127,7 @@ When you learn something non-obvious — a gotcha, a hidden constraint, a workfl
   scoped rules, dead crumbs, dead `paths:` globs) and fixes nothing — run it whenever you
   add or edit a rule, same as `gh-project hygiene` for the board.
 - Game-design knowledge belongs in `docs/design/` or as a GitHub Issue (`design` label) — not inline here.
+- **Why a skill/agent says what it says** belongs in its charter, `docs/charters/<name>.md` — the instruction file is derived from it and cites no incidents or issue numbers. See `docs/charters/README.md`.
 
 ## Working in this repo
 
