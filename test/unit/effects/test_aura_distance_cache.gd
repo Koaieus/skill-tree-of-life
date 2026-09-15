@@ -198,6 +198,7 @@ func test_recompute_after_moving_a_node_reflects_the_new_position() -> void:
 	var scale := ProportionalScale.new()
 	scale.per_unit = 1.0
 	aura.distance_scale = scale
+	aura.discard = AuraEffect.Discard.NONE  # a negative-value aura (#900)
 	aura.modifiers = [_armor_mod(-1.0)]
 	var inst := ent.grant_effect(aura)
 

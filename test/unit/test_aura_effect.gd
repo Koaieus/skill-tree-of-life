@@ -211,6 +211,9 @@ func test_proportional_scale_deepens_a_debuff_with_distance() -> void:
 	aura.reach = null                       # flood the owned subgraph
 	aura.metric = HopMetric.new()
 	aura.distance_scale = ProportionalScale.new()
+	# A debuff aura grants negative values, so it opts out of the NON_POSITIVE
+	# default that a buff aura wants (#900) — as ninja_core.tres does.
+	aura.discard = AuraEffect.Discard.NONE
 	aura.modifiers = [_armor_mod(-1.0)]
 	ent.grant_effect(aura)
 
@@ -226,6 +229,7 @@ func test_ninja_debuff_amplifies_damage_through_mitigation() -> void:
 	var aura := AuraEffect.new()
 	aura.metric = HopMetric.new()
 	aura.distance_scale = ProportionalScale.new()
+	aura.discard = AuraEffect.Discard.NONE
 	aura.modifiers = [_armor_mod(-1.0)]
 	ent.grant_effect(aura)
 
@@ -259,6 +263,7 @@ func test_serpent_dual_metric_auras_sum_additively() -> void:
 	var hop_buff := AuraEffect.new()
 	hop_buff.metric = HopMetric.new()
 	hop_buff.distance_scale = ProportionalScale.new()   # +1 per hop
+	hop_buff.discard = AuraEffect.Discard.NONE
 	hop_buff.modifiers = [_armor_mod(1.0)]
 
 	var euclid_penalty := AuraEffect.new()
@@ -266,6 +271,7 @@ func test_serpent_dual_metric_auras_sum_additively() -> void:
 	var per_px := ProportionalScale.new()
 	per_px.per_unit = 0.005                             # -0.005 per pixel
 	euclid_penalty.distance_scale = per_px
+	euclid_penalty.discard = AuraEffect.Discard.NONE
 	euclid_penalty.modifiers = [_armor_mod(-1.0)]
 
 	ent.grant_effect(hop_buff)
