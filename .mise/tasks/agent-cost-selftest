@@ -44,6 +44,13 @@ def check(name, cond):
     print(("[ok] " if cond else "[FAIL] ") + name); failed += not cond
 
 r = ac.analyse(sub)
+adv = os.path.join(root, sess, "subagents", "agent-adv999.jsonl")
+write(adv, [
+    assistant("a1", u1, [{"type": "tool_use", "id": "t9", "name": "advisor", "input": {}}]),
+    assistant("a2", u2, [{"type": "text", "text": "ok"}], ts="2026-09-15T10:01:00Z"),
+])
+ra = ac.analyse(adv)
+check("advisor call priced at ctx × fable", ra["advisor_calls"] == 1 and ra["priced_tokens"] == ra["effective_tokens"] + int(1010 * 5.0))
 check("turns = requests, not records", r["turns"] == 2)
 check("tool calls deduped by id", r["tool_calls"] == 2 and r["tools"] == {"Bash": 1, "Edit": 1})
 check("final/peak ctx", r["final_ctx"] == 1105 and r["peak_ctx"] == 1105)
@@ -52,7 +59,7 @@ check("effective weights", r["effective_tokens"] == int(15 * 1.0 + 1100 * 1.25 +
 check("wall minutes", round(r["wall_min"]) == 3)
 check("issue + worktree hints", r["issue"] == "#123" and r["worktree"] == "foo-bar")
 check("model stripped", r["model"] == "sonnet-5")
-check("priced = eff × model weight (sonnet baseline)", r["priced_tokens"] == r["effective_tokens"])
+check("priced = eff × model weight (sonnet baseline), no advisor calls", r["priced_tokens"] == r["effective_tokens"] and r["advisor_calls"] == 0)
 check("model weight lookup", ac._model_weight("claude-haiku-4-5-20251001") == 0.5 and ac._model_weight("claude-opus-5") == 2.5
       and ac._model_weight("claude-fable-5-1") == 5.0 and ac._model_weight("mystery-model") == 1.0)
 check("fable cache reads at 2.5%", ac._weights_for("claude-fable-5-1")["cache_read"] == 0.025 and ac._weights_for("claude-sonnet-5")["cache_read"] == 0.10)
@@ -64,6 +71,7 @@ check("--branch finds the worktree", ac._grep_l(".worktrees/foo-bar", ac._sub_tr
 import io, contextlib
 buf = io.StringIO()
 with contextlib.redirect_stdout(buf):
+    os.utime(sub, None)  # the drone fixture is the newest again
     code = ac.main(["--latest", "1"])
 check("--latest prints a table", code == 0 and "abc123" in buf.getvalue() and "TOTAL" not in buf.getvalue())
 with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(io.StringIO()):

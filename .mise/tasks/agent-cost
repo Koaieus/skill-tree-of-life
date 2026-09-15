@@ -142,6 +142,7 @@ def _usage_parts(usage):
 def analyse(path):
     """One transcript → a flat dict of estimates. Pure; no I/O beyond the read."""
     requests = collections.OrderedDict()  # requestId → max usage parts seen
+    req_adv = {}  # requestId → this request issued an `advisor` tool_use
     models = collections.Counter()
     tools = collections.Counter()
     tool_ids = set()
@@ -182,12 +183,19 @@ def analyse(path):
                     if block.get("type") == "tool_use" and block.get("id") not in tool_ids:
                         tool_ids.add(block.get("id"))
                         tools[block.get("name") or "?"] += 1
+                        if block.get("name") == "advisor":
+                            req_adv[rec.get("requestId")] = True
 
     ctxs = [p["input"] + p["cache_creation"] + p["cache_read"] for p in requests.values()]
+    advisor_flags = [req_adv.get(rid, False) for rid in requests]
     totals = {k: sum(p[k] for p in requests.values()) for k in _WEIGHTS}
     model_id = models.most_common(1)[0][0] if models else ""
     effective = sum(totals[k] * w for k, w in _weights_for(model_id).items())
     priced = effective * _model_weight(model_id)
+    # An `advisor` call re-sends the whole context to a Fable whose tokens are
+    # not in this transcript; price each at context-at-that-call × fable.
+    advisor_calls = [c for c, is_adv in zip(ctxs, advisor_flags) if is_adv]
+    priced += sum(advisor_calls) * _model_weight("fable")
     wall_min = None
     if first_ts and last_ts:
         f = datetime.fromisoformat(first_ts.replace("Z", "+00:00"))
@@ -212,6 +220,7 @@ def analyse(path):
         "tokens": totals,
         "effective_tokens": int(effective),
         "priced_tokens": int(priced),
+        "advisor_calls": len(advisor_calls),
         "wall_min": wall_min,
         "started": first_ts,
         "issue": f"#{issue.group(1)}" if issue else "",

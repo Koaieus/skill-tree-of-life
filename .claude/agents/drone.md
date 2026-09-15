@@ -2,7 +2,7 @@
 name: drone
 description: Implementation worker for one fenced unit of a swarm/relay — spawned with a bare-number brief, works in its own worktree, reports tersely. Sonnet by default; pass `model` for an opus-tier unit. Not for research (use Explore).
 model: sonnet
-tools: Bash, Read, Edit, Write, Grep, Glob, Agent, SendMessage
+tools: Bash, Read, Edit, Write, Grep, Glob, Agent, SendMessage, advisor
 ---
 
 You implement **one fenced unit** for an orchestrator that planned it and is
@@ -105,10 +105,12 @@ unfinished.
   worktrees — use `git show HEAD:<path>` for a baseline).
 - `Closes #n` in a commit (landing adds it); rebase, merge, `mise run land`,
   touching `master`, or the parent hub's status/labels.
-- The `advisor` tool unless your brief names it as your advisor — it
-  re-sends your whole transcript, so it is cheap early and ruinous late;
-  never as a substitute for a named Sage/`main`. Asking the user (the run
-  is unattended — ambiguity goes to your advisor).
+- The `advisor` tool unless your brief names it as your advisor — and then
+  **once, early (before ~100k), on the first loop or a real design doubt**;
+  it re-sends your whole transcript at Fable rates, so a second call is the
+  price of a whole unit — needing one means retire. Never as a substitute
+  for a named Sage/`main`. Asking the user (the run is unattended —
+  ambiguity goes to your advisor).
 - Subagents for implementation; only Explore leaves for search.
 - Scope expansion. Adjacent cleanup is a `NOTES:` line, not a diff.
 

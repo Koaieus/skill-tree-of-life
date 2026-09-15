@@ -129,16 +129,15 @@ rather than to keep reconstructing state yourself.
 
 ## In a Sage run — what relief inherits
 
-When the run has a Sage (`.claude/agents/sage.md`, #857), **Sage keeps
-landing.** It is a persistent teammate, not the outgoing orchestrator's
-context: drones keep asking it, it keeps approving and running `mise run land`,
-and none of that pauses for the handover. What relief inherits is the lead's
+When the run has a Sage (`.claude/agents/sage.md`), **Sage keeps
+reviewing.** It is a persistent teammate, not the outgoing orchestrator's
+context: drones keep asking it, it keeps approving, and none of that pauses
+for the handover — but it never lands; every `land` is relief's. What relief inherits is the lead's
 half only — the ledger (roster, tiers, per-issue metrics), the remaining
-dispatches, and the train gate: **reconcile Sage's `LANDED: #n <sha>, …` list
-against `git log master`** (ask Sage for the list as it stands — one message —
+dispatches, and the train gate: **reconcile the ledger's landed shas against `git log master`** (Sage reviews but never lands; ask it for its `REVIEWED:` list as it stands — one message —
 if the ledger is behind), run the full suite once on the train, push, and
 close out the board. Relief never rebases by hand and never re-reviews a
-`sonnet`-tier unit Sage already landed; an `opus`-tier unit still in flight
+`sonnet`-tier unit Sage already approved; an `opus`-tier unit still in flight
 gets relief's full-diff read, as it would have the outgoing lead's. If Sage is
 past ~150k it will have written `docs/handoffs/swarm-sage-handover.md` and
 said so — spawning its successor is relief's job too.

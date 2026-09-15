@@ -128,9 +128,11 @@ against them.
     swarm is unattended (`AskUserQuestion` is not in the drone's tool set,
     structurally). The designated advisor is whatever the brief says —
     `Sage`, `main`, or the `advisor` tool — and the drone does not pick a
-    different one. `advisor` re-sends the whole transcript per call, so its
-    cost is the drone's context at call time: cheap at 60k, the most
-    expensive single call available at 250k.
+    different one. `advisor` re-sends the whole transcript per call at Fable rates, so
+    one call costs ~5× the drone's context in sonnet units — a Sonnet drone
+    at 80k spends ~400k, about a whole unit; the law is therefore **one
+    call, before ~100k, on the first loop**, and a second call means retire
+    (swarm charter law 8, owner call 2026-09-15).
 21. **Act on whichever arrives first — the spawn prompt or the first message
     from `main`.** Named teammates have been observed idling on a prompt and
     waiting for a mailbox brief; a drone with a brief in hand starts.
@@ -152,7 +154,11 @@ Explore and a Fable Sage compare on one axis. `mise run land` prints it en passa
 landed branch. It is a best estimate — cross-agent chatter (a Fable Sage
 answering a Sonnet drone is two turns at very different rates) is not
 modelled — and the price weights live in one place in the script so they
-can be sharpened without any agent re-deriving the logic.
+can be sharpened without any agent re-deriving the logic. `advisor` calls
+are priced separately (each `tool_use` named `advisor` at the context of that
+call × the Fable weight) and added to `priced` — the advisor's own tokens are
+not in the drone's transcript, so without this every advisor run is
+undercounted against a Sage run.
 
 ## What is enforced by hook vs by wording
 

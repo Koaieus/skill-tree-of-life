@@ -35,7 +35,12 @@ its spawner whatever it wrote — times the context at each wake. With the
 lead reviewing and landing, a clean unit is **two wakes** (the report, the
 land). That is the shape chosen here, over the one that made a persistent
 Fable land: the mechanical step is not where a Fable earns its seat, and its
-context compounded across every drone's questions.
+context compounded across every drone's questions. The drone-side
+arithmetic decides the advisor cap: one `advisor` call at context *c*
+costs ≈ 5*c* sonnet units; Sage costs ≈ 20–25k Fable per unit ≈ 100–125k
+sonnet units, mostly cache reads. So `advisor` beats Sage only at one
+call made before ~100k — which is exactly the loop-breaking use the
+owner wants, and why the drone's second call is a retirement.
 
 Everything is measured after the fact by `mise run agent-cost` (`priced`
 column, sonnet units) and logged per unit in the ledger; the tier heuristic
@@ -82,9 +87,12 @@ and the per-unit budget are tuned from those rows, never from memory.
 8. **The drone's advisor is the `advisor` tool**, named in the brief, and the
    brief says *when*: early — on the first loop (three failed cycles), on a
    design doubt, on a stub that looks wrong — never on a green path, and
-   cheap because early (its cost is the drone's context at call time). Its
-   job is calm in one message: the straight route, or "retire, this needs
-   another design pass".
+   **once, before ~100k**: a call costs ~5× the drone's context in sonnet
+   units (a Sonnet drone at 80k → ~400k, about one whole unit; at two calls
+   it is already Sage-priced), so a second call means retire. Its job is
+   calm in one message: the straight route, or "retire, this needs another
+   design pass". `agent-cost` prices each advisor call and adds it to
+   `priced`, so the Sage-vs-advisor comparison is on one axis.
 9. **The lead reviews and lands.** `--stat` for the fence on every unit;
    the full diff on opus-tier and anything a player would notice; one
    `advisor` call per wave for the judgement, not per unit; `mise run land`
@@ -92,8 +100,12 @@ and the per-unit budget are tuned from those rows, never from memory.
    rebase, merge or land.
 10. **Sage is opt-in, and never lands.** At four or more concurrent drones,
     or an absent owner, spawn one as reviewer and advisor; drones then ask
-    Sage before `advisor`; Sage's `approved` is a message to the lead, who
-    lands. Sage runs nothing that mutates the repo.
+    Sage instead of `advisor`. **`approved` goes back to the drone**, which
+    carries it in its report (`NOTES: Sage approved, 2 exchanges`), and the
+    lead lands off that report — N wakes, unchanged. Sage messages the lead
+    only for exceptions (a second failed land, a cross-unit conflict, a
+    mis-tier) and one `REVIEWED:` list at the end. Sage runs nothing that
+    mutates the repo.
 11. **The planner fork is a fallback, not a shape.** A `Ready` issue already
     carries its reading list, seam map and stubs; a Sonnet lead can dispatch
     from it directly. A throwaway Opus planner subagent is for the run where
