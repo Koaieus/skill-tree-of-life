@@ -174,8 +174,8 @@ Numbered so the skill can be checked against them law by law.
 
 23. **`Ready` is the admission ticket**: status move, `design`/`blocked`
     labels dropped in the same breath, a milestone set (Ready without one is
-    a hygiene violation), then the decisions queue updated and `hygiene`
-    kept clean.
+    a hygiene violation), then `hygiene` kept clean — the board is the
+    queue; there is no separate decisions-queue issue to update.
 
 **What swarmify is not**
 
