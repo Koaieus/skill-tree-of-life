@@ -240,4 +240,4 @@ does not have to carry them.
   long-running-command detail on the premise that a typed subagent receives
   them; the only evidence so far is a ~29k cache write on a subagent's
   first request (CLAUDE.md-sized). If the premise is false, ~10 lines go
-  back into the body.
+  back into the body. Run 2026-09-15 as `smoke-drone`.
