@@ -5,208 +5,196 @@ description: Take one GitHub issue from "has open design forks" to Ready — rem
 
 # Swarmify
 
-Turn a forky issue into a drone-ready one. This is the **front-loaded design
-pass** whose absence is why throughput stalls: when forks are discovered
-mid-implementation, every issue crushed spawns five more and no agent can run
-unattended. Swarmify moves that discovery *before* the code, where decisions are
-the user's to make and cost minutes, not stalled worktrees.
+Take one issue from "has open forks" to `Ready`, in this session, with the
+owner, before any worktree exists. (Design behind this file:
+`docs/charters/swarmify.md` — read it only if you are changing this file.)
 
-## What this skill is actually for
-
-**Removing blockers and answering design questions.** You research the code, you
-think the problem through *with the user* from both the technical and the
-gameplay side, and you come back with forks pinned. An issue often floats ideas —
-your job is to test them against what the code actually does and what the game
-actually needs, then help the user choose.
-
-The single highest-value move is **arithmetic on already-pinned values**: after
-pinning anything, compute what it implies at the bottom and the top of the range
-(level 1 and level 100, one node and two hundred). Repeatedly, the fix that
-surfaces is structural, not a tuning nudge — and it surfaces from the numbers,
-not from discussion.
-
-The second is **verifying claims against `master`.** An issue that says "X is
-unbuilt" or "Y is broken" may be describing a world two commits stale. Check
-before you spec work against it; a stale item closes with a doc correction, not
-a new issue.
-
-> **File ownership is a map, not a gate.** Record which paths a unit touches —
-> the [`swarm`](../swarm/SKILL.md) orchestrator needs it to sequence work. But do
-> **not** contort the design to keep files disjoint, and do not withhold
-> `Ready` because two issues share a file or because one blocks another.
-> Sequencing, rebasing, and clean merges are the *orchestrator's* job: drones
-> commit inside their own worktrees, and the orchestrator rebases and
-> fast-forwards. Two issues on the same file simply run in order — possibly in
-> the same swarm. Design correctness beats partition tidiness every time.
+The output has exactly one reader: a drone doing `gh issue view <n>` and
+`--comments` cold, with no chat history and a bare fence. **`Ready` means
+that drone can act.** The drone's brief carries only what the issue cannot
+know — fence, seams this run, tier, advisor, budget — and restates nothing.
 
 ## The one rule
 
-**Decisions are the user's. You surface forks and propose; they choose.** An
-agent that invents a design answer to reach `Ready` has defeated the purpose —
-the whole reason early design-heavy sessions unlocked autonomous throughput is
-that a *human* pinned the forks. If the user is absent, you may draft proposed
-resolutions, but you do **not** apply the label until they've signed off.
-
-## Read the issue yourself; delegate only the fact-checking
-
-Two different jobs hide inside step 1, and they have opposite delegation answers.
-
-**RTFC is yours.** A hub's comments are where the decisions live, and they argue
-with each other — a later comment routinely *corrects* an earlier one in the same
-thread. A subagent hands you a summary, and the summary is exactly where that
-nuance dies. Never delegate reading the issue.
-
-**Verification is not.** Once you have the issue's claims in hand — "`X` is
-unbuilt", "`Y` has no caller", "placement carries `node_scene`", "that helper was
-deleted in #N" — checking each against `master` is mechanical lookup with no
-judgment in it, and it is most of the tool calls in a pass. Dispatch **one**
-`Explore` agent (`model: "haiku"`) with the claim list and have it report
-verified/false//stale per claim with a `file:line`. One call instead of ten.
-
-This does not contradict "not a spawn" below — that rule is about the *thinking*.
-Fact-checking isn't thinking, and skipping it is how a pass specs work against a
-world two commits stale.
-
-Worked example (2026-08-02, #332/#165): reading two hubs' comment threads was
-irreducible and caught a comment retracting an earlier one's central claim. The
-same pass burned ~8 calls on pure lookup — is #322 closed, is #339 already filed,
-does `keystone_placement.gd` have a `node_scene` field — and that last one is what
-exposed #330 sitting in `Ready` with an open fork in its body.
+**Decisions are the owner's.** You surface forks and propose; the owner
+chooses; you write the answer in the owner's words, dated, attributed as an
+owner call. Never invent a design answer to reach `Ready`. Owner absent →
+draft proposed resolutions and do **not** move the status.
 
 ## The cycle
 
-### 1. Read the whole issue — RTFC
+### 1. Read the whole issue yourself
 
 ```bash
+gh issue view <n>
 gh issue view <n> --comments
 ```
 
-Comments hold the actual decisions and course-corrections (repo rule). Read them,
-not just the body. Note the current labels: `design` / `blocked` mean forks are
-known-open; their presence is the signal there's work here.
+Body *and* every comment, in this session — never summarised by a subagent.
+A later comment routinely corrects an earlier one. Note the labels:
+`design` / `blocked` mean forks are known-open.
 
-### 2. Enumerate every open fork
+### 2. Verify claims and grep seams — one Haiku Explore
 
-A fork is anything a drone would have to *decide*. Hunt for:
+Collect every claim the issue makes about the code ("X is unbuilt", "Y has
+no caller", "that helper was deleted") and every thing the change touches.
+Dispatch **one** `Agent(subagent_type: "Explore", model: "haiku")` carrying:
 
-- **Floated alternatives** — "…or some other way to show it", "maybe X, maybe Y".
-- **Speculative asides riding along** — "and maybe we drop the trimming too?" A
-  second decision must never ride a first; split it out.
-- **Unstated acceptance** — no definition of done. "Done" must be a failing test
-  or an exact spec, per swarm Gate #3.
-- **Unowned surfaces** — which files? Not to keep units disjoint, but because
-  "which files does this touch" is often the question that reveals the design
-  isn't settled: if two plausible implementations land on different modules, the
-  *approach* is undecided, and that's the fork.
-- **Cross-issue dependencies** — does this need another issue resolved first?
-  Record the dependency; it does **not** disqualify `Ready`. A blocked issue
-  and its blocker can run in the same swarm, in order — the orchestrator owns
-  that DAG. Only an issue blocked on a *decision nobody has made* stays `design`.
+- the whole claim list → report verified / false / stale, a `file:line` each;
+- the seam grep → every file that references the thing (scenes instancing
+  the node, `.tres` boards needing a null-guard, sandbox panels listing the
+  system), never from recall;
+- each reading-list `path:range` you intend to cite → confirm it exists and
+  says what the entry will claim.
 
-List them back to the user plainly, numbered. Use `AskUserQuestion` when the
-forks are clean multiple-choice; prose when they need discussion.
+A stale claim closes with a doc correction, not new work. This is the only
+delegation in the pass; the thinking stays here.
 
-### 3. Settle each fork with the user
+### 3. Do the arithmetic
 
-One at a time or in a batch — but every fork gets a *pinned* answer, written down
-in the user's words, not paraphrased into ambiguity. If a fork can't be settled
-now (needs a spike, needs another issue), the issue stays `blocked`/`design` and
-swarmify stops for it — that's a valid outcome, not a failure.
+After pinning anything numeric, compute what it implies at both ends of the
+range (level 1 and level 100, one node and two hundred). The fix that
+surfaces is usually structural, and it surfaces from the numbers.
 
-### 4. Write the acceptance spec into the issue
+### 4. Enumerate every open fork
 
-> Issues written before 2026-08-02 head this section `## Swarmable spec`. Same
-> thing — read it as the acceptance spec; don't retitle them on sight.
+A fork is anything a drone would have to *decide*:
 
-Post a comment (or edit the body) with an `## Acceptance spec` section containing:
+- **Floated alternatives** — "…or some other way", "maybe X, maybe Y".
+- **Speculative asides riding a decision** — a second decision never rides a
+  first: split it out (own child, own sibling, or a NOTES line) before
+  promoting.
+- **Unstated acceptance** — no failing test, no exact spec.
+- **Unowned surfaces** — two plausible implementations landing on different
+  modules means the *approach* is undecided.
+- **Cross-issue dependencies** — recorded, not disqualifying (step 6).
 
-- **Decisions** — each resolved fork, one line, stated as settled fact.
-- **Files touched** — the paths the work lands on. This is *information for the
-  orchestrator's DAG*, not a fence. Name any file you know a sibling issue also
-  touches, and say which issue — that's what lets the orchestrator sequence
-  rather than collide.
-- **Acceptance** — the failing test to make green, or an exact behavioural spec.
-- **NOTES** — descoped asides, parked for their own future issue. Never let one
-  ride the Ready unit.
+List them numbered — `AskUserQuestion` for clean choices, prose for the rest.
 
-This comment is what a `swarm` drone reads, by itself, in place of a brief.
-**The Ready criterion (#857): a drone given only the issue number, its
-comments, and a fence can act** — every decision is in the body or in a dated
-owner comment, none in a chat log, a handoff file, or the orchestrator's
-head. The swarm brief is bare (issue #, owned paths, seams, tier, "Sage is
-your advisor") and restates nothing; if you find yourself thinking "the
-orchestrator will explain that part", it is not Ready. Test it before you
-promote: read the body and `--comments` cold, as a Sonnet with no chat
-history would, and ask whether a single unsettled fork remains. #847's
-publish-a-Release pre-step lived in a post-review comment and rewrote
-acceptance 7 — fine, because it was *on the issue*, dated, the owner's.
+### 5. Settle each fork with the owner
 
-### 5. If it's a hub, decompose into Ready children
+Every fork gets a pinned answer in the owner's words. An unsettleable fork
+(needs a spike, needs another issue) keeps the issue in `Needs design`:
+"still blocked, here is why" is a valid outcome. Never promote an issue a
+drone will stall on.
 
-An epic (sub-issues > 0, or too big for one worker) is not itself `Ready` — its
-*children* are, and **a parent never carries work** (owner call 2026-09-15,
-`docs/domain/issue-workflow.md` §Hubs): the moment you split, the hub's own
-acceptance spec — including the defect the hub itself describes — moves into a
-child ("child 0"), the hub keeps only the problem statement, decisions and DAG,
-and you never set its status again: `land` and `hygiene --fix` derive it. A
-follow-up that is *not* required for the hub to be done is a sibling linking
-back, never a child. Split it **along whatever seam the design actually has** — one
-decision, one coherent unit of work. Where that seam also happens to be a file
-boundary, say so; where it doesn't, split anyway and record the overlap. A child
-that spans a shared file is still `Ready`; the orchestrator sequences it.
+File ownership is a map, not a gate: record which paths a unit touches so
+the orchestrator can sequence; never contort the design to keep files
+disjoint, never withhold `Ready` because two issues share a file.
 
-File each child under the parent:
+### 6. Write the Ready comment
+
+Post a comment (or edit the body) headed `## Acceptance spec`:
+
+`````markdown
+## Acceptance spec
+
+**Decisions** (owner, <date>)
+- <each resolved fork as one line of settled fact, in the owner's words>
+
+**Files touched**
+- <path> — <what lands here; name any sibling issue sharing it>
+
+**Acceptance**
+1. <the failing test to make green, or an exact behavioural spec>
+
+**NOTES**
+- <descoped asides, each parked for its own issue; never riding this unit>
+
+**Stubs on master** — <commit sha> · <class_name / signatures added> · <test file under `pending()`>
+
+```drift-stamp <master sha, 7–40 hex>
+path/to/file.gd:120-180 — what the reader learns here
+path/to/scene.tscn — seam: instances the node
+```
+`````
+
+- **Decisions** — one line per resolved fork, dated, attributed to the owner.
+- **Files touched** — the paths the work lands on; name any sibling that
+  shares one, and which issue.
+- **Acceptance** — the failing test to make green or an exact behavioural
+  spec.
+- **NOTES** — descoped asides, parked for their own issue.
+- **Reading list** (inside the stamp) — 5–15 entries of `path:start-end —
+  why`, "read these, nothing else". Not a file map, not a tour: each entry
+  names what the reader learns there. Omit what should be skipped rather
+  than listing it, unless a specific trap must be named. Every range is
+  verified at write time (step 2, or `sed -n 'a,bp'`).
+- **Seam map** (inside the stamp) — every file the change touches, including
+  files that merely reference the thing, from step 2's grep; one whole-file
+  entry each (`path — seam: <why>`).
+- **Stubs on master** — when the unit adds classes or signatures and the
+  arch fork is worth settling in code: `class_name`, method signatures, and
+  the red test file committed **under `pending()`** so trunk stays green.
+  `git status` first (the main checkout is shared), `git add` explicit
+  paths, one `mise run refresh` on master. The drone's first commit flips
+  the pending to RED. A stub is a proposal: a drone that finds it wrong
+  says so on the issue and goes against it with a stated reason.
+- **The drift stamp** — one fenced block, info string `drift-stamp <sha>`
+  where `<sha>` is the master sha the entries were written against; one
+  entry per line: `path`, optionally `:start-end`, then ` — ` and free text.
+  That shape is a parse contract (`mise run issue-drift` consumes it); the
+  info string is the key, anything else in the comment is prose. The last
+  stamp on the issue wins, so a re-swarmified issue simply posts a new one.
+
+**Shapes and seams, not bodies.** Signatures, seams, reading list, red
+tests — never the implementation.
+
+**Every section, on any serious issue.** Omitting one is a *written* call on
+the issue — "no seams", "exploratory / docs", "few-turn patch, the drone
+finds the edits faster than we write the list" — never silence.
+
+**Test before promoting:** read body and `--comments` cold, as a Sonnet with
+no chat history would. If you think "the orchestrator will explain that
+part", or a single unsettled fork remains, it is not `Ready`.
+
+### 7. If it is a hub, decompose into Ready children
+
+A hub (sub-issues > 0, or too big for one unit) is never `Ready` itself — its
+children are. **A parent never carries work**: on split, *all* of the hub's
+work moves into children, the hub's own defect included as "child 0". The hub
+keeps the problem statement, the decisions and the DAG; never set its status
+by hand — `land` and `hygiene --fix` derive it.
+
+- Split along the seam the design has: one decision, one unit. Where that
+  is also a file boundary, say so; where it is not, split anyway and record
+  the overlap. A unit describing three or more deliverables is split before
+  dispatch.
+- A follow-up not required for the hub to be done is a sibling linking back,
+  never a child.
+- Shared-file work every child touches (one `.tres`, a registry append) is
+  the orchestrator's pre-step in the main checkout, not parcelled out.
+- Each child gets its own full `## Acceptance spec` (step 6).
 
 ```bash
-gh issue create --parent <n> --title "…" --body "…"    # gh ≥ 2.9x
+gh issue create --parent <n> --title "…" --body-file <file>
 mise gh-project -- status <child> ready                # or needs-design if it still forks
 ```
 
-**Record a real dependency, not just prose.** `gh` (≥ 2.97) has native issue
-*dependencies* — `blockedBy`/`blocking` — distinct from the parent/sub-issue
-relation `--parent` sets. Use them whenever step 2 found a cross-issue
-dependency, so the `swarm` orchestrator can read the DAG from the API instead
-of parsing "Depends on #N" out of a body:
+Record cross-issue dependencies as relations *and* in the spec prose:
 
 ```bash
-gh issue create --blocked-by <n1>,<n2> --title "…" --body "…"   # at creation
-gh issue edit <child> --add-blocked-by <blocker>                 # after the fact
+gh issue create --blocked-by <n1>,<n2> --title "…" --body-file <file>
+gh issue edit <child> --add-blocked-by <blocker>
 ```
 
-Still write the dependency in the acceptance spec prose too — the structured
-relation is for tooling, the prose is for the human/agent reading the issue.
+### 8. Promote
 
-Each child gets its own `## Acceptance spec`. Shared-file work (one `.tres` every
-child touches, a registry append) is **not** parcelled out — flag it as the
-orchestrator's pre-step, done in the main checkout before dispatch.
-
-### 6. Promote to Ready
-
-`Ready` **is** the admission ticket — there is no `swarmable` label (retired
-2026-08-02). Moving the status is the whole act:
+`Ready` is the admission ticket; the status move is the whole act, and the
+labels and milestone go in the same breath:
 
 ```bash
-mise gh-project -- status <n> ready       # the pickup column = the swarm queue
-mise gh-project -- label <n> rm design    # forks are resolved now
-mise gh-project -- label <n> rm blocked   # if it was
-mise gh-project -- milestone <n> <m>      # Ready with no milestone is a hygiene violation
+mise gh-project -- status <n> ready
+mise gh-project -- label <n> rm design
+mise gh-project -- label <n> rm blocked       # if it was
+mise gh-project -- milestone <n> <m>          # Ready without one is a hygiene violation
+mise gh-project -- hygiene                    # must stay clean
 ```
-
-Drop the `design`/`blocked` labels in the same breath as the status move. Leaving
-one on a `Ready` issue is exactly the drift the label collapse was meant to end,
-and `hygiene` will flag it.
-
-Then update the **decisions queue** (the tracking meta-issue): tick the hub you
-just cleared, add any new `blocked` children you discovered. `mise gh-project --
-list ready` should now show what you produced, and `mise gh-project -- hygiene`
-should stay clean.
 
 ## What swarmify is NOT
 
-- **Not implementation.** You resolve design and write specs; you do not write the
-  feature. Handing off to `swarm`/`warp` is the next, separate step.
-- **Not a rubber stamp.** If after triage the forks aren't actually settleable, the
-  honest output is "still `blocked`, here's why" — leave it in `needs-design`
-  rather than promoting an issue a drone will stall on.
-- **Not a spawn.** Don't `Agent`-dispatch to do the thinking. This runs in your
-  session, with the user, by design.
+- **Not implementation** beyond step 6's stubs.
+- **Not a rubber stamp** — an issue with an unsettleable fork stays in
+  `Needs design`.
+- **Not a spawn** — the thinking runs here, with the owner; only step 2's
+  lookup is delegated.
