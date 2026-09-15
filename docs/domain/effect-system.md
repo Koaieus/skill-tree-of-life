@@ -332,7 +332,11 @@ read is already correct.
   (`AllocationSystem.clear_statuses()` on `deallocate`/`force_deallocate`/
   `deallocate_all_owned`) — `StatusDef.OnDealloc` reserves a `LINGER` door but
   only `CLEAR` is built. `network/graph_snapshot.gd` carries `(status id,
-  power)` rows in resync, and `WorldFingerprint` folds them.
+  power)` rows in resync, and `WorldFingerprint` folds them. Concrete defs:
+  `BlindnessStatus` (#873, MULTIPLY on vision/sensor range), `ArmorBreakStatus`
+  (#877, MULTIPLY on armor), `PoisonStatus` (#874, unmitigated
+  `DamageInstance.Type.TRUE` damage on `_on_tick`, flat or `%`-of-max-hp per
+  `damage_mode`, can kill through the ordinary `notify_depleted` cascade).
 
 ## Known limits — file an issue to extend
 

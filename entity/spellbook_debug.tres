@@ -12,7 +12,8 @@
 [ext_resource type="Resource" uid="uid://dm5qgrlia6ne6" path="res://attack/spell/defs/healing_beam.tres" id="9_healing_beam"]
 [ext_resource type="Resource" path="res://attack/spell/defs/dazzle.tres" id="10_dazzle"]
 [ext_resource type="Resource" path="res://attack/spell/defs/sunder.tres" id="11_sunder"]
+[ext_resource type="Resource" path="res://attack/spell/defs/venom.tres" id="12_venom"]
 
 [resource]
 script = ExtResource("1_book")
-spells = Array[ExtResource("1_spell_def")]([ExtResource("2_spark"), ExtResource("3_lightning"), ExtResource("4_bruiser"), ExtResource("5_leafblower"), ExtResource("6_resonator"), ExtResource("7_trail_blazer"), ExtResource("8_reverberator"), ExtResource("9_healing_beam"), ExtResource("10_dazzle"), ExtResource("11_sunder")])
+spells = Array[ExtResource("1_spell_def")]([ExtResource("2_spark"), ExtResource("3_lightning"), ExtResource("4_bruiser"), ExtResource("5_leafblower"), ExtResource("6_resonator"), ExtResource("7_trail_blazer"), ExtResource("8_reverberator"), ExtResource("9_healing_beam"), ExtResource("10_dazzle"), ExtResource("11_sunder"), ExtResource("12_venom")])

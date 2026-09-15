@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="PoisonStatus" format=3]
+
+[ext_resource type="Script" path="res://effects/status/poison.gd" id="1_poison"]
+
+[resource]
+script = ExtResource("1_poison")
+id = &"poison"
+display_name = "Poison"
+description = "Unmitigated damage each turn, tracking the node's own max HP; recovers over 5 turns."
+tint = Color(0.2, 0.85, 0.25, 1)
+tags = Array[StringName]([&"debuff"])
+power_max = 5.0
+decay_per_tick = 1.0
+reapply = 1
+cure_per_hp = 0.25
+on_dealloc = 0
+damage_mode = 1
+damage_per_power = 0.05
