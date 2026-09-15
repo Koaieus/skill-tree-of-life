@@ -141,6 +141,17 @@ against them.
     blocker, a spec deviation, a stale spec, an out-of-scope discovery, the
     successor brief. Never "done", never a diff, never narration.
 
+## Measuring it
+
+`mise run agent-cost -- --name <drone> | --branch <slug> | --id <agentId> |
+--latest N` computes the integral (and effective tokens, turns, tool calls,
+wall-clock) from the subagent transcript, deduping the several assistant
+records one API call writes. `mise run land` prints it en passant for the
+landed branch. It is a best estimate — cross-agent chatter (a Fable Sage
+answering a Sonnet drone is two turns at very different rates) is not
+modelled — and the price weights live in one place in the script so they
+can be sharpened without any agent re-deriving the logic.
+
 ## What is enforced by hook vs by wording
 
 `.mise/tasks/drone-budget-guard` (PreToolUse, subagents only; selftest

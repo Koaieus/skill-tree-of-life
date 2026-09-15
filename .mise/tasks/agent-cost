@@ -1,0 +1,270 @@
+#!/usr/bin/env python3
+#MISE description="Best-estimate cost of subagent runs from their transcripts — Σ(context × turns), effective tokens, tool calls: `mise run agent-cost -- --name <teammate> | --branch <slug> | --id <agentId> | --latest N`"
+"""
+Deterministic, read-only cost report over Claude Code subagent transcripts
+(~/.claude/projects/<cwd-slug>/<session>/subagents/agent-<id>.jsonl).
+
+The number the swarm cares about is not final context and not tool-call
+count but their integral: every API call re-sends the whole context, so the
+run's cost is Σ over calls of context-at-that-call. This prints that, plus a
+priced "effective tokens" estimate that discounts the cached prefix — see
+_WEIGHTS. It is a best estimate and says so: cross-agent chatter (a Fable
+Sage answering a Sonnet drone costs two turns at very different rates) is not
+modelled; each agent is priced on its own transcript alone.
+
+Selection (any combination; results are deduped, newest first):
+  --name  <teammate>   resolve via the parent transcripts' Agent tool_use →
+                       tool_result agentId link (the name you passed to Agent)
+  --id    <agentId>    the id from the Agent tool result / hook payload
+  --branch <slug>      every subagent whose transcript mentions .worktrees/<slug>
+                       (the drone and whoever reviewed it) — what `land` uses
+  --latest N           the N most recently modified subagent transcripts
+  --days D             only look at transcripts modified in the last D days (7)
+  --json               machine-readable instead of the table
+
+Gotcha this tool exists to encode: one API call yields SEVERAL assistant
+records sharing a requestId (text block, tool_use block, …). Turns are
+requests, not records; usage is taken once per request (max over its records).
+"""
+import argparse
+import collections
+import glob
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+from datetime import datetime
+
+# Relative price weights per token class, in units of "one uncached input
+# token". Sharpen here, never in a caller: cache reads are billed ~10% of
+# input, cache writes ~125%, output ~500%. Same ratios across current tiers.
+_WEIGHTS = {"input": 1.0, "cache_creation": 1.25, "cache_read": 0.10, "output": 5.0}
+
+
+def _projects_dir():
+    override = os.environ.get("AGENT_COST_PROJECTS_DIR")
+    if override:
+        return override
+    cwd = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+    slug = re.sub(r"[^A-Za-z0-9]", "-", cwd)
+    return os.path.expanduser(f"~/.claude/projects/{slug}")
+
+
+def _recent(paths, days):
+    cutoff = time.time() - days * 86400
+    return [p for p in paths if os.path.getmtime(p) >= cutoff]
+
+
+def _sub_transcripts(root, days):
+    return _recent(glob.glob(os.path.join(root, "*", "subagents", "agent-*.jsonl")), days)
+
+
+def _parent_transcripts(root, days):
+    return _recent(glob.glob(os.path.join(root, "*.jsonl")), days)
+
+
+def _grep_l(needle, paths, regex=False):
+    """Files containing the string (or ERE), via grep — the transcripts are big."""
+    if not paths:
+        return []
+    out = subprocess.run(["grep", "-lE" if regex else "-lF", "--", needle, *paths], capture_output=True, text=True)
+    return [p for p in out.stdout.split("\n") if p]
+
+
+def _ids_by_name(root, name, days):
+    """agentIds spawned under `name`: Agent tool_use carrying it → the
+    matching tool_result, whose text carries `agentId: <id>`."""
+    ids = []
+    for parent in _grep_l(f'"name": ?"{re.escape(name)}"', _parent_transcripts(root, days), regex=True):
+        pending = set()
+        with open(parent, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                if "Agent" not in line and "agentId" not in line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    continue
+                content = (rec.get("message") or {}).get("content")
+                if not isinstance(content, list):
+                    continue
+                for block in content:
+                    if block.get("type") == "tool_use" and block.get("name") == "Agent" \
+                            and (block.get("input") or {}).get("name") == name:
+                        pending.add(block.get("id"))
+                    elif block.get("type") == "tool_result" and block.get("tool_use_id") in pending:
+                        m = re.search(r"agentId:\s*([0-9a-f]+)", json.dumps(block))
+                        if m:
+                            ids.append(m.group(1))
+                            pending.discard(block.get("tool_use_id"))
+    return ids
+
+
+def _path_for_id(root, agent_id):
+    hits = glob.glob(os.path.join(root, "*", "subagents", f"agent-{agent_id}.jsonl"))
+    return max(hits, key=os.path.getmtime) if hits else None
+
+
+def _usage_parts(usage):
+    return {
+        "input": int(usage.get("input_tokens") or 0),
+        "cache_creation": int(usage.get("cache_creation_input_tokens") or 0),
+        "cache_read": int(usage.get("cache_read_input_tokens") or 0),
+        "output": int(usage.get("output_tokens") or 0),
+    }
+
+
+def analyse(path):
+    """One transcript → a flat dict of estimates. Pure; no I/O beyond the read."""
+    requests = collections.OrderedDict()  # requestId → max usage parts seen
+    models = collections.Counter()
+    tools = collections.Counter()
+    tool_ids = set()
+    first_ts = last_ts = None
+    first_prompt = None
+    spawn = {}
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for line in fh:
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            ts = rec.get("timestamp")
+            if ts:
+                first_ts = first_ts or ts
+                last_ts = ts
+            if not spawn:
+                spawn = {k: rec.get(k) for k in ("sessionId", "gitBranch") if rec.get(k)}
+            msg = rec.get("message") or {}
+            content = msg.get("content")
+            if rec.get("type") == "user" and first_prompt is None:
+                if isinstance(content, str):
+                    first_prompt = content
+                elif isinstance(content, list):
+                    first_prompt = " ".join(b.get("text", "") for b in content if isinstance(b, dict))
+            if rec.get("type") != "assistant":
+                continue
+            if msg.get("model"):
+                models[msg["model"]] += 1
+            usage = msg.get("usage")
+            if isinstance(usage, dict):
+                key = rec.get("requestId") or rec.get("uuid")
+                parts = _usage_parts(usage)
+                prev = requests.get(key)
+                requests[key] = parts if prev is None else {k: max(prev[k], parts[k]) for k in parts}
+            if isinstance(content, list):
+                for block in content:
+                    if block.get("type") == "tool_use" and block.get("id") not in tool_ids:
+                        tool_ids.add(block.get("id"))
+                        tools[block.get("name") or "?"] += 1
+
+    ctxs = [p["input"] + p["cache_creation"] + p["cache_read"] for p in requests.values()]
+    totals = {k: sum(p[k] for p in requests.values()) for k in _WEIGHTS}
+    effective = sum(totals[k] * w for k, w in _WEIGHTS.items())
+    wall_min = None
+    if first_ts and last_ts:
+        f = datetime.fromisoformat(first_ts.replace("Z", "+00:00"))
+        l = datetime.fromisoformat(last_ts.replace("Z", "+00:00"))
+        wall_min = (l - f).total_seconds() / 60
+    issue = re.search(r"#(\d{2,5})\b", first_prompt or "")
+    # The worktree slug: most frequent `.worktrees/<slug>/` path in the first
+    # 400 KB (commands + tool results), not the first mention — a brief that
+    # *talks about* worktrees would otherwise win.
+    head = open(path, encoding="utf-8", errors="replace").read(400_000)
+    slugs = collections.Counter(re.findall(r"\.worktrees/([A-Za-z0-9._-]+)/", head))
+    return {
+        "agent_id": re.sub(r"^agent-|\.jsonl$", "", os.path.basename(path)),
+        "path": path,
+        "model": (models.most_common(1)[0][0] if models else "?").replace("claude-", ""),
+        "turns": len(ctxs),
+        "tool_calls": sum(tools.values()),
+        "tools": dict(tools.most_common()),
+        "final_ctx": ctxs[-1] if ctxs else 0,
+        "peak_ctx": max(ctxs) if ctxs else 0,
+        "integral_ctx": sum(ctxs),
+        "tokens": totals,
+        "effective_tokens": int(effective),
+        "wall_min": wall_min,
+        "started": first_ts,
+        "issue": f"#{issue.group(1)}" if issue else "",
+        "worktree": slugs.most_common(1)[0][0] if slugs else "",
+        "session": spawn.get("sessionId", ""),
+    }
+
+
+def _k(n):
+    return f"{n / 1000:.0f}k" if n < 1_000_000 else f"{n / 1_000_000:.2f}M"
+
+
+def _table(rows):
+    head = f"{'agent':9} {'model':12} {'turns':>5} {'calls':>5} {'final':>6} {'peak':>6} {'Σctx':>7} {'eff':>7} {'out':>5} {'wall':>5}  top tools / hints"
+    lines = [head]
+    for r in rows:
+        top = ", ".join(f"{t} {n}" for t, n in list(r["tools"].items())[:4])
+        hint = " ".join(x for x in (r["issue"], r["worktree"] and f"wt:{r['worktree']}") if x)
+        wall = f"{r['wall_min']:.0f}m" if r["wall_min"] is not None else "?"
+        lines.append(
+            f"{r['agent_id'][:8]:9} {r['model'][:12]:12} {r['turns']:>5} {r['tool_calls']:>5} "
+            f"{_k(r['final_ctx']):>6} {_k(r['peak_ctx']):>6} {_k(r['integral_ctx']):>7} "
+            f"{_k(r['effective_tokens']):>7} {_k(r['tokens']['output']):>5} {wall:>5}  {top}  {hint}".rstrip()
+        )
+    if len(rows) > 1:
+        lines.append(
+            f"{'TOTAL':9} {'':12} {sum(r['turns'] for r in rows):>5} {sum(r['tool_calls'] for r in rows):>5} "
+            f"{'':>6} {'':>6} {_k(sum(r['integral_ctx'] for r in rows)):>7} "
+            f"{_k(sum(r['effective_tokens'] for r in rows)):>7} {_k(sum(r['tokens']['output'] for r in rows)):>5}"
+        )
+    lines.append(
+        "  Σctx = Σ over API calls of context at that call (the cost integral); eff = "
+        + " + ".join(f"{w:g}·{k}" for k, w in _WEIGHTS.items())
+        + " — a best estimate, priced per agent alone, cross-agent chatter not modelled."
+    )
+    return "\n".join(lines)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--name", action="append", default=[])
+    ap.add_argument("--id", action="append", default=[])
+    ap.add_argument("--branch", action="append", default=[])
+    ap.add_argument("--latest", type=int, default=0)
+    ap.add_argument("--days", type=float, default=7)
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--quiet-empty", action="store_true", help="print nothing when no transcript matches (for `land`)")
+    args = ap.parse_args(argv)
+    root = _projects_dir()
+
+    paths = []
+    for agent_id in args.id:
+        p = _path_for_id(root, agent_id)
+        if p:
+            paths.append(p)
+    for name in args.name:
+        for agent_id in _ids_by_name(root, name, args.days):
+            p = _path_for_id(root, agent_id)
+            if p:
+                paths.append(p)
+    subs = _sub_transcripts(root, args.days) if (args.branch or args.latest) else []
+    for slug in args.branch:
+        paths.extend(_grep_l(f".worktrees/{slug}", subs))
+    if args.latest:
+        paths.extend(sorted(subs, key=os.path.getmtime, reverse=True)[: args.latest])
+
+    seen, uniq = set(), []
+    for p in sorted(paths, key=os.path.getmtime, reverse=True):
+        if p not in seen:
+            seen.add(p)
+            uniq.append(p)
+    if not uniq:
+        if not args.quiet_empty:
+            print(f"agent-cost: no subagent transcript matched under {root} (last {args.days:g} days)", file=sys.stderr)
+        return 0 if args.quiet_empty else 1
+    rows = [analyse(p) for p in uniq]
+    print(json.dumps(rows, indent=1) if args.json else _table(rows))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

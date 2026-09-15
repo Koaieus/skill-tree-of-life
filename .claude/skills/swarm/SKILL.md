@@ -794,6 +794,16 @@ The `drone` agent mandates a terse structured report. Read those, not the diffs.
 worker's report is a wall of text, that's a drone-contract violation — don't
 propagate it into your summary to the user.
 
+**What the unit cost is one clipped-on command, not a turn.** `mise run
+agent-cost -- --name <drone-name>` (or `--branch <slug>`) prints one line per
+subagent — turns, tool calls, final/peak context, **Σctx** (the cost
+integral: context re-sent on every call), effective tokens, wall-clock —
+from the transcripts, deterministically. Append it to the `git --stat` or
+`land` command you were running anyway (`land` already prints it as
+`cost:` lines for the landed branch); never spend a turn on it alone. Put the
+Σctx/eff figure in the ledger row — that is the datum the tier tag and the
+next brief's budget are tuned against.
+
 **How you act on completions depends on the harness:**
 
 - **opencode — wave-based.** The `task` tool is synchronous; an orchestrator

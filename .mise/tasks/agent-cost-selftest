@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+#MISE description="Self-test for agent-cost: synthetic parent + subagent transcripts, asserts request dedupe, name→id resolution, --branch, --latest. `mise run agent-cost-selftest`"
+import importlib.machinery, importlib.util, json, os, sys, tempfile
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+spec = importlib.util.spec_from_loader("agent_cost", importlib.machinery.SourceFileLoader("agent_cost", os.path.join(HERE, "agent-cost")))
+ac = importlib.util.module_from_spec(spec); spec.loader.exec_module(ac)
+
+
+def assistant(req, usage, blocks, model="claude-sonnet-5", ts="2026-09-15T10:00:00Z"):
+    return {"type": "assistant", "requestId": req, "timestamp": ts,
+            "message": {"model": model, "usage": usage, "content": blocks}}
+
+
+def write(path, records):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as fh:
+        for r in records:
+            fh.write(json.dumps(r) + "\n")
+
+
+root = tempfile.mkdtemp(prefix="agent-cost-")
+sess = "11111111-2222-3333-4444-555555555555"
+sub = os.path.join(root, sess, "subagents", "agent-abc123.jsonl")
+u1 = {"input_tokens": 10, "cache_creation_input_tokens": 1000, "cache_read_input_tokens": 0, "output_tokens": 50}
+u2 = {"input_tokens": 5, "cache_creation_input_tokens": 100, "cache_read_input_tokens": 1000, "output_tokens": 200}
+write(sub, [
+    {"type": "user", "sessionId": sess, "timestamp": "2026-09-15T10:00:00Z", "message": {"content": "Work #123 in .worktrees/foo-bar/ please"}},
+    # one request, three records (text, tool_use, tool_use again) — must count ONCE
+    assistant("r1", u1, [{"type": "text", "text": "hi"}]),
+    assistant("r1", u1, [{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "cd .worktrees/foo-bar/ && ls"}}]),
+    assistant("r1", u1, [{"type": "tool_use", "id": "t1", "name": "Bash", "input": {}}]),
+    assistant("r2", u2, [{"type": "tool_use", "id": "t2", "name": "Edit", "input": {}}], ts="2026-09-15T10:03:00Z"),
+])
+parent = os.path.join(root, f"{sess}.jsonl")
+write(parent, [
+    {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "tu1", "name": "Agent", "input": {"name": "drone-foo", "subagent_type": "drone"}}]}},
+    {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "tu1", "content": "launched.\nagentId: abc123 (internal)"}]}},
+])
+
+failed = 0
+def check(name, cond):
+    global failed
+    print(("[ok] " if cond else "[FAIL] ") + name); failed += not cond
+
+r = ac.analyse(sub)
+check("turns = requests, not records", r["turns"] == 2)
+check("tool calls deduped by id", r["tool_calls"] == 2 and r["tools"] == {"Bash": 1, "Edit": 1})
+check("final/peak ctx", r["final_ctx"] == 1105 and r["peak_ctx"] == 1105)
+check("integral", r["integral_ctx"] == 1010 + 1105)
+check("effective weights", r["effective_tokens"] == int(15 * 1.0 + 1100 * 1.25 + 1000 * 0.1 + 250 * 5.0))
+check("wall minutes", round(r["wall_min"]) == 3)
+check("issue + worktree hints", r["issue"] == "#123" and r["worktree"] == "foo-bar")
+check("model stripped", r["model"] == "sonnet-5")
+
+os.environ["AGENT_COST_PROJECTS_DIR"] = root
+check("name → id via parent transcript", ac._ids_by_name(root, "drone-foo", 7) == ["abc123"])
+check("id → path", ac._path_for_id(root, "abc123") == sub)
+check("--branch finds the worktree", ac._grep_l(".worktrees/foo-bar", ac._sub_transcripts(root, 7)) == [sub])
+import io, contextlib
+buf = io.StringIO()
+with contextlib.redirect_stdout(buf):
+    code = ac.main(["--latest", "1"])
+check("--latest prints a table", code == 0 and "abc123" in buf.getvalue() and "TOTAL" not in buf.getvalue())
+with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(io.StringIO()):
+    code_empty = ac.main(["--branch", "nope", "--quiet-empty"])
+check("--quiet-empty exits 0 silently", code_empty == 0)
+print("all checks passed" if not failed else f"{failed} FAILED")
+sys.exit(1 if failed else 0)

@@ -210,3 +210,8 @@ if [ -n "$closes" ]; then
 fi
 
 echo "LANDED $branch $(git -C "$main" rev-parse --short "$sha") master=$(git -C "$main" rev-parse --short master)"
+
+# En passant: what the branch cost, from the transcripts of every subagent
+# that worked in its worktree (drone + reviewer). Best estimate, never fatal,
+# silent when no transcript matches (a hand-made branch).
+(cd "$main" && mise run --quiet agent-cost -- --branch "$branch" --quiet-empty 2>/dev/null | sed 's/^/  cost: /') || true
