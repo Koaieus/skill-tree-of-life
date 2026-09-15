@@ -23,6 +23,6 @@ this file no longer restates any of it. What differs at wave size 1:
 
 What the 2026-09-03 chain (#737 → #727 → #746 → #736 → #743, five landed in
 ~5h; lead 218k, drones 111k–222k) taught now lives where it binds: the
-drone-side rules in `drone`, the merge token in `mise run land`, review
+drone-side rules in the `drone` agent (`.claude/agents/drone.md`), the merge token in `mise run land`, review
 proportionality and the final-suite baseline in `swarm` §5–§6, retirement
 economics in `swarm`'s stop-compliance section. Do not re-grow this file.

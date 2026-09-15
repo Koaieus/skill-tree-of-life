@@ -64,9 +64,9 @@ harness today is **opencode**; the Claude Code column is kept for portability.
 
 | Concern | opencode | Claude Code |
 |---|---|---|
-| Dispatch tool | `task` (one call per worker, `subagent_type: "drone"` + full brief in `prompt`) | `Agent` with `name` (teammate); brief comes via `SendMessage` in step 2 |
+| Dispatch tool | `task` (one call per worker, `subagent_type: "drone"` + full brief in `prompt`) | `Agent` with `subagent_type: "drone"` (`.claude/agents/drone.md`) and `name` (teammate); brief in `prompt` *and* via `SendMessage` in step 2 |
 | Parallel | N `task` calls in **one orchestrator message** — they run concurrently, orchestrator blocks until the wave returns | `run_in_background: true` per `Agent` call — they run concurrently, orchestrator keeps working |
-| Worker model | `drone` (this repo: `opencode-go/deepseek-v4-flash` @ `reasoningEffort: max`, full tool set incl. `task` for grandchildren) | `sonnet` for code, `haiku` for ultra-mechanical |
+| Worker model | `drone` (this repo: `opencode-go/deepseek-v4-flash` @ `reasoningEffort: max`, full tool set incl. `task` for grandchildren) | the `drone` agent defaults to `sonnet`; `model:` on the `Agent` call overrides per tier — `haiku` for ultra-mechanical |
 | Read-only leaf | `explore` subagent — verified tool set: `bash, glob, grep, read, webfetch` (NO `task`, so it's a true leaf) | `Explore(model=haiku)` — same shape, capped |
 | Resume a blocked worker | pass the prior `task_id` to the `task` tool — same session, hot context | `SendMessage` to the live `name` — same session, hot context |
 | Worker isolation | worker runs `mise run worktree:new -- <slug>` as its first action, uses absolute paths | **same mise convention** — swarm spawns teammates without `isolation`, so they start in the shared checkout too. Harness `isolation: "worktree"` exists but is not used here (auto-created, auto-reclaimed when the agent exits unchanged — see Gotchas). |
@@ -91,8 +91,11 @@ Everything a worker needs — owned paths, acceptance test, "done" definition,
 harness-aware escalation channel — goes in its `task` prompt (opencode) or
 its `SendMessage` brief (Claude Code). The standing flow rules (worktree
 first, hard-stop, explicit-path `git add`, verification caps, report format)
-do *not* go in the brief — `drone` carries them, and the brief opens with
-`"Invoke the drone skill, then do the following:"`. The *spec* does not go
+do *not* go in the brief — the `drone` agent definition carries them baked
+in (Claude Code: `.claude/agents/drone.md`, derived from
+`docs/charters/drone.md`; opencode: the `drone` agent type), so the brief
+never says "invoke the drone skill" — that line cost a turn and a skill load
+per worker. The *spec* does not go
 in the brief either: a `Ready` issue is spec-complete for a bare-number
 drone (`swarmify`'s criterion, #857), so the brief carries only what the
 issue cannot know — the fence, the seams, the tier, Sage's name. What must
@@ -227,7 +230,7 @@ worktree state costs it everything.
 
 ## Stop compliance and relief — this applies to you too, not just drones
 
-`drone` carries the context-budget and stop-compliance rules for workers. You
+The `drone` agent carries the context-budget and stop-compliance rules for workers. You
 are not exempt — a real orchestrator session violated its own stop
 instruction in 48 seconds and manufactured the worst drone of the night doing
 it (below). Two separate obligations follow.
@@ -446,7 +449,7 @@ If the work won't come apart into units at all, that's a real answer: run `warp`
 
 ### The merge contract — never make a deep-context drone merge
 
-A drone **commits inside its own worktree and stops** (`drone` mandates exactly
+A drone **commits inside its own worktree and stops** (the `drone` agent mandates exactly
 this: commit before reporting, never rebase, never merge, never touch `master`,
 never run `land`). Its commits are the handoff.
 
@@ -537,9 +540,9 @@ worker edits the shared main checkout):
 > use absolute paths into `.worktrees/<slug>/` for everything after. Do not
 > edit anything before that worktree exists.
 
-Then: **"Invoke the `drone` skill, then do the following."** (Subagents
-inherit the skill list. If a worker reports it can't find `drone`, tell it
-to `Read .claude/skills/drone/SKILL.md` instead; it's plain markdown.)
+Then the bare-number brief (below). The `drone` agent type carries the
+standing rules; the brief does not restate them or tell the worker to load
+anything.
 
 Each worker reports its own `BRANCH:` (the `<slug>` from `worktree:new`).
 Record the slugs in your session todo list — they are your merge handles, and
@@ -618,9 +621,12 @@ run in parallel). Per `Agent` call:
   takes the shared task board away — and a teammate therefore starts in the
   **shared main checkout**, which is why the worktree-first line leads the
   brief.
-- `subagent_type: "general-purpose"` (the default if omitted) or `"claude"` —
-  both carry the full tool set. Never `Explore`/`Plan`: they have no
-  `Edit`/`Write`.
+- **`subagent_type: "drone"`** — the repo's worker agent
+  (`.claude/agents/drone.md`): the standing rules, the economy contract and
+  the retirement protocol are baked into it, `AskUserQuestion` is not in its
+  tool set, and it defaults to `sonnet`. Never `Explore`/`Plan`: they have
+  no `Edit`/`Write`. `general-purpose`/`claude` carry none of the drone
+  contract — a worker spawned as one of those is running unbriefed.
 - `model:` is **mandatory and must equal the ledger's tier** — `"opus"` for
   an opus-tiered unit, `"sonnet"` otherwise, `"haiku"` only for
   ultra-mechanical work (rename, mass string-replace, boilerplate). An
@@ -628,18 +634,19 @@ run in parallel). Per `Agent` call:
   CLAUDE.md): wave 2 of 2026-09-13 passed no `model` at all, and wave 1
   dispatched both opus-tiered units (#356, #537) as `sonnet`. Read the
   param back against the ledger row before sending.
-- A **minimal** prompt. The real brief comes in step 2; anything here is
-  not read. (Backgrounding is the default now; don't pass
+- **The full brief in `prompt`.** The drone agent acts on whichever arrives
+  first — its prompt or your first message — so a spawn that does start off
+  its prompt is not wasted. (Backgrounding is the default now; don't pass
   `run_in_background` — named teammates are always async regardless.)
 
-**Step 2 — `SendMessage` each worker its brief.** The first line must be the
-same worktree-first line as above. Then `Invoke the drone skill, then do the
-following.`
+**Step 2 — `SendMessage` each worker the same brief** if it reports "will
+receive instructions via mailbox" instead of starting. The first line is the
+worktree-first line as above.
 
 #### Both harnesses — the bare-number brief (#857)
 
-**`"Invoke the drone skill, then do the following:"` and ~15 lines.** The
-`drone` skill carries every standing rule — worktree-first, hard-stop,
+**~15 lines, and no "invoke X first".** The `drone` agent carries every
+standing rule — worktree-first, hard-stop,
 explicit-path `git add`, verification caps, the report format, ask-Sage-then-
 stop. The **issue** carries the spec: the drone reads `gh issue view <n>` and
 `gh issue view <n> --comments` itself, at start and again before it asks for
@@ -684,8 +691,8 @@ worker needs to know which one it's in:
   background by default. Verified working both ways, worker → `main` and
   `main` → worker by name.)
 
-That distinction is not in `drone` (it picks the right channel from its
-harness table) — but naming it here costs one line and prevents the worker
+That distinction is not in the `drone` agent (a Claude Code agent knows only
+its own channel) — but naming it here costs one line and prevents the worker
 from inventing a channel that does not exist in its harness.
 
 **`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is on.** It is set in this user's
@@ -783,8 +790,8 @@ runs*. Letting five reports pile up before you look at any of them is the
 mistake this heading warns against; running one suite over a train of
 already-reviewed merges is not that mistake — see §6.
 
-`drone` mandates a terse structured report. Read those, not the diffs. If a
-worker's report is a wall of text, that's a `drone` violation — don't
+The `drone` agent mandates a terse structured report. Read those, not the diffs. If a
+worker's report is a wall of text, that's a drone-contract violation — don't
 propagate it into your summary to the user.
 
 **How you act on completions depends on the harness:**
@@ -1149,5 +1156,5 @@ a worker.
 
 Across both harnesses a worker can land in the wrong checkout (Claude Code
 transcript-resume bug) or just make a sloppy stage. Explicit-path `git add`
-keeps the blast radius bounded. This is `drone`'s standing rule — don't
+keeps the blast radius bounded. This is the `drone` agent's standing rule — don't
 undercut it.

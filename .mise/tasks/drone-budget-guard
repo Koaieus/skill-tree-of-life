@@ -12,11 +12,12 @@ budget section after) found were ADVISORY-ONLY and ignored by every drone:
      context before its first edit: six 30–40 KB whole-file Reads. A Read
      without `offset`/`limit` on a file over _MAX_WHOLE_READ_LINES is denied
      with the instruction to grep and read a range instead.
-  2. Past _HARD_STOP tokens the only allowed actions are commit-and-report:
+  2. Past _HARD_STOP tokens the only allowed actions are the retirement path:
      `SendMessage`, and `Bash` whose command is a git add/commit/status/diff/
-     log. Two drones went to 404k and 427k past a rule that said "at 300k
-     your next action is commit-and-report"; the drone skill's wording was
-     tightened twice and never once obeyed, so it's a deny now.
+     log or a `gh issue comment` (the successor brief the drone agent leaves
+     on its issue). Two drones went to 404k and 427k past a rule that said
+     "at 300k your next action is commit-and-report"; the drone skill's
+     wording was tightened twice and never once obeyed, so it's a deny now.
 
 FAIL-OPEN IS THE TOP PROPERTY (the opposite of context-size-hook, which
 fails closed = silent). A hook that denies on its own exception would brick
@@ -36,7 +37,7 @@ _HARD_STOP = 300_000
 _MAX_WHOLE_READ_LINES = 400
 _READ_EXEMPT_AGENT_TYPES = {"Explore"}
 _BINARY_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".pdf", ".ipynb", ".svg"}
-_COMMIT_AND_REPORT = re.compile(r"\bgit\b.*\b(add|commit|status|diff|log|rev-parse)\b")
+_COMMIT_AND_REPORT = re.compile(r"\bgit\b.*\b(add|commit|status|diff|log|rev-parse)\b|\bgh\s+issue\s+comment\b")
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -108,9 +109,9 @@ def _run(payload):
         return
     _deny(
         f"drone-budget-guard: context is ~{tokens // 1000}k, past the {_HARD_STOP // 1000}k hard stop. "
-        "The only actions left to you are commit-and-report: `git add <files> && git commit` of whatever "
-        "is uncommitted, then your final BRANCH:/FILES:/TESTS:/DID:/NOTES: report (SendMessage or your "
-        "final turn). No more reads, edits, or test runs — hand the rest to the orchestrator in NOTES:."
+        "The only actions left to you are the retirement path: `git add <files> && git commit` of whatever "
+        "is uncommitted, a `gh issue comment` successor brief, then your final BRANCH:/FILES:/TESTS:/DID:/NOTES: "
+        "report as turn text. No more reads, edits, or test runs."
     )
 
 

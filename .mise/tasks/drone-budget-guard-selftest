@@ -33,6 +33,8 @@ cases = [
     ("310k test run -> deny", sub("hot", "Bash", {"command": "mise run test:one -- x"}), True),
     ("310k git commit -> allow", sub("hot", "Bash", {"command": "cd w && git add a b && git commit -m m"}), False),
     ("310k SendMessage -> allow", sub("hot", "SendMessage", {"to": "Sage", "message": "x"}), False),
+    ("310k successor brief -> allow", sub("hot", "Bash", {"command": "gh issue comment 123 --body-file /tmp/b.md"}), False),
+    ("310k gh issue view -> deny", sub("hot", "Bash", {"command": "gh issue view 123 --comments"}), True),
     ("100k Edit -> allow", sub("cool", "Edit", {"file_path": small}), False),
     ("garbage stdin -> silent exit 0", "garbage", False),
 ]

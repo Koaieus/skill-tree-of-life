@@ -134,7 +134,7 @@ degrades to *silence*, never to a re-fired line on every call.
 
 The injected line is a number and a wall-clock time — no advice, no "you
 should wrap up." Behavior prose (what an agent should *do* with the number)
-lives in the `drone` skill (#652's sibling issue), kept decoupled on purpose:
+lives in the `drone` agent (`.claude/agents/drone.md`, charter `docs/charters/drone.md`), kept decoupled on purpose:
 the hook has no opinion to go stale.
 
 ## Stats ledger (optional, for #649)

@@ -77,7 +77,7 @@ handed off any other way.
   direction — the owner can call for relief early, or tell an orchestrator to
   stand down, and that wins.
 - The context-size signal makes 180k/250k self-observable without guessing
-  (see `drone`'s context-budget section); treat the numbers above as the
+  (see the `drone` agent's Retiring section); treat the numbers above as the
   thresholds to act on once you can see them, not as a reason to estimate
   blindly if you can't yet.
 

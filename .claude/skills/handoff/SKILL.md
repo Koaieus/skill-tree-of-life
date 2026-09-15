@@ -23,8 +23,8 @@ not the point.
 
 The sections below (1–5) are the **leisurely EOD sweep** — thorough, patient,
 and assumes you have room to do it right. If you are being retired *because*
-you blew a stop, a context budget, or a turn/time budget (see `drone`'s
-context-budget section), that sweep is the wrong tool. Loading it and then
+you blew a stop, a context budget, or a turn/time budget (see the `drone` agent's
+Retiring section), that sweep is the wrong tool. Loading it and then
 not following it — the `loot-offer` failure: `git status` twice, a file read,
 a grep, a `rebase --continue`, a second `mise run check` — is worse than
 skipping it, because it looks like compliance while burning exactly the
@@ -36,7 +36,7 @@ turns you no longer have.
    `-A`) and commit, even if the unit is incomplete. A `wip(...)` commit that
    states plainly what's missing beats an uncommitted worktree, which is
    lost work outright.
-2. **Write the report** — the same terse format `drone` always uses
+2. **Write the report** — the same terse format the `drone` agent always uses
    (`BRANCH:`/`FILES:`/`TESTS:`/`DID:`/`NOTES:`), with `NOTES:` stating
    exactly what's unfinished. Skip the sweep, skip routing decisions (§2),
    skip writing a handoff file. If one fact is genuinely load-bearing for

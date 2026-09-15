@@ -449,10 +449,10 @@ implement → approval → merge → close → teardown cycle on top of these ta
 
 For a pre-planned issue that splits into file-disjoint units, the `swarm` skill
 (`.claude/skills/swarm/SKILL.md`) fans that cycle out across parallel subagents —
-Opus orchestrates, Sonnet/Haiku execute, each following `drone`
-(`.claude/skills/drone/SKILL.md`). Those workers get their worktrees from the
-harness (`isolation: "worktree"` → `.claude/worktrees/agent-<id>/` on branch
-`worktree-agent-<id>`), not from `mise run worktree:new`.
+Opus orchestrates, Sonnet/Haiku execute, each spawned as the `drone`
+agent (`.claude/agents/drone.md`). Those workers make their own worktree with
+`mise run worktree:new` as their first action — they are dispatched without
+harness isolation, into the shared main checkout.
 
 Each worktree has its own gitignored `.godot/` — confirmed empirically (#86
 spike) that a fresh worktree's cold `godot --headless --editor` import
