@@ -16,12 +16,13 @@ This file only orders the work and names couplings.
 
 ## Take first, in this order
 
-1. **#902 — swarmify charter.** The brief is complete; it is a `swarmify`
-   pass on itself. Deliverables listed on the issue (charter → re-derived
-   skill → Ready-comment template → `issue-drift` task → swarm dispatch clip).
-   Coupling: the *stubs-on-master* section changes what "Ready" means for
-   class-adding issues — settle whether that is a hard requirement or a
-   swarmify judgement call before writing the law.
+1. **#902 — DONE as a swarmify pass (2026-09-15).** Charter at
+   `docs/charters/swarmify.md` (a1ebc3d); hub comment on #902 carries the
+   owner calls + DAG. Three `Ready` children: #905 (re-derive skill +
+   template), #903 (`issue-drift` + selftest), #904 (swarm clip, blocked by
+   #903). #905 ∥ #903, then #904 — a relay or a two-wave swarm. They are the
+   first issues written *under* the charter (stamped reading lists, seam
+   maps) — note whether the drones use them.
 2. **Drone smoke test** (charter follow-up): one haiku `drone` on a trivial
    fenced task. It doubles as the check of an unverified premise — that a
    typed subagent receives CLAUDE.md + always-on rules. If it does not, ~10
@@ -38,4 +39,4 @@ This file only orders the work and names couplings.
   agent: 1.37M / 325k / 25 turns (`mise run agent-cost -- --latest 3`).
 - Budget markers: 150k/200k/250k; guard hard stop 300k; drone retires at 250k.
 
-Delete this file once #902 is `Ready` and the smoke test has run.
+Delete this file once #903–#905 have landed and the smoke test has run.

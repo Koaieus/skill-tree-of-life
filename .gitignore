@@ -31,3 +31,6 @@ docs/handoffs/swarm-*.md
 /native/bin/
 /native/.sconsign.dblite
 /native/src/*.os
+
+# python task bytecode (selftests import task modules)
+__pycache__/
