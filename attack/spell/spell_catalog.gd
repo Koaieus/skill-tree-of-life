@@ -25,12 +25,13 @@ const LIGHTNING_BOLT: SpellDef = preload("res://attack/spell/defs/lightning_bolt
 const CYCLONE: SpellDef = preload("res://attack/spell/defs/cyclone.tres")
 const DAZZLE: SpellDef = preload("res://attack/spell/defs/dazzle.tres")
 const SUNDER: SpellDef = preload("res://attack/spell/defs/sunder.tres")
+const VENOM: SpellDef = preload("res://attack/spell/defs/venom.tres")
 
 ## Every authored spell. Order is not a contract — [member SpellDef.id] is.
 const ALL: Array[SpellDef] = [
 	SPARK, BRUISER, RESONATOR, LEAFBLOWER,
 	REVERBERATOR, HEALING_BEAM, TRAIL_BLAZER, LIGHTNING_BOLT,
-	CYCLONE, DAZZLE, SUNDER,
+	CYCLONE, DAZZLE, SUNDER, VENOM,
 ]
 
 
