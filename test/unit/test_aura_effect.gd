@@ -297,7 +297,7 @@ func _composite_pair(a_id: StringName, a_value: float, b_id: StringName, b_value
 	return c
 
 
-## Failing on master: `grant_scaled` scaled the vestigial OUTER composite
+## Failing on master: `grant_at` scaled the vestigial OUTER composite
 ## handle after `grant()` had already flattened + bound each CHILD, so every
 ## leaf applied at full authored strength regardless of distance. Bridges the
 ## fixture's two disjoint 3-node lines into one 6-node chain so hop 1 and hop 3
@@ -333,11 +333,11 @@ func test_composite_children_scale_with_aura_distance() -> void:
 	assert_gt(spell_delta_3, 0.0)
 
 
-## Acceptance 4: `grant_scaled` must duplicate before it ever touches a leaf's
+## Acceptance 4: `grant_at` must duplicate before it ever touches a leaf's
 ## `value` — the authored `.tres` sub-resources a CoreClass's auras reference
 ## are shared, so a live mutation on them would corrupt every entity of that
 ## class, not just the one being scaled.
-func test_grant_scaled_never_mutates_the_authored_composite() -> void:
+func test_grant_at_never_mutates_the_authored_composite() -> void:
 	var authored := _composite_pair(&"blade_damage", 10.0, &"spell_damage", 10.0)
 	var ent: Entity = await _spawn(_nodes[0], [_nodes[0], _nodes[1], _nodes[2]])
 	var aura := AuraEffect.new()
@@ -355,7 +355,7 @@ func test_grant_scaled_never_mutates_the_authored_composite() -> void:
 ## — not only the live entity. Forces a real recompute via `dispatch`, the same
 ## call `EntityCombat.apply_cascade`'s `_on_node_deallocated` makes, rather than
 ## just reading a snapshot's cloned bins (which would prove nothing about
-## `grant_scaled` itself).
+## `grant_at` itself).
 func test_composite_children_scale_correctly_when_an_aura_recomputes_on_a_shadow() -> void:
 	var ent: Entity = await _spawn(_nodes[0], [_nodes[0], _nodes[1], _nodes[2]])
 	var aura := AuraEffect.new()

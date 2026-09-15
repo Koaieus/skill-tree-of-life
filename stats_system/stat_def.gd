@@ -54,7 +54,7 @@ func get_abbrev() -> String:
 ## declared [enum ValueType]" — the one thing neither [StatValueRow] nor
 ## [method StatModifier._format_value] consulted before, in opposite-failing
 ## directions: an INT stat showed decimals (`+39.97 STR`, e.g. from aura
-## distance-falloff scaling — see [method EffectContext.grant_scaled]), a
+## distance-falloff scaling — see [method EffectContext.grant_at]), a
 ## FLOAT stat got wrongly `roundi()`'d. Unsigned, no thousands/percent
 ## handling — callers own sign prefixing and [member display_as_percent].
 ##

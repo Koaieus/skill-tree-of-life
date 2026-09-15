@@ -12,8 +12,9 @@ extends Effect
 ## - [member reach] — [i]which[/i] nodes are touched. `null` floods the whole scope.
 ## - [member metric] — [i]how far[/i] each is, feeding the scale. `null` reuses the
 ##   distances [member reach] already produced.
-## - [member distance_scale] — the multiplier applied to each modifier's `value`
-##   at that distance. `null` is flat.
+## - [member distance_scale] — the VALUE each modifier leaf gets at that
+##   distance, from the leaf's authored `value` (#900). `null` is flat.
+## - [member discard] — which computed values aren't worth granting.
 ##
 ## Sign lives on the modifier: negative values make a debuff aura. So the Ninja's
 ## "−1 armor per hop from core, going negative" is
@@ -30,7 +31,7 @@ extends Effect
 ## the three knobs, the origin rule, [method recompute]'s batching, and #626's
 ## incremental [method _topology_changed] paths — is channel-agnostic. What a
 ## subclass swaps is the pair [method _has_payload] / [method _grant_to]:
-## "is anything configured" and "put one grant on this node at this scale".
+## "is anything configured" and "put one grant on this node at this distance".
 ## [TagAuraEffect] is that in ~15 lines on the tag channel; #720 ports
 ## [HealAura]'s per-turn healing onto the same seam (its payload lands from
 ## `_on_turn_start` rather than on membership, so it will override the hook and
@@ -40,6 +41,31 @@ extends Effect
 enum Scope {
 	OWNED,   ## Measure over the entity's own subgraph (EntityNavigator).
 	GLOBAL,  ## Measure over the whole graph — reaches unowned / enemy nodes.
+}
+
+## Which computed values are NOT worth granting (#900). Replaces a hidden
+## `is_zero_approx` skip that made "…0.2, 0" and "…0.2 [no 0]" indistinguishable
+## to an author.
+##
+## [b]Reach is membership; this is worth-granting.[/b] Nothing past
+## [member reach] is ever visited, so widening the policy never widens the walk.
+##
+## The recipes, for a `MULTIPLY` leaf under `v * (1 - d/5)`:
+## [codeblock]
+## ×1 ×0.8 ×0.6 ×0.4 ×0.2 ×0        reach 5, discard NEGATIVE
+## ×1 ×0.8 ×0.6 ×0.4 ×0.2           reach 5, discard NON_POSITIVE (default)
+##                                  — or reach 4, any policy
+## ×1 ×0.8 … ×0.2 ×0 ×-0.2 ×-0.4    reach 7, discard NONE
+## [/codeblock]
+## Note what a MULTIPLY `0` means: the stat's multiplicative pipeline goes to
+## zero, not "no effect" — see [method EffectContext.grant_at].
+enum Discard {
+	NONE,          ## Grant everything, sign and zero included.
+	ZERO,          ## Skip only ~0. The pre-#900 behaviour.
+	NEGATIVE,      ## Skip `< 0`. Lands the 0 ring — "include 0, skip only negatives".
+	NON_POSITIVE,  ## Skip `<= 0`. The default: a buff aura stops where it stops.
+	POSITIVE,      ## Skip `> 0`. For debuffs and less-is-more stats (`min_damage_taken`).
+	NON_NEGATIVE,  ## Skip `>= 0`.
 }
 
 ## Which nodes the aura touches. `null` = every node in [member scope]. Prefer
@@ -53,6 +79,8 @@ enum Scope {
 ## `null` = flat (full strength everywhere in reach).
 @export var distance_scale: DistanceScale = null
 @export var scope: Scope = Scope.OWNED
+## Which computed values aren't worth granting. See [enum Discard].
+@export var discard: Discard = Discard.NON_POSITIVE
 
 
 ## Initial population happens here, not on the first `_on_core_moved`. The core's
@@ -128,11 +156,8 @@ func recompute(ctx: EffectContext) -> void:
 	for node in dists:
 		if not is_instance_valid(node):
 			continue
-		var s: float = 1.0 if distance_scale == null else distance_scale.scale(dists[node], bound)
-		if is_zero_approx(s):
-			continue
 		_open_batch(ctx, node, batched, seen)
-		_grant_to(ctx, node, s)
+		_grant_to(ctx, node, dists[node], bound)
 	_close_batches(batched)
 
 
@@ -259,10 +284,7 @@ func _apply_membership_update(ctx: EffectContext, source: SkillNode, mirror: Gra
 	# Bound-independent by construction (only reached when
 	# [method DistanceScale.uses_bound] said no) — the scale ignores whatever we
 	# pass here, so -1.0 is safe.
-	var s: float = 1.0 if distance_scale == null else distance_scale.scale(one[changed_node], -1.0)
-	if is_zero_approx(s):
-		return
-	_grant_to(ctx, changed_node, s)
+	_grant_to(ctx, changed_node, one[changed_node], -1.0)
 
 
 ## The hop-shaped path: pull the shared, generation-cached raw map (walked at
@@ -297,10 +319,7 @@ func _apply_hop_diff(ctx: EffectContext, source: SkillNode, mirror: GraphMirror)
 			ctx.revoke_all(node)  # both channels — see _apply_membership_update
 		if not now_in:
 			continue
-		var s: float = 1.0 if distance_scale == null else distance_scale.scale(new_dists[node], bound)
-		if is_zero_approx(s):
-			continue
-		_grant_to(ctx, node, s)
+		_grant_to(ctx, node, new_dists[node], bound)
 
 
 func get_description() -> String:
@@ -324,14 +343,47 @@ func _has_payload() -> bool:
 ## differs per channel, and the only thing a subclass has to write.
 ##
 ## Called once per selected node from every path (full rebuild, hop diff,
-## membership update), always after the node's board batch is open and after
-## a zero scale has already been filtered out. Whatever it grants goes through
+## membership update), always after the node's board batch is open. [param
+## distance] is the node's measured distance and [param bound] the reach bound
+## (-1.0 when unbounded or irrelevant); a modifier subclass feeds them to
+## [member distance_scale] per leaf, a tag subclass ignores both. #900 moved the
+## scale evaluation here because the scale now needs each leaf's authored value. Whatever it grants goes through
 ## [param ctx], so the [EffectInstance] ledger stays the sole record and
 ## `revoke_all` keeps working without the subclass doing any bookkeeping.
-func _grant_to(ctx: EffectContext, node: SkillNode, scale: float) -> void:
+func _grant_to(ctx: EffectContext, node: SkillNode, distance: float, bound: float) -> void:
 	for m in modifiers:
-		if m != null:
-			ctx.grant_scaled(m, scale, node)
+		if m == null:
+			continue
+		var leaves := m.flatten()
+		var values := PackedFloat32Array()
+		values.resize(leaves.size())
+		var any_kept := false
+		for i in leaves.size():
+			var v: float = leaves[i].value
+			var computed: float = v if distance_scale == null else distance_scale.scale(distance, bound, v)
+			values[i] = computed
+			if not _discards(computed):
+				any_kept = true
+		if any_kept:
+			ctx.grant_at(m, values, node)
+
+
+## Is [param value] filtered out by [member discard]? A composite is granted
+## whole or not at all — it is skipped only when EVERY leaf is discarded, since
+## "this grant does nothing here" is the question the policy answers.
+func _discards(value: float) -> bool:
+	match discard:
+		Discard.ZERO:
+			return is_zero_approx(value)
+		Discard.NEGATIVE:
+			return value < 0.0 and not is_zero_approx(value)
+		Discard.NON_POSITIVE:
+			return value <= 0.0 or is_zero_approx(value)
+		Discard.POSITIVE:
+			return value > 0.0 and not is_zero_approx(value)
+		Discard.NON_NEGATIVE:
+			return value >= 0.0 or is_zero_approx(value)
+	return false
 
 
 func _mirror(ctx: EffectContext) -> GraphMirror:

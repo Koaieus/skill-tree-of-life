@@ -1,6 +1,6 @@
 extends GutTest
 
-## #635 — a symptom of the same defect #623 fixes: `EffectContext.grant_scaled`
+## #635 — a symptom of the same defect #623 fixes: `EffectContext.grant_at`
 ## used to bind the duplicate via `grant()` and THEN write `handle.value = mod.value
 ## * scale` on the object it was holding. On a CLONE/shadow board,
 ## `StatBoard._localize` hands the binder a PRIVATE copy the moment the modifier
@@ -42,7 +42,7 @@ func _linear(source_id: StringName) -> StatFormula:
 ## Must fail on master: the scaled value never reaches the shadow board's
 ## `strength` stat at all (the mutated handle is discarded), so the result
 ## comes back at the UNSCALED contribution instead of the scaled one.
-func test_grant_scaled_applies_the_scaled_value_for_a_formula_modifier_on_a_shadow_board() -> void:
+func test_grant_at_applies_the_computed_value_for_a_formula_modifier_on_a_shadow_board() -> void:
 	var shadow := _entity.get_combat().snapshot()
 	# constitution defaults to 0.0 (StatDef.default_value) — a formula reading
 	# it as-is would multiply every scale by zero and pass vacuously whether
@@ -59,7 +59,7 @@ func test_grant_scaled_applies_the_scaled_value_for_a_formula_modifier_on_a_shad
 	var con := float(shadow.board().get_stat(&"constitution").get_value())
 	var str_before := float(shadow.board().get_stat(&"strength").get_value())
 
-	ctx.grant_scaled(mod, 4.0)
+	ctx.grant_at(mod, PackedFloat32Array([4.0]))
 
 	assert_almost_eq(float(shadow.board().get_stat(&"strength").get_value()),
 			str_before + 4.0 * con, 0.001,
@@ -69,7 +69,7 @@ func test_grant_scaled_applies_the_scaled_value_for_a_formula_modifier_on_a_shad
 
 ## The authored modifier itself must come out untouched — same discipline as
 ## #623 acceptance 4, for the plain-modifier path.
-func test_grant_scaled_never_mutates_the_authored_formula_modifier() -> void:
+func test_grant_at_never_mutates_the_authored_formula_modifier() -> void:
 	var shadow := _entity.get_combat().snapshot()
 	var ctx := EffectContext.new(shadow, EffectInstance.new())
 
@@ -79,7 +79,7 @@ func test_grant_scaled_never_mutates_the_authored_formula_modifier() -> void:
 	mod.value = 1.0
 	mod.formula = _linear(&"constitution")
 
-	ctx.grant_scaled(mod, 4.0)
+	ctx.grant_at(mod, PackedFloat32Array([4.0]))
 
 	assert_eq(mod.value, 1.0, "the authored/live handle's own value must be untouched")
 	shadow.free_shadow()

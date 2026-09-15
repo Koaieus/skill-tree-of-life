@@ -87,7 +87,7 @@ func _armor(n: SkillNode) -> float:
 ## #623 shipped-content regression guard: `serpent_core.tres` bundles
 ## blade/spell/ranged damage into a `CompositeStatModifier` inside BOTH auras
 ## (`Resource_milid` on the hop buff, `Resource_riohq` on the euclid penalty).
-## Before the fix, `grant_scaled` only ever moved the outer (vestigial) handle,
+## Before the fix, `grant_at` only ever moved the outer (vestigial) handle,
 ## so the damage half of the Serpent's design — "gains damage the further it
 ## winds in hops, loses damage the further it sits in space" — was silently
 ## inert; only `armor` (a plain modifier) actually scaled. This pins that the

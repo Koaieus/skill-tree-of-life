@@ -388,9 +388,9 @@ Entity-scoped node modifiers now route through `SkillNode.add_entity_modifier` /
 `modifiers.append(m)` + `board.add_modifier(m)`. Node-scoped ones go through
 `add_local_modifier` / `remove_local_modifier`. See `docs/domain/effect-system.md`.
 
-### `grant_scaled` scales the duplicate's LEAVES, before granting (#623)
+### `grant_at` scales the duplicate's LEAVES, before granting (#623)
 
-`EffectContext.grant_scaled(mod, scale, target)` — the aura distance-falloff
+`EffectContext.grant_at(mod, scale, target)` — the aura distance-falloff
 path — must never scale the modifier it hands to `grant`/`add_local_modifier`
 *after* the fact. `StatBoard.add_modifier` and `SkillNode.add_local_modifier`
 both flatten a `CompositeStatModifier` into its children and bind each **leaf**
@@ -406,7 +406,7 @@ multiply each **leaf's** `.value` by `scale`, THEN apply the already-scaled
 duplicate through the ordinary `grant`/`add_local_modifier` path. Composites,
 shadow boards, and formula-bearing modifiers all fall out of this for free —
 there is nothing downstream left to get wrong. Never reintroduce a
-scale-after-bind write to `grant_scaled`.
+scale-after-bind write to `grant_at`.
 
 ### The local-scale ladder (#376) is reapplied at INSERT (#634)
 

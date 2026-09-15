@@ -15,10 +15,10 @@ extends DistanceScale
 ## Half-width of the "exactly at" band.
 @export var tolerance: float = 0.001
 
-func scale(distance: float, _max_distance: float) -> float:
+func scale(distance: float, _max_distance: float, value: float) -> float:
 	var delta: float = absf(distance - shell_distance)
 	if delta <= tolerance:
-		return 1.0
+		return value
 	if delta <= 1.0 + tolerance:
-		return near_scale
+		return value * near_scale
 	return 0.0

@@ -50,7 +50,7 @@ func _mod(stat_id: StringName, op: StatModifier.Operation, value: float) -> Stat
 
 ## Grants [param mod] to [member _node] through a fresh no-op [StatEffect],
 ## named [param effect_name] — the minimal real seam an [AuraEffect] also
-## grants through ([method EffectContext.grant]/`grant_scaled`).
+## grants through ([method EffectContext.grant]/`grant_at`).
 func _grant(entity: Entity, effect_name: String, mod: StatModifier) -> void:
 	var effect := StatEffect.new()
 	effect.display_name = effect_name

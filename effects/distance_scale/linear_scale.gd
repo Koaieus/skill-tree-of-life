@@ -11,11 +11,11 @@ extends DistanceScale
 ## Falling by default (strongest at the source). Set to rise toward the rim.
 @export var rising: bool = false
 
-func scale(distance: float, max_distance: float) -> float:
+func scale(distance: float, max_distance: float, value: float) -> float:
 	if max_distance <= 0.0:
-		return 1.0
+		return value
 	var t: float = clampf(distance / max_distance, 0.0, 1.0)
-	return t if rising else 1.0 - t
+	return value * (t if rising else 1.0 - t)
 
 
 func uses_bound() -> bool:

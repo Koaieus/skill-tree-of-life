@@ -16,5 +16,5 @@ extends DistanceScale
 ## Multiplier per unit of distance (per hop, or per pixel).
 @export var per_unit: float = 1.0
 
-func scale(distance: float, _max_distance: float) -> float:
-	return distance * per_unit
+func scale(distance: float, _max_distance: float, value: float) -> float:
+	return value * distance * per_unit

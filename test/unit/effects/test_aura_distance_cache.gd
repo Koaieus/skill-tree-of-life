@@ -390,7 +390,7 @@ func test_node_that_becomes_unreachable_loses_its_hop_buff() -> void:
 # ── Acceptance 7: keystone + core aura keep separate distance maps ─────────
 
 ## The granted handle's OWN `.value` — the exact post-[method
-## DistanceScale.scale] magnitude [method EffectContext.grant_scaled] wrote —
+## DistanceScale.scale] magnitude [method EffectContext.grant_at] wrote —
 ## rather than `get_local_value`, which folds in whatever intrinsic baseline
 ## the target stat already carries (see `_snapshot`'s doc comment). Reading
 ## the handle sidesteps that confound entirely: 0.0 for "nothing granted"

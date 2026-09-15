@@ -86,7 +86,22 @@ func grant(mod: StatModifier, target: Variant = null) -> StatModifier:
 	return _apply(mod.duplicate(true), target)
 
 
-## Scale [param mod]'s leaves by [param scale] BEFORE granting — the aura path.
+## SET [param mod]'s leaves to [param values] BEFORE granting — the aura path.
+##
+## [param values] holds one already-computed number per leaf, in
+## [method StatModifier.flatten] order, as produced by
+## [method DistanceScale.scale] (#900 — the scale returns the value, not a
+## multiplier, so there is nothing left to multiply here). A composite's leaves
+## each get their own entry, which is how three leaves of different authored
+## `value` come out of one `v * 0.5` formula with three different results.
+##
+## [b]For a MULTIPLY leaf the number IS the factor[/b], not a percentage of the
+## authored one: a formula yielding `0` zeroes that stat's whole multiplicative
+## pipeline (BONUS still adds), and `0.75` is a 25% debuff — it does not mean
+## "three-quarters as strong as the authored ×1.5". Likewise a SET leaf is set
+## to the number itself. Write `v` into the formula (`v * (1 - d/max)`) when you
+## mean "scale the authored value"; omit it (`5 - d`) when you mean an absolute
+## ladder. This is deliberate authoring freedom — see [enum AuraEffect.Discard].
 ##
 ## Must not scale the outer handle after [method grant] the way an earlier
 ## version did: [method StatBoard.add_modifier] flattens a
@@ -97,18 +112,20 @@ func grant(mod: StatModifier, target: Variant = null) -> StatModifier:
 ## modifier's post-bind write can land on an object nobody applied. Scaling
 ## the duplicate's flattened leaves first sidesteps both: whatever
 ## `add_modifier` / `add_local_modifier` binds afterward is already correct.
-func grant_scaled(mod: StatModifier, scale: float, target: Variant = null) -> StatModifier:
+func grant_at(mod: StatModifier, values: PackedFloat32Array, target: Variant = null) -> StatModifier:
 	if mod == null or combat == null:
 		return null
 	var scaled: StatModifier = mod.duplicate(true)
-	for leaf in scaled.flatten():
-		leaf.value *= scale
+	var leaves := scaled.flatten()
+	for i in leaves.size():
+		if i < values.size():
+			leaves[i].value = values[i]
 	return _apply(scaled, target)
 
 
-## Apply an already-duplicated (and, for [method grant_scaled], already-scaled)
+## Apply an already-duplicated (and, for [method grant_at], already-valued)
 ## handle to its target and ledger it. The shared tail of [method grant] and
-## [method grant_scaled] — the only difference between them is what happens to
+## [method grant_at] — the only difference between them is what happens to
 ## the duplicate before it gets here.
 func _apply(handle: StatModifier, target: Variant) -> StatModifier:
 	if target == null:

@@ -4,7 +4,7 @@ extends AuraEffect
 
 ## [AuraEffect] on the tag channel: radiates a status [member tag] (not a numeric
 ## modifier) over the same reach/metric/distance_scale knobs, granted through
-## [method EffectContext.grant_tag] instead of `grant_scaled`. See
+## [method EffectContext.grant_tag] instead of [method EffectContext.grant_at]. See
 ## docs/design/status-tags.md.
 ##
 ## [b]A payload, not a second aura.[/b] Everything about the walk — the three
@@ -32,7 +32,7 @@ func _has_payload() -> bool:
 	return tag != &""
 
 
-func _grant_to(ctx: EffectContext, node: SkillNode, _scale: float) -> void:
+func _grant_to(ctx: EffectContext, node: SkillNode, _distance: float, _bound: float) -> void:
 	ctx.grant_tag(tag, node)
 
 
