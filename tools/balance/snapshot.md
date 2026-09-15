@@ -209,6 +209,7 @@
 |---|---|
 | aura_coverage_fraction | 0.360 |
 | aura_covered_nodes | 40 |
+| aura_hop0_amount | 10.000 |
 | cascade_chip_per_turn | 1.000 |
 | core_healing_per_turn | 1.000 |
 | core_healing_vs_cascade_chip_rate | 1.000 |

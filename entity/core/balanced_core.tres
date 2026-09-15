@@ -14,17 +14,18 @@
 script = ExtResource("7_reach")
 max_hops = 4
 
-[sub_resource type="Resource" id="scale_5_minus_d"]
+[sub_resource type="Resource" id="scale_v_minus_d"]
 script = ExtResource("8_scale")
-formula = "5 - d"
+formula = "v - d"
 
 [sub_resource type="Resource" id="heal_aura_balanced"]
 script = ExtResource("5_heal_aura")
 reach = SubResource("reach_4hop")
-distance_scale = SubResource("scale_5_minus_d")
+distance_scale = SubResource("scale_v_minus_d")
 display_name = "Sanctuary"
 description = "Heals nearby owned nodes every turn, strongest at the core."
-base = 5.0
+base = 0.0
+con_coefficient = 1.5811388300841898
 
 [sub_resource type="Resource" id="mod_con"]
 resource_name = "+10 Constitution"

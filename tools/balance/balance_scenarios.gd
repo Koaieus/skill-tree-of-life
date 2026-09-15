@@ -154,12 +154,29 @@ static func _core_adjacent_aura(root: Node, name: String, level: int) -> Diction
 	# membership (#900), so this is exactly what `_on_turn_start` iterates.
 	var aura_values := aura._distances(core, defender.entity.navigator)
 	var owned := defender.owned_count()
+	# #896: the amount THIS aura heals at hop 0 (the core's own node), reading
+	# CON live off the defender's board exactly as `_on_turn_start` does —
+	# not a reimplemented formula, the same three knobs (`base`,
+	# `con_coefficient`, `distance_scale`) every authored aura exposes. A
+	# level sweep across this scenario would show the sub-linear D-10 curve
+	# on whichever aura is configured here; this fixture's `base 10 /
+	# con_coefficient 0` is a controlled, level-invariant shape on purpose
+	# (see the class doc above), so it reads flat 10 today.
+	var con_at_hop0: float = 0.0
+	if defender.entity.stat_board != null:
+		var raw_con: Variant = defender.entity.stat_board.get_value(&"constitution")
+		if raw_con != null:
+			con_at_hop0 = float(raw_con)
+	var magnitude_at_hop0: float = aura.base + aura.con_coefficient * sqrt(con_at_hop0)
+	var aura_hop0_raw: float = magnitude_at_hop0 if aura.distance_scale == null \
+			else aura.distance_scale.scale(0.0, aura._bound(aura_values), magnitude_at_hop0)
 	var readouts: Dictionary = {
 		"defender_level": level,
 		"defender_owned_nodes": owned,
 		"topology_branching_factor": _AURA_BRANCHING_FACTOR,
 		"aura_covered_nodes": aura_values.size(),
 		"aura_coverage_fraction": (float(aura_values.size()) / float(owned)) if owned > 0 else 0.0,
+		"aura_hop0_amount": floorf(maxf(aura_hop0_raw, 0.0)),
 	}
 
 	# Sustained pressure: the attacker's mitigated ranged hit, landed on the
