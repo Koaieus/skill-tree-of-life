@@ -22,7 +22,7 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [resource]
 script = ExtResource("1_aura")
-discard = 0
+discard = 1
 metric = SubResource("hop_metric")
 distance_scale = SubResource("per_hop")
 display_name = "Dormant Reach"

@@ -183,6 +183,9 @@ func test_a_distance_scaled_aura_recomputes_its_VALUES_on_a_shadow() -> void:
 	aura.metric = HopMetric.new()
 	aura.distance_scale = ProportionalScale.new()
 	(aura.distance_scale as ProportionalScale).per_unit = 1.0
+	# Negative grants, 0 at the source: skip only the zero (#900), the way
+	# ninja_core.tres and every other ProportionalScale debuff does.
+	aura.discard = AuraEffect.Discard.ZERO
 	aura.modifiers.append(_armor_mod(-1.0))
 	_defender.grant_effect(aura)
 

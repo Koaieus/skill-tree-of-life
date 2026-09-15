@@ -82,7 +82,7 @@ func _serpent_hop_buff() -> AuraEffect:
 	aura.distance_scale = ProportionalScale.new()   # +1 per hop; 0 at the source
 	# Mirrors serpent_core.tres: a penalty aura's grants are negative (and 0 at
 	# the source), so it opts out of the NON_POSITIVE default (#900).
-	aura.discard = AuraEffect.Discard.NONE
+	aura.discard = AuraEffect.Discard.ZERO
 	var composite := CompositeStatModifier.new()
 	composite.children = [_mod(&"blade_damage", 1.0), _mod(&"spell_damage", 1.0), _mod(&"ranged_damage", 1.0)]
 	aura.modifiers = [_mod(&"armor", 1.0), composite]
@@ -95,7 +95,7 @@ func _serpent_euclid_penalty() -> AuraEffect:
 	var scale := ProportionalScale.new()
 	scale.per_unit = 0.005
 	aura.distance_scale = scale
-	aura.discard = AuraEffect.Discard.NONE
+	aura.discard = AuraEffect.Discard.ZERO
 	var composite := CompositeStatModifier.new()
 	composite.children = [_mod(&"blade_damage", -0.5), _mod(&"spell_damage", -0.5), _mod(&"ranged_damage", -0.5)]
 	aura.modifiers = [_mod(&"armor", -1.0), composite]

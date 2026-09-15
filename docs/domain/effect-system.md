@@ -224,9 +224,13 @@ indistinguishable to an author. `NONE` / `ZERO` / `NEGATIVE` / `NON_POSITIVE`
 (default) / `POSITIVE` / `NON_NEGATIVE`, each naming what it drops.
 
 **A debuff aura must opt out.** Its grants are negative by construction, so the
-buff-shaped `NON_POSITIVE` default would discard all of them — `ninja_core.tres`,
-`serpent_core.tres` and `blocker_footprint_falloff.tres` all pin `discard = NONE`
-for exactly this reason.
+buff-shaped `NON_POSITIVE` default would discard all of them. Every shipped one
+(`ninja_core.tres`, `serpent_core.tres`, `blocker_footprint_falloff.tres`) pins
+`ZERO`, which is precisely the pre-#900 behaviour: keep the negatives, skip the
+zero. `NONE` would be wrong for all three — they pair a negative value with
+`ProportionalScale`, so the **source node** computes exactly 0 and must stay
+ungranted (`test_a_footprintless_blocker_is_todays_blocker_with_an_inert_aura`
+is what catches it).
 
 | Class | `reach` | `metric` | `distance_scale` |
 |---|---|---|---|
