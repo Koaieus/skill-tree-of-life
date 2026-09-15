@@ -19,10 +19,10 @@
 script = ExtResource("5_scale")
 
 [sub_resource type="Resource" id="Resource_aoidj"]
-resource_name = "+6 Blade Damage"
+resource_name = "+5 Blade Damage"
 script = ExtResource("2_mod")
 stat_id = &"blade_damage"
-value = 6.0
+value = 5.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_bmjmu"]
@@ -34,10 +34,10 @@ value = 40.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_hf1oc"]
-resource_name = "+6 Ranged Damage"
+resource_name = "+5 Ranged Damage"
 script = ExtResource("2_mod")
 stat_id = &"ranged_damage"
-value = 6.0
+value = 5.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="reach_2hop"]

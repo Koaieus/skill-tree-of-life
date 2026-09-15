@@ -81,7 +81,7 @@ func _serpent_hop_buff() -> AuraEffect:
 	aura.metric = HopMetric.new()
 	aura.distance_scale = ProportionalScale.new()   # +1 per hop; 0 at the source
 	var composite := CompositeStatModifier.new()
-	composite.children = [_mod(&"blade_damage", 0.5), _mod(&"spell_damage", 0.5), _mod(&"ranged_damage", 0.5)]
+	composite.children = [_mod(&"blade_damage", 1.0), _mod(&"spell_damage", 1.0), _mod(&"ranged_damage", 1.0)]
 	aura.modifiers = [_mod(&"armor", 1.0), composite]
 	return aura
 
@@ -135,7 +135,9 @@ func test_final_values_match_hand_computed_expectation_after_a_core_move() -> vo
 	for i in 6:
 		var hop_dist := absi(i - 2)
 		var euclid_dist := absf((i - 2) * 100.0)
-		var expected := float(hop_dist) * 1.0 + euclid_dist * -0.005
+		# armor is INT: the merged local read truncates the finished total
+		# toward zero once (#890/#895), so the hand computation does too.
+		var expected := float(int(float(hop_dist) * 1.0 + euclid_dist * -0.005))
 		assert_almost_eq(float(_nodes[i].get_local_value(&"armor")), expected, 0.001,
 			"node %d armor after core move to node 2" % i)
 

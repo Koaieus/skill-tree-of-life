@@ -273,8 +273,9 @@ func test_serpent_dual_metric_auras_sum_additively() -> void:
 
 	# Node 2: 2 hops out, 200px out → +2 - 1.0 = +1.0
 	assert_almost_eq(_armor(_nodes[2]), 1.0, 0.001)
-	# Node 1: 1 hop, 100px → +1 - 0.5 = +0.5
-	assert_almost_eq(_armor(_nodes[1]), 0.5, 0.001)
+	# Node 1: 1 hop, 100px → +1 - 0.5 = +0.5 → 0: armor is INT and the
+	# merged local read floors once (#890/#895).
+	assert_almost_eq(_armor(_nodes[1]), 0.0, 0.001)
 
 
 # ── Composite modifiers (#623) ──────────────────────────────────────────────

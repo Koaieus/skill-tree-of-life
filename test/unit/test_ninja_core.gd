@@ -74,13 +74,14 @@ func test_statline() -> void:
 
 ## Isolates the aura's own contribution from the class's baseline blade_damage
 ## (STR-derived), which the local read still carries via entity-board
-## pass-through. Linear falloff over 5 hops, hitting exactly zero at the
-## boundary and staying zero one hop past it (out of reach entirely).
+## pass-through. Linear falloff over 5 hops — +5 at the core, one less per
+## hop (`value == max_hops`, #895) — hitting exactly zero at the boundary and
+## staying zero one hop past it (out of reach entirely).
 func test_aura_is_intense_at_core_and_fades_to_zero_by_five_hops() -> void:
 	var baseline: float = _entity.stat_board.blade_damage.get_value()
-	assert_almost_eq(_local_blade(_nodes[0]) - baseline, 6.0, 0.001, "core: full aura")
-	assert_almost_eq(_local_blade(_nodes[1]) - baseline, 4.8, 0.001, "1 hop: 80% aura")
-	assert_almost_eq(_local_blade(_nodes[2]) - baseline, 3.6, 0.001, "2 hops: 60% aura")
+	assert_almost_eq(_local_blade(_nodes[0]) - baseline, 5.0, 0.001, "core: full aura")
+	assert_almost_eq(_local_blade(_nodes[1]) - baseline, 4.0, 0.001, "1 hop: 80% aura")
+	assert_almost_eq(_local_blade(_nodes[2]) - baseline, 3.0, 0.001, "2 hops: 60% aura")
 	assert_almost_eq(_local_blade(_nodes[5]) - baseline, 0.0, 0.001, "5 hops: scale hits zero")
 	assert_almost_eq(_local_blade(_nodes[6]) - baseline, 0.0, 0.001, "6 hops: out of reach entirely")
 
@@ -93,9 +94,9 @@ func test_core_moving_drops_the_buff_on_nodes_left_behind() -> void:
 
 	assert_true(_alloc.move_core(_entity, _nodes[1]), "adjacent move must succeed")
 
-	assert_almost_eq(_local_blade(_nodes[1]) - baseline, 6.0, 0.001, "now the core")
-	assert_almost_eq(_local_blade(_nodes[0]) - baseline, 4.8, 0.001, "1 hop from the new core: 80% aura")
-	assert_almost_eq(_local_blade(_nodes[2]) - baseline, 4.8, 0.001, "1 hop from the new core: 80% aura")
+	assert_almost_eq(_local_blade(_nodes[1]) - baseline, 5.0, 0.001, "now the core")
+	assert_almost_eq(_local_blade(_nodes[0]) - baseline, 4.0, 0.001, "1 hop from the new core: 80% aura")
+	assert_almost_eq(_local_blade(_nodes[2]) - baseline, 4.0, 0.001, "1 hop from the new core: 80% aura")
 	assert_almost_eq(_local_blade(_nodes[6]) - baseline, 0.0, 0.001, "5 hops from the new core: scale hits zero")
 
 

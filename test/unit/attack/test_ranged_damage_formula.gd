@@ -55,7 +55,8 @@ func test_amount_reads_firing_nodes_ranged_damage() -> void:
 	var target := _NODE_SCENE.instantiate() as SkillNode
 	autofree(target)
 	var hit := RangedDamageFormula.compute(null, firing, target)
-	assert_almost_eq(hit.amount, 12.5, 0.001)
+	# ranged_damage is INT: the merged local read floors once (#890/#895).
+	assert_almost_eq(hit.amount, 12.0, 0.001)
 
 
 func test_hit_is_physical_typed() -> void:

@@ -62,8 +62,9 @@ func test_statline() -> void:
 
 func test_dual_metric_auras_sum_on_the_same_stat() -> void:
 	assert_almost_eq(_armor(_nodes[0]), 0.0, 0.001, "core: both scales are 0")
-	# 1 hop / 100px: +1 hop buff, -0.5 euclid penalty.
-	assert_almost_eq(_armor(_nodes[1]), 0.5, 0.001)
+	# 1 hop / 100px: +1 hop buff, -0.5 euclid penalty = 0.5 → 0: armor is
+	# INT and the merged local read floors once (#890/#895).
+	assert_almost_eq(_armor(_nodes[1]), 0.0, 0.001)
 	# 2 hops / 200px: +2 hop buff, -1.0 euclid penalty.
 	assert_almost_eq(_armor(_nodes[2]), 1.0, 0.001)
 
@@ -74,8 +75,8 @@ func test_core_move_recomputes_both_auras() -> void:
 	assert_true(_alloc.move_core(_entity, _nodes[1]), "adjacent move must succeed")
 
 	assert_almost_eq(_armor(_nodes[1]), 0.0, 0.001, "new core: untouched")
-	assert_almost_eq(_armor(_nodes[0]), 0.5, 0.001, "1 hop / 100px from new core")
-	assert_almost_eq(_armor(_nodes[2]), 0.5, 0.001, "1 hop / 100px on the other side")
+	assert_almost_eq(_armor(_nodes[0]), 0.0, 0.001, "1 hop / 100px from new core (0.5 floors to 0)")
+	assert_almost_eq(_armor(_nodes[2]), 0.0, 0.001, "1 hop / 100px on the other side (0.5 floors to 0)")
 	assert_almost_eq(_armor(_nodes[3]), 1.0, 0.001, "2 hops / 200px from new core")
 
 

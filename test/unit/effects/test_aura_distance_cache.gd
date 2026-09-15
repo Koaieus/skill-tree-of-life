@@ -155,7 +155,8 @@ func test_linear_scale_rescales_everyone_when_the_farthest_node_deallocates() ->
 	ent.grant_effect(aura)
 
 	# bound = 300 (node 3 is farthest): node 1 at 100/300 -> scale (1 - 1/3).
-	assert_almost_eq(_armor(_nodes[1]), 10.0 * (1.0 - 100.0 / 300.0), 0.01)
+	# 10 × ⅔ = 6.67 → 6: armor is INT, the local read floors once (#890/#895).
+	assert_almost_eq(_armor(_nodes[1]), floorf(10.0 * (1.0 - 100.0 / 300.0)), 0.01)
 
 	_alloc.force_deallocate(_nodes[3])   # the farthest node leaves; bound shrinks to 200
 
