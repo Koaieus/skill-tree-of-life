@@ -51,6 +51,7 @@ metadata/_custom_type_script = "uid://cyj0to3m0jdxa"
 
 [sub_resource type="Resource" id="aura_hop_buff"]
 script = ExtResource("3_aura")
+discard = 0
 metric = SubResource("metric_hop")
 distance_scale = SubResource("scale_hop")
 display_name = "Coil (hops)"
@@ -102,6 +103,7 @@ metadata/_custom_type_script = "uid://cyj0to3m0jdxa"
 
 [sub_resource type="Resource" id="aura_euclid_penalty"]
 script = ExtResource("3_aura")
+discard = 0
 metric = SubResource("metric_euclid")
 distance_scale = SubResource("scale_euclid")
 display_name = "Coil (space)"

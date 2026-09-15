@@ -388,10 +388,10 @@ Entity-scoped node modifiers now route through `SkillNode.add_entity_modifier` /
 `modifiers.append(m)` + `board.add_modifier(m)`. Node-scoped ones go through
 `add_local_modifier` / `remove_local_modifier`. See `docs/domain/effect-system.md`.
 
-### `grant_at` scales the duplicate's LEAVES, before granting (#623)
+### `grant_at` writes the duplicate's LEAVES, before granting (#623, #900)
 
-`EffectContext.grant_at(mod, scale, target)` — the aura distance-falloff
-path — must never scale the modifier it hands to `grant`/`add_local_modifier`
+`EffectContext.grant_at(mod, values, target)` — the aura distance path — must
+never write the modifier it hands to `grant`/`add_local_modifier`
 *after* the fact. `StatBoard.add_modifier` and `SkillNode.add_local_modifier`
 both flatten a `CompositeStatModifier` into its children and bind each **leaf**
 directly; the outer composite's own `value` field is vestigial from that point
@@ -402,11 +402,19 @@ copy* the moment `_is_clone` and `m.formula != null`, so a post-bind mutation
 of the original object never reaches what got bound.
 
 The fix (and the only correct shape): duplicate, walk `duplicate.flatten()`,
-multiply each **leaf's** `.value` by `scale`, THEN apply the already-scaled
+SET each **leaf's** `.value` from `values[i]`, THEN apply the already-valued
 duplicate through the ordinary `grant`/`add_local_modifier` path. Composites,
 shadow boards, and formula-bearing modifiers all fall out of this for free —
 there is nothing downstream left to get wrong. Never reintroduce a
-scale-after-bind write to `grant_at`.
+write-after-bind to `grant_at`.
+
+**#900 renamed it from `grant_scaled` and changed what it takes**: one
+already-computed value per leaf (`PackedFloat32Array`, in `flatten()` order),
+not a single multiplier. `DistanceScale.scale(d, max, v)` now returns the value
+itself, so there is nothing left here to multiply — and a composite's leaves
+each get their own result, which a single float could not express. It stays one
+array rather than a per-leaf call because a composite is granted as **one**
+handle: `_apply` ledgers it once and `add_modifier` does its own flattening.
 
 ### The local-scale ladder (#376) is reapplied at INSERT (#634)
 

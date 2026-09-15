@@ -168,13 +168,14 @@ Previously `_on_addon_added` and `AllocationSystem.allocate` each hand-rolled th
 
 ## Auras
 
-`AuraEffect` has three orthogonal knobs, and keeping them separate is the whole design:
+`AuraEffect` has four orthogonal knobs, and keeping them separate is the whole design:
 
-| Knob | Question | `null` means |
+| Knob | Question | `null` / default means |
 |---|---|---|
 | `reach: RangeFinder` | *which* nodes | flood the whole scope |
 | `metric: DistanceMetric` | *how far* each is | reuse the distances `reach` reported |
-| `distance_scale: DistanceScale` | multiplier at that distance | flat |
+| `distance_scale: DistanceScale` | *what value* at that distance | flat (the authored value) |
+| `discard: Discard` | *is it worth granting* | `NON_POSITIVE` |
 
 Several designed auras answer "which" and "how far" with **different metrics** —
 the Serpent's penalty applies to every node the core can reach (topological) but
@@ -186,14 +187,53 @@ bound a trap: too small a value silently lets distant nodes escape the *penalty*
 **Sign lives on the modifier, shape lives on the scale.** A negative `value` makes
 a debuff aura; a rising scale grows its magnitude with distance. They compose
 freely, which is why `DistanceScale` is not called "falloff" — the return is an
-unbounded scalar, not an attenuation. (`Gradient` was also rejected: Godot ships
+unbounded value, not an attenuation. (`Gradient` was also rejected: Godot ships
 one, and `Edge.gd` holds one.)
+
+### The scale returns the VALUE, not a multiplier (#900)
+
+`scale(d, max, v)` takes the authored number as its third argument and returns
+what to grant. The library classes are now spellings of that — `FlatScale` is
+`v`, `LinearScale` is `v * (1 - d / max)`, `ProportionalScale` is `v * d` — and
+`ExpressionScale` lets an author write the formula directly:
+
+```
+"5 - d"               # 5 at the core, 4, 3, 2, 1 — an ABSOLUTE ladder
+"v * (1 - d / max)"   # LinearScale
+```
+
+The absolute ladder is what the multiplier contract could never express, and it
+is why the change was made: `LinearScale` ties the decay rate to the reach, so
+its rim ring is always 0 and `max_hops N` silently buys an (N-1)-hop aura.
+
+Two traps, both documented on the classes themselves:
+
+- **`max` is not a legal `Expression` identifier.** Godot's lexer reserves it
+  for the built-in `max()`, so a formula naming it fails at *parse* with
+  "Expected `(`". `ExpressionScale` keeps the authored spelling and rewrites
+  `max` → `__max` on a word boundary (`maxf`/`maxi` are untouched).
+- **For a `MULTIPLY` or `SET` leaf the result IS the factor / the set value** —
+  `0` zeroes that stat's multiplicative pipeline rather than meaning "no
+  effect". Write `v` into the formula when you mean "scale what I authored".
+
+### `discard` — which computed values are worth granting
+
+Reach decides membership; `discard` decides whether a computed value lands. It
+replaced a hidden `is_zero_approx` skip that made "…0.2, 0" and "…0.2 [no 0]"
+indistinguishable to an author. `NONE` / `ZERO` / `NEGATIVE` / `NON_POSITIVE`
+(default) / `POSITIVE` / `NON_NEGATIVE`, each naming what it drops.
+
+**A debuff aura must opt out.** Its grants are negative by construction, so the
+buff-shaped `NON_POSITIVE` default would discard all of them — `ninja_core.tres`,
+`serpent_core.tres` and `blocker_footprint_falloff.tres` all pin `discard = NONE`
+for exactly this reason.
 
 | Class | `reach` | `metric` | `distance_scale` |
 |---|---|---|---|
 | Bulwark | `EuclideanRangeFinder` / `HopRangeFinder` | inherited | `FlatScale` |
 | Halo | `HopRangeFinder(shell+1)` | inherited | `ShellScale` |
 | Ninja | `HopRangeFinder(2)` | inherited | `LinearScale` (falling, `strength` buff) |
+| heal ramp (#720) | `HopRangeFinder(4)` | inherited | `ExpressionScale("5 - d")` |
 | Serpent A | `null` | `HopMetric` | `ProportionalScale` (positive mods) |
 | Serpent B | `null` | `EuclideanMetric` | `ProportionalScale` (negative mods) |
 
@@ -224,7 +264,7 @@ an incremental path**, `_topology_changed`, which is three branches cheapest-fir
    node can need touching, so one metric read and one grant-or-revoke).
 
 `AuraEffect` also owns the **payload seam** the two channels share:
-`_has_payload()` and `_grant_to(ctx, node, scale)`. `TagAuraEffect` is those two
+`_has_payload()` and `_grant_to(ctx, node, distance, bound)` — the scale is evaluated *inside* the seam now, per modifier leaf, since it needs each leaf's authored value. `TagAuraEffect` is those two
 methods and nothing else — the walk, the knobs, the origin rule and the batching
 below are inherited, not copied.
 
