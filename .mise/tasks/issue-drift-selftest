@@ -40,7 +40,7 @@ STAMP2 = "\n".join([
     "a.txt:4-8 — in range of the 5-6 edit",
     "a.txt:30-35 — out of range",
     "a.txt:21-22 — pure insertion at old line 21 counts",
-    "a.txt:19-20 — just before the insertion, untouched",
+    "a.txt:17-18 — before the insertion, untouched",
     "a.txt — whole-file entry",
     "b.txt — deleted",
     "c.txt — untouched",
@@ -67,7 +67,7 @@ by = {(r["path"], r["start"], r["end"]): r for r in rows}
 check("(a) in-range hunk drifts", by[("a.txt", 4, 8)]["drifted"] is True)
 check("(b) out-of-range hunk does not", by[("a.txt", 30, 35)]["drifted"] is False)
 check("pure insertion drifts the line it lands on", by[("a.txt", 21, 22)]["drifted"] is True)
-check("range ending before an insertion does not", by[("a.txt", 19, 20)]["drifted"] is False)
+check("range ending before an insertion does not", by[("a.txt", 17, 18)]["drifted"] is False)
 check("(c) whole-file entry drifts on any hunk", by[("a.txt", None, None)]["drifted"] is True)
 check("(d) deleted file drifts", by[("b.txt", None, None)]["drifted"] is True and by[("b.txt", None, None)]["reason"] == "deleted")
 check("untouched whole-file does not drift", by[("c.txt", None, None)]["drifted"] is False)

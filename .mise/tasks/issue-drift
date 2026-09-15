@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+#MISE description="Range-aware staleness check of an issue's latest drift stamp against master — silent + exit 0 when nothing moved, one line per drifted entry otherwise: `mise run issue-drift -- <n> [--json]`"
+"""
+Reads the latest ```drift-stamp <sha>``` block off an issue (body, then
+comments, in order — the LAST stamp wins), diffs `<sha>..master` with -U0
+for the listed paths, and reports only the entries a hunk actually touches.
+A diff is cheaper than a model: only when this prints something does the
+orchestrator spend a Haiku Explore re-verifying the reading list.
+
+Stamp contract (docs/charters/swarmify.md, law 15): a fenced block whose
+info string is `drift-stamp <7–40 hex>`; one entry per line,
+`path[:start-end] — free text`.
+
+Drift rules
+  path:a-b   drifts iff some hunk's OLD-side span intersects [a, b]. A pure
+             insertion (`-n,0`) has no old span; it is taken to touch lines
+             n and n+1 — the two it lands between — since either neighbour's
+             context changed. Conservative on purpose: a false positive costs
+             one Haiku look, a false negative costs a drone a wrong map.
+  path       (whole file) drifts on any hunk, a deletion, or a rename.
+  any        a path absent at <sha> is `missing-at-stamp` — a typo in the
+             stamp is drift too.
+
+Exit code: 0 ALWAYS on a verdict (drift, clean, or `no stamp on #<n>`) —
+this is clipped onto the swarm dispatch chain and must never abort it. Only a
+tool failure (gh error, sha unknown to the repo, git failure) is non-zero.
+
+  --json               `[{path, start, end, drifted, reason, ins, del, hunk}]`
+  --payload-json FILE  `{"body": …, "comments": [{"body": …}]}` instead of
+                       `gh issue view <n> --json body,comments` (selftest hook)
+  --repo DIR           git repo to diff in (default: cwd)
+  --base REF           what the stamp is compared against (default: master)
+"""
+import argparse
+import json
+import re
+import subprocess
+import sys
+
+_FENCE = re.compile(r"^\s*```+\s*drift-stamp\s+([0-9a-fA-F]{7,40})\s*$")
+_CLOSE = re.compile(r"^\s*```+\s*$")
+_ENTRY = re.compile(r"^(?P<path>[^\s:]+)(?::(?P<start>\d+)-(?P<end>\d+))?\s*(?:—|--|-)?\s*(?P<text>.*)$")
+_HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+
+
+# ---------------------------------------------------------------- stamp parsing
+def _stamps_in(text):
+    """Every (sha, [entry]) block in one markdown body, in order."""
+    out, sha, entries = [], None, None
+    for line in (text or "").splitlines():
+        if sha is None:
+            m = _FENCE.match(line)
+            if m:
+                sha, entries = m.group(1), []
+            continue
+        if _CLOSE.match(line):
+            out.append((sha, entries)); sha, entries = None, None
+            continue
+        e = _parse_entry(line)
+        if e:
+            entries.append(e)
+    if sha is not None:  # unterminated fence at end of body — still a stamp
+        out.append((sha, entries))
+    return out
+
+
+def _parse_entry(line):
+    line = line.strip()
+    if not line:
+        return None
+    m = _ENTRY.match(line)
+    if not m:
+        return None
+    s, e = m.group("start"), m.group("end")
+    return {"path": m.group("path"), "start": int(s) if s else None, "end": int(e) if e else None,
+            "text": m.group("text").strip()}
+
+
+def parse_stamp(payload):
+    """(sha, entries) of the LAST stamp across body then comments; (None, []) if none."""
+    found = _stamps_in(payload.get("body", ""))
+    for c in payload.get("comments") or []:
+        found += _stamps_in(c.get("body", "") if isinstance(c, dict) else str(c))
+    return found[-1] if found else (None, [])
+
+
+# ---------------------------------------------------------------- git side
+class ToolError(Exception):
+    pass
+
+
+def _git(repo, *args, ok=(0,)):
+    p = subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True)
+    if p.returncode not in ok:
+        raise ToolError(f"git {' '.join(args)}: {p.stderr.strip() or p.returncode}")
+    return p.returncode, p.stdout
+
+
+def _known(repo, ref):
+    return _git(repo, "cat-file", "-e", f"{ref}^{{commit}}", ok=(0, 1, 128))[0] == 0
+
+
+def _exists_at(repo, sha, path):
+    return _git(repo, "cat-file", "-e", f"{sha}:{path}", ok=(0, 1, 128))[0] == 0
+
+
+def diff_files(repo, sha, base, paths):
+    """{old_path: {"status": modified|deleted|renamed, "new_path", "hunks": [{old, old_len, header, ins, del}]}}"""
+    _, out = _git(repo, "diff", "-U0", "-M", "--no-color", "--no-ext-diff", sha, base, "--", *sorted(set(paths)))
+    files, cur = {}, None
+    for line in out.splitlines():
+        if line.startswith("diff --git "):
+            m = re.match(r"^diff --git a/(.*?) b/(.*)$", line)
+            cur = {"status": "modified", "new_path": m.group(2) if m else "", "hunks": []}
+            files[m.group(1) if m else line] = cur
+        elif cur is None:
+            continue
+        elif line.startswith("deleted file mode"):
+            cur["status"] = "deleted"
+        elif line.startswith("rename to "):
+            cur["status"] = "renamed"; cur["new_path"] = line[len("rename to "):]
+        elif line.startswith("@@"):
+            m = _HUNK.match(line)
+            old, old_len = int(m.group(1)), int(m.group(2)) if m.group(2) is not None else 1
+            cur["hunks"].append({"old": old, "old_len": old_len, "header": line.strip(), "ins": 0, "del": 0})
+        elif cur["hunks"] and line[:1] == "+" and not line.startswith("+++"):
+            cur["hunks"][-1]["ins"] += 1
+        elif cur["hunks"] and line[:1] == "-" and not line.startswith("---"):
+            cur["hunks"][-1]["del"] += 1
+    return files
+
+
+def _old_span(h):
+    """Inclusive old-side line span a hunk touches; a pure insertion at n touches n..n+1."""
+    if h["old_len"] == 0:
+        return h["old"], h["old"] + 1
+    return h["old"], h["old"] + h["old_len"] - 1
+
+
+def compute(repo, sha, entries, base="master"):
+    """One row per stamp entry: {path, start, end, drifted, reason, ins, del, hunk}."""
+    if not _known(repo, sha):
+        raise ToolError(f"stamp sha {sha} is unknown to {repo} (fetch?)")
+    if not _known(repo, base):
+        raise ToolError(f"base ref {base!r} is unknown to {repo}")
+    paths = [e["path"] for e in entries]
+    files = diff_files(repo, sha, base, paths) if paths else {}
+    rows = []
+    for e in entries:
+        row = {"path": e["path"], "start": e["start"], "end": e["end"], "drifted": False, "reason": "clean",
+               "ins": 0, "del": 0, "hunk": ""}
+        f = files.get(e["path"])
+        if not _exists_at(repo, sha, e["path"]):
+            row.update(drifted=True, reason="missing-at-stamp")
+        elif f is None:
+            pass
+        elif f["status"] in ("deleted", "renamed"):
+            row.update(drifted=True, reason=f["status"] if f["status"] == "deleted" else f"renamed → {f['new_path']}",
+                       ins=sum(h["ins"] for h in f["hunks"]), **{"del": sum(h["del"] for h in f["hunks"])})
+        else:
+            if e["start"] is None:
+                hit = f["hunks"]
+            else:
+                lo, hi = e["start"], e["end"]
+                hit = [h for h in f["hunks"] if not (_old_span(h)[1] < lo or _old_span(h)[0] > hi)]
+            if hit:
+                row.update(drifted=True, reason="hunk", ins=sum(h["ins"] for h in hit),
+                           hunk=hit[0]["header"], **{"del": sum(h["del"] for h in hit)})
+        rows.append(row)
+    return rows
+
+
+# ---------------------------------------------------------------- reporting
+def _label(row):
+    return row["path"] + (f":{row['start']}-{row['end']}" if row["start"] is not None else "")
+
+
+def format_rows(rows):
+    lines = []
+    for r in rows:
+        if not r["drifted"]:
+            continue
+        tail = r["hunk"] if r["reason"] == "hunk" else r["reason"]
+        lines.append(f"{_label(r)}  +{r['ins']}/-{r['del']}  {tail}")
+    return "\n".join(lines)
+
+
+def _fetch_payload(number):
+    p = subprocess.run(["gh", "issue", "view", str(number), "--json", "body,comments"], capture_output=True, text=True)
+    if p.returncode != 0:
+        raise ToolError(f"gh issue view {number}: {p.stderr.strip()}")
+    return json.loads(p.stdout)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("number", type=int, help="issue number")
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--payload-json", metavar="FILE", help="issue payload file instead of gh (selftest)")
+    ap.add_argument("--repo", default=".", help="git repo to diff in (default: cwd)")
+    ap.add_argument("--base", default="master", help="ref the stamp is compared against (default: master)")
+    args = ap.parse_args(argv)
+    try:
+        if args.payload_json:
+            with open(args.payload_json) as fh:
+                payload = json.load(fh)
+        else:
+            payload = _fetch_payload(args.number)
+        sha, entries = parse_stamp(payload)
+        if sha is None:
+            print(json.dumps([]) if args.json else f"no stamp on #{args.number}")
+            return 0
+        rows = compute(args.repo, sha, entries, base=args.base)
+    except (ToolError, OSError, ValueError) as exc:
+        print(f"issue-drift: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(rows, indent=1))
+        return 0
+    text = format_rows(rows)
+    if text:
+        print(text)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
