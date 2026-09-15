@@ -55,6 +55,7 @@ check("model stripped", r["model"] == "sonnet-5")
 check("priced = eff × model weight (sonnet baseline)", r["priced_tokens"] == r["effective_tokens"])
 check("model weight lookup", ac._model_weight("claude-haiku-4-5-20251001") == 0.5 and ac._model_weight("claude-opus-5") == 2.5
       and ac._model_weight("claude-fable-5-1") == 5.0 and ac._model_weight("mystery-model") == 1.0)
+check("fable cache reads at 2.5%", ac._weights_for("claude-fable-5-1")["cache_read"] == 0.025 and ac._weights_for("claude-sonnet-5")["cache_read"] == 0.10)
 
 os.environ["AGENT_COST_PROJECTS_DIR"] = root
 check("name → id via parent transcript", ac._ids_by_name(root, "drone-foo", 7) == ["abc123"])

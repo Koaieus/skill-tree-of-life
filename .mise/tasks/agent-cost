@@ -43,10 +43,22 @@ from datetime import datetime
 _WEIGHTS = {"input": 1.0, "cache_creation": 1.25, "cache_read": 0.10, "output": 5.0}
 
 # Relative price per model tier, in units of "one Sonnet token" — `priced` =
-# eff × this, so a haiku Explore and a Fable Sage compare on one axis. Owner
-# ratios (2026-09-15): haiku ≈ ½ sonnet, opus ≈ 2–3× sonnet, Fable ≈ 2× opus.
+# eff × this, so a haiku Explore and a Fable Sage compare on one axis. From
+# the first-party list prices (claude-api skill table, 2026-06-24): Haiku 4.5
+# $1/$5, Sonnet 5 $2/$10, Opus 5 $5/$25, Fable 5.1 $10/$50 per MTok in/out.
 # Matched by substring of the model id; unknown models price as sonnet.
 _MODEL_WEIGHTS = (("haiku", 0.5), ("sonnet", 1.0), ("opus", 2.5), ("fable", 5.0))
+# Fable 5.1 bills cache reads at $0.25/MTok — 2.5% of its input rate, not 10%.
+_CACHE_READ_OVERRIDE = (("fable", 0.025),)
+
+
+def _weights_for(model_id):
+    m = (model_id or "").lower()
+    w = dict(_WEIGHTS)
+    for tier, cr in _CACHE_READ_OVERRIDE:
+        if tier in m:
+            w["cache_read"] = cr
+    return w
 
 
 def _model_weight(model_id):
@@ -173,8 +185,9 @@ def analyse(path):
 
     ctxs = [p["input"] + p["cache_creation"] + p["cache_read"] for p in requests.values()]
     totals = {k: sum(p[k] for p in requests.values()) for k in _WEIGHTS}
-    effective = sum(totals[k] * w for k, w in _WEIGHTS.items())
-    priced = effective * _model_weight(models.most_common(1)[0][0] if models else "")
+    model_id = models.most_common(1)[0][0] if models else ""
+    effective = sum(totals[k] * w for k, w in _weights_for(model_id).items())
+    priced = effective * _model_weight(model_id)
     wall_min = None
     if first_ts and last_ts:
         f = datetime.fromisoformat(first_ts.replace("Z", "+00:00"))

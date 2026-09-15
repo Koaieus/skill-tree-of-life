@@ -147,7 +147,7 @@ against them.
 --latest N` computes the integral (and effective tokens, turns, tool calls,
 wall-clock) from the subagent transcript, deduping the several assistant
 records one API call writes, and a `priced` column that scales `eff` by model tier
-(haiku ½, sonnet 1, opus 2.5, Fable 5 — owner ratios, 2026-09-15) so a Haiku
+(haiku ½, sonnet 1, opus 2.5, Fable 5 — first-party list prices per the `claude-api` skill, 2026-09-15; Fable cache reads at 2.5%) so a Haiku
 Explore and a Fable Sage compare on one axis. `mise run land` prints it en passant for the
 landed branch. It is a best estimate — cross-agent chatter (a Fable Sage
 answering a Sonnet drone is two turns at very different rates) is not
