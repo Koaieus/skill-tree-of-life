@@ -65,16 +65,19 @@ func _flush_delta() -> void:
 	_delta_pending = false
 	if is_nan(_delta_baseline) or _override_active or _chip == null:
 		return
-	if _rendered(_last_value) == _rendered(_delta_baseline):
+	var shown := _rendered(_last_value)
+	var was := _rendered(_delta_baseline)
+	if shown == was:
 		return
-	_chip.pop(_last_value - _delta_baseline, decimals, _last_suffix)
+	_chip.pop(shown.to_float() - was.to_float(), decimals, _last_suffix)
 
 
 ## Renders at the row's own [member decimals] precision — same rule as
 ## [method _render], minus the suffix (identical on both sides of a delta,
-## so it can't be what makes the strings differ). The pop/no-pop decision
-## compares THESE strings, not the raw floats, so a sub-precision delta
-## (e.g. +0.4 on a 0-decimal row) never fires the chip.
+## so it can't be what makes the strings differ). The chip shows the
+## difference of THESE, not of the raw floats, so a sub-precision delta
+## (e.g. +0.4 on a 0-decimal row) never fires the chip and the chip always
+## agrees with the two values the player actually saw.
 func _rendered(v: float) -> String:
 	return ("%." + str(decimals) + "f") % v
 
