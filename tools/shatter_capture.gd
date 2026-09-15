@@ -5,6 +5,11 @@ extends Node2D
 ## texture, so the burst can be inspected without relying on a live editor
 ## redraw (which was proven to collapse the animation to 1-2 captured frames).
 ##
+## Captures through its own HDR SubViewport + WorldEnvironment: the ROOT
+## viewport's `get_texture().get_image()` comes back before the 2D glow
+## pass (glow on/off pixel-identical, 2026-09-15) — every collage judged
+## through it was bloom-less, including the one #871 was reopened on.
+##
 ## Run with (real renderer, windowed, NOT --headless):
 ##   DISPLAY=:0 godot --path /home/bramh/skill-tree-of-life tools/shatter_capture.tscn
 
@@ -16,6 +21,8 @@ const TINT := Color(0.35, 0.85, 0.4)
 const SHARD_COUNT := 14
 const KICK_SPEED := 90.0
 const CROP_SIZE := 400
+
+var _view: SubViewport
 
 # t=0.84 is flight_start(0.6) * window(1.4) - the boom instant; 1.4 is the end
 # of the window; 1.45 confirms a clean blank aftermath. 0.46 is the beam
@@ -31,11 +38,28 @@ func _ready() -> void:
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 	DirAccess.make_dir_recursive_absolute(SCRUB_DIR)
 
+	# Render inside a SubViewport of our own: the root viewport's readback
+	# (`get_texture().get_image()`) comes back WITHOUT the 2D glow pass —
+	# glow on/off is pixel-identical there (checked 2026-09-15) — so bloom is
+	# only judgeable through a viewport that owns its HDR buffer + env.
+	_view = SubViewport.new()
+	_view.size = Vector2i(1440, 960)
+	_view.use_hdr_2d = true
+	_view.transparent_bg = false
+	_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	add_child(_view)
+	var env := WorldEnvironment.new()
+	env.environment = load("res://ui/theme/default_game_env.tres")
+	_view.add_child(env)
+	var bg := ColorRect.new()
+	bg.color = Color.BLACK
+	bg.size = Vector2(1440, 960)
+	_view.add_child(bg)
 	# Fixed, non-moving anchor: the shader hashes its fracture seed from local
 	# origin, so nothing under it may move after spawn.
 	var anchor := Node2D.new()
 	anchor.position = ORIGIN
-	add_child(anchor)
+	_view.add_child(anchor)
 
 	var vfx := AllocationVFX.new()
 	anchor.add_child(vfx)
@@ -73,7 +97,7 @@ func _capture(vfx: AllocationVFX, t: float, dir: String, base_name: String) -> v
 	await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 
-	var img := get_viewport().get_texture().get_image()
+	var img := _view.get_texture().get_image()
 	var half := CROP_SIZE / 2
 	var rect := Rect2i(
 		int(ORIGIN.x) - half, int(ORIGIN.y) - half, CROP_SIZE, CROP_SIZE)
