@@ -29,6 +29,13 @@ enum ValueType { INT, FLOAT, BOOL }
 ## (crit_chance INCREASE 18 must stay "+18%", not "+1800%").
 @export var display_as_percent: bool = false
 
+## True for a stat where a LOWER value is the improvement (e.g.
+## `min_damage_taken`, `dealloc_damage`) — most stats want more, so this
+## defaults false. See [method is_improvement]. Pure addition (#729), same
+## idiom as [member display_as_percent]; no `NEUTRAL` — no def today wants an
+## unjudged delta.
+@export var lower_is_better: bool = false
+
 
 ## Short axis/inline label ("Strength" → "STR"). **Authored**, because
 ## truncation is not abbreviation: it only produces the right answer when the
@@ -36,6 +43,16 @@ enum ValueType { INT, FLOAT, BOOL }
 ## the attributes and not a rule ("Spell Damage" → "SPE", "Constitution" →
 ## "CON" only by luck). Leave empty to accept the truncation fallback.
 @export var abbrev: String = ""
+
+
+## True iff `delta` moves this stat toward "better" — a DELTA predicate, not
+## a judgement of an absolute value (#729). `0.0` is never an improvement
+## either way. The one accessor for "is this change good": no call site
+## re-derives `sign XOR lower_is_better` by hand.
+func is_improvement(delta: float) -> bool:
+	if lower_is_better:
+		return delta < 0.0
+	return delta > 0.0
 
 
 ## [member abbrev] if authored, else the first three letters of

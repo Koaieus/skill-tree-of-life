@@ -10,3 +10,4 @@ description = "Flat HP damage dealt to this entity per node forced-deallocated i
 value_type = 0
 default_value = 1.0
 tint_color = Color(0.85, 0.3, 0.3, 1)
+lower_is_better = true
