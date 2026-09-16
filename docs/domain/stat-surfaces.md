@@ -23,6 +23,8 @@ not a bug to fix. Register a new stat here when you add its `.tres`
 | `perception` | `ui/hud/attributes_panel/attributes_panel.gd` (`ATTR_IDS`) |
 | `vision_range` | `ui/hud/attributes_panel/attributes_panel.gd` (Senses row) |
 | `sensor_range` | `ui/hud/attributes_panel/attributes_panel.gd` (Senses row) |
+| `core_health_scaling` | `ui/hud/attribute_rules.gd` (`AttributeRules.describe`), surfaced via `ui/hud/attributes_panel/attributes_panel.gd`'s radar-axis hover tooltip — hovering the CON axis lists `mod_con_to_health` ("+1 Max Health per CON × core scaling", `entity/default_entity_board.tres`), a live `intrinsic_modifiers` entry formula'd off this stat. Indirect: the coefficient itself isn't printed, its effect is (owner-confirmed 2026-09-16, was proposed hidden) |
+| `node_health_scaling` | Same radar-axis-hover path as `core_health_scaling`, via `mod_con_to_node_health` (owner-confirmed 2026-09-16, was proposed hidden) |
 
 ## Combat readout cards
 
@@ -61,6 +63,8 @@ below unless noted otherwise.
 | `level` | `ui/hud/hero_sigil_card/hero_sigil_card.gd` |
 | `xp` | `ui/hud/xp_track/xp_track.gd` |
 | `xp_per_turn` | `ui/hud/xp_track/xp_track.gd` |
+| `sp_gain_on_levelup` | `ui/hud/xp_track/level_up_flourish.gd` (`stamp()`'s "+N SP — LEVEL L" detail line) — indirect: the SP total comes from `Entity.sp_minted_for_level()` (`entity/entity.gd`), which reads this stat plus the every-5th-level milestone bonus (owner-confirmed 2026-09-16, was proposed hidden) |
+| `ap_transfer_rate` | `ui/hud/action_cluster/action_cluster.gd` (`_refresh_conversion()`, the "⇒ +N move · +N dealloc" line, scene-ordered directly above `EndTurnButton`) — indirect: shows the computed conversion, not the raw rate (owner-confirmed 2026-09-16, was proposed hidden). A named-rate hover sub-row is spec'd but unbuilt — see the follow-up issue below |
 
 ## Initiative
 
@@ -96,23 +100,31 @@ above).
 | `spell_hops` | No surface drawn yet. The magic card's rows wait on #912 (cast range reframed as one bin-decomposed stat rather than spell_hops+spell_range as two single-bin stats) — don't guess a row ahead of that call |
 | `spell_range` | Same as spell_hops, pending #912 |
 
-## Hidden — proposed, owner confirms in review
+## Hidden — owner-confirmed 2026-09-16
 
 None of these have a HUD row anywhere in the tree; each reads only as a
-formula input or a turn-upkeep tuning lever. The reason quotes (near-verbatim)
-the id's own `.tres` `description` — a **proposal** for the owner to confirm
-or re-home, not a decided call.
+formula input or a turn-upkeep tuning lever. `core_health_scaling`,
+`node_health_scaling`, `sp_gain_on_levelup`, and `ap_transfer_rate` were
+proposed hidden here too, but turned out to already have a real (if indirect)
+surface on investigation — see the tables above. The two rows below were
+settled with the owner in conversation (2026-09-16, see #914); UI specs for
+`tempo` and a richer `ap_transfer_rate` readout exist but are unbuilt — see
+the follow-up issues linked from #914.
+
+| id | reason |
+|---|---|
+| `blade_speed_half` | `v_half` in the speed-scaled blade damage curve (#779) — not attribute-driven (no `StatModifier`, read as a raw curve constant in `attack/melee/skill_blade.gd`/`blade_damage_instance.gd`), so it can't ride the attribute-hover path either. Visibility matters once blade-speed curve stats can roll as procgen modifiers — not before (owner call, 2026-09-16) |
+| `blade_speed_multiplier_max` | `M` in the same curve (#779) — same reasoning and same procgen-modifier condition as `blade_speed_half` |
+| `node_healing` | Base HP a node regenerates at turn start (D-9, #268 TBD) — node-local, read via `SkillNode.get_local_value`, no `StatModifier`. Blocked on #268 today; once it gets a surface, pair it with `node_healing_ramp` parenthetically, e.g. `node_healing (+ramp)` (owner call, 2026-09-16, matching the `armor + (min_damage_taken)` pairing convention). Also matters more once it can roll as a procgen modifier, same condition as blade_speed_half/multiplier_max |
+| `node_healing_ramp` | Extra HP `node_healing` gains per consecutive undamaged turn (D-9, #268 TBD) — same read path and #268 block as `node_healing`; display format decided alongside it above |
+| `tempo` | Once-per-turn kill-AP refund budget (#888) — a latch/pool consumed by the kill-refund mechanic, distinct from the action_points/deallocation_points/movement_points trio it refunds into. Placement spec'd (a lit/hollow pip trailing the AP gauge, owner call 2026-09-16) but unbuilt, and gated on a real mechanic question — see the follow-up issue |
+
+## Hidden — still needs an owner pass
+
+Never brought up in the 2026-09-16 review pass; the original proposed reason
+stands until the owner confirms or re-homes it.
 
 | id | proposed reason |
 |---|---|
-| `ap_transfer_rate` | Class-identity tuning knob: converts unused AP at turn end into DP/MP surplus for the following turn (#152). Read only by the upkeep formula, no row anywhere |
-| `blade_speed_half` | `v_half` in the speed-scaled blade damage curve (#779) — an owner-tunable curve constant, not a value an entity or node "has" in a way a card would show |
-| `blade_speed_multiplier_max` | `M` in the same speed-scaled blade damage curve (#779) — same reasoning as blade_speed_half |
-| `core_health_scaling` | How much entity HP one point of CON buys (D-26) — a per-class formula coefficient, not a displayed value itself (its effect shows up *inside* health) |
 | `core_kill_xp` | XP bonus paid to the killer on this entity's core death (#774) — a one-shot payout term, read once by `LootSystem`, not a standing stat with a row |
 | `dealloc_damage` | Flat HP damage per forced-dealloc in a battle cascade — a tuning lever read only inside the cascade resolver |
-| `node_health_scaling` | How much max node HP one point of CON buys (#298, D-26) — a formula coefficient, same shape as core_health_scaling |
-| `node_healing` | Base HP a node regenerates at turn start (D-9, #268 TBD) — node-local, read via `SkillNode.get_local_value`, not applied from the board directly; no row |
-| `node_healing_ramp` | Extra HP node_healing gains per consecutive undamaged turn (D-9, #268 TBD) — same read path as node_healing, no row |
-| `sp_gain_on_levelup` | Skill Points minted per level-up (D-16, #271) — a one-shot mint amount, not a standing displayed value |
-| `tempo` | Once-per-turn kill-AP refund budget (#888) — a latch/pool consumed by the kill-refund mechanic, no HUD row (distinct from the action_points/deallocation_points/movement_points trio it refunds into, which do have rows) |
