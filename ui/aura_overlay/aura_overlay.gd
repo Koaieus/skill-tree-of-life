@@ -136,7 +136,7 @@ func _refresh() -> void:
 				sn.global_position.x, sn.global_position.y,
 				sn.radius * radius_multiplier, float(entity_idx)
 			))
-		packed_colors.append((_owner as Entity).color)
+		packed_colors.append(Emissive.tint_damped((_owner as Entity).color, Emissive.INERT))
 		entity_idx += 1
 
 	# Truncation silently deletes territory from the board — whichever entity is
