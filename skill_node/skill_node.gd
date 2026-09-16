@@ -94,6 +94,12 @@ signal statuses_changed
 ## a [SkillNodeAddon].
 @export var effects: Array[Effect] = []
 
+## Tooltip identity — a single line, PoE-keystone style (#179). Empty means
+## "no name to show"; callers render nothing. Opt-in authoring surface: a
+## procgen node without a keystone stays unnamed on purpose (#288's generated
+## name composer later fills the empty branch — never key layout on this).
+@export var display_name: String = ""
+
 ## This node's archetype identity — carries the primary stat, colour, and
 ## central-emblem [CarveShape] (see [Archetype]). Procgen stamps this from the
 ## node's [ArchetypePolicy.archetype]; null means no policy stamped one (e.g.
@@ -959,15 +965,12 @@ func get_node_effects() -> Array[Effect]:
 #endregion
 
 
-## Tooltip identity — [member Keystone.display_name] when this node carries a
-## keystone, [code]""[/code] otherwise. Deliberately no fabricated id, no scene
-## node name, no hash: an empty string means "no name to show", and callers
-## render nothing (#288's name composer later fills the empty branch). See
-## Tooltip V2 (#294).
+## Tooltip identity — [member display_name] verbatim (#179). Deliberately no
+## fabricated id, no scene node name, no hash: an empty string means "no name
+## to show", and callers render nothing (#288's name composer later fills the
+## empty branch). See Tooltip V2 (#294).
 func get_display_name() -> String:
-	if keystone != null:
-		return keystone.display_name
-	return ""
+	return display_name
 
 
 ## True vertex degree in [param graph] — every node sharing an edge with this

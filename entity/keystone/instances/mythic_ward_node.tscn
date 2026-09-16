@@ -5,3 +5,4 @@
 [node name="MythicWardNode" instance=ExtResource("1_base")]
 base_type_color = Color(0.3, 0.45, 0.65, 1)
 keystone = ExtResource("2_ks")
+display_name = "Mythic Ward"

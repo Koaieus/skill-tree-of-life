@@ -5,12 +5,12 @@ extends GutTest
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
-const _XP_ANCHOR_KEYSTONE := preload("res://entity/keystone/instances/xp_anchor_keystone.tres")
 const _BUNKER_SCENE := preload("res://skill_node/addons/bunker_addon.tscn")
 const _FORTIFICATION_SCENE := preload("res://skill_node/addons/fortification_addon.tscn")
 const _SPIKE_RING_SCENE := preload("res://skill_node/addons/spike_ring_addon.tscn")
 const _SKILL_DUST_SCENE := preload("res://skill_node/addons/skill_dust_addon.tscn")
 const _CLAMP_SCENE := preload("res://skill_node/addons/clamp_addon.tscn")
+const _ID_CHIP_SCENE := preload("res://ui/tooltip_fan/panels/id_chip_panel.tscn")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -52,9 +52,9 @@ func test_display_name_empty_for_plain_node() -> void:
 	assert_eq(sn.get_display_name(), "")
 
 
-func test_display_name_reads_keystone_display_name() -> void:
-	var sn := _make_node("Stamped")
-	_XP_ANCHOR_KEYSTONE.stamp(sn)
+func test_display_name_reads_the_authored_field() -> void:
+	var sn := _make_node("Named")
+	sn.display_name = "XP Anchor"
 	assert_eq(sn.get_display_name(), "XP Anchor")
 
 
@@ -245,3 +245,32 @@ func test_default_tooltip_modifiers_is_local_plus_entity_modifiers() -> void:
 	assert_eq(mods.size(), 2)
 	assert_true(mods.has(local_mod))
 	assert_true(mods.has(entity_mod))
+
+
+# ── IdChipPanel wide/narrow predicate (#179) ────────────────────────────────
+# Flipped from `node.keystone != null` to `node.get_node_effects().size() > 0`
+# — a name alone (#288's generated names arrive later, on every node) must
+# never trigger the wide layout; only carried effects do.
+
+func _chip() -> IdChipPanel:
+	var chip := _ID_CHIP_SCENE.instantiate() as IdChipPanel
+	add_child_autofree(chip)
+	return chip
+
+
+func test_id_chip_with_an_effect_and_no_name_binds_wide() -> void:
+	var sn := _make_node("EffectHost")
+	sn.effects = [StatEffect.new()]
+	var chip := _chip()
+	chip.bind(sn, _graph)
+	assert_true(chip._effects_label.visible, "one carried effect must show the effects row")
+	assert_string_contains(chip._effects_label.text, "1 effect")
+
+
+func test_id_chip_with_display_name_but_no_effects_binds_narrow() -> void:
+	var sn := _make_node("NamedHost")
+	sn.display_name = "Named, No Effects"
+	var chip := _chip()
+	chip.bind(sn, _graph)
+	assert_false(chip._effects_label.visible, "a name alone must never trigger the wide layout")
+	assert_true(chip._name_label.visible)

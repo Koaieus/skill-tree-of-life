@@ -5,3 +5,4 @@
 [node name="ArchmageNode" instance=ExtResource("1_base")]
 base_type_color = Color(0.55, 0.35, 0.85, 1)
 keystone = ExtResource("2_ks")
+display_name = "Archmage's Tower"

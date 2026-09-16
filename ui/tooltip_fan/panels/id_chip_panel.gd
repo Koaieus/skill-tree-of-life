@@ -6,17 +6,16 @@ extends FanPanel
 ## trace ("it belongs to the sprout rather than floating free" — the only
 ## reason it gets a full [FanUnit] pair instead of hanging directly off the
 ## node like the old single-card tooltip did). Two modes, one scene (#232
-## spec v3 — absorbs the Keystone regression noted on #159):
+## spec v3, predicate flipped by #179):
 ##
-## - normal (`node.keystone == null`): degree only, no name. A plain node has
-##   no [method SkillNode.get_display_name] — that's `""` until #288's name
-##   composer lands — so this mode renders NOTHING but the degree line and
-##   collapses to that line's height.
-## - keystone (`node.keystone != null`): the keystone's gold [member
-##   Keystone.display_name], an optional description block (collapses when
-##   empty, same convention as [PanelHeader]'s subheader), an effect count,
-##   then degree. Parity with V1's `skill_node_tooltip.gd::_populate_keystone`
-##   so #235's cutover drops nothing.
+## - normal (`node.get_node_effects().is_empty()`): degree only, no name. A
+##   plain node has no [method SkillNode.get_display_name] either — that's
+##   `""` until #288's name composer lands — so this mode renders NOTHING but
+##   the degree line and collapses to that line's height.
+## - wide (`not node.get_node_effects().is_empty()`): [member
+##   SkillNode.display_name] (when authored), an effect count, then degree.
+##   Effects are the honest signal for the wide layout — a name alone (#288's
+##   generated names arrive later) must never trigger it.
 ##
 ## Degree itself is always graph degree; entity degree is appended — and
 ## labelled distinctly — only when the node is owned (#232 Decision 2):
@@ -26,30 +25,12 @@ extends FanPanel
 ##
 ## The chip's background hugs its content structurally (#344): the Rows column
 ## is a [PanelContent] inside the [PanelLayout] skin, so the skin sizes itself
-## to whatever rows [method bind] left visible (width included — the degree
-## line's own text width, or the keystone's widened description column, drives
-## it; there is no fixed normal-mode envelope anymore). Safe because
+## to whatever rows [method bind] left visible. Safe because
 ## [FanAnchorDriver] re-derives the trace terminus from the panel's LIVE skin
 ## rect every frame (see `fan_anchor_driver.gd::_reroute`), so a resize here
 ## is never stale for the trace that arrives at it.
 
-## Keystone mode widens the chip at RUNTIME only. A keystone description is
-## prose, not a label — `xp_anchor_keystone.tres`'s is 95 characters, which
-## autowraps into a ~12-line noodle inside the 68px normal-mode envelope. The
-## authored (pre-bind) width stays the narrow chip (68px, the scene's
-## [PanelLayout] `min_size`) so the structural overlap test still measures the
-## narrow chip; only a node that actually carries a keystone ever pays the
-## extra width, and there are two such resources in the game.
-const _KEYSTONE_HALF_WIDTH := 84.0
-
-## Horizontal padding between the widened envelope and the wrapped description
-## text — must match the [PanelContent] padding X so the wrap column equals the
-## skin's inner width exactly and the content hugs the authored keystone
-## envelope rather than one text-pixel narrower.
-const _H_PADDING := 6.0
-
 @onready var _name_label: Label = %NameLabel
-@onready var _description_label: Label = %DescriptionLabel
 @onready var _effects_label: Label = %EffectsLabel
 
 
@@ -61,25 +42,16 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	_name_label.visible = false
-	_description_label.visible = false
 	_effects_label.visible = false
 
 
 func bind(node: SkillNode, graph: Graph) -> void:
-	var keystone: Keystone = node.keystone
-
 	var display_name := node.get_display_name()
 	_name_label.visible = not display_name.is_empty()
 	if _name_label.visible:
 		_name_label.text = display_name
 
-	var description := keystone.description if keystone != null else ""
-	_description_label.visible = not description.is_empty()
-	_description_label.text = description
-	if keystone != null:
-		_set_description_wrap_column()
-
-	var effect_count := node.get_node_effects().size() if keystone != null else 0
+	var effect_count := node.get_node_effects().size()
 	_effects_label.visible = effect_count > 0
 	if _effects_label.visible:
 		_effects_label.text = "%d effect%s" % [effect_count, "" if effect_count == 1 else "s"]
@@ -87,13 +59,3 @@ func bind(node: SkillNode, graph: Graph) -> void:
 	if _header:
 		_header.header = "Degree %d" % node.get_entity_degree(graph, node.owned_by)
 		_header.subheader = "Graph Degree: %d" % node.get_graph_degree(graph)
-
-## The keystone description's wrap column, driven from the same widened
-## envelope the [PanelLayout] skin hugs — the prose must wrap to the WIDE
-## column or the chip would widen to the full unwrapped text width. In normal
-## (non-keystone) mode the description is invisible and contributes nothing to
-## the layout; the chip then hugs the degree line alone.
-func _set_description_wrap_column() -> void:
-	if _description_label == null:
-		return
-	_description_label.custom_minimum_size.x = _KEYSTONE_HALF_WIDTH * 2.0 - _H_PADDING * 2.0

@@ -67,6 +67,21 @@ func test_keystone_family_scenes_all_inherit_the_base() -> void:
 		"every entity/keystone/ scene must ext_resource the keystone base, never skill_node.tscn directly")
 
 
+## #179: each landmark authors its own display_name directly on the node —
+## no keystone fallback survives this unit.
+func test_landmarks_carry_a_non_empty_display_name() -> void:
+	var scenes := {
+		"mythic_ward": _WARD,
+		"farsight": _FARSIGHT,
+		"titan": _TITAN,
+		"archmage": _ARCHMAGE,
+		"natural_xp": _NATURAL_XP,
+	}
+	for label in scenes:
+		var n: SkillNode = autofree(scenes[label].instantiate()) as SkillNode
+		assert_false(n.get_display_name().is_empty(), "%s: get_display_name() must not be empty" % label)
+
+
 static func _find_tscn_files(dir_path: String) -> PackedStringArray:
 	var out: PackedStringArray = []
 	var dir := DirAccess.open(dir_path)
