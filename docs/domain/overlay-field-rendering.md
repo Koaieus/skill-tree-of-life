@@ -183,7 +183,8 @@ per-element dimming pass to stay in lockstep — see below) and `AuraOverlay`
 directly. It packs three `ImageTexture`s per build:
 
 - `circles_tex` — one `vec4(x, y, radius, tag)` texel per circle (`tag` is
-  `motion` for fog, `entity_index` for aura).
+  `motion` for fog, `entity_index` for aura). Since #898 the aura's is two
+  texels per rounded-cone primitive (see below); fog's is unchanged.
 - `tile_index_tex` — one `vec2(offset, count)` texel per grid tile, into the
   flat index buffer below.
 - `tile_indices_tex` — a flat `circle_count`-length buffer of circle indices,
@@ -400,6 +401,81 @@ inspection:
 `test_tile_gather_fold_order_drift.gd` and `test_vision_source_index.gd` guard
 this, unmodified. One note on sizing: the flat tile-index buffer is as long as
 total bucket occupancy, no longer `circle_count`.
+
+### The cone path's `tile_indices_tex` is 2D; fog's is still one row (#898)
+
+Occupancy is what makes the 16384-texel `maxImageDimension2D` floor reachable
+at ordinary scale: aura `cell_size ≈ (1 + k) · 48 ≈ 55 px`, a Delaunay edge
+runs 150–300 px, so its AABB touches ~6–16 cells; ~800 owned nodes + ~1500
+owned edges late game is on the order of 13–16k flat entries. Owner's call
+(2026-09-16): wrap the buffer on the **cone build path only**, and file
+DDA-tight bucketing (an occupancy *reduction*, not a limit removal) as a
+separate `#140` child. So `build_cones()` lays the flat buffer out in rows of
+`OverlayFieldTileIndex.TILE_INDICES_COLS` (4096) texels — entry `e` at
+`(e % COLS, e / COLS)` — and `aura.gdshader` reads the row width back with
+`textureSize(tile_indices_tex, 0).x`, so there is no uniform to desync. The
+branch is keyed on the build path, not on "any segment present": a
+degenerate-only cone set still ships wrapped because the aura shader always
+fetches with the wrap formula. `build()` (fog) emits the same one-row image
+it always has and `fog.gdshader`'s `ivec2(offset + j, 0)` fetch is untouched.
+`test_overlay_field_tile_index_cones.gd` round-trips a >4096-entry build.
+
+Still one row, and still bounded by that same limit: `primitives_texture` —
+two texels per primitive, so it hits 16384 at 8192 primitives. That is well
+above ordinary scale (~2300 late game) but below the 20000 sanity ceiling;
+it was not part of the ruling and is left as is.
+
+## Shipped: the aura draws the owned induced subgraph (#898)
+
+`AuraOverlay` packs, per owning entity, one **degenerate cone per owned node**
+(`A == B`, radius `node.radius × radius_multiplier` — regardless of degree, so
+an isolated node still draws) and **one cone per edge whose two endpoints
+share an owner** — the owned induced subgraph, in graph terms. A half-owned
+edge draws nothing for the owner; an edge between two different owners draws
+nothing for either (#140 decision 3, owner: *"nothing. option 1."*). Same-owner
+means `owned_by` identity on both endpoints, never `ownership_bit` — this is
+"same entity", not "mine". Self-loops are skipped: a second degenerate on the
+same node would be a duplicate fold, and `field_smin` is not idempotent.
+
+**Dumbbell knobs (decision 8).** An edge cone's end radii are the two aura
+disc radii × `w`, `w = edge_width / (1 + L / edge_slack_length)`, evaluated
+CPU-side per edge at pack time (`edge_width` default 0.6, `edge_slack_length`
+default 300 px, `INF` disables the pinch — the quotient is simply 0). The
+`smin` union with the full discs produces the neck; there is no second SDF.
+`intensity`, `falloff`, `union_smoothness` apply to cones in the same
+normalised-distance units as discs, so the three anti-Mach-band measures
+(smin seams, smoothstep fade, dither) carry over untouched (decision 9).
+
+**The shader's inner loop** fetches the two texels, runs the projection dedupe
+(`field_cone_project` cell `!=` the tile being read → skip), then folds
+`field_cone_distance` into the same per-entity `min_d` `smin` fold; the argmax
+cut is unchanged. Expected, not a bug: a hub of owned degree *m* is covered by
+its disc plus *m* cone ends, so the fold reaches a couple of px further there
+(decision 7). `set_field(circles, colors)` survives as the disc-shaped door
+(each circle expands to a degenerate cone) so the verify scene's disc case,
+the caps test and any disc-only caller keep working; `set_cones` is the real
+entry. The shader uniforms still say `circles_tex` / `circle_count` — pinned
+by `test_overlay_uniform_caps.gd`; `circles_tex` now carries the 2-texel
+primitives texture.
+
+`scenes/overlay_shader_verify.gd` pixel-checks one cone with unequal radii
+against `OverlayFieldCone.distance`; the mid-edge fade-zone sample is the one
+that catches a broken dedupe (`smin(d, d, k) = d − k/4` moves alpha by ~0.05
+in the fade band, above `_TOL`, while a flat-interior sample would pass).
+
+### Why fog does not get cones (#140 decision 1)
+
+`vision_range` base is 500 px (`entity/default_entity_board.tres`, PER only
+scales it up) while procgen edges run ~150–300 px (`min_dist = 2·32 + 86 =
+150`, `first_level/topology.tres`). Two 500 px discs 200 px apart differ from
+their hull by `500 − √(500² − 100²) ≈ 10 px` at the waist, which
+`union_smoothness` already fills — a vision cone is a visual no-op. It would
+also have to teach `VisionCircles.has_point` (shared with `AiRecon`) and the
+five consumers of `vision_field.gdshaderinc` the same primitive to stop the
+fog lying about logical visibility. The aura is the real case: aura radius =
+`node.radius × 1.5 = 48 px`, centres ≥150 px apart, so aura discs never touch
+without an edge primitive. Re-open only if `vision_range` ever tunes below
+~2× edge length.
 
 ## Known limit, deliberately
 
