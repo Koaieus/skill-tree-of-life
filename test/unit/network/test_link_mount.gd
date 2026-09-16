@@ -47,6 +47,29 @@ func _live_game_root() -> GameRoot:
 	return root
 
 
+## Bounded poll for [method GameRoot.is_reveal_ready] — the one flag `_ready`
+## itself sets when its whole coroutine, however many frames it took, is
+## actually done (#932). `_live_game_root`'s flat `wait_frames(6)` is a bet that
+## `_open_link` always lands inside 6 frames; under load (a prior test's
+## `queue_free` still draining, a slow box) it sometimes doesn't, and a HOST
+## root instrumented with prints was caught mid-flight — six frames in and
+## `_open_link` had not run at all, `transport.role` still `OFFLINE` — while
+## sibling roots in the same run reached it one frame after `add_child`. This
+## makes the online-role assertions wait for the actual event instead of a
+## frame count.
+##
+## [b]Not a substitute for `_live_game_root`'s own wait[/b]: a CLIENT root in
+## this fixture never reaches `is_reveal_ready` (`_await_join_world` loops
+## forever — nobody in a solo fixture answers its pull), so this is only used
+## where the role in play is guaranteed to finish opening the link, and stays
+## bounded so a genuine regression fails the assert instead of hanging GUT.
+func _wait_for_reveal(root: GameRoot, max_frames: int = 60) -> void:
+	var frames := 0
+	while not root.is_reveal_ready() and frames < max_frames:
+		await wait_frames(1)
+		frames += 1
+
+
 ## Dispose of a scene that was instantiated but never added to the tree.
 ##
 ## [b]`queue_free()`, never `free()`.[/b] A bare `free()` on a level-sized
@@ -131,6 +154,9 @@ func test_a_host_role_raises_the_link_to_broadcast() -> void:
 	# lands on.
 	GameSession.network = NetworkConfig.host(0)
 	var root: GameRoot = await _live_game_root()
+	# `_open_link` (which opens the socket) sits past `_live_game_root`'s own
+	# frame budget under load — wait for the root's own "done" flag instead.
+	await _wait_for_reveal(root)
 	assert_eq(root.command_link.mode, CommandLink.Mode.BROADCAST)
 	assert_true(root.command_applier.is_authority, "a host decides")
 	assert_eq(root.transport.role, NetworkTransport.Role.HOST, "and the socket was opened")
