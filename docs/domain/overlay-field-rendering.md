@@ -200,6 +200,11 @@ ceiling* (loud-or-none per #133's acceptance bar), not a shader array size.
 still a real array bound (`entity_colors`, and the per-fragment `min_d[32]`
 local array) because that data is genuinely small.
 
+`entity_colors` is packed through `Emissive.tint_damped(entity.color,
+Emissive.INERT)`, not the raw `Entity.color` (#899) — so a low-luminance hue
+doesn't wash out against a high-luminance one at the same `intensity`; see
+`docs/domain/hdr-color.md`.
+
 Proven with a spike before building the rest: a minimal canvas_item shader
 `texelFetch`ing a data texture, compiled and run under
 `xvfb-run … --rendering-driver opengl3` (headless never compiles GLSL — see
