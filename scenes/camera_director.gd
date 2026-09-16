@@ -94,9 +94,10 @@ var _remaining: float = 0.0
 var _melee_locked: bool = false
 
 ## True while the shot is FOLLOWING the live blade rather than easing to a fixed
-## target — set once the whole wind-up is spent and the swing is actually
-## moving (#894). Follow MODE on the camera opens earlier, at the widen beat
-## ([member _melee_following]); this flag only gates the per-frame goalpost.
+## target — set on [signal BattleSystem.melee_swing_started], the beat the
+## blade actually starts moving (#894). Follow MODE on the camera opens
+## earlier, at the widen beat ([member _melee_following]); this flag only gates
+## the per-frame goalpost.
 var _melee_tracking: bool = false
 
 ## True from the widen beat on: the camera is in follow mode, so a later
@@ -113,6 +114,9 @@ func _ready() -> void:
 		camera.manual_input_received.connect(_on_manual_input)
 	if battle_system != null and not battle_system.attack_committed.is_connected(_on_attack_committed):
 		battle_system.attack_committed.connect(_on_attack_committed)
+	if battle_system != null \
+			and not battle_system.melee_swing_started.is_connected(_on_melee_swing_started):
+		battle_system.melee_swing_started.connect(_on_melee_swing_started)
 	if command_applier != null \
 			and not command_applier.command_confirmed.is_connected(_on_command_confirmed):
 		command_applier.command_confirmed.connect(_on_command_confirmed)
@@ -132,8 +136,21 @@ func _process(delta: float) -> void:
 	if _melee_tracking and camera != null and _live_melee_plan() != null:
 		camera.set_follow_target(melee_track_target())
 	_remaining -= delta
-	if _remaining <= 0.0:
+	if _remaining <= 0.0 and not _awaiting_swing():
 		release()
+
+
+## A melee shot whose swing has not started while the launch is still in
+## flight (#894). The span's hold is sized from the SWING — `schedule.duration()`
+## is swing-relative — but opened at the widen beat, so on its own clock it
+## expires mid-wind-up; and the wind-up itself has no fixed length (a
+## `record_ready` hold can stretch it behind a wire). The shot's course is the
+## launch, so the timer defers to it until the swing beat re-sizes the hold.
+## Lifts with `is_launching` on a path that never swings (no [MeleePreview]
+## wired), so the camera cannot stay locked for good.
+func _awaiting_swing() -> bool:
+	return _melee_locked and not _melee_tracking \
+			and battle_system != null and battle_system.is_launching
 
 
 ## The player touched the camera. Their hands win instantly — any focus in
@@ -282,29 +299,6 @@ func is_tracking() -> bool:
 	return _melee_tracking
 
 
-## Seconds after commit at which centroid tracking arms: the WHOLE wind-up
-## (#894), the same total [method BattleSystem._stage_melee_windup] waits out
-## before [method MeleePreview.launch] starts the swing — lead + form + stamp +
-## glow + flare, with the stamp beat spent only when some blade node carries an
-## addon ([method SkillBlade._stamped_vertices]' rule, read off the plan here
-## because the blade is behind the preview). Zero for a ranged/magic commit or
-## an unwired battle system.
-func melee_track_arm_delay() -> float:
-	var melee := _live_melee_plan()
-	if melee == null:
-		return 0.0
-	return battle_system.tempo().melee_windup_seconds(_plan_has_addons(melee))
-
-
-func _plan_has_addons(melee: MeleeAttackPlan) -> bool:
-	if not melee.source.get_addons().is_empty():
-		return true
-	for n in melee.blade_nodes:
-		if n != null and is_instance_valid(n) and not n.get_addons().is_empty():
-			return true
-	return false
-
-
 ## Take the camera for a melee shot. Idempotent: a multi-hit commit re-raises
 ## focuses through here and must not double-latch anything.
 func _lock_for_melee_shot() -> void:
@@ -347,6 +341,8 @@ func decide(request: FocusRequest, ctx: CameraContext) -> FocusDecision:
 	# midpoint of a lopsided spell points at empty space while the centroid
 	# points at the dense part, which is where the action is.
 	var ideal: Vector2 = request.center_of_mass() if overflows else span.get_center()
+	if request.has_anchor():
+		ideal = request.anchor
 
 	if not request.mandatory and zoom_target == ctx.zoom and _already_on_screen(fit_size, ideal, ctx):
 		return FocusDecision.no(&"on_screen")
@@ -459,9 +455,6 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 	var is_melee := _live_melee_plan() != null
 	if is_melee:
 		_lock_for_melee_shot()
-		# The centroid push waits for the swing itself (#894), on its own
-		# detached clock — the widen below is the earlier beat.
-		_arm_tracking_after(melee_track_arm_delay())
 	var pivot := _melee_pivot_focus(attacker)
 	if pivot == null:
 		# No lead beat to fill (a ranged commit, or acceptance 5's zeroed
@@ -520,21 +513,18 @@ func _widen_after(seconds: float, request: FocusRequest) -> void:
 	request_focus(request)
 
 
-## The swing is starting (#894) — stub.
-func _on_melee_swing_started(_outcome: AttackOutcome) -> void:
-	pass
-
-
-## Arm the per-frame centroid push after [param seconds] — the whole wind-up
-## (#894). Detached like [method _widen_after], and re-checks the lock on wake
-## so a shot that [method release]d in the meantime cannot re-arm itself.
-func _arm_tracking_after(seconds: float) -> void:
-	var tree := get_tree()
-	if seconds > 0.0 and tree != null:
-		await tree.create_timer(seconds).timeout
-	if not is_inside_tree():
+## The blade starts moving (#894): arm the per-frame centroid push and re-size
+## the hold from the swing's own start — the same `duration() + tail` the span
+## request was sized with, now measured from the beat it was meant for. No-op
+## after [method release]: a swing beat cannot re-arm a shot that has ended.
+func _on_melee_swing_started(outcome: AttackOutcome) -> void:
+	if not _melee_locked:
 		return
-	_melee_tracking = _melee_locked
+	_melee_tracking = true
+	var swing := 0.0
+	if outcome != null and outcome.schedule != null:
+		swing = outcome.schedule.duration()
+	_remaining = maxf(_remaining, swing + release_tail_seconds)
 
 
 ## Frame a committed attack's from->to span.
@@ -581,7 +571,30 @@ func _build_attack_request(outcome: AttackOutcome, attacker: Entity) -> FocusReq
 			last_arrival + release_tail_seconds, &"attack")
 	request.empty_reason = &"fogged"
 	request.mandatory = is_melee
+	if is_melee:
+		# Owner (2026-09-15): "first pan to the centroid. then as it starts
+		# swinging, track the centroid". The blade sits at rest through the
+		# whole form-in, so its rest centroid is exactly where
+		# [method melee_track_target] picks up on the swing beat — anchoring
+		# the widen there makes the handoff continuous. The points still size
+		# the zoom.
+		request.anchor = _rest_blade_center()
 	return request
+
+
+## The weighted centroid of the committed blade AT REST — pivot and blade nodes
+## at their node positions, which is where every vertex sits until the swing
+## beat. Derived from the plan, not the mounted ghost, so it is the same number
+## on a headless peer.
+func _rest_blade_center() -> Vector2:
+	var melee := _live_melee_plan()
+	if melee == null:
+		return Vector2.INF
+	var others := PackedVector2Array()
+	for n in melee.blade_nodes:
+		if n != null and is_instance_valid(n):
+			others.append(n.global_position)
+	return weighted_blade_center(melee.source.global_position, others)
 
 
 func _append_if_visible(points: PackedVector2Array, node: SkillNode) -> void:

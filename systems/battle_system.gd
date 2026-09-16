@@ -861,6 +861,9 @@ func _run_melee_preview(melee_plan: MeleeAttackPlan, outcome: AttackOutcome) -> 
 	_vfx_running = true
 	if outcome != null and outcome.schedule == null:
 		outcome.schedule = OutcomeSchedule.compile(outcome)
+	# After the compile, before the swing: an observer sizes itself off the
+	# schedule and must see the blade's first moving frame, not its second.
+	melee_swing_started.emit(outcome)
 	await melee_preview.launch(melee_plan, outcome.schedule if outcome != null else null)
 	_vfx_running = false
 	_vfx_finished.emit()
