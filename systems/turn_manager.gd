@@ -69,12 +69,30 @@ func _enter_tree() -> void:
 	_rebind_forecast_sources()
 
 
+## Undoes [method _enter_tree]'s two connections. Both target the SceneTree
+## singleton and the `Events` autoload — neither is `self`, so nothing
+## disconnects them automatically when this node leaves the tree (or is
+## freed) the way a child-of-self connection would. Left unpaired, a freed
+## TurnManager's stale callable still fires on the next node add anywhere in
+## the tree — in GUT's single process that means a LATER, unrelated test's
+## node churn calling into an exited node, `get_tree()` reading null there.
+func _exit_tree() -> void:
+	if get_tree() != null and get_tree().node_added.is_connected(_on_tree_node_added):
+		get_tree().node_added.disconnect(_on_tree_node_added)
+	if Events.entity_died.is_connected(_on_entity_died_rebind):
+		Events.entity_died.disconnect(_on_entity_died_rebind)
+
+
 func _on_tree_node_added(node: Node) -> void:
+	if not is_inside_tree():
+		return
 	if node is Entity:
 		_rebind_forecast_sources()
 
 
 func _on_entity_died_rebind(_entity: Entity) -> void:
+	if not is_inside_tree():
+		return
 	_rebind_forecast_sources()
 
 
