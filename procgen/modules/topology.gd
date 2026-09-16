@@ -13,8 +13,12 @@ extends Resource
 @export_range(50, 3000, 10) var node_count: int = 300
 ## Visual + collision radius pushed onto every generated SkillNode.
 @export_range(1., 64., 1.) var node_radius: float = 32.0
-## Extra clearance between nodes beyond `2 × node_radius`. Higher = airier.
+## Extra clearance between nodes beyond `2 × max_node_radius()`. Higher = airier.
 @export_range(1., 128., 1.,) var node_padding: float = 14.0
+## Budget → radius ramp (#783). Unset = every node gets the uniform
+## [member node_radius]; set = [method radius_for_budget] ramps per node and
+## spacing sizes for the ramp's asymptote. Keystone stamps still win.
+@export var node_radius_ramp: NodeRadiusRamp
 ## Fraction of Delaunay edges to keep beyond the minimum spanning tree.
 ## 0 = MST only (every node connected, sparsest planar). 1 = full Delaunay
 ## (densest planar). Spans shortest-edges-first so the result stays organic.
@@ -35,3 +39,18 @@ extends Resource
 @export_range(0.0, 1.0) var self_loop_tier3_rate: float = 0.30
 ## Fraction of the tier-3 set upgraded to exactly 4 self-loops (the cap).
 @export_range(0.0, 1.0) var self_loop_tier4_rate: float = 0.30
+
+
+## The `base_radius` a generated node gets for its rolled budget. A budget of
+## 0 (no budget policy) is the uniform [member node_radius] — the golden
+## default — never the ramp's floor.
+func radius_for_budget(budget: int) -> float:
+	# TODO(#783): the drone routes budget ≥ 1 through node_radius_ramp.
+	return node_radius
+
+
+## Largest radius any generated node can carry before stake growth — what
+## `min_dist = 2 · max_node_radius() + node_padding` sizes for.
+func max_node_radius() -> float:
+	# TODO(#783): the drone returns node_radius_ramp.max_radius() when set.
+	return node_radius

@@ -160,3 +160,14 @@ func test_bytes_per_node_extrapolates_under_the_naive_ceiling() -> void:
 	# 2000 nodes. Interned + positional should land well under it.
 	assert_lt(bpn * 2000.0, 300000.0,
 			"extrapolated 2000-node payload (%f bytes) would blow the naive-encoding ceiling" % (bpn * 2000.0))
+
+
+## #783 — procgen ramps `base_radius` per node, and only the host generates
+## (ADR 0013): a joining client must RECEIVE each node's radius or it draws
+## every node at the scene default, with a different reach than the host's.
+func test_round_trip_preserves_per_node_radius() -> void:
+	pending("#783")
+	# Build a graph, set base_radius = 44 / base_inner_radius = 36 on one node
+	# and 28 / 20 on another, encode → decode into a fresh graph, assert both
+	# nodes come back with the same base_radius and base_inner_radius.
+	pass
