@@ -33,6 +33,16 @@ func _spawn_entities(speeds: Array) -> void:
 		_entities.append(e)
 
 
+## `TurnManager._request_forecast_rebind` defers its walk (`call_deferred`) so
+## it runs after a freshly spawned entity's own `_ready` — tests that then
+## immediately assert on `forecast_changed` must wait for that deferred run
+## to actually land, or they're asserting against a binding that hasn't
+## happened yet.
+func _await_rebind() -> void:
+	while _tm._rebind_pending:
+		await get_tree().process_frame
+
+
 func before_each() -> void:
 	_tm = autofree(TurnManager.new())
 	add_child(_tm)
@@ -159,3 +169,82 @@ func test_forecast_mutates_no_pool() -> void:
 		after.append(e.stat_board.initiative.current)
 
 	assert_eq(before, after, "forecast reads live pools but never writes them")
+
+
+# ---------------------------------------------------------------------------
+# order_ready exercised through the live path (Sage review round 1, finding 5)
+
+func test_live_tie_break_orders_by_spawn_index() -> void:
+	_spawn_entities([10.0, 10.0, 10.0])
+	for e in _entities:
+		e.stat_board.initiative.current = 90.0
+	_tm.tick()  # a genuine three-way tie: all three cross the SAME real tick
+
+	var actual: Array[Entity] = []
+	_tm.turn_started.connect(func(e: Entity) -> void: actual.append(e))
+	_tm._tick_until_ready()  # no `last` yet — bootstraps the first pick
+	_tm.end_turn()
+	_tm.end_turn()
+
+	assert_eq(actual, [_entities[0], _entities[1], _entities[2]],
+		"three entities tied after crossing the same live tick are served in entity_id (spawn) order")
+
+
+# ---------------------------------------------------------------------------
+# forecast_changed (Sage review round 1, finding 4 — the entire seam #910 consumes)
+
+func test_forecast_changed_fires_on_start_turn() -> void:
+	_spawn_entities([10.0, 10.0, 10.0])
+	await _await_rebind()
+	_entities[0].stat_board.initiative.current = 90.0
+	_tm.tick()  # crosses e0; connect AFTER so only start_turn's own emit counts
+	var count := [0]
+	_tm.forecast_changed.connect(func() -> void: count[0] += 1)
+	_tm.start_turn(_entities[0])
+	assert_eq(count[0], 1, "forecast_changed fires exactly once from start_turn's own emit")
+
+
+func test_forecast_changed_fires_on_end_turn() -> void:
+	_spawn_entities([10.0, 10.0, 10.0])
+	await _await_rebind()
+	_cross_and_start(_entities[0], 90.0)
+	var count := [0]
+	_tm.forecast_changed.connect(func() -> void: count[0] += 1)
+	_tm.end_turn()
+	# At least once: turn_ended's own emit, plus every pool change the
+	# tick-until-ready loop drives — never asserted as exactly one.
+	assert_gt(count[0], 0, "forecast_changed fires at least once across end_turn")
+
+
+func test_forecast_changed_fires_on_initiative_speed_change() -> void:
+	_spawn_entities([10.0, 10.0, 10.0])
+	await _await_rebind()
+	var count := [0]
+	_tm.forecast_changed.connect(func() -> void: count[0] += 1)
+	_entities[1].stat_board.initiative_speed.base_value = 25.0
+	assert_eq(count[0], 1, "forecast_changed fires once for a bound entity's initiative_speed change")
+
+
+func test_forecast_changed_fires_on_initiative_current_change() -> void:
+	_spawn_entities([10.0, 10.0, 10.0])
+	await _await_rebind()
+	var count := [0]
+	_tm.forecast_changed.connect(func() -> void: count[0] += 1)
+	_entities[2].stat_board.initiative.set_current(50.0)
+	assert_eq(count[0], 1, "forecast_changed fires once for a bound entity's initiative current change")
+
+
+## Regression for Sage review round 1, finding 1: `SceneTree.node_added` fires
+## after `_enter_tree` but before `_ready` — and `Entity.add_to_group` runs in
+## `_ready` — so a synchronous rebind on `node_added` would run BEFORE the
+## freshly spawned entity joined `Entity.GROUP`, silently never binding it.
+func test_forecast_changed_binds_entity_spawned_after_turn_manager() -> void:
+	var e: Entity = autofree(_make_entity("Late", 10.0))
+	_graph.entities_container.add_child(e)
+	await _await_rebind()
+
+	var count := [0]
+	_tm.forecast_changed.connect(func() -> void: count[0] += 1)
+	e.stat_board.initiative_speed.base_value = 20.0
+	assert_eq(count[0], 1,
+		"an entity spawned after the TurnManager is bound once its deferred rebind has run")

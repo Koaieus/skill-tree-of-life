@@ -87,10 +87,38 @@ func _on_tree_node_added(node: Node) -> void:
 	if not is_inside_tree():
 		return
 	if node is Entity:
-		_rebind_forecast_sources()
+		_request_forecast_rebind()
 
 
 func _on_entity_died_rebind(_entity: Entity) -> void:
+	if not is_inside_tree():
+		return
+	_request_forecast_rebind()
+
+
+## True between a rebind request and its deferred run — coalesces a burst
+## (N entities spawned in one frame costs one walk, not N).
+var _rebind_pending: bool = false
+
+
+## Deferred, not immediate: [signal SceneTree.node_added] fires after the
+## node's `_enter_tree` but BEFORE its `_ready` — and `Entity.add_to_group`
+## (`Entity.GROUP`) runs in `_ready` (`entity/entity.gd`). Walking
+## `Entity.GROUP` synchronously on `node_added` would run before a freshly
+## spawned entity ever joined it, silently skipping that entity's binding
+## until some LATER spawn or death happened to re-walk — a real hole: a
+## mid-turn `initiative_speed` change on that entity would never fire
+## [signal forecast_changed] (Sage review, #909 round 1). `call_deferred`
+## runs after `_ready` has had its turn.
+func _request_forecast_rebind() -> void:
+	if _rebind_pending:
+		return
+	_rebind_pending = true
+	_run_deferred_rebind.call_deferred()
+
+
+func _run_deferred_rebind() -> void:
+	_rebind_pending = false
 	if not is_inside_tree():
 		return
 	_rebind_forecast_sources()
@@ -259,9 +287,8 @@ func tick() -> void:
 ## Serve the next ready entity, or tick until one becomes ready.
 ## Checks BEFORE ticking so entities that crossed the cap in the same cycle are
 ## each served before the clock advances again. Ready entities are those in
-## Entity.READY_GROUP; ties break by carried initiative (more overshoot first),
-## then `last` (the just-acted entity) is deprioritised so it can't immediately
-## win its own tie.
+## Entity.READY_GROUP; the tie-break among them is [method order_ready]'s
+## three-level key (carried `current` desc → `last` goes last → spawn order).
 func _tick_until_ready(last: Entity = null, max_ticks: int = 1000) -> void:
 	var last_key: int = last.entity_id if last != null else NO_LAST_KEY
 	for _i in max_ticks:
@@ -270,6 +297,7 @@ func _tick_until_ready(last: Entity = null, max_ticks: int = 1000) -> void:
 		for node in get_tree().get_nodes_in_group(Entity.READY_GROUP):
 			var e := node as Entity
 			if e != null:
+				_warn_if_unminted(e)
 				ready_entities.append(e)
 				by_key[e.entity_id] = e
 		if not ready_entities.is_empty():
@@ -288,6 +316,28 @@ func _tick_until_ready(last: Entity = null, max_ticks: int = 1000) -> void:
 ## is minted starting at 1 ([method Graph._mint_entity_id]), so 0 never
 ## collides with a real one.
 const NO_LAST_KEY := 0
+
+## Entities already warned by [method _warn_if_unminted], keyed by instance id
+## — a `push_warning` per occurrence would spam every tick of a broken fixture.
+var _warned_unminted: Dictionary = {}
+
+
+## `entity_id == 0` means never minted — [method Graph._mint_entity_id] is the
+## only minter, on entry to `entities_container`. Production always has a
+## Graph; a hand-built fixture without one collapses every unminted entity
+## onto the same [code]order_ready[/code] key (0), which also happens to be
+## [constant NO_LAST_KEY] (so every such entity reads as "the last actor" for
+## the tie-break, and [code]by_key[0][/code] / [code]copies[0][/code] silently
+## keeps only the last one seen) — surprising ordering with no error. One
+## warning per entity instance names the real cause.
+func _warn_if_unminted(e: Entity) -> void:
+	if e.entity_id != 0:
+		return
+	var id := e.get_instance_id()
+	if _warned_unminted.has(id):
+		return
+	_warned_unminted[id] = true
+	push_warning("TurnManager: entity %s has no minted entity_id — ordering is undefined without a Graph" % e.name)
 
 
 ## The ONE pure ordering step both the live path ([method _tick_until_ready])
@@ -334,6 +384,7 @@ func forecast(n: int) -> Array[Entity]:
 			continue
 		if e.stat_board.initiative == null or e.stat_board.initiative_speed == null:
 			continue
+		_warn_if_unminted(e)
 		copies[e.entity_id] = {
 			"entity": e,
 			"current": e.stat_board.initiative.current,
