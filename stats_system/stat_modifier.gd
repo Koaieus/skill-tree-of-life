@@ -350,16 +350,28 @@ func _display_parts() -> Array:
 ## grant is contributing RIGHT NOW, coefficient or not. [param board] is
 ## passed straight to [method get_effective_value] — the board to read
 ## formula inputs from, same as that method's own parameter.
+##
+## Composes [method effective_value_text] with the stat name: the number half
+## is that accessor's, verbatim, so the two cannot disagree on a digit.
 func format_effective(board: StatBoard = null) -> String:
-	var def: StatDef = StatRegistry.get_def(stat_id)
-	var name: String = String(stat_id)
-	var as_percent := false
-	var value_type := StatDef.ValueType.INT
-	if def != null:
-		name = def.modifier_name if not def.modifier_name.is_empty() else def.display_name
-		as_percent = def.display_as_percent
-		value_type = def.value_type
-	return _format_value(name, as_percent, value_type, get_effective_value(board))
+	var parts := _display_parts()
+	return _format_value(parts[0], parts[1], parts[2], get_effective_value(board))
+
+
+## The NUMBER-ONLY half of [method format_effective] (#791): what this
+## modifier contributes right now, through the same [StatDef] value-type /
+## `display_as_percent` path — "+2", "+10%", "×1.3", "3" — and no stat name.
+## For the attribute tooltip, whose rule sentence ([method format]) already
+## names the target stat, so the full sentence would print it twice. A BOOL
+## stat has no magnitude and yields "" (its trait line IS the name).
+##
+## Contrast [method contribution_text], the pre-#622 fragment that rounds
+## unconditionally and knows nothing of the def.
+func effective_value_text(board: StatBoard = null) -> String:
+	var parts := _display_parts()
+	if parts[2] == StatDef.ValueType.BOOL:
+		return ""
+	return _value_text(parts[1], parts[2], get_effective_value(board))
 
 
 ## Appends the bound formula's own clause to `sentence` — [method
@@ -397,23 +409,40 @@ func _format_value(name: String, as_percent: bool, value_type: StatDef.ValueType
 			push_warning("%s: BOOL stat has no magnitude — %s is a content error"
 					% [name, Operation.keys()[operation]])
 		return name
+	var number := _value_text(as_percent, value_type, v)
 	match operation:
 		Operation.ADD_BASE:
-			if as_percent:
-				return "%+d%% %s" % [roundi(v * 100.0), name]
-			return "%s %s" % [_signed(value_type, v), name]
+			return "%s %s" % [number, name]
 		Operation.INCREASE:
-			return "%s%% increased %s" % [_signed(value_type, v), name]
+			return "%s increased %s" % [number, name]
 		Operation.MULTIPLY:
-			return "×%s %s" % [_trim(v), name]
+			return "%s %s" % [number, name]
 		Operation.ADD_BONUS:
+			return "%s bonus %s" % [number, name]
+		Operation.SET:
+			return "%s is %s" % [name, number]
+	return ""
+
+
+## The value fragment of [method _format_value]'s grammar, op-aware and
+## type-aware, with no name: ADD_BASE/ADD_BONUS "+N" (or "+N%" for a
+## percent-display stat), INCREASE "+N%", MULTIPLY "×N", SET "N" (or "N%").
+## Shared by the full sentence and [method effective_value_text] so the
+## tooltip's right-hand column and the sentence's number are one code path.
+func _value_text(as_percent: bool, value_type: StatDef.ValueType, v: float) -> String:
+	match operation:
+		Operation.ADD_BASE, Operation.ADD_BONUS:
 			if as_percent:
-				return "%+d%% bonus %s" % [roundi(v * 100.0), name]
-			return "%s bonus %s" % [_signed(value_type, v), name]
+				return "%+d%%" % roundi(v * 100.0)
+			return _signed(value_type, v)
+		Operation.INCREASE:
+			return "%s%%" % _signed(value_type, v)
+		Operation.MULTIPLY:
+			return "×%s" % _trim(v)
 		Operation.SET:
 			if as_percent:
-				return "%s is %d%%" % [name, roundi(v * 100.0)]
-			return "%s is %s" % [name, _trim(v)]
+				return "%d%%" % roundi(v * 100.0)
+			return _trim(v)
 	return ""
 
 

@@ -239,3 +239,55 @@ func test_every_stat_def_has_non_white_tint() -> void:
 		file = dir.get_next()
 	dir.list_dir_end()
 	assert_gt(checked, 0, "expected to actually check some StatDef files")
+
+
+# --- #791: effective_value_text() — the NUMBER-ONLY half of format_effective() -----
+# --- (the attribute tooltip prints it next to a rule sentence that already ------
+# --- names the stat, so the name would appear twice) ---------------------------
+
+func _formula_bound(stat_id: StringName, divisor: float, val: float) -> StatModifier:
+	var f := RatioFormula.new()
+	f.source_stat_id = &"strength"
+	f.divisor = divisor
+	var m := _mod(stat_id, StatModifier.Operation.ADD_BASE, val)
+	m.formula = f
+	return m
+
+
+func _board_with_strength(v: float) -> EntityStatBoard:
+	var board := (preload("res://entity/default_entity_board.tres") as EntityStatBoard).duplicate(true) as EntityStatBoard
+	board.strength.base_value = v
+	return board
+
+
+func test_effective_value_text_is_the_signed_int_contribution_without_the_name() -> void:
+	var m := _formula_bound(&"blade_size", 20.0, 1.0)  # +1 Blade Size per 20 STR
+	var board := _board_with_strength(45.0)
+	assert_eq(m.effective_value_text(board), "+2", "floor(45/20) = 2, INT-typed, no stat name")
+	assert_false(m.effective_value_text(board).contains("Blade"), "number only")
+
+
+func test_effective_value_text_renders_a_percent_typed_target_with_a_percent_sign() -> void:
+	var def := StatRegistry.get_def(&"crit_chance")
+	assert_not_null(def, "sanity: crit_chance is a registered stat")
+	assert_true(def.display_as_percent, "sanity: crit_chance displays as percent")
+	var m := _formula_bound(&"crit_chance", 100.0, 0.05)  # 5% per 100 STR
+	var board := _board_with_strength(200.0)
+	assert_eq(m.effective_value_text(board), "+10%")
+
+
+func test_effective_value_text_keeps_float_decimals() -> void:
+	var m := _mod(&"crit_multiplier", StatModifier.Operation.ADD_BASE, 1.5)
+	assert_eq(m.effective_value_text(), "+1.5")
+
+
+func test_effective_value_text_multiply_and_set_shapes() -> void:
+	assert_eq(_mod(&"strength", StatModifier.Operation.MULTIPLY, 1.3).effective_value_text(), "×1.3")
+	assert_eq(_mod(&"strength", StatModifier.Operation.SET, 3.0).effective_value_text(), "3")
+	assert_eq(_mod(&"strength", StatModifier.Operation.INCREASE, 18.0).effective_value_text(), "+18%")
+
+
+func test_format_effective_composes_effective_value_text() -> void:
+	var m := _formula_bound(&"blade_size", 20.0, 1.0)
+	var board := _board_with_strength(45.0)
+	assert_eq(m.format_effective(board), "%s Blade Size" % m.effective_value_text(board))
