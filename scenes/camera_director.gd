@@ -93,19 +93,23 @@ var _remaining: float = 0.0
 ## door back to the player's hands.
 var _melee_locked: bool = false
 
-## True while the shot is FOLLOWING the live blade rather than easing to a fixed
-## target — set on [signal BattleSystem.melee_swing_started], the beat the
-## blade actually starts moving (#894). Follow MODE on the camera opens
-## earlier, at the widen beat ([member _melee_following]); this flag only gates
-## the per-frame goalpost.
+## True while the per-frame goalpost push is live — from the commit to
+## [method release] (#928). The goalpost reads only the vertices the form-in
+## has PLACED ([method SkillBlade.is_vertex_placed]), so through the lead it is
+## the pivot alone and it grows with the stagger: one continuous band from the
+## pivot to the rest centroid, never a second pan (#894's first cut armed this
+## on the swing, which left the widen as a visible second step).
 var _melee_tracking: bool = false
 
-## True from the widen beat on: the camera is in follow mode, so a later
-## goalpost push is not swallowed (`set_follow_target` is a no-op outside a
-## follow). Split from [member _melee_tracking] on purpose — the owner's
-## complaint (#894) was the centroid pan running through the form-in, not the
-## span widening.
+## True while a melee shot opens its focuses in FOLLOW mode rather than as
+## one-shot tweens — so a goalpost push is not swallowed (`set_follow_target`
+## is a no-op outside a follow) and a later widen retargets the zoom only.
 var _melee_following: bool = false
+
+## True from [signal BattleSystem.melee_swing_started] to [method release]:
+## the blade is moving, so the hold has been re-sized from the swing and the
+## timer no longer defers to the launch ([method _awaiting_swing]).
+var _melee_swing_started: bool = false
 
 
 func _ready() -> void:
@@ -129,10 +133,10 @@ func _process(delta: float) -> void:
 	# The rubber band (#866): move the goalpost onto the live blade's weighted
 	# centroid every frame; [method GraphCamera._follow] springs after it. Pure
 	# presentation — it READS the blade the mutation loop is already driving
-	# and never gates it (`.claude/rules/presentation-clock.md`). Gated on the
-	# swing having STARTED (#894): through the form-in the blade sits at rest,
-	# so pushing its centroid then would pan the camera off the pivot before
-	# anything moves — the "block average" pan the owner saw.
+	# and never gates it (`.claude/rules/presentation-clock.md`). Live from the
+	# commit, over the PLACED vertices only (#928): through the form-in the
+	# goalpost grows with the stagger, so the pan is one band from the pivot to
+	# the rest centroid rather than a pivot pan followed by a centroid pan.
 	if _melee_tracking and camera != null and _live_melee_plan() != null:
 		camera.set_follow_target(melee_track_target())
 	_remaining -= delta
@@ -149,7 +153,7 @@ func _process(delta: float) -> void:
 ## Lifts with `is_launching` on a path that never swings (no [MeleePreview]
 ## wired), so the camera cannot stay locked for good.
 func _awaiting_swing() -> bool:
-	return _melee_locked and not _melee_tracking \
+	return _melee_locked and not _melee_swing_started \
 			and battle_system != null and battle_system.is_launching
 
 
@@ -178,7 +182,11 @@ func request_focus(request: FocusRequest) -> FocusDecision:
 	if not decision.act:
 		return decision
 	if camera != null:
-		if _melee_following:
+		if _melee_following and camera.is_following():
+			# A widen on an open follow: zoom only (#928). The band owns the
+			# pan, and re-tweening it here was the 2-step's second step.
+			camera.retarget_directed_zoom(decision.zoom_target)
+		elif _melee_following:
 			camera.begin_directed_follow(decision.target, decision.zoom_target,
 					decision.duration)
 		else:
@@ -203,6 +211,7 @@ func release() -> void:
 	_remaining = 0.0
 	_melee_tracking = false
 	_melee_following = false
+	_melee_swing_started = false
 	if _melee_locked:
 		_melee_locked = false
 		if camera != null:
@@ -267,7 +276,7 @@ func _live_blade_vertices() -> PackedVector2Array:
 	var pivot_idx := blade.state.pivot_index if blade.state != null else -1
 	var visuals := blade.get_node_visuals()
 	for i in visuals.size():
-		if i == pivot_idx:
+		if i == pivot_idx or not blade.is_vertex_placed(i):
 			continue
 		var v := visuals[i]
 		if v != null and is_instance_valid(v):
@@ -341,8 +350,6 @@ func decide(request: FocusRequest, ctx: CameraContext) -> FocusDecision:
 	# midpoint of a lopsided spell points at empty space while the centroid
 	# points at the dense part, which is where the action is.
 	var ideal: Vector2 = request.center_of_mass() if overflows else span.get_center()
-	if request.has_anchor():
-		ideal = request.anchor
 
 	if not request.mandatory and zoom_target == ctx.zoom and _already_on_screen(fit_size, ideal, ctx):
 		return FocusDecision.no(&"on_screen")
@@ -455,11 +462,15 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 	var is_melee := _live_melee_plan() != null
 	if is_melee:
 		_lock_for_melee_shot()
+		# Follow mode and the goalpost open with the FIRST focus (#928): the
+		# pivot focus is the band's first goalpost (only the pivot is placed),
+		# and the form-in grows it from there. Ranged/magic stay one-shot.
+		_melee_following = true
+		_melee_tracking = true
 	var pivot := _melee_pivot_focus(attacker)
 	if pivot == null:
 		# No lead beat to fill (a ranged commit, or acceptance 5's zeroed
-		# tempo) — the span simply lands, in follow mode for a melee one.
-		_melee_following = is_melee
+		# tempo) — the span simply lands.
 		request_focus(request)
 		return
 	request_focus(pivot)
@@ -507,20 +518,18 @@ func _widen_after(seconds: float, request: FocusRequest) -> void:
 		await tree.create_timer(seconds).timeout
 	if not is_inside_tree():
 		return
-	# The lead beat is over: the span widens and, for a melee shot, the camera
-	# opens follow mode so the goalpost can move once the swing starts.
-	_melee_following = _melee_locked
+	# The lead beat is over: the span widens. For a melee shot the follow is
+	# already open, so this retargets the zoom and leaves the band its pan.
 	request_focus(request)
 
 
-## The blade starts moving (#894): arm the per-frame centroid push and re-size
-## the hold from the swing's own start — the same `duration() + tail` the span
+## The blade starts moving (#894): re-size the hold from the swing's own start — the same `duration() + tail` the span
 ## request was sized with, now measured from the beat it was meant for. No-op
 ## after [method release]: a swing beat cannot re-arm a shot that has ended.
 func _on_melee_swing_started(outcome: AttackOutcome) -> void:
 	if not _melee_locked:
 		return
-	_melee_tracking = true
+	_melee_swing_started = true
 	var swing := 0.0
 	if outcome != null and outcome.schedule != null:
 		swing = outcome.schedule.duration()
@@ -571,30 +580,7 @@ func _build_attack_request(outcome: AttackOutcome, attacker: Entity) -> FocusReq
 			last_arrival + release_tail_seconds, &"attack")
 	request.empty_reason = &"fogged"
 	request.mandatory = is_melee
-	if is_melee:
-		# Owner (2026-09-15): "first pan to the centroid. then as it starts
-		# swinging, track the centroid". The blade sits at rest through the
-		# whole form-in, so its rest centroid is exactly where
-		# [method melee_track_target] picks up on the swing beat — anchoring
-		# the widen there makes the handoff continuous. The points still size
-		# the zoom.
-		request.anchor = _rest_blade_center()
 	return request
-
-
-## The weighted centroid of the committed blade AT REST — pivot and blade nodes
-## at their node positions, which is where every vertex sits until the swing
-## beat. Derived from the plan, not the mounted ghost, so it is the same number
-## on a headless peer.
-func _rest_blade_center() -> Vector2:
-	var melee := _live_melee_plan()
-	if melee == null:
-		return Vector2.INF
-	var others := PackedVector2Array()
-	for n in melee.blade_nodes:
-		if n != null and is_instance_valid(n):
-			others.append(n.global_position)
-	return weighted_blade_center(melee.source.global_position, others)
 
 
 func _append_if_visible(points: PackedVector2Array, node: SkillNode) -> void:

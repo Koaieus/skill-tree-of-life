@@ -300,6 +300,25 @@ func test_the_swing_start_beat_fires_once_and_before_the_first_hit() -> void:
 			"one swing beat, then the hit lands")
 
 
+func test_the_stagger_places_the_pivot_before_the_arm() -> void:
+	# #928: "placed" follows the stagger — the pivot pops first, a farther hop
+	# waits its delay. This is what lets the camera's goalpost grow with the
+	# form-in instead of jumping to the full centroid.
+	var tempo := _zeroed_tempo()
+	tempo.melee_windup_form_span = 100.0
+	var plan := _arm_plan()
+	_preview.begin_windup(plan, tempo, false)
+	var blade := _preview.current_blade()
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var pivot_idx: int = blade.state.pivot_index
+	var arm_idx := 1 - pivot_idx
+	assert_true(blade.is_vertex_placed(pivot_idx), "the pivot pops on the lead beat")
+	assert_false(blade.is_vertex_placed(arm_idx), "the arm is 100s of stagger away")
+	blade.form_instantly()
+	assert_true(blade.is_vertex_placed(arm_idx), "a formed blade is fully placed")
+
+
 func test_the_swing_does_not_begin_while_the_record_ready_hook_is_unsatisfied() -> void:
 	# The seam #796 drives. Today `await_record_ready()` is a satisfied no-op on
 	# every production path (#545 — the record is final before the confirm), so

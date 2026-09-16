@@ -396,6 +396,7 @@ func test_the_widen_changes_the_zoom_without_restarting_the_pan() -> void:
 	var bs := _battle_system(_melee_plan(pivot))
 	bs.presentation_tempo = _tempo(0.0, 1.0)
 	_dir.battle_system = bs
+	_dir.default_focus_duration = 0.0
 	var hits: Array[HitInstance] = [_hit(pivot, _node_at(Vector2(0, 3000)))]
 
 	_dir._on_attack_committed(_outcome(hits), _entity(true))
@@ -405,7 +406,7 @@ func test_the_widen_changes_the_zoom_without_restarting_the_pan() -> void:
 	assert_false(cam.is_pan_tween_running(),
 			"a widen on an open follow does not start a pan tween")
 	assert_lt(cam._target_zoom, 1.0, "...but the span still stepped the zoom out")
-	for _i in 30:
+	for _i in 300:
 		cam._follow(1.0 / 60.0)
 	assert_almost_eq(cam.global_position, Vector2(50, 0), Vector2(1.0, 1.0),
 			"the band keeps pulling to ITS goalpost, not the span centre")
@@ -414,7 +415,9 @@ func test_the_widen_changes_the_zoom_without_restarting_the_pan() -> void:
 func test_only_placed_vertices_pull_during_the_form_in() -> void:
 	# The centroid grows with the stagger: a vertex the form-in has not placed
 	# yet does not pull, so the pan is one continuous band from the pivot to
-	# the rest centroid, landing exactly as the last vertex does.
+	# the rest centroid, landing exactly as the last vertex does. The stagger
+	# itself needs a graph (test_melee_staging pins it); here the visual state
+	# is driven by hand through the same predicate the director reads.
 	_dir.seat_policy = SeatPolicy.couch()
 	var pivot := _node_at(Vector2.ZERO)
 	var far := _node_at(Vector2(0, 600))
@@ -426,19 +429,19 @@ func test_only_placed_vertices_pull_during_the_form_in() -> void:
 	bs.melee_preview = preview
 	_dir.battle_system = bs
 
-	preview.begin_windup(plan, _tempo(0.0, 100.0), false)
-	await get_tree().process_frame
-	await get_tree().process_frame
+	preview.begin_windup(plan, null, false)
+	var blade := preview.current_blade()
+	var far_idx := 1 if blade.state.pivot_index == 0 else 0
+	blade.get_node_visuals()[far_idx].modulate.a = 0.0
+	assert_false(blade.is_vertex_placed(far_idx), "still waiting on its stagger delay")
 	assert_almost_eq(_dir.melee_track_target(), Vector2.ZERO, Vector2(0.001, 0.001),
-			"pivot placed, far vertex still 100s out: only the pivot pulls")
+			"only the pivot pulls")
 
-	preview.current_blade().form_instantly()
+	blade.get_node_visuals()[far_idx].modulate.a = 0.3
 	var rest := CameraDirector.weighted_blade_center(Vector2.ZERO,
 			PackedVector2Array([Vector2(0, 600)]))
 	assert_almost_eq(_dir.melee_track_target(), rest, Vector2(0.001, 0.001),
-			"every vertex placed: the goalpost IS the rest centroid, no jump at the swing")
-
-
+			"its pop has begun: it pulls, and the goalpost IS the rest centroid")
 func test_a_melee_shot_waits_for_its_swing_however_long_the_windup_holds() -> void:
 	# The span's hold is sized from the SWING (schedule.duration() + tail) but
 	# opened at the widen beat, so on its own clock it expires mid-wind-up and

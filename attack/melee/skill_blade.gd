@@ -23,6 +23,7 @@ signal playback_finished
 ## and restored rather than re-authored (`.claude/rules/hdr-color.md`). At 0.45
 ## an [constant Emissive.VALUE] rim lands well under the bloom threshold, which
 ## is the whole point: the blade powers UP.
+const ZLayers = preload("res://ui/z_layers.gd")
 const _FORM_DIM: float = 0.45
 ## Scale a vertex pops in from.
 const _FORM_SCALE: float = 0.4
@@ -98,6 +99,11 @@ var _form_tween: Tween
 
 
 func _ready() -> void:
+	# A projectile, not a board fixture (#928): the blade's vertices and edges
+	# draw above every SkillNode and Edge — including the ones the fog promotes
+	# to SENSED — or the staggered form-in is invisible under the board.
+	z_as_relative = false
+	z_index = ZLayers.PROJECTILE
 	_edges_container = get_node_or_null("Edges")
 	if _edges_container == null:
 		_edges_container = Node2D.new()
@@ -696,9 +702,18 @@ func get_node_visuals() -> Array[BladeNode]:
 	return _node_visuals
 
 
-## Stub (#928).
-func is_vertex_placed(_i: int) -> bool:
-	return true
+## Has the form-in PLACED vertex [param i] yet (#928)? The stagger pops each
+## vertex in on its own delay, starting from a fully transparent start state
+## that [method form_in] writes up front — so "placed" is "its pop has begun
+## writing", read off the visual rather than off a second clock. Everything is
+## placed on a blade at rest, mid-swing, or fading out; only a vertex still
+## waiting for its stagger delay is not. [CameraDirector] reads this to grow
+## its pan target with the form-in instead of jumping to the full centroid.
+func is_vertex_placed(i: int) -> bool:
+	if i < 0 or i >= _node_visuals.size():
+		return false
+	var bn := _node_visuals[i]
+	return bn != null and is_instance_valid(bn) and bn.modulate.a > 0.0
 
 
 ## The spawned edge visuals, in [member BladeState.edges] order — the edge

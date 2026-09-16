@@ -31,17 +31,6 @@ var allow_zoom_out: bool = true
 ## did the filtering says which emptiness this is, rather than `decide`
 ## inferring it from [member source].
 var empty_reason: StringName = &"empty"
-## "Look HERE, but fit THOSE." An explicit pan target that overrides the
-## span-derived one (AABB centre / centre of mass) while [member points] still
-## size the zoom. Unset (`has_anchor()` false) for every request but a melee
-## span (#894), which anchors on the blade's rest centroid so the swing's
-## centroid tracking starts exactly where the widen landed — no jerk on the
-## handoff.
-var anchor: Vector2 = Vector2.INF
-
-
-func has_anchor() -> bool:
-	return anchor.is_finite()
 
 
 ## A single-point focus: no span to fit, so no zoom change is ever considered.

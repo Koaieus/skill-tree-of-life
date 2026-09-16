@@ -260,9 +260,14 @@ func begin_directed_follow(target: Vector2, zoom_target: float, duration: float)
 	_follow_velocity = Vector2.ZERO
 
 
-## Stub (#928).
-func retarget_directed_zoom(_zoom_target: float) -> void:
-	pass
+## Change a live directed shot's ZOOM and nothing else (#928). A widen that
+## lands while a follow is open must not go through [method begin_directed_follow]:
+## that re-tweens the pan, which yanked the camera off the band's goalpost
+## toward the span centre — the second step of the owner's 2-step. The
+## goalpost stays whatever [method set_follow_target] last pushed.
+func retarget_directed_zoom(zoom_target: float) -> void:
+	if _directed:
+		_apply_zoom_target(zoom_target)
 
 
 ## Move a live follow's goalpost. A no-op unless [method begin_directed_follow]
