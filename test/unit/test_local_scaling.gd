@@ -411,3 +411,50 @@ func test_al_ramp_does_not_interfere_with_the_hp_ratchet() -> void:
 	assert_almost_eq(float(hp.value), 25.0, 0.001, "cap round-trips (10 + 15)")
 	assert_almost_eq(hp.current, 0.0, 0.001,
 			"path independence (#660): 25 missing throughout, so the round trip heals nothing")
+
+
+# ── force_fill (#915): stepwise fill through the allocate path ───────────────
+
+func test_force_fill_walks_the_ladder_stepwise_and_mints_no_sp() -> void:
+	_node.modifiers = [_add_mod(&"strength", 1.0)]
+	var board := _own()
+	var sp: SkillPointStat = board.skill_points
+	var max_before: float = sp.get_value()
+	var used_before: int = sp.used
+	var strength: Stat = board.get_stat(&"strength")
+	assert_eq(int(strength.get_value()), 11, "al=1: entity STR+1")
+
+	_alloc.force_fill(_node, 3)
+	assert_eq(_node.allocation_level, 3, "filled to 3/3")
+	assert_eq(int(strength.get_value()), 13, "al=3: local modifiers contribute x3")
+	assert_eq(int(_node.node_board.get_stat(&"addon_slots").get_value()), 3,
+			"addon_slots follows the fill")
+	assert_eq(sp.get_value(), max_before, "force_fill mints no SP (max unchanged)")
+	assert_eq(sp.used, used_before, "force_fill claims no SP (used unchanged)")
+
+
+func test_force_fill_composite_swap_restores_cleanly_after_force_deallocate() -> void:
+	var comp := DoublingComposite.new()
+	comp.children = [_add_mod(&"strength", 2.0), _add_mod(&"armor", 3.0)]
+	_node.modifiers = [comp]
+	var board := _own()
+	var strength: Stat = board.get_stat(&"strength")
+	var armor: Stat = board.get_stat(&"armor")
+
+	_alloc.force_fill(_node, 3)
+	assert_eq(comp.last_set.size(), 4, "override produced the doubled set on the 1->3 walk")
+	for leaf in comp.last_set:
+		assert_true(strength.has_modifier(leaf) or armor.has_modifier(leaf),
+				"every scaled leaf is applied at al=3")
+	assert_false(strength.has_modifier(comp.children[0]),
+			"the parent's own leaves are swapped out at al=3")
+
+	_alloc.force_deallocate(_node)
+	assert_eq(_node.allocation_level, 0, "force_deallocate empties the fill")
+	assert_eq(_node.stake_level, 3, "force_deallocate leaves the cap intact")
+	assert_eq(int(strength.get_value()), 10, "STR back to baseline: nothing stranded")
+	assert_eq(int(armor.get_value()), int(armor.base_value), "armor back to baseline")
+	for leaf in comp.last_set:
+		assert_false(strength.has_modifier(leaf) or armor.has_modifier(leaf),
+				"the doubled set is fully removed")
+	assert_false(strength.has_modifier(comp.children[0]), "parent leaves removed too")

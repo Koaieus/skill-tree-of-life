@@ -223,6 +223,33 @@ func force_allocate(entity: Entity, node: SkillNode) -> void:
 	allocated.emit(node, entity, true)
 
 
+## Gating-free fill primitive (#915): raise an OWNED node's fill from its
+## current `allocation_level` to [param level], one step at a time — the same
+## `allocation_level += 1` write the refill branch of [method allocate] uses,
+## so the #376 local-scale mutator only ever sees adjacent `(al, al+1)` jumps
+## and `addon_slots` follows. Like the refill branch it re-grants nothing and
+## emits no `allocated` — the 0→1 transition already did that. Never claims
+## SP: the fill is free (a procgen pre-stake, not a purchase), so the entity's
+## pool does not grow — a killed blocker is only ever `force_deallocate`d,
+## which refunds nothing. Preconditions: owned, `allocation_level <= level <=
+## stake_level`; lowering is not supported. Violations push_error and no-op.
+func force_fill(node: SkillNode, level: int) -> void:
+	if node == null:
+		push_error("force_fill: null node")
+		return
+	if node.owned_by == null:
+		push_error("force_fill(%s, %d): node is unowned — force_allocate first" % [node.name, level])
+		return
+	if level < 1 or level > node.stake_level:
+		push_error("force_fill(%s, %d): level outside 1..stake_level (%d)" % [node.name, level, node.stake_level])
+		return
+	if level < node.allocation_level:
+		push_error("force_fill(%s, %d): lowering from %d is not supported" % [node.name, level, node.allocation_level])
+		return
+	while node.allocation_level < level:
+		node.allocation_level += 1
+
+
 func deallocate(node: SkillNode, entity: Entity) -> bool:
 	if not can_deallocate(node, entity):
 		return false

@@ -44,6 +44,10 @@ Called by `BattleSystem._on_node_depleted` (the cascade when a non-core node hit
 
 Returns the previous owner so the caller can chain wound + core-HP without re-reading `owned_by` (which is null after).
 
+## Forced fill: `force_fill(node, level)`
+
+The allocate-path primitive for filling an owned node **beyond 1** without minting SP (#915). Precondition: `node.owned_by != null` and `allocation_level <= level <= stake_level`; lowering is not supported (push_error, no-op). Walks `allocation_level` up **one step at a time** through the same `+= 1` write `allocate()`'s refill branch uses, so the local-scale mutator (#376) only ever sees adjacent `(al, al+1)` jumps and `addon_slots` follows. Like a refill it re-grants nothing and emits no `allocated` — the 0→1 transition already did. Never calls `skill_points.claim()`: the fill is free, so the owner's SP pool does not grow. Its consumer is `GameRoot.spawn_blocker` (a procgen pre-stake, #916), whose nodes only ever leave by `force_deallocate` (no refund) — a `deallocate()` of a force-filled node would refund SP that was never minted.
+
 ## When to use which
 
 | Caller | Method | Why |
@@ -53,6 +57,7 @@ Returns the previous owner so the caller can chain wound + core-HP without re-re
 | Forced by attack | `force_deallocate` + caller-side `wound`/`health.deplete` | Bypass gates; route through wound bucket |
 | Procgen setup | `force_allocate` (via `GameRoot.spawn_entity(name, color, core)`) | Bypass SP/adjacency; just plant the core |
 | Procgen expansion | `force_allocate` directly | Random-walk expansion in dev sandboxes |
+| Procgen pre-stake (blockers) | `force_allocate` then `force_fill(node, stake_level)` | Fill 3/3 at spawn; no SP minted for the fill |
 | Tests / scripted dev | `force_allocate` | Predictable setup, no resource bookkeeping |
 
 **Never call `force_allocate` from gameplay code.** It mints free SP — using it for a player action quietly breaks the resource loop.
