@@ -101,3 +101,28 @@ static func _find_tscn_files(dir_path: String) -> PackedStringArray:
 		entry = dir.get_next()
 	dir.list_dir_end()
 	return out
+
+
+## #330: the first_level preset places every landmark whose ScenePlacement
+## authors min_count >= 1 — reads the preset's counts, never pins them.
+func test_first_level_places_every_landmark_with_a_min_count() -> void:
+	var cfg_src: GraphProcgenConfig = load("res://procgen/presets/first_level/first_level.tres")
+	var cfg: GraphProcgenConfig = cfg_src.duplicate(true)
+	cfg.camp_sizes = [1]
+	cfg.seed = 330
+	var expected: Dictionary = {}
+	for p in cfg.content.guaranteed_placements:
+		if p is ScenePlacement and p.node_scene != null and p.min_count >= 1:
+			expected[p.node_scene.resource_path] = p.min_count
+	assert_gt(expected.size(), 0, "first_level authors at least one ScenePlacement with min_count >= 1")
+	var graph_scene: PackedScene = load("res://graph/graph.tscn")
+	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
+	add_child(graph)
+	await get_tree().process_frame
+	var result: Dictionary = await GraphProcgen.generate(cfg, graph)
+	var counts: Dictionary = {}
+	for sn: SkillNode in result.get("nodes", []):
+		counts[sn.scene_file_path] = counts.get(sn.scene_file_path, 0) + 1
+	for path in expected:
+		assert_gte(counts.get(path, 0), expected[path],
+			"%s: at least min_count copies placed" % path)
