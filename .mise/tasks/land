@@ -149,7 +149,7 @@ Closes #${closes}" || fail "could not amend Closes #${closes} onto the tip of $b
 fi
 
 # --- 5. the ladder on the rebased tree -------------------------------------
-files=$(git -C "$main" diff --name-only "master..$sha")
+files=$(git -C "$main" diff --name-only --diff-filter=d "master..$sha")  # a deleted test is not a test to run
 dirs=""
 singles=""
 while IFS= read -r f; do
