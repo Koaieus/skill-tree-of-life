@@ -466,8 +466,9 @@ in the fade band, above `_TOL`, while a flat-interior sample would pass).
 ### Why fog does not get cones (#140 decision 1)
 
 `vision_range` base is 500 px (`entity/default_entity_board.tres`, PER only
-scales it up) while procgen edges run ~150–300 px (`min_dist = 2·32 + 86 =
-150`, `first_level/topology.tres`). Two 500 px discs 200 px apart differ from
+scales it up) while procgen edges run ~150–300 px (`min_dist =
+2·max_node_radius() + node_padding = 2·50 + 50 = 150` — the radius ramp's
+asymptote plus the authored padding, `first_level/topology.tres`, #783). Two 500 px discs 200 px apart differ from
 their hull by `500 − √(500² − 100²) ≈ 10 px` at the waist, which
 `union_smoothness` already fills — a vision cone is a visual no-op. It would
 also have to teach `VisionCircles.has_point` (shared with `AiRecon`) and the
