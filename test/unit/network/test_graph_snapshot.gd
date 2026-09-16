@@ -166,9 +166,21 @@ func test_bytes_per_node_extrapolates_under_the_naive_ceiling() -> void:
 ## (ADR 0013): a joining client must RECEIVE each node's radius or it draws
 ## every node at the scene default, with a different reach than the host's.
 func test_round_trip_preserves_per_node_radius() -> void:
-	pending("#783")
-	return
-	# Build a graph, set base_radius = 44 / base_inner_radius = 36 on one node
-	# and 28 / 20 on another, encode → decode into a fresh graph, assert both
-	# nodes come back with the same base_radius and base_inner_radius.
-	pass
+	var source := await _procgen_graph(12, 783)
+	var nodes := source.get_skill_nodes()
+	var a := nodes[0]
+	var b := nodes[1]
+	a.base_radius = 44.0
+	a.base_inner_radius = 36.0
+	b.base_radius = 28.0
+	b.base_inner_radius = 20.0
+	var target := await _new_graph()
+	GraphSnapshot.decode(GraphSnapshot.encode(source), target)
+	var ta := target.get_by_stable_id(source.get_stable_id(a))
+	var tb := target.get_by_stable_id(source.get_stable_id(b))
+	assert_not_null(ta)
+	assert_not_null(tb)
+	assert_almost_eq(ta.base_radius, 44.0, 0.001)
+	assert_almost_eq(ta.base_inner_radius, 36.0, 0.001)
+	assert_almost_eq(tb.base_radius, 28.0, 0.001)
+	assert_almost_eq(tb.base_inner_radius, 20.0, 0.001)
