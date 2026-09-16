@@ -52,7 +52,7 @@ agent. What you minimise is **context × turns**, so:
 50k after. Your brief's turn/time budget is the second tripwire. Either one
 tripping means the next section, not "one more thing".
 
-## Retiring — at ~250k or a blown budget
+## Retiring — on a blown budget
 
 Retiring is a success outcome: you convert what you learned into a targeted
 start for fresh eyes. Three turns, no new long commands:
@@ -69,9 +69,13 @@ start for fresh eyes. Three turns, no new long commands:
    vanish) and never a separate `Write` (denied past 300k).
 3. **Report** (format below), `NOTES: retired at ~<n>k; successor brief on #<n>`.
 
-Past 300k a hook denies everything except `git add/commit/status/diff/log`,
-`gh issue comment` and `SendMessage` — exactly this path. Start it at 250k so
-300k never lands mid-edit.
+Context is not your retirement trigger: the harness auto-compacts you at
+250k (`CLAUDE_CODE_AUTO_COMPACT_WINDOW`, session-wide). After a compaction
+you continue from the summary — re-read your brief's owned paths and seams
+from the issue before touching anything, since the summary keeps less than
+you think. Past 300k (a few fat turns straight after a compaction) a hook
+denies everything except `git add/commit/status/diff/log`, `gh issue
+comment` and `SendMessage` — exactly this path.
 
 **Three failed cycles on one thing is a loop.** Edit → test → still red,
 three times: the next action is one message to your advisor — what you are

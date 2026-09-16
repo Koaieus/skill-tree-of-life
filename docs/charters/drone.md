@@ -70,11 +70,18 @@ against them.
 7. **A coherent commit exists by ~150k**, and the red test is the first commit
    when the issue has a testable claim. A kill at any later point hands over a
    plan plus a spec, not nothing.
-8. **At ~250k, or a blown turn/time budget, the drone retires** — it does not
-   finish one more thing. Retiring is a success outcome. The `CONTEXT SIZE SO
-   FAR: ~<n>k` marker (150k, 200k, 250k, then every 50k) makes this
-   observable; the brief's turn/time budget is the independent tripwire for
-   the drone that stays cheap per turn but never stops.
+8. **On a blown turn/time budget the drone retires** — it does not finish
+   one more thing. Retiring is a success outcome. Context size is no longer
+   the drone's trigger: since 2026-09-16 (#922) the harness auto-compacts
+   every session in this repo at 250k (`CLAUDE_CODE_AUTO_COMPACT_WINDOW` in
+   `.claude/settings.json`), the mechanical replacement for a "retire at
+   250k" rule that five Sonnet drones in a row ignored. Session-wide is the
+   only shape available — every compaction knob is process-wide, a
+   `SubagentStart` hook can inject context but not env, and `PreCompact`
+   fires for a drone's compaction with no `agent_id` and the parent's
+   transcript path, so nothing can tell drone from orchestrator. Compaction
+   bounds the window, not the spend; the brief's turn/time budget stays the
+   tripwire for the drone that never stops.
 9. **Retirement produces a successor brief on the issue**, not just a report:
    what is committed and where, what is still red, the *exact* files and
    line ranges the successor should read and nothing else, the hypothesis to
@@ -88,8 +95,9 @@ against them.
 10. **At 300k the hook takes over**: everything but `git add/commit/status/
     diff/log/rev-parse`, `gh issue comment`, and `SendMessage` is denied. The
     allowlist is exactly the retirement path (commit → successor brief →
-    report); the drone must have *started* retiring at 250k so that 300k is
-    never reached in the middle of something.
+    report). Compaction resets the usage the hook reads, so the hook is now
+    the floor for a drone that spends 50k+ in a few fat turns right after a
+    compaction, not the common path.
 11. **Three failed cycles on one thing is a loop.** The next action is a
     message to the designated advisor (Sage when the run has one, else
     `main`) with goal / exact error / the three attempts / current
