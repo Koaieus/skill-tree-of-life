@@ -71,15 +71,17 @@ func test_baked_panel_child_is_adopted_not_duplicated() -> void:
 	tab.queue_free()
 
 
-## With an empty %PanelHost and a panel_scene set, the base instances the scene —
-## the common path today (no tab bakes its panel in yet).
-func test_empty_slot_instances_panel_scene() -> void:
+## An empty %PanelHost stays empty: the legacy `panel_scene` injection path is
+## gone (#881), so the base has nothing to instance and must not invent a panel
+## or error — an un-baked tab is simply an empty tab (the lint in
+## test_sandbox_host_tabs.gd is what catches one).
+func test_empty_slot_stays_empty_without_injection() -> void:
 	var tab: SandboxLiveTab = load(_BASE).instantiate()
-	tab.panel_scene = load("res://ui/tooltip_fan/fan_live_panel.tscn")
+	assert_false("panel_scene" in tab, "the legacy export is gone (#881)")
 
 	add_child(tab)
 	await get_tree().process_frame
 
 	var panel_host: Control = tab.get_node(^"%PanelHost")
-	assert_eq(panel_host.get_child_count(), 1, "empty slot should hold one instanced panel")
+	assert_eq(panel_host.get_child_count(), 0, "nothing to adopt, nothing instanced")
 	tab.queue_free()
