@@ -51,7 +51,9 @@ var _rebuild := DeferredOnce.new(_rebuild_now)
 
 
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_STOP
+	# PASS, not STOP: still receives mouse_entered/exited (only IGNORE does
+	# not), while a click on a skill node behind the strip is not eaten.
+	mouse_filter = Control.MOUSE_FILTER_PASS
 	mouse_entered.connect(func() -> void: expanded = true)
 	mouse_exited.connect(func() -> void: expanded = false)
 	# A bind() that arrived before the tree did was dropped by _rebuild_now's
@@ -132,8 +134,18 @@ func _rebuild_now() -> void:
 	_caption.text = ("≥ %d ahead" if hedged else "%d ahead") % ahead
 
 
-## The sensor gate: any owned node visible or sensed. No vision system (a
-## hand-built HUD fixture) means no fog, so everything is sensed.
+## The sensor gate: any owned node visible or sensed. Short-circuits on the
+## first passing node, so a visible entity costs a handful of checks and only
+## a fully hidden one pays the whole walk (O(nodes) per entry, once per
+## frame). `owned_by == entity` is exactly the "that one entity's node"
+## question (`.claude/rules/ownership-vocabulary.md`); the entity navigator's
+## mirror is NOT used — it goes stale on direct `owned_by` writes, and a HUD
+## that lies is worse than a HUD that walks.
+##
+## The seat's own entity is a shortcut, not an exemption: its own territory
+## is always in view, so the gate would pass anyway — this just skips the
+## walk. Allies get no such shortcut; the gate decides for them. No vision
+## system (a hand-built HUD fixture) means no fog, so everything is sensed.
 func _is_sensed(entity: Entity) -> bool:
 	if entity == _player or _vision_system == null or _graph == null:
 		return true
