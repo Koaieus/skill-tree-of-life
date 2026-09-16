@@ -406,23 +406,18 @@ func _ready() -> void:
 ##
 ## Runs BEFORE [method _open_first_turn], and unconditionally — never gated on
 ## [method _is_network_authority()]. This has to be a pure function of shared
-## data (spawn order, the roster) so every peer reaches the same clocks
-## independently, exactly like world generation itself; it is not a host
-## DECISION a peer receives. What [method _open_first_turn] gates is only who
-## SUBMITS the opening [StartTurnCommand] — that command's own validator
+## data (spawn order) so every peer reaches the same clocks independently,
+## exactly like world generation itself; it is not a host DECISION a peer
+## receives. What [method _open_first_turn] gates is only who SUBMITS the
+## opening [StartTurnCommand] — that command's own validator
 ## (`CommandApplier._validate_command`) doesn't look at initiative at all, so
 ## this only reshapes who acts SECOND onward, never who opens turn 1.
 ##
-## [b]Index 0 must be the entity that command names[/b] (#911 spec addition),
-## which is the AUTHORITY's seat — [b]not[/b] this machine's own [member
-## player]: a mirror's `player` is its OWN local hero
-## ([method ProcgenPlaySandbox._seat_the_roster]'s `_is_this_machines` branch),
-## while the command always names the host's. The host's seat is found the
-## same way [member _is_network_client] already leans on a network CONSTANT
-## rather than a received value: ENet always mints the server as peer id
-## [constant NetworkTransport.HOST_PEER_ID], identically known to every peer
-## without crossing the wire, and an offline run's lone seat is peer `0`
-## ([method NetworkTransport.local_peer_id]'s doc says the same).
+## [b]Index 0 is already the entity [method _opening_entity] names[/b] —
+## `carriers` is built by walking `graph.entities_container` in spawn order,
+## and spawn order IS roster order (#923, owner call on #911: "spawn order,
+## which should be identical to roster order — player1, player2, ..., AI1,
+## AI2, ..."). No reordering needed.
 ##
 ## Blockers (no `initiative` pool) are not counted in `n` and are untouched.
 func _stagger_initiative() -> void:
@@ -438,48 +433,30 @@ func _stagger_initiative() -> void:
 		var e := child as Entity
 		if e != null and e.stat_board != null and e.stat_board.initiative != null:
 			carriers.append(e)
-	var opener := _opening_entity()
-	if opener != null and carriers.has(opener) and carriers[0] != opener:
-		carriers.erase(opener)
-		carriers.push_front(opener)
 	GameRoot.apply_initiative_stagger(carriers)
 
 
-## The entity the opening [StartTurnCommand] will name — see
-## [method _stagger_initiative]'s note for why this is the host's seat, found
-## from network-constant + roster data rather than [member player]. Null when
-## there's no roster to ask (a hand-authored fixture with no session), which
-## leaves [method _stagger_initiative] on today's plain spawn order.
+## The entity the opening [StartTurnCommand] will name: the initiative-carrying
+## entity at spawn index 0 (#923, owner call on #911 — spawn order is roster
+## order, for offline, couch and remote alike). No peer-id lookup: the entity
+## a joined client happens to be host of is irrelevant here, and deriving the
+## same "who opens" fact a second way — off a peer id rather than off spawn
+## order directly — is exactly what #923 retired
+## ([method _stagger_initiative]'s old reorder-by-opener step, and the
+## `test_host_seat_ranks_first_even_when_spawned_second` test that pinned it).
 ##
 ## Walks `graph.entities_container` directly rather than reusing [method
 ## _entity_for_participant] — that one reads `get_tree()`, which only a node
 ## actually inside the scene tree has; this runs from `_ready()` (always
 ## true there) but is also exercised standalone against a bare, unparented
 ## [GameRoot] in `test_initiative_stagger.gd`, and `graph` alone is enough
-## data either way.
+## data either way. Null when there's no graph to ask.
 func _opening_entity() -> Entity:
-	if GameSession.roster == null or graph == null:
-		return null
-	# Offline shares [member GameSession.local_peer_id] rather than a second
-	# literal `0` — the same value [method ProcgenPlaySandbox._is_this_machines]
-	# compares every participant's `peer_id` against, so both derivations of
-	# "is this seat mine" read off one source (today that source happens to
-	# already be 0 offline — see `network/network_transport.gd`'s
-	# `local_peer_id()` doc — but a literal here would be a second copy of
-	# that fact rather than a read of it).
-	var opener_peer_id := GameSession.local_peer_id
-	if GameSession.network != null and GameSession.network.is_online():
-		opener_peer_id = NetworkTransport.HOST_PEER_ID
-	var opener_participant_id := 0
-	for participant in GameSession.roster.all():
-		if participant.peer_id == opener_peer_id:
-			opener_participant_id = participant.id
-			break
-	if opener_participant_id == 0:
+	if graph == null:
 		return null
 	for child in graph.entities_container.get_children():
 		var e := child as Entity
-		if e != null and e.participant_id == opener_participant_id:
+		if e != null and e.stat_board != null and e.stat_board.initiative != null:
 			return e
 	return null
 

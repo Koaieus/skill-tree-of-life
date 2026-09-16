@@ -108,12 +108,14 @@ func test_bool_on_by_default_stages_the_first_rank_ready() -> void:
 	assert_eq(carriers[1].stat_board.initiative.current, 66.0)  # floor(100*2/3)
 
 
-## The mirror trap (#911, Sage review): index 0 must be the entity the opening
-## [StartTurnCommand] will name — the AUTHORITY's (host's) seat — not
-## whichever entity this machine happens to have spawned first. Here the
-## host's seat (`peer_id == NetworkTransport.HOST_PEER_ID`) is spawned SECOND;
-## the stagger must still rank it first.
-func test_host_seat_ranks_first_even_when_spawned_second() -> void:
+## Owner call, 2026-09-16 (#923, follow-up to #911): the opener is spawn
+## order, which is roster order (player1, player2, ..., AI1, AI2, ...) — the
+## same rule offline, couch and remote alike. No peer-id derivation: which
+## seat happens to hold the host's peer id is irrelevant here.
+## `carriers[0]` (spawned first) sits at roster index 0, but its participant
+## is a joined client, not the host — the host's seat is roster index 1,
+## spawned SECOND. The opener must still be `carriers[0]`.
+func test_spawn_index_0_opens_regardless_of_peer_id() -> void:
 	var carriers := _spawn_n(2)  # carriers[0] spawned first, carriers[1] second
 	carriers[0].participant_id = 10
 	carriers[1].participant_id = 20
@@ -124,31 +126,31 @@ func test_host_seat_ranks_first_even_when_spawned_second() -> void:
 	GameSession.network = NetworkConfig.new()
 	GameSession.network.role = NetworkTransport.Role.HOST
 	GameSession.roster = ParticipantRoster.new()
-	var p_first := Participant.new()
+	var p_first := Participant.new()  # roster index 0 — a joined client, not the host
 	p_first.id = 10
-	p_first.peer_id = 5  # a joined client, not the host
+	p_first.peer_id = 5
 	GameSession.roster.add(p_first)
-	var p_second := Participant.new()
+	var p_second := Participant.new()  # roster index 1 — the host's seat
 	p_second.id = 20
 	p_second.peer_id = NetworkTransport.HOST_PEER_ID
 	GameSession.roster.add(p_second)
 
 	root._stagger_initiative()
 
-	assert_true(carriers[1].is_in_group(Entity.READY_GROUP),
-			"the host's seat (spawned 2nd) should rank 0, not the entity spawned 1st")
-	assert_false(carriers[0].is_in_group(Entity.READY_GROUP))
-	assert_eq(carriers[0].stat_board.initiative.current, 50.0)  # rank 1 of 2
-	assert_eq(root._opening_entity(), carriers[1])
+	assert_true(carriers[0].is_in_group(Entity.READY_GROUP),
+			"spawn/roster index 0 should rank 0, regardless of which seat is the host")
+	assert_false(carriers[1].is_in_group(Entity.READY_GROUP))
+	assert_eq(carriers[1].stat_board.initiative.current, 50.0)  # rank 1 of 2
+	assert_eq(root._opening_entity(), carriers[0])
 
 	# Same entity rank 0 receives is the one _open_first_turn actually opens
 	# on — drives the applier-less branch directly; `player` is deliberately
-	# left pointed at carriers[0] to prove the opener, not `player`, wins.
+	# left pointed at carriers[1] to prove the opener, not `player`, wins.
 	root.turn_manager = _tm
-	root.player = carriers[0]
+	root.player = carriers[1]
 	root.auto_start_turn = true
 	root._open_first_turn()
-	assert_eq(_tm.current_entity, carriers[1])
+	assert_eq(_tm.current_entity, carriers[0])
 
 
 ## Blockers (no `initiative` pool — the bare [Entity] default has none until
