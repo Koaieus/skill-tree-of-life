@@ -92,6 +92,26 @@ func test_percent_max_heal_restores_a_fraction_of_max_hp_clamped_at_cap() -> voi
 	assert_almost_eq(over.effective_amount, 10.0, 0.001, "effective is the post-clamp delta")
 
 
+func test_percent_current_damage_chunks_the_targets_current_hp_and_is_never_lethal() -> void:
+	_set_max_hp(40.0)
+	(_node.node_board.get_stat(&"node_health") as PoolStat).set_current(16.0)
+	var hit := DamageInstance.new()
+	hit.type = DamageInstance.Type.TRUE
+	hit.basis = HitInstance.AmountBasis.PERCENT_CURRENT
+	hit.amount = 0.5
+	hit.target = _node
+	OutcomeApplier.land_one(hit, CombatWorld.live())
+	assert_almost_eq(_node.get_current_hp(), 8.0, 0.001, "0.5 x 16 CURRENT hp (not 40 max) = 8")
+
+	var again := DamageInstance.new()
+	again.type = DamageInstance.Type.TRUE
+	again.basis = HitInstance.AmountBasis.PERCENT_CURRENT
+	again.amount = 0.99
+	again.target = _node
+	OutcomeApplier.land_one(again, CombatWorld.live())
+	assert_gt(_node.get_current_hp(), 0.0, "a fraction of current hp never reaches zero on its own")
+
+
 func test_a_rebuilt_record_never_rescales_an_already_resolved_hit() -> void:
 	# The authority resolves PERCENT_MAX once on its own land; the record
 	# carries the resulting number and the peer's rebuilt hit must land it as

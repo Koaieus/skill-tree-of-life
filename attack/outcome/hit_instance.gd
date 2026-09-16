@@ -22,8 +22,11 @@ enum Kind { DAMAGE, HEAL, STATUS }
 var kind: Kind = Kind.DAMAGE
 
 ## What [member amount] is denominated in. [constant AmountBasis.FLAT] is HP;
-## [constant AmountBasis.PERCENT_MAX] is a fraction of the TARGET's max hp, which
-## [method land_on] resolves into HP exactly once via [method resolve_amount]
+## [constant AmountBasis.PERCENT_MAX] is a fraction of the TARGET's max hp and
+## [constant AmountBasis.PERCENT_CURRENT] a fraction of its CURRENT hp (a chunk
+## that can never itself be lethal, and scales with how healthy the target is
+## — the Bruiser shape), either of which [method land_on] resolves into HP
+## exactly once via [method resolve_amount]
 ## against the landing slice (the world-aware read — max hp is the owner's
 ## board, and ownership can move between resolve and land). One knob for
 ## damage and heal alike, authored on the producer ([DamageEffect] /
@@ -32,7 +35,7 @@ var kind: Kind = Kind.DAMAGE
 ## A PERCENT_MAX damage hit becomes a concrete number BEFORE [Mitigation]
 ## runs, so armour eats it like any other hit — sizing and bypass are
 ## separate axes; bypass is [constant DamageInstance.Type.TRUE]'s job.
-enum AmountBasis { FLAT, PERCENT_MAX }
+enum AmountBasis { FLAT, PERCENT_MAX, PERCENT_CURRENT }
 var basis: AmountBasis = AmountBasis.FLAT
 
 ## The hit's magnitude in the units [member basis] names. Until [method
@@ -227,6 +230,11 @@ func land_on(_node: NodeCombat, _world: CombatWorld) -> void:
 ## multiplies commute, the order just keeps "what did this hit ask for" and
 ## "how hard did it crit" as separate steps.
 func resolve_amount(node: NodeCombat) -> void:
-	if basis == AmountBasis.PERCENT_MAX:
-		amount *= node.get_max_hp()
-		basis = AmountBasis.FLAT
+	match basis:
+		AmountBasis.PERCENT_MAX:
+			amount *= node.get_max_hp()
+		AmountBasis.PERCENT_CURRENT:
+			amount *= node.get_current_hp()
+		_:
+			return
+	basis = AmountBasis.FLAT

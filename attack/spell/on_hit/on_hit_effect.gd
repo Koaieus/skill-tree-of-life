@@ -44,8 +44,11 @@ func get_description(_spell: SpellDef = null, _board: StatBoard = null) -> Strin
 ## target's max hp — the two describers that quote a spell's impact number
 ## ([DamageEffect], [HealEffect]) share it.
 static func _fmt_amount(v: float, basis: HitInstance.AmountBasis) -> String:
-	if basis == HitInstance.AmountBasis.PERCENT_MAX:
-		return "%s%% of max HP" % _fmt_num(v * 100.0)
+	match basis:
+		HitInstance.AmountBasis.PERCENT_MAX:
+			return "%s%% of max HP" % _fmt_num(v * 100.0)
+		HitInstance.AmountBasis.PERCENT_CURRENT:
+			return "%s%% of current HP" % _fmt_num(v * 100.0)
 	return _fmt_num(v)
 
 

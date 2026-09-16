@@ -336,7 +336,7 @@ read is already correct.
   `BlindnessStatus` (#873, MULTIPLY on vision/sensor range), `ArmorBreakStatus`
   (#877, MULTIPLY on armor), `PoisonStatus` (#874, unmitigated
   `DamageInstance.Type.TRUE` damage on `_on_tick`, flat or `%`-of-max-hp per
-  `basis` — `HitInstance.AmountBasis`, resolved in `DamageInstance.land_on`,
+  `basis` — `HitInstance.AmountBasis` (flat, % max, % current), resolved in `DamageInstance.land_on`,
   not a poison-local enum — can kill through the ordinary `notify_depleted` cascade).
 
 ## Known limits — file an issue to extend
