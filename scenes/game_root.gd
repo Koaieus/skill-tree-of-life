@@ -415,9 +415,12 @@ func _ready() -> void:
 ##
 ## [b]Index 0 is already the entity [method _opening_entity] names[/b] —
 ## `carriers` is built by walking `graph.entities_container` in spawn order,
-## and spawn order IS roster order (#923, owner call on #911: "spawn order,
-## which should be identical to roster order — player1, player2, ..., AI1,
-## AI2, ..."). No reordering needed.
+## and roster index 0 heads that spawn order (#923, owner call on #911:
+## "spawn order. which should be identical to roster order (player1,
+## player2, ..., AI1, AI2, ...)"): [method
+## ProcgenPlaySandbox._camp_grouped_participants] spawns camp-bucketed, in
+## [method ParticipantRoster.camps]' first-appearance order, so roster[0]'s
+## camp is bucket 0 and roster[0] heads it. No reordering needed.
 ##
 ## Blockers (no `initiative` pool) are not counted in `n` and are untouched.
 func _stagger_initiative() -> void:
@@ -437,13 +440,15 @@ func _stagger_initiative() -> void:
 
 
 ## The entity the opening [StartTurnCommand] will name: the initiative-carrying
-## entity at spawn index 0 (#923, owner call on #911 — spawn order is roster
-## order, for offline, couch and remote alike). No peer-id lookup: the entity
-## a joined client happens to be host of is irrelevant here, and deriving the
-## same "who opens" fact a second way — off a peer id rather than off spawn
-## order directly — is exactly what #923 retired
-## ([method _stagger_initiative]'s old reorder-by-opener step, and the
-## `test_host_seat_ranks_first_even_when_spawned_second` test that pinned it).
+## entity at spawn index 0 (#923, owner call on #911 — spawn order heads
+## roster order, for offline, couch and remote alike; see [method
+## _stagger_initiative]'s note on why index 0 coincides with roster[0]). No
+## peer-id lookup: the entity a joined client happens to be host of is
+## irrelevant here, and deriving the same "who opens" fact a second way —
+## off a peer id rather than off spawn order directly — is exactly what
+## #923 retired ([method _stagger_initiative]'s old reorder-by-opener step,
+## and the `test_host_seat_ranks_first_even_when_spawned_second` test that
+## pinned it).
 ##
 ## Walks `graph.entities_container` directly rather than reusing [method
 ## _entity_for_participant] — that one reads `get_tree()`, which only a node
@@ -506,15 +511,14 @@ func _open_first_turn() -> void:
 		return
 	if player == null:
 		return
-	# #911: the entity that opens is [method _opening_entity]'s answer where
-	# there's a roster to ask — `player` is a fallback for a hand-authored
-	# fixture with no session, and the ordinary one-local-human case where
-	# `_opening_entity` and `player` already agree. On a couch/hot-seat
-	# authority seating >=2 local humans, `player` is whichever one
-	# `_seat_the_roster`'s loop happened to assign LAST (an accident of spawn
-	# order, not a decision) while `_opening_entity` picks the FIRST
-	# host-peer participant in roster order — the issue does not settle
-	# couch opening order, so this reading is Claude's call, not the owner's.
+	# #923 (owner call on #911): the entity that opens is [method
+	# _opening_entity]'s answer where there's a graph to ask — spawn/roster
+	# index 0, the same rule offline, couch and remote alike. `player` is a
+	# fallback for a hand-authored fixture with no session/graph at all,
+	# and the ordinary one-local-human case where `_opening_entity` and
+	# `player` already agree. On a couch/hot-seat authority seating >=2 local
+	# humans, `player` is whichever one `_seat_the_roster`'s loop happened to
+	# assign LAST — `_opening_entity` is the settled reading there too.
 	var opener := _opening_entity()
 	if opener == null:
 		opener = player
