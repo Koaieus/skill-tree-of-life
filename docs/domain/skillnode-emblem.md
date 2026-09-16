@@ -71,7 +71,7 @@ the existing `get_node_effects()` / `get_addon_tooltip_sections()` aggregation.
 
 ```
 each source        -> EmblemSpec (register + priority + the CarveShape itself)
-SkillNode          -> get_emblem_contributions() = own(archetype/keystone/effects) + addons' get_emblem()
+SkillNode          -> get_emblem_contributions() = own(archetype/effects) + addons' get_emblem()
 EmblemResolver     -> Resolution { carve, carve_ties, blooms }   # pure, scene-free
 renderer           -> draws the one carve + every bloom
 ```

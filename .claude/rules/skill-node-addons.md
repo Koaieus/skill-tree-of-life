@@ -12,7 +12,7 @@ paths:
 ## Attaching an addon is `skill_node.add_child(addon)` — nothing else
 
 There is no anchor node to file into and no `attach_addon()` method to call.
-Procgen, `Keystone.stamp`, `LootSystem`, editor authoring and the future
+Procgen, `LootSystem`, editor authoring and the future
 player-facing path all use the one call.
 
 **Why:** the old `Visuals/AddonAnchor` bin (deleted in #334) was a *filing*
@@ -42,8 +42,8 @@ inert.
 enters the tree lands correctly the moment it does.
 
 This **reverses** the rule that used to live here ("parent an addon only after
-the carrier is inside the tree"; `Keystone.stamp` carried an `is_inside_tree()`
-bail-out and a warning, both now deleted). The old objection to a `_ready`
+the carrier is inside the tree"; the since-deleted `Keystone.stamp` carried an
+`is_inside_tree()` bail-out and a warning). The old objection to a `_ready`
 re-scan was double-application, and it was a fair objection — it's answered
 structurally below, not by ordering discipline.
 

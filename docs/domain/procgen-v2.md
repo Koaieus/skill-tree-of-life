@@ -262,7 +262,7 @@ GuaranteedPlacement (abstract)
  ├── MinNearStartingPoints   # ≥N nodes matching a tag within K hops of every starter
  ├── MinPerArchetype         # global floor per archetype
  ├── ExactCount              # exactly N of something across the map
- └── Keystones               # specific named nodes placed at chosen positions
+ └── ScenePlacement          # authored landmark scenes drawn onto eligible positions (#330)
 ```
 
 The classic "natural expansion" case is `MinNearStartingPoints(tag=&"xp_per_turn", count=1, max_hops=3)`. The pass runs before the modifier roll, decorates the

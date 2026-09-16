@@ -2,7 +2,7 @@
 
 A **core class** defines an entity's fundamental identity — starting stat weights, core aura shape and reach, unique mechanics, and the constellation geometry it is rewarded for maintaining. Two entities with identical allocations but different core classes play completely differently.
 
-Core classes are not locked. A run may present opportunities to shift class identity through late-game loot or Keystone nodes. The starting class sets the trajectory.
+Core classes are not locked. A run may present opportunities to shift class identity through late-game loot or landmark (keystone) nodes. The starting class sets the trajectory.
 
 > **Combat-redesign deltas affecting classes (see `combat_system.md`).**
 > - **Degree-defense is removed.** Node durability now comes from **CON (White)**, not from edge count. This leaves **Bulwark** and **Halo unaffected** — they always defended through armor / `damage_floor` / thorns / shell topology, never through degree. Hubs are now glass cannons (great casters, normal HP), which only sharpens the "silence, then grind" counterplay.
@@ -337,7 +337,7 @@ Mechanics sketch: White (W) nodes generate double or triple normal xp_per_turn. 
 ## Open Questions
 
 1. **Class discovery pacing:** Proposed: Allround, Predator, Bulwark always available; Ninja, Hive, Halo, Serpent unlock through run progression or meta-progression.
-2. **Class evolution / mutation:** Can a class shift mid-run through Keystone nodes? The Bulwark's floor reduction is one example of in-class progression. Inter-class mutation (e.g. a Ninja that gains a Halo aura shell) needs scoping.
+2. **Class evolution / mutation:** Can a class shift mid-run through landmark (keystone) nodes? The Bulwark's floor reduction is one example of in-class progression. Inter-class mutation (e.g. a Ninja that gains a Halo aura shell) needs scoping.
 3. **Hive core concealment:** Is there an explicit UI mechanic to conceal which pod holds the real core, or is it inherent to fog of war?
 4. **Shell Shift balance:** No hard cap on shell_distance by design. Monitor in playtesting: does the self-limiting resource cost (ring coverage requires nodes at the new distance) actually prevent degenerate strategies, or does it need a soft cap?
 5. **Serpent Winch cap:** At what effective euclidean reduction per node does Winch trivialize the penalty? Needs a hard cap.

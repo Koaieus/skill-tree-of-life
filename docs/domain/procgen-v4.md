@@ -238,8 +238,8 @@ than preserved.
 
 `rare.tres` is deleted. Its four headline rolls are now pre-authored
 `SkillNode` scenes under `entity/keystone/instances/` — each an inherited
-`skill_node.tscn` with a `Keystone` resource whose `StatEffect` bakes the
-granted `StatModifier`:
+`keystone_skill_node.tscn` carrying a `StatEffect` SubResource on
+`SkillNode.effects` that bakes the granted `StatModifier` (#929):
 
 | scene | grant | op |
 |---|---|---|

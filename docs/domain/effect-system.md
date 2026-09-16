@@ -133,19 +133,17 @@ The pure-stat path already works and authors cleanly, so `Effect` is additive:
 | Carrier | Field | Granted by |
 |---|---|---|
 | `CoreClass` | `effects` | `CoreClass.apply()`, from `Entity._ready` |
-| `Keystone` | `effects` | `AllocationSystem`, keyed by carrier node |
+| `SkillNode` | `effects` | `AllocationSystem`, keyed by carrier node |
 | `SkillNodeAddon` | `effects` | same, via `SkillNode.get_node_effects()` |
-| `SkillNode` | `effects` | same |
 
-`Keystone` is now actually wired — its docstring advertised "runtime wiring into
-AllocationSystem is a follow-up" since it was written. Its `keystone` reference was
-also promoted from `set_meta("keystone", …)` to a real `SkillNode.keystone` export.
-
-`Keystone` used to carry its own `modifiers` array, wrapped lazily into an implicit
-`StatEffect`, and a `StatKeystone` subclass existed as the "just a stat bundle"
-concrete pick. Both are gone (#149): the fields were field-for-field `Effect`'s, so
-a keystone's stat payload is now simply a `StatEffect` in its `effects` array, and
-`Keystone` is pure identity + payload.
+A landmark ("keystone") is a hand-authored inherited scene of
+`entity/keystone/keystone_skill_node.tscn` whose `StatEffect` sits on
+`SkillNode.effects` as a SubResource of the `.tscn` (#336 / #929). The old
+`Keystone` resource — identity + an `effects` payload that `stamp()`ed
+presentation onto a carrier node — mirrored a subset of `SkillNode`'s own
+authoring surface and is deleted; its payload semantics (live reference, read
+at every allocation, one shared resource safe across entities) are exactly
+`SkillNode.effects`'.
 
 Node-borne effects register against the **owning entity** with `source_node` set,
 and `revoke_effects_from(node)` strips exactly those on deallocation. An unowned
