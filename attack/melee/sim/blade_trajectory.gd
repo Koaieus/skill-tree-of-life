@@ -50,6 +50,40 @@ func sample(t: float) -> PackedVector2Array:
 	return out
 
 
-## Stub (#930) — filled in below the red test.
-func centroid_at(_t: float) -> Vector2:
-	return Vector2.ZERO
+## The FLAT per-sample centroid — the plain mean of `samples[k]`, every
+## particle weighted 1, popped vertices included (the arc's mass) — filled
+## lazily per index by [method _centroid_of] so a progressively-appended
+## trajectory (#796) extends it on the next read without the resolver ever
+## touching it (#930). A sim fact: the pivot weight the camera wants is
+## presentation, applied downstream by [method SkillBlade.weighted_focus].
+var _centroids: PackedVector2Array = PackedVector2Array()
+
+
+## Linear-interp flat centroid at time t in [0, duration], clamped at the
+## endpoints exactly like [method sample] — the same index math, so the two
+## never disagree about which pose a `t` means. Empty trajectory → origin.
+func centroid_at(t: float) -> Vector2:
+	if samples.is_empty():
+		return Vector2.ZERO
+	if t <= 0.0:
+		return _centroid_of(0)
+	var dur := duration()
+	if t >= dur:
+		return _centroid_of(samples.size() - 1)
+	var f := t / sample_dt
+	var i0 := int(f)
+	var i1 := mini(i0 + 1, samples.size() - 1)
+	var frac := f - float(i0)
+	return _centroid_of(i0).lerp(_centroid_of(i1), frac)
+
+
+## The stored centroid of sample [param k], computing every not-yet-cached
+## index up to it on first demand. Array access after that.
+func _centroid_of(k: int) -> Vector2:
+	while _centroids.size() <= k:
+		var pose := samples[_centroids.size()]
+		var acc := Vector2.ZERO
+		for p in pose:
+			acc += p
+		_centroids.append(acc / float(pose.size()) if pose.size() > 0 else Vector2.ZERO)
+	return _centroids[k]

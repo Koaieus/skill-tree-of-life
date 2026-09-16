@@ -6,3 +6,6 @@
 script = ExtResource("1_wxckt")
 
 [node name="Edges" type="Node2D" parent="." unique_id=607642015]
+
+[node name="FocusMarker" type="Marker2D" parent="."]
+unique_name_in_owner = true

@@ -29,7 +29,10 @@ const _FORM_DIM: float = 0.45
 const _FORM_SCALE: float = 0.4
 ## Scale an addon stamp punches to.
 const _STAMP_SCALE: float = 1.22
-## Stub (#930).
+## How much harder the pivot pulls the blade's centre of interest than any
+## other vertex (#930) — the camera's rubber band leans toward the arc but
+## never lets go of the hinge. Presentation, not sim: [BladeTrajectory] stores
+## the flat centroid and [method weighted_focus] applies this on top.
 const FOCUS_PIVOT_WEIGHT: float = 5.0
 
 const SCENE := preload("res://attack/melee/skill_blade.tscn")
@@ -98,6 +101,15 @@ var _source_nodes: Array[SkillNode] = []
 ## the whole sequence in one call and [method play] cannot end up fighting a
 ## leftover form tweener for `modulate`.
 var _form_tween: Tween
+## Which vertex indices the form-in has PLACED (#930) — an explicit set, not
+## an alpha read. [method form_in] starts it empty and fills it on each
+## vertex's stagger delay; a build, [method form_instantly] and
+## [method _finish_form] fill it whole. Keys are indices, values unused.
+var _placed: Dictionary = {}
+## The blade's centre of interest, authored in the scene (#930): a composite
+## whose origin is not its point of interest exposes one of these and keeps
+## its `global_position` current itself — the camera follows the node.
+@onready var _focus_marker: Marker2D = %FocusMarker
 
 
 func _ready() -> void:
@@ -193,6 +205,7 @@ func build_from_skill_nodes(
 		for addon in skill_nodes[i].get_addons():
 			addon.apply_to_blade(state, i)
 	_spawn_visuals()
+	_mark_all_placed()
 
 
 ## Run a swing simulation around the pivot. Returns a fresh trajectory each
@@ -295,6 +308,10 @@ func _apply_playback_frame(
 			_node_visuals[i].global_position = positions[i]
 		if pop_result != null:
 			_node_visuals[i].death_progress = _death_progress_at(i, t)
+	# The marker rides the trajectory's stored centroid (#930): the one place
+	# the swing writes vertex positions is the one place the focus follows them.
+	if state != null and positions.size() > 0:
+		_set_focus(weighted_focus(_pivot_position(), traj.centroid_at(t), positions.size()))
 	if pop_result != null:
 		for i in _edge_visuals.size():
 			# Edge index into state.edges is stable for the whole swing
@@ -486,6 +503,10 @@ func form_in(lead: float, stagger_span: float, stamp_time: float,
 	tween.set_parallel(true)
 	_form_tween = tween
 	var glow_at := lead + stagger_span + stamp
+	# Nothing is placed until its stagger delay fires (#930): the focus sits
+	# on the pivot alone through the lead and grows with the form-in.
+	_placed.clear()
+	_refresh_focus_marker()
 
 	for i in _node_visuals.size():
 		var bn := _node_visuals[i]
@@ -496,6 +517,7 @@ func form_in(lead: float, stagger_span: float, stamp_time: float,
 		# without this the whole blade flashes at full for one frame.
 		bn.modulate = Color(_FORM_DIM, _FORM_DIM, _FORM_DIM, 0.0)
 		bn.scale = Vector2(_FORM_SCALE, _FORM_SCALE)
+		tween.tween_callback(_mark_placed.bind(i)).set_delay(at)
 		tween.tween_property(bn, "modulate:a", 1.0, pop).set_delay(at)
 		tween.tween_property(bn, "scale", Vector2.ONE, pop).set_delay(at) \
 				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -558,6 +580,51 @@ func _finish_form() -> void:
 	modulate.r = 1.0
 	modulate.g = 1.0
 	modulate.b = 1.0
+	_mark_all_placed()
+
+
+## The form-in's per-vertex beat (#930): vertex [param i] is placed the moment
+## its pop begins, and the focus grows to include it.
+func _mark_placed(i: int) -> void:
+	_placed[i] = true
+	_refresh_focus_marker()
+
+
+func _mark_all_placed() -> void:
+	_placed.clear()
+	for i in _node_visuals.size():
+		_placed[i] = true
+	_refresh_focus_marker()
+
+
+## The pinned pivot's world position — [member BladeState.positions] is
+## authored in world space by [method build_from_skill_nodes].
+func _pivot_position() -> Vector2:
+	return state.positions[state.pivot_index]
+
+
+## Re-derive the marker off the PLACED vertices' rest positions (#930): at
+## rest that is every vertex, mid form-in only those whose pop has begun. The
+## pivot is placed first (hop 0), so until it is, the focus is the pivot.
+func _refresh_focus_marker() -> void:
+	if state == null or state.positions.is_empty():
+		return
+	var pivot := _pivot_position()
+	if not _placed.has(state.pivot_index):
+		_set_focus(pivot)
+		return
+	var acc := Vector2.ZERO
+	var n := 0
+	for i in _placed:
+		if i >= 0 and i < state.positions.size():
+			acc += state.positions[i]
+			n += 1
+	_set_focus(weighted_focus(pivot, acc / float(n), n))
+
+
+func _set_focus(p: Vector2) -> void:
+	if _focus_marker != null:
+		_focus_marker.global_position = p
 
 
 ## Which vertex indices carry at least one addon, so the stamp beat lands on
@@ -704,18 +771,16 @@ func get_node_visuals() -> Array[BladeNode]:
 	return _node_visuals
 
 
-## Has the form-in PLACED vertex [param i] yet (#928)? The stagger pops each
-## vertex in on its own delay, starting from a fully transparent start state
-## that [method form_in] writes up front — so "placed" is "its pop has begun
-## writing", read off the visual rather than off a second clock. Everything is
-## placed on a blade at rest, mid-swing, or fading out; only a vertex still
-## waiting for its stagger delay is not. [CameraDirector] reads this to grow
-## its pan target with the form-in instead of jumping to the full centroid.
+## Has the form-in PLACED vertex [param i] yet (#928, #930)? The stagger pops
+## each vertex in on its own delay and marks it placed as that pop begins — an
+## explicit set, never an alpha read. Everything is placed on a blade at rest,
+## mid-swing, or fading out; only a vertex still waiting for its stagger delay
+## is not. The focus marker grows with this set instead of jumping to the
+## full centroid.
 func is_vertex_placed(i: int) -> bool:
 	if i < 0 or i >= _node_visuals.size():
 		return false
-	var bn := _node_visuals[i]
-	return bn != null and is_instance_valid(bn) and bn.modulate.a > 0.0
+	return _placed.has(i)
 
 
 ## The spawned edge visuals, in [member BladeState.edges] order — the edge
@@ -725,12 +790,25 @@ func get_edge_visuals() -> Array[BladeEdge]:
 	return _edge_visuals
 
 
-## Stub (#930).
-static func weighted_focus(pivot: Vector2, _flat_centroid: Vector2, _n: int,
-		_pivot_weight: float = FOCUS_PIVOT_WEIGHT) -> Vector2:
-	return pivot
-
-
-## Stub (#930).
+## The blade's centre of interest as a node (#930) — `global_position` is kept
+## current by the blade itself (on build, on each placed vertex, on every
+## playback frame; never in `_process`), so a camera can simply follow it.
 func focus_marker() -> Marker2D:
-	return null
+	return _focus_marker
+
+
+## The pivot-weighted focus from a FLAT centroid, closed form (#930): with the
+## pivot pinned and counted once inside [param flat_centroid] over [param n]
+## vertices, weighting it [param pivot_weight]× instead of 1× is
+## `(w·pivot + flat·n − pivot) / (w + n − 1)` — so the flat centroid the sim
+## stores is the only thing stored, and the weight stays a presentation knob.
+## An empty blade (n ≤ 0) is the pivot, not a divide by zero.
+static func weighted_focus(pivot: Vector2, flat_centroid: Vector2, n: int,
+		pivot_weight: float = FOCUS_PIVOT_WEIGHT) -> Vector2:
+	if n <= 0:
+		return pivot
+	var w := maxf(0.0, pivot_weight)
+	var denom := w + float(n) - 1.0
+	if denom <= 0.0:
+		return pivot
+	return (pivot * w + flat_centroid * float(n) - pivot) / denom
