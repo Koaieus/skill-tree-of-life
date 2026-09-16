@@ -15,7 +15,7 @@ extends VBoxContainer
 ## global hover bus (Events.skill_node_hovered/unhovered — the same source
 ## TooltipFan/DebugClipboard already use) and forwards the hovered
 ## node to the three stat-bearing cards, gated to nodes owned by the bound
-## player (see CombatReadoutCard._local_override_or_null).
+## player (see CombatValueRow.resolve_override).
 
 @onready var _melee_card: CombatCardMelee = %MeleeCard
 @onready var _ranged_card: CombatCardRanged = %RangedCard

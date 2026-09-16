@@ -14,7 +14,7 @@ extends FanPanel
 ## not own).
 ##
 ## Offensive damage stats are deliberately excluded from that enumeration —
-## [CombatReadoutCard._local_override_or_null] already previews
+## [CombatValueRow.resolve_override] already previews
 ## `blade_damage`/`ranged_damage`/`range` on hover, and a second display of
 ## the same number that must agree with the first is exactly what this
 ## design avoids. See [constant _EXCLUDED_STAT_IDS].
