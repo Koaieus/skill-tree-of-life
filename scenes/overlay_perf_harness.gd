@@ -44,6 +44,12 @@ extends Node2D
 ## a circle off-screen costs its loop iteration but shades nothing.
 @export var circle_radius: float = 120.0
 @export var entity_count: int = 4
+## #898: the aura draws edge cones over the owned induced subgraph. The `n`
+## discs are laid out on a jittered ~√n × √n lattice with an edge to each
+## right/down neighbour (~2n cones, every one crossing several cells), so the
+## aura column measures discs + edges. `--edges=0` turns the lattice off for
+## a discs-only before/after on the same shader.
+@export var aura_edges: bool = true
 
 @export var fog: FogOverlay
 @export var aura: AuraOverlay
@@ -90,11 +96,12 @@ func _run() -> void:
 	var baseline := await _measure()
 	print("baseline (both overlays hidden): %.3f ms GPU\n" % baseline)
 
+	print("aura edge lattice: %s" % ("ON (discs + ~2n cones)" if aura_edges else "OFF (discs only)"))
 	print("circles |   fog ms |  aura ms |  both ms | fog delta | aura delta")
 	print("--------|----------|----------|----------|-----------|-----------")
 	for n in circle_counts:
 		fog.set_sources(_fog_sources(n, view))
-		aura.set_field(_aura_circles(n, view), _ENTITY_COLORS.slice(0, entity_count))
+		aura.set_cones(_aura_cones(n, view), _ENTITY_COLORS.slice(0, entity_count))
 
 		fog.visible = true
 		aura.visible = false
@@ -146,19 +153,42 @@ func _fog_sources(n: int, view: Rect2) -> Array:
 	return out
 
 
-func _aura_circles(n: int, view: Rect2) -> Array:
+## `n` discs on a jittered lattice covering `view`, each tagged round-robin by
+## entity, plus (when [member aura_edges]) one cone per right/down lattice
+## neighbour that shares the entity tag — the harness's stand-in for the
+## owned induced subgraph. Cone end radii are the disc radii × 0.6, the
+## overlay's default `edge_width`. Layout is `set_cones`': two texels each.
+func _aura_cones(n: int, view: Rect2) -> Array:
 	seed(0x133)
 	var out: Array = []
+	if n <= 0:
+		return out
+	var cols := maxi(1, ceili(sqrt(float(n))))
+	var rows := maxi(1, ceili(float(n) / float(cols)))
+	var step := Vector2(view.size.x / float(cols), view.size.y / float(rows))
+	var centres: Array[Vector2] = []
 	for i in n:
-		out.append(Vector4(
-			randf_range(view.position.x, view.end.x),
-			randf_range(view.position.y, view.end.y),
-			circle_radius,
-			float(i % entity_count)))
+		var cell := Vector2(float(i % cols), float(i / cols))
+		var jitter := Vector2(randf_range(-0.3, 0.3), randf_range(-0.3, 0.3))
+		centres.append(view.position + (cell + Vector2(0.5, 0.5) + jitter) * step)
+	for i in n:
+		out.append(Vector4(centres[i].x, centres[i].y, circle_radius, float(i % entity_count)))
+		out.append(Vector4(centres[i].x, centres[i].y, circle_radius, 0.0))
+	if not aura_edges:
+		return out
+	var edge_radius := circle_radius * 0.6
+	for i in n:
+		for j in [i + 1, i + cols]:
+			if j >= n or (j == i + 1 and j % cols == 0):
+				continue
+			# Same tag both ends, like the owned induced subgraph the aura draws.
+			var tag := float(i % entity_count)
+			out.append(Vector4(centres[i].x, centres[i].y, edge_radius, tag))
+			out.append(Vector4(centres[j].x, centres[j].y, edge_radius, 0.0))
 	return out
 
 
-## `godot --path . scenes/overlay_perf_harness.tscn -- --counts=0,15 --frames=5 --warmup=2`
+## `godot --path . scenes/overlay_perf_harness.tscn -- --counts=0,15 --frames=5 --warmup=2 --edges=0`
 ## Mostly so the xvfb smoke test can ask for a tiny sweep — a 512-circle frame
 ## on llvmpipe takes seconds.
 func _apply_cmdline_overrides() -> void:
@@ -177,6 +207,8 @@ func _apply_cmdline_overrides() -> void:
 				sample_frames = maxi(1, int(parts[1]))
 			"warmup":
 				warmup_frames = maxi(0, int(parts[1]))
+			"edges":
+				aura_edges = int(parts[1]) != 0
 
 
 func _is_software() -> bool:

@@ -42,6 +42,12 @@ func _ready() -> void:
 	await get_tree().process_frame
 
 	await _verify_aura()
+	for child in get_children():
+		child.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	await _verify_aura_cone()
 
 	if _fail_count == 0:
 		print("VERIFY_RESULT ok=true")
@@ -164,6 +170,50 @@ func _verify_aura() -> void:
 	bg.queue_free()
 
 
+## #898: one rounded cone with UNEQUAL radii through the real cone path
+## (`set_cones`), pixel-checked against `OverlayFieldCone.distance`. The
+## mid-edge fade-zone sample is the load-bearing one: the projection-dedupe
+## failure mode is `smin(d, d, k) = d - k/4` (~0.03 in d), which moves alpha
+## by ~0.05 in the fade band — above `_TOL` — while a flat-interior sample
+## would pass with the dedupe broken.
+func _verify_aura_cone() -> void:
+	var bg := ColorRect.new()
+	bg.color = Color.BLACK
+	bg.size = _VIEW_SIZE
+	bg.z_as_relative = false
+	bg.z_index = -101
+	add_child(bg)
+
+	var aura: AuraOverlay = _AURA_SCENE.instantiate()
+	add_child(aura)
+	await get_tree().process_frame
+	var a := Vector2(120.0, 200.0)
+	var ra := 60.0
+	var b := Vector2(280.0, 200.0)
+	var rb := 100.0
+	var cones := [Vector4(a.x, a.y, ra, 0.0), Vector4(b.x, b.y, rb, 0.0)]
+	aura.set_cones(cones, [Color.RED])
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+
+	var img := get_viewport().get_texture().get_image()
+	var samples := {
+		"cone near A (interior)": a + Vector2(-20.0, 0.0),
+		"cone near B (interior)": b + Vector2(30.0, 10.0),
+		"cone mid-edge fade zone, off-axis": Vector2(200.0, 200.0 - 70.0),
+		"cone taper: hull is wider at B than at A": Vector2(260.0, 200.0 + 85.0),
+		"cone outside, beyond A's small end": a + Vector2(-75.0, 0.0),
+		"cone far outside (black)": Vector2(30.0, 30.0),
+	}
+	for label in samples:
+		var pt: Vector2 = samples[label]
+		var alpha := _aura_cone_reference_alpha(_pixel_center(pt), cones, aura)
+		_check_channel(label, img, pt, Color.RED, Color.BLACK, alpha)
+
+	aura.queue_free()
+	bg.queue_free()
+
+
 ## The fragment shader samples at the PIXEL CENTER (screen pixel N's world
 ## position is N + 0.5, not N) — standard rasterizer convention, via the
 ## interpolated `world_pos` varying. `img.get_pixel(x, y)` reads the pixel at
@@ -185,6 +235,24 @@ func _aura_reference_alpha(world_pos: Vector2, circles: Array, aura: AuraOverlay
 	var min_d := 1e9
 	for c in circles:
 		var d: float = world_pos.distance_to(Vector2(c.x, c.y)) / maxf(c.z, 1.0)
+		var h: float = clampf(0.5 + 0.5 * (d - min_d) / k, 0.0, 1.0)
+		min_d = lerpf(d, min_d, h) - k * h * (1.0 - h)
+	if min_d > 1.0:
+		return 0.0
+	var fade_start: float = 1.0 - maxf(aura.falloff, 1e-4)
+	return (1.0 - smoothstep(fade_start, 1.0, min_d)) * aura.intensity
+
+
+## Cone twin of [method _aura_reference_alpha]: same smin fold and smoothstep
+## fade, distance from the GDScript cone reference (#897's CPU side).
+func _aura_cone_reference_alpha(world_pos: Vector2, cones: Array, aura: AuraOverlay) -> float:
+	var k: float = aura.union_smoothness
+	var min_d := 1e9
+	for i in cones.size() / 2:
+		var ca: Vector4 = cones[i * 2]
+		var cb: Vector4 = cones[i * 2 + 1]
+		var d: float = OverlayFieldCone.distance(world_pos,
+			Vector2(ca.x, ca.y), maxf(ca.z, 1.0), Vector2(cb.x, cb.y), maxf(cb.z, 1.0))
 		var h: float = clampf(0.5 + 0.5 * (d - min_d) / k, 0.0, 1.0)
 		min_d = lerpf(d, min_d, h) - k * h * (1.0 - h)
 	if min_d > 1.0:
