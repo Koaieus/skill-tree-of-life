@@ -251,7 +251,10 @@ func rebind_player(player: Entity) -> void:
 	if xp_track != null:
 		xp_track.bind(_player)
 	if attributes_panel != null:
-		attributes_panel.bind(board)
+		var core_modifiers: Array[StatModifier] = []
+		if _player != null:
+			core_modifiers = _player.core_modifiers
+		attributes_panel.bind(board, core_modifiers)
 	if turn_resources_panel != null:
 		turn_resources_panel.bind(board)
 	if combat_readout != null:
