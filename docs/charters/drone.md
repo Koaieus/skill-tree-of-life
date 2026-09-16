@@ -73,7 +73,7 @@ against them.
 8. **On a blown turn/time budget the drone retires** — it does not finish
    one more thing. Retiring is a success outcome. Context size is no longer
    the drone's trigger: since 2026-09-16 (#922) the harness auto-compacts
-   every session in this repo at 250k (`CLAUDE_CODE_AUTO_COMPACT_WINDOW` in
+   every session in this repo at 300k (`CLAUDE_CODE_AUTO_COMPACT_WINDOW` in
    `.claude/settings.json`), the mechanical replacement for a "retire at
    250k" rule that five Sonnet drones in a row ignored. Session-wide is the
    only shape available — every compaction knob is process-wide, a
@@ -92,7 +92,7 @@ against them.
    should run* for fresh eyes on the successor's behalf; the retiring drone
    does **not** run it (an Explore result is a wake on the very context being
    retired).
-10. **At 300k the hook takes over**: everything but `git add/commit/status/
+10. **At 350k the hook takes over**: everything but `git add/commit/status/
     diff/log/rev-parse`, `gh issue comment`, and `SendMessage` is denied. The
     allowlist is exactly the retirement path (commit → successor brief →
     report). Compaction resets the usage the hook reads, so the hook is now

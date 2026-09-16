@@ -66,14 +66,14 @@ start for fresh eyes. Three turns, no new long commands:
    orchestrator should run for a broader look — you do not run it. Write it
    as ONE compound command — `cat > /tmp/brief.md <<'EOF' … EOF && gh issue
    comment <n> --body-file /tmp/brief.md` — never `--body "…"` (backticks
-   vanish) and never a separate `Write` (denied past 300k).
+   vanish) and never a separate `Write` (denied past 350k).
 3. **Report** (format below), `NOTES: retired at ~<n>k; successor brief on #<n>`.
 
 Context is not your retirement trigger: the harness auto-compacts you at
-250k (`CLAUDE_CODE_AUTO_COMPACT_WINDOW`, session-wide). After a compaction
+300k (`CLAUDE_CODE_AUTO_COMPACT_WINDOW`, session-wide). After a compaction
 you continue from the summary — re-read your brief's owned paths and seams
 from the issue before touching anything, since the summary keeps less than
-you think. Past 300k (a few fat turns straight after a compaction) a hook
+you think. Past 350k (a few fat turns straight after a compaction) a hook
 denies everything except `git add/commit/status/diff/log`, `gh issue
 comment` and `SendMessage` — exactly this path.
 

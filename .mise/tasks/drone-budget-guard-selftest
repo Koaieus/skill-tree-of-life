@@ -12,7 +12,7 @@ png = os.path.join(tmp, "big.png"); open(png, "wb").write(b"\n" * 1000)
 def transcript(agent, ctx):
     rec = {"type": "assistant", "message": {"usage": {"input_tokens": ctx, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}}}
     open(os.path.join(tmp, "sess", "subagents", f"agent-{agent}.jsonl"), "w").write(json.dumps(rec) + "\n")
-transcript("hot", 310_000); transcript("cool", 100_000)
+transcript("hot", 360_000); transcript("cool", 100_000)
 
 def run(payload):
     p = subprocess.run([HOOK], input=payload if isinstance(payload, str) else json.dumps(payload), capture_output=True, text=True)
@@ -29,14 +29,14 @@ cases = [
     ("subagent small whole Read -> allow", sub("cool", "Read", {"file_path": small}), False),
     ("subagent binary whole Read -> allow", sub("cool", "Read", {"file_path": png}), False),
     ("Explore big whole Read -> allow", sub("cool", "Read", {"file_path": big}, agent_type="Explore"), False),
-    ("310k Edit -> deny", sub("hot", "Edit", {"file_path": small}), True),
-    ("310k test run -> deny", sub("hot", "Bash", {"command": "mise run test:one -- x"}), True),
-    ("310k git commit -> allow", sub("hot", "Bash", {"command": "cd w && git add a b && git commit -m m"}), False),
-    ("310k SendMessage -> allow", sub("hot", "SendMessage", {"to": "Sage", "message": "x"}), False),
-    ("310k successor brief -> allow", sub("hot", "Bash", {"command": "gh issue comment 123 --body-file /tmp/b.md"}), False),
-    ("310k heredoc && successor brief -> allow", sub("hot", "Bash", {"command": "cat > /tmp/b.md <<'EOF'\nhi\nEOF\n&& gh issue comment 5 --body-file /tmp/b.md"}), False),
-    ("310k bare heredoc -> deny", sub("hot", "Bash", {"command": "cat > /tmp/b.md <<'EOF'\nhi\nEOF"}), True),
-    ("310k gh issue view -> deny", sub("hot", "Bash", {"command": "gh issue view 123 --comments"}), True),
+    ("360k Edit -> deny", sub("hot", "Edit", {"file_path": small}), True),
+    ("360k test run -> deny", sub("hot", "Bash", {"command": "mise run test:one -- x"}), True),
+    ("360k git commit -> allow", sub("hot", "Bash", {"command": "cd w && git add a b && git commit -m m"}), False),
+    ("360k SendMessage -> allow", sub("hot", "SendMessage", {"to": "Sage", "message": "x"}), False),
+    ("360k successor brief -> allow", sub("hot", "Bash", {"command": "gh issue comment 123 --body-file /tmp/b.md"}), False),
+    ("360k heredoc && successor brief -> allow", sub("hot", "Bash", {"command": "cat > /tmp/b.md <<'EOF'\nhi\nEOF\n&& gh issue comment 5 --body-file /tmp/b.md"}), False),
+    ("360k bare heredoc -> deny", sub("hot", "Bash", {"command": "cat > /tmp/b.md <<'EOF'\nhi\nEOF"}), True),
+    ("360k gh issue view -> deny", sub("hot", "Bash", {"command": "gh issue view 123 --comments"}), True),
     ("100k Edit -> allow", sub("cool", "Edit", {"file_path": small}), False),
     ("garbage stdin -> silent exit 0", "garbage", False),
 ]

@@ -33,7 +33,7 @@ import os
 import re
 import sys
 
-_HARD_STOP = 300_000
+_HARD_STOP = 350_000  # above the 300k auto-compact window (#922): a floor for the drone that refills fast, never a race with compaction
 _MAX_WHOLE_READ_LINES = 400
 _READ_EXEMPT_AGENT_TYPES = {"Explore"}
 _BINARY_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".pdf", ".ipynb", ".svg"}
