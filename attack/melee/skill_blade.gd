@@ -696,6 +696,11 @@ func get_node_visuals() -> Array[BladeNode]:
 	return _node_visuals
 
 
+## Stub (#928).
+func is_vertex_placed(_i: int) -> bool:
+	return true
+
+
 ## The spawned edge visuals, in [member BladeState.edges] order — the edge
 ## counterpart of [method get_node_visuals], for the same look-tuning /
 ## test-inspection use (#781's bunker break de-lights one of these).

@@ -357,26 +357,86 @@ func _tempo(lead: float, form: float, stamp: float = 0.0, glow: float = 0.0,
 	return t
 
 
-func test_the_swing_start_arms_the_centroid_tracking() -> void:
-	# Owner, 2026-09-15: "then when the swing actually starts, no camera
-	# movement". Tracking arms on the battle system's OWN swing-start beat —
-	# never on a wall-clock re-derivation of the wind-up, which could not see
-	# a `record_ready` hold and expired before the swing on a stamped blade.
+func test_tracking_is_live_from_commit_and_the_swing_beat_only_marks_the_swing() -> void:
+	# Owner, 2026-09-16: "camera still does a 2-step before the movement: first
+	# pan towards pivot, then towards centroid ... recalculating the centroid
+	# as things get added". So the goalpost is live from the commit — it reads
+	# the PLACED vertices, pivot first — and the swing beat only marks the
+	# swing (for the hold), it no longer arms anything.
 	_dir.seat_policy = SeatPolicy.couch()
-	_camera()
+	var cam := _camera()
 	var pivot := _node_at(Vector2.ZERO)
 	_dir.battle_system = _battle_system(_melee_plan(pivot))
 	var outcome := _outcome([_hit(pivot, _node_at(Vector2(400, 0)))])
 
 	_dir._on_attack_committed(outcome, _entity(true))
-	assert_false(_dir.is_tracking(), "commit: the wind-up, nothing tracks")
+	assert_true(_dir.is_tracking(), "commit: the goalpost is live, on the pivot alone")
+	assert_true(cam.is_following(), "and the pivot focus already opened in follow mode")
 	_dir._on_melee_swing_started(outcome)
-	assert_true(_dir.is_tracking(), "the swing has started: now the band pulls")
+	assert_true(_dir.is_tracking(), "the swing changes nothing about the goalpost")
 
 	_dir.release()
 	_dir._on_melee_swing_started(outcome)
 	assert_false(_dir.is_tracking(),
 			"a swing beat after release cannot re-arm a shot that has ended")
+
+
+func test_the_widen_changes_the_zoom_without_restarting_the_pan() -> void:
+	# The second step of the 2-step: `begin_directed_follow` re-tweens the pan
+	# on every call, so the widen yanked the camera off the band's goalpost
+	# toward the span centre. While a follow is open, a widen retargets the
+	# ZOOM only; the goalpost stays the band's.
+	_dir.seat_policy = SeatPolicy.couch()
+	var cam := _camera()
+	cam.limit_left = -100000
+	cam.limit_right = 100000
+	cam.limit_top = -100000
+	cam.limit_bottom = 100000
+	var pivot := _node_at(Vector2.ZERO)
+	var bs := _battle_system(_melee_plan(pivot))
+	bs.presentation_tempo = _tempo(0.0, 1.0)
+	_dir.battle_system = bs
+	var hits: Array[HitInstance] = [_hit(pivot, _node_at(Vector2(0, 3000)))]
+
+	_dir._on_attack_committed(_outcome(hits), _entity(true))
+	assert_true(cam.is_following(), "no lead beat: the span landed straight into follow mode")
+	cam.set_follow_target(Vector2(50, 0))
+	_dir.request_focus(_dir._build_attack_request(_outcome(hits), _entity(true)))
+	assert_false(cam.is_pan_tween_running(),
+			"a widen on an open follow does not start a pan tween")
+	assert_lt(cam._target_zoom, 1.0, "...but the span still stepped the zoom out")
+	for _i in 30:
+		cam._follow(1.0 / 60.0)
+	assert_almost_eq(cam.global_position, Vector2(50, 0), Vector2(1.0, 1.0),
+			"the band keeps pulling to ITS goalpost, not the span centre")
+
+
+func test_only_placed_vertices_pull_during_the_form_in() -> void:
+	# The centroid grows with the stagger: a vertex the form-in has not placed
+	# yet does not pull, so the pan is one continuous band from the pivot to
+	# the rest centroid, landing exactly as the last vertex does.
+	_dir.seat_policy = SeatPolicy.couch()
+	var pivot := _node_at(Vector2.ZERO)
+	var far := _node_at(Vector2(0, 600))
+	var plan := _melee_plan(pivot)
+	plan.blade_nodes = [far]
+	var bs := _battle_system(plan)
+	var preview := MeleePreview.new()
+	_holder.add_child(preview)
+	bs.melee_preview = preview
+	_dir.battle_system = bs
+
+	preview.begin_windup(plan, _tempo(0.0, 100.0), false)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_almost_eq(_dir.melee_track_target(), Vector2.ZERO, Vector2(0.001, 0.001),
+			"pivot placed, far vertex still 100s out: only the pivot pulls")
+
+	preview.current_blade().form_instantly()
+	var rest := CameraDirector.weighted_blade_center(Vector2.ZERO,
+			PackedVector2Array([Vector2(0, 600)]))
+	assert_almost_eq(_dir.melee_track_target(), rest, Vector2(0.001, 0.001),
+			"every vertex placed: the goalpost IS the rest centroid, no jump at the swing")
 
 
 func test_a_melee_shot_waits_for_its_swing_however_long_the_windup_holds() -> void:
@@ -421,39 +481,7 @@ func test_a_melee_shot_with_no_swing_still_releases_once_the_launch_ends() -> vo
 	assert_false(_dir.is_melee_locked(), "nothing to wait for: the timer releases as before")
 
 
-func test_the_melee_span_anchors_on_the_blades_rest_centroid() -> void:
-	# Owner, 2026-09-15: "first pan to the centroid. then as it starts
-	# swinging, track the centroid". The widen frames the span for ZOOM but pans
-	# to the weighted rest centroid, which is exactly where the per-frame
-	# tracking picks up — so the handoff is continuous, not a jerk from the
-	# AABB centre.
-	_dir.seat_policy = SeatPolicy.couch()
-	var pivot := _node_at(Vector2.ZERO)
-	var arm := _node_at(Vector2(0, 300))
-	var plan := _melee_plan(pivot)
-	plan.blade_nodes = [arm]
-	_dir.battle_system = _battle_system(plan)
-	var hits: Array[HitInstance] = [_hit(arm, _node_at(Vector2(400, 300)))]
-
-	var req := _dir._build_attack_request(_outcome(hits), _entity(true))
-	assert_true(req.has_anchor(), "a melee span carries an explicit pan target")
-	var expected := CameraDirector.weighted_blade_center(Vector2.ZERO,
-			PackedVector2Array([Vector2(0, 300)]))
-	assert_almost_eq(req.anchor, expected, Vector2(0.001, 0.001),
-			"the rest centroid: pivot weighted, blade nodes once each")
-	var decision := _dir.decide(req, CameraContext.make(VIEWPORT, 1.0, Vector2(5000, 5000)))
-	assert_almost_eq(decision.target, expected, Vector2(0.001, 0.001),
-			"and decide pans there, not to the AABB centre")
-
-
-func test_a_ranged_span_has_no_anchor() -> void:
-	_dir.seat_policy = SeatPolicy.couch()
-	var hits: Array[HitInstance] = [_hit(_node_at(Vector2.ZERO), _node_at(Vector2(400, 0)))]
-	var req := _dir._build_attack_request(_outcome(hits), _entity(false))
-	assert_false(req.has_anchor(), "ranged/magic keep the span-derived target")
-
-
-func test_centroid_tracking_does_not_move_the_camera_before_the_swing() -> void:
+func test_the_swing_beat_does_not_reopen_a_shot_the_widen_already_holds() -> void:
 	_dir.seat_policy = SeatPolicy.couch()
 	var cam := _camera()
 	var pivot := _node_at(Vector2.ZERO)
@@ -463,11 +491,8 @@ func test_centroid_tracking_does_not_move_the_camera_before_the_swing() -> void:
 	var outcome := _outcome([_hit(pivot, _node_at(Vector2(400, 0)))])
 
 	_dir._on_attack_committed(outcome, _entity(true))
-	assert_false(_dir.is_tracking(), "commit: the pivot beat, nothing tracks")
 	await wait_seconds(0.2)
-	assert_true(cam.is_following(),
-			"after the lead the span has widened and the follow is open...")
-	assert_false(_dir.is_tracking(),
-			"...but the blade is still forming, so the centroid is not the goalpost yet")
+	assert_true(cam.is_following(), "after the lead the span has widened, still following")
+	assert_true(_dir.is_tracking(), "and the band was never interrupted")
 	_dir._on_melee_swing_started(outcome)
-	assert_true(_dir.is_tracking(), "the swing has started: now the band pulls")
+	assert_true(_dir.is_melee_locked(), "the swing beat only re-sizes the hold")

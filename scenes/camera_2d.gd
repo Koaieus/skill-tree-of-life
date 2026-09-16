@@ -260,6 +260,11 @@ func begin_directed_follow(target: Vector2, zoom_target: float, duration: float)
 	_follow_velocity = Vector2.ZERO
 
 
+## Stub (#928).
+func retarget_directed_zoom(_zoom_target: float) -> void:
+	pass
+
+
 ## Move a live follow's goalpost. A no-op unless [method begin_directed_follow]
 ## is what opened the focus, so a stale per-frame push after release cannot drag
 ## the player's camera.
@@ -270,6 +275,12 @@ func set_follow_target(target: Vector2) -> void:
 
 func is_following() -> bool:
 	return _follow_active
+
+
+## True while the one-shot pan of [method begin_directed_focus] is still easing
+## — the window in which [method _follow] stands aside.
+func is_pan_tween_running() -> bool:
+	return _pan_tween != null and _pan_tween.is_valid() and _pan_tween.is_running()
 
 
 func is_directed() -> bool:

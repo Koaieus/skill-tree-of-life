@@ -85,3 +85,15 @@ func test_self_loop_sensed_round_trip_offsets_vis_state_by_the_loop_marker() -> 
 	assert_eq(edge.render_vis_state, 10.0 + Edge.VIS_SENSED, "a sensed self-loop stays loop-marked")
 	edge.sensed = false
 	assert_eq(edge.render_vis_state, 10.0 + Edge.VIS_VISIBLE)
+
+
+func test_a_skill_blade_draws_above_sensed_nodes_like_a_projectile() -> void:
+	# #928, owner: blade nodes and edges "are projectiles in the sense that
+	# they should appear ABOVE regular skillnodes or edges" — the staggered
+	# form-in was invisible under the board.
+	var blade := SkillBlade.SCENE.instantiate() as SkillBlade
+	add_child_autofree(blade)
+	await get_tree().process_frame
+	assert_false(blade.z_as_relative, "absolute, so the parent's band cannot pull it down")
+	assert_gt(blade.z_index, ZLayers.SENSED, "above every node the fog promotes")
+	assert_eq(blade.z_index, ZLayers.PROJECTILE, "the projectile band, by name")
