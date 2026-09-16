@@ -24,6 +24,7 @@
 [ext_resource type="PackedScene" path="res://ui/hud/armed_mode_icon/armed_mode_icon.tscn" id="22_armed_icon"]
 [ext_resource type="PackedScene" uid="uid://c26eoebnjw1lg" path="res://ui/mass_action_confirm/mass_action_confirm_panel.tscn" id="22_mass_action"]
 [ext_resource type="PackedScene" path="res://ui/spell_catalogue/spell_catalogue_modal.tscn" id="23_spell_catalogue"]
+[ext_resource type="PackedScene" path="res://ui/hud/turn_forecast/turn_forecast_strip.tscn" id="24_forecast"]
 
 [node name="HudRoot" type="Control" unique_id=1012524231]
 process_mode = 1
@@ -59,6 +60,18 @@ unique_name_in_owner = true
 layout_mode = 1
 offset_top = 62.0
 offset_bottom = 102.0
+
+[node name="TurnForecastStrip" parent="MarginContainer/TurnTrackerSlot" instance=ExtResource("24_forecast")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = 32.0
+offset_top = 66.0
+offset_right = 332.0
+offset_bottom = 98.0
+grow_horizontal = 2
 
 [node name="XpTrack" parent="MarginContainer/TurnTrackerSlot" unique_id=478201650 instance=ExtResource("10_xp_track")]
 unique_name_in_owner = true

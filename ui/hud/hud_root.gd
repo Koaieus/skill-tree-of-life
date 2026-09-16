@@ -22,6 +22,7 @@ extends Control
 @onready var combat_readout: CombatReadout = %CombatReadout
 @onready var node_inspector_card: NodeInspectorCard = %NodeInspectorCard
 @onready var initiative_bar: InitiativeBar = %InitiativeBar
+@onready var turn_forecast_strip: TurnForecastStrip = %TurnForecastStrip
 @onready var xp_track: XpTrack = %XpTrack
 @onready var action_cluster: ActionCluster = %ActionCluster
 @onready var command_tray: CommandTray = %CommandTray
@@ -206,6 +207,12 @@ func bind_systems(
 	if minimap_panel != null:
 		minimap_panel.bind(graph,
 				game_root.camera if game_root != null else null, _allocation_system)
+	# The forecast strip (#910) hears `forecast_changed` — the ONE signal that
+	# carries every initiative pool/speed change — plus the fog recompute, and
+	# coalesces both to one rebuild per frame. Whose sigil is highlighted is
+	# per-seat and lives in `rebind_player`.
+	if turn_forecast_strip != null:
+		turn_forecast_strip.bind(_turn_manager, _vision_system, graph)
 	if xp_track != null and hero_sigil_card != null:
 		# The emblem badge is the card's, but the beat that bumps it is the XP
 		# bar's — one source for badge, banner and gauge (#317/#320). It rides
@@ -261,6 +268,8 @@ func rebind_player(player: Entity) -> void:
 	if armed_mode_icon != null:
 		armed_mode_icon.bind(_input_ctl)
 	_bind_initiative_pool()
+	if turn_forecast_strip != null:
+		turn_forecast_strip.set_player(_player)
 
 
 ## Pick-1-of-M loot claim (#173). Only the PLAYER's relics get the picker — set
