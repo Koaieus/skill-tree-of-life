@@ -11,8 +11,6 @@ extends CombatReadoutCard
 ## meaningless on its own (D-32). It therefore moves when INT does, which is
 ## why the card also listens to the stat.
 
-# Inherited-scene cutover unfinished relative to MeleeCard/RangedCard — see #723.
-
 @onready var _potency_row: CombatValueRow = %PotencyRow
 @onready var _reach_row: CombatValueRow = %ReachRow
 

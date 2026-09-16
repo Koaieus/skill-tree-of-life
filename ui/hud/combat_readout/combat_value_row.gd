@@ -40,6 +40,21 @@ extends HBoxContainer
 ## (e.g. crit chance/multiplier) can opt into more precision.
 @export_range(0, 4, 1) var decimals: int = 0
 
+## Appended after the rendered number ("%", " px", "x") — same string on the
+## baseline and on an override, so the two stay comparable on screen. Applied
+## by [method refresh]; a row that isn't self-binding (no [member stat_id])
+## still takes a suffix per-call via [method set_value] instead.
+@export var suffix: String = ""
+
+## Multiplies the raw board value before display (#913 — e.g. `crit_chance`'s
+## 0..1 fraction becomes a whole percent with `value_scale = 100.0`). Applied
+## to both the baseline and a node-local override in [method
+## _on_stat_changed] so the two never drift out of the same units. Named
+## `value_scale`, not `scale` — [Control] already owns that property (the
+## node's own visual scale), and redeclaring it is a parse error, not a
+## shadow.
+@export var value_scale: float = 1.0
+
 var _last_value: float = NAN
 var _last_suffix: String = ""
 var _override_active: bool = false
@@ -48,6 +63,18 @@ var _override_value: float = 0.0
 var _delta_baseline: float = NAN
 var _delta_pending: bool = false
 
+## #913 — self-binding state. [member _bound_board] gates re-linking
+## [signal Stat.value_changed] to only when the board actually changes (a
+## hot-seat rebind), never on every [method refresh] call — that call also
+## happens FROM inside the signal's own emission (see [method
+## _on_stat_changed]), so an unconditional clear+relink there would disconnect
+## and reconnect mid-emission for no reason. [member _bound_hover_node] is
+## cached because [SubBag] delivers [method _on_stat_changed] with zero
+## arguments (see its doc) — the hover state has to come from somewhere else.
+var _bound_board: StatBoard = null
+var _bound_hover_node: SkillNode = null
+var _sub := SubBag.new()
+
 func _ready() -> void:
 	if _label != null:
 		_label.text = row_label
@@ -55,6 +82,61 @@ func _ready() -> void:
 		_sliver.visible = false
 	if _override_badge != null:
 		_override_badge.visible = false
+
+
+## #913 — makes the row self-binding: (re-)links [signal Stat.value_changed]
+## for [member stat_id] on [param board] (only when [param board] differs
+## from the last one bound — see [member _bound_board]'s doc) and renders the
+## current baseline plus, if [param hover_node] is an owned node whose local
+## value for [member stat_id] differs from that baseline, the override. A row
+## with no [member stat_id] (a derived value the card computes itself, e.g.
+## Magic's potency/reach) is a no-op — the card still drives those directly
+## via [method set_value].
+func refresh(board: StatBoard, hover_node: SkillNode) -> void:
+	if stat_id == &"":
+		return
+	_bound_hover_node = hover_node
+	if board != _bound_board:
+		_sub.clear()
+		_bound_board = board
+		if board != null:
+			var stat := board.get_stat(stat_id)
+			if stat != null:
+				_sub.on(stat.value_changed, _on_stat_changed)
+	_on_stat_changed()
+
+
+## The [SubBag]-connected callback (zero args, per its doc) AND [method
+## refresh]'s own render step — reads [member _bound_board]/[member
+## _bound_hover_node] rather than trusting a signal argument, since a bare
+## [signal Stat.value_changed] carries none anyway.
+func _on_stat_changed() -> void:
+	if _bound_board == null:
+		return
+	var stat := _bound_board.get_stat(stat_id)
+	var baseline: float = float(stat.value) if stat != null else 0.0
+	set_value(baseline * value_scale, suffix)
+	var ov: Variant = resolve_override(_bound_hover_node, _bound_board, baseline)
+	if ov != null:
+		show_override(float(ov) * value_scale)
+	else:
+		clear_override()
+
+
+## Node-local override lookup (#119, moved off [CombatReadoutCard] in #913 so
+## every row — self-bound via [method refresh] or card-pushed, like Ranged's
+## scaled rows — shares one implementation). `null` unless [param hover_node]
+## is owned by the same entity [param board] belongs to (compared via
+## `stat_board`, since a [StatBoard] carries no owner backpointer of its own —
+## see [method CombatReadoutCard.bind]'s doc) AND its local value for [member
+## stat_id] differs from [param baseline].
+func resolve_override(hover_node: SkillNode, board: StatBoard, baseline: float) -> Variant:
+	if hover_node == null or board == null or stat_id == &"":
+		return null
+	if hover_node.owned_by == null or hover_node.owned_by.stat_board != board:
+		return null
+	var overridden: float = float(hover_node.get_local_value(stat_id))
+	return overridden if overridden != baseline else null
 
 
 func set_value(v: float, suffix: String = "") -> void:

@@ -41,3 +41,15 @@ unique_name_in_owner = true
 layout_mode = 2
 row_label = "Damage floor"
 stat_id = &"min_damage_taken"
+
+[node name="NodeHealthRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="2" unique_id=1918733522 instance=ExtResource("3_row")]
+unique_name_in_owner = true
+layout_mode = 2
+row_label = "Node Health"
+stat_id = &"node_health"
+
+[node name="SpikeRegenRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="3" unique_id=1918733523 instance=ExtResource("3_row")]
+unique_name_in_owner = true
+layout_mode = 2
+row_label = "Spike Regen"
+stat_id = &"spike_regen"

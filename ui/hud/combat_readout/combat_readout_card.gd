@@ -39,8 +39,9 @@ extends Control
 var _flash_tween: Tween
 
 ## #119 — node-local stat override preview. Set by [CombatReadout] off
-## Events.skill_node_hovered/unhovered; only a node owned by [member
-## _owner_entity] can preview (see [method _local_override_or_null]).
+## Events.skill_node_hovered/unhovered and pushed into every self-binding
+## [CombatValueRow] by [method _refresh] (#913); a row only shows the
+## override for a node it owns — see [method CombatValueRow.resolve_override].
 var _hover_node: SkillNode = null
 var _owner_entity: Entity = null
 
@@ -75,8 +76,9 @@ func set_hover_node(node: SkillNode) -> void:
 ## Bind this card to an entity so it can start listening for stat changes.
 ## The board is always [member Entity.stat_board] — a card previews that
 ## entity's node-local overrides, so a board from anywhere else would make
-## [method _local_override_or_null] compare against a foreign baseline.
-## Virtual hook `_bind()` can be overridden in concrete classes to set up bindings
+## [method CombatValueRow.resolve_override] compare against a foreign
+## baseline. Virtual hook `_bind()` can be overridden in concrete classes to
+## set up bindings
 func bind(owner_entity: Entity) -> void:
 	_binds.release()
 	_owner_entity = owner_entity
@@ -88,31 +90,25 @@ func bind(owner_entity: Entity) -> void:
 	_bind(board, owner_entity)
 	_refresh()
 
-## Virtual — called by `bind()` when entity/stat_board are checked; to set up
-## the real wiring between panel and stat board. Connect through
-## [member _binds] (`_binds.link(sig, cb)`), never `sig.connect` directly, or
-## the previous hero's stats keep driving this card after a handover.
+## Virtual — called by `bind()` when entity/stat_board are checked; for a
+## subclass's OWN wiring (a derived row with no [member CombatValueRow.stat_id],
+## like Melee's [CapacityBlips]). Connect through [member _binds]
+## (`_binds.link(sig, cb)`), never `sig.connect` directly, or the previous
+## hero's stats keep driving this card after a handover. Every
+## [CombatValueRow] under `Body` binds itself (#913) — nothing to do here
+## for a plain stat row.
 @warning_ignore("unused_parameter")
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	return
-	
-## Virtual — subclasses already define this per their bind()'d stats.
+
+## Pushes [member _board]/[member _hover_node] into every [CombatValueRow]
+## under `Body` (#913 — each row self-binds and renders its own baseline +
+## override; see [method CombatValueRow.refresh]). A subclass overriding this
+## for a derived row (no [member CombatValueRow.stat_id]) MUST call
+## `super._refresh()` too, or its plain rows stop updating.
 func _refresh() -> void:
-	pass
-
-
-## Returns the node-local combined value for `stat_id` if [member _hover_node]
-## is currently previewable AND its value differs from `baseline` — null
-## otherwise (not owned by us, no hover, or the node doesn't override it).
-## Callers pass the result straight to [method CombatValueRow.show_override]
-## / [method CombatValueRow.clear_override].
-func _local_override_or_null(stat_id: StringName, baseline: float) -> Variant:
-	if _hover_node == null or _owner_entity == null:
-		return null
-	if _hover_node.owned_by != _owner_entity:
-		return null
-	var overridden: float = float(_hover_node.get_local_value(stat_id))
-	return overridden if overridden != baseline else null
+	for row in find_children("*", "CombatValueRow", true, false):
+		(row as CombatValueRow).refresh(_board, _hover_node)
 
 
 ## Called by [CombatReadout] (the shell) when the selected attack mode

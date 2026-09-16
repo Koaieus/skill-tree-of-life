@@ -35,15 +35,16 @@ text = "Melee"
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="SizeSliver" type="Label" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="1" unique_id=1089857644]
-unique_name_in_owner = true
-modulate = Color(1, 1, 1, 0.4)
-layout_mode = 2
-theme_override_font_sizes/font_size = 9
-
-[node name="DamageRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="2" unique_id=1270874012 instance=ExtResource("4_row")]
+[node name="DamageRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="1" unique_id=1270874012 instance=ExtResource("4_row")]
 unique_name_in_owner = true
 layout_mode = 2
 row_label = "Blade damage"
 override_color = Color(1.6466165, 1.3793468, 0.7557179, 1)
 stat_id = &"blade_damage"
+
+[node name="BluntingRow" parent="Padded/TitleAndBody/Body" parent_id_path=PackedInt32Array(257738747) index="2" unique_id=1270874013 instance=ExtResource("4_row")]
+unique_name_in_owner = true
+layout_mode = 2
+row_label = "Blunting"
+override_color = Color(1.6466165, 1.3793468, 0.7557179, 1)
+stat_id = &"blunting"
