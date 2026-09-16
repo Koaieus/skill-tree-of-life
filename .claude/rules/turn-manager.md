@@ -68,12 +68,13 @@ opening turn *after* the sends complete. Found building #533's rung-2 harness;
 
 ## Wiring a new level
 
-After `_setup_level()` resolves the player, GameRoot kicks the first turn:
-```gdscript
-player.initiative_current = 100.0
-turn_manager.start_turn(player)
-```
-The first call is what skips the initial tick race. Entities are in group `entities` via `Entity._enter_tree()` — no manual registration.
+After `_setup_level()` spawns everything, `GameRoot._ready()` runs
+`_stagger_initiative()` (#911 — opening clocks spread over `(0, cap]` in spawn
+order, the opener at cap, gated by `RunConfig.stagger_initiative`) and then
+`_open_first_turn()`, which submits a `StartTurnCommand` for `_opening_entity()`
+(the host-peer participant's entity) — the authority decides, mirrors receive
+(#756). Never call `turn_manager.start_turn()` from a level yourself. Entities
+are in group `entities` via `Entity._enter_tree()` — no manual registration.
 
 ## Every Entity needs an EntityController
 
