@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://cx536j2yv0u8w" path="res://ui/gauges/attribute_radar.tscn" id="3_radar"]
 [ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_xmnrj"]
 [ext_resource type="PackedScene" path="res://ui/hud/attributes_panel/attribute_row.tscn" id="4_row"]
+[ext_resource type="PackedScene" path="res://ui/hud/attributes_panel/attribute_rule_row.tscn" id="5_rule_row"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_aadnk"]
 resource_local_to_scene = true
@@ -161,10 +162,11 @@ offset_bottom = 60.0
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_tooltip")
 
-[node name="TooltipLabel" type="Label" parent="Tooltip" unique_id=1831602612]
+[node name="TooltipRows" type="VBoxContainer" parent="Tooltip" unique_id=1831602612]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(50, 15)
+custom_minimum_size = Vector2(180, 15)
 layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = "..."
-autowrap_mode = 2
+theme_override_constants/separation = 2
+
+[node name="RuleRow" parent="Tooltip/TooltipRows" unique_id=1831602613 instance=ExtResource("5_rule_row")]
+layout_mode = 2

@@ -1,0 +1,26 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://ui/hud/attributes_panel/attribute_rule_row.gd" id="1_script"]
+
+[node name="AttributeRuleRow" type="HBoxContainer"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 220.0
+offset_bottom = 16.0
+theme_override_constants/separation = 12
+script = ExtResource("1_script")
+
+[node name="RuleLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 11
+text = "+1 Blade Size per 20 STR"
+
+[node name="ContributionLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_font_sizes/font_size = 11
+text = "+2"
+horizontal_alignment = 2

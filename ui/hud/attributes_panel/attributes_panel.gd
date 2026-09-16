@@ -29,11 +29,20 @@ const ATTR_IDS: Array[StringName] = [
 	%StrengthRow, %DexterityRow, %IntelligenceRow, %ConstitutionRow, %WisdomRow, %PerceptionRow,
 ]
 @onready var _tooltip: PanelContainer = %Tooltip
-@onready var _tooltip_label: Label = %TooltipLabel
+@onready var _tooltip_rows: VBoxContainer = %TooltipRows
 @onready var _vision_value: Label = %VisionValue
 @onready var _sensor_value: Label = %SensorValue
 
+const _RULE_ROW_SCENE: PackedScene = preload("res://ui/hud/attributes_panel/attribute_rule_row.tscn")
+
 var _board: StatBoard
+## The bound hero's looted register ([member Entity.core_modifiers]) — the
+## SAME array object, held by reference (appends and merges land in place),
+## so the tooltip lists a non-merging looted grant (#775) without a rebind.
+var _core_modifiers: Array[StatModifier] = []
+## The attribute whose tooltip is open, or &"" — what a mid-hover
+## [signal Events.stat_modifier_changed] rebuilds (#792).
+var _hovered_attr: StringName = &""
 
 
 ## Forwards the real layout content's minimum size so this Control reports
@@ -61,14 +70,22 @@ func _ready() -> void:
 		row.row_hovered.connect(_on_row_hovered)
 		row.row_unhovered.connect(_on_row_unhovered)
 	_radar.axis_hovered.connect(func(i): _on_row_hovered(ATTR_IDS[i] if i < ATTR_IDS.size() else &""))
-	_radar.axis_unhovered.connect(func(): _tooltip.visible = false)
+	_radar.axis_unhovered.connect(_on_row_unhovered.bind(&""))
 
 
-func bind(board: StatBoard) -> void:
+## [param core_modifiers] is the hero's [member Entity.core_modifiers]
+## register — passed alongside the board because a board is a duplicated
+## resource with no way back to its entity, and the tooltip must list a
+## looted grant that did NOT merge into an intrinsic (#791, #775).
+func bind(board: StatBoard, core_modifiers: Array[StatModifier] = []) -> void:
 	_binds.release()
 	_board = board
+	_core_modifiers = core_modifiers
 	if _board == null:
 		return
+	# A loot merge while the tooltip is open changes the rate it shows
+	# (#792): rebuild in place rather than waiting for a re-hover.
+	_binds.link(Events.stat_modifier_changed, _on_stat_modifier_changed)
 
 	var stats: Array[ScalarStat] = [
 		_board.strength, _board.dexterity, _board.intelligence, _board.constitution,
@@ -124,13 +141,42 @@ func _refresh_senses() -> void:
 func _on_row_hovered(attr_id: StringName) -> void:
 	if _board == null or attr_id == &"":
 		return
-	var lines := AttributeRules.describe(attr_id, _board)
-	if lines.is_empty():
-		_tooltip.visible = false
-		return
-	_tooltip_label.text = "\n".join(lines)
-	_tooltip.visible = true
+	_hovered_attr = attr_id
+	_rebuild_tooltip()
 
 
 func _on_row_unhovered(_attr_id: StringName) -> void:
+	_hovered_attr = &""
 	_tooltip.visible = false
+
+
+func _on_stat_modifier_changed(entity: Entity, _m: StatModifier, _kind: ModifierBinding.Kind, _added: bool) -> void:
+	if _hovered_attr == &"" or not _tooltip.visible:
+		return
+	if entity == null or entity.stat_board != _board:
+		return
+	_rebuild_tooltip()
+
+
+## One [AttributeRuleRow] per [method AttributeRules.describe] entry for the
+## hovered attribute. Rows are pooled under [member _tooltip_rows] (the scene
+## authors the first) — surplus rows hide rather than free, so a rebuild on
+## every merge event allocates nothing.
+func _rebuild_tooltip() -> void:
+	var entries := AttributeRules.describe(_hovered_attr, _board, _core_modifiers)
+	if entries.is_empty():
+		_tooltip.visible = false
+		return
+	var rows := _tooltip_rows.get_children()
+	while rows.size() < entries.size():
+		var row := _RULE_ROW_SCENE.instantiate()
+		_tooltip_rows.add_child(row)
+		rows.append(row)
+	for i in rows.size():
+		var row := rows[i] as AttributeRuleRow
+		if i < entries.size():
+			row.bind_entry(entries[i])
+			row.visible = true
+		else:
+			row.visible = false
+	_tooltip.visible = true

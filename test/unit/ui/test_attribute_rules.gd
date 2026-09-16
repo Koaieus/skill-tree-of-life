@@ -264,9 +264,18 @@ func test_open_tooltip_updates_when_a_merge_lands_without_rehover() -> void:
 	assert_false(size_row.rule.contains("->"))
 
 
+## Developer-facing dumps under ui/ that legitimately write a code arrow —
+## never rendered to a player. Add to this list only with the same argument.
+const _DEBUG_DUMPS_NOT_COPY: Array[String] = [
+	"res://ui/hud/minimap_panel/minimap_viewport_rect_layer.gd",  # describe_coverage() diagnostic
+]
+
+
 func test_no_code_arrow_in_player_facing_ui_strings() -> void:
 	var offenders: Array[String] = []
 	_scan_for_arrow("res://ui", offenders)
+	offenders = offenders.filter(func(o: String) -> bool:
+		return not _DEBUG_DUMPS_NOT_COPY.any(func(d: String) -> bool: return o.begins_with(d)))
 	assert_eq(offenders, [] as Array[String], "'->' in a string literal under ui/: %s" % str(offenders))
 
 
