@@ -184,3 +184,26 @@ func test_round_trip_preserves_per_node_radius() -> void:
 	assert_almost_eq(ta.base_inner_radius, 36.0, 0.001)
 	assert_almost_eq(tb.base_radius, 28.0, 0.001)
 	assert_almost_eq(tb.base_inner_radius, 20.0, 0.001)
+
+
+## #330 — an authored keystone scene placed by procgen is the node's whole
+## content (colour, name, keystone, radius). Only the host generates (ADR
+## 0013), so a client must RE-INSTANTIATE that scene on the create path or
+## it draws a plain skill_node with the reconciled tier only.
+func test_round_trip_reinstantiates_an_authored_scene_node() -> void:
+	const TITAN_PATH := "res://entity/keystone/instances/titan_node.tscn"
+	var source := await _procgen_graph(12, 330)
+	var titan: SkillNode = load(TITAN_PATH).instantiate()
+	titan.position = Vector2(9000.0, 9000.0)
+	source.add_skill_node(titan)
+	var target := await _new_graph()
+	GraphSnapshot.decode(GraphSnapshot.encode(source), target)
+	var t := target.get_by_stable_id(source.get_stable_id(titan))
+	assert_not_null(t)
+	assert_eq(t.scene_file_path, TITAN_PATH, "the authored scene is re-instantiated, not a plain skill_node")
+	assert_eq(t.get_display_name(), titan.get_display_name(), "#179's name rides in the scene")
+	assert_eq(t.base_type_color, titan.base_type_color, "the scene's colour rides in the scene")
+	assert_almost_eq(t.base_radius, titan.base_radius, 0.001)
+	# Plain nodes stay plain: the slot is only set for a non-default scene.
+	var plain := target.get_by_stable_id(source.get_stable_id(source.get_skill_nodes()[0]))
+	assert_eq(plain.scene_file_path, "res://skill_node/skill_node.tscn")
