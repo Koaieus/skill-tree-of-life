@@ -44,7 +44,12 @@ owner wants, and why the drone's second call is a retirement.
 
 Everything is measured after the fact by `mise run agent-cost` (`priced`
 column, sonnet units) and logged per unit in the ledger; the tier heuristic
-and the per-unit budget are tuned from those rows, never from memory.
+and the per-unit budget are tuned from those rows, never from memory. The
+rows so far say the tier default is opus, not sonnet: on medium units a
+Sonnet drone integrates 3–4× the context (Σctx) of an Opus drone doing
+comparable work, in 2–3× the calls, and lands at the same or higher
+`priced` — the per-call discount is eaten by call count. Sonnet wins only
+on small units with an existing named test.
 
 ## Laws
 
@@ -117,8 +122,12 @@ and the per-unit budget are tuned from those rows, never from memory.
 12. **The brief is bare.** Issue number(s) and hub; owned paths (the fence,
     *including* scenes and boards that reference the changed system); seams
     this run (who owns what, the seam's sha); tier; "your advisor is the
-    `advisor` tool" (or Sage); a turn/time budget as a HARD stop ("do not
-    take call N+1"); "commit early and often, even partial" as its own
+    `advisor` tool" (or Sage); a turn/time budget as a HARD stop that
+    budgets the *first report* ("do not take call N+1"), with a small fixed
+    allowance per review round and a two-round cap — one number for the
+    whole unit is never honoured once a reviewer asks for changes, and no
+    drone counts its own calls anyway; "commit early and often, even
+    partial" as its own
     line; the three suite clauses if a full suite is allowed at all, else
     "never the full suite". Nothing the issue already says.
 13. **Brief in `prompt`; `name` for addressability; `subagent_type: "drone"`;
@@ -205,6 +214,8 @@ and the per-unit budget are tuned from those rows, never from memory.
 | 2026-09-14 | addendum | Sage cost ~20–25k Fable per landed unit plus ~30k per successor; owner: "i think Sage does consume a lot compared to `advisor` tool" | 8, 10 |
 | 2026-09-15 | smoke | a haiku `drone` with `name` set started on its `prompt` — no idle, 5 calls / 32 s — and saw CLAUDE.md; the idle lore is stale for the typed drone (n=1) | 13 |
 | 2026-09-15 | owner | "letting [Sage] do mechanical stuff (merging) instead of just answering implementation questions or rating implementations / acceptance also sounds like a bad idea. it's there mostly to 'be smart' … a drone failing to get a test green should better just ask 1 question instead of making 20 frantic tool calls … that's an advisor who should bring back the calm … or tell them straight: stop trying, retire" | 8, 9, 10 |
+| 2026-09-16 | 9 units | Sonnet on medium units: kb 108 calls / Σctx 9.4M / 1.59M priced for 263 lines vs place (opus) 50 calls / 3.9M / 1.61M for a new system; migrate (opus) 1343 lines at 0.23M per 100 lines, the cheapest row; all three 80-call overruns were review-round loops after the first report (108/95/113) | 3, 6, 12 |
+| 2026-09-16 | Sage | stalled 28 min: its background Explores' completions notified the lead, not Sage; audits run inline in Sage's own turn | 10 |
 | 2026-09-15 | owner | thresholds "depend on the model … and how much is in flight, if 5 drones working expect 5× the turns taken to settle each, then 150k might already be a lot" → the ceiling formula; sizing "worker cap + ledger Σctx, drop the %-window table"; "the swarm mayve mentioned an issue planner throwaway Opus but our new swarmify skill would (i hope) make that largely obsolete" | 5, 6, 11 |
 
 ## What the skill must not contain

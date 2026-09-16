@@ -113,11 +113,15 @@ the owner, never inherited into a brief.
 1. Cluster issues by subsystem → that is your drone list.
 2. Check file-disjointness *between* clusters; sequence overlapping clusters
    into waves. Wave 2 dispatches from the `master` tip after wave 1 lands.
-3. **Tier every unit**: `sonnet` default; `opus` for design freedom (a new
-   scene, system or surface), a reshaping of >300 lines across modules, or
-   any fork the comments leave open; `haiku` only for pure mechanical churn.
-   A Sonnet past three advisor/Sage exchanges is mis-tiered by definition —
-   the ledger records it and the next brief is tiered from that.
+3. **Tier every unit**: `opus` default for anything medium or larger — a
+   new scene, system or surface, a reshaping across modules, any fork the
+   comments leave open, or simply >150 lines of expected diff; `sonnet` only
+   for a unit of ≤150 lines with a named test that already exists; `haiku`
+   only for pure mechanical churn. Priced per landed line, opus is the
+   cheaper tier on medium units — it finishes in a third of the calls and
+   context — so the default is not the cheap-looking model. A Sonnet past
+   three advisor/Sage exchanges is mis-tiered by definition — the ledger
+   records it and the next brief is tiered from that.
 4. **Shared contracts land on master first.** A seam every unit overrides,
    a registry every unit appends to, a `.tres` every unit touches: commit
    it in the main checkout, test it, then spawn — drones branch from the tip.
@@ -178,8 +182,10 @@ mise run issue-drift -- <n>                             # silent = the Ready com
 - **"Your advisor is the `advisor` tool: once, early, on the first loop or a
   design doubt; a second call means retire."** (Or "Sage is your advisor;
   ask it for a review before you report.")
-- **A turn/time budget as a HARD stop**: "80 calls / 40 minutes — do not
-  take call 81."
+- **A turn/time budget as a HARD stop, budgeting the first report**: "80
+  calls / 40 minutes to your first report — do not take call 81. Each
+  review round after it gets +15 calls; two rounds, then hand back." One
+  number for the whole unit is a fiction once a reviewer asks for changes.
 - **"COMMIT EARLY AND OFTEN, even partial, even ugly"** — its own line.
 - **Suite policy**: either "never the full suite" or, if the unit earns one,
   all three clauses verbatim — *launch it once with `run_in_background:

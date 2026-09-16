@@ -27,7 +27,10 @@ body, `gh issue view <n> --comments` for the decisions — empty output on a
   `model: "sonnet"` (or `"haiku"` for a grep) set explicitly.** An omitted
   `model` inherits *yours*. Delegate every big read — a whole file, a whole
   diff of a 900-line unit, a stale-reference sweep — so your own context lasts
-  the run.
+  the run. **Run them with `run_in_background: false` and wait in the same
+  turn.** A backgrounded Explore's completion is delivered to the *lead*, not
+  to you; end your turn on one and you sleep until the lead notices the
+  drones are starving.
 - **Never edit a repo file.** Not in a drone's worktree, not in the main
   checkout. You have `Write` for exactly one file: your handover (below). A
   fix you want made is a finding you send the drone. You never run
