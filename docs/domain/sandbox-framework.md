@@ -166,50 +166,49 @@ Files:
   (`Mode {LIVE_EDIT, PLAYED}`) every tab scene roots on. The directory-scan
   contract replaces the issue's class-list scan; the `class_name` survives only
   as the runtime `is SandboxTab` guard, not a discovery mechanism.
-> **Bake the panel into the tab scene — `panel_scene` is the legacy path.**
-> A tab should *instance its panel scene inside its own `.tscn`*, under
-> `%PanelHost`, and leave `panel_scene` null. `_mount_panel()` adopts that child
-> (#254). The reasons are the ones above — the tab previews non-empty in the
-> editor, and reload takes the same path as a cold open. It is **not** a
-> post-processing fix: #371 briefly credited baking with reviving the Bloom tab's
-> glow, reverted the `VIEWPORT_ENVIRONMENT_ENABLED` forcing that was actually
-> carrying it, and lost the pass again (see `docs/domain/hdr-color.md`, failure
-> mode 5). `70_bloom_tab.tscn` is the
-> reference for the baked form; all tabs are baked now (`70_bloom_tab.tscn`,
-> `18_tooltip_fan_tab.tscn`, `40_allocation_tab.tscn` (#838), and the last
-> seven — spell / node_visuals / gimbal_3d / statboard / procgen / loot /
-> toast (#437) — among them). Reload rebuilds the **whole tab** from its `.tscn` via
-> `SandboxHost.reload_tab()`, so reload and cold open take the same path.
+> **Bake the panel into the tab scene.** A tab instances its panel scene inside
+> its own `.tscn`, under `%PanelHost`; `_mount_panel()` adopts that child (#254).
+> The reasons are the ones above — the tab previews non-empty in the editor, and
+> reload takes the same path as a cold open. It is **not** a post-processing
+> fix: #371 briefly credited baking with reviving the Bloom tab's glow, reverted
+> the `VIEWPORT_ENVIRONMENT_ENABLED` forcing that was actually carrying it, and
+> lost the pass again (see `docs/domain/hdr-color.md`, failure mode 5).
+> `70_bloom_tab.tscn` is the reference for the baked form; every tab is baked
+> (`70_bloom_tab.tscn`, `18_tooltip_fan_tab.tscn`, `40_allocation_tab.tscn`
+> (#838), and the last seven — spell / node_visuals / gimbal_3d / statboard /
+> procgen / loot / toast (#437) — among them; the `panel_scene` DI export and
+> the dual-mount fallback that used to coexist with baking were deleted once
+> the last tab landed, #881). Reload rebuilds the **whole tab** from its
+> `.tscn` via `SandboxHost.reload_tab()`, so reload and cold open take the same
+> path.
 
 - `sandbox_live_tab.gd` (`SandboxLiveTab`) + `sandbox_live_tab.tscn` (the
-  **scenic base**) — embeds an `@tool` panel, either baked scenically under
-  `%PanelHost` (preferred) or via the legacy `panel_scene` `@export` (DI);
-  forwards the inspected resource to its `loader_method` by name. `tab_id`
-  is the host's routing key. The base `.tscn` carries the shared chrome: a
-  toolbar with a **source-path breadcrumb** (click a folder → reveal it in the
-  FileSystem dock; click the file → open the panel scene for tuning, via
-  `EditorInterface`, editor-guarded) over a `%PanelHost` slot the panel is
-  injected into. A concrete live tab is a one-node **inherited scene** of this
-  base overriding only the four exports (see `tabs/18_tooltip_fan_tab.tscn`, the
-  reference migration). Tree stays scenic (per `scene-composition.md`); the
-  script only wires + acts, and the breadcrumb — being path-length-variable — is
-  built into the scenic `%Breadcrumb` container in code.
+  **scenic base**) — embeds an `@tool` panel baked scenically under
+  `%PanelHost`; forwards the inspected resource to its `loader_method` by name.
+  `tab_id` is the host's routing key. The base `.tscn` carries the shared
+  chrome: a toolbar with a **source-path breadcrumb** (click a folder → reveal
+  it in the FileSystem dock; click the file → open the panel scene for tuning,
+  via `EditorInterface`, editor-guarded) over a `%PanelHost` slot the panel is
+  baked into. A concrete live tab is a one-node **inherited scene** of this
+  base overriding only `tab_title` / `tab_id` / `loader_method` (see
+  `tabs/18_tooltip_fan_tab.tscn`, the reference migration). Tree stays scenic
+  (per `scene-composition.md`); the script only wires + acts, and the
+  breadcrumb — being path-length-variable — is built into the scenic
+  `%Breadcrumb` container in code.
   - **All live tabs are now migrated** (#250) and since #260 **every shipped
     tab is live**: spell / vfx / statboard / procgen / node_visuals / gimbal_3d /
     tooltip_fan / toasts / allocation / loot are each a one-node inherited scene of
-    the base, so every live tab carries the breadcrumb chrome. The
-    backward-compatibility path — a legacy bare-node tab (root = `MarginContainer`
-    + this script, no chrome children) where the panel falls back onto `self` and
-    every chrome hook null-guards to a no-op — still exists in the script as a
-    safety net, but no shipped tab uses it.
+    the base, so every live tab carries the breadcrumb chrome. There is no
+    dual-mount fallback left — `_mount_panel()` only ever adopts the scenically
+    authored `%PanelHost` child (#881).
   - **Generator no longer emits tabs** (#250 live tabs, #260 the last played
     cards). `tools/gen_sandbox_tabs.gd` now builds only the host scene. Tabs in
     every mode are hand-authored inherited scenes (an inherited scene can't be
     expressed via `PackedScene.pack`, and it hand-authors cleanly — path-resolved
     ext_resources, no uid landmines), and regenerating them would silently
     clobber hand-authored files (the 60_toast landmine this retired). To add a
-    tab, copy an existing one under `addons/sandbox_host/tabs/` and swap the
-    four exports.
+    tab, copy an existing one under `addons/sandbox_host/tabs/` and swap
+    `tab_title` / `tab_id` / `loader_method`.
 - `sandbox_played_tab.gd` (`SandboxPlayedTab`) — a launch card (title +
   description + optional `preview: Texture2D` + ▶ Run → `play_custom_scene`).
   Played scenes can't run in-editor because they *auto-drive* (turn loop / AI /

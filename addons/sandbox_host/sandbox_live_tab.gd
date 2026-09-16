@@ -9,41 +9,33 @@ extends SandboxTab
 ## base carries the shared chrome — a thin back-ref toolbar (jump to the panel's
 ## source scene / its folder, force a reload) over a `%PanelHost` slot — so the
 ## tree is scenic and previewable, per scene-composition.md. Each concrete tab is
-## a one-node inherited scene that only overrides the four exports below. The
-## panel itself is injected via `panel_scene` (DI) and instanced into the host in
-## _ready; the host pushes the inspected resource through `load_object`, which
-## forwards to the panel's own loader method by name.
+## a one-node inherited scene that only overrides tab_title / tab_id /
+## loader_method below, and instances its panel scenically as the sole child of
+## `%PanelHost` — `_mount_panel()` adopts that child at `_ready`. The host pushes
+## the inspected resource through `load_object`, which forwards to the panel's
+## own loader method by name.
 ##
 ## Back-refs (the "why is my tweak surface not one click away" fix): the toolbar
-## resolves the panel's source `.tscn` from `panel_scene.resource_path` and opens
-## it / reveals its folder via `EditorInterface`, so tuning the embedded scene is
-## always reachable from the running tab. Editor-only (guarded by
-## `Engine.is_editor_hint()`).
-##
-## Backward-compatible: a legacy tab that is a bare `MarginContainer` + this
-## script (no `%PanelHost` / toolbar children) still works — the panel falls back
-## to being parented on `self`, just without the chrome, until it's migrated to
-## an inherited scene.
+## resolves the panel's source `.tscn` from the adopted panel's own
+## `scene_file_path` and opens it / reveals its folder via `EditorInterface`, so
+## tuning the embedded scene is always reachable from the running tab.
+## Editor-only (guarded by `Engine.is_editor_hint()`).
 ##
 ## A panel that wants a hard reset (stuck cast state, leftover VFX children,
 ## a build-once guard that won't re-run) can emit its own `reload_requested`
 ## signal (#144); it's connected here and also driven by the toolbar's reload
-## button. Reload discards the instance and re-instantiates `panel_scene` from
-## scratch — the last object routed through `load_object` is re-delivered so the
-## reload doesn't lose context.
+## button. Reload rebuilds the whole tab from its own `.tscn` via
+## `SandboxHost.reload_tab()` — the last object routed through `load_object` is
+## re-delivered so the reload doesn't lose context.
 
 @export var tab_title: String = "Tab"
 ## Host routing key — must match the id the EditorPlugin routes to
 ## (spell / vfx / statboard).
 @export var tab_id: StringName
-## The @tool panel scene to embed (e.g. the spell playground panel). Also the
-## back-ref target — the toolbar opens this scene's source for tuning.
-@export var panel_scene: PackedScene
 ## Panel method that loads the currently-inspected resource (load_spell / …).
 @export var loader_method: StringName
 
-## Chrome from the base scene (`sandbox_live_tab.tscn`). Absent on un-migrated
-## legacy tabs — every use is null-guarded so those keep working.
+## Chrome from the base scene (`sandbox_live_tab.tscn`).
 @onready var _panel_host: Control = get_node_or_null(^"%PanelHost")
 @onready var _title_label: Label = get_node_or_null(^"%TitleLabel")
 @onready var _breadcrumb: HBoxContainer = get_node_or_null(^"%Breadcrumb")
@@ -60,15 +52,14 @@ var _last_loaded_object: Object
 func _ready() -> void:
 	for side in [&"margin_left", &"margin_right", &"margin_top", &"margin_bottom"]:
 		add_theme_constant_override(side, 4)
-	# Mount first: a scenically composed tab has no `panel_scene`, so the toolbar's
-	# breadcrumb has to read the source path off the adopted panel itself.
+	# Mount first: the toolbar's breadcrumb reads the source path off the
+	# adopted panel itself.
 	_mount_panel()
 	_wire_chrome()
 	_wire_sidebar()
 
 
-## Wires the base scene's toolbar to the back-ref actions and labels it. No-ops
-## on a legacy tab that has no chrome nodes.
+## Wires the base scene's toolbar to the back-ref actions and labels it.
 func _wire_chrome() -> void:
 	if _title_label != null:
 		_title_label.text = tab_title
@@ -119,13 +110,10 @@ func _build_breadcrumb() -> void:
 			accum += "/"
 
 
-## The panel's source `.tscn`, for the back-ref toolbar. A scenically composed tab
-## carries no `panel_scene`, so the adopted child's own `scene_file_path` is the
-## authority; the export is only the fallback for tabs not yet migrated.
+## The panel's source `.tscn`, for the back-ref toolbar — read off the adopted
+## panel's own `scene_file_path`.
 func _panel_source_path() -> String:
-	if _panel != null and not _panel.scene_file_path.is_empty():
-		return _panel.scene_file_path
-	return panel_scene.resource_path if panel_scene != null else ""
+	return _panel.scene_file_path if _panel != null else ""
 
 
 ## Back-ref jump: open the scene (file) or reveal the folder in the FileSystem
@@ -139,36 +127,20 @@ func _open_source(target: String, is_file: bool) -> void:
 		EditorInterface.get_file_system_dock().navigate_to_path(target)
 
 
-## Adopt-or-instance (#254): if the tab authored a panel *scenically* under
-## `%PanelHost` (so it previews non-empty in the editor), adopt that child;
-## otherwise instance `panel_scene`. Adoption is only ever done in the dedicated
-## `%PanelHost` slot — the legacy `self` fallback holds chrome children, so it
-## always instances rather than mistaking the toolbar for the panel.
+## Adopt the panel authored scenically under `%PanelHost` (#254): every live tab
+## bakes its panel as that slot's sole child, so the tab previews non-empty in
+## the editor and cold open + reload take the same path.
 func _mount_panel() -> void:
-	if _panel_host != null:
-		_panel = _find_baked_panel(_panel_host)
-		if _panel == null:
-			_panel = _instance_panel(_panel_host)
-	else:
-		_panel = _instance_panel(self)
+	_panel = _find_baked_panel(_panel_host)
 	_finish_panel_setup()
 
 
-## The first Control child of the panel slot, authored at edit time. Null when the
-## slot is empty (the common case today — no tab bakes its panel in yet).
+## The first Control child of the panel slot, authored at edit time.
 func _find_baked_panel(host: Node) -> Control:
 	for child in host.get_children():
 		if child is Control:
 			return child
 	return null
-
-
-func _instance_panel(host: Node) -> Control:
-	if panel_scene == null:
-		return null
-	var panel: Control = panel_scene.instantiate()
-	host.add_child(panel)
-	return panel
 
 
 func _finish_panel_setup() -> void:
@@ -196,30 +168,15 @@ func _wire_sidebar() -> void:
 ## Rebuild from scratch — the only way to clear state a scene-recreate is meant to
 ## fix (stuck cast state, leftover VFX children, a build-once guard).
 ##
-## **The whole tab is the unit of reload**, not the panel. A scenically composed
-## tab has no `panel_scene` to re-instance, and re-instancing was never right
-## anyway: rebuilding the tab from its own `.tscn` puts reload on exactly the same
-## path as a cold open, so a panel can't behave differently after a reload than it
-## did on first mount. That difference is not cosmetic — a panel `add_child`ed
-## after the fact is what stopped the Bloom tab's glow pass from ever running
-## (#371).
-##
-## Falls back to swapping just the panel for a legacy tab that still injects a
-## `panel_scene` and is not hosted by a `SandboxHost`.
+## **The whole tab is the unit of reload**, not the panel. Rebuilding the tab
+## from its own `.tscn` puts reload on exactly the same path as a cold open, so
+## a panel can't behave differently after a reload than it did on first mount.
+## That difference is not cosmetic — a panel `add_child`ed after the fact is
+## what stopped the Bloom tab's glow pass from ever running (#371).
 func _on_panel_reload_requested() -> void:
 	var host := _find_host()
 	if host != null:
 		host.reload_tab(self)
-		return
-	if _panel == null or panel_scene == null:
-		return
-	var panel_host := _panel.get_parent()
-	var old := _panel
-	_panel = null
-	panel_host.remove_child(old)
-	old.queue_free()
-	_panel = _instance_panel(panel_host)
-	_finish_panel_setup()
 
 
 func _find_host() -> SandboxHost:

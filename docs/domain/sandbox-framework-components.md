@@ -48,14 +48,14 @@ A composable `Control` (ScrollContainer → VBox), no tab knowledge:
 A tab wires it in one line: `card_list.selected_resource.connect(tab.load_object)`
 — or the scaffold self-wires it (below).
 
-### B. In-place panel baking (#254)
+### B. In-place panel baking (#254) — shipped, adopt-only
 
-Resolve the two `sandbox_live_tab.gd` TODOs. **Decision to pin (recommended):**
+Resolve the two `sandbox_live_tab.gd` TODOs. **Decision pinned (shipped):**
 author the default panel as a **scenic child of `%PanelHost`** in each tab (so the
-tab previews non-empty at edit time), and keep `panel_scene` DI **only** as the
-reload/rebuild source. The base's `_instantiate_panel` becomes: *if `%PanelHost`
-already has an authored child, adopt it; else instance `panel_scene`* — so both
-the scenic child and the reload path coexist without double-instancing.
+tab previews non-empty at edit time). `_mount_panel()` adopts that authored
+child; there is no `panel_scene` DI fallback — every tab bakes its panel, so
+adopt-only is the whole mechanism (#881 deleted the DI export and the
+dual-mount branch once the last tab was migrated).
 
 ### C. `SceneSwitcher` — reusable element (#254, the v2 idea)
 
@@ -130,10 +130,11 @@ lands as **one orchestrator commit** first; workers then own strictly disjoint
 
 `SceneSwitcher` is **deferred (YAGNI).** No v2 scene is queued. Its motivating
 concern — *not hard-coupling the tab to a single scene, so trying a v2 later
-doesn't mean diving into the tab's internals* — is already satisfied by #254's
-design keeping `panel_scene` (a plain `@export`) as the swap point. Swapping a
-scene = change one exported reference, no internals. So no switcher UI is built
-now; the decoupling is structural, not a feature.
+doesn't mean diving into the tab's internals* — is a smaller ask than it sounds
+even without a DI export (removed #881): the baked panel is the sole authored
+child of `%PanelHost` in the tab's own inherited `.tscn`, so swapping it is one
+`instance=ExtResource(...)` edit on that one node, not a code change. So no
+switcher UI is built now; the decoupling is structural, not a feature.
 
 ## Adjacent threads surfaced — tracked, NOT in this swarm
 

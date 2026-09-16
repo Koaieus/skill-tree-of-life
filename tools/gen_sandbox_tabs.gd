@@ -13,9 +13,7 @@ extends SceneTree
 ## live tabs, #260 the last played cards). A live tab is a one-node **inherited
 ## scene** of `sandbox_live_tab.tscn` (the scenic base with the breadcrumb
 ## toolbar + %PanelHost slot) that *instances its panel scene inside itself*
-## under %PanelHost, overriding tab_title / tab_id / loader_method — never via
-## the legacy `panel_scene` export, which `add_child`s the panel at runtime
-## instead of shipping it pre-packaged (see
+## under %PanelHost, overriding tab_title / tab_id / loader_method (see
 ## .claude/rules/sandbox-host.md). Inherited scenes can't be expressed via
 ## PackedScene.pack, and they hand-author cleanly (path-resolved
 ## ext_resources, no uid landmines), so to add a tab: copy an existing one
