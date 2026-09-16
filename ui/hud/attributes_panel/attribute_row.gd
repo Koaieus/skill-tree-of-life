@@ -44,7 +44,7 @@ signal row_unhovered(attr_id: StringName)
 var _tween: Tween
 var _last_value: float = NAN
 var _delta_baseline: float = NAN
-var _delta_pending: bool = false
+var _flush_delta_deferred := DeferredOnce.new(_flush_delta)
 
 
 func _ready() -> void:
@@ -60,10 +60,9 @@ func _ready() -> void:
 
 
 func set_value(v: float) -> void:
-	if not _delta_pending:
+	if not _flush_delta_deferred.is_queued():
 		_delta_baseline = _last_value
-		_delta_pending = true
-		call_deferred("_flush_delta")
+	_flush_delta_deferred.request()
 	_last_value = v
 	if _value == null:
 		return
@@ -74,7 +73,6 @@ func set_value(v: float) -> void:
 
 
 func _flush_delta() -> void:
-	_delta_pending = false
 	if is_nan(_delta_baseline) or _chip == null:
 		return
 	var shown := _rendered(_last_value)

@@ -61,7 +61,7 @@ var _override_active: bool = false
 var _override_value: float = 0.0
 
 var _delta_baseline: float = NAN
-var _delta_pending: bool = false
+var _flush_delta_deferred := DeferredOnce.new(_flush_delta)
 
 ## #913 — self-binding state. [member _bound_board] gates re-linking
 ## [signal Stat.value_changed] to only when the board actually changes (a
@@ -140,17 +140,15 @@ func resolve_override(hover_node: SkillNode, board: StatBoard, baseline: float) 
 
 
 func set_value(v: float, suffix: String = "") -> void:
-	if not _delta_pending:
+	if not _flush_delta_deferred.is_queued():
 		_delta_baseline = _last_value
-		_delta_pending = true
-		call_deferred("_flush_delta")
+	_flush_delta_deferred.request()
 	_last_value = v
 	_last_suffix = suffix
 	_render()
 
 
 func _flush_delta() -> void:
-	_delta_pending = false
 	if is_nan(_delta_baseline) or _override_active or _chip == null:
 		return
 	var shown := _rendered(_last_value)

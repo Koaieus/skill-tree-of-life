@@ -42,7 +42,7 @@ static var current_zoom: float = 1.0
 ## wheel ticks inside a single rendered frame, and each broadcast is O(live
 ## Edge count) downstream. Same debounce shape as
 ## `VisionSystem._request_recompute` (`systems/vision_system.gd`).
-var _zoom_broadcast_pending: bool = false
+var _zoom_broadcast_deferred := DeferredOnce.new(_broadcast_zoom_deferred)
 
 ## Wheel-zoom floor, tighter than [constant MIN_ZOOM] when the level's own
 ## `limit_*` rect (GameRoot._apply_graph_bounds) is smaller than the viewport
@@ -464,13 +464,9 @@ func pan_to(world_pos: Vector2) -> void:
 
 
 func _request_zoom_broadcast() -> void:
-	if _zoom_broadcast_pending:
-		return
-	_zoom_broadcast_pending = true
-	_broadcast_zoom_deferred.call_deferred()
+	_zoom_broadcast_deferred.request()
 
 
 func _broadcast_zoom_deferred() -> void:
-	_zoom_broadcast_pending = false
 	Events.camera_zoom_changed.emit(current_zoom)
 	RenderingServer.global_shader_parameter_set(&"edge_camera_zoom", current_zoom)

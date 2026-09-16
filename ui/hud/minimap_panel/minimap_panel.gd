@@ -90,7 +90,7 @@ var _map_offset: Vector2 = Vector2.ZERO
 
 ## Coalesces a burst of structural signals (procgen adding a few hundred nodes,
 ## a forced-dealloc cascade) into ONE geometry rebuild at the end of the frame.
-var _geometry_dirty: bool = false
+var _rebuild_geometry_deferred := DeferredOnce.new(_rebuild_geometry)
 
 # Last camera state the outline was drawn for. Polled rather than signalled
 # because the zoom TWEEN moves `zoom` continuously and emits nothing per frame.
@@ -222,16 +222,12 @@ func _map_to_world(map_pos: Vector2) -> Vector2:
 # --------------------------------------------------------------- geometry ---
 
 func _mark_geometry_dirty() -> void:
-	if _geometry_dirty:
-		return
-	_geometry_dirty = true
-	_rebuild_geometry.call_deferred()
+	_rebuild_geometry_deferred.request()
 
 
 ## Walk the board once and hand [MinimapGraphLayer] two flat arrays. O(nodes +
 ## edges), and it runs on structural change — not per frame, and never on a pan.
 func _rebuild_geometry() -> void:
-	_geometry_dirty = false
 	if graph_layer == null:
 		return
 	var edge_points := PackedVector2Array()

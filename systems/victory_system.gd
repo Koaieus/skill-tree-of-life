@@ -67,7 +67,7 @@ var outcome: RunOutcome = null
 ## say so, exactly as a level does.
 var world_ready: bool = false
 
-var _pending: bool = false
+var _evaluate_deferred := DeferredOnce.new(_evaluate)
 
 
 func _ready() -> void:
@@ -75,10 +75,9 @@ func _ready() -> void:
 
 
 func _on_entity_death_shown(_entity: Entity) -> void:
-	if outcome != null or _pending:
+	if outcome != null:
 		return
-	_pending = true
-	_evaluate.call_deferred()
+	_evaluate_deferred.request()
 
 
 ## Build a snapshot and ask the condition. Public so a test (or a future
@@ -104,11 +103,11 @@ func build_context() -> VictoryContext:
 
 
 func _evaluate() -> void:
-	_pending = false
 	# #667: refuse to judge a world that does not exist yet. Cheap, and it sits
 	# next to the latch it protects rather than depending on the network layer
-	# never letting a death through. `_pending` is already cleared above, so the
-	# next real death schedules a fresh evaluation.
+	# never letting a death through. `_evaluate_deferred` is no longer queued
+	# by the time this runs, so the next real death schedules a fresh
+	# evaluation.
 	if not world_ready:
 		return
 	if outcome != null or condition == null:
