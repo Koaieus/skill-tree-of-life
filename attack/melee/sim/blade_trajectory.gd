@@ -48,3 +48,8 @@ func sample(t: float) -> PackedVector2Array:
 	for j in a.size():
 		out[j] = a[j].lerp(b[j], frac)
 	return out
+
+
+## Stub (#930) — filled in below the red test.
+func centroid_at(_t: float) -> Vector2:
+	return Vector2.ZERO

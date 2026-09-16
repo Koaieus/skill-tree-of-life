@@ -29,6 +29,8 @@ const _FORM_DIM: float = 0.45
 const _FORM_SCALE: float = 0.4
 ## Scale an addon stamp punches to.
 const _STAMP_SCALE: float = 1.22
+## Stub (#930).
+const FOCUS_PIVOT_WEIGHT: float = 5.0
 
 const SCENE := preload("res://attack/melee/skill_blade.tscn")
 const BLADE_NODE := preload("res://attack/melee/blade_node.tscn")
@@ -721,3 +723,14 @@ func is_vertex_placed(i: int) -> bool:
 ## test-inspection use (#781's bunker break de-lights one of these).
 func get_edge_visuals() -> Array[BladeEdge]:
 	return _edge_visuals
+
+
+## Stub (#930).
+static func weighted_focus(pivot: Vector2, _flat_centroid: Vector2, _n: int,
+		_pivot_weight: float = FOCUS_PIVOT_WEIGHT) -> Vector2:
+	return pivot
+
+
+## Stub (#930).
+func focus_marker() -> Marker2D:
+	return null
