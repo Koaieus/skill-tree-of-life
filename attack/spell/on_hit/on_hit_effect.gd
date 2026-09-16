@@ -39,6 +39,16 @@ func get_description(_spell: SpellDef = null, _board: StatBoard = null) -> Strin
 ## [method RangeFinder._fmt_num] — same four lines, different Resource tree;
 ## kept local so an effect's own describer reads correctly in isolation and
 ## neither hierarchy has to depend on the other. Fold them if a third appears.
+## [method _fmt_num] for a [member HitInstance.basis]-denominated number: a
+## FLAT amount reads as-is, a PERCENT_MAX coefficient as a percentage of the
+## target's max hp — the two describers that quote a spell's impact number
+## ([DamageEffect], [HealEffect]) share it.
+static func _fmt_amount(v: float, basis: HitInstance.AmountBasis) -> String:
+	if basis == HitInstance.AmountBasis.PERCENT_MAX:
+		return "%s%% of max HP" % _fmt_num(v * 100.0)
+	return _fmt_num(v)
+
+
 static func _fmt_num(v: float) -> String:
 	if is_equal_approx(v, roundf(v)):
 		return str(int(v))

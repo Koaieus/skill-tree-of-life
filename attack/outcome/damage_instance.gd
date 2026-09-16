@@ -27,6 +27,7 @@ func _init() -> void:
 ## (`BladeDamageInstance.land_on`) — both of which run before this `super`
 ## call. A normal hit multiplies by 1.0, so there is no `if is_crit` to forget.
 func land_on(node: NodeCombat, _world: CombatWorld) -> void:
+	resolve_amount(node)
 	CritRoll.apply(self)
 	node.take_damage(amount, self)
 

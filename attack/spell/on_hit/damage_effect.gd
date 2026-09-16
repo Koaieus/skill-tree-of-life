@@ -11,12 +11,19 @@ extends OnHitEffect
 ## the first projectile flies from the cast-from node, not from nowhere.
 
 
+## How the hit is denominated (see [member HitInstance.basis]): FLAT lands
+## [member CastSpell.damage] as HP; PERCENT_MAX lands it as a fraction of the
+## target's max hp, resolved at land by [method DamageInstance.land_on].
+@export var basis: HitInstance.AmountBasis = HitInstance.AmountBasis.FLAT
+
+
 func apply(lctx: LandingContext) -> void:
 	var state := lctx.payload
 	if state.current_node == null or state.damage <= 0.0:
 		return
 	var hit := DamageInstance.new()
 	hit.amount = state.damage
+	hit.basis = basis
 	hit.type = DamageInstance.Type.MAGIC
 	hit.source = state
 	hit.target = state.current_node
@@ -29,4 +36,4 @@ func apply(lctx: LandingContext) -> void:
 func get_description(spell: SpellDef = null, board: StatBoard = null) -> String:
 	if spell == null:
 		return "Deals magic damage."
-	return "Deals %s damage." % _fmt_num(SpellResolver.impact_damage(spell, null, board))
+	return "Deals %s damage." % _fmt_amount(SpellResolver.impact_damage(spell, null, board), basis)

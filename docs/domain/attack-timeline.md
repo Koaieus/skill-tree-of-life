@@ -143,6 +143,7 @@ The target state. Where this differs from what the code does today, the
 | Attacker offense (`ranged_damage`, blade vertex damage, spell damage) | **Commit** | ✅ all three modes — snapshotted, see below |
 | Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | **Resolve** | ✅ all three modes, one shared `CritRoll` (#507) — see below |
 | Crit *multiplier* (`amount ×= crit_multiplier`) | **Land** | ✅ all three modes, in base `DamageInstance`/`HealInstance.land_on` |
+| Amount *basis* (`HitInstance.basis` — FLAT HP or `PERCENT_MAX` of the target's max hp) | **Land** | ✅ `HitInstance.resolve_amount`, called from base `DamageInstance`/`HealInstance.land_on` ahead of the crit multiply; resolves once and flips itself to FLAT, so a rebuilt record (already FLAT) never re-scales. Sizes the number *before* `Mitigation` — bypass is `Type.TRUE`'s axis, not this one |
 | Defender mitigation (`armor`, `min_damage_taken`) | **Land** | ✅ already live — `Mitigation.apply` runs inside `SkillNode.take_damage` |
 | Cascade / dealloc / entity death | **Land** | ✅ already live and synchronous |
 

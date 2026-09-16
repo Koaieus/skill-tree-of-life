@@ -379,6 +379,9 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 			# alternative is re-applying armour to a post-armour number.
 			di.type = DamageInstance.Type.TRUE
 			hit = di
+		# `basis` stays at its FLAT default on purpose: the authority's own
+		# `land_on` already resolved a PERCENT_MAX coefficient into this number
+		# (HitInstance.resolve_amount), and a peer must land it, not re-scale it.
 		hit.amount = amount
 		# Carried even when the replay lands nothing (gated, or mitigated to
 		# zero on the host), so a VFX reader sees the host's number rather

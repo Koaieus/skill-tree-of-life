@@ -14,5 +14,5 @@ decay_per_tick = 1.0
 reapply = 1
 cure_per_hp = 0.25
 on_dealloc = 0
-damage_mode = 1
+basis = 1
 damage_per_power = 0.05

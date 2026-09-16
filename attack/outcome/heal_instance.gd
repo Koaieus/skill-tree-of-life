@@ -20,6 +20,7 @@ func _init() -> void:
 ## deliberately NOT gated behind a spell-specific on-hit effect: any heal,
 ## from any source, cures.
 func land_on(node: NodeCombat, _world: CombatWorld) -> void:
+	resolve_amount(node)
 	CritRoll.apply(self)
 	node.heal_damage(amount, self)
 	node.cure_debuffs(effective_amount)

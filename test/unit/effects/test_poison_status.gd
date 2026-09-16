@@ -2,7 +2,7 @@ extends GutTest
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## [PoisonStatus] (#874, hub #868 D3/D5/D6): unmitigated `DamageInstance.Type.TRUE`
-## damage on `_on_tick`, flat or `%`-of-max-hp per [member PoisonStatus.damage_mode],
+## damage on `_on_tick`, flat or `%`-of-max-hp per [member PoisonStatus.basis],
 ## scaled by the tick's PRE-decay power. Can kill through the same
 ## `notify_depleted` → `BattleSystem._on_node_depleted` derive-cascade path a
 ## bare `take_damage` call reaches (#870) — the amendments' re-entrancy
@@ -53,7 +53,7 @@ func _combat() -> NodeCombat:
 	return _nodes[0].get_combat()
 
 
-func _def(mode: PoisonStatus.DamageMode, per_power: float, power_max: float = 5.0,
+func _def(basis: HitInstance.AmountBasis, per_power: float, power_max: float = 5.0,
 		decay: float = 1.0) -> PoisonStatus:
 	var d := PoisonStatus.new()
 	d.id = &"poison"
@@ -62,7 +62,7 @@ func _def(mode: PoisonStatus.DamageMode, per_power: float, power_max: float = 5.
 	d.reapply = StatusDef.Reapply.ACCUMULATE
 	d.power_max = power_max
 	d.decay_per_tick = decay
-	d.damage_mode = mode
+	d.basis = basis
 	d.damage_per_power = per_power
 	return d
 
@@ -84,7 +84,7 @@ func test_flat_ticks_deal_power_times_damage_per_power_and_decay() -> void:
 	# Armor is left at its default and never touched — TRUE bypasses it
 	# entirely, so there is nothing to set for that half of the acceptance line.
 	_set_max_hp(20.0)
-	var d := _def(PoisonStatus.DamageMode.FLAT, 2.0)
+	var d := _def(HitInstance.AmountBasis.FLAT, 2.0)
 	_combat().apply_status(d, 3.0)
 
 	_combat().tick_statuses()
@@ -101,7 +101,7 @@ func test_flat_ticks_deal_power_times_damage_per_power_and_decay() -> void:
 
 func test_percent_max_scales_by_node_max_hp() -> void:
 	_set_max_hp(20.0)
-	var d := _def(PoisonStatus.DamageMode.PERCENT_MAX, 0.1)
+	var d := _def(HitInstance.AmountBasis.PERCENT_MAX, 0.1)
 	_combat().apply_status(d, 2.0)
 
 	_combat().tick_statuses()
@@ -110,7 +110,7 @@ func test_percent_max_scales_by_node_max_hp() -> void:
 
 
 func test_accumulate_stacks_and_clamps_at_power_max() -> void:
-	var d := _def(PoisonStatus.DamageMode.FLAT, 1.0, 5.0)
+	var d := _def(HitInstance.AmountBasis.FLAT, 1.0, 5.0)
 	_combat().apply_status(d, 3.0)
 	_combat().apply_status(d, 3.0)
 	assert_almost_eq(_combat().get_status_power(&"poison"), 5.0, 0.001, "3 + 3 clamps at power_max 5")
@@ -118,7 +118,7 @@ func test_accumulate_stacks_and_clamps_at_power_max() -> void:
 
 func test_poisoned_node_does_not_regen_the_same_upkeep() -> void:
 	_set_max_hp(20.0)
-	var d := _def(PoisonStatus.DamageMode.FLAT, 1.0)
+	var d := _def(HitInstance.AmountBasis.FLAT, 1.0)
 	_combat().apply_status(d, 1.0)
 
 	_combat().tick_statuses()  # hub D4: fires before apply_turn_regen this same upkeep beat
@@ -162,9 +162,9 @@ func test_lethal_tick_kills_islands_and_clears_statuses() -> void:
 
 	# Grossly lethal — the node's exact max hp doesn't matter, only that one
 	# tick overkills it (acceptance's "power 5 on a 5-hp node").
-	var lethal := _def(PoisonStatus.DamageMode.FLAT, 100000.0)
+	var lethal := _def(HitInstance.AmountBasis.FLAT, 100000.0)
 	n1.get_combat().apply_status(lethal, 5.0)
-	var mild := _def(PoisonStatus.DamageMode.FLAT, 0.0)
+	var mild := _def(HitInstance.AmountBasis.FLAT, 0.0)
 	mild.id = &"poison_mild"
 	n2.get_combat().apply_status(mild, 1.0)
 

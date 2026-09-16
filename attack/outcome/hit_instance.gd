@@ -21,6 +21,26 @@ extends RefCounted
 enum Kind { DAMAGE, HEAL, STATUS }
 var kind: Kind = Kind.DAMAGE
 
+## What [member amount] is denominated in. [constant AmountBasis.FLAT] is HP;
+## [constant AmountBasis.PERCENT_MAX] is a fraction of the TARGET's max hp, which
+## [method land_on] resolves into HP exactly once via [method resolve_amount]
+## against the landing slice (the world-aware read — max hp is the owner's
+## board, and ownership can move between resolve and land). One knob for
+## damage and heal alike, authored on the producer ([DamageEffect] /
+## [HealEffect]'s export, [PoisonStatus]'s tick), never chosen at land.
+##
+## A PERCENT_MAX damage hit becomes a concrete number BEFORE [Mitigation]
+## runs, so armour eats it like any other hit — sizing and bypass are
+## separate axes; bypass is [constant DamageInstance.Type.TRUE]'s job.
+enum AmountBasis { FLAT, PERCENT_MAX }
+var basis: AmountBasis = AmountBasis.FLAT
+
+## The hit's magnitude in the units [member basis] names. Until [method
+## land_on] runs it may be a COEFFICIENT rather than HP — PERCENT_MAX here,
+## the speed-curve factor in [BladeDamageInstance] (#779) — and land resolves
+## it in place, once, on the authority's own resolve. [method
+## AttackRecord.rebuild] reconstructs a FLAT hit carrying the resolved number,
+## so a peer's replay cannot scale it a second time.
 var amount: float = 0.0
 ## Who/what produced this hit — [AttackPlan], [SpellDef], or any RefCounted.
 ## Routed back through the [signal Events.skill_node_damaged] payload so UI
@@ -198,3 +218,15 @@ var gated: bool = false
 ## target itself ignores it.
 func land_on(_node: NodeCombat, _world: CombatWorld) -> void:
 	push_error("HitInstance.land_on is abstract — override on the subclass")
+
+
+## Resolve [member amount] into HP against the landing slice, per [member
+## basis] — idempotent by construction: it flips [member basis] to FLAT, so a
+## second call (or a rebuilt record's replay) multiplies nothing. Called by
+## each subclass's [method land_on] ahead of [method CritRoll.apply]; the two
+## multiplies commute, the order just keeps "what did this hit ask for" and
+## "how hard did it crit" as separate steps.
+func resolve_amount(node: NodeCombat) -> void:
+	if basis == AmountBasis.PERCENT_MAX:
+		amount *= node.get_max_hp()
+		basis = AmountBasis.FLAT

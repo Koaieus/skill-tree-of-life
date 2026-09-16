@@ -11,12 +11,19 @@ extends OnHitEffect
 ## present (hops); falls back to [member CastSpell.source] for the seed so
 ## the first projectile flies from the cast-from node, not from nowhere.
 
+## How the heal is denominated (see [member HitInstance.basis]): FLAT lands
+## [member CastSpell.damage] as HP; PERCENT_MAX lands it as a fraction of the
+## target's max hp, resolved at land by [method HealInstance.land_on].
+@export var basis: HitInstance.AmountBasis = HitInstance.AmountBasis.FLAT
+
+
 func apply(lctx: LandingContext) -> void:
 	var state := lctx.payload
 	if state.current_node == null or state.damage <= 0.0:
 		return
 	var heal := HealInstance.new()
 	heal.amount = state.damage
+	heal.basis = basis
 	heal.source = state
 	heal.target = state.current_node
 	heal.origin = state.predecessor if state.predecessor != null else state.source
@@ -28,4 +35,4 @@ func apply(lctx: LandingContext) -> void:
 func get_description(spell: SpellDef = null, board: StatBoard = null) -> String:
 	if spell == null:
 		return "Heals the node it lands on."
-	return "Heals %s." % _fmt_num(SpellResolver.impact_damage(spell, null, board))
+	return "Heals %s." % _fmt_amount(SpellResolver.impact_damage(spell, null, board), basis)
