@@ -118,36 +118,9 @@ func test_a_seated_melee_commit_is_framed_like_everyone_elses() -> void:
 			"and mandatorily — a pan you made while aiming must not eat the shot")
 
 
-func test_the_pivot_pulls_five_times_as_hard_as_any_other_vertex() -> void:
-	# The pan target: weighted average of the blade's node positions, pivot
-	# weight x5, every other vertex 1. An unweighted centroid of these two
-	# points would sit at x=500.
-	var others := PackedVector2Array([Vector2(1000, 0)])
-	var center := CameraDirector.weighted_blade_center(Vector2.ZERO, others)
-	assert_almost_eq(center.x, 1000.0 / 6.0, 0.001,
-			"5 parts pivot to 1 part vertex, not a flat mean")
-	assert_almost_eq(center.y, 0.0, 0.001)
-
-
-func test_the_centroid_translates_as_the_blade_sweeps() -> void:
-	# The rubber band: "expect blades of 20, 40, 100 in size — a centroid would
-	# surely translate, the pivot never moves." Five vertices swinging from one
-	# side of the pivot to the other must drag the shot with them.
-	var before := PackedVector2Array()
-	var after := PackedVector2Array()
-	for i in 5:
-		before.append(Vector2(-600, i * 10))
-		after.append(Vector2(600, i * 10))
-	var a := CameraDirector.weighted_blade_center(Vector2.ZERO, before)
-	var b := CameraDirector.weighted_blade_center(Vector2.ZERO, after)
-	assert_lt(a.x, -100.0, "the shot leans toward where the blade actually is")
-	assert_gt(b.x, 100.0, "and follows it across")
-	assert_almost_eq(a.x, -b.x, 0.001, "symmetrically about the unmoving pivot")
-
-
-func test_an_empty_blade_tracks_the_pivot_alone() -> void:
-	assert_eq(CameraDirector.weighted_blade_center(Vector2(7, 9), PackedVector2Array()),
-			Vector2(7, 9), "no vertices is the pivot, not a divide by zero")
+# The three pure centroid tests (pivot weight, translation, empty blade)
+# migrated to test/unit/attack/test_skill_blade_focus.gd with #930 — the
+# weighting is the blade's now, and the constant is the owner's to tune.
 
 
 func test_the_track_target_is_the_pivot_when_no_blade_is_mounted() -> void:
@@ -413,11 +386,13 @@ func test_the_widen_changes_the_zoom_without_restarting_the_pan() -> void:
 
 
 func test_only_placed_vertices_pull_during_the_form_in() -> void:
-	# The centroid grows with the stagger: a vertex the form-in has not placed
+	# The focus grows with the stagger: a vertex the form-in has not placed
 	# yet does not pull, so the pan is one continuous band from the pivot to
-	# the rest centroid, landing exactly as the last vertex does. The stagger
-	# itself needs a graph (test_melee_staging pins it); here the visual state
-	# is driven by hand through the same predicate the director reads.
+	# the rest centroid, landing exactly as the last vertex does. Re-pointed at
+	# the blade's own %FocusMarker (#930) — the director follows that node
+	# (#931), it no longer derives the point itself. The stagger's order needs
+	# a graph (test_melee_staging pins it); here the form-in is driven by hand
+	# with a span no frame can cross.
 	_dir.seat_policy = SeatPolicy.couch()
 	var pivot := _node_at(Vector2.ZERO)
 	var far := _node_at(Vector2(0, 600))
@@ -431,17 +406,26 @@ func test_only_placed_vertices_pull_during_the_form_in() -> void:
 
 	preview.begin_windup(plan, null, false)
 	var blade := preview.current_blade()
+	# No graph under this fixture, so the plan induces no edge and the arm sits
+	# at hop 0 with the pivot; rebuild the same ghost with the edge the stagger
+	# needs to order them.
+	var nodes: Array[SkillNode] = [pivot, far]
+	blade.build_from_skill_nodes(nodes, pivot, [[pivot, far]], null)
 	var far_idx := 1 if blade.state.pivot_index == 0 else 0
-	blade.get_node_visuals()[far_idx].modulate.a = 0.0
+	blade.form_in(0.0, 100.0, 0.0, 0.0, 0.0)
+	await get_tree().process_frame
+	await get_tree().process_frame
 	assert_false(blade.is_vertex_placed(far_idx), "still waiting on its stagger delay")
-	assert_almost_eq(_dir.melee_track_target(), Vector2.ZERO, Vector2(0.001, 0.001),
-			"only the pivot pulls")
+	assert_almost_eq(blade.focus_marker().global_position, Vector2.ZERO,
+			Vector2(0.001, 0.001), "only the pivot pulls")
 
-	blade.get_node_visuals()[far_idx].modulate.a = 0.3
-	var rest := CameraDirector.weighted_blade_center(Vector2.ZERO,
-			PackedVector2Array([Vector2(0, 600)]))
-	assert_almost_eq(_dir.melee_track_target(), rest, Vector2(0.001, 0.001),
-			"its pop has begun: it pulls, and the goalpost IS the rest centroid")
+	blade.form_instantly()
+	var rest := SkillBlade.weighted_focus(Vector2.ZERO, Vector2(0, 300), 2,
+			SkillBlade.FOCUS_PIVOT_WEIGHT)
+	assert_almost_eq(blade.focus_marker().global_position, rest, Vector2(0.001, 0.001),
+			"placed: it pulls, and the goalpost IS the rest centroid")
+
+
 func test_a_melee_shot_waits_for_its_swing_however_long_the_windup_holds() -> void:
 	# The span's hold is sized from the SWING (schedule.duration() + tail) but
 	# opened at the widen beat, so on its own clock it expires mid-wind-up and
