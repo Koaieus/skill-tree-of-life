@@ -283,6 +283,23 @@ func test_a_seated_commit_hands_the_ghost_off_without_re_predicting() -> void:
 
 # --- Acceptance 3 + the record-ready hook -------------------------------------
 
+func test_the_swing_start_beat_fires_once_and_before_the_first_hit() -> void:
+	# #894: the camera arms its centroid tracking on this beat, so it must fire
+	# exactly once per launch and ahead of the first landing hit — a beat that
+	# fired after (or never) is the "no camera movement during the swing" the
+	# owner saw.
+	var order: Array[StringName] = []
+	_bs.melee_swing_started.connect(func(_o: AttackOutcome) -> void:
+		order.append(&"swing"))
+	Events.skill_node_damaged.connect(func(_n: SkillNode, _amt: float, _src: Variant) -> void:
+		order.append(&"hit"), CONNECT_ONE_SHOT)
+	_arm_plan()
+	_bs.launch_attack()
+	await _await_launch_settle()
+	assert_eq(order, [&"swing", &"hit"] as Array[StringName],
+			"one swing beat, then the hit lands")
+
+
 func test_the_swing_does_not_begin_while_the_record_ready_hook_is_unsatisfied() -> void:
 	# The seam #796 drives. Today `await_record_ready()` is a satisfied no-op on
 	# every production path (#545 — the record is final before the confirm), so

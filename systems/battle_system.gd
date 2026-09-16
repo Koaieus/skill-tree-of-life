@@ -28,6 +28,15 @@ signal attack_launched(mode: AttackMode, spell: SpellDef)
 ## [param attacker] is passed explicitly rather than read off the outcome,
 ## because an outcome with no hits carries no attacker.
 signal attack_committed(outcome: AttackOutcome, attacker: Entity)
+
+## The melee swing is STARTING — the whole wind-up (and any `record_ready`
+## hold) is spent and the blade is about to move. Fires once per melee
+## launch, right before [method MeleePreview.launch], with the outcome's
+## schedule already compiled so an observer can size itself off
+## [method OutcomeSchedule.duration]. [CameraDirector] arms its centroid
+## tracking on this beat (#894) rather than on a wall-clock re-derivation of
+## the wind-up, which could not see the hold and drifted from the swing.
+signal melee_swing_started(outcome: AttackOutcome)
 ## Fires for both plan swap and plan-internal mutation. Subscribers that
 ## care about lifecycle (mount per-mode UI) use [signal attack_plan_changed];
 ## subscribers that care about content (re-paint highlights) use this one.

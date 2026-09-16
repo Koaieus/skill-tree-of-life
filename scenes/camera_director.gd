@@ -520,6 +520,11 @@ func _widen_after(seconds: float, request: FocusRequest) -> void:
 	request_focus(request)
 
 
+## The swing is starting (#894) — stub.
+func _on_melee_swing_started(_outcome: AttackOutcome) -> void:
+	pass
+
+
 ## Arm the per-frame centroid push after [param seconds] — the whole wind-up
 ## (#894). Detached like [method _widen_after], and re-checks the lock on wake
 ## so a shot that [method release]d in the meantime cannot re-arm itself.

@@ -357,17 +357,100 @@ func _tempo(lead: float, form: float, stamp: float = 0.0, glow: float = 0.0,
 	return t
 
 
-func test_the_track_arm_delay_is_the_whole_windup_not_the_lead() -> void:
-	# Owner, 2026-09-15: the wind-up "plays the block average camera movement
-	# before the actual melee swing starts". The swing starts when the whole
-	# wind-up (lead + form + stamp + glow + flare) is spent, so that is the beat
-	# the centroid tracking arms on — not the lead, which is only the pivot hold.
+func test_the_swing_start_arms_the_centroid_tracking() -> void:
+	# Owner, 2026-09-15: "then when the swing actually starts, no camera
+	# movement". Tracking arms on the battle system's OWN swing-start beat —
+	# never on a wall-clock re-derivation of the wind-up, which could not see
+	# a `record_ready` hold and expired before the swing on a stamped blade.
+	_dir.seat_policy = SeatPolicy.couch()
+	_camera()
+	var pivot := _node_at(Vector2.ZERO)
+	_dir.battle_system = _battle_system(_melee_plan(pivot))
+	var outcome := _outcome([_hit(pivot, _node_at(Vector2(400, 0)))])
+
+	_dir._on_attack_committed(outcome, _entity(true))
+	assert_false(_dir.is_tracking(), "commit: the wind-up, nothing tracks")
+	_dir._on_melee_swing_started(outcome)
+	assert_true(_dir.is_tracking(), "the swing has started: now the band pulls")
+
+	_dir.release()
+	_dir._on_melee_swing_started(outcome)
+	assert_false(_dir.is_tracking(),
+			"a swing beat after release cannot re-arm a shot that has ended")
+
+
+func test_a_melee_shot_waits_for_its_swing_however_long_the_windup_holds() -> void:
+	# The span's hold is sized from the SWING (schedule.duration() + tail) but
+	# opened at the widen beat, so on its own clock it expires mid-wind-up and
+	# the swing played with a dead camera. The shot's course is the launch:
+	# while the battle system is still launching and no swing has started, the
+	# timer does not release it.
+	_dir.seat_policy = SeatPolicy.couch()
+	_camera()
 	var pivot := _node_at(Vector2.ZERO)
 	var bs := _battle_system(_melee_plan(pivot))
-	bs.presentation_tempo = _tempo(1.0, 2.0, 4.0, 8.0, 16.0)
+	bs.presentation_tempo = _tempo(0.0, 5.0)
 	_dir.battle_system = bs
-	assert_almost_eq(_dir.melee_track_arm_delay(), 27.0, 0.001,
-			"an unadorned blade spends no stamp beat, every other beat counts")
+	var outcome := _outcome([_hit(pivot, _node_at(Vector2(400, 0)), 0.5)])
+
+	_dir._on_attack_committed(outcome, _entity(true))
+	bs.is_launching = true
+	_dir._process(1000.0)
+	assert_true(_dir.is_melee_locked(), "far past the hold, still launching: the shot waits")
+
+	_dir._on_melee_swing_started(outcome)
+	_dir._process(0.01)
+	assert_true(_dir.is_melee_locked(), "the swing re-sizes the hold from its own start")
+	_dir._process(1000.0)
+	assert_false(_dir.is_melee_locked(),
+			"after the swing the tail governs — the launch flag no longer holds the camera")
+
+
+func test_a_melee_shot_with_no_swing_still_releases_once_the_launch_ends() -> void:
+	# `_commit` skips the wind-up and the preview when no MeleePreview is wired
+	# (a headless peer), so no swing beat ever fires — the guard must lift with
+	# `is_launching` or the camera would be locked for good.
+	_dir.seat_policy = SeatPolicy.couch()
+	_camera()
+	var pivot := _node_at(Vector2.ZERO)
+	var bs := _battle_system(_melee_plan(pivot))
+	_dir.battle_system = bs
+	_dir._on_attack_committed(_outcome([_hit(pivot, _node_at(Vector2(400, 0)))]), _entity(true))
+	bs.is_launching = false
+	_dir._process(1000.0)
+	assert_false(_dir.is_melee_locked(), "nothing to wait for: the timer releases as before")
+
+
+func test_the_melee_span_anchors_on_the_blades_rest_centroid() -> void:
+	# Owner, 2026-09-15: "first pan to the centroid. then as it starts
+	# swinging, track the centroid". The widen frames the span for ZOOM but pans
+	# to the weighted rest centroid, which is exactly where the per-frame
+	# tracking picks up — so the handoff is continuous, not a jerk from the
+	# AABB centre.
+	_dir.seat_policy = SeatPolicy.couch()
+	var pivot := _node_at(Vector2.ZERO)
+	var arm := _node_at(Vector2(0, 300))
+	var plan := _melee_plan(pivot)
+	plan.blade_nodes = [arm]
+	_dir.battle_system = _battle_system(plan)
+	var hits: Array[HitInstance] = [_hit(arm, _node_at(Vector2(400, 300)))]
+
+	var req := _dir._build_attack_request(_outcome(hits), _entity(true))
+	assert_true(req.has_anchor(), "a melee span carries an explicit pan target")
+	var expected := CameraDirector.weighted_blade_center(Vector2.ZERO,
+			PackedVector2Array([Vector2(0, 300)]))
+	assert_almost_eq(req.anchor, expected, Vector2(0.001, 0.001),
+			"the rest centroid: pivot weighted, blade nodes once each")
+	var decision := _dir.decide(req, CameraContext.make(VIEWPORT, 1.0, Vector2(5000, 5000)))
+	assert_almost_eq(decision.target, expected, Vector2(0.001, 0.001),
+			"and decide pans there, not to the AABB centre")
+
+
+func test_a_ranged_span_has_no_anchor() -> void:
+	_dir.seat_policy = SeatPolicy.couch()
+	var hits: Array[HitInstance] = [_hit(_node_at(Vector2.ZERO), _node_at(Vector2(400, 0)))]
+	var req := _dir._build_attack_request(_outcome(hits), _entity(false))
+	assert_false(req.has_anchor(), "ranged/magic keep the span-derived target")
 
 
 func test_centroid_tracking_does_not_move_the_camera_before_the_swing() -> void:
@@ -377,14 +460,14 @@ func test_centroid_tracking_does_not_move_the_camera_before_the_swing() -> void:
 	var bs := _battle_system(_melee_plan(pivot))
 	bs.presentation_tempo = _tempo(0.1, 0.3)
 	_dir.battle_system = bs
-	var hits: Array[HitInstance] = [_hit(pivot, _node_at(Vector2(400, 0)))]
+	var outcome := _outcome([_hit(pivot, _node_at(Vector2(400, 0)))])
 
-	_dir._on_attack_committed(_outcome(hits), _entity(true))
+	_dir._on_attack_committed(outcome, _entity(true))
 	assert_false(_dir.is_tracking(), "commit: the pivot beat, nothing tracks")
 	await wait_seconds(0.2)
 	assert_true(cam.is_following(),
 			"after the lead the span has widened and the follow is open...")
 	assert_false(_dir.is_tracking(),
 			"...but the blade is still forming, so the centroid is not the goalpost yet")
-	await wait_seconds(0.3)
+	_dir._on_melee_swing_started(outcome)
 	assert_true(_dir.is_tracking(), "the swing has started: now the band pulls")
