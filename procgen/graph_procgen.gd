@@ -152,7 +152,10 @@ static func generate(
 	if config.content != null:
 		config.content = config.content.duplicate(true)
 
-	var min_dist := 2.0 * config.topology.node_radius + config.topology.node_padding
+	# Sized for the LARGEST radius any node can carry (#783): with a
+	# `node_radius_ramp` that is the ramp's asymptote, so a max-budget node
+	# still clears its neighbours; without one it is the uniform node_radius.
+	var min_dist := 2.0 * config.topology.max_node_radius() + config.topology.node_padding
 	await _emit_progress(progress_cb, 0.02, "Preparing shape")
 	# Auto-size the shape mask so Poisson can fit node_count at the requested
 	# spacing without under-filling. See _POISSON_AREA_PER_POINT above.
@@ -287,7 +290,6 @@ static func generate(
 		else:
 			sn = _SKILL_NODE_SCENE.instantiate()
 		sn.position = positions[i]
-		sn.base_radius = config.topology.node_radius
 		var archetype_id: StringName = &""
 		var archetype_color: Color = Color.WHITE
 		var archetype_forbid: Array[StringName] = []
@@ -311,6 +313,9 @@ static func generate(
 				budget = config.content.budget_policy.compute_budget(
 						archetype_id, positions[i], role_tags, rng)
 			fp["budget"] = budget
+			# Radius follows the rolled budget (#783) — stamped before the
+			# keystone pass so an authored keystone radius still wins.
+			_stamp_radius(sn, config.topology.radius_for_budget(budget))
 			if config.content.modifier_pool_set != null:
 				sn.modifiers = _roll_modifiers_v4(
 						config.content.modifier_pool_set, config.content.weight_profiles,
@@ -330,6 +335,9 @@ static func generate(
 			# Persist role tags for downstream inspection / debug overlays.
 			if not placement_ctx.role_tags[i].is_empty():
 				sn.set_meta("role_tags", placement_ctx.role_tags[i].duplicate())
+		else:
+			# No archetype → no budget → the uniform default (budget 0 path).
+			_stamp_radius(sn, config.topology.radius_for_budget(0))
 		graph.add_skill_node(sn)
 		# After add_skill_node, so the node is in the tree and its addon anchor is
 		# listening. Outside the archetype gate, so a keystone lands even on a node
@@ -1073,6 +1081,17 @@ static func _place_blocker_footprints(
 
 
 # ── Addon roll (second pass) ─────────────────────────────────────────────
+
+
+## Procgen writes only the authored `base_*` pair (`radius` / `inner_radius`
+## are derived, stake growth on top — see SkillNode). The inner disk keeps a
+## constant 8px ring, today's 32/24, so the fill scales with the node.
+const _INNER_RING_PX := 8.0
+
+
+static func _stamp_radius(sn: SkillNode, base_radius: float) -> void:
+	sn.base_radius = base_radius
+	sn.base_inner_radius = base_radius - _INNER_RING_PX
 
 
 static func _roll_and_attach_addons(

@@ -34,8 +34,17 @@ extends Resource
 ## Radius for a rolled budget ≥ 1. Callers decide what a budget of 0 means
 ## ([GraphProcgenTopology] maps it to the uniform default).
 func radius_for(budget: int) -> float:
-	# TODO(#783): the drone implements the formula above.
-	return min_radius
+	var linear := min_radius + px_per_budget * float(budget - 1)
+	if budget <= knee_budget:
+		return linear
+	var knee_radius := min_radius + px_per_budget * float(knee_budget - 1)
+	var headroom := cap - knee_radius
+	if headroom <= 0.0:
+		# A cap tuned at or below the knee has no tail to bend into — clamp
+		# instead of handing the collision shape a NaN from a ≤ 0 divisor.
+		return minf(linear, cap)
+	var past_knee := px_per_budget * float(budget - knee_budget)
+	return knee_radius + headroom * (1.0 - exp(-past_knee / headroom))
 
 
 ## Largest radius the ramp can ever hand out — the asymptote.

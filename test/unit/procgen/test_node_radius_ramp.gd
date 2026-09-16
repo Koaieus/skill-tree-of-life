@@ -103,7 +103,8 @@ func test_generate_stamps_ramped_radius_and_constant_ring() -> void:
 	var below_32 := 0
 	var above_43 := 0
 	for sn: SkillNode in nodes:
-		if sn.keystone == ks:
+		# generate() deep-copies `content`, so match the keystone by name.
+		if sn.keystone != null and sn.keystone.display_name == ks.display_name:
 			keystoned += 1
 			assert_almost_eq(sn.base_radius, 61.0, 0.001, "keystone radius wins over the ramp")
 			continue

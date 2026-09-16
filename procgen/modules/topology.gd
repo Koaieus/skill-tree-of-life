@@ -45,12 +45,14 @@ extends Resource
 ## 0 (no budget policy) is the uniform [member node_radius] — the golden
 ## default — never the ramp's floor.
 func radius_for_budget(budget: int) -> float:
-	# TODO(#783): the drone routes budget ≥ 1 through node_radius_ramp.
-	return node_radius
+	if node_radius_ramp == null or budget < 1:
+		return node_radius
+	return node_radius_ramp.radius_for(budget)
 
 
 ## Largest radius any generated node can carry before stake growth — what
 ## `min_dist = 2 · max_node_radius() + node_padding` sizes for.
 func max_node_radius() -> float:
-	# TODO(#783): the drone returns node_radius_ramp.max_radius() when set.
-	return node_radius
+	if node_radius_ramp == null:
+		return node_radius
+	return node_radius_ramp.max_radius()
