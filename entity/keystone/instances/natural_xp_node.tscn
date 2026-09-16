@@ -1,9 +1,26 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=7 format=3]
+
 [ext_resource type="PackedScene" path="res://entity/keystone/keystone_skill_node.tscn" id="1_base"]
-[ext_resource type="Resource" path="res://entity/keystone/instances/natural_xp_node.tres" id="2_ks"]
+[ext_resource type="Script" uid="uid://dh6uu0jrbmt12" path="res://effects/stat_effect.gd" id="2_fx"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="3_mod"]
+[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="4_fxbase"]
+
+[sub_resource type="Resource" id="m_xp_per_turn"]
+script = ExtResource("3_mod")
+stat_id = &"xp_per_turn"
+value = 10.0
+
+[sub_resource type="Resource" id="m_wisdom"]
+script = ExtResource("3_mod")
+stat_id = &"wisdom"
+value = 10.0
+
+[sub_resource type="Resource" id="fx_natural_xp"]
+script = ExtResource("2_fx")
+modifiers = Array[ExtResource("3_mod")]([SubResource("m_xp_per_turn"), SubResource("m_wisdom")])
 
 [node name="NaturalXPNode" instance=ExtResource("1_base")]
 base_type_color = Color(0.2, 0.85, 0.35, 1)
 model_rotation = 0
-keystone = ExtResource("2_ks")
+effects = Array[ExtResource("4_fxbase")]([SubResource("fx_natural_xp")])
 display_name = "Natural XP Node"

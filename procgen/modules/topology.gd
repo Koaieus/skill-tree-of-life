@@ -17,7 +17,7 @@ extends Resource
 @export_range(1., 128., 1.,) var node_padding: float = 14.0
 ## Budget → radius ramp (#783). Unset = every node gets the uniform
 ## [member node_radius]; set = [method radius_for_budget] ramps per node and
-## spacing sizes for the ramp's asymptote. Keystone stamps still win.
+## spacing sizes for the ramp's asymptote. An authored scene bypasses the ramp (#330).
 @export var node_radius_ramp: NodeRadiusRamp
 ## Fraction of Delaunay edges to keep beyond the minimum spanning tree.
 ## 0 = MST only (every node connected, sparsest planar). 1 = full Delaunay

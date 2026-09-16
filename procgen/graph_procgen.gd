@@ -240,9 +240,9 @@ static func generate(
 	# swapped in afterwards — the edges and self-loops below wire `nodes` by
 	# reference, so a node can't be replaced once added. Eligibility mirrors
 	# the old post-loop pass: never a starter core (indices < starters.size())
-	# nor a keystone node (placement_ctx.keystones[i] != null, which is what
-	# the loop below stamps onto `sn.keystone`) — plus, since #300, never a
-	# node inside the core safe radius (blocker_min_hops_from_core).
+	# nor an authored-scene node (placement_ctx.scenes[i] != null, #330) —
+	# plus, since #300, never a node inside the core safe radius
+	# (blocker_min_hops_from_core).
 	#
 	# Deliberately rides its OWN derived RNG, not the shared `rng` stream:
 	# running this before the per-node content loop (needed so the loop can
@@ -331,8 +331,8 @@ static func generate(
 				budget = config.content.budget_policy.compute_budget(
 						archetype_id, positions[i], role_tags, rng)
 			fp["budget"] = budget
-			# Radius follows the rolled budget (#783) — stamped before the
-			# keystone pass so an authored keystone radius still wins.
+			# Radius follows the rolled budget (#783); an authored scene never
+			# reaches this branch, so its own radius stands (#330).
 			_stamp_radius(sn, config.topology.radius_for_budget(budget))
 			if config.content.modifier_pool_set != null:
 				sn.modifiers = _roll_modifiers_v4(
@@ -357,13 +357,8 @@ static func generate(
 			# No archetype → no budget → the uniform default (budget 0 path).
 			_stamp_radius(sn, config.topology.radius_for_budget(0))
 		graph.add_skill_node(sn)
-		# After add_skill_node, so the node is in the tree and its addon anchor is
-		# listening. Outside the archetype gate, so a keystone lands even on a node
-		# procgen rolled no archetype for. The stamp overwrites the archetype colour
-		# by design — a landmark outranks its terrain. Effects stay a live reference
-		# on `sn.keystone`, granted by AllocationSystem on allocate.
-		if placement_ctx.keystones[i] != null:
-			placement_ctx.keystones[i].stamp(sn)
+		# After add_skill_node, so the node is in the tree and its addon anchor
+		# is listening.
 		_roll_and_attach_addons(sn, config, rng)
 		if GraphProcgenSpellGrants.is_eligible_node(archetype_primary_stat):
 			int_nodes.append(sn)
@@ -867,15 +862,12 @@ static func _build_placement_context(
 		adj[e.x].append(e.y)
 		adj[e.y].append(e.x)
 	ctx.adjacency = adj
-	# Per-node empty role-tag arrays + null keystone slots.
+	# Per-node empty role-tag arrays + null scene slots.
 	var rt: Array = []
 	rt.resize(positions.size())
 	for i in positions.size():
 		rt[i] = [] as Array[StringName]
 	ctx.role_tags = rt
-	var ks: Array = []
-	ks.resize(positions.size())
-	ctx.keystones = ks
 	var sc: Array = []
 	sc.resize(positions.size())
 	ctx.scenes = sc
@@ -897,8 +889,8 @@ static func _build_placement_context(
 ## below [constant GraphProcgenBlockers.MIN_BLOCKER_PER] is clamped up to it —
 ## by sampling uniformly WITHOUT replacement from the regular node indices.
 ## Excluded from the pool: every starter core (the first [param
-## ctx].starter_indices.size() indices), every keystone index
-## ([param ctx].keystones[i] != null, the pre-roll pass's stamp slot), and —
+## ctx].starter_indices.size() indices), every authored-scene index
+## ([param ctx].scenes[i] != null, the pre-roll pass's [ScenePlacement] slot), and —
 ## per [member GraphProcgenBlockers.blocker_min_hops_from_core] — every node
 ## inside the hop-ball around ANY starter core, so no camp opens the run
 ## boxed in by boulders.
@@ -929,7 +921,6 @@ static func _place_blocker_indices(
 		rng: RandomNumberGenerator,
 ) -> Dictionary:
 	var out: Dictionary = {}
-	var keystones: Array = ctx.keystones
 	var scenes: Array = ctx.scenes
 	var starter_count := ctx.starter_indices.size()
 	# Core safe radius (#300): union of the hop-balls around every starter.
@@ -941,8 +932,6 @@ static func _place_blocker_indices(
 	var eligible: Array[int] = []
 	for i in positions_count:
 		if i < starter_count:
-			continue
-		if i < keystones.size() and keystones[i] != null:
 			continue
 		if i < scenes.size() and scenes[i] != null:
 			continue
@@ -1003,7 +992,7 @@ static func _place_blocker_indices(
 ## so keeps `node_health` off zero without a stat floor (#777 decision 5).
 ##
 ## Eligibility is the placement pass's own filter plus the claim set: never a
-## starter core, never a keystone, never inside a starter's [member
+## starter core, never an authored-scene node, never inside a starter's [member
 ## GraphProcgenBlockers.blocker_min_hops_from_core] ball (the safe radius covers
 ## the whole footprint, not just the core — #777 decision 6), and never a node
 ## another blocker already holds as a core or a footprint node. Short of
@@ -1055,7 +1044,6 @@ static func _place_blocker_footprints(
 	if not wants_footprints:
 		return out
 
-	var keystones: Array = ctx.keystones
 	var scenes: Array = ctx.scenes
 	var starter_count := ctx.starter_indices.size()
 	var too_close := {}
@@ -1084,8 +1072,6 @@ static func _place_blocker_footprints(
 				if claimed.has(nb) or in_frontier.has(nb):
 					continue
 				if nb < starter_count:
-					continue
-				if nb < keystones.size() and keystones[nb] != null:
 					continue
 				if nb < scenes.size() and scenes[nb] != null:
 					continue

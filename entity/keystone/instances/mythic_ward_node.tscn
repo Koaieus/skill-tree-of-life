@@ -1,8 +1,23 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=6 format=3]
+
 [ext_resource type="PackedScene" path="res://entity/keystone/keystone_skill_node.tscn" id="1_base"]
-[ext_resource type="Resource" path="res://entity/keystone/instances/mythic_ward_keystone.tres" id="2_ks"]
+[ext_resource type="Script" uid="uid://dh6uu0jrbmt12" path="res://effects/stat_effect.gd" id="2_fx"]
+[ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="3_mod"]
+[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="4_fxbase"]
+
+[sub_resource type="Resource" id="m_min_damage_taken"]
+resource_name = "-1 Min Damage Taken"
+script = ExtResource("3_mod")
+stat_id = &"min_damage_taken"
+value = -1.0
+
+[sub_resource type="Resource" id="fx_mythic_ward"]
+script = ExtResource("2_fx")
+display_name = "Mythic Ward"
+description = "A landmark of absolute defence: the first point of damage each hit is negated."
+modifiers = Array[ExtResource("3_mod")]([SubResource("m_min_damage_taken")])
 
 [node name="MythicWardNode" instance=ExtResource("1_base")]
 base_type_color = Color(0.3, 0.45, 0.65, 1)
-keystone = ExtResource("2_ks")
+effects = Array[ExtResource("4_fxbase")]([SubResource("fx_mythic_ward")])
 display_name = "Mythic Ward"

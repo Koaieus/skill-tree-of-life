@@ -9,17 +9,21 @@ extends RefCounted
 ##
 ## [b]Three tiers, split per-moment not per-system[/b] (the issue's own
 ## table):
-## - Authored (archetype, addon placements, KEYSTONES — named explicitly in
-##   #527's Decisions section, plus node-direct `effects` by the same
-##   reasoning) crosses as an INTERNED REF into a resource-path table built
-##   once per snapshot. 7 archetypes / 6 addon scenes repeated per-node as full
-##   paths is the single biggest lever the issue's arithmetic calls out —
-##   ~230 KB of repeated strings collapses to a handful of bytes plus a
-##   once-sent table. A keystone or effect built via `.new()` rather than
-##   loaded from a shared `.tres` (real gameplay content never does this —
-##   only tests) has no `resource_path` and is silently dropped rather than
-##   crossing broken; that mirrors how `_encode_node` already treats an
-##   addon with no `scene_file_path`.
+## - Authored (archetype, addon placements, the node's own scene, and
+##   node-direct `effects` — #527's Decisions section named keystones here;
+##   since #929 a landmark's effects ride in its scene) crosses as an
+##   INTERNED REF into a resource-path table built once per snapshot. 7
+##   archetypes / 6 addon scenes repeated per-node as full paths is the
+##   single biggest lever the issue's arithmetic calls out — ~230 KB of
+##   repeated strings collapses to a handful of bytes plus a once-sent
+##   table. An effect built via `.new()` rather than loaded from a shared
+##   `.tres` (real gameplay content never does this — only tests) has no
+##   `resource_path` and is silently dropped rather than crossing broken;
+##   that mirrors how `_encode_node` already treats an addon with no
+##   `scene_file_path`. An effect EMBEDDED in the node's own scene (a
+##   landmark's SubResource `StatEffect`, path `<scene>::<id>`) is not
+##   interned either: the scene is re-instantiated on the create path and
+##   brings it along, and `_reconcile_authored` leaves it in place.
 ## - Accumulated (owner, HP, stake/allocation level, regen stacks, the
 ##   modifier LIST) crosses BY VALUE — no formula rederives history.
 ## - Derived ([StatBoard] totals, aura contributions, vision/fog) never
@@ -61,12 +65,11 @@ const _R_REGEN := 7
 const _R_HP := 8      ## roundi(current_hp * 100) — see WorldFingerprint's own note on why HP quantizes
 const _R_MODS := 9    ## Array of StatModifierCodec dicts — the node's own residual (non-addon-sourced) modifiers
 const _R_ADDONS := 10 ## Array[int], indices into `res`, one per attached addon in child order
-const _R_KEYSTONE := 11 ## index into `res`, -1 for none — SkillNode.keystone
-const _R_EFFECTS := 12  ## Array[int], indices into `res` — SkillNode.effects (direct grants, independent of a keystone)
-const _R_STATUSES := 13 ## Array of `[def_idx, power]` pairs (#879) — def_idx indexes into `res`, power is the raw float (not quantized — WorldFingerprint quantizes its own fold independently, same split as HP)
-const _R_BASE_RADIUS := 14       ## SkillNode.base_radius (#783) — procgen ramps it per node and only the host generates, so it is carried, not derived
-const _R_BASE_INNER_RADIUS := 15 ## SkillNode.base_inner_radius (#783) — same reason
-const _R_SCENE := 16 ## index into `res`, -1 for the plain skill_node.tscn — the node's own `scene_file_path` (#330): an authored keystone scene (or the blocker scene) is re-instantiated on the create path, since the scene IS its content (colour, name, keystone, radius)
+const _R_EFFECTS := 11  ## Array[int], indices into `res` — SkillNode.effects that live in their own `.tres`; scene-embedded ones ride in _R_SCENE
+const _R_STATUSES := 12 ## Array of `[def_idx, power]` pairs (#879) — def_idx indexes into `res`, power is the raw float (not quantized — WorldFingerprint quantizes its own fold independently, same split as HP)
+const _R_BASE_RADIUS := 13       ## SkillNode.base_radius (#783) — procgen ramps it per node and only the host generates, so it is carried, not derived
+const _R_BASE_INNER_RADIUS := 14 ## SkillNode.base_inner_radius (#783) — same reason
+const _R_SCENE := 15 ## index into `res`, -1 for the plain skill_node.tscn — the node's own `scene_file_path` (#330): an authored keystone scene (or the blocker scene) is re-instantiated on the create path, since the scene IS its content (colour, name, effects, radius)
 
 
 ## Builds the payload for the WHOLE graph in one shot: `res` (the interned
@@ -302,12 +305,9 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	for m in node.modifiers:
 		if not addon_mod_ids.has(m.get_instance_id()):
 			residual.append(m.to_dict())
-	var keystone_idx := -1
-	if node.keystone != null and node.keystone.resource_path != "":
-		keystone_idx = table.intern(node.keystone.resource_path)
 	var effect_idx: Array = []
 	for e in node.effects:
-		if e != null and e.resource_path != "":
+		if _is_standalone(e):
 			effect_idx.append(table.intern(e.resource_path))
 	var status_pairs: Array = []
 	for s in node.get_combat().get_statuses():
@@ -317,7 +317,7 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	if node.scene_file_path != "" and node.scene_file_path != _NODE_SCENE.resource_path:
 		scene_idx = table.intern(node.scene_file_path)
 	var row: Array
-	row.resize(17)
+	row.resize(16)
 	row[_R_STABLE_ID] = graph.get_stable_id(node)
 	row[_R_ARCHETYPE] = archetype_idx
 	row[_R_OWNER_ID] = owner_id
@@ -329,7 +329,6 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	row[_R_HP] = roundi(node.get_current_hp() * 100.0)
 	row[_R_MODS] = residual
 	row[_R_ADDONS] = addon_idx
-	row[_R_KEYSTONE] = keystone_idx
 	row[_R_EFFECTS] = effect_idx
 	row[_R_STATUSES] = status_pairs
 	row[_R_BASE_RADIUS] = node.base_radius
@@ -399,10 +398,13 @@ static func _reconcile_authored(node: SkillNode, row: Array, res: Array) -> void
 	var archetype := _interned(res, int(row[_R_ARCHETYPE])) as Archetype
 	if node.archetype != archetype:
 		node.archetype = archetype
-	var keystone := _interned(res, int(row[_R_KEYSTONE])) as Keystone
-	if node.keystone != keystone:
-		node.keystone = keystone
+	# Scene-embedded effects (a landmark's own SubResource, #929) never
+	# crossed — they came with the re-instantiated scene and stay put; only
+	# the standalone-`.tres` tier is reconciled against the row.
 	var effects: Array[Effect] = []
+	for e in node.effects:
+		if e != null and not _is_standalone(e):
+			effects.append(e)
 	for effect_idx in (row[_R_EFFECTS] as Array):
 		var e := _interned(res, int(effect_idx)) as Effect
 		if e != null:
@@ -415,6 +417,14 @@ static func _reconcile_authored(node: SkillNode, row: Array, res: Array) -> void
 	var base_inner_radius := float(row[_R_BASE_INNER_RADIUS])
 	if not is_equal_approx(node.base_inner_radius, base_inner_radius):
 		node.base_inner_radius = base_inner_radius
+
+
+## True for an effect that lives in its own `.tres` — the only kind that
+## crosses by path. A `.new()` effect has no path; a SubResource embedded in
+## a scene has `<scene path>::<id>`, and `load()` cannot resolve that, nor
+## needs to: the scene carries it.
+static func _is_standalone(e: Effect) -> bool:
+	return e != null and e.resource_path != "" and not e.resource_path.contains("::")
 
 
 static func _interned(res: Array, idx: int) -> Resource:

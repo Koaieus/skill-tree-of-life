@@ -10,7 +10,7 @@ extends Resource
 ## Concrete subclasses:
 ##   - RandomBudgetBoost — flag N random nodes with a role tag for budget boost
 ##   - MinNearStartingPoints — ensure every starter has a tagged node nearby
-##   - KeystonePlacement (step 10) — place named keystones at chosen positions
+##   - ScenePlacement (step 10) — place authored landmark scenes (#330)
 
 func apply(_context: PlacementContext) -> void:
 	pass

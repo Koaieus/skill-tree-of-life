@@ -19,7 +19,7 @@ const MIN_BLOCKER_PER := 5
 ## Blocker placement density per tier (#477). [GraphProcgen] places
 ## `floor(node_count / blocker_per_<size>)` blockers of each size, sampled
 ## uniformly without replacement among regular nodes (never a starter core or
-## a keystone node). `0` disables a tier; any positive denominator below
+## an authored landmark node, #330). `0` disables a tier; any positive denominator below
 ## [constant MIN_BLOCKER_PER] is clamped up to it at placement time. The
 ## `size` value in a returned placement is the [GameRoot.BlockerSize] int
 ## (0/1/2).

@@ -18,8 +18,6 @@
 [ext_resource type="Resource" uid="uid://b8tbru5xba2lw" path="res://archetypes/perception.tres" id="16_t5frm"]
 [ext_resource type="Script" uid="uid://df2coaqjbaxff" path="res://procgen/placement/radial_gradient_field.gd" id="17_6kbtk"]
 [ext_resource type="Script" uid="uid://h1ade1x6qd2g" path="res://procgen/budget/budget_policy.gd" id="18_yhnhk"]
-[ext_resource type="Resource" uid="uid://byxjrmwf12wt6" path="res://entity/keystone/instances/xp_anchor_keystone.tres" id="19_3uuey"]
-[ext_resource type="Script" uid="uid://k63ubvjx2b1i" path="res://procgen/placement/keystone_placement.gd" id="20_76hbd"]
 [ext_resource type="Script" uid="uid://bb3tnx5bj2l00" path="res://procgen/placement/min_near_starting_points.gd" id="21_fgtkr"]
 [ext_resource type="Script" uid="uid://ddikvvsf3q6wf" path="res://procgen/budget/random_budget_boost.gd" id="22_vu3un"]
 [ext_resource type="Resource" uid="uid://dfcrol4htjsui" path="res://procgen/pools/specimen_pool_set.tres" id="23_3abnx"]
@@ -171,10 +169,6 @@ role_bonus = {
 &"anomalous": 1.75
 }
 
-[sub_resource type="Resource" id="kp_xp"]
-script = ExtResource("20_76hbd")
-keystone = ExtResource("19_3uuey")
-
 [sub_resource type="Resource" id="mnsp_xp"]
 script = ExtResource("21_fgtkr")
 role_tag = &"xp_growth"
@@ -279,4 +273,4 @@ archetypes = Array[ExtResource("10_q7cgk")]([SubResource("ap_red"), SubResource(
 addon_policy = SubResource("Resource_c6pvu")
 spell_grant_pool = SubResource("spell_grant_pool_main")
 spell_grant_ratio = 0.234
-guaranteed_placements = Array[Resource]([SubResource("kp_xp"), SubResource("mnsp_xp"), SubResource("rbb_anomalous")])
+guaranteed_placements = Array[Resource]([SubResource("mnsp_xp"), SubResource("rbb_anomalous")])

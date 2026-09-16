@@ -65,8 +65,6 @@ func apply(context: PlacementContext) -> void:
 	for i in n:
 		if excluded.has(i) or context.scenes[i] != null:
 			continue
-		if i < context.keystones.size() and context.keystones[i] != null:
-			continue
 		var w := 1.0
 		if weight != null:
 			w = weight.sample(context.positions[i])

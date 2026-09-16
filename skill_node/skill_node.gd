@@ -81,22 +81,17 @@ signal statuses_changed
 ## entity's stat board by AllocationSystem. Node-level data, no behaviour.
 @export var modifiers: Array[StatModifier] = []
 
-## Special-effect content this node carries. Allocating grants its effects to
-## the owner; deallocating revokes them. Placed by [KeystonePlacement].
-# TODO(#336): remove. A `Keystone` is to come to mean 'hand authored (inherited) .tscn which
-#				carries the baked-in modifiers/visuals/addons', instead of a Resource mirroring a
-#				subset of SkillNode's own authoring surface and stamping itself on. See the hub
-#				for the three open forks (carve home, tooltip predicate, placement surface).
-@export var keystone: Keystone = null
-
-## Effects granted directly by this node, independent of a keystone. The
-## hand-authored escape hatch — most content should go through a [Keystone] or
-## a [SkillNodeAddon].
+## [Effect]s this node grants to its owner: [AllocationSystem] grants each on
+## allocate and revokes them (keyed by this node) on deallocate. This is the
+## authoring surface for landmark content — a keystone is a hand-authored
+## inherited scene of `entity/keystone/keystone_skill_node.tscn` that carries
+## its [StatEffect] here as a SubResource (#336 / #929); procgen's rolled
+## [SpellGrant]s land here too via [method add_effect].
 @export var effects: Array[Effect] = []
 
 ## Tooltip identity — a single line, PoE-keystone style (#179). Empty means
 ## "no name to show"; callers render nothing. Opt-in authoring surface: a
-## procgen node without a keystone stays unnamed on purpose (#288's generated
+## procgen node without an authored name stays unnamed on purpose (#288's generated
 ## name composer later fills the empty branch — never key layout on this).
 @export var display_name: String = ""
 
@@ -942,7 +937,7 @@ func get_active_tags() -> Array[StringName]:
 ## emblem so a carve added after this node's first `_sync_visuals()` (procgen's
 ## post-placement spell-grant roll; a loot-granted [SpellGrant] landing on an
 ## already-allocated core) actually shows up. Plain `effects.append()` misses
-## this — [member archetype] and [member keystone] have setters that resync,
+## this — [member archetype] has a setter that resyncs,
 ## but [member effects] is a bare array with no hook. If the node isn't ready
 ## yet, its own `_ready()` → `_sync_visuals()` will read the appended effect
 ## once it runs, so the guard is correct, not just defensive.
@@ -952,13 +947,11 @@ func add_effect(effect: Effect) -> void:
 		_sync_visuals()
 
 
-## Every [Effect] this node grants to an owner: its own, its keystone's, and
-## any carried by its addons. [AllocationSystem] grants these on allocate and
-## revokes them (keyed by this node) on deallocate.
+## Every [Effect] this node grants to an owner: its own and any carried by
+## its addons. [AllocationSystem] grants these on allocate and revokes them
+## (keyed by this node) on deallocate.
 func get_node_effects() -> Array[Effect]:
 	var out: Array[Effect] = effects.duplicate()
-	if keystone != null:
-		out.append_array(keystone.effects)
 	for a in _addons:
 		out.append_array(a.effects)
 	return out
@@ -1081,7 +1074,7 @@ func get_addon_tooltip_sections() -> Array[Dictionary]:
 
 ## Aggregates this node's [EmblemSpec] candidates for the central-emblem
 ## resolver (see docs/domain/skillnode-emblem.md): the archetype fallback
-## carve, a keystone carve, a SPELL carve per granted [SpellGrant], and every
+## carve, a SPELL carve per granted [SpellGrant], and every
 ## addon's own [method SkillNodeAddon.get_emblem] contribution. SkillNode never
 ## interprets these — [EmblemResolver] picks the winning CARVE and collects the
 ## BLOOMs; this is purely aggregation, mirroring [method get_node_effects] /
@@ -1090,17 +1083,17 @@ func get_addon_tooltip_sections() -> Array[Dictionary]:
 ## A null [member archetype] contributes nothing — the honest empty dome —
 ## rather than silently falling back to a default shape.
 ##
-## A keystone / spell grant with no `carve_shape` authored still contributes,
-## with a null [member EmblemSpec.shape]. That's deliberate and NOT the same as
+## A spell grant with no `carve_shape` authored still contributes, with a
+## null [member EmblemSpec.shape]. That's deliberate and NOT the same as
 ## contributing nothing: it claims its (higher) rung so the node reads as an
-## empty dome, instead of the archetype fallback winning and dressing a keystone
-## node up as a plain territory node.
+## empty dome, instead of the archetype fallback winning and dressing a
+## landmark node up as a plain territory node. A landmark scene sets no
+## archetype, so it contributes nothing here (#929) — the KEYSTONE rung stays
+## on the ladder for a future bespoke carve.
 func get_emblem_contributions() -> Array:
 	var out: Array = []
 	if archetype != null:
 		out.append(archetype.carve_shape.carve(EmblemSpec.Priority.ARCHETYPE, &"archetype"))
-	if keystone != null:
-		out.append(EmblemSpec.carve(keystone.carve_shape, EmblemSpec.Priority.KEYSTONE, &"keystone"))
 	for effect in get_node_effects():
 		if effect is SpellGrant and effect.spell_def != null:
 			out.append(EmblemSpec.carve(effect.spell_def.carve_shape, EmblemSpec.Priority.SPELL, &"spell"))
