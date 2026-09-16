@@ -71,15 +71,18 @@ func test_rebind_follow_swaps_the_node_without_restarting_the_pan_or_zoom() -> v
 
 func test_freeing_the_followed_node_holds_the_spring_at_its_last_aim() -> void:
 	# Acceptance 3: freeing the followed node mid-follow — no error, no jump —
-	# the spring holds where it last aimed.
+	# the spring holds its LAST TARGET (frozen) and keeps converging on it,
+	# rather than crashing on a freed reference or snapping to zero.
 	var doomed := Node2D.new()
 	add_child(doomed)
 	_cam.rebind_follow(doomed)
 	doomed.global_position = Vector2(1000, 0)
 	_cam._follow(DT)
-	var last := _cam.global_position
+	assert_gt(_cam.global_position.x, 0.0, "it started moving toward the target")
 	doomed.queue_free()
 	await get_tree().process_frame
-	_cam._follow(DT)
-	assert_almost_eq(_cam.global_position.x, last.x, 5.0,
-			"still easing toward the last-known position, not a crash or a jump")
+	assert_false(is_instance_valid(doomed), "sanity: the target really is gone")
+	for i in 600:
+		_cam._follow(DT)
+	assert_almost_eq(_cam.global_position.x, 1000.0, 1.0,
+			"still converges on the last-known target — no crash, no jump")
