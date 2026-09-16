@@ -11,6 +11,17 @@ extends OnHitEffect
 ## the first projectile flies from the cast-from node, not from nowhere.
 
 
+## Mitigation class of the hit (see [member DamageInstance.type]) — MAGIC by
+## default, the pre-knob behaviour; TRUE bypasses [Mitigation] entirely.
+## Deliberately ORTHOGONAL to [member basis]: "% of max hp" does not imply
+## "unmitigated" and vice versa. Owner call, 2026-09-16: *"only if we could
+## distill hard gameplay rules like 'poison always unmitigated' or '%dmg
+## always unmitigated' we could set hard mappings, and I don't think I would
+## want to commit to those rules (yet…) — orthogonal authoring would remain
+## the best. If we start adding tons of sources for minting different damages
+## which should broadly follow defaults, [a basis→default-type table with
+## override] we should keep in mind."* Until then, author both.
+@export var type: DamageInstance.Type = DamageInstance.Type.MAGIC
 ## How the hit is denominated (see [member HitInstance.basis]): FLAT lands
 ## [member CastSpell.damage] as HP; PERCENT_MAX lands it as a fraction of the
 ## target's max hp, resolved at land by [method DamageInstance.land_on].
@@ -24,7 +35,7 @@ func apply(lctx: LandingContext) -> void:
 	var hit := DamageInstance.new()
 	hit.amount = state.damage
 	hit.basis = basis
-	hit.type = DamageInstance.Type.MAGIC
+	hit.type = type
 	hit.source = state
 	hit.target = state.current_node
 	hit.origin = state.predecessor if state.predecessor != null else state.source
