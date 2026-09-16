@@ -24,16 +24,17 @@ const _SHAPE_MASK := preload("res://procgen/placement/circular_shape_mask.gd")
 
 ## `node_count` points at the shipped spacing, pruned at `connectivity`.
 ##
-## [param node_radius] / [param node_padding] default to the values both
-## shipped topology modules author (`procgen/modules/*/topology.tres`); the
-## whole pipeline is expressed in units of `min_dist`, so they only zoom the
-## board and never change a ranking.
+## [param node_radius] / [param node_padding] default to what `first_level`
+## sizes for (`procgen/modules/first_level/topology.tres`, #783: the ramp's
+## 50px asymptote + 50 padding — the same `min_dist = 150` as the pre-ramp
+## 2·32 + 86); the whole pipeline is expressed in units of `min_dist`, so
+## they only zoom the board and never change a ranking.
 static func sample(
 		seed_value: int,
 		node_count: int,
 		connectivity: float,
-		node_radius: float = 32.0,
-		node_padding: float = 86.0) -> CurlTerrain:
+		node_radius: float = 50.0,
+		node_padding: float = 50.0) -> CurlTerrain:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var min_dist := 2.0 * node_radius + node_padding
