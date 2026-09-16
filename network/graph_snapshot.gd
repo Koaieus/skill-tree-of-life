@@ -423,7 +423,10 @@ static func _reconcile_authored(node: SkillNode, row: Array, res: Array) -> void
 ## crosses by path. A `.new()` effect has no path; a SubResource embedded in
 ## a scene has `<scene path>::<id>`, which `load()` resolves only through the
 ## ResourceCache while the scene is loaded — and needs not: the scene
-## carries it.
+## carries it. That cache hit is what [EntitySnapshot] relies on for a
+## granted landmark effect, and it holds while the decoded graph is alive:
+## EntitySnapshot resolves after GraphSnapshot.decode by construction, so
+## the instantiated scene already holds the SubResource.
 static func _is_standalone(e: Effect) -> bool:
 	return e != null and e.resource_path != "" and not e.resource_path.contains("::")
 
