@@ -15,7 +15,7 @@ extends GutTest
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _TITAN_KEYSTONE := preload("res://entity/keystone/instances/titan_keystone.tres")
+const _TITAN_SCENE := preload("res://entity/keystone/instances/titan_node.tscn")
 
 
 func _new_graph() -> Graph:
@@ -226,12 +226,15 @@ func test_effect_provenance_survives_and_revoke_still_bites() -> void:
 	var src_owner := _new_entity(source)
 	var dst_owner := _new_entity(target)
 
-	# A real shipped effect — a sub-resource of a keystone `.tres`, which is the
-	# shape every effect in this project actually has, and the shape
-	# [method GraphSnapshot._encode_node] already interns for a node's own
-	# `effects`.
-	var effect: Effect = _TITAN_KEYSTONE.effects[0]
-	var src_node := source.get_skill_nodes()[1]
+	# A real shipped effect — a SubResource of a landmark scene (#929), which
+	# is the shape every node-carried effect in this project actually has.
+	# The carrier is the landmark node itself, added to BOTH graphs by the
+	# same scene so the stable ids line up the way #330's graph round trip
+	# re-instantiates it on a client.
+	var src_node: SkillNode = _TITAN_SCENE.instantiate()
+	src_node.position = Vector2(9000.0, 9000.0)
+	source.add_skill_node(src_node)
+	var effect: Effect = src_node.effects[0]
 	src_owner.grant_effect(effect, src_node)
 
 	_transfer(source, target)

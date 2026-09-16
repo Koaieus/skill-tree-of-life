@@ -86,27 +86,25 @@ func _generate(cfg: GraphProcgenConfig) -> Dictionary:
 
 func test_generate_stamps_ramped_radius_and_constant_ring() -> void:
 	var cfg := _build_config(60, 7831)
-	# One keystone that authors its own radius: the stamp must win over the ramp.
-	var ks := Keystone.new()
-	ks.display_name = "Fat"
-	ks.radius = 61.0
-	var kp := KeystonePlacement.new()
-	kp.keystone = ks
-	kp.target_position = Vector2(200.0, 0.0)
+	# One authored landmark scene with its own radius (the keystone base's
+	# 40/32): an authored scene bypasses the ramp (#330), so its radius stands.
+	const LANDMARK_PATH := "res://entity/keystone/keystone_skill_node.tscn"
+	var kp := ScenePlacement.new()
+	kp.node_scene = load(LANDMARK_PATH)
 	kp.exclude_starters = false
 	cfg.content.guaranteed_placements = [kp]
 	var result := await _generate(cfg)
 	var nodes: Array = result["nodes"]
 	assert_gt(nodes.size(), 0, "expected nodes")
 	assert_gt((result.get("blockers", []) as Array).size(), 0, "expected blockers in the stamp check")
-	var keystoned := 0
+	var landmarks := 0
 	var below_32 := 0
 	var above_43 := 0
 	for sn: SkillNode in nodes:
-		# generate() deep-copies `content`, so match the keystone by name.
-		if sn.keystone != null and sn.keystone.display_name == ks.display_name:
-			keystoned += 1
-			assert_almost_eq(sn.base_radius, 61.0, 0.001, "keystone radius wins over the ramp")
+		if sn.scene_file_path == LANDMARK_PATH:
+			landmarks += 1
+			assert_almost_eq(sn.base_radius, 40.0, 0.001, "the authored scene's radius stands, never ramped")
+			assert_almost_eq(sn.base_inner_radius, 32.0, 0.001, "and so does its inner radius")
 			continue
 		var fp: Dictionary = sn.get_meta("procgen_footprint", {})
 		assert_true(fp.has("budget"), "every node rolled a budget")
@@ -120,7 +118,7 @@ func test_generate_stamps_ramped_radius_and_constant_ring() -> void:
 			below_32 += 1
 		if sn.base_radius > 43.0:
 			above_43 += 1
-	assert_eq(keystoned, 1, "the keystone landed on exactly one node")
+	assert_eq(landmarks, 1, "the landmark landed on exactly one node")
 	assert_gt(below_32, 0, "some node sits below the golden default")
 	assert_gt(above_43, 0, "some node sits in the soft tail")
 

@@ -421,8 +421,9 @@ static func _reconcile_authored(node: SkillNode, row: Array, res: Array) -> void
 
 ## True for an effect that lives in its own `.tres` — the only kind that
 ## crosses by path. A `.new()` effect has no path; a SubResource embedded in
-## a scene has `<scene path>::<id>`, and `load()` cannot resolve that, nor
-## needs to: the scene carries it.
+## a scene has `<scene path>::<id>`, which `load()` resolves only through the
+## ResourceCache while the scene is loaded — and needs not: the scene
+## carries it.
 static func _is_standalone(e: Effect) -> bool:
 	return e != null and e.resource_path != "" and not e.resource_path.contains("::")
 

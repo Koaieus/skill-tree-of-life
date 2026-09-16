@@ -47,18 +47,21 @@ func test_landmark_grants_reach_the_allocating_entity_via_effects() -> void:
 	var ent := autofree(Entity.new()) as Entity
 	ent.display_name = "T"
 	ent.stat_board = (preload("res://entity/default_entity_board.tres") as EntityStatBoard).duplicate(true)
-	var n: SkillNode = autofree(_FARSIGHT.instantiate()) as SkillNode
+	var n: SkillNode = autofree(_TITAN.instantiate()) as SkillNode
 	add_child(alloc)
 	add_child(ent)
 	add_child(n)
 	await get_tree().process_frame
-	var base: float = ent.stat_board.get_value(&"vision_range")
+	var base: float = ent.stat_board.get_value(&"strength")
+	assert_gt(base, 0.0, "the default board's strength is non-zero, so x2 is visible")
 	alloc.force_allocate(ent, n)
-	assert_almost_eq(float(ent.stat_board.get_value(&"vision_range")), base + 100.0, 0.001,
-		"farsight's +100 vision range lands on allocate")
+	assert_almost_eq(float(ent.stat_board.get_value(&"strength")), base * 2.0, 0.001,
+		"titan's x2 strength lands on allocate")
+	assert_eq(ent.get_effects().size(), 1, "exactly the scene's one StatEffect is granted")
 	alloc.force_deallocate(n)
-	assert_almost_eq(float(ent.stat_board.get_value(&"vision_range")), base, 0.001,
+	assert_almost_eq(float(ent.stat_board.get_value(&"strength")), base, 0.001,
 		"deallocate revokes it")
+	assert_eq(ent.get_effects().size(), 0)
 
 
 ## Fork ① regression (#336, settled 2026-08-01): the landmark scenes set no

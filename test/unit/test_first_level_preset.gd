@@ -19,7 +19,9 @@ func test_preset_loads() -> void:
 	assert_gt(cfg.content.modifier_pool_set.packs.size(), 0, "pool set should carry StatPacks")
 	assert_eq(cfg.content.weight_profiles.size(), 1, "profiles: archetype only (radial band profile deleted in #552)")
 	assert_not_null(cfg.content.budget_policy)
-	assert_eq(cfg.content.guaranteed_placements.size(), 3)
+	# MinNearStartingPoints + RandomBudgetBoost + the four landmark
+	# ScenePlacements (#330); the xp_anchor KeystonePlacement went in #929.
+	assert_eq(cfg.content.guaranteed_placements.size(), 6)
 	# Rebalanced in #777: the footprint pass roughly triples a blocker's board
 	# share, so the density that shipped with one-node blockers (10/25/100) would
 	# have put ~42% of an 800-node map under a Dormant Core. 30/50/100 lands at
@@ -98,12 +100,6 @@ func test_procgen_generates_full_level() -> void:
 	assert_eq(anomalous_count, expected_anomalous,
 		"expected %d anomalous nodes; got %d" % [expected_anomalous, anomalous_count])
 
-	# Keystone placement: at least one node carries the xp_anchor keystone.
-	var keystone_count := 0
-	for n in nodes:
-		if n.keystone != null:
-			keystone_count += 1
-	assert_eq(keystone_count, 1, "expected 1 keystone node; got %d" % keystone_count)
 
 
 func test_preset_leaves_the_loot_book_prune_switched_on() -> void:

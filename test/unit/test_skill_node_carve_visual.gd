@@ -43,13 +43,6 @@ func test_default_node_carves_its_archetype_shape() -> void:
 	assert_almost_eq(disk.effective_carve_radius, 0.82, 0.001, "at the authored archetype size")
 
 
-func test_keystone_outranks_archetype_and_renders_empty_dome() -> void:
-	_node.keystone = Keystone.new()
-	_node._sync_visuals()
-	var disk := _disk()
-	assert_eq(disk.effective_carve_kind, InnerDiskScript.CarveKind.NONE, "keystone wins the carve, but has no dedicated renderer yet -> empty dome")
-
-
 func test_skill_dust_addon_carves_the_loot_gem() -> void:
 	var dust := SkillDustAddon.new()
 	_node.add_child(dust)

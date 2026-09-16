@@ -25,9 +25,6 @@ func _ctx(n: int) -> PlacementContext:
 	for i in n:
 		rt[i] = [] as Array[StringName]
 	ctx.role_tags = rt
-	var ks: Array = []
-	ks.resize(n)
-	ctx.keystones = ks
 	var sc: Array = []
 	sc.resize(n)
 	ctx.scenes = sc

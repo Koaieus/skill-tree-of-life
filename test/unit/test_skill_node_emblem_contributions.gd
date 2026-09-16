@@ -1,6 +1,8 @@
 extends GutTest
 ## SkillNode.get_emblem_contributions() aggregation (docs/domain/skillnode-emblem.md):
-## own archetype carve + keystone carve + SpellGrant carves + addons' get_emblem().
+## own archetype carve + SpellGrant carves + addons' get_emblem(). (The
+## KEYSTONE-priority branch went with `SkillNode.keystone` in #929; the
+## landmark scenes' empty contribution is pinned in test_keystone_landmarks.gd.)
 ## SkillNode itself never interprets these — just collects specs for EmblemResolver.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
@@ -40,18 +42,6 @@ func test_archetype_contributes_its_own_carve_shape() -> void:
 	assert_eq(out[0].shape.sides, 3, "STR carves a triangle")
 
 
-func test_keystone_contributes_a_keystone_carve() -> void:
-	var ks := Keystone.new()
-	ks.carve_shape = null
-	_node.keystone = ks
-	var out := _node.get_emblem_contributions()
-	var kinds := out.map(func(s): return s.source_kind)
-	assert_true(kinds.has(&"keystone"), "keystone present → keystone carve contributed")
-	for spec in out:
-		if spec.source_kind == &"keystone":
-			assert_eq(spec.priority, EmblemSpec.Priority.KEYSTONE)
-
-
 func test_spell_grant_effect_contributes_a_spell_carve() -> void:
 	var grant := SpellGrant.new()
 	grant.spell_def = SpellDef.new()
@@ -89,31 +79,7 @@ func test_addon_get_emblem_is_aggregated() -> void:
 	dust.queue_free()
 
 
-func test_resolver_picks_keystone_over_archetype_from_real_contributions() -> void:
-	var ks := Keystone.new()
-	_node.keystone = ks
-	var out := _node.get_emblem_contributions()
-	var res := EmblemResolver.resolve(out)
-	assert_eq(res.carve.source_kind, &"keystone", "keystone outranks the archetype fallback end to end")
-
-
 # ── The shape flows source -> spec -> resolution (#315, D3) ─────────────────
-
-## A keystone's own carve_shape reaches the resolved spec — no icon-to-payload
-## hop in between. Typed as the BASE CarveShape on purpose, so a keystone is not
-## restricted to a baked texture carve.
-func test_keystone_carve_shape_flows_into_the_resolved_spec() -> void:
-	var shape := PolygonCarveShape.new()
-	shape.sides = 8
-	var ks := Keystone.new()
-	ks.carve_shape = shape
-	_node.keystone = ks
-	_node.archetype = load("res://archetypes/strength.tres")
-
-	var res := EmblemResolver.resolve(_node.get_emblem_contributions())
-	assert_eq(res.carve.source_kind, &"keystone", "keystone outranks the archetype fallback")
-	assert_same(res.carve.shape, shape, "and it carves ITS shape, not the archetype triangle")
-
 
 ## Acceptance #4's decisive case: a PolygonCarveShape on a SpellDef. If the
 ## field were typed TextureCarveShape this would not even assign — the base-class
@@ -135,15 +101,3 @@ func test_spell_def_takes_any_carve_shape_not_just_a_texture_one() -> void:
 	assert_eq(res.carve.shape.squish_x, 0.6)
 
 
-## Null carve_shape is NOT "contribute nothing": the source still claims its rung
-## so the node reads as an empty dome, rather than the archetype fallback winning
-## and dressing a keystone node up as a plain territory node.
-func test_shapeless_keystone_still_claims_the_carve() -> void:
-	var ks := Keystone.new()
-	ks.carve_shape = null
-	_node.keystone = ks
-	_node.archetype = load("res://archetypes/strength.tres")
-
-	var res := EmblemResolver.resolve(_node.get_emblem_contributions())
-	assert_eq(res.carve.source_kind, &"keystone")
-	assert_null(res.carve.shape, "no shape authored -> empty dome, not the archetype triangle")

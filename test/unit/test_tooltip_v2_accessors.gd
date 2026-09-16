@@ -248,7 +248,7 @@ func test_default_tooltip_modifiers_is_local_plus_entity_modifiers() -> void:
 
 
 # ── IdChipPanel wide/narrow predicate (#179) ────────────────────────────────
-# Flipped from `node.keystone != null` to `node.get_node_effects().size() > 0`
+# Keyed on `node.get_node_effects().size() > 0`, never on a landmark marker
 # — a name alone (#288's generated names arrive later, on every node) must
 # never trigger the wide layout; only carried effects do.
 

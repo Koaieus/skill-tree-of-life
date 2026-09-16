@@ -15,7 +15,6 @@ extends GutTest
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _CLAMP_ADDON := preload("res://skill_node/addons/clamp_addon.tscn")
-const _TITAN_KEYSTONE := preload("res://entity/keystone/instances/titan_keystone.tres")
 const _TEST_STATUS := preload("res://test/fixtures/status/test_status.tres")
 
 
@@ -81,12 +80,6 @@ func test_non_pristine_round_trip_fingerprints_agree() -> void:
 	owned_node.regen_stacks = 3
 	owned_node.add_child(_CLAMP_ADDON.instantiate())
 	owned_node.restore_current_hp(maxf(owned_node.get_max_hp() - 15.0, 0.0))
-	# A keystone (#527's Decisions section names it explicitly in the authored
-	# tier — see graph_snapshot.gd's own docstring) on a SEPARATE node, so a
-	# lost keystone can't hide behind the addon assertion above.
-	var keystone_node: SkillNode = nodes[1]
-	keystone_node.keystone = _TITAN_KEYSTONE
-
 	var bytes := GraphSnapshot.encode(source)
 	GraphSnapshot.decode(bytes, target)
 
@@ -97,11 +90,6 @@ func test_non_pristine_round_trip_fingerprints_agree() -> void:
 	var decoded_node := target.get_by_stable_id(source.get_stable_id(owned_node))
 	assert_not_null(decoded_node, "decoded graph is missing the owned node's stable_id")
 	assert_true(decoded_node.has_addon(ClampAddon), "attached addon did not survive the round trip")
-
-	var decoded_keystone_node := target.get_by_stable_id(source.get_stable_id(keystone_node))
-	assert_not_null(decoded_keystone_node, "decoded graph is missing the keystone node's stable_id")
-	assert_eq(decoded_keystone_node.keystone, _TITAN_KEYSTONE,
-			"keystone did not survive the round trip — a joining client would silently lose its grant")
 
 
 ## #879's Resync acceptance: a node's `(status id, power)` survives the round
@@ -187,7 +175,7 @@ func test_round_trip_preserves_per_node_radius() -> void:
 
 
 ## #330 — an authored keystone scene placed by procgen is the node's whole
-## content (colour, name, keystone, radius). Only the host generates (ADR
+## content (colour, name, effects, radius). Only the host generates (ADR
 ## 0013), so a client must RE-INSTANTIATE that scene on the create path or
 ## it draws a plain skill_node with the reconciled tier only.
 func test_round_trip_reinstantiates_an_authored_scene_node() -> void:
@@ -204,6 +192,16 @@ func test_round_trip_reinstantiates_an_authored_scene_node() -> void:
 	assert_eq(t.get_display_name(), titan.get_display_name(), "#179's name rides in the scene")
 	assert_eq(t.base_type_color, titan.base_type_color, "the scene's colour rides in the scene")
 	assert_almost_eq(t.base_radius, titan.base_radius, 0.001)
+	# #929: the landmark's StatEffect is a SubResource of the scene — it rides
+	# in the re-instantiated scene and the reconcile pass must leave it there
+	# (a `.tres`-only reconcile would wipe it, and a joining client would
+	# allocate a landmark that grants nothing). Twice, so a #561 resync into
+	# an already-built world is covered too.
+	assert_eq(t.effects.size(), titan.effects.size(), "the scene's own effects survive the create path")
+	assert_true(t.effects.size() > 0 and t.effects[0] == titan.effects[0],
+			"the decoded landmark shares the scene's StatEffect instance")
+	GraphSnapshot.decode(GraphSnapshot.encode(source), target)
+	assert_eq(t.effects.size(), titan.effects.size(), "the scene's own effects survive a resync")
 	# Plain nodes stay plain: the slot is only set for a non-default scene.
 	var plain := target.get_by_stable_id(source.get_stable_id(source.get_skill_nodes()[0]))
 	assert_eq(plain.scene_file_path, "res://skill_node/skill_node.tscn")

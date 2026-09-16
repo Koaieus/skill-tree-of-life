@@ -4,10 +4,10 @@ extends GutTest
 ## [GraphProcgen.generate] returns a `blockers` array of `{node, size, prune_seed,
 ## footprint}`
 ## placements, that the per-tier density is `floor(node_count / denom)`, that
-## placements never land on a starter core or a keystone node, that no node is
+## placements never land on a starter core or a landmark (authored-scene) node, that no node is
 ## picked twice, and that placements are seed-deterministic.
 
-const _KEYSTONE := preload("res://entity/keystone/instances/xp_anchor_keystone.tres")
+const _LANDMARK := preload("res://entity/keystone/instances/farsight_node.tscn")
 
 
 func _build_config(node_count: int, rng_seed: int) -> GraphProcgenConfig:
@@ -72,7 +72,7 @@ func test_density_at_100_nodes() -> void:
 	assert_eq(counts.get(GameRoot.BlockerSize.LARGE, 0), 1, "100/100 = 1 large")
 
 
-func test_placements_skip_starters_and_keystones() -> void:
+func test_placements_skip_starters_and_landmarks() -> void:
 	var cfg := _build_config(60, 777)
 	# Not what this test is about, and 60 nodes is small enough that the #300
 	# safe radius swallows the whole eligible pool — the radius has its own
@@ -81,8 +81,9 @@ func test_placements_skip_starters_and_keystones() -> void:
 	var sp := StartingPoint.new()
 	sp.position = Vector2.ZERO
 	cfg.starting.starting_points.append(sp)
-	var kp := KeystonePlacement.new()
-	kp.keystone = _KEYSTONE
+	var kp := ScenePlacement.new()
+	kp.node_scene = _LANDMARK
+	kp.exclude_starters = false
 	cfg.content.guaranteed_placements.append(kp)
 
 	var result: Dictionary = await _generate(cfg)
@@ -98,7 +99,7 @@ func test_placements_skip_starters_and_keystones() -> void:
 	for placement in blockers:
 		var node: SkillNode = placement.get("node")
 		assert_false(starter_ids.has(node.get_instance_id()), "blocker must not be a starter core")
-		assert_null(node.keystone, "blocker must not be a keystone node")
+		assert_ne(node.scene_file_path, _LANDMARK.resource_path, "blocker must not be a landmark node")
 		assert_false(seen.has(node.get_instance_id()), "no node picked twice")
 		seen[node.get_instance_id()] = true
 
@@ -203,7 +204,7 @@ func test_no_blocker_inside_core_safe_radius() -> void:
 
 func test_safe_radius_zero_allows_core_adjacent_blockers() -> void:
 	# The knob is opt-out: 0 restores the pre-#300 "anywhere but a core or a
-	# keystone" pool, so the ring one hop off a core is eligible again.
+	# landmark" pool, so the ring one hop off a core is eligible again.
 	var cfg := _build_config(300, 31337)
 	cfg.starting.starter_placement = CenterCoreStarters.new()
 	cfg.camp_sizes = [3]
@@ -337,16 +338,17 @@ func test_footprint_is_connected_to_its_core() -> void:
 
 
 ## No node belongs to two Dormant Cores, and no footprint node is a core, a
-## starter or a keystone — the claim set covers cores placed LATER in the tier
+## starter or a landmark — the claim set covers cores placed LATER in the tier
 ## order, not just the ones already grown.
-func test_footprints_never_overlap_a_claim_a_starter_or_a_keystone() -> void:
+func test_footprints_never_overlap_a_claim_a_starter_or_a_landmark() -> void:
 	var cfg := _build_config(300, 2024)
 	cfg.blockers.blocker_min_hops_from_core = 0
 	var sp := StartingPoint.new()
 	sp.position = Vector2.ZERO
 	cfg.starting.starting_points.append(sp)
-	var kp := KeystonePlacement.new()
-	kp.keystone = _KEYSTONE
+	var kp := ScenePlacement.new()
+	kp.node_scene = _LANDMARK
+	kp.exclude_starters = false
 	cfg.content.guaranteed_placements.append(kp)
 	var result: Dictionary = await _generate(cfg)
 
@@ -366,7 +368,7 @@ func test_footprints_never_overlap_a_claim_a_starter_or_a_keystone() -> void:
 					"node at %s is claimed twice" % str(node.position))
 			assert_false(starter_ids.has(node.get_instance_id()),
 					"a footprint node must not be a starter core")
-			assert_null(node.keystone, "a footprint node must not be a keystone")
+			assert_ne(node.scene_file_path, _LANDMARK.resource_path, "a footprint node must not be a landmark node")
 			claimed[node.get_instance_id()] = true
 	assert_gt(total_footprint, 0, "expected the sample to grow some footprints")
 

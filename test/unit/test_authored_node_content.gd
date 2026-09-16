@@ -1,7 +1,7 @@
 extends GutTest
 
 ## Guards the *hand-authored* content resources against silent decay. The
-## generic substrate tests (test_keystone.gd, test_effect.gd) build their own
+## generic substrate tests (test_effect.gd) build their own
 ## fixtures, so a `.tres` that got stripped by an editor round-trip (see
 ## .claude/rules/godot-workflow.md) still passes them. These load the real
 ## files and assert the modifiers a designer typed in are still there — and
@@ -9,7 +9,8 @@ extends GutTest
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _XP_ANCHOR := preload("res://entity/keystone/instances/xp_anchor_keystone.tres")
+const _FARSIGHT := preload("res://entity/keystone/instances/farsight_node.tscn")
+const _WARD := preload("res://entity/keystone/instances/mythic_ward_node.tscn")
 const _BUNKER := preload("res://skill_node/addons/bunker_addon.tscn")
 const _FORTIFICATION := preload("res://skill_node/addons/fortification_addon.tscn")
 
@@ -27,40 +28,43 @@ func _make_node() -> SkillNode:
 	return n
 
 
-# ── Keystone: XP Anchor ──────────────────────────────────────────────────────
+# ── Landmark scene: Farsight Spire ───────────────────────────────────────────
 
-func test_xp_anchor_keystone_still_carries_its_modifier() -> void:
-	var ks = _XP_ANCHOR
-	assert_true(ks is Keystone, "xp_anchor_keystone.tres must keep its script")
-	assert_eq(ks.display_name, "XP Anchor")
-	assert_eq(ks.effects.size(), 1, "authored effect payload was stripped")
-	var fx: Effect = ks.effects[0]
+## #929: a landmark is an inherited scene carrying its StatEffect as a
+## SubResource on `effects` — the shape an editor round-trip can strip.
+func test_farsight_scene_still_carries_its_modifier() -> void:
+	var n: SkillNode = autofree(_FARSIGHT.instantiate()) as SkillNode
+	assert_eq(n.get_display_name(), "Farsight Spire")
+	assert_eq(n.effects.size(), 1, "authored effect payload was stripped")
+	var fx: Effect = n.effects[0]
 	assert_true(fx is StatEffect, "payload entry lost its script")
 	assert_eq(fx.modifiers.size(), 1, "authored modifier bundle was stripped")
 	var m: StatModifier = fx.modifiers[0]
 	assert_not_null(m, "modifier entry lost its script")
-	assert_eq(m.stat_id, &"xp_per_turn")
-	assert_eq(m.value, 4.0)
+	assert_eq(m.stat_id, &"vision_range")
+	assert_eq(m.value, 100.0)
 
 
-func test_xp_anchor_lands_on_an_allocating_entity() -> void:
+## Mythic Ward rather than Farsight here: allocating any node also moves
+## `vision_range` (territory sight), so a flat +100 would be entangled with
+## that; `min_damage_taken` is touched by nothing but the landmark's grant.
+func test_mythic_ward_lands_on_an_allocating_entity() -> void:
 	var alloc := autofree(AllocationSystem.new()) as AllocationSystem
 	var ent := _make_entity()
-	var node := _make_node()
+	var node: SkillNode = autofree(_WARD.instantiate()) as SkillNode
 	add_child(alloc)
 	add_child(ent)
 	add_child(node)
 	await get_tree().process_frame
 
-	node.keystone = _XP_ANCHOR
-	var base: float = ent.stat_board.get_stat(&"xp_per_turn").value
+	var base: float = ent.stat_board.get_stat(&"min_damage_taken").value
 
 	alloc.force_allocate(ent, node)
-	assert_eq(ent.stat_board.get_stat(&"xp_per_turn").value, base + 4.0,
-		"allocating the XP Anchor node must grant +4 xp_per_turn")
+	assert_eq(ent.stat_board.get_stat(&"min_damage_taken").value, base - 1.0,
+		"allocating the Mythic Ward node must grant -1 min_damage_taken")
 
 	alloc.force_deallocate(node)
-	assert_eq(ent.stat_board.get_stat(&"xp_per_turn").value, base,
+	assert_eq(ent.stat_board.get_stat(&"min_damage_taken").value, base,
 		"deallocating must revoke it exactly")
 
 

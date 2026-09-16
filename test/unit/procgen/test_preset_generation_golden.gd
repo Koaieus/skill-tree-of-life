@@ -16,11 +16,9 @@ extends GutTest
 ## Also covers the rest of GraphProcgenConfig's Content group, since #349's
 ## Content module owns all of it, not just modifier_pool_set: each node's
 ## attached addons (`_roll_and_attach_addons`, walked via
-## [method SkillNode.get_addons] so this also picks up any addon a
-## [KeystonePlacement] mints via `Keystone.addon_scenes`) with their
-## `local_modifiers`, spell grants (`GraphProcgenSpellGrants.distribute`,
-## captured as the granted [SpellDef.id]), and a stamped [SkillNode.keystone]'s
-## identity. `MinNearStartingPoints` / `RandomBudgetBoost` (the other two
+## [method SkillNode.get_addons]) with their `local_modifiers` and spell
+## grants (`GraphProcgenSpellGrants.distribute`, captured as the granted
+## [SpellDef.id]). `MinNearStartingPoints` / `RandomBudgetBoost` (the other
 ## `guaranteed_placements` entries both presets author) and `archetype_stamps`
 ## (authored empty in both presets today) are deliberately NOT captured as
 ## their own fields — see the comments at their capture sites for why each is
@@ -34,7 +32,7 @@ extends GutTest
 ## ~10,000-line diff on any legitimate procgen change, which is a guard
 ## nobody reads):
 ##   - DETAIL tier, [constant _DETAIL_NODE_COUNT] nodes: the full NODE / MOD /
-##     ADDON / AMOD / SPELL / KEYSTONE format below, byte-for-byte. This is
+##     ADDON / AMOD / SPELL format below, byte-for-byte. This is
 ##     what names the field and the node when something breaks — a mis-wired
 ##     `budget_policy` or a dropped `addon_policy` shows up identically at 80
 ##     nodes and at 800, so more nodes here buys nothing for a FIELD
@@ -74,12 +72,12 @@ const _SEED := 424242
 
 ## Node count for the DETAIL tier (see the class docstring). Both presets
 ## carry 6 archetypes (`archetypes` array) and every `guaranteed_placements`
-## entry targets a specific node regardless of density (KeystonePlacement's
-## nearest-to-point, MinNearStartingPoints' per-starter neighbourhood,
+## entry targets a specific node regardless of density (ScenePlacement's
+## weighted draw, MinNearStartingPoints' per-starter neighbourhood,
 ## RandomBudgetBoost's own `count`) — none of that needs scale to appear.
 ## Checked empirically at 80 (`_REGENERATE`, then grepped the result): every
-## archetype, several ADDON/AMOD blocks, at least one SPELL grant, and the
-## KEYSTONE line all show up for both presets. Go up only if a future preset
+## archetype, several ADDON/AMOD blocks and at least one SPELL grant
+## all show up for both presets. Go up only if a future preset
 ## adds a path that 80 nodes doesn't reach — and say in a comment here why,
 ## same as this one.
 const _DETAIL_NODE_COUNT := 80
@@ -169,7 +167,6 @@ static func _addon_identity(a: SkillNodeAddon) -> String:
 ##     ADDON <identity>                 — one per [method SkillNode.get_addons]
 ##       AMOD ...                       — that addon's local_modifiers
 ##     SPELL <spell id>                 — one per SpellGrant in [member SkillNode.effects]
-##     KEYSTONE <keystone id>           — only if [member SkillNode.keystone] is stamped
 ## ADDON blocks sort by identity (ties broken by attach order, since a
 ## non-unique addon can repeat) so a reordering of `_roll_and_attach_addons`'s
 ## internal draw loop can't produce a false diff either.
@@ -197,9 +194,10 @@ static func _node_block(id: int, node: SkillNode) -> String:
 		lines.append_array(_mod_lines("AMOD", "    ", a.local_modifiers))
 
 	# Spell grants land as plain SpellGrant effects appended directly to
-	# `effects` by GraphProcgenSpellGrants._place (via SkillNode.add_effect) —
-	# distinct from a keystone's own effects, which live on the keystone
-	# resource, not here. SpellDef is authored content, so its `id` is a
+	# `effects` by GraphProcgenSpellGrants._place (via SkillNode.add_effect).
+	# A landmark scene's own StatEffect sits in `effects` too (#929) but is
+	# implied by the scene itself, so only SpellGrants are captured here.
+	# SpellDef is authored content, so its `id` is a
 	# stable, resolvable identity (same reasoning as the archetype id above).
 	var spell_ids: Array[String] = []
 	for e in node.effects:
@@ -208,18 +206,6 @@ static func _node_block(id: int, node: SkillNode) -> String:
 	spell_ids.sort()
 	for sid in spell_ids:
 		lines.append("  SPELL %s" % sid)
-
-	# Keystone.stamp() sets node.keystone and (params permitting) overrides
-	# base_type_color / base_radius / mints addon_scenes — the last of those
-	# is already covered above since it lands through the same get_addons()
-	# walk. What ISN'T implied by anything else here is the keystone's own
-	# identity and its live-referenced effects grant, so capture the
-	# identity (its resource path is as stable and resolvable as a SpellDef
-	# id) and skip the presentation overrides as cosmetic.
-	if node.keystone != null:
-		var kpath: String = node.keystone.resource_path
-		var kid := kpath.get_file().get_basename() if not kpath.is_empty() else "<unnamed>"
-		lines.append("  KEYSTONE %s" % kid)
 
 	return "\n".join(lines)
 
@@ -336,7 +322,7 @@ static func _parse_fixture(text: String) -> Dictionary:
 	for raw_line in text.split("\n"):
 		if raw_line.strip_edges().is_empty() or raw_line.begins_with("#"):
 			continue
-		# Any indented line (MOD, ADDON, AMOD, SPELL, KEYSTONE) belongs to the
+		# Any indented line (MOD, ADDON, AMOD, SPELL) belongs to the
 		# NODE block currently accumulating — only SEED / NODE_COUNT /
 		# DIGEST_* / NODE / EDGE / STARTER start at column 0.
 		if raw_line.begins_with(" "):

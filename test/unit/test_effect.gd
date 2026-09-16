@@ -240,15 +240,15 @@ func test_revoke_all_clears_every_target() -> void:
 	assert_eq(inst.grants().size(), 0)
 
 
-# ── AllocationSystem wiring (the stub Keystone advertised for months) ────────
+# ── AllocationSystem wiring: node-carried effects (#929) ─────────────────────
 
-func _make_keystone(value: float) -> Keystone:
+## One StatEffect on [member SkillNode.effects] — the shape a landmark scene
+## authors as a SubResource (#929); the former Keystone payload, now direct.
+func _make_effects(value: float) -> Array[Effect]:
 	var fx := StatEffect.new()
 	fx.modifiers = [_mod(&"strength", value)]
-	var ks := Keystone.new()
-	ks.display_name = "K"
-	ks.effects = [fx]
-	return ks
+	var out: Array[Effect] = [fx]
+	return out
 
 
 func test_allocate_grants_node_effects_and_deallocate_revokes() -> void:
@@ -260,18 +260,83 @@ func test_allocate_grants_node_effects_and_deallocate_revokes() -> void:
 	add_child(node)
 	await get_tree().process_frame
 
-	node.keystone = _make_keystone(20.0)
+	node.effects = _make_effects(20.0)
 	var base: float = ent.stat_board.strength.value
 
 	alloc.force_allocate(ent, node)
 	assert_eq(int(ent.stat_board.strength.value), int(base + 20),
-		"allocating a keystone node grants its effects")
+		"allocating an effect-carrying node grants its effects")
 	assert_eq(ent.get_effects().size(), 1)
 
 	alloc.force_deallocate(node)
 	assert_eq(int(ent.stat_board.strength.value), int(base),
 		"deallocating revokes them")
 	assert_eq(ent.get_effects().size(), 0)
+
+
+## Re-homed from test_keystone.gd (#929): the payload is read at allocate
+## time, never baked — an effect appended after the node is in the tree still
+## lands.
+func test_payload_is_read_live_not_baked() -> void:
+	var alloc := autofree(AllocationSystem.new()) as AllocationSystem
+	var ent := _make_entity()
+	var node := _make_node()
+	add_child(alloc)
+	add_child(ent)
+	add_child(node)
+	await get_tree().process_frame
+
+	node.add_effect(_make_effects(7.0)[0])
+	var base: float = ent.stat_board.strength.value
+	alloc.force_allocate(ent, node)
+	assert_eq(int(ent.stat_board.strength.value), int(base + 7),
+		"a payload added after the node entered the tree still lands")
+
+
+## Re-homed from test_keystone.gd (#929): the carrier's owner gets exactly the
+## node's payload, and deallocating takes exactly it back.
+func test_payload_reaches_the_carriers_owner() -> void:
+	var alloc := autofree(AllocationSystem.new()) as AllocationSystem
+	var ent := _make_entity()
+	var node := _make_node()
+	add_child(alloc)
+	add_child(ent)
+	add_child(node)
+	await get_tree().process_frame
+
+	node.effects = _make_effects(25.0)
+	var base: float = ent.stat_board.strength.value
+
+	alloc.force_allocate(ent, node)
+	assert_eq(int(ent.stat_board.strength.value), int(base + 25),
+		"allocating an effect-bearing node grants its payload")
+
+	alloc.force_deallocate(node)
+	assert_eq(int(ent.stat_board.strength.value), int(base),
+		"deallocating revokes it")
+	assert_eq(ent.get_effects().size(), 0)
+
+
+## Re-homed from test_keystone.gd (#929): one shared Effect (a landmark scene's
+## SubResource is shared by every instance) granted to two entities — revoking
+## one's grant mustn't touch the other, because modifiers are duplicated per
+## grant.
+func test_same_effect_safe_across_entities() -> void:
+	var a := _make_entity()
+	var b := _make_entity()
+	add_child(a); add_child(b)
+	await get_tree().process_frame
+	var effect: Effect = _make_effects(10.0)[0]
+	var inst_a := a.grant_effect(effect)
+	var inst_b := b.grant_effect(effect)
+	var handles_a := inst_a.handles_for(null)
+	var handles_b := inst_b.handles_for(null)
+	assert_eq(handles_a.size(), 1)
+	assert_ne(handles_a[0], handles_b[0], "each grant must duplicate the modifier")
+
+	a.revoke_effect(inst_a)
+	var base_str_b: float = b.stat_board.strength.base_value
+	assert_eq(int(b.stat_board.strength.value), int(base_str_b + 10))
 
 
 ## `_on_node_damaged` carries the POST-mitigation amount, so a defensive effect
