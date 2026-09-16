@@ -34,6 +34,11 @@
 [ext_resource type="Script" uid="uid://cfprsq1bfanb5" path="res://procgen/pools/spell_grant_pool.gd" id="32_pikc4"]
 [ext_resource type="Script" uid="uid://cacdyy5i472u8" path="res://procgen/archetypes/archetype_weight_profile.gd" id="33_6krmj"]
 [ext_resource type="Resource" uid="uid://b6c1yc1lonvkq" path="res://attack/spell/defs/cyclone.tres" id="33_cyclone"]
+[ext_resource type="Script" uid="uid://bfbwoq51khgkr" path="res://procgen/placement/scene_placement.gd" id="34_scnpl"]
+[ext_resource type="PackedScene" path="res://entity/keystone/instances/titan_node.tscn" id="35_titan"]
+[ext_resource type="PackedScene" path="res://entity/keystone/instances/archmage_node.tscn" id="36_archmg"]
+[ext_resource type="PackedScene" path="res://entity/keystone/instances/farsight_node.tscn" id="37_farsgt"]
+[ext_resource type="PackedScene" path="res://entity/keystone/instances/mythic_ward_node.tscn" id="38_mward"]
 
 [sub_resource type="Resource" id="Resource_68xts"]
 script = ExtResource("1_x1tax")
@@ -186,6 +191,45 @@ role_tag = &"xp_growth"
 script = ExtResource("22_th0qq")
 count = 5
 
+[sub_resource type="Resource" id="rim_field"]
+script = ExtResource("17_s7jhb")
+inner_radius = 1000.0
+outer_radius = 2500.0
+inner_value = 0.0
+outer_value = 1.0
+
+[sub_resource type="Resource" id="sp_titan"]
+script = ExtResource("34_scnpl")
+node_scene = ExtResource("35_titan")
+min_count = 1
+max_count = 2
+weight = SubResource("rim_field")
+min_hops_from_starter = 3
+
+[sub_resource type="Resource" id="sp_archmage"]
+script = ExtResource("34_scnpl")
+node_scene = ExtResource("36_archmg")
+min_count = 1
+max_count = 2
+weight = SubResource("rim_field")
+min_hops_from_starter = 3
+
+[sub_resource type="Resource" id="sp_farsight"]
+script = ExtResource("34_scnpl")
+node_scene = ExtResource("37_farsgt")
+min_count = 1
+max_count = 2
+weight = SubResource("rim_field")
+min_hops_from_starter = 3
+
+[sub_resource type="Resource" id="sp_mythic_ward"]
+script = ExtResource("34_scnpl")
+node_scene = ExtResource("38_mward")
+min_count = 1
+max_count = 1
+weight = SubResource("rim_field")
+min_hops_from_starter = 3
+
 [sub_resource type="Resource" id="sgpe_bruiser"]
 script = ExtResource("25_yaek3")
 spell_def = ExtResource("26_7fodc")
@@ -282,4 +326,4 @@ archetypes = Array[ExtResource("10_t0e51")]([SubResource("ap_red"), SubResource(
 addon_policy = SubResource("Resource_c6pvu")
 spell_grant_pool = SubResource("spell_grant_pool_main")
 spell_grant_ratio = 0.234
-guaranteed_placements = Array[Resource]([SubResource("kp_xp"), SubResource("mnsp_xp"), SubResource("rbb_anomalous")])
+guaranteed_placements = Array[Resource]([SubResource("kp_xp"), SubResource("mnsp_xp"), SubResource("rbb_anomalous"), SubResource("sp_titan"), SubResource("sp_archmage"), SubResource("sp_farsight"), SubResource("sp_mythic_ward")])
