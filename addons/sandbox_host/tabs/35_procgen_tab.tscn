@@ -7,7 +7,6 @@
 [node name="Procgen" instance=ExtResource("1_base")]
 tab_title = "Procgen"
 tab_id = &"procgen"
-panel_scene = ExtResource("2_panel")
 loader_method = &"load_config"
 
 [node name="Sidebar" parent="Layout/Split" index="0"]
@@ -19,3 +18,6 @@ layout_mode = 2
 size_flags_vertical = 3
 directory = "res://procgen/presets"
 recursive = true
+
+[node name="ProcgenPlaygroundPanel" parent="Layout/Split/PanelHost" index="0" instance=ExtResource("2_panel")]
+layout_mode = 2

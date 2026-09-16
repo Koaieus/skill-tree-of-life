@@ -6,5 +6,7 @@
 [node name="Loot" instance=ExtResource("1_base")]
 tab_title = "Loot"
 tab_id = &"loot"
-panel_scene = ExtResource("2_panel")
 loader_method = &"load_object"
+
+[node name="LootSandboxPanel" parent="Layout/Split/PanelHost" index="0" instance=ExtResource("2_panel")]
+layout_mode = 2
