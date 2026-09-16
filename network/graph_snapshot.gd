@@ -64,6 +64,8 @@ const _R_ADDONS := 10 ## Array[int], indices into `res`, one per attached addon 
 const _R_KEYSTONE := 11 ## index into `res`, -1 for none — SkillNode.keystone
 const _R_EFFECTS := 12  ## Array[int], indices into `res` — SkillNode.effects (direct grants, independent of a keystone)
 const _R_STATUSES := 13 ## Array of `[def_idx, power]` pairs (#879) — def_idx indexes into `res`, power is the raw float (not quantized — WorldFingerprint quantizes its own fold independently, same split as HP)
+const _R_BASE_RADIUS := 14       ## SkillNode.base_radius (#783) — procgen ramps it per node and only the host generates, so it is carried, not derived
+const _R_BASE_INNER_RADIUS := 15 ## SkillNode.base_inner_radius (#783) — same reason
 
 
 ## Builds the payload for the WHOLE graph in one shot: `res` (the interned
@@ -311,7 +313,7 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 		if s.def.resource_path != "":
 			status_pairs.append([table.intern(s.def.resource_path), s.power])
 	var row: Array
-	row.resize(14)
+	row.resize(16)
 	row[_R_STABLE_ID] = graph.get_stable_id(node)
 	row[_R_ARCHETYPE] = archetype_idx
 	row[_R_OWNER_ID] = owner_id
@@ -326,6 +328,8 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	row[_R_KEYSTONE] = keystone_idx
 	row[_R_EFFECTS] = effect_idx
 	row[_R_STATUSES] = status_pairs
+	row[_R_BASE_RADIUS] = node.base_radius
+	row[_R_BASE_INNER_RADIUS] = node.base_inner_radius
 	return row
 
 
@@ -397,6 +401,12 @@ static func _reconcile_authored(node: SkillNode, row: Array, res: Array) -> void
 			effects.append(e)
 	if node.effects != effects:
 		node.effects = effects
+	var base_radius := float(row[_R_BASE_RADIUS])
+	if not is_equal_approx(node.base_radius, base_radius):
+		node.base_radius = base_radius
+	var base_inner_radius := float(row[_R_BASE_INNER_RADIUS])
+	if not is_equal_approx(node.base_inner_radius, base_inner_radius):
+		node.base_inner_radius = base_inner_radius
 
 
 static func _interned(res: Array, idx: int) -> Resource:
