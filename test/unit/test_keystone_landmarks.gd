@@ -8,7 +8,7 @@ const _TITAN   := preload("res://entity/keystone/instances/titan_node.tscn")
 const _ARCHMAGE:= preload("res://entity/keystone/instances/archmage_node.tscn")
 const _NATURAL_XP := preload("res://entity/keystone/instances/natural_xp_node.tscn")
 const _AP_KEYSTONE := preload("res://entity/keystone/instances/ap_keystone_node.tscn")
-const _D23_WISDOM := preload("res://entity/keystone/instances/d_23_wisdom_keystone_node.tscn")
+const _WISDOM_KEYSTONE := preload("res://entity/keystone/instances/wisdom_keystone_node.tscn")
 const _BASE := preload("res://entity/keystone/keystone_skill_node.tscn")
 
 const _BASE_PATH := "res://entity/keystone/keystone_skill_node.tscn"
@@ -41,8 +41,8 @@ func test_natural_xp_grants_plus_10_xp_per_turn_and_plus_10_wisdom() -> void:
 	_check(_NATURAL_XP, &"wisdom", StatModifier.Operation.ADD_BASE, 10.0, "natural_xp", 1)
 func test_ap_keystone_grants_plus_1_max_action_points() -> void:
 	_check(_AP_KEYSTONE, &"action_points", StatModifier.Operation.ADD_BASE, 1.0, "ap_keystone")
-func test_d23_wisdom_keystone_grants_plus_20_wisdom() -> void:
-	_check(_D23_WISDOM, &"wisdom", StatModifier.Operation.ADD_BASE, 20.0, "d23_wisdom")
+func test_wisdom_keystone_grants_plus_20_wisdom() -> void:
+	_check(_WISDOM_KEYSTONE, &"wisdom", StatModifier.Operation.ADD_BASE, 20.0, "wisdom_keystone")
 
 
 ## #886 acceptance 1: allocating the AP keystone reads exactly +1 max AP over
@@ -83,6 +83,32 @@ func test_ap_keystone_grants_exactly_plus_1_max_ap_on_allocate() -> void:
 	assert_almost_eq(base_pacifist + 1.0, 5.0, 0.001, "pacifist: 2 base + 2 pacifist + 1 keystone = 5")
 
 
+## #180 acceptance 1: allocating the wisdom keystone onto a hand-built default
+## board reads +20 wisdom, and the D-15 derived income (xp_per_turn, an
+## intrinsic RatioFormula reading wisdom at divisor 5 on
+## default_entity_board.tres — see entity/default_entity_board.tres's
+## mod_wis_to_xp_pt, "+1 XP/Turn per 5 WIS") moves by exactly +20/5 = +4.
+func test_wisdom_keystone_grants_exactly_plus_20_wisdom_and_derived_xp_on_allocate() -> void:
+	var alloc := autofree(AllocationSystem.new()) as AllocationSystem
+	add_child(alloc)
+	var default_board: EntityStatBoard = preload("res://entity/default_entity_board.tres")
+
+	var ent := autofree(Entity.new()) as Entity
+	ent.display_name = "Wise"
+	ent.stat_board = default_board.duplicate(true)
+	add_child(ent)
+	var n: SkillNode = autofree(_WISDOM_KEYSTONE.instantiate()) as SkillNode
+	add_child(n)
+	await get_tree().process_frame
+	var base_wisdom: float = ent.stat_board.get_value(&"wisdom")
+	var base_xp: float = ent.stat_board.get_value(&"xp_per_turn")
+	alloc.force_allocate(ent, n)
+	assert_almost_eq(float(ent.stat_board.get_value(&"wisdom")), base_wisdom + 20.0, 0.001,
+		"exactly +20 wisdom")
+	assert_almost_eq(float(ent.stat_board.get_value(&"xp_per_turn")), base_xp + 4.0, 0.001,
+		"derived xp_per_turn moves by +20/5 = +4 (D-15's WIS-driven income)")
+
+
 ## #929: the grant reaches a hand-built board on allocate, read off
 ## [member SkillNode.effects] by [AllocationSystem] — the same door every
 ## node-carried effect goes through, no resource in between.
@@ -119,7 +145,7 @@ func test_landmarks_contribute_no_emblem() -> void:
 		"archmage": _ARCHMAGE,
 		"natural_xp": _NATURAL_XP,
 		"ap_keystone": _AP_KEYSTONE,
-		"d23_wisdom": _D23_WISDOM,
+		"wisdom_keystone": _WISDOM_KEYSTONE,
 	}
 	for label in scenes:
 		var n: SkillNode = autofree(scenes[label].instantiate()) as SkillNode
@@ -138,7 +164,7 @@ func test_base_and_landmarks_share_the_authored_radius() -> void:
 		"archmage": _ARCHMAGE,
 		"natural_xp": _NATURAL_XP,
 		"ap_keystone": _AP_KEYSTONE,
-		"d23_wisdom": _D23_WISDOM,
+		"wisdom_keystone": _WISDOM_KEYSTONE,
 	}
 	for label in scenes:
 		var n: SkillNode = autofree(scenes[label].instantiate()) as SkillNode
@@ -174,7 +200,7 @@ func test_landmarks_carry_a_non_empty_display_name() -> void:
 		"archmage": _ARCHMAGE,
 		"natural_xp": _NATURAL_XP,
 		"ap_keystone": _AP_KEYSTONE,
-		"d23_wisdom": _D23_WISDOM,
+		"wisdom_keystone": _WISDOM_KEYSTONE,
 	}
 	for label in scenes:
 		var n: SkillNode = autofree(scenes[label].instantiate()) as SkillNode
