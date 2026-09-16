@@ -27,21 +27,18 @@ operation = 3
 resource_name = "+1 Blade Damage"
 script = ExtResource("2_mod")
 stat_id = &"blade_damage"
-value = 1.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_u3i0u"]
 resource_name = "+1 Spell Damage"
 script = ExtResource("2_mod")
 stat_id = &"spell_damage"
-value = 1.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_nirvb"]
 resource_name = "+1 Ranged Damage"
 script = ExtResource("2_mod")
 stat_id = &"ranged_damage"
-value = 1.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_milid"]
@@ -51,9 +48,9 @@ metadata/_custom_type_script = "uid://cyj0to3m0jdxa"
 
 [sub_resource type="Resource" id="aura_hop_buff"]
 script = ExtResource("3_aura")
-discard = 1
 metric = SubResource("metric_hop")
 distance_scale = SubResource("scale_hop")
+discard = 1
 display_name = "Coil (hops)"
 description = "The further a node winds from the core in hops, the more armor and damage it gains."
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_hop_buff"), SubResource("Resource_milid")])
@@ -103,9 +100,9 @@ metadata/_custom_type_script = "uid://cyj0to3m0jdxa"
 
 [sub_resource type="Resource" id="aura_euclid_penalty"]
 script = ExtResource("3_aura")
-discard = 1
 metric = SubResource("metric_euclid")
 distance_scale = SubResource("scale_euclid")
+discard = 1
 display_name = "Coil (space)"
 description = "The further a node sits from the core in space, the more armor and damage it loses."
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_euclid_penalty"), SubResource("Resource_riohq")])

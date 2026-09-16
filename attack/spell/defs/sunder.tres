@@ -1,16 +1,19 @@
-[gd_resource type="Resource" script_class="SpellDef" format=3]
+[gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://3pgjjxrovagd"]
 
 [ext_resource type="Texture2D" uid="uid://co6hckurtll2q" path="res://assets/icons/spells/laser_burst.png" id="1_icon"]
+[ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/condition/landing_condition.gd" id="1_jipuy"]
 [ext_resource type="Script" uid="uid://ber34us1t16kb" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" uid="uid://dw3civ4fol21f" path="res://attack/spell/on_hit/on_hit_effect.gd" id="2_effect"]
+[ext_resource type="Resource" path="res://effects/status/armor_break.tres" id="3_armor_break"]
 [ext_resource type="Script" uid="uid://cymqlf1js3ra8" path="res://attack/spell/on_hit/damage_effect.gd" id="3_dmg"]
 [ext_resource type="Script" uid="uid://c2q50hhtuf7g7" path="res://attack/spell/on_hit/apply_status_effect.gd" id="3_status"]
-[ext_resource type="Resource" path="res://effects/status/armor_break.tres" id="3_armor_break"]
 [ext_resource type="Script" uid="uid://o0v6inqs5wk6" path="res://attack/spell/propagation/propagation_config.gd" id="4_config"]
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="5_filter"]
 [ext_resource type="Script" uid="uid://btpnit4nenasw" path="res://attack/targeting/node_targeting.gd" id="6_targeting"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_edge.tscn" id="10_3k41u"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_vfx"]
+[ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="11_slqml"]
 
 [sub_resource type="Resource" id="dmg_sunder"]
 script = ExtResource("3_dmg")

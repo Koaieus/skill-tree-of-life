@@ -46,9 +46,9 @@ max_hops = 5
 
 [sub_resource type="Resource" id="aura_strike"]
 script = ExtResource("3_aura")
-discard = 1
 reach = SubResource("reach_2hop")
 distance_scale = SubResource("scale_falling")
+discard = 1
 display_name = "Phantom Strike"
 description = "Nearby owned nodes hit harder, most intense at the core, gone by 5 hops out."
 modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_aoidj"), SubResource("Resource_bmjmu"), SubResource("Resource_hf1oc")])
@@ -70,9 +70,9 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_7cbeb"]
 script = ExtResource("3_aura")
-discard = 1
 metric = SubResource("Resource_tf2vw")
 distance_scale = SubResource("Resource_486ch")
+discard = 1
 display_name = "Brittle Armor"
 description = "Reduces armor of owned nodes with distance from Core"
 modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_i5s0a")])
@@ -86,7 +86,7 @@ per_phrase = "5 levels"
 metadata/_custom_type_script = "uid://dknxw63lhq13c"
 
 [sub_resource type="Resource" id="Resource_55gjb"]
-resource_name = "+1 Max Movement"
+resource_name = "+1 Max Movement per 5 levels"
 script = ExtResource("2_mod")
 stat_id = &"movement_points"
 formula = SubResource("Resource_ivgmh")
@@ -99,7 +99,7 @@ per_phrase = "5 levels"
 metadata/_custom_type_script = "uid://dknxw63lhq13c"
 
 [sub_resource type="Resource" id="mod_dealloc"]
-resource_name = "+1 Max Deallocation Points"
+resource_name = "+1 Max Deallocation Points per 5 levels"
 script = ExtResource("2_mod")
 stat_id = &"deallocation_points"
 formula = SubResource("Resource_m5r4m")

@@ -10,9 +10,9 @@
 [ext_resource type="Resource" uid="uid://vgrgi0u2ij56" path="res://attack/spell/defs/trail_blazer.tres" id="7_trail_blazer"]
 [ext_resource type="Resource" uid="uid://dae6hdb4aq3b3" path="res://attack/spell/defs/reverberator.tres" id="8_reverberator"]
 [ext_resource type="Resource" uid="uid://dm5qgrlia6ne6" path="res://attack/spell/defs/healing_beam.tres" id="9_healing_beam"]
-[ext_resource type="Resource" path="res://attack/spell/defs/dazzle.tres" id="10_dazzle"]
-[ext_resource type="Resource" path="res://attack/spell/defs/sunder.tres" id="11_sunder"]
-[ext_resource type="Resource" path="res://attack/spell/defs/venom.tres" id="12_venom"]
+[ext_resource type="Resource" uid="uid://div18hhpgwui8" path="res://attack/spell/defs/dazzle.tres" id="10_dazzle"]
+[ext_resource type="Resource" uid="uid://3pgjjxrovagd" path="res://attack/spell/defs/sunder.tres" id="11_sunder"]
+[ext_resource type="Resource" uid="uid://c7h6c41tpggfa" path="res://attack/spell/defs/venom.tres" id="12_venom"]
 
 [resource]
 script = ExtResource("1_book")

@@ -22,9 +22,9 @@ metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [resource]
 script = ExtResource("1_aura")
-discard = 1
 metric = SubResource("hop_metric")
 distance_scale = SubResource("per_hop")
+discard = 1
 display_name = "Dormant Reach"
 description = "The Dormant Core's grip thins with distance: each hop out from the core costs an owned node 5 Node Health. The core itself is untouched."
 modifiers = Array[ExtResource("2_mod")]([SubResource("mod_node_health")])

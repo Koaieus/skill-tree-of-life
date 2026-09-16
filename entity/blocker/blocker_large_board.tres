@@ -158,7 +158,7 @@ source_stat_id = &"intelligence"
 divisor = 1000.0
 
 [sub_resource type="Resource" id="mod_int_to_mana"]
-resource_name = "+1 Max Mana"
+resource_name = "+1 Max Mana per 1000 INT"
 script = ExtResource("12_3edt8")
 stat_id = &"mana"
 formula = SubResource("formula_int_to_mana")
@@ -170,7 +170,7 @@ breakpoints = Array[float]([10.0, 100.0, 1000.0, 10000.0, 100000.0])
 per_phrase = "10-fold of INT"
 
 [sub_resource type="Resource" id="mod_int_to_mana_pt"]
-resource_name = "+1 Mana / Turn"
+resource_name = "+1 Mana / Turn per 10-fold of INT"
 script = ExtResource("12_3edt8")
 stat_id = &"mana_per_turn"
 formula = SubResource("formula_int_to_mana_pt")
@@ -181,7 +181,7 @@ source_stat_id = &"wisdom"
 divisor = 5.0
 
 [sub_resource type="Resource" id="mod_wis_to_xp_pt"]
-resource_name = "+1 XP / Turn"
+resource_name = "+1 XP / Turn per 5 WIS"
 script = ExtResource("12_3edt8")
 stat_id = &"xp_per_turn"
 formula = SubResource("formula_wis_to_xp_pt")
@@ -192,7 +192,7 @@ source_stat_id = &"strength"
 divisor = 20.0
 
 [sub_resource type="Resource" id="mod_str_to_blade_damage"]
-resource_name = "+1 Blade Damage"
+resource_name = "+1 Blade Damage per 20 STR"
 script = ExtResource("12_3edt8")
 stat_id = &"blade_damage"
 formula = SubResource("formula_str_to_blade_damage")
@@ -203,7 +203,7 @@ source_stat_id = &"strength"
 divisor = 40.0
 
 [sub_resource type="Resource" id="mod_str_to_blade_size"]
-resource_name = "+1 Blade Size"
+resource_name = "+1 Blade Size per 40 STR"
 script = ExtResource("12_3edt8")
 stat_id = &"blade_size"
 formula = SubResource("formula_str_to_blade_size")
@@ -213,7 +213,7 @@ script = ExtResource("script_linear")
 source_stat_id = &"dexterity"
 
 [sub_resource type="Resource" id="mod_dex_to_range"]
-resource_name = "+1% increased Range"
+resource_name = "+1% increased Range per DEX"
 script = ExtResource("12_3edt8")
 stat_id = &"range"
 operation = 1
@@ -225,7 +225,7 @@ source_stat_id = &"intelligence"
 divisor = 50.0
 
 [sub_resource type="Resource" id="mod_int_to_spell_range"]
-resource_name = "+1 Spell Range"
+resource_name = "+1 Spell Range per 50 INT"
 script = ExtResource("12_3edt8")
 stat_id = &"spell_range"
 formula = SubResource("formula_int_to_spell_range")
@@ -236,7 +236,7 @@ source_stat_id = &"intelligence"
 breakpoints = Array[float]([50.0, 150.0, 500.0, 1000.0, 5000.0])
 
 [sub_resource type="Resource" id="mod_int_to_spell_hops"]
-resource_name = "+1 Spell Hops"
+resource_name = "+1 Spell Hops at 50 / 150 / 500 / 1000 / 5000 INT"
 script = ExtResource("12_3edt8")
 stat_id = &"spell_hops"
 formula = SubResource("formula_int_to_spell_hops")
@@ -247,7 +247,7 @@ source_stat_id = &"dexterity"
 divisor = 20.0
 
 [sub_resource type="Resource" id="mod_dex_to_ranged_damage"]
-resource_name = "+1 Ranged Damage"
+resource_name = "+1 Ranged Damage per 20 DEX"
 script = ExtResource("12_3edt8")
 stat_id = &"ranged_damage"
 formula = SubResource("formula_dex_to_ranged_damage")
@@ -258,7 +258,7 @@ source_stat_id = &"intelligence"
 divisor = 1.0
 
 [sub_resource type="Resource" id="mod_int_to_spell_damage"]
-resource_name = "+1 Spell Damage"
+resource_name = "+1 Spell Damage per √INT"
 script = ExtResource("12_3edt8")
 stat_id = &"spell_damage"
 formula = SubResource("formula_int_to_spell_damage")
@@ -270,13 +270,13 @@ inputs = Array[StringName]([&"node_health_scaling", &"constitution"])
 per_phrase = "CON × node scaling"
 
 [sub_resource type="Resource" id="mod_con_to_node_health"]
-resource_name = "+1 Node Health"
+resource_name = "+1 Node Health per CON × node scaling"
 script = ExtResource("12_3edt8")
 stat_id = &"node_health"
 formula = SubResource("formula_con_to_node_health")
 
 [sub_resource type="Resource" id="mod_level_to_con"]
-resource_name = "+1 Constitution"
+resource_name = "+1 Constitution per level"
 script = ExtResource("12_3edt8")
 stat_id = &"constitution"
 formula = ExtResource("formula_level_scaling")

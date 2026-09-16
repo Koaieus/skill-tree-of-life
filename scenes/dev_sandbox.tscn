@@ -65,7 +65,7 @@
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="49_smy7u"]
 [ext_resource type="Resource" path="res://stats_system/defs/stake_level.tres" id="49_v0kkn"]
 [ext_resource type="Resource" path="res://stats_system/defs/sp_gain_on_levelup.tres" id="50_jhvit"]
-[ext_resource type="Resource" path="res://entity/spellbook_debug.tres" id="50_spellbook_debug"]
+[ext_resource type="Resource" uid="uid://co2ltnos0a12l" path="res://entity/spellbook_debug.tres" id="50_spellbook_debug"]
 [ext_resource type="Resource" path="res://stats_system/defs/spell_damage.tres" id="51_txqql"]
 [ext_resource type="Resource" path="res://stats_system/defs/spell_hops.tres" id="52_koxs1"]
 [ext_resource type="Resource" path="res://stats_system/defs/spell_range.tres" id="53_x25t5"]
@@ -78,7 +78,6 @@
 [ext_resource type="Resource" uid="uid://dj0fpcgn42hcn" path="res://stats_system/defs/wound_heal_per_turn.tres" id="59_7xfcf"]
 [ext_resource type="Resource" uid="uid://b04rych6tmpxr" path="res://stats_system/defs/xp.tres" id="60_bvapc"]
 [ext_resource type="Resource" path="res://stats_system/defs/xp_per_turn.tres" id="61_ng2ll"]
-[ext_resource type="Script" uid="uid://14yngvhjdbwx" path="res://skill_node/addons/bunker_addon.gd" id="77_fc0lb"]
 
 [sub_resource type="Resource" id="pool_ap"]
 resource_name = "action_points"
@@ -206,7 +205,7 @@ script = ExtResource("29_wrquo")
 source_stat_id = &"perception"
 
 [sub_resource type="Resource" id="mod_per_to_vision"]
-resource_name = "+2% increased Vision Range"
+resource_name = "+2% increased Vision Range per PER"
 script = ExtResource("2_mod")
 stat_id = &"vision_range"
 operation = 1
@@ -218,7 +217,7 @@ script = ExtResource("30_o1gci")
 source_stat_id = &"intelligence"
 
 [sub_resource type="Resource" id="mod_int_to_mana"]
-resource_name = "+1 Max Mana"
+resource_name = "+1 Max Mana per 10 INT"
 script = ExtResource("2_mod")
 stat_id = &"mana"
 formula = SubResource("formula_int_to_mana")
@@ -229,7 +228,7 @@ source_stat_id = &"intelligence"
 breakpoints = Array[float]([10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0])
 
 [sub_resource type="Resource" id="mod_int_to_mana_pt"]
-resource_name = "+1 Mana / Turn"
+resource_name = "+1 Mana / Turn per ×10 INT"
 script = ExtResource("2_mod")
 stat_id = &"mana_per_turn"
 formula = SubResource("formula_int_to_mana_pt")
@@ -240,7 +239,7 @@ source_stat_id = &"wisdom"
 divisor = 2.0
 
 [sub_resource type="Resource" id="mod_wis_to_xp_pt"]
-resource_name = "+1 XP / Turn"
+resource_name = "+1 XP / Turn per 2 WIS"
 script = ExtResource("2_mod")
 stat_id = &"xp_per_turn"
 formula = SubResource("formula_wis_to_xp_pt")
@@ -252,7 +251,7 @@ breakpoints = Array[float]([3.0, 8.0, 21.0, 55.0, 149.0, 404.0, 1097.0, 2981.0, 
 per_phrase = "log(WIS)"
 
 [sub_resource type="Resource" id="mod_wis_to_sensor"]
-resource_name = "+1 Sensor Range"
+resource_name = "+1 Sensor Range per log(WIS)"
 script = ExtResource("2_mod")
 stat_id = &"sensor_range"
 formula = SubResource("formula_wis_to_sensor")
@@ -262,7 +261,7 @@ script = ExtResource("30_o1gci")
 source_stat_id = &"strength"
 
 [sub_resource type="Resource" id="mod_str_to_blade_damage"]
-resource_name = "+1 Blade Damage"
+resource_name = "+1 Blade Damage per 10 STR"
 script = ExtResource("2_mod")
 stat_id = &"blade_damage"
 formula = SubResource("formula_str_to_blade_damage")
@@ -273,7 +272,7 @@ source_stat_id = &"strength"
 divisor = 20.0
 
 [sub_resource type="Resource" id="mod_str_to_blade_size"]
-resource_name = "+1 Blade Size"
+resource_name = "+1 Blade Size per 20 STR"
 script = ExtResource("2_mod")
 stat_id = &"blade_size"
 formula = SubResource("formula_str_to_blade_size")
@@ -283,7 +282,7 @@ script = ExtResource("29_wrquo")
 source_stat_id = &"dexterity"
 
 [sub_resource type="Resource" id="mod_dex_to_range"]
-resource_name = "+1% increased Range"
+resource_name = "+1% increased Range per DEX"
 script = ExtResource("2_mod")
 stat_id = &"range"
 operation = 1
@@ -295,7 +294,7 @@ source_stat_id = &"intelligence"
 divisor = 4.0
 
 [sub_resource type="Resource" id="mod_int_to_spell_range"]
-resource_name = "+1 Spell Range"
+resource_name = "+1 Spell Range per 4 INT"
 script = ExtResource("2_mod")
 stat_id = &"spell_range"
 formula = SubResource("formula_int_to_spell_range")
@@ -306,7 +305,7 @@ source_stat_id = &"intelligence"
 breakpoints = Array[float]([50.0, 150.0, 500.0, 1000.0, 5000.0])
 
 [sub_resource type="Resource" id="mod_int_to_spell_hops"]
-resource_name = "+1 Spell Hops"
+resource_name = "+1 Spell Hops at 50 / 150 / 500 / 1000 / 5000 INT"
 script = ExtResource("2_mod")
 stat_id = &"spell_hops"
 formula = SubResource("formula_int_to_spell_hops")
@@ -316,7 +315,7 @@ script = ExtResource("30_o1gci")
 source_stat_id = &"dexterity"
 
 [sub_resource type="Resource" id="mod_dex_to_ranged_damage"]
-resource_name = "+1 Ranged Damage"
+resource_name = "+1 Ranged Damage per 10 DEX"
 script = ExtResource("2_mod")
 stat_id = &"ranged_damage"
 formula = SubResource("formula_dex_to_ranged_damage")
@@ -326,7 +325,7 @@ script = ExtResource("30_o1gci")
 source_stat_id = &"intelligence"
 
 [sub_resource type="Resource" id="mod_int_to_spell_damage"]
-resource_name = "+1 Spell Damage"
+resource_name = "+1 Spell Damage per 10 INT"
 script = ExtResource("2_mod")
 stat_id = &"spell_damage"
 formula = SubResource("formula_int_to_spell_damage")
@@ -338,7 +337,7 @@ inputs = Array[StringName]([&"node_health_scaling", &"constitution"])
 per_phrase = "CON × node scaling"
 
 [sub_resource type="Resource" id="mod_con_to_node_health"]
-resource_name = "+1 Node Health"
+resource_name = "+1 Node Health per CON × node scaling"
 script = ExtResource("2_mod")
 stat_id = &"node_health"
 formula = SubResource("formula_con_to_node_health")
@@ -350,13 +349,13 @@ inputs = Array[StringName]([&"core_health_scaling", &"constitution"])
 per_phrase = "CON × core scaling"
 
 [sub_resource type="Resource" id="mod_con_to_health"]
-resource_name = "+1 Max Health"
+resource_name = "+1 Max Health per CON × core scaling"
 script = ExtResource("2_mod")
 stat_id = &"health"
 formula = SubResource("formula_con_to_health")
 
 [sub_resource type="Resource" id="mod_level_to_con"]
-resource_name = "+1 Constitution"
+resource_name = "+1 Constitution per level"
 script = ExtResource("2_mod")
 stat_id = &"constitution"
 formula = ExtResource("33_7yiaw")
@@ -622,7 +621,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_1sde5"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -657,7 +656,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_ph4qk"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -693,7 +692,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_tihqh"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -737,7 +736,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_wcpfy"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -798,7 +797,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_wrquo"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -829,7 +828,7 @@ definition = ExtResource("46_d7bkb")
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
 [sub_resource type="Resource" id="Resource_7yiaw"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -865,7 +864,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_v4i6i"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -894,7 +893,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_am3yw"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -924,7 +923,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_3uy4o"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -948,7 +947,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_smy7u"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -972,7 +971,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_x25t5"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -996,7 +995,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_3j5cd"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -1020,7 +1019,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_ng2ll"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -1038,13 +1037,39 @@ stake_level = SubResource("Resource_fc0lb")
 addon_slots = SubResource("Resource_bvapc")
 intrinsic_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_ng2ll")])
 
+[sub_resource type="Resource" id="Resource_qdlxk"]
+resource_local_to_scene = true
+resource_name = "+5 bonus Armor"
+script = ExtResource("2_mod")
+stat_id = &"armor"
+operation = 3
+value = 5.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_t867q"]
+resource_local_to_scene = true
+resource_name = "-5 bonus Min Damage Taken"
+script = ExtResource("2_mod")
+stat_id = &"min_damage_taken"
+operation = 3
+value = -5.0
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
+[sub_resource type="Resource" id="Resource_h1iqp"]
+resource_local_to_scene = true
+resource_name = "Deflection"
+script = ExtResource("2_mod")
+stat_id = &"deflection"
+operation = 3
+metadata/_custom_type_script = "uid://che6xhl6srqh3"
+
 [sub_resource type="Resource" id="Resource_cvuqc"]
 resource_name = "addon_slots"
 script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_5484d"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -1080,7 +1105,7 @@ script = ExtResource("11_uulnk")
 definition = ExtResource("46_d7bkb")
 
 [sub_resource type="Resource" id="Resource_xkbxa"]
-resource_name = "+1 Addon Slots"
+resource_name = "+1 Addon Slots per allocation level"
 script = ExtResource("2_mod")
 stat_id = &"addon_slots"
 formula = ExtResource("47_jc1be")
@@ -1363,10 +1388,8 @@ archetype = ExtResource("44_arch_con")
 base_type_color = Color(0.85882354, 0.9019608, 0.9490196, 1)
 node_board = SubResource("Resource_ibn4y")
 
-[node name="BunkerAddon" type="Node2D" parent="Graph/Nodes/Enemy_S" index="3" unique_id=430748007]
-z_index = 1
-script = ExtResource("77_fc0lb")
-metadata/_custom_type_script = "uid://14yngvhjdbwx"
+[node name="BunkerAddon" parent="Graph/Nodes/Enemy_S" index="3" unique_id=1940583165 instance=ExtResource("48_qk0se")]
+local_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_qdlxk"), SubResource("Resource_t867q"), SubResource("Resource_h1iqp")])
 
 [node name="Enemy_W" parent="Graph/Nodes" parent_id_path=PackedInt32Array(1851662701, 1428063024) index="17" unique_id=8800210 node_paths=PackedStringArray("owned_by") instance=ExtResource("9_skill")]
 z_index = 1001
