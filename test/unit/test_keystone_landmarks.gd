@@ -1,7 +1,7 @@
 extends GutTest
 ## v4 #321 D8 / #929: the hand-authored landmark SkillNode scenes each carry
 ## their own StatEffect on [member SkillNode.effects] (a SubResource of the
-## .tscn) that grants the headline modifier — no Keystone resource in between.
+## .tscn) that grants the headline modifier — no resource in between.
 const _WARD    := preload("res://entity/keystone/instances/mythic_ward_node.tscn")
 const _FARSIGHT:= preload("res://entity/keystone/instances/farsight_node.tscn")
 const _TITAN   := preload("res://entity/keystone/instances/titan_node.tscn")
@@ -41,7 +41,7 @@ func test_natural_xp_grants_plus_10_xp_per_turn_and_plus_10_wisdom() -> void:
 
 ## #929: the grant reaches a hand-built board on allocate, read off
 ## [member SkillNode.effects] by [AllocationSystem] — the same door every
-## node-carried effect goes through, no Keystone in between.
+## node-carried effect goes through, no resource in between.
 func test_landmark_grants_reach_the_allocating_entity_via_effects() -> void:
 	var alloc := autofree(AllocationSystem.new()) as AllocationSystem
 	var ent := autofree(Entity.new()) as Entity
@@ -66,7 +66,7 @@ func test_landmark_grants_reach_the_allocating_entity_via_effects() -> void:
 
 ## Fork ① regression (#336, settled 2026-08-01): the landmark scenes set no
 ## archetype and no longer claim a KEYSTONE-priority carve, so their emblem
-## contributions stay empty across the deletion of `SkillNode.keystone`.
+## contributions stay empty across the deletion of the KEYSTONE-priority branch.
 func test_landmarks_contribute_no_emblem() -> void:
 	var scenes := {
 		"mythic_ward": _WARD,

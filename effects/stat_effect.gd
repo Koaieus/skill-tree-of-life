@@ -5,7 +5,7 @@ extends Effect
 ## Concrete [Effect] that is nothing but a hand-crafted modifier set, plus the
 ## text/icon an effect carries. Uses the base grant/revoke behaviour as-is —
 ## exists so designers can pick a concrete script in the inspector without
-## overriding anything. The stat payload of a [Keystone] is one of these.
+## overriding anything. A landmark scene's stat payload is one of these.
 ##
 ## Reach for this only when a bundle wants effect lifecycle (text, icon,
 ## revocation by handle). A carrier's plain `modifiers` array remains the right

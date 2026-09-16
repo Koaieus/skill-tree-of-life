@@ -572,9 +572,9 @@ func move_core(entity: Entity, target: SkillNode) -> bool:
 	return true
 
 
-## Grant every [Effect] a node carries to its new owner (#4). Covers the node's
-## [Keystone] — whose runtime wiring its own docstring has advertised as a
-## follow-up since it was written — and any addon-borne effects.
+## Grant every [Effect] a node carries to its new owner (#4): the node's own
+## [member SkillNode.effects] (a landmark scene's authored StatEffect lives
+## there, #929) and any addon-borne effects.
 func _grant_node_effects(node: SkillNode, entity: Entity) -> void:
 	if node == null or entity == null:
 		return

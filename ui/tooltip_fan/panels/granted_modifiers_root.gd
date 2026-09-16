@@ -59,8 +59,8 @@ var _row_setters: Array[Callable] = []
 const _MOD_SLAB_SCENE: PackedScene = preload("res://ui/tooltip_fan/mod_slab_row.tscn")
 const _SLAB_ROW_SCENE: PackedScene = preload("res://ui/tooltip_fan/slab_row.tscn")
 
-## Keystone gold — matches [CorePanel]'s "deliberate gold skin" tone. Granted
-## spells read as a keystone-tier fact, never as an ordinary stat operator.
+## Landmark gold — matches [CorePanel]'s "deliberate gold skin" tone. Granted
+## spells read as a landmark-tier fact, never as an ordinary stat operator.
 const _KEYSTONE_GOLD := Color(0.98, 0.767, 0.127, 1.0)
 
 ## Muted tone for the "no modifiers" empty-state row — deliberately lower

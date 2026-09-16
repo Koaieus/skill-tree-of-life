@@ -3,8 +3,9 @@
 class_name Effect
 extends Resource
 
-## Persistent, hook-driven behaviour carried by a [CoreClass], a [Keystone], or
-## a [SkillNodeAddon], and dispatched by the [Entity] that owns it.
+## Persistent, hook-driven behaviour carried by a [CoreClass], a [SkillNode]
+## (a landmark scene's `effects`), or a [SkillNodeAddon], and dispatched by
+## the [Entity] that owns it.
 ##
 ## [b]Not to be confused with [OnHitEffect][/b], which is transient: it fires
 ## once as a spell lands on a node and keeps no state. An [Effect] is granted,

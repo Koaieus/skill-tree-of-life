@@ -233,7 +233,7 @@ static func _encode_entity(
 	var effects: Array = []
 	for inst in e.get_effects():
 		if inst == null or inst.effect == null or inst.effect.resource_path == "":
-			# Same rule GraphSnapshot applies to a `.new()`-built keystone: real
+			# Same rule GraphSnapshot applies to a `.new()`-built effect: real
 			# content is always a shared `.tres`, so a path-less resource is a
 			# test fixture and is dropped rather than crossing broken.
 			continue
@@ -481,7 +481,7 @@ static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array) -
 ## of band, and no SpellGrant crosses: every one in the repo is built with
 ## `.new()` (`GraphProcgenSpellGrants.distribute`, [SkillDustAddon]), so it has
 ## no `resource_path` and [method _encode_entity] drops it from the effect list
-## by the same rule it drops a path-less keystone. **Author a SpellGrant `.tres`
+## by the same rule it drops a path-less effect. **Author a SpellGrant `.tres`
 ## and this reasoning expires** — `test_pruned_spellbook_crosses.gd` has a
 ## tripwire on exactly that. Two things would then need looking at: an
 ## unordered compare here, and the fact that `add_spell` on a book whose

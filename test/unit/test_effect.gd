@@ -243,7 +243,7 @@ func test_revoke_all_clears_every_target() -> void:
 # ── AllocationSystem wiring: node-carried effects (#929) ─────────────────────
 
 ## One StatEffect on [member SkillNode.effects] — the shape a landmark scene
-## authors as a SubResource (#929); the former Keystone payload, now direct.
+## authors as a SubResource (#929); the former resource payload, now direct.
 func _make_effects(value: float) -> Array[Effect]:
 	var fx := StatEffect.new()
 	fx.modifiers = [_mod(&"strength", value)]

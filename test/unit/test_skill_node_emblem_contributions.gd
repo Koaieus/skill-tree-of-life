@@ -1,7 +1,7 @@
 extends GutTest
 ## SkillNode.get_emblem_contributions() aggregation (docs/domain/skillnode-emblem.md):
 ## own archetype carve + SpellGrant carves + addons' get_emblem(). (The
-## KEYSTONE-priority branch went with `SkillNode.keystone` in #929; the
+## KEYSTONE-priority branch went with the resource it read in #929; the
 ## landmark scenes' empty contribution is pinned in test_keystone_landmarks.gd.)
 ## SkillNode itself never interprets these — just collects specs for EmblemResolver.
 

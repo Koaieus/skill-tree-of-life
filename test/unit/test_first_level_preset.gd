@@ -20,7 +20,7 @@ func test_preset_loads() -> void:
 	assert_eq(cfg.content.weight_profiles.size(), 1, "profiles: archetype only (radial band profile deleted in #552)")
 	assert_not_null(cfg.content.budget_policy)
 	# MinNearStartingPoints + RandomBudgetBoost + the four landmark
-	# ScenePlacements (#330); the xp_anchor KeystonePlacement went in #929.
+	# ScenePlacements (#330); the XP-anchor placement went in #929.
 	assert_eq(cfg.content.guaranteed_placements.size(), 6)
 	# Rebalanced in #777: the footprint pass roughly triples a blocker's board
 	# share, so the density that shipped with one-node blockers (10/25/100) would

@@ -9,7 +9,7 @@ extends Node2D
 ##
 ## [b]Attaching is just [code]skill_node.add_child(addon)[/code][/b] (#334).
 ## There is no anchor node to file into and no [code]attach_addon()[/code] to
-## call — procgen, keystone stamping, loot, editor authoring and (eventually)
+## call — procgen, loot, editor authoring and (eventually)
 ## the player all use the one path. Ordering is free: an addon parented before
 ## the carrier enters the tree is adopted by the carrier's `_ready` sweep.
 ##

@@ -8,7 +8,7 @@ extends RefCounted
 ## put onto a board, paired with the target they landed on. Revocation is by
 ## object identity — [StatModifier] carries no source/provenance field (see
 ## [ModifierBinding], deliberately dormant), so retaining the handle IS the
-## provenance. Same pattern [Keystone.apply] already used by returning its
+## provenance. Same pattern the pre-#929 landmark resource used by returning its
 ## installed array.
 ##
 ## The ledger lives here, per grant, and never on the [Effect] resource — a
