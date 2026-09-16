@@ -470,3 +470,69 @@ func test_footprint_shrinks_to_fit_a_saturated_board() -> void:
 			assert_false(claimed.has(node.get_instance_id()), "still no double claim")
 			claimed[node.get_instance_id()] = true
 	assert_gt(short, 0, "a saturated board must actually shrink some footprint")
+
+
+# ── #916: the pre-stake roll ─────────────────────────────────────────────────
+
+func _stakes(blockers: Array) -> Array[int]:
+	var out: Array[int] = []
+	for placement in blockers:
+		assert_true(placement.has("stake_level"), "every placement carries a stake_level")
+		out.append(int(placement.get("stake_level", 0)))
+	return out
+
+
+func _footprint_sizes(blockers: Array) -> Array[int]:
+	var out: Array[int] = []
+	for placement in blockers:
+		out.append(_footprint_of(placement).size())
+	return out
+
+
+func _with_stake_chance(cfg: GraphProcgenConfig, chance: float) -> GraphProcgenConfig:
+	cfg.blockers.stake_chance_small = chance
+	cfg.blockers.stake_chance_medium = chance
+	cfg.blockers.stake_chance_large = chance
+	return cfg
+
+
+## The stake draws ride the blocker stream AFTER placement, prune seeds and
+## footprints — turning them on must not move a single blocker, reseed a single
+## prune, or regrow a single footprint. Clone of
+## `test_prune_seed_stream_does_not_shift_placements`.
+func test_stake_rolls_do_not_shift_placements() -> void:
+	var off: Dictionary = await _generate(_with_stake_chance(_build_config(200, 6161), 0.0))
+	var on: Dictionary = await _generate(_with_stake_chance(_build_config(200, 6161), 1.0))
+	assert_eq(_positions(on.get("blockers", [])), _positions(off.get("blockers", [])),
+			"stake rolls must not move a single blocker")
+	assert_eq(_prune_seeds(on.get("blockers", [])), _prune_seeds(off.get("blockers", [])),
+			"stake rolls must not change a single prune seed")
+	assert_eq(_footprint_positions(on.get("blockers", [])),
+			_footprint_positions(off.get("blockers", [])),
+			"stake rolls must not regrow a single footprint")
+	assert_eq(_footprint_sizes(on.get("blockers", [])), _footprint_sizes(off.get("blockers", [])))
+
+
+func test_same_seed_same_stakes() -> void:
+	var a: Dictionary = await _generate(_with_stake_chance(_build_config(200, 7171), 0.5))
+	var b: Dictionary = await _generate(_with_stake_chance(_build_config(200, 7171), 0.5))
+	var stakes_a := _stakes(a.get("blockers", []))
+	assert_eq(stakes_a, _stakes(b.get("blockers", [])), "same seed, same stakes")
+	var mixed := false
+	for st in stakes_a:
+		assert_true(st >= 1 and st <= AllocationSystem.STAKE_CEILING,
+				"stake %d within 1..STAKE_CEILING" % st)
+		if st != stakes_a[0]:
+			mixed = true
+	assert_true(mixed, "a 0.5 chance over %d blockers rolls more than one value" % stakes_a.size())
+
+
+func test_stake_chance_off_is_all_ones_and_on_is_all_ceiling() -> void:
+	var off: Dictionary = await _generate(_with_stake_chance(_build_config(100, 8181), 0.0))
+	for st in _stakes(off.get("blockers", [])):
+		assert_eq(st, 1, "chance 0: plain 1/1 blockers")
+	var on: Dictionary = await _generate(_with_stake_chance(_build_config(100, 8181), 1.0))
+	var stakes := _stakes(on.get("blockers", []))
+	assert_gt(stakes.size(), 0, "the fixture places blockers at all")
+	for st in stakes:
+		assert_eq(st, AllocationSystem.STAKE_CEILING, "chance 1: every blocker at the ceiling")

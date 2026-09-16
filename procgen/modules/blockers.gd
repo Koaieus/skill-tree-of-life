@@ -71,6 +71,38 @@ const MIN_BLOCKER_PER := 5
 @export_range(0, 12, 1) var footprint_large_max: int = 6
 
 
+## Pre-Stake chance per tier (#916). A Dormant Core may spawn already STAKED —
+## its core node's cap raised to 2 or 3 and filled to match, so its local
+## modifiers land at ×2/×3 while it lives and the node it leaves behind on a
+## kill is a 0/3 a player can fill without paying the stake. The roll is a
+## chain of two draws — P(stake 2), then P(stake 3 | stake 2), both against
+## the SAME per-tier chance — off the salted blocker stream, so it never
+## shifts a placement, a prune seed or a footprint of the same seed.
+##
+## `0` (the default) is OFF: every blocker stays a plain 1/1 unless a preset
+## authors a chance. Owner tunes.
+@export_range(0.0, 1.0, 0.01) var stake_chance_small: float = 0.0
+@export_range(0.0, 1.0, 0.01) var stake_chance_medium: float = 0.0
+@export_range(0.0, 1.0, 0.01) var stake_chance_large: float = 0.0
+
+## Floor of the kill-XP offset a pre-stake applies (#916). A staked blocker
+## hands its killer a node that is already 3/3 — SP the killer never spent —
+## so `spawn_blocker` clamps a MULTIPLY on the blocker's `core_kill_xp` to
+## `1 − (stake − 1) · XP_PER_SP / core_kill_xp`, no lower than this floor:
+## a kill always pays SOMETHING, however rich the node it frees.
+@export_range(0.0, 1.0, 0.01) var stake_xp_offset_floor: float = 0.25
+
+
+## The pre-stake chance for a [GameRoot.BlockerSize] int, clamped to `[0, 1]`.
+func stake_chance(size: int) -> float:
+	var c := stake_chance_small
+	if size == 1:
+		c = stake_chance_medium
+	elif size == 2:
+		c = stake_chance_large
+	return clampf(c, 0.0, 1.0)
+
+
 ## The `[min, max]` bonus-node range for a [GameRoot.BlockerSize] int, ordered
 ## and floored at 0 so an inspector typo (max below min) narrows to a point
 ## instead of making `randi_range` fail.

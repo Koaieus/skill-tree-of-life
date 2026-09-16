@@ -1467,9 +1467,23 @@ func spawn_entity(
 ## letting [Graph] mint one (#715) — the authority's, when a snapshot is
 ## rebuilding a blocker on a peer that ran no procgen. `0`, the default, is
 ## every ordinary caller and mints as before.
+##
+## [param stake_level] is the #916 pre-stake (1..[constant
+## AllocationSystem.STAKE_CEILING], procgen rolls it per placement): the core
+## node's cap is stamped, `force_allocate` opens the 0→1 as usual, and
+## [method AllocationSystem.force_fill] walks the fill to the cap — no SP
+## minted for the fill, so the blocker's pool never says it bought it. A
+## staked kill then frees a node already filled to 3, SP the killer never
+## spent, so the kill XP is offset by a MULTIPLY on `core_kill_xp` clamped to
+## `blockers_cfg.stake_xp_offset_floor` (owner's formula on #784; every input
+## is a live board read). Only the CORE is staked, never the footprint. The
+## snapshot adoption path ([method spawn_snapshot_entity]) leaves it at 1 and
+## passes no core, so the row's own `stake_level`/`allocation_level` land
+## untouched by anything here.
 func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 		footprint: Array[SkillNode] = [], spell_prune_seed: int = 0,
-		spell_prune_m: float = 0.0, preassigned_id: int = 0) -> Entity:
+		spell_prune_m: float = 0.0, preassigned_id: int = 0,
+		stake_level: int = 1, stake_xp_offset_floor: float = 0.25) -> Entity:
 	var ent := _BLOCKER_SCENE.instantiate() as Entity
 	# Before `add_child`: `Graph._mint_entity_id` assigns only to an entity whose
 	# id is still 0, so stamping first is adoption rather than a second mint.
@@ -1491,8 +1505,15 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 	ent.spellbook = book
 	graph.entities_container.add_child(ent)
 	if core_location != null:
+		var stake := clampi(stake_level, 1, AllocationSystem.STAKE_CEILING)
+		# Cap BEFORE the allocate: the fill is clamped to the cap, and the
+		# stake_level setter re-derives the radius the halo reads.
+		core_location.stake_level = stake
 		allocation_system.force_allocate(ent, core_location)
 		ent.core_location = core_location
+		if stake > 1:
+			allocation_system.force_fill(core_location, stake)
+			_offset_kill_xp_for_stake(ent, stake, stake_xp_offset_floor)
 		# The core FIRST, then the bonus nodes: `force_allocate` is the setup
 		# primitive, so nothing here checks adjacency — but the footprint is
 		# grown connected at placement time and the class's falloff aura measures
@@ -1501,6 +1522,31 @@ func spawn_blocker(size: BlockerSize, core_location: SkillNode,
 			if node != null and node != core_location:
 				allocation_system.force_allocate(ent, node)
 	return ent
+
+
+## The #916 kill-XP offset for a pre-staked blocker, owner's formula verbatim
+## (#784): `core_kill_xp × clamp(1 − (stake − 1) · XP_PER_SP / core_kill_xp,
+## floor, 1)` with `XP_PER_SP = xp.value / sp_gain_on_levelup.value` — what one
+## SP is worth in XP on THIS blocker's board, so the freed fill is priced in
+## the board's own currency and no literal number lives here. Granted as a
+## core modifier: per-entity (the board is duplicated at `initialize`), and
+## it rides [EntitySnapshot] with the rest of them.
+func _offset_kill_xp_for_stake(ent: Entity, stake: int, floor_: float) -> void:
+	var board := ent.stat_board
+	if board == null or board.core_kill_xp == null or board.xp == null \
+			or board.sp_gain_on_levelup == null:
+		return
+	var sp_gain: float = board.sp_gain_on_levelup.value
+	var kill_xp: float = board.core_kill_xp.value
+	if sp_gain <= 0.0 or kill_xp <= 0.0:
+		return
+	# `Stat.value` is Variant-typed — cast, or an int/int pair divides as ints.
+	var xp_per_sp: float = float(board.xp.value) / sp_gain
+	var m := StatModifier.new()
+	m.stat_id = &"core_kill_xp"
+	m.operation = StatModifier.Operation.MULTIPLY
+	m.value = clampf(1.0 - float(stake - 1) * xp_per_sp / kill_xp, clampf(floor_, 0.0, 1.0), 1.0)
+	ent.grant_core_modifier(m)
 
 
 ## Rebuild an [Entity] an arriving snapshot names and this peer does not have

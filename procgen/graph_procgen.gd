@@ -17,9 +17,10 @@ extends RefCounted
 ## Array[Dictionary]}` — `starting_nodes[i]` is the SkillNode that landed on
 ## `config.starting.starting_points[i]`, for the caller to wire as entity cores, and
 ## each `blockers` entry is `{"node": SkillNode, "size": int, "prune_seed":
-## int, "footprint": Array[SkillNode]}` (`size` being a [GameRoot.BlockerSize]
-## int, `prune_seed` the #586 loot-book prune's seed, `footprint` the #777
-## bonus nodes the blocker also owns) for the caller to hand to `spawn_blocker`.
+## int, "footprint": Array[SkillNode], "stake_level": int}` (`size` being a
+## [GameRoot.BlockerSize] int, `prune_seed` the #586 loot-book prune's seed,
+## `footprint` the #777 bonus nodes the blocker also owns, `stake_level` the
+## #916 pre-stake in 1..3) for the caller to hand to `spawn_blocker`.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BLOCKER_NODE_SCENE := preload("res://skill_node/blocker_node.tscn")
@@ -262,6 +263,11 @@ static func generate(
 	# separate pass rather than a branch inside the placement loop.
 	var blocker_footprints := _place_blocker_footprints(
 			blocker_sizes, placement_ctx, config, blocker_rng)
+	# Pre-stake rolls (#916), drawn after the footprints off the same stream
+	# and for the same reason: appended last, so every draw above is what a
+	# pre-#916 seed produced. Always two draws per blocker, chance or not, so
+	# a later pass appended here is stable across a chance retune too.
+	var blocker_stakes := _roll_blocker_stakes(blocker_sizes, config.blockers, blocker_rng)
 
 	await _emit_progress(progress_cb, 0.45, "Rolling content")
 	var nodes: Array[SkillNode] = []
@@ -408,6 +414,7 @@ static func generate(
 			"size": int(blocker_sizes[idx]),
 			"prune_seed": int(blocker_seeds[idx]),
 			"footprint": footprint,
+			"stake_level": int(blocker_stakes.get(idx, 1)),
 		})
 
 	await _emit_progress(progress_cb, 1.0, "Done")
@@ -969,6 +976,29 @@ static func _place_blocker_indices(
 ##
 ## Returns index → [PackedInt32Array] of bonus-node indices (core excluded);
 ## a blocker that rolled 0, or found nothing to grow into, is simply absent.
+## The #916 pre-stake per placed blocker: a chain of two draws against the
+## tier's chance — P(stake 2), then P(stake 3 | stake 2) — so with chance `p`
+## the split is `1−p : p(1−p) : p²`. Draws are ALWAYS consumed (both of them,
+## whatever the chance) so the stream stays aligned across a retune. Never
+## above [constant AllocationSystem.STAKE_CEILING].
+static func _roll_blocker_stakes(
+	blocker_sizes: Dictionary, blockers: GraphProcgenBlockers,
+	blocker_rng: RandomNumberGenerator
+) -> Dictionary[int, int]:
+	var out: Dictionary[int, int] = {}
+	for idx: int in blocker_sizes:
+		var chance := blockers.stake_chance(int(blocker_sizes[idx])) if blockers != null else 0.0
+		var stake := 1
+		var first := blocker_rng.randf()
+		var second := blocker_rng.randf()
+		if chance > 0.0 and first < chance:
+			stake = 2
+			if second < chance:
+				stake = 3
+		out[idx] = mini(stake, AllocationSystem.STAKE_CEILING)
+	return out
+
+
 static func _place_blocker_footprints(
 		blocker_sizes: Dictionary,
 		ctx: PlacementContext,
