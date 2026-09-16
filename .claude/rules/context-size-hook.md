@@ -21,7 +21,8 @@ looking like it works.
 **How to apply:** any edit to `context-size-hook` must preserve: (1) the
 `agent_id`-presence discriminator, (2) tail-reading the transcript (last 64KB)
 rather than parsing the whole file — it runs after every tool call in every
-session, (3) latching on `session_id` + (`agent_id` or `"main"`), and (4) the
+session, (2b) reading the last `message` entry of `usage.iterations`, never the
+top-level sum — an `advisor` request's top level is ~2x the context, (3) latching on `session_id` + (`agent_id` or `"main"`), and (4) the
 blanket fail-closed `try/except` in `__main__` — a broken JSON contract on
 stdout here breaks every agent's next turn, not just this one's. Re-run
 `mise run context-size-hook-selftest` after any change. Full design and the

@@ -71,6 +71,25 @@ file and scans backward for the most recent `type: "assistant"` record whose
 a real harness-reported `subagent_tokens` figure during #652's research, within
 rounding).
 
+### Read the last `message` iteration, never the top-level sum
+
+`message.usage` also carries `iterations`, one entry per model call the
+request made. A plain request has one (`type: "message"`) and the top-level
+fields equal it. A request that ran a server tool — `advisor` — has three:
+the main model's read, the advisor's read of the **whole transcript**
+(`type: "advisor_message"`), the main model's read again — and the top-level
+fields are the **sum**, ~2x the real context. That was #652's "~1.95x
+over-report", measured both times right after an advisor call; a scan of 60
+transcripts found 105 consecutive-record jumps of ~2.0x, every one on an
+advisor request, and the corrected formula leaves 4, each a genuine large tool
+result. `_context_of()` therefore takes the last `message` iteration; the
+top-level sum is only the fallback for a record with no `iterations` at all.
+
+The corrected reading matches `/context` to the k (owner read 174k off
+`/context` on 2026-08-28; the hook's record at that moment: 174k). The "~15%
+under-report" noted earlier on #652 was six minutes of growth between the
+150k crossing and the `/context` read, not a gap in what is counted.
+
 ### The window widens when, and only when, 64KB came up empty
 
 64KB is the fast path, not the whole rule. `PostToolUse` fires *immediately
