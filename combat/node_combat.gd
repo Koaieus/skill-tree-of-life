@@ -580,6 +580,10 @@ func apply_status(def: StatusDef, power: float) -> void:
 	# it's discarded within the same synchronous resolve that created it.
 	if host != null and not had_status:
 		host._subscribe_status_tick()
+	# #880: the node tint reads the strongest LIVE status; refresh on every
+	# apply (never on a shadow — see the subscribe comment above).
+	if host != null:
+		host.notify_statuses_changed()
 
 
 ## One tick for every status on the node: [method StatusDef._on_tick] first
@@ -603,6 +607,10 @@ func tick_statuses() -> void:
 		row.power = after
 		if after <= 0.0:
 			remove_status(id)
+	# #880: decay changes the blend even on rows that survive (no removal, so
+	# no notify from inside the loop above) — one refresh per tick pass.
+	if host != null:
+		host.notify_statuses_changed()
 
 
 ## Cure by [param heal_amount] (#875, hub #868 D7): every `&"debuff"`-tagged
@@ -632,6 +640,11 @@ func cure_debuffs(heal_amount: float) -> void:
 		else:
 			row.power = after
 			row.def._on_applied(self, after)
+	# #880: a cure changes power on rows that survive too (same reasoning as
+	# tick_statuses' trailing refresh) — the zeroed-out ones already notified
+	# via remove_status below.
+	if host != null:
+		host.notify_statuses_changed()
 
 
 ## Drop the status [param id]; [method StatusDef._on_removed] fires exactly once.
@@ -647,6 +660,9 @@ func remove_status(id: StringName) -> void:
 	# the slice is the one that unsubscribes.
 	if host != null and _statuses.is_empty():
 		host._unsubscribe_status_tick()
+	# #880: refresh on every remove (never on a shadow).
+	if host != null:
+		host.notify_statuses_changed()
 
 
 ## Drop every status, each through [method remove_status].

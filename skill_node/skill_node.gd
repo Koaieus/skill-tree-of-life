@@ -61,6 +61,11 @@ signal healed(amount: float, source: Variant)
 ## [signal Events.skill_node_depleted]; BattleSystem listens on the bus for the
 ## cascade dealloc.
 signal depleted
+## Emitted by [method notify_statuses_changed] on every apply/tick/remove of
+## this node's status slice (#880) — mirrors the `damaged`/`_on_damaged_flash`
+## shape (see [method notify_damaged]) rather than a poll. `_sync_status_tint`
+## is the sole subscriber today; #876's readout row gets the same trigger.
+signal statuses_changed
 
 # `owned_by` is the single source of truth for allocation:
 # null  → unallocated
@@ -462,6 +467,7 @@ func _ready() -> void:
 	owner_changed.connect(_refresh_core_presence)
 	owner_changed.connect(_refresh_hp_binding)
 	damaged.connect(_on_damaged_flash.unbind(2))
+	statuses_changed.connect(_sync_status_tint)
 	# Addons are plain direct children (#334) — no filing bin. Adopt the ones
 	# already present (scene-authored, or parented before we entered the tree),
 	# then listen for later arrivals. `child_entered_tree` fires for DIRECT
@@ -1206,6 +1212,38 @@ func notify_healed(_prev: float, _after: float, effective: float, source: Varian
 	if effective > 0.0:
 		healed.emit(effective, source)
 		Events.skill_node_healed.emit(self, effective, source)
+
+
+## Notification half of a status-slice mutation (#880) — [method
+## NodeCombat.apply_status]/`tick_statuses`/`remove_status` call this on every
+## apply/tick/remove, mirroring [method notify_damaged]'s host-hook-then-signal
+## shape. Never fires for a shadow resolve (`host == null` there — see
+## [NodeCombat]), so a preview/AI rollout never touches the live composite.
+func notify_statuses_changed() -> void:
+	statuses_changed.emit()
+
+
+## [signal statuses_changed] handler — blends the strongest live status's
+## [member StatusDef.tint] into [member NodeVisualsComposite.status_tint] by
+## its normalised power ("strongest" = highest [method NodeStatus.normalised];
+## a tie keeps the first-applied row, i.e. [method NodeCombat.get_statuses]'s
+## own application order). No statuses → WHITE (base modulate restored).
+## Guarded like [method play_hit_flash] — a poison kill can re-enter this via
+## the forced-dealloc cascade while the composite is mid-teardown.
+func _sync_status_tint() -> void:
+	if not is_node_ready() or _node_visuals == null:
+		return
+	var strongest: NodeStatus = null
+	var strongest_power := 0.0
+	for row in _combat.get_statuses():
+		var p := row.normalised()
+		if p > strongest_power:
+			strongest = row
+			strongest_power = p
+	if strongest == null:
+		_node_visuals.set_status_tint(Color.WHITE, 0.0)
+	else:
+		_node_visuals.set_status_tint(strongest.def.tint, strongest_power)
 
 
 ## Connect once to the sparse turn-start channel (#879) — [method

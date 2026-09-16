@@ -172,11 +172,21 @@ var sensed: bool = false:
 ## skill_node.gd's denial-feedback section). Driven by SkillNode the same way
 ## `sensed` / `core_active` are, rather than SkillNode tweening a grandchild's
 ## modulate directly (the old target, `_base_circle`, is what BaseCircle
-## retired).
+## retired). Composes with [member status_tint] through [method _apply_modulate]
+## rather than writing `modulate` directly — neither channel can erase the other.
 var feedback_tint: Color = Color.WHITE:
 	set(value):
 		feedback_tint = value
-		modulate = value
+		_apply_modulate()
+
+## Status-effect tint (#880) — the strongest status's [member StatusDef.tint]
+## blended toward WHITE by its normalised power, pushed by SkillNode via
+## [method set_status_tint]. Never written directly; go through that setter so
+## the WHITE.lerp blend stays in one place.
+var status_tint: Color = Color.WHITE:
+	set(value):
+		status_tint = value
+		_apply_modulate()
 
 
 ## Whether this node currently hosts its owner's core. Gates the core-only
@@ -201,6 +211,24 @@ var _lighting := LightingStyle.new()
 ## being drawn with.
 func _on_identity_changed() -> void:
 	_sync_shared()
+
+
+## The single writer of `modulate` — [member feedback_tint] (hit-flash /
+## denial pulse) and [member status_tint] (#880) compose multiplicatively
+## (Godot [Color] `*` is componentwise) so a hit-flash never erases a status
+## tint and vice versa: WHITE on one channel is the identity element, so an
+## idle channel contributes nothing to the product.
+func _apply_modulate() -> void:
+	modulate = feedback_tint * status_tint
+
+
+## Blends [param tint] toward WHITE by [param normalised_power] (#880,
+## `power / def.power_max` from [method NodeStatus.normalised]) and stores the
+## result as [member status_tint] — 0.0 restores WHITE (no status), 1.0 is a
+## full blend. Driven by SkillNode's `_sync_status_tint`, same idiom as
+## `sensed` / `core_active`.
+func set_status_tint(tint: Color, normalised_power: float) -> void:
+	status_tint = Color.WHITE.lerp(tint, clampf(normalised_power, 0.0, 1.0))
 
 
 func _ready() -> void:

@@ -305,3 +305,38 @@ func test_core_halo_style_override_routes_through_the_chain() -> void:
 	assert_eq(
 		halos.halo_style, CoreHalosScript.CoreHaloStyle.GIMBAL,
 		"-1 after an override restores the authored style, it doesn't just skip")
+
+
+## #880: status tint blends the strongest status's colour into `modulate` by
+## its normalised power — WHITE.lerp(tint, power/power_max). Composes with
+## feedback_tint (#304's hit-flash channel) multiplicatively rather than a
+## second bare `modulate =`, so neither channel can erase the other.
+func test_status_tint_blends_by_normalised_power() -> void:
+	var comp = add_child_autofree(CompositeScene.instantiate())
+	await get_tree().process_frame
+	var green := Color(0.2, 0.85, 0.25, 1.0)
+
+	comp.set_status_tint(green, 4.0 / 4.0)
+	assert_true(comp.modulate.is_equal_approx(green), "power 4 of 4 (normalised 1.0) is a full blend")
+
+	comp.set_status_tint(green, 1.0 / 4.0)
+	assert_true(comp.modulate.is_equal_approx(Color.WHITE.lerp(green, 0.25)),
+		"power 1 of 4 (normalised 0.25) is a quarter blend")
+
+	comp.set_status_tint(green, 0.0)
+	assert_true(comp.modulate.is_equal_approx(Color.WHITE), "power 0 restores the base modulate")
+
+
+func test_status_tint_composes_with_feedback_tint() -> void:
+	var comp = add_child_autofree(CompositeScene.instantiate())
+	await get_tree().process_frame
+	var green := Color(0.2, 0.85, 0.25, 1.0)
+
+	comp.set_status_tint(green, 1.0)
+	comp.feedback_tint = Color(1.0, 0.3, 0.3)
+	assert_true(comp.modulate.is_equal_approx(Color(1.0, 0.3, 0.3) * green),
+		"a hit-flash multiplies the status tint rather than erasing it")
+
+	comp.feedback_tint = Color.WHITE
+	assert_true(comp.modulate.is_equal_approx(green),
+		"feedback_tint resetting to WHITE restores the status tint, unerased")
