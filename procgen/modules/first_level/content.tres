@@ -38,6 +38,8 @@
 [ext_resource type="PackedScene" path="res://entity/keystone/instances/farsight_node.tscn" id="37_farsgt"]
 [ext_resource type="PackedScene" path="res://entity/keystone/instances/mythic_ward_node.tscn" id="38_mward"]
 [ext_resource type="PackedScene" path="res://entity/keystone/instances/ap_keystone_node.tscn" id="39_apkey"]
+[ext_resource type="PackedScene" path="res://entity/keystone/instances/natural_xp_node.tscn" id="40_natxp"]
+[ext_resource type="PackedScene" path="res://entity/keystone/instances/d_23_wisdom_keystone_node.tscn" id="41_d23wis"]
 
 [sub_resource type="Resource" id="Resource_68xts"]
 script = ExtResource("1_x1tax")
@@ -233,6 +235,20 @@ max_count = 1
 weight = SubResource("rim_field")
 min_hops_from_starter = 3
 
+[sub_resource type="Resource" id="sp_natural_xp"]
+script = ExtResource("34_scnpl")
+node_scene = ExtResource("40_natxp")
+min_count = 1
+max_count = 3
+min_hops_from_starter = 2
+
+[sub_resource type="Resource" id="sp_d23_wisdom"]
+script = ExtResource("34_scnpl")
+node_scene = ExtResource("41_d23wis")
+min_count = 1
+max_count = 3
+min_hops_from_starter = 2
+
 [sub_resource type="Resource" id="sgpe_bruiser"]
 script = ExtResource("25_yaek3")
 spell_def = ExtResource("26_7fodc")
@@ -329,4 +345,4 @@ archetypes = Array[ExtResource("10_t0e51")]([SubResource("ap_red"), SubResource(
 addon_policy = SubResource("Resource_c6pvu")
 spell_grant_pool = SubResource("spell_grant_pool_main")
 spell_grant_ratio = 0.234
-guaranteed_placements = Array[Resource]([SubResource("mnsp_xp"), SubResource("rbb_anomalous"), SubResource("sp_titan"), SubResource("sp_archmage"), SubResource("sp_farsight"), SubResource("sp_mythic_ward"), SubResource("sp_ap_keystone")])
+guaranteed_placements = Array[Resource]([SubResource("mnsp_xp"), SubResource("rbb_anomalous"), SubResource("sp_titan"), SubResource("sp_archmage"), SubResource("sp_farsight"), SubResource("sp_mythic_ward"), SubResource("sp_ap_keystone"), SubResource("sp_natural_xp"), SubResource("sp_d23_wisdom")])
