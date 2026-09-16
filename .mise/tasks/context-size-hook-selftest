@@ -63,22 +63,38 @@ def run_hook(payload, env_extra=None):
     return proc.returncode, proc.stdout
 
 
-def usage_record(tokens, ts=None):
+def _usage_fields(tokens):
     # Split the total arbitrarily across the three summed fields — the hook
     # doesn't care about the split, only the sum.
     a = tokens // 2
     b = tokens - a
-    rec = {"type": "assistant", "message": {"usage": {
+    return {
         "input_tokens": 1,
         "cache_read_input_tokens": a,
         "cache_creation_input_tokens": b - 1 if b > 0 else 0,
-    }}}
+    }
+
+
+def usage_record(tokens, ts=None, iterations=None):
+    """An assistant record whose top-level usage sums to `tokens`.
+
+    `iterations`, when given, is a list of (type, tokens) pairs written as
+    `usage.iterations` — the per-iteration breakdown a request with a server
+    tool (`advisor`) carries, whose top-level fields are the SUM across
+    iterations, not the context size.
+    """
+    usage = _usage_fields(tokens)
+    if iterations is not None:
+        usage["iterations"] = [
+            dict(_usage_fields(n), type=kind) for kind, n in iterations
+        ]
+    rec = {"type": "assistant", "message": {"usage": usage}}
     if ts:
         rec["timestamp"] = ts
     return rec
 
 
-def write_transcript(path, tokens, start_ts=None, pad_lines=0):
+def write_transcript(path, tokens, start_ts=None, pad_lines=0, iterations=None):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     start_ts = start_ts or "2026-08-28T17:00:00.000Z"
     with open(path, "w", encoding="utf-8") as f:
@@ -86,7 +102,7 @@ def write_transcript(path, tokens, start_ts=None, pad_lines=0):
         f.write(json.dumps({"type": "user", "timestamp": start_ts}) + "\n")
         for _ in range(pad_lines):
             f.write(json.dumps({"type": "user", "timestamp": start_ts}) + "\n")
-        f.write(json.dumps(usage_record(tokens, ts=start_ts)) + "\n")
+        f.write(json.dumps(usage_record(tokens, ts=start_ts, iterations=iterations)) + "\n")
 
 
 def main():
@@ -110,6 +126,25 @@ def _run_checks(tmp):
     payload = {"session_id": "sess-under150k", "transcript_path": path}
     code, out = run_hook(payload)
     check("silence under 150k", code == 0 and out == "", f"exit={code} out={out!r}")
+
+    # --- 1a. an advisor request reports the LAST message iteration ---------
+    # A request that carried an `advisor` server-tool call logs top-level
+    # usage as the sum over its iterations: the main model's read, the
+    # advisor's read of the whole transcript, the main model's read again —
+    # ~2x the real context. That is the "~1.95x over-report" measured on #652.
+    # The occupancy is the last `type == "message"` iteration.
+    path = os.path.join(tmp, "advisor_request.jsonl")
+    write_transcript(
+        path, 320_000,
+        iterations=[("message", 158_000), ("advisor_message", 160_000), ("message", 160_000)],
+    )
+    payload = {"session_id": "sess-advisor", "transcript_path": path}
+    code, out = run_hook(payload)
+    check(
+        "an advisor request reports the last message iteration, not the sum",
+        code == 0 and "~160k" in out and "320k" not in out,
+        f"exit={code} out={out!r}",
+    )
 
     # --- 1b. a huge trailing tool result must not hide the crossing -------
     # PostToolUse fires right after the tool result is appended, so the last

@@ -82,8 +82,32 @@ def _tail_lines(path, window=_TAIL_BYTES):
     return [line for line in lines if line.strip()]
 
 
+def _context_of(usage):
+    """The context size a `usage` block describes: the sum of its three input
+    fields — on the LAST `message` iteration when the request had several.
+
+    A request that ran a server tool (`advisor`) logs its top-level fields as
+    the SUM over `usage.iterations`: the main model's read, the advisor's
+    read of the whole transcript, the main model's read again — ~2x the real
+    context. That was #652's "~1.95x over-report", measured both times right
+    after an advisor call. The last `message` iteration is the occupancy;
+    single-iteration records give the same answer either way.
+    """
+    iterations = usage.get("iterations")
+    if isinstance(iterations, list):
+        for iteration in reversed(iterations):
+            if isinstance(iteration, dict) and iteration.get("type") == "message":
+                usage = iteration
+                break
+    return (
+        int(usage.get("input_tokens", 0))
+        + int(usage.get("cache_read_input_tokens", 0))
+        + int(usage.get("cache_creation_input_tokens", 0))
+    )
+
+
 def _scan_for_usage(lines):
-    """Sum the three usage fields on the newest assistant record in `lines`."""
+    """Context size on the newest assistant record in `lines` (see _context_of)."""
     for line in reversed(lines):
         try:
             record = json.loads(line)
@@ -95,18 +119,14 @@ def _scan_for_usage(lines):
         if not isinstance(usage, dict):
             continue
         try:
-            return (
-                int(usage.get("input_tokens", 0))
-                + int(usage.get("cache_read_input_tokens", 0))
-                + int(usage.get("cache_creation_input_tokens", 0))
-            )
+            return _context_of(usage)
         except (TypeError, ValueError):
             continue
     return None
 
 
 def _read_last_usage_total(path):
-    """Sum of the three usage fields on the most recent assistant record.
+    """Context size on the most recent assistant record (see _context_of).
 
     Widens the tail window only when the previous one held no assistant
     record — see _TAIL_WINDOWS. Stops as soon as the window covers the whole
