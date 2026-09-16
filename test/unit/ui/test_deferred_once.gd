@@ -6,6 +6,10 @@ extends GutTest
 var _calls: int = 0
 
 
+func before_each() -> void:
+	_calls = 0
+
+
 func _count() -> void:
 	_calls += 1
 
