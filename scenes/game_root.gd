@@ -460,7 +460,14 @@ func _stagger_initiative() -> void:
 func _opening_entity() -> Entity:
 	if GameSession.roster == null or graph == null:
 		return null
-	var opener_peer_id := 0
+	# Offline shares [member GameSession.local_peer_id] rather than a second
+	# literal `0` — the same value [method ProcgenPlaySandbox._is_this_machines]
+	# compares every participant's `peer_id` against, so both derivations of
+	# "is this seat mine" read off one source (today that source happens to
+	# already be 0 offline — see `network/network_transport.gd`'s
+	# `local_peer_id()` doc — but a literal here would be a second copy of
+	# that fact rather than a read of it).
+	var opener_peer_id := GameSession.local_peer_id
 	if GameSession.network != null and GameSession.network.is_online():
 		opener_peer_id = NetworkTransport.HOST_PEER_ID
 	var opener_participant_id := 0
@@ -522,14 +529,26 @@ func _open_first_turn() -> void:
 		return
 	if player == null:
 		return
+	# #911: the entity that opens is [method _opening_entity]'s answer where
+	# there's a roster to ask — `player` is a fallback for a hand-authored
+	# fixture with no session, and the ordinary one-local-human case where
+	# `_opening_entity` and `player` already agree. On a couch/hot-seat
+	# authority seating >=2 local humans, `player` is whichever one
+	# `_seat_the_roster`'s loop happened to assign LAST (an accident of spawn
+	# order, not a decision) while `_opening_entity` picks the FIRST
+	# host-peer participant in roster order — the issue does not settle
+	# couch opening order, so this reading is Claude's call, not the owner's.
+	var opener := _opening_entity()
+	if opener == null:
+		opener = player
 	if command_applier == null:
-		# Skip the initial tick race: fill the player's clock so they act first.
+		# Skip the initial tick race: fill the opener's clock so they act first.
 		# (start_turn clears the ready-group membership this would otherwise set.)
-		if player.stat_board != null and player.stat_board.initiative != null:
-			player.stat_board.initiative.restore_to_full()
-		turn_manager.start_turn(player)
+		if opener.stat_board != null and opener.stat_board.initiative != null:
+			opener.stat_board.initiative.restore_to_full()
+		turn_manager.start_turn(opener)
 		return
-	command_applier.submit(StartTurnCommand.new(player.entity_id))
+	command_applier.submit(StartTurnCommand.new(opener.entity_id))
 
 
 ## Rung 3's verdict line (#715) — the level half of `meta_root`'s

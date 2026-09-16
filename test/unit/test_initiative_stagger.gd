@@ -139,6 +139,16 @@ func test_host_seat_ranks_first_even_when_spawned_second() -> void:
 			"the host's seat (spawned 2nd) should rank 0, not the entity spawned 1st")
 	assert_false(carriers[0].is_in_group(Entity.READY_GROUP))
 	assert_eq(carriers[0].stat_board.initiative.current, 50.0)  # rank 1 of 2
+	assert_eq(root._opening_entity(), carriers[1])
+
+	# Same entity rank 0 receives is the one _open_first_turn actually opens
+	# on — drives the applier-less branch directly; `player` is deliberately
+	# left pointed at carriers[0] to prove the opener, not `player`, wins.
+	root.turn_manager = _tm
+	root.player = carriers[0]
+	root.auto_start_turn = true
+	root._open_first_turn()
+	assert_eq(_tm.current_entity, carriers[1])
 
 
 ## Blockers (no `initiative` pool — the bare [Entity] default has none until
