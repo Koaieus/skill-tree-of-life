@@ -835,6 +835,7 @@ deliberate and will bite if "tidied":
 one consumer. HudRoot's cards hardcode which stat ids they bind, so **adding a
 stat means dropping a `.tres` in `stats_system/defs/` and wiring it into the right
 card by id**. Don't reintroduce `display_*` expecting something to pick it up.
+Register the new id's surface (or its `hidden` reason) in `docs/domain/stat-surfaces.md`.
 
 ## Visualizer (editor plugin)
 
