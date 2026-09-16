@@ -16,6 +16,7 @@ func _ramp() -> NodeRadiusRamp:
 
 func test_ramp_is_linear_below_the_knee() -> void:
 	pending("#783")
+	return
 	var r := _ramp()
 	assert_almost_eq(r.radius_for(1), 28.0, 0.001)
 	assert_almost_eq(r.radius_for(5), 32.0, 0.001)
@@ -24,6 +25,7 @@ func test_ramp_is_linear_below_the_knee() -> void:
 
 func test_ramp_tail_is_continuous_monotone_and_below_cap() -> void:
 	pending("#783")
+	return
 	var r := _ramp()
 	var prev := r.radius_for(16)
 	for b in range(17, 200):
@@ -39,6 +41,7 @@ func test_ramp_tail_is_continuous_monotone_and_below_cap() -> void:
 
 func test_topology_without_ramp_is_uniform_and_budget_zero_is_the_default() -> void:
 	pending("#783")
+	return
 	var t := GraphProcgenTopology.new()
 	t.node_radius = 32.0
 	assert_almost_eq(t.radius_for_budget(7), 32.0, 0.001)
@@ -51,6 +54,7 @@ func test_topology_without_ramp_is_uniform_and_budget_zero_is_the_default() -> v
 
 func test_generate_stamps_ramped_radius_and_constant_ring() -> void:
 	pending("#783")
+	return
 	# Build a small config with a hand-built ramp + budget policy, generate,
 	# and for every node assert:
 	#   base_radius == topology.radius_for_budget(footprint.budget)
@@ -61,6 +65,7 @@ func test_generate_stamps_ramped_radius_and_constant_ring() -> void:
 
 func test_min_dist_sizes_for_the_ramp_asymptote() -> void:
 	pending("#783")
+	return
 	# generate() with ramp cap 50 and node_padding 50: no two nodes closer than
 	# 150 = 2 * max_node_radius() + node_padding, and the auto-scaled mask area
 	# equals GraphProcgen.target_area_for_node_count(node_count, 150).

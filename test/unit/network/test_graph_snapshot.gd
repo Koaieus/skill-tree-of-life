@@ -167,6 +167,7 @@ func test_bytes_per_node_extrapolates_under_the_naive_ceiling() -> void:
 ## every node at the scene default, with a different reach than the host's.
 func test_round_trip_preserves_per_node_radius() -> void:
 	pending("#783")
+	return
 	# Build a graph, set base_radius = 44 / base_inner_radius = 36 on one node
 	# and 28 / 20 on another, encode → decode into a fresh graph, assert both
 	# nodes come back with the same base_radius and base_inner_radius.

@@ -21,6 +21,13 @@ var role_tags: Array = []
 ## Per-node [Keystone] reference (or null). Set by [KeystonePlacement];
 ## the per-node loop applies it via [method Keystone.stamp].
 var keystones: Array = []
+## Per-node authored [PackedScene] (or null). Set by [ScenePlacement]; the
+## per-node loop instantiates it as node `i` in place of the plain skill node
+## (#330). Sized like [member keystones] by [GraphProcgen].
+var scenes: Array = []
+## Derived stream for scene placements (seed + salt, like the blocker pass) so
+## their draws never shift the main [member rng] stream.
+var scene_rng: RandomNumberGenerator = null
 var rng: RandomNumberGenerator = null
 var config: GraphProcgenConfig = null
 
