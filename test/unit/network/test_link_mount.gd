@@ -47,7 +47,7 @@ func _live_game_root() -> GameRoot:
 	return root
 
 
-## Bounded poll for [method GameRoot.is_reveal_ready] — the one flag `_ready`
+## Bounded wait for [method GameRoot.is_reveal_ready] — the one flag `_ready`
 ## itself sets when its whole coroutine, however many frames it took, is
 ## actually done (#932). `_live_game_root`'s flat `wait_frames(6)` is a bet that
 ## `_open_link` always lands inside 6 frames; under load (a prior test's
@@ -56,18 +56,15 @@ func _live_game_root() -> GameRoot:
 ## `_open_link` had not run at all, `transport.role` still `OFFLINE` — while
 ## sibling roots in the same run reached it one frame after `add_child`. This
 ## makes the online-role assertions wait for the actual event instead of a
-## frame count.
+## frame count, via GUT's own [method wait_until] rather than a hand-rolled poll.
 ##
 ## [b]Not a substitute for `_live_game_root`'s own wait[/b]: a CLIENT root in
 ## this fixture never reaches `is_reveal_ready` (`_await_join_world` loops
 ## forever — nobody in a solo fixture answers its pull), so this is only used
 ## where the role in play is guaranteed to finish opening the link, and stays
 ## bounded so a genuine regression fails the assert instead of hanging GUT.
-func _wait_for_reveal(root: GameRoot, max_frames: int = 60) -> void:
-	var frames := 0
-	while not root.is_reveal_ready() and frames < max_frames:
-		await wait_frames(1)
-		frames += 1
+func _wait_for_reveal(root: GameRoot) -> void:
+	await wait_until(root.is_reveal_ready, 2.0)
 
 
 ## Dispose of a scene that was instantiated but never added to the tree.
