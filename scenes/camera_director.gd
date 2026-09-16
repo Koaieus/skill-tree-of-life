@@ -176,11 +176,17 @@ func request_focus(request: FocusRequest) -> FocusDecision:
 			# A widen on an open follow: zoom only (#928). The band owns the
 			# pan, and re-tweening it here was the 2-step's second step.
 			camera.retarget_directed_zoom(decision.zoom_target)
-		elif _melee_following:
+		elif _melee_following and _melee_follow_node != null \
+				and is_instance_valid(_melee_follow_node):
 			# The follow opens on the pivot NODE (#931), not the decision's
 			# plain-value target — [method decide] never learns the blade
 			# exists, so the node to poll travels on [member _melee_follow_node]
-			# instead, set by [method _on_attack_committed].
+			# instead, set by [method _on_attack_committed]. Guarded rather than
+			# asserted: `_melee_follow_node` cannot be null by construction
+			# today (both are set together), but a silent pan to world origin
+			# ([method GraphCamera.begin_directed_follow]'s null fallback) is
+			# the one failure a player would actually see, so a freed/absent
+			# node falls through to the plain one-shot focus below instead.
 			camera.begin_directed_follow(_melee_follow_node, decision.zoom_target,
 					decision.duration)
 		else:
