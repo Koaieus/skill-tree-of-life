@@ -106,7 +106,16 @@ var _input_locked: bool = false
 
 ## True between [method begin_directed_follow] and [method end_directed_focus].
 var _follow_active: bool = false
-var _follow_target: Vector2 = Vector2.ZERO
+## The polled node (#931) — [method _follow] reads `global_position` off this
+## every frame rather than being pushed a goalpost, so a composite (the blade)
+## exposes whichever child is its point of interest instead of the camera
+## learning its geometry. See [method begin_directed_follow]'s docstring for
+## the convention this relies on.
+var _follow_node: Node2D = null
+## The last position read off [member _follow_node]. Kept separately so a
+## freed target (`queue_free`d mid-follow, e.g. the blade after its fade) holds
+## the spring at its last aim instead of crashing or snapping to zero.
+var _follow_last_position: Vector2 = Vector2.ZERO
 ## The spring's momentum (#894) — what makes the follow a band and not a lerp.
 var _follow_velocity: Vector2 = Vector2.ZERO
 
@@ -190,6 +199,8 @@ func _follow(delta: float) -> void:
 		return
 	if _pan_tween != null and _pan_tween.is_valid() and _pan_tween.is_running():
 		return
+	if _follow_node != null and is_instance_valid(_follow_node):
+		_follow_last_position = _follow_node.global_position
 	var tau := maxf(0.0001, follow_smoothing)
 	var omega := 1.0 / tau
 	var remaining := delta
@@ -197,7 +208,7 @@ func _follow(delta: float) -> void:
 	while remaining > 0.0:
 		var dt := minf(remaining, max_step)
 		remaining -= dt
-		var accel := (_follow_target - global_position) * (omega * omega) \
+		var accel := (_follow_last_position - global_position) * (omega * omega) \
 				- _follow_velocity * (2.0 * omega)
 		_follow_velocity += accel * dt
 		global_position += _follow_velocity * dt
@@ -250,13 +261,23 @@ func end_directed_focus() -> void:
 
 
 ## Start a HELD focus that keeps re-aiming (#866), as opposed to
-## [method begin_directed_focus]'s one-shot target+duration. The initial ease is
-## the same tween; [method set_follow_target] then moves the goalpost every frame
-## and [method _follow] closes the gap once the tween is spent.
-func begin_directed_follow(target: Vector2, zoom_target: float, duration: float) -> void:
-	begin_directed_focus(target, zoom_target, duration)
+## [method begin_directed_focus]'s one-shot target+duration. [param target] is
+## POLLED, not pushed: [method _follow] reads its `global_position` every
+## frame once the initial tween (started here, toward its position at this
+## instant) is spent.
+##
+## [b]Convention, not a type guard (#931).[/b] `Node2D` rather than `Marker2D`
+## on purpose — the versatile case (following a board `SkillNode` directly, no
+## marker per node) pays off now. Pass the node whose ORIGIN is the point of
+## interest; a composite whose origin is not exposes its own `%FocusMarker`
+## (`Marker2D`) for that — see [SkillBlade].
+func begin_directed_follow(target: Node2D, zoom_target: float, duration: float) -> void:
+	var at := target.global_position if target != null and is_instance_valid(target) \
+			else Vector2.ZERO
+	begin_directed_focus(at, zoom_target, duration)
 	_follow_active = true
-	_follow_target = target
+	_follow_node = target
+	_follow_last_position = at
 	_follow_velocity = Vector2.ZERO
 
 
@@ -264,18 +285,22 @@ func begin_directed_follow(target: Vector2, zoom_target: float, duration: float)
 ## lands while a follow is open must not go through [method begin_directed_follow]:
 ## that re-tweens the pan, which yanked the camera off the band's goalpost
 ## toward the span centre — the second step of the owner's 2-step. The
-## goalpost stays whatever [method set_follow_target] last pushed.
+## goalpost stays whatever node [method begin_directed_follow] / [method rebind_follow]
+## last pointed at.
 func retarget_directed_zoom(zoom_target: float) -> void:
 	if _directed:
 		_apply_zoom_target(zoom_target)
 
 
-## Move a live follow's goalpost. A no-op unless [method begin_directed_follow]
-## is what opened the focus, so a stale per-frame push after release cannot drag
-## the player's camera.
-func set_follow_target(target: Vector2) -> void:
+## Swap the polled node ONLY — never restarts the pan tween and never touches
+## zoom (#931). A no-op unless [method begin_directed_follow] is what opened
+## the focus, so a stale rebind after release cannot drag the player's camera.
+## The pivot-to-marker handoff (director: `blade_spawned` while locked) is
+## exactly this: the band keeps its momentum, it is just told a new place to
+## pull toward.
+func rebind_follow(target: Node2D) -> void:
 	if _follow_active:
-		_follow_target = target
+		_follow_node = target
 
 
 func is_following() -> bool:

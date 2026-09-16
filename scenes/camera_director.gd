@@ -74,14 +74,6 @@ const ZOOM_LATTICE := 0.25
 ## level constructs during `_setup_level`, not a node in the scene.
 var seat_policy: SeatPolicy = null
 
-## How much harder the PIVOT pulls on the tracking centroid than any other blade
-## vertex (#866). The owner's number: *"pan camera to weighted average of node
-## blade, with pivot taking e.g. an x5 weight compared to others"*. The pivot is
-## the one vertex that never moves, so weighting it is what keeps a 100-vertex
-## blade's shot anchored on the swing's origin instead of drifting off with the
-## arc's far end.
-const MELEE_PIVOT_TRACK_WEIGHT := 5.0
-
 var _seconds_since_manual: float = INF
 var _active: bool = false
 var _remaining: float = 0.0
@@ -93,18 +85,18 @@ var _remaining: float = 0.0
 ## door back to the player's hands.
 var _melee_locked: bool = false
 
-## True while the per-frame goalpost push is live — from the commit to
-## [method release] (#928). The goalpost reads only the vertices the form-in
-## has PLACED ([method SkillBlade.is_vertex_placed]), so through the lead it is
-## the pivot alone and it grows with the stagger: one continuous band from the
-## pivot to the rest centroid, never a second pan (#894's first cut armed this
-## on the swing, which left the widen as a visible second step).
-var _melee_tracking: bool = false
-
 ## True while a melee shot opens its focuses in FOLLOW mode rather than as
-## one-shot tweens — so a goalpost push is not swallowed (`set_follow_target`
-## is a no-op outside a follow) and a later widen retargets the zoom only.
+## one-shot tweens — so a widen retargets the zoom only ([method GraphCamera.retarget_directed_zoom])
+## instead of re-tweening the pan.
 var _melee_following: bool = false
+
+## The [Node2D] a melee shot's follow opens on / rebinds to (#931) — the pivot
+## [SkillNode] at commit, then the blade's own `%FocusMarker` once
+## [signal MeleePreview.blade_spawned] fires while locked. Read by
+## [method request_focus] rather than carried on a [FocusRequest]: only a
+## melee shot follows a node at all, and [method decide] stays a pure function
+## of plain values.
+var _melee_follow_node: Node2D = null
 
 ## True from [signal BattleSystem.melee_swing_started] to [method release]:
 ## the blade is moving, so the hold has been re-sized from the swing and the
@@ -124,21 +116,19 @@ func _ready() -> void:
 	if command_applier != null \
 			and not command_applier.command_confirmed.is_connected(_on_command_confirmed):
 		command_applier.command_confirmed.connect(_on_command_confirmed)
+	if battle_system != null and battle_system.melee_preview != null \
+			and not battle_system.melee_preview.blade_spawned.is_connected(_on_blade_spawned):
+		battle_system.melee_preview.blade_spawned.connect(_on_blade_spawned)
 
 
 func _process(delta: float) -> void:
 	_seconds_since_manual += delta
 	if not _active:
 		return
-	# The rubber band (#866): move the goalpost onto the live blade's weighted
-	# centroid every frame; [method GraphCamera._follow] springs after it. Pure
-	# presentation — it READS the blade the mutation loop is already driving
-	# and never gates it (`.claude/rules/presentation-clock.md`). Live from the
-	# commit, over the PLACED vertices only (#928): through the form-in the
-	# goalpost grows with the stagger, so the pan is one band from the pivot to
-	# the rest centroid rather than a pivot pan followed by a centroid pan.
-	if _melee_tracking and camera != null and _live_melee_plan() != null:
-		camera.set_follow_target(melee_track_target())
+	# The rubber band (#866, #931) needs no push here any more: `GraphCamera`
+	# polls its own followed node every frame ([method GraphCamera._follow]).
+	# This director only decides WHICH node that is, at commit and on
+	# `blade_spawned` — see [method _on_attack_committed] / [method _on_blade_spawned].
 	_remaining -= delta
 	if _remaining <= 0.0 and not _awaiting_swing():
 		release()
@@ -187,7 +177,11 @@ func request_focus(request: FocusRequest) -> FocusDecision:
 			# pan, and re-tweening it here was the 2-step's second step.
 			camera.retarget_directed_zoom(decision.zoom_target)
 		elif _melee_following:
-			camera.begin_directed_follow(decision.target, decision.zoom_target,
+			# The follow opens on the pivot NODE (#931), not the decision's
+			# plain-value target — [method decide] never learns the blade
+			# exists, so the node to poll travels on [member _melee_follow_node]
+			# instead, set by [method _on_attack_committed].
+			camera.begin_directed_follow(_melee_follow_node, decision.zoom_target,
 					decision.duration)
 		else:
 			camera.begin_directed_focus(decision.target, decision.zoom_target,
@@ -209,8 +203,8 @@ func request_focus(request: FocusRequest) -> FocusDecision:
 func release() -> void:
 	_active = false
 	_remaining = 0.0
-	_melee_tracking = false
 	_melee_following = false
+	_melee_follow_node = null
 	_melee_swing_started = false
 	if _melee_locked:
 		_melee_locked = false
@@ -222,66 +216,6 @@ func release() -> void:
 
 func is_focusing() -> bool:
 	return _active
-
-
-## [b]The pan target of a melee director's shot, as a pure function (#866).[/b]
-## The weighted average of the blade's vertex positions with the pivot counted
-## [param pivot_weight] times and every other vertex once.
-##
-## Weighted rather than flat because the two ends of a blade are not equivalent:
-## the pivot is pinned ([member BladeState.inv_masses] is 0 there) while the far
-## vertices sweep a full arc, so a flat centroid of a 40-vertex blade would ride
-## the arc's outer end and leave the swing's origin off-screen. Owner's number:
-## *"pivot taking e.g. an x5 weight compared to others"*.
-##
-## An empty blade is the pivot itself, never a division by zero.
-static func weighted_blade_center(pivot: Vector2, others: PackedVector2Array,
-		pivot_weight: float = MELEE_PIVOT_TRACK_WEIGHT) -> Vector2:
-	var w := maxf(0.0, pivot_weight)
-	var total := w
-	var acc := pivot * w
-	for p in others:
-		acc += p
-		total += 1.0
-	if total <= 0.0:
-		return pivot
-	return acc / total
-
-
-## Where the shot should be looking THIS FRAME — the live blade's weighted
-## centroid. Read off [method MeleePreview.current_blade] rather than off the
-## plan or a re-predict: the whole point of the rubber band is the vertices'
-## animated positions mid-swing, and the preview's ghost IS the blade being
-## swung (the handoff #559/#865 preserve). Degrades to the pivot alone whenever
-## no blade is mounted — a headless peer, a fixture, the gap before the ghost
-## spawns — which is the same point the lead beat already panned to.
-func melee_track_target() -> Vector2:
-	var melee := _live_melee_plan()
-	if melee == null:
-		return Vector2.ZERO
-	var pivot := melee.source.global_position
-	return weighted_blade_center(pivot, _live_blade_vertices())
-
-
-## The blade's non-pivot vertex world positions, or empty. The pivot is dropped
-## by INDEX ([member BladeState.pivot_index]) rather than by position, so a
-## vertex that happens to sit on top of the pivot still counts once.
-func _live_blade_vertices() -> PackedVector2Array:
-	var out := PackedVector2Array()
-	if battle_system == null or battle_system.melee_preview == null:
-		return out
-	var blade := battle_system.melee_preview.current_blade()
-	if blade == null or not is_instance_valid(blade):
-		return out
-	var pivot_idx := blade.state.pivot_index if blade.state != null else -1
-	var visuals := blade.get_node_visuals()
-	for i in visuals.size():
-		if i == pivot_idx or not blade.is_vertex_placed(i):
-			continue
-		var v := visuals[i]
-		if v != null and is_instance_valid(v):
-			out.append(v.global_position)
-	return out
 
 
 ## The [MeleeAttackPlan] a melee commit is hanging off, or null for a
@@ -300,12 +234,6 @@ func _live_melee_plan() -> MeleeAttackPlan:
 
 func is_melee_locked() -> bool:
 	return _melee_locked
-
-
-## True while the per-frame centroid push is live — i.e. the swing has
-## started. Follow MODE may be open before this (see [member _melee_following]).
-func is_tracking() -> bool:
-	return _melee_tracking
 
 
 ## Take the camera for a melee shot. Idempotent: a multi-hit commit re-raises
@@ -459,14 +387,17 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 		return
 	# #866's director's shot, for EVERY melee commit — seated, AI, remote alike.
 	# The lock goes up before the first focus and comes down only in `release`.
-	var is_melee := _live_melee_plan() != null
+	var melee := _live_melee_plan()
+	var is_melee := melee != null
 	if is_melee:
 		_lock_for_melee_shot()
-		# Follow mode and the goalpost open with the FIRST focus (#928): the
-		# pivot focus is the band's first goalpost (only the pivot is placed),
-		# and the form-in grows it from there. Ranged/magic stay one-shot.
+		# Follow mode opens with the FIRST focus, on the pivot SkillNode
+		# itself (#931) — the whole shot for a peer with no MeleePreview.
+		# `_on_blade_spawned` rebinds it to the blade's own %FocusMarker once
+		# the ghost exists; `begin_windup` runs synchronously right after this
+		# (same frame), so the rebind lands before the first `_follow` poll.
 		_melee_following = true
-		_melee_tracking = true
+		_melee_follow_node = melee.source
 	var pivot := _melee_pivot_focus(attacker)
 	if pivot == null:
 		# No lead beat to fill (a ranged commit, or acceptance 5's zeroed
@@ -534,6 +465,18 @@ func _on_melee_swing_started(outcome: AttackOutcome) -> void:
 	if outcome != null and outcome.schedule != null:
 		swing = outcome.schedule.duration()
 	_remaining = maxf(_remaining, swing + release_tail_seconds)
+
+
+## The blade's ghost exists now (#931): swap the follow from the pivot
+## `SkillNode` onto the blade's own `%FocusMarker` — a rebind, never a
+## re-tween, so the pan the pivot opened keeps its momentum straight through
+## the handoff. Guarded on the lock: [signal MeleePreview.blade_spawned] also
+## fires on every aim-phase selection change, and a stray late signal after
+## [method release] must not drag a camera the player already has back.
+func _on_blade_spawned(blade: SkillBlade) -> void:
+	if not _melee_locked or camera == null or blade == null:
+		return
+	camera.rebind_follow(blade.focus_marker())
 
 
 ## Frame a committed attack's from->to span.
