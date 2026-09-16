@@ -1,24 +1,28 @@
 extends GutTest
-## v4 #321 D8: the 4 hand-authored landmark SkillNode scenes each carry a
-## Keystone whose baked StatEffect grants the headline modifier.
+## v4 #321 D8 / #929: the hand-authored landmark SkillNode scenes each carry
+## their own StatEffect on [member SkillNode.effects] (a SubResource of the
+## .tscn) that grants the headline modifier — no Keystone resource in between.
 const _WARD    := preload("res://entity/keystone/instances/mythic_ward_node.tscn")
 const _FARSIGHT:= preload("res://entity/keystone/instances/farsight_node.tscn")
 const _TITAN   := preload("res://entity/keystone/instances/titan_node.tscn")
 const _ARCHMAGE:= preload("res://entity/keystone/instances/archmage_node.tscn")
-const _NATURAL_XP := preload("res://entity/keystone/natural_xp_node.tscn")
+const _NATURAL_XP := preload("res://entity/keystone/instances/natural_xp_node.tscn")
 const _BASE := preload("res://entity/keystone/keystone_skill_node.tscn")
 
 const _BASE_PATH := "res://entity/keystone/keystone_skill_node.tscn"
 const _SKILL_NODE_PATH := "res://skill_node/skill_node.tscn"
-func _check(scene: PackedScene, stat_id: StringName, op: int, value: float, label: String) -> void:
+func _check(scene: PackedScene, stat_id: StringName, op: int, value: float, label: String, index: int = 0) -> void:
 	var n: SkillNode = autofree(scene.instantiate()) as SkillNode
 	add_child(n)
-	assert_not_null(n.keystone, "%s: keystone should be set on the node" % label)
-	assert_true(n.keystone.effects.size() >= 1, "%s: keystone should carry >=1 effect" % label)
-	var fx = n.keystone.effects[0]
+	assert_true(n.effects.size() >= 1, "%s: the scene should carry >=1 effect on SkillNode.effects" % label)
+	if n.effects.is_empty():
+		return
+	var fx = n.effects[0]
 	assert_true(fx is StatEffect, "%s: effect[0] should be a StatEffect" % label)
-	assert_true((fx as StatEffect).modifiers.size() >= 1, "%s: StatEffect should carry >=1 modifier" % label)
-	var m = (fx as StatEffect).modifiers[0] as StatModifier
+	assert_true((fx as StatEffect).modifiers.size() > index, "%s: StatEffect should carry >%d modifier(s)" % [label, index])
+	if (fx as StatEffect).modifiers.size() <= index:
+		return
+	var m = (fx as StatEffect).modifiers[index] as StatModifier
 	assert_eq(m.stat_id, stat_id, "%s: stat_id" % label)
 	assert_eq(int(m.operation), op, "%s: operation" % label)
 	assert_almost_eq(float(m.value), value, 0.001, "%s: value" % label)
@@ -30,6 +34,48 @@ func test_titan_grants_x2_strength() -> void:
 	_check(_TITAN, &"strength", StatModifier.Operation.MULTIPLY, 2.0, "titan")
 func test_archmage_grants_x2_intelligence() -> void:
 	_check(_ARCHMAGE, &"intelligence", StatModifier.Operation.MULTIPLY, 2.0, "archmage")
+func test_natural_xp_grants_plus_10_xp_per_turn_and_plus_10_wisdom() -> void:
+	_check(_NATURAL_XP, &"xp_per_turn", StatModifier.Operation.ADD_BASE, 10.0, "natural_xp", 0)
+	_check(_NATURAL_XP, &"wisdom", StatModifier.Operation.ADD_BASE, 10.0, "natural_xp", 1)
+
+
+## #929: the grant reaches a hand-built board on allocate, read off
+## [member SkillNode.effects] by [AllocationSystem] — the same door every
+## node-carried effect goes through, no Keystone in between.
+func test_landmark_grants_reach_the_allocating_entity_via_effects() -> void:
+	var alloc := autofree(AllocationSystem.new()) as AllocationSystem
+	var ent := autofree(Entity.new()) as Entity
+	ent.display_name = "T"
+	ent.stat_board = (preload("res://entity/default_entity_board.tres") as EntityStatBoard).duplicate(true)
+	var n: SkillNode = autofree(_FARSIGHT.instantiate()) as SkillNode
+	add_child(alloc)
+	add_child(ent)
+	add_child(n)
+	await get_tree().process_frame
+	var base: float = ent.stat_board.get_value(&"vision_range")
+	alloc.force_allocate(ent, n)
+	assert_almost_eq(float(ent.stat_board.get_value(&"vision_range")), base + 100.0, 0.001,
+		"farsight's +100 vision range lands on allocate")
+	alloc.force_deallocate(n)
+	assert_almost_eq(float(ent.stat_board.get_value(&"vision_range")), base, 0.001,
+		"deallocate revokes it")
+
+
+## Fork ① regression (#336, settled 2026-08-01): the landmark scenes set no
+## archetype and no longer claim a KEYSTONE-priority carve, so their emblem
+## contributions stay empty across the deletion of `SkillNode.keystone`.
+func test_landmarks_contribute_no_emblem() -> void:
+	var scenes := {
+		"mythic_ward": _WARD,
+		"farsight": _FARSIGHT,
+		"titan": _TITAN,
+		"archmage": _ARCHMAGE,
+		"natural_xp": _NATURAL_XP,
+	}
+	for label in scenes:
+		var n: SkillNode = autofree(scenes[label].instantiate()) as SkillNode
+		add_child(n)
+		assert_eq(n.get_emblem_contributions().size(), 0, "%s: no emblem contribution" % label)
 
 
 # ── #927: every keystone scene inherits the base's 40/32 radius ────────────
