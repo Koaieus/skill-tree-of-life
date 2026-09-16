@@ -66,6 +66,7 @@ const _R_EFFECTS := 12  ## Array[int], indices into `res` — SkillNode.effects 
 const _R_STATUSES := 13 ## Array of `[def_idx, power]` pairs (#879) — def_idx indexes into `res`, power is the raw float (not quantized — WorldFingerprint quantizes its own fold independently, same split as HP)
 const _R_BASE_RADIUS := 14       ## SkillNode.base_radius (#783) — procgen ramps it per node and only the host generates, so it is carried, not derived
 const _R_BASE_INNER_RADIUS := 15 ## SkillNode.base_inner_radius (#783) — same reason
+const _R_SCENE := 16 ## index into `res`, -1 for the plain skill_node.tscn — the node's own `scene_file_path` (#330): an authored keystone scene (or the blocker scene) is re-instantiated on the create path, since the scene IS its content (colour, name, keystone, radius)
 
 
 ## Builds the payload for the WHOLE graph in one shot: `res` (the interned
@@ -312,8 +313,11 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	for s in node.get_combat().get_statuses():
 		if s.def.resource_path != "":
 			status_pairs.append([table.intern(s.def.resource_path), s.power])
+	var scene_idx := -1
+	if node.scene_file_path != "" and node.scene_file_path != _NODE_SCENE.resource_path:
+		scene_idx = table.intern(node.scene_file_path)
 	var row: Array
-	row.resize(16)
+	row.resize(17)
 	row[_R_STABLE_ID] = graph.get_stable_id(node)
 	row[_R_ARCHETYPE] = archetype_idx
 	row[_R_OWNER_ID] = owner_id
@@ -330,6 +334,7 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	row[_R_STATUSES] = status_pairs
 	row[_R_BASE_RADIUS] = node.base_radius
 	row[_R_BASE_INNER_RADIUS] = node.base_inner_radius
+	row[_R_SCENE] = scene_idx
 	return row
 
 
@@ -342,7 +347,10 @@ static func _decode_node(
 	var stable_id := int(row[_R_STABLE_ID])
 	var node: SkillNode = existing.get(stable_id)
 	if node == null:
-		node = _NODE_SCENE.instantiate() as SkillNode
+		var scene := _interned(res, int(row[_R_SCENE])) as PackedScene
+		if scene == null:
+			scene = _NODE_SCENE
+		node = scene.instantiate() as SkillNode
 		# The authored tier lands BEFORE `add_skill_node`, as it always has: a
 		# [SkillNode]'s `_ready` reads its archetype.
 		_reconcile_authored(node, row, res)
