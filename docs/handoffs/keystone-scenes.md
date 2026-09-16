@@ -23,7 +23,7 @@ The hub is therefore **swarmify-ready**, not yet `Ready` — children still need
 
 Wave 1, no dependencies, parallel:
 - **#339** — procgen single-component assertion + dropped-anchor warning. Acceptance written; no forks. Not in `Ready` (hasn't been through the gate) — since resolved: promoted to `Ready` 2026-08-02.
-- Delete `entity/keystone/keystone_skill_node.tscn` — verified zero references.
+- ~~Delete `entity/keystone/keystone_skill_node.tscn` — verified zero references.~~ **Reversed by the owner, 2026-09-16 (#927):** the file stays as the keystone base scene (`base_radius = 40.0` / `base_inner_radius = 32.0`); the five landmark scenes now inherit it instead of `skill_node.tscn` directly. The defect was never the file, it was that nothing inherited it.
 
 Wave 2 is sequential and specified in #336's "Dispatch order" section. Wave 3 (clusters) is not ready.
 
@@ -31,7 +31,7 @@ Wave 2 is sequential and specified in #336's "Dispatch order" section. Wave 3 (c
 
 - `Keystone.stamp()` has **one** production caller: `graph_procgen.gd:207`. Plus `test_keystone.gd:44`, `test_tooltip_v2_accessors.gd:57`.
 - **Six** authored `Keystone` `.tres`, **five** carrier scenes (four landmarks under `instances/`, plus `natural_xp_node.tscn` one level up). None sets `carve_shape`, `icon`, `color`, `radius` or `addon_scenes`.
-- `keystone_skill_node.tscn` and `natural_xp_node.tscn`: zero references anywhere.
+- `keystone_skill_node.tscn` is now the inherited base for all five carrier scenes (#927); `natural_xp_node.tscn` itself still has zero references from production code, only the test suite.
 
 ## Working-tree hazards at time of writing
 

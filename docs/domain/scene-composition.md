@@ -27,11 +27,25 @@ sub-nodes?** If yes, make the base scene and have the concrete variants be
 **inherited scenes** of it — then structural changes propagate for free. If no,
 there is no base scene to make; put the shared default in the script.
 
-`skill_node/addons/skill_node_addon.tscn` was exactly this and was deleted
-(#334 follow-up): a bare `Node2D` + `SkillNodeAddon` script that nothing
-inherited, while bunker/fortification/clamp/spike_ring/skill_dust were each
-standalone scenes attaching the same script. A `z_index` authored into the
-"template" reached none of them. It belonged in `SkillNodeAddon._ready`.
+**Or** it earns its keep by carrying shared defaults that every concrete
+inherits — no extra sub-nodes needed, just exported values every family member
+should start from. The guard is the same either way: **nothing in the family
+bypasses it.** `entity/keystone/keystone_skill_node.tscn` is this shape (#927):
+it authors `base_radius = 40.0` / `base_inner_radius = 32.0` on top of
+`skill_node.tscn`'s own defaults, and every scene under `entity/keystone/`
+inherits it rather than `skill_node.tscn` directly — a sixth keystone authored
+off the wrong base is the defect returning, so it's pinned by a test that
+scans the actual files on disk (`test/unit/test_keystone_landmarks.gd`), not
+just the known five.
+
+`skill_node/addons/skill_node_addon.tscn` is the counter-example, and was
+deleted (#334 follow-up): a bare `Node2D` + `SkillNodeAddon` script that
+nothing inherited, while bunker/fortification/clamp/spike_ring/skill_dust were
+each standalone scenes attaching the same script. A `z_index` authored into
+the "template" reached none of them. It belonged in `SkillNodeAddon._ready`.
+The difference from the keystone base above: nothing ever inherited the addon
+template, so its defaults were dead on arrival — the keystone base earns its
+keep because the whole family actually does inherit it.
 
 ## What an inherited scene CAN and CANNOT change
 
