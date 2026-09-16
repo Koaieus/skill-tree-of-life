@@ -63,7 +63,6 @@ var _entity: Entity
 var _pool: PoolStat
 var _per_turn: ScalarStat
 var _seq: PoolLevelSequencer
-var _apply_queued: bool = false
 var _phase: _Phase = _Phase.IDLE
 ## The level the strip is currently showing. Advanced by the gauge's beats, not
 ## by the model — `stat_board.level` is already final when the replay starts.
@@ -77,6 +76,9 @@ var _cascade_sp: int = 0
 ## What this strip connects to the CURRENT hero's XP pool, released as a unit
 ## by [method _unbind] (#459 hot-seat handover).
 var _binds := BindScope.new()
+## Coalesce a level-up's burst of synchronous edits into one end-of-frame kick,
+## so playback starts from a settled pool rather than mid-cascade.
+var _apply_deferred := DeferredOnce.new(_apply)
 
 
 func _ready() -> void:
@@ -162,17 +164,11 @@ func _on_value_changed() -> void:
 	_queue_apply()
 
 
-## Coalesce a level-up's burst of synchronous edits into one end-of-frame kick,
-## so playback starts from a settled pool rather than mid-cascade.
 func _queue_apply() -> void:
-	if _apply_queued:
-		return
-	_apply_queued = true
-	_apply.call_deferred()
+	_apply_deferred.request()
 
 
 func _apply() -> void:
-	_apply_queued = false
 	if _pool == null or _gauge == null:
 		return
 	# Mid-SEGMENT the new segments simply wait their turn in the queue. Mid-

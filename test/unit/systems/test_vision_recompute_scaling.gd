@@ -130,7 +130,7 @@ func test_one_allocation_triggers_exactly_one_recompute() -> void:
 
 	assert_eq(recomputes.size(), 1,
 		"one allocation must settle into exactly one recompute, not one per frame")
-	assert_false(_vision._recompute_pending,
+	assert_false(_vision._recompute_deferred.is_queued(),
 		"and must leave nothing pending behind it")
 
 

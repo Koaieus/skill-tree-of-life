@@ -179,19 +179,11 @@ func _on_allocation_changed() -> void:
 ## (here) recompute requests. Without debouncing, each click triggered N
 ## synchronous recomputes, each O(graph × owned_count). With debouncing,
 ## the whole burst lands as one recompute on the next idle.
-var _recompute_pending: bool = false
+var _recompute_deferred := DeferredOnce.new(_recompute)
 
 
 func _request_recompute() -> void:
-	if _recompute_pending:
-		return
-	_recompute_pending = true
-	_recompute_deferred.call_deferred()
-
-
-func _recompute_deferred() -> void:
-	_recompute_pending = false
-	_recompute()
+	_recompute_deferred.request()
 
 
 func _rebind_viewers() -> void:
