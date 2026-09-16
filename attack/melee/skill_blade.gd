@@ -310,7 +310,11 @@ func _apply_playback_frame(
 			_node_visuals[i].death_progress = _death_progress_at(i, t)
 	# The marker rides the trajectory's stored centroid (#930): the one place
 	# the swing writes vertex positions is the one place the focus follows them.
-	if state != null and positions.size() > 0:
+	# Only the committed swing, though — the idle preview loop plays the ghost
+	# `ghostly`, and a camera following this marker (#931) must not rock while
+	# the player aims (#894 arms tracking on the swing-start beat for exactly
+	# that reason), so the ghost loop leaves the marker on the rest centre.
+	if not ghostly and state != null and positions.size() > 0:
 		_set_focus(weighted_focus(_pivot_position(), traj.centroid_at(t), positions.size()))
 	if pop_result != null:
 		for i in _edge_visuals.size():

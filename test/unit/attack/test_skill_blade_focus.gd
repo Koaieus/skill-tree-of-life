@@ -139,10 +139,24 @@ func test_a_playback_frame_puts_the_marker_on_the_weighted_trajectory_centroid()
 	var blade: SkillBlade = f["blade"]
 	var traj := _traj([[Vector2.ZERO, Vector2(0, 600)], [Vector2.ZERO, Vector2(600, 0)]])
 	var pending: Array[BladeHitEvent] = []
-	blade._apply_playback_frame(_DT, traj, pending, true)
+	blade._apply_playback_frame(_DT, traj, pending, false)
 	var want := SkillBlade.weighted_focus(Vector2.ZERO, traj.centroid_at(_DT), 2,
 			SkillBlade.FOCUS_PIVOT_WEIGHT)
 	assert_almost_eq(blade.focus_marker().global_position, want, Vector2(0.001, 0.001),
 			"mid-swing the marker rides centroid_at(t)")
 	assert_almost_eq(want, Vector2(100, 0), Vector2(0.001, 0.001),
 			"(sanity: the swept arm at x=600 pulls to 600/6)")
+
+
+func test_a_ghostly_frame_leaves_the_marker_on_the_rest_centre() -> void:
+	# The idle preview loop plays the ghost with `ghostly = true`; the camera
+	# will follow this marker (#931) and #894 arms tracking only on the swing
+	# start beat so the shot does not rock while the player aims. So the ghost
+	# loop leaves the marker where the rest centre put it.
+	var f: Dictionary = await _blade_fixture()
+	var blade: SkillBlade = f["blade"]
+	var traj := _traj([[Vector2.ZERO, Vector2(0, 600)], [Vector2.ZERO, Vector2(600, 0)]])
+	var pending: Array[BladeHitEvent] = []
+	blade._apply_playback_frame(_DT, traj, pending, true)
+	assert_almost_eq(blade.focus_marker().global_position, _rest_focus(),
+			Vector2(0.001, 0.001), "a ghostly frame does not move the focus")
