@@ -388,6 +388,7 @@ func _ready() -> void:
 		victory_system.world_ready = true
 
 	_arm_rung_4()
+	_stagger_initiative()
 	_open_first_turn()
 	_focus_camera_on_player()
 	# LAST. Everything above is what "presentable" means: the world generated,
@@ -397,6 +398,100 @@ func _ready() -> void:
 	_reveal_ready = true
 	if SceneTransition.is_curtain_up():
 		await SceneTransition.fade_in()
+
+
+## Rescale every initiative-carrying entity's opening clock across (0, cap] so
+## the first cycle interleaves turns instead of every entity opening at 0 and
+## the tie-break deciding the whole order every cycle (#911).
+##
+## Runs BEFORE [method _open_first_turn], and unconditionally — never gated on
+## [method _is_network_authority()]. This has to be a pure function of shared
+## data (spawn order, the roster) so every peer reaches the same clocks
+## independently, exactly like world generation itself; it is not a host
+## DECISION a peer receives. What [method _open_first_turn] gates is only who
+## SUBMITS the opening [StartTurnCommand] — that command's own validator
+## (`CommandApplier._validate_command`) doesn't look at initiative at all, so
+## this only reshapes who acts SECOND onward, never who opens turn 1.
+##
+## [b]Index 0 must be the entity that command names[/b] (#911 spec addition),
+## which is the AUTHORITY's seat — [b]not[/b] this machine's own [member
+## player]: a mirror's `player` is its OWN local hero
+## ([method ProcgenPlaySandbox._seat_the_roster]'s `_is_this_machines` branch),
+## while the command always names the host's. The host's seat is found the
+## same way [member _is_network_client] already leans on a network CONSTANT
+## rather than a received value: ENet always mints the server as peer id
+## [constant NetworkTransport.HOST_PEER_ID], identically known to every peer
+## without crossing the wire, and an offline run's lone seat is peer `0`
+## ([method NetworkTransport.local_peer_id]'s doc says the same).
+##
+## Blockers (no `initiative` pool) are not counted in `n` and are untouched.
+func _stagger_initiative() -> void:
+	if graph == null:
+		return
+	var stagger := true
+	if GameSession.is_active():
+		stagger = GameSession.config.stagger_initiative
+	if not stagger:
+		return
+	var carriers: Array[Entity] = []
+	for child in graph.entities_container.get_children():
+		var e := child as Entity
+		if e != null and e.stat_board != null and e.stat_board.initiative != null:
+			carriers.append(e)
+	var opener := _opening_entity()
+	if opener != null and carriers.has(opener) and carriers[0] != opener:
+		carriers.erase(opener)
+		carriers.push_front(opener)
+	GameRoot.apply_initiative_stagger(carriers)
+
+
+## The entity the opening [StartTurnCommand] will name — see
+## [method _stagger_initiative]'s note for why this is the host's seat, found
+## from network-constant + roster data rather than [member player]. Null when
+## there's no roster to ask (a hand-authored fixture with no session), which
+## leaves [method _stagger_initiative] on today's plain spawn order.
+##
+## Walks `graph.entities_container` directly rather than reusing [method
+## _entity_for_participant] — that one reads `get_tree()`, which only a node
+## actually inside the scene tree has; this runs from `_ready()` (always
+## true there) but is also exercised standalone against a bare, unparented
+## [GameRoot] in `test_initiative_stagger.gd`, and `graph` alone is enough
+## data either way.
+func _opening_entity() -> Entity:
+	if GameSession.roster == null or graph == null:
+		return null
+	var opener_peer_id := 0
+	if GameSession.network != null and GameSession.network.is_online():
+		opener_peer_id = NetworkTransport.HOST_PEER_ID
+	var opener_participant_id := 0
+	for participant in GameSession.roster.all():
+		if participant.peer_id == opener_peer_id:
+			opener_participant_id = participant.id
+			break
+	if opener_participant_id == 0:
+		return null
+	for child in graph.entities_container.get_children():
+		var e := child as Entity
+		if e != null and e.participant_id == opener_participant_id:
+			return e
+	return null
+
+
+## The pure half of [method _stagger_initiative] — split out so it is
+## testable against a hand-built roster with no [Graph] / [GameRoot] scene at
+## all. `carriers` is spawn-ordered (index 0 = first spawned); index `i` of
+## `n` opens at `floor(cap * (n - i) / n)` — first = cap (ready at once, no
+## initial tick race to win), last = `cap / n`, never 0. Written through
+## [method PoolStat.set_current] (never `base_value` — this is a `current`
+## write, not a redefinition of the pool).
+static func apply_initiative_stagger(carriers: Array[Entity]) -> void:
+	var n := carriers.size()
+	if n == 0:
+		return
+	for i in n:
+		var pool := carriers[i].stat_board.initiative
+		var cap := float(pool.get_value())
+		pool.set_current(floor(cap * float(n - i) / float(n)))
 
 
 ## Open the run's clock — as a [StartTurnCommand], never as a local call (#756).

@@ -26,6 +26,15 @@ enum Mode { SINGLE, COOP_HOTSEAT, VERSUS }
 @warning_ignore("shadowed_global_identifier")
 @export var seed: int = 0
 @export var participants: Array[Participant] = []
+## Rescale every initiative-carrying entity's opening clock across (0, cap] so
+## the first cycle interleaves turns instead of every entity opening at 0 and
+## the tie-break deciding the whole order every cycle (#911). On by default;
+## off is what a test that wants today's "everyone opens at 0" behaviour (or a
+## test asserting the tie-break itself) sets. Crosses the wire like everything
+## else here — both peers apply the stagger independently from spawn order
+## rather than receiving its result, but they must agree on whether to run it
+## at all.
+@export var stagger_initiative: bool = true
 
 
 ## The one and only place a seed sentinel resolves (#457). `0` means
@@ -120,6 +129,7 @@ func to_dict() -> Dictionary:
 		"overrides": override_rows,
 		"seed": seed,
 		"participants": participant_rows,
+		"stagger_initiative": stagger_initiative,
 	}
 
 
@@ -138,4 +148,5 @@ static func from_dict(d: Dictionary) -> RunConfig:
 	for row in (d.get("participants", []) as Array):
 		parts.append(Participant.from_dict(row as Dictionary))
 	cfg.participants = parts
+	cfg.stagger_initiative = bool(d.get("stagger_initiative", true))
 	return cfg
