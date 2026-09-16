@@ -85,9 +85,12 @@ func test_ap_keystone_grants_exactly_plus_1_max_ap_on_allocate() -> void:
 
 ## #180 acceptance 1: allocating the wisdom keystone onto a hand-built default
 ## board reads +20 wisdom, and the D-15 derived income (xp_per_turn, an
-## intrinsic RatioFormula reading wisdom at divisor 5 on
-## default_entity_board.tres — see entity/default_entity_board.tres's
-## mod_wis_to_xp_pt, "+1 XP/Turn per 5 WIS") moves by exactly +20/5 = +4.
+## intrinsic RatioFormula reading wisdom — see default_entity_board.tres's
+## mod_wis_to_xp_pt) moves in that same ratio. The divisor is the owner's
+## knob on default_entity_board.tres, not this test's business, so the
+## expected xp delta is read off the live board (base_xp / base_wisdom)
+## rather than a pinned number — this still goes red on a broken grant, and
+## stops going red the day the owner retunes the divisor.
 func test_wisdom_keystone_grants_exactly_plus_20_wisdom_and_derived_xp_on_allocate() -> void:
 	var alloc := autofree(AllocationSystem.new()) as AllocationSystem
 	add_child(alloc)
@@ -102,11 +105,12 @@ func test_wisdom_keystone_grants_exactly_plus_20_wisdom_and_derived_xp_on_alloca
 	await get_tree().process_frame
 	var base_wisdom: float = ent.stat_board.get_value(&"wisdom")
 	var base_xp: float = ent.stat_board.get_value(&"xp_per_turn")
+	var expected_xp_delta: float = 20.0 * base_xp / base_wisdom
 	alloc.force_allocate(ent, n)
 	assert_almost_eq(float(ent.stat_board.get_value(&"wisdom")), base_wisdom + 20.0, 0.001,
 		"exactly +20 wisdom")
-	assert_almost_eq(float(ent.stat_board.get_value(&"xp_per_turn")), base_xp + 4.0, 0.001,
-		"derived xp_per_turn moves by +20/5 = +4 (D-15's WIS-driven income)")
+	assert_almost_eq(float(ent.stat_board.get_value(&"xp_per_turn")), base_xp + expected_xp_delta, 0.001,
+		"derived xp_per_turn moves in the board's own wisdom->xp ratio")
 
 
 ## #929: the grant reaches a hand-built board on allocate, read off
