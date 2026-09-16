@@ -9,9 +9,9 @@ extends GutTest
 ##
 ## 1. **The tab is composed the way `.claude/rules/sandbox-host.md` requires** —
 ##    an inherited scene of `sandbox_live_tab.tscn` with its panel INSTANCED
-##    inside it under `%PanelHost`, never injected through the legacy
-##    `panel_scene` export. Both forms run; only one previews and reloads
-##    correctly, so the difference is invisible until it bites.
+##    inside it under `%PanelHost`. The legacy `panel_scene` injection path is
+##    gone (#881), so an un-baked tab now simply has an empty host — which is
+##    exactly the invisible-until-it-bites case the assert below catches.
 ## 2. **The bench is the shipped scene, not a mock.** That is the #309 lesson —
 ##    the tooltip fan's first live tab drove a hand-rolled copy of the fan's
 ##    layout and drifted. A test that names `frontmatter_root.tscn` is what
@@ -70,12 +70,12 @@ func test_the_tab_is_an_inherited_scene_of_the_live_tab_base() -> void:
 	assert_not_null(tab.get_node_or_null("%PanelHost"), "it carries the base's chrome")
 
 
-## The trap the rule exists to prevent: `panel_scene` still works, and a tab
-## using it looks identical until it fails to preview or to reload.
+## The trap the rule exists to prevent: a tab that forgets to bake its panel
+## looks identical in the host's tab strip until it previews empty.
 func test_the_panel_is_instanced_inside_the_tab_not_injected() -> void:
 	var tab: SandboxLiveTab = _TAB.instantiate()
 	add_child_autofree(tab)
-	assert_null(tab.panel_scene, "the legacy panel_scene export is NOT used")
+	assert_false("panel_scene" in tab, "the legacy panel_scene export is gone (#881)")
 	var host := tab.get_node("%PanelHost")
 	var baked: Control = null
 	for child in host.get_children():
