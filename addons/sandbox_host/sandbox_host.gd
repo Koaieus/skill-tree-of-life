@@ -46,11 +46,9 @@ func _register_tabs() -> void:
 
 ## Rebuild one tab from its own `.tscn`, in place.
 ##
-## This is the reload path for a **scenically composed** tab — one that instances
-## its panel inside its own scene rather than handing a `PackedScene` to an
-## `@export` for `_ready` to `add_child`. Such a tab has no `panel_scene` to
-## re-instance, and re-instancing was never the right unit anyway: the panel is a
-## child of the tab's scene, so the tab is what reloads.
+## Every tab instances its panel inside its own scene (the `%PanelHost` baked
+## pattern, #437/#881), so there is nothing to re-instance: the panel is a
+## child of the tab's scene, and the tab is what reloads.
 ##
 ## Scenic composition is not a style preference here. A panel that enters the tree
 ## as part of its scene and one that is `add_child`ed afterwards are not
