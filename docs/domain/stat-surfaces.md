@@ -26,18 +26,23 @@ not a bug to fix. Register a new stat here when you add its `.tres`
 
 ## Combat readout cards
 
+Since #913 (a338840) a plain stat row is scene-authored — a `CombatValueRow`
+instanced in the card's `.tscn` with its own `stat_id`, self-binding; the
+card's `.gd` no longer names the id for these. Cited file is the `.tscn`
+below unless noted otherwise.
+
 | id | surface |
 |---|---|
-| `armor` | `ui/hud/combat_readout/combat_card_defense.gd` |
-| `min_damage_taken` | `ui/hud/combat_readout/combat_card_defense.gd` |
-| `spike_regen` | `ui/hud/combat_readout/combat_card_defense.gd` |
-| `blade_damage` | `ui/hud/combat_readout/combat_card_melee.gd` |
-| `blade_size` | `ui/hud/combat_readout/combat_card_melee.gd` |
-| `blunting` | `ui/hud/combat_readout/combat_card_melee.gd` |
-| `ranged_damage` | `ui/hud/combat_readout/combat_card_ranged.gd` |
-| `range` | `ui/hud/combat_readout/combat_card_ranged.gd` |
-| `crit_chance` | `ui/hud/combat_readout/combat_card_crit.gd` |
-| `crit_multiplier` | `ui/hud/combat_readout/combat_card_crit.gd` |
+| `armor` | `ui/hud/combat_readout/combat_card_defense.tscn` (`stat_id = &"armor"`) |
+| `min_damage_taken` | `ui/hud/combat_readout/combat_card_defense.tscn` (`stat_id = &"min_damage_taken"`) |
+| `spike_regen` | `ui/hud/combat_readout/combat_card_defense.tscn` (`stat_id = &"spike_regen"`) |
+| `blade_damage` | `ui/hud/combat_readout/combat_card_melee.tscn` (`stat_id = &"blade_damage"`) |
+| `blade_size` | `ui/hud/combat_readout/combat_card_melee.gd` — derived row (blade pips), stays custom code, not scene `stat_id` |
+| `blunting` | `ui/hud/combat_readout/combat_card_melee.tscn` (`stat_id = &"blunting"`) |
+| `ranged_damage` | `ui/hud/combat_readout/combat_card_ranged.tscn` (`stat_id = &"ranged_damage"`) |
+| `range` | `ui/hud/combat_readout/combat_card_ranged.tscn` (`stat_id = &"range"`) |
+| `crit_chance` | `ui/hud/combat_readout/combat_card_crit.tscn` (`stat_id = &"crit_chance"`) |
+| `crit_multiplier` | `ui/hud/combat_readout/combat_card_crit.tscn` (`stat_id = &"crit_multiplier"`) |
 | `spell_damage` | `ui/hud/combat_readout/combat_card_magic.gd` — indirect: the potency row reads `SpellResolver.impact_damage()`, not the raw stat value |
 
 ## Turn resources / hero sigil / XP
@@ -61,8 +66,8 @@ not a bug to fix. Register a new stat here when you add its `.tres`
 
 | id | surface |
 |---|---|
-| `initiative` | `ui/initiative_bar.gd` (the per-seat clock bar); also `ui/hud/turn_forecast/turn_forecast_strip.gd` — indirect: `TurnManager.forecast()` reads `initiative.current` as a simulation input to order the sigils it draws, never as a printed number (#910) |
-| `initiative_speed` | `ui/hud/turn_forecast/turn_forecast_strip.gd` — indirect only: `TurnManager.forecast()` reads `initiative_speed.value` as a simulation input to order the sigils; no direct numeric row anywhere (#910 drift since the #914 research pass) |
+| `initiative` | `ui/initiative_bar.gd` (the per-seat clock bar); also ordering only, via `TurnManager.forecast` (`systems/turn_manager.gd`, reads `initiative.current`), drawn by `ui/hud/turn_forecast/turn_forecast_strip.gd` — never a printed number there (#910) |
+| `initiative_speed` | Ordering only, via `TurnManager.forecast` (`systems/turn_manager.gd`, reads `initiative_speed.value`), drawn by `ui/hud/turn_forecast/turn_forecast_strip.gd` — no direct numeric row anywhere (#910 drift since the #914 research pass) |
 
 ## Node visuals & the tooltip-fan node panel
 
@@ -80,7 +85,7 @@ above).
 | `deflection` | `ui/tooltip_fan/panels/node_stats_panel.gd`, dynamic — conditional on an addon granting it locally (`bunker_addon.tscn`) |
 | `swing_drag` | `ui/tooltip_fan/panels/node_stats_panel.gd`, dynamic — conditional on an addon granting it locally (`fortification_addon.tscn`) |
 | `spikes` | `ui/tooltip_fan/panels/node_stats_panel.gd`, dynamic — conditional on `skill_node/addons/spike_ring_addon.gd` granting it. On a node board the displayed pool is minted from the node_spikes def (`stats_system/node_stat_board.gd`'s `_mint_stat`, same split as node_health/node_combat_health below) |
-| `node_health` | `ui/tooltip_fan/panels/node_stats_panel.gd` (always-shown); the live per-node pool also draws at `skill_node/health_bar.gd`. On a node board the pool is minted from the node_combat_health def, not requested by node_health's own def (`stats_system/node_stat_board.gd`'s `_mint_stat`) |
+| `node_health` | `ui/tooltip_fan/panels/node_stats_panel.gd` (always-shown); also the entity combat card's "Node Health" row, `ui/hud/combat_readout/combat_card_defense.tscn` (`stat_id = &"node_health"`); the live per-node pool also draws at `skill_node/health_bar.gd`. On a node board the pool is minted from the node_combat_health def, not requested by node_health's own def (`stats_system/node_stat_board.gd`'s `_mint_stat`) |
 | `node_combat_health` | Not requested by its own id anywhere. It is the def `NodeStatBoard._mint_stat` substitutes in for node_health on a node board — surfaced only indirectly, via `skill_node/health_bar.gd` |
 | `node_spikes` | Not requested by its own id anywhere. It is the def `NodeStatBoard._mint_stat` substitutes in for spikes on a node board — surfaced only indirectly, via `ui/tooltip_fan/panels/node_stats_panel.gd` (the same dynamic spikes row above) |
 
