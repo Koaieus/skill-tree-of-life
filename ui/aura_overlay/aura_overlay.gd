@@ -5,14 +5,19 @@ extends Node2D
 const ZLayers = preload("res://ui/z_layers.gd")
 
 ## World-space "this entity lives here" wash. Renders a single big rect with
-## a territory shader; one circle per owned SkillNode (grouped by owning
-## entity) is passed as a uniform array, alongside one colour per owning
-## entity. See aura.gdshader for the blend rules (same-entity union,
-## cross-entity hard cut).
+## a territory shader over the entity's OWNED INDUCED SUBGRAPH (#898): one
+## rounded cone per owned SkillNode (degenerate, `A == B` — a disc) and one
+## per edge whose two endpoints share an owner (a rectangle along the edge,
+## tapering to a trapezoid when the stake radii differ), each tagged with the
+## owning entity's index, alongside one colour per owning entity. A
+## half-owned edge, or one between two different owners, draws nothing for
+## either (#140 decision 3). See aura.gdshader for the blend rules
+## (same-entity smooth union, cross-entity hard cut).
 
-## Sanity ceiling, not an array bound (#177 moved circle storage to data
-## textures — see OverlayFieldTileIndex). Loud-or-none guard against a
-## pathological owned-node count silently eating GPU memory.
+## Sanity ceiling on PRIMITIVES (discs + edge cones), not an array bound
+## (#177 moved storage to data textures — see OverlayFieldTileIndex).
+## Loud-or-none guard against a pathological count silently eating GPU
+## memory.
 const _MAX_CIRCLES := 20000
 ## `entity_colors` stays a plain uniform array — genuinely small (one Color
 ## per owning entity) — so this IS a real array bound. Target scale is 20
@@ -59,6 +64,20 @@ var _tile_index := OverlayFieldTileIndex.new()
 @export var radius_multiplier: float = 1.5:
 	set(value):
 		radius_multiplier = value
+		_refresh()
+## Dumbbell knobs (#140 decision 8). An edge cone's end radii are the two aura
+## disc radii scaled by `w = edge_width / (1 + L / edge_slack_length)`, `L`
+## the edge length in px; the `smin` union with the full discs makes the
+## neck. `1.0` with an INF slack is the plain capsule tangent to both discs.
+@export_range(0.01, 1.0, 0.01) var edge_width: float = 0.6:
+	set(value):
+		edge_width = value
+		_refresh()
+## Longer edges pinch more: at `L == edge_slack_length` the cone is half
+## `edge_width`. `INF` disables the pinch.
+@export var edge_slack_length: float = 300.0:
+	set(value):
+		edge_slack_length = value
 		_refresh()
 ## World-space rect to paint. Should engulf the playable graph. GameRoot
 ## updates this live as the camera's zoom-scaled pan limit changes
@@ -120,8 +139,10 @@ func _refresh() -> void:
 	for _owner in owned_by_entity:
 		total_owned += (owned_by_entity[_owner] as Array).size()
 
-	var packed_circles: Array = []
+	# Two texels per primitive: (ax, ay, ra, entity_idx), (bx, by, rb, 0).
+	var packed_cones: Array = []
 	var packed_colors: Array = []
+	var entity_index: Dictionary = {}
 	var entity_idx := 0
 	for _owner in owned_by_entity:
 		if entity_idx >= _MAX_ENTITIES:
@@ -129,40 +150,87 @@ func _refresh() -> void:
 				"AuraOverlay: %d owning entities exceeds the %d-colour cap; the extras render no aura."
 					% [owned_by_entity.size(), _MAX_ENTITIES])
 			break
+		entity_index[_owner] = entity_idx
+		# Every owned node ships as a degenerate cone regardless of degree —
+		# an isolated owned node must not vanish (#140 decision 6).
 		for sn in owned_by_entity[_owner]:
-			if packed_circles.size() >= _MAX_CIRCLES:
+			if packed_cones.size() >= 2 * _MAX_CIRCLES:
 				break
-			packed_circles.append(Vector4(
-				sn.global_position.x, sn.global_position.y,
-				sn.radius * radius_multiplier, float(entity_idx)
-			))
+			var r: float = sn.radius * radius_multiplier
+			packed_cones.append(Vector4(sn.global_position.x, sn.global_position.y, r, float(entity_idx)))
+			packed_cones.append(Vector4(sn.global_position.x, sn.global_position.y, r, 0.0))
 		packed_colors.append(Emissive.tint_damped((_owner as Entity).color, Emissive.INERT))
 		entity_idx += 1
 
-	# Truncation silently deletes territory from the board — whichever entity is
-	# packed last simply stops rendering. Never let that pass unremarked.
-	if total_owned > _MAX_CIRCLES:
+	# Edges of the owned induced subgraph: both endpoints owned by the SAME
+	# entity (`owned_by` identity, never ownership_bit — this is "same entity",
+	# not "mine"). `entity_index.has` also folds in null / dead / over-cap
+	# owners, which never made the map.
+	var total_edges := 0
+	for edge in graph.get_edges():
+		var a: SkillNode = edge.from
+		var b: SkillNode = edge.to
+		# A self-loop would emit a second, smaller degenerate on the same node,
+		# and field_smin is not idempotent — it would deepen the disc.
+		if a == null or b == null or a == b:
+			continue
+		if a.owned_by != b.owned_by or not entity_index.has(a.owned_by):
+			continue
+		total_edges += 1
+		if packed_cones.size() >= 2 * _MAX_CIRCLES:
+			continue
+		var idx: int = entity_index[a.owned_by]
+		var w := _edge_width_for(a.global_position.distance_to(b.global_position))
+		packed_cones.append(Vector4(a.global_position.x, a.global_position.y,
+			a.radius * radius_multiplier * w, float(idx)))
+		packed_cones.append(Vector4(b.global_position.x, b.global_position.y,
+			b.radius * radius_multiplier * w, 0.0))
+
+	# Truncation silently deletes territory from the board — whatever is packed
+	# last simply stops rendering. Never let that pass unremarked.
+	var total_primitives := total_owned + total_edges
+	if total_primitives > _MAX_CIRCLES:
 		_warn_once(&"_warned_circle_overflow",
-			"AuraOverlay: %d owned nodes exceeds the %d-circle cap; %d nodes render no aura. See #133."
-				% [total_owned, _MAX_CIRCLES, total_owned - _MAX_CIRCLES])
+			"AuraOverlay: %d aura primitives (%d owned nodes + %d owned edges) exceeds the %d cap; %d render no aura. See #133."
+				% [total_primitives, total_owned, total_edges, _MAX_CIRCLES, total_primitives - _MAX_CIRCLES])
 	else:
 		_warned_circle_overflow = false
 
-	set_field(packed_circles, packed_colors)
+	set_cones(packed_cones, packed_colors)
 
 
-## Upload a territory field directly. `circles` are unpadded
+## Decision 8's dumbbell factor: `edge_width / (1 + L / edge_slack_length)`.
+## An INF slack makes the quotient 0, i.e. plain `edge_width` — no special case.
+func _edge_width_for(edge_length: float) -> float:
+	return edge_width / (1.0 + edge_length / edge_slack_length)
+
+
+## Upload a disc-only territory field directly. `circles` are unpadded
 ## `Vector4(world_x, world_y, radius, entity_index)`; `colors` are unpadded, one
-## per entity, indexed by that `entity_index`.
+## per entity, indexed by that `entity_index`. Each circle becomes a degenerate
+## cone — the render path is [method set_cones]'s; this is the disc-shaped
+## door onto it (the verify scene's disc case, the caps test).
+func set_field(circles: Array, colors: Array) -> void:
+	var cones: Array = []
+	for c in circles.slice(0, mini(circles.size(), _MAX_CIRCLES)):
+		cones.append(c)
+		cones.append(Vector4(c.x, c.y, c.z, 0.0))
+	set_cones(cones, colors)
+
+
+## Upload a territory field of rounded cones. `cones` is `2 * n` unpadded
+## texels, `(ax, ay, ra, entity_index)` then `(bx, by, rb, 0)` per primitive —
+## exactly OverlayFieldTileIndex.build_cones' layout; `colors` are unpadded,
+## one per entity, indexed by that `entity_index`.
 ##
 ## Split out from [method _refresh] so the render path can be driven without a
 ## live Graph — see `scenes/overlay_perf_harness.gd`, which must exercise the
 ## same entry point the game does for its numbers to mean anything.
-func set_field(circles: Array, colors: Array) -> void:
+func set_cones(cones: Array, colors: Array) -> void:
 	if material == null or not material is ShaderMaterial:
 		return
 	var mat: ShaderMaterial = material
-	var circle_count := mini(circles.size(), _MAX_CIRCLES)
+	var primitive_count := mini(cones.size() / 2, _MAX_CIRCLES)
 	var entity_count := mini(colors.size(), _MAX_ENTITIES)
 	# `entity_colors` stays a plain uniform array — small, so pad explicitly
 	# rather than resize()-then-patch: resize() fills a *typed* array with the
@@ -174,15 +242,17 @@ func set_field(circles: Array, colors: Array) -> void:
 	for i in entity_count:
 		padded_colors[i] = colors[i]
 
-	# Circles go through the world-space tile index (#177) instead of a
-	# fixed-size uniform array — see OverlayFieldTileIndex.
-	_tile_index.build(circles.slice(0, circle_count), union_smoothness)
-	mat.set_shader_parameter(&"circle_count", _tile_index.circle_count)
+	# Primitives go through the world-space tile index (#177, cones #897)
+	# instead of a fixed-size uniform array — see OverlayFieldTileIndex. The
+	# uniform names still say "circle": `circles_tex` carries the 2-texel
+	# primitives texture and `circle_count` the primitive count.
+	_tile_index.build_cones(cones.slice(0, primitive_count * 2), union_smoothness)
+	mat.set_shader_parameter(&"circle_count", _tile_index.primitive_count)
 	mat.set_shader_parameter(&"grid_origin", _tile_index.grid_origin)
 	mat.set_shader_parameter(&"cell_size", _tile_index.cell_size)
 	mat.set_shader_parameter(&"grid_cols", _tile_index.grid_cols)
 	mat.set_shader_parameter(&"grid_rows", _tile_index.grid_rows)
-	mat.set_shader_parameter(&"circles_tex", _tile_index.circles_texture)
+	mat.set_shader_parameter(&"circles_tex", _tile_index.primitives_texture)
 	mat.set_shader_parameter(&"tile_index_tex", _tile_index.tile_index_texture)
 	mat.set_shader_parameter(&"tile_indices_tex", _tile_index.tile_circle_indices_texture)
 	mat.set_shader_parameter(&"entity_colors", padded_colors)

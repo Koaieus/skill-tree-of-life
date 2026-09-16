@@ -2,13 +2,16 @@ shader_type canvas_item;
 
 #include "res://ui/overlay_field.gdshaderinc"
 
-// World-space "owned territory" wash. One circle per owned SkillNode, tagged
-// with its owning entity's index; one colour per entity.
+// World-space "owned territory" wash over the owned induced subgraph (#898):
+// one rounded cone per owned SkillNode (degenerate — a disc) and one per edge
+// whose endpoints share an owner (a rectangle, tapering to a trapezoid when
+// the stake radii differ), tagged with the owning entity's index; one colour
+// per entity. One primitive type, one path — see field_cone_distance.
 //
-// Same-entity overlap does NOT stack: circles belonging to one entity are
+// Same-entity overlap does NOT stack: primitives belonging to one entity are
 // unioned via nearest-distance (mirrors fog.gdshader's closest-circle read),
-// so a cluster of adjacent owned nodes reads as one smooth blob instead of
-// getting brighter where they overlap.
+// so an owned path reads as one smooth band instead of getting brighter
+// where disc and cone overlap.
 //
 // Cross-entity overlap is a HARD CUT, not a blend: at each pixel the entity
 // with the strongest (closest) claim wins outright — a Voronoi-style
@@ -23,10 +26,14 @@ const int MAX_ENTITIES = 32;
 // per-pixel loop only visits its own 3x3 tile neighbourhood — local circle
 // DENSITY, not total circle count. See OverlayFieldTileIndex and
 // docs/domain/overlay-field-rendering.md.
+// TWO RGBAF texels per primitive: (ax, ay, ra, entity_index) then
+// (bx, by, rb, unused) — OverlayFieldTileIndex.build_cones' layout. The name
+// predates cones (#898) and is pinned by test_overlay_uniform_caps.gd.
 uniform sampler2D circles_tex : filter_nearest, repeat_disable;
-// vec4(world_x, world_y, radius, entity_index) per circle, sampled via the
-// tile lookup above.
 uniform sampler2D tile_index_tex : filter_nearest, repeat_disable;
+// Flat bucket buffer wrapped to rows of textureSize(...).x texels (#898): a
+// cone is bucketed into every cell its segment's AABB touches, so occupancy
+// outgrows a single 16384-texel row at late-game scale.
 uniform sampler2D tile_indices_tex : filter_nearest, repeat_disable;
 uniform vec2 grid_origin = vec2(0.0);
 uniform float cell_size = 0.0;
@@ -56,6 +63,7 @@ void fragment() {
 	}
 	if (circle_count > 0 && cell_size > 0.0) {
 		ivec2 centre_tile = ivec2(floor((world_pos - grid_origin) / cell_size));
+		int indices_cols = textureSize(tile_indices_tex, 0).x;
 		for (int dx = -1; dx <= 1; dx++) {
 			for (int dy = -1; dy <= 1; dy++) {
 				ivec2 tile = centre_tile + ivec2(dx, dy);
@@ -66,13 +74,23 @@ void fragment() {
 				int offset = int(oc.x);
 				int count = int(oc.y);
 				for (int j = 0; j < count; j++) {
-					int idx = int(texelFetch(tile_indices_tex, ivec2(offset + j, 0), 0).r);
-					vec4 c = texelFetch(circles_tex, ivec2(idx, 0), 0);
-					int e = int(c.w);
-					float d = distance(world_pos, c.xy) / max(c.z, 1.0);
+					int entry = offset + j;
+					int idx = int(texelFetch(tile_indices_tex, ivec2(entry % indices_cols, entry / indices_cols), 0).r);
+					vec4 ca = texelFetch(circles_tex, ivec2(idx * 2, 0), 0);
+					vec4 cb = texelFetch(circles_tex, ivec2(idx * 2 + 1, 0), 0);
+					// Projection dedupe (#897): a cone sits in every cell its
+					// segment crosses, and field_smin is not idempotent, so it
+					// contributes only from the tile owning the clamped
+					// projection of this pixel onto its segment.
+					vec2 q = field_cone_project(world_pos, ca.xy, cb.xy);
+					if (ivec2(floor((q - grid_origin) / cell_size)) != tile) {
+						continue;
+					}
+					int e = int(ca.w);
+					float d = field_cone_distance(world_pos, ca.xy, max(ca.z, 1.0), cb.xy, max(cb.z, 1.0));
 					// Same-entity union is smoothed: plain min() creases along
-					// the seam between two of this entity's circles, reading
-					// as a Mach band.
+					// the seam between two of this entity's primitives,
+					// reading as a Mach band.
 					min_d[e] = field_smin(min_d[e], d, union_smoothness);
 				}
 			}
