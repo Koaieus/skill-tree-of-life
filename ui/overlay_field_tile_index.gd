@@ -58,6 +58,17 @@ extends RefCounted
 ## with the shader (FogOverlay's per-element dimming) MUST walk
 ## [method gather_tile_order], never re-sort it back to ascending index.
 
+## Row width of the cone path's `tile_circle_indices_texture` (#898). Cone
+## bucketing makes the flat index buffer as long as total bucket OCCUPANCY —
+## every cell each segment's AABB touches — which reaches the 16384-texel
+## `maxImageDimension2D` floor at late-game scale (~800 owned nodes + ~1500
+## owned edges ≈ 13–16k entries). So the cone path wraps the buffer into rows
+## of this many texels: flat entry `e` lives at `(e % COLS, e / COLS)`. The
+## fog path keeps its 1-row layout and 1-row fetch, untouched (#140 owner
+## decision, 2026-09-16). aura.gdshader reads the width back via
+## `textureSize`, so nothing can desync.
+const TILE_INDICES_COLS := 4096
+
 var circle_count: int = 0
 var grid_cols: int = 0
 var grid_rows: int = 0
@@ -286,7 +297,16 @@ func _build_tile_textures() -> void:
 		entries += (bucket as Array).size()
 
 	var tile_index_img := Image.create(grid_cols, grid_rows, false, Image.FORMAT_RGF)
-	var tile_indices_img := Image.create(maxi(entries, 1), 1, false, Image.FORMAT_RF)
+	# Cone path: wrap the flat buffer to TILE_INDICES_COLS-wide rows (see the
+	# const). Keyed on the BUILD path, not on `_has_segments`: the aura shader
+	# always reads with the wrap formula, so a degenerate-only cone set must
+	# still be laid out wrapped. The fog path stays a single row.
+	var cols := maxi(entries, 1)
+	var rows := 1
+	if not _cones.is_empty():
+		cols = mini(maxi(entries, 1), TILE_INDICES_COLS)
+		rows = maxi(1, ceili(float(entries) / float(TILE_INDICES_COLS)))
+	var tile_indices_img := Image.create(cols, rows, false, Image.FORMAT_RF)
 
 	var offset := 0
 	# Iterate tiles in row-major order so the flat index buffer's layout is
@@ -297,7 +317,7 @@ func _build_tile_textures() -> void:
 			var bucket: Array = _cells.get(cell, [])
 			tile_index_img.set_pixel(col, row, Color(float(offset), float(bucket.size()), 0.0, 0.0))
 			for idx in bucket:
-				tile_indices_img.set_pixel(offset, 0, Color(float(idx), 0.0, 0.0, 0.0))
+				tile_indices_img.set_pixel(offset % cols, offset / cols, Color(float(idx), 0.0, 0.0, 0.0))
 				offset += 1
 	tile_index_texture = ImageTexture.create_from_image(tile_index_img)
 	tile_circle_indices_texture = ImageTexture.create_from_image(tile_indices_img)

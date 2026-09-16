@@ -184,3 +184,42 @@ func test_empty_and_degenerate_builds_leave_every_texture_null() -> void:
 	index.build([], _K)
 	assert_null(index.primitives_texture, "a rebuild must not leave the previous path's texture")
 	assert_null(index.circles_texture)
+
+
+## #898: the cone path wraps `tile_circle_indices_texture` to 2D so bucket
+## occupancy is not capped by the 16384-texel row limit. Round trip: every
+## flat entry `e` reads back at `(e % COLS, e / COLS)` as the same index the
+## row-major cell walk produces, and the fog (circle) path is still one row.
+func test_cone_tile_indices_wrap_to_2d_and_round_trip() -> void:
+	var cones: Array = []
+	# 120 long thin cones ≈ 45+ cells each → well past one 4096-texel row.
+	for i in 120:
+		cones.append_array(_cone(Vector2(0.0, float(i) * 3.0), 8.0, Vector2(500.0, float(i) * 3.0), 8.0))
+	var index := OverlayFieldTileIndex.new()
+	index.build_cones(cones, _K)
+	var tex := index.tile_circle_indices_texture
+	var cols := OverlayFieldTileIndex.TILE_INDICES_COLS
+	assert_eq(tex.get_width(), cols, "a buffer past one row is exactly COLS wide")
+	assert_gt(tex.get_height(), 1, "occupancy past COLS wraps into more rows")
+	var img := tex.get_image()
+	var tile_img := index.tile_index_texture.get_image()
+	var e := 0
+	for row in index.grid_rows:
+		for col in index.grid_cols:
+			var oc := tile_img.get_pixel(col, row)
+			assert_eq(int(oc.r), e, "tile (%d,%d) offset is the running flat position" % [col, row])
+			var bucket: Array = index._cells.get(Vector2i(col, row), [])
+			assert_eq(int(oc.g), bucket.size())
+			for idx in bucket:
+				assert_eq(int(img.get_pixel(e % cols, e / cols).r), idx,
+					"flat entry %d round-trips through (e %% COLS, e / COLS)" % e)
+				e += 1
+	assert_gt(e, cols, "the test actually exercised a second row")
+
+	# Fog's path is untouched: one row, however long.
+	var circles: Array = []
+	for i in 10:
+		circles.append(Vector4(float(i) * 50.0, 0.0, 8.0, 0.0))
+	index.build(circles, _K)
+	assert_eq(index.tile_circle_indices_texture.get_height(), 1, "circle path stays a single row")
+	assert_eq(index.tile_circle_indices_texture.get_width(), 10)
