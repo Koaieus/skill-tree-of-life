@@ -32,15 +32,71 @@ extends GuaranteedPlacement
 @export var weight: ScalarField = null
 ## Never place on a starter core.
 @export var exclude_starters: bool = true
-## Candidates within this many hops of any starter are skipped (0 = off).
+## Candidates within this many hops (inclusive) of any starter are skipped
+## (0 = off).
 @export var min_hops_from_starter: int = 0
 ## Optional role tag stamped alongside the scene — debug overlays and
 ## [BudgetPolicy.role_bonus] hooks.
 @export var role_tag: StringName = &"keystone"
 
 
-func apply(_context: PlacementContext) -> void:
-	# TODO(#330): draw count off scene_rng, weighted draw without replacement
-	# over eligible indices (not a starter, not already holding a scene, not
-	# inside the starter hop-ball), write context.scenes[i] + role tag.
-	pass
+func apply(context: PlacementContext) -> void:
+	if context == null or node_scene == null or context.scene_rng == null:
+		return
+	var n := context.positions.size()
+	if n == 0 or context.scenes.size() < n:
+		return
+	var count := context.scene_rng.randi_range(mini(min_count, max_count), maxi(min_count, max_count))
+	if count <= 0:
+		return
+	# Eligibility: not a starter, not inside any starter's hop-ball, not a
+	# slot another placement already filled (first entry wins), not a
+	# candidate the weight field rejects.
+	var excluded := {}
+	if exclude_starters:
+		for s in context.starter_indices:
+			excluded[s] = true
+	if min_hops_from_starter > 0:
+		for s in context.starter_indices:
+			for m in context.nodes_within_hops(s, min_hops_from_starter):
+				excluded[m] = true
+	var candidates: Array[int] = []
+	var weights: Array[float] = []
+	for i in n:
+		if excluded.has(i) or context.scenes[i] != null:
+			continue
+		if i < context.keystones.size() and context.keystones[i] != null:
+			continue
+		var w := 1.0
+		if weight != null:
+			w = weight.sample(context.positions[i])
+		if w <= 0.0:
+			continue
+		candidates.append(i)
+		weights.append(w)
+	var take := mini(count, candidates.size())
+	if take < count:
+		push_warning("ScenePlacement: only %d of %d eligible slots for %s" % [take, count, node_scene.resource_path])
+	# Weighted draw without replacement: pick by cumulative weight, then swap
+	# the pick out of the live prefix.
+	for k in take:
+		var total := 0.0
+		for j in range(k, candidates.size()):
+			total += weights[j]
+		var r := context.scene_rng.randf() * total
+		var pick := candidates.size() - 1
+		var acc := 0.0
+		for j in range(k, candidates.size()):
+			acc += weights[j]
+			if r < acc:
+				pick = j
+				break
+		var ci := candidates[pick]
+		candidates[pick] = candidates[k]
+		candidates[k] = ci
+		var wi := weights[pick]
+		weights[pick] = weights[k]
+		weights[k] = wi
+		context.scenes[ci] = node_scene
+		if role_tag != &"":
+			context.add_role_tag(ci, role_tag)

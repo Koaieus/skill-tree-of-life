@@ -33,6 +33,10 @@ const _BLOCKER_NODE_SCENE := preload("res://skill_node/blocker_node.tscn")
 ## everywhere else. A same-seed-derived-but-independent stream keeps blocker
 ## placement itself deterministic while leaving the main stream untouched.
 const _BLOCKER_RNG_SALT := 0x8477
+## Salt for [member PlacementContext.scene_rng] (#330) — scene placements draw
+## off their own derived stream so the main `rng` is byte-identical with or
+## without them.
+const _SCENE_RNG_SALT := 0x3300
 
 ## Poisson-disk auto-scale sizing (#164, retuned in #566). The disc area a
 ## ShapeMask needs to hold `node_count` points at spacing `d = min_dist`.
@@ -285,6 +289,20 @@ static func generate(
 	var yield_every := maxi(1, positions.size() / 10)
 	for i in positions.size():
 		var sn: SkillNode
+		var authored_scene: PackedScene = placement_ctx.scenes[i]
+		if authored_scene != null:
+			# An authored-scene node is PURE (#330): the scene IS the content.
+			# Procgen sets its position and nothing else — no archetype, no
+			# budget, no modifier roll, no rolled addons, no radius stamp (the
+			# scene's authored radius stands), never a blocker (eligibility
+			# excluded it), never in the spell-grant pool.
+			sn = authored_scene.instantiate()
+			sn.position = positions[i]
+			if not placement_ctx.role_tags[i].is_empty():
+				sn.set_meta("role_tags", placement_ctx.role_tags[i].duplicate())
+			graph.add_skill_node(sn)
+			nodes.append(sn)
+			continue
 		if blocker_sizes.has(i):
 			sn = _BLOCKER_NODE_SCENE.instantiate()
 		else:
@@ -858,6 +876,13 @@ static func _build_placement_context(
 	var ks: Array = []
 	ks.resize(positions.size())
 	ctx.keystones = ks
+	var sc: Array = []
+	sc.resize(positions.size())
+	ctx.scenes = sc
+	# Derived stream (#330), same reason as the blocker pass below: scene
+	# draws never shift the main `rng`, and every peer reproduces the picks.
+	ctx.scene_rng = RandomNumberGenerator.new()
+	ctx.scene_rng.seed = rng.seed + _SCENE_RNG_SALT
 	return ctx
 
 
@@ -905,6 +930,7 @@ static func _place_blocker_indices(
 ) -> Dictionary:
 	var out: Dictionary = {}
 	var keystones: Array = ctx.keystones
+	var scenes: Array = ctx.scenes
 	var starter_count := ctx.starter_indices.size()
 	# Core safe radius (#300): union of the hop-balls around every starter.
 	var too_close := {}
@@ -917,6 +943,8 @@ static func _place_blocker_indices(
 		if i < starter_count:
 			continue
 		if i < keystones.size() and keystones[i] != null:
+			continue
+		if i < scenes.size() and scenes[i] != null:
 			continue
 		if too_close.has(i):
 			continue
@@ -1028,6 +1056,7 @@ static func _place_blocker_footprints(
 		return out
 
 	var keystones: Array = ctx.keystones
+	var scenes: Array = ctx.scenes
 	var starter_count := ctx.starter_indices.size()
 	var too_close := {}
 	if mods.blocker_min_hops_from_core > 0:
@@ -1057,6 +1086,8 @@ static func _place_blocker_footprints(
 				if nb < starter_count:
 					continue
 				if nb < keystones.size() and keystones[nb] != null:
+					continue
+				if nb < scenes.size() and scenes[nb] != null:
 					continue
 				if too_close.has(nb):
 					continue

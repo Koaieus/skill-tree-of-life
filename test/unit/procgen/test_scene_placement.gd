@@ -142,12 +142,14 @@ func test_generate_instantiates_the_scene_as_node_i_pure() -> void:
 	assert_false(ks.has_meta("procgen_footprint"), "pure: no footprint")
 	assert_eq(ks.modifiers.size(), 0, "pure: no modifier roll")
 	assert_eq(ks.get_addons().size(), 0, "pure: no rolled addons")
-	var authored_radius: float = (_BASE.instantiate() as SkillNode).base_radius
+	var reference: SkillNode = autofree(_BASE.instantiate())
+	var authored_radius: float = reference.base_radius
 	assert_almost_eq(ks.base_radius, authored_radius, 0.001, "the scene's authored radius stands")
 	assert_ne(ks.base_radius, cfg.topology.node_radius, "not topology.node_radius")
 	for e: Effect in ks.effects:
 		assert_false(e is SpellGrant, "pure: never in the spell-grant pool")
-	assert_false(ks in blockers, "pure: never a blocker")
+	for b: Dictionary in blockers:
+		assert_ne(b.get("node"), ks, "pure: never a blocker")
 	assert_true(&"keystone" in ks.get_meta("role_tags", []), "role tag persisted on the node")
 	# Every other node still rolled terrain as before.
 	var rolled := 0
