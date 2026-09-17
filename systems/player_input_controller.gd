@@ -444,8 +444,10 @@ func _stake_denial_reason(node: SkillNode) -> String:
 		return "stake_denied_not_owned"
 	if node.stake_level >= AllocationSystem.STAKE_CEILING:
 		return "stake_denied_at_ceiling"
-	var core := player.core_location
-	if player.navigator == null or not (node == core or player.navigator.are_adjacent(core, node)):
+	# `owned_by != player` lets an unowned node through when player is null
+	# (null == null), so the null guard stays ahead of the dereference.
+	if player == null or player.navigator == null \
+			or not (node == player.core_location or player.navigator.are_adjacent(player.core_location, node)):
 		return "stake_denied_not_adjacent"
 	var board := player.stat_board if player != null else null
 	if board != null and board.skill_points != null and board.skill_points.available() < 1:
@@ -461,8 +463,10 @@ func _extract_denial_reason(node: SkillNode) -> String:
 		return "extract_denied_not_owned"
 	if node.stake_level <= 1:
 		return "extract_denied_at_floor"
-	var core := player.core_location
-	if player.navigator == null or not (node == core or player.navigator.are_adjacent(core, node)):
+	# `owned_by != player` lets an unowned node through when player is null
+	# (null == null), so the null guard stays ahead of the dereference.
+	if player == null or player.navigator == null \
+			or not (node == player.core_location or player.navigator.are_adjacent(player.core_location, node)):
 		return "extract_denied_not_adjacent"
 	var board := player.stat_board if player != null else null
 	if board != null and board.deallocation_points != null and board.deallocation_points.available() < 1:
