@@ -133,6 +133,7 @@ TESTS:  mise run test:dir → 41/41 pass
 DID:    one line
 COST:   ~<n>k ctx · ~<n> tool calls · advisor/Sage exchanges <n>
 NOTES:  none | blocker / deviation / stale spec / out-of-scope, one line each
+        | poison: <path>:<line> — <wrong> → <right>   (stale text outside your fence)
 ```
 
 `COST:` is your own count: ctx from the last `CONTEXT SIZE SO FAR` marker you

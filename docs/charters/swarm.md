@@ -191,12 +191,19 @@ on small units with an existing named test.
     drone's background command finished; relay reports in your own words,
     never paste diffs.
 
+28. **The lead sweeps `poison:` lines before the gate** — greps them out of
+    the ledger's reports, applies the one-liners itself in the main checkout
+    as one docs commit, `gh-project add`s the rest. No fix-drone, no manifest:
+    one report in eleven issues does not pay for a dispatch shape. Revisit at
+    five or more lines in one swarm.
+
 ## Incident corpus
 
 | Date | Where | What happened | Law |
 |---|---|---|---|
 | 2026-07-30 | field | a named teammate returned "will receive instructions via mailbox" and idled; later runs measured 5/5 and 7/7 idles on the placeholder-prompt shape, 2/2 starts on a file-pointer brief | 13 |
 | 2026-08-03 | two runs | one issue ≈ 10–20% of a rate-limit window; shedding six mid-flight drones cost ~10% alone; a run that succeeded came in at ~12%/unit with the formula predicting 1.4× that | 5 |
+| 2026-09-17 | #918 swarmify | one stale-text report across the 2026-09-16 swarm's 11 issues; owner shrank the aggregated fix-drone proposal to a token + a lead sweep ("40 lines in drone description for that would be like 38 too many") | 28 |
 | 2026-08-05 | settings | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` confirmed set; checking it mid-session tells you nothing actionable | 13 |
 | 2026-08-26 | 5/5 workers | after the mailbox brief, each did one action (the worktree) then idled; one nudge drove whole jobs | 13 |
 | 2026-08-27 | a second unit | new panel + new read path + display rule clustered as a drone's second unit ran to ~400k uncommitted and was halted; siblings cost a third | 2 |

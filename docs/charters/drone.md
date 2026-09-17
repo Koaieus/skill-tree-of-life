@@ -149,7 +149,12 @@ against them.
     request to Sage, report to the harness.
 23. **Issue comments only for what must outlive the orchestrator**: a
     blocker, a spec deviation, a stale spec, an out-of-scope discovery, the
-    successor brief. Never "done", never a diff, never narration.
+    successor brief. Never "done", never a diff, never narration. Stale
+    *text* outside the fence (a doc, a rule, a comment) is the `poison:`
+    kind — `<path>:<line> — <wrong> → <right>`, the `→ <right>` mandatory so
+    the lead can apply it without reading the code; a line with no prescribed
+    fix is an observation, not poison. A logic error is never poison — it is
+    an issue.
 
 ## Measuring it
 
@@ -190,6 +195,7 @@ does not have to carry them.
 |---|---|---|---|
 | 2026-09-03 | relay chain #737→#743 | five landed in ~5h; lead 218k, drones 111k–222k — the baseline that showed a drone *can* stay under 150k | 1–6 |
 | 2026-09-08 | unnamed | polled one full-suite run ~a dozen times; owner killed it mid-suite | 4 |
+| 2026-09-17 | #918 swarmify | the 2026-09-16 swarm's 11 issues held exactly one out-of-fence stale-text report (#180), and it was a design question; the aggregated Haiku fix-drone was shrunk to a grep-able token (owner: "shrink it to bare minimum") | 23 |
 | 2026-09-10 | two drones | killed in one minute by an API spend limit with uncommitted work | 7 |
 | 2026-09-11 | Sage trial | every report sent to Sage, to `main`, *and* as final text | 22 |
 | 2026-09-13 | `ai-gating` (#537) | read `bench_ai_turn.gd` ten times across 20+ edit cycles chasing a benchmark | 11 |

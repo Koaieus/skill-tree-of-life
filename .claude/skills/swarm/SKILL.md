@@ -261,6 +261,10 @@ serial by `flock`, rebases inside the drone's worktree, runs `check` +
 drone once; a second failure is a stop. `--closes` only on the *final*
 branch of a multi-unit issue; on every branch of independent issues.
 
+**Before the gate, sweep `poison:` lines** out of the ledger's reports: apply
+the one-liners yourself in the main checkout as one docs commit; anything
+that is not a one-liner → `mise gh-project -- add`.
+
 **The authoritative suite runs once per train**, after every branch of the
 batch is fast-forwarded — and only when the batch is runtime-observable:
 `mise run test` if `.gd`/`.tscn` changed, `mise run check` for scripts-only,
