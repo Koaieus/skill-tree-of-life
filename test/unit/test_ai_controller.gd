@@ -45,7 +45,7 @@ func before_each() -> void:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
 		sn.name = "N%d" % i
 		sn.position = Vector2(i * 100.0, 0.0)
-		_graph.skill_nodes_container.add_child(sn)
+		_graph.add_skill_node(sn)
 		_nodes.append(sn)
 	_add_edge(_nodes[0], _nodes[1])
 	_add_edge(_nodes[1], _nodes[2])
@@ -104,10 +104,9 @@ func _on_ai_decision(_entity: Entity, summary: String) -> void:
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = a
-	e.to = b
-	_graph.edges_container.add_child(e)
+	# Graph.add_edge emits edge_added so the board Navigator mirrors it
+	# (.claude/rules/graph.md); a container add_child is invisible to it.
+	_graph.add_edge(a, b)
 
 
 # ---------------------------------------------------------------------------

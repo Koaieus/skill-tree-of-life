@@ -31,15 +31,12 @@ func before_each() -> void:
 
 	_core = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_core.name = "Core"
-	_graph.skill_nodes_container.add_child(_core)
+	_graph.add_skill_node(_core)
 	_leaf = _SKILL_NODE_SCENE.instantiate() as SkillNode
 	_leaf.name = "Leaf"
-	_graph.skill_nodes_container.add_child(_leaf)
+	_graph.add_skill_node(_leaf)
 
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = _core
-	e.to = _leaf
-	_graph.edges_container.add_child(e)
+	_graph.add_edge(_core, _leaf)  # emits edge_added — the Navigator mirrors it (.claude/rules/graph.md)
 
 	# The leaf grants +7 Strength when allocated.
 	var mod := StatModifier.new()
@@ -96,11 +93,8 @@ func test_voluntary_allocation_pulses_then_floats() -> void:
 func test_forced_allocation_does_not_float() -> void:
 	var leaf2 := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	leaf2.name = "Leaf2"
-	_graph.skill_nodes_container.add_child(leaf2)
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = _core
-	e.to = leaf2
-	_graph.edges_container.add_child(e)
+	_graph.add_skill_node(leaf2)
+	_graph.add_edge(_core, leaf2)  # emits edge_added — the Navigator mirrors it (.claude/rules/graph.md)
 	var mod := StatModifier.new()
 	mod.stat_id = &"strength"
 	mod.value = 3.0
