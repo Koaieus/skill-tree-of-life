@@ -68,3 +68,8 @@ func _on_edge_added(edge: Edge) -> void:
 func _on_edge_removed(edge: Edge) -> void:
 	super._on_edge_removed(edge)
 	topology_generation += 1
+
+
+## Stub (#941) — real body lands with the red test.
+func borders(_node: SkillNode) -> bool:
+	return false

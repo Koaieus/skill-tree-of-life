@@ -192,3 +192,57 @@ func test_neighbours_of_on_an_entity_navigator_returns_only_owned_neighbours_nev
 	assert_true(board.has(u))
 	assert_eq(_graph.navigator.neighbours_of(null).size(), 0, "null → empty")
 	assert_eq(e.navigator.neighbours_of(u).size(), 0, "unmirrored → empty")
+
+
+# ── borders (#941) ─────────────────────────────────────────────────────────
+# "Does this node touch my territory?" — asked of the territory's own mirror:
+# not mirrored here, and at least one whole-board neighbour is. Membership,
+# never `owned_by == entity` (.claude/rules/ownership-vocabulary.md).
+
+func test_borders_is_true_for_an_unowned_node_with_one_owned_neighbour() -> void:
+	var o := _add_node(Vector2(0, 0))
+	var u := _add_node(Vector2(10, 0))
+	var lone := _add_node(Vector2(50, 50))
+	_graph.add_edge(o, u)
+	await get_tree().process_frame
+	var e: Entity = await _entity_owning([o] as Array[SkillNode])
+
+	assert_true(e.navigator.borders(u), "u is unowned and touches the owned o")
+	assert_false(e.navigator.borders(lone), "no owned neighbour → does not border")
+
+
+func test_borders_is_false_for_an_owned_node_even_with_owned_neighbours() -> void:
+	var a := _add_node(Vector2(0, 0))
+	var b := _add_node(Vector2(10, 0))
+	_graph.add_edge(a, b)
+	await get_tree().process_frame
+	var e: Entity = await _entity_owning([a, b] as Array[SkillNode])
+
+	assert_false(e.navigator.borders(a), "inside the territory is not its border")
+	assert_false(e.navigator.borders(b))
+
+
+func test_borders_is_false_for_null_and_for_a_node_the_graph_never_mirrored() -> void:
+	var o := _add_node(Vector2(0, 0))
+	await get_tree().process_frame
+	var e: Entity = await _entity_owning([o] as Array[SkillNode])
+	# Added straight into the container: no node_added, the board Navigator
+	# never saw it, so it has no neighbourhood to ask about.
+	var ghost := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	_graph.skill_nodes_container.add_child(ghost)
+
+	assert_false(e.navigator.borders(null), "null never borders")
+	assert_false(e.navigator.borders(ghost), "unmirrored-in-graph never borders")
+
+
+func test_borders_is_true_for_a_hostile_owned_node_touching_the_territory() -> void:
+	# The AiRecon reader: another entity's node next to mine is a door.
+	var mine := _add_node(Vector2(0, 0))
+	var theirs := _add_node(Vector2(10, 0))
+	_graph.add_edge(mine, theirs)
+	await get_tree().process_frame
+	var me: Entity = await _entity_owning([mine] as Array[SkillNode])
+	var them: Entity = await _entity_owning([theirs] as Array[SkillNode])
+
+	assert_true(me.navigator.borders(theirs), "their node touches my territory")
+	assert_true(them.navigator.borders(mine), "and mine touches theirs")
