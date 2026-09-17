@@ -406,7 +406,7 @@ func _open_frame(source: SkillNode, mirror: GraphMirror, selected: Dictionary[Sk
 	_frame_source = source
 	_frame_depths = {}
 	if distance_scale != null and distance_scale.wants_hops():
-		_frame_depths = HopMetric.depths(source, mirror, _hop_cap(selected))
+		_frame_depths = HopMetric.depths(source, mirror, _hop_cap(selected), selected)
 
 
 func _close_frame() -> void:
@@ -414,9 +414,11 @@ func _close_frame() -> void:
 	_frame_source = null
 
 
-## How far, in hops, a selected node can possibly be: the reach's own bound
-## when it is hop-shaped, else the selected set's size (a path inside the set
-## can't be longer). Q2 never re-walks the world Q1 already filtered.
+## The FIRST guess at how far, in hops, a selected node is: the reach's own
+## bound when it is hop-shaped (exact), else the selected set's size (a path
+## inside the set can't be longer; [method HopMetric.depths] widens from there
+## for a node whose path coils out of the selection). Q2 never re-walks the
+## world Q1 already filtered.
 func _hop_cap(selected: Dictionary[SkillNode, float]) -> int:
 	if reach is HopRangeFinder:
 		return int(reach.max_reach())

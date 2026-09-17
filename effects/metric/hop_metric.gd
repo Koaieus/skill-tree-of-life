@@ -30,13 +30,37 @@ static var last_walk_size: int = 0
 ## Hop depth of every node within [param max_hops] of [param source] over
 ## [param mirror] — the one door onto the cached walk, so a caller wanting hop
 ## facts beside its own metric ([AuraEffect] feeding `h` to a formula) never
-## reaches into this class's BFS. Nodes past the cap or in another component
-## are simply absent.
-static func depths(source: SkillNode, mirror: GraphMirror, max_hops: int) -> Dictionary[SkillNode, float]:
+## reaches into this class's BFS.
+##
+## [param wanted] (a set keyed by [SkillNode]) is the stop condition, not the
+## cap: the walk starts at [param max_hops] and, while any wanted node is still
+## absent and the ball is still growing, doubles the cap and walks again — a
+## Euclidean disc can select a node whose only in-mirror path coils OUT of the
+## disc and back, longer than the selection is wide. It stops the moment every
+## wanted node has a depth, or the component is exhausted (the ball stopped
+## growing); a wanted node in another component simply stays absent.
+static func depths(source: SkillNode, mirror: GraphMirror, max_hops: int,
+		wanted: Dictionary = {}) -> Dictionary[SkillNode, float]:
 	depths_call_count += 1
 	if source == null or mirror == null:
 		return {}
-	return AuraDistanceCache.get_or_walk(mirror, source, max_hops, Callable(HopMetric, &"_walk").bind(source, mirror))
+	var walk := Callable(HopMetric, &"_walk").bind(source, mirror)
+	var cap := maxi(max_hops, 0)
+	var out: Dictionary[SkillNode, float] = AuraDistanceCache.get_or_walk(mirror, source, cap, walk)
+	while not _covers(out, wanted):
+		var before := out.size()
+		cap = maxi(cap * 2, 1)
+		out = AuraDistanceCache.get_or_walk(mirror, source, cap, walk)
+		if out.size() == before:
+			break
+	return out
+
+
+static func _covers(found: Dictionary[SkillNode, float], wanted: Dictionary) -> bool:
+	for n in wanted:
+		if not found.has(n):
+			return false
+	return true
 
 
 ## [param hop_cap] is the reach's bound when the caller knows one; the default
@@ -46,7 +70,10 @@ func distances(source: SkillNode, nodes: Array[SkillNode], mirror: GraphMirror, 
 	if source == null or mirror == null:
 		return out
 	var cap := hop_cap if hop_cap >= 0 else nodes.size()
-	var all := depths(source, mirror, cap)
+	var wanted: Dictionary = {}
+	for n in nodes:
+		wanted[n] = true
+	var all := depths(source, mirror, cap, wanted)
 	for n in nodes:
 		if all.has(n):
 			out[n] = all[n]

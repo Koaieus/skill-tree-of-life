@@ -33,6 +33,8 @@ extends DistanceScale
 ## ([method HopMetric.depths]) or takes the per-node `distance_to` only then.
 ## The 3-arg [method scale] path feeds the sentinels `h = -1, e = -1, rel = 0`,
 ## so a formula that never names them evaluates exactly as it did before.
+## [HealAuraEffect]'s turn-start ramp still calls that 3-arg path, so a heal
+## formula naming `h`, `e` or `rel` sees the sentinels, not the node's facts.
 ## Gating ("start after N hops") belongs in the reach, not here — a range
 ## finder drops the node before any formula runs.
 ##

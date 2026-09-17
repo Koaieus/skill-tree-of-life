@@ -465,3 +465,49 @@ func test_h_on_a_global_euclid_aura_walks_a_bounded_ball_not_the_mirror() -> voi
 	assert_gt(HopMetric.last_walk_size, 0, "the hop door was opened")
 	assert_lte(HopMetric.last_walk_size, 2 * selected + 1,
 		"the walk is capped by the selected set's size, not the mirror's")
+
+
+## A Euclidean disc selects the source and one neighbour-in-pixels whose ONLY
+## owned path coils out of the disc and back — 8 hops through nodes the reach
+## never selected (|selected| = 2). The hop walk must widen past the
+## selection's size until it finds the node: a HopMetric aura grants it at
+## d = 8, and a Euclidean-metric formula naming `h` reads 8 as well.
+func test_hop_depth_widens_past_the_selection_for_a_coiling_path() -> void:
+	var src := _nodes[0]
+	var far := _nodes[3]
+	far.position = Vector2(100.0, 0.0)          # 100px from src, inside reach 150
+	var coil: Array[SkillNode] = []
+	var prev := src
+	for i in 7:
+		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
+		sn.name = "C%d" % i
+		sn.position = Vector2(i * 300.0, 900.0)  # all far outside the disc
+		_graph.add_skill_node(sn)
+		_add_edge(prev, sn)
+		coil.append(sn)
+		prev = sn
+	_add_edge(prev, far)                          # src-C0-…-C6-far = 8 hops
+	var owned: Array[SkillNode] = [src, far]
+	owned.append_array(coil)
+	var ent: Entity = await _spawn(src, owned)
+
+	var reach := EuclideanRangeFinder.new()
+	reach.max_distance = 150.0
+	var hop_aura := AuraEffect.new()
+	hop_aura.reach = reach
+	hop_aura.metric = HopMetric.new()
+	hop_aura.distance_scale = ProportionalScale.new()   # +1 per hop
+	hop_aura.modifiers = [_armor_mod(1.0)]
+	ent.grant_effect(hop_aura)
+	assert_almost_eq(_armor(far), 8.0, 0.001, "granted at its true owned hop distance")
+	assert_almost_eq(_armor(coil[0]), 0.0, 0.001, "outside the disc: not selected")
+
+	var h_aura := AuraEffect.new()
+	h_aura.reach = reach
+	h_aura.metric = EuclideanMetric.new()
+	var scale := ExpressionScale.new()
+	scale.formula = "h"
+	h_aura.distance_scale = scale
+	h_aura.modifiers = [_armor_mod(1.0)]
+	ent.grant_effect(h_aura)
+	assert_almost_eq(_armor(far), 16.0, 0.001, "h under a euclid metric is the coil's 8 hops")
