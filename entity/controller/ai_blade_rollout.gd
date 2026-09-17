@@ -141,19 +141,17 @@ static func gather_melee_candidates(
 
 ## Owned SkillNode -> Array[SkillNode] of its neighbours that are ALSO owned
 ## by [param entity] — the walkable graph for blade pivot/member selection.
-## Built off the cached [method Graph.get_neighbours] (O(degree) per node,
-## see .claude/rules/graph.md), not a hand-rolled edge scan.
+## The territory mirror already IS that filter: [EntityNavigator] only holds
+## edges between owned nodes, so [method GraphMirror.neighbours_of] is the
+## owned neighbourhood with no `owned_by` re-check (#940). Sorted by
+## stable_id inside the mirror, so the rollout's walk is peer-reproducible.
 static func _owned_adjacency(entity: Entity) -> Dictionary:
 	var out: Dictionary = {}
 	if entity.navigator == null or entity.navigator.graph == null:
 		return out
-	var graph := entity.navigator.graph
-	for n in entity.navigator.get_mirrored_nodes():
-		var neighbours: Array[SkillNode] = []
-		for nb in graph.get_neighbours(n):
-			if nb != null and nb.owned_by == entity:
-				neighbours.append(nb)
-		out[n] = neighbours
+	var nav := entity.navigator
+	for n in nav.get_mirrored_nodes():
+		out[n] = nav.neighbours_of(n)
 	return out
 
 

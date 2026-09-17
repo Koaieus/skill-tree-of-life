@@ -169,14 +169,44 @@ func get_leaf_nodes() -> Array[SkillNode]:
 	return get_nodes_by_degree(1)
 
 
-## Stub (#940) — real body lands with the red test.
-func are_adjacent(_a: SkillNode, _b: SkillNode) -> bool:
-	return false
+## True iff [param a] and [param b] share a mirrored edge — THE adjacency
+## check (#940). Whole-board on a [Navigator], territory on an
+## [EntityNavigator] (the same split .claude/rules/degree.md draws for degree).
+## False on null, on an unmirrored or disabled endpoint, and on `a == b`: a
+## self-loop is a propagation/render edge, never a hop, and AStar cannot hold
+## one anyway (see [method _on_edge_added]). One `are_points_connected`, no
+## frontier — callers used to flood `nodes_within(x, 1).has(y)` or build a
+## neighbour Array to answer this one bool.
+func are_adjacent(a: SkillNode, b: SkillNode) -> bool:
+	if a == null or b == null or a == b:
+		return false
+	var id_a := vertex_id(a)
+	var id_b := vertex_id(b)
+	if id_a < 0 or id_b < 0:
+		return false
+	if astar.is_point_disabled(id_a) or astar.is_point_disabled(id_b):
+		return false
+	return astar.are_points_connected(id_a, id_b)
 
 
-## Stub (#940).
-func neighbours_of(_node: SkillNode) -> Array[SkillNode]:
+## The mirrored neighbours of [param node] — self excluded (no self-loops in
+## the AStar), disabled points excluded (as [method nodes_within] skips them),
+## sorted by [member SkillNode.stable_id]. Sorted because
+## `AStar2D.get_point_connections` is a hash set, not insertion-ordered, and
+## AI rollouts iterate this — a peer must reproduce the same walk. [] if
+## [param node] is null or not mirrored.
+func neighbours_of(node: SkillNode) -> Array[SkillNode]:
 	var out: Array[SkillNode] = []
+	if node == null:
+		return out
+	var id := vertex_id(node)
+	if id < 0:
+		return out
+	for nb in astar.get_point_connections(id):
+		if astar.is_point_disabled(nb):
+			continue
+		out.append(node_for_id(nb))
+	out.sort_custom(func(x: SkillNode, y: SkillNode) -> bool: return x.stable_id < y.stable_id)
 	return out
 
 

@@ -521,15 +521,16 @@ func extract(node: SkillNode, entity: Entity) -> bool:
 	return true
 
 
-## True when the entity's core is within 1 hop of [param node] over the OWNED
-## subgraph — the core itself (0 hops) or an immediate neighbour. One BFS via
-## the mirror's gather ([method GraphMirror.nodes_within]), never a
-## per-candidate predicate (.claude/rules/graph.md). Fails closed without a
-## navigator.
+## True when [param node] is the entity's core or an immediate neighbour of
+## it over the OWNED subgraph — one [method GraphMirror.are_adjacent] on the
+## territory mirror, never a BFS frontier for a bool (#940). Fails closed
+## without a navigator.
 func _core_within_one_hop(node: SkillNode, entity: Entity) -> bool:
 	if entity == null or entity.navigator == null or entity.core_location == null:
 		return false
-	return entity.navigator.nodes_within(entity.core_location, 1).has(node)
+	if node == entity.core_location:
+		return true
+	return entity.navigator.are_adjacent(entity.core_location, node)
 
 
 ## Core movement (#21). Validates `move_core` preconditions without committing.## - target must be owned by the entity (you only hop across your own subgraph)
@@ -590,26 +591,13 @@ func _revoke_node_effects(node: SkillNode, entity: Entity) -> void:
 	entity.revoke_effects_from(node)
 
 
+## Adjacent over a real (non-self-loop) edge, ignoring ownership — the
+## whole-board mirror's answer. `are_adjacent` already rejects `a == b`, so a
+## self-loop never lands a move.
 func _is_adjacent_via_real_edge(a: SkillNode, b: SkillNode) -> bool:
-	if a == null or b == null or a == b:
+	if graph == null or graph.navigator == null:
 		return false
-	return _real_neighbours(a).has(b)
-
-
-## Nodes adjacent to [param node] via a real (non-self-loop) edge, ignoring
-## ownership. Shared neighbour iterator for adjacency / BFS reachability.
-func _real_neighbours(node: SkillNode) -> Array[SkillNode]:
-	var out: Array[SkillNode] = []
-	if graph == null or node == null:
-		return out
-	# `get_neighbours` is the cached adjacency index; the hand-rolled edge walk
-	# this replaced rebuilt every Edge in the level per call (graph.md). The
-	# self-loop filter stays: the index lists a self-loop as the node itself
-	# (twice), and a self-loop never lands a move.
-	for other in graph.get_neighbours(node):
-		if other != null and other != node:
-			out.append(other)
-	return out
+	return graph.navigator.are_adjacent(a, b)
 
 
 func _movement_budget(entity: Entity) -> int:

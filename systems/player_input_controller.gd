@@ -470,13 +470,15 @@ func _extract_denial_reason(node: SkillNode) -> String:
 	return "extract_denied"
 
 
-## Same "core within 1 hop over the owned subgraph" check as
-## AllocationSystem._core_within_one_hop, bound to `player` — duplicated
-## rather than reaching into that private helper.
+## Core itself or an immediate owned neighbour of it, bound to `player` —
+## the same one-stop [method GraphMirror.are_adjacent] AllocationSystem's
+## gate asks (#940).
 func _core_within_one_hop(node: SkillNode) -> bool:
 	if player == null or player.navigator == null or player.core_location == null:
 		return false
-	return player.navigator.nodes_within(player.core_location, 1).has(node)
+	if node == player.core_location:
+		return true
+	return player.navigator.are_adjacent(player.core_location, node)
 
 
 ## Requests an armed temp-upgrade placement (#406) — click-to-toggle, same
