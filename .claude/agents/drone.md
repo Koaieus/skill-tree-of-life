@@ -140,9 +140,13 @@ Anything in `NOTES:` a future worker would need is also a `gh issue comment`
 "done" comment, a diff, or narration.
 
 **With Sage in the run:** `gh issue view <n> --comments` for drift, then one
-`SendMessage` to `Sage` — branch, worktree path, what to check, which asserts
-were red before your change — and end your turn with the report as text.
-Findings resume you: fix, commit, re-ask with a ≤3-line delta. On `approved`
-Sage lands; if `land` fails Sage sends you the printed reason (a rebase
-conflict, a red `check`/`test:dir` on the rebased tree) and you resolve it in
-your worktree, commit, and re-ask.
+`SendMessage` to `Sage` — the report above plus the head sha, the worktree
+path, what to check, which asserts were red before your change — and end
+your turn with the report as text. **That is your last turn; you are spent.**
+Never end a turn "waiting for Sage" — every turn you end wakes `main`, and a
+waiting turn tells it nothing. On `approved` Sage tells `main`, not you;
+`main` lands and you are never resumed. Findings come to you from Sage: fix,
+commit, and repeat the same last turn — one `SendMessage` to Sage with a
+≤3-line delta and the sha, then the updated report as text with
+`NOTES: fix round N`. Two rounds is the cap; after that Sage hands the unit
+to `main`, which decides between resuming you and a fresh drone.

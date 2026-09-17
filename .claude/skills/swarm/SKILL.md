@@ -79,9 +79,13 @@ Never hope a drone self-splits.
 - **Sage is opt-in, and never lands.** At four or more concurrent drones,
   or an absent owner, spawn `Agent(subagent_type: "sage", name: "Sage")`
   as reviewer and advisor; briefs then say "Sage is your advisor" instead.
-  Sage's `approved` goes back to the drone, which carries it in its report
-  (`NOTES: Sage approved, N exchanges`); you land off that report. Sage
-  messages you only for exceptions and one `REVIEWED:` list at the end.
+  A drone's review request is its last turn: it messages Sage and ends with
+  its report as text, and is spent. Sage sends findings to the drone and
+  `APPROVED #n <sha>` to **you** — the drone's notification is your fence
+  check, Sage's line is your land trigger; never nudge a drone for a
+  report and never wake one that Sage approved. `NOT APPROVED` after two
+  rounds is yours: resume the drone (hot context) or dispatch fresh. Sage
+  otherwise messages you only for exceptions and one `REVIEWED:` list.
 - **A throwaway Opus planner is a fallback**, for a run whose issues are not
   well enough specced to dispatch from directly: `Agent(model: "opus",
   run_in_background: false)` writes the DAG, tiers and briefs to
@@ -181,7 +185,8 @@ mise run issue-drift -- <n>                             # silent = the Ready com
 - **Tier**, and that it decides the drone's model.
 - **"Your advisor is the `advisor` tool: once, early, on the first loop or a
   design doubt; a second call means retire."** (Or "Sage is your advisor;
-  ask it for a review before you report.")
+  your last turn is the review request to Sage plus your report as text —
+  never wait for its verdict.")
 - **A turn/time budget as a HARD stop, budgeting the first report**: "80
   calls / 40 minutes to your first report — do not take call 81. Each
   review round after it gets +15 calls; two rounds, then hand back." One
