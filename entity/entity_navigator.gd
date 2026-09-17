@@ -70,6 +70,25 @@ func _on_edge_removed(edge: Edge) -> void:
 	topology_generation += 1
 
 
-## Stub (#941) — real body lands with the red test.
-func borders(_node: SkillNode) -> bool:
+## Does [param node] touch this territory from OUTSIDE it — not mirrored here,
+## with at least one whole-board neighbour that is (#941)? The one "borders
+## territory" question: the allocation gate ("can I grow onto this unowned
+## node") and the AI's door rule ([method AiRecon.is_ai_target] /
+## [method AiCombatScorer.score] — a capped entity may punch through ANY
+## owner's node that walls it in) both read it.
+##
+## Adjacency, not degree: the question is membership in the neighbour set,
+## so [method GraphMirror.neighbours_of] on the board [Navigator] is the right
+## call and the degree rule does not apply. Ownership is answered by mirror
+## membership, never `owned_by == entity`
+## (.claude/rules/ownership-vocabulary.md) — so a shadow-world mirror answers
+## for its own world.
+func borders(node: SkillNode) -> bool:
+	if node == null or graph == null or graph.navigator == null:
+		return false
+	if vertex_id(node) >= 0:
+		return false
+	for nb in graph.navigator.neighbours_of(node):
+		if vertex_id(nb) >= 0:
+			return true
 	return false

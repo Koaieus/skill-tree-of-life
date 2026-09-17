@@ -38,12 +38,9 @@ func before_each() -> void:
 	for i in 3:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
 		sn.name = "N%d" % i
-		_graph.skill_nodes_container.add_child(sn)
+		_graph.add_skill_node(sn)  # emits node_added — the Navigator mirrors it (.claude/rules/graph.md)
 		_nodes.append(sn)
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = _nodes[0]
-	e.to = _nodes[1]
-	_graph.edges_container.add_child(e)
+	_graph.add_edge(_nodes[0], _nodes[1])  # emits edge_added — the Navigator mirrors it
 
 	_alloc = AllocationSystem.new()
 	_alloc.graph = _graph
@@ -134,7 +131,7 @@ func test_a_capped_attacker_does_not_unlock_a_core_it_does_not_border() -> void:
 	_nodes[2].global_position = _nodes[0].global_position + Vector2(100.0, 0.0)
 	_ai_entity.ai_growth_capped = true
 
-	assert_false(AiRecon.borders_territory(_nodes[2], _ai_entity))
+	assert_false(_ai_entity.navigator.borders(_nodes[2]))
 	assert_false(AiRecon.is_ai_target(_ai_entity, _nodes[2]))
 	assert_false(_nodes[2] in AiRecon.visible_enemy_nodes(_ai_entity))
 

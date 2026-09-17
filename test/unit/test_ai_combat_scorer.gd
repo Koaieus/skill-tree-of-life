@@ -37,7 +37,7 @@ func before_each() -> void:
 	for i in 5:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
 		sn.name = "N%d" % i
-		_graph.skill_nodes_container.add_child(sn)
+		_graph.add_skill_node(sn)  # emits node_added — the Navigator mirrors it (.claude/rules/graph.md)
 		_nodes.append(sn)
 	_add_edge(_nodes[0], _nodes[1])
 	_add_edge(_nodes[2], _nodes[3])
@@ -71,10 +71,7 @@ func before_each() -> void:
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = a
-	e.to = b
-	_graph.edges_container.add_child(e)
+	_graph.add_edge(a, b)  # emits edge_added — the Navigator mirrors it
 
 
 func _resolve_ranged_at(target: SkillNode) -> AttackOutcome:
@@ -133,7 +130,7 @@ func test_expected_damage_counts_a_blocker_hit_for_a_growth_capped_attacker() ->
 	# core on the board (an entity capped by its own allies has no door).
 	var walled := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	walled.name = "Walled"
-	_graph.skill_nodes_container.add_child(walled)
+	_graph.add_skill_node(walled)
 	_add_edge(_nodes[1], walled)
 	var blocker: Entity = autofree(_make_entity("Blocker", _BLOCKER_FACTION))
 	_graph.add_child(blocker)

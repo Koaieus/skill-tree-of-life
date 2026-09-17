@@ -127,7 +127,8 @@ func can_allocate(node: SkillNode, entity: Entity) -> bool:
 	if board != null and board.skill_points != null and board.skill_points.available() < 1:
 		return false
 	# Refills need no adjacency — the node is already in the owned subgraph.
-	if node.owned_by == null and _has_any_owned_node(entity) and not _is_adjacent_to_owned(node, entity):
+	if node.owned_by == null and _has_any_owned_node(entity) \
+			and (entity.navigator == null or not entity.navigator.borders(node)):
 		return false
 	return true
 
@@ -666,16 +667,5 @@ func _has_any_owned_node(entity: Entity) -> bool:
 		return false
 	for n in graph.get_skill_nodes():
 		if n.owned_by == entity:
-			return true
-	return false
-
-
-func _is_adjacent_to_owned(node: SkillNode, entity: Entity) -> bool:
-	if graph == null:
-		return false
-	# Cached adjacency index, not a full edge rebuild per candidate node — same
-	# quadratic-repaint path as `_has_any_owned_node` above.
-	for other in graph.get_neighbours(node):
-		if other != null and other != node and other.owned_by == entity:
 			return true
 	return false

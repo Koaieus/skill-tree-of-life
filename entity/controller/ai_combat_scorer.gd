@@ -31,7 +31,7 @@ const _ENEMY_WEAK_WEIGHT := 5.0
 ## defensive-spike pop count, not the blade's node-selection size.
 const _SHAPE_RISK_WEIGHT := 10.0
 ## What a DOOR is worth to a boxed-in attacker (#604). Applies only while
-## [member Entity.ai_growth_capped] — see [method AiRecon.borders_territory]. Sized to sit
+## [member Entity.ai_growth_capped] — see [method EntityNavigator.borders]. Sized to sit
 ## between the two things it has to be ordered against: it dominates any
 ## ordinary EV difference (a capped AI must not plink a distant enemy forever
 ## while the wall beside it goes unhit), and it loses to [constant _KILL_BONUS]
@@ -175,8 +175,8 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 	# deallocates it, so ANY owner's node bordering my territory is a door —
 	# nothing here is blocker-specific, and a capped AI walled in by a real
 	# camp punches through it on the same reasoning.
-	if attacker != null and attacker.ai_growth_capped \
-			and AiRecon.borders_territory(target, attacker):
+	if attacker != null and attacker.ai_growth_capped and attacker.navigator != null \
+			and attacker.navigator.borders(target):
 		c.breakout_bonus = _BREAKOUT_WEIGHT
 	if ai_tier > 0:
 		if _is_cut_vertex(target):
