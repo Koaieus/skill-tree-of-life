@@ -24,6 +24,18 @@ suite instead of one script: GUT's cmdln options are `-gopt=value` (a bare
 `-gtest` with the path as a separate positional is valueless and ignored), AND
 `-gtest` alone does not override .gutconfig.json's `dirs` — `-gdir=` must clear
 them.
+
+Before GUT starts, the task compares the `class_name` set declared in the tree
+with `.godot/global_script_class_cache.cfg` (`class_cache_drift`, below) and
+runs `mise run refresh` only when they differ (#919). A stale cache reads as a
+regression — `Could not find type "X"` on 3/5 tests after a sibling landed a
+new class — and a refresh costs ~12s, which is +5% on the full suite but +240%
+on `test:one`; hence the exact predicate, not an unconditional refresh. `land`
+runs `check` (itself an editor pass, rebuilding the cache) before `test:dir`,
+so there the predicate finds the cache current and costs nothing. A `.gd`
+with a parse error AND a `class_name` never enters the cache, so the predicate
+fires on every run until it is fixed — and the refresh prints the SCRIPT
+ERROR, which is the right noise.
 """
 import os
 import re
@@ -52,6 +64,71 @@ BENIGN_TRAILER = (
 # script` is the silent cause of the "suite count dropped after a rebase" trap
 # (see docs/domain/godot-workflow.md) — it must never be filtered away.
 ALARM = re.compile(r"Ignoring script |Could not find type |SCRIPT ERROR|Parse Error")
+
+CLASS_CACHE = os.path.join(".godot", "global_script_class_cache.cfg")
+# `class_name X` at column 0 — Godot itself only honours it as a top-level
+# declaration, so an indented or commented one is not a class either.
+CLASS_DECL = re.compile(r"^class_name\s+(\w+)", re.M)
+CACHE_ENTRY = re.compile(r'"class":\s*&"(\w+)"[^}]*?"path":\s*"([^"]+)"', re.S)
+# Dirs Godot never scans: hidden ones (.git, .godot, .worktrees, …) and any
+# dir holding a `.gdignore`. addons/ is NOT skipped — GUT's classes are cached.
+SKIP_DIR_PREFIX = "."
+
+
+def _tree_classes(root):
+    """{(class, res://path)} declared by every *.gd Godot would scan under root."""
+    pairs = set()
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(
+            d for d in dirnames
+            if not d.startswith(SKIP_DIR_PREFIX)
+            and not os.path.exists(os.path.join(dirpath, d, ".gdignore")))
+        for name in filenames:
+            if not name.endswith(".gd"):
+                continue
+            full = os.path.join(dirpath, name)
+            try:
+                with open(full, encoding="utf-8", errors="replace") as fh:
+                    m = CLASS_DECL.search(fh.read())
+            except OSError:
+                continue
+            if m:
+                rel = os.path.relpath(full, root).replace(os.sep, "/")
+                pairs.add((m.group(1), "res://" + rel))
+    return pairs
+
+
+def _cached_classes(root):
+    """{(class, res://path)} in the class cache; empty when the file is absent."""
+    try:
+        with open(os.path.join(root, CLASS_CACHE), encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError:
+        return set()
+    return set(CACHE_ENTRY.findall(text))
+
+
+def class_cache_drift(root):
+    """Lines describing how the tree's class_name set differs from the cache.
+
+    Empty = current. Each line is `new <Class> <res://path>` (declared, not
+    cached) or `gone <Class> <res://path>` (cached, no longer declared there).
+    A missing cache — a fresh worktree — makes every declared pair `new`.
+    Pure: one os.walk + one regex per file, no godot.
+    """
+    tree, cached = _tree_classes(root), _cached_classes(root)
+    return ([f"new {c} {p}" for c, p in sorted(tree - cached)]
+            + [f"gone {c} {p}" for c, p in sorted(cached - tree)])
+
+
+def refresh_if_stale(root):
+    """One preamble line + `mise run refresh` when the class cache drifted."""
+    drift = class_cache_drift(root)
+    if not drift:
+        return
+    new = sum(d.startswith("new ") for d in drift)
+    print(f"class cache stale ({new} new / {len(drift) - new} gone): refreshing…", flush=True)
+    subprocess.run(["mise", "run", "refresh"], cwd=root, check=False)
 
 
 def build_args(argv):
@@ -169,6 +246,7 @@ def main():
     print(f"Running {label}… {_cost_hint(label)}".rstrip(), flush=True)
     for note in _preamble_notes(label):
         print(note, flush=True)
+    refresh_if_stale(ROOT)
     # Merge stderr INTO stdout rather than capturing both: godot writes engine
     # errors to stderr and GUT to stdout, and concatenating the two streams
     # scrambles the ordering — the log stops matching what you'd see live, and
