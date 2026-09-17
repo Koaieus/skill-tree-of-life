@@ -454,7 +454,11 @@ func can_stake(node: SkillNode, entity: Entity) -> bool:
 		return false
 	if node.stake_level >= STAKE_CEILING:
 		return false
-	if not _core_within_one_hop(node, entity):
+	# Core itself, or an immediate neighbour over the OWNED subgraph — one
+	# are_adjacent on the territory mirror, no frontier (#940). Fails closed
+	# without a navigator; are_adjacent is already false on a null core.
+	var core := entity.core_location
+	if entity.navigator == null or not (node == core or entity.navigator.are_adjacent(core, node)):
 		return false
 	var board := entity.stat_board
 	if board != null and board.skill_points != null and board.skill_points.available() < 1:
@@ -488,7 +492,11 @@ func can_extract(node: SkillNode, entity: Entity) -> bool:
 		return false
 	if node.stake_level <= 1:
 		return false
-	if not _core_within_one_hop(node, entity):
+	# Core itself, or an immediate neighbour over the OWNED subgraph — one
+	# are_adjacent on the territory mirror, no frontier (#940). Fails closed
+	# without a navigator; are_adjacent is already false on a null core.
+	var core := entity.core_location
+	if entity.navigator == null or not (node == core or entity.navigator.are_adjacent(core, node)):
 		return false
 	var board := entity.stat_board
 	if board != null and board.deallocation_points != null and board.deallocation_points.available() < 1:
@@ -519,18 +527,6 @@ func extract(node: SkillNode, entity: Entity) -> bool:
 				board.skill_points.refund(displaced)
 	node.stake_level -= 1
 	return true
-
-
-## True when [param node] is the entity's core or an immediate neighbour of
-## it over the OWNED subgraph — one [method GraphMirror.are_adjacent] on the
-## territory mirror, never a BFS frontier for a bool (#940). Fails closed
-## without a navigator.
-func _core_within_one_hop(node: SkillNode, entity: Entity) -> bool:
-	if entity == null or entity.navigator == null or entity.core_location == null:
-		return false
-	if node == entity.core_location:
-		return true
-	return entity.navigator.are_adjacent(entity.core_location, node)
 
 
 ## Core movement (#21). Validates `move_core` preconditions without committing.## - target must be owned by the entity (you only hop across your own subgraph)

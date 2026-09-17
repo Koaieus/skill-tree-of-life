@@ -444,7 +444,8 @@ func _stake_denial_reason(node: SkillNode) -> String:
 		return "stake_denied_not_owned"
 	if node.stake_level >= AllocationSystem.STAKE_CEILING:
 		return "stake_denied_at_ceiling"
-	if not _core_within_one_hop(node):
+	var core := player.core_location
+	if player.navigator == null or not (node == core or player.navigator.are_adjacent(core, node)):
 		return "stake_denied_not_adjacent"
 	var board := player.stat_board if player != null else null
 	if board != null and board.skill_points != null and board.skill_points.available() < 1:
@@ -460,7 +461,8 @@ func _extract_denial_reason(node: SkillNode) -> String:
 		return "extract_denied_not_owned"
 	if node.stake_level <= 1:
 		return "extract_denied_at_floor"
-	if not _core_within_one_hop(node):
+	var core := player.core_location
+	if player.navigator == null or not (node == core or player.navigator.are_adjacent(core, node)):
 		return "extract_denied_not_adjacent"
 	var board := player.stat_board if player != null else null
 	if board != null and board.deallocation_points != null and board.deallocation_points.available() < 1:
@@ -468,17 +470,6 @@ func _extract_denial_reason(node: SkillNode) -> String:
 	if board != null and board.skill_points != null and board.skill_points.staked < 1:
 		return "extract_denied_no_staked_sp"
 	return "extract_denied"
-
-
-## Core itself or an immediate owned neighbour of it, bound to `player` —
-## the same one-stop [method GraphMirror.are_adjacent] AllocationSystem's
-## gate asks (#940).
-func _core_within_one_hop(node: SkillNode) -> bool:
-	if player == null or player.navigator == null or player.core_location == null:
-		return false
-	if node == player.core_location:
-		return true
-	return player.navigator.are_adjacent(player.core_location, node)
 
 
 ## Requests an armed temp-upgrade placement (#406) — click-to-toggle, same
