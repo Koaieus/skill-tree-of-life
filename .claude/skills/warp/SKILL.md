@@ -73,6 +73,16 @@ new, then confirm `test:one` actually *ran* your file and failed on *your*
 assert line. Full story, including when to skip tests entirely:
 **`docs/domain/red-green.md`**.
 
+**Before writing that test, list what its setup has to reach into.** A test
+of X that must write another unit's internals (`y.state.foo`, `y._flag`, a
+visual's `modulate.a`) to arrange X's state has found a seam, not a fixture:
+the fact belongs to Y. Three questions, answered from the plan before any
+code exists — *who owns this fact? is this one thing pretending to be N? what
+does it cost per frame / at scale?* — and the fix goes into the owner (or
+gets filed against it), never into the unit that shows the symptom. The test
+setup is the cheapest detector of coupling this repo has; a scoped rule will
+not fire for you here because Bash reads never trigger `paths:` rules.
+
 **3b. Implement**
 Same repo, same rules — `.claude/rules/*` apply unchanged inside a worktree.
 Two things specific to running in a *fresh* worktree:

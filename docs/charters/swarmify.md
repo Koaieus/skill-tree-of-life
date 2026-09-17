@@ -88,6 +88,14 @@ Numbered so the skill can be checked against them law by law.
    so the orchestrator can sequence; never contort the design to keep files
    disjoint, never withhold `Ready` because two issues share a file.
 
+25. **Three questions on every plan, before any code exists** — *who owns
+    this fact? is this one thing pretending to be N? what does it cost per
+    frame / at scale?* A unit about to read another unit's internals, a list
+    of per-type cases that is one callback, a per-tick recompute that a
+    stored sample makes an array read — each is a fork, and each is
+    answerable from the plan sentence. The owner catches these by glancing
+    at a plan; the pass must catch them without the glance.
+
 **The Ready comment — sections**
 
 10. **Decisions, files touched, acceptance, NOTES** — the established four:
@@ -116,6 +124,11 @@ Numbered so the skill can be checked against them law by law.
     **A stub is a proposal.** A drone that finds the stub wrong says so on
     the issue and goes against it with a stated reason; that is leeway the
     corpus shows drones use well.
+26. **Composition, written down.** A few lines of prose or a small diagram:
+    which class owns which fact, what it exposes, who reads it, what is
+    deleted by name. What cannot be written up concisely cannot be coded
+    cleanly; a Composition that will not come out is a fork still open.
+
 14. **Shapes and seams, not bodies.** The line is signatures, seams, reading
     list, red tests. If swarmify writes the implementation, Sonnet adds
     nothing and Opus has done the work at planning rates without isolation.
@@ -202,6 +215,8 @@ have to carry them.
 | 2026-09-15 | hubs (#729/#901) | "hub that is also a bug" vs "hub that is only a container" kept tripping agents and `hygiene`; owner chose "a parent never carries work" | 19, 21 |
 | 2026-09-15 | warp-vs-drone audit | 17/160 drone transcripts open with a bare "continue"; per-file parity with warp, the tax is coordination and fragmentation — every resume-leg re-derives orientation the issue could have carried | cost argument, 11 |
 | 2026-09-15 | #902, owner | "the more the better; every section met is a happier / more effective drone … some issues have little to no seams, or no reading list because they're exploratory / docs, or small patch jobs … any *serious* issue should ideally be decked out best we can. stubs too — depends on the issue / judgment. a wrong attempt at a stub needs the drone to realize and go against it, which often happens (drones make excellent value judgement calls)" | 13, 17 |
+| 2026-09-16 | #928 → #930/#931 | the camera 2-step was fixed inside the director by reading the blade's `state.pivot_index`, `get_node_visuals()` and a vertex's alpha; the test had to poke those to move the goalpost. The owner caught it from a glimpse of the plan — "opportunity: decouple the director from what it follows by letting the (alive) melee blade provide some %Marker2D" — and the sim storing its own centroid. Seven such redirects in seven days (#889, #900, #910/#917, #927, #928, #930, #931), all answerable from the plan, none from the diff | 25, 26 |
+| 2026-09-17 | owner | "if you can't write it up cleanly (potentially concise, get the idea across) you won't be able to code it up cleanly either" — the Composition section | 26 |
 | 2026-09-15 | #902, owner | stub shape: stubs + `pending()` test on master, so trunk stays green and red-green stays the drone's first commit; drift range-aware and exit 0 always; charter written in the pass, three children | 13, 15 |
 
 ## What the skill must not contain

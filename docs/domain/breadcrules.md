@@ -99,6 +99,15 @@ paths:
 - `description:` is what an agent reads to decide whether the rule is relevant, so
   make it a real summary, not a title.
 
+> **"Read" means the Read tool.** Verified 2026-09-17 in one session: `head -3
+> test/unit/test_smoke.gd` through Bash injected nothing; `Read` on the same
+> file injected `testing.md` (`paths: test/**`). So in a session steered toward
+> Bash (`cat`/`sed -n` "bash golf", which auto mode explicitly asks for) scoped
+> rules are effectively dead, and the only carriers that still fire are
+> always-on rules and the skill/agent files loaded by name. A lesson that must
+> reach a Bash-first author goes in the skill step where it applies (warp 3a,
+> swarmify step 4, Sage's review list), with the scoped rule as the second copy.
+>
 > **Scoping fires on *read*, so it can't catch a from-scratch author.** A brand-new
 > rule written straight through the Write tool is never read first, so a rule
 > scoped to `.claude/rules/*.md` won't have fired to advise the author. *Editing*

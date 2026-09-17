@@ -83,7 +83,13 @@ boundary; then content) against:
    from the diff and the issue, launch the relevant sandbox headless
    (`godot --headless --path <worktree> scenes/<sandbox>.tscn --quit-after 300`)
    and read what it prints, or write "could not name a player-visible effect"
-   in those words. Never skip the line silently.
+   in those words. Never skip the line silently;
+7. **test setup that crosses a unit boundary** — a test of X writing another
+   unit's internals (`y.state.foo`, `y._flag`, a visual's alpha) to arrange
+   X's state is a finding: the fact belongs to Y, and the production code
+   usually mirrors the same reach-in. Name the owner and what it should
+   expose; whether the move lands in this unit or gets filed is `main`'s
+   call, but it never passes unnamed.
 
 Reply to the drone with findings (file:line, what, why) or `approved`.
 

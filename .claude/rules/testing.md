@@ -69,6 +69,8 @@ flag there? Verify the `scripts` count actually drops.
 
 ## Gotchas
 
+- **A test whose setup writes ANOTHER unit's internals has found a seam, not a fixture.** `blade.state.pivot_index`, `preview._live_swing`, `addon._phase = …`, a visual's `modulate.a` — poked from a test that is not about that class — means the fact belongs to that class and the production code mirrors the same reach-in. Make the owner expose it (a marker, a signal, an entry point, a stored sample) and test against that; if that is out of scope, file it and say so in the test's comment. Tests of the class under test reaching its own `_private` state are fine; it is the *cross-unit* write that is the tell.
+
 - **Class-cache miss, not your test: "GUT class_names have not been imported", or a `Scripts`/`Tests` count that dropped after a rebase / is low in a fresh worktree.** A new worktree starts with no `.godot/` class cache, and a rebase (or any new `class_name`, or a GUT update) leaves the existing one stale; scripts referencing the unknown type fail to parse and GUT skips them silently (see below). One fix covers all of it: **`mise run refresh`**, then re-run. Don't audit your test file first.
 - **Autoloads are available in tests** (`StatRegistry`, `Events`, etc.) — GUT boots the project normally.
 - **Scene/node tests** must `add_child(node)` and usually `await get_tree().process_frame` before assertions; remember `queue_free()` in `after_each` (or use GUT's `autofree(node)`).

@@ -67,6 +67,17 @@ A fork is anything a drone would have to *decide*:
 - **Unstated acceptance** — no failing test, no exact spec.
 - **Unowned surfaces** — two plausible implementations landing on different
   modules means the *approach* is undecided.
+- **A fact read from the wrong owner** — the unit that shows the symptom is
+  about to read another unit's internals (a director walking a blade's
+  vertices, a panel writing a controller's private request). Ask *who owns
+  this fact?* and make the owner expose it (a marker, a signal, a stored
+  sample) — that is the fork, and it is answered from the plan, not the diff.
+- **N things that are one** — a list of per-type cases, a rebuild-on-every-
+  signal, a discrete two-step where one continuously-recomputed target
+  would do. Ask *is this one callback / one deferred flag / one value?*
+- **Per-frame and at-scale cost** — anything recomputed in `_process`, per
+  tick, or per entity that a sim, a stored sample, or a once-per-frame
+  dedupe would make an array read. Ask it for both ends of the range (step 3).
 - **Cross-issue dependencies** — recorded as `--blocked-by` relations *and*
   in the spec prose (step 7), never disqualifying; the orchestrator
   sequences them. Only a dependency on a decision nobody has made keeps an
@@ -95,6 +106,10 @@ Post a comment (or edit the body) headed `## Acceptance spec`:
 **Decisions** (owner, <date>)
 - <each resolved fork as one line of settled fact, in the owner's words>
 
+**Composition**
+<how the pieces compose — a few lines of prose or a small diagram: which unit
+owns which fact, what it exposes, who reads it, what dies>
+
 **Files touched**
 - <path> — <what lands here; name any sibling issue sharing it>
 
@@ -113,6 +128,11 @@ path/to/scene.tscn — seam: instances the node
 `````
 
 - **Decisions** — one line per resolved fork, dated, attributed to the owner.
+- **Composition** — the proposed shape, concise: which class owns which
+  fact, what it exposes (marker, signal, accessor), who reads it, which path
+  is deleted by name. Prose or a small diagram, whichever gets the idea
+  across. If it cannot be written up cleanly in a few lines it cannot be
+  coded cleanly either — that is a fork still open, go back to step 4.
 - **Files touched** — the paths the work lands on; name any sibling that
   shares one, and which issue.
 - **Acceptance** — the failing test to make green or an exact behavioural
