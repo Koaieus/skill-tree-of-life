@@ -25,7 +25,7 @@ func before_each() -> void:
 	for i in 4:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
 		sn.name = "N%d" % i
-		_graph.skill_nodes_container.add_child(sn)
+		_graph.add_skill_node(sn)  # emits node_added — the Navigator mirrors it (.claude/rules/graph.md)
 		_nodes.append(sn)
 
 	_add_edge(_nodes[0], _nodes[1])
@@ -51,10 +51,7 @@ func before_each() -> void:
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = a
-	e.to = b
-	_graph.edges_container.add_child(e)
+	_graph.add_edge(a, b)  # emits edge_added — the Navigator mirrors it (.claude/rules/graph.md)
 
 
 func _set_mp(n: int) -> void:
