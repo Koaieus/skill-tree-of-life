@@ -38,6 +38,36 @@ func is_valid_target(plan: AttackPlan, source: SkillNode, candidate: SkillNode) 
 	return true
 
 
+## ONE gather sweep, not one per-pair query per board node (#942). The base
+## default runs [method is_valid_target] over every node, and for a hop finder
+## each of those is a full AStar — 2k nodes, 2k path searches, to paint one
+## highlight. [method RangeFinder.gather] answers the same question in one
+## bounded BFS (hops) or one scan (euclid); the ownership filter is then
+## applied over that reach map, the same gather-then-filter shape as
+## [SpellTargetUnion]. [method is_valid_target] stays the per-pair truth for a
+## single candidate and this MUST agree with it as a set — pinned by
+## test_targeting.gd's equivalence tests — which holds because the sweep reads
+## the same whole-board `graph.navigator` mirror `in_range` does, with the
+## attacker passed so `effective_*` reach scaling folds in identically.
+##
+## No finder means unlimited reach, so there is nothing to sweep: the base
+## per-node filter is the right (and cheap) path then.
+func valid_targets(plan: AttackPlan, source: SkillNode) -> Array[SkillNode]:
+	if range_finder == null:
+		return _filter_skill_nodes(plan, source)
+	var result: Array[SkillNode] = []
+	if source == null or plan == null or plan.attacker == null or plan.attacker.navigator == null:
+		return result
+	var graph := plan.attacker.navigator.graph
+	if graph == null or graph.navigator == null:
+		return result
+	var reach: Dictionary[SkillNode, float] = range_finder.gather(source, graph.navigator, plan.attacker)
+	for candidate: SkillNode in reach:
+		if candidate.ownership_bit(plan.attacker) & ownership_filter != 0:
+			result.append(candidate)
+	return result
+
+
 ## Player-facing "who this can hit" line for [SpellTooltip]'s Cast section
 ## (#764), worded through the shared ownership-bit vocabulary (#384) — the
 ## SAME ONE [OwnerFilter] speaks, kept independent here since that class

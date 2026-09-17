@@ -11,8 +11,11 @@ extends Resource
 ##
 ## Subclasses override [method is_valid_target]; the default
 ## [method valid_targets] iterates the live graph and filters via that
-## predicate, which is enough for NODE-kind targeting. EDGE / POSITION
-## subclasses can override [method valid_targets] entirely.
+## predicate — the right answer only when the predicate is cheap and reach is
+## unbounded (a [NodeTargeting] with no range finder). A ranged NODE targeting
+## overrides it with one [method RangeFinder.gather] sweep instead of N per-pair
+## reach queries (#942, see [method NodeTargeting.valid_targets]); EDGE /
+## POSITION subclasses override it entirely.
 
 
 ## Kinds of input the targeting consumes. PlayerInputController routes
@@ -61,7 +64,9 @@ func get_range_finder() -> RangeFinder:
 ## All currently-valid target SkillNodes given the plan and source. Used
 ## by the highlight overlay to paint IN_RANGE candidates and by AI to
 ## enumerate options. Default iterates the live graph and filters via
-## [method is_valid_target].
+## [method is_valid_target] — the no-range-finder path; anything with a reach
+## model must sweep once (gather) rather than ask per pair, and must agree with
+## [method is_valid_target] exactly.
 func valid_targets(plan: AttackPlan, source: SkillNode) -> Array[SkillNode]:
 	return _filter_skill_nodes(plan, source)
 
