@@ -40,7 +40,7 @@ func before_each() -> void:
 	for i in 3:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
 		sn.name = "N%d" % i
-		_graph.skill_nodes_container.add_child(sn)
+		_graph.add_skill_node(sn)
 		_nodes.append(sn)
 	# Line: N0 (killer core) – N1 (victim core) – N2 (victim node).
 	_add_edge(_nodes[0], _nodes[1])
@@ -420,7 +420,7 @@ func test_pickup_merges_equivalent_grants_instead_of_stacking_copies() -> void:
 	# through Entity.absorb_core_modifier (#775), not grant_core_modifier.
 	var relic_a := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	relic_a.name = "RelicA"
-	_graph.skill_nodes_container.add_child(relic_a)
+	_graph.add_skill_node(relic_a)
 	_add_edge(_nodes[0], relic_a)
 	var dust_a := SkillDustAddon.new()
 	dust_a.candidates = [_mk_mod(&"armor", 5.0)]
@@ -430,7 +430,7 @@ func test_pickup_merges_equivalent_grants_instead_of_stacking_copies() -> void:
 
 	var relic_b := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	relic_b.name = "RelicB"
-	_graph.skill_nodes_container.add_child(relic_b)
+	_graph.add_skill_node(relic_b)
 	_add_edge(_nodes[0], relic_b)
 	var dust_b := SkillDustAddon.new()
 	dust_b.candidates = [_mk_mod(&"armor", 5.0)]
@@ -606,7 +606,7 @@ func test_sequential_would_cycle_filtering_closes_the_joint_cycle_gap() -> void:
 	# A free relic adjacent to the killer's core to allocate onto.
 	var relic := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	relic.name = "Relic"
-	_graph.skill_nodes_container.add_child(relic)
+	_graph.add_skill_node(relic)
 	_add_edge(_nodes[0], relic)
 
 	var dust := SkillDustAddon.new()
@@ -753,7 +753,6 @@ func _mk_mod(id: StringName, v: float) -> StatModifier:
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = a
-	e.to = b
-	_graph.edges_container.add_child(e)
+	# Graph.add_edge emits edge_added so the board Navigator mirrors it
+	# (.claude/rules/graph.md); a container add_child is invisible to it.
+	_graph.add_edge(a, b)
