@@ -3,6 +3,16 @@ class_name EuclideanRangeFinder
 extends RangeFinder
 
 ## Straight-line scene-pixel distance from source to candidate.
+##
+## Reach rule (#944, owner): a candidate is in range when ANY PART of its
+## hitbox lies within the reach circle drawn from the source's centre —
+## `d - candidate.radius <= reach`. The source's own radius never counts
+## (rim-to-rim was offered and not chosen). Consequence: stake-grown nodes
+## are easier to reach. The reach circle [method get_visual] draws is thus
+## exactly "a node whose hitbox touches this is in range".
+##
+## Hops-based finders are unaffected: they treat nodes as infinitesimal
+## vertices. See [method _reaches] — the ONE spelling of this predicate.
 
 @export var max_distance: float = 250.0
 
@@ -10,22 +20,27 @@ extends RangeFinder
 func in_range(attacker: Entity, source: SkillNode, candidate: SkillNode) -> bool:
 	if source == null or candidate == null:
 		return false
-	return source.global_position.distance_to(candidate.global_position) <= effective_distance(attacker, source)
+	return _reaches(_centre_distance(source, candidate), candidate, effective_distance(attacker, source))
 
 
-## One linear scan. Deliberately not a spatial index: an aura recompute runs on
-## allocation events over a tens-of-nodes owned subgraph, not per frame over the
-## whole graph (which is what earns VisionSystem its index). Reach stays
-## unscaled whenever [param attacker] is `null` (every pre-#385 caller) — see
-## [method RangeFinder.gather].
+## One linear scan: O(N) over whatever mirror is handed in, and that mirror is
+## usually the WHOLE BOARD — [NodeTargeting] and [SpellTargetUnion] pass
+## `graph.navigator` (800 nodes today, 2k–3k targeted), and ranged leaves reach
+## 1500px+, so this is neither small nor cheap. A spatial/physics-backed scan
+## (#945) would swap the iteration here and leave [method _reaches] alone.
+## Reach stays unscaled whenever [param attacker] is `null` (every pre-#385
+## caller) — see [method RangeFinder.gather].
+##
+## The stored value is the CENTRE distance `d`, not `d - radius`: it feeds
+## [DistanceScale], which asked for no semantic change.
 func gather(source: SkillNode, mirror: GraphMirror, attacker: Entity = null) -> Dictionary[SkillNode, float]:
 	var out: Dictionary[SkillNode, float] = {}
 	if source == null or mirror == null:
 		return out
 	var reach := max_distance if attacker == null else effective_distance(attacker, source)
 	for n in mirror.get_mirrored_nodes():
-		var d := source.global_position.distance_to(n.global_position)
-		if d <= reach:
+		var d := _centre_distance(source, n)
+		if _reaches(d, n, reach):
 			out[n] = d
 	return out
 
@@ -56,14 +71,29 @@ func gather_multi(sources: Array[SkillNode], mirror: GraphMirror,
 		return out
 	for n in mirror.get_mirrored_nodes():
 		for source: SkillNode in reaches:
-			var d := source.global_position.distance_to(n.global_position)
-			# Cheap reject first: nothing further than the widest radius can be
-			# in reach of ANY source, so the inner test costs nothing on a miss.
-			if d > widest:
+			var d := _centre_distance(source, n)
+			# Cheap reject first: nothing whose hitbox lies wholly past the
+			# widest reach can be in range of ANY source, so the per-source
+			# test costs nothing on a miss.
+			if not _reaches(d, n, widest):
 				continue
-			if d <= reaches[source]:
+			if _reaches(d, n, reaches[source]):
 				(out[source] as Dictionary[SkillNode, float])[n] = d
 	return out
+
+
+## The one reach predicate (#944): [param d] is the centre-to-centre distance
+## from the source, and the candidate is in range when any part of its hitbox
+## lies within [param reach]. Every caller above goes through here; a
+## semantic change is a one-line edit.
+static func _reaches(d: float, candidate: SkillNode, reach: float) -> bool:
+	return d - candidate.radius <= reach
+
+
+## The only centre-distance computation in this file — it both feeds
+## [method _reaches] and is what [method gather] stores.
+static func _centre_distance(source: SkillNode, candidate: SkillNode) -> float:
+	return source.global_position.distance_to(candidate.global_position)
 
 
 func max_reach() -> float:
