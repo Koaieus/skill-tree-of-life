@@ -273,3 +273,118 @@ func test_multiply_leaf_lands_the_formula_result_as_the_factor() -> void:
 	var scale := _expr("1 - d / 5")
 	assert_almost_eq(scale.scale(1.0, 5.0, 1.5), 0.8, 0.001,
 			"the authored 1.5 is ignored — the formula's result is the factor")
+
+
+# ── #943: hops / euclid / relation as formula inputs ────────────────────────
+#
+# `d` stays the metric's own distance; `h` (hop depth over the aura's mirror),
+# `e` (pixels from the source) and `rel` (the node's ownership bit as the aura's
+# owner sees it) are ADDITIONAL inputs, walked only when the formula names them.
+
+## Like [method _spawn_owning_whole_chain] but for any subset — the second
+## entity of the relation fixture owns the far end of the chain.
+func _spawn_owning(core: SkillNode, owned: Array[SkillNode], display: String = "E") -> Entity:
+	var ent := autofree(Entity.new()) as Entity
+	ent.display_name = display
+	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	_graph.entities_container.add_child(ent)
+	await get_tree().process_frame
+	for n in owned:
+		_alloc.force_allocate(ent, n)
+	ent.core_location = core
+	ent.stat_board.armor.base_value = 0.0
+	return ent
+
+
+## Scramble the chain's pixel layout so Euclidean distance from N0 is NOT
+## monotone in hop count: N1 sits far away, N3 sits right next to the core.
+func _scramble_positions() -> void:
+	_chain[1].position = Vector2(700.0, 0.0)
+	_chain[3].position = Vector2(50.0, 0.0)
+	_chain[5].position = Vector2(20.0, 0.0)
+
+
+## Acceptance 1a: a Euclidean METRIC feeds `d` in pixels, yet `10 - h` still
+## follows hop depth — the formula reached past its own metric.
+func test_h_follows_hop_depth_when_the_metric_is_euclidean() -> void:
+	_scramble_positions()
+	var ent: Entity = await _spawn_owning_whole_chain()
+	var aura := _aura("10 - h", -1, [_armor_mod(1.0)])
+	aura.metric = EuclideanMetric.new()
+	ent.grant_effect(aura)
+	for i in 8:
+		assert_almost_eq(_armor(_chain[i]), 10.0 - i, 0.001,
+			"N%d is %d hops out whatever its pixel distance" % [i, i])
+	# Sanity: the scramble really made d disagree with h (else the test proves nothing).
+	assert_lt(_chain[3].position.distance_to(_chain[0].position),
+		_chain[1].position.distance_to(_chain[0].position),
+		"fixture: N3 must be nearer in pixels than N1")
+
+
+## `e` is pixels from the source no matter what the metric measures — a hop
+## metric aura can still fall off spatially through it.
+func test_e_is_pixel_distance_under_a_hop_metric() -> void:
+	_scramble_positions()
+	var ent: Entity = await _spawn_owning_whole_chain()
+	var aura := _aura("e", -1, [_armor_mod(1.0)], AuraEffect.Discard.NONE)
+	aura.metric = HopMetric.new()
+	ent.grant_effect(aura)
+	assert_almost_eq(_armor(_chain[1]), 700.0, 0.5)
+	assert_almost_eq(_armor(_chain[3]), 50.0, 0.5)
+	assert_almost_eq(_armor(_chain[5]), 20.0, 0.5)
+
+
+## Acceptance 1b: `v * (rel == 8 ? 2 : 1)` doubles on HOSTILE only. A owns
+## N0..N3, B owns N5..N7, N4 is nobody's; A's GLOBAL aura sees its own nodes as
+## MINE (2), the gap as NEUTRAL (1) and B's as HOSTILE (8).
+func test_rel_doubles_on_hostile_nodes_only() -> void:
+	var a: Entity = await _spawn_owning(_chain[0], [_chain[0], _chain[1], _chain[2], _chain[3]], "A")
+	var _b: Entity = await _spawn_owning(_chain[7], [_chain[5], _chain[6], _chain[7]], "B")
+	var aura := _aura("v * (rel == 8 ? 2 : 1)", -1, [_armor_mod(5.0)])
+	aura.scope = AuraEffect.Scope.GLOBAL
+	a.grant_effect(aura)
+	assert_almost_eq(_armor(_chain[0]), 5.0, 0.001, "MINE: unchanged")
+	assert_almost_eq(_armor(_chain[3]), 5.0, 0.001, "MINE: unchanged")
+	assert_almost_eq(_armor(_chain[4]), 5.0, 0.001, "NEUTRAL: unchanged")
+	assert_almost_eq(_armor(_chain[5]), 10.0, 0.001, "HOSTILE: doubled")
+	assert_almost_eq(_armor(_chain[7]), 10.0, 0.001, "HOSTILE: doubled")
+
+
+## Acceptance 1c: a formula naming neither `h` nor `e` reports neither want,
+## and the aura never opens the hop door for it.
+func test_a_formula_naming_neither_h_nor_e_never_walks_hops() -> void:
+	var ent: Entity = await _spawn_owning_whole_chain()
+	var scale := _expr("v * (1 - d / max)")
+	assert_false(scale.wants_hops(), "no `h` in the formula")
+	assert_false(scale.wants_euclid(), "no `e` in the formula")
+	var aura := _aura("v * (1 - d / max)", 4, [_armor_mod(4.0)])
+	aura.metric = EuclideanMetric.new()
+	var before := HopMetric.depths_call_count
+	ent.grant_effect(aura)
+	assert_eq(HopMetric.depths_call_count - before, 0,
+		"HopMetric.depths must not be called for a formula that never names h")
+
+
+## The wants are word-boundary matched on the authored text, like `uses_bound`.
+func test_wants_hops_and_wants_euclid_track_the_formula(params = use_parameters([
+		["v * h", true, false],
+		["e / 2", false, true],
+		["h + e", true, true],
+		["5 - d", false, false],
+		["maxf(e, 1.0) * h", true, true],
+		["hypot(d, 1.0)", false, false],   # `h` inside an identifier is not the input
+		["10 - d / max", false, false],
+	])) -> void:
+	var scale := _expr(params[0])
+	assert_eq(scale.wants_hops(), params[1], "%s wants_hops" % params[0])
+	assert_eq(scale.wants_euclid(), params[2], "%s wants_euclid" % params[0])
+
+
+## The 3-arg `scale` keeps working by passing the sentinels `h = -1, e = -1,
+## rel = 0` — a formula that never names them evaluates exactly as before.
+func test_three_arg_scale_passes_the_sentinels() -> void:
+	assert_almost_eq(_expr("h + e + rel").scale(0.0, -1.0, 0.0), -2.0, 0.001)
+	assert_almost_eq(_expr("5 - d").scale(2.0, -1.0, 9.0), 3.0, 0.001,
+		"a formula blind to the new inputs is unchanged")
+	assert_almost_eq(_expr("v * (1 - h / max)").scale_at(1.0, 4.0, 8.0, 2.0, 300.0, 2), 4.0, 0.001,
+		"scale_at hands the formula h")

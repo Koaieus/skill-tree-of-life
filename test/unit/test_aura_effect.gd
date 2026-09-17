@@ -421,3 +421,47 @@ func test_owned_scope_does_not_reach_through_unowned_nodes() -> void:
 	assert_almost_eq(_armor(_nodes[0]), 5.0, 0.001)
 	assert_almost_eq(_armor(_nodes[2]), 0.0, 0.001,
 		"unreachable over owned edges — node 1 is not owned")
+
+
+# ── #943 addendum 2: `h` is a bounded walk, never a flood ───────────────────
+
+## Extend line 3-4-5 into a 200-node path 3-4-5-6-…-199, spaced 100px apart.
+func _grow_path_to_200() -> void:
+	var prev := _nodes[5]
+	for i in range(6, 200):
+		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
+		sn.name = "N%d" % i
+		sn.position = Vector2(i * 100.0, 0.0)
+		_graph.add_skill_node(sn)
+		_add_edge(prev, sn)
+		_nodes.append(sn)
+		prev = sn
+
+
+## A GLOBAL-scope, Euclidean-reach aura whose formula names `h` walks hops only
+## as far as Q1's selection needs — the selected set plus its frontier — and
+## never floods the 200-node mirror. Reach 250px selects N98..N102 (every
+## selected node a 50px margin inside the reach — never boundary-exact).
+func test_h_on_a_global_euclid_aura_walks_a_bounded_ball_not_the_mirror() -> void:
+	_grow_path_to_200()
+	var ent: Entity = await _spawn(_nodes[100], [_nodes[100]])
+	var aura := AuraEffect.new()
+	aura.scope = AuraEffect.Scope.GLOBAL
+	var reach := EuclideanRangeFinder.new()
+	reach.max_distance = 250.0
+	aura.reach = reach
+	var scale := ExpressionScale.new()
+	scale.formula = "10 - h"
+	aura.distance_scale = scale
+	aura.modifiers = [_armor_mod(1.0)]
+	HopMetric.last_walk_size = 0
+	ent.grant_effect(aura)
+
+	assert_almost_eq(_armor(_nodes[100]), 10.0, 0.001)
+	assert_almost_eq(_armor(_nodes[98]), 8.0, 0.001, "two hops out")
+	assert_almost_eq(_armor(_nodes[102]), 8.0, 0.001, "two hops out")
+	assert_almost_eq(_armor(_nodes[97]), 0.0, 0.001, "outside the euclid reach")
+	var selected := 5
+	assert_gt(HopMetric.last_walk_size, 0, "the hop door was opened")
+	assert_lte(HopMetric.last_walk_size, 2 * selected + 1,
+		"the walk is capped by the selected set's size, not the mirror's")

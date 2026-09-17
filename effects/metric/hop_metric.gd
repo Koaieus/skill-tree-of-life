@@ -13,6 +13,16 @@ extends DistanceMetric
 ## what makes a Serpent's coil worth building, and what stops a path from
 ## shortcutting through enemy land.
 
+## STUB (#943) — test seams + the bounded door, unimplemented.
+static var depths_call_count: int = 0
+static var last_walk_size: int = 0
+
+
+static func depths(_source: SkillNode, _mirror: GraphMirror, _max_hops: int) -> Dictionary[SkillNode, float]:
+	depths_call_count += 1
+	return {}
+
+
 func distances(source: SkillNode, nodes: Array[SkillNode], mirror: GraphMirror) -> Dictionary[SkillNode, float]:
 	var out: Dictionary[SkillNode, float] = {}
 	if source == null or mirror == null:

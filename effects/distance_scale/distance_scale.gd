@@ -40,6 +40,20 @@ extends Resource
 @abstract func scale(distance: float, max_distance: float, value: float) -> float
 
 
+## STUB (#943): the positional hook — see the real docstring once implemented.
+func scale_at(distance: float, max_distance: float, value: float,
+		_hops: float, _euclid: float, _relation: int) -> float:
+	return scale(distance, max_distance, value)
+
+
+func wants_hops() -> bool:
+	return false
+
+
+func wants_euclid() -> bool:
+	return false
+
+
 ## An optional tooltip clause describing the shape, e.g. "falling off with
 ## distance". Never derived from a formula string — authored, like
 ## [StatFormula]'s `per_phrase`. [method AuraEffect.get_description] appends it.
