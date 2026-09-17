@@ -105,7 +105,8 @@ unfinished.
 - **"Pre-existing failure" is a claim.** Say so in `NOTES:`; the orchestrator
   confirms against real `master`. Your worktree may hold a sibling's commit.
 - Fresh worktree: the first `check`/`test` cold-imports (slow, noisy —
-  expected); a new `class_name` needs this worktree's own `refresh`.
+  expected); `test*` refreshes the class cache itself when a `class_name` is
+  new, so a `class cache stale … refreshing…` preamble is normal, not a fault.
 
 ## Never
 

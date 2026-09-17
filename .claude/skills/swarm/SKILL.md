@@ -271,9 +271,11 @@ batch is fast-forwarded — and only when the batch is runtime-observable:
 nothing for a docs-only train. Red train → bisect with `test:dir` on the
 merge points. Launch the suite backgrounded and end your turn.
 
-**After a new `class_name` lands, `mise run refresh` on master and compare
-script counts** before and after: a `.uid` that was never generated, or
-generated but never staged, is a test that silently never ran.
+**After a new `class_name` lands, compare script counts** before and after
+the train's suite run: a `.uid` that was never generated, or generated but
+never staged, is a test that silently never ran, and no cache predicate sees
+it. The cache itself needs no hand `refresh` — `mise run test*` refreshes it
+when the `class_name` set drifts.
 
 `Closes` fires on push. `git status -sb` before claiming anything is done;
 `master` may carry others' commits a push would ship — surface that. After

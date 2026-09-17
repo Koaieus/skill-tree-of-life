@@ -168,11 +168,24 @@ with a lower `Scripts`/`Tests` total**, because a script that can't resolve a
 type fails to parse and GUT skips the whole file silently
 (`.claude/rules/testing.md`). Don't go auditing the test file; refresh first.
 
-The cache only rebuilds when the editor enumerates the project:
+The cache only rebuilds when the editor enumerates the project — and **`mise
+run test` / `test:one` / `test:dir` do that for you** (#919): before GUT
+starts, `.mise/tasks/test` diffs the `class_name` set declared in the tree
+against the cache (`class_cache_drift`, ~50ms) and, only when they differ,
+prints `class cache stale (N new / M gone): refreshing…` and runs `refresh`
+itself. All three triggers above are exactly that predicate firing, so a test
+run never reads red for this reason any more; a fresh worktree's first `test`
+pays the one ~12s refresh, and a current cache pays nothing. Hand-run
+`refresh` only for a non-test launch — a sandbox scene, `godot --script` —
+and never for `check`, which is itself an editor pass:
 
 ```bash
 mise run refresh      # or: godot --headless --editor --quit
 ```
+
+One case keeps firing: a `.gd` with a parse error and a `class_name` never
+enters the cache, so every `test` run refreshes (12s) and prints the `SCRIPT
+ERROR` — fix the script; the noise is the diagnosis.
 
 **`refresh` reporting "nothing changed" does NOT mean the cache was already
 current.** That verdict describes *file churn* — which scenes and resources the

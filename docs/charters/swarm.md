@@ -167,9 +167,10 @@ on small units with an existing named test.
     is fast-forwarded, and only when the batch is runtime-observable
     (`.gd`/`.tscn` changed) — `check` for a scripts-only batch, nothing for
     docs. Red train → bisect by `test:dir` on merge points.
-22. **After a new `class_name` lands, `mise run refresh` on master, and
-    compare script counts** — a missing or unstaged `.uid` is a test that
-    silently never ran.
+22. **After a new `class_name` lands, compare script counts** across the
+    train's suite run — a missing or unstaged `.uid` is a test that silently
+    never ran, and no cache predicate sees it. The cache needs no hand
+    `refresh`: `mise run test*` refreshes it itself on `class_name` drift.
 23. **`Closes` fires on push.** Then `mise gh-project -- hygiene --fix` once,
     which derives every hub. A blocked unit goes back to `ready` with a
     comment; never `in-progress` with nobody on it.
