@@ -291,3 +291,95 @@ func test_min_degree_gate_rejects_unowned_sources_and_passes_a_null_source() -> 
 	assert_true(book.is_castable(spell, null, _a),
 		"pre-source state must not grey the spell out")
 	assert_false(book.is_castable(null, _n[0], _a), "no spell, no cast")
+
+
+# ── valid_targets is ONE gather sweep, equal to the per-pair predicate (#942)
+
+
+## Counts per-pair `in_range` calls: the whole point of #942 is that the
+## whole-board enumeration never asks the per-pair question (one AStar each).
+class _SpyHopFinder extends HopRangeFinder:
+	var in_range_calls := 0
+	func in_range(attacker: Entity, source: SkillNode, candidate: SkillNode) -> bool:
+		in_range_calls += 1
+		return super(attacker, source, candidate)
+
+
+class _SpyEuclidFinder extends EuclideanRangeFinder:
+	var in_range_calls := 0
+	func in_range(attacker: Entity, source: SkillNode, candidate: SkillNode) -> bool:
+		in_range_calls += 1
+		return super(attacker, source, candidate)
+
+
+## {n | is_valid_target(plan, src, n)} as sorted names — the per-pair truth the
+## sweep must reproduce exactly.
+func _per_pair(t: NodeTargeting, plan: AttackPlan, source: SkillNode) -> Array[String]:
+	var out: Array[SkillNode] = []
+	for sn in _graph.get_skill_nodes():
+		if t.is_valid_target(plan, source, sn):
+			out.append(sn)
+	return _names(out)
+
+
+## Disable a vertex on the global mirror — a blocked point that BOTH the
+## per-pair AStar and the BFS must refuse to traverse or land on.
+func _block(node: SkillNode) -> void:
+	var nav := _graph.navigator
+	nav.astar.set_point_disabled(nav.vertex_id(node), true)
+
+
+func test_valid_targets_equals_the_per_pair_predicate_under_a_hop_finder() -> void:
+	# n0 —(n1)— n2 blocked — n3 beyond reach anyway; n4 off n1; n5 disconnected.
+	_h.assign_owner(_graph, _a, [0])
+	_h.assign_owner(_graph, _d, [2, 3, 4])
+	_block(_n[2])
+	var spy := _SpyHopFinder.new()
+	spy.max_hops = 2
+	const ANY := 15
+	var t := _targeting(ANY, spy)
+	var plan := _plan_for(_a)
+	var expected := _per_pair(t, plan, _n[0])
+	assert_eq(expected, ["N0", "N1", "N4"],
+		"fixture pin: the blocked N2 drops out, N3/N5 are unreachable")
+	spy.in_range_calls = 0
+	assert_eq(_names(t.valid_targets(plan, _n[0])), expected,
+		"the sweep must agree with the per-pair predicate as a set")
+	assert_eq(spy.in_range_calls, 0,
+		"valid_targets must gather once, never call in_range per candidate")
+
+
+func test_valid_targets_equals_the_per_pair_predicate_under_a_euclidean_finder() -> void:
+	# Nodes sit at x = i*100. Reach 240 keeps every candidate a full 40px+
+	# clear of the boundary on either side (N2 at 200 in, N3 at 300 out), so
+	# the finder's hitbox-vs-centre reach rule cannot flip the set.
+	_h.assign_owner(_graph, _a, [0])
+	_h.assign_owner(_graph, _d, [1, 3, 5])
+	var spy := _SpyEuclidFinder.new()
+	spy.max_distance = 240.0
+	const ANY := 15
+	var t := _targeting(ANY, spy)
+	var plan := _plan_for(_a)
+	var expected := _per_pair(t, plan, _n[0])
+	assert_eq(expected, ["N0", "N1", "N2"], "fixture pin: 0/100/200 in, 300+ out")
+	spy.in_range_calls = 0
+	assert_eq(_names(t.valid_targets(plan, _n[0])), expected,
+		"the sweep must agree with the per-pair predicate as a set")
+	assert_eq(spy.in_range_calls, 0,
+		"valid_targets must gather once, never call in_range per candidate")
+
+
+func test_valid_targets_applies_the_ownership_filter_after_the_sweep() -> void:
+	_h.assign_owner(_graph, _a, [0])
+	_h.assign_owner(_graph, _d, [1])  # hostile, and ON the path to N2
+	var spy := _SpyHopFinder.new()
+	spy.max_hops = 2
+	const NOT_HOSTILE := SkillNode.Ownership.NEUTRAL | SkillNode.Ownership.MINE | SkillNode.Ownership.ALLY
+	var t := _targeting(NOT_HOSTILE, spy)
+	var plan := _plan_for(_a)
+	var expected := _per_pair(t, plan, _n[0])
+	assert_eq(expected, ["N0", "N2", "N4"],
+		"fixture pin: hostile N1 is filtered out but still traversed to reach N2/N4")
+	spy.in_range_calls = 0
+	assert_eq(_names(t.valid_targets(plan, _n[0])), expected)
+	assert_eq(spy.in_range_calls, 0)
