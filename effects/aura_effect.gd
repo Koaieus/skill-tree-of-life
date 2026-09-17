@@ -153,11 +153,13 @@ func recompute(ctx: EffectContext) -> void:
 
 	var dists := _distances(source, mirror)
 	var bound := _bound(dists)
+	_open_frame(source, mirror, dists)
 	for node in dists:
 		if not is_instance_valid(node):
 			continue
 		_open_batch(ctx, node, batched, seen)
 		_grant_to(ctx, node, dists[node], bound)
+	_close_frame()
 	_close_batches(batched)
 
 
@@ -284,7 +286,9 @@ func _apply_membership_update(ctx: EffectContext, source: SkillNode, mirror: Gra
 	# Bound-independent by construction (only reached when
 	# [method DistanceScale.uses_bound] said no) — the scale ignores whatever we
 	# pass here, so -1.0 is safe.
+	_open_frame(source, mirror, one)
 	_grant_to(ctx, changed_node, one[changed_node], -1.0)
+	_close_frame()
 
 
 ## The hop-shaped path: pull the shared, generation-cached raw map (walked at
@@ -308,6 +312,7 @@ func _apply_hop_diff(ctx: EffectContext, source: SkillNode, mirror: GraphMirror)
 	for node in new_dists:
 		touched[node] = true
 	var bound := _bound(new_dists)
+	_open_frame(source, mirror, new_dists)
 	for node in touched:
 		if not is_instance_valid(node):
 			continue
@@ -320,6 +325,7 @@ func _apply_hop_diff(ctx: EffectContext, source: SkillNode, mirror: GraphMirror)
 		if not now_in:
 			continue
 		_grant_to(ctx, node, new_dists[node], bound)
+	_close_frame()
 
 
 func get_description() -> String:
@@ -355,6 +361,16 @@ func _has_payload() -> bool:
 ## [param ctx], so the [EffectInstance] ledger stays the sole record and
 ## `revoke_all` keeps working without the subclass doing any bookkeeping.
 func _grant_to(ctx: EffectContext, node: SkillNode, distance: float, bound: float) -> void:
+	var hops: float = -1.0
+	var euclid: float = -1.0
+	var relation: int = 0
+	if distance_scale != null:
+		hops = float(_frame_depths.get(node, -1.0))
+		if distance_scale.wants_euclid() and _frame_source != null:
+			euclid = _frame_source.global_position.distance_to(node.global_position)
+		# Null-viewer rule (NodeCombat.ownership_bit): unowned → NEUTRAL,
+		# owned by anyone while nobody is asking → HOSTILE.
+		relation = node.ownership_bit(ctx.entity)
 	for m in modifiers:
 		if m == null:
 			continue
@@ -364,12 +380,47 @@ func _grant_to(ctx: EffectContext, node: SkillNode, distance: float, bound: floa
 		var any_kept := false
 		for i in leaves.size():
 			var v: float = leaves[i].value
-			var computed: float = v if distance_scale == null else distance_scale.scale(distance, bound, v)
+			var computed: float = v if distance_scale == null else distance_scale.scale_at(
+				distance, bound, v, hops, euclid, relation)
 			values[i] = computed
 			if not _discards(computed):
 				any_kept = true
 		if any_kept:
 			ctx.grant_at(m, values, node)
+
+
+## The extra inputs [method DistanceScale.scale_at] may read (#943), resolved
+## ONCE per grant pass rather than once per node: the bounded hop ball when
+## the scale [method DistanceScale.wants_hops], the source for a per-node
+## `distance_to` when it [method DistanceScale.wants_euclid]. Transient — set
+## by [method _open_frame] right before a `_grant_to` loop and cleared by
+## [method _close_frame] right after, inside the same synchronous call; never
+## per-entity state on this shared resource. [method _grant_to]'s signature is
+## the subclass seam ([TagAuraEffect], [HealAuraEffect]) and stays 4-arg,
+## which is why the frame rides here instead of on the parameter list.
+var _frame_depths: Dictionary = {}
+var _frame_source: SkillNode = null
+
+
+func _open_frame(source: SkillNode, mirror: GraphMirror, selected: Dictionary[SkillNode, float]) -> void:
+	_frame_source = source
+	_frame_depths = {}
+	if distance_scale != null and distance_scale.wants_hops():
+		_frame_depths = HopMetric.depths(source, mirror, _hop_cap(selected))
+
+
+func _close_frame() -> void:
+	_frame_depths = {}
+	_frame_source = null
+
+
+## How far, in hops, a selected node can possibly be: the reach's own bound
+## when it is hop-shaped, else the selected set's size (a path inside the set
+## can't be longer). Q2 never re-walks the world Q1 already filtered.
+func _hop_cap(selected: Dictionary[SkillNode, float]) -> int:
+	if reach is HopRangeFinder:
+		return int(reach.max_reach())
+	return selected.size()
 
 
 ## Is [param value] filtered out by [member discard]? A composite is granted
@@ -411,7 +462,7 @@ func _distances(source: SkillNode, mirror: GraphMirror) -> Dictionary[SkillNode,
 	var nodes: Array[SkillNode] = []
 	for n in selected:
 		nodes.append(n)
-	return metric.distances(source, nodes, mirror)
+	return metric.distances(source, nodes, mirror, _hop_cap(selected))
 
 
 ## Domain for the normalizing scales. The reach bound when there is one, else the

@@ -1,9 +1,11 @@
 class_name AuraDistanceCache
 extends RefCounted
 
-## Shared per-[code](mirror, source)[/code] hop-distance cache (#626).
+## Shared per-[code](mirror, source)[/code] hop-distance cache (#626) — of
+## BOUNDED walks (#943): every entry remembers the hop cap it was walked to,
+## and serves any later ask on the same generation whose cap it covers.
 ##
-## [HopMetric] is the sole reader/writer — see [method HopMetric.distances].
+## [HopMetric] is the sole reader/writer — see [method HopMetric.depths].
 ## The problem it solves: two hop-metric auras sharing one source (the
 ## Serpent's pair, both radiating from the core) each ask [method
 ## DistanceMetric.distances] on every allocation/deallocation. Without this,
@@ -29,7 +31,7 @@ extends RefCounted
 ## avoids pinning a dangling key here forever.
 
 ## mirror(Object) -> { source(SkillNode) -> { "raw": Dictionary[SkillNode,float],
-## "generation": int } }
+## "generation": int, "max_hops": int } }
 static var _entries: Dictionary = {}
 
 ## Test seam: how many times [method get_or_walk] actually invoked its walk
@@ -56,24 +58,29 @@ static func peek(mirror: GraphMirror, source: SkillNode) -> Dictionary:
 	return entry.get("raw", {})
 
 
-## The full raw distance map for [param source] over [param mirror]. Walks
-## fresh via [param walk_fn] (a zero-arg [Callable] returning
-## [code]Dictionary[SkillNode, float][/code]) only when nothing valid is
-## cached for the mirror's current topology generation; every other caller
-## within that generation gets the same [Dictionary] back untouched.
-static func get_or_walk(mirror: GraphMirror, source: SkillNode, walk_fn: Callable) -> Dictionary:
+## The raw distance map for [param source] over [param mirror], walked to at
+## least [param max_hops]. Walks fresh via [param walk_fn] (a one-arg
+## [Callable] taking the hop cap and returning
+## [code]Dictionary[SkillNode, float][/code]) only when nothing cached for the
+## mirror's current topology generation covers the asked cap; every other
+## caller within that generation gets the same [Dictionary] back untouched. A
+## miss on a live generation re-walks to the WIDER of the two caps, so two
+## auras asking different bounds converge on one entry instead of thrashing.
+static func get_or_walk(mirror: GraphMirror, source: SkillNode, max_hops: int, walk_fn: Callable) -> Dictionary:
 	if mirror == null or source == null:
-		return walk_fn.call()
+		return walk_fn.call(max_hops)
 	var gen := _generation_of(mirror)
 	if gen < 0:
-		return walk_fn.call()
+		return walk_fn.call(max_hops)
 	if not _entries.has(mirror):
 		_entries[mirror] = {}
 	var by_source: Dictionary = _entries[mirror]
 	var entry: Dictionary = by_source.get(source, {})
-	if entry.get("generation", -1) != gen:
+	var same_gen: bool = entry.get("generation", -1) == gen
+	if not same_gen or int(entry.get("max_hops", -1)) < max_hops:
+		var cap := maxi(max_hops, int(entry.get("max_hops", -1))) if same_gen else max_hops
 		walk_count += 1
-		entry = {"raw": walk_fn.call(), "generation": gen}
+		entry = {"raw": walk_fn.call(cap), "generation": gen, "max_hops": cap}
 		by_source[source] = entry
 	return entry["raw"]
 

@@ -6,7 +6,7 @@ extends DistanceMetric
 ## — two nodes may be adjacent in space and many hops apart, which is exactly the
 ## tension the Serpent is built on.
 
-func distances(source: SkillNode, nodes: Array[SkillNode], _mirror: GraphMirror) -> Dictionary[SkillNode, float]:
+func distances(source: SkillNode, nodes: Array[SkillNode], _mirror: GraphMirror, _hop_cap: int = -1) -> Dictionary[SkillNode, float]:
 	var out: Dictionary[SkillNode, float] = {}
 	if source == null:
 		return out

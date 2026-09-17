@@ -40,16 +40,33 @@ extends Resource
 @abstract func scale(distance: float, max_distance: float, value: float) -> float
 
 
-## STUB (#943): the positional hook — see the real docstring once implemented.
+## The positional hook (#943): the same value as [method scale], with three
+## more facts about the node the aura's metric did not measure —
+## [param hops] (shortest-path edge count from the source over the aura's
+## mirror, `-1.0` when the node is in another component or the walk was not
+## asked for), [param euclid] (pixels from the source, `-1.0` when not asked
+## for) and [param relation] (the node's [enum SkillNode.Ownership] bit as
+## the aura's owner sees it: NEUTRAL 1, MINE 2, ALLY 4, HOSTILE 8).
+##
+## No class, no lens: the owner's call was a positional hook, since a
+## `NodeRelation` view would hold nothing but the two nodes. The library
+## shapes never override this — only [ExpressionScale] does, because only a
+## formula can name `h`, `e` or `rel`. [AuraEffect] pays for [param hops] /
+## [param euclid] only when [method wants_hops] / [method wants_euclid] say so.
 func scale_at(distance: float, max_distance: float, value: float,
 		_hops: float, _euclid: float, _relation: int) -> float:
 	return scale(distance, max_distance, value)
 
 
+## True when [method scale_at] reads its `hops` argument — the aura walks hop
+## depths (a bounded BFS, [method HopMetric.depths]) only for a scale that
+## says so. Default false; [ExpressionScale] answers from the formula text.
 func wants_hops() -> bool:
 	return false
 
 
+## True when [method scale_at] reads its `euclid` argument — one
+## `distance_to` per selected node, skipped otherwise. Default false.
 func wants_euclid() -> bool:
 	return false
 

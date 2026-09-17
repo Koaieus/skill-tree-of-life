@@ -334,20 +334,31 @@ func test_e_is_pixel_distance_under_a_hop_metric() -> void:
 	assert_almost_eq(_armor(_chain[5]), 20.0, 0.5)
 
 
-## Acceptance 1b: `v * (rel == 8 ? 2 : 1)` doubles on HOSTILE only. A owns
+## Acceptance 1b: `v * (1 + int(rel == 8))` doubles on HOSTILE only. A owns
 ## N0..N3, B owns N5..N7, N4 is nobody's; A's GLOBAL aura sees its own nodes as
-## MINE (2), the gap as NEUTRAL (1) and B's as HOSTILE (8).
+## MINE (2), the gap as NEUTRAL (1) and B's as HOSTILE (8). Every Entity
+## defaults to the same npc faction (allies), so B gets a faction of its own.
 func test_rel_doubles_on_hostile_nodes_only() -> void:
 	var a: Entity = await _spawn_owning(_chain[0], [_chain[0], _chain[1], _chain[2], _chain[3]], "A")
-	var _b: Entity = await _spawn_owning(_chain[7], [_chain[5], _chain[6], _chain[7]], "B")
-	var aura := _aura("v * (rel == 8 ? 2 : 1)", -1, [_armor_mod(5.0)])
+	var b: Entity = await _spawn_owning(_chain[7], [_chain[5], _chain[6], _chain[7]], "B")
+	var rival := Faction.new()
+	rival.id = &"rival"
+	b.faction = rival
+	var aura := _aura("v * (1 + int(rel == 8))", -1, [_armor_mod(5.0)])
 	aura.scope = AuraEffect.Scope.GLOBAL
-	a.grant_effect(aura)
+	var inst := a.grant_effect(aura)
 	assert_almost_eq(_armor(_chain[0]), 5.0, 0.001, "MINE: unchanged")
 	assert_almost_eq(_armor(_chain[3]), 5.0, 0.001, "MINE: unchanged")
 	assert_almost_eq(_armor(_chain[4]), 5.0, 0.001, "NEUTRAL: unchanged")
 	assert_almost_eq(_armor(_chain[5]), 10.0, 0.001, "HOSTILE: doubled")
 	assert_almost_eq(_armor(_chain[7]), 10.0, 0.001, "HOSTILE: doubled")
+	# Same faction again → ALLY (4), not HOSTILE: the bit really is the relation.
+	a.revoke_effect(inst)
+	b.faction = a.faction
+	aura.distance_scale = _expr("v * (1 + int(rel == 4))")
+	a.grant_effect(aura)
+	assert_almost_eq(_armor(_chain[0]), 5.0, 0.001, "MINE is not ALLY")
+	assert_almost_eq(_armor(_chain[5]), 10.0, 0.001, "ALLY: doubled now")
 
 
 ## Acceptance 1c: a formula naming neither `h` nor `e` reports neither want,

@@ -2,22 +2,39 @@
 class_name ExpressionScale
 extends DistanceScale
 
-## An authored `(d, max, v) => value` formula, evaluated through Godot's
-## [Expression]. The escape hatch that makes the closed-form library optional.
+## An authored `(d, max, v, h, e, rel) => value` formula, evaluated through
+## Godot's [Expression]. The escape hatch that makes the closed-form library
+## optional.
 ##
-## Three float inputs, and it returns the value to grant:
+## Six inputs, and it returns the value to grant:
 ##
 ## - [code]d[/code] — the metric's distance to this node.
 ## - [code]max[/code] — the reach bound in the same units, or `-1.0` unbounded.
 ## - [code]v[/code] — the authored value being shaped (the leaf modifier's
 ##   `value`). Per leaf, so a composite's three leaves get three results.
+## - [code]h[/code] — hop depth from the source over the aura's mirror,
+##   whatever the metric measured; `-1.0` for a node in another component.
+## - [code]e[/code] — pixels from the source, whatever the metric measured.
+## - [code]rel[/code] — the node's [enum SkillNode.Ownership] bit as the aura's
+##   owner sees it: NEUTRAL 1, MINE 2, ALLY 4, HOSTILE 8 (an int, so `rel & 8`
+##   works as well as `rel == 8`).
 ##
 ## [codeblock]
-## "5 - d"               # 5 at the core, 4, 3, 2, 1 — the absolute ladder
-## "v * (1 - d / max)"   # LinearScale
-## "v"                   # FlatScale
-## "v * d"               # ProportionalScale
+## "5 - d"                     # 5 at the core, 4, 3, 2, 1 — the absolute ladder
+## "v * (1 - d / max)"         # LinearScale
+## "v"                         # FlatScale
+## "v * d"                     # ProportionalScale
+## "v * (1 - h / 4)"           # fall off by hops on an aura that REACHES by pixels
+## "v * (1 + int(rel == 8))"  # double on HOSTILE; Expression has no ternary, so bool → int
 ## [/codeblock]
+##
+## [b]`h` and `e` are paid for only when named[/b] (#943): [AuraEffect] asks
+## [method wants_hops] / [method wants_euclid] and walks the bounded hop ball
+## ([method HopMetric.depths]) or takes the per-node `distance_to` only then.
+## The 3-arg [method scale] path feeds the sentinels `h = -1, e = -1, rel = 0`,
+## so a formula that never names them evaluates exactly as it did before.
+## Gating ("start after N hops") belongs in the reach, not here — a range
+## finder drops the node before any formula runs.
 ##
 ## [b]`v` is opt-in, and that is the point.[/b] A formula that omits it ignores
 ## the authored number entirely — which is how you say "heal 5, 4, 3, 2, 1"
@@ -38,7 +55,7 @@ extends DistanceScale
 
 ## The variable names bound at parse time, in the order [method scale] pushes
 ## their values — the INTERNAL spelling. Authors write `max`; see [constant BOUND].
-const INPUTS := ["d", "__max", "v"]
+const INPUTS := ["d", "__max", "v", "h", "e", "rel"]
 
 ## The authored name of the bound, and the internal one it is rewritten to.
 ##
@@ -77,13 +94,22 @@ func _set_formula(v: String) -> void:
 ## `d / max` floor to 0 or 1 and quietly flatten the whole curve (#333's sibling
 ## trap, verified in `test_inputs_are_floats_not_ints`).
 func scale(distance: float, max_distance: float, value: float) -> float:
+	return scale_at(distance, max_distance, value, -1.0, -1.0, 0)
+
+
+## The six-input door — see the class docs for what each input is. [param
+## relation] stays an int: it is a bit, never divided.
+func scale_at(distance: float, max_distance: float, value: float,
+		hops: float, euclid: float, relation: int) -> float:
 	if _expr == null:
 		if _parse_failed:
 			return 0.0
 		_parse()
 	if _expr == null:
 		return 0.0
-	var result: Variant = _expr.execute([float(distance), float(max_distance), float(value)])
+	var result: Variant = _expr.execute([
+		float(distance), float(max_distance), float(value), float(hops), float(euclid), int(relation),
+	])
 	if _expr.has_execute_failed():
 		push_error("ExpressionScale execute failed in '%s': %s" % [formula, _expr.get_error_text()])
 		return 0.0
@@ -101,6 +127,23 @@ func scale(distance: float, max_distance: float, value: float) -> float:
 ## rebuild while under-reporting is a correctness bug.
 func uses_bound() -> bool:
 	return _internal_text() != formula
+
+
+## Whether the formula names `h` — word-boundary matched, like
+## [method uses_bound], so `hypot(d, 1)` does not trigger a hop walk.
+func wants_hops() -> bool:
+	return _mentions("h")
+
+
+## Whether the formula names `e`. `1e5` is one token to `\b`, so a literal
+## exponent does not count.
+func wants_euclid() -> bool:
+	return _mentions("e")
+
+
+func _mentions(input: String) -> bool:
+	var rx := RegEx.create_from_string("\\b%s\\b" % input)
+	return rx != null and rx.search(_internal_text()) != null
 
 
 ## The authored formula with `max` rewritten to the identifier [Expression] will

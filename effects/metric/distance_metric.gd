@@ -16,7 +16,11 @@ extends Resource
 ## Batch by design: a hop metric is one BFS for the whole set, never one query
 ## per node.
 
-@abstract func distances(source: SkillNode, nodes: Array[SkillNode], mirror: GraphMirror) -> Dictionary[SkillNode, float]
+## Distance from [param source] to each of [param nodes] over [param mirror].
+## [param hop_cap] is the caller's knowledge of how far a selected node can
+## be in hops (the reach's bound), `-1` when it has none; a metric that walks
+## the graph bounds itself by it, a spatial one ignores it (#943).
+@abstract func distances(source: SkillNode, nodes: Array[SkillNode], mirror: GraphMirror, hop_cap: int = -1) -> Dictionary[SkillNode, float]
 
 
 ## Bound of this metric over [param nodes], for scales that normalize (Linear,
