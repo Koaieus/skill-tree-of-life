@@ -101,3 +101,94 @@ func test_reassigning_a_parented_edges_endpoints_does_not_update_the_mirror() ->
 			"the mirror still doesn't know about the re-pointed edge — pinned limitation")
 	assert_true(_graph.get_neighbours(a).has(b),
 			"Graph's own adjacency cache is equally stale here, per .claude/rules/graph.md")
+
+
+# ── Adjacency queries (#940) ───────────────────────────────────────────────
+# `are_adjacent` / `neighbours_of` are THE adjacency check — the mirror that
+# holds the AStar answers it, instead of callers flooding `nodes_within(..., 1)`
+# or building a neighbour Array to `.has()` one bool out of it.
+
+const _BOARD := preload("res://entity/default_entity_board.tres")
+
+
+## An Entity under the graph gets its own EntityNavigator from `initialize()`;
+## ownership is written directly and mirrored by hand, the same calls
+## AllocationSystem.force_allocate makes (the mutation contract in
+## entity_navigator.gd).
+func _entity_owning(nodes: Array[SkillNode]) -> Entity:
+	var e := autofree(Entity.new()) as Entity
+	e.display_name = "Owner"
+	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	_graph.entities_container.add_child(e)
+	await get_tree().process_frame
+	for n in nodes:
+		n.owned_by = e
+		e.navigator.mirror_add(n)
+	return e
+
+
+func test_are_adjacent_is_true_across_a_real_edge_and_false_two_hops_apart() -> void:
+	var a := _add_node(Vector2(0, 0))
+	var b := _add_node(Vector2(10, 0))
+	var c := _add_node(Vector2(20, 0))
+	_graph.add_edge(a, b)
+	_graph.add_edge(b, c)
+	await get_tree().process_frame
+
+	var nav := _graph.navigator
+	assert_true(nav.are_adjacent(a, b), "a-b share an edge")
+	assert_true(nav.are_adjacent(b, a), "adjacency is symmetric")
+	assert_false(nav.are_adjacent(a, c), "a and c are two hops apart")
+	assert_false(nav.are_adjacent(a, null), "null is never adjacent")
+
+
+func test_are_adjacent_is_false_for_a_node_and_itself_even_with_a_self_loop() -> void:
+	var a := _add_node(Vector2(0, 0))
+	var b := _add_node(Vector2(10, 0))
+	_graph.add_edge(a, b)
+	_graph.add_edge(a, a)  # self-loop: a propagation/render edge, never a hop
+	await get_tree().process_frame
+
+	assert_false(_graph.navigator.are_adjacent(a, a), "a self-loop is not adjacency")
+	assert_true(_graph.navigator.are_adjacent(a, b), "the real edge still counts")
+
+
+func test_are_adjacent_is_false_for_an_unmirrored_node_on_an_entity_navigator() -> void:
+	var a := _add_node(Vector2(0, 0))
+	var b := _add_node(Vector2(10, 0))
+	_graph.add_edge(a, b)
+	await get_tree().process_frame
+	var e: Entity = await _entity_owning([a] as Array[SkillNode])
+
+	assert_true(_graph.navigator.are_adjacent(a, b), "the whole-board mirror sees the edge")
+	assert_false(e.navigator.are_adjacent(a, b), "b is not in the territory, so not adjacent there")
+	assert_false(e.navigator.are_adjacent(b, a), "either way round")
+
+
+func test_neighbours_of_on_an_entity_navigator_returns_only_owned_neighbours_never_self() -> void:
+	# hub h with owned neighbours o1, o2, an unowned neighbour u, and a self-loop.
+	var h := _add_node(Vector2(0, 0))
+	var o1 := _add_node(Vector2(10, 0))
+	var o2 := _add_node(Vector2(-10, 0))
+	var u := _add_node(Vector2(0, 10))
+	var far := _add_node(Vector2(30, 0))
+	_graph.add_edge(h, o1)
+	_graph.add_edge(h, o2)
+	_graph.add_edge(h, u)
+	_graph.add_edge(h, h)
+	_graph.add_edge(o1, far)
+	await get_tree().process_frame
+	var e: Entity = await _entity_owning([h, o1, o2, far] as Array[SkillNode])
+
+	var got := e.navigator.neighbours_of(h)
+	assert_eq(got.size(), 2, "exactly the two owned neighbours")
+	assert_true(got.has(o1) and got.has(o2), "o1 and o2, as a set")
+	assert_false(got.has(u), "the unowned neighbour is not in the territory")
+	assert_false(got.has(h), "never the node itself, self-loop or not")
+	assert_false(got.has(far), "two hops is not a neighbour")
+
+	var board := _graph.navigator.neighbours_of(h)
+	assert_eq(board.size(), 3, "the whole-board mirror sees u as well")
+	assert_true(board.has(u))
+	assert_eq(_graph.navigator.neighbours_of(null).size(), 0, "null → empty")
+	assert_eq(e.navigator.neighbours_of(u).size(), 0, "unmirrored → empty")

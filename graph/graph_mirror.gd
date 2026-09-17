@@ -169,6 +169,17 @@ func get_leaf_nodes() -> Array[SkillNode]:
 	return get_nodes_by_degree(1)
 
 
+## Stub (#940) — real body lands with the red test.
+func are_adjacent(_a: SkillNode, _b: SkillNode) -> bool:
+	return false
+
+
+## Stub (#940).
+func neighbours_of(_node: SkillNode) -> Array[SkillNode]:
+	var out: Array[SkillNode] = []
+	return out
+
+
 ## Flood-fill the connected component containing [param node]. Disabled
 ## vertices are skipped. Returns [] if [param node] isn't mirrored.
 func connected_component(node: SkillNode) -> Array[SkillNode]:
