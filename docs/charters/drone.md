@@ -201,6 +201,7 @@ does not have to carry them.
 | 2026-09-14 | audit | every drone ignored the advisory Read/300k rules → `drone-budget-guard` hook | 3, 10 |
 | — | a #660 drone | `git stash` in a worktree popped an unrelated stash into files it did not own | 15 |
 | 2026-07-30 | field observation | a named teammate returned "will receive instructions via mailbox" and idled on its prompt | 21 |
+| 2026-09-16 | #928 → #930/#931 | the red test for the camera 2-step poked `blade.state.pivot_index` and a blade vertex's alpha to move the director's goalpost — the coupling was visible in the test setup before any code existed, and the owner caught it from a glimpse of the plan, not the review | 17 |
 | 2026-09-15 | owner | the most persistent drone (400k, 200+ calls) "REALLY wanted to finish it" instead of handing a targeted successor brief to fresh eyes — the origin of law 9 and of this charter | 8, 9 |
 
 ## What the agent file must not contain

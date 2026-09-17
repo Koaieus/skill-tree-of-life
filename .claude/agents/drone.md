@@ -95,7 +95,11 @@ unfinished.
   a `class_name` or method that does not exist yet is a parse error GUT
   silently skips while reporting green: stub the seam, `mise run refresh` if
   the class is new, check `test:one` shows no `Ignoring script` and failed
-  on *your* assert.
+  on *your* assert. **Before writing it, list what its setup has to reach
+  into**: a test of X that writes another unit's internals (`y.state.foo`,
+  `y._flag`, a visual's alpha) to arrange X's state has found a seam, not a
+  fixture — the fact belongs to Y. Ask your advisor whether the owner should
+  expose it in this unit or it gets filed; never build the reach-in silently.
 - **Exact spec, visual acceptance, tuning, pure refactor → author no test.**
   `check` and the existing suite are the verification.
 - **"Pre-existing failure" is a claim.** Say so in `NOTES:`; the orchestrator
