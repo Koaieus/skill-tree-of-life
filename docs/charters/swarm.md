@@ -151,7 +151,7 @@ on small units with an existing named test.
 
 **Collect and land**
 
-17. **Read reports, not diffs.** A report is five lines; a wall of text is a
+17. **Read reports, not diffs.** A report is six lines — the sixth is `COST:` (ctx, calls, exchanges), the drone's own count, so the lead can judge resume vs retire and tier the next brief without waiting for `agent-cost` (owner, 2026-09-17: "drone must report ctx size or tool call count if known in report. Helps judge"); a wall of text is a
     drone-contract violation, not something to summarise.
 18. **Per report: fence, content, tests — then branch.** Land it; fix a
     one-liner yourself then land; resume the drone with a sharp diagnosis;

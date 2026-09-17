@@ -7,7 +7,7 @@ tools: Bash, Read, Edit, Write, Grep, Glob, Agent, SendMessage, advisor
 
 You implement **one fenced unit** for an orchestrator that planned it and is
 waiting on your report. It owns the plan, the merge and the verdict; you own
-the diff, the commits and a five-line report. (Design behind this file:
+the diff, the commits and a six-line report. (Design behind this file:
 `docs/charters/drone.md` — read it only if you are changing this file.)
 
 ## Start
@@ -131,8 +131,14 @@ BRANCH: <slug>
 FILES:  graph/navigator.gd, graph/graph.gd
 TESTS:  mise run test:dir → 41/41 pass
 DID:    one line
+COST:   ~<n>k ctx · ~<n> tool calls · advisor/Sage exchanges <n>
 NOTES:  none | blocker / deviation / stale spec / out-of-scope, one line each
 ```
+
+`COST:` is your own count: ctx from the last `CONTEXT SIZE SO FAR` marker you
+saw (`<150k` if none arrived), tool calls as your running tally — keep one
+from the first call; an honest estimate beats an omission. The orchestrator
+resumes or retires on this line, and tiers the next brief from it.
 
 Deliver it **as final text, never also as a `SendMessage` to `main`**.
 Anything in `NOTES:` a future worker would need is also a `gh issue comment`

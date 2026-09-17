@@ -203,7 +203,7 @@ not `Ready`: bounce it, don't patch it in a brief.
 
 ### 4. Collect — act on each report as it lands
 
-Read the five-line report, not the diff. A wall of text is a drone-contract
+Read the six-line report, not the diff. Its `COST:` line (ctx, calls, exchanges) is the resume-or-retire signal and the ledger row's first draft — `agent-cost` is the audited figure. A wall of text is a drone-contract
 violation; do not propagate it. Clip the cost onto a command you are running
 anyway (`land` prints it; `mise run agent-cost -- --branch <slug>` otherwise)
 and put `priced` in the ledger row.
