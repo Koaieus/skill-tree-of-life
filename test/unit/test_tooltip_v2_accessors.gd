@@ -125,8 +125,14 @@ func test_dynamic_stat_ids_does_not_create_a_stat() -> void:
 	# solely so their MULTIPLY-by-stake_level intrinsics have a non-minting
 	# `get_stat` target — see .claude/rules/stats-system.md's "Bake what the
 	# node owns" bullet.
-	var baked: Array[StringName] = [&"max_shots_per_leaf", &"arrows_per_reload", &"addon_slots", &"stake_level"]
-	assert_eq(sn.node_board.get_stat_ids(), baked,
+	# Order is the board's property order, which the full suite and a lone run
+	# disagree on — compare as a set.
+	var baked: Array[String] = ["addon_slots", "arrows_per_reload", "max_shots_per_leaf", "stake_level"]
+	var live: Array[String] = []
+	for id in sn.node_board.get_stat_ids():
+		live.append(String(id))
+	live.sort()
+	assert_eq(live, baked,
 		"a UI enumerating the board must still see the baked node-only stats")
 	assert_null(sn.node_board.get_stat(&"armor"),
 		"enumeration must be read-only — no side-effect stat creation")
