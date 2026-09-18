@@ -11,23 +11,77 @@ extends AttackPlan
 ## pops the target — see docs/design/click_grammar.md.
 
 var target: SkillNode = null
+## Composition (#957): `{type_id: n}` — N is the sum, each count ≤ its
+## quiver bin. EMPTY means the bare default, resolved live by
+## [method effective_ammo_counts]: N = [method max_n], all base arrows. The
+## tray (#954) writes an explicit dict; the wire always carries the explicit
+## one ([method to_dict]), so a mirror never re-derives a default.
 var ammo_counts: Dictionary = {}
+
+const _ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
 
 const ERR_NO_AMMO := &'No arrows in the quiver'
 const ERR_NO_SHOTS := &'No firing leaf in range has shots left'
 const ERR_VOLLEY_LIMIT := &'Volley limit reached this turn'
 
 
+## The quiver this plan draws from, or null on a board without one.
+func _quiver() -> Quiver:
+	if attacker == null or attacker.stat_board == null:
+		return null
+	return attacker.stat_board.arrows as Quiver
+
+
+## Σ [method SkillNode.shots_left] over the reaching leaves — the per-turn
+## shot budget this volley can spend (#956).
+func _shots_available() -> int:
+	var total := 0
+	for leaf in get_reaching_firing_positions():
+		total += leaf.shots_left()
+	return total
+
+
+## Owner (2026-09-18): `max N = min(arrows.current, Σ shots_left over leaves
+## in range)`.
 func max_n() -> int:
-	return 0
+	var quiver := _quiver()
+	var stock: int = roundi(quiver.current) if quiver != null else 0
+	return mini(stock, _shots_available())
 
 
-func n() -> int:
-	return 0
-
-
+## The composition actually fired: [member ammo_counts] when set, else the
+## bare default — N = max, every arrow the base type (capped by its bin, so
+## a quiver holding only specials yields an empty default and validate's
+## no-ammo state rather than a volley of the wrong type).
 func effective_ammo_counts() -> Dictionary:
-	return {}
+	if not ammo_counts.is_empty():
+		return ammo_counts
+	var quiver := _quiver()
+	if quiver == null:
+		return {}
+	var base_n := mini(max_n(), quiver.stock_of(AmmoTypeRoster.BASE_ID))
+	return {AmmoTypeRoster.BASE_ID: base_n} if base_n > 0 else {}
+
+
+## Arrows in this volley — the sum of [method effective_ammo_counts].
+func n() -> int:
+	var total := 0
+	for count in effective_ammo_counts().values():
+		total += int(count)
+	return total
+
+
+## The volley's ammo, one [AmmoType] per shot, in roster `order` — the order
+## the schedule assigns them along. Owner: *"5 armor breaker shots configured
+## first -> will land first, regardless of what wave inside the burst they
+## launch at"*. Unknown ids are skipped (validate refuses them anyway).
+func _ammo_sequence() -> Array[AmmoType]:
+	var seq: Array[AmmoType] = []
+	var counts := effective_ammo_counts()
+	for t in _ROSTER.sorted():
+		for _i in int(counts.get(t.id, 0)):
+			seq.append(t)
+	return seq
 
 
 ## One entry of the authored firing schedule (see [method get_firing_schedule]).
@@ -63,6 +117,12 @@ func _init() -> void:
 func to_dict(graph: Graph) -> Dictionary:
 	var d := super(graph)
 	d["target"] = graph.get_stable_id(target) if graph != null and target != null else 0
+	# The EFFECTIVE counts, never the raw field: a bare-default authority
+	# holds an empty dict and its mirror must fire the same explicit volley.
+	var counts := {}
+	for id in effective_ammo_counts():
+		counts[String(id)] = int(effective_ammo_counts()[id])
+	d["ammo_counts"] = counts
 	return d
 
 
@@ -70,6 +130,9 @@ static func from_dict(d: Dictionary, graph: Graph) -> RangedAttackPlan:
 	var plan := RangedAttackPlan.new()
 	plan._read_base(d, graph)
 	plan.target = graph.get_by_stable_id(int(d.get("target", 0))) if graph != null else null
+	var counts: Dictionary = d.get("ammo_counts", {})
+	for id in counts:
+		plan.ammo_counts[StringName(id)] = int(counts[id])
 	return plan
 
 
@@ -121,18 +184,44 @@ func get_reaching_firing_positions() -> Array[SkillNode]:
 ## The authored, ordered firing list — the ordering authority for
 ## [method resolve] (docs/domain/attack-timeline.md "The ranged volley
 ## ramp"), and (via [member FiringShot.distance]) its timing authority too.
-## Ranked by euclidean distance to target, ascending; ties broken by
-## [member SkillNode.stable_id] (wire-legal, minted by Graph — never
-## allocation/mirror-insertion order, which is the bug this issue fixes:
-## allocation order must never influence combat outcome). Empty if no target.
+##
+## WAVE-MAJOR (#957, owner 2026-09-18): each wave, every reaching leaf with a
+## shot left fires one arrow, nearest-first — ranked by euclidean distance to
+## target, ties broken by [member SkillNode.stable_id] (wire-legal, minted by
+## Graph — never allocation/mirror-insertion order: allocation order must
+## never influence combat outcome). Waves repeat until N (3 leaves at 5/5,
+## 5/5, 4/5 → waves of 3, 3, 3, 3, 2). Ammo types are assigned along that
+## order in roster `order` — the first shots of wave 0 carry the specials.
+## Empty if no target or N is 0.
 func get_firing_schedule() -> Array[FiringShot]:
 	var result: Array[FiringShot] = []
 	if target == null:
 		return result
 	var ranked := get_reaching_firing_positions()
 	ranked.sort_custom(_ranks_before)
-	for firing in ranked:
-		result.append(FiringShot.new(firing, target))
+	var ammo := _ammo_sequence()
+	var remaining := ammo.size()
+	var fired: Dictionary[SkillNode, int] = {}
+	var wave := 0
+	while remaining > 0:
+		var fired_this_wave := 0
+		for leaf in ranked:
+			if remaining <= 0:
+				break
+			if fired.get(leaf, 0) >= leaf.shots_left():
+				continue
+			var shot := FiringShot.new(leaf, target)
+			shot.wave = wave
+			shot.ammo_type = ammo[ammo.size() - remaining]
+			result.append(shot)
+			fired[leaf] = fired.get(leaf, 0) + 1
+			fired_this_wave += 1
+			remaining -= 1
+		if fired_this_wave == 0:
+			# Budget exhausted below N (validate refuses this; the guard keeps
+			# a stale plan from spinning).
+			break
+		wave += 1
 	return result
 
 
@@ -186,6 +275,32 @@ func validate() -> Array[String]:
 		errors.append(&'Target node is not owned by an enemy')
 	if get_reaching_firing_positions().is_empty():
 		errors.append(&'No firing position can reach target')
+		return errors
+	# The third state (#957): a volley needs shots left on a reaching leaf,
+	# arrows to fire, and a volley slot this turn.
+	if _shots_available() <= 0:
+		errors.append(ERR_NO_SHOTS)
+	var quiver := _quiver()
+	if quiver == null or roundi(quiver.current) <= 0:
+		errors.append(ERR_NO_AMMO)
+	if attacker.stat_board != null and attacker.stat_board.volleys_per_turn != null \
+			and attacker.volleys_launched_this_turn >= int(attacker.stat_board.volleys_per_turn.value):
+		errors.append(ERR_VOLLEY_LIMIT)
+	if not errors.is_empty():
+		return errors
+	var counts := effective_ammo_counts()
+	var total := 0
+	for id in counts:
+		var count := int(counts[id])
+		if _ROSTER.by_id(id) == null:
+			errors.append(&'Unknown ammo type: %s' % id)
+		elif count > quiver.stock_of(id):
+			errors.append(&'Not enough %s arrows (%d < %d)' % [id, quiver.stock_of(id), count])
+		total += count
+	if total <= 0:
+		errors.append(&'Volley is empty')
+	elif total > _shots_available():
+		errors.append(&'Volley exceeds the shots left on reaching leaves (%d > %d)' % [total, _shots_available()])
 	return errors
 
 
@@ -216,19 +331,37 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# full 1/(n-1) slice apart, so a clustered firing line reads as one salvo
 	# and a lone outlier owns the whole tail. Allocation order still cannot
 	# influence it — distance is pure geometry off `global_position`.
+	#
+	# WAVES (#957): the volley is wave-major (see get_firing_schedule) and one
+	# volley is ONE ramp — waves sit back-to-back inside it and
+	# `volley_draw_time` is paid once. The key therefore encodes both:
+	#   key = (wave + frac) / waves
+	# with frac over the volley's whole distance span, so it stays in [0, 1]
+	# (the RAMP branch's assumption) and collapses to plain frac for a
+	# single wave. The last shot of wave k and the first of wave k+1 share a
+	# key; the schedule's (structural_key, original_index) sort keeps them in
+	# wave order, they just land on one beat.
 	var outcome := AttackOutcome.new()
 	outcome.cadence = ScheduleEntry.Cadence.RAMP
 	outcome.resolve_seed = resolve_seed
+	# Owner (2026-09-18): "Firing costs 0 AP" — the volley economy is arrows
+	# and per-leaf shots, both consumed by BattleSystem._commit.
+	outcome.ap_cost = 0
 	if not is_valid():
 		return outcome
 	var schedule := get_firing_schedule()
-	var n := schedule.size()
-	# schedule is sorted by distance ascending, so the span's ends are its ends.
-	var d_min: float = schedule[0].distance if n > 0 else 0.0
-	var span: float = (schedule[n - 1].distance - d_min) if n > 0 else 0.0
-	for rank_i in n:
+	var shot_count := schedule.size()
+	var d_min: float = INF
+	var d_max: float = -INF
+	var waves := 0
+	for shot in schedule:
+		d_min = minf(d_min, shot.distance)
+		d_max = maxf(d_max, shot.distance)
+		waves = maxi(waves, shot.wave + 1)
+	var span: float = (d_max - d_min) if shot_count > 0 else 0.0
+	for rank_i in shot_count:
 		var shot: FiringShot = schedule[rank_i]
-		var hit := RangedDamageFormula.compute(attacker, shot.firing_node, shot.target)
+		var hit := RangedDamageFormula.compute(attacker, shot.firing_node, shot.target, shot.ammo_type)
 		hit.source = self
 		# Exact `<= 0.0`, not is_equal_approx: this guards a DIVISION, and a
 		# degenerate span is exactly the n == 1 / all-equidistant case, where
@@ -236,7 +369,8 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		# would stamp NaN into the structural key — which flows through the
 		# compiler into every second, and through the applier's BeatClock as
 		# garbage, with no error.
-		hit.structural_key = 0.0 if span <= 0.0 else (shot.distance - d_min) / span
+		var frac: float = 0.0 if span <= 0.0 else (shot.distance - d_min) / span
+		hit.structural_key = (float(shot.wave) + frac) / float(maxi(waves, 1))
 		outcome.hits.append(hit)
 	# Seconds, once, before anything consumes an order: `decide_all` below
 	# draws its seeded stream in landing order, which is the schedule's.

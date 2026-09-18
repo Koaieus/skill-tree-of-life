@@ -64,11 +64,11 @@ func before_each() -> void:
 	_attacker = Entity.new()
 	_attacker.faction = _PLAYER_FACTION
 	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_attacker)
+	_graph.entities_container.add_child(_attacker)
 	_hostile = Entity.new()
 	_hostile.faction = _NPC_FACTION
 	_hostile.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_hostile)
+	_graph.entities_container.add_child(_hostile)
 	await get_tree().process_frame
 
 	_alloc = AllocationSystem.new()

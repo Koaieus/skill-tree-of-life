@@ -24,9 +24,14 @@ class_name RangedDamageFormula
 ## `volley_flight_time` (#543). `compute()` itself leaves `arrival_time` at
 ## the HitInstance default (0.0) — it never had seconds to stamp.
 
-static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode) -> DamageInstance:
+## [param ammo_type] is the arrow this shot spends (#957) — stamped onto the
+## hit so the landing knows what it was; #495 makes it scale damage / apply a
+## status. Null is a plain base shot.
+static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
+		ammo_type: AmmoType = null) -> DamageInstance:
 	var hit := RangedHitInstance.new()
 	hit.attacker = attacker
+	hit.ammo_type = ammo_type
 	hit.type = DamageInstance.Type.PHYSICAL
 	hit.target = target
 	hit.origin = firing_node
@@ -70,6 +75,7 @@ static func _read_offense(firing_slice: NodeCombat) -> float:
 ## launch is the amount that lands — see [method RangedDamageFormula._read_offense]
 ## for the owner call that removed the land-time re-read.
 class RangedHitInstance extends DamageInstance:
+	## The [AmmoType] this arrow was (#957); null for a plain base shot.
 	var ammo_type: AmmoType = null
 	## The attacker this shot was fired for is [member HitInstance.attacker] —
 	## promoted to the base class in #507 so the shared [CritRoll] can read its
