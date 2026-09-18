@@ -115,3 +115,97 @@ func test_armor_curse_is_a_self_limiting_downside() -> void:
 			assert_lt(e.value_range.y, 0.0, "every tier stays negative at BOTH ends")
 			assert_gt(e.cost, 0, "cost is always positive (#637)")
 	assert_true(found, "the dexterity pack must carry an armor curse at all")
+
+
+## #497: procgen grants of the Ranged2.0 minting / budget stats. Shape only
+## (#719) — weights and tiers are the owner's; what is load-bearing is that
+## each grant is an ADD_BASE pool whose every tier rolls a whole number of
+## arrows / shots (`Entity.reload` truncates with `int()`, so a fractional
+## roll would silently vanish) and that its tags validate.
+const _AMMO_GRANT_IDS: Array[StringName] = [
+	&"poison_arrows_per_reload", &"arrows_per_reload", &"max_shots_per_leaf"]
+
+func _pool_for(stat_id: StringName) -> StatPool:
+	var p: StatPack = _PACK.duplicate(true) as StatPack
+	for sp in p.pools:
+		var pp: StatPool = sp as StatPool
+		if pp.stat_id == stat_id and pp.operation == StatModifier.Operation.ADD_BASE:
+			return pp
+	return null
+
+func test_ammo_grants_are_integer_add_base_pools_with_known_tags() -> void:
+	for sid in _AMMO_GRANT_IDS:
+		var pp := _pool_for(sid)
+		assert_not_null(pp, "the dexterity pack must carry an ADD_BASE %s pool" % String(sid))
+		if pp == null:
+			continue
+		assert_true(&"ammo" in pp.tags, "%s is tagged `ammo`" % String(sid))
+		assert_eq(pp._get_configuration_warnings().size(), 0,
+				"%s pool validates: %s" % [String(sid), pp._get_configuration_warnings()])
+		var entries := pp.to_entries()
+		assert_gt(entries.size(), 0, "%s offers at least one tier" % String(sid))
+		for e in entries:
+			var r: Vector2 = e.value_range
+			assert_almost_eq(r.x, r.y, 0.001, "%s rolls a fixed whole grant, not a range (%s)" % [String(sid), r])
+			assert_almost_eq(r.x, roundf(r.x), 0.001, "%s grant is a whole number (%s)" % [String(sid), r])
+			assert_gt(r.x, 0.0, "%s is a positive grant" % String(sid))
+			assert_eq(e._get_configuration_warnings().size(), 0,
+					"%s entry validates against the TagRegistry: %s" % [String(sid), e._get_configuration_warnings()])
+
+
+const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _BOARD := preload("res://entity/default_entity_board.tres")
+const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+
+## Acceptance #1: a node rolled with the poison entry, once allocated, raises
+## the entity's `poison_arrows_per_reload` by the grant and a reload then adds
+## that many poison arrows; deallocating takes the grant back. The node's
+## `modifiers` is the exact seam `GraphProcgen._roll_modifiers_v4` writes.
+func test_rolled_poison_grant_lands_on_the_board_and_mints_on_reload() -> void:
+	var pp := _pool_for(&"poison_arrows_per_reload")
+	if pp == null:
+		fail_test("the dexterity pack must carry a poison_arrows_per_reload pool")
+		return
+	var rolled: StatModifier = pp.to_entries()[0].roll(_rng(7))
+	var grant := int(rolled.value)
+
+	var graph: Graph = _GRAPH_SCENE.instantiate()
+	add_child_autofree(graph)
+	var a := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	var b := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	a.name = "A"; b.name = "B"
+	graph.add_skill_node(a); graph.add_skill_node(b)
+	graph.add_edge(a, b)
+	b.modifiers = [rolled]
+
+	var tm: TurnManager = autofree(TurnManager.new())
+	add_child(tm)
+	var alloc := AllocationSystem.new()
+	alloc.graph = graph
+	alloc.navigator = graph.navigator
+	alloc.turn_manager = tm
+	add_child_autofree(alloc)
+
+	var player: Entity = autofree(Entity.new())
+	player.display_name = "Archer"
+	player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	graph.entities_container.add_child(player)
+	await get_tree().process_frame
+
+	player.core_location = a
+	alloc.force_allocate(player, a)
+	var before: float = player.stat_board.poison_arrows_per_reload.get_value()
+	alloc.force_allocate(player, b)
+	assert_almost_eq(player.stat_board.poison_arrows_per_reload.get_value(), before + float(grant), 0.001,
+			"allocating the grant node raises poison_arrows_per_reload by the rolled grant")
+
+	tm.start_turn(player)
+	player.stat_board.action_points.restore_to_full()
+	var poison_before: int = player.stat_board.arrows.stock_of(&"poison")
+	player.reload()
+	assert_eq(player.stat_board.arrows.stock_of(&"poison"), poison_before + grant,
+			"a reload mints the granted poison arrows, flat")
+
+	alloc.force_deallocate(b)
+	assert_almost_eq(player.stat_board.poison_arrows_per_reload.get_value(), before, 0.001,
+			"deallocating the grant node takes the grant back")
