@@ -207,7 +207,7 @@ Beyond `sense_range`: total fog. Inside sense but outside vision: silhouette onl
 - **Allocate** — bare **left-click on an unowned adjacent node**. Spends `skill_points`; obeys adjacency. Each allocation extends `vision_range` (euclidean, full detail) and adds a `sensor_range` silhouette ping.
 - **Deallocate** — hover a node + press the **`D` key**. Spends `deallocation_points`; refunds SP and obeys the no-island rule (the would-disconnect gate). Together with core-move, this is how you "move the constellation."
 - **Move core** — left-click your **own core**, then click an **adjacent owned node**. Spends `movement_points` (issue #21).
-- **Attack / cast** — the **AttackModeBar** picks the mode (melee / ranged / magic), then node clicks feed the active plan. Spends `action_points`. Ranged is one volley/turn; a second action must be a different mode and can stack on a dented node — *dent then finish* — since enemy nodes don't reset until their own turn.
+- **Attack / cast** — the **AttackModeBar** picks the mode (melee / ranged / magic), then node clicks feed the active plan. Melee and magic spend `action_points`; ranged volleys cost 0 AP and are budgeted by arrows and per-leaf shots instead (#496). A second melee action can stack on a dented node — *dent then finish* — since enemy nodes don't reset until their own turn.
 
 **Why input-channel and not phases:** the previous three-phase split (CONTRACT → EXPAND → BATTLE) existed to keep a context-sensitive click on your own node from deallocating when you meant to allocate (or vice versa), wasting one of the very limited pools. Separate input channels solve that disambiguation directly — allocate (a left-click) and deallocate (a keypress) can't be confused — without forcing the player to switch modes first. End Turn warns **only** about unspent `action_points`, and **only** when an enemy node is visible (no visible enemy → no AP-costing action left to waste → no warning). SP / DP / MP are spent at the player's discretion with no warning, and there are no phase-exit confirmation modals.
 
@@ -227,22 +227,24 @@ A **leaf** is a node of degree 1 in the entity's *own allocated subgraph*. Only 
 
 **Why this is graph-native:** tendrils and stubs become firing ports. Growing ranged capability means sprouting stubs off a filament (turning an I-shape into an E-shape adds 3 firing leaves). Compact cluster builds lose ranged presence. Ring builds (zero leaves by definition) cannot fire ranged at all — they trade ranged offense for topological resilience.
 
-**Volley model:**
-- Per turn the entity fires **1 volley** by default. A second volley is a stat/class upgrade, not baseline.
-- A volley = the player selects one target node; every owned leaf within euclidean range of that target fires simultaneously.
-- **Damage:** per the [scaling spine](#the-attribute-scaling-spine--the-10-model), each firing leaf contributes `DEX//10` (target feel: `1/leaf @ 0 DEX → 2/leaf @ 10 DEX`). **`base_ranged` is counted *once* per volley, not per leaf** — so a converged volley dismembers weak nodes without one-shotting healthy ones. Armor and resist apply **once** to the combined total (per-attack).
+**Volley model** (Ranged2.0, owner 2026-09-18 — #496):
+- A volley = one target + **N arrows**, N chosen 1..max, `max N = min(quiver stock, Σ shots_left over leaves in range)`, default max. **Firing costs 0 AP**: the economy is arrows (the `arrows` Quiver, refilled by `ReloadCommand` for 1 AP) and per-leaf shots (`max_shots_per_leaf`, base 5, reset at the firer's turn end).
+- **Wave-major fill:** each wave, every owned leaf within euclidean range of the target fires one arrow, nearest-first; waves repeat until N (3 leaves at 5/5, 5/5, 4/5 → waves of 3, 3, 3, 3, 2). One volley is one presentation ramp; waves sit back-to-back inside it.
+- **Volleys per turn == max shots per leaf** (`volleys_per_turn`, base 5), so a fully committed front can always fire everything it produces — this is what lets kills/turn exceed AP (a 3-connected foe needs ≥ 4 cuts in one turn).
+- **Composition** is typed counts (`ammo_counts: {type_id: n}`); types are assigned along the schedule in the roster's fixed `AmmoType.order` — specials first, the base arrow last — so "5 armour-breaker shots configured first land first, regardless of what wave they launch in".
+- **Damage is per arrow.** Each shot reads its firing leaf's node-local `ranged_damage` (`DEX//10` off the [scaling spine](#the-attribute-scaling-spine--the-10-model) plus node-local addons); armour and resist apply **per landing**, never once per volley — the code has been per-shot since the ramp landed, and a dud (target already dead, leaf lost mid-volley) is vetoed at landing but still consumed: *"a shot fired is a shot fired and a shot fired uses ammo"*.
 - Range is the natural volley-size cap: you cannot get 40 leaves within one target's euclidean radius. No explicit leaf cap needed.
 
 ```
-outgoing  = base_ranged + (DEX//10) × (firing leaves in range)
-taken     = max(damage_floor, outgoing − armor − resist_g)     ← once per target
+per arrow:  outgoing_i = ranged_damage(firing leaf)
+            taken_i    = max(damage_floor, outgoing_i − armor − resist_g)   ← per landing
 ```
 
 **Two intended outcomes:**
 - Converged leaves → dismember a weak node. A comb of leaves on a low-HP target can one-shot it.
 - 1–2 overextended leaves into a stronghold → won't cut it; armor absorbs the trickle.
 
-**Leaf cooldown:** none. Leaves are always ready. The 1-volley/turn cap is the full economy — no per-leaf cooldown on top.
+**Leaf cooldown:** none beyond the per-leaf shot budget. `shots_fired_this_turn` on the node resets at the firer's turn end; there is no cooldown on top, and no lock of a leaf to one target.
 
 **Crit:** global `crit_chance` (5%) and `crit_mult` (×2) to start — rolled
 **per arrow**, so a wide volley gets one roll per shot. See "Critical strikes".
@@ -324,7 +326,7 @@ Design principle: every spell should feel like it *is* something that happens in
 
 **Cadence:**
 
-- **One swing per action** — so up to **two swings per turn** under the 2-action economy (unlike ranged, which is capped at one volley/turn; a second melee action can stack on the dented node before its owner-turn reset).
+- **One swing per action** — so up to **two swings per turn** under the 2-action economy (ranged, by contrast, fires for 0 AP and is capped by arrows and per-leaf shots, not by actions; a second melee action can stack on the dented node before its owner-turn reset).
 - **No source-node cooldown** — the blade is a copy, nothing is spent. Melee's cost is **structural** (blade-shaped filaments are cut-vertex-ridden) and **positional** (the attacking node must be where the fight is). Cooldown remains available as a tuning throttle if melee ever needs one, but is not baseline.
 
 **Intentional early-game weakness.** Melee is deliberately weak early — early game is a wet-noodle fight across all attack types by design. The strongest *early* melee is a **"triangle on a stick"** — `(handle)—(triangle)` — the minimal rigid, faced blade. A triangle is 3 blade nodes, which needs `STR//10+1 ≥ 3`, i.e. **~20 STR**. Below that you have a handle+1 dagger (single rigid edge) or a handle+2 path (floppy, no face). Offense in general starts soft and scales hard.
@@ -816,7 +818,7 @@ deallocation_points = 1 / turn
 - ~~Island grace timer~~ → No default grace. Lifeline addon grants it.
 - ~~Ghost pool~~ → Dropped. Stain tracking handles mid-fight captures.
 - ~~Bargain sale~~ → Dropped.
-- ~~Ranged firing origin~~ → **Leaf nodes only.** One volley per turn; armor/resist once per volley (per-attack).
+- ~~Ranged firing origin~~ → **Leaf nodes only.** ~~One volley per turn; armor/resist once per volley~~ → superseded by Ranged2.0 (#496): volleys cost 0 AP, up to `volleys_per_turn`, and armour applies per arrow.
 - ~~Magic targeting~~ → Spell-native, graph-based, **degree-gated**. `attack_range` does not apply.
 - ~~Triangle direction~~ → R › B › G › R.
 - ~~Scale~~ → **Base-10 anchor.** Linear scaling baseline.
@@ -867,7 +869,7 @@ deallocation_points = 1 / turn
 26. ~~**Small-blade melee feel**~~ — *resolved (#10):* grip = clamp; rigidity emergent from triangulation, no stiffness stat, no floppiness toggle; leaf pivot = haft. See Tensegrity.
 27. **Color nodes at all?** — content (attribute/role) exists regardless; whether to render node color is a presentation question. Procgen should cluster like-colors into biome-like regions either way.
 28. **DP vs DAP** — abbreviation for deallocation points (cosmetic).
-20. ~~**Action economy**~~ — *resolved (LOCKED):* **2 `action_points` per turn by default.** Second action's role is to finish the first's dent before the owner-turn-start reset (commit-vs-pivot read). Ranged stays one volley/turn; the second action can be a different mode stacking on one node. More-than-2 only via ultra-rare `action_points` modifiers. **TurnManager impact:** `systems/turn_manager.gd` budgets 2 actions/turn when the combat loop is built; `action_points` is a board stat (default 2) with a rare modifier path. (GDD §5.)
+20. ~~**Action economy**~~ — *resolved (LOCKED):* **2 `action_points` per turn by default.** Second action's role is to finish the first's dent before the owner-turn-start reset (commit-vs-pivot read). ~~Ranged stays one volley/turn~~ (Ranged2.0 #496: 0 AP, arrow/shot-budgeted); the second action can be a different mode stacking on one node. More-than-2 only via ultra-rare `action_points` modifiers. **TurnManager impact:** `systems/turn_manager.gd` budgets 2 actions/turn when the combat loop is built; `action_points` is a board stat (default 2) with a rare modifier path. (GDD §5.)
 21. **Triangle weight** — is type-advantage a *primary* combat axis or a *situational tiebreaker*? GDD §5 leans situational (positioning, topology, and target defense matter more than color); this doc currently treats the triangle as load-bearing. Reconcile — likely "situational, backstopped by a small baseline" so color never feels absent but rarely decides a fight alone.
 22. ~~**Tempo target / the kill-speed anchor**~~ — *reframed (LOCKED).* The multi-turn "3–4 volleys per node" anchor is **retired**; `node_health` resets at owner turn start (see Node HP), so survivability is a **focus-count per round** — "N converged damage-sources this round to kill," not "N turns of chipping." Damage is amped relative to node HP; nodes die more often (intended — churn forces rerouting and keeps the turn-based game from going static). Calibrate the focus-count against the rewritten worked examples — see `combat_worked_examples.md`.
 29. **Ranged identity & cut-vertex surgery** — perception gating (must you *see* the articulation point?), volley concentrate-vs-spread, reach calibration to deep cut vertices, Lifeline/grace interaction with the island cascade, and whether ranged earns its keep against 2-connected (cut-vertex-free) builds. (GitHub #11 — see Ranged identity.)

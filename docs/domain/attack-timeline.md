@@ -723,18 +723,26 @@ than randomness, because a player could learn to exploit it.
 ```
 rank reaching leaves by euclidean distance to target, ascending
     tie-break: SkillNode.stable_id          # wire-legal, minted by Graph
-d_min, d_max   = distance of the first and last ranked leaf
+wave-major fill (#957): each wave, every ranked leaf with a shot left fires
+    one arrow in rank order; waves repeat until N
+d_min, d_max   = nearest and furthest distance in the volley
 frac_i         = (d_i - d_min) / (d_max - d_min)   # 0 .. 1; 0 if the span is 0
+key_i          = (wave_i + frac_i) / waves         # 0 .. 1; == frac_i for one wave
 ```
 
-**Since #543 that is the whole of what `RangedAttackPlan.resolve_against`
-records about timing.** `frac_i` is stamped onto `HitInstance.structural_key`
-— the resolver emits structure, never seconds. Turning it into a clock is
-`OutcomeSchedule.compile`'s job, in its `Cadence.RAMP` branch, off the
-authored `PresentationTempo`:
+**Since #543 the resolver records only structure about timing — since #957
+that structure is `(wave, frac)`, folded into one key.** `key_i` is stamped
+onto `HitInstance.structural_key` — the resolver emits structure, never
+seconds. One volley is ONE ramp: waves sit back-to-back inside it and
+`volley_draw_time` is paid once, so the key divides by the wave count to stay
+in `[0, 1]` (the `RAMP` branch's assumption). The last shot of wave *k* and the
+first of wave *k+1* share a key; the `(structural_key, original_index)` sort
+keeps them in wave order, they merely land on one beat. Turning a key into a
+clock is `OutcomeSchedule.compile`'s job, in its `Cadence.RAMP` branch, off
+the authored `PresentationTempo`:
 
 ```
-launch_time_i  = volley_draw_time + frac_i * volley_stagger_span
+launch_time_i  = volley_draw_time + key_i * volley_stagger_span
 arrival_time_i = launch_time_i + volley_flight_time   # constant, NOT distance/speed
 ```
 
