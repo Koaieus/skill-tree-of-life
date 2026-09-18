@@ -71,12 +71,13 @@ func test_mark_shot_fired_decrements_shots_left() -> void:
 
 func test_same_turn_dealloc_reallocate_keeps_fired_count() -> void:
 	_node.mark_shot_fired(3)
-	# What AllocationSystem.force_deallocate / force_allocate do to the node
-	# itself: ownership flips, allocation level re-pushed.
-	_node.owned_by = null
-	_node.allocation_level = 0
-	_node.owned_by = _entity
-	_node.allocation_level = 1
+	var alloc := AllocationSystem.new()
+	alloc.graph = _graph
+	add_child_autofree(alloc)
+	assert_eq(alloc.force_deallocate(_node), _entity, "fixture: dealloc went through")
+	assert_null(_node.owned_by)
+	alloc.force_allocate(_entity, _node)
+	assert_eq(_node.allocation_level, 1, "fixture: re-allocated at level 1")
 	assert_eq(_node.shots_fired_this_turn, 3, "counter survives the flip")
 	assert_eq(_node.shots_left(), 2, "still 2 after re-allocation")
 
