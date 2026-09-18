@@ -1,7 +1,7 @@
 ---
 id: 0019
-title: Ranged ammo is an entity-level Quiver shaped like SpellBook, not per-node stock
-status: proposed
+title: Ranged ammo is the entity-board `arrows` PoolStat (the Quiver) with per-type bins, not per-node stock
+status: accepted
 date: 2026-09-18
 deciders: owner
 supersedes: []
@@ -14,12 +14,9 @@ sources:
 tags: [ranged, combat, stats, architecture]
 ---
 
-# ADR 0019 — Ranged ammo is an entity-level Quiver shaped like SpellBook, not per-node stock
+# ADR 0019 — Ranged ammo is the entity-board `arrows` PoolStat (the Quiver) with per-type bins, not per-node stock
 
-> **Proposed**, not accepted: the owner's pick on #496 (2026-09-18) is explicitly
-> *"cautious, not definitive"*. This ADR exists to frame the fork so the
-> `/swarmify` of #496 accepts or rejects it rather than re-deriving it — the
-> #496 body itself still describes the per-node alternative.
+> **Accepted 2026-09-18** by the owner in the #496 swarmify (the "Hub decisions" comment there is the ledger). Proposed earlier the same day off a *"cautious, not definitive"* pick; the swarmify settled the shape below and closed the spatial-reload fork.
 
 ## Context
 
@@ -47,35 +44,44 @@ view of that book.
 
 ## Decision
 
-Ranged ammo is a **per-entity Quiver**: stock per ammo type on the entity, fed
-by reload and by `+N <type> arrows` modifiers that nodes *grant* (#497) — the
-granting node need not be a leaf, and its arrows do not vanish when the node is
-deallocated mid-turn any more than a `SpellBook` entry does. Topology enters
-through a **per-leaf cap on shots per turn** (a transient counter on the leaf,
-reset at the owner's turn start, scaled by `allocation_level` and by
-`WatchtowerAddon`), never through where the arrows are stored. The ranged
-command-tray body is the Quiver's view, as the magic body is the SpellBook's
-(#954).
+Ranged ammo is **one entity-board `PoolStat`, id `arrows`, whose class is
+`Quiver`** — current = total stock, max = quiver capacity (`on_cap_rise = PIN`,
+so a capacity modifier never gifts arrows), and per-`AmmoType` bins *inside*
+current behind `stock_of / add / take`, the `SkillPointStat` precedent. The
+class IS the stat: there is no separate Quiver resource on `Entity`, and the
+ranged command-tray body is a view of `stat_board.arrows` as the magic body is
+a view of `SpellBook` (#954). Owner, 2026-09-18: *"One and the same: `Quiver
+extends PoolStat`, stat id `arrows`."*
 
-Owner, 2026-09-18: *"'+1 poison arrows' stat + modifiers (the 'per reload' might
-best be left implied); Ranged CommandTrayBody could show all owned ammo types
-(current + amount gained on reload; shown so long either >0) and reload options
-and whatnot, basically a representation of Quiver much like the Magic
-CommandTrayBody is a representation of SpellBook. nodes would `grant` those
-modifiers."*
+Stock is fed by `ReloadCommand` (1 AP): Σ over the leaves the entity held at
+its **turn start** ∪ core of the node-local `arrows_per_reload`, plus each
+special type's flat `<type>_arrows_per_reload`; nodes *grant* those minting
+stats as ordinary entity-board modifiers (#497). Owner: *"'+1 poison arrows'
+stat + modifiers (the 'per reload' might best be left implied); … nodes would
+`grant` those modifiers."*
+
+Topology enters through a **per-leaf shot budget that is node runtime state,
+not a board stat**: `SkillNode.shots_fired_this_turn`, with
+`shots_left = local max_shots_per_leaf − fired` (owner, 2026-09-18), reset at
+the firer's turn end over the exact set of nodes it fired from — never a sweep,
+never a node-board pool (a pool's cap is fed by the owner's board and would
+clamp to 0 on deallocation, losing the deficit the owner wants preserved).
+Both counters are reproduced by mirrors from the command stream.
 
 ## Consequences
 
-- Stock is one entity-level quantity per ammo type; the wire carries it through
-  the reload command and the volley's `N` — no per-node pool to snapshot.
-- The per-leaf cap is per-turn runtime state derived from commands, so it must
-  be reproduced by mirrors from the command stream, never snapshotted; a leaf
-  with 0 shots left is a third firing-position state the plan's
-  `validate()` does not know today.
-- Reload can still be made spatial ("leaves within N hops of the core count
-  toward the reload") without moving the stock — the fork stays open on #496.
-- The tray mockup's per-leaf ammo assignment (#954) is *not* this shape; if
-  ordered bands ship they are quiver order, re-derived per target.
+- Stock and bins ride `Quiver.to_dict` through the ordinary board snapshot; the
+  wire carries reloads as commands and a volley's `ammo_counts` on the plan —
+  no per-node pool to snapshot (ADR 0020).
+- `Quiver` is authored on `EntityStatBoard` + `default_entity_board.tres`,
+  never minted through `StatBoard._mint_stat` (which mints a plain `PoolStat`).
+- A leaf with no shots left is a third firing-position state the plan's
+  `validate()` must know (#957).
+- Spatial reload ("leaves within N hops of the core") is **closed out of the
+  hub** — owner 2026-09-18: all leaves, counted at turn start. It survives as a
+  sibling (#961) that filters the same turn-start set.
+- The tray mockup's per-leaf ammo assignment and ordered bands (#954) are not
+  this shape; composition is typed counts in a fixed roster order.
 
 ## Alternatives considered
 
@@ -92,3 +98,13 @@ elegant solutions might work out better."* Parked, not rejected on grounds.
 ### Entity stock with no per-leaf cap
 Simplest, and broken: one leaf in range fires everything; topology stops
 mattering. Rejected on the identity, not on cost.
+
+### A separate `Quiver` resource on `Entity` reading/writing an `arrows` pool
+SpellBook-shaped. Two homes for one fact (bins vs total) that must be kept in
+sync — rejected 2026-09-18 for the stat-with-bins shape.
+
+### Per-leaf budget as a node-board `PoolStat` (`shots`, REFILL per turn)
+Owner's first pick the same evening, withdrawn on the readout: the cap comes
+from the owner's board via the localized read, so deallocation clamps current
+to 0 and re-allocation refills it — the same-turn deficit cannot survive
+without a second, entity-held record. A runtime counter is one fact, one home.

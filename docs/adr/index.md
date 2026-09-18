@@ -40,7 +40,8 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0016](0016-a-ratio-contributes-a-line-and-the-stat-floors-once.md) | A ratio intrinsic contributes a line, not a stair; an INT stat floors its finished total once | accepted | 2026-09-14 | stats, balance, loot, formulas, design |
 | [0017](0017-combat-quantities-are-int-and-a-merged-read-floors-once.md) | Damage, armor, health, ranges and hop counts are INT stats; a merged (node-local) read floors exactly as a bare one | accepted | 2026-09-15 | stats, balance, combat, design |
 | [0018](0018-hit-basis-and-damage-type-are-orthogonal-knobs.md) | A hit's amount basis (flat vs % of max HP) and its mitigation class are orthogonal knobs, authored explicitly — no derived coupling, for now | accepted | 2026-09-16 | combat, attacks, damage, mitigation, architecture, design |
-| [0019](0019-ranged-ammo-is-an-entity-level-quiver-not-per-node-stock.md) | Ranged ammo is an entity-level Quiver shaped like SpellBook, not per-node stock | proposed | 2026-09-18 | ranged, combat, stats, architecture |
+| [0019](0019-ranged-ammo-is-an-entity-level-quiver-not-per-node-stock.md) | Ranged ammo is the entity-board `arrows` PoolStat (the Quiver) with per-type bins, not per-node stock | accepted | 2026-09-18 | ranged, combat, stats, architecture |
+| [0020](0020-volley-composition-rides-the-command-typed-along-schedule-order.md) | A ranged volley's composition rides the command as typed counts; per-arrow leaf and type are derived along schedule order at resolve, never carried per arrow or assigned at replay | accepted | 2026-09-18 | ranged, combat, multiplayer, architecture |
 
 ## Reading order
 
