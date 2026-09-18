@@ -362,6 +362,21 @@ var turns_taken: int = 0
 ## of pops for the whole run and that is intended (owner, #778).
 var _spiked_nodes_spent: Dictionary[SkillNode, bool] = {}
 
+## Sparse fired-set for the per-leaf shot budget (#956): every node this
+## entity fired an arrow from this turn, appended by the launch commit next to
+## its [method SkillNode.mark_shot_fired] call. [method _on_turn_ended] zeroes
+## EXACTLY these nodes' [member SkillNode.shots_fired_this_turn] and clears
+## the set — the same discipline as [member _spiked_nodes_spent], never a
+## sweep of the owned subgraph — and does so regardless of who owns the node
+## by then (a leaf lost mid-turn still belongs to this firer's budget).
+var _fired_nodes_this_turn: Array[SkillNode] = []
+
+## Volleys this entity has launched this turn, checked against the board's
+## `volleys_per_turn` by the plan side (#956). Reset in
+## [method _on_turn_started]. Derived from commands, so mirrors reproduce it;
+## never snapshotted.
+var volleys_launched_this_turn: int = 0
+
 ## Resolved once in [method initialize]; read by [method _on_turn_started] to
 ## tell an adopted cursor from a turn actually beginning. See
 ## [member TurnManager.is_adopting].
@@ -630,6 +645,9 @@ func _on_turn_started(entity: Entity) -> void:
 		return
 	# Counted before the gate, so the tally stays honest about turns SERVED.
 	turns_taken += 1
+	# #956: the volley budget is per turn, first turn included — above the
+	# turns_taken == 1 upkeep skip on purpose.
+	volleys_launched_this_turn = 0
 	if turns_taken == 1:
 		return
 	# All pool upkeep is declarative — each pool replenishes per its def's
@@ -678,6 +696,12 @@ func _on_turn_ended(entity: Entity) -> void:
 	if entity != self:
 		return
 	_transfer_unused_ap_to_surplus()
+	# #956: per-leaf shot budget resets at the FIRER's turn end, over exactly
+	# the nodes it fired from — never a sweep — and whoever owns them now.
+	for n in _fired_nodes_this_turn:
+		if is_instance_valid(n):
+			n.shots_fired_this_turn = 0
+	_fired_nodes_this_turn.clear()
 	dispatch(&"_on_turn_end")
 
 

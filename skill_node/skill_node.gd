@@ -403,6 +403,32 @@ var _allocation_level_backing: int = 0
 ## grants a ramped heal.
 var regen_stacks: int = 0
 
+## Arrows fired from this leaf during the current turn (#956). Runtime state,
+## not a stat — the `regen_stacks` precedent: per-node combat bookkeeping
+## nothing should be able to modify through the pipeline. Deliberately NOT
+## touched by (de)allocation, so a same-turn dealloc → re-allocate keeps the
+## count (owner: "on deallocation preserves shot count until end of turn");
+## a fresh node starts full. Reset to 0 by the FIRER's
+## [method Entity._on_turn_ended] over exactly the nodes it fired from
+## ([member Entity._fired_nodes_this_turn]) — never a sweep, and regardless
+## of who owns the node by then. Bumped only by [method mark_shot_fired],
+## called from the command commit path so mirrors reproduce it.
+var shots_fired_this_turn: int = 0
+
+
+## Arrows this leaf may still fire this turn: the node-local
+## `max_shots_per_leaf` (entity baseline × stake-level intrinsic + addon
+## bonuses) minus [member shots_fired_this_turn], floored at 0.
+func shots_left() -> int:
+	return maxi(0, int(get_local_value(&"max_shots_per_leaf")) - shots_fired_this_turn)
+
+
+## Records [param n] arrows fired from this leaf this turn. The caller (the
+## launch commit) is responsible for appending this node to the firer's
+## [member Entity._fired_nodes_this_turn] so the turn-end reset finds it.
+func mark_shot_fired(n: int = 1) -> void:
+	shots_fired_this_turn += n
+
 ## Set by [method take_damage] whenever a hit actually reduces this node's
 ## HP; cleared by [method apply_turn_regen]. Gates the D-9 base heal — a node
 ## hit since its last upkeep gets no base heal this turn and its ramp resets.
