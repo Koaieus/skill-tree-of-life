@@ -140,6 +140,10 @@ extends StatBoard
 @warning_ignore("shadowed_global_identifier")
 @export var range: ScalarStat			## Per-leaf firing distance in scene pixels. Localized on leaves.
 @export var ranged_damage: ScalarStat	## Damage per shot. Base 1, +1 per 20 DEX. Node-local addons add on top per-node via node_board.
+@export var arrows_per_reload: ScalarStat	## Base arrow yield per producing leaf/core on a ReloadCommand. Node-local via get_local_value, scaled by allocation level (#955).
+@export var poison_arrows_per_reload: ScalarStat	## Flat poison-arrow yield per ReloadCommand. Entity-flat, never scaled by leaf allocation level (#955).
+@export var max_shots_per_leaf: ScalarStat	## Per-turn shot budget for a single leaf node. Node-local via get_local_value, scaled by allocation level (#956).
+@export var volleys_per_turn: ScalarStat	## Per-turn cap on ranged volleys an entity may launch. Innate ADD_BONUS reads board max_shots_per_leaf (#956).
 
 @export_group("Magic")
 @export var mana: PoolStat				## Casting resource. Max = base + rolled board grants + a token INT scaling (#766 — the board is the source, INT is a rounding error).

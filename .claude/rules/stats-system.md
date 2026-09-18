@@ -564,6 +564,7 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `constitution` + `node_health_scaling` | `node_health` | ADD_BASE | 1 | `node_health_scaling * constitution` (D-26 precedent, #298) — the rate is the **stat**, not the coefficient (see below) |
 | `constitution` + `core_health_scaling` | `health` | ADD_BASE | 1 | `core_health_scaling * constitution` (D-21/D-26, #276) — the rate is the **stat**, not the coefficient (see below) |
 | `level` | `constitution` | ADD_BASE | 1 | `level_scaling.tres` (`level - 1`) — TBD (#268), +1 CON per level |
+| `max_shots_per_leaf` | `volleys_per_turn` | ADD_BONUS | 1 | LinearFormula(max_shots_per_leaf) — base 0, reads 5 by default (#956) |
 
 ## Intrinsic scaling (node board)
 
@@ -572,6 +573,8 @@ Same field, one level down: `NodeStatBoard.intrinsic_modifiers` (`skill_node/def
 | Input stat | Target stat | Op | value | formula |
 |---|---|---|---|---|
 | `stake_level` (current) | `addon_slots` | ADD_BASE | 1 | `allocation_scaling.tres` — `ExpressionFormula(stake_level__current)` |
+| `stake_level` (current) | `arrows_per_reload` | MULTIPLY | 1 | `allocation_scaling.tres` — `ExpressionFormula(stake_level__current)` (#955) |
+| `stake_level` (current) | `max_shots_per_leaf` | MULTIPLY | 1 | `allocation_scaling.tres` — `ExpressionFormula(stake_level__current)` (#956) |
 
 ### Formula classes — pick the narrowest one (#289)
 

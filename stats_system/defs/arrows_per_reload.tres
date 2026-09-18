@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"arrows_per_reload"
+display_name = "Arrows Per Reload"
+description = "Base arrow yield per producing leaf on a ReloadCommand (Ranged2.0 C1/#955), read node-locally via get_local_value and scaled by allocation level (MULTIPLY intrinsic on default_node_board.tres, the addon_slots precedent). Authored both on the entity board (this baseline, also read for the core node's contribution) and node-locally. Owner-tunable starting point, not a tuning pass."
+value_type = 0
+default_value = 2.0
+tint_color = Color(0.75, 0.55, 0.3, 1)

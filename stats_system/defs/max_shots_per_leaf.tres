@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"max_shots_per_leaf"
+display_name = "Max Shots Per Leaf"
+description = "Per-turn shot budget for a single leaf node (Ranged2.0 C2/#956), read node-locally via get_local_value and scaled by allocation level (MULTIPLY intrinsic on default_node_board.tres, the addon_slots precedent); WatchtowerAddon adds on top via local_modifiers. Base 5 (owner invariant N >= max_AP * X). Runtime counter shots_fired_this_turn lives on SkillNode, not here — this stat is only the cap. Owner-tunable starting point, not a tuning pass."
+value_type = 0
+default_value = 5.0
+tint_color = Color(0.6, 0.5, 0.85, 1)

@@ -39,6 +39,10 @@
 [ext_resource type="Resource" uid="uid://dstlg0lrt8nvv" path="res://stats_system/defs/perception.tres" id="def_perception"]
 [ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="def_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/ranged_damage.tres" id="def_ranged_damage"]
+[ext_resource type="Resource" path="res://stats_system/defs/arrows_per_reload.tres" id="def_arrows_per_reload"]
+[ext_resource type="Resource" path="res://stats_system/defs/poison_arrows_per_reload.tres" id="def_poison_arrows_per_reload"]
+[ext_resource type="Resource" path="res://stats_system/defs/max_shots_per_leaf.tres" id="def_max_shots_per_leaf"]
+[ext_resource type="Resource" path="res://stats_system/defs/volleys_per_turn.tres" id="def_volleys_per_turn"]
 [ext_resource type="Resource" path="res://stats_system/defs/sensor_range.tres" id="def_sensor_range"]
 [ext_resource type="Resource" uid="uid://b47g428wp5d4w" path="res://stats_system/defs/skill_points.tres" id="def_skill_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/spell_damage.tres" id="def_spell_damage"]
@@ -311,6 +315,17 @@ script = ExtResource("12_3edt8")
 stat_id = &"ranged_damage"
 formula = SubResource("formula_dex_to_ranged_damage")
 
+[sub_resource type="Resource" id="formula_max_shots_to_volleys"]
+script = ExtResource("script_linear")
+source_stat_id = &"max_shots_per_leaf"
+
+[sub_resource type="Resource" id="mod_max_shots_to_volleys"]
+resource_name = "+1 Volleys Per Turn per Max Shots Per Leaf"
+script = ExtResource("12_3edt8")
+stat_id = &"volleys_per_turn"
+operation = 3
+formula = SubResource("formula_max_shots_to_volleys")
+
 [sub_resource type="Resource" id="formula_int_to_spell_damage"]
 script = ExtResource("script_sqrt")
 source_stat_id = &"intelligence"
@@ -430,6 +445,30 @@ resource_name = "sensor_range"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_sensor_range")
 base_value = 2.0
+
+[sub_resource type="Resource" id="scalar_arrows_per_reload"]
+resource_name = "arrows_per_reload"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_arrows_per_reload")
+base_value = 2.0
+
+[sub_resource type="Resource" id="scalar_poison_arrows_per_reload"]
+resource_name = "poison_arrows_per_reload"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_poison_arrows_per_reload")
+base_value = 0.0
+
+[sub_resource type="Resource" id="scalar_max_shots_per_leaf"]
+resource_name = "max_shots_per_leaf"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_max_shots_per_leaf")
+base_value = 5.0
+
+[sub_resource type="Resource" id="scalar_volleys_per_turn"]
+resource_name = "volleys_per_turn"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_volleys_per_turn")
+base_value = 0.0
 
 [sub_resource type="Resource" id="sp_skill_points"]
 resource_name = "skill_points"
@@ -551,6 +590,10 @@ vision_range = SubResource("scalar_vision_range")
 sensor_range = SubResource("scalar_sensor_range")
 range = SubResource("scalar_range")
 ranged_damage = SubResource("scalar_ranged_damage")
+arrows_per_reload = SubResource("scalar_arrows_per_reload")
+poison_arrows_per_reload = SubResource("scalar_poison_arrows_per_reload")
+max_shots_per_leaf = SubResource("scalar_max_shots_per_leaf")
+volleys_per_turn = SubResource("scalar_volleys_per_turn")
 mana = SubResource("pool_mana")
 mana_per_turn = SubResource("scalar_mana_per_turn")
 spell_range = SubResource("scalar_spell_range")
@@ -563,4 +606,4 @@ blade_speed_multiplier_max = SubResource("scalar_blade_speed_multiplier_max")
 blade_speed_half = SubResource("scalar_blade_speed_half")
 crit_chance = SubResource("scalar_crit_chance")
 crit_multiplier = SubResource("scalar_crit_multiplier")
-intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_per_to_sensor"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_hops"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_con_to_health"), SubResource("mod_level_to_con")])
+intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_per_to_sensor"), SubResource("mod_int_to_mana"), SubResource("mod_int_to_mana_pt"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_spell_range"), SubResource("mod_int_to_spell_hops"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_con_to_health"), SubResource("mod_level_to_con"), SubResource("mod_max_shots_to_volleys")])

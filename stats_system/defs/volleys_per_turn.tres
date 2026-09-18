@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"volleys_per_turn"
+display_name = "Volleys Per Turn"
+description = "Per-turn cap on the number of ranged volleys (attack launches) an entity may make (Ranged2.0 C2/#956). Base 0 + an innate ADD_BONUS formula modifier on default_entity_board.tres reading board max_shots_per_leaf, so it reads 5 by default. Entity keeps volleys_launched_this_turn, reset at turn start; not tracked here. Owner-tunable starting point, not a tuning pass."
+value_type = 0
+default_value = 0.0
+tint_color = Color(0.4, 0.65, 0.9, 1)
