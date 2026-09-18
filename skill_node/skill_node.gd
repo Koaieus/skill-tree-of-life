@@ -416,7 +416,14 @@ var regen_stacks: int = 0
 ## ([member Entity._fired_nodes_this_turn]) — never a sweep, and regardless
 ## of who owns the node by then. Bumped only by [method mark_shot_fired],
 ## called from the command commit path so mirrors reproduce it.
-var shots_fired_this_turn: int = 0
+var shots_fired_this_turn: int = 0:
+	set(value):
+		shots_fired_this_turn = value
+		# #959: both writers — mark_shot_fired's `+=` and the firer's turn-end
+		# `= 0` in Entity._on_turn_ended — land here, so the pip row refreshes
+		# off the write itself and never per frame.
+		if is_node_ready():
+			_sync_shot_pips()
 
 
 ## Arrows this leaf may still fire this turn: the node-local
@@ -629,6 +636,54 @@ func _sync_visuals() -> void:
 	_node_visuals.sensed = sensed
 	var resolution := EmblemResolver.resolve(get_emblem_contributions())
 	_node_visuals.set_carve(resolution.carve, resolution.carve_ties)
+	shot_pips.configure(radius)
+	_sync_shot_pips()
+
+
+## The BattleSystem whose plan gates the pip row, once one has been found —
+## also the guard against connecting to its signals twice.
+var _pips_battle_system: BattleSystem = null
+
+
+## Repaints ONLY the shots-left pip row (#959): shown iff the local
+## attacker's plan is RANGED, this node is that attacker's, and it is a leaf
+## of their territory (`GraphMirror.get_degree == 1` — the mirror is the
+## right accessor inside a territory, `.claude/rules/degree.md`). Deliberately
+## narrow: it hangs off BattleSystem's plan signals, which fire on every
+## allocation while a plan is armed, and a full `_sync_visuals` x hundreds of
+## nodes per drag would be a real regression.
+##
+## The node has no injected BattleSystem (skill_node.tscn is content, not a
+## system consumer), so it discovers one the way PlayerInputController does:
+## the HighlightController group. Lazy, per refresh — the controller is not
+## in the tree yet when procgen builds the board.
+func _sync_shot_pips() -> void:
+	if shot_pips == null or Engine.is_editor_hint():
+		return
+	var plan := _ranged_plan_of_owner()
+	if plan == null:
+		shot_pips.refresh(0, 0, false)
+		return
+	shot_pips.refresh(shots_left(), int(get_local_value(&"max_shots_per_leaf")), true,
+			owned_by.color)
+
+
+func _ranged_plan_of_owner() -> AttackPlan:
+	if owned_by == null or not is_inside_tree():
+		return null
+	var ctl := get_tree().get_first_node_in_group(HighlightController.GROUP) as HighlightController
+	if ctl == null or ctl.battle_system == null:
+		return null
+	if _pips_battle_system != ctl.battle_system:
+		_pips_battle_system = ctl.battle_system
+		_pips_battle_system.attack_plan_changed.connect(_sync_shot_pips.unbind(1))
+		_pips_battle_system.attack_plan_state_changed.connect(_sync_shot_pips)
+	var plan := _pips_battle_system.attack_plan
+	if plan == null or plan.mode != BattleSystem.AttackMode.RANGED or plan.attacker != owned_by:
+		return null
+	if owned_by.navigator == null or owned_by.navigator.get_degree(self) != 1:
+		return null
+	return plan
 
 
 func is_allocated() -> bool:
