@@ -42,6 +42,8 @@ static func _build(d: Dictionary) -> Command:
 			return MassAllocateCommand.from_dict(d)
 		StakeCommand.TAG:
 			return StakeCommand.from_dict(d)
+		ReloadCommand.TAG:
+			return ReloadCommand.from_dict(d)
 		ExtractCommand.TAG:
 			return ExtractCommand.from_dict(d)
 		MoveCoreCommand.TAG:

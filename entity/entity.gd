@@ -377,6 +377,15 @@ var _fired_nodes_this_turn: Array[SkillNode] = []
 ## never snapshotted.
 var volleys_launched_this_turn: int = 0
 
+## The leaf set this entity held when its turn STARTED (#955) — the producer
+## set a [ReloadCommand] sums `arrows_per_reload` over (∪ the core). Captured
+## once per turn in [method _on_turn_started], never re-derived at reload
+## time: the fixed set is what closes the allocate-then-reload pump, while
+## the VALUES are read live so a stake raised mid-turn still counts. Runtime
+## only, never synced — a mirror captures its own copy from its own
+## `turn_started`, the same state the authority saw.
+var _turn_start_leaves: Array[SkillNode] = []
+
 ## Resolved once in [method initialize]; read by [method _on_turn_started] to
 ## tell an adopted cursor from a turn actually beginning. See
 ## [member TurnManager.is_adopting].
@@ -632,6 +641,23 @@ func get_active_tags() -> Array[StringName]:
 func mark_spikes_spent(node: SkillNode) -> void:
 	if node != null:
 		_spiked_nodes_spent[node] = true
+
+
+## True iff a [ReloadCommand] from this entity would do something: it has a
+## [Quiver] and can pay the 1 AP. The turn-cursor half of the gate is
+## [CommandApplier]'s.
+func can_reload() -> bool:
+	return false
+
+
+## Reload the quiver (#955): 1 AP, then every AmmoType in roster order gets its
+## mint — the base arrow's `arrows_per_reload` summed node-locally over the
+## turn-start leaf set ∪ core (allocation level and Watchtower bonuses live on
+## the node board, see `default_node_board.tres`), each special's
+## `<id>_arrows_per_reload` flat off the entity board — clamped by capacity.
+## Returns the number of arrows actually added. A full quiver still pays.
+func reload() -> int:
+	return 0
 
 
 func _on_turn_started(entity: Entity) -> void:
