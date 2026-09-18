@@ -15,7 +15,7 @@
 # in the commit message.
 DIGEST_NODE_COUNT 800
 DIGEST_SEED 424242
-DIGEST_SHA256 4ecf22e7cc81f9e7b0ae184ff917004263ab8db0c0f0a053c11aff6b0f2c0e91
+DIGEST_SHA256 e5955a90e66fda8bd9789ab446a143eeac5e156f6ac8cbe966fbb56c52c206dd
 SEED 424242
 NODE_COUNT 80
 NODE 1 -295.762512 615.662659 blue
@@ -163,6 +163,8 @@ NODE 41 -742.543213 -312.755371 blue
   MOD mana 0 3.000000 0 -
   ADDON clamp_addon
   ADDON watchtower_addon
+    AMOD arrows_per_reload 3 1.000000 0 -
+    AMOD max_shots_per_leaf 3 2.000000 0 -
     AMOD range 0 150.000000 0 -
     AMOD range 2 1.250000 0 -
     AMOD vision_range 3 300.000000 0 -
@@ -260,6 +262,8 @@ NODE 65 -733.670715 -496.543060 white
     AMOD node_health 3 15.000000 0 -
     AMOD swing_drag 3 1.000000 0 -
   ADDON watchtower_addon
+    AMOD arrows_per_reload 3 1.000000 0 -
+    AMOD max_shots_per_leaf 3 2.000000 0 -
     AMOD range 0 150.000000 0 -
     AMOD range 2 1.250000 0 -
     AMOD vision_range 3 300.000000 0 -

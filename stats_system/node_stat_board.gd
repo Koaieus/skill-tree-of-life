@@ -52,6 +52,21 @@ extends StatBoard
 ## addons while nodes are unowned (`allocation_level == 0`). See #348.
 @export var addon_slots: ScalarStat
 
+## Node-owned scaling target for the entity board's `arrows_per_reload`
+## baseline (#955): a typed field, not borrowed, purely so the MULTIPLY-by-
+## `stake_level__current` intrinsic on `default_node_board.tres` has a stat to
+## bind to at `apply_intrinsics()` time — `add_modifier`'s target lookup is a
+## non-minting `get_stat`, so a borrowed/sparse id here would silently drop
+## the modifier with a warning until some addon's `local_modifiers` minted it
+## first (the `addon_slots` precedent, one level up). `base_value` is inert —
+## [method SkillNode.get_local_value] only reads this stat's `bins`, merged
+## onto the entity's own `arrows_per_reload`.
+@export var arrows_per_reload: ScalarStat
+
+## Same shape as [member arrows_per_reload], for the entity board's
+## `max_shots_per_leaf` baseline (#956).
+@export var max_shots_per_leaf: ScalarStat
+
 
 ## Node boards are the sparse side — they legitimately mint the stats they
 ## borrow from their owner (`armor`, `node_healing`, `blade_damage`, …), so the

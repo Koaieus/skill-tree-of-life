@@ -7,6 +7,8 @@
 [ext_resource type="Resource" uid="uid://b5b2vjwvxe44m" path="res://stats_system/formulas/allocation_scaling.tres" id="5_alloc_scaling"]
 [ext_resource type="Resource" path="res://stats_system/defs/addon_slots.tres" id="def_addon_slots"]
 [ext_resource type="Resource" path="res://stats_system/defs/stake_level.tres" id="def_stake_level"]
+[ext_resource type="Resource" path="res://stats_system/defs/arrows_per_reload.tres" id="def_arrows_per_reload"]
+[ext_resource type="Resource" path="res://stats_system/defs/max_shots_per_leaf.tres" id="def_max_shots_per_leaf"]
 
 [sub_resource type="Resource" id="Resource_addon_slots"]
 resource_name = "addon_slots"
@@ -30,6 +32,16 @@ stat_id = &"max_shots_per_leaf"
 operation = 2
 formula = ExtResource("5_alloc_scaling")
 
+[sub_resource type="Resource" id="Resource_arrows_per_reload"]
+resource_name = "arrows_per_reload"
+script = ExtResource("3_scalar")
+definition = ExtResource("def_arrows_per_reload")
+
+[sub_resource type="Resource" id="Resource_max_shots_per_leaf"]
+resource_name = "max_shots_per_leaf"
+script = ExtResource("3_scalar")
+definition = ExtResource("def_max_shots_per_leaf")
+
 [sub_resource type="Resource" id="Resource_stake"]
 resource_name = "stake_level"
 script = ExtResource("2_pool")
@@ -40,4 +52,6 @@ base_value = 1.0
 script = ExtResource("1_board")
 stake_level = SubResource("Resource_stake")
 addon_slots = SubResource("Resource_addon_slots")
+arrows_per_reload = SubResource("Resource_arrows_per_reload")
+max_shots_per_leaf = SubResource("Resource_max_shots_per_leaf")
 intrinsic_modifiers = Array[ExtResource("4_mod")]([SubResource("Resource_m_addon_slots"), SubResource("Resource_m_arrows_per_reload"), SubResource("Resource_m_max_shots_per_leaf")])
