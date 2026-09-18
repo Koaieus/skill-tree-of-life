@@ -7,6 +7,10 @@ extends Node
 ## a child `EntityNavigator` that mirrors the owned-subgraph for connectivity
 ## queries (islanding checks now; combat path/reach queries later).
 
+## The authored [AmmoType] roster [method reload] mints from — never a
+## directory scan (see [AmmoTypeRoster]).
+const _AMMO_TYPES: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
+
 signal core_location_changed
 signal leveled_up(new_level: int)
 signal died
@@ -647,7 +651,10 @@ func mark_spikes_spent(node: SkillNode) -> void:
 ## [Quiver] and can pay the 1 AP. The turn-cursor half of the gate is
 ## [CommandApplier]'s.
 func can_reload() -> bool:
-	return false
+	if stat_board == null or stat_board.arrows == null:
+		return false
+	var ap := stat_board.action_points
+	return ap == null or ap.available() >= 1
 
 
 ## Reload the quiver (#955): 1 AP, then every AmmoType in roster order gets its
@@ -657,7 +664,33 @@ func can_reload() -> bool:
 ## `<id>_arrows_per_reload` flat off the entity board — clamped by capacity.
 ## Returns the number of arrows actually added. A full quiver still pays.
 func reload() -> int:
-	return 0
+	if not can_reload():
+		return 0
+	var quiver: Quiver = stat_board.arrows
+	if stat_board.action_points != null:
+		stat_board.action_points.deplete(1)
+	# Leaves ∪ core as a SET: a core with one neighbour is itself a leaf, and
+	# it must not mint twice. A leaf lost since turn start (attack, forced
+	# dealloc) no longer produces — `owned_by == self` is exactly the
+	# "is this that one entity's node" question (ownership-vocabulary rule).
+	var producers: Dictionary[SkillNode, bool] = {}
+	for n in _turn_start_leaves:
+		if is_instance_valid(n) and n.owned_by == self:
+			producers[n] = true
+	if core_location != null:
+		producers[core_location] = true
+	var added := 0
+	for t in _AMMO_TYPES.sorted():
+		var n_minted := 0
+		if t.id == AmmoTypeRoster.BASE_ID:
+			for node in producers:
+				n_minted += int(node.get_local_value(t.per_reload_stat_id))
+		else:
+			var flat := stat_board.get_stat(t.per_reload_stat_id)
+			n_minted = int(flat.get_value()) if flat != null else 0
+		if n_minted > 0:
+			added += quiver.add(t.id, n_minted)
+	return added
 
 
 func _on_turn_started(entity: Entity) -> void:
@@ -669,6 +702,9 @@ func _on_turn_started(entity: Entity) -> void:
 	# [member TurnManager.is_adopting].
 	if _turn_manager != null and _turn_manager.is_adopting:
 		return
+	# The reload producer set (#955), before the first-turn gate below: the
+	# opening turn has no income, but it may reload — the quiver starts empty.
+	_turn_start_leaves = navigator.get_leaf_nodes() if navigator != null else []
 	# Counted before the gate, so the tally stays honest about turns SERVED.
 	turns_taken += 1
 	# #956: the volley budget is per turn, first turn included — above the

@@ -614,6 +614,11 @@ func _validate(command: Command) -> bool:
 	if command is DeallocateSetCommand:
 		var nodes := _resolve_nodes((command as DeallocateSetCommand).node_ids)
 		return allocation_system.can_deallocate_set(nodes, actor)
+	if command is ReloadCommand:
+		# Actor's turn + 1 AP. The AP half is [method Entity.can_reload]'s own
+		# guard too — the same double-ask every mutating method keeps.
+		return turn_manager != null and turn_manager.current_entity == actor \
+				and actor.can_reload()
 	if command is LaunchAttackCommand:
 		# The one branch that PRODUCES as well as decides — see the method note.
 		# The attack's real gate is "resolve, then check affordability", and the
@@ -708,6 +713,11 @@ func _apply(command: Command) -> bool:
 	if command is DeallocateSetCommand:
 		var nodes := _resolve_nodes((command as DeallocateSetCommand).node_ids)
 		return allocation_system.deallocate_set(nodes, actor)
+	if command is ReloadCommand:
+		# A full quiver still pays the AP — the command was legal, it just
+		# minted nothing; returning true keeps the mirror's stream identical.
+		actor.reload()
+		return true
 	if command is LaunchAttackCommand:
 		if battle_system == null:
 			return false

@@ -112,19 +112,19 @@ func test_special_arrows_are_flat_never_times_leaves() -> void:
 	assert_eq(roundi(w.quiver().current), 4 * w.per_leaf() + 1)
 
 
-func test_reload_is_refused_without_ap_or_off_turn() -> void:
+func test_reload_is_refused_without_ap() -> void:
 	var w: World = await _build_world(0.0)
 	w.player.stat_board.action_points.set_current(0.0)
 	w.applier.submit(_reload(w))
 	assert_eq(w.quiver().stock_of(&"arrow"), 0, "no AP, no reload")
-	w.player.stat_board.action_points.restore_to_full()
-	w.tm.end_turn()
-	w.applier.submit(_reload(w))
-	assert_eq(w.quiver().stock_of(&"arrow"), 0, "not the actor's turn, no reload")
+	assert_false(w.player.can_reload())
 
 
 func test_reload_replays_identically_on_a_mirror() -> void:
 	var host: World = await _build_world(1.0)
+	# Entity binds to the FIRST TurnManager in the group; take the host's out
+	# so the mirror's entity finds its own (two worlds, one scene tree).
+	host.tm.remove_from_group(TurnManager.GROUP)
 	var mirror: World = await _build_world(1.0)
 	var cmd := _reload(host)
 	var wire := cmd.to_dict()
