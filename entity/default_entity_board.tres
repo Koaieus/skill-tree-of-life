@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://ceaxdyhhuysdx" path="res://stats_system/pool_stat.gd" id="3_pool"]
 [ext_resource type="Script" uid="uid://f73t1rkb44ye" path="res://stats_system/surplus_pool_stat.gd" id="3_surplus"]
 [ext_resource type="Script" uid="uid://cioeeste4m3t0" path="res://stats_system/skill_point_stat.gd" id="4_sp"]
+[ext_resource type="Script" uid="uid://lnbdt5qiroa4" path="res://stats_system/quiver.gd" id="4_quiver"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="12_3edt8"]
 [ext_resource type="Resource" uid="uid://ccpue5w27rur1" path="res://stats_system/defs/action_points.tres" id="def_ap"]
 [ext_resource type="Resource" path="res://stats_system/defs/ap_transfer_rate.tres" id="def_ap_transfer_rate"]
@@ -39,6 +40,7 @@
 [ext_resource type="Resource" uid="uid://dstlg0lrt8nvv" path="res://stats_system/defs/perception.tres" id="def_perception"]
 [ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="def_range"]
 [ext_resource type="Resource" path="res://stats_system/defs/ranged_damage.tres" id="def_ranged_damage"]
+[ext_resource type="Resource" path="res://stats_system/defs/arrows.tres" id="def_arrows"]
 [ext_resource type="Resource" path="res://stats_system/defs/arrows_per_reload.tres" id="def_arrows_per_reload"]
 [ext_resource type="Resource" path="res://stats_system/defs/poison_arrows_per_reload.tres" id="def_poison_arrows_per_reload"]
 [ext_resource type="Resource" path="res://stats_system/defs/max_shots_per_leaf.tres" id="def_max_shots_per_leaf"]
@@ -446,6 +448,14 @@ script = ExtResource("2_scalar")
 definition = ExtResource("def_sensor_range")
 base_value = 2.0
 
+[sub_resource type="Resource" id="quiver_arrows"]
+resource_name = "arrows"
+script = ExtResource("4_quiver")
+_bins = Dictionary[StringName, int]({})
+current = 0.0
+definition = ExtResource("def_arrows")
+base_value = 40.0
+
 [sub_resource type="Resource" id="scalar_arrows_per_reload"]
 resource_name = "arrows_per_reload"
 script = ExtResource("2_scalar")
@@ -590,6 +600,7 @@ vision_range = SubResource("scalar_vision_range")
 sensor_range = SubResource("scalar_sensor_range")
 range = SubResource("scalar_range")
 ranged_damage = SubResource("scalar_ranged_damage")
+arrows = SubResource("quiver_arrows")
 arrows_per_reload = SubResource("scalar_arrows_per_reload")
 poison_arrows_per_reload = SubResource("scalar_poison_arrows_per_reload")
 max_shots_per_leaf = SubResource("scalar_max_shots_per_leaf")

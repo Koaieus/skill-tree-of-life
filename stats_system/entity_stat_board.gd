@@ -140,6 +140,11 @@ extends StatBoard
 @warning_ignore("shadowed_global_identifier")
 @export var range: ScalarStat			## Per-leaf firing distance in scene pixels. Localized on leaves.
 @export var ranged_damage: ScalarStat	## Damage per shot. Base 1, +1 per 20 DEX. Node-local addons add on top per-node via node_board.
+## The Quiver (#955): current = total arrow stock, max = capacity (shared across
+## AmmoTypes), per-type bins inside current. Authored here + on
+## `default_entity_board.tres` exactly like `skill_points` — NEVER minted by
+## `StatBoard._mint_stat`, which would mint a plain PoolStat with no bins.
+@export var arrows: Quiver
 @export var arrows_per_reload: ScalarStat	## Base arrow yield per producing leaf/core on a ReloadCommand. Node-local via get_local_value, scaled by allocation level (#955).
 @export var poison_arrows_per_reload: ScalarStat	## Flat poison-arrow yield per ReloadCommand. Entity-flat, never scaled by leaf allocation level (#955).
 @export var max_shots_per_leaf: ScalarStat	## Per-turn shot budget for a single leaf node. Node-local via get_local_value, scaled by allocation level (#956).

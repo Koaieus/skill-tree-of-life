@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AmmoType" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://attack/ammo/ammo_type.gd" id="1_ammo_type"]
+
+[resource]
+script = ExtResource("1_ammo_type")
+id = &"poison"
+display_name = "Poison Arrow"
+order = 80
+damage_scale = 1.0
+per_reload_stat_id = &"poison_arrows_per_reload"
