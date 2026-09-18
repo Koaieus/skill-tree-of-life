@@ -70,6 +70,7 @@ static func _read_offense(firing_slice: NodeCombat) -> float:
 ## launch is the amount that lands — see [method RangedDamageFormula._read_offense]
 ## for the owner call that removed the land-time re-read.
 class RangedHitInstance extends DamageInstance:
+	var ammo_type: AmmoType = null
 	## The attacker this shot was fired for is [member HitInstance.attacker] —
 	## promoted to the base class in #507 so the shared [CritRoll] can read its
 	## board. Needed here at land time to re-check the target is still HOSTILE

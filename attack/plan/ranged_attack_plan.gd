@@ -11,6 +11,23 @@ extends AttackPlan
 ## pops the target — see docs/design/click_grammar.md.
 
 var target: SkillNode = null
+var ammo_counts: Dictionary = {}
+
+const ERR_NO_AMMO := &'No arrows in the quiver'
+const ERR_NO_SHOTS := &'No firing leaf in range has shots left'
+const ERR_VOLLEY_LIMIT := &'Volley limit reached this turn'
+
+
+func max_n() -> int:
+	return 0
+
+
+func n() -> int:
+	return 0
+
+
+func effective_ammo_counts() -> Dictionary:
+	return {}
 
 
 ## One entry of the authored firing schedule (see [method get_firing_schedule]).
@@ -26,6 +43,8 @@ class FiringShot:
 	var firing_node: SkillNode
 	var target: SkillNode
 	var distance: float
+	var wave: int = 0
+	var ammo_type: AmmoType = null
 
 	func _init(p_firing_node: SkillNode, p_target: SkillNode) -> void:
 		firing_node = p_firing_node
