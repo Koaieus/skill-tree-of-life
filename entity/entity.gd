@@ -704,7 +704,8 @@ func _on_turn_started(entity: Entity) -> void:
 		return
 	# The reload producer set (#955), before the first-turn gate below: the
 	# opening turn has no income, but it may reload — the quiver starts empty.
-	_turn_start_leaves = navigator.get_leaf_nodes() if navigator != null else []
+	_turn_start_leaves = navigator.get_leaf_nodes() if navigator != null \
+			else ([] as Array[SkillNode])
 	# Counted before the gate, so the tally stays honest about turns SERVED.
 	turns_taken += 1
 	# #956: the volley budget is per turn, first turn included — above the
