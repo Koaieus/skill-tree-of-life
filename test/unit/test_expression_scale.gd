@@ -256,6 +256,18 @@ func test_editing_the_formula_reparses() -> void:
 	assert_almost_eq(scale.scale(1.0, -1.0, 99.0), 99.0, 0.001, "the new formula is in force")
 
 
+## The `wants_*` answers are memoized (asked per node per grant pass); the
+## same setter that reparses must drop them too, or a hot-edit that starts
+## naming `h` would never open the hop walk.
+func test_editing_the_formula_refreshes_wants_hops_and_uses_bound() -> void:
+	var scale := _expr("5 - d")
+	assert_false(scale.wants_hops())
+	assert_false(scale.uses_bound())
+	scale.formula = "v * (1 - h / max)"
+	assert_true(scale.wants_hops(), "the edited formula names `h`")
+	assert_true(scale.uses_bound(), "the edited formula names `max`")
+
+
 ## Integer division is Expression's classic trap: `1 - d / max` with ints would
 ## floor. Everything goes in as a float.
 func test_inputs_are_floats_not_ints() -> void:

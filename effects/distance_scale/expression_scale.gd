@@ -84,6 +84,13 @@ const BOUND_INTERNAL := "__max"
 ## rather than once per node per recompute.
 var _expr: Expression = null
 var _parse_failed: bool = false
+## Memoized [method _internal_text] and [method _mentions] answers — the regex
+## work behind `uses_bound` / `wants_hops` / `wants_euclid`, which
+## [AuraEffect] asks per grant pass and per node. Cleared with the parse on
+## every formula edit, so a hot-edit is never served a stale answer.
+var _internal_cache: String = ""
+var _internal_cached: bool = false
+var _mentions_cache: Dictionary[String, bool] = {}
 
 
 func _set_formula(v: String) -> void:
@@ -144,23 +151,32 @@ func wants_euclid() -> bool:
 
 
 func _mentions(input: String) -> bool:
+	if _mentions_cache.has(input):
+		return _mentions_cache[input]
 	var rx := RegEx.create_from_string("\\b%s\\b" % input)
-	return rx != null and rx.search(_internal_text()) != null
+	var hit := rx != null and rx.search(_internal_text()) != null
+	_mentions_cache[input] = hit
+	return hit
 
 
 ## The authored formula with `max` rewritten to the identifier [Expression] will
 ## actually accept. Shared with [method uses_bound], so the two can never
 ## disagree about what counts as a mention of the bound.
 func _internal_text() -> String:
+	if _internal_cached:
+		return _internal_cache
 	var rx := RegEx.create_from_string("\\b%s\\b" % BOUND_AUTHORED)
-	if rx == null:
-		return formula
-	return rx.sub(formula, BOUND_INTERNAL, true)
+	_internal_cache = formula if rx == null else rx.sub(formula, BOUND_INTERNAL, true)
+	_internal_cached = true
+	return _internal_cache
 
 
 func _invalidate() -> void:
 	_expr = null
 	_parse_failed = false
+	_internal_cached = false
+	_internal_cache = ""
+	_mentions_cache.clear()
 
 
 func _parse() -> void:
