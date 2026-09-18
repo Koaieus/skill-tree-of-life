@@ -53,6 +53,8 @@ func _build() -> Dictionary:
 	var attacker := Entity.new()
 	attacker.faction = _PLAYER_FACTION
 	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# #957: a volley needs arrows; the default board's quiver starts empty.
+	attacker.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 40)
 	attacker.stat_board.action_points.base_value = 2.0
 	attacker.stat_board.action_points.current = 2.0
 	graph.add_child(attacker)

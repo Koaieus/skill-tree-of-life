@@ -60,6 +60,8 @@ func _make_entity(graph: Graph, nm: String) -> Entity:
 	camp.id = StringName("discovers_nothing_%s_%d" % [nm, ent.get_instance_id()])
 	ent.faction = camp
 	ent.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# #957: a volley needs arrows; the default board's quiver starts empty.
+	ent.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 40)
 	# Exact-landing assertions behind a real resolve must zero this, per
 	# .claude/rules/testing.md — the default board crits 5% of hits.
 	ent.stat_board.get_stat(&"crit_chance").base_value = 0.0

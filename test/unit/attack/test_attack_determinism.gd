@@ -195,6 +195,8 @@ func _make_allocated_world() -> Dictionary:
 	var attacker := Entity.new()
 	attacker.display_name = "A"
 	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# #957: a volley needs arrows; the default board's quiver starts empty.
+	attacker.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 40)
 	# Both entities default to the `npc` faction, which makes them ALLIED —
 	# and `RangedAttackPlan.validate` refuses a non-hostile target, so without
 	# this the fixture resolves to zero shots and every crit assertion below
