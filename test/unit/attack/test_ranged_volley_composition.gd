@@ -199,3 +199,84 @@ func test_validate_third_state() -> void:
 	assert_true(p.validate().is_empty())
 	_attacker.volleys_launched_this_turn = int(_attacker.stat_board.volleys_per_turn.value)
 	assert_has(p.validate(), RangedAttackPlan.ERR_VOLLEY_LIMIT)
+
+
+# ── Consumption at commit (#957 acceptance 2) ────────────────────────────
+
+func _battle_system() -> BattleSystem:
+	var tm := TurnManager.new()
+	add_child_autofree(tm)
+	tm.current_entity = _attacker
+	var vfx := AttackVFX.new()
+	add_child_autofree(vfx)
+	var bs := BattleSystem.new()
+	bs.turn_manager = tm
+	bs.allocation_system = _alloc
+	bs.graph = _graph
+	bs.attack_vfx = vfx
+	add_child_autofree(bs)
+	return bs
+
+
+func test_launch_consumes_bins_leaf_shots_and_a_volley_slot_but_no_ap() -> void:
+	_attacker.stat_board.action_points.base_value = 2.0
+	_attacker.stat_board.action_points.current = 2.0
+	var bs := _battle_system()
+	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	var plan := bs.attack_plan as RangedAttackPlan
+	plan._on_node_left_clicked(_target)
+	plan.ammo_counts = {_POISON: 2, _ARROW: 5}
+	assert_true(plan.is_valid(), str(plan.validate()))
+
+	await bs.launch_attack()
+
+	var quiver: Quiver = _attacker.stat_board.arrows
+	assert_eq(quiver.stock_of(_POISON), 3, "2 poison spent")
+	assert_eq(quiver.stock_of(_ARROW), 10, "5 arrows spent")
+	assert_eq(roundi(quiver.current), 13)
+	assert_eq(_near.shots_fired_this_turn, 3)
+	assert_eq(_mid_leaf.shots_fired_this_turn, 2)
+	assert_eq(_far.shots_fired_this_turn, 3, "1 before the volley + 2 fired")
+	assert_eq(_attacker.volleys_launched_this_turn, 1)
+	assert_eq(_attacker.stat_board.action_points.available(), 2, "firing costs no AP")
+	for leaf in [_near, _mid_leaf, _far]:
+		assert_true(_attacker._fired_nodes_this_turn.has(leaf), "%s is in the firer's reset set" % leaf.name)
+
+
+func test_volley_limit_reached_fails_validate_with_the_volleys_reason() -> void:
+	# A sturdy target: five 1-arrow volleys must not kill it on the way.
+	_set_stat(_target, &"node_health", 1000.0)
+	var bs := _battle_system()
+	var limit := int(_attacker.stat_board.volleys_per_turn.value)
+	assert_gt(limit, 0, "precondition: the board grants volleys")
+	for i in limit:
+		bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
+		var plan := bs.attack_plan as RangedAttackPlan
+		plan._on_node_left_clicked(_target)
+		plan.ammo_counts = {_ARROW: 1}
+		assert_true(plan.is_valid(), "volley %d: %s" % [i, str(plan.validate())])
+		await bs.launch_attack()
+	assert_eq(_attacker.volleys_launched_this_turn, limit)
+	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	var extra := bs.attack_plan as RangedAttackPlan
+	extra._on_node_left_clicked(_target)
+	extra.ammo_counts = {_ARROW: 1}
+	assert_has(extra.validate(), RangedAttackPlan.ERR_VOLLEY_LIMIT)
+
+
+func test_a_target_that_dies_mid_volley_still_consumes_every_arrow() -> void:
+	# 3 dmg/leaf into the default 10 node_health: the 4th shot kills, shots
+	# 5..7 are vetoed duds — and still paid for.
+	var bs := _battle_system()
+	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
+	var plan := bs.attack_plan as RangedAttackPlan
+	plan._on_node_left_clicked(_target)
+	plan.ammo_counts = {_ARROW: 7}
+	assert_true(plan.is_valid(), str(plan.validate()))
+	var stock_before := roundi(_attacker.stat_board.arrows.current)
+	await bs.launch_attack()
+	assert_ne(_target.owned_by, _hostile, "precondition: the target died")
+	assert_eq(roundi(_attacker.stat_board.arrows.current), stock_before - 7,
+			"duds consume — a shot fired is a shot fired")
+	assert_eq(_near.shots_fired_this_turn + _mid_leaf.shots_fired_this_turn
+			+ (_far.shots_fired_this_turn - 1), 7)

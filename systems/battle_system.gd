@@ -638,6 +638,34 @@ func _compute_record(plan: AttackPlan, command: LaunchAttackCommand) -> bool:
 	return affordable
 
 
+## The ranged volley's cost (#957), paid HERE beside AP so every machine —
+## authority and mirror alike — deducts it from the same rebuilt command. Owner
+## (2026-09-18): *"a shot fired is a shot fired and a shot fired uses ammo"* —
+## consumption is per SHOT, never per landing, so a dud still costs (every hit
+## the resolve minted is in [param outcome], vetoed or not). Bins drain from the
+## plan's effective composition (the wire carries it explicitly); each hit's
+## origin leaf is marked fired and remembered on the firer for its turn-end
+## reset (the `_fired_nodes_this_turn` seam C2 authored for exactly this call);
+## the volleys counter ticks once.
+func _consume_volley(plan: RangedAttackPlan, outcome: AttackOutcome) -> void:
+	var entity := plan.attacker
+	if entity == null:
+		return
+	var quiver: Quiver = entity.stat_board.arrows if entity.stat_board != null else null
+	if quiver != null:
+		var counts := plan.effective_ammo_counts()
+		for id in counts:
+			quiver.take(id, int(counts[id]))
+	for hit in outcome.hits:
+		var leaf := hit.origin
+		if leaf == null or not is_instance_valid(leaf):
+			continue
+		leaf.mark_shot_fired(1)
+		if not entity._fired_nodes_this_turn.has(leaf):
+			entity._fired_nodes_this_turn.append(leaf)
+	entity.volleys_launched_this_turn += 1
+
+
 ## Can [param plan]'s attacker pay for [param outcome]? Reads the LIVE pools —
 ## an attack computed on a shadow is still paid for out of the real board.
 func _can_afford(plan: AttackPlan, outcome: AttackOutcome) -> bool:
@@ -686,6 +714,8 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	var mana_pool: PoolStat = board.mana if board != null else null
 	if outcome.mana_cost > 0 and mana_pool != null:
 		mana_pool.deplete(float(outcome.mana_cost))
+	if plan is RangedAttackPlan:
+		_consume_volley(plan as RangedAttackPlan, outcome)
 	var launched_spell: SpellDef = (plan as MagicAttackPlan).spell if plan is MagicAttackPlan else null
 	attack_launched.emit(plan.mode, launched_spell)
 	# Un-awaited, like every other observer on this path: `_apply_outcome`

@@ -26,12 +26,22 @@ var _leaf_near: SkillNode
 var _target: SkillNode
 
 
+## #957: every leaf here is pinned to ONE shot per turn, so the bare default
+## volley (N = max) is exactly one wave — one hit per reaching leaf, which is
+## what every ramp assertion below counts on. Waves are
+## test_ranged_volley_composition.gd's subject.
 func _set_range(node: SkillNode, value: float) -> void:
-	var m := StatModifier.new()
-	m.stat_id = &"range"
-	m.operation = StatModifier.Operation.SET
-	m.value = value
-	node.add_local_modifier(m)
+	for id_value in [[&"range", value], [&"max_shots_per_leaf", 1.0]]:
+		var m := StatModifier.new()
+		m.stat_id = id_value[0]
+		m.operation = StatModifier.Operation.SET
+		m.value = id_value[1]
+		node.add_local_modifier(m)
+
+
+## A volley needs arrows (#957): the default board's quiver starts empty.
+func _stock(entity: Entity, n: int = 20) -> void:
+	entity.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, n)
 
 
 func _set_ranged_damage(node: SkillNode, value: float) -> void:
@@ -65,6 +75,7 @@ func before_each() -> void:
 	_attacker = Entity.new()
 	_attacker.faction = _PLAYER_FACTION
 	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	_stock(_attacker)
 	_graph.add_child(_attacker)
 
 	_hostile = Entity.new()
@@ -155,10 +166,11 @@ func test_resolve_produces_one_hit_per_reaching_firing_position() -> void:
 	assert_almost_eq(hit.amount, 12.0, 0.001)
 
 
-func test_resolve_default_ap_cost_is_one() -> void:
+func test_resolve_ap_cost_is_zero() -> void:
+	# #957, owner: "Firing costs 0 AP" — arrows and per-leaf shots are the cost.
 	var p := _plan()
 	p._on_node_left_clicked(_target)
-	assert_eq(p.resolve().ap_cost, 1)
+	assert_eq(p.resolve().ap_cost, 0)
 
 
 func test_resolve_stamps_the_authored_ramp_onto_arrival_time() -> void:
@@ -371,6 +383,7 @@ func _build_three_leaf_star(leaf_order: Array) -> Dictionary:
 	var attacker := Entity.new()
 	attacker.faction = _PLAYER_FACTION
 	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	_stock(attacker)
 	graph.add_child(attacker)
 	var hostile := Entity.new()
 	hostile.faction = _NPC_FACTION
