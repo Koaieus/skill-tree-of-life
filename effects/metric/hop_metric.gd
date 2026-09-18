@@ -49,7 +49,10 @@ static func depths(source: SkillNode, mirror: GraphMirror, max_hops: int,
 	var out: Dictionary[SkillNode, float] = AuraDistanceCache.get_or_walk(mirror, source, cap, walk)
 	while not _covers(out, wanted):
 		var before := out.size()
-		cap = maxi(cap * 2, 1)
+		# Double from the cap the cache actually walked (a wider same-generation
+		# entry serves any narrower ask whole), so this ask is a real re-walk and
+		# "the ball stopped growing" genuinely means the component is exhausted.
+		cap = maxi(maxi(cap, AuraDistanceCache.cached_cap(mirror, source)) * 2, 1)
 		out = AuraDistanceCache.get_or_walk(mirror, source, cap, walk)
 		if out.size() == before:
 			break

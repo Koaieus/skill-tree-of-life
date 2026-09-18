@@ -85,6 +85,25 @@ static func get_or_walk(mirror: GraphMirror, source: SkillNode, max_hops: int, w
 	return entry["raw"]
 
 
+## The hop cap the entry for [param mirror]/[param source] was walked to on
+## the mirror's CURRENT topology generation, or -1 when nothing current is
+## cached (stale generation, never walked, or an uncacheable mirror). A
+## widening walker ([method HopMetric.depths]) doubles from this, not from its
+## own ask: a hit on a wider entry hands back that whole ball, and doubling a
+## cap the entry already covers would just hit it again — no walk, no growth.
+static func cached_cap(mirror: GraphMirror, source: SkillNode) -> int:
+	if mirror == null or source == null:
+		return -1
+	var gen := _generation_of(mirror)
+	if gen < 0:
+		return -1
+	var by_source: Dictionary = _entries.get(mirror, {})
+	var entry: Dictionary = by_source.get(source, {})
+	if entry.get("generation", -1) != gen:
+		return -1
+	return int(entry.get("max_hops", -1))
+
+
 ## Drop every cache entry belonging to [param mirror] — called from
 ## [method EntityNavigator._exit_tree] so a freed entity's navigator doesn't
 ## pin a dangling dictionary key forever.

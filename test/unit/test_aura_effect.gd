@@ -15,6 +15,7 @@ var _nodes: Array[SkillNode]
 
 
 func before_each() -> void:
+	AuraDistanceCache.clear()
 	_graph = _GRAPH_SCENE.instantiate()
 	_graph.name = "TestGraph"
 	add_child_autofree(_graph)
@@ -511,3 +512,35 @@ func test_hop_depth_widens_past_the_selection_for_a_coiling_path() -> void:
 	h_aura.modifiers = [_armor_mod(1.0)]
 	ent.grant_effect(h_aura)
 	assert_almost_eq(_armor(far), 16.0, 0.001, "h under a euclid metric is the coil's 8 hops")
+
+
+## The widening loop must widen from the cap the cache ACTUALLY walked, not the
+## cap this caller asked for: with a same-generation entry already walked to 8
+## (another aura's ask), a 2-hop ask is served from that entry, and doubling
+## 2 → 4 is still covered by it — no walk happens, the ball's size "did not
+## grow", and a wanted node at depth 12 would be declared unreachable.
+func test_hop_depth_widens_past_a_wider_cached_walk() -> void:
+	var src := _nodes[0]
+	var far := _nodes[3]
+	var prev := src
+	for i in 11:
+		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
+		sn.name = "C%d" % i
+		sn.position = Vector2(i * 300.0, 900.0)
+		_graph.add_skill_node(sn)
+		_add_edge(prev, sn)
+		prev = sn
+	_add_edge(prev, far)                          # src-C0-…-C10-far = 12 hops
+	var owned: Array[SkillNode] = [src, far]
+	for c in _graph.get_skill_nodes():
+		if c.name.begins_with("C"):
+			owned.append(c)
+	var ent: Entity = await _spawn(src, owned)
+
+	var warm := HopMetric.depths(src, ent.navigator, 8)
+	assert_false(warm.has(far), "sanity: an 8-hop ball does not reach a 12-hop node")
+	var wanted: Dictionary = {far: true}
+	var found := HopMetric.depths(src, ent.navigator, 2, wanted)
+	assert_true(found.has(far), "the walk widened past the cached 8-hop ball")
+	if found.has(far):
+		assert_almost_eq(found[far], 12.0, 0.001)
