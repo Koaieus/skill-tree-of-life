@@ -79,6 +79,32 @@ the `SkillNode` directly and are driven by `configure_visual`, not by the
 composite's identity fan-out, so borrowing that base class's statics would imply
 a membership that doesn't exist.
 
+## Readouts: below the node
+
+A third register, for a *number the player checks* rather than a thing the
+node is or carries: a row under the disk, outside every band and every
+elevation piece (which all stand above y=0). One occupant so far:
+
+| Readout | Where | Elements | Shown when |
+|---|---|---|---|
+| ShotsPips (`skill_node/shots_pips.gd`, #959) | y = `1.7 * radius`, centred | `shots_left()` lit of `max_shots_per_leaf` dots | the local attacker's plan is RANGED and the node is a leaf of *their* territory |
+
+ShotsPips is the render-budget template for any per-node readout that
+hundreds of nodes carry at once: **one `Sprite2D`, one shared strip texture
+(`CAPACITY` lit dots then `CAPACITY` unlit, built once in a `static var`),
+default material.** "k lit of n" is a `region_rect` window into the strip,
+the owner tint is `modulate` clamped under 1.0 — so it is UV + modulate
+variation on one texture and every visible row batches into the same draw
+(`rendering-performance.md`). It is refreshed off the writes that change it
+(`SkillNode.shots_fired_this_turn`'s setter, BattleSystem's plan signals)
+through `SkillNode._sync_shot_pips`, a deliberately narrow sibling of
+`_sync_visuals` — a plan signal fires on every allocation while armed, and a
+full emblem re-resolve per node per drag would not be free.
+
+The node has no injected BattleSystem; it discovers one lazily through the
+`HighlightController` group (the `PlayerInputController` precedent), which is
+what a test must put in the tree (`test/unit/test_shot_pips.gd`).
+
 ## Elevation: straight up is taken
 
 `skill_node.tscn` parks `HealthBar` at y −59..−46 and `CoreHealthBar` at
