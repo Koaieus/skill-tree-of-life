@@ -40,5 +40,5 @@ func take(_type_id: StringName, _n: int) -> int:
 
 
 ## `{type_id: count}` for every bin with a positive count.
-func bins() -> Dictionary:
+func ammo_bins() -> Dictionary:
 	return {}
