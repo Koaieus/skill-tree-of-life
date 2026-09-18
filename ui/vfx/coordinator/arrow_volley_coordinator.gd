@@ -36,6 +36,13 @@ extends VFXCoordinator
 
 const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/light_arrow.tscn")
 
+## #950 — landing-point spread. Margin off [member SkillNode.radius] (the
+## GROWN radius) so nothing lands right on the rim, and the gaussian's sigma
+## as a fraction of that margin — owner's number (`r_max / 2.5`), tunable
+## here without touching the draw loop.
+const _LANDING_MARGIN: float = 0.9
+const _LANDING_SIGMA_FACTOR: float = 1.0 / 2.5
+
 @export var projectile_path: ProjectilePath
 @export var visual_scene: PackedScene = _DEFAULT_VISUAL
 
@@ -108,9 +115,10 @@ func play(payload: Variant) -> void:
 		# discipline as the tint read below, never a second gate computed
 		# independently.
 		proj.arrived.connect(_on_arrow_arrived.bind(proj, hit))
+		var landing_offset := _landing_offset(outcome, i, hit.target)
 		proj.launch(
 				hit.origin.global_position,
-				hit.target.global_position,
+				hit.target.global_position + landing_offset,
 				launch_delay)
 		# Tint hook: Projectile.launch instantiates the visual synchronously
 		# as its first child. Stamp tint right after so LightArrow reads the
@@ -196,3 +204,25 @@ func _resolved_path() -> ProjectilePath:
 	if projectile_path != null:
 		return projectile_path
 	return BezierArcPath.new()
+
+
+## #950 — where THIS arrow lands on the target's disc, purely cosmetic:
+## flight path and impact VFX aim here, but the hit, the damage and the land
+## beat all still resolve against [param target]'s true centre untouched.
+##
+## Gaussian radius clamped into `[0, r_max]`, uniform angle — the owner's
+## spec verbatim (2026-09-18). Seeded off [param outcome]'s own
+## [member AttackOutcome.resolve_seed] plus this shot's index, never the
+## gameplay RNG (`.claude/rules/multiplayer-sync.md`): a mirror replaying the
+## same [AttackRecord] draws the identical spread, since both ends see the
+## same seed and the same hit order.
+func _landing_offset(outcome: AttackOutcome, index: int, target: SkillNode) -> Vector2:
+	var r_max: float = _LANDING_MARGIN * target.radius
+	if r_max <= 0.0:
+		return Vector2.ZERO
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("%d:%d" % [outcome.resolve_seed, index])
+	var sigma: float = r_max * _LANDING_SIGMA_FACTOR
+	var rho: float = clampf(absf(rng.randfn(0.0, sigma)), 0.0, r_max)
+	var phi: float = rng.randf_range(0.0, TAU)
+	return Vector2.from_angle(phi) * rho

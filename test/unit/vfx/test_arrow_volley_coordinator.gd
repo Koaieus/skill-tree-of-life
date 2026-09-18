@@ -210,3 +210,76 @@ func test_every_arrow_touches_down_exactly_when_its_damage_lands() -> void:
 		assert_almost_eq(entry.launch_at + coord._flight_for(entry),
 				entry.arrive_at, 0.0001,
 				"the arrow must touch down exactly when its damage lands")
+
+
+## #950: every arrow used to land dead-centre on the target — visually a
+## single THWACK painted N times. Landing points now spread across the
+## target's disc, seeded from `outcome.resolve_seed` + hit index so a mirror
+## replaying the same `AttackRecord` draws the identical picture (never the
+## gameplay RNG, per `docs/domain/multiplayer-sync-model.md`). The offset is
+## presentation only — flight target moves, the hit/damage/land beat do not.
+func _collect_target_offsets(coord: ArrowVolleyCoordinator) -> Array[Vector2]:
+	var offsets: Array[Vector2] = []
+	for c in coord.get_children():
+		if c is Projectile:
+			offsets.append(c._target_pos - _target.global_position)
+	return offsets
+
+
+func test_landing_offsets_are_deterministic_across_replays() -> void:
+	var outcome := AttackOutcome.new()
+	outcome.resolve_seed = 42
+	outcome.hits.append(_hit(0.02))
+	outcome.hits.append(_hit(0.04))
+
+	var coord_a := _mount_coord()
+	coord_a.play(outcome)
+	var offsets_a := _collect_target_offsets(coord_a)
+	await coord_a.play(outcome)
+
+	var coord_b := _mount_coord()
+	coord_b.play(outcome)
+	var offsets_b := _collect_target_offsets(coord_b)
+	await coord_b.play(outcome)
+
+	assert_eq(offsets_a.size(), 2, "one offset per hit")
+	assert_eq(offsets_b.size(), 2, "one offset per hit")
+	for i in offsets_a.size():
+		assert_almost_eq(offsets_a[i].x, offsets_b[i].x, 0.0001,
+				"same outcome replayed must land the same arrow %d at the same spot" % i)
+		assert_almost_eq(offsets_a[i].y, offsets_b[i].y, 0.0001,
+				"same outcome replayed must land the same arrow %d at the same spot" % i)
+
+
+func test_landing_offsets_differ_by_hit_index() -> void:
+	var outcome := AttackOutcome.new()
+	outcome.resolve_seed = 7
+	outcome.hits.append(_hit(0.02))
+	outcome.hits.append(_hit(0.04))
+
+	var coord := _mount_coord()
+	coord.play(outcome)
+	var offsets := _collect_target_offsets(coord)
+	await coord.play(outcome)
+
+	assert_eq(offsets.size(), 2)
+	assert_true(offsets[0].distance_to(offsets[1]) > 0.01,
+			"two different hit indices in the same outcome must draw different offsets")
+
+
+func test_landing_offsets_stay_within_the_target_disc() -> void:
+	var outcome := AttackOutcome.new()
+	outcome.resolve_seed = 99
+	for i in 20:
+		outcome.hits.append(_hit(0.01 * float(i)))
+
+	var coord := _mount_coord()
+	coord.play(outcome)
+	var offsets := _collect_target_offsets(coord)
+	await coord.play(outcome)
+
+	var r_max: float = 0.9 * _target.radius
+	assert_eq(offsets.size(), 20)
+	for offset in offsets:
+		assert_true(offset.length() <= r_max + 0.01,
+				"landing offset %s exceeds 0.9 * radius (%.2f)" % [offset, r_max])
