@@ -220,6 +220,9 @@ var core_halo_style: int = -1:
 @onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar
 @onready var _node_visuals: Node2D = $Visuals/NodeVisualsComposite
 @onready var _collision: CollisionShape2D = $CollisionShape2D
+## The shots-left pip row (#959) — see `shots_pips.gd`. Typed via preload,
+## not a `class_name`, for the same cache-refresh reason as line 6.
+@onready var shot_pips: Sprite2D = $Visuals/ShotsPips
 
 ## Attached addons, in child order — the ledger that makes attach/detach
 ## idempotent (#334). NOT merely a cache of a child scan: a SkillNode

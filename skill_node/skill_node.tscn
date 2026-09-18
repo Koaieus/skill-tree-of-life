@@ -7,6 +7,7 @@
 [ext_resource type="Resource" uid="uid://ccftdiknrotmh" path="res://skill_node/default_hover_glow.tres" id="5_glow"]
 [ext_resource type="Script" uid="uid://drufglnla4da3" path="res://skill_node/health_bar.gd" id="6_r2qlo"]
 [ext_resource type="Script" uid="uid://drxjp5sanc7cf" path="res://skill_node/core_health_bar.gd" id="7_corehb"]
+[ext_resource type="PackedScene" path="res://skill_node/shots_pips.tscn" id="8_pips"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
 resource_local_to_scene = true
@@ -97,6 +98,9 @@ theme_override_styles/background = SubResource("StyleBoxFlat_r2qlo")
 theme_override_styles/fill = SubResource("StyleBoxFlat_58fw3")
 show_percentage = false
 script = ExtResource("7_corehb")
+
+[node name="ShotsPips" parent="Visuals" instance=ExtResource("8_pips")]
+z_index = 10
 
 [node name="FloatAnchor" type="Marker2D" parent="." unique_id=2130772427]
 unique_name_in_owner = true

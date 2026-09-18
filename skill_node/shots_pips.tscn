@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://c8shotpips959a"]
+
+[ext_resource type="Script" path="res://skill_node/shots_pips.gd" id="1_pips"]
+
+[node name="ShotsPips" type="Sprite2D"]
+visible = false
+script = ExtResource("1_pips")
