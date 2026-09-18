@@ -28,12 +28,22 @@ func teardown() -> void:
 		_input_ctl.player_can_act_changed.disconnect(_refresh.unbind(1))
 
 
+## Bare readout until the Quiver tray (#954) replaces this body: the volley is
+## the plan's default (N = max, all base arrows — see
+## [method RangedAttackPlan.effective_ammo_counts]); `R` reloads.
 func _refresh() -> void:
 	var plan := _battle_system.attack_plan as RangedAttackPlan
 	var board := _player.stat_board if _player != null else null
 	var dmg: float = float(board.ranged_damage.value) if board != null and board.ranged_damage != null else 0.0
 	var range_v: float = float(board.range.value) if board != null and board.range != null else 0.0
-	_damage_range_label.text = "%d dmg/leaf · %d px" % [int(dmg), int(range_v)]
+	var quiver: Quiver = board.arrows if board != null else null
+	var stock: int = roundi(quiver.current) if quiver != null else 0
+	var volleys_left: int = 0
+	if _player != null and board != null and board.volleys_per_turn != null:
+		volleys_left = maxi(0, int(board.volleys_per_turn.value) - _player.volleys_launched_this_turn)
+	var arrows: int = plan.n() if plan != null else 0
+	_damage_range_label.text = "%d dmg/arrow · %d px · %d arrows · quiver %d · volleys %d · R reload" \
+			% [int(dmg), int(range_v), arrows, stock, volleys_left]
 	var leaves := plan.get_reaching_firing_positions().size() if plan != null else 0
 	_leaves_value.text = str(leaves)
 	var can_act := _input_ctl == null or _input_ctl.can_player_act()

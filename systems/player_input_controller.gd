@@ -28,6 +28,12 @@ const ZLayers = preload("res://ui/z_layers.gd")
 ## stays self-contained; promote to an action if rebinding is ever wanted.
 const _DEALLOC_KEY := KEY_D
 
+## Physical key that reloads the quiver while the RANGED plan is armed (#957,
+## the bare input until the Quiver tray #954 lands). Same self-contained shape
+## as [constant _DEALLOC_KEY]; `R` outside ranged mode keeps meaning "re-form
+## the last blade" (`ui_reform_blade`, #466).
+const _RELOAD_KEY := KEY_R
+
 ## Core-move drag (#21). Cursor must leave the core by this many world px before
 ## a press-hold counts as a drag (so a plain click still routes to click-to-move).
 const CORE_DRAG_THRESHOLD := 10.0
@@ -386,6 +392,22 @@ func request_end_turn() -> void:
 	_submit(EndTurnCommand.new(player.entity_id))
 
 
+## Submit a [ReloadCommand] for the acting player (#957). Only while the
+## ranged plan is armed — the key it hangs off is shared with the blade
+## re-form — and only when the player can act and can pay. Returns whether a
+## command was submitted, so the key handler knows whether to consume the
+## event.
+func request_reload() -> bool:
+	if player == null or battle_system == null:
+		return false
+	if not (battle_system.attack_plan is RangedAttackPlan):
+		return false
+	if not can_player_act() or not player.can_reload():
+		return false
+	_submit(ReloadCommand.new(player.entity_id))
+	return true
+
+
 ## Where the four `if`-gated mutation sites went (#510). A command that failed
 ## its gate is a normal outcome, so this is the only place player-facing
 ## feedback for a refusal is decided.
@@ -694,6 +716,14 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if _input_frozen:
 		return
 	if event.is_action_pressed(&"ui_cancel") and _pop_armed_mode():
+		get_viewport().set_input_as_handled()
+		return
+	# R in RANGED mode reloads the quiver (#957): one [ReloadCommand], 1 AP,
+	# through the applier like every other verb. Checked before the blade
+	# re-form below, which also sits on R.
+	if event is InputEventKey and not event.echo \
+			and (event as InputEventKey).physical_keycode == _RELOAD_KEY \
+			and request_reload():
 		get_viewport().set_input_as_handled()
 		return
 	# R re-forms the last launched blade (#466), from any mode — it arms melee
