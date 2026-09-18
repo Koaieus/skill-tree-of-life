@@ -35,6 +35,8 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 	e.name = ent_name
 	e.display_name = ent_name
 	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# #957: a volley needs arrows; the default board's quiver starts empty.
+	e.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 40)
 	# Zero the board's 5 % baseline crit. Since #507 ranged rolls crits off a
 	# freshly randomized per-attack seed, so a test that chips a target to
 	# EXACTLY two shots' worth and asserts the first volley leaves it alive

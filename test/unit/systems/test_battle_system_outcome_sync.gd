@@ -66,6 +66,8 @@ func _build(with_live_vfx: bool) -> Dictionary:
 	var attacker := Entity.new()
 	attacker.faction = _PLAYER_FACTION
 	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# #957: a volley needs arrows; the default board's quiver starts empty.
+	attacker.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 40)
 	# Zero the board's 5 % baseline crit. This test fires TWO independent
 	# volleys and compares the worlds they leave behind; since #507 each
 	# launch stamps its own randomized seed, so the two would roll different

@@ -41,6 +41,8 @@ func before_each() -> void:
 	_attacker = Entity.new()
 	_attacker.faction = _PLAYER_FACTION
 	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# #957: a volley needs arrows; the default board's quiver starts empty.
+	_attacker.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 40)
 	_attacker.stat_board.action_points.base_value = 4.0
 	_graph.entities_container.add_child(_attacker)
 	_defender = Entity.new()

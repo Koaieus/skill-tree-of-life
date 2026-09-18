@@ -23,6 +23,8 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 	e.name = ent_name
 	e.display_name = ent_name
 	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# #957: a volley needs arrows; the default board's quiver starts empty.
+	e.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 40)
 	if faction != null:
 		e.faction = faction
 	return e
@@ -78,6 +80,10 @@ func _resolve_ranged_at(target: SkillNode) -> AttackOutcome:
 	var plan := RangedAttackPlan.new()
 	plan.attacker = _ai
 	plan.target = target
+	# #957: pin ONE wave (one arrow per reaching leaf) — the pre-volley shape
+	# these EV assertions were written against; N = max would overkill the
+	# target and gate the tail.
+	plan.ammo_counts = {AmmoTypeRoster.BASE_ID: plan.get_reaching_firing_positions().size()}
 	assert_true(plan.is_valid(), "fixture plan should validate: %s" % str(plan.validate()))
 	return plan.resolve()
 
