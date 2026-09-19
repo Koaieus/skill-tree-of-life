@@ -360,27 +360,49 @@ func test_near_miss_targets_excludes_targets_already_lethal_or_full_health() -> 
 # ---------------------------------------------------------------------------
 
 func test_arrows_to_kill_counts_landing_order_hits_until_hp_is_met() -> void:
-	# Full volley: N1 alone reaches N2, 5 shots at the fixture's per-arrow
-	# damage. Chip N2 to 2.5 arrows' worth: the third arrow is the killing one.
+	# Full volley at the hostile LEAF N3 (a core overflows, see below): N1
+	# alone reaches, 5 shots. Chip N3 to 2.5 arrows' worth: the third arrow
+	# is the killing one.
 	var plan := RangedAttackPlan.new()
 	plan.attacker = _ai
-	plan.target = _nodes[2]
+	plan.target = _nodes[3]
 	assert_true(plan.is_valid(), str(plan.validate()))
 	var outcome := plan.resolve()
 	var per_arrow: float = outcome.hits[0].effective_amount
 	assert_gt(per_arrow, 0.0)
-	_true_damage(_nodes[2], _nodes[2].get_current_hp() - per_arrow * 2.5)
+	_true_damage(_nodes[3], _nodes[3].get_current_hp() - per_arrow * 2.5)
 
-	assert_eq(AiCombatScorer.arrows_to_kill(outcome, _nodes[2]), 3,
+	assert_eq(AiCombatScorer.arrows_to_kill(outcome, _nodes[3]), 3,
 			"the third landing hit is the first whose running total meets hp")
 
 
 func test_arrows_to_kill_is_negative_when_the_volley_never_kills() -> void:
 	var plan := RangedAttackPlan.new()
 	plan.attacker = _ai
-	plan.target = _nodes[2] # full HP — five arrows fall short
+	plan.target = _nodes[3]
+	plan.ammo_counts = {AmmoTypeRoster.BASE_ID: 2} # two arrows fall short of full HP
 	var outcome := plan.resolve()
-	assert_lt(AiCombatScorer.expected_damage(outcome), _nodes[2].get_current_hp(),
+	assert_lt(AiCombatScorer.expected_damage(outcome), _nodes[3].get_current_hp(),
 			"fixture: the volley must not kill")
 
-	assert_eq(AiCombatScorer.arrows_to_kill(outcome, _nodes[2]), -1)
+	assert_eq(AiCombatScorer.arrows_to_kill(outcome, _nodes[3]), -1)
+
+
+func test_arrows_to_kill_on_a_core_reaches_through_the_owners_health() -> void:
+	# A core never depletes on node hp — the overflow drains the entity's
+	# `health`, and the kill is the entity's. So the arrows a core kill takes
+	# cover node hp + remaining health, not node hp alone.
+	var plan := RangedAttackPlan.new()
+	plan.attacker = _ai
+	plan.target = _nodes[2]
+	var outcome := plan.resolve()
+	var per_arrow: float = outcome.hits[0].effective_amount
+	var reach: float = _nodes[2].get_current_hp() + _hostile.stat_board.health.current
+	var expected := ceili(reach / per_arrow)
+	assert_gt(expected, ceili(_nodes[2].get_current_hp() / per_arrow), "fixture: health adds arrows")
+
+	var got := AiCombatScorer.arrows_to_kill(outcome, _nodes[2])
+	if expected <= outcome.hits.size():
+		assert_eq(got, expected)
+	else:
+		assert_eq(got, -1, "five arrows do not reach through the health pool")
