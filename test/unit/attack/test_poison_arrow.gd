@@ -143,6 +143,22 @@ func test_a_poison_arrows_status_lands_with_power_one_beside_its_damage() -> voi
 	assert_almost_eq(status.effective_amount, 1.0, 0.001, "the power rides the wire field")
 
 
+func test_damage_scale_applies_before_mitigation() -> void:
+	# Acceptance: "lands for round(base × 0.5) AFTER mitigation" — i.e. scale
+	# first, then armour: 8 × 0.5 − 1 = 3, not (8 − 1) × 0.5 = 3.5.
+	var ctx: Dictionary = await _build()
+	var target: SkillNode = ctx.nodes.target
+	_set_local(ctx.nodes.leaf, &"ranged_damage", 8.0)
+	_set_local(target, &"armor", 1.0)
+	var ammo := AmmoType.new()  # hand-built: the owner tunes poison.tres
+	ammo.damage_scale = 0.5
+	var hit := RangedDamageFormula.compute(ctx.attacker, ctx.nodes.leaf, target, ammo)
+	var hp_before := target.get_current_hp()
+	hit.land_on(target.get_combat(), CombatWorld.live())
+	assert_almost_eq(hp_before - target.get_current_hp(), 3.0, 0.001,
+			"scaled by damage_scale, THEN mitigated")
+
+
 func test_a_base_arrow_emits_no_status() -> void:
 	var ctx: Dictionary = await _build()
 	var hit := RangedDamageFormula.compute(ctx.attacker, ctx.nodes.leaf, ctx.nodes.target, _BASE_ARROW)
@@ -224,6 +240,27 @@ func test_the_record_replays_the_same_poison_on_a_peer() -> void:
 			"the rebuilt record reproduces the status hits on a second world")
 	assert_almost_eq(peer.nodes.target.get_current_hp(), host.nodes.target.get_current_hp(), 0.001,
 			"and the half-strength damage")
+
+
+func test_a_heal_flipped_arrow_still_burns_its_shot_and_its_status_never_does() -> void:
+	# A bunker-style target (net `min_damage_taken` < 0) flips the arrow's
+	# DamageInstance to Kind.HEAL after mitigation (ADR 0012). "A shot fired
+	# is a shot fired" (owner, 2026-09-18): the shot count must not key on
+	# `kind` — it skips the status hit by CLASS, never the flipped arrow.
+	var ctx: Dictionary = await _build()
+	_set_local(ctx.nodes.target, &"armor", 50.0)
+	_set_local(ctx.nodes.target, &"min_damage_taken", -5.0)
+	_arm(ctx, {&"poison": 1})
+	var bs: BattleSystem = ctx.bs
+	var command := bs.build_launch_command()
+	assert_true(bs.prepare_launch_command(command), "the fixture attack must survive validation")
+	@warning_ignore("redundant_await")
+	await bs.apply_launch_command(command)
+	var kinds: PackedByteArray = command.record[AttackRecord.KEY_HIT_KIND]
+	assert_true(kinds.has(int(HitInstance.Kind.HEAL)), "the fixture arrow must actually flip to a heal")
+	assert_eq((ctx.nodes.leaf as SkillNode).shots_fired_this_turn
+			+ (ctx.nodes.core as SkillNode).shots_fired_this_turn, 1,
+			"one arrow, one shot — heal-flipped or not, status hit not counted")
 
 
 func test_a_kill_mid_volley_gates_the_remaining_poison_and_replays_clean() -> void:

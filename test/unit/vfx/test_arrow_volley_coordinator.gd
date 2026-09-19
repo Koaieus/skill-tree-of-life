@@ -283,3 +283,23 @@ func test_landing_offsets_stay_within_the_target_disc() -> void:
 	for offset in offsets:
 		assert_true(offset.length() <= r_max + 0.01,
 				"landing offset %s exceeds 0.9 * radius (%.2f)" % [offset, r_max])
+
+
+## #495: a typed arrow's status rides as a second hit for the SAME landing,
+## sharing the arrow's origin and target. It is not an arrow — one projectile
+## per arrow, skipped by CLASS (a status never was an arrow), never by `kind`
+## (a heal-flipped arrow still is one; see the two tests above).
+func test_a_typed_arrows_status_hit_draws_no_second_arrow() -> void:
+	var coord := _mount_coord()
+	var outcome := AttackOutcome.new()
+	var arrow := _hit(0.02)
+	var status := RangedDamageFormula.RangedStatusInstance.new()
+	status.origin = _origin
+	status.target = _target
+	status.structural_key = 0.02
+	outcome.hits.append(arrow)
+	outcome.hits.append(status)
+	coord.play(outcome)
+	var projectiles := coord.get_children().filter(func(c): return c is Projectile)
+	assert_eq(projectiles.size(), 1, "one arrow, one projectile — the status half is not a second arrow")
+	await coord.play(outcome)
