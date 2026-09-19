@@ -148,9 +148,13 @@ func test_resolve_lands_poison_first_in_structural_key_order_and_costs_no_ap() -
 	var p := _plan()
 	p.ammo_counts = {_POISON: 2, _ARROW: 5}
 	var outcome := p.resolve()
-	assert_eq(outcome.hits.size(), 7)
+	# One DAMAGE hit per arrow; a poison arrow also emits its status hit (#495).
+	var arrows: Array = outcome.hits.filter(func(h: HitInstance) -> bool:
+		return h.kind == HitInstance.Kind.DAMAGE)
+	assert_eq(arrows.size(), 7)
+	assert_eq(outcome.hits.size(), 9, "2 poison arrows carry 2 status hits alongside")
 	assert_eq(outcome.ap_cost, 0, "firing costs 0 AP")
-	var ordered: Array = outcome.hits.duplicate()
+	var ordered: Array = arrows.duplicate()
 	ordered.sort_custom(func(a: HitInstance, b: HitInstance) -> bool:
 		return a.structural_key < b.structural_key)
 	assert_eq(ordered[0].ammo_type.id, _POISON)
