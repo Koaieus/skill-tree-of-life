@@ -167,3 +167,27 @@ func test_compute_leaves_arrival_time_unset() -> void:
 	await get_tree().process_frame
 	var hit := RangedDamageFormula.compute(null, firing, target)
 	assert_almost_eq(hit.arrival_time, 0.0, 0.001)
+
+
+func test_compute_scales_amount_by_the_ammo_types_damage_scale() -> void:
+	var firing := _owned_node()
+	await get_tree().process_frame
+	_set_ranged_damage(firing, 10.0)
+	var target := _NODE_SCENE.instantiate() as SkillNode
+	autofree(target)
+	var ammo := AmmoType.new()
+	ammo.damage_scale = 0.25
+	var hit := RangedDamageFormula.compute(null, firing, target, ammo)
+	assert_almost_eq(hit.amount, 2.5, 0.001, "damage_scale multiplies the pre-mitigation amount")
+	assert_eq(hit.ammo_type, ammo)
+
+
+func test_status_for_is_null_without_a_status_def() -> void:
+	var firing := _owned_node()
+	await get_tree().process_frame
+	var target := _NODE_SCENE.instantiate() as SkillNode
+	autofree(target)
+	var ammo := AmmoType.new()
+	var hit := RangedDamageFormula.compute(null, firing, target, ammo)
+	assert_null(RangedDamageFormula.status_for(hit))
+	assert_null(RangedDamageFormula.status_for(RangedDamageFormula.compute(null, firing, target)))
