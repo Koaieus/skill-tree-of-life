@@ -372,6 +372,12 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 		var frac: float = 0.0 if span <= 0.0 else (shot.distance - d_min) / span
 		hit.structural_key = (float(shot.wave) + frac) / float(maxi(waves, 1))
 		outcome.hits.append(hit)
+		# A typed arrow's status (#495) is a second hit for the same landing —
+		# same key, appended right after, so it lands on the arrow's beat and
+		# after the arrow (the schedule's original-index tiebreak).
+		var status := RangedDamageFormula.status_for(hit)
+		if status != null:
+			outcome.hits.append(status)
 	# Seconds, once, before anything consumes an order: `decide_all` below
 	# draws its seeded stream in landing order, which is the schedule's.
 	outcome.schedule = OutcomeSchedule.compile(outcome)

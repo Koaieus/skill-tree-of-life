@@ -25,8 +25,10 @@ class_name RangedDamageFormula
 ## the HitInstance default (0.0) — it never had seconds to stamp.
 
 ## [param ammo_type] is the arrow this shot spends (#957) — stamped onto the
-## hit so the landing knows what it was; #495 makes it scale damage / apply a
-## status. Null is a plain base shot.
+## hit so the landing knows what it was, and (#495) scaling the loosed amount
+## by [member AmmoType.damage_scale] BEFORE mitigation (owner 2026-09-18:
+## "reduced raw damage + added poison status stacks"). Null is a plain base
+## shot. The type's status, if any, is a second hit — see [method status_for].
 static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
 		ammo_type: AmmoType = null) -> DamageInstance:
 	var hit := RangedHitInstance.new()
@@ -36,7 +38,65 @@ static func compute(attacker: Entity, firing_node: SkillNode, target: SkillNode,
 	hit.target = target
 	hit.origin = firing_node
 	hit.amount = _read_offense(firing_node.get_combat() if firing_node != null else null)
+	if ammo_type != null:
+		hit.amount *= ammo_type.damage_scale
 	return hit
+
+
+## The status a typed arrow applies on landing (#495), as a second hit for
+## the SAME landing as [param hit] — null when the arrow carries no
+## [member AmmoType.status_def]. Same construction as
+## [method ApplyStatusEffect.apply] (magic's on-hit), deliberately NOT routed
+## through the spell stub (owner 2026-09-18: "magic will most likely NOT have
+## anything to do with poison arrows"). The caller appends it right after its
+## arrow: [member HitInstance.structural_key] is copied so both land on one
+## beat, and the later original index keeps the arrow first
+## ([method OutcomeSchedule.compile]). A volley's many arrows on one node
+## therefore re-apply under the def's [member StatusDef.reapply] rule —
+## `ACCUMULATE` on poison is what makes ranged the poison specialist.
+##
+## Rides the wire for free: [AttackRecord] serialises any `Kind.STATUS` hit by
+## its def's `resource_path`, and a gated dud replays as power 0, which
+## [method NodeCombat.apply_status] ignores.
+static func status_for(hit: DamageInstance) -> StatusInstance:
+	var arrow := hit as RangedHitInstance
+	if arrow == null or arrow.ammo_type == null:
+		return null
+	var def := arrow.ammo_type.status_def as StatusDef
+	if def == null:
+		return null
+	var status := RangedStatusInstance.new()
+	status.def = def
+	status.power = arrow.ammo_type.status_power
+	status.attacker = arrow.attacker
+	status.source = arrow.source
+	status.target = arrow.target
+	status.origin = arrow.origin
+	status.structural_key = arrow.structural_key
+	return status
+
+
+## Ranged's land-time GATE (#503), shared by the arrow and its status (#495)
+## so the two never disagree on whether a landing is a dud: false if the
+## target is no longer allocated/hostile to [param attacker], or the firing
+## node's slice ([param origin_slice], looked up in the landing world) is
+## gone. A veto is a veto, not a re-plan — callers mark
+## [member HitInstance.gated] and mutate nothing.
+static func passes_gate(attacker: Entity, node: NodeCombat, origin_slice: NodeCombat) -> bool:
+	if origin_slice == null or not origin_slice.is_allocated():
+		return false
+	if node == null or not node.is_allocated():
+		return false
+	return node.ownership_bit(attacker) == SkillNode.Ownership.HOSTILE
+
+
+## The firing node's slice in the world this hit is landing in — the gate's
+## allocation check must come from THAT world, or a shadow would ask the real
+## board whether a node this volley already cost the firer is still theirs.
+static func _origin_slice_of(hit: HitInstance, world: CombatWorld) -> NodeCombat:
+	if hit.origin != null and is_instance_valid(hit.origin):
+		return world.combat_for(hit.origin)
+	return null
 
 
 ## The one read of "what does this firing node's shot deal", called by
@@ -92,22 +152,24 @@ class RangedHitInstance extends DamageInstance:
 	## HitInstance.gated] so VFX can render the dud beat distinctly from a
 	## hit that landed and fully mitigated to zero.
 	func land_on(node: NodeCombat, world: CombatWorld) -> void:
-		# The firing node's slice in THIS world — the gate's allocation check
-		# must come from the world the hit is landing in, or a shadow would ask
-		# the real board whether a node this volley already cost the firer is
-		# still theirs.
-		var origin_slice: NodeCombat = null
-		if origin != null and is_instance_valid(origin):
-			origin_slice = world.combat_for(origin)
-		if not _passes_gate(node, origin_slice):
+		if not RangedDamageFormula.passes_gate(attacker, node,
+				RangedDamageFormula._origin_slice_of(self, world)):
 			gated = true
 			return
 		super.land_on(node, world)
 
 
-	func _passes_gate(node: NodeCombat, origin_slice: NodeCombat) -> bool:
-		if origin_slice == null or not origin_slice.is_allocated():
-			return false
-		if node == null or not node.is_allocated():
-			return false
-		return node.ownership_bit(attacker) == SkillNode.Ownership.HOSTILE
+## The status half of a typed arrow's landing (#495), built by [method
+## RangedDamageFormula.status_for]. Same gate as [RangedHitInstance] — a dud
+## arrow applies no status — and a vetoed one lands as power 0 so the record
+## carries a zero that [method NodeCombat.apply_status] ignores on replay.
+class RangedStatusInstance extends StatusInstance:
+	func land_on(node: NodeCombat, world: CombatWorld) -> void:
+		if not RangedDamageFormula.passes_gate(attacker, node,
+				RangedDamageFormula._origin_slice_of(self, world)):
+			gated = true
+			power = 0.0
+			amount = 0.0
+			effective_amount = 0.0
+			return
+		super.land_on(node, world)

@@ -14,12 +14,14 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 const _POISON_ARROW: AmmoType = preload("res://attack/ammo/types/poison.tres")
-const _BASE_ARROW: AmmoType = preload("res://attack/ammo/types/base.tres")
+const _BASE_ARROW: AmmoType = preload("res://attack/ammo/types/arrow.tres")
 const _POISON_DEF: StatusDef = preload("res://effects/status/poison.tres")
 
 const _PEER_ORIGIN := Vector2(100000, 100000)
-## Even, so `× 0.5` is exact whatever the landing rounds to.
-const _BASE_DAMAGE := 8.0
+## Even, so `× 0.5` is exact whatever the landing rounds to — and small, so a
+## default-HP (10) target SURVIVES seven half-strength arrows: a killed node
+## clears its statuses, leaving nothing to assert.
+const _BASE_DAMAGE := 2.0
 
 
 func _set_local(node: SkillNode, stat_id: StringName, value: float) -> void:
@@ -31,8 +33,7 @@ func _set_local(node: SkillNode, stat_id: StringName, value: float) -> void:
 
 
 ## Attacker owns core–leaf, defender owns target–neighbour; the leaf reaches
-## the target with `shots` shots and a modest `ranged_damage` so the target
-## SURVIVES a volley (a killed node clears its statuses — nothing to assert).
+## the target with `shots` shots and a modest `ranged_damage`.
 func _build(origin: Vector2 = Vector2.ZERO, shots: float = 1.0) -> Dictionary:
 	var graph: Graph = _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
@@ -52,8 +53,9 @@ func _build(origin: Vector2 = Vector2.ZERO, shots: float = 1.0) -> Dictionary:
 	attacker.display_name = "Attacker"
 	attacker.faction = _PLAYER_FACTION
 	attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	attacker.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 40)
-	attacker.stat_board.arrows.add(&"poison", 40)
+	# Capacity-clamped (`add` returns what fit): specials first, then base.
+	assert_eq(attacker.stat_board.arrows.add(&"poison", 8), 8, "fixture quiver must hold the poison")
+	attacker.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 8)
 	attacker.stat_board.action_points.base_value = 4.0
 	attacker.stat_board.action_points.current = 4.0
 	graph.entities_container.add_child(attacker)
@@ -79,9 +81,6 @@ func _build(origin: Vector2 = Vector2.ZERO, shots: float = 1.0) -> Dictionary:
 	_set_local(nodes.leaf, &"range", 400.0)
 	_set_local(nodes.leaf, &"ranged_damage", _BASE_DAMAGE)
 	_set_local(nodes.leaf, &"max_shots_per_leaf", shots)
-	# Statuses ride HP; make sure a handful of half-strength arrows cannot kill.
-	_set_local(nodes.target, &"node_combat_health", 1000.0)
-	nodes.target.get_combat().refill(true)
 
 	var tm := TurnManager.new()
 	add_child_autofree(tm)
@@ -135,13 +134,13 @@ func test_a_poison_arrows_status_lands_with_power_one_beside_its_damage() -> voi
 	assert_eq(status.target, target)
 	assert_eq(status.origin, ctx.nodes.leaf)
 	assert_eq(status.attacker, ctx.attacker)
-	var hp_before := target.get_current_hp()
 	var world := CombatWorld.live()
 	hit.land_on(target.get_combat(), world)
 	status.land_on(target.get_combat(), world)
-	assert_almost_eq(hp_before - target.get_current_hp(), _BASE_DAMAGE * 0.5, 0.001,
-			"half the base arrow's damage")
+	assert_false(hit.gated)
+	assert_false(status.gated)
 	assert_almost_eq(_poison_power(target), 1.0, 0.001, "one arrow, power 1")
+	assert_almost_eq(status.effective_amount, 1.0, 0.001, "the power rides the wire field")
 
 
 func test_a_base_arrow_emits_no_status() -> void:
@@ -175,7 +174,8 @@ func test_three_poison_arrows_in_one_volley_accumulate_to_power_three() -> void:
 	var ctx: Dictionary = await _build(Vector2.ZERO, 3.0)
 	var plan := _arm(ctx, {&"poison": 3})
 	assert_eq(plan.validate(), [] as Array[String], "the fixture volley must be launchable")
-	var outcome := plan.resolve()
+	# `resolve()` lands on a throwaway shadow; the assertion wants the live node.
+	var outcome := plan.resolve_against(CombatWorld.live())
 	var status_hits := outcome.hits.filter(func(h: HitInstance) -> bool: return h.kind == HitInstance.Kind.STATUS)
 	assert_eq(status_hits.size(), 3, "one status hit per poison arrow, alongside the damage hit")
 	assert_almost_eq(_poison_power(ctx.nodes.target), 3.0, 0.001,
@@ -183,10 +183,12 @@ func test_three_poison_arrows_in_one_volley_accumulate_to_power_three() -> void:
 
 
 func test_a_volley_past_power_max_is_capped() -> void:
-	var ctx: Dictionary = await _build(Vector2.ZERO, 7.0)
-	var plan := _arm(ctx, {&"poison": 7})
+	var ctx: Dictionary = await _build(Vector2.ZERO, 3.0)
+	# Already at 4: three more arrows would reach 7, `power_max` says 5.
+	(ctx.nodes.target as SkillNode).get_combat().apply_status(_POISON_DEF, 4.0)
+	var plan := _arm(ctx, {&"poison": 3})
 	assert_eq(plan.validate(), [] as Array[String], "the fixture volley must be launchable")
-	plan.resolve()
+	plan.resolve_against(CombatWorld.live())
 	assert_almost_eq(_poison_power(ctx.nodes.target), _POISON_DEF.power_max, 0.001)
 
 
@@ -194,7 +196,7 @@ func test_a_mixed_volley_only_poisons_per_poison_arrow() -> void:
 	var ctx: Dictionary = await _build(Vector2.ZERO, 3.0)
 	var plan := _arm(ctx, {&"poison": 1, AmmoTypeRoster.BASE_ID: 2})
 	assert_eq(plan.validate(), [] as Array[String], "the fixture volley must be launchable")
-	plan.resolve()
+	plan.resolve_against(CombatWorld.live())
 	assert_almost_eq(_poison_power(ctx.nodes.target), 1.0, 0.001)
 
 
@@ -211,7 +213,9 @@ func test_the_record_replays_the_same_poison_on_a_peer() -> void:
 	@warning_ignore("redundant_await")
 	await bs.apply_launch_command(command)
 	assert_almost_eq(_poison_power(host.nodes.target), 3.0, 0.001, "the authority poisoned its target")
-	assert_eq((host.nodes.leaf as SkillNode).shots_fired_this_turn, 3,
+	# Both the leaf and the core reach the target (wave-major, nearest first).
+	assert_eq((host.nodes.leaf as SkillNode).shots_fired_this_turn
+			+ (host.nodes.core as SkillNode).shots_fired_this_turn, 3,
 			"one shot per ARROW — a status hit must not burn a second shot")
 
 	var back := CommandCodec.from_dict(bytes_to_var(var_to_bytes(command.to_dict())) as Dictionary)
@@ -226,9 +230,10 @@ func test_a_kill_mid_volley_gates_the_remaining_poison_and_replays_clean() -> vo
 	var host: Dictionary = await _build(Vector2.ZERO, 3.0)
 	var peer: Dictionary = await _build(_PEER_ORIGIN, 3.0)
 	for ctx in [host, peer]:
-		# One half-strength arrow kills: arrows 2 and 3 (and their statuses) dud.
-		_set_local(ctx.nodes.target, &"node_combat_health", 1.0)
-		(ctx.nodes.target as SkillNode).get_combat().refill(true)
+		# Down to 1 HP: the first arrow kills, so its own status (poison on a
+		# corpse is nothing) and both later arrows with theirs all dud.
+		var slice: NodeCombat = (ctx.nodes.target as SkillNode).get_combat()
+		slice.take_damage(slice.get_current_hp() - 1.0, null)
 	_arm(host, {&"poison": 3})
 	var bs: BattleSystem = host.bs
 	var command := bs.build_launch_command()
@@ -244,7 +249,7 @@ func test_a_kill_mid_volley_gates_the_remaining_poison_and_replays_clean() -> vo
 			assert_eq(defs[i], _POISON_DEF.resource_path, "a status hit crosses as its def path")
 			if (flags[i] & AttackRecord.FLAG_GATED) != 0:
 				gated_statuses += 1
-	assert_eq(gated_statuses, 2, "the two arrows after the kill dud, statuses included")
+	assert_eq(gated_statuses, 3, "every status of a volley that killed on arrow one is a dud")
 	var back := CommandCodec.from_dict(bytes_to_var(var_to_bytes(command.to_dict())) as Dictionary)
 	await (peer.bs as BattleSystem).apply_launch_command(back as LaunchAttackCommand)
 	assert_eq(WorldFingerprint.compute(host.graph), WorldFingerprint.compute(peer.graph))

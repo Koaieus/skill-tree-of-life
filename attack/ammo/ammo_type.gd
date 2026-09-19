@@ -19,6 +19,9 @@ extends Resource
 ## Status applied on a landing hit (a [StatusInstance] alongside the
 ## [DamageInstance]), or null.
 @export var status_def: Resource = null
+## Power of that status per landing arrow; a volley re-applies it per arrow
+## under the def's `reapply` rule. Owner tunes.
+@export var status_power: float = 1.0
 ## Entity-board stat id minting this type on reload. The base arrow's is
 ## `arrows_per_reload` (node-local, summed per leaf); specials are flat.
 @export var per_reload_stat_id: StringName = &""

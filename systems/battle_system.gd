@@ -657,6 +657,10 @@ func _consume_volley(plan: RangedAttackPlan, outcome: AttackOutcome) -> void:
 		for id in counts:
 			quiver.take(id, int(counts[id]))
 	for hit in outcome.hits:
+		# One shot per ARROW: a typed arrow's status hit (#495) shares its
+		# arrow's origin and must not burn a second shot.
+		if hit.kind != HitInstance.Kind.DAMAGE:
+			continue
 		var leaf := hit.origin
 		if leaf == null or not is_instance_valid(leaf):
 			continue
