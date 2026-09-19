@@ -6,7 +6,11 @@ extends Resource
 ## volley order. Authored as `.tres` under `attack/ammo/types/` and listed on
 ## [AmmoTypeRoster]; the [Quiver] keys its bins by [member id].
 ##
-## Stub (#496 swarmify, 2026-09-18): fields only, no behaviour.
+## On hit (#495) the type is read by [RangedDamageFormula]: [method
+## RangedDamageFormula.compute] scales the loosed amount by [member
+## damage_scale] before mitigation, and [method RangedDamageFormula.status_for]
+## emits a [StatusInstance] of [member status_def] at [member status_power]
+## alongside the arrow's [DamageInstance] for the same landing.
 
 ## Bin key on the [Quiver] and suffix of the minting stat (`<id>_arrows_per_reload`).
 @export var id: StringName = &""

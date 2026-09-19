@@ -76,6 +76,11 @@ func play(payload: Variant) -> void:
 	# `-5`) mitigates to a negative number, which [method NodeCombat.take_damage]
 	# reclassifies as a heal by design. The player spent the AP and saw
 	# nothing leave the bow.
+	#
+	# The one thing skipped is skipped by CLASS, not kind: a typed arrow's
+	# status (#495, `RangedStatusInstance`) is a second hit for the SAME
+	# landing, sharing the arrow's origin and target — it never was an arrow,
+	# so drawing it would land two arrows on one beat.
 	var hits := outcome.hits
 	if hits.is_empty():
 		return
@@ -86,7 +91,7 @@ func play(payload: Variant) -> void:
 	var pending: Array[int] = [hits.size()]
 	for i in hits.size():
 		var hit: HitInstance = hits[i]
-		if hit.origin == null or hit.target == null:
+		if hit.origin == null or hit.target == null or hit is StatusInstance:
 			pending[0] -= 1
 			continue
 		# Read, not re-derived (#543). Both ends of the flight window are the
