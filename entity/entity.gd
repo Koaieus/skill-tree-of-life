@@ -657,18 +657,15 @@ func can_reload() -> bool:
 	return ap == null or ap.available() >= 1
 
 
-## Reload the quiver (#955): 1 AP, then every AmmoType in roster order gets its
-## mint — the base arrow's `arrows_per_reload` summed node-locally over the
-## turn-start leaf set ∪ core (allocation level and Watchtower bonuses live on
-## the node board, see `default_node_board.tres`), each special's
-## `<id>_arrows_per_reload` flat off the entity board — clamped by capacity.
-## Returns the number of arrows actually added. A full quiver still pays.
-func reload() -> int:
-	if not can_reload():
-		return 0
-	var quiver: Quiver = stat_board.arrows
-	if stat_board.action_points != null:
-		stat_board.action_points.deplete(1)
+## The projected [method reload] mint, `{AmmoType.id: n}` in roster order,
+## PRE-capacity ([method Quiver.add] clamps at reload time). The base arrow's
+## `arrows_per_reload` is summed node-locally over the turn-start leaf set
+## ∪ core (allocation level and Watchtower bonuses live on the node board,
+## see `default_node_board.tres`); each special's `<id>_arrows_per_reload`
+## is flat off the entity board. The one implementation both [method reload]
+## and the Quiver tray's reload row (#954) read, so the row never promises
+## arrows the command will not mint.
+func reload_yield() -> Dictionary:
 	# Leaves ∪ core as a SET: a core with one neighbour is itself a leaf, and
 	# it must not mint twice. A leaf lost since turn start (attack, forced
 	# dealloc) no longer produces — `owned_by == self` is exactly the
@@ -679,17 +676,33 @@ func reload() -> int:
 			producers[n] = true
 	if core_location != null:
 		producers[core_location] = true
-	var added := 0
+	var out: Dictionary = {}
 	for t in _AMMO_TYPES.sorted():
 		var n_minted := 0
 		if t.id == AmmoTypeRoster.BASE_ID:
 			for node in producers:
 				n_minted += int(node.get_local_value(t.per_reload_stat_id))
-		else:
+		elif stat_board != null:
 			var flat := stat_board.get_stat(t.per_reload_stat_id)
 			n_minted = int(flat.get_value()) if flat != null else 0
 		if n_minted > 0:
-			added += quiver.add(t.id, n_minted)
+			out[t.id] = n_minted
+	return out
+
+
+## Reload the quiver (#955): 1 AP, then every AmmoType gets its
+## [method reload_yield] mint, clamped by capacity. Returns the number of
+## arrows actually added. A full quiver still pays.
+func reload() -> int:
+	if not can_reload():
+		return 0
+	var quiver: Quiver = stat_board.arrows
+	if stat_board.action_points != null:
+		stat_board.action_points.deplete(1)
+	var added := 0
+	var mint := reload_yield()
+	for id in mint:
+		added += quiver.add(id, int(mint[id]))
 	return added
 
 
