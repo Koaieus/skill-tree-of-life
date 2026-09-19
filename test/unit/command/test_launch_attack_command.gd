@@ -161,24 +161,31 @@ func test_the_broadcast_goes_out_before_the_world_moves() -> void:
 
 
 func test_an_unaffordable_launch_neither_confirms_nor_crosses_the_wire() -> void:
-	# The gate that only became assertable once the resolve moved into
-	# `_validate` (#545): affordability is checked against the live board while
-	# deciding, so a launch nobody can pay for is refused BEFORE it is announced.
-	# Confirm-after-apply could not express this — the record did not exist until
-	# the costs had already been deducted.
-	_attacker.stat_board.action_points.current = 0.0
+	# Re-pointed for #957/#958: a volley costs 0 AP, so "AP 0" no longer makes
+	# a ranged launch unaffordable — its currency is arrows, and an EMPTY
+	# quiver is what nobody can pay with. That refusal lands one layer earlier
+	# than the #545 applier gate this test was written for: `validate()` fails
+	# on `ERR_NO_AMMO`, so `build_launch_command()` returns null and no command
+	# is ever submitted — refused before it is announced, still, only now
+	# there is nothing to report as applied either. (The applier's own
+	# live-board affordability gate keeps its AP premise for melee/magic.)
+	var quiver: Quiver = _attacker.stat_board.arrows
+	quiver.take(AmmoTypeRoster.BASE_ID, quiver.stock_of(AmmoTypeRoster.BASE_ID))
+	assert_eq(roundi(quiver.current), 0, "fixture: an empty quiver")
 	var confirmed: Array[Command] = []
 	_applier.command_confirmed.connect(func(cmd: Command): confirmed.append(cmd))
 	var outcomes: Array[bool] = []
 	_applier.command_applied.connect(func(_cmd: Command, ok: bool): outcomes.append(ok))
 	var hp_before: float = (_nodes.target as SkillNode).get_current_hp()
 	_arm()
+	assert_true(_bs.attack_plan.validate().has(RangedAttackPlan.ERR_NO_AMMO),
+			"the plan itself names the refusal")
 	await _bs.launch_attack()
 
 	assert_eq(confirmed, [] as Array[Command],
 			"an unaffordable attack never confirms, so it never crosses the wire")
-	assert_eq(outcomes, [false] as Array[bool],
-			"…and it is reported as a refusal, not silently dropped")
+	assert_eq(outcomes, [] as Array[bool],
+			"…and it is refused before a command exists, so nothing reports as applied")
 	assert_eq((_nodes.target as SkillNode).get_current_hp(), hp_before, "the world did not move")
 	assert_false(_bs.is_launching, "and nothing is left in flight")
 
