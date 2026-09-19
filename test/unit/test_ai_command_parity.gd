@@ -81,12 +81,26 @@ const _CAPTURE := false
 ## intrinsic off zero, so the golden's mana simply drops to the new base.
 ## Every other field — ownership, AP, SP, tempo, initiative, current_entity,
 ## the decision trace — is byte-identical to the pre-#766 golden.
+## [b]Sixth amendment, #957/#958[/b] — the volley economy. A volley costs 0
+## AP and carries N arrows; the quiver starts EMPTY (hub #496: "Turn 1 =
+## allocate + reload"), and the AI reloads when stock < Σ shots_left with no
+## kill on the table. So the two 1-arrow, 1-AP volleys became: two
+## [ReloadCommand]s (the AP), each minting the core's `arrows_per_reload`
+## (the turn-start leaf set is just N0 — growth happens after the capture),
+## then ONE 4-arrow volley (`n=4`, the trace's #958 trailer) at N3, then the
+## no-shots trailer. `kill=yes` is still the scorer's node-hp PREDICTION on a
+## core; N3 stays the hostile's exactly as before. Every other field —
+## ownership, AP, SP, tempo, mana, initiative, current_entity — is
+## byte-identical. A reload now rides the queue path in the golden, which is
+## the #958 parity ask: "a reload must round-trip like any command".
 const _GOLDEN := {
 	"ap": 0.0,
 	"current_entity": "Player",
 	"decisions": [
-		"[RANGED→N3] ev=6.0 kill=no cut=0.0 weak=-0.0 risk=0.0 total=506.0 door=500.0",
-		"[RANGED→N3] ev=6.0 kill=yes cut=0.0 weak=-0.0 risk=0.0 total=1506.0 door=500.0",
+		"reload: 0 → 2 arrows",
+		"reload: 2 → 4 arrows",
+		"[RANGED→N3] ev=12.0 kill=yes cut=0.0 weak=-0.0 risk=0.0 total=1512.0 door=500.0 n=4",
+		"no reachable attack this turn",
 	],
 	"enemy_owned": ["N0", "N1", "N2"],
 	"initiative": 0.0,
@@ -286,17 +300,19 @@ func test_the_turns_commands_reach_the_applier_in_decided_order() -> void:
 
 	var eid := _enemy.entity_id
 	# The whole turn, and nothing outside it: growth outward from the core, the
-	# AP×2 attack loop, then the hand-back. The two launches are here because
+	# attack loop (#958: the AP goes into two reloads of the empty quiver, then
+	# one 0-AP volley), then the hand-back. The launch is here because
 	# `BattleSystem.launch_attack` submits a LaunchAttackCommand itself (#511) —
 	# the AI never builds one, which is why this list is the proof that every
 	# mutation an AI turn makes reaches the one queue, whoever built it.
 	assert_eq(seen, [
 		[&"allocate", eid, _graph.get_stable_id(_nodes[1])],
 		[&"allocate", eid, _graph.get_stable_id(_nodes[2])],
-		[&"launch_attack", eid, 0],
+		[&"reload", eid, 0],
+		[&"reload", eid, 0],
 		[&"launch_attack", eid, 0],
 		[&"end_turn", eid, 0],
-	], "growth, both attacks, then the hand-back — the AI's own order")
+	], "growth, two reloads, the volley, then the hand-back — the AI's own order")
 
 
 func test_a_command_submitted_mid_ai_turn_queues_rather_than_reentering() -> void:
@@ -369,9 +385,10 @@ func test_an_ai_turn_raised_from_inside_a_drain_still_completes() -> void:
 	assert_eq(_applier.pending_count(), 0, "and it drained everything it queued")
 	assert_eq(_owned_names(_enemy), ["N0", "N1", "N2"],
 			"the nested turn grew exactly as the un-nested one does")
-	assert_eq(_enemy.stat_board.action_points.current, 0.0, "and spent its AP")
+	assert_eq(_enemy.stat_board.action_points.current, 0.0,
+			"and spent its AP (#958: on reloading the empty quiver)")
 	assert_ne(_tm.current_entity, _enemy, "and handed the turn back")
-	assert_false(launched_while_applying.is_empty(), "it did attack")
+	assert_false(launched_while_applying.is_empty(), "it did attack (the reload's mint, as one volley)")
 	assert_false(launched_while_applying.has(false),
 			"and every launch was raised from INSIDE the drain — the path #511's "
 			+ "command_applied await exists for")
