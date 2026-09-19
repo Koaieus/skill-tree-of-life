@@ -236,3 +236,15 @@ func test_no_kill_readout_exists() -> void:
 	for label in _body.find_children("*", "Label", true, false):
 		var t := (label as Label).text.to_lower()
 		assert_false(t.contains("kill"), "no kills text in the body: '%s'" % t)
+
+
+## The body must fit the tray slot by construction (the #753 lesson): two
+## cards, a bar and three buttons stay inside the magic body's budget.
+func test_body_stays_inside_the_tray_budget() -> void:
+	_body.size = Vector2(930.0, _body.get_combined_minimum_size().y)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var min_size := _body.get_combined_minimum_size()
+	gut.p("ranged body min size = %s" % min_size)
+	assert_lt(min_size.x, 891.0, "min width inside the tray slot")
+	assert_lt(min_size.y, 231.0, "min height inside the tray budget")
