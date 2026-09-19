@@ -48,3 +48,15 @@ func _refresh() -> void:
 	_leaves_value.text = str(leaves)
 	var can_act := _input_ctl == null or _input_ctl.can_player_act()
 	_launch_button.set_enabled(plan != null and plan.is_valid() and can_act)
+
+
+# --- #954 stubs, seen red first ---
+func n() -> int: return 0
+func max_n() -> int: return 0
+func set_n(_v: int) -> void: pass
+func adjust_n(_d: int) -> void: pass
+func reset_n_to_max() -> void: pass
+func set_special(_id: StringName, _v: int) -> void: pass
+func step_special(_id: StringName, _d: int) -> void: pass
+func cards() -> Array[AmmoCard]: return []
+func leaf_readouts() -> Array[Dictionary]: return []

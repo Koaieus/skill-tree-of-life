@@ -104,6 +104,19 @@ func test_leaves_allocated_this_turn_do_not_count_toward_the_reload() -> void:
 			"the producer set was fixed at turn start")
 
 
+## #954: the tray's reload row shows the projected yield BEFORE the command —
+## the same producer set reload() will sum, per type, pre-capacity, so the
+## row never promises arrows the reload does not mint.
+func test_reload_yield_projects_the_turn_start_set_per_type() -> void:
+	var w: World = await _build_world(1.0)
+	assert_true(w.alloc.allocate(w.n("E"), w.player), "E allocated after turn start")
+	var y: Dictionary = w.player.reload_yield()
+	assert_eq(int(y.get(&"arrow", 0)), 4 * w.per_leaf(), "turn-start leaves ∪ core, E excluded")
+	assert_eq(int(y.get(&"poison", 0)), 1, "special: flat")
+	w.applier.submit(_reload(w))
+	assert_eq(w.quiver().stock_of(&"arrow"), int(y[&"arrow"]), "reload mints exactly the projection")
+
+
 func test_special_arrows_are_flat_never_times_leaves() -> void:
 	var w: World = await _build_world(1.0)
 	w.applier.submit(_reload(w))
