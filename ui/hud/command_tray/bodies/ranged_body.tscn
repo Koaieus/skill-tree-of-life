@@ -3,70 +3,88 @@
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/command_tray_body_base.tscn" id="1_base"]
 [ext_resource type="Script" path="res://ui/hud/command_tray/bodies/ranged_body.gd" id="2_script"]
 [ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="3_launch"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/volley_bar.tscn" id="4_bar"]
 
 [node name="RangedBody" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 
 [node name="Row" type="HBoxContainer" parent="BodyContent"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 14
 
-[node name="Info" type="VBoxContainer" parent="BodyContent/Row"]
+[node name="Volley" type="VBoxContainer" parent="BodyContent/Row"]
+custom_minimum_size = Vector2(260, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
-theme_override_constants/separation = 4
+theme_override_constants/separation = 5
 
-[node name="Title" type="Label" parent="BodyContent/Row/Info"]
+[node name="Title" type="Label" parent="BodyContent/Row/Volley"]
 layout_mode = 2
 theme_type_variation = &"CinzelHeader"
 theme_override_font_sizes/font_size = 12
 modulate = Color(0.3187, 0.7773, 0.4484, 1)
 text = "➵ Volley"
 
-[node name="Hint" type="Label" parent="BodyContent/Row/Info"]
+[node name="Hint" type="Label" parent="BodyContent/Row/Volley"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 11
 modulate = Color(0.784, 0.824, 0.902, 0.75)
 autowrap_mode = 2
-text = "Click an enemy node to target. Every owned leaf (degree-1) that can reach it fires."
+text = "Click an enemy node to target. Every leaf in range fires, wave after wave."
 
-[node name="StatRow" type="HBoxContainer" parent="BodyContent/Row/Info"]
+[node name="VolleyBar" parent="BodyContent/Row/Volley" instance=ExtResource("4_bar")]
+unique_name_in_owner = true
 layout_mode = 2
+
+[node name="LeavesLabel" type="Label" parent="BodyContent/Row/Volley"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 10
+modulate = Color(0.725, 0.765, 0.863, 0.7)
+autowrap_mode = 2
+text = "—"
+
+[node name="Keys" type="Label" parent="BodyContent/Row/Volley"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 9
+modulate = Color(0.667, 0.714, 0.824, 0.45)
+text = "scroll ±1 · Shift ±wave · M max · Enter launch · R reload"
+
+[node name="RosterScroll" type="ScrollContainer" parent="BodyContent/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+vertical_scroll_mode = 0
+horizontal_scroll_mode = 3
+
+[node name="Roster" type="HBoxContainer" parent="BodyContent/Row/RosterScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 8
+
+[node name="Actions" type="VBoxContainer" parent="BodyContent/Row"]
+layout_mode = 2
+size_flags_vertical = 4
 theme_override_constants/separation = 6
 
-[node name="LeavesLabel" type="Label" parent="BodyContent/Row/Info/StatRow"]
+[node name="ReloadButton" type="Button" parent="BodyContent/Row/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 10
-modulate = Color(0.667, 0.714, 0.824, 0.6)
-text = "Firing leaves:"
+tooltip_text = "Reload the quiver — R"
+text = "+0 (1 AP)"
 
-[node name="LeavesValue" type="Label" parent="BodyContent/Row/Info/StatRow"]
+[node name="ResetButton" type="Button" parent="BodyContent/Row/Actions"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_type_variation = &"ChakraData"
-theme_override_font_sizes/font_size = 13
-modulate = Color(0.3187, 0.7773, 0.4484, 1)
-text = "0"
-
-[node name="DamageRangeLabel" type="Label" parent="BodyContent/Row/Info/StatRow"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_font_sizes/font_size = 10
-modulate = Color(0.725, 0.765, 0.863, 0.55)
-text = "0 dmg/leaf · 0 px"
-
-[node name="ResetButton" type="Button" parent="BodyContent/Row"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 4
 text = "⟲ Reset"
 
-[node name="LaunchButton" parent="BodyContent/Row" instance=ExtResource("3_launch")]
+[node name="LaunchButton" parent="BodyContent/Row/Actions" instance=ExtResource("3_launch")]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 4
 custom_minimum_size = Vector2(150, 44)
 tint = Color(0.3187, 0.7773, 0.4484, 1)
 text = "➵ Launch"

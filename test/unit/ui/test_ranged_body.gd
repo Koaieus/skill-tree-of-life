@@ -37,12 +37,14 @@ var _target: SkillNode
 var _target2: SkillNode
 var _plan: RangedAttackPlan
 var _body: RangedBody
+var _base_range: float
 
 
+## ADD_BASE, not SET: a Watchtower's own range bonus must still stack on top.
 func _set_stat(node: SkillNode, id: StringName, value: float) -> void:
 	var m := StatModifier.new()
 	m.stat_id = id
-	m.operation = StatModifier.Operation.SET
+	m.operation = StatModifier.Operation.ADD_BASE
 	m.value = value
 	node.add_local_modifier(m)
 
@@ -80,12 +82,12 @@ func before_each() -> void:
 	_target2 = _node(Vector2(500, 0))
 	_graph.add_edge(_target, _target2)
 
+	_tm = autofree(TurnManager.new())
+	add_child(_tm)
 	_attacker = _entity(_PLAYER_FACTION)
 	_hostile = _entity(_NPC_FACTION)
 	await get_tree().process_frame
 
-	_tm = autofree(TurnManager.new())
-	add_child(_tm)
 	_alloc = AllocationSystem.new()
 	_alloc.graph = _graph
 	_alloc.navigator = _graph.navigator
@@ -100,6 +102,7 @@ func before_each() -> void:
 	for n in [_near, _mid_leaf, _far]:
 		_set_stat(n, &"range", 1000.0)
 		_set_stat(n, &"ranged_damage", 3.0)
+	_base_range = float(_near.get_local_value(&"range"))
 	_far.mark_shot_fired(1)
 	_attacker.stat_board.arrows.add(_ARROW, 9)
 	_attacker.stat_board.arrows.add(_POISON, 2)
@@ -148,21 +151,29 @@ func test_bar_max_and_default_n_and_wave_notches() -> void:
 	assert_eq(_plan.ammo_counts, {_ARROW: 9, _POISON: 2}, "the body writes the explicit composition")
 
 
+## N = max = stock (11) means every arrow fires, so the default already reads
+## {arrow 9, poison 2}. Lowering a special the base bin cannot absorb lowers
+## N with it (owner: base is the remainder, never a control); raising one at
+## a fixed N carves it out of the base; scrolling N re-derives the base.
 func test_stepping_poison_and_scrolling_n_down_re_derives_base() -> void:
-	_body.set_special(_POISON, 0)
-	assert_eq(_plan.ammo_counts, {_ARROW: 9}, "no poison → 9 base, N shrinks to what is fireable")
+	_body.set_special(_POISON, 1)
+	assert_eq(_plan.ammo_counts, {_ARROW: 9, _POISON: 1}, "base is bin-capped at 9 → N follows down to 10")
+	assert_eq(_body.n(), 10)
 	_body.step_special(_POISON, 1)
-	_body.step_special(_POISON, 1)
-	assert_eq(_plan.ammo_counts, {_POISON: 2, _ARROW: 9}, "poison 2 + base remainder 9")
+	assert_eq(_plan.ammo_counts, {_POISON: 2, _ARROW: 8}, "at fixed N 10 the extra poison carves out of base")
+	_body.reset_n_to_max()
+	assert_eq(_body.n(), 11)
+	assert_eq(_plan.ammo_counts, {_POISON: 2, _ARROW: 9})
 	_body.set_n(4)
 	assert_eq(_plan.ammo_counts, {_POISON: 2, _ARROW: 2}, "N 4 with 2 poison → 2 base")
 	assert_eq(_body.n(), 4)
 	_body.set_n(1)
 	assert_eq(_body.n(), 2, "specials exceed N → N grows to fit")
 	assert_eq(_plan.ammo_counts, {_POISON: 2})
+	_body.set_special(_POISON, 0)
+	assert_eq(_plan.ammo_counts, {_ARROW: 2}, "no poison at N 2 → 2 base")
 	_body.reset_n_to_max()
-	assert_eq(_body.n(), 11)
-	assert_eq(_plan.ammo_counts, {_POISON: 2, _ARROW: 9})
+	assert_eq(_plan.ammo_counts, {_POISON: 2, _ARROW: 9}, "max fires everything again")
 
 
 func test_special_count_is_sticky_across_target_picks_and_clamps_to_bin() -> void:
@@ -215,9 +226,9 @@ func test_per_leaf_readout_reads_the_plan_not_the_board() -> void:
 	var by_node := {}
 	for r in after:
 		by_node[r.node] = r
-	assert_gt(float(by_node[_near].range), 1000.0, "Watchtower extends near's range")
-	assert_eq(float(by_node[_far].range), 1000.0, "and not far's")
-	assert_eq(float(by_node[_mid_leaf].range), 1000.0, "nor mid_leaf's")
+	assert_gt(float(by_node[_near].range), _base_range, "Watchtower extends near's range")
+	assert_eq(float(by_node[_far].range), _base_range, "and not far's")
+	assert_eq(float(by_node[_mid_leaf].range), _base_range, "nor mid_leaf's")
 	assert_eq(int(by_node[_near].shots), 4, "near fires 4 of 11 (waves 0..3)")
 
 

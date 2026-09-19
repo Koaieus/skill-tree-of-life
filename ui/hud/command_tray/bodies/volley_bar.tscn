@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/hud/command_tray/bodies/volley_bar.gd" id="1_script"]
+
+[node name="VolleyBar" type="Control"]
+custom_minimum_size = Vector2(0, 18)
+layout_mode = 3
+anchors_preset = 0
+size_flags_horizontal = 3
+mouse_default_cursor_shape = 2
+script = ExtResource("1_script")
