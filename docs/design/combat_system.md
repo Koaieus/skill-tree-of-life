@@ -200,7 +200,7 @@ Beyond `sense_range`: total fog. Inside sense but outside vision: silhouette onl
 
 **Two action points per turn by default** (`action_points`, default 2 — *LOCKED*). There is **one implicit phase per turn**: at `turn_started` every per-turn budget replenishes (AP / DP / SP / XP / mana / wound-heal / node-refill), and the entity spends them **in any order** until it presses End Turn. There are no CONTRACT / EXPAND / BATTLE sub-phases — that split is dropped. (The old "temp SP via battle-phase allocations" model is likewise gone: all allocation is permanent.)
 
-> **Action economy — 2 actions, load-bearing *(LOCKED)*.** Two action points is not just throughput: the second action's primary role is to **capitalize on the first's dent before the owner-turn-start reset** (see Node HP — enemy nodes don't reset mid-turn, so two actions stack on one target). Ranged fires **one volley per turn**, but the second action can be a **different mode** (e.g. volley then melee tap) stacking on the same node — cross-mode same-turn stacking is the expected combining pattern.
+> **Action economy — 2 actions, load-bearing *(LOCKED)*.** Two action points is not just throughput: the second action's primary role is to **capitalize on the first's dent before the owner-turn-start reset** (see Node HP — enemy nodes don't reset mid-turn, so two actions stack on one target). Ranged volleys cost 0 AP (budgeted by arrows, per-leaf shots and `volleys_per_turn` instead), so an action can be a **different mode** (e.g. volley then melee tap) stacking on the same node — cross-mode same-turn stacking is the expected combining pattern.
 
 **Intent is disambiguated by INPUT CHANNEL, not by phase.** Each channel is gated only by *"is it your turn?"* plus its own budget:
 

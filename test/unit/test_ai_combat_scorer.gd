@@ -376,6 +376,29 @@ func test_arrows_to_kill_counts_landing_order_hits_until_hp_is_met() -> void:
 			"the third landing hit is the first whose running total meets hp")
 
 
+func test_arrows_to_kill_ignores_status_riders_behind_the_arrows() -> void:
+	# #495 lands a StatusInstance behind every typed arrow (same target). It is
+	# not an arrow: interleaving one after each hit must not move the count.
+	var plan := RangedAttackPlan.new()
+	plan.attacker = _ai
+	plan.target = _nodes[3]
+	var outcome := plan.resolve()
+	var per_arrow: float = outcome.hits[0].effective_amount
+	_true_damage(_nodes[3], _nodes[3].get_current_hp() - per_arrow * 2.5)
+	var bare := AiCombatScorer.arrows_to_kill(outcome, _nodes[3])
+	assert_eq(bare, 3)
+
+	var laced := AttackOutcome.new()
+	for hit in outcome.hits:
+		laced.hits.append(hit)
+		var rider := StatusInstance.new()
+		rider.target = _nodes[3]
+		laced.hits.append(rider)
+
+	assert_eq(AiCombatScorer.arrows_to_kill(laced, _nodes[3]), bare,
+			"status riders are not arrows")
+
+
 func test_arrows_to_kill_is_negative_when_the_volley_never_kills() -> void:
 	var plan := RangedAttackPlan.new()
 	plan.attacker = _ai
