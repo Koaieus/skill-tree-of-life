@@ -70,6 +70,8 @@ const _NO_RUN_RNG_BASE_SEED := 823
 ## Below this count, gating is a no-op — every candidate is both cheaply AND
 ## gate-accurately scored, identically to the pre-#537 exhaustive behaviour.
 const _CANDIDATE_GATE_K := 3
+## Stub (#958).
+const KILL_MARGIN_ARROWS := 1
 
 ## Diagnostic only (#537's "count it before trusting the arithmetic" ask) —
 ## how many candidates PASS 1 validated (cheaply) before the two-tier gate

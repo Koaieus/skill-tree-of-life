@@ -353,3 +353,34 @@ func test_near_miss_targets_excludes_targets_already_lethal_or_full_health() -> 
 	# near miss.
 	var visible: Array[SkillNode] = [_nodes[2]]
 	assert_true(AiCombatScorer.near_miss_targets(_ai, visible).is_empty())
+
+
+# ---------------------------------------------------------------------------
+# arrows_to_kill (#958) — read off the resolved outcome, never a hand formula
+# ---------------------------------------------------------------------------
+
+func test_arrows_to_kill_counts_landing_order_hits_until_hp_is_met() -> void:
+	# Full volley: N1 alone reaches N2, 5 shots at the fixture's per-arrow
+	# damage. Chip N2 to 2.5 arrows' worth: the third arrow is the killing one.
+	var plan := RangedAttackPlan.new()
+	plan.attacker = _ai
+	plan.target = _nodes[2]
+	assert_true(plan.is_valid(), str(plan.validate()))
+	var outcome := plan.resolve()
+	var per_arrow: float = outcome.hits[0].effective_amount
+	assert_gt(per_arrow, 0.0)
+	_true_damage(_nodes[2], _nodes[2].get_current_hp() - per_arrow * 2.5)
+
+	assert_eq(AiCombatScorer.arrows_to_kill(outcome, _nodes[2]), 3,
+			"the third landing hit is the first whose running total meets hp")
+
+
+func test_arrows_to_kill_is_negative_when_the_volley_never_kills() -> void:
+	var plan := RangedAttackPlan.new()
+	plan.attacker = _ai
+	plan.target = _nodes[2] # full HP — five arrows fall short
+	var outcome := plan.resolve()
+	assert_lt(AiCombatScorer.expected_damage(outcome), _nodes[2].get_current_hp(),
+			"fixture: the volley must not kill")
+
+	assert_eq(AiCombatScorer.arrows_to_kill(outcome, _nodes[2]), -1)

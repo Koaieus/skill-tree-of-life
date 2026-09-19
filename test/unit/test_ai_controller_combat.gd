@@ -686,3 +686,106 @@ func test_a_source_below_min_degree_is_never_a_magic_candidate() -> void:
 	for c in _ai._gather_magic_candidates(AiRecon.visible_enemy_nodes(_enemy)):
 		assert_ne(c.source_node, orphan,
 				"an ineligible caster must not reach the scoring loop at all")
+
+
+# ---------------------------------------------------------------------------
+# #958 — fire-to-kill / reload loop: the AI never single-shots
+# ---------------------------------------------------------------------------
+
+## Three leaves off the core (N1 + two more), all within range of H0.
+func _grow_two_more_leaves() -> void:
+	for i in 2:
+		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
+		sn.name = "L%d" % i
+		_graph.add_skill_node(sn)
+		_add_edge(_nodes[0], sn)
+		_alloc.force_allocate(_enemy, sn)
+
+
+func _set_stock(n: int) -> void:
+	var quiver: Quiver = _enemy.stat_board.arrows
+	quiver.take(AmmoTypeRoster.BASE_ID, quiver.stock_of(AmmoTypeRoster.BASE_ID))
+	quiver.add(AmmoTypeRoster.BASE_ID, n)
+
+
+func _stock() -> int:
+	return (_enemy.stat_board.arrows as Quiver).stock_of(AmmoTypeRoster.BASE_ID)
+
+
+func test_one_volley_sized_to_the_kill_plus_margin_never_four_single_shots() -> void:
+	# Owner (2026-09-18): stock 12, 3 leaves in range, a target worth 4 arrows
+	# -> ONE volley of 4 + margin, never four 1-arrow volleys.
+	_grow_two_more_leaves()
+	_set_stock(12)
+	var per_shot: float = float(_nodes[1].get_local_value(&"ranged_damage"))
+	_true_damage(_nodes[2], _nodes[2].get_current_hp() - per_shot * 3.5)
+
+	_tm.start_turn(_enemy)
+	await get_tree().create_timer(0.3).timeout
+
+	assert_eq(_launches.count(BattleSystem.AttackMode.RANGED), 1, "exactly one volley")
+	assert_eq(12 - _stock(), 4 + AIController.KILL_MARGIN_ARROWS,
+			"the volley carried arrows-to-kill plus the margin")
+	assert_ne(_nodes[2].owned_by, _hostile, "and it killed H0")
+
+
+func test_reloads_when_the_quiver_is_empty_then_fires_what_it_minted() -> void:
+	_set_stock(0)
+	_enemy.stat_board.action_points.set_current(1)
+	var reloads: Array[Command] = []
+	_applier.command_applied.connect(func(cmd: Command, ok: bool) -> void:
+		if cmd is ReloadCommand and ok:
+			reloads.append(cmd))
+
+	_tm.start_turn(_enemy)
+	await get_tree().create_timer(0.3).timeout
+
+	assert_eq(reloads.size(), 1, "an empty quiver with 1 AP submits ONE ReloadCommand")
+	assert_eq(_enemy.stat_board.action_points.current, 0.0, "which cost the AP")
+	assert_eq(_launches.count(BattleSystem.AttackMode.RANGED), 1,
+			"and the reload's mint went out as a volley the same turn")
+
+
+func test_fires_before_reloading_when_a_kill_is_on_the_table() -> void:
+	# Stock below the leaf's shot budget (5) and a killable target: the volley
+	# goes first; the reload, if any, comes after.
+	_set_stock(3)
+	var per_shot: float = float(_nodes[1].get_local_value(&"ranged_damage"))
+	_true_damage(_nodes[2], _nodes[2].get_current_hp() - per_shot * 1.5)
+	var events: Array[String] = []
+	_bs.attack_launched.connect(func(_m: BattleSystem.AttackMode, _s: SpellDef) -> void:
+		events.append("volley"))
+	_applier.command_applied.connect(func(cmd: Command, _ok: bool) -> void:
+		if cmd is ReloadCommand:
+			events.append("reload"))
+
+	_tm.start_turn(_enemy)
+	await get_tree().create_timer(0.3).timeout
+
+	assert_gt(events.size(), 0, "it acted")
+	assert_eq(events[0], "volley", "the kill was taken before any reload")
+	assert_ne(_nodes[2].owned_by, _hostile, "H0 died")
+
+
+func test_never_exceeds_volleys_per_turn() -> void:
+	# One shot per leaf -> volleys_per_turn is 1 (innate formula). Three leaves,
+	# two killable hostile nodes: the first kill uses the one volley slot, the
+	# second kill is left on the table rather than fired past the limit.
+	_grow_two_more_leaves()
+	_enemy.stat_board.max_shots_per_leaf.base_value = 1.0
+	assert_eq(int(_enemy.stat_board.volleys_per_turn.value), 1, "fixture: one volley slot")
+	var h1 := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	h1.name = "H1"
+	_graph.add_skill_node(h1)
+	_add_edge(_nodes[2], h1)
+	_alloc.force_allocate(_hostile, h1)
+	var per_shot: float = float(_nodes[1].get_local_value(&"ranged_damage"))
+	_true_damage(_nodes[2], _nodes[2].get_current_hp() - per_shot * 0.5)
+	_true_damage(h1, h1.get_current_hp() - per_shot * 0.5)
+
+	_tm.start_turn(_enemy)
+	await get_tree().create_timer(0.3).timeout
+
+	assert_eq(_launches.count(BattleSystem.AttackMode.RANGED), 1, "one volley slot, one volley")
+	assert_eq(_enemy.volleys_launched_this_turn, 1)
+	assert_ne(_tm.current_entity, _enemy, "and the turn ended cleanly")

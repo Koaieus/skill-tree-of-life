@@ -221,6 +221,11 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 ## ([param ai_tier] plays no part): this is a volume cut, not a behavior
 ## tuning knob, and it runs before [member AIController.ai_tier] would apply to
 ## anything.
+## Stub (#958) — see the real implementation below once it lands.
+static func arrows_to_kill(_outcome: AttackOutcome, _target: SkillNode, _attacker: Entity = null) -> int:
+	return -1
+
+
 static func cheap_estimate(target: SkillNode, raw_damage: float) -> float:
 	if target == null:
 		return -INF
