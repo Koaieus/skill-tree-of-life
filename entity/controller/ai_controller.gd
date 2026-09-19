@@ -70,8 +70,15 @@ const _NO_RUN_RNG_BASE_SEED := 823
 ## Below this count, gating is a no-op — every candidate is both cheaply AND
 ## gate-accurately scored, identically to the pre-#537 exhaustive behaviour.
 const _CANDIDATE_GATE_K := 3
-## Stub (#958).
+## Arrows a kill-sized volley carries BEYOND arrows-to-kill (#958) — the
+## owner's "+ margin": a shadow-world resolve is exact for the seed it rolled,
+## the live launch rolls its own, so one spare arrow covers a crit that does
+## not repeat. Tuning: owner tunes (hub #496); never a per-target formula.
 const KILL_MARGIN_ARROWS := 1
+## The authored [AmmoType] roster a volley's composition follows (#958):
+## specials first in roster `order`, base fills the rest — the AI has no
+## composer, so this IS its composition policy.
+const _AMMO_TYPES: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
 
 ## Diagnostic only (#537's "count it before trusting the arithmetic" ask) —
 ## how many candidates PASS 1 validated (cheaply) before the two-tier gate
@@ -215,37 +222,62 @@ func take_turn() -> void:
 		_end_turn()
 		return
 
-	# AP×2 loop: score every ranged/magic candidate against every visible
-	# hostile, execute the best, re-evaluate — the board changed (a dent, a
-	# kill), so re-running recon + enumeration each pass is what makes
+	# Attack loop: score every ranged/magic/melee candidate against every
+	# visible hostile, execute the best, re-evaluate — the board changed (a
+	# dent, a kill), so re-running recon + enumeration each pass is what makes
 	# dent-then-finish fall out naturally instead of needing special-casing.
+	#
+	# Two economies since #957/#958: melee and magic cost AP; a volley costs
+	# 0 AP and spends arrows + per-leaf shots + a volley slot instead. So the
+	# loop runs while EITHER can still act — at 0 AP only ranged is gathered —
+	# and the owner's fire-to-kill / reload policy (hub #496, 2026-09-18) sits
+	# in front of the pick: *"fires min(shots_left, arrows-to-kill + margin)
+	# per target, greedy over scored targets, never single-shots, reloads when
+	# stock < Σ shots_left and no kill is on the table."* The sizing lives in
+	# [method _gather_ranged_candidates]; the reload-vs-fire order is here.
 	if entity.stat_board != null:
 		var ap: PoolStat = entity.stat_board.action_points
-		while ap != null and ap.current > 0 and _continue():
+		var reload_stalled := false
+		while _continue():
 			visible_enemies = AiRecon.visible_enemy_nodes(entity)
 			if visible_enemies.is_empty():
 				break
-			var best := _best_attack_candidate(visible_enemies)
+			var has_ap := ap != null and ap.available() > 0
+			var best := _best_attack_candidate(visible_enemies, not has_ap)
+			# A kill on the table fires first; otherwise a due reload (1 AP)
+			# tops the quiver up BEFORE the chip volley, so the chip is as
+			# large as the leaves can carry. Bounded: each reload spends AP,
+			# and a reload that minted nothing stops the reloading for good.
+			var no_kill_volley := best == null \
+					or (best.mode == BattleSystem.AttackMode.RANGED and not best.is_kill)
+			if no_kill_volley and not reload_stalled and _reload_is_due():
+				if await _reload():
+					await _wait()
+					continue
+				reload_stalled = true
+				continue
 			if best == null:
 				_decide("no reachable attack this turn")
 				break
 			# BattleSystem.launch_attack() has bail-outs (insufficient AP for
 			# outcome.ap_cost, insufficient mana) that return WITHOUT deducting
-			# AP or clearing the plan — _execute_candidate still reports true
-			# since it awaited the call. Without this guard the loop would
+			# anything or clearing the plan — _execute_candidate still reports
+			# true since it awaited the call. Without this guard the loop would
 			# re-enumerate, re-pick the same candidate, and spin forever
-			# (synchronously, at turn_delay = 0). Break on no observed AP
-			# progress instead of trusting the return value alone.
-			var ap_before := ap.current
+			# (synchronously, at turn_delay = 0). Break on no observed progress
+			# — AP for melee/magic, the volley counter for ranged — instead of
+			# trusting the return value alone.
+			var ap_before: float = ap.current if ap != null else 0.0
+			var volleys_before := entity.volleys_launched_this_turn
 			if not await _execute_candidate(best):
 				_decide("attack execution failed: %s" % best.trace)
 				break
-			if entity.stat_board.action_points != null and entity.stat_board.action_points.current >= ap_before:
-				_decide("attack committed but AP unchanged — stopping: %s" % best.trace)
+			var ap_now: float = ap.current if ap != null else 0.0
+			if ap_now >= ap_before and entity.volleys_launched_this_turn <= volleys_before:
+				_decide("attack committed but nothing was spent — stopping: %s" % best.trace)
 				break
 			_decide(best.trace)
 			await _wait()
-			ap = entity.stat_board.action_points
 
 	# A cleared Dormant Core frees the node it held, and the SP the growth loop
 	# above couldn't spend is still banked — so a capped NPC walks through the
@@ -356,12 +388,75 @@ func _pick_frontier_node(visible_enemies: Array[SkillNode]) -> SkillNode:
 
 ## Every ranged + magic + melee candidate against every visible hostile,
 ## scored via [AiCombatScorer].
-func _best_attack_candidate(visible_enemies: Array[SkillNode]) -> AiCombatScorer.ScoredCandidate:
+## [param ranged_only]: at 0 AP a magic or melee candidate could still
+## outscore a volley, get picked, bail in `launch_attack` and end the loop
+## with the volley unfired — so out of AP, only the 0-AP mode is enumerated.
+func _best_attack_candidate(visible_enemies: Array[SkillNode], ranged_only: bool = false) -> AiCombatScorer.ScoredCandidate:
 	var candidates: Array[AiCombatScorer.ScoredCandidate] = []
 	candidates.append_array(_gather_ranged_candidates(visible_enemies))
-	candidates.append_array(_gather_magic_candidates(visible_enemies))
-	candidates.append_array(_gather_melee_candidates(visible_enemies))
+	if not ranged_only:
+		candidates.append_array(_gather_magic_candidates(visible_enemies))
+		candidates.append_array(_gather_melee_candidates(visible_enemies))
 	return AiCombatScorer.pick_best(candidates)
+
+
+## Owner (2026-09-18): the AI *"reloads when stock < Σ shots_left and no kill
+## is on the table"* — the kill half is the caller's; this is the stock half,
+## plus what makes the AP worth it: the entity can pay ([method Entity
+## .can_reload]) and the quiver is below capacity (a full quiver still pays,
+## so that would be an AP for nothing). Σ shots_left is over every firing
+## position the entity holds, not one target's reaching subset — the question
+## is "could my leaves fire more than I carry", whoever the target is.
+func _reload_is_due() -> bool:
+	if entity == null or entity.stat_board == null or not entity.can_reload():
+		return false
+	var quiver := entity.stat_board.arrows as Quiver
+	if quiver == null:
+		return false
+	var stock: int = roundi(quiver.current)
+	if stock >= roundi(float(quiver.get_value())):
+		return false
+	var probe := RangedAttackPlan.new()
+	probe.attacker = entity
+	var shots := 0
+	for leaf in probe.get_firing_positions():
+		shots += leaf.shots_left()
+	return stock < shots
+
+
+## Submit a [ReloadCommand] and report whether it actually grew the stock —
+## the loop's progress signal, since a reload with nothing to mint (no
+## turn-start leaves, a core that is not a producer) still pays its AP and
+## would otherwise be re-decided every pass until the AP ran dry.
+func _reload() -> bool:
+	var quiver := entity.stat_board.arrows as Quiver
+	var before: int = roundi(quiver.current)
+	var ok := await _submit_and_wait(ReloadCommand.new(entity.entity_id))
+	var after: int = roundi(quiver.current)
+	_decide("reload: %d → %d arrows" % [before, after])
+	return ok and after > before
+
+
+## The typed composition of an [param n]-arrow volley from the live quiver:
+## specials first in roster `order`, base fills the rest (owner, 2026-09-18 —
+## the AI has no composer). Each bin contributes at most what it holds.
+func _compose_volley(n: int) -> Dictionary:
+	var counts: Dictionary = {}
+	var quiver := entity.stat_board.arrows as Quiver
+	if quiver == null or n <= 0:
+		return counts
+	var remaining := n
+	for t in _AMMO_TYPES.sorted():
+		if t.id == AmmoTypeRoster.BASE_ID:
+			continue
+		var take := mini(remaining, quiver.stock_of(t.id))
+		if take > 0:
+			counts[t.id] = take
+			remaining -= take
+	var base := mini(remaining, quiver.stock_of(AmmoTypeRoster.BASE_ID))
+	if base > 0:
+		counts[AmmoTypeRoster.BASE_ID] = base
+	return counts
 
 
 ## Bounded melee rollout — see [AiBladeRollout] for the reach-bound rejection
@@ -403,8 +498,22 @@ func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCom
 		var plan := RangedAttackPlan.new()
 		plan.attacker = entity
 		plan.target = target
+		# Size the volley to the kill (#958): resolve the LARGEST volley the
+		# leaves and quiver allow, read arrows-to-kill off that outcome, and
+		# — when it kills with arrows to spare — re-resolve at kill + margin
+		# so the scored outcome IS the launched one. No kill on the table:
+		# fire everything (the chip is as large as it can be). Never one
+		# arrow when more would do — "never single-shots".
+		plan.ammo_counts = _compose_volley(plan.max_n())
 		var outcome := plan.resolve()
-		out.append(AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, target, entity, ai_tier))
+		var to_kill := AiCombatScorer.arrows_to_kill(outcome, target, entity)
+		if to_kill > 0 and to_kill + KILL_MARGIN_ARROWS < plan.n():
+			plan.ammo_counts = _compose_volley(to_kill + KILL_MARGIN_ARROWS)
+			outcome = plan.resolve()
+		var c := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, target, entity, ai_tier)
+		c.ammo_counts = plan.ammo_counts.duplicate()
+		c.trace += " n=%d" % plan.n()
+		out.append(c)
 	return out
 
 
@@ -576,6 +685,8 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 			if plan == null:
 				return false
 			plan.target = candidate.target
+			# The N that was scored is the N that fires (#958).
+			plan.ammo_counts = candidate.ammo_counts.duplicate()
 		BattleSystem.AttackMode.MAGIC:
 			var plan := bs.attack_plan as MagicAttackPlan
 			if plan == null:

@@ -177,39 +177,47 @@ func test_ranged_attack_launched_when_hostile_visible_and_reachable() -> void:
 # Dent-then-finish across the AP×2 loop
 # ---------------------------------------------------------------------------
 
-func test_dent_then_finish_on_ap2() -> void:
-	# Chip H0 to exactly 2 shots' worth: AP1 dents (survives), AP2 kills.
-	var per_shot: float = float(_nodes[1].get_local_value(&"ranged_damage"))
-	_true_damage(_nodes[2], _nodes[2].get_current_hp() - per_shot * 2.0)
-	assert_almost_eq(_nodes[2].get_current_hp(), per_shot * 2.0, 0.01)
+func test_dent_then_finish_is_one_kill_sized_volley() -> void:
+	# Pre-#958 this was two 1-arrow volleys, one per AP: dent, re-eval, finish.
+	# A volley costs 0 AP and carries N arrows now, so the AI reads
+	# arrows-to-kill off the resolve and fires the kill in ONE volley — the
+	# re-eval no longer has a dent to read, it has a corpse to skip.
+	_true_damage(_nodes[2], 8.0)
+	assert_almost_eq(_nodes[2].get_current_hp(), 2.0, 0.01)
 
 	_tm.start_turn(_enemy)
 	await get_tree().create_timer(0.3).timeout
 
-	assert_eq(_launches.count(BattleSystem.AttackMode.RANGED), 2,
-			"both AP should have gone into finishing H0")
+	assert_eq(_launches.count(BattleSystem.AttackMode.RANGED), 1,
+			"one kill-sized volley, never a dent volley plus a finish volley")
 	var kill_decisions := _decisions.filter(func(s): return s.find("kill=yes") != -1)
-	assert_eq(kill_decisions.size(), 1, "AP2's re-eval should read the dent and score a kill")
+	assert_eq(kill_decisions.size(), 1, "the one volley was scored as the kill")
+	assert_lte(_nodes[2].get_current_hp(), 0.0, "and H0 is at 0 (a core overflows into entity health)")
+	assert_eq(_enemy.stat_board.action_points.current, 2.0, "a volley costs no AP")
 
 
 # ---------------------------------------------------------------------------
 # 1-damage floor
 # ---------------------------------------------------------------------------
 
-func test_one_damage_floor_spends_ap_even_without_a_kill_this_turn() -> void:
-	# H0 starts at full HP (fixture default) — far more than either AP can
-	# remove this turn. The acceptance property is "no minimum-EV gate blocks
-	# an attack" — the assertions below are what demonstrate it, not this line.
+func test_one_damage_floor_fires_a_full_chip_volley_even_without_a_kill_this_turn() -> void:
+	# One shot per leaf: two leaves, two arrows, far short of H0's full HP. The
+	# acceptance property is "no minimum-EV gate blocks an attack" — the chip
+	# still goes out, at the largest N the leaves carry, and costs no AP.
+	_enemy.stat_board.max_shots_per_leaf.base_value = 1.0
 	var target_hp := _nodes[2].get_current_hp()
-	var per_shot: float = float(_nodes[1].get_local_value(&"ranged_damage"))
-	assert_gt(target_hp, per_shot * 2.0, "fixture should not be killable in one turn")
+	var stock_before: int = roundi(_enemy.stat_board.arrows.current)
 
 	_tm.start_turn(_enemy)
 	await get_tree().create_timer(0.3).timeout
 
-	assert_eq(_launches.count(BattleSystem.AttackMode.RANGED), 2,
-			"both AP should be spent chipping H0 even though neither kills")
+	assert_eq(_launches.count(BattleSystem.AttackMode.RANGED), 1,
+			"one chip volley even though it cannot kill")
+	assert_eq(stock_before - roundi(_enemy.stat_board.arrows.current), 2,
+			"and it carried every shot the leaves had — never a single arrow")
 	assert_lt(_nodes[2].get_current_hp(), target_hp, "H0 should have taken damage")
+	assert_gt(_nodes[2].get_current_hp(), 0.0, "fixture: not a kill")
+	assert_eq(_enemy.stat_board.action_points.current, 2.0, "the chip cost no AP")
 
 
 # ---------------------------------------------------------------------------
@@ -516,8 +524,13 @@ func test_capped_ai_prefers_the_door_over_an_equally_reachable_hostile() -> void
 	await get_tree().create_timer(0.3).timeout
 
 	assert_lt(walled.get_current_hp(), wall_hp, "the wall is the door — hit it")
-	assert_eq(_nodes[2].get_current_hp(), hostile_hp,
-			"H0 borders nothing of the AI's, so killing it opens no board")
+	# #958: volleys cost no AP, so once the door is down the leftover shots
+	# legitimately go to H0 — the property is ORDER: the door is picked first.
+	var volleys := _decisions.filter(func(s: String) -> bool: return s.begins_with("[RANGED"))
+	assert_gt(volleys.size(), 0, "it fired")
+	assert_true(volleys[0].contains("→Walled"),
+			"H0 borders nothing of the AI's, so the door outranks it")
+	assert_true(hostile_hp > 0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -694,12 +707,37 @@ func test_a_source_below_min_degree_is_never_a_magic_candidate() -> void:
 
 ## Three leaves off the core (N1 + two more), all within range of H0.
 func _grow_two_more_leaves() -> void:
+	var added: Array[SkillNode] = []
 	for i in 2:
 		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
 		sn.name = "L%d" % i
 		_graph.add_skill_node(sn)
 		_add_edge(_nodes[0], sn)
+		sn.global_position = _nodes[1].global_position + Vector2(0.0, 40.0 * (i + 1))
+		added.append(sn)
+	await get_tree().process_frame # the mirrors see the edge before allocation
+	for sn in added:
 		_alloc.force_allocate(_enemy, sn)
+
+
+## A non-core hostile node off H0 — the one a "kill" actually removes (a core
+## at 0 node-hp overflows into the entity's `health` pool instead, so the
+## scorer's node-hp kill read is a prediction there, not a removal).
+##
+## H0 itself is parked out of `range` (400) but inside vision: killing the
+## core kills the entity, which outscores any leaf kill and frees every node —
+## the tests below are about the leaf volley, not that.
+func _add_hostile_leaf(leaf_name: String = "H1") -> SkillNode:
+	_enemy.stat_board.vision_range.base_value = 700.0
+	_nodes[2].global_position = _nodes[1].global_position + Vector2(600.0, 0.0)
+	var h := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	h.name = leaf_name
+	_graph.add_skill_node(h)
+	_add_edge(_nodes[2], h)
+	h.global_position = _nodes[1].global_position + Vector2(150.0, 0.0)
+	await get_tree().process_frame # the mirrors see the edge before allocation
+	_alloc.force_allocate(_hostile, h)
+	return h
 
 
 func _set_stock(n: int) -> void:
@@ -712,21 +750,41 @@ func _stock() -> int:
 	return (_enemy.stat_board.arrows as Quiver).stock_of(AmmoTypeRoster.BASE_ID)
 
 
+## What one arrow from N1 actually lands on H0 — read off a shadow resolve
+## (the node-local `ranged_damage` is a formula INPUT, not the landed number).
+func _effective_per_arrow(target: SkillNode = _nodes[2]) -> float:
+	var plan := RangedAttackPlan.new()
+	plan.attacker = _enemy
+	plan.target = target
+	plan.ammo_counts = {AmmoTypeRoster.BASE_ID: 1}
+	var outcome := plan.resolve()
+	assert_eq(outcome.hits.size(), 1, "fixture: one arrow resolves: %s / reach=%s / hostile=%s" % [str(plan.validate()), plan.get_reaching_firing_positions().size(), target.ownership_bit(_enemy)])
+	return outcome.hits[0].effective_amount
+
+
 func test_one_volley_sized_to_the_kill_plus_margin_never_four_single_shots() -> void:
 	# Owner (2026-09-18): stock 12, 3 leaves in range, a target worth 4 arrows
 	# -> ONE volley of 4 + margin, never four 1-arrow volleys.
-	_grow_two_more_leaves()
+	await _grow_two_more_leaves()
 	_set_stock(12)
-	var per_shot: float = float(_nodes[1].get_local_value(&"ranged_damage"))
-	_true_damage(_nodes[2], _nodes[2].get_current_hp() - per_shot * 3.5)
+	var h1: SkillNode = await _add_hostile_leaf()
+	var per_arrow := _effective_per_arrow(h1)
+	# The issue's worked example is 7 hp at 2/arrow = 4 arrows; the fixture
+	# lands 3/arrow on a 10-hp leaf, so 2.5 arrows' worth -> 3 arrows to kill.
+	_true_damage(h1, h1.get_current_hp() - per_arrow * 2.5)
+	assert_almost_eq(h1.get_current_hp(), per_arrow * 2.5, 0.01, "fixture: H1 is worth 3 arrows")
 
 	_tm.start_turn(_enemy)
 	await get_tree().create_timer(0.3).timeout
 
-	assert_eq(_launches.count(BattleSystem.AttackMode.RANGED), 1, "exactly one volley")
-	assert_eq(12 - _stock(), 4 + AIController.KILL_MARGIN_ARROWS,
-			"the volley carried arrows-to-kill plus the margin")
-	assert_ne(_nodes[2].owned_by, _hostile, "and it killed H0")
+	var volleys := _decisions.filter(func(d: String) -> bool: return d.begins_with("[RANGED"))
+	assert_gt(volleys.size(), 0, "it fired")
+	assert_true(volleys[0].begins_with("[RANGED→H1]"), "the kill came first: %s" % volleys[0])
+	assert_true(volleys[0].ends_with(" n=%d" % (3 + AIController.KILL_MARGIN_ARROWS)),
+			"the kill volley carried arrows-to-kill plus the margin: %s" % volleys[0])
+	assert_ne(h1.owned_by, _hostile, "and it killed H1")
+	var singles := volleys.filter(func(d: String) -> bool: return d.ends_with(" n=1"))
+	assert_eq(singles.size(), 0, "never a 1-arrow volley: %s" % str(volleys))
 
 
 func test_reloads_when_the_quiver_is_empty_then_fires_what_it_minted() -> void:
@@ -747,11 +805,12 @@ func test_reloads_when_the_quiver_is_empty_then_fires_what_it_minted() -> void:
 
 
 func test_fires_before_reloading_when_a_kill_is_on_the_table() -> void:
-	# Stock below the leaf's shot budget (5) and a killable target: the volley
-	# goes first; the reload, if any, comes after.
+	# Stock below the leaves' shot budget and a killable target: the volley
+	# goes first; the reload comes after.
 	_set_stock(3)
-	var per_shot: float = float(_nodes[1].get_local_value(&"ranged_damage"))
-	_true_damage(_nodes[2], _nodes[2].get_current_hp() - per_shot * 1.5)
+	var h1: SkillNode = await _add_hostile_leaf()
+	var per_arrow := _effective_per_arrow(h1)
+	_true_damage(h1, h1.get_current_hp() - per_arrow * 1.5)
 	var events: Array[String] = []
 	_bs.attack_launched.connect(func(_m: BattleSystem.AttackMode, _s: SpellDef) -> void:
 		events.append("volley"))
@@ -762,30 +821,34 @@ func test_fires_before_reloading_when_a_kill_is_on_the_table() -> void:
 	_tm.start_turn(_enemy)
 	await get_tree().create_timer(0.3).timeout
 
-	assert_gt(events.size(), 0, "it acted")
+	assert_gt(events.size(), 1, "it fired and reloaded: %s" % str(events))
 	assert_eq(events[0], "volley", "the kill was taken before any reload")
-	assert_ne(_nodes[2].owned_by, _hostile, "H0 died")
+	assert_true(events.has("reload"), "then the emptied quiver was reloaded")
+	assert_ne(h1.owned_by, _hostile, "H1 died")
 
 
 func test_never_exceeds_volleys_per_turn() -> void:
-	# One shot per leaf -> volleys_per_turn is 1 (innate formula). Three leaves,
-	# two killable hostile nodes: the first kill uses the one volley slot, the
-	# second kill is left on the table rather than fired past the limit.
-	_grow_two_more_leaves()
-	_enemy.stat_board.max_shots_per_leaf.base_value = 1.0
-	assert_eq(int(_enemy.stat_board.volleys_per_turn.value), 1, "fixture: one volley slot")
-	var h1 := _SKILL_NODE_SCENE.instantiate() as SkillNode
-	h1.name = "H1"
-	_graph.add_skill_node(h1)
-	_add_edge(_nodes[2], h1)
-	_alloc.force_allocate(_hostile, h1)
-	var per_shot: float = float(_nodes[1].get_local_value(&"ranged_damage"))
-	_true_damage(_nodes[2], _nodes[2].get_current_hp() - per_shot * 0.5)
-	_true_damage(h1, h1.get_current_hp() - per_shot * 0.5)
+	# Two killable hostile leaves, plenty of arrows and shots — but the volley
+	# counter is parked one below the cap once the turn has opened, so the
+	# first kill takes the last slot and the second is left on the table.
+	await _grow_two_more_leaves()
+	var h1: SkillNode = await _add_hostile_leaf("H1")
+	var h2: SkillNode = await _add_hostile_leaf("H2")
+	var per_arrow := _effective_per_arrow(h1)
+	_true_damage(h1, h1.get_current_hp() - per_arrow * 0.5)
+	_true_damage(h2, h2.get_current_hp() - per_arrow * 0.5)
+	var limit := int(_enemy.stat_board.volleys_per_turn.value)
+	assert_gt(limit, 1, "fixture: more than one slot, so the park is what binds")
 
+	# A non-zero delay parks take_turn on its opening beat, AFTER turn start
+	# reset the counter and BEFORE the first pick.
+	_ai.turn_delay = 0.01
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	_enemy.volleys_launched_this_turn = limit - 1
+	await get_tree().create_timer(0.4).timeout
 
-	assert_eq(_launches.count(BattleSystem.AttackMode.RANGED), 1, "one volley slot, one volley")
-	assert_eq(_enemy.volleys_launched_this_turn, 1)
+	assert_eq(_launches.count(BattleSystem.AttackMode.RANGED), 1, "one slot left, one volley")
+	assert_eq(_enemy.volleys_launched_this_turn, limit, "at the cap, never past it")
+	assert_true(h1.owned_by != _hostile or h2.owned_by != _hostile, "the slot bought a kill")
+	assert_true(h1.owned_by == _hostile or h2.owned_by == _hostile, "and the other kill waits")
 	assert_ne(_tm.current_entity, _enemy, "and the turn ended cleanly")

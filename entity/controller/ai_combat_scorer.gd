@@ -74,6 +74,11 @@ class ScoredCandidate:
 	## executes a swing the scorer never valued.
 	var swing_cw: bool = false
 	var outcome: AttackOutcome = null
+	## RANGED only (#958): the typed composition the controller sized this
+	## candidate's volley to — what [method AIController._execute_candidate]
+	## stamps onto the armed plan so the launch fires the N that was scored.
+	## Empty = the plan's bare default (N = max, all base).
+	var ammo_counts: Dictionary = {}
 
 	var ev: float = 0.0
 	var is_kill: bool = false
@@ -221,8 +226,46 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 ## ([param ai_tier] plays no part): this is a volume cut, not a behavior
 ## tuning knob, and it runs before [member AIController.ai_tier] would apply to
 ## anything.
-## Stub (#958) — see the real implementation below once it lands.
-static func arrows_to_kill(_outcome: AttackOutcome, _target: SkillNode, _attacker: Entity = null) -> int:
+## How many arrows of [param outcome], in landing order, it takes for the
+## running total of damage on [param target] to meet its CURRENT hp — the
+## number a kill-sized volley carries (#958, owner: computed *"from the plan's
+## resolve on the shadow world … never from a hand formula"*). Reads each hit
+## as [method expected_damage] does — post-mitigation `effective_amount`, the
+## number the shadow world actually subtracted — so armour, duds and the
+## seeded crit roll are all already in it. `-1` when the whole volley falls
+## short (no kill on the table), so a caller sizing N can tell "fire
+## everything" from "fire k".
+##
+## A CORE never depletes on node hp: past 0 every hit overflows into its
+## owner's `health` pool ([method NodeCombat.take_damage]), and the entity
+## dies when THAT runs out — so for a core the arrows-to-kill reach is node
+## hp + the owner's remaining health. (The scorer's [member ScoredCandidate
+## .is_kill] keeps its node-hp read — the #512 golden freezes that
+## prediction — this helper is what sizes the volley.)
+static func arrows_to_kill(outcome: AttackOutcome, target: SkillNode, attacker: Entity = null) -> int:
+	if outcome == null or target == null:
+		return -1
+	var hp: float = maxf(target.get_current_hp(), 0.0)
+	var victim: Entity = target.owned_by
+	if victim != null and victim.core_location == target and victim.stat_board != null:
+		var health := victim.stat_board.get_stat(&"health") as PoolStat
+		if health != null:
+			hp += maxf(health.current, 0.0)
+	if hp <= 0.0:
+		return -1
+	var running := 0.0
+	var count := 0
+	for hit in outcome.hits:
+		count += 1
+		if hit.target != target:
+			continue
+		if attacker != null and not AiRecon.is_ai_target(attacker, hit.target):
+			continue
+		if hit.kind != HitInstance.Kind.DAMAGE or hit.effective_amount <= 0.0:
+			continue
+		running += hit.effective_amount
+		if running >= hp:
+			return count
 	return -1
 
 
