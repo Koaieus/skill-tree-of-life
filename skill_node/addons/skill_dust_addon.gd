@@ -255,8 +255,18 @@ func _on_carrier_owner_changed() -> void:
 		return  # death-strip / deallocation — not a pickup
 	if command_applier != null and not command_applier.is_authority:
 		return  # a peer: its rounds arrive as replays
+	open_round_for(collector, rounds)
+
+
+## Opens a stat round for [param collector] — the one entry point that latches
+## "a round is open" ([member _collector], [member _rounds_remaining],
+## [member _phase]) and kicks off resolution (#935). [method
+## _on_carrier_owner_changed] is the real pickup path and the only production
+## caller; a test that needs "a round is already open" calls this directly
+## instead of hand-copying the triple.
+func open_round_for(collector: Entity, rounds_count: int = rounds) -> void:
 	_collector = collector
-	_rounds_remaining = rounds
+	_rounds_remaining = rounds_count
 	_phase = Phase.STAT
 	if command_applier != null:
 		command_applier.notify_loot_round_opened()

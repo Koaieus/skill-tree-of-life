@@ -101,12 +101,7 @@ func _mirror_adapter(applier: CommandApplier, link: CommandLink) -> LootSystem:
 ## would. See `test_loot_offer_split.gd`'s copy of this helper.
 func _open_stat_round(world: Dictionary) -> void:
 	var addon: SkillDustAddon = world["addon"]
-	var applier: CommandApplier = world["applier"]
-	addon._collector = world["collector"]
-	addon._rounds_remaining = 1
-	addon._phase = SkillDustAddon.Phase.STAT
-	applier.notify_loot_round_opened()
-	addon._run_round()
+	addon.open_round_for(world["collector"], 1)
 
 
 ## Acceptance 1 + 4: the two-world end-to-end. The host parks for a remote

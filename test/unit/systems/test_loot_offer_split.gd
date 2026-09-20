@@ -102,20 +102,15 @@ func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
 	return link
 
 
-## Latches the addon's internal round state directly — bypassing the real
-## pickup event ([method SkillDustAddon._on_carrier_owner_changed]), which
-## these wire-focused tests don't need to exercise — and kicks off the SAME
-## authority-side resolver `_on_carrier_owner_changed` would (#646: there is no
-## "submit an empty command" door left; the offer/pick/roll sequence has to be
-## started directly).
+## Bypasses the real pickup event ([method
+## SkillDustAddon._on_carrier_owner_changed]), which these wire-focused tests
+## don't need to exercise, via the addon's own entry point (#935) — which
+## kicks off the SAME authority-side resolver `_on_carrier_owner_changed`
+## would (#646: there is no "submit an empty command" door left; the
+## offer/pick/roll sequence has to be started directly).
 func _open_stat_round(world: Dictionary) -> void:
 	var addon: SkillDustAddon = world["addon"]
-	var applier: CommandApplier = world["applier"]
-	addon._collector = world["collector"]
-	addon._rounds_remaining = 1
-	addon._phase = SkillDustAddon.Phase.STAT
-	applier.notify_loot_round_opened()
-	addon._run_round()
+	addon.open_round_for(world["collector"], 1)
 
 
 func test_a_local_or_npc_round_still_mirrors_correctly() -> void:
