@@ -440,7 +440,8 @@ func test_the_eased_pin_reaches_its_target_and_stops() -> void:
 	var unit := inst.find_child(_SLIDING_UNIT, true, false) as FanUnit
 	_gate_out_without_refresh(inst, _UNOWNED_SUPPRESSED)
 	var target := _target_angle_of(inst, unit)
-	for _i in range(120):
-		await get_tree().process_frame
+	# The ease runs on delta, so give it wall-clock time, not a frame count —
+	# the headless frame period is a test-hook knob and 120 frames may be 0.2 s.
+	await wait_until(func() -> bool: return absf(unit.pin_angle - target) < 0.0001, 3.0)
 	assert_almost_eq(unit.pin_angle, target, 0.0001,
 		"the pin must settle exactly on its slot, not near it")

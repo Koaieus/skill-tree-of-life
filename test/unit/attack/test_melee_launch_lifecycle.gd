@@ -61,15 +61,18 @@ func before_each() -> void:
 	_tm.current_entity = _attacker
 
 
-## Pumps frames until `_bs.is_launching` clears or `max_ticks` is exhausted —
-## used as the observation point for the bug this file pins: without the
+## Pumps frames until `_bs.is_launching` clears or `max_seconds` of wall clock
+## pass. A wall-clock budget, never a tick count: the swing it waits on runs on
+## real-second timers, while the headless frame period is a test-hook knob
+## (pause_leak_pre_run_hook.gd) and varies by an order of magnitude between
+## machines — 900 ticks was 15 s on one box and 1.4 s on another.
+## This is the observation point for the bug this file pins: without the
 ## fix, is_launching never clears and this loop runs out the clock.
-func _await_launch_settle(max_ticks: int = 900) -> int:
-	var ticks := 0
-	while _bs.is_launching and ticks < max_ticks:
+func _await_launch_settle(max_seconds: float = 15.0) -> float:
+	var started := Time.get_ticks_msec()
+	while _bs.is_launching and Time.get_ticks_msec() - started < max_seconds * 1000.0:
 		await get_tree().process_frame
-		ticks += 1
-	return ticks
+	return (Time.get_ticks_msec() - started) / 1000.0
 
 
 func test_launch_attack_melee_resets_is_launching_and_allows_a_second_attack() -> void:
@@ -91,7 +94,7 @@ func test_launch_attack_melee_resets_is_launching_and_allows_a_second_attack() -
 	assert_true(_bs.is_launching, "is_launching should be true immediately after calling launch_attack")
 
 	var ticks := await _await_launch_settle()
-	assert_false(_bs.is_launching, "is_launching must reset to false after the melee swing completes (ticks=%d)" % ticks)
+	assert_false(_bs.is_launching, "is_launching must reset to false after the melee swing completes (after %.2fs)" % ticks)
 	assert_true(_bs.attack_plan == null, "plan should be cleared after the swing")
 
 	# A second attack (spending the turn's remaining AP) must be arm-able —
@@ -127,7 +130,7 @@ func test_launch_attack_melee_with_temp_upgrade_frees_it_and_resets_is_launching
 	_bs.launch_attack()
 	var ticks := await _await_launch_settle()
 
-	assert_false(_bs.is_launching, "is_launching must reset to false after a swing WITH a temp upgrade attached (ticks=%d)" % ticks)
+	assert_false(_bs.is_launching, "is_launching must reset to false after a swing WITH a temp upgrade attached (after %.2fs)" % ticks)
 	assert_true(_bs.attack_plan == null, "plan should be cleared after the swing")
 	assert_eq(joint.get_addons().size(), 0, "the temp addon must be freed after the swing completes")
 

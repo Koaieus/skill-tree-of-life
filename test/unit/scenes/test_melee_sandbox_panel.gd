@@ -288,13 +288,11 @@ func test_a_right_click_mid_swing_is_refused_like_it_is_in_game() -> void:
 	assert_not_null(plan.source, "a swing in flight must keep the plan it is swinging")
 	# Budget covers the #559 wind-up as well as the swing itself — a committed
 	# melee is staged now (form beat, then swing), so "in flight" lasts longer
-	# than SWING_DURATION. Ticks, not seconds, because the headless frame rate
-	# varies by an order of magnitude between machines.
-	for _i in 900:
-		if not battle.is_launching:
-			break
-		await get_tree().process_frame
-	assert_false(battle.is_launching, "and the swing must still finish")
+	# than SWING_DURATION. Wall clock, not ticks: the swing runs on real-second
+	# timers while the headless frame period is a test-hook knob that varies by
+	# an order of magnitude between machines.
+	var settled: bool = await wait_until(func() -> bool: return not battle.is_launching, 15.0)
+	assert_true(settled, "and the swing must still finish")
 	await get_tree().create_timer(0.6).timeout
 	# The tab has to still DRAW: a panel that takes clicks but mounts no ghost
 	# reads as broken even when every system underneath is fine.

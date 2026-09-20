@@ -1,7 +1,7 @@
 # Long-running commands: launch once, then go quiet
 
-The full GUT suite is ~215s. `mise run refresh` and the perf benches are the
-other repeat offenders. All three have the same correct shape and the same
+The full GUT suite is ~35s wall (sharded; ~380s with `GUT_SHARDS=1`). `mise run
+refresh` and the perf benches are the other repeat offenders. All three have the same correct shape and the same
 expensive wrong one.
 
 ## The rule
@@ -20,7 +20,7 @@ not: the backgrounded sleep returns to the model almost immediately in
 conversation terms — measured wall clock between two such "waits" was ~25s
 despite `sleep 300`. So each one is a full tool round-trip carrying the whole
 context, against a result that was going to arrive as a notification regardless.
-A dozen of them against one 210s suite is a dozen round-trips bought for nothing,
+A dozen of them against one suite is a dozen round-trips bought for nothing,
 and context budget is the scarcest resource in a long session.
 
 Foreground-with-a-big-timeout is the other wrong shape: it buys nothing the

@@ -120,13 +120,19 @@ func _click_build(members: Array[SkillNode]) -> MeleeAttackPlan:
 	return plan
 
 
-func _launch_and_settle(max_ticks: int = 900) -> void:
+## Pumps frames until `_bs.is_launching` clears or `max_seconds` of wall clock
+## pass. A wall-clock budget, never a tick count: the swing it waits on runs on
+## real-second timers, while the headless frame period is a test-hook knob
+## (pause_leak_pre_run_hook.gd) and varies by an order of magnitude between
+## machines — 900 ticks was 15 s on one box and 1.4 s on another.
+func _launch_and_settle(max_seconds: float = 15.0) -> float:
 	_bs.launch_attack()
-	var ticks := 0
-	while _bs.is_launching and ticks < max_ticks:
+	var started := Time.get_ticks_msec()
+	while _bs.is_launching and Time.get_ticks_msec() - started < max_seconds * 1000.0:
 		await get_tree().process_frame
-		ticks += 1
-	assert_false(_bs.is_launching, "the swing must settle (ticks=%d)" % ticks)
+	var ticks := (Time.get_ticks_msec() - started) / 1000.0
+	assert_false(_bs.is_launching, "the swing must settle (after %.2fs)" % ticks)
+	return ticks
 
 
 ## Blade as a comparable set of node names — order is an implementation detail
@@ -313,11 +319,8 @@ func test_reform_is_gated_shut_until_the_launch_command_finishes_draining() -> v
 	_bs.attack_plan_changed.connect(_record_reform_gate_on_clear)
 
 	await _launch_and_settle()
-	# The drain outlives is_launching by a hair; settle it too.
-	var ticks := 0
-	while applier.is_applying and ticks < 300:
-		await get_tree().process_frame
-		ticks += 1
+	# The drain outlives is_launching by a hair; settle it too (wall clock, as above).
+	await wait_until(func() -> bool: return not applier.is_applying, 5.0)
 
 	assert_eq(_gate_on_clear.size(), 1, "the plan clears exactly once, post-launch")
 	assert_false(_gate_on_clear[0],

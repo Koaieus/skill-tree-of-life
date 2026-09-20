@@ -49,14 +49,16 @@ mise run mp:e2e                                # two processes play the shipped 
                                                # (~30s) — the gate for network/ session/ command/
 ```
 
-The full suite costs **~215s** (409 scripts, 3807 tests, 2026-09-04) — a
-**gate, not a feedback loop.** Earn it **at most once per unit of work**, at
-final green, right before reporting: never to explore, never mid-rebase,
-never **to grep it differently.** Iterate on the cheap ladder instead —
-`check` (~20s, catches script parse + shader compile errors 8x cheaper) → `test:one` → `test:dir` →
-only then the full suite. `mise run test` prints a verdict and always keeps
-the full console output at `.godot/gut-last.log` plus junit XML — see
-`.claude/rules/testing.md` for the log-grep gotcha and other pitfalls.
+The full suite costs **~35s wall** (507 scripts, 4716 tests, 2026-09-20; sharded
+one godot per core, `GUT_SHARDS=1` is the ~380s single process) — still a
+**gate, not a feedback loop**: cheap in wall clock, not in the context its
+output costs. Earn it **once per unit of work**, at final green, right before
+reporting — never to explore, never **to grep it differently.** Iterate on the
+cheap ladder instead — `check` (~20s, script parse + shader compile) →
+`test:one` → `test:dir` → only then the full suite. `mise run test` prints a
+verdict and always keeps the full console output at `.godot/gut-last.log` plus
+junit XML — see `.claude/rules/testing.md` for the log-grep gotcha and other
+pitfalls.
 
 Each level scene extends `scenes/game_root.tscn` (the composition root); subclasses populate content via the `_setup_level()` hook.
 

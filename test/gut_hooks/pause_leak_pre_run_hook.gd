@@ -15,7 +15,18 @@ extends GutHookScript
 var _running_script = null
 
 
+## Headless godot paces every process frame by the low-processor idle sleep
+## (6900 µs by default, ~12.7 ms/frame measured), so a test that awaits a few
+## hundred `process_frame`s — a launch settle, a cascade drain — burns seconds
+## doing nothing. Physics ticks and timers stay wall-clocked; only the idle
+## gap between frames shrinks, which is the same thing a faster monitor does.
+## 0 would busy-spin one core per shard; 1000 µs measures ~1.5 ms/frame.
+const HEADLESS_FRAME_SLEEP_USEC := 1000
+
+
 func run() -> void:
+	if DisplayServer.get_name() == "headless":
+		OS.low_processor_usage_mode_sleep_usec = HEADLESS_FRAME_SLEEP_USEC
 	gut.start_script.connect(_on_start_script)
 	gut.end_script.connect(_on_end_script)
 

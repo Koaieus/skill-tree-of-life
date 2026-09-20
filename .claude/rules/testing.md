@@ -37,10 +37,15 @@ See `docs/domain/multiplayer-harness.md`, "Rung 4".
 
 The task prints a verdict (counts, each failing test's first assert + line,
 pending, parse-error alarms) and **always keeps the full console output at
-`.godot/gut-last.log`**, junit XML beside it. That log is written **live**
-(`tail -f` it to see which script GUT is on, and a killed run still leaves it),
-while the verdict is the FIRST line of the summary block — an empty summary
-means "still running", not "broken". **Background the run; don't sleep-and-poll.**
+`.godot/gut-last.log`**, junit XML beside it. A suite or directory run is
+**sharded** over one headless godot per core (clamped by free RAM; `GUT_SHARDS=N`
+pins it, `1` = single process), each shard's console written **live** to
+`.godot/gut-shard-N.log` (`tail -f .godot/gut-shard-*.log` to see which script
+every shard is on; a killed run still leaves them) and merged into
+`gut-last.log` / `gut-last.xml` at the end — so the merged files, and the
+verdict, arrive LAST: an empty summary means "still running", not "broken".
+**Background the run; don't sleep-and-poll.** Each shard boots with a fresh
+`user://`, so a test may not depend on the developer's real `settings.cfg`.
 
 **Read the verdict with `grep`, never `tail`.** The `✓/✗ N failing · …` line
 leads the summary and is followed by each failing test, the pending list, any
@@ -51,11 +56,20 @@ reported a FAILING suite as green off a `tail` on 2026-09-10, twice in one
 session. Use:
 ```
 mise run test 2>&1 | grep -E "failing ·|ERROR task"
-``` A full run costs **~215s** (409 scripts / 3807 tests, 2026-09-04) — a gate,
-**run at most once per unit of work**, at final green; iterate on `check` →
-`test:one` → `test:dir`. When the
+``` A full run costs **~35s wall** (507 scripts / 4716 tests over 14 shards,
+2026-09-20; ~380s single-process) — a gate, **run at most once per unit of
+work**, at final green; iterate on `check` → `test:one` → `test:dir`. When the
 summary elided something, grep the log — `grep -F '[Failed]'`, with `-F`, since a
 bare `[Failed]` is a bracket expression matching nearly every line.
+
+**Budget a wait in wall-clock seconds, never in ticks.** The GUT pre-run hook
+drops headless godot's idle frame sleep to 1000 µs (~1.5 ms/frame instead of
+~12.7 ms), so `await process_frame` is cheap — but it means a loop like
+`for _i in 900: await get_tree().process_frame` is now a 1.4 s budget, not 15 s,
+and a tween that eases on delta moves a tenth as far in 120 frames. Wait on the
+condition with a seconds cap: `await wait_until(func(): return not
+_bs.is_launching, 15.0)`, or `Time.get_ticks_msec()` against a deadline when
+you want the elapsed time back. Timers, tweens and physics ticks are unchanged.
 
 ## Layout
 
