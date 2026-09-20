@@ -31,6 +31,22 @@ func test_every_authored_entity_board_that_has_xp_also_has_level() -> void:
 	assert_gt(checked, 0, "the walk found no authored entity boards at all — it stopped walking")
 
 
+## The pairing above is one symptom; the disease is the inline copy itself.
+## A scene node's `stat_board` must be a `.tres` on disk (the default board,
+## or an authored sparse one for a blocker) — an inline `[sub_resource]` is a
+## snapshot that stops following the default the day it is pasted
+## (godot-scene-authoring rule; dev_sandbox's had rotted to 16 missing fields).
+func test_no_scene_carries_an_inline_entity_board() -> void:
+	var inline: Array[String] = []
+	for board_path in _authored_boards():
+		if not (board_path[0] as String).contains("::"):
+			continue
+		var board: EntityStatBoard = board_path[1]
+		if board.resource_path.is_empty() or board.resource_path.contains("::"):
+			inline.append(board_path[0])
+	assert_eq(inline, [], "scene nodes whose stat_board is an inline copy instead of a .tres")
+
+
 ## Every authored EntityStatBoard reachable from a scene or a `.tres` under
 ## [constant _SCENE_ROOTS], as `[where, board]` pairs. Scenes are read through
 ## [SceneState] rather than instantiated: a level scene's `_ready` builds a
