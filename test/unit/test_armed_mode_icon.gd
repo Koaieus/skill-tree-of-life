@@ -375,10 +375,10 @@ func test_a_pending_mass_action_has_no_badge() -> void:
 	var cascade: Array[SkillNode] = [_nodes[1]]
 	var request := MassActionRequest.new(
 			_player, MassActionRequest.Verb.DEALLOCATE, cascade)
-	_ctl._mass_action_request = request
+	_ctl.begin_mass_action(request)
 	assert_true(_ctl.pending_mass_action() != null, "fixture check")
 	assert_null(_ctl.get_armed_icon())
-	_ctl._mass_action_request = null
+	_ctl.cancel_mass_action()
 
 
 # --- 9. the structural guard -------------------------------------------------
