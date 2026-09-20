@@ -1390,7 +1390,7 @@ driver list are all per-call inputs to the native backend):
    including a `ClampAddon` phantom brace — a weld to a corpse is a weld to a
    wall.
 3. its `BladeArcDriver` dropped, if it was one of the pivot's driven neighbours.
-   `MeleeAttackPlan._surviving_drivers` also drops the driver of a merely
+   `SwingResolve._surviving_drivers` (`attack/melee/swing_resolve.gd`) also drops the driver of a merely
    **coasting** vertex: alive, but no longer attached to the handle, so nothing
    may keep swinging it.
 
@@ -1781,7 +1781,7 @@ So the preview runs the same thing. Once per selection change,
 throwaway `CombatWorld.shadow()` and caches the result; the ghost loop replays
 that result's `BladeTrajectory` and hands the blade its `BladePopResolver.Result`
 as `pop_result`. There is **no second predictor** — see the repo rule against
-parallel mirrors. `_resolve_swing(world) -> SwingResult` is the one
+parallel mirrors. `_resolve_swing(world) -> SwingResult` (`SwingResult` lives at `attack/melee/swing_result.gd`, lifted out of the plan by #1003) is the one
 implementation; `resolve_against` is that call plus publishing onto the
 `last_*` fields, and the preview is that call without the publishing.
 

@@ -310,7 +310,7 @@ Melee's aim-time preview is a **real** `_resolve_swing` against a
 3, and the same one `BattleSystem._compute_record` runs at commit. Three
 consequences for this contract:
 
-- **It publishes nothing.** `_resolve_swing` returns a `SwingResult` bundle;
+- **It publishes nothing.** `_resolve_swing` returns a `SwingResult` bundle (`attack/melee/swing_result.gd`);
   only `resolve_against` writes it onto the plan's `last_*` fields. So a
   prediction can never overwrite the artifacts `MeleePreview.launch` replays for
   the swing the authority actually landed.
