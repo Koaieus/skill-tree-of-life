@@ -233,12 +233,19 @@ func test_melee_preview_begin_replay_starts_the_plans_run_and_arms_process() -> 
 
 
 ## The crux of #796's fix on the MeleePreview side: the pump used to bail out
-## the instant `_live_swing` went true (the committed-swing window), which is
-## exactly the window a replay resim needs pumping through.
-func test_the_pump_keeps_stepping_while_live_swing_is_true() -> void:
+## the instant the ghost was claimed for a committed swing (the "live swing"
+## window), which is exactly the window a replay resim needs pumping through.
+##
+## #936: that claim is production-set only inside [method MeleePreview.launch]
+## / [method MeleePreview.begin_windup]'s private guard, so this drives the
+## real `launch` coroutine rather than forging the flag. Un-awaited, `launch`
+## still runs synchronously up to its first `await` — which claims the ghost
+## before parking on `blade.play` — so control is back here with the swing
+## genuinely committed, same as a real one mid-play.
+func test_the_pump_keeps_stepping_while_a_swing_is_committed() -> void:
 	var plan := _arm()
 	_preview.begin_replay(plan, 1, false)
-	_preview._live_swing = true
+	_preview.launch(plan)  # un-awaited: claims the ghost synchronously, see doc above
 	var before := plan.last_trajectory.samples.size()
 	for _i in 5:
 		_preview._process(0.0)
