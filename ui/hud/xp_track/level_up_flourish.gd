@@ -64,7 +64,12 @@ const _XP_DEF := preload("res://stats_system/defs/xp.tres")
 @onready var _detail: Label = %Detail
 
 var _tween: Tween
-var _release_timer: SceneTreeTimer
+## The dwell, as a schedule the clock consumes (#981): [method release] arms
+## it, [method advance] counts it down, [method _process] feeds real delta in.
+## Never a SceneTreeTimer — only the wall clock can move one of those, and the
+## unit tests step this by hand.
+var _dwell_armed: bool = false
+var _dwell_remaining: float = 0.0
 ## Set on the first stamp of a cascade — see the note on [member _rest_position].
 var _rest_position: Vector2
 var _rest_captured: bool = false
@@ -132,13 +137,24 @@ func release() -> void:
 	if not _open:
 		return
 	_cancel_release()
-	_release_timer = get_tree().create_timer(min_dwell)
-	_release_timer.timeout.connect(_play_exit)
+	_dwell_armed = true
+	_dwell_remaining = min_dwell
 
 
-## Step the dwell by [param delta] seconds. Stub: #981's RED seam.
-func advance(_delta: float) -> void:
-	pass
+## Step the armed dwell by [param delta] seconds; leaves once [member min_dwell]
+## has been served since the last [method release]. [method _process] calls
+## this with real delta; a test calls it with a chosen one.
+func advance(delta: float) -> void:
+	if not _dwell_armed:
+		return
+	_dwell_remaining -= delta
+	if _dwell_remaining <= 0.0:
+		_dwell_armed = false
+		_play_exit()
+
+
+func _process(delta: float) -> void:
+	advance(delta)
 
 
 ## Cut to hidden with no animation — for a rebind, where the flourish would
@@ -158,7 +174,6 @@ func cut() -> void:
 
 
 func _play_exit() -> void:
-	_release_timer = null
 	if not _open:
 		return
 	_open = false
@@ -173,13 +188,11 @@ func _play_exit() -> void:
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
-## A pending release is armed against a SceneTreeTimer, which cannot be
-## cancelled — so disconnect instead, and drop the reference.
+## Disarm a pending release — a stamp during the dwell re-opens the cascade,
+## and [XpTrack] calls [method release] again when its queue drains.
 func _cancel_release() -> void:
-	if _release_timer != null:
-		if _release_timer.timeout.is_connected(_play_exit):
-			_release_timer.timeout.disconnect(_play_exit)
-		_release_timer = null
+	_dwell_armed = false
+	_dwell_remaining = 0.0
 
 
 func _preview() -> void:
