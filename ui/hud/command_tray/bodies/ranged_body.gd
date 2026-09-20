@@ -19,7 +19,7 @@ extends CommandTrayBodyBase
 ## each leaf's range / damage read from the PLAN (node-local, so a
 ## Watchtower on one leaf moves that leaf's readout only — never the entity
 ## board), each card's stock / `+N on reload` / effect, and the reload
-## button's `+yield (1 AP)`. No kills text anywhere (owner: "TMI").
+## button's `⟳ Reload +yield (1 AP)`. No kills text anywhere (owner: "TMI").
 ##
 ## Input: scroll on the bar ±1 (Shift = ±wave), `M` back to max, steppers on
 ## each special card, `Enter` launches; `R` reloads via the input controller.
@@ -294,7 +294,7 @@ func _paint(plan: RangedAttackPlan, has_target: bool) -> void:
 	for v in yield_by_type.values():
 		total_yield += int(v)
 	var can_act := _input_ctl == null or _input_ctl.can_player_act()
-	_reload_button.text = "+%d (1 AP)" % total_yield
+	_reload_button.text = "⟳ Reload  +%d (1 AP)" % total_yield
 	_reload_button.disabled = not (can_act and _player != null and _player.can_reload())
 	_launch_button.set_enabled(has_target and plan.is_valid() and can_act)
 

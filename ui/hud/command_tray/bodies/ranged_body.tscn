@@ -75,7 +75,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(150, 0)
 layout_mode = 2
 tooltip_text = "Reload the quiver — R"
-text = "+0 (1 AP)"
+text = "⟳ Reload  +0 (1 AP)"
 
 [node name="ResetButton" type="Button" parent="BodyContent/Row/Actions"]
 unique_name_in_owner = true
