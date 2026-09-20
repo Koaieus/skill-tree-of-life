@@ -30,11 +30,40 @@ const COMPACT_FONT_SIZE: int = 9
 
 ## The glyph(s) printed on the chip — "Tab", "Q", "3". Empty hides the chip
 ## entirely, so "this slot has no bound key" is a visible absence rather than
-## an empty box.
+## an empty box. Set directly by hosts that derive the cap from an index
+## (spell tiles, temp-upgrade cards), or indirectly through [member action].
 @export var text: String = "":
 	set(v):
 		text = v
 		_repaint()
+
+## The InputMap action this chip advertises, e.g. `&"ui_reload"`. When set,
+## [member text] is DERIVED from the action's bound key ([method keycap_for]),
+## so a button's keycap can never disagree with the binding that fires it —
+## rebind the action in `project.godot` and every chip follows. Empty means
+## "the host sets [member text] itself".
+@export var action: StringName = &"":
+	set(v):
+		action = v
+		if action != &"":
+			text = keycap_for(action)
+
+
+## The keycap for [param action]'s first bound key — "R", "Tab", "Enter",
+## "Shift+M" — or "" when the action is unknown or has no key event. The one
+## place InputMap is read for display, so a future "show gamepad glyphs" pass
+## has a single seam.
+static func keycap_for(action_name: StringName) -> String:
+	if not InputMap.has_action(action_name):
+		return ""
+	for ev in InputMap.action_get_events(action_name):
+		var key := ev as InputEventKey
+		if key == null:
+			continue
+		if key.physical_keycode != KEY_NONE:
+			return key.as_text_physical_keycode()
+		return key.as_text_keycode()
+	return ""
 
 ## Border + glyph colour. Hosts hand in whatever identity colour they already
 ## carry (the tab's attribute tint, the card's accent).

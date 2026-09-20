@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://ui/hud/command_tray/bodies/melee_body.gd" id="2_script"]
 [ext_resource type="PackedScene" uid="uid://coykc218j64qq" path="res://ui/gauges/capacity_blips.tscn" id="3_blips"]
 [ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="4_launch"]
+[ext_resource type="PackedScene" path="res://ui/common/key_chip.tscn" id="5_keychip"]
 
 [node name="MeleeBody" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
@@ -95,9 +96,29 @@ text = "↻ Swing CCW"
 
 [node name="ReformButton" type="Button" parent="BodyContent/Row/Actions"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
 layout_mode = 2
-tooltip_text = "Rebuild the last blade you swung (R)."
-text = "⧉ Reform (R)"
+tooltip_text = "Rebuild the last blade you swung."
+text = "⧉ Reform"
+alignment = 0
+
+[node name="KeyChip" parent="BodyContent/Row/Actions/ReformButton" instance=ExtResource("5_keychip")]
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -28.0
+offset_top = -9.0
+offset_right = -6.0
+offset_bottom = 9.0
+grow_horizontal = 0
+grow_vertical = 2
+font_size = 10
+h_padding = 4
+v_padding = 0
+action = &"ui_reload"
 
 [node name="ResetButton" type="Button" parent="BodyContent/Row/Actions"]
 unique_name_in_owner = true

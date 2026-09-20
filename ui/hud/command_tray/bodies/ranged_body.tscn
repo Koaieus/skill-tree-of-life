@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://ui/hud/command_tray/bodies/ranged_body.gd" id="2_script"]
 [ext_resource type="PackedScene" uid="uid://b5lvy7n8p4qbk" path="res://ui/launch_attack_button/launch_attack_button.tscn" id="3_launch"]
 [ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/volley_bar.tscn" id="4_bar"]
+[ext_resource type="PackedScene" path="res://ui/common/key_chip.tscn" id="5_keychip"]
 
 [node name="RangedBody" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
@@ -72,10 +73,29 @@ theme_override_constants/separation = 6
 
 [node name="ReloadButton" type="Button" parent="BodyContent/Row/Actions"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(150, 0)
+custom_minimum_size = Vector2(190, 0)
 layout_mode = 2
-tooltip_text = "Reload the quiver — R"
-text = "⟳ Reload  +0 (1 AP)"
+tooltip_text = "Reload the quiver."
+text = "⟳ Reload  +0  −1 AP"
+alignment = 0
+
+[node name="KeyChip" parent="BodyContent/Row/Actions/ReloadButton" instance=ExtResource("5_keychip")]
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_left = -28.0
+offset_top = -9.0
+offset_right = -6.0
+offset_bottom = 9.0
+grow_horizontal = 0
+grow_vertical = 2
+font_size = 10
+h_padding = 4
+v_padding = 0
+action = &"ui_reload"
 
 [node name="ResetButton" type="Button" parent="BodyContent/Row/Actions"]
 unique_name_in_owner = true
