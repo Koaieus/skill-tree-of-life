@@ -162,6 +162,11 @@ day one.
 
 ## The agent surface
 
+**Writing one is the `adr` skill** (`.claude/skills/adr/SKILL.md`): the
+procedure — gate, not-already-decided check, verbatim quotes, draft, migrate,
+index, hygiene, commit, link back — for the session that made the decision
+with the owner. Its charter is `docs/charters/adr.md`.
+
 `.claude/agents/adr-librarian.md` is a read-only Sonnet subagent for *"has this
 already been decided?"*. Ask it before designing something that smells settled;
 it answers with a citation or an honest no, and it will flag a domain doc that
