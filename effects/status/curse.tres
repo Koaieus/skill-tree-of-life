@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CurseStatus" format=3]
+
+[ext_resource type="Script" path="res://effects/status/curse.gd" id="1_curse"]
+
+[resource]
+script = ExtResource("1_curse")
+id = &"curse"
+display_name = "Curse"
+description = "Every stack raises the least damage a hit can deal to this node by 1; stacks halve each turn and never cap."
+tint = Color(0.6, 0.2, 0.85, 1)
+tags = Array[StringName]([&"debuff"])
+potency_stat_id = &"curse_potency"
+resistance_stat_id = &"curse_resistance"
+power_max = 0.0
+decay_mode = 1
+decay_per_tick = 0.5
+display_max = 10.0
+reapply = 1
+cure_per_hp = 0.25
