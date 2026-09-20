@@ -24,7 +24,7 @@ const _CORE_CLASS := preload("res://entity/core/balanced_core.tres")
 ## and one kill levels. A fixture fact: sized against the default node board's
 ## core health with headroom, never read back by a test as a number. The same
 ## `grant_core_modifier` seam `scenes/dev_sandbox.gd` uses for its blade size.
-const _FIXTURE_BLADE_DAMAGE_BONUS := 40.0
+const _FIXTURE_BLADE_DAMAGE_BONUS := 80.0
 
 ## The one AI-driven opponent; typed so a test never walks
 ## `entities_container` by name.
