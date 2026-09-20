@@ -16,20 +16,20 @@
 | damage_per_ap_ranged | 3.000 |
 | defender_armor | 0.000 |
 | defender_dealloc_damage | 1.000 |
-| defender_health_pool | 24.000 |
+| defender_health_pool | 44.000 |
 | defender_level | 5 |
 | defender_min_damage_taken | 3.000 |
-| defender_node_max_hp | 24.000 |
+| defender_node_max_hp | 44.000 |
 | defender_owned_nodes | 12 |
-| hits_to_drop_node | 8 |
+| hits_to_drop_node | 15 |
 | mana_max | 10.000 |
 | mana_regen_per_turn | 1.000 |
 | melee_damage_raw | 2.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
 | mitigated_melee_damage | 3.000 |
 | mitigated_ranged_damage | 3.000 |
-| nodes_lost_before_death | 24.000 |
-| nodes_lost_before_death_fraction | 2.000 |
+| nodes_lost_before_death | 44.000 |
+| nodes_lost_before_death_fraction | 3.667 |
 | priciest_cast_cost | 5 |
 | ranged_damage_raw | 2.000 |
 | sp_income_at_level_marginal | 2.000 |
@@ -38,7 +38,7 @@
 | territory_growth_per_turn | 1.000 |
 | territory_growth_sp_per_level | 2.000 |
 | territory_growth_turns_per_level | 2 |
-| turns_to_drop_core_naive | 8 |
+| turns_to_drop_core_naive | 15 |
 
 ## mirror_L20
 
@@ -52,20 +52,20 @@
 | damage_per_ap_ranged | 3.000 |
 | defender_armor | 0.000 |
 | defender_dealloc_damage | 1.000 |
-| defender_health_pool | 39.000 |
+| defender_health_pool | 59.000 |
 | defender_level | 20 |
 | defender_min_damage_taken | 3.000 |
-| defender_node_max_hp | 39.000 |
+| defender_node_max_hp | 59.000 |
 | defender_owned_nodes | 45 |
-| hits_to_drop_node | 13 |
+| hits_to_drop_node | 20 |
 | mana_max | 10.000 |
 | mana_regen_per_turn | 1.000 |
 | melee_damage_raw | 2.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
 | mitigated_melee_damage | 3.000 |
 | mitigated_ranged_damage | 3.000 |
-| nodes_lost_before_death | 39.000 |
-| nodes_lost_before_death_fraction | 0.867 |
+| nodes_lost_before_death | 59.000 |
+| nodes_lost_before_death_fraction | 1.311 |
 | priciest_cast_cost | 5 |
 | ranged_damage_raw | 2.000 |
 | sp_income_at_level_marginal | 2.000 |
@@ -74,7 +74,7 @@
 | territory_growth_per_turn | 1.000 |
 | territory_growth_sp_per_level | 2.000 |
 | territory_growth_turns_per_level | 2 |
-| turns_to_drop_core_naive | 13 |
+| turns_to_drop_core_naive | 20 |
 
 ## mirror_L50
 
@@ -88,20 +88,20 @@
 | damage_per_ap_ranged | 4.000 |
 | defender_armor | 0.000 |
 | defender_dealloc_damage | 1.000 |
-| defender_health_pool | 69.000 |
+| defender_health_pool | 89.000 |
 | defender_level | 50 |
 | defender_min_damage_taken | 3.000 |
-| defender_node_max_hp | 69.000 |
+| defender_node_max_hp | 89.000 |
 | defender_owned_nodes | 111 |
-| hits_to_drop_node | 18 |
+| hits_to_drop_node | 23 |
 | mana_max | 10.000 |
 | mana_regen_per_turn | 1.000 |
 | melee_damage_raw | 4.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
 | mitigated_melee_damage | 4.000 |
 | mitigated_ranged_damage | 4.000 |
-| nodes_lost_before_death | 69.000 |
-| nodes_lost_before_death_fraction | 0.622 |
+| nodes_lost_before_death | 89.000 |
+| nodes_lost_before_death_fraction | 0.802 |
 | priciest_cast_cost | 5 |
 | ranged_damage_raw | 4.000 |
 | sp_income_at_level_marginal | 2.000 |
@@ -110,7 +110,7 @@
 | territory_growth_per_turn | 1.000 |
 | territory_growth_sp_per_level | 2.000 |
 | territory_growth_turns_per_level | 2 |
-| turns_to_drop_core_naive | 18 |
+| turns_to_drop_core_naive | 23 |
 
 ## mirror_L100
 
@@ -124,20 +124,20 @@
 | damage_per_ap_ranged | 6.000 |
 | defender_armor | 0.000 |
 | defender_dealloc_damage | 1.000 |
-| defender_health_pool | 119.000 |
+| defender_health_pool | 139.000 |
 | defender_level | 100 |
 | defender_min_damage_taken | 3.000 |
-| defender_node_max_hp | 119.000 |
+| defender_node_max_hp | 139.000 |
 | defender_owned_nodes | 221 |
-| hits_to_drop_node | 20 |
+| hits_to_drop_node | 24 |
 | mana_max | 10.000 |
 | mana_regen_per_turn | 2.000 |
 | melee_damage_raw | 6.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
 | mitigated_melee_damage | 6.000 |
 | mitigated_ranged_damage | 6.000 |
-| nodes_lost_before_death | 119.000 |
-| nodes_lost_before_death_fraction | 0.538 |
+| nodes_lost_before_death | 139.000 |
+| nodes_lost_before_death_fraction | 0.629 |
 | priciest_cast_cost | 5 |
 | ranged_damage_raw | 6.000 |
 | sp_income_at_level_marginal | 2.000 |
@@ -146,7 +146,7 @@
 | territory_growth_per_turn | 1.000 |
 | territory_growth_sp_per_level | 2.000 |
 | territory_growth_turns_per_level | 2 |
-| turns_to_drop_core_naive | 20 |
+| turns_to_drop_core_naive | 24 |
 
 ## matched_L100_zero_invest
 
@@ -159,22 +159,22 @@
 | damage_per_ap_ranged | 3.000 |
 | defender_armor | 0.000 |
 | defender_dealloc_damage | 1.000 |
-| defender_health_pool | 119.000 |
+| defender_health_pool | 139.000 |
 | defender_level | 100 |
 | defender_min_damage_taken | 3.000 |
-| defender_node_max_hp | 119.000 |
+| defender_node_max_hp | 139.000 |
 | defender_owned_nodes | 221 |
-| hits_to_drop_node | 40 |
+| hits_to_drop_node | 47 |
 | melee_damage_raw | 1.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
 | mitigated_melee_damage | 3.000 |
 | mitigated_ranged_damage | 3.000 |
-| nodes_lost_before_death | 119.000 |
-| nodes_lost_before_death_fraction | 0.538 |
+| nodes_lost_before_death | 139.000 |
+| nodes_lost_before_death_fraction | 0.629 |
 | ranged_damage_raw | 1.000 |
 | sp_income_at_level_marginal | 2.000 |
 | sp_income_at_level_max | 442.000 |
-| turns_to_drop_core_naive | 40 |
+| turns_to_drop_core_naive | 47 |
 
 ## asymmetric_snipe_L20_vs_L80
 
@@ -186,22 +186,22 @@
 | damage_per_ap_ranged | 4.000 |
 | defender_armor | 0.000 |
 | defender_dealloc_damage | 1.000 |
-| defender_health_pool | 99.000 |
+| defender_health_pool | 119.000 |
 | defender_level | 80 |
 | defender_min_damage_taken | 3.000 |
-| defender_node_max_hp | 99.000 |
+| defender_node_max_hp | 119.000 |
 | defender_owned_nodes | 177 |
-| hits_to_drop_node | 25 |
+| hits_to_drop_node | 30 |
 | melee_damage_raw | 2.000 |
 | melee_dpa_over_ranged_dpa | 0.750 |
 | mitigated_melee_damage | 3.000 |
 | mitigated_ranged_damage | 4.000 |
-| nodes_lost_before_death | 99.000 |
-| nodes_lost_before_death_fraction | 0.559 |
+| nodes_lost_before_death | 119.000 |
+| nodes_lost_before_death_fraction | 0.672 |
 | ranged_damage_raw | 4.000 |
 | sp_income_at_level_marginal | 2.000 |
 | sp_income_at_level_max | 354.000 |
-| turns_to_drop_core_naive | 25 |
+| turns_to_drop_core_naive | 30 |
 
 ## core_adjacent_aura_L50
 
@@ -232,20 +232,20 @@
 | damage_per_ap_ranged | 3.000 |
 | defender_armor | 0.000 |
 | defender_dealloc_damage | 1.000 |
-| defender_health_pool | 39.000 |
+| defender_health_pool | 59.000 |
 | defender_level | 20 |
 | defender_min_damage_taken | 3.000 |
-| defender_node_max_hp | 39.000 |
+| defender_node_max_hp | 59.000 |
 | defender_owned_nodes | 45 |
-| hits_to_drop_node | 13 |
+| hits_to_drop_node | 20 |
 | mana_max | 10.000 |
 | mana_regen_per_turn | 1.000 |
 | melee_damage_raw | 2.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
 | mitigated_melee_damage | 3.000 |
 | mitigated_ranged_damage | 3.000 |
-| nodes_lost_before_death | 39.000 |
-| nodes_lost_before_death_fraction | 0.867 |
+| nodes_lost_before_death | 59.000 |
+| nodes_lost_before_death_fraction | 1.311 |
 | priciest_cast_cost | 5 |
 | ranged_damage_raw | 2.000 |
 | sp_income_at_level_marginal | 2.000 |
@@ -261,7 +261,7 @@
 | spell_dpa_best | 21.000 |
 | spell_dpa_over_melee_dpa | 7.000 |
 | sustain_rate | 1.000 |
-| turns_to_drop_core_naive | 13 |
+| turns_to_drop_core_naive | 20 |
 
 ## bunker_stack_L20
 
@@ -276,23 +276,23 @@
 | damage_per_ap_ranged | 3.000 |
 | defender_armor | 0.000 |
 | defender_dealloc_damage | 1.000 |
-| defender_health_pool | 39.000 |
+| defender_health_pool | 59.000 |
 | defender_level | 20 |
 | defender_min_damage_taken | 3.000 |
-| defender_node_max_hp | 39.000 |
+| defender_node_max_hp | 59.000 |
 | defender_owned_nodes | 45 |
-| hits_to_drop_node | 13 |
+| hits_to_drop_node | 20 |
 | melee_damage_raw | 2.000 |
 | melee_dpa_over_ranged_dpa | 1.000 |
 | mitigated_melee_damage | 3.000 |
 | mitigated_ranged_damage | 3.000 |
-| nodes_lost_before_death | 39.000 |
-| nodes_lost_before_death_fraction | 0.867 |
+| nodes_lost_before_death | 59.000 |
+| nodes_lost_before_death_fraction | 1.311 |
 | ranged_damage_raw | 2.000 |
 | sp_income_at_level_marginal | 2.000 |
 | sp_income_at_level_max | 90.000 |
 | stacked_armor | 15.000 |
-| turns_to_drop_core_naive | 13 |
+| turns_to_drop_core_naive | 20 |
 
 ## con_node_ratchet
 
@@ -315,13 +315,13 @@ _fails this run._
 | Invariant | Status | Detail | Why |
 |---|---|---|---|
 | melee_dpa_over_ranged_dpa | TBD | 0.750 (range not yet pinned) | channel parity — read from the sniper fixture (DEX-over-STR skew), not a mirror match: every mirror scenario uses plain BalancedCore where STR==DEX and this would read 1.000 by construction |
-| hits_to_drop_node | TBD | 13 (range not yet pinned) | baseline TTK |
+| hits_to_drop_node | TBD | 20 (range not yet pinned) | baseline TTK |
 | sp_income_at_level | TBD | 2.000 (range not yet pinned) | progression tempo |
 | aura_coverage_fraction | TBD | 0.360 (range not yet pinned) | D-10 sanctuary bubble — what fraction of territory the heal aura covers must stay bounded, or it out-heals the forced-dealloc chip damage and the core's death clock stops ticking |
 | core_node_ttk_under_sustained_pressure | TBD | -1 (range not yet pinned) | D-10 magnitude — the core-node heal is deliberately not a full reset, so sustained pressure must still grind it down; a reading of -1 (never depleted within the simulated cap) means the aura re-exempted the core from D-9 attrition |
 | baseline_raw_damage_vs_mitigation_at_matched_level | TBD | 3.000 (range not yet pinned) | D-11/D-14 — confirms no dead zone re-forms via bulk alone: a leveled defender should be slower to kill but never effectively immune to an uninvested attacker |
 | spell_dpa_over_melee_dpa | TBD | 7.000 (range not yet pinned) | channel parity (#366, sibling of melee_dpa_over_ranged_dpa) — the magic channel's strongest seeded cast (max per-spell spell_dpa across the real pool) against melee, both mitigated at the same defender node, AP read as 1; seed = spell_damage × power (D-32), so the ratio tracks INT-vs-STR/DEX investment |
-| nodes_lost_before_death | TBD | 39.000 (range not yet pinned) | D-21 round-5 close (comment on #268, 2026-08-01): `health / dealloc_damage` — the count of cascaded nodes the entity's health pool survives — should stay a roughly constant FRACTION of territory across levels; that is what D-21 fixed, watch it not re-break. `nodes_lost_before_death_fraction` printed alongside in every row |
+| nodes_lost_before_death | TBD | 59.000 (range not yet pinned) | D-21 round-5 close (comment on #268, 2026-08-01): `health / dealloc_damage` — the count of cascaded nodes the entity's health pool survives — should stay a roughly constant FRACTION of territory across levels; that is what D-21 fixed, watch it not re-break. `nodes_lost_before_death_fraction` printed alongside in every row |
 | core_healing_vs_cascade_chip_rate | TBD | 1.000 (range not yet pinned) | #277 / D-25 (round-5 comment on #268): if `core_healing >= dealloc_damage × nodes_lost_per_turn`, camping becomes viable and D-10's structural anti-camping guarantee is silently undone. Read from the sustained-pressure fixture; `core_healing` is the real stat the health pool replenishes by per turn, nodes_lost_per_turn read as 1 (one node stripped per turn by a sustained attacker), so the ratio is core_healing / dealloc_damage |
 | armor_saturation_against_floor | TBD | 6.000 (range not yet pinned) | #332 invariants comment (2026-08-01, NOT the addendum): armor has a hard saturation point at `raw - min_damage_taken` — past it every further point of armor buys literally nothing (invisible wasted investment). Readout = armor − (raw_typical − min_damage_taken); positive means stacked authored armor sits past the floor. The fixture stacks the two real authored channels (bunker addon + node-content grant); note two bunker instances alone do NOT stack — instantiating the same addon .tscn twice shares one StatModifier sub-resource and the second is a no-op (`bunker_stack_armor` prints that reality). Addendum: magnitudes are a tuning knob, not a design problem, but the saturation shape is scale-invariant, so the guard stays meaningful after any retune |
 | min_damage_taken_nonpositive_immortality | TBD | 3.000 (range not yet pinned) | #332 invariants comment (2026-08-01): the `min_damage_taken <= 0` sign-flip half is NOT a number tweak — with a nonpositive min-clamp and armor >= raw, final <= 0, the node never depletes and D-10's cascade guarantee is undone. Asserted per scenario (`defender_min_damage_taken` is a readout in every row): a nonpositive reading means someone imported a negative min-clamp; positive means no immortality flip present |

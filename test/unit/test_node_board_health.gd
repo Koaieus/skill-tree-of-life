@@ -3,13 +3,14 @@ extends GutTest
 ## Sharp tests for node_board health PoolStat — replaces current_hp float
 ## + get_max_hp LocalStat routing with a proper PoolStat on a sparse StatBoard.
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 
+## Flat, not the authored board: every test below arranges `node_health`
+## itself and asserts that number, so a tuned CON must not ride in on top.
 func _board() -> EntityStatBoard:
-	return _BOARD.duplicate(true)
+	return TestBoards.flat_entity_board()
 
 
 func _mod(op: int, value: float, id: StringName = &"strength") -> StatModifier:
