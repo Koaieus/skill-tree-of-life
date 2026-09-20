@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CorruptionStatus" format=3]
+
+[ext_resource type="Script" uid="uid://o5i87vxhsioj" path="res://effects/status/corruption.gd" id="1_corruption"]
+
+[resource]
+script = ExtResource("1_corruption")
+damage_per_power = 0.02
+id = &"corruption"
+display_name = "Corruption"
+description = "Every stack eats 2% of the node's max health each turn, unmitigated; stacks halve each turn and never cap."
+tint = Color(0.6, 0.25, 0.85, 1)
+tags = Array[StringName]([&"debuff", &"dot"])
+potency_stat_id = &"corruption_potency"
+resistance_stat_id = &"corruption_resistance"
+power_max = 0.0
+decay_mode = 1
+decay_per_tick = 0.5
+display_max = 10.0
+reapply = 1
+cure_per_hp = 0.05

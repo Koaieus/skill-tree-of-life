@@ -1,0 +1,48 @@
+class_name DotTick
+extends RefCounted
+
+## The one tick body every damage-over-time status shares (#964, hub #952):
+## mint an unmitigated [constant DamageInstance.Type.TRUE] hit and land it
+## through [method DamageInstance.land_on] — the same door an attack's hit
+## lands by, so `damaged` / regen-suppression / a killing `notify_depleted`
+## all fire naturally, and the [enum HitInstance.AmountBasis] resolves there
+## and nowhere else. [PoisonStatus] and [CorruptionStatus] are two defs over
+## this single implementation, never two copies of it.
+
+
+## Land [param amount] (HP for FLAT, a fraction of max hp for PERCENT_MAX)
+## on [param node] as TRUE damage. A non-positive amount lands nothing.
+## `CritRoll.apply` is a no-op for a hit with no crit decided (multiplier
+## 1.0) — a tick never crits.
+static func mint(node: NodeCombat, amount: float, basis: HitInstance.AmountBasis) -> void:
+	if amount <= 0.0:
+		return
+	var dmg := DamageInstance.new()
+	dmg.type = DamageInstance.Type.TRUE
+	dmg.basis = basis
+	dmg.amount = amount
+	dmg.target = node.host
+	dmg.land_on(node, null)
+
+
+## The sum of every remaining tick's damage under [param def]'s own decay
+## (#962, for #953's overlay): at 20 stacks halving, 20 + 10 + 5 + 2.5 + 1.25
+## = 38.75 — the 0.625 tail is cut before it ticks. PERCENT_MAX resolves
+## against the node's max hp as of now. A FLAT-decay def sums its linear
+## run-down the same way; a def that never decays is capped at one tick so
+## the loop terminates.
+static func project(def: StatusDef, node: NodeCombat, power: float, damage_per_power: float,
+		basis: HitInstance.AmountBasis) -> float:
+	var total := 0.0
+	var p := power
+	var guard := 0
+	while p > 0.0 and guard < 1000:
+		total += p * damage_per_power
+		var next := def.decayed(p)
+		if next >= p:
+			break  # non-decaying def: one tick is all we can honestly project
+		p = next
+		guard += 1
+	if basis == HitInstance.AmountBasis.PERCENT_MAX:
+		total *= node.get_max_hp()
+	return total
