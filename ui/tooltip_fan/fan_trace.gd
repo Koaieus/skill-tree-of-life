@@ -375,22 +375,16 @@ func _apply_pad(ignite_t: float, line_t: float) -> void:
 	# Sits at the polyline's own head-of-tail, not `from_point`, so a router that
 	# ever insets its first point keeps the pad on the line rather than beside it.
 	_pad.position = _full_points[0] if not _full_points.is_empty() else from_point
-	var bloom := _ease_out(ignite_t)
+	var bloom := Easing.out_cubic(ignite_t)
 	var peak_stops := lerpf(pad_glow_stops, pad_glow_peak_stops, bloom)
 	# The relax leg is deliberately front-loaded against the line's own ease-out:
 	# the flash is spent in the first third of the draw, so what remains for the
 	# settled state is the resting tier, not a lingering blob.
-	var settle := _ease_out(minf(line_t * 3.0, 1.0))
+	var settle := Easing.out_cubic(minf(line_t * 3.0, 1.0))
 	_pad.scale = Vector2.ONE * pad_scale
 	_pad.self_modulate = Emissive.at(pad_base_color, lerpf(peak_stops, pad_glow_stops, settle))
 	_pad.modulate.a = bloom
 	_pad.visible = bloom > 0.0
-
-
-## Cubic ease-out. Shared by the pad's bloom and relax legs.
-static func _ease_out(t: float) -> float:
-	var inv := 1.0 - clampf(t, 0.0, 1.0)
-	return 1.0 - inv * inv * inv
 
 
 ## Returns {points, head}: the sub-polyline of `points` from its start up to the

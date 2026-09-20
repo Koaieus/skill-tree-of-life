@@ -191,7 +191,7 @@ func _push_glow() -> void:
 ## Applies the current [member progress] as a cubic-ease-out scale
 ## (start_scale → 1.0) + fade (0 → 1) reveal.
 func _apply_progress() -> void:
-	var eased := _ease_out(progress)
+	var eased := Easing.out_cubic(progress)
 	scale = Vector2.ONE * lerpf(start_scale, 1.0, eased)
 	var m := modulate
 	m.a = eased
@@ -290,8 +290,3 @@ func _kill_idle() -> void:
 		position = _base_position
 	if was_glowing:
 		glow = _idle_base_glow
-
-
-static func _ease_out(t: float) -> float:
-	var inv := 1.0 - t
-	return 1.0 - inv * inv * inv

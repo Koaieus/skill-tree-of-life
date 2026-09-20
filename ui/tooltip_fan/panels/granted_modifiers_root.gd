@@ -169,7 +169,7 @@ func _add_mod_row(m: StatModifier) -> void:
 ## [method ModSlabRow.set_progress] (scale + fade, cubic ease-out) since a
 ## bare Label doesn't have that contract of its own.
 func _apply_control_reveal(control: Control, t: float) -> void:
-	var eased := _ease_out(clampf(t, 0.0, 1.0))
+	var eased := Easing.out_cubic(clampf(t, 0.0, 1.0))
 	control.scale = Vector2.ONE * lerpf(row_start_scale, 1.0, eased)
 	var m := control.modulate
 	m.a = eased
@@ -177,7 +177,7 @@ func _apply_control_reveal(control: Control, t: float) -> void:
 
 
 func _apply_progress() -> void:
-	var eased := _ease_out(clampf(progress, 0.0, 1.0))
+	var eased := Easing.out_cubic(clampf(progress, 0.0, 1.0))
 	scale = Vector2.ONE * lerpf(start_scale, 1.0, eased)
 	var m := modulate
 	m.a = eased
@@ -236,8 +236,3 @@ func _kill_tween() -> void:
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
 	_tween = null
-
-
-static func _ease_out(t: float) -> float:
-	var inv := 1.0 - t
-	return 1.0 - inv * inv * inv

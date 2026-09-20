@@ -140,7 +140,7 @@ static func anchor_for() -> Vector2:
 ## the glass backing and the label fade and scale together, since both are
 ## children of the [Control] this transform and modulate apply to.
 func set_progress(t: float) -> void:
-	var eased := _ease_out(clampf(t, 0.0, 1.0))
+	var eased := Easing.out_cubic(clampf(t, 0.0, 1.0))
 	scale = Vector2.ONE * lerpf(start_scale, 1.0, eased)
 	var m := modulate
 	m.a = eased
@@ -181,8 +181,3 @@ func _push_color() -> void:
 	var color := rest_color()
 	for state: StringName in _FONT_STATES:
 		_hit.add_theme_color_override(state, color)
-
-
-static func _ease_out(t: float) -> float:
-	var inv := 1.0 - t
-	return 1.0 - inv * inv * inv

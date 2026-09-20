@@ -101,7 +101,7 @@ func _add_overflow_label(overflow: int) -> void:
 ## Mirrors [AddonItem.set_progress]'s own scale+fade so the hand-rolled
 ## overflow [Label] reveals the same way the real items do.
 func _apply_control_reveal(control: Control, t: float) -> void:
-	var eased := _ease_out(clampf(t, 0.0, 1.0))
+	var eased := Easing.out_cubic(clampf(t, 0.0, 1.0))
 	control.scale = Vector2.ONE * lerpf(0.92, 1.0, eased)
 	var m := control.modulate
 	m.a = eased
@@ -123,8 +123,3 @@ func _apply_row_stagger() -> void:
 		var span := 1.0 - delay
 		var row_t := clampf((progress - delay) / span, 0.0, 1.0) if span > 0.0 else progress
 		_row_setters[i].call(row_t)
-
-
-static func _ease_out(t: float) -> float:
-	var inv := 1.0 - t
-	return 1.0 - inv * inv * inv

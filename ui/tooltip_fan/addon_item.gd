@@ -73,15 +73,10 @@ func bind(title: String, modifiers: Array[StatModifier], description: String = "
 ## instantiate rows and never drive their reveal at all).
 func set_progress(t: float) -> void:
 	_progress = clampf(t, 0.0, 1.0)
-	var eased := _ease_out(_progress)
+	var eased := Easing.out_cubic(_progress)
 	scale = Vector2.ONE * lerpf(start_scale, 1.0, eased)
 	var m := modulate
 	m.a = eased
 	modulate = m
 	for row in _modifier_rows.get_children():
 		row.set_progress(_progress)
-
-
-static func _ease_out(t: float) -> float:
-	var inv := 1.0 - t
-	return 1.0 - inv * inv * inv

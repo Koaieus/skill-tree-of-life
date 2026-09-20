@@ -111,8 +111,7 @@ func apply(xform: Transform2D) -> void:
 ## fast, arrives soft), and the motion notes are explicit that the numbers are
 ## "a starting point, not gospel". Tuning the exact curve is #578's live tab.
 static func ease_travel(t: float) -> float:
-	var inv := 1.0 - clampf(t, 0.0, 1.0)
-	return 1.0 - inv * inv * inv
+	return Easing.out_cubic(t)
 
 
 ## Sprout easing — the canvas's `cubic-bezier(.2, .8, .3, 1)`, a snappier
@@ -120,7 +119,7 @@ static func ease_travel(t: float) -> float:
 ## and the fan reads as opening rather than being dragged into place.
 static func ease_sprout(t: float) -> float:
 	var inv := 1.0 - clampf(t, 0.0, 1.0)
-	return 1.0 - inv * inv * inv * inv
+	return 1.0 - pow(inv, 4.0)
 
 
 ## Charge easing — the splash's leg 1 camera window alone (#734), and
