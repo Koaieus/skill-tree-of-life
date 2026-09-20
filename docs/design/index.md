@@ -28,6 +28,7 @@ The high-level **[GDD](../GDD.md)** is the entry point — vision, core loop, an
 | [skill_node_specializations.md](skill_node_specializations.md) | Node specializations (Corrupted, Crystallized, Anchor) |
 | [spells.md](spells.md) | Spell catalogue — identity and propagation mechanics for all Blue (INT/magic) spells |
 | [core_movement_plan.md](core_movement_plan.md) | Core-movement interaction plan (#21) — click-source-then-target, drag as accelerator; the phase-gating parts are obsolete post-#60 |
+| [damage_over_time.md](damage_over_time.md) | The DoT family (poison / corruption / curse / wither): one halving-stacks model, per-type potency and resistance, cures, the defensive-axis matrix — #952 design session |
 | [status-tags.md](status-tags.md) | **Proposed, not implemented** — status tags as a second grant channel; moves back to `docs/domain/` once it ships |
 | [info_gating.md](info_gating.md) | Info-gating dimensions (existence/archetype/owner/modifiers/addons/…) — why vision is a vector not a boolean, and how sensor/recon/anti-recon mechanics share one surface |
 
