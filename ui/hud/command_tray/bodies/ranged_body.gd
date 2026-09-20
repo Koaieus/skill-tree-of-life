@@ -19,10 +19,10 @@ extends CommandTrayBodyBase
 ## each leaf's range / damage read from the PLAN (node-local, so a
 ## Watchtower on one leaf moves that leaf's readout only — never the entity
 ## board), each card's stock / `+N on reload` / effect, and the reload
-## button's `⟳ Reload +yield (1 AP)`. No kills text anywhere (owner: "TMI").
+## button's `⟳ Reload +yield −1 AP`. No kills text anywhere (owner: "TMI").
 ##
 ## Input: scroll on the bar ±1 (Shift = ±wave), `M` back to max, steppers on
-## each special card, `Enter` launches; `R` reloads via the input controller.
+## each special card, `Enter` launches; `R` (`ui_reload`) reloads via the input controller.
 ## No per-frame work: one rebuild per plan state change / adjustment.
 
 const _AMMO_CARD_SCENE := preload("res://ui/hud/command_tray/bodies/ammo_card.tscn")
@@ -294,7 +294,7 @@ func _paint(plan: RangedAttackPlan, has_target: bool) -> void:
 	for v in yield_by_type.values():
 		total_yield += int(v)
 	var can_act := _input_ctl == null or _input_ctl.can_player_act()
-	_reload_button.text = "⟳ Reload  +%d (1 AP)" % total_yield
+	_reload_button.text = "⟳ Reload  +%d  −1 AP" % total_yield
 	_reload_button.disabled = not (can_act and _player != null and _player.can_reload())
 	# No AP term on purpose: a volley costs 0 AP (#957); `can_afford` is what
 	# says so, and it answers 0-AP true for ranged.

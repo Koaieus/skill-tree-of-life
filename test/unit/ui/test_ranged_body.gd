@@ -190,7 +190,7 @@ func test_special_count_is_sticky_across_target_picks_and_clamps_to_bin() -> voi
 func test_reload_row_shows_projected_yield_and_ap() -> void:
 	var expected := 4 * _per_leaf()  # three leaves + core, all level 1
 	assert_eq(expected, 8, "authored arrows_per_reload is 2 → +8")
-	assert_eq(_reload_button().text, "⟳ Reload  +%d (1 AP)" % expected)
+	assert_eq(_reload_button().text, "⟳ Reload  +%d  −1 AP" % expected)
 	assert_false(_reload_button().disabled, "enabled with AP to spend — the stock Button look is not a disabled state")
 
 
