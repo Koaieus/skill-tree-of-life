@@ -97,13 +97,13 @@ func _seat_of(lobby: LobbyScreen, id: int) -> Participant:
 ## (acceptance 5) — and the roster that goes out in response is what the joiner
 ## then shows, before any level exists.
 func test_a_join_stamps_the_host_s_waiting_seat_and_replicates_the_roster() -> void:
-	assert_true(LobbyScreen.is_pending_remote(_seat_of(_host, 2)),
+	assert_true(LobbyRoster.is_pending_remote(_seat_of(_host, 2)),
 			"sanity: seat 2 is the authored-up-front remote seat, still waiting")
 
 	_join()
 
 	assert_eq(_seat_of(_host, 2).peer_id, _CLIENT_PEER, "the waiting seat is stamped")
-	assert_false(LobbyScreen.is_pending_remote(_seat_of(_host, 2)))
+	assert_false(LobbyRoster.is_pending_remote(_seat_of(_host, 2)))
 	# And the client is now showing the host's roster, not the one it authored.
 	assert_eq(_seat_of(_client, 1).peer_id, NetworkTransport.HOST_PEER_ID,
 			"the host's own row crossed with the host's id on it")
@@ -166,8 +166,8 @@ func test_an_announced_name_is_normalized_and_capped_like_any_other_pick() -> vo
 	_join()
 
 	var seated := _seat_of(_host, 2).display_name
-	assert_eq(seated.length(), LobbyScreen.MAX_NAME_LENGTH)
-	assert_eq(seated, LobbyScreen.normalize_name(_client._link.join_display_name))
+	assert_eq(seated.length(), LobbyRoster.MAX_NAME_LENGTH)
+	assert_eq(seated, LobbyRoster.normalize_name(_client._link.join_display_name))
 
 
 ## A drop puts the seat back to waiting rather than deleting it: #554 D2 authored
@@ -177,8 +177,8 @@ func test_a_drop_returns_the_seat_to_waiting() -> void:
 	_join()
 	_host._on_link_peer_left(_CLIENT_PEER)
 
-	assert_true(LobbyScreen.is_pending_remote(_seat_of(_host, 2)))
-	assert_eq(_host.participants().size(), 2 + LobbyScreen.DEFAULT_AI_OPPONENTS,
+	assert_true(LobbyRoster.is_pending_remote(_seat_of(_host, 2)))
+	assert_eq(_host.participants().size(), 2 + LobbyRoster.DEFAULT_AI_OPPONENTS,
 			"two humans and the offered AI count, still")
 
 
@@ -211,7 +211,7 @@ func test_a_host_pick_reaches_the_joiner() -> void:
 	assert_eq(_seat_of(_client, 1).color, wanted)
 
 
-## Acceptance 3. The uniqueness rule is [method LobbyScreen.taken_colors] — the
+## Acceptance 3. The uniqueness rule is [method LobbyRoster.taken_colors] — the
 ## same call that greys the chip out in a local picker — so a remote pick meets
 ## it without the wire restating it, and the host's answer is what the client
 ## ends up showing.
@@ -255,9 +255,9 @@ func test_a_client_may_not_move_the_host_s_row_or_an_ai_row() -> void:
 	var ai_color: Color = ai.color
 
 	_host._on_remote_pick(
-			LobbyScreen.encode_pick(_seat_of(_client, 1), _CLIENT_PEER, {"color": Color.RED}))
+			LobbyRoster.encode_pick(_seat_of(_client, 1), _CLIENT_PEER, {"color": Color.RED}))
 	_host._on_remote_pick(
-			LobbyScreen.encode_pick(_seat_of(_client, 3), _CLIENT_PEER, {"color": Color.RED}))
+			LobbyRoster.encode_pick(_seat_of(_client, 3), _CLIENT_PEER, {"color": Color.RED}))
 
 	assert_eq(_seat_of(_host, 1).color, host_color, "the host's own seat is not a client's to move")
 	assert_eq(_seat_of(_host, 3).color, ai_color, "nor is an AI seat")
@@ -281,9 +281,9 @@ func test_a_client_s_name_is_applied_by_the_host_and_comes_back_down() -> void:
 func test_a_client_may_not_rename_the_host_s_seat_or_an_ai_seat() -> void:
 	_join()
 
-	_host._on_remote_pick(LobbyScreen.encode_pick(
+	_host._on_remote_pick(LobbyRoster.encode_pick(
 			_seat_of(_client, 1), _CLIENT_PEER, {"display_name": "Sneaky"}))
-	_host._on_remote_pick(LobbyScreen.encode_pick(
+	_host._on_remote_pick(LobbyRoster.encode_pick(
 			_seat_of(_client, 3), _CLIENT_PEER, {"display_name": "Also Sneaky"}))
 
 	assert_eq(_seat_of(_host, 1).display_name, "Player 1", "the host's own seat keeps its name")
@@ -321,11 +321,11 @@ func test_may_edit_is_locality_for_humans_and_authorship_for_ai() -> void:
 	var ai := Participant.new()
 	ai.kind = Participant.Kind.AI
 
-	assert_true(LobbyScreen.may_edit(mine, 7, false))
-	assert_false(LobbyScreen.may_edit(theirs, 7, true))
-	assert_true(LobbyScreen.may_edit(ai, 7, true), "an AI seat belongs to the roster's author")
-	assert_false(LobbyScreen.may_edit(ai, 7, false), "and a client does not author it")
-	assert_false(LobbyScreen.may_edit(null, 7, true))
+	assert_true(LobbyRoster.may_edit(mine, 7, false))
+	assert_false(LobbyRoster.may_edit(theirs, 7, true))
+	assert_true(LobbyRoster.may_edit(ai, 7, true), "an AI seat belongs to the roster's author")
+	assert_false(LobbyRoster.may_edit(ai, 7, false), "and a client does not author it")
+	assert_false(LobbyRoster.may_edit(null, 7, true))
 
 
 ## Peer `0` is "no link", and every offline seat carries it — a payload claiming
@@ -335,11 +335,11 @@ func test_a_remote_pick_from_peer_zero_is_refused() -> void:
 	var seat := Participant.new()
 	seat.peer_id = 0
 
-	assert_false(LobbyScreen.may_edit_remotely(seat, 0))
-	assert_false(LobbyScreen.may_edit_remotely(null, 4))
+	assert_false(LobbyRoster.may_edit_remotely(seat, 0))
+	assert_false(LobbyRoster.may_edit_remotely(null, 4))
 	seat.peer_id = 4
-	assert_true(LobbyScreen.may_edit_remotely(seat, 4))
-	assert_false(LobbyScreen.may_edit_remotely(seat, 5))
+	assert_true(LobbyRoster.may_edit_remotely(seat, 4))
+	assert_false(LobbyRoster.may_edit_remotely(seat, 5))
 
 
 ## Acceptance 8. An offline lobby mounts no link at all — not a link in

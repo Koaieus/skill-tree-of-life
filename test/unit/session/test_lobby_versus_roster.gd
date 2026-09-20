@@ -3,8 +3,8 @@ extends GutTest
 ## #554 — the lobby is what puts a human at a FOREIGN peer id in the roster, and
 ## that is what makes a [SeatPolicy] capable of being anything but a couch.
 ##
-## Pure logic: [method LobbyScreen.build_participants] and
-## [method LobbyScreen.resolve_mode] are static so the roster/seat/mode wiring
+## Pure logic: [method LobbyRoster.build_participants] and
+## [method LobbyRoster.resolve_mode] are static so the roster/seat/mode wiring
 ## is pinned without instancing a menu. The end-to-end two-process claims
 ## (#554 acceptance 1 and 3) wait on #533's harness; acceptance 2 and 4 are here.
 
@@ -40,7 +40,7 @@ func _roster_of(participants: Array[Participant]) -> ParticipantRoster:
 # --- The three lobby shapes -----------------------------------------------
 
 func test_single_player_lobby_is_one_local_human_plus_the_ai_count() -> void:
-	var parts := LobbyScreen.build_participants(RunConfig.Mode.SINGLE, NetworkConfig.offline(), 2)
+	var parts := LobbyRoster.build_participants(RunConfig.Mode.SINGLE, NetworkConfig.offline(), 2)
 	var humans := _humans(parts)
 	assert_eq(humans.size(), 1)
 	assert_eq(humans[0].kind, Participant.Kind.HUMAN)
@@ -52,7 +52,7 @@ func test_single_player_lobby_is_one_local_human_plus_the_ai_count() -> void:
 
 
 func test_hot_seat_lobby_is_two_locals_on_one_camp() -> void:
-	var parts := LobbyScreen.build_participants(
+	var parts := LobbyRoster.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.offline(), 0)
 	assert_eq(parts.size(), 2)
 	for p in parts:
@@ -65,7 +65,7 @@ func test_hot_seat_lobby_is_two_locals_on_one_camp() -> void:
 ## another peer id, on its own camp, before anybody has connected — because procgen reads the
 ## camp shape at level setup, long before a socket lands.
 func test_a_host_lobby_seats_a_remote_human_on_its_own_camp() -> void:
-	var parts := LobbyScreen.build_participants(
+	var parts := LobbyRoster.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(), 0)
 	assert_eq(parts.size(), 2)
 	assert_eq(parts[0].kind, Participant.Kind.HUMAN)
@@ -78,7 +78,7 @@ func test_a_host_lobby_seats_a_remote_human_on_its_own_camp() -> void:
 
 
 func test_a_join_lobby_mirrors_the_host_shape() -> void:
-	var parts := LobbyScreen.build_participants(
+	var parts := LobbyRoster.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.join("127.0.0.1"), 0)
 	assert_eq(parts.size(), 2)
 	assert_eq(parts[1].kind, Participant.Kind.HUMAN)
@@ -89,20 +89,20 @@ func test_a_join_lobby_mirrors_the_host_shape() -> void:
 # --- #554 D3: the mode is derived from the roster, at START ----------------
 
 func test_mode_is_versus_when_the_humans_span_more_than_one_camp() -> void:
-	var parts := LobbyScreen.build_participants(
+	var parts := LobbyRoster.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(), 1)
-	assert_eq(LobbyScreen.resolve_mode(parts), RunConfig.Mode.VERSUS)
+	assert_eq(LobbyRoster.resolve_mode(parts), RunConfig.Mode.VERSUS)
 
 
 func test_mode_is_coop_when_the_humans_share_a_camp() -> void:
-	var parts := LobbyScreen.build_participants(
+	var parts := LobbyRoster.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.offline(), 1)
-	assert_eq(LobbyScreen.resolve_mode(parts), RunConfig.Mode.COOP_HOTSEAT)
+	assert_eq(LobbyRoster.resolve_mode(parts), RunConfig.Mode.COOP_HOTSEAT)
 
 
 func test_mode_is_single_for_one_human_however_many_ai() -> void:
-	var parts := LobbyScreen.build_participants(RunConfig.Mode.SINGLE, NetworkConfig.offline(), 4)
-	assert_eq(LobbyScreen.resolve_mode(parts), RunConfig.Mode.SINGLE,
+	var parts := LobbyRoster.build_participants(RunConfig.Mode.SINGLE, NetworkConfig.offline(), 4)
+	assert_eq(LobbyRoster.resolve_mode(parts), RunConfig.Mode.SINGLE,
 			"four AI opponents are still a single-player run")
 
 
@@ -112,7 +112,7 @@ func test_mode_is_single_for_one_human_however_many_ai() -> void:
 ## participant was a human at peer_id 0, so `from_roster` returned a couch
 ## by construction and two peers each believed they drove the only human.
 func test_a_host_roster_yields_a_seat_not_a_couch() -> void:
-	var parts := LobbyScreen.build_participants(
+	var parts := LobbyRoster.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(), 1)
 	var roster := _roster_of(parts)
 	var mine := _entity(11)
@@ -131,7 +131,7 @@ func test_a_host_roster_yields_a_seat_not_a_couch() -> void:
 ## The client half of the same roster, as it arrives over the wire: the host's
 ## participants verbatim, read against the client's own peer id.
 func test_the_same_roster_seats_the_client_on_the_other_entity() -> void:
-	var parts := LobbyScreen.build_participants(
+	var parts := LobbyRoster.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(), 1)
 	var client_peer_id := 4711
 	parts[1].peer_id = client_peer_id  # what the join stamps, host-side
@@ -147,7 +147,7 @@ func test_the_same_roster_seats_the_client_on_the_other_entity() -> void:
 
 
 func test_an_offline_lobby_stays_a_couch() -> void:
-	var parts := LobbyScreen.build_participants(
+	var parts := LobbyRoster.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.offline(), 1)
 	var policy := SeatPolicy.from_roster(
 			{parts[0].id: _entity(11), parts[1].id: _entity(22)}, _roster_of(parts), 0)
@@ -159,7 +159,7 @@ func test_an_offline_lobby_stays_a_couch() -> void:
 ## must survive that trip — a mode that agreed but a peer id that did not would
 ## desync silently.
 func test_a_versus_roster_survives_the_wire() -> void:
-	var parts := LobbyScreen.build_participants(
+	var parts := LobbyRoster.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(), 1)
 	parts[1].peer_id = 4711
 	var decoded := ParticipantRoster.from_dict(_roster_of(parts).to_dict())
@@ -174,30 +174,30 @@ func test_a_versus_roster_survives_the_wire() -> void:
 # --- #554 D2: the join stamps the seat the lobby already authored ----------
 
 func test_the_join_stamps_the_pending_remote_seat() -> void:
-	var parts := LobbyScreen.build_participants(
+	var parts := LobbyRoster.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(), 1)
 	var roster := _roster_of(parts)
 	var pending: Participant = parts[1]
-	assert_true(LobbyScreen.is_pending_remote(pending), "authored, nobody home yet")
+	assert_true(LobbyRoster.is_pending_remote(pending), "authored, nobody home yet")
 
-	assert_true(LobbyScreen.stamp_pending_remote(roster, 4711))
+	assert_true(LobbyRoster.stamp_pending_remote(roster, 4711))
 	assert_eq(pending.peer_id, 4711)
-	assert_false(LobbyScreen.is_pending_remote(pending))
-	assert_false(LobbyScreen.stamp_pending_remote(roster, 4712),
+	assert_false(LobbyRoster.is_pending_remote(pending))
+	assert_false(LobbyRoster.stamp_pending_remote(roster, 4712),
 			"a second peer has no seat waiting for it on a two-seat lobby")
 
 
 func test_stamping_an_offline_roster_finds_nothing() -> void:
-	var roster := _roster_of(LobbyScreen.build_participants(
+	var roster := _roster_of(LobbyRoster.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.offline(), 1))
-	assert_false(LobbyScreen.stamp_pending_remote(roster, 4711))
-	assert_false(LobbyScreen.stamp_pending_remote(null, 4711))
+	assert_false(LobbyRoster.stamp_pending_remote(roster, 4711))
+	assert_false(LobbyRoster.stamp_pending_remote(null, 4711))
 
 
 # --- #616 D2: colour is run shape, so it crosses the wire ------------------
 
 func test_hero_colour_survives_the_roster_round_trip() -> void:
-	var parts := LobbyScreen.build_participants(
+	var parts := LobbyRoster.build_participants(
 			RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(), 4)
 	var wire: Array = []
 	for p in parts:

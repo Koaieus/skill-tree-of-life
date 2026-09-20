@@ -21,7 +21,7 @@ extends GutTest
 ##    route including the offline ones, so a player who hosted, backed out and
 ##    then started a solo run does not silently open a socket.
 ## 3. START resolves [enum RunConfig.Mode] from the roster at press time (#554's
-##    [method LobbyScreen.resolve_mode]), never from the route that was taken.
+##    [method LobbyRoster.resolve_mode]), never from the route that was taken.
 ##
 ## [b]#582 moved HOST behind a config panel[/b], the way #531 had already moved
 ## JOIN behind an address one — so two of the four routes now reach their lobby
@@ -175,7 +175,7 @@ func test_new_game_is_offline_and_single() -> void:
 
 	assert_eq(GameSession.network.role, NetworkTransport.Role.OFFLINE)
 	assert_false(GameSession.network.is_online(), "a solo run opens no socket")
-	assert_eq(lobby._mode, RunConfig.Mode.SINGLE, "the route asks for SINGLE")
+	assert_eq(lobby.roster().mode, RunConfig.Mode.SINGLE, "the route asks for SINGLE")
 
 	var cfg := lobby.build_run_config()
 	assert_eq(cfg.mode, RunConfig.Mode.SINGLE)
@@ -186,7 +186,7 @@ func test_new_game_is_offline_and_single() -> void:
 
 	var item := _tree.get_item(MenuGraph.ID_NEW_GAME)
 	assert_eq(item.panel, MenuGraph.PANEL_LOBBY)
-	assert_eq(item.route.requested_mode, lobby._mode)
+	assert_eq(item.route.requested_mode, lobby.roster().mode)
 	assert_eq(item.route.network_role, GameSession.network.role)
 
 
@@ -195,7 +195,7 @@ func test_hot_seat_is_offline_and_two_humans_on_one_camp() -> void:
 	var lobby := _lobby()
 
 	assert_eq(GameSession.network.role, NetworkTransport.Role.OFFLINE)
-	assert_eq(lobby._mode, RunConfig.Mode.COOP_HOTSEAT)
+	assert_eq(lobby.roster().mode, RunConfig.Mode.COOP_HOTSEAT)
 
 	var cfg := lobby.build_run_config()
 	assert_eq(cfg.mode, RunConfig.Mode.COOP_HOTSEAT, "two humans sharing a camp is coop")
@@ -206,7 +206,7 @@ func test_hot_seat_is_offline_and_two_humans_on_one_camp() -> void:
 
 	var item := _tree.get_item(MenuGraph.ID_LOCAL)
 	assert_eq(item.panel, MenuGraph.PANEL_LOBBY)
-	assert_eq(item.route.requested_mode, lobby._mode)
+	assert_eq(item.route.requested_mode, lobby.roster().mode)
 	assert_eq(item.route.network_role, GameSession.network.role)
 
 
@@ -221,12 +221,12 @@ func test_host_listens_and_seats_the_absent_player_up_front() -> void:
 	var humans := _humans(cfg.participants)
 	assert_eq(humans.size(), 2, "the remote seat exists before anyone joins (#554 D2)")
 	assert_eq(humans[0].peer_id, NetworkTransport.HOST_PEER_ID, "this machine hosts")
-	assert_true(LobbyScreen.is_pending_remote(humans[1]), "the joiner's seat is waiting")
+	assert_true(LobbyRoster.is_pending_remote(humans[1]), "the joiner's seat is waiting")
 
 	var item := _tree.get_item(MenuGraph.ID_HOST)
 	assert_eq(item.panel, MenuGraph.PANEL_HOST,
 			"#582: HOST asks for a port before a lobby, the way JOIN asks for an address")
-	assert_eq(item.route.requested_mode, lobby._mode)
+	assert_eq(item.route.requested_mode, lobby.roster().mode)
 	assert_eq(item.route.network_role, GameSession.network.role)
 
 
@@ -249,7 +249,7 @@ func test_join_dials_and_offers_no_ai_opponents() -> void:
 
 	var item := _tree.get_item(MenuGraph.ID_JOIN)
 	assert_eq(item.panel, MenuGraph.PANEL_JOIN, "JOIN asks for an address before a lobby")
-	assert_eq(item.route.requested_mode, lobby._mode)
+	assert_eq(item.route.requested_mode, lobby.roster().mode)
 	assert_eq(item.route.network_role, GameSession.network.role)
 
 
@@ -261,14 +261,14 @@ func test_a_networked_route_asks_for_coop_and_resolves_to_versus() -> void:
 	# spans two camps. Nothing about "which route" survives to START.
 	var lobby := _host()
 
-	assert_eq(lobby._mode, RunConfig.Mode.COOP_HOTSEAT, "the ROUTE asked for coop")
+	assert_eq(lobby.roster().mode, RunConfig.Mode.COOP_HOTSEAT, "the ROUTE asked for coop")
 	var cfg := lobby.build_run_config()
 	assert_eq(cfg.mode, RunConfig.Mode.VERSUS, "the ROSTER answers versus")
 
 	var humans := _humans(cfg.participants)
 	assert_eq(humans[0].camp, _CAMP_1)
 	assert_eq(humans[1].camp, _CAMP_2, "two camps is what makes it versus")
-	assert_eq(LobbyScreen.resolve_mode(cfg.participants), RunConfig.Mode.VERSUS)
+	assert_eq(LobbyRoster.resolve_mode(cfg.participants), RunConfig.Mode.VERSUS)
 
 
 func test_the_resolved_mode_ignores_how_many_ai_join() -> void:

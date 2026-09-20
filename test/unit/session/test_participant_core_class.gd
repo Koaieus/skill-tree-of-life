@@ -83,7 +83,7 @@ func test_a_core_less_roster_falls_back_to_the_levels_two_exports() -> void:
 
 
 func test_the_lobby_seats_every_slot_on_a_default_core() -> void:
-	var parts := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 2)
+	var parts := LobbyRoster.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 2)
 	for p in parts:
 		assert_not_null(p.core_class, "%s must reach the level with a class" % p.display_name)
 		# #840, 2026-09-10: BOTH kinds now default to Balanced. The AI used to
@@ -153,5 +153,5 @@ func test_the_three_shared_cores_appear_on_both_sides() -> void:
 
 
 func test_the_lobby_maps_a_slot_kind_to_the_matching_mask_bit() -> void:
-	assert_eq(LobbyScreen.slot_bit_for(Participant.Kind.HUMAN), CoreClass.PICKABLE_PLAYER)
-	assert_eq(LobbyScreen.slot_bit_for(Participant.Kind.AI), CoreClass.PICKABLE_AI)
+	assert_eq(LobbyRoster.slot_bit_for(Participant.Kind.HUMAN), CoreClass.PICKABLE_PLAYER)
+	assert_eq(LobbyRoster.slot_bit_for(Participant.Kind.AI), CoreClass.PICKABLE_AI)

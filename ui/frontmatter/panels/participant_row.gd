@@ -152,7 +152,7 @@ func _commit_name() -> void:
 	# `queue_free()` before `remove_child()` for exactly this reason).
 	if is_queued_for_deletion():
 		return
-	var wanted := LobbyScreen.normalize_name(get_node("%Name").text)
+	var wanted := LobbyRoster.normalize_name(get_node("%Name").text)
 	if wanted.is_empty():
 		wanted = _participant.display_name if _participant != null else ""
 	elif _participant != null and wanted != _participant.display_name:

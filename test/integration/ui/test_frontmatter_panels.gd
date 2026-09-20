@@ -252,7 +252,7 @@ func test_a_networked_route_still_seats_the_absent_player_up_front() -> void:
 	var cfg := lobby.screen.build_run_config()
 	var humans := _humans(cfg.participants)
 	assert_eq(humans.size(), 2)
-	assert_true(LobbyScreen.is_pending_remote(humans[1]), "the joiner's seat is waiting")
+	assert_true(LobbyRoster.is_pending_remote(humans[1]), "the joiner's seat is waiting")
 	assert_eq(cfg.mode, RunConfig.Mode.VERSUS, "the ROSTER answers, not the button")
 
 

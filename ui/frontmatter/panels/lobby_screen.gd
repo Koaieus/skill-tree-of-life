@@ -7,53 +7,16 @@ extends VBoxContainer
 ## it to procgen — so typing back the seed the pause-menu footer shows replays
 ## the same map. Blank means "randomise me".
 ##
-## [b]This screen authors the whole roster (#554).[/b] Since #553 the roster is
-## the sole source of how many contenders a level spawns and how many starting
-## points procgen is asked for, and the lobby is where that count is chosen — so
-## the AI opponents are participants here, not something the level invents.
+## [b]A view over a [LobbyRoster] (#1002).[/b] The run's shape — who is seated,
+## on which camp, in which colour, whether START is allowed — is the roster's;
+## this screen renders rows from it, forwards every edit to its writers, and
+## repaints on [signal LobbyRoster.changed]. What stays here is what only a
+## screen can do: the widgets, the run-section ladders the route's
+## [LobbyPolicy] unlocks (map size, blockers, arrangement, victory, budget),
+## the [CommandLink] it adopts, and the status copy the wire produces.
 ##
-## Three shapes, decided by the [NetworkConfig] this screen was configured with
-## rather than by a mode the player picked:
-##
-## [codeblock]
-##   offline, SINGLE      1 human at peer 0 on `player.tres`    -> SINGLE
-##   offline, hot-seat    2 humans at peer 0 sharing `camp_1`    -> COOP_HOTSEAT
-##   host / join          1 human on camp_1 at THIS peer +
-##                        1 human on camp_2 at the other one     -> VERSUS
-## [/codeblock]
-##
-## [b]Which of those humans is "me" is never written down (#562)[/b] — the two
-## seats differ only by [member Participant.peer_id], and each machine derives
-## its own answer with [method Participant.is_local]. A roster that named one
-## row "the local one" would be wrong on the machine it crossed to.
-##
-## [b]Why the remote seat is declared before anybody joins.[/b] #554's decision 3
-## derives [enum RunConfig.Mode] at START from the roster, and procgen reads the
-## camp shape at level setup — both happen before a peer's socket is anywhere
-## near this machine. A roster that only grew when the join actually landed would
-## generate a map with no room for the joiner on it. So a networked lobby seats
-## the second human immediately, at [constant _PENDING_PEER_ID], and the join
-## stamps that placeholder with the real id (see
-## [method stamp_pending_remote_peer]). "The roster grows on join" is true of the
-## peer id, not of the seat.
-##
-## [b]This screen owns hero colour, for every slot (#616 D1/D4).[/b] Overturning
-## #563's closing note, [member Participant.color] is run shape rather than a
-## per-machine presentation choice: it crosses the wire in
-## [method Participant.to_dict], and every peer draws every hero in the colour
-## its slot chose. That makes the AI slots this screen's problem too — a roster
-## that only coloured the humans would render four identical greys — so defaults
-## come round-robin off [constant _PALETTE] across the WHOLE roster and the
-## per-row picker overrides.
-##
-## [b]A slot's name is its own to type.[/b] The row's Name field commits on
-## Enter or focus loss through the same ask/write split as the pickers, and
-## [method may_edit]'s one locality rule decides whose it is: offline and
-## hot-seat may edit any seat (every seat is this machine's), a host or a
-## client its own seat only, and an AI seat belongs to whoever authors the
-## roster. The name is run shape like colour — it crosses the wire inside the
-## roster, and [method GameRoot.apply_roster] carries it onto the spawned
-## entity, so every machine's HUD shows the same hero name.
+## The three roster shapes, why the remote seat is declared before anybody
+## joins, and why colour is run shape are documented on [LobbyRoster].
 ##
 ## Deliberately minimal: scenic screens are what remains of #461.
 
@@ -68,61 +31,17 @@ signal start_pressed(run_config: RunConfig)
 ## different map).
 signal remote_start(run_config: RunConfig)
 
-const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
-const _CAMP_1 := preload("res://entity/factions/camp_1.tres")
-const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
-## Every AI opponent shares one camp, matching the fallback roster
-## `scenes/procgen_play_sandbox.gd` builds when no lobby ran. N AI opponents are
-## therefore one rival camp of N, not N mutually hostile camps — free-for-all AI
-## is a run shape nobody has asked for yet.
-const _NPC_FACTION := preload("res://entity/factions/npc.tres")
-
-## The [member Participant.peer_id] a not-yet-arrived remote human carries.
-## Negative so it can never collide with a real Godot peer id (1 and up) nor
-## with the `0` that means "local" — [method SeatPolicy.from_roster] therefore
-## reads it as somebody else's seat from the moment the lobby is built, which is
-## the correct answer even before the join lands.
-const _PENDING_PEER_ID := -1
-
-## What the host's own participant answers to. A host is always peer 1 under
-## Godot's high-level multiplayer.
-const _HOST_PEER_ID := NetworkTransport.HOST_PEER_ID
-
 ## Every hero colour a slot may hold (#616 D5). One authored resource, not a
 ## const array here — see `ui/theme/player_palette.gd` for why gold and pure
 ## white are both absent from it.
 const _PALETTE := preload("res://ui/theme/player_palette.tres")
-## What a slot starts on when nobody has picked (#618 D5). The pick is what
-## differs between a human and an AI slot; the MECHANISM is identical, and both
-## defaults must themselves be pickable in their own slot kind — a default the
-## picker won't list is a state the player cannot return to.
-const _DEFAULT_PLAYER_CORE := preload("res://entity/core/balanced_core.tres")
-## #840, 2026-09-10: was `basic_enemy_core.tres` ("Wise Cheater" as of this
-## issue) — that gave every AI slot a silent +30 WIS head start over the human
-## default's +10. Both constants now name the same resource on purpose; the
-## AI's WIS-heavy option still exists, it is just opt-in like everything else.
-const _DEFAULT_AI_CORE := preload("res://entity/core/balanced_core.tres")
 
-## The longest name a slot may carry. One home for the bound, applied at both
-## ends that can produce a name: the row paints it onto the field's
-## `max_length`, and the writer caps what arrives — a remote pick never saw
-## the field, and must meet the same rule a local typist physically cannot
-## exceed. Same shape as the colour rule (#616/#714: one rule, stated at the
-## writer, expressed in the UI).
-const MAX_NAME_LENGTH := 24
-
-## AI opponents a fresh lobby offers, and the ceiling the count row is ranged
-## to. Owner-tuned: the original 1 was "what a menu-launched run produced before
-## this screen authored any AI at all" (the level's fallback roster is
-## `camp_sizes = [1, 1]`), i.e. parity with pre-lobby behaviour rather than a
-## chosen default. It is a chosen default now.
-##
-## Both constants are seeded onto the row in [method _ready] — before that they
-## were dead, since [method _ai_opponent_count] only consults
-## [constant DEFAULT_AI_OPPONENTS] when the row is absent and the row authored
-## its own `1` and `0..12` in `ai_count_row.tscn`.
-const DEFAULT_AI_OPPONENTS := 5
-const MAX_AI_OPPONENTS := 12
+## The rules behind these live on [LobbyRoster]; the names stay here because
+## the rows and the routes still read them off the screen.
+const _PENDING_PEER_ID := LobbyRoster.PENDING_PEER_ID
+const MAX_NAME_LENGTH := LobbyRoster.MAX_NAME_LENGTH
+const DEFAULT_AI_OPPONENTS := LobbyRoster.DEFAULT_AI_OPPONENTS
+const MAX_AI_OPPONENTS := LobbyRoster.MAX_AI_OPPONENTS
 
 ## The rows this screen stacks, kept under the name the shipped code and its
 ## tests already use. It is this node: the screen IS its own column now that
@@ -141,9 +60,9 @@ const _OPTION_CHOICE_ROW := preload("res://ui/frontmatter/panels/option_choice_r
 const _BUDGET_RANGE_ROW := preload("res://ui/frontmatter/panels/budget_range_row.tscn")
 const _ROW_SCENE := preload("res://ui/common/labelled_row.tscn")
 
-## Keys into [member _picked_options] (#643 decision 1 — these are per-RUN, so
+## Keys into [member _run_picks] (#643 decision 1 — these are per-RUN, so
 ## they are keyed by KNOB, not by [member Participant.id] the way
-## [member _picked_colors] is). A knob ABSENT from that dictionary is the
+## a [LobbyRoster.Pick] is). A knob ABSENT from that dictionary is the
 ## "host never touched this control" state, and #643 acceptance 5 is exactly
 ## the assertion that such a knob contributes no override at all.
 const KNOB_MAP_SIZE := &"map_size"
@@ -173,37 +92,15 @@ func add_option(text: String, disabled: bool = false) -> Button:
 	content.add_child(button)
 	return button
 
-var _mode: RunConfig.Mode = RunConfig.Mode.SINGLE
-var _network: NetworkConfig = null
-## What the route that opened this lobby lets its slots choose (#615). Null is
-## the pre-#615 lobby: no camp control on any row, and nothing blocks START.
-var _policy: LobbyPolicy = null
+## The domain half (#1002): participants, pick memory, seat vetoes and the
+## START gate. Minted by [method configure]; an unconfigured instance gets the
+## single-player shape in [method _ready].
+var _roster: LobbyRoster = null
 var _seed_edit: LineEdit
 var _start_button: Button
 var _ai_count_row: AiCountRow
 var _core_preset_row: CorePresetRow
-## The AI core preset (#841). `null` is the sentinel — "no preset armed" —
-## and it is what a fresh lobby starts on, so a lobby that never touches this
-## row behaves byte-for-byte as it did before the row existed. Applies to AI
-## slots only; see [method apply_core_preset].
-var _core_preset: CoreClass = null
-var _participants: Array[Participant] = []
 var _rows_container: VBoxContainer
-## Colours a player explicitly chose, by [member Participant.id] — survives the
-## roster rebuild an AI-count change triggers. Absent id means "still on its
-## palette default".
-var _picked_colors: Dictionary = {}
-## Core classes a player explicitly chose, by [member Participant.id]. Same
-## rebuild-survival contract as [member _picked_colors].
-var _picked_cores: Dictionary = {}
-## Camps a player explicitly chose, by [member Participant.id]. Same
-## rebuild-survival contract as [member _picked_colors].
-var _picked_camps: Dictionary = {}
-## Names a player explicitly typed, by [member Participant.id]. Same
-## rebuild-survival contract as [member _picked_colors]: an AI-count change
-## rebuilds the roster from scratch, and a typed name must not revert to
-## "Player 1" because a DIFFERENT slot was added.
-var _picked_names: Dictionary = {}
 
 ## --- #714: the roster replicates while the menu is up --------------------------
 ##
@@ -214,10 +111,6 @@ var _picked_names: Dictionary = {}
 ## offline lobby that shipped before this.
 var _transport: NetworkTransport = null
 var _link: CommandLink = null
-## This machine's real id on the link, or 0 before the server has minted one.
-## A client authors its own seat at [constant _PENDING_PEER_ID] and only learns
-## the truth on [signal NetworkTransport.peer_joined]; see [method _local_peer_id].
-var _local_peer: int = 0
 
 ## --- #716: what the wire is doing, said out loud -------------------------------
 ##
@@ -238,40 +131,11 @@ var _link_lost: bool = false
 ## so the refusal wins, and the loss only sets the Start veto.
 var _refusal_shown: bool = false
 
-## --- #736: START must not race a peer through the build gate -------------------
-##
-## Host-only set of peer ids that have connected at the TRANSPORT level
-## ([signal NetworkTransport.peer_joined]) but have not yet cleared
-## [constant CommandLink]'s build gate ([signal CommandLink.peer_cleared]).
-## That gap is the race #736 exists to close: [method has_pending_remote]
-## alone cannot see it, because a pending SEAT and a connecting SOCKET are two
-## different things — #554 D2 authors the seat before anybody dials in, so it
-## reads "pending" both before a peer exists and while one is mid-handshake,
-## and a host that starts in the second case broadcasts a roster the joiner
-## cannot find itself in (the bug this issue is about).
-##
-## [b]Every entry has a removal path[/b] — cleared
-## ([method _on_link_peer_cleared]), refused ([method _on_link_peer_refused]),
-## or dropped ([method _on_link_peer_left], reached even for a peer that never
-## sends a byte: ENet's own keepalive times out a dead socket and [Wire] turns
-## that into [signal NetworkTransport.peer_left] same as an explicit hangup).
-## So the gate this set backs is transient by construction, never permanent.
-##
-## [b]Never seen on a CLIENT.[/b] [method _on_link_peer_joined] only writes it
-## on the host branch — a client's own bare join is about learning ITS OWN id
-## (see [member _local_peer]), not about gating a button it does not own the
-## roster for.
-var _connecting_peers: Dictionary = {}
 
 ## One-shot: this lobby's run has opened and been broadcast (#715). See
 ## [method _on_run_started] for why it is latched before the send.
 var _started: bool = false
 
-## Keys inside a [constant CommandLink.KIND_LOBBY_PICK] payload that are not
-## themselves [Participant] fields: WHICH seat, and WHO is asking. The changed
-## fields beside them use [method Participant.to_dict]'s own names and encoding.
-const PICK_ID := "id"
-const PICK_PEER := "peer_id"
 
 ## The run-level section beside the seed field (#643). Named and reachable
 ## through [method add_run_row] because it is a SHARED surface: #558 appends a
@@ -289,18 +153,18 @@ var _budget_row: BudgetRangeRow
 ## KNOB_MAP_SIZE]). Values are a ladder INDEX for the pickers and a
 ## `[base_min, base_max]` pair for the budget row.
 ##
-## [b]Same rebuild-survival contract as [member _picked_colors], for a different
+## [b]Same rebuild-survival contract as the roster's picks, for a different
 ## reason.[/b] Those survive because the roster rebuilds on every slot change;
 ## these survive because this dictionary — not the widget — is what
 ## [method build_run_config] reads. The widget is a view of the pick, so a
 ## control that is rebuilt, hidden or never realised cannot silently drop one.
-var _picked_options: Dictionary = {}
+var _run_picks: Dictionary = {}
 
 
 ## Configures this lobby before it enters the tree (call right after
 ## [method LobbyScreen.new], before it enters the tree). [param mode] is
 ## the shape the menu route ASKED for, not the mode the run ends up with —
-## [method _resolved_mode] derives that from the roster at START (#554 D3).
+## [method LobbyRoster.resolve_mode] derives that from the roster at START (#554 D3).
 ## Defaults to the single-player shape so an unconfigured instance still behaves
 ## as it always has.
 ## [param policy] is what this lobby's ROUTE lets its slots choose (#615 D2) —
@@ -310,12 +174,12 @@ var _picked_options: Dictionary = {}
 func configure(
 	mode: RunConfig.Mode, network: NetworkConfig = null, policy: LobbyPolicy = null
 ) -> void:
-	_mode = mode
-	_network = network
-	_policy = policy
-
+	_roster = LobbyRoster.new(mode, network, policy)
+	_roster.changed.connect(_on_roster_changed)
 
 func _ready() -> void:
+	if _roster == null:
+		configure(RunConfig.Mode.SINGLE)
 	add_theme_constant_override("separation", 8)
 	# Before the roster is built: a client's own peer id decides which row reads
 	# "you" and which pickers it may touch, and a host must be listening for the
@@ -331,7 +195,7 @@ func _ready() -> void:
 		# a roster that does not exist yet.
 		_ai_count_row.set_range(0, MAX_AI_OPPONENTS)
 		_ai_count_row.set_value(DEFAULT_AI_OPPONENTS)
-		_ai_count_row.value_changed.connect(func(_v: float): _rebuild_participants())
+		_ai_count_row.value_changed.connect(func(v: float): _roster.set_ai_opponents(int(v)))
 
 		# #841: gated the same as the count row above it — a client authors no
 		# AI slots at all ([method _offers_ai_opponents]), so it has nothing to
@@ -363,7 +227,7 @@ func _ready() -> void:
 
 	_build_run_section()
 
-	if _network != null and _network.is_online():
+	if _roster.network != null and _roster.network.is_online():
 		_link_label = Label.new()
 		_link_label.text = _link_caption()
 		content.add_child(_link_label)
@@ -372,7 +236,7 @@ func _ready() -> void:
 		content.add_child(_status_label)
 		_report_mount_state()
 
-	_rebuild_participants()
+	_refresh_rows()
 
 	_start_button = add_option("Start Game")
 	_start_button.pressed.connect(_on_start_button_pressed)
@@ -392,9 +256,9 @@ func _ready() -> void:
 ## it dialled, and telling it its own local address would be noise at best and
 ## the wrong number at worst (#582 D6).
 func _link_caption() -> String:
-	if _network.role != NetworkTransport.Role.HOST:
-		return _network.describe()
-	return "Others join at %s" % _network.advertised_endpoint()
+	if _roster.network.role != NetworkTransport.Role.HOST:
+		return _roster.network.describe()
+	return "Others join at %s" % _roster.network.advertised_endpoint()
 
 
 ## The policy's veto, applied at the one place it can be: a versus lobby whose
@@ -443,7 +307,7 @@ func _on_run_started(config: RunConfig) -> void:
 	# production it says the plainer thing: a lobby starts its run once.
 	_started = true
 	if not _is_client():
-		# `GameSession.roster` and not `_participants`: [method GameSession.start]
+		# `GameSession.roster` and not the lobby's own: [method GameSession.start]
 		# has just rebuilt the roster from the config it resolved, and that
 		# resolved config is what the peer must adopt — the sentinel seed this
 		# lobby was showing a moment ago is not a run.
@@ -455,27 +319,16 @@ func _on_run_started(config: RunConfig) -> void:
 
 ## Is START allowed on the current roster? Always true without a policy — see
 ## [method configure].
+## Is START allowed on the current roster? The roster's rule ([method
+## LobbyRoster.can_start]); always true without a policy.
 func can_start() -> bool:
-	return start_blocked_reason().is_empty()
+	return _roster.can_start()
 
 
 ## Why START is refused right now, or `""`. Public so the panel layer can
-## surface it later without re-deriving the rule (#615 descopes the message UI).
-##
-## [b]The transient #736 gate is checked first[/b], ahead of the policy: a peer
-## mid-handshake is a fact about the WIRE, true regardless of what shape this
-## lobby is, while [member _policy] only ever speaks to the roster it can see —
-## and that roster is exactly what a still-connecting peer has not reached yet.
+## surface it without re-deriving the rule.
 func start_blocked_reason() -> String:
-	if not _connecting_peers.is_empty():
-		return ("Waiting for %d peer(s) to finish joining…" % _connecting_peers.size())
-	return "" if _policy == null else _policy.start_blocked_reason(_participants)
-
-
-## [b]Fork 3 (owner call, 2026-09-03): a refusal nobody surfaces is a dead
-## button.[/b] So every recompute also says why, through the same incident line
-## [method _on_transport_link_lost] and [method _on_link_refused] use — except
-## those are terminal (the route out is the panel, not this screen) and outrank
+	return _roster.start_blocked_reason()
 ## a transient wait, so they are left alone rather than overwritten here.
 func _refresh_start_enabled() -> void:
 	if _start_button != null:
@@ -525,7 +378,7 @@ func _on_link_refused(reason: String) -> void:
 ## seated, so the roster is deliberately untouched here — the only trace a
 ## refused peer leaves anywhere is this line.
 ##
-## [b]Removal path for [member _connecting_peers][/b] — the refusal already
+## [b]Removal path for the #736 connecting gate[/b] — the refusal already
 ## dropped the socket ([method CommandLink._refuse_peer]), so this seat's
 ## transient hold on START is over too. Erase-then-refresh BEFORE the explicit
 ## message below, so that message is the one left standing rather than
@@ -542,8 +395,7 @@ func _on_link_refused(reason: String) -> void:
 ## would leave a stale "waiting" line behind it. A host that wants the reason
 ## after the fact has the trace in [signal CommandLink.logged] instead.
 func _on_link_peer_refused(peer_id: int, reason: String) -> void:
-	_connecting_peers.erase(peer_id)
-	_refresh_start_enabled()
+	_roster.remove_remote(peer_id)
 	_set_status("Refused peer %d — %s" % [peer_id, reason])
 
 
@@ -564,95 +416,42 @@ func _report_mount_state() -> void:
 
 
 ## The roster this lobby currently shows. Live, not a copy — the join path
-## stamps a participant in place (see [method stamp_pending_remote_peer]).
+## stamps a participant in place ([method LobbyRoster.clear_remote]).
 func participants() -> Array[Participant]:
-	return _participants
+	return _roster.participants
 
 
-## Give the pending remote seat the peer id the transport just reported, and
-## return true if there was one to stamp. This is the "roster grows on join"
-## half of #554 D2 that a lobby can honour: the seat was authored up front so
-## procgen could see it, and only the identity was outstanding.
-func stamp_pending_remote_peer(peer_id: int) -> bool:
-	for p in _participants:
-		if is_pending_remote(p):
-			p.peer_id = peer_id
-			_refresh_rows()
-			return true
-	return false
+## The domain half itself, for a caller that wants the picks and the START
+## gate rather than the list (#1002).
+func roster() -> LobbyRoster:
+	return _roster
 
 
-## True when this participant is a remote seat nobody has arrived on yet — the
-## one question a caller outside this file might reasonably ask about the
-## sentinel, answered without exporting the number.
-static func is_pending_remote(p: Participant) -> bool:
-	return p != null and p.kind == Participant.Kind.HUMAN and p.peer_id == _PENDING_PEER_ID
-
-
-## Is anybody's seat still waiting for a real id? The whole-roster form of
-## [method is_pending_remote], and the only honest "may START now" question a
-## caller outside this file can ask (#715).
-##
-## [b]Why it is not "has a peer joined".[/b] Since #716 the host offers a seat on
-## [signal CommandLink.peer_cleared] — after the build-gate hello has ROUND-TRIPPED
-## — not on the bare join. So a joined peer and a seated peer are two moments with
-## a network hop between them, and a caller that starts the run on the first one
-## broadcasts a roster still carrying [constant _PENDING_PEER_ID], which the
-## joiner cannot find itself in.
+## Is anybody's seat still waiting for a real id? The only honest "may START
+## now" question a caller outside this file can ask (#715).
 func has_pending_remote() -> bool:
-	for p in _participants:
-		if is_pending_remote(p):
-			return true
-	return false
+	return _roster.has_pending_remote()
 
 
-## The join half of #554 D2, as a seam the level can call without knowing what
-## a pending seat looks like: give the roster's waiting human seat the id the
-## transport just reported. Returns false when there was nothing waiting — a
-## second peer on a two-seat lobby, or a roster that never expected one.
-##
-## Static and roster-shaped (not screen-shaped) because the machine that needs
-## it is the HOST AT LEVEL TIME: the lobby is gone by the time a socket lands,
-## and the live roster is [member GameSession.roster]. The sentinel stays
-## private to this file so no other site has to agree with it.
-static func stamp_pending_remote(roster: ParticipantRoster, peer_id: int) -> bool:
-	if roster == null:
-		return false
-	for p in roster.all():
-		if is_pending_remote(p):
-			p.peer_id = peer_id
-			roster.notify_changed(p.id)
-			return true
-	return false
+## shim: removed when #1004 lands. `scenes/game_root.gd` still stamps the
+## level-time join through this name; the rule lives on [LobbyRoster].
+static func stamp_pending_remote(roster_in: ParticipantRoster, peer_id: int) -> bool:
+	return LobbyRoster.stamp_pending_remote(roster_in, peer_id)
 
 
-## --- #714: the wire ----------------------------------------------------------
-##
-## Host-authoritative intent-up / confirmed-command-down
-## (`docs/domain/multiplayer-sync-model.md`) at the ROSTER's scope: a client
-## sends the one seat it touched as a [constant CommandLink.KIND_LOBBY_PICK],
-## the host puts it through the very writers a local pick goes through
-## ([method _on_color_picked] and its siblings), and the host answers with its
-## whole roster as a [constant CommandLink.KIND_LOBBY]. No new architecture, and
-## exactly one rule set — the refusal path in particular is not a message but the
-## absence of a change in the answer everybody gets anyway.
-##
-## [b]The link is ADOPTED, never opened here.[/b] `meta_root.gd` is the one place
-## that decides a route opens a socket, the same file that already decides which
-## [NetworkConfig] a route leaves on [GameSession]. A lobby with no live [Wire]
 ## behind it mounts nothing at all, which is what keeps offline, hot-seat and
 ## every existing lobby test on exactly the path they were on before.
 func _mount_link() -> void:
-	if _network == null or not _network.is_online() or not Wire.is_open():
+	if _roster.network == null or not _roster.network.is_online() or not Wire.is_open():
 		return
 	var transport := EnetTransport.new()
 	transport.name = "Transport"
 	add_child(transport)
 	# Binds to the live [Wire] and replays whoever joined already — on a host
 	# that re-fires the join this lobby has to stamp.
-	var err := (transport.start_host(_network.port)
-			if _network.role == NetworkTransport.Role.HOST
-			else transport.start_client(_network.address, _network.port))
+	var err := (transport.start_host(_roster.network.port)
+			if _roster.network.role == NetworkTransport.Role.HOST
+			else transport.start_client(_roster.network.address, _roster.network.port))
 	if err != OK:
 		remove_child(transport)
 		transport.queue_free()
@@ -693,7 +492,7 @@ func bind_link(transport: NetworkTransport) -> void:
 	# role onto its (here absent) applier — and because a lobby-time link must
 	# have a role the moment the socket is live, not when a level says so.
 	_link.mode = (CommandLink.Mode.BROADCAST
-			if _network.role == NetworkTransport.Role.HOST
+			if _roster.network.role == NetworkTransport.Role.HOST
 			else CommandLink.Mode.MIRROR)
 	_transport.peer_joined.connect(_on_link_peer_joined)
 	_transport.peer_left.connect(_on_link_peer_left)
@@ -703,7 +502,7 @@ func bind_link(transport: NetworkTransport) -> void:
 	# Connected only on a lobby that HAS a link, so an offline lobby is untouched.
 	if not GameSession.run_started.is_connected(_on_run_started):
 		GameSession.run_started.connect(_on_run_started)
-	_local_peer = _transport.local_peer_id()
+	_roster.set_local_peer(_transport.local_peer_id())
 	# A link was adopted after all, so whatever [method _report_mount_state]
 	# concluded from its absence is stale.
 	_link_lost = false
@@ -741,7 +540,7 @@ func release_link() -> void:
 
 
 func _is_client() -> bool:
-	return _network != null and _network.role == NetworkTransport.Role.CLIENT
+	return _roster.is_client()
 
 
 ## A peer arrived. On a client it is this machine finally learning its OWN id,
@@ -757,196 +556,67 @@ func _is_client() -> bool:
 ##
 ## [b]It still gates START (#736).[/b] Not seating the peer left nothing marking
 ## that this window is even open, so a host who pressed START right here shipped
-## a roster the joiner could not find itself in — see [member _connecting_peers].
+## a roster the joiner could not find itself in — see [method LobbyRoster.add_remote].
 func _on_link_peer_joined(peer_id: int) -> void:
 	if not _is_client():
-		_connecting_peers[peer_id] = true
-		_refresh_start_enabled()
+		_roster.add_remote(peer_id)
 		return
-	_local_peer = _transport.local_peer_id()
-	_refresh_rows()
+	_roster.set_local_peer(_transport.local_peer_id())
 
 
-## The peer cleared the build gate, so now it may have a seat — #554 D2's
-## outstanding half, one step later than it used to be
-## ([method stamp_pending_remote_peer] is still the writer).
-##
-## [b]#741: an announced name goes through [method _on_name_picked], not a
-## direct write.[/b] The joiner's hello is an unvalidated dict same as any
-## other pick — normalized and capped the same way, so a name that arrives at
-## the moment of seating meets the exact rule a name typed a moment later
-## would. Absent or empty leaves the roster's placeholder ("Player 2") alone.
 func _on_link_peer_cleared(peer_id: int, join_prefs: Dictionary = {}) -> void:
 	if _is_client():
 		return
-	# #736's removal path: the wait this peer's connect opened is over the
-	# instant it clears, whether or not there was still a seat to stamp it into.
-	_connecting_peers.erase(peer_id)
-	if stamp_pending_remote_peer(peer_id):
-		var offered := String(join_prefs.get("display_name", ""))
-		if not offered.is_empty():
-			_on_name_picked(offered, _by_peer_id(peer_id))
+	_roster.clear_remote(peer_id, join_prefs)
 	_broadcast_roster()
-	_refresh_start_enabled()
 
 
-func _by_peer_id(peer_id: int) -> Participant:
-	for p in _participants:
-		if p.peer_id == peer_id:
-			return p
-	return null
-
-
-## A peer dropped: its seat goes back to waiting rather than vanishing, because
-## #554 D2's seat was authored for procgen up front and only the identity was
-## ever outstanding.
-##
-## [b]#736's last removal path.[/b] A peer that connects and then goes quiet —
-## never clears, never gets explicitly refused — still ends up here: ENet's own
-## keepalive times the dead socket out, and [method Wire._on_peer_disconnected]
-## turns that into the same [signal NetworkTransport.peer_left] an explicit
-## hangup would. So [member _connecting_peers] cannot grow a permanent entry.
 func _on_link_peer_left(peer_id: int) -> void:
-	if _is_client() or peer_id == _PENDING_PEER_ID:
+	if _is_client():
 		return
-	if _connecting_peers.erase(peer_id):
-		_refresh_start_enabled()
-	var freed := false
-	for p in _participants:
-		if p.kind == Participant.Kind.HUMAN and p.peer_id == peer_id:
-			p.peer_id = _PENDING_PEER_ID
-			freed = true
-	if not freed:
-		return
-	_refresh_rows()
-	_broadcast_roster()
+	if _roster.remove_remote(peer_id):
+		_broadcast_roster()
 
 
-## Host-side: ship what this lobby actually holds. Called after every accepted
-## change, join or drop — and after a REFUSED one too, which is the whole
-## convergence story (#714 acceptance 3): a client that asked for something it
-## may not have is answered with the truth rather than with silence.
 func _broadcast_roster() -> void:
 	if _link != null:
-		_link.send_lobby_roster(ParticipantRoster.of(_participants))
+		_link.send_lobby_roster(_roster.to_participant_roster())
 
 
-## Client-side: the host's answer, adopted wholesale. No merge — the host's
-## roster IS the roster, and a client that kept any part of its own would be the
-## second source of truth this model exists to not have.
 func _adopt_remote_roster(roster: ParticipantRoster) -> void:
-	if roster == null:
-		return
-	_participants = roster.all()
-	_refresh_rows()
+	_roster.adopt(roster)
 
 
-## Host-side: a client asked for a change to one seat. Validated against the same
-## roster rules a local pick meets, applied through the same writers, and
-## answered with the whole roster either way.
+## The host answers with its whole roster whether or not the pick landed — the
+## refusal path is not a message but the absence of a change in the answer.
 func _on_remote_pick(pick: Dictionary) -> void:
-	var target := _by_id(int(pick.get(PICK_ID, 0)))
-	if may_edit_remotely(target, int(pick.get(PICK_PEER, 0))):
-		if pick.has("display_name"):
-			_on_name_picked(String(pick["display_name"]), target)
-		if pick.has("color"):
-			_on_color_picked(pick["color"], target)
-		if pick.has("core_class"):
-			_on_core_class_picked(_loaded(pick["core_class"]) as CoreClass, target)
-		if pick.has("camp"):
-			_on_camp_picked(_loaded(pick["camp"]) as Faction, target)
-	_refresh_rows()
+	_roster.apply_remote_pick(pick)
 	_broadcast_roster()
 
 
-static func _loaded(path: Variant) -> Resource:
-	var as_path := String(path)
-	return null if as_path.is_empty() else load(as_path)
-
-
-func _by_id(id: int) -> Participant:
-	for p in _participants:
-		if p.id == id:
-			return p
-	return null
-
-
-## One seat's changed fields, in [method Participant.to_dict]'s encoding — a
-## [Resource] crosses as its `resource_path` and never as a reference
-## (`.claude/rules/multiplayer-sync.md`). [param from_peer] is the sender's own
-## id, which is what the host checks the seat against.
-static func encode_pick(
-	participant: Participant, from_peer: int, changes: Dictionary
-) -> Dictionary:
-	var pick := {PICK_ID: participant.id, PICK_PEER: from_peer}
-	for key in changes:
-		var value: Variant = changes[key]
-		pick[key] = value.resource_path if value is Resource else value
-	return pick
-
-
-## Client-side: ask for a change rather than making one. There is deliberately no
-## local pre-application (#548 decision 5 at the roster's scope) — the row is
-## repainted from the roster this machine still holds, and moves only when the
-## host's answer lands.
 func _submit_pick(participant: Participant, changes: Dictionary) -> void:
 	if _link != null:
-		_link.send_lobby_pick(encode_pick(participant, _local_peer_id(), changes))
+		_link.send_lobby_pick(LobbyRoster.encode_pick(participant, _local_peer_id(), changes))
 	_refresh_rows()
-
-
-## May the machine DRAWING this lobby change [param p] (#714 acceptance 6)?
-##
-## A human seat is editable iff it is this machine's own — [method
-## Participant.is_local], #554/#562's one home for "which of these is me", with
-## no local/remote flavour written into the payload. An AI seat belongs to
-## whoever authors the roster: everyone except a client, which is exactly
-## [method _offers_ai_opponents]'s rule and is stated as a parameter so the two
 ## cannot drift into two answers.
-static func may_edit(p: Participant, local_peer_id: int, authors_ai: bool) -> bool:
-	if p == null:
-		return false
-	if p.kind == Participant.Kind.AI:
-		return authors_ai
-	return p.is_local(local_peer_id)
-
-
-## The HOST's half of the same question, asked of a pick that arrived over the
-## wire. Deliberately not [method may_edit] with the sender's id: peer `0` means
-## "no link", every offline seat carries it, and a payload claiming it must never
-## match a row. An AI seat is never remotely editable at all — a client does not
-## author the AI, and saying so here is cheaper than trusting it not to try.
-static func may_edit_remotely(p: Participant, from_peer: int) -> bool:
-	if p == null or from_peer == 0 or p.kind == Participant.Kind.AI:
-		return false
-	return p.peer_id == from_peer
-
-
-## --- #643: the per-RUN section ----------------------------------------------
-##
-## Beside the seed field, never on a [ParticipantRow] (#643 decision 1): a
-## per-slot map-size control would imply each participant picks a map.
-##
-## Every control here is gated by [LobbyPolicy] (#597 D5, #615 D2), and a NULL
-## policy renders the section not at all — #643 acceptance 2, which is not a new
 ## rule but the same "null means today's behaviour" the camp half already keeps.
 func _build_run_section() -> void:
-	if _policy == null or not _policy.offers_run_section():
+	if _roster.policy == null or not _roster.policy.offers_run_section():
 		return
 	_run_section = VBoxContainer.new()
 	_run_section.name = "RunSection"
 	_run_section.add_theme_constant_override("separation", 4)
 	content.add_child(_run_section)
 
-	_map_size_row = _add_ladder_row("Map size:", _policy.map_size_options, KNOB_MAP_SIZE)
-	_blocker_row = _add_ladder_row("Blockers:", _policy.blocker_options, KNOB_BLOCKERS)
+	_map_size_row = _add_ladder_row("Map size:", _roster.policy.map_size_options, KNOB_MAP_SIZE)
+	_blocker_row = _add_ladder_row("Blockers:", _roster.policy.blocker_options, KNOB_BLOCKERS)
 	_arrangement_row = _add_ladder_row(
-			"Starters:", _policy.arrangement_options, KNOB_ARRANGEMENT)
-	_victory_row = _add_ladder_row("Victory:", _policy.victory_options, KNOB_VICTORY)
+			"Starters:", _roster.policy.arrangement_options, KNOB_ARRANGEMENT)
+	_victory_row = _add_ladder_row("Victory:", _roster.policy.victory_options, KNOB_VICTORY)
 	_spawn_order_row = _add_ladder_row(
-			"Spawn order:", _policy.spawn_order_options, KNOB_SPAWN_ORDER, _policy.spawn_order_pickable)
+			"Spawn order:", _roster.policy.spawn_order_options, KNOB_SPAWN_ORDER, _roster.policy.spawn_order_pickable)
 
-	if _policy.budget_overridable:
+	if _roster.policy.budget_overridable:
 		_budget_row = _BUDGET_RANGE_ROW.instantiate()
 		add_run_row(_budget_row)
 		var authored := _authored_budget()
@@ -1014,7 +684,7 @@ func _authored_budget() -> Array[int]:
 ## the level falls back to its own `preset` export exactly as on master. That is
 ## the characterization property, not a defensive branch.
 func _run_scenario() -> Scenario:
-	return null if _policy == null else _policy.scenario
+	return null if _roster.policy == null else _roster.policy.scenario
 
 
 func _authored_preset() -> GraphProcgenConfig:
@@ -1024,14 +694,14 @@ func _authored_preset() -> GraphProcgenConfig:
 
 ## A ladder pick. Unlike a camp pick nothing else has to be refreshed — these
 ## are per-RUN, so no sibling row's options change — but the pick is recorded in
-## [member _picked_options] rather than left in the widget, which is what makes
+## [member _run_picks] rather than left in the widget, which is what makes
 ## it the source of truth [method build_run_config] reads.
 func _on_option_picked(index: int, knob: StringName) -> void:
-	_picked_options[knob] = index
+	_run_picks[knob] = index
 
 
 ## Make a ladder pick from code, exactly as a host clicking the row would
-## (#754): the widget moves AND [member _picked_options] records it, so the
+## (#754): the widget moves AND [member _run_picks] records it, so the
 ## pick reaches [method build_run_config] as a real override rather than a
 ## dropdown that merely looks changed.
 ##
@@ -1080,11 +750,11 @@ func _ladder_row(knob: StringName) -> OptionChoiceRow:
 ## rather than two, because they are one control and one decision: a run tuned
 ## to "go HAM" moved both ends.
 func _on_budget_range_changed(base_min: int, base_max: int) -> void:
-	_picked_options[KNOB_BUDGET] = [base_min, base_max]
+	_run_picks[KNOB_BUDGET] = [base_min, base_max]
 
 
 ## Every [ScenarioOverride] the host's run-level picks amount to (#643
-## acceptance 1/4). Built fresh from [member _picked_options] on each call, so
+## acceptance 1/4). Built fresh from [member _run_picks] on each call, so
 ## an untouched knob contributes NOTHING — #643 acceptance 5 is "no override is
 ## written", not "the value happens to match the authored one", and only an
 ## absent entry can satisfy that.
@@ -1101,102 +771,52 @@ func _compose_overrides() -> Array[ScenarioOverride]:
 	_append_ladder_overrides(out, _policy_ladder(KNOB_ARRANGEMENT), KNOB_ARRANGEMENT)
 	_append_ladder_overrides(out, _policy_ladder(KNOB_VICTORY), KNOB_VICTORY)
 	_append_ladder_overrides(out, _policy_ladder(KNOB_SPAWN_ORDER), KNOB_SPAWN_ORDER)
-	if _picked_options.has(KNOB_BUDGET):
-		var pair: Array = _picked_options[KNOB_BUDGET]
+	if _run_picks.has(KNOB_BUDGET):
+		var pair: Array = _run_picks[KNOB_BUDGET]
 		out.append(_leaf("preset:content:budget_policy:base_min", int(pair[0])))
 		out.append(_leaf("preset:content:budget_policy:base_max", int(pair[1])))
 	return out
 
 
 func _policy_ladder(knob: StringName) -> LobbyOptionSet:
-	if _policy == null:
+	if _roster.policy == null:
 		return null
 	match knob:
 		KNOB_MAP_SIZE:
-			return _policy.map_size_options
+			return _roster.policy.map_size_options
 		KNOB_ARRANGEMENT:
-			return _policy.arrangement_options
+			return _roster.policy.arrangement_options
 		KNOB_VICTORY:
-			return _policy.victory_options
+			return _roster.policy.victory_options
 		KNOB_SPAWN_ORDER:
-			return _policy.spawn_order_options
+			return _roster.policy.spawn_order_options
 		_:
-			return _policy.blocker_options
+			return _roster.policy.blocker_options
 
 
 func _append_ladder_overrides(
 	out: Array[ScenarioOverride], option_set: LobbyOptionSet, knob: StringName
 ) -> void:
-	if option_set == null or not _picked_options.has(knob):
+	if option_set == null or not _run_picks.has(knob):
 		return
-	for patch in option_set.patches_at(int(_picked_options[knob])):
+	for patch in option_set.patches_at(int(_run_picks[knob])):
 		out.append(_leaf(patch.target, patch.value))
 
 
-static func _leaf(target: String, value: Variant) -> ScenarioOverride:
+func _leaf(target: String, value: Variant) -> ScenarioOverride:
 	var o := ScenarioOverride.new()
 	o.target = target
 	o.value = value
 	return o
 
-
 func _offers_ai_opponents() -> bool:
-	# Hot-seat coop and versus alike want the control; a host offers it because
-	# it is the host's roster everybody plays. A joining client's own roster is
-	# replaced wholesale by the host's [method GameSession.apply_received], so
-	# a count it chose here would be a lie on screen.
-	return not _is_client()
+	return _roster.offers_ai_opponents()
 
 
-
-
-func _rebuild_participants() -> void:
-	# A rebuild must not UN-SEAT a peer that already joined. [method
-	# build_participants] is born with every remote seat back on
-	# [constant _PENDING_PEER_ID], and until 2026-09-06 nothing carried the
-	# stamped id across — so a host that touched the AI-count slider after a
-	# friend had joined pressed START on a roster that no longer named them.
-	# The joiner's level then found no seat with its own id, and the host's
-	# level refused it as a drop-in ("the run has already started") the moment
-	# it adopted the link: a black loading screen on the joiner, for a slider
-	# the host moved. Same shape for the join-time [member _connecting_peers]
-	# wait: that map is keyed by peer, not by seat, so it survives untouched.
-	var seated_peers: Dictionary = {}
-	for p in _participants:
-		if p != null and p.kind == Participant.Kind.HUMAN and p.peer_id != _PENDING_PEER_ID:
-			seated_peers[p.id] = p.peer_id
-	_participants = build_participants(_mode, _network, _ai_opponent_count())
-	# Changing the AI count rebuilds the roster from scratch, so re-apply what
-	# the player already chose — a slot's colour must not silently revert to its
-	# palette default because a DIFFERENT slot was added.
-	for p in _participants:
-		if _picked_colors.has(p.id):
-			p.color = _picked_colors[p.id]
-		if _picked_camps.has(p.id):
-			p.camp = _picked_camps[p.id]
-		if _picked_names.has(p.id):
-			p.display_name = _picked_names[p.id]
-		if p.kind == Participant.Kind.HUMAN and seated_peers.has(p.id):
-			p.peer_id = seated_peers[p.id]
-	# #841: cores are resolved together, not folded into the loop above like
-	# colour/camp/name — the preset's fallback-to-kind-default path has to see
-	# the WHOLE roster through [method assign_default_cores], not one
-	# participant reapplying a stale pick.
-	apply_core_preset(_participants, _picked_cores, _core_preset)
+## The roster changed under this view (a pick, a rebuild, a seat stamped or
+## freed, the START gate moving): repaint every row and the button.
+func _on_roster_changed() -> void:
 	_refresh_rows()
-	# And the joiner sees the new shape: a rebuild used to reach it only inside
-	# START's run setup, so its lobby drew a roster the host had already
-	# replaced. Host-only — a client's own roster is a throwaway placeholder
-	# ([method _offers_ai_opponents]), and the host would ADOPT anything it sent.
-	if not _is_client():
-		_broadcast_roster()
-
-
-func _ai_opponent_count() -> int:
-	if _ai_count_row == null:
-		return DEFAULT_AI_OPPONENTS if _offers_ai_opponents() else 0
-	return int(_ai_count_row.value)
-
 
 func _refresh_rows() -> void:
 	if _rows_container == null:
@@ -1209,7 +829,7 @@ func _refresh_rows() -> void:
 		# `_commit_name` guard).
 		child.queue_free()
 		_rows_container.remove_child(child)
-	for p in _participants:
+	for p in _roster.participants:
 		_add_participant_row(p)
 	_refresh_start_enabled()
 
@@ -1218,32 +838,33 @@ func _add_participant_row(participant: Participant) -> void:
 	var row: ParticipantRow = _PARTICIPANT_ROW.instantiate()
 	_rows_container.add_child(row)
 	row.configure(participant, _local_peer_id())
-	row.set_color_choices(_PALETTE, taken_colors(_participants, participant.id))
-	row.set_core_choices(CoreClass.pickable_for(slot_bit_for(participant.kind)))
+	row.set_color_choices(_PALETTE, LobbyRoster.taken_colors(_roster.participants, participant.id))
+	row.set_core_choices(CoreClass.pickable_for(LobbyRoster.slot_bit_for(participant.kind)))
 	# Only a policied lobby ever asks for a camp control — a null policy leaves
 	# `%Camp` untouched and hidden, which is the pre-#615 row (#615 D3).
-	if _policy != null:
+	if _roster.policy != null:
 		row.set_camp_choices(
-				_policy.camp_choices(), _policy.may_pick_camp(participant.kind))
-	row.set_editable(may_edit(participant, _local_peer_id(), _offers_ai_opponents()))
-	# #841: an AI row holding an explicit pick shows the un-override control.
-	# Never inferred by comparing the row's core to the preset (acceptance 7 —
-	# a pick that happens to equal the preset is still tracked as an override)
-	# and never shown on a human row, which the preset never touches at all.
-	row.set_core_overridden(
-			participant.kind == Participant.Kind.AI and _picked_cores.has(participant.id))
+				_roster.policy.camp_choices(), _roster.policy.may_pick_camp(participant.kind))
+	row.set_editable(_roster.may_edit_locally(participant))
+	# #841: an AI row holding an explicit pick shows the un-override control —
+	# provenance the roster tracks, never a value comparison against the preset.
+	row.set_core_overridden(_roster.is_core_overridden(participant))
 	# Through the row-signal handlers rather than straight onto the writers: on a
-	# CLIENT a pick is a request, and only the handler knows that. The writers
-	# below stay the single place a roster is actually changed, local or remote.
+	# CLIENT a pick is a request, and only the handler knows that.
 	row.color_picked.connect(_on_row_color_picked.bind(participant))
 	row.core_class_picked.connect(_on_row_core_class_picked.bind(participant))
 	row.core_reset_requested.connect(_on_row_core_reset.bind(participant))
 	row.camp_picked.connect(_on_row_camp_picked.bind(participant))
 	row.name_committed.connect(_on_row_name_committed.bind(participant))
-
-
-## A row asked for a colour. Local machines write it; a client sends it up
 ## (#714) and waits for the host's roster to say what happened.
+## --- row signals: ask on a CLIENT, write on everything else ------------------
+##
+## On a client a pick is a REQUEST that crosses the wire and comes back as the
+## host's roster; everywhere else it goes straight to the roster's writer and
+## the host answers with the result. The roster's [signal LobbyRoster.changed]
+## repaints the rows; the broadcast is this screen's, because only it holds
+## the link.
+
 func _on_row_color_picked(color: Color, participant: Participant) -> void:
 	if _is_client():
 		_submit_pick(participant, {"color": color})
@@ -1260,25 +881,13 @@ func _on_row_core_class_picked(core: CoreClass, participant: Participant) -> voi
 	_broadcast_roster()
 
 
-## An AI row's reset control (#841). Reset-only, per the owner's 2026-09-10
-## call — the row cannot be re-pinned in one click, and this affordance only
-## ever clears, never sets. AI seats are never remotely editable at all
-## ([method may_edit_remotely]), so a client can never reach this — no
-## `_is_client()` branch is needed the way the pickers above need one.
 func _on_row_core_reset(participant: Participant) -> void:
-	_picked_cores.erase(participant.id)
-	apply_core_preset(_participants, _picked_cores, _core_preset)
-	_refresh_rows()
+	_roster.reset_core(participant)
 	_broadcast_roster()
 
 
-## The AI core preset row changed (#841). Local-only, same as the AI-count
-## row beside it: a client offers neither control ([method
-## _offers_ai_opponents]), so this never fires there.
 func _on_core_preset_changed(core: CoreClass) -> void:
-	_core_preset = core
-	apply_core_preset(_participants, _picked_cores, _core_preset)
-	_refresh_rows()
+	_roster.set_core_preset(core)
 	_broadcast_roster()
 
 
@@ -1290,10 +899,6 @@ func _on_row_camp_picked(camp: Faction, participant: Participant) -> void:
 	_broadcast_roster()
 
 
-## A row committed a name. The row already trimmed and capped it (its field's
-## `max_length` is [constant MAX_NAME_LENGTH] and [method
-## ParticipantRow._commit_name] normalizes before emitting), so what a client
-## sends up is what a local host would have written anyway.
 func _on_row_name_committed(text: String, participant: Participant) -> void:
 	_maybe_save_default_name(participant, text)
 	if _is_client():
@@ -1303,293 +908,44 @@ func _on_row_name_committed(text: String, participant: Participant) -> void:
 	_broadcast_roster()
 
 
-## Remembers a name typed for what is unambiguously "my own" seat, so the next
-## lobby [method build_participants] seeds with it (#741). Skipped for
-## hot-seat's SECOND slot only: two people share one machine there, and which
-## of them owns "the" saved default is undefined. Every other case — single,
-## hosting, joining — has exactly one local human, so [param participant] IS
-## that human whenever this fires at all (a row this screen did not wire as
-## editable never emits [signal ParticipantRow.name_committed] in the first
-## place).
+## #741: a name typed into MY seat becomes the saved default. Hot-seat's second
+## slot is a guest on this machine and never overwrites it.
 func _maybe_save_default_name(participant: Participant, text: String) -> void:
-	if _mode == RunConfig.Mode.COOP_HOTSEAT and participant.id != 1:
+	if _roster.mode == RunConfig.Mode.COOP_HOTSEAT and participant.id != 1:
 		return
-	var wanted := normalize_name(text)
+	var wanted := LobbyRoster.normalize_name(text)
 	if wanted.is_empty() or wanted == Settings.current.player_name:
 		return
 	Settings.current.player_name = wanted
 	Settings.save_settings()
 
 
-## A slot chose a colour. The lobby writes it, not the row — this screen owns
-## the roster — and then rebuilds every row so the newly-taken colour greys out
-## in its siblings' dropdowns and the freed one comes back (#616 acceptance 4).
-##
-## [b]The uniqueness rule is enforced HERE since #714[/b], not only by the greyed
-## chips [method taken_colors] produces for the picker. Both readings ask
-## [method taken_colors], so there is still exactly one rule — but a pick that
-## arrived over the wire never saw a dropdown, and a client that asks for a taken
-## colour has to meet the same refusal a local player physically cannot express.
-## Locally this changes nothing: the chip it would need is already disabled.
+## The writers, local or remote: one door each onto the roster.
 func _on_color_picked(color: Color, participant: Participant) -> void:
-	if color == participant.color:
-		return
-	if taken_colors(_participants, participant.id).has(color):
-		return
-	participant.color = color
-	_picked_colors[participant.id] = color
-	_refresh_rows()
+	_roster.pick_color(participant, color)
 
 
-## A slot chose a core class. Unlike colour, classes are NOT unique across slots
-## — two players may both play Ninja — so nothing else has to be refreshed; the
-## row repaints its own sigil.
 func _on_core_class_picked(core: CoreClass, participant: Participant) -> void:
-	participant.core_class = core
-	_picked_cores[participant.id] = core
+	_roster.pick_core(participant, core)
 
 
-## A slot chose a camp (#615). Camps are shared, not unique like colours, so
-## nothing has to be greyed out elsewhere — but the whole roster is refreshed
-## anyway, because the policy's START veto is a fact about the roster and the
-## button has to follow it.
-##
-## [b]This does not touch the mode[/b] (#615 D6): [method resolve_mode] still
-## derives it from the roster at START, counting humans only.
 func _on_camp_picked(camp: Faction, participant: Participant) -> void:
-	if camp == participant.camp:
-		return
-	participant.camp = camp
-	_picked_camps[participant.id] = camp
-	_refresh_rows()
+	_roster.pick_camp(participant, camp)
 
 
-## A slot typed a name. Unlike colour, names are not unique across slots — two
-## players may both be "Bob" — so nothing else has to be refreshed; the row
-## repaints its own field. [param name] is normalized here too, not just at the
-## row: a pick that arrived over the wire never saw the field's `max_length`
-## and must meet the same rule a local typist physically cannot exceed.
 func _on_name_picked(name: String, participant: Participant) -> void:
-	var wanted := normalize_name(name)
-	if wanted.is_empty() or wanted == participant.display_name:
-		return
-	participant.display_name = wanted
-	_picked_names[participant.id] = wanted
+	_roster.pick_name(participant, name)
 
 
-## Trim and cap a slot's name to what [constant MAX_NAME_LENGTH] allows — the
-## one rule, met at both ends that can produce one: the field cannot physically
-## type past its own `max_length`, and this is what a remote pick meets instead.
-static func normalize_name(text: String) -> String:
-	return text.strip_edges().left(MAX_NAME_LENGTH)
-
-
-## This machine's own id, as far as a lobby can know it: a client's real id is
-## minted by the server on connect, so the placeholder it authored for itself is
-## what its own rows carry until then — and since #714 the moment it stops being
-## a placeholder is [signal NetworkTransport.peer_joined], while the menu is
-## still up, which is what lets a joiner's own row become editable in the lobby
-## rather than only in the level.
 func _local_peer_id() -> int:
-	if _network == null or not _network.is_online():
-		return 0
-	if _local_peer != 0:
-		return _local_peer
-	return _HOST_PEER_ID if _network.role == NetworkTransport.Role.HOST else _PENDING_PEER_ID
-
-
-
-
-## The roster a lobby of this shape authors. Static and pure so the seat/mode
+	return _roster.local_peer_id()
 ## wiring is testable without instancing a menu (`test_lobby_roster.gd`).
-static func build_participants(
-	mode: RunConfig.Mode, network: NetworkConfig, ai_opponents: int
-) -> Array[Participant]:
-	var result: Array[Participant] = []
-	var online := network != null and network.is_online()
-	if online:
-		# The local human is peer 1 when hosting, and gets the host's id back
-		# over the wire when joining — a client's own roster is discarded on
-		# receipt, so what it puts here only has to be a coherent placeholder.
-		var local_peer := _HOST_PEER_ID if network.role == NetworkTransport.Role.HOST else _PENDING_PEER_ID
-		# Seeded only when HOSTING — a CLIENT's own roster here is a throwaway
-		# placeholder [method LobbyScreen._adopt_remote_roster] discards the
-		# instant the host's broadcast lands, so a saved name would flash and
-		# then silently revert to "Player 2", reading as a bug rather than a
-		# skipped step.
-		var seat1_name := _default_name("Player 1") if network.role == NetworkTransport.Role.HOST else "Player 1"
-		result.append(_make_participant(1, seat1_name, _CAMP_1, Participant.Kind.HUMAN, local_peer))
-		var remote_peer := _PENDING_PEER_ID if network.role == NetworkTransport.Role.HOST else _HOST_PEER_ID
-		result.append(_make_participant(2, "Player 2", _CAMP_2, Participant.Kind.HUMAN, remote_peer))
-	elif mode == RunConfig.Mode.COOP_HOTSEAT:
-		result.append(_make_participant(1, _default_name("Player 1"), _CAMP_1))
-		result.append(_make_participant(2, "Player 2", _CAMP_1))
-	else:
-		result.append(_make_participant(1, _default_name("Player 1"), _PLAYER_FACTION))
-	var next_id := result.size() + 1
-	for i in maxi(0, ai_opponents):
-		result.append(_make_participant(
-				next_id + i, "AI %d" % (i + 1), _NPC_FACTION, Participant.Kind.AI))
-	assign_default_colors(result, _PALETTE)
-	assign_default_cores(result)
-	return result
-
-
-## Which [member CoreClass.pickable_in] bit a slot of this kind carries. Lives
-## here rather than on [CoreClass] because [CoreClass] deliberately does not
-## know [Participant] exists — see the note on `pickable_in`.
-static func slot_bit_for(kind: Participant.Kind) -> int:
-	return CoreClass.PICKABLE_AI if kind == Participant.Kind.AI else CoreClass.PICKABLE_PLAYER
-
-
-## Seat every slot on its default class (#618 D5). Every slot gets one, AI
-## included — AI slots are pickable, same as a human's (owner, 2026-08-26).
-## #840, 2026-09-10: the AI default flipped from the WIS-heavy "Wise Cheater"
-## core to `_DEFAULT_PLAYER_CORE` itself — AI no longer starts with a silent
-## stat head start over the human default; both sides may still opt INTO the
-## WIS-heavy core through the same per-slot picker.
-static func assign_default_cores(participants_in: Array[Participant]) -> void:
-	for p in participants_in:
-		if p.core_class == null:
-			p.core_class = _DEFAULT_AI_CORE if p.kind == Participant.Kind.AI else _DEFAULT_PLAYER_CORE
-
-
-## The core-preset resolution rule (#841): a participant's core is its
-## [param picked_cores] entry if it has one, else [param preset] — AI slots
-## only, humans are never templated — else the kind default [method
-## assign_default_cores] alone would pick.
-##
-## [b]An explicit pick always wins, even one that equals the preset's own
-## value.[/b] [param picked_cores] carries provenance as its own state (a
-## [Participant.id] is a key in it or it is not); nothing here ever compares
-## a resolved core back against [param preset] to guess whether a pick was
-## "real" (#841 acceptance 7 — value coincidence is never provenance).
-##
-## [b][param preset] IS the sentinel, as `null`.[/b] With no preset armed,
-## every AI slot with no pick falls through to [method assign_default_cores]
-## exactly as it would with this function never having been called at all
-## (#841 acceptance 6) — the two-line body below only ever nulls a slot's
-## class when neither an explicit pick nor a live preset claims it, and
-## [method assign_default_cores] is what fills that null back in.
-static func apply_core_preset(
-	participants_in: Array[Participant], picked_cores: Dictionary, preset: CoreClass
-) -> void:
-	for p in participants_in:
-		if picked_cores.has(p.id):
-			p.core_class = picked_cores[p.id]
-		elif preset != null and p.kind == Participant.Kind.AI:
-			p.core_class = preset
-		else:
-			p.core_class = null
-	assign_default_cores(participants_in)
-
-
-## Hand every slot a distinct colour off [param palette], in roster order
-## (#616 D4/D6). Humans and AI alike: the AI slots used to share
-## `_NPC_FACTION.color`, which rendered four opponents as four identical greys
-## the moment #563 made the spawn site read the roster.
-##
-## Round-robin, so a roster longer than the palette repeats rather than crashing
-## — but the max roster is 14 (2 humans + [constant MAX_AI_OPPONENTS]) against
-## twenty colours, so in practice the wrap is unreachable and every slot differs.
-static func assign_default_colors(
-	participants_in: Array[Participant], palette: PlayerPalette
-) -> void:
-	if palette == null:
-		return
-	for i in participants_in.size():
-		participants_in[i].color = palette.default_for(i)
-
-
-## The colours other slots are already holding — what a row must grey out so no
-## two heroes share one (#616 D6). [param except_id] is the asking slot, which
-## must still be offered the colour it holds or it could never re-select it.
-static func taken_colors(
-	participants_in: Array[Participant], except_id: int
-) -> Array[Color]:
-	var out: Array[Color] = []
-	for p in participants_in:
-		if p.id != except_id and not out.has(p.color):
-			out.append(p.color)
-	return out
-
-
-## This machine's saved name ([member GameSettings.player_name]), or [param
-## fallback] when nothing is saved. Read once, at roster-build time — it seeds
-## a slot's starting text, never overrides a later pick.
-static func _default_name(fallback: String) -> String:
-	var saved := Settings.current.player_name
-	return saved if not saved.is_empty() else fallback
-
-
-static func _make_participant(
-	id: int,
-	display_name: String,
-	camp: Faction,
-	kind: Participant.Kind = Participant.Kind.HUMAN,
-	peer_id: int = 0
-) -> Participant:
-	var p := Participant.new()
-	p.id = id
-	p.display_name = display_name
-	p.kind = kind
-	p.camp = camp
-	p.peer_id = peer_id
-	return p
-
-
-## #554 D3: the mode is DERIVED, at START, from the roster this lobby ended up
-## with — never from the button that opened it. VERSUS when the humans span more
-## than one camp, COOP_HOTSEAT when they share one, and SINGLE when there is
-## only one of them.
-##
-## [b]Presentation only.[/b] `docs/domain/seat-policy.md` §"One axis" is explicit
-## that [enum RunConfig.Mode] exists "for menu presentation and defaults" and
-## that deriving seating from it would be a second source of truth against the
-## roster. Nothing here feeds [SeatPolicy]; that reads the roster directly.
-static func resolve_mode(participants_in: Array[Participant]) -> RunConfig.Mode:
-	var human_camps: Array[Faction] = []
-	var humans := 0
-	for p in participants_in:
-		if p.kind == Participant.Kind.AI:
-			continue
-		humans += 1
-		if p.camp != null and not human_camps.has(p.camp):
-			human_camps.append(p.camp)
-	if human_camps.size() > 1:
-		return RunConfig.Mode.VERSUS
-	if humans > 1:
-		return RunConfig.Mode.COOP_HOTSEAT
-	return RunConfig.Mode.SINGLE
-
-
 func build_run_config() -> RunConfig:
-	var cfg := RunConfig.new()
-	cfg.mode = resolve_mode(_participants)
-	cfg.seed = _parse_seed(_seed_edit.text if _seed_edit != null else "")
-	cfg.participants = _participants
-	# #643: the run's Scenario names the preset every override merges ONTO, so
-	# the two must travel together — overrides with no scenario would merge onto
-	# nothing and the picks would vanish silently, which is the exact failure
-	# mode #642 D4 names for a different field.
-	cfg.scenario = _run_scenario()
-	cfg.overrides = _compose_overrides()
-	return cfg
+	return _roster.to_run_config(
+			LobbyRoster.parse_seed(_seed_edit.text if _seed_edit != null else ""),
+			_run_scenario(), _compose_overrides())
 
 
-## Non-numeric/empty text means seed = 0 — [RunConfig]'s documented legal
-## authoring value for "randomise me".
-static func _parse_seed(text: String) -> int:
-	if text.is_empty() or not text.is_valid_int():
-		return 0
-	return text.to_int()
-
-
-## Keeps the seed field digits-only as the host types, rather than accepting
-## anything and letting [method _parse_seed] quietly discard it as "randomise
-## me" — a typo would otherwise look accepted and silently reseed the run.
-## Setting [member LineEdit.text] from code does not re-emit `text_changed` in
-## Godot 4, so this needs no reentrancy guard.
 func _on_seed_text_changed(new_text: String) -> void:
 	var filtered := ""
 	for c in new_text:

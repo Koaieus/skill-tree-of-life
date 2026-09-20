@@ -1,10 +1,9 @@
 extends GutTest
 
-## #456 LAN milestone scaffolding — [LobbyScreen] builds its participant rows
-## and [RunConfig] from a configured mode instead of one hardcoded "Player 1"
-## row. Covers the two OFFLINE shapes (single-player, 2-human hot-seat) and
-## confirms the lobby's output is actually consumable by the level seam
-## ([method GameRoot.apply_roster]), same style as test_game_root_roster.gd.
+## [LobbyScreen] as a VIEW over [LobbyRoster] (#1002): the rows, the pickers,
+## the run-section ladders and the status copy. Every domain rule (roster
+## shape, colour separation, rebuild survival, preset templating, vetoes) is
+## `test/unit/session/test_lobby_roster.gd`, against the roster alone.
 ##
 ## The networked shapes, the derived mode and the seat wiring are #554's
 ## `test/unit/session/test_lobby_versus_roster.gd`. Since #554 every lobby also
@@ -55,19 +54,6 @@ func _humans(participants: Array[Participant]) -> Array[Participant]:
 	return out
 
 
-func test_multiplayer_lobby_run_config_has_two_allied_local_humans() -> void:
-	var lobby := _make_lobby(RunConfig.Mode.COOP_HOTSEAT)
-	var run_config: RunConfig = lobby.build_run_config()
-
-	assert_eq(run_config.mode, RunConfig.Mode.COOP_HOTSEAT,
-			"two humans on one camp is coop, however many AI join them")
-	var humans := _humans(run_config.participants)
-	assert_eq(humans.size(), 2)
-	for p in humans:
-		assert_eq(p.kind, Participant.Kind.HUMAN)
-		assert_eq(p.camp, _CAMP_1)
-
-
 func test_multiplayer_participants_are_allied_and_human_controlled_via_apply_roster() -> void:
 	var lobby := _make_lobby(RunConfig.Mode.COOP_HOTSEAT)
 	var run_config: RunConfig = lobby.build_run_config()
@@ -92,86 +78,21 @@ func test_multiplayer_participants_are_allied_and_human_controlled_via_apply_ros
 	assert_eq(e2.attitude_to(e1), Entity.Attitude.ALLIED)
 
 
-func test_single_player_lobby_yields_one_participant_in_single_mode() -> void:
-	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
-	var run_config: RunConfig = lobby.build_run_config()
-
-	assert_eq(run_config.mode, RunConfig.Mode.SINGLE)
-	var humans := _humans(run_config.participants)
-	assert_eq(humans.size(), 1)
-	assert_eq(humans[0].kind, Participant.Kind.HUMAN)
-	assert_eq(humans[0].camp, _PLAYER_FACTION)
-
-
-func test_seed_parsing_numeric_string_becomes_int() -> void:
-	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
-	lobby._seed_edit.text = "12345"
-
-	assert_eq(lobby.build_run_config().seed, 12345)
-
-
-func test_seed_parsing_empty_or_non_numeric_becomes_zero() -> void:
-	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
-
-	lobby._seed_edit.text = ""
-	assert_eq(lobby.build_run_config().seed, 0, "empty text randomises")
-
-	lobby._seed_edit.text = "not-a-number"
-	assert_eq(lobby.build_run_config().seed, 0, "non-numeric text randomises")
-
-
 # --- #616: the lobby owns hero colour --------------------------------------
 
 const _PALETTE := preload("res://ui/theme/player_palette.tres")
-const _XP := preload("res://stats_system/defs/xp.tres")
-const _WISDOM := preload("res://stats_system/defs/wisdom.tres")
 const _ROW_SCENE := preload("res://ui/frontmatter/panels/participant_row.tscn")
 
 
-func test_player_palette_offers_sixteen_colours() -> void:
-	assert_eq(_PALETTE.size(), 16,
-			"#616/2026-09-02 restyle: 8 canonical brights + 8 secondary, still headroom over a 6-slot roster")
-
-
-func test_player_palette_excludes_pure_white() -> void:
-	# LOAD-BEARING, not tidiness. `Participant.color` defaults to Color.WHITE
-	# and carries no separate "unset" flag, so #563's
-	# ProcgenPlaySandbox.resolve_spawn_color reads pure white as the sentinel
-	# for "this participant chose nothing" and falls back to the level's
-	# player_color / enemy_colors exports. A slot that could pick pure white
-	# would silently spawn in the level default instead of the player's choice.
-	assert_false(_PALETTE.has_color(Color.WHITE),
-			"pure white is resolve_spawn_color's 'no colour chosen' sentinel")
-
-
-func test_player_palette_excludes_the_reserved_golds() -> void:
-	# `.claude/rules/ui-palette.md`: gold means reward, never identity.
-	assert_false(_PALETTE.has_color(_XP.tint_color), "xp gold is reserved")
-	assert_false(_PALETTE.has_color(_WISDOM.tint_color), "WIS gold is reserved")
-
-
-func test_every_slot_of_a_full_roster_gets_a_distinct_colour() -> void:
-	# 2 humans + 4 AI is the widest roster the lobby can author.
-	var parts := LobbyScreen.build_participants(
-			RunConfig.Mode.COOP_HOTSEAT, null, 4)
-	assert_eq(parts.size(), 6, "two humans plus four AI opponents")
-	var seen: Array[Color] = []
-	for p in parts:
-		assert_false(seen.has(p.color),
-				"%s reuses a colour already taken" % p.display_name)
-		assert_true(_PALETTE.has_color(p.color), "and it came from the palette")
-		seen.append(p.color)
-
-
 func test_picking_a_colour_disables_it_in_another_slots_dropdown() -> void:
-	var parts := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 1)
+	var parts := LobbyRoster.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 1)
 	var mine: Participant = parts[0]
 	var theirs: Participant = parts[1]
 
 	var row: ParticipantRow = _ROW_SCENE.instantiate()
 	add_child_autofree(row)
 	row.configure(mine, 0)
-	row.set_color_choices(_PALETTE, LobbyScreen.taken_colors(parts, mine.id))
+	row.set_color_choices(_PALETTE, LobbyRoster.taken_colors(parts, mine.id))
 
 	var pick: OptionButton = row.get_node("%ColorPick")
 	assert_eq(pick.item_count, _PALETTE.size(), "every palette colour is listed")
@@ -194,70 +115,6 @@ func test_picking_a_colour_disables_it_in_another_slots_dropdown() -> void:
 ## `.claude/rules/multiplayer-sync.md`'s ban on transcendentals in
 ## gameplay/stat formulas doesn't apply: this `pow()` never leaves this test
 ## file.
-static func _oklab(c: Color) -> Vector3:
-	var lin := c.srgb_to_linear()
-	var l := 0.4122214708 * lin.r + 0.5363325363 * lin.g + 0.0514459929 * lin.b
-	var m := 0.2119034982 * lin.r + 0.6806995451 * lin.g + 0.1073969566 * lin.b
-	var s := 0.0883024619 * lin.r + 0.2817188376 * lin.g + 0.6299787005 * lin.b
-	var l_ := pow(maxf(l, 0.0), 1.0 / 3.0)
-	var m_ := pow(maxf(m, 0.0), 1.0 / 3.0)
-	var s_ := pow(maxf(s, 0.0), 1.0 / 3.0)
-	return Vector3(
-			0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
-			1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
-			0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_)
-
-
-static func _delta_e_ok(a: Color, b: Color) -> float:
-	return (_oklab(a) - _oklab(b)).length()
-
-
-func _assert_pairwise_separated(swatches: Array[Color], minimum: float, label: String) -> void:
-	for i in swatches.size():
-		for j in range(i + 1, swatches.size()):
-			var d := _delta_e_ok(swatches[i], swatches[j])
-			assert_gte(d, minimum,
-					"%s: slot %d vs %d only %.4f apart in OKLab" % [label, i, j, d])
-
-
-func test_a_three_slot_rosters_default_colours_are_pairwise_separated() -> void:
-	# The reported symptom: the first 3 slots landed within 31 degrees of hue.
-	var swatches: Array[Color] = []
-	for i in 3:
-		swatches.append(_PALETTE.default_for(i))
-	_assert_pairwise_separated(swatches, 0.14, "3-slot roster")
-
-
-func test_a_six_slot_rosters_default_colours_are_pairwise_separated() -> void:
-	# 2 humans + 4 AI — the widest roster the lobby can author (#616).
-	var swatches: Array[Color] = []
-	for i in 6:
-		swatches.append(_PALETTE.default_for(i))
-	_assert_pairwise_separated(swatches, 0.14, "6-slot roster")
-
-
-func test_default_for_still_wraps_past_the_palette_size() -> void:
-	for i in _PALETTE.size():
-		assert_eq(_PALETTE.default_for(i), _PALETTE.default_for(i + _PALETTE.size()),
-				"the wrap contract holds under the plain array walk too")
-
-
-func test_a_pick_moves_the_colour_and_frees_the_old_one() -> void:
-	var lobby := _make_lobby(RunConfig.Mode.COOP_HOTSEAT)
-	var parts := lobby.participants()
-	var mine: Participant = parts[0]
-	var before := mine.color
-	var free_color: Color = _PALETTE.colors[_PALETTE.size() - 1]
-	assert_ne(before, free_color, "picking something nobody holds")
-
-	lobby._on_color_picked(free_color, mine)
-
-	assert_eq(mine.color, free_color, "the lobby wrote the roster, not the row")
-	assert_false(LobbyScreen.taken_colors(parts, mine.id).has(free_color))
-	var others := LobbyScreen.taken_colors(parts, mine.id)
-	assert_false(others.has(before), "the colour it vacated is offerable again")
-
-
 # --- #618: the slot picks a core class, the sigil rides along --------------
 
 const _NINJA := preload("res://entity/core/ninja_core.tres")
@@ -269,12 +126,12 @@ func _row_for(p: Participant) -> ParticipantRow:
 	var row: ParticipantRow = _ROW_SCENE.instantiate()
 	add_child_autofree(row)
 	row.configure(p, 0)
-	row.set_core_choices(CoreClass.pickable_for(LobbyScreen.slot_bit_for(p.kind)))
+	row.set_core_choices(CoreClass.pickable_for(LobbyRoster.slot_bit_for(p.kind)))
 	return row
 
 
 func test_the_row_renders_the_sigil_of_the_selected_class() -> void:
-	var parts := LobbyScreen.build_participants(RunConfig.Mode.SINGLE, null, 0)
+	var parts := LobbyRoster.build_participants(RunConfig.Mode.SINGLE, null, 0)
 	var human: Participant = parts[0]
 	var row := _row_for(human)
 
@@ -314,7 +171,7 @@ func test_every_core_is_offered_to_both_slot_kinds() -> void:
 	# #840: any core is pickable by any slot — the old asymmetry (enemy core
 	# AI-only, Balanced player-only) is gone. Every authored core now carries
 	# `pickable_in = 3`, so both pickers offer the identical roster.
-	var parts := LobbyScreen.build_participants(RunConfig.Mode.SINGLE, null, 1)
+	var parts := LobbyRoster.build_participants(RunConfig.Mode.SINGLE, null, 1)
 	var human_row := _row_for(parts[0])
 	var ai_row := _row_for(parts[1])
 
@@ -350,14 +207,6 @@ func test_picking_a_class_writes_it_onto_the_roster() -> void:
 ## is deliberately a property of the modifiers array, not the resource's
 ## identity, so the assert survives the owner re-authoring which core is the
 ## AI default (#840 comment, 2026-09-10 correction).
-func _summed_stat_contribution(core: CoreClass, stat_id: StringName) -> float:
-	var total := 0.0
-	for m in core.modifiers:
-		if m.stat_id == stat_id:
-			total += m.value
-	return total
-
-
 func test_balanced_core_is_pickable_by_ai_slots() -> void:
 	assert_true(CoreClass.pickable_for(CoreClass.PICKABLE_AI).has(_BALANCED),
 			"an AI slot can be a literal mirror of the player")
@@ -368,31 +217,9 @@ func test_basic_enemy_core_is_pickable_by_player_slots() -> void:
 			"a human who wants the WIS head start can opt into it")
 
 
-func test_default_cores_give_ai_and_human_the_same_wisdom_head_start() -> void:
-	var parts: Array[Participant] = [Participant.new(), Participant.new()]
-	parts[0].kind = Participant.Kind.HUMAN
-	parts[1].kind = Participant.Kind.AI
-
-	LobbyScreen.assign_default_cores(parts)
-
-	var human_wisdom := _summed_stat_contribution(parts[0].core_class, &"wisdom")
-	var ai_wisdom := _summed_stat_contribution(parts[1].core_class, &"wisdom")
-	assert_lte(ai_wisdom, human_wisdom,
-			"the AI default must not out-WIS the human default (30 vs 10 today)")
-
-
-func test_human_slot_still_defaults_to_balanced_core() -> void:
-	var parts: Array[Participant] = [Participant.new()]
-	parts[0].kind = Participant.Kind.HUMAN
-
-	LobbyScreen.assign_default_cores(parts)
-
-	assert_eq(parts[0].core_class, _BALANCED, "regression guard — green today")
-
-
 # --- #841: a preset row templates AI cores, and per-row overrides stick ------
 #
-# `LobbyScreen.apply_core_preset` is the resolution rule, exercised directly
+# `LobbyRoster.apply_core_preset` is the resolution rule, exercised directly
 # against hand-built participants — no scene needed for the seven acceptance
 # bullets. `_SERPENT` mirrors the owner's own worked example on the issue.
 
@@ -411,133 +238,6 @@ func _make_human(id: int) -> Participant:
 	p.id = id
 	p.kind = Participant.Kind.HUMAN
 	return p
-
-
-func test_core_preset_templates_every_ai_with_no_pick() -> void:
-	# Acceptance 1.
-	var human := _make_human(1)
-	var ai1 := _make_ai(2)
-	var ai2 := _make_ai(3)
-	var parts: Array[Participant] = [human, ai1, ai2]
-
-	LobbyScreen.apply_core_preset(parts, {}, _SERPENT)
-
-	assert_eq(ai1.core_class, _SERPENT)
-	assert_eq(ai2.core_class, _SERPENT)
-	assert_eq(human.core_class, _BALANCED, "the preset never templates a human seat")
-
-
-func test_core_preset_covers_a_newly_seated_ai_id() -> void:
-	# Acceptance 2 — a raised AI count births a fresh [Participant.id] with no
-	# `_picked_cores` entry, which resolves the same as any other un-picked id.
-	var ai1 := _make_ai(2)
-	var parts: Array[Participant] = [ai1]
-	var picked := {}
-	LobbyScreen.apply_core_preset(parts, picked, _SERPENT)
-	assert_eq(ai1.core_class, _SERPENT)
-
-	var ai2 := _make_ai(3)
-	parts.append(ai2)
-	LobbyScreen.apply_core_preset(parts, picked, _SERPENT)
-
-	assert_eq(ai2.core_class, _SERPENT, "the newly seated id resolves to the live preset")
-
-
-func test_one_ai_given_a_pick_only_that_one_changes() -> void:
-	# Acceptance 3.
-	var ai1 := _make_ai(2)
-	var ai2 := _make_ai(3)
-	var parts: Array[Participant] = [ai1, ai2]
-	var picked := {2: _NINJA}
-
-	LobbyScreen.apply_core_preset(parts, picked, _SERPENT)
-
-	assert_eq(ai1.core_class, _NINJA, "the picked one keeps its own pick")
-	assert_eq(ai2.core_class, _SERPENT, "the untouched one follows the preset")
-
-
-func test_preset_change_moves_every_ai_except_the_overridden_one() -> void:
-	# Acceptance 4.
-	var ai1 := _make_ai(2)
-	var ai2 := _make_ai(3)
-	var parts: Array[Participant] = [ai1, ai2]
-	var picked := {2: _NINJA}
-
-	LobbyScreen.apply_core_preset(parts, picked, _SERPENT)
-	LobbyScreen.apply_core_preset(parts, picked, _BALANCED)
-
-	assert_eq(ai1.core_class, _NINJA, "still on its own pick")
-	assert_eq(ai2.core_class, _BALANCED, "followed the preset to its new value")
-
-
-func test_clearing_the_pick_resumes_following_the_preset() -> void:
-	# Acceptance 5.
-	var ai := _make_ai(2)
-	var parts: Array[Participant] = [ai]
-	var picked := {2: _NINJA}
-
-	LobbyScreen.apply_core_preset(parts, picked, _SERPENT)
-	assert_eq(ai.core_class, _NINJA)
-
-	picked.erase(2)
-	LobbyScreen.apply_core_preset(parts, picked, _SERPENT)
-
-	assert_eq(ai.core_class, _SERPENT, "cleared, so it follows the preset again")
-
-
-func test_sentinel_preset_behaves_exactly_as_assign_default_cores() -> void:
-	# Acceptance 6 — the assert most likely to catch a botched null check.
-	var via_preset: Array[Participant] = [_make_human(1), _make_ai(2), _make_ai(3)]
-	LobbyScreen.apply_core_preset(via_preset, {}, null)
-
-	var via_default: Array[Participant] = [_make_human(1), _make_ai(2), _make_ai(3)]
-	LobbyScreen.assign_default_cores(via_default)
-
-	for i in via_preset.size():
-		assert_eq(via_preset[i].core_class, via_default[i].core_class,
-				"no preset armed changes nothing")
-
-
-func test_a_pick_equal_to_the_preset_still_resolves_independently() -> void:
-	# Acceptance 7 — THE bullet a naive implementation (comparing the row's
-	# resolved core against the preset) fails. Provenance is `_picked_cores`
-	# holding the id, never a value comparison.
-	var ai := _make_ai(2)
-	var parts: Array[Participant] = [ai]
-	var picked := {2: _BASIC_ENEMY}
-
-	LobbyScreen.apply_core_preset(parts, picked, _BASIC_ENEMY)
-	assert_eq(ai.core_class, _BASIC_ENEMY, "premise: the pick and the preset coincide")
-
-	LobbyScreen.apply_core_preset(parts, picked, _NINJA)
-
-	assert_eq(ai.core_class, _BASIC_ENEMY,
-			"tracked as its own state — it does not follow the preset's move")
-
-
-func test_shrink_then_grow_ai_count_keeps_the_core_override() -> void:
-	# Regression guard, per the owner's 2026-09-10 correction: #643's existing
-	# rebuild-survival contract already covers this for free, so the assert is
-	# that the override SURVIVES, not the reverse.
-	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
-	lobby.set_ai_opponents(5)
-	var target: Participant = null
-	for p in lobby.participants():
-		if p.kind == Participant.Kind.AI:
-			target = p
-	lobby._on_core_class_picked(_NINJA, target)
-	assert_eq(target.core_class, _NINJA)
-	var target_id := target.id
-
-	lobby.set_ai_opponents(4)
-	lobby.set_ai_opponents(5)
-
-	var reseated: Participant = null
-	for p in lobby.participants():
-		if p.id == target_id:
-			reseated = p
-	assert_not_null(reseated, "the id that was dropped comes back on the regrow")
-	assert_eq(reseated.core_class, _NINJA, "and its override rides along, same as colour/name")
 
 
 func test_reset_affordance_shows_only_when_the_row_is_overridden() -> void:
@@ -597,7 +297,7 @@ func test_a_client_lobby_offers_no_core_preset_row() -> void:
 # --- #741: a slot types its own name, the roster carries it ------------------
 
 func test_the_row_paints_the_participants_name_and_locks_with_the_seat() -> void:
-	var parts := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
+	var parts := LobbyRoster.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
 	var row := _row_for(parts[0])
 
 	var edit: LineEdit = row.get_node("%Name")
@@ -609,7 +309,7 @@ func test_the_row_paints_the_participants_name_and_locks_with_the_seat() -> void
 
 
 func test_enter_commits_the_trimmed_name_and_the_field_agrees() -> void:
-	var parts := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
+	var parts := LobbyRoster.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
 	var row := _row_for(parts[0])
 	var heard: Array[String] = []
 	row.name_committed.connect(func(text: String): heard.append(text))
@@ -624,7 +324,7 @@ func test_enter_commits_the_trimmed_name_and_the_field_agrees() -> void:
 
 
 func test_an_empty_commit_is_refused_and_the_field_falls_back() -> void:
-	var parts := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
+	var parts := LobbyRoster.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
 	var row := _row_for(parts[0])
 	var heard: Array[String] = []
 	row.name_committed.connect(func(text: String): heard.append(text))
@@ -642,11 +342,11 @@ func test_a_teardown_focus_loss_is_not_a_commit() -> void:
 	# FOCUSED field fires `focus_exited` too. Mid-edit text must not become a
 	# pick just because a broadcast landed — the teardown guard is what keeps
 	# the commit a decision.
-	var parts := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
+	var parts := LobbyRoster.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
 	var row: ParticipantRow = _ROW_SCENE.instantiate()
 	add_child(row)
 	row.configure(parts[0], 0)
-	row.set_core_choices(CoreClass.pickable_for(LobbyScreen.slot_bit_for(parts[0].kind)))
+	row.set_core_choices(CoreClass.pickable_for(LobbyRoster.slot_bit_for(parts[0].kind)))
 	var heard: Array[String] = []
 	row.name_committed.connect(func(text: String): heard.append(text))
 	var edit: LineEdit = row.get_node("%Name")
@@ -691,50 +391,7 @@ func test_an_empty_or_unchanged_name_pick_writes_nothing() -> void:
 	assert_eq(lobby.participants()[0].display_name, "Player 1", "unchanged is a no-op")
 
 
-func test_normalize_name_trims_and_caps() -> void:
-	assert_eq(LobbyScreen.normalize_name("  Bob  "), "Bob")
-	assert_eq(LobbyScreen.normalize_name("   "), "")
-	var long_name := "x".repeat(LobbyScreen.MAX_NAME_LENGTH + 10)
-	assert_eq(LobbyScreen.normalize_name(long_name).length(), LobbyScreen.MAX_NAME_LENGTH,
-			"a remote pick meets the same cap the field's max_length enforces locally")
-
-
 # --- #741: a saved default name seeds a fresh lobby --------------------------
-
-func test_a_fresh_offline_lobby_seeds_the_saved_default_name() -> void:
-	Settings.current.player_name = "Bramh"
-
-	var single := LobbyScreen.build_participants(RunConfig.Mode.SINGLE, null, 0)
-	assert_eq(single[0].display_name, "Bramh", "single-player's one human is unambiguously me")
-
-	var hotseat := LobbyScreen.build_participants(RunConfig.Mode.COOP_HOTSEAT, null, 0)
-	assert_eq(hotseat[0].display_name, "Bramh", "hot-seat's first slot is still me")
-	assert_eq(hotseat[1].display_name, "Player 2",
-			"the second slot is a guest on this machine — no saved identity to seed it with")
-
-
-func test_no_saved_name_falls_back_to_the_authored_default() -> void:
-	assert_eq(Settings.current.player_name, "", "sanity: nothing saved yet")
-	var parts := LobbyScreen.build_participants(RunConfig.Mode.SINGLE, null, 0)
-	assert_eq(parts[0].display_name, "Player 1")
-
-
-func test_hosting_seeds_the_saved_name_but_joining_does_not() -> void:
-	# A CLIENT's own roster here is a throwaway placeholder that
-	# `_adopt_remote_roster` discards the instant the host's broadcast lands —
-	# seeding it would flash the saved name and then silently revert to
-	# "Player 2", which reads as a bug rather than a skipped step.
-	Settings.current.player_name = "Bramh"
-
-	var hosting := LobbyScreen.build_participants(
-			RunConfig.Mode.SINGLE, NetworkConfig.host(0), 0)
-	assert_eq(hosting[0].display_name, "Bramh", "the host's own seat is never thrown away")
-
-	var joining := LobbyScreen.build_participants(
-			RunConfig.Mode.SINGLE, NetworkConfig.join("127.0.0.1", 0), 0)
-	assert_eq(joining[0].display_name, "Player 1",
-			"the client's placeholder roster is not worth seeding")
-
 
 func test_committing_a_name_saves_it_as_the_default() -> void:
 	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
@@ -820,7 +477,7 @@ func test_a_hot_seat_policy_locks_the_camp_on_both_human_rows() -> void:
 	assert_false(_POLICY_HOTSEAT.may_pick_camp(Participant.Kind.HUMAN))
 	assert_true(_POLICY_HOTSEAT.may_pick_camp(Participant.Kind.AI),
 			"locking the players together does not lock the opponents")
-	assert_eq(LobbyScreen.resolve_mode(parts), RunConfig.Mode.COOP_HOTSEAT,
+	assert_eq(LobbyRoster.resolve_mode(parts), RunConfig.Mode.COOP_HOTSEAT,
 			"#615 D6: the mode is still derived, and still coop")
 	assert_true(lobby.can_start())
 
@@ -910,22 +567,6 @@ func test_a_single_player_policy_shows_no_camp_control_at_all() -> void:
 	for pick in _camp_picks(lobby):
 		assert_false(pick.visible)
 	assert_true(lobby.can_start())
-
-
-func test_a_camp_pick_survives_an_ai_count_change() -> void:
-	# Same rebuild-survival contract as #616's colours: changing the AI count
-	# rebuilds the roster from scratch, and a pick must not silently revert.
-	var lobby := _policied_lobby(
-			RunConfig.Mode.COOP_HOTSEAT, _POLICY_HOTSEAT, NetworkConfig.host())
-	var ai: Participant = lobby.participants()[2]
-	assert_eq(ai.kind, Participant.Kind.AI, "premise: the third slot is an AI")
-
-	lobby._on_camp_picked(_CAMP_2, ai)
-	lobby._ai_count_row.value = 3
-
-	assert_eq(lobby.participants()[2].camp, _CAMP_2, "the pick survived")
-	assert_eq(lobby.build_run_config().participants[2].camp, _CAMP_2,
-			"and START hands it to the level")
 
 
 func test_a_locked_slot_still_shows_the_camp_it_actually_holds() -> void:

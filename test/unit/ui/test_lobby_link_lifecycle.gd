@@ -18,7 +18,7 @@ extends GutTest
 const _PEER_A := 2
 const _PEER_B := 3
 ## The remote seat's id in a two-human roster — [method
-## LobbyScreen.build_participants] authors it second.
+## LobbyRoster.build_participants] authors it second.
 const _REMOTE_SEAT := 2
 
 var _host_transport: LoopbackTransport
@@ -87,7 +87,7 @@ func test_a_peer_that_has_not_cleared_is_not_seated_and_no_roster_goes_out() -> 
 
 	_host._on_link_peer_joined(_PEER_A)
 
-	assert_true(LobbyScreen.is_pending_remote(_seat_of(_host, _REMOTE_SEAT)),
+	assert_true(LobbyRoster.is_pending_remote(_seat_of(_host, _REMOTE_SEAT)),
 			"the bare join seats nobody")
 	assert_eq(rosters, [], "and broadcasts nothing — not even a roster to take back")
 
@@ -207,12 +207,12 @@ func test_dropping_a_peer_at_the_transport_returns_its_seat_to_waiting() -> void
 
 	_host_transport.drop_peer(_PEER_A)
 
-	assert_true(LobbyScreen.is_pending_remote(_seat_of(_host, _REMOTE_SEAT)),
+	assert_true(LobbyRoster.is_pending_remote(_seat_of(_host, _REMOTE_SEAT)),
 			"the seat is waiting again rather than gone")
-	assert_eq(_host.participants().size(), 2 + LobbyScreen.DEFAULT_AI_OPPONENTS,
+	assert_eq(_host.participants().size(), 2 + LobbyRoster.DEFAULT_AI_OPPONENTS,
 			"two humans and the offered AI count, still")
 	assert_eq(seen.size(), 1, "and exactly one roster went out for it")
-	assert_true(LobbyScreen.is_pending_remote(_seat_of(_b, _REMOTE_SEAT)),
+	assert_true(LobbyRoster.is_pending_remote(_seat_of(_b, _REMOTE_SEAT)),
 			"which the other client is now showing")
 
 
