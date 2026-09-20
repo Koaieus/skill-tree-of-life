@@ -136,6 +136,11 @@ func release() -> void:
 	_release_timer.timeout.connect(_play_exit)
 
 
+## Step the dwell by [param delta] seconds. Stub: #981's RED seam.
+func advance(_delta: float) -> void:
+	pass
+
+
 ## Cut to hidden with no animation — for a rebind, where the flourish would
 ## otherwise finish narrating the previous hero's levels on the new one's bar.
 func cut() -> void:

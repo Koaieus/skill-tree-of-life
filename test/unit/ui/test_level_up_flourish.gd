@@ -86,6 +86,19 @@ func _settle() -> void:
 	_flourish.min_dwell = _shipped_dwell
 
 
+## #981 — the dwell is a schedule the test steps by hand, not a SceneTreeTimer
+## only the wall clock can move. `min_dwell` is an INPUT here, never the
+## shipped default.
+func test_release_closes_after_min_dwell_of_stepped_delta() -> void:
+	_flourish.min_dwell = 1.0
+	_flourish.stamp(2, 3, 1)
+	_flourish.release()
+	_flourish.advance(0.5)
+	assert_true(_flourish.is_open(), "half the dwell served: still on screen")
+	_flourish.advance(0.5)
+	assert_false(_flourish.is_open(), "the dwell is served on delta alone: closed")
+
+
 ## The headline fix. Four levels in one grant produce ONE element counting to
 ## ×4 — never a second announcement opening behind the first.
 func test_a_four_level_cascade_counts_up_on_one_flourish() -> void:
