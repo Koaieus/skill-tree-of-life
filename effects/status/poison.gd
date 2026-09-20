@@ -20,7 +20,9 @@ extends StatusDef
 ##
 ## Damage lands on the PRE-decay power (`_on_tick`'s `before`, never `after`) —
 ## a status about to drop to 0 this tick still deals its last hit; decay
-## happens after this hook returns ([method NodeCombat.tick_statuses]).
+## happens after this hook returns ([method NodeCombat.tick_statuses]). The
+## tick body itself is the shared [method DotTick.mint] (#964): poison and
+## [CorruptionStatus] are two defs over one implementation.
 ##
 ## Unlike [ArmorBreakStatus] / `BlindnessStatus`, poison plants no modifier —
 ## `_on_applied` / `_on_removed` are both no-ops.
@@ -32,37 +34,12 @@ extends StatusDef
 
 
 func _on_tick(node: NodeCombat, before: float, _after: float) -> void:
-	var amount := before * damage_per_power
-	if amount <= 0.0:
-		return
-	var dmg := DamageInstance.new()
-	dmg.type = DamageInstance.Type.TRUE
-	dmg.basis = basis
-	dmg.amount = amount
-	dmg.target = node.host
-	# Through `land_on`, the same door an attack's hit lands by, so the basis
-	# resolves there and nowhere else. `CritRoll.apply` is a no-op for a hit
-	# with no crit decided (multiplier 1.0) — a tick never crits.
-	dmg.land_on(node, null)
+	DotTick.mint(node, before * damage_per_power, basis)
 
 
 ## The sum of every remaining tick's damage under this def's own decay
 ## (#962, for #953's overlay): at 20 stacks halving, 20 + 10 + 5 + 2.5 + 1.25
 ## = 38.75 — the 0.625 tail is cut before it ticks. PERCENT_MAX resolves
-## against the node's max hp as of now. A FLAT-decay poison sums its linear
-## run-down the same way; a def that never decays is capped at one tick
-## so the loop terminates.
+## against the node's max hp as of now.
 func projected_damage(node: NodeCombat, power: float) -> float:
-	var total := 0.0
-	var p := power
-	var guard := 0
-	while p > 0.0 and guard < 1000:
-		total += p * damage_per_power
-		var next := decayed(p)
-		if next >= p:
-			break  # non-decaying def: one tick is all we can honestly project
-		p = next
-		guard += 1
-	if basis == HitInstance.AmountBasis.PERCENT_MAX:
-		total *= node.get_max_hp()
-	return total
+	return DotTick.project(self, node, power, damage_per_power, basis)
