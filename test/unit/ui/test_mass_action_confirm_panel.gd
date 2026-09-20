@@ -61,7 +61,7 @@ func _body() -> MassActionConfirmBody:
 func _allocate_request(affordable: int) -> MassActionRequest:
 	var req := MassActionRequest.new(_player, MassActionRequest.Verb.ALLOCATE, _nodes)
 	req.affordable_count = affordable
-	_ctl._mass_action_request = req
+	_ctl.begin_mass_action(req)
 	return req
 
 
