@@ -168,8 +168,8 @@ func _assert_systems_present() -> void:
 		[aura_overlay, "AuraOverlay"], [camera, "GraphCamera"],
 		[camera_director, "CameraDirector"], [hud_root, "HudRoot"],
 	]:
-		assert(pair[0] != null, "GameRoot: %%%s is missing — every system is present in "
-				+ "every GameRoot scene; set its own `enabled` to turn it off (#1006)" % pair[1])
+		assert(pair[0] != null, ("GameRoot: %%%s is missing — every system is present in "
+				+ "every GameRoot scene; set its own `enabled` to turn it off (#1006)") % pair[1])
 
 
 func _ready() -> void:
