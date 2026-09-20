@@ -11,18 +11,19 @@ extends RefCounted
 
 
 ## Land [param amount] (HP for FLAT, a fraction of max hp for PERCENT_MAX)
-## on [param node] as TRUE damage. A non-positive amount lands nothing.
+## on [param host] — the status host, a [NodeCombat] today (see the contract
+## on [StatusHost]) — as TRUE damage. A non-positive amount lands nothing.
 ## `CritRoll.apply` is a no-op for a hit with no crit decided (multiplier
 ## 1.0) — a tick never crits.
-static func mint(node: NodeCombat, amount: float, basis: HitInstance.AmountBasis) -> void:
+static func mint(host, amount: float, basis: HitInstance.AmountBasis) -> void:
 	if amount <= 0.0:
 		return
 	var dmg := DamageInstance.new()
 	dmg.type = DamageInstance.Type.TRUE
 	dmg.basis = basis
 	dmg.amount = amount
-	dmg.target = node.host
-	dmg.land_on(node, null)
+	dmg.target = host.host  # the real SkillNode behind the slice (null on a shadow)
+	dmg.land_on(host, null)
 
 
 ## The sum of every remaining tick's damage under [param def]'s own decay
@@ -31,7 +32,7 @@ static func mint(node: NodeCombat, amount: float, basis: HitInstance.AmountBasis
 ## against the node's max hp as of now. A FLAT-decay def sums its linear
 ## run-down the same way; a def that never decays is capped at one tick so
 ## the loop terminates.
-static func project(def: StatusDef, node: NodeCombat, power: float, damage_per_power: float,
+static func project(def: StatusDef, host, power: float, damage_per_power: float,
 		basis: HitInstance.AmountBasis) -> float:
 	var total := 0.0
 	var p := power
@@ -44,5 +45,5 @@ static func project(def: StatusDef, node: NodeCombat, power: float, damage_per_p
 		p = next
 		guard += 1
 	if basis == HitInstance.AmountBasis.PERCENT_MAX:
-		total *= node.get_max_hp()
+		total *= host.get_max_hp()
 	return total

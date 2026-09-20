@@ -37,39 +37,39 @@ class CurseModifier:
 		return StatModifier.UNSCALED
 
 
-func _on_applied(node: NodeCombat, power: float) -> void:
-	_set_curse(node, power)
+func _on_applied(host, power: float) -> void:
+	_set_curse(host, power)
 
 
 ## Fires BEFORE decay lands; [param after] is the power the node is about to
 ## hold. At `after == 0` the slice removes the status right after this, and
 ## [method _on_removed] strips the modifier.
-func _on_tick(node: NodeCombat, _before: float, after: float) -> void:
-	_set_curse(node, after)
+func _on_tick(host, _before: float, after: float) -> void:
+	_set_curse(host, after)
 
 
-func _on_removed(node: NodeCombat) -> void:
-	var m := _find(node)
+func _on_removed(host) -> void:
+	var m := _find(host)
 	if m != null:
-		node.remove_local_modifier(m)
+		host.remove_local_modifier(m)
 
 
-func _set_curse(node: NodeCombat, power: float) -> void:
-	var old := _find(node)
+func _set_curse(host, power: float) -> void:
+	var old := _find(host)
 	if old != null:
-		node.remove_local_modifier(old)
+		host.remove_local_modifier(old)
 	if power <= 0.0:
 		return
 	var m := CurseModifier.new()
 	m.stat_id = &"min_damage_taken"
 	m.operation = StatModifier.Operation.ADD_BASE
 	m.value = power
-	node.add_local_modifier(m)
+	host.add_local_modifier(m)
 
 
 ## The [CurseModifier] on [param node]'s local `min_damage_taken`, or null.
-func _find(node: NodeCombat) -> StatModifier:
-	var b := node.board()
+func _find(host) -> StatModifier:
+	var b: StatBoard = host.board()
 	if b == null:
 		return null
 	var s: Stat = b.get_stat(&"min_damage_taken")

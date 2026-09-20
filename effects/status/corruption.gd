@@ -21,12 +21,12 @@ extends StatusDef
 @export var damage_per_power: float = 0.02
 
 
-func _on_tick(node: NodeCombat, before: float, _after: float) -> void:
-	DotTick.mint(node, before * damage_per_power, HitInstance.AmountBasis.PERCENT_MAX)
+func _on_tick(host, before: float, _after: float) -> void:
+	DotTick.mint(host, before * damage_per_power, HitInstance.AmountBasis.PERCENT_MAX)
 
 
 ## Every remaining tick's damage under halving decay, against max hp as of
 ## now (#962, for #953's overlay): ten stacks at 0.02 on 2000 hp project
 ## 400 + 200 + 100 + 50 = 750 — the 0.625-stack tail is cut before it ticks.
-func projected_damage(node: NodeCombat, power: float) -> float:
-	return DotTick.project(self, node, power, damage_per_power, HitInstance.AmountBasis.PERCENT_MAX)
+func projected_damage(host, power: float) -> float:
+	return DotTick.project(self, host, power, damage_per_power, HitInstance.AmountBasis.PERCENT_MAX)

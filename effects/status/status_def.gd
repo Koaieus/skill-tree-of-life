@@ -109,31 +109,37 @@ func decayed(power: float) -> float:
 			return maxf(power - decay_per_tick, 0.0)
 
 
-## Total damage this status still has in it on [param node] at [param power],
+## Total damage this status still has in it on [param host] at [param power],
 ## summed over its remaining ticks under its own decay (#962, drawn by #953's
 ## projected-damage overlay). The base deals none, so `0`.
-func projected_damage(_node: NodeCombat, _power: float) -> float:
+func projected_damage(_host, _power: float) -> float:
 	return 0.0
 
 
 # ── Behaviour hooks — override on a subclass; the base does nothing ─────────
+#
+# `host` is the composing slice a [StatusHost] serves — a [NodeCombat] today,
+# an [EntityCombat] once C1 of #994 lands — duck-typed to the contract listed
+# on [StatusHost]: `board()`, `get_local_value`, `get_max_hp`, `heal_damage`,
+# `add_local_modifier` / `remove_local_modifier`, `host`. Untyped on purpose;
+# an override keeps it untyped too.
 
-## The status was just applied (or re-applied) to [param node];
+## The status was just applied (or re-applied) to [param host];
 ## [param power] is the resulting post-clamp power.
-func _on_applied(_node: NodeCombat, _power: float) -> void:
+func _on_applied(_host, _power: float) -> void:
 	pass
 
 
-## One turn tick on [param node], BEFORE decay lands: [param before] is the
+## One turn tick on [param host], BEFORE decay lands: [param before] is the
 ## current power, [param after] what it will be once this hook returns. Damage
-## and other effects go here (poison: `node.take_damage(...)`). The node may
+## and other effects go here (poison: [method DotTick.mint]). The host may
 ## vanish under you (a kill cascades into `clear_statuses`); the slice tolerates
 ## it, so don't assume the status still exists when you return.
-func _on_tick(_node: NodeCombat, _before: float, _after: float) -> void:
+func _on_tick(_host, _before: float, _after: float) -> void:
 	pass
 
 
-## The status left [param node] — decayed out, cured, cleared or removed.
+## The status left [param host] — decayed out, cured, cleared or removed.
 ## Fires exactly once per removal.
-func _on_removed(_node: NodeCombat) -> void:
+func _on_removed(_host) -> void:
 	pass

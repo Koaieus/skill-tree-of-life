@@ -34,25 +34,25 @@ class ArmorBreakModifier:
 		return StatModifier.UNSCALED
 
 
-func _on_applied(node: NodeCombat, power: float) -> void:
+func _on_applied(host, power: float) -> void:
 	if not _power_max_is_sane():
 		return
-	_set_break(node, power)
+	_set_break(host, power)
 
 
 ## Fires BEFORE decay lands; [param after] is the power the node is about to
 ## hold. At `after == 0` the slice removes the status right after this, and
 ## [method _on_removed] strips the modifier.
-func _on_tick(node: NodeCombat, _before: float, after: float) -> void:
+func _on_tick(host, _before: float, after: float) -> void:
 	if not _power_max_is_sane():
 		return
-	_set_break(node, after)
+	_set_break(host, after)
 
 
-func _on_removed(node: NodeCombat) -> void:
-	var m := _find(node)
+func _on_removed(host) -> void:
+	var m := _find(host)
 	if m != null:
-		node.remove_local_modifier(m)
+		host.remove_local_modifier(m)
 
 
 ## `false` (and a pushed error) iff this def is misauthored with
@@ -68,20 +68,20 @@ func _power_max_is_sane() -> bool:
 	return true
 
 
-func _set_break(node: NodeCombat, power: float) -> void:
-	var old := _find(node)
+func _set_break(host, power: float) -> void:
+	var old := _find(host)
 	if old != null:
-		node.remove_local_modifier(old)
+		host.remove_local_modifier(old)
 	var m := ArmorBreakModifier.new()
 	m.stat_id = &"armor"
 	m.operation = StatModifier.Operation.MULTIPLY
 	m.value = 1.0 - clampf(power, 0.0, 1.0)
-	node.add_local_modifier(m)
+	host.add_local_modifier(m)
 
 
 ## The [ArmorBreakModifier] on [param node]'s local `armor`, or null.
-func _find(node: NodeCombat) -> StatModifier:
-	var b := node.board()
+func _find(host) -> StatModifier:
+	var b: StatBoard = host.board()
 	if b == null:
 		return null
 	var s: Stat = b.get_stat(&"armor")

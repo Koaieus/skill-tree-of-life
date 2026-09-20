@@ -38,23 +38,23 @@ class BlindModifier:
 		return StatModifier.UNSCALED
 
 
-func _on_applied(node: NodeCombat, power: float) -> void:
-	_set_factor(node, power)
+func _on_applied(host, power: float) -> void:
+	_set_factor(host, power)
 
 
 ## Fires BEFORE decay lands; [param after] is the power the node is about to
 ## hold. At `after == 0` the slice removes the status right after this, and
 ## [method _on_removed] strips the modifiers — the factor briefly reads 1.0
 ## in between, which is exactly the recovered value anyway.
-func _on_tick(node: NodeCombat, _before: float, after: float) -> void:
-	_set_factor(node, after)
+func _on_tick(host, _before: float, after: float) -> void:
+	_set_factor(host, after)
 
 
-func _on_removed(node: NodeCombat) -> void:
+func _on_removed(host) -> void:
 	for stat_id in STAT_IDS:
-		var m := _find(node, stat_id)
+		var m := _find(host, stat_id)
 		if m != null:
-			node.remove_local_modifier(m)
+			host.remove_local_modifier(m)
 
 
 ## The multiplier for [param power] — `1.0` at zero, [member blind_factor]
@@ -65,22 +65,22 @@ func factor_for(power: float) -> float:
 	return lerpf(1.0, blind_factor, clampf(power / power_max, 0.0, 1.0))
 
 
-func _set_factor(node: NodeCombat, power: float) -> void:
+func _set_factor(host, power: float) -> void:
 	var f := factor_for(power)
 	for stat_id in STAT_IDS:
-		var old := _find(node, stat_id)
+		var old := _find(host, stat_id)
 		if old != null:
-			node.remove_local_modifier(old)
+			host.remove_local_modifier(old)
 		var m := BlindModifier.new()
 		m.stat_id = stat_id
 		m.operation = StatModifier.Operation.MULTIPLY
 		m.value = f
-		node.add_local_modifier(m)
+		host.add_local_modifier(m)
 
 
 ## The [BlindModifier] on [param node]'s local [param stat_id], or null.
-func _find(node: NodeCombat, stat_id: StringName) -> StatModifier:
-	var b := node.board()
+func _find(host, stat_id: StringName) -> StatModifier:
+	var b: StatBoard = host.board()
 	if b == null:
 		return null
 	var s: Stat = b.get_stat(stat_id)

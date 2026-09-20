@@ -45,11 +45,13 @@ var _board: NodeStatBoard
 ## [member SkillNode._tags] through [method _tag_store], so there is still only
 ## one tag dictionary per real node.
 var _tags: Dictionary[StringName, int] = {}
-## The status slice (#872): every [StatusDef] currently on this node, keyed by
-## [member StatusDef.id]. Unlike [member _tags], this is the ONE store live AND
-## shadow — [SkillNode] has no status field, the slice is its sole owner, and a
-## [method snapshot] clones the rows so a shadow tick never moves the live one.
-var _statuses: Dictionary[StringName, NodeStatus] = {}
+## The status slice (#872), composed as one [StatusHost] (#995): every
+## [StatusDef] currently on this node lives in it. Unlike [member _tags], this
+## is the ONE store live AND shadow — [SkillNode] has no status field, the
+## slice is its sole owner, and a [method snapshot] clones the rows so a
+## shadow tick never moves the live one. This slice is the host's `owner`:
+## every def hook sees the NodeCombat, never the StatusHost.
+var _status_host := StatusHost.new(self)
 
 
 func _init(p_host: SkillNode = null) -> void:
@@ -104,8 +106,7 @@ func snapshot(owner_combat: EntityCombat) -> NodeCombat:
 	shadow._real = host
 	if host != null:
 		shadow._tags = host._tags.duplicate()
-		for id in _statuses:
-			shadow._statuses[id] = _statuses[id].clone()
+		_status_host.clone_into(shadow._status_host)
 		host._init_node_board()
 		# clone_live, not duplicate(true) — see its doc on StatBoard.
 		shadow._board = host.node_board.clone_live() as NodeStatBoard
@@ -578,154 +579,68 @@ func refill(silent: bool = false) -> void:
 
 # ── Status slice (#872) ──────────────────────────────────────────────────────
 #
-# State only. Nothing here subscribes to a turn, clears on dealloc or reaches
-# the wire — #879 wires the lifecycle, #878 applies on hit. Every hook on the
-# def gets THIS slice as `node`, so a poison's `_on_tick` deals damage through
+# Forwarding only (#995): the machinery is [StatusHost], composed at
+# [member _status_host] with THIS slice as its owner, so every hook on a def
+# gets this NodeCombat as `host` — a poison's `_on_tick` deals damage through
 # `take_damage` and lands live or shadow exactly like the rest of the file.
+# The three callbacks at the bottom are the host contract's live-only half:
+# a shadow (`host == null`) never subscribes to a turn and never notifies —
+# it's discarded within the same synchronous resolve that created it.
 
-## Put [param def] on this node at [param power], or re-apply it per
-## [member StatusDef.reapply]; the result is clamped to
-## [member StatusDef.power_max] (unless that is `<= 0`: uncapped, #962) and
-## handed to [method StatusDef._on_applied].
-## No-op on an unallocated node for a `CLEAR` def (owner, 2026-09-14: nothing
-## owns it, nothing would tick it), on a null def, and on a non-positive power.
+## See [method StatusHost.apply_status].
 func apply_status(def: StatusDef, power: float) -> void:
-	if def == null or power <= 0.0:
-		return
-	if def.on_dealloc == StatusDef.OnDealloc.CLEAR and not is_allocated():
-		return
-	var had_status := not _statuses.is_empty()
-	var row: NodeStatus = _statuses.get(def.id)
-	var next: float
-	if row == null:
-		row = NodeStatus.new(def, 0.0)
-		_statuses[def.id] = row
-		next = power
-	else:
-		match def.reapply:
-			StatusDef.Reapply.ACCUMULATE:
-				next = row.power + power
-			_:
-				next = maxf(row.power, power)
-	# `power_max <= 0` is uncapped (#962: poison stacks without limit).
-	row.power = next if def.power_max <= 0.0 else minf(next, def.power_max)
-	def._on_applied(self, row.power)
-	# Sparse tick subscription (#879): the FIRST status on a live node connects
-	# it to Events.turn_started; a shadow (`host == null`) never subscribes —
-	# it's discarded within the same synchronous resolve that created it.
-	if host != null and not had_status:
-		host._subscribe_status_tick()
-	# #880: the node tint reads the strongest LIVE status; refresh on every
-	# apply (never on a shadow — see the subscribe comment above).
-	if host != null:
-		host.notify_statuses_changed()
+	_status_host.apply_status(def, power)
 
 
-## One tick for every status on the node: [method StatusDef._on_tick] first
-## (damage, effects), then decay per [method StatusDef.decayed] — flat by
-## [member StatusDef.decay_per_tick], or halving with the tail cut below 1
-## for a FRACTION def (#962) — then removal at `<= 0`. Iterates a COPY and re-checks each row is still the
-## one on the slice before touching it — a tick can `take_damage` into a kill
-## cascade that `clear_statuses()` this very node, or a hook can remove a
-## sibling; either way a vanished status is skipped, never resurrected.
+## See [method StatusHost.tick_statuses].
 func tick_statuses() -> void:
-	var rows: Array[NodeStatus] = []
-	rows.assign(_statuses.values())
-	for row in rows:
-		var id := row.def.id
-		if _statuses.get(id) != row:
-			continue  # vanished mid-tick
-		var before := row.power
-		var after := row.def.decayed(before)  # by decay_mode; 0 means removed
-		row.def._on_tick(self, before, after)
-		if _statuses.get(id) != row:
-			continue  # the hook removed it (or the node was cleared under us)
-		row.power = after
-		if after <= 0.0:
-			remove_status(id)
-	# #880: decay changes the blend even on rows that survive (no removal, so
-	# no notify from inside the loop above) — one refresh per tick pass.
-	if host != null:
-		host.notify_statuses_changed()
+	_status_host.tick_statuses()
 
 
-## Damage the statuses on this node still have in them (#962): the sum of
-## [method StatusDef.projected_damage] over every row — poison's remaining
-## halving series; a damageless def contributes 0. Drawn by #953.
+## See [method StatusHost.projected_status_damage] (#962, drawn by #953).
 func projected_status_damage() -> float:
-	var total := 0.0
-	for row: NodeStatus in _statuses.values():
-		total += row.def.projected_damage(self, row.power)
-	return total
+	return _status_host.projected_status_damage()
 
 
-## Cure by [param heal_amount] (#875, hub #868 D7): every `&"debuff"`-tagged
-## status on the node loses `heal_amount * def.cure_per_hp` power — a def that
-## authors no [member StatusDef.cure_per_hp] (`0.0`, the default) is never
-## touched. A status cured to `<= 0` goes through [method remove_status] so
-## [method StatusDef._on_removed] fires normally; one that survives gets
-## [method StatusDef._on_applied] re-run at its new power so a planted
-## modifier (Blindness's factor) follows it down — there is no separate
-## "on cured" hook, `_on_applied` is already idempotent for that shape (#873).
-## Iterates a COPY and re-checks the row is still live, same as
-## [method tick_statuses] — a hook can remove a sibling or the node itself.
+## See [method StatusHost.cure_debuffs] (#875, hub #868 D7).
 func cure_debuffs(heal_amount: float) -> void:
-	if heal_amount <= 0.0:
-		return
-	var rows: Array[NodeStatus] = []
-	rows.assign(_statuses.values())
-	for row in rows:
-		if row.def.cure_per_hp <= 0.0 or not row.def.tags.has(&"debuff"):
-			continue
-		var id := row.def.id
-		if _statuses.get(id) != row:
-			continue  # vanished from an earlier row's hook this same call
-		var after := maxf(row.power - heal_amount * row.def.cure_per_hp, 0.0)
-		if after <= 0.0:
-			remove_status(id)
-		else:
-			row.power = after
-			row.def._on_applied(self, after)
-	# #880: a cure changes power on rows that survive too (same reasoning as
-	# tick_statuses' trailing refresh) — the zeroed-out ones already notified
-	# via remove_status below.
-	if host != null:
-		host.notify_statuses_changed()
+	_status_host.cure_debuffs(heal_amount)
 
 
-## Drop the status [param id]; [method StatusDef._on_removed] fires exactly once.
-## Unknown ids are ignored.
+## See [method StatusHost.remove_status].
 func remove_status(id: StringName) -> void:
-	var row: NodeStatus = _statuses.get(id)
-	if row == null:
-		return
-	_statuses.erase(id)
-	row.def._on_removed(self)
-	# Sparse tick subscription (#879): the LAST status leaving drops it. Fires
-	# from every step of [method clear_statuses] too — the one that empties
-	# the slice is the one that unsubscribes.
-	if host != null and _statuses.is_empty():
+	_status_host.remove_status(id)
+
+
+## See [method StatusHost.clear_statuses].
+func clear_statuses() -> void:
+	_status_host.clear_statuses()
+
+
+## See [method StatusHost.get_status_power].
+func get_status_power(id: StringName) -> float:
+	return _status_host.get_status_power(id)
+
+
+## See [method StatusHost.get_statuses].
+func get_statuses() -> Array[NodeStatus]:
+	return _status_host.get_statuses()
+
+
+## Sparse tick subscription (#879): the FIRST status on a live node connects
+## it to Events.turn_started.
+func _on_first_status() -> void:
+	if host != null:
+		host._subscribe_status_tick()
+
+
+## Sparse tick subscription (#879): the LAST status leaving drops it.
+func _on_last_status_removed() -> void:
+	if host != null:
 		host._unsubscribe_status_tick()
-	# #880: refresh on every remove (never on a shadow).
+
+
+## #880: the node tint reads the strongest LIVE status.
+func _on_statuses_changed() -> void:
 	if host != null:
 		host.notify_statuses_changed()
-
-
-## Drop every status, each through [method remove_status].
-func clear_statuses() -> void:
-	for id in _statuses.keys():
-		remove_status(id)
-
-
-## Current power of status [param id], `0.0` when absent.
-func get_status_power(id: StringName) -> float:
-	var row: NodeStatus = _statuses.get(id)
-	return row.power if row != null else 0.0
-
-
-## The rows a UI reads, in application order — the live rows, not copies:
-## read `def` / `power` / `normalised()`, never write.
-func get_statuses() -> Array[NodeStatus]:
-	var rows: Array[NodeStatus] = []
-	rows.assign(_statuses.values())
-	return rows

@@ -33,37 +33,37 @@ class WitherModifier:
 		return StatModifier.UNSCALED
 
 
-func _on_applied(node: NodeCombat, power: float) -> void:
-	_set_wither(node, power)
+func _on_applied(host, power: float) -> void:
+	_set_wither(host, power)
 
 
 ## Fires BEFORE decay lands; [param after] is the power the node is about to
 ## hold. At `after == 0` the slice removes the status right after this, and
 ## [method _on_removed] strips the modifier.
-func _on_tick(node: NodeCombat, _before: float, after: float) -> void:
-	_set_wither(node, after)
+func _on_tick(host, _before: float, after: float) -> void:
+	_set_wither(host, after)
 
 
-func _on_removed(node: NodeCombat) -> void:
-	var m := _find(node)
+func _on_removed(host) -> void:
+	var m := _find(host)
 	if m != null:
-		node.remove_local_modifier(m)
+		host.remove_local_modifier(m)
 
 
-func _set_wither(node: NodeCombat, power: float) -> void:
-	var old := _find(node)
+func _set_wither(host, power: float) -> void:
+	var old := _find(host)
 	if old != null:
-		node.remove_local_modifier(old)
+		host.remove_local_modifier(old)
 	var m := WitherModifier.new()
 	m.stat_id = &"healing_received"
 	m.operation = StatModifier.Operation.MULTIPLY
 	m.value = 1.0 - factor_per_stack * maxf(power, 0.0)
-	node.add_local_modifier(m)
+	host.add_local_modifier(m)
 
 
 ## The [WitherModifier] on [param node]'s local `healing_received`, or null.
-func _find(node: NodeCombat) -> StatModifier:
-	var b := node.board()
+func _find(host) -> StatModifier:
+	var b: StatBoard = host.board()
 	if b == null:
 		return null
 	var s: Stat = b.get_stat(&"healing_received")
