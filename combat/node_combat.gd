@@ -396,22 +396,11 @@ func take_damage(amount: float, source: Variant) -> void:
 	o = owner()
 	var overflow: float = effective - soaked
 	if is_core():
+		# The overflow reaches the entity pool through its ONE door (#995) —
+		# the live `health.depleted` cascade and the shadow's simulated death
+		# both live behind it.
 		if overflow > 0.0:
-			var ent_board := o.board()
-			# get_stat, not a typed `.health` field access — `board()` reads as
-			# the base `StatBoard` (a shadow's board doesn't get the narrower
-			# `EntityStatBoard` static type), and `health` only exists there.
-			var health_pool := ent_board.get_stat(&"health") as PoolStat if ent_board != null else null
-			if health_pool != null:
-				# Snapshot BEFORE deplete(): crossing 0 fires `health.depleted`
-				# synchronously on a LIVE board, which can run the whole death
-				# cascade before deplete() returns. A shadow's duplicated
-				# `health` PoolStat carries no such signal connection (Resource
-				# duplicate() doesn't copy runtime signal connections) — its
-				# equivalent is the explicit `current <= 0.0` check below.
-				health_pool.deplete(overflow)
-				if host == null and health_pool.current <= 0.0:
-					o.simulate_entity_death()
+			o.take_pool_damage(overflow, source)
 		return
 	if hp.current <= 0.0:
 		if host != null:

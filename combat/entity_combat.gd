@@ -236,9 +236,33 @@ func board() -> StatBoard:
 	return host.stat_board if host != null else _board
 
 
-## The ONE door every drain of the entity `health` pool goes through (#995).
-func take_pool_damage(_amount: float, _source: Variant) -> void:
-	pass
+## The ONE door every drain of the entity `health` pool goes through (#995,
+## hub #994): the core-overflow tail of [method NodeCombat.take_damage], the
+## cascade chip of [method apply_cascade], and (C1) the entity-hosted DoT tick.
+## Depletes `health` by [param amount]; [param source] is the same
+## attacker-or-null a node's `take_damage` carries, unread here today.
+##
+## Snapshot BEFORE deplete(): crossing 0 fires `health.depleted`
+## synchronously on a LIVE board, which can run the whole death cascade
+## before deplete() returns. A shadow's cloned `health` PoolStat carries no
+## such signal connection (a clone doesn't copy runtime signal connections) —
+## its equivalent is the explicit crossing check below, which runs
+## [method simulate_entity_death] exactly once, on the drain that crosses,
+## the way the live signal fires once.
+func take_pool_damage(amount: float, _source: Variant) -> void:
+	if amount <= 0.0:
+		return
+	var b := board()
+	# get_stat, not a typed `.health` field access — `board()` reads as the
+	# base [StatBoard] (a shadow's board doesn't get the narrower
+	# [EntityStatBoard] static type), and `health` only exists there.
+	var health_pool := b.get_stat(&"health") as PoolStat if b != null else null
+	if health_pool == null:
+		return
+	var before := health_pool.current
+	health_pool.deplete(amount)
+	if host == null and before > 0.0 and health_pool.current <= 0.0:
+		simulate_entity_death()
 
 
 ## Every [NodeCombat] this entity owns. Live: derived from
@@ -700,15 +724,11 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 			if sp != null:
 				sp.wound(entry.wound)
 			if entry.chip > 0.0:
-				# get_stat, not the typed `.health` field — `board()` reads as
-				# the base [StatBoard] here (see [method NodeCombat.take_damage]
-				# for the same read and why).
-				var health_pool := b.get_stat(&"health") as PoolStat
-				if health_pool != null:
-					# #504: the core bar draws `health` directly and hears its
-					# `current_changed`, so the chip announces itself — nothing
-					# to record or patch for presentation.
-					health_pool.deplete(entry.chip)
+				# #504: the core bar draws `health` directly and hears its
+				# `current_changed`, so the chip announces itself — nothing
+				# to record or patch for presentation. Through the one door
+				# (#995), never a bare deplete.
+				take_pool_damage(entry.chip, null)
 		entries.append(entry)
 	return entries
 
