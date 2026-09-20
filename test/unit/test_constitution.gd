@@ -142,6 +142,10 @@ func test_level_20_node_health_materially_above_level_1() -> void:
 	var hp_l20 := float(board_l20.node_health.get_value())
 	assert_true(hp_l20 > hp_l1 + 10.0,
 			"level 20 node_health (%s) should be materially above level 1 (%s)" % [hp_l20, hp_l1])
-	# TBD (#268): target shape is ~30 HP at level 20 (vs. flat 10 today).
-	assert_true(hp_l20 >= 25.0 and hp_l20 <= 35.0,
-			"level 20 node_health (%s) should land near the ~30 HP target shape" % hp_l20)
+	# Shape, not a re-pinned magnitude (owner: not settled enough for goldens,
+	# 2026-09-20): 19 levels each grant +1 CON (level_scaling.tres, `level - 1`),
+	# so the floor is that CON delta through the board's own intrinsic rate.
+	var rate := float(board_l1.node_health_scaling.get_value())
+	assert_true(hp_l20 >= hp_l1 + rate * 19.0 - 0.001,
+			"level 20 node_health (%s) should be at least 19 levels' worth of CON (rate %s) above level 1 (%s)"
+					% [hp_l20, rate, hp_l1])

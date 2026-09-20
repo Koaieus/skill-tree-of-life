@@ -66,9 +66,11 @@ func test_balanced_core_grants_plus_10_to_all_five_attributes_at_level_1() -> vo
 	assert_eq(int(board.strength.value), int(board.strength.base_value) + 10)
 	assert_eq(int(board.dexterity.value), int(board.dexterity.base_value) + 10)
 	assert_eq(int(board.intelligence.value), int(board.intelligence.base_value) + 10)
-	# CON's default_value is 0 (not 10 like the other four) — the +10 base
-	# grant is what brings it to parity.
-	assert_eq(int(board.constitution.value), 10, "CON: default 0 + BalancedCore's +10 base")
+	# Shape, not an absolute (owner: not settled enough for goldens,
+	# 2026-09-20) — CON's base moves independently of BalancedCore's grant, so
+	# assert the DELTA over base_value like the other four attributes.
+	assert_eq(int(board.constitution.value), int(board.constitution.base_value) + 10,
+			"CON: base + BalancedCore's +10")
 	assert_eq(int(board.wisdom.value), int(board.wisdom.base_value) + 10)
 
 

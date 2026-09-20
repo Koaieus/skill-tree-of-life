@@ -22,7 +22,6 @@ extends GutTest
 ##     unminted id resolves to nothing;
 ##   - SP is granted, so one turn exercises frontier growth AND the AP loop.
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
@@ -128,7 +127,8 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 	var e := Entity.new()
 	e.name = ent_name
 	e.display_name = ent_name
-	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# Flat board: this is a frozen golden captured under CON=0; tuned CON must not ride in.
+	e.stat_board = TestBoards.flat_entity_board()
 	# Zero the 5 % baseline crit: since #507 a ranged crit rolls off a fresh
 	# per-attack seed, and a golden snapshot cannot flake on a doubled shot.
 	e.stat_board.get_stat(&"crit_chance").base_value = 0.0
