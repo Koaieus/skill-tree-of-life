@@ -20,6 +20,11 @@ extends GameRoot
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _ENEMY_FACTION := preload("res://entity/factions/camp_1.tres")
 const _CORE_CLASS := preload("res://entity/core/balanced_core.tres")
+## Flat blade damage granted to the player so ONE swing kills the enemy core
+## and one kill levels. A fixture fact: sized against the default node board's
+## core health with headroom, never read back by a test as a number. The same
+## `grant_core_modifier` seam `scenes/dev_sandbox.gd` uses for its blade size.
+const _FIXTURE_BLADE_DAMAGE_BONUS := 40.0
 
 ## The one AI-driven opponent; typed so a test never walks
 ## `entities_container` by name.
@@ -45,6 +50,11 @@ func _setup_level() -> void:
 	enemy.is_human_controlled = false
 	for ent: Entity in [player, enemy]:
 		ent.stat_board.crit_chance.base_value = 0.0
+	var m := StatModifier.new()
+	m.stat_id = &"blade_damage"
+	m.operation = StatModifier.Operation.ADD_BASE
+	m.value = _FIXTURE_BLADE_DAMAGE_BONUS
+	player.grant_core_modifier(m)
 	battle_system.instant_mutation = true
 
 

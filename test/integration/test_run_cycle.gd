@@ -15,7 +15,7 @@ var _player: Entity
 var _enemy: Entity
 var _enemy_core: SkillNode
 var _enemy_nodes: Array[SkillNode]
-var _xp_before: float
+var _xp_gained: float
 var _level_before: int
 
 
@@ -26,14 +26,23 @@ func before_each() -> void:
 	_enemy = _root.enemy
 	_enemy_core = _root.enemy_core
 	assert_true(await wait_until(
-			func() -> bool: return _root.turn_manager.current_entity == _player, 5.0),
+			func() -> bool: return _root.turn_manager.current_entity == _player, 5),
 			"fixture: the player must hold the first turn")
 	_enemy_nodes = []
 	for node: SkillNode in _root.graph.get_skill_nodes():
 		if node.owned_by == _enemy:
 			_enemy_nodes.append(node)
 	assert_gt(_enemy_nodes.size(), 0, "fixture: the enemy owns its core")
-	_xp_before = _player.stat_board.xp.current
+	# "XP rose" as a relation that survives the pool wrapping through a
+	# level-up: sum every positive step the pool takes, not before/after.
+	_xp_gained = 0
+	var xp: PoolStat = _player.stat_board.xp
+	var last: Array[float] = [xp.current]
+	xp.current_changed.connect(func(now: Variant) -> void:
+		var delta := float(now) - last[0]
+		if delta > 0:
+			_xp_gained += delta
+		last[0] = float(now))
 	_level_before = _player.level
 	await _run_cycle()
 
@@ -54,7 +63,7 @@ func _run_cycle() -> void:
 	plan.swing_cw = false
 	assert_true(plan.is_valid(), "the plan validates: %s" % [plan.validate()])
 	bs.launch_attack()
-	assert_true(await wait_until(func() -> bool: return not bs.is_launching, 15.0),
+	assert_true(await wait_until(func() -> bool: return not bs.is_launching, 15),
 			"the launch settles")
 
 
@@ -69,8 +78,7 @@ func test_every_node_the_enemy_owned_is_unowned() -> void:
 
 
 func test_the_killer_earned_xp_and_levelled() -> void:
-	assert_gt(_player.stat_board.xp.current + float(_player.level - _level_before),
-			_xp_before, "xp rose (or was spent on a level)")
+	assert_true(_xp_gained > 0, "the killer's xp pool was fed")
 	assert_gte(_player.level, _level_before + 1, "one kill levels on this fixture")
 
 
