@@ -11,4 +11,4 @@ func type_tag() -> StringName:
 
 
 static func from_dict(d: Dictionary) -> ExtractCommand:
-	return ExtractCommand.new(int(d.get("entity_id", 0)), int(d.get("node_id", 0)))
+	return WireFields.from_dict(ExtractCommand, d)

@@ -33,15 +33,12 @@ func type_tag() -> StringName:
 	return TAG
 
 
-func to_dict() -> Dictionary:
-	var d := super()
-	d["upgrade_id"] = upgrade_id
-	return d
+## The wire form, declared once (#1000); see [WireFields].
+static func wire_fields() -> Array[WireFields.Field]:
+	var fields := NodeCommand.wire_fields()
+	fields.append(WireFields.Field.new(&"upgrade_id", TYPE_STRING_NAME))
+	return fields
 
 
 static func from_dict(d: Dictionary) -> ToggleTempUpgradeCommand:
-	return ToggleTempUpgradeCommand.new(
-		int(d.get("entity_id", 0)),
-		int(d.get("node_id", 0)),
-		StringName(d.get("upgrade_id", &"")),
-	)
+	return WireFields.from_dict(ToggleTempUpgradeCommand, d)

@@ -78,19 +78,14 @@ func type_tag() -> StringName:
 	return TAG
 
 
-func to_dict() -> Dictionary:
-	var d := super()
-	d["plan"] = plan
-	d["record"] = record
-	d["seed"] = resolve_seed
-	return d
+## The wire form, declared once (#1000); see [WireFields].
+static func wire_fields() -> Array[WireFields.Field]:
+	var fields := Command.wire_fields()
+	fields.append(WireFields.Field.new(&"plan", TYPE_DICTIONARY))
+	fields.append(WireFields.Field.new(&"record", TYPE_DICTIONARY))
+	fields.append(WireFields.Field.new(&"resolve_seed", TYPE_INT).as_key(&"seed"))
+	return fields
 
 
 static func from_dict(d: Dictionary) -> LaunchAttackCommand:
-	var command := LaunchAttackCommand.new(
-		int(d.get("entity_id", 0)),
-		d.get("plan", {}),
-		int(d.get("seed", 0)),
-	)
-	command.record = d.get("record", {})
-	return command
+	return WireFields.from_dict(LaunchAttackCommand, d)

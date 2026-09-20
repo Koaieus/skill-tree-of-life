@@ -24,13 +24,12 @@ func type_tag() -> StringName:
 	return TAG
 
 
-func to_dict() -> Dictionary:
-	var d := super()
-	d["node_ids"] = node_ids.duplicate()
-	return d
+## The wire form, declared once (#1000); see [WireFields].
+static func wire_fields() -> Array[WireFields.Field]:
+	var fields := Command.wire_fields()
+	fields.append(WireFields.Field.new(&"node_ids", TYPE_ARRAY).of(TYPE_INT))
+	return fields
 
 
 static func from_dict(d: Dictionary) -> DeallocateSetCommand:
-	var ids: Array[int] = []
-	ids.assign(d.get("node_ids", []))
-	return DeallocateSetCommand.new(int(d.get("entity_id", 0)), ids)
+	return WireFields.from_dict(DeallocateSetCommand, d)

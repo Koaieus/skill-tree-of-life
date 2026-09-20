@@ -88,6 +88,14 @@ func type_tag() -> StringName:
 	return TAG
 
 
+## The wire form, declared once (#1000); see [WireFields].
+static func wire_fields() -> Array[WireFields.Field]:
+	var fields := Command.wire_fields()
+	fields.append(WireFields.Field.new(&"carrier_id", TYPE_INT))
+	fields.append(WireFields.Field.new(&"resolved", TYPE_DICTIONARY))
+	return fields
+
+
 ## The granted modifier this round recorded, rebuilt locally, or null.
 func granted_modifier() -> StatModifier:
 	return StatModifierCodec.from_dict(resolved.get("granted"))
@@ -105,14 +113,5 @@ func is_final() -> bool:
 	return bool(resolved.get("finished", false))
 
 
-func to_dict() -> Dictionary:
-	var d := super()
-	d["carrier_id"] = carrier_id
-	d["resolved"] = resolved
-	return d
-
-
 static func from_dict(d: Dictionary) -> LootRoundCommand:
-	var command := LootRoundCommand.new(int(d.get("entity_id", 0)), int(d.get("carrier_id", 0)))
-	command.resolved = d.get("resolved", {})
-	return command
+	return WireFields.from_dict(LootRoundCommand, d)

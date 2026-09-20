@@ -43,16 +43,13 @@ func type_tag() -> StringName:
 	return TAG
 
 
-func to_dict() -> Dictionary:
-	var d := super()
-	d["request_id"] = request_id
-	d["chosen_index"] = chosen_index
-	return d
+## The wire form, declared once (#1000); see [WireFields].
+static func wire_fields() -> Array[WireFields.Field]:
+	var fields := Command.wire_fields()
+	fields.append(WireFields.Field.new(&"request_id", TYPE_INT))
+	fields.append(WireFields.Field.new(&"chosen_index", TYPE_INT, -1))
+	return fields
 
 
 static func from_dict(d: Dictionary) -> PickLootCommand:
-	return PickLootCommand.new(
-		int(d.get("entity_id", 0)),
-		int(d.get("request_id", 0)),
-		int(d.get("chosen_index", -1)),
-	)
+	return WireFields.from_dict(PickLootCommand, d)

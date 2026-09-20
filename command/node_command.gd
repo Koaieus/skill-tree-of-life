@@ -15,7 +15,8 @@ func _init(entity_id_: int = 0, node_id_: int = 0) -> void:
 	node_id = node_id_
 
 
-func to_dict() -> Dictionary:
-	var d := super()
-	d["node_id"] = node_id
-	return d
+## The wire form, declared once (#1000); see [WireFields].
+static func wire_fields() -> Array[WireFields.Field]:
+	var fields := Command.wire_fields()
+	fields.append(WireFields.Field.new(&"node_id", TYPE_INT))
+	return fields

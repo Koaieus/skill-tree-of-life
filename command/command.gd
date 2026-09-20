@@ -11,10 +11,12 @@ extends Resource
 ## objects is the applier's job (#510), not the command's.
 ##
 ## Serialization is a plain [Dictionary] of primitives, so it survives any
-## transport Godot can encode. Each concrete type declares a `TAG` and its own
-## `static from_dict`; [CommandCodec] owns the tag -> type dispatch, and is a
-## separate class deliberately — a base that named its own subclasses would be
-## a parse-time cycle.
+## transport Godot can encode. Every concrete type declares a `TAG` and its
+## wire form as `static func wire_fields()` (#1000, see [WireFields]) — the
+## one place a field is named — and a one-line `static from_dict` that
+## [CommandRegistry] dispatches to by tag. The registry is a separate class
+## deliberately: a base that named its own subclasses would be a parse-time
+## cycle.
 ##
 ## Fields are plain vars, never `@export` — a command is a message, not
 ## authored content, and its serialized form is [method to_dict] rather than a
@@ -93,12 +95,19 @@ func type_tag() -> StringName:
 	return &""
 
 
-## The wire form. Subclasses call `super()` and add their own fields, so
-## every dictionary carries `type` + `entity_id` at minimum.
+## The wire form of the base: the actor, and the intent id only once minted —
+## an unconditional key would recapture every `test/fixtures/outcome/*.tres`.
+## Subclasses append to this list, never restart it.
+static func wire_fields() -> Array[WireFields.Field]:
+	return [
+		WireFields.Field.new(&"entity_id", TYPE_INT),
+		WireFields.Field.new(&"intent_id", TYPE_INT).omitted_at_default(),
+	]
+
+
+## The wire form: `type` first, then every declared field in base-to-derived
+## order. Final — a subclass extends [method wire_fields], not this.
 func to_dict() -> Dictionary:
-	var d := {"type": type_tag(), "entity_id": entity_id}
-	# Omitted when unminted — see [member intent_id]. An unconditional key here
-	# would recapture every `test/fixtures/outcome/*.tres`.
-	if intent_id != 0:
-		d["intent_id"] = intent_id
+	var d := {"type": type_tag()}
+	d.merge(WireFields.to_dict(self))
 	return d

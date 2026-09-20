@@ -13,9 +13,13 @@ extends GutTest
 
 const ITERATIONS := 25
 
-## Applier state that deliberately never rides the command's own dictionary —
-## see the notes on [member Command.pre_fingerprint].
-const TRANSIENT: Array[StringName] = [&"pre_fingerprint", &"host_fingerprint"]
+## Vars that deliberately never ride the command's own dictionary — see the
+## notes on [member Command.pre_fingerprint] and
+## [member LaunchAttackCommand.computed_here]. A new var on a command is
+## either declared in `wire_fields()` or named here, on purpose.
+const TRANSIENT: Array[StringName] = [
+	&"pre_fingerprint", &"host_fingerprint", &"computed_here",
+]
 
 var _rng := RandomNumberGenerator.new()
 
