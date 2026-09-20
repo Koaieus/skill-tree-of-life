@@ -1,3 +1,4 @@
+@tool
 extends Sprite2D
 
 ## The shots-left pip row (#959, Ranged2.0 C8): `●●●○○` under a leaf while
