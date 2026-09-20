@@ -195,7 +195,10 @@ func _ready() -> void:
 		# a roster that does not exist yet.
 		_ai_count_row.set_range(0, MAX_AI_OPPONENTS)
 		_ai_count_row.set_value(DEFAULT_AI_OPPONENTS)
-		_ai_count_row.value_changed.connect(func(v: float): _roster.set_ai_opponents(int(v)))
+		# The joiner sees the new shape too: a rebuild used to reach it only inside
+		# START's run setup, so its lobby drew a roster the host had already
+		# replaced. Host-only by construction — only a host owns this row.
+		_ai_count_row.value_changed.connect(_on_ai_count_changed)
 
 		# #841: gated the same as the count row above it — a client authors no
 		# AI slots at all ([method _offers_ai_opponents]), so it has nothing to
@@ -883,6 +886,11 @@ func _on_row_core_class_picked(core: CoreClass, participant: Participant) -> voi
 
 func _on_row_core_reset(participant: Participant) -> void:
 	_roster.reset_core(participant)
+	_broadcast_roster()
+
+
+func _on_ai_count_changed(value: float) -> void:
+	_roster.set_ai_opponents(int(value))
 	_broadcast_roster()
 
 

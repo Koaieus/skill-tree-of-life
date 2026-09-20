@@ -438,17 +438,17 @@ func test_a_route_hands_its_policy_to_the_lobby_it_opens() -> void:
 	# plus #531's address-screen path, which cannot read `item.route` on focus.
 	for id in [MenuGraph.ID_NEW_GAME, MenuGraph.ID_LOCAL]:
 		_navigate_to(id)
-		assert_eq(_lobby()._policy, _tree.get_item(id).route.lobby_policy,
+		assert_eq(_lobby().roster().policy, _tree.get_item(id).route.lobby_policy,
 				"'%s' hands its policy down" % id)
 		_back_out(_tree.depth_of(id))
 
 	# ...and so do the two config panels, which have no leaf focus to read: by
 	# the time they report, the focus change that would have carried the route
 	# is long past. `_policy_of` asks the tree by id instead.
-	assert_eq(_host("7777")._policy, _tree.get_item(MenuGraph.ID_HOST).route.lobby_policy,
+	assert_eq(_host("7777").roster().policy, _tree.get_item(MenuGraph.ID_HOST).route.lobby_policy,
 			"HOST hands its policy down")
 	_back_out(2)
-	assert_eq(_dial("10.0.0.4", "7777")._policy,
+	assert_eq(_dial("10.0.0.4", "7777").roster().policy,
 			_tree.get_item(MenuGraph.ID_JOIN).route.lobby_policy,
 			"and so does JOIN")
 
