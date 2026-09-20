@@ -8,11 +8,29 @@ first one. The full console output is ALWAYS kept at .godot/gut-last.log and
 the machine-readable results at .godot/gut-last.xml — if this summary elides
 something you need, grep the log, never re-run. Same spirit as `mise refresh`.
 
-The log is written LIVE, line by line, so `tail -f .godot/gut-last.log` shows
-which script GUT is on while the ~200s suite is still running — and a run that
-is killed or crashes still leaves everything it printed. The verdict below is
+The suite is SHARDED: the runner collects the test scripts itself, splits
+them across N headless godot processes (longest-processing-time greedy off
+the per-script seconds persisted in .godot/gut-timings.json by the previous
+run), and merges their junit XML + console logs back into the single
+.godot/gut-last.xml / .godot/gut-last.log everything downstream expects
+(`test:timings`, `land`, the grep advice in .claude/rules/testing.md). N
+defaults to the core count, clamped by MemAvailable (~1 GB per shard is the
+measured ceiling); `GUT_SHARDS=1` forces the old single process, any other
+value pins N. A target of one script, or a raw-flag run (`-gselect=…`), is
+never sharded — GUT's own collection semantics apply there.
+
+Each shard gets its own `user://` (XDG_DATA_HOME points at a per-shard temp
+dir): test_settings.gd writes user://settings.cfg and the Settings autoload
+reads it at boot, so a shard starting mid-test would otherwise inherit a
+sibling's half-written file. A shard's user:// is therefore always FRESH —
+the same footing as CI, never the developer's real settings.
+
+Each shard's console is written LIVE to .godot/gut-shard-N.log, so
+`tail -f .godot/gut-shard-*.log` shows which script every shard is on while
+the suite runs — and a run that is killed or crashes still leaves everything
+it printed. The merged .godot/gut-last.log lands with the verdict, which is
 the last thing to arrive, never the first: assume the summary is absent until
-the run ends, and read the log if you need to know what is happening now.
+the run ends, and read the shard logs if you need to know what is happening.
 
 Usage:
     mise run test                              # whole suite (reads .gutconfig.json)
@@ -37,16 +55,35 @@ with a parse error AND a `class_name` never enters the cache, so the predicate
 fires on every run until it is fixed — and the refresh prints the SCRIPT
 ERROR, which is the right noise.
 """
+import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
+import time
 import xml.etree.ElementTree as ET
 
 ROOT = os.environ.get("MISE_PROJECT_ROOT") or os.getcwd()
 OUT_DIR = os.path.join(ROOT, ".godot")
 LOG = os.path.join(OUT_DIR, "gut-last.log")
 XML = os.path.join(OUT_DIR, "gut-last.xml")
+TIMINGS = os.path.join(OUT_DIR, "gut-timings.json")
+SHARD_LOG = os.path.join(OUT_DIR, "gut-shard-{}.log")
+SHARD_XML = os.path.join(OUT_DIR, "gut-shard-{}.xml")
+GUT_CONFIG = os.path.join(ROOT, ".gutconfig.json")
+GUT_CMDLN = "res://addons/gut/gut_cmdln.gd"
+
+# Below this many scripts a second godot boot (~2s) costs more than it saves.
+MIN_SCRIPTS_TO_SHARD = 4
+# Measured peak RSS of a full-suite shard, rounded up; MemAvailable / this
+# caps N so a loaded workstation never swaps its way through the suite.
+SHARD_RSS_MB = 1024
+# A script with no persisted timing is assumed to cost this much when the
+# shards are balanced — a rough median, so a new script neither dominates nor
+# vanishes from the plan.
+DEFAULT_SCRIPT_SECONDS = 0.5
 
 
 MAX_TESTS_SHOWN = 15
@@ -132,7 +169,12 @@ def refresh_if_stale(root):
 
 
 def build_args(argv):
-    """(godot gut flags, human label for what we are running)."""
+    """(godot gut flags, human label, scripts-to-shard or None).
+
+    `scripts` is the collected res:// list when the target is the suite or a
+    directory — the runner shards those itself. It is None for one script and
+    for raw-flag runs, which go to a single GUT process untouched.
+    """
     args = argv[1:]
     # Raw GUT flags (-gselect=…, -glog=3) pass through untouched — the old bare
     # `godot … gut_cmdln.gd` task accepted them and wrapping one as a directory
@@ -142,27 +184,124 @@ def build_args(argv):
     if len(targets) > 1:
         sys.exit(f"✗ one target at a time, got: {' '.join(targets)}")
     if not targets:
-        return passthrough, "suite" if not passthrough else " ".join(passthrough)
+        if passthrough:
+            return passthrough, " ".join(passthrough), None
+        cfg = _gut_config()
+        return [], "suite", collect_scripts(cfg.get("dirs", []), cfg.get("include_subdirs", False),
+                                           cfg.get("prefix", "test_"), cfg.get("suffix", ".gd"))
     target = targets[0]
     if target.endswith(".gd"):
-        return [f"-gtest={target}", "-gdir=", *passthrough], target
-    return [f"-gdir={target}", *passthrough], target
+        return [f"-gtest={target}", "-gdir=", *passthrough], target, None
+    cfg = _gut_config()
+    return ([f"-gdir={target}", *passthrough], target,
+            collect_scripts([target], cfg.get("include_subdirs", False),
+                            cfg.get("prefix", "test_"), cfg.get("suffix", ".gd")))
+
+
+def _gut_config():
+    try:
+        with open(GUT_CONFIG, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return {}
+
+
+def _res_to_abs(res_path):
+    return os.path.join(ROOT, res_path.removeprefix("res://"))
+
+
+def _abs_to_res(path):
+    return "res://" + os.path.relpath(path, ROOT).replace(os.sep, "/")
+
+
+def collect_scripts(dirs, include_subdirs, prefix, suffix):
+    """Every test script GUT's `add_directory` would collect, sorted, as res:// paths.
+
+    Mirrors GUT: files named <prefix>*<suffix> directly in each dir, and in its
+    subtree when include_subdirs is set. Hidden dirs are skipped like Godot does.
+    """
+    out = []
+    for d in dirs:
+        base = _res_to_abs(d)
+        if not os.path.isdir(base):
+            continue
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = sorted(x for x in dirnames if not x.startswith(SKIP_DIR_PREFIX)) \
+                if include_subdirs else []
+            for name in sorted(filenames):
+                if name.startswith(prefix) and name.endswith(suffix):
+                    out.append(_abs_to_res(os.path.join(dirpath, name)))
+    return sorted(set(out))
+
+
+def _mem_available_mb():
+    try:
+        with open("/proc/meminfo", encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("MemAvailable:"):
+                    return int(line.split()[1]) // 1024
+    except (OSError, ValueError):
+        pass
+    return None
+
+
+def shard_count(n_scripts):
+    """How many godot processes to run: GUT_SHARDS pins it; else cores, clamped by RAM."""
+    pinned = os.environ.get("GUT_SHARDS", "").strip()
+    if pinned:
+        return max(1, int(pinned))
+    if n_scripts < MIN_SCRIPTS_TO_SHARD:
+        return 1
+    n = os.cpu_count() or 1
+    avail = _mem_available_mb()
+    if avail is not None:
+        n = min(n, max(1, avail // SHARD_RSS_MB))
+    return max(1, min(n, n_scripts))
+
+
+def load_timings():
+    try:
+        with open(TIMINGS, encoding="utf-8") as fh:
+            return {k: float(v) for k, v in json.load(fh).items()}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_timings(cases_time):
+    """Merge this run's per-script seconds into the persisted cache."""
+    timings = load_timings()
+    timings.update(cases_time)
+    with open(TIMINGS, "w", encoding="utf-8") as fh:
+        json.dump(dict(sorted(timings.items())), fh, indent=0)
+
+
+def partition(scripts, n, timings):
+    """LPT greedy: longest scripts first, each onto the currently lightest shard."""
+    def cost(s):
+        return timings.get(s.removeprefix("res://"), DEFAULT_SCRIPT_SECONDS)
+    shards = [[] for _ in range(n)]
+    load = [0.0] * n
+    for s in sorted(scripts, key=cost, reverse=True):
+        i = load.index(min(load))
+        shards[i].append(s)
+        load[i] += cost(s)
+    return [sorted(s) for s in shards if s]
 
 
 def _cost_hint(label):
     """What this run is about to cost, said UP FRONT.
 
-    Only the whole suite earns the warning: ~215s is a gate you spend once at
-    final green (CLAUDE.md), and the number is here so nobody starts one to
-    "just check something" without being told. A narrowed target is the cheap
-    rung of the ladder and needs no disclaimer.
+    Only the whole suite earns the note: it is a gate you spend once at final
+    green (CLAUDE.md), and the cost is here so nobody starts one to "just
+    check something" without being told. A narrowed target is the cheap rung
+    of the ladder and needs no disclaimer.
     """
     if label != "suite":
         return ""
-    return "(~215s, the whole suite — a gate, not a feedback loop)"
+    return "(the whole suite — a gate, not a feedback loop)"
 
 
-def _preamble_notes(label):
+def _preamble_notes(label, shards):
     """The lines under the header — where to look, and what NOT to do.
 
     "Don't poll" is here rather than in a doc because this is the moment it is
@@ -172,7 +311,8 @@ def _preamble_notes(label):
     process exits; a `sleep`-and-`tail` loop buys nothing and blocks the user
     out of the conversation while it spins.
     """
-    notes = [f"  progress: tail -f {os.path.relpath(LOG, ROOT)} — written live, "
+    live = os.path.relpath(SHARD_LOG.format("*") if shards > 1 else LOG, ROOT)
+    notes = [f"  progress: tail -f {live} — written live, "
              f"so it shows the script GUT is on right now"]
     if label == "suite":
         notes.append("  don't poll: background it (the harness wakes you on exit) "
@@ -228,14 +368,106 @@ def report_failures(cases):
         print(f"\n  …and {failing - shown} more failing tests — see the log.")
 
 
+def _godot_cmd(flags, xml_path):
+    return ["godot", "--headless", "--path", ROOT, "-s", GUT_CMDLN,
+            *flags, "-gdisable_colors", f"-gjunit_xml_file={xml_path}"]
+
+
+def run_shards(flags, scripts, n, tmp):
+    """Launch one godot per shard, each console streamed live to its own log.
+
+    Returns [(shard_index, scripts, returncode)]. Only `-gtest=` and
+    `-gdir=` are added per shard; any passthrough flags ride along on all.
+    """
+    plan = partition(scripts, n, load_timings())
+    passthrough = [f for f in flags if not f.startswith(("-gdir=", "-gtest="))]
+    procs = []
+    for i, shard in enumerate(plan):
+        # Own user:// per shard — see the module docstring.
+        env = dict(os.environ, XDG_DATA_HOME=os.path.join(tmp, f"shard-{i}"))
+        os.makedirs(env["XDG_DATA_HOME"], exist_ok=True)
+        log = open(SHARD_LOG.format(i), "w", buffering=1)
+        cmd = _godot_cmd([f"-gtest={','.join(shard)}", "-gdir=", *passthrough],
+                         SHARD_XML.format(i))
+        procs.append((i, shard, log, subprocess.Popen(
+            cmd, stdout=log, stderr=subprocess.STDOUT, env=env, text=True)))
+    results = []
+    for i, shard, log, proc in procs:
+        proc.wait()
+        log.close()
+        results.append((i, shard, proc.returncode))
+    return results
+
+
+def _clear_shard_artifacts():
+    for name in os.listdir(OUT_DIR):
+        if name.startswith("gut-shard-") and name.endswith((".log", ".xml")):
+            try:
+                os.remove(os.path.join(OUT_DIR, name))
+            except OSError:
+                pass
+
+
+def merge_shards(results):
+    """Stitch shard XMLs into XML and shard logs into LOG; return (console, missing).
+
+    `console` is the concatenated log text; `missing` lists shards that left no
+    parseable XML (a crash, an abort in a hook) — each is a run failure.
+    """
+    root = ET.Element("testsuites", name="GutTests")
+    missing = []
+    tests = failures = 0
+    for i, shard, code in results:
+        try:
+            tree = ET.parse(SHARD_XML.format(i))
+        except (OSError, ET.ParseError):
+            missing.append((i, len(shard), code))
+            continue
+        for suite in list(tree.getroot().iter("testsuite")):
+            root.append(suite)
+            tests += int(suite.get("tests", 0))
+            failures += int(suite.get("failures", 0))
+    root.set("tests", str(tests))
+    root.set("failures", str(failures))
+    if root.findall("testsuite") or not missing:
+        ET.ElementTree(root).write(XML, encoding="unicode", xml_declaration=True)
+    chunks = []
+    for i, shard, code in results:
+        try:
+            with open(SHARD_LOG.format(i), encoding="utf-8", errors="replace") as fh:
+                body = fh.read()
+        except OSError:
+            body = ""
+        chunks.append(f"{'=' * 20} shard {i} ({len(shard)} scripts, exit {code}) {'=' * 20}\n{body}")
+    console = "\n".join(chunks)
+    with open(LOG, "w", encoding="utf-8") as fh:
+        fh.write(console)
+    return console, missing
+
+
+def _trailer_lines(console):
+    """Godot's exit trailer, one per process — the last 25 lines of each shard's chunk."""
+    out = []
+    for chunk in re.split(r"^=+ shard \d+ .*$", console, flags=re.M):
+        out.extend(l for l in chunk.splitlines()[-25:]
+                   if l.startswith(("ERROR:", "WARNING:", "CRASH"))
+                   and not any(b in l for b in BENIGN_TRAILER))
+    return out
+
+
 def main():
-    flags, label = build_args(sys.argv)
+    flags, label, scripts = build_args(sys.argv)
     os.makedirs(OUT_DIR, exist_ok=True)
     for stale in (LOG, XML):
         try:
             os.remove(stale)
         except OSError:
             pass
+    shards = shard_count(len(scripts)) if scripts else 1
+    # Only a sharded run owns the shard files: a `test:one` a sibling session
+    # fires mid-suite must not unlink the logs the shards are still writing.
+    if shards > 1:
+        _clear_shard_artifacts()
 
     # The PREAMBLE, printed before godot starts and terminated with a newline
     # so it is a COMPLETE line the moment it is written. It used to be
@@ -243,35 +475,44 @@ def main():
     # progress looked like a dangling fragment — or, piped anywhere, like an
     # empty file. Three minutes of "is this even running?" is exactly the
     # question this task exists to stop you asking.
-    print(f"Running {label}… {_cost_hint(label)}".rstrip(), flush=True)
-    for note in _preamble_notes(label):
+    what = f"{len(scripts)} scripts over {shards} shards" if shards > 1 else label
+    print(f"Running {what}… {_cost_hint(label)}".rstrip(), flush=True)
+    for note in _preamble_notes(label, shards):
         print(note, flush=True)
     refresh_if_stale(ROOT)
-    # Merge stderr INTO stdout rather than capturing both: godot writes engine
-    # errors to stderr and GUT to stdout, and concatenating the two streams
-    # scrambles the ordering — the log stops matching what you'd see live, and
-    # the "last lines are the exit trailer" heuristic below reads stderr's tail.
-    #
-    # STREAMED to the log rather than captured and written at the end (Popen,
-    # not `subprocess.run`). Two things this buys, both about the ~200s window
-    # where the old task was a black box:
-    #   * the log is peekable WHILE the suite runs — `tail -f` shows the script
-    #     GUT is on, which is the only way to tell a slow suite from a hung one;
-    #   * a run that is killed, crashes, or times out still leaves its log.
-    #     Previously the single write at the end never happened and the whole
-    #     console output was lost — the one case where you most wanted it.
-    console_lines = []
-    with open(LOG, "w", buffering=1) as f:
-        proc = subprocess.Popen(
-            ["godot", "--headless", "--path", ROOT, "-s", "res://addons/gut/gut_cmdln.gd",
-             *flags, "-gdisable_colors", f"-gjunit_xml_file={XML}"],
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-        )
-        for line in proc.stdout:
-            f.write(line)
-            console_lines.append(line)
-        proc.wait()
-    console = "".join(console_lines)
+    started = time.monotonic()
+    if shards > 1:
+        tmp = tempfile.mkdtemp(prefix="gut-shards-")
+        try:
+            results = run_shards(flags, scripts, shards, tmp)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        console, missing = merge_shards(results)
+        returncode = max(code for _, _, code in results)
+    else:
+        # Merge stderr INTO stdout rather than capturing both: godot writes
+        # engine errors to stderr and GUT to stdout, and concatenating the two
+        # streams scrambles the ordering — the log stops matching what you'd
+        # see live, and the "last lines are the exit trailer" heuristic below
+        # reads stderr's tail.
+        #
+        # STREAMED to the log rather than captured and written at the end
+        # (Popen, not `subprocess.run`), so the log is peekable WHILE the run
+        # is on, and a run that is killed, crashes, or times out still leaves
+        # its log — the one case where you most wanted it.
+        console_lines = []
+        with open(LOG, "w", buffering=1) as f:
+            proc = subprocess.Popen(
+                _godot_cmd(flags, XML),
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+            )
+            for line in proc.stdout:
+                f.write(line)
+                console_lines.append(line)
+            proc.wait()
+        console = "".join(console_lines)
+        missing, returncode = [], proc.returncode
+    elapsed = time.monotonic() - started
 
     cases = parse_xml()
     alarms = sorted({l.strip() for l in console.splitlines() if ALARM.search(l)})
@@ -281,7 +522,7 @@ def main():
     # what costs you a re-run — a bad path and a stale class cache look nothing
     # alike, and the alarm lines are the whole diagnosis for the second.
     if cases is None:
-        print(f"✗ run did not complete (godot exit {proc.returncode}) — no results file")
+        print(f"✗ run did not complete (godot exit {returncode}) — no results file")
         tail = [l for l in console.splitlines()[-40:]
                 if l.strip() and not any(b in l for b in BENIGN_TRAILER)]
         print("\n".join(tail[-20:]))
@@ -298,12 +539,22 @@ def main():
     failing = sum(1 for c in cases if c[2] == "fail")
     passing = sum(1 for c in cases if c[2] == "pass")
     other = [c for c in cases if c[2] not in ("fail", "pass")]
-    scripts = len({c[0] for c in cases})
-    elapsed = re.search(r"^Time\s+([\d.]+)s", console, re.M)
-    verdict = "✗" if failing else "✓"
+    scripts_ran = len({c[0] for c in cases})
+    verdict = "✗" if failing or missing else "✓"
     print(f"{verdict} {failing} failing · {passing} passed · {len(other)} pending · "
-          f"{scripts} script" + ("s" if scripts != 1 else "")
-          + (f" ({elapsed.group(1)}s)" if elapsed else ""))
+          f"{scripts_ran} script" + ("s" if scripts_ran != 1 else "")
+          + (f" · {shards} shards" if shards > 1 else "")
+          + f" ({elapsed:.1f}s wall)")
+    if scripts and scripts_ran != len(scripts) - sum(n for _, n, _ in missing):
+        print(f"  ! collected {len(scripts)} scripts but {scripts_ran} reported — "
+              f"see run health / shard logs")
+
+    # A shard that produced no XML lost every script it carried; that is a run
+    # failure even when every other shard is green, and its log tail is the
+    # diagnosis.
+    for i, n, code in missing:
+        print(f"\nshard {i} did not complete (godot exit {code}) — {n} scripts unreported; "
+              f"tail {os.path.relpath(SHARD_LOG.format(i), ROOT)}")
 
     if failing:
         report_failures(cases)
@@ -320,19 +571,32 @@ def main():
         for line in alarms[:10]:
             print(f"  {truncate(line)}")
 
-    unexpected = [l for l in console.splitlines()[-25:]
-                  if l.startswith(("ERROR:", "WARNING:", "CRASH"))
-                  and not any(b in l for b in BENIGN_TRAILER)]
+    unexpected = _trailer_lines(console) if shards > 1 else [
+        l for l in console.splitlines()[-25:]
+        if l.startswith(("ERROR:", "WARNING:", "CRASH"))
+        and not any(b in l for b in BENIGN_TRAILER)]
     if unexpected:
         print("\nexit trailer:")
         for line in unexpected[:5]:
             print(f"  {truncate(line)}")
 
+    save_timings(suite_times())
+
     # -F, not a bare pattern: [Failed] is a bracket expression matching any of
     # F/a/i/l/e/d, i.e. nearly every line of a 7000-line log.
     print(f"\nfull output: {os.path.relpath(LOG, ROOT)} "
           f"(grep -F '[Failed]' for every assert; {os.path.relpath(XML, ROOT)} for junit)")
-    return 1 if failing else 0
+    return 1 if failing or missing else 0
+
+
+def suite_times():
+    """{script: seconds} from the merged XML, for the timings cache."""
+    try:
+        tree = ET.parse(XML)
+    except (OSError, ET.ParseError):
+        return {}
+    return {s.get("name", "?"): float(s.get("time", 0.0))
+            for s in tree.getroot().iter("testsuite")}
 
 
 if __name__ == "__main__":
