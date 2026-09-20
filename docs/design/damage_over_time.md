@@ -135,7 +135,7 @@ spreads faster. Own issue.
 
 Reference: an arrow is `1 + DEX/20` (1–3 early, ~11 at DEX 200); the floor of
 3 dominates early; armor 15 already floors a late hit. A 20-arrow poison volley
-= 20 stacks = 38 HP over five turns; sustained every turn ≈ 40/turn.
+= 20 stacks = 38.75 HP over five turns (20, 10, 5, 2.5, 1.25 — stacks are floats, never rounded); sustained every turn ≈ 40/turn.
 
 | Node HP | Poison (one 20-arrow volley / sustained) | Direct arrows, armor 0 / 15 / 100 | Verdict |
 |---|---|---|---|
