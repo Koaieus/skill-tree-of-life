@@ -74,6 +74,9 @@ const _EXPORT_DEPS: Array = [
 	["CommandLink", "graph"],
 	["CommandLink", "turn_manager"],
 	["CommandLink", "loot_pick_registry"],
+	["NetworkSession", "transport"],
+	["NetworkSession", "command_link"],
+	["NetworkSession", "command_applier"],
 ]
 
 
