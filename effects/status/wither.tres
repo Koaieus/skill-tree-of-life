@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="WitherStatus" format=3]
+
+[ext_resource type="Script" path="res://effects/status/wither.gd" id="1_wither"]
+
+[resource]
+script = ExtResource("1_wither")
+factor_per_stack = 0.1
+id = &"wither"
+display_name = "Wither"
+description = "Every stack cuts healing on this node by 10%; past 10 stacks healing becomes damage that never closes the regen gate. Stacks halve each turn and never cap."
+tint = Color(0.55, 0.35, 0.75, 1)
+tags = Array[StringName]([&"debuff"])
+potency_stat_id = &"wither_potency"
+resistance_stat_id = &"wither_resistance"
+power_max = 0.0
+decay_mode = 1
+decay_per_tick = 0.5
+display_max = 10.0
+reapply = 1
+cure_per_hp = 0.0

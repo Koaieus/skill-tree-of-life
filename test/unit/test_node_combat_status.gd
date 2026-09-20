@@ -280,3 +280,63 @@ func test_snapshot_carries_the_slice_and_stays_detached() -> void:
 	assert_eq(_combat().get_statuses().size(), 1)
 	shadow.clear_statuses()
 	assert_eq(_combat().get_statuses().size(), 1, "host untouched by a shadow clear")
+
+
+# ── Heal path: healing_received (#966, hub #952) ─────────────────────────────
+# `heal_damage` multiplies the incoming amount by the node-local
+# `healing_received` read ONCE at its door. 0 blocks (no `healed` signal); a
+# negative product is TRUE damage flagged `from_withered_heal`, which never
+# closes D-9's regen gate — the "undead" special case.
+
+func _set_hp(current: float, cap: float) -> void:
+	_entity.stat_board.get_stat(&"node_health").base_value = cap
+	_node.get_max_hp()
+	(_node.node_board.get_stat(&"node_health") as PoolStat).set_current(current)
+
+
+func _hp() -> float:
+	return (_node.node_board.get_stat(&"node_health") as PoolStat).current
+
+
+func test_healing_received_half_scales_an_8_heal_to_4() -> void:
+	_set_hp(10.0, 50.0)
+	_entity.stat_board.get_stat(&"healing_received").base_value = 0.5
+	_combat().heal_damage(8.0, null)
+	assert_almost_eq(_hp(), 14.0, 0.001, "8 × 0.5 = 4 healed")
+
+
+func test_healing_received_zero_heals_nothing_and_skips_the_healed_signal() -> void:
+	_set_hp(10.0, 50.0)
+	_entity.stat_board.get_stat(&"healing_received").base_value = 0.0
+	watch_signals(_node)
+	var heal := HealInstance.new()
+	heal.amount = 8.0
+	_combat().heal_damage(8.0, heal)
+	assert_almost_eq(_hp(), 10.0, 0.001, "blocked heal moves nothing")
+	assert_signal_not_emitted(_node, "healed", "a 0 heal is skipped, not emitted")
+	assert_almost_eq(heal.effective_amount, 0.0, 0.001, "cure_debuffs is fed the post-multiplier 0")
+
+
+func test_healing_received_negative_is_true_damage_that_leaves_the_regen_gate_open() -> void:
+	_set_hp(30.0, 50.0)
+	_entity.stat_board.get_stat(&"armor").base_value = 100.0  # TRUE bypasses it
+	_entity.stat_board.get_stat(&"healing_received").base_value = -1.0
+	_node._damaged_since_upkeep = false
+	watch_signals(_node)
+	var heal := HealInstance.new()
+	heal.amount = 8.0
+	_combat().heal_damage(8.0, heal)
+	assert_almost_eq(_hp(), 22.0, 0.001, "−1 × 8 = 8 TRUE damage, armor ignored")
+	assert_false(_node._damaged_since_upkeep, "a withered heal never closes the regen gate")
+	assert_signal_emitted(_node, "damaged")
+	assert_signal_not_emitted(_node, "healed")
+	assert_almost_eq(heal.effective_amount, 0.0, 0.001, "a negative heal cures nothing")
+	assert_almost_eq(heal.hp_before, 30.0, 0.001, "the bar numbers still describe the move")
+	assert_almost_eq(heal.hp_after, 22.0, 0.001)
+
+
+func test_a_real_hit_still_closes_the_regen_gate() -> void:
+	_set_hp(30.0, 50.0)
+	_node._damaged_since_upkeep = false
+	_combat().take_damage(5.0, null)
+	assert_true(_node._damaged_since_upkeep, "every other damage path is untouched")
