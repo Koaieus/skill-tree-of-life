@@ -156,6 +156,12 @@ var _owns_world: bool = false
 var _dispatch_depth: int = 0
 var _held_batches: Array[StatBoard] = []
 var _held_seen: Dictionary[StatBoard, bool] = {}
+## The entity's own status rows (#996, hub #994): what a status lands on when
+## it falls through a cracked core. The SAME [StatusHost] the node composes,
+## with THIS slice as its duck-typed owner; [method snapshot] clones the rows
+## so a shadow tick never moves a live one. Rows live on the entity, so a
+## core move carries them for free — nothing migrates.
+var _status_host := StatusHost.new(self)
 
 
 func _init(p_host: Entity = null) -> void:
@@ -758,6 +764,39 @@ func simulate_entity_death() -> Array[DeallocEntry]:
 	var entries := apply_cascade(_owned.duplicate(), null, false)
 	_core = null
 	return entries
+
+
+# ── Status host (#996) ───────────────────────────────────────────────────────
+
+
+## See [method StatusHost.apply_status].
+func apply_status(def: StatusDef, power: float) -> void:
+	_status_host.apply_status(def, power)
+
+
+## See [method StatusHost.tick_statuses].
+func tick_statuses() -> void:
+	_status_host.tick_statuses()
+
+
+## See [method StatusHost.remove_status].
+func remove_status(id: StringName) -> void:
+	_status_host.remove_status(id)
+
+
+## See [method StatusHost.clear_statuses].
+func clear_statuses() -> void:
+	_status_host.clear_statuses()
+
+
+## See [method StatusHost.get_status_power].
+func get_status_power(id: StringName) -> float:
+	return _status_host.get_status_power(id)
+
+
+## See [method StatusHost.get_statuses].
+func get_statuses() -> Array[NodeStatus]:
+	return _status_host.get_statuses()
 
 
 ## The real [SkillNode] behind [param n]. Topology is the real graph either way

@@ -432,6 +432,12 @@ func get_combat() -> EntityCombat:
 	return _combat
 
 
+## The statuses hosted on the ENTITY itself (#996): rows that fell through a
+## cracked core. Live rows, read-only — see [method StatusHost.get_statuses].
+func get_statuses() -> Array[NodeStatus]:
+	return _combat.get_statuses()
+
+
 func _ready() -> void:
 	# Group membership is editor-safe and lets @tool consumers (e.g.
 	# VisionSystem) enumerate entities live in the inspector.

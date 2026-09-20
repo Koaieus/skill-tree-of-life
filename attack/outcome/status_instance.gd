@@ -33,6 +33,16 @@ var power: float = 0.0
 ## it a second time (the [member HitInstance.basis] `PERCENT_MAX` precedent).
 var power_resolved: bool = false
 
+## Which host the status LANDED on (#996, hub #994). NODE is the ordinary
+## landing; ENTITY is the fall-through — the target is its owner's core and
+## that core is cracked (`hp.current == 0`) at land time, so the row goes on
+## the entity's own [StatusHost] and ticks the `health` pool. Resolved in
+## [method land_on] on the authority, alongside [member power_resolved], and
+## shipped by [AttackRecord] (`KEY_HIT_STATUS_HOST`) so a peer lands on the
+## same host without re-deriving it from node HP.
+enum HostKind { NODE, ENTITY }
+var host_kind: HostKind = HostKind.NODE
+
 
 func _init() -> void:
 	kind = Kind.STATUS

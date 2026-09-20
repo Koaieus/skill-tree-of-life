@@ -296,3 +296,119 @@ func test_a_kill_mid_volley_gates_the_remaining_poison_and_replays_clean() -> vo
 	await (peer.bs as BattleSystem).apply_launch_command(back as LaunchAttackCommand)
 	assert_eq(WorldFingerprint.compute(host.graph), WorldFingerprint.compute(peer.graph))
 	assert_almost_eq(_poison_power(peer.nodes.target), _poison_power(host.nodes.target), 0.001)
+
+
+# ── #996: a status on a cracked core falls through to the entity ────────────
+#
+# The defender's core is `nodes.neighbour` (300 from the leaf, in range).
+# `_crack_shot` sizes the arrow to land EXACTLY the core's max HP: the node
+# goes to 0 with no overflow, so the `health` pool — and the entity — survive
+# and `is_allocated()` (alive) still lets a CLEAR def land.
+
+func _core_of(ctx: Dictionary) -> SkillNode:
+	return ctx.nodes.neighbour
+
+
+func _entity_poison(ctx: Dictionary) -> float:
+	return (ctx.defender as Entity).get_combat().get_status_power(&"poison")
+
+
+func _crack_shot(ctx: Dictionary) -> void:
+	_set_local(ctx.nodes.leaf, &"ranged_damage",
+			_core_of(ctx).get_max_hp() / _POISON_ARROW.damage_scale)
+
+
+func _land_poison_arrow(ctx: Dictionary, world: CombatWorld, with_damage: bool = true) -> StatusInstance:
+	var core := _core_of(ctx)
+	var hit := RangedDamageFormula.compute(ctx.attacker, ctx.nodes.leaf, core, _POISON_ARROW)
+	var status := RangedDamageFormula.status_for(hit)
+	if with_damage:
+		hit.land_on(world.combat_for(core), world)
+	status.land_on(world.combat_for(core), world)
+	return status
+
+
+func test_a_poison_arrow_on_a_full_hp_core_lands_on_the_node_not_the_entity() -> void:
+	var ctx: Dictionary = await _build()
+	_land_poison_arrow(ctx, CombatWorld.live())
+	assert_almost_eq(_poison_power(_core_of(ctx)), 1.0, 0.001, "an intact core hosts its own poison")
+	assert_eq((ctx.defender as Entity).get_statuses().size(), 0, "the entity has no rows")
+
+
+func test_a_poison_arrow_that_cracks_the_core_in_the_same_shot_lands_on_the_entity() -> void:
+	var ctx: Dictionary = await _build()
+	_crack_shot(ctx)
+	var status := _land_poison_arrow(ctx, CombatWorld.live())
+	assert_almost_eq(_core_of(ctx).get_current_hp(), 0.0, 0.001, "sanity: the arrow cracked the core")
+	assert_false((ctx.defender as Entity).is_dead, "sanity: no overflow, the entity lives")
+	assert_almost_eq(_entity_poison(ctx), 1.0, 0.001, "the status fell through to the entity")
+	assert_almost_eq(_poison_power(_core_of(ctx)), 0.0, 0.001, "and not onto the cracked node")
+	assert_eq(status.host_kind, StatusInstance.HostKind.ENTITY, "the landed host is a resolved fact")
+
+
+func test_a_status_only_hit_on_an_already_cracked_core_lands_on_the_entity() -> void:
+	var ctx: Dictionary = await _build()
+	_core_of(ctx).restore_current_hp(0.0)
+	_land_poison_arrow(ctx, CombatWorld.live(), false)
+	assert_almost_eq(_entity_poison(ctx), 1.0, 0.001, "zero damage, cracked core: still the entity's")
+	assert_almost_eq(_poison_power(_core_of(ctx)), 0.0, 0.001)
+
+
+func test_a_shadow_fall_through_never_writes_the_live_entity_until_the_record_replays() -> void:
+	var ctx: Dictionary = await _build()
+	_crack_shot(ctx)
+	_arm(ctx, {&"poison": 1})
+	(ctx.bs.attack_plan as RangedAttackPlan)._on_node_left_clicked(_core_of(ctx))
+	var bs: BattleSystem = ctx.bs
+	var command := bs.build_launch_command()
+	assert_not_null(command, "the fixture plan must be launchable")
+	# prepare resolves on a throwaway shadow — the fall-through happens there.
+	assert_true(bs.prepare_launch_command(command), "the fixture attack must survive validation")
+	assert_almost_eq(_entity_poison(ctx), 0.0, 0.001, "a shadow resolve leaves the live entity clean")
+	assert_almost_eq(_core_of(ctx).get_current_hp(), _core_of(ctx).get_max_hp(), 0.001,
+			"and the live core untouched")
+	@warning_ignore("redundant_await")
+	await bs.apply_launch_command(command)
+	assert_almost_eq(_entity_poison(ctx), 1.0, 0.001, "the live replay lands it on the entity")
+	assert_almost_eq(_poison_power(_core_of(ctx)), 0.0, 0.001)
+
+
+func test_a_rebuilt_status_lands_on_the_shipped_host_without_rechecking_node_hp() -> void:
+	var ctx: Dictionary = await _build()
+	var core := _core_of(ctx)
+	_crack_shot(ctx)
+	var outcome := AttackOutcome.new()
+	var hit := RangedDamageFormula.compute(ctx.attacker, ctx.nodes.leaf, core, _POISON_ARROW)
+	outcome.hits.append(hit)
+	outcome.hits.append(RangedDamageFormula.status_for(hit))
+	OutcomeApplier.apply(outcome, CombatWorld.live())
+	assert_almost_eq(_entity_poison(ctx), 1.0, 0.001, "sanity: the authority's landing fell through")
+
+	var wired: Dictionary = bytes_to_var(var_to_bytes(AttackRecord.capture(outcome, ctx.graph)))
+	assert_eq(wired[AttackRecord.KEY_HIT_STATUS_HOST][1], int(StatusInstance.HostKind.ENTITY),
+			"the landed host crosses the wire")
+	var rebuilt := AttackRecord.rebuild(wired, ctx.graph)
+	var si := rebuilt.hits[1] as StatusInstance
+	assert_not_null(si)
+	assert_eq(si.host_kind, StatusInstance.HostKind.ENTITY, "rebuild restores the host")
+
+	# A peer whose core is NOT cracked at replay time still lands on the entity.
+	(ctx.defender as Entity).get_combat().clear_statuses()
+	core.restore_current_hp(core.get_max_hp())
+	si.land_on(core.get_combat(), CombatWorld.live())
+	assert_almost_eq(_entity_poison(ctx), 1.0, 0.001, "the shipped host wins over node HP")
+	assert_almost_eq(_poison_power(core), 0.0, 0.001)
+
+
+func test_fall_through_reads_the_entity_boards_resistance_not_the_nodes() -> void:
+	var ctx: Dictionary = await _build()
+	var core := _core_of(ctx)
+	var defender: Entity = ctx.defender
+	assert_eq(_POISON_DEF.resistance_stat_id, &"poison_resistance", "the authored def names the stat")
+	assert_not_null(defender.stat_board.get_stat(&"poison_resistance"), "the entity board carries it")
+	defender.stat_board.get_stat(&"poison_resistance").base_value = 0.5
+	_set_local(core, &"poison_resistance", 0.9)
+	_crack_shot(ctx)
+	_land_poison_arrow(ctx, CombatWorld.live())
+	assert_almost_eq(_entity_poison(ctx), 1.0 * (1.0 - 0.5), 0.001,
+			"scaled by the ENTITY's resistance (0.5), never the node's local 0.9")

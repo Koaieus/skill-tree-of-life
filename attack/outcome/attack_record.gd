@@ -117,6 +117,10 @@ const KEY_HIT_POP := "h_pop"
 ## `effective_amount`, and [method StatusInstance.land_on] writes `power`
 ## there at land time, so a status rides that array for free.
 const KEY_HIT_STATUS_DEF := "h_sdef"
+## [member StatusInstance.host_kind] per hit (#996) — `0` (NODE) for every
+## non-STATUS hit. The landed host is a resolved fact like `power_resolved`:
+## a peer lands on the shipped host, never re-derives it from node HP.
+const KEY_HIT_STATUS_HOST := "h_shost"
 ## Forced deallocations, flattened across ALL hits (#518) — one entry per
 ## cascaded node, plus [constant KEY_DEALLOC_COUNT] giving how many belong to
 ## each hit, in hit order. Same parallel-scalars discipline as the hit arrays:
