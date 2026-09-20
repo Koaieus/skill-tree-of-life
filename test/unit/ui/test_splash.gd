@@ -224,19 +224,47 @@ func test_the_needle_does_not_drop_until_the_charge_has_finished() -> void:
 	# and neither may leak forward into leg 1. If they are ever pulled back onto
 	# the press, the root snaps lit at 3.2x again with a needle over it and this
 	# catches it without anyone having to look at the screen.
+	#
+	# #854: this used to check "still none" after a fixed 0.15s wall-clock
+	# wait, then "landed" after a further fixed 0.2s — asserting from OUTSIDE
+	# production's own `SceneTreeTimer` on a second, independent timer of its
+	# own. Both are `SceneTreeTimer`s, and Godot decrements every live one by
+	# the SAME frame `delta` in one `process_timers` pass, in creation order —
+	# so a single frame whose delta is >= the ~0.10s margin (a cold `.godot`
+	# cache compiling the ChargeGlow/spike shaders on the charge's first live
+	# frame, per #862's own instrumentation, is exactly such a frame) drives
+	# both timers past zero together, and production's timer — created first
+	# — fires BEFORE the test's `await` resumes, so the "not yet" assert reads
+	# a needle that already landed.
+	#
+	# Shadowing production's own clock from the outside does not fix this
+	# either: instrumented with the injected stall below, the very next
+	# processed frame's `get_process_delta_time()` read ~0.14s while
+	# `allocated` had ALREADY flipped true — `SceneTreeTimer`'s actual
+	# countdown and the idle delta a script reads back diverge once a real
+	# stall is in play, very plausibly Godot's physics-catch-up step cap
+	# (default 8 steps × ~16.6ms ≈ 133ms) leaking into how much of a fat
+	# frame idle process gets attributed to. There is no wall-clock formula
+	# this test can run that reliably predicts when production's timer fires.
+	#
+	# Fixed with a production seam instead: [signal SplashScreen.boomed],
+	# emitted as the first line of `_boom()`. This test awaits the SAME event
+	# production fires on, rather than racing it with a clock of its own.
+	# `OS.delay_msec` below injects the fat-frame hazard directly, so the case
+	# this guards against reproduces deterministically on a warm cache too,
+	# not only inside a fresh worktree.
 	_frontmatter.reduce_motion = false
 	_splash.charge_duration = 0.25
 	# #862: `before_each` builds a whole FrontmatterRoot synchronously, and
 	# nothing has yielded to the engine since — so the FIRST frame processed
 	# after `advance()` reports a `delta` covering that entire build, not just
-	# whatever really elapses after this point. Confirmed by instrumentation:
-	# `get_tree().create_timer(0.15).timeout` was resolving in ~2ms of real
-	# wall time, one frame in, occasionally alongside the 0.25s BOOM timer in
-	# THE SAME frame — both swallowed by that one inflated delta. Draining it
-	# here, before either timer exists, is what makes the 0.15s checkpoint
-	# below actually mean 0.15 real seconds.
+	# whatever really elapses after this point. Draining it here, before the
+	# BOOM timer exists, keeps that inflated delta off the charge's own clock.
 	await get_tree().process_frame
 	var before := _polygons_under(_frontmatter.view_for(_root()))
+
+	var boomed: Array[int] = []
+	_splash.boomed.connect(func(): boomed.append(1))
 
 	_splash.advance()
 
@@ -244,19 +272,26 @@ func test_the_needle_does_not_drop_until_the_charge_has_finished() -> void:
 			"nothing is allocated yet — the charge is still building")
 	assert_eq(_polygons_under(_frontmatter.view_for(_root())), before,
 			"and no needle: the BOOM has not happened")
+	assert_eq(boomed.size(), 0, "and the BOOM's own signal has not fired")
 
 	# #854 hazard: a single frame this fat is exactly what a cold `.godot`
 	# cache produces for free, compiling the ChargeGlow/spike shaders on the
-	# charge's first live frame. Forcing it here makes the failure
-	# reproducible on a warm cache too, instead of only in a fresh worktree.
+	# charge's first live frame. Forcing it here — mid-charge, so a leak would
+	# have every chance to show before the signal-driven wait below papers
+	# over it — makes the failure reproducible on a warm cache too, instead
+	# of only in a fresh worktree.
 	OS.delay_msec(300)
 
-	# Into the charge, but short of its end.
-	await get_tree().create_timer(0.15).timeout
-	assert_eq(_polygons_under(_frontmatter.view_for(_root())), before,
-			"still none — the charge is running and has not detonated")
+	# Wait on the charge's OWN clock — the `boomed` signal, fired as the
+	# first line of `_boom()` — rather than a second timer racing it. Capped
+	# in frames so a real regression (the signal never firing) fails loudly
+	# instead of hanging the suite.
+	var waited := 0
+	while boomed.is_empty() and waited < 180:
+		await get_tree().process_frame
+		waited += 1
+	assert_false(boomed.is_empty(), "the BOOM never fired — softlock, not a flake")
 
-	await get_tree().create_timer(0.2).timeout
 	assert_true(_frontmatter.view_for(_root()).allocated,
 			"and now the root reads lit — the BOOM is where that lands")
 	assert_gt(_polygons_under(_frontmatter.view_for(_root())), before,

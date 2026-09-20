@@ -74,6 +74,11 @@ extends Control
 ## `test_meta_routing_parity.gd` hang off it.
 signal advanced
 
+## Emitted as the FIRST line of [method _boom] — the charge's own clock,
+## for a caller (`test_splash.gd`, #854) that needs to know exactly when the
+## BOOM lands without racing it with a second wall-clock timer of its own.
+signal boomed
+
 ## The frontmatter this is the attract state OF. Injected as a NodePath by the
 ## composing scene per `.claude/rules/scene-composition.md`, rather than looked
 ## up by `get_node` here.
@@ -330,6 +335,7 @@ func _drive_charge(t: float) -> void:
 ## 3. The lock is released before the guard AND before leg 2, because leg 2 goes
 ##    through the very gate the lock closes.
 func _boom() -> void:
+	boomed.emit()
 	_end_charge()
 	if _frontmatter == null or not is_instance_valid(_frontmatter):
 		return
