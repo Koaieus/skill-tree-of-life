@@ -134,10 +134,12 @@ func test_withered_node_regens_itself_to_death_with_a_climbing_ramp() -> void:
 	assert_almost_eq(_hp(), 79.0, 0.001, "upkeep 3: loses base + 2·ramp (9) — the ramp climbs")
 	assert_eq(_node.regen_stacks, 3)
 	# A real hit still resets the ramp, as today.
-	_combat().take_damage(1.0, null)
+	_combat().take_damage(1.0, null)  # lands as min_damage_taken's floor, whatever it is
+	var after_hit := _hp()
+	assert_true(_node._damaged_since_upkeep, "a real hit closes the gate")
 	_node.apply_turn_regen()
-	assert_eq(_node.regen_stacks, 0, "a real hit closes the gate and resets the ramp")
-	assert_almost_eq(_hp(), 78.0, 0.001, "the gated upkeep heals (and so damages) nothing")
+	assert_eq(_node.regen_stacks, 0, "the gated upkeep resets the ramp")
+	assert_almost_eq(_hp(), after_hit, 0.001, "and heals (so damages) nothing")
 
 
 # ── Acceptance 3: the core's own aura heal damages it, overflow hits the pool ─
