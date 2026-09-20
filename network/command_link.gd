@@ -39,7 +39,7 @@ extends Node
 ##
 ## [PickLootCommand] is the one verb built for the upward direction and now
 ## travels it, but it is still the exception on both ends: the applier answers
-## it through [method CommandApplier._answer_loot_pick], deliberately NOT
+## it through [method PickLootCommandHandler.apply], deliberately NOT
 ## through its queue, so it never confirms and therefore can never be broadcast
 ## back down — that falls out rather than needing a guard here. For the same
 ## reason it opens no awaiting window and is not watched for refusal; see

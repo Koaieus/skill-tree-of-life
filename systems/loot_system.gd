@@ -663,7 +663,7 @@ var _pending_mirror_request: Variant = null
 
 ## Rebuild [param offer] into a request and raise it. `collector_id` resolves
 ## through the applier's own graph — the same lookup [method
-## CommandApplier._apply_loot_round] uses — never a fresh source; a mirror has
+## LootRoundCommandHandler.apply] uses — never a fresh source; a mirror has
 ## none.
 func _on_loot_offer_received(offer: LootPickOffer) -> void:
 	if offer == null:

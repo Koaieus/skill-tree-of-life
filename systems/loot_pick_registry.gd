@@ -56,7 +56,7 @@ extends Node
 ## NOT be submitted onto [CommandApplier]'s queue. A round runs inside its own
 ## [LootRoundCommand]'s application, so the queue is blocked on the very await
 ## the answer releases, and an enqueued answer can never be reached — a hang,
-## not a delay. [method CommandApplier._answer_loot_pick] is the door, and
+## not a delay. [method PickLootCommandHandler.apply] is the door, and
 ## [method CommandApplier.submit] routes [PickLootCommand] there rather than
 ## enqueueing it.
 

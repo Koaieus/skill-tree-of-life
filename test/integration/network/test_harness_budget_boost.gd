@@ -12,7 +12,7 @@ extends GutTest
 ##
 ## Gating it is only half the fix, and the other half is the one a future
 ## refactor is likely to undo: the flag has to reach BOTH peers.
-## [method CommandApplier._apply_mass_allocate] re-derives affordability from the
+## [method MassAllocateCommandHandler._apply] re-derives affordability from the
 ## RECEIVING peer's own board (#458), so a host-only boost desyncs the first
 ## budget-gated verb that crosses — which is exactly why the boost was
 ## unconditional to begin with. The launcher's own rule is "each flag goes to the
