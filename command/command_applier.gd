@@ -115,10 +115,10 @@ signal awaiting_confirmation_changed(awaiting: bool)
 ## [PlayerInputController] wires it the same way.
 signal outstanding_loot_changed(has_outstanding: bool)
 
-## Beat between hops of a [MoveCoreCommand], so a multi-hop walk reads as a
-## cascade rather than one snap. Was `PlayerInputController.CORE_HOP_SLIDE_DELAY`
-## before the walk moved in here; slightly under SkillNode's slide duration.
-const CORE_HOP_SLIDE_DELAY := 0.18
+## Beat between hops of a [MoveCoreCommand]; authored on the handler that
+## waits it out, re-exported here because [CameraDirector] and [SkillNode]
+## time their slides against it by this name.
+const CORE_HOP_SLIDE_DELAY := MoveCoreCommandHandler.CORE_HOP_SLIDE_DELAY
 
 @export var graph: Graph
 @export var allocation_system: AllocationSystem
@@ -250,8 +250,9 @@ func _ready() -> void:
 ## command up. Never blocks the caller — even the synchronous verbs finish
 ## inside this call only because they happen to have nothing to await.
 ##
-## [PickLootCommand] is the one exception and takes [method _answer_loot_pick]
-## instead — see there for why the queue is exactly the wrong place for it.
+## [PickLootCommand] is the one exception and bypasses the queue
+## ([method CommandHandler.bypasses_queue]) — see [PickLootCommandHandler] for
+## why the queue is exactly the wrong place for it.
 func submit(command: Command) -> void:
 	if command == null:
 		return
@@ -266,8 +267,9 @@ func submit(command: Command) -> void:
 	if not is_authority:
 		_submit_upward(command)
 		return
-	if command is PickLootCommand:
-		_answer_loot_pick(command as PickLootCommand)
+	var handler := _handler_for(command)
+	if handler.bypasses_queue():
+		handler.apply(command, _context())
 		return
 	_enqueue(command)
 
@@ -279,11 +281,11 @@ func submit(command: Command) -> void:
 ##
 ## [PickLootCommand] crosses the wire but deliberately does NOT open the
 ## awaiting gate — it bypasses the queue locally too
-## ([method _answer_loot_pick]), so it has never touched
+## ([PickLootCommandHandler]), so it has never touched
 ## [member is_awaiting_confirmation] on any peer, and opening a window here that
 ## nothing closes is exactly the hang this issue exists to not ship.
 func _submit_upward(command: Command) -> void:
-	if not (command is PickLootCommand):
+	if not _handler_for(command).bypasses_queue():
 		_pending_intent = command
 		_refresh_awaiting()
 	intent_submitted.emit(command)
@@ -576,282 +578,52 @@ func _refresh_awaiting() -> void:
 ## and since #540 the ONLY gate that decides whether a command confirms.
 ##
 ## For [LaunchAttackCommand] it is also where the payload is produced — see
-## [method _drain]'s note, and do not assume every branch here is read-only.
+## [method _drain]'s note, and do not assume every handler's gate is read-only.
 ##
-## Dispatches exactly as [method _apply] does, and for the same reason — the two
-## must never disagree about which verb a command is. What it must not do is
-## re-implement any verb's rules: every branch below forwards to the owning
+## One lookup, same as [method _apply] — [CommandRegistry] is the ONE table of
+## verbs, so the two can never disagree about which verb a command is (#999).
+## No handler re-implements a verb's rules: each forwards to the owning
 ## system's own `can_*` query, which the mutating call then asks again. That
 ## second ask is not a duplicate check, it is the mutating method keeping its
 ## own guarantees for its non-command callers.
 ##
-## Diagnostics for an unresolvable id live HERE rather than in [method _apply],
-## because a command that fails to resolve now fails before the apply runs —
-## leaving the warning downstream would lose it.
+## Diagnostics for an unresolvable id live in the handler's `validate` rather
+## than its `apply`, because a command that fails to resolve fails before the
+## apply runs — leaving the warning downstream would lose it.
 func _validate(command: Command) -> bool:
-	# Ahead of the actor lookup for the same reason [method _apply] is: a
-	# relic's terminal round legitimately has no live collector.
-	if command is LootRoundCommand:
-		return _validate_loot_round(command as LootRoundCommand)
-	var actor := graph.get_by_entity_id(command.entity_id) if graph != null else null
-	if actor == null:
-		push_warning("CommandApplier: no entity for id %d (%s)" \
-				% [command.entity_id, command.type_tag()])
-		return false
-	if command is NodeCommand:
-		return _validate_node_command(command as NodeCommand, actor)
-	if command is MoveCoreCommand:
-		# The FIRST hop only — see [method _drain]'s note. Later hops become
-		# legal (or not) as their predecessors land, so vetting the whole path
-		# here would refuse walks that are perfectly legal.
-		var hops := _resolve_nodes((command as MoveCoreCommand).path_ids)
-		return not hops.is_empty() and allocation_system.can_move_core(actor, hops[0])
-	if command is MassAllocateCommand:
-		# The same "can it pay for at least one hop" question [method
-		# _apply_mass_allocate] asks, through the same one implementation.
-		var path := _resolve_nodes((command as MassAllocateCommand).path_ids)
-		return allocation_system.affordable_allocation_count(actor, path) >= 1
-	if command is DeallocateSetCommand:
-		var nodes := _resolve_nodes((command as DeallocateSetCommand).node_ids)
-		return allocation_system.can_deallocate_set(nodes, actor)
-	if command is ReloadCommand:
-		# Actor's turn + 1 AP. The AP half is [method Entity.can_reload]'s own
-		# guard too — the same double-ask every mutating method keeps.
-		return turn_manager != null and turn_manager.current_entity == actor \
-				and actor.can_reload()
-	if command is LaunchAttackCommand:
-		# The one branch that PRODUCES as well as decides — see the method note.
-		# The attack's real gate is "resolve, then check affordability", and the
-		# resolution it needs is the command's own record; #545 moved both here
-		# from the apply so the record is final before the confirm.
-		return battle_system != null \
-				and battle_system.prepare_launch_command(command as LaunchAttackCommand)
-	if command is StartTurnCommand:
-		# The run's opening cursor, and the ONE thing it must not do is open a
-		# second one: every turn after the first is handed on by
-		# `_tick_until_ready` from inside [method TurnManager.end_turn], so a
-		# `start_turn` arriving mid-run would be a duplicate the mirror already
-		# has. `current_entity == null` is that guard, and it is also
-		# [method TurnManager.start_turn]'s own `assert` — which compiles out of
-		# a release build, so it cannot be the gate. See [StartTurnCommand].
-		return turn_manager != null and turn_manager.current_entity == null
-	if command is EndTurnCommand:
-		# No gate, deliberately: [method TurnManager.end_turn] has never had one
-		# and neither did the direct call it replaced (see
-		# [method PlayerInputController.request_end_turn]). Do not invent one.
-		return turn_manager != null
-	push_warning("CommandApplier: no validator for command tag '%s'" % command.type_tag())
-	return false
+	return _handler_for(command).validate(command, _context())
 
 
-func _validate_node_command(command: NodeCommand, actor: Entity) -> bool:
-	var node := _resolve_node(command.node_id)
-	if node == null:
-		push_warning("CommandApplier: no node for stable_id %d (%s)" \
-				% [command.node_id, command.type_tag()])
-		return false
-	if command is AllocateCommand:
-		return allocation_system.can_allocate(node, actor)
-	if command is DeallocateCommand:
-		return allocation_system.can_deallocate(node, actor)
-	if command is StakeCommand:
-		return allocation_system.can_stake(node, actor)
-	if command is ExtractCommand:
-		return allocation_system.can_extract(node, actor)
-	if command is ToggleTempUpgradeCommand:
-		if battle_system == null:
-			return false
-		var upgrade := MeleeAttackPlan.upgrade_by_id(
-				(command as ToggleTempUpgradeCommand).upgrade_id)
-		# Announces its own refusal, where the reason (slot full vs. budget) is
-		# knowable — the applier never emits gameplay denials itself. This is why
-		# the gate is a method on [BattleSystem] and not an expression here.
-		return battle_system.can_toggle_temp_upgrade_on(node, upgrade)
-	push_warning("CommandApplier: no validator for node command '%s'" % command.type_tag())
-	return false
-
-
-## A relic round is legal when its carrier still resolves and still carries the
-## addon that runs it. A null collector is NOT a failure — a terminal round's
-## whole job is to free the relic after its collector is gone.
-func _validate_loot_round(command: LootRoundCommand) -> bool:
-	var carrier := _resolve_node(command.carrier_id)
-	if carrier == null:
-		push_warning("CommandApplier: no relic node for stable_id %d (loot_round)"
-				% command.carrier_id)
-		return false
-	for addon in carrier.get_addons():
-		if addon is SkillDustAddon:
-			return true
-	push_warning("CommandApplier: node %d carries no SkillDustAddon (loot_round)"
-			% command.carrier_id)
-	return false
-
-
-## Resolve the ids and run the verb — the shared post-confirmation apply, run by
-## every peer including the authority.
-##
-## Its null-guards below are structural, not gates: [method _validate] has
-## already resolved the same ids and reported anything that failed, so these
-## return quietly rather than warning twice.
+## Run the verb — the shared post-confirmation apply, run by every peer
+## including the authority. The handler's null-guards are structural, not
+## gates: [method _validate] has already resolved the same ids and reported
+## anything that failed, so they return quietly rather than warning twice.
 func _apply(command: Command) -> bool:
-	# Ahead of the actor lookup, deliberately: a relic's TERMINAL round runs
-	# after its collector may already be dead and freed, and it is the record
-	# that frees the relic on every peer. Resolving an actor first would drop it.
-	if command is LootRoundCommand:
-		@warning_ignore("redundant_await")
-		return await _apply_loot_round(command as LootRoundCommand)
-	var actor := graph.get_by_entity_id(command.entity_id) if graph != null else null
-	if actor == null:
-		return false
-	if command is NodeCommand:
-		return _apply_node_command(command as NodeCommand, actor)
-	if command is MoveCoreCommand:
-		return await _apply_move_core(command as MoveCoreCommand, actor)
-	if command is MassAllocateCommand:
-		return _apply_mass_allocate(command as MassAllocateCommand, actor)
-	if command is DeallocateSetCommand:
-		var nodes := _resolve_nodes((command as DeallocateSetCommand).node_ids)
-		return allocation_system.deallocate_set(nodes, actor)
-	if command is ReloadCommand:
-		# A full quiver still pays the AP — the command was legal, it just
-		# minted nothing; returning true keeps the mirror's stream identical.
-		actor.reload()
-		return true
-	if command is LaunchAttackCommand:
-		if battle_system == null:
-			return false
-		@warning_ignore("redundant_await")
-		return await battle_system.apply_launch_command(command as LaunchAttackCommand)
-	if command is StartTurnCommand:
-		if turn_manager == null:
-			return false
-		# The initiative fill that [method GameRoot._ready] used to do inline,
-		# moved here so it happens at the same point of the command stream on
-		# every peer — the actor acts first because its clock is full, and a
-		# mirror that filled its OWN hero's clock instead would tick to a
-		# different entity on the very next [EndTurnCommand].
-		if actor.stat_board != null and actor.stat_board.initiative != null:
-			actor.stat_board.initiative.restore_to_full()
-		turn_manager.start_turn(actor)
-		return true
-	if command is EndTurnCommand:
-		if turn_manager == null:
-			return false
-		turn_manager.end_turn()
-		return true
-	push_warning("CommandApplier: no handler for command tag '%s'" % command.type_tag())
-	return false
+	@warning_ignore("redundant_await")
+	return await _handler_for(command).apply(command, _context())
 
 
-## A remote picker's answer to a parked [LootPickRequest] (#522). Mutates
-## nothing itself — it releases a request that a [LootRoundCommand] is parked
-## on, and THAT command is the mutation, already mid-apply on the queue.
-##
-## [b]So it deliberately does not go through the queue.[/b] Routing it there is
-## not a delay, it is a deadlock: [method submit] appends and returns while
-## [member is_applying] is true, and the drain cannot reach the appended
-## command because the drain is parked on the very await only that command can
-## release. This file's class note already names the shape ("park on a signal
-## that cannot fire until the drain it is blocking completes — a hang"); an
-## answer to an in-flight command is the one case that walks straight into it.
-##
-## It emits neither [signal command_applied] nor [signal command_confirmed],
-## which is also correct: an intent travelling UP must not be echoed back down
-## by [CommandLink], and the grant it unblocks crosses as the round's own
-## record.
-##
-## An id that names nothing is a normal outcome — a stale or duplicate pick —
-## not an error.
-func _answer_loot_pick(command: PickLootCommand) -> bool:
-	if loot_pick_registry == null:
-		return false
-	return loot_pick_registry.resolve_pick(command.request_id, command.chosen_index)
+## The verb's [CommandHandler], or a refusing placeholder for a tag the
+## registry does not know — a decoded command always has one (the codec is the
+## same table), so this only fires for a hand-built command of a type that
+## forgot its registration line, which `test_command_registry.gd` catches.
+func _handler_for(command: Command) -> CommandHandler:
+	var handler := CommandRegistry.handler_for(command)
+	if handler == null:
+		push_warning("CommandApplier: no handler for command tag '%s'" % command.type_tag())
+		return CommandHandler.new()
+	return handler
 
 
-## One round of a relic's claim flow (#522). The addon does the work — this
-## only resolves the carrier and hands over. INITIATE awaits the whole round,
-## the player's pick included, which is deliberate: [member is_applying] stays
-## true for the duration, so the existing
-## [method PlayerInputController.can_player_act] gate is what enforces the
-## owner's "no ending the turn while picking" rule, and the End Turn button
-## greys out through `player_can_act_changed` rather than silently no-opping.
-func _apply_loot_round(command: LootRoundCommand) -> bool:
-	var carrier := _resolve_node(command.carrier_id)
-	if carrier == null:
-		return false
-	# Resolved here rather than read off `carrier.owned_by` in the addon: the
-	# command names its collector by `entity_id` precisely so both peers grant
-	# to the same entity. May legitimately be null on a terminal round, whose
-	# whole job is to free the relic after its collector is gone.
-	var collector := graph.get_by_entity_id(command.entity_id) if graph != null else null
-	for addon in carrier.get_addons():
-		if addon is SkillDustAddon:
-			@warning_ignore("redundant_await")
-			return await (addon as SkillDustAddon).run_round(command, collector)
-	return false
-
-
-func _apply_node_command(command: NodeCommand, actor: Entity) -> bool:
-	var node := _resolve_node(command.node_id)
-	if node == null:
-		return false
-	if command is AllocateCommand:
-		return allocation_system.allocate(node, actor)
-	if command is DeallocateCommand:
-		return allocation_system.deallocate(node, actor)
-	if command is StakeCommand:
-		return allocation_system.stake(node, actor)
-	if command is ExtractCommand:
-		return allocation_system.extract(node, actor)
-	if command is ToggleTempUpgradeCommand:
-		if battle_system == null:
-			return false
-		var upgrade := MeleeAttackPlan.upgrade_by_id(
-				(command as ToggleTempUpgradeCommand).upgrade_id)
-		return battle_system.toggle_temp_upgrade_on(node, upgrade)
-	push_warning("CommandApplier: no handler for node command '%s'" % command.type_tag())
-	return false
-
-
-## Walk the hops in order, stopping on the first failure — identical to the
-## per-hop loop `PlayerInputController._commit_core_move` ran before #510, beat
-## and all. "One command" is about the wire, not about atomicity: a partial
-## core walk is already a legal observable state (#458 decision 4).
-func _apply_move_core(command: MoveCoreCommand, actor: Entity) -> bool:
-	var hops := _resolve_nodes(command.path_ids)
-	if hops.is_empty():
-		return false
-	for i in hops.size():
-		if not allocation_system.move_core(actor, hops[i]):
-			return false
-		if i < hops.size() - 1:
-			await get_tree().create_timer(CORE_HOP_SLIDE_DELAY).timeout
-	return true
-
-
-## [member MassAllocateCommand.path_ids] carries the path ONLY — how much of it
-## the actor can pay for is recomputed here, never taken from the sender, so a
-## stale peer cannot dictate how much the authority spends (#458 decision).
-func _apply_mass_allocate(command: MassAllocateCommand, actor: Entity) -> bool:
-	var path := _resolve_nodes(command.path_ids)
-	var affordable := allocation_system.affordable_allocation_count(actor, path)
-	if affordable < 1:
-		return false
-	return allocation_system.mass_allocate(actor, path, affordable) > 0
-
-
-func _resolve_node(id: int) -> SkillNode:
-	return graph.get_by_stable_id(id) if graph != null else null
-
-
-## Ids -> live nodes, dropping any that no longer resolve. A dropped node is a
-## node that left the graph between submission and application; the gated verb
-## behind this is what decides whether the remainder is still legal.
-func _resolve_nodes(ids: Array[int]) -> Array[SkillNode]:
-	var nodes: Array[SkillNode] = []
-	for id in ids:
-		var node := _resolve_node(id)
-		if node != null:
-			nodes.append(node)
-	return nodes
+## The system bundle a handler mutates through — built per call rather than
+## cached, so a system wired after `_ready` (every test fixture does this) is
+## seen, and no handler ever holds a system reference across calls.
+func _context() -> CommandContext:
+	var ctx := CommandContext.new()
+	ctx.graph = graph
+	ctx.allocation_system = allocation_system
+	ctx.battle_system = battle_system
+	ctx.turn_manager = turn_manager
+	ctx.loot_pick_registry = loot_pick_registry
+	ctx.tree = get_tree()
+	return ctx

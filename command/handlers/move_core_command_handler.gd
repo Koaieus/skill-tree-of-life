@@ -5,7 +5,8 @@ extends CommandHandler
 
 ## Beat between hops, so a multi-hop walk reads as a cascade rather than one
 ## snap. Was `PlayerInputController.CORE_HOP_SLIDE_DELAY` before the walk moved
-## into the applier; slightly under SkillNode's slide duration.
+## into the applier; slightly under SkillNode's slide duration. Re-exported as
+## [constant CommandApplier.CORE_HOP_SLIDE_DELAY] for the presentation side.
 const CORE_HOP_SLIDE_DELAY := 0.18
 
 
