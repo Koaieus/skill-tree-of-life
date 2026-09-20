@@ -2,7 +2,7 @@ extends GutTest
 
 ## The run-end surface on its own (#526) — copy per reading, and the delayed
 ## action row. How a [RunOutcome] becomes a reading in the first place is
-## [HudRoot]'s half, pinned by `test/unit/scenes/test_run_end_presentation.gd`.
+## [HudRoot]'s half, pinned by `test/integration/scenes/test_run_end_presentation.gd`.
 
 const _OVERLAY := preload("res://ui/run_end_overlay/run_end_overlay.tscn")
 const _CAMP_1 := preload("res://entity/factions/camp_1.tres")

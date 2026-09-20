@@ -142,7 +142,7 @@ func _on_kill_all() -> void:
 ##
 ## Split out from [method _launch] so the peer-symmetry rule below is assertable
 ## without spawning an OS process — see
-## `test/unit/network/test_harness_budget_boost.gd`.
+## `test/integration/network/test_harness_budget_boost.gd`.
 ##
 ## The role rides AFTER `--`, which is what puts it in
 ## [method OS.get_cmdline_user_args] rather than in Godot's own argument

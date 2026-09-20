@@ -9,7 +9,7 @@ extends GutTest
 ## prefix keeps even `test:dir` from finding it.
 ##
 ## [b]The fixture is the issue's fixture[/b] — a byte-for-byte rebuild of
-## `test/unit/scenes/test_game_root_link_loss.gd`'s `before_each` (a real
+## `test/integration/scenes/test_game_root_link_loss.gd`'s `before_each` (a real
 ## [GameRoot], 4 SkillNodes in a path, two entities on the ends, host roster,
 ## `ai_turn_delay = 0.0`), so the total this file reports is comparable to the
 ## 2370 ms recorded on #797 and not to some other board.

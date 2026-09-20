@@ -4,7 +4,7 @@ extends GutTest
 ## level, no scene): the four run shapes as a truth table over the two
 ## questions the policy answers, plus the vision rule.
 ##
-## The live-level counterparts are `test/unit/scenes/test_hot_seat_handover.gd`
+## The live-level counterparts are `test/integration/scenes/test_hot_seat_handover.gd`
 ## (couch coop) and `test_seat_vision.gd` (couch versus, seated peer).
 
 const _CAMP_1 := preload("res://entity/factions/camp_1.tres")
