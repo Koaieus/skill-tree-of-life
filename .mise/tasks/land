@@ -152,16 +152,25 @@ fi
 files=$(git -C "$main" diff --name-only --diff-filter=d "master..$sha")  # a deleted test is not a test to run
 dirs=""
 singles=""
+integration=""   # res://test/integration/… targets; the tier is small, so one run per dir
 while IFS= read -r f; do
   [ -n "$f" ] || continue
   case "$f" in
+    # The integration arm precedes `*/*` or it never matches (#360).
+    test/integration/*) integration="$integration res://test/integration/" ;;
     test/unit/*/*) d="${f#test/unit/}"; dirs="$dirs ${d%%/*}" ;;
     test/unit/*.gd) singles="$singles $f" ;;
-    */*) top="${f%%/*}"; [ -d "$main/test/unit/$top" ] && dirs="$dirs $top" ;;
+    */*) top="${f%%/*}"
+         [ -d "$main/test/unit/$top" ] && dirs="$dirs $top"
+         # A source dir's level-driving tests live in the integration tier once
+         # #980 moves them; the full suite stays the train gate (#360).
+         [ -d "$main/test/integration/$top" ] && integration="$integration res://test/integration/$top/" ;;
   esac
 done <<< "$files"
 dirs=$(printf '%s\n' $dirs | sort -u | xargs)
 singles=$(printf '%s\n' $singles | sort -u | xargs)
+integration=$(printf '%s\n' $integration | sort -u | xargs)
+case " $integration " in *" res://test/integration/ "*) integration="res://test/integration/" ;; esac  # the whole tier subsumes its subdirs
 
 run_step() {  # run_step <label> <cmd...>; prints the verdict lines on red
   local label="$1"; shift
@@ -187,7 +196,10 @@ done
 for s in $singles; do
   run_step "mise run test:one -- res://$s" mise run test:one -- "res://$s" || exit 1
 done
-[ -n "$dirs$singles" ] || echo "    (no test/unit/<dir>/ maps to the touched files — check only)"
+for i in $integration; do
+  run_step "mise run test:dir -- $i" mise run test:dir -- "$i" || exit 1
+done
+[ -n "$dirs$singles$integration" ] || echo "    (no test/unit/<dir>/ or test/integration/ maps to the touched files — check only)"
 
 # --- 6. fast-forward -------------------------------------------------------
 if ! out=$(git -C "$main" merge --ff-only "$sha" 2>&1); then

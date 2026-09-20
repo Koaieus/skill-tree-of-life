@@ -439,6 +439,14 @@ script="${1:?usage: mise run test:one -- res://test/unit/test_smoke.gd}"
 exec "${MISE_PROJECT_ROOT:-.}/.mise/tasks/test" "$script"
 '''
 
+[tasks."test:unit"]
+description = "Run the fast tier alone (test/unit/, no composed scenes or wall clock): `mise run test:unit`"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+exec "${MISE_PROJECT_ROOT:-.}/.mise/tasks/test" res://test/unit/
+'''
+
 [tasks."test:dir"]
 description = "Run all tests in a directory: `mise run test:dir -- res://test/unit/`"
 run = '''
