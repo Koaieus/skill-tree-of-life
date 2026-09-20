@@ -884,7 +884,7 @@ func _on_node_action_denied(node: SkillNode, _reason: String) -> void:
 func _route_battle_click(skill_node: SkillNode, is_left: bool) -> bool:
 	if not can_player_act():
 		return false
-	if not battle_system.is_attacking:
+	if battle_system == null or not battle_system.is_attacking:
 		return false
 	var plan := battle_system.attack_plan
 	if plan == null or plan.attacker != player:
