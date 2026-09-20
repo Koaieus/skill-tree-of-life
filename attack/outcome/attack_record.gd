@@ -187,6 +187,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	var hp_max := PackedFloat64Array()
 	var pops := PackedInt32Array()
 	var status_defs := PackedStringArray()
+	var status_hosts := PackedInt32Array()
 	# Flattened across all hits; `dealloc_counts` slices it back apart.
 	var dealloc_counts := PackedInt32Array()
 	var dealloc_nodes := PackedInt32Array()
@@ -221,6 +222,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		pops.append(_id_of(hit.popped_vertex, graph))
 		var status_hit := hit as StatusInstance
 		status_defs.append(status_hit.def.resource_path if status_hit != null and status_hit.def != null else "")
+		status_hosts.append(int(status_hit.host_kind) if status_hit != null else 0)
 		dealloc_counts.append(hit.deallocations.size())
 		for e in hit.deallocations:
 			# The id, never the reference (`.claude/rules/multiplayer-sync.md`).
@@ -285,6 +287,7 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		KEY_HIT_HP_MAX: hp_max,
 		KEY_HIT_POP: pops,
 		KEY_HIT_STATUS_DEF: status_defs,
+		KEY_HIT_STATUS_HOST: status_hosts,
 		KEY_DEALLOC_COUNT: dealloc_counts,
 		KEY_DEALLOC_NODE: dealloc_nodes,
 		KEY_DEALLOC_LEVEL: dealloc_levels,
@@ -346,6 +349,7 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	var hp_max: PackedFloat64Array = d.get(KEY_HIT_HP_MAX, PackedFloat64Array())
 	var pops: PackedInt32Array = d.get(KEY_HIT_POP, PackedInt32Array())
 	var status_defs: PackedStringArray = d.get(KEY_HIT_STATUS_DEF, PackedStringArray())
+	var status_hosts: PackedInt32Array = d.get(KEY_HIT_STATUS_HOST, PackedInt32Array())
 	var dealloc_counts: PackedInt32Array = d.get(KEY_DEALLOC_COUNT, PackedInt32Array())
 	var dealloc_nodes: PackedInt32Array = d.get(KEY_DEALLOC_NODE, PackedInt32Array())
 	var dealloc_levels: PackedInt32Array = d.get(KEY_DEALLOC_LEVEL, PackedInt32Array())
@@ -378,6 +382,10 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 			# resistance into this number (#963); the peer lands it flat.
 			si.power = amount
 			si.power_resolved = true
+			# The landed host is a resolved fact too (#996): the peer lands on
+			# the shipped host, never re-derives it from its own node HP.
+			if i < status_hosts.size():
+				si.host_kind = status_hosts[i] as StatusInstance.HostKind
 			hit = si
 		else:
 			var di := DamageInstance.new()

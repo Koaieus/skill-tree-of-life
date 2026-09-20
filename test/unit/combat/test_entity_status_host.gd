@@ -11,7 +11,6 @@ extends GutTest
 ## the numbers below are read off the boards at runtime, never pinned.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _POISON_DEF: StatusDef = preload("res://effects/status/poison.tres")
@@ -35,6 +34,7 @@ func before_each() -> void:
 	_n2 = _new_node("N2")
 	_add_edge(_n0, _n1)
 	_add_edge(_n1, _n2)
+	await get_tree().process_frame
 
 	_alloc = AllocationSystem.new()
 	_alloc.graph = _graph
@@ -65,15 +65,12 @@ func after_each() -> void:
 func _new_node(n: String) -> SkillNode:
 	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	sn.name = n
-	_graph.skill_nodes_container.add_child(sn)
+	_graph.add_skill_node(sn)  # through the graph, so the navigator mirrors it
 	return sn
 
 
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
-	var e := _EDGE_SCENE.instantiate() as Edge
-	e.from = a
-	e.to = b
-	_graph.edges_container.add_child(e)
+	_graph.add_edge(a, b)  # through the graph, so the navigator sees the edge
 
 
 func _health() -> PoolStat:

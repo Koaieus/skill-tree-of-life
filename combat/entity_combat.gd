@@ -162,6 +162,10 @@ var _held_seen: Dictionary[StatBoard, bool] = {}
 ## so a shadow tick never moves a live one. Rows live on the entity, so a
 ## core move carries them for free — nothing migrates.
 var _status_host := StatusHost.new(self)
+## Shadow-only: flipped by [method simulate_entity_death]. Live reads
+## [member Entity.is_dead] instead. Not `_core == null` — a fixture that never
+## placed a core has that too, and it must not read as a corpse.
+var _dead: bool = false
 
 
 func _init(p_host: Entity = null) -> void:
@@ -346,6 +350,9 @@ func snapshot(into: CombatWorld = null) -> EntityCombat:
 		# lookup gave.
 		shadow._core = shadow.shadow_for(host.core_location)
 	shadow._tags = host._tags.duplicate()
+	# The entity's own rows, cloned the way a node's are (#996): same shared
+	# defs, own power, so a shadow tick never moves the live row.
+	_status_host.clone_into(shadow._status_host)
 	# Last, so every twin's context sees a fully-populated shadow: an
 	# `_on_revoked` or a recompute fired against one reads `owned()` / `core()`
 	# / `mirror()` immediately.
@@ -763,10 +770,80 @@ func simulate_entity_death() -> Array[DeallocEntry]:
 	_materialize_all()
 	var entries := apply_cascade(_owned.duplicate(), null, false)
 	_core = null
+	# The shadow's "alive" flips here (#996): the entity-hosted rows go the
+	# way a stripped node's do, and `is_allocated()` gates any later apply.
+	_dead = true
+	_status_host.clear_statuses()
 	return entries
 
 
 # ── Status host (#996) ───────────────────────────────────────────────────────
+#
+# The duck-typed host contract [StatusHost] lists, on the ENTITY: the board is
+# the entity board with no node layer in front of it, "max hp" is the
+# `health` pool's cap, "allocated" is alive, and the tick needs no sparse
+# subscription because [method Entity._on_turn_started] already runs every
+# turn and calls [method tick_statuses] itself. A DoT on this host drains the
+# pool through [method take_pool_damage] — see [method DotTick.mint].
+
+
+## Host contract: a stat read on the receiving host's board — the entity
+## board, directly (`_resistance` in [StatusInstance], a def's `_find`).
+## Null on an unknown id, like [method StatBoard.get_value].
+func get_local_value(stat_id: StringName) -> Variant:
+	var b := board()
+	return b.get_value(stat_id) if b != null else null
+
+
+## Host contract: the pool a PERCENT_MAX tick resolves against — `health`'s cap.
+func get_max_hp() -> float:
+	var b := board()
+	var pool := b.get_stat(&"health") as PoolStat if b != null else null
+	return pool.value if pool != null else 0.0
+
+
+## Host contract: "allocated" on an entity is ALIVE — a `CLEAR` def never
+## lands on a corpse. Live reads [member Entity.is_dead]; a shadow reads the
+## flag [method simulate_entity_death] flips.
+func is_allocated() -> bool:
+	if host != null:
+		return not host.is_dead
+	return not _dead
+
+
+## Host contract: a def's planted modifier (curse / wither / blindness) goes
+## on the entity board itself. Live and shadow alike — [method board] already
+## picks the right one.
+func add_local_modifier(m: StatModifier) -> void:
+	var b := board()
+	if m != null and b != null:
+		b.add_modifier(m)
+
+
+## Host contract: see [method add_local_modifier].
+func remove_local_modifier(m: StatModifier) -> void:
+	var b := board()
+	if m != null and b != null:
+		b.remove_modifier(m)
+
+
+## Host contract: no sparse subscription (#879) on the entity — the tick is
+## wired unconditionally in [method Entity._on_turn_started].
+func _on_first_status() -> void:
+	pass
+
+
+## Host contract: see [method _on_first_status].
+func _on_last_status_removed() -> void:
+	pass
+
+
+## Host contract: the live entity announces its rows changed (#880's node
+## tint has no entity twin yet — #953 reads the rows at the core's readout).
+func _on_statuses_changed() -> void:
+	if host != null:
+		host.statuses_changed.emit()
+
 
 
 ## See [method StatusHost.apply_status].

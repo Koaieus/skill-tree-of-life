@@ -14,6 +14,9 @@ const _AMMO_TYPES: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.
 signal core_location_changed
 signal leveled_up(new_level: int)
 signal died
+## The entity-hosted status rows changed (#996) — apply, tick, cure, remove.
+## Read them back through [method get_statuses]; #953's core readout binds here.
+signal statuses_changed
 ## This entity's `node_health` BASELINE moved, so the derived cap of every node
 ## it owns moved with it (#660).
 ##
@@ -730,8 +733,19 @@ func _on_turn_started(entity: Entity) -> void:
 	# #956: the volley budget is per turn, first turn included — above the
 	# turns_taken == 1 upkeep skip on purpose.
 	volleys_launched_this_turn = 0
-	if turns_taken == 1:
-		return
+	if turns_taken > 1:
+		_apply_turn_upkeep()
+	# The entity-hosted status tick (#996): after the pool upkeep above (so
+	# `core_healing` lands before a DoT drains), before the node ticks
+	# ([signal Events.turn_started] fires once this handler returns — the
+	# existing order). Every real turn, the first included, exactly like a
+	# node's tick — a poison landed before your first turn ticks on it.
+	_combat.tick_statuses()
+
+
+## The per-turn upkeep of a turn that is not the entity's first: pools,
+## node regen, class hook, spike regen, the `_on_turn_start` dispatch.
+func _apply_turn_upkeep() -> void:
 	# All pool upkeep is declarative — each pool replenishes per its def's
 	# per_turn_mode (AP/DP/movement REFILL, mana/xp ADD, skill_points CUSTOM
 	# wound-heal). New pools opt in via their def; nothing is wired here.
@@ -863,6 +877,10 @@ func die() -> void:
 	# `cascade_started` signal, and only this ordering makes "already true by
 	# the time the death wave's own entity_dying handler runs" hold.
 	is_dead = true
+	# The entity-hosted rows die with it (#996) — the live twin of
+	# `simulate_entity_death`'s clear; `is_allocated()` (alive) gates any
+	# later apply. Before `died` so no listener sees a corpse still ticking.
+	_combat.clear_statuses()
 	died.emit()
 	# Before the bus phases: effects see the corpse fully intact (nodes still
 	# owned, modifiers still applied), same pre-strip world LootSystem relies on.

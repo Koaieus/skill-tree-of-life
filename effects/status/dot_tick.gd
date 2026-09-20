@@ -11,10 +11,16 @@ extends RefCounted
 
 
 ## Land [param amount] (HP for FLAT, a fraction of max hp for PERCENT_MAX)
-## on [param host] — the status host, a [NodeCombat] today (see the contract
-## on [StatusHost]) — as TRUE damage. A non-positive amount lands nothing.
-## `CritRoll.apply` is a no-op for a hit with no crit decided (multiplier
-## 1.0) — a tick never crits.
+## on [param host] — the status host, a [NodeCombat] or an [EntityCombat]
+## (see the contract on [StatusHost]) — as TRUE damage. A non-positive amount
+## lands nothing. `CritRoll.apply` is a no-op for a hit with no crit decided
+## (multiplier 1.0) — a tick never crits.
+##
+## The ENTITY host (#996) mints the same TRUE [DamageInstance] — PERCENT_MAX
+## resolved against `health`'s cap via the host's own `get_max_hp()` — but
+## lands it through [method EntityCombat.take_pool_damage], the one
+## pool-damage door (#995): no node HP in the way, and the live
+## `health.depleted` / shadow `simulate_entity_death` both live behind it.
 static func mint(host, amount: float, basis: HitInstance.AmountBasis) -> void:
 	if amount <= 0.0:
 		return
@@ -22,6 +28,18 @@ static func mint(host, amount: float, basis: HitInstance.AmountBasis) -> void:
 	dmg.type = DamageInstance.Type.TRUE
 	dmg.basis = basis
 	dmg.amount = amount
+	if host is EntityCombat:
+		var core: NodeCombat = host.core()
+		dmg.target = core.real() if core != null else null
+		# `resolve_amount` is typed on a node slice; the same basis fold
+		# against the pool's cap, in place (a tick is never PERCENT_CURRENT).
+		if basis == HitInstance.AmountBasis.PERCENT_MAX:
+			dmg.amount *= host.get_max_hp()
+			dmg.basis = HitInstance.AmountBasis.FLAT
+		CritRoll.apply(dmg)
+		dmg.effective_amount = dmg.amount
+		host.take_pool_damage(dmg.amount, dmg)
+		return
 	dmg.target = host.host  # the real SkillNode behind the slice (null on a shadow)
 	dmg.land_on(host, null)
 

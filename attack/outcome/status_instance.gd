@@ -52,23 +52,44 @@ func _init() -> void:
 ## slice on a real landing / a peer's replay (#498 step 3, the same contract
 ## every other [HitInstance] follows: [member HitInstance.target] stays the
 ## real identity, [param node] is whichever state this landing mutates).
-## [method NodeCombat.apply_status] is already a no-op on a null def, a
-## non-positive power, and an unallocated node under a `CLEAR` policy (#872),
+## [method StatusHost.apply_status] is already a no-op on a null def, a
+## non-positive power, and an unallocated host under a `CLEAR` policy (#872),
 ## so this does not re-gate any of that.
 ##
+## Fall-through (#996, owner 2026-09-20 on #994): the status lands on the
+## ENTITY iff [param node] is its owner's core AND that core is cracked
+## (`hp.current == 0`) at this moment — damage landed earlier in the same
+## `outcome.hits` is visible, so an arrow that cracks the core sends its own
+## poison through. Decided once, on the authority, into [member host_kind];
+## a rebuilt hit lands on the shipped host without re-reading node HP. A
+## node-hosted row on the core stays node-hosted: the hosts never merge.
+##
 ## Scaling (#963, `docs/design/damage_over_time.md` §Applying):
-## `power × potency(attacker) × (1 − resistance(node))`, each read through the
+## `power × potency(attacker) × (1 − resistance(host))`, each read through the
 ## def's [member StatusDef.potency_stat_id] / [member
 ## StatusDef.resistance_stat_id] — blank id, null attacker or an unknown stat
-## each contribute ×1. Resistance is read node-locally on [param node] (the
-## landing slice, so a shadow resolve sees the shadow's modifiers), like armor
-## in [Mitigation]. Resolved once: a rebuilt hit arrives [member
-## power_resolved] and lands as-is.
+## each contribute ×1. Resistance is read on the RECEIVING host — the landing
+## node slice (so a shadow resolve sees the shadow's modifiers), or the entity
+## board alone on fall-through. Resolved once: a rebuilt hit arrives
+## [member power_resolved] and lands as-is.
 func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 	if not power_resolved:
-		power *= _potency() * (1.0 - _resistance(node))
+		if node.is_core() and node.get_current_hp() <= 0.0:
+			host_kind = HostKind.ENTITY
+	var host = node
+	if host_kind == HostKind.ENTITY:
+		host = node.owner()
+		if host == null:
+			# A replay whose node lost its owner to an earlier hit's cascade:
+			# nothing to land on, nothing landed (`apply_status` self-gates
+			# only on a node).
+			amount = 0.0
+			effective_amount = 0.0
+			return
+	if not power_resolved:
+		power *= _potency() * (1.0 - _resistance(host))
 		power_resolved = true
-	node.apply_status(def, power)
+	host.apply_status(def, power)
 	amount = power
 	effective_amount = power
 
@@ -82,10 +103,12 @@ func _potency() -> float:
 	return float(v) if v != null else 1.0
 
 
-func _resistance(node: NodeCombat) -> float:
-	if def == null or def.resistance_stat_id.is_empty() or node == null:
+## [param host] is the receiving [StatusHost] owner — a [NodeCombat] or, on
+## fall-through, an [EntityCombat]; untyped because the contract is.
+func _resistance(host) -> float:
+	if def == null or def.resistance_stat_id.is_empty() or host == null:
 		return 0.0
-	var v: Variant = node.get_local_value(def.resistance_stat_id)
+	var v: Variant = host.get_local_value(def.resistance_stat_id)
 	return float(v) if v != null else 0.0
 
 
