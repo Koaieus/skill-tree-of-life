@@ -714,6 +714,8 @@ final = max(min_damage_taken, raw.amount - armor)
 
 Eight FLOAT board stats, one pair per DoT family: `poison_potency`, `corruption_potency`, `curse_potency`, `wither_potency` (default 1.0, attacker-side) and `poison_resistance`, `corruption_resistance`, `curse_resistance`, `wither_resistance` (default 0.0, a fraction, defender-side, read **node-locally** via `get_local_value` like armor). A `StatusDef` names its pair via `potency_stat_id` / `resistance_stat_id` (blank = unscaled); `StatusInstance.land_on` folds `power × potency(attacker) × (1 − resistance(node))` in **once** (`power_resolved`), and `AttackRecord.rebuild` marks the hit resolved so a peer replays the landed number flat. Resistance reduces stacks *incurred*, never decay. Procgen: `constitution.tres` universal pools — resistance ADD_BASE (unit 0.05), potency **INCREASE only** (unit 7 → +7/+21/+49%); a `+1` ADD_BASE on potency is a doubling and is reserved for rare keystones. See `docs/design/damage_over_time.md`.
 
+**`healing_received` (#966, Wither)** — FLOAT, default 1.0, read node-locally **once** at the top of `NodeCombat.heal_damage` (the one door every heal takes: turn regen, the core aura, healing spells). Product `<= 0` heals nothing and cures nothing; product `< 0` lands as TRUE damage flagged `DamageInstance.from_withered_heal`, the single damage path that does **not** set `_damaged_since_upkeep` — the regen ramp keeps climbing and the node heals itself to death. `WitherStatus` plants an unclamped UNSCALED MULTIPLY of `1 − 0.1·stacks` on it.
+
 **Both stats are read node-locally.** `Mitigation.apply(raw, defender)` takes the
 `SkillNode` and reads `defender.get_local_value(&"armor")` /
 `get_local_value(&"min_damage_taken")`, which merges the node's `node_board` bins
