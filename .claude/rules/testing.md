@@ -74,7 +74,7 @@ you want the elapsed time back. Timers, tweens and physics ticks are unchanged.
 
 ## Layout
 
-- Two tiers, split by **what a test drives, never by speed** (#360): `test/unit/` is the fast tier (hand-built fixtures, no composed scene, no wall clock) and `test/integration/` drives a composed level/menu scene (`game_root.tscn`, `level.tscn`, a sandbox, `meta_root.tscn`) or the real clock — 15 s budget per script. Subdir names mirror `test/unit/`'s. `mise run test` runs both; `mise run test:unit` the fast tier alone; `test:dir -- res://test/integration/` the other. See `docs/domain/testing-tiers.md`.
+- Two tiers, split by **what a test drives, never by speed** (#360): `test/unit/` is the fast tier (hand-built fixtures, no composed scene, no wall clock) and `test/integration/` drives a composed level/menu scene (`game_root.tscn`, `level.tscn`, a sandbox, `meta_root.tscn`) or the real clock — 15 s budget per script. Subdir names mirror `test/unit/`'s. `mise run test` runs both; `mise run test:unit` the fast tier alone; `test:dir -- res://test/integration/` the other. Which tier an assert belongs in — the formula, a composed scene or the real clock, two processes (`mp:e2e`) — is decided by `docs/domain/testing-tiers.md`; its §7/§8 are why a test fires the signal and never writes another unit's `_field`.
 - `test/unit/test_*.gd` — unit tests. Filename must start with `test_`; functions must start with `test_`.
 - Class extends `GutTest`. Common asserts: `assert_eq`, `assert_ne`, `assert_null`, `assert_not_null`, `assert_true`, `assert_almost_eq`. Lifecycle: `before_all`, `before_each`, `after_each`, `after_all`.
 
