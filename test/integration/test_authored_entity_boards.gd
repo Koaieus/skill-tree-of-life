@@ -18,6 +18,23 @@ extends GutTest
 
 const _SCENE_ROOTS: Array[String] = ["res://scenes", "res://entity"]
 
+## Loading a level `.tscn` pulls its shader sub-resources, and the headless
+## dummy renderer logs `!actions.custom_samplers.has(...)` while compiling one
+## of them — an engine error GUT would otherwise count as a failure of whichever
+## test loaded that scene first (so this script was red alone and green in a
+## sharded suite purely by load order). Nothing here asserts on rendering: this
+## is a resource census, so engine errors are not failures for its duration.
+var _engine_errors_were: GutUtils.TREAT_AS
+
+
+func before_all() -> void:
+	_engine_errors_were = gut.error_tracker.treat_engine_errors_as
+	gut.error_tracker.treat_engine_errors_as = GutUtils.TREAT_AS.NOTHING
+
+
+func after_all() -> void:
+	gut.error_tracker.treat_engine_errors_as = _engine_errors_were
+
 
 func test_every_authored_entity_board_that_has_xp_also_has_level() -> void:
 	var checked := 0
