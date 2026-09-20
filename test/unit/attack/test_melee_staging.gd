@@ -108,16 +108,16 @@ func _arm_plan() -> MeleeAttackPlan:
 	return plan
 
 
-## Pumps frames until `_bs.is_launching` clears or `max_seconds` of wall clock
-## pass. A wall-clock budget, never a tick count: the swing it waits on runs on
-## real-second timers, while the headless frame period is a test-hook knob
-## (pause_leak_pre_run_hook.gd) and varies by an order of magnitude between
-## machines — 900 ticks was 15 s on one box and 1.4 s on another.
-func _await_launch_settle(max_seconds: float = 15.0) -> float:
-	var started := Time.get_ticks_msec()
-	while _bs.is_launching and Time.get_ticks_msec() - started < max_seconds * 1000.0:
-		await get_tree().process_frame
-	return (Time.get_ticks_msec() - started) / 1000.0
+## Waits until `_bs.is_launching` clears, capped in seconds. The staging and
+## mutation beats are instant here (#982), so what this still waits out is the
+## live swing: `SkillBlade.play` runs a real `create_tween()` sized off a
+## schedule compiled from `shared_default()` (battle_system.gd:899 —
+## `OutcomeSchedule.compile(outcome)` without `tempo()`), plus a hardcoded
+## 0.45 s fade in `MeleePreview.launch`. Neither reads `instant_mutation`;
+## see #982 for the seam. A seconds cap, never a tick count: the headless
+## frame period is a test-hook knob and varies between machines.
+func _await_launch_settle(max_seconds: float = 5.0) -> void:
+	await wait_until(func() -> bool: return not _bs.is_launching, max_seconds)
 
 
 ## Every wind-up beat authored to 0 — acceptance 5's regression escape hatch.
@@ -167,12 +167,19 @@ func test_a_seated_commit_stages_the_same_nonzero_windup_as_an_incoming_swing() 
 
 
 func _assert_first_hit_lands_after_the_form_beat() -> void:
-	# The SHAPE is injected, not read off the authored `.tres` — twice over on
-	# purpose. Authored durations are the owner's to tune, so pinning one here
-	# would make a tuning pass a test failure; and a form beat STRETCHED past
-	# [member PresentationTempo.swing_duration] is what makes this assertion
-	# unfalsifiable-by-luck. Without the staging the first hit lands somewhere
-	# inside a 1.2 s swing, which is comfortably before the 2.0 s bound below.
+	# The SHAPE is injected, not read off the authored `.tres`: authored
+	# durations are the owner's to tune, so pinning one here would make a tuning
+	# pass a test failure. Stretched past [member PresentationTempo.swing_duration]
+	# so the pure `form_beat_end > swing_duration` guard below stays meaningful
+	# for the real-clock keeper this shape is shared with
+	# (`test/integration/attack/test_melee_first_hit_after_form_beat.gd`).
+	#
+	# On the instant clock (#982) this asserts the two halves the clock does
+	# not touch: the wind-up the tempo RESOLVES to is exactly the form beat
+	# (the formula), and the hit lands in code order after the commit and the
+	# swing-start beat (the order). Whether the real clock really waits the
+	# form beat out before the swing is the keeper's one assertion, not this
+	# file's eleven.
 	var tempo := _zeroed_tempo()
 	tempo.melee_windup_pivot_focus = 0.6
 	tempo.melee_windup_form_span = 1.4
@@ -185,36 +192,37 @@ func _assert_first_hit_lands_after_the_form_beat() -> void:
 			"and the AUTHORED default must stage a wind-up at all — the shape "
 			+ "is the owner's to tune, but zero would silently retire the feature")
 
-	var first_hit_at := [-1.0]
-	var started_at := [0]
-	var probe := func(_n: SkillNode, _amount: float, _src: Variant) -> void:
-		if first_hit_at[0] < 0.0:
-			first_hit_at[0] = float(Time.get_ticks_usec() - started_at[0]) / 1000000.0
-	Events.skill_node_damaged.connect(probe)
+	# The formula: with stamp, glow and flare zeroed the whole staged wind-up IS
+	# the form beat, read back through `_bs.tempo()` so the injection is proven
+	# to have taken — a pure call, never a stopwatch.
+	assert_almost_eq(_bs.tempo().melee_windup_seconds(false), form_beat_end, 0.0001,
+			"the wind-up the tempo resolves to ends exactly where the form beat ends "
+			+ "(lead %.3fs + form %.3fs)" % [tempo.melee_windup_lead(), tempo.melee_windup_form_span])
+
+	# The order: commit → wind-up → swing-start beat → first landing, in code
+	# order. An instant clock advances without waiting and keeps exactly this.
+	var order: Array[StringName] = []
+	var on_committed := func(_o: AttackOutcome, _e: Entity) -> void:
+		order.append(&"committed")
+	var on_swing := func(_o: AttackOutcome) -> void:
+		order.append(&"swing")
+	var on_hit := func(_n: SkillNode, _amount: float, _src: Variant) -> void:
+		order.append(&"hit")
+	_bs.attack_committed.connect(on_committed)
+	_bs.melee_swing_started.connect(on_swing)
+	Events.skill_node_damaged.connect(on_hit)
 
 	_arm_plan()
-	started_at[0] = Time.get_ticks_usec()
 	_bs.launch_attack()
 	await _await_launch_settle()
-	Events.skill_node_damaged.disconnect(probe)
+	# `Events` is an autoload that outlives this test; the bus hook must go.
+	Events.skill_node_damaged.disconnect(on_hit)
 
-	assert_gt(first_hit_at[0], 0.0, "the fixture swing must land a hit at all")
-	# Measured wall-clock against a LOGICAL boundary, so it needs slop. The form
-	# beat runs on a [BeatClock] tree timer, which fires on accumulated frame
-	# deltas — landing at 1.9973 s against a 2.0 s bound is quantization, not a
-	# staging failure, and a zero-tolerance `assert_gt` here failed intermittently
-	# (caught 2026-09-10: it passed under `test:dir` and failed under `test:one`
-	# on the same commit).
-	#
-	# The slop cannot make this vacuous, which is the point of the stretched beat
-	# injected above: WITHOUT staging the first hit lands inside a 1.2 s swing —
-	# 800 ms below the bound, sixteen times this tolerance. The assertion still
-	# fails loudly if the swing stops waiting for the form beat at all.
-	var slop := 0.05
-	assert_gt(first_hit_at[0], form_beat_end - slop,
-			"the swing's first hit must land after the form beat ends "
-			+ "(form beat ends at %.3fs, hit landed at %.3fs, slop %.3fs)"
-			% [form_beat_end, first_hit_at[0], slop])
+	assert_eq(order, [&"committed", &"swing", &"hit"] as Array[StringName],
+			"the commit stages the wind-up, the swing-start beat fires when it "
+			+ "is over, and only then does the first hit land")
+	assert_lt(_target.get_current_hp(), _target.get_max_hp(),
+			"and the hit really landed on the target")
 
 
 func test_a_committed_melee_opens_the_camera_on_the_pivot_alone() -> void:
@@ -337,9 +345,9 @@ func test_the_swing_does_not_begin_while_the_record_ready_hook_is_unsatisfied() 
 	_arm_plan()
 	_bs.launch_attack()
 
-	# Comfortably past the whole authored wind-up at any frame rate this suite
-	# runs at — the form beat is a LOOP that holds, not a fixed clip.
-	for _i in 400:
+	# The wind-up is instant here, so `launch_attack()` returned already parked
+	# on the hook; a few frames prove the park is a hold, not a fixed clip.
+	for _i in 10:
 		await get_tree().process_frame
 
 	assert_true(_bs.is_launching, "the launch is still in flight, parked on the hook")
@@ -364,7 +372,7 @@ func test_the_hook_is_awaited_on_the_seated_path_too() -> void:
 	_arm_plan()
 	_bs.launch_attack()
 
-	for _i in 60:
+	for _i in 10:
 		await get_tree().process_frame
 
 	assert_true(_bs.is_launching, "a seated actor parks on the hook exactly as a remote one does")
