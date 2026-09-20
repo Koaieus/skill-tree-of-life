@@ -27,6 +27,8 @@ const _OWNED_SCRIPTS := [
 
 func _spawn_entity(graph: Graph) -> Entity:
 	var entity: Entity = _ENTITY_SCENE.instantiate()
+	# Flat board: formula tests arrange their own stat inputs, tuned CON must not ride in.
+	entity.stat_board = TestBoards.flat_entity_board()
 	graph.entities_container.add_child(entity)
 	return entity
 
