@@ -570,10 +570,7 @@ func test_the_mounted_preview_slices_the_resolve_across_frames() -> void:
 	assert_lt(plan.prediction_partial().trajectory.samples.size(), _swing_steps(),
 			"the arc drawn on the click frame is a partial one")
 
-	for _i in 30:
-		await get_tree().process_frame
-		if plan.prediction() != null:
-			break
+	await wait_until(func() -> bool: return plan.prediction() != null, 5.0)
 	assert_not_null(plan.prediction(),
 			"the preview's per-frame pump finishes it without another click")
 	assert_eq(plan.prediction().trajectory.samples.size(), _swing_steps() + 1,
