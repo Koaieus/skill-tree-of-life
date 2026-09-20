@@ -420,9 +420,25 @@ func test_every_bound_hotkey_actually_exists_in_the_input_map() -> void:
 	for action in PlayerInputController.TEMP_UPGRADE_HOTKEYS:
 		assert_true(InputMap.has_action(action),
 				"%s is bound in code but missing from project.godot" % action)
-	assert_eq(PlayerInputController.TEMP_UPGRADE_HOTKEYS.size(),
-			PlayerInputController.TEMP_UPGRADE_KEYCAPS.size(),
-			"the actions and their printed keycaps are parallel lists")
+		assert_ne(KeyChip.keycap_for(action), "",
+				"%s must carry a key event, or its card prints no keycap" % action)
+
+
+func test_the_keycap_follows_a_rebind_of_the_action() -> void:
+	# The cap is DERIVED from the InputMap, never a hand-typed parallel list.
+	# InputMap is process-global (shards share a process) — restore it.
+	var action := PlayerInputController.TEMP_UPGRADE_HOTKEYS[0]
+	var saved := InputMap.action_get_events(action).duplicate()
+	InputMap.action_erase_events(action)
+	var q := InputEventKey.new()
+	q.physical_keycode = KEY_Q
+	InputMap.action_add_event(action, q)
+	var cap := PlayerInputController.temp_upgrade_keycap(0)
+	InputMap.action_erase_events(action)
+	for ev in saved:
+		InputMap.action_add_event(action, ev)
+	assert_eq(cap, "Q", "rebinding the action must move the printed keycap with it")
+	assert_eq(PlayerInputController.temp_upgrade_keycap(0), "Z", "restored")
 
 
 func test_the_hotkeys_do_not_steal_the_debug_clipboard_key() -> void:

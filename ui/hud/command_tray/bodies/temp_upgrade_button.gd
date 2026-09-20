@@ -45,8 +45,8 @@ enum State {
 
 ## The keycap that arms this card, e.g. "Z" — passed IN by
 ## [method MeleeBody._build_upgrade_buttons] off
-## [constant PlayerInputController.TEMP_UPGRADE_KEYCAPS] by catalog index, never
-## hardcoded here. Empty means "no key bound to this catalog slot", and the card
+## [method PlayerInputController.temp_upgrade_keycap] by catalog index (the
+## InputMap binding of the arming action), never hardcoded here. Empty means "no key bound to this catalog slot", and the card
 ## then prints its bare name rather than an empty pair of brackets.
 ##
 ## Rendered as the shared corner [KeyChip] (`ui/common/key_chip.tscn`) — the

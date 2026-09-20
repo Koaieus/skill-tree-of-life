@@ -746,15 +746,13 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			return
 
 
-## The keycaps, in catalog order. `TempUpgradeButton` prints the same character
-## on its card, passed in by `MeleeBody` off THIS list — so the label and the
-## binding can never drift, and adding a third addon means adding one entry.
+## The arming actions, in catalog order. `TempUpgradeButton` prints the key
+## bound to the SAME action on its card ([method temp_upgrade_keycap], passed
+## in by `MeleeBody`) — so the label and the binding can never drift, and
+## adding a third addon means adding one entry here plus its InputMap action.
 const TEMP_UPGRADE_HOTKEYS: Array[StringName] = [
 	&"ui_temp_upgrade_1", &"ui_temp_upgrade_2",
 ]
-
-## Display character per hotkey, parallel to [constant TEMP_UPGRADE_HOTKEYS].
-const TEMP_UPGRADE_KEYCAPS: Array[String] = ["Z", "X"]
 
 
 ## Spell-picking hotkeys, in SPELLBOOK ORDER (#718 follow-up). Owner call
@@ -787,11 +785,13 @@ static func spell_keycap(index: int) -> String:
 
 ## The keycap `MeleeBody` prints on catalog entry [param index]'s card, or ""
 ## when the catalog has outgrown the bound keys (an unbound card just shows no
-## keycap rather than a wrong one).
+## keycap rather than a wrong one). DERIVED from the InputMap through
+## [method KeyChip.keycap_for], never a hand-typed parallel list — rebind the
+## action in `project.godot` and the card follows.
 static func temp_upgrade_keycap(index: int) -> String:
-	if index < 0 or index >= TEMP_UPGRADE_KEYCAPS.size():
+	if index < 0 or index >= TEMP_UPGRADE_HOTKEYS.size():
 		return ""
-	return TEMP_UPGRADE_KEYCAPS[index]
+	return KeyChip.keycap_for(TEMP_UPGRADE_HOTKEYS[index])
 
 
 ## Arms catalog entry [param index], but only while MELEE is the active attack
