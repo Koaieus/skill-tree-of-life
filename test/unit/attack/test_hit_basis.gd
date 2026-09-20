@@ -10,7 +10,6 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -28,7 +27,8 @@ func before_each() -> void:
 
 	_entity = autofree(Entity.new())
 	_entity.display_name = "Scaled"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# Flat board: formula test arranges its own stat inputs, tuned CON must not ride in.
+	_entity.stat_board = TestBoards.flat_entity_board()
 	# Hits crit (CritRoll.apply in land_on) — zero it so exact asserts hold.
 	_entity.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	_graph.add_child(_entity)

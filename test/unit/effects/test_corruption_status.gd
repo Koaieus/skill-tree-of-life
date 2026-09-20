@@ -9,7 +9,6 @@ const _EDGE_SCENE := preload("res://graph/edge.tscn")
 ## ticks, so four ticks land, not five.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _AUTHORED: CorruptionStatus = preload("res://effects/status/corruption.tres")
 
@@ -29,7 +28,8 @@ func before_each() -> void:
 
 	_entity = autofree(Entity.new())
 	_entity.display_name = "Corrupted"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# Flat board: formula test arranges its own stat inputs, tuned CON must not ride in.
+	_entity.stat_board = TestBoards.flat_entity_board()
 	_graph.add_child(_entity)
 
 	var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode

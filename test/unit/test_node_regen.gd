@@ -8,7 +8,6 @@ extends GutTest
 ## add_skill_node / add_edge so Navigator/EntityNavigator actually mirror it).
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 var _graph: Graph
@@ -28,7 +27,8 @@ func before_each() -> void:
 	_entity = Entity.new()
 	autofree(_entity)
 	_entity.display_name = "Regenerator"
-	_entity.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# Flat board: formula test arranges its own stat inputs, tuned CON must not ride in.
+	_entity.stat_board = TestBoards.flat_entity_board()
 	# Keep the turn upkeep from levelling up mid-test. WIS 10 gives
 	# xp_per_turn = floor(10/2) = 5 against an xp cap of exactly 5, so any
 	# _on_turn_started() that isn't skipped levels the entity, which grants

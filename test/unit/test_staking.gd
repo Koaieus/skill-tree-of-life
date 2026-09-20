@@ -12,7 +12,6 @@ extends GutTest
 ## preservation). The stake ceiling is one named constant (default 3).
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
@@ -46,7 +45,8 @@ func before_each() -> void:
 
 	_player = autofree(Entity.new())
 	_player.display_name = "Player"
-	_player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# Flat board: formula test arranges its own stat inputs, tuned CON must not ride in.
+	_player.stat_board = TestBoards.flat_entity_board()
 	_graph.add_child(_player)
 	await get_tree().process_frame
 
