@@ -97,36 +97,29 @@ func test_every_scene_authored_export_dep_resolves() -> void:
 
 
 ## The explicit list above is the spec; this proves it is COMPLETE against the
-## scene. Every node authored in `game_root.tscn` itself (`owner == root`, so
-## not the internals of an instanced sub-scene) that exports a Node-typed
-## property must appear in `_EXPORT_DEPS` — a new `@export var x: Foo` on a
-## system fails here until it is listed (and so asserted) above.
+## scene file. Every `NodePath`-valued property `game_root.tscn` authors (its
+## `node_paths=PackedStringArray(...)` entries, read back through the packed
+## scene's [SceneState]) must appear in `_EXPORT_DEPS`, and nothing else may —
+## a new `@export var x: Foo` wired in the scene fails here until it is listed
+## (and so asserted) above. Runtime-bound exports the scene leaves blank
+## (`PlayerInputController.player`, set by `bind_player`) are not seams of the
+## scene and do not appear on either side.
 func test_export_dep_list_matches_the_scene_by_reflection() -> void:
-	var root: Node = _GAME_ROOT.instantiate()
-	var listed: Dictionary = {}
+	var listed: Array[String] = []
 	for pair: Array in _EXPORT_DEPS:
-		listed["%s.%s" % [pair[0], pair[1]]] = true
+		listed.append("%s.%s" % [pair[0], pair[1]])
 	var found: Array[String] = []
-	_collect_node_exports(root, root, found)
+	var state: SceneState = _GAME_ROOT.get_state()
+	for i: int in state.get_node_count():
+		var path := str(state.get_node_path(i))
+		for j: int in state.get_node_property_count(i):
+			if state.get_node_property_value(i, j) is NodePath:
+				found.append("%s.%s" % [path.trim_prefix("./"), state.get_node_property_name(i, j)])
 	for key: String in found:
-		assert_true(listed.has(key), "%s is a Node-typed @export in game_root.tscn — list it in _EXPORT_DEPS" % key)
+		assert_true(listed.has(key), "%s is a NodePath the scene authors — list it in _EXPORT_DEPS" % key)
 	for key: String in listed:
-		assert_true(found.has(key), "%s is listed but no such Node-typed @export exists in the scene" % key)
+		assert_true(found.has(key), "%s is listed but game_root.tscn authors no such NodePath" % key)
 	assert_eq(found.size(), _EXPORT_DEPS.size(), "same number of (node, dep) seams found as listed")
-	_discard(root)
-
-
-func _collect_node_exports(root: Node, node: Node, out: Array[String]) -> void:
-	if node != root and node.owner == root:
-		for prop: Dictionary in node.get_property_list():
-			if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
-				continue
-			if prop.hint != PROPERTY_HINT_NODE_TYPE:
-				continue
-			out.append("%s.%s" % [root.get_path_to(node), prop.name])
-	for child: Node in node.get_children():
-		if child.owner == root or child == root:
-			_collect_node_exports(root, child, out)
 
 
 ## (emitter, signal, listener, handler) — the `.connect` calls in
