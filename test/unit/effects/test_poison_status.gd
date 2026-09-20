@@ -116,6 +116,61 @@ func test_accumulate_stacks_and_clamps_at_power_max() -> void:
 	assert_almost_eq(_combat().get_status_power(&"poison"), 5.0, 0.001, "3 + 3 clamps at power_max 5")
 
 
+# ── The authored model (#962, hub #952): halving stacks, flat 1 HP/stack ────
+
+const _AUTHORED: PoisonStatus = preload("res://effects/status/poison.tres")
+
+
+func test_authored_poison_shape_is_flat_uncapped_halving() -> void:
+	# Shape only — `damage_per_power` / `decay_per_tick` are the model, not tuning.
+	assert_eq(_AUTHORED.basis, HitInstance.AmountBasis.FLAT)
+	assert_almost_eq(_AUTHORED.damage_per_power, 1.0, 0.0001, "flat 1 HP per stack per tick")
+	assert_true(_AUTHORED.power_max <= 0.0, "uncapped")
+	assert_eq(_AUTHORED.decay_mode, StatusDef.DecayMode.FRACTION)
+	assert_almost_eq(_AUTHORED.decay_per_tick, 0.5, 0.0001, "halves")
+	assert_gt(_AUTHORED.display_max, 0.0, "an uncapped def authors its display anchor")
+	assert_eq(_AUTHORED.reapply, StatusDef.Reapply.ACCUMULATE)
+
+
+func test_twenty_stacks_of_authored_poison_deal_the_halving_series() -> void:
+	# 20, 10, 5, 2.5, 1.25 over five ticks (sum 38.75) on a node of ANY max hp —
+	# stacks are floats, damage is stacks x damage_per_power unrounded, TRUE-typed
+	# (armor untouched and irrelevant).
+	_set_max_hp(100.0)
+	_combat().apply_status(_AUTHORED, 20.0)
+	var expected := [20.0, 10.0, 5.0, 2.5, 1.25]
+	var hp := 100.0
+	for dmg: float in expected:
+		_combat().tick_statuses()
+		hp -= dmg
+		assert_almost_eq(_nodes[0].get_current_hp(), hp, 0.001, "tick deals %s" % dmg)
+	assert_almost_eq(_nodes[0].get_current_hp(), 100.0 - 38.75, 0.001, "five ticks sum 38.75")
+	assert_almost_eq(_combat().get_status_power(&"poison"), 0.0, 0.001,
+			"0.625 < 1: cleared on the fifth tick")
+
+
+func test_authored_poison_is_not_clamped_on_a_big_apply() -> void:
+	_combat().apply_status(_AUTHORED, 40.0)
+	assert_almost_eq(_combat().get_status_power(&"poison"), 40.0, 0.001, "uncapped")
+	_combat().apply_status(_AUTHORED, 40.0)
+	assert_almost_eq(_combat().get_status_power(&"poison"), 80.0, 0.001, "accumulates past any cap")
+
+
+func test_normalised_of_five_authored_stacks_is_half() -> void:
+	_combat().apply_status(_AUTHORED, 5.0)
+	assert_almost_eq(_combat().get_statuses()[0].normalised(), 5.0 / _AUTHORED.display_max, 0.0001)
+
+
+func test_projected_status_damage_sums_the_remaining_ticks() -> void:
+	_set_max_hp(100.0)
+	assert_almost_eq(_combat().projected_status_damage(), 0.0, 0.0001, "no statuses")
+	_combat().apply_status(_AUTHORED, 20.0)
+	assert_almost_eq(_combat().projected_status_damage(), 38.75, 0.001,
+			"20 + 10 + 5 + 2.5 + 1.25; the 0.625 tail never ticks")
+	_combat().tick_statuses()
+	assert_almost_eq(_combat().projected_status_damage(), 18.75, 0.001, "shrinks as it ticks")
+
+
 func test_poisoned_node_does_not_regen_the_same_upkeep() -> void:
 	_set_max_hp(20.0)
 	var d := _def(HitInstance.AmountBasis.FLAT, 1.0)

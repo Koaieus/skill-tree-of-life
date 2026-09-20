@@ -198,14 +198,16 @@ func test_three_poison_arrows_in_one_volley_accumulate_to_power_three() -> void:
 			"ACCUMULATE: a volley stacks up poison — that is what makes ranged the specialist")
 
 
-func test_a_volley_past_power_max_is_capped() -> void:
+func test_a_volley_is_never_capped() -> void:
+	# #962: poison stacks are uncapped — a 6-arrow volley lands 6 stacks (per
+	# arrow `status_power`, owner-tuned; asserted as a multiple, never a value).
 	var ctx: Dictionary = await _build(Vector2.ZERO, 3.0)
-	# Already at 4: three more arrows would reach 7, `power_max` says 5.
-	(ctx.nodes.target as SkillNode).get_combat().apply_status(_POISON_DEF, 4.0)
-	var plan := _arm(ctx, {&"poison": 3})
+	var per_arrow: float = _POISON_ARROW.status_power
+	var plan := _arm(ctx, {&"poison": 6})
 	assert_eq(plan.validate(), [] as Array[String], "the fixture volley must be launchable")
 	plan.resolve_against(CombatWorld.live())
-	assert_almost_eq(_poison_power(ctx.nodes.target), _POISON_DEF.power_max, 0.001)
+	assert_true(_POISON_DEF.power_max <= 0.0, "the authored def is uncapped")
+	assert_almost_eq(_poison_power(ctx.nodes.target), 6.0 * per_arrow, 0.001, "six arrows, six stacks")
 
 
 func test_a_mixed_volley_only_poisons_per_poison_arrow() -> void:

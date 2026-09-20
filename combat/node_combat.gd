@@ -613,6 +613,16 @@ func tick_statuses() -> void:
 		host.notify_statuses_changed()
 
 
+## Damage the statuses on this node still have in them (#962): the sum of
+## [method StatusDef.projected_damage] over every row — poison's remaining
+## halving series; a damageless def contributes 0. Drawn by #953.
+func projected_status_damage() -> float:
+	var total := 0.0
+	for row: NodeStatus in _statuses.values():
+		total += row.def.projected_damage(self, row.power)
+	return total
+
+
 ## Cure by [param heal_amount] (#875, hub #868 D7): every `&"debuff"`-tagged
 ## status on the node loses `heal_amount * def.cure_per_hp` power — a def that
 ## authors no [member StatusDef.cure_per_hp] (`0.0`, the default) is never

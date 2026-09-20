@@ -140,6 +140,52 @@ func test_tick_decays_flat_then_removes_at_zero_with_one_on_removed() -> void:
 	assert_eq(d.removed, 1, "a tick on an empty slice fires nothing")
 
 
+func test_fraction_decay_halves_each_tick_and_clears_the_tail_below_one() -> void:
+	# #962: 8 -> 4 -> 2 -> 1 -> (0.5 < 1) removed; `_on_tick` sees the pre-decay
+	# power every time, including the tick that cuts the tail.
+	var d := _def(&"poison", 0.0, 0.5, StatusDef.Reapply.ACCUMULATE)
+	d.decay_mode = StatusDef.DecayMode.FRACTION
+	_combat().apply_status(d, 8.0)
+	_combat().tick_statuses()
+	assert_eq(_combat().get_status_power(&"poison"), 4.0)
+	_combat().tick_statuses()
+	assert_eq(_combat().get_status_power(&"poison"), 2.0)
+	_combat().tick_statuses()
+	assert_eq(_combat().get_status_power(&"poison"), 1.0)
+	_combat().tick_statuses()
+	assert_eq(_combat().get_status_power(&"poison"), 0.0, "0.5 < 1: the tail is cleared")
+	assert_true(_combat().get_statuses().is_empty(), "removed on the tick whose after < 1")
+	assert_eq(d.removed, 1, "_on_removed exactly once")
+	assert_eq(d.ticks, [[8.0, 4.0], [4.0, 2.0], [2.0, 1.0], [1.0, 0.0]],
+			"_on_tick sees pre-decay power each time; the last tick's after is 0 (removed)")
+
+
+func test_power_max_at_or_below_zero_is_uncapped() -> void:
+	var d := _def(&"poison", 0.0, 1.0, StatusDef.Reapply.ACCUMULATE)
+	_combat().apply_status(d, 30.0)
+	_combat().apply_status(d, 30.0)
+	assert_eq(_combat().get_status_power(&"poison"), 60.0, "power_max <= 0 skips the clamp")
+	assert_eq(d.applied, [30.0, 60.0], "_on_applied sees the unclamped power")
+
+
+func test_normalised_reads_display_max_when_authored_else_power_max() -> void:
+	var uncapped := _def(&"poison", 0.0)
+	uncapped.display_max = 10.0
+	assert_almost_eq(NodeStatus.new(uncapped, 5.0).normalised(), 0.5, 0.0001,
+			"uncapped def: display_max anchors the 0..1 scale")
+	assert_almost_eq(NodeStatus.new(uncapped, 25.0).normalised(), 1.0, 0.0001, "still clamped at 1")
+	var flat := _def(&"blind", 4.0)
+	assert_almost_eq(NodeStatus.new(flat, 1.0).normalised(), 0.25, 0.0001,
+			"display_max 0 -> power_max anchors as before")
+
+
+func test_projected_status_damage_is_zero_with_no_statuses_or_damageless_defs() -> void:
+	assert_almost_eq(_combat().projected_status_damage(), 0.0, 0.0001, "empty slice")
+	_combat().apply_status(_def(&"blind", 3.0), 2.0)
+	assert_almost_eq(_combat().projected_status_damage(), 0.0, 0.0001,
+			"the base def projects no damage")
+
+
 func test_on_tick_removing_a_sibling_mid_tick_neither_crashes_nor_skips() -> void:
 	# Insertion order: a, b, c. `a` yanks `c` from inside its tick; `b` yanks
 	# `a` (already visited) — both a not-yet-visited and an already-visited
