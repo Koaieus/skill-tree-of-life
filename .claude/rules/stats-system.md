@@ -710,6 +710,10 @@ final = max(min_damage_taken, raw.amount - armor)
 - `armor` scalar (default 0) and `min_damage_taken` scalar (default 3) are both standard board stats — modifiers / intrinsics apply normally. Defensive cores (e.g. Bulwark) can drive `min_damage_taken` below 0, allowing damage to *heal* nodes if the underflow is large enough.
 - Rare procgen modifier `-1 min_damage_taken` is a high-tier exotic roll.
 
+## DoT potency / resistance (#963, hub #952)
+
+Eight FLOAT board stats, one pair per DoT family: `poison_potency`, `corruption_potency`, `curse_potency`, `wither_potency` (default 1.0, attacker-side) and `poison_resistance`, `corruption_resistance`, `curse_resistance`, `wither_resistance` (default 0.0, a fraction, defender-side, read **node-locally** via `get_local_value` like armor). A `StatusDef` names its pair via `potency_stat_id` / `resistance_stat_id` (blank = unscaled); `StatusInstance.land_on` folds `power × potency(attacker) × (1 − resistance(node))` in **once** (`power_resolved`), and `AttackRecord.rebuild` marks the hit resolved so a peer replays the landed number flat. Resistance reduces stacks *incurred*, never decay. Procgen: `constitution.tres` universal pools — resistance ADD_BASE (unit 0.05), potency **INCREASE only** (unit 7 → +7/+21/+49%); a `+1` ADD_BASE on potency is a doubling and is reserved for rare keystones. See `docs/design/damage_over_time.md`.
+
 **Both stats are read node-locally.** `Mitigation.apply(raw, defender)` takes the
 `SkillNode` and reads `defender.get_local_value(&"armor")` /
 `get_local_value(&"min_damage_taken")`, which merges the node's `node_board` bins
