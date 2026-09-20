@@ -10,11 +10,10 @@ extends GutTest
 ## clone threw the whole copied tally away — a board reading 40 STR came back
 ## 20 after a +10, with no error on any path. Removal was symmetric.
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
-
-
 func _live_board() -> StatBoard:
-	var b: StatBoard = _BOARD.duplicate(true)
+	# Flat board: formula tests arrange their own stat inputs (several add an
+	# explicit CON modifier), so the tuned CON base must not ride in on top.
+	var b: StatBoard = TestBoards.flat_entity_board()
 	b.apply_intrinsics()
 	return b
 

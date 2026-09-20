@@ -6,7 +6,6 @@ extends GutTest
 ## Before #702 there was no behavioural coverage at all — test_spell_defs.gd
 ## asserted only that Bruiser's step *has* a StatRanker, not that it ranks.
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _DEFS_DIR := "res://attack/spell/defs/"
@@ -15,7 +14,8 @@ const _DEFS_DIR := "res://attack/spell/defs/"
 func _setup(node_count: int) -> Dictionary:
 	var graph := _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
-	var board: EntityStatBoard = _BOARD.duplicate(true)
+	# Flat board: this test arranges node_health itself, tuned CON must not ride in.
+	var board: EntityStatBoard = TestBoards.flat_entity_board()
 	board.node_health.base_value = 10.0
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = board
