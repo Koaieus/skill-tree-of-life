@@ -219,8 +219,10 @@ The boundary, so this does not become "everything is a signal": a signal is
 (`Events.entity_dying` — loot, allocation cleanup, HUD, VFX). It is the wrong
 tool for **a single consumer with an ordering or return dependency** — there a
 signal hides a call with a contract, and the test that emits it cannot assert
-the contract. That is the act-gate bug (#957, `66743f5`): the gate blanketed
-AP behind a signal where the consumer needed a queried answer.
+the contract. That is the act-gate bug (#957, `66743f5`): every tab and
+Launch dimmed off one broadcast `player_can_act_changed` that folded "any AP"
+into flow, when each consumer needed to *ask* two questions with different
+answers — `can_player_act()` and `can_afford(plan)`.
 
 ## 8. A fact has one owner; the underscore is not an authority model
 
