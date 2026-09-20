@@ -275,6 +275,11 @@ func take_pool_damage(amount: float, _source: Variant) -> void:
 		simulate_entity_death()
 
 
+## STUB (#997) — replaced below in this unit.
+func heal(_amount: float, _source: Variant, _raw: bool = false) -> void:
+	pass
+
+
 ## Every [NodeCombat] this entity owns. Live: derived from
 ## [member Entity.navigator] on every call (never cached, same rule as
 ## [method board]). Shadow: the slice's own ledger — an entity-wide read, so it
