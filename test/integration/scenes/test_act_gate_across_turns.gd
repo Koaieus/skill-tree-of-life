@@ -33,10 +33,8 @@ func before_each() -> void:
 	_root = _SANDBOX.instantiate()
 	add_child_autofree(_root)
 	_ctl = _root.input_ctl
-	for _i in 60:
-		await wait_physics_frames(1)
-		if _root.turn_manager.current_entity != null:
-			break
+	await wait_until(func() -> bool: return _root.turn_manager.current_entity != null, 10.0,
+			"fixture: the level should open a turn")
 	assert_eq(_root.turn_manager.current_entity, _root.player,
 			"fixture: the player should hold the first turn")
 	# `_ensure_controllers()` has already run by now (current_entity is set
@@ -78,11 +76,14 @@ func test_gate_reopens_after_a_turn_that_spent_no_ap() -> void:
 ## applier, not `TurnManager.end_turn()` — then let the AI hand it back.
 func _hand_the_turn_around() -> void:
 	_ctl.command_applier.submit(EndTurnCommand.new(_root.player.entity_id))
-	for _i in 600:
-		await wait_physics_frames(1)
-		if _root.turn_manager.current_entity == _root.player:
-			break
-	await wait_physics_frames(3)
+	# Leave first, then return: right after `submit` the cursor may still sit
+	# on the player (the applier is queued), so a bare "is it the player's
+	# turn" wait would pass before the turn ever moved.
+	await wait_until(func() -> bool: return _root.turn_manager.current_entity != _root.player,
+			10.0, "fixture: the turn should leave the player")
+	await wait_until(func() -> bool: return _root.turn_manager.current_entity == _root.player,
+			10.0, "fixture: the AI should hand the turn back")
+	await wait_until(_ctl.can_player_act, 2.0, "fixture: the gate should settle open")
 	assert_eq(_root.turn_manager.current_entity, _root.player,
 			"fixture: the turn should be back with the player")
 	assert_true(_ctl.can_player_act(), "fixture: the gate's inputs should all be open")
