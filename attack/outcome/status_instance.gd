@@ -21,10 +21,17 @@ extends HitInstance
 ## memory with no backing `.tres` therefore cannot survive a record round
 ## trip; author one under `test/` for anything that needs to.
 var def: StatusDef = null
-## Power handed to [method NodeCombat.apply_status] — already through
-## propagation / board scaling by the time [method ApplyStatusEffect.apply]
-## built this instance.
+## Stacks handed to [method NodeCombat.apply_status]. Until [method land_on]
+## runs this is the applier's authored per-hit number ([member
+## ApplyStatusEffect.power], `AmmoType.status_power`); land folds the
+## attacker's potency and the landing node's resistance into it exactly once
+## (#963) and the LANDED number is what [AttackRecord] ships.
 var power: float = 0.0
+## True once [member power] is the landed number — set by [method land_on]
+## on the authority's own resolve and by [method AttackRecord.rebuild], which
+## reconstructs the hit flat so a peer's replay lands it rather than scaling
+## it a second time (the [member HitInstance.basis] `PERCENT_MAX` precedent).
+var power_resolved: bool = false
 
 
 func _init() -> void:
@@ -38,10 +45,38 @@ func _init() -> void:
 ## [method NodeCombat.apply_status] is already a no-op on a null def, a
 ## non-positive power, and an unallocated node under a `CLEAR` policy (#872),
 ## so this does not re-gate any of that.
+##
+## Scaling (#963, `docs/design/damage_over_time.md` §Applying):
+## `power × potency(attacker) × (1 − resistance(node))`, each read through the
+## def's [member StatusDef.potency_stat_id] / [member
+## StatusDef.resistance_stat_id] — blank id, null attacker or an unknown stat
+## each contribute ×1. Resistance is read node-locally on [param node] (the
+## landing slice, so a shadow resolve sees the shadow's modifiers), like armor
+## in [Mitigation]. Resolved once: a rebuilt hit arrives [member
+## power_resolved] and lands as-is.
 func land_on(node: NodeCombat, _world: CombatWorld) -> void:
+	if not power_resolved:
+		power *= _potency() * (1.0 - _resistance(node))
+		power_resolved = true
 	node.apply_status(def, power)
 	amount = power
 	effective_amount = power
+
+
+func _potency() -> float:
+	if def == null or def.potency_stat_id.is_empty():
+		return 1.0
+	if attacker == null or attacker.stat_board == null:
+		return 1.0
+	var v: Variant = attacker.stat_board.get_value(def.potency_stat_id)
+	return float(v) if v != null else 1.0
+
+
+func _resistance(node: NodeCombat) -> float:
+	if def == null or def.resistance_stat_id.is_empty() or node == null:
+		return 0.0
+	var v: Variant = node.get_local_value(def.resistance_stat_id)
+	return float(v) if v != null else 0.0
 
 
 func _to_string() -> String:

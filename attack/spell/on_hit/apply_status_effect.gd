@@ -26,6 +26,8 @@ func apply(lctx: LandingContext) -> void:
 	var status := StatusInstance.new()
 	status.def = def
 	status.power = power
+	# The potency read at land (#963) is the caster's board.
+	status.attacker = lctx.cast.caster
 	status.source = state
 	status.target = state.current_node
 	status.origin = state.predecessor if state.predecessor != null else state.source

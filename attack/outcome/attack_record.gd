@@ -370,7 +370,10 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 					si.def = load(def_path) as StatusDef
 				else:
 					push_warning("AttackRecord: status def %s not found on this machine" % def_path)
+			# The authority's own `land_on` already folded potency and
+			# resistance into this number (#963); the peer lands it flat.
 			si.power = amount
+			si.power_resolved = true
 			hit = si
 		else:
 			var di := DamageInstance.new()
