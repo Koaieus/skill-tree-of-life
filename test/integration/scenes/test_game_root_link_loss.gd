@@ -95,9 +95,9 @@ func _hand_turn_to(ent: Entity) -> void:
 # --- the fixture's own promises -------------------------------------------
 
 func test_the_level_opened_its_link_as_host() -> void:
-	assert_true(_root.transport.peer_left.is_connected(_root._on_peer_left),
+	assert_true(_root.transport.peer_left.is_connected(_root.network_session._on_peer_left),
 			"peer_left reaches the level")
-	assert_true(_root.transport.link_lost.is_connected(_root._on_link_lost),
+	assert_true(_root.transport.link_lost.is_connected(_root.network_session._on_link_lost),
 			"link_lost reaches the level")
 	assert_true(_remote.is_human_controlled)
 	assert_true(GameRoot._find_controller(_remote) is PlayerController)

@@ -138,9 +138,16 @@ func test_ready_and_compose_connect_every_cross_system_signal() -> void:
 	var loot: LootSystem = root.get_node("%LootSystem")
 	var pairs: Array = [
 		# GameRoot._ready
-		[root.command_link, "resync_applied", root, "_on_resync_applied"],
-		[root.command_link, "link_refused", root, "_on_refused_by_host"],
-		[root.command_link, "seat_handover_received", root, "_on_seat_handover"],
+		[root.network_session, "world_ready", root, "_on_world_ready"],
+		[root.network_session, "refused", root, "_present_link_end"],
+		[root.network_session, "link_lost", root, "_present_link_end"],
+		[root.network_session, "seat_handover", root, "_on_seat_handover"],
+		[root.network_session, "peer_left", root, "_on_seat_vacated"],
+		[root.network_session, "local_peer_resolved", root, "_on_local_peer_resolved"],
+		# NetworkSession._ready
+		[root.command_link, "resync_applied", root.network_session, "_on_resync_applied"],
+		[root.command_link, "link_refused", root.network_session, "_on_refused_by_host"],
+		[root.command_link, "seat_handover_received", root.network_session, "_on_seat_handover"],
 		[Events, "entity_died", root, "_on_entity_died"],
 		[Events, "entity_death_shown", root, "_on_entity_death_shown"],
 		[Events, "run_ended", root, "_on_run_ended"],

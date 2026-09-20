@@ -223,7 +223,7 @@ func test_the_worlds_converge_once_the_client_pulls_the_hosts() -> void:
 	# `_is_network_client` reads GameSession.network, which only the client has
 	# by now — the host root finished its own `_ready` before this was set.
 	GameSession.network = _client_network()
-	_client_root.pull_host_world()
+	_client_root.network_session.pull_host_world()
 	await get_tree().process_frame
 
 	assert_eq(WorldFingerprint.compute(_client_root.graph), host_fingerprint,
@@ -239,7 +239,7 @@ func test_the_worlds_converge_once_the_client_pulls_the_hosts() -> void:
 func test_the_client_is_seated_on_its_own_participant_after_adopting() -> void:
 	await _two_divergent_worlds()
 	GameSession.network = _client_network()
-	_client_root.pull_host_world()
+	_client_root.network_session.pull_host_world()
 	await get_tree().process_frame
 
 	var client_red := _client_root.graph.get_by_entity_id(1)
@@ -283,11 +283,11 @@ func test_the_world_pull_is_inert_off_the_join_path() -> void:
 	root.command_link.resync_sent.connect(func(reason: String) -> void: asked.append(reason))
 
 	GameSession.network = null
-	root.pull_host_world()
+	root.network_session.pull_host_world()
 	assert_eq(asked.size(), 0, "an offline level asks nobody for a world")
 
 	GameSession.network = _host_network()
-	root.pull_host_world()
+	root.network_session.pull_host_world()
 	assert_eq(asked.size(), 0, "and neither does the machine that decides the run")
 
 
@@ -329,7 +329,7 @@ func test_a_command_that_lands_before_the_pull_cannot_outlive_it() -> void:
 			+ "whether it dropped or landed on the wrong node, the peers still disagree")
 
 	GameSession.network = _client_network()
-	_client_root.pull_host_world()
+	_client_root.network_session.pull_host_world()
 	await get_tree().process_frame
 
 	assert_eq(WorldFingerprint.compute(_client_root.graph), host_fingerprint,

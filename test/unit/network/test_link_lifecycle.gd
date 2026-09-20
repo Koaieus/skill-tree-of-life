@@ -306,16 +306,15 @@ func _stage_live_run(seated_peer_ids: Array[int]) -> void:
 	GameSession.network = NetworkConfig.host()
 
 
-## A [GameRoot] whose `_ready` never ran — [method GameRoot._on_peer_joined]'s
-## host branch only reads [member GameRoot.command_link] and [GameSession], so
-## this stands in for "a level up" without paying for `_setup_level`, HUD
-## composition or procgen, and without a scene tree to resolve `%CommandLink`
-## against. Freed at the end of the test that builds it: a bare [Node2D] never
+## A [NetworkSession] whose `_ready` never ran — [method NetworkSession._on_peer_joined]'s
+## host branch only reads [member NetworkSession.command_link] and [GameSession],
+## so this stands in for "a level up" without paying for a [GameRoot] at all
+## (#1004). Freed at the end of the test that builds it: a bare [Node] never
 ## added to the tree is not autofreed by [method GutTest.add_child_autofree].
-func _headless_host(link: CommandLink) -> GameRoot:
-	var root := GameRoot.new()
-	root.command_link = link
-	return root
+func _headless_host(link: CommandLink) -> NetworkSession:
+	var session := NetworkSession.new()
+	session.command_link = link
+	return session
 
 
 func test_a_peer_that_dials_into_a_live_run_is_refused_with_a_reason() -> void:

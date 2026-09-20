@@ -38,7 +38,8 @@ func before_each() -> void:
 	_root.auto_start_turn = false
 	_root.route_to_meta_on_run_end = false
 	# Fast enough to watch, slow enough that a frame is not a renewal.
-	_root.join_pull_retry_sec = 0.05
+	# Before the root enters the tree: its `_ready` reads the session's clock.
+	(_root.get_node("%NetworkSession") as NetworkSession).join_pull_retry_sec = 0.05
 	add_child_autofree(_root)
 	# `_ready` issues its first pull (`pull_host_world`) and enters
 	# `_await_join_world` in the same synchronous run, so the pull's log line IS
