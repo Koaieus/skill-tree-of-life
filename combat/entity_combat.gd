@@ -236,6 +236,11 @@ func board() -> StatBoard:
 	return host.stat_board if host != null else _board
 
 
+## The ONE door every drain of the entity `health` pool goes through (#995).
+func take_pool_damage(_amount: float, _source: Variant) -> void:
+	pass
+
+
 ## Every [NodeCombat] this entity owns. Live: derived from
 ## [member Entity.navigator] on every call (never cached, same rule as
 ## [method board]). Shadow: the slice's own ledger — an entity-wide read, so it
