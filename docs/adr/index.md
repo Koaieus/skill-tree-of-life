@@ -45,6 +45,8 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0021](0021-ranged-reach-is-an-isotropic-disc-and-a-volley-targets-a-node-set.md) | Ranged reach is an isotropic disc and a volley targets a node set — no lanes, cover, or hull geometry | accepted | 2026-09-18 | ranged, combat, procgen, architecture |
 | [0022](0022-one-dot-per-defensive-axis-stacks-halve-uncapped.md) | One DoT per defensive axis; a status is uncapped stacks that halve; no per-tick clamp | accepted | 2026-09-20 | combat, status, dot, balance, design |
 | [0023](0023-every-notable-stat-gets-an-addon-and-an-arrow.md) | Every notable stat or combo gets a dedicated NodeAddon and an arrow ammo type; every DoT gets both plus spells | accepted | 2026-09-20 | content, addons, ranged, ammo, dot, design |
+| [0024](0024-status-effects-have-two-hosts-and-fall-through-a-cracked-core.md) | Status effects have two hosts and fall through a cracked core; presentation composes hosts | accepted | 2026-09-20 | combat, status, architecture, entity, ui |
+| [0025](0025-a-default-on-heal-gate-with-an-explicit-raw-bypass-and-a-drift-guard.md) | A default-on heal gate with an explicit raw bypass and a drift guard | accepted | 2026-09-20 | combat, healing, stats, architecture |
 
 ## Reading order
 
