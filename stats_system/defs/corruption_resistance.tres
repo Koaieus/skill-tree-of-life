@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"corruption_resistance"
+display_name = "Corruption Resistance"
+description = "Fraction of incoming corruption stacks this node shrugs off: stacks landed = per-hit x attacker's Corruption Potency x (1 - Corruption Resistance), resolved once at land (#963). Read node-locally like Armor, so a node-scoped modifier reaches it. Reduces stacks incurred, never the decay rate. Default 0."
+value_type = 1
+default_value = 0.0
+tint_color = Color(0.72, 0.8, 0.92, 1)
+modifier_name = "Corruption Resistance"

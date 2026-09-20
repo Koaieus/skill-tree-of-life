@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"wither_resistance"
+display_name = "Wither Resistance"
+description = "Fraction of incoming wither stacks this node shrugs off: stacks landed = per-hit x attacker's Wither Potency x (1 - Wither Resistance), resolved once at land (#963). Read node-locally like Armor, so a node-scoped modifier reaches it. Reduces stacks incurred, never the decay rate. Default 0."
+value_type = 1
+default_value = 0.0
+tint_color = Color(0.72, 0.8, 0.92, 1)
+modifier_name = "Wither Resistance"

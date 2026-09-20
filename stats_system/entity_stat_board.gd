@@ -65,6 +65,34 @@ extends StatBoard
 ## Floor on post-armor damage. A landed hit always deals at least this much
 ## unless TRUE-typed. Default 3; defensive classes (Bulwark) may push lower.
 @export var min_damage_taken: ScalarStat
+## Multiplier on the poison stacks this entity's hits land (#963): stacks =
+## per-hit x poison_potency x (1 - target's poison_resistance), resolved once in
+## StatusInstance.land_on. Default 1.0; procgen rolls it as INCREASE only.
+@export var poison_potency: ScalarStat
+## Multiplier on the corruption stacks this entity's hits land (#963): stacks =
+## per-hit x corruption_potency x (1 - target's corruption_resistance), resolved once in
+## StatusInstance.land_on. Default 1.0; procgen rolls it as INCREASE only.
+@export var corruption_potency: ScalarStat
+## Multiplier on the curse stacks this entity's hits land (#963): stacks =
+## per-hit x curse_potency x (1 - target's curse_resistance), resolved once in
+## StatusInstance.land_on. Default 1.0; procgen rolls it as INCREASE only.
+@export var curse_potency: ScalarStat
+## Multiplier on the wither stacks this entity's hits land (#963): stacks =
+## per-hit x wither_potency x (1 - target's wither_resistance), resolved once in
+## StatusInstance.land_on. Default 1.0; procgen rolls it as INCREASE only.
+@export var wither_potency: ScalarStat
+## Fraction of incoming poison stacks a node shrugs off (#963). Read node-locally
+## via get_local_value like armor. Reduces stacks incurred, never decay. Default 0.
+@export var poison_resistance: ScalarStat
+## Fraction of incoming corruption stacks a node shrugs off (#963). Read node-locally
+## via get_local_value like armor. Reduces stacks incurred, never decay. Default 0.
+@export var corruption_resistance: ScalarStat
+## Fraction of incoming curse stacks a node shrugs off (#963). Read node-locally
+## via get_local_value like armor. Reduces stacks incurred, never decay. Default 0.
+@export var curse_resistance: ScalarStat
+## Fraction of incoming wither stacks a node shrugs off (#963). Read node-locally
+## via get_local_value like armor. Reduces stacks incurred, never decay. Default 0.
+@export var wither_resistance: ScalarStat
 ## Flat HP damage dealt to this entity per node forced-deallocated in a battle
 ## cascade. Bypasses mitigation (currency-exchange semantics — the cascade also
 ## wounds 1 SP per node, separately). Default 1; fragile-core classes raise it.

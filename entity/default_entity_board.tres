@@ -35,6 +35,14 @@
 [ext_resource type="Resource" uid="uid://cuwrjp66o6bnx" path="res://stats_system/defs/movement_points.tres" id="def_movement_points"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_healing.tres" id="def_node_healing"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_healing_ramp.tres" id="def_node_healing_ramp"]
+[ext_resource type="Resource" path="res://stats_system/defs/poison_potency.tres" id="def_poison_potency"]
+[ext_resource type="Resource" path="res://stats_system/defs/corruption_potency.tres" id="def_corruption_potency"]
+[ext_resource type="Resource" path="res://stats_system/defs/curse_potency.tres" id="def_curse_potency"]
+[ext_resource type="Resource" path="res://stats_system/defs/wither_potency.tres" id="def_wither_potency"]
+[ext_resource type="Resource" path="res://stats_system/defs/poison_resistance.tres" id="def_poison_resistance"]
+[ext_resource type="Resource" path="res://stats_system/defs/corruption_resistance.tres" id="def_corruption_resistance"]
+[ext_resource type="Resource" path="res://stats_system/defs/curse_resistance.tres" id="def_curse_resistance"]
+[ext_resource type="Resource" path="res://stats_system/defs/wither_resistance.tres" id="def_wither_resistance"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="def_node_health"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health_scaling.tres" id="def_node_health_scaling"]
 [ext_resource type="Resource" uid="uid://dstlg0lrt8nvv" path="res://stats_system/defs/perception.tres" id="def_perception"]
@@ -79,6 +87,50 @@ resource_name = "ap_transfer_rate"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_ap_transfer_rate")
 base_value = 2.0
+
+[sub_resource type="Resource" id="scalar_poison_potency"]
+resource_name = "poison_potency"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_poison_potency")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_corruption_potency"]
+resource_name = "corruption_potency"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_corruption_potency")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_curse_potency"]
+resource_name = "curse_potency"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_curse_potency")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_wither_potency"]
+resource_name = "wither_potency"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_wither_potency")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_poison_resistance"]
+resource_name = "poison_resistance"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_poison_resistance")
+
+[sub_resource type="Resource" id="scalar_corruption_resistance"]
+resource_name = "corruption_resistance"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_corruption_resistance")
+
+[sub_resource type="Resource" id="scalar_curse_resistance"]
+resource_name = "curse_resistance"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_curse_resistance")
+
+[sub_resource type="Resource" id="scalar_wither_resistance"]
+resource_name = "wither_resistance"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_wither_resistance")
 
 [sub_resource type="Resource" id="scalar_armor"]
 resource_name = "armor"
@@ -579,6 +631,14 @@ node_healing = SubResource("scalar_node_healing")
 node_healing_ramp = SubResource("scalar_node_healing_ramp")
 armor = SubResource("scalar_armor")
 min_damage_taken = SubResource("scalar_min_dmg_taken")
+poison_potency = SubResource("scalar_poison_potency")
+corruption_potency = SubResource("scalar_corruption_potency")
+curse_potency = SubResource("scalar_curse_potency")
+wither_potency = SubResource("scalar_wither_potency")
+poison_resistance = SubResource("scalar_poison_resistance")
+corruption_resistance = SubResource("scalar_corruption_resistance")
+curse_resistance = SubResource("scalar_curse_resistance")
+wither_resistance = SubResource("scalar_wither_resistance")
 dealloc_damage = SubResource("scalar_dealloc_damage")
 spikes = SubResource("scalar_spikes")
 spike_regen = SubResource("scalar_spike_regen")

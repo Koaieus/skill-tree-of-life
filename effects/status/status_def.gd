@@ -57,6 +57,14 @@ enum DecayMode {
 ## Classification tags a consumer may filter on (`&"debuff"`, `&"dot"`, …).
 ## Metadata only — NOT granted to the node as [method NodeCombat.add_tag] tags.
 @export var tags: Array[StringName] = []
+## The attacker-side scaling stat for this status (#963): [method
+## StatusInstance.land_on] multiplies the per-hit power by the attacker's
+## board value of this id (e.g. `&"poison_potency"`). Blank → unscaled (×1).
+@export var potency_stat_id: StringName = &""
+## The defender-side scaling stat (#963): a fraction read node-locally on the
+## landing node (e.g. `&"poison_resistance"`), applied as `× (1 − value)`.
+## Reduces stacks incurred, never decay. Blank → unscaled (×1).
+@export var resistance_stat_id: StringName = &""
 ## Power is clamped to this on apply and on accumulate. `<= 0` → uncapped
 ## (#962): [method NodeCombat.apply_status] skips the clamp entirely.
 @export var power_max: float = 1.0

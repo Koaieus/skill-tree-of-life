@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"poison_potency"
+display_name = "Poison Potency"
+description = "Multiplier on the poison stacks this entity's hits land: stacks = per-hit x Poison Potency x (1 - target's Poison Resistance), resolved once at land (#963). Default 1.0; procgen rolls it as +% only, so any flat +1 is a doubling."
+value_type = 1
+default_value = 1.0
+tint_color = Color(0.55, 0.85, 0.45, 1)
+modifier_name = "Poison Potency"
