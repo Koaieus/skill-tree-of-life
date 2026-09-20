@@ -14,7 +14,6 @@ extends GutTest
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
@@ -63,11 +62,12 @@ func before_each() -> void:
 
 	_attacker = Entity.new()
 	_attacker.faction = _PLAYER_FACTION
-	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# Flat board: kill-sized-volley fixture, tuned CON must not ride in on the target's HP.
+	_attacker.stat_board = TestBoards.flat_entity_board()
 	_graph.entities_container.add_child(_attacker)
 	_hostile = Entity.new()
 	_hostile.faction = _NPC_FACTION
-	_hostile.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	_hostile.stat_board = TestBoards.flat_entity_board()
 	_graph.entities_container.add_child(_hostile)
 	await get_tree().process_frame
 

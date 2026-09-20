@@ -9,7 +9,6 @@ extends GutTest
 ## needs a real, visible hostile + a headless [BattleSystem] to exercise the
 ## attack step.
 
-const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
@@ -34,7 +33,8 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 	var e := Entity.new()
 	e.name = ent_name
 	e.display_name = ent_name
-	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	# Flat board: kill-sized-volley fixtures arrange node_health themselves, tuned CON must not ride in.
+	e.stat_board = TestBoards.flat_entity_board()
 	# #957: a volley needs arrows; the default board's quiver starts empty.
 	e.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 40)
 	# Zero the board's 5 % baseline crit. Since #507 ranged rolls crits off a
