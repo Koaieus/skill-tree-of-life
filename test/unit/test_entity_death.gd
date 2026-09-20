@@ -163,6 +163,9 @@ func test_die_is_idempotent() -> void:
 func test_gameroot_npc_death_despawns_and_leaves_turn_groups() -> void:
 	var gr := GameRoot.new()
 	autofree(gr)
+	# #1006: a bare root no longer null-checks its systems — give it the one
+	# the death path reaches for (`_pull_from_turn_loop` → `abandon_turn`).
+	gr.turn_manager = autofree(TurnManager.new())
 	var npc := Entity.new()
 	npc.display_name = "NPC"
 	_graph.add_child(npc)  # joins Entity.GROUP via _enter_tree
@@ -190,6 +193,9 @@ func test_gameroot_npc_death_despawns_and_leaves_turn_groups() -> void:
 func test_gameroot_player_death_leaves_turn_groups_but_keeps_the_corpse() -> void:
 	var gr := GameRoot.new()
 	autofree(gr)
+	# #1006: a bare root no longer null-checks its systems — give it the one
+	# the death path reaches for (`_pull_from_turn_loop` → `abandon_turn`).
+	gr.turn_manager = autofree(TurnManager.new())
 	var human := Entity.new()
 	human.display_name = "Player"
 	_graph.add_child(human)  # joins Entity.GROUP via _enter_tree
@@ -244,6 +250,9 @@ func test_death_strips_nodes_before_the_despawn_signal_fires() -> void:
 func test_gameroot_npc_despawn_fires_on_the_death_shown_signal() -> void:
 	var gr := GameRoot.new()
 	autofree(gr)
+	# #1006: a bare root no longer null-checks its systems — give it the one
+	# the death path reaches for (`_pull_from_turn_loop` → `abandon_turn`).
+	gr.turn_manager = autofree(TurnManager.new())
 	gr.player = autofree(Entity.new())  # someone else is the player
 	# GameRoot.new() is never added to the tree here (its _ready expects a full
 	# level scene's %UniqueName children), so wire the one signal this test
