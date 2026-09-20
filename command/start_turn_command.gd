@@ -8,7 +8,7 @@ extends Command
 ## `_tick_until_ready`'s group-order tiebreak runs at the same point of the
 ## command stream on every peer. That guarantee is only worth anything if every
 ## peer STARTS from the same cursor, and until this command existed no peer did:
-## [method GameRoot._ready]'s `auto_start_turn` block called
+## [method GameRoot._ready]'s `TurnManager.opens_first_turn` block called
 ## [method TurnManager.start_turn] on THIS machine's seated hero, so the host
 ## opened on its Player 1 and the client opened on its Player 2. From there
 ## every mirrored [EndTurnCommand] re-ran `_tick_until_ready` from a different
