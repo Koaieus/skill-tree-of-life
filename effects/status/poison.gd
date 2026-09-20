@@ -44,3 +44,25 @@ func _on_tick(node: NodeCombat, before: float, _after: float) -> void:
 	# resolves there and nowhere else. `CritRoll.apply` is a no-op for a hit
 	# with no crit decided (multiplier 1.0) — a tick never crits.
 	dmg.land_on(node, null)
+
+
+## The sum of every remaining tick's damage under this def's own decay
+## (#962, for #953's overlay): at 20 stacks halving, 20 + 10 + 5 + 2.5 + 1.25
+## = 38.75 — the 0.625 tail is cut before it ticks. PERCENT_MAX resolves
+## against the node's max hp as of now. A FLAT-decay poison sums its linear
+## run-down the same way; a def that never decays is capped at one tick
+## so the loop terminates.
+func projected_damage(node: NodeCombat, power: float) -> float:
+	var total := 0.0
+	var p := power
+	var guard := 0
+	while p > 0.0 and guard < 1000:
+		total += p * damage_per_power
+		var next := decayed(p)
+		if next >= p:
+			break  # non-decaying def: one tick is all we can honestly project
+		p = next
+		guard += 1
+	if basis == HitInstance.AmountBasis.PERCENT_MAX:
+		total *= node.get_max_hp()
+	return total

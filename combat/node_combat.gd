@@ -552,7 +552,8 @@ func refill(silent: bool = false) -> void:
 
 ## Put [param def] on this node at [param power], or re-apply it per
 ## [member StatusDef.reapply]; the result is clamped to
-## [member StatusDef.power_max] and handed to [method StatusDef._on_applied].
+## [member StatusDef.power_max] (unless that is `<= 0`: uncapped, #962) and
+## handed to [method StatusDef._on_applied].
 ## No-op on an unallocated node for a `CLEAR` def (owner, 2026-09-14: nothing
 ## owns it, nothing would tick it), on a null def, and on a non-positive power.
 func apply_status(def: StatusDef, power: float) -> void:
@@ -573,7 +574,8 @@ func apply_status(def: StatusDef, power: float) -> void:
 				next = row.power + power
 			_:
 				next = maxf(row.power, power)
-	row.power = minf(next, def.power_max)
+	# `power_max <= 0` is uncapped (#962: poison stacks without limit).
+	row.power = next if def.power_max <= 0.0 else minf(next, def.power_max)
 	def._on_applied(self, row.power)
 	# Sparse tick subscription (#879): the FIRST status on a live node connects
 	# it to Events.turn_started; a shadow (`host == null`) never subscribes —
@@ -587,8 +589,9 @@ func apply_status(def: StatusDef, power: float) -> void:
 
 
 ## One tick for every status on the node: [method StatusDef._on_tick] first
-## (damage, effects), then flat decay by [member StatusDef.decay_per_tick],
-## then removal at `<= 0`. Iterates a COPY and re-checks each row is still the
+## (damage, effects), then decay per [method StatusDef.decayed] — flat by
+## [member StatusDef.decay_per_tick], or halving with the tail cut below 1
+## for a FRACTION def (#962) — then removal at `<= 0`. Iterates a COPY and re-checks each row is still the
 ## one on the slice before touching it — a tick can `take_damage` into a kill
 ## cascade that `clear_statuses()` this very node, or a hook can remove a
 ## sibling; either way a vanished status is skipped, never resurrected.
@@ -600,7 +603,7 @@ func tick_statuses() -> void:
 		if _statuses.get(id) != row:
 			continue  # vanished mid-tick
 		var before := row.power
-		var after := maxf(before - row.def.decay_per_tick, 0.0)
+		var after := row.def.decayed(before)  # by decay_mode; 0 means removed
 		row.def._on_tick(self, before, after)
 		if _statuses.get(id) != row:
 			continue  # the hook removed it (or the node was cleared under us)

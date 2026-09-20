@@ -201,7 +201,10 @@ func test_three_poison_arrows_in_one_volley_accumulate_to_power_three() -> void:
 func test_a_volley_is_never_capped() -> void:
 	# #962: poison stacks are uncapped — a 6-arrow volley lands 6 stacks (per
 	# arrow `status_power`, owner-tuned; asserted as a multiple, never a value).
-	var ctx: Dictionary = await _build(Vector2.ZERO, 3.0)
+	var ctx: Dictionary = await _build(Vector2.ZERO, 6.0)  # six shots on the leaf
+	# Keep the arrows' own damage from killing the target — the stacks are the
+	# point, and a kill clears the slice.
+	_set_local(ctx.nodes.leaf, &"ranged_damage", 0.1)
 	var per_arrow: float = _POISON_ARROW.status_power
 	var plan := _arm(ctx, {&"poison": 6})
 	assert_eq(plan.validate(), [] as Array[String], "the fixture volley must be launchable")
