@@ -28,6 +28,7 @@
 [ext_resource type="Script" uid="uid://eh0d3jiuwstk" path="res://systems/loot_pick_registry.gd" id="22_lootreg"]
 [ext_resource type="Script" path="res://network/loopback_transport.gd" id="23_transport"]
 [ext_resource type="Script" path="res://network/command_link.gd" id="24_link"]
+[ext_resource type="Script" uid="uid://dwnyeq8jqb23e" path="res://network/network_session.gd" id="25_session"]
 
 [node name="GameRoot" type="Node2D" unique_id=599287172]
 script = ExtResource("1_root")
@@ -200,6 +201,13 @@ command_applier = NodePath("../Systems/CommandApplier")
 graph = NodePath("../Graph")
 turn_manager = NodePath("../Systems/TurnManager")
 loot_pick_registry = NodePath("../Systems/LootPickRegistry")
+
+[node name="NetworkSession" type="Node" parent="." node_paths=PackedStringArray("transport", "command_link", "command_applier")]
+unique_name_in_owner = true
+script = ExtResource("25_session")
+transport = NodePath("../Transport")
+command_link = NodePath("../CommandLink")
+command_applier = NodePath("../Systems/CommandApplier")
 
 [connection signal="core_moved" from="Systems/AllocationSystem" to="." method="_on_core_moved"]
 

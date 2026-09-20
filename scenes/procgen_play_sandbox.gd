@@ -90,7 +90,7 @@ func _setup_level() -> void:
 		return
 	# #715: and here the two shapes part company. Above this line everything is
 	# shared; below it is generation, which a joining client does not do.
-	if _is_network_client():
+	if network_session.is_client():
 		await _setup_level_as_client()
 		return
 	# #641 D6: the run's Scenario names the preset; `preset` (the scene export

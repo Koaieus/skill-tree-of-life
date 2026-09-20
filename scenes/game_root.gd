@@ -97,20 +97,6 @@ var _run_end_routed: bool = false
 ## SceneDirector reveal contract is this one bool.
 var _reveal_ready: bool = false
 
-## How long a joining client waits for the authority's world before asking for
-## it again ([method CommandLink.renew_join_pull], 2026-09-06). Three seconds is
-## well past a LAN round trip and well short of a human deciding the screen is
-## dead. Overridable so a test can watch the renewal without waiting it out.
-const JOIN_PULL_RETRY_SEC := 3.0
-var join_pull_retry_sec: float = JOIN_PULL_RETRY_SEC
-
-## Set by [method _on_resync_applied]: the authority's world has landed at least
-## once, so [method _await_join_world] may stop waiting.
-var _join_world_arrived: bool = false
-## Set by [method _on_link_lost] / [method _on_refused_by_host]: this machine's
-## link is gone and no world is coming. What ends [method _await_join_world]
-## the OTHER way.
-var _link_ended: bool = false
 ## The run-end overlay already says why the link ended — a refusal's reason
 ## arrives a message before the hang-up it causes, and the hang-up's generic
 ## "the host went away" must not paint over it.
@@ -144,6 +130,10 @@ var _link_end_presented: bool = false
 ## unchanged — nothing is serialized until a role raises the mode.
 @onready var transport: NetworkTransport = %Transport
 @onready var command_link: CommandLink = %CommandLink
+## The network role of this level (#1004): who decides, bringing the socket
+## up, a joiner's wait for the world, and the peer events. The root subscribes
+## to its signals for the presentation half.
+@onready var network_session: NetworkSession = %NetworkSession
 @onready var vision_system: VisionSystem = %VisionSystem
 @onready var victory_system: VictorySystem = %VictorySystem
 @onready var highlight_controller: HighlightController = %HighlightController
@@ -168,129 +158,75 @@ var _link_end_presented: bool = false
 
 func _ready() -> void:
 	# BEFORE anything can act, and before `_setup_level` spawns an actor that
-	# could. Adopting the role writes `command_applier.is_authority`, and a
+	# could: adopting the role writes `command_applier.is_authority`, and a
 	# CLIENT that learns it is not the authority only after its first AI turn
-	# has decided and submitted locally has already diverged — the exact trap
-	# `scenes/dev/mp_dev_sandbox.gd` documents at length in its own `_ready`.
-	# The socket itself opens later, in `_open_link`.
-	_adopt_network_role()
+	# has decided locally has already diverged. The socket opens later, in
+	# [method NetworkSession.join_or_host].
+	network_session.adopt_role()
 	# #715: how the arriving world builds an entity the roster never names — see
 	# [method spawn_snapshot_entity]. Set here, before any link can be up, because
 	# the first thing a joining client does with its link is ask for that world.
 	if command_link != null:
 		command_link.entity_spawner = spawn_snapshot_entity
-		# The entities the resync brings with it arrive AFTER `_ensure_controllers`
-		# has already run, so they would sit in `Entity.GROUP` uncontrolled and the
-		# turn loop would stall on the first one to take a turn. Re-running it is
-		# idempotent (explicit composition always wins) and cheap.
-		command_link.resync_applied.connect(_on_resync_applied)
-		# The host turning this peer away with a reason (a join it did not seat,
-		# a build it does not match). It arrives a message BEFORE the drop that
-		# follows it, and it is the sentence a human needs to read.
-		command_link.link_refused.connect(_on_refused_by_host)
-		# #755, mirror-side: the host telling us a dropped peer's seat is the
-		# AI's now. See [method _on_seat_handover].
-		command_link.seat_handover_received.connect(_on_seat_handover)
-		# Rung 3's protocol trace, hooked HERE rather than beside its verdict line
-		# at the tail of `_ready` — by then the resync has already been pushed
-		# (host) or applied (client) and the interesting lines are gone. It is what
-		# makes acceptance 3 comparable ACROSS the two logs: the host's
-		# `⟳ RESYNC pushed — … (fp N)` and the client's `⟳ resync applied — … (fp N)`
-		# sample the SAME world, whereas the two FIRST TURN lines are each taken at
-		# their own machine's turn start and so straddle whatever the turn start
-		# itself moves (regen, mana). See [method _announce_first_turn_for_rung_3].
-		#
-		# Printed on EVERY online run since 2026-09-06, not only under the rung-3
-		# flag: it goes to stdout and so to `user://logs/godot.log`, which is the
-		# only thing a LAN playtest on somebody else's machine can hand back.
-		var trace_role := _rung_3_role()
-		if trace_role.is_empty():
-			trace_role = _online_role_name()
-		if not trace_role.is_empty():
-			command_link.logged.connect(
-					func(line: String) -> void: print("[%s] %s" % [trace_role, line]))
-	# Entity death (#18): AllocationSystem strips the corpse's nodes off the same
-	# bus signal; GameRoot owns the player-vs-NPC consequence (game-over / despawn).
+	# The session owns the wire's lifecycle; the root keeps the presentation of
+	# each event (#1004). The world-arrived hook re-runs `_ensure_controllers`
+	# for entities the resync brought with it — idempotent and cheap.
+	network_session.world_ready.connect(_on_world_ready)
+	network_session.refused.connect(_present_link_end)
+	network_session.link_lost.connect(_present_link_end)
+	network_session.seat_handover.connect(_on_seat_handover)
+	network_session.peer_left.connect(_on_seat_vacated)
+	network_session.local_peer_resolved.connect(_on_local_peer_resolved)
+	# Entity death (#18): AllocationSystem strips the corpse off the same bus
+	# signal; GameRoot owns the player-vs-NPC consequence, and its VISUAL half
+	# rides `entity_death_shown`, which `Entity.die()` emits last.
 	Events.entity_died.connect(_on_entity_died)
-	# The VISUAL consequence (despawn / game-over) rides `entity_death_shown`,
-	# which `Entity.die()` emits last — see `_on_entity_death_shown`.
 	Events.entity_death_shown.connect(_on_entity_death_shown)
-	# #460: the run's terminal state. VictorySystem decides it; GameRoot only
-	# presents (the HUD cue) and routes.
+	# #460: VictorySystem decides the run's end; GameRoot presents and routes.
 	Events.run_ended.connect(_on_run_ended)
 
 	# Scene-authored ownership (dev_sandbox-style) must claim SP before
-	# _setup_level runs — procgen spawning goes through force_allocate which
-	# claims itself, but hand-authored owned_by= assignments skip that path.
+	# _setup_level runs — hand-authored owned_by= skips force_allocate's claim.
 	allocation_system.register_scene_authored_ownership()
-	# #715: nothing opens a socket early any more, on either role. A CLIENT used
-	# to bring its link up HERE and then block `_setup_level` on the host's
-	# `run_setup` — because the run's shape crossed on JOIN and could not be
-	# missed. It no longer crosses on join: the host broadcasts it from the LOBBY
-	# at START ([method LobbyScreen._on_run_started]), so by the time this level
-	# is built `GameSession` already holds the host's run on every machine, and a
-	# level that awaited that message would await a signal that has already fired
-	# — a 30-second `SceneDirector.REVEAL_TIMEOUT_S` hang, not dead code.
-	#
-	# _setup_level runs BEFORE hud_root.compose because compose reads
-	# `player.stat_board` immediately — procgen sandboxes that spawn the
-	# player here need the entity in place first. `await` is harmless on
-	# synchronous overrides; procgen sandboxes that drive a loading bar
-	# return a coroutine.
+	# Nothing opens a socket before this on either role (#715): the run's shape
+	# crossed from the LOBBY at START, so `GameSession` already holds the host's
+	# run on every machine. `_setup_level` runs BEFORE hud_root.compose because
+	# compose reads `player.stat_board` immediately; `await` is harmless on
+	# synchronous overrides.
 	await _setup_level()
 	_apply_graph_bounds()
-	# Invariant: every Entity must have an EntityController child so the
-	# turn loop never stalls on an uncontrolled actor. Hand-authored
-	# scenes (dev_sandbox, first_level_sandbox) historically forgot to
-	# attach AIController to enemies; this defaulter is the catch-all
-	# that keeps every sandbox playable without per-scene wiring.
+	# Invariant: every Entity has an EntityController child, so the turn loop
+	# never stalls on an uncontrolled actor in a hand-authored sandbox.
 	_ensure_controllers()
 	# After `_setup_level`, which is where a roster-driven level replaces the
-	# default couch policy. The director needs it to answer "is this actor
-	# mine?" before it may frame anyone's action (#524).
+	# default couch policy — pushed from the one place that owns it to the three
+	# consumers that ask "is this actor mine?" (#524, #556, #819/#820).
 	if camera_director != null:
 		camera_director.seat_policy = seat_policy
-	# The applier asks the SAME seat question before its pre-roll pause (#556),
-	# so it is pushed from the one place that owns the policy rather than
-	# re-derived there. Without this the gate stays null and the pre-roll is
-	# inert — see [method CommandApplier._pre_roll].
 	if command_applier != null:
 		command_applier.seat_policy = seat_policy
-	# And BattleSystem, which asks it once more when it mints a replay's
-	# seconds — [method OutcomeSchedule.actor_rate], the melee rate door
-	# (#819/#820). Same reason as the two above: pushed from the one place that
-	# owns the policy rather than re-derived downstream.
 	if battle_system != null:
 		battle_system.seat_policy = seat_policy
-	# #564: NOT seat_policy — is_remote_collector answers for a PEER (a
-	# roster question), which is exactly what the per-machine SeatPolicy
-	# cannot do. GameSession.roster is null outside an active run (a
-	# hand-authored sandbox with no lobby), which the registry treats as
-	# "nobody is remote" rather than an error.
+	# #564: NOT seat_policy — is_remote_collector answers for a PEER (a roster
+	# question). A null roster (no lobby) reads as "nobody is remote".
 	if pick_registry != null:
 		pick_registry.roster = GameSession.roster
 		pick_registry.local_peer_id = GameSession.local_peer_id
-	# The run decides how it ends (#457/#460). After `_setup_level`, which is
-	# where a directly-launched level opens its session. `resolved_...` is what
-	# falls back to the MODE's default when the run authored no condition — the
-	# scene-authored export is the source only for a level with no live run.
+	# The run decides how it ends (#457/#460); `resolved_...` falls back to the
+	# MODE's default when the run authored no condition.
 	if victory_system != null and GameSession.is_active():
 		victory_system.condition = GameSession.config.resolved_victory_condition()
 	bind_player(player)
-	# Hot-seat coop (#459): on a shared couch "the player" changes hands every
-	# turn. Connected unconditionally — [member seat_policy] decides whether the
-	# handler does anything, so a networked peer stays put without un-wiring a
-	# signal. Connected after `_ensure_controllers` so the `is_human_controlled`
-	# flag the handler reads is already settled.
+	# Hot-seat coop (#459): connected unconditionally — [member seat_policy]
+	# decides whether the handler does anything. After `_ensure_controllers` so
+	# the `is_human_controlled` flag it reads is settled.
 	if turn_manager != null:
 		turn_manager.turn_started.connect(_on_turn_started_for_handover)
 	if not enable_fog:
 		if fog_overlay != null:
 			fog_overlay.visible = false
-		# Floaters must not query the (dormant, non-@tool) VisionSystem for
-		# per-node visibility in a no-fog showcase — calling a method on a
-		# non-@tool node from the editor is the boundary-error class. Null it so
-		# every floater shows (mirrors SandboxWorld's no-player wiring).
+		# Floaters must not query the dormant, non-@tool VisionSystem in a
+		# no-fog showcase (mirrors SandboxWorld's no-player wiring).
 		if floater_director != null:
 			floater_director.vision_system = null
 	if show_ui:
@@ -298,91 +234,32 @@ func _ready() -> void:
 			hud_root.compose(self)
 		_wire_hud_floater_anchor()
 		_wire_gained_modifier_toast()
-		# Container layout (HeroSigilCard's MarginContainer/VBoxContainer chain)
-		# is resolved via a queued `sort_children`, which hasn't flushed yet this
-		# far into the same synchronous _ready — Controls still report their
-		# pre-layout (0,0)-ish rects. `start_turn` below fires synchronously and
-		# can trigger a same-frame XP gain toast at the Hero Sigil Card's
-		# FloatAnchor; reading its position before layout settles popped that
-		# toast at the viewport's top-left corner instead of the card. One frame
-		# is enough for the deferred sort to flush.
+		# Container layout resolves via a queued `sort_children`; `start_turn`
+		# below can pop a same-frame toast at the Hero Sigil Card's FloatAnchor,
+		# which reads (0,0)-ish until one frame flushes the deferred sort.
 		await get_tree().process_frame
 	else:
 		$UI.visible = false
 
-	# EVERY role opens here now (#715), and the reason the host and offline always
-	# did is finally the reason on the joining side too: opening after
-	# `_setup_level` means a command arriving the instant the link comes up finds
-	# a world to apply to. Split from `_adopt_network_role` because the role has
-	# to be known far earlier than the socket may open.
-	#
-	# [b]#667's drop latch stays, and its window is what changed.[/b] It used to
-	# span the client's whole procgen — seconds, with a socket up and no world.
-	# It now spans the ONE round trip between adopting the link on the next line
-	# and the resync landing: this peer's world is empty until the pull answers,
-	# and a `KIND_COMMAND` that arrives meanwhile would apply against nothing.
-	# Narrower, not gone — the latch is still what makes the window safe rather
-	# than merely short, because `apply_remote` enqueues and drains AT ONCE
-	# against whatever world is there. If the command's ids do not resolve,
-	# `CommandApplier._validate` warns and DROPS it. If they DO resolve, nothing
-	# warns at all and it lands on whatever node happens to carry that
-	# `stable_id`. Silence here is not evidence that nothing went wrong.
-	#
-	# Either way it is survivable for exactly one reason, and it is the last line
-	# of this block: `pull_host_world` asks the authority for its whole world, and
-	# the reply carries the authority's whole state, superseding both shapes above
-	# — what this peer missed and what it misapplied alike. Ordering makes it
-	# airtight rather than probable — `Wire._receive` is an `@rpc(..., "reliable")`,
-	# so it is ordered as well as delivered: the host encodes the resync when the
-	# request arrives, and anything it applies after that is sent after the
-	# envelope and lands on top of it. Nothing this window swallowed can outlive
-	# the pull.
-	#
-	# So the gate is not a buffer, it is the repair — and `pull_host_world` must
-	# stay on this line, immediately after the link is up. Moving it later (behind
-	# a fade, an await, a turn start) reopens the hole this comment is about.
-	if _is_network_client() and command_link != null:
-		command_link.defer_until_resync = true
-	# Hooked BEFORE the link opens, not beside the verdict below. A joiner whose
-	# level comes up AFTER the host's has already opened its first turn gets that
-	# turn inside the resync — `EntitySnapshot.restore_turn_cursor` →
-	# `TurnManager.adopt_turn` fires `turn_started` from within `_on_resync` —
-	# so a hook connected after the await had already missed the only turn start
-	# it was there to report (found on a deliberately slow joiner, 2026-09-06).
+	# Hooked BEFORE the link opens: a joiner whose level comes up AFTER the
+	# host's first turn gets that turn inside the resync (`adopt_turn` fires
+	# `turn_started` from within `_on_resync`), so a hook connected after the
+	# await had missed the only turn start it was there to report (2026-09-06).
 	_announce_first_turn_for_rung_3()
-	_open_link()
-	pull_host_world()
-	# And then WAIT for the answer, on the joining side only (#715). Before this,
-	# a client had a world of its own — the wrong one, but a populated one — so
-	# everything below could run against it and the pull repaired it a moment
-	# later. It no longer has one: its graph is empty until the resync lands, and
-	# arming [VictorySystem], starting a turn or lifting the curtain over nothing
-	# is not "a bit early", it is a level with no map. This wait IS what the
-	# client's loading bar has been covering since `_setup_level` — the host's
-	# generate and ship, rather than this machine's own procgen.
-	#
-	# Unbounded for the world, and bounded by the LINK (2026-09-06). It used to be
-	# a bare `await resync_applied`, with [SceneDirector]'s 30s reveal timeout as
-	# the only way out — and a link that died meanwhile (the host refusing this
-	# peer, the host quitting) presented its overlay UNDER the curtain: the
-	# run-end overlay is a layer-100 canvas and [SceneTransition] sits at 101, so
-	# the joiner looked at a black screen with a bar at 0% for the rest of the
-	# timeout. Now the wait ends the moment the link does, and the curtain lifts
-	# on the overlay that says why. While it waits, it re-asks for the world
-	# every [member join_pull_retry_sec] rather than trusting one ask.
-	if _is_network_client() and command_link != null:
-		if not await _await_join_world():
-			SceneTransition.progress_bar.hide()
-			_reveal_ready = true
-			if SceneTransition.is_curtain_up():
-				await SceneTransition.fade_in()
-			return
+	# Opens the link on every role and, on a joiner, waits for the authority's
+	# world or for the link to end — whichever first. See
+	# [method NetworkSession.join_or_host] for why the pull follows the open at
+	# once and why the wait is bounded by the link rather than by a timeout.
+	if not await network_session.join_or_host():
+		SceneTransition.progress_bar.hide()
+		_reveal_ready = true
+		if SceneTransition.is_curtain_up():
+			await SceneTransition.fade_in()
+		return
 	# #667, second half. The world now exists on EVERY path — offline, host and
-	# client alike — so the run may be judged. Before this line a death (from
-	# the network window above, or from anything else that can fire during
-	# generation) would let `LastCampStandingCondition` read a
-	# partially-populated entity group, see one camp standing, and latch an
-	# outcome that can never be un-fired. Deliberately not a network concept:
+	# client alike — so the run may be judged. Before this line a death would
+	# let `LastCampStandingCondition` read a partially-populated entity group
+	# and latch an outcome that can never be un-fired. Not a network concept:
 	# the same one line arms it for a solo sandbox.
 	if victory_system != null:
 		victory_system.world_ready = true
@@ -392,9 +269,8 @@ func _ready() -> void:
 	_open_first_turn()
 	_focus_camera_on_player()
 	# LAST. Everything above is what "presentable" means: the world generated,
-	# the HUD composed, the camera already on the player (`request_focus` with a
-	# 0s duration snaps, so nothing slides in under a lifting curtain). Only now
-	# does the screen come back — see [method is_reveal_ready].
+	# the HUD composed, the camera already on the player. Only now does the
+	# screen come back — see [method is_reveal_ready].
 	_reveal_ready = true
 	if SceneTransition.is_curtain_up():
 		await SceneTransition.fade_in()
@@ -405,7 +281,7 @@ func _ready() -> void:
 ## the tie-break deciding the whole order every cycle (#911).
 ##
 ## Runs BEFORE [method _open_first_turn], and unconditionally — never gated on
-## [method _is_network_authority()]. This has to be a pure function of shared
+## [method NetworkSession.is_authority]. This has to be a pure function of shared
 ## data (spawn order) so every peer reaches the same clocks independently,
 ## exactly like world generation itself; it is not a host DECISION a peer
 ## receives. What [method _open_first_turn] gates is only who SUBMITS the
@@ -507,7 +383,7 @@ static func apply_initiative_stagger(carriers: Array[Entity]) -> void:
 func _open_first_turn() -> void:
 	if not auto_start_turn or turn_manager == null:
 		return
-	if not _is_network_authority():
+	if not network_session.is_authority():
 		return
 	if player == null:
 		return
@@ -557,7 +433,7 @@ func _announce_first_turn_for_rung_3() -> void:
 			role,
 			entity.display_name if entity != null else "<none>",
 			graph.get_skill_nodes().size(),
-			"authority" if _is_network_authority() else "mirror",
+			"authority" if network_session.is_authority() else "mirror",
 			seat_policy.seated_entity_id,
 			WorldFingerprint.describe(graph),
 		])
@@ -594,7 +470,7 @@ func _arm_rung_4() -> void:
 	Events.run_ended.connect(_announce_verdict_for_rung_4.bind(role), CONNECT_ONE_SHOT)
 	var cap := HarnessFlags.number(HarnessFlags.MAX_TURNS, _RUNG4_MAX_TURNS)
 	turn_manager.turn_started.connect(func(_e: Entity) -> void: _watch_turn_cap(role, cap))
-	if not _is_network_authority():
+	if not network_session.is_authority():
 		# A mirror needs nothing: its own hero is driven by the authority's
 		# confirmed commands, and a second AI deciding locally is exactly the
 		# divergence this run exists to detect.
@@ -659,15 +535,6 @@ func _watch_turn_cap(role: String, cap: int) -> void:
 		role, turn_manager.turns_taken, cap, WorldFingerprint.describe(graph),
 	])
 	get_tree().quit(_RUNG4_TIMEOUT_EXIT)
-
-
-## Is this process the one that decides, rather than one that is told? The same
-## question [CommandApplier.is_authority] answers, asked from the level: a
-## missing link is an offline run, which is its own authority.
-func _is_network_authority() -> bool:
-	return command_link == null or command_link.mode != CommandLink.Mode.MIRROR
-
-
 ## The drain (#504, design B). An attack's world mutation is spread across a
 ## real interval, so a scene change mid-volley would strand every hit that had
 ## not landed yet — a world that is valid but permanently wrong. Draining here
@@ -691,253 +558,17 @@ func is_reveal_ready() -> bool:
 	return _reveal_ready
 
 
-## #463: does this machine ADOPT its run, or DECIDE it?
+## The link ended — refused by the host, or the host went away — and the
+## player is told on the run-end overlay, because the way out (its main-menu
+## button → [method route_to_meta_now]) is the same one a finished run takes.
+## The session has already abandoned the applier's parked intent.
 ##
-## The one question the join path turns on, asked in one place. A client's
-## lobby settings are a wish, not a run: `GameSession.apply_received` replaces
-## its [RunConfig] and its whole [ParticipantRoster] with the host's, so
-## everything this machine builds must wait for that message. Offline play and
-## the host both answer false and take the untouched pre-#463 path.
-func _is_network_client() -> bool:
-	var net: NetworkConfig = GameSession.network
-	return (net != null and net.is_online()
-			and net.role == NetworkTransport.Role.CLIENT)
-
-
-## #463/#715: how a joining client gets a world at all. It does not generate one
-## — it asks the authority for the serialized one, through the [constant
-## CommandLink.KIND_RESYNC] envelope #561 already ships: entities, graph, then
-## the entity->node pass, in one message.
-##
-## [b]#715 made this the ONLY way a client gets a map, and that closed a
-## window.[/b] Until then the client generated from the host's seed and pulled on
-## top, because generating from a seed is not the same as playing the host's map
-## (`procgen/` leans on transcendentals whose last bit is not portable across two
-## platforms' libm, #547). So there was a period where the link was up and a
-## WRONG world was present. There is no longer: the client builds nothing, and
-## `#689`/`#706`'s `pow()` in the seeded draw leaves the LAN critical path with
-## it, because nothing on this machine re-derives the map.
-##
-## [b]A pull, not a push, and that is the whole ordering answer.[/b] A push
-## races the level's own construction — over a loopback it lands INSIDE
-## `_on_run_setup`, before the level has spawned anything at all. Asking once
-## the level is built has no such window, and needs no upward "I am ready"
-## message: [method CommandLink.request_resync] IS that message.
-##
-## [b]The reply's internal order is load-bearing, and it serves BOTH shapes.[/b]
-## [method CommandLink._on_resync] decodes entities, decodes the graph, THEN
-## resolves the entity->node refs. On the join path the graph is EMPTY, which is
-## the #533 harness's old odd case and is now the primary one. On a mid-run
-## repair (#521/#560/#561) it is POPULATED, and the order is what stops
-## [method EntitySnapshot.resolve_graph_refs] resolving every `core_location`
-## against nodes [method GraphSnapshot.decode] is about to delete. One order,
-## both shapes — which is the reason this is a resync pull and not the two
-## pushed snapshots `scenes/dev/mp_procgen_sandbox.gd` sends in the opposite
-## order. Anyone "fixing" this to match the harness's order will reintroduce the
-## bug; `test_graph_snapshot.gd` pins both shapes.
-func pull_host_world() -> void:
-	if command_link == null or not _is_network_client():
-		return
-	command_link.request_resync("join: adopting the host's world", true)
-
-
-## Wait for the authority's world, or for the link to end — whichever comes
-## first. `true` when a world landed. Polled per frame rather than awaited on a
-## signal because there are two signals to wait on, and because the renewal
-## below needs a clock: every [member join_pull_retry_sec] without a world, the
-## pull is sent again ([method CommandLink.renew_join_pull]).
-func _await_join_world() -> bool:
-	var last_pull := Time.get_ticks_msec()
-	while not _join_world_arrived and not _link_ended:
-		if not is_inside_tree():
-			return false
-		await get_tree().process_frame
-		if _join_world_arrived or _link_ended or command_link == null:
-			break
-		var now := Time.get_ticks_msec()
-		if now - last_pull >= int(join_pull_retry_sec * 1000.0):
-			last_pull = now
-			command_link.renew_join_pull("join: still no world, asking again")
-	return _join_world_arrived
-
-
-## What the wire trace is prefixed with on an online run that was not launched
-## through the rung-3 flag: the role the menu set. `""` offline, so an offline
-## level prints nothing.
-static func _online_role_name() -> String:
-	var net: NetworkConfig = GameSession.network
-	if net == null or not net.is_online():
-		return ""
-	return "host" if net.role == NetworkTransport.Role.HOST else "client"
-
-
-## Half one of bringing the wire up (#531): tell the link which side of it we
-## are on. [member CommandLink.mode] is the single writer of
-## [member CommandApplier.is_authority], so this one assignment is also what
-## decides whether this machine DECIDES or is TOLD.
-##
-## [b]A no-op unless the menu set a role[/b], which is what keeps offline play
-## unchanged and what lets `scenes/dev/mp_dev_sandbox.gd` keep driving its own
-## link off the command line — the harness never populates
-## [member GameSession.network], so nothing here touches the authority flag it
-## set by hand a moment earlier.
-func _adopt_network_role() -> void:
-	if command_link == null:
-		return
-	var net: NetworkConfig = GameSession.network
-	if net == null or not net.is_online():
-		return
-	command_link.mode = (CommandLink.Mode.BROADCAST
-			if net.role == NetworkTransport.Role.HOST
-			else CommandLink.Mode.MIRROR)
-
-
-## Half two: open the socket on whatever transport this level mounted.
-##
-## [b]GameRoot never picks the transport CLASS.[/b] It brings up the node at the
-## fixed path (see [member transport]) in the role it was handed, and a level
-## authored for real play swaps that node's script for [EnetTransport] —
-## `scenes/level.tscn` does, the same way the harness does. Asking
-## a [LoopbackTransport] to host is therefore not an error here; it announces
-## itself and links to nobody, which is exactly what a level that never meant to
-## be networked should do.
-func _open_link() -> void:
-	if command_link == null or transport == null:
-		return
-	var net: NetworkConfig = GameSession.network
-	if net == null or not net.is_online():
-		return
-	# #554: both roles want the joining peer's id — the host to stamp its roster,
-	# the client to learn its own. Connected before the socket opens so no
-	# connection can beat the listener.
-	transport.peer_joined.connect(_on_peer_joined)
-	# And the two ways a link ENDS, which until now only the lobby listened to
-	# (#716 surfaced them there; the level never picked them up).
-	transport.peer_left.connect(_on_peer_left)
-	transport.link_lost.connect(_on_link_lost)
-	match net.role:
-		NetworkTransport.Role.HOST:
-			# The hello is what produces the in-sync / DIVERGED verdict, and it
-			# has to wait for a peer — `start_host` only opens a socket.
-			transport.link_changed.connect(_greet_if_linked)
-			transport.start_host(net.port)
-		NetworkTransport.Role.CLIENT:
-			transport.start_client(net.address, net.port)
-
-
-## Host-side: announce our world to each peer as it arrives. `link_changed`
-## fires for disconnects too, hence the [method NetworkTransport.is_linked]
-## gate rather than greeting on every status line.
-func _greet_if_linked(_status: String) -> void:
-	if transport != null and transport.is_linked() and command_link != null:
-		command_link.send_hello()
-
-
-## #554: a peer arrived. On the lobby path everything about that has ALREADY
-## happened — the socket was opened by the menu (#714), the joiner's seat was
-## stamped there, and its id reached [GameSession] there too. What survives here
-## is the belt-and-braces restatement of both facts for a peer that arrives while
-## a level is up, and the replayed join [method EnetTransport._adopt_live_link]
-## fires for a peer that was already on the socket when this level adopted it.
-##
-## [b]It no longer sends the run's shape, and that is #715's core subtraction.[/b]
-## This was `run_setup`'s only sender, and it fired off a
-## [signal NetworkTransport.peer_joined] that a PRE-ESTABLISHED link never fires
-## again — so a level that adopted the lobby's socket would sit waiting for a
-## message nobody would ever send. START broadcasts it from the lobby instead,
-## once, over the live link ([method LobbyScreen._on_run_started]).
-##
-## [b]#733: the other half is refusing a peer that was never in the lobby at
-## all.[/b] Everything above describes a peer [LobbyScreen] already seated —
-## the replay, or the belt-and-braces restatement. A fresh dial mid-run has no
-## seat in [member GameSession.roster], because "joining only happens to the
-## lobby before the host presses START" (owner call, #733) — there is no
-## drop-in mid-game. That peer is refused, with a reason a human reads on its
-## screen, before [method LobbyScreen.stamp_pending_remote] or the world push
-## below ever run.
-func _on_peer_joined(peer_id: int) -> void:
-	var net: NetworkConfig = GameSession.network
-	if net == null:
-		return
-	if net.role == NetworkTransport.Role.CLIENT:
-		GameSession.local_peer_id = transport.local_peer_id()
-		# Restate BOTH registry copies (#668): `_ready` below pushes a snapshot
-		# of `GameSession.roster` and `.local_peer_id`, and this branch exists
-		# precisely for the case where those were not yet known then. Both, not
-		# just the id — they fail through
-		# [method LootPickRegistry.is_local_collector] in OPPOSITE directions,
-		# and only one of them is safe. A stale `local_peer_id` of 0 answers
-		# false for this peer's own hero (its loot picker never opens — visible);
-		# a stale null `roster` answers true for EVERYONE (every peer opens a
-		# picker — #668 back, and silent).
-		if pick_registry != null:
-			pick_registry.roster = GameSession.roster
-			pick_registry.local_peer_id = GameSession.local_peer_id
-		return
-	var seated := false
-	if GameSession.roster != null:
-		for p in GameSession.roster.all():
-			if p.peer_id == peer_id:
-				seated = true
-				break
-	if not seated:
-		if command_link != null:
-			command_link.refuse_peer(peer_id,
-					"the run has already started — there is no drop-in mid-game")
-		return
-	LobbyScreen.stamp_pending_remote(GameSession.roster, peer_id)
-	# And ship this peer the world (#715). Host-side this line runs at the tail of
-	# `_ready`, so the world is COMPLETE — `_open_link` is the last thing before
-	# it, and [method EnetTransport._adopt_live_link] replays the join for a peer
-	# that was already on the socket, which on the lobby path is every peer.
-	#
-	# [b]Why a push as well as the client's pull.[/b] They race, and neither wins
-	# alone. A client's level is up in milliseconds (it generates nothing) while
-	# the host spends 5-10 seconds on procgen — so `request_resync` arrives while
-	# the host's level has not yet adopted the link, `Wire` emits it to nobody,
-	# and it is silently dropped. Conversely this push lands on nothing if the
-	# client's level is the slower one.
-	#
-	# [b]And when BOTH legs land, the world is applied ONCE.[/b] Both are flagged
-	# [constant CommandLink.KEY_JOIN] (the flag rides the request through
-	# `_on_resync_request`, so the answer carries it too) and the client's
-	# `_join_world_arrived` latch drops the loser outright rather than decoding a
-	# whole world it already holds. `_awaiting_resync` stops it asking twice.
-	# `CommandLink._on_resync`'s guard is where that is argued, including why it
-	# keys off the flag rather than off a fingerprint compare — a mid-run repair
-	# (#521/#560/#561) must still apply even when the fold agrees.
-	#
-	# The old warning against pushing from here does not survive #715: it said a
-	# graph snapshot would "decode into a graph that is about to be generated
-	# over", and the joining peer no longer generates anything.
-	if command_link != null:
-		command_link.send_resync(
-				"join: the peer is on the link and has no world", true)
-
-
-## This machine's link is gone — the host quit, the socket dropped — and it is
-## not coming back: there is no drop-in mid-game (#733, owner call), so there
-## is no rejoin either. Two things have to happen, and before this neither did:
-##
-## 1. The intent parked in [CommandApplier] waiting for a confirm that will
-##    never arrive is abandoned. Otherwise `is_awaiting_confirmation` stays true
-##    for the rest of the run and [method PlayerInputController.can_player_act]
-##    gates every click closed — a silent hang.
-## 2. The player is told, on the run-end overlay, because the way out (its
-##    main-menu button → [method route_to_meta_now]) is the same one a finished
-##    run takes. The pause menu's leave route was always there; nothing said so.
-##
-## A host whose own socket dies lands here too and is treated the same: its
-## remote seats are all gone at once, and there is nobody left to play on for.
-##
-## After the run has ENDED, only the first half applies. The host pressing its
-## main-menu button stops the wire (`GameSession.end()` → `Wire.stop()`), which
-## every client hears as `link_lost` — while its own victory overlay is up. That
-## is the normal end of a run, not a lost connection, and the overlay says so.
-func _on_link_lost(reason: String) -> void:
-	_link_ended = true
-	if command_applier != null:
-		command_applier.abandon_pending_intent(&"link_lost")
+## A refusal's reason arrives a message BEFORE the hang-up it causes, and the
+## hang-up's generic "the host went away" must not paint over it — hence the
+## latch. After the run has ENDED nothing is presented: the host pressing its
+## main-menu button stops the wire, which every client hears as a lost link
+## while its own victory overlay is up. That is the normal end of a run.
+func _present_link_end(reason: String) -> void:
 	if victory_system != null and victory_system.outcome != null:
 		return
 	if hud_root != null and not _link_end_presented:
@@ -945,44 +576,29 @@ func _on_link_lost(reason: String) -> void:
 		hud_root.present_link_lost(reason)
 
 
-## The host turned this peer away, and said why. The hang-up follows one
-## message later and lands in [method _on_link_lost], whose generic reason must
-## not paint over this one — hence the latch. Reachable on the lobby route when
-## the host's level finds no seat carrying this peer's id
-## ([method _on_peer_joined]'s "no drop-in mid-game" refusal).
-func _on_refused_by_host(reason: String) -> void:
-	_link_ended = true
-	if command_applier != null:
-		command_applier.abandon_pending_intent(&"link_refused")
-	if victory_system != null and victory_system.outcome != null:
-		return
-	if hud_root != null and not _link_end_presented:
-		_link_end_presented = true
-		hud_root.present_link_lost(reason)
+## Client-side (#668): the socket just told us our own peer id. Restate BOTH
+## registry copies — `_ready` pushed a snapshot of `GameSession.roster` and
+## `.local_peer_id`, and this exists precisely for the case where those were
+## not yet known then. Both, not just the id — they fail through
+## [method LootPickRegistry.is_local_collector] in OPPOSITE directions, and
+## only one of them is safe. A stale `local_peer_id` of 0 answers false for
+## this peer's own hero (its loot picker never opens — visible); a stale null
+## `roster` answers true for EVERYONE (every peer opens a picker — #668 back,
+## and silent).
+func _on_local_peer_resolved(peer_id: int) -> void:
+	if pick_registry != null:
+		pick_registry.roster = GameSession.roster
+		pick_registry.local_peer_id = peer_id
 
 
-## Host-side: a seated peer left mid-run. The run goes on for everyone still
-## here — the alternative is the turn loop parked forever on a hero whose human
-## will never end its turn, which every other player experiences as a hang with
-## no explanation. Its hero is handed to the AI ([method hand_seat_to_ai]): the
-## host is the authority, so the AI's turns cross the wire as ordinary confirmed
-## commands and every mirror watches the hero keep playing.
-##
-## A client never acts on THIS signal: its host leaving is
-## [method _on_link_lost], and a sibling client leaving is the host's to detect.
-## It does hear about the outcome — the host broadcasts the handover and every
-## mirror applies its shared half (#755, [method _adopt_seat_handover]).
-func _on_peer_left(peer_id: int) -> void:
-	var net: NetworkConfig = GameSession.network
-	if net == null or net.role != NetworkTransport.Role.HOST:
-		return
+## Host-side: a seated peer left mid-run. Every HUMAN seat it held goes to the
+## AI ([method hand_seat_to_ai]) so the run goes on for everyone still here.
+func _on_seat_vacated(peer_id: int) -> void:
 	if GameSession.roster == null:
 		return
 	for p in GameSession.roster.all():
 		if p.kind == Participant.Kind.HUMAN and p.peer_id == peer_id:
 			hand_seat_to_ai(p)
-
-
 ## The HOST's half of "this seat is the AI's now" — the authority-only parts,
 ## on top of the [method _adopt_seat_handover] every peer runs.
 ##
@@ -1570,12 +1186,12 @@ func spawn_snapshot_entity(
 	return spawn_blocker(size, null, [], 0, 0.0, entity_id)
 
 
-## The authority's world has landed (#715). Anything [method spawn_snapshot_entity]
+## The authority's world has landed (#715, [signal NetworkSession.world_ready]).
+## Anything [method spawn_snapshot_entity]
 ## built arrived after the level's own pass, so give it a controller and put the
 ## fog back on this machine's real subgraph — the seat's vision was derived from
 ## a player that owned nothing at the time.
-func _on_resync_applied(_reason: String) -> void:
-	_join_world_arrived = true
+func _on_world_ready(_reason: String) -> void:
 	_ensure_controllers()
 	_apply_seat_vision()
 	if vision_system != null:
@@ -1703,7 +1319,7 @@ func _focus_camera_on_player() -> void:
 	# and would have thrown on the first machine that hit it. A joining client
 	# reaches it every time: it seats the roster before any node exists and the
 	# core arrives with the resync, so the camera simply has nowhere to look yet.
-	# `_on_resync_applied` -> `bind_player` is not what re-points it; the turn
+	# `_on_world_ready` -> `bind_player` is not what re-points it; the turn
 	# start that follows the world's arrival is.
 	var target: Vector2 = (player.core_location.global_position
 			if player.core_location != null else Vector2.ZERO)
