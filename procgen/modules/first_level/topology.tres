@@ -1,14 +1,10 @@
-[gd_resource type="Resource" script_class="GraphProcgenTopology" format=3]
+[gd_resource type="Resource" script_class="GraphProcgenTopology" format=3 uid="uid://ym381eegcswd"]
 
-[ext_resource type="Script" path="res://procgen/modules/topology.gd" id="1_jhu14"]
-[ext_resource type="Script" path="res://procgen/modules/node_radius_ramp.gd" id="2_ramp"]
+[ext_resource type="Script" uid="uid://dynyxna6n3xxt" path="res://procgen/modules/topology.gd" id="1_jhu14"]
+[ext_resource type="Script" uid="uid://7nxai777cpwl" path="res://procgen/modules/node_radius_ramp.gd" id="2_ramp"]
 
 [sub_resource type="Resource" id="Resource_ramp"]
 script = ExtResource("2_ramp")
-min_radius = 28.0
-px_per_budget = 1.0
-knee_budget = 16
-cap = 50.0
 
 [resource]
 script = ExtResource("1_jhu14")

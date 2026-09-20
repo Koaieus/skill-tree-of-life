@@ -198,7 +198,6 @@ outer_value = 1.0
 [sub_resource type="Resource" id="sp_titan"]
 script = ExtResource("34_scnpl")
 node_scene = ExtResource("35_titan")
-min_count = 1
 max_count = 2
 weight = SubResource("rim_field")
 min_hops_from_starter = 3
@@ -206,7 +205,6 @@ min_hops_from_starter = 3
 [sub_resource type="Resource" id="sp_archmage"]
 script = ExtResource("34_scnpl")
 node_scene = ExtResource("36_archmg")
-min_count = 1
 max_count = 2
 weight = SubResource("rim_field")
 min_hops_from_starter = 3
@@ -214,7 +212,6 @@ min_hops_from_starter = 3
 [sub_resource type="Resource" id="sp_farsight"]
 script = ExtResource("34_scnpl")
 node_scene = ExtResource("37_farsgt")
-min_count = 1
 max_count = 2
 weight = SubResource("rim_field")
 min_hops_from_starter = 3
@@ -222,8 +219,6 @@ min_hops_from_starter = 3
 [sub_resource type="Resource" id="sp_mythic_ward"]
 script = ExtResource("34_scnpl")
 node_scene = ExtResource("38_mward")
-min_count = 1
-max_count = 1
 weight = SubResource("rim_field")
 min_hops_from_starter = 3
 
@@ -231,7 +226,6 @@ min_hops_from_starter = 3
 script = ExtResource("34_scnpl")
 node_scene = ExtResource("39_apkey")
 min_count = 0
-max_count = 1
 weight = SubResource("rim_field")
 min_hops_from_starter = 3
 

@@ -113,7 +113,6 @@ archetype_stat = &"dexterity"
 tags = Array[StringName]([&"dex", &"flat", &"attack", &"ammo"])
 pool_weight = 0.15
 min_tier = 4
-max_tier = 4
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
 [sub_resource type="Resource" id="max_shots_per_leaf"]
@@ -124,7 +123,6 @@ archetype_stat = &"dexterity"
 tags = Array[StringName]([&"dex", &"flat", &"attack", &"ammo"])
 pool_weight = 0.3
 min_tier = 4
-max_tier = 4
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
 [resource]

@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://dq0y1x8nf6t7c"]
+[gd_scene format=3 uid="uid://dq0y1x8nf6t7c"]
 
 [ext_resource type="Script" path="res://tools/shatter_capture.gd" id="1"]
 

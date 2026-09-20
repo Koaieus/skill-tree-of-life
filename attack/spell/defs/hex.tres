@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="SpellDef" format=3]
+[gd_resource type="Resource" script_class="SpellDef" format=3 uid="uid://bklgyt7u5vxei"]
 
 [ext_resource type="Texture2D" uid="uid://co6hckurtll2q" path="res://assets/icons/spells/laser_burst.png" id="1_icon"]
 [ext_resource type="Script" uid="uid://cx52yu8u4qipj" path="res://attack/spell/condition/landing_condition.gd" id="1_jipuy"]
