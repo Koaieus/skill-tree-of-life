@@ -1,0 +1,66 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/game_root.tscn" id="1_base"]
+[ext_resource type="Script" path="res://test/fixtures/integration_level.gd" id="2_script"]
+[ext_resource type="PackedScene" path="res://skill_node/skill_node.tscn" id="3_skill"]
+[ext_resource type="PackedScene" path="res://graph/edge.tscn" id="4_edge"]
+
+[node name="IntegrationLevel" instance=ExtResource("1_base")]
+script = ExtResource("2_script")
+route_to_meta_on_run_end = false
+
+[node name="PlayerCore" parent="Graph/Nodes" index="0" instance=ExtResource("3_skill")]
+unique_name_in_owner = true
+position = Vector2(0, 0)
+
+[node name="Back" parent="Graph/Nodes" index="1" instance=ExtResource("3_skill")]
+position = Vector2(-200, 0)
+
+[node name="Up" parent="Graph/Nodes" index="2" instance=ExtResource("3_skill")]
+position = Vector2(0, -200)
+
+[node name="Step1" parent="Graph/Nodes" index="3" instance=ExtResource("3_skill")]
+unique_name_in_owner = true
+position = Vector2(200, 0)
+
+[node name="Step2" parent="Graph/Nodes" index="4" instance=ExtResource("3_skill")]
+unique_name_in_owner = true
+position = Vector2(400, 0)
+
+[node name="EnemyCore" parent="Graph/Nodes" index="5" instance=ExtResource("3_skill")]
+unique_name_in_owner = true
+position = Vector2(353, 129)
+
+[node name="EnemyOut" parent="Graph/Nodes" index="6" instance=ExtResource("3_skill")]
+position = Vector2(553, 129)
+
+[node name="EnemyOut2" parent="Graph/Nodes" index="7" instance=ExtResource("3_skill")]
+position = Vector2(353, 329)
+
+[node name="Edge_PlayerCore_Back" parent="Graph/Edges" index="0" node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge")]
+from = NodePath("../../Nodes/PlayerCore")
+to = NodePath("../../Nodes/Back")
+
+[node name="Edge_PlayerCore_Up" parent="Graph/Edges" index="1" node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge")]
+from = NodePath("../../Nodes/PlayerCore")
+to = NodePath("../../Nodes/Up")
+
+[node name="Edge_PlayerCore_Step1" parent="Graph/Edges" index="2" node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge")]
+from = NodePath("../../Nodes/PlayerCore")
+to = NodePath("../../Nodes/Step1")
+
+[node name="Edge_Step1_Step2" parent="Graph/Edges" index="3" node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge")]
+from = NodePath("../../Nodes/Step1")
+to = NodePath("../../Nodes/Step2")
+
+[node name="Edge_Step1_EnemyCore" parent="Graph/Edges" index="4" node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge")]
+from = NodePath("../../Nodes/Step1")
+to = NodePath("../../Nodes/EnemyCore")
+
+[node name="Edge_EnemyCore_EnemyOut" parent="Graph/Edges" index="5" node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge")]
+from = NodePath("../../Nodes/EnemyCore")
+to = NodePath("../../Nodes/EnemyOut")
+
+[node name="Edge_EnemyCore_EnemyOut2" parent="Graph/Edges" index="6" node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge")]
+from = NodePath("../../Nodes/EnemyCore")
+to = NodePath("../../Nodes/EnemyOut2")
