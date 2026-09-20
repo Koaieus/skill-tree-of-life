@@ -365,7 +365,7 @@ func refuse_intent(intent_id: int, reason: StringName = &"") -> void:
 ## [member is_awaiting_confirmation] keeps
 ## [method PlayerInputController.can_player_act] closed on every click, with
 ## nothing on screen to say why — a silent hang, which is what
-## [method GameRoot._on_link_lost] exists to not ship.
+## [method NetworkSession._on_link_lost] exists to not ship.
 ##
 ## Not routed through [method refuse_intent]: that one insists on a matching
 ## non-zero id, and here the whole point is that nobody is left to name one.

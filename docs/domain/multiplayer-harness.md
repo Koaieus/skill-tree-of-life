@@ -172,11 +172,11 @@ the host released; a client relied on the menu scene being freed first, which is
 not something the route guarantees.
 
 **The run's shape crosses at START, not on JOIN (#715).** `run_setup` used to be
-pushed by `GameRoot._on_peer_joined`, which a pre-established link never fires
+pushed by `NetworkSession._on_peer_joined`, which a pre-established link never fires
 again — so with the socket outliving the scene, a level would have waited out
 `SceneDirector.REVEAL_TIMEOUT_S` for it. `LobbyScreen` broadcasts it instead,
 and **the joining client no longer runs `GraphProcgen` at all**: it seats the
-roster, builds an empty graph, and `GameRoot.pull_host_world` brings the
+roster, builds an empty graph, and `NetworkSession.pull_host_world` brings the
 authority's serialized world. So a joined level with an empty graph is the
 NORMAL shape now, and the `_pending_entities` park in `CommandLink` — long the
 harness's odd case — is the primary path.
@@ -388,7 +388,7 @@ Details that are easy to get wrong, all covered by
   gets that far. Owner call: "joining only happens to the lobby before the host
   presses START, there's no drop-in mid-game." `Wire` keeps the socket open
   across the level mount by design (#713), so the door has to be shut on
-  purpose rather than left to close itself — `GameRoot._on_peer_joined`'s host
+  purpose rather than left to close itself — `NetworkSession._on_peer_joined`'s host
   branch checks the new peer's id against `GameSession.roster` (some seat's
   `peer_id` must already match) before it does anything else, and a peer with
   no seat is turned away through the same `CommandLink.refuse_peer` the build
@@ -464,12 +464,12 @@ above the seam ever learned the link had died.
 Everything in the section above is the *lobby's* handling of `link_lost` /
 `peer_left`. The level never listened to either until 2026-09-04 — it
 connected `peer_joined` and `link_changed` and nothing else — so both ends of
-a dropped link mid-run hung in silence. `GameRoot._open_link` now connects both,
+a dropped link mid-run hung in silence. `NetworkSession.open_link` now connects both,
 and the two cases are deliberately different:
 
 - **This machine's link died** (`link_lost`: the host quit, the socket dropped).
   There is no rejoin — "no drop-in mid-game" (#733) cuts both ways — so the run
-  is over *here*. `GameRoot._on_link_lost` does two things. It abandons the
+  is over *here*. `NetworkSession._on_link_lost` does two things. It abandons the
   intent parked in `CommandApplier` (`abandon_pending_intent`): a mirror's
   `is_awaiting_confirmation` is derived from that pending intent, and with the
   authority gone the confirm never comes, so without this every click stays
@@ -550,7 +550,7 @@ is what the code allowed and what changed, not a traced packet.
 - **A link that ends under the curtain was invisible.** The joiner's `_ready`
   awaited `resync_applied` bare, and the run-end overlay is a layer-100 canvas
   under `SceneTransition`'s 101 — so a refusal or a lost link while waiting
-  showed black and 0% until the 30s reveal timeout. `GameRoot._await_join_world`
+  showed black and 0% until the 30s reveal timeout. `NetworkSession.join_world`
   now ends on `link_lost` / `link_refused` too, lifts the curtain and leaves the
   overlay's reason on screen (`test_game_root_join_wait.gd`).
 - **The pull is renewed.** While it waits, the joiner re-asks every
