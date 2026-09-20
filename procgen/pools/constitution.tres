@@ -78,7 +78,7 @@ script = ExtResource("2_pool")
 stat_id = &"poison_resistance"
 tags = Array[StringName]([&"defense", &"dot", &"flat"])
 unit_value = 0.05
-pool_weight = 0.5
+pool_weight = 0.25
 max_tier = 3
 
 [sub_resource type="Resource" id="corruption_res"]
@@ -87,7 +87,7 @@ script = ExtResource("2_pool")
 stat_id = &"corruption_resistance"
 tags = Array[StringName]([&"defense", &"dot", &"flat"])
 unit_value = 0.05
-pool_weight = 0.5
+pool_weight = 0.25
 max_tier = 3
 
 [sub_resource type="Resource" id="curse_res"]
@@ -96,7 +96,7 @@ script = ExtResource("2_pool")
 stat_id = &"curse_resistance"
 tags = Array[StringName]([&"defense", &"dot", &"flat"])
 unit_value = 0.05
-pool_weight = 0.5
+pool_weight = 0.25
 max_tier = 3
 
 [sub_resource type="Resource" id="wither_res"]
@@ -105,7 +105,7 @@ script = ExtResource("2_pool")
 stat_id = &"wither_resistance"
 tags = Array[StringName]([&"defense", &"dot", &"flat"])
 unit_value = 0.05
-pool_weight = 0.5
+pool_weight = 0.25
 max_tier = 3
 
 [sub_resource type="Resource" id="poison_pot"]
@@ -113,9 +113,9 @@ resource_name = "poison_potency +%"
 script = ExtResource("2_pool")
 stat_id = &"poison_potency"
 operation = 1
-tags = Array[StringName]([&"offense", &"dot", &"percent"])
+tags = Array[StringName]([&"attack", &"dot", &"percent"])
 unit_value = 7.0
-pool_weight = 0.5
+pool_weight = 0.25
 max_tier = 3
 
 [sub_resource type="Resource" id="corruption_pot"]
@@ -123,9 +123,9 @@ resource_name = "corruption_potency +%"
 script = ExtResource("2_pool")
 stat_id = &"corruption_potency"
 operation = 1
-tags = Array[StringName]([&"offense", &"dot", &"percent"])
+tags = Array[StringName]([&"attack", &"dot", &"percent"])
 unit_value = 7.0
-pool_weight = 0.5
+pool_weight = 0.25
 max_tier = 3
 
 [sub_resource type="Resource" id="curse_pot"]
@@ -133,9 +133,9 @@ resource_name = "curse_potency +%"
 script = ExtResource("2_pool")
 stat_id = &"curse_potency"
 operation = 1
-tags = Array[StringName]([&"offense", &"dot", &"percent"])
+tags = Array[StringName]([&"attack", &"dot", &"percent"])
 unit_value = 7.0
-pool_weight = 0.5
+pool_weight = 0.25
 max_tier = 3
 
 [sub_resource type="Resource" id="wither_pot"]
@@ -143,9 +143,9 @@ resource_name = "wither_potency +%"
 script = ExtResource("2_pool")
 stat_id = &"wither_potency"
 operation = 1
-tags = Array[StringName]([&"offense", &"dot", &"percent"])
+tags = Array[StringName]([&"attack", &"dot", &"percent"])
 unit_value = 7.0
-pool_weight = 0.5
+pool_weight = 0.25
 max_tier = 3
 
 [resource]

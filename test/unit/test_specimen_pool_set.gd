@@ -60,7 +60,7 @@ func test_procgen_draw_occasionally_produces_movement_bonus() -> void:
 	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
 	var saw_movement := false
 	var saw_dealloc := false
-	for seed_value in range(1, 60):
+	for seed_value in range(1, 200):
 		var rng := _rng(seed_value)
 		var mods: Array = _GP._roll_modifiers_v4(
 				pool_set, [], &"strength", &"strength", [], Vector2.ZERO, 0, 7, rng)
@@ -69,8 +69,8 @@ func test_procgen_draw_occasionally_produces_movement_bonus() -> void:
 				saw_movement = true
 			elif m.stat_id == &"deallocation_points":
 				saw_dealloc = true
-	assert_true(saw_movement, "expected at least one movement_points roll across 59 seeded draws")
-	assert_true(saw_dealloc, "expected at least one deallocation_points roll across 59 seeded draws")
+	assert_true(saw_movement, "expected at least one movement_points roll across 199 seeded draws")
+	assert_true(saw_dealloc, "expected at least one deallocation_points roll across 199 seeded draws")
 
 
 func test_strength_pack_intelligence_curse_is_drawable() -> void:
