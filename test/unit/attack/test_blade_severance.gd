@@ -222,7 +222,7 @@ func test_a_dead_or_coasting_vertex_keeps_no_driver() -> void:
 	var gate := BladePopResolver.LiveGate.new(state, ctx.attacker)
 	gate.admit(_ev(0.4, 1, ctx.spiked), CombatWorld.live())
 	state.remove_vertex(1)
-	assert_eq(MeleeAttackPlan._surviving_drivers(drivers, state, gate).size(), 0,
+	assert_eq(SwingResolve._surviving_drivers(drivers, state, gate).size(), 0,
 			"the dead driven neighbour's driver goes with it")
 
 	# And the same for a vertex that is merely coasting: alive, but no longer
@@ -233,7 +233,7 @@ func test_a_dead_or_coasting_vertex_keeps_no_driver() -> void:
 	var gate2 := BladePopResolver.LiveGate.new(state2, ctx.attacker)
 	gate2.admit(_ev(0.4, 1, ctx.spiked), CombatWorld.live())
 	assert_eq(Array(gate2.result.severances[0].vertices), [2, 3], "fixture: 2 is coasting")
-	assert_eq(MeleeAttackPlan._surviving_drivers(drivers2, state2, gate2).size(), 0,
+	assert_eq(SwingResolve._surviving_drivers(drivers2, state2, gate2).size(), 0,
 			"a coasting vertex is not driven either")
 
 

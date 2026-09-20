@@ -156,7 +156,7 @@ func test_a_fortified_node_outside_the_rest_reach_still_drags_the_swing() -> voi
 
 	plan._invalidate_prediction()
 	plan.refresh_prediction()
-	var result: MeleeAttackPlan.SwingResult = plan.prediction()
+	var result: SwingResult = plan.prediction()
 	assert_not_null(result.clock, "a defender in the whip annulus must build a clock")
 	assert_true(result.clock.is_warping(),
 			"the swing must actually contact the wall and start warping — on "

@@ -320,7 +320,7 @@ func max_strain() -> float:
 
 ## Bind to the run about to step: which particles are driven (the pivot
 ## neighbours [BladeArcDriver] prescribes — read off the LIVE driver list, since
-## [method MeleeAttackPlan._surviving_drivers] shrinks it after a severance) and
+## [method SwingResolve._surviving_drivers] shrinks it after a severance) and
 ## the live edge incidence — plus [param clock], the swing's own accumulator,
 ## which [method project] banks a wall contact straight onto (#811; the clock
 ## owns the once-per-swing latch, so this class keeps no second one). Called by

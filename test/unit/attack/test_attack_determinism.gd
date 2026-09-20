@@ -359,7 +359,7 @@ func test_the_live_melee_and_ranged_paths_resolve_under_the_stamped_seed() -> vo
 	# below: asserted against the source so a future refactor that reaches for
 	# `randf()` — the hole 8dc6f77 closed for magic — cannot land quietly.
 	for path in [
-			"res://attack/plan/melee_attack_plan.gd",
+			"res://attack/melee/swing_resolve.gd",
 			"res://attack/plan/ranged_attack_plan.gd"]:
 		var src := FileAccess.get_file_as_string(path)
 		assert_false(src.is_empty(), "could not read %s" % path)
