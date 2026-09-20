@@ -1,6 +1,6 @@
 # Long-running commands: launch once, then go quiet
 
-The full GUT suite is ~35s wall (sharded; ~380s with `GUT_SHARDS=1`). `mise run
+The full GUT suite is ~45s wall (sharded; ~380s with `GUT_SHARDS=1`). `mise run
 refresh` and the perf benches are the other repeat offenders. All three have the same correct shape and the same
 expensive wrong one.
 

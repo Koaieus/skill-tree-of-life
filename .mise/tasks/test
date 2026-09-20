@@ -14,9 +14,12 @@ the per-script seconds persisted in .godot/gut-timings.json by the previous
 run), and merges their junit XML + console logs back into the single
 .godot/gut-last.xml / .godot/gut-last.log everything downstream expects
 (`test:timings`, `land`, the grep advice in .claude/rules/testing.md). N
-defaults to the core count, clamped by MemAvailable (~1 GB per shard is the
-measured ceiling); `GUT_SHARDS=1` forces the old single process, any other
-value pins N. A target of one script, or a raw-flag run (`-gselect=…`), is
+defaults to half the cores (`GUT_SHARDS_MAX` raises or lowers that ceiling —
+every core is ~10s faster and audibly louder), minus the cores already busy
+with another GUT run on this machine (any worktree — `pgrep gut_cmdln.gd`),
+clamped by MemAvailable at SHARD_RSS_MB per shard; `GUT_SHARDS=1` forces the
+old single process, any other value pins N outright. So several agents gating
+at once share the box instead of each taking all of it. A target of one script, or a raw-flag run (`-gselect=…`), is
 never sharded — GUT's own collection semantics apply there.
 
 Each shard gets its own `user://` (XDG_DATA_HOME points at a per-shard temp
@@ -77,8 +80,9 @@ GUT_CMDLN = "res://addons/gut/gut_cmdln.gd"
 
 # Below this many scripts a second godot boot (~2s) costs more than it saves.
 MIN_SCRIPTS_TO_SHARD = 4
-# Measured peak RSS of a full-suite shard, rounded up; MemAvailable / this
-# caps N so a loaded workstation never swaps its way through the suite.
+# Peak RSS of one full-suite shard, rounded up (measured 921 MB peak, 789 MB
+# median, 14 shards, 2026-09-20); MemAvailable / this caps N so a loaded
+# workstation never swaps its way through the suite.
 SHARD_RSS_MB = 1024
 # A script with no persisted timing is assumed to cost this much when the
 # shards are balanced — a rough median, so a new script neither dominates nor
@@ -245,17 +249,35 @@ def _mem_available_mb():
     return None
 
 
+def _gut_processes_running():
+    """GUT godot processes already running on this machine — any checkout, any worktree.
+
+    Several agents gating at once each see the same core count; without this a
+    second suite would double the load rather than share it. Counted, not
+    locked: a runner takes what is left and the RAM clamp catches the rest.
+    """
+    try:
+        out = subprocess.run(["pgrep", "-f", "-c", "gut_cmdln.gd"],
+                             capture_output=True, text=True, check=False).stdout
+        return int(out.strip() or 0)
+    except (OSError, ValueError):
+        return 0
+
+
 def shard_count(n_scripts):
-    """How many godot processes to run: GUT_SHARDS pins it; else cores, clamped by RAM."""
+    """How many godot processes to run: GUT_SHARDS pins it; else half the cores
+    (GUT_SHARDS_MAX), minus those another GUT run is using, clamped by free RAM."""
     pinned = os.environ.get("GUT_SHARDS", "").strip()
     if pinned:
         return max(1, int(pinned))
     if n_scripts < MIN_SCRIPTS_TO_SHARD:
         return 1
-    n = os.cpu_count() or 1
+    cores = os.cpu_count() or 1
+    cap = int(os.environ.get("GUT_SHARDS_MAX", "").strip() or max(1, cores // 2))
+    n = min(cap, cores - _gut_processes_running())
     avail = _mem_available_mb()
     if avail is not None:
-        n = min(n, max(1, avail // SHARD_RSS_MB))
+        n = min(n, avail // SHARD_RSS_MB)
     return max(1, min(n, n_scripts))
 
 

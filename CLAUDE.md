@@ -49,8 +49,9 @@ mise run mp:e2e                                # two processes play the shipped 
                                                # (~30s) — the gate for network/ session/ command/
 ```
 
-The full suite costs **~35s wall** (507 scripts, 4716 tests, 2026-09-20; sharded
-one godot per core, `GUT_SHARDS=1` is the ~380s single process) — still a
+The full suite costs **~45s wall** (507 scripts, 4716 tests, 2026-09-20; sharded
+over half the cores by default — `GUT_SHARDS_MAX=16` is ~32s and loud,
+`GUT_SHARDS=1` the ~380s single process) — still a
 **gate, not a feedback loop**: cheap in wall clock, not in the context its
 output costs. Earn it **once per unit of work**, at final green, right before
 reporting — never to explore, never **to grep it differently.** Iterate on the

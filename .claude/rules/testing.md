@@ -38,8 +38,9 @@ See `docs/domain/multiplayer-harness.md`, "Rung 4".
 The task prints a verdict (counts, each failing test's first assert + line,
 pending, parse-error alarms) and **always keeps the full console output at
 `.godot/gut-last.log`**, junit XML beside it. A suite or directory run is
-**sharded** over one headless godot per core (clamped by free RAM; `GUT_SHARDS=N`
-pins it, `1` = single process), each shard's console written **live** to
+**sharded** over half the cores (`GUT_SHARDS_MAX` moves that ceiling; minus
+cores another GUT run on the box is already using; clamped by free RAM;
+`GUT_SHARDS=N` pins it outright, `1` = single process), each shard's console written **live** to
 `.godot/gut-shard-N.log` (`tail -f .godot/gut-shard-*.log` to see which script
 every shard is on; a killed run still leaves them) and merged into
 `gut-last.log` / `gut-last.xml` at the end — so the merged files, and the
@@ -56,8 +57,8 @@ reported a FAILING suite as green off a `tail` on 2026-09-10, twice in one
 session. Use:
 ```
 mise run test 2>&1 | grep -E "failing ·|ERROR task"
-``` A full run costs **~35s wall** (507 scripts / 4716 tests over 14 shards,
-2026-09-20; ~380s single-process) — a gate, **run at most once per unit of
+``` A full run costs **~45s wall** (507 scripts / 4716 tests over 8 shards,
+2026-09-20; ~32s on all 16, ~380s single-process) — a gate, **run at most once per unit of
 work**, at final green; iterate on `check` → `test:one` → `test:dir`. When the
 summary elided something, grep the log — `grep -F '[Failed]'`, with `-F`, since a
 bare `[Failed]` is a bracket expression matching nearly every line.
