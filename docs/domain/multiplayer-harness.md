@@ -107,7 +107,7 @@ Three consequences, in the order they bite:
   `Transport` / `CommandLink`; once the pair is inherited, doing that gives you
   colliding sibling names and `$Transport` resolves to whichever one Godot
   renamed last — a dead link with no error anywhere.
-  `test/unit/network/test_link_mount.gd` asserts the *count*, not just the
+  `test/integration/network/test_link_mount.gd` asserts the *count*, not just the
   type, for exactly this reason.
 
 Which role this machine takes is `NetworkConfig` on `GameSession` — the
@@ -155,7 +155,7 @@ nicety: `Wire.start_host` opens with a `stop()`, so a level that blindly
 re-started would tear down the link it was handed, and every host-side
 consequence of a join hangs off a signal that fired while the menu was up.
 
-`test/unit/network/test_wire_outlives_the_level.gd` pins the mechanism; the two
+`test/integration/network/test_wire_outlives_the_level.gd` pins the mechanism; the two
 rungs below are the live proof, since one process holds one link and a real pair
 needs two.
 
@@ -489,7 +489,7 @@ and the two cases are deliberately different:
   every mirror watches the hero play on; the mirrors' roster copies still say
   HUMAN, which only makes their `is_local_collector` answer false, as it should.
 
-`test/unit/scenes/test_game_root_link_loss.gd` pins both, on a real
+`test/integration/scenes/test_game_root_link_loss.gd` pins both, on a real
 `game_root.tscn` over its mounted loopback transport.
 
 ## Two machines: a dial that never answers (#752)
@@ -683,7 +683,7 @@ surfaced it while writing `test_mp_procgen_join.gd`.
 **Automated coverage stops at the protocol, not the scene.** Two full OS
 processes can't share a `LoopbackTransport` (the earlier reasoning still
 holds: `EnetTransport` claims the SceneTree's one `MultiplayerAPI`), so
-`test/unit/network/test_mp_procgen_join.gd` drives two real `game_root.tscn`
+`test/integration/network/test_mp_procgen_join.gd` drives two real `game_root.tscn`
 instances in one process instead, paired through their own mounted default
 transport — the same two-worlds-in-one-process technique
 `test_command_link.gd` already established, extended to also exercise

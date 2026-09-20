@@ -31,4 +31,4 @@ actually waits on (procgen) should show it, in the bar's own 0..100 units.
 
 `SceneTransition.is_curtain_up()` is the guard that keeps a directly-launched
 sandbox (nobody faded out) from gaining a black fade nobody asked for.
-Pinned by `test/unit/ui/test_scene_reveal.gd`.
+Pinned by `test/integration/ui/test_scene_reveal.gd`.

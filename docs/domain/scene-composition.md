@@ -100,7 +100,7 @@ subscription to that node's *resources* from a later, idempotent bind call
 (`GameRoot.bind_player` is the one here). Which means **a same-value early
 return in such a setter is load-bearing in the wrong direction** — scope it to
 the state that genuinely must not be clobbered, never to the re-subscription.
-That regression is what 2fa1d9e fixed; `test/unit/scenes/test_act_gate_across_turns.gd`
+That regression is what 2fa1d9e fixed; `test/integration/scenes/test_act_gate_across_turns.gd`
 pins it, and a procgen sandbox cannot reproduce it because it spawns its player
 in `_setup_level`, after the swap.
 

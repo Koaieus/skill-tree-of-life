@@ -211,7 +211,7 @@ of loop ordering. The two sets **overlap** mid-cascade (the ledger is recorded
 before the strip loop walks it), so they are **unioned, not summed** — and that
 union is invariant: a node moves from one side to the other as the loop
 progresses and the total doesn't move. Pinned by
-`test/unit/systems/test_kill_xp_ledger.gd`.
+`test/integration/systems/test_kill_xp_ledger.gd`.
 
 **Scope is one attack, not one turn.** The bonus means "this blow". A node broken
 in an earlier attack already collected its trickle and is not re-counted at bonus
@@ -472,7 +472,7 @@ hand up, and an NPC gets the auto-roll because HudRoot filters on
 mind before adding a second listener: any handler that claims a request without
 that filter would hang an NPC's round on a picker nobody will ever answer.
 
-`test/unit/entity/test_ai_claims_loot.gd` pins the whole chain from the NPC end
+`test/integration/entity/test_ai_claims_loot.gd` pins the whole chain from the NPC end
 — an [AIController] decides the kill, claims the relic with its own
 `AllocateCommand` through a real `CommandApplier`, and auto-resolves both stat
 rounds and the terminal spell round inside its turn. Every other loot test

@@ -122,7 +122,7 @@ whole run while XP filled.
 **How to apply:** author `stat_board = ExtResource(...default_entity_board.tres)`
 — sharing is safe precisely because `_ready` duplicates. Deviate with a
 `CoreClass` or a modifier, never a forked board. Pinned by
-`test/unit/test_authored_entity_boards.gd`.
+`test/integration/test_authored_entity_boards.gd`.
 
 ## A `Camera2D` moves every screen-space `Control` that is not on a `CanvasLayer`
 
