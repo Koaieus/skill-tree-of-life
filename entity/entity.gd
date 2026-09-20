@@ -748,8 +748,22 @@ func _on_turn_started(entity: Entity) -> void:
 func _apply_turn_upkeep() -> void:
 	# All pool upkeep is declarative — each pool replenishes per its def's
 	# per_turn_mode (AP/DP/movement REFILL, mana/xp ADD, skill_points CUSTOM
-	# wound-heal). New pools opt in via their def; nothing is wired here.
+	# wound-heal, health HOST_ADD). New pools opt in via their def; nothing is
+	# wired here beyond the HOST_ADD hand-off below.
 	stat_board.apply_per_turn_upkeep()
+	# #997: a HOST_ADD pool's companion enters through THIS host's heal door,
+	# so `healing_received` is consulted exactly once — `health` ← `core_healing`
+	# — and an entity-hosted Wither inverts the trickle like any node heal.
+	# The door only knows `health`; the mode is declared on the def, the
+	# route is here, and a pool that is not `health` cannot take it.
+	for pool in stat_board.get_pool_stats():
+		var amount: float = pool.host_upkeep_amount(stat_board)
+		if amount <= 0.0:
+			continue
+		if pool.definition.id != &"health":
+			push_warning("Entity: HOST_ADD pool '%s' has no host door (only `health` does)" % pool.definition.id)
+			continue
+		_combat.heal(amount, pool.pool_definition.resolved_per_turn_stat_id())
 	# D-9: turn-start refill-to-full is gone. Every owned node instead runs a
 	# gated, ramping regen (SkillNode.apply_turn_regen) — damage persists
 	# across turns. D-10's class aura (now a HealAuraEffect on

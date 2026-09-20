@@ -497,7 +497,12 @@ func remove_local_modifier(m: StatModifier) -> void:
 
 ## State half of [method SkillNode.heal_damage] — see that method for the
 ## public contract. The notification half is [method SkillNode.notify_healed].
-func heal_damage(amount: float, source: Variant) -> void:
+## [param raw] (#997) is the ONE explicit bypass of `healing_received` — for
+## a caller that means "this many HP, no matter what" (a scripted restore, a
+## debug fill). Default off; every gameplay heal consults the stat. The twin
+## door on the entity is [method EntityCombat.heal]; `test_heal_door_drift`
+## guards that nothing else raises a health pool.
+func heal_damage(amount: float, source: Variant, raw: bool = false) -> void:
 	if owner() == null or amount <= 0.0:
 		return
 	var hp := _hp_pool()
@@ -507,7 +512,8 @@ func heal_damage(amount: float, source: Variant) -> void:
 	# here exactly once — AFTER the raw-amount guard above (a negative raw
 	# amount times a negative multiplier must not heal). Node-local read,
 	# live and shadow alike.
-	amount *= float(get_local_value(&"healing_received"))
+	if not raw:
+		amount *= float(get_local_value(&"healing_received"))
 	if amount < 0.0:
 		_withered_heal(-amount, source)
 		return

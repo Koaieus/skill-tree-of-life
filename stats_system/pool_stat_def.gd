@@ -32,10 +32,19 @@ extends StatDef
 ##            (The other two PoolStatDef virtuals live on the *def* because they
 ##            vary by cap-shape; this one's on the stat because it varies by the
 ##            stat's bins — behaviour lives where its data lives.)
-enum PerTurnMode { NONE, REFILL, ADD, CUSTOM }
+##   HOST_ADD — ADD's companion read, but the amount enters through the pool's
+##            HOST door instead of the pool replenishing itself (#997):
+##            `health` ← `core_healing` goes through [method EntityCombat.heal]
+##            so `healing_received` is consulted exactly once, like every other
+##            heal. [method PoolStat.run_turn_upkeep] does nothing for this
+##            mode; `Entity._apply_turn_upkeep` reads
+##            [method PoolStat.host_upkeep_amount] and calls the door. The def
+##            stays declarative — it names the rate and the route, never a
+##            line of upkeep code.
+enum PerTurnMode { NONE, REFILL, ADD, CUSTOM, HOST_ADD }
 @export var per_turn_mode: PerTurnMode = PerTurnMode.NONE
 
-## ADD-mode override: the id of the scalar carrying the per-turn amount. Empty
+## ADD / HOST_ADD override: the id of the scalar carrying the per-turn amount. Empty
 ## (the default) means the `<id>_per_turn` convention — mana reads
 ## `mana_per_turn`, xp reads `xp_per_turn`. Set this only when the rate stat
 ## has a name of its own: `health` replenishes by `core_healing` (D-25), which
@@ -43,7 +52,7 @@ enum PerTurnMode { NONE, REFILL, ADD, CUSTOM }
 @export var per_turn_stat_id: StringName = &""
 
 
-## The stat id this pool's ADD upkeep reads, resolving the `<id>_per_turn`
+## The stat id this pool's ADD / HOST_ADD upkeep reads, resolving the `<id>_per_turn`
 ## convention when no explicit [member per_turn_stat_id] is set.
 func resolved_per_turn_stat_id() -> StringName:
 	if per_turn_stat_id != &"":

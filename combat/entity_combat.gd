@@ -275,9 +275,62 @@ func take_pool_damage(amount: float, _source: Variant) -> void:
 		simulate_entity_death()
 
 
-## STUB (#997) — replaced below in this unit.
-func heal(_amount: float, _source: Variant, _raw: bool = false) -> void:
-	pass
+## The ONE door every raise of the entity `health` pool goes through (#997,
+## hub #994) — the twin of [method NodeCombat.heal_damage]. Owner
+## (2026-09-20): "All heals must consult it" — [param amount] is multiplied by
+## the entity board's `healing_received` exactly once, here, AFTER the
+## raw-amount guard (a negative raw amount times a negative multiplier must
+## not heal). [param raw] is the one explicit bypass. A product below zero is
+## the withered case: TRUE damage through [method take_pool_damage], flagged
+## `from_withered_heal` like the node's — the pool has no regen gate to close,
+## so the flag is the contract, not a mechanism. A product of exactly zero is
+## blocked outright: nothing moves, a [HealInstance] reports 0.
+##
+## Callers today: `health`'s HOST_ADD upkeep (`core_healing`, from
+## `Entity._apply_turn_upkeep`). [param source] is the same
+## attacker-or-HitInstance-or-StringName tag the node door carries; a
+## [HealInstance] gets `effective_amount` stashed back, a [HitInstance] its
+## bar numbers. `test_heal_door_drift` guards that nothing else raises the pool.
+func heal(amount: float, source: Variant, raw: bool = false) -> void:
+	if amount <= 0.0:
+		return
+	var b := board()
+	var health_pool := b.get_stat(&"health") as PoolStat if b != null else null
+	if health_pool == null:
+		return
+	if not raw:
+		amount *= float(get_local_value(&"healing_received"))
+	if amount < 0.0:
+		var di := DamageInstance.new()
+		di.type = DamageInstance.Type.TRUE
+		di.amount = -amount
+		di.from_withered_heal = true
+		var before := health_pool.current
+		take_pool_damage(-amount, di)
+		if source is HealInstance:
+			(source as HealInstance).effective_amount = 0.0
+		if source is HitInstance:
+			var hit := source as HitInstance
+			hit.hp_before = before
+			hit.hp_after = health_pool.current
+			hit.hp_max = get_max_hp()
+		return
+	if amount <= 0.0:
+		if source is HealInstance:
+			(source as HealInstance).effective_amount = 0.0
+		return
+	var prev := health_pool.current
+	# replenish, not set_current: it clamps at the cap and fires
+	# `replenished_by`, which the pool's own ADD upkeep used to fire.
+	health_pool.replenish(amount)
+	var effective := health_pool.current - prev
+	if source is HealInstance:
+		(source as HealInstance).effective_amount = effective
+	if source is HitInstance:
+		var hit := source as HitInstance
+		hit.hp_before = prev
+		hit.hp_after = health_pool.current
+		hit.hp_max = get_max_hp()
 
 
 ## Every [NodeCombat] this entity owns. Live: derived from

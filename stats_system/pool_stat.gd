@@ -205,6 +205,26 @@ func run_turn_upkeep(board: StatBoard) -> void:
 				replenish(amount)
 		PoolStatDef.PerTurnMode.CUSTOM:
 			_custom_turn_upkeep(board)
+		PoolStatDef.PerTurnMode.HOST_ADD:
+			# The host applies it through its heal door — see
+			# [method host_upkeep_amount]. Nothing moves here, by design
+			# (test_heal_door_drift pins it).
+			pass
+
+
+## HOST_ADD's half of the upkeep (#997): the companion's value, for the HOST
+## to push through its heal door (`EntityCombat.heal(amount, companion_id)`).
+## `0.0` for every other mode, so a host can loop its pools blind. Warns, like
+## the ADD branch, when the companion is missing.
+func host_upkeep_amount(board: StatBoard) -> float:
+	if pool_definition == null or pool_definition.per_turn_mode != PoolStatDef.PerTurnMode.HOST_ADD:
+		return 0.0
+	var companion_id := pool_definition.resolved_per_turn_stat_id()
+	var companion := board.get_stat(companion_id)
+	if companion == null:
+		push_warning("PoolStat '%s' is HOST_ADD per-turn but has no '%s' companion stat" % [definition.id, companion_id])
+		return 0.0
+	return float(companion.get_value())
 
 
 ## CUSTOM-mode hook. Base no-op; stat subclasses with bespoke turn-start
