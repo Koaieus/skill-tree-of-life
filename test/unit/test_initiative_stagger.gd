@@ -122,6 +122,9 @@ func test_spawn_index_0_opens_regardless_of_peer_id() -> void:
 	await wait_physics_frames(1)
 	var root := GameRoot.new()
 	root.graph = _graph
+	# #1004: the network role a bare root used to answer itself now lives on
+	# `%NetworkSession`; a scene-less root gets a link-less one — authority.
+	root.network_session = autofree(NetworkSession.new())
 	GameSession.config = RunConfig.new()
 	GameSession.network = NetworkConfig.new()
 	GameSession.network.role = NetworkTransport.Role.HOST

@@ -315,7 +315,10 @@ func test_a_game_root_adopts_the_lobby_s_link_rather_than_reopening_it() -> void
 	# here in code so this test does not depend on which level happens to ship it.
 	root.get_node("Transport").set_script(preload("res://network/enet_transport.gd"))
 	add_child_autofree(root)
-	await wait_physics_frames(6)
+	# A bounded wait on the event, not a frame count — under suite load the
+	# `_ready` coroutine has been caught not yet at open_link six frames in
+	# (see test_link_mount.gd's `_wait_for_reveal` for the same flake class).
+	await wait_until(root.is_reveal_ready, 2.0)
 
 	assert_true(root.transport is EnetTransport, "sanity: the swap took")
 	assert_eq(root.transport.role, NetworkTransport.Role.HOST,
