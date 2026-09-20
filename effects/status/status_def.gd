@@ -80,8 +80,6 @@ func get_description() -> String:
 	if not description.is_empty():
 		return description
 	var name := display_name if not display_name.is_empty() else String(id)
-	if decay_mode == DecayMode.FRACTION:
-		return "%s (-%d%% per turn)" % [name, roundi(decay_per_tick * 100.0)]
 	return "%s (max %s, -%s per turn)" % [name, _fmt(power_max), _fmt(decay_per_tick)]
 
 
