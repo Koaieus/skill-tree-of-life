@@ -33,6 +33,10 @@ Earns a test-first cycle:
 - **A contract you're about to depend on** — a new `class_name`'s public
   surface, a resolver's ordering guarantee.
 
+Which **tier** the test lands in — `test/unit/` (the formula), `test/integration/`
+(a composed scene or the real clock), `mp:e2e` (two processes) — is
+`docs/domain/testing-tiers.md`'s decision list; this doc only decides *whether*.
+
 Does **not**:
 
 - **Visual acceptance.** "Does it look right" gets no test harness. Shaders,
@@ -98,7 +102,8 @@ mise run test:dir -- res://test/unit/<subsystem>/    # once you believe you're g
 mise run test                                        # full suite — ONCE, at final green
 ```
 
-The full suite (~215s) is a gate, not a feedback loop. TDD does not buy you more
+The full suite (~45–48 s wall, sharded over half the cores at `cb99152`;
+~380 s single-process) is a gate, not a feedback loop. TDD does not buy you more
 full runs — it buys you a `test:one` that means something.
 
 ## Where this is enforced
