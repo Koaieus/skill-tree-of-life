@@ -12,21 +12,18 @@ const _TOOLTIP := preload("res://ui/spell_tooltip/spell_tooltip.tscn")
 const _TALL := "res://attack/spell/defs/leafblower.tres"
 const _SHORT := "res://attack/spell/defs/spark.tres"
 
-# show_for() settles the layout over two frames before it fades in; wait past it.
-# Note: a single wait_frames(4) does NOT yield four real idle frames here — the
-# awaited frames have to be taken one at a time for the layout to advance.
-const _SETTLE_FRAMES: int = 5
+# show_for() is a coroutine that settles its own layout over two process
+# frames before fading in — await it (its last line is the settled state)
+# rather than budgeting physics frames (#978).
 
 
 func test_tooltip_is_never_shown_taller_than_its_content() -> void:
 	var tt: SpellTooltip = _TOOLTIP.instantiate()
 	add_child_autofree(tt)
-	await wait_frames(2)
+	await get_tree().process_frame
 
 	for path in [_TALL, _SHORT, _TALL]:
-		tt.show_for(load(path) as SpellDef, null)
-		for _i in _SETTLE_FRAMES:
-			await wait_frames(1)
+		await tt.show_for(load(path) as SpellDef, null)
 		assert_true(tt.visible, "%s: should be showing" % path)
 		assert_almost_eq(tt.modulate.a, 1.0, 0.01, "%s: stuck faded out" % path)
 		assert_almost_eq(
@@ -38,16 +35,12 @@ func test_tooltip_is_never_shown_taller_than_its_content() -> void:
 func test_tooltip_shrinks_when_a_shorter_spell_is_hovered() -> void:
 	var tt: SpellTooltip = _TOOLTIP.instantiate()
 	add_child_autofree(tt)
-	await wait_frames(2)
+	await get_tree().process_frame
 
-	tt.show_for(load(_TALL) as SpellDef, null)
-	for _i in _SETTLE_FRAMES:
-		await wait_frames(1)
+	await tt.show_for(load(_TALL) as SpellDef, null)
 	var tall_height := tt.size.y
 
-	tt.show_for(load(_SHORT) as SpellDef, null)
-	for _i in _SETTLE_FRAMES:
-		await wait_frames(1)
+	await tt.show_for(load(_SHORT) as SpellDef, null)
 	assert_lt(tt.size.y, tall_height, "tooltip kept the taller spell's height")
 
 
@@ -58,11 +51,9 @@ func test_tooltip_hides_when_the_tree_pauses() -> void:
 	# instant the tree pauses, same as the hover source that would clear it.
 	var tt: SpellTooltip = _TOOLTIP.instantiate()
 	add_child_autofree(tt)
-	await wait_frames(2)
+	await get_tree().process_frame
 
-	tt.show_for(load(_TALL) as SpellDef, null)
-	for _i in _SETTLE_FRAMES:
-		await wait_frames(1)
+	await tt.show_for(load(_TALL) as SpellDef, null)
 	assert_true(tt.visible, "precondition: tooltip should be showing")
 
 	get_tree().paused = true
@@ -73,12 +64,10 @@ func test_tooltip_hides_when_the_tree_pauses() -> void:
 func test_tooltip_renders_its_content_through_scene_components() -> void:
 	var tt: SpellTooltip = _TOOLTIP.instantiate()
 	add_child_autofree(tt)
-	await wait_frames(2)
+	await get_tree().process_frame
 
 	var spell := load(_TALL) as SpellDef
-	tt.show_for(spell, null)
-	for _i in _SETTLE_FRAMES:
-		await wait_frames(1)
+	await tt.show_for(spell, null)
 
 	var header: PanelHeader = tt.get_node("%Header")
 	assert_eq(header.header, spell.name.to_upper(), "header should carry the spell name")

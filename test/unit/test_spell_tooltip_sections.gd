@@ -11,8 +11,9 @@ extends GutTest
 
 const _TOOLTIP := preload("res://ui/spell_tooltip/spell_tooltip.tscn")
 
-# show_for() settles its layout over two frames before fading in.
-const _SETTLE_FRAMES: int = 5
+# show_for() is a coroutine that settles its own layout over two process
+# frames before fading in — await it (its last line is the settled state)
+# rather than budgeting physics frames (#978).
 
 const _TAGLINE_CAP: int = 80
 
@@ -28,10 +29,8 @@ const _SECTION_NAMES: Array[String] = [
 func _section_lines(spell: SpellDef, unique_name: String) -> PackedStringArray:
 	var tt: SpellTooltip = _TOOLTIP.instantiate()
 	add_child_autofree(tt)
-	await wait_frames(2)
-	tt.show_for(spell, null)
-	for _i in _SETTLE_FRAMES:
-		await wait_frames(1)
+	await get_tree().process_frame
+	await tt.show_for(spell, null)
 	var section := tt.get_node(unique_name) as SpellTooltipSection
 	return section.line_texts()
 

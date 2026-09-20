@@ -18,8 +18,9 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 # both rows at once.
 const _SPELL := "res://attack/spell/defs/lightning_bolt.tres"
 
-# show_for() settles its layout over two frames before fading in.
-const _SETTLE_FRAMES: int = 5
+# show_for() is a coroutine that settles its own layout over two process
+# frames before fading in — await it (its last line is the settled state)
+# rather than budgeting physics frames (#978).
 
 
 ## A caster whose `spell_range` is +100%, i.e. exactly double euclidean reach —
@@ -70,10 +71,8 @@ func _section_text(tt: SpellTooltip, unique_name: String) -> String:
 func _shown_for(caster: Entity) -> SpellTooltip:
 	var tt: SpellTooltip = _TOOLTIP.instantiate()
 	add_child_autofree(tt)
-	await wait_frames(2)
-	tt.show_for(load(_SPELL) as SpellDef, caster)
-	for _i in _SETTLE_FRAMES:
-		await wait_frames(1)
+	await get_tree().process_frame
+	await tt.show_for(load(_SPELL) as SpellDef, caster)
 	return tt
 
 
