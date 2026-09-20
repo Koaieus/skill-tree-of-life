@@ -350,7 +350,7 @@ func _greet_if_linked(_status: String) -> void:
 ## seat in [member GameSession.roster], because "joining only happens to the
 ## lobby before the host presses START" (owner call, #733) — there is no
 ## drop-in mid-game. That peer is refused, with a reason a human reads on its
-## screen, before [method LobbyScreen.stamp_pending_remote] or the world push
+## screen, before [method LobbyRoster.stamp_pending_remote] or the world push
 ## below ever run.
 func _on_peer_joined(peer_id: int) -> void:
 	var net: NetworkConfig = GameSession.network
@@ -375,7 +375,7 @@ func _on_peer_joined(peer_id: int) -> void:
 			command_link.refuse_peer(peer_id,
 					"the run has already started — there is no drop-in mid-game")
 		return
-	LobbyScreen.stamp_pending_remote(GameSession.roster, peer_id)
+	LobbyRoster.stamp_pending_remote(GameSession.roster, peer_id)
 	# And ship this peer the world (#715). Host-side this line runs at the tail of
 	# the root's `_ready`, so the world is COMPLETE — [method open_link] is the
 	# last thing before it, and [method EnetTransport._adopt_live_link] replays

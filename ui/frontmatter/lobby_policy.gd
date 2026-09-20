@@ -20,7 +20,7 @@ extends Resource
 ## authored without one.
 ##
 ## [b]It does not decide the mode and must not be read as doing so[/b] (#615 D6).
-## [method LobbyScreen.resolve_mode] stays the sole mode authority and counts
+## [method LobbyRoster.resolve_mode] stays the sole mode authority and counts
 ## HUMAN camps only, so AI camp freedom cannot move the derived mode, and a
 ## hot-seat policy that locks both humans to `camp_1` keeps resolving
 ## COOP_HOTSEAT by construction rather than by a check.
@@ -182,7 +182,7 @@ static func _ladder(set: LobbyOptionSet) -> Array[LobbyOption]:
 
 ## Does START require the humans to span more than one camp? True on the versus
 ## shape, where a run with every human in one camp has no opposing side and
-## [method LobbyScreen.resolve_mode] would quietly hand back COOP_HOTSEAT.
+## [method LobbyRoster.resolve_mode] would quietly hand back COOP_HOTSEAT.
 @export var require_distinct_human_camps: bool = false
 
 
@@ -220,7 +220,7 @@ func start_blocked_reason(participants: Array[Participant]) -> String:
 
 
 ## Distinct camps across the non-AI slots — the same population
-## [method LobbyScreen.resolve_mode] counts, deliberately, so this check and the
+## [method LobbyRoster.resolve_mode] counts, deliberately, so this check and the
 ## derived mode can never disagree about who is a side.
 static func _distinct_human_camps(participants: Array[Participant]) -> int:
 	var seen: Array[Faction] = []

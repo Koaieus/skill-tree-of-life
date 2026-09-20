@@ -155,7 +155,7 @@ static func _network_for(route: MenuGraph.Route) -> NetworkConfig:
 
 ## The mode passed here is the shape this ROUTE asks for, not the mode the run
 ## gets: #554 D3 derives that from the roster when START is pressed
-## ([method LobbyScreen.resolve_mode]), because "more than one non-AI camp" is
+## ([method LobbyRoster.resolve_mode]), because "more than one non-AI camp" is
 ## not knowable at the moment a route is taken. Host and Join both end up
 ## VERSUS by way of the remote seat their lobby authors; hot-seat stays coop
 ## because its two humans share a camp.

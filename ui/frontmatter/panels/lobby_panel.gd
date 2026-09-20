@@ -7,7 +7,7 @@ extends FrontmatterPanel
 ## [b]This panel hosts the shipped [LobbyScreen]; it does not reimplement it.[/b]
 ## #573 is explicit that [method LobbyScreen.build_run_config] is #553/#554 work
 ## — the whole roster, the AI count, the seed sentinel, #554 D3's
-## [method LobbyScreen.resolve_mode] at START — and that it must be re-homed
+## [method LobbyRoster.resolve_mode] at START — and that it must be re-homed
 ## rather than rewritten. #579 completed the move: the screen now lives beside
 ## this file and carries no chrome of its own, so what it contributes is the
 ## roster column and nothing else. Nothing here duplicates a decision that
@@ -43,7 +43,7 @@ var screen: LobbyScreen = null
 
 
 ## Build the lobby for one menu route. [param mode] is the shape the route ASKED
-## for, not the mode the run gets — [method LobbyScreen.resolve_mode] derives
+## for, not the mode the run gets — [method LobbyRoster.resolve_mode] derives
 ## that from the roster at START (#554 D3).
 ##
 ## Calling this again replaces the screen, so backing out of a host route and

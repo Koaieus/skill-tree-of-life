@@ -56,7 +56,7 @@ func set_choices(title: String, option_set: LobbyOptionSet) -> void:
 
 
 ## Re-selects [param index] without emitting — the rebuild-survival half
-## ([member LobbyScreen._picked_options] is the source of truth, this is only
+## ([member LobbyScreen._run_picks] is the source of truth, this is only
 ## its view). `-1` restores the untouched state.
 func set_value(index: int) -> void:
 	_updating = true
@@ -77,7 +77,7 @@ func set_enabled(enabled: bool) -> void:
 ## The index currently shown — the ladder's authored [member
 ## LobbyOptionSet.default_index] until the host picks, `-1` if the ladder has
 ## no default. NOT the same question as "has the host picked" (see
-## [LobbyScreen._picked_options] for that).
+## [LobbyScreen._run_picks] for that).
 func get_value() -> int:
 	return _picker.selected
 

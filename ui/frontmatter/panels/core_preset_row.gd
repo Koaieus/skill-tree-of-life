@@ -10,7 +10,7 @@ extends HBoxContainer
 ## "preset row should get a sentinel... such that things don't change too
 ## much"), and it is the control's initial value. While it is selected this
 ## row templates nothing and the lobby behaves exactly as it did before this
-## feature — see [method LobbyScreen.apply_core_preset]'s `null` branch.
+## feature — see [method LobbyRoster.apply_core_preset]'s `null` branch.
 
 ## The preset changed. `null` is the sentinel ("no preset") — never a real
 ## [CoreClass] that merely reads as "off"; the sentinel is its own dropdown

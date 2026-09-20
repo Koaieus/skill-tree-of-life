@@ -69,7 +69,7 @@ var _palette: PlayerPalette = null
 ## default, which is every lobby that was ever shipped before a second machine
 ## could see one: offline, hot-seat and the host's own lobby all leave it alone.
 ## A client sets it false on every seat but its own — see
-## [method LobbyScreen.may_edit], which owns the rule.
+## [method LobbyRoster.may_edit], which owns the rule.
 var _editable: bool = true
 ## What each picker would be disabled by REGARDLESS of locality: an empty core
 ## list, a camp the policy locked. Kept so [method set_editable] can be called in
@@ -115,7 +115,7 @@ func configure(participant: Participant, local_peer_id: int) -> void:
 
 ## Show or hide the un-override control (#841). [LobbyScreen] decides this,
 ## not the row: whether a pick is "an override" depends on the preset and
-## [member LobbyScreen._picked_cores], neither of which the row can see.
+## [method LobbyRoster.is_core_overridden], neither of which the row can see.
 func set_core_overridden(overridden: bool) -> void:
 	get_node("%CoreReset").visible = overridden
 

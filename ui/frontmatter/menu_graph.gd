@@ -48,7 +48,7 @@ extends RefCounted
 class Route extends RefCounted:
 	## The mode this ROUTE asks for — not the mode the run gets. #554 D3 derives
 	## that from the roster when START is pressed
-	## ([method LobbyScreen.resolve_mode]), because "more than one non-AI camp"
+	## ([method LobbyRoster.resolve_mode]), because "more than one non-AI camp"
 	## is not knowable at the moment a button is pressed. Host and Join both ask
 	## for COOP_HOTSEAT here and both come out VERSUS.
 	var requested_mode: RunConfig.Mode = RunConfig.Mode.SINGLE

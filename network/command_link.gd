@@ -735,7 +735,7 @@ func send_lobby_roster(roster: ParticipantRoster) -> void:
 
 
 ## #714 send side, client-only: one seat's changed fields. [param pick] is built
-## by the lobby (see [method LobbyScreen.encode_pick]) and crosses verbatim.
+## by the lobby (see [method LobbyRoster.encode_pick]) and crosses verbatim.
 func send_lobby_pick(pick: Dictionary) -> void:
 	if transport == null or mode != Mode.MIRROR or pick.is_empty():
 		return

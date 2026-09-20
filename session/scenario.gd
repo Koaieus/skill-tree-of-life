@@ -12,7 +12,7 @@ extends Resource
 ## No — participants carry peer ids, picked colours, picked camps. That is
 ## lobby OUTPUT, never authored content.
 ##
-## No mode field (#597 D11a) — [method LobbyScreen.resolve_mode] stays the sole
+## No mode field (#597 D11a) — [method LobbyRoster.resolve_mode] stays the sole
 ## mode authority, deriving it from the roster at press time. A [Scenario]
 ## cannot know in advance how many humans will end up sharing a camp.
 ##
