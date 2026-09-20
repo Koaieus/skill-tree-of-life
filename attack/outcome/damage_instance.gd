@@ -15,6 +15,12 @@ enum Type {
 }
 
 var type: Type = Type.PHYSICAL
+## `true` only on the TRUE damage [method NodeCombat.heal_damage] mints when a
+## heal's `healing_received` product goes negative (#966, Wither). The single
+## damage path that does NOT close D-9's regen gate (`_damaged_since_upkeep`)
+## — the withered node keeps "regenerating" itself to death. Never set by an
+## attack.
+var from_withered_heal: bool = false
 
 
 func _init() -> void:

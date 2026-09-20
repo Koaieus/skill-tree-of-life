@@ -379,11 +379,14 @@ func take_damage(amount: float, source: Variant) -> void:
 			# mitigated amount, or a killing blow's floater under-reports.
 			(source as DamageInstance).effective_amount = effective
 	var soaked: float = before - hp.current
-	if soaked > 0.0 and host != null:
+	if soaked > 0.0 and host != null and not raw.from_withered_heal:
 		# D-9: any actual HP loss marks this node "damaged since last
 		# upkeep" — apply_turn_regen() reads and clears this at turn start.
 		# Regen upkeep is a per-turn, host-only concern; a shadow never sees a
-		# turn boundary, so there is nothing for it to gate.
+		# turn boundary, so there is nothing for it to gate. The one exception
+		# (#966): a heal inverted by `healing_received < 0` is damage that
+		# leaves the gate open, so the ramp keeps climbing — see
+		# [method _withered_heal].
 		host._damaged_since_upkeep = true
 	if host != null:
 		host.notify_damaged(before, hp.current, effective, source)
@@ -510,6 +513,21 @@ func heal_damage(amount: float, source: Variant) -> void:
 	var hp := _hp_pool()
 	if hp == null:
 		return
+	# #966: the ONE door every heal takes, so `healing_received` is applied
+	# here exactly once — AFTER the raw-amount guard above (a negative raw
+	# amount times a negative multiplier must not heal). Node-local read,
+	# live and shadow alike.
+	amount *= float(get_local_value(&"healing_received"))
+	if amount < 0.0:
+		_withered_heal(-amount, source)
+		return
+	if amount <= 0.0:
+		# Blocked outright: nothing moves, no `healed` signal, and a
+		# HealInstance reports 0 so its cure (HealInstance.land_on →
+		# cure_debuffs) is the no-op the spec wants.
+		if source is HealInstance:
+			(source as HealInstance).effective_amount = 0.0
+		return
 	var prev := hp.current
 	hp.set_current(min(hp.current + amount, hp.value))
 	var effective := hp.current - prev
@@ -529,6 +547,32 @@ func heal_damage(amount: float, source: Variant) -> void:
 		hit.hp_max = get_max_hp()
 	if host != null:
 		host.notify_healed(prev, hp.current, effective, source)
+
+
+## A heal whose `healing_received` product went below zero (#966, Wither past
+## 10 stacks): [param damage] TRUE damage lands through [method take_damage]
+## like any other hit — same bar, same core overflow, same depletion cascade —
+## but flagged [member DamageInstance.from_withered_heal] so it never sets
+## `_damaged_since_upkeep`. Owner (2026-09-20): "it ruins your healing to
+## making you effectively undead" — the regen ramp keeps climbing and the
+## node heals itself to death. The heal's own [HealInstance], when there is
+## one, reports `effective_amount = 0` (a negative heal cures nothing) but
+## still carries the bar numbers so a peer draws the drop. Its `kind` stays
+## HEAL — [HealInstance] promises never to reclassify — so the floater reads
+## as a 0 heal while the bar falls; a presentation follow-up, not this unit.
+func _withered_heal(damage: float, source: Variant) -> void:
+	var di := DamageInstance.new()
+	di.type = DamageInstance.Type.TRUE
+	di.amount = damage
+	di.from_withered_heal = true
+	take_damage(damage, di)
+	if source is HealInstance:
+		(source as HealInstance).effective_amount = 0.0
+	if source is HitInstance:
+		var hit := source as HitInstance
+		hit.hp_before = di.hp_before
+		hit.hp_after = di.hp_after
+		hit.hp_max = di.hp_max
 
 
 ## State half of [method SkillNode.refill]. The notification half is
