@@ -245,6 +245,12 @@ func test_the_needle_does_not_drop_until_the_charge_has_finished() -> void:
 	assert_eq(_polygons_under(_frontmatter.view_for(_root())), before,
 			"and no needle: the BOOM has not happened")
 
+	# #854 hazard: a single frame this fat is exactly what a cold `.godot`
+	# cache produces for free, compiling the ChargeGlow/spike shaders on the
+	# charge's first live frame. Forcing it here makes the failure
+	# reproducible on a warm cache too, instead of only in a fresh worktree.
+	OS.delay_msec(300)
+
 	# Into the charge, but short of its end.
 	await get_tree().create_timer(0.15).timeout
 	assert_eq(_polygons_under(_frontmatter.view_for(_root())), before,
