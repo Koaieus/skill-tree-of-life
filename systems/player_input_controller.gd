@@ -28,12 +28,6 @@ const ZLayers = preload("res://ui/z_layers.gd")
 ## stays self-contained; promote to an action if rebinding is ever wanted.
 const _DEALLOC_KEY := KEY_D
 
-## Physical key that reloads the quiver while the RANGED plan is armed (#957,
-## the bare input until the Quiver tray #954 lands). Same self-contained shape
-## as [constant _DEALLOC_KEY]; `R` outside ranged mode keeps meaning "re-form
-## the last blade" (`ui_reform_blade`, #466).
-const _RELOAD_KEY := KEY_R
-
 ## Core-move drag (#21). Cursor must leave the core by this many world px before
 ## a press-hold counts as a drag (so a plain click still routes to click-to-move).
 const CORE_DRAG_THRESHOLD := 10.0
@@ -393,10 +387,9 @@ func request_end_turn() -> void:
 
 
 ## Submit a [ReloadCommand] for the acting player (#957). Only while the
-## ranged plan is armed — the key it hangs off is shared with the blade
-## re-form — and only when the player can act and can pay. Returns whether a
-## command was submitted, so the key handler knows whether to consume the
-## event.
+## ranged plan is armed, and only when the player can act and can pay. Returns
+## whether a command was submitted. The `ui_reload` key reaches this through
+## [method reload_in_hand]; the ranged tray's button calls it directly.
 func request_reload() -> bool:
 	if player == null or battle_system == null:
 		return false
@@ -597,6 +590,19 @@ func can_reform() -> bool:
 	return MeleeAttackPlan.can_reform_selection(player, pivot, members)
 
 
+## The `ui_reload` action: re-arm whatever weapon is in hand. The ARMED LEVEL
+## owns the verb — [method ArmedMode.reload] — so a ranged plan refills its
+## quiver and a melee plan re-forms its blade, and the two handlers are never
+## live at once. With nothing armed it is #466's global accelerator: re-form
+## the last blade, which arms melee itself. Returns whether the key was
+## consumed; false leaves it free for anything downstream.
+func reload_in_hand() -> bool:
+	for m in _armed_modes:
+		if m.is_armed() and m.reload():
+			return true
+	return reform_blade()
+
+
 ## Rebuild the player's last launched blade — pivot, members and swing
 ## direction — leaving the launch itself to them, so the shape can still be
 ## tweaked (or a temp upgrade added) before it commits.
@@ -719,18 +725,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"ui_cancel") and _pop_armed_mode():
 		get_viewport().set_input_as_handled()
 		return
-	# R in RANGED mode reloads the quiver (#957): one [ReloadCommand], 1 AP,
-	# through the applier like every other verb. Checked before the blade
-	# re-form below, which also sits on R.
-	if event is InputEventKey and not event.echo \
-			and (event as InputEventKey).physical_keycode == _RELOAD_KEY \
-			and request_reload():
-		get_viewport().set_input_as_handled()
-		return
-	# R re-forms the last launched blade (#466), from any mode — it arms melee
-	# itself. Unhandled when there is nothing to reform, so the key stays free
-	# for anything downstream.
-	if event.is_action_pressed(&"ui_reform_blade") and reform_blade():
+	if event.is_action_pressed(&"ui_reload") and reload_in_hand():
 		get_viewport().set_input_as_handled()
 		return
 	# Z / X arm the temp-upgrade cards by CATALOG INDEX, never by name (#718).

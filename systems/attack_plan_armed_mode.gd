@@ -36,6 +36,22 @@ func pop() -> bool:
 	return true
 
 
+## The plan's own reading of "reload": a [RangedAttackPlan] refills its
+## quiver (#957), a [MeleeAttackPlan] re-forms the last launched blade (#466).
+## Whichever is armed is the only handler that exists — there is no ordering
+## between them because they are never both live. Magic has no reload, so the
+## key stays free for whatever sits beneath.
+func reload() -> bool:
+	var plan := _ctl._active_attack_plan()
+	if plan is RangedAttackPlan:
+		_ctl.request_reload()
+		return true
+	if plan is MeleeAttackPlan:
+		_ctl.reform_blade()
+		return true
+	return false
+
+
 ## The armed mode's identity colour, at its authored `StatDef` value.
 ##
 ## **Returned UNLIFTED — no `Emissive` call here.** How loud the glow burns is a

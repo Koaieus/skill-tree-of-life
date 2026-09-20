@@ -17,6 +17,17 @@ func pop() -> bool:
 	return false
 
 
+## Handle the `ui_reload` action — "re-arm the weapon in hand". Returns true
+## when this level CONSUMED the key, whether or not the re-arm succeeded: the
+## armed level owns the verb, so a refusal (empty quiver, no AP) is still its
+## answer and never falls through to a lower level's meaning of the same key.
+## `false` means "not mine, keep walking", the same fall-through rule as
+## [method icon]. Only [AttackPlanArmedMode] answers today — ranged reloads
+## the quiver, melee re-forms the last blade.
+func reload() -> bool:
+	return false
+
+
 ## The identity colour this level lends to the viewport armed-mode glow
 ## (#412), or a transparent colour for "this level shows no glow".
 ##

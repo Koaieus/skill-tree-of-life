@@ -285,7 +285,7 @@ replayable.
   than reordered.
 - **Restoring the swing direction writes `BattleSystem.next_melee_cw`**, not
   just `plan.swing_cw` — the tray's toggle label reads the sticky preference.
-- Surfaced as the melee tray's Reform button and the `ui_reform_blade` action
+- Surfaced as the melee tray's Reform button and the `ui_reload` action (R — the armed level decides whether R means re-form or quiver reload, see `ArmedMode.reload`)
   (**R**). It rebuilds only; Launch stays the player's call. Temp upgrades are
   *not* restored (a second all-or-nothing gate sharing the same budget, which
   would need rollback semantics) — parked in the issue's NOTES.
