@@ -10,11 +10,22 @@ extends GutTest
 ## replay queue can know a cascade is still going, and that is [XpTrack].
 ##
 ## So the two properties worth pinning are (a) one flourish spans the whole
-## cascade and counts up, released exactly once at the end, and (b) the whole
-## replay fits in the couple of seconds a player will actually watch.
+## cascade and counts up, released exactly once at the end, and (b) a level
+## costs a level to watch, however many are queued behind it.
+##
+## [b]No clock in here (#981).[/b] The flourish's dwell is a schedule stepped
+## with [method LevelUpFlourish.advance]; a beat is the gauge's own
+## [signal PoolGauge.level_segment_held], emitted from the test rather than
+## awaited off its tween; the pace is read off [method PoolGauge.fill_duration_for].
+## The one real-clock run of this feature is
+## `test/integration/ui/test_xp_track_real_clock.gd`. Never `await` between a
+## `release()` and the `advance()` that closes it — the flourish is in the tree
+## and `_process` would feed real delta into the dwell being stepped.
 
 const _TRACK_SCENE := preload("res://ui/hud/xp_track/xp_track.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
+## An input, never the shipped `@export` default.
+const _DWELL := 1.0
 
 var _track: XpTrack
 var _entity: Entity
@@ -39,13 +50,7 @@ func before_each() -> void:
 
 	_gauge = _track.get_node("%XPGauge") as PoolGauge
 	_flourish = _track.get_node("%LevelUpFlourish") as LevelUpFlourish
-	# Fixed, fast timings — the ORDER and the counting are what's under test
-	# here, not the wall clock. The budget is measured separately, against the
-	# shipped rate-based gauge.
-	_gauge.fill_speed = 0.0
-	_gauge.level_up_fill_time = 0.05
-	_gauge.level_up_wrap_time = 0.02
-	_gauge.level_up_hold_time = 0.02
+	_flourish.min_dwell = _DWELL
 
 	_stamps = []
 	_track.bind(_entity)
@@ -63,48 +68,45 @@ func _flourish_title() -> String:
 	return (_flourish.get_node("%Title") as Label).text
 
 
-## Runs the replay to completion AND past the flourish's dwell — the count
-## resets when the flourish has actually left, not when the queue drained, so
-## `min_dwell` is real wall-clock time this has to cover.
-##
-## `min_dwell` is post-cascade presentation pacing (`LevelUpFlourish.release()`
-## reads it only when the cascade drains) — not part of what these assertions
-## check (ordering, counts, resets). Overriding it here, before any stamp has
-## a chance to call `release()`, is the same test-only-override pattern
-## sanctioned for `AIController.turn_delay` in 8917a81: it collapses an
-## artificial ~2s wait per call without touching what's asserted. Scoped to
-## `_settle()` alone, restored after — `test_a_single_level_still_dwells` and
-## `test_rebinding_cuts_a_live_flourish` check `_open` against the SHIPPED
-## `min_dwell` at a fixed wait and would break if this leaked into `before_each`.
-func _settle() -> void:
-	var _shipped_dwell := _flourish.min_dwell
-	_flourish.min_dwell = 0.05
-	for i in 60:
-		await get_tree().process_frame
-		await wait_seconds(0.01)
-	await wait_seconds(_flourish.min_dwell + 0.2)
-	_flourish.min_dwell = _shipped_dwell
+## One beat at the full bar, driven at the gauge's own seam. The cap it hands
+## over is what the track would have been told by the tween.
+func _beat(new_max: float) -> void:
+	_gauge.level_segment_held.emit(new_max)
+
+
+## Grant `amount` and play every level it crossed as a beat, synchronously.
+## Returns the number of levels narrated. No frame passes, so the deferred
+## replay never starts a tween behind these beats.
+func _cascade(amount: float) -> int:
+	var seq := PoolLevelSequencer.new(float(_entity.stat_board.xp.value))
+	var xp: PoolStat = _entity.stat_board.xp
+	var observe := func(): seq.observe(float(xp.current), float(xp.value))
+	xp.value_changed.connect(observe)
+	xp.replenish(amount)
+	xp.value_changed.disconnect(observe)
+	var segments := seq.pending()
+	for segment in segments:
+		_beat(segment.new_max)
+	return segments.size()
 
 
 ## #981 — the dwell is a schedule the test steps by hand, not a SceneTreeTimer
-## only the wall clock can move. `min_dwell` is an INPUT here, never the
-## shipped default.
+## only the wall clock can move.
 func test_release_closes_after_min_dwell_of_stepped_delta() -> void:
-	_flourish.min_dwell = 1.0
 	_flourish.stamp(2, 3, 1)
 	_flourish.release()
-	_flourish.advance(0.5)
+	_flourish.advance(0.5 * _DWELL)
 	assert_true(_flourish.is_open(), "half the dwell served: still on screen")
-	_flourish.advance(0.5)
+	_flourish.advance(0.5 * _DWELL)
 	assert_false(_flourish.is_open(), "the dwell is served on delta alone: closed")
 
 
 ## The headline fix. Four levels in one grant produce ONE element counting to
 ## ×4 — never a second announcement opening behind the first.
 func test_a_four_level_cascade_counts_up_on_one_flourish() -> void:
-	_entity.stat_board.xp.replenish(200.0)
-	await _settle()
-	assert_gte(_stamps.size(), 4, "four levels were narrated")
+	var narrated := _cascade(200.0)
+	assert_gte(narrated, 4, "four levels were narrated")
+	assert_eq(_stamps.size(), narrated, "one beat per level, on one flourish")
 	assert_eq(_stamps[0], "L E V E L   U P", "the first beat carries no count")
 	assert_eq(_stamps[1], "L E V E L   U P  ×2")
 	assert_eq(_stamps[3], "L E V E L   U P  ×4", "the fourth beat re-stamps in place")
@@ -114,8 +116,7 @@ func test_a_four_level_cascade_counts_up_on_one_flourish() -> void:
 ## already at the end of the cascade — so the every-5th-level milestone lands on
 ## the beat that earned it.
 func test_the_sp_total_accumulates_the_levels_actually_narrated() -> void:
-	_entity.stat_board.xp.replenish(200.0)
-	await _settle()
+	_cascade(200.0)
 	# The cascade starts at level 1, so the levels narrated are 2..(1 + beats).
 	var final_level := 1 + _stamps.size()
 	var expected := 0
@@ -134,14 +135,18 @@ func test_the_sp_total_accumulates_the_levels_actually_narrated() -> void:
 
 
 ## Released once, at the drain — not per beat, and not while levels are still
-## queued. This is the property the center banner could not have.
+## queued. This is the property the center banner could not have: a beat never
+## closes it, only the release the track sends when its queue is empty does.
 func test_the_flourish_is_held_until_the_queue_drains() -> void:
-	_entity.stat_board.xp.replenish(200.0)
-	# Mid-cascade: at least one beat played and more are still queued.
-	await wait_seconds(0.12)
-	assert_true(_flourish._open, "still on screen while the cascade runs")
-	await _settle()
+	watch_signals(_flourish)
+	_cascade(20.0)  # two levels
+	assert_true(_flourish.is_open(), "still on screen while the cascade runs")
+	_flourish.advance(_DWELL * 2.0)
+	assert_true(_flourish.is_open(), "no release yet, so no amount of time closes it")
+	_flourish.release()
+	_flourish.advance(_DWELL)
 	assert_false(_flourish.is_open(), "and it left once the queue drained")
+	assert_signal_emit_count(_flourish, "closed", 1, "released exactly once")
 	assert_eq(_track._cascade_stack, 0, "the count resets when it actually leaves")
 
 
@@ -150,35 +155,38 @@ func test_the_flourish_is_held_until_the_queue_drains() -> void:
 ## reset at release and a late level makes "×4" drop back to a bare "L E V E L
 ## U P", which is a smaller version of the very bug this replaces.
 func test_a_level_landing_during_the_dwell_keeps_counting() -> void:
-	_entity.stat_board.xp.replenish(60.0)  # four levels
-	# Wait for the queue to drain, then act INSIDE the dwell — polling on the
-	# beats rather than sleeping a guessed interval, which would race the dwell.
-	while _stamps.size() < 4:
-		await get_tree().process_frame
+	var before := _cascade(60.0)  # four levels
+	_flourish.release()
+	_flourish.advance(0.5 * _DWELL)
 	assert_true(_flourish.is_open(), "sanity: drained, but still on screen")
-	var before := _stamps.size()
 
-	_entity.stat_board.xp.replenish(200.0)
-	while _stamps.size() == before:
-		await get_tree().process_frame
-	assert_eq(_flourish_title(), "L E V E L   U P  ×%d" % (before + 1),
+	var late := _cascade(200.0)
+	assert_eq(_stamps[before], "L E V E L   U P  ×%d" % (before + 1),
 			"the late level continued the count instead of re-opening at ×1")
+	assert_eq(_flourish_title(), "L E V E L   U P  ×%d" % (before + late),
+			"and the cascade kept counting from there")
+	_flourish.advance(_DWELL)
+	assert_true(_flourish.is_open(), "the stamp disarmed the pending release")
 
 
 ## A single level still gets a readable dwell — the failure mode of a bar-local
 ## flourish is flashing and vanishing inside the wrap.
 func test_a_single_level_still_dwells() -> void:
-	_entity.stat_board.xp.replenish(7.0)
-	await wait_seconds(0.25)
-	assert_true(_flourish._open, "one level is not a flash")
+	_cascade(7.0)
+	_flourish.release()
+	_flourish.advance(_DWELL - 0.01)
+	assert_true(_flourish.is_open(), "one level is not a flash")
+	_flourish.advance(0.02)
+	assert_false(_flourish.is_open(), "and it leaves once the dwell is served")
 
 
 ## Rebinding to another hero cuts the flourish rather than letting it finish
 ## narrating the previous hero's levels over the new one's bar (#459 hot-seat).
 func test_rebinding_cuts_a_live_flourish() -> void:
-	_entity.stat_board.xp.replenish(200.0)
-	await wait_seconds(0.12)
-	assert_true(_flourish._open, "sanity: a cascade is on screen")
+	watch_signals(_flourish)
+	_cascade(20.0)
+	_flourish.advance(0.1)
+	assert_true(_flourish.is_open(), "sanity: a cascade is on screen")
 	var other := Entity.new()
 	autofree(other)
 	other.display_name = "Other"
@@ -186,8 +194,11 @@ func test_rebinding_cuts_a_live_flourish() -> void:
 	add_child(other)
 	await get_tree().process_frame
 	_track.bind(other)
-	assert_false(_flourish._open, "the previous hero's flourish is gone")
+	assert_false(_flourish.is_open(), "the previous hero's flourish is gone")
+	assert_signal_emit_count(_flourish, "closed", 1, "closed once, on the cut")
 	assert_eq(_track._cascade_stack, 0, "and its count with it")
+	_flourish.advance(_DWELL * 2.0)
+	assert_signal_emit_count(_flourish, "closed", 1, "no dwell survives the cut")
 	other.get_parent().remove_child(other)
 
 
@@ -200,49 +211,55 @@ func test_rebinding_cuts_a_live_flourish() -> void:
 ## 4 levels at once takes more or less twice as long as gaining 2 levels,
 ## that's all fine — revel in your gains a bit longer."[/i]
 ##
-## So the property is a RATIO, not a ceiling: measure the per-level pace of a
-## two-level cascade and a four-level one at the shipped gauge settings, and
-## they must match. A budget that divides by the queue depth fails this.
+## So the property is a RATIO, not a ceiling: the per-level fill a two-level
+## cascade and a four-level one schedule at the shipped gauge settings must
+## match. The gauge is the pace owner, so the pace is read off it directly —
+## no stopwatch. A budget that divides by the queue depth fails this.
 func test_the_per_level_pace_does_not_depend_on_how_many_levels_land() -> void:
-	_use_shipped_timings()
-	var two := await _time_cascade(20.0, 2)   # 20 XP off a fresh board = 2 levels
-	after_each()
-	await before_each()
-	_use_shipped_timings()
-	var four := await _time_cascade(60.0, 4)  # 60 XP = 4 levels
-
-	# Measured spread between the two is ~2% (1.300s vs 1.327s), so 15% is
-	# loose enough not to flake and far tighter than any depth-scaling scheme
-	# could sneak through: dividing a fixed total by the queue would put these
-	# 40%+ apart.
-	assert_almost_eq(four, two, two * 0.15,
-			"a level costs a level, whether it is one of two or one of four")
+	var gauge := PoolGauge.new()
+	autofree(gauge)
+	_use_shipped_timings(gauge)
+	var two := _schedule(gauge, 20.0)   # 20 XP off a fresh board = 2 levels
+	var four := _schedule(gauge, 60.0)  # 60 XP = 4 levels
+	assert_eq(two.size(), 2, "20 XP is exactly 2 levels off a fresh board")
+	assert_eq(four.size(), 4, "60 XP is exactly 4 levels off a fresh board")
+	for k in two.size():
+		assert_almost_eq(four[k], two[k], 0.001,
+				"level %d costs a level, whether it is one of two or one of four" % (k + 2))
+	for k in four.size():
+		assert_almost_eq(four[k], four[0], 0.001, "and every level in the cascade costs the same")
 	# The same fact stated the way the owner asked for it: four levels is twice
 	# the watch time of two, not the same.
-	assert_almost_eq(four * 4.0, (two * 2.0) * 2.0, two * 2.0 * 0.3,
-			"four levels take about twice as long to watch as two")
+	assert_almost_eq(_sum(four), 2.0 * _sum(two), 0.001,
+			"four levels take twice as long to watch as two")
 
 
-## Restores the gauge to what the HUD actually ships, undoing before_each's
-## fast fixture — a pacing test that ran on the fixture would measure nothing.
-func _use_shipped_timings() -> void:
-	_gauge.fill_speed = 0.9
-	_gauge.level_up_fill_time = 0.35
-	_gauge.level_up_wrap_time = 0.10
-	_gauge.level_up_hold_time = 0.15
+## What the HUD actually ships — a pacing read on a fixture rate would measure
+## nothing.
+func _use_shipped_timings(gauge: PoolGauge) -> void:
+	gauge.fill_speed = 0.9
+	gauge.level_up_fill_time = 0.35
+	gauge.level_up_wrap_time = 0.10
+	gauge.level_up_hold_time = 0.15
 
 
-## Grant `amount`, wait for exactly `expected` beats, and return the average
-## seconds per level. Fails the test if the grant did not cross that many caps.
-func _time_cascade(amount: float, expected: int) -> float:
-	var beats: Array[float] = []
-	_track.level_reached.connect(func(_l: int): beats.append(float(Time.get_ticks_msec())))
-	var started := float(Time.get_ticks_msec())
-	_entity.stat_board.xp.replenish(amount)
-	while beats.size() < expected and (float(Time.get_ticks_msec()) - started) < 12000.0:
-		await get_tree().process_frame
-	assert_eq(beats.size(), expected,
-			"%s XP is exactly %d levels off a fresh board" % [amount, expected])
-	if beats.size() < expected:
-		return 0.0
-	return ((beats[expected - 1] - started) / 1000.0) / float(expected)
+## The per-level fill durations `gauge` schedules for a grant of `amount` off a
+## fresh board: each segment fills from empty to the cap it crossed, against
+## that cap.
+func _schedule(gauge: PoolGauge, amount: float) -> Array[float]:
+	var board := _BOARD.duplicate(true) as EntityStatBoard
+	var xp: PoolStat = board.xp
+	var seq := PoolLevelSequencer.new(float(xp.value))
+	xp.value_changed.connect(func(): seq.observe(float(xp.current), float(xp.value)))
+	xp.replenish(amount)
+	var out: Array[float] = []
+	for segment in seq.pending():
+		out.append(gauge.fill_duration_for(gauge.min_value, segment.fill_to, segment.fill_to))
+	return out
+
+
+func _sum(values: Array[float]) -> float:
+	var total := 0.0
+	for v in values:
+		total += v
+	return total

@@ -363,6 +363,13 @@ func play_level_up(old_current: float, old_max: float, new_current: float, new_m
 	play_level_segment(old_max, new_max)
 
 
+## The pace, readable without a clock: what [method _fill_duration] would give a
+## fill `from_value` → `to_value` against a bar whose top is `span_max`. Pure —
+## the level-pace test reads it instead of stopwatching a cascade (#981).
+func fill_duration_for(from_value: float, to_value: float, span_max: float) -> float:
+	return _fill_duration(from_value, to_value, span_max)
+
+
 ## How long a fill covering `from_value` → `to_value` should take, against a bar
 ## whose top is `span_max`. Flat `level_up_fill_time` unless [member fill_speed]
 ## opts into a constant rate.
