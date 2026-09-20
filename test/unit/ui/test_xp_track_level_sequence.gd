@@ -5,8 +5,17 @@ extends GutTest
 ## gauge beat per level, and THAT is what paces the level readout, the Hero
 ## Sigil's badge and the LEVEL UP banner.
 ##
-## This is the acceptance criterion most likely to rot silently, because none
-## of it is visible in a single frame — it only exists as timing.
+## [b]No clock in here (#981).[/b] "Which segment fills at which XP value" is
+## [method PoolLevelSequencer.pending] after the grant — a table, the same one
+## the track pops from. "The readout follows the bar" and "the badge rides the
+## same beat" are asserted at the gauge's own [signal PoolGauge.level_segment_held],
+## emitted from the test rather than awaited off its tween. Whether the track
+## then chains every segment through the gauge on the real clock, and where the
+## bar settles, is `test/integration/ui/test_xp_track_real_clock.gd`.
+##
+## Never `await` after a grant in a test that then beats by hand: the track's
+## deferred replay would start the real tween behind those beats and fire the
+## same signal a second time.
 
 const _TRACK_SCENE := preload("res://ui/hud/xp_track/xp_track.tscn")
 const _CARD_SCENE := preload("res://ui/hud/hero_sigil_card/hero_sigil_card.tscn")
@@ -16,6 +25,9 @@ var _track: XpTrack
 var _entity: Entity
 var _gauge: PoolGauge
 var _levels: Array[int] = []
+## The test's own read of the schedule, recorded off the pool exactly as the
+## track records its (`value_changed`, ascending).
+var _seq: PoolLevelSequencer
 
 
 func before_each() -> void:
@@ -33,14 +45,9 @@ func before_each() -> void:
 	await get_tree().process_frame  # _ready wires xp.replenished -> level-up
 
 	_gauge = _track.get_node("%XPGauge") as PoolGauge
-	# Fast, FIXED timings: the ordering under test is preserved, the wall-clock
-	# isn't. `fill_speed = 0` is what pins that — the shipped gauge is rate-based
-	# (#320), and three real-speed segments would outrun `_settle()`'s frame
-	# budget and leave the ordering assertions reading incomplete state.
-	_gauge.fill_speed = 0.0
-	_gauge.level_up_fill_time = 0.05
-	_gauge.level_up_wrap_time = 0.02
-	_gauge.level_up_hold_time = 0.02
+	var xp: PoolStat = _entity.stat_board.xp
+	_seq = PoolLevelSequencer.new(float(xp.value))
+	xp.value_changed.connect(func(): _seq.observe(float(xp.current), float(xp.value)))
 
 	_levels = []
 	_track.bind(_entity)
@@ -52,39 +59,44 @@ func after_each() -> void:
 		_entity.get_parent().remove_child(_entity)
 
 
-## Runs the replay to completion. Generous: each level is fill+hold+wrap plus a
-## deferred hop between beats.
-##
-## Tried dropping the per-tick `wait_seconds(0.01)` (bare `process_frame`
-## ticks, same 60-tick ceiling) — passed 3/3 runs here in isolation, but the
-## identical loop in test_level_up_flourish.gd flaked on
-## `test_the_flourish_is_held_until_the_queue_drains` under the SAME change:
-## with no explicit floor, 60 ticks' real wall time tracks engine/CPU load
-## rather than a guaranteed minimum, so the margin against a real multi-level
-## cascade shrinks exactly when the box is busiest — which it demonstrably
-## is right now (concurrent swarm workers). Reverted; not safe to ship.
-func _settle() -> void:
-	for i in 60:
-		await get_tree().process_frame
-		await wait_seconds(0.01)
+func _fill_tos() -> Array:
+	return _seq.pending().map(func(s): return s.fill_to)
 
 
-func test_one_level_reaches_once_and_settles_on_the_pool() -> void:
+func _new_maxes() -> Array:
+	return _seq.pending().map(func(s): return s.new_max)
+
+
+## One beat at the full bar, at the gauge's own seam.
+func _beat(new_max: float) -> void:
+	_gauge.level_segment_held.emit(new_max)
+
+
+## Beat every segment the schedule holds, in order.
+func _beat_all() -> void:
+	for segment in _seq.pending():
+		_beat(segment.new_max)
+
+
+func test_one_level_reaches_once_and_carries_the_overflow() -> void:
 	_entity.stat_board.xp.replenish(7.0)
-	await _settle()
+	assert_eq(_fill_tos(), [5.0], "one segment: fill to the cap reached")
+	assert_eq(_new_maxes(), [10.0], "then adopt the grown cap")
+	_beat_all()
 	assert_eq(_levels, [2] as Array[int], "one beat, one level")
-	assert_almost_eq(_gauge.max_value, 10.0, 0.01, "settled on the grown cap")
-	assert_almost_eq(_gauge.current, 2.0, 0.05, "settled on the carried overflow")
+	assert_almost_eq(float(_entity.stat_board.xp.current), 2.0, 0.01,
+			"the settle target is the carried overflow (sanity)")
 
 
 ## The bug #317 names: `_xp_leveled` was a bare bool, so a 2-level cascade
 ## played exactly one fill→wrap→fill.
 func test_a_two_level_cascade_plays_one_beat_per_level_in_order() -> void:
 	_entity.stat_board.xp.replenish(20.0)
-	await _settle()
+	assert_eq(_fill_tos(), [5.0, 10.0], "ascending, one segment per level crossed")
+	assert_eq(_new_maxes(), [10.0, 15.0], "each on its own new cap")
+	_beat_all()
 	assert_eq(_levels, [2, 3] as Array[int], "ascending, one per level crossed")
 	assert_eq(_entity.level, 3, "and the model agrees (sanity)")
-	assert_almost_eq(_gauge.max_value, 15.0, 0.01, "settled on the final cap")
 
 
 func test_the_level_readout_follows_the_bar_not_the_model() -> void:
@@ -94,8 +106,10 @@ func test_the_level_readout_follows_the_bar_not_the_model() -> void:
 	# The model has already applied BOTH levels synchronously...
 	assert_eq(_entity.level, 3, "model is instant")
 	assert_eq(label.text, "LEVEL 1", "...but the readout waits for the bar to say so")
-	await _settle()
-	assert_eq(label.text, "LEVEL 3", "and catches up beat by beat")
+	_beat(10.0)
+	assert_eq(label.text, "LEVEL 2", "and catches up beat by beat")
+	_beat(15.0)
+	assert_eq(label.text, "LEVEL 3")
 
 
 ## The Hero Sigil's badge is driven from here by HudRoot (#320), so badge,
@@ -111,8 +125,10 @@ func test_the_hero_sigil_badge_rides_the_same_beat() -> void:
 
 	_entity.stat_board.xp.replenish(20.0)
 	assert_eq(badge.text, "1", "not yanked forward by the model's instant level-up")
-	await _settle()
-	assert_eq(badge.text, "3", "bumped by the gauge's beats")
+	_beat(10.0)
+	assert_eq(badge.text, "2", "bumped by the gauge's beat")
+	_beat(15.0)
+	assert_eq(badge.text, "3", "beat by beat")
 
 
 ## A level that never crosses an XP cap produces no beat — `level` is an ordinary
@@ -130,7 +146,11 @@ func test_a_level_granted_outside_the_xp_pool_still_reaches_both_readouts() -> v
 
 	_entity.stat_board.level.base_value += 1  # no XP, no cap crossed, no beat
 	_entity.stat_board.xp.replenish(1.0)      # a plain gain, to force a settle
-	await _settle()
+	assert_false(_seq.has_pending(), "no cap crossed, so nothing to narrate")
+	# The deferred hop into the settle phase, then the settle's own end signal
+	# at the gauge's seam — the re-sync edge.
+	await get_tree().process_frame
+	_gauge.fill_finished.emit()
 
 	assert_eq(_levels, [] as Array[int], "no cap crossed, so nothing to narrate")
 	assert_eq(label.text, "LEVEL 2", "the track re-syncs on settle")
@@ -156,22 +176,22 @@ func test_the_hero_sigil_card_no_longer_binds_the_xp_pool() -> void:
 ## income source and routinely lands while a kill's replay is still playing.
 func test_xp_landing_mid_replay_is_not_swallowed() -> void:
 	_entity.stat_board.xp.replenish(20.0)
-	await get_tree().process_frame
-	await wait_seconds(0.03)  # mid-cascade, first segment still filling
+	_beat(10.0)  # mid-cascade: the first level landed, the second is queued
 	_entity.stat_board.xp.replenish(2.0)
-	await _settle()
-	assert_eq(_levels, [2, 3] as Array[int], "the late grant crossed no extra level")
-	assert_almost_eq(_gauge.current, float(_entity.stat_board.xp.current), 0.05,
-			"the bar settles on the pool's LIVE value, including the interrupt")
+	assert_eq(_fill_tos(), [5.0, 10.0], "the late grant crossed no extra level")
+	_beat(15.0)
+	assert_eq(_levels, [2, 3] as Array[int], "one beat per level, still")
+	assert_almost_eq(float(_entity.stat_board.xp.current), 7.0, 0.01,
+			"the settle target reads the pool's LIVE value, including the interrupt")
 
 
 func test_a_late_grant_that_levels_gets_its_own_beat() -> void:
 	_entity.stat_board.xp.replenish(7.0)
-	await get_tree().process_frame
 	# 30 more from 2/10 crosses two further caps (10 and 15), so the replay
-	# queue must grow while its first segment is already playing.
+	# queue must grow behind the segment already recorded.
 	_entity.stat_board.xp.replenish(30.0)
-	await _settle()
+	assert_eq(_fill_tos(), [5.0, 10.0, 15.0], "appended, ascending")
+	_beat_all()
 	assert_eq(_levels, [2, 3, 4] as Array[int], "appended, still one beat per level")
 
 
@@ -229,6 +249,5 @@ func test_a_plain_gain_animates_to_the_new_value() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	assert_lt(_gauge.current, 3.0, "tweening, not snapped")
-	await _settle()
-	assert_almost_eq(_gauge.current, 3.0, 0.05, "arrives")
-	assert_eq(_levels, [] as Array[int], "and announces nothing")
+	assert_false(_seq.has_pending(), "and announces nothing")
+	assert_eq(_levels, [] as Array[int])
