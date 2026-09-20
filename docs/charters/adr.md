@@ -36,29 +36,37 @@ doc in context. Two things are not covered by that:
 2. **Check it is not already decided.** Grep `docs/adr/index.md` and ask the
    librarian if the topic smells settled. A hit means *supersede*, not a new
    sibling.
-3. **Quote the owner, verbatim, dated.** Every decision line traces to a
-   quote in the transcript or issue; the skill makes the author collect the
-   quotes before drafting. A paraphrase re-enters the record as the agent's
-   own conclusion, at the bottom of the authority ladder.
+3. **Quote the owner, verbatim, dated — decision sentences only.** Every
+   decision line traces to a quote in the transcript or issue, but only the
+   sentence(s) that ARE the call; never deliberation or a chat fragment that
+   needs the transcript to parse. A paraphrase re-enters the record as the
+   agent's own conclusion, at the bottom of the authority ladder.
 4. **`date:` is the decision date.** Not the file date. A record drafted a day
    later still carries the day the owner spoke.
 5. **Title is the decision, not the topic.** Actionable without opening the
    file.
-6. **Alternatives are the section that earns the format.** One subsection per
-   rejected option, why it lost, and — for a tentative decision — the named
-   trigger under which the most-likely-revived alternative comes back.
+6. **Decision drivers, named before the alternatives.** A bullet list, between
+   *Context* and *Decision*, of the criteria the options were weighed against
+   — so a future agent can check whether one has since died. Each rejected
+   alternative in §*Alternatives considered* says which driver it lost on.
 7. **Tentative is fine; unrecorded is not.** A decision the owner calls
-   tentative is still `accepted`; tentativeness is expressed as the supersede
-   trigger in *Consequences*, never as `proposed` (that status is for framing
-   a fork, and the repo's design gate is `/swarmify`, not ADR review).
-8. **Migrate the domain doc in the same commit.** If a `docs/domain/` page
+   tentative is still `accepted`, with `revisit-when:` holding the condition
+   that would reopen it (`null` otherwise) — never `proposed` (that status is
+   for framing a fork, and the repo's design gate is `/swarmify`, not ADR
+   review).
+8. **One page.** ≤ 60 lines including frontmatter. *Context* is the
+   constraints at the time, one paragraph — not a narrative of the session.
+   *Consequences* states what the decision buys and costs, never a pointer to
+   live or future work — that goes on the board, as an issue, because a link
+   to live work is what goes stale in an immutable record.
+9. **Migrate the domain doc in the same commit.** If a `docs/domain/` page
    carries the decision prose, move the dated verdict and its rejected options
    out together and leave a link; `adr-hygiene`'s decision-prose counter must
    not rise.
-9. **Index row, hygiene, commit, link back.** Add the row, run
-   `mise run adr-hygiene`, commit the record and index (explicit paths — the
-   checkout is shared), then comment the ADR path and sha on the source issue.
-10. **Supersede, never edit.** The only edit an accepted record ever receives
+10. **Index row, hygiene, commit, link back.** Add the row, run
+    `mise run adr-hygiene`, commit the record and index (explicit paths — the
+    checkout is shared), then comment the ADR path and sha on the source issue.
+11. **Supersede, never edit.** The only edit an accepted record ever receives
     is `status: superseded` + `superseded-by:`. The skill carries the
     supersede path as a first-class branch, not a footnote.
 

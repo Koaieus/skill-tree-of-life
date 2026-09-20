@@ -151,7 +151,7 @@ def main():
                                  "msg": f"missing `{section}` section"})
 
         records.append({"id": fid, "name": name, "path": path, "meta": meta,
-                        "status": status, "date": date,
+                        "status": status, "date": date, "body": body,
                         "title": meta.get("title", "")})
 
     by_id = {r["id"]: r for r in records}
@@ -208,6 +208,30 @@ def main():
                                "msg": f"{len(touches)} commits after acceptance "
                                       f"({r['date']}); an accepted ADR is superseded, "
                                       f"not edited: {touches[0]}"})
+
+    # ADVISORY: length. A record is meant to be one page.
+    for r in records:
+        n = len(r["body"].splitlines())
+        if n > 60:
+            advisories.append({"check": "length", "file": r["path"],
+                               "msg": f"{n} lines; a record is one page (<= 60)"})
+
+    # ADVISORY: revisit-when. Only records new enough to have the field —
+    # the 25 pre-existing records were written before it existed, so flagging
+    # them would just be noise on a field that never applied to them.
+    for r in records:
+        if r["status"] != "accepted":
+            continue
+        try:
+            rid = int(r["id"])
+        except ValueError:
+            continue
+        if rid < 26:
+            continue
+        if r["meta"].get("revisit-when", "__missing__") == "__missing__":
+            advisories.append({"check": "revisit-when", "file": r["path"],
+                               "msg": "accepted record missing `revisit-when:` "
+                                      "(string or null)"})
 
     # ADVISORY: the migration counter. Domain pages still holding decision prose.
     prose = []

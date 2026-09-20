@@ -1,6 +1,6 @@
 ---
 name: adr
-description: Write or supersede an Architecture Decision Record in the house format — gate whether it is an ADR at all, check it is not already decided, collect the owner's verbatim dated quotes, draft with rejected alternatives and a supersede trigger, migrate any domain-doc decision prose, index, run adr-hygiene, commit, link back to the source issue. Use when the user says "make an ADR", "record this decision", "write that up as an ADR", "supersede ADR NNNN", or when a settled architectural call has just been made with the owner and would otherwise live only in the transcript.
+description: Write or supersede an Architecture Decision Record in the house format — gate whether it is an ADR at all, check it is not already decided, collect the owner's verbatim dated decision sentences, draft one page with decision drivers, rejected alternatives and a revisit-when trigger, migrate any domain-doc decision prose, index, run adr-hygiene, commit, link back to the source issue. Use when the user says "make an ADR", "record this decision", "write that up as an ADR", "supersede ADR NNNN", or when a settled architectural call has just been made with the owner and would otherwise live only in the transcript.
 ---
 
 # ADR
@@ -31,10 +31,12 @@ not a sibling.
 
 ## 3. Collect the quotes before drafting
 
-Pull every owner sentence that carries the decision — from this transcript
-and from the source issue (`gh issue view <n> --comments`). Note the **date
-each was said**. Each line of the *Decision* section must trace to one; a
-paraphrase is your conclusion, not the owner's.
+Pull the owner sentence(s) that ARE the decision — from this transcript and
+from the source issue (`gh issue view <n> --comments`) — never the
+deliberation around them; a quote that needs the transcript to parse does not
+belong in the record. Note the **date each was said**. Each line of the
+*Decision* section must trace to one; a paraphrase is your conclusion, not
+the owner's.
 
 ## 4. Draft
 
@@ -42,14 +44,22 @@ Filename `docs/adr/NNNN-<slug>.md`, `NNNN` = highest existing + 1. Template
 and frontmatter: `docs/domain/adr.md` → *Writing one*. Checks the template
 does not make for you:
 
+- **One page: ≤ 60 lines including frontmatter.** *Context* is the
+  constraints at the time, one paragraph — not a session narrative.
 - `date:` is the day the owner decided, not today.
 - `title:` is the decision, actionable without opening the file.
+- **Decision drivers**, between *Context* and *Decision*: the criteria the
+  options were weighed against, as a bullet list — a future agent checks
+  whether one has since died.
+- **Decision**: quote only the sentence(s) that are the call, verbatim, dated.
 - `status: accepted` even when the owner calls it tentative — tentativeness
-  goes in *Consequences* as **the named trigger for superseding** (what would
-  have to become true for the most-likely-revived alternative to win).
-- *Alternatives considered*: one subsection per rejected option, why it lost,
-  which grounds are already dead. Mark the alternative most likely to be
-  revived.
+  goes in `revisit-when:` frontmatter (a string naming the condition that
+  reopens it, `null` otherwise), never into *Consequences* prose.
+- *Consequences*: what it buys and costs, nothing that can go stale — no
+  pointer to open or future work. That goes on the board, as an issue.
+- *Alternatives considered*: one subsection per rejected option, which
+  decision driver it lost on, which grounds are already dead. Mark the
+  alternative most likely to be revived.
 - `sources:` never empty — the issue, the domain doc, the files.
 
 ## 5. Migrate, index, verify, commit, link

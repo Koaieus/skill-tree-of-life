@@ -68,6 +68,11 @@ sits elsewhere.
 Filename: `docs/adr/NNNN-kebab-slug.md`, `NNNN` zero-padded, allocated by taking
 the highest existing number and adding one. Never renumber and never reuse.
 
+**A record is one page: ≤ 60 lines including frontmatter.** *Context* is the
+constraints at the time, one paragraph — not a narrative of the session that
+produced it. If it does not fit, the record is trying to also be a domain doc
+or a design doc; split it.
+
 ```markdown
 ---
 id: 0007
@@ -77,6 +82,7 @@ date: 2026-09-07            # when the DECISION was made — not when the file w
 deciders: owner             # owner | owner+agent | agent
 supersedes: []              # ids this replaces, e.g. [0002]
 superseded-by: null         # id that replaced this, once one does
+revisit-when: null          # string naming the condition that reopens this, or null
 sources:                    # provenance — issues, commits, docs. Never empty.
   - "#473"
   - "docs/domain/multiplayer-sync-model.md"
@@ -86,24 +92,38 @@ tags: [multiplayer, netcode]
 # ADR 0007 — <title>
 
 ## Context
-What was true, and what forced a choice. The constraints as they were **at the
-time** — including the ones that have since evaporated. This is the section that
-makes a superseded ADR worth keeping.
+What was true, and what forced a choice, in one paragraph — the constraints as
+they were **at the time**, including the ones that have since evaporated. This
+is the section that makes a superseded ADR worth keeping.
+
+## Decision drivers
+The criteria the options were weighed against, as a bullet list. A future agent
+reads this to check whether a driver has since died — if one has, the decision
+is up for review. Each rejected alternative below says which driver it lost on.
 
 ## Decision
 The call, in the imperative, in as few words as it takes. Quote the owner
-verbatim and dated where they made it.
+verbatim and dated — only the sentence(s) that ARE the call, never deliberation
+or a chat fragment that needs the transcript to parse.
 
 ## Consequences
-What this buys and what it costs — both, honestly. What it makes hard. What
-downstream work it implies.
+What this buys and what it costs — both, honestly. No pointers to open or
+future work: that lives on the board as an issue, because a link to live work
+is exactly what goes stale in an immutable record.
 
 ## Alternatives considered
 **The section that earns the format here.** One subsection per rejected option:
-what it was, and why it lost. Where a ground for rejection has since been
-retired, say so and say it is dead — the whole failure mode this prevents is an
-agent picking up a dead argument and re-running a settled decision on it.
+what it was, and which decision driver it lost on. Where a ground for rejection
+has since been retired, say so and say it is dead — the whole failure mode this
+prevents is an agent picking up a dead argument and re-running a settled
+decision on it.
 ```
+
+`revisit-when` replaces a supersede trigger written into *Consequences* prose.
+A tentative decision is still `status: accepted`, with `revisit-when` holding
+the condition that would reopen it (`null` for a decision nobody expects to
+revisit). It reads the same as a rejected alternative's "most likely to be
+revived" note, from the other direction.
 
 ### The title is the decision, not the topic
 
@@ -151,8 +171,9 @@ Same contract as `rules-hygiene` and `gh-project hygiene`: **it reports and fixe
 nothing.** Hard checks — frontmatter shape, id/filename agreement, status
 vocabulary, supersede links resolving both ways, the index having exactly one row
 per record and no orphans. Advisory checks — an `accepted` ADR that received
-substantive commits after its acceptance date (an immutability breach), and
-domain docs still carrying decision prose (the migration counter).
+substantive commits after its acceptance date (an immutability breach), domain
+docs still carrying decision prose (the migration counter), records over the
+60-line budget, and an `accepted` record (id ≥ 0026) missing `revisit-when`.
 
 **Mechanical beats aspirational.** `docs/FOCUS.md` has been rewritten twice for
 rot that a checker would have caught on day three; this tier gets its checker on
