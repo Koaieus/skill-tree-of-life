@@ -752,8 +752,7 @@ func _on_entity_died(entity: Entity) -> void:
 func _pull_from_turn_loop(entity: Entity) -> void:
 	entity.remove_from_group(Entity.GROUP)
 	entity.remove_from_group(Entity.READY_GROUP)
-	if turn_manager != null:
-		turn_manager.abandon_turn(entity)
+	turn_manager.abandon_turn(entity)
 
 
 ## Presentation clock (#479): the killing blow's own reveal has landed (or, per
