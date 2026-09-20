@@ -52,6 +52,19 @@ signal vision_render_tick
 
 @export var graph: Graph
 @export var allocation_system: AllocationSystem
+## The off switch (#1006, ADR 0026). Off, the system is the "no fog"
+## null object: every node reads visible AND sensed, the fog overlay is not
+## drawn, and no circles are offered to the renderers — what a self-driven
+## showcase or a `_setup_level` test asks for when it wants every node in
+## view regardless of owned-subgraph vision. Distinct from
+## [constant EmptyMode.OFF], which only says what an EMPTY viewer list means.
+@export var enabled: bool = true:
+	set(value):
+		if enabled == value:
+			return
+		enabled = value
+		if is_inside_tree():
+			_request_recompute()
 @export var viewers: Array[Entity] = []:
 	set(value):
 		viewers = value
@@ -113,11 +126,11 @@ func _ready() -> void:
 
 
 func is_visible(node: SkillNode) -> bool:
-	return _visible.has(node)
+	return not enabled or _visible.has(node)
 
 
 func is_sensed(node: SkillNode) -> bool:
-	return _sensed.has(node)
+	return not enabled or _sensed.has(node)
 
 
 ## For renderers. Each entry: { pos: Vector2 (world), radius: float,
@@ -127,6 +140,8 @@ func is_sensed(node: SkillNode) -> bool:
 ## still moving toward target, used by the shader for frontier glow.
 func get_vision_sources() -> Array:
 	var out: Array = []
+	if not enabled:
+		return out
 	for k in _circles:
 		if not is_instance_valid(k):
 			continue
@@ -146,6 +161,8 @@ func get_vision_sources() -> Array:
 ## and avoids the shader's "zero circles → fully dark" default kicking in
 ## as a confusing artifact.
 func should_render_fog() -> bool:
+	if not enabled:
+		return false
 	if not viewers.is_empty():
 		return true
 	return empty_mode != EmptyMode.OFF
@@ -250,7 +267,9 @@ func _recompute() -> void:
 	_sensed.clear()
 
 	var nodes := graph.get_skill_nodes()
-	var effective := _effective_viewers()
+	# Disabled: `is_visible` / `is_sensed` answer true off the flag, so the
+	# sets stay empty; only the circles and the edge frontier need clearing.
+	var effective := _effective_viewers() if enabled else ([] as Array[Entity])
 
 	# Mark all existing circles as retreating; the active loop below
 	# overwrites targets for sources that are still owned. Sources that

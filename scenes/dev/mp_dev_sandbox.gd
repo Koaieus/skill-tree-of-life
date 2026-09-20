@@ -119,7 +119,7 @@ func _ready() -> void:
 	_parse_cmdline()
 	# Authority is set HERE, before `super()`, not inside `_start_link()` where
 	# it looks like it belongs. `GameRoot._ready` is a coroutine that calls
-	# `turn_manager.start_turn(player)` (`auto_start_turn`) partway through,
+	# `turn_manager.start_turn(player)` (`TurnManager.opens_first_turn`) partway through,
 	# and returns from `super()` below at its first internal await — well
 	# before the two `await process_frame`s that gate `_start_link()`. A
 	# CLIENT's Blue already has a real [AIController] (#532: Blue stays AI),
@@ -132,7 +132,7 @@ func _ready() -> void:
 	# it stays the one documented writer once the link is actually up.
 	if command_applier != null:
 		command_applier.is_authority = _role != NetworkTransport.Role.CLIENT
-	# GameRoot's own opening `start_turn` (`auto_start_turn`) targets [member
+	# GameRoot's own opening `start_turn` (`TurnManager.opens_first_turn`) targets [member
 	# player] — but `player` is a PER-MACHINE view pointer, re-pointed to Blue
 	# on the CLIENT for the HUD/camera (see `_setup_level`). Turn order is
 	# SHARED SIMULATION STATE, not a view concern: `SeatPolicy`'s whole
@@ -146,7 +146,7 @@ func _ready() -> void:
 	# a budget for the missed refill to matter, which #532's sweep is the
 	# first thing to do. Disabled here; kicked off by hand on `_red` below,
 	# identically regardless of role.
-	auto_start_turn = false
+	turn_manager.opens_first_turn = false
 	super()
 	if Engine.is_editor_hint():
 		return

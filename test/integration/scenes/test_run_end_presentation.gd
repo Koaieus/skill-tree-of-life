@@ -34,7 +34,7 @@ var _p2: Entity
 ## else about the run is identical, which is the point.
 func _build(seating: SeatPolicy.Seating) -> void:
 	_root = _GAME_ROOT.instantiate()
-	_root.auto_start_turn = false
+	_root.get_node("%TurnManager").opens_first_turn = false
 	# Routing is opt-in per test: the probe never actually swaps the scene, but
 	# a live fallback timer would still fire into a torn-down fixture.
 	_root.route_to_meta_on_run_end = false

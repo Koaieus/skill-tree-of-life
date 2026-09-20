@@ -81,7 +81,7 @@ func _apply_cmdline_overrides() -> void:
 			"auto-turn":
 				# Off = measure the pre-turn state (no turn open). The default
 				# (on) is the state #763 actually asks about.
-				auto_start_turn = parts[1].to_lower() != "false"
+				turn_manager.opens_first_turn = parts[1].to_lower() != "false"
 			"resolution":
 				# The Settings autoload pins the window to user://settings.cfg
 				# (default 1920x1080) at _ready, clobbering the engine's

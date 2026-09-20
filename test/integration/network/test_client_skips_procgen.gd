@@ -75,16 +75,16 @@ func _open_joined_run() -> void:
 	GameSession.local_peer_id = _CLIENT_PEER
 
 
-## The shipped level, on the machine that joined. `show_ui` off and
-## `auto_start_turn` off keep this a `_setup_level` test rather than a HUD one;
+## The shipped level, on the machine that joined. `HudRoot.enabled` off and
+## `TurnManager.opens_first_turn` off keep this a `_setup_level` test rather than a HUD one;
 ## the transport is the scene's [EnetTransport] with no socket behind it, which
 ## announces itself and links to nobody.
 func _build_joined_level() -> GameRoot:
 	var root: GameRoot = _LEVEL.instantiate()
 	root.name = "JoinedLevel"
-	root.show_ui = false
-	root.auto_start_turn = false
-	root.enable_fog = false
+	root.get_node("%HudRoot").enabled = false
+	root.get_node("%TurnManager").opens_first_turn = false
+	root.get_node("%VisionSystem").enabled = false
 	add_child_autofree(root)
 	return root
 
@@ -185,9 +185,9 @@ func test_an_offline_run_still_generates_locally() -> void:
 
 	var root: GameRoot = _LEVEL.instantiate()
 	root.name = "OfflineLevel"
-	root.show_ui = false
-	root.auto_start_turn = false
-	root.enable_fog = false
+	root.get_node("%HudRoot").enabled = false
+	root.get_node("%TurnManager").opens_first_turn = false
+	root.get_node("%VisionSystem").enabled = false
 	root.node_count_override = 40
 	add_child_autofree(root)
 	# Procgen yields across frames; the level's `_ready` is a coroutine.

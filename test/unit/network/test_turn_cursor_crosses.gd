@@ -3,7 +3,7 @@ extends GutTest
 ## #756 — the mirror never starts a turn on its own.
 ##
 ## Every peer used to open its own first turn on its own seated hero
-## ([method GameRoot._ready]'s `auto_start_turn` block), so the host opened on
+## ([method GameRoot._ready]'s `TurnManager.opens_first_turn` block), so the host opened on
 ## Player 1 and the client opened on Player 2. Nothing corrected it: the turn
 ## cursor is a host DECISION and neither leg of the sync model carried it. Every
 ## later [EndTurnCommand] then reproduced [method TurnManager._tick_until_ready]

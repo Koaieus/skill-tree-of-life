@@ -24,6 +24,15 @@ signal turn_ended(entity: Entity)
 ## which would mean re-wiring on every spawn/death itself.
 signal forecast_changed
 
+## Whether the level opens the run's clock at all (#1006; the root's old
+## `auto_start_turn`). False and [method GameRoot._open_first_turn] submits no
+## opening [StartTurnCommand] — a showcase drives its own beat loop (and sets
+## [member current_entity] directly for killer attribution), a `_setup_level`
+## test never lets TurnManager/AI take over. Not an off state: the manager
+## stays live for every turn something else starts, so this is a plain flag
+## rather than the `enabled` convention.
+@export var opens_first_turn: bool = true
+
 ## The entity currently taking its turn; null between turns.
 var current_entity: Entity = null
 

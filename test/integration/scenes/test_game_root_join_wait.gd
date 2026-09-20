@@ -35,7 +35,7 @@ func before_each() -> void:
 	_asks = []
 	_first_pull_seen = false
 	_root = _GAME_ROOT.instantiate()
-	_root.auto_start_turn = false
+	_root.get_node("%TurnManager").opens_first_turn = false
 	_root.route_to_meta_on_run_end = false
 	# Fast enough to watch, slow enough that a frame is not a renewal.
 	# Before the root enters the tree: its `_ready` reads the session's clock.

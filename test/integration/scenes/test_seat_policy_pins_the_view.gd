@@ -25,7 +25,7 @@ var _nodes: Array[SkillNode]
 
 func before_each() -> void:
 	_root = _GAME_ROOT.instantiate()
-	_root.auto_start_turn = false
+	_root.get_node("%TurnManager").opens_first_turn = false
 	add_child_autofree(_root)
 	await wait_physics_frames(2)
 

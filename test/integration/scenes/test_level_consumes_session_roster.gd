@@ -73,7 +73,7 @@ func _participant(id: int, kind: Participant.Kind, camp: Faction, peer_id: int =
 ## a level to read instead.
 func _launch(scene: PackedScene = _SANDBOX, node_count: int = 40) -> GameRoot:
 	var root: GameRoot = scene.instantiate()
-	root.auto_start_turn = false
+	root.get_node("%TurnManager").opens_first_turn = false
 	root.node_count_override = node_count
 	root.enemy_territory_size = 1
 	add_child(root)
@@ -223,7 +223,7 @@ func test_the_bare_level_refuses_to_generate_without_a_run() -> void:
 	assert_false(GameSession.is_active(), "precondition: no lobby ran")
 
 	var root: GameRoot = _BARE_LEVEL.instantiate()
-	root.auto_start_turn = false
+	root.get_node("%TurnManager").opens_first_turn = false
 	root.node_count_override = 40
 	add_child(root)
 	_root = root

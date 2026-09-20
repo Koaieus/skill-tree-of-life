@@ -38,7 +38,7 @@ func before_each() -> void:
 	GameSession.local_peer_id = _HOST_PEER
 
 	_root = _GAME_ROOT.instantiate()
-	_root.auto_start_turn = false
+	_root.get_node("%TurnManager").opens_first_turn = false
 	_root.route_to_meta_on_run_end = false
 	add_child_autofree(_root)
 	# `_open_link` sits past the last await in `_ready` — see

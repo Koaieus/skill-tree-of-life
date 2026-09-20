@@ -10,6 +10,18 @@ extends Control
 ## scene-local children via `%UniqueName`, cross-system deps via one
 ## `compose(game_root)` call from GameRoot.
 
+## The off switch (#1006, ADR 0026; the root's old `show_ui`). Off, the HUD
+## is a hidden layer that binds nothing: [method compose] / [method
+## bind_systems] / [method rebind_player] return at once and every later
+## presentation entry (link lost, peer left) is a no-op. What a showcase,
+## a bench or a `_setup_level` test asks for when it wants the world without
+## the terminal on top.
+@export var enabled: bool = true:
+	set(value):
+		enabled = value
+		if not Engine.is_editor_hint():
+			visible = value
+
 @onready var turn_tracker_slot: Control = %TurnTrackerSlot
 @onready var left_column_slot: Control = %LeftColumnSlot
 @onready var right_column_slot: Control = %RightColumnSlot
@@ -95,20 +107,14 @@ func _ready() -> void:
 		Events.spell_loot_requested.connect(_on_spell_loot_requested)
 		Events.run_ended.connect(_on_run_ended)
 		# The overlay asks to leave; GameRoot decides whether it may (#526).
-		if run_end_overlay != null:
-			run_end_overlay.main_menu_pressed.connect(_on_run_end_main_menu_pressed)
-		if loot_picker != null:
-			loot_picker.closed.connect(_on_modal_closed)
-		if spell_loot_picker != null:
-			spell_loot_picker.closed.connect(_on_modal_closed)
-		if mass_action_confirm_panel != null:
-			mass_action_confirm_panel.closed.connect(_on_modal_closed)
+		run_end_overlay.main_menu_pressed.connect(_on_run_end_main_menu_pressed)
+		loot_picker.closed.connect(_on_modal_closed)
+		spell_loot_picker.closed.connect(_on_modal_closed)
+		mass_action_confirm_panel.closed.connect(_on_modal_closed)
 		# The catalogue (#853) is read-only and has no request; it still goes
 		# through the queue so its Esc is its own and not the pause menu's.
-		if spell_catalogue_modal != null:
-			spell_catalogue_modal.closed.connect(_on_modal_closed)
-			if pause_menu != null:
-				pause_menu.spell_catalogue_requested.connect(_on_spell_catalogue_requested)
+		spell_catalogue_modal.closed.connect(_on_modal_closed)
+		pause_menu.spell_catalogue_requested.connect(_on_spell_catalogue_requested)
 
 
 ## Let go of the hero's board when the level goes away. A Stat is a Resource
@@ -125,6 +131,8 @@ func _exit_tree() -> void:
 ## `source.signal.connect(target)` is paired with an immediate call using
 ## the source's current value.
 func compose(game_root: GameRoot) -> void:
+	if not enabled:
+		return
 	bind_systems(game_root.graph, game_root.input_ctl, game_root.battle_system,
 			game_root.turn_manager, game_root.vision_system, game_root.allocation_system,
 			game_root)
@@ -157,68 +165,51 @@ func bind_systems(
 	_turn_manager = turn_manager
 	_vision_system = vision_system
 	_allocation_system = allocation_system
-	if _systems_bound:
+	if _systems_bound or not enabled:
 		return
 	_systems_bound = true
 
 	# The fan is hover-driven and renders for unowned nodes too, so it stays
 	# useful in a level with no player entity.
-	if tooltip_fan != null:
-		tooltip_fan.bind(graph)
+	tooltip_fan.bind(graph)
 	# The glow reads the input controller, not the player, and a level with no
 	# player entity simply never arms anything.
-	if armed_mode_glow != null:
-		armed_mode_glow.bind(_input_ctl)
+	armed_mode_glow.bind(_input_ctl)
 	# The badge (#664) is the glow's foveal counterpart and reads the same
 	# controller. It is bound here AND re-bound in `rebind_player` — a hot-seat
 	# handover (#459) can hand over a different controller, and a badge left
 	# driven by the outgoing one would describe the wrong player's next click.
-	if armed_mode_icon != null:
-		armed_mode_icon.bind(_input_ctl)
-	if node_inspector_card != null:
-		node_inspector_card.bind(_input_ctl)
-	if turn_resources_panel != null:
-		turn_resources_panel.bind_input_ctl(_input_ctl)
-	if combat_readout != null:
-		combat_readout.bind(_battle_system)
-	if action_cluster != null:
-		action_cluster.bind(_turn_manager, _input_ctl, _vision_system)
-	if command_tray != null:
-		command_tray.bind(_battle_system, _input_ctl)
-	if announcement_layer != null:
-		announcement_layer.bind(_battle_system)
-	if loot_picker != null:
-		loot_picker.bind(_input_ctl)
-	if spell_loot_picker != null:
-		spell_loot_picker.bind(_input_ctl)
-	if spell_catalogue_modal != null:
-		spell_catalogue_modal.bind(_input_ctl)
+	armed_mode_icon.bind(_input_ctl)
+	node_inspector_card.bind(_input_ctl)
+	turn_resources_panel.bind_input_ctl(_input_ctl)
+	combat_readout.bind(_battle_system)
+	action_cluster.bind(_turn_manager, _input_ctl, _vision_system)
+	command_tray.bind(_battle_system, _input_ctl)
+	announcement_layer.bind(_battle_system)
+	loot_picker.bind(_input_ctl)
+	spell_loot_picker.bind(_input_ctl)
+	spell_catalogue_modal.bind(_input_ctl)
 	# The allocation system is the panel's affordability oracle, not its
 	# trigger — a level without one still shows the confirm (dimmed), rather
 	# than arming a request no surface ever presents.
-	if mass_action_confirm_panel != null:
-		mass_action_confirm_panel.bind_systems(_input_ctl, _allocation_system)
-		if _input_ctl != null:
-			_input_ctl.mass_action_pending_changed.connect(_on_mass_action_pending_changed)
+	mass_action_confirm_panel.bind_systems(_input_ctl, _allocation_system)
+	_input_ctl.mass_action_pending_changed.connect(_on_mass_action_pending_changed)
 	# The camera comes off the ROOT, not the systems list, because it is not a
 	# system in that list's sense — same exception `_game_root` already exists
 	# for. A HUD fixture with no root simply gets a null camera and the minimap
 	# draws its board without a viewport outline.
-	if minimap_panel != null:
-		minimap_panel.bind(graph,
-				game_root.camera if game_root != null else null, _allocation_system)
+	minimap_panel.bind(graph,
+			game_root.camera if game_root != null else null, _allocation_system)
 	# The forecast strip (#910) hears `forecast_changed` — the ONE signal that
 	# carries every initiative pool/speed change — plus the fog recompute, and
 	# coalesces both to one rebuild per frame. Whose sigil is highlighted is
 	# per-seat and lives in `rebind_player`.
-	if turn_forecast_strip != null:
-		turn_forecast_strip.bind(_turn_manager, _vision_system, graph)
-	if xp_track != null and hero_sigil_card != null:
-		# The emblem badge is the card's, but the beat that bumps it is the XP
-		# bar's — one source for badge, banner and gauge (#317/#320). It rides
-		# `level_display_changed`, not `level_reached`, so a level granted outside
-		# the XP pool still reaches the badge (see XpTrack's signal docs).
-		xp_track.level_display_changed.connect(hero_sigil_card.show_level)
+	turn_forecast_strip.bind(_turn_manager, _vision_system, graph)
+	# The emblem badge is the card's, but the beat that bumps it is the XP
+	# bar's — one source for badge, banner and gauge (#317/#320). It rides
+	# `level_display_changed`, not `level_reached`, so a level granted outside
+	# the XP pool still reaches the badge (see XpTrack's signal docs).
+	xp_track.level_display_changed.connect(hero_sigil_card.show_level)
 	_bind_turn_signals()
 
 
@@ -229,6 +220,12 @@ func bind_systems(
 ## Each cluster releases its own previous connections (see [BindScope]) —
 ## this method only decides WHO, never bookkeeps the how. Null-safe: a level
 ## with no player entity leaves the clusters unbound, exactly as before.
+## Whether [method bind_systems] has run — the composed-or-not reading a
+## disabled HUD answers false to.
+func is_bound() -> bool:
+	return _systems_bound
+
+
 func rebind_player(player: Entity) -> void:
 	if not _systems_bound:
 		# GameRoot binds the player once before HudRoot.compose runs (see its
@@ -242,37 +239,27 @@ func rebind_player(player: Entity) -> void:
 	# board entirely (level teardown, see `_exit_tree`). Every binder below
 	# releases its own scope first and then handles a null gracefully, so
 	# passing it through is what makes "bound to nobody" reachable.
-	if stat_board_overlay != null:
-		stat_board_overlay.board = board
-	if hero_sigil_card != null:
-		hero_sigil_card.bind(_player)
-		if _player != null:
-			hero_sigil_card.show_level(_player.level)
-	if xp_track != null:
-		xp_track.bind(_player)
-	if attributes_panel != null:
-		var core_modifiers: Array[StatModifier] = []
-		if _player != null:
-			core_modifiers = _player.core_modifiers
-		attributes_panel.bind(board, core_modifiers)
-	if turn_resources_panel != null:
-		turn_resources_panel.bind(board)
-	if combat_readout != null:
-		combat_readout.set_player(_player)
-	if action_cluster != null:
-		action_cluster.set_player(_player)
-	if command_tray != null:
-		command_tray.set_player(_player)
+	stat_board_overlay.board = board
+	hero_sigil_card.bind(_player)
+	if _player != null:
+		hero_sigil_card.show_level(_player.level)
+	xp_track.bind(_player)
+	var core_modifiers: Array[StatModifier] = []
+	if _player != null:
+		core_modifiers = _player.core_modifiers
+	attributes_panel.bind(board, core_modifiers)
+	turn_resources_panel.bind(board)
+	combat_readout.set_player(_player)
+	action_cluster.set_player(_player)
+	command_tray.set_player(_player)
 	# Re-read the badge on every hot-seat handover (#459, #664). The controller
 	# object survives a handover, so this is not about re-wiring a signal — it
 	# is about the incoming player's armed state being reflected immediately
 	# rather than at whatever they arm next. `bind` releases its previous scope,
 	# so re-calling it never doubles the connection.
-	if armed_mode_icon != null:
-		armed_mode_icon.bind(_input_ctl)
+	armed_mode_icon.bind(_input_ctl)
 	_bind_initiative_pool()
-	if turn_forecast_strip != null:
-		turn_forecast_strip.set_player(_player)
+	turn_forecast_strip.set_player(_player)
 
 
 ## Pick-1-of-M loot claim (#173). Only the PLAYER's relics get the picker — set
@@ -281,7 +268,7 @@ func rebind_player(player: Entity) -> void:
 ## `LOCAL` specifically: the tri-state exists to keep this case distinguishable
 ## from a REMOTE human's pick, which no HUD on this machine can present (#522).
 func _on_loot_pick_requested(request: LootPickRequest) -> void:
-	if loot_picker == null or _player == null or request.collector != _player:
+	if _player == null or request.collector != _player:
 		return
 	request.claim = LootPickRequest.Claim.LOCAL
 	_enqueue_modal(func() -> void: loot_picker.present(request))
@@ -290,7 +277,7 @@ func _on_loot_pick_requested(request: LootPickRequest) -> void:
 ## Pick-1-from-M spell draft (#204). Same filter + handshake as the dust pick
 ## above, queued behind it (see `_pending_modals`).
 func _on_spell_loot_requested(request: SpellLootRequest) -> void:
-	if spell_loot_picker == null or _player == null or request.collector != _player:
+	if _player == null or request.collector != _player:
 		return
 	request.claim = SpellLootRequest.Claim.LOCAL
 	_enqueue_modal(func() -> void: spell_loot_picker.present(request))
@@ -302,8 +289,6 @@ func _on_spell_loot_requested(request: SpellLootRequest) -> void:
 ## which is what the null branch is: take the panel down without answering,
 ## which still unfreezes input and still drains the queue.
 func _on_mass_action_pending_changed(request: MassActionRequest) -> void:
-	if mass_action_confirm_panel == null:
-		return
 	if request == null:
 		mass_action_confirm_panel.dismiss()
 		return
@@ -315,8 +300,6 @@ func _on_mass_action_pending_changed(request: MassActionRequest) -> void:
 ## `closed` hands Esc back — so closing the catalogue lands on the pause menu,
 ## which is where the player came from.
 func _on_spell_catalogue_requested() -> void:
-	if spell_catalogue_modal == null:
-		return
 	_enqueue_modal(func() -> void: spell_catalogue_modal.present())
 
 
@@ -343,10 +326,8 @@ func _on_modal_closed() -> void:
 ## modal) and PauseMenu (Esc must not open the pause menu on top of one).
 func _set_modal_busy(busy: bool) -> void:
 	_modal_busy = busy
-	if announcement_layer != null:
-		announcement_layer.set_modal_open(busy)
-	if pause_menu != null:
-		pause_menu.set_blocked(busy)
+	announcement_layer.set_modal_open(busy)
+	pause_menu.set_blocked(busy)
 
 
 ## Ports UIRoot's banner routing (#118 cutover parity) — "YOUR TURN" on the
@@ -363,12 +344,10 @@ func _set_modal_busy(busy: bool) -> void:
 func _bind_turn_signals() -> void:
 	if _turn_manager == null:
 		return
-	if announcement_layer != null:
-		announcement_layer.bind_turn_manager(_turn_manager)
-		_turn_manager.turn_started.connect(_on_turn_started_for_banner)
-	if initiative_bar != null:
-		_turn_manager.turn_started.connect(_on_turn_started_for_initiative)
-		_turn_manager.turn_ended.connect(_on_turn_ended_for_initiative)
+	announcement_layer.bind_turn_manager(_turn_manager)
+	_turn_manager.turn_started.connect(_on_turn_started_for_banner)
+	_turn_manager.turn_started.connect(_on_turn_started_for_initiative)
+	_turn_manager.turn_ended.connect(_on_turn_ended_for_initiative)
 
 
 func _on_turn_started_for_banner(entity: Entity) -> void:
@@ -387,7 +366,7 @@ func _on_turn_started_for_banner(entity: Entity) -> void:
 ## [method _bind_turn_signals]; only the POOL is per-player, so only the pool
 ## is re-linked here.
 func _bind_initiative_pool() -> void:
-	if initiative_bar == null or _player == null or _player.stat_board == null:
+	if _player == null or _player.stat_board == null:
 		return
 	var init_pool := _player.stat_board.initiative
 	if init_pool == null:
@@ -438,12 +417,10 @@ func _on_turn_ended_for_initiative(entity: Entity) -> void:
 ## behind the killing blow's own kill toast. That toast IS stomped mid-play —
 ## deliberately; nothing queued before the end of the run outranks it.
 func _on_run_ended(outcome: RunOutcome) -> void:
-	if outcome == null:
+	if outcome == null or not enabled:
 		return
-	if announcement_layer != null:
-		announcement_layer.enqueue_now(_run_end_banner(outcome))
-	if run_end_overlay != null:
-		run_end_overlay.present(_run_end_reading(outcome), outcome.winning_camp)
+	announcement_layer.enqueue_now(_run_end_banner(outcome))
+	run_end_overlay.present(_run_end_reading(outcome), outcome.winning_camp)
 
 
 ## The wire under this run died. Not a run end — [VictorySystem] never fired,
@@ -452,12 +429,12 @@ func _on_run_ended(outcome: RunOutcome) -> void:
 ## surface. Called by [method GameRoot._on_link_lost] on the peer that lost its
 ## link; the banner preempts like the run-end one does, for the same reason.
 func present_link_lost(reason: String) -> void:
-	if announcement_layer != null:
-		announcement_layer.enqueue_now(AnnouncementRequest.make(
-				"CONNECTION LOST", reason, AnnouncementRequest.Style.DEATH))
-	if run_end_overlay != null:
-		run_end_overlay.present(RunEndOverlay.Reading.LINK_LOST, null,
-				"%s — the run cannot continue from here" % reason)
+	if not enabled:
+		return
+	announcement_layer.enqueue_now(AnnouncementRequest.make(
+			"CONNECTION LOST", reason, AnnouncementRequest.Style.DEATH))
+	run_end_overlay.present(RunEndOverlay.Reading.LINK_LOST, null,
+			"%s — the run cannot continue from here" % reason)
 
 
 ## A seated peer left and its hero was handed to the AI
@@ -469,10 +446,11 @@ func present_link_lost(reason: String) -> void:
 ## from the commands alone, which reads as a teammate who silently started
 ## playing differently.
 func announce_peer_left(display_name: String) -> void:
-	if announcement_layer != null:
-		announcement_layer.enqueue_now(AnnouncementRequest.make(
-				"%s disconnected" % display_name, "the AI plays their seat from here",
-				AnnouncementRequest.Style.DEATH))
+	if not enabled:
+		return
+	announcement_layer.enqueue_now(AnnouncementRequest.make(
+			"%s disconnected" % display_name, "the AI plays their seat from here",
+			AnnouncementRequest.Style.DEATH))
 
 
 func _run_end_banner(outcome: RunOutcome) -> AnnouncementRequest:
@@ -528,5 +506,4 @@ func _run_end_reading(outcome: RunOutcome) -> RunEndOverlay.Reading:
 func _on_run_end_main_menu_pressed() -> void:
 	if _game_root != null and _game_root.route_to_meta_now():
 		return
-	if run_end_overlay != null:
-		run_end_overlay.dismiss()
+	run_end_overlay.dismiss()

@@ -64,7 +64,7 @@ func test_a_scenario_pointing_at_coop_versus_produces_the_centre_rich_map() -> v
 	# same shape as `test_the_bare_level_refuses_to_generate_without_a_run` in
 	# `test_level_consumes_session_roster.gd`.
 	_root = _BARE_LEVEL.instantiate()
-	_root.auto_start_turn = false
+	_root.get_node("%TurnManager").opens_first_turn = false
 	_root.node_count_override = 200
 	add_child(_root)
 	# `player` is assigned last, well after `GraphProcgen.generate` populates

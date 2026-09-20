@@ -151,7 +151,7 @@ func test_spawn_index_0_opens_regardless_of_peer_id() -> void:
 	# left pointed at carriers[1] to prove the opener, not `player`, wins.
 	root.turn_manager = _tm
 	root.player = carriers[1]
-	root.auto_start_turn = true
+	_tm.opens_first_turn = true
 	root._open_first_turn()
 	assert_eq(_tm.current_entity, carriers[0])
 

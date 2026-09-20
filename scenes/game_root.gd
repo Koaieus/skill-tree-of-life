@@ -51,18 +51,13 @@ const _FOG_INTENSITY_DEV: float = 0.88
 
 ## Intent flags — let a subclass / inherited scene run a *neutered* GameRoot
 ## (e.g. a live showcase in an editor tab) without the parts a self-driven demo
-## doesn't want. The owner toggles its own children here; nobody reaches in from
-## outside. Defaults preserve full-game behaviour, so real levels are untouched.
+## doesn't want. Defaults preserve full-game behaviour, so real levels are
+## untouched. Every system is present in every GameRoot scene (#1006, ADR
+## 0026): "off" is a flag on the system it toggles, never a missing node —
+## [member TurnManager.opens_first_turn], [member HudRoot.enabled],
+## [member VisionSystem.enabled] — and a missing `%System` is the assert at
+## the top of [method _ready], not a branch.
 @export_group("Showcase / embed")
-## When false, `_ready` skips the opening `start_turn` — the turn loop never
-## kicks, so a showcase can drive its own beat loop (and set `current_entity`
-## directly for killer attribution) without TurnManager/AI taking over.
-@export var auto_start_turn: bool = true
-## When false, `_ready` skips `HudRoot.compose` and hides the UI layer.
-@export var show_ui: bool = true
-## When false, the fog overlay is hidden (a self-driven demo wants every node
-## visible regardless of owned-subgraph vision).
-@export var enable_fog: bool = true
 ## When false, a finished run announces its outcome but stays put — a sandbox
 ## or a showcase must not teleport itself back to the main menu. Vetoes BOTH
 ## ways out (#526): the fallback timeout below and the overlay's own button.
@@ -156,7 +151,29 @@ var _link_end_presented: bool = false
 @onready var melee_preview: MeleePreview = %MeleePreview
 
 
+## Every system is present in every GameRoot scene (#1006, ADR 0026). A
+## fixture that wants one "off" sets that system's own flag; a scene that
+## dropped the node is a wiring error, and this is where it says so — before
+## the first `system.method()` reads as a confusing "Nonexistent function in
+## base 'Nil'" halfway through `_ready`.
+func _assert_systems_present() -> void:
+	for pair: Array in [
+		[input_ctl, "PlayerInputController"], [allocation_system, "AllocationSystem"],
+		[battle_system, "BattleSystem"], [turn_manager, "TurnManager"],
+		[command_applier, "CommandApplier"], [pick_registry, "LootPickRegistry"],
+		[transport, "Transport"], [command_link, "CommandLink"],
+		[network_session, "NetworkSession"], [vision_system, "VisionSystem"],
+		[victory_system, "VictorySystem"], [highlight_controller, "HighlightController"],
+		[floater_director, "FloaterDirector"], [fog_overlay, "FogOverlay"],
+		[aura_overlay, "AuraOverlay"], [camera, "GraphCamera"],
+		[camera_director, "CameraDirector"], [hud_root, "HudRoot"],
+	]:
+		assert(pair[0] != null, "GameRoot: %%%s is missing — every system is present in "
+				+ "every GameRoot scene; set its own `enabled` to turn it off (#1006)" % pair[1])
+
+
 func _ready() -> void:
+	_assert_systems_present()
 	# BEFORE anything can act, and before `_setup_level` spawns an actor that
 	# could: adopting the role writes `command_applier.is_authority`, and a
 	# CLIENT that learns it is not the authority only after its first AI turn
@@ -166,8 +183,7 @@ func _ready() -> void:
 	# #715: how the arriving world builds an entity the roster never names — see
 	# [method spawn_snapshot_entity]. Set here, before any link can be up, because
 	# the first thing a joining client does with its link is ask for that world.
-	if command_link != null:
-		command_link.entity_spawner = spawn_snapshot_entity
+	command_link.entity_spawner = spawn_snapshot_entity
 	# The session owns the wire's lifecycle; the root keeps the presentation of
 	# each event (#1004). The world-arrived hook re-runs `_ensure_controllers`
 	# for entities the resync brought with it — idempotent and cheap.
@@ -201,45 +217,32 @@ func _ready() -> void:
 	# After `_setup_level`, which is where a roster-driven level replaces the
 	# default couch policy — pushed from the one place that owns it to the three
 	# consumers that ask "is this actor mine?" (#524, #556, #819/#820).
-	if camera_director != null:
-		camera_director.seat_policy = seat_policy
-	if command_applier != null:
-		command_applier.seat_policy = seat_policy
-	if battle_system != null:
-		battle_system.seat_policy = seat_policy
+	camera_director.seat_policy = seat_policy
+	command_applier.seat_policy = seat_policy
+	battle_system.seat_policy = seat_policy
 	# #564: NOT seat_policy — is_remote_collector answers for a PEER (a roster
 	# question). A null roster (no lobby) reads as "nobody is remote".
-	if pick_registry != null:
-		pick_registry.roster = GameSession.roster
-		pick_registry.local_peer_id = GameSession.local_peer_id
+	pick_registry.roster = GameSession.roster
+	pick_registry.local_peer_id = GameSession.local_peer_id
 	# The run decides how it ends (#457/#460); `resolved_...` falls back to the
 	# MODE's default when the run authored no condition.
-	if victory_system != null and GameSession.is_active():
+	if GameSession.is_active():
 		victory_system.condition = GameSession.config.resolved_victory_condition()
 	bind_player(player)
 	# Hot-seat coop (#459): connected unconditionally — [member seat_policy]
 	# decides whether the handler does anything. After `_ensure_controllers` so
 	# the `is_human_controlled` flag it reads is settled.
-	if turn_manager != null:
-		turn_manager.turn_started.connect(_on_turn_started_for_handover)
-	if not enable_fog:
-		if fog_overlay != null:
-			fog_overlay.visible = false
-		# Floaters must not query the dormant, non-@tool VisionSystem in a
-		# no-fog showcase (mirrors SandboxWorld's no-player wiring).
-		if floater_director != null:
-			floater_director.vision_system = null
-	if show_ui:
-		if hud_root != null:
-			hud_root.compose(self)
-		_wire_hud_floater_anchor()
-		_wire_gained_modifier_toast()
+	turn_manager.turn_started.connect(_on_turn_started_for_handover)
+	# A disabled HUD ([member HudRoot.enabled]) makes every one of these a
+	# no-op and hides its own layer; the root does not branch on it.
+	hud_root.compose(self)
+	_wire_hud_floater_anchor()
+	_wire_gained_modifier_toast()
+	if hud_root.enabled:
 		# Container layout resolves via a queued `sort_children`; `start_turn`
 		# below can pop a same-frame toast at the Hero Sigil Card's FloatAnchor,
 		# which reads (0,0)-ish until one frame flushes the deferred sort.
 		await get_tree().process_frame
-	else:
-		$UI.visible = false
 
 	# Hooked BEFORE the link opens: a joiner whose level comes up AFTER the
 	# host's first turn gets that turn inside the resync (`adopt_turn` fires
@@ -261,8 +264,7 @@ func _ready() -> void:
 	# let `LastCampStandingCondition` read a partially-populated entity group
 	# and latch an outcome that can never be un-fired. Not a network concept:
 	# the same one line arms it for a solo sandbox.
-	if victory_system != null:
-		victory_system.world_ready = true
+	victory_system.world_ready = true
 
 	_arm_rung_4()
 	_stagger_initiative()
@@ -381,7 +383,7 @@ static func apply_initiative_stagger(carriers: Array[Entity]) -> void:
 ## test rig): offline play keeps going through the applier like everything else,
 ## which is what keeps this one path and not two.
 func _open_first_turn() -> void:
-	if not auto_start_turn or turn_manager == null:
+	if not turn_manager.opens_first_turn:
 		return
 	if not network_session.is_authority():
 		return
@@ -540,8 +542,7 @@ func _watch_turn_cap(role: String, cap: int) -> void:
 ## not landed yet — a world that is valid but permanently wrong. Draining here
 ## lands the rest synchronously, while the nodes involved are still alive.
 func _exit_tree() -> void:
-	if battle_system != null:
-		battle_system.drain_pending_mutations()
+	battle_system.drain_pending_mutations()
 
 
 ## The [SceneDirector] reveal contract: is this level worth looking at yet?
@@ -569,9 +570,9 @@ func is_reveal_ready() -> bool:
 ## main-menu button stops the wire, which every client hears as a lost link
 ## while its own victory overlay is up. That is the normal end of a run.
 func _present_link_end(reason: String) -> void:
-	if victory_system != null and victory_system.outcome != null:
+	if victory_system.outcome != null:
 		return
-	if hud_root != null and not _link_end_presented:
+	if not _link_end_presented:
 		_link_end_presented = true
 		hud_root.present_link_lost(reason)
 
@@ -586,9 +587,8 @@ func _present_link_end(reason: String) -> void:
 ## `roster` answers true for EVERYONE (every peer opens a picker — #668 back,
 ## and silent).
 func _on_local_peer_resolved(peer_id: int) -> void:
-	if pick_registry != null:
-		pick_registry.roster = GameSession.roster
-		pick_registry.local_peer_id = peer_id
+	pick_registry.roster = GameSession.roster
+	pick_registry.local_peer_id = peer_id
 
 
 ## Host-side: a seated peer left mid-run. Every HUMAN seat it held goes to the
@@ -617,8 +617,7 @@ func _on_seat_vacated(peer_id: int) -> void:
 ## `.claude/rules/multiplayer-sync.md` broken in one line.
 func hand_seat_to_ai(participant: Participant) -> void:
 	var ent := _adopt_seat_handover(participant)
-	if command_link != null:
-		command_link.send_seat_handover(participant.id)
+	command_link.send_seat_handover(participant.id)
 	if ent == null:
 		return
 	var ai := _find_controller(ent) as AIController
@@ -633,7 +632,7 @@ func hand_seat_to_ai(participant: Participant) -> void:
 		ai = AIController.new()
 		ai.name = "AIController"
 		ent.add_child(ai)
-	if turn_manager != null and turn_manager.current_entity == ent:
+	if turn_manager.current_entity == ent:
 		ai.take_turn()
 
 
@@ -684,7 +683,7 @@ func _adopt_seat_handover(participant: Participant) -> Entity:
 	# argument because this method is also the MIRROR's entry
 	# ([method _on_seat_handover]), which is told a seat changed hands and never
 	# why — and both processes carry the flag.
-	if hud_root != null and not HarnessFlags.has(HarnessFlags.AUTOPLAY):
+	if not HarnessFlags.has(HarnessFlags.AUTOPLAY):
 		hud_root.announce_peer_left(ent.display_name)
 	return ent
 
@@ -866,8 +865,7 @@ func bind_player(p: Entity) -> void:
 	# too, or player 1 keeps collecting player 2's wound/heal toasts. No-op
 	# until the HUD is composed.
 	_wire_hud_floater_anchor()
-	if hud_root != null:
-		hud_root.rebind_player(player)
+	hud_root.rebind_player(player)
 	_focus_camera_on_player()
 
 
@@ -1194,14 +1192,13 @@ func spawn_snapshot_entity(
 func _on_world_ready(_reason: String) -> void:
 	_ensure_controllers()
 	_apply_seat_vision()
-	if vision_system != null:
-		# Reassigned rather than left to [method _apply_seat_vision]'s skip-if-equal
-		# guard: the viewer SET is unchanged (same heroes), while what each of them
-		# OWNS just arrived wholesale — and `owned_by` written by
-		# [method GraphSnapshot._decode_node] bypasses [AllocationSystem], so
-		# nothing on `allocation_changed` will do it for us. The setter always
-		# rebinds and recomputes.
-		vision_system.viewers = vision_system.viewers
+	# Reassigned rather than left to [method _apply_seat_vision]'s skip-if-equal
+	# guard: the viewer SET is unchanged (same heroes), while what each of them
+	# OWNS just arrived wholesale — and `owned_by` written by
+	# [method GraphSnapshot._decode_node] bypasses [AllocationSystem], so
+	# nothing on `allocation_changed` will do it for us. The setter always
+	# rebinds and recomputes.
+	vision_system.viewers = vision_system.viewers
 
 
 func _on_core_moved(_entity: Entity, from_node: SkillNode, to_node: SkillNode) -> void:
@@ -1212,12 +1209,10 @@ func _on_core_moved(_entity: Entity, from_node: SkillNode, to_node: SkillNode) -
 
 ## #91/#108 — routes the player's entity-level toasts (wound/heal, stat
 ## modifier gain) to the Hero Sigil Card's FloatAnchor instead of the
-## world-space core. No-op if the HUD isn't composed (show_ui == false) or
+## world-space core. No-op if the HUD is off ([member HudRoot.enabled]) or
 ## the player hasn't resolved yet.
 func _wire_hud_floater_anchor() -> void:
-	if floater_director == null or hud_root == null or player == null:
-		return
-	if hud_root.hero_sigil_card == null:
+	if not hud_root.enabled or player == null:
 		return
 	floater_director.player = player
 	floater_director.player_anchor = hud_root.hero_sigil_card.float_anchor
@@ -1238,9 +1233,7 @@ func _wire_hud_floater_anchor() -> void:
 ##     and #71 pulses gate the same way), so a level's setup/procgen
 ##     allocations don't fire a flurry at startup.
 func _wire_gained_modifier_toast() -> void:
-	if allocation_system == null or hud_root == null or player == null:
-		return
-	if hud_root.hero_sigil_card == null or hud_root.gained_modifier_toast == null:
+	if not hud_root.enabled or player == null:
 		return
 	hud_root.gained_modifier_toast.float_anchor = hud_root.hero_sigil_card.float_anchor
 	if not allocation_system.allocated.is_connected(_on_node_allocated_for_toast):
@@ -1276,32 +1269,25 @@ func _apply_graph_bounds() -> void:
 		return
 	var baseline_bounds := raw_bounds.grow(graph_bounds_margin)
 
-	if camera != null:
-		if not camera.bounds_changed.is_connected(_on_camera_bounds_changed):
-			camera.bounds_changed.connect(_on_camera_bounds_changed)
-		# Camera gets the RAW bounds + the margin as a zoom==1.0 baseline, not
-		# the pre-grown `baseline_bounds` rect — it re-derives its own pan
-		# limit every frame, scaling the margin by 1/zoom
-		# (GraphCamera._update_limits), then pushes the result back via
-		# `bounds_changed` so fog/aura paint the same zoom-scaled rect instead
-		# of a second, independently-computed one (see _on_camera_bounds_changed).
-		camera.set_graph_bounds(raw_bounds, graph_bounds_margin)
-		var viewport_size := get_viewport().get_visible_rect().size
-		var min_zoom_floor: float = maxf(viewport_size.x / baseline_bounds.size.x, viewport_size.y / baseline_bounds.size.y)
-		camera.set_min_zoom_floor(min_zoom_floor)
-	else:
-		# No camera (e.g. an embedded showcase) — nothing will ever fire
-		# `bounds_changed`, so fall back to the static zoom==1.0 rect directly.
-		_on_camera_bounds_changed(baseline_bounds)
+	if not camera.bounds_changed.is_connected(_on_camera_bounds_changed):
+		camera.bounds_changed.connect(_on_camera_bounds_changed)
+	# Camera gets the RAW bounds + the margin as a zoom==1.0 baseline, not
+	# the pre-grown `baseline_bounds` rect — it re-derives its own pan
+	# limit every frame, scaling the margin by 1/zoom
+	# (GraphCamera._update_limits), then pushes the result back via
+	# `bounds_changed` so fog/aura paint the same zoom-scaled rect instead
+	# of a second, independently-computed one (see _on_camera_bounds_changed).
+	camera.set_graph_bounds(raw_bounds, graph_bounds_margin)
+	var viewport_size := get_viewport().get_visible_rect().size
+	var min_zoom_floor: float = maxf(viewport_size.x / baseline_bounds.size.x, viewport_size.y / baseline_bounds.size.y)
+	camera.set_min_zoom_floor(min_zoom_floor)
 
 
 ## Mirrors GraphCamera's zoom-scaled pan limit onto the fog/aura overlays so
 ## all three always agree on how far past the graph edge is visible.
 func _on_camera_bounds_changed(bounds: Rect2) -> void:
-	if fog_overlay != null:
-		fog_overlay.bounds = bounds
-	if aura_overlay != null:
-		aura_overlay.bounds = bounds
+	fog_overlay.bounds = bounds
+	aura_overlay.bounds = bounds
 
 
 ## Point the view at the bound hero — level start, and every hot-seat handover
@@ -1323,8 +1309,4 @@ func _focus_camera_on_player() -> void:
 	# start that follows the world's arrival is.
 	var target: Vector2 = (player.core_location.global_position
 			if player.core_location != null else Vector2.ZERO)
-	if camera_director != null:
-		camera_director.request_focus(FocusRequest.point(target, 0.0, true, &"handover"))
-		return
-	if camera != null:
-		camera.position = target
+	camera_director.request_focus(FocusRequest.point(target, 0.0, true, &"handover"))

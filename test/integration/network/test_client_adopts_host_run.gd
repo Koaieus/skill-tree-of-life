@@ -76,7 +76,7 @@ func after_each() -> void:
 func _build_root(label: String) -> GameRoot:
 	var root: GameRoot = preload("res://scenes/game_root.tscn").instantiate()
 	root.name = "GameRoot_%s" % label
-	root.auto_start_turn = false
+	root.get_node("%TurnManager").opens_first_turn = false
 	add_child_autofree(root)
 	return root
 

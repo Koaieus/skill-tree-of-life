@@ -253,7 +253,7 @@ func _build_fixture() -> Dictionary:
 	GameSession.local_peer_id = _HOST_PEER
 
 	var root: GameRoot = _GAME_ROOT.instantiate()
-	root.auto_start_turn = false
+	root.get_node("%TurnManager").opens_first_turn = false
 	root.route_to_meta_on_run_end = false
 	add_child_autofree(root)
 	await wait_frames(6)
@@ -300,7 +300,7 @@ func _build_large_fixture() -> Dictionary:
 	GameSession.local_peer_id = _HOST_PEER
 
 	var root: GameRoot = _GAME_ROOT.instantiate()
-	root.auto_start_turn = false
+	root.get_node("%TurnManager").opens_first_turn = false
 	root.route_to_meta_on_run_end = false
 	add_child_autofree(root)
 	await wait_frames(6)

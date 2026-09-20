@@ -33,7 +33,7 @@ func before_each() -> void:
 	# GameRoot._ready is a coroutine: its tail resumes a frame later and would
 	# `start_turn` on whoever this fixture has bound by then, tripping the
 	# "already in a turn" assert. The turn loop here is driven by hand.
-	_root.auto_start_turn = false
+	_root.get_node("%TurnManager").opens_first_turn = false
 	add_child_autofree(_root)
 	await wait_physics_frames(2)
 

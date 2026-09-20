@@ -139,7 +139,7 @@ func _ready() -> void:
 	# a role is still being adopted.
 	if command_applier != null:
 		command_applier.is_authority = _role != NetworkTransport.Role.CLIENT
-	auto_start_turn = false
+	turn_manager.opens_first_turn = false
 	# BEFORE `super()`, unlike rung 1. A CLIENT's `_setup_level` (below) has
 	# nothing to read locally and must AWAIT wire data — so the socket has to
 	# already be dialing and CommandLink's listeners already wired by the

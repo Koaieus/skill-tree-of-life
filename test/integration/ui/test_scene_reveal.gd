@@ -68,7 +68,7 @@ func test_an_untouched_curtain_is_not_up() -> void:
 
 func test_a_game_root_is_not_presentable_until_ready_finishes() -> void:
 	var root: GameRoot = preload("res://scenes/game_root.tscn").instantiate()
-	root.auto_start_turn = false
+	root.get_node("%TurnManager").opens_first_turn = false
 	assert_true(root.has_method("is_reveal_ready"),
 			"the method name SceneDirector probes for")
 	assert_false(root.is_reveal_ready(), "not before it is even in the tree")

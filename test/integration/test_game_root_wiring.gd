@@ -133,7 +133,7 @@ func test_export_dep_list_matches_the_scene_by_reflection() -> void:
 ## `is_connected(handler)` cannot see.
 func test_ready_and_compose_connect_every_cross_system_signal() -> void:
 	var root: GameRoot = _GAME_ROOT.instantiate()
-	root.auto_start_turn = false
+	root.get_node("%TurnManager").opens_first_turn = false
 	root.route_to_meta_on_run_end = false
 	add_child_autofree(root)
 	await get_tree().process_frame
