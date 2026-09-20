@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://ditodvn0makud" path="res://ui/launch_attack_button/launch_attack_button.gd" id="1_launch"]
 [ext_resource type="Shader" uid="uid://dwgg01080huf0" path="res://ui/launch_attack_button/launch_attack_button.gdshader" id="2_fire"]
+[ext_resource type="PackedScene" path="res://ui/common/key_chip.tscn" id="3_keychip"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_normal"]
 
@@ -72,6 +73,23 @@ grow_vertical = 2
 label_settings = SubResource("LabelSettings_text")
 horizontal_alignment = 1
 vertical_alignment = 1
+
+[node name="KeyChip" parent="." instance=ExtResource("3_keychip")]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -50.0
+offset_top = -24.0
+offset_right = -6.0
+offset_bottom = -6.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+font_size = 10
+action = &"ui_launch_attack"
 
 [connection signal="mouse_entered" from="." to="." method="_on_mouse_entered"]
 [connection signal="mouse_exited" from="." to="." method="_on_mouse_exited"]
