@@ -72,7 +72,83 @@ pool_weight = 0.3
 min_tier = 3
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
+[sub_resource type="Resource" id="poison_res"]
+resource_name = "poison_resistance +"
+script = ExtResource("2_pool")
+stat_id = &"poison_resistance"
+tags = Array[StringName]([&"defense", &"dot", &"flat"])
+unit_value = 0.05
+pool_weight = 0.5
+max_tier = 3
+
+[sub_resource type="Resource" id="corruption_res"]
+resource_name = "corruption_resistance +"
+script = ExtResource("2_pool")
+stat_id = &"corruption_resistance"
+tags = Array[StringName]([&"defense", &"dot", &"flat"])
+unit_value = 0.05
+pool_weight = 0.5
+max_tier = 3
+
+[sub_resource type="Resource" id="curse_res"]
+resource_name = "curse_resistance +"
+script = ExtResource("2_pool")
+stat_id = &"curse_resistance"
+tags = Array[StringName]([&"defense", &"dot", &"flat"])
+unit_value = 0.05
+pool_weight = 0.5
+max_tier = 3
+
+[sub_resource type="Resource" id="wither_res"]
+resource_name = "wither_resistance +"
+script = ExtResource("2_pool")
+stat_id = &"wither_resistance"
+tags = Array[StringName]([&"defense", &"dot", &"flat"])
+unit_value = 0.05
+pool_weight = 0.5
+max_tier = 3
+
+[sub_resource type="Resource" id="poison_pot"]
+resource_name = "poison_potency +%"
+script = ExtResource("2_pool")
+stat_id = &"poison_potency"
+operation = 1
+tags = Array[StringName]([&"offense", &"dot", &"percent"])
+unit_value = 7.0
+pool_weight = 0.5
+max_tier = 3
+
+[sub_resource type="Resource" id="corruption_pot"]
+resource_name = "corruption_potency +%"
+script = ExtResource("2_pool")
+stat_id = &"corruption_potency"
+operation = 1
+tags = Array[StringName]([&"offense", &"dot", &"percent"])
+unit_value = 7.0
+pool_weight = 0.5
+max_tier = 3
+
+[sub_resource type="Resource" id="curse_pot"]
+resource_name = "curse_potency +%"
+script = ExtResource("2_pool")
+stat_id = &"curse_potency"
+operation = 1
+tags = Array[StringName]([&"offense", &"dot", &"percent"])
+unit_value = 7.0
+pool_weight = 0.5
+max_tier = 3
+
+[sub_resource type="Resource" id="wither_pot"]
+resource_name = "wither_potency +%"
+script = ExtResource("2_pool")
+stat_id = &"wither_potency"
+operation = 1
+tags = Array[StringName]([&"offense", &"dot", &"percent"])
+unit_value = 7.0
+pool_weight = 0.5
+max_tier = 3
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"constitution"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("nh_inc"), SubResource("ar"), SubResource("dex_debuff"), SubResource("Resource_u38nb")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("nh_inc"), SubResource("ar"), SubResource("dex_debuff"), SubResource("Resource_u38nb"), SubResource("poison_res"), SubResource("corruption_res"), SubResource("curse_res"), SubResource("wither_res"), SubResource("poison_pot"), SubResource("corruption_pot"), SubResource("curse_pot"), SubResource("wither_pot")])
