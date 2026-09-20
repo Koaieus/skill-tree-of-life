@@ -296,7 +296,10 @@ func _paint(plan: RangedAttackPlan, has_target: bool) -> void:
 	var can_act := _input_ctl == null or _input_ctl.can_player_act()
 	_reload_button.text = "⟳ Reload  +%d (1 AP)" % total_yield
 	_reload_button.disabled = not (can_act and _player != null and _player.can_reload())
-	_launch_button.set_enabled(has_target and plan.is_valid() and can_act)
+	# No AP term on purpose: a volley costs 0 AP (#957); `can_afford` is what
+	# says so, and it answers 0-AP true for ranged.
+	var affordable := _input_ctl == null or _input_ctl.can_afford(plan)
+	_launch_button.set_enabled(has_target and plan.is_valid() and can_act and affordable)
 
 
 ## One card per type with stock or reload gain, in roster order; cards are
@@ -367,6 +370,6 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			reset_n_to_max()
 			get_viewport().set_input_as_handled()
 		KEY_ENTER, KEY_KP_ENTER:
-			if plan.is_valid() and (_input_ctl == null or _input_ctl.can_player_act()):
+			if plan.is_valid() and (_input_ctl == null or (_input_ctl.can_player_act() and _input_ctl.can_afford(plan))):
 				_battle_system.launch_attack()
 				get_viewport().set_input_as_handled()

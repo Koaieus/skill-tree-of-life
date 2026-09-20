@@ -221,7 +221,7 @@ func _refresh() -> void:
 	_count_label.text = "pivot + %d" % count
 	var cw: bool = _battle_system.next_melee_cw
 	_swing_button.text = "↻ Swing CW" if cw else "↺ Swing CCW"
-	var can_act := _input_ctl == null or _input_ctl.can_player_act()
+	var can_act := _input_ctl == null or (_input_ctl.can_player_act() and _input_ctl.can_afford(plan))
 	_launch_button.set_enabled(plan != null and plan.is_valid() and can_act)
 	# Greys out rather than half-reforming (#466): can_reform() re-runs the
 	# real selection gates against live territory, so a blade whose members

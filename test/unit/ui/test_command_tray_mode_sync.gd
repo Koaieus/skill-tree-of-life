@@ -2,7 +2,7 @@ extends GutTest
 ## #464: two CommandTray mode buttons could be lit at once / the wrong one lit.
 ##
 ## Root cause (confirmed by repro, not just the original diagnosis): a request
-## `BattleSystem.request_attack_mode` silently drops — AP=0, or mid-swing,
+## `BattleSystem.request_attack_mode` silently drops — mid-swing,
 ## since `is_launching` flips true with no signal of its own
 ## (`player_input_controller.gd:220-226`) — never fires `attack_plan_changed`,
 ## so `AttackModeBar.set_active_mode` never runs and the native click's own
@@ -150,7 +150,11 @@ func test_reclick_active_tab_cancels_to_manage_without_double_lighting() -> void
 	assert_eq(_lit_mode(), BattleSystem.AttackMode.NONE, "Manage reads as mode NONE")
 
 
-func test_rejected_request_at_zero_ap_leaves_the_bar_on_the_armed_mode() -> void:
+## 0 AP is no longer a flow condition (a volley costs 0 AP, #957): the
+## request lands, and the bar lights the mode it landed on. The
+## "rejected request leaves the bar on the armed mode" property lives on in
+## the is_launching case below.
+func test_request_at_zero_ap_lands_and_lights_the_new_mode() -> void:
 	_click(_by_mode(BattleSystem.AttackMode.MELEE))
 	assert_eq(BattleSystem.AttackMode.MELEE, _battle.attack_mode)
 
@@ -160,10 +164,9 @@ func test_rejected_request_at_zero_ap_leaves_the_bar_on_the_armed_mode() -> void
 	_click(_by_mode(BattleSystem.AttackMode.RANGED))
 
 	assert_eq(_pressed_count(), 1)
-	assert_eq(BattleSystem.AttackMode.MELEE, _battle.attack_mode,
-			"the request must have been dropped (AP=0)")
-	assert_eq(_lit_mode(), BattleSystem.AttackMode.MELEE,
-			"the bar must not show Ranged as armed when the request never landed")
+	assert_eq(BattleSystem.AttackMode.RANGED, _battle.attack_mode,
+			"0 AP does not drop a mode request — ranged is free")
+	assert_eq(_lit_mode(), BattleSystem.AttackMode.RANGED)
 
 
 func test_click_during_is_launching_does_not_desync_the_bar() -> void:

@@ -110,5 +110,5 @@ func _refresh() -> void:
 		_spell_bar.update_gating_context(plan.attacker)
 	var spell_name := plan.spell.name if plan != null and plan.spell != null else "Spell"
 	_launch_button.text = "Cast %s" % spell_name
-	var can_act := _input_ctl == null or _input_ctl.can_player_act()
+	var can_act := _input_ctl == null or (_input_ctl.can_player_act() and _input_ctl.can_afford(plan))
 	_launch_button.set_enabled(plan != null and plan.is_valid() and can_act)

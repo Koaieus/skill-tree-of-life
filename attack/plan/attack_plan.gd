@@ -89,6 +89,15 @@ func _read_base(d: Dictionary, graph: Graph) -> void:
 @abstract func validate() -> Array[String]
 
 
+## The AP this plan's launch spends — what [method resolve_against] stamps
+## on [member AttackOutcome.ap_cost] and what the UI asks BEFORE a launch
+## exists (Launch buttons, `Enter`, reform). Melee and magic pay 1; ranged
+## overrides to 0 (#957). Affordability is per verb, never a blanket "have
+## any AP" — see [method PlayerInputController.can_afford].
+func ap_cost() -> int:
+	return 1
+
+
 ## Run this plan in [param world] and return what happened (#536, closing #498
 ## step 3). Called for BOTH preview (UI tooltips, AI scoring) and commit — the
 ## launch flow computes its record with this and then replays that record, so

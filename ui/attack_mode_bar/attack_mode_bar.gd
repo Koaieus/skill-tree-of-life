@@ -48,4 +48,4 @@ func set_active_mode(mode: BattleSystem.AttackMode) -> void:
 func set_enabled(enabled: bool) -> void:
 	for btn: AttackModeButton in _group.get_buttons():
 		btn.enabled = enabled
-	tooltip_text = "" if enabled else "Not your turn, or no action points remaining"
+	tooltip_text = "" if enabled else "Not your turn, or an action is still resolving"

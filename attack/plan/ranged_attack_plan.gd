@@ -310,6 +310,12 @@ func _is_valid_target(node: SkillNode) -> bool:
 	return node.ownership_bit(attacker) == SkillNode.Ownership.HOSTILE
 
 
+## Owner (2026-09-18): "Firing costs 0 AP" — the volley economy is arrows
+## and per-leaf shots, both consumed by BattleSystem._commit.
+func ap_cost() -> int:
+	return 0
+
+
 func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# One DamageInstance per scheduled shot, in the authored firing order
 	# (see get_firing_schedule) — flat-armour-friendly, stagger-VFX-friendly.
@@ -344,9 +350,7 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	var outcome := AttackOutcome.new()
 	outcome.cadence = ScheduleEntry.Cadence.RAMP
 	outcome.resolve_seed = resolve_seed
-	# Owner (2026-09-18): "Firing costs 0 AP" — the volley economy is arrows
-	# and per-leaf shots, both consumed by BattleSystem._commit.
-	outcome.ap_cost = 0
+	outcome.ap_cost = ap_cost()
 	if not is_valid():
 		return outcome
 	var schedule := get_firing_schedule()

@@ -581,12 +581,13 @@ func _reform_payload() -> Dictionary:
 ## this to enable its button; a false answer is why the affordance greys out
 ## instead of half-reforming.
 ##
-## [b]No bespoke AP check.[/b] `ap_cost` is 1 for every attack, so "the stored
-## plan fits current AP" reduces to "have any AP", which `can_player_act()`
-## already answers — and `BattleSystem._can_afford` gates it again at
-## launch. Reform inherits both, which stays correct if `ap_cost` ever varies.
+## Reform re-arms a melee plan, so it asks the melee price through
+## `can_afford` on the live plan — `BattleSystem._can_afford` gates it again
+## at launch.
 func can_reform() -> bool:
 	if battle_system == null or not can_player_act():
+		return false
+	if battle_system.attack_plan != null and not can_afford(battle_system.attack_plan):
 		return false
 	var payload := _reform_payload()
 	if payload.is_empty():
@@ -1414,12 +1415,21 @@ func can_player_act() -> bool:
 	# 2026-08-27 pick-gate decision.
 	if command_applier != null and command_applier.has_outstanding_loot():
 		return false
-	# AP=0 blocks further attack/cast actions; UI uses this to dim.
-	if player != null and player.stat_board != null:
-		var ap: PoolStat = player.stat_board.action_points
-		if ap != null and ap.available() <= 0:
-			return false
+	# No AP clause: this is the FLOW gate (turn, in-flight command, pending
+	# loot). Affordability is per verb — a ranged volley costs 0 AP (#957) and
+	# must stay launchable at 0 — so it lives in `can_afford`, not here.
 	return true
+
+
+## The AFFORDABILITY half of the gate: can [member player] pay
+## [method AttackPlan.ap_cost] for [param plan] right now? Read beside
+## `can_player_act()`, never instead of it; `player_can_act_changed` still
+## fires on every AP change so a Launch button can re-ask both.
+func can_afford(plan: AttackPlan) -> bool:
+	if plan == null or player == null or player.stat_board == null:
+		return false
+	var ap: PoolStat = player.stat_board.action_points
+	return ap == null or ap.available() >= plan.ap_cost()
 
 
 func on_attack_mode_requested(mode: BattleSystem.AttackMode) -> void:
