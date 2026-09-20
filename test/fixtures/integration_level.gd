@@ -36,6 +36,12 @@ var enemy: Entity
 @onready var step1: SkillNode = %Step1
 @onready var step2: SkillNode = %Step2
 @onready var enemy_core: SkillNode = %EnemyCore
+## The enemy's two outer nodes, force-allocated at setup so a core kill has a
+## territory to cascade over (every node it owned goes unowned), not just the
+## core. Both sit beyond the blade's reach from `Step1`, so the swing itself
+## lands on the core alone.
+@onready var enemy_out: SkillNode = %EnemyOut
+@onready var enemy_out2: SkillNode = %EnemyOut2
 
 
 func _setup_level() -> void:
@@ -45,9 +51,17 @@ func _setup_level() -> void:
 	player = spawn_entity("Player", Color(0.945, 0.271, 0.247), player_core, _CORE_CLASS)
 	player.faction = _PLAYER_FACTION
 	player.is_human_controlled = true
-	enemy = spawn_entity("Enemy", Color(0.318, 0.776, 0.447), enemy_core, _CORE_CLASS)
+	# `with_ai = true` mounts the AIController here, so its pacing delay can be
+	# zeroed in this same hook; `_ensure_controllers` then skips the enemy.
+	enemy = spawn_entity("Enemy", Color(0.318, 0.776, 0.447), enemy_core, _CORE_CLASS, true)
 	enemy.faction = _ENEMY_FACTION
 	enemy.is_human_controlled = false
+	allocation_system.force_allocate(enemy, enemy_out)
+	allocation_system.force_allocate(enemy, enemy_out2)
+	# `turn_delay` is host-local presentation pacing between an AI's actions —
+	# irrelevant on a logical clock, and seconds of wall time per enemy turn
+	# if left at its default.
+	(enemy.get_node("AIController") as AIController).turn_delay = 0.0
 	for ent: Entity in [player, enemy]:
 		ent.stat_board.crit_chance.base_value = 0.0
 	var m := StatModifier.new()
@@ -57,15 +71,3 @@ func _setup_level() -> void:
 	player.grant_core_modifier(m)
 	battle_system.instant_mutation = true
 
-
-func _ready() -> void:
-	await super()
-	if Engine.is_editor_hint():
-		return
-	# `_ensure_controllers` has run inside `super()`; the enemy's AIController
-	# exists now. `turn_delay` is host-local presentation pacing between an
-	# AI's actions — irrelevant on a logical clock, and seconds of wall time
-	# per enemy turn if left at its default.
-	var ai := enemy.get_node_or_null("AIController") as AIController
-	if ai != null:
-		ai.turn_delay = 0.0

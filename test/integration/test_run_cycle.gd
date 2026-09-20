@@ -22,17 +22,19 @@ var _level_before: int
 func before_each() -> void:
 	_root = _LEVEL.instantiate()
 	add_child_autofree(_root)
+	assert_true(await wait_until(
+			func() -> bool:
+				return _root.player != null \
+						and _root.turn_manager.current_entity == _root.player, 5),
+			"fixture: the player must hold the first turn")
 	_player = _root.player
 	_enemy = _root.enemy
 	_enemy_core = _root.enemy_core
-	assert_true(await wait_until(
-			func() -> bool: return _root.turn_manager.current_entity == _player, 5),
-			"fixture: the player must hold the first turn")
 	_enemy_nodes = []
 	for node: SkillNode in _root.graph.get_skill_nodes():
 		if node.owned_by == _enemy:
 			_enemy_nodes.append(node)
-	assert_gt(_enemy_nodes.size(), 0, "fixture: the enemy owns its core")
+	assert_gt(_enemy_nodes.size(), 1, "fixture: the enemy owns a territory, not just its core")
 	# "XP rose" as a relation that survives the pool wrapping through a
 	# level-up: sum every positive step the pool takes, not before/after.
 	_xp_gained = 0

@@ -32,9 +32,11 @@ unique_name_in_owner = true
 position = Vector2(353, 129)
 
 [node name="EnemyOut" parent="Graph/Nodes" index="6" instance=ExtResource("3_skill")]
+unique_name_in_owner = true
 position = Vector2(553, 129)
 
 [node name="EnemyOut2" parent="Graph/Nodes" index="7" instance=ExtResource("3_skill")]
+unique_name_in_owner = true
 position = Vector2(353, 329)
 
 [node name="Edge_PlayerCore_Back" parent="Graph/Edges" index="0" node_paths=PackedStringArray("from", "to") instance=ExtResource("4_edge")]
