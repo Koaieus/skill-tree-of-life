@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"healing_received"
+display_name = "Healing Received"
+description = "Multiplier every heal on a node passes through, exactly once, at NodeCombat.heal_damage's door (#966). Read node-locally. 1.0 is normal; 0 blocks healing; below zero a heal becomes TRUE damage that never closes the regen gate, so a withered node heals itself to death. Wither plants a per-stack MULTIPLY on it."
+value_type = 1
+default_value = 1.0
+tint_color = Color(0.55, 0.85, 0.6, 1)
+modifier_name = "Healing Received"

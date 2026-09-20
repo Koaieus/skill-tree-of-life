@@ -59,6 +59,10 @@ extends StatBoard
 ## D-9). Self-limiting: the ramp stops at max HP and resets, so there is no
 ## cap stat. Node-local, same read path as node_healing.
 @export var node_healing_ramp: ScalarStat
+## Multiplier every heal on a node passes through once, at NodeCombat.heal_damage
+## (#966). Node-local read. 1.0 normal; 0 blocks; negative turns the heal into
+## TRUE damage that leaves the regen gate open (Wither's "undead" case).
+@export var healing_received: ScalarStat
 ## Flat damage reduction. Applied by Mitigation.apply before the
 ## min_damage_taken floor. Default 0.
 @export var armor: ScalarStat

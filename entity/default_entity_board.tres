@@ -43,6 +43,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/corruption_resistance.tres" id="def_corruption_resistance"]
 [ext_resource type="Resource" path="res://stats_system/defs/curse_resistance.tres" id="def_curse_resistance"]
 [ext_resource type="Resource" path="res://stats_system/defs/wither_resistance.tres" id="def_wither_resistance"]
+[ext_resource type="Resource" path="res://stats_system/defs/healing_received.tres" id="def_healing_received"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health.tres" id="def_node_health"]
 [ext_resource type="Resource" path="res://stats_system/defs/node_health_scaling.tres" id="def_node_health_scaling"]
 [ext_resource type="Resource" uid="uid://dstlg0lrt8nvv" path="res://stats_system/defs/perception.tres" id="def_perception"]
@@ -131,6 +132,12 @@ definition = ExtResource("def_curse_resistance")
 resource_name = "wither_resistance"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_wither_resistance")
+
+[sub_resource type="Resource" id="scalar_healing_received"]
+resource_name = "healing_received"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_healing_received")
+base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_armor"]
 resource_name = "armor"
@@ -628,6 +635,7 @@ core_health_scaling = SubResource("scalar_core_health_scaling")
 node_health_scaling = SubResource("scalar_node_health_scaling")
 node_health = SubResource("scalar_node_health")
 node_healing = SubResource("scalar_node_healing")
+healing_received = SubResource("scalar_healing_received")
 node_healing_ramp = SubResource("scalar_node_healing_ramp")
 armor = SubResource("scalar_armor")
 min_damage_taken = SubResource("scalar_min_dmg_taken")
