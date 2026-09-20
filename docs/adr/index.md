@@ -43,6 +43,8 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0019](0019-ranged-ammo-is-an-entity-level-quiver-not-per-node-stock.md) | Ranged ammo is the entity-board `arrows` PoolStat (the Quiver) with per-type bins, not per-node stock | accepted | 2026-09-18 | ranged, combat, stats, architecture |
 | [0020](0020-volley-composition-rides-the-command-typed-along-schedule-order.md) | A ranged volley's composition rides the command as typed counts; per-arrow leaf and type are derived along schedule order at resolve, never carried per arrow or assigned at replay | accepted | 2026-09-18 | ranged, combat, multiplayer, architecture |
 | [0021](0021-ranged-reach-is-an-isotropic-disc-and-a-volley-targets-a-node-set.md) | Ranged reach is an isotropic disc and a volley targets a node set — no lanes, cover, or hull geometry | accepted | 2026-09-18 | ranged, combat, procgen, architecture |
+| [0022](0022-one-dot-per-defensive-axis-stacks-halve-uncapped.md) | One DoT per defensive axis; a status is uncapped stacks that halve; no per-tick clamp | accepted | 2026-09-20 | combat, status, dot, balance, design |
+| [0023](0023-every-notable-stat-gets-an-addon-and-an-arrow.md) | Every notable stat or combo gets a dedicated NodeAddon and an arrow ammo type; every DoT gets both plus spells | accepted | 2026-09-20 | content, addons, ranged, ammo, dot, design |
 
 ## Reading order
 
