@@ -39,8 +39,9 @@ extends DistanceScale
 ## that costs nothing. This is the [i]escape hatch[/i] — gating ("start after
 ## N hops", "band N..M") belongs in the reach, where a range finder drops the
 ## node before any formula runs and the aura never pays for it. `NONE` is not
-## an alias: it already names [enum AuraEffect.Discard] `NONE`. Mind that
-## `v / d` at the source is `inf`, not NaN, and `inf` IS granted.
+## an alias: it already names [enum AuraEffect.Discard] `NONE`. `v / d` at
+## the source is `inf`, not NaN; [AuraEffect] drops any non-finite result the
+## same way, so that node is simply not granted.
 ##
 ## [b]`h` and `e` are paid for only when named[/b] (#943): [AuraEffect] asks
 ## [method wants_hops] / [method wants_euclid] and walks the bounded hop ball

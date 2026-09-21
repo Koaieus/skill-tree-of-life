@@ -385,7 +385,9 @@ func _grant_to(ctx: EffectContext, node: SkillNode, distance: float, bound: floa
 			# NOT_GRANTED is absence, not a value: dropped before the discard
 			# policy, under every mode (no comparison is ever true of NaN, so
 			# `_discards` alone would let it land — as INT_MIN on an int stat).
-			if is_nan(computed):
+			# `inf` (a formula dividing by `d` at the source) is dropped with it:
+			# a non-finite result is never a grant.
+			if not is_finite(computed):
 				continue
 			values[i] = computed
 			if not _discards(computed):
