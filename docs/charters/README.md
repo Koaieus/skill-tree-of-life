@@ -31,3 +31,6 @@ history, or the next rewrite re-learns it.
   but one home for both keeps the convention uniform.
 
 Charters so far: [drone](drone.md), [swarmify](swarmify.md), [swarm](swarm.md), [sage](sage.md), [adr](adr.md), [warp](warp.md), [relay](relay.md).
+
+Checklist skills (`manage-stats`) have no charter: a checklist carries no
+laws and no incident corpus, and its *why* is the rule it points at.

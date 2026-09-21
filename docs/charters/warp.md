@@ -213,5 +213,4 @@ have to carry them.
 ## Open follow-ups
 
 - `relief` (#1022, a revision first) still carries warp-shaped dated lore
-  and no charter; `manage-stats` (#1023) is stale and
-  `handoff` lacks one too.
+  and no charter; `handoff` lacks one too.
