@@ -492,6 +492,10 @@ func get_value_with(overlays: Array[ModifierBins]) -> Variant:
 	return _coerce(ModifierBins.compute(base_value, sources))
 
 
+func resolve_with(_overlays: Array[ModifierBins]) -> FoldTerms:
+	return FoldTerms.new()
+
+
 ## Read this stat through a formula accessor — the ONLY door the formula
 ## layer has into a stat's extra state (#333). `&""` is the computed value /
 ## cap (the bare-token form, what every formula reads today). Named

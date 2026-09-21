@@ -38,6 +38,10 @@ var board: StatBoard = null
 ## multiplier lists, run the pipeline once. Callers are responsible for
 ## final type coercion — read through [method Stat.get_value_with] rather than
 ## calling this directly, so the INT floor is not skipped (#895).
+static func resolve(_sources: Array[ModifierBins]) -> FoldTerms:
+	return FoldTerms.new()
+
+
 static func compute(base: float, sources: Array[ModifierBins]) -> float:
 	var win_bins := _pick_set_winner_bins(sources)
 	if win_bins != null:
