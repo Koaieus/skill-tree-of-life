@@ -71,9 +71,9 @@ max_tier = 3
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
 [sub_resource type="Resource" id="Resource_u38nb"]
-resource_name = "spell_range +%"
+resource_name = "cast_range_distance +%"
 script = ExtResource("2_pool")
-stat_id = &"spell_range"
+stat_id = &"cast_range_distance"
 operation = 1
 archetype_stat = &"intelligence"
 unit_value = 10.0
@@ -83,9 +83,9 @@ min_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
 [sub_resource type="Resource" id="Resource_b5k8y"]
-resource_name = "spell_hops +"
+resource_name = "cast_range_hops +"
 script = ExtResource("2_pool")
-stat_id = &"spell_hops"
+stat_id = &"cast_range_hops"
 archetype_stat = &"intelligence"
 pool_weight = 0.3
 min_tier = 4

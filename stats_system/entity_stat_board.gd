@@ -185,8 +185,8 @@ extends StatBoard
 @export_group("Magic")
 @export var mana: PoolStat				## Casting resource. Max = base + rolled board grants + a token INT scaling (#766 — the board is the source, INT is a rounding error).
 @export var mana_per_turn: ScalarStat	## Mana restored at turn start. Comes from rolled `mana_per_turn +` grants; INT contributes only a token amount (#766).
-@export var spell_range: ScalarStat		## Percent bonus to EUCLIDEAN magic-spell reach only. Scales with INT via intrinsic (reduced rate, #727).
-@export var spell_hops: ScalarStat		## Flat integer bonus to HOP-ranged magic-spell reach — HopRangeFinder.max_hops only, NEVER PropagationConfig.max_hops. INT threshold ladder (#727). Node-local via SpellRangeRules.bonus_hops, mirrors spell_range.
+@export var cast_range_distance: ScalarStat	## EUCLIDEAN spell reach, in pixels. Base 0 by contract — the spell's authored max_distance folds in as an overlay (SpellRangeRules.reach), so +N adds pixels, % increased scales the authored reach, SET replaces it. INT contributes % increased via intrinsic. Node-local.
+@export var cast_range_hops: ScalarStat		## HOP-ranged spell reach, in hops — HopRangeFinder.max_hops only, NEVER PropagationConfig.max_hops. Base 0 by contract — the authored max_hops folds in as an overlay (SpellRangeRules.reach); the total floors once. INT contributes a flat threshold ladder via intrinsic. Node-local.
 @export var spell_damage: ScalarStat	## Damage behind one spell seed, × the spell's own `power`. Base 1, scales with √INT (sqrt transfer, #776). Node-local addons add on top per-node via node_board.
 
 @export_group("Melee")

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" uid="uid://0rq8abv83bkj" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"cast_range_distance"
+display_name = "Cast Range Distance"
+description = "How far, in scene pixels, a euclidean-ranged spell reaches from its cast-from node. The spell's authored reach is the base, so +N adds pixels, % increased scales the authored reach, and a SET replaces it outright. Base 0 on every board by contract. Scales with INT: +1% increased per 50 INT. Node-local, so an addon can grant it to a cast-from node."
+value_type = 1
+default_value = 0.0
+tint_color = Color(0.55, 0.65, 1.0, 1)
