@@ -8,13 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Delegating to subagents
 
-**Always pass `model: "haiku"` on `Explore` agent calls.** There is no cheap default to fall back on: an omitted `model` inherits the *parent's*, so a forgotten pin makes an Opus orchestrator spawn an Opus grep. Haiku is what read-only search (finding files, grepping symbols) wants anyway.
+**Always pass `model: "haiku"` on `Explore` agent calls** — an omitted `model` inherits the parent's, so a forgotten pin makes an Opus orchestrator spawn an Opus grep.
 
 ## Running the Game
 
-`mise install` is the whole setup — `[tools]` in `mise.toml` pins the engine
-(exactly: it decides whether a `.tscn` loads at all), `gh`, and python. The one
-exception is msdfgen (`mise run tools:bootstrap`), which the font pipeline needs.
+`mise install` is the whole setup (`mise.toml` pins the engine — exactly, it decides whether a `.tscn` loads — plus `gh` and python); msdfgen for the font pipeline is `mise run tools:bootstrap`.
 
 ```
 godot --editor .                                  # open project in editor
@@ -28,11 +26,9 @@ godot --path . scenes/procgen_play_sandbox.tscn   # small procgen proof-of-conce
 an exported build and a bare `godot --path .` (or F5) start. Launch sandboxes by
 path, as above; never repoint the main scene (why: `docs/domain/godot-workflow.md`).
 
-`scenes/level.tscn` is the shipped level and is **not** launchable on its own —
-it generates from whatever run `GameSession` already holds and refuses without
-one. The two sandboxes above are that same scene plus a `RunBootstrap` child
-holding an authored `RunConfig`, which is the only way they differ from a
-lobby-launched run (#584).
+`scenes/level.tscn` is the shipped level and refuses to launch without a run in
+`GameSession`; the sandboxes are that scene plus a `RunBootstrap` child holding
+an authored `RunConfig`.
 
 No build step or lint tool. Tests are GUT, driven through mise:
 
@@ -47,16 +43,12 @@ mise run mp:e2e                                # two processes play the shipped 
                                                # (~30s) — the gate for network/ session/ command/
 ```
 
-The full suite is **~45s wall** sharded over half the cores (`GUT_SHARDS_MAX=16`
-is faster and loud, `GUT_SHARDS=1` the ~6-minute single process) — still a
-**gate, not a feedback loop**: cheap in wall clock, not in the context its
-output costs. Earn it **once per unit of work**, at final green, right before
-reporting — never to explore, never **to grep it differently.** Iterate on the
-cheap ladder instead — `check` (~20s, script parse + shader compile) →
-`test:one` → `test:dir` → only then the full suite. `mise run test` prints a
-verdict and always keeps the full console output at `.godot/gut-last.log` plus
-junit XML — see `.claude/rules/testing.md` for the log-grep gotcha and other
-pitfalls.
+The full suite (~45s wall, sharded; `GUT_SHARDS=1` is the ~6-minute single
+process) is a **gate, not a feedback loop** — cheap in wall clock, not in the
+context its output costs. Earn it **once per unit of work**, at final green,
+never to explore. Iterate on the cheap ladder: `check` (~20s) → `test:one` →
+`test:dir` → the suite. `mise run test` prints a verdict and keeps the full log
+at `.godot/gut-last.log` plus junit XML — see `.claude/rules/testing.md`.
 
 Each level scene extends `scenes/game_root.tscn` (the composition root); subclasses populate content via the `_setup_level()` hook.
 
@@ -65,37 +57,29 @@ Each level scene extends `scenes/game_root.tscn` (the composition root); subclas
 `GameRoot` (`scenes/game_root.gd`) — per-level composition root; mounts VFX, wires systems, calls `_setup_level()`, then `HudRoot.compose(self)`. Subclass + override `_setup_level()` to author or generate level content.
 `HudRoot` (`ui/hud/hud_root.gd`) — the "Arcane Terminal" HUD, sole UI layer; clusters `bind()` their own deps, cross-system deps arrive through one `compose(game_root)` split by lifetime (`bind_systems()` per level, `rebind_player()` per hot-seat handover).
 `Graph` (`graph/graph.gd`) — owns `SkillNode`s + `Edge`s + `entities_container`; pure topology, structural signals.
-`Entity` (`entity/entity.gd`) — players and NPCs use the same class; ownership is set by `AllocationSystem`. Composes a `CoreClass` (`entity/core/`) branding it with identity modifiers + an `on_turn_started` hook; `BalancedCore` is the +10 STR/DEX/INT baseline.
+`Entity` (`entity/entity.gd`) — players and NPCs share the class; ownership is set by `AllocationSystem`. Composes a `CoreClass` (`entity/core/`) — identity modifiers + an `on_turn_started` hook.
 `SeatPolicy` (`session/seat_policy.gd`) — the per-machine half of a run's setup (who this machine plays, whose eyes it draws with); run shape is the roster's half. See `docs/domain/seat-policy.md`.
-`Navigator` (`graph/navigator.gd`) — full-graph `AStar2D` mirror; `EntityNavigator` (`entity/entity_navigator.gd`) is the per-entity subgraph mirror used for cut-vertex / islanding queries.
-`TurnManager` (`systems/turn_manager.gd`) — initiative ticks to 100 → entity acts (single implicit phase — intent is by input channel, not phase gates); `end_turn()` deducts 100. See `.claude/rules/turn-manager.md`.
+`Navigator` (`graph/navigator.gd`) — full-graph `AStar2D` mirror; `EntityNavigator` is the per-entity mirror for cut-vertex / islanding queries.
+`TurnManager` (`systems/turn_manager.gd`) — initiative ticks to 100 → entity acts; `end_turn()` deducts 100. See `.claude/rules/turn-manager.md`.
 `AllocationSystem` (`systems/allocation_system.gd`) — `allocate` / `deallocate` (gated) + `force_allocate` / `force_deallocate` (primitives). See `docs/domain/allocation_system.md`.
 `BattleSystem` (`systems/battle_system.gd`) — owns the active `AttackPlan`; `launch_attack` submits a command to `CommandApplier`, which replays the resolved `AttackRecord` on the reveal clock. See `docs/domain/attack_plan_system.md`.
 `VisionSystem` (`systems/vision_system.gd`) — fog of war; reads owned subgraph + per-entity `vision_range` / `sensor_range`. See `docs/domain/vision-system.md`.
 `LootSystem` (`systems/loot_system.gd`) — killing-blow XP, tempo, and a relic on the victim's former core; snapshots on `Events.entity_dying`, before the corpse is stripped. See `docs/domain/loot-system.md`.
-`StatBoard` (`stats_system/`) — PoE-style modifier pipeline. See `.claude/rules/stats-system.md` for IDs, pipeline, gotchas — **update it when the stat system changes.**
+`StatBoard` (`stats_system/`) — PoE-style modifier pipeline. See `.claude/rules/stats-system.md` — **update it when the stat system changes.**
 `VictorySystem` (`systems/victory_system.gd`) — sole emitter of `Events.run_ended(RunOutcome)`; owns the *when* and the *once*, the swappable `VictoryCondition` owns the *what*. See `docs/domain/victory-system.md`.
-`GraphProcgen` (`procgen/graph_procgen.gd`) — static pipeline; `generate(config, graph)` returns nodes + starting_nodes. See `docs/domain/procgen.md` (topology) and `docs/domain/procgen-v4.md` (content: StatPool + phased draw).
+`GraphProcgen` (`procgen/graph_procgen.gd`) — static pipeline; `generate(config, graph)` returns nodes + starting_nodes. See `docs/domain/procgen.md` (topology), `docs/domain/procgen-v4.md` (content).
 
-Spawning runtime entities: subclass `GameRoot`, override `_setup_level()`, call `spawn_entity(name, color, core_location, core_class)` — it duplicates the default stat board, parents under `graph.entities_container`, force-allocates the core node, and assigns the class. See `scenes/procgen_play_sandbox.gd`.
+Spawning runtime entities: in `_setup_level()`, call `spawn_entity(name, color, core_location, core_class)`. See `scenes/procgen_play_sandbox.gd`.
 
 ## Autoloads (registered in `project.godot`)
 
+`SceneTransition`, `SceneDirector` (routing + async loading; `MetaRoot` and the menu shell go through `.goto`), `Settings`, `BuildInfo`, `StatRegistry`, `DebugClipboard` (press `c` over a SkillNode to copy its full state) — and three that matter for game logic:
+
 | Singleton | Purpose |
 |---|---|
-| `SceneTransition` | Fade in/out + loading progress bar |
-| `SceneDirector` | Scene routing + async loading. Absorbed the zero-caller `SceneLoader` (#212); `MetaRoot` and the menu shell route through `SceneDirector.goto` |
-| `Settings` | `GameSettings` + `ConfigFile` persistence, surfaced by the reflected settings menu |
-| `BuildInfo` | Branch / worktree / sha, shown in the pause-menu footer |
-| `Events` | Global signal bus (`skill_node_depleted`, etc.) |
+| `Events` | Global signal bus (`skill_node_depleted`, `entity_dying`, `run_ended`, …) |
 | `GameSession` | The live run — `RunConfig`, `ParticipantRoster`, `RunOutcome`; resolves the procgen seed **exactly once** up front (`.claude/rules/game-session.md`) |
-| `StatRegistry` | StatDef lookup by id |
-| `DebugClipboard` | Press `c` while hovering a SkillNode to copy its full state (archetype, owner, hp, modifiers, addons) to the system clipboard |
-| `Wire` | The LAN socket + the repo's single `@rpc`, at `/root/Wire` — a path that outlives every scene (#713). See `docs/domain/multiplayer-harness.md` |
-
-## Design docs
-
-Entry points: `docs/GDD.md` (master GDD) · `docs/design/index.md` (full index with reading order).
+| `Wire` | The LAN socket + the repo's single `@rpc`, at `/root/Wire`. See `docs/domain/multiplayer-harness.md` |
 
 ## Issue tracking
 
@@ -109,9 +93,7 @@ Board commands, the hub rules, roadmap fields, sub-issues, and why attribution i
 
 ## Godot conventions
 
-- `@tool` on `SkillNode`, `Entity`, `Graph` — they run in the editor.
-- `%NodeName` (unique name) for child node access in scenes; GameRoot reads systems via `%PlayerInputController`, `%VisionSystem`, etc.
-- `call_deferred` / `await` for post-ready init.
+`@tool` on `SkillNode`, `Entity`, `Graph` (they run in the editor); `%NodeName` for scene-child access (GameRoot reads systems via `%VisionSystem` etc.); `call_deferred` / `await` for post-ready init.
 
 ## Knowledge accumulation
 
