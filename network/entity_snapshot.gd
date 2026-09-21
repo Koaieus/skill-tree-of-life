@@ -1,82 +1,17 @@
 class_name EntitySnapshot
 extends RefCounted
 
-## The ENTITY half of the join handshake (#560), sibling to [GraphSnapshot] —
-## one encoder, one subject, composed alongside at the same handshake point
-## with its own [constant CommandLink.KIND_ENTITIES] envelope. Child of #521;
-## the tiering vocabulary and the reasons for it are [GraphSnapshot]'s docblock,
-## and this class obeys the same three tiers.
-##
-## [b]The bug this closes.[/b] [method GraphSnapshot._decode_node] sets
-## `node.owned_by` directly, bypassing [AllocationSystem], and nothing rebuilt
-## the owner's [EntityStatBoard] from that decoded ownership. A client joining
-## mid-run therefore held boards missing every allocated node's grants AND every
-## looted relic. [method NodeCombat.get_local_value] merges a node's board with
-## its OWNER's, and `node_health` is a borrowed stat — the entity carries the
-## baseline — so a missing `+5 CON` moved every health bar that entity owns at
-## once, silently, from the client's first frame.
-##
-## [b]Three tiers.[/b]
-## - Authored ([CoreClass], [Faction], [SpellBook], each granted [Effect])
-##   crosses as an INTERNED REF into a per-snapshot path table, exactly as
-##   archetypes and addons do next door.
-## - Accumulated (per-stat `base_value` and the applied modifier list, every
-##   [member PoolStat.current], [SkillPointStat]'s `wounded`/`staked`,
-##   [member SurplusPoolStat.surplus], the granted [EffectInstance]s with their
-##   source node's `stable_id`, active tags, [member Entity.entity_tier],
-##   [member Entity.core_location] by `stable_id`) crosses BY VALUE.
-## - Derived (board totals, [member Stat.bins], aura contributions, vision)
-##   NEVER crosses. The receiver recomputes.
-##
-## [b]Modifiers cross by value, not interned, and that is not a tier violation.[/b]
-## [method Entity.initialize] does `stat_board = stat_board.duplicate(true)`, and
-## a duplicated sub-resource carries no `resource_path` — so a LIVE board's
-## intrinsics and class modifiers have nothing to intern. The authored/accumulated
-## split collapses to by-value for modifiers on any board that is actually in
-## play, which is the only kind this class ever encodes.
-##
-## [b]It DECORATES rather than spawns (#560 D7) — but since #561 it also
-## REMOVES, and since #715 it may MATERIALIZE what the roster never named.[/b]
-## D7 is an owner decision (#560's settled list) and #715's relaxation of it is
-## an agent decision, 2026-09-02, recorded in
-## `docs/domain/multiplayer-sync-model.md`. Read
-## [method _materialize] for the premise that changed and for why this is still
-## not a second `entity_id`-minting path.
-## #528 (roster replication) and #553 (the level spawns from the session roster)
-## both shipped, so every entity the ROSTER names exists by the time state
-## arrives. Every row resolves through [method Graph.get_by_entity_id]; a row
-## whose entity is absent asks [method _materialize] and, if that declines, is
-## SKIPPED with a warning — mirroring how
-## [method GraphSnapshot._decode_node] decodes an unresolvable `owner_id` as
-## unowned rather than inventing an entity. The reverse direction is
-## different and is not symmetric with it: an entity the payload does NOT name
-## does not exist in the authority's world at all, and
-## [method _prune_entities] drops it. Join never needed that (the roster spawns
-## exactly the named set); a resync does.
-##
-## [b]Two passes, and the order is load-bearing (#560 D5).[/b]
-## [method decode] runs BEFORE the graph decodes (it needs no nodes);
-## [method resolve_graph_refs] runs AFTER, because `core_location` and an
-## effect's `source_node` resolve entity->node, the opposite direction from
-## [method GraphSnapshot._decode_node]'s `owner_id`. Both passes are idempotent:
-## effects are granted only if an equal grant is not already present, tags only
-## if not already held, and [method StatBoard.read_dict] reconciles rather than
-## rebuilds. That is what lets pass 2 re-run the board restore to absorb the
-## node-sourced effects it just granted.
-##
-## [b]Effects are granted BEFORE the board is restored, in each pass.[/b]
-## [method EffectContext.grant] puts a modifier on the board and records the
-## HANDLE in the [EffectInstance] ledger, which revokes by object identity. Grant
-## first, then reconcile, and the reconcile recognises the effect's own modifier
-## by wire form and leaves the handle in place — so a later
-## [method Entity.revoke_effects_from] on the client actually removes something.
-## Restoring the board first and granting after would double every effect's
-## contribution instead, which is the very failure mode this issue exists to
-## kill.
-##
-## No `var_to_bytes(obj, full_objects = true)` anywhere: it instantiates
-## arbitrary objects from script paths in the payload (#560 D6). Everything
-## object-shaped goes through [StatModifierCodec] or an interned resource path.
+## The ENTITY half of the join handshake, sibling to [GraphSnapshot]: what each
+## entity has ACCUMULATED (board, effects, tags, core), so a joining peer's
+## boards match the authority's from the first frame. Three tiers — authored
+## crosses as an interned ref, accumulated by value, derived never. It
+## decorates the entities the roster spawned, prunes the ones the payload does
+## not name, and materializes (blockers only, via a spawner callback) the ones
+## it names that are absent. Two passes: [method decode] before the graph
+## decodes, [method resolve_graph_refs] after — both idempotent — and in each
+## pass effects are granted BEFORE the board is restored. Never
+## `var_to_bytes(..., full_objects = true)`.
+## See docs/domain/entity-snapshot.md.
 
 ## Entity row indices — same positional-row convention as [GraphSnapshot]'s
 ## `_R_*` consts, and for the same reason (string keys roughly double a naive
