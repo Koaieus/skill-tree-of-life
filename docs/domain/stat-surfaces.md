@@ -97,8 +97,8 @@ above).
 
 | id | status |
 |---|---|
-| `spell_hops` | No surface drawn yet. The magic card's rows wait on #912 (cast range reframed as one bin-decomposed stat rather than spell_hops+spell_range as two single-bin stats) — don't guess a row ahead of that call |
-| `spell_range` | Same as spell_hops, pending #912 |
+| `cast_range_hops` | No surface drawn yet. Base 0 by contract — the spell's authored reach folds in as an overlay, so a bare board read prints the bonus alone; the magic card's rows are #793's (display), don't guess a row ahead of that |
+| `cast_range_distance` | Same as cast_range_hops, pending #793 |
 
 ## Hidden — owner-confirmed 2026-09-16
 

@@ -334,7 +334,7 @@ for as long as the victim is alive (a dormant core's intrinsics still "work" by
 being lootable, per the owner: *"a dormant core DOES use its intrinsics — by
 exposing them as loot"*).
 
-An `INT`-typed target stat (`spell_hops`, `blade_size`, `xp_per_turn`) coerces
+An `INT`-typed target stat (`cast_range_hops`, `blade_size`, `xp_per_turn`) coerces
 once, at the end of the pipeline — a lone 0.25 coefficient can read as **+0**
 until a second copy stacks it past a whole number. Accepted as-is (owner,
 2026-09-13): showing the player the effective value is #792's job, not this

@@ -5,7 +5,7 @@ extends MarginContainer
 ## [TooltipFan] pattern: subscribes to global [code]Events[/code]
 ## signals, auto-positions at the mouse cursor, and formats all
 ## [SpellDef] fields. Values that change based on the caster's stats
-## (e.g. cast range scaled by [code]spell_range[/code]) are highlighted in
+## (e.g. cast range scaled by [code]cast_range_distance[/code]) are highlighted in
 ## gold.
 ##
 ## Reusable outside the HUD: instantiate the scene, call [method show_for] with

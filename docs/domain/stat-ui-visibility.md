@@ -84,8 +84,8 @@ duplication.
 |---|---|---|---|---|
 | `mana` | PoolGauge | "mana N" | | |
 | `mana_per_turn` | gauge preview_gain | | | |
-| `spell_range` | | | (→effective euclidean range, "Range" row) | |
-| `spell_hops` | | | (→effective hops, "Range" row for hop-ranged spells) | |
+| `cast_range_distance` | | | (→effective euclidean range, "Range" row) | |
+| `cast_range_hops` | | | (→effective hops, "Range" row for hop-ranged spells) | |
 
 ## Melee
 

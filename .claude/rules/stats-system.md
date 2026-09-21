@@ -561,8 +561,8 @@ These are `StatModifier` sub-resources with a `formula`, wired as `intrinsic_mod
 | `wisdom` | `xp_per_turn` | ADD_BASE | 1 | RatioFormula(wisdom, **5**) — #776 divisor pass, starting value |
 | `dexterity` | `range` | INCREASE | 1 | LinearFormula(dexterity) — at DEX=30 → +30% |
 | `dexterity` | `ranged_damage` | ADD_BASE | 1 | RatioFormula(dexterity, **20**) — #776 divisor pass, starting value |
-| `intelligence` | `spell_range` | ADD_BASE | 1 | RatioFormula(intelligence, **50**) — euclidean-only reach (%), #776 divisor pass, starting value (#727) |
-| `intelligence` | `spell_hops` | ADD_BASE | 1 | ThresholdFormula(intelligence, [50, 150, 500, 1000, 5000]) — flat +1..+5 hop-ranged reach, feeds `HopRangeFinder` only, never `PropagationConfig.max_hops`; breakpoints retune post-LAN (#727) |
+| `intelligence` | `cast_range_distance` | INCREASE | 1 | RatioFormula(intelligence, **50**) — a line, +1% increased euclidean reach per 50 INT, over the spell's authored `max_distance` (folded as an overlay, stat base 0 by contract — #912) |
+| `intelligence` | `cast_range_hops` | ADD_BASE | 1 | ThresholdFormula(intelligence, [50, 150, 500, 1000, 5000]) — flat +1..+5 hops over the spell's authored `max_hops` (overlay, base 0 by contract — #912), feeds `HopRangeFinder` only, never `PropagationConfig.max_hops`; breakpoints retune post-LAN |
 | `intelligence` | `spell_damage` | ADD_BASE | 1 | SqrtFormula(intelligence, divisor=1) — pure sqrt transfer, no knee (#776 amendment, superseding #760's KneeSqrtFormula); `divisor` a drone starting value, not the owner's |
 | `strength` | `blade_size` | ADD_BASE | 1 | RatioFormula(strength, **40**) — #776 divisor pass, starting value |
 | `strength` | `blade_damage` | ADD_BASE | 1 | RatioFormula(strength, **20**) — #776 divisor pass, starting value |

@@ -401,6 +401,20 @@ the authored number, which only a base-side add gives.
   and a pixel on a euclidean one; `% increased` and `MORE` are unitless and
   apply to either. Keep the flat add's unit with the resource that authored it.
 
+**Worked example — cast range (#1018).** `cast_range_hops` (INT) and
+`cast_range_distance` (FLOAT) are base 0 on every board by contract. A
+`HopRangeFinder` with `max_hops = 3` reads
+`SpellRangeRules.reach(&"cast_range_hops", 3.0, attacker, source)`, which builds
+one `ModifierBins` with `base_add = 3.0` and folds it through
+`source.get_local_value_with` (tier 1), the caster's board's
+`Stat.get_value_with` (tier 2, the tooltip's no-cast-from-node preview), or
+answers the raw `3.0` (tier 3 — a null attacker, so an aura never inherits the
+caster's reach; also a board with no such stat). So a node-local `+50%
+increased cast_range_hops` yields `int(3 × 1.5) = 4`, a board `+2` yields `5`,
+and a `SET 5` yields `5` for a 3-hop and a 10-hop spell alike. INT's own
+contribution is authored on the boards as intrinsics on those stats — a flat
+ladder on hops, a `% increased` line on distance — and lands in the same fold.
+
 `PoolStat.base_provider` is the same idea aimed at a *cap* (a pool whose base is
 computed elsewhere, then coerced); it is not folded onto this door.
 

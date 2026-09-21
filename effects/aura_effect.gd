@@ -241,7 +241,7 @@ func _topology_changed(ctx: EffectContext, changed_node: SkillNode) -> void:
 ## Only [EuclideanRangeFinder] gets a real O(1) short-circuit here, via
 ## [method RangeFinder.in_range] with a null attacker (unscaled, matching
 ## [method _distances]'s own [code]reach.gather(source, mirror)[/code] call —
-## auras never inherit a caster's `spell_range`). [HopRangeFinder.in_range] is
+## auras never inherit a caster's cast range). [HopRangeFinder.in_range] is
 ## NOT safe to call the same way: it hardwires the GLOBAL navigator rather
 ## than whatever mirror an owned-scope aura measures over, AND early-returns
 ## false whenever `attacker == null` — so `in_range(null, ...)` would silently

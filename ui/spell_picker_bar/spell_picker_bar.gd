@@ -127,8 +127,8 @@ func update_gating_context(attacker: Entity) -> void:
 	_resubscribe_mana(attacker)
 	_refresh_gating()
 	# Propagate caster to buttons so the floating tooltip can compute
-	# dynamic values (e.g. cast range scaled by the spell_range / spell_hops
-	# stats, #727).
+	# dynamic values (e.g. cast range scaled by the cast_range_distance /
+	# cast_range_hops stats).
 	for btn in _buttons_by_spell.values():
 		btn.set_caster(attacker)
 

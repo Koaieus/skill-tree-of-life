@@ -1,6 +1,6 @@
 # Spells — Skill Tree of Life
 
-> ⚠️ **MVP-current state lives in [mvp_decisions.md](mvp_decisions.md).** Cast-range scales by INT (new `spell_range` stat), not by source-node degree. Degree-gating uses **allocated-degree** (`EntityNavigator`). "Overqualified casting" bonuses are deferred.
+> ⚠️ **MVP-current state lives in [mvp_decisions.md](mvp_decisions.md).** Cast-range scales by INT (the `cast_range_hops` / `cast_range_distance` stats, folded over the spell's authored reach), not by source-node degree. Degree-gating uses **allocated-degree** (`EntityNavigator`). "Overqualified casting" bonuses are deferred.
 
 ## Overview
 
