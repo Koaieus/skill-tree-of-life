@@ -33,7 +33,7 @@ const _ENTITY_SCENE := preload("res://entity/entity.tscn")
 const _PRESET := preload("res://procgen/presets/first_level/first_level.tres")
 const _CORE_CLASS := preload("res://entity/core/balanced_core.tres")
 
-## North Star (docs/FOCUS.md): a 2000-node map at 144Hz. One frame's budget.
+## North Star (docs/domain/rendering-performance.md): a 2000-node map at 144Hz. One frame's budget.
 const _FRAME_BUDGET_USEC := 6944.0
 const _NODE_COUNT := 2000
 ## Pinned so content — and therefore cost — is comparable across commits.

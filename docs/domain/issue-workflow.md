@@ -35,24 +35,20 @@ there is no `swarmable` label (retired 2026-08-02: a second source of truth for
 what the status already said, and it rotted both ways). Standing hub queue:
 issue **#261**.
 
-## `Ready` and `Needs design` are prioritised by [FOCUS.md](../FOCUS.md)
+## `Ready` and `Needs design` are prioritised by milestone
 
-A lane item that is `Ready` is takeable; anything else sitting in `Ready` is
-*scheduled-eligible but not scheduled*, and a drone must not pull it. Same for
-`Needs design` — being in that column means "forks are open", not "work on this
-next". FOCUS names the ordered lanes and the WIP limit.
+What to pull first is the **current GitHub milestone** — `mise gh-project --
+roadmap` lists open / ready / needs-design per milestone, and the owner names
+the live one. `Ready` is a superset, not the queue: anything in it *could* be
+taken; being in the live milestone means it *should*. Same for `Needs design` —
+that column means "forks are open", not "work on this next".
 
-This exists because status columns alone couldn't stop scope drift: they say
-what a thing's *state* is, never what's *next*.
-
-**But FOCUS wins only on priority, never on state.** It used to win outright on
-any disagreement, and that clause was retired 2026-08-31: FOCUS had accumulated
-134 issue references, 89 of them closed, and 81 of those still reading as live —
-a stale file with authority over live board data. The board is now authoritative
-for status, dependencies and what shipped, and FOCUS carries **no per-issue
-state at all**, so there is nothing left for the two to disagree about. A line in
-FOCUS naming one issue may contain its number and nothing else; a sentence about
-an issue goes **on** the issue.
+There is deliberately no prose priority file. `docs/FOCUS.md` held that role and
+was rewritten twice (2026-08-18, 2026-08-31) for the same rot — per-issue prose
+is irresistible to append to and invisible to prune; at its worst it referenced
+134 issues, 89 closed, 81 of those still reading as live. It was retired
+2026-09-21 in favour of the milestone, which the board keeps live. A sentence
+about an issue goes **on** the issue.
 
 ## Roadmap + hygiene
 

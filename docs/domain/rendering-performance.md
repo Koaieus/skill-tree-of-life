@@ -9,6 +9,22 @@ Companion to [overlay-field-rendering.md](overlay-field-rendering.md) (the
 fullscreen case, where fragment cost *does* matter) and the "measure the CPU
 first" section of [`.claude/rules/graph.md`](../../.claude/rules/graph.md).
 
+## The North Star — two named machines
+
+The bar a perf or scope call is judged against: **a 2000-`SkillNode` map runs
+smoothly at 144Hz, at 1440p.** The dev sandbox is not 1440p, so local framerates
+are optimistic about resolution. Two named machines make it falsifiable (owner
+call 2026-09-08, specs and reasoning on #763):
+
+- **Tier H** — Ryzen 7 7800X3D / RX 7900 XTX / 2560×1440@144 — *is* the sentence
+  above.
+- **Tier L** — MSI GV62M 7RD-1686NL, i5-7300HQ 4C/4T / GTX 1050 2GB /
+  1920×1080@**60Hz** — the floor: 60fps at 1080p *with headroom*, since that
+  panel cannot do 144 at all.
+
+The player controls the rest: windowed / fullscreen / borderless, resolution,
+vsync, framerate cap. `mise run perf:idle` benches both tiers by name.
+
 ## The hardware model, briefly
 
 The GPU rasterizes geometry into **fragments** and shades them in lockstep

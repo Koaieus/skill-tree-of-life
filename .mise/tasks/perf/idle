@@ -23,7 +23,7 @@ The curated matrix, and what each row exists to answer:
                               launch time (runtime toggles can't reach them)
     mobile/compat-1080-2000   renderer method, the variable the issue comment
                               asked to record
-    fp-1440-2000              FOCUS.md's North Star resolution
+    fp-1440-2000              the North Star resolution (docs/domain/rendering-performance.md)
     headless-{500,800,2000}  the CPU floor — no renderer at all; subtract from
                               the windowed CPU column to see what the renderer
                               costs the CPU side
@@ -87,7 +87,7 @@ def runs_default():
     yield ("compat-1080-2000",
            ["--rendering-method", "gl_compatibility"] + fp, ["--nodes=2000"],
            {}, None, None)
-    # FOCUS.md's North Star resolution — the engine --resolution flag is
+    # The North Star resolution (docs/domain/rendering-performance.md) — the engine --resolution flag is
     # clobbered by the Settings autoload (user://settings.cfg pins 1920x1080
     # at _ready), so the bench applies it from a user arg in _setup_level.
     yield ("fp-1440-2000", ["--windowed"],

@@ -74,7 +74,7 @@ boundary; then content) against:
 6. **the gameplay effect** — the owner's mandate for this seat is gaps in
    the implementation OR gaps in detrimental gameplay effects. Code that
    does what the issue says can still make the game worse. Your inputs are
-   `docs/GDD.md`, the unit's parent hub, and `docs/FOCUS.md`. **For every
+   `docs/GDD.md` and the unit's parent hub. **For every
    unit, name one thing a player would notice** — in the review, one line.
    If you cannot name it from the diff and the issue, launch the relevant
    sandbox headless

@@ -23,7 +23,7 @@ extends GutTest
 ## FogOverlay, no HUD and no VFX — the strongest lead is FogOverlay's
 ## per-element dimming walk (the #133 shape, O(elements x sources) every
 ## `vision_render_tick`). A green run here is not evidence that symptom is
-## fixed. See lane P in docs/FOCUS.md.
+## fixed.
 ##
 ## Numbers move with the machine — record the CPU alongside any result you cite.
 ##
@@ -78,7 +78,7 @@ const _PRESET := preload("res://procgen/presets/first_level/first_level.tres")
 const _CORE_CLASS := preload("res://entity/core/balanced_core.tres")
 const _POLICY := preload("res://procgen/placement/greedy_bfs_ball.tres")
 
-## North Star (docs/FOCUS.md): a 2000-node map at 144Hz. One frame's whole budget.
+## North Star (docs/domain/rendering-performance.md): a 2000-node map at 144Hz. One frame's whole budget.
 const _FRAME_BUDGET_USEC := 6944.0
 
 const _NODE_COUNT := 2000

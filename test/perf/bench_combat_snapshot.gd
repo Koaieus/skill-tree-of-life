@@ -28,7 +28,7 @@ const _PRESET := preload("res://procgen/presets/first_level/first_level.tres")
 const _CORE_CLASS := preload("res://entity/core/balanced_core.tres")
 const _POLICY := preload("res://procgen/placement/greedy_bfs_ball.tres")
 
-## North Star (docs/FOCUS.md): a 2000-node map at 144Hz. One frame's whole budget.
+## North Star (docs/domain/rendering-performance.md): a 2000-node map at 144Hz. One frame's whole budget.
 const _FRAME_BUDGET_USEC := 6944.0
 
 const _NODE_COUNT := 2000

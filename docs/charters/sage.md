@@ -102,7 +102,7 @@ against them.
    gameplay effect** — the owner's mandate for the seat is gaps in the
    implementation *or* gaps in detrimental gameplay effects, so every review
    names one thing a player would notice, from the diff, the issue, the
-   GDD, the hub and `docs/FOCUS.md`, or from a headless sandbox launch — or
+   GDD and the hub, or from a headless sandbox launch — or
    says in those words that it could not, never silently; (g) test setup
    that reaches into another unit's internals is a finding naming the owner
    of the fact, and whether the move lands now or is filed is the lead's

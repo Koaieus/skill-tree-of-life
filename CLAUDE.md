@@ -104,7 +104,7 @@ Entry points: `docs/GDD.md` (master GDD) · `docs/design/index.md` (full index w
 
 GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`); board via `mise gh-project -- list|add|status|…`. **`add` already lands the issue in `Backlog`** — only call `status` after for a different lane.
 
-**The status ladder is the pipeline** — `Backlog` → `Needs design` (the `/swarmify` inbox) → `Ready` → `In progress` → `In review` → `Done`. `Ready` *is* the swarm queue and **a drone never touches a non-`Ready` issue**; `Ready` and `Needs design` are in turn prioritised by [docs/FOCUS.md](docs/FOCUS.md), which wins on **what to pull first** and never on state — the board is authoritative for status, dependencies and what shipped.
+**The status ladder is the pipeline** — `Backlog` → `Needs design` (the `/swarmify` inbox) → `Ready` → `In progress` → `In review` → `Done`. `Ready` *is* the swarm queue and **a drone never touches a non-`Ready` issue**; `Ready` and `Needs design` are in turn prioritised by the live GitHub milestone (`mise gh-project -- roadmap`), which wins on **what to pull first** and never on state — the board is authoritative for status, dependencies and what shipped.
 
 **Reading an issue is two calls** — `gh issue view <n>` prints the body, `--comments` prints ONLY the comments (and prints nothing, exit 0, on a 0-comment issue — that's not a broken call, just what zero comments looks like), and the comments usually hold the decisions. **Never pass `gh --body "..."` with backticks**: the shell silently deletes the span — heredoc to the scratchpad, `--body-file`. **Attribute owner decisions to the owner, verbatim**, dated, as an owner call — never laundered into your own reasoning.
 

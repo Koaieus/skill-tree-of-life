@@ -34,8 +34,7 @@ func reload() -> bool:
 ## Only [AttackPlanArmedMode] overrides this today — **owner call 2026-08-21:**
 ## "in Manage mode: no outline". Every other level (Manage verbs, core-move,
 ## temp-upgrade, mass-action) deliberately contributes nothing, so the
-## highlight-ring language doesn't gain colours ahead of the design pass
-## `docs/FOCUS.md` already reserves for it.
+## highlight-ring language doesn't gain colours ahead of a design pass.
 ##
 ## Read by [method PlayerInputController.get_armed_tint], which walks the stack
 ## **base-first** — see its docstring for why that isn't the pop order.
