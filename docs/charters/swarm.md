@@ -51,6 +51,15 @@ comparable work, in 2–3× the calls, and lands at the same or higher
 `priced` — the per-call discount is eaten by call count. Sonnet wins only
 on small units with an existing named test.
 
+A rate-limit-window percentage is a **snapshot unit**, never a comparable
+one: the window's size moves with Anthropic's promotions ("more Claude Code
+limits during …"), so an identical token cost reads as a different % on a
+different week. The corpus keeps its dated %-rows as history only. The
+comparable unit is `mise run agent-cost`'s `priced` column (sonnet units)
+logged per landed unit in the ledger — which the ledger records only
+partially so far (most `priced` cells in the 2026-09-19 ledger read `~?`);
+filling it is a ledger discipline, not yet the norm.
+
 ## Laws
 
 **Gate**
@@ -236,6 +245,8 @@ on small units with an existing named test.
 | 2026-09-16 | Sage | stalled 28 min: its background Explores' completions notified the lead, not Sage; audits run inline in Sage's own turn | 10 |
 | 2026-09-17 | owner | every drone turn-end wakes the lead, so "the only way to avoid [idle wakes] is to let the drone's final turn be a back report to main … the drone is done anyway. If sage disapproves they will report back (or file a new drone), if OK consider it retired or spent" — drones no longer wait for a verdict; `APPROVED <sha>` goes to the lead, findings to the drone; a clean unit is two lead wakes (fence, land). The prior run had ~15 non-actionable lead wakes and 2–3 "waiting for Sage" drone turns per unit at peak context | 10, 13 |
 | 2026-09-15 | owner | thresholds "depend on the model … and how much is in flight, if 5 drones working expect 5× the turns taken to settle each, then 150k might already be a lot" → the ceiling formula; sizing "worker cap + ledger Σctx, drop the %-window table"; "the swarm mayve mentioned an issue planner throwaway Opus but our new swarmify skill would (i hope) make that largely obsolete" | 5, 6, 11 |
+| 2026-09-09 | #813 | A read-only peer produced 15 numbered traps in one turn; the drone named four it would have gotten wrong, including a sorted-`std::map` banking that was silently wrong only when one edge takes load from two pushed vertices in one substep. | 29 |
+| 2026-09-19 | week of 09-14 | per-issue cost fell to ~5.5% of a window (owner, 2026-09-21: "due to updated swarmify mostly (better specs, map and seams provided, a lot less research needed to be done by implementer drones the first 40 tool calls etc)"); ledger 2026-09-19 corroborates: owner window 9% at start → 32% after 5 landed units (≈4.6%/issue). A snapshot, not a trend line — the window size moves with promotions, so compare `priced`, not % | 5 |
 
 ## What the skill must not contain
 
@@ -260,5 +271,3 @@ on small units with an existing named test.
 - `.claude/agents/sage.md` was patched for law 10 (reviewer only, never
   lands) and deserves its own charter; `relay` and `relief` still carry
   their own dated lore and should be re-derived from this charter too.
-
-| 2026-09-09 | #813 | A read-only peer produced 15 numbered traps in one turn; the drone named four it would have gotten wrong, including a sorted-`std::map` banking that was silently wrong only when one edge takes load from two pushed vertices in one substep. | 29 |
