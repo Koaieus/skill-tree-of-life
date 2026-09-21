@@ -50,7 +50,28 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 ## [method GameRoot.apply_roster], or set directly on a hand-authored scene's
 ## node) rather than derived from entity identity. See #475.
 @export var is_human_controlled: bool = false
-@export var stat_board: EntityStatBoard = null
+## One owner (#1031): outside the editor the setter stores a private
+## `duplicate(true)` from the moment of assignment — a `.tscn` instance gets
+## its copy at `instantiate()`, a spawned entity at spawn — so no reader that
+## grabbed the board before bring-up can ever hold a stale one. Once
+## [method initialize] has applied intrinsics and wired the pools the board is
+## sealed: a later assignment `push_error`s and is ignored. The editor stores
+## the shared ext_resource as given (the inspector must see it); an authored
+## entity brought up in a live tab gets its copy inside [method initialize].
+@export var stat_board: EntityStatBoard = null:
+	set(v):
+		if _board_sealed:
+			push_error("Entity.stat_board is sealed after initialize(); assign the board before bring-up")
+			return
+		if v == null or Engine.is_editor_hint():
+			stat_board = v
+		else:
+			stat_board = v.duplicate(true)
+
+## Flipped by [method initialize] right after the board is duplicated and
+## intrinsics applied — the seal on [member stat_board]. Not `_initialized`:
+## that latch is set BEFORE the duplicate.
+var _board_sealed: bool = false
 ## Class specialization for this entity. Applied once on _ready via
 ## `core_class.apply(self)` and consulted each turn via `on_turn_started`.
 ## Optional — null means a plain entity with no class bonuses.
@@ -484,9 +505,12 @@ func initialize() -> void:
 	if spellbook != null:
 		spellbook = spellbook.duplicate(true)
 
-	# Initialize stat board and wiring
+	# Initialize stat board and wiring. Outside the editor the setter already
+	# took a private copy at assignment; the editor holds the shared
+	# ext_resource and an authored entity brought up live needs its own here.
 	if stat_board != null:
-		stat_board = stat_board.duplicate(true)
+		if Engine.is_editor_hint():
+			stat_board = stat_board.duplicate(true)
 		stat_board.apply_intrinsics()
 		# #775 late-join amendment: a decoded snapshot pre-syncs
 		# `stat_board.intrinsic_modifiers` itself (`StatBoard.read_dict`);
@@ -522,6 +546,7 @@ func initialize() -> void:
 		var node_hp_baseline: Stat = stat_board.get_stat(&"node_health")
 		if node_hp_baseline != null:
 			node_hp_baseline.value_changed.connect(node_health_cap_changed.emit)
+	_board_sealed = true
 
 	_turn_manager = _find_turn_manager()
 	if _turn_manager != null:
