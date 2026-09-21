@@ -1,77 +1,17 @@
 class_name EntityCombat
 extends RefCounted
 
-## The live combat-state slice for an [Entity] (#498 — see
-## docs/domain/attack-timeline.md). Step 1 moved exactly one thing here: the
-## revoke sweep + navigator-mirror removal that [AllocationSystem.force_deallocate]
-## runs on the node's *previous owner* ([method revoke_node]). Step 2 adds
-## [method snapshot] — a detached SHADOW that can resolve a whole attack,
-## including the forced-dealloc cascade and entity death, without touching
-## [Events], [AllocationSystem], or any real [SkillNode]/[Entity].
-##
-## [member host] is assigned once, at construction, and is never reassigned —
-## no public setter. [method snapshot] is the only hostless-slice factory and
-## it takes no host argument.
-##
-## Ownership storage does NOT move onto this class. [member owned] / [member core]
-## / [member board] are ACCESSORS: live reads through [member host] (never
-## cached — [AllocationSystem] writes `node.owned_by` / mirrors the navigator
-## and knows nothing of this slice, so a cached read would go stale silently);
-## a shadow falls back to its own [member _owned] / [member _core] / [member _board],
-## populated once at [method snapshot] and kept current by
-## [method apply_cascade] — the ONLY place that mutates a shadow's
-## ownership, and it updates the [NodeCombat] backpointer and the shadow
-## [GraphMirror] together (never one without the other, or islanding would
-## answer a set the slice itself disagrees with).
-##
-## Effect-hook placement rule (docs/domain/attack-timeline.md's "one boundary
-## that can rot"): an [Effect] hook that changes a number belongs on
-## [EntityCombat]; a hook that only tells someone belongs on the host. Step 1's
-## scope was the revoke sweep's own bookkeeping, not a dispatched hook.
-##
-## [b]The forced-dealloc cascade is ONE driver as of #518[/b] —
-## [method apply_cascade], with [method cascade_set] as its pure set query.
-## Step 2 shipped a hand-written shadow twin (`force_deallocate_owned`) beside
-## [method BattleSystem._on_node_depleted]; the two agreed on the deallocation
-## SET and disagreed on its consequences, which is the parallel-mirrors shape
-## `.claude/rules/` warns about sitting in the middle of the path #498 step 3
-## resolves against. There is now one loop body, with the design's single
-## sanctioned `if host != null` branch inside it selecting the STRIP VERB —
-## [method AllocationSystem.force_deallocate] when live, [method _strip_one]
-## when shadow. Everything around that branch (the set, the pre-strip
-## `allocation_level` read, the SP wound, the `dealloc_damage` chip, the
-## [DeallocEntry] record) is shared, and a shadow charges the wound and the
-## chip exactly as the live path does.
-##
-## [b]Shadow MITIGATION parity closed in #520.[/b] [method revoke_node] is one
-## body for both worlds now: it revokes the dead node's granted modifiers and
-## its swapped effect-sets from [method board], drops the effects it sourced
-## from [method effects], and trims [method mirror] — after which
-## [method apply_cascade] dispatches `_on_node_deallocated`, so
-## [method AuraEffect.recompute] rebuilds from the set the strip just shrank.
-## A shadow's wave N+1 therefore resolves against POST-cascade armour, which is
-## the multi-wave case #498 exists to fix.
-##
-## The helpers that made this look expensive ([method SkillNode.remove_entity_modifiers_from],
-## [method SkillNode.clear_scaled_effect_sets]) mutate the REAL node, so a
-## shadow does not call them — it calls their pure read halves
-## ([method SkillNode.granted_entity_modifiers], [method SkillNode.scaled_effect_leaves])
-## and removes from its OWN board. The two `_scaled_*` dictionaries on a real
-## node are never written by a shadow run.
-##
-## [b]The live cascade's ENTRY is still the bus[/b] — `Events.skill_node_depleted`
-## -> [method BattleSystem._on_node_depleted], which now only computes the VFX
-## layers, emits `cascade_started`, and forwards into [method apply_cascade].
-## It no longer IMPLEMENTS the cascade, which is what scope item 1 was about;
-## moving the live trigger off the bus as well would mean giving this class an
-## [AllocationSystem] reference, and every fixture that writes
-## `node.owned_by = entity` directly (~50 test files) would silently get a
-## no-op cascade. The reference is a parameter on [method apply_cascade]
-## instead, supplied by whoever is driving.
-##
-## A caller done with a SHADOW must call [method free_shadow] on it — see
-## that method for why ordinary refcounting can't do it (a reference cycle
-## between this instance and its owned [NodeCombat]s).
+## The live combat-state slice for an [Entity]: the RefCounted STATE half,
+## split from the Node's notification half so a detached SHADOW can resolve a
+## whole attack — cascade and death included — without touching [Events],
+## [AllocationSystem] or any real [SkillNode]/[Entity]. [member host] is set
+## once at construction and never reassigned; a shadow has `host == null` and
+## that null is the mute. [method owned] / [method core] / [method board] are
+## live reads through the host (never cached) or a shadow's own backing;
+## [method apply_cascade] is the ONE cascade driver for both worlds, with a
+## single `if host != null` branch selecting the strip verb. A shadow is freed
+## with [method free_shadow].
+## See docs/domain/entity-combat.md.
 var host: Entity
 
 ## Shadow-only backing (meaningful only when [member host] == null).
