@@ -599,10 +599,11 @@ var last_live_gate: BladePopResolver.LiveGate = null
 ## break. The reveal can show [member HitInstance.effective_amount] (set by
 ## [method SkillNode.take_damage] when the real applier landed it) instead of
 ## re-deriving damage from a freshly rebuilt blade state, which drifts from
-## what actually landed. Melee only ever produces [DamageInstance]s (never
-## heals), so this stays narrowly typed rather than the [AttackOutcome]-wide
-## [code]Array[HitInstance][/code] (#381).
-var last_hits: Array[DamageInstance] = []
+## what actually landed. Every [HitInstance] kind the swing produced — a
+## damage per vertex contact, and since #951 a [BladeStatusInstance] behind a
+## toxic vertex's; readers that want damage filter with `is DamageInstance`
+## ([method AttackOutcome.damage_hits]'s shape).
+var last_hits: Array[HitInstance] = []
 
 
 ## The prediction [MeleePreview] draws and [method get_node_role] marks off:

@@ -89,8 +89,13 @@ func before_each() -> void:
 	_alloc.force_allocate(_attacker, _mid)
 	_alloc.force_allocate(_attacker, _tip)
 	_attacker.core_location = _pivot
+	# The plate is territory, not the core: a cracked core would fall the
+	# status through to the entity host (#996) and hide the node landing.
+	var camp := _spawn("Camp", Vector2(-_SPACING * 4.0, _SPACING * 4.0))
+	_graph.add_edge(camp, _plate)
+	_alloc.force_allocate(_defender, camp)
+	_defender.core_location = camp
 	_alloc.force_allocate(_defender, _plate)
-	_defender.core_location = _plate
 	_sharpen(_tip, 20.0)
 	_mid.add_child(_CLAMP_SCENE.instantiate())
 

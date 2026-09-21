@@ -46,7 +46,7 @@ var _sweep: BladeHitScan.Sweep = null
 var _trajectory: BladeTrajectory = null
 var _speed_history: Array[PackedFloat32Array] = []
 var _events: Array[BladeHitEvent] = []
-var _hits: Array[DamageInstance] = []
+var _hits: Array[HitInstance] = []
 var _rng: RandomNumberGenerator = null
 var _dt: float = BladeSim.DEFAULT_DT
 var _total_steps: int = 0
@@ -315,7 +315,7 @@ func _land_batch(
 		gate: BladePopResolver.LiveGate,
 		world: CombatWorld,
 		rng: RandomNumberGenerator,
-		hits: Array[DamageInstance]) -> void:
+		hits: Array[HitInstance]) -> void:
 	var sub := AttackOutcome.new()
 	sub.cadence = ScheduleEntry.Cadence.SWING
 	sub.resolve_seed = _ctx.resolve_seed
@@ -349,6 +349,19 @@ func _land_batch(
 		# picture be stretched without re-simulating the blade.
 		di.structural_key = ev.t / maxf(0.001, _ctx.swing_duration)
 		sub.hits.append(di)
+		# #951: a toxic vertex pairs its damage with a status on the same beat
+		# (same key, later index) that lands iff the damage was admitted.
+		var status_def := state.vertex_status_def[ev.particle_idx]
+		if status_def != null:
+			var si := BladeStatusInstance.new(di)
+			si.def = status_def
+			si.power = state.vertex_status_power[ev.particle_idx]
+			si.target = di.target
+			si.origin = di.origin
+			si.source = di.source
+			si.attacker = di.attacker
+			si.structural_key = di.structural_key
+			sub.hits.append(si)
 	if sub.hits.is_empty():
 		return
 	sub.schedule = OutcomeSchedule.compile(sub)

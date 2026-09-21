@@ -13,6 +13,9 @@ extends DamageInstance
 
 var _event: BladeHitEvent
 var _gate: BladePopResolver.LiveGate
+## True once [method land_on] passed the gate — what a [BladeStatusInstance]
+## paired with this hit reads instead of re-asking the gate (#951).
+var admitted: bool = false
 
 
 func _init(event: BladeHitEvent, gate: BladePopResolver.LiveGate) -> void:
@@ -37,6 +40,7 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 		if pop != null:
 			popped_vertex = pop.defender
 		return
+	admitted = true
 	# #779: `amount` still holds the COEFFICIENT MeleeAttackPlan.resolve_against
 	# stamped it with — vertex_damage[particle_idx] for a vertex, and a flat 0
 	# for an edge, which carries no damage at all (ADR 0005) — the curve is

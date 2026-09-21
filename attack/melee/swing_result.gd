@@ -20,7 +20,7 @@ var trajectory: BladeTrajectory = null
 var events: Array[BladeHitEvent] = []
 var pops: BladePopResolver.Result = null
 var live_gate: BladePopResolver.LiveGate = null
-var hits: Array[DamageInstance] = []
+var hits: Array[HitInstance] = []
 ## The swing's own drag clock and defender field, at their END state. Both
 ## null exactly when [method MeleeAttackPlan.build_defender_zones] came back
 ## empty — the ordinary swing, which allocates neither. Since #811 they
