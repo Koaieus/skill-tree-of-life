@@ -245,9 +245,10 @@ func arm_world() -> void:
 	_unmute_vfx()
 	_wielder.core_location = _node_named("Hilt")
 	_quarry.core_location = _node_named("E_Core")
-	# TurnManager is never TICKED here (the standing editor rule) — `current_entity`
-	# is a plain var, and writing it is the whole of "it's the wielder's turn".
-	_battle.turn_manager.current_entity = _wielder
+	# TurnManager is never TICKED here (the standing editor rule) — adopting the
+	# cursor (silent, idempotent across resets) is the whole of "it's the
+	# wielder's turn".
+	_battle.turn_manager.adopt_turn(_wielder, _battle.turn_manager.turns_taken)
 	_battle.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	_apply_blade_size()
 	_refresh_status()

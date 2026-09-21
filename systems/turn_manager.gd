@@ -34,7 +34,23 @@ signal forecast_changed
 @export var opens_first_turn: bool = true
 
 ## The entity currently taking its turn; null between turns.
-var current_entity: Entity = null
+##
+## Written only by TurnManager (#1030): once the manager is ready an outside
+## assignment `push_error`s and is ignored. Arrange a turn through the named
+## entries — [method start_turn] opens a real one (readiness consumed,
+## `turn_started` upkeep), [method adopt_turn] takes a cursor silently, the
+## mirror's path. Reads stay `tm.current_entity`.
+var current_entity: Entity = null:
+	get:
+		return _current_entity
+	set(value):
+		if is_node_ready():
+			push_error("TurnManager.current_entity is written only by TurnManager"
+				+ " — arrange a turn with start_turn(entity) or adopt_turn(entity, n)")
+			return
+		_current_entity = value
+
+var _current_entity: Entity = null
 
 ## Turns served since the level started — every [method start_turn], across all
 ## entities, not rounds. [RunOutcome.turn_count] reports it (#460).
@@ -174,7 +190,7 @@ func start_turn(entity: Entity) -> void:
 	assert(current_entity == null, "Already in a turn: %s" % current_entity)
 	# Consume readiness: the entity must climb to its cap again for the next turn.
 	entity.remove_from_group(Entity.READY_GROUP)
-	current_entity = entity
+	_current_entity = entity
 	turns_taken += 1
 	turn_started.emit(entity)
 	# Sparse status-tick channel (#879): emitted AFTER `turn_started` above
@@ -213,7 +229,7 @@ func adopt_turn(entity: Entity, total_turns_taken: int) -> void:
 	turns_taken = total_turns_taken
 	if current_entity == entity:
 		return
-	current_entity = entity
+	_current_entity = entity
 	if entity == null:
 		return
 	# The authority's acting entity has spent its readiness; a mirror that left
@@ -233,7 +249,7 @@ func end_turn() -> void:
 	if current_entity == null:
 		return
 	var entity := current_entity
-	current_entity = null
+	_current_entity = null
 	turn_ended.emit(entity)
 	forecast_changed.emit()
 	_tick_until_ready(entity)
@@ -273,7 +289,7 @@ func end_turn() -> void:
 func abandon_turn(entity: Entity) -> void:
 	if entity == null or current_entity != entity:
 		return
-	current_entity = null
+	_current_entity = null
 	turn_ended.emit(entity)
 	forecast_changed.emit()
 

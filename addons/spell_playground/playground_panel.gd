@@ -290,10 +290,11 @@ func _arm_board() -> void:
 	if vfx != null:
 		vfx.muted = false
 	# Whose turn it is is part of the pre-state, not a per-cast step: the plan
-	# builder reads it. Never TICKED — writing the plain var IS the whole of "it
-	# is the caster's turn" (the standing sandbox rule).
+	# builder reads it. Never TICKED — adopting the cursor (silent, idempotent
+	# across resets) IS the whole of "it is the caster's turn" (the standing
+	# sandbox rule).
 	if _systems.turn_manager != null:
-		_systems.turn_manager.current_entity = caster_entity
+		_systems.turn_manager.adopt_turn(caster_entity, _systems.turn_manager.turns_taken)
 
 
 func _reset_board(entity: Entity) -> void:

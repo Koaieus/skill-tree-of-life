@@ -194,13 +194,13 @@ func _phase_desc(index: int) -> String:
 # --- Beats (explicit triggers — nothing auto-runs) ----------------------------
 
 ## The kill — the whole point. Attacker holds the turn → it's the attributed
-## killer; the write to `current_entity` is attribution-only, the TurnManager
+## killer; the cursor is adopted (attribution-only, no upkeep), the TurnManager
 ## is never ticked (editor guardrail). Lethal hit overflows the core's combat
 ## HP into the health pool → 0 → die() → loot resolves synchronously.
 func kill_victim() -> void:
 	if _busy or _attacker == null or _victim == null or _victim.is_dead:
 		return
-	_tm.current_entity = _attacker
+	_tm.adopt_turn(_attacker, _tm.turns_taken)
 	_victim.stat_board.health.set_current(1.0)
 	_victim_core.take_damage(10000.0, null)
 	_refresh_labels()
@@ -251,7 +251,7 @@ func _rearm_world() -> void:
 		_alloc.force_allocate(_victim, n)
 	_victim.core_location = _victim_core
 
-	_tm.current_entity = null    # attribution slot: clean between kills
+	_tm.adopt_turn(null, _tm.turns_taken)    # attribution slot: clean between kills
 
 
 # --- Helpers -----------------------------------------------------------------
