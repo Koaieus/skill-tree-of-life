@@ -141,7 +141,7 @@ func _authored_icon(index: int) -> Texture2D:
 func test_one_scene_instance_per_catalog_entry() -> void:
 	var n := _catalog.kinds.size()
 	assert_eq(_row.get_child_count(), n,
-		"one card per TEMP_UPGRADE_CATALOG entry — a new catalog kind should need no code here")
+		"one card per catalog kind — a new kind should need no code here")
 	for i in n:
 		assert_true(_row.get_child(i) is TempUpgradeButton,
 			"card %d must be a TempUpgradeButton scene instance, not a bare Button.new() (#465)" % i)
