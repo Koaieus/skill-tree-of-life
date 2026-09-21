@@ -115,26 +115,43 @@ why swarm routes every landing through it.
 8. **Approval is a hard stop.** Present the diff and summary and wait; no
    merge without an explicit go-ahead. `master` is shared state, and warp
    gets no exemption for having worked off to the side.
-9. **Rebase in the worktree first.** `git rebase master` inside the
-   worktree — refs are shared, so it sees `master`'s real tip and rewrites
-   only the warp branch. After it the branch is a strict descendant, so the
-   merge is a guaranteed fast-forward. A conflict is a real overlap:
-   resolve in the worktree (or surface it), re-test, then continue.
-10. **Advance `master` by fast-forward only, in place, never touching the
-    main checkout's working tree.** Two forms, chosen by where the main
-    checkout's `HEAD` sits: on `master`, `git merge --ff-only <branch>` from
-    the main checkout, which tolerates unrelated dirty files and refuses
-    only when a live edit overlaps the branch; parked elsewhere, `git fetch
-    . <branch>:master`, which updates the ref without a checkout and is
-    ff-only by default. Never `git checkout master`, never `git stash`,
-    never a `_merge` worktree, never `--no-ff`.
-11. **`Closes #<n>` rides the tip commit.** Amended in the worktree before
-    the merge if missing, so GitHub closes the issue on push.
-12. **A refused fast-forward is signal, never an obstacle.** Exactly two
-    causes: the branch is behind (the rebase was skipped — go do it), or the
-    incoming change overlaps a live uncommitted edit in the main checkout (a
-    genuine conflict with someone's WIP — surface it to the user). Never
-    `--force`, never a `+refspec`.
+9. **Landing is one command.** `mise run land -- <branch> --closes <n>`,
+   from anywhere in the checkout, after the go-ahead of law 8. It is laws
+   10–12 mechanised: an exclusive lock so two landings serialise instead of
+   racing the fast-forward; the rebase inside the branch's own worktree;
+   `check` plus `test:dir` for every `test/unit/<dir>/` the branch touches,
+   on the rebased tree — a rebased tree is a tree nobody tested; the
+   fast-forward; the board card to in-review. Never the full suite inside
+   it, never a push — both stay with whoever runs the train. The by-hand
+   dance below is what `land` does, kept as the fallback for the one case
+   `land` refuses by design.
+10. **Rebase in the worktree, fast-forward in place, never touch the main
+    checkout's working tree.** `git rebase master` inside the worktree —
+    refs are shared, so it sees `master`'s real tip and rewrites only the
+    warp branch, which then is a strict descendant and the merge a
+    guaranteed fast-forward. `master` advances by `git merge --ff-only`
+    from the main checkout, which tolerates unrelated dirty files and
+    refuses only where a live edit overlaps the branch. `land` runs exactly
+    this and refuses when the main checkout is parked off `master`; that is
+    the by-hand fallback's only case — `git fetch . <branch>:master`
+    updates the ref without a checkout and is ff-only by default. Never
+    `git checkout master`, never `git stash`, never a `_merge` worktree,
+    never `--no-ff`.
+11. **`Closes #<n>` rides the tip commit.** `--closes <n>` amends it onto
+    the tip right after the rebase when the message lacks it, so the tested
+    sha is the landed sha — never an empty landing commit. By hand: amend in
+    the worktree before the fast-forward.
+12. **A refusal is signal, never an obstacle.** Each of `land`'s non-zero
+    exits names one real cause, and each has one answer: no such branch, or
+    the branch checked out in the main checkout (a worktree branch is the
+    only thing it lands); main checkout off `master` (law 10's fallback, or
+    ask); main checkout dirty in a file the branch also touches (someone's
+    live WIP — surface it, never force past it); the branch's worktree dirty
+    (commit first); a rebase conflict (aborted, files listed — resolve in
+    the worktree, land again); a red `check` or `test:dir` (fix in the
+    worktree, land again); a refused fast-forward (`master` moved under the
+    rebase — land again). A second caller waits on the lock and says so;
+    that is not a hang. Never `--force`, never a `+refspec`.
 13. **Tear down.** `mise run worktree:rm -- <n>`, which confirms before
     deleting the branch. `.worktrees/` is gitignored; its contents are
     never committed.
@@ -172,6 +189,7 @@ have to carry them.
 | 2026-09-17 | seven redirects | seven owner redirects in seven days were all answerable from the plan sentence, none from the diff — a red test that poked another unit's state to move a goalpost; the coupling questions went into warp's test step because Bash reads never fire a `paths:` rule, so the skill step is the carrier | 5 |
 | 2026-09-21 | owner | "using the skills now seems to work very well" — so this charter is mined from the file, not designed, and the skill is patched, not rewritten | all |
 | 2026-09-21 | git history | `.claude/agents/sage.md` was born 2026-09-11 and its charter landed 2026-09-17; swarm's and swarmify's charters landed 2026-09-15 with their skill files touched the same day. Warp's skill was born 2026-07-02 with no charter and was patched with lessons directly, so its laws lived only in prose — the filing session's grounds for this issue | all |
+| 2026-09-21 | #1020 | step 6 still prescribed the by-hand rebase / ff dance six days after `land` mechanised it; owner: "warp may lag in this and could use mise run land, it's a pure efficiency upgrade right? not all agents are bash-golfers supreme so doing a mechanical job of multiple steps exactly right every time using 1 command is great to have" — laws 9–12 re-derived around `land`, the by-hand form kept only as the off-master fallback, its refusal list carried as the signal it is | 9, 10, 12 |
 
 ## What the skill must not contain
 
@@ -188,21 +206,12 @@ have to carry them.
 - The `worktree:*` task internals, the `land` task's protocol, the
   `gh-project` subcommand list — each is owned by `mise.toml` or its task
   file and linked, not copied.
-- History of what the merge step used to be. The two-command procedure is
-  the law; why the old one flailed is the row above.
+- History of what the merge step used to be — the by-hand two commands
+  before `land`, the `_merge` worktree before those. `land` is the law, the
+  fallback is one sentence; why the old ones flailed is the rows above.
 
 ## Open follow-ups
 
-- **Route step 6 through `mise run land`.** The task did not exist when the
-  skill was written; it mechanises laws 9–12 with a lock and a post-rebase
-  test. Behavioural, so a separate issue — the by-hand procedure stays the
-  law until then, and `land` is the reference implementation of it. `relay`
-  dispatches warps, so it inherits the change for free.
-- **Route step 6 through `mise run land`** is an owner call, not a maybe
-  (2026-09-21: *"it's a pure efficiency upgrade right? not all agents are
-  bash-golfers supreme so doing a mechanical job of multiple steps exactly
-  right every time using 1 command is great to have"*); filed as #1020 so
-  laws 9–12 get re-derived rather than patched.
 - `relay` (#1021) and `relief` (#1022, a revision first) still carry
   warp-shaped dated lore and no charter; `manage-stats` (#1023) is stale and
   `handoff` lacks one too.

@@ -120,62 +120,45 @@ instructions already require for anything touching shared state (`master`
 counts) — warp doesn't get a special exemption just because the work
 happened off to the side in a worktree.
 
-**6. Merge back to master — always a fast-forward, never touching the main checkout's WIP**
+**6. Land — one command, always a fast-forward, never touching the main checkout's WIP**
 
-Don't `git checkout master` / `git stash` in the main checkout, or spin up a
-merge worktree, to work around WIP — a fast-forward doesn't care about it. A
-fast-forward from a rebased branch tolerates unrelated dirty files in the
-main checkout and refuses *only* when it would clobber a live local edit —
-which is exactly the safety behaviour you want. So the procedure is two
-commands, run from wherever, and the git safety net does the rest.
-
-Ensure your commit message contains `Closes #<n>` so GitHub auto-closes the
-issue — amend it now if needed (`git commit --amend`),
-you're still in the worktree.
-
-Optionally, move the kanban card to reflect the new state:
+Only after the go-ahead of step 5. From anywhere in the checkout:
 ```bash
-mise gh-project -- status <n> done          # or in-review
+mise run land -- issue-<n>-<slug> --closes <n>
 ```
+That is the whole merge step. `land` takes an exclusive lock (a second
+landing waits and says so — not a hang), rebases your branch onto `master`
+*inside your worktree*, runs `mise run check` plus `mise run test:dir` for
+every `test/unit/<dir>/` the branch touches on the rebased tree (a rebased
+tree is a tree nobody tested), amends `Closes #<n>` onto the tip if your
+message lacks it (so the tested sha is the landed sha), fast-forwards
+`master` in place, and moves the board card to in-review. It never runs the
+full suite and never pushes. Protocol details: `.mise/tasks/land`.
 
-**a. Rebase the worktree branch onto master** (from *inside* the worktree —
-refs are shared across worktrees, so this sees master's real tip; the rebase
-only rewrites your own branch, it never moves `master`):
-```bash
-git rebase master          # inside .worktrees/issue-<n>-<slug>/
-```
-If the rebase conflicts, master and your branch genuinely overlap — resolve
-in the worktree (or surface to the user), re-run tests, then continue. After
-this, your branch is a strict descendant of master, so the merge below is a
-guaranteed fast-forward.
+**A refusal is signal, not an obstacle.** Each non-zero exit names one cause;
+each has one answer — read the reason, do that, run `land` again:
 
-**b. Fast-forward master.** Pick by where the main checkout's HEAD sits
-(`git -C <main-checkout> branch --show-current`):
+- *no such branch* / *checked out in the main checkout* — `land` lands
+  worktree branches only; check the name.
+- *main checkout is on '<x>', not master* — the one case `land` refuses by
+  design. Don't switch it. Rebase by hand inside the worktree (`git rebase
+  master`), then advance the ref without a checkout:
+  `git fetch . issue-<n>-<slug>:master` (ff-only by default) — or ask the
+  user.
+- *main checkout has uncommitted changes to files the branch also changes* —
+  someone's live WIP overlaps yours; surface it to the user, never force
+  past it. (Unrelated dirty files are fine; `land` proceeds and says so.)
+- *the branch's worktree has uncommitted changes* — commit them first.
+- *rebase … conflicts in: <files>* — a real overlap; the rebase was aborted
+  and your branch is untouched. Resolve in the worktree, re-test, commit,
+  land again.
+- red `check` / `test:dir` — the verdict lines say what; fix in the
+  worktree, land again.
+- *master could not fast-forward* — `master` moved under the rebase; land
+  again.
 
-- **Main checkout is on `master`** (the normal case) — from the main checkout:
-  ```bash
-  git merge --ff-only issue-<n>-<slug>
-  ```
-  This succeeds with unrelated WIP present (it leaves those files untouched)
-  and *refuses* only if the WIP overlaps a file your branch changed
-  — a real conflict with someone's live edit; surface that to the user, don't
-  force it.
-
-- **Main checkout is parked on some *other* branch** — don't switch it. Update
-  the `master` ref in place without a checkout:
-  ```bash
-  git fetch . issue-<n>-<slug>:master
-  ```
-  This is FF-only by default: it refuses (non-`+` refspec) if master isn't an
-  ancestor — which can't happen here because step (a) rebased — and never
-  touches the main checkout's working tree or WIP.
-
-Do NOT reach for `--no-ff`, a merge commit, `git stash`, or a `_merge`
-worktree. The issue's framing is "trunk-based, one main branch, rebase often";
-a fast-forward *is* the merge. If step (b) refuses, that's signal, not an
-obstacle to route around — read the error and fix the actual cause (branch
-behind → you skipped the rebase; local-edit clobber → real conflict, ask the
-user).
+Never `--force`, never a `+refspec`, never `--no-ff`, never `git checkout
+master` / `git stash` / a `_merge` worktree to route around any of these.
 
 **7. Teardown**
 ```bash
@@ -200,18 +183,13 @@ No silent long-lived divergence.
 
 ## Gotchas
 
-- **Never `git checkout` or `git stash` in the main checkout to merge.** The
+- **Never `git checkout` or `git stash` in the main checkout to land.** The
   main checkout may have someone else's uncommitted WIP (documented in
-  `CLAUDE.md` → the multi-agent caveat). You don't need to disturb it: a
-  fast-forward (step 6) leaves unrelated dirty files alone, and if the main
-  checkout is parked on another branch, `git fetch . <branch>:master` advances
-  master without a checkout. No merge worktree, no stash.
-- **A refused fast-forward is a real signal, not a workaround target.**
-  `--ff-only` / `git fetch` refuse in exactly two cases: the branch is behind
-  master (you skipped the step-6a rebase — go do it) or the incoming change
-  overlaps a live uncommitted edit in the main checkout (a genuine conflict
-  with someone's WIP — surface it to the user). Never `--force` / `+refspec`
-  past either.
+  `CLAUDE.md` → the multi-agent caveat). `land` never touches it: a
+  fast-forward leaves unrelated dirty files alone and refuses only on a real
+  overlap, and a main checkout parked on another branch is handled by
+  `git fetch . <branch>:master` (step 6), not by switching it. No merge
+  worktree, no stash.
 - **`git worktree add` from a dirty main checkout is safe** — it doesn't
   touch the working tree, only reads `HEAD`. Don't `git stash` or otherwise
   disturb the main checkout's working directory to make room for a worktree.
