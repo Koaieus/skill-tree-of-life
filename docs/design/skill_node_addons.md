@@ -186,6 +186,25 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection (#781)".
 
 ---
 
+### Toxin — shipped as **DotAddon** (`skill_node/addons/dot_addon.gd`, `toxin_addon.tscn`)
+
+**Effect:** One item, two faces. *Ranged:* `+1 poison_arrows_per_reload` to the
+carrier's owner, authored as `entity_modifiers` on the scene (the first shipped
+user of that field). *Melee:* the blade vertex built from this node applies
+`poison` (1 stack, scaled at land by potency and resistance) on every contact it
+lands — **that vertex only**; vertex damage is untouched. A refused contact (a
+popped vertex) applies nothing and never re-pops through its status.
+
+**Acquisition:** procgen addon roll (non-unique, Watchtower's rarity), and a
+temp upgrade — `attack/melee/defs/toxin.tres` in the catalog, cost 2, third
+tray card (V). Loot: later.
+
+**Shape:** one `DotAddon` script (`status_def`, `status_power`), one `.tscn`
+per status — corruption / curse / wither (#971-973) are scenes and a pool
+entry each, no code (ADR 0023).
+
+---
+
 ### Gate *(NEW — confirmed direction; a couple of sub-points OPEN)*
 
 > **A 2-component addon** — one addon spanning **two endpoint nodes** (paired, shared), not the usual single-node attachment. Theme-perfect for an edge-centric cosmos: it is the only addon whose unit *is an edge.*
