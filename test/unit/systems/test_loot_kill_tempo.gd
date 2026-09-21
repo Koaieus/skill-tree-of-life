@@ -54,7 +54,8 @@ func _spawn_victim(faction: Faction = _NPC_FACTION) -> Entity:
 
 
 func _kill(victim: Entity) -> void:
-	_tm.start_turn(_killer)
+	# Attribution only — kills within ONE turn are the subject, so adopt.
+	_tm.adopt_turn(_killer, _tm.turns_taken)
 	victim.die()
 
 

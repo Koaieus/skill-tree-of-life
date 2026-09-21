@@ -84,7 +84,8 @@ func _on_xp_gained(entity: Entity, amount: float) -> void:
 
 
 func _kill_victim() -> void:
-	_tm.start_turn(_killer)
+	# Attribution only — a second kill lands in the SAME turn, so adopt.
+	_tm.adopt_turn(_killer, _tm.turns_taken)
 	_victim.stat_board.health.set_current(1.0)
 	_victim.core_location.take_damage(10000.0, null)
 
@@ -131,7 +132,7 @@ func test_a_higher_tier_victim_pays_the_same_as_a_lower_one() -> void:
 	_alloc.force_allocate(victim2, _nodes[2])
 	victim2.core_location = _nodes[2]
 
-	_tm.start_turn(_killer)
+	_tm.adopt_turn(_killer, _tm.turns_taken)
 	victim2.stat_board.health.set_current(1.0)
 	_nodes[2].take_damage(10000.0, null)
 

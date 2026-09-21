@@ -257,7 +257,7 @@ func test_forecast_changed_binds_entity_spawned_after_turn_manager() -> void:
 func test_outside_write_to_current_entity_after_ready_is_refused() -> void:
 	_spawn_entities([10.0])
 	var e := _entities[0]
-	_tm.start_turn(e)
+	_tm.current_entity = e
 	assert_null(_tm.current_entity, "an outside write after ready is ignored")
 	assert_push_error("TurnManager.current_entity is written only by TurnManager")
 
@@ -266,6 +266,6 @@ func test_write_to_current_entity_before_ready_lands() -> void:
 	_spawn_entities([10.0])
 	var e := _entities[0]
 	var tm: TurnManager = autofree(TurnManager.new())
-	tm.start_turn(e)
+	tm.current_entity = e
 	assert_eq(tm.current_entity, e, "before ready the assignment lands")
 	assert_engine_error_count(0)
