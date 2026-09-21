@@ -156,7 +156,7 @@ func test_the_digits_are_dead_outside_magic() -> void:
 func test_the_digits_are_dead_when_the_player_cannot_act() -> void:
 	_stock_book(4)
 	_battle.request_attack_mode(BattleSystem.AttackMode.MAGIC)
-	_tm.current_entity = null
+	_tm.adopt_turn(null, _tm.turns_taken)
 	assert_false(_ctl.can_player_act(), "fixture check: it is not the player's turn")
 	_press(&"ui_select_spell_1")
 	assert_null(_battle.selected_spell)

@@ -98,7 +98,7 @@ func _build(with_live_vfx: bool) -> Dictionary:
 
 	var tm := TurnManager.new()
 	add_child_autofree(tm)
-	tm.current_entity = attacker
+	tm.start_turn(attacker)
 
 	var bs := BattleSystem.new()
 	bs.turn_manager = tm

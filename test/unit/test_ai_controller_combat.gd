@@ -356,7 +356,7 @@ func test_execute_candidate_arms_the_scored_clamp_as_a_real_addon() -> void:
 	# AI's own turn_started listener and race the manual _execute_candidate
 	# call below with a real independent take_turn(). request_attack_mode's
 	# fresh plan only needs `turn_manager.current_entity` to stamp `attacker`.
-	_tm.current_entity = _enemy
+	_tm.start_turn(_enemy)
 	var candidate := AiCombatScorer.ScoredCandidate.new()
 	candidate.mode = BattleSystem.AttackMode.MELEE
 	candidate.source_node = _nodes[0]
@@ -476,7 +476,7 @@ func test_the_stance_does_not_outlive_the_turn_that_earned_it() -> void:
 	# auto-ticks to whoever is ready next, and this test is about the AI's
 	# SECOND turn specifically, not the clock.
 	await _open_room_to_grow()
-	_tm.current_entity = null
+	_tm.adopt_turn(null, _tm.turns_taken)
 	_tm.start_turn(_enemy)
 	await get_tree().create_timer(0.3).timeout
 

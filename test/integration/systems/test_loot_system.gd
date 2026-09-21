@@ -103,7 +103,7 @@ func before_each() -> void:
 
 
 func _kill_victim() -> void:
-	_tm.current_entity = _killer
+	_tm.start_turn(_killer)
 	_victim.stat_board.health.set_current(1.0)
 	_victim.core_location.take_damage(10000.0, null)  # overflow → health 0 → die()
 
@@ -197,7 +197,7 @@ func test_a_big_kill_cascades_through_several_levels() -> void:
 
 func test_self_death_grants_no_xp() -> void:
 	# No entity holds the turn → no killer attribution → no reward.
-	_tm.current_entity = null
+	_tm.adopt_turn(null, _tm.turns_taken)
 	var before := _killer.stat_board.xp.current
 	_victim.stat_board.health.set_current(1.0)
 	_victim.core_location.take_damage(10000.0, null)
@@ -219,7 +219,7 @@ func test_ally_node_kill_pays_no_trickle() -> void:
 	# Same gate on the cascade trickle path (`_on_cascade_started`).
 	_killer.faction = _NPC_FACTION
 	_loot.xp_per_node_killed = 3.0
-	_tm.current_entity = _killer
+	_tm.start_turn(_killer)
 	var before := _killer.stat_board.xp.current
 	_nodes[2].take_damage(10000.0, null)
 	assert_eq(_killer.stat_board.xp.current, before, "no XP for whittling an ally's territory")
@@ -247,7 +247,7 @@ func test_destroying_a_node_pays_the_trickle() -> void:
 	# cascade (not `skill_node_depleted`) is what makes the defender readable —
 	# the strip clears `owned_by` in that same loop.
 	_loot.xp_per_node_killed = 3.0
-	_tm.current_entity = _killer
+	_tm.start_turn(_killer)
 	var before := _killer.stat_board.xp.current
 	_nodes[2].take_damage(10000.0, null)  # leaf, victim survives
 	assert_false(_victim.is_dead, "the victim is only losing a limb here")
@@ -256,7 +256,7 @@ func test_destroying_a_node_pays_the_trickle() -> void:
 
 func test_destroying_your_own_node_pays_nothing() -> void:
 	_loot.xp_per_node_killed = 3.0
-	_tm.current_entity = _victim  # the victim is the one acting
+	_tm.start_turn(_victim)  # the victim is the one acting
 	var before := _victim.stat_board.xp.current
 	_nodes[2].take_damage(10000.0, null)
 	assert_eq(_victim.stat_board.xp.current, before, "no XP for destroying your own territory")
@@ -265,7 +265,7 @@ func test_destroying_your_own_node_pays_nothing() -> void:
 func test_node_kill_switch_suppresses_the_trickle() -> void:
 	_loot.award_xp_on_node_kill = false
 	_loot.xp_per_node_killed = 3.0
-	_tm.current_entity = _killer
+	_tm.start_turn(_killer)
 	var before := _killer.stat_board.xp.current
 	_nodes[2].take_damage(10000.0, null)
 	assert_eq(_killer.stat_board.xp.current, before, "trickle disabled → no XP")
@@ -456,7 +456,7 @@ func test_loot_and_xp_fire_on_mid_cascade_death() -> void:
 	# fires RE-ENTRANTLY while BattleSystem is still iterating the cascade loop.
 	# The rewards must still land (and not crash) on this real combat trigger.
 	_loot.xp_per_node_killed = 1.0
-	_tm.current_entity = _killer
+	_tm.start_turn(_killer)
 	var xp_before := _killer.stat_board.xp.current
 	_victim.stat_board.health.set_current(1.0)
 	_nodes[2].take_damage(10000.0, null)  # deplete N2 → cascade → chip kill

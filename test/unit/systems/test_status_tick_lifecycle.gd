@@ -115,12 +115,12 @@ func test_status_ticks_only_on_owning_entitys_real_turn_never_on_adopt() -> void
 	# A resync repair is not a real turn begin.
 	_tm.adopt_turn(a, 1)
 	assert_eq(d.ticks.size(), 0, "adopt_turn must never tick a status")
-	_tm.current_entity = null
+	_tm.adopt_turn(null, _tm.turns_taken)
 
 	# B's real turn: A's status must not tick.
 	_tm.start_turn(b)
 	assert_eq(d.ticks.size(), 0, "A's status must not tick on B's turn")
-	_tm.current_entity = null  # bypass end_turn's auto-tick-to-ready; not under test here
+	_tm.adopt_turn(null, _tm.turns_taken)  # bypass end_turn's auto-tick-to-ready; not under test here
 
 	# A's real turn: ticks exactly once.
 	_tm.start_turn(a)
@@ -143,7 +143,7 @@ func test_tick_runs_after_regen_so_its_own_damage_only_gates_the_next_turn() -> 
 	# spawn as-is, not one free tick richer) — prime that throwaway first
 	# turn before the two turns this test actually measures.
 	_tm.start_turn(a)
-	_tm.current_entity = null  # bypass end_turn's auto-tick-to-ready
+	_tm.adopt_turn(null, _tm.turns_taken)  # bypass end_turn's auto-tick-to-ready
 
 	# Below max HP (regen-eligible) without tripping `_damaged_since_upkeep` —
 	# restore_current_hp bypasses damage/heal signals by design.
@@ -159,7 +159,7 @@ func test_tick_runs_after_regen_so_its_own_damage_only_gates_the_next_turn() -> 
 	_tm.start_turn(a)
 	assert_eq(node_a.regen_stacks, 1,
 			"this turn's regen must not be suppressed by this same turn's tick damage")
-	_tm.current_entity = null  # bypass end_turn's auto-tick; not under test here
+	_tm.adopt_turn(null, _tm.turns_taken)  # bypass end_turn's auto-tick; not under test here
 
 	# Turn 3: the PRIOR turn's tick damage is what the ordering promises to
 	# have flagged — this turn's regen must see it and reset to 0.
@@ -300,7 +300,7 @@ func test_force_dealloc_from_inside_a_tick_does_not_crash_and_stops_both_nodes()
 		assert_eq(n._status_tick_connected, Events.turn_started.is_connected(Callable(n, "_on_status_tick_turn_started")),
 				"%s's connected flag must agree with the live signal connection" % n.name)
 
-	_tm.current_entity = null  # bypass end_turn's auto-tick-to-ready
+	_tm.adopt_turn(null, _tm.turns_taken)  # bypass end_turn's auto-tick-to-ready
 	_tm.start_turn(a)
 	assert_eq(d1.ticks.size(), 2, "n1 keeps ticking on a's next turn")
 	assert_eq(d2.ticks.size(), 1, "n2 stayed unsubscribed — no further tick")

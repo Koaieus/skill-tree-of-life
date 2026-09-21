@@ -113,7 +113,7 @@ func _build(origin: Vector2 = Vector2.ZERO) -> Dictionary:
 
 	var tm := TurnManager.new()
 	add_child_autofree(tm)
-	tm.current_entity = attacker
+	tm.start_turn(attacker)
 
 	var bs := BattleSystem.new()
 	bs.turn_manager = tm

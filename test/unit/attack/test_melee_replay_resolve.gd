@@ -63,7 +63,7 @@ func before_each() -> void:
 	_attacker.stat_board.action_points.base_value = 2.0
 	_attacker.stat_board.action_points.current = 2.0
 	_graph.add_child(_attacker)
-	_tm.current_entity = _attacker
+	_tm.start_turn(_attacker)
 
 
 ## A real armed plan, source+joint+tip, all owned. Mirrors the arming shape

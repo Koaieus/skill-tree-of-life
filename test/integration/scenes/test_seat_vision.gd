@@ -62,7 +62,7 @@ func _hand_turn_to(ent: Entity) -> void:
 	var tm := _root.turn_manager
 	if tm.current_entity != null:
 		var prev := tm.current_entity
-		tm.current_entity = null
+		tm.adopt_turn(null, tm.turns_taken)
 		tm.turn_ended.emit(prev)
 	tm.start_turn(ent)
 

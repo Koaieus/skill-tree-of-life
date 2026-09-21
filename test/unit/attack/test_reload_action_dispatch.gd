@@ -66,7 +66,7 @@ func before_each() -> void:
 	# entities_container: `entity_id` mints on entry there, and the applier
 	# resolves a command's actor by that id.
 	_graph.entities_container.add_child(_attacker)
-	_tm.current_entity = _attacker
+	_tm.start_turn(_attacker)
 
 	_pivot = _spawn("Pivot")
 	_joint = _spawn("Joint")

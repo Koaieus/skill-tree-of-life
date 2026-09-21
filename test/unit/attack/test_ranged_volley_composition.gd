@@ -210,7 +210,7 @@ func test_validate_third_state() -> void:
 func _battle_system() -> BattleSystem:
 	var tm := TurnManager.new()
 	add_child_autofree(tm)
-	tm.current_entity = _attacker
+	tm.start_turn(_attacker)
 	var vfx := AttackVFX.new()
 	add_child_autofree(vfx)
 	var bs := BattleSystem.new()

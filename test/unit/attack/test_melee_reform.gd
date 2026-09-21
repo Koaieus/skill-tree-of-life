@@ -68,7 +68,7 @@ func before_each() -> void:
 	add_child(_bs)
 
 	_attacker = _make_entity("Attacker")
-	_tm.current_entity = _attacker
+	_tm.start_turn(_attacker)
 
 	_pic = autofree(PlayerInputController.new())
 	_pic.graph = _graph
@@ -344,7 +344,7 @@ func test_each_entity_reforms_its_own_blade() -> void:
 	await get_tree().process_frame
 	_alloc.force_allocate(other, other_leaf)
 
-	_tm.current_entity = other
+	_tm.start_turn(other)
 	_pic.player = other
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	assert_false(_pic.can_reform(), "the incoming player has no blade of their own yet")
@@ -357,7 +357,7 @@ func test_each_entity_reforms_its_own_blade() -> void:
 	assert_eq(_blade_names(_bs.attack_plan as MeleeAttackPlan), ["OtherLeaf"])
 
 	# Hand back: the first player's blade is still exactly where it was.
-	_tm.current_entity = _attacker
+	_tm.start_turn(_attacker)
 	_pic.player = _attacker
 	assert_true(_pic.reform_blade())
 	assert_eq(_blade_names(_bs.attack_plan as MeleeAttackPlan), ["Joint", "Tip"])

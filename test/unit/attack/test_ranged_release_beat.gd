@@ -79,7 +79,7 @@ func _build() -> Dictionary:
 
 	var tm := TurnManager.new()
 	add_child_autofree(tm)
-	tm.current_entity = attacker
+	tm.start_turn(attacker)
 
 	var vfx := AttackVFX.new()
 	add_child_autofree(vfx)

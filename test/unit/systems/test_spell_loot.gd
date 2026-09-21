@@ -87,7 +87,7 @@ func before_each() -> void:
 
 
 func _kill_victim() -> void:
-	_tm.current_entity = _killer
+	_tm.start_turn(_killer)
 	_victim.stat_board.health.set_current(1.0)
 	_victim.core_location.take_damage(10000.0, null)  # overflow → health 0 → die()
 

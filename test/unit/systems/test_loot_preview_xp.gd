@@ -106,7 +106,7 @@ func before_each() -> void:
 	for i in range(1, 6):
 		_alloc.force_allocate(_victim, _nodes[i])
 	_victim.core_location = _nodes[1]
-	_tm.current_entity = _killer
+	_tm.start_turn(_killer)
 
 
 func _xp_gained(before: float, lvl_before: int) -> float:

@@ -80,7 +80,7 @@ func before_each() -> void:
 	_attacker.stat_board.action_points.current = 4.0
 	_attacker.turns_taken = 1
 	_graph.add_child(_attacker)
-	_tm.current_entity = _attacker
+	_tm.start_turn(_attacker)
 
 	_defender = Entity.new()
 	_defender.stat_board = _BOARD.duplicate(true) as EntityStatBoard

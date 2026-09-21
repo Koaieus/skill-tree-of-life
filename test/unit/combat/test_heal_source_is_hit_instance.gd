@@ -61,7 +61,7 @@ func _new_node(n: String) -> SkillNode:
 
 func _turn() -> void:
 	_tm.start_turn(_entity)
-	_tm.current_entity = null
+	_tm.adopt_turn(null, _tm.turns_taken)
 
 
 func _health() -> PoolStat:

@@ -54,7 +54,7 @@ func before_each() -> void:
 	# Entity._on_turn_started runs no upkeep on turns_taken == 1 — prime that
 	# throwaway turn so every turn below is a real upkeep turn.
 	_tm.start_turn(_entity)
-	_tm.current_entity = null  # bypass end_turn's auto-tick-to-ready
+	_tm.adopt_turn(null, _tm.turns_taken)  # bypass end_turn's auto-tick-to-ready
 
 
 func after_each() -> void:
@@ -83,7 +83,7 @@ func _combat() -> EntityCombat:
 
 func _turn() -> void:
 	_tm.start_turn(_entity)
-	_tm.current_entity = null
+	_tm.adopt_turn(null, _tm.turns_taken)
 
 
 func _dpp() -> float:

@@ -56,7 +56,7 @@ func before_each() -> void:
 
 	var tm := TurnManager.new()
 	add_child_autofree(tm)
-	tm.current_entity = _attacker
+	tm.start_turn(_attacker)
 
 	_battle = BattleSystem.new()
 	_battle.turn_manager = tm

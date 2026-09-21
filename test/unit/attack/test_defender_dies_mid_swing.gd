@@ -126,7 +126,7 @@ func _setup(addons: Array[PackedScene], allocate_defender: bool,
 	# without one only because it never asks about ownership afterwards.
 	var turns: TurnManager = autofree(TurnManager.new())
 	add_child(turns)
-	turns.current_entity = attacker
+	turns.start_turn(attacker)
 	var battle: BattleSystem = autofree(BattleSystem.new())
 	battle.turn_manager = turns
 	battle.allocation_system = alloc

@@ -106,7 +106,7 @@ func _setup(blocker_pos: Vector2) -> void:
 	_attacker.stat_board.blade_size.base_value = 3.0
 	_attacker.stat_board.action_points.base_value = 4.0
 	_attacker.stat_board.action_points.current = 4.0
-	_tm.current_entity = _attacker
+	_tm.start_turn(_attacker)
 
 	_defender = _make_entity()
 	var enemy_camp := Faction.new()

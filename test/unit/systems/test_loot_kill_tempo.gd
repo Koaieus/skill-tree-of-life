@@ -54,7 +54,7 @@ func _spawn_victim(faction: Faction = _NPC_FACTION) -> Entity:
 
 
 func _kill(victim: Entity) -> void:
-	_tm.current_entity = _killer
+	_tm.start_turn(_killer)
 	victim.die()
 
 
@@ -97,7 +97,7 @@ func test_ally_kill_pays_no_tempo() -> void:
 
 func test_self_death_pays_no_tempo() -> void:
 	var victim := await _spawn_victim()
-	_tm.current_entity = null  # no killer attribution
+	_tm.adopt_turn(null, _tm.turns_taken)  # no killer attribution
 	var ap_before := _killer.stat_board.action_points.current
 	victim.die()
 	assert_eq(_killer.stat_board.action_points.current, ap_before, "no killer -> no refund")
@@ -106,7 +106,7 @@ func test_self_death_pays_no_tempo() -> void:
 
 func test_dead_killer_pays_no_tempo() -> void:
 	var victim := await _spawn_victim()
-	_tm.current_entity = _killer
+	_tm.start_turn(_killer)
 	_killer.is_dead = true
 	victim.die()
 	assert_eq(_killer.stat_board.tempo.current, 1.0, "a dead killer collects no tempo")

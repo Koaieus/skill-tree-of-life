@@ -370,7 +370,7 @@ func test_the_keys_are_dead_when_the_player_cannot_act() -> void:
 	# Handed straight to the field rather than through end_turn(), which ticks
 	# on to whoever is ready next — with a one-entity fixture that is the player
 	# again, and the gate never closes.
-	_tm.current_entity = null
+	_tm.adopt_turn(null, _tm.turns_taken)
 	assert_false(_ctl.can_player_act(), "fixture check: it is not the player's turn")
 
 	_press(&"ui_temp_upgrade_1")
