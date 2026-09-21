@@ -65,3 +65,23 @@ func test_retired_setting_in_cfg_is_dropped_not_crashed() -> void:
 
 	assert_almost_eq(Settings.current.master_volume, 0.5, 0.0001)
 	assert_null(Settings.current.get("some_retired_setting_that_no_longer_exists"))
+
+
+## The autoload's defaults come from the authored res://settings/default_settings.tres,
+## copied — never the resource-cache object itself, which load_settings() would
+## otherwise mutate for the whole process on the first cfg read.
+func test_fresh_autoload_copies_authored_defaults() -> void:
+	var defaults: GameSettings = load("res://settings/default_settings.tres")
+	var original_delay: float = defaults.ai_turn_delay
+	defaults.ai_turn_delay = original_delay + 0.7
+	var fresh = load("res://autoload/settings.gd").new()
+	defaults.ai_turn_delay = original_delay
+
+	assert_ne(fresh.current, defaults, "current must be a copy, not the cached resource")
+	assert_almost_eq(fresh.current.ai_turn_delay, original_delay + 0.7, 0.0001,
+		"a fresh autoload must read the authored .tres, not GameSettings.new()")
+	for key in fresh.exported_keys():
+		if key == &"ai_turn_delay":
+			continue
+		assert_eq(fresh.current.get(key), defaults.get(key), "default for %s" % key)
+	fresh.free()
