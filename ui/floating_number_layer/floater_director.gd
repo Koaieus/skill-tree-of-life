@@ -99,7 +99,7 @@ func _on_skill_node_damaged(node: SkillNode, amount: float, source: HitInstance)
 ## Crit rank of the hit behind a damage announcement, or 0 for a normal hit.
 ##
 ## [param source] is the [HitInstance] that reached [method SkillNode.take_damage],
-## or null (#1007) — turn regen and scripted damage carry none. Hence the null
+## or null — turn regen and scripted damage carry none. Hence the null
 ## check before the property read.
 ##
 ## Reads [member HitInstance.crit_tier] rather than just [member

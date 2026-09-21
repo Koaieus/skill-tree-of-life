@@ -763,7 +763,7 @@ func _apply_turn_upkeep() -> void:
 		if pool.definition.id != &"health":
 			push_warning("Entity: HOST_ADD pool '%s' has no host door (only `health` does)" % pool.definition.id)
 			continue
-		# #1007: the door's `source` is a HitInstance or null — the per-turn stat
+		# The door's `source` is a HitInstance or null — the per-turn stat
 		# id it used to carry was read by nothing. A HealInstance gets
 		# `effective_amount` and the bar numbers written back.
 		var heal := HealInstance.new()

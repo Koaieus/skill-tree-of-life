@@ -228,7 +228,7 @@ func take_pool_damage(amount: float, _source: HitInstance) -> void:
 ##
 ## Callers today: `health`'s HOST_ADD upkeep (`core_healing`, from
 ## `Entity._apply_turn_upkeep`). [param source] is the [HitInstance] behind
-## the heal, or null (#1007) — the same contract as the node door; a
+## the heal, or null — the same contract as the node door; a
 ## [HealInstance] gets `effective_amount` stashed back, any [HitInstance] its
 ## bar numbers. `test_heal_door_drift` guards that nothing else raises the pool.
 func heal(amount: float, source: HitInstance, raw: bool = false) -> void:

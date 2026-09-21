@@ -98,7 +98,7 @@ func _on_turn_start(ctx: EffectContext) -> void:
 		# Clamped here, not via `discard` (see class doc): a negative result
 		# heals 0, it never damages. Floored once, here, per ADR 0017 —
 		# health is an INT quantity end to end.
-		# #1007: the door's `source` is a HitInstance or null. The aura rides
+		# The door's `source` is a HitInstance or null. The aura rides
 		# as `HitInstance.source` (the thing that produced the hit), so nothing
 		# downstream loses the "who" — and `effective_amount` comes back.
 		var heal := HealInstance.new()

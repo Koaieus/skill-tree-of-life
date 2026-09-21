@@ -1,6 +1,6 @@
 extends GutTest
 
-## #1007: the `source` every combat door and hp signal carries is a
+## The `source` every combat door and hp signal carries is a
 ## [HitInstance] (nullable) — never a StringName, never the effect object that
 ## asked for the heal. The two callers that used to pass something else now
 ## build a [HealInstance] and get `effective_amount` written back onto it:

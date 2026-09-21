@@ -43,7 +43,7 @@ func test_stacked_crit_keeps_its_tier() -> void:
 
 	# Turn regen passes null; nothing else but a HitInstance can reach the door.
 	# Turn regen passes null; other callers pass their own objects.
-	assert_eq(FloaterDirector._crit_tier(null), 0, "turn regen's null source — the only non-hit the typed door admits (#1007)")
+	assert_eq(FloaterDirector._crit_tier(null), 0, "turn regen's null source — the only non-hit the typed door admits")
 
 
 # --- Text -------------------------------------------------------------------
