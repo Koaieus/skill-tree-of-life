@@ -132,7 +132,7 @@ func test_an_entity_hosted_poison_drains_through_the_pool_damage_door() -> void:
 class _SpyCombat extends EntityCombat:
 	var door_calls: Array[float] = []
 
-	func take_pool_damage(amount: float, source: Variant) -> void:
+	func take_pool_damage(amount: float, source: HitInstance) -> void:
 		door_calls.append(amount)
 		super(amount, source)
 

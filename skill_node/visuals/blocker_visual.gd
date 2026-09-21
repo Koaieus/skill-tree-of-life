@@ -150,7 +150,7 @@ func _ready() -> void:
 ## Bound to both `damaged` and `healed`; each carries `(amount, source)`, both
 ## ignored, because the stage is a function of the CURRENT fraction rather than
 ## of the delta.
-func _on_damaged(_amount: float, _source: Variant) -> void:
+func _on_damaged(_amount: float, _source: HitInstance) -> void:
 	_refresh_stage_and_visibility()
 
 

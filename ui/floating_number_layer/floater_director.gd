@@ -89,7 +89,7 @@ func _ready() -> void:
 
 # --- Domain intake → render request -----------------------------------------
 
-func _on_skill_node_damaged(node: SkillNode, amount: float, source: Variant) -> void:
+func _on_skill_node_damaged(node: SkillNode, amount: float, source: HitInstance) -> void:
 	if node == null or amount <= 0.0 or not _node_visible(node):
 		return
 	var tier := _crit_tier(source)
@@ -98,17 +98,17 @@ func _on_skill_node_damaged(node: SkillNode, amount: float, source: Variant) -> 
 
 ## Crit rank of the hit behind a damage announcement, or 0 for a normal hit.
 ##
-## [param source] is whatever reached [method SkillNode.take_damage], and that is
-## NOT always a hit: turn regen passes null, and other callers pass their own
-## things. Hence the type check before the property read.
+## [param source] is the [HitInstance] that reached [method SkillNode.take_damage],
+## or null (#1007) — turn regen and scripted damage carry none. Hence the null
+## check before the property read.
 ##
 ## Reads [member HitInstance.crit_tier] rather than just [member
 ## HitInstance.is_crit] so the toast escalates on the same field
 ## `ui/vfx/projectile/projectile.gd` escalates its `_on_crit` visual by — one
 ## classifier of crit-ness, not two that can disagree. `is_crit` still gates it,
 ## because the tier is a stacking count and the flag is the decision.
-static func _crit_tier(source: Variant) -> int:
-	if source is HitInstance and source.is_crit:
+static func _crit_tier(source: HitInstance) -> int:
+	if source != null and source.is_crit:
 		return maxi(source.crit_tier, 1)
 	return 0
 
@@ -127,7 +127,7 @@ static func _damage_text(amount: float, crit_tier: int) -> String:
 ## here and re-announced by the coordinator on `heal_shown`, but a heal now
 ## lands on its own `arrival_time` exactly like a hit, so there is nothing left
 ## to distinguish it from turn regen or a heal aura.
-func _on_skill_node_healed(node: SkillNode, amount: float, _source: Variant) -> void:
+func _on_skill_node_healed(node: SkillNode, amount: float, _source: HitInstance) -> void:
 	if node == null or amount <= 0.0 or not _node_visible(node):
 		return
 	_emit(node, "+%d" % int(round(amount)), FloaterStyles.node_heal())

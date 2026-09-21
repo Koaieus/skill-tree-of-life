@@ -995,7 +995,7 @@ func _new_beat_clock() -> BeatClock:
 ##
 ## "Forced-deallocation lives elsewhere" in AllocationSystem comments —
 ## that elsewhere is [EntityCombat]; this forwards to it.
-func _on_node_depleted(node: SkillNode, source: Variant = null) -> void:
+func _on_node_depleted(node: SkillNode, source: HitInstance = null) -> void:
 	if node == null or allocation_system == null:
 		return
 	var defender: Entity = node.owned_by

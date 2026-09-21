@@ -323,7 +323,7 @@ func get_current_hp() -> float:
 ## whole design has (see the class doc). A depleted SHADOW node instead calls
 ## [method EntityCombat.cascade_from] directly: there is no
 ## [Events] bus reach for it to fall through to, by construction.
-func take_damage(amount: float, source: Variant) -> void:
+func take_damage(amount: float, source: HitInstance) -> void:
 	var o := owner()
 	if o == null or amount <= 0.0:
 		return
@@ -360,12 +360,12 @@ func take_damage(amount: float, source: Variant) -> void:
 		return
 	var before := hp.current
 	hp.deplete(effective)
-	if source is HitInstance:
+	if source != null:
 		# The health BAR's numbers, deliberately distinct from the FLOATER's
 		# `effective_amount` below — on an overkill they always disagree, and
 		# reconciling them into one number is a bug. See
 		# [member HitInstance.hp_before].
-		var hit := source as HitInstance
+		var hit := source
 		hit.hp_before = before
 		hit.hp_after = hp.current
 		hit.hp_max = get_max_hp()
@@ -418,8 +418,8 @@ func take_damage(amount: float, source: Variant) -> void:
 		else:
 			# A shadow has no bus to fall through to, so it records its own.
 			var entries := o.cascade_from(self)
-			if source is HitInstance:
-				(source as HitInstance).deallocations = entries
+			if source != null:
+				source.deallocations = entries
 
 
 ## The refcounted tag dictionary to read and write — the real node's when live,
@@ -502,7 +502,7 @@ func remove_local_modifier(m: StatModifier) -> void:
 ## debug fill). Default off; every gameplay heal consults the stat. The twin
 ## door on the entity is [method EntityCombat.heal]; `test_heal_door_drift`
 ## guards that nothing else raises a health pool.
-func heal_damage(amount: float, source: Variant, raw: bool = false) -> void:
+func heal_damage(amount: float, source: HitInstance, raw: bool = false) -> void:
 	if owner() == null or amount <= 0.0:
 		return
 	var hp := _hp_pool()
@@ -532,12 +532,12 @@ func heal_damage(amount: float, source: Variant, raw: bool = false) -> void:
 	# landed instead of the raw pre-clamp amount.
 	if source is HealInstance:
 		(source as HealInstance).effective_amount = effective
-	if source is HitInstance:
+	if source != null:
 		# Symmetric with take_damage — a heal moves a bar too, and a fogged peer
 		# needs the same three numbers to draw it. Skipping this here would send
 		# every HealInstance across the wire as 0/0/0, which reads on the far
 		# side as "no bar to draw" rather than as a bug.
-		var hit := source as HitInstance
+		var hit := source
 		hit.hp_before = prev
 		hit.hp_after = hp.current
 		hit.hp_max = get_max_hp()
@@ -556,7 +556,7 @@ func heal_damage(amount: float, source: Variant, raw: bool = false) -> void:
 ## still carries the bar numbers so a peer draws the drop. Its `kind` stays
 ## HEAL — [HealInstance] promises never to reclassify — so the floater reads
 ## as a 0 heal while the bar falls; a presentation follow-up, not this unit.
-func _withered_heal(damage: float, source: Variant) -> void:
+func _withered_heal(damage: float, source: HitInstance) -> void:
 	var di := DamageInstance.new()
 	di.type = DamageInstance.Type.TRUE
 	di.amount = damage
@@ -564,8 +564,8 @@ func _withered_heal(damage: float, source: Variant) -> void:
 	take_damage(damage, di)
 	if source is HealInstance:
 		(source as HealInstance).effective_amount = 0.0
-	if source is HitInstance:
-		var hit := source as HitInstance
+	if source != null:
+		var hit := source
 		hit.hp_before = di.hp_before
 		hit.hp_after = di.hp_after
 		hit.hp_max = di.hp_max

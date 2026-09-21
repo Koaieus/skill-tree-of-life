@@ -271,7 +271,7 @@ func _on_owner_changed() -> void:
 	_refresh_content()
 
 
-func _on_node_damaged(_amount: float, _source: Variant) -> void:
+func _on_node_damaged(_amount: float, _source: HitInstance) -> void:
 	_refresh_content()
 
 

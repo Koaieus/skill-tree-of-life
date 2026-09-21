@@ -6,11 +6,11 @@ signal skill_node_unhovered
 
 ## Re-emitted by SkillNode.take_damage so UI (floating damage numbers, screen
 ## shake, etc.) can subscribe once globally instead of binding to every node.
-signal skill_node_damaged(node: SkillNode, amount: float, source: Variant)
+signal skill_node_damaged(node: SkillNode, amount: float, source: HitInstance)
 
 ## Re-emitted by SkillNode.heal_damage and SkillNode.refill (non-silent) so UI
 ## can show heal numbers. amount is the effective HP delta (always > 0).
-signal skill_node_healed(node: SkillNode, amount: float, source: Variant)
+signal skill_node_healed(node: SkillNode, amount: float, source: HitInstance)
 
 ## Emitted when a non-core node's current_hp reaches 0. BattleSystem listens,
 ## announces the VFX layers and forwards into [method EntityCombat.apply_cascade].
@@ -22,7 +22,7 @@ signal skill_node_healed(node: SkillNode, amount: float, source: Variant)
 ## defender. Without it a hit could report damage totals but not the attrition
 ## vector — and a node left at 1 HP versus a node killed are entirely different
 ## moves to an AI.
-signal skill_node_depleted(node: SkillNode, source: Variant)
+signal skill_node_depleted(node: SkillNode, source: HitInstance)
 
 ## Re-emission of [signal SkillPointStat.wounds_applied] / [signal SkillPointStat.wounds_healed]
 ## keyed by the owning entity. Entity itself does the re-emit so the global

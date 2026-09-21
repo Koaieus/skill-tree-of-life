@@ -112,7 +112,7 @@ func test_heal_aura_heals_through_a_heal_instance_naming_the_aura() -> void:
 	var before := _n1.get_current_hp()
 
 	var seen: Array = []
-	var handler := func(node: SkillNode, amount: float, source: Variant) -> void:
+	var handler := func(node: SkillNode, amount: float, source: HitInstance) -> void:
 		if node == _n1:
 			seen.append({"amount": amount, "source": source})
 	Events.skill_node_healed.connect(handler)
@@ -137,6 +137,6 @@ func test_heal_aura_heals_through_a_heal_instance_naming_the_aura() -> void:
 class _SpyCombat extends EntityCombat:
 	var heal_sources: Array = []
 
-	func heal(amount: float, source: Variant, raw: bool = false) -> void:
+	func heal(amount: float, source: HitInstance, raw: bool = false) -> void:
 		heal_sources.append(source)
 		super(amount, source, raw)

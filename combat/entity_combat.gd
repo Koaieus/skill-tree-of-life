@@ -199,7 +199,7 @@ func board() -> StatBoard:
 ## its equivalent is the explicit crossing check below, which runs
 ## [method simulate_entity_death] exactly once, on the drain that crosses,
 ## the way the live signal fires once.
-func take_pool_damage(amount: float, _source: Variant) -> void:
+func take_pool_damage(amount: float, _source: HitInstance) -> void:
 	if amount <= 0.0:
 		return
 	var b := board()
@@ -227,11 +227,11 @@ func take_pool_damage(amount: float, _source: Variant) -> void:
 ## blocked outright: nothing moves, a [HealInstance] reports 0.
 ##
 ## Callers today: `health`'s HOST_ADD upkeep (`core_healing`, from
-## `Entity._apply_turn_upkeep`). [param source] is the same
-## attacker-or-HitInstance-or-StringName tag the node door carries; a
-## [HealInstance] gets `effective_amount` stashed back, a [HitInstance] its
+## `Entity._apply_turn_upkeep`). [param source] is the [HitInstance] behind
+## the heal, or null (#1007) — the same contract as the node door; a
+## [HealInstance] gets `effective_amount` stashed back, any [HitInstance] its
 ## bar numbers. `test_heal_door_drift` guards that nothing else raises the pool.
-func heal(amount: float, source: Variant, raw: bool = false) -> void:
+func heal(amount: float, source: HitInstance, raw: bool = false) -> void:
 	if amount <= 0.0:
 		return
 	var b := board()
@@ -249,8 +249,8 @@ func heal(amount: float, source: Variant, raw: bool = false) -> void:
 		take_pool_damage(-amount, di)
 		if source is HealInstance:
 			(source as HealInstance).effective_amount = 0.0
-		if source is HitInstance:
-			var hit := source as HitInstance
+		if source != null:
+			var hit := source
 			hit.hp_before = before
 			hit.hp_after = health_pool.current
 			hit.hp_max = get_max_hp()
@@ -266,8 +266,8 @@ func heal(amount: float, source: Variant, raw: bool = false) -> void:
 	var effective := health_pool.current - prev
 	if source is HealInstance:
 		(source as HealInstance).effective_amount = effective
-	if source is HitInstance:
-		var hit := source as HitInstance
+	if source != null:
+		var hit := source
 		hit.hp_before = prev
 		hit.hp_after = health_pool.current
 		hit.hp_max = get_max_hp()

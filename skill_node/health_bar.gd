@@ -194,7 +194,7 @@ func _on_unhovered() -> void:
 ## Node-local damage/heal announcement. While the bar is released this is the
 ## only thing that can wake it; while it is bound it is redundant with
 ## `current_changed` and costs one no-op visibility pass.
-func _on_node_hp_event(_amount: float = 0.0, _source: Variant = null) -> void:
+func _on_node_hp_event(_amount: float = 0.0, _source: HitInstance = null) -> void:
 	_update_visibility()
 
 

@@ -22,7 +22,7 @@ const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 class SpyCombat extends EntityCombat:
 	var door_calls: Array[float] = []
 
-	func take_pool_damage(amount: float, source: Variant) -> void:
+	func take_pool_damage(amount: float, source: HitInstance) -> void:
 		door_calls.append(amount)
 		super(amount, source)
 

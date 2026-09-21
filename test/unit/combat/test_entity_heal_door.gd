@@ -172,7 +172,7 @@ func test_a_withered_core_healing_upkeep_drains_the_pool_as_true_damage() -> voi
 class _SpyCombat extends EntityCombat:
 	var door_calls: Array[Dictionary] = []
 
-	func take_pool_damage(amount: float, source: Variant) -> void:
+	func take_pool_damage(amount: float, source: HitInstance) -> void:
 		door_calls.append({"amount": amount, "source": source})
 		super(amount, source)
 

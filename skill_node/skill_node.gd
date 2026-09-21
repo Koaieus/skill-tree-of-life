@@ -52,11 +52,11 @@ signal left_clicked(skill_node: SkillNode)
 ## Emitted on every take_damage call (even at 0 effective). Local twin of
 ## [signal Events.skill_node_damaged]; subscribe locally for per-node reactions
 ## (hit-flash lives right here), globally on the bus for UI like floating numbers.
-signal damaged(amount: float, source: Variant)
+signal damaged(amount: float, source: HitInstance)
 ## Emitted on every heal_damage call (even at 0 effective). Local twin of
 ## [signal Events.skill_node_damaged]; subscribe locally for per-node reactions
 ## (heal-flash lives right here)
-signal healed(amount: float, source: Variant)
+signal healed(amount: float, source: HitInstance)
 ## Emitted when a non-core node's [member current_hp] reaches 0. Local twin of
 ## [signal Events.skill_node_depleted]; BattleSystem listens on the bus for the
 ## cascade dealloc.
@@ -1251,7 +1251,7 @@ func apply_turn_regen() -> void:
 ## about defender stats; node soaks first, overflow eats core HP iff this is
 ## the owner's core node. Emits [signal damaged] (and re-emits on the global
 ## bus) so UI hooks fire even when 0 damage lands.
-func take_damage(amount: float, source: Variant) -> void:
+func take_damage(amount: float, source: HitInstance) -> void:
 	_combat.take_damage(amount, source)
 
 
@@ -1261,7 +1261,7 @@ func take_damage(amount: float, source: Variant) -> void:
 ## HP pool's values around the deplete; `effective` is the post-mitigation
 ## number (`damaged.emit` and the dispatch both carry it, matching the
 ## pre-#498 contract).
-func notify_damaged(_before: float, _after: float, effective: float, source: Variant) -> void:
+func notify_damaged(_before: float, _after: float, effective: float, source: HitInstance) -> void:
 	damaged.emit(effective, source)
 	Events.skill_node_damaged.emit(self, effective, source)
 	# Post-mitigation amount, so a defensive effect reacts to what actually landed.
@@ -1276,19 +1276,19 @@ func notify_damaged(_before: float, _after: float, effective: float, source: Var
 ## this — an overflowing core node returns before the depleted check, exactly
 ## as before extraction (core HP is bottomless in the death sense; see
 ## `.claude/rules/entity-death.md`).
-func notify_depleted(source: Variant = null) -> void:
+func notify_depleted(source: HitInstance = null) -> void:
 	depleted.emit()
 	Events.skill_node_depleted.emit(self, source)
 
 
 ## Restore HP by [param amount], clamped at max. Emits [signal healed] (and
 ## re-emits on the global bus) with the effective delta actually restored.
-func heal_damage(amount: float, source: Variant) -> void:
+func heal_damage(amount: float, source: HitInstance) -> void:
 	_combat.heal_damage(amount, source)
 
 
 ## Notification half of [method heal_damage]'s state change (see [NodeCombat]).
-func notify_healed(_prev: float, _after: float, effective: float, source: Variant) -> void:
+func notify_healed(_prev: float, _after: float, effective: float, source: HitInstance) -> void:
 	if effective > 0.0:
 		healed.emit(effective, source)
 		Events.skill_node_healed.emit(self, effective, source)
