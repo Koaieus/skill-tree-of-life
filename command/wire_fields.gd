@@ -116,7 +116,16 @@ static func _encode(field: Field, value: Variant) -> Variant:
 		return to_dict(value)
 	if value is Array:
 		return (value as Array).duplicate()
+	if _is_packed(value):
+		# A packed array is a value type but shares its buffer copy-on-write;
+		# hand the wire its own so a later append on the record never reaches
+		# a dictionary already queued for send (AttackRecord's columns, #1000).
+		return value.duplicate()
 	return value
+
+
+static func _is_packed(value: Variant) -> bool:
+	return typeof(value) >= TYPE_PACKED_BYTE_ARRAY and typeof(value) <= TYPE_PACKED_VECTOR4_ARRAY
 
 
 static func _decode(field: Field, raw: Variant, current: Variant) -> Variant:

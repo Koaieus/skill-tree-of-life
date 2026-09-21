@@ -165,6 +165,98 @@ const FLAG_GATED := 1
 const FLAG_CRIT := 2
 
 
+
+## The wire form as COLUMNS (#1000): one typed packed array per hit / dealloc /
+## event field, declared once in [method wire_fields] and walked by
+## [WireFields] in both directions, so a key can no longer be written on one
+## side and read differently on the other. [method capture] fills an instance
+## and hands it to [method WireFields.to_dict]; [method rebuild] decodes one
+## and unpacks it. The columns ARE the encoding the class note argues for —
+## a record instance is a transient the two static entry points share, never
+## something a caller holds.
+var resolve_seed: int = 0
+var ap_cost: int = 0
+var mana_cost: int = 0
+var cadence: int = 0
+var tempo: String = ""
+var kinds := PackedByteArray()
+var amounts := PackedFloat64Array()
+var targets := PackedInt32Array()
+var origins := PackedInt32Array()
+var attackers := PackedInt32Array()
+var structural := PackedFloat64Array()
+var flags := PackedByteArray()
+var crit_tiers := PackedInt32Array()
+var hp_before := PackedFloat64Array()
+var hp_after := PackedFloat64Array()
+var hp_max := PackedFloat64Array()
+var pops := PackedInt32Array()
+var status_defs := PackedStringArray()
+var status_hosts := PackedInt32Array()
+## Flattened across all hits; `dealloc_counts` slices the run back apart.
+var dealloc_counts := PackedInt32Array()
+var dealloc_nodes := PackedInt32Array()
+var dealloc_levels := PackedInt32Array()
+var dealloc_wounds := PackedInt32Array()
+var dealloc_chips := PackedFloat64Array()
+var dealloc_label_counts := PackedInt32Array()
+var dealloc_labels := PackedStringArray()
+var beats := PackedInt32Array()
+var verbs := PackedByteArray()
+var event_origins := PackedInt32Array()
+var event_targets := PackedInt32Array()
+var preds := PackedInt32Array()
+## Flattened across all events; `pred_counts` slices the run back apart —
+## same discipline as the dealloc columns (#542).
+var pred_counts := PackedInt32Array()
+var pred_all := PackedInt32Array()
+var visits := PackedInt32Array()
+var terminals := PackedByteArray()
+## Per event, the INDICES into [member kinds] & co. of the hits it carries.
+var event_hits: Array[PackedInt32Array] = []
+
+
+static func wire_fields() -> Array[WireFields.Field]:
+	return [
+		WireFields.Field.new(&"resolve_seed", TYPE_INT).as_key(KEY_SEED),
+		WireFields.Field.new(&"ap_cost", TYPE_INT).as_key(KEY_AP),
+		WireFields.Field.new(&"mana_cost", TYPE_INT).as_key(KEY_MANA),
+		WireFields.Field.new(&"cadence", TYPE_INT).as_key(KEY_CADENCE),
+		WireFields.Field.new(&"tempo", TYPE_STRING).as_key(KEY_TEMPO),
+		WireFields.Field.new(&"kinds", TYPE_PACKED_BYTE_ARRAY).as_key(KEY_HIT_KIND),
+		WireFields.Field.new(&"amounts", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_HIT_AMOUNT),
+		WireFields.Field.new(&"targets", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_TARGET),
+		WireFields.Field.new(&"origins", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_ORIGIN),
+		WireFields.Field.new(&"attackers", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_ATTACKER),
+		WireFields.Field.new(&"structural", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_HIT_STRUCT),
+		WireFields.Field.new(&"flags", TYPE_PACKED_BYTE_ARRAY).as_key(KEY_HIT_FLAGS),
+		WireFields.Field.new(&"crit_tiers", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_CRIT_TIER),
+		WireFields.Field.new(&"hp_before", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_HIT_HP_BEFORE),
+		WireFields.Field.new(&"hp_after", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_HIT_HP_AFTER),
+		WireFields.Field.new(&"hp_max", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_HIT_HP_MAX),
+		WireFields.Field.new(&"pops", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_POP),
+		WireFields.Field.new(&"status_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_HIT_STATUS_DEF),
+		WireFields.Field.new(&"status_hosts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_STATUS_HOST),
+		WireFields.Field.new(&"dealloc_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_DEALLOC_COUNT),
+		WireFields.Field.new(&"dealloc_nodes", TYPE_PACKED_INT32_ARRAY).as_key(KEY_DEALLOC_NODE),
+		WireFields.Field.new(&"dealloc_levels", TYPE_PACKED_INT32_ARRAY).as_key(KEY_DEALLOC_LEVEL),
+		WireFields.Field.new(&"dealloc_wounds", TYPE_PACKED_INT32_ARRAY).as_key(KEY_DEALLOC_WOUND),
+		WireFields.Field.new(&"dealloc_chips", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_DEALLOC_CHIP),
+		WireFields.Field.new(&"dealloc_label_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_DEALLOC_LABEL_COUNT),
+		WireFields.Field.new(&"dealloc_labels", TYPE_PACKED_STRING_ARRAY).as_key(KEY_DEALLOC_LABEL),
+		WireFields.Field.new(&"beats", TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_BEAT),
+		WireFields.Field.new(&"verbs", TYPE_PACKED_BYTE_ARRAY).as_key(KEY_EVENT_VERB),
+		WireFields.Field.new(&"event_origins", TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_ORIGIN),
+		WireFields.Field.new(&"event_targets", TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_TARGET),
+		WireFields.Field.new(&"preds", TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_PRED),
+		WireFields.Field.new(&"pred_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_PRED_COUNT),
+		WireFields.Field.new(&"pred_all", TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_PRED_ALL),
+		WireFields.Field.new(&"visits", TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_VISIT),
+		WireFields.Field.new(&"terminals", TYPE_PACKED_BYTE_ARRAY).as_key(KEY_EVENT_TERMINAL),
+		WireFields.Field.new(&"event_hits", TYPE_ARRAY).of(TYPE_PACKED_INT32_ARRAY).as_key(KEY_EVENT_HITS),
+	]
+
+
 ## Snapshot [param outcome] AFTER the host has applied it — every field this
 ## reads ([member HitInstance.effective_amount], the post-reclassification
 ## [member HitInstance.kind], #503's [member HitInstance.gated]) is filled in
@@ -174,28 +266,12 @@ const FLAG_CRIT := 2
 ## Amounts encode as float64, not float32: the peer's HP must land on exactly
 ## the host's number, and the acceptance test compares node HP directly.
 static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
-	var kinds := PackedByteArray()
-	var amounts := PackedFloat64Array()
-	var targets := PackedInt32Array()
-	var origins := PackedInt32Array()
-	var attackers := PackedInt32Array()
-	var structural := PackedFloat64Array()
-	var flags := PackedByteArray()
-	var crit_tiers := PackedInt32Array()
-	var hp_before := PackedFloat64Array()
-	var hp_after := PackedFloat64Array()
-	var hp_max := PackedFloat64Array()
-	var pops := PackedInt32Array()
-	var status_defs := PackedStringArray()
-	var status_hosts := PackedInt32Array()
-	# Flattened across all hits; `dealloc_counts` slices it back apart.
-	var dealloc_counts := PackedInt32Array()
-	var dealloc_nodes := PackedInt32Array()
-	var dealloc_levels := PackedInt32Array()
-	var dealloc_wounds := PackedInt32Array()
-	var dealloc_chips := PackedFloat64Array()
-	var dealloc_label_counts := PackedInt32Array()
-	var dealloc_labels := PackedStringArray()
+	var r := AttackRecord.new()
+	r.resolve_seed = outcome.resolve_seed
+	r.ap_cost = outcome.ap_cost
+	r.mana_cost = outcome.mana_cost
+	r.cadence = int(outcome.cadence)
+	r.tempo = _tempo_path(outcome)
 	# Index of each hit in the flat list, so the timeline can reference it.
 	# Identity-keyed, because two landings on one node in one beat are
 	# genuinely distinct hits with equal field values.
@@ -203,61 +279,49 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	for i in outcome.hits.size():
 		var hit := outcome.hits[i]
 		index_of[hit] = i
-		kinds.append(int(hit.kind))
-		amounts.append(hit.effective_amount)
-		targets.append(_id_of(hit.target, graph))
-		origins.append(_id_of(hit.origin, graph))
-		attackers.append(hit.attacker.entity_id if hit.attacker != null else 0)
-		structural.append(hit.structural_key)
+		r.kinds.append(int(hit.kind))
+		r.amounts.append(hit.effective_amount)
+		r.targets.append(_id_of(hit.target, graph))
+		r.origins.append(_id_of(hit.origin, graph))
+		r.attackers.append(hit.attacker.entity_id if hit.attacker != null else 0)
+		r.structural.append(hit.structural_key)
 		var f := 0
 		if hit.gated:
 			f |= FLAG_GATED
 		if hit.is_crit:
 			f |= FLAG_CRIT
-		flags.append(f)
-		crit_tiers.append(hit.crit_tier)
-		hp_before.append(hit.hp_before)
-		hp_after.append(hit.hp_after)
-		hp_max.append(hit.hp_max)
-		pops.append(_id_of(hit.popped_vertex, graph))
+		r.flags.append(f)
+		r.crit_tiers.append(hit.crit_tier)
+		r.hp_before.append(hit.hp_before)
+		r.hp_after.append(hit.hp_after)
+		r.hp_max.append(hit.hp_max)
+		r.pops.append(_id_of(hit.popped_vertex, graph))
 		var status_hit := hit as StatusInstance
-		status_defs.append(status_hit.def.resource_path if status_hit != null and status_hit.def != null else "")
-		status_hosts.append(int(status_hit.host_kind) if status_hit != null else 0)
-		dealloc_counts.append(hit.deallocations.size())
+		r.status_defs.append(status_hit.def.resource_path if status_hit != null and status_hit.def != null else "")
+		r.status_hosts.append(int(status_hit.host_kind) if status_hit != null else 0)
+		r.dealloc_counts.append(hit.deallocations.size())
 		for e in hit.deallocations:
 			# The id, never the reference (`.claude/rules/multiplayer-sync.md`).
 			# `_id_of` forces the topology rebuild that mints a lazy stable_id,
 			# so a node that was never asked a topology question still encodes
 			# as itself rather than as 0.
-			dealloc_nodes.append(_id_of(e.node, graph))
-			dealloc_levels.append(e.allocation_level)
-			dealloc_wounds.append(e.wound)
-			dealloc_chips.append(e.chip)
-			dealloc_label_counts.append(e.revoked_labels.size())
-			dealloc_labels.append_array(e.revoked_labels)
-	var beats := PackedInt32Array()
-	var visits := PackedInt32Array()
-	var terminals := PackedByteArray()
-	var verbs := PackedByteArray()
-	var event_origins := PackedInt32Array()
-	var event_targets := PackedInt32Array()
-	var preds := PackedInt32Array()
-	# Flattened across all events; `pred_counts` slices it back apart —
-	# same discipline as the dealloc arrays above (#542).
-	var pred_counts := PackedInt32Array()
-	var pred_all := PackedInt32Array()
-	var event_hits: Array = []
+			r.dealloc_nodes.append(_id_of(e.node, graph))
+			r.dealloc_levels.append(e.allocation_level)
+			r.dealloc_wounds.append(e.wound)
+			r.dealloc_chips.append(e.chip)
+			r.dealloc_label_counts.append(e.revoked_labels.size())
+			r.dealloc_labels.append_array(e.revoked_labels)
 	for event in outcome.timeline:
-		beats.append(event.beat)
-		visits.append(event.visit_index)
-		terminals.append(1 if event.is_terminal else 0)
-		verbs.append(int(event.verb))
-		event_origins.append(_id_of(event.origin, graph))
-		event_targets.append(_id_of(event.target, graph))
-		preds.append(_id_of(event.predecessor, graph))
-		pred_counts.append(event.predecessors.size())
+		r.beats.append(event.beat)
+		r.visits.append(event.visit_index)
+		r.terminals.append(1 if event.is_terminal else 0)
+		r.verbs.append(int(event.verb))
+		r.event_origins.append(_id_of(event.origin, graph))
+		r.event_targets.append(_id_of(event.target, graph))
+		r.preds.append(_id_of(event.predecessor, graph))
+		r.pred_counts.append(event.predecessors.size())
 		for pred in event.predecessors:
-			pred_all.append(_id_of(pred, graph))
+			r.pred_all.append(_id_of(pred, graph))
 		var refs := PackedInt32Array()
 		for hit in event.hits:
 			# A hit the event references but the flat list does not hold would
@@ -267,45 +331,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 				refs.append(index_of[hit])
 			else:
 				push_warning("AttackRecord: timeline hit is not in outcome.hits; dropped")
-		event_hits.append(refs)
-	return {
-		KEY_SEED: outcome.resolve_seed,
-		KEY_AP: outcome.ap_cost,
-		KEY_MANA: outcome.mana_cost,
-		KEY_CADENCE: int(outcome.cadence),
-		KEY_TEMPO: _tempo_path(outcome),
-		KEY_HIT_KIND: kinds,
-		KEY_HIT_AMOUNT: amounts,
-		KEY_HIT_TARGET: targets,
-		KEY_HIT_ORIGIN: origins,
-		KEY_HIT_ATTACKER: attackers,
-		KEY_HIT_STRUCT: structural,
-		KEY_HIT_FLAGS: flags,
-		KEY_HIT_CRIT_TIER: crit_tiers,
-		KEY_HIT_HP_BEFORE: hp_before,
-		KEY_HIT_HP_AFTER: hp_after,
-		KEY_HIT_HP_MAX: hp_max,
-		KEY_HIT_POP: pops,
-		KEY_HIT_STATUS_DEF: status_defs,
-		KEY_HIT_STATUS_HOST: status_hosts,
-		KEY_DEALLOC_COUNT: dealloc_counts,
-		KEY_DEALLOC_NODE: dealloc_nodes,
-		KEY_DEALLOC_LEVEL: dealloc_levels,
-		KEY_DEALLOC_WOUND: dealloc_wounds,
-		KEY_DEALLOC_CHIP: dealloc_chips,
-		KEY_DEALLOC_LABEL_COUNT: dealloc_label_counts,
-		KEY_DEALLOC_LABEL: dealloc_labels,
-		KEY_EVENT_BEAT: beats,
-		KEY_EVENT_VERB: verbs,
-		KEY_EVENT_ORIGIN: event_origins,
-		KEY_EVENT_TARGET: event_targets,
-		KEY_EVENT_PRED: preds,
-		KEY_EVENT_PRED_COUNT: pred_counts,
-		KEY_EVENT_PRED_ALL: pred_all,
-		KEY_EVENT_VISIT: visits,
-		KEY_EVENT_TERMINAL: terminals,
-		KEY_EVENT_HITS: event_hits,
-	}
+		r.event_hits.append(refs)
+	return WireFields.to_dict(r)
 
 
 ## Rebuild a replayable [AttackOutcome] from [param d].
@@ -332,31 +359,11 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	var outcome := AttackOutcome.new()
 	if d.is_empty():
 		return outcome
-	outcome.resolve_seed = int(d.get(KEY_SEED, 0))
-	outcome.ap_cost = int(d.get(KEY_AP, 0))
-	outcome.mana_cost = int(d.get(KEY_MANA, 0))
-	outcome.cadence = int(d.get(KEY_CADENCE, 0)) as ScheduleEntry.Cadence
-	var kinds: PackedByteArray = d.get(KEY_HIT_KIND, PackedByteArray())
-	var amounts: PackedFloat64Array = d.get(KEY_HIT_AMOUNT, PackedFloat64Array())
-	var targets: PackedInt32Array = d.get(KEY_HIT_TARGET, PackedInt32Array())
-	var origins: PackedInt32Array = d.get(KEY_HIT_ORIGIN, PackedInt32Array())
-	var attackers: PackedInt32Array = d.get(KEY_HIT_ATTACKER, PackedInt32Array())
-	var structural: PackedFloat64Array = d.get(KEY_HIT_STRUCT, PackedFloat64Array())
-	var flags: PackedByteArray = d.get(KEY_HIT_FLAGS, PackedByteArray())
-	var crit_tiers: PackedInt32Array = d.get(KEY_HIT_CRIT_TIER, PackedInt32Array())
-	var hp_before: PackedFloat64Array = d.get(KEY_HIT_HP_BEFORE, PackedFloat64Array())
-	var hp_after: PackedFloat64Array = d.get(KEY_HIT_HP_AFTER, PackedFloat64Array())
-	var hp_max: PackedFloat64Array = d.get(KEY_HIT_HP_MAX, PackedFloat64Array())
-	var pops: PackedInt32Array = d.get(KEY_HIT_POP, PackedInt32Array())
-	var status_defs: PackedStringArray = d.get(KEY_HIT_STATUS_DEF, PackedStringArray())
-	var status_hosts: PackedInt32Array = d.get(KEY_HIT_STATUS_HOST, PackedInt32Array())
-	var dealloc_counts: PackedInt32Array = d.get(KEY_DEALLOC_COUNT, PackedInt32Array())
-	var dealloc_nodes: PackedInt32Array = d.get(KEY_DEALLOC_NODE, PackedInt32Array())
-	var dealloc_levels: PackedInt32Array = d.get(KEY_DEALLOC_LEVEL, PackedInt32Array())
-	var dealloc_wounds: PackedInt32Array = d.get(KEY_DEALLOC_WOUND, PackedInt32Array())
-	var dealloc_chips: PackedFloat64Array = d.get(KEY_DEALLOC_CHIP, PackedFloat64Array())
-	var dealloc_label_counts: PackedInt32Array = d.get(KEY_DEALLOC_LABEL_COUNT, PackedInt32Array())
-	var dealloc_labels: PackedStringArray = d.get(KEY_DEALLOC_LABEL, PackedStringArray())
+	var r := WireFields.from_dict(AttackRecord, d) as AttackRecord
+	outcome.resolve_seed = r.resolve_seed
+	outcome.ap_cost = r.ap_cost
+	outcome.mana_cost = r.mana_cost
+	outcome.cadence = r.cadence as ScheduleEntry.Cadence
 	# Second running offset: labels are a flat run over ENTRIES, not over hits,
 	# so it advances independently of `dealloc_at`.
 	var label_at := 0
@@ -364,15 +371,15 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	# own count. The counts array is what slices one flat run back into per-hit
 	# groups; without it the entries would all belong to hit 0.
 	var dealloc_at := 0
-	for i in kinds.size():
-		var gated := (flags[i] & FLAG_GATED) != 0
-		var amount: float = 0.0 if gated else amounts[i]
+	for i in r.kinds.size():
+		var gated := (r.flags[i] & FLAG_GATED) != 0
+		var amount: float = 0.0 if gated else r.amounts[i]
 		var hit: HitInstance
-		if kinds[i] == int(HitInstance.Kind.HEAL):
+		if r.kinds[i] == int(HitInstance.Kind.HEAL):
 			hit = HealInstance.new()
-		elif kinds[i] == int(HitInstance.Kind.STATUS):
+		elif r.kinds[i] == int(HitInstance.Kind.STATUS):
 			var si := StatusInstance.new()
-			var def_path: String = status_defs[i] if i < status_defs.size() else ""
+			var def_path: String = r.status_defs[i] if i < r.status_defs.size() else ""
 			if not def_path.is_empty():
 				if ResourceLoader.exists(def_path):
 					si.def = load(def_path) as StatusDef
@@ -384,8 +391,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 			si.power_resolved = true
 			# The landed host is a resolved fact too (#996): the peer lands on
 			# the shipped host, never re-derives it from its own node HP.
-			if i < status_hosts.size():
-				si.host_kind = status_hosts[i] as StatusInstance.HostKind
+			if i < r.status_hosts.size():
+				si.host_kind = r.status_hosts[i] as StatusInstance.HostKind
 			hit = si
 		else:
 			var di := DamageInstance.new()
@@ -401,76 +408,66 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 		# Carried even when the replay lands nothing (gated, or mitigated to
 		# zero on the host), so a VFX reader sees the host's number rather
 		# than an empty one.
-		hit.effective_amount = amounts[i]
+		hit.effective_amount = r.amounts[i]
 		hit.crit_multiplier = 1.0
-		hit.is_crit = (flags[i] & FLAG_CRIT) != 0
-		hit.crit_tier = crit_tiers[i]
-		if i < hp_before.size():
-			hit.hp_before = hp_before[i]
-			hit.hp_after = hp_after[i]
-			hit.hp_max = hp_max[i]
-		if i < pops.size():
+		hit.is_crit = (r.flags[i] & FLAG_CRIT) != 0
+		hit.crit_tier = r.crit_tiers[i]
+		if i < r.hp_before.size():
+			hit.hp_before = r.hp_before[i]
+			hit.hp_after = r.hp_after[i]
+			hit.hp_max = r.hp_max[i]
+		if i < r.pops.size():
 			# 0 means "popped nothing", which `_node_of` already answers as null.
-			hit.popped_vertex = _node_of(pops[i], graph)
+			hit.popped_vertex = _node_of(r.pops[i], graph)
 		# The cascade this landing caused, RECORDED. A peer applies exactly this
 		# set instead of walking the defender's navigator for one — under the
 		# filtered-delta model it may not hold the nodes that walk would visit,
 		# and re-deriving is the one place `.claude/rules/multiplayer-sync.md`'s
 		# "a peer replays a recorded result" was not literally true (#518).
-		if i < dealloc_counts.size():
-			var count := dealloc_counts[i]
+		if i < r.dealloc_counts.size():
+			var count := r.dealloc_counts[i]
 			var entries: Array[DeallocEntry] = []
 			for k in count:
 				var at := dealloc_at + k
 				var entry := DeallocEntry.new()
-				entry.node_id = dealloc_nodes[at]
+				entry.node_id = r.dealloc_nodes[at]
 				entry.node = _node_of(entry.node_id, graph)
-				entry.allocation_level = dealloc_levels[at]
-				entry.wound = dealloc_wounds[at]
-				entry.chip = dealloc_chips[at]
-				if at < dealloc_label_counts.size():
-					var label_count := dealloc_label_counts[at]
-					entry.revoked_labels = dealloc_labels.slice(label_at, label_at + label_count)
+				entry.allocation_level = r.dealloc_levels[at]
+				entry.wound = r.dealloc_wounds[at]
+				entry.chip = r.dealloc_chips[at]
+				if at < r.dealloc_label_counts.size():
+					var label_count := r.dealloc_label_counts[at]
+					entry.revoked_labels = r.dealloc_labels.slice(label_at, label_at + label_count)
 					label_at += label_count
 				entries.append(entry)
 			hit.deallocations = entries
 			dealloc_at += count
 		hit.gated = gated
-		hit.structural_key = structural[i]
-		hit.target = _node_of(targets[i], graph)
-		hit.origin = _node_of(origins[i], graph)
-		hit.attacker = graph.get_by_entity_id(attackers[i]) if graph != null else null
+		hit.structural_key = r.structural[i]
+		hit.target = _node_of(r.targets[i], graph)
+		hit.origin = _node_of(r.origins[i], graph)
+		hit.attacker = graph.get_by_entity_id(r.attackers[i]) if graph != null else null
 		outcome.hits.append(hit)
-	var beats: PackedInt32Array = d.get(KEY_EVENT_BEAT, PackedInt32Array())
-	var visits: PackedInt32Array = d.get(KEY_EVENT_VISIT, PackedInt32Array())
-	var terminals: PackedByteArray = d.get(KEY_EVENT_TERMINAL, PackedByteArray())
-	var verbs: PackedByteArray = d.get(KEY_EVENT_VERB, PackedByteArray())
-	var event_origins: PackedInt32Array = d.get(KEY_EVENT_ORIGIN, PackedInt32Array())
-	var event_targets: PackedInt32Array = d.get(KEY_EVENT_TARGET, PackedInt32Array())
-	var preds: PackedInt32Array = d.get(KEY_EVENT_PRED, PackedInt32Array())
-	var pred_counts: PackedInt32Array = d.get(KEY_EVENT_PRED_COUNT, PackedInt32Array())
-	var pred_all: PackedInt32Array = d.get(KEY_EVENT_PRED_ALL, PackedInt32Array())
-	var event_hits: Array = d.get(KEY_EVENT_HITS, [])
 	# Running offset into the flattened predecessor array, same shape as
 	# `dealloc_at` above — advanced by each event's own count.
 	var pred_at := 0
-	for i in beats.size():
+	for i in r.beats.size():
 		var event := PropagationEvent.new()
-		event.beat = beats[i]
-		event.visit_index = visits[i] if i < visits.size() else 0
-		event.is_terminal = i < terminals.size() and terminals[i] != 0
-		event.verb = verbs[i] as PropagationEvent.Verb
-		event.origin = _node_of(event_origins[i], graph)
-		event.target = _node_of(event_targets[i], graph)
-		event.predecessor = _node_of(preds[i], graph)
-		if i < pred_counts.size():
-			var count := pred_counts[i]
+		event.beat = r.beats[i]
+		event.visit_index = r.visits[i] if i < r.visits.size() else 0
+		event.is_terminal = i < r.terminals.size() and r.terminals[i] != 0
+		event.verb = r.verbs[i] as PropagationEvent.Verb
+		event.origin = _node_of(r.event_origins[i], graph)
+		event.target = _node_of(r.event_targets[i], graph)
+		event.predecessor = _node_of(r.preds[i], graph)
+		if i < r.pred_counts.size():
+			var count := r.pred_counts[i]
 			var set: Array[SkillNode] = []
 			for k in count:
-				set.append(_node_of(pred_all[pred_at + k], graph))
+				set.append(_node_of(r.pred_all[pred_at + k], graph))
 			event.predecessors = set
 			pred_at += count
-		var refs: PackedInt32Array = event_hits[i] if i < event_hits.size() else PackedInt32Array()
+		var refs: PackedInt32Array = r.event_hits[i] if i < r.event_hits.size() else PackedInt32Array()
 		for index in refs:
 			if index >= 0 and index < outcome.hits.size():
 				# The SAME object, not a copy — [PropagationEvent]'s contract.
@@ -480,7 +477,7 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	# crossed plus this machine's own rate (#543 D4) — never decoded, because
 	# they were never encoded. One compile, so the applier's wait and the VFX
 	# layer read the same schedule object rather than two agreeing copies.
-	outcome.schedule = OutcomeSchedule.compile(outcome, _tempo_of(d), rate)
+	outcome.schedule = OutcomeSchedule.compile(outcome, _tempo_of(r.tempo), rate)
 	return outcome
 
 
@@ -499,8 +496,7 @@ static func _tempo_path(outcome: AttackOutcome) -> String:
 ## skew, a renamed `.tres`) degrades to the shared default rather than to no
 ## presentation at all — a spell that plays on the wrong CADENCE is a cosmetic
 ## bug; one that does not play is a lost turn.
-static func _tempo_of(d: Dictionary) -> PresentationTempo:
-	var path: String = str(d.get(KEY_TEMPO, ""))
+static func _tempo_of(path: String) -> PresentationTempo:
 	if path.is_empty() or not ResourceLoader.exists(path):
 		return null
 	return load(path) as PresentationTempo
