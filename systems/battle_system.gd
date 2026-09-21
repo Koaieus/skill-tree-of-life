@@ -229,10 +229,9 @@ func _sync_pick_sensed() -> void:
 	var want := false
 	var ranged := attack_plan as RangedAttackPlan
 	if ranged != null:
-		# The plan's fog for the scout shot (#1036): wired here, on the
-		# setter, rather than in _new_plan — a RangedAttackPlan reference
-		# there changes this script's load order and breaks the spell
-		# playground's heal (test_spell_playground_cast).
+		# The plan's fog for the scout shot: wired on the setter so every
+		# assigned RangedAttackPlan gets it, including one not minted by
+		# _new_plan.
 		ranged.viewer_vision = vision_system
 	if ranged != null and ranged.attacker != null and ranged.attacker.stat_board != null:
 		var quiver: Quiver = ranged.attacker.stat_board.arrows
