@@ -15,7 +15,7 @@
 # in the commit message.
 DIGEST_NODE_COUNT 800
 DIGEST_SEED 424242
-DIGEST_SHA256 6a1e3643fd72928a5f23dc2869f2b9171c7cf1168090f5d6cfa5006ed565387b
+DIGEST_SHA256 4986ad93d516a1bbcef580953e84b29a1ff919355c586ad9f4fad3c68601cebc
 SEED 424242
 NODE_COUNT 80
 NODE 1 -295.762512 615.662659 blue
@@ -144,24 +144,28 @@ NODE 28 287.061981 365.632385 gold
     AMOD blade_damage 0 3.000000 0 -
     AMOD blade_damage 2 1.500000 0 -
 NODE 29 -4.708374 200.627457 purple
-  MOD perception 0 2.000000 0 -
-  MOD perception 1 53.000000 0 -
+  MOD perception 1 62.000000 0 -
   MOD vision_range 1 101.000000 0 -
   MOD vision_range 3 29.000000 0 -
 NODE 30 154.087494 71.474243 green
-  MOD dexterity 1 91.000000 0 -
+  MOD crit_chance 1 4.000000 0 -
+  MOD dexterity 0 6.000000 0 -
+  MOD dexterity 1 42.000000 0 -
+  ADDON clamp_addon
+  ADDON watchtower_addon
+    AMOD arrows_per_reload 3 1.000000 0 -
+    AMOD max_shots_per_leaf 3 2.000000 0 -
+    AMOD range 0 150.000000 0 -
+    AMOD range 2 1.250000 0 -
+    AMOD vision_range 3 300.000000 0 -
 NODE 31 93.821976 -138.897598 white
-  MOD constitution 0 2.000000 0 -
-  MOD deallocation_points 0 1.000000 0 -
-  MOD dexterity 1 -17.000000 0 -
-  MOD movement_points 0 1.000000 0 -
+  MOD constitution 0 32.000000 0 -
+  MOD deallocation_points 0 2.000000 0 -
 NODE 32 -1.601669 22.785164 green
-  MOD dexterity 0 61.000000 0 -
-  MOD movement_points 0 1.000000 0 -
+  MOD crit_chance 1 13.000000 0 -
+  MOD poison_resistance 0 0.257874 0 -
 NODE 33 360.031189 -38.459831 white
-  MOD constitution 0 4.000000 0 -
-  MOD deallocation_points 0 1.000000 0 -
-  MOD dexterity 1 -13.000000 0 -
+  MOD constitution 0 16.000000 0 -
 NODE 34 285.915527 182.112259 gold
   MOD wisdom 0 28.000000 0 -
   MOD wisdom 1 28.000000 0 -
