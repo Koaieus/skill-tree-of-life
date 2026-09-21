@@ -47,6 +47,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/node_health_scaling.tres" id="def_node_health_scaling"]
 [ext_resource type="Resource" uid="uid://dstlg0lrt8nvv" path="res://stats_system/defs/perception.tres" id="def_perception"]
 [ext_resource type="Resource" path="res://stats_system/defs/poison_arrows_per_reload.tres" id="def_poison_arrows_per_reload"]
+[ext_resource type="Resource" path="res://stats_system/defs/scout_arrows_per_reload.tres" id="def_scout_arrows_per_reload"]
 [ext_resource type="Resource" path="res://stats_system/defs/poison_potency.tres" id="def_poison_potency"]
 [ext_resource type="Resource" path="res://stats_system/defs/poison_resistance.tres" id="def_poison_resistance"]
 [ext_resource type="Resource" uid="uid://bo02uqmdhuhlb" path="res://stats_system/defs/range.tres" id="def_range"]
@@ -492,6 +493,11 @@ resource_name = "poison_arrows_per_reload"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_poison_arrows_per_reload")
 
+[sub_resource type="Resource" id="scalar_scout_arrows_per_reload"]
+resource_name = "scout_arrows_per_reload"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_scout_arrows_per_reload")
+
 [sub_resource type="Resource" id="scalar_poison_potency"]
 resource_name = "poison_potency"
 script = ExtResource("2_scalar")
@@ -668,6 +674,7 @@ ranged_damage = SubResource("scalar_ranged_damage")
 arrows = SubResource("quiver_arrows")
 arrows_per_reload = SubResource("scalar_arrows_per_reload")
 poison_arrows_per_reload = SubResource("scalar_poison_arrows_per_reload")
+scout_arrows_per_reload = SubResource("scalar_scout_arrows_per_reload")
 max_shots_per_leaf = SubResource("scalar_max_shots_per_leaf")
 volleys_per_turn = SubResource("scalar_volleys_per_turn")
 mana = SubResource("pool_mana")

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="AmmoType" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://attack/ammo/ammo_type.gd" id="1_ammo_type"]
+
+[resource]
+script = ExtResource("1_ammo_type")
+id = &"scout"
+display_name = "Scout Arrow"
+order = 120
+damage_scale = 0.0
+reveal_fraction = 0.5
+reveal_stack_bonus = 0.2
+per_reload_stat_id = &"scout_arrows_per_reload"

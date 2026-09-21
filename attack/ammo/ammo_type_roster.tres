@@ -1,10 +1,11 @@
-[gd_resource type="Resource" script_class="AmmoTypeRoster" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="AmmoTypeRoster" load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://attack/ammo/ammo_type_roster.gd" id="1_roster"]
 [ext_resource type="Script" path="res://attack/ammo/ammo_type.gd" id="2_ammo_type"]
 [ext_resource type="Resource" path="res://attack/ammo/types/arrow.tres" id="3_arrow"]
 [ext_resource type="Resource" path="res://attack/ammo/types/poison.tres" id="4_poison"]
+[ext_resource type="Resource" path="res://attack/ammo/types/scout.tres" id="5_scout"]
 
 [resource]
 script = ExtResource("1_roster")
-types = Array[ExtResource("2_ammo_type")]([ExtResource("3_arrow"), ExtResource("4_poison")])
+types = Array[ExtResource("2_ammo_type")]([ExtResource("3_arrow"), ExtResource("4_poison"), ExtResource("5_scout")])

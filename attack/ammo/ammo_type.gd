@@ -10,7 +10,8 @@ extends Resource
 ## RangedDamageFormula.compute] scales the loosed amount by [member
 ## damage_scale] before mitigation, and [method RangedDamageFormula.status_for]
 ## emits a [StatusInstance] of [member status_def] at [member status_power]
-## alongside the arrow's [DamageInstance] for the same landing.
+## alongside the arrow's [DamageInstance] for the same landing. A scout type
+## ([member reveal_fraction] > 0) takes neither path — see [RevealInstance].
 
 ## Bin key on the [Quiver] and suffix of the minting stat (`<id>_arrows_per_reload`).
 @export var id: StringName = &""
@@ -26,6 +27,17 @@ extends Resource
 ## Power of that status per landing arrow; a volley re-applies it per arrow
 ## under the def's `reapply` rule. Owner tunes.
 @export var status_power: float = 1.0
+## A SCOUT type (#1035): `> 0` makes the arrow deal no damage at all — the
+## resolve emits one [RevealInstance] per arrow instead of a [DamageInstance]
+## — with radius `firing leaf's local vision_range × reveal_fraction`. Never
+## pair this with a [member status_def]: the mark is [VisionSystem]'s fact,
+## not a node status (hub #949).
+@export var reveal_fraction: float = 0.0
+## `+%` of that radius per added scout arrow in one volley — the k-th lands
+## `× (1 + reveal_stack_bonus·(k−1))`, where k counts scout arrows from the
+## SAME firing leaf in landing order (the radius is that leaf's; so is the
+## pile). Owner tunes.
+@export var reveal_stack_bonus: float = 0.0
 ## Entity-board stat id minting this type on reload. The base arrow's is
 ## `arrows_per_reload` (node-local, summed per leaf); specials are flat.
 @export var per_reload_stat_id: StringName = &""

@@ -179,6 +179,7 @@ extends StatBoard
 @export var arrows: Quiver
 @export var arrows_per_reload: ScalarStat	## Base arrow yield per producing leaf/core on a ReloadCommand. Node-local via get_local_value, scaled by allocation level (#955).
 @export var poison_arrows_per_reload: ScalarStat	## Flat poison-arrow yield per ReloadCommand. Entity-flat, never scaled by leaf allocation level (#955).
+@export var scout_arrows_per_reload: ScalarStat	## Flat scout-arrow yield per ReloadCommand. Entity-flat, rolled on the PER pack (#1035).
 @export var max_shots_per_leaf: ScalarStat	## Per-turn shot budget for a single leaf node. Node-local via get_local_value, scaled by allocation level (#956).
 @export var volleys_per_turn: ScalarStat	## Per-turn cap on ranged volleys an entity may launch. Innate ADD_BONUS reads board max_shots_per_leaf (#956).
 

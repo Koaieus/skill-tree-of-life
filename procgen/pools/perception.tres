@@ -63,7 +63,18 @@ tags = Array[StringName]([&"per", &"sense", &"vision"])
 pool_weight = 2.0
 max_tier = 2
 
+[sub_resource type="Resource" id="scout_arrows"]
+resource_name = "scout_arrows_per_reload +"
+script = ExtResource("2_pool")
+stat_id = &"scout_arrows_per_reload"
+archetype_stat = &"perception"
+tags = Array[StringName]([&"per", &"flat", &"vision", &"ammo"])
+pool_weight = 0.6
+min_tier = 2
+max_tier = 2
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"perception"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("vr_inc"), SubResource("vr_bn"), SubResource("sr")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("vr_inc"), SubResource("vr_bn"), SubResource("sr"), SubResource("scout_arrows")])
