@@ -64,6 +64,21 @@ DOC_GROWTH_PCT = 60       # growth over the window that reads as accretion
 DOC_GROWTH_DAYS = 30
 DOC_GROWTH_FLOOR = 15000  # a doc smaller than this is still being written
 
+# Code comments state the contract — what, invariant, gotcha — and nothing else
+# (CLAUDE.md, "Knowledge accumulation"). Two counters keep that honest, and
+# both REPORT rather than flag until their strip siblings land (#1011 for
+# essays, #1010 for citations), at which point each becomes a violation:
+#   comment-essays — a non-test `.gd` whose longest `#` run is >= ESSAY_MAX_LINES
+#                    (a run is consecutive comment-only lines; a blank breaks it);
+#                    that much prose is a docs/domain page wearing a comment's hat.
+#   issue-cites    — `#NNN` in a non-test `.gd` comment. A decision lives in an
+#                    ADR or a docs/domain page, which cites the issue; a number in
+#                    code says nothing to a reader without a `gh issue view`.
+# Vendored `addons/` and test scripts are exempt:  a `pending("#n ...")` stub is transient and bound to
+# its issue by nature.
+ESSAY_MAX_LINES = 25
+ISSUE_CITE = re.compile(r"#\d{3,4}\b")
+
 
 def user_always_on():
     """Always-on bytes that live OUTSIDE the repo, so nothing else can see them:
@@ -146,6 +161,31 @@ def tracked_sources():
         _SOURCES = [f for f in out.splitlines()
                     if not any(d in f + "/" for d in SKIP_DIRS)]
     return _SOURCES
+
+
+def comment_policy():
+    """(essay files, essay count, citation count) over non-test tracked `.gd`."""
+    essays, cites = [], 0
+    for path in tracked_sources():
+        if not path.endswith(".gd") or path.startswith(("test/", "addons/")) or "/test/" in path:
+            continue  # vendored addons/ are not ours to police
+        longest = run = 0
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                stripped = line.strip()
+                if stripped.startswith("#"):
+                    run += 1
+                    longest = max(longest, run)
+                    cites += len(ISSUE_CITE.findall(stripped))
+                else:
+                    run = 0
+                    hash_at = line.find("#")
+                    if hash_at >= 0 and '"' not in line[:hash_at] and "'" not in line[:hash_at]:
+                        cites += len(ISSUE_CITE.findall(line[hash_at:]))
+        if longest >= ESSAY_MAX_LINES:
+            essays.append((path, longest))
+    essays.sort(key=lambda x: -x[1])
+    return essays, len(essays), cites
 
 
 def matched_share(patterns):
@@ -252,6 +292,8 @@ def main():
                        f"(.claude/rules/writing-rules.md)",
             })
 
+    essays, essay_count, cite_count = comment_policy()
+
     claude_md = os.path.getsize("CLAUDE.md") if os.path.isfile("CLAUDE.md") else 0
     user_tier, user_files = user_always_on()
     combined = always_on_total + claude_md + user_tier
@@ -282,7 +324,9 @@ def main():
                           "rule_tier_bytes": always_on_total,
                           "user_tier_bytes": user_tier,
                           "claude_md_bytes": claude_md,
-                          "doc_tier_bytes": doc_total, "findings": findings}, indent=2))
+                          "doc_tier_bytes": doc_total,
+                          "comment_essays": essay_count, "issue_cites": cite_count,
+                          "findings": findings}, indent=2))
         return 1 if (findings and strict) else 0
 
     print(f"ALWAYS-ON (paid by every session before it reads anything): "
@@ -304,6 +348,12 @@ def main():
     for n, sz, g in sorted(docs, key=lambda x: -(x[2] or 0))[:5]:
         print(f"  {sz:6d}  {('%+d%%' % g) if g is not None else 'new':>6}"
               f" /{DOC_GROWTH_DAYS}d  {n}")
+
+    print(f"\nCode comments (reported, not yet violations — #1011 / #1010 flip them):")
+    print(f"  comment-essays  {essay_count:5d} non-test .gd files with a #-run >= {ESSAY_MAX_LINES} lines")
+    for n, l in essays[:5]:
+        print(f"  {l:6d}L  {n}")
+    print(f"  issue-cites     {cite_count:5d} `#NNN` citations in non-test .gd comments")
 
     if not findings:
         print("\n✓ no violations")
