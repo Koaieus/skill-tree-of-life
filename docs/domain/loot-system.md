@@ -545,7 +545,7 @@ AllocationSystem / BattleSystem are singletons (global `Events` bus) and killer
 attribution reads `TurnManager.current_entity` at the synchronous death, so
 kills must be one-at-a-time. The victim carries a real CoreClass
 (`balanced_core.tres`) — the #173 core-only draw no-ops without one. **▶ Kill
-victim** writes `current_entity` directly and never ticks the TurnManager
+victim** calls `adopt_turn(killer, tm.turns_taken)` and never ticks the TurnManager
 (auto-tick = played; explicit-step = live — see `sandbox-framework.md`);
 **⟲ Reset** re-arms with muted teardown. No play step, no `godot --path` — the
 tab runs live in the editor.

@@ -43,8 +43,8 @@ itself (a `_process` + `await create_timer` beat loop, the turn clock, AI); a
 surface whose beats are explicit triggers (a button calling the real system
 methods) runs live for free. The one thing we still deliberately do NOT want
 ticking inside the editor: **`TurnManager` / AI**. Sandbox panels never
-`start_turn` / `end_turn` / `tick` — loot attribution only *writes*
-`turn_manager.current_entity` (a plain var) before a kill.
+`start_turn` / `end_turn` / `tick` — loot attribution only *adopts* the
+cursor (`turn_manager.adopt_turn(killer, tm.turns_taken)`, silent) before a kill.
 
 So the tab base must **declare its mode**:
 
@@ -273,8 +273,8 @@ Graph's job, not the tab's.
   beat`, `▶ Kill victim`), gated while in flight (`_busy`), and labels refresh
   on demand instead of `_process` polling.
 - **TurnManager in the editor:** never `start_turn` / `end_turn` / `tick` from a
-  panel. Killer attribution is a plain write to `current_entity` (loot panel),
-  and that slot must be cleared between kills (set to `null` on reset).
+  panel. Killer attribution is `adopt_turn(killer, tm.turns_taken)` (loot panel),
+  and that slot must be cleared between kills (`adopt_turn(null, …)` on reset).
 - **Reset/mute:** `AllocationVFX.muted` (added in phase 0) is the pattern — a
   panel's silent SETUP beat replays the real primitives with cosmetics muted.
   Other VFX layers can grow the same switch as needed.
