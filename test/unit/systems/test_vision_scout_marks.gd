@@ -76,13 +76,16 @@ func _entity(nm: String) -> Entity:
 	return en
 
 
-## Both vision stats are derived (a PER-scaled term rides on `base_value`),
-## so solve for the base that lands the EFFECTIVE local value on N0.
+## Both vision stats are derived (a PER-scaled term rides on `base_value`,
+## then a multiplier), so probe the affine map base → local value at two
+## points and solve for the base that lands the EFFECTIVE value on N0.
 func _set_stat(id: StringName, value: float) -> void:
 	var s: Stat = _a.stat_board.get_stat(id)
 	s.base_value = 0.0
-	var derived: float = float(_n0.get_local_value(id))
-	s.base_value = value - derived
+	var c: float = float(_n0.get_local_value(id))
+	s.base_value = 100.0
+	var k: float = (float(_n0.get_local_value(id)) - c) / 100.0
+	s.base_value = (value - c) / k
 	assert_almost_eq(float(_n0.get_local_value(id)), value, 0.001, "fixture: %s" % id)
 
 

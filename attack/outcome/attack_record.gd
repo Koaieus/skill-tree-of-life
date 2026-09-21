@@ -394,6 +394,11 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 			if i < r.status_hosts.size():
 				si.host_kind = r.status_hosts[i] as StatusInstance.HostKind
 			hit = si
+		elif r.kinds[i] == int(HitInstance.Kind.REVEAL):
+			# A scout landing (#1033): the radius rides `amounts`, the firer
+			# `attackers`, the node `targets` — all assigned by the tail below.
+			hit = RevealInstance.new()
+			hit.amount = amount
 		else:
 			var di := DamageInstance.new()
 			# Already mitigated on the host. TRUE is the one path

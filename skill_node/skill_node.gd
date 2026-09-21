@@ -307,6 +307,19 @@ var revealed: bool = true:
 		revealed = value
 		_apply_sensed_state()
 
+## Scouted flag (#1033), written by VisionSystem on every recompute: true
+## while this MACHINE's vision group holds a live scouted mark on the node —
+## never a hostile scout's, so it leaks nothing. The disc in the fog is the
+## primary feedback; this drives the [ScoutMarker] ring beside it, coloured
+## by `scouted.tres`'s tint (the status' canonical colour everywhere). Not a
+## stat — a per-frame render hint, like [member sensed].
+var scouted: bool = false:
+	set(value):
+		if scouted == value:
+			return
+		scouted = value
+		_apply_scouted_state()
+
 ## This node's [NodeStatBoard]. Authored here (the scene wires
 ## [constant DEFAULT_NODE_BOARD]) and DEEP-CLONED at init, exactly like
 ## [member Entity.stat_board] — so a level, cluster or single node may compose
@@ -577,6 +590,43 @@ func _apply_sensed_state() -> void:
 	for a in _addons:
 		a.visible = not sensed
 	sensed_changed.emit()
+
+
+## The face of a scouted mark: a thin ring just outside the node's rim in the
+## def's tint, with its icon (if authored) centred above. Lazily instanced on
+## the first mark so an unscouted node — the common case — carries nothing.
+class ScoutMarker extends Node2D:
+	const _DEF: StatusDef = preload("res://effects/status/scouted.tres")
+	const _RING_GAP := 5.0
+	const _RING_WIDTH := 2.0
+	var ring_radius: float = 0.0:
+		set(value):
+			ring_radius = value
+			queue_redraw()
+
+	func _draw() -> void:
+		draw_arc(Vector2.ZERO, ring_radius + _RING_GAP, 0.0, TAU, 48, _DEF.tint, _RING_WIDTH, true)
+		var icon: Texture2D = _DEF.icon
+		if icon != null:
+			var size: Vector2 = icon.get_size()
+			draw_texture_rect(icon,
+					Rect2(Vector2(-size.x * 0.5, -(ring_radius + _RING_GAP + size.y + 2.0)), size),
+					false, _DEF.tint)
+
+
+var _scout_marker: ScoutMarker = null
+
+
+func _apply_scouted_state() -> void:
+	if not is_node_ready():
+		return
+	if scouted and _scout_marker == null:
+		_scout_marker = ScoutMarker.new()
+		_scout_marker.name = "ScoutMarker"
+		add_child(_scout_marker)
+	if _scout_marker != null:
+		_scout_marker.ring_radius = radius
+		_scout_marker.visible = scouted
 
 
 func _sync_collision() -> void:
@@ -1764,6 +1814,8 @@ func _refresh_radius() -> void:
 	if not is_node_ready():
 		return
 	_sync_collision()
+	if _scout_marker != null:
+		_scout_marker.ring_radius = radius
 	_sync_visuals()
 
 

@@ -24,7 +24,7 @@ func before_each() -> void:
 	_attacker = autofree(Entity.new())
 	_attacker.display_name = "Scout"
 	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	_graph.add_child(_attacker)
+	_graph.entities_container.add_child(_attacker)  # entity_id is minted on entry here
 	await get_tree().process_frame
 	watch_signals(Events)
 

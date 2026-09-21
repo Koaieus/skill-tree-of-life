@@ -80,6 +80,28 @@ signal vision_render_tick
 ## Lerp rate for circle radius animation. Higher = snappier. ~8 gives a
 ## ~90ms 90%-complete fade; 0 disables animation (instant snap).
 @export_range(0.0, 30.0, 0.1) var ease_rate: float = 8.0
+## The rules and the face of a scouted mark (#1033): its `decayed()` is the
+## whole lifetime rule (FRACTION 0.5 → halves per tick, cleared below power
+## 1), its icon/tint the node marker. Never enters a node's status slice — a
+## node status has no applier and ticks on the host's owner, not the firer.
+## Exported so a test or a level can swap the def; the arrow decides size,
+## this def decides lifetime.
+@export var scouted_def: StatusDef = preload("res://effects/status/scouted.tres")
+## Whether a sensed-only node is open to input (hover, click, spell target).
+## Built for the scout shot (#1036 toggles it while a scout-armed ranged plan
+## is live); off, `input_pickable` tracks visibility alone.
+@export var pick_sensed: bool = false:
+	set(value):
+		if pick_sensed == value:
+			return
+		pick_sensed = value
+		if is_inside_tree():
+			_request_recompute()
+
+## A scouted mark's power is `radius / SCOUT_FLOOR`, so [member scouted_def]'s
+## `decayed()` — which clears a FRACTION def below 1.0 — doubles as the floor:
+## a disc that has decayed under this many world units is gone. Owner tunes.
+const SCOUT_FLOOR := 50.0
 
 # Sub-pixel cleanup threshold. Retreating circles snap to 0 once they get
 # within this radius. Not exposed because the snap-to-target at < 0.5
@@ -103,6 +125,12 @@ var _bound_local_boards: Array[StatBoard] = []
 
 var _visible: Dictionary = {}   # SkillNode → true (logical)
 var _sensed: Dictionary = {}    # SkillNode → true (logical)
+## Scouted marks (#1033): node → { viewer → power }, power = radius /
+## [constant SCOUT_FLOOR]. Held for EVERY viewer (a peer carries the same
+## marks off the same record); only the effective viewers' marks draw.
+## Ticked on [signal Events.turn_started] of the mark's own viewer — the
+## firer's clock, never the host node's — through [member scouted_def].
+var _scout_marks: Dictionary[SkillNode, Dictionary] = {}
 # Per-source animation state. SkillNode → { radius: float, target: float }.
 # `radius` is the rendered radius (lerped); `target` is the logical
 # vision_range. Entries with target=0 retreat to 0 then get dropped.
@@ -121,6 +149,8 @@ func _ready() -> void:
 		if graph != null:
 			graph.node_added.connect(_on_allocation_changed.unbind(1))
 			graph.node_removed.connect(_on_allocation_changed.unbind(1))
+		Events.node_scouted.connect(_on_node_scouted)
+		Events.turn_started.connect(_on_turn_started)
 	_rebind_viewers()
 	_recompute.call_deferred()
 
@@ -260,6 +290,54 @@ func _on_local_stat_created(id: StringName, stat: Stat) -> void:
 	_request_recompute()
 
 
+## A reveal landed (live world only — see [RevealInstance]). Re-landing on a
+## live mark takes the max, never the sum: `Reapply.REFRESH` in the def's
+## terms; stacking is a launch-time size, decided by the arrow.
+func _on_node_scouted(node: SkillNode, viewer: Entity, radius: float) -> void:
+	if node == null or viewer == null or radius <= 0.0:
+		return
+	var per_viewer: Dictionary = _scout_marks.get(node, {})
+	per_viewer[viewer] = maxf(float(per_viewer.get(viewer, 0.0)), radius / SCOUT_FLOOR)
+	_scout_marks[node] = per_viewer
+	_request_recompute()
+
+
+## The firer's clock: every mark this entity holds decays one tick through
+## [member scouted_def] and is dropped when the def says it is gone.
+func _on_turn_started(entity: Entity) -> void:
+	if scouted_def == null:
+		return
+	var changed := false
+	var empty_nodes: Array = []
+	for node in _scout_marks:
+		var per_viewer: Dictionary = _scout_marks[node]
+		if not per_viewer.has(entity):
+			continue
+		var after: float = scouted_def.decayed(float(per_viewer[entity]))
+		if after <= 0.0:
+			per_viewer.erase(entity)
+		else:
+			per_viewer[entity] = after
+		changed = true
+		if per_viewer.is_empty():
+			empty_nodes.append(node)
+	for node in empty_nodes:
+		_scout_marks.erase(node)
+	if changed:
+		_request_recompute()
+
+
+## The scouted radius [param node] carries for any of [param effective]'s
+## members — the largest across the group's marks, 0 when none.
+func _scout_radius(node: SkillNode, effective: Array[Entity]) -> float:
+	var per_viewer: Dictionary = _scout_marks.get(node, {})
+	var best := 0.0
+	for viewer in per_viewer:
+		if viewer in effective:
+			best = maxf(best, float(per_viewer[viewer]) * SCOUT_FLOOR)
+	return best
+
+
 func _recompute() -> void:
 	if graph == null:
 		return
@@ -308,6 +386,26 @@ func _recompute() -> void:
 				else:
 					_circles[own_node].target = r
 
+		# Scouted marks join here as circles keyed by their node, exactly like
+		# an owned source — same index for `_visible`, same `_circles` entry
+		# for `get_vision_sources()` and the `_process` ease, so the fog
+		# picture moves rather than just `input_pickable`. A mark on a node
+		# the group already owns is a max against the owned circle.
+		var scouted: Array = []  # SkillNode, parallel to `scout_targets`
+		var scout_targets: Array = []
+		for node in _scout_marks:
+			if not is_instance_valid(node) or not graph.is_ancestor_of(node):
+				continue
+			var r := _scout_radius(node, effective)
+			if r <= 0.0:
+				continue
+			scouted.append(node)
+			scout_targets.append(r)
+			if not _circles.has(node):
+				_circles[node] = {"radius": 0.0, "target": r}
+			else:
+				_circles[node].target = maxf(float(_circles[node].target), r)
+
 		# A spatial index, not a scan: this is ~2000 nodes x ~200 circles at
 		# the scale this project targets, and it measured as 70% of the whole
 		# recompute (13.3ms of 19.4ms) while it was a per-point linear scan.
@@ -315,6 +413,8 @@ func _recompute() -> void:
 		var circles := VisionCircles.new()
 		for i in all_owned.size():
 			circles.add((all_owned[i] as SkillNode).global_position, targets[i])
+		for i in scouted.size():
+			circles.add((scouted[i] as SkillNode).global_position, scout_targets[i])
 		for n in nodes:
 			if circles.has_point(n.global_position):
 				_visible[n] = true
@@ -365,10 +465,14 @@ func _recompute() -> void:
 	# Single lever for input gating. Non-visible nodes can't be hovered,
 	# clicked, or hit by spell targeting — tooltip suppression falls out
 	# of mouse_entered never firing.
+	# `pick_sensed` widens the lever to sensed-only nodes (the scout shot's
+	# target set); `scouted` is this machine's own group's marks only — no
+	# leak of a hostile scout to the scouted side.
 	for n in nodes:
-		n.input_pickable = _visible.has(n)
+		n.input_pickable = _visible.has(n) or (pick_sensed and _sensed.has(n))
 		n.sensed = _sensed.has(n)
 		n.revealed = _visible.has(n)
+		n.scouted = enabled and _scout_radius(n, effective) > 0.0
 
 	# Edges follow the same logic as nodes but with stricter reveal: an
 	# edge is sensed iff BOTH endpoints are reached AND at least one is
