@@ -94,10 +94,12 @@ func test_coreless_entity_still_gets_the_con_rate() -> void:
 	# (#298 option 2 (fully class-side) had a real cliff: coreless entities exist
 	# (live sandbox fixtures) and would have got CON -> 0.
 	# Board-stat home means the 1.0 default always applies.
-	var board := _board()
-	board.apply_intrinsics()
 	var entity := Entity.new()
-	entity.stat_board = board
+	entity.stat_board = _board()
+	# The setter took a private copy: read it back and apply intrinsics to THAT
+	# (an out-of-tree entity never runs initialize()).
+	var board: EntityStatBoard = entity.stat_board
+	board.apply_intrinsics()
 	autofree(entity)
 	assert_null(entity.core_class, "fixture entity is deliberately coreless")
 

@@ -40,11 +40,8 @@ func _setup_node(entity_base_node_health: float = 10.0) -> Dictionary:
 	add_child_autofree(alloc)
 	alloc.force_allocate(entity, node)
 
-	# NOTE: `board` is the entity's LIVE board, not the local we authored above —
-	# Entity._ready does `stat_board = stat_board.duplicate(true)`, so the local
-	# is a detached copy the node never binds to. Handing that copy back made the
-	# re-sync test poke a board nothing was listening to, which is why it used to
-	# hand-write `hp.base_value` to "verify" a signal that never fired.
+	# NOTE: `board` is the entity's LIVE board — the setter takes a private copy,
+	# so read it back off the entity; the local above is detached.
 	return {"graph": graph, "entity": entity, "node": node, "board": entity.stat_board, "alloc": alloc}
 
 

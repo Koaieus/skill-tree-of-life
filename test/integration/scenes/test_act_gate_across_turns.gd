@@ -9,10 +9,13 @@ extends GutTest
 ##
 ##   * a628636 gave `_set_player` a `player == value` early return, which also
 ##     skipped the AP re-subscription, and
-##   * `Entity._ready` replaces `stat_board` with a `duplicate(true)` AFTER a
-##     scene-wired `player` export has already been assigned,
+##   * `Entity._ready` USED TO replace `stat_board` with a `duplicate(true)`
+##     AFTER a scene-wired `player` export had already been assigned (gone
+##     since #1031: the setter takes the copy at assignment, and the board is
+##     sealed after bring-up — `test/unit/entity/test_entity_board_owner.gd`),
 ##
-## so PIC sat listening to a discarded pool. On `turn_started` the gate is
+## so PIC sat listening to a discarded pool. This test keeps guarding the
+## re-subscription half. On `turn_started` the gate is
 ## computed BEFORE `Entity._on_turn_started` refills AP (same synchronous
 ## emit, PIC's handler runs first), so a turn entered with AP spent emits
 ## `false` and the refill's `current_changed` — the only thing that would

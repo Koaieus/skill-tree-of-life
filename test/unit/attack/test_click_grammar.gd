@@ -25,6 +25,7 @@ func before_each() -> void:
 	add_child_autofree(_graph)
 	_attacker = autofree(Entity.new())
 	_attacker.faction = _PLAYER_FACTION
+	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	_graph.add_child(_attacker)
 
 
@@ -206,7 +207,6 @@ func test_right_click_with_nothing_armed_exits_attack_mode() -> void:
 	bs.turn_manager = tm
 	add_child_autofree(bs)
 
-	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	tm.start_turn(_attacker)
 
 	# Node must exist before PlayerInputController._ready() runs (it wires
@@ -253,7 +253,6 @@ func test_esc_pops_one_level_same_as_right_click() -> void:
 	bs.turn_manager = tm
 	add_child_autofree(bs)
 
-	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	tm.start_turn(_attacker)
 	var a := _spawn(_attacker)
 
@@ -291,7 +290,6 @@ func test_esc_with_nothing_armed_leaves_event_unhandled() -> void:
 	bs.turn_manager = tm
 	add_child_autofree(bs)
 
-	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	tm.start_turn(_attacker)
 
 	ctl.graph = _graph
@@ -325,7 +323,6 @@ func test_d_gated_while_attack_plan_armed() -> void:
 	bs.turn_manager = tm
 	add_child_autofree(bs)
 
-	_attacker.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	tm.start_turn(_attacker)
 	var a := _spawn(_attacker)
 	var b := _spawn(_attacker)

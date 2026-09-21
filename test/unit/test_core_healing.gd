@@ -17,10 +17,12 @@ var _entity: Entity
 
 
 func before_each() -> void:
-	_board = _BOARD.duplicate(true) as EntityStatBoard
-	_board.apply_intrinsics()
 	_entity = autofree(Entity.new())
-	_entity.stat_board = _board
+	_entity.stat_board = _BOARD
+	# The setter took a private copy: read it back and apply intrinsics to THAT
+	# (an out-of-tree entity never runs initialize()).
+	_board = _entity.stat_board
+	_board.apply_intrinsics()
 
 
 func _upkeep() -> void:

@@ -36,9 +36,9 @@ func _distance_set_caster() -> Entity:
 	mod.stat_id = &"cast_range_distance"
 	mod.operation = StatModifier.Operation.SET
 	mod.value = 100.0
-	board.add_modifier(mod)
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = board
+	entity.stat_board.add_modifier(mod)  # the setter took a private copy; modify that one
 	return entity
 
 
@@ -55,9 +55,9 @@ func _hop_boosted_caster() -> Entity:
 	mod.stat_id = &"cast_range_hops"
 	mod.operation = StatModifier.Operation.SET
 	mod.value = _HOP_REACH
-	board.add_modifier(mod)
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = board
+	entity.stat_board.add_modifier(mod)  # the setter took a private copy; modify that one
 	return entity
 
 
