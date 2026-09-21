@@ -176,6 +176,10 @@ func get_spike_power() -> float:
 ## Also understands #333's accessor tokens — `<stat_id>__<accessor>`, e.g.
 ## `node_health__current` — which route to [method _read_accessor] below
 ## instead of the merge. A bare id behaves exactly as it always has.
+func get_local_value_with(stat_id: StringName, overlays: Array[ModifierBins]) -> Variant:
+	return null
+
+
 func get_local_value(stat_id: StringName) -> Variant:
 	if StatFormula.is_accessor_token(stat_id):
 		return _read_accessor(stat_id)

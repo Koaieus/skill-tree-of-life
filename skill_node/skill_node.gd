@@ -807,6 +807,10 @@ func get_local_value(stat_id: StringName) -> Variant:
 	return _combat.get_local_value(stat_id)
 
 
+func get_local_value_with(stat_id: StringName, overlays: Array[ModifierBins]) -> Variant:
+	return _combat.get_local_value_with(stat_id, overlays)
+
+
 ## Returns (creating if necessary) the [code]node_board[/code] stat for
 ## [param stat_id]. This IS the modifier target — callers that just need a
 ## value should use [method get_local_value] instead, which does not allocate.
