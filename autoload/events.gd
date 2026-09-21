@@ -1,8 +1,7 @@
 @tool
 extends Node
 
-signal skill_node_hovered(node: SkillNode)
-signal skill_node_unhovered
+#region World facts — emitted by the owner of the fact, after it is true; a listener may not mutate the world in response (that is a system's job through a named entry)
 
 ## Re-emitted by SkillNode.take_damage so UI (floating damage numbers, screen
 ## shake, etc.) can subscribe once globally instead of binding to every node.
@@ -50,6 +49,7 @@ signal entity_xp_gained(entity: Entity, amount: float)
 ## non-travelling sources (SkillDust pickup, voluntary dealloc), and on pulse
 ## arrival for allocation.
 signal stat_modifier_changed(entity: Entity, modifier: StatModifier, binding: ModifierBinding.Kind, added: bool)
+
 ## Two-phase death announcement (see Entity.die), so consumers pick a phase
 ## instead of racing on connection order. emit() is synchronous, so EVERY
 ## `entity_dying` handler finishes before ANY `entity_died` handler runs —
@@ -65,29 +65,6 @@ signal entity_dying(entity: Entity)
 ## GameRoot rides the child-before-parent ready order to fire after
 ## AllocationSystem, so the despawn never races the node strip.
 signal entity_died(entity: Entity)
-## #504: the death is now visible — [method Entity.die] is the sole emitter and
-## fires this LAST, after both bus phases above, so the corpse's nodes are
-## already stripped when GameRoot despawns it. Under design B the model dies at
-## the moment it is drawn dying, so this is no longer a "the reveal caught up"
-## gate; it is the ordering seam that keeps despawn behind cleanup. Kept
-## separate from `entity_died` for exactly that reason — see GameRoot's
-## `_on_entity_death_shown`.
-signal entity_death_shown(entity: Entity)
-
-## Emitted when a claimed SkillDust relic offers a node-mod pick-N-from-M choice
-## (#173). Carries a [LootPickRequest]; a UI consumer sets `handled = true`
-## SYNCHRONOUSLY to take over the pick, otherwise the emitter auto-resolves a
-## random pick — so NPCs and headless tests never need a listener. Only the
-## human player's relics reach a picker (the HUD filters on `request.collector`).
-signal loot_pick_requested(request: LootPickRequest)
-
-## Emitted when a killing blow drafts a spell off the victim's permanent
-## (core) spellbook (#204). Carries a [SpellLootRequest]; a UI consumer sets
-## `handled = true` SYNCHRONOUSLY to take over the pick, otherwise the emitter
-## (LootSystem) auto-resolves a random pick — so NPCs and headless tests never
-## need a listener. Only the human player's drafts reach a picker (the HUD
-## filters on `request.collector`).
-signal spell_loot_requested(request: SpellLootRequest)
 
 ## A defender's spike popped an incoming enemy blade vertex (#170) — the hostile
 ## vertex died on contact (and severed whatever it dragged off the handle). Fired
@@ -97,18 +74,37 @@ signal spell_loot_requested(request: SpellLootRequest)
 ## system (#189) can count charges off this without touching the detection.
 signal blade_vertex_popped(defender: SkillNode, attacker: Entity, position: Vector2)
 
-## Floating-tooltip signals for SpellPickerButton hover. [SpellTooltip]
-## subscribes to both; the button emits on mouse_entered / mouse_exited.
-## [param caster] is the player entity whose stats may modify spell values.
-signal spell_hovered(spell: SpellDef, caster: Entity)
-signal spell_unhovered
-
 ## The run reached a terminal state (#460). [VictorySystem] is the SOLE emitter
 ## and fires this at most once per run, carrying the populated [RunOutcome].
 ## The outcome is point-of-view-free (#517): it names the winning camp and
 ## nothing else. "Did *I* lose" is a fact about a MACHINE, not about the run, so
 ## [HudRoot] resolves it at display time from the local [SeatPolicy].
 signal run_ended(outcome: RunOutcome)
+
+## Sparse status-tick channel (#879). Re-emitted by [method TurnManager.start_turn]
+## for a REAL turn begin only — never [method TurnManager.adopt_turn]'s resync
+## cursor (#756's `is_adopting`) — and only AFTER [signal TurnManager.turn_started]'s
+## own emit has returned, so every listener of that signal (including
+## [method Entity._on_turn_started]'s upkeep / [method SkillNode.apply_turn_regen])
+## has already run. A [SkillNode] with ≥ 1 status connects to this once (on its
+## first status) and disconnects on its last, checks `entity == owned_by`, then
+## calls [method NodeCombat.tick_statuses] — never a territory sweep. Distinct
+## from [signal TurnManager.turn_started] on purpose: that one's seven listeners
+## (HUD, initiative bar, action cluster, …) all want to hear an adopted cursor
+## too; this one exists so a status tick never has to.
+signal turn_started(entity: Entity)
+#endregion
+
+#region UI feedback — presentation-only; nothing under systems/ or command/ connects here (revisit-when: it does)
+
+signal skill_node_hovered(node: SkillNode)
+signal skill_node_unhovered
+
+## Floating-tooltip signals for SpellPickerButton hover. [SpellTooltip]
+## subscribes to both; the button emits on mouse_entered / mouse_exited.
+## [param caster] is the player entity whose stats may modify spell values.
+signal spell_hovered(spell: SpellDef, caster: Entity)
+signal spell_unhovered
 
 ## Fired by GraphCamera (`scenes/camera_2d.gd`) whenever a zoom step lands —
 ## the tween's TARGET, not a per-frame mid-tween value. Edge listens so its
@@ -141,15 +137,30 @@ signal ui_action_denied(anchor: Node2D, reason: String)
 ## of the decision.
 signal ai_decision(entity: Entity, summary: String)
 
-## Sparse status-tick channel (#879). Re-emitted by [method TurnManager.start_turn]
-## for a REAL turn begin only — never [method TurnManager.adopt_turn]'s resync
-## cursor (#756's `is_adopting`) — and only AFTER [signal TurnManager.turn_started]'s
-## own emit has returned, so every listener of that signal (including
-## [method Entity._on_turn_started]'s upkeep / [method SkillNode.apply_turn_regen])
-## has already run. A [SkillNode] with ≥ 1 status connects to this once (on its
-## first status) and disconnects on its last, checks `entity == owned_by`, then
-## calls [method NodeCombat.tick_statuses] — never a territory sweep. Distinct
-## from [signal TurnManager.turn_started] on purpose: that one's seven listeners
-## (HUD, initiative bar, action cluster, …) all want to hear an adopted cursor
-## too; this one exists so a status tick never has to.
-signal turn_started(entity: Entity)
+## #504: the death is now visible — [method Entity.die] is the sole emitter and
+## fires this LAST, after both bus phases above, so the corpse's nodes are
+## already stripped when GameRoot despawns it. Under design B the model dies at
+## the moment it is drawn dying, so this is no longer a "the reveal caught up"
+## gate; it is the ordering seam that keeps despawn behind cleanup. Kept
+## separate from `entity_died` for exactly that reason — see GameRoot's
+## `_on_entity_death_shown`.
+signal entity_death_shown(entity: Entity)
+#endregion
+
+#region World→UI requests — a system asks the HUD for a decision; the answer comes back through a command, never a return value
+
+## Emitted when a claimed SkillDust relic offers a node-mod pick-N-from-M choice
+## (#173). Carries a [LootPickRequest]; a UI consumer sets `handled = true`
+## SYNCHRONOUSLY to take over the pick, otherwise the emitter auto-resolves a
+## random pick — so NPCs and headless tests never need a listener. Only the
+## human player's relics reach a picker (the HUD filters on `request.collector`).
+signal loot_pick_requested(request: LootPickRequest)
+
+## Emitted when a killing blow drafts a spell off the victim's permanent
+## (core) spellbook (#204). Carries a [SpellLootRequest]; a UI consumer sets
+## `handled = true` SYNCHRONOUSLY to take over the pick, otherwise the emitter
+## (LootSystem) auto-resolves a random pick — so NPCs and headless tests never
+## need a listener. Only the human player's drafts reach a picker (the HUD
+## filters on `request.collector`).
+signal spell_loot_requested(request: SpellLootRequest)
+#endregion
