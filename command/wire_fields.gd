@@ -20,7 +20,8 @@ extends RefCounted
 ## coerced to the declared type (`3.0` -> `3`, `"blade"` -> `&"blade"`), and a
 ## typed array is rebuilt through a duplicate of the declared one so it keeps
 ## its element type. Nested records (`Field.of_record`) recurse — one record
-## or an array of them — which is the seam [AttackRecord] joins through.
+## or an array of them. A flat parallel-array record joins through typed
+## packed columns instead ([AttackRecord]: one `Packed*` var per wire key).
 
 
 ## One declared field. Built fluently:

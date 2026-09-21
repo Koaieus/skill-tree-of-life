@@ -8,8 +8,8 @@ extends GutTest
 ##
 ## Commands are enumerated through [CommandRegistry], not a hand-kept table,
 ## so a new verb is covered the moment it is registered. The nested-record
-## path (`Field.of_record`) is proven on test-local classes so [AttackRecord]
-## can join later without reshaping the helper.
+## path (`Field.of_record`) is proven on test-local classes; tagless records
+## such as [AttackRecord] are listed in `_records` and get the same guards.
 
 const ITERATIONS := 25
 
