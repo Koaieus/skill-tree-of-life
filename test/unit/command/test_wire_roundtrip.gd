@@ -21,6 +21,11 @@ const TRANSIENT: Array[StringName] = [
 	&"pre_fingerprint", &"host_fingerprint", &"computed_here",
 ]
 
+## Tagless records — classes that join [WireFields] without being a [Command],
+## so [CommandRegistry] cannot enumerate them. Covered by the field-match and
+## fuzz guards below; never by the tag test.
+var _records: Array[Script] = [AttackRecord]
+
 var _rng := RandomNumberGenerator.new()
 
 
@@ -77,6 +82,26 @@ func _fuzz_scalar(type: Variant.Type) -> Variant:
 			return StringName(_word())
 		TYPE_DICTIONARY:
 			return {_word(): _rng.randi(), "inner": {"k": _word()}, "list": [1, 2, 3]}
+		TYPE_PACKED_BYTE_ARRAY:
+			var bytes := PackedByteArray()
+			for i in _rng.randi_range(0, 6):
+				bytes.append(_rng.randi_range(0, 255))
+			return bytes
+		TYPE_PACKED_INT32_ARRAY:
+			var ints := PackedInt32Array()
+			for i in _rng.randi_range(0, 6):
+				ints.append(_rng.randi_range(-100000, 100000))
+			return ints
+		TYPE_PACKED_FLOAT64_ARRAY:
+			var floats := PackedFloat64Array()
+			for i in _rng.randi_range(0, 6):
+				floats.append(_rng.randf_range(-1000.0, 1000.0))
+			return floats
+		TYPE_PACKED_STRING_ARRAY:
+			var words := PackedStringArray()
+			for i in _rng.randi_range(0, 6):
+				words.append(_word())
+			return words
 	fail_test("no fuzzer for Variant type %d" % type)
 	return null
 
@@ -155,23 +180,44 @@ func test_every_command_declares_wire_fields_that_match_its_vars() -> void:
 	var scripts := _command_scripts()
 	assert_gt(scripts.size(), 0, "the registry knows some commands")
 	for cls in scripts:
-		var fields := WireFields.fields_of(cls)
-		var instance: Object = cls.new()
-		var declared: Array[StringName] = []
-		assert_gt(fields.size(), 0, "%s declares wire_fields()" % cls.resource_path)
-		for field in fields:
-			assert_true(field.name in instance,
-					"%s.%s names a real var" % [cls.resource_path, field.name])
-			assert_false(declared.has(field.name),
-					"%s.%s declared once" % [cls.resource_path, field.name])
-			declared.append(field.name)
-		for var_name in _script_var_names(cls):
-			if TRANSIENT.has(var_name):
-				assert_false(declared.has(var_name),
-						"%s.%s is transient, never on the wire" % [cls.resource_path, var_name])
-			else:
-				assert_true(declared.has(var_name),
-						"%s.%s is on the wire (or listed as TRANSIENT)" % [cls.resource_path, var_name])
+		_assert_fields_match_vars(cls)
+
+
+func test_every_record_declares_wire_fields_that_match_its_vars() -> void:
+	for cls in _records:
+		_assert_fields_match_vars(cls)
+
+
+func test_every_record_round_trips_fuzzed() -> void:
+	for cls in _records:
+		for i in ITERATIONS:
+			var record := _fuzz_object(cls)
+			var wire := WireFields.to_dict(record)
+			var back := WireFields.from_dict(cls, wire)
+			assert_eq(back.get_script(), cls, "%s decodes to its own class" % cls.resource_path)
+			_assert_same_fields(record, back, cls, cls.resource_path.get_file())
+			assert_eq(WireFields.to_dict(back).hash(), wire.hash(),
+					"%s wire form identical after a round trip" % cls.resource_path)
+
+
+func _assert_fields_match_vars(cls: Script) -> void:
+	var fields := WireFields.fields_of(cls)
+	var instance: Object = cls.new()
+	var declared: Array[StringName] = []
+	assert_gt(fields.size(), 0, "%s declares wire_fields()" % cls.resource_path)
+	for field in fields:
+		assert_true(field.name in instance,
+				"%s.%s names a real var" % [cls.resource_path, field.name])
+		assert_false(declared.has(field.name),
+				"%s.%s declared once" % [cls.resource_path, field.name])
+		declared.append(field.name)
+	for var_name in _script_var_names(cls):
+		if TRANSIENT.has(var_name):
+			assert_false(declared.has(var_name),
+					"%s.%s is transient, never on the wire" % [cls.resource_path, var_name])
+		else:
+			assert_true(declared.has(var_name),
+					"%s.%s is on the wire (or listed as TRANSIENT)" % [cls.resource_path, var_name])
 
 
 func test_every_command_round_trips_fuzzed_through_the_registry() -> void:
