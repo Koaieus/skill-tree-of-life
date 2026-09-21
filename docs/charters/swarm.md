@@ -93,8 +93,12 @@ filling it is a ledger discipline, not yet the norm.
    replying "already done" — overrides every number: the lead is past its
    useful context now.
 7. **A stop from the owner outranks everything, including spawning.** The
-   response is: redirect every in-flight drone to report to relief's actual
-   address, then go quiet — no dispatch, no merge, no test, no review.
+   response is to go quiet — no dispatch, no merge, no test, no review —
+   and, if a relief session has named itself, to owe it exactly one wake
+   per in-flight drone: on each report, update that drone's ledger row and
+   `SendMessage` relief one line. Drones are never redirected to relief's
+   address: their reports reach the outgoing regardless, so its wake is the
+   relay and a redirect only adds an address every drone must learn.
 
 **Roles**
 
@@ -247,6 +251,7 @@ filling it is a ledger discipline, not yet the norm.
 | 2026-09-15 | owner | thresholds "depend on the model … and how much is in flight, if 5 drones working expect 5× the turns taken to settle each, then 150k might already be a lot" → the ceiling formula; sizing "worker cap + ledger Σctx, drop the %-window table"; "the swarm mayve mentioned an issue planner throwaway Opus but our new swarmify skill would (i hope) make that largely obsolete" | 5, 6, 11 |
 | 2026-09-09 | #813 | A read-only peer produced 15 numbered traps in one turn; the drone named four it would have gotten wrong, including a sorted-`std::map` banking that was silently wrong only when one edge takes load from two pushed vertices in one substep. | 29 |
 | 2026-09-19 | week of 09-14 | per-issue cost fell to ~5.5% of a window (owner, 2026-09-21: "due to updated swarmify mostly (better specs, map and seams provided, a lot less research needed to be done by implementer drones the first 40 tool calls etc)"); ledger 2026-09-19 corroborates: owner window 9% at start → 32% after 5 landed units (≈4.6%/issue). A snapshot, not a trend line — the window size moves with promotions, so compare `priced`, not % | 5 |
+| 2026-09-19 | `f9` → `b6` | an Opus lead relieved at its 200k ceiling; the one in-flight drone was drained by redirecting it to the relief session's address — the last handover of that shape; the relief charter replaced the redirect with one outgoing wake per drone (ledger row + one-line ping), since the report reaches the outgoing regardless | 7 |
 
 ## What the skill must not contain
 
@@ -269,5 +274,4 @@ filling it is a ledger discipline, not yet the norm.
 - **Idle count per dispatch** on the first sonnet/opus swarm under law 13;
   if it stays zero, drop the nudge/file-pointer fallback from the skill.
 - `.claude/agents/sage.md` was patched for law 10 (reviewer only, never
-  lands) and deserves its own charter; `relief` still carries its own
-  dated lore and should be re-derived from this charter too.
+  lands) and deserves its own charter.

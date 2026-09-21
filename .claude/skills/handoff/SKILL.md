@@ -43,8 +43,8 @@ turns you no longer have.
    whoever picks this up, one line on the issue (`gh issue comment`) is
    allowed — one line, not a sweep.
 3. **Send it and stop.** `SendMessage` (Claude Code) or your final report
-   (opencode) to whoever is waiting — the orchestrator, or `relief` if you
-   were redirected there. Do not keep working after it's sent.
+   (opencode) to whoever is waiting — the orchestrator that spawned you.
+   Do not keep working after it's sent.
 
 That's the whole budget. If you find yourself running a test, editing a doc,
 or re-reading a file after deciding to retire, that is the `loot-offer`
@@ -153,5 +153,5 @@ And the two rules that keep the file honest:
   `relief`'s job (`.claude/skills/relief/SKILL.md`). Relief reads a
   *continuous* briefing kept live at `docs/handoffs/swarm-<date>.md`,
   updated by `swarm` on every dispatch/report/merge — not a one-shot file
-  written at the end. Same directory and lifecycle rules as §5
-  (`.claude/rules/handoffs.md`), a different cadence.
+  written at the end. Same directory as §5, but gitignored and deleted at
+  the run's teardown — a different cadence and a different lifecycle.

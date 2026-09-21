@@ -67,9 +67,12 @@ questions to resolve by reading.
   done" to a fresh dispatch means you have lost track of what you sent —
   stop dispatching now.
 - **A stop from the owner outranks everything, including spawning** — an
-  `Agent` call is new work. Redirect every in-flight drone to report to
-  relief's *actual address* (from `ListAgents` or the owner), then go quiet:
-  no dispatch, no merge, no test, no review.
+  `Agent` call is new work. Go quiet: no dispatch, no merge, no test, no
+  review. If a relief session has named itself, you owe it exactly one wake
+  per in-flight drone — on each report, update that drone's ledger row and
+  `SendMessage` relief one line (`#<n> reported @<sha>, row updated`).
+  Never redirect a drone to relief's address; its report reaches you and
+  your ping is the relay.
 
 ## Roles
 
@@ -102,6 +105,9 @@ questions to resolve by reading.
 ## The cycle
 
 ### 1. Read the issues once, delegate the rest
+
+A ledger for this run already on disk (`docs/handoffs/swarm-<date>.md`)
+means you are relief — `.claude/skills/relief/SKILL.md` first, then here.
 
 ```bash
 gh issue view <n>            # once per issue

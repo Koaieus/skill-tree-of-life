@@ -1,187 +1,56 @@
 ---
 name: relief
-description: Take over a running `swarm` as a fresh orchestrator session — drones still in the field, worktrees open, merges pending, the outgoing session too deep in context to keep going. Orients from the outgoing orchestrator's continuous briefing (never by re-reading the issues), takes over dispatch/review/merge/test, and lets the outgoing session drain its own in-flight drones and go quiet. Use when the user says "relief", "take over the swarm", "relieve <session>", or an outgoing orchestrator's brief redirects you here.
+description: Continue a `swarm` as a fresh orchestrator session — the outgoing lead is dead (ran out of tokens, taking its subagents with it) or past its ceiling and alive, with worktrees open and branches pending. Orients from disk (ledger, board, worktrees — never the issues), reconciles and classifies every unit, then runs `swarm`. Use when the user says "relief", "take over the swarm", "relieve <session>", or a ledger for a run already exists on disk.
 ---
 
-# Relief
+# Relief — re-entry protocol, then swarm
 
-`handoff` is the **exit** half — a session closing out because the work is
-done or paused. Relief is the **entry** half — a fresh session picking up a
-swarm that is still *running*: drones in flight, worktrees open, merges
-pending. The two compose; neither subsumes the other. See `handoff`'s "What
-this is not" for the same distinction from its side.
+Design and laws: `docs/charters/relief.md`. `handoff` is the exit half;
+this is the entry half. Nothing below restates `swarm` — once oriented, you
+*are* the swarm lead and that skill applies unchanged.
 
-## Why this exists — the constraint that shapes everything below
+## 1. Orient from disk — never the issues
 
-An outgoing orchestrator holds two assets a fresh session cannot inherit any
-other way:
+```bash
+cat docs/handoffs/swarm-<date>.md          # the ledger: roster, states, queue order
+mise gh-project -- list in-progress         # the board's view of the same run
+git worktree list
+for wt in .worktrees/*/; do echo "== $wt"; git -C "$wt" log master.. --oneline; git -C "$wt" status --short; done
+```
 
-1. **The knowledge bank.** Decisions, swings, and dead ends made in
-   conversation that no issue, board, or git log carries.
-2. **In-flight subagents.** Confirmed non-transferable, both directions
-   (2026-08-27): a fresh session cannot reach another session's live
-   subagent, and a resumed subagent cannot be handed to a new parent.
+A gap between the ledger and git is a stale ledger. Fix the ledger from git
+if the outgoing is dead; ask the outgoing **one** question if it is alive.
+Never open an issue to compensate — the worktree is the state.
 
-Asset 1 is solved by a **briefing** (below). Asset 2 is *not* solvable — it
-means the outgoing orchestrator **must stay alive until its drones drain**,
-which is the one thing it is still allowed to do. Everything about the
-**retiring** state below falls out of that constraint; it is not a
-preference.
+## 2. Classify every unit, rewrite the ledger, then dispatch
 
-## The retiring state — the outgoing orchestrator's side of the handover
-
-The moment relief is requested (see thresholds below), the outgoing
-orchestrator enters **retiring**. Its whole contract, described from `swarm`'s
-side in that skill's "Stop compliance and relief" section:
-
-- **Let in-flight subagents finish. Take no other action.** No new
-  dispatches, no merges, no test runs, no reviews. Target one to two turns
-  per drained drone — reading its report and closing it out.
-- **Redirect every in-flight drone to report to relief, not to it.** This
-  redirect is the outgoing orchestrator's last deliberate act before going
-  quiet: message every live worker that on completion it should
-  `SendMessage`/report to the relief session.
-
-  **The redirect must carry relief's actual address, or it is not
-  actionable.** A drone cannot address a session it has never heard of, and
-  "report to relief" names no one. The outgoing orchestrator gets the address
-  from `ListAgents` (relief appears there as another local Claude session) or
-  from the owner, and quotes it verbatim in the redirect: *"when you finish,
-  `SendMessage` to `<name>` — not to me."* Relief should state its own
-  address in its first message to the outgoing session precisely so this
-  redirect can be issued in one turn, at a point where the outgoing session
-  has very few turns left to spend.
-- **Merging, reviewing, and the authoritative test run move to relief
-  immediately** — not after the last drone drains. Relief owns those from
-  the moment it goes live, even while the outgoing session is still watching
-  its last workers finish.
-
-This is the scope answer: relief takes over *everything except draining the
-outgoing session's own in-flight drones*, because that one thing cannot be
-handed off any other way.
-
-## Requesting relief — thresholds
-
-- **Request relief at ~180k context.** Deliberately earlier than the
-  degradation point below — 180k ≈ 250k minus one orientation window, so
-  relief is oriented *before* the outgoing session degrades, not after.
-- **Hard stop at 250k: no new dispatch, ever**, relief-requested or not. 250k
-  is the measured point real orchestrators lost track of their own in-flight
-  work (below).
-- **The duplicate-dispatch tripwire overrides every number, and needs no
-  instrumentation.** If a drone replies "already done" / "I already executed
-  this" to a fresh dispatch, relief is overdue *now* — the orchestrator has
-  lost track of what it already sent out. Two real cases (`tooltip-fan`,
-  `participant-id`) both fired north of ~250k.
-- **A manual owner trigger always overrides** every number above, in either
-  direction — the owner can call for relief early, or tell an orchestrator to
-  stand down, and that wins.
-- The context-size signal makes 180k/250k self-observable without guessing
-  (see the `drone` agent's Retiring section); treat the numbers above as the
-  thresholds to act on once you can see them, not as a reason to estimate
-  blindly if you can't yet.
-
-## The briefing — bounded, continuous, and the point of the whole exercise
-
-**Relief does not re-read the issues.** Doing so is the failure mode this
-skill exists to prevent: full research arrives relief pre-bloated, exactly as
-expensive as the session it's replacing. Relief's orientation is exactly two
-things:
-
-1. **`docs/handoffs/swarm-<date>.md`** — one file per swarm run, both the
-   briefing and the dispatch ledger. See `swarm`'s dispatch section for who
-   writes it and when; relief only reads it.
-2. **`mise gh-project -- list in-progress`** — the persistent board, to
-   cross-check the ledger against reality.
-
-That's the whole orientation. **Target: relief oriented under ~60k context
-before its first dispatch.** If reading the file plus the board leaves you
-short of orientation, the gap is a bug in the file (it's stale, or missing a
-decision) — go fix the file, don't go read the issues to compensate.
-
-The file itself (owned and updated by `swarm`, not written by this skill)
-carries a roster table (unit / brief file / drone name / state), unpersisted
-decisions and swings — each reduced to a pointer once it lands in its real
-home, per `.claude/rules/handoffs.md` — and next steps / queue order. It is
-rewritten in place on every dispatch, report, merge, and owner call, never
-appended to, and stays bounded to roughly 1.5k tokens. Because it's
-continuous rather than a death-bed dump, the outgoing orchestrator's
-retiring-state briefing act shrinks to "confirm the file is current, add the
-last-mile delta" rather than composing a knowledge dump from scratch at 250k.
-
-## Overlap window — bounded, not open-ended
-
-The measured baseline (`relief-1`, below) took **39 minutes** from going live
-to its first dispatch — during which the outgoing orchestrator was still
-spawning drones it had already been told to stop spawning. That is the number
-to beat, not the target: the continuous briefing above is what makes a short
-overlap achievable, since relief no longer has to reconstruct state from a
-death-bed message written under time pressure.
-
-**The bound: relief is oriented and has issued its first dispatch within ~10
-minutes of going live, and the outgoing session takes no action other than
-draining drones from the moment relief is live.** Those are two separate
-clocks and both matter — the second is the expensive one, because every
-outgoing turn is priced at 250k+. If orientation is running past ~10 minutes,
-stop reading and say what is missing: the ledger is stale, and the fix is to
-ask the outgoing session one specific question (its cheapest possible act)
-rather than to keep reconstructing state yourself.
-
-## In a Sage run — what relief inherits
-
-When the run has a Sage (`.claude/agents/sage.md`), **Sage keeps
-reviewing.** It is a persistent teammate, not the outgoing orchestrator's
-context: drones keep asking it, it keeps approving, and none of that pauses
-for the handover — but it never lands; every `land` is relief's. What relief inherits is the lead's
-half only — the ledger (roster, tiers, per-issue metrics), the remaining
-dispatches, and the train gate: **reconcile the ledger's landed shas against `git log master`** (Sage reviews but never lands; ask it for its `REVIEWED:` list as it stands — one message —
-if the ledger is behind), run the full suite once on the train, push, and
-close out the board. Relief never rebases by hand and never re-reviews a
-`sonnet`-tier unit Sage already approved; an `opus`-tier unit still in flight
-gets relief's full-diff read, as it would have the outgoing lead's. If Sage is
-past ~150k it will have written `docs/handoffs/swarm-sage-handover.md` and
-said so — spawning its successor is relief's job too.
-
-## Fable advisor — optional colour, not contract
-
-`relief-1` used a Fable advisor subagent for strategy, and the owner credited
-it with the clean overview. Nothing measured isolates the advisor's
-contribution from "fresh context + a good briefing," which is what the
-owner's own framing names as load-bearing. Use one if you like — it's a
-reasonable enhancement — but it is not part of this skill's contract, and its
-absence is not a deviation.
-
-## Worked example — `relief-1`, 2026-08-27
-
-`swarm-v2` reached 319,941 tokens across 369 turns, having dispatched ~10
-drones and executed 17 merges, when the owner spun up `relief-1` by hand —
-this skill formalizes what was then improvised.
-
-| | swarm-v2 (outgoing) | relief-1 (incoming) |
+| Class | Evidence | What it dispatches as |
 |---|---|---|
-| assistant turns | 369 | 181 |
-| output tokens | 309k | 177k |
-| peak context | **320k** | **200k** |
-| full suites run | 11 | 0 |
-| merges executed | 17 | 0 |
+| **landed** | sha on `master` | nothing |
+| **branch-ready** | reported, not landed | you review `--stat` + diff, then `mise run land -- <branch> --closes <n>` |
+| **partial** | commits or WIP in a worktree, no report | a resume-brief naming the worktree, the branch, and "read `git diff master...` first" |
+| **unstarted** | no worktree | a fresh brief per `swarm` |
+| **in flight, outgoing alive** | ledger row `dispatched`, outgoing responsive | wait for the outgoing's ping, then treat as branch-ready |
 
-`relief-1` stayed in healthy territory for its entire life — 200k peak vs
-swarm-v2's 320k — but the handover itself was expensive and manual: it took
-an explicit owner message ("you are the one that should be launching drones
-now"), and even then `relief-1` took 7–8 turns before its first dispatch,
-then never merged at all — dispatch moved, review and merge stayed on
-`swarm-v2` the whole run. This skill's job is to make the parts that were
-manual (the redirect, the scope split, the trigger) automatic, and the part
-that was slow (orientation) fast, via the continuous briefing rather than a
-death-bed one.
+Uncommitted WIP in a dead drone's worktree is state: commit it there as
+`wip(<scope>): <what works>; missing <what>` before any resume-drone sees it.
 
-## What this is not
+## 3. A live outgoing — the contract
 
-- **Not a way to avoid ever hitting a context limit.** It moves the limit's
-  cost, it doesn't remove it — a swarm still ends when nobody is left to run
-  it.
-- **Not `handoff`.** `handoff` closes a session that is *done*; relief takes
-  over one that is still running. See `handoff`'s cross-reference.
-- **Not a replacement for sizing the swarm correctly in the first place**
-  (`swarm`'s "Size the swarm to the window"). Relief is the recovery path,
-  not a reason to size more aggressively.
+Your first message to the outgoing states your name. From then on it owes
+you **exactly one wake per in-flight drone** and nothing else:
+
+> On each drone's report: update that drone's ledger row, then
+> `SendMessage` me one line — `#<n> reported @<sha>, row updated` — and
+> stop. No dispatch, no merge, no test, no review, no redirecting drones.
+
+Drones are never redirected to you; their reports reach the outgoing and its
+ping is the relay. Its Sage stays its own and answers its drones until they
+drain; spawn your own per `swarm` if the run calls for one. `APPROVED <sha>`
+lines already in the ledger stand.
+
+## 4. Now run `swarm`
+
+From the reconciled ledger, `swarm` §3 onward: briefs, tiers, review,
+`land`, the train, teardown. Thresholds, ceilings and when *you* request
+relief are `swarm`'s — this file quotes none.
