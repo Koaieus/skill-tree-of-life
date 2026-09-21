@@ -67,6 +67,9 @@ static func effect_line(t: AmmoType) -> String:
 	if t == null:
 		return ""
 	var parts: PackedStringArray = []
+	if t.reveal_fraction > 0.0:
+		# A scout deals nothing (#1035); its one fact is the sight fraction.
+		return "scouts ×%s sight" % String.num(t.reveal_fraction, 2).trim_suffix("0").trim_suffix(".")
 	if not is_equal_approx(t.damage_scale, 1.0):
 		parts.append("×%s dmg" % String.num(t.damage_scale, 2).trim_suffix("0").trim_suffix("."))
 	if t.status_def != null:
