@@ -11,7 +11,12 @@ signal changed(key: StringName, value: Variant)
 
 const _DISPLAY_KEYS: Array[StringName] = [&"window_mode", &"resolution", &"vsync_mode", &"max_fps"]
 
-var current: GameSettings = GameSettings.new()
+## The authored defaults. `preload` hands back the resource-cache object, and
+## load_settings() writes into `current` with set() — so `current` is always a
+## copy (shallow suffices: GameSettings holds only primitives), never this.
+const _DEFAULTS: GameSettings = preload("res://settings/default_settings.tres")
+
+var current: GameSettings = _DEFAULTS.duplicate()
 
 ## The mode [method toggle_fullscreen] returns to. Deliberately NOT a
 ## [GameSettings] @export: "which window mode was I before F" is scratch state,
