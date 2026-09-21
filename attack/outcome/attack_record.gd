@@ -166,7 +166,7 @@ const FLAG_CRIT := 2
 
 
 
-## The wire form as COLUMNS (#1000): one typed packed array per hit / dealloc /
+## The wire form as COLUMNS: one typed packed array per hit / dealloc /
 ## event field, declared once in [method wire_fields] and walked by
 ## [WireFields] in both directions, so a key can no longer be written on one
 ## side and read differently on the other. [method capture] fills an instance

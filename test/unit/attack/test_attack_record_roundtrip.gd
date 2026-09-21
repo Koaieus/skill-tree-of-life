@@ -1,6 +1,6 @@
 extends GutTest
 
-## The round-trip guard for [AttackRecord] (#1000): a hand-built
+## The round-trip guard for [AttackRecord]: a hand-built
 ## [AttackOutcome] survives `capture -> rebuild -> capture` with every wire key
 ## present, equal in value AND Variant type, every rebuilt hit carrying the
 ## captured fields, and the timeline's hit ALIASING restored (an event's hit

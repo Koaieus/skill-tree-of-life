@@ -120,7 +120,7 @@ static func _encode(field: Field, value: Variant) -> Variant:
 	if _is_packed(value):
 		# A packed array is a value type but shares its buffer copy-on-write;
 		# hand the wire its own so a later append on the record never reaches
-		# a dictionary already queued for send (AttackRecord's columns, #1000).
+		# a dictionary already queued for send (AttackRecord's columns).
 		return value.duplicate()
 	return value
 
