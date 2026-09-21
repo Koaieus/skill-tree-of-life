@@ -125,7 +125,18 @@ pool_weight = 0.3
 min_tier = 4
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
+[sub_resource type="Resource" id="poison_pot"]
+resource_name = "poison_potency +%"
+script = ExtResource("2_pool")
+stat_id = &"poison_potency"
+operation = 1
+archetype_stat = &"dexterity"
+tags = Array[StringName]([&"attack", &"dot", &"percent"])
+unit_value = 7.0
+pool_weight = 0.5
+max_tier = 3
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"dexterity"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("cc_inc"), SubResource("cm_inc"), SubResource("Resource_u38nb"), SubResource("Resource_0tuuk"), SubResource("armor_debuff"), SubResource("poison_arrows"), SubResource("arrows_per_reload"), SubResource("max_shots_per_leaf")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("cc_inc"), SubResource("cm_inc"), SubResource("Resource_u38nb"), SubResource("Resource_0tuuk"), SubResource("armor_debuff"), SubResource("poison_arrows"), SubResource("arrows_per_reload"), SubResource("max_shots_per_leaf"), SubResource("poison_pot")])
