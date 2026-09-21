@@ -715,7 +715,7 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 			# command (owner, 2026-08-21: AI is host-only, so direct calls
 			# are fine) — the same door `apply_temp_upgrade`'s UI caller uses.
 			for node in candidate.clamp_nodes:
-				bs.toggle_temp_upgrade_on(node, MeleeAttackPlan.CLAMP_UPGRADE)
+				bs.toggle_temp_upgrade_on(node, bs.temp_upgrade_by_id(&"clamp"))
 		_:
 			return false
 	if not bs.attack_plan.is_valid():

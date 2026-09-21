@@ -8,7 +8,7 @@ func _validate_node(command: NodeCommand, node: SkillNode, _actor: Entity,
 		ctx: CommandContext) -> bool:
 	if ctx.battle_system == null:
 		return false
-	var upgrade := MeleeAttackPlan.upgrade_by_id(
+	var upgrade := ctx.battle_system.temp_upgrade_by_id(
 			(command as ToggleTempUpgradeCommand).upgrade_id)
 	# Announces its own refusal, where the reason (slot full vs. budget) is
 	# knowable — the applier never emits gameplay denials itself. This is why
@@ -20,6 +20,6 @@ func _apply_node(command: NodeCommand, node: SkillNode, _actor: Entity,
 		ctx: CommandContext) -> bool:
 	if ctx.battle_system == null:
 		return false
-	var upgrade := MeleeAttackPlan.upgrade_by_id(
+	var upgrade := ctx.battle_system.temp_upgrade_by_id(
 			(command as ToggleTempUpgradeCommand).upgrade_id)
 	return ctx.battle_system.toggle_temp_upgrade_on(node, upgrade)

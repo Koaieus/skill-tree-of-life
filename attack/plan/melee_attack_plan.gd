@@ -37,52 +37,6 @@ var blade_nodes: Array[SkillNode] = []
 ## `toggle_temp_upgrade_on` calls, never a phantom set crossing the wire.
 var ai_phantom_clamp_nodes: Array[SkillNode] = []
 
-const CLAMP_UPGRADE: Dictionary = {
-	id = &"clamp",
-	scene = preload("res://skill_node/addons/clamp_addon.tscn"),
-	script = preload("res://skill_node/addons/clamp_addon.gd"),
-}
-const SPIKE_UPGRADE: Dictionary = {
-	id = &"spike_ring",
-	scene = preload("res://skill_node/addons/spike_ring_addon.tscn"),
-	script = preload("res://skill_node/addons/spike_ring_addon.gd"),
-}
-## Offerable temp-upgrade kinds (#406) — order is tray/button order. A temp
-## upgrade is a REAL SkillNodeAddon, `add_child`ed exactly like a permanent
-## one (marked `is_temporary`), spent from the same blade_size budget as
-## blade_nodes. A `script` ref rides alongside each `scene` only because
-## `SkillNode.can_attach_addon`'s uniqueness check needs the addon's Script
-## identity before an instance exists. A future "edge sharpener" is one more
-## entry, zero other code changes.
-## An `id` rides alongside because a catalog entry has to survive a trip over
-## the wire (#509's ToggleTempUpgradeCommand): `scene`/`script` are process-
-## local references and the catalog's *position* is not a contract.
-const TEMP_UPGRADE_CATALOG: Array[Dictionary] = [CLAMP_UPGRADE, SPIKE_UPGRADE]
-
-
-## The catalog entry named by `id`, or an empty Dictionary if there is none.
-## Returns the CONST entry itself, never a rebuilt copy, so the identity
-## checks the catalog is used with (`TEMP_UPGRADE_CATALOG.has(upgrade)` in
-## [method can_apply_temp_upgrade]) keep working on the result.
-static func upgrade_by_id(id: StringName) -> Dictionary:
-	for upgrade in TEMP_UPGRADE_CATALOG:
-		if upgrade.id == id:
-			return upgrade
-	return {}
-
-## Lazy per-scene cost cache — instantiate once off the tree, read the
-## authored SkillNodeAddon.temp_upgrade_cost, free, cache. Needed because
-## cost lives on the addon instance but budget checks must answer "what
-## would this cost" before an instance exists.
-static var _cost_cache: Dictionary = {}
-
-static func _cost_for(scene: PackedScene) -> int:
-	if not _cost_cache.has(scene):
-		var tmp := scene.instantiate()
-		_cost_cache[scene] = (tmp as SkillNodeAddon).temp_upgrade_cost
-		tmp.free()
-	return _cost_cache[scene]
-
 ## Arc / sweep target — kept as Vector2 for now per the original sketch;
 ## targeting integration comes when previews land.
 var blade_target: Vector2
@@ -367,7 +321,7 @@ func _budget_remaining() -> int:
 	return max_blades() - blade_nodes.size() - temp_upgrade_cost_total()
 
 
-## Sum of temp_upgrade_cost across every currently-attached is_temporary
+## Sum of the def cost across every currently-attached is_temporary
 ## addon on the pivot + selected members. Reads real addon state — no
 ## separate tracked total to drift out of sync with it.
 func temp_upgrade_cost_total() -> int:
@@ -379,15 +333,15 @@ func temp_upgrade_cost_total() -> int:
 	for node in nodes:
 		for a in node.get_addons():
 			if a.is_temporary:
-				total += a.temp_upgrade_cost
+				total += a.temp_upgrade_def.cost
 	return total
 
 
-## Sum of temp_upgrade_cost across attached is_temporary addons matching
-## `upgrade`'s script specifically — the per-kind breakdown
+## Sum of the def cost across attached is_temporary addons of `def`'s kind
+## specifically — the per-kind breakdown
 ## temp_upgrade_cost_total() sums across every kind. Used by the command-tray
 ## blips to show budget spend broken out by kind (#406).
-func temp_upgrade_cost_for(upgrade: Dictionary) -> int:
+func temp_upgrade_cost_for(def: TempUpgradeDef) -> int:
 	var total := 0
 	var nodes: Array[SkillNode] = []
 	if source != null:
@@ -395,39 +349,38 @@ func temp_upgrade_cost_for(upgrade: Dictionary) -> int:
 	nodes.append_array(blade_nodes)
 	for node in nodes:
 		for a in node.get_addons():
-			if a.is_temporary and a.get_script() == upgrade.script:
-				total += a.temp_upgrade_cost
+			if a.temp_upgrade_def == def:
+				total += def.cost
 	return total
 
 
 ## True if `node` (a selected member — the pivot is never a valid target, it
 ## drives the swing and has no meaningful collision area) can receive
-## `upgrade`: an open addon slot, no unique-collision, and the combined
-## member + upgrade spend stays within max_blades().
-func can_apply_temp_upgrade(node: SkillNode, upgrade: Dictionary) -> bool:
-	if node == null or node == source or not blade_nodes.has(node):
+## `def`: an open addon slot, no unique-collision, and the combined
+## member + upgrade spend stays within max_blades(). Membership in the
+## catalog is not the plan's question — a typed def is one by construction.
+func can_apply_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> bool:
+	if def == null or node == null or node == source or not blade_nodes.has(node):
 		return false
-	if not TEMP_UPGRADE_CATALOG.has(upgrade):
+	if not node.can_attach_addon(def.addon_script):
 		return false
-	if not node.can_attach_addon(upgrade.script):
-		return false
-	return _budget_remaining() >= _cost_for(upgrade.scene)
+	return _budget_remaining() >= def.cost
 
 
 ## Whether ANY currently-eligible node could accept `upgrade` right now —
 ## cheap plan-level affordability check for UI button enablement, independent
 ## of which specific node gets clicked.
-func has_temp_upgrade_budget(upgrade: Dictionary) -> bool:
-	return source != null and _budget_remaining() >= _cost_for(upgrade.scene)
+func has_temp_upgrade_budget(def: TempUpgradeDef) -> bool:
+	return def != null and source != null and _budget_remaining() >= def.cost
 
 
-## Spend budget and attach a real `upgrade` addon to `node`. Returns false
+## Spend budget and attach a real `def` addon to `node`. Returns false
 ## (no-op) if can_apply_temp_upgrade() rejects it.
-func apply_temp_upgrade(node: SkillNode, upgrade: Dictionary) -> bool:
-	if not can_apply_temp_upgrade(node, upgrade):
+func apply_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> bool:
+	if not can_apply_temp_upgrade(node, def):
 		return false
-	var addon := (upgrade.scene as PackedScene).instantiate() as SkillNodeAddon
-	addon.is_temporary = true
+	var addon := def.scene.instantiate() as SkillNodeAddon
+	addon.temp_upgrade_def = def
 	node.add_child(addon)
 	_notify_selection_changed()
 	return true
@@ -439,13 +392,12 @@ func remove_temp_upgrade(node: SkillNode) -> void:
 		_notify_selection_changed()
 
 
-## `node`'s currently-attached is_temporary addon matching `upgrade`'s
-## script, or null.
-func _existing_temp_upgrade(node: SkillNode, upgrade: Dictionary) -> SkillNodeAddon:
-	if node == null:
+## `node`'s currently-attached temp addon of `def`'s kind, or null.
+func _existing_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> SkillNodeAddon:
+	if node == null or def == null:
 		return null
 	for a in node.get_addons():
-		if a.is_temporary and a.get_script() == upgrade.script:
+		if a.temp_upgrade_def == def:
 			return a
 	return null
 
@@ -455,22 +407,22 @@ func _existing_temp_upgrade(node: SkillNode, upgrade: Dictionary) -> SkillNodeAd
 ## refund is always legal, so the only question a fresh apply has to answer is
 ## `can_apply_temp_upgrade`. Lifted out so [method CommandApplier._validate] can
 ## gate a [ToggleTempUpgradeCommand] before it is confirmed (#540).
-func can_toggle_temp_upgrade(node: SkillNode, upgrade: Dictionary) -> bool:
-	if node == null or upgrade.is_empty():
+func can_toggle_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> bool:
+	if node == null or def == null:
 		return false
-	if _existing_temp_upgrade(node, upgrade) != null:
+	if _existing_temp_upgrade(node, def) != null:
 		return true
-	return can_apply_temp_upgrade(node, upgrade)
+	return can_apply_temp_upgrade(node, def)
 
 
 ## Click-to-toggle entry point for the UI (#406): if `node` already carries
 ## this exact temp upgrade, refund it (same shape as a blade-member toggle);
 ## otherwise try to apply a new one. Returns true if anything changed.
-func toggle_temp_upgrade(node: SkillNode, upgrade: Dictionary) -> bool:
-	if _existing_temp_upgrade(node, upgrade) != null:
+func toggle_temp_upgrade(node: SkillNode, def: TempUpgradeDef) -> bool:
+	if _existing_temp_upgrade(node, def) != null:
 		remove_temp_upgrade(node)
 		return true
-	return apply_temp_upgrade(node, upgrade)
+	return apply_temp_upgrade(node, def)
 
 
 ## Frees every is_temporary addon on `node`. The one place temp-upgrade

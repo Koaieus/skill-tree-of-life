@@ -701,8 +701,8 @@ func _sweep_melee() -> void:
 ## .toggle_temp_upgrade_on` reads `battle_system.attack_plan` directly), so it
 ## fires here, before the swing it augments.
 func _sweep_toggle_temp_upgrade(plan: MeleeAttackPlan) -> void:
-	var upgrade := MeleeAttackPlan.upgrade_by_id(&"clamp")
-	if upgrade.is_empty() or plan.source == null:
+	var upgrade := _battle_system().temp_upgrade_by_id(&"clamp")
+	if upgrade == null or plan.source == null:
 		_write_log("autopilot: toggle_temp_upgrade SKIPPED — no catalog entry or pivot")
 		return
 	if not plan.has_temp_upgrade_budget(upgrade):

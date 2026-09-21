@@ -80,6 +80,12 @@ var selected_spell: SpellDef = null:
 @export var graph: Graph
 @export var attack_vfx: AttackVFX
 @export var melee_preview: MeleePreview
+## The offerable temp-upgrade kinds (#406, #1008) — authored data, wired to
+## `attack/melee/temp_upgrade_catalog.tres` by the composing scene. Optional:
+## an unwired BattleSystem (headless fixtures that never toggle an upgrade)
+## simply offers none — [method temp_upgrade_by_id] answers null and
+## [method temp_upgrade_kinds] is empty.
+@export var temp_upgrade_catalog: TempUpgradeCatalog
 
 ## The viewing seat's fog, handed down to each [MagicAttackPlan] so its
 ## highlights can be filtered caller-side (#728). Optional — an unwired
@@ -262,18 +268,17 @@ func request_attack_mode(mode: AttackMode) -> void:
 ## Takes [param upgrade] EXPLICITLY rather than reading a controller's armed
 ## state: the arm is local plan-building that never crosses a wire, so it stays
 ## in [PlayerInputController], and [ToggleTempUpgradeCommand] carries the
-## catalog id instead (#509). Pass a
-## [constant MeleeAttackPlan.TEMP_UPGRADE_CATALOG] entry — resolve one with
-## [method MeleeAttackPlan.upgrade_by_id].
+## catalog id instead (#509). Pass a [TempUpgradeDef] — resolve one with
+## [method temp_upgrade_by_id].
 ##
 ## Returns whether the toggle landed. A refusal is announced on
 ## [signal Events.node_action_denied] by [method can_toggle_temp_upgrade_on],
 ## where the reason is knowable — whether the CLICK was consumed is a routing
 ## question the caller answers on its own.
-func toggle_temp_upgrade_on(node: SkillNode, upgrade: Variant) -> bool:
-	if not can_toggle_temp_upgrade_on(node, upgrade):
+func toggle_temp_upgrade_on(node: SkillNode, def: TempUpgradeDef) -> bool:
+	if not can_toggle_temp_upgrade_on(node, def):
 		return false
-	return (attack_plan as MeleeAttackPlan).toggle_temp_upgrade(node, upgrade)
+	return (attack_plan as MeleeAttackPlan).toggle_temp_upgrade(node, def)
 
 
 ## The gate half of [method toggle_temp_upgrade_on], lifted so
@@ -285,19 +290,33 @@ func toggle_temp_upgrade_on(node: SkillNode, upgrade: Variant) -> bool:
 ## [b]It announces, so it must be asked exactly once per attempt.[/b] That holds
 ## by construction under the applier's ordering: a validate-fail never reaches
 ## the apply, and a validate-pass makes the apply's own re-ask succeed silently.
-func can_toggle_temp_upgrade_on(node: SkillNode, upgrade: Variant) -> bool:
+func can_toggle_temp_upgrade_on(node: SkillNode, def: TempUpgradeDef) -> bool:
 	var plan := attack_plan as MeleeAttackPlan
-	if plan == null or node == null or upgrade == null:
+	if plan == null or node == null or def == null:
 		return false
-	if not (upgrade is Dictionary) or (upgrade as Dictionary).is_empty():
-		return false
-	if plan.can_toggle_temp_upgrade(node, upgrade):
+	if plan.can_toggle_temp_upgrade(node, def):
 		return true
 	var reason := "temp_upgrade_denied_slot_full" \
-			if not node.can_attach_addon(upgrade.script) \
+			if not node.can_attach_addon(def.addon_script) \
 			else "temp_upgrade_denied_budget"
 	Events.node_action_denied.emit(node, reason)
 	return false
+
+
+## The catalog kind named by [param id] — the handler's door for a
+## [ToggleTempUpgradeCommand]'s wire id — or null if unknown or no catalog is
+## wired. Returns the loaded def itself, so identity checks keep working.
+func temp_upgrade_by_id(id: StringName) -> TempUpgradeDef:
+	if temp_upgrade_catalog == null:
+		return null
+	return temp_upgrade_catalog.by_id(id)
+
+
+## The offerable kinds in tray order; empty when no catalog is wired.
+func temp_upgrade_kinds() -> Array[TempUpgradeDef]:
+	if temp_upgrade_catalog == null:
+		return []
+	return temp_upgrade_catalog.kinds
 
 
 func _new_plan(plan_class: Script) -> AttackPlan:

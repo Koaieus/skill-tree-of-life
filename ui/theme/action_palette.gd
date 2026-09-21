@@ -61,9 +61,9 @@ extends Resource
 ## keep rather than one shape per caller.
 ##
 ## Keys fall into FOUR categories:
-## - catalogue ids: the two addon entries, keyed by the [constant
-##   MeleeAttackPlan.TEMP_UPGRADE_CATALOG] `id`s verbatim, so a caller holding a
-##   catalog entry never needs a second lookup table to get from it to a colour.
+## - catalogue ids: the temp-upgrade kinds, keyed by [member TempUpgradeDef.id]
+##   verbatim, so a caller holding a def never needs a second lookup table to
+##   get from it to a colour.
 ## - verbs: the lower-cased [enum PlayerInputController.ManageVerb] names.
 ## - modes: `&"move_core"` for core-move targeting, which is a mode rather than
 ##   a verb.

@@ -11,8 +11,8 @@ extends NodeCommand
 ## the node because *which* upgrade comes from PIC-local armed state
 ## (`_temp_upgrade_arm`), and a host receiving the command cannot know what the
 ## sender had armed. Hence [member upgrade_id] — the stable wire name of a
-## [constant MeleeAttackPlan.TEMP_UPGRADE_CATALOG] entry, resolved back with
-## [method MeleeAttackPlan.upgrade_by_id].
+## [TempUpgradeDef] in the authored [TempUpgradeCatalog], resolved back with
+## [method BattleSystem.temp_upgrade_by_id].
 ##
 ## This is PLAN state, not board state: it only means anything while a
 ## [MeleeAttackPlan] is armed. #510 owns moving the method to [BattleSystem]
@@ -20,7 +20,7 @@ extends NodeCommand
 
 const TAG: StringName = &"toggle_temp_upgrade"
 
-## Which catalog entry, by [code]id[/code].
+## Which catalog kind, by [member TempUpgradeDef.id].
 var upgrade_id: StringName = &""
 
 

@@ -16,7 +16,7 @@ extends CommandTrayBodyBase
 @onready var _reset_button: Button = %ResetButton
 @onready var _launch_button: LaunchAttackButton = %LaunchButton
 
-## Blip tint per MeleeAttackPlan.TEMP_UPGRADE_CATALOG entry (#406) — reused
+## Blip tint per [TempUpgradeDef] in the battle system's catalog (#406) — reused
 ## both for the upgrade-spend pips and as the addon-outline decoration on
 ## blade-region pips, so one color means one addon kind everywhere in this
 ## panel.
@@ -29,9 +29,8 @@ extends CommandTrayBodyBase
 const _PALETTE := preload("res://ui/theme/action_palette.tres")
 
 
-static func _upgrade_color(index: int) -> Color:
-	var upgrade: Dictionary = MeleeAttackPlan.TEMP_UPGRADE_CATALOG[index]
-	return _PALETTE.color_for(upgrade.get("id", &""))
+static func _upgrade_color(def: TempUpgradeDef) -> Color:
+	return _PALETTE.color_for(def.id)
 
 ## Force-hover refcounts, keyed by SkillNode — owned exclusively here, so the
 ## panel is the only thing that can leave a node forced-hovered. Cleared at the
@@ -119,26 +118,27 @@ func _clear_hover() -> void:
 const _UPGRADE_BUTTON := preload("res://ui/hud/command_tray/bodies/temp_upgrade_button.tscn")
 
 
-## One button per MeleeAttackPlan.TEMP_UPGRADE_CATALOG entry (#406) — a
-## future catalog addition (e.g. the filed "edge sharpener") needs zero
-## changes here. Label, glyph and cost all come off a throwaway instance of
-## the addon's own scene (#465), since the catalog only carries scene/script
-## references and the addon scene is the source of truth for its own art:
-## the icon here and the one [TempUpgradeArmedMode] puts on the cursor are
-## the same authored [member SkillNodeAddon.icon], never two copies.
+## One button per [TempUpgradeDef] in [method BattleSystem.temp_upgrade_kinds]
+## (#406) — a future catalog addition (e.g. the filed "edge sharpener") is a
+## def dragged into the `.tres`, zero changes here. Cost comes off the def;
+## label and glyph still come off a throwaway instance of the addon's own
+## scene (#465), since the addon scene is the source of truth for its own
+## art: the icon here and the one [TempUpgradeArmedMode] puts on the cursor
+## are the same authored [member SkillNodeAddon.icon], never two copies.
 func _build_upgrade_buttons() -> void:
 	for child in _upgrade_row.get_children():
 		child.queue_free()
-	for i in MeleeAttackPlan.TEMP_UPGRADE_CATALOG.size():
-		var upgrade: Dictionary = MeleeAttackPlan.TEMP_UPGRADE_CATALOG[i]
-		var tmp := (upgrade.scene as PackedScene).instantiate() as SkillNodeAddon
+	var kinds := _battle_system.temp_upgrade_kinds()
+	for i in kinds.size():
+		var upgrade := kinds[i]
+		var tmp := upgrade.scene.instantiate() as SkillNodeAddon
 		var btn := _UPGRADE_BUTTON.instantiate() as TempUpgradeButton
 		btn.label_text = tmp.get_tooltip_title()
 		btn.keycap = PlayerInputController.temp_upgrade_keycap(i)
 		btn.icon_texture = tmp.icon
-		btn.cost = tmp.temp_upgrade_cost
+		btn.cost = upgrade.cost
 		tmp.free()
-		btn.accent = _upgrade_color(i)
+		btn.accent = _upgrade_color(upgrade)
 		if _input_ctl != null:
 			btn.pressed.connect(_input_ctl.arm_temp_upgrade.bind(upgrade))
 		_upgrade_row.add_child(btn)
@@ -205,14 +205,13 @@ func _refresh() -> void:
 		if plan.source != null:
 			nodes.append(plan.source)
 		nodes.append_array(plan.blade_nodes)
-		for i in MeleeAttackPlan.TEMP_UPGRADE_CATALOG.size():
-			var upgrade: Dictionary = MeleeAttackPlan.TEMP_UPGRADE_CATALOG[i]
+		for upgrade in _battle_system.temp_upgrade_kinds():
 			for node in nodes:
 				for a in node.get_addons():
-					if a.is_temporary and a.get_script() == upgrade.script:
-						for _j in a.temp_upgrade_cost:
+					if a.temp_upgrade_def == upgrade:
+						for _j in upgrade.cost:
 							upgrade_bound.append(node)
-							upgrade_colors.append(_upgrade_color(i))
+							upgrade_colors.append(_upgrade_color(upgrade))
 	_upgrade_blips.max_count = upgrade_bound.size()
 	_upgrade_blips.bound_nodes = upgrade_bound
 	_upgrade_blips.segment_colors = upgrade_colors
@@ -235,24 +234,26 @@ func _refresh() -> void:
 	# collapsed into `Button.disabled`: "out of blade budget", "not your turn"
 	# and "not selected" are three different sentences and the card paints them
 	# as three. Which of them wins visually is TempUpgradeButton.state's call.
-	var arm: Variant = _input_ctl.temp_upgrade_arm() if _input_ctl != null else null
-	for i in MeleeAttackPlan.TEMP_UPGRADE_CATALOG.size():
-		var upgrade: Dictionary = MeleeAttackPlan.TEMP_UPGRADE_CATALOG[i]
+	var arm: TempUpgradeDef = _input_ctl.temp_upgrade_arm() if _input_ctl != null else null
+	var kinds := _battle_system.temp_upgrade_kinds()
+	for i in kinds.size():
+		var upgrade := kinds[i]
 		var btn := _upgrade_row.get_child(i) as TempUpgradeButton
 		btn.armed = arm == upgrade
 		btn.affordable = plan != null and can_act and plan.has_temp_upgrade_budget(upgrade)
 
 
-## Outline colors (up to two, catalog order) for every TEMP_UPGRADE_CATALOG
-## addon kind currently attached to `node` — permanent or temp both count, so
-## the outline reflects what the node actually carries, not just player spend
-## (that distinction is the separate manual-marker rectangle).
+## Outline colors (up to two, catalog order) for every catalog addon kind
+## currently attached to `node` — permanent or temp both count, so the outline
+## reflects what the node actually carries, not just player spend (that
+## distinction is the separate manual-marker rectangle). Hence a SCRIPT match,
+## not a def match: a permanent clamp carries no [member SkillNodeAddon.temp_upgrade_def].
 func _outline_colors_for(node: SkillNode) -> Array[Color]:
 	var colors: Array[Color] = []
 	for a in node.get_addons():
-		for i in MeleeAttackPlan.TEMP_UPGRADE_CATALOG.size():
-			if a.get_script() == MeleeAttackPlan.TEMP_UPGRADE_CATALOG[i].script:
-				colors.append(_upgrade_color(i))
+		for upgrade in _battle_system.temp_upgrade_kinds():
+			if a.get_script() == upgrade.addon_script:
+				colors.append(_upgrade_color(upgrade))
 	return colors
 
 

@@ -29,6 +29,7 @@
 [ext_resource type="Script" path="res://network/loopback_transport.gd" id="23_transport"]
 [ext_resource type="Script" path="res://network/command_link.gd" id="24_link"]
 [ext_resource type="Script" uid="uid://dwnyeq8jqb23e" path="res://network/network_session.gd" id="25_session"]
+[ext_resource type="Resource" uid="uid://tu_catalog00001" path="res://attack/melee/temp_upgrade_catalog.tres" id="26_temp_upgrades"]
 
 [node name="GameRoot" type="Node2D" unique_id=599287172]
 script = ExtResource("1_root")
@@ -55,6 +56,7 @@ allocation_system = NodePath("../AllocationSystem")
 graph = NodePath("../../Graph")
 attack_vfx = NodePath("../../Graph/AttackVFX")
 melee_preview = NodePath("../../Graph/MeleePreview")
+temp_upgrade_catalog = ExtResource("26_temp_upgrades")
 vision_system = NodePath("../VisionSystem")
 
 [node name="HighlightController" type="Node" parent="Systems" unique_id=39417906 node_paths=PackedStringArray("battle_system", "input_ctl", "allocation_system", "graph", "turn_manager")]

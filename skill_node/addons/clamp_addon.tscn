@@ -9,4 +9,3 @@ script = ExtResource("1_clamp")
 description = "Welds this joint rigid — two arms meeting here hold their angle under blade impact instead of hinging free."
 icon = ExtResource("2_clamp")
 unique = true
-temp_upgrade_cost = 1

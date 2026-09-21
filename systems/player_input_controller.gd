@@ -61,12 +61,12 @@ signal node_pinned(node: SkillNode)
 ## per transition.
 var _move_targeting_source: SkillNode = null
 
-## Which temp upgrade (a MeleeAttackPlan.TEMP_UPGRADE_CATALOG entry) is armed
-## for placement via the command-tray card, or null when unarmed (#406).
+## Which temp upgrade (a [TempUpgradeDef] from the battle system's catalog) is
+## armed for placement via the command-tray card, or null when unarmed (#406).
 ## Set only via `_set_temp_upgrade_arm` so the signal fires once per
 ## transition.
-signal temp_upgrade_arm_changed(upgrade: Variant)
-var _temp_upgrade_arm: Variant = null
+signal temp_upgrade_arm_changed(upgrade: TempUpgradeDef)
+var _temp_upgrade_arm: TempUpgradeDef = null
 
 ## The last melee blade each entity successfully launched (#466), keyed by
 ## `Object.get_instance_id()` — never `Entity.entity_id`, which is 0 until the
@@ -514,7 +514,7 @@ func request_temp_upgrade_at(skill_node: SkillNode) -> bool:
 	if _active_attack_plan() as MeleeAttackPlan == null:
 		return false
 	_submit(ToggleTempUpgradeCommand.new(
-			player.entity_id, graph.get_stable_id(skill_node), _temp_upgrade_arm.get("id", &"")))
+			player.entity_id, graph.get_stable_id(skill_node), _temp_upgrade_arm.id))
 	return true
 
 
@@ -729,7 +729,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	# Z / X arm the temp-upgrade cards by CATALOG INDEX, never by name (#718).
-	# `MeleeAttackPlan.TEMP_UPGRADE_CATALOG` is data — the filed "edge sharpener"
+	# `BattleSystem.temp_upgrade_kinds()` is data — the filed "edge sharpener"
 	# should light up on the next key with zero changes here — so the binding is
 	# a positional walk and an out-of-range index is a silent no-op rather than
 	# a crash on a catalog that shrank.
@@ -806,9 +806,10 @@ func _arm_temp_upgrade_at(index: int) -> bool:
 		return false
 	if not can_player_act():
 		return false
-	if index < 0 or index >= MeleeAttackPlan.TEMP_UPGRADE_CATALOG.size():
+	var kinds := battle_system.temp_upgrade_kinds()
+	if index < 0 or index >= kinds.size():
 		return false
-	arm_temp_upgrade(MeleeAttackPlan.TEMP_UPGRADE_CATALOG[index])
+	arm_temp_upgrade(kinds[index])
 	return true
 
 
@@ -1261,7 +1262,7 @@ func _set_move_targeting_source(value: SkillNode) -> void:
 	core_move_targeting_changed.emit(value)
 
 
-func _set_temp_upgrade_arm(upgrade: Variant) -> void:
+func _set_temp_upgrade_arm(upgrade: TempUpgradeDef) -> void:
 	if _temp_upgrade_arm == upgrade:
 		return
 	_temp_upgrade_arm = upgrade
@@ -1269,14 +1270,14 @@ func _set_temp_upgrade_arm(upgrade: Variant) -> void:
 	_refresh_armed_state()
 
 
-## Arms `upgrade` (a MeleeAttackPlan.TEMP_UPGRADE_CATALOG entry) for
+## Arms `upgrade` (a [TempUpgradeDef] from the battle system's catalog) for
 ## placement, or clears the arm if it's already armed with the same one
 ## (tray button acts as a toggle on top of right-click/Esc pop).
-func arm_temp_upgrade(upgrade: Variant) -> void:
+func arm_temp_upgrade(upgrade: TempUpgradeDef) -> void:
 	_set_temp_upgrade_arm(null if _temp_upgrade_arm == upgrade else upgrade)
 
 
-func temp_upgrade_arm() -> Variant:
+func temp_upgrade_arm() -> TempUpgradeDef:
 	return _temp_upgrade_arm
 
 

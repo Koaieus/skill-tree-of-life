@@ -9,10 +9,11 @@ extends RefCounted
 ## If you see "Could not find type SpellDef" here, that is the cycle talking,
 ## not a stale class cache.
 ##
-## Deliberately NOT an autoload registry either — this is the same shape
-## [constant MeleeAttackPlan.TEMP_UPGRADE_CATALOG] uses for temp upgrades: a
-## const list of authored things with an id lookup over it. Adding a spell is
-## one line here and one `id` in its `.tres`.
+## Deliberately NOT an autoload registry either — a const list of authored
+## things with an id lookup over it. Adding a spell is one line here and one
+## `id` in its `.tres`. ([TempUpgradeCatalog] is the same lookup as an
+## authored `.tres` reached through an `@export` — the inspector-composable
+## shape this const list should grow into; #1026.)
 
 const SPARK: SpellDef = preload("res://attack/spell/defs/spark.tres")
 const BRUISER: SpellDef = preload("res://attack/spell/defs/bruiser.tres")

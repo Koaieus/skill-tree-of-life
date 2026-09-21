@@ -16,7 +16,7 @@ extends Resource
 ## `resource_path` only for warning strings and inspector labels, never as an
 ## identity key, and a rename or move of the `.tres` would break the wire form
 ## silently with no error at the break. Follows the precedent
-## [constant MeleeAttackPlan.TEMP_UPGRADE_CATALOG] set one issue earlier.
+## [member TempUpgradeDef.id] set one issue earlier.
 ##
 ## Must be unique across `attack/spell/defs/` — `test_spell_catalog.gd` pins it.
 @export var id: StringName = &""
