@@ -179,6 +179,13 @@ work moves into children, the hub's own defect included as "child 0". The hub
 keeps the problem statement, the decisions and the DAG; never set its status
 by hand — `land` and `hygiene --fix` derive it.
 
+- Every child is drone-sized: one subsystem, a handful of files, one test file
+  — under ~150k drone context. More than three subsystems or more than five
+  tests is a split, along state / wiring / consumer seams, now.
+- An architectural fork (two classes doing one job, a stage doing another's
+  work, a mirror of logic that exists) is settled in this pass, refactor-first,
+  never parked in a design issue. Shape the options with the owner's taste:
+  composition as a plural array, one implementation over swappable state.
 - Split along the seam the design has: one decision, one unit. Where that
   is also a file boundary, say so; where it is not, split anyway and record
   the overlap. A unit describing three or more deliverables is split before

@@ -198,6 +198,16 @@ on small units with an existing named test.
     one report in eleven issues does not pay for a dispatch shape. Revisit at
     five or more lines in one swarm.
 
+29. **A genuinely hard unit gets a trap list before its drone starts.** For a
+    bit-exact transliteration, a solver port, anything where a green suite
+    would not catch the wrong answer: ask an idle peer session (`ListAgents`)
+    for *where this will break* — not a plan, not a file summary — and (1)
+    which files it holds so the drone stays clear. Say "if you're mid-task,
+    answer (1) alone". Dispatch without waiting; the drone reads for its first
+    stretch, so a list arriving minutes later still lands before code. Relay
+    it verbatim into the brief; anything the peer flagged as *unverified* goes
+    to the drone as an open question to resolve by reading, never as fact.
+
 ## Incident corpus
 
 | Date | Where | What happened | Law |
@@ -250,3 +260,5 @@ on small units with an existing named test.
 - `.claude/agents/sage.md` was patched for law 10 (reviewer only, never
   lands) and deserves its own charter; `relay` and `relief` still carry
   their own dated lore and should be re-derived from this charter too.
+
+| 2026-09-09 | #813 | A read-only peer produced 15 numbered traps in one turn; the drone named four it would have gotten wrong, including a sorted-`std::map` banking that was silently wrong only when one edge takes load from two pushed vertices in one substep. | 29 |

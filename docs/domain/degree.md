@@ -152,3 +152,5 @@ which is the part worth remembering:
 tell the two accessors apart, and neither can one where a single entity owns
 everything.** Distinguishing them takes a mixed-ownership fixture — a defender's
 string with a foreign node adjacent to it.
+
+Vocabulary around degree (induced subgraph, cut vertex, bridge): [graph-vocabulary.md](graph-vocabulary.md).

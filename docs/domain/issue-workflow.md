@@ -183,3 +183,14 @@ decision stick.
 reverses something. When you hit a contradiction you cannot resolve by that
 ladder, ask the owner — don't pick a side, and don't write a new comment
 arguing with an old one.
+
+## Close and reopen beats leaving an issue open forever
+
+Owner, 2026-08-31: *"imo i'd rather close and reopen an issue than keep them
+open forever and confuse agents."* An issue open across many swarms accumulates
+stale paths (#614's file table pointed at `ui/menu/`, deleted in the #579
+cutover), superseded decisions, and children that landed under different
+assumptions; a reader cannot tell which parts still hold, and a long-open hub
+keeps its milestone showing `In progress` after the work shipped. Refile the
+residue as a fresh issue derived against current `master`, close the old one
+pointing at it.

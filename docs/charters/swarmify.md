@@ -196,6 +196,45 @@ Numbered so the skill can be checked against them law by law.
     **Not a spawn** — the thinking runs in the session with the owner; only
     law 3's lookup is delegated.
 
+27. **Every child is drone-sized.** Roughly one subsystem, a handful of
+    files, one test file — finished under ~150k drone context. Size by
+    files × subsystems × tests before promoting; a unit touching more than
+    three subsystems or needing more than five tests is split along its
+    state / wiring / consumer seams *at swarmify time*, never after it
+    stalls. Prefer more small children with native `blocked-by` over one fat
+    one. A drone is reused only for a tiny follow-up ("add this class" → "use
+    that class"); one that just did a 200k run has no room left.
+
+28. **An architectural fork is settled in the pass, not parked.** Two classes
+    doing one job, a stage doing another's work, a mirror of logic that
+    already exists — present it as seams with options and costs and get it
+    settled now; refactor-first ordering is the default, and the delay cost is
+    said out loud. Owner, 2026-09-10, overriding a recommendation to park the
+    "is Step stealing propagation's role" question in a design issue so a
+    tooltip could go Ready: *"settle now, may become a hub or large refactor.
+    paramount is: cleanliness, clean arch, good separation, SOLID, you know
+    the stuff that makes you go 'wow yeah duh' if the split is so correct that
+    it's almost boring."* An unsettled seam leaks into every consumer written
+    against it. The owner's stated taste, for shaping the options:
+    - **Composition as a plural array**, never a singular parent link or
+      inheritance vocabulary — #279 shipped `@export var inherits: CoreClass`
+      as its own spec pinned and was reopened (*"composition over inheritance,
+      then literally a drone decides to add 'inherits'? if it were an
+      'extends' array though"*); `composes: Array[...]` is the settled shape
+      (`extends` is a GDScript keyword). A singular chain forces independent
+      batches into an arbitrary nesting order; the stat pipeline stacks
+      modifiers natively, so "weaker" is a negative modifier, never a replace
+      rule.
+    - **No parallel mirrors of logic** — before proposing an accessor or
+      substrate layer, enumerate what the existing class already answers
+      (*"the SkillNode answers all these (owner_of / hp_of / local_value /
+      apply_damage / die), so we'd end up implementing the same logic 3
+      times"*). One implementation over swappable state beats two
+      implementations of one contract; parallel copies drift silently and the
+      drift surfaces as gameplay divergence between the live and the
+      AI/preview path.
+    - **Graph vocabulary is exact** — see `docs/domain/graph-vocabulary.md`.
+
 ## Incident corpus
 
 Each law traces to at least one of these. Kept here so the skill does not
@@ -237,3 +276,7 @@ have to carry them.
 - Whether the Haiku Explore of law 3 and the seam grep of law 12 should be one
   dispatch or two is a per-pass call; one is cheaper, two lets the seam grep
   start before the claims are listed.
+
+| 2026-09-10 | #764 / #849 | Recommended parking an architectural fork in a design issue; owner overrode — settle now, refactor-first hub with three children. | 28 |
+| 2026-09-14 | last 2–3 swarms | Drones hitting 300k+ on oversized units; a "plumbing" issue spanning five subsystems was the shape that did it. #872 → #872/#878/#879 is the split that worked. | 27 |
+| 2026-08-24 | #573 | "`test_meta_routing_parity.gd` still passes unmodified" was unsatisfiable — the deletion half of the same issue removed `class_name`s the test cast to, so it stopped *parsing*. A characterization pin enumerates the surviving assertions and says the test may be re-pointed; then asks whether there is anything to re-point onto yet. | 10 |

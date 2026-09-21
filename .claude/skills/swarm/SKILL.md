@@ -47,6 +47,13 @@ Never hope a drone self-splits.
   run's `mise run agent-cost` `priced` per landed unit at the tier you are
   dispatching.
 
+## Hard units: a trap list first
+
+For a bit-exact port or solver transliteration, ask an idle peer (`ListAgents`)
+for *where this will break* and which files it holds; dispatch without waiting
+and relay the list verbatim into the brief. Unverified items go to the drone as
+questions to resolve by reading.
+
 ## Your own budget
 
 - **Dispatch ceiling = ceiling(model) − 15k × drones in flight**, read on the
