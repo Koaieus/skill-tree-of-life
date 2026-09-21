@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="TempUpgradeCatalog" load_steps=4 format=3 uid="uid://tu_catalog00001"]
+
+[ext_resource type="Script" path="res://attack/melee/temp_upgrade_catalog.gd" id="1_cat"]
+[ext_resource type="Resource" uid="uid://tu_def_clamp0001" path="res://attack/melee/defs/clamp.tres" id="2_clamp"]
+[ext_resource type="Resource" uid="uid://tu_def_spike0001" path="res://attack/melee/defs/spike_ring.tres" id="3_spike"]
+
+[resource]
+script = ExtResource("1_cat")
+kinds = Array[ExtResource("1_cat")]([])
