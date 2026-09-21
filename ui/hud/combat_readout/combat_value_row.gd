@@ -11,6 +11,13 @@ extends HBoxContainer
 ## NOT the [DeltaChip] — that's a 2.7s transient pop for a stat CHANGING;
 ## this is a held state for as long as the node stays hovered, and needs to
 ## coexist with (not fight) normal baseline updates arriving mid-hover.
+##
+## The value slot has two modes: numeric ([method set_value] — the chip,
+## the override and the suffix all belong to it) and text ([method set_text]
+## — the slot shows a string verbatim, e.g. a described stat pipeline like
+## "(X+3) × 1.5"). Text mode is chip-free and override-free; entering it
+## clears both, and the next [method set_value] returns to numeric mode
+## without a chip pop (text → number is not a number changing).
 
 @onready var _label: Label = %Label
 @onready var _value: Label = %Value
@@ -26,8 +33,9 @@ extends HBoxContainer
 
 ## Which board stat this row displays (#729) — resolves a [StatDef] for the
 ## chip's polarity colouring. Empty for a row that isn't a real stat (a
-## derived value like Combat Card Magic's potency/reach), which leaves the
-## chip on its old sign-only colouring.
+## derived value like Combat Card Magic's potency/reach, driven via
+## [method set_value] / [method set_text]), which leaves the chip on its old
+## sign-only colouring.
 @export var stat_id: StringName = &""
 
 ## ALERT tier (#390) — a node-local override is exactly the "genuine
@@ -61,6 +69,8 @@ var _override_active: bool = false
 var _override_value: float = 0.0
 
 var _delta_baseline: float = NAN
+var _text_mode: bool = false
+var _text: String = ""
 var _flush_delta_deferred := DeferredOnce.new(_flush_delta)
 
 ## #913 — self-binding state. [member _bound_board] gates re-linking
@@ -140,6 +150,7 @@ func resolve_override(hover_node: SkillNode, board: StatBoard, baseline: float) 
 
 
 func set_value(v: float, suffix: String = "") -> void:
+	_text_mode = false
 	if not _flush_delta_deferred.is_queued():
 		_delta_baseline = _last_value
 	_flush_delta_deferred.request()
@@ -148,8 +159,21 @@ func set_value(v: float, suffix: String = "") -> void:
 	_render()
 
 
+## Text mode for the value slot: shows [param text] verbatim (no decimals, no
+## suffix). Numeric-only state — the pending delta, the override badge and
+## colour — is cleared; [method show_override] is ignored until the next
+## [method set_value], which returns the row to numeric mode.
+func set_text(text: String) -> void:
+	_text_mode = true
+	_text = text
+	_override_active = false
+	_delta_baseline = NAN
+	_last_value = NAN
+	_render()
+
+
 func _flush_delta() -> void:
-	if is_nan(_delta_baseline) or _override_active or _chip == null:
+	if _text_mode or is_nan(_delta_baseline) or _override_active or _chip == null:
 		return
 	var shown := _rendered(_last_value)
 	var was := _rendered(_delta_baseline)
@@ -182,6 +206,8 @@ func set_sliver(text: String) -> void:
 ## differs from baseline — equal-valued rows should call [method
 ## clear_override] instead so unchanged stats don't light up.
 func show_override(overridden: float) -> void:
+	if _text_mode:
+		return
 	_override_active = true
 	_override_value = overridden
 	_render()
@@ -199,7 +225,10 @@ func _render() -> void:
 	if _value == null:
 		return
 	var fmt := "%." + str(decimals) + "f%s"
-	if _override_active:
+	if _text_mode:
+		_value.text = _text
+		_value.remove_theme_color_override(&"font_color")
+	elif _override_active:
 		_value.text = fmt % [_override_value, _last_suffix]
 		_value.add_theme_color_override(&"font_color", override_color)
 	else:

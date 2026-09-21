@@ -3,8 +3,14 @@ class_name CombatCardMagic
 extends CombatReadoutCard
 ## Magic readout: selected spell's potency/instance + hop reach ("rare" tag
 ## when [member PropagationConfig.max_hops] is nonzero). Bound to whichever
-## spell [BattleSystem.selected_spell] currently points at — null-safe (no
-## spell selected shows zeros).
+## spell [BattleSystem.selected_spell] currently points at — null-safe.
+##
+## The Reach row has two tiers. No spell selected: the row DESCRIBES the
+## caster's `cast_range_hops` pipeline as text ("(X+3) × 1.5") via
+## [method Stat.resolve_with] — the card never assembles bins itself, the
+## fold belongs to the stat. Spell selected: the number
+## [method SpellRangeRules.reach] answers for the authored `max_hops`, never
+## the raw authored value.
 ##
 ## Potency is the [b]computed seed[/b] — [code]spell_damage × power[/code] for
 ## the bound caster — not the raw [member SpellDef.power] coefficient, which is
@@ -24,6 +30,9 @@ var _spell: SpellDef:
 func _bind(board: StatBoard, owner_entity: Entity = null) -> void:
 	if board.spell_damage != null:
 		_binds.link(board.spell_damage.value_changed, _refresh)
+	var reach: Stat = board.get_stat(&"cast_range_hops")
+	if reach != null:
+		_binds.link(reach.value_changed, _refresh)
 	if _battle_system != null:
 		_binds.link(_battle_system.selected_spell_changed, _set_spell)
 
@@ -38,13 +47,19 @@ func _set_spell(spell: SpellDef = null):
 	_refresh()
 
 func _refresh() -> void:
+	super._refresh()
 	var spell := _spell
+	_potency_row.set_value(SpellResolver.impact_damage(spell, null, _board))
 	if spell == null:
-		_potency_row.set_value(0.0)
-		_reach_row.set_value(0.0)
+		var reach: Stat = _board.get_stat(&"cast_range_hops") if _board != null else null
+		if reach != null:
+			_reach_row.set_text(reach.resolve_with([]).describe())
+		else:
+			_reach_row.set_value(0.0)
 		_reach_row.set_sliver("")
 		return
-	_potency_row.set_value(SpellResolver.impact_damage(spell, null, _board))
-	var hops := spell.propagation.max_hops if spell.propagation != null else 0
-	_reach_row.set_value(float(hops), " hops")
-	_reach_row.set_sliver("rare" if hops > 0 else "")
+	var authored: int = spell.propagation.max_hops if spell.propagation != null else 0
+	var hops := SpellRangeRules.reach(&"cast_range_hops", float(authored), _owner_entity,
+			_hover_node, _board)
+	_reach_row.set_value(hops, " hops")
+	_reach_row.set_sliver("rare" if authored > 0 else "")
