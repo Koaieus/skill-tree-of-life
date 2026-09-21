@@ -97,9 +97,10 @@ func test_node_local_add_base_and_multiply_fold_onto_the_authored_distance() -> 
 
 
 func test_entity_board_modifier_reaches_an_owned_node() -> void:
-	var board := _bare_board()
-	board.add_modifier(_static_mod(&"cast_range_hops", StatModifier.Operation.ADD_BASE, 2.0))
-	var o := _owned_node(board)
+	var o := _owned_node(_bare_board())
+	# On the live entity's board — Entity duplicates its board on _ready.
+	var entity: Entity = o["entity"]
+	entity.stat_board.add_modifier(_static_mod(&"cast_range_hops", StatModifier.Operation.ADD_BASE, 2.0))
 
 	assert_eq(SpellRangeRules.reach(&"cast_range_hops", 3.0, o["entity"], o["node"]), 5.0,
 			"the node tier folds the owner's board bins under the overlay")
