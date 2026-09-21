@@ -112,7 +112,7 @@ func describe_per(_value: float = 1.0) -> String:
 ## unauthored case renders its own clause instead — the ladder itself, named
 ## with "at" rather than "per":
 ##
-##   "+1 Spell Hops at 50 / 150 / 500 / 1000 / 5000 INT"
+##   "+1 Cast Range Hops at 50 / 150 / 500 / 1000 / 5000 INT"
 ##
 ## Truncated to the first three rungs plus the last past 5 entries (see
 ## [method _ladder_list]) so a long ladder (PER's ten-rung sensor-range curve,
