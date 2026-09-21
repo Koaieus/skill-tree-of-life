@@ -807,6 +807,9 @@ func get_local_value(stat_id: StringName) -> Variant:
 	return _combat.get_local_value(stat_id)
 
 
+## [method get_local_value] with caller overlays folded after the node bins —
+## the passthrough to [method NodeCombat.get_local_value_with]; an id on
+## neither board reads [code]null[/code] here, not the def default.
 func get_local_value_with(stat_id: StringName, overlays: Array[ModifierBins]) -> Variant:
 	return _combat.get_local_value_with(stat_id, overlays)
 

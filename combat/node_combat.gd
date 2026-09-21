@@ -164,23 +164,30 @@ func get_spike_power() -> float:
 	return n.get_spike_power() if n != null else 0.0
 
 
-## Non-allocating passthrough read — the state-half twin of
-## [method SkillNode.get_local_value], which now delegates here (#498 step 2).
-## Merges this node's board with its owner's, exactly as before; the only
-## change from the pre-extraction body is reading [method board] / [method owner]
-## instead of `node_board` / `owned_by.stat_board` directly, which is what
-## makes it correct on a shadow too (needed by [method take_damage]'s
-## mitigation math — see [Mitigation], which requires a real [SkillNode] and
-## so cannot be called on a shadow's behalf).
+## The node-local merged read, with caller overlays — the one implementation
+## behind [method get_local_value] (its empty-overlay delegate) and the door a
+## content resource uses to fold its authored number in as a bin (see
+## docs/domain/stat-knobs-and-bins.md §5). Folds this node's board with its
+## owner's exactly as before, reading [method board] / [method owner] so it is
+## correct on a shadow too (needed by [method take_damage]'s mitigation math).
+##
+## Tiers, most specific source LAST so an equal-priority SET tie goes to the
+## most local one ([method ModifierBins._pick_set_winner_bins]):
+## 1. entity stat + node stat → `es.get_value_with([ns.bins] + overlays)`
+## 2. entity stat only        → `es.get_value_with(overlays)`
+## 3. node stat only          → `ns.get_value_with(overlays)`
+## 4. no stat on either board → [code]null[/code], never a def default: there
+##    is no [Stat] to coerce through, and a caller folding an authored base
+##    wants to fall back to that base, not to 0. Only the delegating wrapper
+##    keeps the def-default tail.
+## Every tier goes through [method Stat.get_value_with] so the merged total is
+## coerced once, after the fold, like a bare read (the #895 INT floor).
 ##
 ## Also understands #333's accessor tokens — `<stat_id>__<accessor>`, e.g.
 ## `node_health__current` — which route to [method _read_accessor] below
-## instead of the merge. A bare id behaves exactly as it always has.
+## instead of the merge; [param overlays] are ignored there, since an accessor
+## reads state, not a fold. A bare id behaves exactly as it always has.
 func get_local_value_with(stat_id: StringName, overlays: Array[ModifierBins]) -> Variant:
-	return null
-
-
-func get_local_value(stat_id: StringName) -> Variant:
 	if StatFormula.is_accessor_token(stat_id):
 		return _read_accessor(stat_id)
 	var ns: Stat = board().get_stat(stat_id) if board() != null else null
@@ -189,13 +196,25 @@ func get_local_value(stat_id: StringName) -> Variant:
 		var es := o.board().get_stat(stat_id)
 		if es != null:
 			if ns == null:
-				return es.get_value()
-			# #895: through the Stat so the merged total is coerced like a
-			# bare read — a raw ModifierBins.compute skipped #890's INT floor.
-			var overlays: Array[ModifierBins] = [ns.bins]
-			return es.get_value_with(overlays)
+				return es.get_value_with(overlays)
+			var sources: Array[ModifierBins] = [ns.bins]
+			sources.append_array(overlays)
+			return es.get_value_with(sources)
 	if ns != null:
-		return ns.get_value()
+		return ns.get_value_with(overlays)
+	return null
+
+
+## Non-allocating passthrough read — the state-half twin of
+## [method SkillNode.get_local_value], which delegates here (#498 step 2).
+## [method get_local_value_with] with no overlays, plus the def-default tail
+## for an id on neither board: a bare read is always a number, while the door
+## answers null so its caller can fall back to its own base.
+func get_local_value(stat_id: StringName) -> Variant:
+	var empty: Array[ModifierBins] = []
+	var v: Variant = get_local_value_with(stat_id, empty)
+	if v != null or StatFormula.is_accessor_token(stat_id):
+		return v
 	var def: StatDef = StatRegistry.get_def(stat_id)
 	if def != null:
 		return def.default_value

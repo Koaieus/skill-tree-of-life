@@ -47,11 +47,12 @@ func _overlay(base_add: float) -> ModifierBins:
 func _owned_node(es: ScalarStat, ns: ScalarStat) -> SkillNode:
 	var graph := preload("res://graph/graph.tscn").instantiate()
 	add_child_autofree(graph)
-	var board: EntityStatBoard = preload("res://entity/default_entity_board.tres").duplicate(true)
-	board._register_minted(_ID, es)
 	var entity: Entity = autofree(Entity.new())
-	entity.stat_board = board
+	entity.stat_board = preload("res://entity/default_entity_board.tres").duplicate(true)
 	graph.add_child(entity)
+	# After _ready: Entity duplicates its board there, and a minted stat is
+	# not a stored property, so seeding before would be lost to the copy.
+	entity.stat_board._register_minted(_ID, es)
 
 	var node := _NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(node)
