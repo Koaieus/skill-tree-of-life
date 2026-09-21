@@ -1,110 +1,26 @@
 class_name BladeObstacleField
 extends BladeConstraint
 
-## Bunker deflection (#781): the solid obstacles a swing cannot pass through,
-## and the strain meter that breaks a blade too rigid to go around them.
+## The defender field: the one object in the solver that tests the blade
+## against a defender node, wrapping one immutable [BladeDefenderZones]. Two
+## zone kinds, asymmetric on purpose — a [b]plate[/b] (`deflection`, presence
+## only) is pushed out of, meters strain, arms a break and can stall the grip;
+## a [b]wall[/b] (`swing_drag`, a magnitude) is only SENSED: [method project]
+## skips it and its drag is banked on the [BladeSwingClock]. A wall never
+## enters [member _near] and never shatters a blade. A node carrying both stats
+## is one zone that is both kinds, latched once.
 ##
-## [b]Since #811 this is THE defender field — both kinds.[/b] It wraps one
-## immutable [BladeDefenderZones] (the physics query's result) and is the only
-## thing in the solver that tests the blade against a defender. Two zone kinds,
-## asymmetric on purpose:
-##
-## - a [b]plate[/b] (`deflection`, a BOOL stat — presence only, §805; only
-##   [BunkerAddon] authors it) is pushed out of, meters strain, arms a break and
-##   can stall the grip;
-## - a [b]wall[/b] (`swing_drag`, a magnitude; [FortificationAddon]) is SENSED
-##   and nothing more — [method project] skips it in the pushout and banks its
-##   drag on the [BladeSwingClock] instead. A wall spends the swing's budget; it
-##   does not stop the blade, and it must never shatter one. That is why a wall
-##   never enters [member _near], which is not a neutral "was sensed" set: it
-##   gates the strain accumulator that arms breaks and stalls grips, both of
-##   which are plate-only effects (ADR 0005, #781).
-##
-## A node carrying both stats is ONE zone that is both kinds, latched once.
-##
-## [b]One object per swing, or none.[/b] [method MeleeAttackPlan.build_blade_state]
-## attaches one to [member BladeState.obstacles] only when some defender of
-## either kind is inside the swing's whip bound.
-## A map with no defender therefore has NO field — no accumulator exists to be
-## measured, nothing is allocated, and the solver runs the plain native path.
-## That is the owner's false-positive guard, structurally: the strain metric is
-## never "did this vertex move?" in general, it is only ever "how much of the
-## drive this bunker's pushout refused" — and without a bunker there is nothing
-## to refuse. [b]The native backend is off for any swing that HAS a field[/b]
-## ([method BladeSim.simulate_range] gates on `clock == null and obstacles ==
-## null`), so merging the two zone sets means more swings take the GDScript
-## path than before — accepted under #811, tracked separately as #813.
-##
-## [b]Pushout.[/b] Projected every solver iteration AFTER the distance
-## constraints (see [method BladeSim._step]), so the pass ends with every vertex
-## disc and every rim-trimmed edge capsule pushed out of every bunker disc, to
-## within [constant CONTACT_SLOP]. Discs are the same geometry [BladeHitScan]
-## queries and [BladeSwingClock] senses; the capsule trim is theirs too.
-##
-## [b]Strain is the driver's residual.[/b] Each substep the arc drivers place
-## the grip particles where the swing SHOULD be, and the projection pass then
-## moves them to where the blade CAN be. For a floppy blade a bunker contact is
-## absorbed by a fold — the grip keeps up with its driver and the unresolved
-## advance is ~0. For a rigid blade no fold exists: the whole body rotates back
-## against the driver, so the grip ends each substep roughly where it started
-## and the unresolved advance is the full `speed * dt`. Summed over a contact,
-## clamped at >= 0 (a step where the blade catches up SUBTRACTS — the bleed that
-## washes out a transient hold), that is literally "how far the swing tried to
-## drive the blade into the plate and could not", in world units. Crossing
-## [constant SHATTER_DISTANCE] arms a break. This needs no rigidity
-## computation: whether the blade yielded IS the rigidity measurement.
-##
-## Why not the contact vertex's own unresolved pushout (the issue's first
-## formulation)? Driven particles are not pinned during the projection pass
-## (only the pivot has `inv_mass 0`), so a rigid blade resolves the pushout
-## COMPLETELY — by rotating back as a whole — and the contact point reads
-## "fully resolved" in exactly the case that should shatter. Measured 2026-09-09
-## on a clamped spine and a truss; see the issue thread.
-##
-## [b]What breaks is an EDGE, never a vertex[/b] — ADR 0005. The contact is
-## usually at a vertex (discs stick out past the trimmed capsules); the edge
-## that fails is the incident one that carried the most LOAD over the contact:
-## each substep's unresolved drive is banked on every incident live edge in
-## proportion to how squarely the plate's push runs along it (`|n . dir|`), and
-## the biggest bank breaks, ties to the lowest index. (The ADR names the
-## distance-constraint residual as the strain; in this solver that residual is
-## ~0 after the pass — measured — because the body yields as a whole, so the
-## load share is the same idea read off the push direction instead.) For a
-## capsule contact it is that edge, at full share. Breaking is recorded as a PENDING request
-## and applied by the resolve loop through [method BladePopResolver.LiveGate._sever_edge],
-## the same path a spike pop takes (#801); this class never mutates
-## `state.constraints`, so an optimistic bake stays a pure function the loop can
-## rewind. Self-limiting by construction: once the edge is gone that region is
-## floppy, the next contact yields, and the blade flows past.
-##
-## [b]The grip is a hard stall, not a break.[/b] A contact on a DRIVEN particle
-## (a pivot neighbour) calls [method BladeSwingClock.stall]: the swing's clock
-## freezes, the grip sits on the plate, nothing breaks, and everything outboard
-## keeps simulating on its own momentum. Owner, 2026-09-07: a hard stall is less
-## punishing than a shatter, and it dissolves the "pick the handle right next to
-## the enemy bunker" exploit by making it self-punishing.
-##
-## [b]Sim state.[/b] The accumulators, the driver history and the pending break
-## are captured by [method capture] / restored by [method restore] exactly like
-## [BladeSwingClock.Bank], so the resolve loop's head replay lands bit-identically.
-##
-## [b]No pop budget on the bunker[/b] — deliberately unlike [SpikeRingAddon]'s
-## `spikes` pool (#778). Spikes are dual-use (offensive `blade_damage` and
-## defensive stopping power), so their defensive half is metered. A bunker is
-## purely defensive and it is not immortal: every break still lands the
-## contacting vertex's mitigated hit, so `node_health` IS the budget, and a
-## second pool would charge the same node twice for the same job. Owner,
-## 2026-09-08. If HP ever proves too coarse a meter, a dedicated
-## `plate_integrity` pool (the owner's "tegridy") is the coherent next option —
-## a hint, not a plan; nothing here anticipates it.
-##
-## [b]Analytic, allocation-free per substep, no physics-server calls: safe from
-## [AiBladeRollout]'s worker threads.[/b] The physics IS what found the zones —
-## one [method PhysicsDirectSpaceState2D.intersect_shape] per pivot, on the main
-## thread — but by the time the solver sees them they are plain arrays on a
-## shared, immutable [BladeDefenderZones]. Everything mutable lives on THIS
-## object, one per swing, so a pivot's whole rollout can share one zone set
-## without racing.
+## Invariants: exists only when some defender is inside the swing's whip bound
+## (no defender, no field, no accumulator — the false-positive guard is
+## structural); projected every solver iteration AFTER the distance
+## constraints; strain is the DRIVER's unresolved advance, never a contact
+## residual; what breaks is an EDGE (the most loaded incident one), recorded
+## as a PENDING request and severed by the resolve loop, never by this class;
+## a contact on a driven particle stalls the clock instead of breaking;
+## [method capture] / [method restore] make it rewindable exactly like
+## [BladeSwingClock.Bank]; analytic and allocation-free per substep with no
+## physics-server calls, so a worker-thread rollout may share one zone set.
+## See docs/domain/melee-blade-sim.md, "Bunker deflection".
 
 ## How far a vertex disc may sink into a bunker disc before the pushout acts, in
 ## px. Not zero on purpose: [BladeHitScan] has to SEE the contact so the

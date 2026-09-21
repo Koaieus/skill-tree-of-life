@@ -1297,10 +1297,10 @@ nodes still take damage! Although likely less than usual they are not
 immortal. Spikes are offensively useful so we limit their defensive use."*
 Every contact still lands a mitigated hit (above), so a bunker that keeps
 stopping blades chips its own `node_health` every time; `armor` /
-`min_damage_taken` only slow that, never stop it. `BladeObstacleField`'s class
-doc *hints*, rather than builds, a dedicated `plate_integrity` pool as the
-coherent next step if HP ever proves too coarse a meter — a comment, not a
-stat, not a def, not plumbing.
+`min_damage_taken` only slow that, never stop it. If HP ever proves too coarse
+a meter, a dedicated `plate_integrity` pool is the coherent next step — a hint
+recorded here, not a stat, not a def, not plumbing; nothing in the code
+anticipates it.
 
 ### The decline list (was: the GDScript-backend consequence, retired by #813)
 
