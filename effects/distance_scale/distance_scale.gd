@@ -34,6 +34,15 @@ extends Resource
 ## A 0 (or a sign flip) is a legitimate result; [member AuraEffect.discard]
 ## decides whether it lands. See that enum's docs for the authoring recipes.
 
+## The one result that is NOT a value: "no modifier here". NaN, so no
+## comparison the discard policy could make is ever true of it — [AuraEffect]
+## drops a [constant NOT_GRANTED] leaf before [member AuraEffect.discard] runs,
+## under every mode. Test for it with `is_nan()`, never `==`: NaN is not equal
+## to itself. Library shapes never return it; an [ExpressionScale] does by
+## writing `NAN` (a built-in [Expression] constant), and a per-hop table past
+## its last entry will.
+const NOT_GRANTED := NAN
+
 ## The value to grant at [param distance]. [param value] is the authored number
 ## being shaped (a leaf modifier's `value`); a library scale returns
 ## `value * <multiplier>`, an [ExpressionScale] returns whatever its formula says.
