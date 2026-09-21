@@ -380,8 +380,13 @@ func _grant_to(ctx: EffectContext, node: SkillNode, distance: float, bound: floa
 		var any_kept := false
 		for i in leaves.size():
 			var v: float = leaves[i].value
-			var computed: float = v if distance_scale == null else distance_scale.scale_at(
+			var computed: float = v if distance_scale == null else _scale_memo(
 				distance, bound, v, hops, euclid, relation)
+			# NOT_GRANTED is absence, not a value: dropped before the discard
+			# policy, under every mode (no comparison is ever true of NaN, so
+			# `_discards` alone would let it land — as INT_MIN on an int stat).
+			if is_nan(computed):
+				continue
 			values[i] = computed
 			if not _discards(computed):
 				any_kept = true
@@ -400,11 +405,23 @@ func _grant_to(ctx: EffectContext, node: SkillNode, distance: float, bound: floa
 ## which is why the frame rides here instead of on the parameter list.
 var _frame_depths: Dictionary = {}
 var _frame_source: SkillNode = null
+## Per-frame memo of [method DistanceScale.scale_at], keyed on the full input
+## tuple `[d, bound, v, h, e, rel]`. A hop aura sees at most `max_hops + 1`
+## distinct `d`, so a 2k-node global aura costs `(max_hops + 1) × leaves`
+## formula evaluations instead of one per node per leaf. Off outside a frame,
+## for a scale that says it is not [method DistanceScale.memoizable], and
+## under a Euclidean metric (continuous `d`, nothing repeats).
+var _frame_memo: Dictionary = {}
+var _frame_memo_on: bool = false
 
 
 func _open_frame(source: SkillNode, mirror: GraphMirror, selected: Dictionary[SkillNode, float]) -> void:
 	_frame_source = source
 	_frame_depths = {}
+	_frame_memo = {}
+	# A Euclidean METRIC makes `d` continuous too, whatever the formula names.
+	_frame_memo_on = distance_scale != null and distance_scale.memoizable() \
+			and not (metric is EuclideanMetric)
 	if distance_scale != null and distance_scale.wants_hops():
 		_frame_depths = HopMetric.depths(source, mirror, _hop_cap(selected), selected)
 
@@ -412,6 +429,21 @@ func _open_frame(source: SkillNode, mirror: GraphMirror, selected: Dictionary[Sk
 func _close_frame() -> void:
 	_frame_depths = {}
 	_frame_source = null
+	_frame_memo = {}
+	_frame_memo_on = false
+
+
+## [method DistanceScale.scale_at] through the frame memo. NaN is a valid
+## memoised result — `has` finds the key, `==` on the value never would.
+func _scale_memo(distance: float, bound: float, v: float, hops: float, euclid: float, relation: int) -> float:
+	if not _frame_memo_on:
+		return distance_scale.scale_at(distance, bound, v, hops, euclid, relation)
+	var key := [distance, bound, v, hops, euclid, relation]
+	if _frame_memo.has(key):
+		return _frame_memo[key]
+	var computed: float = distance_scale.scale_at(distance, bound, v, hops, euclid, relation)
+	_frame_memo[key] = computed
+	return computed
 
 
 ## The FIRST guess at how far, in hops, a selected node is: the reach's own

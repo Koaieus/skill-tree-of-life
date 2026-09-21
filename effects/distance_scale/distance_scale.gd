@@ -80,6 +80,14 @@ func wants_euclid() -> bool:
 	return false
 
 
+## True when one [method scale_at] call is worth caching per distinct input
+## tuple for the length of a grant pass — an [ExpressionScale] evaluation is,
+## a closed-form library shape is cheaper than the lookup. Default false; a
+## scale reading continuous `euclid` answers false too, since nothing repeats.
+func memoizable() -> bool:
+	return false
+
+
 ## An optional tooltip clause describing the shape, e.g. "falling off with
 ## distance". Never derived from a formula string — authored, like
 ## [StatFormula]'s `per_phrase`. [method AuraEffect.get_description] appends it.

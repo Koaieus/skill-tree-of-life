@@ -26,7 +26,21 @@ extends DistanceScale
 ## "v * d"                     # ProportionalScale
 ## "v * (1 - h / 4)"           # fall off by hops on an aura that REACHES by pixels
 ## "v * (1 + int(rel == 8))"  # double on HOSTILE; Expression has no ternary, so bool → int
+## "[NAN, v][int(h >= 2)]"     # NOT granted inside 2 hops — the escape hatch, see below
 ## [/codeblock]
+##
+## [b]0 is a value; `NAN` is absence.[/b] A formula that computes `0` grants a
+## real +0 under `discard = NONE` — a ledger row, a tooltip line, a `SET 0` on
+## a derived stat. To grant [i]nothing[/i] at a node, return
+## [constant DistanceScale.NOT_GRANTED]: write the built-in constant `NAN`.
+## [Expression] has no ternary (`a ? b : c` and `b if a else c` both fail to
+## parse), so select with an array literal indexed by the bool-as-int:
+## `[NAN, v][int(h >= 2)]`. Both elements are evaluated; NaN is inert, so
+## that costs nothing. This is the [i]escape hatch[/i] — gating ("start after
+## N hops", "band N..M") belongs in the reach, where a range finder drops the
+## node before any formula runs and the aura never pays for it. `NONE` is not
+## an alias: it already names [enum AuraEffect.Discard] `NONE`. Mind that
+## `v / d` at the source is `inf`, not NaN, and `inf` IS granted.
 ##
 ## [b]`h` and `e` are paid for only when named[/b] (#943): [AuraEffect] asks
 ## [method wants_hops] / [method wants_euclid] and walks the bounded hop ball
@@ -35,8 +49,6 @@ extends DistanceScale
 ## so a formula that never names them evaluates exactly as it did before.
 ## [HealAuraEffect]'s turn-start ramp still calls that 3-arg path, so a heal
 ## formula naming `h`, `e` or `rel` sees the sentinels, not the node's facts.
-## Gating ("start after N hops") belongs in the reach, not here — a range
-## finder drops the node before any formula runs.
 ##
 ## [b]`v` is opt-in, and that is the point.[/b] A formula that omits it ignores
 ## the authored number entirely — which is how you say "heal 5, 4, 3, 2, 1"
@@ -148,6 +160,11 @@ func wants_hops() -> bool:
 ## exponent does not count.
 func wants_euclid() -> bool:
 	return _mentions("e")
+
+
+## Worth memoising unless the formula reads continuous `e`.
+func memoizable() -> bool:
+	return not wants_euclid()
 
 
 func _mentions(input: String) -> bool:
