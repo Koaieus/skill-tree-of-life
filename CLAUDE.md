@@ -24,11 +24,9 @@ godot --path . scenes/first_level_sandbox.tscn    # THE one to reach for: a real
 godot --path . scenes/procgen_play_sandbox.tscn   # small procgen proof-of-concept, 120 nodes
 ```
 
-`run/main_scene` is `scenes/meta/meta_root.tscn` — the frontmatter menu, i.e.
-where an exported build and a bare `godot --path .` (or F5) start. It is a
-config setting on purpose: an autoload cannot redirect *before* the main scene
-is built, so pointing it at a sandbox made every export construct that level and
-cut away from it a moment later. Launch sandboxes by path, as above.
+`run/main_scene` is `scenes/meta/meta_root.tscn` — the frontmatter menu, where
+an exported build and a bare `godot --path .` (or F5) start. Launch sandboxes by
+path, as above; never repoint the main scene (why: `docs/domain/godot-workflow.md`).
 
 `scenes/level.tscn` is the shipped level and is **not** launchable on its own —
 it generates from whatever run `GameSession` already holds and refuses without
@@ -49,9 +47,8 @@ mise run mp:e2e                                # two processes play the shipped 
                                                # (~30s) — the gate for network/ session/ command/
 ```
 
-The full suite costs **~45s wall** (507 scripts, 4716 tests, 2026-09-20; sharded
-over half the cores by default — `GUT_SHARDS_MAX=16` is ~32s and loud,
-`GUT_SHARDS=1` the ~380s single process) — still a
+The full suite is **~45s wall** sharded over half the cores (`GUT_SHARDS_MAX=16`
+is faster and loud, `GUT_SHARDS=1` the ~6-minute single process) — still a
 **gate, not a feedback loop**: cheap in wall clock, not in the context its
 output costs. Earn it **once per unit of work**, at final green, right before
 reporting — never to explore, never **to grep it differently.** Iterate on the
@@ -66,18 +63,18 @@ Each level scene extends `scenes/game_root.tscn` (the composition root); subclas
 ## Architecture
 
 `GameRoot` (`scenes/game_root.gd`) — per-level composition root; mounts VFX, wires systems, calls `_setup_level()`, then `HudRoot.compose(self)`. Subclass + override `_setup_level()` to author or generate level content.
-`HudRoot` (`ui/hud/hud_root.gd`) — the "Arcane Terminal" HUD, sole UI layer. Anchors the design clusters + AnnouncementLayer FX (see `ui/hud/hud_root.tscn` for the roster); each cluster takes deps via its own scene-local `bind()`, while cross-system deps flow through one `compose(game_root)` call that splits by lifetime — `bind_systems()` once per level, `rebind_player()` on every hot-seat handover (#459).
+`HudRoot` (`ui/hud/hud_root.gd`) — the "Arcane Terminal" HUD, sole UI layer; clusters `bind()` their own deps, cross-system deps arrive through one `compose(game_root)` split by lifetime (`bind_systems()` per level, `rebind_player()` per hot-seat handover).
 `Graph` (`graph/graph.gd`) — owns `SkillNode`s + `Edge`s + `entities_container`; pure topology, structural signals.
 `Entity` (`entity/entity.gd`) — players and NPCs use the same class; ownership is set by `AllocationSystem`. Composes a `CoreClass` (`entity/core/`) branding it with identity modifiers + an `on_turn_started` hook; `BalancedCore` is the +10 STR/DEX/INT baseline.
-`SeatPolicy` (`session/seat_policy.gd`) — the per-machine half of a run's setup: who *this* machine plays and whose eyes it draws with (COUCH vs SEAT). Never feeds anything a peer must reproduce — run shape (camps, seed) is the roster's half. See `docs/domain/seat-policy.md`.
+`SeatPolicy` (`session/seat_policy.gd`) — the per-machine half of a run's setup (who this machine plays, whose eyes it draws with); run shape is the roster's half. See `docs/domain/seat-policy.md`.
 `Navigator` (`graph/navigator.gd`) — full-graph `AStar2D` mirror; `EntityNavigator` (`entity/entity_navigator.gd`) is the per-entity subgraph mirror used for cut-vertex / islanding queries.
 `TurnManager` (`systems/turn_manager.gd`) — initiative ticks to 100 → entity acts (single implicit phase — intent is by input channel, not phase gates); `end_turn()` deducts 100. See `.claude/rules/turn-manager.md`.
 `AllocationSystem` (`systems/allocation_system.gd`) — `allocate` / `deallocate` (gated) + `force_allocate` / `force_deallocate` (primitives). See `docs/domain/allocation_system.md`.
-`BattleSystem` (`systems/battle_system.gd`) — owns active `AttackPlan`; `launch_attack` builds a `LaunchAttackCommand` and submits it to `CommandApplier`, whose `apply_launch_command` rebuilds and replays the resolved `AttackRecord` on the reveal clock, driving the forced-dealloc cascade. See `docs/domain/attack_plan_system.md`.
+`BattleSystem` (`systems/battle_system.gd`) — owns the active `AttackPlan`; `launch_attack` submits a command to `CommandApplier`, which replays the resolved `AttackRecord` on the reveal clock. See `docs/domain/attack_plan_system.md`.
 `VisionSystem` (`systems/vision_system.gd`) — fog of war; reads owned subgraph + per-entity `vision_range` / `sensor_range`. See `docs/domain/vision-system.md`.
-`LootSystem` (`systems/loot_system.gd`) — killing-blow XP, tempo (#888), and a relic on the victim's former core; snapshots on the pre-cleanup `Events.entity_dying` phase, before AllocationSystem strips the corpse. See `docs/domain/loot-system.md`.
+`LootSystem` (`systems/loot_system.gd`) — killing-blow XP, tempo, and a relic on the victim's former core; snapshots on `Events.entity_dying`, before the corpse is stripped. See `docs/domain/loot-system.md`.
 `StatBoard` (`stats_system/`) — PoE-style modifier pipeline. See `.claude/rules/stats-system.md` for IDs, pipeline, gotchas — **update it when the stat system changes.**
-`VictorySystem` (`systems/victory_system.gd`) — the sole decider that a run ended and sole emitter of `Events.run_ended(RunOutcome)`; owns the *when* and the *once* (the latch), while the swappable `VictoryCondition` resource owns the *what*. See `docs/domain/victory-system.md`.
+`VictorySystem` (`systems/victory_system.gd`) — sole emitter of `Events.run_ended(RunOutcome)`; owns the *when* and the *once*, the swappable `VictoryCondition` owns the *what*. See `docs/domain/victory-system.md`.
 `GraphProcgen` (`procgen/graph_procgen.gd`) — static pipeline; `generate(config, graph)` returns nodes + starting_nodes. See `docs/domain/procgen.md` (topology) and `docs/domain/procgen-v4.md` (content: StatPool + phased draw).
 
 Spawning runtime entities: subclass `GameRoot`, override `_setup_level()`, call `spawn_entity(name, color, core_location, core_class)` — it duplicates the default stat board, parents under `graph.entities_container`, force-allocates the core node, and assigns the class. See `scenes/procgen_play_sandbox.gd`.
@@ -104,13 +101,11 @@ Entry points: `docs/GDD.md` (master GDD) · `docs/design/index.md` (full index w
 
 GitHub Issues via `gh` (repo `Koaieus/skill-tree-of-life`); board via `mise gh-project -- list|add|status|…`. **`add` already lands the issue in `Backlog`** — only call `status` after for a different lane.
 
-**The status ladder is the pipeline** — `Backlog` → `Needs design` (the `/swarmify` inbox) → `Ready` → `In progress` → `In review` → `Done`. `Ready` *is* the swarm queue and **a drone never touches a non-`Ready` issue**; `Ready` and `Needs design` are in turn prioritised by the live GitHub milestone (`mise gh-project -- roadmap`), which wins on **what to pull first** and never on state — the board is authoritative for status, dependencies and what shipped.
+**The status ladder is the pipeline** — `Backlog` → `Needs design` (the `/swarmify` inbox) → `Ready` → `In progress` → `In review` → `Done`. `Ready` *is* the swarm queue and **a drone never touches a non-`Ready` issue**; what to pull first is the live GitHub milestone, never a prose file — the board is authoritative for status, dependencies and what shipped.
 
-**Reading an issue is two calls** — `gh issue view <n>` prints the body, `--comments` prints ONLY the comments (and prints nothing, exit 0, on a 0-comment issue — that's not a broken call, just what zero comments looks like), and the comments usually hold the decisions. **Never pass `gh --body "..."` with backticks**: the shell silently deletes the span — heredoc to the scratchpad, `--body-file`. **Attribute owner decisions to the owner, verbatim**, dated, as an owner call — never laundered into your own reasoning.
+**Reading an issue is two calls** — `gh issue view <n>` (body) and `--comments` (comments only; silent exit 0 on none), and the comments usually hold the decisions. **Never `gh --body "..."` with backticks** — heredoc to a file, `--body-file`. **Attribute owner decisions to the owner, verbatim**, dated. **A parent never carries work** — a hub's status is derived from its children, never set by hand.
 
-**A parent never carries work** — a hub's status is derived from its children (`mise gh-project -- hygiene --fix`, and `land` syncs it per landing); never set a hub's status by hand, never leave a hub's own acceptance spec on the hub, and never park optional follow-ups as children.
-
-Board commands, the full ladder, the hub rules, roadmap fields, sub-issues, and why attribution is load-bearing: **`docs/domain/issue-workflow.md`**.
+Board commands, the hub rules, roadmap fields, sub-issues, and why attribution is load-bearing: **`docs/domain/issue-workflow.md`**.
 
 ## Godot conventions
 
@@ -120,27 +115,24 @@ Board commands, the full ladder, the hub rules, roadmap fields, sub-issues, and 
 
 ## Knowledge accumulation
 
-When you learn something non-obvious — a gotcha, a hidden constraint, a workflow surprise — **proactively offer to write it down**.
+When you learn something non-obvious — a gotcha, a hidden constraint, a workflow surprise — **offer to write it down**; agents under-do this slightly, and a little too little still beats a little too much. Each kind of knowledge has one home:
 
-- **Rule files** live in `.claude/rules/<module>.md`. Create or update the module's file when you hit a gotcha; a stale rule is worse than no rule. **Scope it** with a `paths:` glob so it loads only when its files are read — a rule with no `paths:` is always-on and taxes every session. See `docs/domain/breadcrules.md`.
-- **Small gotchas (<200 tokens):** inline in the relevant rule file — the rule, then **Why:** / **How to apply:**.
-- **Breadcrule** — when a pointer must sit in the always-on tier, make it its own `.claude/rules/<topic>.md` file (no `paths:` frontmatter) whose whole body is one line stating the claim *and* linking the doc (`<claim>. See docs/domain/<topic>.md`); never a paragraph, never a line pasted into CLAUDE.md. See `docs/domain/breadcrules.md`.
-- **Larger context** (multi-paragraph, decision trees, code samples): `docs/domain/<topic>.md` — engineering knowledge; `docs/design/` is game design.
-- **Code comments state the contract** — what, invariant, gotcha — never history or an issue number: a decision lives in an ADR or `docs/domain/`, which cite the issue. Anything past ~12 lines moves to `docs/domain/<topic>.md` and leaves a one-line pointer. Only a test's `pending("#n …")`/skip string may carry an issue.
-- **`mise run rules-hygiene`** reports rule-tier violations (always-on budget, oversized scoped rules, dead crumbs, dead `paths:` globs, comment essays and issue citations) and fixes nothing — run it whenever you add or edit a rule, same as `gh-project hygiene` for the board.
-- Game-design knowledge belongs in `docs/design/` or as a GitHub Issue (`design` label) — not inline here.
-- **Why a skill/agent says what it says** belongs in its charter, `docs/charters/<name>.md` — the instruction file is derived from it, same contract-only rule. See `docs/charters/README.md`.
+- **Gotcha tied to files** → `.claude/rules/<module>.md`, scoped with a `paths:` glob (a rule with no `paths:` is always-on and taxes every session). Small: the rule, then **Why:** / **How to apply:**. Long (decision trees, code samples) → `docs/domain/<topic>.md` with a one-line pointer from the rule.
+- **Claim every session must see** → a **breadcrule**: its own unscoped `.claude/rules/<topic>.md`, one line, `<claim>. See docs/domain/<topic>.md`. Never a paragraph, never a line in CLAUDE.md — this file orients and is otherwise never edited; unscoped rules are its composable extensions. See `docs/domain/breadcrules.md`.
+- **A settled architectural call** → an ADR in `docs/adr/` (the `adr` skill). `/swarmify` produces most of these — some are firm owner calls, some tentative picks between comparable options; record which, so a later pass knows what may be revisited.
+- **Why a skill/agent says what it says** → its charter, `docs/charters/<name>.md`; the instruction file is derived from it. See `docs/charters/README.md`.
+- **Game design** → `docs/design/` or a `design`-labelled issue. Never inline here.
+- **Code comments state the contract** — what, invariant, gotcha — never history or an issue number (a decision's home cites the issue). Past ~12 lines, move it to `docs/domain/` and leave a pointer.
+- **`mise run rules-hygiene`** reports tier budgets, dead crumbs and globs, comment essays — run it after touching a rule, as `gh-project hygiene` after touching the board.
 
 ## Working in this repo
 
 The main checkout is a **shared, un-worktree'd surface** — other agents may be
-working there directly, or there may be uncommitted WIP. If tests suddenly start
-failing there, don't sink time into it; you can usually still land another part.
-Fix what's in your scope or is a quick win, but check what was happening first —
-it may be step one of someone's refactor, in which case follow its lead and
-confirm alignment with the user.
+working there, possibly with uncommitted WIP. If tests suddenly fail there,
+check what was happening before sinking time into it — it may be step one of
+someone's refactor; follow its lead and confirm alignment with the user.
 
-Prefer a clean codebase: refactor into scenes, DI via `@export`ed vars, inherited
-scenes where they earn their keep. Take it to the next level rather than the
-minimum. Keep to common conventions for YAGNI's sake — but the opposite of YAGNI
-pays off too, so plan ahead. Case-by-case care works best.
+Prefer a clean codebase: refactor into scenes, DI via `@export`ed vars,
+inherited scenes where they earn their keep. Take it to the next level rather
+than the minimum. Keep to common conventions for YAGNI's sake — but planning
+ahead pays too. Case-by-case care works best.

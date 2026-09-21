@@ -163,7 +163,7 @@ func _actual_edge_of_route(trace: FanTrace) -> String:
 ## panel's edge without ever reading as "inside" it — so it isn't asserted
 ## here as a substitute for the edge check.
 ##
-## SKIPPED #362 — known broken, parked indefinitely (FOCUS lane E item 7).
+## SKIPPED #362 — known broken, parked indefinitely (parked).
 ## The `test_` prefix is deliberately absent so GUT does not collect it: it
 ## reported as pending on every run for months, which is a standing line of
 ## noise in the verdict for a fact nobody re-decides. Restoring it is a

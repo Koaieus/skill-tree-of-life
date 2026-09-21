@@ -244,7 +244,7 @@ client stays bound to Blue.
 The client is a **spectator with a real applier**. Routing its own input upward
 means it must stop applying locally and wait to be told — surgery on
 `PlayerInputController`'s submit path and on `BattleSystem`. That is #463, which
-`docs/FOCUS.md` gates behind #511 and #512. Wave 0 stops short on purpose.
+Gated behind #511 and #512. Wave 0 stops short on purpose.
 
 ## What mirrors, and what does not
 

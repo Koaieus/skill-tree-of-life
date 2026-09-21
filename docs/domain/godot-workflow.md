@@ -657,3 +657,11 @@ a file that just passed the cheap gate.
 **How to apply:** annotate the loop var explicitly instead of inferring it —
 `for spell: SpellDef in dict.keys():`, never `for spell in dict.keys():` with a
 downstream `:=`.
+
+## `run/main_scene` stays on the frontmatter menu
+
+`run/main_scene` is `scenes/meta/meta_root.tscn` and it is a config setting on
+purpose: an autoload cannot redirect *before* the main scene is built, so
+pointing the setting at a sandbox made every exported build construct that
+level and cut away from it a moment later. Launch a sandbox by path
+(`godot --path . scenes/<sandbox>.tscn`), never by repointing the main scene.
