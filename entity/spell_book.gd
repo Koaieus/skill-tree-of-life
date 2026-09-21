@@ -42,7 +42,7 @@ var _sources: Dictionary[SpellDef, Array] = {}
 ## added it can never be ref-counted away. That single asymmetry is what
 ## makes "granting an already-innate spell from a node, then losing that
 ## node" a no-op rather than an accidental un-learn — see [method permanent_spells].
-func add_spell(spell: SpellDef, source: Variant) -> void:
+func add_spell(spell: SpellDef, source: SkillNode) -> void:
 	if spell == null:
 		return
 	if not _sources.has(spell):
@@ -59,7 +59,7 @@ func add_spell(spell: SpellDef, source: Variant) -> void:
 ## spell leaves [member spells]. A null [param source] is a no-op (permanent
 ## spells are revoked when the granting core class is dismantled, not here).
 ## A source that never granted the spell is a safe no-op.
-func remove_spell(spell: SpellDef, source: Variant) -> void:
+func remove_spell(spell: SpellDef, source: SkillNode) -> void:
 	if spell == null or source == null:
 		return
 	if not _sources.has(spell):
