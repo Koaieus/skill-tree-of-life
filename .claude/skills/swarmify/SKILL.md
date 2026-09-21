@@ -1,6 +1,6 @@
 ---
 name: swarmify
-description: Take one GitHub issue from "has open design forks" to Ready — remove blockers, surface every unresolved decision, research the code and think each fork through with the user from both the technical and gameplay side, get them to settle it, write a crisp acceptance spec, split a hub into coherent children if needed, and move it to the `Ready` column. This is the design gate that feeds the `swarm` skill. Use when the user says "swarmify #<n>", "make #<n> ready/swarmable", "settle the design on #<n>", or asks to prep an issue/epic for autonomous work. Run as Opus — resolving forks is the thinking swarm cannot do.
+description: Take one GitHub issue from "has open design forks" to Ready — remove blockers, read whether the open question is "what would be fun" (design it first, game-designer hat on, with the user) or "how to build it", surface every unresolved decision, research the code and think each fork through with the user, present options scored for cleanliness with the cleanest as the default, get them to settle it, write a crisp acceptance spec, split a hub into coherent children if needed, and move it to the `Ready` column. This is the design gate that feeds the `swarm` skill. Use when the user says "swarmify #<n>", "make #<n> ready/swarmable", "settle the design on #<n>", or asks to prep an issue/epic for autonomous work. Run as Opus — resolving forks is the thinking swarm cannot do.
 ---
 
 # Swarmify
@@ -33,6 +33,25 @@ gh issue view <n> --comments
 Body *and* every comment, in this session — never summarised by a subagent.
 A later comment routinely corrects an earlier one. Note the labels:
 `design` / `blocked` mean forks are known-open.
+
+Then read the room: is the open question **how to build it**, or **what
+would be fun**? If the second, step 1b comes before anything technical —
+every fork enumerated now would be a fork on the wrong thing.
+
+### 1b. If it is a design question, design first
+
+Game-designer hat on. **Diverge**: several candidate mechanics, each with
+the player fantasy it serves, what it does to the loop, and which existing
+system it leans on. Grow them from both ends — a concept looking for
+gameplay, a wanted feel looking for its model — and check the stub lists
+before inventing: open questions in `docs/design/*.md` and `design`-labelled
+issues. Write bolder than you would for code; a reach in the designer
+direction is the ask here, a safe median answer is not.
+
+No seams, no costs, no file paths in this beat. Converge with the owner;
+**the owner says when the picture is clear**. Land the conclusion durably
+— `docs/design/` or a dated, owner-attributed comment on the issue — and
+only then start step 2. Never mix the two beats in one message.
 
 ### 2. Verify claims and grep seams — one Haiku Explore
 
@@ -85,7 +104,34 @@ A fork is anything a drone would have to *decide*:
 
 List them numbered — `AskUserQuestion` for clean choices, prose for the rest.
 
+**Score every option, cleanest first.** Each option carries one scorecard
+line in this fixed axis order, then one sentence of what it buys and one of
+what it costs — the line *replaces* the prose that would argue the ranking:
+
+```
+clean ★★★★☆ · smell: none · perf ★★★★★ · blast ●●○○○ (4 files, 1 sys) · style ★★★☆☆
+```
+
+- **clean** — separation, one owner per fact, SOLID, no mirror of existing
+  logic; composition as a plural array, one implementation over swappable
+  state.
+- **smell** — `none`, or the smell in three words (reads another unit's
+  internals, N cases that are one callback, parallel copy).
+- **perf** — per-frame / at-scale cost, from step 3's arithmetic.
+- **blast** — files and subsystems touched, tests to re-point. Informational
+  only: it never demotes an option or moves the Recommended tag.
+- **style** — a tiebreaker after the others, never before.
+
+Say it when every option scores the same on `clean` — the fork is then about
+something else.
+
 ### 5. Settle each fork with the owner
+
+**The cleanest option is the default.** "A, sorta clean" against "B, hella
+clean but more work" is B; `(Recommended)` sits on the cleanest option unless
+you state a reason it should not, and the clean option's cost is said out
+loud, never used as the tiebreaker. The owner still sees every option and
+still chooses — the default moves, the choice does not.
 
 Every fork gets a pinned answer in the owner's words. An unsettleable fork
 (needs a spike, needs another issue) keeps the issue in `Needs design`:

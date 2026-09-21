@@ -68,6 +68,23 @@ Numbered so the skill can be checked against them law by law.
    two hundred). The fix that surfaces is usually structural, and it
    surfaces from the numbers.
 
+29. **Read the room: design before forks.** After reading the issue, ask
+    what is actually open — *how to build it* or *what would be fun*. When
+    the blocker is the second, every fork enumerated now is a fork on the
+    wrong thing. Switch hats: put the game-designer hat on and **diverge**
+    first — several candidate mechanics, each with the player fantasy it
+    serves, what it does to the loop, and which existing system it leans on,
+    grown from both ends (a concept looking for gameplay, a wanted feel
+    looking for its model; `docs/design/*.md` open questions and
+    `design`-labelled issues are the stub lists to check before inventing).
+    Write bolder than usual — the low-temperature default is right for code
+    and wrong for this beat; a reach in the designer direction is the ask.
+    No seams, no costs, no file paths until the picture is clear, and
+    **the owner says when it is clear** (law 1). The design conclusion lands
+    durably — `docs/design/` or a dated, owner-attributed comment on the
+    issue — before the cold pass starts; then forks, seams and the spec as
+    usual. The two beats are never mixed in one message.
+
 **Forks**
 
 5. **A fork is anything a drone would have to decide.** Floated alternatives,
@@ -235,6 +252,39 @@ Numbered so the skill can be checked against them law by law.
       AI/preview path.
     - **Graph vocabulary is exact** — see `docs/domain/graph-vocabulary.md`.
 
+30. **The cleanest option is the default, and every option is scored.**
+    When a fork resolves to "A, sorta clean" against "B, hella clean but
+    more work", B is the answer in 99% of cases — the codebase grew this
+    large for a solo owner and stayed maintainable by taking the cleanest
+    path every time, refactor size notwithstanding, and later drones land
+    work fluently on plumbing that was built on the spot instead of deferred
+    as YAGNI. So: the `(Recommended)` tag sits on the cleanest option unless
+    a stated reason moves it; the cost of the clean option is said out loud,
+    never used as the tiebreaker; and the owner still sees every option
+    (law 1 — the default changes, the choice does not). To make the choice
+    cheap to read, each option carries one **scorecard line** with a fixed
+    axis order, cleanest option first:
+
+    ```
+    clean ★★★★☆ · smell: none · perf ★★★★★ · blast ●●○○○ (4 files, 1 sys) · style ★★★☆☆
+    ```
+
+    - **clean** — separation, single owner of each fact, SOLID, no mirror of
+      existing logic (the law-28 taste list is the rubric).
+    - **smell** — `none`, or the smell named in three words (reads another
+      unit's internals, N cases that are one callback, parallel copy).
+    - **perf** — per-frame / at-scale cost from law 4's arithmetic.
+    - **blast** — files and subsystems touched, tests to re-point.
+      **Informational only**: it never demotes an option or moves the
+      Recommended tag; the owner takes it to the chin every time.
+    - **style** — slick is slick, but it is a tiebreaker after the others.
+
+    Then one sentence of what the option buys and one of what it costs.
+    Equal cleanliness across the board is worth saying — it means the fork
+    is about something else. A scorecard is a compression of reading, not an
+    addition to it; the prose that used to argue the ranking is replaced by
+    the line, not joined by it.
+
 ## Incident corpus
 
 Each law traces to at least one of these. Kept here so the skill does not
@@ -257,6 +307,11 @@ have to carry them.
 | 2026-09-16 | #928 → #930/#931 | the camera 2-step was fixed inside the director by reading the blade's `state.pivot_index`, `get_node_visuals()` and a vertex's alpha; the test had to poke those to move the goalpost. The owner caught it from a glimpse of the plan — "opportunity: decouple the director from what it follows by letting the (alive) melee blade provide some %Marker2D" — and the sim storing its own centroid. Seven such redirects in seven days (#889, #900, #910/#917, #927, #928, #930, #931), all answerable from the plan, none from the diff | 25, 26 |
 | 2026-09-17 | owner | "if you can't write it up cleanly (potentially concise, get the idea across) you won't be able to code it up cleanly either" — the Composition section | 26 |
 | 2026-09-15 | #902, owner | stub shape: stubs + `pending()` test on master, so trunk stays green and red-green stays the drone's first commit; drift range-aware and exit 0 always; charter written in the pass, three children | 13, 15 |
+| 2026-09-10 | #764 / #849 | Recommended parking an architectural fork in a design issue; owner overrode — settle now, refactor-first hub with three children. | 28 |
+| 2026-09-14 | last 2–3 swarms | Drones hitting 300k+ on oversized units; a "plumbing" issue spanning five subsystems was the shape that did it. #872 → #872/#878/#879 is the split that worked. | 27 |
+| 2026-08-24 | #573 | "`test_meta_routing_parity.gd` still passes unmodified" was unsatisfiable — the deletion half of the same issue removed `class_name`s the test cast to, so it stopped *parsing*. A characterization pin enumerates the surviving assertions and says the test may be re-pointed; then asks whether there is anything to re-point onto yet. | 10 |
+| 2026-09-22 | owner | "read the room for when an issue is more about designing before serving forks … put your Epic Game Designer hat on and when the picture becomes clear, then we talk code plans, forks to settle, with the cold hard specs and technical seam maps … sometimes crank up the LLM temperature" | 29 |
+| 2026-09-22 | owner | "when a fork can be settled with 'this option A which is sorta clean' and 'this option B which is hella clean but costs more work' then that's gonna be a B in 99% of cases … This project for a solo dev grew this big yet stayed so maintainable due to our aggressive combating of tech debt … you wouldn't know how much stuff landed by drones that used plumbing that was already there just because what could've been deferred as YAGNI instead was implemented on the spot"; asked for a stars ranking on cleanliness plus blast radius ("which we take to the chin every time"), effectiveness, good practices, lack of smell, perf, style secondary — "swarmify is often a lot of reading and thinking in which i could use all help i can get" | 30 |
 
 ## What the skill must not contain
 
@@ -276,7 +331,3 @@ have to carry them.
 - Whether the Haiku Explore of law 3 and the seam grep of law 12 should be one
   dispatch or two is a per-pass call; one is cheaper, two lets the seam grep
   start before the claims are listed.
-
-| 2026-09-10 | #764 / #849 | Recommended parking an architectural fork in a design issue; owner overrode — settle now, refactor-first hub with three children. | 28 |
-| 2026-09-14 | last 2–3 swarms | Drones hitting 300k+ on oversized units; a "plumbing" issue spanning five subsystems was the shape that did it. #872 → #872/#878/#879 is the split that worked. | 27 |
-| 2026-08-24 | #573 | "`test_meta_routing_parity.gd` still passes unmodified" was unsatisfiable — the deletion half of the same issue removed `class_name`s the test cast to, so it stopped *parsing*. A characterization pin enumerates the surviving assertions and says the test may be re-pointed; then asks whether there is anything to re-point onto yet. | 10 |
