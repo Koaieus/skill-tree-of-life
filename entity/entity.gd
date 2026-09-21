@@ -763,7 +763,15 @@ func _apply_turn_upkeep() -> void:
 		if pool.definition.id != &"health":
 			push_warning("Entity: HOST_ADD pool '%s' has no host door (only `health` does)" % pool.definition.id)
 			continue
-		_combat.heal(amount, pool.pool_definition.resolved_per_turn_stat_id())
+		# #1007: the door's `source` is a HitInstance or null — the per-turn stat
+		# id it used to carry was read by nothing. A HealInstance gets
+		# `effective_amount` and the bar numbers written back.
+		var heal := HealInstance.new()
+		heal.amount = amount
+		heal.attacker = self
+		heal.target = core_location
+		heal.origin = core_location
+		_combat.heal(amount, heal)
 	# D-9: turn-start refill-to-full is gone. Every owned node instead runs a
 	# gated, ramping regen (SkillNode.apply_turn_regen) — damage persists
 	# across turns. D-10's class aura (now a HealAuraEffect on
