@@ -22,3 +22,23 @@ extends Node2D
 ## visual pop. [param payload] is action-specific; concrete subclasses
 ## cast and validate.
 @abstract func play(payload: Variant) -> void
+
+
+## The wave's landing points, at the beat a wave is released — the camera
+## director fits its zoom to these and nothing else (ADR 0027). Distinct from
+## [signal MagicBounceCoordinator.wave_started], which a subclass already owns.
+signal wave_landing(points: PackedVector2Array)
+
+## The presenter contract, shared with [MeleePreview] (ADR 0027): stage this
+## action's wind-up and return the seconds it occupies, which [BattleSystem]
+## waits out on a [BeatClock] BEFORE the mutation loop starts. Runs before
+## [method play]. The default is no wind-up: returning 0.0 reproduces the
+## pre-contract timing exactly.
+func begin_windup(_plan: AttackPlan, _tempo: PresentationTempo) -> float:
+	return 0.0
+
+
+## The [Node2D] the camera follows for this action's shot, or null for "frame
+## the span once" — the other half of the presenter contract.
+func focus_marker() -> Node2D:
+	return null
