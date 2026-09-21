@@ -1,5 +1,8 @@
 extends GutTest
 
+## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
+var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
+
 ## #406 — BattleSystem.launch_attack()'s melee branch keeps the plan (and its
 ## attached temp-upgrade addons) live through the whole `await
 ## melee_preview.launch()` window instead of clearing it up front, gated by
@@ -44,6 +47,7 @@ func before_each() -> void:
 	add_child_autofree(_preview)
 
 	_bs = autofree(BattleSystem.new())
+	_bs.temp_upgrade_catalog = _catalog
 	_bs.turn_manager = _tm
 	_bs.allocation_system = _alloc
 	_bs.graph = _graph
@@ -125,7 +129,7 @@ func test_launch_attack_melee_with_temp_upgrade_frees_it_and_resets_is_launching
 	var plan := _bs.attack_plan as MeleeAttackPlan
 	plan._on_node_left_clicked(source)
 	plan._on_node_left_clicked(joint)
-	assert_true(plan.apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE))
+	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"clamp")))
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
 	_bs.launch_attack()

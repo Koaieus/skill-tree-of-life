@@ -1,5 +1,8 @@
 extends GutTest
 
+## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
+var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
+
 ## #510 — [PlayerInputController]'s terminal calls go out as [Command]s through
 ## [CommandApplier], and the outcomes come back as signals. Covers the reroute
 ## itself (one command per multi-hop core move, denial feedback that used to be
@@ -46,6 +49,7 @@ func before_each() -> void:
 	add_child_autofree(_alloc)
 
 	_battle = autofree(BattleSystem.new())
+	_battle.temp_upgrade_catalog = _catalog
 	add_child(_battle)
 
 	_tm = autofree(TurnManager.new())
@@ -242,7 +246,7 @@ func _arm_melee_with_clamp() -> void:
 	plan._on_node_left_clicked(_n("A"))
 	plan._on_node_left_clicked(_n("B"))
 	plan._on_node_left_clicked(_n("C"))
-	_ctl.arm_temp_upgrade(MeleeAttackPlan.upgrade_by_id(&"clamp"))
+	_ctl.arm_temp_upgrade(_catalog.by_id(&"clamp"))
 
 
 func test_an_armed_temp_upgrade_lands_through_the_applier() -> void:

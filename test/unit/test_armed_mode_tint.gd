@@ -1,4 +1,7 @@
 extends GutTest
+
+## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
+var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## Armed-mode viewport glow colour resolution (#412).
@@ -54,6 +57,7 @@ func before_each() -> void:
 	add_child(_tm)
 
 	_battle = autofree(BattleSystem.new())
+	_battle.temp_upgrade_catalog = _catalog
 	_battle.graph = _graph
 	_battle.turn_manager = _tm
 	add_child(_battle)
@@ -156,7 +160,7 @@ func test_temp_upgrade_over_melee_still_reads_melee() -> void:
 	# topmost-wins walk would return transparent here and the glow would blink
 	# off mid-combo.
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-	_ctl.arm_temp_upgrade(MeleeAttackPlan.TEMP_UPGRADE_CATALOG[0])
+	_ctl.arm_temp_upgrade(_catalog.kinds[0])
 	assert_true(_ctl._temp_upgrade_arm != null,
 			"fixture check: the temp upgrade should be armed on top")
 	assert_eq(_ctl.get_armed_tint(), _expected(&"strength"),

@@ -1,5 +1,8 @@
 extends GutTest
 
+## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
+var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
+
 ## #465 — the melee tab's temp-upgrade cards and the four mode tabs.
 ##
 ## The visual half of this issue (does the watermark compete with the label, does
@@ -67,6 +70,7 @@ func before_each() -> void:
 
 	# No MeleePreview / AttackVFX: nothing here launches, so none is needed.
 	_bs = autofree(BattleSystem.new())
+	_bs.temp_upgrade_catalog = _catalog
 	_bs.turn_manager = _tm
 	_bs.allocation_system = _alloc
 	_bs.graph = _graph
@@ -127,15 +131,15 @@ func _card(index: int) -> TempUpgradeButton:
 
 ## The addon's own authored icon, read the same way production reads it.
 func _authored_icon(index: int) -> Texture2D:
-	var entry: Dictionary = MeleeAttackPlan.TEMP_UPGRADE_CATALOG[index]
-	var tmp := (entry.scene as PackedScene).instantiate() as SkillNodeAddon
+	var entry: TempUpgradeDef = _catalog.kinds[index]
+	var tmp := entry.scene.instantiate() as SkillNodeAddon
 	var tex := tmp.icon
 	tmp.free()
 	return tex
 
 
 func test_one_scene_instance_per_catalog_entry() -> void:
-	var n := MeleeAttackPlan.TEMP_UPGRADE_CATALOG.size()
+	var n := _catalog.kinds.size()
 	assert_eq(_row.get_child_count(), n,
 		"one card per TEMP_UPGRADE_CATALOG entry — a new catalog kind should need no code here")
 	for i in n:
@@ -144,8 +148,8 @@ func test_one_scene_instance_per_catalog_entry() -> void:
 
 
 func test_card_glyph_and_accent_come_from_authored_data() -> void:
-	for i in MeleeAttackPlan.TEMP_UPGRADE_CATALOG.size():
-		var entry: Dictionary = MeleeAttackPlan.TEMP_UPGRADE_CATALOG[i]
+	for i in _catalog.kinds.size():
+		var entry: TempUpgradeDef = _catalog.kinds[i]
 		var card := _card(i)
 		assert_not_null(card.icon_texture, "catalog entry %s has no authored addon icon" % entry.id)
 		assert_eq(card.icon_texture, _authored_icon(i),
@@ -166,7 +170,7 @@ func test_three_states_are_each_reachable_and_distinct() -> void:
 	seen.append(_card(0).state)
 
 	# Arm one → it is what the next graph click places.
-	_pic.arm_temp_upgrade(MeleeAttackPlan.TEMP_UPGRADE_CATALOG[0])
+	_pic.arm_temp_upgrade(_catalog.kinds[0])
 	seen.append(_card(0).state)
 
 	assert_eq(seen, [
@@ -188,8 +192,8 @@ func _uniq(values: Array) -> Array:
 
 func test_arming_swaps_exactly_one_card() -> void:
 	_arm_plan()
-	var clamp_entry: Dictionary = MeleeAttackPlan.upgrade_by_id(&"clamp")
-	var spike_entry: Dictionary = MeleeAttackPlan.upgrade_by_id(&"spike_ring")
+	var clamp_entry: TempUpgradeDef = _catalog.by_id(&"clamp")
+	var spike_entry: TempUpgradeDef = _catalog.by_id(&"spike_ring")
 
 	_pic.arm_temp_upgrade(clamp_entry)
 	assert_eq(_card(0).state, TempUpgradeButton.State.ARMED, "clamp armed")

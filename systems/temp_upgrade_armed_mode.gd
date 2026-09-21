@@ -26,7 +26,7 @@ func pop() -> bool:
 
 const _PALETTE := preload("res://ui/theme/action_palette.tres")
 
-## Lazy per-scene icon cache, mirroring [member MeleeAttackPlan._cost_cache]:
+## Lazy per-scene icon cache:
 ## instantiate once off the tree, read the authored [member
 ## SkillNodeAddon.icon], free, cache. The addon scene is the source of truth
 ## for its own art (#664) — the badge must show the SAME glyph the tray card
@@ -39,7 +39,7 @@ static var _icon_cache: Dictionary = {}
 func icon() -> Texture2D:
 	if not is_armed():
 		return null
-	var scene: PackedScene = _ctl._temp_upgrade_arm.get("scene", null)
+	var scene: PackedScene = _ctl._temp_upgrade_arm.scene
 	if scene == null:
 		return null
 	if not _icon_cache.has(scene):
@@ -54,4 +54,4 @@ func icon() -> Texture2D:
 func icon_tint() -> Color:
 	if not is_armed():
 		return Color.TRANSPARENT
-	return _PALETTE.color_for(_ctl._temp_upgrade_arm.get("id", &""))
+	return _PALETTE.color_for(_ctl._temp_upgrade_arm.id)

@@ -1,4 +1,7 @@
 extends GutTest
+
+## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
+var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## Armed-mode cursor-badge resolution (#664).
@@ -65,6 +68,7 @@ func before_each() -> void:
 	add_child(_tm)
 
 	_battle = autofree(BattleSystem.new())
+	_battle.temp_upgrade_catalog = _catalog
 	_battle.graph = _graph
 	_battle.turn_manager = _tm
 	add_child(_battle)
@@ -258,7 +262,7 @@ func test_clamp_over_melee_badges_the_clamp_while_the_glow_stays_red() -> void:
 	# tint walk does not. Both statements are true at once: the border says
 	# "you are wielding Melee", the badge says "this click places a clamp".
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-	_ctl.arm_temp_upgrade(MeleeAttackPlan.TEMP_UPGRADE_CATALOG[0])
+	_ctl.arm_temp_upgrade(_catalog.kinds[0])
 	assert_true(_ctl._temp_upgrade_arm != null,
 			"fixture check: the temp upgrade should be armed on top")
 
@@ -272,11 +276,11 @@ func test_clamp_over_melee_badges_the_clamp_while_the_glow_stays_red() -> void:
 func test_the_badge_forwards_the_addon_scenes_own_icon() -> void:
 	# Not a second copy of the texture reference: the tray card the player
 	# pressed a second earlier renders this exact Texture2D off the same scene.
-	var upgrade: Dictionary = MeleeAttackPlan.TEMP_UPGRADE_CATALOG[1]
+	var upgrade: TempUpgradeDef = _catalog.kinds[1]
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
 	_ctl.arm_temp_upgrade(upgrade)
 
-	var probe := (upgrade.scene as PackedScene).instantiate()
+	var probe := upgrade.scene.instantiate()
 	var authored: Texture2D = (probe as SkillNodeAddon).icon
 	probe.free()
 
@@ -294,7 +298,7 @@ func test_icon_signal_fires_when_the_tint_signal_does_not() -> void:
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
 
 	watch_signals(_ctl)
-	_ctl.arm_temp_upgrade(MeleeAttackPlan.TEMP_UPGRADE_CATALOG[0])
+	_ctl.arm_temp_upgrade(_catalog.kinds[0])
 
 	assert_signal_emit_count(_ctl, "armed_tint_changed", 0,
 			"the glow is unchanged — the base of the stack is still the plan")
@@ -315,7 +319,7 @@ func test_a_refresh_that_changed_nothing_does_not_re_fire() -> void:
 
 func test_popping_the_clamp_restores_the_melee_badge() -> void:
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-	_ctl.arm_temp_upgrade(MeleeAttackPlan.TEMP_UPGRADE_CATALOG[0])
+	_ctl.arm_temp_upgrade(_catalog.kinds[0])
 
 	watch_signals(_ctl)
 	assert_true(_ctl._pop_armed_mode(), "the temp upgrade is the top level")
@@ -393,10 +397,10 @@ func test_every_level_with_an_icon_also_names_a_colour() -> void:
 		func() -> void: _ctl.on_attack_mode_requested(BattleSystem.AttackMode.MAGIC),
 		func() -> void:
 			_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-			_ctl.arm_temp_upgrade(MeleeAttackPlan.TEMP_UPGRADE_CATALOG[0]),
+			_ctl.arm_temp_upgrade(_catalog.kinds[0]),
 		func() -> void:
 			_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
-			_ctl.arm_temp_upgrade(MeleeAttackPlan.TEMP_UPGRADE_CATALOG[1]),
+			_ctl.arm_temp_upgrade(_catalog.kinds[1]),
 		func() -> void: _ctl.arm_manage_verb(PlayerInputController.ManageVerb.DEALLOCATE),
 		func() -> void: _ctl.arm_manage_verb(PlayerInputController.ManageVerb.STAKE),
 		func() -> void: _ctl.arm_manage_verb(PlayerInputController.ManageVerb.EXTRACT),

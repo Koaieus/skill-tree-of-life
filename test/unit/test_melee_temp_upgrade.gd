@@ -1,5 +1,8 @@
 extends GutTest
 
+## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
+var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
+
 ## #406 — MeleeAttackPlan's temp Clamp/Spikes upgrades: shared blade_size
 ## budget, addon_slots gating, and a REAL SkillNodeAddon attached/freed
 ## exactly like a permanent one (owner's retracted-design correction — see
@@ -75,14 +78,14 @@ func test_apply_temp_upgrade_within_budget_succeeds() -> void:
 	var ctx: Dictionary = await _setup_plan(3.0)
 	var plan: MeleeAttackPlan = ctx.plan
 	var joint: SkillNode = ctx.joint
-	assert_true(plan.can_apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE))
-	assert_true(plan.apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE),
+	assert_true(plan.can_apply_temp_upgrade(joint, _catalog.by_id(&"clamp")))
+	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"clamp")),
 			"a combo at or under budget must be accepted")
 	var found_temp := false
 	for a in joint.get_addons():
 		if a.is_temporary:
 			found_temp = true
-			assert_eq(a.get_script(), MeleeAttackPlan.CLAMP_UPGRADE.script,
+			assert_eq(a.get_script(), _catalog.by_id(&"clamp").addon_script,
 					"the attached temp addon must be the requested kind")
 	assert_true(found_temp, "apply_temp_upgrade must attach a REAL SkillNodeAddon")
 
@@ -93,8 +96,8 @@ func test_apply_temp_upgrade_rejected_over_budget() -> void:
 	var ctx: Dictionary = await _setup_plan(3.0)
 	var plan: MeleeAttackPlan = ctx.plan
 	var joint: SkillNode = ctx.joint
-	assert_false(plan.can_apply_temp_upgrade(joint, MeleeAttackPlan.SPIKE_UPGRADE))
-	assert_false(plan.apply_temp_upgrade(joint, MeleeAttackPlan.SPIKE_UPGRADE))
+	assert_false(plan.can_apply_temp_upgrade(joint, _catalog.by_id(&"spike_ring")))
+	assert_false(plan.apply_temp_upgrade(joint, _catalog.by_id(&"spike_ring")))
 	assert_eq(plan.temp_upgrade_cost_total(), 0,
 			"a denied apply must not spend budget")
 
@@ -106,9 +109,9 @@ func test_apply_temp_upgrade_rejected_once_budget_already_spent() -> void:
 	var plan: MeleeAttackPlan = ctx.plan
 	var joint: SkillNode = ctx.joint
 	var tip: SkillNode = ctx.tip
-	assert_true(plan.apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE))
-	assert_false(plan.can_apply_temp_upgrade(tip, MeleeAttackPlan.CLAMP_UPGRADE))
-	assert_false(plan.apply_temp_upgrade(tip, MeleeAttackPlan.CLAMP_UPGRADE))
+	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"clamp")))
+	assert_false(plan.can_apply_temp_upgrade(tip, _catalog.by_id(&"clamp")))
+	assert_false(plan.apply_temp_upgrade(tip, _catalog.by_id(&"clamp")))
 
 
 func test_spent_temp_upgrade_budget_blocks_a_new_member_selection() -> void:
@@ -120,7 +123,7 @@ func test_spent_temp_upgrade_budget_blocks_a_new_member_selection() -> void:
 	var plan: MeleeAttackPlan = ctx.plan
 	var joint: SkillNode = ctx.joint
 	var tip: SkillNode = ctx.tip
-	assert_true(plan.apply_temp_upgrade(joint, MeleeAttackPlan.SPIKE_UPGRADE))
+	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"spike_ring")))
 	assert_eq(plan.get_node_role(tip), HighlightProvider.HighlightRole.NONE,
 			"a node that would exceed the combined budget must not read as selectable")
 	plan._on_node_left_clicked(tip)
@@ -141,9 +144,9 @@ func test_apply_temp_upgrade_rejected_when_addon_slots_full() -> void:
 	joint.add_child(clamp_addon)
 	await get_tree().process_frame
 
-	assert_false(plan.can_apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE),
+	assert_false(plan.can_apply_temp_upgrade(joint, _catalog.by_id(&"clamp")),
 			"a node at addon_slots capacity must refuse a temp upgrade")
-	assert_false(plan.apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE))
+	assert_false(plan.apply_temp_upgrade(joint, _catalog.by_id(&"clamp")))
 	assert_eq(plan.temp_upgrade_cost_total(), 0,
 			"a denied apply must not spend budget")
 
@@ -159,9 +162,9 @@ func test_unique_addon_blocks_temp_upgrade_of_same_type() -> void:
 	joint.add_child(permanent)
 	await get_tree().process_frame
 
-	assert_false(plan.can_apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE),
+	assert_false(plan.can_apply_temp_upgrade(joint, _catalog.by_id(&"clamp")),
 			"a permanent Clamp already on the node must block a temp Clamp too (unique)")
-	assert_false(plan.apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE))
+	assert_false(plan.apply_temp_upgrade(joint, _catalog.by_id(&"clamp")))
 	assert_eq(plan.temp_upgrade_cost_total(), 0)
 
 
@@ -169,9 +172,9 @@ func test_pivot_is_not_a_valid_temp_upgrade_target() -> void:
 	var ctx: Dictionary = await _setup_plan(10.0)
 	var plan: MeleeAttackPlan = ctx.plan
 	var source: SkillNode = ctx.source
-	assert_false(plan.can_apply_temp_upgrade(source, MeleeAttackPlan.CLAMP_UPGRADE),
+	assert_false(plan.can_apply_temp_upgrade(source, _catalog.by_id(&"clamp")),
 			"the pivot drives the swing and is never a valid temp-upgrade target")
-	assert_false(plan.apply_temp_upgrade(source, MeleeAttackPlan.CLAMP_UPGRADE))
+	assert_false(plan.apply_temp_upgrade(source, _catalog.by_id(&"clamp")))
 
 
 # ── Cleanup ────────────────────────────────────────────────────────────────
@@ -181,7 +184,7 @@ func test_reset_frees_the_real_temp_addon() -> void:
 	var plan: MeleeAttackPlan = ctx.plan
 	var joint: SkillNode = ctx.joint
 	var addons_before := joint.get_addons().size()
-	assert_true(plan.apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE))
+	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"clamp")))
 	assert_eq(joint.get_addons().size(), addons_before + 1,
 			"a temp upgrade must attach a real SkillNodeAddon while it's active")
 	plan.reset()
@@ -197,10 +200,10 @@ func test_toggle_temp_upgrade_removes_an_existing_one_of_the_same_kind() -> void
 	var plan: MeleeAttackPlan = ctx.plan
 	var joint: SkillNode = ctx.joint
 	var addons_before := joint.get_addons().size()
-	assert_true(plan.toggle_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE),
+	assert_true(plan.toggle_temp_upgrade(joint, _catalog.by_id(&"clamp")),
 			"first toggle must apply")
 	assert_eq(joint.get_addons().size(), addons_before + 1)
-	assert_true(plan.toggle_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE),
+	assert_true(plan.toggle_temp_upgrade(joint, _catalog.by_id(&"clamp")),
 			"second toggle on the same node/kind must remove it")
 	assert_eq(joint.get_addons().size(), addons_before,
 			"toggling off must free the attached temp addon")
@@ -211,7 +214,7 @@ func test_deselecting_member_refunds_its_temp_upgrade() -> void:
 	var plan: MeleeAttackPlan = ctx.plan
 	var joint: SkillNode = ctx.joint
 	var addons_before := joint.get_addons().size()
-	assert_true(plan.apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE))
+	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"clamp")))
 	plan._on_node_left_clicked(joint)  # toggle off — same as a real deselect click
 	assert_eq(joint.get_addons().size(), addons_before,
 			"dropping a member must free any temp upgrade it carried")
@@ -221,10 +224,11 @@ func test_cancel_attack_frees_attached_temp_addon() -> void:
 	var ctx: Dictionary = await _setup_plan(3.0)
 	var plan: MeleeAttackPlan = ctx.plan
 	var joint: SkillNode = ctx.joint
-	assert_true(plan.apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE))
+	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"clamp")))
 	var addons_with_upgrade := joint.get_addons().size()
 
 	var battle := BattleSystem.new()
+	battle.temp_upgrade_catalog = _catalog
 	add_child_autofree(battle)
 	battle.attack_plan = plan
 	battle.cancel_attack()
@@ -239,7 +243,7 @@ func test_temp_clamp_matches_permanent_clamp_constraints() -> void:
 	var ctx: Dictionary = await _setup_plan(3.0)
 	var plan: MeleeAttackPlan = ctx.plan
 	var joint: SkillNode = ctx.joint
-	assert_true(plan.apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE))
+	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"clamp")))
 	var state := plan.build_blade_state()
 	# selection order is [source, joint, tip] -> indices 0, 1, 2. joint (idx 1)
 	# neighbors source (0) and tip (2); the weld brace joins them.
@@ -272,7 +276,7 @@ func test_temp_spike_adds_the_same_bonus_a_real_spike_would() -> void:
 	await get_tree().process_frame
 	var permanent_dmg := float(tip.get_local_value(&"blade_damage"))
 
-	assert_true(plan.apply_temp_upgrade(joint, MeleeAttackPlan.SPIKE_UPGRADE))
+	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"spike_ring")))
 	var state := plan.build_blade_state()
 	assert_almost_eq(state.vertex_damage[1], permanent_dmg, 0.001,
 			"temp Spike must apply the same authored blade_damage bonus a permanent Spike would")
@@ -284,7 +288,7 @@ func test_skill_blade_preview_matches_build_blade_state_for_temp_upgrades() -> v
 	var joint: SkillNode = ctx.joint
 	var source: SkillNode = ctx.source
 	var tip: SkillNode = ctx.tip
-	assert_true(plan.apply_temp_upgrade(joint, MeleeAttackPlan.CLAMP_UPGRADE))
+	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"clamp")))
 
 	var resolve_state := plan.build_blade_state()
 

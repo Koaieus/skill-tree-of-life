@@ -5,46 +5,47 @@ extends GutTest
 ## pick request.
 
 const _MOD := preload("res://stats_system/stat_modifier.gd")
+## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
+var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 
 
 func test_every_catalog_entry_has_a_nonempty_id() -> void:
-	for upgrade in MeleeAttackPlan.TEMP_UPGRADE_CATALOG:
-		assert_true(upgrade.has("id"), "catalog entry carries an id")
-		assert_ne(upgrade.id, &"", "and it is not empty")
+	for upgrade in _catalog.kinds:
+		assert_ne(upgrade.id, &"", "catalog entry carries a non-empty id")
 
 
 func test_catalog_ids_are_unique() -> void:
 	var seen: Array[StringName] = []
-	for upgrade in MeleeAttackPlan.TEMP_UPGRADE_CATALOG:
+	for upgrade in _catalog.kinds:
 		assert_false(seen.has(upgrade.id), "id %s is unique" % upgrade.id)
 		seen.append(upgrade.id)
 
 
-## Load-bearing: `can_apply_temp_upgrade` gates on
-## `TEMP_UPGRADE_CATALOG.has(upgrade)`, so a lookup that rebuilt the dictionary
-## would resolve to something the plan then rejects.
-func test_upgrade_by_id_returns_the_catalog_entry_itself() -> void:
-	for upgrade in MeleeAttackPlan.TEMP_UPGRADE_CATALOG:
-		var found := MeleeAttackPlan.upgrade_by_id(upgrade.id)
-		assert_true(MeleeAttackPlan.TEMP_UPGRADE_CATALOG.has(found),
-				"round-tripped entry is still a catalog member")
-		assert_eq(found.scene, upgrade.scene)
-		assert_eq(found.script, upgrade.script)
+## Load-bearing: consumers compare defs by reference (`kinds.has(def)`,
+## `addon.temp_upgrade_def == def`), so a lookup that rebuilt the def would
+## resolve to something the plan then rejects.
+func test_by_id_returns_the_catalog_entry_itself() -> void:
+	for upgrade in _catalog.kinds:
+		var found := _catalog.by_id(upgrade.id)
+		assert_true(found == upgrade, "round-tripped def is the catalog member itself")
 
 
-func test_upgrade_by_id_on_an_unknown_id_is_empty() -> void:
-	assert_true(MeleeAttackPlan.upgrade_by_id(&"no_such_upgrade").is_empty())
+func test_by_id_on_an_unknown_id_is_null() -> void:
+	assert_null(_catalog.by_id(&"no_such_upgrade"))
 
 
 ## A ToggleTempUpgradeCommand's payload resolves back to a real catalog entry —
-## the whole point of the owner's correction to #509's payload table.
+## the whole point of the owner's correction to #509's payload table — through
+## the same door the handler uses, [method BattleSystem.temp_upgrade_by_id].
 func test_a_toggle_command_names_a_resolvable_upgrade() -> void:
-	var upgrade: Dictionary = MeleeAttackPlan.TEMP_UPGRADE_CATALOG[0]
+	var upgrade: TempUpgradeDef = _catalog.kinds[0]
+	var bs: BattleSystem = autofree(BattleSystem.new())
+	bs.temp_upgrade_catalog = _catalog
 	var cmd := ToggleTempUpgradeCommand.new(1, 2, upgrade.id)
 	var back := CommandCodec.from_dict(cmd.to_dict()) as ToggleTempUpgradeCommand
 
 	assert_not_null(back)
-	assert_eq(MeleeAttackPlan.upgrade_by_id(back.upgrade_id), upgrade)
+	assert_true(bs.temp_upgrade_by_id(back.upgrade_id) == upgrade, "identical def")
 
 
 func _request() -> LootPickRequest:

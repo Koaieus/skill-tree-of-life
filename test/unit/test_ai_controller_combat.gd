@@ -1,5 +1,8 @@
 extends GutTest
 
+## A `var`, not a `const`: the parser constant-folds `CONST.kinds[i]`.
+var _catalog: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
+
 ## Coverage for #378 slice B — [AIController]'s AP×2 attack loop: candidate
 ## scoring via [AiCombatScorer] wired into `take_turn()`, dent-then-finish
 ## re-eval, the 1-damage floor, and near-miss-aware frontier growth.
@@ -73,6 +76,7 @@ func before_each() -> void:
 	add_child(_tm)
 
 	_bs = autofree(BattleSystem.new())
+	_bs.temp_upgrade_catalog = _catalog
 	_bs.turn_manager = _tm
 	_bs.allocation_system = _alloc
 	_bs.graph = _graph
