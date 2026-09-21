@@ -285,13 +285,29 @@ ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
 | `movement_points` .addb (universal) | 1 | — | 0.6 | 1 | 2 | +1 +3 |
 | `deallocation_points` .addb (universal) | 1 | — | 0.8 | 1 | 2 | +1 +3 |
 | `intelligence` .inc **debuff** (universal) | −5 | — | 0.5 | 1 | 1 | −5% (cost −1) |
+| `poison_potency` .inc (dex) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
+| `corruption_potency` .inc (str) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
+| `curse_potency` .inc (wis) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
+| `wither_potency` .inc (con) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
+| `poison_resistance` .addb (universal) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
+| `corruption_resistance` .addb (universal) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
+| `curse_resistance` .addb (universal) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
+| `wither_resistance` .addb (universal) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
 
 Per-pack homes: str/dex/int/wis/per/con each carry their attribute's addb+inc+
 mul; dex adds crit_chance+crit_multiplier; int adds mana+mana_per_turn; wis
 adds xp_per_turn (addb+inc); per adds vision_range (inc+addn)+sensor_range;
 con adds node_health+armor (universal) + the `dexterity -%` curse (CON-scoped
-since #718; universal before that);
+since #718; universal before that) + the four `*_resistance` pools (universal,
+T2..T4 only — a T1 node never rolls a resistance);
 `mobility.tres` (universal pack) carries movement_points+deallocation_points.
+
+DoT **potency** has an attribute home, never a universal one: poison → dex,
+corruption → str, curse → wis, wither → con. INT and PER carry none. A build
+that wants poison on a melee blade finds `poison_potency` only on DEX nodes —
+hybrids are the deal (owner, #974): combining two concepts means allocating
+related nodes on both sides. Resistances stay universal because they are the
+defence axis, and rarer (T2+) so they never crowd a T1 draw.
 
 ## Budget envelope (first_level.tres)
 
