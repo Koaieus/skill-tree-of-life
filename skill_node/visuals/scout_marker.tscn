@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://skill_node/visuals/scout_marker.gd" id="1_marker"]
+[ext_resource type="Resource" path="res://effects/status/scouted.tres" id="2_scouted"]
+
+[node name="ScoutMarker" type="Node2D"]
+script = ExtResource("1_marker")
+def = ExtResource("2_scouted")

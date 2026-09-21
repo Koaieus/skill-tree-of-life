@@ -160,7 +160,8 @@ target would never tick).
   circle, no special case.
 - **Per-node feedback.** `SkillNode.scouted` is written beside
   `sensed`/`revealed` for the local group only; it drives a lazily-instanced
-  `ScoutMarker` ring (inline class in `skill_node.gd`) in the def's tint.
+  `skill_node/visuals/scout_marker.tscn` ring whose `def` export the scene
+  authors to `scouted.tres` — face and rules are both data.
   The disc in the fog is the primary feedback; the ring's shape is visual
   work, untested.
 - **`pick_sensed`.** An `@export` marker: when true, `input_pickable =

@@ -310,9 +310,9 @@ var revealed: bool = true:
 ## Scouted flag (#1033), written by VisionSystem on every recompute: true
 ## while this MACHINE's vision group holds a live scouted mark on the node —
 ## never a hostile scout's, so it leaks nothing. The disc in the fog is the
-## primary feedback; this drives the [ScoutMarker] ring beside it, coloured
-## by `scouted.tres`'s tint (the status' canonical colour everywhere). Not a
-## stat — a per-frame render hint, like [member sensed].
+## primary feedback; this drives the [ScoutMarker] ring beside it, whose
+## `def` the scene authors to `scouted.tres` — the status' canonical tint
+## everywhere. Not a stat — a per-frame render hint, like [member sensed].
 var scouted: bool = false:
 	set(value):
 		if scouted == value:
@@ -592,28 +592,9 @@ func _apply_sensed_state() -> void:
 	sensed_changed.emit()
 
 
-## The face of a scouted mark: a thin ring just outside the node's rim in the
-## def's tint, with its icon (if authored) centred above. Lazily instanced on
+## Scouted face: `skill_node/visuals/scout_marker.tscn`, instanced lazily on
 ## the first mark so an unscouted node — the common case — carries nothing.
-class ScoutMarker extends Node2D:
-	const _DEF: StatusDef = preload("res://effects/status/scouted.tres")
-	const _RING_GAP := 5.0
-	const _RING_WIDTH := 2.0
-	var ring_radius: float = 0.0:
-		set(value):
-			ring_radius = value
-			queue_redraw()
-
-	func _draw() -> void:
-		draw_arc(Vector2.ZERO, ring_radius + _RING_GAP, 0.0, TAU, 48, _DEF.tint, _RING_WIDTH, true)
-		var icon: Texture2D = _DEF.icon
-		if icon != null:
-			var size: Vector2 = icon.get_size()
-			draw_texture_rect(icon,
-					Rect2(Vector2(-size.x * 0.5, -(ring_radius + _RING_GAP + size.y + 2.0)), size),
-					false, _DEF.tint)
-
-
+const SCOUT_MARKER := preload("res://skill_node/visuals/scout_marker.tscn")
 var _scout_marker: ScoutMarker = null
 
 
@@ -621,8 +602,7 @@ func _apply_scouted_state() -> void:
 	if not is_node_ready():
 		return
 	if scouted and _scout_marker == null:
-		_scout_marker = ScoutMarker.new()
-		_scout_marker.name = "ScoutMarker"
+		_scout_marker = SCOUT_MARKER.instantiate() as ScoutMarker
 		add_child(_scout_marker)
 	if _scout_marker != null:
 		_scout_marker.ring_radius = radius
