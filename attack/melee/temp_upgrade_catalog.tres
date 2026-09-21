@@ -1,10 +1,11 @@
-[gd_resource type="Resource" script_class="TempUpgradeCatalog" load_steps=5 format=3 uid="uid://tucatalog00001"]
+[gd_resource type="Resource" script_class="TempUpgradeCatalog" load_steps=6 format=3 uid="uid://tucatalog00001"]
 
 [ext_resource type="Script" path="res://attack/melee/temp_upgrade_catalog.gd" id="1_cat"]
 [ext_resource type="Script" path="res://attack/melee/temp_upgrade_def.gd" id="2_def"]
 [ext_resource type="Resource" uid="uid://tudefclamp0001" path="res://attack/melee/defs/clamp.tres" id="3_clamp"]
 [ext_resource type="Resource" uid="uid://tudefspike0001" path="res://attack/melee/defs/spike_ring.tres" id="4_spike"]
+[ext_resource type="Resource" uid="uid://tudeftoxin0001" path="res://attack/melee/defs/toxin.tres" id="5_toxin"]
 
 [resource]
 script = ExtResource("1_cat")
-kinds = Array[ExtResource("2_def")]([ExtResource("3_clamp"), ExtResource("4_spike")])
+kinds = Array[ExtResource("2_def")]([ExtResource("3_clamp"), ExtResource("4_spike"), ExtResource("5_toxin")])

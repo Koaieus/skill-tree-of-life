@@ -49,6 +49,8 @@ extends Resource
 
 ## Spike-ring temp-upgrade addon — warm damage amber.
 @export var spike_ring: Color = Color(0.95, 0.6, 0.25, 1)
+## The toxin temp upgrade (#951) — poison green.
+@export var toxin: Color = Color(0.45, 0.85, 0.35, 1)
 
 ## The Manage tab itself (#669) — a SURFACE, not a verb. Distinct from
 ## `allocate`: branding the tab with one of the four verbs it contains would
@@ -84,5 +86,6 @@ func color_for(key: StringName) -> Color:
 		&"extract": return extract
 		&"clamp": return clamp_addon
 		&"spike_ring": return spike_ring
+		&"toxin": return toxin
 		&"manage": return manage
 	return Color.TRANSPARENT

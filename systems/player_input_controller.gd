@@ -751,7 +751,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 ## in by `MeleeBody`) — so the label and the binding can never drift, and
 ## adding a third addon means adding one entry here plus its InputMap action.
 const TEMP_UPGRADE_HOTKEYS: Array[StringName] = [
-	&"ui_temp_upgrade_1", &"ui_temp_upgrade_2",
+	&"ui_temp_upgrade_1", &"ui_temp_upgrade_2", &"ui_temp_upgrade_3",
 ]
 
 
