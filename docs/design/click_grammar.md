@@ -75,7 +75,7 @@ one mechanism, not a per-mode exception.
 |---|---|---|---|
 | Melee | pivot | blade members (toggle, cap = `blade_size`) | pivot + all blade members |
 | Melee, nested (#406) | *(a temp-upgrade card armed via the command tray, e.g. Clamp/Spikes — not a left-click origin)* | a blade member (left-click, resolves the upgrade — arm stays set for repeat placement) | just the arm; a right-click here does **not** touch the pivot/members underneath |
-| Ranged | *(none — firing positions are derived, not chosen)* | target (direct left-click retarget, no origin to pop first) | target |
+| Ranged | *(none — firing positions are derived, not chosen)* | target (direct left-click retarget, no origin to pop first) — a visible hostile, or, while the quiver holds scout arrows, any **sensed** node (the scout shot, #1036: the click sticks; the volley must be all scouts and costs 1 AP, else `validate()` reads the mix as an error line) | target |
 | Magic | *(none since #728 — the cast-from node is auto-picked, see below)* | spell target (direct left-click, no origin to set first) | source + target |
 
 **Magic is two-level too, since #728.** Picking a spell in the tray unions the
