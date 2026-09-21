@@ -492,8 +492,14 @@ func get_value_with(overlays: Array[ModifierBins]) -> Variant:
 	return _coerce(ModifierBins.compute(base_value, sources))
 
 
-func resolve_with(_overlays: Array[ModifierBins]) -> FoldTerms:
-	return FoldTerms.new()
+## The merged pipeline of [method get_value_with] as a value — this stat's
+## own bins plus [param overlays], resolved through [method ModifierBins.resolve]
+## with the same source order. For readouts: what the fold IS, uncoerced and
+## unfolded, so a consumer describes it without summing bins itself.
+func resolve_with(overlays: Array[ModifierBins]) -> FoldTerms:
+	var sources: Array[ModifierBins] = [bins]
+	sources.append_array(overlays)
+	return ModifierBins.resolve(sources)
 
 
 ## Read this stat through a formula accessor — the ONLY door the formula

@@ -5,8 +5,8 @@ extends RefCounted
 ## Stat so multiple sources (entity + per-node + future temp scopes) can
 ## compose without one Stat reaching into another's internals.
 ##
-## Each op class composes by **summation across sources** (or list-concat
-## for MULTIPLY), so the pipeline runs **once** on the merged bins:
+## Each op class composes by **summation across sources** (or a resolved
+## product for MULTIPLY), so the pipeline runs **once** on the merged bins:
 ##
 ##   result = (base + Σ_all base_add)
 ##         × (1 + Σ_all increase_sum / 100)
@@ -19,7 +19,9 @@ extends RefCounted
 ##
 ## Bin maintenance lives on Stat (add_modifier/remove_modifier mutate the
 ## bins owned by that Stat). ModifierBins is dumb — it just carries the
-## numbers and walks the multiplier list on read.
+## numbers and walks the multiplier list on read. [method resolve] is the
+## door to the merged pipeline as a [FoldTerms] value; [method compute] is
+## that plus the fold.
 
 var base_add: float = 0.0
 var increase_sum: float = 0.0
@@ -34,52 +36,45 @@ var winning_set: StatModifier = null
 var board: StatBoard = null
 
 
-## N-source compose. SET short-circuits; otherwise sum bins, walk all
-## multiplier lists, run the pipeline once. Callers are responsible for
-## final type coercion — read through [method Stat.get_value_with] rather than
-## calling this directly, so the INT floor is not skipped (#895).
-static func resolve(_sources: Array[ModifierBins]) -> FoldTerms:
-	return FoldTerms.new()
-
-
-static func compute(base: float, sources: Array[ModifierBins]) -> float:
+## N-source resolve — the ONE fold path. SET short-circuits into
+## `set_value`; otherwise sum bins and walk every source's multiplier list
+## against THAT source's board (a formula-bound MULTIPLY is meaningless under
+## another board, so a merge resolves, never concatenates). The result is
+## plain numbers a readout can format without ever re-folding bins.
+static func resolve(sources: Array[ModifierBins]) -> FoldTerms:
+	var t := FoldTerms.new()
 	var win_bins := _pick_set_winner_bins(sources)
 	if win_bins != null:
-		return win_bins.winning_set.get_effective_value(win_bins.board)
-	var add := 0.0
-	var inc := 0.0
-	var bon := 0.0
-	var mult := 1.0
+		t.set_value = win_bins.winning_set.get_effective_value(win_bins.board)
+		return t
 	for b in sources:
-		add += b.base_add
-		inc += b.increase_sum
-		bon += b.bonus_add
+		t.add += b.base_add
+		t.inc += b.increase_sum
+		t.bon += b.bonus_add
 		for m in b.multipliers:
-			mult *= m.get_effective_value(b.board)
-	return _fold(base, add, inc, bon, mult)
+			t.mult *= m.get_effective_value(b.board)
+	return t
 
 
-## Single-source compose — the [Stat.get_value] fast path (#470). Same pipeline
-## as [method compute], specialised for the one-source case so a caller never
-## allocates an `Array[ModifierBins]` literal just to hand this a single bin.
+## N-source compose: [method resolve], then the pipeline once. Callers are
+## responsible for final type coercion — read through
+## [method Stat.get_value_with] rather than calling this directly, so the INT
+## floor is not skipped (#895).
+static func compute(base: float, sources: Array[ModifierBins]) -> float:
+	return resolve(sources).fold(base)
+
+
+## Single-source compose — the [Stat.get_value] fast path (#470). Same
+## arithmetic as [method compute], specialised for the one-source case so a
+## warm read never allocates an `Array[ModifierBins]` literal or a
+## [FoldTerms]; the arithmetic itself is [method FoldTerms.arith], once.
 static func compute_single(base: float, bins: ModifierBins) -> float:
 	if bins.winning_set != null:
 		return bins.winning_set.get_effective_value(bins.board)
 	var mult := 1.0
 	for m in bins.multipliers:
 		mult *= m.get_effective_value(bins.board)
-	return _fold(base, bins.base_add, bins.increase_sum, bins.bonus_add, mult)
-
-
-## The pipeline's arithmetic, shared by [method compute] and
-## [method compute_single] so there is exactly one definition of it.
-## Clamp (1 + Σ INCREASE/100) at 0: large stacks of negative INCREASE zero
-## the stat out rather than flipping its sign. Net inc below -100% is a
-## legitimate gameplay state (think "nerf modifier" pool entries on INT);
-## the floor keeps the math predictable and the result interpretable as
-## "× 0 + BONUS" for downstream consumers.
-static func _fold(base: float, add: float, inc: float, bon: float, mult: float) -> float:
-	return (base + add) * maxf(0.0, 1.0 + inc / 100.0) * mult + bon
+	return FoldTerms.arith(base, bins.base_add, bins.increase_sum, bins.bonus_add, mult)
 
 
 ## SET tiebreak across sources: highest priority wins; at equal priority
