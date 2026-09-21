@@ -248,3 +248,24 @@ func test_forecast_changed_binds_entity_spawned_after_turn_manager() -> void:
 	e.stat_board.initiative_speed.base_value = 20.0
 	assert_eq(count[0], 1,
 		"an entity spawned after the TurnManager is bound once its deferred rebind has run")
+
+
+# ---------------------------------------------------------------------------
+# current_entity has one owner (#1030): the cursor is written only by
+# TurnManager once it is ready — fixtures go through start_turn / adopt_turn.
+
+func test_outside_write_to_current_entity_after_ready_is_refused() -> void:
+	_spawn_entities([10.0])
+	var e := _entities[0]
+	_tm.current_entity = e
+	assert_null(_tm.current_entity, "an outside write after ready is ignored")
+	assert_push_error("TurnManager.current_entity is written only by TurnManager")
+
+
+func test_write_to_current_entity_before_ready_lands() -> void:
+	_spawn_entities([10.0])
+	var e := _entities[0]
+	var tm: TurnManager = autofree(TurnManager.new())
+	tm.current_entity = e
+	assert_eq(tm.current_entity, e, "before ready the assignment lands")
+	assert_engine_error_count(0)
