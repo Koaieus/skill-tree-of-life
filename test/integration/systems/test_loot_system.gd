@@ -237,7 +237,7 @@ func test_bystander_enemy_gains_no_xp_from_anothers_kill() -> void:
 
 	_loot.xp_per_node_killed = 1.0
 	var bystander_before: float = bystander.stat_board.xp.current
-	_kill_victim()  # _tm.current_entity = _killer, not bystander
+	_kill_victim()  # the cursor is _killer, not bystander
 	assert_eq(bystander.stat_board.xp.current, bystander_before,
 			"only the attributed killer is paid, not every hostile entity")
 

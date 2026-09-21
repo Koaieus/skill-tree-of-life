@@ -155,7 +155,7 @@ func arm(alloc: AllocationSystem, turn_manager: TurnManager = null) -> void:
 	attacker.core_location = nodes["a_core"]
 	defender.core_location = nodes["d_core"]
 	if turn_manager != null:
-		turn_manager.current_entity = attacker
+		turn_manager.adopt_turn(attacker, turn_manager.turns_taken)
 
 
 ## Arm a live Spark cast: `a_leaf` casts, `d_gate` is the seed. The same two

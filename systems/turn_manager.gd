@@ -26,8 +26,8 @@ signal forecast_changed
 
 ## Whether the level opens the run's clock at all (#1006; the root's old
 ## `auto_start_turn`). False and [method GameRoot._open_first_turn] submits no
-## opening [StartTurnCommand] — a showcase drives its own beat loop (and sets
-## [member current_entity] directly for killer attribution), a `_setup_level`
+## opening [StartTurnCommand] — a showcase drives its own beat loop (and adopts
+## the cursor via [method adopt_turn] for killer attribution), a `_setup_level`
 ## test never lets TurnManager/AI take over. Not an off state: the manager
 ## stays live for every turn something else starts, so this is a plain flag
 ## rather than the `enabled` convention.
