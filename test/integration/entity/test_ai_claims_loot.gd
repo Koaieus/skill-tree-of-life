@@ -71,6 +71,7 @@ func before_each() -> void:
 	add_child(_tm)
 
 	_bs = autofree(BattleSystem.new())
+	_bs.temp_upgrade_catalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
 	_bs.turn_manager = _tm
 	_bs.allocation_system = _alloc
 	_bs.graph = _graph

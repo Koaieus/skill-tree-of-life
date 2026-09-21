@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="TempUpgradeDef" load_steps=4 format=3 uid="uid://tu_def_spike0001"]
+[gd_resource type="Resource" script_class="TempUpgradeDef" load_steps=4 format=3 uid="uid://tudefspike0001"]
 
 [ext_resource type="Script" path="res://attack/melee/temp_upgrade_def.gd" id="1_def"]
 [ext_resource type="PackedScene" uid="uid://b1addon0spike" path="res://skill_node/addons/spike_ring_addon.tscn" id="2_scene"]
