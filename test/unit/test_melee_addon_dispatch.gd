@@ -69,3 +69,35 @@ func test_build_blade_state_dispatches_clamp_addon() -> void:
 				found_brace = true
 	assert_true(found_brace,
 			"build_blade_state must dispatch Clamp's apply_to_blade and append the weld brace between the joint's neighbors")
+
+
+## #951 — the same dispatch carries a DotAddon's per-vertex status write:
+## the carrier's own index and no other.
+func test_build_blade_state_dispatches_dot_addon_to_its_own_vertex_only() -> void:
+	var source := _spawn("Source")
+	var joint := _spawn("Joint")
+	var tip := _spawn("Tip")
+	_graph.add_edge(source, joint)
+	_graph.add_edge(joint, tip)
+	await get_tree().process_frame
+
+	_alloc.force_allocate(_entity, source)
+	_alloc.force_allocate(_entity, joint)
+	_alloc.force_allocate(_entity, tip)
+
+	var toxin := preload("res://skill_node/addons/toxin_addon.tscn").instantiate() as DotAddon
+	tip.add_child(toxin)
+	await get_tree().process_frame
+
+	var plan := MeleeAttackPlan.new()
+	plan.attacker = _entity
+	plan.source = source
+	var members: Array[SkillNode] = [joint, tip]
+	plan.blade_nodes = members
+	var state := plan.build_blade_state()
+
+	assert_eq(state.vertex_status_def.size(), 3, "one slot per vertex")
+	assert_null(state.vertex_status_def[0], "pivot: no status")
+	assert_null(state.vertex_status_def[1], "joint: no status")
+	assert_eq(state.vertex_status_def[2], toxin.status_def, "tip carries the toxin's status")
+	assert_eq(state.vertex_status_power[2], toxin.status_power)

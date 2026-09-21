@@ -195,3 +195,58 @@ func test_allocating_a_toxin_node_grants_the_owner_poison_arrows() -> void:
 	_alloc.force_deallocate(loose)
 	assert_eq(_attacker.stat_board.get_value(&"poison_arrows_per_reload"), before,
 			"deallocating removes it")
+
+
+# ── the wire ─────────────────────────────────────────────────────────────────
+
+## The record ships the LANDED stacks; a second world rebuilds and lands them
+## flat — no second potency pass (test_status_instance.gd's shape). A
+## BladeStatusInstance never crosses: the peer lands a plain StatusInstance.
+func test_the_record_replays_the_toxic_status_at_the_landed_power() -> void:
+	_attach_toxin(_tip)
+	_attacker.stat_board.get_stat(&"poison_potency").base_value = 1.5
+	await _settle()
+	var outcome := _plan().resolve_against(CombatWorld.live())
+	var landed := _status_hits(outcome)
+	assert_gt(landed.size(), 0, "fixture: a status landed")
+	if landed.is_empty():
+		return
+	var authority_power := landed[0].power
+	assert_almost_eq(authority_power, 1.5, 0.0001, "1 stack x 1.5 potency, no resistance")
+
+	var wired: Dictionary = bytes_to_var(var_to_bytes(AttackRecord.capture(outcome, _graph)))
+	var rebuilt := AttackRecord.rebuild(wired, _graph)
+	var replayed := _status_hits(rebuilt)
+	assert_eq(replayed.size(), landed.size(), "every status rides the record")
+	if replayed.is_empty():
+		return
+	assert_false(replayed[0] is BladeStatusInstance, "a peer lands a plain StatusInstance")
+	assert_eq(replayed[0].def, _POISON)
+	assert_true(replayed[0].power_resolved, "rebuilt flat — the peer must not scale again")
+
+	var peer := CombatWorld.shadow()
+	OutcomeApplier.apply(rebuilt, peer)
+	assert_almost_eq(peer.combat_for(_plate).get_status_power(&"poison"), authority_power, 0.0001,
+			"the second world lands exactly what the authority landed")
+	peer.free_shadow()
+
+
+# ── temp upgrade ─────────────────────────────────────────────────────────────
+
+const _CATALOG: TempUpgradeCatalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
+
+
+func test_a_temp_toxin_on_a_blade_node_poisons_in_the_same_resolve() -> void:
+	await _settle()
+	var toxin_def := _CATALOG.by_id(&"toxin")
+	assert_not_null(toxin_def, "toxin is a catalogued temp upgrade")
+	if toxin_def == null:
+		return
+	var plan := _plan()
+	# max_blades reads the wielder's blade_size; 2 members + a cost-2 toxin.
+	_attacker.stat_board.get_stat(&"blade_size").base_value = 4.0
+	assert_true(plan.apply_temp_upgrade(_tip, toxin_def), "budget admits the toxin")
+	await get_tree().process_frame
+	var outcome := plan.resolve_against(CombatWorld.live())
+	assert_gt(_status_hits(outcome).size(), 0, "a temp toxin poisons like an authored one")
+	assert_gt(CombatWorld.live().combat_for(_plate).get_status_power(&"poison"), 0.0)
