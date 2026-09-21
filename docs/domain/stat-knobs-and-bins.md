@@ -8,6 +8,8 @@ Two authoring questions that keep getting re-derived from scratch, answered once
 - **"How do I force a stat to exactly N?"** → §3 (`base_value` only if the base
   *is* the number; a derived stat wants a `SET` modifier)
 - **"This rule steps up at 10 / 100 / 1000. Can I just use a log?"** → §4 (no)
+- **"A spell/relic/aura authors its own number and the stat should modify
+  *that*. Whose base is it?"** → §5 (nobody's — it is an overlay bin)
 
 `.claude/rules/stats-system.md` is the *reference* — what exists, and how the
 pipeline computes. This doc is the *decision procedure* for adding something new.
@@ -351,3 +353,54 @@ ever express decades.
   which paths are presentation or transmitted-result, and **each entry states
   the condition under which its exemption stops being true** — write that
   condition, not "out of scope", if you add one.
+
+---
+
+## 5. An authored number from a content resource is an overlay bin, never a stat base
+
+**Decision 2026-09-21 (#912, owner).** A content resource — a spell's authored
+range, a relic's flat bonus, anything a `.tres` says about *itself* — that wants
+the stat pipeline to modify it is **not** a stat's base. It contributes its
+number as one `ModifierBins` with `base_add = X` (`board = null`, no multipliers,
+no SET) and hands it to the node-local read as an overlay:
+
+```gdscript
+node.get_local_value_with(stat_id, overlays)      # SkillNode passthrough
+NodeCombat.get_local_value_with(stat_id, overlays)
+```
+
+Inside, the entity's bins, the node's bins and the overlays fold through
+`Stat.get_value_with` — **one fold, one floor**, the same `(base + Σadd) ×
+(1 + Σinc%) × Πmult + Σbon` every read runs, coerced once at the end (ADR 0016).
+`get_local_value(id)` *is* `get_local_value_with(id, [])`; there is no second
+merge path to drift from it.
+
+**Why not write the number into `base_value`?** The base is the stat's own
+(§3: the one door, and the def's policy runs on it). A spell's range written
+there would be overwritten by the next spell's, would leak into every other
+reader of the stat, and would make the board a mirror of whatever content was
+last cast — the parallel-store smell. **Why not a `SET`?** A SET short-circuits
+the fold: the whole point is that `% increased` and `MORE` on the stat apply *to*
+the authored number, which only a base-side add gives.
+
+**Contracts a caller relies on:**
+
+- **Order.** Overlays fold strictly AFTER the node bins: sources are
+  `[entity, node, overlays…]`, and an equal-priority SET tie goes to the later
+  source, so overlay > node > entity. A real SET on the entity or node still
+  wins over an overlay's `base_add` — a SET is a SET.
+- **Tier 4 is `null`.** With no `Stat` under that id on either board there is
+  nothing to coerce through, and the read answers `null` — never the def
+  default, never `0`. The caller falls back to its own authored base (the number
+  it put in the overlay). Only the bare `get_local_value` keeps the def-default
+  tail, because a bare read has no base of its own to fall back to.
+- **Accessor tokens ignore overlays.** `id__accessor` reads state (`current`,
+  `wounded`, …), not a fold; overlays are silently not applied. Do not pass one
+  expecting a merge.
+- **The unit is the base's.** `+1` in `base_add` is a hop on a hop-ranged spell
+  and a pixel on a euclidean one; `% increased` and `MORE` are unitless and
+  apply to either. Keep the flat add's unit with the resource that authored it.
+
+`PoolStat.base_provider` is the same idea aimed at a *cap* (a pool whose base is
+computed elsewhere, then coerced); it is not folded onto this door.
+
