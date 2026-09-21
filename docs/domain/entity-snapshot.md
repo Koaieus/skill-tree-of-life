@@ -33,7 +33,8 @@ missing `+5 CON` moved every health bar that entity owns at once — silently
   crosses. The receiver recomputes.
 
 **Modifiers cross by value, not interned, and that is not a tier violation.**
-`Entity.initialize` does `stat_board = stat_board.duplicate(true)`, and a
+The `Entity.stat_board` setter stores a `duplicate(true)` at assignment
+(`initialize()` duplicates only in the editor), and a
 duplicated sub-resource carries no `resource_path`, so a LIVE board's
 intrinsics and class modifiers have nothing to intern. The authored/accumulated
 split collapses to by-value for modifiers on any board actually in play — the

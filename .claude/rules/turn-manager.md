@@ -107,11 +107,12 @@ roster-driven way to set `is_human_controlled` + `faction` together from a
 Building a fixture with `TurnManager.new()` + `Entity.new()` + a controller
 child (no `game_root.tscn`) hits three gotchas together:
 
-- **`Entity._ready()` duplicates `stat_board` again** (`stat_board =
-  stat_board.duplicate(true)`, on top of whatever the fixture already
-  duplicated). Configure stat values (`set_current`, etc.) *after* the entity
-  is `add_child`ed, not before — a pre-`_ready` write lands on the object
-  `_ready` then discards, silently.
+- **The `stat_board` setter takes a private `duplicate(true)` at assignment**
+  (#1031) and the board is sealed after `initialize()`. Assign the board
+  *before* `add_child`, then read it back off `entity.stat_board` and do every
+  `add_modifier` / `apply_intrinsics` / `set_current` on that read-back copy —
+  a `duplicate(true)` does not carry `Stat._modifiers`, so a modifier added to
+  the local before assignment is lost.
 - **First turn can mint extra SP.** `apply_per_turn_upkeep()` replenishes `xp`
   by `xp_per_turn`; if the board's intrinsic-scaled value already crosses the
   level-up threshold from 0, `Entity._on_xp_replenished` grants SP via

@@ -89,8 +89,10 @@ not `Foo.new()` + manual child wiring. Same contract, same payoff.
 ## A scene-wired NodePath export resolves BEFORE the target's `_ready`
 
 So a setter that *subscribes* to something the target replaces during its own
-`_ready` ends up holding the discarded object. The live case: `Entity._ready`
-does `stat_board = stat_board.duplicate(true)`, and `dev_sandbox.tscn` wires
+`_ready` ends up holding the discarded object. The live case (gone since #1031:
+the `stat_board` setter takes the private copy at assignment outside the
+editor, and `initialize()` duplicates only under `Engine.is_editor_hint()`):
+`Entity._ready` did `stat_board = stat_board.duplicate(true)`, and `dev_sandbox.tscn` wired
 `PlayerInputController.player` as a NodePath — so `_set_player`'s
 `action_points.current_changed` connection landed on a board the entity threw
 away one frame later. Nothing errors; the signal simply never arrives.
