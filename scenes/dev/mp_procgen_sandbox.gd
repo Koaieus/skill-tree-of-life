@@ -1,87 +1,15 @@
 extends "res://scenes/game_root.gd"
 
-## Rung 2 of the multiplayer harness (#533, ladder in
-## `docs/domain/multiplayer-harness.md`): the HOST procgens a level from a
-## fixed [RunConfig] and ships it across the wire — run settings (#528) then
-## the graph itself (#527) — instead of the CLIENT re-deriving either from a
-## shared seed. Rung 1 (`mp_dev_sandbox.gd`) proves messaging with a
-## hand-authored graph on both peers and NOTHING crossing; this proves state
-## actually crosses.
-##
-## [b]Why this matters beyond the harness (#547):[/b] `procgen/` leans on
-## `pow`/`exp`/`sin`/`cos` for continuous placement math (draw weights, a
-## Poisson roll, a Gaussian bump, points on a circle) — real math that would
-## be wrong to rewrite, but whose last bit is not IEEE-754-portable across
-## platforms' `libm`. Two peers "typing the same seed" can silently generate
-## DIFFERENT maps, and every command after that lands on a node that isn't
-## there. `CommandLink.send_graph_snapshot` (#527) and `send_run_setup`
-## (#528) already existed with ZERO non-test callers before this unit — this
-## is mostly wiring a caller, not new mechanism.
-##
-## [b]Reuses #531's mounted Transport/CommandLink[/b], exactly like rung 1:
-## swap the mounted [Transport]'s script for [EnetTransport] in the .tscn,
-## drive `--role` / `--port` / `--address` off the command line, never author
-## a second pair.
-##
-## [b]No hot-seat here.[/b] Owner framing (2026-08-22): a client bound to Blue
-## and staying bound through every handover is WANTED, not a divergence to
-## chase. Unlike rung 1 — where the HOST hot-seats a human Red against an AI
-## Blue — BOTH peers here are pinned with [method SeatPolicy.seat] to their
-## own participant (host → Red, client → Blue) and never swing. Blue is still
-## AI-driven (only the authority's [AIController] ever decides — the same
-## `CommandApplier.is_authority` gate rung 1's class docstring documents at
-## length), so the run still needs no upward intent channel (#463, unfiled
-## rung 3).
-##
-## [b]The client never calls [GraphProcgen].[/b] It spawns bare placeholder
-## [Entity] nodes — no `core_location`, so no graph is needed yet — in the
-## SAME order the host does, so [Graph]'s per-entry `entity_id` minting
-## (`graph/graph.gd::_mint_entity_id`) lands on the identical numbers. Only
-## [b]This harness is its own composer, deliberately[/b] — one of the two
-## exceptions to #584's "a level consumes a run, it never invents one". It
-## opens the session itself ([method GameSession.ensure_started]) and writes
-## the roster, because the run it builds is the thing it then SENDS to a peer;
-## there is no lobby upstream of it and a [RunBootstrap] would only be able to
-## author a run it must instead vary per harness case. The other exception is
-## the client half, which receives its run from the host.
-##
-## once [signal GameSession.run_started] fires (via
-## [method CommandLink._on_run_setup] → [method GameSession.apply_received])
-## does it know how many participants there are and in what order; only once
-## the graph snapshot itself arrives can ownership resolve — GraphSnapshot's
-## own contract is that ownership resolves through the RECEIVING graph's
-## entities, so those placeholders must already exist and be correctly ID'd.
-##
-## [b]`core_location` and the receiving board ride [EntitySnapshot] (#560),
-## not [GraphSnapshot].[/b] [GraphSnapshot] carries which [Entity] owns each
-## [SkillNode] (by `entity_id`) but nothing rebuilds the OWNER's board from
-## that — #560's own framing: a client whose board never got the starting
-## node's grants shows the wrong HP/stats from its first frame, silently.
-## `CommandLink.send_entity_snapshot` is the sibling send this scene also
-## makes: it DECORATES the entities the roster already spawned (never mints
-## one — #560 D7), and its own two-pass decode is what resolves
-## `core_location` — pass 1 needs no graph, pass 2 (entity → node) runs once
-## [method CommandLink._on_graph_snapshot] has one to resolve against, or
-## immediately if the entity snapshot arrives second. Order between graph and
-## entity snapshots does NOT matter (both sides of that are idempotent); hello
-## still has to be last — see below.
-##
-## [b]Send order: run_setup, graph snapshot, entity snapshot, THEN hello.[/b]
-## [method CommandLink.send_hello] is what produces the "✓ in sync at link-up"
-## verdict, comparing [WorldFingerprint] on both sides — and the CLIENT's
-## graph is empty until the snapshot decodes. Sending hello first (rung 1's
-## order, safe there because both peers already share a graph) would report a
-## structural, false DIVERGED before a single real state difference could
-## exist. Sending it last makes "at link-up" mean what it says: HOST's
-## fingerprint (stamped at hello-SEND time, always after generation) is
-## compared against the CLIENT's graph after both snapshots have decoded
-## (ENet's reliable channel is ordered, so every send before hello arrives
-## before it does). One accepted consequence, already called out in
-## `command_link.gd`'s own #546 note: `KIND_SETUP` / `KIND_SNAPSHOT` /
-## `KIND_ENTITIES` are all handled regardless of a prior hello, so a build
-## mismatch is NOT caught until after every one of them has already been
-## applied. That gap is pre-existing and explicitly flagged there as future
-## work, not something this unit closes.
+## Rung 2 of the multiplayer harness: the HOST procgens a level from a fixed
+## [RunConfig] and ships it across the wire — run settings, graph snapshot,
+## entity snapshot, THEN hello, in that order — instead of the CLIENT
+## re-deriving any of it from a shared seed. The client never calls
+## [GraphProcgen]; it spawns placeholder entities in the host's order so the
+## minted `entity_id`s match, and lets the snapshots decorate them. Both peers
+## are pinned to their own participant (host → Red, client → Blue) and never
+## hot-seat. This scene is its own composer — it opens the session and writes
+## the roster itself, because the run it builds is the thing it sends.
+## See docs/domain/multiplayer-harness.md, "Rung 2".
 
 const DEFAULT_PORT := 9100
 const DEFAULT_ADDRESS := "127.0.0.1"

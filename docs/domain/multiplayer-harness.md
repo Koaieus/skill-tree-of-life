@@ -663,6 +663,14 @@ handled regardless of a prior hello, so a build mismatch is not caught until
 after every one of them has already been applied. That gap is pre-existing
 future work, not something this rung closes.
 
+**This harness is its own composer, deliberately** — one of the two exceptions
+to "a level consumes a run, it never invents one" (#584). It opens the session
+itself (`GameSession.ensure_started`) and writes the roster, because the run it
+builds is the thing it then SENDS to a peer: there is no lobby upstream of it,
+and a `RunBootstrap` could only author a run this scene must instead vary per
+harness case. The other exception is the client half, which receives its run
+from the host.
+
 **The opening turn starts AFTER the send, not before — a double-heal trap
 this rung's own test caught.** `TurnManager.start_turn` unconditionally fires
 `turn_started`, which runs turn-start upkeep (AP/DP/SP/mana/wound-heal/
