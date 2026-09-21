@@ -18,7 +18,9 @@ extends RefCounted
 ## (#878) adds a third value — never reclassified either, and deliberately
 ## excluded from [method AttackOutcome.damage_hits]'s filter, so an AI scorer
 ## or a "damage dealt" reader does not see a status application as a hit.
-enum Kind { DAMAGE, HEAL, STATUS }
+## [RevealInstance] adds [constant Kind.REVEAL]: a scout arrow's landing, no
+## HP and no status — it carries a vision radius to [signal Events.node_scouted].
+enum Kind { DAMAGE, HEAL, STATUS, REVEAL }
 var kind: Kind = Kind.DAMAGE
 
 ## What [member amount] is denominated in. [constant AmountBasis.FLAT] is HP;
