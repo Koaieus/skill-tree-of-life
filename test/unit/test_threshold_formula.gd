@@ -194,11 +194,11 @@ func test_geometric_ladder_clause_is_unchanged() -> void:
 
 
 func test_non_geometric_ladder_clause_names_the_ladder_not_a_ratio() -> void:
-	# The exact shipped shape (#773) — INT -> spell_hops, [50, 150, 500, 1000,
-	# 5000] — and the owner's narrowed acceptance wording verbatim: name the
-	# breakpoints, and the word "per" must not appear.
-	var f := _shipped(&"spell_hops")
-	assert_not_null(f, "default board grants spell_hops via a ThresholdFormula")
+	# The exact shipped shape (#773) — INT -> cast_range_hops, [50, 150, 500,
+	# 1000, 5000] — and the owner's narrowed acceptance wording verbatim: name
+	# the breakpoints, and the word "per" must not appear.
+	var f := _shipped(&"cast_range_hops")
+	assert_not_null(f, "default board grants cast_range_hops via a ThresholdFormula")
 	var clause := f.describe_clause()
 	assert_eq(clause, " at 50 / 150 / 500 / 1000 / 5000 INT")
 	assert_false(clause.contains("per"), "a non-geometric ladder is not a ratio")
@@ -209,14 +209,14 @@ func test_non_geometric_ladder_full_sentence_has_no_per() -> void:
 	# clause. StatModifier.format() is what every consumer (tooltips, the
 	# inspector's resource_name, the loot pick card) actually renders.
 	var m := StatModifier.new()
-	m.stat_id = &"spell_hops"
+	m.stat_id = &"cast_range_hops"
 	m.value = 1.0
 	m.formula = _threshold(&"intelligence", [50.0, 150.0, 500.0, 1000.0, 5000.0] as Array[float])
-	assert_eq(m.format(), "+1 Spell Hops at 50 / 150 / 500 / 1000 / 5000 INT")
+	assert_eq(m.format(), "+1 Cast Range Hops at 50 / 150 / 500 / 1000 / 5000 INT")
 
 
 func test_short_non_geometric_ladder_is_not_truncated() -> void:
-	# Five rungs is the shipped case (spell_hops) — no ellipsis.
+	# Five rungs is the shipped case (cast_range_hops) — no ellipsis.
 	var f := _threshold(&"wisdom", [3.0, 8.0, 21.0, 55.0, 149.0] as Array[float])
 	assert_eq(f.describe_clause(), " at 3 / 8 / 21 / 55 / 149 WIS")
 

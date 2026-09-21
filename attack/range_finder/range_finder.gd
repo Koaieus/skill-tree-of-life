@@ -22,10 +22,10 @@ const DEFAULT_EDGE_SCENE: PackedScene = preload("res://attack/range_finder/visua
 @export var ring_scene: PackedScene = DEFAULT_RING_SCENE
 @export var edge_scene: PackedScene = DEFAULT_EDGE_SCENE
 
-## [param attacker] is only consulted for [method spell_range_multiplier] (and,
+## [param attacker] is only consulted for [method SpellRangeRules.reach] (and,
 ## on [HopRangeFinder], for its navigator) — it is NOT required to be mid-attack.
 ## Pass null to get the finder's raw exported reach with no stat scaling (e.g.
-## a [CoreClass] aura, which should not scale with the caster's `spell_range`).
+## a [CoreClass] aura, which should not scale with the caster's cast range).
 @abstract func in_range(attacker: Entity, source: SkillNode, candidate: SkillNode) -> bool
 
 
@@ -50,7 +50,7 @@ const DEFAULT_EDGE_SCENE: PackedScene = preload("res://attack/range_finder/visua
 ##
 ## [param attacker] (#385): default `null` preserves every existing aura call's
 ## behaviour bit-for-bit (unscaled reach, exactly as before this param existed).
-## Pass a non-null attacker only to fold in [method spell_range_multiplier] —
+## Pass a non-null attacker only to fold in [method SpellRangeRules.reach] —
 ## [MagicAttackPlan]'s highlight cache is the one caller that does.
 func gather(source: SkillNode, mirror: GraphMirror, attacker: Entity = null) -> Dictionary[SkillNode, float]:
 	var out: Dictionary[SkillNode, float] = {}
@@ -126,7 +126,7 @@ func get_union_visual(_attacker: Entity, _union: SpellTargetUnion) -> RangeVisua
 
 ## Player-facing "how far this reaches" line for [SpellTooltip]'s Cast section
 ## (#764). [param board] is the same no-cast-from-node preview path
-## [method spell_range_multiplier] documents — pass a caster's board to get
+## [method SpellRangeRules.reach] documents — pass a caster's board to get
 ## the number their own stats moved, never re-derive the scaling here. Empty
 ## base; subclasses format their own metric (hops vs. straight-line units).
 func get_description(_board: StatBoard = null) -> String:
@@ -144,16 +144,3 @@ static func _fmt_num(v: float) -> String:
 	if is_equal_approx(v, roundf(v)):
 		return str(int(v))
 	return "%.1f" % v
-
-
-## Per-source reach multiplier — delegated to [SpellRangeRules], which owns the
-## rule. A reach model answers "is this within N of that"; deciding what N is
-## for a given caster is a stat question, and used to live here only by accident.
-## Subclasses scale their base reach by this value so INT-driven boosts
-## propagate uniformly across hop and euclidean finders.
-## [param board] is the preview fallback for a caller that has a caster but no
-## cast-from node yet ([SpellTooltip]) — see [method SpellRangeRules.multiplier].
-static func spell_range_multiplier(
-	attacker: Entity, source: SkillNode, board: StatBoard = null
-) -> float:
-	return SpellRangeRules.multiplier(attacker, source, board)

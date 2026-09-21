@@ -131,23 +131,26 @@ func test_max_reach_reports_max_distance() -> void:
 	assert_almost_eq(_finder.max_reach(), 100.0, 0.001)
 
 
-## #727 split `spell_range` from `spell_hops`; euclidean reach keeps scaling
-## by `spell_range`, via SpellRangeRules.multiplier's board-preview tier. Board
-## built and set in-code (owner's standing rule): the shipped INT rate is
-## explicitly due for post-LAN retuning, so a golden pinned to it would be red
-## by design — this only pins that the multiplier is still consumed at all.
-func test_effective_distance_still_scales_by_spell_range() -> void:
-	var board: EntityStatBoard = preload("res://entity/default_entity_board.tres").duplicate(true)
+## Euclidean reach is the authored `max_distance` folded as the base under
+## `cast_range_distance`, via SpellRangeRules.reach's board-preview tier. Board
+## hand-built with no intrinsics (owner's standing rule): the shipped INT rate
+## is the owner's to tune, so this only pins that the stat is consumed at all.
+func test_effective_distance_scales_by_a_cast_range_distance_increase() -> void:
+	var board := EntityStatBoard.new()
+	var s := ScalarStat.new()
+	s.definition = StatRegistry.get_def(&"cast_range_distance")
+	s.base_value = 0.0
+	board.set(&"cast_range_distance", s)
 	var mod := StatModifier.new()
-	mod.stat_id = &"spell_range"
-	mod.operation = StatModifier.Operation.SET
+	mod.stat_id = &"cast_range_distance"
+	mod.operation = StatModifier.Operation.INCREASE
 	mod.value = 50.0
 	board.add_modifier(mod)
 
 	var scaled := _finder.effective_distance(null, null, board)
 
 	assert_almost_eq(scaled, _finder.max_distance * 1.5, 0.001,
-			"+50%% spell_range must scale euclidean reach by 1.5x, unaffected by the #727 split")
+			"+50%% increased cast_range_distance must scale euclidean reach by 1.5x")
 
 
 func test_effective_distance_with_no_board_or_attacker_is_unscaled() -> void:

@@ -9,7 +9,7 @@ extends GutTest
 ## divisor off the formula and the ratio off the description — never a
 ## literal — and goes red only on real drift, never on a retune. A def whose
 ## description carries no "per N <STAT>" phrase is skipped, not failed: not
-## every stat spells its ratio out in prose (xp_per_turn, spell_range).
+## every stat spells its ratio out in prose (xp_per_turn).
 
 const BOARD := preload("res://entity/default_entity_board.tres")
 const BLOCKER_SMALL := preload("res://entity/blocker/blocker_small_board.tres")

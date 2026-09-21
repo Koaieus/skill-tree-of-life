@@ -3,7 +3,8 @@ extends GutTest
 ## What the [SpellTooltip] is allowed to move with the caster's stats, and what
 ## it must print raw.
 ##
-## `spell_range` stretches how far away a target may be — the *cast-range* row,
+## `cast_range_distance` / `cast_range_hops` stretch how far away a target may
+## be — the *cast-range* row,
 ## which the finder itself computes. It does NOT grant in-flight bounces:
 ## `SpellResolver` seeds `hops_remaining` straight off `PropagationConfig.max_hops`,
 ## and per the owner's 2026-09-02 ruling propagation scaling stays off until it
@@ -23,15 +24,16 @@ const _SPELL := "res://attack/spell/defs/lightning_bolt.tres"
 # rather than budgeting physics frames (#978).
 
 
-## A caster whose `spell_range` is +100%, i.e. exactly double euclidean reach —
-## big enough that any scaling applied to a row is unmistakable in the printed
-## number. SET rather than ADD_BASE so the board's own innate INT → `spell_range`
-## formula cannot move the expected number out from under the assertions (that
-## rate is the owner's to tune, per `.claude/rules/stat-knobs-and-bins.md`).
-func _doubled_caster() -> Entity:
+## A caster whose `cast_range_distance` is SET to 100 px — a SET replaces the
+## spell's authored euclidean reach outright, so any scaling applied to a row
+## is unmistakable in the printed number, and the board's own innate INT →
+## `cast_range_distance` line cannot move the expected number out from under
+## the assertions (that rate is the owner's to tune, per
+## `.claude/rules/stat-knobs-and-bins.md`).
+func _distance_set_caster() -> Entity:
 	var board: EntityStatBoard = _BOARD.duplicate(true)
 	var mod := StatModifier.new()
-	mod.stat_id = &"spell_range"
+	mod.stat_id = &"cast_range_distance"
 	mod.operation = StatModifier.Operation.SET
 	mod.value = 100.0
 	board.add_modifier(mod)
@@ -40,19 +42,19 @@ func _doubled_caster() -> Entity:
 	return entity
 
 
-## A caster whose `spell_hops` is set to a fixed flat bonus (#727) — the
-## hop-ranged sibling of [method _doubled_caster]. SET rather than ADD_BASE
-## for the same reason: the board's own innate INT threshold ladder must not
-## move the expected number out from under the assertions.
-const _HOP_BONUS := 3.0
+## A caster whose `cast_range_hops` is SET to a fixed reach — the hop-ranged
+## sibling of [method _distance_set_caster]. SET rather than ADD_BASE for the
+## same reason: the board's own innate INT threshold ladder must not move the
+## expected number out from under the assertions.
+const _HOP_REACH := 3.0
 
 
 func _hop_boosted_caster() -> Entity:
 	var board: EntityStatBoard = _BOARD.duplicate(true)
 	var mod := StatModifier.new()
-	mod.stat_id = &"spell_hops"
+	mod.stat_id = &"cast_range_hops"
 	mod.operation = StatModifier.Operation.SET
-	mod.value = _HOP_BONUS
+	mod.value = _HOP_REACH
 	board.add_modifier(mod)
 	var entity: Entity = autofree(Entity.new())
 	entity.stat_board = board
@@ -87,16 +89,16 @@ func test_propagation_hops_are_printed_raw_even_for_a_boosted_caster() -> void:
 		"no caster: hops must be the authored number"
 	)
 
-	var boosted_tt := await _shown_for(_doubled_caster())
+	var boosted_tt := await _shown_for(_distance_set_caster())
 	assert_string_contains(
 		_section_text(boosted_tt, "%ThenSection"), expected,
-		"+100%% spell_range must not move the bounce count SpellResolver reads raw"
+		"a cast_range_distance SET must not move the bounce count SpellResolver reads raw"
 	)
 
 
-## spell_hops twin of the above — same hard constraint, different stat (#727):
+## cast_range_hops twin of the above — same hard constraint, different stat:
 ## neither of the two INT-scaled reach stats may leak into in-flight bounces.
-func test_propagation_hops_are_printed_raw_even_for_a_spell_hops_boosted_caster() -> void:
+func test_propagation_hops_are_printed_raw_even_for_a_cast_range_hops_boosted_caster() -> void:
 	var spell := load(_SPELL) as SpellDef
 	assert_not_null(spell.propagation, "fixture: the spell must propagate")
 	var expected := "%d hop" % spell.propagation.max_hops
@@ -104,14 +106,14 @@ func test_propagation_hops_are_printed_raw_even_for_a_spell_hops_boosted_caster(
 	var boosted_tt := await _shown_for(_hop_boosted_caster())
 	assert_string_contains(
 		_section_text(boosted_tt, "%ThenSection"), expected,
-		"a spell_hops bonus must not move the bounce count SpellResolver reads raw"
+		"a cast_range_hops SET must not move the bounce count SpellResolver reads raw"
 	)
 
 
-## spell_hops (#727), not spell_range, is what stretches a hop-ranged spell's
-## cast range now — HopRangeFinder.effective_max_hops() is additive
-## (max_hops + spell_hops), never a percent multiplier.
-func test_cast_range_does_scale_with_spell_hops() -> void:
+## cast_range_hops, not cast_range_distance, is what stretches a hop-ranged
+## spell's cast range — HopRangeFinder.effective_max_hops() folds the authored
+## max_hops under the stat, and a SET on the stat replaces it outright.
+func test_cast_range_does_scale_with_cast_range_hops() -> void:
 	var spell := load(_SPELL) as SpellDef
 	var rf := spell.targeting.get(&"range_finder") as HopRangeFinder
 	assert_not_null(rf, "fixture: the spell must be hop-ranged")
@@ -121,7 +123,7 @@ func test_cast_range_does_scale_with_spell_hops() -> void:
 
 	var boosted_tt := await _shown_for(_hop_boosted_caster())
 	assert_string_contains(
-		_section_text(boosted_tt, "%CastSection"), str(rf.max_hops + int(_HOP_BONUS))
+		_section_text(boosted_tt, "%CastSection"), str(int(_HOP_REACH))
 	)
 
 
@@ -131,7 +133,7 @@ func test_cast_range_does_scale_with_spell_hops() -> void:
 func test_the_range_row_is_whatever_the_finder_says() -> void:
 	var spell := load(_SPELL) as SpellDef
 	var rf := spell.targeting.get(&"range_finder") as HopRangeFinder
-	var caster := _doubled_caster()
+	var caster := _distance_set_caster()
 	var from_finder := rf.effective_max_hops(null, null, caster.stat_board)
 
 	var tt := await _shown_for(caster)

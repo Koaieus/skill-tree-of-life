@@ -29,27 +29,27 @@ func in_range(attacker: Entity, source: SkillNode, candidate: SkillNode) -> bool
 	return path.size() - 1 <= effective_max_hops(attacker, source)
 
 
-## Flat additive scaling — [code]max_hops + spell_hops[/code], NOT a percent
-## multiplier (#727). A percent scale is regressive here: round-to-nearest
-## multiplicative growth left a 3-hop spell needing +17% INT bonus just to
-## reach 4 hops while a 10-hop spell got there at +5%, so a single flat
-## `spell_hops` stat (an INT threshold ladder, see [SpellRangeRules.bonus_hops])
-## grants the same +N reach to every spell regardless of its authored length.
-## `spell_range` (percent, euclidean-only) is a sibling stat, not this one —
-## see [EuclideanRangeFinder.effective_distance].
+## `max_hops` folded as the base under `cast_range_hops` — see
+## [method SpellRangeRules.reach]. INT's own contribution to that stat is a
+## flat threshold ladder rather than a percent: on a 3-hop spell a percent
+## floors to nothing until it is large, while a 10-hop spell banks it early, so
+## a flat +N is the only shape that treats every authored length the same. A
+## player's own `% increased` on the stat still applies — the stat floors the
+## finished total once. `cast_range_distance` is the euclidean sibling — see
+## [method EuclideanRangeFinder.effective_distance].
 ##
 ## Public because [SpellTooltip] prints this number while hovering — and used to
 ## re-derive the expression rather than ask for it. Its call passes neither
 ## attacker nor source (no cast-from node is picked while hovering) and leans on
 ## [param board] instead.
 func effective_max_hops(attacker: Entity, source: SkillNode, board: StatBoard = null) -> int:
-	return max_hops + SpellRangeRules.bonus_hops(attacker, source, board)
+	return int(SpellRangeRules.reach(&"cast_range_hops", float(max_hops), attacker, source, board))
 
 
 ## One BFS over [param mirror], not one AStar query per candidate. Pass the
 ## entity's own [EntityNavigator] to measure hops through owned territory only.
 ##
-## Reach stays unscaled (raw `max_hops`, no `spell_range`) whenever
+## Reach stays unscaled (raw `max_hops`, no `cast_range_hops`) whenever
 ## [param attacker] is `null` — auras don't inherit a caster stat, and that's
 ## also every pre-#385 caller, so the default keeps them bit-for-bit unchanged.
 ## A non-null attacker (only [MagicAttackPlan]'s highlight cache passes one)

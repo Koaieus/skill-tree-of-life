@@ -91,12 +91,12 @@ func _names(nodes: Array) -> Array[String]:
 	return out
 
 
-## SET (priority 0) so the board's own INT threshold ladder cannot move the
-## expected number out from under the assertions — same idiom as
-## test_spell_tooltip_values.gd.
-func _set_spell_hops(entity: Entity, value: float) -> void:
+## SET replaces the spell's authored reach outright (priority 0), so the
+## board's own INT threshold ladder cannot move the expected number out from
+## under the assertions — same idiom as test_spell_tooltip_values.gd.
+func _set_cast_range_hops(entity: Entity, value: float) -> void:
 	var mod := StatModifier.new()
-	mod.stat_id = &"spell_hops"
+	mod.stat_id = &"cast_range_hops"
 	mod.operation = StatModifier.Operation.SET
 	mod.value = value
 	entity.stat_board.add_modifier(mod)
@@ -237,15 +237,15 @@ func test_max_reach_is_the_authored_hop_cap() -> void:
 	assert_eq(_hops(4).max_reach(), 4.0)
 
 
-# ── spell_hops: in_range and an attacker-aware gather agree; a null attacker stays raw
+# ── cast_range_hops: in_range and an attacker-aware gather agree; a null attacker stays raw
 
 
-func test_spell_hops_extends_in_range_and_attacker_aware_gather_but_not_raw_gather() -> void:
+func test_cast_range_hops_extends_in_range_and_attacker_aware_gather_but_not_raw_gather() -> void:
 	_h.assign_owner(_graph, _a, [0])
-	_set_spell_hops(_a, 1.0)
+	_set_cast_range_hops(_a, 3.0)
 	var f := _hops(2)
 	assert_eq(f.effective_max_hops(_a, _n[0]), 3)
-	assert_true(f.in_range(_a, _n[0], _n[3]), "2 + 1 bonus hop reaches n3")
+	assert_true(f.in_range(_a, _n[0], _n[3]), "reach SET to 3 hops reaches n3")
 	var scaled := f.gather(_n[0], _graph.navigator, _a)
 	assert_eq(scaled.get(_n[3]), 3.0, "attacker-aware gather uses the same effective reach")
 	var raw := f.gather(_n[0], _graph.navigator)

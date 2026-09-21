@@ -50,7 +50,7 @@ func gather(source: SkillNode, mirror: GraphMirror, attacker: Entity = null) -> 
 ## the widest source radius bounds a single pass, and each node is tested
 ## against only the sources whose reach could contain it.
 ##
-## Radii are per-source by construction: `spell_range` is node-local (a
+## Radii are per-source by construction: `cast_range_distance` is node-local (a
 ## range-extender addon on the cast-from node moves that node's reach alone),
 ## so this is a union of DIFFERENT circles, not one circle N times.
 func gather_multi(sources: Array[SkillNode], mirror: GraphMirror,
@@ -111,7 +111,7 @@ func get_visual(attacker: Entity, source: SkillNode) -> RangeVisual:
 	return visual
 
 
-## One ring per eligible caster, each at ITS OWN radius — `spell_range` is
+## One ring per eligible caster, each at ITS OWN radius — `cast_range_distance` is
 ## node-local, so this is a union of different circles, not one circle drawn N
 ## times. Cheap by construction: a ring is a position and a float, no traversal.
 func get_union_visual(attacker: Entity, union: SpellTargetUnion) -> RangeVisual:
@@ -132,7 +132,7 @@ func get_union_visual(attacker: Entity, union: SpellTargetUnion) -> RangeVisual:
 ## [SpellTooltip] prints this number while hovering, and must ask for it rather
 ## than re-derive it. [param board] is its no-cast-from-node path.
 func effective_distance(attacker: Entity, source: SkillNode, board: StatBoard = null) -> float:
-	return max_distance * spell_range_multiplier(attacker, source, board)
+	return SpellRangeRules.reach(&"cast_range_distance", max_distance, attacker, source, board)
 
 
 ## "Within N units", N being [method effective_distance] for [param board].
