@@ -4,14 +4,17 @@ extends GutTest
 ##
 ## The integration keeper (`test/integration/scenes/test_act_gate_across_turns.gd`)
 ## drives `dev_sandbox.tscn` because that scene IS the reproduction of the
-## a628636 regression: a scene-wired `player` export binds
+## a628636 regression: a scene-wired `player` export bound
 ## [PlayerInputController._set_player] to a board that `Entity._ready` then
-## replaces with a `duplicate(true)`, and an early return in the setter made
+## replaced with a `duplicate(true)`, and an early return in the setter made
 ## `GameRoot.bind_player`'s re-assert a no-op, so PIC listened to a discarded
-## pool for the rest of the run. This file rebuilds that ordering by hand —
-## `player` assigned BEFORE the entity enters the tree, then re-asserted after
-## the swap — and drives the cursor straight through [TurnManager], so a
-## wrong emission is a wrong emission here and not a paced AI turn.
+## pool for the rest of the run. The swap is gone since #1031 (the setter
+## takes its private copy at assignment; the board is sealed after bring-up),
+## so the fixture now pins the opposite: the board PIC bound to pre-tree IS
+## the live one. This file rebuilds that ordering by hand — `player` assigned
+## BEFORE the entity enters the tree, then re-asserted after bring-up — and
+## drives the cursor straight through [TurnManager], so a wrong emission is a
+## wrong emission here and not a paced AI turn.
 ##
 ## Since #957 the gate has no AP clause (a 0-AP volley must stay launchable),
 ## so "the gate says true on the player's turn" holds whichever pool PIC
@@ -28,7 +31,7 @@ var _tm: TurnManager
 var _ctl: PlayerInputController
 var _player: Entity
 var _enemy: Entity
-var _pre_swap_board: StatBoard
+var _pre_tree_board: StatBoard
 ## Reference type on purpose — a lambda captures a local `bool`/`int` by value.
 var _emissions: Array[bool]
 ## `_emissions.size()` once the enemy's turn has ended — the cursor is about
@@ -72,11 +75,11 @@ func before_each() -> void:
 	_ctl.turn_manager = _tm
 	add_child_autofree(_ctl)
 
-	# The scene-wired ordering: `player` assigned while the entity still holds
-	# the board it will discard on `_ready`.
+	# The scene-wired ordering: `player` assigned before the entity enters the
+	# tree — the board it binds to must survive bring-up.
 	_player = autofree(_make_entity("Player"))
 	_ctl.player = _player
-	_pre_swap_board = _player.stat_board
+	_pre_tree_board = _player.stat_board
 	_graph.entities_container.add_child(_player)
 	# `GameRoot.bind_player`'s idempotent re-assert — the call the early
 	# return silently swallowed.
@@ -86,8 +89,8 @@ func before_each() -> void:
 	_graph.entities_container.add_child(_enemy)
 
 	await get_tree().process_frame
-	assert_ne(_player.stat_board, _pre_swap_board,
-			"fixture: Entity._ready must have swapped the board, or this tests nothing")
+	assert_same(_player.stat_board, _pre_tree_board,
+			"the board bound before add_child is the live board after bring-up (#1031)")
 
 	_tm.start_turn(_player)
 	_emissions = []

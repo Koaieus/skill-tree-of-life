@@ -388,8 +388,16 @@ func test_entity_without_board_still_supports_condition_path() -> void:
 	# falls back to 2.0.
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1], [1, 1]], self)
-	var atk := helper.make_entity(graph, "A")
-	atk.stat_board = null  # no board at all
+	# No board at all — assigned BEFORE the entity enters the tree, since the
+	# board is sealed after bring-up (#1031); the helper would seal it.
+	var atk := Entity.new()
+	atk.display_name = "A"
+	var solo := Faction.new()
+	solo.id = &"test_camp_A_boardless"
+	solo.display_name = "A"
+	atk.faction = solo
+	atk.stat_board = null
+	graph.add_child(atk)
 	helper.assign_owner(graph, atk, [0])
 	var def := helper.make_entity(graph, "D")
 	helper.assign_owner(graph, def, [1])
