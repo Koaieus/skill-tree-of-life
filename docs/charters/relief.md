@@ -113,8 +113,10 @@ live outgoing — never by reading issues to compensate.
 - The retiring state written from swarm's side, the overlap-window
   narrative, the worked-example table, the "Fable advisor optional"
   section — all history, all here.
-- Dead pointers: `.claude/rules/handoffs.md` does not exist; swarm has no
-  "Stop compliance and relief" section.
+- Dead pointers: the old file cited a `handoffs` rule under `.claude/rules/`
+  that no longer exists, and a swarm section ("Stop compliance and relief")
+  that swarm never had. `rules-hygiene` catches the first kind; the second
+  is checked by grepping the target.
 - Any restatement of swarm's cycle or of drone-side rules.
 - Any row above, any issue number, any date.
 
