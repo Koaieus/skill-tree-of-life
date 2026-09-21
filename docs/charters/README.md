@@ -30,4 +30,4 @@ history, or the next rewrite re-learns it.
   companion doc cannot sit there; skills could hold one in their directory,
   but one home for both keeps the convention uniform.
 
-Charters so far: [drone](drone.md), [swarmify](swarmify.md), [swarm](swarm.md), [sage](sage.md), [adr](adr.md).
+Charters so far: [drone](drone.md), [swarmify](swarmify.md), [swarm](swarm.md), [sage](sage.md), [adr](adr.md), [warp](warp.md).

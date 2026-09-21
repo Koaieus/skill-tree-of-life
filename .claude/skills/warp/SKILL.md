@@ -6,14 +6,13 @@ description: Drive a full trunk-based issue cycle in an isolated git worktree �
 # Warp
 
 Drive one issue from ticket to merged, on an isolated `git worktree` instead
-of the current checkout. This exists because this repo has set up worktree DX
-— parallel agents editing the same checkout directly, occasionally colliding
-on someone else's WIP. Warp gives each issue its own disposable checkout,
-advances `master` only by **fast-forward** — never by switching the main
-checkout's own branch or stashing its WIP — and gates the merge on explicit
-user approval. Rebase the worktree branch onto `master` first, so the
-merge is always a pure fast-forward that leaves any unrelated WIP in the
-main checkout untouched.
+of the current checkout — the main checkout is a shared surface where other
+agents may hold uncommitted WIP. Warp gives each issue its own disposable
+checkout, advances `master` only by **fast-forward** — never by switching the
+main checkout's own branch or stashing its WIP — and gates the merge on
+explicit user approval. Rebase the worktree branch onto `master` first, so
+the merge is always a pure fast-forward that leaves any unrelated WIP in the
+main checkout untouched. Why each rule below exists: `docs/charters/warp.md`.
 
 > This is a **process** skill. It orchestrates existing tools — `gh`, the
 > `mise run worktree:*` tasks (`mise.toml`), and the project's own testing/
@@ -80,28 +79,26 @@ the fact belongs to Y. Three questions, answered from the plan before any
 code exists — *who owns this fact? is this one thing pretending to be N? what
 does it cost per frame / at scale?* — and the fix goes into the owner (or
 gets filed against it), never into the unit that shows the symptom. The test
-setup is the cheapest detector of coupling this repo has; a scoped rule will
-not fire for you here because Bash reads never trigger `paths:` rules.
+setup is the cheapest detector of coupling this repo has.
 
 **3b. Implement**
 Same repo, same rules — `.claude/rules/*` apply unchanged inside a worktree.
 Two things specific to running in a *fresh* worktree:
 - It has no `.godot/` yet (gitignored, per-checkout). The first
   `godot --headless --editor ...` invocation cold-imports — budget a few
-  seconds before the first `mise run check`/`test` call returns. Confirmed
-  empirically during #86: this does not touch or corrupt the main checkout's
-  `.godot/` (fully independent), and reproduces the exact same "harmless
-  during cold boot" script-error noise as a plain fresh clone at the same
-  commit — not a worktree-specific issue.
+  seconds before the first `mise run check`/`test` call returns. Its
+  `.godot/` is fully independent of the main checkout's, and it reproduces
+  the exact same "harmless during cold boot" script-error noise as a plain
+  fresh clone at the same commit — not a worktree-specific issue.
 - If you introduce or rename a `class_name`, the worktree needs its own cache
   refresh (`mise run refresh`) — the main checkout's refresh doesn't propagate.
 
 **4. Confirm before presenting anything**
 
 Step 3a already gave you a green `test:one`. This step widens that to the suite.
-The full suite is a **gate**, not a feedback loop — measured 2026-09-04 at
-**~215s, 409 scripts, 3807 tests** — so reach for it **once**, right before
-step 5. While iterating, use the cheap ladder instead:
+The full suite is a **gate**, not a feedback loop (its current cost is in
+`CLAUDE.md`), so reach for it **once**, right before step 5. While iterating,
+use the cheap ladder instead:
 
 ```bash
 mise run check                                     # ~20s — after every script edit
@@ -113,8 +110,8 @@ mise run test                                      # full suite — ONCE, right 
 Don't skip the full run to save time — the approval step in #5 assumes tests
 already pass; surfacing red tests at approval time wastes the review. But
 don't re-run it mid-iteration either — that's what `test:one`/`test:dir` are
-for, and a 215s round trip on every edit is exactly the waste this ladder
-exists to avoid.
+for, and a full-suite round trip on every edit is exactly the waste this
+ladder exists to avoid.
 
 **5. Pending approval — stop and ask**
 Present the diff/summary to the user. **Do not merge without explicit
@@ -125,16 +122,15 @@ happened off to the side in a worktree.
 
 **6. Merge back to master — always a fast-forward, never touching the main checkout's WIP**
 
-The whole reason merges tripped up before: agents tried to `git checkout
-master` / `git stash` in the main checkout, or spun up a merge worktree, to
-work around WIP that a fast-forward doesn't actually care about. Don't. A
+Don't `git checkout master` / `git stash` in the main checkout, or spin up a
+merge worktree, to work around WIP — a fast-forward doesn't care about it. A
 fast-forward from a rebased branch tolerates unrelated dirty files in the
 main checkout and refuses *only* when it would clobber a live local edit —
 which is exactly the safety behaviour you want. So the procedure is two
 commands, run from wherever, and the git safety net does the rest.
 
-Ensure your commit message contains `Closes #<n>` (see `CLAUDE.md` → Git) so
-GitHub auto-closes the issue — amend it now if needed (`git commit --amend`),
+Ensure your commit message contains `Closes #<n>` so GitHub auto-closes the
+issue — amend it now if needed (`git commit --amend`),
 you're still in the worktree.
 
 Optionally, move the kanban card to reflect the new state:
@@ -160,8 +156,8 @@ guaranteed fast-forward.
   ```bash
   git merge --ff-only issue-<n>-<slug>
   ```
-  This succeeds with unrelated WIP present (verified: it leaves those files
-  untouched) and *refuses* only if the WIP overlaps a file your branch changed
+  This succeeds with unrelated WIP present (it leaves those files untouched)
+  and *refuses* only if the WIP overlaps a file your branch changed
   — a real conflict with someone's live edit; surface that to the user, don't
   force it.
 
@@ -200,15 +196,13 @@ Don't let a warp branch silently drift for days. Pick one:
   for genuinely multi-day work, but don't let it go stale — rebase at least
   once a day so it doesn't accumulate a painful conflict at merge time.
 
-No silent long-lived divergence — that's the exact failure mode #86 exists to
-prevent.
+No silent long-lived divergence.
 
 ## Gotchas
 
 - **Never `git checkout` or `git stash` in the main checkout to merge.** The
   main checkout may have someone else's uncommitted WIP (documented in
-  `CLAUDE.md` → the multi-agent caveat) — this is not hypothetical, it
-  happened mid-session during #86 itself. You don't need to disturb it: a
+  `CLAUDE.md` → the multi-agent caveat). You don't need to disturb it: a
   fast-forward (step 6) leaves unrelated dirty files alone, and if the main
   checkout is parked on another branch, `git fetch . <branch>:master` advances
   master without a checkout. No merge worktree, no stash.
