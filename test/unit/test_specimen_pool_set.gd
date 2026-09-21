@@ -133,3 +133,48 @@ func test_pipeline_clamps_negative_increase_below_minus_100() -> void:
 	board.add_modifier(m2)
 	# (1 + (-120)/100) would be -0.2 → clamped to 0 → stat reads 0.
 	assert_almost_eq(float(board.strength.get_value()), 0.0, 0.001)
+
+## DoT potency lives on attribute packs (poison→DEX, corruption→STR,
+## curse→WIS, wither→CON); a node never rolls a potency its archetype does
+## not own. Seeded budget-7 draws, the same harness as the mobility test.
+func _potency_ids_over_seeded_draws(primary: StringName) -> Array[StringName]:
+	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	var seen: Array[StringName] = []
+	for seed_value in range(1, 200):
+		var mods: Array = _GP._roll_modifiers_v4(
+				pool_set, [], primary, primary, [], Vector2.ZERO, 0, 7, _rng(seed_value))
+		for m in mods:
+			if String(m.stat_id).ends_with("_potency") and not (m.stat_id in seen):
+				seen.append(m.stat_id)
+	return seen
+
+
+func test_dot_potency_rolls_only_on_its_attribute_home() -> void:
+	var str_seen := _potency_ids_over_seeded_draws(&"strength")
+	assert_true(&"corruption_potency" in str_seen, "corruption_potency rolls on a STR node (seen %s)" % [str_seen])
+	assert_false(&"poison_potency" in str_seen, "poison_potency never rolls on a STR node (seen %s)" % [str_seen])
+	var dex_seen := _potency_ids_over_seeded_draws(&"dexterity")
+	assert_true(&"poison_potency" in dex_seen, "poison_potency rolls on a DEX node (seen %s)" % [dex_seen])
+	assert_false(&"corruption_potency" in dex_seen, "corruption_potency never rolls on a DEX node (seen %s)" % [dex_seen])
+
+
+## Shape, never magnitude: every potency pool in the specimen set is
+## archetype-scoped; every resistance is universal and T2..T4 only.
+func test_dot_pools_shape() -> void:
+	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	var potency_count := 0
+	var resistance_count := 0
+	for pack in pool_set.packs:
+		for sp in (pack as StatPack).pools:
+			var pp := sp as StatPool
+			var sid := String(pp.stat_id)
+			if sid.ends_with("_potency"):
+				potency_count += 1
+				assert_ne(pp.archetype_stat, &"", "%s must have an attribute home" % sid)
+			elif sid.ends_with("_resistance"):
+				resistance_count += 1
+				assert_eq(pp.archetype_stat, &"", "%s stays universal" % sid)
+				assert_eq(pp.min_tier, 2, "%s never rolls at T1" % sid)
+				assert_eq(pp.max_tier, 4, "%s ladders three rungs to T4" % sid)
+	assert_eq(potency_count, 4, "four potency pools across the set")
+	assert_eq(resistance_count, 4, "four resistance pools across the set")
