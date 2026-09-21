@@ -16,8 +16,8 @@ paths:
 | spend | cost |
 |---|---|
 | a plain member | 1 |
-| `CLAMP_UPGRADE` | 1 |
-| `SPIKE_UPGRADE` | 2 |
+| a `clamp` temp upgrade (`attack/melee/defs/clamp.tres`) | 1 |
+| a `spike_ring` temp upgrade (`attack/melee/defs/spike_ring.tres`) | 2 |
 
 **Why:** it is easy to read "clamp node" as a persistent, cross-turn structural investment — #771 was filed on exactly that assumption. It is not. A clamp is a per-swing choice competing directly with one more member of reach, and it is refunded when the plan resets.
 
