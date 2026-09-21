@@ -249,3 +249,40 @@ func test_body_stays_inside_the_tray_budget() -> void:
 	gut.p("ranged body min size = %s" % min_size)
 	assert_lt(min_size.x, 891.0, "min width inside the tray slot")
 	assert_lt(min_size.y, 231.0, "min height inside the tray budget")
+
+
+func _set_local(node: SkillNode, id: StringName, value: float) -> void:
+	var m := StatModifier.new()
+	m.stat_id = id
+	m.operation = StatModifier.Operation.SET
+	m.value = value
+	node.add_local_modifier(m)
+
+
+## #1036: at a sensed-only target only scouts fly, so the composer reads every
+## other bin as empty — the default composition is all the scouts in stock and
+## validates, rather than opening on the mix error.
+func test_a_sensed_target_composes_scouts_only() -> void:
+	_attacker.stat_board.arrows.add(&"scout", 2)
+	_graph.add_edge(_near, _target)
+	for n in [_mid, _near, _mid_leaf, _far]:
+		_set_local(n, &"vision_range", 10.0)
+		_set_local(n, &"sensor_range", 0.0)
+	_set_local(_near, &"sensor_range", 1.0)
+	var vision := VisionSystem.new()
+	vision.graph = _graph
+	vision.viewers = [_attacker]
+	add_child_autofree(vision)
+	await get_tree().process_frame
+	vision._recompute()
+	assert_true(vision.is_sensed(_target) and not vision.is_visible(_target), "fixture: target is sensed-only")
+	_body.set_special(_POISON, 1)
+	assert_true(_plan.ammo_counts.has(_POISON) and _plan.ammo_counts.has(_ARROW), "control: without the viewer fog poison and base fire")
+	_plan.viewer_vision = vision
+	_plan.reset()
+	_plan._on_node_left_clicked(_target)
+	assert_true(_plan.is_scout_shot(), "fixture: the plan sees a scout shot")
+	assert_eq(_plan.ammo_counts, {&"scout": 2}, "scouts only, poison and base forced to 0")
+	assert_eq(_plan.validate(), [] as Array[String], "the default composition validates")
+	_body.step_special(_POISON, 1)
+	assert_eq(_plan.ammo_counts, {&"scout": 2}, "a poison step is clamped back to 0 into fog")

@@ -209,12 +209,16 @@ static func wave_notches(shots_left: Array[int], cap: int) -> PackedInt32Array:
 ## `state_changed` re-enters here and must find nothing to do).
 func _compose(plan: RangedAttackPlan) -> Dictionary:
 	var cap := plan.max_n()
+	# A scout shot (#1036, a sensed-only target): only scout arrows fly into
+	# fog, so every other bin reads as empty here and the default composition
+	# validates instead of opening on the mix error.
+	var scout_shot := plan.is_scout_shot()
 	var counts: Dictionary = {}
 	var sum_special := 0
 	for t in _ROSTER.sorted():
 		if t.id == AmmoTypeRoster.BASE_ID:
 			continue
-		var c := clampi(_special_counts.get(t.id, 0), 0, mini(_quiver.stock_of(t.id) if _quiver != null else 0, cap - sum_special))
+		var c := clampi(_special_counts.get(t.id, 0), 0, mini(_stock_for(t, scout_shot), cap - sum_special))
 		_special_counts[t.id] = c
 		if c > 0:
 			counts[t.id] = c
@@ -222,7 +226,7 @@ func _compose(plan: RangedAttackPlan) -> Dictionary:
 	var target_n := cap if _n_at_max else clampi(_n, 0, cap)
 	target_n = maxi(target_n, sum_special)
 	_n = target_n  # N grew to fit the specials: remember the grown value
-	var base := mini(target_n - sum_special, _quiver.stock_of(AmmoTypeRoster.BASE_ID) if _quiver != null else 0)
+	var base := mini(target_n - sum_special, _stock_for(_ROSTER.base_type(), scout_shot))
 	# The base bin cannot fill N: top up the specials in roster order (at
 	# N = max = stock this is simply "every arrow fires").
 	var shortfall := target_n - sum_special - base
@@ -233,13 +237,23 @@ func _compose(plan: RangedAttackPlan) -> Dictionary:
 			if t.id == AmmoTypeRoster.BASE_ID:
 				continue
 			var have := int(counts.get(t.id, 0))
-			var extra := mini(shortfall, _quiver.stock_of(t.id) - have)
+			var extra := mini(shortfall, _stock_for(t, scout_shot) - have)
 			if extra > 0:
 				counts[t.id] = have + extra
 				shortfall -= extra
 	if base > 0:
 		counts[AmmoTypeRoster.BASE_ID] = base
 	return counts
+
+
+## The bin the composer may draw on: the quiver's stock, or 0 for a non-scout
+## type while the target is a sensed-only node.
+func _stock_for(t: AmmoType, scout_shot: bool) -> int:
+	if _quiver == null or t == null:
+		return 0
+	if scout_shot and t.reveal_fraction <= 0.0:
+		return 0
+	return _quiver.stock_of(t.id)
 
 
 func _refresh() -> void:
