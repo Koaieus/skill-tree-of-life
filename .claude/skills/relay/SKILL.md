@@ -1,12 +1,12 @@
 ---
 name: relay
-description: Orchestrate a chain of Ready issues as one Sonnet `warp` drone each, with you as advisor and sole merge gate — read almost nothing yourself, front-load each brief with discovered context, gate every merge, and run the full suite once at the end. Use when the user names several issues to land in sequence ("#A → #B → #C as Sonnet warps"), says "relay these", or asks you to orchestrate warps without doing the implementation. Since #857 this is `swarm` at wave size 1 — the body is a pointer; run `swarm` with one drone in flight.
+description: Orchestrate a chain of Ready issues as one Sonnet `warp` drone each, with you as advisor and sole merge gate — read almost nothing yourself, front-load each brief with discovered context, gate every merge, and run the full suite once at the end. Use when the user names several issues to land in sequence ("#A → #B → #C as Sonnet warps"), says "relay these", or asks you to orchestrate warps without doing the implementation. This is `swarm` at wave size 1 — the body is a pointer; run `swarm` with one drone in flight.
 ---
 
 # Relay — a swarm at wave size 1
 
-Folded into [`swarm`](../swarm/SKILL.md) on 2026-09-11 (#857). A relay **is**
-a swarm with one drone in flight: read `swarm` and run it with a wave size of
+Design and laws: `docs/charters/relay.md`. A relay **is** a
+[`swarm`](../swarm/SKILL.md) with one drone in flight: read `swarm` and run it with a wave size of
 one — the serial merge token, the bare-number brief, the tier tag, `mise run
 land`, the once-per-train suite and the push are all the same protocol, and
 this file no longer restates any of it. What differs at wave size 1:
@@ -21,8 +21,8 @@ this file no longer restates any of it. What differs at wave size 1:
 - **Each issue closes as it lands** — `land --closes` per branch, since every
   branch is the last for its issue.
 
-What the 2026-09-03 chain (#737 → #727 → #746 → #736 → #743, five landed in
-~5h; lead 218k, drones 111k–222k) taught now lives where it binds: the
-drone-side rules in the `drone` agent (`.claude/agents/drone.md`), the merge token in `mise run land`, review
-proportionality and the final-suite baseline in `swarm` §5–§6, retirement
-economics in `swarm`'s stop-compliance section. Do not re-grow this file.
+What relays taught lives where it binds: the drone-side rules in the
+`drone` agent (`.claude/agents/drone.md`), the merge token in `mise run
+land`, review proportionality and the final-suite baseline in `swarm` §5–§6,
+retirement economics in `swarm`'s stop-compliance section. Do not re-grow
+this file.
