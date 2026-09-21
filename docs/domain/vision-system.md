@@ -114,6 +114,64 @@ on all four sides** (`Rect2.has_point` is not — see
 contains its own centre**, because an owned node with no vision must still see
 itself.
 
+## Scouted marks (#1033, hub #949)
+
+A third vision source beside owned circles: a **scouted mark** is a disc a
+scout arrow leaves where it lands. VisionSystem owns the fact;
+`effects/status/scouted.tres` owns the rules and the face; the def **never
+enters a node's status slice** (a node status has no applier — whose eyes? —
+is keyed per def, and ticks on `entity == owned_by`, so an unallocated
+target would never tick).
+
+- **The hit.** `HitInstance.Kind.REVEAL` / `RevealInstance`
+  (`attack/outcome/reveal_instance.gd`): `amount` = radius in world units,
+  `attacker` = firer, `target` = landing node. No gate — it reveals wherever
+  it lands, allocated or not, any owner. `land_on` on a shadow world is a
+  no-op (the preview shows no disc); on the live world it emits
+  `Events.node_scouted(node, viewer, radius)` once. **Replay:** the record
+  captures nothing new — the radius rides `amounts`, the firer `attackers`,
+  the node `targets` — and `AttackRecord.rebuild` reconstructs a
+  `RevealInstance` for a recorded `REVEAL`, so a peer's own replay emits the
+  same fact (`.claude/rules/attack-timeline.md`). Gotcha behind that:
+  capture ships `effective_amount`, not `amount`, so `land_on` stamps
+  `effective_amount = amount` on EVERY world *before* the shadow early-return
+  — the authority resolves on a shadow and captures from it.
+- **The mark.** `_scout_marks: node → { viewer → power }` with
+  `power = radius / SCOUT_FLOOR` (50 world units, one const beside the def).
+  That unit choice is the whole lifetime rule: `StatusDef.decayed()` clears a
+  `FRACTION` def below power 1.0, so "gone below the floor" falls out of the
+  def unmodified. Marks are held for every viewer — a peer carries the same
+  marks off the same record — and only those whose viewer is in
+  `_effective_viewers()` draw, so a hostile scout leaks nothing.
+- **Clock.** `Events.turn_started(entity)` — the **firer's** turn start,
+  never the host node's — runs every mark keyed by that entity through
+  `scouted_def.decayed()` (`decay_per_tick 0.5`, halves) and drops it at 0.
+  `scouted_def` is an `@export` defaulting to the preload so a level or a
+  test can inject a variant; the `.tres` sets the tick count, code never does.
+- **Refresh.** Re-landing on a live mark takes `max(decayed, new)` — the def's
+  `Reapply.REFRESH` — never a sum. Stacking is a launch-time *size* decided
+  by the arrow (#1035); cross-turn accumulation is a known seam, not a knob.
+- **Render + logic join in `_recompute`.** A mark adds a circle at
+  `node.global_position` with target `power × SCOUT_FLOOR` into the same
+  `VisionCircles` index that feeds `_visible`, **and** into `_circles` keyed
+  by the node so `get_vision_sources()` and the `_process` ease animate it
+  like an owned source — the fog picture moves, not just `input_pickable`.
+  A mark on a node the group already owns is a `max` against the owned
+  circle, no special case.
+- **Per-node feedback.** `SkillNode.scouted` is written beside
+  `sensed`/`revealed` for the local group only; it drives a lazily-instanced
+  `ScoutMarker` ring (inline class in `skill_node.gd`) in the def's tint.
+  The disc in the fog is the primary feedback; the ring's shape is visual
+  work, untested.
+- **`pick_sensed`.** An `@export` marker: when true, `input_pickable =
+  visible or sensed`. Built here, toggled by the scout shot (#1036) while a
+  scout-armed ranged plan is live; default false.
+
+Tests: `test/unit/systems/test_vision_scout_marks.gd` (group filtering,
+halving, floor, max-not-sum, def-owned rate, renderer circle, `scouted`
+write, `pick_sensed`) and `test/unit/attack/test_reveal_instance.gd`
+(shadow no-op, live emit, record round-trip as its own kind).
+
 ## Input gating
 
 One lever: `SkillNode.input_pickable = is_visible(node)` toggled per
