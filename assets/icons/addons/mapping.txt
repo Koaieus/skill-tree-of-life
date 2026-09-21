@@ -9,6 +9,7 @@ addon_fortification	heavenly-dog/defensive-wall.svg
 addon_clamp	delapouite/clamp.svg
 addon_skill_dust	lorc/dust-cloud.svg
 addon_watchtower	delapouite/watchtower.svg
+addon_toxin	lorc/poison-bottle.svg
 # Armed-mode cursor badges (#664). The three attack modes are a deliberate
 # family — three diagonally-pointing weapons, differentiated by the STR/DEX/INT
 # tint, not by silhouette (owner call 2026-08-29).

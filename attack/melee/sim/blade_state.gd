@@ -65,6 +65,16 @@ var speed_history: Array[PackedFloat32Array] = []
 ## leave the array zeroed, and [method BladePopResolver.LiveGate._blunting_for]
 ## falls back to the `blunting` [StatDef]'s own default.
 var vertex_blunting: PackedFloat32Array
+## Per-particle status the vertex applies on every contact it LANDS (#951) —
+## null means none. Zeroed in build(), then written by a [DotAddon]'s
+## [method SkillNodeAddon.apply_to_blade] for its own carrier's index only:
+## a toxic node poisons what IT sweeps into, never the whole blade. Read by
+## [SwingResolve], which pairs each vertex's damage hit with a
+## [BladeStatusInstance] when this is set.
+var vertex_status_def: Array[StatusDef] = []
+## Stacks the vertex applies per landed contact — [member vertex_status_def]'s
+## partner, index for index; meaningless where the def is null.
+var vertex_status_power: PackedFloat32Array
 ## [b]There is no per-edge damage array, and there is no `edge_damage` stat.[/b]
 ## ADR 0005: [b]nodes deal damage, edges give rigidity[/b]. An edge carries no
 ## stats at all — not derived from its endpoints by MIN, MAX or mean, because a
@@ -153,6 +163,9 @@ static func build(
 	s.vertex_damage.resize(positions_.size())  # zero-init; caller fills per-vertex
 	s.vertex_blunting = PackedFloat32Array()
 	s.vertex_blunting.resize(positions_.size())  # zero-init == unfilled; see the member
+	s.vertex_status_def.resize(positions_.size())  # null == no status; see the member
+	s.vertex_status_power = PackedFloat32Array()
+	s.vertex_status_power.resize(positions_.size())
 	s.inv_masses = PackedFloat32Array()
 	s.inv_masses.resize(positions_.size())
 	for i in positions_.size():
