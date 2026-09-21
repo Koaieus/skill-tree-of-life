@@ -92,6 +92,9 @@ var selected_spell: SpellDef = null:
 ## BattleSystem (tests, the spell playground) simply casts without fog, which
 ## is what those callers had before.
 @export var vision_system: VisionSystem
+
+const _AMMO_ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
+
 ## The queue an attack is applied through (#511). Optional: without one,
 ## [method launch_attack] applies straight, which is what every headless
 ## fixture and the editor do. Wired by [CommandApplier] itself at `_ready`
@@ -206,12 +209,33 @@ var attack_plan: AttackPlan:
 		attack_plan = value
 		if attack_plan != null:
 			attack_plan.state_changed.connect(_on_plan_state_changed)
+		_sync_pick_sensed()
 		attack_plan_changed.emit(value)
 		attack_plan_state_changed.emit()
 
 
 func _on_plan_state_changed() -> void:
 	attack_plan_state_changed.emit()
+
+
+## The sensed-pickability lever (#1033) on [member vision_system]: on while a
+## [RangedAttackPlan] is armed and the attacker's quiver holds scout stock —
+## the scout shot's target set is the sensed nodes — off for every other plan
+## and for none. VisionSystem owns the lever; this system owns the mode; the
+## plan never writes another system's state.
+func _sync_pick_sensed() -> void:
+	if vision_system == null:
+		return
+	var want := false
+	var ranged := attack_plan as RangedAttackPlan
+	if ranged != null and ranged.attacker != null and ranged.attacker.stat_board != null:
+		var quiver: Quiver = ranged.attacker.stat_board.arrows
+		if quiver != null:
+			for t in _AMMO_ROSTER.sorted():
+				if t.reveal_fraction > 0.0 and quiver.stock_of(t.id) > 0:
+					want = true
+					break
+	vision_system.pick_sensed = want
 
 var attack_mode: AttackMode:
 	get(): return attack_plan.mode if attack_plan else AttackMode.NONE
@@ -324,6 +348,8 @@ func _new_plan(plan_class: Script) -> AttackPlan:
 	p.attacker = turn_manager.current_entity
 	if p is MagicAttackPlan:
 		(p as MagicAttackPlan).viewer_vision = vision_system
+	if p is RangedAttackPlan:
+		(p as RangedAttackPlan).viewer_vision = vision_system
 		if selected_spell != null:
 			(p as MagicAttackPlan).spell = selected_spell
 	if p is MeleeAttackPlan:

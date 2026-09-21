@@ -23,6 +23,13 @@ const _ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres
 const ERR_NO_AMMO := &'No arrows in the quiver'
 const ERR_NO_SHOTS := &'No firing leaf in range has shots left'
 const ERR_VOLLEY_LIMIT := &'Volley limit reached this turn'
+const ERR_SCOUT_ONLY := &'Only scout arrows can fire into fog'
+
+## The viewer's fog, set by [method BattleSystem._new_plan] from its own
+## `vision_system` export (null for an AI plan or a fog-less test: every
+## target is then a plain hostile). Read, never written — the pickability
+## lever is BattleSystem's to pull on VisionSystem, not this plan's.
+var viewer_vision: VisionSystem = null
 
 
 ## The quiver this plan draws from, or null on a board without one.
@@ -271,7 +278,8 @@ func validate() -> Array[String]:
 	if target == null:
 		errors.append(&'No target')
 		return errors
-	if target.ownership_bit(attacker) != SkillNode.Ownership.HOSTILE:
+	var scout_shot := is_scout_shot()
+	if not scout_shot and target.ownership_bit(attacker) != SkillNode.Ownership.HOSTILE:
 		errors.append(&'Target node is not owned by an enemy')
 	if get_reaching_firing_positions().is_empty():
 		errors.append(&'No firing position can reach target')
@@ -297,6 +305,9 @@ func validate() -> Array[String]:
 		elif count > quiver.stock_of(id):
 			errors.append(&'Not enough %s arrows (%d < %d)' % [id, quiver.stock_of(id), count])
 		total += count
+		# Into fog only scouts fly: one error for the mix, never one per bin.
+		if scout_shot and not _is_scout_type(id) and not errors.has(ERR_SCOUT_ONLY):
+			errors.append(ERR_SCOUT_ONLY)
 	if total <= 0:
 		errors.append(&'Volley is empty')
 	elif total > _shots_available():
@@ -304,16 +315,42 @@ func validate() -> Array[String]:
 	return errors
 
 
+## A visible hostile, or any sensed-only node (the scout shot's target —
+## ownership stays hidden, so it is never read here). Composition is not
+## checked: an all-arrow click on a sensed node sticks and reads as
+## [constant ERR_SCOUT_ONLY] from [method validate], not as a refused click.
 func _is_valid_target(node: SkillNode) -> bool:
 	if node == null or attacker == null:
 		return false
-	return node.ownership_bit(attacker) == SkillNode.Ownership.HOSTILE
+	if _is_sensed_only(node):
+		return true
+	return node.ownership_bit(attacker) == SkillNode.Ownership.HOSTILE \
+			and (viewer_vision == null or viewer_vision.is_visible(node))
+
+
+## Sensed but not visible through [member viewer_vision] — the scout shot.
+func _is_sensed_only(node: SkillNode) -> bool:
+	return viewer_vision != null and viewer_vision.is_sensed(node) \
+			and not viewer_vision.is_visible(node)
+
+
+## True while the target is a sensed-only node: the volley must be all
+## scouts and costs [method ap_cost] 1 (owner, 2026-09-21: fog is pushed for
+## free at visible nodes and at an AP cost at sensed ones).
+func is_scout_shot() -> bool:
+	return target != null and _is_sensed_only(target)
+
+
+static func _is_scout_type(id: StringName) -> bool:
+	var t := _ROSTER.by_id(id)
+	return t != null and t.reveal_fraction > 0.0
 
 
 ## Owner (2026-09-18): "Firing costs 0 AP" — the volley economy is arrows
-## and per-leaf shots, both consumed by BattleSystem._commit.
+## and per-leaf shots, both consumed by BattleSystem._commit. The one
+## exception is the scout shot into fog: 1 AP, rides the record.
 func ap_cost() -> int:
-	return 0
+	return 1 if is_scout_shot() else 0
 
 
 func resolve_against(world: CombatWorld) -> AttackOutcome:
