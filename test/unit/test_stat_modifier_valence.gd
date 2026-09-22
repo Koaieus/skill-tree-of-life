@@ -3,8 +3,9 @@ extends GutTest
 ## The valence law (#1049): a modifier's delta is its value's displacement from
 ## its OP's neutral element, judged through StatDef.is_improvement.
 ##
-## Every test here is pending() against the stub in stat_modifier.gd — the
-## drone's first commit deletes the pending() lines and sees these go RED.
+## Pins the law itself, MULTIPLY either side of 1, the NEUTRAL/VOLATILE set,
+## the two shipped curse fixtures, and the editor guard on a MULTIPLY pool
+## whose folded range crosses zero.
 ## The two fixtures are live shipped content (procgen/pools/constitution.tres):
 ## `dexterity INCREASE -3` is a bane, `min_damage_taken ADD_BASE -1` is a boon.
 ## Same negative sign, opposite valence — the pair this law exists for.
