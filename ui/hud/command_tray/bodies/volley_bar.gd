@@ -26,6 +26,8 @@ const TYPE_TINTS: Dictionary = {
 	&"poison": Color(0.55, 0.38, 0.85, 0.95),
 }
 const FALLBACK_TINT := Color(0.9, 0.65, 0.25, 0.95)
+## How far a fired slice is darkened — a spent chamber, not a glow tier.
+const FIRED_DIM: float = 0.6
 
 var n: int = 0
 var max_n: int = 0
@@ -37,6 +39,15 @@ var segments: Array[Dictionary] = []
 var _font: Font
 var _dragging := false
 
+## Per-arrow charge strip of the launched volley, 0 = normal, 1 = lit; the
+## painted value, written by the placement tweens.
+var _arrow_state: PackedFloat32Array = PackedFloat32Array()
+## Per-arrow drain strip, 0..1 = how far the dim has eaten the slice upward.
+var _arrow_fired: PackedFloat32Array = PackedFloat32Array()
+## What the tweens aim at — the schedule, readable without a frame.
+var arrow_state_target: PackedFloat32Array = PackedFloat32Array()
+var arrow_fired_target: PackedFloat32Array = PackedFloat32Array()
+
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(0.0, TRACK_H)
@@ -44,13 +55,27 @@ func _ready() -> void:
 	_font = get_theme_default_font()
 
 
-func set_volley(p_n: int, p_max: int, p_notches: PackedInt32Array, p_segments: Array[Dictionary]) -> void:
+func set_volley(p_n: int, p_max: int, p_notches: PackedInt32Array, p_segments: Array[Dictionary], hold: bool = false) -> void:
 	n = p_n
 	max_n = p_max
 	notches = p_notches
 	segments = p_segments
 	tooltip_text = "%d / %d arrows · scroll ±1 · Shift+scroll ±wave · M = max" % [n, max_n]
 	queue_redraw()
+
+
+func on_arrow_placed(_index: int, _total: int) -> void:
+	pass
+
+
+func on_arrow_released(_index: int, _total: int) -> void:
+	pass
+
+
+## Pure: the colours of one arrow slice for a charge `state` and a drain
+## `fired` fraction.
+static func paint_slice(_state: float, _fired: float, tint: Color) -> Dictionary:
+	return {"lit": tint, "dim": tint, "fired": 0.0}
 
 
 func _track_rect() -> Rect2:
