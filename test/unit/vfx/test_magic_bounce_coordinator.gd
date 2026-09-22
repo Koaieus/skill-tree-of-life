@@ -627,3 +627,124 @@ func test_windup_vfx_scene_null_instances_nothing() -> void:
 	var coord := _mount_coord(0.01, 0.005)
 	coord.begin_windup(_magic_plan(graph, 0), _windup_tempo(0.25, 0.6, 0.1))
 	assert_eq(_windup_fx_children(coord), 0, "no slot set, nothing layered")
+
+
+# --- SwarmFocus per wave (#1044) -------------------------------------------
+
+## A [SwarmFocus] that records every [method SwarmFocus.begin_wave] it gets.
+## Mounted under the coordinator as `FocusMarker` BEFORE play, so
+## [method MagicBounceCoordinator.focus_marker] answers with it — the seam
+## the coordinator already exposes, no reach-in.
+class RecordingFocus extends SwarmFocus:
+	var waves: Array = []  ## [{from, to}] in call order
+
+	func begin_wave(from: Vector2, to: Vector2) -> void:
+		waves.append({"from": from, "to": to})
+		super(from, to)
+
+
+func _mount_recording_focus(coord: MagicBounceCoordinator) -> RecordingFocus:
+	var focus := RecordingFocus.new()
+	focus.name = "FocusMarker"
+	coord.add_child(focus)
+	return focus
+
+
+## A hand-built event with one damage hit of [param amount] (0 = no hit).
+func _event(beat: int, origin: SkillNode, target: SkillNode, amount: float,
+		outcome: AttackOutcome) -> PropagationEvent:
+	var ev := PropagationEvent.new()
+	ev.beat = beat
+	ev.origin = origin
+	ev.target = target
+	if amount != 0.0:
+		var hit := DamageInstance.new()
+		hit.origin = origin
+		hit.target = target
+		hit.amount = amount
+		ev.hits.append(hit)
+		outcome.hits.append(hit)
+	outcome.timeline.append(ev)
+	return ev
+
+
+## Positioned graph for centroid maths: 0 caster, 1 first target, then two
+## fan-out pairs on distinct coordinates.
+func _positioned_graph() -> Graph:
+	var positions := {0: Vector2(0, 0), 1: Vector2(100, 0), 2: Vector2(200, 50),
+			3: Vector2(200, -50), 4: Vector2(300, 100), 5: Vector2(300, -100)}
+	return _helper.make_graph([[0, 1], [1, 2], [1, 3], [2, 4], [3, 5]], self, positions)
+
+
+func test_begin_wave_once_per_wave_cast_to_target_then_centroids() -> void:
+	# Acceptance 1 + 3: three waves → exactly three `begin_wave` calls — the
+	# cast (caster → chosen target, one node each) is wave 0, the fan-outs are
+	# origin/target centroids — and NOTHING between waves. `wave_landing` carries
+	# exactly that wave's target positions.
+	var graph := _positioned_graph()
+	var n := graph.get_skill_nodes()
+	var outcome := AttackOutcome.new()
+	_event(0, n[0], n[1], 10.0, outcome)
+	_event(1, n[1], n[2], 10.0, outcome)
+	_event(1, n[1], n[3], 10.0, outcome)
+	_event(2, n[2], n[4], 10.0, outcome)
+	_event(2, n[3], n[5], 10.0, outcome)
+	var coord := _mount_coord(0.04, 0.03)
+	var focus := _mount_recording_focus(coord)
+	var landings: Array = []
+	coord.wave_landing.connect(func(points: PackedVector2Array) -> void:
+		landings.append(points))
+	coord.play(outcome)
+	await get_tree().create_timer(0.04 * 5).timeout
+	assert_eq(focus.waves.size(), 3, "one begin_wave per wave, none between")
+	assert_eq(landings.size(), 3, "one wave_landing per wave")
+	if focus.waves.size() < 3 or landings.size() < 3:
+		return
+	assert_eq(focus.waves[0].from, n[0].global_position, "wave 0 from = caster")
+	assert_eq(focus.waves[0].to, n[1].global_position, "wave 0 to = chosen target")
+	assert_eq(focus.waves[1].from, n[1].global_position, "wave 1 from = origin centroid")
+	assert_eq(focus.waves[1].to, (n[2].global_position + n[3].global_position) / 2.0,
+			"wave 1 to = target centroid")
+	assert_eq(focus.waves[2].from, (n[2].global_position + n[3].global_position) / 2.0,
+			"wave 2 from = origin centroid")
+	assert_eq(focus.waves[2].to, (n[4].global_position + n[5].global_position) / 2.0,
+			"wave 2 to = target centroid")
+	assert_eq(landings[0], PackedVector2Array([n[1].global_position]))
+	assert_eq(landings[1], PackedVector2Array([n[2].global_position, n[3].global_position]))
+	assert_eq(landings[2], PackedVector2Array([n[4].global_position, n[5].global_position]))
+
+
+func test_focus_weight_is_abs_amount_with_a_status_floor() -> void:
+	# Acceptance 2: a wave of one 30-damage bolt and one status-only bolt —
+	# weights (30, STATUS_FLOOR), and the marker sits at the weight-mean's
+	# projection while both are in flight.
+	var graph := _positioned_graph()
+	var n := graph.get_skill_nodes()
+	var outcome := AttackOutcome.new()
+	_event(0, n[1], n[2], 30.0, outcome)
+	var status_ev := _event(0, n[1], n[3], 0.0, outcome)
+	var status := StatusInstance.new()
+	status.origin = n[1]
+	status.target = n[3]
+	status_ev.hits.append(status)
+	outcome.hits.append(status)
+	# A long flight, so both bolts are still live when we look.
+	var coord := _mount_coord(10.0, 5.0)
+	var focus := _mount_recording_focus(coord)
+	coord.play(outcome)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var weights := PackedFloat32Array()
+	var points := PackedVector2Array()
+	for child in coord.get_children():
+		var proj := child as Projectile
+		if proj != null and proj.is_in_flight():
+			points.append(proj.global_position)
+			weights.append(proj.focus_weight)
+	assert_eq(weights.size(), 2, "two live bolts")
+	assert_true(weights.has(30.0), "the damage bolt weighs |amount| = 30: %s" % [weights])
+	assert_true(weights.has(SwarmFocus.STATUS_FLOOR),
+			"the status-only bolt weighs STATUS_FLOOR: %s" % [weights])
+	assert_almost_eq(focus.global_position, focus.project(points, weights), Vector2(0.5, 0.5),
+			"marker = weight-mean projected on the wave segment")
+	coord.queue_free()
