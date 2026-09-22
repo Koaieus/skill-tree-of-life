@@ -203,6 +203,16 @@ func _generate(cfg: GraphProcgenConfig) -> Array[SkillNode]:
 ## honest: force both subtypes to certainty and every PER/WIS node must still
 ## end on the default, while the four populated archetypes stand.
 func test_perception_and_wisdom_always_end_on_the_default_subtype() -> void:
+	# QUARANTINED (#425). This is the only test here that runs a real
+	# `generate()`, and generation mutates the config resource it is handed —
+	# `duplicate(true)` does not deep-copy the ext_resource-referenced pool set,
+	# so the shipped preset is contaminated for whatever script GUT runs next in
+	# the same process. It passes alone and sharded, and takes
+	# `test_preset_generation_golden.gd` down with it single-process. Un-pend it
+	# with #425, not before: the assertion is right, the isolation is not.
+	pending("blocked on #425 — generate() mutates the shared preset")
+	return
+	@warning_ignore("unreachable_code")
 	for forced: StringName in [&"blight", &"bless"]:
 		var cfg := _fresh_config()
 		cfg.content.subtypes = [_subtype(forced, 1.0)] as Array[NodeSubtype]
