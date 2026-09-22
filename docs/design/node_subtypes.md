@@ -230,18 +230,31 @@ but a pack deliberately contains **mixed** subtypes, so subtype is real
 per-pool information. They are not the same kind of fact. After #751:
 archetype at the pack, subtype at the pool, each where it carries information.
 
-## How subtype is generated — regions, not confetti
+## How subtype is generated — a second clustering pass, not a third mechanism
 
-A lone blighted node reads as noise; a blighted valley reads as a place.
-Subtype is a **region** property and should reuse the machinery that already
-paints regions:
+A lone blighted node reads as noise; a blighted valley reads as a place. So
+subtype is a **region** property. What generates regions today:
 
-- `ArchetypePolicy` already carries `target_ratio` + `cluster_size_weights` + `cluster_jitter` — the vocabulary for "how much of the map, in what size patches". A subtype policy is the same shape. Note `target_ratio`s are **normalised**, so they need not sum to 1 (today's six sum to 1.23).
-- `ArchetypeStamp` (`GraphProcgenContent.archetype_stamps`) already runs **post-clustering** and overrides the archetype of nodes inside a region — a euclidean disc or a topological BFS flood. A subtype stamp is that, one field over, and it composes: stamp a blighted patch across whatever archetypes it lands on, and each node's family follows from the archetype it already had.
+- **The clustering pass** (`_assign_archetypes`) — BFS-grow from seeds, driven by `ArchetypePolicy`'s `target_ratio` + `cluster_size_weights` + `cluster_jitter`. **Proportional and emergent**: "30 % of the map is red, in organic patches." Live, and the only thing any preset uses.
+- **`ArchetypeStamp`** (#163) — a post-clustering override painting a disc or BFS flood. **Placed and specific**: "a WIS pocket *here*, radius 400." Genuinely a different job, but **dead in practice**: `archetype_stamps` is *"authored empty in both presets today"* (`test/unit/procgen/test_preset_generation_golden.gd:22`) and no `.tres` in the tree sets it.
 
-Open: whether subtype is a third clustering pass (grown like archetypes) or a
-stamp pass (painted over finished archetypes). Stamps are cheaper and give
-blight the "spreads onto things" fiction for free.
+What subtype needs is *"~15 % of the map is blighted, in patches"* — which is
+the **clustering** shape, not the stamp shape. So:
+
+> **Run the same BFS-grow pass twice: once over archetype policies, once over
+> subtype policies.** Generalize the existing pass to take a policy array and
+> an output assignment array, rather than adding a third region mechanism
+> beside two that already exist.
+
+That keeps one implementation of "grow proportional organic territories" and
+gets subtype's regions for free. The two passes are independent by
+construction — a blighted patch crosses whatever archetypes it lands on, and
+each node's family then follows from the archetype it already had, which is
+exactly the composition the grid wants.
+
+Open: whether the subtype pass runs before or after archetype clustering
+(independent either way, but ordering fixes which is seeded first), and
+whether `target_ratio` for `none` is authored or implied as the remainder.
 
 ## How subtype is drawn — and the constraint that decides it
 
@@ -285,7 +298,7 @@ later upgrade with its own justification, not part of the first cut.
 
 1. **What is blighted WIS?** The one ragged cell. WIS is pure economy, so it has no status family to invert. Candidates: (a) it simply does not exist — the grid is ragged and that is honest; (b) WIS hosts the **shared** cross-family knobs (falloff, duration) on its blighted form — "the blighted archive, knowledge of every plague" — which keeps WIS meta-flavoured and needs no sixth family; (c) the economy itself is corrupted — the node still pays XP but taints the holder.
 2. **Is blessed WIS a budget bump, and does that break the rule?** Every other blessed cell swaps pools; a budget multiplier is a different *kind* of effect. Either the rule admits a second mechanism or blessed WIS needs a pool-shaped answer.
-3. **Clustering pass or stamp pass?** Both are viable (see "How subtype is generated"); stamps are cheaper and carry the fiction better. Not settled.
+3. **Does the subtype pass run before or after archetype clustering**, and is `none`'s share authored or the implied remainder? (The *mechanism* is settled — a second run of the clustering pass; see "How subtype is generated".)
 4. **Can a subtype's territory be converted?** Does holding blessed nodes cleanse adjacent blighted ones, or is subtype fixed at generation? A conversion mechanic would make the map a battleground in a second dimension; fixed is far cheaper.
 5. **Do the four families each need a fifth/sixth sibling** now that PER takes blindness and WIS takes none? Owner noted *"Blight is a good name also for if we ever need a 5th."*
 6. **What do the `forbid_tags` lists actually key on?** The membership gate needs no new tags, but each subtype's give-up list does (`crit`, …). Worth a pass over the existing `procgen/tags.tres` vocabulary before adding any — the right forbid list may already be expressible.
