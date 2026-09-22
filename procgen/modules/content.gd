@@ -29,6 +29,17 @@ extends Resource
 ## empty leaves every node archetype-less (and content-less).
 @export var archetypes: Array[ArchetypePolicy] = []
 
+## Subtype placement (#1056) — the WEIGHTED subtypes only. Each carries its own
+## `base_chance`; the default subtype is the remainder and authors none. Empty
+## = every node lands on [method resolved_default_subtype]. The roll comes off
+## a salted stream ([constant GraphProcgen._SUBTYPE_RNG_SALT]), so authoring or
+## retuning one shifts no other node's content. See docs/design/node_subtypes.md.
+@export var subtypes: Array[NodeSubtype] = []
+
+## Per-preset override of the global default subtype (D14). `null` =
+## [method NodeSubtype.regular].
+@export var default_subtype: NodeSubtype = null
+
 @export_subgroup("Addons & spell grants")
 ## Second-pass addon roll. Unset = no addons attached by procgen.
 @export var addon_policy: AddonPolicy
@@ -61,3 +72,9 @@ extends Resource
 ## before the content-roll loop, so overridden nodes get the new archetype's
 ## colour, primary-stat bias, and budget multipliers. See [ArchetypeStamp].
 @export var archetype_stamps: Array[ArchetypeStamp] = []
+
+
+## The subtype a node lands on when it rolls nothing — and when what it rolled
+## has no drawable content (D13's demotion). Never null.
+func resolved_default_subtype() -> NodeSubtype:
+	return default_subtype if default_subtype != null else NodeSubtype.regular()

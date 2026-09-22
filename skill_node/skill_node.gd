@@ -110,6 +110,13 @@ signal statuses_changed
 		if is_node_ready():
 			_sync_visuals()
 
+## This node's second identity, orthogonal to [member archetype] (#1056):
+## `regular` / `blight` / `bless`. Procgen stamps the resolved subtype on every
+## archetype-bearing node; `null` means unset, as on a hand-authored sandbox
+## node. Carries the tint and emissive tier the visuals read — see
+## [NodeSubtype] and docs/design/node_subtypes.md.
+@export var subtype: NodeSubtype = null
+
 ## Persistent base-type identity colour (e.g. procgen's archetype colour).
 ## Drives NodeVisualsComposite's `archetype_tint` (rim, sensed outline);
 ## survives allocation. Defaults to dim grey so a hand-placed node in
