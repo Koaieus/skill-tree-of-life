@@ -1,8 +1,13 @@
-[gd_scene load_steps=3 format=3 uid="uid://dpi6d3wrj3jjn"]
+[gd_scene load_steps=4 format=3 uid="uid://dpi6d3wrj3jjn"]
 
 [ext_resource type="Script" uid="uid://ce837vd3lo22q" path="res://ui/vfx/coordinator/magic_bounce_coordinator.gd" id="1"]
 [ext_resource type="Resource" path="res://ui/vfx/projectile/path/bounce_path.tres" id="2_bounce"]
+[ext_resource type="Script" uid="uid://chvexrmtptsap" path="res://ui/vfx/coordinator/swarm_focus.gd" id="3_focus"]
 
 [node name="MagicBounceCoordinator" type="Node2D" unique_id=135229601]
 script = ExtResource("1")
 projectile_path = ExtResource("2_bounce")
+
+[node name="FocusMarker" type="Node2D" parent="." unique_id=135229602]
+unique_name_in_owner = true
+script = ExtResource("3_focus")

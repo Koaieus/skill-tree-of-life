@@ -53,6 +53,7 @@ extends VFXCoordinator
 
 const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/glowing_dot.tscn")
 const _DEFAULT_CANCEL: PackedScene = preload("res://ui/vfx/projectile/visual/cancel_dissipate.tscn")
+const _DEFAULT_STREAK: PackedScene = preload("res://ui/vfx/projectile/visual/draw_streak.tscn")
 
 ## Fired immediately at each beat — the impact moment for projectiles that
 ## were spawned early. Tests assert the emission cadence here; gameplay can
@@ -118,6 +119,16 @@ signal wave_started(hop_index: int, events_in_wave: int)
 ## Fallback visual when no per-verb visual is set.
 @export var visual_scene: PackedScene = _DEFAULT_VISUAL
 
+## The streak each territory neighbour sends INTO the caster during the
+## wind-up's draw span (#1043). A per-spell override goes here; per-spell FX
+## layered on top of the draw is [member SpellDef.windup_vfx_scene].
+@export var draw_streak_visual: PackedScene = _DEFAULT_STREAK
+
+## The caster's glow at the top of the draw ramp — the tier the streaks feed
+## it up to before the [constant Emissive.PEAK] flare. A tier, never a float
+## (`.claude/rules/hdr-color.md`).
+const _DRAW_GLOW_TIER: float = Emissive.VALUE
+
 # The `waves` / beat-index / `pending` triple this coordinator schedules with
 # wants to be a per-wave object rather than three parallel locals — #722.
 
@@ -126,10 +137,22 @@ var _caster_tint: Color = Color.WHITE
 ## it. Both are per-cast state resolved in [method play] — see #708.
 var _turn_sign: float = 0.0
 var _handed_paths: Dictionary = {}  ## Verb -> ProjectilePath
+## Wind-up state (#1043): the caster whose `visuals.modulate` the draw ramps,
+## the tween driving it, and the spell's own layered FX instance — all torn
+## down by [method _end_windup] when playback ends or this node leaves the tree.
+var _windup_caster: SkillNode = null
+var _windup_tween: Tween = null
+var _windup_fx: Node = null
 
 
 func play(payload: Variant) -> void:
-	var outcome := payload as AttackOutcome
+	await _play_cast(payload as AttackOutcome)
+	# The wind-up's layered FX lives exactly as long as the cast's playback
+	# (#1043 acceptance 3) — freed on EVERY exit, the empty-timeline one too.
+	_end_windup()
+
+
+func _play_cast(outcome: AttackOutcome) -> void:
 	# Guard on the timeline, not `hits`: a pure-utility spell (power 0)
 	# lands zero-damage events that carry no hit — it must still render its path.
 	if outcome == null or outcome.timeline.is_empty():
@@ -398,11 +421,16 @@ func _spawn_projectile(ev: PropagationEvent, origin: SkillNode, share: float,
 	proj.tree_exiting.connect(func() -> void:
 		pending[0] -= 1)
 	proj.launch(origin.global_position, ev.target.global_position, 0.0)
-	# Tint hook, mirroring ArrowVolleyCoordinator exactly (#663 D4): `launch`
-	# instantiates the visual synchronously as the projectile's first child, so
-	# stamping right after is what lets the body read the caster's colour on its
-	# FIRST draw rather than popping a frame later. Visuals with no `tint` field
-	# ignore it — that is the duck-typed visual contract, not a missing guard.
+	_stamp_visual(proj, share)
+
+
+## Tint hook, mirroring ArrowVolleyCoordinator exactly (#663 D4): `launch`
+## instantiates the visual synchronously as the projectile's first child, so
+## stamping right after is what lets the body read the caster's colour on its
+## FIRST draw rather than popping a frame later. Visuals with no `tint` field
+## ignore it — that is the duck-typed visual contract, not a missing guard.
+## Shared by the cast's bolts and the wind-up's streaks.
+func _stamp_visual(proj: Projectile, share: float) -> void:
 	if proj.get_child_count() > 0:
 		var v: Node = proj.get_child(0)
 		if "tint" in v:
@@ -473,6 +501,156 @@ func _default_path() -> ProjectilePath:
 	if projectile_path != null:
 		return projectile_path
 	return BezierArcPath.new()
+
+
+# -- Wind-up (#1043) ----------------------------------------------------------
+
+## The presenter contract's wind-up for a committed spell (ADR 0027, #1041):
+## [b]caster hold → territory-neighbour streaks → flare[/b]. Returns
+## [method PresentationTempo.magic_windup_seconds], which [BattleSystem] waits
+## out on its own beat clock before [method play] — nothing here gates the
+## mutation loop, and the first wave still spawns synchronously inside
+## [method play], strictly after this whole sequence.
+##
+## The neighbour set is [b]the entity degree[/b] the spell's
+## [member SpellDef.min_degree] counts — `attacker.navigator.neighbours_of`,
+## the same mirror [method MagicAttackPlan._source_meets_min_degree] reads —
+## never the board's neighbours filtered here (`.claude/rules/degree.md`).
+## Each neighbour launches a streak along the EDGE path into the caster,
+## staggered across the draw span (stagger = span / count), flight = the span
+## remaining; the caster's [member SkillNode.visuals] ramps up in glow under
+## the same value-dimmer the blade uses, then flares to [constant Emissive.PEAK]
+## and relaxes over the flare beat. All-zero tempo: returns 0.0, spawns nothing.
+##
+## [b]Duck-typed on purpose[/b]: this script is reached from every spell
+## `.tres` (via [member SpellDef.vfx_coordinator_scene]), and
+## [MagicAttackPlan] preloads a spell `.tres` — naming [MagicAttackPlan] or
+## [BattleSystem] here closes that cycle and every script preloading a spell
+## fails to compile (the same reason [method PresentationTempo.windup_lead]
+## matches literals). `source` / `spell` are read by name; 3 = MAGIC.
+func begin_windup(plan: AttackPlan, tempo: PresentationTempo) -> float:
+	if plan == null or tempo == null:
+		return 0.0
+	var caster := plan.get(&"source") as SkillNode
+	if caster == null:
+		return 0.0
+	_park_marker(caster)
+	var total := tempo.magic_windup_seconds()
+	if total <= 0.0:
+		return 0.0
+	var lead := tempo.windup_lead(3)  # BattleSystem.AttackMode.MAGIC
+	var span := maxf(0.0, tempo.magic_windup_draw_span)
+	var flare := maxf(0.0, tempo.magic_windup_flare)
+	# The cast's own `play()` re-resolves the same colour off the outcome's
+	# hits; at wind-up there is no outcome yet, only the plan's attacker.
+	_caster_tint = plan.attacker.color if plan.attacker != null else Color.WHITE
+	if span > 0.0:
+		_spawn_draw_streaks(plan.attacker, caster, lead, span)
+	_ramp_caster(caster, lead, span, flare)
+	_layer_windup_fx(plan.get(&"spell") as SpellDef, caster)
+	return total
+
+
+## The [Node2D] the director follows: the `%FocusMarker` child (a
+## [SwarmFocus], parked at the caster for the whole wind-up — #1044 makes it
+## travel with the waves). A code-composed coordinator (tests, sandboxes)
+## has no scene child, so one is created on first ask.
+func focus_marker() -> Node2D:
+	var marker := get_node_or_null(^"%FocusMarker") as Node2D
+	if marker == null:
+		marker = find_child("FocusMarker", false, false) as Node2D
+	if marker == null:
+		marker = SwarmFocus.new()
+		marker.name = "FocusMarker"
+		add_child(marker)
+	return marker
+
+
+func _park_marker(caster: SkillNode) -> void:
+	focus_marker().global_position = caster.global_position
+
+
+func _spawn_draw_streaks(attacker: Entity, caster: SkillNode,
+		lead: float, span: float) -> void:
+	if attacker == null or attacker.navigator == null:
+		return
+	var neighbours: Array[SkillNode] = attacker.navigator.neighbours_of(caster)
+	var count := neighbours.size()
+	if count == 0:
+		return
+	var stagger := span / float(count)
+	for i in count:
+		var proj := Projectile.new()
+		# Unsigned on purpose: handedness is per-cast state `play()` resolves
+		# off the outcome, which does not exist yet.
+		proj.path = _resolved_path(PropagationEvent.Verb.EDGE)
+		proj.visual_scene = draw_streak_visual if draw_streak_visual != null else _DEFAULT_STREAK
+		proj.flight_time = span - stagger * float(i)
+		proj.face_velocity = face_velocity
+		proj.facing_smoothing_seconds = facing_smoothing_seconds
+		add_child(proj)
+		proj.launch(neighbours[i].global_position, caster.global_position,
+				lead + stagger * float(i))
+		_stamp_visual(proj, 1.0)
+
+
+## The caster's glow ramp + flare, on [member SkillNode.visuals]' `modulate`
+## colour VALUE (alpha untouched — `.claude/rules/hdr-color.md`): WHITE → the
+## draw tier across the span as the streaks arrive, an overshoot to
+## [constant Emissive.PEAK] for the first 35% of the flare beat, back to WHITE
+## over the rest. Absolute delays on one parallel tween, the blade's shape.
+func _ramp_caster(caster: SkillNode, lead: float, span: float, flare: float) -> void:
+	_release_caster()
+	var visuals: Node2D = caster.visuals
+	if visuals == null:
+		return
+	_windup_caster = caster
+	visuals.modulate = Color.WHITE
+	_windup_tween = create_tween().set_parallel(true)
+	var top := Emissive.at(Color.WHITE, _DRAW_GLOW_TIER)
+	if span > 0.0:
+		_windup_tween.tween_property(visuals, "modulate", top, span).set_delay(lead)
+	if flare > 0.0:
+		var peak := Emissive.at(Color.WHITE, Emissive.PEAK)
+		_windup_tween.tween_property(visuals, "modulate", peak, flare * 0.35) \
+				.set_delay(lead + span)
+		_windup_tween.tween_property(visuals, "modulate", Color.WHITE, flare * 0.65) \
+				.set_delay(lead + span + flare * 0.35)
+	else:
+		_windup_tween.tween_callback(_release_caster).set_delay(lead + span)
+
+
+func _layer_windup_fx(spell: SpellDef, caster: SkillNode) -> void:
+	if spell == null or spell.windup_vfx_scene == null:
+		return
+	var fx: Node = spell.windup_vfx_scene.instantiate()
+	add_child(fx)
+	if fx is Node2D:
+		(fx as Node2D).global_position = caster.global_position
+	_windup_fx = fx
+
+
+## Put the caster back exactly as found: a coordinator freed mid-wind-up (a
+## cancelled turn, a scene change) must not leave a node stuck bright.
+func _release_caster() -> void:
+	if _windup_tween != null and _windup_tween.is_valid():
+		_windup_tween.kill()
+	_windup_tween = null
+	if _windup_caster != null and is_instance_valid(_windup_caster) \
+			and _windup_caster.visuals != null:
+		_windup_caster.visuals.modulate = Color.WHITE
+	_windup_caster = null
+
+
+func _end_windup() -> void:
+	_release_caster()
+	if _windup_fx != null and is_instance_valid(_windup_fx):
+		_windup_fx.queue_free()
+	_windup_fx = null
+
+
+func _exit_tree() -> void:
+	_release_caster()
 
 
 # -- Visual resolution --------------------------------------------------------
