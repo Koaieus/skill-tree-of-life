@@ -99,10 +99,10 @@ func test_a_seated_ranged_commit_locks_the_camera_until_release() -> void:
 	var hero := _entity(true)
 	var hits: Array[HitInstance] = [_hit(_node_at(Vector2.ZERO), _node_at(Vector2(400, 0)))]
 	_dir._on_attack_committed(_outcome(hits), hero)
-	assert_true(_dir.is_melee_locked(), "a seated ranged commit takes the camera (#1041)")
+	assert_true(_dir.is_shot_locked(), "a seated ranged commit takes the camera (#1041)")
 	assert_true(cam.is_input_locked(), "and the camera itself enforces it")
 	_dir.release()
-	assert_false(_dir.is_melee_locked(), "release is the one door back")
+	assert_false(_dir.is_shot_locked(), "release is the one door back")
 
 
 # --- #866: every melee commit gets the director's shot -----------------------
@@ -138,7 +138,7 @@ func test_a_committed_melee_locks_the_camera_until_it_releases() -> void:
 	var hits: Array[HitInstance] = [_hit(pivot, _node_at(Vector2(400, 0)))]
 
 	_dir._on_attack_committed(_outcome(hits), _entity(true))
-	assert_true(_dir.is_melee_locked(), "the shot takes camera control for its duration")
+	assert_true(_dir.is_shot_locked(), "the shot takes camera control for its duration")
 	assert_true(cam.is_input_locked(), "and the camera itself is what enforces it")
 
 	_dir._on_manual_input()
@@ -146,7 +146,7 @@ func test_a_committed_melee_locks_the_camera_until_it_releases() -> void:
 			"HARD lock: manual input does not break the shot, it is ignored")
 
 	_dir.release()
-	assert_false(_dir.is_melee_locked(), "release is the one door back")
+	assert_false(_dir.is_shot_locked(), "release is the one door back")
 	assert_false(cam.is_input_locked(),
 			"and manual input works normally the instant the shot releases")
 
@@ -350,15 +350,15 @@ func test_commit_follows_the_pivot_node_and_blade_spawned_rebinds_to_the_marker(
 	assert_true(cam.is_following(), "the pivot focus already opened in follow mode")
 	assert_eq(cam._follow_node, pivot, "following the pivot NODE, not a derived point")
 
-	preview.begin_windup(plan, null, false)
+	preview.begin_windup(plan, null)
 	var blade := preview.current_blade()
-	_dir._on_blade_spawned(blade)
+	_dir._on_presenter_marker_ready(blade.focus_marker())
 	assert_eq(cam._follow_node, blade.focus_marker(),
 			"blade_spawned while locked rebinds onto the blade's own marker")
 	assert_true(cam.is_following(), "a rebind never closes the follow")
 
 	_dir.release()
-	_dir._on_blade_spawned(blade)
+	_dir._on_presenter_marker_ready(blade.focus_marker())
 	assert_false(cam.is_following(), "a late blade_spawned after release does nothing")
 
 
@@ -410,13 +410,13 @@ func test_a_melee_shot_waits_for_its_swing_however_long_the_windup_holds() -> vo
 	_dir._on_attack_committed(outcome, _entity(true))
 	bs.is_launching = true
 	_dir._process(1000.0)
-	assert_true(_dir.is_melee_locked(), "far past the hold, still launching: the shot waits")
+	assert_true(_dir.is_shot_locked(), "far past the hold, still launching: the shot waits")
 
-	_dir._on_melee_swing_started(outcome)
+	_dir._on_replay_started(outcome)
 	_dir._process(0.01)
-	assert_true(_dir.is_melee_locked(), "the swing re-sizes the hold from its own start")
+	assert_true(_dir.is_shot_locked(), "the swing re-sizes the hold from its own start")
 	_dir._process(1000.0)
-	assert_false(_dir.is_melee_locked(),
+	assert_false(_dir.is_shot_locked(),
 			"after the swing the tail governs — the launch flag no longer holds the camera")
 
 
@@ -432,7 +432,7 @@ func test_a_melee_shot_with_no_swing_still_releases_once_the_launch_ends() -> vo
 	_dir._on_attack_committed(_outcome([_hit(pivot, _node_at(Vector2(400, 0)))]), _entity(true))
 	bs.is_launching = false
 	_dir._process(1000.0)
-	assert_false(_dir.is_melee_locked(), "nothing to wait for: the timer releases as before")
+	assert_false(_dir.is_shot_locked(), "nothing to wait for: the timer releases as before")
 
 
 func test_the_swing_beat_does_not_reopen_a_shot_the_widen_already_holds() -> void:
@@ -448,5 +448,5 @@ func test_the_swing_beat_does_not_reopen_a_shot_the_widen_already_holds() -> voi
 	await wait_seconds(0.2)
 	assert_true(cam.is_following(),
 			"after the lead the span has widened, still following — the band was never interrupted")
-	_dir._on_melee_swing_started(outcome)
-	assert_true(_dir.is_melee_locked(), "the swing beat only re-sizes the hold")
+	_dir._on_replay_started(outcome)
+	assert_true(_dir.is_shot_locked(), "the swing beat only re-sizes the hold")

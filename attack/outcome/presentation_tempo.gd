@@ -134,17 +134,37 @@ static func shared_default() -> PresentationTempo:
 ## sequence backwards; authoring every one of them to 0.0 reproduces
 ## pre-#559 behaviour exactly, which is the regression escape hatch.
 func melee_windup_seconds(has_addons: bool) -> float:
-	return melee_windup_lead() \
+	# 1 = BattleSystem.AttackMode.MELEE — see [method windup_lead] for why a literal.
+	return windup_lead(1) \
 			+ maxf(0.0, melee_windup_form_span) \
 			+ (maxf(0.0, melee_windup_stamp_time) if has_addons else 0.0) \
 			+ maxf(0.0, melee_windup_glow_ramp) \
 			+ maxf(0.0, melee_windup_flare)
 
 
-## The beat BEFORE the blade starts forming — the camera's pivot hold. Split
-## out because two surfaces need the same number: [BattleSystem] delays the
-## form by it, and [CameraDirector] holds the pivot focus for it before
-## widening to the span. One reader would have been a constant; two is a
-## method.
-func melee_windup_lead() -> float:
-	return maxf(0.0, melee_windup_pivot_focus)
+## The beat BEFORE the presenter starts forming its picture — the camera's
+## pivot hold, per mode (ADR 0027). Split out because two surfaces need the
+## same number: [BattleSystem] delays the form by it, and [CameraDirector]
+## holds the pivot focus for it before widening to the span. One reader would
+## have been a constant; two is a method.
+##
+## One explicit arm per mode, so a mode authoring its own lead edits its own
+## line: melee's is the pivot focus; ranged and magic have none yet.
+##
+## [param mode] is a [enum BattleSystem.AttackMode] value, typed [int] and
+## matched on literals ON PURPOSE: this is a [Resource] script inside the
+## authored `.tres` graph ([SpellDef] exports a tempo), and naming
+## `BattleSystem` from here makes every script that preloads a spell or ammo
+## `.tres` fail to compile with "Cannot assign a value of type Resource to
+## constant" — the resource's script chain reaches BattleSystem while it is
+## still mid-parse. `test_melee_staging.gd` pins the literals to the enum.
+func windup_lead(mode: int) -> float:
+	match mode:
+		1:  # BattleSystem.AttackMode.MELEE
+			return maxf(0.0, melee_windup_pivot_focus)
+		2:  # BattleSystem.AttackMode.RANGED
+			return 0.0
+		3:  # BattleSystem.AttackMode.MAGIC
+			return 0.0
+		_:
+			return 0.0

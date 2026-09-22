@@ -29,9 +29,20 @@ extends Node2D
 ## [signal MagicBounceCoordinator.wave_started], which a subclass already owns.
 signal wave_landing(points: PackedVector2Array)
 
-## The presenter contract, shared with [MeleePreview] (ADR 0027): stage this
-## action's wind-up and return the seconds it occupies, which [BattleSystem]
-## waits out on a [BeatClock] BEFORE the mutation loop starts. Runs before
+## [b]The presenter contract[/b] (ADR 0027), shared with [MeleePreview] — the two
+## do not share a base class; the contract is these three members, stated here
+## and cross-referenced from there:
+##
+##   * [method begin_windup] — stage the wind-up, return the seconds it occupies.
+##     [BattleSystem._stage_windup] waits that long on a [BeatClock] BEFORE the
+##     mutation loop starts, for every mode alike. 0.0 = no wind-up, today's
+##     timing exactly.
+##   * [method focus_marker] — the [Node2D] the director's shot follows, or
+##     null for "frame the span once".
+##   * [signal focus_marker_changed] — the marker moved onto a new node; the
+##     director rebinds its follow without re-tweening.
+##
+## Stage this action's wind-up and return the seconds it occupies. Runs before
 ## [method play]. The default is no wind-up: returning 0.0 reproduces the
 ## pre-contract timing exactly.
 func begin_windup(_plan: AttackPlan, _tempo: PresentationTempo) -> float:
@@ -42,3 +53,9 @@ func begin_windup(_plan: AttackPlan, _tempo: PresentationTempo) -> float:
 ## the span once" — the other half of the presenter contract.
 func focus_marker() -> Node2D:
 	return null
+
+
+## The node [method focus_marker] answers with just changed — a presenter that
+## spawns its marker after the commit (the melee ghost is rebuilt at wind-up)
+## emits this so [CameraDirector] rebinds its open follow onto it.
+signal focus_marker_changed(marker: Node2D)

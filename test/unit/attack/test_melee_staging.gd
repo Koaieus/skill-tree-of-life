@@ -149,8 +149,10 @@ func test_the_first_hit_lands_after_the_form_beat_on_the_seated_path_too() -> vo
 
 
 ## #865: one tempo shape, shared by seated and incoming swings — the owner
-## explicitly refused a second seated set of numbers. A seated commit stages a
-## nonzero wind-up of exactly the length an AI/remote commit stages.
+## explicitly refused a second seated set of numbers. Since #1041 the seat
+## does not even reach the signature: `begin_windup(plan, tempo)` is the
+## presenter contract every mode implements, and a seated commit stages the
+## same nonzero wind-up the tempo authors for anyone.
 func test_a_seated_commit_stages_the_same_nonzero_windup_as_an_incoming_swing() -> void:
 	var plan := _arm_plan()
 	await get_tree().process_frame
@@ -158,12 +160,13 @@ func test_a_seated_commit_stages_the_same_nonzero_windup_as_an_incoming_swing() 
 	assert_gt(tempo.melee_windup_seconds(false), 0.0,
 			"the authored default must stage a wind-up at all")
 
-	var seated_length := _preview.begin_windup(plan, tempo, true)
-	assert_gt(seated_length, 0.0,
+	_bs.seat_policy = SeatPolicy.seat(_attacker.entity_id)
+	var staged := _preview.begin_windup(plan, tempo)
+	assert_gt(staged, 0.0,
 			"a seated commit no longer collapses every beat to zero (#865)")
-	var incoming_length := _preview.begin_windup(plan, tempo, false)
-	assert_almost_eq(seated_length, incoming_length, 0.0001,
-			"and it is the SAME shape — no second seated set of durations")
+	assert_almost_eq(staged, tempo.melee_windup_seconds(false), 0.0001,
+			"and it is the SAME shape the tempo authors for everyone — "
+			+ "no seated set of durations, no seat in the signature (#1041)")
 
 
 func _assert_first_hit_lands_after_the_form_beat() -> void:
@@ -184,7 +187,7 @@ func _assert_first_hit_lands_after_the_form_beat() -> void:
 	tempo.melee_windup_pivot_focus = 0.6
 	tempo.melee_windup_form_span = 1.4
 	_bs.presentation_tempo = tempo
-	var form_beat_end := tempo.melee_windup_lead() + tempo.melee_windup_form_span
+	var form_beat_end := tempo.windup_lead(BattleSystem.AttackMode.MELEE) + tempo.melee_windup_form_span
 	assert_gt(form_beat_end, tempo.swing_duration,
 			"the injected form beat must outlast the whole swing, or a hit "
 			+ "landing late inside an unstaged swing would satisfy this vacuously")
@@ -197,7 +200,7 @@ func _assert_first_hit_lands_after_the_form_beat() -> void:
 	# to have taken — a pure call, never a stopwatch.
 	assert_almost_eq(_bs.tempo().melee_windup_seconds(false), form_beat_end, 0.0001,
 			"the wind-up the tempo resolves to ends exactly where the form beat ends "
-			+ "(lead %.3fs + form %.3fs)" % [tempo.melee_windup_lead(), tempo.melee_windup_form_span])
+			+ "(lead %.3fs + form %.3fs)" % [tempo.windup_lead(BattleSystem.AttackMode.MELEE), tempo.melee_windup_form_span])
 
 	# The order: commit → wind-up → swing-start beat → first landing, in code
 	# order. An instant clock advances without waiting and keeps exactly this.
@@ -209,7 +212,7 @@ func _assert_first_hit_lands_after_the_form_beat() -> void:
 	var on_hit := func(_n: SkillNode, _amount: float, _src: Variant) -> void:
 		order.append(&"hit")
 	_bs.attack_committed.connect(on_committed)
-	_bs.melee_swing_started.connect(on_swing)
+	_bs.attack_replay_started.connect(on_swing)
 	Events.skill_node_damaged.connect(on_hit)
 
 	_arm_plan()
@@ -232,12 +235,12 @@ func test_a_committed_melee_opens_the_camera_on_the_pivot_alone() -> void:
 	add_child_autofree(director)
 	var plan := _arm_plan()
 
-	var pivot_focus := director._melee_pivot_focus(_attacker)
+	var pivot_focus := director._windup_focus(_bs.attack_plan)
 	assert_not_null(pivot_focus, "a committed melee opens on its pivot")
 	assert_eq(pivot_focus.points.size(), 1, "the pivot alone, not the span")
 	assert_eq(pivot_focus.points[0], _pivot.global_position, "and it is the plan's pivot")
 	assert_false(pivot_focus.allow_zoom_out, "a point focus has no span to fit")
-	assert_almost_eq(pivot_focus.hold, _bs.tempo().melee_windup_lead(), 0.0001,
+	assert_almost_eq(pivot_focus.hold, _bs.tempo().windup_lead(BattleSystem.AttackMode.MELEE), 0.0001,
 			"held for exactly the lead beat, so it does not release before the span widens")
 	assert_eq(plan.source, _pivot, "fixture sanity: the pivot is what was framed")
 
@@ -255,7 +258,7 @@ func test_a_seated_actor_gets_the_same_pivot_focus_as_everyone_else() -> void:
 	add_child_autofree(director)
 	_arm_plan()
 
-	var pivot_focus := director._melee_pivot_focus(_attacker)
+	var pivot_focus := director._windup_focus(_bs.attack_plan)
 	assert_not_null(pivot_focus, "a seated commit opens on its pivot too")
 	assert_eq(pivot_focus.points[0], _pivot.global_position)
 
@@ -304,7 +307,7 @@ func test_the_swing_start_beat_fires_once_and_before_the_first_hit() -> void:
 	# fired after (or never) is the "no camera movement during the swing" the
 	# owner saw.
 	var order: Array[StringName] = []
-	_bs.melee_swing_started.connect(func(_o: AttackOutcome) -> void:
+	_bs.attack_replay_started.connect(func(_o: AttackOutcome) -> void:
 		order.append(&"swing"))
 	Events.skill_node_damaged.connect(func(_n: SkillNode, _amt: float, _src: Variant) -> void:
 		order.append(&"hit"), CONNECT_ONE_SHOT)
@@ -322,7 +325,7 @@ func test_the_stagger_places_the_pivot_before_the_arm() -> void:
 	var tempo := _zeroed_tempo()
 	tempo.melee_windup_form_span = 100.0
 	var plan := _arm_plan()
-	_preview.begin_windup(plan, tempo, false)
+	_preview.begin_windup(plan, tempo)
 	var blade := _preview.current_blade()
 	await get_tree().process_frame
 	await get_tree().process_frame

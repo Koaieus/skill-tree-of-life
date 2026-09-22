@@ -66,6 +66,10 @@ const _FADE: float = 0.4
 ## melee sandbox forces vertices de-lit for look tuning) — the preview rebuilds
 ## on every cycle, so "decorate it once" is never enough.
 signal blade_spawned(blade: SkillBlade)
+## The presenter contract's half of [signal blade_spawned] (see
+## [VFXCoordinator]): the same beat, carrying the blade's own `%FocusMarker`
+## so [CameraDirector] rebinds its follow without knowing a blade exists.
+signal focus_marker_changed(marker: Node2D)
 
 var _ghost: SkillBlade
 
@@ -215,6 +219,21 @@ func current_blade() -> SkillBlade:
 	return _ghost
 
 
+## The presenter contract's other half (see [VFXCoordinator]): the node the
+## director's shot follows. The live blade's own `%FocusMarker` once a ghost
+## exists, else the plan's pivot [SkillNode] — the whole shot on a peer whose
+## ghost has not spawned yet — and null with no melee plan live at all.
+func focus_marker() -> Node2D:
+	if _ghost != null and is_instance_valid(_ghost):
+		return _ghost.focus_marker()
+	if battle_system == null:
+		return null
+	var plan := battle_system.attack_plan as MeleeAttackPlan
+	if plan == null or plan.source == null or not is_instance_valid(plan.source):
+		return null
+	return plan.source
+
+
 ## Pure-animation playback of the swing [BattleSystem] is applying RIGHT NOW.
 ## Spawns a fresh live blade purely for visuals and plays back
 ## [member MeleeAttackPlan.last_trajectory] / [member
@@ -300,23 +319,19 @@ func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
 ## authority re-resolved at submit; a third resolve of the same swing would buy
 ## nothing and cost a frame hitch.
 ##
-## [b]There is no seated shape any more (#865, reversing #559 decision 2).[/b]
-## The seated branch used to `form_instantly()` and return 0.0 on the theory
-## that the aim-time ghost had already been watched; the owner's call
-## (2026-09-10, *"your own blade gets the maximum treatment sure"*) is that the
-## wind-up is the payoff for a swing you spent the aim phase building, not a
-## third viewing. So [param _seated] no longer branches anything — one sequence,
-## one set of authored durations, seated and incoming alike (#866 gives both the
-## same camera shot for the same reason).
+## [b]There is no seated shape (#865, reversing #559 decision 2).[/b] The
+## seated branch used to `form_instantly()` and return 0.0 on the theory that
+## the aim-time ghost had already been watched; the owner's call (2026-09-10,
+## *"your own blade gets the maximum treatment sure"*) is that the wind-up is
+## the payoff for a swing you spent the aim phase building, not a third viewing.
+## One sequence, one set of authored durations, seated and incoming alike (#866
+## gives both the same camera shot for the same reason); the escape hatch is
+## purely the authored tempo: zero every beat and this returns 0.0 for everyone.
 ##
-## It stays in the signature because [method BattleSystem._stage_melee_windup]
-## still computes the seat predicate and because the escape hatch is now purely
-## the authored tempo: zero every beat and this returns 0.0 for everyone, which
-## is acceptance 5 unchanged. Gating the sequence's EXISTENCE on the seat would
-## still be wrong — it would delete the await point #796 needs on the machine
-## that is typically the authority.
-func begin_windup(plan: MeleeAttackPlan, tempo: PresentationTempo,
-		_seated: bool) -> float:
+## [b]This is the presenter contract[/b] (ADR 0027) — the same signature
+## [method VFXCoordinator.begin_windup] declares, which is what lets
+## [method BattleSystem._stage_windup] stage every mode down one path.
+func begin_windup(plan: MeleeAttackPlan, tempo: PresentationTempo) -> float:
 	if plan == null:
 		return 0.0
 	if _ghost == null:
@@ -342,7 +357,8 @@ func begin_windup(plan: MeleeAttackPlan, tempo: PresentationTempo,
 	if tempo == null:
 		blade.form_instantly()
 		return 0.0
-	return blade.form_in(tempo.melee_windup_lead(), tempo.melee_windup_form_span,
+	return blade.form_in(tempo.windup_lead(BattleSystem.AttackMode.MELEE),
+			tempo.melee_windup_form_span,
 			tempo.melee_windup_stamp_time, tempo.melee_windup_glow_ramp,
 			tempo.melee_windup_flare)
 
@@ -360,6 +376,7 @@ func _rebuild_blade(blade: SkillBlade, plan: MeleeAttackPlan) -> void:
 	# The rebuild freed and recreated every vertex visual, so decoration
 	# applied by a listener is gone — same event, same signal.
 	blade_spawned.emit(blade)
+	focus_marker_changed.emit(blade.focus_marker())
 
 
 func _spawn_blade(plan: MeleeAttackPlan) -> void:
@@ -378,6 +395,7 @@ func _spawn_blade(plan: MeleeAttackPlan) -> void:
 			selection, plan.source, plan.get_induced_edges(), plan.attacker)
 	_ghost = blade
 	blade_spawned.emit(blade)
+	focus_marker_changed.emit(blade.focus_marker())
 
 
 ## Replay the PREDICTED swing, forever, until the selection changes.

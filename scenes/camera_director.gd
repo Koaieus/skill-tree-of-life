@@ -78,30 +78,31 @@ var _seconds_since_manual: float = INF
 var _active: bool = false
 var _remaining: float = 0.0
 
-## True for the duration of a melee director's shot (#866): the camera is the
-## director's, HARD — manual pan/zoom is ignored entirely rather than merely
-## losing a grace race, and the shot runs its full course. Owner picked "hard
-## lock" over "soft break-in". Cleared by [method release], which is the single
-## door back to the player's hands.
-var _melee_locked: bool = false
+## True for the duration of a director's shot (#866, every mode since ADR
+## 0027): the camera is the director's, HARD — manual pan/zoom is ignored
+## entirely rather than merely losing a grace race, and the shot runs its full
+## course. Owner picked "hard lock" over "soft break-in". Cleared by
+## [method release], which is the single door back to the player's hands.
+var _shot_locked: bool = false
 
-## True while a melee shot opens its focuses in FOLLOW mode rather than as
-## one-shot tweens — so a widen retargets the zoom only ([method GraphCamera.retarget_directed_zoom])
-## instead of re-tweening the pan.
-var _melee_following: bool = false
+## True while a shot opens its focuses in FOLLOW mode rather than as one-shot
+## tweens — so a widen retargets the zoom only
+## ([method GraphCamera.retarget_directed_zoom]) instead of re-tweening the pan.
+var _shot_following: bool = false
 
-## The [Node2D] a melee shot's follow opens on / rebinds to (#931) — the pivot
-## [SkillNode] at commit, then the blade's own `%FocusMarker` once
-## [signal MeleePreview.blade_spawned] fires while locked. Read by
-## [method request_focus] rather than carried on a [FocusRequest]: only a
-## melee shot follows a node at all, and [method decide] stays a pure function
-## of plain values.
-var _melee_follow_node: Node2D = null
+## The [Node2D] a shot's follow opens on / rebinds to (#931): the presenter's
+## [code]focus_marker()[/code] at commit (the melee ghost's `%FocusMarker`, or
+## the pivot [SkillNode] before the ghost exists), then whatever
+## `focus_marker_changed` hands over while locked. Null means the shot frames
+## its span once and follows nothing — today's ranged/magic picture. Read by
+## [method request_focus] rather than carried on a [FocusRequest], so
+## [method decide] stays a pure function of plain values.
+var _follow_node: Node2D = null
 
-## True from [signal BattleSystem.melee_swing_started] to [method release]:
-## the blade is moving, so the hold has been re-sized from the swing and the
-## timer no longer defers to the launch ([method _awaiting_swing]).
-var _melee_swing_started: bool = false
+## True from [signal BattleSystem.attack_replay_started] to [method release]:
+## the replay is running, so the hold has been re-sized from it and the timer
+## no longer defers to the launch ([method _awaiting_replay]).
+var _replay_started: bool = false
 
 
 func _ready() -> void:
@@ -111,14 +112,11 @@ func _ready() -> void:
 	if battle_system != null and not battle_system.attack_committed.is_connected(_on_attack_committed):
 		battle_system.attack_committed.connect(_on_attack_committed)
 	if battle_system != null \
-			and not battle_system.melee_swing_started.is_connected(_on_melee_swing_started):
-		battle_system.melee_swing_started.connect(_on_melee_swing_started)
+			and not battle_system.attack_replay_started.is_connected(_on_replay_started):
+		battle_system.attack_replay_started.connect(_on_replay_started)
 	if command_applier != null \
 			and not command_applier.command_confirmed.is_connected(_on_command_confirmed):
 		command_applier.command_confirmed.connect(_on_command_confirmed)
-	if battle_system != null and battle_system.melee_preview != null \
-			and not battle_system.melee_preview.blade_spawned.is_connected(_on_blade_spawned):
-		battle_system.melee_preview.blade_spawned.connect(_on_blade_spawned)
 
 
 func _process(delta: float) -> void:
@@ -128,22 +126,23 @@ func _process(delta: float) -> void:
 	# The rubber band (#866, #931) needs no push here any more: `GraphCamera`
 	# polls its own followed node every frame ([method GraphCamera._follow]).
 	# This director only decides WHICH node that is, at commit and on
-	# `blade_spawned` — see [method _on_attack_committed] / [method _on_blade_spawned].
+	# `focus_marker_changed` — see [method _on_attack_committed] /
+	# [method _on_presenter_marker_ready].
 	_remaining -= delta
-	if _remaining <= 0.0 and not _awaiting_swing():
+	if _remaining <= 0.0 and not _awaiting_replay():
 		release()
 
 
-## A melee shot whose swing has not started while the launch is still in
-## flight (#894). The span's hold is sized from the SWING — `schedule.duration()`
-## is swing-relative — but opened at the widen beat, so on its own clock it
-## expires mid-wind-up; and the wind-up itself has no fixed length (a
-## `record_ready` hold can stretch it behind a wire). The shot's course is the
-## launch, so the timer defers to it until the swing beat re-sizes the hold.
-## Lifts with `is_launching` on a path that never swings (no [MeleePreview]
-## wired), so the camera cannot stay locked for good.
-func _awaiting_swing() -> bool:
-	return _melee_locked and not _melee_swing_started \
+## A shot whose replay has not started while the launch is still in flight
+## (#894, every mode since ADR 0027). The span's hold is sized from the REPLAY
+## — `schedule.duration()` is replay-relative — but opened at the widen beat,
+## so on its own clock it expires mid-wind-up; and the wind-up itself has no
+## fixed length (a `record_ready` hold can stretch it behind a wire). The
+## shot's course is the launch, so the timer defers to it until the replay
+## beat re-sizes the hold. Lifts with `is_launching` on a path that never
+## replays (no presenter wired), so the camera cannot stay locked for good.
+func _awaiting_replay() -> bool:
+	return _shot_locked and not _replay_started \
 			and battle_system != null and battle_system.is_launching
 
 
@@ -151,11 +150,11 @@ func _awaiting_swing() -> bool:
 ## flight dies this frame, and [method decide] refuses for
 ## [member manual_grace_seconds] afterwards.
 func _on_manual_input() -> void:
-	# ...unless a melee director's shot has the camera (#866). The lock is HARD:
+	# ...unless a director's shot has the camera (#866). The lock is HARD:
 	# [GraphCamera] already drops the input before emitting, so reaching here
 	# while locked means a second caller — and it still must not cancel the shot
 	# or reset the grace clock.
-	if _melee_locked:
+	if _shot_locked:
 		return
 	_seconds_since_manual = 0.0
 	if _active:
@@ -172,22 +171,22 @@ func request_focus(request: FocusRequest) -> FocusDecision:
 	if not decision.act:
 		return decision
 	if camera != null:
-		if _melee_following and camera.is_following():
+		if _shot_following and camera.is_following():
 			# A widen on an open follow: zoom only (#928). The band owns the
 			# pan, and re-tweening it here was the 2-step's second step.
 			camera.retarget_directed_zoom(decision.zoom_target)
-		elif _melee_following and _melee_follow_node != null \
-				and is_instance_valid(_melee_follow_node):
-			# The follow opens on the pivot NODE (#931), not the decision's
-			# plain-value target — [method decide] never learns the blade
-			# exists, so the node to poll travels on [member _melee_follow_node]
-			# instead, set by [method _on_attack_committed]. Guarded rather than
-			# asserted: `_melee_follow_node` cannot be null by construction
-			# today (both are set together), but a silent pan to world origin
-			# ([method GraphCamera.begin_directed_follow]'s null fallback) is
-			# the one failure a player would actually see, so a freed/absent
-			# node falls through to the plain one-shot focus below instead.
-			camera.begin_directed_follow(_melee_follow_node, decision.zoom_target,
+		elif _shot_following and _follow_node != null \
+				and is_instance_valid(_follow_node):
+			# The follow opens on the presenter's NODE (#931), not the
+			# decision's plain-value target — [method decide] never learns the
+			# presenter exists, so the node to poll travels on
+			# [member _follow_node] instead, set by [method _on_attack_committed].
+			# Guarded rather than asserted: `_follow_node` cannot be null by
+			# construction today (both are set together), but a silent pan to
+			# world origin ([method GraphCamera.begin_directed_follow]'s null
+			# fallback) is the one failure a player would actually see, so a
+			# freed/absent node falls through to the plain one-shot focus below.
+			camera.begin_directed_follow(_follow_node, decision.zoom_target,
 					decision.duration)
 		else:
 			camera.begin_directed_focus(decision.target, decision.zoom_target,
@@ -204,16 +203,16 @@ func request_focus(request: FocusRequest) -> FocusDecision:
 
 ## Hand the camera back. Position stays where the action ended; only zoom
 ## returns (#515 decision 5) — #866 keeps exactly that, no restore-to-pre-shot
-## framing. This is also the SOLE door out of the melee input lock: the shot
-## runs its full course and the player's hands work again the instant it ends.
+## framing. This is also the SOLE door out of the input lock: the shot runs
+## its full course and the player's hands work again the instant it ends.
 func release() -> void:
 	_active = false
 	_remaining = 0.0
-	_melee_following = false
-	_melee_follow_node = null
-	_melee_swing_started = false
-	if _melee_locked:
-		_melee_locked = false
+	_shot_following = false
+	_follow_node = null
+	_replay_started = false
+	if _shot_locked:
+		_shot_locked = false
 		if camera != null:
 			camera.set_input_locked(false)
 	if camera != null:
@@ -224,28 +223,24 @@ func is_focusing() -> bool:
 	return _active
 
 
-## The [MeleeAttackPlan] a melee commit is hanging off, or null for a
-## ranged/magic commit, an unwired battle system, or a freed pivot. This is the
-## one predicate that decides whether an attack takes the #866 treatment or
-## #524's seat-gated one — melee is what the owner unified, and ranged/magic
-## director's cuts are explicitly parked for a future issue.
-func _live_melee_plan() -> MeleeAttackPlan:
+## The [AttackPlan] a commit is hanging off, or null for an unwired battle
+## system. [member BattleSystem.attack_plan] is guaranteed live during a commit
+## — `_commit` holds it through the whole launch (#406). Mode-agnostic since
+## ADR 0027: every mode takes the #866 treatment.
+func _live_plan() -> AttackPlan:
 	if battle_system == null:
 		return null
-	var melee := battle_system.attack_plan as MeleeAttackPlan
-	if melee == null or melee.source == null or not is_instance_valid(melee.source):
-		return null
-	return melee
+	return battle_system.attack_plan
 
 
-func is_melee_locked() -> bool:
-	return _melee_locked
+func is_shot_locked() -> bool:
+	return _shot_locked
 
 
-## Take the camera for a melee shot. Idempotent: a multi-hit commit re-raises
-## focuses through here and must not double-latch anything.
-func _lock_for_melee_shot() -> void:
-	_melee_locked = true
+## Take the camera for a director's shot. Idempotent: a multi-hit commit
+## re-raises focuses through here and must not double-latch anything.
+func _lock_for_shot() -> void:
+	_shot_locked = true
 	if camera != null:
 		camera.set_input_locked(true)
 
@@ -376,13 +371,13 @@ func _clamp_target(ideal: Vector2, at_zoom: float, ctx: CameraContext) -> Vector
 
 ## #524's trigger. See [method _build_attack_request] for the rule.
 ##
-## [b]Melee is staged pivot-first (#559 decision 7).[/b] That ordering is
+## [b]The shot is staged pivot-first (#559 decision 7).[/b] That ordering is
 ## decided by what EXISTS when, not by taste: the swept AABB IS the trajectory
 ## and exists only once the record does, while the pivot exists before it — so
-## only pivot-framing can precede the swing. The pivot point is raised now, the
-## full span widens onto it after [member PresentationTempo.melee_windup_lead],
-## which is the same beat [method BattleSystem._stage_melee_windup] delays the
-## blade's form-in by.
+## only pivot-framing can precede the replay. The pivot point is raised now,
+## the full span widens onto it after [method PresentationTempo.windup_lead],
+## which is the same beat [method BattleSystem._stage_windup] delays the
+## presenter's form-in by.
 ##
 ## The widen is a detached coroutine on a tree timer, never awaited by anyone —
 ## `_on_attack_committed` fires inside `BattleSystem._commit`, where an await
@@ -391,48 +386,55 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 	var request := _build_attack_request(outcome, attacker)
 	if request == null:
 		return
-	# #866's director's shot, for EVERY melee commit — seated, AI, remote alike.
-	# The lock goes up before the first focus and comes down only in `release`.
-	var melee := _live_melee_plan()
-	var is_melee := melee != null
-	if is_melee:
-		_lock_for_melee_shot()
-		# Follow mode opens with the FIRST focus, on the pivot SkillNode
-		# itself (#931) — the whole shot for a peer with no MeleePreview.
-		# `_on_blade_spawned` rebinds it to the blade's own %FocusMarker once
-		# the ghost exists; `begin_windup` runs synchronously right after this
-		# (same frame), so the rebind lands before the first `_follow` poll.
-		_melee_following = true
-		_melee_follow_node = melee.source
-	var pivot := _melee_pivot_focus(attacker)
+	# #866's director's shot, for EVERY commit — seated, AI, remote, and every
+	# mode alike (ADR 0027). The lock goes up before the first focus and comes
+	# down only in `release`.
+	_lock_for_shot()
+	var plan := _live_plan()
+	var presenter: Node = battle_system.presenter() if battle_system != null else null
+	# Follow mode opens with the FIRST focus, on the presenter's marker (#931):
+	# the melee ghost's `%FocusMarker`, or the pivot SkillNode itself before
+	# the ghost exists. With no presenter wired at all (a headless peer that
+	# still draws) the plan's source stands in. A null marker means the span
+	# is framed once and nothing is followed — today's ranged/magic picture.
+	var marker: Node2D = null
+	if presenter != null:
+		marker = presenter.focus_marker()
+		if presenter.has_signal(&"focus_marker_changed") \
+				and not presenter.focus_marker_changed.is_connected(_on_presenter_marker_ready):
+			presenter.focus_marker_changed.connect(_on_presenter_marker_ready)
+	else:
+		marker = _plan_source(plan)
+	if marker != null:
+		_shot_following = true
+		_follow_node = marker
+	var pivot := _windup_focus(plan)
 	if pivot == null:
-		# No lead beat to fill (a ranged commit, or acceptance 5's zeroed
-		# tempo) — the span simply lands.
+		# No lead beat to fill (a mode with no wind-up lead, or acceptance 5's
+		# zeroed tempo) — the span simply lands.
 		request_focus(request)
 		return
 	request_focus(pivot)
 	_widen_after(pivot.hold, request)
 
 
-## The pivot-only focus a committed MELEE opens on, or null when there is no
-## melee pivot to frame — a ranged/magic commit, an unwired battle system, a
-## pivot the local seat cannot see, or a zero-length lead beat (acceptance 5's
-## escape hatch, where there is no beat to fill and the span should simply
-## land).
+## The pivot-only focus a committed attack opens on, or null when there is no
+## pivot to frame — a mode whose [method PresentationTempo.windup_lead] is
+## zero (ranged/magic today), an unwired battle system, a pivot the local seat
+## cannot see, or a zero-length lead beat (acceptance 5's escape hatch, where
+## there is no beat to fill and the span should simply land).
 ##
-## The pivot is read off the live [MeleeAttackPlan] rather than off the
-## outcome: an [AttackOutcome] carries hits, and "which node the swing hangs
-## off" is a plan fact. [member BattleSystem.attack_plan] is guaranteed live
-## here — `_commit` holds it through the whole launch (#406).
-func _melee_pivot_focus(attacker: Entity) -> FocusRequest:
-	var melee := _live_melee_plan()
-	if melee == null:
+## The pivot is read off the live plan rather than off the outcome: an
+## [AttackOutcome] carries hits, and "which node the action hangs off" is a
+## plan fact.
+func _windup_focus(plan: AttackPlan) -> FocusRequest:
+	if plan == null or battle_system == null:
 		return null
-	var lead := battle_system.tempo().melee_windup_lead()
+	var lead := battle_system.tempo().windup_lead(plan.mode)
 	if lead <= 0.0:
 		return null
 	var points := PackedVector2Array()
-	_append_if_visible(points, melee.source)
+	_append_if_visible(points, _plan_source(plan))
 	if points.is_empty():
 		return null
 	# Mandatory for the same reason the span is (#866): this is the lead beat of
@@ -447,6 +449,18 @@ func _melee_pivot_focus(attacker: Entity) -> FocusRequest:
 	return req
 
 
+## The [SkillNode] a plan hangs off, or null: melee and magic plans carry a
+## `source`, a ranged plan has none. Read dynamically because the base
+## [AttackPlan] does not declare it — the source is a per-mode plan fact.
+func _plan_source(plan: AttackPlan) -> SkillNode:
+	if plan == null:
+		return null
+	var source := plan.get(&"source") as SkillNode
+	if source == null or not is_instance_valid(source):
+		return null
+	return source
+
+
 ## Raise [param request] after [param seconds]. Detached on purpose — see
 ## [method _on_attack_committed].
 func _widen_after(seconds: float, request: FocusRequest) -> void:
@@ -455,63 +469,57 @@ func _widen_after(seconds: float, request: FocusRequest) -> void:
 		await tree.create_timer(seconds).timeout
 	if not is_inside_tree():
 		return
-	# The lead beat is over: the span widens. For a melee shot the follow is
-	# already open, so this retargets the zoom and leaves the band its pan.
+	# The lead beat is over: the span widens. For a following shot the follow
+	# is already open, so this retargets the zoom and leaves the band its pan.
 	request_focus(request)
 
 
-## The blade starts moving (#894): re-size the hold from the swing's own start — the same `duration() + tail` the span
-## request was sized with, now measured from the beat it was meant for. No-op
-## after [method release]: a swing beat cannot re-arm a shot that has ended.
-func _on_melee_swing_started(outcome: AttackOutcome) -> void:
-	if not _melee_locked:
+## The replay starts moving (#894): re-size the hold from its own start — the
+## same `duration() + tail` the span request was sized with, now measured from
+## the beat it was meant for. No-op after [method release]: a replay beat
+## cannot re-arm a shot that has ended.
+func _on_replay_started(outcome: AttackOutcome) -> void:
+	if not _shot_locked:
 		return
-	_melee_swing_started = true
-	var swing := 0.0
+	_replay_started = true
+	var replay := 0.0
 	if outcome != null and outcome.schedule != null:
-		swing = outcome.schedule.duration()
-	_remaining = maxf(_remaining, swing + release_tail_seconds)
+		replay = outcome.schedule.duration()
+	_remaining = maxf(_remaining, replay + release_tail_seconds)
 
 
-## The blade's ghost exists now (#931): swap the follow from the pivot
-## `SkillNode` onto the blade's own `%FocusMarker` — a rebind, never a
-## re-tween, so the pan the pivot opened keeps its momentum straight through
-## the handoff. Guarded on the lock: [signal MeleePreview.blade_spawned] also
-## fires on every aim-phase selection change, and a stray late signal after
-## [method release] must not drag a camera the player already has back.
-func _on_blade_spawned(blade: SkillBlade) -> void:
-	if not _melee_locked or camera == null or blade == null:
+## The presenter's marker moved onto a new node (#931): swap the follow onto it
+## — a rebind, never a re-tween, so the pan the pivot opened keeps its momentum
+## straight through the handoff. Guarded on the lock:
+## [signal MeleePreview.focus_marker_changed] also fires on every aim-phase
+## selection change, and a stray late signal after [method release] must not
+## drag a camera the player already has back.
+func _on_presenter_marker_ready(marker: Node2D) -> void:
+	if not _shot_locked or camera == null or marker == null:
 		return
-	camera.rebind_follow(blade.focus_marker())
+	_follow_node = marker
+	camera.rebind_follow(marker)
 
 
-## Frame a committed attack's from->to span.
+## Frame a committed attack's from->to span — every commit, every mode.
 ##
-## [b]For ranged and magic, the seat predicate is the whole rule.[/b] On a couch
-## `seats()` is true for every human, so a hot-seat partner's actions never yank
-## the camera of the person actually driving; behind a wire only the pinned hero
-## is seated, so AI and remote humans alike are framed (#515 decision 2).
-## Returns null when no focus should be built at all.
-##
-## [b]MELEE is carved out of that rule (#866).[/b] Owner call 2026-09-14,
-## superseding #827's constraint 2 and the "seat predicate is the whole rule"
-## docstrings #524/#525/#515 built on it for the ATTACK path: every melee commit
+## [b]The seat predicate does not reach this path[/b] (owner call 2026-09-14
+## for melee, #866; extended to ranged/magic 2026-09-21, ADR 0027). #827's
+## constraint 2 and the "seat predicate is the whole rule" docstrings
+## #524/#525/#515 built on it are superseded for the ATTACK path: every commit
 ## — yours, an AI's, a remote human's — gets the same director's shot, *"take
 ## away camera control for the duration of the move"*. The command path (#525)
-## keeps its seat gate untouched, and ranged/magic director's cuts are parked
-## for their own issue. Such a request is also MANDATORY: the player has just
-## spent the aim phase with their hands on the camera, so a grace-window refusal
-## would make their own shot the one that never fires.
+## keeps its seat gate untouched. Such a request is also MANDATORY: the player
+## has just spent the aim phase with their hands on the camera, so a grace-
+## window refusal would make their own shot the one that never fires.
 ##
 ## The span is the AABB of every contributing node's world position, filtered
 ## through [method VisionSystem.is_visible] FIRST — `is_sensed` does not count,
 ## and an attack whose origin is fogged but whose target is visible frames the
 ## target alone. Nothing surviving the filter is `&"fogged"`, not an error.
-func _build_attack_request(outcome: AttackOutcome, attacker: Entity) -> FocusRequest:
+## Returns null when no focus should be built at all.
+func _build_attack_request(outcome: AttackOutcome, _attacker: Entity) -> FocusRequest:
 	if outcome == null or outcome.hits.is_empty():
-		return null
-	var is_melee := _live_melee_plan() != null
-	if not is_melee and seat_policy != null and seat_policy.seats(attacker):
 		return null
 	var points := PackedVector2Array()
 	# The schedule owns "how long does this take" (#543) — hand-computing a
@@ -528,7 +536,7 @@ func _build_attack_request(outcome: AttackOutcome, attacker: Entity) -> FocusReq
 	var request := FocusRequest.span(points, default_focus_duration,
 			last_arrival + release_tail_seconds, &"attack")
 	request.empty_reason = &"fogged"
-	request.mandatory = is_melee
+	request.mandatory = true
 	return request
 
 
