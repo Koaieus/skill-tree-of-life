@@ -41,13 +41,16 @@ func flatten_all() -> Array[ModifierPoolEntry]:
 ## There is no off-archetype phase and no defensive phase — universal
 ## pools ARE the shared content, gated by tier tag and budget, not by pool
 ## role.
-## `subtype` is accepted but NOT YET APPLIED: the second key of the filter is
-## unbuilt. Defaulted so today's callers are unchanged; once the gate lands, a
-## pool is selected iff its `subtypes` is empty or names this node's subtype.
+## The second key is `subtype` (#1056): a pool is selected iff its `subtypes`
+## is empty (`[]` = any, every pool authored today) or names this node's
+## subtype — see [method StatPool.admits_subtype]. `null` resolves to
+## [method NodeSubtype.regular], so an unset node draws what the default draws
+## and today's one-key callers are unchanged.
 func flatten_for_node(
 		primary_stat: StringName,
 		subtype: NodeSubtype = null,
 ) -> Array[ModifierPoolEntry]:
+	var effective := subtype if subtype != null else NodeSubtype.regular()
 	var out: Array[ModifierPoolEntry] = []
 	for pack in packs:
 		if pack == null:
@@ -55,8 +58,11 @@ func flatten_for_node(
 		for pool in pack.pools:
 			if pool == null:
 				continue
-			if pool.archetype_stat == &"" or pool.archetype_stat == primary_stat:
-				out.append_array(pool.to_entries())
+			if pool.archetype_stat != &"" and pool.archetype_stat != primary_stat:
+				continue
+			if not pool.admits_subtype(effective):
+				continue
+			out.append_array(pool.to_entries())
 	return out
 
 

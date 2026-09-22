@@ -55,9 +55,10 @@ extends Resource
 ## second mechanism. Paired with [member archetype_stat] by
 ## [method ModifierPoolSet.flatten_for_node].
 ##
-## NOT YET READ — the two-key filter and the `to_entries` id segment that keeps
-## two pools for the same (stat, op, archetype) from colliding are unbuilt. See
-## docs/design/node_subtypes.md.
+## Matched by [method admits_subtype]; a non-empty list also mints an id
+## segment in [method to_entries], so two pools for the same (stat, op,
+## archetype) gated to different subtypes stay addressable by weight profiles.
+## See docs/design/node_subtypes.md.
 @export var subtypes: Array[NodeSubtype] = []
 
 ## Tags shared by every tier of this pool, auto-stamped onto each entry
@@ -219,10 +220,11 @@ func to_entries() -> Array[ModifierPoolEntry]:
 	var out: Array[ModifierPoolEntry] = []
 	var op_short := _op_short()
 	var arch_seg := String(archetype_stat) if archetype_stat != &"" else "any"
+	var sub_seg := _subtype_segment()
 	for b in _tier_magnitude_bounds():
 		var t: int = b.tier
 		var e := ModifierPoolEntry.new()
-		e.id = StringName("%s_%s_%s_t%d" % [stat_id, op_short, arch_seg, t])
+		e.id = StringName("%s_%s_%s%s_t%d" % [stat_id, op_short, arch_seg, sub_seg, t])
 		e.stat_id = stat_id
 		e.operation = operation
 		# Cost is always positive (#637 — the refund economics of negative
@@ -247,6 +249,38 @@ func to_entries() -> Array[ModifierPoolEntry]:
 		e.tags = merged
 		out.append(e)
 	return out
+
+
+## May a node of this subtype draw this pool? `[]` = any subtype, which is
+## every pool authored today. Matched by [member NodeSubtype.id], never by
+## object identity: a config reached through `duplicate(true)` holds copies of
+## its subtype resources, and the copy is the same subtype.
+func admits_subtype(subtype: NodeSubtype) -> bool:
+	if subtypes.is_empty():
+		return true
+	if subtype == null:
+		return false
+	for s in subtypes:
+		if s != null and s.id == subtype.id:
+			return true
+	return false
+
+
+## Id segment for a gated pool, empty for an ungated one — which is why every
+## already-authored entry id is byte-identical and the procgen goldens do not
+## churn. Ids are SORTED: `[bless, blight]` and `[blight, bless]` are the same
+## set and must not mint two ids for one intent.
+func _subtype_segment() -> String:
+	if subtypes.is_empty():
+		return ""
+	var ids: Array[String] = []
+	for s in subtypes:
+		if s != null:
+			ids.append(String(s.id))
+	if ids.is_empty():
+		return ""
+	ids.sort()
+	return "_s" + "-".join(ids)
 
 
 ## Id-segment token (`<stat>_<op>_<arch>_t<tier>`, see [method to_entries]) —
