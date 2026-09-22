@@ -1316,21 +1316,24 @@ static func _roll_modifiers_v4(
 	fp["dropped"] = dropped
 	return final
 
-## True iff `mod`'s value is its operation's neutral element (a fused no-op):
-## `0` for ADD_BASE/ADD_BONUS/INCREASE, `1` for MULTIPLY. `SET` has no
-## neutral element and is never a no-op (#629). Coercion-aware via the same
+## True iff `mod`'s value is its operation's neutral element (a fused no-op).
+## Which value that IS per op is not restated here — it is
+## [method StatModifier.displacement_from_neutral], the one home of the law
+## (#1050); a no-op is a zero displacement.
+##
+## Two rules stay at THIS call site because they are procgen's, not the stat
+## system's: `SET` is never a no-op (#629) even though it has no neutral
+## element to displace from, and the value is coercion-aware via the same
 ## [method ModifierPoolEntry.coerce_to_stat_type] the roll path uses — a
 ## `+0.4` on an INT stat coerces to `0` (a no-op) where the same value on a
 ## FLOAT stat does not.
 static func _is_neutral_result(mod: StatModifier) -> bool:
-	match mod.operation:
-		StatModifier.Operation.MULTIPLY:
-			return is_equal_approx(mod.value, 1.0)
-		StatModifier.Operation.SET:
-			return false
-		_:
-			var coerced := ModifierPoolEntry.coerce_to_stat_type(mod.value, mod.operation, mod.stat_id)
-			return is_zero_approx(coerced)
+	if mod.operation == StatModifier.Operation.SET:
+		return false
+	var v := mod.value
+	if mod.operation != StatModifier.Operation.MULTIPLY:
+		v = ModifierPoolEntry.coerce_to_stat_type(mod.value, mod.operation, mod.stat_id)
+	return is_zero_approx(StatModifier.displacement_from_neutral(mod.operation, v))
 
 ## Typed container for StatModifiers that aggregates them as it ingests via `append`
 ## Merges in new ones destructively if mergeable, fusing two StatModifiers into 1

@@ -98,11 +98,14 @@ enum Valence {
 ##
 ## Static and value-taking (not an instance method) so a procgen candidate
 ## value can be tested before any [StatModifier] exists to hold it.
-##
-## STUB (#1049) — signature and law are the settled shape; the body is the
-## drone's.
-static func displacement_from_neutral(_op: Operation, _v: float) -> float:
-	return 0.0
+static func displacement_from_neutral(op: Operation, v: float) -> float:
+	match op:
+		Operation.MULTIPLY:
+			return v - 1.0
+		Operation.SET:
+			return NAN
+		_:
+			return v
 
 
 ## This modifier's [enum Valence]: [method displacement_from_neutral] of the
@@ -114,9 +117,26 @@ static func displacement_from_neutral(_op: Operation, _v: float) -> float:
 ## straight to [method get_effective_value], so an unbound formula modifier
 ## judges its coefficient exactly as [method format] renders it.
 ##
-## STUB (#1049).
-func valence(_board: StatBoard = null) -> Valence:
-	return Valence.NEUTRAL
+## A sign-flipping MULTIPLY (`value <= 0`) is VOLATILE ahead of the
+## displacement test: it is the one op that can carry the held value across
+## zero, so "which way is up" has no answer that stays true — see the enum.
+## An unresolvable [member stat_id] is VOLATILE for the same reason: without
+## a def there is no side to pick.
+func valence(board: StatBoard = null) -> Valence:
+	var v := get_effective_value(board)
+	if operation == Operation.MULTIPLY and v <= 0.0:
+		return Valence.VOLATILE
+	var delta := displacement_from_neutral(operation, v)
+	if is_nan(delta):
+		return Valence.VOLATILE
+	if is_zero_approx(delta):
+		return Valence.NEUTRAL
+	if not is_instance_valid(StatRegistry):
+		return Valence.VOLATILE
+	var def: StatDef = StatRegistry.get_def(stat_id)
+	if def == null:
+		return Valence.VOLATILE
+	return Valence.BOON if def.is_improvement(delta) else Valence.BANE
 
 
 @export var stat_id: StringName = &"":

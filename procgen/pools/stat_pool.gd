@@ -374,10 +374,19 @@ func _get_configuration_warnings() -> PackedStringArray:
 	# by [method _tier_magnitude_bounds] (near/far by sign, not numeric
 	# sort), so the SAME `>` comparison catches a genuine inversion for
 	# either sign of pool (#637) — do not special-case unit_value here.
+	# #1050: a MULTIPLY pool folds `1 + magnitude`, so a negative `unit_value`
+	# deep enough on the V ladder mints a SIGN-FLIPPING multiplier (`unit -0.2`
+	# at V[T3]=7 is ×-0.4). That is not a debuff, it is a value that crosses
+	# zero — it flips the held stat's sign, so two of them cancel and
+	# [method StatModifier.valence] can only call it VOLATILE. Nothing authors
+	# one on purpose today; this is how the accident gets caught in-editor.
 	for b in _tier_magnitude_bounds():
 		if b.lo > b.hi:
 			out.append("%s: T%d range inverted (lo %s > hi %s) — check value_overrides against range_floor." % [
 					resource_name, b.tier, b.lo, b.hi])
+		if operation == StatModifier.Operation.MULTIPLY and minf(1.0 + b.lo, 1.0 + b.hi) <= 0.0:
+			out.append("%s: T%d MULTIPLY range reaches ×%s — a sign-flipping multiplier, not a debuff. Raise unit_value or cap max_tier." % [
+					resource_name, b.tier, minf(1.0 + b.lo, 1.0 + b.hi)])
 	var registry := TagRegistry.canonical()
 	if registry != null:
 		var unknown := registry.unknown_tags(tags)

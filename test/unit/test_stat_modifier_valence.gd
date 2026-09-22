@@ -23,9 +23,12 @@ func test_displacement_is_the_value_for_additive_ops() -> void:
 	assert_eq(StatModifier.displacement_from_neutral(StatModifier.Operation.INCREASE, -3.0), -3.0)
 
 
+## `v - 1.0` is a subtraction, so `1.35 - 1.0` is `0.3500000000000001` — the
+## law is exact, binary floats are not, and every consumer compares the
+## displacement approximately (`is_zero_approx`, `is_improvement`'s sign).
 func test_displacement_is_value_minus_one_for_multiply() -> void:
-	assert_eq(StatModifier.displacement_from_neutral(StatModifier.Operation.MULTIPLY, 1.35), 0.35)
-	assert_eq(StatModifier.displacement_from_neutral(StatModifier.Operation.MULTIPLY, 0.65), -0.35)
+	assert_almost_eq(StatModifier.displacement_from_neutral(StatModifier.Operation.MULTIPLY, 1.35), 0.35, 1e-6)
+	assert_almost_eq(StatModifier.displacement_from_neutral(StatModifier.Operation.MULTIPLY, 0.65), -0.35, 1e-6)
 	assert_eq(StatModifier.displacement_from_neutral(StatModifier.Operation.MULTIPLY, 1.0), 0.0)
 
 
@@ -58,3 +61,27 @@ func test_neutral_and_volatile() -> void:
 			StatModifier.Valence.VOLATILE)
 	assert_eq(_mod(StatModifier.Operation.MULTIPLY, -1.0, &"armor").valence(),
 			StatModifier.Valence.VOLATILE)
+
+
+## Acceptance 2 (#1050): the editor-side guard for the value the law can only
+## call VOLATILE. `to_entries` folds MULTIPLY as `1 + magnitude`, so a debuff
+## pool (negative `unit_value`) deep enough on the V ladder mints a
+## sign-flipping multiplier. `test_pool_scoping.gd` sweeps the SHIPPED pools'
+## warnings; this pins the rule itself on a pool authored to trip it.
+func test_a_sign_flipping_multiply_pool_warns() -> void:
+	var pool := StatPool.new()
+	pool.stat_id = &"armor"
+	pool.operation = StatModifier.Operation.MULTIPLY
+	pool.unit_value = -0.2
+	pool.max_tier = 3
+	var warnings := "\n".join(pool._get_configuration_warnings())
+	assert_string_contains(warnings, "sign-flipping multiplier")
+
+
+func test_a_normal_multiply_pool_does_not_warn() -> void:
+	var pool := StatPool.new()
+	pool.stat_id = &"armor"
+	pool.operation = StatModifier.Operation.MULTIPLY
+	pool.unit_value = 0.05
+	var warnings := "\n".join(pool._get_configuration_warnings())
+	assert_false(warnings.contains("sign-flipping"), warnings)
