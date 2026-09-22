@@ -52,8 +52,13 @@ const DEFAULT_PATH := "res://attack/outcome/default_presentation_tempo.tres"
 ## [method OutcomeSchedule.compile] clamps rather than trusting the author.
 @export var beat_lead_in: float = 0.35
 
-## Ranged: dead time before the first arrow leaves the string.
+## Ranged: the wind-up — the arrows animate in, parked at their leaves, before
+## the first one leaves the string. An awaited presenter beat (ADR 0027), paid
+## once in `_stage_windup`, never a schedule offset. 0.0 = no wind-up.
 @export var volley_draw_time: float = 0.0
+## Ranged: seconds between one parked arrow's placement and the next during the
+## wind-up — "fast": the whole volley is in place well inside the draw time.
+@export var volley_place_stagger: float = 0.0
 ## Ranged: seconds between the nearest leaf's launch and the farthest leaf's,
 ## the span the volley's metric ramp lerps across.
 @export var volley_stagger_span: float = 0.7
@@ -103,6 +108,17 @@ const DEFAULT_PATH := "res://attack/outcome/default_presentation_tempo.tres"
 ## tier exists for. The last beat before the swing.
 @export var melee_windup_flare: float = 0.1
 
+## [b]Magic wind-up: caster hold → neighbour streaks → flare[/b], the same
+## clamp-at-zero and all-zero escape hatch as the melee trio (ADR 0027).
+## Magic: the camera's hold on the caster before the draw starts — the pivot
+## beat [method windup_lead] returns for [b]MAGIC[/b].
+@export var magic_windup_pivot_focus: float = 0.0
+## Magic: the span across which every territory neighbour streaks its power
+## into the caster (stagger = span / neighbour count) and the caster ramps.
+@export var magic_windup_draw_span: float = 0.0
+## Magic: the ignition flare to [constant Emissive.PEAK] before the first bolt.
+@export var magic_windup_flare: float = 0.0
+
 
 ## Melee: seconds the whole swing occupies on screen. The blade sim's own
 ## duration is a SIM constant ([constant MeleeAttackPlan.SWING_DURATION]); this
@@ -149,7 +165,8 @@ func melee_windup_seconds(has_addons: bool) -> float:
 ## have been a constant; two is a method.
 ##
 ## One explicit arm per mode, so a mode authoring its own lead edits its own
-## line: melee's is the pivot focus; ranged and magic have none yet.
+## line: melee's and magic's are their pivot focus, ranged's is the whole draw
+## (the parked arrows are the picture; there is no separate pivot beat).
 ##
 ## [param mode] is a [enum BattleSystem.AttackMode] value, typed [int] and
 ## matched on literals ON PURPOSE: this is a [Resource] script inside the
@@ -163,8 +180,8 @@ func windup_lead(mode: int) -> float:
 		1:  # BattleSystem.AttackMode.MELEE
 			return maxf(0.0, melee_windup_pivot_focus)
 		2:  # BattleSystem.AttackMode.RANGED
-			return 0.0
+			return maxf(0.0, volley_draw_time)
 		3:  # BattleSystem.AttackMode.MAGIC
-			return 0.0
+			return maxf(0.0, magic_windup_pivot_focus)
 		_:
 			return 0.0
