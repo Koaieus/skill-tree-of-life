@@ -57,25 +57,53 @@ func _track_rect() -> Rect2:
 	return Rect2(0.0, (size.y - TRACK_H) * 0.5, maxf(0.0, size.x - LABEL_W), TRACK_H)
 
 
-## Pure geometry for [method _draw] (stub).
-static func layout(_n: int, _max_n: int, _notches: PackedInt32Array, _segments: Array[Dictionary], _track_w: float) -> Dictionary:
-	return {}
+## Pure geometry for [method _draw], in track-local pixels (x = 0 at the
+## track's left edge). `segments` are `{x, w, tint}` rects tiling the filled
+## width in roster order; `wave_x` is one notch per wave boundary; `arrow_x`
+## is one tick per arrow boundary strictly inside the track, or empty with
+## `arrows_suppressed` true when [method GaugeDensity.ticks_fit] says the
+## pitch is illegible. A sibling paints per-arrow state on top of this shape.
+static func layout(p_n: int, p_max: int, p_notches: PackedInt32Array, p_segments: Array[Dictionary], track_w: float) -> Dictionary:
+	var out := {
+		"segments": [],
+		"wave_x": PackedFloat32Array(),
+		"arrow_x": PackedFloat32Array(),
+		"arrows_suppressed": false,
+	}
+	if p_max <= 0 or track_w <= 0.0:
+		return out
+	var px_per := track_w / float(p_max)
+	var x := 0.0
+	for seg in p_segments:
+		var w := px_per * float(int(seg.get("count", 0)))
+		var tint: Color = TYPE_TINTS.get(seg.get("type_id", &""), FALLBACK_TINT)
+		out["segments"].append({"x": x, "w": w, "tint": tint})
+		x += w
+	for notch in p_notches:
+		out["wave_x"].append(px_per * float(notch))
+	if GaugeDensity.ticks_fit(p_max, track_w):
+		for i in range(1, p_max):
+			out["arrow_x"].append(px_per * float(i))
+	else:
+		out["arrows_suppressed"] = true
+	return out
 
 
 func _draw() -> void:
 	var track := _track_rect()
 	draw_rect(track, TRACK_COLOR)
-	if max_n > 0 and track.size.x > 0.0:
-		var px_per := track.size.x / float(max_n)
-		var x := track.position.x
-		for seg in segments:
-			var w := px_per * float(int(seg.get("count", 0)))
-			var tint: Color = TYPE_TINTS.get(seg.get("type_id", &""), FALLBACK_TINT)
-			draw_rect(Rect2(x, track.position.y, w, track.size.y), tint)
-			x += w
-		for notch in notches:
-			var nx := track.position.x + px_per * float(notch)
-			draw_line(Vector2(nx, track.position.y), Vector2(nx, track.end.y), NOTCH_COLOR, 2.0)
+	var lay := layout(n, max_n, notches, segments, track.size.x)
+	for seg: Dictionary in lay["segments"]:
+		draw_rect(Rect2(track.position.x + float(seg["x"]), track.position.y, float(seg["w"]), track.size.y), seg["tint"] as Color)
+	var tick_color := NOTCH_COLOR
+	tick_color.a *= 0.5
+	var mid_y := track.position.y + track.size.y * 0.5
+	for ax: float in lay["arrow_x"]:
+		var tx: float = track.position.x + ax
+		draw_line(Vector2(tx, mid_y), Vector2(tx, track.end.y), tick_color, 1.0)
+	for wx: float in lay["wave_x"]:
+		var nx: float = track.position.x + wx
+		draw_line(Vector2(nx, track.position.y), Vector2(nx, track.end.y), NOTCH_COLOR, 2.0)
 	draw_rect(track, TRACK_EDGE, false, 1.0)
 	if _font == null:
 		return
