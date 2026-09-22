@@ -386,3 +386,40 @@ func test_a_cancel_event_still_produces_an_entry() -> void:
 			assert_almost_eq(entry.magnitude, 0.0, 0.0001)
 	assert_gt(cancels, 0, "precondition: the reducer really fizzled something")
 	assert_eq(cancel_entries, cancels, "every cancel pop gets its own beat")
+
+
+# -- ranged wind-up (#1042) ----------------------------------------------------
+
+
+func _ramp_outcome() -> AttackOutcome:
+	var outcome := AttackOutcome.new()
+	outcome.cadence = ScheduleEntry.Cadence.RAMP
+	for key in [0.0, 0.5, 1.0]:
+		var hit := DamageInstance.new()
+		hit.amount = 10.0
+		hit.effective_amount = hit.amount
+		hit.structural_key = key
+		outcome.hits.append(hit)
+	return outcome
+
+
+func test_the_ramp_no_longer_reads_the_draw_time() -> void:
+	# ADR 0027: the wind-up is an awaited presenter beat, paid once in
+	# `BattleSystem._stage_windup`, never a compile-time offset. Authoring a
+	# draw time moves nothing on the schedule.
+	var tempo := PresentationTempo.new()
+	tempo.volley_draw_time = 0.5
+	tempo.volley_stagger_span = 0.7
+	tempo.volley_flight_time = 0.8
+	var schedule := OutcomeSchedule.compile(_ramp_outcome(), tempo)
+	assert_almost_eq(schedule.entries[0].launch_at, 0.0, 0.0001,
+			"the first arrow launches at 0.0 whatever the draw time")
+	assert_almost_eq(schedule.entries[2].launch_at, 0.7, 0.0001,
+			"the last rank launches volley_stagger_span later, no draw term")
+	assert_almost_eq(schedule.entries[0].arrive_at, 0.8, 0.0001,
+			"…and arrives one flight later")
+	tempo.volley_draw_time = 0.0
+	var zeroed := OutcomeSchedule.compile(_ramp_outcome(), tempo)
+	for i in 3:
+		assert_almost_eq(zeroed.entries[i].launch_at, schedule.entries[i].launch_at, 0.0001,
+				"authored to 0.0 the launch is frame-identical")
