@@ -36,6 +36,7 @@ const _DEFENDER_LAYER_BITS: Dictionary = {
 signal radius_changed
 signal owner_changed
 signal archetype_changed
+signal subtype_changed
 ## Emitted at the end of [method _apply_sensed_state], after `sensed` (or
 ## `revealed`) has already been mirrored onto the visual stack — lets a
 ## fog-reactive visual (e.g. [BlockerVisual], #478) re-sync off a signal
@@ -115,7 +116,14 @@ signal statuses_changed
 ## archetype-bearing node; `null` means unset, as on a hand-authored sandbox
 ## node. Carries the tint and emissive tier the visuals read — see
 ## [NodeSubtype] and docs/design/node_subtypes.md.
-@export var subtype: NodeSubtype = null
+@export var subtype: NodeSubtype = null:
+	set(value):
+		if subtype == value:
+			return
+		subtype = value
+		subtype_changed.emit()
+		if is_node_ready():
+			_sync_subtype_tint()
 
 ## Persistent base-type identity colour (e.g. procgen's archetype colour).
 ## Drives NodeVisualsComposite's `archetype_tint` (rim, sensed outline);
@@ -522,6 +530,7 @@ func _ready() -> void:
 	# _sync_visuals below doesn't push a stale 0 into NodeVisualsComposite.
 	_refresh_alloc_count()
 	_sync_visuals()
+	_sync_subtype_tint()
 	radius_changed.connect(_sync_visuals)
 	# _refresh_alloc_count must run BEFORE _sync_visuals — the latter reads
 	# allocation_level to push into NodeVisualsComposite, and connections fire
@@ -1375,6 +1384,22 @@ func _sync_status_tint() -> void:
 		_node_visuals.set_status_tint(Color.WHITE, 0.0)
 	else:
 		_node_visuals.set_status_tint(strongest.def.tint, strongest_power)
+
+
+## [member subtype] setter's push-down (#1057), sibling of
+## [method _sync_status_tint]. `null` (no subtype stamped, e.g. a
+## hand-authored sandbox node) restores WHITE — same identity-element idiom as
+## "no status". A stamped subtype composes its [member NodeSubtype.tint]
+## through [method Emissive.at] at its [member NodeSubtype.emissive_tier]:
+## `regular.tres` carries WHITE + INERT, which round-trips to WHITE, so a
+## regular node's modulate does not shift from today's.
+func _sync_subtype_tint() -> void:
+	if not is_node_ready() or _node_visuals == null:
+		return
+	if subtype == null:
+		_node_visuals.subtype_tint = Color.WHITE
+	else:
+		_node_visuals.subtype_tint = Emissive.at(subtype.tint, Emissive.stops(subtype.emissive_tier))
 
 
 ## Connect once to the sparse turn-start channel (#879) — [method

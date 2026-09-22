@@ -188,6 +188,17 @@ var status_tint: Color = Color.WHITE:
 		status_tint = value
 		_apply_modulate()
 
+## Subtype-identity tint (#1057) — [member NodeSubtype.tint] raised through
+## [method Emissive.at] at the subtype's [member NodeSubtype.emissive_tier],
+## pushed by SkillNode via its `subtype` setter (mirrors the `sensed` /
+## `core_active` push-down idiom). WHITE for `regular` (and for no subtype
+## stamped at all), so it is the identity element on an unsubtyped node — zero
+## new instance-uniform slots, this rides the existing modulate chain.
+var subtype_tint: Color = Color.WHITE:
+	set(value):
+		subtype_tint = value
+		_apply_modulate()
+
 
 ## Whether this node currently hosts its owner's core. Gates the core-only
 ## presence visuals — CoreHalos today (CoreSigilBloom next, #128) — so they draw
@@ -214,12 +225,12 @@ func _on_identity_changed() -> void:
 
 
 ## The single writer of `modulate` — [member feedback_tint] (hit-flash /
-## denial pulse) and [member status_tint] (#880) compose multiplicatively
-## (Godot [Color] `*` is componentwise) so a hit-flash never erases a status
-## tint and vice versa: WHITE on one channel is the identity element, so an
-## idle channel contributes nothing to the product.
+## denial pulse), [member status_tint] (#880) and [member subtype_tint]
+## (#1057) compose multiplicatively (Godot [Color] `*` is componentwise) so no
+## channel can erase another: WHITE on one channel is the identity element, so
+## an idle channel contributes nothing to the product.
 func _apply_modulate() -> void:
-	modulate = feedback_tint * status_tint
+	modulate = feedback_tint * status_tint * subtype_tint
 
 
 ## Blends [param tint] toward WHITE by [param normalised_power] (#880,

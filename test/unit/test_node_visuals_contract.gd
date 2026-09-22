@@ -340,3 +340,27 @@ func test_status_tint_composes_with_feedback_tint() -> void:
 	comp.feedback_tint = Color.WHITE
 	assert_true(comp.modulate.is_equal_approx(green),
 		"feedback_tint resetting to WHITE restores the status tint, unerased")
+
+
+## #1057: subtype_tint joins the modulate chain as a third multiplicative
+## channel — feedback_tint * status_tint * subtype_tint. The regression that
+## matters: a regular node (subtype_tint left at WHITE) must not shift by one
+## bit from today's two-channel product.
+func test_subtype_tint_composes_with_the_other_two_channels() -> void:
+	var comp = add_child_autofree(CompositeScene.instantiate())
+	await get_tree().process_frame
+	var status_green := Color(0.2, 0.85, 0.25, 1.0)
+	var feedback_red := Color(1.0, 0.3, 0.3)
+	var subtype_purple := Color(0.6, 0.1, 0.9, 1.0)
+
+	comp.set_status_tint(status_green, 1.0)
+	comp.feedback_tint = feedback_red
+	comp.subtype_tint = subtype_purple
+	assert_true(
+		comp.modulate.is_equal_approx(feedback_red * status_green * subtype_purple),
+		"all three channels compose as one componentwise product")
+
+	comp.subtype_tint = Color.WHITE
+	assert_true(
+		comp.modulate.is_equal_approx(feedback_red * status_green),
+		"subtype_tint at WHITE (a regular node) is the identity element — today's two-channel product, unshifted")
