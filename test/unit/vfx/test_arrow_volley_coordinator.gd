@@ -377,8 +377,8 @@ func test_windup_parks_every_arrow_inside_its_leaf_and_play_launches_those_insta
 				"arrow %d sits inside its leaf's disc" % i)
 	var marker := coord.focus_marker()
 	assert_not_null(marker, "the coordinator's marker is its %FocusMarker")
-	assert_almost_eq(marker.global_position, Vector2(0, 100), Vector2(0.01, 0.01),
-			"during the wind-up the marker is the firing centroid")
+	assert_almost_eq(marker.global_position, Vector2(0, 150), Vector2(0.01, 0.01),
+			"during the wind-up the marker is the firing-NODES centroid (two leaves, not three arrows)")
 	await wait_frames(3)
 	assert_eq(placed, [[0, 3], [1, 3], [2, 3]], "placed once per arrow, in placement order")
 
