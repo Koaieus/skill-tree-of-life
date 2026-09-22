@@ -41,7 +41,13 @@ func flatten_all() -> Array[ModifierPoolEntry]:
 ## There is no off-archetype phase and no defensive phase — universal
 ## pools ARE the shared content, gated by tier tag and budget, not by pool
 ## role.
-func flatten_for_node(primary_stat: StringName) -> Array[ModifierPoolEntry]:
+## `subtype` is accepted but NOT YET APPLIED: the second key of the filter is
+## unbuilt. Defaulted so today's callers are unchanged; once the gate lands, a
+## pool is selected iff its `subtypes` is empty or names this node's subtype.
+func flatten_for_node(
+		primary_stat: StringName,
+		subtype: NodeSubtype = null,
+) -> Array[ModifierPoolEntry]:
 	var out: Array[ModifierPoolEntry] = []
 	for pack in packs:
 		if pack == null:

@@ -48,6 +48,18 @@ extends Resource
 ## phase — universal pools are the shared defensive/mobility content.
 @export var archetype_stat: StringName = &""
 
+## Which subtypes may draw this pool. `[]` = any subtype (every pool authored
+## today). A non-empty list is BOTH the membership gate and the give-up: a pool
+## authored `[regular, bless]` is one a blighted node cannot draw, which is how
+## "blighted DEX trades crit% for DoT stats" is stated per-archetype without a
+## second mechanism. Paired with [member archetype_stat] by
+## [method ModifierPoolSet.flatten_for_node].
+##
+## NOT YET READ — the two-key filter and the `to_entries` id segment that keeps
+## two pools for the same (stat, op, archetype) from colliding are unbuilt. See
+## docs/design/node_subtypes.md.
+@export var subtypes: Array[NodeSubtype] = []
+
 ## Tags shared by every tier of this pool, auto-stamped onto each entry
 ## alongside the ladder's tier/rarity tags at flatten. Validated against
 ## [TagRegistry].
