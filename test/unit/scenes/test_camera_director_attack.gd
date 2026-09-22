@@ -557,3 +557,41 @@ func test_a_ranged_shot_waits_for_its_replay_however_long_the_windup_holds() -> 
 	_dir._process(1000.0)
 	assert_false(_dir.is_shot_locked(),
 			"after the replay the tail governs — the launch flag no longer holds the camera")
+
+
+# --- #1042: the release zoom fits the landing cluster, never the span --------
+
+
+func test_wave_landing_refits_the_zoom_to_the_landing_cluster_only() -> void:
+	# Acceptance 3: a 2000-px shot whose arrows land inside a 60-px cluster
+	# keeps the player's zoom at release — the pan does the travel, the zoom
+	# never fits the full span and never steps in past what the player chose.
+	_dir.seat_policy = SeatPolicy.couch()
+	var cam := _camera()
+	cam.limit_left = -100000
+	cam.limit_right = 100000
+	cam.limit_top = -100000
+	cam.limit_bottom = 100000
+	var presenter := _StubPresenter.new()
+	_holder.add_child(presenter)
+	var marker := Marker2D.new()
+	presenter.add_child(marker)
+	presenter.marker = marker
+	_dir.battle_system = _ranged_battle_system(presenter)
+	_dir.default_focus_duration = 0.0
+	var player_zoom: float = cam.player_zoom_target()
+	var hits: Array[HitInstance] = [_hit(_node_at(Vector2.ZERO), _node_at(Vector2(2000, 0)))]
+
+	_dir._on_attack_committed(_outcome(hits), _entity(true))
+	assert_true(cam.is_following(), "the shot opened on the marker")
+	assert_lt(cam._target_zoom, player_zoom, "the commit's span framing stepped out")
+
+	var cluster := PackedVector2Array([Vector2(1970, 0), Vector2(2030, 0), Vector2(2000, 30)])
+	presenter.wave_landing.emit(cluster)
+	assert_almost_eq(cam._target_zoom, player_zoom, 0.0001,
+			"the release refits to the 60-px landing cluster: the player's zoom fits it")
+	assert_false(cam.is_pan_tween_running(), "a zoom retarget, never a re-tweened pan")
+
+	_dir.release()
+	presenter.wave_landing.emit(cluster)
+	assert_false(_dir.is_shot_locked(), "a late wave after release retargets nothing")
