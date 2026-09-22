@@ -252,6 +252,42 @@ target by that id. Two pools for the same (stat, op, archetype) — a regular
 subtype segment is appended **only when `subtypes` is non-empty**: every
 already-authored id stays byte-identical and the goldens do not churn.
 
+### The three authoring rows — and the one rule that keeps them safe
+
+`[]` is not a degenerate case, it is **the common one**. A pool shared by every
+subtype simply leaves `subtypes` empty, which is the default — the DEX
+attribute ladder is never copied, never listed, never touched. That is the
+"rolls DEX" that appears in all three rows of the owner's own sketch.
+
+| what you want | how it is authored | copies |
+|---|---|---|
+| same for every subtype (the attribute ladder) | `subtypes = []` | none |
+| present for some, absent for others, identical where present (blighted DEX loses crit) | `subtypes = [regular, bless]` | none |
+| present for several **at different values or weights** | separate pools, each gated | yes — unavoidable |
+
+Row 3 is not the gate breaking down. Two different values are genuinely two
+pieces of content, and no mechanism expresses them as one pool; the subtype
+list is what makes the two copies **addressable** rather than ambiguous, and
+the `to_entries` id segment is what keeps them from colliding. The list does
+*more* work in row 3, not less.
+
+**THE RULE: leave the shared ladder at `[]` and gate only the flavour.**
+
+Owner, 2026-09-22 (decision 16) — authoring discipline, deliberately not
+enforced in code.
+
+**What the rule protects against.** Copy a pool to `[regular, bless]` and
+forget `[blight]`, and blighted DEX nodes silently lose that content — with
+**no symptom**. Decision 13's fallback does not catch it: blight still has *a*
+drawable pool (its potency), so the node stands; it just quietly never rolls
+the DEX ladder. A balance bug with nothing to observe.
+
+A coverage warning was considered and **declined** — for any
+`(stat_id, operation, archetype_stat)` group touched by a subtype-gated pool,
+flag any subtype no pool in that group names. Owner chose discipline over the
+mechanism; revisit if row 3 is ever actually authored, since the hole can only
+exist there.
+
 ### Authoring ergonomics — and why subtype stays on the pool
 
 The target shape, in the owner's words: *"i could enter all `STR` related
@@ -398,6 +434,7 @@ later upgrade with its own justification, not part of the first cut.
 12. **What a subtype gives up is the same per-pool set, not a `forbid_tags` list.** `StatPool.subtypes: Array[NodeSubtype]`, empty = any. One owner for "may this node draw this pool?"; per-archetype precision falls out because pools are already per-archetype. `NodeSubtype.forbid_tags` is **deleted from the design**. Reverses §① (single ref → set) and §② entirely.
 13. **A rolled subtype that has no drawable content demotes to the default.** The guard is structural, computed once per `generate()`, so the grid may be ragged anywhere without any node ever looking like something it does not play.
 14. **`regular` is a global default with an optional per-preset override.** Owner: *"a global default subtype const (`regular`/none) and procgencontent could then optionally override"*. `NodeSubtype.regular()` is the canonical one; `GraphProcgenContent.default_subtype` overrides when set. It must be a **lazy static accessor**, not a class-scope `preload` — `regular.tres`'s script is `NodeSubtype` itself, so the preload is cyclic.
+16. **Partial coverage is authoring discipline, not a validated invariant.** Leave a pool shared by every subtype at `subtypes = []`; gate only the flavour. A coverage warning was considered and declined — the hole only exists if a pool is copied per-subtype at different values, which the rule keeps rare.
 15. **Inspector DX is the typed picker and nothing more.** Owner: *"The typed picker is enough"*. `Array[NodeSubtype]` gets a resource-filtered picker for free (no strings to misspell); no `resource_name` echo and no extra `_get_configuration_warnings` branch in v1.
 
 ## Three things a spec must not miss
