@@ -99,21 +99,19 @@ once, which is precisely the failure the family was designed to prevent. An
 umbrella scoped to **stack application** or **falloff** has no such problem:
 it makes you land more of whatever you already do.
 
-## Relationship to node specializations — NOT the same axis
+## The name "Corrupted" is already spoken for — loosely
 
-[skill_node_specializations.md](skill_node_specializations.md) has a
-**Corrupted Node** candidate. It is a different thing and the two must not
-drift together:
+[skill_node_specializations.md](skill_node_specializations.md) sketches a
+**Corrupted Node**. Owner, 2026-09-22: that doc is *"one of the earliest
+design docs where spitballing was more prominent than ever — at best see it
+as inspiration for mechanics we don't yet have."* So it is not a competing
+axis and nothing here needs to reconcile with it.
 
-| | subtype (this doc) | specialization (that doc) |
-|---|---|---|
-| what it is | a territory flavour: which pools procgen rolls from | a per-node fused benefit + permanent downside |
-| how common | common — a normal property of generated regions | *"should feel rare and meaningful"* |
-| carried by | the node's generated identity, alongside archetype | intrinsic (type-A) or applied by a costly process (type-B) |
-| affects | the draw, before any roll happens | the node's actual modifiers, after |
-
-They could be unified later — that doc's open question 1 already asks whether
-the addon/specialization boundary holds. Unifying is not proposed here.
+Worth one line only because the vocabulary could collide: its "Corrupted" is a
+rare **per-node** fused benefit-plus-permanent-downside, while a subtype is a
+common **territory** flavour that changes which pools procgen draws from,
+before any roll happens. If subtypes ship, prefer `blighted` over `corrupted`
+in code and UI and the ambiguity never arises.
 
 ## Visual language
 
