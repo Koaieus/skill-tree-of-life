@@ -24,6 +24,14 @@ extends Node2D
 @abstract func play(payload: Variant) -> void
 
 
+## The outcome this presenter stages and plays — [BattleSystem] sets it at
+## mount, before [method begin_windup], so a wind-up that has to spawn one
+## thing per hit (the parked ranged volley, #1042) can read the hits the
+## contract's `(plan, tempo)` arguments do not carry. Null on a playground or
+## a test that goes straight to [method play].
+var outcome: AttackOutcome = null
+
+
 ## The wave's landing points, at the beat a wave is released — the camera
 ## director fits its zoom to these and nothing else (ADR 0027). Distinct from
 ## [signal MagicBounceCoordinator.wave_started], which a subclass already owns.

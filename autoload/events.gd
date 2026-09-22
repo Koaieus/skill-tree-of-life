@@ -153,6 +153,15 @@ signal ai_decision(entity: Entity, summary: String)
 ## separate from `entity_died` for exactly that reason — see GameRoot's
 ## `_on_entity_death_shown`.
 signal entity_death_shown(entity: Entity)
+
+## The ranged volley's wind-up and release beats (#1042), one per arrow, for
+## the volley bar and any other beat-counting UI. `index` is the arrow's rank
+## in that beat's own order — placement order for `placed`, `launch_at` order
+## for `released` — and `total` the volley's arrow count. Emitted by
+## [ArrowVolleyCoordinator] at the visual moment; nothing about the picture
+## travels on the bus.
+signal volley_arrow_placed(index: int, total: int)
+signal volley_arrow_released(index: int, total: int)
 #endregion
 
 #region World→UI requests — a system asks the HUD for a decision; the answer comes back through a command, never a return value

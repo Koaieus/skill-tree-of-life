@@ -784,6 +784,8 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	# director reads [method presenter] inside `attack_committed` to open its
 	# shot on the presenter's marker, so the presenter has to exist by then.
 	_coordinator = _mount_coordinator(plan)
+	if _coordinator != null:
+		_coordinator.outcome = outcome
 	# Un-awaited, like every other observer on this path: `_apply_outcome`
 	# below is what waits on the beat clock, and anything awaited here would
 	# gate the mutation loop.

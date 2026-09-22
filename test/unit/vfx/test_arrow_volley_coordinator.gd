@@ -303,3 +303,124 @@ func test_a_typed_arrows_status_hit_draws_no_second_arrow() -> void:
 	var projectiles := coord.get_children().filter(func(c): return c is Projectile)
 	assert_eq(projectiles.size(), 1, "one arrow, one projectile — the status half is not a second arrow")
 	await coord.play(outcome)
+
+
+# -- the wind-up (#1042, acceptance 2) ----------------------------------------
+
+
+var _leaf_b: SkillNode
+
+
+## The shipped scene, so `%FocusMarker` exists; visual timing shortened like
+## [method _mount_coord].
+func _mount_scene_coord() -> ArrowVolleyCoordinator:
+	var coord: ArrowVolleyCoordinator = _COORD_SCENE.instantiate()
+	coord.flight_time = 0.02
+	coord.visual_scene = null
+	add_child_autofree(coord)
+	return coord
+
+
+func _windup_tempo() -> PresentationTempo:
+	var tempo := PresentationTempo.new()
+	tempo.volley_draw_time = 0.5
+	tempo.volley_place_stagger = 0.0
+	tempo.volley_stagger_span = 0.03
+	tempo.volley_flight_time = 0.02
+	return tempo
+
+
+## Three arrows from two leaves, RAMP cadence; the middle one from a second
+## leaf so the inner-disk assert is per leaf, not "near the origin".
+func _volley_outcome() -> AttackOutcome:
+	_leaf_b = _SKILL_NODE_SCENE.instantiate() as SkillNode
+	_leaf_b.position = Vector2(0, 300)
+	_graph.add_skill_node(_leaf_b)
+	var outcome := AttackOutcome.new()
+	outcome.cadence = ScheduleEntry.Cadence.RAMP
+	for i in 3:
+		var hit := _hit(float(i) * 0.5, 4.0)
+		if i == 1:
+			hit.origin = _leaf_b
+		outcome.hits.append(hit)
+	return outcome
+
+
+func _projectiles(coord: Node) -> Array[Projectile]:
+	var out: Array[Projectile] = []
+	for child in coord.get_children():
+		if child is Projectile:
+			out.append(child)
+	return out
+
+
+func test_windup_parks_every_arrow_inside_its_leaf_and_play_launches_those_instances() -> void:
+	var coord := _mount_scene_coord()
+	var outcome := _volley_outcome()
+	coord.outcome = outcome
+	var placed: Array = []
+	var released: Array = []
+	var on_placed := func(i: int, n: int) -> void: placed.append([i, n])
+	var on_released := func(i: int, n: int) -> void: released.append([i, n])
+	Events.volley_arrow_placed.connect(on_placed)
+	Events.volley_arrow_released.connect(on_released)
+
+	var staged := coord.begin_windup(RangedAttackPlan.new(), _windup_tempo())
+	assert_almost_eq(staged, 0.5, 0.0001, "the wind-up is the draw time")
+	var parked := _projectiles(coord)
+	assert_eq(parked.size(), 3, "one parked projectile per arrow hit")
+	for proj in parked:
+		assert_false(proj.is_in_flight(), "parked, not launched")
+	for i in parked.size():
+		var leaf: SkillNode = outcome.hits[i].origin
+		assert_lte(parked[i].global_position.distance_to(leaf.global_position), leaf.radius,
+				"arrow %d sits inside its leaf's disc" % i)
+	var marker := coord.focus_marker()
+	assert_not_null(marker, "the coordinator's marker is its %FocusMarker")
+	assert_almost_eq(marker.global_position, Vector2(0, 100), Vector2(0.01, 0.01),
+			"during the wind-up the marker is the firing centroid")
+	await wait_frames(3)
+	assert_eq(placed, [[0, 3], [1, 3], [2, 3]], "placed once per arrow, in placement order")
+
+	var ids: Array[int] = []
+	for proj in parked:
+		ids.append(proj.get_instance_id())
+	var landings: Array = []
+	coord.wave_landing.connect(func(points: PackedVector2Array) -> void: landings.append(points))
+	coord.play(outcome)
+	var launched := _projectiles(coord)
+	assert_eq(launched.size(), 3, "play spawns nothing new")
+	for i in launched.size():
+		assert_eq(launched[i].get_instance_id(), ids[i], "…it launches the parked instance")
+	assert_eq(landings.size(), 1, "wave_landing fires once at release")
+	assert_eq(landings[0].size(), 3, "…with every arrow's landing point")
+	for p in landings[0]:
+		assert_lte(p.distance_to(_target.global_position), _target.radius, "…on the target's disc")
+	await wait_until(func() -> bool: return _projectiles(coord).is_empty(), 3.0)
+	assert_eq(released, [[0, 3], [1, 3], [2, 3]], "released once per arrow, in launch_at order")
+	Events.volley_arrow_placed.disconnect(on_placed)
+	Events.volley_arrow_released.disconnect(on_released)
+
+
+func test_a_zero_draw_time_stages_nothing_and_play_spawns_as_today() -> void:
+	var coord := _mount_scene_coord()
+	var outcome := _volley_outcome()
+	coord.outcome = outcome
+	var tempo := _windup_tempo()
+	tempo.volley_draw_time = 0.0
+	assert_eq(coord.begin_windup(RangedAttackPlan.new(), tempo), 0.0)
+	assert_eq(_projectiles(coord).size(), 0, "the escape hatch parks nothing")
+	coord.play(outcome)
+	assert_eq(_projectiles(coord).size(), 3, "play spawns and launches as before")
+	await wait_until(func() -> bool: return _projectiles(coord).is_empty(), 3.0)
+
+
+func test_focus_weight_is_the_arrows_summed_amount() -> void:
+	var coord := _mount_scene_coord()
+	var outcome := _volley_outcome()
+	coord.outcome = outcome
+	coord.begin_windup(RangedAttackPlan.new(), _windup_tempo())
+	coord.play(outcome)
+	for proj in _projectiles(coord):
+		assert_almost_eq(proj.focus_weight, 4.0, 0.0001, "Σ|amount| of the arrow's hits")
+	await wait_until(func() -> bool: return _projectiles(coord).is_empty(), 3.0)
