@@ -218,6 +218,7 @@ func _play_three_clocks(schedule: OutcomeSchedule, entry_of: Dictionary,
 			# LATER beat was already spawned `flight` early and announced on
 			# arrival; beat 0 is now the same shape, which costs one `flight`
 			# of lead-in and puts the whole spell in cause-then-effect order.
+			_open_focus_wave(wave)
 			for ev_v in wave:
 				_play_event(ev_v, entry_of, flight, pending)
 			await get_tree().create_timer(flight).timeout
@@ -240,11 +241,61 @@ func _play_three_clocks(schedule: OutcomeSchedule, entry_of: Dictionary,
 			var early: float = maxf(0.0, interval - flight)
 			if early > 0.0:
 				await get_tree().create_timer(early).timeout
+			_open_focus_wave(next_wave)
 			for ev_v in next_wave:
 				_play_event(ev_v, entry_of, flight, pending)
 			var remaining: float = maxf(0.0, interval - early)
 			if remaining > 0.0:
 				await get_tree().create_timer(remaining).timeout
+
+
+## The camera's per-wave beat (#1044): opens the [SwarmFocus] segment on the
+## wave's launch-centroid → landing-centroid line and emits
+## [signal VFXCoordinator.wave_landing] with the wave's target positions.
+## Called at LAUNCH — the moment the wave's bolts spawn, one lead-in before
+## [signal wave_started] — because the marker projects the live bolts' progress
+## onto this segment; opened at arrival it would be a segment the bolts had
+## already flown. Wave 0 is caster → chosen target, one node in each centroid,
+## so the cast is the same call rather than a special case. Events with no
+## target (and CANCELs, which fly nothing) contribute no point.
+func _open_focus_wave(wave: Array) -> void:
+	var origins := PackedVector2Array()
+	var targets := PackedVector2Array()
+	for ev_v in wave:
+		var ev := ev_v as PropagationEvent
+		if ev == null or ev.target == null or ev.verb == PropagationEvent.Verb.CANCEL:
+			continue
+		if ev.origin != null:
+			origins.append(ev.origin.global_position)
+		targets.append(ev.target.global_position)
+	if targets.is_empty():
+		return
+	var to := _centroid(targets)
+	var from := _centroid(origins) if not origins.is_empty() else to
+	var focus := focus_marker() as SwarmFocus
+	if focus != null:
+		focus.begin_wave(from, to)
+	wave_landing.emit(targets)
+
+
+func _centroid(points: PackedVector2Array) -> Vector2:
+	var sum := Vector2.ZERO
+	for p in points:
+		sum += p
+	return sum / float(points.size())
+
+
+## Σ|amount| over the event's damage/heal hits — authored `amount`, never
+## `effective_amount` (written at apply time) — floored to
+## [constant SwarmFocus.STATUS_FLOOR] so a status-only bolt still pulls the
+## camera a little. Per event, not per arc: every bolt of a fan-in carries the
+## landing's full weight.
+func _focus_weight(ev: PropagationEvent) -> float:
+	var weight := 0.0
+	for hit in ev.hits:
+		if hit.kind == HitInstance.Kind.DAMAGE or hit.kind == HitInstance.Kind.HEAL:
+			weight += absf(hit.amount)
+	return weight if weight > 0.0 else SwarmFocus.STATUS_FLOOR
 
 
 ## Presentation-clock reveal (#479/#481), fired AT the beat — magic's fixed
@@ -416,6 +467,7 @@ func _spawn_projectile(ev: PropagationEvent, origin: SkillNode, share: float,
 	# The whole render context, not just the crit integer (#543 D6). Set
 	# BEFORE `launch`, which is what instantiates the visual and forwards it.
 	proj.context = entry
+	proj.focus_weight = _focus_weight(ev)
 	add_child(proj)
 	pending[0] += 1
 	proj.tree_exiting.connect(func() -> void:
