@@ -8,6 +8,14 @@ extends Control
 ## notch. Pure view: it draws what [method set_volley] hands it and asks for
 ## changes through its signals. Scroll = ±1, Shift-scroll = ±wave, click /
 ## drag = set N at the pointer.
+##
+## During a launch the bar reacts to the volley's beats (#1046): each placed
+## arrow charges its slice to `Emissive.at(tint, 3)`, each released arrow has
+## the dim tint eat that slice from below like a magazine round. The beats
+## are forwarded by [RangedBody] from `Events`; the bar never reads the
+## coordinator. While the plan is launching [method set_volley] is a HOLD —
+## the drained strips (and the geometry they sit on) stay put until the
+## first refresh after control resumes, which clears them.
 
 ## Ask the owner to move N by [param delta] arrows, or by [param delta] waves.
 signal step_requested(delta: int, by_wave: bool)
@@ -28,6 +36,10 @@ const TYPE_TINTS: Dictionary = {
 const FALLBACK_TINT := Color(0.9, 0.65, 0.25, 0.95)
 ## How far a fired slice is darkened — a spent chamber, not a glow tier.
 const FIRED_DIM: float = 0.6
+## Glow tier a placed arrow charges its slice to (`Emissive.at` stops).
+const CHARGE_STOPS: float = 3.0
+const CHARGE_TIME: float = 0.08
+const DRAIN_TIME: float = 0.15
 
 var n: int = 0
 var max_n: int = 0
@@ -47,6 +59,7 @@ var _arrow_fired: PackedFloat32Array = PackedFloat32Array()
 ## What the tweens aim at — the schedule, readable without a frame.
 var arrow_state_target: PackedFloat32Array = PackedFloat32Array()
 var arrow_fired_target: PackedFloat32Array = PackedFloat32Array()
+var _strip_tweens: Array[Tween] = []
 
 
 func _ready() -> void:
@@ -55,7 +68,13 @@ func _ready() -> void:
 	_font = get_theme_default_font()
 
 
+## Repaint the bar from the plan. [param hold] true (the plan is launching)
+## keeps everything — strips and geometry — so the drain plays out on the
+## volley that fired; the first call with it false clears the strips.
 func set_volley(p_n: int, p_max: int, p_notches: PackedInt32Array, p_segments: Array[Dictionary], hold: bool = false) -> void:
+	if hold:
+		return
+	_clear_strips()
 	n = p_n
 	max_n = p_max
 	notches = p_notches
@@ -64,18 +83,84 @@ func set_volley(p_n: int, p_max: int, p_notches: PackedInt32Array, p_segments: A
 	queue_redraw()
 
 
-func on_arrow_placed(_index: int, _total: int) -> void:
-	pass
+## Beat: arrow [param index] of [param total] parked at its leaf — charge
+## its slice. The beat's total sizes the strips; it is the volley that fired.
+func on_arrow_placed(index: int, total: int) -> void:
+	_size_strips(total)
+	if index < 0 or index >= total:
+		return
+	arrow_state_target[index] = 1.0
+	_tween_strip(_set_state, index, _arrow_state[index], 1.0, CHARGE_TIME)
 
 
-func on_arrow_released(_index: int, _total: int) -> void:
-	pass
+## Beat: arrow [param index] of [param total] left its leaf — the dim eats
+## its slice upward.
+func on_arrow_released(index: int, total: int) -> void:
+	_size_strips(total)
+	if index < 0 or index >= total:
+		return
+	arrow_fired_target[index] = 1.0
+	_tween_strip(_set_fired, index, _arrow_fired[index], 1.0, DRAIN_TIME)
 
 
-## Pure: the colours of one arrow slice for a charge `state` and a drain
-## `fired` fraction.
-static func paint_slice(_state: float, _fired: float, tint: Color) -> Dictionary:
-	return {"lit": tint, "dim": tint, "fired": 0.0}
+## Pure: how one arrow slice paints for a charge `state` (0 = plain tint,
+## 1 = `Emissive.at(tint, CHARGE_STOPS)`) and a drain `fired` fraction —
+## `lit` covers the slice, `dim` covers its bottom `fired` of the height.
+static func paint_slice(state: float, fired: float, tint: Color) -> Dictionary:
+	return {
+		"lit": Emissive.at(tint, CHARGE_STOPS * clampf(state, 0.0, 1.0)),
+		"dim": tint.darkened(FIRED_DIM),
+		"fired": clampf(fired, 0.0, 1.0),
+	}
+
+
+func _size_strips(total: int) -> void:
+	if _arrow_state.size() == total:
+		return
+	_arrow_state.resize(total)
+	_arrow_fired.resize(total)
+	arrow_state_target.resize(total)
+	arrow_fired_target.resize(total)
+
+
+func _clear_strips() -> void:
+	for t in _strip_tweens:
+		if t != null and t.is_valid():
+			t.kill()
+	_strip_tweens.clear()
+	_arrow_state = PackedFloat32Array()
+	_arrow_fired = PackedFloat32Array()
+	arrow_state_target = PackedFloat32Array()
+	arrow_fired_target = PackedFloat32Array()
+
+
+func _tween_strip(setter: Callable, index: int, from: float, to: float, secs: float) -> void:
+	var tw := create_tween()
+	tw.tween_method(setter.bind(index), from, to, secs)
+	_strip_tweens.append(tw)
+
+
+func _set_state(v: float, index: int) -> void:
+	if index < _arrow_state.size():
+		_arrow_state[index] = v
+		queue_redraw()
+
+
+func _set_fired(v: float, index: int) -> void:
+	if index < _arrow_fired.size():
+		_arrow_fired[index] = v
+		queue_redraw()
+
+
+## The tint of arrow [param index]: the segment whose cumulative count
+## covers it, or the fallback when the strips outrun the fill.
+static func _slice_tint(index: int, p_segments: Array[Dictionary]) -> Color:
+	var upto := 0
+	for seg in p_segments:
+		upto += int(seg.get("count", 0))
+		if index < upto:
+			return TYPE_TINTS.get(seg.get("type_id", &""), FALLBACK_TINT)
+	return FALLBACK_TINT
 
 
 func _track_rect() -> Rect2:
@@ -120,6 +205,20 @@ func _draw() -> void:
 	var lay := layout(n, max_n, notches, segments, track.size.x)
 	for seg: Dictionary in lay["segments"]:
 		draw_rect(Rect2(track.position.x + float(seg["x"]), track.position.y, float(seg["w"]), track.size.y), seg["tint"] as Color)
+	if max_n > 0 and _arrow_state.size() > 0:
+		var px_per := track.size.x / float(max_n)
+		for i in mini(_arrow_state.size(), max_n):
+			var state := _arrow_state[i]
+			var fired := _arrow_fired[i]
+			if state <= 0.0 and fired <= 0.0:
+				continue
+			var p := paint_slice(state, fired, _slice_tint(i, segments))
+			var slice := Rect2(track.position.x + px_per * float(i), track.position.y, px_per, track.size.y)
+			if state > 0.0:
+				draw_rect(slice, p["lit"] as Color)
+			var eaten: float = float(p["fired"]) * track.size.y
+			if eaten > 0.0:
+				draw_rect(Rect2(slice.position.x, track.end.y - eaten, px_per, eaten), p["dim"] as Color)
 	var tick_color := NOTCH_COLOR
 	tick_color.a *= 0.5
 	var mid_y := track.position.y + track.size.y * 0.5

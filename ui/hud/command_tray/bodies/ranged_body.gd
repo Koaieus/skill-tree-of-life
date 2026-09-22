@@ -57,6 +57,8 @@ func _on_bound() -> void:
 	_volley_bar.step_requested.connect(_on_bar_step)
 	_volley_bar.set_requested.connect(set_n)
 	_battle_system.attack_plan_state_changed.connect(_refresh)
+	Events.volley_arrow_placed.connect(_volley_bar.on_arrow_placed)
+	Events.volley_arrow_released.connect(_volley_bar.on_arrow_released)
 	if _input_ctl != null:
 		_input_ctl.player_can_act_changed.connect(_refresh.unbind(1))
 	_quiver = _player.stat_board.arrows as Quiver if _player != null and _player.stat_board != null else null
@@ -69,6 +71,10 @@ func _on_bound() -> void:
 
 
 func teardown() -> void:
+	if Events.volley_arrow_placed.is_connected(_volley_bar.on_arrow_placed):
+		Events.volley_arrow_placed.disconnect(_volley_bar.on_arrow_placed)
+	if Events.volley_arrow_released.is_connected(_volley_bar.on_arrow_released):
+		Events.volley_arrow_released.disconnect(_volley_bar.on_arrow_released)
 	if _battle_system != null:
 		if _battle_system.attack_plan_state_changed.is_connected(_refresh):
 			_battle_system.attack_plan_state_changed.disconnect(_refresh)
@@ -296,7 +302,10 @@ func _paint(plan: RangedAttackPlan, has_target: bool) -> void:
 		for leaf in plan.get_reaching_firing_positions():
 			shots.append(leaf.shots_left())
 		notches = wave_notches(shots, cap)
-	_volley_bar.set_volley(n_now, cap, notches, segments)
+	# A launching plan HOLDS the bar: the drained slices stay until the first
+	# refresh after control resumes (`is_launching` false before `_reset`).
+	var launching := _battle_system != null and _battle_system.is_launching
+	_volley_bar.set_volley(n_now, cap, notches, segments, launching)
 
 	var parts: PackedStringArray = []
 	for r in leaf_readouts():
