@@ -77,27 +77,32 @@ func _entity(human: bool) -> Entity:
 
 # --- the trigger ------------------------------------------------------------
 
-func test_a_seated_actors_ranged_attack_is_never_framed() -> void:
-	# On a couch `seats()` is true for every human, so a hot-seat partner's
-	# shot is the driving player's own shot — auto-focusing it would be the
-	# yank #524 forbids. #866 carved MELEE out of this rule and nothing else:
-	# with no melee plan live, the seat early-out is exactly as it was.
+func test_a_seated_actors_ranged_attack_is_framed_like_everyone_elses() -> void:
+	# INVERTED by #1041 (ADR 0027): the seat gate is gone for every mode. A
+	# ranged commit is a director's shot exactly as a melee one is (#866) —
+	# seated, AI and remote alike — so the couch's own hero is framed too, and
+	# mandatorily: the aim phase left their hands on the camera.
 	_dir.seat_policy = SeatPolicy.couch()
 	var hero := _entity(true)
 	var hits: Array[HitInstance] = [_hit(_node_at(Vector2.ZERO), _node_at(Vector2(400, 0)))]
-	assert_null(_dir._build_attack_request(_outcome(hits), hero))
+	var req := _dir._build_attack_request(_outcome(hits), hero)
+	assert_not_null(req, "a seated ranged commit is framed (#1041)")
+	assert_true(req.mandatory, "and mandatorily, like the melee shot")
 
 
-func test_a_seated_actors_ranged_attack_is_still_unframed_with_a_battle_system() -> void:
-	# The same rule, asserted through the live seam rather than through an
-	# unwired `battle_system`: a mounted BattleSystem whose plan is not a
-	# MeleeAttackPlan must not turn a ranged commit into a director's shot.
+func test_a_seated_ranged_commit_locks_the_camera_until_release() -> void:
+	# The lock policy for ranged/magic is melee's (#866): hard lock, every
+	# actor, `release()` the one door back.
 	_dir.seat_policy = SeatPolicy.couch()
-	_dir.battle_system = _battle_system(null)
+	var cam := _camera()
+	_dir.battle_system = _battle_system(RangedAttackPlan.new())
 	var hero := _entity(true)
 	var hits: Array[HitInstance] = [_hit(_node_at(Vector2.ZERO), _node_at(Vector2(400, 0)))]
-	assert_null(_dir._build_attack_request(_outcome(hits), hero),
-			"ranged/magic keep today's behaviour exactly (#866)")
+	_dir._on_attack_committed(_outcome(hits), hero)
+	assert_true(_dir.is_melee_locked(), "a seated ranged commit takes the camera (#1041)")
+	assert_true(cam.is_input_locked(), "and the camera itself enforces it")
+	_dir.release()
+	assert_false(_dir.is_melee_locked(), "release is the one door back")
 
 
 # --- #866: every melee commit gets the director's shot -----------------------
