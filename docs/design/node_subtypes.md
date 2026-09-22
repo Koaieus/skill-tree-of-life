@@ -304,10 +304,52 @@ later upgrade with its own justification, not part of the first cut.
 
 1. **Blight is not a seventh archetype.** It is the first value of a new orthogonal **subtype** axis: `none` (default) / `blighted` / `blessed`.
 2. **Subtype modifies the pool procgen draws from**, and **replaces** rather than adds — every subtype is a sidegrade.
-3. **Archetype picks the family, subtype picks the pole.** Follows from #974's existing potency homing; nothing new to map.
+3. **Archetype picks the family, subtype picks the pole.** The mapping already exists from #974's potency homing — two entries move (decision 4), the rest stand as authored.
 4. **Wither moves to INT, curse moves to CON.** *"makes sense thematically / gameplay-wise"* — and it stops CON hosting a family plus every resistance.
 5. **PER's family is blindness**, an already-shipped status. PER also remains the dedicated home for `scout_arrows_per_reload`.
 6. **WIS gets no blighted variant for now.** *"WIS is pure economy… maybe `blessed` version just boosts it's budget slightly (already quite powerful). open for design / good ideas."*
+
+7. **`NodeSubtype` is a `Resource`, not an enum and not a `StringName`** — it crosses procgen, `SkillNode` and the visuals, so it must carry data (tint, emissive tier). Mirrors `Archetype`.
+8. **The gate stays on `StatPool`, even after #751 moves `archetype_stat` up to `StatPack`.** A pack is one archetype by definition, so repeating it is noise; a pack deliberately holds *mixed* subtypes, so subtype is real per-pool information.
+9. **Placement is a per-node `base_chance` in v1**, regular as the remainder. Clustered regions are an upgrade that changes nothing authored.
+
+## Three things a spec must not miss
+
+### The subtype roll needs its own salted RNG stream
+
+`ScenePlacement` is the precedent, and it states the reason outright
+(`procgen/placement/scene_placement.gd:20-23`): *"Draws come off
+[PlacementContext.scene_rng], a stream derived from the run seed … the main
+stream is untouched, so a preset with and without keystones rolls the same
+terrain."*
+
+Roll subtype off the **main** stream and every modifier roll after it shifts,
+so both golden fixtures churn on any `base_chance` tweak and it becomes
+impossible to tell a placement change from a content change. Off a salted
+stream, only the assignment is new and regular nodes roll exactly as before.
+
+### v1 needs **zero** new stats
+
+Worth stating because it is the scoping win. Potency exists per family;
+resistance exists per family. The mechanism needs no vocabulary expansion at
+all — the 12 + 2 stat build-out is a later, separate lane.
+
+That splits cleanly:
+
+- **The mechanism is inert by default.** With `subtypes = []`, every pool has `subtype == null`, so the two-key filter selects exactly what it selects today. **Unchanged goldens are the mechanism child's acceptance test.**
+- **Authoring the content is a balance change to shipped content** — marking potency pools blighted-only, moving the four resistances out of universal into per-archetype blessed pools. That is `blocked-by` **#975**: resistances leaving the universal pile is precisely the case the fixed slice exists to make safe.
+
+### `forbid_tags` is one list across all six archetypes
+
+Blighted DEX gives up `crit`. Blighted STR gives up… what? A single global
+list on `NodeSubtype` works as a union (forbidding `crit` is a no-op on STR)
+but cannot express *"blighted DEX keeps armor, blighted STR loses it."*
+
+And the owner's own sketch asks for something a forbid list cannot say at all
+— blessed DEX rolls crit factor ***"more often than on regular"***. That is a
+**weight**, not an exclusion. `ArchetypePolicy` already carries
+`weight_profiles: Array[Resource]`; `NodeSubtype` probably wants the same,
+with a forbid being the zero-weight case. Spec question, not a blocker.
 
 ## Open questions
 
