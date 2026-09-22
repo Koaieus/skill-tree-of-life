@@ -14,6 +14,9 @@ The output has exactly one reader: a drone doing `gh issue view <n>` and
 that drone can act.** The drone's brief carries only what the issue cannot
 know — fence, seams this run, tier, advisor, budget — and restates nothing.
 
+These passes shape the whole codebase; every pick here is one a hundred
+later drones will build on.
+
 ## The one rule
 
 **Decisions are the owner's.** You surface forks and propose; the owner
@@ -23,7 +26,7 @@ draft proposed resolutions and do **not** move the status.
 
 ## The cycle
 
-### 1. Read the whole issue yourself
+### 1. Read the whole issue yourself, then read the room
 
 ```bash
 gh issue view <n>
@@ -34,11 +37,12 @@ Body *and* every comment, in this session — never summarised by a subagent.
 A later comment routinely corrects an earlier one. Note the labels:
 `design` / `blocked` mean forks are known-open.
 
-Then read the room: is the open question **how to build it**, or **what
-would be fun**? If the second, step 1b comes before anything technical —
-every fork enumerated now would be a fork on the wrong thing.
+Then ask what is actually open: **how to build it**, or **what would be
+fun**? If the second, step 2 comes before anything technical — every fork
+enumerated now would be a fork on the wrong thing. If the first, skip to
+step 3.
 
-### 1b. If it is a design question, design first
+### 2. Design first, when the question is what would be fun
 
 Game-designer hat on. **Diverge**: several candidate mechanics, each with
 the player fantasy it serves, what it does to the loop, and which existing
@@ -51,9 +55,9 @@ direction is the ask here, a safe median answer is not.
 No seams, no costs, no file paths in this beat. Converge with the owner;
 **the owner says when the picture is clear**. Land the conclusion durably
 — `docs/design/` or a dated, owner-attributed comment on the issue — and
-only then start step 2. Never mix the two beats in one message.
+only then continue. Never mix the two beats in one message.
 
-### 2. Verify claims and grep seams — one Haiku Explore
+### 3. Verify claims and grep seams — one Haiku Explore
 
 Collect every claim the issue makes about the code ("X is unbuilt", "Y has
 no caller", "that helper was deleted") and every thing the change touches.
@@ -69,13 +73,13 @@ Dispatch **one** `Agent(subagent_type: "Explore", model: "haiku")` carrying:
 A stale claim closes with a doc correction, not new work. This is the only
 delegation in the pass; the thinking stays here.
 
-### 3. Do the arithmetic
+### 4. Do the arithmetic
 
 After pinning anything numeric, compute what it implies at both ends of the
 range (level 1 and level 100, one node and two hundred). The fix that
 surfaces is usually structural, and it surfaces from the numbers.
 
-### 4. Enumerate every open fork
+### 5. Enumerate every open fork
 
 A fork is anything a drone would have to *decide*:
 
@@ -96,28 +100,37 @@ A fork is anything a drone would have to *decide*:
   would do. Ask *is this one callback / one deferred flag / one value?*
 - **Per-frame and at-scale cost** — anything recomputed in `_process`, per
   tick, or per entity that a sim, a stored sample, or a once-per-frame
-  dedupe would make an array read. Ask it for both ends of the range (step 3).
+  dedupe would make an array read. Ask it for both ends of the range (step 4).
+- **An architectural seam** — two classes doing one job, a stage doing
+  another's work, a mirror of logic that already exists. Settled in this
+  pass, refactor-first, with the delay cost said out loud — never parked in
+  a design issue. An unsettled seam leaks into every consumer written
+  against it.
 - **Cross-issue dependencies** — recorded as `--blocked-by` relations *and*
-  in the spec prose (step 7), never disqualifying; the orchestrator
+  in the spec prose (step 8), never disqualifying; the orchestrator
   sequences them. Only a dependency on a decision nobody has made keeps an
   issue out of `Ready`.
 
 List them numbered — `AskUserQuestion` for clean choices, prose for the rest.
 
-**Score every option, cleanest first.** Each option carries one scorecard
-line in this fixed axis order, then one sentence of what it buys and one of
-what it costs — the line *replaces* the prose that would argue the ranking:
+### 6. Score the options, cleanest first
+
+Each option carries one scorecard line in this fixed axis order, then one
+sentence of what it buys and one of what it costs — the line *replaces* the
+prose that would argue the ranking:
 
 ```
 clean ★★★★☆ · smell: none · perf ★★★★★ · blast ●●○○○ (4 files, 1 sys) · style ★★★☆☆
 ```
 
 - **clean** — separation, one owner per fact, SOLID, no mirror of existing
-  logic; composition as a plural array, one implementation over swappable
-  state.
+  logic. Composition as a plural array (`composes: Array[...]`), never a
+  singular parent link or inheritance vocabulary; one implementation over
+  swappable state, never two implementations of one contract; graph
+  vocabulary exact (`docs/domain/graph-vocabulary.md`).
 - **smell** — `none`, or the smell in three words (reads another unit's
   internals, N cases that are one callback, parallel copy).
-- **perf** — per-frame / at-scale cost, from step 3's arithmetic.
+- **perf** — per-frame / at-scale cost, from step 4's arithmetic.
 - **blast** — files and subsystems touched, tests to re-point. Informational
   only: it never demotes an option or moves the Recommended tag.
 - **style** — a tiebreaker after the others, never before.
@@ -125,24 +138,24 @@ clean ★★★★☆ · smell: none · perf ★★★★★ · blast ●●○�
 Say it when every option scores the same on `clean` — the fork is then about
 something else.
 
-Cleanest is not biggest. Look for the shape the problem already has — a
-signal, a system, a bespoke resource with subclasses, a shape already in
-the tree — and when a pick makes something else **fall out for free** (a
-special case that disappears, a test that writes itself, a sibling that
-closes), say so in the option's "buys" sentence; that is the tell. A pick
-where nothing falls out gets a second look. Look in this order: a
-duplicated fact to collapse into one owner, then an existing path to route
-through, then a composition whose union yields the behaviour — a new system
-or resource hierarchy comes last and rarely pays this way. A free thing has
-gameplay consequences as well as codebase ones; name both.
+**Cleanest is not biggest.** The problem has a shape its solution fits —
+look for it in this order: a duplicated fact to collapse into one owner,
+then an existing path to route through, then a composition whose union
+yields the behaviour; a new system or resource hierarchy comes last and
+rarely pays this way. The tell that the shape is found is that something
+else **falls out for free** — a special case that disappears, a test that
+writes itself, a sibling that closes. Name it in the option's "buys"
+sentence, gameplay consequences alongside codebase ones; a pick where
+nothing falls out gets a second look.
 
-### 5. Settle each fork with the owner
+### 7. Settle each fork with the owner
 
 **The cleanest option is the default.** "A, sorta clean" against "B, hella
 clean but more work" is B; `(Recommended)` sits on the cleanest option unless
 you state a reason it should not, and the clean option's cost is said out
 loud, never used as the tiebreaker. The owner still sees every option and
-still chooses — the default moves, the choice does not.
+still chooses — the default moves, the choice does not. An "Other" answer
+that redirects the premise is a normal outcome, not a failed question.
 
 Every fork gets a pinned answer in the owner's words. An unsettleable fork
 (needs a spike, needs another issue) keeps the issue in `Needs design`:
@@ -153,7 +166,7 @@ File ownership is a map, not a gate: record which paths a unit touches so
 the orchestrator can sequence; never contort the design to keep files
 disjoint, never withhold `Ready` because two issues share a file.
 
-### 6. Write the Ready comment
+### 8. Write the Ready comment
 
 Post a comment (or edit the body) headed `## Acceptance spec`:
 
@@ -189,19 +202,20 @@ path/to/scene.tscn — seam: instances the node
   fact, what it exposes (marker, signal, accessor), who reads it, which path
   is deleted by name. Prose or a small diagram, whichever gets the idea
   across. If it cannot be written up cleanly in a few lines it cannot be
-  coded cleanly either — that is a fork still open, go back to step 4.
+  coded cleanly either — that is a fork still open, go back to step 5.
 - **Files touched** — the paths the work lands on; name any sibling that
   shares one, and which issue.
 - **Acceptance** — the failing test to make green or an exact behavioural
-  spec.
+  spec. A characterization pin ("this test still passes") enumerates the
+  surviving assertions and says whether the test may be re-pointed.
 - **NOTES** — descoped asides, parked for their own issue.
 - **Reading list** (inside the stamp) — 5–15 entries of `path:start-end —
   why`, "read these, nothing else". Not a file map, not a tour: each entry
   names what the reader learns there. Omit what should be skipped rather
   than listing it, unless a specific trap must be named. Every range is
-  verified at write time (step 2, or `sed -n 'a,bp'`).
+  verified at write time (step 3, or `sed -n 'a,bp'`).
 - **Seam map** (inside the stamp) — every file the change touches, including
-  files that merely reference the thing, from step 2's grep; one whole-file
+  files that merely reference the thing, from step 3's grep; one whole-file
   entry each (`path — seam: <why>`).
 - **Stubs on master** — when the unit adds classes or signatures and the
   arch fork is worth settling in code: `class_name`, method signatures, and
@@ -228,7 +242,7 @@ finds the edits faster than we write the list" — never silence.
 no chat history would. If you think "the orchestrator will explain that
 part", or a single unsettled fork remains, it is not `Ready`.
 
-### 7. If it is a hub, decompose into Ready children
+### 9. If it is a hub, decompose into Ready children
 
 A hub (sub-issues > 0, or too big for one unit) is never `Ready` itself — its
 children are. **A parent never carries work**: on split, *all* of the hub's
@@ -238,11 +252,8 @@ by hand — `land` and `hygiene --fix` derive it.
 
 - Every child is drone-sized: one subsystem, a handful of files, one test file
   — under ~150k drone context. More than three subsystems or more than five
-  tests is a split, along state / wiring / consumer seams, now.
-- An architectural fork (two classes doing one job, a stage doing another's
-  work, a mirror of logic that exists) is settled in this pass, refactor-first,
-  never parked in a design issue. Shape the options with the owner's taste:
-  composition as a plural array, one implementation over swappable state.
+  tests is a split, along state / wiring / consumer seams, now. Prefer more
+  small children with native `blocked-by` over one fat one.
 - Split along the seam the design has: one decision, one unit. Where that
   is also a file boundary, say so; where it is not, split anyway and record
   the overlap. A unit describing three or more deliverables is split before
@@ -251,7 +262,7 @@ by hand — `land` and `hygiene --fix` derive it.
   never a child.
 - Shared-file work every child touches (one `.tres`, a registry append) is
   the orchestrator's pre-step in the main checkout, not parcelled out.
-- Each child gets its own full `## Acceptance spec` (step 6).
+- Each child gets its own full `## Acceptance spec` (step 8).
 
 ```bash
 gh issue create --parent <n> --title "…" --body-file <file>
@@ -265,7 +276,7 @@ gh issue create --blocked-by <n1>,<n2> --title "…" --body-file <file>
 gh issue edit <child> --add-blocked-by <blocker>
 ```
 
-### 8. Promote
+### 10. Promote
 
 `Ready` is the admission ticket; the status move is the whole act, and the
 labels and milestone go in the same breath:
@@ -280,8 +291,8 @@ mise gh-project -- hygiene                    # must stay clean
 
 ## What swarmify is NOT
 
-- **Not implementation** beyond step 6's stubs.
+- **Not implementation** beyond step 8's stubs.
 - **Not a rubber stamp** — an issue with an unsettleable fork stays in
   `Needs design`.
-- **Not a spawn** — the thinking runs here, with the owner; only step 2's
+- **Not a spawn** — the thinking runs here, with the owner; only step 3's
   lookup is delegated.
