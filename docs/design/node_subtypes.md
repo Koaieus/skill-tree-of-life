@@ -230,31 +230,46 @@ but a pack deliberately contains **mixed** subtypes, so subtype is real
 per-pool information. They are not the same kind of fact. After #751:
 archetype at the pack, subtype at the pool, each where it carries information.
 
-## How subtype is generated — a second clustering pass, not a third mechanism
+## How subtype is generated — a per-node base chance (v1)
 
-A lone blighted node reads as noise; a blighted valley reads as a place. So
-subtype is a **region** property. What generates regions today:
+**Settled, owner 2026-09-22:** *"easiest would be authoring a base chance for
+any node to be blessed, or blighted, or regular."*
 
-- **The clustering pass** (`_assign_archetypes`) — BFS-grow from seeds, driven by `ArchetypePolicy`'s `target_ratio` + `cluster_size_weights` + `cluster_jitter`. **Proportional and emergent**: "30 % of the map is red, in organic patches." Live, and the only thing any preset uses.
-- **`ArchetypeStamp`** (#163) — a post-clustering override painting a disc or BFS flood. **Placed and specific**: "a WIS pocket *here*, radius 400." Genuinely a different job, but **dead in practice**: `archetype_stamps` is *"authored empty in both presets today"* (`test/unit/procgen/test_preset_generation_golden.gd:22`) and no `.tres` in the tree sets it.
+Each `NodeSubtype` carries its own share; regular is the remainder:
 
-What subtype needs is *"~15 % of the map is blighted, in patches"* — which is
-the **clustering** shape, not the stamp shape. So:
+```gdscript
+# NodeSubtype
+@export_range(0.0, 1.0) var base_chance: float = 0.0
 
-> **Run the same BFS-grow pass twice: once over archetype policies, once over
-> subtype policies.** Generalize the existing pass to take a policy array and
-> an output assignment array, rather than adding a third region mechanism
-> beside two that already exist.
+# GraphProcgenContent
+@export var subtypes: Array[NodeSubtype] = []
+```
 
-That keeps one implementation of "grow proportional organic territories" and
-gets subtype's regions for free. The two passes are independent by
-construction — a blighted patch crosses whatever archetypes it lands on, and
-each node's family then follows from the archetype it already had, which is
-exactly the composition the grid wants.
+One weighted pick per node during the content loop. No second pass, no
+seeding, no policy array. The frequency lives on the identity that defines the
+subtype, so authoring a new one is still a single `.tres`.
 
-Open: whether the subtype pass runs before or after archetype clustering
-(independent either way, but ordering fixes which is seeded first), and
-whether `target_ratio` for `none` is authored or implied as the remainder.
+### Why this is the right v1 and not a shortcut
+
+The earlier draft of this section argued for regions — *"a lone blighted node
+reads as noise, a blighted valley reads as a place"* — and proposed
+generalizing the BFS-grow clustering pass to run twice. That argument is
+weaker than it looked, for two reasons:
+
+1. **The design's own pitch works per-node.** *"Need more poison damage? find and hold BLIGHT nodes."* A single node is findable and holdable. Scattered subtyped nodes are *individual opportunities* along a route rather than *territories to claim* — a different feel, not a worse one, and arguably a better fit for a graph you traverse.
+2. **It does not foreclose regions.** Clustering changes *where* subtypes land, not what they are or what they roll. `NodeSubtype`, the pool gate, the tint and the forbid list are all unchanged by an upgrade to clustered placement — and the authored `base_chance` becomes the cluster pass's `target_ratio` more or less verbatim. The upgrade path costs nothing that is authored now.
+
+So: ship the roll, look at a real level, and promote to clustering only if the
+speckle actually reads badly in play. That is a question for eyes on a
+generated map, not for a design doc.
+
+### If it is promoted later
+
+Do **not** add `ArchetypeStamp`-style placed regions for this — that mechanism
+shipped with #163 and no preset has ever authored it (`archetype_stamps` is
+*"authored empty in both presets today"*, `test/unit/procgen/test_preset_generation_golden.gd:22`;
+see **#1055**). The upgrade is a second run of the existing BFS-grow pass over
+subtype policies, not a third region mechanism beside two that already exist.
 
 ## How subtype is drawn — and the constraint that decides it
 
@@ -298,7 +313,7 @@ later upgrade with its own justification, not part of the first cut.
 
 1. **What is blighted WIS?** The one ragged cell. WIS is pure economy, so it has no status family to invert. Candidates: (a) it simply does not exist — the grid is ragged and that is honest; (b) WIS hosts the **shared** cross-family knobs (falloff, duration) on its blighted form — "the blighted archive, knowledge of every plague" — which keeps WIS meta-flavoured and needs no sixth family; (c) the economy itself is corrupted — the node still pays XP but taints the holder.
 2. **Is blessed WIS a budget bump, and does that break the rule?** Every other blessed cell swaps pools; a budget multiplier is a different *kind* of effect. Either the rule admits a second mechanism or blessed WIS needs a pool-shaped answer.
-3. **Does the subtype pass run before or after archetype clustering**, and is `none`'s share authored or the implied remainder? (The *mechanism* is settled — a second run of the clustering pass; see "How subtype is generated".)
+3. ~~How is subtype generated?~~ **Settled**: a per-node `base_chance` on each `NodeSubtype`, regular as the remainder. Promote to clustered regions only if the speckle reads badly in play.
 4. **Can a subtype's territory be converted?** Does holding blessed nodes cleanse adjacent blighted ones, or is subtype fixed at generation? A conversion mechanic would make the map a battleground in a second dimension; fixed is far cheaper.
 5. **Do the four families each need a fifth/sixth sibling** now that PER takes blindness and WIS takes none? Owner noted *"Blight is a good name also for if we ever need a 5th."*
 6. **What do the `forbid_tags` lists actually key on?** The membership gate needs no new tags, but each subtype's give-up list does (`crit`, …). Worth a pass over the existing `procgen/tags.tres` vocabulary before adding any — the right forbid list may already be expressible.
