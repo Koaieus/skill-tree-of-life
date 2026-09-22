@@ -13,7 +13,8 @@ const MIN_TICK_PX := 4.0
 
 ## True when `count` cells across `track_px` pixels each get `min_px` or more.
 ## Non-positive `count` or `track_px` never fits.
-static func ticks_fit(count: int, track_px: float, min_px: float = MIN_TICK_PX) -> bool:
+static func ticks_fit(count: int, track_px: float, min_px: float = MIN_TICK_PX,
+		gap_px: float = 0.0) -> bool:
 	if count <= 0 or track_px <= 0.0:
 		return false
 	return track_px / float(count) >= min_px

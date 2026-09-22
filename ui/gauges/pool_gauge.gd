@@ -154,6 +154,16 @@ var shown_current: float = 1.0:
 		shine_speed = v
 		_push(&"shine_speed", v)
 
+@export var subdivisions: int = 0:
+	set(v):
+		subdivisions = v
+		_resolve_cells()
+
+
+func _resolve_cells() -> void:
+	pass
+
+
 ## 0 = smooth continuous bar. N = N skewed parallelogram cells.
 @export_range(0.0, 16.0, 1.0) var cell_count: float = 0.0:
 	set(v):

@@ -131,6 +131,16 @@ var shown_fractions: Vector3 = Vector3.ZERO:
 		shine_speed = v
 		_push(&"shine_speed", v)
 
+@export var subdivisions: int = 0:
+	set(v):
+		subdivisions = v
+		_resolve_cells()
+
+
+func _resolve_cells() -> void:
+	pass
+
+
 ## 0 = smooth continuous bar. N = N skewed parallelogram cells (mirrors
 ## PoolGauge; usually bound to the pool's max, same as AP/DP/Move).
 @export_range(0.0, 24.0, 1.0) var cell_count: float = 0.0:
