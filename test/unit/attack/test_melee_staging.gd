@@ -130,6 +130,10 @@ func _zeroed_tempo() -> PresentationTempo:
 	tempo.melee_windup_stamp_time = 0.0
 	tempo.melee_windup_glow_ramp = 0.0
 	tempo.melee_windup_flare = 0.0
+	tempo.volley_draw_time = 0.0
+	tempo.magic_windup_pivot_focus = 0.0
+	tempo.magic_windup_draw_span = 0.0
+	tempo.magic_windup_flare = 0.0
 	return tempo
 
 
@@ -416,8 +420,10 @@ func test_windup_lead_matches_on_the_attack_mode_enum_values() -> void:
 	tempo.melee_windup_pivot_focus = 0.4
 	assert_almost_eq(tempo.windup_lead(BattleSystem.AttackMode.MELEE), 0.4, 0.0001,
 			"MELEE's arm is the pivot focus")
-	assert_eq(tempo.windup_lead(BattleSystem.AttackMode.RANGED), 0.0,
-			"RANGED has no lead yet (#1042)")
-	assert_eq(tempo.windup_lead(BattleSystem.AttackMode.MAGIC), 0.0,
-			"MAGIC has no lead yet (#1043)")
+	tempo.volley_draw_time = 0.5
+	assert_almost_eq(tempo.windup_lead(BattleSystem.AttackMode.RANGED), 0.5, 0.0001,
+			"RANGED's arm is the whole draw (the parked arrows are the picture)")
+	tempo.magic_windup_pivot_focus = 0.3
+	assert_almost_eq(tempo.windup_lead(BattleSystem.AttackMode.MAGIC), 0.3, 0.0001,
+			"MAGIC's arm is the caster pivot focus")
 	assert_eq(tempo.windup_lead(BattleSystem.AttackMode.NONE), 0.0)
