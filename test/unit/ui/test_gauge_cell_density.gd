@@ -52,9 +52,18 @@ func test_pool_gauge_re_resolves_on_resize() -> void:
 func test_unmanaged_gauge_keeps_its_authored_cell_count() -> void:
 	var g := _pool()
 	g.cell_count = 3.0
-	assert_eq(g.subdivisions, 0, "unmanaged is the default")
+	assert_eq(g.subdivisions, PoolGauge.UNMANAGED, "unmanaged is the default")
 	g.size = Vector2(40.0, 16.0)
-	assert_eq(g.cell_count, 3.0, "authored value is authoritative at subdivisions 0")
+	assert_eq(g.cell_count, 3.0, "authored value is authoritative while unmanaged")
+
+
+func test_zero_subdivisions_is_a_real_count_not_unmanaged() -> void:
+	# A cap-0 pool (Pacifist) has no cells and must draw as none; it renders
+	# its out-of-cap surplus through force_cells, not through a stale preview.
+	var g := _pool()
+	g.cell_count = 3.0
+	g.subdivisions = 0
+	assert_eq(g.cell_count, 0.0, "zero points, zero cells")
 
 
 func _composite(height: float = 20.0) -> CompositeBarGauge:

@@ -131,18 +131,28 @@ var shown_fractions: Vector3 = Vector3.ZERO:
 		shine_speed = v
 		_push(&"shine_speed", v)
 
+## [member subdivisions] sentinel: the gauge derives nothing and the authored
+## [member cell_count] stands. Negative so that 0 stays a real count.
+const UNMANAGED := -1
+
 ## The model count this gauge subdivides into — skill points, AP, rounds. The
 ## gauge resolves it against its own live width, [member cell_gap] and
 ## [member skew_degrees] through [GaugeDensity] and DERIVES
 ## [member cell_count] from it: the full count while each cell still reads,
 ## 0 (a smooth bar) the moment it does not.
 ##
-## [b]One owner at a time, by mode.[/b] At 0 — the default — the gauge never
-## touches [member cell_count]: the authored `.tscn` value and the editor knob
-## are authoritative. Above 0 [member cell_count] is derived, and a direct
-## write to it is overwritten on the next resolve (a resize, a gap or skew
-## tweak). Callers bind the model count here and stop knowing about pixels.
-@export var subdivisions: int = 0:
+## [b]One owner at a time, by mode.[/b] At [constant UNMANAGED] — the default
+## — the gauge never touches [member cell_count]: the authored `.tscn` value
+## and the editor knob are authoritative. At 0 or above [member cell_count] is
+## derived, and a direct write to it is overwritten on the next resolve (a
+## resize, a gap or skew tweak). Callers bind the model count here and stop
+## knowing about pixels.
+##
+## [b]0 is a real count, not "off".[/b] A pool whose cap is SET to 0 (Pacifist)
+## has zero cells and must draw as one — it renders its out-of-cap surplus
+## through [member force_cells]. Folding that into "unmanaged" would leave the
+## authored preview value on a pool that no longer has any points.
+@export var subdivisions: int = UNMANAGED:
 	set(v):
 		subdivisions = v
 		_resolve_cells()
@@ -152,7 +162,7 @@ var shown_fractions: Vector3 = Vector3.ZERO:
 ## geometry. Cheap and idempotent; called from every input that moves the
 ## threshold — the three setters and the resize hook.
 func _resolve_cells() -> void:
-	if subdivisions <= 0:
+	if subdivisions < 0:
 		return
 	var skew_px := size.y * tan(deg_to_rad(skew_degrees))
 	var usable := maxf(1.0, size.x - absf(skew_px))
@@ -292,7 +302,7 @@ func _target_fractions() -> Vector3:
 ## threshold changes rendering, never tempo — so the strip is always paced on
 ## the model's point count, drawn cells or not.
 func _bounds_of(f: Vector3) -> PackedFloat32Array:
-	var n := maxf(1.0, float(subdivisions)) if subdivisions > 0 else cell_count
+	var n := maxf(1.0, float(subdivisions)) if subdivisions >= 0 else cell_count
 	return PackedFloat32Array([f.x * n, (1.0 - f.y - f.z) * n, (1.0 - f.z) * n, n])
 
 
