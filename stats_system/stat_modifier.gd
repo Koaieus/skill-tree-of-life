@@ -364,7 +364,7 @@ func contribution_text(board: StatBoard = null) -> String:
 ## | Op | Renders as |
 ## |---|---|
 ## | ADD_BASE  | "+4 Intelligence" |
-## | INCREASE  | "+18% increased Intelligence" |
+## | INCREASE  | "+18% increased Intelligence" (negative: "3% reduced Intelligence" — #1053, the word carries the sign, the number does not) |
 ## | MULTIPLY  | "×1.3 Magic Potency" |
 ## | ADD_BONUS | "+3 bonus Armor" |
 ## | SET       | "Armor is 3" |
@@ -469,12 +469,17 @@ func _format_value(name: String, as_percent: bool, value_type: StatDef.ValueType
 			push_warning("%s: BOOL stat has no magnitude — %s is a content error"
 					% [name, Operation.keys()[operation]])
 		return name
-	var number := _value_text(as_percent, value_type, v)
+	# A negative INCREASE is PoE's "reduced", not "-N% increased" — the word
+	# carries the sign, so the number that goes INSIDE the sentence must not
+	# carry it too (#1053). Decided once, here, above the percent/coefficient
+	# branches in `_value_text`, so the word and the number cannot disagree.
+	var reduced := operation == Operation.INCREASE and v < 0.0
+	var number := _value_text(as_percent, value_type, v, reduced)
 	match operation:
 		Operation.ADD_BASE:
 			return "%s %s" % [number, name]
 		Operation.INCREASE:
-			return "%s increased %s" % [number, name]
+			return "%s %s %s" % [number, "reduced" if reduced else "increased", name]
 		Operation.MULTIPLY:
 			return "%s %s" % [number, name]
 		Operation.ADD_BONUS:
@@ -489,13 +494,21 @@ func _format_value(name: String, as_percent: bool, value_type: StatDef.ValueType
 ## percent-display stat), INCREASE "+N%", MULTIPLY "×N", SET "N" (or "N%").
 ## Shared by the full sentence and [method effective_value_text] so the
 ## tooltip's right-hand column and the sentence's number are one code path.
-func _value_text(as_percent: bool, value_type: StatDef.ValueType, v: float) -> String:
+##
+## [param unsigned] is [method _format_value]'s "reduced" decision (#1053):
+## when true (INCREASE, negative `v`, inside a sentence whose WORD already
+## carries the sign) the magnitude prints bare, no "-". Callers outside a
+## sentence — [method effective_value_text] — never pass it, so the sign
+## always survives there.
+func _value_text(as_percent: bool, value_type: StatDef.ValueType, v: float, unsigned: bool = false) -> String:
 	match operation:
 		Operation.ADD_BASE, Operation.ADD_BONUS:
 			if as_percent:
 				return "%+d%%" % roundi(v * 100.0)
 			return _signed(value_type, v)
 		Operation.INCREASE:
+			if unsigned:
+				return "%s%%" % StatDef.format_number(value_type, absf(v))
 			return "%s%%" % _signed(value_type, v)
 		Operation.MULTIPLY:
 			return "×%s" % _trim(v)

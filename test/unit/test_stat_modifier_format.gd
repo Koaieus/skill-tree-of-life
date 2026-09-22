@@ -37,6 +37,46 @@ func test_negative_value_keeps_own_sign() -> void:
 	assert_eq(_mod(&"strength", StatModifier.Operation.ADD_BASE, -5.0).format(), "-5 Strength")
 
 
+# --- #1053: a negative INCREASE reads "N% reduced", not "-N% increased" — the ----
+# --- word carries the sign, PoE-style, and the number inside the sentence ------
+# --- goes unsigned. effective_value_text() is deliberately NOT part of this: ----
+# --- it has no sentence around it, so it keeps the sign (tests further below). --
+
+func test_negative_increase_reads_reduced_not_negative_increased() -> void:
+	assert_eq(
+		_mod(&"dexterity", StatModifier.Operation.INCREASE, -3.0).format(),
+		"3% reduced Dexterity"
+	)
+
+
+func test_positive_increase_still_reads_increased() -> void:
+	assert_eq(
+		_mod(&"strength", StatModifier.Operation.INCREASE, 18.0).format(),
+		"+18% increased Strength"
+	)
+
+
+func test_negative_increase_on_display_as_percent_stat_also_reads_reduced() -> void:
+	var def := StatRegistry.get_def(&"crit_chance")
+	assert_true(def.display_as_percent, "sanity: crit_chance displays as percent")
+	assert_eq(
+		_mod(&"crit_chance", StatModifier.Operation.INCREASE, -12.0).format(),
+		"12% reduced Crit Chance"
+	)
+
+
+func test_negative_increase_on_a_formula_bound_modifier_also_reads_reduced() -> void:
+	var f := LinearFormula.new()
+	f.source_stat_id = &"strength"
+	var m := _mod(&"dexterity", StatModifier.Operation.INCREASE, -3.0)
+	m.formula = f
+	# format() renders the coefficient (== value here, LinearFormula's base
+	# display_coefficient) — still "reduced", still unsigned, "per" clause
+	# appended after.
+	assert_string_contains(m.format(), "3% reduced Dexterity")
+	assert_false(m.format().contains("-3"), "the number inside the sentence must not carry the sign")
+
+
 # --- #622: value_type-aware formatting — FLOAT keeps decimals, INT still rounds ---
 
 func test_add_base_on_a_float_stat_keeps_decimals() -> void:
@@ -279,6 +319,13 @@ func test_effective_value_text_renders_a_percent_typed_target_with_a_percent_sig
 func test_effective_value_text_keeps_float_decimals() -> void:
 	var m := _mod(&"crit_multiplier", StatModifier.Operation.ADD_BASE, 1.5)
 	assert_eq(m.effective_value_text(), "+1.5")
+
+
+func test_effective_value_text_keeps_the_sign_for_a_negative_increase() -> void:
+	# #1053: format()/format_effective() render "reduced" with an unsigned
+	# number, but effective_value_text() has no sentence around it — the
+	# attributes panel's right-hand column stays arithmetic truth.
+	assert_eq(_mod(&"dexterity", StatModifier.Operation.INCREASE, -3.0).effective_value_text(), "-3%")
 
 
 func test_effective_value_text_multiply_and_set_shapes() -> void:
