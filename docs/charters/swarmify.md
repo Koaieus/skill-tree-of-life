@@ -266,7 +266,7 @@ Numbered so the skill can be checked against them law by law.
     axis order, cleanest option first:
 
     ```
-    clean ★★★★☆ · smell: none · perf ★★★★★ · blast ●●○○○ (4 files, 1 sys) · style ★★★☆☆
+    clean ★★★★☆ · smell: none · perf ★★★★★ · blast ●●○○○ (4 files, 1 sys) · taste ★★★☆☆
     ```
 
     - **clean** — separation, single owner of each fact, SOLID, no mirror of
@@ -277,7 +277,9 @@ Numbered so the skill can be checked against them law by law.
     - **blast** — files and subsystems touched, tests to re-point.
       **Informational only**: it never demotes an option or moves the
       Recommended tag; the owner takes it to the chin every time.
-    - **style** — slick is slick, but it is a tiebreaker after the others.
+    - **taste** — both senses: slick code is slick, and the pick reads
+      like this codebase would have made it (the law-28 taste list, the
+      house idioms). A tiebreaker after the others.
 
     Then one sentence of what the option buys and one of what it costs.
     Equal cleanliness across the board is worth saying — it means the fork

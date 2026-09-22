@@ -120,7 +120,7 @@ sentence of what it buys and one of what it costs — the line *replaces* the
 prose that would argue the ranking:
 
 ```
-clean ★★★★☆ · smell: none · perf ★★★★★ · blast ●●○○○ (4 files, 1 sys) · style ★★★☆☆
+clean ★★★★☆ · smell: none · perf ★★★★★ · blast ●●○○○ (4 files, 1 sys) · taste ★★★☆☆
 ```
 
 - **clean** — separation, one owner per fact, SOLID, no mirror of existing
@@ -133,7 +133,9 @@ clean ★★★★☆ · smell: none · perf ★★★★★ · blast ●●○�
 - **perf** — per-frame / at-scale cost, from step 4's arithmetic.
 - **blast** — files and subsystems touched, tests to re-point. Informational
   only: it never demotes an option or moves the Recommended tag.
-- **style** — a tiebreaker after the others, never before.
+- **taste** — both senses: slick code is slick, and the pick reads like
+  this codebase would have made it. A tiebreaker after the others, never
+  before.
 
 Say it when every option scores the same on `clean` — the fork is then about
 something else.
