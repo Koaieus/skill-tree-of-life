@@ -147,8 +147,9 @@ The plans plan; this layer commits.
   stubs awaiting their per-mode follow-ups.
 - **`BattleSystem.launch_attack()`** — three-phase coordinator:
   1. `plan.resolve()` (pure)
-  2. `await attack_vfx.play_ranged_volley(outcome)` (animates, applies
-     damage on each tracer's arrival)
+  2. `_coordinator = attack_vfx.mount(scene)` at commit, `await _stage_windup(plan,
+     presenter)` (the presenter's `begin_windup` beat), then un-awaited
+     `attack_vfx.play(_coordinator, outcome)`; mutation runs on the beat clock
   3. AP deduction + `_reset()` (cleared before the await window so the
      player can't spam-click during VFX)
 - **`Events.skill_node_damaged(node, amount, source)`** /
@@ -188,7 +189,7 @@ TurnManager" pattern). Per-turn bookkeeping consumes:
 ### VFX layer
 
 - **`AttackVFX`** (Node2D, sibling of `AttackHighlightOverlay` under
-  `Graph`) — `play_ranged_volley(outcome) -> void` (coroutine).
+  `Graph`) — `mount(scene) -> VFXCoordinator` + `play(coord, payload) -> void` (coroutine).
   Spawns one `RangedTracer` per `DamageInstance`, staggered 60ms; each
   tracer applies its own hit's damage on arrival; the coroutine
   resumes when the last tracer arrives.
@@ -423,7 +424,7 @@ If a future plan wants multiple radii per node (e.g. melee's blade arc
 `BattleSystem.launch_attack` separates:
 1. **Pure resolution** (`plan.resolve()`): no side effects; pure
    `(plan state) → AttackOutcome`. Same call used for preview.
-2. **Animation** (`await attack_vfx.play_ranged_volley(outcome)`):
+2. **Animation** (`attack_vfx.play(_coordinator, outcome)`, un-awaited, after `_stage_windup`):
    tracers spawn, fly, apply damage per arrival.
 3. **State mutation** (AP deduction + plan reset).
 
@@ -693,7 +694,7 @@ entity/
 ui/
 ├── attack_highlight_overlay/     # role rings + range circles
 ├── attack_vfx/
-│   ├── attack_vfx.gd             # play_ranged_volley coroutine
+│   ├── attack_vfx.gd             # mount(scene) / play(coord, payload) coroutine
 │   └── ranged_tracer.gd          # Bezier-arc projectile, custom-drawn
 ├── damage_number_layer/
 │   └── damage_number_layer.gd    # global Events.skill_node_damaged subscriber
