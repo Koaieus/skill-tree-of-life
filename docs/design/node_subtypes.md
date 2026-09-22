@@ -121,6 +121,78 @@ archetype's colour and carve shape survive untouched and the map stays
 readable at a glance. No new emblem vocabulary; one more visual channel on a
 node that already has several.
 
+## How subtype content is authored
+
+**Not** by duplicating packs. `6 × 3 = 18` StatPacks would mean authoring the
+DEX ladder three times and keeping the copies in sync forever.
+
+The vocabulary already exists. `StatPool` carries `tags` (validated against
+`procgen/tags.tres`), `ArchetypePolicy` carries `forbid_tags`, and the draw
+already filters on them (`GraphProcgen._has_forbidden_tag`). So:
+
+> **A subtype is a named tag filter, not a new pool dimension.**
+
+- DoT content pools stay in their archetype's pack, gated by `archetype_stat` as they are today, and carry a tag (`blight` / `bless`).
+- A subtype is authored as a *policy*: which tags it forbids, which it favours. Blighted DEX forbids `crit`, permits `blight`. Blessed DEX forbids `crit`… no — permits `crit` more often, forbids `blight`, permits `bless`.
+- **Replace falls out of the filter.** "Blighted DEX loses crit%" is the subtype's forbid list, not a second mechanism.
+
+### The non-obvious part: `none` is a filter too
+
+`none` is **not** "no filter". If it were, blighted content would roll on
+every node in the game and the subtype would mean nothing. The default
+subtype must forbid `blight` *and* `bless`, so subtype-only content is
+genuinely gated behind territory. Three filters, no privileged default.
+
+### Interaction with #751
+
+#751 proposes making `StatPack` the only archetype gate and deleting
+`StatPool.archetype_stat`. Tags cut across packs, so the tag-filter approach
+survives that refactor unchanged — which is a point in its favour over a
+`subtype` field mirroring `archetype_stat` (that field would have to move
+when #751 lands, exactly as `archetype_stat` does).
+
+## How subtype is generated — regions, not confetti
+
+A lone blighted node reads as noise; a blighted valley reads as a place.
+Subtype is a **region** property and should reuse the machinery that already
+paints regions:
+
+- `ArchetypePolicy` already carries `target_ratio` + `cluster_size_weights` + `cluster_jitter` — the vocabulary for "how much of the map, in what size patches". A subtype policy is the same shape. Note `target_ratio`s are **normalised**, so they need not sum to 1 (today's six sum to 1.23).
+- `ArchetypeStamp` (`GraphProcgenContent.archetype_stamps`) already runs **post-clustering** and overrides the archetype of nodes inside a region — a euclidean disc or a topological BFS flood. A subtype stamp is that, one field over, and it composes: stamp a blighted patch across whatever archetypes it lands on, and each node's family follows from the archetype it already had.
+
+Open: whether subtype is a third clustering pass (grown like archetypes) or a
+stamp pass (painted over finished archetypes). Stamps are cheaper and give
+blight the "spreads onto things" fiction for free.
+
+## How subtype is drawn — and the constraint that decides it
+
+**The hard constraint is instance-uniform slots, not fragment cost.**
+SkillNodes are not MultiMesh: each binds ~18 slots (`inner_disk` 11 +
+`rim_ring` 7) against a **global 4096-slot cap**. At the 500–2500 nodes a
+level carries that is 9k–45k slots, already over — it only works because
+fogged nodes skip binding. `RimBonuses` and `RuneRing` were **shelved for
+precisely this** (see `docs/domain/rendering-performance.md`).
+
+So **a new per-node instance uniform is the expensive option**, not the cheap
+one, and `INSTANCE_CUSTOM` is not an escape hatch — it is a MultiMesh channel
+and nodes are not MultiMesh.
+
+Cheapest first:
+
+1. **`modulate` (recommended first cut).** `NodeVisualsComposite.modulate` is already `feedback_tint × status_tint`; a `subtype_tint` composes into that same chain. **Zero new slots, zero new draw calls**, and it follows the established pattern for "same node, different flavour". Blighted = a desaturated, darkened tint.
+2. **Blessed blooms; blighted must not.** Per `.claude/rules/hdr-color.md`, a thing glows iff its colour exceeds 1.0, authored as a named tier via `Emissive.at()`. Blessed gets a tier and picks up the existing `WorldEnvironment` bloom pass for free. Blighted is *dark* — it must stay under 1.0, which is the correct visual answer anyway.
+3. **A rim-shader branch** — one more instance uniform. Affordable only if something else is freed, and it buys a *shape* difference (cracked band, inverted dial) that modulate cannot express.
+4. **An overlay child**, like `blocker_visual.gd`. One extra draw call per subtyped node, no slots. Right if the look is additive geometry rather than a re-tint.
+
+### On the rotating stripe
+
+Tempting, and fragment cost is genuinely free — but `rim_ring.gdshader` has
+**no `TIME` and a deliberate "NO SPIN" note**: the shelved version animated
+only to hide a parked asymmetric arc, and the spin was removed on purpose.
+Animating it again also needs a **per-node phase** or every node in the level
+pulses in lockstep — and that phase is another slot. Treat the stripe as a
+later upgrade with its own justification, not part of the first cut.
+
 ## Decisions (owner, 2026-09-22)
 
 1. **Blight is not a seventh archetype.** It is the first value of a new orthogonal **subtype** axis: `none` (default) / `blighted` / `blessed`.
@@ -134,8 +206,8 @@ node that already has several.
 
 1. **What is blighted WIS?** The one ragged cell. WIS is pure economy, so it has no status family to invert. Candidates: (a) it simply does not exist — the grid is ragged and that is honest; (b) WIS hosts the **shared** cross-family knobs (falloff, duration) on its blighted form — "the blighted archive, knowledge of every plague" — which keeps WIS meta-flavoured and needs no sixth family; (c) the economy itself is corrupted — the node still pays XP but taints the holder.
 2. **Is blessed WIS a budget bump, and does that break the rule?** Every other blessed cell swaps pools; a budget multiplier is a different *kind* of effect. Either the rule admits a second mechanism or blessed WIS needs a pool-shaped answer.
-3. **How is subtype generated?** Per-node roll, or a region/stamp that paints a contiguous patch? Territory flavour argues strongly for regions — a lone blighted node reads as noise, a blighted valley reads as a place. `ArchetypeStamp` is prior art for painting regions post-clustering.
+3. **Clustering pass or stamp pass?** Both are viable (see "How subtype is generated"); stamps are cheaper and carry the fiction better. Not settled.
 4. **Can a subtype's territory be converted?** Does holding blessed nodes cleanse adjacent blighted ones, or is subtype fixed at generation? A conversion mechanic would make the map a battleground in a second dimension; fixed is far cheaper.
 5. **Do the four families each need a fifth/sixth sibling** now that PER takes blindness and WIS takes none? Owner noted *"Blight is a good name also for if we ever need a 5th."*
-6. **Does subtype interact with `forbid_tags`?** The existing ArchetypePolicy rows already use `forbid_tags` to keep archetypes off each other's content — subtype's pool-swap may be expressible in that same vocabulary rather than a new one.
+6. **Does the tag vocabulary need new entries, and how many?** The filter approach needs `blight` / `bless` tags in `procgen/tags.tres` plus whatever the forbid lists key on (`crit`, …). Cheap, but it is the authoring surface the whole scheme rests on — worth a pass over existing tags before adding.
 7. **Exact stat count.** 14 is the proposal above (12 per-family + 2 shared). Owner's range was 8–16, *"maybe up to 16 if we flesh them out with more bespoke tweakables."*
