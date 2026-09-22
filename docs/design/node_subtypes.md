@@ -126,30 +126,63 @@ node that already has several.
 **Not** by duplicating packs. `6 × 3 = 18` StatPacks would mean authoring the
 DEX ladder three times and keeping the copies in sync forever.
 
-The vocabulary already exists. `StatPool` carries `tags` (validated against
-`procgen/tags.tres`), `ArchetypePolicy` carries `forbid_tags`, and the draw
-already filters on them (`GraphProcgen._has_forbidden_tag`). So:
+**And not by tags alone.** Tags are a flat *flavour* vocabulary (`str`,
+`flat`, `crit`, `tier_2`). Encoding subtype membership in them makes tags carry
+two unrelated axes, and it forces the default subtype to be expressed as an
+open-ended exclusion — *"forbid `blight`, `bless`, and every subtype anyone
+adds later."* Add a fourth subtype, forget to extend that list, and its content
+silently rolls on every node in the game. An exclusion list that must enumerate
+its own future is a footgun, not a design.
 
-> **A subtype is a named tag filter, not a new pool dimension.**
+So the two jobs get two mechanisms, because they are two different questions:
 
-- DoT content pools stay in their archetype's pack, gated by `archetype_stat` as they are today, and carry a tag (`blight` / `bless`).
-- A subtype is authored as a *policy*: which tags it forbids, which it favours. Blighted DEX forbids `crit`, permits `blight`. Blessed DEX forbids `crit`… no — permits `crit` more often, forbids `blight`, permits `bless`.
-- **Replace falls out of the filter.** "Blighted DEX loses crit%" is the subtype's forbid list, not a second mechanism.
+### ① Membership — a closed gate on the pool, mirroring `archetype_stat`
 
-### The non-obvious part: `none` is a filter too
+```gdscript
+# StatPool
+@export var subtype: StringName = &""   # &"" = any subtype; &"blight" = blighted only
+```
 
-`none` is **not** "no filter". If it were, blighted content would roll on
-every node in the game and the subtype would mean nothing. The default
-subtype must forbid `blight` *and* `bless`, so subtype-only content is
-genuinely gated behind territory. Three filters, no privileged default.
+Selection becomes a two-key filter, the second key exactly parallel to the
+first:
+
+```
+pool is selected for a node iff
+    (pool.archetype_stat == &"" or == node.primary_stat)
+and (pool.subtype       == &"" or == node.subtype)
+```
+
+`&""` means "any", the same way it already means "universal" on
+`archetype_stat` — a proven idiom in this codebase rather than a new one.
+
+**The default needs no list.** A regular node simply fails to match a pool
+whose `subtype` is `&"blight"`. A fifth subtype added in a year is excluded
+from every existing node automatically, because exclusion is *structural*, not
+enumerated. That is the whole point of making it a closed gate.
+
+### ② What a subtype gives up — `forbid_tags`, doing what tags are for
+
+Membership alone is additive: a blighted node would get every regular pool
+*plus* the blight pools, which is the strictly-better problem again. The
+subtype policy therefore also carries a `forbid_tags` list — and now that is
+an honest use of tags, a *designer flavour choice* rather than an identity
+mechanism. Blighted DEX forbids `crit`; that is what "trades crit% for DoT
+stats" means, stated once, in the vocabulary `ArchetypePolicy` already speaks
+and `GraphProcgen._has_forbidden_tag` already enforces.
+
+Two knobs, each answering its own question: **`subtype` decides what *can*
+appear, `forbid_tags` decides what the subtype *gives up*.** Neither leaks
+into the other.
 
 ### Interaction with #751
 
 #751 proposes making `StatPack` the only archetype gate and deleting
-`StatPool.archetype_stat`. Tags cut across packs, so the tag-filter approach
-survives that refactor unchanged — which is a point in its favour over a
-`subtype` field mirroring `archetype_stat` (that field would have to move
-when #751 lands, exactly as `archetype_stat` does).
+`StatPool.archetype_stat`. `subtype` is that field's twin, so it belongs at
+whatever level the archetype gate ends up at — if archetype moves to the pack,
+subtype moves with it. Worth naming the tension honestly: this adds a second
+`StringName` gate to a class #751 wants to remove one from. The answer is that
+they are the same kind of fact and should share a home, not that one of them
+should be a tag.
 
 ## How subtype is generated — regions, not confetti
 
@@ -209,5 +242,5 @@ later upgrade with its own justification, not part of the first cut.
 3. **Clustering pass or stamp pass?** Both are viable (see "How subtype is generated"); stamps are cheaper and carry the fiction better. Not settled.
 4. **Can a subtype's territory be converted?** Does holding blessed nodes cleanse adjacent blighted ones, or is subtype fixed at generation? A conversion mechanic would make the map a battleground in a second dimension; fixed is far cheaper.
 5. **Do the four families each need a fifth/sixth sibling** now that PER takes blindness and WIS takes none? Owner noted *"Blight is a good name also for if we ever need a 5th."*
-6. **Does the tag vocabulary need new entries, and how many?** The filter approach needs `blight` / `bless` tags in `procgen/tags.tres` plus whatever the forbid lists key on (`crit`, …). Cheap, but it is the authoring surface the whole scheme rests on — worth a pass over existing tags before adding.
+6. **What do the `forbid_tags` lists actually key on?** The membership gate needs no new tags, but each subtype's give-up list does (`crit`, …). Worth a pass over the existing `procgen/tags.tres` vocabulary before adding any — the right forbid list may already be expressible.
 7. **Exact stat count.** 14 is the proposal above (12 per-family + 2 shared). Owner's range was 8–16, *"maybe up to 16 if we flesh them out with more bespoke tweakables."*
