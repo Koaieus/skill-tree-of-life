@@ -113,6 +113,13 @@ extends Resource
 ## [member GameSettings.combat_time_scale].
 @export var tempo: PresentationTempo = null
 
+## Spell-specific wind-up FX layered ON TOP of the default caster draw (#1043):
+## when set, [MagicBounceCoordinator.begin_windup] instances it as a child of
+## the coordinator at the caster for the draw span and frees it when the cast's
+## playback ends. Null (every spell today) means the default alone — the
+## neighbour streaks and the caster flare are not replaced, only joined.
+@export var windup_vfx_scene: PackedScene = null
+
 ## How this spell's target is gathered + what counts as valid. The kind
 ## drives input dispatch (NODE click vs. world click); the predicates drive
 ## valid-target enumeration for highlight + AI.

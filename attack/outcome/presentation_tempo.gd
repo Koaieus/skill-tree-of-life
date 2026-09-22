@@ -112,12 +112,12 @@ const DEFAULT_PATH := "res://attack/outcome/default_presentation_tempo.tres"
 ## clamp-at-zero and all-zero escape hatch as the melee trio (ADR 0027).
 ## Magic: the camera's hold on the caster before the draw starts — the pivot
 ## beat [method windup_lead] returns for [b]MAGIC[/b].
-@export var magic_windup_pivot_focus: float = 0.0
+@export var magic_windup_pivot_focus: float = 0.25
 ## Magic: the span across which every territory neighbour streaks its power
 ## into the caster (stagger = span / neighbour count) and the caster ramps.
-@export var magic_windup_draw_span: float = 0.0
+@export var magic_windup_draw_span: float = 0.6
 ## Magic: the ignition flare to [constant Emissive.PEAK] before the first bolt.
-@export var magic_windup_flare: float = 0.0
+@export var magic_windup_flare: float = 0.1
 
 
 ## Melee: seconds the whole swing occupies on screen. The blade sim's own
@@ -156,6 +156,18 @@ func melee_windup_seconds(has_addons: bool) -> float:
 			+ (maxf(0.0, melee_windup_stamp_time) if has_addons else 0.0) \
 			+ maxf(0.0, melee_windup_glow_ramp) \
 			+ maxf(0.0, melee_windup_flare)
+
+
+## Total wind-up length for one committed spell (#1043), in seconds: pivot
+## focus + draw span + flare. Same clamp-at-zero per term and the same all-zero
+## escape hatch as [method melee_windup_seconds]; the caster's territory degree
+## only sets the stagger INSIDE the draw span, never its length, so this
+## resource needs nothing from the plan.
+func magic_windup_seconds() -> float:
+	# 3 = BattleSystem.AttackMode.MAGIC — see [method windup_lead] for why a literal.
+	return windup_lead(3) \
+			+ maxf(0.0, magic_windup_draw_span) \
+			+ maxf(0.0, magic_windup_flare)
 
 
 ## The beat BEFORE the presenter starts forming its picture — the camera's
