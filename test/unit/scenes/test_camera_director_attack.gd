@@ -454,3 +454,106 @@ func test_the_swing_beat_does_not_reopen_a_shot_the_widen_already_holds() -> voi
 			"after the lead the span has widened, still following — the band was never interrupted")
 	_dir._on_replay_started(outcome)
 	assert_true(_dir.is_shot_locked(), "the swing beat only re-sizes the hold")
+
+
+# --- #1041 (ADR 0027): the presenter contract, mode-agnostic ------------------
+
+## A presenter that answers the contract with dictated values — what a ranged
+## or magic coordinator will do once children 1/2 author a wind-up.
+class _StubPresenter:
+	extends VFXCoordinator
+	var lead: float = 0.0
+	var marker: Node2D = null
+	func play(_payload: Variant) -> void:
+		pass
+	func begin_windup(_plan: AttackPlan, _tempo: PresentationTempo) -> float:
+		return lead
+	func focus_marker() -> Node2D:
+		return marker
+
+
+## A battle system whose live presenter is dictated: the coordinator is mounted
+## inside `_commit`, which a director unit test never runs, so the seam is the
+## public accessor the director reads.
+class _StubBattleSystem:
+	extends BattleSystem
+	var stub_presenter: Node = null
+	func presenter() -> Node:
+		return stub_presenter
+
+
+func _ranged_battle_system(presenter: Node) -> _StubBattleSystem:
+	var bs := _StubBattleSystem.new()
+	_holder.add_child(bs)
+	bs.attack_plan = RangedAttackPlan.new()
+	bs.stub_presenter = presenter
+	return bs
+
+
+func test_a_ranged_commit_with_no_marker_frames_the_span_and_follows_nothing() -> void:
+	# Acceptance 3, first half: a null `focus_marker()` means "span only" —
+	# today's ranged picture, now under the lock.
+	_dir.seat_policy = SeatPolicy.couch()
+	var cam := _camera()
+	var presenter := _StubPresenter.new()
+	_holder.add_child(presenter)
+	_dir.battle_system = _ranged_battle_system(presenter)
+	var hits: Array[HitInstance] = [_hit(_node_at(Vector2.ZERO), _node_at(Vector2(400, 0)))]
+
+	_dir._on_attack_committed(_outcome(hits), _entity(true))
+	assert_true(_dir.is_shot_locked(), "locked like every other shot")
+	assert_true(_dir.is_focusing(), "the span was framed")
+	assert_false(cam.is_following(), "…once — nothing to follow without a marker")
+
+
+func test_a_ranged_commit_with_a_marker_opens_a_follow_on_that_node() -> void:
+	# Acceptance 3, second half: the follow opens on the presenter's marker for
+	# every mode, not only on a melee ghost.
+	_dir.seat_policy = SeatPolicy.couch()
+	var cam := _camera()
+	var presenter := _StubPresenter.new()
+	_holder.add_child(presenter)
+	var marker := Marker2D.new()
+	presenter.add_child(marker)
+	presenter.marker = marker
+	_dir.battle_system = _ranged_battle_system(presenter)
+	var hits: Array[HitInstance] = [_hit(_node_at(Vector2.ZERO), _node_at(Vector2(400, 0)))]
+
+	_dir._on_attack_committed(_outcome(hits), _entity(true))
+	assert_true(cam.is_following(), "a non-null marker opens the shot in follow mode")
+	assert_eq(cam._follow_node, marker, "…on that node")
+
+	var moved := Marker2D.new()
+	presenter.add_child(moved)
+	presenter.focus_marker_changed.emit(moved)
+	assert_eq(cam._follow_node, moved,
+			"the presenter's `focus_marker_changed` rebinds the follow, any mode")
+
+
+func test_a_ranged_shot_waits_for_its_replay_however_long_the_windup_holds() -> void:
+	# Acceptance 2, the director's half: the #894 rule for every mode. With a
+	# presenter staging a 0.6 s wind-up, the span's hold (sized from the
+	# replay) must not expire while the launch is still in flight and the
+	# replay has not started.
+	_dir.seat_policy = SeatPolicy.couch()
+	_camera()
+	var presenter := _StubPresenter.new()
+	presenter.lead = 0.6
+	_holder.add_child(presenter)
+	var bs := _ranged_battle_system(presenter)
+	_dir.battle_system = bs
+	var outcome := _outcome([_hit(_node_at(Vector2.ZERO), _node_at(Vector2(400, 0)), 0.5)])
+
+	_dir._on_attack_committed(outcome, _entity(true))
+	bs.is_launching = true
+	_dir._process(0.6)
+	assert_true(_dir.is_shot_locked(), "inside the wind-up, still launching: the shot waits")
+	_dir._process(1000.0)
+	assert_true(_dir.is_shot_locked(), "far past the hold, still launching: the shot waits")
+
+	_dir._on_replay_started(outcome)
+	_dir._process(0.01)
+	assert_true(_dir.is_shot_locked(), "the replay beat re-sizes the hold from its own start")
+	_dir._process(1000.0)
+	assert_false(_dir.is_shot_locked(),
+			"after the replay the tail governs — the launch flag no longer holds the camera")

@@ -404,3 +404,20 @@ func test_zeroed_windup_durations_stage_nothing_and_still_land_the_swing() -> vo
 			"the same single hit the un-staged swing landed")
 	assert_lt(_target.get_current_hp(), _target.get_max_hp(),
 			"and it really landed on the target")
+
+
+# --- #1041: the tempo's mode arms are pinned to the enum ----------------------
+
+func test_windup_lead_matches_on_the_attack_mode_enum_values() -> void:
+	# `PresentationTempo.windup_lead` matches on int literals because a
+	# Resource script in the authored `.tres` graph cannot name `BattleSystem`
+	# (see its docstring). This is the pin: the literals ARE the enum.
+	var tempo := _zeroed_tempo()
+	tempo.melee_windup_pivot_focus = 0.4
+	assert_almost_eq(tempo.windup_lead(BattleSystem.AttackMode.MELEE), 0.4, 0.0001,
+			"MELEE's arm is the pivot focus")
+	assert_eq(tempo.windup_lead(BattleSystem.AttackMode.RANGED), 0.0,
+			"RANGED has no lead yet (#1042)")
+	assert_eq(tempo.windup_lead(BattleSystem.AttackMode.MAGIC), 0.0,
+			"MAGIC has no lead yet (#1043)")
+	assert_eq(tempo.windup_lead(BattleSystem.AttackMode.NONE), 0.0)
