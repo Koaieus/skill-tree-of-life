@@ -293,7 +293,16 @@ Numbered so the skill can be checked against them law by law.
     longer needs a special case, a test that writes itself, a sibling issue
     that closes. Name it when it happens; a pick where nothing falls out is
     worth a second look. Swarmify sessions shape the whole codebase, so this
-    is where the weight sits.
+    is where the weight sits. Where to look first, in the order the corpus
+    ranks them: a **duplicated fact to collapse** into one owner (a status
+    derived instead of set, a delta stored instead of an absolute, a gate
+    read once), then an **existing path to route through** (the same
+    builder, material, command channel), then a **composition** whose union
+    produces the behaviour — and only after those a new system or resource
+    hierarchy, which almost never yields one. A free thing is a fact, not a
+    verdict: it has gameplay consequences as well as codebase ones, and the
+    designer hat names both (an emergent mechanic nobody authored is a
+    free thing that later got killed for exactly that).
 
 ## Incident corpus
 
@@ -324,6 +333,7 @@ have to carry them.
 | 2026-09-22 | owner | "when a fork can be settled with 'this option A which is sorta clean' and 'this option B which is hella clean but costs more work' then that's gonna be a B in 99% of cases … This project for a solo dev grew this big yet stayed so maintainable due to our aggressive combating of tech debt … you wouldn't know how much stuff landed by drones that used plumbing that was already there just because what could've been deferred as YAGNI instead was implemented on the spot"; asked for a stars ranking on cleanliness plus blast radius ("which we take to the chin every time"), effectiveness, good practices, lack of smell, perf, style secondary — "swarmify is often a lot of reading and thinking in which i could use all help i can get" | 30 |
 | 2026-09-22 | transcript scan (318 sessions, 681 `AskUserQuestion` pairs) | 106 pairs turned on a clean-vs-cheap axis; owner picked cleaner 49 vs cheaper 33 (~1.5:1), even within `/swarmify` runs. Where the agent's `(Recommended)` tag and the owner's pick disagreed on that axis, the owner pushed toward *more* work 9 times and toward less 5 — the tag was under-recommending cleanliness. Sonnet-labelled, directional not exact. Two side patterns: perf ("how many nodes, how fast") is the real tiebreaker at least as often as cleanliness; and the owner routinely answers a menu by redirecting the premise or synthesising a new option — options are a prompt to think aloud, not a strict menu, so a scorecard must survive an "Other" answer | 30 |
 | 2026-09-22 | owner | "100% and we don't need to go overboard. Usually the problem at hand has a certain shape of solution that works best, add a signal? Add a system? Add a bespoke resource and or set of subclasses? A shared shape? Just be on the lookout … these swarmify sessions basically shape the entire codebase.. so they bear some weight. Or i love it when we discuss and then agent mentions something along the lines of '… and then XYZ *falls out* for free' like those nifty picks are often just style and clean architecture high fiving" | 30 |
+| 2026-09-22 | transcript scan (318 sessions, 227 regex hits, 75 genuine "falls out for free" moments) | enabler: single-owner-of-fact 31, shared-shape-reuse 17, composition-array 8, data-driven 4, resource+subclasses 1, new system 1 — free-riding comes from deleting a duplicate representation or routing through what exists, almost never from adding abstraction. What fell out: feature-for-free 21, consumer-simplifies 19, special-case-removed 12. Three "free" claims were false or a smell ("self-loop-blind for free" asserted in four places incl. flavour text; "bulk grows for free with level" as the defect); Cyclone's parity detector was free, unauthored, and later cut. 58 of 75 in swarmify passes. Steady rate, no trend | 30 |
 
 ## What the skill must not contain
 

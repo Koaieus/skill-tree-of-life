@@ -130,7 +130,11 @@ signal, a system, a bespoke resource with subclasses, a shape already in
 the tree — and when a pick makes something else **fall out for free** (a
 special case that disappears, a test that writes itself, a sibling that
 closes), say so in the option's "buys" sentence; that is the tell. A pick
-where nothing falls out gets a second look.
+where nothing falls out gets a second look. Look in this order: a
+duplicated fact to collapse into one owner, then an existing path to route
+through, then a composition whose union yields the behaviour — a new system
+or resource hierarchy comes last and rarely pays this way. A free thing has
+gameplay consequences as well as codebase ones; name both.
 
 ### 5. Settle each fork with the owner
 
