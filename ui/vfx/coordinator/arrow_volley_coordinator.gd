@@ -55,9 +55,11 @@ const _GOLDEN_ANGLE: float = 2.399963
 const _PLACE_IN: float = 0.08
 const _PLACE_SCALE: float = 0.4
 ## How far under its authored glow a firing leaf starts the wind-up — a VALUE
-## dimmer on `modulate`, the blade's [constant SkillBlade._FORM_DIM] pattern
-## (`.claude/rules/hdr-color.md`): the leaf powers UP over the draw, its tiers
-## are never re-picked.
+## dimmer on the body's [member NodeVisualsComposite.feedback_tint] (the
+## hit-flash channel, via [method SkillNode.node_visuals] — never the node's
+## `modulate`, which would multiply the hover ring down, #304), the blade's
+## [constant SkillBlade._FORM_DIM] pattern (`.claude/rules/hdr-color.md`): the
+## leaf powers UP over the draw, its tiers are never re-picked.
 const _LEAF_DIM: float = 0.45
 ## The tangent probe for a parked arrow's facing: the path's heading between
 ## `evaluate(0)` and `evaluate(ε)`.
@@ -220,16 +222,18 @@ func _centroid(leaves: Array) -> Vector2:
 func _dim_leaf(leaf: SkillNode, draw: float) -> void:
 	if leaf == null or not is_instance_valid(leaf):
 		return
+	var body: Node2D = leaf.node_visuals()
+	if body == null:
+		return
 	_dimmed_leaves.append(leaf)
-	leaf.modulate = Color(_LEAF_DIM, _LEAF_DIM, _LEAF_DIM, leaf.modulate.a)
-	for channel in ["modulate:r", "modulate:g", "modulate:b"]:
-		_windup_tween.tween_property(leaf, channel, 1.0, draw)
+	body.feedback_tint = Color(_LEAF_DIM, _LEAF_DIM, _LEAF_DIM, 1.0)
+	_windup_tween.tween_property(body, "feedback_tint", Color.WHITE, draw)
 
 
 func _restore_leaves() -> void:
 	for leaf in _dimmed_leaves:
-		if is_instance_valid(leaf):
-			leaf.modulate = Color(1.0, 1.0, 1.0, leaf.modulate.a)
+		if is_instance_valid(leaf) and leaf.node_visuals() != null:
+			leaf.node_visuals().feedback_tint = Color.WHITE
 	_dimmed_leaves.clear()
 
 
