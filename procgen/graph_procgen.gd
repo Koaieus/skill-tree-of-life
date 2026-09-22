@@ -37,6 +37,12 @@ const _BLOCKER_RNG_SALT := 0x8477
 ## off their own derived stream so the main `rng` is byte-identical with or
 ## without them.
 const _SCENE_RNG_SALT := 0x3300
+## Salt for the node-subtype placement roll (#1056), for the same reason as the
+## two above and one more: the roll happens mid-loop, per node, so off the
+## shared `rng` every modifier draw after it would shift — both goldens would
+## churn on any `base_chance` retune and a placement change would be
+## indistinguishable from a content change.
+const _SUBTYPE_RNG_SALT := 0x5B17
 
 ## Poisson-disk auto-scale sizing (#164, retuned in #566). The disc area a
 ## ShapeMask needs to hold `node_count` points at spacing `d = min_dist`.
@@ -283,6 +289,16 @@ static func generate(
 	# (see GraphProcgenSpellGrants.distribute; it needs the full pool size to
 	# compute the level's grant budget, not a per-node decision).
 	var int_nodes: Array[SkillNode] = []
+	# Subtype placement (#1056) — its own derived stream, plus the two things
+	# that must be computed ONCE per generate(): the resolved default (D14) and
+	# D13's per-(archetype, subtype) drawability lookup.
+	var subtype_rng := RandomNumberGenerator.new()
+	subtype_rng.seed = rng.seed + _SUBTYPE_RNG_SALT
+	var default_subtype: NodeSubtype = null
+	var subtype_drawable: Dictionary = {}
+	if config.content != null:
+		default_subtype = config.content.resolved_default_subtype()
+		subtype_drawable = _build_subtype_drawability(config.content)
 	# Yield ~10 times across the per-node loop so the bar moves smoothly
 	# without paying a frame per node. With 500 nodes that's every ~50.
 	@warning_ignore("integer_division")
@@ -331,6 +347,13 @@ static func generate(
 				budget = config.content.budget_policy.compute_budget(
 						archetype_id, positions[i], role_tags, rng)
 			fp["budget"] = budget
+			# One draw per archetype-bearing node whenever any subtype is
+			# authored — a constant draw count keeps a `base_chance` retune
+			# from shifting another node's roll. The budget-0 else branch gets
+			# no subtype (nor any content).
+			var node_subtype := _roll_subtype(
+					config.content.subtypes, archetype_primary_stat,
+					subtype_drawable, default_subtype, subtype_rng)
 			# Radius follows the rolled budget (#783); an authored scene never
 			# reaches this branch, so its own radius stands (#330).
 			_stamp_radius(sn, config.topology.radius_for_budget(budget))
@@ -338,7 +361,7 @@ static func generate(
 				sn.modifiers = _roll_modifiers_v4(
 						config.content.modifier_pool_set, config.content.weight_profiles,
 						archetype_id, archetype_primary_stat, archetype_forbid,
-						positions[i], i, budget, rng, fp)
+						positions[i], i, budget, rng, fp, node_subtype)
 			sn.set_meta("procgen_footprint", fp)
 			# Stamps NodeVisualsComposite's archetype_tint (persistent type
 			# identity, rim/sensed-outline colour). Owner colour stays free to
@@ -347,6 +370,9 @@ static func generate(
 			# The archetype's own emblem shape (docs/domain/skillnode-emblem.md) —
 			# every archetype carries one now, so this always stamps.
 			sn.archetype = archetype_resource
+			# The node's second identity — the visuals child reads its tint and
+			# emissive tier. Always the resolved value, never null.
+			sn.subtype = node_subtype
 			sn.set_meta("archetype", archetype_id)
 			if archetype_primary_stat != &"":
 				sn.set_meta("primary_stat", archetype_primary_stat)
@@ -1215,13 +1241,16 @@ static func _roll_modifiers_v4(
 		budget: int,
 		rng: RandomNumberGenerator,
 		fp: Dictionary = {},
+		# Last and defaulted on purpose: every existing caller passes `fp`
+		# positionally, and a subtype-less caller is a node with no subtype.
+		subtype: NodeSubtype = null,
 ) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
 	fp["phase"] = "v4"
 	if pool_set == null or pool_set.packs.is_empty() or budget <= 0:
 		return out
 
-	var entries := pool_set.flatten_for_node(primary_stat)
+	var entries := pool_set.flatten_for_node(primary_stat, subtype)
 	if entries.is_empty():
 		return out
 
@@ -1433,3 +1462,82 @@ static func _propagate_mask_radius(config: GraphProcgenConfig) -> void:
 		var bf := config.content.budget_policy.budget_field
 		if bf is RadialGradientField and (bf as RadialGradientField).outer_radius <= 0.0:
 			(bf as RadialGradientField).outer_radius = resolved_radius
+
+
+# ── Node-subtype placement (#1056) ───────────────────────────────────────
+
+
+## D13's guard, precomputed ONCE per `generate()` — never inside the node loop.
+## Keyed `"<primary_stat>|<subtype id>"` over every authored archetype × every
+## weighted subtype, because the predicate is per-(archetype, subtype): whether
+## a rolled subtype has anything to draw depends on the node's archetype and
+## nothing else about the node.
+static func _build_subtype_drawability(content: GraphProcgenContent) -> Dictionary:
+	var out: Dictionary = {}
+	if content == null or content.subtypes.is_empty():
+		return out
+	for policy in content.archetypes:
+		if policy == null or policy.archetype == null:
+			continue
+		var primary: StringName = policy.archetype.primary_stat
+		for subtype in content.subtypes:
+			if subtype == null:
+				continue
+			var key := "%s|%s" % [primary, subtype.id]
+			if not out.has(key):
+				out[key] = _has_pool_naming_subtype(
+						content.modifier_pool_set, primary, subtype)
+	return out
+
+
+## Strictly "some reachable pool NAMES this subtype". An ungated (`[]`) pool
+## deliberately does not count: it is drawn by every subtype, so counting it
+## would let every roll stand while drawing exactly the default's content —
+## which is the "looks blighted, plays regular" node D13 exists to prevent.
+static func _has_pool_naming_subtype(
+		pool_set: ModifierPoolSet,
+		primary_stat: StringName,
+		subtype: NodeSubtype,
+) -> bool:
+	if pool_set == null:
+		return false
+	for pack in pool_set.packs:
+		if pack == null:
+			continue
+		for pool in pack.pools:
+			if pool == null or pool.subtypes.is_empty():
+				continue
+			if pool.archetype_stat != &"" and pool.archetype_stat != primary_stat:
+				continue
+			if pool.admits_subtype(subtype):
+				return true
+	return false
+
+
+## The per-node weighted pick (#1056 D9): each subtype claims its own
+## `base_chance` slice, the default is the remainder. Exactly one draw per node
+## whatever the authored chances say, so retuning one never shifts another
+## node's roll — and NO draw at all when nothing is authored, which is what
+## keeps "with subtypes" and "without" honestly comparable on the main stream.
+## A rolled subtype with no drawable content demotes to the default (D13) — it
+## still consumed its draw.
+static func _roll_subtype(
+		subtypes: Array[NodeSubtype],
+		primary_stat: StringName,
+		drawable: Dictionary,
+		default_subtype: NodeSubtype,
+		rng: RandomNumberGenerator,
+) -> NodeSubtype:
+	if subtypes.is_empty():
+		return default_subtype
+	var r := rng.randf()
+	var acc := 0.0
+	for s in subtypes:
+		if s == null:
+			continue
+		acc += s.base_chance
+		if r < acc:
+			if drawable.get("%s|%s" % [primary_stat, s.id], false):
+				return s
+			return default_subtype
+	return default_subtype
