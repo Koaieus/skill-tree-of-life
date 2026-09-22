@@ -106,7 +106,7 @@ func _bind_cells(gauge: PoolGauge, pool: PoolStat) -> void:
 	var surplus_pool := pool as SurplusPoolStat
 	var sync := func():
 		gauge.max_value = float(pool.value)
-		gauge.cell_count = float(pool.value)
+		gauge.subdivisions = roundi(pool.value)
 		gauge.current = float(pool.current)
 		# DP/MP carry a transient surplus bin (#152) shown as trailing cells.
 		if surplus_gauge != null and surplus_pool != null:
@@ -130,7 +130,7 @@ func _bind_skill_points(sp: SkillPointStat) -> void:
 		# Cap first: it re-scales the strip, and CompositeBarGauge rebases its
 		# spark boundaries onto the new coordinate system when it moves. Buckets
 		# after, so a level-up's extra points still ignite as points arriving.
-		_sp_bar.cell_count = float(sp.value)
+		_sp_bar.subdivisions = roundi(sp.value)
 		_sp_bar.set_buckets(float(sp.current), float(sp.wounded), float(sp.staked), float(sp.value))
 		if _sp_to_spend_value != null:
 			_sp_to_spend_value.text = str(int(sp.current))

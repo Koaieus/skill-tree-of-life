@@ -60,7 +60,7 @@ func set_player(player: Entity) -> void:
 		_ap_gauge.min_value = 0.0
 		var sync := func():
 			_ap_gauge.max_value = float(ap.value)
-			_ap_gauge.cell_count = float(ap.value)
+			_ap_gauge.subdivisions = roundi(ap.value)
 			_ap_gauge.current = float(ap.current)
 			if _value_label != null:
 				_value_label.text = "%d/%d" % [int(ap.current), int(ap.value)]

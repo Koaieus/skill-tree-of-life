@@ -154,14 +154,33 @@ var shown_current: float = 1.0:
 		shine_speed = v
 		_push(&"shine_speed", v)
 
+## The model count this gauge subdivides into — skill points, AP, rounds. The
+## gauge resolves it against its own live width, [member cell_gap] and
+## [member skew_degrees] through [GaugeDensity] and DERIVES
+## [member cell_count] from it: the full count while each cell still reads,
+## 0 (a smooth bar) the moment it does not.
+##
+## [b]One owner at a time, by mode.[/b] At 0 — the default — the gauge never
+## touches [member cell_count]: the authored `.tscn` value and the editor knob
+## are authoritative. Above 0 [member cell_count] is derived, and a direct
+## write to it is overwritten on the next resolve (a resize, a gap or skew
+## tweak). Callers bind the model count here and stop knowing about pixels.
 @export var subdivisions: int = 0:
 	set(v):
 		subdivisions = v
 		_resolve_cells()
 
 
+## Re-derive [member cell_count] from [member subdivisions] against the live
+## geometry. Cheap and idempotent; called from every input that moves the
+## threshold — the three setters and the resize hook.
 func _resolve_cells() -> void:
-	pass
+	if subdivisions <= 0:
+		return
+	var skew_px := size.y * tan(deg_to_rad(skew_degrees))
+	var usable := maxf(1.0, size.x - absf(skew_px))
+	cell_count = float(subdivisions) if GaugeDensity.ticks_fit(
+			subdivisions, usable, GaugeDensity.MIN_TICK_PX, cell_gap) else 0.0
 
 
 ## 0 = smooth continuous bar. N = N skewed parallelogram cells.
@@ -183,6 +202,7 @@ func _resolve_cells() -> void:
 	set(v):
 		skew_degrees = v
 		_push(&"skew_degrees", v)
+		_resolve_cells()
 
 @export_range(0.0, 20.0, 0.5) var corner_radius: float = 4.0:
 	set(v):
@@ -193,6 +213,7 @@ func _resolve_cells() -> void:
 	set(v):
 		cell_gap = v
 		_push(&"cell_gap", v)
+		_resolve_cells()
 
 ## Level-up animation timings (#154). Fill = each rise (to old cap, then to the
 ## overflow amount at the new cap); wrap = the snap-to-empty between them.
@@ -255,6 +276,7 @@ func _ready() -> void:
 
 func _push_size() -> void:
 	_push(&"size", size)
+	_resolve_cells()
 
 func _push_all() -> void:
 	_push(&"current", shown_current)
