@@ -403,6 +403,9 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 		if presenter.has_signal(&"focus_marker_changed") \
 				and not presenter.focus_marker_changed.is_connected(_on_presenter_marker_ready):
 			presenter.focus_marker_changed.connect(_on_presenter_marker_ready)
+		if presenter.has_signal(&"wave_landing") \
+				and not presenter.wave_landing.is_connected(_on_wave_landing):
+			presenter.wave_landing.connect(_on_wave_landing)
 	else:
 		marker = _plan_source(plan)
 	if marker != null:
@@ -499,6 +502,23 @@ func _on_presenter_marker_ready(marker: Node2D) -> void:
 		return
 	_follow_node = marker
 	camera.rebind_follow(marker)
+
+
+## A wave is released (#1042, ADR 0027): the zoom refits to the wave's LANDING
+## cluster and nothing else — never the full span, which the pan travels, and
+## never in past the player's own zoom (the never-in lattice rule of
+## [method _fit_zoom], reached through [method decide]). A zoom retarget only:
+## the follow marker owns the pan. Guarded on the lock so a late wave after
+## [method release] cannot touch a camera the player already has back.
+func _on_wave_landing(points: PackedVector2Array) -> void:
+	if not _shot_locked or camera == null or points.is_empty():
+		return
+	var request := FocusRequest.span(points, 0.0, 0.0, &"wave_landing")
+	request.mandatory = true
+	var decision := decide(request, make_context())
+	if not decision.act:
+		return
+	camera.retarget_directed_zoom(decision.zoom_target)
 
 
 ## Frame a committed attack's from->to span — every commit, every mode.
