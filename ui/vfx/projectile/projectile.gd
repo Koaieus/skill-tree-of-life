@@ -35,6 +35,9 @@ extends Node2D
 ## `finished` signal falls back to [member linger_seconds].
 
 signal arrived
+## Flight began — the first frame of motion after [method launch]'s delay
+## elapsed. A volley coordinator turns this into its release beat.
+signal released
 
 @export var path: ProjectilePath
 @export var visual_scene: PackedScene
@@ -87,6 +90,11 @@ var _facing_seeded: bool = false
 ## had already computed and thrown away.
 var context: ScheduleEntry = null
 
+## How much this projectile pulls a [SwarmFocus] marker: Σ|amount| of the hits
+## it carries, stamped by the coordinator at launch (a floor for status-only).
+## Pure presentation — nothing here reads it.
+var focus_weight: float = 0.0
+
 var _origin_pos: Vector2
 var _target_pos: Vector2
 var _delay: float = 0.0
@@ -106,6 +114,23 @@ func launch(origin: Vector2, target: Vector2, delay: float = 0.0) -> void:
 	global_position = origin
 	_launched = true
 	_instantiate_visual()
+
+
+## Park before flight (#1042): sit at [param at] facing [param facing] with the
+## visual already instantiated, and do not move until [method launch]. A
+## ranged wind-up places its arrows this way; `launch(at, target, delay)`
+## then takes off from exactly here, so the parked frame IS the t=0 frame.
+func place(at: Vector2, facing: float) -> void:
+	global_position = at
+	rotation = facing
+	_facing_seeded = true
+	_instantiate_visual()
+
+
+## Launched, past its delay and not yet arrived — the frames a follow marker
+## should weigh it on. Parked and lingering projectiles both answer false.
+func is_in_flight() -> bool:
+	return _flying and _t < 1.0
 
 
 func _instantiate_visual() -> void:
@@ -135,6 +160,7 @@ func _process(delta: float) -> void:
 		return
 	if not _flying:
 		_flying = true
+		released.emit()
 		_call_visual(&"_on_launch", [])
 		if crit_tier > 0:
 			_call_visual(&"_on_crit", [crit_tier])
