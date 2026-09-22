@@ -59,6 +59,66 @@ enum Operation {
 }
 
 
+## How this modifier reads for whoever HOLDS it (#1049) — never "good for me
+## the viewer": hovering an enemy's `-3% Dexterity` still reports BANE.
+## BANE is the one that earns the cursed slab; NEUTRAL and VOLATILE both
+## render plain.
+enum Valence {
+	## Moves the stat toward better, per [member StatDef.lower_is_better].
+	BOON,
+	## Moves it toward worse. The cursed slab.
+	BANE,
+	## The op's neutral element applied: no change at all (`+0`, `x1`).
+	NEUTRAL,
+	## No side to pick, by owner call (#1049): a SET (no neutral element to
+	## displace from — where it lands depends entirely on where you stand)
+	## and a sign-flipping MULTIPLY (`value <= 0`). A negative multiplier is
+	## the one op that breaks the `current >= 0` invariant every other static
+	## judgement rests on, which is why two of them cancel: the second lands
+	## on a negative value. "Could be good, could be bad, good luck."
+	VOLATILE,
+}
+
+
+## The signed delta this modifier applies, expressed as its value's
+## DISPLACEMENT FROM ITS OPERATION'S NEUTRAL ELEMENT — the one law that makes
+## every op judgeable by the same predicate (#1049):
+##
+## | Op | neutral | displacement |
+## |---|---|---|
+## | ADD_BASE / ADD_BONUS / INCREASE | `0` | `v` |
+## | MULTIPLY | `1` | `v - 1` |
+## | SET | (none) | `NAN` |
+##
+## SET returns [constant NAN] rather than `0.0` because "no change" and "no
+## neutral element to measure from" are different facts — callers MUST
+## `is_nan()` before judging or comparing. This is also the single home of
+## "which value is this op's no-op", which
+## [method GraphProcgen._is_neutral_result] previously kept its own copy of.
+##
+## Static and value-taking (not an instance method) so a procgen candidate
+## value can be tested before any [StatModifier] exists to hold it.
+##
+## STUB (#1049) — signature and law are the settled shape; the body is the
+## drone's.
+static func displacement_from_neutral(_op: Operation, _v: float) -> float:
+	return 0.0
+
+
+## This modifier's [enum Valence]: [method displacement_from_neutral] of the
+## value, judged through [method StatDef.is_improvement] — op-semantics is
+## this class's fact, "is that direction good" is the def's, and no call site
+## re-derives `sign XOR lower_is_better` by hand.
+##
+## Reads the same number the row next to it PRINTS: [param board] is passed
+## straight to [method get_effective_value], so an unbound formula modifier
+## judges its coefficient exactly as [method format] renders it.
+##
+## STUB (#1049).
+func valence(_board: StatBoard = null) -> Valence:
+	return Valence.NEUTRAL
+
+
 @export var stat_id: StringName = &"":
 	set(v):
 		stat_id = v
