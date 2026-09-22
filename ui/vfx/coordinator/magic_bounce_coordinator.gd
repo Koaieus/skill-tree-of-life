@@ -137,7 +137,7 @@ var _caster_tint: Color = Color.WHITE
 ## it. Both are per-cast state resolved in [method play] — see #708.
 var _turn_sign: float = 0.0
 var _handed_paths: Dictionary = {}  ## Verb -> ProjectilePath
-## Wind-up state (#1043): the caster whose `visuals.modulate` the draw ramps,
+## Wind-up state (#1043): the caster whose body `feedback_tint` the draw ramps,
 ## the tween driving it, and the spell's own layered FX instance — all torn
 ## down by [method _end_windup] when playback ends or this node leaves the tree.
 var _windup_caster: SkillNode = null
@@ -518,7 +518,7 @@ func _default_path() -> ProjectilePath:
 ## never the board's neighbours filtered here (`.claude/rules/degree.md`).
 ## Each neighbour launches a streak along the EDGE path into the caster,
 ## staggered across the draw span (stagger = span / count), flight = the span
-## remaining; the caster's [member SkillNode.visuals] ramps up in glow under
+## remaining; the caster body's `feedback_tint` ramps up in glow under
 ## the same value-dimmer the blade uses, then flares to [constant Emissive.PEAK]
 ## and relaxes over the flare beat. All-zero tempo: returns 0.0, spawns nothing.
 ##
@@ -594,27 +594,30 @@ func _spawn_draw_streaks(attacker: Entity, caster: SkillNode,
 		_stamp_visual(proj, 1.0)
 
 
-## The caster's glow ramp + flare, on [member SkillNode.visuals]' `modulate`
-## colour VALUE (alpha untouched — `.claude/rules/hdr-color.md`): WHITE → the
-## draw tier across the span as the streaks arrive, an overshoot to
-## [constant Emissive.PEAK] for the first 35% of the flare beat, back to WHITE
-## over the rest. Absolute delays on one parallel tween, the blade's shape.
+## The caster's glow ramp + flare, on the body composite's
+## [member NodeVisualsComposite.feedback_tint] — the hit-flash channel, which
+## composes with the status tint and leaves `visuals.modulate` (and the hover
+## ring under it, #304) alone. Colour VALUE only, alpha untouched
+## (`.claude/rules/hdr-color.md`): WHITE → the draw tier across the span as the
+## streaks arrive, an overshoot to [constant Emissive.PEAK] for the first 35%
+## of the flare beat, back to WHITE over the rest. Absolute delays on one
+## parallel tween, the blade's shape.
 func _ramp_caster(caster: SkillNode, lead: float, span: float, flare: float) -> void:
 	_release_caster()
-	var visuals: Node2D = caster.visuals
-	if visuals == null:
+	var body: Node2D = caster.node_visuals()
+	if body == null:
 		return
 	_windup_caster = caster
-	visuals.modulate = Color.WHITE
+	body.set(&"feedback_tint", Color.WHITE)
 	_windup_tween = create_tween().set_parallel(true)
 	var top := Emissive.at(Color.WHITE, _DRAW_GLOW_TIER)
 	if span > 0.0:
-		_windup_tween.tween_property(visuals, "modulate", top, span).set_delay(lead)
+		_windup_tween.tween_property(body, "feedback_tint", top, span).set_delay(lead)
 	if flare > 0.0:
 		var peak := Emissive.at(Color.WHITE, Emissive.PEAK)
-		_windup_tween.tween_property(visuals, "modulate", peak, flare * 0.35) \
+		_windup_tween.tween_property(body, "feedback_tint", peak, flare * 0.35) \
 				.set_delay(lead + span)
-		_windup_tween.tween_property(visuals, "modulate", Color.WHITE, flare * 0.65) \
+		_windup_tween.tween_property(body, "feedback_tint", Color.WHITE, flare * 0.65) \
 				.set_delay(lead + span + flare * 0.35)
 	else:
 		_windup_tween.tween_callback(_release_caster).set_delay(lead + span)
@@ -637,8 +640,8 @@ func _release_caster() -> void:
 		_windup_tween.kill()
 	_windup_tween = null
 	if _windup_caster != null and is_instance_valid(_windup_caster) \
-			and _windup_caster.visuals != null:
-		_windup_caster.visuals.modulate = Color.WHITE
+			and _windup_caster.node_visuals() != null:
+		_windup_caster.node_visuals().set(&"feedback_tint", Color.WHITE)
 	_windup_caster = null
 
 

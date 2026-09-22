@@ -219,6 +219,13 @@ var core_halo_style: int = -1:
 @onready var hover_ring: Node2D = $Visuals/HoverRing
 @onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar
 @onready var _node_visuals: Node2D = $Visuals/NodeVisualsComposite
+
+
+## The body composite, for a presenter that drives its
+## [member NodeVisualsComposite.feedback_tint] (the hit-flash channel) — never
+## `visuals.modulate`, which would multiply the hover ring down (#304).
+func node_visuals() -> Node2D:
+	return _node_visuals
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 ## The shots-left pip row (#959) — see `shots_pips.gd`. Typed via preload,
 ## not a `class_name`, for the same cache-refresh reason as line 6.
