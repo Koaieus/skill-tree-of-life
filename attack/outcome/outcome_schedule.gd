@@ -312,8 +312,10 @@ func _assign(cadence: ScheduleEntry.Cadence) -> void:
 				entry.arrive_at = lead + entry.structural_key * beat_span
 				entry.launch_at = entry.arrive_at - lead
 			ScheduleEntry.Cadence.RAMP:
-				entry.launch_at = shape.volley_draw_time \
-						+ entry.structural_key * shape.volley_stagger_span
+				# No draw term: the wind-up is an awaited presenter beat paid
+				# once before the replay (ADR 0027), so the first arrow
+				# launches at 0.0 of the replay clock whatever the draw time.
+				entry.launch_at = entry.structural_key * shape.volley_stagger_span
 				entry.arrive_at = entry.launch_at + shape.volley_flight_time
 			ScheduleEntry.Cadence.SWING:
 				entry.arrive_at = entry.structural_key * shape.swing_duration

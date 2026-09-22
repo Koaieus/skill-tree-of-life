@@ -177,9 +177,9 @@ func test_resolve_stamps_the_authored_ramp_onto_arrival_time() -> void:
 	# resolve() authors arrival_time from the volley's DISTANCE SPAN, not from
 	# distance/speed and not from append order — via OutcomeSchedule.compile's
 	# Cadence.RAMP branch reading PresentationTempo (#543). The two ends of the
-	# span pin the window: the nearest leaf launches at volley_draw_time
-	# (frac 0), the furthest-reaching one volley_draw_time +
-	# volley_stagger_span later (frac 1). Both leaves reach here; _leaf_near
+	# span pin the window: the nearest leaf launches at 0.0 (frac 0), the
+	# furthest-reaching one volley_stagger_span later (frac 1). The draw time
+	# is an awaited wind-up beat, never a schedule term (ADR 0027, #1042). Both leaves reach here; _leaf_near
 	# (dist 50) outranks _leaf_far (dist 450).
 	_set_range(_leaf_far, 500.0)  # distance 450 → reaches too
 	var tempo := PresentationTempo.shared_default()
@@ -192,11 +192,10 @@ func test_resolve_stamps_the_authored_ramp_onto_arrival_time() -> void:
 	assert_eq(near_hit.origin, _leaf_near, "nearest leaf fires (and is listed) first")
 	assert_eq(far_hit.origin, _leaf_far)
 	assert_almost_eq(near_hit.arrival_time,
-			tempo.volley_draw_time + tempo.volley_flight_time, 0.0001,
-			"rank 0 launches at volley_draw_time with no ramp offset")
+			tempo.volley_flight_time, 0.0001,
+			"rank 0 launches at 0.0 with no ramp offset and no draw term")
 	assert_almost_eq(far_hit.arrival_time,
-			tempo.volley_draw_time + tempo.volley_stagger_span
-					+ tempo.volley_flight_time, 0.0001,
+			tempo.volley_stagger_span + tempo.volley_flight_time, 0.0001,
 			"the last rank launches volley_stagger_span after the first")
 
 
@@ -225,7 +224,7 @@ func test_middle_shot_launches_at_its_distance_fraction_not_its_rank() -> void:
 	p._on_node_left_clicked(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 3)
-	var base: float = tempo.volley_draw_time + tempo.volley_flight_time
+	var base: float = tempo.volley_flight_time
 	assert_almost_eq(outcome.hits[0].arrival_time, base, 0.0001,
 			"nearest leaf pins frac 0")
 	assert_almost_eq(outcome.hits[1].arrival_time,
@@ -261,7 +260,7 @@ func test_equidistant_leaves_all_launch_on_the_same_beat() -> void:
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 2)
 	var tempo := PresentationTempo.shared_default()
-	var expected: float = tempo.volley_draw_time + tempo.volley_flight_time
+	var expected: float = tempo.volley_flight_time
 	for hit in outcome.hits:
 		assert_almost_eq(hit.arrival_time, expected, 0.0001,
 				"an equidistant volley has no ramp to spread across")
@@ -275,7 +274,7 @@ func test_single_shot_volley_launches_at_draw_time() -> void:
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 1)
 	assert_almost_eq(outcome.hits[0].arrival_time,
-			tempo.volley_draw_time + tempo.volley_flight_time, 0.0001)
+			tempo.volley_flight_time, 0.0001)
 
 
 func test_firing_schedule_ranks_nearest_leaf_first() -> void:

@@ -34,8 +34,8 @@ func test_every_arrow_launches_before_the_first_one_lands() -> void:
 	# that is only the same thing as "at launch" while the LAST launch still
 	# precedes the FIRST arrival:
 	#
-	#   last launch  = volley_draw_time + volley_stagger_span
-	#   first arrival = volley_draw_time + volley_flight_time
+	#   last launch  = volley_stagger_span   (the draw time is a wind-up beat, not a term)
+	#   first arrival = volley_flight_time
 	#
 	# Retune volley_stagger_span past volley_flight_time (PresentationTempo,
 	# #543) and an arrow gets loosed AFTER an earlier arrow has already

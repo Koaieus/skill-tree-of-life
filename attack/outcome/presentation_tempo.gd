@@ -55,10 +55,10 @@ const DEFAULT_PATH := "res://attack/outcome/default_presentation_tempo.tres"
 ## Ranged: the wind-up — the arrows animate in, parked at their leaves, before
 ## the first one leaves the string. An awaited presenter beat (ADR 0027), paid
 ## once in `_stage_windup`, never a schedule offset. 0.0 = no wind-up.
-@export var volley_draw_time: float = 0.0
+@export var volley_draw_time: float = 0.5
 ## Ranged: seconds between one parked arrow's placement and the next during the
 ## wind-up — "fast": the whole volley is in place well inside the draw time.
-@export var volley_place_stagger: float = 0.0
+@export var volley_place_stagger: float = 0.03
 ## Ranged: seconds between the nearest leaf's launch and the farthest leaf's,
 ## the span the volley's metric ramp lerps across.
 @export var volley_stagger_span: float = 0.7

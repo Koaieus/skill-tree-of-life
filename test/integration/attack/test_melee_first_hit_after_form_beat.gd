@@ -188,6 +188,11 @@ func test_a_ranged_first_hit_lands_after_the_presenters_windup_on_the_real_clock
 	vfx.lead = 0.6
 	add_child_autofree(vfx)
 	_bs.attack_vfx = vfx
+	# The tempo's own ranged lead is zeroed so the wait below is the stub
+	# presenter's alone — what `_stage_windup` awaits is the presenter's return.
+	var tempo := PresentationTempo.new()
+	tempo.volley_draw_time = 0.0
+	_bs.presentation_tempo = tempo
 	assert_eq(_bs.tempo().windup_lead(BattleSystem.AttackMode.RANGED), 0.0,
 			"the tempo authors no ranged lead — the wait below is the presenter's alone")
 	_attacker.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 10)
