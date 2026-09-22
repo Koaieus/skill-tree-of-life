@@ -135,14 +135,19 @@ func test_pipeline_clamps_negative_increase_below_minus_100() -> void:
 	assert_almost_eq(float(board.strength.get_value()), 0.0, 0.001)
 
 ## DoT potency lives on attribute packs (poison→DEX, corruption→STR,
-## curse→WIS, wither→CON); a node never rolls a potency its archetype does
-## not own. Seeded budget-7 draws, the same harness as the mobility test.
-func _potency_ids_over_seeded_draws(primary: StringName) -> Array[StringName]:
+## curse→CON, wither→INT after #1058); a node never rolls a potency its
+## archetype does not own, and after #1059 only its BLIGHTED nodes roll it at
+## all. Seeded budget-7 draws, the same harness as the mobility test.
+func _potency_ids_over_seeded_draws(primary: StringName,
+		subtype_id: StringName = &"blight") -> Array[StringName]:
 	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	var subtype := NodeSubtype.new()
+	subtype.id = subtype_id
 	var seen: Array[StringName] = []
 	for seed_value in range(1, 200):
 		var mods: Array = _GP._roll_modifiers_v4(
-				pool_set, [], primary, primary, [], Vector2.ZERO, 0, 7, _rng(seed_value))
+				pool_set, [], primary, primary, [], Vector2.ZERO, 0, 7, _rng(seed_value),
+				{}, subtype)
 		for m in mods:
 			if String(m.stat_id).ends_with("_potency") and not (m.stat_id in seen):
 				seen.append(m.stat_id)
@@ -156,10 +161,23 @@ func test_dot_potency_rolls_only_on_its_attribute_home() -> void:
 	var dex_seen := _potency_ids_over_seeded_draws(&"dexterity")
 	assert_true(&"poison_potency" in dex_seen, "poison_potency rolls on a DEX node (seen %s)" % [dex_seen])
 	assert_false(&"corruption_potency" in dex_seen, "corruption_potency never rolls on a DEX node (seen %s)" % [dex_seen])
+	# #1059's second key: the same STR node, regular or blessed, rolls none.
+	for pole: StringName in [&"regular", &"bless"]:
+		assert_eq(_potency_ids_over_seeded_draws(&"strength", pole).size(), 0,
+			"a %s STR node rolls no potency at all — potency is the blighted pole" % pole)
+
+
+func _subtype_ids(pool: StatPool) -> Array[StringName]:
+	var out: Array[StringName] = []
+	for st in pool.subtypes:
+		out.append(st.id)
+	out.sort()
+	return out
 
 
 ## Shape, never magnitude: every potency pool in the specimen set is
-## archetype-scoped; every resistance is universal and T2..T4 only.
+## archetype-scoped and gated to `blight`; every resistance is archetype-scoped
+## and gated to `bless` (#1059 — they stopped being universal) and T2..T4 only.
 func test_dot_pools_shape() -> void:
 	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
 	var potency_count := 0
@@ -171,9 +189,14 @@ func test_dot_pools_shape() -> void:
 			if sid.ends_with("_potency"):
 				potency_count += 1
 				assert_ne(pp.archetype_stat, &"", "%s must have an attribute home" % sid)
+				assert_eq(_subtype_ids(pp), [&"blight"] as Array[StringName],
+					"%s is the blighted pole and nothing else" % sid)
 			elif sid.ends_with("_resistance"):
 				resistance_count += 1
-				assert_eq(pp.archetype_stat, &"", "%s stays universal" % sid)
+				assert_ne(pp.archetype_stat, &"",
+					"%s left the universal pile for its family's archetype (#1059)" % sid)
+				assert_eq(_subtype_ids(pp), [&"bless"] as Array[StringName],
+					"%s is the blessed pole and nothing else" % sid)
 				assert_eq(pp.min_tier, 2, "%s never rolls at T1" % sid)
 				assert_eq(pp.max_tier, 4, "%s ladders three rungs to T4" % sid)
 	assert_eq(potency_count, 4, "four potency pools across the set")
