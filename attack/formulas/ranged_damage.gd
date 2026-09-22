@@ -20,7 +20,7 @@ class_name RangedDamageFormula
 ## leaf's distance to target into 0..1 across [d_min, d_max] and stamps it
 ## onto `HitInstance.structural_key` — seconds are assigned later, by
 ## `OutcomeSchedule.compile()`'s `Cadence.RAMP` branch, off
-## `PresentationTempo.volley_draw_time` / `volley_stagger_span` /
+## `PresentationTempo.volley_stagger_span` /
 ## `volley_flight_time` (#543). `compute()` itself leaves `arrival_time` at
 ## the HitInstance default (0.0) — it never had seconds to stamp.
 

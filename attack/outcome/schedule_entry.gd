@@ -38,7 +38,7 @@ enum Cadence {
 	BEAT,
 	## Ranged. The key is the shot's normalized position in the volley's
 	## DISTANCE span (0 = nearest leaf, 1 = farthest), turned into
-	## `volley_draw_time + key * volley_stagger_span` for the launch and
+	## `key * volley_stagger_span` for the launch (the draw is an awaited wind-up beat, never a schedule offset) and
 	## `+ volley_flight_time` for the arrival.
 	RAMP,
 	## Melee. The key is normalized position along the swing (0..1) —
