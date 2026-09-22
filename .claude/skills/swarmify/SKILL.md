@@ -125,6 +125,13 @@ clean ★★★★☆ · smell: none · perf ★★★★★ · blast ●●○�
 Say it when every option scores the same on `clean` — the fork is then about
 something else.
 
+Cleanest is not biggest. Look for the shape the problem already has — a
+signal, a system, a bespoke resource with subclasses, a shape already in
+the tree — and when a pick makes something else **fall out for free** (a
+special case that disappears, a test that writes itself, a sibling that
+closes), say so in the option's "buys" sentence; that is the tell. A pick
+where nothing falls out gets a second look.
+
 ### 5. Settle each fork with the owner
 
 **The cleanest option is the default.** "A, sorta clean" against "B, hella

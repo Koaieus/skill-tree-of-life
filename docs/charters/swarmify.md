@@ -285,6 +285,16 @@ Numbered so the skill can be checked against them law by law.
     addition to it; the prose that used to argue the ranking is replaced by
     the line, not joined by it.
 
+    "Cleanest" is not "most": the problem at hand has a shape its solution
+    fits best — a signal, a system, a bespoke resource with subclasses, a
+    shared shape already in the tree — and the pass is on the lookout for
+    that shape, not for the largest refactor. The tell that it has been
+    found is that something else *falls out for free* — a consumer that no
+    longer needs a special case, a test that writes itself, a sibling issue
+    that closes. Name it when it happens; a pick where nothing falls out is
+    worth a second look. Swarmify sessions shape the whole codebase, so this
+    is where the weight sits.
+
 ## Incident corpus
 
 Each law traces to at least one of these. Kept here so the skill does not
@@ -313,6 +323,7 @@ have to carry them.
 | 2026-09-22 | owner | "read the room for when an issue is more about designing before serving forks … put your Epic Game Designer hat on and when the picture becomes clear, then we talk code plans, forks to settle, with the cold hard specs and technical seam maps … sometimes crank up the LLM temperature" | 29 |
 | 2026-09-22 | owner | "when a fork can be settled with 'this option A which is sorta clean' and 'this option B which is hella clean but costs more work' then that's gonna be a B in 99% of cases … This project for a solo dev grew this big yet stayed so maintainable due to our aggressive combating of tech debt … you wouldn't know how much stuff landed by drones that used plumbing that was already there just because what could've been deferred as YAGNI instead was implemented on the spot"; asked for a stars ranking on cleanliness plus blast radius ("which we take to the chin every time"), effectiveness, good practices, lack of smell, perf, style secondary — "swarmify is often a lot of reading and thinking in which i could use all help i can get" | 30 |
 | 2026-09-22 | transcript scan (318 sessions, 681 `AskUserQuestion` pairs) | 106 pairs turned on a clean-vs-cheap axis; owner picked cleaner 49 vs cheaper 33 (~1.5:1), even within `/swarmify` runs. Where the agent's `(Recommended)` tag and the owner's pick disagreed on that axis, the owner pushed toward *more* work 9 times and toward less 5 — the tag was under-recommending cleanliness. Sonnet-labelled, directional not exact. Two side patterns: perf ("how many nodes, how fast") is the real tiebreaker at least as often as cleanliness; and the owner routinely answers a menu by redirecting the premise or synthesising a new option — options are a prompt to think aloud, not a strict menu, so a scorecard must survive an "Other" answer | 30 |
+| 2026-09-22 | owner | "100% and we don't need to go overboard. Usually the problem at hand has a certain shape of solution that works best, add a signal? Add a system? Add a bespoke resource and or set of subclasses? A shared shape? Just be on the lookout … these swarmify sessions basically shape the entire codebase.. so they bear some weight. Or i love it when we discuss and then agent mentions something along the lines of '… and then XYZ *falls out* for free' like those nifty picks are often just style and clean architecture high fiving" | 30 |
 
 ## What the skill must not contain
 
