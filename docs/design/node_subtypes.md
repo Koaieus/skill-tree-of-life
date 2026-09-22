@@ -152,12 +152,23 @@ derived from the stat's `StatDef.tint_color`). Subtype is its peer, so:
 class_name NodeSubtype
 extends Resource
 
-@export var id: StringName = &""          # &"blight", &"bless"
+@export var id: StringName = &""          # &"regular", &"blight", &"bless"
 @export var display_name: String = ""
 @export var tint: Color = Color.WHITE     # composed into NodeVisualsComposite.modulate
-@export var emissive_tier: StringName     # blessed blooms; blighted stays sub-1.0
-@export var forbid_tags: Array[StringName] = []   # ② below, authored with the identity
+@export var emissive_tier: Emissive.Tier = Emissive.Tier.INERT   # blessed blooms; blighted stays sub-1.0
+
+## The canonical default. A lazy static accessor, NOT `const REGULAR :=
+## preload(...)` — regular.tres's own script IS this class, so a class-scope
+## preload is a cyclic load. Same idiom StatPool already uses for
+## `TagRegistry.canonical()` (stat_pool.gd:335).
+static func regular() -> NodeSubtype:
+    ...   # res://procgen/subtypes/regular.tres
 ```
+
+`Emissive` exposes tiers as **floats** on an `enum Tier` (`ui/theme/emissive.gd:26-37`
+— INERT 0.0, LABEL 0.5, VALUE 1.0, ALERT 2.0, PEAK 3.0) and `Emissive.at()` takes
+`stops: float`. Author the enum, never a `StringName`; there is no string→float map
+to invent.
 
 Why this beats an enum, concretely:
 
@@ -171,44 +182,75 @@ grows past "which pools, which tint" an enum would have sufficed. It is the
 right call anyway because `Archetype` set the precedent for exactly this fact
 and two axes of the same kind should not be two kinds of thing.
 
-**The pool gate** is then a reference, null meaning "any":
+**The pool gate is a SET**, empty meaning "any" (owner, 2026-09-22 — decision 12;
+this reverses an earlier single-reference draft of this section):
 
 ```gdscript
 # StatPool
-@export var subtype: NodeSubtype = null   # null = any subtype; set = that subtype only
+@export var subtypes: Array[NodeSubtype] = []   # [] = any subtype; else exactly these
 ```
 
 ```
 pool is selected for a node iff
-    (pool.archetype_stat == &"" or == node.primary_stat)
-and (pool.subtype       == null or == node.subtype)
+    (pool.archetype_stat == &""   or == node.primary_stat)
+and (pool.subtypes.is_empty()     or node.subtype in pool.subtypes)
 ```
 
-**The default needs no list.** A regular node simply fails to match a pool
-whose `subtype` is set. A fifth subtype added in a year is excluded from every
-existing node automatically, because exclusion is *structural*, not
+**The default needs no list.** A regular node fails to match a pool whose
+`subtypes` names only blight. A fifth subtype added in a year is excluded from
+every existing node automatically, because exclusion is *structural*, not
 enumerated. That is the whole reason this is a gate and not a tag.
 
-**The `SkillNode` carries it too** — `@export var subtype: NodeSubtype = null`,
+**And a set, unlike a single reference, can *exclude*.** A pool authored
+`[regular, blessed]` is one a blighted node cannot draw — which is how a
+subtype expresses what it **gives up**, per-archetype, with no second
+mechanism. See ② below for why that killed the `forbid_tags` design.
+
+**The `SkillNode` carries it too** — `@export var subtype: NodeSubtype = null`
+(singular: a node has exactly one; `null` means *unset*, as on a hand-authored
+sandbox node, and procgen always stamps the resolved default instead) —
 read by `NodeVisualsComposite` to compose `subtype.tint` into its existing
 modulate chain. Unlike the procgen-authoring fields #336 stripped off
 `skill_node.gd`, this one earns its place: it drives runtime appearance, not
 just generation.
 
-### ② What a subtype gives up — `forbid_tags`, doing what tags are for
+### ② What a subtype gives up — the same set, not a second mechanism
 
-Membership alone is additive: a blighted node would get every regular pool
-*plus* the blight pools, which is the strictly-better problem again. So
-`NodeSubtype` also carries a `forbid_tags` list — and now that is an honest
-use of tags, a *designer flavour choice* rather than an identity mechanism.
-Blighted DEX forbids `crit`; that one line **is** "trades crit% for DoT
-stats", stated in the vocabulary `ArchetypePolicy` already speaks and
-`GraphProcgen._has_forbidden_tag` already enforces.
+**Settled, owner 2026-09-22 (decision 12). This section is a reversal**: an
+earlier draft gave `NodeSubtype` its own `forbid_tags: Array[StringName]`,
+unioned into the `archetype_forbid` that already flows from `ArchetypePolicy`
+into `GraphProcgen._roll_modifiers_v4` (`graph_procgen.gd:339`). That is dead.
 
-Two knobs, each answering its own question: **`subtype` decides what *can*
-appear, `forbid_tags` decides what the subtype *gives up*.** Neither leaks
-into the other, and both are authored on the one resource that defines the
-subtype.
+The objection that killed it: **one list across six archetypes.** Blighted DEX
+gives up `crit`. Blighted STR gives up… what? A global forbid works as a union
+(forbidding `crit` is a no-op on STR) but cannot express *"blighted DEX keeps
+armor, blighted STR loses it."*
+
+The set gate says it without a second mechanism, because **pools are already
+per-archetype**. "Blighted DEX trades crit% for DoT stats" is one line of
+authoring on one pool:
+
+```
+dexterity.tres → crit_chance pool → subtypes = [regular, blessed]
+```
+
+The blighted DEX node cannot draw it. STR's armor pool, untouched, keeps
+`subtypes = []` and every STR node draws it regardless. One owner, one fact:
+**every pool states which subtypes may draw it.** Membership and give-up were
+never two questions — they are the same question ("may this node draw this
+pool?") answered per pool.
+
+What dies with `forbid_tags`: the second knob on `NodeSubtype`, and the doc's
+former claim that the two "each answer their own question". What survives
+untouched: `ArchetypePolicy.forbid_tags` and `_has_forbidden_tag`, which are
+the *archetype's* give-up and are not in this axis's business.
+
+**The entry-id trap this creates.** `StatPool.to_entries` mints
+`<stat>_<op>_<arch>_t<tier>` (`stat_pool.gd:209-213`) and weight profiles
+target by that id. Two pools for the same (stat, op, archetype) — a regular
+`crit_chance` pool and a blessed one weighted higher — would **collide**. So a
+subtype segment is appended **only when `subtypes` is non-empty**: every
+already-authored id stays byte-identical and the goldens do not churn.
 
 ### Authoring ergonomics — and why subtype stays on the pool
 
@@ -245,9 +287,45 @@ Each `NodeSubtype` carries its own share; regular is the remainder:
 @export var subtypes: Array[NodeSubtype] = []
 ```
 
-One weighted pick per node during the content loop. No second pass, no
-seeding, no policy array. The frequency lives on the identity that defines the
-subtype, so authoring a new one is still a single `.tres`.
+`subtypes` holds only the **weighted** subtypes; regular is the remainder, and
+what a node that rolls nothing gets is the global default —
+`NodeSubtype.regular()` — which a preset may override:
+
+```gdscript
+# GraphProcgenContent
+@export var default_subtype: NodeSubtype = null   # null = NodeSubtype.regular()
+```
+
+One weighted pick per node during the content loop, inside the archetype
+branch only (`graph_procgen.gd:~340`; the else branch is the budget-0 path and
+gets no subtype). No second pass, no policy array. The frequency lives on the
+identity that defines the subtype, so authoring a new one is still a single
+`.tres`.
+
+### The fallback that makes a ragged grid safe
+
+**Settled, owner 2026-09-22 (decision 13).** A rolled subtype **stands only if
+the node can actually draw content for it**:
+
+```
+rolled subtype s stands iff  ∃ pool . (pool.archetype_stat == &"" or == primary)
+                                  and s in pool.subtypes
+otherwise the node gets `default_subtype`.
+```
+
+Without this, a node rolls blighted, takes the dark rim, and draws only the
+regular pools — it *looks* blighted and *plays* regular. At 800 nodes and a
+0.10 blight chance that is ~80 blighted nodes, ~13 of them WIS, which
+**decision 6 exempts from blighted content on purpose**. The hole is real and
+intentional, so the guard is not optional.
+
+What it buys beyond the WIS cell: the grid may be ragged **anywhere, forever**.
+Add a seventh archetype, add a fourth subtype, forget a cell — nothing ever
+lies. And it is the correct behaviour at `subtypes = []` for free, so the
+mechanism child's unchanged-goldens acceptance already exercises it.
+
+The predicate is per-`(archetype, subtype)`, not per-node: compute it **once
+per `generate()`** into a lookup, never inside the node loop.
 
 ### Why this is the right v1 and not a shortcut
 
@@ -313,12 +391,21 @@ later upgrade with its own justification, not part of the first cut.
 8. **The gate stays on `StatPool`, even after #751 moves `archetype_stat` up to `StatPack`.** A pack is one archetype by definition, so repeating it is noise; a pack deliberately holds *mixed* subtypes, so subtype is real per-pool information.
 9. **Placement is a per-node `base_chance` in v1**, regular as the remainder. Clustered regions are an upgrade that changes nothing authored.
 
+### Decisions added 2026-09-22 (second session, the decomposition pass)
+
+10. **Blighted WIS is "the blighted archive"** — WIS hosts the **shared** cross-family knobs (falloff, duration) rather than a sixth family. It stays meta-flavoured and needs no new family. This is the recorded *destination*: those two stats do not exist yet, so it is **not v1 content**.
+11. **Blessed WIS needs a pool-shaped answer**, not a budget multiplier — the replace-not-add rule holds absolutely. Owner: *"'more budget' is comparable to 'blessed offers similar mods but at lower budget cost' (effectively cheaper). but also open for other niceties or rarities that we could add to such wondrous concept as BLESSED WIS nodes. some rare stat one'd barely touch so far"*. Per-pool cost is not authorable today (cost comes from [TierLadder] per tier), so this too is **not v1 content**.
+12. **What a subtype gives up is the same per-pool set, not a `forbid_tags` list.** `StatPool.subtypes: Array[NodeSubtype]`, empty = any. One owner for "may this node draw this pool?"; per-archetype precision falls out because pools are already per-archetype. `NodeSubtype.forbid_tags` is **deleted from the design**. Reverses §① (single ref → set) and §② entirely.
+13. **A rolled subtype that has no drawable content demotes to the default.** The guard is structural, computed once per `generate()`, so the grid may be ragged anywhere without any node ever looking like something it does not play.
+14. **`regular` is a global default with an optional per-preset override.** Owner: *"a global default subtype const (`regular`/none) and procgencontent could then optionally override"*. `NodeSubtype.regular()` is the canonical one; `GraphProcgenContent.default_subtype` overrides when set. It must be a **lazy static accessor**, not a class-scope `preload` — `regular.tres`'s script is `NodeSubtype` itself, so the preload is cyclic.
+15. **Inspector DX is the typed picker and nothing more.** Owner: *"The typed picker is enough"*. `Array[NodeSubtype]` gets a resource-filtered picker for free (no strings to misspell); no `resource_name` echo and no extra `_get_configuration_warnings` branch in v1.
+
 ## Three things a spec must not miss
 
 ### The subtype roll needs its own salted RNG stream
 
 `ScenePlacement` is the precedent, and it states the reason outright
-(`procgen/placement/scene_placement.gd:20-23`): *"Draws come off
+(`procgen/placement/scene_placement.gd:18-21`): *"Draws come off
 [PlacementContext.scene_rng], a stream derived from the run seed … the main
 stream is untouched, so a preset with and without keystones rolls the same
 terrain."*
@@ -336,27 +423,39 @@ all — the 12 + 2 stat build-out is a later, separate lane.
 
 That splits cleanly:
 
-- **The mechanism is inert by default.** With `subtypes = []`, every pool has `subtype == null`, so the two-key filter selects exactly what it selects today. **Unchanged goldens are the mechanism child's acceptance test.**
+- **The mechanism is inert by default.** With `subtypes = []` no node rolls anything, and every pool's `subtypes` is empty (= any), so the two-key filter selects exactly what it selects today — and `to_entries` appends no subtype segment, so every entry id is byte-identical too. **Unchanged goldens are the mechanism child's acceptance test** (necessary, not sufficient — see the child's own red tests).
 - **Authoring the content is a balance change to shipped content** — marking potency pools blighted-only, moving the four resistances out of universal into per-archetype blessed pools. That is `blocked-by` **#975**: resistances leaving the universal pile is precisely the case the fixed slice exists to make safe.
 
-### `forbid_tags` is one list across all six archetypes
+### ~~`forbid_tags` is one list across all six archetypes~~ — resolved, and one premise here was false
 
-Blighted DEX gives up `crit`. Blighted STR gives up… what? A single global
-list on `NodeSubtype` works as a union (forbidding `crit` is a no-op on STR)
-but cannot express *"blighted DEX keeps armor, blighted STR loses it."*
+**Superseded by decision 12** (the set gate). Kept because the *correction*
+matters to anyone re-reading the old argument.
 
-And the owner's own sketch asks for something a forbid list cannot say at all
-— blessed DEX rolls crit factor ***"more often than on regular"***. That is a
-**weight**, not an exclusion. `ArchetypePolicy` already carries
-`weight_profiles: Array[Resource]`; `NodeSubtype` probably wants the same,
-with a forbid being the zero-weight case. Spec question, not a blocker.
+The complaint stands and is what killed `forbid_tags`: a single global list
+cannot express *"blighted DEX keeps armor, blighted STR loses it."* The set
+gate says it per-pool instead — see ② above.
+
+**The premise that was false:** this section used to claim *"`ArchetypePolicy`
+already carries `weight_profiles: Array[Resource]`; `NodeSubtype` probably
+wants the same."* It does not. `weight_profiles` lives on
+**`GraphProcgenContent`** (`procgen/modules/content.gd:20`) as a **set-wide**
+array consumed through `WeightContext` — there is no per-identity precedent to
+mirror, and a per-subtype profile would be a new composition path in the draw
+loop, not a copy of an existing one.
+
+**And the use case it was reaching for is already covered.** Blessed DEX
+rolling crit factor *"more often than on regular"* is a **second pool** for the
+same (stat, op, archetype) gated `subtypes = [bless]` with a higher
+`pool_weight` — which the set gate expresses directly, and which is exactly
+what the entry-id segment in ② exists to keep from colliding. Per-subtype
+weight profiles are **not deferred, they are unnecessary**.
 
 ## Open questions
 
-1. **What is blighted WIS?** The one ragged cell. WIS is pure economy, so it has no status family to invert. Candidates: (a) it simply does not exist — the grid is ragged and that is honest; (b) WIS hosts the **shared** cross-family knobs (falloff, duration) on its blighted form — "the blighted archive, knowledge of every plague" — which keeps WIS meta-flavoured and needs no sixth family; (c) the economy itself is corrupted — the node still pays XP but taints the holder.
-2. **Is blessed WIS a budget bump, and does that break the rule?** Every other blessed cell swaps pools; a budget multiplier is a different *kind* of effect. Either the rule admits a second mechanism or blessed WIS needs a pool-shaped answer.
+1. ~~What is blighted WIS?~~ **Settled** (decision 10): the blighted archive — WIS hosts the shared cross-family knobs. Destination only; the stats do not exist yet.
+2. ~~Is blessed WIS a budget bump?~~ **Settled** (decision 11): no — pool-shaped, the rule holds. The shape the owner wants ("similar mods at lower budget cost", or rare barely-touched stats) is not authorable today. Both WIS cells are out of v1 and have their own issue.
 3. ~~How is subtype generated?~~ **Settled**: a per-node `base_chance` on each `NodeSubtype`, regular as the remainder. Promote to clustered regions only if the speckle reads badly in play.
 4. **Can a subtype's territory be converted?** Does holding blessed nodes cleanse adjacent blighted ones, or is subtype fixed at generation? A conversion mechanic would make the map a battleground in a second dimension; fixed is far cheaper.
 5. **Do the four families each need a fifth/sixth sibling** now that PER takes blindness and WIS takes none? Owner noted *"Blight is a good name also for if we ever need a 5th."*
-6. **What do the `forbid_tags` lists actually key on?** The membership gate needs no new tags, but each subtype's give-up list does (`crit`, …). Worth a pass over the existing `procgen/tags.tres` vocabulary before adding any — the right forbid list may already be expressible.
+6. ~~What do the `forbid_tags` lists actually key on?~~ **Moot** (decision 12): there are no subtype forbid lists. The give-up is the per-pool set, which keys on nothing — it names resources. No new tags are needed by this axis at all.
 7. **Exact stat count.** 14 is the proposal above (12 per-family + 2 shared). Owner's range was 8–16, *"maybe up to 16 if we flesh them out with more bespoke tweakables."*
