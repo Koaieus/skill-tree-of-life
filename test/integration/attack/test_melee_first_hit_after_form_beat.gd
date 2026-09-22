@@ -180,19 +180,15 @@ func _set_stat(node: SkillNode, id: StringName, value: float) -> void:
 func test_a_ranged_first_hit_lands_after_the_presenters_windup_on_the_real_clock() -> void:
 	# Acceptance 2 (#1041): `_apply_outcome` starts no earlier than the seconds
 	# the presenter's `begin_windup` returned — melee's path, now for a
-	# coordinator. The volley's own beats are zeroed so that WITHOUT the
-	# staging the first hit would land at ~0 s; a hit that clears the 0.6 s
-	# bound is one that waited on the wind-up.
+	# coordinator. The bound is the volley's OWN first arrival (read off the
+	# compiled schedule — the arrow's flight, which the staging does not
+	# touch) plus the wind-up: without the staging the first hit lands at
+	# exactly that arrival, so a hit 0.6 s past it is one that waited.
 	var vfx := _StubAttackVFX.new()
 	vfx.lead = 0.6
 	add_child_autofree(vfx)
 	_bs.attack_vfx = vfx
-	var tempo := PresentationTempo.new()
-	tempo.volley_draw_time = 0.0
-	tempo.volley_stagger_span = 0.0
-	tempo.volley_flight_time = 0.0
-	_bs.presentation_tempo = tempo
-	assert_eq(tempo.windup_lead(BattleSystem.AttackMode.RANGED), 0.0,
+	assert_eq(_bs.tempo().windup_lead(BattleSystem.AttackMode.RANGED), 0.0,
 			"the tempo authors no ranged lead — the wait below is the presenter's alone")
 	_attacker.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 10)
 	_set_stat(_arm, &"range", 100.0)
@@ -204,6 +200,9 @@ func test_a_ranged_first_hit_lands_after_the_presenters_windup_on_the_real_clock
 		if first_hit_at[0] < 0.0:
 			first_hit_at[0] = float(Time.get_ticks_usec() - started_at[0]) / 1000000.0
 	Events.skill_node_damaged.connect(probe)
+	var committed: Array[AttackOutcome] = []
+	_bs.attack_committed.connect(func(o: AttackOutcome, _e: Entity) -> void:
+		committed.append(o))
 
 	_bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
 	var plan := _bs.attack_plan as RangedAttackPlan
@@ -217,7 +216,14 @@ func test_a_ranged_first_hit_lands_after_the_presenters_windup_on_the_real_clock
 
 	assert_false(_bs.is_launching, "the launch settled inside the budget")
 	assert_gt(first_hit_at[0], 0.0, "the fixture volley must land a hit at all")
+	assert_eq(committed.size(), 1, "one commit")
+	var schedule: OutcomeSchedule = committed[0].schedule
+	assert_not_null(schedule, "the commit compiled the schedule before the replay beat")
+	var first_arrival := INF
+	for entry in schedule.entries:
+		first_arrival = minf(first_arrival, entry.arrive_at)
 	var slop := 0.05
-	assert_gt(first_hit_at[0], 0.6 - slop,
-			"the first hit waited out the presenter's 0.6 s wind-up "
-			+ "(hit landed at %.3fs, slop %.3fs)" % [first_hit_at[0], slop])
+	assert_gt(first_hit_at[0], first_arrival + 0.6 - slop,
+			"the first hit waited out the presenter's 0.6 s wind-up on top of its "
+			+ "own flight (first arrival %.3fs, hit landed at %.3fs, slop %.3fs)"
+			% [first_arrival, first_hit_at[0], slop])
