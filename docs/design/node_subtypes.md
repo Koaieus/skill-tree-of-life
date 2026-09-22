@@ -136,53 +136,99 @@ its own future is a footgun, not a design.
 
 So the two jobs get two mechanisms, because they are two different questions:
 
-### ① Membership — a closed gate on the pool, mirroring `archetype_stat`
+### ① Membership — a `NodeSubtype` resource, mirroring `Archetype`
+
+Not an enum, and not a bare `StringName`. Subtype crosses three layers —
+procgen selects on it, the `SkillNode` carries it, the visuals read it — and
+the thing that crosses those layers has to carry *data*: a tint, an emissive
+tier, a display name. A `StringName` cannot; an enum forces a `match` block
+in every one of those layers, and a new subtype then means editing all three.
+
+`Archetype` is already exactly this shape and is already a `Resource`
+(`archetypes/archetype.gd` — `id`, `primary_stat`, `carve_shape`, colour
+derived from the stat's `StatDef.tint_color`). Subtype is its peer, so:
+
+```gdscript
+class_name NodeSubtype
+extends Resource
+
+@export var id: StringName = &""          # &"blight", &"bless"
+@export var display_name: String = ""
+@export var tint: Color = Color.WHITE     # composed into NodeVisualsComposite.modulate
+@export var emissive_tier: StringName     # blessed blooms; blighted stays sub-1.0
+@export var forbid_tags: Array[StringName] = []   # ② below, authored with the identity
+```
+
+Why this beats an enum, concretely:
+
+- **Typos are impossible.** You pick a resource in the inspector; there is no string to misspell and no silent no-match. An enum also prevents typos, but only in code — an enum stored in a `.tres` still serialises as an int, and remapping ints is the churn #319 complained about.
+- **One definition, no `match` blocks.** Visuals read `subtype.tint` and `subtype.emissive_tier`. Procgen compares `subtype`. Nothing switches on identity anywhere.
+- **A new subtype is one `.tres` and zero code.** With an enum it is a new enum value plus every `match` that must handle it — and the compiler will not tell you which ones you missed.
+- **The visual constants live with the identity**, not scattered across a shader-parameter block far from the thing they describe.
+
+The cost, stated: a `Resource` is heavier than an enum, and if subtype never
+grows past "which pools, which tint" an enum would have sufficed. It is the
+right call anyway because `Archetype` set the precedent for exactly this fact
+and two axes of the same kind should not be two kinds of thing.
+
+**The pool gate** is then a reference, null meaning "any":
 
 ```gdscript
 # StatPool
-@export var subtype: StringName = &""   # &"" = any subtype; &"blight" = blighted only
+@export var subtype: NodeSubtype = null   # null = any subtype; set = that subtype only
 ```
-
-Selection becomes a two-key filter, the second key exactly parallel to the
-first:
 
 ```
 pool is selected for a node iff
     (pool.archetype_stat == &"" or == node.primary_stat)
-and (pool.subtype       == &"" or == node.subtype)
+and (pool.subtype       == null or == node.subtype)
 ```
 
-`&""` means "any", the same way it already means "universal" on
-`archetype_stat` — a proven idiom in this codebase rather than a new one.
-
 **The default needs no list.** A regular node simply fails to match a pool
-whose `subtype` is `&"blight"`. A fifth subtype added in a year is excluded
-from every existing node automatically, because exclusion is *structural*, not
-enumerated. That is the whole point of making it a closed gate.
+whose `subtype` is set. A fifth subtype added in a year is excluded from every
+existing node automatically, because exclusion is *structural*, not
+enumerated. That is the whole reason this is a gate and not a tag.
+
+**The `SkillNode` carries it too** — `@export var subtype: NodeSubtype = null`,
+read by `NodeVisualsComposite` to compose `subtype.tint` into its existing
+modulate chain. Unlike the procgen-authoring fields #336 stripped off
+`skill_node.gd`, this one earns its place: it drives runtime appearance, not
+just generation.
 
 ### ② What a subtype gives up — `forbid_tags`, doing what tags are for
 
 Membership alone is additive: a blighted node would get every regular pool
-*plus* the blight pools, which is the strictly-better problem again. The
-subtype policy therefore also carries a `forbid_tags` list — and now that is
-an honest use of tags, a *designer flavour choice* rather than an identity
-mechanism. Blighted DEX forbids `crit`; that is what "trades crit% for DoT
-stats" means, stated once, in the vocabulary `ArchetypePolicy` already speaks
-and `GraphProcgen._has_forbidden_tag` already enforces.
+*plus* the blight pools, which is the strictly-better problem again. So
+`NodeSubtype` also carries a `forbid_tags` list — and now that is an honest
+use of tags, a *designer flavour choice* rather than an identity mechanism.
+Blighted DEX forbids `crit`; that one line **is** "trades crit% for DoT
+stats", stated in the vocabulary `ArchetypePolicy` already speaks and
+`GraphProcgen._has_forbidden_tag` already enforces.
 
 Two knobs, each answering its own question: **`subtype` decides what *can*
 appear, `forbid_tags` decides what the subtype *gives up*.** Neither leaks
-into the other.
+into the other, and both are authored on the one resource that defines the
+subtype.
 
-### Interaction with #751
+### Authoring ergonomics — and why subtype stays on the pool
 
-#751 proposes making `StatPack` the only archetype gate and deleting
-`StatPool.archetype_stat`. `subtype` is that field's twin, so it belongs at
-whatever level the archetype gate ends up at — if archetype moves to the pack,
-subtype moves with it. Worth naming the tension honestly: this adds a second
-`StringName` gate to a class #751 wants to remove one from. The answer is that
-they are the same kind of fact and should share a home, not that one of them
-should be a tag.
+The target shape, in the owner's words: *"i could enter all `STR` related
+rolls onto a single stat pool … and ideally i could add more elements and just
+mark them 'blessed' instead of regular."*
+
+That is what a per-pool gate gives: **one `strength.tres`, pools inside it
+marked individually.** No duplicated packs, no parallel files to keep in sync,
+and a blessed STR pool sits right next to the regular STR pool it trades
+against — which is where you want to read it.
+
+**This reverses an earlier note in this doc.** #751 wants `StatPack` to be the
+only archetype gate, deleting `StatPool.archetype_stat` so a pack stops
+retyping `&"strength"` on every pool. It is tempting to say subtype should
+move up with it. It should not, and the reason is the same reason archetype
+*should*: a pack is one archetype by definition, so repeating it is noise —
+but a pack deliberately contains **mixed** subtypes, so subtype is real
+per-pool information. They are not the same kind of fact. After #751:
+archetype at the pack, subtype at the pool, each where it carries information.
 
 ## How subtype is generated — regions, not confetti
 
