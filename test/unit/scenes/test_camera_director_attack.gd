@@ -211,8 +211,9 @@ func test_a_remote_humans_attack_is_framed_behind_a_wire() -> void:
 	theirs.entity_id = 9
 	_dir.seat_policy = SeatPolicy.seat(7)
 	var hits: Array[HitInstance] = [_hit(_node_at(Vector2.ZERO), _node_at(Vector2(400, 0)))]
-	assert_null(_dir._build_attack_request(_outcome(hits), mine), "my own swing")
 	assert_not_null(_dir._build_attack_request(_outcome(hits), theirs), "theirs")
+	assert_not_null(_dir._build_attack_request(_outcome(hits), mine),
+			"and my own shot too — the seat gate is gone for every mode (#1041)")
 
 
 func test_an_outcome_with_no_hits_fires_nothing() -> void:
@@ -343,6 +344,9 @@ func test_commit_follows_the_pivot_node_and_blade_spawned_rebinds_to_the_marker(
 	var preview := MeleePreview.new()
 	_holder.add_child(preview)
 	bs.melee_preview = preview
+	# The presenter answers `focus_marker()` off the live plan before a ghost
+	# exists, so it needs the battle system the plan hangs on.
+	preview.battle_system = bs
 	_dir.battle_system = bs
 	var outcome := _outcome([_hit(pivot, far)])
 
