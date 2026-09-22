@@ -496,3 +496,134 @@ func test_spawned_visual_is_stamped_with_the_caster_colour() -> void:
 	assert_gt(stamped, 0,
 			"at least one spawned visual actually exposed `tint` and was stamped "
 			+ "— a zero here means the assertion above never ran")
+
+
+# ── Wind-up (#1043): caster hold → territory-neighbour streaks → flare ───────
+#
+# The neighbour set is the ENTITY degree the spell's `min_degree` counts
+# (`attacker.navigator.neighbours_of`), so a foreign neighbour sends nothing.
+
+const _STUB_WINDUP_FX := preload("res://test/unit/vfx/stub_context_visual.tscn")
+
+## Star: caster 0 with territory neighbours 1, 2, 3 and foreign neighbours 4, 5.
+func _star_graph() -> Graph:
+	var positions := {0: Vector2(0, 0), 1: Vector2(100, 0), 2: Vector2(0, 100),
+			3: Vector2(-100, 0), 4: Vector2(0, -100), 5: Vector2(70, 70)}
+	var graph := _helper.make_graph([[0, 1], [0, 2], [0, 3], [0, 4], [0, 5]], self, positions)
+	_attacker = _helper.make_entity(graph, "Caster", Color.RED)
+	_defender = _helper.make_entity(graph, "Foe", Color.BLUE)
+	_helper.give_big_hp(_defender)
+	_helper.assign_owner(graph, _attacker, [0, 1, 2, 3])
+	_helper.assign_owner(graph, _defender, [4, 5])
+	return graph
+
+
+func _windup_tempo(pivot: float, span: float, flare: float) -> PresentationTempo:
+	var tempo := _tempo(0.01, 0.005)
+	tempo.magic_windup_pivot_focus = pivot
+	tempo.magic_windup_draw_span = span
+	tempo.magic_windup_flare = flare
+	return tempo
+
+
+func _magic_plan(graph: Graph, caster_index: int, spell: SpellDef = null) -> MagicAttackPlan:
+	var plan := MagicAttackPlan.new()
+	autofree(plan)
+	plan.attacker = _attacker
+	plan.source = graph.get_skill_nodes()[caster_index]
+	if spell != null:
+		plan.spell = spell
+	return plan
+
+
+func test_begin_windup_spawns_one_streak_per_territory_neighbour() -> void:
+	var graph := _star_graph()
+	var nodes := graph.get_skill_nodes()
+	var coord := _mount_coord(0.01, 0.005)
+	coord.begin_windup(_magic_plan(graph, 0), _windup_tempo(0.25, 0.6, 0.1))
+
+	var streaks := _find_projectiles(coord)
+	assert_eq(streaks.size(), 3,
+			"three territory neighbours send a streak; the two foreign ones send nothing")
+	var origins: Array[Vector2] = []
+	for s in streaks:
+		origins.append(s.global_position)
+		assert_eq(s._target_pos, nodes[0].global_position,
+				"every streak is drawn INTO the caster")
+	for i in [1, 2, 3]:
+		assert_has(origins, nodes[i].global_position,
+				"neighbour %d launches its streak from its own position" % i)
+
+
+func test_begin_windup_degree_one_caster_spawns_one_streak() -> void:
+	# Line: caster 0 — territory 1 — foreign 2.
+	var graph := _helper.make_graph([[0, 1], [1, 2]], self,
+			{0: Vector2(0, 0), 1: Vector2(100, 0), 2: Vector2(200, 0)})
+	_attacker = _helper.make_entity(graph, "Caster", Color.RED)
+	_defender = _helper.make_entity(graph, "Foe", Color.BLUE)
+	_helper.assign_owner(graph, _attacker, [0, 1])
+	_helper.assign_owner(graph, _defender, [2])
+	var coord := _mount_coord(0.01, 0.005)
+	coord.begin_windup(_magic_plan(graph, 0), _windup_tempo(0.25, 0.6, 0.1))
+	assert_eq(_find_projectiles(coord).size(), 1, "a degree-1 caster draws from its one neighbour")
+
+
+func test_begin_windup_returns_magic_windup_seconds() -> void:
+	var graph := _star_graph()
+	var coord := _mount_coord(0.01, 0.005)
+	var tempo := _windup_tempo(0.25, 0.6, 0.1)
+	assert_almost_eq(coord.begin_windup(_magic_plan(graph, 0), tempo),
+			tempo.magic_windup_seconds(), 0.0001,
+			"the staged length is the tempo's formula and nothing else")
+
+
+func test_begin_windup_all_zero_returns_zero_and_spawns_nothing() -> void:
+	var graph := _star_graph()
+	var coord := _mount_coord(0.01, 0.005)
+	assert_eq(coord.begin_windup(_magic_plan(graph, 0), _windup_tempo(0.0, 0.0, 0.0)), 0.0,
+			"the all-zero escape hatch stages nothing")
+	assert_eq(_find_projectiles(coord).size(), 0, "no streak with no draw span")
+
+
+func test_begin_windup_parks_the_focus_marker_at_the_caster() -> void:
+	var graph := _star_graph()
+	var caster: SkillNode = graph.get_skill_nodes()[0]
+	var coord := _mount_coord(0.01, 0.005)
+	coord.begin_windup(_magic_plan(graph, 0), _windup_tempo(0.25, 0.6, 0.1))
+	var marker := coord.focus_marker()
+	assert_not_null(marker, "the wind-up has a marker for the director to follow")
+	if marker != null:
+		assert_eq(marker.global_position, caster.global_position,
+				"during the wind-up the marker is the caster node, stationary")
+
+
+func _windup_fx_children(coord: MagicBounceCoordinator) -> int:
+	var n := 0
+	for child in coord.get_children():
+		if child.scene_file_path == _STUB_WINDUP_FX.resource_path:
+			n += 1
+	return n
+
+
+func test_windup_vfx_scene_is_instanced_for_the_span_and_freed_by_play_end() -> void:
+	var graph := _star_graph()
+	var nodes := graph.get_skill_nodes()
+	var spell := _helper.make_spell(_helper.make_config(
+			_helper.fan_all(), _helper.owner_enemy(), null, {max_hops = 0}),
+			[DamageEffect.new()], 10.0)
+	spell.windup_vfx_scene = _STUB_WINDUP_FX
+	var coord := _mount_coord(0.01, 0.005)
+	coord.begin_windup(_magic_plan(graph, 0, spell), _windup_tempo(0.25, 0.6, 0.1))
+	assert_eq(_windup_fx_children(coord), 1, "the spell's own wind-up FX is layered on the caster")
+
+	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.EDGE)
+	await coord.play(outcome)
+	await get_tree().process_frame
+	assert_eq(_windup_fx_children(coord), 0, "play()'s end frees it")
+
+
+func test_windup_vfx_scene_null_instances_nothing() -> void:
+	var graph := _star_graph()
+	var coord := _mount_coord(0.01, 0.005)
+	coord.begin_windup(_magic_plan(graph, 0), _windup_tempo(0.25, 0.6, 0.1))
+	assert_eq(_windup_fx_children(coord), 0, "no slot set, nothing layered")
