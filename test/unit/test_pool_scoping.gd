@@ -36,6 +36,20 @@ const _CURSED_STAT := {
 
 const _CURSE_FREE: Array[StringName] = [&"wisdom", &"perception"]
 
+## Every archetype, for the sweeps that must check absence as well as presence.
+const _ALL_ARCHETYPES: Array[StringName] = [&"strength", &"dexterity",
+	&"intelligence", &"constitution", &"wisdom", &"perception"]
+
+## #1058 decision 4 — where each DoT family's potency lives. Archetype picks
+## the family: STR corrupts, DEX poisons, INT withers, CON curses. Structural
+## only, like everything else here: no magnitude is pinned.
+const _POTENCY_HOME := {
+	&"corruption_potency": &"strength",
+	&"poison_potency": &"dexterity",
+	&"wither_potency": &"intelligence",
+	&"curse_potency": &"constitution",
+}
+
 
 func _negative_stat_ids(primary: StringName) -> Array[StringName]:
 	# An entry is a downside iff BOTH ends of its rolled range are negative.
@@ -84,6 +98,35 @@ func test_wisdom_and_perception_stay_curse_free() -> void:
 		assert_eq(negatives.size(), 0,
 			"%s is deliberately curse-free (#718) but can roll downsides on %s"
 			% [String(primary), str(negatives)])
+
+
+func _reachable_stat_ids(primary: StringName,
+		subtype: NodeSubtype = null) -> Array[StringName]:
+	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	var out: Array[StringName] = []
+	for e in pool_set.flatten_for_node(primary, subtype):
+		if not e.stat_id in out:
+			out.append(e.stat_id)
+	return out
+
+
+## #1058 — each potency is drawable from its own archetype and from no other.
+## The absence half is the one that matters: a potency pool left on the wrong
+## archetype (or at the `&""` universal default) hands every node in the game
+## the whole DoT offense, which is the `#718` bug wearing a different stat.
+func test_each_dot_potency_reaches_only_its_own_archetype() -> void:
+	for primary in _ALL_ARCHETYPES:
+		var reachable := _reachable_stat_ids(primary)
+		for stat: StringName in _POTENCY_HOME:
+			var home: StringName = _POTENCY_HOME[stat]
+			if home == primary:
+				assert_true(stat in reachable,
+					"a %s node must be able to roll %s (#1058 decision 4) — reachable: %s"
+					% [String(primary), String(stat), str(reachable)])
+			else:
+				assert_false(stat in reachable,
+					"a %s node must NOT roll %s — that belongs to %s (#1058 decision 4)"
+					% [String(primary), String(stat), String(home)])
 
 
 func test_no_configuration_warnings() -> void:
