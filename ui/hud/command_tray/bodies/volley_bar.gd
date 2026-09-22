@@ -57,6 +57,11 @@ func _track_rect() -> Rect2:
 	return Rect2(0.0, (size.y - TRACK_H) * 0.5, maxf(0.0, size.x - LABEL_W), TRACK_H)
 
 
+## Pure geometry for [method _draw] (stub).
+static func layout(_n: int, _max_n: int, _notches: PackedInt32Array, _segments: Array[Dictionary], _track_w: float) -> Dictionary:
+	return {}
+
+
 func _draw() -> void:
 	var track := _track_rect()
 	draw_rect(track, TRACK_COLOR)
