@@ -41,6 +41,9 @@
 [ext_resource type="PackedScene" path="res://entity/keystone/instances/ap_keystone_node.tscn" id="39_apkey"]
 [ext_resource type="PackedScene" path="res://entity/keystone/instances/natural_xp_node.tscn" id="40_natxp"]
 [ext_resource type="PackedScene" path="res://entity/keystone/instances/wisdom_keystone_node.tscn" id="41_wisdom"]
+[ext_resource type="Script" path="res://procgen/subtypes/node_subtype.gd" id="90_nsub"]
+[ext_resource type="Resource" path="res://procgen/subtypes/blight.tres" id="92_sbli"]
+[ext_resource type="Resource" path="res://procgen/subtypes/bless.tres" id="93_sble"]
 
 [sub_resource type="Resource" id="Resource_68xts"]
 script = ExtResource("1_x1tax")
@@ -349,3 +352,4 @@ addon_policy = SubResource("Resource_c6pvu")
 spell_grant_pool = SubResource("spell_grant_pool_main")
 spell_grant_ratio = 0.234
 guaranteed_placements = Array[Resource]([SubResource("mnsp_xp"), SubResource("rbb_anomalous"), SubResource("sp_titan"), SubResource("sp_archmage"), SubResource("sp_farsight"), SubResource("sp_mythic_ward"), SubResource("sp_ap_keystone"), SubResource("sp_natural_xp"), SubResource("sp_wisdom")])
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli"), ExtResource("93_sble")])

@@ -2,6 +2,10 @@
 
 [ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
+[ext_resource type="Script" path="res://procgen/subtypes/node_subtype.gd" id="90_nsub"]
+[ext_resource type="Resource" path="res://procgen/subtypes/regular.tres" id="91_sreg"]
+[ext_resource type="Resource" path="res://procgen/subtypes/blight.tres" id="92_sbli"]
+[ext_resource type="Resource" path="res://procgen/subtypes/bless.tres" id="93_sble"]
 
 [sub_resource type="Resource" id="ab"]
 resource_name = "dexterity +"
@@ -49,6 +53,7 @@ value_overrides = Dictionary[int, float]({
 })
 range_floor = 3.5
 pool_weight = 2.0
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
 
 [sub_resource type="Resource" id="cm_inc"]
 resource_name = "crit_multiplier +%"
@@ -60,6 +65,7 @@ tags = Array[StringName]([&"dex", &"percent", &"crit"])
 unit_value = 5.0
 range_floor = 1.0
 max_tier = 3
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
 
 [sub_resource type="Resource" id="Resource_u38nb"]
 resource_name = "crit_chance +"
@@ -71,6 +77,7 @@ range_floor = 0.01
 pool_weight = 0.7
 min_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
 
 [sub_resource type="Resource" id="Resource_0tuuk"]
 resource_name = "crit_multiplier +"
@@ -82,6 +89,7 @@ range_floor = 0.1
 pool_weight = 0.3
 min_tier = 3
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
 
 [sub_resource type="Resource" id="armor_debuff"]
 resource_name = "armor +%"
@@ -104,6 +112,7 @@ pool_weight = 0.6
 min_tier = 2
 max_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
 
 [sub_resource type="Resource" id="arrows_per_reload"]
 resource_name = "arrows_per_reload +"
@@ -114,6 +123,7 @@ tags = Array[StringName]([&"dex", &"flat", &"attack", &"ammo"])
 pool_weight = 0.15
 min_tier = 4
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
 
 [sub_resource type="Resource" id="max_shots_per_leaf"]
 resource_name = "max_shots_per_leaf +"
@@ -124,6 +134,7 @@ tags = Array[StringName]([&"dex", &"flat", &"attack", &"ammo"])
 pool_weight = 0.3
 min_tier = 4
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
 
 [sub_resource type="Resource" id="poison_pot"]
 resource_name = "poison_potency +%"
@@ -135,8 +146,21 @@ tags = Array[StringName]([&"attack", &"dot", &"percent"])
 unit_value = 7.0
 pool_weight = 0.5
 max_tier = 3
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
+
+[sub_resource type="Resource" id="poison_res"]
+resource_name = "poison_resistance +"
+script = ExtResource("2_pool")
+stat_id = &"poison_resistance"
+tags = Array[StringName]([&"defense", &"dot", &"flat"])
+unit_value = 0.05
+pool_weight = 0.25
+min_tier = 2
+max_tier = 4
+archetype_stat = &"dexterity"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])
 
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"dexterity"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("cc_inc"), SubResource("cm_inc"), SubResource("Resource_u38nb"), SubResource("Resource_0tuuk"), SubResource("armor_debuff"), SubResource("poison_arrows"), SubResource("arrows_per_reload"), SubResource("max_shots_per_leaf"), SubResource("poison_pot")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("cc_inc"), SubResource("cm_inc"), SubResource("Resource_u38nb"), SubResource("Resource_0tuuk"), SubResource("armor_debuff"), SubResource("poison_arrows"), SubResource("arrows_per_reload"), SubResource("max_shots_per_leaf"), SubResource("poison_pot"), SubResource("poison_res")])

@@ -88,7 +88,15 @@ func test_a_pool_gated_to_a_subtype_is_absent_from_another_subtypes_flatten() ->
 ## filter selects exactly what the one-key archetype filter selected, and
 ## `to_entries` appends no id segment — so every entry id is byte-identical.
 func test_an_empty_subtype_set_selects_exactly_what_the_archetype_gate_selects() -> void:
-	var pool_set: ModifierPoolSet = _SET
+	# #1059 authored real gates on the shipped pools, so the question "is `[]`
+	# inert" is now asked of a deep copy with every gate CLEARED. `duplicate(true)`
+	# copies the packs and pools, so clearing here cannot leak into the cached
+	# resource other tests load.
+	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	for pack in pool_set.packs:
+		for pool in pack.pools:
+			if pool != null:
+				pool.subtypes = [] as Array[NodeSubtype]
 	var blight := _subtype(&"blight")
 	for primary: StringName in [&"strength", &"dexterity", &"intelligence",
 			&"wisdom", &"perception", &"constitution"]:
@@ -99,8 +107,6 @@ func test_an_empty_subtype_set_selects_exactly_what_the_archetype_gate_selects()
 			for pool in pack.pools:
 				if pool == null:
 					continue
-				assert_true(pool.subtypes.is_empty(),
-					"precondition: no shipped pool authors `subtypes` yet (%s)" % pool.resource_name)
 				if pool.archetype_stat == &"" or pool.archetype_stat == primary:
 					expected.append_array(_ids(pool.to_entries()))
 		assert_eq(_ids(pool_set.flatten_for_node(primary, NodeSubtype.regular())), expected,

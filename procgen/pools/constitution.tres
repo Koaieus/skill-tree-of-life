@@ -2,6 +2,10 @@
 
 [ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
+[ext_resource type="Script" path="res://procgen/subtypes/node_subtype.gd" id="90_nsub"]
+[ext_resource type="Resource" path="res://procgen/subtypes/regular.tres" id="91_sreg"]
+[ext_resource type="Resource" path="res://procgen/subtypes/blight.tres" id="92_sbli"]
+[ext_resource type="Resource" path="res://procgen/subtypes/bless.tres" id="93_sble"]
 
 [sub_resource type="Resource" id="ab"]
 resource_name = "constitution +"
@@ -71,26 +75,7 @@ unit_value = -1.0
 pool_weight = 0.3
 min_tier = 3
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
-
-[sub_resource type="Resource" id="poison_res"]
-resource_name = "poison_resistance +"
-script = ExtResource("2_pool")
-stat_id = &"poison_resistance"
-tags = Array[StringName]([&"defense", &"dot", &"flat"])
-unit_value = 0.05
-pool_weight = 0.25
-min_tier = 2
-max_tier = 4
-
-[sub_resource type="Resource" id="corruption_res"]
-resource_name = "corruption_resistance +"
-script = ExtResource("2_pool")
-stat_id = &"corruption_resistance"
-tags = Array[StringName]([&"defense", &"dot", &"flat"])
-unit_value = 0.05
-pool_weight = 0.25
-min_tier = 2
-max_tier = 4
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
 
 [sub_resource type="Resource" id="curse_res"]
 resource_name = "curse_resistance +"
@@ -101,16 +86,8 @@ unit_value = 0.05
 pool_weight = 0.25
 min_tier = 2
 max_tier = 4
-
-[sub_resource type="Resource" id="wither_res"]
-resource_name = "wither_resistance +"
-script = ExtResource("2_pool")
-stat_id = &"wither_resistance"
-tags = Array[StringName]([&"defense", &"dot", &"flat"])
-unit_value = 0.05
-pool_weight = 0.25
-min_tier = 2
-max_tier = 4
+archetype_stat = &"constitution"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])
 
 [sub_resource type="Resource" id="curse_pot"]
 resource_name = "curse_potency +%"
@@ -122,8 +99,9 @@ tags = Array[StringName]([&"attack", &"dot", &"percent"])
 unit_value = 7.0
 pool_weight = 0.5
 max_tier = 3
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
 
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"constitution"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("nh_inc"), SubResource("ar"), SubResource("dex_debuff"), SubResource("Resource_u38nb"), SubResource("poison_res"), SubResource("corruption_res"), SubResource("curse_res"), SubResource("wither_res"), SubResource("curse_pot")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("nh_inc"), SubResource("ar"), SubResource("dex_debuff"), SubResource("Resource_u38nb"), SubResource("curse_res"), SubResource("curse_pot")])

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="NodeSubtype" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://procgen/subtypes/node_subtype.gd" id="1_ns"]
+
+[resource]
+script = ExtResource("1_ns")
+id = &"bless"
+display_name = "Blessed"
+tint = Color(1, 0.97, 0.86, 1)
+emissive_tier = 2
+base_chance = 0.1

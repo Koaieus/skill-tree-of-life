@@ -2,6 +2,10 @@
 
 [ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
+[ext_resource type="Script" path="res://procgen/subtypes/node_subtype.gd" id="90_nsub"]
+[ext_resource type="Resource" path="res://procgen/subtypes/regular.tres" id="91_sreg"]
+[ext_resource type="Resource" path="res://procgen/subtypes/blight.tres" id="92_sbli"]
+[ext_resource type="Resource" path="res://procgen/subtypes/bless.tres" id="93_sble"]
 
 [sub_resource type="Resource" id="ab"]
 resource_name = "intelligence +"
@@ -46,6 +50,7 @@ tags = Array[StringName]([&"int", &"flat", &"magic"])
 unit_value = 1.5
 range_floor = 0.5
 pool_weight = 3.0
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
 
 [sub_resource type="Resource" id="mpt"]
 resource_name = "mana_per_turn +"
@@ -57,6 +62,7 @@ unit_value = 2.0
 range_floor = 1.0
 pool_weight = 1.5
 max_tier = 2
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
 
 [sub_resource type="Resource" id="Resource_0tuuk"]
 resource_name = "node_health +%"
@@ -81,6 +87,7 @@ range_floor = 5.0
 pool_weight = 2.5
 min_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
 
 [sub_resource type="Resource" id="Resource_b5k8y"]
 resource_name = "cast_range_hops +"
@@ -90,7 +97,7 @@ archetype_stat = &"intelligence"
 pool_weight = 0.3
 min_tier = 4
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
-
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
 
 [sub_resource type="Resource" id="wither_pot"]
 resource_name = "wither_potency +%"
@@ -102,8 +109,21 @@ tags = Array[StringName]([&"attack", &"dot", &"percent"])
 unit_value = 7.0
 pool_weight = 0.5
 max_tier = 3
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
+
+[sub_resource type="Resource" id="wither_res"]
+resource_name = "wither_resistance +"
+script = ExtResource("2_pool")
+stat_id = &"wither_resistance"
+tags = Array[StringName]([&"defense", &"dot", &"flat"])
+unit_value = 0.05
+pool_weight = 0.25
+min_tier = 2
+max_tier = 4
+archetype_stat = &"intelligence"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])
 
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"intelligence"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("mana"), SubResource("mpt"), SubResource("Resource_0tuuk"), SubResource("Resource_u38nb"), SubResource("Resource_b5k8y"), SubResource("wither_pot")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("mana"), SubResource("mpt"), SubResource("Resource_0tuuk"), SubResource("Resource_u38nb"), SubResource("Resource_b5k8y"), SubResource("wither_pot"), SubResource("wither_res")])

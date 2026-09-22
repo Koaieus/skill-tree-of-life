@@ -114,20 +114,29 @@ func _reachable_stat_ids(primary: StringName,
 ## The absence half is the one that matters: a potency pool left on the wrong
 ## archetype (or at the `&""` universal default) hands every node in the game
 ## the whole DoT offense, which is the `#718` bug wearing a different stat.
+##
+## #1059 then gated every potency to the `blight` subtype, so the sweep runs
+## over all three poles and exactly one (archetype, pole) cell may reach each
+## potency.
 func test_each_dot_potency_reaches_only_its_own_archetype() -> void:
+	var blight := NodeSubtype.new()
+	blight.id = &"blight"
+	var bless := NodeSubtype.new()
+	bless.id = &"bless"
+	var poles: Array[NodeSubtype] = [NodeSubtype.regular(), blight, bless]
 	for primary in _ALL_ARCHETYPES:
-		var reachable := _reachable_stat_ids(primary)
 		for stat: StringName in _POTENCY_HOME:
 			var home: StringName = _POTENCY_HOME[stat]
-			if home == primary:
-				assert_true(stat in reachable,
-					"a %s node must be able to roll %s (#1058 decision 4) — reachable: %s"
-					% [String(primary), String(stat), str(reachable)])
-			else:
-				assert_false(stat in reachable,
-					"a %s node must NOT roll %s — that belongs to %s (#1058 decision 4)"
-					% [String(primary), String(stat), String(home)])
-
+			for pole in poles:
+				var reachable := _reachable_stat_ids(primary, pole)
+				if home == primary and pole.id == &"blight":
+					assert_true(stat in reachable,
+						"a blighted %s node must be able to roll %s (#1058 decision 4, #1059's pole) — reachable: %s"
+						% [String(primary), String(stat), str(reachable)])
+				else:
+					assert_false(stat in reachable,
+						"a %s/%s node must NOT roll %s — that is blighted %s's content"
+						% [String(primary), String(pole.id), String(stat), String(home)])
 
 func test_no_configuration_warnings() -> void:
 	# The headless half of the `@tool`-only inspector check. Sweeps every pack

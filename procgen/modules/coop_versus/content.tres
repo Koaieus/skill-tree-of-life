@@ -33,6 +33,9 @@
 [ext_resource type="Script" uid="uid://cfprsq1bfanb5" path="res://procgen/pools/spell_grant_pool.gd" id="32_uy8h0"]
 [ext_resource type="Script" uid="uid://cacdyy5i472u8" path="res://procgen/archetypes/archetype_weight_profile.gd" id="33_6i3cq"]
 [ext_resource type="Resource" uid="uid://b6c1yc1lonvkq" path="res://attack/spell/defs/cyclone.tres" id="33_cyclone"]
+[ext_resource type="Script" path="res://procgen/subtypes/node_subtype.gd" id="90_nsub"]
+[ext_resource type="Resource" path="res://procgen/subtypes/blight.tres" id="92_sbli"]
+[ext_resource type="Resource" path="res://procgen/subtypes/bless.tres" id="93_sble"]
 
 [sub_resource type="Resource" id="Resource_68xts"]
 script = ExtResource("1_h8ukh")
@@ -283,3 +286,4 @@ addon_policy = SubResource("Resource_c6pvu")
 spell_grant_pool = SubResource("spell_grant_pool_main")
 spell_grant_ratio = 0.234
 guaranteed_placements = Array[Resource]([SubResource("mnsp_xp"), SubResource("rbb_anomalous")])
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli"), ExtResource("93_sble")])
