@@ -43,7 +43,8 @@ pool scoped to `constitution`. Where a pool *lives* tells you nothing about wher
   the procgen goldens with `mise run procgen-golden-regenerate` and justify the diff.
 
 **The second key — `subtypes` (#1056).** `Array[NodeSubtype]`, **empty = any subtype**,
-which is every pool authored today. A non-empty list is BOTH the membership gate and the
+which is the attribute ladder and most content; the eight flavour pools gated by #1059
+(the four DoT potencies blighted, the four resistances blessed) are the exceptions. A non-empty list is BOTH the membership gate and the
 give-up: a pool authored `[regular, bless]` is one a blighted node cannot draw, which is
 how "blighted DEX trades crit% for DoT stats" is stated per-archetype with no second
 mechanism. There is no `NodeSubtype.forbid_tags` — the set IS the give-up (D12).
@@ -56,7 +57,8 @@ mechanism. There is no `NodeSubtype.forbid_tags` — the set IS the give-up (D12
 - **A non-empty `subtypes` appends a sorted id segment to every entry id**
   (`<stat>_<op>_<arch>_s<ids>_t<tier>`), because two pools for the same (stat, op,
   archetype) gated to different subtypes would otherwise collide and weight profiles
-  target by that id. An empty list appends nothing, so no already-authored id moves.
+  target by that id. An empty list appends nothing, so an ungated pool's id never moves — the eight pools
+  gated by #1059 did gain the segment, which is what their golden churn was.
 - **Leave a pool shared by every subtype at `[]`** (decision 16) — never copy it per
   subtype. Authoring discipline, deliberately not enforced in code: copy a pool to
   `[regular, bless]`, forget `[blight]`, and blighted nodes silently lose that content
