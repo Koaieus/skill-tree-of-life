@@ -58,6 +58,8 @@ static func stops(tier: Tier) -> float:
 ## its own identity colour should pass that instead.
 const NEUTRAL := Color(0.8586, 0.9018, 0.9482)
 
+const HARMFUL := Color.BLACK
+
 
 ## Raise `base` by `stops` EV and return the sRGB-encoded result.
 ##

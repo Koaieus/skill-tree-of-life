@@ -136,3 +136,12 @@ func test_attribute_row_pops_the_difference_of_what_it_displays() -> void:
 	await get_tree().process_frame
 	var label: Label = row.get_node(^"%DeltaChip").get_node(^"%Label")
 	assert_eq(label.text, "▲+1")
+
+
+## #1051 acceptance 4 — the chip's "this got worse" red is the repo's one
+## harmful colour, hoisted to Emissive.HARMFUL, and its value did not move.
+func test_negative_color_is_the_hoisted_harmful_constant_unchanged() -> void:
+	var chip: DeltaChip = _CHIP_SCENE.instantiate()
+	add_child_autofree(chip)
+	assert_eq(chip.negative_color, Color(0.95, 0.45, 0.45, 1.0))
+	assert_eq(chip.negative_color, Emissive.HARMFUL)

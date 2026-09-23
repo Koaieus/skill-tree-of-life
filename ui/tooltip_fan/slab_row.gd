@@ -33,6 +33,16 @@ extends Control
 ## [method bind_text] is called, with no assumption about whether/when
 ## [method set_progress] is ever invoked.
 
+## The slab's material (#1051). [constant PLAIN] is the clean neon slab;
+## [constant HARMFUL] keeps the tint on the text but turns the slab itself
+## wrong — a dark harmful wash and a soured stroke (the shader owns the look).
+## An enum, not a bool, so a further look is one entry and no re-pointing.
+enum SlabStyle { PLAIN, HARMFUL }
+
+## The style the last [method bind_text] rendered. Read-only by contract —
+## set it through [method bind_text].
+var slab_style: SlabStyle = SlabStyle.PLAIN
+
 ## Scale the row starts at when [method set_progress]'s `t` is 0.
 @export_range(0.5, 1.0, 0.01) var start_scale: float = 0.92
 

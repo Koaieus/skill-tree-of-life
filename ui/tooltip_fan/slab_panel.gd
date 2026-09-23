@@ -56,6 +56,16 @@ extends ColorRect
 		glow_width = v
 		_push(&"glow_width", v)
 
+## 0 = the clean slab, 1 = the cursed one (#1051): the fill turns to a dark
+## [constant Emissive.HARMFUL] wash and the stroke loses its bright tint hug,
+## while [member tint_color] (and so the row's text) keeps the stat's hue.
+## [SlabRow] drives this from its [enum SlabRow.SlabStyle]; the shader owns
+## what it looks like.
+@export_range(0.0, 1.0, 0.01) var harmful: float = 0.0:
+	set(v):
+		harmful = v
+		_push(&"harmful", v)
+
 @export_range(0.0, 12.0, 0.5) var corner_radius: float = 4.0:
 	set(v):
 		corner_radius = v
@@ -83,6 +93,8 @@ func _push_all() -> void:
 	_push(&"glow_energy", glow_energy)
 	_push(&"glow_width", glow_width)
 	_push(&"corner_radius", corner_radius)
+	_push(&"harmful", harmful)
+	_push(&"harmful_color", Emissive.HARMFUL)
 
 
 func _push(param: StringName, value: Variant) -> void:

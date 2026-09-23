@@ -27,10 +27,13 @@ func test_bind_renders_format_text_verbatim() -> void:
 
 
 func test_bind_tints_background_from_stat_def_raw() -> void:
+	# A BOON fixture (#1051): the raw-tint contract is the PLAIN slab's.
 	var row := _SCENE.instantiate()
 	add_child_autofree(row)
 	var m := _make_modifier(StatModifier.Operation.INCREASE, 20.0, &"armor")
+	assert_eq(m.valence(), StatModifier.Valence.BOON, "fixture must be a boon")
 	row.bind(m)
+	assert_eq(row.slab_style, SlabRow.SlabStyle.PLAIN)
 	var def := StatRegistry.get_def(&"armor")
 	assert_eq(row._background.color, def.tint_color)
 
@@ -93,3 +96,48 @@ func test_freshly_instantiated_row_rests_at_zero() -> void:
 	row.bind(_make_modifier(StatModifier.Operation.ADD_BASE, 4.0, &"armor"))
 	assert_almost_eq(row.modulate.a, 0.0, 0.001)
 	assert_almost_eq(row.scale.x, row.start_scale, 0.001)
+
+
+# --- #1051: a BANE modifier renders as a cursed (HARMFUL) slab --------------
+
+
+func _style_of(m: StatModifier) -> SlabRow.SlabStyle:
+	var row := _SCENE.instantiate()
+	add_child_autofree(row)
+	row.bind(m)
+	return row.slab_style
+
+
+func test_bane_renders_harmful_and_lower_is_better_negative_renders_plain() -> void:
+	# Same negative sign, opposite render: -3% dexterity is worse, -1 to a
+	# lower-is-better stat is better.
+	var bane := _make_modifier(StatModifier.Operation.INCREASE, -3.0, &"dexterity")
+	var boon := _make_modifier(StatModifier.Operation.ADD_BASE, -1.0, &"min_damage_taken")
+	assert_eq(_style_of(bane), SlabRow.SlabStyle.HARMFUL)
+	assert_eq(_style_of(boon), SlabRow.SlabStyle.PLAIN)
+
+
+func test_neutral_set_and_sign_flip_render_plain() -> void:
+	assert_eq(_style_of(_make_modifier(StatModifier.Operation.MULTIPLY, 1.0)), SlabRow.SlabStyle.PLAIN)
+	assert_eq(_style_of(_make_modifier(StatModifier.Operation.SET, 3.0)), SlabRow.SlabStyle.PLAIN)
+	assert_eq(_style_of(_make_modifier(StatModifier.Operation.MULTIPLY, -1.0)), SlabRow.SlabStyle.PLAIN)
+
+
+func test_cursed_slab_keeps_the_stat_hue_on_tint_and_label() -> void:
+	var row := _SCENE.instantiate()
+	add_child_autofree(row)
+	row.bind(_make_modifier(StatModifier.Operation.INCREASE, -3.0, &"dexterity"))
+	var tint := StatRegistry.get_def(&"dexterity").tint_color
+	assert_eq(row.slab_style, SlabRow.SlabStyle.HARMFUL)
+	assert_eq(row._background.color, tint)
+	var expected := Emissive.at(tint.lerp(Color.WHITE, row.text_tint_mix), row.text_glow_stops)
+	assert_eq(row._label.get_theme_color(&"font_color"), expected)
+
+
+func test_harmful_style_pushes_the_harmful_knob_to_the_slab() -> void:
+	var row := _SCENE.instantiate()
+	add_child_autofree(row)
+	row.bind(_make_modifier(StatModifier.Operation.INCREASE, -3.0, &"dexterity"))
+	assert_almost_eq(float(row._slab.get(&"harmful")), 1.0, 0.001)
+	row.bind(_make_modifier(StatModifier.Operation.INCREASE, 3.0, &"dexterity"))
+	assert_almost_eq(float(row._slab.get(&"harmful")), 0.0, 0.001)
