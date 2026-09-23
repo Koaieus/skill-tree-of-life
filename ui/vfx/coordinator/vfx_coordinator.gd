@@ -32,8 +32,10 @@ extends Node2D
 var outcome: AttackOutcome = null
 
 
-## The wave's landing points, at the beat a wave is released — the camera
-## director fits its zoom to these and nothing else (ADR 0027). Distinct from
+## The wave's landing points, at the beat the wave is about to LAND — a ranged
+## volley's LAST release (#1048), a magic wave's launch (its bolts all leave in
+## one loop, so first release is last). The camera director fits its zoom to
+## these and nothing else (ADR 0027). Distinct from
 ## [signal MagicBounceCoordinator.wave_started], which a subclass already owns.
 signal wave_landing(points: PackedVector2Array)
 
@@ -46,7 +48,8 @@ signal wave_landing(points: PackedVector2Array)
 ##     mutation loop starts, for every mode alike. 0.0 = no wind-up, today's
 ##     timing exactly.
 ##   * [method focus_marker] — the [Node2D] the director's shot follows, or
-##     null for "frame the span once".
+##     null for "nothing to follow yet" (ranged hands its marker over at first
+##     release through the signal below, which then OPENS the follow).
 ##   * [signal focus_marker_changed] — the marker moved onto a new node; the
 ##     director rebinds its follow without re-tweening.
 ##

@@ -55,7 +55,7 @@ const DEFAULT_PATH := "res://attack/outcome/default_presentation_tempo.tres"
 ## Ranged: the wind-up — the arrows animate in, parked at their leaves, before
 ## the first one leaves the string. An awaited presenter beat (ADR 0027), paid
 ## once in `_stage_windup`, never a schedule offset. 0.0 = no wind-up.
-@export var volley_draw_time: float = 0.5
+@export var volley_draw_time: float = 1.5
 ## Ranged: seconds the camera holds the firing-leaf CENTROID at the player's own
 ## zoom, at the head of the draw, before it drifts out to take in the target
 ## (#1048). The drift fills the rest of [member volley_draw_time]. This is the
@@ -67,10 +67,10 @@ const DEFAULT_PATH := "res://attack/outcome/default_presentation_tempo.tres"
 @export var volley_place_stagger: float = 0.03
 ## Ranged: seconds between the nearest leaf's launch and the farthest leaf's,
 ## the span the volley's metric ramp lerps across.
-@export var volley_stagger_span: float = 0.7
+@export var volley_stagger_span: float = 0.5
 ## Ranged: constant airtime for every shot. Constant on purpose — the ramp is
 ## authored from the volley's distance SPAN, never from `distance / speed`.
-@export var volley_flight_time: float = 0.8
+@export var volley_flight_time: float = 1.0
 
 ## [b]One shape, shared by every melee commit — seated, AI and remote alike.[/b]
 ## The owner refused a second seated set of numbers (2026-09-14, #865): *"AI/
@@ -183,8 +183,10 @@ func magic_windup_seconds() -> float:
 ## have been a constant; two is a method.
 ##
 ## One explicit arm per mode, so a mode authoring its own lead edits its own
-## line: melee's and magic's are their pivot focus, ranged's is the whole draw
-## (the parked arrows are the picture; there is no separate pivot beat).
+## line: every mode's is its pivot focus (ranged's is the firing-centroid hold
+## at the head of the draw, #1048; [method windup_drift] is the rest). Ranged's
+## has one reader, [CameraDirector] — [BattleSystem] sizes the ranged wind-up
+## off the presenter's own return, not off this.
 ##
 ## [param mode] is a [enum BattleSystem.AttackMode] value, typed [int] and
 ## matched on literals ON PURPOSE: this is a [Resource] script inside the
@@ -193,8 +195,17 @@ func magic_windup_seconds() -> float:
 ## `.tres` fail to compile with "Cannot assign a value of type Resource to
 ## constant" — the resource's script chain reaches BattleSystem while it is
 ## still mid-parse. `test_melee_staging.gd` pins the literals to the enum.
-func windup_drift(_mode: int) -> float:
-	return 0.0
+## The beat AFTER the pivot in which the camera drifts, un-followed, out to the
+## span (#1048) — ranged only: nothing moves during its draw, so there is
+## nothing to follow and the pan is a one-shot filling the rest of the draw.
+## Zero for a mode whose wind-up is followed from commit (melee, magic): its
+## widen retargets the zoom only and has no pan of its own to time.
+func windup_drift(mode: int) -> float:
+	match mode:
+		2:  # BattleSystem.AttackMode.RANGED
+			return maxf(0.0, volley_draw_time - windup_lead(2))
+		_:
+			return 0.0
 
 
 func windup_lead(mode: int) -> float:
@@ -202,7 +213,7 @@ func windup_lead(mode: int) -> float:
 		1:  # BattleSystem.AttackMode.MELEE
 			return maxf(0.0, melee_windup_pivot_focus)
 		2:  # BattleSystem.AttackMode.RANGED
-			return maxf(0.0, volley_draw_time)
+			return maxf(0.0, volley_windup_pivot_focus)
 		3:  # BattleSystem.AttackMode.MAGIC
 			return maxf(0.0, magic_windup_pivot_focus)
 		_:

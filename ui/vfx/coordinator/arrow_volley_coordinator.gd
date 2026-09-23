@@ -98,10 +98,22 @@ func _exit_tree() -> void:
 	_restore_leaves()
 
 
-## The presenter contract's marker: the `%FocusMarker` [SwarmFocus] of the
-## shipped scene, or null for a code-built coordinator (span framed once).
+## The presenter contract's marker — what the director should follow NOW, or
+## null for nothing yet (#1048). Null through the draw: nothing moves while the
+## arrows are parked, so a follow opened at commit would pin a static point.
+## [method play] hands over the `%FocusMarker` [SwarmFocus] at first release
+## and the target node at last release, each via [signal focus_marker_changed].
+## Always null for a code-built coordinator with no marker.
 func focus_marker() -> Node2D:
-	return _focus()
+	return _handed_marker if is_instance_valid(_handed_marker) else null
+
+
+func _hand_over(marker: Node2D) -> void:
+	_handed_marker = marker
+	focus_marker_changed.emit(marker)
+
+
+var _handed_marker: Node2D = null
 
 
 func _focus() -> SwarmFocus:
@@ -124,6 +136,7 @@ func _focus() -> SwarmFocus:
 ## A draw time of 0.0 stages nothing at all: [method play] then spawns and
 ## launches exactly as before, frame for frame — the tempo escape hatch.
 func begin_windup(plan: AttackPlan, tempo: PresentationTempo) -> float:
+	_handed_marker = null
 	var draw: float = maxf(0.0, tempo.volley_draw_time) if tempo != null else 0.0
 	if draw <= 0.0:
 		return 0.0
@@ -333,6 +346,8 @@ func play(payload: Variant) -> void:
 			if is_instance_valid(_parked[k]):
 				_parked[k].queue_free()
 	var landing_points := PackedVector2Array()
+	var last_proj: Projectile = null
+	var last_target: SkillNode = null
 	var leaves: Dictionary = {}
 	var arrow_k := 0
 	for i in hits.size():
@@ -357,6 +372,9 @@ func play(payload: Variant) -> void:
 		proj.tree_exiting.connect(func() -> void:
 			pending[0] -= 1)
 		proj.released.connect(Events.volley_arrow_released.emit.bind(int(release_rank[i]), total))
+		if int(release_rank[i]) == total - 1:
+			last_proj = proj
+			last_target = hit.target
 		# #503: the arrow flies on ITS OWN clock (this coordinator is a pure
 		# observer, #474/#504) while OutcomeApplier decides the gate on ITS
 		# OWN clock — both converging on the schedule's `arrive_at`, never coupled
@@ -380,10 +398,26 @@ func play(payload: Variant) -> void:
 		var focus := _focus()
 		if focus != null:
 			focus.begin_wave(_centroid(leaves.keys()), hits[arrow_indices[0]].target.global_position)
-		wave_landing.emit(landing_points)
+			# First release: something moves now, so the follow opens here.
+			_hand_over(focus)
+	if last_proj != null:
+		# The LAST launch is the landing beat (#1048): the frame is empty of
+		# parked arrows and the volley is about to arrive — tighten onto the
+		# target and follow it. Off this coordinator's own loop, not the global
+		# bus. Bound after the loop: the packed array is copied at bind time.
+		last_proj.released.connect(_on_last_release.bind(landing_points, last_target),
+				CONNECT_ONE_SHOT)
 	while pending[0] > 0:
 		await get_tree().process_frame
 	_restore_leaves()
+
+
+## The volley's last arrow left the string: announce the landing cluster for
+## the director's tighten and hand the target over as the thing to follow.
+func _on_last_release(landing_points: PackedVector2Array, target: SkillNode) -> void:
+	wave_landing.emit(landing_points)
+	if target != null and is_instance_valid(target):
+		_hand_over(target)
 
 
 ## #503 — the dud beat. [param hit] is the SAME [HitInstance] instance

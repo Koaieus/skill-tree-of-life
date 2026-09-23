@@ -166,6 +166,13 @@ func reset() -> void:
 	state_changed.emit()
 
 
+## The wind-up hangs off every reaching firing leaf (#1048) — the arrows park
+## there. Range-filtered only, never shots-left: the commit marks shots fired
+## before the director reads this, and that must not thin the anchor set.
+func windup_anchors() -> Array[SkillNode]:
+	return get_reaching_firing_positions()
+
+
 func get_firing_positions() -> Array[SkillNode]:
 	if attacker == null or attacker.navigator == null:
 		return []

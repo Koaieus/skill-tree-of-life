@@ -6,10 +6,11 @@
 script = ExtResource("1_tempo")
 beat_interval = 0.4
 beat_lead_in = 0.35
-volley_draw_time = 0.5
+volley_draw_time = 1.5
+volley_windup_pivot_focus = 0.25
 volley_place_stagger = 0.03
-volley_stagger_span = 0.7
-volley_flight_time = 0.8
+volley_stagger_span = 0.5
+volley_flight_time = 1.0
 swing_duration = 1.2
 melee_windup_pivot_focus = 0.25
 melee_windup_form_span = 1.0

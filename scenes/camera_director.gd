@@ -277,7 +277,8 @@ func decide(request: FocusRequest, ctx: CameraContext) -> FocusDecision:
 
 	var span := request.bounds()
 	var fit_size := span.size * (1.0 + span_margin_ratio)
-	var zoom_target := _fit_zoom(fit_size, ctx) if request.allow_zoom_out else ctx.zoom
+	var zoom_target := _fit_zoom(fit_size, ctx, request.zoom_in_steps) \
+			if request.allow_zoom_out else ctx.zoom
 	var overflows := not _fits(fit_size, ctx.visible_size(zoom_target))
 
 	# Centre of mass, not the AABB midpoint, once the span cannot fit: the
@@ -302,8 +303,15 @@ func decide(request: FocusRequest, ctx: CameraContext) -> FocusDecision:
 
 
 ## The zoom to take for [param fit_size]. Steps OUT along the 0.25 lattice to
-## the first value that fits and no further; never in, and never past a
-## zoom-out the player already chose.
+## the first value that fits and no further, and never past a zoom-out the
+## player already chose.
+##
+## Never IN — unless the request asks (#1048, [member FocusRequest.zoom_in_steps];
+## today only a wave's landing cluster): when [param fit_size] already fits at
+## the player's zoom it steps in up to [param zoom_in_steps] lattice steps,
+## stopping one short of where it would no longer fit. The step is ADDED to the
+## player's zoom, not snapped — release restores the stored zoom, so an
+## off-lattice 0.63 comes back exactly.
 ##
 ## The floor is the smallest LATTICE value at or above `min_zoom_floor` — the
 ## two do not align (a small level's floor is an arbitrary float like 0.63,
@@ -311,9 +319,15 @@ func decide(request: FocusRequest, ctx: CameraContext) -> FocusDecision:
 ## lattice is what lets the player's exact `_target_zoom` be restored, so the
 ## centre-of-mass fallback firing a little earlier than the raw floor implies
 ## is the price, not a bug to fix by going off-lattice (#524 amendment 2).
-func _fit_zoom(fit_size: Vector2, ctx: CameraContext) -> float:
+func _fit_zoom(fit_size: Vector2, ctx: CameraContext, zoom_in_steps: int = 0) -> float:
 	if _fits(fit_size, ctx.visible_size(ctx.zoom)):
-		return ctx.zoom
+		var tight := ctx.zoom
+		for _i in zoom_in_steps:
+			var next := tight + ZOOM_LATTICE
+			if next > GraphCamera.MAX_ZOOM or not _fits(fit_size, ctx.visible_size(next)):
+				break
+			tight = next
+		return tight
 	var floor_zoom := ceilf(ctx.min_zoom_floor / ZOOM_LATTICE) * ZOOM_LATTICE
 	if ctx.zoom <= floor_zoom:
 		# Already at or below the lattice floor (a manual scroll can get below
@@ -384,6 +398,14 @@ func _clamp_target(ideal: Vector2, at_zoom: float, ctx: CameraContext) -> Vector
 ## which is the same beat [method BattleSystem._stage_windup] delays the
 ## presenter's form-in by.
 ##
+## [b]Who follows, and from when, is the presenter's call (#1048).[/b] A melee
+## ghost's marker moves through the wind-up, so it is handed over here and the
+## widen is a zoom retarget on an open follow. Ranged hands over NOTHING at
+## commit — nothing moves during its draw — so its widen is a plain one-shot
+## pan+zoom (the drift, [method PresentationTempo.windup_drift] long) onto the
+## firing centroid and the target, and the follow opens at first release via
+## [method _on_presenter_marker_ready].
+##
 ## The widen is a detached coroutine on a tree timer, never awaited by anyone —
 ## `_on_attack_committed` fires inside `BattleSystem._commit`, where an await
 ## would gate the mutation loop.
@@ -400,8 +422,8 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 	# Follow mode opens with the FIRST focus, on the presenter's marker (#931):
 	# the melee ghost's `%FocusMarker`, or the pivot SkillNode itself before
 	# the ghost exists. With no presenter wired at all (a headless peer that
-	# still draws) the plan's source stands in. A null marker means the span
-	# is framed once and nothing is followed — today's ranged/magic picture.
+	# still draws) a plan's LONE anchor stands in. A null marker means nothing
+	# is followed yet — the presenter may still open one later (ranged).
 	var marker: Node2D = null
 	if presenter != null:
 		marker = presenter.focus_marker()
@@ -412,7 +434,7 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 				and not presenter.wave_landing.is_connected(_on_wave_landing):
 			presenter.wave_landing.connect(_on_wave_landing)
 	else:
-		marker = _plan_source(plan)
+		marker = _lone_anchor(plan)
 	if marker != null:
 		_shot_following = true
 		_follow_node = marker
@@ -422,19 +444,25 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 		# zeroed tempo) — the span simply lands.
 		request_focus(request)
 		return
+	if not _shot_following:
+		# No follow through the wind-up: the widen is a one-shot drift that
+		# fills the rest of the draw rather than a snap after the pivot.
+		request.duration = maxf(request.duration,
+				battle_system.tempo().windup_drift(plan.mode))
 	request_focus(pivot)
 	_widen_after(pivot.hold, request)
 
 
 ## The pivot-only focus a committed attack opens on, or null when there is no
-## pivot to frame — a mode whose [method PresentationTempo.windup_lead] is
-## zero (ranged/magic today), an unwired battle system, a pivot the local seat
-## cannot see, or a zero-length lead beat (acceptance 5's escape hatch, where
-## there is no beat to fill and the span should simply land).
+## pivot to frame — an unwired battle system, a plan with no anchors, anchors
+## the local seat cannot see, or a zero-length lead beat (the tempo escape
+## hatch, where there is no beat to fill and the span should simply land).
 ##
-## The pivot is read off the live plan rather than off the outcome: an
-## [AttackOutcome] carries hits, and "which node the action hangs off" is a
-## plan fact.
+## Every mode pivots on the CENTROID of its visible wind-up anchors
+## ([method AttackPlan.windup_anchors]): melee's and magic's source, ranged's
+## firing leaves (#1048). A point focus, so the zoom is untouched. The anchors
+## are read off the live plan rather than off the outcome: an [AttackOutcome]
+## carries hits, and "which nodes the action hangs off" is a plan fact.
 func _windup_focus(plan: AttackPlan) -> FocusRequest:
 	if plan == null or battle_system == null:
 		return null
@@ -442,7 +470,7 @@ func _windup_focus(plan: AttackPlan) -> FocusRequest:
 	if lead <= 0.0:
 		return null
 	var points := PackedVector2Array()
-	_append_if_visible(points, _plan_source(plan))
+	_append_anchor_centroid(points, plan)
 	if points.is_empty():
 		return null
 	# Mandatory for the same reason the span is (#866): this is the lead beat of
@@ -457,16 +485,33 @@ func _windup_focus(plan: AttackPlan) -> FocusRequest:
 	return req
 
 
-## The [SkillNode] a plan hangs off, or null: melee and magic plans carry a
-## `source`, a ranged plan has none. Read dynamically because the base
-## [AttackPlan] does not declare it — the source is a per-mode plan fact.
-func _plan_source(plan: AttackPlan) -> SkillNode:
+## The node to follow when no presenter is wired: the plan's anchor when it has
+## exactly ONE, else null. A many-anchored plan (a ranged volley's leaves) has
+## no single node to follow, and a follow opened on one arbitrary leaf would pin
+## the pan there for the whole shot — every later widen retargets zoom only.
+func _lone_anchor(plan: AttackPlan) -> SkillNode:
 	if plan == null:
 		return null
-	var source := plan.get(&"source") as SkillNode
-	if source == null or not is_instance_valid(source):
+	var anchors := plan.windup_anchors()
+	if anchors.size() != 1 or not is_instance_valid(anchors[0]):
 		return null
-	return source
+	return anchors[0]
+
+
+## Append the centroid of [param plan]'s VISIBLE wind-up anchors, or nothing
+## when none is visible — an empty set has no centroid to invent.
+func _append_anchor_centroid(points: PackedVector2Array, plan: AttackPlan) -> void:
+	var seen := PackedVector2Array()
+	for anchor in plan.windup_anchors():
+		_append_if_visible(seen, anchor)
+	if seen.is_empty():
+		return
+	var sum := Vector2.ZERO
+	for p in seen:
+		sum += p
+	var centroid := sum / float(seen.size())
+	if not points.has(centroid):
+		points.append(centroid)
 
 
 ## Raise [param request] after [param seconds]. Detached on purpose — see
@@ -502,24 +547,35 @@ func _on_replay_started(outcome: AttackOutcome) -> void:
 ## [signal MeleePreview.focus_marker_changed] also fires on every aim-phase
 ## selection change, and a stray late signal after [method release] must not
 ## drag a camera the player already has back.
+##
+## It also OPENS the follow when none is running (#1048): a ranged presenter
+## hands its marker over only at first release, once something moves. The open
+## eases onto the marker from wherever the drift left the camera, at the zoom
+## the drift chose, and the band takes over from there.
 func _on_presenter_marker_ready(marker: Node2D) -> void:
 	if not _shot_locked or camera == null or marker == null:
 		return
 	_follow_node = marker
-	camera.rebind_follow(marker)
+	if _shot_following and camera.is_following():
+		camera.rebind_follow(marker)
+		return
+	_shot_following = true
+	camera.begin_directed_follow(marker, GraphCamera.current_zoom, default_focus_duration)
 
 
-## A wave is released (#1042, ADR 0027): the zoom refits to the wave's LANDING
-## cluster and nothing else — never the full span, which the pan travels, and
-## never in past the player's own zoom (the never-in lattice rule of
-## [method _fit_zoom], reached through [method decide]). A zoom retarget only:
-## the follow marker owns the pan. Guarded on the lock so a late wave after
+## A wave is about to LAND (#1042, ADR 0027; ranged: its last release, #1048):
+## the zoom refits to the wave's landing cluster and nothing else — never the
+## full span, which the pan travels. It may tighten past the player's zoom by
+## at most [member shot_zoom_in_steps] lattice steps (a single target node is
+## illegible from far out); [method release] restores the player's zoom. A
+## zoom retarget only: the follow marker owns the pan. Guarded on the lock so a late wave after
 ## [method release] cannot touch a camera the player already has back.
 func _on_wave_landing(points: PackedVector2Array) -> void:
 	if not _shot_locked or camera == null or points.is_empty():
 		return
 	var request := FocusRequest.span(points, 0.0, 0.0, &"wave_landing")
 	request.mandatory = true
+	request.zoom_in_steps = shot_zoom_in_steps
 	var decision := decide(request, make_context())
 	if not decision.act:
 		return
@@ -538,7 +594,11 @@ func _on_wave_landing(points: PackedVector2Array) -> void:
 ## has just spent the aim phase with their hands on the camera, so a grace-
 ## window refusal would make their own shot the one that never fires.
 ##
-## The span is the AABB of every contributing node's world position, filtered
+## The span is the centroid of the live plan's wind-up anchors plus every hit
+## target (#1048) — for melee and magic exactly the old origins ∪ targets (a
+## melee origin IS the source; a magic hop's origin is a prior target), for
+## ranged the leaves' centroid rather than every leaf. With no live plan the
+## hit origins stand in, as before. Every point is filtered
 ## through [method VisionSystem.is_visible] FIRST — `is_sensed` does not count,
 ## and an attack whose origin is fogged but whose target is visible frames the
 ## target alone. Nothing surviving the filter is `&"fogged"`, not an error.
@@ -555,8 +615,12 @@ func _build_attack_request(outcome: AttackOutcome, _attacker: Entity) -> FocusRe
 	if outcome.schedule == null:
 		outcome.schedule = OutcomeSchedule.compile(outcome)
 	var last_arrival: float = outcome.schedule.duration()
+	var plan := _live_plan()
+	if plan != null:
+		_append_anchor_centroid(points, plan)
 	for hit in outcome.hits:
-		_append_if_visible(points, hit.origin)
+		if plan == null:
+			_append_if_visible(points, hit.origin)
 		_append_if_visible(points, hit.target)
 	var request := FocusRequest.span(points, default_focus_duration,
 			last_arrival + release_tail_seconds, &"attack")
