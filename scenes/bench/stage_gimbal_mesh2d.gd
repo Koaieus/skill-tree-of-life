@@ -115,7 +115,10 @@ func _capture_strip(path: String) -> void:
 		var extent := base_radius * HALO_SCALE * (1.0 + float(ring_count - 1) * GimbalBatch.RADIUS_STEP) \
 				* xf.get_scale().x * 1.6
 		var img := get_viewport().get_texture().get_image()
-		var rect := Rect2i(Vector2i(xf.origin - Vector2(extent, extent)), Vector2i(int(extent * 2.0), int(extent * 2.0)))
+		# Viewport coords -> window pixels (the stretch mode scales the canvas).
+		var k := float(img.get_width()) / get_viewport().get_visible_rect().size.x
+		extent *= k
+		var rect := Rect2i(Vector2i(xf.origin * k - Vector2(extent, extent)), Vector2i(int(extent * 2.0), int(extent * 2.0)))
 		var crop := img.get_region(rect)
 		crop.resize(crop.get_width() * 2, crop.get_height() * 2, Image.INTERPOLATE_LANCZOS)
 		frames.append(crop)
@@ -126,4 +129,4 @@ func _capture_strip(path: String) -> void:
 	for i in frames.size():
 		strip.blit_rect(frames[i], Rect2i(0, 0, w, h), Vector2i(i * w, 0))
 	var err := strip.save_png(path)
-	print("strip    : %s%s" % [path, "" if err == OK else " (FAILED: %d)" % err])
+	print("strip    : %s%s  tint=%s" % [path, "" if err == OK else " (FAILED: %d)" % err, tint])
