@@ -26,16 +26,34 @@ func _make_entity(core: CoreClass) -> Entity:
 	return ent
 
 
-func test_balanced_core_adds_ten_to_str_dex_int() -> void:
+## Shape of Balanced's identity, not its magnitudes (#990 — the pinned +10 the
+## issue flagged): every leaf modifier's stat_id resolves on the board and adds
+## (never subtracts or sets), plus the one aura effect. A retune of the +10s
+## or the per-level rate never reds this; dropping an attribute or flipping a
+## sign does. Precedent: test_dexterity_pool.gd's test_dexterity_pool_shape.
+func test_balanced_core_shape_is_five_positive_add_base_attributes_plus_one_aura() -> void:
 	var ent := _make_entity(_BALANCED)
 	add_child(ent)
 	await get_tree().process_frame
 	var board := ent.stat_board
-	# BalancedCore is ADD_BASE +10 STR/DEX/INT. Compare the modified value
-	# against base_value+10 — works regardless of the board's authored bases.
-	assert_eq(int(board.strength.value), int(board.strength.base_value + 10))
-	assert_eq(int(board.dexterity.value), int(board.dexterity.base_value + 10))
-	assert_eq(int(board.intelligence.value), int(board.intelligence.base_value + 10))
+	var leaves: Array[StatModifier] = []
+	for m in _BALANCED.modifiers:
+		if m is CompositeStatModifier:
+			leaves.append_array((m as CompositeStatModifier).flatten())
+		else:
+			leaves.append(m)
+	var seen_stats: Array[StringName] = []
+	for leaf in leaves:
+		assert_not_null(board.get_stat(leaf.stat_id), "%s exists on the board" % leaf.stat_id)
+		assert_eq(leaf.operation, StatModifier.Operation.ADD_BASE,
+				"%s is a flat attribute grant, not a percent/multiply/set" % leaf.stat_id)
+		if leaf.formula == null:
+			assert_gt(leaf.value, 0.0, "%s adds, never subtracts" % leaf.stat_id)
+		seen_stats.append(leaf.stat_id)
+	for expected in [&"strength", &"dexterity", &"intelligence", &"constitution", &"wisdom"]:
+		assert_true(seen_stats.has(expected), "Balanced grants %s" % expected)
+	assert_eq(_BALANCED.effects.size(), 1, "one aura — Sanctuary")
+	assert_true(_BALANCED.effects[0] is HealAuraEffect, "the aura heals, not damages")
 
 
 func test_apply_shares_modifiers_across_entities() -> void:
