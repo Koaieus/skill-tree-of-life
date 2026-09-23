@@ -58,7 +58,12 @@ static func stops(tier: Tier) -> float:
 ## its own identity colour should pass that instead.
 const NEUTRAL := Color(0.8586, 0.9018, 0.9482)
 
-const HARMFUL := Color.BLACK
+
+## The repo's one "this got worse" colour — [DeltaChip]'s negative red and the
+## cursed [SlabPanel]'s wash + stroke. An SDR base like [constant NEUTRAL]: a
+## consumer that needs it to glow lifts it through a tier ([method at] /
+## [method harmful]), never by hand-picking brighter channels.
+const HARMFUL := Color(0.95, 0.45, 0.45)
 
 
 ## Raise `base` by `stops` EV and return the sRGB-encoded result.
@@ -83,6 +88,11 @@ static func at(base: Color, stops: float) -> Color:
 ## `at()` against the neutral off-white, for content with no identity colour.
 static func neutral(stops: float) -> Color:
 	return at(NEUTRAL, stops)
+
+
+## `at()` against [constant HARMFUL], for content that reads as "worse".
+static func harmful(stops: float) -> Color:
+	return at(HARMFUL, stops)
 
 
 ## Rec.709 luma weights — how much each linear channel contributes to

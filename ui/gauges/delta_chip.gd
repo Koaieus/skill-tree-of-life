@@ -18,7 +18,7 @@ const POP_TIME := 0.25
 		if _label != null:
 			_label.add_theme_font_size_override(&"font_size", font_size)
 @export var positive_color: Color = Color(0.55, 0.85, 0.6, 1.0)
-@export var negative_color: Color = Color(0.95, 0.45, 0.45, 1.0)
+@export var negative_color: Color = Emissive.HARMFUL
 
 ## Preview the pop-in/fade-out in the editor via the Inspector button.
 @export_tool_button("Preview +N") var _preview_positive_action := pop.bind(3.0)

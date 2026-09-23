@@ -99,11 +99,15 @@ func _ready() -> void:
 
 ## Renders [param text] on a slab tinted [param tint], with the label colour
 ## derived from that tint via [member text_tint_mix] / [member text_glow_stops].
-## The whole of what this row does — subclasses resolve the two arguments.
-func bind_text(text: String, tint: Color) -> void:
+## [param style] picks the slab's material only — the tint, and so the text
+## colour, is never swapped by it. The whole of what this row does —
+## subclasses resolve the arguments.
+func bind_text(text: String, tint: Color, style: SlabStyle = SlabStyle.PLAIN) -> void:
 	_label.text = text
 	_slab.tint_color = tint
 	_background.color = tint
+	slab_style = style
+	_slab.harmful = 1.0 if style == SlabStyle.HARMFUL else 0.0
 	_refresh_label_color()
 	# New text is a different WIDTH (never a different number of lines — this
 	# label does not wrap), so this row's minimum changes; recompute it now
