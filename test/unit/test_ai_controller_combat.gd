@@ -157,6 +157,14 @@ func _add_edge(a: SkillNode, b: SkillNode) -> void:
 	_graph.add_edge(a, b)
 
 
+## The idle PlayerController entity parks the clock on itself after the AI
+## (before_each), so "current entity is no longer the enemy" is the fact that
+## the AI's take_turn -> command -> end_turn chain landed — the fact a
+## budgeted 0.3s/0.4s/0.6s sleep stood in for (#987).
+func _await_enemy_turn_end() -> void:
+	await wait_until(func() -> bool: return _tm.current_entity != _enemy, 2.0)
+
+
 func _true_damage(target: SkillNode, amount: float) -> void:
 	var dmg := DamageInstance.new()
 	dmg.type = DamageInstance.Type.TRUE
@@ -171,7 +179,7 @@ func _true_damage(target: SkillNode, amount: float) -> void:
 func test_ranged_attack_launched_when_hostile_visible_and_reachable() -> void:
 	_tm.start_turn(_enemy)
 
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_true(_launches.has(BattleSystem.AttackMode.RANGED), "should have fired a ranged attack")
 	assert_ne(_tm.current_entity, _enemy, "turn should have ended")
@@ -190,7 +198,7 @@ func test_dent_then_finish_is_one_kill_sized_volley() -> void:
 	assert_almost_eq(_nodes[2].get_current_hp(), 2.0, 0.01)
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_eq(_launches.count(BattleSystem.AttackMode.RANGED), 1,
 			"one kill-sized volley, never a dent volley plus a finish volley")
@@ -213,7 +221,7 @@ func test_one_damage_floor_fires_a_full_chip_volley_even_without_a_kill_this_tur
 	var stock_before: int = roundi(_enemy.stat_board.arrows.current)
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_eq(_launches.count(BattleSystem.AttackMode.RANGED), 1,
 			"one chip volley even though it cannot kill")
@@ -261,7 +269,7 @@ func test_frontier_growth_prioritizes_near_miss_enabling_leaf() -> void:
 
 	_enemy.stat_board.skill_points.set_current(1)
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_eq(enabling.owned_by, _enemy, "growth should prefer the leaf that lands the near-miss kill")
 	assert_gt(allocation_order.size(), 0, "at least the enabling leaf should have been allocated")
@@ -292,7 +300,7 @@ func test_magic_candidate_is_gathered_and_can_be_executed() -> void:
 	_enemy.get_spellbook().learn(_SPARK_SPELL)
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_true(_launches.has(BattleSystem.AttackMode.MAGIC),
 			"the only reachable candidate this turn is magic")
@@ -317,7 +325,7 @@ func test_magic_insufficient_mana_is_excluded_rather_than_stalling_the_turn() ->
 	_enemy.get_spellbook().learn(unaffordable_spark)
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_ne(_tm.current_entity, _enemy, "turn must still end, not hang on an unaffordable cast")
 	assert_false(_launches.has(BattleSystem.AttackMode.MAGIC),
@@ -341,7 +349,7 @@ func test_melee_candidate_is_gathered_and_can_be_executed_through_take_turn() ->
 	await get_tree().physics_frame
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.6).timeout
+	await _await_enemy_turn_end()
 
 	assert_true(_launches.has(BattleSystem.AttackMode.MELEE),
 			"ranged is out of Euclidean range from both owned nodes; melee's swing geometry still connects")
@@ -441,7 +449,7 @@ func test_growth_capped_ai_attacks_the_dormant_core_walling_it_in() -> void:
 	var hp_before := walled.get_current_hp()
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_true(_launches.has(BattleSystem.AttackMode.RANGED),
 			"boxed in with nowhere to allocate, the AI should shoot its way out")
@@ -456,7 +464,7 @@ func test_uncapped_ai_still_ignores_a_dormant_core() -> void:
 	var hp_before := walled.get_current_hp()
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_false(AiRecon.is_growth_capped(_enemy), "fixture guard: room was left to grow")
 	assert_eq(walled.get_current_hp(), hp_before, "scenery takes no fire from an AI that can grow")
@@ -468,7 +476,7 @@ func test_the_stance_does_not_outlive_the_turn_that_earned_it() -> void:
 	await _wall_in_with_a_dormant_core()
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 	assert_true(_enemy.ai_growth_capped, "capped this turn")
 
 	# Open room to grow and take another turn: the stance must be re-decided
@@ -482,7 +490,7 @@ func test_the_stance_does_not_outlive_the_turn_that_earned_it() -> void:
 	await _open_room_to_grow()
 	_tm.adopt_turn(null, _tm.turns_taken)
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_false(_enemy.ai_growth_capped,
 			"an AI that broke out once must not keep shooting scenery forever")
@@ -497,7 +505,7 @@ func test_clearing_the_core_expands_into_the_freed_node_the_same_turn() -> void:
 	_enemy.stat_board.skill_points.set_current(1)
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.4).timeout
+	await _await_enemy_turn_end()
 
 	assert_eq(walled.owned_by, _enemy,
 			"kill, then walk through the door it opened — on the same turn")
@@ -525,7 +533,7 @@ func test_capped_ai_prefers_the_door_over_an_equally_reachable_hostile() -> void
 	var hostile_hp := _nodes[2].get_current_hp()
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_lt(walled.get_current_hp(), wall_hp, "the wall is the door — hit it")
 	# #958: volleys cost no AP, so once the door is down the leftover shots
@@ -779,7 +787,7 @@ func test_one_volley_sized_to_the_kill_plus_margin_never_four_single_shots() -> 
 	assert_almost_eq(h1.get_current_hp(), per_arrow * 2.5, 0.01, "fixture: H1 is worth 3 arrows")
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	var volleys := _decisions.filter(func(d: String) -> bool: return d.begins_with("[RANGED"))
 	assert_gt(volleys.size(), 0, "it fired")
@@ -800,7 +808,7 @@ func test_reloads_when_the_quiver_is_empty_then_fires_what_it_minted() -> void:
 			reloads.append(cmd))
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_eq(reloads.size(), 1, "an empty quiver with 1 AP submits ONE ReloadCommand")
 	assert_eq(_enemy.stat_board.action_points.current, 0.0, "which cost the AP")
@@ -823,7 +831,7 @@ func test_fires_before_reloading_when_a_kill_is_on_the_table() -> void:
 			events.append("reload"))
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_gt(events.size(), 1, "it fired and reloaded: %s" % str(events))
 	assert_eq(events[0], "volley", "the kill was taken before any reload")
@@ -849,7 +857,7 @@ func test_never_exceeds_volleys_per_turn() -> void:
 	_ai.turn_delay = 0.01
 	_tm.start_turn(_enemy)
 	_enemy.volleys_launched_this_turn = limit - 1
-	await get_tree().create_timer(0.4).timeout
+	await _await_enemy_turn_end()
 
 	assert_eq(_launches.count(BattleSystem.AttackMode.RANGED), 1, "one slot left, one volley")
 	assert_eq(_enemy.volleys_launched_this_turn, limit, "at the cap, never past it")

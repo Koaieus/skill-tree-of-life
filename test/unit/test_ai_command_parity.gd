@@ -259,6 +259,14 @@ func _owned_names(e: Entity) -> Array:
 	return out
 
 
+## The idle PlayerController entity parks the clock on itself after the AI
+## (before_each), so "current entity is no longer the enemy" is the fact that
+## the AI's take_turn -> command -> end_turn chain landed — the fact the
+## budgeted 0.3s sleep stood in for (#987).
+func _await_enemy_turn_end() -> void:
+	await wait_until(func() -> bool: return _tm.current_entity != _enemy, 2.0)
+
+
 func _run_one_ai_turn() -> void:
 	_enemy.stat_board.skill_points.set_current(2)
 	# The golden was captured before Entity's first-turn upkeep skip existed, so
@@ -268,7 +276,7 @@ func _run_one_ai_turn() -> void:
 	# is "queue path == direct path", not "an entity's opening turn".
 	_enemy.turns_taken = 1
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 
 # ---------------------------------------------------------------------------
@@ -380,7 +388,11 @@ func test_an_ai_turn_raised_from_inside_a_drain_still_completes() -> void:
 	# The player ends their turn THROUGH the applier, which is what nests the
 	# AI's entire turn inside _apply(EndTurnCommand).
 	_applier.submit(EndTurnCommand.new(_player.entity_id))
-	await get_tree().create_timer(0.3).timeout
+	# The predicate here is the applier's drain, not the turn cursor: this
+	# turn nests the AI's whole turn inside _apply(EndTurnCommand), so
+	# "current_entity != _enemy" would go true mid-drain, before the nested
+	# reload/volley finished applying (#987).
+	await wait_until(func() -> bool: return not _applier.is_applying and _applier.pending_count() == 0, 2.0)
 
 	assert_false(_applier.is_applying, "the drain finished — no deadlock")
 	assert_eq(_applier.pending_count(), 0, "and it drained everything it queued")

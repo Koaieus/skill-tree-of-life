@@ -99,6 +99,14 @@ func after_each() -> void:
 		Events.ai_decision.disconnect(_on_ai_decision)
 
 
+## The idle PlayerController entity parks the clock on itself after the AI
+## (before_each), so "current entity is no longer the enemy" is the fact that
+## the AI's take_turn -> command -> end_turn chain landed — the fact the
+## budgeted 0.3s sleep stood in for (#987).
+func _await_enemy_turn_end() -> void:
+	await wait_until(func() -> bool: return _tm.current_entity != _enemy, 2.0)
+
+
 func _on_ai_decision(_entity: Entity, summary: String) -> void:
 	_decisions.append(summary)
 
@@ -118,7 +126,7 @@ func test_fog_short_circuit_ends_turn_without_attack() -> void:
 	_enemy.stat_board.skill_points.set_current(1)
 	_tm.start_turn(_enemy)
 
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_true(_decisions.has("no visible hostile — growth only"),
 			"growth-only decision should have been recorded")
@@ -134,7 +142,7 @@ func test_fog_short_circuit_still_spends_all_sp() -> void:
 	_enemy.stat_board.skill_points.set_current(2)
 	_tm.start_turn(_enemy)
 
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_eq(_nodes[1].owned_by, _enemy, "frontier node 1 allocated")
 	assert_eq(_nodes[2].owned_by, _enemy, "frontier node 2 allocated")
@@ -149,7 +157,7 @@ func test_ai_decision_emitted_regardless_of_debug_trace() -> void:
 	_enemy.stat_board.skill_points.set_current(0)
 	_tm.start_turn(_enemy)
 
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_gt(_decisions.size(), 0, "Events.ai_decision must fire even with debug_trace off")
 
@@ -159,6 +167,6 @@ func test_ai_decision_emitted_with_debug_trace_on() -> void:
 	_enemy.stat_board.skill_points.set_current(0)
 	_tm.start_turn(_enemy)
 
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_gt(_decisions.size(), 0, "Events.ai_decision must fire with debug_trace on too")

@@ -83,6 +83,13 @@ func before_each() -> void:
 	_enemy.stat_board.skill_points.set_current(3)
 
 
+## The idle PlayerController entity parks the clock on itself after the AI
+## (before_each), so "current entity is no longer the enemy" is the fact that
+## the AI's take_turn -> command -> end_turn chain landed (#987).
+func _await_enemy_turn_end() -> void:
+	await wait_until(func() -> bool: return _tm.current_entity != _enemy, 2.0)
+
+
 func _add_edge(a: SkillNode, b: SkillNode) -> void:
 	var e := _EDGE_SCENE.instantiate() as Edge
 	e.from = a
@@ -96,6 +103,13 @@ func test_non_authority_ai_does_not_submit_on_its_turn() -> void:
 	_applier.command_applied.connect(func(c: Command, _ok: bool) -> void: submitted.append(c))
 
 	_tm.start_turn(_enemy)
+	# Absence assert, not a wiring wait (#987): take_turn's authority gate
+	# (ai_controller.gd:187) returns before any await, before the decision
+	# loop, before Events.ai_decision ever fires and before _end_turn — so
+	# there is no positive marker "the AI had its chance" to wait on without
+	# a production change, and no turn-end to wait on either, since nothing
+	# ends this turn on a non-authority peer. This sleep is a deliberate
+	# budget for "long enough that a wrongly-submitting AI would have acted".
 	await get_tree().create_timer(0.3).timeout
 
 	assert_true(submitted.is_empty(),
@@ -110,7 +124,7 @@ func test_authority_ai_still_acts() -> void:
 	_applier.command_applied.connect(func(c: Command, _ok: bool) -> void: submitted.append(c))
 
 	_tm.start_turn(_enemy)
-	await get_tree().create_timer(0.3).timeout
+	await _await_enemy_turn_end()
 
 	assert_false(submitted.is_empty(),
 			"sanity: the authority's own AI still submits — this fixture is capable of it")
