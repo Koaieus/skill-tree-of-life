@@ -803,9 +803,12 @@ Mechanically this is the stronger choice, which is why it wins:
   readable — a hundred arrows in the same window rather than a hundred×stagger
   crawl.
 - **`volley_draw_time`** is a windup phase before the first release — leaves
-  visibly draw before loosing. **0.0 for now**, but it is authored in from the
-  start so it can be turned on without re-deriving the schedule. Melee wants an
-  analogous preparatory phase.
+  visibly draw before loosing (1.5 s authored, #1048; 0.0 is the escape
+  hatch). It is an awaited presenter beat (ADR 0027), not a schedule offset.
+  The camera spends its head, `volley_windup_pivot_focus`, on the firing
+  centroid at the player's zoom and the rest drifting un-followed onto
+  `{centroid, target}`; the follow opens at first release and the landing
+  tighten (`wave_landing`) fires at LAST release.
 - **`t = 0` is the start of the draw**, not the first arrival. Every
   `arrival_time` is measured from the moment the action begins.
 
