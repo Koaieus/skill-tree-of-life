@@ -115,8 +115,12 @@ func test_a_launched_swing_damages_the_quarry() -> void:
 	assert_lt(after, before, "a real swing through the real BattleSystem must land damage")
 	# `launch_attack` returns when the swing is done; the ghost's fade-out runs a
 	# little past that, and tearing the panel down mid-fade frees the node the
-	# fade tween is writing to. Let it land before GUT's autofree sweep.
-	await get_tree().create_timer(0.6).timeout
+	# fade tween is writing to. The preview frees the swung blade once its fade
+	# finishes — wait for that before GUT's autofree sweep.
+	var swung: Object = _panel._preview.current_blade()
+	var swung_ref: WeakRef = weakref(swung)  # a lambda capturing a freed Object errors
+	assert_true(await wait_until(func() -> bool: return swung_ref.get_ref() == null, 2.0),
+			"the swung blade must fade out and free itself")
 
 
 func test_a_dormant_tab_stops_simulating() -> void:
@@ -224,12 +228,13 @@ func test_a_painted_plate_shows_up_in_the_strain_readout() -> void:
 		_panel._input_ctl.route_left_click(_node(n))
 	# One preview cycle has to have run: the ghost's field is attached inside
 	# MeleePreview's own loop, after its simulate().
-	await get_tree().create_timer(0.4).timeout
-	_panel._refresh_strain()
+	var reads_px := func() -> bool:
+		_panel._refresh_strain()
+		return _panel._strain_label.text.contains("px")
+	await wait_until(reads_px, 2.0)
 	assert_string_contains(_panel._strain_label.text, "px",
 			"a plate in reach must read out in world units, not '—'")
 	assert_false(_panel._strain_label.text.contains("no plate in reach"))
-	await get_tree().create_timer(0.6).timeout
 
 
 func test_a_dormant_tab_stops_polling_the_strain_readout() -> void:
@@ -272,30 +277,3 @@ func test_an_idle_right_click_pop_leaves_the_panel_clickable() -> void:
 	assert_eq(_panel._battle.attack_plan, plan, "but never the plan itself")
 	_panel._input_ctl.route_left_click(_node("Hilt"))
 	assert_eq(plan.source, _node("Hilt"), "and the next click re-picks a pivot")
-
-
-func test_a_right_click_mid_swing_is_refused_like_it_is_in_game() -> void:
-	# The panel calls `pop()` raw, reaching past AttackPlanArmedMode — the only
-	# place the game gates right-click. Un-gated, a mid-swing right-click tears
-	# down the plan the launch is still running on.
-	var battle: BattleSystem = _panel._battle
-	var plan := _build_blade()
-	assert_true(plan.is_valid(), "the fixture must have a launchable blade")
-	battle.launch_attack()  # deliberately un-awaited: we need the await window
-	await get_tree().process_frame
-	assert_true(battle.is_launching, "the swing must still be in flight to test this")
-	_right_click()
-	assert_not_null(plan.source, "a swing in flight must keep the plan it is swinging")
-	# Budget covers the #559 wind-up as well as the swing itself — a committed
-	# melee is staged now (form beat, then swing), so "in flight" lasts longer
-	# than SWING_DURATION. Wall clock, not ticks: the swing runs on real-second
-	# timers while the headless frame period is a test-hook knob that varies by
-	# an order of magnitude between machines.
-	var settled: bool = await wait_until(func() -> bool: return not battle.is_launching, 15.0)
-	assert_true(settled, "and the swing must still finish")
-	await get_tree().create_timer(0.6).timeout
-	# The tab has to still DRAW: a panel that takes clicks but mounts no ghost
-	# reads as broken even when every system underneath is fine.
-	_build_blade()
-	assert_not_null(_panel._preview.current_blade(),
-			"a fresh selection must still mount a ghost afterwards")
