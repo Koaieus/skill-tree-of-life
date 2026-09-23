@@ -61,8 +61,8 @@ const NEUTRAL := Color(0.8586, 0.9018, 0.9482)
 
 ## The repo's one "this got worse" colour — [DeltaChip]'s negative red and the
 ## cursed [SlabPanel]'s wash + stroke. An SDR base like [constant NEUTRAL]: a
-## consumer that needs it to glow lifts it through a tier ([method at] /
-## [method harmful]), never by hand-picking brighter channels.
+## consumer that needs it to glow lifts it through a tier ([method at]), never
+## by hand-picking brighter channels.
 const HARMFUL := Color(0.95, 0.45, 0.45)
 
 
@@ -89,10 +89,6 @@ static func at(base: Color, stops: float) -> Color:
 static func neutral(stops: float) -> Color:
 	return at(NEUTRAL, stops)
 
-
-## `at()` against [constant HARMFUL], for content that reads as "worse".
-static func harmful(stops: float) -> Color:
-	return at(HARMFUL, stops)
 
 
 ## Rec.709 luma weights — how much each linear channel contributes to
