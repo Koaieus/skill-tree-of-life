@@ -98,3 +98,9 @@ func apply(context: PlacementContext) -> void:
 		context.scenes[ci] = node_scene
 		if role_tag != &"":
 			context.add_role_tag(ci, role_tag)
+
+
+func scalar_fields() -> Array[ScalarField]:
+	if weight == null:
+		return []
+	return [weight]

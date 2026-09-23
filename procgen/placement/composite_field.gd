@@ -28,3 +28,10 @@ func sample(point: Vector2) -> float:
 			Mode.MAX:
 				acc = maxf(acc, v)
 	return acc if any else 1.0
+
+
+## Forwards to every child, so a field nested at any depth is reached.
+func resolve_mask_radius(radius: float) -> void:
+	for child in children:
+		if child != null:
+			child.resolve_mask_radius(radius)

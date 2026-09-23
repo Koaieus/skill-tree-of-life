@@ -78,3 +78,10 @@ func compute_budget_breakdown(
 		"role_mult": role_mult,
 		"budget": budget,
 	}
+
+
+## The [ScalarField]s this policy holds — see [method GraphProcgenContent.scalar_fields].
+func scalar_fields() -> Array[ScalarField]:
+	if budget_field == null:
+		return []
+	return [budget_field]

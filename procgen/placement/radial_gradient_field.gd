@@ -9,9 +9,9 @@ extends ScalarField
 
 @export var center: Vector2 = Vector2.ZERO
 @export var inner_radius: float = 0.0
-## When > 0, used verbatim. When ≤ 0, [GraphProcgen] fills this from the
-## resolved shape mask (so an auto-scaled shape and the budget gradient stay
-## in lockstep).
+## When > 0, used verbatim. When ≤ 0, opts in to [method resolve_mask_radius]:
+## filled from the resolved shape mask radius at generate time, so an
+## auto-scaled shape and the gradient stay in lockstep.
 @export var outer_radius: float = 0.0
 @export var inner_value: float = 0.5
 @export var outer_value: float = 1.5
@@ -28,3 +28,8 @@ func sample(point: Vector2) -> float:
 	if curve != null:
 		t = curve.sample(t)
 	return lerpf(inner_value, outer_value, t)
+
+
+func resolve_mask_radius(radius: float) -> void:
+	if outer_radius <= 0.0:
+		outer_radius = radius

@@ -14,3 +14,9 @@ extends Resource
 
 func apply(_context: PlacementContext) -> void:
 	pass
+
+
+## The [ScalarField]s this placement holds, so generation can hand each the
+## resolved mask radius. Base: none.
+func scalar_fields() -> Array[ScalarField]:
+	return []

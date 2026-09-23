@@ -12,3 +12,10 @@ extends Resource
 
 func sample(_point: Vector2) -> float:
 	return 1.0
+
+
+## Hands this field the shape mask's resolved outer radius, known only at
+## generate time. Base: nothing to resolve. A field that tracks the map's size
+## overrides this; a field that contains fields forwards it.
+func resolve_mask_radius(_radius: float) -> void:
+	pass

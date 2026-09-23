@@ -1383,22 +1383,19 @@ static func _v4_weighted_pick(
 	return affordable.back()
 
 
-## Fills `outer_radius` on radial fields that opted in (set to 0 or negative)
-## from the active shape mask's resolved outer extent. Lets a
-## RadialGradientField track an auto-scaled mask without the designer
-## hard-coding the size in two places.
+## Hands the active shape mask's resolved radius to every [ScalarField] the
+## content holds. Which fields exist is each holder's answer
+## ([method GraphProcgenContent.scalar_fields]); what a field does with the
+## radius is its own ([method ScalarField.resolve_mask_radius]).
 static func _propagate_mask_radius(config: GraphProcgenConfig) -> void:
-	if config.shape.shape_mask == null:
+	if config.shape.shape_mask == null or config.content == null:
 		return
 	var aabb := config.shape.shape_mask.aabb()
 	var resolved_radius := 0.5 * minf(aabb.size.x, aabb.size.y)
 	if resolved_radius <= 0.0:
 		return
-	# Budget field
-	if config.content.budget_policy != null:
-		var bf := config.content.budget_policy.budget_field
-		if bf is RadialGradientField and (bf as RadialGradientField).outer_radius <= 0.0:
-			(bf as RadialGradientField).outer_radius = resolved_radius
+	for field in config.content.scalar_fields():
+		field.resolve_mask_radius(resolved_radius)
 
 
 # ── Node-subtype placement (#1056) ───────────────────────────────────────

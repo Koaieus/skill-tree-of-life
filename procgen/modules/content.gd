@@ -78,3 +78,16 @@ extends Resource
 ## has no drawable content (D13's demotion). Never null.
 func resolved_default_subtype() -> NodeSubtype:
 	return default_subtype if default_subtype != null else NodeSubtype.regular()
+
+
+## Every [ScalarField] this module holds, across all its holders — what
+## generation hands the resolved mask radius to. `guaranteed_placements` is an
+## untyped Resource array (see above), hence the duck-typed guard.
+func scalar_fields() -> Array[ScalarField]:
+	var out: Array[ScalarField] = []
+	if budget_policy != null:
+		out.append_array(budget_policy.scalar_fields())
+	for p in guaranteed_placements:
+		if p != null and p.has_method("scalar_fields"):
+			out.append_array(p.scalar_fields())
+	return out
