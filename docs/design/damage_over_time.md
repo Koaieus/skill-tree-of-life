@@ -147,3 +147,35 @@ Reference: an arrow is `1 + DEX/20` (1–3 early, ~11 at DEX 200); the floor of
 Corruption at 2% per stack: 10 stacks on a 2000-HP node is 400/tick; on a
 20-HP node 0.4/tick. Curse +10 turns a 50-node 1-damage flood from 150 into
 650 against any armor.
+
+## The stat vocabulary and the decay shapes (#1060 pass, 2026-09-23)
+
+Owner's model, verbatim: *"each application adds 1 stack (unless 'extra stacks
+applied per application' stat value > 0), and damage scales with potency and
+reduces with resistance, and total damage is then up to how falloff behaves."*
+
+**Landing:** `landed = (per_hit + Σ extra_stacks(attacker)) × potency(attacker) × (1 − resistance(node))`,
+flat before the multiply. The extra-stacks stats are `{poison,corruption,curse,wither}_stacks_per_hit`
+(flat, per family, default 0) plus one shared umbrella, `dot_stacks_per_hit`, read by the
+four DoT defs and not by blindness/armor-break (`StatusDef.extra_stacks_stat_ids`, one array,
+one loop). A flat bonus doubles a 0.5-stack dart and barely touches an 8-stack cast: the
+flat-versus-increased axis. The umbrella never scales damage — potency stays per family.
+
+**Falloff and duration are not stats.** Under halving, total effect is stacks ÷ decay
+fraction, so a shared falloff stat is +25 % on every family per 0.1 step — the umbrella trap —
+and an attacker-side falloff needs the row to carry the applier's decay (the second field
+rejected above). The shape is per def instead:
+
+| Status | Effect | Feel | Shape | Total per stack applied once |
+|---|---|---|---|---|
+| Poison | flat HP per stack per tick | fades unless you keep hitting | FRACTION 0.5 | 2 |
+| Corruption | % max HP per stack per tick | rare, dreadful, lingers; cure or die | FRACTION 0.8 | 5 stack-ticks (10 % max HP at 2 %/stack/tick; rescaled with the minting mechanics) |
+| Curse | +min_damage_taken per stack | a legible "cursed for N turns" window | FLAT 1/turn | window of N turns |
+| Wither | healing multiplier below 1; below zero the node *degenerates* — kept, *"a niche but fun concept"* | must outlast the victim's patience | FRACTION 0.75 | 4 |
+| Blindness | vision multiplier on a saturating curve | deeper and longer the more lands; recovers slowly first | FRACTION 0.7, uncapped, ACCUMULATE | see node_subtypes.md D20 |
+| Armor break | as shipped | | FLAT | |
+
+Corruption with **no decay, cure-only** was floated as the bold alternative; revisit when the
+cleanse lane exists. A defender-side "this ground sheds rot" knob (node-local decay bonus)
+stays available for the connectedness cure. Corruption on the health bar and turn-start vs
+turn-end proc: #1092.
