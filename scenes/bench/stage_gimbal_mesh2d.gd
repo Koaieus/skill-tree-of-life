@@ -82,7 +82,7 @@ func _pad_batch() -> void:
 		_pad_owners.append(o)
 		var slot := _batch.acquire(o)
 		var ang := TAU * float(i) / float(pad)
-		var pos := global_position + Vector2(cos(ang), sin(ang)) * (8000.0 + 4000.0 * float(i % 3))
+		var pos := global_position + Vector2.from_angle(ang) * (8000.0 + 4000.0 * float(i % 3))
 		_batch.set_slot_params(slot, tint, ring_count, _style(), float(i), 1.0)
 		_batch.set_slot_transform(slot, pos, base_radius * HALO_SCALE)
 	print("stage    : mesh2d padded with %d off-screen instances (batch live=%d)" % [pad, _batch.live_count()])
