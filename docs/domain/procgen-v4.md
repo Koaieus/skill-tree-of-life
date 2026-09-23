@@ -54,6 +54,31 @@ draw (primary → cost-capped off-attribute → defensive → rare) is replaced 
   *wants* duplicates to combine). The class + `test_weight_profiles.gd` remain
   for anyone who wants the primitive, but a v4 preset must not include it.
 
+## The universal slice (#975)
+
+Universal content is a **fixed slice** of every node's draw, not an open
+pile. `ModifierPoolSet.universal_share` (default 0.2) is the fraction of total
+entry weight `flatten_for_node` hands the draw loop as universal, whatever the
+node's archetype: it sums the selected archetype mass `a` and universal mass
+`u`, then scales every universal entry by `a · share / (1 − share) / u`.
+
+- A universal pool's `pool_weight` therefore means **share within universal**,
+  not share of the draw. Appending a universal pool redistributes inside the
+  slice; growing an archetype pack no longer starves that archetype's
+  universal rolls. Before the slice, the universal share ran 9.5 %–23.7 %
+  purely by pack size (the arithmetic is on #975).
+- Exact **before** the affordability filter. Universal pools skew low-tier, so
+  late in a spend-until-broke draw the realized rate runs slightly above the
+  nominal share. `test_specimen_pool_set.gd` computes the realized rate
+  exactly from the flattened weights rather than asserting the share.
+- Guards, all no-ops: no universal pools selected, or no archetype pool
+  selected (a pack-less primary keeps its only content) → unscaled;
+  `share <= 0` drops universal entries; `share >= 1` clamps just under 1 and
+  raises a configuration warning.
+- The value is tuning, a one-number edit. The live per-pool roster is
+  `ModifierPoolSet.format_tables()` / `StatPool.format_table()` (the inspector
+  print buttons) — never a hand-maintained table.
+
 ## Tunable floor + computed tier bounds (#628)
 
 Every tier now has a `[L, H]` range instead of a fixed value. `H(t)` is
