@@ -36,10 +36,14 @@ const OCCLUDER_SEGMENTS := 48
 ## rig's origin lights the rings' INNER walls (their normals face it) and
 ## leaves the outer walls to the scene's ambient floor. Range scales with the
 ## disk radius (the outermost band's inner wall sits at ~3.4 disk radii), so
-## the falloff reads the same on every node size. Specular is kept low so the
-## glass shader's 0.12 roughness does not paint a hot streak on the inner face.
-const LIGHT_ENERGY := 4.0
+## the falloff reads the same on every node size. Attenuation is 0 (only the
+## range window fades it): in this 1 unit = 1 px world a ring sits 50-150
+## units out, where the default inverse-distance decay leaves nothing.
+## Specular is kept low so the glass shader's 0.12 roughness does not paint a
+## hot streak on the inner face.
+const LIGHT_ENERGY := 2.5
 const LIGHT_RANGE_SCALE := 4.5
+const LIGHT_ATTENUATION := 0.0
 const LIGHT_SPECULAR := 0.15
 
 ## Depth-only disc: transparent pipeline (so it draws in the same pass as the
@@ -124,6 +128,7 @@ func add_rig(rig: Gimbal3D, world_pos: Vector2, disk_radius: float) -> Node3D:
 	var light := OmniLight3D.new()
 	light.omni_range = disk_radius * LIGHT_RANGE_SCALE
 	light.light_energy = LIGHT_ENERGY
+	light.omni_attenuation = LIGHT_ATTENUATION
 	light.light_specular = LIGHT_SPECULAR
 	light.shadow_enabled = false
 	holder.add_child(light)
