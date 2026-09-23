@@ -93,13 +93,9 @@ func generate(cfg: GraphProcgenConfig) -> void:
 	positions_cfg.content.guaranteed_placements = []
 	# Full generate — archetypes are populated so nodes get base_type_color.
 	var result: Dictionary = await GraphProcgen.generate(positions_cfg, _graph)
-	# Captured AFTER generate(), not before: #349's generate() now defensively
-	# re-duplicates config.content/config.shape on entry (same reason as
-	# above, from GraphProcgen's side), which reassigns positions_cfg.content/
-	# .shape to fresh objects — a capture taken before that would go stale and
-	# miss _propagate_mask_radius's outer_radius stamp.
-	_budget_policy = positions_cfg.content.budget_policy
-	_shape_mask = positions_cfg.shape.shape_mask
+	var resolved: GraphProcgenConfig = result.get("config", positions_cfg)
+	_budget_policy = resolved.content.budget_policy
+	_shape_mask = resolved.shape.shape_mask
 	_nodes = result.get("nodes", [])
 	_stamps.clear()
 	_original_arch_idx.clear()
@@ -114,7 +110,7 @@ func generate(cfg: GraphProcgenConfig) -> void:
 					break
 		else:
 			_original_arch_idx[sn] = -1
-	_bounds = positions_cfg.shape.shape_mask.aabb() if positions_cfg.shape.shape_mask != null else Rect2()
+	_bounds = _shape_mask.aabb() if _shape_mask != null else Rect2()
 	_compute_field_range()
 	_generating = false
 	queue_redraw()

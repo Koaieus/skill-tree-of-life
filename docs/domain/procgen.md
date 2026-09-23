@@ -1,6 +1,6 @@
 # Procgen — engineering reference
 
-Code: `procgen/graph_procgen.gd` (pipeline) + `procgen/graph_procgen_config.gd` (inputs). Static, RefCounted, no in-memory state — every call is a pure function of `(config, graph, rng_seed)`.
+Code: `procgen/graph_procgen.gd` (pipeline) + `procgen/graph_procgen_config.gd` (inputs). Static, RefCounted, no in-memory state — every call is a pure function of `(config, graph, rng_seed)`. `generate()` never writes to the config it is handed: it resolves on its own copy (auto-scaled `shape_mask`, mask radius handed to every `ScalarField` via `GraphProcgenContent.scalar_fields()` → `ScalarField.resolve_mask_radius`) and returns that copy as `"config"`. Reading a resolved value — the scaled mask, a back-filled gradient — means reading `result.config`, never the argument.
 
 ## Pipeline
 
@@ -24,6 +24,8 @@ Code: `procgen/graph_procgen.gd` (pipeline) + `procgen/graph_procgen_config.gd` 
   "nodes": Array[SkillNode],            # all generated nodes, in poisson order
   "starting_nodes": Array[SkillNode],   # those that landed on starting_points
   "starters": Array[StartingPoint],     # the assembled starter list (manual + random)
+  "blockers": Array[Dictionary],        # removable-blocker plan (absent on the zero-node early return)
+  "config": GraphProcgenConfig,         # what generation resolved — a copy; the caller's config is untouched
 }
 ```
 

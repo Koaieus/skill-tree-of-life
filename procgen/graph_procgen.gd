@@ -14,7 +14,8 @@ extends RefCounted
 ##
 ## Returns a Dictionary `{nodes: Array[SkillNode], starting_nodes:
 ## Array[SkillNode], starters: Array[StartingPoint], blockers:
-## Array[Dictionary]}` — `starting_nodes[i]` is the SkillNode that landed on
+## Array[Dictionary], config: GraphProcgenConfig}` — `config` is the copy
+## generation resolved (the caller's is never written to); `starting_nodes[i]` is the SkillNode that landed on
 ## `config.starting.starting_points[i]`, for the caller to wire as entity cores, and
 ## each `blockers` entry is `{"node": SkillNode, "size": int, "prune_seed":
 ## int, "footprint": Array[SkillNode], "stake_level": int}` (`size` being a
@@ -146,17 +147,16 @@ static func generate(
 	var rng := RandomNumberGenerator.new()
 	rng.seed = RunConfig.resolve_seed(config.seed)
 
-	# #349: `shape` and `content` are top-level module `.tres` files, so a
-	# caller's `preset.duplicate(true)` did NOT deep-copy them —
-	# `duplicate(true)` only recurses across EMBEDDED SubResources, never a
-	# resource-file (ExtResource) boundary (see the comment in
-	# test_procgen_carve_shape.gd). `generate` mutates both below —
-	# `shape_mask.size_for` for auto-scale, and `_propagate_mask_radius`'s
-	# one-time `budget_field.outer_radius` stamp — so without this, two
-	# generate() calls sharing the same loaded preset (any two tests, or the
-	# same level rerun in one process) would silently corrupt the cached
-	# on-disk module for each other, exactly the leak #349 acceptance 4
-	# exists to catch, one level deeper than `topology.node_count`.
+	# Generation resolves on its OWN copy and returns it as `"config"`; the
+	# caller's config object is never written to. The shallow duplicate rebinds
+	# the local name only (the modules are shared by reference into it); the
+	# two modules generation mutates — `shape` (`size_for` auto-scale) and
+	# `content` (`_propagate_mask_radius`) — are then deep-copied. Deep, not
+	# shallow, because both are module `.tres` files whose `duplicate(true)`
+	# stops at every ExtResource boundary (see test_procgen_carve_shape.gd):
+	# a write through the caller's reference would land on the cached on-disk
+	# module every other load of the preset shares.
+	config = config.duplicate()
 	if config.shape != null:
 		config.shape = config.shape.duplicate(true)
 	if config.content != null:
@@ -208,6 +208,7 @@ static func generate(
 				"nodes": [] as Array[SkillNode],
 				"starting_nodes": [] as Array[SkillNode],
 				"starters": starters,
+				"config": config,
 		}
 
 	await _emit_progress(progress_cb, 0.25, "Connecting edges")
@@ -470,6 +471,7 @@ static func generate(
 		"starting_nodes": starting_nodes,
 		"starters": starters,
 		"blockers": blockers,
+		"config": config,
 	}
 
 
