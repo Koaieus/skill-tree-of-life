@@ -207,3 +207,41 @@ func test_v2_pipeline_empty_pool_returns_empty() -> void:
 	var rng := RandomNumberGenerator.new()
 	var rolled := _roll_pipeline(entries, [] as Array[Resource], &"red", [] as Array[StringName], 5, rng)
 	assert_eq(rolled.size(), 0)
+
+
+# ── Characterization: v4 fuses duplicate (stat, op) picks ────────────────
+
+
+## One cost-1 STR ADD_BASE tier, budget 3: the real draw picks it three times
+## and aggregation fuses the three picks into ONE modifier. Duplicate
+## (stat, op) picks are the draw model, not a defect — a profile that
+## forbids them would starve this node down to a single pick.
+func test_v4_draw_fuses_duplicate_stat_op_picks_into_one_modifier() -> void:
+	var p := StatPool.new()
+	p.stat_id = &"strength"
+	p.operation = StatModifier.Operation.ADD_BASE
+	p.archetype_stat = &"strength"
+	p.unit_value = 2.0
+	p.range_floor = 1.0  # positive floor — no fused no-op, no re-roll path
+	p.min_tier = 1
+	p.max_tier = 1
+	var pack := StatPack.new()
+	pack.archetype_stat = &"strength"
+	var pools: Array[StatPool] = [p]
+	pack.pools = pools
+	var pool_set := ModifierPoolSet.new()
+	var packs: Array[StatPack] = [pack]
+	pool_set.packs = packs
+	var arch := ArchetypeWeightProfile.new()
+	arch.weights = {&"red": {&"str": 3.0}}
+	var profiles: Array[Resource] = [arch]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var fp := {}
+	var mods: Array[StatModifier] = GraphProcgen._roll_modifiers_v4(
+			pool_set, profiles, &"red", &"strength", [] as Array[StringName],
+			Vector2.ZERO, 0, 3, rng, fp)
+	assert_eq(fp.get("draws", 0), 3, "budget 3 of cost-1 picks must draw three times")
+	assert_eq(mods.size(), 1, "three STR ADD_BASE picks must fuse into one modifier; got %d" % mods.size())
+	assert_eq(mods[0].stat_id, &"strength")
+	assert_eq(mods[0].operation, StatModifier.Operation.ADD_BASE)
