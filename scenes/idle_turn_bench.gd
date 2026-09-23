@@ -46,6 +46,10 @@ extends "res://scenes/procgen_play_sandbox.gd"
 @export var zoom_override: float = 0.0
 
 @export var segments: Array[String] = ["baseline", "gimbals-off", "cogs-off", "halos-off", "fog-pass-off", "glow-off"]
+## Which stage-gimbal scene the [code]gimbal-stage[/code] segment instances —
+## a row name in [code]IdleTurnProbe.SUBSTRATES[/code] (#804: [code]cpu2d[/code]
+## is the CoreHalos baseline; each spike registers its own row).
+@export var gimbal_substrate: String = "cpu2d"
 
 
 ## Cmdline overrides land here, not in [method _init] — see the class docstring
@@ -78,6 +82,8 @@ func _apply_cmdline_overrides() -> void:
 					parsed.append(tok.strip_edges())
 				if not parsed.is_empty():
 					segments = parsed
+			"gimbal-substrate":
+				gimbal_substrate = parts[1].strip_edges()
 			"auto-turn":
 				# Off = measure the pre-turn state (no turn open). The default
 				# (on) is the state #763 actually asks about.

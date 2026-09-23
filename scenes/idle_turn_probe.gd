@@ -29,6 +29,18 @@ const _STYLE_NONE := 0
 const _STYLE_GIMBAL := 3
 const _STYLE_COG := 4
 const _STYLE_NAMES: Array[String] = ["NONE", "RINGS", "ORBIT", "GIMBAL", "COG"]
+const _STAGE := "gimbal-stage"
+const _STAGE_COUNT := 10
+const _STAGE_RINGS := 5
+
+## The gimbal-stage substrate table (#804): `--gimbal-substrate=<name>` picks a
+## row; the segment instances that scene once per staged node. Every row's
+## root exposes the SAME three properties — `ring_count: int`, `tint: Color`,
+## `base_radius: float` (the SkillNode radius it sits on) — the contract
+## `gimbal_3d.gd` already has. A spike adds ONE line here and nothing else.
+const SUBSTRATES: Dictionary = {
+	"cpu2d": preload("res://scenes/bench/stage_gimbal_cpu2d.tscn"),
+}
 
 var _viewport_rid: RID
 var _baseline_stats: Dictionary = {}
@@ -37,6 +49,7 @@ var _fog_visible_before := true
 var _injected_env: WorldEnvironment = null
 var _turn_owner_name := "<none>"
 var _frozen: Array[Node] = []
+var _staged: Array[Node] = []
 
 
 func _ready() -> void:
@@ -337,6 +350,9 @@ func _enter_segment(segment: String, root: GameRoot) -> void:
 				fog.visible = false
 		"glow-off":
 			_inject_glow_off_environment(root)
+		_STAGE:
+			_stage_gimbals(root, str(owner.get("gimbal_substrate")))
+			print("stage    : %s" % _format_stage_census(root, str(owner.get("gimbal_substrate"))))
 		_:
 			push_warning("idle bench: unknown segment '%s' — measured as baseline" % segment)
 
@@ -360,6 +376,72 @@ func _exit_segment(segment: String, root: GameRoot) -> void:
 			if _injected_env != null:
 				_injected_env.queue_free()
 				_injected_env = null
+		_STAGE:
+			for g in _staged:
+				if is_instance_valid(g):
+					g.queue_free()
+			_staged.clear()
+
+
+## — gimbal-stage (#804) ————————————————————————————————————————————————————————
+## The owner's target, staged on the composed game: 10 cores x 5 rings ON
+## SCREEN. The level's own procgen almost never puts 10 revealed cores in view,
+## so the stage instances its own gimbals over the 10 on-screen nodes nearest
+## the view centre — preferring revealed, non-core nodes so each has a real
+## disk under it and no halo of its own — as SIBLINGS in the graph canvas.
+## Nothing is written into the SkillNode, and nothing is un-fogged: a fogged
+## staged gimbal is dimmed but pays its full cost, which is the number wanted.
+
+func _stage_gimbals(root: GameRoot, substrate: String) -> void:
+	if not SUBSTRATES.has(substrate):
+		push_error("idle bench: unknown gimbal substrate '%s' (known: %s)" % [
+			substrate, ", ".join(SUBSTRATES.keys())])
+		return
+	var scene: PackedScene = SUBSTRATES[substrate]
+	for n in _pick_stage_nodes(root, _STAGE_COUNT):
+		var gimbal: Node2D = scene.instantiate()
+		gimbal.set("ring_count", _STAGE_RINGS)
+		gimbal.set("tint", n.owned_by.color if n.owned_by != null else Color.WHITE)
+		gimbal.set("base_radius", n.radius)
+		n.get_parent().add_child(gimbal)
+		gimbal.global_position = n.global_position
+		_staged.append(gimbal)
+
+
+## On-screen nodes ranked (non-core, revealed, nearest the view centre).
+func _pick_stage_nodes(root: GameRoot, count: int) -> Array[SkillNode]:
+	var view := root.camera.view_rect()
+	var centre := view.get_center()
+	var ranked: Array = []
+	for n: SkillNode in root.graph.get_skill_nodes():
+		if not view.has_point(n.global_position):
+			continue
+		var is_core := n.owned_by != null and n.owned_by.core_location == n
+		ranked.append([int(is_core), int(not n.revealed),
+				n.global_position.distance_squared_to(centre), n])
+	ranked.sort_custom(func(a: Array, b: Array) -> bool:
+		for i in 3:
+			if a[i] != b[i]:
+				return a[i] < b[i]
+		return false)
+	var picked: Array[SkillNode] = []
+	for row in ranked.slice(0, count):
+		picked.append(row[3])
+	return picked
+
+
+## "substrate=cpu2d gimbals=10 rings=50 onscreen=10" — counted from the
+## instanced scenes (ring_count read back from each root), never assumed.
+func _format_stage_census(root: GameRoot, substrate: String) -> String:
+	var view := root.camera.view_rect()
+	var rings := 0
+	var onscreen := 0
+	for g in _staged:
+		rings += int(g.get("ring_count"))
+		if view.has_point((g as Node2D).global_position):
+			onscreen += 1
+	return "substrate=%s gimbals=%d rings=%d onscreen=%d" % [
+		substrate, _staged.size(), rings, onscreen]
 
 
 ## WorldEnvironment carrying a glow-less duplicate of the project's default

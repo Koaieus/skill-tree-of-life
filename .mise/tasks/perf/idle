@@ -24,6 +24,10 @@ The curated matrix, and what each row exists to answer:
     mobile/compat-1080-2000   renderer method, the variable the issue comment
                               asked to record
     fp-1440-2000              the North Star resolution (docs/domain/rendering-performance.md)
+    fp-1080-2000-stage        #804's gimbal-stage: 10 x 5-ring gimbals staged on
+                              screen (`--segments=baseline,gimbal-stage`,
+                              `--gimbal-substrate=cpu2d` by default; each spike
+                              re-runs it with its own substrate row)
     headless-{500,800,2000}  the CPU floor — no renderer at all; subtract from
                               the windowed CPU column to see what the renderer
                               costs the CPU side
@@ -92,6 +96,10 @@ def runs_default():
     # at _ready), so the bench applies it from a user arg in _setup_level.
     yield ("fp-1440-2000", ["--windowed"],
            ["--nodes=2000", "--resolution=2560x1440"], {}, None, None)
+    # #804's gimbal stage: the owner's 10 cores x 5 rings target, on screen
+    yield ("fp-1080-2000-stage", fp,
+           ["--nodes=2000", "--segments=baseline,gimbal-stage"], {}, None,
+           None)
     # software-raster pessimism (llvmpipe) — deltas only, never absolutes
     yield ("llvmpipe-1080-800",
            ["--rendering-method", "gl_compatibility"] + fp, ["--nodes=800"],

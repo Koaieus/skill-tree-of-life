@@ -1,0 +1,12 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/bench/stage_gimbal_cpu2d.gd" id="1_adapter"]
+[ext_resource type="PackedScene" uid="uid://ex5cfonh5qyp" path="res://skill_node/visuals/core_halos.tscn" id="2_halos"]
+
+[node name="StageGimbalCpu2D" type="Node2D"]
+script = ExtResource("1_adapter")
+
+[node name="CoreHalos" parent="." instance=ExtResource("2_halos")]
+halo_style = 3
+halo_scale = 1.8
+gimbal_ring_count = 5
