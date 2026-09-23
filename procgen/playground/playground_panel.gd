@@ -147,11 +147,7 @@ func refresh_from_config() -> void:
 		if meta is ArchetypePolicy:
 			preferred_id = (meta as ArchetypePolicy).id
 
-	_config = _source_config.duplicate(true)
-	# #349: see the comment in _set_config — re-duplicate before mutating.
-	_config.shape = _config.shape.duplicate(true)
-	_config.content = _config.content.duplicate(true)
-	GraphProcgen._propagate_mask_radius(_config)
+	_config = GraphProcgen.resolve_config(_source_config.duplicate(true), false)
 	_populate_archetypes(preferred_id)
 	_populate_stamp_archetypes()
 	_update_bound_label()
@@ -231,17 +227,9 @@ func _on_open_presets_folder_pressed() -> void:
 
 
 func _set_config(cfg: GraphProcgenConfig) -> void:
-	_config = cfg
-	# #349: shape/content are top-level module .tres (ExtResource); a caller's
-	# `.duplicate(true)` does not cross that boundary, so re-duplicate before
-	# `_propagate_mask_radius` mutates `content.budget_policy.budget_field` in
-	# place — otherwise that write lands on the shared, cached module every
-	# other loaded copy of this preset sees too (acceptance 4's trap, one
-	# level deeper).
-	if _config != null:
-		_config.shape = _config.shape.duplicate(true)
-		_config.content = _config.content.duplicate(true)
-		GraphProcgen._propagate_mask_radius(_config)
+	# The Map Sample heatmap reads the AUTHORED mask size (no auto-scale) with
+	# opted-in fields back-filled from it — on a copy, never the passed config.
+	_config = GraphProcgen.resolve_config(cfg, false) if cfg != null else null
 	_populate_archetypes()
 	_populate_stamp_archetypes()
 	_update_bound_label()

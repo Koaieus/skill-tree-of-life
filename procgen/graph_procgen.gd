@@ -148,33 +148,10 @@ static func generate(
 	rng.seed = RunConfig.resolve_seed(config.seed)
 
 	# Generation resolves on its OWN copy and returns it as `"config"`; the
-	# caller's config object is never written to. The shallow duplicate rebinds
-	# the local name only (the modules are shared by reference into it); the
-	# two modules generation mutates — `shape` (`size_for` auto-scale) and
-	# `content` (`_propagate_mask_radius`) — are then deep-copied. Deep, not
-	# shallow, because both are module `.tres` files whose `duplicate(true)`
-	# stops at every ExtResource boundary (see test_procgen_carve_shape.gd):
-	# a write through the caller's reference would land on the cached on-disk
-	# module every other load of the preset shares.
-	config = config.duplicate()
-	if config.shape != null:
-		config.shape = config.shape.duplicate(true)
-	if config.content != null:
-		config.content = config.content.duplicate(true)
-
-	# Sized for the LARGEST radius any node can carry (#783): with a
-	# `node_radius_ramp` that is the ramp's asymptote, so a max-budget node
-	# still clears its neighbours; without one it is the uniform node_radius.
-	var min_dist := 2.0 * config.topology.max_node_radius() + config.topology.node_padding
+	# caller's config object is never written to (see resolve_config).
 	await _emit_progress(progress_cb, 0.02, "Preparing shape")
-	# Auto-size the shape mask so Poisson can fit node_count at the requested
-	# spacing without under-filling. See _POISSON_AREA_PER_POINT above.
-	if config.shape.shape_mask != null and config.shape.shape_mask.auto_scale:
-		var target_area := target_area_for_node_count(config.topology.node_count, min_dist)
-		config.shape.shape_mask.size_for(target_area, min_dist * 4.0)
-	# Now that the mask is sized, propagate its outer radius to any radial
-	# fields/profiles that opted in (outer_radius ≤ 0).
-	_propagate_mask_radius(config)
+	config = resolve_config(config)
+	var min_dist := _min_node_dist(config.topology)
 	# Final ordered starter list = manual entries first, then any random anchors
 	# we place. Caller reads back via `starting_nodes` in the same order, so
 	# manual vs. random can be told apart by index.
@@ -1383,6 +1360,42 @@ static func _v4_weighted_pick(
 		if r <= 0.0:
 			return affordable[i]
 	return affordable.back()
+
+
+## Returns a copy of `config` with its generate-time values resolved — the
+## shape mask auto-scaled to `node_count` (when the mask opts in and
+## `scale_mask` is set) and the mask radius handed to every [ScalarField].
+## Never writes to `config`. The shallow duplicate shares the untouched
+## modules by reference; the two it mutates — `shape` and `content` — are
+## deep-copied, because both are module `.tres` files whose `duplicate(true)`
+## stops at every ExtResource boundary (see test_procgen_carve_shape.gd): a
+## write through the caller's reference would land on the cached on-disk
+## module every other load of the preset shares.
+## `scale_mask = false` keeps the authored mask size — a preview that samples
+## the authored config rather than a generated map.
+static func resolve_config(config: GraphProcgenConfig, scale_mask: bool = true) -> GraphProcgenConfig:
+	var out: GraphProcgenConfig = config.duplicate()
+	if out.shape != null:
+		out.shape = out.shape.duplicate(true)
+	if out.content != null:
+		out.content = out.content.duplicate(true)
+	if out.shape == null or out.shape.shape_mask == null:
+		return out
+	# Auto-size the shape mask so Poisson can fit node_count at the requested
+	# spacing without under-filling. See _POISSON_AREA_PER_POINT above.
+	if scale_mask and out.shape.shape_mask.auto_scale:
+		var min_dist := _min_node_dist(out.topology)
+		var target_area := target_area_for_node_count(out.topology.node_count, min_dist)
+		out.shape.shape_mask.size_for(target_area, min_dist * 4.0)
+	_propagate_mask_radius(out)
+	return out
+
+
+## Poisson spacing, sized for the LARGEST radius any node can carry (#783):
+## with a `node_radius_ramp` that is the ramp's asymptote, so a max-budget
+## node still clears its neighbours; without one the uniform node_radius.
+static func _min_node_dist(topology: GraphProcgenTopology) -> float:
+	return 2.0 * topology.max_node_radius() + topology.node_padding
 
 
 ## Hands the active shape mask's resolved radius to every [ScalarField] the
