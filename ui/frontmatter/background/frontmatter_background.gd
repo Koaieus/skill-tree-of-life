@@ -55,6 +55,7 @@ func _ready() -> void:
 	reduce_motion = _resolve_reduce_motion()
 	visible = enabled
 	_push_time(0.0)
+	_push_noise_textures()
 
 
 func _process(delta: float) -> void:
@@ -67,6 +68,20 @@ func _push_time(t: float) -> void:
 	(_base_sprite.material as ShaderMaterial).set_shader_parameter("shader_time", t)
 	(_mid_sprite.material as ShaderMaterial).set_shader_parameter("shader_time", t)
 	(_near_sprite.material as ShaderMaterial).set_shader_parameter("shader_time", t)
+
+
+## #908 — the sprite owns the texture: each layer's [ShaderMaterial] samples
+## noise through a plain [code]noise_tex[/code] uniform
+## (frontmatter_noise.gdshaderinc) rather than the built-in [code]TEXTURE[/code]
+## forwarded into a user function, which the shader compiler cannot map to a
+## custom sampler slot. Nobody authors [code]shader_parameter/noise_tex[/code]
+## by hand in the [code].tscn[/code] — this push is the source of truth; the
+## editor may serialize the pushed value back on a later save (this script is
+## [code]@tool[/code]), which is expected and harmless.
+func _push_noise_textures() -> void:
+	for sprite in [_base_sprite, _mid_sprite, _near_sprite]:
+		var mat := sprite.material as ShaderMaterial
+		mat.set_shader_parameter("noise_tex", sprite.texture)
 
 
 ## Same contract as [code]FrontmatterRoot._resolve_reduce_motion()[/code]:

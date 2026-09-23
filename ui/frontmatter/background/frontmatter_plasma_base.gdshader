@@ -48,29 +48,10 @@ uniform float coverage_freq : hint_range(1.0, 40.0) = 6.0;
 // thinner slivers, less screen area carrying colour.
 uniform float coverage_sharpness : hint_range(1.0, 32.0) = 10.0;
 
-// Sampled noise, not procedural (#605): TEXTURE is the sprite's own
-// NoiseTexture2D (seamless = true), so every read is a hardware texture
-// fetch instead of a hash. TEXTURE is only a valid identifier inside
-// fragment(), so it is threaded through as a parameter rather than read
-// globally. The one rule that keeps this seamless: NEVER pass an unwrapped
-// coordinate into texture() — always fract() first, at every octave and for
-// the warped coordinate too, because a NoiseTexture2D only tiles across its
-// own [0,1) UV period. A sample that drifts outside that wrapped domain
-// reintroduces the seam this shader exists to remove.
-float noise(sampler2D tex, vec2 p) {
-	return texture(tex, fract(p)).r;
-}
-
-float fbm(sampler2D tex, vec2 p) {
-	float v = 0.0;
-	float amp = 0.5;
-	for (int i = 0; i < 4; i++) {
-		v += amp * noise(tex, p);
-		p *= 2.0;
-		amp *= 0.5;
-	}
-	return v;
-}
+// Noise sampling (fnoise/fbm) lives in frontmatter_noise.gdshaderinc (#908) —
+// TEXTURE must never be forwarded into a user function as a sampler2D
+// argument; see that file's header for why and the seam-trap contract.
+#include "res://ui/frontmatter/background/frontmatter_noise.gdshaderinc"
 
 // Classic iq cosine palette (a + b*cos(2pi*(c*t+d))) — cheap, and it is what
 // makes the noise field read as travelling rainbow bands instead of a tinted
@@ -94,8 +75,8 @@ void fragment() {
 
 	// Domain warp: offset the sample point by a second, slower fbm field so
 	// bands fold into swirls rather than sitting as flat marble stripes.
-	vec2 warp = vec2(fbm(TEXTURE, uv + t * 0.3), fbm(TEXTURE, uv + 5.2 - t * 0.2)) * warp_strength;
-	float n = fbm(TEXTURE, uv + warp + t);
+	vec2 warp = vec2(fbm(uv + t * 0.3, 4, 0.0), fbm(uv + 5.2 - t * 0.2, 4, 0.0)) * warp_strength;
+	float n = fbm(uv + warp + t, 4, 0.0);
 
 	// Same ridge-then-pow shape frontmatter_streaks.gdshader uses to draw
 	// thin lines, reused here as a coverage mask on the base layer's own

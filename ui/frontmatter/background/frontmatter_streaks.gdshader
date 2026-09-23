@@ -34,36 +34,19 @@ uniform float line_strength : hint_range(0.0, 1.0) = 0.5;
 // Decorrelates the noise field from the base layer / the other streak copy.
 uniform float seed = 0.0;
 
-// Sampled noise, not procedural (#605, same fix as frontmatter_plasma_base's
-// seam trap): TEXTURE is the sprite's own NoiseTexture2D (seamless = true).
-// TEXTURE is only a valid identifier inside fragment(), so it is threaded
-// through as a parameter. `seed` still decorrelates this layer from the base
-// layer / the other streak copy, now as a constant phase offset folded in
-// before the wrap — fract(p + seed) stays periodic in p with period 1
-// exactly like fract(p) does, so it does not reopen the seam. Every read,
-// including the warped coordinate, goes through this same
-// fract()-before-texture() path.
-float noise(sampler2D tex, vec2 p) {
-	return texture(tex, fract(p + seed)).r;
-}
-
-float fbm(sampler2D tex, vec2 p) {
-	float v = 0.0;
-	float amp = 0.5;
-	for (int i = 0; i < 3; i++) {
-		v += amp * noise(tex, p);
-		p *= 2.0;
-		amp *= 0.5;
-	}
-	return v;
-}
+// Noise sampling (fnoise/fbm) lives in frontmatter_noise.gdshaderinc (#908) —
+// TEXTURE must never be forwarded into a user function as a sampler2D
+// argument; see that file's header for why and the seam-trap contract.
+// `seed` is this layer's own decorrelation phase, threaded into fbm()'s
+// `phase` argument below.
+#include "res://ui/frontmatter/background/frontmatter_noise.gdshaderinc"
 
 void fragment() {
 	vec2 uv = UV * scale;
 	float t = shader_time * speed;
 
-	vec2 warp = vec2(fbm(TEXTURE, uv - t * 0.25), fbm(TEXTURE, uv + 7.1 + t * 0.15)) * warp_strength;
-	float n = fbm(TEXTURE, uv + warp);
+	vec2 warp = vec2(fbm(uv - t * 0.25, 3, seed), fbm(uv + 7.1 + t * 0.15, 3, seed)) * warp_strength;
+	float n = fbm(uv + warp, 3, seed);
 
 	// A ridge lights up wherever the warped field crosses a periodic band —
 	// sin() zero-crossings sharpened by a power curve into thin lines rather

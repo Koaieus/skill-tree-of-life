@@ -181,6 +181,23 @@ func test_base_layer_carries_a_coverage_mask_uniform() -> void:
 			"coverage_sharpness must fold most of the tile to black, not just tint it down")
 
 
+# --- #908 noise_tex uniform -------------------------------------------------
+
+func test_each_layer_samples_its_own_sprite_texture() -> void:
+	# #908 — TEXTURE forwarded into a user function (fbm) as a sampler2D
+	# argument logs an engine "Continuing" condition on load (reds
+	# test_sandbox_host_tabs.gd's tab-load test). The fix threads noise
+	# through a real `noise_tex` uniform instead, pushed from each layer
+	# sprite's own texture in _ready().
+	for layer_name in ["BaseLayer", "MidLayer", "NearLayer"]:
+		var sprite := _bg.get_node("%" + layer_name) as Sprite2D
+		var mat := sprite.material as ShaderMaterial
+		var noise_tex: Texture2D = mat.get_shader_parameter("noise_tex")
+		assert_not_null(noise_tex, "%s's material must carry a noise_tex uniform" % layer_name)
+		assert_eq(noise_tex, sprite.texture,
+				"%s's noise_tex must be pushed from the sprite's own texture" % layer_name)
+
+
 func test_noise_resource_authors_frequency_and_octaves_explicitly() -> void:
 	# #607 — an all-defaults FastNoiseLite (frequency 0.01, fractal_octaves 5)
 	# is the whole cause of the px-scale grain; pin that it stays explicitly
