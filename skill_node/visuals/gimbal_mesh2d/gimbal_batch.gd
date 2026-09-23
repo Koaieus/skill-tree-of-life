@@ -106,7 +106,7 @@ func release(owner: Object) -> void:
 	_slot.erase(owner)
 	_free.append(idx)
 	if _mm != null:
-		_mm.set_instance_transform_2d(idx, Transform2D(Vector2.ZERO, Vector2.ZERO, 0.0, Vector2.ZERO))
+		_mm.set_instance_transform_2d(idx, Transform2D(0.0, Vector2.ZERO, 0.0, Vector2.ZERO))
 
 
 func slot_of(owner: Object) -> int:
@@ -151,7 +151,7 @@ func _grow_capacity(min_count: int) -> void:
 		_mm.set_instance_custom_data(i, saved[i][2])
 	# A fresh slot must not draw the mesh at identity until its owner writes it.
 	for i in range(saved.size(), _capacity):
-		_mm.set_instance_transform_2d(i, Transform2D(Vector2.ZERO, Vector2.ZERO, 0.0, Vector2.ZERO))
+		_mm.set_instance_transform_2d(i, Transform2D(0.0, Vector2.ZERO, 0.0, Vector2.ZERO))
 
 
 func _material(front_pass: float) -> ShaderMaterial:
