@@ -377,6 +377,7 @@ func _exit_segment(segment: String, root: GameRoot) -> void:
 				_injected_env.queue_free()
 				_injected_env = null
 		_STAGE:
+			_save_stage_screenshot(str(owner.get("screenshot_path")))
 			for g in _staged:
 				if is_instance_valid(g):
 					g.queue_free()
@@ -428,6 +429,14 @@ func _pick_stage_nodes(root: GameRoot, count: int) -> Array[SkillNode]:
 	for row in ranked.slice(0, count):
 		picked.append(row[3])
 	return picked
+
+
+## The last measured frame, with the gimbals still staged (acceptance 3).
+func _save_stage_screenshot(path: String) -> void:
+	if path.is_empty() or DisplayServer.get_name() == "headless":
+		return
+	var err := get_viewport().get_texture().get_image().save_png(path)
+	print("screenshot: %s%s" % [path, "" if err == OK else " (FAILED: %d)" % err])
 
 
 ## "substrate=cpu2d gimbals=10 rings=50 onscreen=10" — counted from the

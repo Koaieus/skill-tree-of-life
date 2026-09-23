@@ -50,6 +50,9 @@ extends "res://scenes/procgen_play_sandbox.gd"
 ## a row name in [code]IdleTurnProbe.SUBSTRATES[/code] (#804: [code]cpu2d[/code]
 ## is the CoreHalos baseline; each spike registers its own row).
 @export var gimbal_substrate: String = "cpu2d"
+## Where the [code]gimbal-stage[/code] segment saves a PNG of the staged frame
+## (the reviewer's "is the stage what it claims" check), or "" for none.
+@export var screenshot_path: String = ""
 
 
 ## Cmdline overrides land here, not in [method _init] — see the class docstring
@@ -84,6 +87,8 @@ func _apply_cmdline_overrides() -> void:
 					segments = parsed
 			"gimbal-substrate":
 				gimbal_substrate = parts[1].strip_edges()
+			"screenshot":
+				screenshot_path = parts[1].strip_edges()
 			"auto-turn":
 				# Off = measure the pre-turn state (no turn open). The default
 				# (on) is the state #763 actually asks about.
