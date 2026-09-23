@@ -218,6 +218,9 @@ func _battle_system() -> BattleSystem:
 	bs.allocation_system = _alloc
 	bs.graph = _graph
 	bs.attack_vfx = vfx
+	# Every test here asserts the ledger (volleys, bins, shots, AP), never
+	# playback: land each launch synchronously.
+	bs.instant_mutation = true
 	add_child_autofree(bs)
 	return bs
 
