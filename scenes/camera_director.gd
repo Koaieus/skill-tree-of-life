@@ -98,8 +98,10 @@ var _shot_following: bool = false
 ## The [Node2D] a shot's follow opens on / rebinds to (#931): the presenter's
 ## [code]focus_marker()[/code] at commit (the melee ghost's `%FocusMarker`, or
 ## the pivot [SkillNode] before the ghost exists), then whatever
-## `focus_marker_changed` hands over while locked. Null means the shot frames
-## its span once and follows nothing — today's ranged/magic picture. Read by
+## `focus_marker_changed` hands over while locked. Null means no follow is open
+## YET: ranged hands its marker over at first release and
+## [method _on_presenter_marker_ready] opens the follow then (#1048); a
+## presenter that never emits (magic today) keeps the span framed once. Read by
 ## [method request_focus] rather than carried on a [FocusRequest], so
 ## [method decide] stays a pure function of plain values.
 var _follow_node: Node2D = null

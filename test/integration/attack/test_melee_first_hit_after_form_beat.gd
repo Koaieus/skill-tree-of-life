@@ -192,6 +192,7 @@ func test_a_ranged_first_hit_lands_after_the_presenters_windup_on_the_real_clock
 	# presenter's alone — what `_stage_windup` awaits is the presenter's return.
 	var tempo := PresentationTempo.new()
 	tempo.volley_draw_time = 0.0
+	tempo.volley_windup_pivot_focus = 0.0
 	_bs.presentation_tempo = tempo
 	assert_eq(_bs.tempo().windup_lead(BattleSystem.AttackMode.RANGED), 0.0,
 			"the tempo authors no ranged lead — the wait below is the presenter's alone")
