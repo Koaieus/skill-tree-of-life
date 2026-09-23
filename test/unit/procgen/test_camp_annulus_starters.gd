@@ -255,7 +255,7 @@ func test_integration_coop_versus_preset() -> void:
 	var result := await _generate_full(cfg)
 	var starting_nodes: Array = result.get("starting_nodes", [])
 	assert_eq(starting_nodes.size(), 4)
-	var shape_mask: ShapeMask = cfg.shape.shape_mask
+	var shape_mask: ShapeMask = (result["config"] as GraphProcgenConfig).shape.shape_mask
 	var aabb := shape_mask.aabb()
 	var r := 0.5 * minf(aabb.size.x, aabb.size.y)
 	for n in starting_nodes:

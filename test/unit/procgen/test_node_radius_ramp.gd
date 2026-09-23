@@ -138,6 +138,6 @@ func test_min_dist_sizes_for_the_ramp_asymptote() -> void:
 			closest = minf(closest, (nodes[i] as SkillNode).position.distance_to(
 					(nodes[j] as SkillNode).position))
 	assert_gte(closest, 150.0 - 0.001, "no two nodes closer than 2 * cap + padding")
-	var mask := cfg.shape.shape_mask as CircularShapeMask
+	var mask := (result["config"] as GraphProcgenConfig).shape.shape_mask as CircularShapeMask
 	var expected_r := sqrt(GraphProcgen.target_area_for_node_count(80, 150.0) / PI)
 	assert_almost_eq(mask.radius, expected_r, 0.01, "mask sized from min_dist 150")

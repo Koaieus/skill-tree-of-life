@@ -203,14 +203,13 @@ func _generate(cfg: GraphProcgenConfig) -> Array[SkillNode]:
 ## honest: force both subtypes to certainty and every PER/WIS node must still
 ## end on the default, while the four populated archetypes stand.
 func test_perception_and_wisdom_always_end_on_the_default_subtype() -> void:
-	# QUARANTINED (#425). This is the only test here that runs a real
-	# `generate()`, and generation mutates the config resource it is handed —
-	# `duplicate(true)` does not deep-copy the ext_resource-referenced pool set,
-	# so the shipped preset is contaminated for whatever script GUT runs next in
-	# the same process. It passes alone and sharded, and takes
-	# `test_preset_generation_golden.gd` down with it single-process. Un-pend it
-	# with #425, not before: the assertion is right, the isolation is not.
-	pending("blocked on #425 — generate() mutates the shared preset")
+	# QUARANTINED. Passes alone and sharded; fails single-process in
+	# `GUT_SHARDS=1 mise run test:dir -- res://test/unit/procgen/` — alongside
+	# five siblings in this file that never call `generate()` and both preset
+	# goldens, all already red there on a generate() that no longer writes to
+	# its config (#425). So the contaminator is an earlier procgen script, not
+	# this test and not generate(); the assertion is right, the isolation is not.
+	pending("single-process procgen contamination, independent of generate() — see comment")
 	return
 	@warning_ignore("unreachable_code")
 	for forced: StringName in [&"blight", &"bless"]:

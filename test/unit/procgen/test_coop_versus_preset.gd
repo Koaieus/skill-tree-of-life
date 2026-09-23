@@ -37,12 +37,18 @@ func _fresh_config() -> GraphProcgenConfig:
 	return cfg
 
 
+## What the last [method _generate] resolved — generate() never writes to
+## the config it is handed, so resolved values are read off this.
+var _resolved: GraphProcgenConfig
+
+
 func _generate(cfg: GraphProcgenConfig) -> Array:
 	var graph_scene: PackedScene = load("res://graph/graph.tscn")
 	var graph: Graph = autofree(graph_scene.instantiate()) as Graph
 	add_child(graph)
 	await get_tree().process_frame
 	var result: Dictionary = await GraphProcgen.generate(cfg, graph)
+	_resolved = result["config"]
 	return result.get("nodes", [])
 
 
@@ -104,14 +110,14 @@ func test_gradient_radius_tracks_the_auto_scaled_mask() -> void:
 	assert_eq((cfg.content.budget_policy.budget_field as RadialGradientField).outer_radius, 0.0,
 		"the preset must author outer_radius = 0 (the mask-tracking opt-in)")
 	await _generate(cfg)
-	assert_gt(_gradient_radius(cfg), 0.0,
+	assert_gt(_gradient_radius(_resolved), 0.0,
 		"generate should have filled outer_radius from the auto-scaled mask")
 
 
 func test_budget_is_monotonic_inward() -> void:
 	var cfg := _fresh_config()
 	var nodes := await _generate(cfg)
-	var means := _decile_means(nodes, _mean_budgets(cfg, nodes), _gradient_radius(cfg))
+	var means := _decile_means(nodes, _mean_budgets(_resolved, nodes), _gradient_radius(_resolved))
 	for k in range(1, _DECILES):
 		# Decile means in the failure message: re-running an 800-node generate
 		# to find out which pair crossed is the expensive way to diagnose this.
@@ -124,7 +130,7 @@ func test_centre_affords_a_tier_four() -> void:
 	# cost[T4] = 8 (procgen/pools/tier_ladder.gd). Computed expectation ~9.8.
 	var cfg := _fresh_config()
 	var nodes := await _generate(cfg)
-	var means := _decile_means(nodes, _mean_budgets(cfg, nodes), _gradient_radius(cfg))
+	var means := _decile_means(nodes, _mean_budgets(_resolved, nodes), _gradient_radius(_resolved))
 	assert_gte(means[0], 8.0,
 		"innermost decile should afford a T4; got %.2f" % means[0])
 
@@ -133,7 +139,7 @@ func test_rim_is_lean() -> void:
 	# The spawn rim: a starting budget, not a prize. Computed expectation ~1.8.
 	var cfg := _fresh_config()
 	var nodes := await _generate(cfg)
-	var means := _decile_means(nodes, _mean_budgets(cfg, nodes), _gradient_radius(cfg))
+	var means := _decile_means(nodes, _mean_budgets(_resolved, nodes), _gradient_radius(_resolved))
 	assert_lte(means[_DECILES - 1], 4.0,
 		"outermost decile should stay lean; got %.2f" % means[_DECILES - 1])
 
@@ -141,11 +147,11 @@ func test_rim_is_lean() -> void:
 func test_same_seed_gives_the_same_budgets() -> void:
 	var cfg_a := _fresh_config()
 	var nodes_a := await _generate(cfg_a)
-	var budgets_a := _mean_budgets(cfg_a, nodes_a)
+	var budgets_a := _mean_budgets(_resolved, nodes_a)
 
 	var cfg_b := _fresh_config()
 	var nodes_b := await _generate(cfg_b)
-	var budgets_b := _mean_budgets(cfg_b, nodes_b)
+	var budgets_b := _mean_budgets(_resolved, nodes_b)
 
 	assert_eq(nodes_a.size(), nodes_b.size(), "same seed should place the same node count")
 	assert_eq(budgets_a, budgets_b, "same seed should roll the same per-node budgets")
