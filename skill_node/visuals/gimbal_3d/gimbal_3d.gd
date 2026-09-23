@@ -1,4 +1,5 @@
 @tool
+class_name Gimbal3D
 extends Node3D
 ## Real-3D core-halo gimbal (#239). The 2D CoreHalos GIMBAL fakes a gyroscope by
 ## quaternion-rotating hoop points and orthographically projecting them; this is
@@ -40,8 +41,10 @@ enum Style { UNIFORM_GLOW, HOLO_GLASS, SOLID_GLYPH }
 
 @export_range(0.5, 3.0, 0.01) var spin_speed: float = 1.0
 
-## Radius of the innermost ring, in the SubViewport world's units.
-@export_range(0.3, 3.0, 0.01) var base_radius: float = 1.0:
+## Radius of the innermost ring, in the SubViewport world's units. The range
+## is the showcase's (unit-scale world); GimbalWorld's 1 unit = 1 world px
+## rigs set it in px, and the setter takes any positive value.
+@export_range(0.3, 3.0, 0.01, "or_greater") var base_radius: float = 1.0:
 	set(value):
 		base_radius = value
 		_rebuild()
