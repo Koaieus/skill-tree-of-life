@@ -8,6 +8,8 @@ extends Node2D
 ##
 ## Bench-only env knobs (the bench's arg parser is #1073's, not this unit's):
 ##   GIMBAL_MESH2D_STYLE = glass (default) | glyph
+##   GIMBAL_MESH2D_FACETS = N: facets-per-ring multiplier (x1 = 24, x2, x4),
+##                         read by GimbalBatch when it bakes the shared mesh.
 ##   GIMBAL_MESH2D_PAD   = N extra instances placed far off screen, once per
 ##                         batch — the "full batch, most instances off screen"
 ##                         culling measurement.
@@ -42,6 +44,10 @@ func _ready() -> void:
 	set_notify_transform(true)
 	_batch = GimbalBatch.ensure_for(self)
 	_slot = _batch.acquire(self)
+	if not _batch.has_meta(&"geometry_printed"):
+		_batch.set_meta(&"geometry_printed", true)
+		print("stage    : mesh2d facets=%d verts/instance=%d" % [GimbalBatch.facets(),
+				_batch.mesh_vertex_count()])
 	_push_params()
 	_push_transform()
 	_pad_batch()

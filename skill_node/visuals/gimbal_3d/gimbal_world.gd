@@ -32,6 +32,16 @@ const SCENE := "res://skill_node/visuals/gimbal_3d/gimbal_world.tscn"
 const CAMERA_Z := 1000.0
 const OCCLUDER_SEGMENTS := 48
 
+## Per-rig centre light (owner direction on #804): an OmniLight3D at the
+## rig's origin lights the rings' INNER walls (their normals face it) and
+## leaves the outer walls to the scene's ambient floor. Range scales with the
+## disk radius (the outermost band's inner wall sits at ~3.4 disk radii), so
+## the falloff reads the same on every node size. Specular is kept low so the
+## glass shader's 0.12 roughness does not paint a hot streak on the inner face.
+const LIGHT_ENERGY := 4.0
+const LIGHT_RANGE_SCALE := 4.5
+const LIGHT_SPECULAR := 0.15
+
 ## Depth-only disc: transparent pipeline (so it draws in the same pass as the
 ## glass rings), lowest priority so it lands first, always writes depth, and
 ## blend_add of black at alpha 0 leaves colour AND alpha untouched.
@@ -111,6 +121,12 @@ func add_rig(rig: Gimbal3D, world_pos: Vector2, disk_radius: float) -> Node3D:
 	occluder.material_override = _occluder_material()
 	occluder.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	holder.add_child(occluder)
+	var light := OmniLight3D.new()
+	light.omni_range = disk_radius * LIGHT_RANGE_SCALE
+	light.light_energy = LIGHT_ENERGY
+	light.light_specular = LIGHT_SPECULAR
+	light.shadow_enabled = false
+	holder.add_child(light)
 	_rigs.add_child(holder)
 	return holder
 

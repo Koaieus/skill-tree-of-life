@@ -19,6 +19,8 @@ extends Node2D
 ## instance's ring_count collapses to a point in the vertex shader.
 
 const MAX_RINGS := 5
+## Facets per ring at x1; the bench env knob GIMBAL_MESH2D_FACETS=<N>
+## multiplies it (read once, when the shared mesh is baked).
 const FACETS := 24
 ## Ring cross-section, as fractions of the ring's own radius (axial height
 ## and radial thickness — the annular prism `gimbal_3d.gd:_build_band_mesh`
@@ -123,6 +125,16 @@ func capacity() -> int:
 	return _capacity
 
 
+## Facets per ring of the baked mesh (FACETS x the env multiplier).
+static func facets() -> int:
+	return FACETS * maxi(1, int(OS.get_environment("GIMBAL_MESH2D_FACETS")))
+
+
+## Vertex count of the shared baked mesh (all MAX_RINGS rings).
+func mesh_vertex_count() -> int:
+	return _mm.mesh.surface_get_array_len(0)
+
+
 ## `radius` is the unit ring radius in px (ring i sits at radius * (1 + i*step)).
 func set_slot_transform(slot: int, world_pos: Vector2, radius: float) -> void:
 	_mm.set_instance_transform_2d(slot, Transform2D(0.0, Vector2(radius, radius), 0.0, world_pos))
@@ -178,12 +190,13 @@ static func _mesh() -> ArrayMesh:
 	st.set_custom_format(0, SurfaceTool.CUSTOM_RGBA_FLOAT)
 	st.set_custom_format(1, SurfaceTool.CUSTOM_RGBA_FLOAT)
 	var r_max := (1.0 + float(MAX_RINGS - 1) * RADIUS_STEP) * 1.05
+	var seg := facets()
 	for ring in MAX_RINGS:
-		for i in FACETS:
-			var a0 := TAU * float(i) / float(FACETS)
-			var a1 := TAU * float(i + 1) / float(FACETS)
-			var u0 := float(i) / float(FACETS)
-			var u1 := float(i + 1) / float(FACETS)
+		for i in seg:
+			var a0 := TAU * float(i) / float(seg)
+			var a1 := TAU * float(i + 1) / float(seg)
+			var u0 := float(i) / float(seg)
+			var u1 := float(i + 1) / float(seg)
 			# Corners as [angle, u, axial sign, radial]; normal per surface.
 			# Outer wall: normal radially out.
 			_quad(st, ring, r_max, [[a0, u0, 1.0, 0.0], [a1, u1, 1.0, 0.0], [a1, u1, -1.0, 0.0], [a0, u0, -1.0, 0.0]],

@@ -5,8 +5,8 @@
 [sub_resource type="Environment" id="NoGlowEnv"]
 background_mode = 0
 ambient_light_source = 2
-ambient_light_color = Color(0.5, 0.55, 0.65, 1)
-ambient_light_energy = 0.35
+ambient_light_color = Color(0.7, 0.75, 0.85, 1)
+ambient_light_energy = 0.5
 tonemap_mode = 0
 glow_enabled = false
 
@@ -40,11 +40,6 @@ projection = 1
 size = 1080.0
 near = 1.0
 far = 2000.0
-
-[node name="KeyLight" type="DirectionalLight3D" parent="World"]
-transform = Transform3D(0.86, -0.35, 0.37, 0, 0.72, 0.69, -0.5, -0.6, 0.62, 0, 0, 0)
-light_energy = 1.2
-shadow_enabled = false
 
 [node name="Rigs" type="Node3D" parent="World"]
 unique_name_in_owner = true

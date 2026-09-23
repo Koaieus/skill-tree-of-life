@@ -22,6 +22,11 @@ uniform float radius_step = 0.22;
 uniform sampler2D glyphs : source_color, filter_linear, repeat_enable;
 uniform float glyph_tiles = 7.0;
 uniform float glyph_margin = 0.12;
+// Centre light (owner direction on #804): a point light at the ring centre
+// lights faces whose normal points back at it — the inner walls — with a
+// soft falloff by ring radius; `ambient` is the base floor every face gets.
+uniform float light_energy = 1.4;
+uniform float ambient = 0.3;
 
 const float RATE_BASE = 0.35;
 
@@ -90,6 +95,10 @@ void fragment() {
 	vec3 n = normalize(v_nrm);
 	// View is +z: fresnel on how edge-on the surface is.
 	float fres = pow(1.0 - abs(n.z), 2.5);
+	// Centre light: lit where the face looks back at the ring origin (inner
+	// walls ~1, outer walls and rims 0), fading with the ring's radius.
+	float d2 = max(dot(v_pos, v_pos), 0.25);
+	float lit = max(dot(n, -v_pos * inversesqrt(d2)), 0.0) * light_energy / (0.5 + 0.5 * d2);
 	vec3 rgb;
 	float alpha;
 	if (v_style > 1.5) {
@@ -103,14 +112,16 @@ void fragment() {
 				* (1.0 - smoothstep(1.0 - glyph_margin - 0.05, 1.0 - glyph_margin, v));
 		float vv = clamp((v - glyph_margin) / max(1.0 - 2.0 * glyph_margin, 0.0001), 0.0, 1.0);
 		float g = texture(glyphs, vec2(UV.x * glyph_tiles + TIME * 0.04, vv)).r;
-		// Dim metal base (a bare 0.22 of the tier stays below the bloom
-		// threshold); runes glow at the tier's full value, faces lit by facing.
-		rgb = COLOR.rgb * (0.22 * (0.4 + 0.6 * n.z) + g * band);
+		// Metal base lit from the centre (inner faces bright, outer faces at
+		// the ambient floor); runes glow at the tier's full value on top.
+		rgb = COLOR.rgb * (0.22 * (ambient + lit) + g * band);
 		alpha = 1.0;
 	} else {
 		// HOLO_GLASS: semitransparent body, fresnel-lit rim (gimbal_glass.gdshader).
-		rgb = COLOR.rgb * (0.25 + fres);
-		alpha = 0.07 + fres * 0.9;
+		// Body gets a little of the centre light; the fresnel rim stays the
+		// bright part so the tier does not blow out.
+		rgb = COLOR.rgb * (0.25 + 0.25 * lit + fres);
+		alpha = 0.07 + 0.12 * lit + fres * 0.9;
 	}
 	COLOR = vec4(rgb, alpha * COLOR.a * vision_field_dim(v_world));
 }

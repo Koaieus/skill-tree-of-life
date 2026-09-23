@@ -43,7 +43,15 @@ func _ready() -> void:
 	_rig.ring_count = ring_count
 	_rig.tint = _tint_from_cmdline()
 	_rig.base_radius = base_radius * BASE_RADIUS_SCALE
+	var facets_x := maxi(1, int(_arg("--gimbal-facets=")))
+	if facets_x > 1:
+		_rig.facets *= facets_x
 	_holder = world.add_rig(_rig, global_position, base_radius)
+	if not _geometry_printed:
+		_geometry_printed = true
+		# Four quads x two triangles x three vertices per facet per ring.
+		print("stage    : viewport3d facets=%d (x%d) verts/rig=%d" % [_rig.facets, facets_x,
+				_rig.facets * 24 * _rig.ring_count])
 	set_notify_transform(true)
 	var strip := _arg("--strip=")
 	if strip != "" and not _strip_claimed:
@@ -60,6 +68,11 @@ func _exit_tree() -> void:
 	if _holder != null:
 		_holder.queue_free()
 		_holder = null
+
+
+## `--gimbal-facets=<N>` multiplies the rig's facets per ring (x1 = the
+## Gimbal3D default, x2, x4) — the segment-count scaling knob.
+static var _geometry_printed := false
 
 
 ## `--gimbal-style=<UNIFORM_GLOW|HOLO_GLASS|SOLID_GLYPH>` on the bench command
