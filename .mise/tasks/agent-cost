@@ -19,8 +19,16 @@ Selection (any combination; results are deduped, newest first):
   --branch <slug>      every subagent whose transcript mentions .worktrees/<slug>
                        (the drone and whoever reviewed it) — what `land` uses
   --latest N           the N most recently modified subagent transcripts
+  --session <id>       every subagent transcript under session <id>, across
+                       EVERY project slug — not day-filtered. Defaults to
+                       $CLAUDE_CODE_SESSION_ID when no other selector is
+                       passed, which is what makes a bare `mise run
+                       agent-cost` from an orchestrator resolve its own
+                       subagents.
   --days D             only look at transcripts modified in the last D days (7)
   --json               machine-readable instead of the table
+
+With no selector at all and no $CLAUDE_CODE_SESSION_ID, exits 1 with usage.
 
 Gotcha this tool exists to encode: one API call yields SEVERAL assistant
 records sharing a requestId (text block, tool_use block, …). Turns are
@@ -82,6 +90,16 @@ def _recent(paths, days):
 
 def _sub_transcripts(root, days):
     return _recent(glob.glob(os.path.join(root, "*", "subagents", "agent-*.jsonl")), days)
+
+
+def _session_transcripts(root, session_id):
+    """Every subagent transcript under `session_id`, across EVERY project
+    slug directory (not just `root`'s own) — the cwd→slug dependency a bare
+    `mise run agent-cost` cannot rely on, since the caller's cwd at report
+    time need not match the orchestrator session's own. Not day-filtered:
+    the session id already bounds the selection (#920)."""
+    parent = os.path.dirname(root.rstrip("/"))
+    return sorted(glob.glob(os.path.join(parent, "*", session_id, "subagents", "agent-*.jsonl")))
 
 
 def _parent_transcripts(root, days):
@@ -267,13 +285,30 @@ def main(argv=None):
     ap.add_argument("--id", action="append", default=[])
     ap.add_argument("--branch", action="append", default=[])
     ap.add_argument("--latest", type=int, default=0)
+    ap.add_argument("--session", action="append", default=[])
     ap.add_argument("--days", type=float, default=7)
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--quiet-empty", action="store_true", help="print nothing when no transcript matches (for `land`)")
     args = ap.parse_args(argv)
     root = _projects_dir()
 
+    have_selector = bool(args.id or args.name or args.branch or args.latest or args.session)
+    if not have_selector:
+        env_sid = os.environ.get("CLAUDE_CODE_SESSION_ID")
+        if env_sid:
+            args.session = [env_sid]
+        else:
+            if not args.quiet_empty:
+                print(
+                    "agent-cost: no selector given and $CLAUDE_CODE_SESSION_ID is unset "
+                    "— pass --session/--name/--id/--branch/--latest",
+                    file=sys.stderr,
+                )
+            return 0 if args.quiet_empty else 1
+
     paths = []
+    for session_id in args.session:
+        paths.extend(_session_transcripts(root, session_id))
     for agent_id in args.id:
         p = _path_for_id(root, agent_id)
         if p:

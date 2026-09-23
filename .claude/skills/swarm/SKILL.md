@@ -223,7 +223,9 @@ the same Bash call as the fence `--stat` below — the transcript exists while
 the drone is alive — and decide resume / retire / fresh drone on that row.
 The report's `COST:` line is the drone's own tally, a cross-check for when
 the transcript match fails; `land` prints the row again as the audited
-figure for the ledger's `priced`.
+figure for the ledger's `priced` — and persists it, `cost:` rows included,
+at `scratchpad/land/land-<n>.log` in the main checkout (#920), so a later
+ledger pass never has to re-grep a console that's already scrolled away.
 
 Per report, in order:
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #MISE description="Self-test for agent-cost: synthetic parent + subagent transcripts, asserts request dedupe, name→id resolution, --branch, --latest. `mise run agent-cost-selftest`"
-import importlib.machinery, importlib.util, json, os, sys, tempfile
+import importlib.machinery, importlib.util, json, os, sys, tempfile, uuid
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 spec = importlib.util.spec_from_loader("agent_cost", importlib.machinery.SourceFileLoader("agent_cost", os.path.join(HERE, "agent-cost")))
@@ -77,5 +77,65 @@ check("--latest prints a table", code == 0 and "abc123" in buf.getvalue() and "T
 with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(io.StringIO()):
     code_empty = ac.main(["--branch", "nope", "--quiet-empty"])
 check("--quiet-empty exits 0 silently", code_empty == 0)
+
+# --- #920: --session resolves the caller, any slug -------------------------
+# Random per run (not a fixed literal): _session_transcripts globs ALL of
+# tempfile.gettempdir(), so a fixed id would collide with this same fixture's
+# own leftovers from a prior local run and make the test flaky on a second
+# invocation without a `/tmp` wipe in between.
+sid_own = str(uuid.uuid4())
+sid_other = str(uuid.uuid4())
+own1 = os.path.join(root, sid_own, "subagents", "agent-own1.jsonl")
+write(own1, [assistant("o1", u1, [{"type": "text", "text": "hi"}])])
+# A second slug dir, sibling of `root` (which AGENT_COST_PROJECTS_DIR names) —
+# proves the session glob is slug-independent, not scoped to _projects_dir().
+sibling_slug = tempfile.mkdtemp(dir=os.path.dirname(root), prefix="agent-cost-sibling-")
+own2 = os.path.join(sibling_slug, sid_own, "subagents", "agent-own2.jsonl")
+write(own2, [assistant("o2", u1, [{"type": "text", "text": "hi"}])])
+# A different session in the SAME slug dir as sid_own's own1 — proves the
+# selection filters by session id, not just "any subagent under this slug".
+other1 = os.path.join(root, sid_other, "subagents", "agent-other1.jsonl")
+write(other1, [assistant("x1", u1, [{"type": "text", "text": "hi"}])])
+
+check("_session_transcripts finds both slugs, not the other session",
+      sorted(ac._session_transcripts(root, sid_own)) == sorted([own1, own2]))
+
+prev_env = os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
+try:
+    os.environ["CLAUDE_CODE_SESSION_ID"] = sid_own
+    buf_env = io.StringIO()
+    with contextlib.redirect_stdout(buf_env):
+        code_env = ac.main([])
+    out_env = buf_env.getvalue()
+    check("bare call with $CLAUDE_CODE_SESSION_ID set resolves the session across slugs",
+          code_env == 0 and "own1" in out_env and "own2" in out_env and "other1" not in out_env)
+
+    del os.environ["CLAUDE_CODE_SESSION_ID"]
+    buf_sel = io.StringIO()
+    with contextlib.redirect_stdout(buf_sel):
+        code_sel = ac.main(["--session", sid_own])
+    out_sel = buf_sel.getvalue()
+    check("--session selector alone (env unset) matches the same set",
+          code_sel == 0 and "own1" in out_sel and "own2" in out_sel)
+
+    buf_none = io.StringIO()
+    err_none = io.StringIO()
+    with contextlib.redirect_stdout(buf_none), contextlib.redirect_stderr(err_none):
+        code_none = ac.main([])
+    check("no env and no selector exits 1 with a usage message, not a false empty-match", code_none == 1)
+
+    os.environ["CLAUDE_CODE_SESSION_ID"] = sid_own
+    buf_branch = io.StringIO()
+    with contextlib.redirect_stdout(buf_branch):
+        code_branch = ac.main(["--branch", "foo-bar"])
+    out_branch = buf_branch.getvalue()
+    check("--branch with env set still selects by branch only, session default not applied",
+          code_branch == 0 and "abc123" in out_branch and "own1" not in out_branch and "own2" not in out_branch)
+finally:
+    if prev_env is not None:
+        os.environ["CLAUDE_CODE_SESSION_ID"] = prev_env
+    else:
+        os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
+
 print("all checks passed" if not failed else f"{failed} FAILED")
 sys.exit(1 if failed else 0)

@@ -56,9 +56,9 @@ one: the window's size moves with Anthropic's promotions ("more Claude Code
 limits during …"), so an identical token cost reads as a different % on a
 different week. The corpus keeps its dated %-rows as history only. The
 comparable unit is `mise run agent-cost`'s `priced` column (sonnet units)
-logged per landed unit in the ledger — which the ledger records only
-partially so far (most `priced` cells in the 2026-09-19 ledger read `~?`);
-filling it is a ledger discipline, not yet the norm.
+logged per landed unit in the ledger — every landing's `cost:` rows are on
+disk at `scratchpad/land/land-<n>.log` (#920), so filling the ledger is a
+`cat`/`grep` away, not a re-derivation.
 
 ## Laws
 

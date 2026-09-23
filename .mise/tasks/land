@@ -21,6 +21,13 @@
 #      sha; never an empty `land:` commit, owner call 2026-09-15) — and the
 #      board moves to in-review.
 #
+# Every landing's whole console output is tee'd to
+# scratchpad/land/land-<issue-or-branch-slug>.log (in the MAIN checkout,
+# gitignored) plus a land-last.log copy of the most recent — so `cost:` rows
+# and a `fail` reason both survive past the terminal scrollback (#920). Not
+# `.godot/`: that's the engine's cache and a refresh-style operation wipes it
+# mid-land.
+#
 # Non-zero, reason on stdout, on: main checkout dirty in a file the branch
 # also touches / off-master main checkout, missing
 # branch, rebase conflict (aborted, conflicting files listed), red check or
@@ -53,6 +60,28 @@ common=$(git -C "$here" rev-parse --path-format=absolute --git-common-dir 2>/dev
   || { echo "✗ not inside a git checkout: $here"; exit 1; }
 main=$(dirname "$common")
 
+# #920 — every landing gets its own log, tee'd from the whole body below,
+# so a lead who greps the console still has every `cost:` row on disk (and a
+# ledger falls out of `cat scratchpad/land/land-*.log | grep cost:`). Keyed by
+# what was landed: the issue with --closes, else the branch slug (`/` -> `-`).
+# scratchpad/ is gitignored already, in the MAIN checkout (not the worktree, and
+# never .godot/, which a refresh-style operation can wipe mid-land).
+logdir="$main/scratchpad/land"
+mkdir -p "$logdir"
+if [ -n "$closes" ]; then
+  logkey="$closes"
+else
+  logkey="${branch//\//-}"
+fi
+log="$logdir/land-${logkey}.log"
+
+# The whole rest of land is one function so its stdout+stderr can be tee'd to
+# $log while still reaching the terminal, and so `land-last.log` is always a
+# copy of exactly what landed — including a precondition `fail` (its `exit 1`
+# only exits this function's subshell; $? survives via PIPESTATUS). The flock
+# and the worktree-cleanup trap live in here too, unchanged in behaviour: both
+# are scoped to this subshell's lifetime, which is exactly land_body's.
+land_body() {
 fail() { echo "✗ $*"; exit 1; }
 
 # --- 1. the merge token ----------------------------------------------------
@@ -227,3 +256,9 @@ echo "LANDED $branch $(git -C "$main" rev-parse --short "$sha") master=$(git -C 
 # that worked in its worktree (drone + reviewer). Best estimate, never fatal,
 # silent when no transcript matches (a hand-made branch).
 (cd "$main" && mise run --quiet agent-cost -- --branch "$branch" --quiet-empty 2>/dev/null | sed 's/^/  cost: /') || true
+}
+
+land_body "$@" 2>&1 | tee "$log"
+status=${PIPESTATUS[0]}
+cp "$log" "$logdir/land-last.log"
+exit "$status"
