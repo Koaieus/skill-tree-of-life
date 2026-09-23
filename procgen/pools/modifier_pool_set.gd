@@ -14,6 +14,8 @@ extends Resource
 
 @export var packs: Array[StatPack] = []
 
+@export_range(0.0, 1.0) var universal_share: float = 0.2
+
 ## Inspector button: dumps `format_tables()` to the editor output.
 @export_tool_button("Print pools as tables") var _print_button: Callable = _print_tables
 
@@ -77,3 +79,7 @@ func format_tables() -> String:
 		lines.append("")
 		lines.append(pack.format_table())
 	return "\n".join(lines)
+
+
+func _get_configuration_warnings() -> PackedStringArray:
+	return PackedStringArray()

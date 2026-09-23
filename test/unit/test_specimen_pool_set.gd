@@ -52,25 +52,188 @@ func test_specimen_flatten_for_strength_node_returns_strength_plus_universal() -
 	assert_false(&"wisdom" in stat_ids, "wisdom is off-archetype and must NOT be drawn by a STR node (D7)")
 
 
-func test_procgen_draw_occasionally_produces_movement_bonus() -> void:
-	# Regression for #41 acceptance: run several draws at a budget matching
-	# first_level.tres (base 2..4, field-boosted up to ~16), and confirm
-	# movement_points/deallocation_points show up "occasionally" via the
-	# universal mobility pack — not forced via an inflated budget.
+## The draw's shape at a budget matching first_level.tres (base 2..4,
+## field-boosted up to ~16): a spend-until-broke roll at 7.
+const _BAND_BUDGET := 7
+const _BAND_SEEDS := 199
+## Width of the rate band in binomial standard deviations. Four keeps the
+## false-alarm rate per assert well under 1e-4 while still catching a rate
+## that moves by a few percent of the whole draw.
+const _BAND_SIGMAS := 4.0
+
+
+## Probability that a spend-until-broke draw of `budget` picks `stat_id` at
+## least once, computed exactly from the flattened weights: at each step the
+## affordable entries (cost <= remaining) are sampled by weight, exactly as
+## GraphProcgen._v4_weighted_pick does with no profiles and no forbid tags.
+## Exact, so the affordability skew late in a draw (#975's caveat) is in the
+## expectation rather than in a fudge on the tolerance.
+func _expected_presence(entries: Array[ModifierPoolEntry], stat_id: StringName, budget: int) -> float:
+	# p_none[r] = P(no `stat_id` pick in a draw that starts with r remaining).
+	var p_none: Array[float] = [1.0]
+	for r in range(1, budget + 1):
+		var total := 0.0
+		var acc := 0.0
+		for e in entries:
+			if e.weight <= 0.0 or e.cost > r:
+				continue
+			total += e.weight
+			if e.stat_id != stat_id:
+				acc += e.weight * p_none[r - e.cost]
+		p_none.append(acc / total if total > 0.0 else 1.0)
+	return 1.0 - p_none[budget]
+
+
+func test_procgen_draw_mobility_rate_matches_authored_weights() -> void:
+	# Regression for #41 acceptance, sharpened by #975: movement_points and
+	# deallocation_points show up at the rate the authored weights (under the
+	# universal slice) predict — not "at least once", and not via an inflated
+	# budget. No percentage is written here; every number is derived.
 	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
-	var saw_movement := false
-	var saw_dealloc := false
-	for seed_value in range(1, 200):
-		var rng := _rng(seed_value)
+	var entries := pool_set.flatten_for_node(&"strength")
+	var seen := {&"movement_points": 0, &"deallocation_points": 0}
+	for seed_value in range(1, _BAND_SEEDS + 1):
 		var mods: Array = _GP._roll_modifiers_v4(
-				pool_set, [], &"strength", &"strength", [], Vector2.ZERO, 0, 7, rng)
-		for m in mods:
-			if m.stat_id == &"movement_points":
-				saw_movement = true
-			elif m.stat_id == &"deallocation_points":
-				saw_dealloc = true
-	assert_true(saw_movement, "expected at least one movement_points roll across 199 seeded draws")
-	assert_true(saw_dealloc, "expected at least one deallocation_points roll across 199 seeded draws")
+				pool_set, [], &"strength", &"strength", [], Vector2.ZERO, 0, _BAND_BUDGET, _rng(seed_value))
+		for sid: StringName in seen.keys():
+			for m in mods:
+				if m.stat_id == sid:
+					seen[sid] += 1
+					break
+	for sid: StringName in seen.keys():
+		var expected := _expected_presence(entries, sid, _BAND_BUDGET)
+		var observed := float(seen[sid]) / _BAND_SEEDS
+		var tol := _BAND_SIGMAS * sqrt(expected * (1.0 - expected) / _BAND_SEEDS)
+		assert_true(expected > 0.0, "%s must be drawable at all on a STR node" % sid)
+		assert_almost_eq(observed, expected, tol,
+			"%s per-draw rate: expected %.4f, observed %.4f (%d/%d), band ±%.4f"
+			% [sid, expected, observed, seen[sid], _BAND_SEEDS, tol])
+
+
+const _PRIMARIES: Array[StringName] = [&"strength", &"dexterity",
+	&"intelligence", &"constitution", &"wisdom", &"perception"]
+
+
+## Ids of every entry a universal (`archetype_stat == &""`) pool in `pool_set`
+## mints — the partition key the slice is computed over.
+func _universal_ids(pool_set: ModifierPoolSet) -> Dictionary:
+	var ids := {}
+	for pack in pool_set.packs:
+		for pool: StatPool in pack.pools:
+			if pool != null and pool.archetype_stat == &"":
+				for e in pool.to_entries():
+					ids[e.id] = true
+	return ids
+
+
+## Universal weight / total weight of one node's flatten.
+func _universal_fraction(pool_set: ModifierPoolSet, primary: StringName) -> float:
+	var uids := _universal_ids(pool_set)
+	var u := 0.0
+	var total := 0.0
+	for e in pool_set.flatten_for_node(primary):
+		total += e.weight
+		if uids.has(e.id):
+			u += e.weight
+	return u / total if total > 0.0 else 0.0
+
+
+func _throwaway_pack(archetype: StringName, pool_weight: float) -> StatPack:
+	var pool := StatPool.new()
+	pool.stat_id = &"node_health"
+	pool.operation = StatModifier.Operation.MULTIPLY
+	pool.archetype_stat = archetype
+	pool.pool_weight = pool_weight
+	var pack := StatPack.new()
+	pack.archetype_stat = archetype
+	pack.pools = [pool] as Array[StatPool]
+	return pack
+
+
+func test_universal_slice_is_identical_for_every_primary() -> void:
+	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	for primary in _PRIMARIES:
+		assert_almost_eq(_universal_fraction(pool_set, primary), pool_set.universal_share, 1e-4,
+			"%s: universal share of the draw is the set's slice, not an accident of pack size" % primary)
+
+
+func test_appending_a_universal_pool_redistributes_inside_the_slice() -> void:
+	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	var pack := _throwaway_pack(&"", 3.0)
+	var raw_u_before := 0.0
+	var uids_before := _universal_ids(pool_set)
+	for e in pool_set.flatten_all():
+		if uids_before.has(e.id):
+			raw_u_before += e.weight
+	var pool_mass := 0.0
+	for e in (pack.pools[0] as StatPool).to_entries():
+		pool_mass += e.weight
+	pool_set.packs.append(pack)
+	var new_ids := {}
+	for e in (pack.pools[0] as StatPool).to_entries():
+		new_ids[e.id] = true
+	var uids := _universal_ids(pool_set)
+	for primary in _PRIMARIES:
+		assert_almost_eq(_universal_fraction(pool_set, primary), pool_set.universal_share, 1e-4,
+			"%s: a new universal pool must not grow the universal slice" % primary)
+		var u := 0.0
+		var mine := 0.0
+		for e in pool_set.flatten_for_node(primary):
+			if uids.has(e.id):
+				u += e.weight
+			if new_ids.has(e.id):
+				mine += e.weight
+		assert_almost_eq(mine / u, pool_mass / (raw_u_before + pool_mass), 1e-4,
+			"%s: the new pool's share within universal is its authored weight fraction" % primary)
+
+
+func test_appending_an_archetype_pool_keeps_that_primarys_slice() -> void:
+	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	pool_set.packs.append(_throwaway_pack(&"strength", 5.0))
+	for primary in _PRIMARIES:
+		assert_almost_eq(_universal_fraction(pool_set, primary), pool_set.universal_share, 1e-4,
+			"%s: a bigger archetype pack must not starve universal content" % primary)
+
+
+func _raw_weights(pool_set: ModifierPoolSet, primary: StringName) -> Dictionary:
+	var out := {}
+	for pack in pool_set.packs:
+		for pool: StatPool in pack.pools:
+			if pool.archetype_stat == &"" or pool.archetype_stat == primary:
+				for e in pool.to_entries():
+					out[e.id] = e.weight
+	return out
+
+
+func test_slice_guards() -> void:
+	# share = 0 drops universal content outright.
+	var zero: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	zero.universal_share = 0.0
+	var uids := _universal_ids(zero)
+	var zero_entries := zero.flatten_for_node(&"strength")
+	assert_true(zero_entries.size() > 0, "share 0 keeps the archetype content")
+	for e in zero_entries:
+		assert_false(uids.has(e.id), "share 0 draws no universal entry (%s)" % e.id)
+	# share >= 1 clamps below 1 (the formula diverges) and warns in the inspector.
+	var one: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	one.universal_share = 1.0
+	var frac := _universal_fraction(one, &"strength")
+	assert_true(frac < 1.0 and frac > 0.9, "share 1 clamps just under 1 (got %f)" % frac)
+	assert_true(one._get_configuration_warnings().size() > 0, "an authored share >= 1 is flagged")
+	assert_eq(zero._get_configuration_warnings().size(), 0, "share 0 is a legal authored value")
+	# A set with no universal pools: weights pass through untouched.
+	var arch_only := ModifierPoolSet.new()
+	arch_only.packs = [_throwaway_pack(&"strength", 2.0)] as Array[StatPack]
+	var raw := _raw_weights(arch_only, &"strength")
+	for e in arch_only.flatten_for_node(&"strength"):
+		assert_almost_eq(e.weight, float(raw[e.id]), 1e-9, "no universal pools: %s unscaled" % e.id)
+	# A primary with no matching pack: its only content is universal — kept as authored.
+	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
+	var raw_none := _raw_weights(pool_set, &"no_such_stat")
+	var none_entries := pool_set.flatten_for_node(&"no_such_stat")
+	assert_true(none_entries.size() > 0, "a pack-less primary still draws universal content")
+	for e in none_entries:
+		assert_almost_eq(e.weight, float(raw_none[e.id]), 1e-9, "no archetype pack: %s unscaled" % e.id)
 
 
 func test_strength_pack_intelligence_curse_is_drawable() -> void:
