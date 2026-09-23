@@ -138,8 +138,8 @@ func test_a_magic_plan_does_not_wire_its_target_cache() -> void:
 func test_a_melee_plan_round_trips_its_blade() -> void:
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = _attacker
-	plan._on_node_left_clicked(_nodes.A)   # pivot
-	plan._on_node_left_clicked(_nodes.B)   # member
+	plan.handle_left_click(_nodes.A)   # pivot
+	plan.handle_left_click(_nodes.B)   # member
 	plan.blade_target = Vector2(123.0, -45.0)
 	plan.swing_cw = true
 	assert_eq(plan.blade_nodes, [_nodes.B] as Array[SkillNode],
@@ -160,8 +160,8 @@ func test_a_rebuilt_melee_plan_can_draw_its_own_blade() -> void:
 	# assertion up there.
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = _attacker
-	plan._on_node_left_clicked(_nodes.A)
-	plan._on_node_left_clicked(_nodes.B)
+	plan.handle_left_click(_nodes.A)
+	plan.handle_left_click(_nodes.B)
 	var back := MeleeAttackPlan.from_dict(plan.to_dict(_graph), _graph)
 	assert_eq(back.get_induced_edges().size(), plan.get_induced_edges().size(),
 			"the rebuilt blade induces the same edges as the original")
@@ -171,8 +171,8 @@ func test_a_rebuilt_melee_plan_can_draw_its_own_blade() -> void:
 func test_a_melee_plan_does_not_wire_its_resolution_residue() -> void:
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = _attacker
-	plan._on_node_left_clicked(_nodes.A)
-	plan._on_node_left_clicked(_nodes.B)
+	plan.handle_left_click(_nodes.A)
+	plan.handle_left_click(_nodes.B)
 	var d := plan.to_dict(_graph)
 	for key in ["last_events", "last_hits", "last_trajectory", "last_pops",
 			"last_live_gate"]:

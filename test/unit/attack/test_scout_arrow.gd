@@ -104,7 +104,7 @@ func _arm(ctx: Dictionary, counts: Dictionary) -> RangedAttackPlan:
 	var bs: BattleSystem = ctx.bs
 	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
 	var plan := bs.attack_plan as RangedAttackPlan
-	plan._on_node_left_clicked(ctx.nodes.target)
+	plan.handle_left_click(ctx.nodes.target)
 	plan.ammo_counts = counts
 	return plan
 

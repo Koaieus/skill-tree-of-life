@@ -243,9 +243,9 @@ func _arm_melee_with_clamp() -> void:
 	_alloc.force_allocate(_player, _n("C"))
 	_battle.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _battle.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(_n("A"))
-	plan._on_node_left_clicked(_n("B"))
-	plan._on_node_left_clicked(_n("C"))
+	plan.handle_left_click(_n("A"))
+	plan.handle_left_click(_n("B"))
+	plan.handle_left_click(_n("C"))
 	_ctl.arm_temp_upgrade(_catalog.by_id(&"clamp"))
 
 

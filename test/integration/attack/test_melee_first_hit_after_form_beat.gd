@@ -125,8 +125,8 @@ func test_the_first_hit_lands_strictly_after_the_form_beat_ends_on_the_real_cloc
 
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(_pivot)
-	plan._on_node_left_clicked(_arm)
+	plan.handle_left_click(_pivot)
+	plan.handle_left_click(_arm)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
 	started_at[0] = Time.get_ticks_usec()
@@ -212,7 +212,7 @@ func test_a_ranged_first_hit_lands_after_the_presenters_windup_on_the_real_clock
 
 	_bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
 	var plan := _bs.attack_plan as RangedAttackPlan
-	plan._on_node_left_clicked(_target)
+	plan.handle_left_click(_target)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
 	started_at[0] = Time.get_ticks_usec()

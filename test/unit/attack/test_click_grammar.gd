@@ -42,7 +42,7 @@ func test_melee_left_click_sets_pivot_when_unset() -> void:
 	var plan: MeleeAttackPlan = autofree(MeleeAttackPlan.new())
 	plan.attacker = _attacker
 	var a := _spawn(_attacker)
-	plan._on_node_left_clicked(a)
+	plan.handle_left_click(a)
 	assert_eq(plan.source, a, "left-click on an owned node arms the pivot")
 
 
@@ -50,8 +50,8 @@ func test_melee_right_click_pops_pivot_and_blade() -> void:
 	var plan: MeleeAttackPlan = autofree(MeleeAttackPlan.new())
 	plan.attacker = _attacker
 	var a := _spawn(_attacker)
-	plan._on_node_left_clicked(a)
-	assert_true(plan._on_node_right_clicked(a), "pops the armed pivot")
+	plan.handle_left_click(a)
+	assert_true(plan.handle_right_click(a), "pops the armed pivot")
 	assert_null(plan.source, "pivot cleared")
 	assert_true(plan.blade_nodes.is_empty(), "blade members cleared with the pivot")
 
@@ -60,7 +60,7 @@ func test_melee_right_click_with_nothing_armed_has_nothing_to_pop() -> void:
 	var plan: MeleeAttackPlan = autofree(MeleeAttackPlan.new())
 	plan.attacker = _attacker
 	var somewhere := _spawn(_attacker)
-	assert_false(plan._on_node_right_clicked(somewhere),
+	assert_false(plan.handle_right_click(somewhere),
 			"floor state (no pivot) returns false — caller exits the mode")
 
 
@@ -70,8 +70,8 @@ func test_melee_left_click_on_pivot_itself_pops_instead_of_denying() -> void:
 	var plan: MeleeAttackPlan = autofree(MeleeAttackPlan.new())
 	plan.attacker = _attacker
 	var a := _spawn(_attacker)
-	plan._on_node_left_clicked(a)
-	plan._on_node_left_clicked(a)
+	plan.handle_left_click(a)
+	plan.handle_left_click(a)
 	assert_null(plan.source, "left-clicking the armed pivot pops it")
 
 
@@ -87,10 +87,10 @@ func test_ranged_right_click_pops_target_regardless_of_clicked_node() -> void:
 	var enemy: Entity = autofree(Entity.new())
 	_graph.add_child(enemy)
 	var hostile := _spawn(enemy)
-	plan._on_node_left_clicked(hostile)
+	plan.handle_left_click(hostile)
 	assert_eq(plan.target, hostile, "precondition: target armed")
 	var elsewhere := _spawn()
-	assert_true(plan._on_node_right_clicked(elsewhere),
+	assert_true(plan.handle_right_click(elsewhere),
 			"right-click pops the target even when clicked elsewhere")
 	assert_null(plan.target)
 
@@ -98,7 +98,7 @@ func test_ranged_right_click_pops_target_regardless_of_clicked_node() -> void:
 func test_ranged_right_click_with_no_target_has_nothing_to_pop() -> void:
 	var plan: RangedAttackPlan = autofree(RangedAttackPlan.new())
 	plan.attacker = _attacker
-	assert_false(plan._on_node_right_clicked(_spawn()),
+	assert_false(plan.handle_right_click(_spawn()),
 			"floor state (no target) returns false — caller exits the mode")
 
 
@@ -142,7 +142,7 @@ func test_magic_left_click_sets_the_target_and_stamps_a_source_in_one_step() -> 
 	plan.spell = _magic_spell(SkillNode.Ownership.MINE)
 	var a := _own(_spawn())
 	var b := _own(_spawn())
-	plan._on_node_left_clicked(b)
+	plan.handle_left_click(b)
 	assert_eq(plan.target, b, "the clicked node IS the target — there is no origin to arm")
 	assert_true(plan.source == a or plan.source == b,
 			"and a caster was auto-picked from the eligible set")
@@ -154,9 +154,9 @@ func test_magic_right_click_pops_target_and_source() -> void:
 	plan.spell = _magic_spell(SkillNode.Ownership.MINE)
 	_own(_spawn())
 	var b := _own(_spawn())
-	plan._on_node_left_clicked(b)
+	plan.handle_left_click(b)
 	assert_eq(plan.target, b, "precondition: target armed")
-	assert_true(plan._on_node_right_clicked(_spawn()), "pops regardless of where it lands")
+	assert_true(plan.handle_right_click(_spawn()), "pops regardless of where it lands")
 	assert_null(plan.target)
 	assert_null(plan.source, "the auto-picked source goes with it")
 
@@ -164,7 +164,7 @@ func test_magic_right_click_pops_target_and_source() -> void:
 func test_magic_right_click_with_nothing_armed_has_nothing_to_pop() -> void:
 	var plan: MagicAttackPlan = autofree(MagicAttackPlan.new())
 	plan.attacker = _attacker
-	assert_false(plan._on_node_right_clicked(_spawn(_attacker)),
+	assert_false(plan.handle_right_click(_spawn(_attacker)),
 			"floor state (no target) returns false — caller exits the mode")
 
 
@@ -177,7 +177,7 @@ func test_magic_click_on_an_owned_node_does_nothing_for_a_hostile_spell() -> voi
 	plan.attacker = _attacker
 	plan.spell = _magic_spell(SkillNode.Ownership.HOSTILE)
 	var a := _own(_spawn())
-	plan._on_node_left_clicked(a)
+	plan.handle_left_click(a)
 	assert_null(plan.target)
 	assert_null(plan.source)
 
@@ -189,7 +189,7 @@ func test_magic_self_target_resolves_when_an_owned_node_is_a_legal_target() -> v
 	plan.attacker = _attacker
 	plan.spell = _magic_spell(SkillNode.Ownership.MINE)
 	var a := _own(_spawn())
-	plan._on_node_left_clicked(a)
+	plan.handle_left_click(a)
 	assert_eq(plan.target, a, "self is a legal target, so it resolves as the target")
 	assert_eq(plan.source, a, "and it is its own caster")
 

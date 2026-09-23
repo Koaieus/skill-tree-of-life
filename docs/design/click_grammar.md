@@ -140,10 +140,10 @@ above, happens once #338 lands, not here.
 ## Engineering pointers
 
 - `attack/plan/attack_plan.gd` — `pop()` is the shared primitive;
-  `_on_node_right_clicked` defaults to calling it and returning whether
+  `handle_right_click` defaults to calling it and returning whether
   there was anything to pop.
 - `systems/player_input_controller.gd`'s `_route_battle_click` — when
-  `_on_node_right_clicked` returns `false` (nothing left to pop), it calls
+  `handle_right_click` returns `false` (nothing left to pop), it calls
   `battle_system.cancel_attack()` instead of falling through to the
   idle pin-toggle channel.
 - `systems/armed_mode.gd` (+ `attack_plan_armed_mode.gd`,

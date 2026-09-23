@@ -167,8 +167,8 @@ func arm_magic(battle: BattleSystem, spell: SpellDef = SpellCatalog.SPARK) -> vo
 	var plan := battle.attack_plan as MagicAttackPlan
 	if plan == null:
 		return
-	plan._on_node_left_clicked(nodes["a_leaf"])
-	plan._on_node_left_clicked(nodes["d_gate"])
+	plan.handle_left_click(nodes["a_leaf"])
+	plan.handle_left_click(nodes["d_gate"])
 
 
 func _spawn(display_name: String, faction: Resource) -> Entity:

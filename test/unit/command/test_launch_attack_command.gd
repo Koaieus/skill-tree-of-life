@@ -92,7 +92,7 @@ func _set_local(node: SkillNode, stat_id: StringName, value: float) -> void:
 
 func _arm() -> void:
 	_bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
-	(_bs.attack_plan as RangedAttackPlan)._on_node_left_clicked(_nodes.target)
+	(_bs.attack_plan as RangedAttackPlan).handle_left_click(_nodes.target)
 
 
 func test_the_applier_claims_the_battle_system_at_ready() -> void:

@@ -120,7 +120,7 @@ func before_each() -> void:
 	_body = _BODY_SCENE.instantiate() as RangedBody
 	add_child_autofree(_body)
 	_body.bind(_attacker, _battle, null)
-	_plan._on_node_left_clicked(_target)
+	_plan.handle_left_click(_target)
 
 
 func _per_leaf() -> int:
@@ -179,11 +179,11 @@ func test_stepping_poison_and_scrolling_n_down_re_derives_base() -> void:
 func test_special_count_is_sticky_across_target_picks_and_clamps_to_bin() -> void:
 	_body.set_special(_POISON, 2)
 	_body.set_n(4)
-	_plan._on_node_left_clicked(_target2)
+	_plan.handle_left_click(_target2)
 	assert_eq(_body.n(), 11, "a new target rebuilds at N = max")
 	assert_eq(_plan.ammo_counts, {_POISON: 2, _ARROW: 9}, "poison stays 2 while the bin has 2")
 	_attacker.stat_board.arrows.take(_POISON, 1)
-	_plan._on_node_left_clicked(_target)
+	_plan.handle_left_click(_target)
 	assert_eq(_plan.ammo_counts, {_POISON: 1, _ARROW: 9}, "clamped to the bin once it has 1")
 
 
@@ -280,7 +280,7 @@ func test_a_sensed_target_composes_scouts_only() -> void:
 	assert_true(_plan.ammo_counts.has(_POISON) and _plan.ammo_counts.has(_ARROW), "control: without the viewer fog poison and base fire")
 	_plan.viewer_vision = vision
 	_plan.reset()
-	_plan._on_node_left_clicked(_target)
+	_plan.handle_left_click(_target)
 	assert_true(_plan.is_scout_shot(), "fixture: the plan sees a scout shot")
 	assert_eq(_plan.ammo_counts, {&"scout": 2}, "scouts only, poison and base forced to 0")
 	assert_eq(_plan.validate(), [] as Array[String], "the default composition validates")

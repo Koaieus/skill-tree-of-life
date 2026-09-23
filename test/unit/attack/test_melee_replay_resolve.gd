@@ -81,9 +81,9 @@ func _arm() -> MeleeAttackPlan:
 
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(source)
-	plan._on_node_left_clicked(joint)
-	plan._on_node_left_clicked(tip)
+	plan.handle_left_click(source)
+	plan.handle_left_click(joint)
+	plan.handle_left_click(tip)
 	assert_true(plan.is_valid(), "fixture plan must be valid before resolving")
 	return plan
 
@@ -151,8 +151,8 @@ func test_fidelity_knob_threads_through_to_the_solver() -> void:
 
 	var low := MeleeAttackPlan.new()
 	low.attacker = _attacker
-	low._on_node_left_clicked(source)
-	low._on_node_left_clicked(joint)
+	low.handle_left_click(source)
+	low.handle_left_click(joint)
 	assert_true(low.is_valid(), "fixture: low-fidelity plan must be valid")
 	low.begin_replay_resolve(1, false)
 	assert_eq(low._replay_run._substeps, 1, "LOW fidelity must set substeps to 1")
@@ -161,8 +161,8 @@ func test_fidelity_knob_threads_through_to_the_solver() -> void:
 
 	var high := MeleeAttackPlan.new()
 	high.attacker = _attacker
-	high._on_node_left_clicked(source)
-	high._on_node_left_clicked(joint)
+	high.handle_left_click(source)
+	high.handle_left_click(joint)
 	assert_true(high.is_valid(), "fixture: high-fidelity plan must be valid")
 	high.begin_replay_resolve(BladeSim.DEFAULT_SUBSTEPS, true)
 	assert_eq(high._replay_run._substeps, BladeSim.DEFAULT_SUBSTEPS,
@@ -201,8 +201,8 @@ func test_freeing_the_plan_mid_replay_releases_the_shadow_without_erroring() -> 
 	_alloc.force_allocate(_attacker, source)
 	_alloc.force_allocate(_attacker, joint)
 	plan.attacker = _attacker
-	plan._on_node_left_clicked(source)
-	plan._on_node_left_clicked(joint)
+	plan.handle_left_click(source)
+	plan.handle_left_click(joint)
 	assert_true(plan.is_valid(), "fixture plan must be valid")
 
 	plan.begin_replay_resolve(BladeSim.DEFAULT_SUBSTEPS, true)

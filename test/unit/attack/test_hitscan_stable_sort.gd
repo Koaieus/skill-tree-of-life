@@ -133,8 +133,8 @@ func test_same_plan_resolves_an_identical_hit_sequence_twice() -> void:
 	for _i in 2:
 		var plan := MeleeAttackPlan.new()
 		plan.attacker = attacker
-		plan._on_node_left_clicked(pivot)
-		plan._on_node_left_clicked(arm)
+		plan.handle_left_click(pivot)
+		plan.handle_left_click(arm)
 		plan.resolve_seed = 0xA11CE
 		var outcome := plan.resolve()
 		var hit_ids: Array[int] = []

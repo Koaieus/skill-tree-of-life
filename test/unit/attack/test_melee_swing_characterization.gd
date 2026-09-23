@@ -114,8 +114,8 @@ func _arm_spike(power: float) -> void:
 func _launch() -> void:
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(_pivot)
-	plan._on_node_left_clicked(_arm)
+	plan.handle_left_click(_pivot)
+	plan.handle_left_click(_arm)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 	_bs.launch_attack()
 	await _await_launch_settle()
@@ -152,8 +152,8 @@ func test_live_swing_plain_hit_deals_damage() -> void:
 func test_last_hits_stamp_arrival_time_from_the_event() -> void:
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(_pivot)
-	plan._on_node_left_clicked(_arm)
+	plan.handle_left_click(_pivot)
+	plan.handle_left_click(_arm)
 	assert_true(plan.is_valid(), "fixture plan must be valid before resolving")
 
 	var outcome := plan.resolve()
@@ -199,8 +199,8 @@ func test_a_shadow_resolve_runs_the_whole_swing_and_mutates_nothing_real() -> vo
 	_arm_spike(5.0)
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(_pivot)
-	plan._on_node_left_clicked(_arm)
+	plan.handle_left_click(_pivot)
+	plan.handle_left_click(_arm)
 	assert_true(plan.is_valid(), "fixture plan must be valid before resolving")
 
 	watch_signals(Events)

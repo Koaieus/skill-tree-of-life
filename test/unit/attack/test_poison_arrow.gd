@@ -109,7 +109,7 @@ func _arm(ctx: Dictionary, counts: Dictionary) -> RangedAttackPlan:
 	var bs: BattleSystem = ctx.bs
 	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
 	var plan := bs.attack_plan as RangedAttackPlan
-	plan._on_node_left_clicked(ctx.nodes.target)
+	plan.handle_left_click(ctx.nodes.target)
 	plan.ammo_counts = counts
 	return plan
 
@@ -358,7 +358,7 @@ func test_a_shadow_fall_through_never_writes_the_live_entity_until_the_record_re
 	var ctx: Dictionary = await _build()
 	_crack_shot(ctx)
 	_arm(ctx, {&"poison": 1})
-	(ctx.bs.attack_plan as RangedAttackPlan)._on_node_left_clicked(_core_of(ctx))
+	(ctx.bs.attack_plan as RangedAttackPlan).handle_left_click(_core_of(ctx))
 	var bs: BattleSystem = ctx.bs
 	var command := bs.build_launch_command()
 	assert_not_null(command, "the fixture plan must be launchable")

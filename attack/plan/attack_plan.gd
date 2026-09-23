@@ -4,8 +4,8 @@ extends HighlightProvider
 ## Abstract parent class for a plan for an [Entity] preparing an attack.
 ##
 ## Holds shared state (attacker, mode) and the input + visualization contract:
-## concrete plans handle [method _on_node_left_clicked] /
-## [method _on_node_right_clicked] for input, expose visualization roles via
+## concrete plans implement [method handle_left_click] /
+## [method handle_right_click] for input, expose visualization roles via
 ## [method HighlightProvider.get_node_role], and emit
 ## [signal HighlightProvider.state_changed] whenever any of their internal state
 ## shifts (pivot picked, blade toggled, target set, spell selected, etc.).
@@ -158,14 +158,16 @@ func reset() -> void:
 	pass
 
 
-## Input hooks — concrete plans override the ones they react to. Defaults
-## are no-ops so plans only implement what's relevant to their mode.
+## Public input entry — every carrier (PlayerInputController, the spell
+## playground, dev sandboxes, tests) clicks through these. Concrete plans
+## override the ones they react to; the defaults are no-ops so plans only
+## implement what's relevant to their mode.
 ## (get_node_role / get_node_range / get_range_visual are inherited from
 ## HighlightProvider — concrete plans override those.)
 ##
 ## Left-click always pushes forward: arms the origin, resolves a target, or
 ## toggles a blade member — whatever the plan's current level expects.
-func _on_node_left_clicked(_node: SkillNode) -> void:
+func handle_left_click(_node: SkillNode) -> void:
 	pass
 
 
@@ -174,7 +176,7 @@ func _on_node_left_clicked(_node: SkillNode) -> void:
 ## level to pop (origin/target cleared); false means the plan was already at
 ## its floor ("mode armed, no origin"), and the caller
 ## (PlayerInputController) exits the mode entirely instead.
-func _on_node_right_clicked(_node: SkillNode) -> bool:
+func handle_right_click(_node: SkillNode) -> bool:
 	return pop()
 
 

@@ -56,8 +56,8 @@ func _setup_chain(budget: float = 3.0) -> Dictionary:
 func test_clicking_a_far_node_mass_selects_the_path_to_it() -> void:
 	var f := await _setup_chain()
 	var plan: MeleeAttackPlan = f.plan
-	plan._on_node_left_clicked(f.pivot)
-	plan._on_node_left_clicked(f.tip)  # not adjacent to the pivot — joint is between
+	plan.handle_left_click(f.pivot)
+	plan.handle_left_click(f.tip)  # not adjacent to the pivot — joint is between
 	assert_true(plan.blade_nodes.has(f.joint),
 			"the connecting node is pulled in along with the clicked target")
 	assert_true(plan.blade_nodes.has(f.tip), "the clicked target itself is selected")
@@ -66,8 +66,8 @@ func test_clicking_a_far_node_mass_selects_the_path_to_it() -> void:
 func test_mass_select_is_rejected_outright_when_it_overruns_budget() -> void:
 	var f := await _setup_chain(1.0)  # room for exactly one member
 	var plan: MeleeAttackPlan = f.plan
-	plan._on_node_left_clicked(f.pivot)
-	plan._on_node_left_clicked(f.tip)  # needs joint + tip — two members, budget is one
+	plan.handle_left_click(f.pivot)
+	plan.handle_left_click(f.tip)  # needs joint + tip — two members, budget is one
 	assert_false(plan.blade_nodes.has(f.joint), "no partial selection on reject")
 	assert_false(plan.blade_nodes.has(f.tip), "no partial selection on reject")
 	assert_true(plan.blade_nodes.is_empty())

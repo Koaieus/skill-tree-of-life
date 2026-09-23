@@ -139,9 +139,9 @@ func _plan() -> MeleeAttackPlan:
 	_bs.request_attack_mode(BattleSystem.AttackMode.NONE)
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(_pivot)
-	plan._on_node_left_clicked(_mid)
-	plan._on_node_left_clicked(_tip)
+	plan.handle_left_click(_pivot)
+	plan.handle_left_click(_mid)
+	plan.handle_left_click(_tip)
 	assert_true(plan.is_valid(), "fixture plan must be valid before resolving")
 	assert_eq(plan.blade_nodes.size(), 2, "fixture: a pivot plus mid plus tip")
 	return plan

@@ -280,8 +280,8 @@ func _melee_plan(crit_chance: float) -> MeleeAttackPlan:
 	await get_tree().physics_frame
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = attacker
-	plan._on_node_left_clicked(pivot)
-	plan._on_node_left_clicked(arm)
+	plan.handle_left_click(pivot)
+	plan.handle_left_click(arm)
 	return plan
 
 

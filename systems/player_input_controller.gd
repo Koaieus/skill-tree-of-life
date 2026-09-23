@@ -886,13 +886,13 @@ func _route_battle_click(skill_node: SkillNode, is_left: bool) -> bool:
 	if plan == null or plan.attacker != player:
 		return false
 	if is_left:
-		plan._on_node_left_clicked(skill_node)
+		plan.handle_left_click(skill_node)
 	else:
 		# Right-click always affects the attack-mode stack while a plan is
 		# armed — never falls through to pin-toggle. A pop with nothing left
 		# to clear (mode armed, no origin) exits the mode entirely instead of
 		# being swallowed silently. See docs/design/click_grammar.md.
-		if not plan._on_node_right_clicked(skill_node):
+		if not plan.handle_right_click(skill_node):
 			battle_system.cancel_attack()
 	return true
 

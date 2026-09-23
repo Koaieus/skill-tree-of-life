@@ -121,7 +121,7 @@ func test_get_firing_positions_returns_owned_leaves_only() -> void:
 
 func test_get_reaching_firing_positions_only_the_leaf_within_range() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	assert_eq(p.get_reaching_firing_positions(), [_leaf_near])
 
 
@@ -142,13 +142,13 @@ func test_validate_rejects_a_non_hostile_target() -> void:
 func test_validate_rejects_a_target_out_of_every_leafs_range() -> void:
 	_set_range(_leaf_near, 1.0)  # no longer reaches (distance 50)
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	assert_has(p.validate(), &'No firing position can reach target')
 
 
 func test_validate_passes_with_a_reaching_target() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	assert_eq(p.validate(), [] as Array[String])
 	assert_true(p.is_valid())
 
@@ -157,7 +157,7 @@ func test_validate_passes_with_a_reaching_target() -> void:
 
 func test_resolve_produces_one_hit_per_reaching_firing_position() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 1)
 	var hit := outcome.hits[0]
@@ -169,7 +169,7 @@ func test_resolve_produces_one_hit_per_reaching_firing_position() -> void:
 func test_resolve_ap_cost_is_zero() -> void:
 	# #957, owner: "Firing costs 0 AP" — arrows and per-leaf shots are the cost.
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	assert_eq(p.resolve().ap_cost, 0)
 
 
@@ -184,7 +184,7 @@ func test_resolve_stamps_the_authored_ramp_onto_arrival_time() -> void:
 	_set_range(_leaf_far, 500.0)  # distance 450 → reaches too
 	var tempo := PresentationTempo.shared_default()
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 2)
 	var near_hit: DamageInstance = outcome.hits[0]
@@ -221,7 +221,7 @@ func test_middle_shot_launches_at_its_distance_fraction_not_its_rank() -> void:
 	_add_reaching_leaf(Vector2(450, 150))
 	var tempo := PresentationTempo.shared_default()
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 3)
 	var base: float = tempo.volley_flight_time
@@ -242,7 +242,7 @@ func test_near_identical_distances_launch_together() -> void:
 	_add_reaching_leaf(Vector2(450, 200))    # distance 200
 	_add_reaching_leaf(Vector2(450, 200.1))  # distance 200.1
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 4)
 	assert_almost_eq(outcome.hits[1].arrival_time, outcome.hits[2].arrival_time,
@@ -256,7 +256,7 @@ func test_equidistant_leaves_all_launch_on_the_same_beat() -> void:
 	_add_reaching_leaf(Vector2(450, 300))
 	_add_reaching_leaf(Vector2(450, -300))
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 2)
 	var tempo := PresentationTempo.shared_default()
@@ -270,7 +270,7 @@ func test_single_shot_volley_launches_at_draw_time() -> void:
 	# n == 1 is the other degenerate span — same guard, different cause.
 	var tempo := PresentationTempo.shared_default()
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 1)
 	assert_almost_eq(outcome.hits[0].arrival_time,
@@ -280,7 +280,7 @@ func test_single_shot_volley_launches_at_draw_time() -> void:
 func test_firing_schedule_ranks_nearest_leaf_first() -> void:
 	_set_range(_leaf_far, 500.0)  # distance 450 → reaches too
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	var schedule := p.get_firing_schedule()
 	assert_eq(schedule.size(), 2)
 	assert_eq(schedule[0].firing_node, _leaf_near, "distance 50, closest, ranks first")
@@ -295,7 +295,7 @@ func test_launch_span_equals_arrival_span_at_any_shot_count() -> void:
 	_set_range(_leaf_far, 500.0)
 	var tempo := PresentationTempo.shared_default()
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 2)
 	var launch_span: float = (outcome.hits[1].arrival_time - tempo.volley_flight_time) \
@@ -311,7 +311,7 @@ func test_wall_time_is_constant_across_shot_counts() -> void:
 	# window — a larger volley reads as denser, not slower.
 	_set_range(_leaf_far, 500.0)
 	var two_shot := _plan()
-	two_shot._on_node_left_clicked(_target)
+	two_shot.handle_left_click(_target)
 	var outcome_two := two_shot.resolve()
 	assert_eq(outcome_two.hits.size(), 2)
 	var span_two := outcome_two.hits[-1].arrival_time - outcome_two.hits[0].arrival_time
@@ -323,7 +323,7 @@ func test_wall_time_is_constant_across_shot_counts() -> void:
 	_alloc.force_allocate(_attacker, mid_leaf)
 	_set_range(mid_leaf, 500.0)
 	var three_shot := _plan()
-	three_shot._on_node_left_clicked(_target)
+	three_shot.handle_left_click(_target)
 	var outcome_three := three_shot.resolve()
 	assert_eq(outcome_three.hits.size(), 3)
 	var span_three := outcome_three.hits[-1].arrival_time - outcome_three.hits[0].arrival_time
@@ -406,7 +406,7 @@ func _build_three_leaf_star(leaf_order: Array) -> Dictionary:
 	var p := RangedAttackPlan.new()
 	autofree(p)
 	p.attacker = attacker
-	p._on_node_left_clicked(target)
+	p.handle_left_click(target)
 	return {"plan": p, "leaves": leaves, "target": target}
 
 
@@ -441,7 +441,7 @@ func test_gate_vetoes_shots_after_the_target_dies_mid_volley() -> void:
 		_set_ranged_damage(leaf, 4.0)
 
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.hits.size(), 4, "precondition: all four leaves reach")
 
@@ -470,7 +470,7 @@ func test_gate_vetoes_shots_after_the_target_dies_mid_volley() -> void:
 ## in test/unit/spell/test_wave_gating.gd.
 func test_a_shadow_resolve_lands_the_volley_without_touching_the_real_world() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_target)
+	p.handle_left_click(_target)
 	var before := WorldFingerprint.compute(_graph)
 	var hp_before := _target.get_current_hp()
 

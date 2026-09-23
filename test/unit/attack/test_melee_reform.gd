@@ -114,9 +114,9 @@ func _make_entity(nm: String) -> Entity:
 func _click_build(members: Array[SkillNode]) -> MeleeAttackPlan:
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(_pivot)
+	plan.handle_left_click(_pivot)
 	for m in members:
-		plan._on_node_left_clicked(m)
+		plan.handle_left_click(m)
 	return plan
 
 
@@ -351,8 +351,8 @@ func test_each_entity_reforms_its_own_blade() -> void:
 	assert_false(_pic.can_reform(), "the incoming player has no blade of their own yet")
 
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(_spur)
-	plan._on_node_left_clicked(other_leaf)
+	plan.handle_left_click(_spur)
+	plan.handle_left_click(other_leaf)
 	await _launch_and_settle()
 	assert_true(_pic.reform_blade())
 	assert_eq(_blade_names(_bs.attack_plan as MeleeAttackPlan), ["OtherLeaf"])

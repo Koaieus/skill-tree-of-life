@@ -124,7 +124,7 @@ func _fire(ctx: Dictionary) -> void:
 	var bs: BattleSystem = ctx.bs
 	bs.request_attack_mode(BattleSystem.AttackMode.RANGED)
 	var plan := bs.attack_plan as RangedAttackPlan
-	plan._on_node_left_clicked(ctx.target)
+	plan.handle_left_click(ctx.target)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 	# Not awaited, and with `instant_mutation` set that is enough: the applier
 	# never parks, so resolve() + the whole outcome + the cascade have all run

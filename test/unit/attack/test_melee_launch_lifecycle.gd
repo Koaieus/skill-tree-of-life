@@ -91,8 +91,8 @@ func test_launch_attack_melee_resets_is_launching_and_allows_a_second_attack() -
 
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(source)
-	plan._on_node_left_clicked(joint)
+	plan.handle_left_click(source)
+	plan.handle_left_click(joint)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
 	_bs.launch_attack()
@@ -108,8 +108,8 @@ func test_launch_attack_melee_resets_is_launching_and_allows_a_second_attack() -
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	assert_not_null(_bs.attack_plan, "a second melee plan must be arm-able after the first swing")
 	var plan2 := _bs.attack_plan as MeleeAttackPlan
-	plan2._on_node_left_clicked(source)
-	plan2._on_node_left_clicked(joint)
+	plan2.handle_left_click(source)
+	plan2.handle_left_click(joint)
 	assert_true(plan2.is_valid(), "second plan must be arm-able the same way as the first")
 
 
@@ -127,8 +127,8 @@ func test_launch_attack_melee_with_temp_upgrade_frees_it_and_resets_is_launching
 
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(source)
-	plan._on_node_left_clicked(joint)
+	plan.handle_left_click(source)
+	plan.handle_left_click(joint)
 	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"clamp")))
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
@@ -167,8 +167,8 @@ func test_player_can_act_changed_fires_after_swing_reenabling_attack_mode_bar() 
 
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(source)
-	plan._on_node_left_clicked(joint)
+	plan.handle_left_click(source)
+	plan.handle_left_click(joint)
 	_bs.launch_attack()
 
 	await _await_launch_settle()
@@ -223,8 +223,8 @@ func test_the_command_is_confirmed_before_the_swing_animation_finishes() -> void
 
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(source)
-	plan._on_node_left_clicked(joint)
+	plan.handle_left_click(source)
+	plan.handle_left_click(joint)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 
 	_bs.launch_attack()

@@ -119,9 +119,9 @@ func _arm_plan(members: Array[SkillNode] = []) -> MeleeAttackPlan:
 	_bs.reset_plan()
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(_pivot)
+	plan.handle_left_click(_pivot)
 	for m in members:
-		plan._on_node_left_clicked(m)
+		plan.handle_left_click(m)
 	return plan
 
 
@@ -213,8 +213,8 @@ func test_spending_the_blade_budget_flips_affordability_only() -> void:
 	# Grown on the SAME plan, so this is genuinely "the budget was spent" rather
 	# than "a fresh plan happened to start smaller".
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(_a)
-	plan._on_node_left_clicked(_b)
+	plan.handle_left_click(_a)
+	plan.handle_left_click(_b)
 	assert_eq(_card(1).state, TempUpgradeButton.State.UNAFFORDABLE,
 		"spending the shared budget must read as UNAFFORDABLE, not as Godot's disabled grey")
 	assert_false(_card(1).armed, "affordability must not silently clear the arm flag")
@@ -222,7 +222,7 @@ func test_spending_the_blade_budget_flips_affordability_only() -> void:
 		"clamp still fits in the remaining budget and must stay at rest")
 
 	# The last member exhausts it entirely.
-	plan._on_node_left_clicked(_c)
+	plan.handle_left_click(_c)
 	assert_eq(_card(0).state, TempUpgradeButton.State.UNAFFORDABLE, "no budget left for clamp either")
 
 

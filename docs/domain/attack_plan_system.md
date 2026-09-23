@@ -21,7 +21,7 @@ re-deriving anything.
 - **`AttackPlan`** (abstract `RefCounted`) — base for every mode. Owns
   `attacker`, `mode`, `signal state_changed`, the `HighlightRole` enum,
   and the virtual surface: `validate()`, `get_node_role(node)`,
-  `_on_node_left_clicked(node)`, `_on_node_right_clicked(node) -> bool`,
+  `handle_left_click(node)`, `handle_right_click(node) -> bool`,
   `pop() -> bool`, `get_node_range(node)`. Concrete plans override what
   they care about and emit `state_changed` on any internal mutation.
   Click grammar (left arms/resolves, right pops one level, self-targeting
@@ -397,7 +397,7 @@ signals because:
 - The bus stays for genuinely many-to-many ambient events (hover,
   future `skill_node_long_pressed` etc.).
 
-### `_on_node_*_clicked` virtuals on plans, not event-bus dispatch
+### `handle_*_click` virtuals on plans, not event-bus dispatch
 
 PlayerInputController dispatches into the active plan via virtual
 methods rather than emitting an `attack_node_clicked` bus signal that

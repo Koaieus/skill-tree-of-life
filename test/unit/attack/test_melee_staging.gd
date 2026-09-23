@@ -102,8 +102,8 @@ func before_each() -> void:
 func _arm_plan() -> MeleeAttackPlan:
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(_pivot)
-	plan._on_node_left_clicked(_arm)
+	plan.handle_left_click(_pivot)
+	plan.handle_left_click(_arm)
 	assert_true(plan.is_valid(), "fixture plan must be valid before launching")
 	return plan
 

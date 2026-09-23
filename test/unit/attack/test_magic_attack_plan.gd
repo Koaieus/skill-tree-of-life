@@ -92,14 +92,14 @@ func _plan() -> MagicAttackPlan:
 
 func test_one_click_on_an_in_range_hostile_sets_target_and_stamps_the_source() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_in_range_target)
+	p.handle_left_click(_in_range_target)
 	assert_eq(p.target, _in_range_target, "the clicked node IS the target — no source step first")
 	assert_eq(p.source, _source, "and its caster is auto-picked from the union")
 
 
 func test_click_out_of_range_hostile_is_rejected() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_out_of_range_target)
+	p.handle_left_click(_out_of_range_target)
 	assert_null(p.target)
 	assert_null(p.source, "a rejected click stamps no source either")
 
@@ -109,7 +109,7 @@ func test_click_out_of_range_hostile_is_rejected() -> void:
 ## Hostile-filtered spell, so clicking one commits nothing.
 func test_clicking_an_owned_node_targets_nothing_for_a_hostile_spell() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_source)
+	p.handle_left_click(_source)
 	assert_null(p.target)
 	assert_null(p.source)
 
@@ -120,7 +120,7 @@ func test_clicking_an_owned_node_targets_nothing_for_a_hostile_spell() -> void:
 func test_right_click_clears_both_after_a_pick_and_no_ops_before_one() -> void:
 	var p := _plan()
 	assert_false(p.pop(), "nothing committed yet, nothing to pop")
-	p._on_node_left_clicked(_in_range_target)
+	p.handle_left_click(_in_range_target)
 	assert_true(p.pop())
 	assert_null(p.target)
 	assert_null(p.source)
@@ -149,7 +149,7 @@ func test_validate_gates_on_min_degree() -> void:
 
 func test_validate_passes_with_source_and_reachable_target() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_in_range_target)
+	p.handle_left_click(_in_range_target)
 	assert_eq(p.validate(), [] as Array[String])
 	assert_true(p.is_valid())
 
@@ -158,8 +158,8 @@ func test_validate_passes_with_source_and_reachable_target() -> void:
 
 func test_resolve_transfers_mana_cost_and_hits_the_target() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_source)
-	p._on_node_left_clicked(_in_range_target)
+	p.handle_left_click(_source)
+	p.handle_left_click(_in_range_target)
 	var outcome := p.resolve()
 	assert_eq(outcome.mana_cost, 5)
 	assert_eq(outcome.hits.size(), 1)
@@ -191,7 +191,7 @@ func test_an_eligible_caster_paints_as_caster_before_anything_is_committed() -> 
 
 func test_committing_a_target_collapses_the_casters_to_the_one_picked() -> void:
 	var p := _plan()
-	p._on_node_left_clicked(_in_range_target)
+	p.handle_left_click(_in_range_target)
 	assert_eq(p.get_node_role(_source), HighlightProvider.HighlightRole.ORIGIN,
 			"the stamped source is the cast about to happen, not a candidate")
 	assert_eq(p.get_node_role(_in_range_target), HighlightProvider.HighlightRole.HOSTILE_TARGET)

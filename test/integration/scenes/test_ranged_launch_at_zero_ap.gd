@@ -59,7 +59,7 @@ func test_flow_gate_stays_open_at_zero_ap() -> void:
 
 func test_ranged_launch_is_live_at_zero_ap_and_fires() -> void:
 	var plan := _root.battle_system.attack_plan as RangedAttackPlan
-	plan._on_node_left_clicked(_root.graph.get_node("Nodes/Enemy_Core"))
+	plan.handle_left_click(_root.graph.get_node("Nodes/Enemy_Core"))
 	await wait_physics_frames(2)
 	var body := _body("RangedBody")
 	assert_true(body._launch_button.enabled, "ranged Launch live at 0 AP")

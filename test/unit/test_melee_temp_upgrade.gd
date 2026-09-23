@@ -63,10 +63,10 @@ func _setup_plan(budget: float = 3.0, select_tip: bool = true) -> Dictionary:
 	# Drive selection through the real click flow (not a direct blade_nodes
 	# assignment) so the plan's internal GraphMirror stays consistent —
 	# _deselect_blade depends on it.
-	plan._on_node_left_clicked(source)
-	plan._on_node_left_clicked(joint)
+	plan.handle_left_click(source)
+	plan.handle_left_click(joint)
 	if select_tip:
-		plan._on_node_left_clicked(tip)
+		plan.handle_left_click(tip)
 	return {"plan": plan, "source": source, "joint": joint, "tip": tip}
 
 
@@ -126,7 +126,7 @@ func test_spent_temp_upgrade_budget_blocks_a_new_member_selection() -> void:
 	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"spike_ring")))
 	assert_eq(plan.get_node_role(tip), HighlightProvider.HighlightRole.NONE,
 			"a node that would exceed the combined budget must not read as selectable")
-	plan._on_node_left_clicked(tip)
+	plan.handle_left_click(tip)
 	assert_false(plan.blade_nodes.has(tip),
 			"member selection must respect budget already spent on temp upgrades")
 
@@ -215,7 +215,7 @@ func test_deselecting_member_refunds_its_temp_upgrade() -> void:
 	var joint: SkillNode = ctx.joint
 	var addons_before := joint.get_addons().size()
 	assert_true(plan.apply_temp_upgrade(joint, _catalog.by_id(&"clamp")))
-	plan._on_node_left_clicked(joint)  # toggle off — same as a real deselect click
+	plan.handle_left_click(joint)  # toggle off — same as a real deselect click
 	assert_eq(joint.get_addons().size(), addons_before,
 			"dropping a member must free any temp upgrade it carried")
 

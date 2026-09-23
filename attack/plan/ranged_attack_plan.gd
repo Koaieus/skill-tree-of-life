@@ -143,7 +143,7 @@ static func from_dict(d: Dictionary, graph: Graph) -> RangedAttackPlan:
 	return plan
 
 
-func _on_node_left_clicked(node: SkillNode) -> void:
+func handle_left_click(node: SkillNode) -> void:
 	if not _is_valid_target(node):
 		return
 	if target == node:

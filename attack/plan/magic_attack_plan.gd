@@ -15,7 +15,7 @@ extends AttackPlan
 
 const _FALLBACK_SPELL: SpellDef = preload("res://attack/spell/defs/spark.tres")
 
-## The cast-from node. No longer clicked — [method _on_node_left_clicked]
+## The cast-from node. No longer clicked — [method handle_left_click]
 ## stamps it from [method SpellTargetUnion.source_for] the moment a target is
 ## picked, and [method validate] still requires it (a cast has to leave from
 ## somewhere, and the launch command ships its stable id).
@@ -137,7 +137,7 @@ func pop() -> bool:
 	return true
 
 
-func _on_node_left_clicked(node: SkillNode) -> void:
+func handle_left_click(node: SkillNode) -> void:
 	if attacker == null or node == null:
 		return
 	if spell == null or spell.targeting == null:

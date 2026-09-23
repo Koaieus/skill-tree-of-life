@@ -16,7 +16,7 @@ extends GutTest
 ##      whatever [SpellResolver] would have walked.
 ##
 ## All three drive [MagicAttackPlan] through its real click/hover entry
-## points ([method MagicAttackPlan._on_node_left_clicked],
+## points ([method MagicAttackPlan.handle_left_click],
 ## [method MagicAttackPlan.set_hover_target]) and read the result back
 ## through the same public [HighlightProvider] surface the overlays use
 ## ([method HighlightProvider.get_node_role],
@@ -94,7 +94,7 @@ func test_preview_mutates_nothing_hp_ownership_or_mana() -> void:
 	var plan := MagicAttackPlan.new()
 	plan.attacker = attacker
 	plan.spell = spell
-	plan._on_node_left_clicked(nodes[0])  # picks the source
+	plan.handle_left_click(nodes[0])  # picks the source
 
 	var hp_before := nodes[1].get_current_hp()
 	var owner_before := nodes[1].owned_by
@@ -140,7 +140,7 @@ func test_a_second_preview_still_mutates_nothing() -> void:
 	var plan := MagicAttackPlan.new()
 	plan.attacker = attacker
 	plan.spell = spell
-	plan._on_node_left_clicked(nodes[0])
+	plan.handle_left_click(nodes[0])
 
 	var hp1_before := nodes[1].get_current_hp()
 	var hp2_before := nodes[2].get_current_hp()
@@ -182,7 +182,7 @@ func test_rehovering_the_same_node_does_not_repaint() -> void:
 	var plan := MagicAttackPlan.new()
 	plan.attacker = attacker
 	plan.spell = spell
-	plan._on_node_left_clicked(nodes[0])
+	plan.handle_left_click(nodes[0])
 
 	# A lambda captures a local BY VALUE (.claude/rules/testing.md) — count
 	# into a single-element Array, not a plain int, or the closure's own copy
@@ -238,7 +238,7 @@ func test_bruiser_climb_is_visible_in_the_preview_before_commit() -> void:
 	var plan := MagicAttackPlan.new()
 	plan.attacker = attacker
 	plan.spell = spell
-	plan._on_node_left_clicked(nodes[0])
+	plan.handle_left_click(nodes[0])
 	plan.set_hover_target(n1)
 
 	assert_eq(plan.get_node_role(n1), _PROPAGATION, "seed lands on the hovered node")
@@ -290,7 +290,7 @@ func test_trail_blazer_walk_and_terminal_junction_are_visible_in_preview() -> vo
 	var plan := MagicAttackPlan.new()
 	plan.attacker = attacker
 	plan.spell = spell
-	plan._on_node_left_clicked(nodes[8])
+	plan.handle_left_click(nodes[8])
 	plan.set_hover_target(nodes[0])
 
 	for i in range(0, 6):  # the whole walked string, tip through the junction

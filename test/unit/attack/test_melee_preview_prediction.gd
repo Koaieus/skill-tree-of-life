@@ -149,9 +149,9 @@ func _arm() -> MeleeAttackPlan:
 	_bs.request_attack_mode(BattleSystem.AttackMode.NONE)
 	_bs.request_attack_mode(BattleSystem.AttackMode.MELEE)
 	var plan := _bs.attack_plan as MeleeAttackPlan
-	plan._on_node_left_clicked(_pivot)
-	plan._on_node_left_clicked(_mid)
-	plan._on_node_left_clicked(_tip)
+	plan.handle_left_click(_pivot)
+	plan.handle_left_click(_mid)
+	plan.handle_left_click(_tip)
 	assert_true(plan.is_valid(), "fixture: the plan must be valid before resolving")
 	return plan
 
@@ -389,7 +389,7 @@ func test_changing_the_selection_earns_a_fresh_resolve() -> void:
 	# invalidation every state change shares. The mounted preview re-primes the
 	# cache synchronously off the same signal, so assert the COUNT moved rather
 	# than that the cache is momentarily empty.
-	plan._on_node_left_clicked(_tip)
+	plan.handle_left_click(_tip)
 	plan.refresh_prediction()
 	assert_eq(plan.prediction_runs, armed + 1,
 			"a changed selection earns exactly one fresh resolve")
@@ -546,7 +546,7 @@ func test_a_click_mid_slice_yields_the_new_selection_never_the_old() -> void:
 
 	# Drop the tip through the real click path — the same invalidation every
 	# state change shares.
-	plan._on_node_left_clicked(_tip)
+	plan.handle_left_click(_tip)
 	assert_not_same(plan.prediction_partial(), stale,
 			"the superseded run is dropped, never resumed")
 

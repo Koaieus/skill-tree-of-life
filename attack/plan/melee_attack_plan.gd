@@ -156,7 +156,7 @@ func pop() -> bool:
 	return true
 
 
-func _on_node_left_clicked(node: SkillNode) -> void:
+func handle_left_click(node: SkillNode) -> void:
 	if attacker == null or node == null:
 		return
 	if source == null:
