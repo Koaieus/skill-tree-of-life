@@ -98,12 +98,10 @@ so adding a modifier roll upstream doesn't shift where enemies start.
 - **An autoload outlives every test** in GUT's single process. Call
   `GameSession.end()` in `before_each`, or one test's recorded run leaks into
   the next.
-- **`GraphProcgen.generate` mutates its config** — `shape_mask.size_for()` sizes
-  the mask in place, `_propagate_mask_radius` writes back into radial fields.
-  Reusing one config object across two generations makes the second start from
-  an already-sized mask, which reads as non-determinism and sends you debugging
-  the wrong thing. Build the config fresh (or `duplicate(true)`) per run. See
-  `test/unit/test_procgen_determinism.gd`, which is built around this.
+- **`GraphProcgen.generate` never writes to its config** — it resolves the
+  auto-scaled mask and back-filled fields on a copy, returned as
+  `result.config`. Read resolved values there, never off the argument. See
+  `test/unit/test_procgen_config_purity.gd`.
 
 ## Where the pieces live
 

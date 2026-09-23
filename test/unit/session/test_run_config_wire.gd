@@ -149,9 +149,9 @@ func test_a_client_generating_from_the_decoded_scenario_matches_the_host() -> vo
 
 ## Small, self-contained generation for the round-trip comparison above — a
 ## fresh duplicate per call, same reason `test_coop_versus_preset.gd`'s
-## `_fresh_config` re-duplicates: `generate` mutates the config in place and
-## `load` is cached, so two calls sharing one object would generate the SAME
-## map trivially rather than proving the decoded config can reproduce it.
+## `_fresh_config` re-duplicates: `load` is cached, so two calls sharing one
+## object would generate the SAME map trivially rather than proving the
+## decoded config can reproduce it.
 func _generate_from_preset(preset: GraphProcgenConfig, seed_value: int) -> Array:
 	var cfg: GraphProcgenConfig = preset.duplicate(true)
 	# #349 acceptance 4: topology is a top-level module `.tres` (ExtResource);

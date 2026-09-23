@@ -9,12 +9,10 @@ extends GutTest
 ## `test/unit/attack/test_attack_determinism.gd`. Do not extend this file to
 ## assert identical crits or relics; that is a deliberate non-goal.
 ##
-## [b]The trap this file is built around:[/b] [method GraphProcgen.generate]
-## MUTATES its config — `shape_mask.size_for()` sizes the mask in place and
-## `_propagate_mask_radius` writes back into radial fields. Reusing one config
-## object for both runs makes run 2 start from an already-sized mask, which
-## reads as non-determinism and sends you debugging the wrong thing. Every run
-## below builds its config from scratch.
+## Every run below builds its config from scratch, so a comparison never
+## depends on two runs sharing state. [method GraphProcgen.generate] itself
+## never writes to its config — it resolves on a copy it returns as
+## `result.config` (pinned by test_procgen_config_purity.gd).
 
 
 func _config(config_seed: int) -> GraphProcgenConfig:

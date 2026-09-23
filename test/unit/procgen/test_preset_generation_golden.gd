@@ -91,8 +91,8 @@ const _REGENERATE := false
 ## in place — the DIGEST tier's whole point is exercising generation at the
 ## scale the preset actually ships at.
 func _fresh_config(preset_path: String, node_count: int = -1) -> GraphProcgenConfig:
-	# generate() mutates the config in place (mask size_for, the propagated
-	# outer_radius) and load() is cached, so every pass needs its own copy.
+	# load() is cached and callers override fields (node_count) on the config,
+	# so every pass needs its own copy. generate() itself never writes to it.
 	var cfg: GraphProcgenConfig = (load(preset_path) as GraphProcgenConfig).duplicate(true)
 	cfg.seed = _SEED
 	if node_count > 0:

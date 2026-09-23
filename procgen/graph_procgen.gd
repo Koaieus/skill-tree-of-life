@@ -148,9 +148,10 @@ static func generate(
 	rng.seed = RunConfig.resolve_seed(config.seed)
 
 	# Generation resolves on its OWN copy and returns it as `"config"`; the
-	# caller's config object is never written to (see resolve_config).
-	await _emit_progress(progress_cb, 0.02, "Preparing shape")
+	# caller's config object is never written to (see resolve_config). Copy
+	# before the first yield, so no frame ever runs on the caller's object.
 	config = resolve_config(config)
+	await _emit_progress(progress_cb, 0.02, "Preparing shape")
 	var min_dist := _min_node_dist(config.topology)
 	# Final ordered starter list = manual entries first, then any random anchors
 	# we place. Caller reads back via `starting_nodes` in the same order, so

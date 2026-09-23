@@ -26,8 +26,8 @@ const _DECILES := 10
 
 
 func _fresh_config() -> GraphProcgenConfig:
-	# `generate` mutates the config in place (mask `size_for`, the propagated
-	# `outer_radius`) and `load` is cached — so every pass gets its own copy.
+	# `load` is cached and the tests below override fields on the config —
+	# so every pass gets its own copy. (generate() itself never writes to it.)
 	var cfg: GraphProcgenConfig = (load(_PRESET_PATH) as GraphProcgenConfig).duplicate(true)
 	# #349: topology is a top-level module .tres (ExtResource); duplicate(true)
 	# does not cross that boundary, so re-duplicate before mutating (acceptance 4).
