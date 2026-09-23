@@ -1,10 +1,11 @@
 class_name WeightContext
 extends RefCounted
 
-## Per-node bag of inputs that [WeightProfile]s read from. Built fresh on each
-## modifier draw — the `already_rolled` field grows across draws within the
-## same node so [CollisionProfile] (and future soft-bias profiles) can react
-## to what's already on the node.
+## Per-node bag of inputs that [WeightProfile]s read from. Built once per
+## node's modifier draw and read unchanged by every pick in it — nothing here
+## reports what earlier picks rolled. v4 fuses duplicate (stat, op) picks, so
+## a profile reacting to "what's on the node" must read the fused result, not
+## a raw per-pick list.
 ##
 ## Not all fields are populated by every caller; profiles read only what they
 ## need and treat absent fields permissively.
@@ -19,9 +20,6 @@ var degree: int = 0
 ## Counts of archetype tag → number of neighbours within k hops. Populated by
 ## [NeighborhoodProfile] (not in step 3).
 var neighborhood_archetypes: Dictionary = {}
-## Modifiers already minted on THIS node by prior draws. CollisionProfile
-## walks this to zero (stat_id, operation) duplicates.
-var already_rolled: Array[StatModifier] = []
 var node_index: int = -1
 ## Per-run state — level number, difficulty, etc. Empty in v2 step 3.
 var run_state: Dictionary = {}

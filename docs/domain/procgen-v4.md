@@ -49,10 +49,12 @@ draw (primary → cost-capped off-attribute → defensive → rare) is replaced 
   node_health, movement_points, deallocation_points) — no CURSE is universal
   as of #718, see "The curse law" below
   are the shared defensive/mobility content, drawn by every node.
-- `CollisionProfile` from `first_level.tres`'s `weight_profiles` — its "zero
-  duplicate `(stat,op)`" rule does not compose with aggregation (which
-  *wants* duplicates to combine). The class + `test_weight_profiles.gd` remain
-  for anyone who wants the primitive, but a v4 preset must not include it.
+- `CollisionProfile` and `WeightContext.already_rolled` — deleted (#424). Its
+  "zero duplicate `(stat,op)`" rule contradicts aggregation, which *wants*
+  duplicates to fuse, and the channel it read was never fed by the v4 draw.
+  A future soft-bias profile ("no two vision mods on one node") reads the
+  **fused** modifiers, not raw per-pick rolls — a different channel with its
+  own owner. `test_weight_profiles.gd` pins that duplicate picks fuse.
 
 ## The universal slice (#975)
 

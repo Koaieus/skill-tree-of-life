@@ -10,9 +10,9 @@ extends Resource
 ## scene cannot stack — once one mints on a node, the entry is filtered out
 ## of subsequent slot picks for that same node.
 ##
-## The weight pipeline shares its [WeightProfile] vocabulary with the modifier
-## pass. The addon-pass [WeightContext] carries the modifier-pass output as
-## `already_rolled` so profiles can react to what's already on the node.
+## `weight_profiles` shares the [WeightProfile] vocabulary with the modifier
+## pass, but the addon pass builds no [WeightContext] and does not apply them
+## today; nothing from the modifier pass reaches an addon pick.
 
 ## Slot-count distribution per node. Keys = total addons (int), values =
 ## sampling weights. Default `[0:60, 1:25, 2:12, 3:3]` — mean ~0.55, mostly

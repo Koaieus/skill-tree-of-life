@@ -7,7 +7,8 @@ extends Resource
 ## per-node [WeightContext]. The procgen modifier pass walks an
 ## `Array[WeightProfile]`, multiplying contributions together.
 ##
-## Profiles can return 0.0 to drop an entry (CollisionProfile does this).
+## Profiles can return 0.0 to drop an entry, as the picker's own affordability
+## and forbid-tag filters do before any profile runs.
 ## Negative returns are clamped to 0.
 ##
 ## Subclasses override [method multiplier_for].

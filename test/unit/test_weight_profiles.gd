@@ -1,13 +1,14 @@
 extends GutTest
 
-## Covers ArchetypeWeightProfile + CollisionProfile + their composition through
-## the procgen pick path (`GraphProcgen._v4_weighted_pick`).
+## Covers ArchetypeWeightProfile, the forbid-tag filter, and their composition
+## through the procgen pick path (`GraphProcgen._v4_weighted_pick`) and the
+## real v4 draw (`GraphProcgen._roll_modifiers_v4`).
 
 
 ## Budget-exhaustion roll loop over the surviving pick primitive. Mirrors how
 ## the per-node draw consumes budget: pick → append → subtract cost → repeat.
-## Kept here (rather than in graph_procgen) so collision / archetype-bias /
-## forbid can be asserted against a flat entry list in isolation. No debuff
+## Kept here (rather than in graph_procgen) so archetype-bias / forbid can be
+## asserted against a flat entry list in isolation. No debuff
 ## entries in this suite; negative pools cost budget like any other (refunds retired, #637).
 func _roll_pipeline(
 		entries: Array[ModifierPoolEntry],
@@ -22,11 +23,10 @@ func _roll_pipeline(
 	ctx.archetype = archetype
 	ctx.position = Vector2.ZERO
 	ctx.node_index = 0
-	ctx.already_rolled = out  # alias — grows as we append (collision reads it)
 	ctx.forbid_tags = forbid_tags
 	var remaining := budget
 	while remaining > 0:
-		var entry := GraphProcgen._v4_weighted_pick(entries, profiles, ctx, remaining, 0, rng)
+		var entry := GraphProcgen._v4_weighted_pick(entries, profiles, ctx, remaining, rng)
 		if entry == null:
 			break
 		out.append(entry.roll(rng))
@@ -47,13 +47,6 @@ func _entry(id: StringName, stat_id: StringName, tags: Array, cost: int = 1, wei
 		typed.append(StringName(t))
 	e.tags = typed
 	return e
-
-
-func _modifier(stat_id: StringName, op: int = StatModifier.Operation.ADD_BASE) -> StatModifier:
-	var m := StatModifier.new()
-	m.stat_id = stat_id
-	m.operation = op as StatModifier.Operation
-	return m
 
 
 # ── ArchetypeWeightProfile ────────────────────────────────────────────────
@@ -95,69 +88,7 @@ func test_archetype_profile_unknown_archetype_passes_through() -> void:
 	assert_almost_eq(p.multiplier_for(e, ctx), 1.0, 0.0001)
 
 
-# ── CollisionProfile ──────────────────────────────────────────────────────
-
-
-func test_collision_zeroes_duplicate_stat_op_pair() -> void:
-	var p := CollisionProfile.new()
-	var ctx := WeightContext.new()
-	ctx.already_rolled = [_modifier(&"strength", StatModifier.Operation.ADD_BASE)]
-	var e := _entry(&"str_t2", &"strength", [&"str"])  # same stat + ADD_BASE
-	assert_eq(p.multiplier_for(e, ctx), 0.0)
-
-
-func test_collision_allows_same_stat_different_op() -> void:
-	var p := CollisionProfile.new()
-	var ctx := WeightContext.new()
-	ctx.already_rolled = [_modifier(&"strength", StatModifier.Operation.ADD_BASE)]
-	var e := _entry(&"str_pct", &"strength", [&"str", &"percent"])
-	e.operation = StatModifier.Operation.INCREASE
-	assert_eq(p.multiplier_for(e, ctx), 1.0)
-
-
-func test_collision_allows_different_stat_same_op() -> void:
-	var p := CollisionProfile.new()
-	var ctx := WeightContext.new()
-	ctx.already_rolled = [_modifier(&"strength", StatModifier.Operation.ADD_BASE)]
-	var e := _entry(&"dex_t1", &"dexterity", [&"dex"])
-	assert_eq(p.multiplier_for(e, ctx), 1.0)
-
-
-func test_collision_empty_already_rolled_is_passthrough() -> void:
-	var p := CollisionProfile.new()
-	var ctx := WeightContext.new()
-	var e := _entry(&"str_t1", &"strength", [&"str"])
-	assert_eq(p.multiplier_for(e, ctx), 1.0)
-
-
 # ── Composition / end-to-end through the procgen pick path ────────────────
-
-
-func test_v2_pipeline_collision_prevents_duplicate_stat_op_on_node() -> void:
-	# A pool with two STR-ADD_BASE entries + one DEX entry; budget 4 of cost-1
-	# entries. With CollisionProfile in play, only ONE STR-ADD_BASE can be drawn;
-	# the rest must be DEX (the only other option).
-	var entries: Array[ModifierPoolEntry] = [
-		_entry(&"str_t1", &"strength", [&"str", &"flat"], 1, 10.0),
-		_entry(&"str_t2", &"strength", [&"str", &"flat"], 1, 10.0),
-		_entry(&"dex_t1", &"dexterity", [&"dex", &"flat"], 1, 1.0),
-	]
-	var profiles: Array[Resource] = [CollisionProfile.new()]
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 42
-	var rolled := _roll_pipeline(entries, profiles, &"red", [] as Array[StringName], 4, rng)
-	# Only 2 distinct (stat_id, ADD_BASE) pairs in the pool: strength + dexterity.
-	# Collision blocks repeats → max 2 picks even though budget allows 4.
-	assert_eq(rolled.size(), 2, "collision should cap at one pick per (stat, op) pair")
-	var str_count := 0
-	var dex_count := 0
-	for m in rolled:
-		if m.stat_id == &"strength":
-			str_count += 1
-		elif m.stat_id == &"dexterity":
-			dex_count += 1
-	assert_eq(str_count, 1, "CollisionProfile must prevent multiple STR ADD_BASE picks; got %d" % str_count)
-	assert_eq(dex_count, 1, "one DEX pick expected; got %d" % dex_count)
 
 
 func test_v2_pipeline_archetype_steers_picks_red() -> void:
@@ -169,7 +100,6 @@ func test_v2_pipeline_archetype_steers_picks_red() -> void:
 	]
 	var arch := ArchetypeWeightProfile.new()
 	arch.weights = {&"red": {&"str": 10.0, &"int": 0.1}}
-	# No CollisionProfile — we want repeated independent draws.
 	var profiles: Array[Resource] = [arch]
 	var str_hits := 0
 	var total := 200
@@ -194,12 +124,11 @@ func test_v2_pipeline_forbid_tags_hard_excludes() -> void:
 		_entry(&"wis_t1", &"wisdom", [&"wis", &"flat"], 1, 1.0),
 	]
 	var forbid: Array[StringName] = [&"str", &"dex", &"int"]
-	# Profiles default to [CollisionProfile] so duplicate WIS picks are blocked.
-	var profiles: Array[Resource] = [CollisionProfile.new()]
-	var rolled := _roll_pipeline(entries, profiles, &"gold", forbid, 5, RandomNumberGenerator.new())
-	# Only wisdom can be picked, and collision blocks duplicate (wisdom, ADD_BASE).
-	assert_eq(rolled.size(), 1, "forbid should leave only wisdom; got %d" % rolled.size())
-	assert_eq(rolled[0].stat_id, &"wisdom")
+	var rolled := _roll_pipeline(entries, [] as Array[Resource], &"gold", forbid, 5, RandomNumberGenerator.new())
+	# Every pick lands on wisdom despite its 10x lower base weight.
+	assert_eq(rolled.size(), 5, "budget 5 of cost-1 picks must draw five times; got %d" % rolled.size())
+	for m in rolled:
+		assert_eq(m.stat_id, &"wisdom", "forbid tags must hard-exclude str/dex/int")
 
 
 func test_v2_pipeline_empty_pool_returns_empty() -> void:

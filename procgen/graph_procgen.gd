@@ -1196,10 +1196,6 @@ static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringNam
 ##      now bounded by the number of distinct (stat, op) pairs it drew — not
 ##      by the number of draws.
 ##
-## NOTE: CollisionProfile does NOT compose with aggregation (it zeroes
-## duplicate (stat,op); v4 wants to combine them), so a v4 preset should not
-## include it in `weight_profiles` — `first_level.tres` dropped it.
-##
 ## See docs/domain/procgen-v4.md.
 
 ## #629: a fused (stat,op) result equal to its operation's neutral element
@@ -1238,7 +1234,6 @@ static func _roll_modifiers_v4(
 	ctx.archetype = archetype
 	ctx.position = position
 	ctx.node_index = node_index
-	ctx.already_rolled = out
 	ctx.forbid_tags = forbid_tags
 
 	var remaining := budget
@@ -1250,7 +1245,7 @@ static func _roll_modifiers_v4(
 	var draws := 0
 
 	while remaining > 0:
-		var entry := _v4_weighted_pick(entries, profiles, ctx, remaining, 0, rng)
+		var entry := _v4_weighted_pick(entries, profiles, ctx, remaining, rng)
 		if entry == null:
 			break
 		rolled.append(entry.roll(rng), entry.cost, entry)
@@ -1319,16 +1314,11 @@ static func _is_neutral_result(mod: StatModifier) -> bool:
 ## a single weighted sample. Cost is always positive (#637 retired the
 ## negative-cost/refund-cap branch a debuff pool used to get) — one
 ## affordability rule for every pool regardless of its rolled value's sign.
-## A dead 5th positional int param stays in the signature, unread, only
-## because test/unit/test_weight_profiles.gd:29 (outside this unit's owned
-## paths — #637) calls this with 6 positional args; drop the parameter and
-## fix that one call site together in a follow-up that owns that file.
 static func _v4_weighted_pick(
 		entries: Array[ModifierPoolEntry],
 		profiles: Array[Resource],
 		context: WeightContext,
 		remaining: int,
-		_reserved_unused: int,
 		rng: RandomNumberGenerator,
 ) -> ModifierPoolEntry:
 	var affordable: Array[ModifierPoolEntry] = []
