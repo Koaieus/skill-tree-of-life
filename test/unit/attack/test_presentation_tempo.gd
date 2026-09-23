@@ -33,6 +33,30 @@ func test_magic_windup_lead_is_the_pivot_focus() -> void:
 			"the camera's hold and the presenter's delay read the same number")
 
 
+func test_ranged_windup_lead_is_the_pivot_focus_not_the_draw() -> void:
+	var tempo := PresentationTempo.new()
+	tempo.volley_draw_time = 1.5
+	tempo.volley_windup_pivot_focus = 0.3
+	assert_almost_eq(tempo.windup_lead(BattleSystem.AttackMode.RANGED),
+			tempo.volley_windup_pivot_focus, 0.0001,
+			"the camera holds the centroid for the pivot beat; the drift fills the rest of the draw")
+	assert_almost_eq(tempo.windup_drift(BattleSystem.AttackMode.RANGED), 1.2, 0.0001,
+			"the drift is the draw minus the pivot")
+	assert_eq(tempo.windup_drift(BattleSystem.AttackMode.MELEE), 0.0,
+			"a followed wind-up has no drift of its own")
+	tempo.volley_windup_pivot_focus = 0.0
+	assert_eq(tempo.windup_lead(BattleSystem.AttackMode.RANGED), 0.0,
+			"the escape hatch: no pivot, the drift lands at commit")
+
+
+func test_shared_default_authors_the_volley_retune() -> void:
+	var tempo := PresentationTempo.shared_default()
+	assert_almost_eq(tempo.volley_draw_time, 1.5, 0.0001, "draw authored")
+	assert_almost_eq(tempo.volley_stagger_span, 0.5, 0.0001, "stagger span authored")
+	assert_almost_eq(tempo.volley_flight_time, 1.0, 0.0001, "flight authored")
+	assert_gt(tempo.volley_windup_pivot_focus, 0.0, "pivot focus authored")
+
+
 func test_shared_default_authors_the_magic_trio() -> void:
 	var tempo := PresentationTempo.shared_default()
 	assert_almost_eq(tempo.magic_windup_pivot_focus, 0.25, 0.0001, "pivot focus authored")

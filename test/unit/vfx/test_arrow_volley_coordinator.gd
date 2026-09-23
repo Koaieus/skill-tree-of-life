@@ -375,8 +375,9 @@ func test_windup_parks_every_arrow_inside_its_leaf_and_play_launches_those_insta
 		var leaf: SkillNode = outcome.hits[i].origin
 		assert_lte(parked[i].global_position.distance_to(leaf.global_position), leaf.radius,
 				"arrow %d sits inside its leaf's disc" % i)
-	var marker := coord.focus_marker()
-	assert_not_null(marker, "the coordinator's marker is its %FocusMarker")
+	assert_null(coord.focus_marker(),
+			"nothing moves during the draw, so nothing is handed over to follow (#1048)")
+	var marker := coord.get_node(^"%FocusMarker") as Node2D
 	assert_almost_eq(marker.global_position, Vector2(0, 150), Vector2(0.01, 0.01),
 			"during the wind-up the marker is the firing-NODES centroid (two leaves, not three arrows)")
 	await wait_frames(3)
@@ -386,13 +387,26 @@ func test_windup_parks_every_arrow_inside_its_leaf_and_play_launches_those_insta
 	for proj in parked:
 		ids.append(proj.get_instance_id())
 	var landings: Array = []
-	coord.wave_landing.connect(func(points: PackedVector2Array) -> void: landings.append(points))
+	var released_at_landing: Array[int] = []
+	coord.wave_landing.connect(func(points: PackedVector2Array) -> void:
+		landings.append(points)
+		released_at_landing.append(released.size()))
+	var markers: Array = []
+	coord.focus_marker_changed.connect(func(m: Node2D) -> void: markers.append(m))
 	coord.play(outcome)
 	var launched := _projectiles(coord)
 	assert_eq(launched.size(), 3, "play spawns nothing new")
 	for i in launched.size():
 		assert_eq(launched[i].get_instance_id(), ids[i], "…it launches the parked instance")
-	assert_eq(landings.size(), 1, "wave_landing fires once at release")
+	assert_eq(markers, [marker], "the first release hands the swarm marker over — the follow opens here")
+	assert_eq(coord.focus_marker(), marker, "…and the contract answers it from now on")
+	assert_eq(landings.size(), 0, "wave_landing waits for the LAST launch, not play() entry")
+	await wait_until(func() -> bool: return landings.size() > 0, 1.0)
+	assert_eq(landings.size(), 1, "wave_landing fires once")
+	assert_eq(released_at_landing, [3], "…on the beat the last arrow leaves the string")
+	assert_eq(markers.size(), 2, "the marker changes once more at that beat")
+	if markers.size() == 2:
+		assert_eq(markers[1], _target, "…onto the target node")
 	assert_eq(landings[0].size(), 3, "…with every arrow's landing point")
 	for p in landings[0]:
 		assert_lte(p.distance_to(_target.global_position), _target.radius, "…on the target's disc")
@@ -410,9 +424,12 @@ func test_a_zero_draw_time_stages_nothing_and_play_spawns_as_today() -> void:
 	tempo.volley_draw_time = 0.0
 	assert_eq(coord.begin_windup(RangedAttackPlan.new(), tempo), 0.0)
 	assert_eq(_projectiles(coord).size(), 0, "the escape hatch parks nothing")
+	var landings: Array = []
+	coord.wave_landing.connect(func(points: PackedVector2Array) -> void: landings.append(points))
 	coord.play(outcome)
 	assert_eq(_projectiles(coord).size(), 3, "play spawns and launches as before")
 	await wait_until(func() -> bool: return _projectiles(coord).is_empty(), 3.0)
+	assert_eq(landings.size(), 1, "the landing beat still fires once without a wind-up")
 
 
 func test_focus_weight_is_the_arrows_summed_amount() -> void:

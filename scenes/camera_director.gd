@@ -69,6 +69,11 @@ extends Node
 ## player's exact `_target_zoom` on release.
 const ZOOM_LATTICE := 0.25
 
+## How many lattice steps a wave's LANDING cluster may zoom in past the
+## player's own zoom (#1048) — a single-node ranged target is illegible from
+## far out. Tuned by look; release() restores the player's exact zoom.
+@export var shot_zoom_in_steps: int = 1
+
 ## Who this machine plays — the predicate #524 gates its trigger on. Pushed by
 ## GameRoot rather than `@export`ed, because [SeatPolicy] is a RefCounted the
 ## level constructs during `_setup_level`, not a node in the scene.

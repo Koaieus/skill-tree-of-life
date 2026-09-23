@@ -25,6 +25,12 @@ var mandatory: bool = false
 ## May the decision step the zoom OUT to fit the span? False for a point focus,
 ## which has nothing to fit.
 var allow_zoom_out: bool = true
+## How many 0.25-lattice steps the decision may zoom IN past the player's own
+## zoom. Honoured only when the span already fits at that zoom: the zoom steps
+## in up to this many times, stopping one step short of where it would no
+## longer fit. A span that does not fit steps OUT exactly as it would at 0.
+## Set only by a request that asks to tighten (the landing cluster of a wave).
+var zoom_in_steps: int = 0
 ## What [method CameraDirector.decide] reports when [member points] is empty.
 ## An attack whose every contributing node is fogged is a distinct outcome from
 ## a malformed request, and #524's acceptance names it — so the builder that

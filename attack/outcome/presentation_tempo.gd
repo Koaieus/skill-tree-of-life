@@ -56,6 +56,12 @@ const DEFAULT_PATH := "res://attack/outcome/default_presentation_tempo.tres"
 ## the first one leaves the string. An awaited presenter beat (ADR 0027), paid
 ## once in `_stage_windup`, never a schedule offset. 0.0 = no wind-up.
 @export var volley_draw_time: float = 0.5
+## Ranged: seconds the camera holds the firing-leaf CENTROID at the player's own
+## zoom, at the head of the draw, before it drifts out to take in the target
+## (#1048). The drift fills the rest of [member volley_draw_time]. This is the
+## beat [method windup_lead] returns for [b]RANGED[/b]; 0.0 = no pivot, the
+## drift lands at commit.
+@export var volley_windup_pivot_focus: float = 0.25
 ## Ranged: seconds between one parked arrow's placement and the next during the
 ## wind-up — "fast": the whole volley is in place well inside the draw time.
 @export var volley_place_stagger: float = 0.03
@@ -187,6 +193,10 @@ func magic_windup_seconds() -> float:
 ## `.tres` fail to compile with "Cannot assign a value of type Resource to
 ## constant" — the resource's script chain reaches BattleSystem while it is
 ## still mid-parse. `test_melee_staging.gd` pins the literals to the enum.
+func windup_drift(_mode: int) -> float:
+	return 0.0
+
+
 func windup_lead(mode: int) -> float:
 	match mode:
 		1:  # BattleSystem.AttackMode.MELEE

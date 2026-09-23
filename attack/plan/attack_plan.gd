@@ -135,6 +135,15 @@ func resolve() -> AttackOutcome:
 	world.free_shadow()
 	return outcome
 
+## The [SkillNode]s this plan's wind-up hangs off — what the camera pivots on
+## before the shot opens (the centroid of the visible ones) and the "from" end
+## of the span it frames. Melee and magic answer their source; ranged answers
+## its reaching firing leaves. Empty means "nothing to pivot on": the span is
+## then the targets alone.
+func windup_anchors() -> Array[SkillNode]:
+	return []
+
+
 ## all required slots filled
 func is_valid() -> bool:
 	return validate().is_empty()

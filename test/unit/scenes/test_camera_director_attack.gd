@@ -577,10 +577,12 @@ func test_wave_landing_refits_the_zoom_to_the_landing_cluster_only() -> void:
 	var marker := Marker2D.new()
 	presenter.add_child(marker)
 	presenter.marker = marker
-	_dir.battle_system = _ranged_battle_system(presenter)
+	var leaf := _node_at(Vector2.ZERO)
+	_dir.battle_system = _anchored_ranged_bs(presenter, [leaf], 0.0)
 	_dir.default_focus_duration = 0.0
+	_dir.shot_zoom_in_steps = 0
 	var player_zoom: float = cam.player_zoom_target()
-	var hits: Array[HitInstance] = [_hit(_node_at(Vector2.ZERO), _node_at(Vector2(2000, 0)))]
+	var hits: Array[HitInstance] = [_hit(leaf, _node_at(Vector2(2000, 0)))]
 
 	_dir._on_attack_committed(_outcome(hits), _entity(true))
 	assert_true(cam.is_following(), "the shot opened on the marker")
@@ -592,6 +594,190 @@ func test_wave_landing_refits_the_zoom_to_the_landing_cluster_only() -> void:
 			"the release refits to the 60-px landing cluster: the player's zoom fits it")
 	assert_false(cam.is_pan_tween_running(), "a zoom retarget, never a re-tweened pan")
 
+	# #1048 decision 5: the landing tighten may step IN, one lattice notch.
+	_dir.shot_zoom_in_steps = 1
+	presenter.wave_landing.emit(cluster)
+	assert_almost_eq(cam._target_zoom, player_zoom + CameraDirector.ZOOM_LATTICE, 0.0001,
+			"a shot asking for one step in gets exactly one, off the player's zoom")
+
 	_dir.release()
 	presenter.wave_landing.emit(cluster)
 	assert_false(_dir.is_shot_locked(), "a late wave after release retargets nothing")
+
+
+# --- #1048: the ranged shot in three acts -------------------------------------
+
+## A ranged plan whose wind-up anchors are dictated — a real plan needs an
+## attacker, a navigator and range stats to answer its reaching leaves.
+class _AnchoredRangedPlan:
+	extends RangedAttackPlan
+	var anchors: Array[SkillNode] = []
+	func windup_anchors() -> Array[SkillNode]:
+		return anchors
+
+
+func _anchored_ranged_bs(presenter: Node, anchors: Array[SkillNode],
+		pivot_focus: float = 0.25) -> _StubBattleSystem:
+	var bs := _StubBattleSystem.new()
+	_holder.add_child(bs)
+	var plan := _AnchoredRangedPlan.new()
+	plan.anchors = anchors
+	bs.attack_plan = plan
+	bs.stub_presenter = presenter
+	var tempo := PresentationTempo.new()
+	tempo.volley_draw_time = 1.5
+	tempo.volley_windup_pivot_focus = pivot_focus
+	bs.presentation_tempo = tempo
+	return bs
+
+
+func _markerless_presenter() -> _StubPresenter:
+	# The shipped ArrowVolleyCoordinator hands over NO marker at commit.
+	var presenter := _StubPresenter.new()
+	_holder.add_child(presenter)
+	return presenter
+
+
+func test_a_ranged_commit_pivots_on_the_firing_centroid_at_the_players_zoom() -> void:
+	# Acceptance 1.
+	_dir.seat_policy = SeatPolicy.couch()
+	var cam := _camera()
+	var a := _node_at(Vector2(-1000, 0))
+	var b := _node_at(Vector2(1000, 0))
+	var bs := _anchored_ranged_bs(_markerless_presenter(), [a, b])
+	_dir.battle_system = bs
+	var pivot := _dir._windup_focus(bs.attack_plan)
+	assert_not_null(pivot, "ranged opens on a pivot, like every mode")
+	if pivot == null:
+		return
+	assert_eq(pivot.points, PackedVector2Array([Vector2.ZERO]), "…on the centroid of the anchors")
+	var ctx := CameraContext.make(VIEWPORT, 1.0, Vector2.ZERO)
+	assert_eq(_dir.decide(pivot, ctx).zoom_target, ctx.zoom, "the pivot never touches the zoom")
+
+	var target := _node_at(Vector2(0, 2000))
+	var hits: Array[HitInstance] = [_hit(a, target), _hit(b, target)]
+	_dir._on_attack_committed(_outcome(hits), _entity(true))
+	assert_false(_dir._shot_following, "no marker at commit: nothing is followed through the draw")
+	assert_false(cam.is_following(), "…the camera is on a one-shot pan")
+
+
+func test_the_target_is_on_screen_once_the_ranged_drift_lands() -> void:
+	# Acceptance 2 — the assertion decision 1 exists for.
+	_dir.seat_policy = SeatPolicy.couch()
+	var a := _node_at(Vector2(-1000, 0))
+	var b := _node_at(Vector2(1000, 0))
+	var target := _node_at(Vector2(0, 2000))
+	_dir.battle_system = _anchored_ranged_bs(_markerless_presenter(), [a, b])
+	var hits: Array[HitInstance] = [_hit(a, target), _hit(b, target)]
+	var req := _dir._build_attack_request(_outcome(hits), _entity(true))
+	assert_eq(req.points, PackedVector2Array([Vector2.ZERO, Vector2(0, 2000)]),
+			"the drift frames the leaves' centroid plus the target, not every leaf")
+	var ctx := CameraContext.make(VIEWPORT, 1.0, Vector2.ZERO)
+	var decision := _dir.decide(req, ctx)
+	assert_almost_eq(decision.target, Vector2(0, 1000), Vector2(0.01, 0.01),
+			"the drift lands on the midpoint of {centroid, target}")
+	assert_true(decision.resulting_rect(VIEWPORT).has_point(target.global_position),
+			"the target is in shot before the first arrow leaves")
+
+
+func test_a_marker_handed_over_at_first_release_opens_the_follow() -> void:
+	# Decision 2b: the presenter decides when the follow opens.
+	_dir.seat_policy = SeatPolicy.couch()
+	var cam := _camera()
+	var presenter := _markerless_presenter()
+	var leaf := _node_at(Vector2.ZERO)
+	_dir.battle_system = _anchored_ranged_bs(presenter, [leaf], 0.0)
+	var hits: Array[HitInstance] = [_hit(leaf, _node_at(Vector2(400, 0)))]
+	_dir._on_attack_committed(_outcome(hits), _entity(true))
+	assert_false(cam.is_following(), "nothing followed through the draw")
+
+	var swarm := Marker2D.new()
+	presenter.add_child(swarm)
+	presenter.focus_marker_changed.emit(swarm)
+	assert_true(cam.is_following(), "the first release OPENS the follow")
+	assert_eq(cam._follow_node, swarm, "…on the presenter's marker")
+
+	var landing := _node_at(Vector2(400, 0))
+	presenter.focus_marker_changed.emit(landing)
+	assert_eq(cam._follow_node, landing, "the last release rebinds it onto the target")
+
+
+func _legacy_bounds(hits: Array[HitInstance]) -> Rect2:
+	var rect := Rect2(hits[0].origin.global_position, Vector2.ZERO)
+	for h in hits:
+		rect = rect.expand(h.origin.global_position).expand(h.target.global_position)
+	return rect
+
+
+func test_a_melee_commits_span_is_unchanged_by_the_anchor_reframe() -> void:
+	# Acceptance 3, characterization pin — do not re-point.
+	_dir.seat_policy = SeatPolicy.couch()
+	var src := _node_at(Vector2.ZERO)
+	_dir.battle_system = _battle_system(_melee_plan(src))
+	var hits: Array[HitInstance] = [
+		_hit(src, _node_at(Vector2(100, 0))),
+		_hit(src, _node_at(Vector2(0, 120))),
+		_hit(src, _node_at(Vector2(-90, -40))),
+	]
+	var req := _dir._build_attack_request(_outcome(hits), _entity(true))
+	assert_eq(req.points, PackedVector2Array([Vector2.ZERO, Vector2(100, 0), Vector2(0, 120),
+			Vector2(-90, -40)]), "the source plus every target")
+	assert_eq(req.bounds(), _legacy_bounds(hits), "same bounds as origins ∪ targets")
+
+
+func test_a_magic_chains_span_is_unchanged_by_the_anchor_reframe() -> void:
+	# Acceptance 3: a hop's origin is its predecessor — a prior target.
+	_dir.seat_policy = SeatPolicy.couch()
+	var caster := _node_at(Vector2.ZERO)
+	var h1 := _node_at(Vector2(200, 0))
+	var h2 := _node_at(Vector2(200, 200))
+	var h3 := _node_at(Vector2(400, 300))
+	var h4 := _node_at(Vector2(-100, 500))
+	var plan := MagicAttackPlan.new()
+	plan.source = caster
+	_dir.battle_system = _battle_system(plan)
+	var hits: Array[HitInstance] = [_hit(caster, h1), _hit(h1, h2), _hit(h2, h3), _hit(h3, h4)]
+	var req := _dir._build_attack_request(_outcome(hits), _entity(true))
+	assert_eq(req.points, PackedVector2Array([Vector2.ZERO, Vector2(200, 0), Vector2(200, 200),
+			Vector2(400, 300), Vector2(-100, 500)]), "the caster plus every hop")
+	assert_eq(req.bounds(), _legacy_bounds(hits), "same bounds as origins ∪ targets")
+
+
+func test_a_landing_cluster_may_step_in_but_a_wide_one_still_steps_out() -> void:
+	# Acceptance 6, against `decide`.
+	var cluster := PackedVector2Array([Vector2(1970, 0), Vector2(2030, 0), Vector2(2000, 30)])
+	var req := FocusRequest.span(cluster, 0.0, 0.0, &"wave_landing")
+	req.mandatory = true
+	req.zoom_in_steps = 1
+	var ctx := CameraContext.make(VIEWPORT, 1.0, Vector2.ZERO)
+	assert_almost_eq(_dir.decide(req, ctx).zoom_target, 1.0 + CameraDirector.ZOOM_LATTICE, 0.0001,
+			"one step in, exactly")
+	req.zoom_in_steps = 0
+	assert_almost_eq(_dir.decide(req, ctx).zoom_target, 1.0, 0.0001, "no steps: the player's zoom")
+	req.zoom_in_steps = 1
+	var off := CameraContext.make(VIEWPORT, 0.63, Vector2.ZERO)
+	assert_almost_eq(_dir.decide(req, off).zoom_target, 0.63 + CameraDirector.ZOOM_LATTICE, 0.0001,
+			"off-lattice is fine: the step is added, restore is stored")
+
+	var wide := FocusRequest.span(PackedVector2Array([Vector2.ZERO, Vector2(3000, 0)]), 0.0, 0.0,
+			&"wave_landing")
+	wide.mandatory = true
+	var out_zoom := _dir.decide(wide, ctx).zoom_target
+	wide.zoom_in_steps = 1
+	assert_lt(out_zoom, 1.0, "a cluster too wide for the player's zoom steps out")
+	assert_eq(_dir.decide(wide, ctx).zoom_target, out_zoom, "…exactly as it does with no steps")
+
+
+func test_a_tiny_cluster_steps_in_no_further_than_asked() -> void:
+	var req := FocusRequest.span(PackedVector2Array([Vector2.ZERO, Vector2(10, 0)]), 0.0, 0.0)
+	req.mandatory = true
+	req.zoom_in_steps = 1
+	var ctx := CameraContext.make(VIEWPORT, 1.0, Vector2.ZERO)
+	assert_almost_eq(_dir.decide(req, ctx).zoom_target, 1.25, 0.0001, "capped at the knob")
+	req.zoom_in_steps = 2
+	assert_almost_eq(_dir.decide(req, ctx).zoom_target, 1.5, 0.0001, "two steps when asked for two")
+	var tall := FocusRequest.span(PackedVector2Array([Vector2.ZERO, Vector2(0, 800)]), 0.0, 0.0)
+	tall.mandatory = true
+	tall.zoom_in_steps = 1
+	assert_almost_eq(_dir.decide(tall, ctx).zoom_target, 1.0, 0.0001,
+			"a step in that would no longer fit is not taken")
