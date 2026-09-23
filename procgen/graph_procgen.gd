@@ -1302,7 +1302,7 @@ static func _roll_modifiers_v4(
 	var no_op_retries := 0
 	var dropped := 0
 	for mod in aggregate:
-		var group: Array = rolled.group_entries.get(mod, [] as Array[ModifierPoolEntry])
+		var group: Array = rolled.entries_for(mod)
 		var attempt := 0
 		while _is_neutral_result(mod) and attempt < _NO_OP_RETRY_CAP:
 			StatModifierAggregator.reroll_into(mod, group, rng)
@@ -1334,72 +1334,6 @@ static func _is_neutral_result(mod: StatModifier) -> bool:
 	if mod.operation != StatModifier.Operation.MULTIPLY:
 		v = ModifierPoolEntry.coerce_to_stat_type(mod.value, mod.operation, mod.stat_id)
 	return is_zero_approx(StatModifier.displacement_from_neutral(mod.operation, v))
-
-## Typed container for StatModifiers that aggregates them as it ingests via `append`
-## Merges in new ones destructively if mergeable, fusing two StatModifiers into 1
-class StatModifierAggregator extends Resource:
-	# A stub: two parallel dicts keyed by the same StatModifier, a linear
-	# _find_match, and `extends Resource` for something never serialized.
-	# Promote or revert — #730.
-
-	var aggregated_mods: Dictionary[StatModifier, int] = {}
-	# Parallel to aggregated_mods: the entries that fused INTO each key, in
-	# pick order — #629's re-roll replays exactly these, in this order, so a
-	# retry is deterministic across peers.
-	var group_entries: Dictionary[StatModifier, Array] = {}
-
-	func get_aggregate() -> Array[StatModifier]:
-		var agg := aggregated_mods.keys()
-		agg.sort_custom(func(a: StatModifier, b: StatModifier): return aggregated_mods[a] > aggregated_mods[b])
-		return agg
-
-	func append(mod: StatModifier, cost: int, entry: ModifierPoolEntry) -> void:
-		var matching_mod := _find_match(mod)
-		if matching_mod != null:
-			# match found: merge the incoming mod into existing
-			merge_into(matching_mod, mod)
-			aggregated_mods[matching_mod] += cost
-			(group_entries[matching_mod] as Array).append(entry)
-		else:
-			# missing: append to our array
-			aggregated_mods[mod] = cost
-			group_entries[mod] = [entry]
-
-	func _find_match(needle: StatModifier) -> StatModifier:
-		for mod in aggregated_mods:
-			if needle.stat_id == mod.stat_id and needle.operation == mod.operation:
-				return mod
-		return null
-
-	# Updates StatModifier `a` by merging in contribution of `b`.
-	# Static (#629): also the primitive [method reroll_into] fuses fresh
-	# rolls with — one merge implementation, not two.
-	static func merge_into(a: StatModifier, b: StatModifier) -> StatModifier:
-		assert(a.stat_id == b.stat_id, "Can't merge modifiers that don't have the same Stat ID") # wants GUT coverage — asserts are stripped in release (#730)
-		assert(a.operation == b.operation, "Can't merge modifiers that don't have the same operation")
-		match a.operation:
-			StatModifier.Operation.MULTIPLY:
-				a.value *= b.value
-			StatModifier.Operation.SET:
-				assert(false, "Can't merge SET value yet. No sensible outcome.")
-			_:
-				a.value += b.value
-		return a
-
-	## #629: re-rolls every entry in `group` (same entries, same order as the
-	## original draw) from `rng` and fuses them into `mod` IN PLACE, replacing
-	## its stale value. `rng` must be the same seeded stream the original draw
-	## used — this is what makes the retry deterministic across peers.
-	static func reroll_into(mod: StatModifier, group: Array, rng: RandomNumberGenerator) -> void:
-		var fresh: StatModifier = null
-		for e in group:
-			var m: StatModifier = (e as ModifierPoolEntry).roll(rng)
-			if fresh == null:
-				fresh = m
-			else:
-				merge_into(fresh, m)
-		mod.value = fresh.value
-
 
 ## v4 weighted pick: affordable filter + weight profile multiplication, then
 ## a single weighted sample. Cost is always positive (#637 retired the
