@@ -117,7 +117,7 @@ func _tags() -> Array[StringName]:
 
 func test_a_bare_click_allocates_through_a_command() -> void:
 	var seen := _tags()
-	_ctl._on_skill_node_left_clicked(_n("B"))
+	_ctl.route_left_click(_n("B"))
 	assert_eq(seen, [&"allocate"] as Array[StringName])
 	assert_eq(_n("B").owned_by, _player, "and it really landed")
 
@@ -312,7 +312,7 @@ func test_can_player_act_is_false_while_a_non_attack_command_applies() -> void:
 	var seen: Array[bool] = [true, false]  # [during, after]
 	_applier.command_applied.connect(func(_cmd, _ok):
 		seen[0] = _ctl.can_player_act())
-	_ctl._on_skill_node_left_clicked(_n("B"))
+	_ctl.route_left_click(_n("B"))
 	seen[1] = _ctl.can_player_act()
 	assert_false(seen[0], "an allocation is landing — this is not a moment to click")
 	assert_true(seen[1], "and the gate reopens once the queue drains")
@@ -321,7 +321,7 @@ func test_can_player_act_is_false_while_a_non_attack_command_applies() -> void:
 func test_the_gate_signal_fires_on_both_edges_of_a_drain() -> void:
 	var gate: Array[bool] = []
 	_ctl.player_can_act_changed.connect(func(can_act): gate.append(can_act))
-	_ctl._on_skill_node_left_clicked(_n("B"))
+	_ctl.route_left_click(_n("B"))
 	assert_true(gate.has(false) and gate.has(true),
 			"UI hears the gate close and reopen; %s" % str(gate))
 	assert_eq(gate.back(), true, "and settles open")

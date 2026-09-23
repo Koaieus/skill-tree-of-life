@@ -96,7 +96,7 @@ func _n(id: String) -> SkillNode:
 # ── Allocate: distant click ──────────────────────────────────────────────
 
 func test_distant_click_arms_mass_action_instead_of_no_op() -> void:
-	_ctl._on_skill_node_left_clicked(_n("C"))  # 2 hops from A, 5 SP available
+	_ctl.route_left_click(_n("C"))  # 2 hops from A, 5 SP available
 	assert_not_null(_ctl.pending_mass_action(), "distant click arms a pending request")
 	var request := _ctl.pending_mass_action()
 	assert_eq(request.verb, MassActionRequest.Verb.ALLOCATE)
@@ -105,14 +105,14 @@ func test_distant_click_arms_mass_action_instead_of_no_op() -> void:
 
 
 func test_second_click_while_pending_is_a_no_op() -> void:
-	_ctl._on_skill_node_left_clicked(_n("C"))
+	_ctl.route_left_click(_n("C"))
 	var first_request := _ctl.pending_mass_action()
-	_ctl._on_skill_node_left_clicked(_n("D"))
+	_ctl.route_left_click(_n("D"))
 	assert_eq(_ctl.pending_mass_action(), first_request, "board is frozen while a confirm is pending")
 
 
 func test_cancel_clears_pending_state() -> void:
-	_ctl._on_skill_node_left_clicked(_n("C"))
+	_ctl.route_left_click(_n("C"))
 	assert_not_null(_ctl.pending_mass_action())
 	_ctl.cancel_mass_action()
 	assert_null(_ctl.pending_mass_action())
@@ -122,7 +122,7 @@ func test_cancel_clears_pending_state() -> void:
 func test_mass_action_armed_mode_pops_via_cancel() -> void:
 	var mode := MassActionArmedMode.new(_ctl)
 	assert_false(mode.is_armed())
-	_ctl._on_skill_node_left_clicked(_n("C"))
+	_ctl.route_left_click(_n("C"))
 	assert_true(mode.is_armed())
 	assert_true(mode.pop())
 	assert_null(_ctl.pending_mass_action(), "pop cancels the pending request")
@@ -130,7 +130,7 @@ func test_mass_action_armed_mode_pops_via_cancel() -> void:
 
 
 func test_confirm_executes_the_affordable_prefix() -> void:
-	_ctl._on_skill_node_left_clicked(_n("C"))
+	_ctl.route_left_click(_n("C"))
 	_ctl.confirm_mass_action()
 	assert_eq(_n("B").owned_by, _player)
 	assert_eq(_n("C").owned_by, _player)
