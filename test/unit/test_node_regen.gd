@@ -6,6 +6,11 @@ extends GutTest
 ## Fixtures follow .claude/rules/scene-composition.md (instantiate scenes,
 ## don't hand-compose) and .claude/rules/graph.md (populate a Graph via
 ## add_skill_node / add_edge so Navigator/EntityNavigator actually mirror it).
+##
+## Below drives `_on_turn_started` by name deliberately (#989): this file
+## tests the upkeep/regen formula, not the `TurnManager.turn_started` wiring
+## that invokes it — that connect is asserted once, in
+## `test/integration/test_game_root_wiring.gd::test_entity_signals_connect_on_spawn`.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
