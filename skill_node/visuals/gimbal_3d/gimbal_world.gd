@@ -41,7 +41,7 @@ const OCCLUDER_SEGMENTS := 48
 ## units out, where the default inverse-distance decay leaves nothing.
 ## Specular is kept low so the glass shader's 0.12 roughness does not paint a
 ## hot streak on the inner face.
-const LIGHT_ENERGY := 2.5
+const LIGHT_ENERGY := 6.0
 const LIGHT_RANGE_SCALE := 4.5
 const LIGHT_ATTENUATION := 0.0
 const LIGHT_SPECULAR := 0.15
