@@ -95,8 +95,27 @@ items_json() {
 # Membership changed (item added) → drop the id map so the next lookup refetches.
 invalidate_cache() { rm -f "$ID_CACHE" "${ID_CACHE}.tmp.$$"; }
 
+# Per-issue live lookup, bypassing the board's items() connection entirely —
+# GitHub's items() index has been observed to lag `repository.issue().
+# projectItems` by hours for freshly-added items (475 items stuck for hours
+# while `projectItems` already had them) — so this is also the cheap path
+# for a single issue, not just the fallback.
+item_id_live() {
+  local issue=$1
+  gh api graphql -f owner="${REPO%/*}" -f repo="${REPO#*/}" -F number="$issue" -f query='
+      query($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $number) { projectItems(first: 10) { nodes { id project { id } } } }
+        }
+      }' --jq '.data.repository.issue.projectItems.nodes[] | select(.project.id == "'"$PROJECT_ID"'") | .id' \
+    2>/dev/null | head -1
+}
+
 item_id() {
-  ids_json | awk -v n="$1" '$1==n {print $2; exit}'
+  local id
+  id=$(ids_json | awk -v n="$1" '$1==n {print $2; exit}')
+  [ -z "$id" ] && id=$(item_id_live "$1")
+  echo "$id"
 }
 
 ensure_item() {
@@ -106,7 +125,7 @@ ensure_item() {
   if [ -z "$id" ]; then
     gh project item-add "$PROJECT" --owner "$OWNER" --url "https://github.com/$REPO/issues/$issue" >/dev/null
     invalidate_cache
-    id=$(item_id "$issue")
+    id=$(item_id_live "$issue")
   fi
   echo "$id"
 }
@@ -125,7 +144,10 @@ cmd_status() {
   local issue=$1 status=${2:-}
   local id
   id=$(ensure_item "$issue")
-  [ -n "$id" ] || exit 1
+  if [ -z "$id" ]; then
+    echo "✗ issue #$issue: not resolvable on project $PROJECT — item-add may have failed, or the issue doesn't exist" >&2
+    exit 1
+  fi
 
   if [ -z "$status" ]; then
     items_json \
@@ -517,6 +539,39 @@ cmd_hygiene() {
             [ $all[] | select(.labels | index("swarmable"))
               | { number, title, detail: .status } ]
         }')
+
+  # `unboarded_child` above was computed off the same items() listing as
+  # `raw` — which can lag `repository.issue().projectItems` by hours (see
+  # item_id_live). Before flagging, re-check each candidate hub's actual open
+  # children (via subIssues, not the stale listing) against the live
+  # per-issue project membership, and drop any hub whose children really are
+  # all on the board.
+  local unb_numbers
+  unb_numbers=$(printf '%s' "$report" | jq -r '.unboarded_child[].number')
+  if [ -n "$unb_numbers" ]; then
+    local confirmed="[]"
+    while IFS= read -r hub_num; do
+      [ -z "$hub_num" ] && continue
+      local open_kids still_missing=0 child
+      open_kids=$(gh api graphql -f owner="${REPO%/*}" -f repo="${REPO#*/}" -F number="$hub_num" -f query='
+          query($owner: String!, $repo: String!, $number: Int!) {
+            repository(owner: $owner, name: $repo) {
+              issue(number: $number) { subIssues(first: 50) { nodes { number state } } }
+            }
+          }' --jq '.data.repository.issue.subIssues.nodes[] | select(.state == "OPEN") | .number' 2>/dev/null)
+      for child in $open_kids; do
+        [ -z "$(item_id_live "$child")" ] && still_missing=$((still_missing + 1))
+      done
+      if [ "$still_missing" -gt 0 ]; then
+        confirmed=$(printf '%s' "$confirmed" | jq --argjson n "$hub_num" --argjson m "$still_missing" \
+          --arg detail "$still_missing child(ren) not on the board — not derived" \
+          '. + [{number: $n, title: null, detail: $detail}]')
+      fi
+    done <<< "$unb_numbers"
+    report=$(printf '%s' "$report" | jq --argjson confirmed "$confirmed" '
+      .unboarded_child = [ .unboarded_child[] as $o | $confirmed[] | select(.number == $o.number)
+                            | {number: $o.number, title: $o.title, detail} ]')
+  fi
 
   if [ "$as_json" = true ]; then printf '%s\n' "$report"; return; fi
 
