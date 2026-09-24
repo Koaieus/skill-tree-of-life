@@ -61,6 +61,14 @@ layout_mode = 2
 size_flags_vertical = 4
 tooltip_text = "Camp"
 
+[node name="CampReset" type="Button" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Stop following this seat's own pick and resume following the AI camp preset"
+text = "Reset"
+
 [node name="Name" type="LineEdit" parent="."]
 unique_name_in_owner = true
 layout_mode = 2

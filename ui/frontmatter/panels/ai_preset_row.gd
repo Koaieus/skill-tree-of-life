@@ -15,6 +15,8 @@ extends HBoxContainer
 ## real [CoreClass] that merely reads as "off"; the sentinel is its own
 ## dropdown entry, not inferred from an empty selection.
 signal core_changed(core: CoreClass)
+## The camp preset changed; `null` is the sentinel, #759 decision 5's "any camp".
+signal camp_changed(camp: Faction)
 
 const _SENTINEL_LABEL := "(no preset)"
 

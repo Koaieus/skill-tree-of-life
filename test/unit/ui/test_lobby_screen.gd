@@ -558,15 +558,66 @@ func test_the_camp_picker_never_offers_more_camps_than_exist() -> void:
 			"max_distinct_camps is clamped to MAX_CAMPS")
 
 
-func test_a_single_player_policy_shows_no_camp_control_at_all() -> void:
-	# The solo human is on `player.tres` and every AI shares `npc.tres`; there is
-	# no camp choice to make, so the column stays out of the row entirely.
+## #884: SP's AI rows pick from npc, player, camp_1..4 — the Warband is an
+## AI on the player's own camp — while the human's picker is shown and locked.
+func test_single_player_ai_rows_pick_from_the_six_camp_pool() -> void:
 	var lobby := _policied_lobby(RunConfig.Mode.SINGLE, _POLICY_SINGLE)
-	assert_true(_POLICY_SINGLE.camp_choices().is_empty())
-	assert_false(_POLICY_SINGLE.may_pick_camp(Participant.Kind.HUMAN))
-	for pick in _camp_picks(lobby):
-		assert_false(pick.visible)
+	lobby.set_ai_opponents(2)
+	var parts := lobby.participants()
+	var pool := _POLICY_SINGLE.camp_choices()
+	var picks := _camp_picks(lobby)
+	for i in parts.size():
+		var pick := picks[i]
+		assert_true(pick.visible, "every row shows its camp")
+		if parts[i].kind == Participant.Kind.AI:
+			assert_false(pick.disabled, "an AI row may change camp")
+			assert_eq(pick.item_count, pool.size(), "exactly the six-entry pool")
+			for j in pool.size():
+				assert_eq(pick.get_item_metadata(j), pool[j])
+		else:
+			assert_true(pick.disabled, "the human stays on player.tres")
+			assert_eq(pick.get_item_metadata(pick.selected), parts[i].camp)
 	assert_true(lobby.can_start())
+
+
+func test_the_single_player_preset_row_templates_the_ai_camps() -> void:
+	var lobby := _policied_lobby(RunConfig.Mode.SINGLE, _POLICY_SINGLE)
+	lobby.set_ai_opponents(2)
+	var camp_pick: OptionButton = lobby._ai_preset_row.get_node("%CampPick")
+	assert_true(camp_pick.visible, "the preset row shows a camp dropdown")
+	assert_null(camp_pick.get_item_metadata(0), "sentinel first: any camp")
+	assert_eq(camp_pick.item_count, _POLICY_SINGLE.camp_choices().size() + 1)
+
+	lobby._ai_preset_row.camp_changed.emit(_CAMP_2)
+
+	for p in lobby.participants():
+		if p.kind == Participant.Kind.AI:
+			assert_eq(p.camp, _CAMP_2)
+
+
+func test_an_unpoliced_lobby_hides_the_preset_camp_dropdown() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
+	assert_false(lobby._ai_preset_row.get_node("%CampPick").visible,
+			"no policy, no camp control — not even in the preset row")
+
+
+func test_a_camp_override_shows_a_reset_that_resumes_the_preset() -> void:
+	var lobby := _policied_lobby(RunConfig.Mode.SINGLE, _POLICY_SINGLE)
+	lobby.set_ai_opponents(1)
+	var ai: Participant = lobby.participants()[1]
+	lobby._ai_preset_row.camp_changed.emit(_CAMP_2)
+	var row: ParticipantRow = lobby._rows_container.get_child(1)
+	assert_false(row.get_node("%CampReset").visible, "not overridden yet")
+
+	row.camp_picked.emit(_CAMP_1)
+	row = lobby._rows_container.get_child(1)
+	assert_true(row.get_node("%CampReset").visible, "an explicit camp pick shows its reset")
+
+	row.get_node("%CampReset").pressed.emit()
+
+	row = lobby._rows_container.get_child(1)
+	assert_false(row.get_node("%CampReset").visible)
+	assert_eq(ai.camp, _CAMP_2, "cleared, the seat follows the preset again")
 
 
 func test_a_locked_slot_still_shows_the_camp_it_actually_holds() -> void:
@@ -1067,7 +1118,7 @@ func test_the_shipped_route_with_no_pick_generates_the_authored_preset() -> void
 
 ## **For #558, updated for #742.** After the hotseat remap, `first_level.tres`
 ## is reachable from exactly one shipped lobby route: `New Game`, the
-## single-player one. Every camp-offering route lands on `coop_versus`, which
+## single-player one. Every route whose HUMANS pick camps lands on `coop_versus`, which
 ## authors a `CampAnnulusStarters` placement — `New Game` authors a REAL
 ## placement too since #742 (`CenterCoreStarters`), just not a camp-relative
 ## one, so it is the ONE route whose placement is not a `CampAnnulusStarters`.
@@ -1092,8 +1143,9 @@ func test_only_the_single_player_route_reaches_the_non_camp_relative_preset() ->
 
 	assert_eq(without_camp_placement, [MenuGraph.ID_NEW_GAME] as Array[StringName],
 			"only New Game reaches a preset with no CampAnnulusStarters")
-	assert_true(tree.get_item(MenuGraph.ID_NEW_GAME).route.lobby_policy.camps.is_empty(),
-			"and that route offers no camps, so nothing there wants camp-relative placement")
+	assert_false(tree.get_item(MenuGraph.ID_NEW_GAME).route.lobby_policy.may_pick_camp(
+			Participant.Kind.HUMAN),
+			"and that route's human picks no camp; AI camps (#884) keep the centre placement")
 
 
 # ── #558 — the starter-arrangement ladder ──────────────────────────────────

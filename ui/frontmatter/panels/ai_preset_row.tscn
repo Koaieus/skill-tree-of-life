@@ -24,3 +24,16 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Templates every AI slot's core, except a row you have set individually"
+
+[node name="CampLabel" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "camp"
+
+[node name="CampPick" type="OptionButton" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Templates every AI slot's camp, except a row you have set individually"
