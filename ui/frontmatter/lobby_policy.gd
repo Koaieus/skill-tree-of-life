@@ -37,8 +37,9 @@ extends Resource
 const MAX_CAMPS := 6
 
 ## The camp pool a picker may offer, in dropdown order. Empty means this lobby
-## shows no camp control at all — which is the single-player shape, where the
-## human is on `player.tres` and every AI shares `npc.tres`.
+## shows no camp control at all. Single-player offers npc/player/camp_1..4 to
+## its AI seats (the Warband is an AI on `player.tres`); the human's picker
+## there is shown and locked.
 @export var camps: Array[Faction] = []
 
 ## May a HUMAN slot change its camp? False on the hot-seat shape: both humans
