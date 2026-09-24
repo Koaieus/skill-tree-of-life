@@ -193,6 +193,12 @@ func is_core_overridden(p: Participant) -> bool:
 	return _is_overridden(p, &"core")
 
 
+## An AI seat holding an explicit camp pick (#884) — mirrors
+## [method is_core_overridden].
+func is_camp_overridden(p: Participant) -> bool:
+	return false
+
+
 func has_pending_remote() -> bool:
 	for p in participants:
 		if is_pending_remote(p):
@@ -247,6 +253,11 @@ func set_preset_core(core: CoreClass) -> void:
 	_set_preset(&"core", core)
 
 
+## `null` disarms the camp preset: AI seats fall back to their default camp.
+func set_preset_camp(camp: Faction) -> void:
+	pass
+
+
 func set_local_peer(peer_id: int) -> void:
 	local_peer = peer_id
 	changed.emit()
@@ -280,6 +291,10 @@ func pick_camp(p: Participant, camp: Faction) -> bool:
 	_pick_of(p.id).camp = camp
 	changed.emit()
 	return true
+
+
+func reset_camp(p: Participant) -> bool:
+	return false
 
 
 func pick_name(p: Participant, name: String) -> bool:

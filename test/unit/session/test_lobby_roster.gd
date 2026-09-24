@@ -19,6 +19,8 @@ const _BASIC_ENEMY := preload("res://entity/core/basic_enemy_core.tres")
 const _SERPENT := preload("res://entity/core/serpent_core.tres")
 const _POLICY_HOTSEAT := preload("res://ui/frontmatter/policies/lobby_policy_hotseat.tres")
 const _POLICY_VERSUS := preload("res://ui/frontmatter/policies/lobby_policy_versus.tres")
+const _POLICY_SINGLE := preload("res://ui/frontmatter/policies/lobby_policy_single.tres")
+const _NPC_FACTION := preload("res://entity/factions/npc.tres")
 
 ## #741: the roster seeds seat 1 from [member GameSettings.player_name] —
 ## isolated exactly like `test_settings.gd`, so a run here never reads or
@@ -373,7 +375,7 @@ func test_a_seat_with_an_explicit_core_reads_as_overridden_until_reset() -> void
 func test_the_resolve_walks_the_declared_field_list_and_nothing_else() -> void:
 	# #1083: one rule over every templated field. Appending an entry (here
 	# `camp`, which #884 will) plus a nullable Pick field is the whole change.
-	assert_eq(LobbyRoster.TEMPLATED_FIELDS, {&"core": &"core_class"})
+	assert_eq(LobbyRoster.TEMPLATED_FIELDS, {&"core": &"core_class", &"camp": &"camp"})
 	var roster := LobbyRoster.new(RunConfig.Mode.SINGLE)
 	for dead in [&"_resolve_cores", &"_picked_cores", &"apply_core_preset"]:
 		assert_false(roster.has_method(dead), "no per-field resolve: %s" % dead)
@@ -390,10 +392,7 @@ func test_the_resolve_walks_the_declared_field_list_and_nothing_else() -> void:
 	pick.camp = _CAMP_1
 	var human_default := LobbyRoster.Pick.new()
 	human_default.camp = _PLAYER_FACTION
-	var fields := LobbyRoster.TEMPLATED_FIELDS.duplicate()
-	fields[&"camp"] = &"camp"
-
-	LobbyRoster.resolve_templated(parts, {3: pick}, preset, {1: human_default}, fields)
+	LobbyRoster.resolve_templated(parts, {3: pick}, preset, {1: human_default})
 
 	assert_eq(ai.camp, _CAMP_2, "an appended field is templated by the preset")
 	assert_eq(picked_ai.camp, _CAMP_1, "and a pick on it wins")
@@ -618,3 +617,104 @@ func test_adopting_a_broadcast_replaces_the_placeholder_roster() -> void:
 
 	assert_eq(client.participants.size(), host.participants.size())
 	assert_eq(client.participants[4].display_name, host.participants[4].display_name)
+
+
+# --- #884: single-player camps — the Siege by default, split on request -------
+
+func _sp_roster(ai_count: int = 3) -> LobbyRoster:
+	var roster := LobbyRoster.new(RunConfig.Mode.SINGLE, null, _POLICY_SINGLE)
+	roster.set_ai_opponents(ai_count)
+	return roster
+
+
+func _ais(roster: LobbyRoster) -> Array[Participant]:
+	var out: Array[Participant] = []
+	for p in roster.participants:
+		if p.kind == Participant.Kind.AI:
+			out.append(p)
+	return out
+
+
+func test_the_sp_policy_offers_the_six_camp_pool_to_ai_seats_only() -> void:
+	var pool := _POLICY_SINGLE.camp_choices()
+	assert_eq(pool.size(), LobbyPolicy.MAX_CAMPS, "npc, player, camp_1..4")
+	assert_eq(pool[0], _NPC_FACTION, "the bloc heads the pool")
+	assert_true(pool.has(_PLAYER_FACTION), "the Warband: an AI may join the player")
+	assert_true(_POLICY_SINGLE.may_pick_camp(Participant.Kind.AI))
+	assert_false(_POLICY_SINGLE.may_pick_camp(Participant.Kind.HUMAN),
+			"the human stays on player.tres")
+
+
+func test_an_untouched_sp_roster_is_the_siege() -> void:
+	var roster := _sp_roster()
+	assert_eq(roster.participants[0].camp, _PLAYER_FACTION)
+	for ai in _ais(roster):
+		assert_eq(ai.camp, _NPC_FACTION, "every AI on the one enemy bloc")
+		assert_false(roster.is_camp_overridden(ai))
+
+
+func test_a_camp_preset_moves_every_unpicked_ai_but_never_the_human() -> void:
+	var roster := _sp_roster()
+	roster.set_preset_camp(_CAMP_2)
+	for ai in _ais(roster):
+		assert_eq(ai.camp, _CAMP_2)
+	assert_eq(roster.participants[0].camp, _PLAYER_FACTION, "the human is never templated")
+
+	roster.set_preset_camp(null)
+	for ai in _ais(roster):
+		assert_eq(ai.camp, _NPC_FACTION, "the sentinel disarms back to the bloc")
+
+
+func test_a_warband_pick_survives_preset_and_ai_count_changes() -> void:
+	var roster := _sp_roster()
+	var ally: Participant = _ais(roster)[0]
+	var ally_id := ally.id
+	assert_true(roster.pick_camp(ally, _PLAYER_FACTION))
+
+	roster.set_preset_camp(_CAMP_2)
+	assert_eq(roster.by_id(ally_id).camp, _PLAYER_FACTION, "the pick does not follow the preset")
+	roster.set_ai_opponents(4)
+	assert_eq(roster.by_id(ally_id).camp, _PLAYER_FACTION, "nor does a rebuild drop it")
+	assert_eq(_ais(roster)[3].camp, _CAMP_2, "a newly seated AI follows the preset")
+
+
+func test_reset_camp_resumes_the_preset() -> void:
+	var roster := _sp_roster()
+	var ai: Participant = _ais(roster)[1]
+	roster.pick_camp(ai, _CAMP_1)
+	roster.set_preset_camp(_CAMP_2)
+	assert_true(roster.is_camp_overridden(ai))
+
+	assert_true(roster.reset_camp(ai))
+	assert_false(roster.is_camp_overridden(ai))
+	assert_eq(ai.camp, _CAMP_2)
+	assert_false(roster.reset_camp(ai), "nothing left to reset")
+
+
+func test_picking_the_held_camp_reads_overridden() -> void:
+	var roster := _sp_roster()
+	var ai: Participant = _ais(roster)[0]
+	roster.pick_camp(ai, _NPC_FACTION)
+	assert_true(roster.is_camp_overridden(ai), "provenance, not value coincidence")
+	roster.set_preset_camp(_CAMP_2)
+	assert_eq(ai.camp, _NPC_FACTION, "so it stays put when the preset moves")
+
+
+func test_an_sp_warband_spawns_allied_to_the_human_and_a_camp_ai_hostile() -> void:
+	var roster := _sp_roster(2)
+	var ais := _ais(roster)
+	roster.pick_camp(ais[0], _CAMP_1)
+	roster.pick_camp(ais[1], _PLAYER_FACTION)
+	var human_ent: Entity = autofree(Entity.new())
+	var raider: Entity = autofree(Entity.new())
+	var ally: Entity = autofree(Entity.new())
+
+	GameRoot.apply_roster(
+			{roster.participants[0].id: human_ent, ais[0].id: raider, ais[1].id: ally},
+			roster.to_participant_roster())
+
+	assert_eq(raider.faction, _CAMP_1)
+	assert_eq(ally.faction, _PLAYER_FACTION)
+	assert_eq(human_ent.attitude_to(ally), Entity.Attitude.ALLIED, "the Warband is an ally")
+	assert_eq(human_ent.attitude_to(raider), Entity.Attitude.HOSTILE)
+	assert_eq(raider.attitude_to(ally), Entity.Attitude.HOSTILE)
