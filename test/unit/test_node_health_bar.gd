@@ -44,6 +44,8 @@ func before_each() -> void:
 	_alloc.force_allocate(_entity, _node)
 	await get_tree().process_frame
 	_bar = _node.get_node("Visuals/HealthBar")
+	# Both of the bar's tweens are born paused from here on; a test steps them.
+	_bar.clock.manual = true
 
 
 ## An allocated, undamaged node's bar is hidden (nothing to show).
@@ -58,7 +60,7 @@ func test_full_hp_dealloc_hides_the_bar() -> void:
 	_alloc.force_deallocate(_node)
 	await get_tree().process_frame  # flush deferred owner_changed → rebind to null
 	await get_tree().process_frame
-	await wait_seconds(0.6)         # let the fade settle
+	_bar.clock.advance(1.0)         # step past the fade
 	assert_almost_eq(_bar.modulate.a, 0.0, 0.05,
 			"a deallocated node must not leave a stuck empty HP bar (#147)")
 
@@ -150,7 +152,7 @@ func test_visible_bar_updates_on_an_entity_cap_move() -> void:
 	assert_almost_eq(_bar.max_value, _hp().value, 0.001,
 			"a visible bar tracks the entity cap move")
 
-	await wait_seconds(0.6)  # let the heal tween settle
+	_bar.clock.advance(1.0)  # step past the heal tween
 	assert_almost_eq(_bar.value, float(_hp().current), 0.5,
 			"and its fill follows the derived current")
 
@@ -192,7 +194,7 @@ func test_release_leaves_the_bar_settled_and_faded_out() -> void:
 	_node.heal_damage(999.0, null)
 	assert_eq(_bound_bars(), 0, "released on heal-to-full")
 
-	await wait_seconds(0.7)
+	_bar.clock.advance(1.0)
 	assert_almost_eq(_bar.modulate.a, 0.0, 0.05, "faded out after release")
 	assert_almost_eq(_bar.value, float(_hp().current), 0.5,
 			"the in-flight heal tween still finished on the released bar")
