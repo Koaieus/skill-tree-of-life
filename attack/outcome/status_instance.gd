@@ -64,11 +64,12 @@ func _init() -> void:
 ## a rebuilt hit lands on the shipped host without re-reading node HP. A
 ## node-hosted row on the core stays node-hosted: the hosts never merge.
 ##
-## Scaling (#963, `docs/design/damage_over_time.md` §Applying):
-## `power × potency(attacker) × (1 − resistance(host))`, each read through the
-## def's [member StatusDef.potency_stat_id] / [member
-## StatusDef.resistance_stat_id] — blank id, null attacker or an unknown stat
-## each contribute ×1. Resistance is read on the RECEIVING host — the landing
+## Scaling (`docs/design/damage_over_time.md` §Applying):
+## `(power + Σ extra(attacker)) × potency(attacker) × (1 − resistance(host))`,
+## the flat extras summed from [member StatusDef.extra_stacks_stat_ids] before
+## the multiply, the rest read through the def's [member
+## StatusDef.potency_stat_id] / [member StatusDef.resistance_stat_id] — blank
+## id, null attacker or an unknown stat each contribute +0 / ×1. Resistance is read on the RECEIVING host — the landing
 ## node slice (so a shadow resolve sees the shadow's modifiers), or the entity
 ## board alone on fall-through. Resolved once: a rebuilt hit arrives
 ## [member power_resolved] and lands as-is.
@@ -87,11 +88,22 @@ func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 			effective_amount = 0.0
 			return
 	if not power_resolved:
-		power *= _potency() * (1.0 - _resistance(host))
+		power = (power + _extra_stacks()) * _potency() * (1.0 - _resistance(host))
 		power_resolved = true
 	host.apply_status(def, power)
 	amount = power
 	effective_amount = power
+
+
+func _extra_stacks() -> float:
+	if def == null or attacker == null or attacker.stat_board == null:
+		return 0.0
+	var sum := 0.0
+	for id: StringName in def.extra_stacks_stat_ids:
+		var v: Variant = attacker.stat_board.get_value(id)
+		if v != null:
+			sum += float(v)
+	return sum
 
 
 func _potency() -> float:
