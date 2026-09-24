@@ -8,12 +8,17 @@ extends Node2D
 ## + [member fade_seconds].
 ##
 ## Visual contract (see [Projectile]):
-##   inbound  — `_on_launch()`, `_on_progress(t)`, `_on_arrival()`
+##   inbound  — `_on_launch()`, `_on_progress(t)`, `_on_arrival()`, and the
+##              impact beats `_on_dud()` / `_on_absorbed(gained)` (both
+##              optional; the coordinator dispatches them off the landed hit)
 ##   outbound — [signal finished] (fired once the post-arrival fade completes)
 
 signal finished
 
 const TINT = Color(1.0, 0.9, 0.6, 1.0)
+## The heal green the floaters already speak — one colour for "the defender
+## gained", whether it is a number or an arrow.
+const _FloaterStyles := preload("res://ui/floating_number_layer/floater_styles.gd")
 
 ## Set by the coordinator before the projectile launches. Read at draw time.
 ## Carries the attacker's identity colour (or the fallback above) — the
@@ -29,11 +34,20 @@ const TINT = Color(1.0, 0.9, 0.6, 1.0)
 @export var hold_seconds: float = 0.35
 ## Fade-out duration after [member hold_seconds] elapses.
 @export var fade_seconds: float = 0.4
+## Radius the absorb ring expands to around the tip, as a multiple of
+## [member glow_radius]. The held (neutral) glint uses half the spread.
+@export var absorb_ring_scale: float = 1.6
+@export var absorb_ring_width: float = 1.5
 
 var _alpha: float = 1.0
 var _arrived: bool = false
 var _done_emitted: bool = false
 var _dud: bool = false
+## Set by `_on_absorbed`; [member _gained] then picks gain-green vs neutral.
+var _absorbed: bool = false
+var _gained: bool = false
+## 0 → 1 over [member hold_seconds] once absorbed; drives the ring.
+var _pulse: float = 0.0
 
 
 func _ready() -> void:
@@ -57,6 +71,21 @@ func _on_progress(_t: float) -> void:
 ## the applier never called `take_damage`.
 func _on_dud() -> void:
 	_dud = true
+	queue_redraw()
+
+
+## #753 — this shot landed and changed nothing hostile. [param gained] true:
+## mitigation went below zero and the hit HEALED the defender — the arrow
+## turns heal-green and a bright ring pulses out of the tip, a gain for them.
+## False: mitigated to exactly zero — the arrow goes steel off-white with a
+## small dim glint ring, "their armour held". Both stay distinct from the dud
+## (grey, INERT, no ring), which means the shot never landed at all. Only the
+## impact differs; the flight was drawn exactly as any other arrow's.
+func _on_absorbed(gained: bool) -> void:
+	_absorbed = true
+	_gained = gained
+	var tween := create_tween()
+	tween.tween_property(self, "_pulse", 1.0, hold_seconds + fade_seconds)
 	queue_redraw()
 
 
@@ -99,6 +128,11 @@ func _draw() -> void:
 		# vertex dimming (docs/domain/attack-timeline.md, "Ranged").
 		var lum := base.get_luminance()
 		base = Color(lum, lum, lum, base.a).lerp(base, 0.25)
+	if _absorbed:
+		# Replace the attacker's identity outright: at the impact the arrow
+		# speaks for what happened to the DEFENDER, not who fired it.
+		var hue := _FloaterStyles.COLOR_HEAL if _gained else Emissive.NEUTRAL
+		base = Color(hue.r, hue.g, hue.b, base.a)
 	var col := Emissive.at(base, Emissive.INERT if _dud else Emissive.VALUE)
 	var glow := Emissive.at(Color(tint.r, tint.g, tint.b, tint.a * a * 0.25), Emissive.LABEL)
 	if not _arrived:
@@ -112,3 +146,17 @@ func _draw() -> void:
 	var p1 := Vector2(-head_length, head_width * 0.5)
 	var p2 := Vector2(-head_length, -head_width * 0.5)
 	draw_colored_polygon(PackedVector2Array([p0, p1, p2]), col)
+	if _absorbed:
+		_draw_absorb_ring(base)
+
+
+## The absorb beat's ring at the tip: expands with [member _pulse] and thins
+## out as it goes. Gain = heal green at ALERT (loud — the defender GOT
+## something); held = neutral at LABEL, half the spread (a glint, not news).
+func _draw_absorb_ring(base: Color) -> void:
+	var p := clampf(_pulse, 0.0, 1.0)
+	var spread := absorb_ring_scale * (1.0 if _gained else 0.5)
+	var r := glow_radius * lerpf(0.4, spread, p)
+	var ring := Color(base.r, base.g, base.b, base.a * (1.0 - p))
+	var tier := Emissive.ALERT if _gained else Emissive.LABEL
+	draw_arc(Vector2.ZERO, r, 0.0, TAU, 32, Emissive.at(ring, tier), absorb_ring_width, true)
