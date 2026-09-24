@@ -135,6 +135,9 @@ var rng: RandomNumberGenerator = null
 ## allocation goes out as a [Command].
 @export var command_applier_override: CommandApplier = null
 @export var battle_system_override: BattleSystem = null
+## Supplies [AiCombatScorer]'s kill-XP preview (what WARLORD hunts). Null and
+## no GameRoot = no preview, so every tier below WARLORD scores the same.
+@export var loot_system_override: LootSystem = null
 
 # Cached on first use. Walked once via _find_game_root; cheap lookup.
 var _game_root: GameRoot = null
@@ -470,7 +473,8 @@ func _compose_volley(n: int) -> Dictionary:
 ## / steerable-proposal / two-tier-evaluation pipeline. Empty when the entity
 ## has no territory to pivot from or no candidate reaches a visible enemy.
 func _gather_melee_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
-	return AiBladeRollout.gather_melee_candidates(entity, visible_enemies, ai_tier, rng)
+	return AiBladeRollout.gather_melee_candidates(
+			entity, visible_enemies, ai_tier, rng, _loot_system())
 
 
 ## Two-tier gated (#537 D1/D3): [method AttackPlan.is_valid] is the cheap PASS
@@ -517,7 +521,8 @@ func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCom
 		if to_kill > 0 and to_kill + KILL_MARGIN_ARROWS < plan.n():
 			plan.ammo_counts = _compose_volley(to_kill + KILL_MARGIN_ARROWS)
 			outcome = plan.resolve()
-		var c := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, target, entity, ai_tier)
+		var c := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, target, entity, ai_tier,
+				0, _loot_system())
 		c.ammo_counts = plan.ammo_counts.duplicate()
 		c.trace += " n=%d" % plan.n()
 		out.append(c)
@@ -668,7 +673,8 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 		probe.source = source
 		probe.target = target
 		var outcome := probe.resolve()
-		var c := AiCombatScorer.score(BattleSystem.AttackMode.MAGIC, outcome, target, entity, ai_tier)
+		var c := AiCombatScorer.score(BattleSystem.AttackMode.MAGIC, outcome, target, entity, ai_tier,
+				0, _loot_system())
 		c.source_node = source
 		c.spell = spell
 		out.append(c)
@@ -841,3 +847,10 @@ func _battle_system() -> BattleSystem:
 		return battle_system_override
 	var gr := _game_root_or_null()
 	return gr.battle_system if gr != null else null
+
+
+func _loot_system() -> LootSystem:
+	if loot_system_override != null:
+		return loot_system_override
+	var gr := _game_root_or_null()
+	return gr.loot_system if gr != null else null

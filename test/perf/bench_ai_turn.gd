@@ -234,7 +234,8 @@ class ProbeAI:
 		t = Time.get_ticks_usec()
 		for f in finalists:
 			var candidate := AiBladeRollout._resolve_and_score(
-					entity, f[0], f[1], f[2], visible_enemies, ai_tier, f[3])
+					entity, f[0], f[1], f[2], visible_enemies, ai_tier, f[3],
+					probe._loot_system())
 			if candidate != null:
 				out.append(candidate)
 		if probe != null:

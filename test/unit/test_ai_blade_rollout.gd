@@ -697,7 +697,8 @@ func test_gather_melee_candidates_empty_without_visible_enemy() -> void:
 
 # ── Shape-risk: popped_nodes is a REAL pop count, tier-gated end to end ────
 
-## #378 acceptance: "Shape-risk tier-gated ... ai_tier=1 does [penalize]".
+## #378 acceptance: "Shape-risk tier-gated", re-pointed onto the #1084 ladder:
+## TACTICIAN penalizes, FIGHTER (one rung below) does not.
 ## test_ai_combat_scorer.gd already covers this at the scorer-unit level with
 ## a synthetic popped_nodes; this is the full-loop version the slice B
 ## comment flagged as pending — a real defensive-spike pop, produced by an
@@ -733,18 +734,20 @@ func test_shape_risk_reflects_a_real_pop_and_is_tier_gated() -> void:
 	await get_tree().physics_frame
 
 	var visible: Array[SkillNode] = [target]
-	var naive := AiBladeRollout.gather_melee_candidates(_ai_entity, visible, 0)
-	var smart := AiBladeRollout.gather_melee_candidates(_ai_entity, visible, 1)
+	var naive := AiBladeRollout.gather_melee_candidates(
+			_ai_entity, visible, AIController.Tier.FIGHTER)
+	var smart := AiBladeRollout.gather_melee_candidates(
+			_ai_entity, visible, AIController.Tier.TACTICIAN)
 
 	var risky_smart := _find_popped(smart)
 	assert_not_null(risky_smart, "the connecting swing should have popped a vertex")
 	assert_gt(risky_smart.outcome.popped_nodes, 0, "a real pop, not a synthetic count")
-	assert_gt(risky_smart.self_shape_risk, 0.0, "ai_tier=1 penalizes a real pop")
+	assert_gt(risky_smart.self_shape_risk, 0.0, "TACTICIAN penalizes a real pop")
 
 	var risky_naive := _find_matching(naive, risky_smart)
-	assert_not_null(risky_naive, "the same physical swing should surface at ai_tier=0 too")
-	assert_gt(risky_naive.outcome.popped_nodes, 0, "the pop itself doesn't depend on ai_tier")
-	assert_almost_eq(risky_naive.self_shape_risk, 0.0, 0.001, "ai_tier=0 never penalizes shape risk")
+	assert_not_null(risky_naive, "the same physical swing should surface at FIGHTER too")
+	assert_gt(risky_naive.outcome.popped_nodes, 0, "the pop itself doesn't depend on the tier")
+	assert_almost_eq(risky_naive.self_shape_risk, 0.0, 0.001, "FIGHTER never penalizes shape risk")
 
 
 func _find_popped(candidates: Array[AiCombatScorer.ScoredCandidate]) -> AiCombatScorer.ScoredCandidate:

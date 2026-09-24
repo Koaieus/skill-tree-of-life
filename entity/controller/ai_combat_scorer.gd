@@ -16,19 +16,20 @@ extends RefCounted
 ## expected damage cannot diverge from what executing it actually deals. Never
 ## hand-roll a second damage estimate here — see [method expected_damage].
 ##
-## Bonus/penalty terms are tier-gated via a single int on the controller
-## ([member AIController.ai_tier]) — see the class doc there. At
-## [code]ai_tier == 0[/code] every term below except [member ScoredCandidate.kill_bonus]
-## is zero, so candidates rank on raw EV (+ kill preference) alone.
+## Bonus/penalty terms are tier-gated by threshold on [enum AIController.Tier]
+## ([member AIController.ai_tier]) — each rung switches a habit on at its x1
+## weight, never multiplies one. At BRAWLER every term below except
+## [member ScoredCandidate.kill_bonus] is zero, so candidates rank on raw EV
+## (+ kill preference) alone.
 
 const _KILL_BONUS := 1000.0
 const _CUT_VERTEX_WEIGHT := 25.0
 const _ENEMY_WEAK_WEIGHT := 5.0
 ## SP-turns lost per popped node (wound now, heals ~1/turn — see
-## [member SkillPointStat.wound]). Scaled by [member AIController.ai_tier] like
-## every other tier-gated term; melee (slice C, [AiBladeRollout]) is the first
-## real source of a nonzero [param popped_nodes] into [method score] — a real
-## defensive-spike pop count, not the blade's node-selection size.
+## [member SkillPointStat.wound]). On from TACTICIAN; melee (slice C,
+## [AiBladeRollout]) is the first real source of a nonzero [param popped_nodes]
+## into [method score] — a real defensive-spike pop count, not the blade's
+## node-selection size.
 const _SHAPE_RISK_WEIGHT := 10.0
 ## What a DOOR is worth to a boxed-in attacker (#604). Applies only while
 ## [member Entity.ai_growth_capped] — see [method EntityNavigator.borders]. Sized to sit
@@ -39,6 +40,10 @@ const _SHAPE_RISK_WEIGHT := 10.0
 ## the next AP re-evaluates and comes back to the door). A candidate that is
 ## both reads 1500 and beats either.
 const _BREAKOUT_WEIGHT := 500.0
+## Per XP point of [member ScoredCandidate.kill_xp], summed at WARLORD only. A
+## tuning knob (owner tunes). It orders kills against kills: [constant
+## _KILL_BONUS] already dominates kill vs non-kill.
+const _KILL_XP_WEIGHT := 1.0
 ## Distance-dominating bonus so a tactical-enabling frontier pick always beats
 ## a merely-closer one — see [method score_frontier].
 const _NEAR_MISS_ENABLE_BONUS := 1.0e6
@@ -83,13 +88,12 @@ class ScoredCandidate:
 	var ev: float = 0.0
 	var is_kill: bool = false
 	var kill_bonus: float = 0.0
-	## Preview-only (#538): what this candidate's kill/removal would pay in
-	## XP, via [method LootSystem.preview_kill_xp]. NOT summed into [member
-	## total] — the issue that adds this term explicitly descopes weighting
-	## it against damage; it exists to be read, not to move the ranking.
-	## 0.0 whenever no [LootSystem] was supplied to [method score] (existing
-	## callers don't yet thread one through).
+	## What this candidate's kill/removal would pay in XP, via [method
+	## LootSystem.preview_kill_xp] — previewed at every tier, but summed into
+	## [member total] (as [member kill_xp_bonus]) only at WARLORD, and only on
+	## a kill. 0.0 whenever no [LootSystem] was supplied to [method score].
 	var kill_xp: float = 0.0
+	## [member kill_xp] x [constant _KILL_XP_WEIGHT] on a WARLORD kill, else 0.
 	var kill_xp_bonus: float = 0.0
 	var cut_vertex_bonus: float = 0.0
 	var enemy_weak_bonus: float = 0.0
@@ -152,10 +156,8 @@ static func expected_damage(outcome: AttackOutcome, attacker: Entity = null) -> 
 ## #186 and lands its own hits, which are already in this candidate's EV.
 ##
 ## [param loot_system], if supplied, previews [member ScoredCandidate.kill_xp]
-## via [method LootSystem.preview_kill_xp] (#538) — trailing and defaulted to
-## null so neither existing caller ([code]ai_controller.gd[/code],
-## [code]ai_blade_rollout.gd[/code]) needs to change to keep compiling; they
-## simply don't get a kill_xp preview yet. Modelled as one removed node
+## via [method LootSystem.preview_kill_xp] — trailing and defaulted to null
+## (no preview, so no WARLORD kill-XP term either). Modelled as one removed node
 ## (`target` itself) when [member ScoredCandidate.is_kill], with the entity-
 ## kill flag set only when `target` is the victim's core — this scorer has no
 ## broader "removed this attack" set to offer (that's BattleSystem cascade
@@ -184,13 +186,15 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 	if attacker != null and attacker.ai_growth_capped and attacker.navigator != null \
 			and attacker.navigator.borders(target):
 		c.breakout_bonus = _BREAKOUT_WEIGHT
-	if ai_tier > 0:
-		if _is_cut_vertex(target):
-			c.cut_vertex_bonus = _CUT_VERTEX_WEIGHT * ai_tier
-		c.enemy_weak_bonus = _armor_weakness(target) * _ENEMY_WEAK_WEIGHT * ai_tier
-		c.self_shape_risk = float(popped_nodes) * _SHAPE_RISK_WEIGHT * ai_tier
+	if ai_tier >= AIController.Tier.FIGHTER and _is_cut_vertex(target):
+		c.cut_vertex_bonus = _CUT_VERTEX_WEIGHT
+	if ai_tier >= AIController.Tier.TACTICIAN:
+		c.enemy_weak_bonus = _armor_weakness(target) * _ENEMY_WEAK_WEIGHT
+		c.self_shape_risk = float(popped_nodes) * _SHAPE_RISK_WEIGHT
+	if ai_tier >= AIController.Tier.WARLORD and c.is_kill:
+		c.kill_xp_bonus = c.kill_xp * _KILL_XP_WEIGHT
 	c.total = c.ev + c.kill_bonus + c.cut_vertex_bonus + c.enemy_weak_bonus \
-			+ c.breakout_bonus - c.self_shape_risk
+			+ c.breakout_bonus + c.kill_xp_bonus - c.self_shape_risk
 	# `door` is appended rather than spliced in: the #512 parity golden freezes
 	# this string, and it is 0.0 for every uncapped attacker.
 	c.trace = "[%s→%s] ev=%.1f kill=%s cut=%.1f weak=%.1f risk=%.1f total=%.1f" % [
@@ -201,8 +205,8 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 	if c.breakout_bonus > 0.0:
 		c.trace += " door=%.1f" % c.breakout_bonus
 	# Same append-not-splice treatment as `door`, for the same reason: the
-	# #512 golden freezes the base string, and kill_xp is 0.0 (so silent)
-	# for every caller that doesn't yet thread a LootSystem through.
+	# #512 golden freezes the base string. kill_xp is the preview; it moves
+	# `total` only via kill_xp_bonus, at WARLORD.
 	if c.kill_xp > 0.0:
 		c.trace += " kill_xp=%.1f" % c.kill_xp
 	return c

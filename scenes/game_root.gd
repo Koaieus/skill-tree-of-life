@@ -102,6 +102,9 @@ var _link_end_presented: bool = false
 @onready var input_ctl: PlayerInputController = %PlayerInputController
 @onready var allocation_system: AllocationSystem = %AllocationSystem
 @onready var battle_system: BattleSystem = %BattleSystem
+## Read by [AIController] (kill-XP preview for its scorer) through the same
+## GameRoot walk as [member battle_system].
+@onready var loot_system: LootSystem = %LootSystem
 @onready var turn_manager: TurnManager = %TurnManager
 ## The one mutation path (#510). Exposed here because [AIController] resolves it
 ## by walking up to its GameRoot, the same way it resolves [member battle_system]

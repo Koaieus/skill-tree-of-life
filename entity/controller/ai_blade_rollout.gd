@@ -74,10 +74,6 @@ const _MAX_PIVOTS := 6
 ## (≤4 proposals/pivot) independent of `blade_size`. NOT tier-gated: this is
 ## a bug fix and applies at `ai_tier = 0` too.
 const _MAX_BLADE_SIZE_SAFETY := 64
-## D4's tier ladder tops out here — t3 -> handle target 3-4. Clamped
-## defensively so an out-of-range `ai_tier` can't silently exceed the
-## authored ladder.
-const _MAX_AI_TIER := 3
 ## Finalists promoted to full-fidelity resolve + hit scan.
 const _FINALIST_COUNT := 3
 const _COARSE_DT := 1.0 / 30.0
@@ -89,7 +85,8 @@ const _COARSE_ITERS := 4
 ## enemy, or every pivot fails the reach-bound rejection.
 static func gather_melee_candidates(
 		entity: Entity, visible_enemies: Array[SkillNode], ai_tier: int,
-		rng: RandomNumberGenerator = null) -> Array[AiCombatScorer.ScoredCandidate]:
+		rng: RandomNumberGenerator = null,
+		loot_system: LootSystem = null) -> Array[AiCombatScorer.ScoredCandidate]:
 	var out: Array[AiCombatScorer.ScoredCandidate] = []
 	if entity == null or entity.navigator == null or visible_enemies.is_empty():
 		return out
@@ -131,7 +128,8 @@ static func gather_melee_candidates(
 		var blade_nodes: Array[SkillNode] = f[1]
 		var clamp_nodes: Array[SkillNode] = f[3]
 		var candidate := _resolve_and_score(
-				entity, pivot, blade_nodes, f[2], visible_enemies, ai_tier, clamp_nodes)
+				entity, pivot, blade_nodes, f[2], visible_enemies, ai_tier, clamp_nodes,
+				loot_system)
 		if candidate != null:
 			out.append(candidate)
 	return out
@@ -275,13 +273,13 @@ static func _propose_blade_selections(
 		var max_size: int = info[1]
 		if max_size <= 0:
 			continue
-		# D4: target handle length = randi_range(tier, tier + 1), tier maxed
-		# at 3 (t0 -> 0-1 ... t3 -> 3-4). All rigidity-seeking lives in this
+		# D4: target handle length = randi_range(tier, tier + 1), tier clamped
+		# to the AIController.Tier ladder (BRAWLER -> 0-1 ... WARLORD -> 3-4). All rigidity-seeking lives in this
 		# tier ladder and nowhere else (#771 hub, owner 2026-09-10: "0-1
 		# means sometimes no clamping attempt at all, just flop. or
 		# accidental truss, all good. t0 AI accidentally making a functional
 		# blade is cool, they just dont pursue it as effectively.").
-		var tier := clampi(ai_tier, 0, _MAX_AI_TIER)
+		var tier := clampi(ai_tier, AIController.Tier.BRAWLER, AIController.Tier.WARLORD)
 		var handle_target := actual_rng.randi_range(tier, tier + 1)
 		var archetype := _build_archetype(
 				pivot, adjacency, target_centroid, max_size, handle_target, core_distances)
@@ -633,7 +631,8 @@ static func _closest_approach(traj: BladeTrajectory, enemy_positions: Array[Vect
 static func _resolve_and_score(
 		entity: Entity, pivot: SkillNode, blade_nodes: Array[SkillNode], swing_cw: bool,
 		visible_enemies: Array[SkillNode], ai_tier: int,
-		clamp_nodes: Array[SkillNode] = []) -> AiCombatScorer.ScoredCandidate:
+		clamp_nodes: Array[SkillNode] = [],
+		loot_system: LootSystem = null) -> AiCombatScorer.ScoredCandidate:
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = entity
 	plan.source = pivot
@@ -654,7 +653,8 @@ static func _resolve_and_score(
 	if primary == null:
 		return null
 	var candidate := AiCombatScorer.score(
-			BattleSystem.AttackMode.MELEE, outcome, primary, entity, ai_tier, outcome.popped_nodes)
+			BattleSystem.AttackMode.MELEE, outcome, primary, entity, ai_tier, outcome.popped_nodes,
+			loot_system)
 	candidate.source_node = pivot
 	candidate.blade_nodes = blade_nodes
 	candidate.swing_cw = swing_cw
