@@ -2,7 +2,7 @@
 #MISE description="Idle-turn perf matrix (#763): stationary frame cost, CPU vs GPU, suspect toggles"
 """
 The #763 measurement driver: one real run per configuration, each printing its
-own pasteable block, all logs kept under `.godot/perf-idle/<stamp>/`.
+own pasteable block, all logs kept under `scratchpad/perf/<stamp>/`.
 
     mise run perf:idle                # the curated matrix below (~15-20 min)
     mise run perf:idle -- --quick     # smoke: 50 nodes, 0.5s samples, 4 runs
@@ -202,7 +202,7 @@ def main():
         matrix = [r for r in matrix if args.only in r[0]]
 
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    log_dir = Path(ROOT) / ".godot" / "perf-idle" / stamp
+    log_dir = Path(ROOT) / "scratchpad" / "perf" / stamp
     log_dir.mkdir(parents=True, exist_ok=True)
 
     print("=== #763 idle-turn perf matrix — %d run(s) ===" % len(matrix))
