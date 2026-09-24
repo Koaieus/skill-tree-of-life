@@ -1,4 +1,5 @@
 @tool
+class_name HealthBar
 extends ProgressBar
 
 ## Node combat health bar — shows the SkillNode's per-node HP pool (max vs
@@ -71,6 +72,13 @@ var _subs := SubBag.new()
 ## re-entrancy [method SubBag.now] introduces — its synchronous first call lands
 ## in [method _on_current_changed], which re-enters [method _update_visibility].
 var _bound: bool = false
+## Bench pin ([member SkillNode.pin_health_bar]): shown regardless of HP or hover.
+var pinned: bool = false:
+	set(value):
+		if pinned == value:
+			return
+		pinned = value
+		_update_visibility()
 
 
 func _ready() -> void:
@@ -213,7 +221,7 @@ func _update_visibility() -> void:
 		_release()
 		return _fade_to(0.0)
 	var hp := float(_pool.current)
-	var shown: bool = _hovered or hp < _pool.value
+	var shown: bool = pinned or _hovered or hp < _pool.value
 	if shown:
 		# Before the fade: `_bind_live`'s first paint must land while alpha is
 		# still 0 for the snap-not-tween branch above to fire.

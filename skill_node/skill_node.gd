@@ -194,9 +194,29 @@ var inner_radius: float:
 
 @export var self_loops: Array[Edge] = []
 
+@export_group("Bench")
+## Presentation-only bench knob: `false` keeps this node's core presence
+## (the class look + sigil bloom) off even while it IS its owner's core. The
+## core is still a core for every gameplay rule; only the dressing is dropped.
+@export var core_presence_visible: bool = true:
+	set(value):
+		core_presence_visible = value
+		if is_node_ready():
+			_refresh_core_presence()
+
+## Presentation-only bench knob: keep the node HP bar on screen (and bound)
+## at full HP too, instead of sprouting only on damage or hover.
+@export var pin_health_bar: bool = false:
+	set(value):
+		pin_health_bar = value
+		if is_node_ready():
+			_health_bar.pinned = value
+@export_group("")
+
 @onready var visuals: Node2D = $Visuals
 @onready var hover_ring: Node2D = $Visuals/HoverRing
 @onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar
+@onready var _health_bar: HealthBar = $Visuals/HealthBar
 @onready var _node_visuals: Node2D = $Visuals/NodeVisualsComposite
 
 
@@ -525,6 +545,7 @@ func _ready() -> void:
 	_refresh_core_presence()
 	_refresh_hp_binding()
 	_sync_visuals()
+	_health_bar.pinned = pin_health_bar
 
 
 func _refresh_core_presence() -> void:
@@ -538,15 +559,16 @@ func _refresh_core_presence() -> void:
 			# The owner's level is visual identity (a look's ring count).
 			_bound_owner.leveled_up.connect(_on_owner_leveled_up)
 	var _is_core := owned_by != null and owned_by.core_location == self
+	var dressed := _is_core and core_presence_visible
 	# Gate the composite's core-only presence (CorePresence: the owner class's
 	# look + CoreSigilBloom, #128/#1108) to the one core node. The look is null
 	# off-core, so a non-core node instances nothing. `sensed` hiding the whole
 	# ShaderStack (CorePresence's parent) keeps a fogged core hidden.
 	if _node_visuals != null:
-		_node_visuals.core_active = _is_core
+		_node_visuals.core_active = dressed
 		var sigil: Sigil = null
 		var look: PackedScene = null
-		if _is_core and owned_by.core_class != null:
+		if dressed and owned_by.core_class != null:
 			sigil = owned_by.core_class.sigil
 			look = owned_by.core_class.core_look
 		_node_visuals.set_core_sigil(sigil)

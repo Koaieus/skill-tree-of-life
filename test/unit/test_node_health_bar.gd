@@ -198,3 +198,25 @@ func test_release_leaves_the_bar_settled_and_faded_out() -> void:
 	assert_almost_eq(_bar.modulate.a, 0.0, 0.05, "faded out after release")
 	assert_almost_eq(_bar.value, float(_hp().current), 0.5,
 			"the in-flight heal tween still finished on the released bar")
+
+
+# ── Bench pin ───────────────────────────────────────────────────────────────
+
+## A pinned bar is on screen at FULL HP — the one state the default gate hides
+## — and, being shown, holds the live binding like any other shown bar.
+func test_pinned_bar_shows_and_binds_at_full_hp() -> void:
+	_node.pin_health_bar = true
+	_bar.clock.advance(1.0)
+	assert_almost_eq(float(_hp().current), _hp().value, 0.001, "still at full HP")
+	assert_almost_eq(_bar.modulate.a, 1.0, 0.01, "a pinned bar is shown at full HP")
+	assert_eq(_bound_bars(), 1, "a shown bar is a bound bar")
+
+
+## Unpinning an undamaged node falls back to the default gate: hidden, released.
+func test_unpinning_a_full_hp_bar_hides_and_releases_it() -> void:
+	_node.pin_health_bar = true
+	_bar.clock.advance(1.0)
+	_node.pin_health_bar = false
+	_bar.clock.advance(1.0)
+	assert_almost_eq(_bar.modulate.a, 0.0, 0.01, "unpinned + full HP → hidden")
+	assert_eq(_bound_bars(), 0, "and unsubscribed")
