@@ -1,9 +1,12 @@
 extends GutTest
 
-## [BlindnessStatus] (#873, hub #868): a ×factor on the node-local
-## `vision_range` / `sensor_range`, recovering linearly over `power_max`
-## ticks. The factor under test is set on a hand-built def — the authored
-## `blindness.tres` value is the owner's knob and is never pinned here.
+## [BlindnessStatus] (#873, hub #868; depth #1090): a ×factor on the
+## node-local `vision_range` / `sensor_range`, one saturating curve on the
+## TOTAL power — `max(floor, k / (power + k))` — so reapplies ACCUMULATE
+## commutatively and a FRACTION fade recovers slowly first, then faster. The
+## curve knobs under test are set on a hand-built def; the authored
+## `blindness.tres` is pinned only for its shape (uncapped, accumulating,
+## fractional), never its magnitudes.
 ##
 ## The vision half drives [VisionSystem] through its stat bindings rather than
 ## `_recompute()` by hand: the fog must re-evaluate on the modifier change
@@ -58,10 +61,13 @@ func before_each() -> void:
 
 	_def = BlindnessStatus.new()
 	_def.id = &"blindness"
-	_def.power_max = 3.0
-	_def.decay_per_tick = 1.0
-	_def.reapply = StatusDef.Reapply.REFRESH
-	_def.blind_factor = 0.5
+	_def.power_max = 0.0
+	_def.display_max = 3.0
+	_def.decay_mode = StatusDef.DecayMode.FRACTION
+	_def.decay_per_tick = 0.7
+	_def.reapply = StatusDef.Reapply.ACCUMULATE
+	_def.depth_k = 3.0
+	_def.floor_factor = 0.1
 
 
 ## Both stats are derived (a PER-scaled term and an INCREASE ride on
@@ -86,10 +92,12 @@ func _combat() -> NodeCombat:
 	return _nodes[0].get_combat()
 
 
-## The blind multipliers currently on the node-local `stat_id`.
-func _blind_modifiers(stat_id: StringName) -> Array[StatModifier]:
+## The blind multipliers currently on [param node]'s local `stat_id`.
+func _blind_modifiers(stat_id: StringName, node: SkillNode = null) -> Array[StatModifier]:
+	if node == null:
+		node = _nodes[0]
 	var out: Array[StatModifier] = []
-	var s: Stat = _nodes[0].node_board.get_stat(stat_id) if _nodes[0].node_board != null else null
+	var s: Stat = node.node_board.get_stat(stat_id) if node.node_board != null else null
 	if s == null:
 		return out
 	for m in s.bins.multipliers:
@@ -120,33 +128,91 @@ func after_each() -> void:
 
 # ── Numbers ──────────────────────────────────────────────────────────────────
 
-func test_power_3_halves_then_recovers_over_three_ticks() -> void:
+func test_power_3_halves_and_one_fraction_tick_clears_it() -> void:
 	for stat_id in _STATS:
 		_set_local(stat_id, 10.0)
 	_combat().apply_status(_def, 3.0)
 	for stat_id in _STATS:
-		_assert_factor(stat_id, 0.5, "power 3/3")
-	_combat().tick_statuses()
-	for stat_id in _STATS:
-		_assert_factor(stat_id, 2.0 / 3.0, "power 2/3")
-	_combat().tick_statuses()
-	for stat_id in _STATS:
-		_assert_factor(stat_id, 5.0 / 6.0, "power 1/3")
+		_assert_factor(stat_id, 0.5, "power 3 at k 3")
+	# 3 × 0.3 = 0.9 < 1 → the FRACTION tail is cut on this tick.
 	_combat().tick_statuses()
 	for stat_id in _STATS:
 		assert_almost_eq(_local(stat_id), 10.0, 0.001, "%s: recovered" % stat_id)
 		assert_false(_has_blind_modifier(stat_id), "%s: no blind modifier remains" % stat_id)
-	assert_eq(_combat().get_status_power(&"blindness"), 0.0, "status gone after 3 ticks")
+	assert_eq(_combat().get_status_power(&"blindness"), 0.0, "status gone after one tick")
 
 
-func test_reapply_at_lower_power_refreshes_not_stacks() -> void:
+func test_reapply_accumulates_into_one_modifier() -> void:
 	_set_local(&"vision_range", 10.0)
-	_combat().apply_status(_def, 3.0)
-	_combat().tick_statuses()
-	assert_eq(_combat().get_status_power(&"blindness"), 2.0)
-	_combat().apply_status(_def, 1.0)
-	assert_eq(_combat().get_status_power(&"blindness"), 2.0, "REFRESH keeps the larger power")
-	_assert_factor(&"vision_range", 2.0 / 3.0, "replaced, never stacked")
+	_combat().apply_status(_def, 2.0)
+	_combat().apply_status(_def, 2.0)
+	assert_almost_eq(_combat().get_status_power(&"blindness"), 4.0, 0.001, "2 then 2 = 4")
+	_assert_factor(&"vision_range", 3.0 / 7.0, "one curve on the total, replaced never stacked")
+
+
+## The curve (owner's numbers, 2026-09-23): 1 at zero, ½ at k, saturating
+## to the floor — power 27 at k 3 is exactly the 10 % floor.
+func test_curve_is_one_at_zero_half_at_k_monotone_and_floored() -> void:
+	assert_almost_eq(_def.factor_for(0.0), 1.0, 0.0001, "unblinded at zero")
+	assert_almost_eq(_def.factor_for(3.0), 0.5, 0.0001, "power k → ½ (today's full dazzle)")
+	assert_almost_eq(_def.factor_for(6.0), 1.0 / 3.0, 0.0001, "power 2k → ⅓")
+	assert_almost_eq(_def.factor_for(27.0), 0.1, 0.0001, "power 9k → the floor")
+	var prev := _def.factor_for(0.0)
+	var p := 0.25
+	while p <= 200.0:
+		var f := _def.factor_for(p)
+		assert_true(f <= prev + 0.000001, "monotone non-increasing at power %s" % p)
+		assert_true(f >= _def.floor_factor - 0.000001, "never below the floor at power %s" % p)
+		prev = f
+		p += 0.25
+
+
+## From deep (power 30) the first tick's power drop barely moves vision — the
+## curve is flat there — and recovery accelerates on the later ticks.
+func test_deep_blind_recovers_slowly_first_then_faster() -> void:
+	_set_local(&"vision_range", 10.0)
+	_combat().apply_status(_def, 30.0)
+	var factors: Array[float] = [_blind_modifiers(&"vision_range")[0].value]
+	for _i in 10:
+		_combat().tick_statuses()
+		var mods := _blind_modifiers(&"vision_range")
+		factors.append(mods[0].value if not mods.is_empty() else 1.0)
+		if mods.is_empty():
+			break
+	assert_gt(factors.size(), 3, "a deep blind lasts more than two ticks")
+	var first := factors[1] - factors[0]
+	var largest_later := 0.0
+	for i in range(2, factors.size()):
+		largest_later = maxf(largest_later, factors[i] - factors[i - 1])
+	assert_lt(first, largest_later, "the first tick's recovery is the smallest step: %s" % [factors])
+
+
+## Commutativity on the AUTHORED def (owner asked for it): the knobs that
+## make it so — ACCUMULATE, uncapped — live in blindness.tres.
+func test_authored_reapply_is_commutative() -> void:
+	var blind := load("res://effects/status/blindness.tres") as BlindnessStatus
+	_alloc.force_allocate(_entity, _nodes[1])
+	_alloc.force_allocate(_entity, _nodes[2])
+	var a := _nodes[1].get_combat()
+	var b := _nodes[2].get_combat()
+	a.apply_status(blind, 1.0)
+	a.apply_status(blind, 5.0)
+	b.apply_status(blind, 5.0)
+	b.apply_status(blind, 1.0)
+	assert_almost_eq(a.get_status_power(&"blindness"), b.get_status_power(&"blindness"), 0.0001,
+		"1 then 5 == 5 then 1 (power)")
+	var ma := _blind_modifiers(&"vision_range", _nodes[1])
+	var mb := _blind_modifiers(&"vision_range", _nodes[2])
+	assert_eq(ma.size(), 1)
+	assert_eq(mb.size(), 1)
+	if ma.size() == 1 and mb.size() == 1:
+		assert_almost_eq(ma[0].value, mb[0].value, 0.0001, "1 then 5 == 5 then 1 (vision multiplier)")
+		assert_almost_eq(ma[0].value, blind.factor_for(6.0), 0.0001, "one curve on the sum")
+
+	_combat().apply_status(blind, 2.0)
+	_combat().apply_status(blind, 2.0)
+	assert_almost_eq(_combat().get_status_power(&"blindness"), 4.0, 0.0001,
+		"2 then 2 = 4 — accumulated, uncapped")
 
 
 func test_blind_factor_is_invariant_across_allocation_level() -> void:
@@ -190,8 +256,8 @@ func test_shadow_apply_never_writes_the_live_modifier() -> void:
 	var shadow := shadow_world.shadow_for(_nodes[0])
 	shadow.apply_status(_def, 3.0)
 
-	assert_almost_eq(float(shadow.get_local_value(&"vision_range")), 5.0, 0.01,
-		"the shadow reads the full-power factor")
+	assert_almost_eq(float(shadow.get_local_value(&"vision_range")), floorf(10.0 * _def.factor_for(4.0)), 0.01,
+		"the shadow reads the accumulated power's factor")
 	assert_almost_eq(live_mods[0].value, live_value, 0.001,
 		"the live modifier instance is untouched by the shadow resolve")
 	_assert_factor(&"vision_range", _def.factor_for(1.0), "live world unchanged")
@@ -233,8 +299,17 @@ func test_authored_blindness_and_dazzle_load_and_are_in_the_debug_book() -> void
 		return
 	assert_eq(blind.id, &"blindness")
 	assert_true(&"debuff" in blind.tags, "tagged as a debuff")
-	assert_gt(blind.blind_factor, 0.0)
-	assert_lt(blind.blind_factor, 1.0, "a factor below 1 — blindness shrinks, never grows")
+	assert_true(blind.power_max <= 0.0, "uncapped — depth is the curve's job, not a clamp")
+	assert_eq(blind.reapply, StatusDef.Reapply.ACCUMULATE, "accumulating, so reapply commutes")
+	assert_eq(blind.decay_mode, StatusDef.DecayMode.FRACTION, "a fractional fade")
+	assert_gt(blind.floor_factor, 0.0)
+	assert_lt(blind.floor_factor, 1.0, "a floor below 1 — blindness shrinks, never grows")
+	assert_gt(blind.depth_k, 0.0)
+	# display_max keeps the bar / tint on a 0..1 scale for an uncapped def.
+	assert_gt(blind.display_max, 0.0, "an uncapped def authors a display anchor")
+	assert_almost_eq(NodeStatus.new(blind, blind.display_max * 0.5).normalised(), 0.5, 0.0001)
+	assert_almost_eq(NodeStatus.new(blind, blind.display_max * 10.0).normalised(), 1.0, 0.0001,
+		"depth past the anchor saturates the bar")
 
 	var dazzle := load("res://attack/spell/defs/dazzle.tres") as SpellDef
 	assert_not_null(dazzle, "dazzle.tres is a SpellDef")

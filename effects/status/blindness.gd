@@ -25,6 +25,9 @@ const STAT_IDS: Array[StringName] = [&"vision_range", &"sensor_range"]
 ## The multiplier on `vision_range` / `sensor_range` at full power. The
 ## owner's knob (`blindness.tres`); no test pins the authored value.
 @export var blind_factor: float = 0.5
+## STUB (red commit): the depth curve's knobs, not yet read.
+@export var depth_k: float = 3.0
+@export var floor_factor: float = 0.1
 
 
 ## The node-local multiplier Blindness plants — its own type so it can be
