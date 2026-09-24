@@ -14,6 +14,7 @@
 [ext_resource type="Script" uid="uid://dknxw63lhq13c" path="res://stats_system/formulas/ratio_formula.gd" id="10_7cbeb"]
 [ext_resource type="Resource" uid="uid://cl4uo53xgkvxa" path="res://stats_system/packs/attribute_baseline.tres" id="10_baseline"]
 [ext_resource type="Script" uid="uid://bmb1t7vgyaqm5" path="res://entity/core/sigil/star_sigil.gd" id="12_7cbeb"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/core_gimbal.tscn" id="core_look_gimbal"]
 
 [sub_resource type="Resource" id="scale_falling"]
 script = ExtResource("5_scale")
@@ -127,3 +128,4 @@ description = "The Phantom — a high deallocation budget for in-turn reshaping 
 modifiers = Array[ExtResource("2_mod")]([ExtResource("10_baseline"), SubResource("mod_budget_pack")])
 effects = Array[ExtResource("7_effect")]([SubResource("aura_strike"), SubResource("Resource_7cbeb")])
 sigil = SubResource("Resource_u38nb")
+core_look = ExtResource("core_look_gimbal")

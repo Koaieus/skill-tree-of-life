@@ -141,17 +141,15 @@ var _applied_a_shape: bool = false
 # there.
 @onready var _inner_disk := %InnerDisk
 @onready var _rim_ring := %RimRing
-# CorePresence is now its own reusable scene (core_presence.tscn, shared with
-# the core-move drag ghost) rather than inline nodes here, so CoreHalos/
-# CoreSigilBloom's unique names are scoped to CorePresence's OWN root, not
-# this composite's — resolve them by direct child path off _core_presence,
-# not `%Name`.
+# CorePresence is its own reusable scene (shared with the core-move drag
+# ghost), so its CoreSigilBloom is resolved by direct child path off it, never
+# `%Name`. CorePresence is itself a child of the identity fan-out and re-pushes
+# into whatever look its slot wears.
 @onready var _core_presence := %CorePresence
-@onready var _core_halos := _core_presence.get_node(^"CoreHalos")
 @onready var _core_sigil_bloom := _core_presence.get_node(^"CoreSigilBloom")
 
 @onready var _children: Array[SkillNodeVisual] = [
-	%InnerDisk, %RimRing, _core_halos, _core_sigil_bloom, %SensedOutline,
+	%InnerDisk, %RimRing, _core_presence, _core_sigil_bloom, %SensedOutline,
 ]
 
 ## Sensed-but-not-visible: the node reads as an archetype-only outline
@@ -201,7 +199,7 @@ var subtype_tint: Color = Color.WHITE:
 
 
 ## Whether this node currently hosts its owner's core. Gates the core-only
-## presence visuals — CoreHalos today (CoreSigilBloom next, #128) — so they draw
+## presence visuals — the slot look and CoreSigilBloom — so they draw
 ## on the ONE core node, not every node (the gimbal pass dropped this gate, which
 ## put a halo on all nodes and tanked fps: each gimbal is hundreds of draw calls).
 ## Fed by SkillNode. Nested under ShaderStack, so `sensed` still hides it for free.
@@ -257,9 +255,10 @@ func _ready() -> void:
 ## ALSO gates processing, not just drawing — a hidden [Node2D] still runs
 ## `_process` every frame in Godot; only `_draw` is skipped by `visible`. Every
 ## non-core node (the overwhelming majority at 500-2500/level) would otherwise
-## pay for a live-but-invisible [CoreHalos] clock for nothing. `PROCESS_MODE_DISABLED`
-## freezes the whole [CorePresence] subtree (including [CoreHalos]'s `_process`
-## and its GimbalBack force-redraw, see skill-node-visuals.md); `INHERIT`
+## pay for a live-but-invisible look clock for nothing. `PROCESS_MODE_DISABLED`
+## freezes the whole [CorePresence] subtree (a 2D look's `_process`; a 3D
+## look's rig lives in the GimbalWorld, outside this subtree — its gate is the
+## `visible` half, not this one); `INHERIT`
 ## un-freezes it on reactivation. `glide_from`'s travel tweens (core_presence.gd)
 ## are unaffected either way — a `Tween` isn't a child of this subtree and isn't
 ## gated by its `process_mode`.
@@ -335,25 +334,17 @@ func set_core_sigil(sigil: Sigil) -> void:
 	_core_sigil_bloom.sigil = sigil
 
 
-## Forwards a [member SkillNode.core_halo_style] override to [CorePresence],
-## which owns the explicit CoreHalos-child write (see core_presence.gd —
-## `-1` is a no-op, leaving the scene-authored style alone). Routes through
-## CorePresence rather than reaching past it at `_core_halos` directly: this
-## composite already resolves `_core_halos` by direct child path because
-## CorePresence is its own reusable nested scene (see the `_core_halos`
-## `@onready` comment above), and an explicit forwarding method keeps that
-## nesting an implementation detail CorePresence owns, the same shape as
-## `set_core_sigil` for `_core_sigil_bloom`.
-func set_core_halo_style(style: int) -> void:
-	_core_presence.set_halo_style(style)
+## The owner's [member CoreClass.core_look] for this core (null when not a
+## core) — [CorePresence] wears it in its slot. Fed by SkillNode alongside
+## `core_active` and the sigil.
+func set_core_look(scene: PackedScene) -> void:
+	_core_presence.set_look(scene)
 
 
-## Forwards [member SkillNode.revealed] down to [CoreHalos]' animation gate
-## (#802), routed through [CorePresence] for the same reason
-## [method set_core_halo_style] is — the halos' nesting is CorePresence's
-## business, not this composite's.
-func set_core_halo_revealed(value: bool) -> void:
-	_core_presence.set_halo_revealed(value)
+## Forwards [member SkillNode.revealed] to the look's gate (#802) through
+## [CorePresence], which owns what sits in its slot.
+func set_core_revealed(value: bool) -> void:
+	_core_presence.set_revealed(value)
 
 
 ## Retargets the old CoreMarker glide-in tween onto [CorePresence]: slides the
@@ -383,6 +374,8 @@ func _sync_shared() -> void:
 		child.entity_tint = entity_tint
 		child.archetype_tint = archetype_tint
 		child.allocated = allocated
+		child.owner_level = owner_level
+		child.node_seed = node_seed
 	# InnerDisk is the source of truth for the faked light; ONE object carries
 	# it to every surface lit by it, so disk and rim can't drift apart.
 	_lighting.highlight_position = _inner_disk.highlight_position

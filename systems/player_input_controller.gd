@@ -160,7 +160,7 @@ const _CORE_PRESENCE_SCENE := preload("res://skill_node/visuals/core_presence.ts
 ## to a valid landing (see the locked #128 drag-ghost design).
 var _core_drag_started := false
 var _core_drag_landing: SkillNode = null
-var _core_ghost: Node2D = null
+var _core_ghost: CorePresence = null
 var _core_badge: Label = null
 
 
@@ -1218,11 +1218,10 @@ func _ensure_core_drag_visuals() -> void:
 		var sigil: Sigil = null
 		if player != null and player.core_class != null:
 			sigil = player.core_class.sigil
-		for child_name in [&"CoreHalos", &"CoreSigilBloom"]:
-			var child := _core_ghost.get_node(NodePath(child_name)) as SkillNodeVisual
-			child.entity_tint = tint
-			child.radius = r
-		_core_ghost.get_node(^"CoreHalos").visible = true
+		_core_ghost.entity_tint = tint
+		_core_ghost.configure(r)
+		if player != null and player.core_class != null:
+			_core_ghost.set_look(player.core_class.core_look)
 		var bloom := _core_ghost.get_node(^"CoreSigilBloom")
 		bloom.sigil = sigil
 		bloom.visible = false  # joins the ghost only once snapped to a target

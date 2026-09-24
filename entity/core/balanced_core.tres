@@ -11,6 +11,7 @@
 [ext_resource type="Resource" uid="uid://cl4uo53xgkvxa" path="res://stats_system/packs/attribute_baseline.tres" id="6_baseline"]
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="7_reach"]
 [ext_resource type="Script" uid="uid://5210gl3st82m" path="res://effects/distance_scale/expression_scale.gd" id="8_scale"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/core_gimbal.tscn" id="core_look_gimbal"]
 
 [sub_resource type="Resource" id="scale_v_minus_d"]
 script = ExtResource("8_scale")
@@ -70,3 +71,4 @@ description = "The vanilla class: +10 to all five attributes (STR/DEX/INT/CON/WI
 modifiers = Array[ExtResource("2_mod")]([ExtResource("6_baseline"), SubResource("mod_con"), SubResource("mod_wis"), SubResource("mod_str_per_level"), SubResource("mod_dex_per_level"), SubResource("mod_int_per_level")])
 effects = Array[ExtResource("1_466st")]([SubResource("heal_aura_balanced")])
 sigil = SubResource("Resource_1xoxv")
+core_look = ExtResource("core_look_gimbal")

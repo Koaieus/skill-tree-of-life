@@ -1,110 +1,117 @@
 @tool
 class_name CorePresence
-extends Node2D
-## Groups the core-only presence visuals (the [CoreHalos] gimbal + the
-## [CoreSigilBloom] glow) so a core move animates them as one unit instead of
-## the old lone star `CoreMarker` (#128, docs/domain/skillnode-emblem.md).
+extends SkillNodeVisual
+## The core node's presence (#128, #1108): a container with ONE look slot plus
+## the [CoreSigilBloom] glow. What sits in `Slot` is the owner's
+## [member CoreClass.core_look] — `core_gimbal.tscn` for an entity,
+## `core_gear.tscn` for a Dormant Core — so this script never names a look, a
+## ring or a style (docs/domain/skillnode-emblem.md).
 ##
-## Decoupled by an optional per-child hook contract, duck-typed like the
-## family's existing get_node_effects()/composite `_children` fan-out, rather
-## than this script hardcoding CoreHalos/CoreSigilBloom by name or type:
+## Slot contract: the look is a [SkillNodeVisual] leaf. CorePresence is itself
+## a child of the composite's identity fan-out and re-pushes everything it
+## knows (radius, both tints, `allocated`, `owner_level`, `node_seed`) into the
+## look, plus `revealed` when the look declares one — on every change and at
+## the moment a new look is instanced, so a look never renders a stale frame.
+##
+## Travel hooks, duck-typed over the bloom AND the look:
 ##   `on_core_travel_start(local_offset: Vector2, duration: float) -> void`
 ##   `on_core_travel_arrived() -> void`
-## Every child that implements either gets called; children that don't are
-## skipped. This is what lets [method glide_from] serve BOTH the live in-scene
-## CorePresence (nested under NodeVisualsComposite/ShaderStack) and a second,
-## standalone instance used as the core-move drag ghost — CorePresence itself
-## never needs to change for either consumer, or for a future third
-## core-presence register.
-##
-## The two registers currently travel differently, per the locked #128 design:
-## - [CoreHalos] physically GLIDES on `on_core_travel_start` — the same
-##   offset->zero tween that used to move the star marker.
-## - [CoreSigilBloom] does NOT glide. `on_core_travel_start` hides it;
-##   `on_core_travel_arrived` bursts it back in — so the bloom reads as
-##   extinguishing at the old node and reigniting at the new one, in lockstep
-##   with the halo's arrival, rather than visually traveling along the edge.
-##
-## Nested under NodeVisualsComposite/ShaderStack (same spot CoreHalos already
-## lived) rather than a composite-level sibling: `sensed` hides the whole
-## ShaderStack in one move, so a fogged/enemy core needs no separate gate here
-## (see .claude/rules/skill-node-visuals.md's sensed section). Both children
-## stay at relative z_index 0 so CoreHalos' own GimbalBack relative-z offset
-## (see skill-node-visuals.md) is unaffected by this extra nesting level.
+## The look glides; the bloom extinguishes and reignites (#128). The same
+## scene is instanced standalone as the core-move drag ghost, whose caller
+## sets the look once with [method set_look].
 
-## The [CoreHalos] style as `core_presence.tscn` authored it (today: GIMBAL),
-## cached the first time [method set_halo_style] overrides it — so a later
-## `style == -1` call can hand it BACK rather than merely declining to touch
-## the (already-overridden) live value. `-1` sentinel for "not cached yet";
-## every real [CoreHalos.CoreHaloStyle] value is `>= 0`, so it can't collide
-## with a legitimately-authored `NONE` (0).
-var _authored_halo_style: int = -1
+## Whether the node is out of the fog for the local viewer (half of a look's
+## animation/visibility gate, #802). Forwarded to the look when it has one.
+var revealed: bool = true:
+	set(value):
+		revealed = value
+		var look := get_look()
+		if look != null and &"revealed" in look:
+			look.revealed = value
+
+var _look_scene: PackedScene = null
 
 
-func set_look(_scene: PackedScene) -> void:
-	pass
-
-
-## Overrides [member CoreHalos.halo_style] on the [CoreHalos] child. `style ==
-## -1` restores whatever `core_presence.tscn` authored (cached in [member
-## _authored_halo_style] on first override) — a genuine restore, not merely a
-## no-op, so a caller that overrides and later clears the override (a
-## removable blocker, #478, going COG-while-blocked → Default-once-cleared)
-## gets its normal halo back rather than staying stuck on the override. See
-## [member SkillNode.core_halo_style]'s docstring for the sentinel and the
-## perf motivation (COG instead of the expensive GIMBAL while blocked).
-##
-## EXPLICIT — a named child lookup, not duck-typed like [method glide_from]'s
-## `on_core_travel_start`/`on_core_travel_arrived` hooks above. Those hooks
-## exist so an arbitrary FUTURE core-presence register (a third child besides
-## CoreHalos/CoreSigilBloom) opts in for free without this script changing.
-## `halo_style` is not a generic per-child capability in that sense — it's a
-## property that belongs to CoreHalos specifically, so pretending every child
-## might have one via `has_method`/duck typing would just hide a real
-## dependency behind a weaker contract for no benefit.
-func set_halo_style(style: int) -> void:
-	var halos := get_node_or_null(^"CoreHalos")
-	if halos == null:
+## Wears `scene` in the slot. The same resource again is a no-op; otherwise the
+## old look leaves the slot at once (and is freed), and the new one is
+## instanced with the identity already pushed before it enters the tree.
+## `null` empties the slot.
+func set_look(scene: PackedScene) -> void:
+	if scene == _look_scene:
 		return
-	if style < 0:
-		if _authored_halo_style >= 0:
-			halos.halo_style = _authored_halo_style
+	_look_scene = scene
+	var slot := get_node(^"Slot")
+	for old in slot.get_children():
+		slot.remove_child(old)
+		old.queue_free()
+	if scene == null:
 		return
-	if _authored_halo_style < 0:
-		_authored_halo_style = halos.halo_style
-	halos.halo_style = style
+	var look := scene.instantiate()
+	_push_identity(look)
+	slot.add_child(look)
 
 
-## Forwards [member SkillNode.revealed] to the [CoreHalos] child, which uses it
-## as half of its animation gate (#802): a halo that nobody can see must not
-## keep rebuilding its geometry, and a fully-fogged node — neither `sensed` nor
-## `revealed`, so the ShaderStack hide above never fires — is precisely the case
-## that slipped through and animated underneath the fog overlay.
-##
-## EXPLICIT named-child lookup for the same reason [method set_halo_style] is
-## (see its docstring): this is a property of CoreHalos specifically, not a
-## generic per-child capability worth hiding behind duck typing.
-func set_halo_revealed(value: bool) -> void:
-	var halos := get_node_or_null(^"CoreHalos")
-	if halos != null:
-		halos.halo_revealed = value
+## The look currently in the slot, or null.
+func get_look() -> Node:
+	var slot := get_node_or_null(^"Slot")
+	if slot == null or slot.get_child_count() == 0:
+		return null
+	return slot.get_child(0)
 
 
-## Slides children in from `local_offset` (this node's position the instant
-## before a core move commits, expressed relative to this node — the caller
-## already computed the world delta) — see the hook contract above. No-op
-## guard against a degenerate (zero) offset is the caller's job, same as the
-## old play_core_slide_from.
+func set_revealed(value: bool) -> void:
+	revealed = value
+
+
+func configure(new_radius: float) -> void:
+	super(new_radius)
+	var look := get_look()
+	if look is SkillNodeVisual:
+		look.configure(new_radius)
+
+
+func _on_identity_changed() -> void:
+	var look := get_look()
+	if look != null:
+		_push_identity(look)
+
+
+func _push_identity(look: Node) -> void:
+	if look is SkillNodeVisual:
+		look.configure(radius)
+		look.entity_tint = entity_tint
+		look.archetype_tint = archetype_tint
+		look.allocated = allocated
+		look.owner_level = owner_level
+		look.node_seed = node_seed
+	if &"revealed" in look:
+		look.revealed = revealed
+
+
+## Slides the presence in from `local_offset` (this node's old position,
+## relative to this node) — see the hook contract above. A degenerate offset
+## is the caller's job to skip.
 func glide_from(local_offset: Vector2, duration: float = 0.25) -> void:
-	for child in get_children():
-		if child.has_method(&"on_core_travel_start"):
-			child.on_core_travel_start(local_offset, duration)
+	for target in _hook_targets():
+		if target.has_method(&"on_core_travel_start"):
+			target.on_core_travel_start(local_offset, duration)
 	var timer := create_tween()
 	timer.tween_interval(duration)
 	timer.tween_callback(_notify_arrived)
 
 
 func _notify_arrived() -> void:
+	for target in _hook_targets():
+		if target.has_method(&"on_core_travel_arrived"):
+			target.on_core_travel_arrived()
+
+
+func _hook_targets() -> Array[Node]:
+	var out: Array[Node] = []
 	for child in get_children():
-		if child.has_method(&"on_core_travel_arrived"):
-			child.on_core_travel_arrived()
+		if child.name != &"Slot":
+			out.append(child)
+	var look := get_look()
+	if look != null:
+		out.append(look)
+	return out

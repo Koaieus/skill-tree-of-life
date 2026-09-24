@@ -12,7 +12,7 @@ extends Node2D
 ## measured 5.74ms COG term (300 blockers, 2000-node board) was pure rebuild.
 ##
 ## Owns no geometry of its own — it asks its parent [CoreHalos] to paint it,
-## untyped/duck-typed exactly the way core_halos_back.gd borrows the gimbal
+## untyped/duck-typed, borrowing the
 ## helpers (CoreHalos deliberately declares no `class_name`, matching every
 ## other leaf in this family).
 ##

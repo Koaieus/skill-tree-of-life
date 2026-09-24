@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://ci0mmuifd3c71" path="res://entity/core/core_class.gd" id="2_5r1b0"]
 [ext_resource type="Resource" uid="uid://cl4uo53xgkvxa" path="res://stats_system/packs/attribute_baseline.tres" id="3_baseline"]
 [ext_resource type="Resource" path="res://entity/core/sigil/triangle_sigil.tres" id="4_sigil"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/core_gimbal.tscn" id="core_look_gimbal"]
 
 [sub_resource type="Resource" id="Resource_q2ptp"]
 resource_name = "+30 Wisdom"
@@ -27,4 +28,5 @@ display_name = "Wise Cheater"
 description = "+30 Wisdom, +10 Perception. The WIS alone is worth +15 XP/turn and an extra sensor hop over the Balanced baseline -- a fast-scaling head start for whichever side takes it."
 modifiers = Array[ExtResource("1_agu68")]([ExtResource("3_baseline"), SubResource("Resource_q2ptp"), SubResource("Resource_xm0xk")])
 sigil = ExtResource("4_sigil")
+core_look = ExtResource("core_look_gimbal")
 metadata/_custom_type_script = "uid://ci0mmuifd3c71"

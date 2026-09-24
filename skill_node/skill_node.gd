@@ -192,42 +192,6 @@ var radius: float:
 var inner_radius: float:
 	get: return base_inner_radius + _stake_growth()
 
-## Overrides which [CoreHalos] preset a core node wears — `-1` (Default) means
-## "whatever core_presence.tscn authored" (today: GIMBAL), so leaving this
-## alone changes nothing for any existing node. Forwarded alongside
-## `core_active` / the sigil in [method _refresh_core_presence]; routes down
-## through [method NodeVisualsComposite.set_core_halo_style] rather than
-## reaching past it into CorePresence/CoreHalos by path (those live inside a
-## nested instanced scene, see .claude/rules/scene-composition.md).
-##
-## Exists for removable blockers (#478): GIMBAL is a 28-segment
-## quaternion-chained hoop stack redrawn every `_process` tick — more than a
-## handful on screen tanks fps (see .claude/rules/skill-node-scale.md), and a
-## level can spawn several blockers. `blocker_node.tscn` pins this to COG (a
-## `draw_circle` + 10 `draw_line`s, ~two orders of magnitude cheaper) so a
-## blocked node's core presence stays active — machinery/obstacle is the right
-## read for a blocker anyway — without paying gimbal cost per instance. The
-## `int` + `@export_enum` shape (not a typed enum) matches [CoreHalos] itself,
-## which deliberately carries no `class_name` (see skill-node-visuals.md).
-##
-## The setter re-runs [method _refresh_core_presence] itself (guarded on
-## `is_node_ready()`, same guard every other re-syncing setter in this file
-## uses pre-`_ready`) — a write at ANY time re-syncs the live halo, so a caller
-## (e.g. [BlockerVisual] toggling this on latch/clear) never has to race
-## `SkillNode`'s own `owner_changed` connection order the way an unsynced flag
-## would. That is what let [BlockerVisual]'s crack-stage refresh be the ONLY
-## `owner_changed` listener that still needs `CONNECT_DEFERRED` — see its
-## `_ready` docstring, which reads combat HP and genuinely does need
-## `_refresh_hp_binding` to have already run.
-@export_enum("Default:-1", "None:0", "Rings:1", "Orbit:2", "Gimbal:3", "Cog:4")
-var core_halo_style: int = -1:
-	set(value):
-		if core_halo_style == value:
-			return
-		core_halo_style = value
-		if is_node_ready():
-			_refresh_core_presence()
-
 @export var self_loops: Array[Edge] = []
 
 @onready var visuals: Node2D = $Visuals
@@ -567,23 +531,32 @@ func _refresh_core_presence() -> void:
 	if _bound_owner != owned_by:
 		if _bound_owner != null and _bound_owner.core_location_changed.is_connected(_refresh_core_presence):
 			_bound_owner.core_location_changed.disconnect(_refresh_core_presence)
+			_bound_owner.leveled_up.disconnect(_on_owner_leveled_up)
 		_bound_owner = owned_by
 		if _bound_owner != null:
 			_bound_owner.core_location_changed.connect(_refresh_core_presence)
+			# The owner's level is visual identity (a look's ring count).
+			_bound_owner.leveled_up.connect(_on_owner_leveled_up)
 	var _is_core := owned_by != null and owned_by.core_location == self
-	# Gate the composite's core-only presence visuals (CorePresence: CoreHalos +
-	# CoreSigilBloom, #128) to the one core node — otherwise every node draws a
-	# gimbal (fps sink). `sensed` hiding the whole ShaderStack (CorePresence's
-	# parent) is what keeps a fogged core hidden — no separate check needed here.
+	# Gate the composite's core-only presence (CorePresence: the owner class's
+	# look + CoreSigilBloom, #128/#1108) to the one core node. The look is null
+	# off-core, so a non-core node instances nothing. `sensed` hiding the whole
+	# ShaderStack (CorePresence's parent) keeps a fogged core hidden.
 	if _node_visuals != null:
 		_node_visuals.core_active = _is_core
 		var sigil: Sigil = null
+		var look: PackedScene = null
 		if _is_core and owned_by.core_class != null:
 			sigil = owned_by.core_class.sigil
+			look = owned_by.core_class.core_look
 		_node_visuals.set_core_sigil(sigil)
-		_node_visuals.set_core_halo_style(core_halo_style)
-		_node_visuals.set_core_halo_revealed(revealed)
+		_node_visuals.set_core_look(look)
+		_node_visuals.set_core_revealed(revealed)
 	_refresh_core_health_bar(_is_core)
+
+
+func _on_owner_leveled_up(_new_level: int) -> void:
+	_sync_visuals()
 
 
 func _refresh_core_health_bar(_is_core: bool) -> void:
@@ -607,10 +580,10 @@ func _apply_sensed_state() -> void:
 		return
 	if _node_visuals != null:
 		_node_visuals.sensed = sensed
-		# Half of CoreHalos' animation gate (#802). `sensed` hides the whole
+		# Half of the core look's gate (#802). `sensed` hides the whole
 		# ShaderStack, but a FULLY fogged node is neither sensed nor revealed —
 		# its halo stayed visible under the fog overlay and kept rebuilding.
-		_node_visuals.set_core_halo_revealed(revealed)
+		_node_visuals.set_core_revealed(revealed)
 	z_as_relative = not sensed
 	z_index = ZLayers.GRAPH_DEFAULT + ZLayers.SENSED if sensed else 0
 	# CorePresence needs no explicit hide here — it's nested under ShaderStack,
@@ -691,6 +664,8 @@ func _sync_visuals() -> void:
 	# repaint this triggers already IS the reveal.
 	_node_visuals.entity_tint = owned_by.color if owned_by != null else Color.WHITE
 	_node_visuals.archetype_tint = base_type_color
+	_node_visuals.owner_level = owned_by.level if owned_by != null else 1
+	_node_visuals.node_seed = stable_id
 	_node_visuals.stake_level = stake_level
 	_node_visuals.allocation_level = allocation_level if owned_by != null else 0
 	_node_visuals.sensed = sensed
@@ -1961,7 +1936,7 @@ const CORE_SLIDE_DURATION := 0.25
 
 ## Core-movement slide-in (#21, #128). Called on the *new* core slot after
 ## AllocationSystem.move_core commits; retargets the old CoreMarker glide onto
-## [CorePresence] (CoreHalos + CoreSigilBloom) — the halo offsets to the
+## [CorePresence] (the slot look + CoreSigilBloom) — the look offsets to the
 ## previous slot's world position and tweens back to local zero, while the
 ## bloom extinguishes for the travel and bursts back in on arrival (see
 ## core_presence.gd). The underlying `core_location` has already flipped (and

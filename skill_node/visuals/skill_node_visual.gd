@@ -46,11 +46,24 @@ extends Node2D
 		archetype_tint = value
 		_on_identity_changed()
 
-## The owner's level (1 when unowned). Provided by the composite.
-var owner_level: int = 1
+## The owning entity's level (1 when unowned). Provided by the composite.
+## Generic identity like the tints: a look derives its own params from it
+## (CoreGimbal's ring count), so no container ever names those params.
+var owner_level: int = 1:
+	set(value):
+		if owner_level == value:
+			return
+		owner_level = value
+		_on_identity_changed()
 
-## The node's [member SkillNode.stable_id] (0 when unindexed). Provided by the composite.
-var node_seed: int = 0
+## The node's [member SkillNode.stable_id] (0 when unindexed) — a per-node seed
+## stable across peers. Provided by the composite.
+var node_seed: int = 0:
+	set(value):
+		if node_seed == value:
+			return
+		node_seed = value
+		_on_identity_changed()
 
 ## Whether the owning node is allocated. Provided by the composite.
 @export var allocated: bool = false:

@@ -23,12 +23,10 @@ extends Node
 
 const _SOFTWARE_HINTS: Array[String] = ["llvmpipe", "softpipe", "swiftshader"]
 const _BASELINE := "baseline"
-## Plain-int mirrors of CoreHalos.CoreHaloStyle (this probe never types against
-## the leaf component — see blocker_visual.gd for the same mirrors).
-const _STYLE_NONE := 0
-const _STYLE_GIMBAL := 3
-const _STYLE_COG := 4
-const _STYLE_NAMES: Array[String] = ["NONE", "RINGS", "ORBIT", "GIMBAL", "COG"]
+## The core looks the halo toggles match on — a core's look is the scene its
+## CorePresence slot wears (`CoreClass.core_look`, #1108).
+const _LOOK_GIMBAL := "res://skill_node/visuals/core_gimbal.tscn"
+const _LOOK_GEAR := "res://skill_node/visuals/core_gear.tscn"
 const _STAGE := "gimbal-stage"
 const _STAGE_COUNT := 10
 const _STAGE_RINGS := 5
@@ -44,7 +42,7 @@ const SUBSTRATES: Dictionary = {
 
 var _viewport_rid: RID
 var _baseline_stats: Dictionary = {}
-var _halo_style_before: Dictionary = {}
+var _look_before: Dictionary = {}
 var _fog_visible_before := true
 var _injected_env: WorldEnvironment = null
 var _turn_owner_name := "<none>"
@@ -261,51 +259,47 @@ func _frame_tick() -> void:
 		await RenderingServer.frame_post_draw
 
 
-## Turns off only the halos whose EFFECTIVE style matches `only_style`
-## (`-1` = every style, the old blanket toggle). Isolating matters: the level
-## carries ~10x more cheap COG blockers (#478) than true GIMBAL cores, so a
-## blanket toggle measures "all core halos" and any per-gimbal division of that
-## delta is contaminated by the COGs.
-func _disable_halos(root: GameRoot, only_style: int) -> void:
+## Takes the look off only the cores wearing `only_look` (`""` = every look).
+## Isolating matters: the level carries ~10x more gear blockers (#478) than
+## gimbal cores, so a blanket toggle's per-gimbal delta is contaminated.
+func _disable_halos(root: GameRoot, only_look: String) -> void:
 	for n: SkillNode in root.graph.get_skill_nodes():
-		if only_style != -1 and _effective_style(n) != only_style:
+		var path := _look_path(n)
+		if path == "" or (only_look != "" and path != only_look):
 			continue
-		_halo_style_before[n.get_instance_id()] = n.core_halo_style
-		n.core_halo_style = _STYLE_NONE
+		_look_before[n.get_instance_id()] = path
+		_composite(n).set_core_look(null)
 
 
+## Restores verbatim what each core wore, never re-derived from its class.
 func _restore_halos(root: GameRoot) -> void:
 	for n: SkillNode in root.graph.get_skill_nodes():
 		var id := n.get_instance_id()
-		if _halo_style_before.has(id):
-			n.core_halo_style = _halo_style_before[id]
-	_halo_style_before.clear()
+		if _look_before.has(id):
+			_composite(n).set_core_look(load(_look_before[id]))
+	_look_before.clear()
 
 
-## The style the node's CoreHalos is ACTUALLY drawing. `core_halo_style == -1`
-## is the "whatever the scene authored" sentinel, so it can't be read directly;
-## ask the live component through the composite instead.
-func _effective_style(n: SkillNode) -> int:
-	var halos := _find_halos(n)
-	return int(halos.halo_style) if halos != null else _STYLE_NONE
+func _composite(n: SkillNode) -> NodeVisualsComposite:
+	return n.find_child("NodeVisualsComposite", true, false) as NodeVisualsComposite
 
 
-func _find_halos(n: Node) -> Node:
-	for child in n.get_children():
-		if child.has_method("is_gimbal_active"):
-			return child
-		var found := _find_halos(child)
-		if found != null:
-			return found
-	return null
+## The look the node's CorePresence slot wears, or null.
+func _find_halos(n: SkillNode) -> Node:
+	var presence := n.find_child("CorePresence", true, false) as CorePresence
+	return presence.get_look() if presence != null else null
+
+
+func _look_path(n: SkillNode) -> String:
+	var look := _find_halos(n)
+	return look.scene_file_path if look != null else ""
 
 
 ## How many nodes are drawing each halo style RIGHT NOW — the denominator for
 ## any per-core cost claim, measured rather than eyeballed.
 ##
-## Four buckets, because the gap between them IS the finding: `present` counts
-## every CoreHalos component carrying the style (most sit on non-core nodes
-## with CorePresence hidden, so they never draw but DO still `_process`);
+## Four buckets, keyed by look name: `present` counts every core wearing the
+## look (only cores wear one, #1108);
 ## `drawing` is visible-in-tree, i.e. actually rebuilding its buffer every
 ## frame; `revealed` and `onscreen` are the subsets that a fog-gate or a
 ## viewport-cull would keep. `drawing` minus `onscreen` is rebuild work whose
@@ -320,7 +314,7 @@ func _halo_census(root: GameRoot) -> Dictionary:
 		var halos := _find_halos(n)
 		if halos == null:
 			continue
-		var style := int(halos.halo_style)
+		var style := halos.scene_file_path.get_file().get_basename()
 		counts[style] = int(counts.get(style, 0)) + 1
 		if not (halos as CanvasItem).is_visible_in_tree():
 			continue
@@ -334,21 +328,19 @@ func _halo_census(root: GameRoot) -> Dictionary:
 
 
 ## — segment toggles ————————————————————————————————————————————————————————————
-## Each toggle measures one named suspect. Restore is verbatim, not
-## sentinel-based: [code]core_halo_style = -1[/code] means "whatever the scene
-## authored" — restoring blocker nodes with it would UN-pin their authored COG
-## style and quietly add gimbals to the level. Snapshot, then restore exactly.
+## Each toggle measures one named suspect. Restore is verbatim: snapshot each
+## core's look path, then put exactly that back.
 
 func _enter_segment(segment: String, root: GameRoot) -> void:
 	match segment:
 		_BASELINE:
 			pass
 		"gimbals-off":
-			_disable_halos(root, _STYLE_GIMBAL)
+			_disable_halos(root, _LOOK_GIMBAL)
 		"cogs-off":
-			_disable_halos(root, _STYLE_COG)
+			_disable_halos(root, _LOOK_GEAR)
 		"halos-off":
-			_disable_halos(root, -1)
+			_disable_halos(root, "")
 		"halos-frozen":
 			# Still drawn, just not re-drawn: stops the animation clock and the
 			# per-frame queue_redraw, keeping the last buffer on screen. This
@@ -539,10 +531,8 @@ func _format_census(census: Dictionary) -> String:
 	var present: Dictionary = census["present"]
 	var parts: Array[String] = []
 	for style in present:
-		if int(style) == _STYLE_NONE:
-			continue
 		parts.append("%s %d drawing (%d revealed, %d onscreen) / %d present" % [
-			_STYLE_NAMES[int(style)] if int(style) < _STYLE_NAMES.size() else str(style),
+			str(style),
 			int((census["drawing"] as Dictionary).get(style, 0)),
 			int((census["revealed"] as Dictionary).get(style, 0)),
 			int((census["onscreen"] as Dictionary).get(style, 0)),

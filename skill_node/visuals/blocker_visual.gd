@@ -40,17 +40,10 @@ extends Node2D
 ## to a Graph's `entities_container` and reads 0 otherwise, so two unparented
 ## entities would compare equal.
 ##
-## Drives [member SkillNode.core_halo_style] in lockstep with the latch — COG
-## (the cheap preset) while blocked, `-1` (Default, restoring whatever
-## `core_presence.tscn` authored — GIMBAL today) once cleared. Core presence
-## itself stays ACTIVE the whole time; it's cheaper to keep it on the
-## cog-machinery style than to suppress-and-restore it, and a level can spawn
-## several blockers (GIMBAL's per-frame quaternion chain is expensive at a
-## handful of instances — see that export's docstring). `blocker_node.tscn`
-## also pins the style to COG statically so a freshly-instantiated-but-not-yet-
-## allocated node never has a stray frame of GIMBAL before this script's first
-## deferred sync runs; this script's write is what makes the `-1` restore on
-## clear possible; the boulder simply draws over whichever style is live.
+## The core's look is not this script's business: a blocker entity's class is
+## `blocker_core.tres`, whose `core_look` is the gear (`core_gear.tscn`), so a
+## blocked node wears the gear and a cleared node re-owned by a player wears
+## that player's class look — both through [method SkillNode._refresh_core_presence].
 ##
 ## Fog mirrors every other owner-detail on the node (the disk, the addons):
 ## hidden while [member SkillNode.sensed]. Resynced off the node's
@@ -93,13 +86,6 @@ const BOULDER_RADIUS_SCALE := 0.92
 
 ## How many crack lines each stage draws.
 const CRACK_COUNTS: Array[int] = [0, 2, 4]
-
-## Plain-int mirrors of [member SkillNode.core_halo_style]'s own
-## `@export_enum` values — [CoreHalos] deliberately carries no `class_name`
-## (see .claude/rules/skill-node-visuals.md), so there's no enum type to
-## reference here either; these name the two values this script actually uses.
-const _HALO_STYLE_DEFAULT := -1
-const _HALO_STYLE_COG := 4
 
 var crack_stage: CrackStage = CrackStage.INTACT
 
@@ -156,8 +142,6 @@ func _on_damaged(_amount: float, _source: HitInstance) -> void:
 
 func _on_owner_changed() -> void:
 	_update_latch()
-	if _node != null:
-		_node.core_halo_style = _HALO_STYLE_COG if _is_blocked() else _HALO_STYLE_DEFAULT
 	_refresh_stage_and_visibility()
 
 
