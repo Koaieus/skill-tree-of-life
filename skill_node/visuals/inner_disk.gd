@@ -278,6 +278,15 @@ var effective_carve_slice_b: int:
 				return atlas.slice_of((shape as TextureCarveShape).baked_lut)
 		return CarveAtlas.NO_SLICE
 
+## The carve this disk renders, as one value — built from the `effective_*`
+## getters, NEVER read back from the instance uniforms: a fogged or hidden
+## disk never pushed them (see the visibility gate in [method _sync_material]),
+## so a readback would lie for exactly the nodes that die off-screen. This is
+## what a shatter carries so a dying node keeps its glyph.
+func carve_params() -> CarveParams:
+	return CarveParams.none()
+
+
 ## Shared light source (see [LightingStyle]), INJECTED AT RUNTIME by the
 ## composite — a plain `var`, deliberately NOT `@export`: it holds a
 ## composite-built resource, and an exported field assigned in a @tool context
