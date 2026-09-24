@@ -1310,6 +1310,16 @@ static func _is_neutral_result(mod: StatModifier) -> bool:
 		v = ModifierPoolEntry.coerce_to_stat_type(mod.value, mod.operation, mod.stat_id)
 	return is_zero_approx(StatModifier.displacement_from_neutral(mod.operation, v))
 
+static func _v4_pick_distribution(
+		entries: Array[ModifierPoolEntry],
+		profiles: Array[Resource],
+		context: WeightContext,
+		remaining: int,
+		universal_share: float,
+) -> Dictionary:
+	return {}
+
+
 ## v4 weighted pick: affordable filter + weight profile multiplication, then
 ## a single weighted sample. Cost is always positive (#637 retired the
 ## negative-cost/refund-cap branch a debuff pool used to get) — one
@@ -1320,6 +1330,7 @@ static func _v4_weighted_pick(
 		context: WeightContext,
 		remaining: int,
 		rng: RandomNumberGenerator,
+		universal_share: float = GraphProcgenContent.DEFAULT_UNIVERSAL_SHARE,
 ) -> ModifierPoolEntry:
 	var affordable: Array[ModifierPoolEntry] = []
 	var weights: Array[float] = []

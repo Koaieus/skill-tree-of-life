@@ -21,11 +21,22 @@ extends Resource
 @export var operation: StatModifier.Operation = StatModifier.Operation.ADD_BASE
 ## Inclusive range sampled at roll time. Both ends equal → fixed value.
 @export var value_range: Vector2 = Vector2(1.0, 1.0)
-## Budget cost — see [GraphProcgen._v4_weighted_pick]. Floor of 1 keeps
+## Budget cost — see [method GraphProcgen._v4_pick_distribution]. Floor of 1 keeps
 ## per-node draw count bounded (no cost-0 entries).
 @export var cost: int = 1
-## Base sampling weight before [WeightProfile] modulation.
+## This tier's weight inside its pool — the bare [method StatPool.tier_weight],
+## before [WeightProfile] modulation. Never carries [member pool_weight]: the
+## draw weighs pools and tiers at separate levels (see
+## [method GraphProcgen._v4_pick_distribution]).
 @export var weight: float = 1.0
+## The pool this tier was minted from — [member id] minus its `_t<N>` suffix.
+## The draw groups tiers by it. Empty (a hand-built entry) = its own pool.
+@export var pool_key: StringName = &""
+## The owning pool's share among its sibling pools in the same group.
+@export var pool_weight: float = 1.0
+## True iff the owning pack is universal (`archetype_stat == &""`) — the
+## group [member GraphProcgenContent.universal_share] sizes.
+@export var universal: bool = false
 ## Flavour tags. Validated against [TagRegistry].
 @export var tags: Array[StringName] = []
 

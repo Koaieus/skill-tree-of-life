@@ -19,6 +19,14 @@ extends Resource
 ## [method WeightProfile.multiplier_for] duck-typing.
 @export var weight_profiles: Array[Resource] = []
 
+const DEFAULT_UNIVERSAL_SHARE := 0.2
+## Share of every modifier pick that goes to universal (`archetype_stat ==
+## &""`) content, whatever the node's archetype — a share of picks, not of
+## budget points. Renormalized over what is drawable at each pick: when one
+## side has nothing drawable, the other takes the whole pick. See
+## [method GraphProcgen._v4_pick_distribution] and docs/domain/procgen-v4.md.
+@export_range(0.0, 1.0) var universal_share: float = DEFAULT_UNIVERSAL_SHARE
+
 ## Per-node budget knobs — the base range plus archetype / role / positional
 ## multipliers that decide each node's modifier budget. Unset = budget 0
 ## (nodes roll no modifiers). See [BudgetPolicy].
