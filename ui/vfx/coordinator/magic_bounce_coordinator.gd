@@ -132,6 +132,14 @@ const _DRAW_GLOW_TIER: float = Emissive.VALUE
 # The `waves` / beat-index / `pending` triple this coordinator schedules with
 # wants to be a per-wave object rather than three parallel locals — #722.
 
+## The clock the wave cadence walks. Null (the default) means each cast makes
+## its own real-clock [method BeatClock.for_tree]; a test sets
+## [method BeatClock.instant_clock] so every wave spawns and announces inside
+## the un-awaited `play()` call. Its own clock, never the applier's: a
+## [member BeatClock.elapsed] is single-consumer. `play()` still returns on
+## the real clock — it drains in-flight projectiles frame by frame.
+var clock: BeatClock = null
+
 var _caster_tint: Color = Color.WHITE
 ## Which way the cast currently playing turns, and the signed paths built for
 ## it. Both are per-cast state resolved in [method play] — see #708.
@@ -197,56 +205,40 @@ func _play_cast(outcome: AttackOutcome) -> void:
 		await get_tree().process_frame
 
 
-## Three-clocks playback: projectiles are spawned early ([code]beat_time - launch_to_impact[/code])
-## so impact lands on the beat. [method wave_started] fires AT the beat.
+## Three-clocks playback on [member clock]: wave [code]k[/code] launches at
+## [code]k * beat_interval[/code] and [signal wave_started] fires on its arrival,
+## [code]k * beat_interval + lead_in[/code] — the same absolute instants the
+## applier lands hits on. A launch instant already passed (lead-in longer than
+## the interval) is [method BeatClock.advance_to]'s no-op, so the wave spawns
+## immediately after the previous announce.
 func _play_three_clocks(schedule: OutcomeSchedule, entry_of: Dictionary,
 		waves: Dictionary, beats: Array, pending: Array[int]) -> void:
 	var interval: float = schedule.beat_interval()
-	# Floored at a tick rather than at 0: `create_timer(0.0)` is an error, and
-	# a lead-in of exactly zero is a legal authoring choice.
-	var flight: float = maxf(0.001, schedule.lead_in())
+	var flight: float = schedule.lead_in()
+	# A LOCAL per cast, never written back: `elapsed` only advances, so a stored
+	# default would make a second `play()` on this instance fire every wave at once.
+	var beat_clock: BeatClock = clock if clock != null else BeatClock.for_tree(get_tree())
 
 	for i in beats.size():
 		var beat := int(beats[i])
 		var wave: Array = waves[beat]
+		var launch_at: float = float(i) * interval
+		# Every wave — the seed's included — is spawned one `flight` before its
+		# announce, so the whole spell reads cause-then-effect: no propagation
+		# leaves a target before the bolt travelling toward it has arrived.
+		await beat_clock.advance_to(launch_at)
+		_open_focus_wave(wave)
+		for ev_v in wave:
+			_play_event(ev_v, entry_of, flight, pending)
+		await beat_clock.advance_to(launch_at + flight)
 
-		if i == 0:
-			# The seed's own flight was the one hop nobody waited for. Beat 0
-			# used to be announced synchronously with `play()` — same instant
-			# its projectile was spawned — so the first propagation left the
-			# target before the bolt travelling toward it had arrived. Every
-			# LATER beat was already spawned `flight` early and announced on
-			# arrival; beat 0 is now the same shape, which costs one `flight`
-			# of lead-in and puts the whole spell in cause-then-effect order.
-			_open_focus_wave(wave)
-			for ev_v in wave:
-				_play_event(ev_v, entry_of, flight, pending)
-			await get_tree().create_timer(flight).timeout
-
-		# #504: no `_show_presentation` pass anymore. The wave's hits land on
-		# the applier's beat clock, so the HP bar, node tint and damage number
-		# all move off the model as the bolt arrives — this coordinator no
-		# longer re-announces what already happened. `wave_started` stays: it is
-		# the animation's own cadence signal, which tests assert on.
-		#
-		# "As the bolt arrives" used to be an arithmetic claim whose two halves
-		# were maintained by hand in two files. Since #543 it is true by
-		# construction: impact here is `lead_in + N * beat_interval` read off
-		# the schedule, and the applier waits that same schedule's
-		# `arrive_at`. One number, so there is nothing left to re-check.
+		# #504: no `_show_presentation` pass. The wave's hits land on the
+		# applier's own beat clock, so HP bar, node tint and damage number move
+		# off the model as the bolt arrives; `wave_started` is the animation's
+		# own cadence signal. Impact here is `lead_in + k * beat_interval` read
+		# off the schedule, and the applier waits that same schedule's
+		# `arrive_at` (#543) — one number, walked by two single-consumer clocks.
 		wave_started.emit(beat, wave.size())
-
-		if i < beats.size() - 1:
-			var next_wave: Array = waves[int(beats[i + 1])]
-			var early: float = maxf(0.0, interval - flight)
-			if early > 0.0:
-				await get_tree().create_timer(early).timeout
-			_open_focus_wave(next_wave)
-			for ev_v in next_wave:
-				_play_event(ev_v, entry_of, flight, pending)
-			var remaining: float = maxf(0.0, interval - early)
-			if remaining > 0.0:
-				await get_tree().create_timer(remaining).timeout
 
 
 ## The camera's per-wave beat (#1044): opens the [SwarmFocus] segment on the
@@ -338,7 +330,7 @@ func _play_projectile(ev: PropagationEvent, entry_of: Dictionary, flight: float,
 ## [b]A zero-length [Projectile], not a bare `add_child` + timer.[/b] It rides
 ## the same clock as the closing bolt (spawned one lead-in early, arriving on the
 ## beat), the same `pending` drain, and the same teardown safety every other
-## projectile gets — a cast cut short by [method BeatClock.drain] must not leave
+## projectile gets — a cast cut short by teardown must not leave
 ## rings behind. `target → target` is the SELF_LOOP shape [Projectile] already
 ## supports, and [member face_velocity]'s own `length_squared() > 1e-6` guard
 ## means a zero-length flight never rotates.
