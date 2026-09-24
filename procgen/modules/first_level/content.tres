@@ -162,7 +162,7 @@ cluster_size_weights = {
 2: 0.5
 }
 cluster_jitter = 0.05
-forbid_tags = Array[StringName]([&"str", &"dex", &"int", &"con", &"per", &"attack", &"magic", &"defense", &"vision"])
+forbid_tags = Array[StringName]([&"defense"])
 
 [sub_resource type="Resource" id="ap_purple"]
 script = ExtResource("10_t0e51")
@@ -174,7 +174,7 @@ cluster_size_weights = {
 2: 0.3
 }
 cluster_jitter = 0.05
-forbid_tags = Array[StringName]([&"str", &"dex", &"int", &"con", &"wis", &"attack", &"magic", &"defense", &"growth", &"xp_growth"])
+forbid_tags = Array[StringName]([&"defense"])
 
 [sub_resource type="Resource" id="budget_field"]
 script = ExtResource("17_s7jhb")

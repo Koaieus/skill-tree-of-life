@@ -229,8 +229,8 @@ Three properties are load-bearing, and none of them is a tuning knob:
   own armor at all.
 
 WIS/PER being curse-free is a stated asymmetry, not an omission — they are 5% /
-3% of the graph and are already locked out of *all* universal content by their
-`forbid_tags` (#750). Making the pack the only gate is #751.
+3% of the graph and are already locked out of universal *defensive* content
+(armor, node_health) by their `forbid_tags` (#750); mobility still rolls. Making the pack the only gate is #751.
 
 `test/unit/test_pool_scoping.gd` pins all of this structurally, plus a headless
 sweep of `_get_configuration_warnings()` across every pack and pool — that

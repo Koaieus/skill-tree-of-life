@@ -26,7 +26,8 @@ const _SET := preload("res://procgen/pools/specimen_pool_set.tres")
 ## quick/clever attributes; the two quick/clever archetypes tax the two
 ## defensive stats. WIS and PER are deliberately curse-free — a stated
 ## asymmetry, not an omission: they are 5% / 3% of the graph and already pay
-## by being locked out of universal content via their `forbid_tags` (#750).
+## by being locked out of universal *defensive* content (armor, node_health)
+## via their `forbid_tags` (#750); mobility still rolls.
 const _CURSED_STAT := {
 	&"strength": &"intelligence",      # power over thought
 	&"constitution": &"dexterity",     # armor is heavy
@@ -159,3 +160,49 @@ func test_no_configuration_warnings() -> void:
 	assert_eq(complaints.size(), 0,
 		"procgen pool content has configuration warnings — these are invisible headless, so they accrete silently:\n  %s"
 		% "\n  ".join(complaints))
+
+
+## #750 — WIS (gold) and PER (purple) are locked out of universal *defensive*
+## content by `forbid_tags = [&"defense"]`, and only that: mobility still
+## rolls. Runs each entry through the real weight pipeline
+## (`GraphProcgen._v4_weighted_pick` on a one-entry list — non-null iff its
+## effective weight is > 0), with the module's own profiles and forbid list.
+const _MODULE_CONTENTS: Array[String] = [
+	"res://procgen/modules/first_level/content.tres",
+	"res://procgen/modules/coop_versus/content.tres",
+]
+
+
+func _is_drawable(entry: ModifierPoolEntry, content: GraphProcgenContent,
+		policy: ArchetypePolicy, forbid: Array[StringName]) -> bool:
+	var ctx := WeightContext.new()
+	ctx.archetype = policy.id
+	ctx.position = Vector2.ZERO
+	ctx.node_index = 0
+	ctx.forbid_tags = forbid
+	var one: Array[ModifierPoolEntry] = [entry]
+	return GraphProcgen._v4_weighted_pick(one, content.weight_profiles, ctx,
+		1 << 20, RandomNumberGenerator.new()) != null
+
+
+func test_gold_and_purple_forbid_defense_but_roll_mobility() -> void:
+	for path in _MODULE_CONTENTS:
+		var content := load(path) as GraphProcgenContent
+		assert_not_null(content, path)
+		var seen := 0
+		for policy: ArchetypePolicy in content.archetypes:
+			if policy == null or not policy.id in [&"gold", &"purple"]:
+				continue
+			seen += 1
+			var forbid: Array[StringName] = policy.forbid_tags
+			var mobility_live := 0
+			for e in content.modifier_pool_set.flatten_for_node(policy.primary_stat):
+				var live := _is_drawable(e, content, policy, forbid)
+				if &"defense" in e.tags:
+					assert_false(live, "%s: %s must never roll %s (defense is forbidden)"
+						% [path.get_file(), String(policy.id), String(e.id)])
+				if &"mobility" in e.tags and live:
+					mobility_live += 1
+			assert_gt(mobility_live, 0, "%s: %s must still roll mobility content"
+				% [path.get_file(), String(policy.id)])
+		assert_eq(seen, 2, "%s must author both gold and purple" % path)
