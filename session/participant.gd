@@ -33,6 +33,16 @@ enum Kind { HUMAN, AI }
 ## inside one. THE absolute fact about locality; everything relational is
 ## derived from it.
 @export var peer_id: int = 0
+## How hard this seat's [AIController] plays — run shape, chosen with the seat
+## like [member core_class] and [member camp], never rolled. Read only where
+## [GameRoot] builds an AI controller, so a human seat handed to the AI
+## mid-run plays at the tier its seat already carries.
+##
+## An [enum AIController.Tier], default [constant AIController.DEFAULT_TIER]
+## (TACTICIAN). Typed [int] with a literal because naming [AIController] here
+## makes Participant load AIController's const-preload chain — a script-load
+## cycle that breaks AIController outright. A test pins the literal to the enum.
+@export var ai_tier: int = 2
 
 
 ## Is this seat at the machine whose own id is [param local_peer_id]?

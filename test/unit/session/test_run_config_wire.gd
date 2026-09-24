@@ -51,6 +51,7 @@ func test_one_payload_reads_correctly_on_both_machines() -> void:
 
 func test_participant_round_trip_preserves_every_field() -> void:
 	var source := _participant(5, Participant.Kind.HUMAN, _CAMP_1, 99)
+	source.ai_tier = AIController.Tier.WARLORD
 	var decoded := Participant.from_dict(source.to_dict())
 
 	assert_eq(decoded.id, source.id)
@@ -59,6 +60,18 @@ func test_participant_round_trip_preserves_every_field() -> void:
 	assert_eq(decoded.camp, source.camp, "camp identity must survive — same Resource, via its path")
 	assert_eq(decoded.kind, source.kind)
 	assert_eq(decoded.peer_id, source.peer_id)
+	assert_eq(decoded.ai_tier, AIController.Tier.WARLORD, "the seat's AI tier crosses the wire")
+
+
+func test_a_fresh_participants_tier_is_the_ai_default() -> void:
+	assert_eq(Participant.new().ai_tier, AIController.DEFAULT_TIER,
+			"participant.gd's int literal must track AIController.DEFAULT_TIER")
+
+
+func test_participant_without_a_tier_key_decodes_to_the_default_tier() -> void:
+	var d := _participant(5, Participant.Kind.AI, _CAMP_1, 0).to_dict()
+	d.erase("ai_tier")
+	assert_eq(Participant.from_dict(d).ai_tier, AIController.DEFAULT_TIER)
 
 
 func test_roster_round_trip_preserves_every_participant() -> void:

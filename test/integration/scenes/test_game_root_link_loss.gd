@@ -118,6 +118,17 @@ func test_a_departed_peers_hero_is_handed_to_the_ai() -> void:
 	assert_true(GameRoot._find_controller(_local) is PlayerController)
 
 
+func test_a_handed_over_seat_plays_at_its_seats_tier() -> void:
+	_remote_seat.ai_tier = AIController.Tier.WARLORD
+	_root.transport.peer_left.emit(_REMOTE_PEER)
+
+	var ai := GameRoot._find_controller(_remote) as AIController
+	assert_not_null(ai)
+	if ai != null:
+		assert_eq(ai.ai_tier, AIController.Tier.WARLORD,
+				"the tier the seat already carried, with no handover-specific code")
+
+
 func test_a_peer_leaving_on_its_own_turn_does_not_strand_the_turn() -> void:
 	_hand_turn_to(_remote)
 	assert_eq(_root.turn_manager.current_entity, _remote)
