@@ -89,14 +89,21 @@ func test_a_pool_gated_to_a_subtype_is_absent_from_another_subtypes_flatten() ->
 ## `to_entries` appends no id segment — so every entry id is byte-identical.
 func test_an_empty_subtype_set_selects_exactly_what_the_archetype_gate_selects() -> void:
 	# #1059 authored real gates on the shipped pools, so the question "is `[]`
-	# inert" is now asked of a deep copy with every gate CLEARED. `duplicate(true)`
-	# copies the packs and pools, so clearing here cannot leak into the cached
-	# resource other tests load.
+	# inert" is now asked of a copy with every gate CLEARED. `duplicate(true)`
+	# stops at the ExtResource boundary — the packs are their own `.tres` — so
+	# each pack and pool is copied by hand; clearing the cached ones would leak
+	# into every later test in the process.
 	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
-	for pack in pool_set.packs:
+	for i in pool_set.packs.size():
+		var pack: StatPack = pool_set.packs[i].duplicate()
+		var pools: Array[StatPool] = []
 		for pool in pack.pools:
 			if pool != null:
+				pool = pool.duplicate()
 				pool.subtypes = [] as Array[NodeSubtype]
+			pools.append(pool)
+		pack.pools = pools
+		pool_set.packs[i] = pack
 	var blight := _subtype(&"blight")
 	for primary: StringName in [&"strength", &"dexterity", &"intelligence",
 			&"wisdom", &"perception", &"constitution"]:
@@ -226,7 +233,7 @@ func _mod_text(sn: SkillNode) -> String:
 ## play. The control half proves the demotion is not vacuous: give that same
 ## subtype one drawable pool and nodes stand on it.
 func test_a_subtype_with_no_drawable_content_demotes_to_the_default() -> void:
-	var blight := _subtype(&"blight", 1.0)
+	var blight := _subtype(&"unnamed_pole", 1.0)
 	var starved := _fresh_config()
 	starved.content.subtypes = [blight] as Array[NodeSubtype]
 	var default_id: StringName = starved.content.resolved_default_subtype().id
@@ -245,7 +252,7 @@ func test_a_subtype_with_no_drawable_content_demotes_to_the_default() -> void:
 	_add_blight_pool(fed, blight)
 	var stood := 0
 	for sn in _content_nodes(await _generate(fed)):
-		if sn.subtype != null and sn.subtype.id == &"blight":
+		if sn.subtype != null and sn.subtype.id == &"unnamed_pole":
 			stood += 1
 	assert_true(stood > 0, "a subtype WITH drawable content must stand on some node")
 
@@ -265,7 +272,7 @@ func test_the_subtype_roll_does_not_shift_the_main_rng_stream() -> void:
 	var without := _fresh_config()
 	without.content.subtypes = [] as Array[NodeSubtype]
 	var with_ := _fresh_config()
-	with_.content.subtypes = [_subtype(&"blight", 0.3)] as Array[NodeSubtype]
+	with_.content.subtypes = [_subtype(&"unnamed_pole", 0.3)] as Array[NodeSubtype]
 
 	var a := await _generate(without)
 	var b := await _generate(with_)
