@@ -192,16 +192,16 @@ func test_round_trip_reinstantiates_an_authored_scene_node() -> void:
 	assert_eq(t.get_display_name(), titan.get_display_name(), "#179's name rides in the scene")
 	assert_eq(t.base_type_color, titan.base_type_color, "the scene's colour rides in the scene")
 	assert_almost_eq(t.base_radius, titan.base_radius, 0.001)
-	# #929: the landmark's StatEffect is a SubResource of the scene — it rides
-	# in the re-instantiated scene and the reconcile pass must leave it there
-	# (a `.tres`-only reconcile would wipe it, and a joining client would
+	# #929: the landmark's payload is SubResource modifiers of the scene — they
+	# ride in the re-instantiated scene and the reconcile pass must leave them
+	# (a `.tres`-only reconcile would wipe them, and a joining client would
 	# allocate a landmark that grants nothing). Twice, so a #561 resync into
 	# an already-built world is covered too.
-	assert_eq(t.effects.size(), titan.effects.size(), "the scene's own effects survive the create path")
-	assert_true(t.effects.size() > 0 and t.effects[0] == titan.effects[0],
-			"the decoded landmark shares the scene's StatEffect instance")
+	assert_eq(t.modifiers.size(), titan.modifiers.size(), "the scene's own modifiers survive the create path")
+	assert_true(t.modifiers.size() > 0 and (t.modifiers[0] as StatModifier).stat_id == &"strength",
+			"the decoded landmark keeps its authored grant")
 	GraphSnapshot.decode(GraphSnapshot.encode(source), target)
-	assert_eq(t.effects.size(), titan.effects.size(), "the scene's own effects survive a resync")
+	assert_eq(t.modifiers.size(), titan.modifiers.size(), "the scene's own modifiers survive a resync")
 	# Plain nodes stay plain: the slot is only set for a non-default scene.
 	var plain := target.get_by_stable_id(source.get_stable_id(source.get_skill_nodes()[0]))
 	assert_eq(plain.scene_file_path, "res://skill_node/skill_node.tscn")

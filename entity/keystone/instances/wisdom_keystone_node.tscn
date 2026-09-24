@@ -1,9 +1,7 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://entity/keystone/keystone_skill_node.tscn" id="1_base"]
-[ext_resource type="Script" uid="uid://dh6uu0jrbmt12" path="res://effects/stat_effect.gd" id="2_fx"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="3_mod"]
-[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="4_fxbase"]
 
 [sub_resource type="Resource" id="m_wisdom"]
 resource_name = "+20 Wisdom"
@@ -11,13 +9,7 @@ script = ExtResource("3_mod")
 stat_id = &"wisdom"
 value = 20.0
 
-[sub_resource type="Resource" id="fx_wisdom"]
-script = ExtResource("2_fx")
-display_name = "Wellspring of Thought"
-description = "A common landmark: +20 Wisdom."
-modifiers = Array[ExtResource("3_mod")]([SubResource("m_wisdom")])
-
 [node name="WisdomKeystoneNode" instance=ExtResource("1_base")]
 base_type_color = Color(0.85, 0.75, 1.0, 1)
-effects = Array[ExtResource("4_fxbase")]([SubResource("fx_wisdom")])
+modifiers = Array[ExtResource("3_mod")]([SubResource("m_wisdom")])
 display_name = "Wellspring of Thought"

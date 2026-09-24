@@ -1,9 +1,7 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://entity/keystone/keystone_skill_node.tscn" id="1_base"]
-[ext_resource type="Script" uid="uid://dh6uu0jrbmt12" path="res://effects/stat_effect.gd" id="2_fx"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="3_mod"]
-[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="4_fxbase"]
 
 [sub_resource type="Resource" id="m_vision_range"]
 resource_name = "+100 Vision Range"
@@ -11,13 +9,7 @@ script = ExtResource("3_mod")
 stat_id = &"vision_range"
 value = 100.0
 
-[sub_resource type="Resource" id="fx_farsight"]
-script = ExtResource("2_fx")
-display_name = "Farsight Spire"
-description = "A vision landmark: +100 vision range, far-seeing across the whole map."
-modifiers = Array[ExtResource("3_mod")]([SubResource("m_vision_range")])
-
 [node name="FarsightNode" instance=ExtResource("1_base")]
 base_type_color = Color(0.2, 0.75, 0.75, 1)
-effects = Array[ExtResource("4_fxbase")]([SubResource("fx_farsight")])
+modifiers = Array[ExtResource("3_mod")]([SubResource("m_vision_range")])
 display_name = "Farsight Spire"

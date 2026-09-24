@@ -137,8 +137,12 @@ The pure-stat path already works and authors cleanly, so `Effect` is additive:
 | `SkillNodeAddon` | `effects` | same, via `SkillNode.get_node_effects()` |
 
 A landmark ("keystone") is a hand-authored inherited scene of
-`entity/keystone/keystone_skill_node.tscn` whose `StatEffect` sits on
-`SkillNode.effects` as a SubResource of the `.tscn` (#336 / #929). The old
+`entity/keystone/keystone_skill_node.tscn` whose stat payload is plain
+`SkillNode.modifiers` SubResources of the `.tscn` (#336; supersedes #929's
+placement on `SkillNode.effects`). Owner call, 2026-09-24: a pure stat bundle
+belongs in the node's `modifiers` array, not wrapped in a `StatEffect` — wrapped,
+the tooltip read an empty aura and "(no modifiers)". `SkillNode.effects` is for
+a landmark that does something behavioural. The old
 `Keystone` resource — identity + an `effects` payload that `stamp()`ed
 presentation onto a carrier node — mirrored a subset of `SkillNode`'s own
 authoring surface and is deleted; its payload semantics (live reference, read

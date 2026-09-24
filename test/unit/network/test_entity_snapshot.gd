@@ -15,7 +15,10 @@ extends GutTest
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _TITAN_SCENE := preload("res://entity/keystone/instances/titan_node.tscn")
+## A landmark whose payload is a StatEffect SubResource — the shape a
+## behavioural landmark has. No shipped keystone carries one (pure stat bundles
+## are plain modifiers), so the fixture keeps this wire path covered.
+const _TITAN_SCENE := preload("res://test/fixtures/effect_landmark_node.tscn")
 
 
 func _new_graph() -> Graph:
@@ -226,7 +229,7 @@ func test_effect_provenance_survives_and_revoke_still_bites() -> void:
 	var src_owner := _new_entity(source)
 	var dst_owner := _new_entity(target)
 
-	# A real shipped effect — a SubResource of a landmark scene (#929), which
+	# A scene-borne effect — a SubResource of a landmark scene (#929), which
 	# is the shape every node-carried effect in this project actually has.
 	# The carrier is the landmark node itself, added to BOTH graphs by the
 	# same scene so the stable ids line up the way #330's graph round trip

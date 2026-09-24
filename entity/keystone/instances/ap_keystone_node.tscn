@@ -1,9 +1,7 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://entity/keystone/keystone_skill_node.tscn" id="1_base"]
-[ext_resource type="Script" uid="uid://dh6uu0jrbmt12" path="res://effects/stat_effect.gd" id="2_fx"]
 [ext_resource type="Script" uid="uid://che6xhl6srqh3" path="res://stats_system/stat_modifier.gd" id="3_mod"]
-[ext_resource type="Script" uid="uid://dg4m4os0d6e5f" path="res://effects/effect.gd" id="4_fxbase"]
 
 [sub_resource type="Resource" id="m_action_points"]
 resource_name = "+1 Max Action Points"
@@ -11,13 +9,7 @@ script = ExtResource("3_mod")
 stat_id = &"action_points"
 value = 1.0
 
-[sub_resource type="Resource" id="fx_ap_keystone"]
-script = ExtResource("2_fx")
-display_name = "Overcharged Cell"
-description = "A rare landmark: +1 max Action Points."
-modifiers = Array[ExtResource("3_mod")]([SubResource("m_action_points")])
-
 [node name="APKeystoneNode" instance=ExtResource("1_base")]
 base_type_color = Color(1.0, 0.6, 0.1, 1)
-effects = Array[ExtResource("4_fxbase")]([SubResource("fx_ap_keystone")])
+modifiers = Array[ExtResource("3_mod")]([SubResource("m_action_points")])
 display_name = "Overcharged Cell"

@@ -1,7 +1,9 @@
 extends GutTest
 ## v4 #321 D8 / #929: the hand-authored landmark SkillNode scenes each carry
-## their own StatEffect on [member SkillNode.effects] (a SubResource of the
-## .tscn) that grants the headline modifier — no resource in between.
+## their headline grant as plain [member SkillNode.modifiers] (SubResources of
+## the .tscn). A pure stat bundle is not an effect: wrapped in a StatEffect it
+## left the node's own modifiers empty, and the tooltip read an empty aura and
+## "(no modifiers)".
 const _WARD    := preload("res://entity/keystone/instances/mythic_ward_node.tscn")
 const _FARSIGHT:= preload("res://entity/keystone/instances/farsight_node.tscn")
 const _TITAN   := preload("res://entity/keystone/instances/titan_node.tscn")
@@ -16,15 +18,11 @@ const _SKILL_NODE_PATH := "res://skill_node/skill_node.tscn"
 func _check(scene: PackedScene, stat_id: StringName, op: int, value: float, label: String, index: int = 0) -> void:
 	var n: SkillNode = autofree(scene.instantiate()) as SkillNode
 	add_child(n)
-	assert_true(n.effects.size() >= 1, "%s: the scene should carry >=1 effect on SkillNode.effects" % label)
-	if n.effects.is_empty():
+	assert_eq(n.effects.size(), 0, "%s: a pure stat bundle carries no effect" % label)
+	assert_true(n.modifiers.size() > index, "%s: SkillNode.modifiers should carry >%d modifier(s)" % [label, index])
+	if n.modifiers.size() <= index:
 		return
-	var fx = n.effects[0]
-	assert_true(fx is StatEffect, "%s: effect[0] should be a StatEffect" % label)
-	assert_true((fx as StatEffect).modifiers.size() > index, "%s: StatEffect should carry >%d modifier(s)" % [label, index])
-	if (fx as StatEffect).modifiers.size() <= index:
-		return
-	var m = (fx as StatEffect).modifiers[index] as StatModifier
+	var m = n.modifiers[index] as StatModifier
 	assert_eq(m.stat_id, stat_id, "%s: stat_id" % label)
 	assert_eq(int(m.operation), op, "%s: operation" % label)
 	assert_almost_eq(float(m.value), value, 0.001, "%s: value" % label)
@@ -36,9 +34,9 @@ func test_titan_grants_x2_strength() -> void:
 	_check(_TITAN, &"strength", StatModifier.Operation.MULTIPLY, 2.0, "titan")
 func test_archmage_grants_x2_intelligence() -> void:
 	_check(_ARCHMAGE, &"intelligence", StatModifier.Operation.MULTIPLY, 2.0, "archmage")
-func test_natural_xp_grants_plus_10_xp_per_turn_and_plus_10_wisdom() -> void:
+func test_natural_xp_grants_plus_10_xp_per_turn_and_plus_15_wisdom() -> void:
 	_check(_NATURAL_XP, &"xp_per_turn", StatModifier.Operation.ADD_BASE, 10.0, "natural_xp", 0)
-	_check(_NATURAL_XP, &"wisdom", StatModifier.Operation.ADD_BASE, 10.0, "natural_xp", 1)
+	_check(_NATURAL_XP, &"wisdom", StatModifier.Operation.ADD_BASE, 15.0, "natural_xp", 1)
 func test_ap_keystone_grants_plus_1_max_action_points() -> void:
 	_check(_AP_KEYSTONE, &"action_points", StatModifier.Operation.ADD_BASE, 1.0, "ap_keystone")
 func test_wisdom_keystone_grants_plus_20_wisdom() -> void:
@@ -114,9 +112,9 @@ func test_wisdom_keystone_grants_exactly_plus_20_wisdom_and_derived_xp_on_alloca
 
 
 ## #929: the grant reaches a hand-built board on allocate, read off
-## [member SkillNode.effects] by [AllocationSystem] — the same door every
-## node-carried effect goes through, no resource in between.
-func test_landmark_grants_reach_the_allocating_entity_via_effects() -> void:
+## [member SkillNode.modifiers] by [AllocationSystem] — the same door every
+## rolled node goes through, no effect in between.
+func test_landmark_grants_reach_the_allocating_entity_via_modifiers() -> void:
 	var alloc := autofree(AllocationSystem.new()) as AllocationSystem
 	var ent := autofree(Entity.new()) as Entity
 	ent.display_name = "T"
@@ -131,7 +129,7 @@ func test_landmark_grants_reach_the_allocating_entity_via_effects() -> void:
 	alloc.force_allocate(ent, n)
 	assert_almost_eq(float(ent.stat_board.get_value(&"strength")), base * 2.0, 0.001,
 		"titan's x2 strength lands on allocate")
-	assert_eq(ent.get_effects().size(), 1, "exactly the scene's one StatEffect is granted")
+	assert_eq(ent.get_effects().size(), 0, "no effect rides along")
 	alloc.force_deallocate(n)
 	assert_almost_eq(float(ent.stat_board.get_value(&"strength")), base, 0.001,
 		"deallocate revokes it")

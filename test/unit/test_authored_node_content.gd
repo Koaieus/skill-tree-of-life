@@ -35,11 +35,8 @@ func _make_node() -> SkillNode:
 func test_farsight_scene_still_carries_its_modifier() -> void:
 	var n: SkillNode = autofree(_FARSIGHT.instantiate()) as SkillNode
 	assert_eq(n.get_display_name(), "Farsight Spire")
-	assert_eq(n.effects.size(), 1, "authored effect payload was stripped")
-	var fx: Effect = n.effects[0]
-	assert_true(fx is StatEffect, "payload entry lost its script")
-	assert_eq(fx.modifiers.size(), 1, "authored modifier bundle was stripped")
-	var m: StatModifier = fx.modifiers[0]
+	assert_eq(n.modifiers.size(), 1, "authored modifier bundle was stripped")
+	var m: StatModifier = n.modifiers[0]
 	assert_not_null(m, "modifier entry lost its script")
 	assert_eq(m.stat_id, &"vision_range")
 	assert_eq(m.value, 100.0)
