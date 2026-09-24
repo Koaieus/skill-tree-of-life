@@ -38,6 +38,7 @@ const _STAGE_RINGS := 5
 ## `gimbal_3d.gd` already has. A spike adds ONE line here and nothing else.
 const SUBSTRATES: Dictionary = {
 	"viewport3d": preload("res://scenes/bench/stage_gimbal_viewport3d.tscn"),
+	"live": preload("res://scenes/bench/stage_gimbal_live.tscn"),
 }
 
 var _viewport_rid: RID
