@@ -13,10 +13,8 @@ draw (primary → cost-capped off-attribute → defensive → rare) is replaced 
   optional sparse `value_overrides` escape hatch (D11; seed budget ≤ 6
   repo-wide, pinned by `test_specimen_pool_set.gd`).
 - **Spend-until-broke draw** — `_roll_modifiers_v4` (`graph_procgen.gd`):
-  flatten the node's pools, then repeatedly weighted-pick an affordable entry
-  (weight = `pool_weight · TierShape.weight(t)`, where `w(t) = t^power ·
-  ratio^(t-1)` over the absolute tier — default `power 0, ratio 2` = `1,2,4,8`;
-  modulated by weight profiles),
+  flatten the node's pools, then repeatedly pick an affordable entry from the
+  renormalized three-level distribution (see "The renormalized draw" below),
   subtract its cost, until nothing's affordable. T1 always costs 1, so leftover
   budget always drains into T1 filler — budget is never wasted.
 - **Per-(stat,op) aggregation** — after the draw, rolled modifiers combine by
@@ -58,30 +56,49 @@ draw (primary → cost-capped off-attribute → defensive → rare) is replaced 
   **fused** modifiers, not raw per-pick rolls — a different channel with its
   own owner. `test_weight_profiles.gd` pins that duplicate picks fuse.
 
-## The universal slice (#975)
+## The renormalized draw (#1079)
 
-Universal content is a **fixed slice** of every node's draw, not an open
-pile. `ModifierPoolSet.universal_share` (default 0.2) is the fraction of total
-entry weight `flatten_for_node` hands the draw loop as universal, whatever the
-node's archetype: it sums the selected archetype mass `a` and universal mass
-`u`, then scales every universal entry by `a · share / (1 − share) / u`.
+Each pick is one sample from `GraphProcgen._v4_pick_distribution` (entry →
+probability, summing to 1, or empty when the node is broke). Three levels,
+each renormalized over what is **drawable at this pick** — an entry passes
+`forbid_tags`, every weight profile leaves it a positive multiplier, and (at
+the tier level) it is affordable:
 
-- A universal pool's `pool_weight` therefore means **share within universal**,
-  not share of the draw. Appending a universal pool redistributes inside the
-  slice; growing an archetype pack no longer starves that archetype's
-  universal rolls. Before the slice, the universal share ran 9.5 %–23.7 %
-  purely by pack size (the arithmetic is on #975).
-- Exact **before** the affordability filter. Universal pools skew low-tier, so
-  late in a spend-until-broke draw the realized rate runs slightly above the
-  nominal share. `test_specimen_pool_set.gd` computes the realized rate
-  exactly from the flattened weights rather than asserting the share.
-- Guards, all no-ops: no universal pools selected, or no archetype pool
-  selected (a pack-less primary keeps its only content) → unscaled;
-  `share <= 0` drops universal entries; `share >= 1` clamps just under 1 and
-  raises a configuration warning.
-- The value is tuning, a one-number edit. The live per-pool roster is
-  `ModifierPoolSet.format_tables()` / `StatPool.format_table()` (the inspector
-  print buttons) — never a hand-maintained table.
+1. **Group** — universal (`archetype_stat == &""`) vs archetype.
+   `GraphProcgenContent.universal_share` (default 0.2) is the universal group's
+   share of **picks** (not of budget spent), whatever the node's archetype. A
+   group with nothing drawable cedes the whole pick to the other; neither →
+   the pick is null.
+2. **Pool** within its group — mass `pool_weight × m̄`, where
+   `m̄ = Σ w_t·m_t / Σ w_t` over the pool's drawable tiers (`w_t` =
+   `StatPool.tier_weight(t)`, `m_t` = product of profile multipliers). So
+   `pool_weight` means **share among sibling pools**: more or pricier tiers
+   never grow a pool. A pool-wide profile multiplier scales pool mass; a
+   tier-tag multiplier reshapes tiers and moves pool mass only via `m̄`.
+3. **Tier** within its pool — `w_t·m_t`, normalized over its affordable tiers.
+
+**Budget tail: keep mass, reshape tiers.** `m̄` ignores budget, so a pool with
+any affordable tier keeps its full mass and only its tier split narrows; a pool
+with none drops out and its siblings share its mass. Low-tier-heavy pools
+therefore gain nothing late in a draw — the group and pool split holds exactly
+at every pick.
+
+Entries carry what the draw needs: `ModifierPoolEntry.pool_key` (id minus
+`_t<N>`), `pool_weight`, `universal`, and `weight` = the bare tier weight —
+`StatPool.to_entries()` stamps them. Pools iterate in first-appearance order of
+the `flatten_for_node` output, so peers reproduce the distribution; one
+`randf()` per pick.
+
+- Replaces the #975 flatten-time universal slice on `ModifierPoolSet`, which
+  was exact only before the affordability filter.
+- `pool_weight`s were migrated once as `new = old × Σ_{t=min..max} w_t`
+  (unrounded), keeping every within-group share of the old flat pick; the
+  only intended balance change was the flat 20 % universal share.
+- Tests assert the distribution exactly (`test_renormalized_draw.gd`,
+  `test_specimen_pool_set.gd`) — no Monte Carlo on the shares.
+- The live per-pool roster is `ModifierPoolSet.format_tables()` /
+  `StatPool.format_table()` (the inspector print buttons) — never a
+  hand-maintained table.
 
 ## Tunable floor + computed tier bounds (#628)
 

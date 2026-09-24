@@ -12,8 +12,9 @@ extends Resource
 ## Mapping to runtime: [method to_entries] expands this pool into one
 ## [ModifierPoolEntry] per tier in `min_tier..max_tier`, computing each entry's
 ## `cost` (from the ladder), `value_range` (fixed at `unit × V[T]`, or the
-## override for that tier), `weight` (`pool_weight ×` [method tier_weight]), and
-## `tags` (this pool's tags + [TierLadder] auto-tags for the tier). The draw
+## override for that tier), `weight` (the bare [method tier_weight]), the pool
+## stamps (`pool_key`, `pool_weight`, `universal`), and `tags` (this pool's
+## tags + [TierLadder] auto-tags for the tier). The draw
 ## loop ([method GraphProcgen._roll_modifiers_v4]) picks among those entries
 ## with weight profiles, spends budget until broke, then aggregates per
 ## (stat_id, operation): ADD*/INCREASE sum, MULTIPLY product, SET max.
