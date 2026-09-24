@@ -391,6 +391,16 @@ func test_a_camp_pick_survives_an_ai_count_change() -> void:
 			"and START hands it to the level")
 
 
+func test_picking_the_camp_a_seat_already_holds_still_records_the_pick() -> void:
+	var roster := LobbyRoster.new(RunConfig.Mode.SINGLE)
+	var ai: Participant = roster.participants[1]
+	assert_eq(ai.kind, Participant.Kind.AI, "premise: the second slot is an AI")
+
+	assert_true(roster.pick_camp(ai, ai.camp),
+			"a value-coincident pick is still a pick — provenance, not value")
+	assert_eq(roster._pick_of(ai.id).camp, ai.camp, "and it is recorded")
+
+
 func test_a_colour_and_a_name_pick_survive_an_ai_count_change() -> void:
 	var roster := LobbyRoster.new(RunConfig.Mode.COOP_HOTSEAT)
 	var mine: Participant = roster.participants[0]
