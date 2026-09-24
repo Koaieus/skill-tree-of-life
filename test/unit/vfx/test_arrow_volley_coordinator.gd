@@ -441,3 +441,48 @@ func test_focus_weight_is_the_arrows_summed_amount() -> void:
 	for proj in _projectiles(coord):
 		assert_almost_eq(proj.focus_weight, 4.0, 0.0001, "Σ|amount| of the arrow's hits")
 	await wait_until(func() -> bool: return _projectiles(coord).is_empty(), 3.0)
+
+
+## #753 — the arrival beat is read off the landed [HitInstance], and the
+## visual owns what each beat looks like. A spy visual records which duck
+## hooks the coordinator dispatched; it implements both, so "not called"
+## means the coordinator chose not to, never that the hook was missing.
+class _BeatSpy extends Node2D:
+	var calls: Array = []
+	func _on_dud() -> void:
+		calls.append(&"dud")
+	func _on_absorbed(gained: bool) -> void:
+		calls.append([&"absorbed", gained])
+
+
+func _arrive(kind: HitInstance.Kind, effective: float, gated: bool) -> Array:
+	var coord := _mount_coord()
+	var proj: Projectile = autofree(Projectile.new())
+	var spy := _BeatSpy.new()
+	proj.add_child(spy)
+	var hit := _hit(0.0)
+	hit.kind = kind
+	hit.effective_amount = effective
+	hit.gated = gated
+	coord._on_arrow_arrived(proj, hit)
+	return spy.calls
+
+
+func test_a_heal_landing_plays_the_gained_absorb_beat() -> void:
+	assert_eq(_arrive(HitInstance.Kind.HEAL, -2.0, false), [[&"absorbed", true]],
+			"a shot that healed the defender reads as a gain for it")
+
+
+func test_a_zero_landing_plays_the_neutral_absorb_beat() -> void:
+	assert_eq(_arrive(HitInstance.Kind.DAMAGE, 0.0, false), [[&"absorbed", false]],
+			"a shot the armour fully held reads as a neutral glint, not a gain")
+
+
+func test_a_gated_landing_plays_only_the_dud_beat() -> void:
+	assert_eq(_arrive(HitInstance.Kind.DAMAGE, 0.0, true), [&"dud"],
+			"the gate outranks a coincident zero — a vetoed shot never reached mitigation")
+
+
+func test_a_live_damage_landing_plays_no_extra_beat() -> void:
+	assert_eq(_arrive(HitInstance.Kind.DAMAGE, 5.0, false), [],
+			"a live hit keeps the plain stick-and-fade")
