@@ -94,6 +94,10 @@ closed happens at the next `mise gh-project -- hygiene --fix` — the swarm
 train gate runs it right after the push. `hygiene` reports drift as
 `hub_drift`; `--fix --dry-run` previews. A hub with an *open* child missing
 from the board is never derived (`unboarded_child`) — `add` the child first.
+An open hub whose open children are *all* parked in `Backlog`/`Needs design`
+(none `Ready`, `In progress` or `In review`) is `stalled_hub` — nobody is
+actually working it; `--fix` never touches it, since detaching a child is an
+owner call.
 
 If a hub with every child closed still has unshipped scope, the fix is a new
 child, not keeping the hub open by hand. The old `hollow_hub` exemption for "a
