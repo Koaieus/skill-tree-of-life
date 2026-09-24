@@ -2,6 +2,12 @@
 
 [ext_resource type="Script" uid="uid://70wk1lwe3viq" path="res://ui/frontmatter/lobby_policy.gd" id="1_policy"]
 [ext_resource type="Script" uid="uid://cgfee17sltixd" path="res://entity/faction.gd" id="2_faction"]
+[ext_resource type="Resource" path="res://entity/factions/npc.tres" id="3_npc"]
+[ext_resource type="Resource" path="res://entity/factions/player.tres" id="4_player"]
+[ext_resource type="Resource" path="res://entity/factions/camp_1.tres" id="5_camp1"]
+[ext_resource type="Resource" path="res://entity/factions/camp_2.tres" id="6_camp2"]
+[ext_resource type="Resource" path="res://entity/factions/camp_3.tres" id="7_camp3"]
+[ext_resource type="Resource" path="res://entity/factions/camp_4.tres" id="8_camp4"]
 [ext_resource type="Resource" uid="uid://b8kcysx4tc522" path="res://ui/frontmatter/lobby_options/map_size_options.tres" id="90_maps"]
 [ext_resource type="Resource" uid="uid://c6x5pdrjnoy1v" path="res://ui/frontmatter/lobby_options/blocker_options.tres" id="91_blks"]
 [ext_resource type="Resource" path="res://session/scenarios/first_level.tres" id="92_scen"]
@@ -10,7 +16,8 @@
 
 [resource]
 script = ExtResource("1_policy")
-max_distinct_camps = 1
+camps = Array[ExtResource("2_faction")]([ExtResource("3_npc"), ExtResource("4_player"), ExtResource("5_camp1"), ExtResource("6_camp2"), ExtResource("7_camp3"), ExtResource("8_camp4")])
+ai_camps_pickable = true
 scenario = ExtResource("92_scen")
 map_size_options = ExtResource("90_maps")
 blocker_options = ExtResource("91_blks")

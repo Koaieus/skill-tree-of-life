@@ -80,6 +80,7 @@ const _DEFAULT_AI_CORE := preload("res://entity/core/balanced_core.tres")
 ## walks this list and nothing resolves a field on its own.
 const TEMPLATED_FIELDS: Dictionary = {
 	&"core": &"core_class",
+	&"camp": &"camp",
 }
 
 
@@ -196,7 +197,7 @@ func is_core_overridden(p: Participant) -> bool:
 ## An AI seat holding an explicit camp pick (#884) — mirrors
 ## [method is_core_overridden].
 func is_camp_overridden(p: Participant) -> bool:
-	return false
+	return _is_overridden(p, &"camp")
 
 
 func has_pending_remote() -> bool:
@@ -255,7 +256,7 @@ func set_preset_core(core: CoreClass) -> void:
 
 ## `null` disarms the camp preset: AI seats fall back to their default camp.
 func set_preset_camp(camp: Faction) -> void:
-	pass
+	_set_preset(&"camp", camp)
 
 
 func set_local_peer(peer_id: int) -> void:
@@ -285,16 +286,11 @@ func reset_core(p: Participant) -> bool:
 ## A pick equal to the seat's current camp is still recorded — provenance,
 ## never value coincidence (mirrors [method pick_core]).
 func pick_camp(p: Participant, camp: Faction) -> bool:
-	if p == null or camp == null:
-		return false
-	p.camp = camp
-	_pick_of(p.id).camp = camp
-	changed.emit()
-	return true
+	return _pick(p, &"camp", camp)
 
 
 func reset_camp(p: Participant) -> bool:
-	return false
+	return _reset(p, &"camp")
 
 
 func pick_name(p: Participant, name: String) -> bool:
@@ -448,8 +444,6 @@ func _rebuild() -> void:
 			var pick: Pick = _picks[p.id]
 			if pick.color != Color.WHITE:
 				p.color = pick.color
-			if pick.camp != null:
-				p.camp = pick.camp
 			if not pick.display_name.is_empty():
 				p.display_name = pick.display_name
 		if p.kind == Participant.Kind.HUMAN and seated_peers.has(p.id):
