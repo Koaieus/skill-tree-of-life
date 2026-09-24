@@ -84,10 +84,10 @@ func _trail_blazer_config(opts: Dictionary = {}) -> PropagationConfig:
 	# count without making it a link in the DEFENDER's own chain.
 	deg2.expression = "from_entity_degree <= 2 and to_entity_degree >= 2"
 	var children: Array[PropagationFilter] = [h.owner_enemy(), deg2]
-	# Mirrors `trail_blazer.tres`: the hop budget is a SAFETY BACKSTOP, not a
-	# tuning knob. The walk is meant to end at a junction, and termination is
-	# guaranteed by `max_visits_per_node = 1` (never revisit), not by this.
-	var o := {max_hops = 999, hop_damage = h.flat_add_progression(2.0)}
+	# Mirrors `trail_blazer.tres`: no hop limit. The walk is meant to end at a
+	# junction, and termination is guaranteed by `max_visits_per_node = 1`
+	# (never revisit), not by a hop budget.
+	var o := {max_hops = INF, hop_damage = h.flat_add_progression(2.0)}
 	o.merge(opts)
 	return h.make_config(TrailBlazerSpread.new(), h.composite_filter(children), null, o)
 
@@ -408,10 +408,77 @@ func test_authored_trail_blazer_hop_budget_clears_any_realistic_string() -> void
 	var spell: SpellDef = load("res://attack/spell/defs/trail_blazer.tres")
 	assert_not_null(spell, "trail_blazer.tres loads")
 	assert_not_null(spell.propagation, "trail_blazer has a propagation config")
-	assert_gt(spell.propagation.max_hops, 200,
-			"max_hops is a SAFETY BACKSTOP, not a tuning knob — the walk must be "
-			+ "able to run the length of any realistic degree-2 string and reach "
-			+ "its junction. Termination is guaranteed by max_visits_per_node = 1 "
-			+ "(never revisit), so lowering this only truncates long strings.")
+	assert_true(is_inf(spell.propagation.max_hops),
+			"the Trailblazer has NO hop limit — the walk must be able to run the "
+			+ "length of any degree-2 string and reach its junction. Termination "
+			+ "is guaranteed by max_visits_per_node = 1 (never revisit).")
 	assert_eq(spell.propagation.max_visits_per_node, 1,
 			"the never-revisit cap is what actually bounds the walk")
+
+
+## An explicit `max_hops = INF` config walks a long string end to end and slams.
+func test_inf_hop_budget_walks_a_long_string_and_slams_at_the_junction() -> void:
+	var edges: Array = []
+	for i in 25:
+		edges.append([i, i + 1])
+	edges.append([25, 26])
+	edges.append([25, 27])
+	edges.append([28, 29])
+	var graph := h.make_graph(edges, self)
+	var attacker := h.make_entity(graph, "ATK", Color.RED)
+	var defender := h.make_entity(graph, "DEF", Color.BLUE)
+	h.give_big_hp(defender)
+	var defender_nodes: Array = []
+	for i in 28:
+		defender_nodes.append(i)
+	h.assign_owner(graph, defender, defender_nodes)
+	h.assign_owner(graph, attacker, [28, 29])
+
+	var spell := h.make_spell(_trail_blazer_config({max_hops = INF}),
+			_trail_blazer_effects(), 1.0)
+	assert_true(is_inf(spell.propagation.max_hops), "fixture: the config holds inf")
+	var nodes := graph.get_skill_nodes()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+
+	var out := SpellResolver.resolve(spell, nodes[0], nodes[28], attacker, graph, rng)
+
+	var x: float = h.seed_multiplier(nodes[28]) * spell.power
+	assert_almost_eq(h.total_damage_on(out, nodes[24]), x + 24.0 * 2.0, 0.001,
+			"hop 24 lands under an inf budget")
+	assert_almost_eq(h.total_damage_on(out, nodes[25]), (x + 25.0 * 2.0) * 2.0, 0.001,
+			"junction slams at hop 25")
+	assert_almost_eq(h.total_damage_on(out, nodes[26]), 0.0, 0.001, "walk stopped at the junction")
+
+
+## A closed cycle of degree-2 nodes has no junction, so nothing but the
+## never-revisit rule can end an inf-budget walk on it. It must end, having
+## landed on every node of the ring exactly once.
+func test_inf_hop_budget_on_a_closed_cycle_terminates_by_never_revisit() -> void:
+	var ring := 12
+	var edges: Array = []
+	for i in ring:
+		edges.append([i, (i + 1) % ring])
+	edges.append([ring, ring + 1])  # disjoint attacker territory
+	var graph := h.make_graph(edges, self)
+	var attacker := h.make_entity(graph, "ATK", Color.RED)
+	var defender := h.make_entity(graph, "DEF", Color.BLUE)
+	h.give_big_hp(defender)
+	var defender_nodes: Array = []
+	for i in ring:
+		defender_nodes.append(i)
+	h.assign_owner(graph, defender, defender_nodes)
+	h.assign_owner(graph, attacker, [ring, ring + 1])
+
+	var spell := h.make_spell(_trail_blazer_config({max_hops = INF}),
+			_trail_blazer_effects(), 1.0)
+	var nodes := graph.get_skill_nodes()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+
+	var out := SpellResolver.resolve(spell, nodes[0], nodes[ring], attacker, graph, rng)
+
+	assert_lte(out.timeline.size(), ring, "never-revisit: at most one landing per ring node")
+	for i in ring:
+		assert_gt(h.total_damage_on(out, nodes[i]), 0.0,
+				"ring node %d is reached — the inf budget never cut the walk short" % i)

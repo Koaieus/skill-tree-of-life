@@ -158,7 +158,7 @@ func make_config(
 	c.spread = spread
 	c.filter = filter
 	c.reducer = reducer
-	c.max_hops = int(opts.get("max_hops", 0))
+	c.max_hops = float(opts.get("max_hops", 0))
 	c.max_visits_per_node = int(opts.get("max_visits_per_node", 1))
 	c.hop_damage = opts.get("hop_damage", null)
 	return c

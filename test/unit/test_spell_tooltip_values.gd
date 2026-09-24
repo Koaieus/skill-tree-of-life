@@ -138,3 +138,15 @@ func test_the_range_row_is_whatever_the_finder_says() -> void:
 
 	var tt := await _shown_for(caster)
 	assert_string_contains(_section_text(tt, "%CastSection"), str(from_finder))
+
+
+## An unbounded walk says so in words — never a hop count, never "inf".
+func test_inf_hop_budget_describes_as_no_hop_limit() -> void:
+	var config := PropagationConfig.new()
+	config.spread = TrailBlazerSpread.new()
+	config.max_hops = INF
+	var text := config.get_description()
+	assert_string_contains(text, "No hop limit.")
+	var numbered := RegEx.create_from_string("\\d+\\s*hops?\\.")
+	assert_null(numbered.search(text), "no numbered hop count in: %s" % text)
+	assert_false(text.containsn("inf"), "no raw inf in: %s" % text)

@@ -25,7 +25,7 @@ func _mod(id: StringName, op: StatModifier.Operation, value: float) -> StatModif
 	return m
 
 
-func _spell_with_hops(hops: int) -> SpellDef:
+func _spell_with_hops(hops: float) -> SpellDef:
 	var spell := SpellDef.new()
 	spell.propagation = PropagationConfig.new()
 	spell.propagation.max_hops = hops
@@ -68,3 +68,11 @@ func test_deselecting_the_spell_returns_the_row_to_the_describe_tier() -> void:
 	card._spell = _spell_with_hops(3)
 	card._spell = null
 	assert_eq(value.text, "(X+3) × 1.5", "deselect: back to the text tier")
+
+
+func test_selected_inf_hop_spell_reach_row_reads_infinity() -> void:
+	var pair := _bound_card()
+	var card: CombatCardMagic = pair[0]
+	var value: Label = pair[1]
+	card._spell = _spell_with_hops(INF)
+	assert_eq(value.text, "∞ hops", "an unbounded walk reads as infinity, not a number")
