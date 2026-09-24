@@ -75,7 +75,8 @@ mode is a per-def knob, not a global change (the per-family shapes: the
   a specialised core class may sit at +0.2..0.5 baseline (owner, 2026-09-20).
 - **Resistance** is a defender stat per type (`poison_resistance`, …),
   default 0, a fraction that reduces stacks *incurred*, read node-locally like
-  armor. Battlefield-found, universal defence rolls. It mirrors potency and
+  armor. Battlefield-found: it rolls on blessed nodes of its family's
+  archetype ([node_subtypes.md](node_subtypes.md)). It mirrors potency and
   snapshots at apply, so the row still holds one number. Faster decay was
   the alternative and stays available as a **class** identity later.
 

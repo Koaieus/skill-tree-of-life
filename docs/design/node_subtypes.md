@@ -50,10 +50,10 @@ Owner re-homed two families in this session (see Decisions): **wither → INT**,
 
 Why the re-homing is better than what ships today:
 
-- **Curse on CON.** Curse raises `min_damage_taken` — its whole job is stripping the defender's mitigation. Putting it on the defensive attribute makes blighted CON the dark mirror of blessed CON, one archetype carrying both poles of "does armor work". Today CON hosts wither *and* all four resistances, which is one archetype doing two jobs.
+- **Curse on CON.** Curse raises `min_damage_taken` — its whole job is stripping the defender's mitigation. Putting it on the defensive attribute makes blighted CON the dark mirror of blessed CON, one archetype carrying both poles of "does armor work". Before this grid CON hosted wither *and* all four resistances, which was one archetype doing two jobs.
 - **Wither on INT.** Wither drives `healing_received` below zero — the "undead sandbox" ([damage_over_time.md](damage_over_time.md)). That reads arcane/necromantic, and INT is the magic attribute. Owner: *"INT is WAY MORE prevalent than WIS; WIS is pure economy."*
 - **Blindness on PER.** Already a shipped status with its own flat decay and cap, and PER is already the dedicated home for `scout_arrows_per_reload` (owner, 2026-09-22). Vision offense and vision defense on the vision attribute.
-- **Resistances stop being universal.** All four currently sit in `constitution.tres` as universal pools — a flat roll every node can produce regardless of where you go. [damage_over_time.md](damage_over_time.md) calls them *"battlefield-found, universal defence rolls"*; under this grid they become genuinely battlefield-found: you hold blessed territory of the right archetype. This is a **content-side answer to #975's dilution complaint**, independent of that issue's weighting fix.
+- **Resistances stop being universal.** All four sat in `constitution.tres` as universal pools — a flat roll every node could produce regardless of where you go. [damage_over_time.md](damage_over_time.md) calls them *"battlefield-found, universal defence rolls"*; under this grid they become genuinely battlefield-found: you hold blessed territory of the right archetype. This is a **content-side answer to #975's dilution complaint**, independent of that issue's weighting fix.
 
 ## Subtype replaces, never adds
 
