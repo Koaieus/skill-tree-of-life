@@ -59,7 +59,7 @@ script = ExtResource("8_6uaym")
 script = ExtResource("7_riwgb")
 filter = SubResource("filter_composite")
 spread = SubResource("spread_killer")
-max_hops = 999
+max_hops = inf
 hop_damage = SubResource("prog_flat")
 
 [sub_resource type="Resource" id="range"]

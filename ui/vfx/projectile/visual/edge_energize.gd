@@ -31,7 +31,7 @@ extends Node2D
 ## arrives.
 ##
 ## [b]Concurrency is bounded by LINGER, not by hop count.[/b] Trail Blazer's
-## `max_hops` bound is being removed (#663 D7), so N is unbounded and any
+## `max_hops` is `inf`, so N is unbounded and any
 ## assumption of 20 is wrong. What actually caps live overlays is
 ## [method max_live_overlays] — at the shipped 2.5 s linger over 0.4 s beats
 ## that is 7, whatever the path length.
@@ -118,7 +118,7 @@ var _done_emitted: bool = false
 
 ## Live overlays cap at `ceil(linger / beat) + 1`, regardless of how many hops
 ## the cast runs — a new one ignites every beat and each survives `linger`.
-## State the bound THIS way: #663 D7 removes Trail Blazer's `max_hops`, so hop
+## State the bound THIS way: Trail Blazer's `max_hops` is `inf`, so hop
 ## count is unbounded and any "at most 20" reasoning is wrong.
 static func max_live_overlays(linger: float, beat_interval: float) -> int:
 	if beat_interval <= 0.0:

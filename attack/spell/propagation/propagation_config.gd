@@ -29,8 +29,12 @@ extends Resource
 ## Null = first-wins (no merging, just take incidents[0]).
 @export var reducer: IncidentReducer = null
 
-## Max hops from the seed (0 = seed only, no propagation).
-@export var max_hops: int = 0
+## Max hops from the seed (0 = seed only, no propagation). `inf` = no hop
+## limit: the walk runs until the filter or the never-revisit rule
+## ([member max_visits_per_node] = 1) ends it — `inf - 1` stays `inf`, so no
+## reader special-cases it except the ones that print a count. `inf` together
+## with an uncapped [member max_visits_per_node] would walk effectively forever.
+@export var max_hops: float = 0.0
 
 ## Hard cap on how many times this cast can land on the SAME node. 1 = the
 ## default "never revisit" — [SpellResolver] enforces this unconditionally,
@@ -107,5 +111,8 @@ func get_description() -> String:
 		var rd := reducer.get_description()
 		if rd != "":
 			parts.append(rd)
-	parts.append("Up to %d hop%s." % [max_hops, "" if max_hops == 1 else "s"])
+	if is_inf(max_hops):
+		parts.append("No hop limit.")
+	else:
+		parts.append("Up to %d hop%s." % [max_hops, "" if max_hops == 1 else "s"])
 	return " ".join(parts)

@@ -76,7 +76,7 @@ var damage: float = 0.0
 ## [SpellResolver]; INT is never re-read per hop (that would compound it).
 var seed_damage: float = 0.0
 ## Recursion budget left. 0 means no further propagation from here.
-var hops_remaining: int = 0
+var hops_remaining: float = 0.0
 ## 0 = seed; +1 per propagation step. Drives VFX stagger order and lets
 ## damage formulas reference "how deep are we?".
 var hop_index: int = 0

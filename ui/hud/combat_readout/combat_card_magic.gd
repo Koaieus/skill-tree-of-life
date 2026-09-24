@@ -58,8 +58,11 @@ func _refresh() -> void:
 			_reach_row.set_value(0.0)
 		_reach_row.set_sliver("")
 		return
-	var authored: int = spell.propagation.max_hops if spell.propagation != null else 0
-	var hops := SpellRangeRules.reach(&"cast_range_hops", float(authored), _owner_entity,
-			_hover_node, _board)
-	_reach_row.set_value(hops, " hops")
+	var authored: float = spell.propagation.max_hops if spell.propagation != null else 0.0
+	if is_inf(authored):
+		_reach_row.set_text("∞ hops")
+	else:
+		var hops := SpellRangeRules.reach(&"cast_range_hops", authored, _owner_entity,
+				_hover_node, _board)
+		_reach_row.set_value(hops, " hops")
 	_reach_row.set_sliver("rare" if authored > 0 else "")

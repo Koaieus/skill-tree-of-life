@@ -65,7 +65,7 @@ static func _merge_payload_defaults(incidents: Array[CastSpell]) -> CastSpell:
 	merged.predecessor = incidents[0].predecessor
 	# hops_remaining: take MAX — gives the merged incident the most generous
 	# remaining budget across its inputs.
-	var hops_max: int = incidents[0].hops_remaining
+	var hops_max: float = incidents[0].hops_remaining
 	# visited: union of all branch visited-trails (per-branch state still
 	# carried for filters that want it, even though ctx.global_visit_count
 	# is the canonical revisit gate).
