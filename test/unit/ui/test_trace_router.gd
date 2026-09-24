@@ -151,3 +151,96 @@ func test_pcb_trunk_dir_can_leave_sideways() -> void:
 		from, to, TraceRouter.Style.PCB, {"trunk": 0.5, "trunk_dir": Vector2(1, 0)})
 	assert_almost_eq(pts[1].y, from.y, 0.001,
 		"trunk_dir=(1,0) leaves straight right: y unchanged along the trunk")
+
+
+# --- PCB gable family (#1117): targets below the trunk top ------------------
+# The 45°-grid invariant, for EVERY target: each segment heading is a multiple
+# of 45°, no consecutive bend exceeds 90° (the 135° double-back is the bug),
+# no zero-length segment, and the closing leg is cardinal.
+
+func _assert_on_45_grid_without_doubling_back(pts: PackedVector2Array, label: String) -> void:
+	var prev := Vector2.ZERO
+	for i in range(pts.size() - 1):
+		var seg := pts[i + 1] - pts[i]
+		assert_gt(seg.length(), 0.5, "%s: segment %d has length" % [label, i])
+		var h := rad_to_deg(seg.angle())
+		var off := absf(fmod(absf(h), 45.0))
+		assert_true(off < 0.5 or off > 44.5, "%s: segment %d heading %.1f° is on the 45° grid" % [label, i, h])
+		if i > 0:
+			var turn := absf(rad_to_deg(prev.angle_to(seg)))
+			assert_true(turn < 90.5, "%s: bend %d turns %.1f°, never more than 90°" % [label, i, turn])
+		prev = seg
+	var closing := pts[pts.size() - 1] - pts[pts.size() - 2]
+	assert_true(is_zero_approx(closing.x) or is_zero_approx(closing.y),
+		"%s: closing leg is cardinal" % label)
+
+
+func test_pcb_every_bend_is_exactly_45_degrees_for_every_target() -> void:
+	var from := Vector2.ZERO
+	for xi in range(-8, 9):
+		for yi in range(-8, 9):
+			var to := Vector2(xi * 50.0, yi * 50.0)
+			if absf(to.x) < 2.0 and to.y > -40.0:
+				continue # the trunk's own column below the top: outside the family
+			var pts := TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, {"trunk_px": 40.0})
+			var label := "to=%s" % to
+			assert_eq(pts[0], from, "%s: first == from" % label)
+			assert_eq(pts[pts.size() - 1], to, "%s: last == to" % label)
+			_assert_on_45_grid_without_doubling_back(pts, label)
+
+
+func test_pcb_below_target_is_a_symmetric_gable() -> void:
+	var from := Vector2.ZERO
+	var to := Vector2(200.0, 150.0)
+	var pts := TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, {"trunk_px": 40.0})
+	assert_eq(pts.size(), 6, "gable is [from, trunk_top, shoulder_out, run_end, shoulder_back, to]")
+	assert_eq(pts[0], from)
+	assert_eq(pts[5], to)
+	assert_eq(pts[1], Vector2(0.0, -40.0), "trunk is trunk_px, never the along-trunk span")
+	var leg2 := pts[2] - pts[1]
+	var leg4 := pts[4] - pts[3]
+	assert_almost_eq(leg2.length(), leg4.length(), 0.001, "shoulders are equal length")
+	assert_almost_eq(leg2.x, leg4.x, 0.001, "shoulders mirror in y: same x run")
+	assert_almost_eq(leg2.y, -leg4.y, 0.001, "shoulders mirror in y: opposite rise")
+	assert_almost_eq(absf(leg2.x), absf(leg2.y), 0.001, "shoulder is an exact 45°")
+	assert_almost_eq(leg2.length(), 40.0 * sqrt(2.0), 0.001, "default shoulder == trunk length")
+	var leg3 := pts[3] - pts[2]
+	assert_almost_eq(leg3.y, 0.0, 0.001, "run is horizontal")
+	assert_almost_eq(leg3.x, 120.0, 0.001, "run = |perp| - 2a")
+	var leg5 := pts[5] - pts[4]
+	assert_almost_eq(leg5.x, 0.0, 0.001, "closing leg is vertical")
+	assert_almost_eq(leg5.y, 190.0, 0.001, "closing leg drops from trunk-top height to `to`")
+
+
+func test_pcb_below_target_with_narrow_perp_collapses_the_run() -> void:
+	var pts := TraceRouter.compute_trace_points(
+		Vector2.ZERO, Vector2(60.0, 150.0), TraceRouter.Style.PCB, {"trunk_px": 40.0})
+	assert_eq(pts.size(), 5, "b == 0 dedups to the 5-point arch")
+	assert_eq(pts[2], Vector2(30.0, -70.0), "apex: a = |perp| / 2 = 30")
+	assert_eq(pts[3], Vector2(60.0, -40.0), "shoulder back lands at trunk-top height over `to`")
+	assert_eq(pts[4], Vector2(60.0, 150.0))
+
+
+func test_pcb_gable_shoulder_param_caps_the_shoulder() -> void:
+	var pts := TraceRouter.compute_trace_points(
+		Vector2.ZERO, Vector2(200.0, 150.0), TraceRouter.Style.PCB, {"trunk_px": 40.0, "shoulder": 10.0})
+	assert_eq(pts.size(), 6)
+	assert_eq(pts[2], Vector2(10.0, -50.0), "shoulder = min(|perp| / 2, params.shoulder)")
+	assert_eq(pts[3], Vector2(190.0, -50.0))
+
+
+func test_pcb_gable_honours_trunk_dir_sideways() -> void:
+	# Trunk leaves right; the target sits BEHIND the trunk top (to the left).
+	var from := Vector2.ZERO
+	var to := Vector2(-150.0, 200.0)
+	var pts := TraceRouter.compute_trace_points(
+		from, to, TraceRouter.Style.PCB, {"trunk_px": 40.0, "trunk_dir": Vector2(1.0, 0.0)})
+	assert_eq(pts.size(), 6, "same family, rotated")
+	assert_eq(pts[1], Vector2(40.0, 0.0), "trunk leaves right by trunk_px")
+	assert_eq(pts[pts.size() - 1], to)
+	var leg3 := pts[3] - pts[2]
+	assert_almost_eq(leg3.x, 0.0, 0.001, "run is perpendicular to the trunk (vertical here)")
+	var leg5 := pts[5] - pts[4]
+	assert_almost_eq(leg5.y, 0.0, 0.001, "closing leg runs back along -trunk_dir (horizontal)")
+	assert_true(leg5.x < 0.0, "closing leg heads left, behind the trunk top")
+	_assert_on_45_grid_without_doubling_back(pts, "sideways gable")
