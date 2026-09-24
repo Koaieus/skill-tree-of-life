@@ -284,7 +284,15 @@ var effective_carve_slice_b: int:
 ## so a readback would lie for exactly the nodes that die off-screen. This is
 ## what a shatter carries so a dying node keeps its glyph.
 func carve_params() -> CarveParams:
-	return CarveParams.none()
+	var p := CarveParams.new()
+	p.carve_kind = effective_carve_kind
+	p.carve_sides = effective_carve_sides
+	p.carve_squish = effective_carve_squish
+	p.carve_radius = effective_carve_radius
+	p.well_depth = effective_well_depth
+	p.carve_slice = effective_carve_slice
+	p.carve_slice_b = effective_carve_slice_b
+	return p
 
 
 ## Shared light source (see [LightingStyle]), INJECTED AT RUNTIME by the
@@ -365,13 +373,9 @@ func _sync_material() -> void:
 	set_instance_shader_parameter(&"allocated", allocated)
 	set_instance_shader_parameter(&"highlight_position", highlight_position)
 	set_instance_shader_parameter(&"highlight_intensity", highlight_intensity)
-	set_instance_shader_parameter(&"carve_kind", effective_carve_kind)
-	set_instance_shader_parameter(&"carve_sides", float(effective_carve_sides))
-	set_instance_shader_parameter(&"carve_squish", effective_carve_squish)
-	set_instance_shader_parameter(&"carve_radius", effective_carve_radius)
-	set_instance_shader_parameter(&"well_depth", effective_well_depth)
-	set_instance_shader_parameter(&"carve_slice", effective_carve_slice)
-	set_instance_shader_parameter(&"carve_slice_b", effective_carve_slice_b)
+	var carve := carve_params().uniforms()
+	for uniform in carve:
+		set_instance_shader_parameter(uniform, carve[uniform])
 	queue_redraw()
 
 

@@ -241,6 +241,13 @@ var core_halo_style: int = -1:
 ## `visuals.modulate`, which would multiply the hover ring down (#304).
 func node_visuals() -> Node2D:
 	return _node_visuals
+
+
+## The carve this node's body renders — the public door for a consumer that
+## must reproduce it (AllocationVFX's shatter), so nothing walks `$Visuals`.
+## Valid on a fogged node too: it is resolved state, not a uniform readback.
+func carve_params() -> CarveParams:
+	return _node_visuals.carve_params() if _node_visuals != null else CarveParams.none()
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 ## The shots-left pip row (#959) — see `shots_pips.gd`. Typed via preload,
 ## not a `class_name`, for the same cache-refresh reason as line 6.

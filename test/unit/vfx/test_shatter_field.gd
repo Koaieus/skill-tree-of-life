@@ -336,3 +336,92 @@ func test_the_field_owns_no_clock_and_no_shared_material() -> void:
 	a.flight_start = 0.6
 	assert_almost_eq(a.material.get_shader_parameter(&"shatter_flight_start"), 0.6, 0.0001)
 	assert_eq(a.material.resource_path, "", "the pushed-to material is the private duplicate, never the .tres")
+
+
+# ------------------------------------------------ the carve data texture (#843)
+
+func _carve(kind: int, sides: int, slice: int) -> CarveParams:
+	var p := CarveParams.new()
+	p.carve_kind = kind
+	p.carve_sides = sides
+	p.carve_squish = 0.75
+	p.carve_radius = 0.9
+	p.well_depth = 0.5
+	p.carve_slice = slice
+	p.carve_slice_b = slice + 1 if slice >= 0 else -1
+	return p
+
+
+func _texture_carve(field: ShatterField, slot: int) -> CarveParams:
+	var tex := (field.material as ShaderMaterial).get_shader_parameter(&"shatter_carve_tex") as Texture2D
+	assert_not_null(tex, "the carve texture is bound on the field's material")
+	if tex == null:
+		return null
+	var img := tex.get_image()
+	assert_not_null(img)
+	if img == null:
+		return null
+	return CarveParams.from_texels(img.get_pixel(slot * 2, 0), img.get_pixel(slot * 2 + 1, 0))
+
+
+func test_spawn_writes_its_carve_to_every_slot_it_filled() -> void:
+	var field := _field()
+	var carve := _carve(1, 5, -1)
+	var first := field.spawn_shatter(Vector2.ZERO, 24.0, TINT, V, 0.0, 6, 0.0, carve)
+	assert_eq(field.used_slots(), 6)
+	for slot in range(first, first + 6):
+		assert_true(field.shard_carve(slot).equals(carve), "slot %d carries the carve" % slot)
+
+
+func test_a_null_carve_writes_the_empty_dome() -> void:
+	var field := _field()
+	field.spawn_shatter(Vector2.ZERO, 24.0, TINT, V, 0.0, 4)
+	for slot in 4:
+		assert_true(field.shard_carve(slot).equals(CarveParams.none()))
+
+
+func test_a_recycled_slot_carries_the_new_shatters_carve() -> void:
+	var field := _field()
+	var old := _carve(3, 3, 2)
+	var fresh := _carve(1, 7, -1)
+	field.spawn_shatter(Vector2.ZERO, 24.0, TINT, Vector2.ZERO, 0.0, 8, 0.0, old)
+	field.elapsed = 0.3
+	field.spawn_shatter(Vector2(5.0, 5.0), 24.0, TINT, Vector2.ZERO, 0.3, 8, 0.0, fresh)
+	assert_eq(field.used_slots(), 8, "the second shatter reused the expired slots")
+	for slot in 8:
+		assert_true(field.shard_carve(slot).equals(fresh), "slot %d took the new carve" % slot)
+	field.flush_carve_texture()
+	assert_true(_texture_carve(field, 0).equals(fresh), "and so did the texture")
+
+
+func test_growth_preserves_every_live_slots_carve() -> void:
+	var field := _field()
+	var first := _carve(3, 3, 4)
+	field.spawn_shatter(Vector2.ZERO, 24.0, TINT, Vector2.ZERO, 0.0, 8, 0.0, first)
+	field.flush_carve_texture()
+	for i in 20:
+		field.spawn_shatter(Vector2(i, i), 24.0, TINT, Vector2.ZERO, 0.0, 8, 0.0, _carve(1, 3 + i % 10, -1))
+	field.flush_carve_texture()
+	for slot in 8:
+		assert_true(field.shard_carve(slot).equals(first))
+		assert_true(_texture_carve(field, slot).equals(first), "texel %d survived the regrow" % slot)
+	var last := field.used_slots() - 1
+	assert_true(_texture_carve(field, last).equals(_carve(1, 3 + 19 % 10, -1)))
+
+
+func test_one_flush_uploads_every_pending_spawn_once() -> void:
+	var field := _field()
+	var carves := [_carve(1, 4, -1), _carve(2, 3, -1), _carve(3, 3, 1)]
+	var firsts: Array[int] = []
+	# Grow the pool first so the three spawns below do not resize the texture.
+	field.spawn_shatter(Vector2.ZERO, 24.0, TINT, Vector2.ZERO, 0.0, 30)
+	field.flush_carve_texture()
+	var before := field.carve_upload_count()
+	for c in carves:
+		firsts.append(field.spawn_shatter(Vector2.ZERO, 24.0, TINT, Vector2.ZERO, 0.0, 2, 0.0, c))
+	field.flush_carve_texture()
+	assert_eq(field.carve_upload_count() - before, 1, "three spawns, one upload")
+	for i in carves.size():
+		assert_true(_texture_carve(field, firsts[i]).equals(carves[i]), "shatter %d's tuple is in the texture" % i)
+	field.flush_carve_texture()
+	assert_eq(field.carve_upload_count() - before, 1, "a flush with nothing new uploads nothing")

@@ -297,6 +297,13 @@ func set_carve(carve: Variant, ties: Array = []) -> void:
 	_inner_disk.set_carve(carve, ties)
 
 
+## The carve the leaf [InnerDisk] renders, as one value (see
+## [method InnerDisk.carve_params]). Routed here because this is the only
+## layer that knows InnerDisk exists.
+func carve_params() -> CarveParams:
+	return _inner_disk.carve_params() if _inner_disk != null else CarveParams.none()
+
+
 ## Routes [member carve_shape] down to the leaf [InnerDisk]'s own authored
 ## [member InnerDisk.carve_shape] — the composite composes and routes, it
 ## doesn't interpret (see the export's doc). Kept separate from

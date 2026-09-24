@@ -268,7 +268,8 @@ static func unpack_shard(packed: float) -> Vector2i:
 ## re-based to `spawn_time` instead. #787's rewind therefore calls
 ## [method clear] and re-drains its spawns.
 func spawn_shatter(origin: Vector2, radius: float, tint: Color, seed_velocity: Vector2,
-		spawn_time: float, shard_count: int = 8, kick_speed: float = 0.0) -> int:
+		spawn_time: float, shard_count: int = 8, kick_speed: float = 0.0,
+		carve: CarveParams = null) -> int:
 	if _used == 0 or elapsed >= _max_expiry:
 		_rebase(spawn_time)
 	var n := clampi(shard_count, 1, MAX_CELLS)
@@ -343,6 +344,18 @@ func shard_color(slot: int) -> Color:
 ## The pushed `INSTANCE_CUSTOM` (CPU mirror): `(vx, vy, spawn_time, packed)`.
 func shard_custom(slot: int) -> Color:
 	return _customs[slot]
+
+
+func shard_carve(_slot: int) -> CarveParams:
+	return null
+
+
+func carve_upload_count() -> int:
+	return 0
+
+
+func flush_carve_texture() -> void:
+	pass
 
 
 # ------------------------------------------------------------------ setters
