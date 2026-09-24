@@ -223,20 +223,24 @@ func test_pcb_below_target_is_a_symmetric_gable() -> void:
 	assert_almost_eq(leg5.y, 190.0, 0.001, "closing leg drops from trunk-top height to `to`")
 
 
-func test_pcb_below_target_with_narrow_perp_collapses_the_run() -> void:
+func test_pcb_below_target_with_narrow_perp_shortens_the_shoulders_and_keeps_a_run() -> void:
+	# Shoulder = min(shoulder, |perp| / 3): a third each for the two shoulders
+	# and the run, so a narrow offset still keeps a flat run rather than
+	# collapsing into an arch.
 	var pts := TraceRouter.compute_trace_points(
 		Vector2.ZERO, Vector2(60.0, 150.0), TraceRouter.Style.PCB, {"trunk_px": 40.0})
-	assert_eq(pts.size(), 5, "b == 0 dedups to the 5-point arch")
-	assert_eq(pts[2], Vector2(30.0, -70.0), "apex: a = |perp| / 2 = 30")
-	assert_eq(pts[3], Vector2(60.0, -40.0), "shoulder back lands at trunk-top height over `to`")
-	assert_eq(pts[4], Vector2(60.0, 150.0))
+	assert_eq(pts.size(), 6, "narrow perp is still the 6-point gable")
+	assert_eq(pts[2], Vector2(20.0, -60.0), "shoulder out: a = |perp| / 3 = 20")
+	assert_eq(pts[3], Vector2(40.0, -60.0), "run: b = |perp| - 2a = 20")
+	assert_eq(pts[4], Vector2(60.0, -40.0), "shoulder back lands at trunk-top height over `to`")
+	assert_eq(pts[5], Vector2(60.0, 150.0))
 
 
 func test_pcb_gable_shoulder_param_caps_the_shoulder() -> void:
 	var pts := TraceRouter.compute_trace_points(
 		Vector2.ZERO, Vector2(200.0, 150.0), TraceRouter.Style.PCB, {"trunk_px": 40.0, "shoulder": 10.0})
 	assert_eq(pts.size(), 6)
-	assert_eq(pts[2], Vector2(10.0, -50.0), "shoulder = min(|perp| / 2, params.shoulder)")
+	assert_eq(pts[2], Vector2(10.0, -50.0), "shoulder = min(params.shoulder, |perp| / 3)")
 	assert_eq(pts[3], Vector2(190.0, -50.0))
 
 
