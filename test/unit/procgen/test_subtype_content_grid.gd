@@ -30,7 +30,14 @@ const _FAMILY := {
 	&"constitution": &"curse",
 }
 
-const _EMPTY_CELLS: Array[StringName] = [&"perception", &"wisdom"]
+## Which (archetype, forced subtype) cells have no content yet — #1061's
+## children clear their own entry as they land: #1093 (blessed WIS) cleared
+## wisdom/bless, #1094 (blighted WIS) will clear wisdom/blight, #1095 (PER)
+## will clear perception/blight and perception/bless.
+const _EMPTY_CELLS: Dictionary = {
+	&"blight": [&"perception", &"wisdom"],
+	&"bless": [&"perception"],
+}
 
 
 func _subtype(id_: StringName, chance: float = 0.0) -> NodeSubtype:
@@ -198,10 +205,11 @@ func _generate(cfg: GraphProcgenConfig) -> Array[SkillNode]:
 	return out
 
 
-## PER and WIS have no blighted and no blessed content, and that is the design
-## (decisions 10 & 11), not an omission. Decision 13's demotion is what keeps it
-## honest: force both subtypes to certainty and every PER/WIS node must still
-## end on the default, while the four populated archetypes stand.
+## PER and WIS start each cell empty per `_EMPTY_CELLS`, and that is the design
+## (decisions 10/11/19), not an omission, until each #1061 child lands its
+## content. Decision 13's demotion is what keeps it honest: force a subtype to
+## certainty and every node on an empty cell must still end on the default,
+## while the four populated archetypes (and any cleared PER/WIS cell) stand.
 func test_perception_and_wisdom_always_end_on_the_default_subtype() -> void:
 	# QUARANTINED. Passes alone and sharded; fails single-process in
 	# `GUT_SHARDS=1 mise run test:dir -- res://test/unit/procgen/` — alongside
@@ -223,7 +231,7 @@ func test_perception_and_wisdom_always_end_on_the_default_subtype() -> void:
 		for sn in nodes:
 			var primary: StringName = sn.archetype.primary_stat
 			assert_not_null(sn.subtype, "procgen stamps a subtype on every archetype node")
-			if primary in _EMPTY_CELLS:
+			if primary in (_EMPTY_CELLS[forced] as Array):
 				empty_cell_nodes += 1
 				assert_eq(sn.subtype.id, default_id,
 					"a %s node has no %s content and must demote to %s (D13)"

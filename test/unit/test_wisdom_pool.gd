@@ -24,6 +24,39 @@ func test_wisdom_pool_values() -> void:
 			assert_eq(pp.to_entries(p.archetype_stat).size(), pp.max_tier - pp.min_tier + 1,
 					"wisdom.addb: one entry per offered tier")
 	assert_true(found, "the pack must carry a wisdom addb pool at all")
+func _flatten(subtype: NodeSubtype) -> Array[ModifierPoolEntry]:
+	var pool_set := ModifierPoolSet.new()
+	pool_set.packs = [_PACK.duplicate(true)]
+	return pool_set.flatten_for_node(&"wisdom", subtype)
+
+## #1093 — blessed WIS is the XP engine plus recovery, replacing the small
+## xp_per_turn +% pool (decision 11/18).
+func test_blessed_wisdom_gets_the_fat_xp_pair_and_wound_heal() -> void:
+	var bless := NodeSubtype.new(); bless.id = &"bless"
+	var ids: Array[StringName] = []
+	for e in _flatten(bless):
+		if not e.stat_id in ids: ids.append(e.stat_id)
+	assert_true(&"wound_heal_per_turn" in ids, "blessed WIS must roll wound_heal_per_turn")
+	assert_true(&"xp_per_turn" in ids, "blessed WIS must roll xp_per_turn")
+	var small_pool: StatPool = null
+	var p: StatPack = _PACK.duplicate(true) as StatPack
+	for sp in p.pools:
+		var pp := sp as StatPool
+		if pp.stat_id == &"xp_per_turn" and pp.operation == StatModifier.Operation.INCREASE \
+				and not &"bless" in pp.tags:
+			small_pool = pp
+	assert_not_null(small_pool, "the small (non-bless-tagged) xp_per_turn +% pool must still exist")
+	assert_false(small_pool.admits_subtype(bless),
+		"blessed WIS must NOT roll the small xp_per_turn +% pool (decision 11/18: replace, not add)")
+
+func test_regular_wisdom_keeps_the_small_pool_not_the_fat_pair() -> void:
+	var regular := NodeSubtype.regular()
+	var ids: Array[StringName] = []
+	for e in _flatten(regular):
+		if not e.stat_id in ids: ids.append(e.stat_id)
+	assert_false(&"wound_heal_per_turn" in ids, "regular WIS must not roll wound_heal_per_turn")
+	assert_true(&"xp_per_turn" in ids, "regular WIS keeps the small xp_per_turn +% pool")
+
 func test_draw_only_emits_pack_stat_ids() -> void:
 	var pool_set := ModifierPoolSet.new()
 	pool_set.packs = [_PACK.duplicate(true)]

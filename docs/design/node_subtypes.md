@@ -46,7 +46,7 @@ Owner re-homed two families in this session (see Decisions): **wither → INT**,
 | **INT** | wither | wither potency | wither resistance | mana, cast range, node_health |
 | **CON** | curse | curse potency | curse resistance | node_health, the defensive ladder |
 | **PER** | blindness | blindness application | blindness resistance / vision | vision range, sensor range, **scout arrows per reload** |
-| **WIS** | — (pure economy) | *open — see below* | budget bump (proposal) | wisdom ladder, xp_per_turn |
+| **WIS** | — (pure economy) | *open — see below* | wound_heal_per_turn, fat xp_per_turn (flat + %) — trades the small xp_per_turn +% (#1093) | wisdom ladder, small xp_per_turn +% |
 
 Why the re-homing is better than what ships today:
 

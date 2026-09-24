@@ -332,6 +332,9 @@ ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
 | `vision_range` .inc | 7.5 | — | 2.5 | 1 | 3 | +7.5% +22.5% +52.5% |
 | `xp_per_turn` .addb | 10 | — | 2 | 1 | 3 | +10 +30 +70 |
 | `xp_per_turn` .inc | 7.5 | — | 0.5 | 1 | 2 | +7.5% +22.5% |
+| `wound_heal_per_turn` .addb (wis, bless) | 1 | — | 2 | 1 | 2 | +1 +3 |
+| `xp_per_turn` .addb (wis, bless) | 12 | — | 2 | 1 | 3 | +12 +36 +84 |
+| `xp_per_turn` .inc (wis, bless) | 4 | — | 2 | 1 | 3 | +4% +12% +28% |
 | `movement_points` .addb (universal) | 1 | — | 0.6 | 1 | 2 | +1 +3 |
 | `deallocation_points` .addb (universal) | 1 | — | 0.8 | 1 | 2 | +1 +3 |
 | `intelligence` .inc **debuff** (str) | −5 | — | 0.5 | 1 | 1 | −5% (cost −1) |
@@ -346,10 +349,17 @@ ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
 
 Per-pack homes (the pack is the gate, ADR 0028): str/dex/int/wis/per/con each
 carry their attribute's addb+inc+mul; dex adds crit_chance+crit_multiplier; int
-adds mana+mana_per_turn; wis adds xp_per_turn (addb+inc); per adds vision_range
+adds mana+mana_per_turn; wis adds xp_per_turn (addb+inc, `[regular]` since
+#1093/#1094 split its subtypes — see below); per adds vision_range
 (inc+addn)+sensor_range; con adds the `dexterity -%` curse (#718).
 `universal.tres` (the one universal pack) carries node_health+armor and
 movement_points+deallocation_points.
+
+**Blessed WIS is the XP engine plus recovery (#1093), not a DoT pole**: it
+adds `wound_heal_per_turn` .addb and a fatter `xp_per_turn` pair
+(addb+inc, both `[bless]`), replacing rather than stacking onto the small
+`xp_per_turn` .inc pool — that pool's `subtypes` lost `bless` so a blessed
+node draws the fat pair instead (decision 11/18, `docs/design/node_subtypes.md`).
 
 The four DoT families each have one attribute home holding both poles, gated
 by subtype (#1059): the **potency** rolls only on blighted nodes, the
