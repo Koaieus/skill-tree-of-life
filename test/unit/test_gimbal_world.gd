@@ -49,3 +49,82 @@ func test_clip_planes_split_the_world_at_the_ring_plane() -> void:
 	assert_true(back.y > back.x, "back far clip lies beyond the plane")
 	# Together the two halves tile the visible depth with no gap and no overlap.
 	assert_almost_eq(front.y, back.x, 0.001, "the halves meet exactly at z=0")
+
+
+func test_acquire_parents_a_new_world_under_the_graph_not_the_host() -> void:
+	# A live halo's host sits deep inside one SkillNode's ShaderStack: the
+	# fallback world must land under the Graph (one canvas for the board),
+	# never beside the host.
+	var graph: Graph = (load("res://graph/graph.tscn") as PackedScene).instantiate()
+	add_child_autofree(graph)
+	var a := Node2D.new()
+	graph.add_child(a)
+	var b := Node2D.new()
+	a.add_child(b)
+	var host := Node2D.new()
+	b.add_child(host)
+	var world := GimbalWorld.acquire(host)
+	assert_not_null(world, "acquire always yields a world")
+	if world == null:
+		return
+	assert_eq(world.get_parent(), graph, "a new world is parented under the nearest Graph ancestor")
+	var other := Node2D.new()
+	graph.add_child(other)
+	assert_eq(GimbalWorld.acquire(other), world, "a second host in the same viewport shares the one world")
+
+
+func test_render_targets_sleep_with_no_rig_on_screen() -> void:
+	var world: GimbalWorld = (load(GimbalWorld.SCENE) as PackedScene).instantiate()
+	add_child_autofree(world)
+	var back := world.get_node_or_null(^"WorldBack") as SubViewport
+	var front := world.get_node_or_null(^"WorldFront") as SubViewport
+	assert_not_null(back, "the base scene carries WorldBack")
+	assert_not_null(front, "the base scene carries WorldFront")
+	if back == null or front == null:
+		return
+	assert_eq(back.render_target_update_mode, SubViewport.UPDATE_DISABLED, "fresh world: back asleep")
+	assert_eq(front.render_target_update_mode, SubViewport.UPDATE_DISABLED, "fresh world: front asleep")
+	# Far off any view, so nothing but the notifier below can wake it.
+	var holder := world.add_rig(Gimbal3D.new(), Vector2(1e6, 1e6), 32.0)
+	assert_eq(world.visible_rig_count(), 0, "a rig nobody sees does not count")
+	assert_eq(back.render_target_update_mode, SubViewport.UPDATE_DISABLED, "an off-screen rig keeps it asleep")
+	var notifier := holder.get_node_or_null(^"OnScreen") as VisibleOnScreenNotifier3D
+	assert_not_null(notifier, "add_rig gives the holder an OnScreen notifier")
+	if notifier == null:
+		return
+	notifier.screen_entered.emit()
+	assert_eq(world.visible_rig_count(), 1, "the notifier reporting on-screen counts the rig")
+	assert_eq(back.render_target_update_mode, SubViewport.UPDATE_ALWAYS, "one rig on screen: back renders")
+	assert_eq(front.render_target_update_mode, SubViewport.UPDATE_ALWAYS, "one rig on screen: front renders")
+	holder.free()
+	assert_eq(world.visible_rig_count(), 0, "a freed holder no longer counts")
+	assert_eq(back.render_target_update_mode, SubViewport.UPDATE_DISABLED, "freed: back asleep again")
+	assert_eq(front.render_target_update_mode, SubViewport.UPDATE_DISABLED, "freed: front asleep again")
+
+
+func test_world_scene_is_the_two_camera_split() -> void:
+	var world: GimbalWorld = (load(GimbalWorld.SCENE) as PackedScene).instantiate()
+	add_child_autofree(world)
+	assert_false("split" in world, "one implementation of the contract: no split flag")
+	assert_null(world.find_child("Occluder*", true, false), "no occluder anywhere")
+	var back := world.get_node_or_null(^"WorldBack") as SubViewport
+	var front := world.get_node_or_null(^"WorldFront") as SubViewport
+	assert_not_null(back, "WorldBack exists")
+	assert_not_null(front, "WorldFront exists")
+	if back == null or front == null:
+		return
+	assert_eq(front.world_3d, back.find_world_3d(), "the front viewport draws the back's World3D")
+	assert_eq(back.msaa_3d, Viewport.MSAA_4X, "back is 4x MSAA")
+	assert_eq(front.msaa_3d, Viewport.MSAA_4X, "front is 4x MSAA")
+	var cam_back := back.get_camera_3d()
+	var cam_front := front.get_camera_3d()
+	assert_not_null(cam_back, "back has a camera")
+	assert_not_null(cam_front, "front has a camera")
+	if cam_back == null or cam_front == null:
+		return
+	var bp := GimbalWorld.clip_planes(false)
+	var fp := GimbalWorld.clip_planes(true)
+	assert_almost_eq(cam_back.near, bp.x, 0.001, "back near = clip_planes(false).x")
+	assert_almost_eq(cam_back.far, bp.y, 0.001, "back far = clip_planes(false).y")
+	assert_almost_eq(cam_front.near, fp.x, 0.001, "front near = clip_planes(true).x")
+	assert_almost_eq(cam_front.far, fp.y, 0.001, "front far = clip_planes(true).y")

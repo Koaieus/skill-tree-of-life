@@ -195,6 +195,10 @@ func rig_count() -> int:
 	return _rigs.get_child_count()
 
 
+func visible_rig_count() -> int:
+	return 0
+
+
 static func to_world_3d(world_pos: Vector2) -> Vector3:
 	return Vector3(world_pos.x, -world_pos.y, 0.0)
 
