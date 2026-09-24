@@ -26,8 +26,11 @@ signal segment_hovered(bucket: Bucket)
 signal segment_unhovered
 
 var _hovered_bucket: int = -1
+## The one door every tween on this bar is created through, so a test can step
+## the sweep by hand — shared shape with [PoolGauge]. See [TweenClock].
+var clock := TweenClock.new()
 ## The segment sweep, shared with [PoolGauge]. See [GaugeSpark].
-var _spark := GaugeSpark.new(self, _push)
+var _spark := GaugeSpark.new(self, _push, clock)
 ## Set while [method set_buckets] is writing its four properties one at a time;
 ## the intermediate states are not events, so only the last write sweeps.
 var _batching: bool = false

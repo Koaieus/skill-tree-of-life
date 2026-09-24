@@ -272,7 +272,7 @@ var _drain_tween: Tween
 var _level_tween: Tween
 ## The segment sweep — the display walking to the model one cell per step, hot
 ## while it does. Composed, and shared with [CompositeBarGauge]; see [GaugeSpark].
-var _spark := GaugeSpark.new(self, _push)
+var _spark := GaugeSpark.new(self, _push, clock)
 ## Set while a (re)bind is painting a gauge for the first time — see
 ## [method begin_snap]. Suppresses the drain ghost; [GaugeSpark] carries the
 ## same window for the spark.

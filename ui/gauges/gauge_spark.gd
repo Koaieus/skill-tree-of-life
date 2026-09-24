@@ -25,6 +25,12 @@ var _host: CanvasItem
 ## `_push(param, value)` — the host's own shader-parameter setter, so a gauge
 ## that duplicates its material still drives the copy it is actually rendering.
 var _push: Callable
+## The host gauge's own `TweenClock` — every tween this spark creates goes
+## through it (#1065), so a test steps the host's `clock` by hand instead of
+## the real clock. Passed in rather than read off `_host`: `_host` is a bare
+## `CanvasItem` and reaching into a duck-typed `.clock` is the reach-in
+## `TweenClock` exists to delete.
+var _clock: TweenClock
 ## One tween per swept property, so a `current` sweep and a `surplus` sweep on
 ## the same gauge run side by side and a repeat on the same property replaces
 ## only its own.
@@ -47,9 +53,10 @@ var energy: float = 0.0:
 	set = _set_energy
 
 
-func _init(host: CanvasItem, push: Callable) -> void:
+func _init(host: CanvasItem, push: Callable, clock: TweenClock) -> void:
 	_host = host
 	_push = push
+	_clock = clock
 
 
 func _set_energy(v: float) -> void:
@@ -98,7 +105,7 @@ func _start(target: Object, property: NodePath, to: Variant, cells: float,
 	if _cool_tween and _cool_tween.is_valid():
 		_cool_tween.kill()
 	energy = 1.0
-	var tween := _host.create_tween()
+	var tween := _clock.tween(_host)
 	tween.tween_property(target, property, to, duration).set_trans(Tween.TRANS_LINEAR)
 	tween.tween_callback(_on_landed.bind(property, cool_time))
 	_sweeps[property] = tween
@@ -147,6 +154,6 @@ func _on_landed(property: NodePath, cool_time: float) -> void:
 	if cool_time <= 0.0:
 		energy = 0.0
 		return
-	_cool_tween = _host.create_tween()
+	_cool_tween = _clock.tween(_host)
 	_cool_tween.tween_property(self, ^"energy", 0.0, cool_time) \
 			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
