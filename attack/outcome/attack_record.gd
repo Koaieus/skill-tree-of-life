@@ -42,9 +42,9 @@ extends RefCounted
 ##      [member AttackOutcome.hits], never copies. The timeline therefore
 ##      carries INDICES into the flat hit list, and [method rebuild] restores
 ##      the aliasing rather than building independent copies per event.
-##   2. Volume. `trail_blazer.tres` authorises `max_hops = 20` and
-##      `reverberator.tres` `max_visits_per_node = 6`, so one cast can produce
-##      ~100 landings.
+##   2. Volume. `trail_blazer.tres` has no hop limit (`max_hops = inf`; only
+##      the never-revisit rule ends its walk) and `reverberator.tres` authorises
+##      `max_visits_per_node = 6`, so one cast can produce ~100 landings.
 ##
 ## [b]What does not cross, and why[/b] (traced against master, not guessed):
 ##   * `HitInstance.source` — a [Variant] whose one real reader

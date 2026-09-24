@@ -201,7 +201,7 @@ nothing.
    `edge_camera_zoom` global the edge itself reads, plus a one-time push of the
    edge material's own `width` — no CPU mirror. Concurrency is bounded by
    **linger, not hop count**: `EdgeEnergize.max_live_overlays(linger, beat)`.
-   (#663 D7 removes Trail Blazer's `max_hops`, so any "at most 20" reasoning is
+   (Trail Blazer's `max_hops` is `inf`, so any "at most 20" reasoning is
    wrong.)
 
 Opt-in needs no new knob: the coordinator's per-verb `edge_visual` / `jump_visual`

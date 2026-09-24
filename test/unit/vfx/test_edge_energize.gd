@@ -281,7 +281,7 @@ func test_context_without_endpoints_never_touches_top_level() -> void:
 
 
 func test_live_overlays_are_bounded_by_linger_not_by_hop_count() -> void:
-	# Trail Blazer's `max_hops` bound is being REMOVED (#663 D7), so hop count
+	# Trail Blazer's `max_hops` is `inf`, so hop count
 	# is unbounded and any "at most 20 overlays" reasoning is wrong. What
 	# actually caps them is how long each one lingers against the beat.
 	assert_eq(EdgeEnergize.max_live_overlays(2.5, 0.4), 8,

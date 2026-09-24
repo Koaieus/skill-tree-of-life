@@ -4,8 +4,8 @@ extends HopDamageProgression
 
 ## Arithmetic progression whose common difference is a FRACTION OF THE SEED:
 ## hop n is [code]seed × (1 + n × seed_fraction_per_hop)[/code]. Linear growth,
-## so it stays usable where a geometric ramp explodes (Trailblazer's
-## [code]max_hops = 20[/code]) — and unlike [FlatAddProgression] it is relative,
+## so it stays usable where a geometric ramp explodes (Trailblazer has no hop
+## limit, [code]max_hops = inf[/code]) — and unlike [FlatAddProgression] it is relative,
 ## so it SCALES WITH THE CASTER: doubling [code]spell_damage[/code] doubles
 ## every hit (D-32).
 ##
