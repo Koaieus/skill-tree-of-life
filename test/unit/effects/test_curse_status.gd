@@ -183,7 +183,9 @@ func test_authored_curse_and_hex_load_and_are_in_the_debug_book() -> void:
 	assert_true(&"debuff" in curse.tags, "tagged as a debuff")
 	assert_eq(curse.potency_stat_id, &"curse_potency")
 	assert_eq(curse.resistance_stat_id, &"curse_resistance")
-	assert_eq(curse.decay_mode, StatusDef.DecayMode.FRACTION, "halving decay")
+	# FLAT since #1091 (a legible "cursed for N turns" window); the shape law
+	# lives in test_status_decay_shapes. The hand-built fixture above keeps
+	# FRACTION 0.5 — it tests the floor formula, not the authored fade.
 	assert_almost_eq(curse.power_max, 0.0, 0.001, "uncapped")
 	assert_eq(curse.reapply, StatusDef.Reapply.ACCUMULATE, "stacks add")
 

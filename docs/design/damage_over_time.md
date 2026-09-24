@@ -58,8 +58,9 @@ Why not the other timers (rejected 2026-09-20):
 - **Per-hit instances** (PoE): linear and faithful, but the slice becomes a
   list and every reader changes.
 
-Stacks are **uncapped**. Blindness and armor-break keep their flat decay and
-caps; the decay mode is a per-def knob, not a global change.
+Stacks are **uncapped**. Armor-break keeps its flat decay and cap; the decay
+mode is a per-def knob, not a global change (the per-family shapes: the
+2026-09-23 table below).
 
 ## Applying: flat stacks per hit, scaled by percent stats
 
@@ -174,6 +175,12 @@ rejected above). The shape is per def instead:
 | Wither | healing multiplier below 1; below zero the node *degenerates* — kept, *"a niche but fun concept"* | must outlast the victim's patience | FRACTION 0.75 | 4 |
 | Blindness | vision multiplier on a saturating curve | deeper and longer the more lands; recovers slowly first | FRACTION 0.7, uncapped, ACCUMULATE | see node_subtypes.md D20 |
 | Armor break | as shipped | | FLAT | |
+
+The table's *f* is the fraction **retained** per tick (so 1/(1−f) stack-ticks); the `.tres` knob
+`decay_per_tick` is the fraction **removed**, so it is authored as 1 − f: corruption 0.2, wither 0.25,
+blindness 0.3. Blindness's 0.3 is the implementer's reading of "FRACTION 0.7", pending the owner's
+confirmation (#1090). Shipped by #1090 (blindness) and #1091 (the other families); the shape law is
+`test/unit/effects/test_status_decay_shapes.gd`.
 
 Corruption with **no decay, cure-only** was floated as the bold alternative; revisit when the
 cleanse lane exists. A defender-side "this ground sheds rot" knob (node-local decay bonus)

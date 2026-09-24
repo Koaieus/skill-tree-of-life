@@ -189,8 +189,9 @@ func test_authored_corruption_loads_with_the_model_shape() -> void:
 	assert_eq(c.potency_stat_id, &"corruption_potency")
 	assert_eq(c.resistance_stat_id, &"corruption_resistance")
 	assert_true(c.power_max <= 0.0, "uncapped")
-	assert_eq(c.decay_mode, StatusDef.DecayMode.FRACTION)
-	assert_almost_eq(c.decay_per_tick, 0.5, 0.0001, "halves")
+	# Decay shape is pinned by test_status_decay_shapes; the rate is the owner's
+	# knob (#1091: 0.2 — decay_per_tick is the fraction REMOVED; the owner's
+	# table f is the fraction RETAINED), so no magnitude is pinned here.
 	assert_gt(c.display_max, 0.0, "an uncapped def authors its display anchor")
 	assert_eq(c.reapply, StatusDef.Reapply.ACCUMULATE)
 	assert_gt(c.damage_per_power, 0.0, "deals something per stack")
