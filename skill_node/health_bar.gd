@@ -48,6 +48,8 @@ var _fill_style: StyleBoxFlat = null
 var _pool: PoolStat = null
 var _skill_node: SkillNode = null
 var _hovered: bool = false
+## The one door both tweens come through; a test sets `clock.manual` and steps.
+var clock := TweenClock.new()
 var _fade_tween: Tween = null
 var _value_tween: Tween = null
 ## The alpha the current fade is committed to. Tracked separately from the live
@@ -228,7 +230,7 @@ func _fade_to(target_alpha: float) -> void:
 	_fade_target = target_alpha
 	if _fade_tween:
 		_fade_tween.kill()
-	_fade_tween = create_tween()
+	_fade_tween = clock.tween(self)
 	var dur := _FADE_IN_DURATION if target_alpha > 0.0 else _FADE_OUT_DURATION
 	_fade_tween.tween_property(self, "modulate:a", target_alpha, dur) \
 			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
@@ -245,7 +247,7 @@ func _kill_value_tween() -> void:
 func _tween_value(target: float, duration: float,
 		_ease: Tween.EaseType, trans: Tween.TransitionType) -> void:
 	_kill_value_tween()
-	_value_tween = create_tween()
+	_value_tween = clock.tween(self)
 	_value_tween.tween_property(self, "value", target, duration) \
 			.set_ease(_ease).set_trans(trans)
 
