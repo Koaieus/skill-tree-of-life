@@ -311,7 +311,9 @@ scenes exist and load; they are not yet placed by `first_level.tres`.
 > around; do not treat a divergence from it as a bug.
 
 `unit` = `unit_value` (T1 magnitude; negative = debuff). `pool_w` =
-`pool_weight`. Default `jitter = 0.25`, `tier_shape` = `power 0, ratio 2`. ADD*/INCREASE/
+`pool_weight` in the pre-#1079 unit (tier mass baked into the draw); today's
+`pool_weight` is that value × Σ `tier_weight(t)` over `min_T..max_T` (the #1079
+migration). Default `jitter = 0.25`, `tier_shape` = `power 0, ratio 2`. ADD*/INCREASE/
 ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
 
 | pool | unit | overrides | pool_w | min_T | max_T | resulting T1..T4 |

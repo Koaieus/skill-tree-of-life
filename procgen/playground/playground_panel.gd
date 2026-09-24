@@ -340,7 +340,8 @@ func _sample_with_budget(world_pos: Vector2, policy: ArchetypePolicy, budget: in
 	if _config != null and _config.content.modifier_pool_set != null:
 		mods = GraphProcgen._roll_modifiers_v4(
 				_config.content.modifier_pool_set, _config.content.weight_profiles,
-				archetype_id, primary_stat, forbid, world_pos, 0, budget, _rng, {})
+				archetype_id, primary_stat, forbid, world_pos, 0, budget, _rng, {},
+				null, _config.content.universal_share)
 	return {"budget": budget, "mods": mods}
 
 
