@@ -90,6 +90,7 @@ class ScoredCandidate:
 	## 0.0 whenever no [LootSystem] was supplied to [method score] (existing
 	## callers don't yet thread one through).
 	var kill_xp: float = 0.0
+	var kill_xp_bonus: float = 0.0
 	var cut_vertex_bonus: float = 0.0
 	var enemy_weak_bonus: float = 0.0
 	var self_shape_risk: float = 0.0

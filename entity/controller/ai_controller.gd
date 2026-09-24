@@ -96,10 +96,17 @@ var last_magic_promoted_count: int = 0
 ## value other than the compile-time default, to control pacing/avoid
 ## take_turn recursion — see .claude/rules/turn-manager.md).
 @export var turn_delay: float = _DEFAULT_TURN_DELAY
-## Tier-gates [AiCombatScorer]'s cut-vertex / enemy-weak-point / self-shape-
-## risk bonuses. 0 = naive, picks by raw EV. Kept here (not on the scorer)
-## since it's the controller's single behavior-shaping knob.
-@export var ai_tier: int = 1
+## The AI difficulty ladder. Each rung switches habits ON in
+## [method AiCombatScorer.score] at the same x1 weight — a higher tier knows
+## more tricks, it never weighs the same trick harder:
+## BRAWLER raw EV (+ kill preference); FIGHTER + cut-vertex; TACTICIAN
+## + enemy-weak-point and self-shape risk; WARLORD + kill-XP ("hunts the rich
+## kill"). The same int also drives the melee handle ladder
+## ([method AiBladeRollout._propose_blade_selections]). Names are placeholders.
+enum Tier { BRAWLER, FIGHTER, TACTICIAN, WARLORD }
+const DEFAULT_TIER := Tier.TACTICIAN
+## The controller's single behavior-shaping knob — see [enum Tier].
+@export var ai_tier: Tier = DEFAULT_TIER
 ## Seeded off [code]GameSession.config.seed[/code] (#823 D5, owner 2026-09-10:
 ## "AI only runs by authority so option 1 should be fine even for
 ## multiplayer") mixed with a per-ENTITY discriminator — every AI on the

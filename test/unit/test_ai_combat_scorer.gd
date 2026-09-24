@@ -233,22 +233,24 @@ func test_tier_zero_zeroes_cut_vertex_weak_and_risk_terms() -> void:
 	assert_eq(c.self_shape_risk, 0.0)
 
 
-func test_tier_one_scores_cut_vertex_bonus_for_enemy_cut_vertex() -> void:
+func test_fighter_scores_cut_vertex_bonus_for_enemy_cut_vertex() -> void:
 	# H0 (core) - H1 - H2: depleting H1 islands H2 from the hostile's core ->
 	# H1 is the cut vertex. H0 (core, excluded by definition) and H2 (a leaf,
 	# islands nobody) are not.
 	var outcome := _resolve_ranged_at(_nodes[3])
 
-	var c := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[3], _ai, 1)
+	var c := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[3], _ai,
+			AIController.Tier.FIGHTER)
 
 	assert_gt(c.cut_vertex_bonus, 0.0, "H1 islands H2 if depleted -> cut vertex")
 
 
-func test_tier_one_scores_enemy_weak_bonus_for_low_armor_target() -> void:
+func test_tactician_scores_enemy_weak_bonus_for_low_armor_target() -> void:
 	_hostile.stat_board.armor.base_value = -10.0
 	var outcome := _resolve_ranged_at(_nodes[2])
 
-	var c := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[2], _ai, 1)
+	var c := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[2], _ai,
+			AIController.Tier.TACTICIAN)
 
 	assert_gt(c.enemy_weak_bonus, 0.0)
 
@@ -256,15 +258,102 @@ func test_tier_one_scores_enemy_weak_bonus_for_low_armor_target() -> void:
 func test_shape_risk_tier_gated_prefers_safer_candidate_at_equal_ev() -> void:
 	var outcome := _resolve_ranged_at(_nodes[2])
 
-	var risky := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[2], _ai, 1, 5)
-	var safe := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[2], _ai, 1, 0)
+	var t := AIController.Tier.TACTICIAN
+	var risky := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[2], _ai, t, 5)
+	var safe := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[2], _ai, t, 0)
 
-	assert_gt(safe.total, risky.total, "equal EV, fewer popped nodes must score higher at tier > 0")
+	assert_gt(safe.total, risky.total, "equal EV, fewer popped nodes must score higher at TACTICIAN")
 
 	var naive_risky := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[2], _ai, 0, 5)
 	var naive_safe := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, _nodes[2], _ai, 0, 0)
 	assert_almost_eq(naive_risky.total, naive_safe.total, 0.001,
 			"ai_tier = 0 must not penalize thin-shape reach candidates")
+
+
+## Test double: a fixed per-victim-shape kill-XP preview, so the ladder tests
+## pin the scorer's arithmetic rather than LootSystem's pricing.
+class _FixedLoot extends LootSystem:
+	var core_xp := 100.0
+	var node_xp := 5.0
+
+	func preview_kill_xp(_killer: Entity, _victim: Entity, removed_node_count: int,
+			kills_entity: bool) -> float:
+		return core_xp if kills_entity else node_xp * float(removed_node_count)
+
+
+func _score_at(tier: int, outcome: AttackOutcome, target: SkillNode, popped := 0,
+		loot: LootSystem = null) -> AiCombatScorer.ScoredCandidate:
+	return AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, target, _ai, tier,
+			popped, loot)
+
+
+## Chip [param target] down so the fixture's one-wave volley at it kills.
+func _make_lethal(target: SkillNode, outcome: AttackOutcome) -> void:
+	var ev := AiCombatScorer.expected_damage(outcome)
+	_true_damage(target, target.get_current_hp() - ev)
+
+
+func test_ladder_switches_habits_on_one_rung_at_a_time() -> void:
+	_hostile.stat_board.armor.base_value = -10.0
+	var loot: LootSystem = autofree(_FixedLoot.new())
+	var outcome := _resolve_ranged_at(_nodes[3]) # H1: cut vertex, weak, survives
+	var Tier := AIController.Tier
+
+	var t0 := _score_at(Tier.BRAWLER, outcome, _nodes[3], 3, loot)
+	assert_eq([t0.cut_vertex_bonus, t0.enemy_weak_bonus, t0.self_shape_risk, t0.kill_xp_bonus],
+			[0.0, 0.0, 0.0, 0.0], "BRAWLER: every habit term off")
+	var t1 := _score_at(Tier.FIGHTER, outcome, _nodes[3], 3, loot)
+	assert_eq([t1.cut_vertex_bonus, t1.enemy_weak_bonus, t1.self_shape_risk, t1.kill_xp_bonus],
+			[25.0, 0.0, 0.0, 0.0], "FIGHTER: cut vertex only, at x1")
+	var t2 := _score_at(Tier.TACTICIAN, outcome, _nodes[3], 3, loot)
+	assert_eq([t2.cut_vertex_bonus, t2.enemy_weak_bonus, t2.self_shape_risk, t2.kill_xp_bonus],
+			[25.0, 50.0, 30.0, 0.0], "TACTICIAN: cut + weak + risk, each at x1")
+	var t3_miss := _score_at(Tier.WARLORD, outcome, _nodes[3], 3, loot)
+	assert_eq(t3_miss.kill_xp_bonus, 0.0, "WARLORD: no kill-XP term on a non-kill")
+	assert_almost_eq(t3_miss.total, t2.total, 0.001, "WARLORD == TACTICIAN on a non-kill")
+
+	_make_lethal(_nodes[3], outcome)
+	var t3_kill := _score_at(Tier.WARLORD, outcome, _nodes[3], 3, loot)
+	var t2_kill := _score_at(Tier.TACTICIAN, outcome, _nodes[3], 3, loot)
+	assert_true(t3_kill.is_kill, "fixture: chipped H1 now dies")
+	assert_eq(t3_kill.kill_xp_bonus, 5.0, "WARLORD sums kill_xp x1 on a kill")
+	assert_almost_eq(t3_kill.total, t2_kill.total + 5.0, 0.001, "kill_xp_bonus is IN the total")
+	assert_eq(t2_kill.kill_xp_bonus, 0.0, "TACTICIAN previews kill_xp but never sums it")
+
+
+## The default moved t1 -> TACTICIAN without re-weighting: these totals were
+## recorded on master at `ai_tier = 1` before the ladder landed.
+func test_tactician_scores_exactly_what_the_old_tier_one_did() -> void:
+	_hostile.stat_board.armor.base_value = -10.0
+	var t := AIController.Tier.TACTICIAN
+	assert_almost_eq(_score_at(t, _resolve_ranged_at(_nodes[3]), _nodes[3], 3).total, 67.0, 0.001)
+	assert_almost_eq(_score_at(t, _resolve_ranged_at(_nodes[2]), _nodes[2], 5).total, 22.0, 0.001)
+	assert_almost_eq(_score_at(t, _resolve_ranged_at(_nodes[4]), _nodes[4], 0).total, 72.0, 0.001)
+	assert_eq(AIController.DEFAULT_TIER, t, "the default seat is TACTICIAN")
+
+
+func test_warlord_hunts_the_rich_kill_tactician_keeps_ev_order() -> void:
+	var loot: LootSystem = autofree(_FixedLoot.new())
+	# One outcome, two lethal targets: equal EV and equal kill bonus, neither a
+	# cut vertex (H0 is the core, H2 a leaf) — only the kill-XP preview differs
+	# (H2: one node's trickle, H0: the entity kill).
+	var outcome := _resolve_ranged_at(_nodes[2])
+	_make_lethal(_nodes[2], outcome)
+	_make_lethal(_nodes[4], outcome)
+	var Tier := AIController.Tier
+
+	var t2: Array[AiCombatScorer.ScoredCandidate] = [
+		_score_at(Tier.TACTICIAN, outcome, _nodes[4], 0, loot),
+		_score_at(Tier.TACTICIAN, outcome, _nodes[2], 0, loot)]
+	assert_true(t2[0].is_kill and t2[1].is_kill, "fixture: both targets die")
+	assert_gt(t2[1].kill_xp, t2[0].kill_xp, "fixture: the core kill pays more")
+	assert_eq(AiCombatScorer.pick_best(t2).target, _nodes[4],
+			"TACTICIAN ties on EV and keeps candidate order")
+
+	var t3: Array[AiCombatScorer.ScoredCandidate] = [
+		_score_at(Tier.WARLORD, outcome, _nodes[4], 0, loot),
+		_score_at(Tier.WARLORD, outcome, _nodes[2], 0, loot)]
+	assert_eq(AiCombatScorer.pick_best(t3).target, _nodes[2], "WARLORD takes the richer kill")
 
 
 # ---------------------------------------------------------------------------
