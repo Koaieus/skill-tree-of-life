@@ -718,3 +718,86 @@ func test_an_sp_warband_spawns_allied_to_the_human_and_a_camp_ai_hostile() -> vo
 	assert_eq(human_ent.attitude_to(ally), Entity.Attitude.ALLIED, "the Warband is an ally")
 	assert_eq(human_ent.attitude_to(raider), Entity.Attitude.HOSTILE)
 	assert_eq(raider.attitude_to(ally), Entity.Attitude.HOSTILE)
+
+
+# --- #1086: the AI tier — one knob in the preset row, one override per AI row --
+
+func test_an_untouched_roster_seats_every_ai_on_the_default_tier() -> void:
+	var roster := _sp_roster()
+	for ai in _ais(roster):
+		assert_eq(ai.ai_tier, AIController.DEFAULT_TIER)
+		assert_false(roster.is_tier_overridden(ai))
+
+
+func test_a_tier_preset_templates_every_unpicked_ai_but_never_the_human() -> void:
+	var roster := _sp_roster()
+	roster.set_preset_tier(AIController.Tier.WARLORD)
+	for ai in _ais(roster):
+		assert_eq(ai.ai_tier, AIController.Tier.WARLORD)
+	assert_eq(roster.participants[0].ai_tier, AIController.DEFAULT_TIER,
+			"the human is never templated")
+
+	roster.set_preset_tier(null)
+	for ai in _ais(roster):
+		assert_eq(ai.ai_tier, AIController.DEFAULT_TIER, "the sentinel disarms to the default")
+
+
+func test_a_tier_pick_survives_preset_and_ai_count_changes() -> void:
+	var roster := _sp_roster()
+	var picked: Participant = _ais(roster)[0]
+	var picked_id := picked.id
+	assert_true(roster.pick_tier(picked, AIController.Tier.BRAWLER))
+
+	roster.set_preset_tier(AIController.Tier.WARLORD)
+	assert_eq(roster.by_id(picked_id).ai_tier, AIController.Tier.BRAWLER,
+			"the pick does not follow the preset")
+	roster.set_ai_opponents(4)
+	assert_eq(roster.by_id(picked_id).ai_tier, AIController.Tier.BRAWLER,
+			"nor does a rebuild drop it")
+	assert_eq(_ais(roster)[3].ai_tier, AIController.Tier.WARLORD,
+			"a newly seated AI follows the preset")
+
+
+func test_reset_tier_resumes_the_preset() -> void:
+	var roster := _sp_roster()
+	var ai: Participant = _ais(roster)[1]
+	roster.pick_tier(ai, AIController.Tier.BRAWLER)
+	roster.set_preset_tier(AIController.Tier.WARLORD)
+	assert_true(roster.is_tier_overridden(ai))
+
+	assert_true(roster.reset_tier(ai))
+	assert_false(roster.is_tier_overridden(ai))
+	assert_eq(ai.ai_tier, AIController.Tier.WARLORD)
+	assert_false(roster.reset_tier(ai), "nothing left to reset")
+
+
+func test_a_tier_pick_equal_to_the_preset_still_reads_overridden() -> void:
+	var roster := _sp_roster()
+	var ai: Participant = _ais(roster)[0]
+	roster.set_preset_tier(AIController.Tier.WARLORD)
+	roster.pick_tier(ai, AIController.Tier.WARLORD)
+	assert_true(roster.is_tier_overridden(ai), "provenance, not value coincidence")
+	roster.set_preset_tier(AIController.Tier.FIGHTER)
+	assert_eq(ai.ai_tier, AIController.Tier.WARLORD, "so it stays put when the preset moves")
+
+
+## A hand-built seat has no recorded default: an unarmed tier must still land
+## on the kind default, never on a null the AI factory would read as BRAWLER.
+func test_a_hand_built_seat_with_no_default_resolves_to_the_default_tier() -> void:
+	var ai := _make_ai(7)
+	ai.ai_tier = AIController.Tier.BRAWLER
+	var human := _make_human(1)
+	var parts: Array[Participant] = [human, ai]
+	LobbyRoster.resolve_templated(parts, {}, LobbyRoster.Pick.new())
+	assert_eq(ai.ai_tier, AIController.DEFAULT_TIER)
+	assert_eq(human.ai_tier, AIController.DEFAULT_TIER)
+
+
+func test_a_tier_pick_crosses_the_wire_as_an_int_through_the_pick_writers() -> void:
+	var roster := _sp_roster()
+	var ai: Participant = _ais(roster)[0]
+	var encoded := LobbyRoster.encode_pick(ai, 1, {"ai_tier": AIController.Tier.BRAWLER})
+	assert_eq(encoded["ai_tier"], AIController.Tier.BRAWLER)
+	assert_false(roster.apply_remote_pick(encoded),
+			"an AI seat is never a peer's to edit, tier included")
+	assert_eq(ai.ai_tier, AIController.DEFAULT_TIER)

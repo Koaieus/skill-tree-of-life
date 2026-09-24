@@ -293,6 +293,22 @@ func reset_camp(p: Participant) -> bool:
 	return _reset(p, &"camp")
 
 
+func pick_tier(_p: Participant, _tier: int) -> bool:
+	return false
+
+
+func reset_tier(_p: Participant) -> bool:
+	return false
+
+
+func is_tier_overridden(_p: Participant) -> bool:
+	return false
+
+
+func set_preset_tier(_tier: Variant) -> void:
+	pass
+
+
 func pick_name(p: Participant, name: String) -> bool:
 	if p == null:
 		return false
