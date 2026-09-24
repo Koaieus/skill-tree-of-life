@@ -229,6 +229,10 @@ func _set_awake(awake: bool) -> void:
 	var mode := SubViewport.UPDATE_ALWAYS if awake else SubViewport.UPDATE_DISABLED
 	_world_back.render_target_update_mode = mode
 	_world_front.render_target_update_mode = mode
+	# A disabled target keeps its last frame; hide it so a stale ring never
+	# ghosts at the view's edge while the composites follow the camera.
+	_composite_back.visible = awake
+	_composite_front.visible = awake
 
 
 func _pixel_size() -> Vector2i:
