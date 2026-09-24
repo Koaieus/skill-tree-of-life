@@ -16,6 +16,7 @@
 [ext_resource type="Resource" path="res://skill_node/visuals/emblem/shapes/hexagon.tres" id="11_hex"]
 [ext_resource type="Resource" path="res://skill_node/visuals/emblem/shapes/gem.tres" id="12_gem"]
 [ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="bloom_vp"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/core_gimbal.tscn" id="17_gimbal"]
 
 [node name="NodeVisualsPanel" type="Control" unique_id=435717486]
 custom_minimum_size = Vector2(0, 420)
@@ -115,6 +116,12 @@ position = Vector2(770, 280)
 
 [node name="RuneRing" parent="ViewportContainer/World/RuneRingSlot" unique_id=775407811 instance=ExtResource("8_rune")]
 band_count = 2
+
+[node name="CoreGimbalSlot" type="Node2D" parent="ViewportContainer/World" unique_id=1108000001]
+position = Vector2(1220, 210)
+
+[node name="CoreGimbal" parent="ViewportContainer/World/CoreGimbalSlot" unique_id=1108000002 instance=ExtResource("17_gimbal")]
+entity_tint = Color(0.36, 0.9, 0.585, 1)
 
 [node name="LabSlot" type="Node2D" parent="ViewportContainer/World" unique_id=1413119315]
 position = Vector2(970, 210)

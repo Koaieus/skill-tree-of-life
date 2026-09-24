@@ -15,8 +15,9 @@ extends SkillNodeVisual
 ## CoreHalos #802 gate; the on-screen half is the holder's
 ## VisibleOnScreenNotifier3D. The rig is acquired lazily (deferred: an ancestor
 ## may still be setting up its children) and freed on `_exit_tree`; the holder
-## follows this node by `set_notify_transform`. Not built in the editor —
-## GimbalWorld is runtime-only.
+## follows this node by `set_notify_transform`. In the editor the rig is built
+## only outside the edited scene ([method GimbalWorld.is_live_for]): the sandbox
+## panel spins one, a SkillNode in an open .tscn never does.
 
 ## The cpu2d gimbal's footprint in disk radii at halo_scale 1 (#804): keeps
 ## the 3D rig the size the 2D one was.
@@ -101,7 +102,7 @@ func on_core_travel_start(local_offset: Vector2, duration: float) -> void:
 
 
 func _acquire() -> void:
-	if _holder != null or not is_inside_tree() or Engine.is_editor_hint():
+	if _holder != null or not is_inside_tree() or not GimbalWorld.is_live_for(self):
 		return
 	_rig = Gimbal3D.new()
 	_rig.style = style

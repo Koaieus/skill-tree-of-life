@@ -1,3 +1,4 @@
+@tool
 class_name GimbalWorld
 extends Node2D
 ## THE gimbal substrate (#804, shape A2): every 3D gimbal rig lives in ONE
@@ -34,6 +35,10 @@ extends Node2D
 ##   wakes the world on a cheap sphere-vs-view test and the notifiers take over.
 ## - One world per viewport: authored beside the Graph in `game_root.tscn` and
 ##   found by group ([method acquire]).
+## - Editor: `@tool` so an editor-hosted preview (the sandbox Node Visuals
+##   panel) spins real rigs; only an [method acquire]-spawned world outside the
+##   edited scene runs ([method is_live_for]) — an authored one, or anything in
+##   the open .tscn, stays inert.
 
 const ZLayers := preload("res://ui/z_layers.gd")
 const SCENE := "res://skill_node/visuals/gimbal_3d/gimbal_world.tscn"
@@ -71,6 +76,9 @@ var _root: Viewport
 ## notifier -> on screen, per live holder. The count of `true`s gates rendering.
 var _on_screen: Dictionary = {}
 var _awake := false
+## Set by [method acquire]. In the editor only a spawned world runs: an authored
+## one (beside the Graph in `game_root.tscn`) is part of whatever scene is open.
+var _spawned := false
 
 
 ## The one GimbalWorld of `host`'s viewport: found by group; else [constant SCENE]
@@ -83,6 +91,7 @@ static func acquire(host: Node2D) -> GimbalWorld:
 		if w is GimbalWorld and w.get_viewport() == vp:
 			return w
 	var world: GimbalWorld = (load(SCENE) as PackedScene).instantiate()
+	world._spawned = true
 	var parent := host.get_parent()
 	var n := parent
 	while n != null:
@@ -94,12 +103,21 @@ static func acquire(host: Node2D) -> GimbalWorld:
 	return world
 
 
+## Whether `node` may hold a live world: always at runtime; in the editor only
+## outside the scene being edited — an editor-hosted preview (the sandbox
+## panel's own tree) spins rigs, a SkillNode in an open .tscn never spawns
+## SubViewports into the user's scene.
 static func is_live_for(node: Node) -> bool:
-	return false
+	if not Engine.is_editor_hint():
+		return true
+	return node.is_inside_tree() \
+		and not in_edited_scene(node, node.get_tree().edited_scene_root)
 
 
+## Pure: `node` is `edited_root` or inside it.
 static func in_edited_scene(node: Node, edited_root: Node) -> bool:
-	return false
+	return edited_root != null \
+		and (edited_root == node or edited_root.is_ancestor_of(node))
 
 
 ## Pure: the root's world->pixels transform + pixel size -> Camera3D
@@ -130,12 +148,16 @@ static func clip_planes(front: bool) -> Vector2:
 
 
 func _enter_tree() -> void:
+	if not _live():
+		return
 	# In the group before ANY `_ready` of the scene runs: `acquire` from a
 	# SkillNode's `_ready` (the Graph is an earlier sibling) must find it.
 	add_to_group(GROUP)
 
 
 func _ready() -> void:
+	if not _live():
+		return
 	z_as_relative = false
 	_world_front.world_3d = _world_back.find_world_3d()
 	var back := clip_planes(false)
@@ -154,6 +176,11 @@ func _ready() -> void:
 	_resize()
 	RenderingServer.frame_pre_draw.connect(_sync_camera)
 	_sync_camera()
+
+
+## Editor gate for this world itself: see [member _spawned], [method is_live_for].
+func _live() -> bool:
+	return not Engine.is_editor_hint() or (_spawned and is_live_for(self))
 
 
 func _exit_tree() -> void:
