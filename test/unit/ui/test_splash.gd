@@ -16,6 +16,10 @@ const _FRONTMATTER := preload("res://ui/frontmatter/frontmatter_root.tscn")
 var _frontmatter: FrontmatterRoot
 var _splash: SplashScreen
 
+## Step past a schedule boundary, not onto it: a step landing exactly on a
+## tweener's end does not start the next one (TweenClock.advance).
+const _HAIR := 0.001
+
 
 func before_each() -> void:
 	_frontmatter = _FRONTMATTER.instantiate()
@@ -28,6 +32,9 @@ func before_each() -> void:
 	# camera, and `get_path_to` from a node that is not in the tree yet does not
 	# resolve. `meta_root.tscn` wires the same export as a relative sibling path.
 	_splash.frontmatter_path = _frontmatter.get_path()
+	# Before add_child, so even `_ready`'s prompt blink is born paused: no tween of
+	# this node runs on the real clock here; every timing test steps `clock`.
+	_splash.clock.manual = true
 	add_child_autofree(_splash)
 
 
@@ -224,74 +231,24 @@ func test_the_needle_does_not_drop_until_the_charge_has_finished() -> void:
 	# and neither may leak forward into leg 1. If they are ever pulled back onto
 	# the press, the root snaps lit at 3.2x again with a needle over it and this
 	# catches it without anyone having to look at the screen.
-	#
-	# #854: this used to check "still none" after a fixed 0.15s wall-clock
-	# wait, then "landed" after a further fixed 0.2s — asserting from OUTSIDE
-	# production's own `SceneTreeTimer` on a second, independent timer of its
-	# own. Both are `SceneTreeTimer`s, and Godot decrements every live one by
-	# the SAME frame `delta` in one `process_timers` pass, in creation order —
-	# so a single frame whose delta is >= the ~0.10s margin (a cold `.godot`
-	# cache compiling the ChargeGlow/spike shaders on the charge's first live
-	# frame, per #862's own instrumentation, is exactly such a frame) drives
-	# both timers past zero together, and production's timer — created first
-	# — fires BEFORE the test's `await` resumes, so the "not yet" assert reads
-	# a needle that already landed.
-	#
-	# Shadowing production's own clock from the outside does not fix this
-	# either: instrumented with the injected stall below, the very next
-	# processed frame's `get_process_delta_time()` read ~0.14s while
-	# `allocated` had ALREADY flipped true — `SceneTreeTimer`'s actual
-	# countdown and the idle delta a script reads back diverge once a real
-	# stall is in play, very plausibly Godot's physics-catch-up step cap
-	# (default 8 steps × ~16.6ms ≈ 133ms) leaking into how much of a fat
-	# frame idle process gets attributed to. There is no wall-clock formula
-	# this test can run that reliably predicts when production's timer fires.
-	#
-	# Fixed with a production seam instead: [signal SplashScreen.boomed],
-	# emitted as the first line of `_boom()`. This test awaits the SAME event
-	# production fires on, rather than racing it with a clock of its own.
-	# `OS.delay_msec` below injects the fat-frame hazard directly, so the case
-	# this guards against reproduces deterministically on a warm cache too,
-	# not only inside a fresh worktree.
 	_frontmatter.reduce_motion = false
 	_splash.charge_duration = 0.25
-	# #862: `before_each` builds a whole FrontmatterRoot synchronously, and
-	# nothing has yielded to the engine since — so the FIRST frame processed
-	# after `advance()` reports a `delta` covering that entire build, not just
-	# whatever really elapses after this point. Draining it here, before the
-	# BOOM timer exists, keeps that inflated delta off the charge's own clock.
-	await get_tree().process_frame
 	var before := _polygons_under(_frontmatter.view_for(_root()))
-
 	var boomed: Array[int] = []
 	_splash.boomed.connect(func(): boomed.append(1))
 
 	_splash.advance()
+	_splash.clock.advance(_splash.charge_duration - _HAIR)
 
+	assert_eq(boomed.size(), 0, "a hair short of the charge, the BOOM has not fired")
 	assert_false(_frontmatter.view_for(_root()).allocated,
 			"nothing is allocated yet — the charge is still building")
 	assert_eq(_polygons_under(_frontmatter.view_for(_root())), before,
 			"and no needle: the BOOM has not happened")
-	assert_eq(boomed.size(), 0, "and the BOOM's own signal has not fired")
 
-	# #854 hazard: a single frame this fat is exactly what a cold `.godot`
-	# cache produces for free, compiling the ChargeGlow/spike shaders on the
-	# charge's first live frame. Forcing it here — mid-charge, so a leak would
-	# have every chance to show before the signal-driven wait below papers
-	# over it — makes the failure reproducible on a warm cache too, instead
-	# of only in a fresh worktree.
-	OS.delay_msec(300)
+	_splash.clock.advance(2.0 * _HAIR)
 
-	# Wait on the charge's OWN clock — the `boomed` signal, fired as the
-	# first line of `_boom()` — rather than a second timer racing it. Capped
-	# in frames so a real regression (the signal never firing) fails loudly
-	# instead of hanging the suite.
-	var waited := 0
-	while boomed.is_empty() and waited < 180:
-		await get_tree().process_frame
-		waited += 1
-	assert_false(boomed.is_empty(), "the BOOM never fired — softlock, not a flake")
-
+	assert_eq(boomed.size(), 1, "a hair past it, the BOOM fired exactly once")
 	assert_true(_frontmatter.view_for(_root()).allocated,
 			"and now the root reads lit — the BOOM is where that lands")
 	assert_gt(_polygons_under(_frontmatter.view_for(_root())), before,
@@ -307,7 +264,8 @@ func test_the_boom_lands_once_the_charge_is_up() -> void:
 	_splash.settle_pause = 0.05
 
 	_splash.advance()
-	await get_tree().create_timer(0.4).timeout
+	_splash.clock.advance(_splash.charge_duration + _HAIR)
+	_splash.clock.advance(_splash.settle_pause + _HAIR)
 
 	assert_eq(_frontmatter.focus_id, _root())
 	assert_true(_frontmatter.view_for(_root()).allocated)
@@ -316,18 +274,18 @@ func test_the_boom_lands_once_the_charge_is_up() -> void:
 
 
 func test_leg_two_departs_from_the_charged_pose_whichever_clock_wins() -> void:
-	# The charge runs on two clocks — a Tween for the camera, a SceneTreeTimer
-	# for the BOOM — and they finish on different frames. `_end_charge` writes
-	# the charged pose explicitly so leg 2's ORIGIN never depends on which won.
-	# `transform_at(0.0)` is that origin, read as a value rather than chased
-	# across tween frames.
+	# `_end_charge` writes the charged pose explicitly — the zero-charge path's
+	# write, idempotent after a full charge — so leg 2's ORIGIN is a pose this
+	# file wrote. `transform_at(0.0)` is that origin, read as a value rather
+	# than chased across tween frames.
 	_frontmatter.reduce_motion = false
 	_splash.charge_duration = 0.05
 	_splash.settle_pause = 0.05
 	_frontmatter.travel_duration = 2.0
 
 	_splash.advance()
-	await get_tree().create_timer(0.35).timeout
+	_splash.clock.advance(_splash.charge_duration + _HAIR)
+	_splash.clock.advance(_splash.settle_pause + _HAIR)
 
 	var charged := FrontmatterLayout.charged_camera(
 			_frontmatter.tree, _splash.charge_end_zoom)
@@ -358,7 +316,8 @@ func test_navigation_is_locked_for_the_length_of_the_charge() -> void:
 	assert_eq(_frontmatter.focus_id, _root(),
 			"you cannot steer during the charge")
 
-	await get_tree().create_timer(0.4).timeout
+	_splash.clock.advance(_splash.charge_duration + _HAIR)
+	_splash.clock.advance(_splash.settle_pause + _HAIR)
 	assert_false(_frontmatter.navigation_locked, "and the BOOM releases it")
 	assert_eq(_frontmatter.focus_id, _root(),
 			"the charge finishing lands on the root, which is where it was aimed")
@@ -440,14 +399,14 @@ func test_leg_two_waits_out_the_settle_pause_before_departing() -> void:
 	_frontmatter.focus_started.connect(func(_id): set_off.append(1))
 
 	_splash.advance()
-	await get_tree().create_timer(0.2).timeout
+	_splash.clock.advance(_splash.charge_duration + _HAIR)
 
 	assert_true(_frontmatter.view_for(_root()).allocated,
 			"the BOOM has happened — the charge was over long ago")
 	assert_eq(set_off.size(), 0,
 			"but leg 2 has NOT set off: the settle pause is still running")
 
-	await get_tree().create_timer(0.35).timeout
+	_splash.clock.advance(_splash.settle_pause + _HAIR)
 	assert_eq(set_off.size(), 1, "and now it departs")
 
 

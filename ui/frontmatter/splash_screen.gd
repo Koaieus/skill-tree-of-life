@@ -84,6 +84,12 @@ signal boomed
 ## up by `get_node` here.
 @export var frontmatter_path: NodePath
 
+## The one door every tween of this node comes through — the charge chain, the
+## settle and the prompt blink. A test sets `clock.manual` before `add_child`
+## and steps `clock.advance(dt)`; #854 (a fat frame racing a wall-clock assert)
+## is why the splash is stepped rather than awaited.
+var clock := TweenClock.new()
+
 ## Seconds the prompt takes to fade down and back up once.
 @export_range(0.0, 4.0, 0.05) var pulse_period: float = 1.0
 
