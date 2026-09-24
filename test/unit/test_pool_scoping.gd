@@ -206,3 +206,32 @@ func test_gold_and_purple_forbid_defense_but_roll_mobility() -> void:
 			assert_gt(mobility_live, 0, "%s: %s must still roll mobility content"
 				% [path.get_file(), String(policy.id)])
 		assert_eq(seen, 2, "%s must author both gold and purple" % path)
+
+
+## #751 — the pack is the only archetype gate, so the pack's `archetype_stat`
+## is the whole scoping fact: it must equal the file's stem, and `&""`
+## (universal) is legal on exactly one pack, `universal.tres`. A forgotten
+## field reads as universal, which is why the file name is pinned to it.
+const _POOLS_DIR := "res://procgen/pools/"
+const _UNIVERSAL_STEM := "universal"
+
+
+func test_every_pack_is_gated_by_its_file_name() -> void:
+	var universal: Array[String] = []
+	var packs := 0
+	for f in DirAccess.get_files_at(_POOLS_DIR):
+		if not f.ends_with(".tres"):
+			continue
+		var pack := load(_POOLS_DIR + f) as StatPack
+		if pack == null:
+			continue
+		packs += 1
+		var stem := f.get_basename()
+		if pack.archetype_stat == &"":
+			universal.append(f)
+		var want: StringName = &"" if stem == _UNIVERSAL_STEM else StringName(stem)
+		assert_eq(pack.archetype_stat, want,
+			"%s: a pack's archetype_stat must be its file stem (universal.tres: &\"\")" % f)
+	assert_gt(packs, 6, "expected the six archetype packs plus universal.tres")
+	assert_eq(universal, [_UNIVERSAL_STEM + ".tres"] as Array[String],
+		"exactly one pack is universal, and it is universal.tres")
