@@ -39,7 +39,18 @@ enum Style { UNIFORM_GLOW, HOLO_GLASS, SOLID_GLYPH }
 		tint = value
 		_apply_tint()
 
-@export_range(0.5, 3.0, 0.01) var spin_speed: float = 1.0
+@export_range(0.5, 3.0, 0.01, "or_greater") var spin_speed: float = 1.0:
+	set(value):
+		spin_speed = value
+		_apply_chain()
+
+## Offset on the spin clock, radians — desyncs rigs so a board of them does not
+## turn in lockstep. The caller derives it from `SkillNode.stable_id`; 0 is "off"
+## (benches). Re-pushed as an instance uniform, never a rebuild.
+@export var phase: float = 0.0:
+	set(value):
+		phase = value
+		_apply_chain()
 
 ## Radius of the innermost ring, in the SubViewport world's units. The range
 ## is the showcase's (unit-scale world); GimbalWorld's 1 unit = 1 world px
@@ -67,33 +78,36 @@ enum Style { UNIFORM_GLOW, HOLO_GLASS, SOLID_GLYPH }
 		_rebuild()
 
 ## Sides around each band. Low = angular/faceted (techy/PCB read); high = smooth.
-@export_range(6, 48, 1) var facets: int = 24:
+@export_range(6, 48, 1, "or_greater") var facets: int = 48:
 	set(value):
 		facets = value
 		_rebuild()
 
-# The quaternion chain (axes + rates + standing tilts) is the "same gimbal" the
-# 2D CoreHalos GIMBAL uses; the radius layout is substrate-specific (thin 3D
-# bands need more separation than the 2D hoops).
-const AXES: Array[Vector3] = [Vector3.RIGHT, Vector3.UP, Vector3.RIGHT, Vector3.UP, Vector3.RIGHT]
-const RATE_BASE := 0.35
+# The spin is the gimbal quaternion chain — the "same gimbal" the 2D CoreHalos
+# GIMBAL uses — and it lives ONLY in gimbal_chain.gdshaderinc (axes, rates,
+# standing tilts), run per vertex off TIME. This script never ticks: it builds
+# static rings and pushes each one its `chain` instance uniform. The radius
+# layout is substrate-specific (thin 3D bands need more separation than the
+# 2D hoops).
 const RADIUS_STEP := 0.34
-# CylinderMesh's wall runs around its Y axis; rotate it so the axis is the ring's
-# own normal (local Z), i.e. the band lies in the ring plane like the 2D hoop.
+# The band is built around Y; this swings its axis to the ring's own normal
+# (local Z) so it lies in the ring plane like the 2D hoop. Baked into the unit
+# mesh — the ring's Basis is pure scale.
 const MESH_CORR := Basis(Vector3(1, 0, 0), PI * 0.5)
+
+## The bloom tier the rig's tint is lifted to (`Emissive.tint`, luma-normalised
+## so every identity colour blooms alike). The shaders' EMISSION is shape only.
+const GLOW_STOPS := Emissive.ALERT
 
 # One shared ShaderMaterial per style (tint is an instance uniform, so every
 # ring/rig still batches) — same "shared material, vary by instance uniform"
 # discipline as inner_disk/rim_ring. Lazily built, cached across all rigs.
 static var _mats: Dictionary = {}
 static var _glyph_tex: ImageTexture
+# One UNIT band mesh (outer radius 1) per (facets, band_width, thickness),
+# shared by every ring of every rig.
+static var _band_meshes: Dictionary = {}
 
-var phase: float = 0.0
-
-static func rings_for_level(_level: int) -> int:
-	return 0
-
-var _t := 0.0
 var _rings: Array[MeshInstance3D] = []
 
 
@@ -101,23 +115,9 @@ func _ready() -> void:
 	_rebuild()
 
 
-func _process(delta: float) -> void:
-	if _rings.is_empty():
-		return
-	_t += delta * spin_speed
-	# The gimbal chain: chain index 0 is the OUTERMOST ring (the base/parent);
-	# each successive inner ring composes its own spin ONTO the accumulated outer
-	# rotation, so spinning an outer ring bodily carries every ring inside it —
-	# the literal mechanism (see skill-node-visuals.md). Outer rings spin slowest
-	# (rate grows with depth into the chain), so the inheritance reads: inner
-	# rings whirl fast within the slowly-reorienting frame of the outer ones.
-	var chain := Quaternion.IDENTITY
-	for i in _rings.size():
-		var axis: Vector3 = AXES[i % AXES.size()]
-		var base_tilt := PI * float(i) / float(ring_count)
-		var rate := RATE_BASE * (1.0 + i * 0.55)
-		chain = chain * Quaternion(axis, base_tilt + _t * rate)
-		_rings[i].transform.basis = Basis(chain) * MESH_CORR
+## Rings a core of `level` carries: two, plus one per ten levels, capped at 5.
+static func rings_for_level(level: int) -> int:
+	return clampi(2 + level / 10, 2, 5)
 
 
 func _rebuild() -> void:
@@ -127,9 +127,14 @@ func _rebuild() -> void:
 	if not is_inside_tree():
 		return
 	var mat := _style_material(style)
+	var mesh := _unit_band_mesh(facets, band_width, thickness)
+	# The band's rotation sphere in unit-mesh space: the shader turns the ring
+	# anywhere inside it, so culling against it stays exact.
+	var e := sqrt(1.0 + band_width * band_width * 0.25)
+	var aabb := AABB(-Vector3.ONE * e, Vector3.ONE * e * 2.0)
 	for i in ring_count:
 		# Chain index 0 = outermost. Radius shrinks as we go deeper into the
-		# chain, so the parent ring is the big outer one (matches _process).
+		# chain, so the parent ring is the big outer one (matches the include).
 		var depth := ring_count - 1 - i
 		var ring_r := base_radius * (1.0 + depth * RADIUS_STEP)
 		# A rectangular-cross-section ring ("annular prism") — a flat band with a
@@ -137,7 +142,9 @@ func _rebuild() -> void:
 		# two rims; the SOLID_GLYPH runes ride the inner wall (v across it), rims
 		# bare. thickness == 0 degenerates to the old zero-thickness single wall.
 		var mi := MeshInstance3D.new()
-		mi.mesh = _build_band_mesh(ring_r, ring_r * band_width, ring_r * thickness, facets)
+		mi.mesh = mesh
+		mi.transform.basis = Basis.IDENTITY.scaled(Vector3.ONE * ring_r)
+		mi.custom_aabb = aabb
 		mi.material_override = mat
 		# The band's outer radius, for tests / callers (a custom ArrayMesh has no
 		# top_radius the way CylinderMesh did).
@@ -145,10 +152,18 @@ func _rebuild() -> void:
 		add_child(mi)
 		_rings.append(mi)
 	_apply_tint()
+	_apply_chain()
 
 
-# Builds one band as a rectangular-cross-section ring around the Y axis (so
-# MESH_CORR still swings the axis to local Z, matching the 2D hoop). Four
+static func _unit_band_mesh(seg: int, width: float, thick: float) -> ArrayMesh:
+	var key := Vector3(seg, width, thick)
+	if not _band_meshes.has(key):
+		_band_meshes[key] = _build_band_mesh(1.0, width, thick, seg)
+	return _band_meshes[key]
+
+
+# Builds one band as a rectangular-cross-section ring around the Y axis, then
+# MESH_CORR (applied per vertex in _quad) swings the axis to local Z. Four
 # surfaces: outer wall (r=outer_r), inner wall (r=outer_r-thick), and top/bottom
 # rims closing the ends. UV convention is what makes the glyph "rim-aware": the
 # INNER wall carries v in [0,1] (the glyph band); every other surface is parked
@@ -157,7 +172,7 @@ func _rebuild() -> void:
 # collapses to a single wall (no inner wall / rims), the old thin slice.
 const OUTER_V := 2.0
 
-func _build_band_mesh(outer_r: float, height: float, thick: float, seg: int) -> ArrayMesh:
+static func _build_band_mesh(outer_r: float, height: float, thick: float, seg: int) -> ArrayMesh:
 	var hy := height * 0.5
 	var up := Vector3.UP
 	var inner_r: float = maxf(outer_r - thick, 0.0)
@@ -207,19 +222,27 @@ func _build_band_mesh(outer_r: float, height: float, thick: float, seg: int) -> 
 # cull_back. The a/b/c/d corners + their normals/UVs still describe the
 # quad in the caller's original (CCW-looking) order; only the emitted
 # triangle vertex order is swapped, so callers need no changes.
-func _quad(st: SurfaceTool,
+static func _quad(st: SurfaceTool,
 		a: Vector3, b: Vector3, c: Vector3, d: Vector3,
 		na: Vector3, nb: Vector3, nc: Vector3, nd: Vector3,
 		ua: Vector2, ub: Vector2, uc: Vector2, ud: Vector2) -> void:
 	for v in [[a, na, ua], [c, nc, uc], [b, nb, ub], [a, na, ua], [d, nd, ud], [c, nc, uc]]:
-		st.set_normal(v[1])
+		st.set_normal(MESH_CORR * v[1])
 		st.set_uv(v[2])
-		st.add_vertex(v[0])
+		st.add_vertex(MESH_CORR * v[0])
 
 
 func _apply_tint() -> void:
+	var hot := Emissive.tint(tint, GLOW_STOPS)
 	for r in _rings:
-		r.set_instance_shader_parameter(&"tint", Vector3(tint.r, tint.g, tint.b))
+		r.set_instance_shader_parameter(&"tint", Vector3(hot.r, hot.g, hot.b))
+
+
+# Ring i's `chain` = (index, ring_count, phase, spin_speed) — everything
+# gimbal_chain.gdshaderinc needs to place it on the spin clock.
+func _apply_chain() -> void:
+	for i in _rings.size():
+		_rings[i].set_instance_shader_parameter(&"chain", Vector4(i, ring_count, phase, spin_speed))
 
 
 static func _style_material(s: Style) -> ShaderMaterial:

@@ -10,6 +10,7 @@ render_mode cull_back;
 // you read the FAR inner face lit through the ring's near gap.
 
 instance uniform vec3 tint : source_color = vec3(0.36, 0.9, 0.585);
+#include "res://skill_node/visuals/gimbal_3d/gimbal_chain.gdshaderinc"
 uniform sampler2D glyphs : source_color, filter_linear, repeat_enable;
 // How many glyph cells wrap around the ring — few enough that each rune reads.
 uniform float glyph_tiles = 7.0;
@@ -17,9 +18,19 @@ uniform float glyph_tiles = 7.0;
 // small margin at each rim, so they run centered down the band.
 uniform float margin = 0.12;
 
+// `tint` arrives tier-lifted (Emissive.tint, HDR); the surface colour is
+// its hue clamped back under 1.0 — only EMISSION carries the tier.
+vec3 tint_base() {
+	return tint / max(1.0, max(tint.r, max(tint.g, tint.b)));
+}
+
+void vertex() {
+	gimbal_vertex(VERTEX, NORMAL, TIME);
+}
+
 void fragment() {
 	// Dark brushed-metal band base — kept dim so the runes out-glow it.
-	ALBEDO = tint * 0.22;
+	ALBEDO = tint_base() * 0.22;
 	METALLIC = 0.85;
 	ROUGHNESS = 0.34;
 
@@ -29,5 +40,6 @@ void fragment() {
 	float vv = clamp((v - margin) / max(1.0 - 2.0 * margin, 0.0001), 0.0, 1.0);
 	vec2 guv = vec2(UV.x * glyph_tiles + TIME * 0.04, vv);
 	float g = texture(glyphs, guv).r;
-	EMISSION = tint * g * band * 7.0;
+	// Shape only; the level is the tier Gimbal3D lifts `tint` by.
+	EMISSION = tint * g * band;
 }
