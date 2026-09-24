@@ -284,11 +284,8 @@ func test_unsensing_restores_shader_stack_and_hides_outline() -> void:
 
 
 ## #478 perf amendment: a hidden Node2D still runs `_process` every frame in
-## Godot — `visible = false` alone only skips `_draw`. CoreHalos' GIMBAL preset
-## is a 28-segment quaternion-chained hoop stack redrawn every tick (see
-## .claude/rules/skill-node-visuals.md), so a non-core node (the overwhelming
-## majority of 500-2500/level) must not merely hide CorePresence, it must stop
-## it PROCESSING — `_apply_core_active` now also drives `process_mode`.
+## Godot — `visible = false` alone only skips `_draw`, so an inactive
+## CorePresence must not merely hide, it must stop PROCESSING — `_apply_core_active` now also drives `process_mode`.
 func test_inactive_core_presence_is_hidden_and_off_the_process_list() -> void:
 	var comp = add_child_autofree(CompositeScene.instantiate())
 	await get_tree().process_frame
@@ -300,8 +297,9 @@ func test_inactive_core_presence_is_hidden_and_off_the_process_list() -> void:
 	assert_eq(
 		presence.process_mode, Node.PROCESS_MODE_INHERIT,
 		"active core: CorePresence processes normally")
-	var halos = presence.get_node("CoreHalos")
-	assert_true(halos.is_processing(), "active core: CoreHalos (GIMBAL by default) is ticking")
+	presence.set_look(preload("res://skill_node/visuals/core_gear.tscn"))
+	await get_tree().process_frame
+	assert_true(presence.get_look().is_processing(), "active core: the gear look is ticking")
 
 	comp.core_active = false
 	await get_tree().process_frame
@@ -311,37 +309,20 @@ func test_inactive_core_presence_is_hidden_and_off_the_process_list() -> void:
 		"inactive core: CorePresence's whole subtree stops processing")
 
 
-## #478: overriding [member SkillNode.core_halo_style] on a live node routes
-## through the composite → CorePresence → CoreHalos chain (never a hardcoded
+## #1108: a core's look routes composite -> CorePresence -> Slot (never a
 ## grandchild path reaching past CorePresence — that scene is nested and
-## reusable, see core_presence.gd). `-1` (Default) is a deliberate no-op, so a
-## normal core's authored GIMBAL is untouched by a node that never sets this.
-func test_core_halo_style_override_routes_through_the_chain() -> void:
+## reusable, see core_presence.gd).
+func test_core_look_routes_through_the_chain() -> void:
 	var comp = add_child_autofree(CompositeScene.instantiate())
 	await get_tree().process_frame
-	var halos = comp.get_node("%CorePresence").get_node("CoreHalos")
-	var CoreHalosScript := preload("res://skill_node/visuals/core_halos.gd")
-
-	assert_eq(
-		halos.halo_style, CoreHalosScript.CoreHaloStyle.GIMBAL,
-		"authored default (a normal core) is GIMBAL")
-
-	comp.set_core_halo_style(-1)
-	assert_eq(
-		halos.halo_style, CoreHalosScript.CoreHaloStyle.GIMBAL,
-		"-1 (Default) is a no-op — leaves the authored style alone")
-
-	comp.set_core_halo_style(CoreHalosScript.CoreHaloStyle.COG)
-	assert_eq(
-		halos.halo_style, CoreHalosScript.CoreHaloStyle.COG,
-		"a blocked node's cheap-halo override lands on the live CoreHalos child")
-
-	# -1 after an override must RESTORE the authored style, not merely decline
-	# to write — a blocker clearing its latch needs its normal GIMBAL back.
-	comp.set_core_halo_style(-1)
-	assert_eq(
-		halos.halo_style, CoreHalosScript.CoreHaloStyle.GIMBAL,
-		"-1 after an override restores the authored style, it doesn't just skip")
+	var slot: Node = comp.get_node("%CorePresence").get_node("Slot")
+	assert_eq(slot.get_child_count(), 0, "no look until one is set")
+	var gear := preload("res://skill_node/visuals/core_gear.tscn")
+	comp.set_core_look(gear)
+	assert_eq(slot.get_child_count(), 1, "the look lands in the slot")
+	assert_eq(slot.get_child(0).scene_file_path, gear.resource_path)
+	comp.set_core_look(null)
+	assert_eq(slot.get_child_count(), 0, "null clears the slot")
 
 
 ## #880: status tint blends the strongest status's colour into `modulate` by
