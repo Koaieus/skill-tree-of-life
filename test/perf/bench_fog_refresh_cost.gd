@@ -49,8 +49,9 @@ extends GutTest
 ## classification pass is FLAT in owned count (~2.6 ms, the pure walk over 2000
 ## nodes + 3113 edges) because the O(visible x circles_per_tile) term is gone
 ## outright, and it is paid once per allocation rather than once per frame.
-## 2.6 ms once is a fair next target (#439 is the family) — 78 ms every frame
-## was not survivable.
+## AuraOverlay's graph walk is the same family, and was a repeater per landing
+## until coalesced — see `bench_aura_refresh_cost.gd`. 78 ms every frame was
+## not survivable.
 ##
 ## What was left is `VisionSourceIndex.build`, which was always innocent
 ## (230 us at 200 sources, 3% of a 144Hz frame). What went away is the
@@ -112,6 +113,8 @@ func test_fog_refresh_cost_per_tick() -> void:
 	cfg.topology = cfg.topology.duplicate(true)
 	cfg.topology.node_count = _NODE_COUNT
 	cfg.seed = _SEED
+	# Starters are placed per camp; one camp of one is the single bench player.
+	cfg.camp_sizes = [1]
 
 	_graph = _GRAPH_SCENE.instantiate()
 	add_child(_graph)

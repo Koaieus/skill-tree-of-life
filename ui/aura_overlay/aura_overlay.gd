@@ -25,8 +25,13 @@ const _MAX_CIRCLES := 20000
 const _MAX_ENTITIES := 32
 
 # Truncation is loud, but only once per onset — _refresh runs on every
-# allocation, and a warning per node would bury the log.
+# allocating frame, and a warning per refresh would bury the log.
 var _warned_circle_overflow: bool = false
+# Signal-driven refreshes coalesce to one walk per frame: a synchronous burst
+# (a forced-dealloc cascade, a concede strip) would otherwise pay a full
+# O(nodes + edges) rebuild per landing. The deferred flush runs before the
+# frame draws, so each frame's landings still paint in that frame.
+var _refresh_deferred := DeferredOnce.new(_refresh)
 var _tile_index := OverlayFieldTileIndex.new()
 
 @export var enabled: bool = true:
@@ -259,7 +264,7 @@ func set_cones(cones: Array, colors: Array) -> void:
 	mat.set_shader_parameter(&"entity_count", entity_count)
 
 
-## Warn on the rising edge only. `_refresh` runs on every allocation, so an
+## Warn on the rising edge only. `_refresh` runs on every allocating frame, so an
 ## unguarded push_warning would emit once per node for the rest of the match.
 func _warn_once(flag: StringName, message: String) -> void:
 	if get(flag):
@@ -269,7 +274,7 @@ func _warn_once(flag: StringName, message: String) -> void:
 
 
 func _on_entity_died(_entity: Entity) -> void:
-	_refresh()
+	_refresh_deferred.request()
 
 
 func _connect_allocation() -> void:
@@ -306,8 +311,8 @@ func _disconnect_allocation() -> void:
 			allocation_system.force_deallocated.disconnect(_on_ownership_changed)
 
 
-## `_refresh()` re-reads the whole ownership model, so a refresh per changed
-## node is correct even mid-cascade: each one paints the territory as it stands
-## at that beat.
+## `_refresh()` re-reads the whole ownership model, so one refresh per frame
+## is correct even mid-cascade: it paints the territory as it stands at the end
+## of that frame's landings.
 func _on_ownership_changed(_node: SkillNode, _entity_arg: Variant = null, _extra: Variant = null) -> void:
-	_refresh()
+	_refresh_deferred.request()
