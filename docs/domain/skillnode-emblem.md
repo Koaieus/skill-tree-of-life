@@ -126,7 +126,7 @@ is a shared additive glow, not a per-instance arbitrary carve.
 
 ### Core-presence movement — the BLOOM replaces the star, and travels (#128)
 
-The BLOOM (+ `CoreHalos` gimbal) **replaces the old "star emoji" core marker**
+The BLOOM (+ the core look, today `core_gimbal.tscn` in `CorePresence`'s slot, #1108) **replaces the old "star emoji" core marker**
 (`skill_node/core_marker.gd`, a `$Visuals/CoreMarker` Node2D holding a star
 `Label`). That marker already fakes travel: on a core move, `core_location`
 flips to the new node, the new node's `CoreMarker` becomes visible and is
@@ -135,14 +135,14 @@ flips to the new node, the new node's `CoreMarker` becomes visible and is
 offset-glide is the seam to ride, not to replace.
 
 The clean mechanism (decided, #128): the core-only visuals now number several
-(BLOOM sigil + gimbal halos), so group them under **one `CorePresence` mover**
+(BLOOM sigil + the slot look), so group them under **one `CorePresence` mover**
 gated visible by `is_core`, and **retarget the existing glide tween** from the
 lone `CoreMarker` onto that group — all core visuals glide together. The
 core-move **drag ghost** reuses the same group (a `modulate`-alpha'd copy at the
 hovered target). `CoreMarker` + its star `Label` are then deleted.
 
 **Compose `CorePresence` *inside* the visual family — under
-`NodeVisualsComposite/ShaderStack`, where `CoreHalos` already lives — and move it
+`NodeVisualsComposite/ShaderStack` — and move it
 as a whole by tweening its local `position`.** A subtree glides at any nesting
 depth (`position` is parent-local), so nesting costs nothing for the move, and it
 buys two things for free:

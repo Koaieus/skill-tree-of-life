@@ -404,7 +404,7 @@ happen to share owner. Owner identity is above the topology gate.
   pre-#413 edge promotion, inert now that edges render through a MultiMesh).
   If you save one of these scenes with fog live, re-check the diff.
 
-  What no longer dims at all: a node's non-shader children — CoreHalos,
+  What no longer dims at all: a node's non-shader children — the core look,
   HoverRing, the health bars, addons. They used to ride `SkillNode.modulate.a`
   (which never reached the disk or rim, since both shaders overwrite COLOR
   unconditionally). All of them are either core-gated, under the cursor, or

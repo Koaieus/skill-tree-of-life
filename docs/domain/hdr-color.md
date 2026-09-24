@@ -336,7 +336,7 @@ it.
   `PROPERTY_USAGE_STORAGE` properties *onto* the live object; reassigning your own
   reference just orphans you from the one the viewport holds.
 
-### Six ways glow silently does nothing
+### Seven ways glow silently does nothing
 
 All six fail with no error and no warning. In diagnosis order:
 
@@ -417,7 +417,7 @@ All six fail with no error and no warning. In diagnosis order:
    for its own reasons (`%PanelHost` adoption, reload-as-cold-open) — but never
    credit it with this.
 
-   It is the most expensive of the five to diagnose because **every reading you
+   It is the most expensive of them to diagnose because **every reading you
    can take is green**: `use_hdr_2d`, `own_world_3d`, `render_target_update_mode`,
    `glow_enabled`, `forward_plus/vulkan`, the Environment registered on the
    viewport's `World3D`, an HDR (`RGBH`) render target, and matching Environment
@@ -442,6 +442,18 @@ All six fail with no error and no warning. In diagnosis order:
    This is the concrete cost of non-scenic sandbox composition, and the reason
    `.claude/rules/sandbox-host.md` insists a tab be an inherited scene that
    *instances* its panel. See `docs/domain/sandbox-framework.md`.
+
+7. **An own-world 3D SubViewport composited into the canvas either
+   double-blooms or clamps.** `GimbalWorld` (`skill_node/visuals/gimbal_3d/`,
+   #1107) draws every core rig in its own `World3D` through two SubViewports
+   composited into the board. `project.godot`'s `default_environment` (the game
+   bloom env) would apply to that world too — a second glow inside, then the
+   root's on top — so `gimbal_world.tscn` pins a plain **no-glow** Environment.
+   The emissive then only glows if it *survives* into the root pass: both
+   SubViewports must be `use_hdr_2d` (RGBA16F), or the ring colour clamps at 1.0
+   and the root bloom sees nothing above threshold. Discriminator: the bench's
+   `--hdr-probe` prints the back target's brightest texel — `> 1.0` carries,
+   `== 1.0` clamped.
 
 Debug in that order, and **debug the Environment through the root viewport, never
 through a SubViewport** — a SubViewport has two extra ways to render inert, so a

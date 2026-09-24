@@ -90,185 +90,31 @@ does get it) drives a standalone `rune_ring.tscn`, since #238 shelved the last
 animating child out of the composite; keep a positive control of some kind, the
 `assert_false` half alone can't tell "correctly gated" from "clock broken".
 
-### CoreHalos GIMBAL (#138): a real quaternion-composed nested-ring gyroscope
+### Core presence: one slot, the look is the owner class's scene (#1108)
 
-The old `_draw_gimbal()` drew three co-planar `draw_arc` sweeps at increasing
-radii with phase offsets — angular offset within one plane, never a tilt, so
-it never read as a gyroscope. The issue owner rejected "faked tilted
-ellipses" and asked for a real gyroscope: N rings where the outer ring spins
-independently and each inner ring's orientation *depends on* the one outside
-it, like an actual gimbal mount. This is the first use of `Quaternion`/3D
-math anywhere in `skill_node/visuals/` — worth knowing before reaching for a
-2D-only trick on the next "reads as 3D" component.
+`CorePresence` (`core_presence.tscn`) is a container: an empty `Slot` plus
+`CoreSigilBloom`. `SkillNode._refresh_core_presence` pushes the owner's
+`CoreClass.core_look` (a `PackedScene`, null off-core) through
+`NodeVisualsComposite.set_core_look` → `CorePresence.set_look`; the same
+resource is a no-op, anything else frees the old look and instances the new
+one with identity already pushed.
 
-**The mechanism is quaternion chain composition, not per-ring phase math.**
-Each ring's local spin axis (alternating `Vector3.RIGHT`/`Vector3.UP` — never
-the ring's own normal/Z, which would just be an invisible in-plane spin) is
-composed onto the *previous* ring's accumulated rotation:
-`chain[i] = chain[i-1] * Quaternion(axis_i, base_tilt_i + spin_i)`. That's
-the literal physical mechanism of a gimbal (child pivot mounted on the parent
-ring), which is what makes "inner depends on outer" true by construction
-rather than by a hand-tuned offset. The `base_tilt_i` constant matters on its
-own: without it every ring starts coincident (all spins are 0 at
-`anim_time == 0`) and can re-coincide whenever rates line up — the
-persistent orthogonal "cage" read needs a standing per-ring offset, not just
-differing speeds.
-
-**Each ring is a HOOP (an uncapped cylinder slice) at its own staggered
-radius, not a flat washer and not a 1D loop.** Two mistakes were tried and
-corrected here, both worth knowing before touching this again:
-
-- *Same radius for every ring* reads as one gyroscope cage where every ring
-  is the same size, not "inner/mid/outer" — `_gimbal_runs()` staggers radius
-  per ring (`ring_r = base_r * (1 + i * GIMBAL_RADIUS_STEP)`), same shape as
-  RINGS' own radius step.
-- *Radial band offset* (two concentric circles at `r ± half_w`, both in the
-  ring's own Z=0 local plane) makes every ring a flat annulus — a disc with a
-  hole, which foreshortens into a thin ellipse-shaped OUTLINE when tilted,
-  never a band with real surface facing outward. The fix is an **axial**
-  offset: the two rim loops are offset along the ring's OWN spin axis
-  (`Vector3(cos t, sin t, 0) * r` shifted by `±half_w` in local Z, *before*
-  rotation), so the band is a genuine tube wall. Face-on, the two rims nearly
-  coincide (a tube seen end-on is just a ring); tilted, you see the actual
-  wall width — the same way a real bracelet or a Halo ringworld segment
-  reads. This is the literal "flat strip bent and connected end to end" /
-  "uncapped cylinder slice" read that was asked for; a flat annulus is not
-  the same shape as a hoop, even though both are legitimate (non-"faked")
-  projections of *something* real in 3D — the point is which 3D shape.
-
-Both rim loops are rotated by the same `chain[i]` and orthographically
-projected (drop Z) — because they undergo the *identical* linear map, they
-can't decouple into two disagreeing curves.
-
-**Batch the whole layer into ONE `canvas_item_add_triangle_array`, with our
-own indices (#239).** The band offset is axial rather than radial, so a
-heavily tilted ring's projected band can fold over itself in 2D — Godot's
-ear-clipping triangulator can throw "Invalid polygon data, triangulation
-failed" on that silhouette (hit empirically once the hoop offset landed; the
-earlier radial-offset annulus never had this problem, since a purely radial
-offset can't fold). The original fix was a per-segment `draw_primitive` (an
-explicit 4-point quad, no triangulation step). That worked but cost ~384
-`draw_*` calls per gimbal plus two `draw_polyline_colors` per run — at 22
-gimbals it dropped a high-end GPU to ~43fps (#239). `_gimbal_batch()` now
-accumulates every run's fill quads **and** both glow strips into one flat
-vertex/color/index buffer (each quad = two triangles we index ourselves, so
-the triangulator still never runs — the fold stays moot), and `_draw_batch()`
-submits it as a single `canvas_item_add_triangle_array`. Measured 8963→340
-draw calls for 200 three-ring gimbals (~26×). Two things to keep:
-- **Supply the indices; never fall back to `draw_polygon` over a run.** The
-  whole point is that explicit indices sidestep triangulation — a `draw_polygon`
-  would re-introduce the fold failure.
-- **Fold the glow into the same buffer, not separate `draw_polyline_colors`.**
-  Post-fill-collapse the polylines would dominate (≈12/gimbal × 200 = 2400
-  calls); `_append_glow_strip` rebuilds them as thin miterless quads for zero
-  extra draw calls.
-
-**The ring must pass over AND under the SkillNode's own disk — this needs a
-second CanvasItem, not draw order.** A point on the ring is in front of the
-disk when its rotated Z is positive (the disk sits at the screen plane,
-Z=0) and behind it when negative. One CanvasItem's `_draw()` can't interleave
-with `InnerDisk`/`RimRing` at two different z-levels, so `core_halos.tscn`
-carries a child, `GimbalBack` (`core_halos_back.gd`), with `z_index = -1`
-left `z_as_relative = true` (the default) — that's a *relative* offset that
-nudges it behind `InnerDisk`/`RimRing` (both default `z_index = 0`) within
-this node's own stacking, without fighting the SkillNode root's own
-absolute/graph-level `z_index` (`skill_node.gd` toggles that for
-sensed-fog ordering — ride that chain, don't override it). `CoreHalos`
-itself stays the front layer, unchanged in tree position, so RINGS/ORBIT/COG
-keep drawing on top exactly as before.
-
-Each ring's sampled points are split into contiguous runs by the sign of
-rotated Z (`_split_ring_runs`) — generically one front run + one back run per
-ring, since a planar ring crosses Z=0 at exactly two points per revolution.
-`CoreHalos._gimbal_runs()` is **pure geometry, no `draw_*` calls** — both
-layers call it and always agree, instead of one recomputing and the other
-reading stale data. **Both layers must be told to redraw every tick, but they
-share ONE computation per frame** (#802 — it used to be one *each*, with each
-half discarding the other's result, a 2x multiplier on the dominant term):
-`gimbal_layer_batch(front)` memoises on `Engine.get_process_frames()` and hands
-each half its slice, and `_redraw_all()` drops the stamp so a mid-frame input
-change is never served stale. That *strengthens* the no-drift invariant the
-duplication existed for — the halves are now literally the same computation
-rather than two that happen to agree, which is the property
-`test_core_halos_perf_contract.gd` pins (by moving the clock between the two
-calls and requiring the second to ignore it; mere agreement was already true
-before). Godot only accepts `draw_*` /
-`canvas_item_add_*` calls for a CanvasItem while *that* item is the one
-currently drawing, so the shared draw helper (`_draw_batch(target, batch)`,
-fed by `_gimbal_batch(runs)`) takes the target CanvasItem explicitly rather
-than assuming `self` — `target.get_canvas_item()` binds correctly to the
-target's own canvas item, but only works if that item is presently inside its
-own `_draw()`. `core_halos_back.gd` therefore calls `_halos._gimbal_runs()` +
-`_halos._gimbal_batch()` (data) then draws the result itself in its own
-`_draw()`, rather than asking `CoreHalos` to draw on its behalf.
-And `CoreHalos._on_anim_tick()`/`_redraw_all()` explicitly call
-`_back_layer.queue_redraw()` alongside `queue_redraw()` on itself — the base
-class's shared clock (`SkillNodeVisual._process`) only redraws the node it's
-declared on, so without this the back layer draws once and freezes mid-spin
-while the front half keeps animating. A "does it crash" test won't catch
-that; only watching it animate will (`test_core_halos_gimbal.gd` covers the
-crash/split/pure-function-of-time properties it *can* assert; the visible
-motion still needs an eyeball pass in the sandbox).
-
-`CoreHalos` deliberately has no `class_name` (matching every other leaf
-component in this family — only the base classes declare one), so
-`core_halos_back.gd` accesses its parent via untyped `get_parent()` and duck
-typing (`_halos.is_gimbal_active()`, `_halos.gimbal_layer_batch(...)`) rather than
-a static `CoreHalos` type reference.
-
-**Inner-face glyphs live in the 3D substrate, not the 2D `_draw()` path.**
-They were flagged as "way more than we can fake in 2D without building some
-WILD machinery" (a 2D `_draw()` has no UVs; a per-instance glyph would force
-baked per-instance textures). The real-3D gimbal (`skill_node/visuals/gimbal_3d/`,
-see next section) gets them for free — each band is a real mesh with authored
-UVs (u around the ring, v across the inner wall), so the `SOLID_GLYPH` style
-scrolls an emissive rune strip down the inner face and it wraps the whole hoop.
-Don't try to reintroduce this on the 2D path.
-
-### GIMBAL is the ONLY halo style that may rebuild (#802)
-
-`CoreHalos._draw()` used to render every style into the one shared canvas item,
-which is the only reason RINGS / ORBIT / COG couldn't rotate. They all animate by
-spinning **rigid geometry about the node's own centre** — that is a `CanvasItem`
-transform, not a redraw. Each independently-spinning ring now gets its own
-`HaloSpinLayer` child (`halo_spin_layer.tscn`), painted once, animated by
-`rotation`. Measured: 5.74ms of a 12.21ms idle frame, gone.
-
-- **`SkillNodeVisual._on_anim_tick()` is the seam.** The base class's shared clock
-  calls it once per tick; the default redraws, and a component whose animation is a
-  rigid transform overrides it to write the transform and **not** queue a redraw.
-  Reach for that hook before adding another per-frame `_draw()`.
-- **GIMBAL genuinely resists** — a nested three-axis rotation changes the projected
-  2D silhouette every frame, so it cannot be a 2D transform at any constant factor.
-  That's #804's territory, not a thing to re-attempt here.
-- **Painted-once means the repaint seams must be idempotent.** The composite
-  loop-sets all three identity values into every child whenever any one changes, and
-  `SkillNode._sync_visuals()` re-pushes `configure(radius)` wholesale. Neither runs
-  per frame *today*; an unguarded repaint would silently undo the whole fix the day
-  one did. `CoreHalos` therefore compares the derived `_halo_color` (its only drawn
-  identity — it ignores `archetype_tint`/`allocated`) and the radius before
-  repainting.
-- **Animate on whether anyone can SEE it, never on what the halo IS.**
-  `set_animating(halo_style != NONE)` was the bug in one line: 307 cores rebuilt
-  every frame with one on screen. The gate is visible-in-tree AND (`revealed` OR
-  on-screen), the on-screen half from a `VisibleOnScreenNotifier2D` created lazily
-  and only while the halo could animate — `core_presence.tscn` authors GIMBAL onto
-  every SkillNode, ~1700 of which are hidden non-cores, and a notifier on each would
-  be exactly the always-instanced dead child #172/#238 retired. `_on_screen` starts
-  **false**: fail-open leaves every off-screen halo animating forever.
-- **The fully-fogged node is the case that slipped through.** `sensed` hides the
-  whole ShaderStack, but a node that is neither `sensed` nor `revealed` keeps its
-  stack visible and kept animating under the fog overlay. That is why `revealed` is
-  plumbed `SkillNode` -> `NodeVisualsComposite.set_core_halo_revealed` ->
-  `CorePresence` -> `CoreHalos`.
-- **Non-core nodes were never the problem.** `NodeVisualsComposite._apply_core_active()`
-  already sets `PROCESS_MODE_DISABLED` on the whole `CorePresence` subtree, so the
-  ~1700 hidden halos do not `_process`. Don't re-derive a per-node cost by dividing
-  a delta by the `present` count; divide by `drawing`.
-- **The trade is draw calls.** One CanvasItem per spinning ring costs ~2 extra draw
-  calls per visible halo (measured: 171 calls / +0.76ms GPU for 84 visible halos,
-  against ~7ms of CPU). Good at this scale, but it scales with *visible* halos —
-  see `rendering-performance.md` before putting hundreds on screen.
+- **Slot contract = the `SkillNodeVisual` identity contract** (radius, both
+  tints, `allocated`, `owner_level`, `node_seed`) + an optional `revealed` + the
+  duck-typed travel hooks. `CorePresence` is itself in the composite's fan-out
+  and re-pushes into the look; it never names a ring, a style or a phase — a
+  look derives its own params from identity.
+- **Looks** (leaf scenes, no `class_name`): `core_gimbal.tscn` — the entity
+  look, one `Gimbal3D` rig in the viewport's `GimbalWorld` (see
+  `core_gimbal.gd`'s header and `gimbal_3d/gimbal_world.gd`'s); `core_gear.tscn`
+  — `core_halos.tscn` pinned at COG, the Dormant Core's look by design via
+  `blocker_core.tres`. A boss is an inherited `core_gimbal` with `style` pinned.
+- **A rig lives outside the ShaderStack.** `process_mode` does not cross into
+  the GimbalWorld, so `CoreGimbal` gates on `is_visible_in_tree()` (visibility
+  *does* propagate its notification) and mirrors it onto the rig's `visible`.
+- **The 2D CPU gimbal is gone** (owner, 2026-09-23: "Delete it"). `CoreHalos`
+  keeps only rotate-once styles `{NONE, RINGS, ORBIT, COG}` (#802: rigid layers
+  rotated, never rebuilt).
 
 ### 3D gimbal showcase (#239): the boss-tier looks, on a real SubViewport
 
@@ -286,9 +132,7 @@ reach neon/glass/glyph).
   with chain depth — otherwise spinning the outer ring wouldn't carry the inner
   ones and the gimbal dependency reads backwards. Outer rings also spin slowest
   (rate grows with depth), so the inheritance is legible: inner rings whirl fast
-  within the slowly-reorienting outer frame. (The 2D CoreHalos GIMBAL still maps
-  radius the *other* way — smallest at the chain root — a latent inversion not
-  yet backported; it's tiny/core-gated so nobody's called it.)
+  within the slowly-reorienting outer frame.
 - **The band is built around the Y axis** (`_build_band_mesh`), so the same
   constant `MESH_CORR` (90° about X) rotates its axis into local Z (matching the
   2D hoop) before the chain `Basis` is applied: `basis = Basis(chain) * MESH_CORR`.
@@ -347,18 +191,10 @@ reach neon/glass/glyph).
   is a plain (non-instance) `uniform sampler2D` baked once into a `static var`
   (identical for every rig, like the diamond LUT), so it doesn't force the
   duplicate-material escape hatch.
-- **The glow lives in the SubViewport's own `Environment`**, not a global
-  `WorldEnvironment` — that isolated world is why these can bloom even though the
-  main game has no project-wide glow, and it's the actual reason 3D beats the 2D
-  stacked-stroke fake here.
-- **Not yet wired into the live SkillNode pipeline** — it's a showcase
-  (`gimbal_3d_showcase.tscn`, auto-discovered as the sandbox "Gimbal 3D" tab) for
-  evaluating the look. The intended integration is **one small `SubViewport` per
-  boss** (a `TextureRect`/`Sprite2D` composited at the node), NOT per node —
-  bosses are rare, and the whole 3-gimbal showcase (9 bands + glow) measured
-  **11 draw calls / ~cheap**, so a handful of tiny per-boss viewports is
-  affordable. Lifting *every* node into 3D / MultiMesh scaling stays de-scoped
-  while halos are core-gated (see #239).
+- **Live since #1108:** every entity core wears it through `core_gimbal.tscn`
+  in the one `GimbalWorld` per viewport (#1107); the glow is the root
+  viewport's bloom pass on the HDR composites, not an own-world Environment
+  (`docs/domain/hdr-color.md`, way 7). The showcase tab stays the look bench.
 - **Shaders are verified under `xvfb-run … --rendering-driver opengl3`**, never
   headless alone — GLSL doesn't compile under the dummy renderer (see
   `godot-workflow.md`). `test_gimbal_3d.gd` covers only what GDScript can assert
