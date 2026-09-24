@@ -177,9 +177,10 @@ rejected above). The shape is per def instead:
 | Armor break | as shipped | | FLAT | |
 
 The table's *f* is the fraction **retained** per tick (so 1/(1−f) stack-ticks); the `.tres` knob
-`decay_per_tick` is the fraction **removed**, so it is authored as 1 − f: corruption 0.2, wither 0.25,
-blindness 0.3. Blindness's 0.3 is the implementer's reading of "FRACTION 0.7", pending the owner's
-confirmation (#1090). Shipped by #1090 (blindness) and #1091 (the other families); the shape law is
+`decay_per_tick` is the fraction **removed**, so it is authored as 1 − f: corruption 0.2, wither 0.25.
+Blindness is the exception: #1090's "~0.7" is authored as the fraction **removed** (0.7), since the
+owner paired it with *"staying blind for too long is ehhhh annoying"*. That reading is the
+implementer's, pending the owner's confirmation (#1090). Shipped by #1090 (blindness) and #1091 (the other families); the shape law is
 `test/unit/effects/test_status_decay_shapes.gd`.
 
 Corruption with **no decay, cure-only** was floated as the bold alternative; revisit when the

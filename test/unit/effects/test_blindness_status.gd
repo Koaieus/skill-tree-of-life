@@ -64,9 +64,9 @@ func before_each() -> void:
 	_def.power_max = 0.0
 	_def.display_max = 3.0
 	_def.decay_mode = StatusDef.DecayMode.FRACTION
-	# decay_per_tick is the fraction REMOVED; the owner's table f is the
-	# fraction RETAINED ("FRACTION 0.7" → 0.3 removed).
-	_def.decay_per_tick = 0.3
+	# decay_per_tick is the fraction REMOVED; blindness's "~0.7" is read as
+	# removed (owner: staying blind too long is annoying), unlike the DoT table.
+	_def.decay_per_tick = 0.7
 	_def.reapply = StatusDef.Reapply.ACCUMULATE
 	_def.depth_k = 3.0
 	_def.floor_factor = 0.1
@@ -130,23 +130,18 @@ func after_each() -> void:
 
 # ── Numbers ──────────────────────────────────────────────────────────────────
 
-func test_power_3_halves_then_recovers_until_the_tail_is_cut() -> void:
+func test_power_3_halves_and_one_fraction_tick_clears_it() -> void:
 	for stat_id in _STATS:
 		_set_local(stat_id, 10.0)
 	_combat().apply_status(_def, 3.0)
 	for stat_id in _STATS:
 		_assert_factor(stat_id, 0.5, "power 3 at k 3")
-	# 30 % removed per tick: 3 → 2.1 → the curve follows the decayed power.
+	# 3 × (1 − 0.7) = 0.9 < 1 → the FRACTION tail is cut on this tick.
 	_combat().tick_statuses()
-	for stat_id in _STATS:
-		_assert_factor(stat_id, 3.0 / 5.1, "power 2.1 at k 3")
-	# 2.1 → 1.47 → 1.029 → 0.72 < 1: the FRACTION tail is cut on the 4th tick.
-	for _i in 3:
-		_combat().tick_statuses()
 	for stat_id in _STATS:
 		assert_almost_eq(_local(stat_id), 10.0, 0.001, "%s: recovered" % stat_id)
 		assert_false(_has_blind_modifier(stat_id), "%s: no blind modifier remains" % stat_id)
-	assert_eq(_combat().get_status_power(&"blindness"), 0.0, "status gone once the tail drops below 1")
+	assert_eq(_combat().get_status_power(&"blindness"), 0.0, "status gone after one tick")
 
 
 func test_reapply_accumulates_into_one_modifier() -> void:
@@ -180,7 +175,7 @@ func test_deep_blind_recovers_slowly_first_then_faster() -> void:
 	_set_local(&"vision_range", 10.0)
 	_combat().apply_status(_def, 30.0)
 	var factors: Array[float] = [_blind_modifiers(&"vision_range")[0].value]
-	for _i in 30:
+	for _i in 10:
 		_combat().tick_statuses()
 		var mods := _blind_modifiers(&"vision_range")
 		factors.append(mods[0].value if not mods.is_empty() else 1.0)
@@ -291,7 +286,7 @@ func test_vision_shrinks_while_blinded_and_grows_back_at_expiry() -> void:
 	assert_false(vision.is_visible(_nodes[1]), "blinded: N1 falls out of the halved radius")
 	assert_true(vision.is_visible(_nodes[0]), "blinded: the owned node itself stays visible")
 
-	for _i in 4:
+	for _i in 3:
 		_combat().tick_statuses()
 	await get_tree().process_frame
 	assert_true(vision.is_visible(_nodes[1]), "expired: N1 is back inside the radius")
