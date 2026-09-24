@@ -171,7 +171,11 @@ func _measure(warmup_seconds: float, sample_seconds: float) -> Dictionary:
 		await _frame_tick()
 		last_cpu = Performance.get_monitor(Performance.TIME_PROCESS)
 	# Align: wait for the first reset boundary so every recorded window is
-	# fully inside the sample.
+	# fully inside the sample. On a vsync-steady frame the window may never
+	# visibly drop (TIME_PROCESS ties rather than falls), so the wait is
+	# capped at one second of frames — past that, proceed unaligned with a
+	# warning rather than spin forever (#1098).
+	var align_deadline := Time.get_ticks_usec() + 1_000_000
 	while true:
 		await _frame_tick()
 		var cpu := Performance.get_monitor(Performance.TIME_PROCESS)
@@ -179,6 +183,11 @@ func _measure(warmup_seconds: float, sample_seconds: float) -> Dictionary:
 			last_cpu = cpu
 			break
 		last_cpu = cpu
+		if Time.get_ticks_usec() >= align_deadline:
+			push_warning("idle bench: _measure could not align to a "
+					+ "reporting-window boundary within 1s — proceeding "
+					+ "unaligned; the sample's first window may be partial")
+			break
 
 	var wall_us: Array[int] = []
 	var cpu_maxima_ms: Array[float] = []
@@ -217,6 +226,14 @@ func _measure(warmup_seconds: float, sample_seconds: float) -> Dictionary:
 	# The final partial window — aligned start, so its max is honest.
 	cpu_maxima_ms.append(window_max_us / 1000.0)
 	phys_maxima_ms.append(phys_max_us / 1000.0)
+	# The first per-second window still carries whatever ran just before
+	# `_measure` was called (a segment's own settle/zoom spike — #1098 saw
+	# 26ms of "cpu proc" against a 4ms wall on `baseline`'s first window).
+	# Discard it so every segment's cpu proc/max covers the same steady
+	# state; keep it if it's the only window we have.
+	if cpu_maxima_ms.size() > 1:
+		cpu_maxima_ms.remove_at(0)
+		phys_maxima_ms.remove_at(0)
 
 	return {
 		"frames": wall_us.size(),
