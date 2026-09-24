@@ -539,7 +539,10 @@ func test_windup_vfx_scene_is_instanced_for_the_span_and_freed_by_play_end() -> 
 	coord.begin_windup(_magic_plan(graph, 0, spell), _windup_tempo(0.25, 0.6, 0.1))
 	assert_eq(_windup_fx_children(coord), 1, "the spell's own wind-up FX is layered on the caster")
 
-	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.EDGE)
+	# A CANCEL with no dissipate visual flies nothing, so on the instant clock
+	# `play()` runs to its end inside this call — no real-clock projectile drain.
+	coord.cancel_visual = null
+	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.CANCEL)
 	await coord.play(outcome)
 	await get_tree().process_frame
 	assert_eq(_windup_fx_children(coord), 0, "play()'s end frees it")
