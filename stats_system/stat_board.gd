@@ -269,9 +269,16 @@ func add_modifier(m: StatModifier) -> void:
 			continue
 		var s := get_stat(leaf.stat_id)
 		if s == null:
-			push_warning("StatBoard has no stat for id %s" % leaf.stat_id)
+			if not _drops_absent_stat(leaf.stat_id):
+				push_warning("StatBoard has no stat for id %s" % leaf.stat_id)
 			continue
 		s.add_modifier(leaf, self)
+
+
+## True when a modifier aimed at [param stat_id], which this board lacks, is an
+## expected no-op rather than a mistake worth a warning. Strict by default.
+func _drops_absent_stat(_stat_id: StringName) -> bool:
+	return false
 
 
 ## Subscribe [param m] to its formula's source stats on THIS board, so a source

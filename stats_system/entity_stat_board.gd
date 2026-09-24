@@ -236,6 +236,11 @@ extends StatBoard
 
 @export_group("")
 
+## A board that carries only the stats its entity uses (a blocker's). Owning a
+## node still lands every entity-scoped modifier on it, so one for a real stat
+## it lacks is dropped silently; an id no [StatDef] declares still warns.
+@export var sparse: bool = false
+
 
 ## An entity board carries every stat it can legitimately hold as a typed field
 ## above, so mint-on-demand has nothing left to do here: reaching this override
@@ -256,3 +261,7 @@ func _mint_stat(stat_id: StringName) -> Stat:
 		% stat_id
 	)
 	return null
+
+
+func _drops_absent_stat(stat_id: StringName) -> bool:
+	return sparse and StatRegistry.get_def(stat_id) != null

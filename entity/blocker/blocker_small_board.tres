@@ -426,6 +426,7 @@ definition = ExtResource("def_xp_per_turn")
 [resource]
 resource_local_to_scene = true
 script = ExtResource("1_board")
+sparse = true
 strength = SubResource("scalar_strength")
 dexterity = SubResource("scalar_dexterity")
 intelligence = SubResource("scalar_intelligence")
