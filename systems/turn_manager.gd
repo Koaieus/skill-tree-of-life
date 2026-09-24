@@ -167,12 +167,19 @@ func _rebind_forecast_sources() -> void:
 		var e := node as Entity
 		if e == null or e.stat_board == null:
 			continue
-		if e.stat_board.initiative != null:
-			e.stat_board.initiative.current_changed.connect(_on_forecast_pool_changed)
-			_bound_initiative_pools.append(e.stat_board.initiative)
-		if e.stat_board.initiative_speed != null:
-			e.stat_board.initiative_speed.value_changed.connect(_on_forecast_speed_changed)
-			_bound_initiative_speeds.append(e.stat_board.initiative_speed)
+		# Guarded per object, not per entity: in the editor an authored entity
+		# holds the SHARED board ext_resource until `initialize()` swaps in its
+		# copy, so several entities in one walk can alias one pool. The binding
+		# stays on that shared board afterwards — harmless, a TurnManager is
+		# never ticked in the editor.
+		var pool := e.stat_board.initiative
+		if pool != null and not pool.current_changed.is_connected(_on_forecast_pool_changed):
+			pool.current_changed.connect(_on_forecast_pool_changed)
+			_bound_initiative_pools.append(pool)
+		var speed := e.stat_board.initiative_speed
+		if speed != null and not speed.value_changed.is_connected(_on_forecast_speed_changed):
+			speed.value_changed.connect(_on_forecast_speed_changed)
+			_bound_initiative_speeds.append(speed)
 
 
 func _on_forecast_pool_changed(_new_current) -> void:
