@@ -15,7 +15,7 @@ extends GutTest
 ## with and without the aura listening; their difference is the aura's share.
 ##
 ## [b]FIXED — this bench is now a guard.[/b] Signal-driven refreshes coalesce
-## to one deferred walk per frame. RX 7900 XTX box, headless; 2000 nodes, 3104
+## to one deferred walk per frame. Ryzen 7 7800X3D, headless; 2000 nodes, 3104
 ## edges; the aura's share of one strip, before and after:
 ## [codeblock]
 ## owned | _refresh | strip, no aura | aura's share before | after
@@ -25,7 +25,7 @@ extends GutTest
 ##   200 |  3257 us |      158032 us |           430973 us | 13264 us
 ## [/codeblock]
 ## "after" is one walk plus frame noise (the share is a difference of two
-## frame-flush timings). The no-aura column is AllocationSystem's own ~0.8 ms
+## frame-flush timings; a rerun read 0 us at 200). The no-aura column is AllocationSystem's own ~0.8 ms
 ## per forced deallocate — real, but not the overlay's, and not judged here.
 ##
 ## CPU only — the fragment cost needs real hardware
