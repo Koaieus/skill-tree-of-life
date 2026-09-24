@@ -97,6 +97,20 @@ func test_a_tween_born_in_a_callback_first_moves_on_the_next_advance() -> void:
 	assert_almost_eq(_host.position.x, 5.0, 0.001, "it moves from the next advance")
 
 
+func test_a_killed_tween_does_not_leak_through_its_finished_connection() -> void:
+	_clock.manual = true
+	var tw := _clock.tween(_host)
+	tw.tween_interval(1.0)
+	var tw_ref: WeakRef = weakref(tw)
+	var clock_ref: WeakRef = weakref(_clock)
+	tw.kill()
+	tw = null
+	_clock = null
+	await wait_seconds(0.2)
+	assert_null(tw_ref.get_ref(), "the killed tween is freed, not held by its own finished connection")
+	assert_null(clock_ref.get_ref(), "the clock is freed too, not held in the cycle")
+
+
 func test_kill_all_leaves_nothing_live() -> void:
 	_clock.manual = true
 	var a := _clock.tween(_host)
