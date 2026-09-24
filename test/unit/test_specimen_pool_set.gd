@@ -329,5 +329,5 @@ func test_dot_pools_shape() -> void:
 					"%s is the blessed pole and nothing else" % sid)
 				assert_eq(pp.min_tier, 2, "%s never rolls at T1" % sid)
 				assert_eq(pp.max_tier, 4, "%s ladders three rungs to T4" % sid)
-	assert_eq(potency_count, 4, "four potency pools across the set")
-	assert_eq(resistance_count, 4, "four resistance pools across the set")
+	assert_eq(potency_count, 5, "five potency pools across the set (four DoTs + PER's blindness)")
+	assert_eq(resistance_count, 5, "five resistance pools across the set (four DoTs + PER's blindness)")
