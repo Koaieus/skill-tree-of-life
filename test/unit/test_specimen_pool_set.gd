@@ -19,14 +19,14 @@ func _rng(seed_value: int = 1) -> RandomNumberGenerator:
 
 func test_specimen_loads_all_seven_packs() -> void:
 	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
-	assert_eq(pool_set.packs.size(), 7, "expected 7 packs (6 archetype + mobility universal)")
+	assert_eq(pool_set.packs.size(), 7, "expected 7 packs (6 archetype + universal)")
 	var arch_ids: Array[StringName] = []
 	for p in pool_set.packs:
 		arch_ids.append(p.archetype_stat)
 	for a in [&"strength", &"dexterity", &"intelligence", &"wisdom", &"perception", &"constitution"]:
 		assert_true(a in arch_ids, "%s pack present" % String(a))
-	# mobility is the universal pack (archetype_stat == &"")
-	assert_true(&"" in arch_ids, "mobility pack (universal) present")
+	# universal.tres is the universal pack (archetype_stat == &"")
+	assert_true(&"" in arch_ids, "universal pack present")
 
 
 func test_specimen_flatten_for_strength_node_returns_strength_plus_universal() -> void:
@@ -39,8 +39,8 @@ func test_specimen_flatten_for_strength_node_returns_strength_plus_universal() -
 			stat_ids.append(e.stat_id)
 	assert_true(&"strength" in stat_ids, "strength pools drawn for a STR node")
 	# Universal pools (node_health, armor, movement_points, deallocation_points)
-	# are drawn by every node. As of #718 no CURSE is universal any more —
-	# every downside pool carries an explicit archetype_stat.
+	# (universal.tres) are drawn by every node. No CURSE is universal — every
+	# downside pool sits in its archetype's pack (#718, #751).
 	assert_true(&"movement_points" in stat_ids, "universal movement_points drawn for a STR node")
 	assert_true(&"node_health" in stat_ids, "universal node_health drawn for a STR node")
 	assert_true(&"armor" in stat_ids, "universal armor drawn for a STR node")
@@ -114,14 +114,16 @@ const _PRIMARIES: Array[StringName] = [&"strength", &"dexterity",
 	&"intelligence", &"constitution", &"wisdom", &"perception"]
 
 
-## Ids of every entry a universal (`archetype_stat == &""`) pool in `pool_set`
+## Ids of every entry a universal (`archetype_stat == &""`) pack in `pool_set`
 ## mints — the partition key the slice is computed over.
 func _universal_ids(pool_set: ModifierPoolSet) -> Dictionary:
 	var ids := {}
 	for pack in pool_set.packs:
+		if pack.archetype_stat != &"":
+			continue
 		for pool: StatPool in pack.pools:
-			if pool != null and pool.archetype_stat == &"":
-				for e in pool.to_entries():
+			if pool != null:
+				for e in pool.to_entries(pack.archetype_stat):
 					ids[e.id] = true
 	return ids
 
@@ -142,7 +144,6 @@ func _throwaway_pack(archetype: StringName, pool_weight: float) -> StatPack:
 	var pool := StatPool.new()
 	pool.stat_id = &"node_health"
 	pool.operation = StatModifier.Operation.MULTIPLY
-	pool.archetype_stat = archetype
 	pool.pool_weight = pool_weight
 	var pack := StatPack.new()
 	pack.archetype_stat = archetype
@@ -166,11 +167,11 @@ func test_appending_a_universal_pool_redistributes_inside_the_slice() -> void:
 		if uids_before.has(e.id):
 			raw_u_before += e.weight
 	var pool_mass := 0.0
-	for e in (pack.pools[0] as StatPool).to_entries():
+	for e in (pack.pools[0] as StatPool).to_entries(pack.archetype_stat):
 		pool_mass += e.weight
 	pool_set.packs.append(pack)
 	var new_ids := {}
-	for e in (pack.pools[0] as StatPool).to_entries():
+	for e in (pack.pools[0] as StatPool).to_entries(pack.archetype_stat):
 		new_ids[e.id] = true
 	var uids := _universal_ids(pool_set)
 	for primary in _PRIMARIES:
@@ -198,10 +199,11 @@ func test_appending_an_archetype_pool_keeps_that_primarys_slice() -> void:
 func _raw_weights(pool_set: ModifierPoolSet, primary: StringName) -> Dictionary:
 	var out := {}
 	for pack in pool_set.packs:
+		if pack.archetype_stat != &"" and pack.archetype_stat != primary:
+			continue
 		for pool: StatPool in pack.pools:
-			if pool.archetype_stat == &"" or pool.archetype_stat == primary:
-				for e in pool.to_entries():
-					out[e.id] = e.weight
+			for e in pool.to_entries(pack.archetype_stat):
+				out[e.id] = e.weight
 	return out
 
 
@@ -242,8 +244,8 @@ func test_strength_pack_intelligence_curse_is_drawable() -> void:
 	# negative-INCREASE modifier on intelligence.
 	#
 	# Renamed twice. It stopped "refunding budget" in #637 (cost is always
-	# positive now), and it stopped being *universal* in #718 — it is scoped
-	# `archetype_stat = &"strength"`, so this draw finds it only because the
+	# positive now), and it stopped being *universal* in #718 — it sits in
+	# strength.tres (#751: the pack is the gate), so this draw finds it only because the
 	# node's primary IS strength. The old name asserted two things that are no
 	# longer true; the behaviour under test is unchanged.
 	var pool_set: ModifierPoolSet = _SET.duplicate(true) as ModifierPoolSet
@@ -351,12 +353,12 @@ func test_dot_pools_shape() -> void:
 			var sid := String(pp.stat_id)
 			if sid.ends_with("_potency"):
 				potency_count += 1
-				assert_ne(pp.archetype_stat, &"", "%s must have an attribute home" % sid)
+				assert_ne(pack.archetype_stat, &"", "%s must have an attribute home" % sid)
 				assert_eq(_subtype_ids(pp), [&"blight"] as Array[StringName],
 					"%s is the blighted pole and nothing else" % sid)
 			elif sid.ends_with("_resistance"):
 				resistance_count += 1
-				assert_ne(pp.archetype_stat, &"",
+				assert_ne(pack.archetype_stat, &"",
 					"%s left the universal pile for its family's archetype (#1059)" % sid)
 				assert_eq(_subtype_ids(pp), [&"bless"] as Array[StringName],
 					"%s is the blessed pole and nothing else" % sid)

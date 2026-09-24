@@ -49,6 +49,7 @@ mise run adr-hygiene     # frontmatter, supersede links, index coverage, immutab
 | [0025](0025-a-default-on-heal-gate-with-an-explicit-raw-bypass-and-a-drift-guard.md) | A default-on heal gate with an explicit raw bypass and a drift guard | accepted | 2026-09-20 | combat, healing, stats, architecture |
 | [0026](0026-systems-are-always-present-and-off-is-a-per-system-flag-not-a-base-class.md) | Systems are always present; "off" is a per-system flag, not a null check and not a base class | accepted | 2026-09-21 | architecture, composition-root, systems, scenes |
 | [0027](0027-attack-windup-is-an-awaited-presenter-beat-and-the-directors-shot-is-mode-agnostic.md) | An attack windup is an awaited presenter beat behind one contract for every mode, never a schedule offset; the director's shot is mode-agnostic | accepted | 2026-09-21 | combat, presentation, camera, architecture |
+| [0028](0028-the-stat-pack-is-the-only-archetype-gate-with-one-universal-pack.md) | A procgen pool rolls where its StatPack says; `&""` on a pack is universal and exactly one pack (`universal.tres`) is | accepted | 2026-09-23 | procgen, content, authoring |
 
 ## Reading order
 

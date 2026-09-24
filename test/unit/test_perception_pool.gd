@@ -29,7 +29,7 @@ func test_perception_pool_values() -> void:
 		var pp: StatPool = sp as StatPool
 		if pp.stat_id == &"perception" and pp.operation == StatModifier.Operation.ADD_BASE:
 			found = true
-			assert_eq(pp.to_entries().size(), pp.max_tier - pp.min_tier + 1,
+			assert_eq(pp.to_entries(p.archetype_stat).size(), pp.max_tier - pp.min_tier + 1,
 					"perception.addb: one entry per offered tier")
 	assert_true(found, "the pack must carry a perception addb pool at all")
 

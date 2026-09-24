@@ -3,7 +3,7 @@ extends GutTest
 ## CON — fifth attribute + linear node_health intrinsic + level scaling.
 ## Acceptance for #269 / D-11 / D-14. The procgen cross-rollable sections
 ## (#5/#6, D-12) were removed in #321 v4: the off-archetype phase is gone,
-## universal `archetype_stat == &""` pools are the shared defensive content.
+## the universal pack (`universal.tres`) is the shared defensive content.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 

@@ -29,17 +29,20 @@ func test_constitution_pool_values() -> void:
 		var pp: StatPool = sp as StatPool
 		if pp.stat_id == &"constitution" and pp.operation == StatModifier.Operation.ADD_BASE:
 			found = true
-			assert_eq(pp.to_entries().size(), pp.max_tier - pp.min_tier + 1,
+			assert_eq(pp.to_entries(p.archetype_stat).size(), pp.max_tier - pp.min_tier + 1,
 					"constitution.addb: one entry per offered tier")
 	assert_true(found, "the pack must carry a constitution addb pool at all")
 
 
-func test_universal_pools_are_archetype_empty() -> void:
+func test_universal_defense_lives_in_universal_tres_not_here() -> void:
+	# The pack is the only gate (#751): a pool in constitution.tres rolls on
+	# CON nodes only, so the shared armor / node_health+% pools live in
+	# universal.tres instead.
 	var p: StatPack = _PACK.duplicate(true) as StatPack
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
-		if pp.stat_id == &"node_health" or pp.stat_id == &"armor":
-			assert_eq(pp.archetype_stat, &"", "pool %s should be universal" % String(pp.stat_id))
+		assert_false(pp.stat_id == &"armor" and pp.operation == StatModifier.Operation.ADD_BASE,
+			"armor + is universal content; it belongs in universal.tres")
 
 
 ## The CON pack's DEX pool — asserts the pool's SHAPE, not its magnitudes.
@@ -70,9 +73,9 @@ func test_dexterity_negative_pool() -> void:
 			found = true
 			assert_lt(pp.unit_value, 0.0, "the DEX pool in the CON pack rolls a negative value")
 			assert_gte(pp.max_tier, 1, "reachable on at least one tier")
-			assert_eq(pp.to_entries().size(), pp.max_tier,
+			assert_eq(pp.to_entries(p.archetype_stat).size(), pp.max_tier,
 				"one entry per tier up to max_tier")
-			for e in pp.to_entries():
+			for e in pp.to_entries(p.archetype_stat):
 				assert_gt(e.cost, 0, "cost is always positive — refund economics retired (#637)")
 	assert_true(found, "the CON pack still carries a DEX downside pool at all")
 
@@ -97,7 +100,7 @@ func test_min_damage_taken_flattens_to_exact_migrated_table() -> void:
 			# negative-pool table (role-ordered pair, positive cost) is pinned
 			# on a hand-built pool in test_pool_seed_values.gd.
 			assert_lt(pp.unit_value, 0.0, "min_damage_taken must stay a downside pool")
-			var entries := pp.to_entries()
+			var entries := pp.to_entries(p.archetype_stat)
 			assert_eq(entries.size(), pp.max_tier - pp.min_tier + 1, "one entry per offered tier")
 			for e in entries:
 				assert_gt(e.cost, 0, "cost is always positive — refund economics retired (#637)")
@@ -127,7 +130,7 @@ func test_dexterity_pool_stays_sign_consistent() -> void:
 						"range_floor must share unit_value's sign or the range crosses zero")
 				assert_lte(absf(pp.range_floor), absf(pp.unit_value),
 						"range_floor must not overshoot the T1 ceiling's magnitude")
-			for e in pp.to_entries():
+			for e in pp.to_entries(p.archetype_stat):
 				assert_gt(e.cost, 0, "cost is always positive — refund economics retired (#637)")
 				assert_lt(e.value_range.y, 0.0, "every tier stays negative at BOTH ends")
 	assert_true(found, "constitution pack still carries the dexterity -% pool")
@@ -149,7 +152,7 @@ func test_min_damage_taken_at_most_one_draw_fits_default_budget() -> void:
 	for sp in p.pools:
 		var pp: StatPool = sp as StatPool
 		if pp.stat_id == &"min_damage_taken":
-			for e in pp.to_entries():
+			for e in pp.to_entries(p.archetype_stat):
 				min_cost = mini(min_cost, e.cost)
 	assert_eq(min_cost, 4, "min_damage_taken's cheapest tier (T3) costs 4")
 	assert_true(min_cost * 2 > policy.base_max,

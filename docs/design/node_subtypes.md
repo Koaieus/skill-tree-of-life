@@ -424,7 +424,7 @@ later upgrade with its own justification, not part of the first cut.
 6. **WIS gets no blighted variant for now.** *"WIS is pure economy… maybe `blessed` version just boosts it's budget slightly (already quite powerful). open for design / good ideas."*
 
 7. **`NodeSubtype` is a `Resource`, not an enum and not a `StringName`** — it crosses procgen, `SkillNode` and the visuals, so it must carry data (tint, emissive tier). Mirrors `Archetype`.
-8. **The gate stays on `StatPool`, even after #751 moves `archetype_stat` up to `StatPack`.** A pack is one archetype by definition, so repeating it is noise; a pack deliberately holds *mixed* subtypes, so subtype is real per-pool information.
+8. **The gate stays on `StatPool`, even after #751 moved `archetype_stat` up to `StatPack`.** A pack is one archetype by definition, so repeating it is noise; a pack deliberately holds *mixed* subtypes, so subtype is real per-pool information.
 9. **Placement is a per-node `base_chance` in v1**, regular as the remainder. Clustered regions are an upgrade that changes nothing authored.
 
 ### Decisions added 2026-09-22 (second session, the decomposition pass)

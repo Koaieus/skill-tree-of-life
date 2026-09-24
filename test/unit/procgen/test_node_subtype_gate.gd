@@ -30,16 +30,16 @@ func _subtype(id_: StringName, chance: float = 0.0) -> NodeSubtype:
 	return s
 
 
-func _pool(stat: StringName, arch: StringName, subs: Array[NodeSubtype]) -> StatPool:
+func _pool(stat: StringName, subs: Array[NodeSubtype]) -> StatPool:
 	var p := StatPool.new()
 	p.stat_id = stat
-	p.archetype_stat = arch
 	p.subtypes = subs
 	return p
 
 
 func _set_of(pools: Array[StatPool]) -> ModifierPoolSet:
 	var pack := StatPack.new()
+	pack.archetype_stat = &"dexterity"
 	pack.pools = pools
 	var packs: Array[StatPack] = [pack]
 	var s := ModifierPoolSet.new()
@@ -61,8 +61,8 @@ func _ids(entries: Array[ModifierPoolEntry]) -> Array[String]:
 ## "blighted DEX cannot draw the crit pool".
 func test_a_pool_gated_to_a_subtype_is_absent_from_another_subtypes_flatten() -> void:
 	var bless := _subtype(&"bless")
-	var gated := _pool(&"crit_chance", &"dexterity", [bless])
-	var shared := _pool(&"dexterity", &"dexterity", [] as Array[NodeSubtype])
+	var gated := _pool(&"crit_chance", [bless])
+	var shared := _pool(&"dexterity", [] as Array[NodeSubtype])
 	var pool_set := _set_of([gated, shared] as Array[StatPool])
 
 	var regular_ids := _ids(pool_set.flatten_for_node(&"dexterity", NodeSubtype.regular()))
@@ -107,8 +107,8 @@ func test_an_empty_subtype_set_selects_exactly_what_the_archetype_gate_selects()
 			for pool in pack.pools:
 				if pool == null:
 					continue
-				if pool.archetype_stat == &"" or pool.archetype_stat == primary:
-					expected.append_array(_ids(pool.to_entries()))
+				if pack.archetype_stat == &"" or pack.archetype_stat == primary:
+					expected.append_array(_ids(pool.to_entries(pack.archetype_stat)))
 		assert_eq(_ids(pool_set.flatten_for_node(primary, NodeSubtype.regular())), expected,
 			"%s: the two-key flatten must select what the archetype gate selected" % primary)
 		assert_eq(_ids(pool_set.flatten_for_node(primary, blight)), expected,
@@ -119,12 +119,12 @@ func test_an_empty_subtype_set_selects_exactly_what_the_archetype_gate_selects()
 	# Format pin: `<stat>_<op>_<arch>_t<tier>`, no subtype segment anywhere.
 	for pack in pool_set.packs:
 		for pool in pack.pools:
-			var arch_seg: String = String(pool.archetype_stat) if pool.archetype_stat != &"" else "any"
+			var arch_seg: String = String(pack.archetype_stat) if pack.archetype_stat != &"" else "any"
 			var op_seg: String = _OP_SHORT[pool.operation]
 			var want: Array[String] = []
 			for t in range(pool.min_tier, pool.max_tier + 1):
 				want.append("%s_%s_%s_t%d" % [pool.stat_id, op_seg, arch_seg, t])
-			assert_eq(_ids(pool.to_entries()), want,
+			assert_eq(_ids(pool.to_entries(pack.archetype_stat)), want,
 				"an ungated pool's entry ids must not move (%s)" % pool.resource_name)
 
 
@@ -136,13 +136,13 @@ func test_an_empty_subtype_set_selects_exactly_what_the_archetype_gate_selects()
 func test_subtype_gated_pools_do_not_collide_on_entry_id() -> void:
 	var bless := _subtype(&"bless")
 	var blight := _subtype(&"blight")
-	var blessed_pool := _pool(&"crit_chance", &"dexterity", [bless])
-	var blighted_pool := _pool(&"crit_chance", &"dexterity", [blight])
-	var ungated := _pool(&"crit_chance", &"dexterity", [] as Array[NodeSubtype])
+	var blessed_pool := _pool(&"crit_chance", [bless])
+	var blighted_pool := _pool(&"crit_chance", [blight])
+	var ungated := _pool(&"crit_chance", [] as Array[NodeSubtype])
 
-	var a := _ids(blessed_pool.to_entries())
-	var b := _ids(blighted_pool.to_entries())
-	var plain := _ids(ungated.to_entries())
+	var a := _ids(blessed_pool.to_entries(&"dexterity"))
+	var b := _ids(blighted_pool.to_entries(&"dexterity"))
+	var plain := _ids(ungated.to_entries(&"dexterity"))
 
 	assert_eq(a.size(), plain.size(), "sanity: same tier span, same entry count")
 	for i in a.size():
@@ -155,9 +155,9 @@ func test_subtype_gated_pools_do_not_collide_on_entry_id() -> void:
 	assert_eq(plain, want, "an empty `subtypes` appends no segment")
 	# Author order is not identity: [bless, blight] and [blight, bless] are the
 	# same set and must mint the same ids.
-	var ab := _pool(&"crit_chance", &"dexterity", [bless, blight])
-	var ba := _pool(&"crit_chance", &"dexterity", [blight, bless])
-	assert_eq(_ids(ab.to_entries()), _ids(ba.to_entries()),
+	var ab := _pool(&"crit_chance", [bless, blight])
+	var ba := _pool(&"crit_chance", [blight, bless])
+	assert_eq(_ids(ab.to_entries(&"dexterity")), _ids(ba.to_entries(&"dexterity")),
 		"the segment is a SET — author order must not mint a second id")
 
 
@@ -181,7 +181,7 @@ func _add_blight_pool(cfg: GraphProcgenConfig, blight: NodeSubtype) -> void:
 	var pool_set: ModifierPoolSet = cfg.content.modifier_pool_set.duplicate(true)
 	var packs: Array[StatPack] = []
 	packs.assign(pool_set.packs)
-	packs.append(_pack_of(_pool(&"armor", &"", [blight])))
+	packs.append(_pack_of(_pool(&"armor", [blight])))
 	pool_set.packs = packs
 	cfg.content.modifier_pool_set = pool_set
 

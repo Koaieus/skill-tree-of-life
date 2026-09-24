@@ -7,18 +7,15 @@ extends GutTest
 ## tune red while catching nothing (#719, #717).
 ##
 ## The bug they exist for: `1aa8f29` re-pointed the CON pack's curse from
-## `intelligence` to `dexterity` by editing `stat_id` alone. The pool's
-## `archetype_stat` had never been authored, and its default `&""` means
+## `intelligence` to `dexterity` by editing `stat_id` alone. The pool's own
+## `archetype_stat` had never been authored, and its default `&""` meant
 ## **universal** — so the curse shipped on all six archetypes rather than on
-## CON nodes. Its stale `tags = [&"int", …]` then handed it a 3x weight boost
-## on INT nodes (`awp_main`) and a hard ban on gold/purple (`forbid_tags`).
-##
-## Nothing headless caught either half. `StatPack._get_configuration_warnings`
-## does flag a pool whose non-empty `archetype_stat` disagrees with its pack's
-## (it was firing on `intelligence.tres` at the time), but it is `@tool`-only —
-## an inspector triangle. `test_no_configuration_warnings` is that check made
-## headless. It still cannot catch a `&""` pool, because universal pools are
-## legal in any pack by design; `test_curse_scoping_law` covers that side.
+## CON nodes. #751 removed that field: the pack (the file) is now the only
+## gate, so a pool's scope is where it sits, and
+## `test_every_pack_is_gated_by_its_file_name` pins each pack's one value.
+## `test_curse_scoping_law` and the sweeps below still read effective scope
+## (who can draw what), and `test_no_configuration_warnings` makes the
+## `@tool`-only inspector checks headless.
 
 const _SET := preload("res://procgen/pools/specimen_pool_set.tres")
 
@@ -89,7 +86,7 @@ func test_a_curse_reaches_only_its_own_archetype() -> void:
 			# min_damage_taken is CON-scoped and also negative, but it is not
 			# in the law's table, so it never collides with this check.
 			assert_false(foreign in negatives,
-				"a %s node must NOT roll %s's %s curse — that pool has leaked its scope (probably an unauthored archetype_stat, which defaults to &\"\" = universal)"
+				"a %s node must NOT roll %s's %s curse — that pool has leaked its scope (probably filed in the wrong pack, or in universal.tres)"
 				% [String(primary), String(other), String(foreign)])
 
 

@@ -1,6 +1,7 @@
 extends GutTest
-## v4 StatPool conformance for mobility.tres (#321 wave 1).
-const _PACK := preload("res://procgen/pools/mobility.tres")
+## v4 StatPool conformance for universal.tres (#321 wave 1, renamed from
+## mobility.tres in #751) — the one pack every archetype draws.
+const _PACK := preload("res://procgen/pools/universal.tres")
 const _GP := preload("res://procgen/graph_procgen.gd")
 
 func _rng(s: int) -> RandomNumberGenerator:
@@ -16,11 +17,13 @@ func test_pack_loads_as_statpack() -> void:
 	assert_true(p.pools.size() > 0)
 
 
-func test_all_pools_are_universal() -> void:
+func test_carries_the_shared_defensive_and_mobility_content() -> void:
 	var p: StatPack = _PACK.duplicate(true) as StatPack
+	var stats: Array[StringName] = []
 	for sp in p.pools:
-		var pp: StatPool = sp as StatPool
-		assert_eq(pp.archetype_stat, &"", "pool %s should be universal" % String(pp.stat_id))
+		stats.append((sp as StatPool).stat_id)
+	for want: StringName in [&"armor", &"node_health", &"movement_points", &"deallocation_points"]:
+		assert_true(want in stats, "universal.tres must carry %s" % String(want))
 
 
 func test_movement_points_pool_values() -> void:
@@ -36,7 +39,7 @@ func test_movement_points_pool_values() -> void:
 		var pp: StatPool = sp as StatPool
 		if pp.stat_id == &"movement_points" and pp.operation == StatModifier.Operation.ADD_BASE:
 			found = true
-			assert_eq(pp.to_entries().size(), pp.max_tier - pp.min_tier + 1,
+			assert_eq(pp.to_entries(p.archetype_stat).size(), pp.max_tier - pp.min_tier + 1,
 					"movement_points.addb: one entry per offered tier")
 	assert_true(found, "the pack must carry a movement_points addb pool at all")
 

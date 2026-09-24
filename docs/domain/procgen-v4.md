@@ -213,10 +213,12 @@ attributes; the two quick/clever archetypes tax the two defensive stats.*
 
 Three properties are load-bearing, and none of them is a tuning knob:
 
-- **Explicit `archetype_stat`, never the default.** `StatPool.archetype_stat`
-  defaults to `&""`, which means *universal* — so "I forgot to set it" and "I
-  want this on every node" are the same value. `1aa8f29` re-pointed the CON
-  curse by editing `stat_id` alone and shipped it on all six archetypes.
+- **The pack is the gate.** A pool rolls where its `.tres` says: a CON curse
+  lives in `constitution.tres` and rolls on CON nodes only (ADR 0028, #751).
+  Before #751 each pool carried its own `archetype_stat` defaulting to `&""`
+  (universal), and `1aa8f29` shipped the CON curse on all six archetypes by
+  editing `stat_id` alone; the only `&""` left is `universal.tres`'s, pinned
+  to its file name by a test.
 - **Empty `tags`.** Tags feed `ArchetypeWeightProfile` (multiplied across every
   matched tag) *and* `ArchetypePolicy.forbid_tags` (a brick wall). The same
   curse kept `tags = [&"int", …]` after re-pointing, which handed it a 3x boost
@@ -230,7 +232,7 @@ Three properties are load-bearing, and none of them is a tuning knob:
 
 WIS/PER being curse-free is a stated asymmetry, not an omission — they are 5% /
 3% of the graph and are already locked out of universal *defensive* content
-(armor, node_health) by their `forbid_tags` (#750); mobility still rolls. Making the pack the only gate is #751.
+(armor, node_health) by their `forbid_tags` (#750); mobility still rolls.
 
 `test/unit/test_pool_scoping.gd` pins all of this structurally, plus a headless
 sweep of `_get_configuration_warnings()` across every pack and pool — that
@@ -311,30 +313,30 @@ ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
 | `xp_per_turn` .inc | 7.5 | — | 0.5 | 1 | 2 | +7.5% +22.5% |
 | `movement_points` .addb (universal) | 1 | — | 0.6 | 1 | 2 | +1 +3 |
 | `deallocation_points` .addb (universal) | 1 | — | 0.8 | 1 | 2 | +1 +3 |
-| `intelligence` .inc **debuff** (universal) | −5 | — | 0.5 | 1 | 1 | −5% (cost −1) |
-| `poison_potency` .inc (dex) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
-| `corruption_potency` .inc (str) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
-| `curse_potency` .inc (wis) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
-| `wither_potency` .inc (con) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
-| `poison_resistance` .addb (universal) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
-| `corruption_resistance` .addb (universal) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
-| `curse_resistance` .addb (universal) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
-| `wither_resistance` .addb (universal) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
+| `intelligence` .inc **debuff** (str) | −5 | — | 0.5 | 1 | 1 | −5% (cost −1) |
+| `poison_potency` .inc (dex, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
+| `corruption_potency` .inc (str, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
+| `curse_potency` .inc (con, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
+| `wither_potency` .inc (int, blight) | 7 | — | 0.5 | 1 | 3 | +7% +21% +49% |
+| `poison_resistance` .addb (dex, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
+| `corruption_resistance` .addb (str, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
+| `curse_resistance` .addb (con, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
+| `wither_resistance` .addb (int, bless) | 0.05 | — | 0.25 | 2 | 4 | +0.05 +0.15 +0.35 |
 
-Per-pack homes: str/dex/int/wis/per/con each carry their attribute's addb+inc+
-mul; dex adds crit_chance+crit_multiplier; int adds mana+mana_per_turn; wis
-adds xp_per_turn (addb+inc); per adds vision_range (inc+addn)+sensor_range;
-con adds node_health+armor (universal) + the `dexterity -%` curse (CON-scoped
-since #718; universal before that) + the four `*_resistance` pools (universal,
-T2..T4 only — a T1 node never rolls a resistance);
-`mobility.tres` (universal pack) carries movement_points+deallocation_points.
+Per-pack homes (the pack is the gate, ADR 0028): str/dex/int/wis/per/con each
+carry their attribute's addb+inc+mul; dex adds crit_chance+crit_multiplier; int
+adds mana+mana_per_turn; wis adds xp_per_turn (addb+inc); per adds vision_range
+(inc+addn)+sensor_range; con adds the `dexterity -%` curse (#718).
+`universal.tres` (the one universal pack) carries node_health+armor and
+movement_points+deallocation_points.
 
-DoT **potency** has an attribute home, never a universal one: poison → dex,
-corruption → str, curse → wis, wither → con. INT and PER carry none. A build
-that wants poison on a melee blade finds `poison_potency` only on DEX nodes —
-hybrids are the deal (owner, #974): combining two concepts means allocating
-related nodes on both sides. Resistances stay universal because they are the
-defence axis, and rarer (T2+) so they never crowd a T1 draw.
+The four DoT families each have one attribute home holding both poles, gated
+by subtype (#1059): the **potency** rolls only on blighted nodes, the
+**resistance** only on blessed ones — corruption → str, poison → dex,
+wither → int, curse → con. WIS and PER carry none. A build that wants poison
+on a melee blade finds `poison_potency` only on blighted DEX nodes — hybrids
+are the deal (owner, #974): combining two concepts means allocating related
+nodes on both sides. Resistances are T2+, so they never crowd a T1 draw.
 
 ## Budget envelope (first_level.tres)
 
@@ -393,15 +395,11 @@ line-tag census (counts per `MOD`/`ADDON`/`SPELL` kind) should be unchanged
 *in kind*, and spot-check that any new extreme value is reachable under the
 new authoring.
 
-The fix for a red golden is one command:
-
-```
-mise run procgen-golden-regenerate    # rewrites both fixtures, then review the diff
-```
-
-It flips `_REGENERATE`, runs the test alone (which `fail_test()`s on purpose
-after writing), and flips the flag back. Commit the fixtures with a message
-saying *why* generation was supposed to change.
+The fix for a red golden is deliberate: flip `_REGENERATE` at the top of
+`test/unit/procgen/test_preset_generation_golden.gd`, run that script alone
+(`mise run test:one -- res://test/unit/procgen/test_preset_generation_golden.gd`,
+which `fail_test()`s on purpose after writing), flip the flag back. Commit the
+fixtures with a message saying *why* generation was supposed to change.
 
 **One test is meant to be tune-sensitive:**
 `test_specimen_pool_set.gd::test_value_overrides_stay_under_repo_budget` caps

@@ -23,7 +23,7 @@ func test_dexterity_pool_shape() -> void:
 			continue
 		found = true
 		assert_gt(pp.unit_value, 0.0, "DEX is a positive ladder")
-		var entries := pp.to_entries()
+		var entries := pp.to_entries(p.archetype_stat)
 		assert_eq(entries.size(), pp.max_tier - pp.min_tier + 1, "one entry per offered tier")
 		for i in entries.size():
 			var tier := pp.min_tier + i
@@ -53,7 +53,7 @@ func test_crit_chance_pool_uses_the_override_escape_hatch() -> void:
 			found = true
 			assert_false(pp.value_overrides.is_empty(),
 					"crit_chance is the override exemplar — it must author at least one")
-			var entries := pp.to_entries()
+			var entries := pp.to_entries(p.archetype_stat)
 			assert_eq(entries.size(), pp.max_tier - pp.min_tier + 1, "one entry per offered tier")
 			for i in entries.size():
 				var tier := pp.min_tier + i
@@ -111,7 +111,7 @@ func test_armor_curse_is_a_self_limiting_downside() -> void:
 		assert_eq(pp.operation, StatModifier.Operation.INCREASE,
 				"the armor curse must be INCREASE — ADD_BASE would mint unbounded negative armor from a zero base")
 		assert_lt(pp.unit_value, 0.0, "the armor pool in the DEX pack is a downside pool")
-		for e in pp.to_entries():
+		for e in pp.to_entries(p.archetype_stat):
 			assert_lt(e.value_range.y, 0.0, "every tier stays negative at BOTH ends")
 			assert_gt(e.cost, 0, "cost is always positive (#637)")
 	assert_true(found, "the dexterity pack must carry an armor curse at all")
@@ -142,7 +142,7 @@ func test_ammo_grants_are_integer_add_base_pools_with_known_tags() -> void:
 		assert_true(&"ammo" in pp.tags, "%s is tagged `ammo`" % String(sid))
 		assert_eq(pp._get_configuration_warnings().size(), 0,
 				"%s pool validates: %s" % [String(sid), pp._get_configuration_warnings()])
-		var entries := pp.to_entries()
+		var entries := pp.to_entries(&"dexterity")
 		assert_gt(entries.size(), 0, "%s offers at least one tier" % String(sid))
 		for e in entries:
 			var r: Vector2 = e.value_range
@@ -166,7 +166,7 @@ func test_rolled_poison_grant_lands_on_the_board_and_mints_on_reload() -> void:
 	if pp == null:
 		fail_test("the dexterity pack must carry a poison_arrows_per_reload pool")
 		return
-	var rolled: StatModifier = pp.to_entries()[0].roll(_rng(7))
+	var rolled: StatModifier = pp.to_entries(&"dexterity")[0].roll(_rng(7))
 	var grant := int(rolled.value)
 
 	var graph: Graph = _GRAPH_SCENE.instantiate()

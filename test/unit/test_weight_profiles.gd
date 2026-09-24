@@ -149,7 +149,6 @@ func test_v4_draw_fuses_duplicate_stat_op_picks_into_one_modifier() -> void:
 	var p := StatPool.new()
 	p.stat_id = &"strength"
 	p.operation = StatModifier.Operation.ADD_BASE
-	p.archetype_stat = &"strength"
 	p.unit_value = 2.0
 	p.range_floor = 1.0  # positive floor — no fused no-op, no re-roll path
 	p.min_tier = 1

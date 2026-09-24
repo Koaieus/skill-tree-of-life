@@ -59,7 +59,7 @@ func test_non_overlap_survives_rolling_for_positive_m() -> void:
 	p.range_floor = 1.0  # positive M → structurally non-overlapping (#628)
 	p.min_tier = 1
 	p.max_tier = 4
-	var entries := p.to_entries()
+	var entries := p.to_entries(&"strength")
 	var maxes: Array[float] = []
 	var mins: Array[float] = []
 	for e in entries:
@@ -85,7 +85,7 @@ func test_value_override_pins_exact_value_every_roll() -> void:
 	p.min_tier = 2
 	p.max_tier = 2
 	p.value_overrides = {2: 42.0}
-	var e := p.to_entries()[0]
+	var e := p.to_entries(&"strength")[0]
 	for seed_value in range(1, 50):
 		assert_almost_eq(e.roll(_rng(seed_value)).value, 42.0, 0.0001, "override must pin exactly, every roll")
 
@@ -140,7 +140,6 @@ func _neutral_multiply_pool_set() -> ModifierPoolSet:
 	var p := StatPool.new()
 	p.stat_id = &"strength"
 	p.operation = StatModifier.Operation.MULTIPLY
-	p.archetype_stat = &"strength"
 	p.unit_value = 0.0
 	p.pool_weight = 1.0
 	p.min_tier = 1
@@ -182,7 +181,6 @@ func test_no_op_retry_can_recover_a_nonzero_result() -> void:
 	var p := StatPool.new()
 	p.stat_id = &"strength"
 	p.operation = StatModifier.Operation.ADD_BASE
-	p.archetype_stat = &"strength"
 	p.unit_value = 5.0
 	p.range_floor = -5.0  # T1 range -5..5, mean 0 — can fuse to exactly 0
 	p.min_tier = 1

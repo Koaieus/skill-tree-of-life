@@ -21,7 +21,7 @@ func test_wisdom_pool_values() -> void:
 		var pp: StatPool = sp as StatPool
 		if pp.stat_id == &"wisdom" and pp.operation == StatModifier.Operation.ADD_BASE:
 			found = true
-			assert_eq(pp.to_entries().size(), pp.max_tier - pp.min_tier + 1,
+			assert_eq(pp.to_entries(p.archetype_stat).size(), pp.max_tier - pp.min_tier + 1,
 					"wisdom.addb: one entry per offered tier")
 	assert_true(found, "the pack must carry a wisdom addb pool at all")
 func test_draw_only_emits_pack_stat_ids() -> void:

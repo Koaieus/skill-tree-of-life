@@ -10,7 +10,6 @@ const _SCRIPT := preload("res://procgen/graph_procgen.gd")
 func _pool(
 		stat_id: StringName,
 		op: int,
-		archetype_stat: StringName,
 		unit_value: float,
 		pool_weight: float = 1.0,
 		min_tier: int = 1,
@@ -21,7 +20,6 @@ func _pool(
 	var p := StatPool.new()
 	p.stat_id = stat_id
 	p.operation = op as StatModifier.Operation
-	p.archetype_stat = archetype_stat
 	p.unit_value = unit_value
 	p.pool_weight = pool_weight
 	p.min_tier = min_tier
@@ -63,7 +61,7 @@ func _draw(pool_set: ModifierPoolSet, primary_stat: StringName, budget: int, rng
 
 func test_zero_budget_returns_empty() -> void:
 	var pool_set := _make_set([
-		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 2.0)]),
+		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, 2.0)]),
 	])
 	var mods := _draw(pool_set, &"strength", 0, _rng(1))
 	assert_eq(mods.size(), 0)
@@ -72,7 +70,7 @@ func test_zero_budget_returns_empty() -> void:
 func test_budget_drains_into_t1_filler_never_wasted() -> void:
 	# Single pool, T1 cost 1 always affordable → remaining always hits 0.
 	var pool_set := _make_set([
-		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 2.0)]),
+		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, 2.0)]),
 	])
 	for budget in [1, 2, 3, 7, 16]:
 		var rng := _rng(budget)
@@ -92,8 +90,8 @@ func test_aggregation_sums_add_base_and_products_multiply() -> void:
 	# and any MULTIPLY draws PRODUCT into a separate mod.
 	var pool_set := _make_set([
 		_pack(&"strength", [
-			_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 2.0, 10.0),
-			_pool(&"strength", StatModifier.Operation.MULTIPLY, &"strength", 0.05, 1.0, 3, 4),
+			_pool(&"strength", StatModifier.Operation.ADD_BASE, 2.0, 10.0),
+			_pool(&"strength", StatModifier.Operation.MULTIPLY, 0.05, 1.0, 3, 4),
 		]),
 	])
 	var saw_add := false
@@ -121,8 +119,8 @@ func test_universal_pool_drawn_by_any_primary() -> void:
 	# armor is universal (archetype_stat = &""); a strength-primary node draws it
 	# alongside strength.
 	var pool_set := _make_set([
-		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 2.0, 1.0)]),
-		_pack(&"", [_pool(&"armor", StatModifier.Operation.ADD_BONUS, &"", 1.5, 1.0)]),
+		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, 2.0, 1.0)]),
+		_pack(&"", [_pool(&"armor", StatModifier.Operation.ADD_BONUS, 1.5, 1.0)]),
 	])
 	var saw_armor := false
 	for seed_value in range(1, 40):
@@ -139,13 +137,13 @@ func test_universal_pool_drawn_by_any_primary() -> void:
 ## test_debuff_refunds_budget_and_caps_at_one_refund (the refund/one-cap
 ## mechanic it covered no longer exists).
 func test_negative_pool_cost_is_positive_and_spend_never_refunds() -> void:
-	var negative_pool := _pool(&"intelligence", StatModifier.Operation.INCREASE, &"strength", -5.0, 0.5, 1, 1)
-	for e in negative_pool.to_entries():
+	var negative_pool := _pool(&"intelligence", StatModifier.Operation.INCREASE, -5.0, 0.5, 1, 1)
+	for e in negative_pool.to_entries(&"strength"):
 		assert_true(e.cost > 0, "a negative unit_value pool must cost +T, not refund budget")
 
 	var pool_set := _make_set([
 		_pack(&"strength", [
-			_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 2.0, 10.0),
+			_pool(&"strength", StatModifier.Operation.ADD_BASE, 2.0, 10.0),
 			negative_pool,
 		]),
 	])
@@ -173,7 +171,7 @@ func _wide_pool_set() -> ModifierPoolSet:
 	# range_floor 1.0 vs unit 5.0 → every tier beyond T1 has real width
 	# (#628's first worked table: T1 1..5, T2 6..15, T3 16..35, T4 36..75).
 	return _make_set([
-		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 5.0, 1.0, 1, 4, 1.0, 1.0)]),
+		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, 5.0, 1.0, 1, 4, 1.0, 1.0)]),
 	])
 
 
@@ -208,7 +206,7 @@ func test_different_seeds_produce_different_values() -> void:
 ## didn't leave the two rng streams at different positions.
 func test_zero_width_tier_consumes_rng_deterministically() -> void:
 	var pool_set := _make_set([
-		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, &"strength", 5.0)]),
+		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, 5.0)]),
 	])
 	var rng_a := _rng(3)
 	var rng_b := _rng(3)

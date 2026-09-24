@@ -25,7 +25,7 @@ func _pool(unit_value: float, range_floor: float = StatPool.FLOOR_UNSET, min_tie
 ## Acceptance 1: M=1.0, base 5.0 → T1 1..5, T2 6..15, T3 16..35, T4 36..75.
 func test_worked_table_positive_m() -> void:
 	var p := _pool(5.0, 1.0)
-	var entries := p.to_entries()
+	var entries := p.to_entries(&"")
 	var expected := [
 		Vector2(1.0, 5.0), Vector2(6.0, 15.0), Vector2(16.0, 35.0), Vector2(36.0, 75.0),
 	]
@@ -37,7 +37,7 @@ func test_worked_table_positive_m() -> void:
 ## Acceptance 2: M=-10.0, base 5.0 → T1 -10..5, T2 -5..15, T3 5..35, T4 25..75.
 func test_worked_table_negative_m() -> void:
 	var p := _pool(5.0, -10.0)
-	var entries := p.to_entries()
+	var entries := p.to_entries(&"")
 	var expected := [
 		Vector2(-10.0, 5.0), Vector2(-5.0, 15.0), Vector2(5.0, 35.0), Vector2(25.0, 75.0),
 	]
@@ -52,7 +52,7 @@ func test_worked_table_negative_m() -> void:
 ## to protect it as an invariant. Assert it only where it structurally holds.
 func test_non_overlap_holds_for_positive_m() -> void:
 	var p := _pool(5.0, 1.0)
-	var entries := p.to_entries()
+	var entries := p.to_entries(&"")
 	for i in range(entries.size() - 1):
 		assert_true(entries[i + 1].value_range.x > entries[i].value_range.y,
 				"T%d low should exceed T%d high under positive M" % [i + 2, i + 1])
@@ -125,7 +125,7 @@ func test_every_authored_pool_default_m_matches_old_highs_and_validates() -> voi
 						"%s should validate: %s" % [String(p.stat_id), w])
 			var lo := clampi(p.min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)
 			var hi := clampi(p.max_tier, lo, TierLadder.MAX_TIER)
-			var entries := p.to_entries()
+			var entries := p.to_entries(pack.archetype_stat)
 			for i in entries.size():
 				var t := lo + i
 				var expected_h := float(p.value_overrides.get(t, p.unit_value * TierLadder.value(t - p.min_tier + 1)))
@@ -148,7 +148,7 @@ func test_every_authored_pool_default_m_matches_old_highs_and_validates() -> voi
 func test_override_forces_fixed_point_at_its_own_tier() -> void:
 	var p := _pool(5.0, 1.0, 1, 3)  # non-trivial M so T2/T3 would otherwise widen
 	p.value_overrides = {2: 42.0}
-	var entries := p.to_entries()
+	var entries := p.to_entries(&"")
 	assert_almost_eq(entries[1].value_range.x, 42.0, 0.0001, "overridden tier low == override")
 	assert_almost_eq(entries[1].value_range.y, 42.0, 0.0001, "overridden tier high == override")
 	# T3 (not overridden) still chains off T2's overridden high.
@@ -159,7 +159,7 @@ func test_override_forces_fixed_point_at_its_own_tier() -> void:
 ## other test above assumes.
 func test_default_m_zero_widths_first_tier() -> void:
 	var p := _pool(5.0)
-	var entries := p.to_entries()
+	var entries := p.to_entries(&"")
 	assert_almost_eq(entries[0].value_range.x, entries[0].value_range.y, 0.0001,
 			"first tier is a fixed point under default M")
 
