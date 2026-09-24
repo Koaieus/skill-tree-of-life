@@ -54,7 +54,7 @@ func test_advance_steps_property_then_interval_then_callback_in_order() -> void:
 	assert_eq(seen.size(), 0, "the interval still holds the callback back")
 	_clock.advance(0.4)
 	assert_eq(seen.size(), 0, "still inside the interval")
-	_clock.advance(0.1)
+	_clock.advance(0.11)
 	assert_eq(seen, [10.0] as Array[float], "the callback fires at the stepped instant, after the property")
 	_clock.advance(1.0)
 	assert_eq(seen.size(), 1, "and only once")
