@@ -18,11 +18,13 @@ extends HBoxContainer
 ## [b]Widget order is a shared contract — five issues land here.[/b] #613 made
 ## the row a scene; #616 added the colour picker; #618 the core picker; #615 the
 ## camp dropdown and #617 the faction emblem; #841 the core un-override
-## control, right beside the picker it un-overrides. The authored order is,
+## control, right beside the picker it un-overrides; #1086 the AI tier picker
+## and its un-override. The authored order is,
 ## left to right:
 ##
 ## [codeblock]
-##   Emblem? | Swatch | ColorPick | Sigil | CorePick | CoreReset? | Camp? | Name | Seat
+##   Emblem? | Swatch | ColorPick | Sigil | CorePick | CoreReset? | Camp? | CampReset?
+##     | Tier? | TierReset? | Name | Seat
 ## [/codeblock]
 ##
 ## Only the widgets whose issue has landed exist as nodes; the rest are named
@@ -108,6 +110,8 @@ func _apply_disabled() -> void:
 	var camp: OptionButton = get_node("%Camp")
 	if camp.visible:
 		camp.disabled = not _camp_enabled or not _editable
+	get_node("%Tier").disabled = not _editable
+	get_node("%TierReset").disabled = not _editable
 
 
 func configure(participant: Participant, local_peer_id: int) -> void:
@@ -124,6 +128,9 @@ func configure(participant: Participant, local_peer_id: int) -> void:
 	var camp_reset := get_node("%CampReset") as Button
 	if not camp_reset.pressed.is_connected(camp_reset_requested.emit):
 		camp_reset.pressed.connect(camp_reset_requested.emit)
+	var tier_reset := get_node("%TierReset") as Button
+	if not tier_reset.pressed.is_connected(tier_reset_requested.emit):
+		tier_reset.pressed.connect(tier_reset_requested.emit)
 
 
 ## Show or hide the un-override control (#841). [LobbyScreen] decides this,
@@ -136,6 +143,35 @@ func set_core_overridden(overridden: bool) -> void:
 ## The camp twin of [method set_core_overridden] (#884).
 func set_camp_overridden(overridden: bool) -> void:
 	get_node("%CampReset").visible = overridden
+
+
+## The tier twin of [method set_core_overridden] (#1086).
+func set_tier_overridden(overridden: bool) -> void:
+	get_node("%TierReset").visible = overridden
+
+
+## Fill and show the tier dropdown (#1086). [LobbyScreen] calls this for AI
+## rows only — a human row never shows a tier; labels come from
+## [method AiPresetRow.tier_label] so a rename is one edit.
+func set_tier_choices(tiers: Array[int]) -> void:
+	var pick: OptionButton = get_node("%Tier")
+	if not pick.item_selected.is_connected(_on_tier_item_selected):
+		pick.item_selected.connect(_on_tier_item_selected)
+	pick.clear()
+	var mine: int = _participant.ai_tier if _participant != null else -1
+	for i in tiers.size():
+		pick.add_item(AiPresetRow.tier_label(tiers[i]))
+		pick.set_item_metadata(i, tiers[i])
+		if tiers[i] == mine:
+			pick.select(i)
+	pick.visible = true
+	_apply_disabled()
+
+
+func _on_tier_item_selected(index: int) -> void:
+	var tier: Variant = (get_node("%Tier") as OptionButton).get_item_metadata(index)
+	if tier is int:
+		tier_picked.emit(tier)
 
 
 func _on_core_reset_pressed() -> void:

@@ -3,7 +3,7 @@ extends HBoxContainer
 ## The AI preset row (#841, #1083): one dropdown per templated attribute of
 ## [member LobbyRoster.ai_preset], above the roster rows. Every AI seat without
 ## its own pick follows it. Core always; camp (#884) only where the policy lets
-## an AI seat pick one. Tier appends one dropdown + one signal the same way.
+## an AI seat pick one; tier (#1086) always — every AI seat has one.
 ##
 ## Every dropdown's FIRST entry is a sentinel meaning "no preset" (owner,
 ## 2026-09-10 — "preset row should get a sentinel... such that things don't
@@ -25,11 +25,14 @@ const _SENTINEL_LABEL := "(no preset)"
 
 @onready var _core_pick: OptionButton = %CorePick
 @onready var _camp_pick: OptionButton = %CampPick
+@onready var _tier_pick: OptionButton = %TierPick
 
 
 func _ready() -> void:
 	_core_pick.item_selected.connect(_on_core_selected)
 	_camp_pick.item_selected.connect(_on_camp_selected)
+	_tier_pick.item_selected.connect(_on_tier_selected)
+	_fill_tier_choices()
 
 
 ## Fill the core dropdown with [param cores], sentinel first and selected —
@@ -58,6 +61,28 @@ func set_camp_choices(camps: Array[Faction]) -> void:
 	_camp_pick.select(0)
 	_camp_pick.visible = true
 	%CampLabel.visible = true
+
+
+## The one place a tier gets its display name — the [enum AIController.Tier]
+## key, so renaming a tier is one edit to the enum. [ParticipantRow] reads it too.
+static func tier_label(tier: int) -> String:
+	return String(AIController.Tier.keys()[tier]).capitalize()
+
+
+## Sentinel first and selected, then every [enum AIController.Tier] in order.
+func _fill_tier_choices() -> void:
+	_tier_pick.clear()
+	_tier_pick.add_item(_SENTINEL_LABEL)
+	_tier_pick.set_item_metadata(0, null)
+	for tier: int in AIController.Tier.values():
+		_tier_pick.add_item(tier_label(tier))
+		_tier_pick.set_item_metadata(_tier_pick.item_count - 1, tier)
+	_tier_pick.select(0)
+
+
+func _on_tier_selected(index: int) -> void:
+	var tier: Variant = _tier_pick.get_item_metadata(index)
+	tier_changed.emit(tier if tier is int else null)
 
 
 func _on_camp_selected(index: int) -> void:

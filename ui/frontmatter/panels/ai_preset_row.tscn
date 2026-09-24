@@ -37,3 +37,13 @@ visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 tooltip_text = "Templates every AI slot's camp, except a row you have set individually"
+
+[node name="TierLabel" type="Label" parent="."]
+layout_mode = 2
+text = "tier"
+
+[node name="TierPick" type="OptionButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Templates every AI slot's tier, except a row you have set individually"

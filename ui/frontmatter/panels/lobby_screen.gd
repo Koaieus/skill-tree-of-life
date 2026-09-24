@@ -211,6 +211,8 @@ func _ready() -> void:
 		if _roster.policy != null and _roster.policy.may_pick_camp(Participant.Kind.AI):
 			_ai_preset_row.set_camp_choices(_roster.policy.camp_choices())
 			_ai_preset_row.camp_changed.connect(_on_preset_camp_changed)
+		# #1086: every AI seat has a tier, so the tier preset is never gated.
+		_ai_preset_row.tier_changed.connect(_on_preset_tier_changed)
 
 	_rows_container = VBoxContainer.new()
 	_rows_container.add_theme_constant_override("separation", 4)
@@ -852,11 +854,16 @@ func _add_participant_row(participant: Participant) -> void:
 	if _roster.policy != null:
 		row.set_camp_choices(
 				_roster.policy.camp_choices(), _roster.policy.may_pick_camp(participant.kind))
+	if participant.kind == Participant.Kind.AI:
+		var tiers: Array[int] = []
+		tiers.assign(AIController.Tier.values())
+		row.set_tier_choices(tiers)
 	row.set_editable(_roster.may_edit_locally(participant))
 	# #841: an AI row holding an explicit pick shows the un-override control —
 	# provenance the roster tracks, never a value comparison against the preset.
 	row.set_core_overridden(_roster.is_core_overridden(participant))
 	row.set_camp_overridden(_roster.is_camp_overridden(participant))
+	row.set_tier_overridden(_roster.is_tier_overridden(participant))
 	# Through the row-signal handlers rather than straight onto the writers: on a
 	# CLIENT a pick is a request, and only the handler knows that.
 	row.color_picked.connect(_on_row_color_picked.bind(participant))
@@ -864,6 +871,8 @@ func _add_participant_row(participant: Participant) -> void:
 	row.core_reset_requested.connect(_on_row_core_reset.bind(participant))
 	row.camp_picked.connect(_on_row_camp_picked.bind(participant))
 	row.camp_reset_requested.connect(_on_row_camp_reset.bind(participant))
+	row.tier_picked.connect(_on_row_tier_picked.bind(participant))
+	row.tier_reset_requested.connect(_on_row_tier_reset.bind(participant))
 	row.name_committed.connect(_on_row_name_committed.bind(participant))
 ## (#714) and waits for the host's roster to say what happened.
 ## --- row signals: ask on a CLIENT, write on everything else ------------------
@@ -912,6 +921,24 @@ func _on_row_camp_reset(participant: Participant) -> void:
 
 func _on_preset_camp_changed(camp: Faction) -> void:
 	_roster.set_preset_camp(camp)
+	_broadcast_roster()
+
+
+func _on_preset_tier_changed(tier: Variant) -> void:
+	_roster.set_preset_tier(tier)
+	_broadcast_roster()
+
+
+func _on_row_tier_picked(tier: int, participant: Participant) -> void:
+	if _is_client():
+		_submit_pick(participant, {"ai_tier": tier})
+		return
+	_roster.pick_tier(participant, tier)
+	_broadcast_roster()
+
+
+func _on_row_tier_reset(participant: Participant) -> void:
+	_roster.reset_tier(participant)
 	_broadcast_roster()
 
 
