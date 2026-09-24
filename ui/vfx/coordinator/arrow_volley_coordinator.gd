@@ -441,12 +441,26 @@ func _on_last_release(landing_points: PackedVector2Array, target: SkillNode) -> 
 ## A visual that doesn't implement the hook simply renders no dud; the
 ## coordinator does NOT reach in and retint it, which would couple this file
 ## to that visual's internal emissive choices.
+##
+## The same read picks the ABSORB beat, `_on_absorbed(gained)`, for a landing
+## that went through mitigation and changed nothing hostile: `gained = true`
+## when it flipped to [constant HitInstance.Kind.HEAL] (the shot fed the
+## defender), `false` when it mitigated to exactly zero (the armour held).
+## The gate is checked first: a gated hit never reached mitigation, and its
+## `effective_amount` is 0.0 by construction, so it must never read as "held".
+## Only the impact beat differs — the flight never anticipates the outcome.
 func _on_arrow_arrived(proj: Projectile, hit: HitInstance) -> void:
-	if not hit.gated or proj.get_child_count() == 0:
+	if proj.get_child_count() == 0:
 		return
 	var v: Node = proj.get_child(0)
-	if v.has_method(&"_on_dud"):
-		v.call(&"_on_dud")
+	if hit.gated:
+		if v.has_method(&"_on_dud"):
+			v.call(&"_on_dud")
+		return
+	var healed := hit.kind == HitInstance.Kind.HEAL
+	var held := hit.kind == HitInstance.Kind.DAMAGE and is_zero_approx(hit.effective_amount)
+	if (healed or held) and v.has_method(&"_on_absorbed"):
+		v.call(&"_on_absorbed", healed)
 
 
 ## How long shot [param entry]'s arrow is in the air —
