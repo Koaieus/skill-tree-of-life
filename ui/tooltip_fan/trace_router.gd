@@ -87,23 +87,65 @@ static func _tree(from: Vector2, to: Vector2, params: Dictionary) -> PackedVecto
 ## axis onto `to`, so the closing leg is exactly cardinal. Consecutive duplicate
 ## points (produced at the 0 and 1 extremes) are removed so the polyline carries
 ## no zero-length segment.
+##
+## Two families share this entry, chosen by where `to` sits relative to the
+## trunk top: AHEAD of it (a positive component along `trunk_dir`) takes the
+## trunk → diagonal → cardinal route above; anywhere else takes the GABLE —
+## trunk, 45° shoulder out, a run perpendicular to the trunk, the mirror 45°
+## shoulder back, then a cardinal closing leg back along `-trunk_dir` into `to`.
+## The gable's trunk is `trunk_px` if set, else `trunk` × the PERPENDICULAR span
+## (the along-trunk span is meaningless behind the trunk top); its shoulder is
+## `min(|perp| / 2, params.shoulder)` with `shoulder` defaulting to the trunk
+## length, so a narrow perpendicular offset collapses the run to a 5-point arch.
+##
+## The invariant both families keep, for every target: every segment heading is
+## on the 45° grid, no bend exceeds 90° (never a 135° double-back), and the
+## closing leg is cardinal. Degenerate: a target behind the trunk top with
+## `|perp| < 2 px` is outside the family (it is the trunk's own column, which
+## the fan layout keeps panels out of) — the route still returns `first == from`
+## and `last == to`, but with no shoulder room it is a straight cardinal line
+## through the origin, tolerated rather than special-cased.
 static func _pcb(from: Vector2, to: Vector2, params: Dictionary) -> PackedVector2Array:
 	var trunk_frac: float = params.get("trunk", 0.382)
 	var trunk_dir: Vector2 = params.get("trunk_dir", Vector2(0.0, -1.0))
 	if trunk_dir == Vector2.ZERO:
 		trunk_dir = Vector2(0.0, -1.0)
 	trunk_dir = trunk_dir.normalized()
-	var d := to - from
-	var span := absf(d.dot(trunk_dir))
-	# `trunk_px` (when > 0) overrides the fraction with a fixed length, clamped
-	# so it can't overshoot the trunk axis and force the diagonal to double back.
 	var trunk_px: float = params.get("trunk_px", 0.0)
-	var trunk_len := minf(trunk_px, span) if trunk_px > 0.0 else trunk_frac * span
+	var d := to - from
+	var along := d.dot(trunk_dir)
+	var span := absf(along)
+	if along > 0.0 and (trunk_px <= 0.0 or trunk_px < along):
+		# Ahead of the trunk top: the classic trunk → 45° diagonal → cardinal.
+		# `trunk_px` (when > 0) overrides the fraction with a fixed length, clamped
+		# so it can't overshoot the trunk axis and force the diagonal to double back.
+		var trunk_len := minf(trunk_px, span) if trunk_px > 0.0 else trunk_frac * span
+		var trunk_top := from + trunk_dir * trunk_len
+		var rem := to - trunk_top
+		var diag := minf(absf(rem.x), absf(rem.y))
+		var diag_end := trunk_top + Vector2(signf(rem.x), signf(rem.y)) * diag
+		return _dedup(PackedVector2Array([from, trunk_top, diag_end, to]))
+	return _gable(from, to, trunk_dir, trunk_frac, trunk_px, params)
+
+
+## The below-trunk-top family of [method _pcb]: U → (R|L)U → (R|L) → (R|L)D → D
+## in the trunk's frame, symmetric shoulders. Written for a general cardinal
+## `trunk_dir` (Roots' trunk points down).
+static func _gable(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: float, trunk_px: float, params: Dictionary) -> PackedVector2Array:
+	var perp_dir := Vector2(-trunk_dir.y, trunk_dir.x)
+	var d := to - from
+	var perp := d.dot(perp_dir)
+	var perp_abs := absf(perp)
+	var side := signf(perp) if perp_abs > 0.0 else 1.0
+	var trunk_len := trunk_px if trunk_px > 0.0 else trunk_frac * perp_abs
+	var shoulder: float = params.get("shoulder", trunk_len)
+	var a := minf(perp_abs / 2.0, shoulder)
+	var b := perp_abs - 2.0 * a
 	var trunk_top := from + trunk_dir * trunk_len
-	var rem := to - trunk_top
-	var diag := minf(absf(rem.x), absf(rem.y))
-	var diag_end := trunk_top + Vector2(signf(rem.x), signf(rem.y)) * diag
-	return _dedup(PackedVector2Array([from, trunk_top, diag_end, to]))
+	var shoulder_out := trunk_top + (trunk_dir + perp_dir * side) * a
+	var run_end := shoulder_out + perp_dir * side * b
+	var shoulder_back := run_end + (-trunk_dir + perp_dir * side) * a
+	return _dedup(PackedVector2Array([from, trunk_top, shoulder_out, run_end, shoulder_back, to]))
 
 
 ## Drops consecutive points that are equal (approx), preserving order and always
