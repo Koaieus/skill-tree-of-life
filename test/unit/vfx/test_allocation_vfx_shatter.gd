@@ -157,3 +157,52 @@ func test_crack_beams_are_a_named_tier_and_onset_pushed_onto_the_material() -> v
 	assert_almost_eq(float(mat.get_shader_parameter(&"ray_onset")), 0.7, 0.0001)
 	_vfx.shatter_ray_tier = Emissive.Tier.INERT
 	assert_almost_eq(float(mat.get_shader_parameter(&"ray_stops")), 0.0, 0.0001)
+
+
+# ---------------------------------------------- a dying node keeps its glyph (#843)
+
+const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
+const _GRAPH_SCENE := preload("res://graph/graph.tscn")
+
+
+func _carved_node() -> SkillNode:
+	var graph: Graph = _GRAPH_SCENE.instantiate()
+	add_child_autofree(graph)
+	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	graph.skill_nodes_container.add_child(node)
+	node.archetype = load("res://archetypes/strength.tres")
+	node._sync_visuals()
+	return node
+
+
+func _assert_cascade_carries_carve(node: SkillNode, expected: CarveParams) -> void:
+	assert_eq(expected.carve_kind, 1, "the fixture is a carved (POLYGON) node")
+	var owner := Entity.new()
+	autofree(owner)
+	var field := _vfx.get_shard_field()
+	_vfx._on_cascade_started([[node]], owner)
+	var before := field.used_slots()
+	_vfx._on_force_deallocated(node, owner)
+	assert_eq(field.used_slots() - before, _vfx.shatter_shard_count)
+	for slot in range(before, field.used_slots()):
+		assert_true(field.shard_carve(slot).equals(expected),
+				"slot %d carries %s, got %s" % [slot, expected, field.shard_carve(slot)])
+
+
+func test_a_cascade_shatter_carries_the_dying_nodes_carve() -> void:
+	var node := _carved_node()
+	_assert_cascade_carries_carve(node, node.carve_params())
+
+
+func test_a_fogged_node_still_shatters_with_its_carve() -> void:
+	var node := _carved_node()
+	var expected := node.carve_params()
+	node.visible = false
+	_assert_cascade_carries_carve(node, expected)
+
+
+func test_the_shard_material_binds_the_shared_carve_samplers() -> void:
+	var mat := _vfx.get_shard_field().material as ShaderMaterial
+	assert_not_null(mat.get_shader_parameter(&"gem_lut"), "GEM carves need the shared LUT")
+	if CarveAtlas.shared() != null:
+		assert_not_null(mat.get_shader_parameter(&"carve_atlas"), "TEXTURE carves need the shared atlas")
