@@ -49,9 +49,7 @@ extends GutTest
 ##
 ## Regenerating a fixture is a DELIBERATE act, never a way to turn a red test
 ## green:
-##   1. Flip `_REGENERATE` below to `true` (or run
-##      `mise run procgen-golden-regenerate`, which does the same thing from
-##      the CLI without hand-editing this file).
+##   1. Flip `_REGENERATE` below to `true`.
 ##   2. Run this script alone:
 ##      `mise run test:one -- res://test/unit/procgen/test_preset_generation_golden.gd`
 ##   3. Flip `_REGENERATE` back to `false`.
@@ -289,7 +287,7 @@ static func _render_text(preset_path: String, data: Dictionary) -> String:
 	out.append("# lines) at the preset's own authored (full-scale) node_count, unwritten here.")
 	out.append("#")
 	out.append("# Regenerating this file is a DELIBERATE act, never a way to turn a red test green: flip")
-	out.append("# `_REGENERATE` in the test script (or run `mise run procgen-golden-regenerate`), rerun the")
+	out.append("# `_REGENERATE` in the test script, rerun the")
 	out.append("# script alone, flip `_REGENERATE` back, and justify WHY generation was supposed to change")
 	out.append("# in the commit message.")
 	if data.has("digest_sha256"):
@@ -408,7 +406,7 @@ func _assert_detail_matches(preset_key: String, golden: Dictionary, actual: Dict
 		assert_eq(String(actual_nodes[id]), String(golden_nodes[id]),
 			("%s node %d: mismatch vs golden. If you just TUNED pool/spell/addon "
 			+ "content, this is expected and the fix is one command: "
-			+ "`mise run procgen-golden-regenerate`, review the diff, commit with "
+			+ "flip `_REGENERATE` and rerun this script alone, review the diff, commit with "
 			+ "a message saying why generation changed. (Note a pool re-tune shifts "
 			+ "pool-SELECTION RNG consumption, so expect a wholesale reshuffle, not "
 			+ "a value-only diff.) If you did NOT touch content, this is a real "
@@ -433,7 +431,7 @@ func _assert_digest_matches(preset_key: String, golden: Dictionary, actual: Dict
 		("%s: full-scale (N=%d) generation hash differs from golden, but the %d-node DETAIL tier "
 		+ "still matched — this is a change visible ONLY at full scale (per-N blocker counts, the "
 		+ "budget curve, the phased draw's aggregate shape). If you just TUNED content, run "
-		+ "`mise run procgen-golden-regenerate` and diff the full text by hand to see what moved. "
+		+ "regenerate (`_REGENERATE`) and diff the full text by hand to see what moved. "
 		+ "Never weaken this assert to make it pass.")
 		% [preset_key, actual.digest_node_count, _DETAIL_NODE_COUNT])
 
@@ -488,9 +486,22 @@ func _run_preset(preset_key: String) -> void:
 		% [preset_key, full_snapshot.node_count])
 
 
+## Owner decision, 2026-09-24 (#751): the golden comparisons are skipped
+## indefinitely, with no regen. Making the pack the only archetype gate
+## reordered CON-primary nodes' flattened entries (the entry set and the weights
+## are unchanged), so seeded rolls moved there. `_REGENERATE` still works.
+const _PENDING_REASON := "golden comparison skipped indefinitely — owner decision 2026-09-24 on #751 (no regen)"
+
+
 func test_first_level_matches_golden() -> void:
+	if not _REGENERATE:
+		pending(_PENDING_REASON)
+		return
 	await _run_preset("first_level")
 
 
 func test_coop_versus_matches_golden() -> void:
+	if not _REGENERATE:
+		pending(_PENDING_REASON)
+		return
 	await _run_preset("coop_versus")

@@ -10,7 +10,7 @@
 # lines) at the preset's own authored (full-scale) node_count, unwritten here.
 #
 # Regenerating this file is a DELIBERATE act, never a way to turn a red test green: flip
-# `_REGENERATE` in the test script (or run `mise run procgen-golden-regenerate`), rerun the
+# `_REGENERATE` in the test script, rerun the
 # script alone, flip `_REGENERATE` back, and justify WHY generation was supposed to change
 # in the commit message.
 DIGEST_NODE_COUNT 800

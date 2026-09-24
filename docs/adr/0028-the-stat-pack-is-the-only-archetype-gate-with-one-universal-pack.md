@@ -58,8 +58,9 @@ This is a firm owner call, not a tentative pick.
 - Effective scope of every pool is unchanged. The flattened entry **order** is
   not, for CON-primary nodes, because `armor +` / `node_health +%` now come
   after the CON pack's own pools. The weighted pick walks entries in order, so
-  the same seed can roll differently on CON nodes (see #751 for how that was
-  resolved).
+  the same seed can roll differently on CON nodes. Owner call, 2026-09-24
+  (#751): the preset golden comparisons are skipped indefinitely, and nothing
+  is regenerated.
 - A seventh archetype is a new pack file with its own `archetype_stat`.
 
 ## Alternatives considered
