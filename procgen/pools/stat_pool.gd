@@ -137,14 +137,20 @@ const FLOOR_UNSET := INF
 ## always 1 — lowering it is how a pool "starts expensive." Value rungs are
 ## indexed relative to this: the first tier offered is V1 (×1) regardless of
 ## its cost; only the cost stays absolute.
-@export_range(1, 4) var min_tier: int = 1
+@export_range(1, 4) var min_tier: int = 1:
+	set(v):
+		min_tier = v
+		notify_property_list_changed()
 
 ## Highest tier offered. `max_tier < 4` is the honest brake that replaces the
 ## old descending weight curves: capping a flat ladder (movement, deallocation)
 ## states it instead of hiding it in weights. Debuff pools ladder like any
 ## other pool (settled 2026-08-07) — a deeper debuff hurts more and refunds
 ## more, in lockstep, so there is no restriction to `max_tier = 1`.
-@export_range(1, 4) var max_tier: int = 4
+@export_range(1, 4) var max_tier: int = 4:
+	set(v):
+		max_tier = v
+		notify_property_list_changed()
 
 
 static var _default_tier_shape := TierShape.new()
