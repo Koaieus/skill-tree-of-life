@@ -45,7 +45,7 @@ func test_new_pool_has_its_own_tier_shape() -> void:
 	assert_ne(a.tier_shape, b.tier_shape, "two pools must not share one TierShape")
 
 
-func test_to_entries_weight_is_pool_weight_times_tier_weight() -> void:
+func test_to_entries_weight_is_the_bare_tier_weight() -> void:
 	var p := StatPool.new()
 	p.stat_id = &"strength"
 	p.pool_weight = 0.7
@@ -56,7 +56,8 @@ func test_to_entries_weight_is_pool_weight_times_tier_weight() -> void:
 		var e: ModifierPoolEntry = entries[i]
 		var t := TierLadder.MIN_TIER + i
 		assert_almost_eq(p.tier_weight(t), p.tier_shape.weight(t), 1e-12, "tier_weight(%d)" % t)
-		assert_almost_eq(e.weight, 0.7 * p.tier_weight(t), 1e-12, "entry t%d weight" % t)
+		assert_almost_eq(e.weight, p.tier_weight(t), 1e-12, "entry t%d weight" % t)
+		assert_almost_eq(e.pool_weight, 0.7, 1e-12, "pool_weight stamped, not baked in")
 
 
 func test_preview_shows_each_offered_tiers_share() -> void:

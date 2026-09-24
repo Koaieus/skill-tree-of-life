@@ -94,8 +94,8 @@ operation = 1
 unit_value = -3.0
 range_floor = -1.0
 max_tier = 3
-metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 pool_weight = 7.0
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
 [sub_resource type="Resource" id="poison_arrows"]
 resource_name = "poison_arrows_per_reload +"
