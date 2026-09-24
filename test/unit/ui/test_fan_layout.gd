@@ -93,13 +93,31 @@ func test_two_bodies_with_overlapping_rests_end_apart_by_padding() -> void:
 	assert_lt(a.position.x, b.position.x, "a stays on the left of b")
 
 
+## The node rect ends at y = 32 and Roots starts at y = 43: an 11 px slot no
+## panel fits. A body pushed out of one must not be handed to the other.
 func test_no_body_penetrates_an_obstacle_at_convergence() -> void:
-	var b := _body(Vector2(160, 110), Vector2(-40, 80))  # rest inside Roots
+	var inside := _body(Vector2(160, 110), Vector2(-40, 80))  # rest inside Roots
+	var across := _body(Vector2(160, 110), Vector2(-40, -20))  # rest straddles both
+	for b: FanLayout.Body in [inside, across]:
+		var bodies: Array[FanLayout.Body] = [b]
+		var steps := FanLayout.settle(bodies, _obstacles(), _WIDE, _params())
+		assert_true(steps >= 0, "settled (steps=%d) from rest %s" % [steps, b.rest])
+		assert_false(_rect(b).intersects(_NODE), "clear of node rect: %s" % _rect(b))
+		assert_false(_rect(b).intersects(_ROOTS), "clear of Roots rect: %s" % _rect(b))
+
+
+## Shallowest push says "left", the wall says "no": the body has to take the
+## next-shallowest direction that has room instead of deadlocking on the wall.
+func test_a_body_between_an_obstacle_and_a_wall_escapes_the_other_way() -> void:
+	var keep_in := Rect2(0, 0, 400, 300)
+	var wall_hugger := Rect2(0, 100, 100, 100)
+	var b := _body(Vector2(160, 110), Vector2(-100, 110))
 	var bodies: Array[FanLayout.Body] = [b]
-	var steps := FanLayout.settle(bodies, _obstacles(), _WIDE, _params())
+	var obstacles: Array[Rect2] = [wall_hugger]
+	var steps := FanLayout.settle(bodies, obstacles, keep_in, _params())
 	assert_true(steps >= 0, "settled (steps=%d)" % steps)
-	assert_false(_rect(b).intersects(_NODE), "clear of node rect: %s" % _rect(b))
-	assert_false(_rect(b).intersects(_ROOTS), "clear of Roots rect: %s" % _rect(b))
+	assert_false(_rect(b).intersects(wall_hugger), "clear of the obstacle: %s" % _rect(b))
+	assert_true(keep_in.encloses(_rect(b)), "inside keep_in: %s" % _rect(b))
 
 
 func test_a_rest_outside_the_window_is_held_inside() -> void:
