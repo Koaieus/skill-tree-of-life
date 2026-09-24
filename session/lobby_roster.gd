@@ -267,8 +267,10 @@ func reset_core(p: Participant) -> bool:
 	return true
 
 
+## A pick equal to the seat's current camp is still recorded — provenance,
+## never value coincidence (mirrors [method pick_core]).
 func pick_camp(p: Participant, camp: Faction) -> bool:
-	if p == null or camp == p.camp:
+	if p == null or camp == null:
 		return false
 	p.camp = camp
 	_pick_of(p.id).camp = camp
