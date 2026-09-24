@@ -147,14 +147,22 @@ func _refresh() -> void:
 	# Two texels per primitive: (ax, ay, ra, entity_idx), (bx, by, rb, 0).
 	var packed_cones: Array = []
 	var packed_colors: Array = []
+	# One slot per owner COLOUR, not per owner: same-coloured owners (every
+	# blocker is the same grey) read as one territory anyway, so they share a
+	# colour slot and join across edges — they never crowd the cap.
 	var entity_index: Dictionary = {}
-	var entity_idx := 0
+	var slot_by_color: Dictionary = {}
 	for _owner in owned_by_entity:
-		if entity_idx >= _MAX_ENTITIES:
-			_warn_once(&"_warned_entity_overflow",
-				"AuraOverlay: %d owning entities exceeds the %d-colour cap; the extras render no aura."
-					% [owned_by_entity.size(), _MAX_ENTITIES])
-			break
+		var color: Color = (_owner as Entity).color
+		if not slot_by_color.has(color):
+			if slot_by_color.size() >= _MAX_ENTITIES:
+				_warn_once(&"_warned_entity_overflow",
+					"AuraOverlay: more than %d owner colours; the extras render no aura."
+						% _MAX_ENTITIES)
+				continue
+			slot_by_color[color] = slot_by_color.size()
+			packed_colors.append(Emissive.tint_damped(color, Emissive.INERT))
+		var entity_idx: int = slot_by_color[color]
 		entity_index[_owner] = entity_idx
 		# Every owned node ships as a degenerate cone regardless of degree —
 		# an isolated owned node must not vanish (#140 decision 6).
@@ -164,13 +172,11 @@ func _refresh() -> void:
 			var r: float = sn.radius * radius_multiplier
 			packed_cones.append(Vector4(sn.global_position.x, sn.global_position.y, r, float(entity_idx)))
 			packed_cones.append(Vector4(sn.global_position.x, sn.global_position.y, r, 0.0))
-		packed_colors.append(Emissive.tint_damped((_owner as Entity).color, Emissive.INERT))
-		entity_idx += 1
 
-	# Edges of the owned induced subgraph: both endpoints owned by the SAME
-	# entity (`owned_by` identity, never ownership_bit — this is "same entity",
-	# not "mine"). `entity_index.has` also folds in null / dead / over-cap
-	# owners, which never made the map.
+	# Edges of the owned induced subgraph: both endpoints in the SAME colour
+	# slot (never ownership_bit — this is "same aura", not "mine").
+	# `entity_index.has` also folds in null / dead / over-cap owners, which
+	# never made the map.
 	var total_edges := 0
 	for edge in graph.get_edges():
 		var a: SkillNode = edge.from
@@ -179,7 +185,9 @@ func _refresh() -> void:
 		# and field_smin is not idempotent — it would deepen the disc.
 		if a == null or b == null or a == b:
 			continue
-		if a.owned_by != b.owned_by or not entity_index.has(a.owned_by):
+		if not entity_index.has(a.owned_by) or not entity_index.has(b.owned_by):
+			continue
+		if entity_index[a.owned_by] != entity_index[b.owned_by]:
 			continue
 		total_edges += 1
 		if packed_cones.size() >= 2 * _MAX_CIRCLES:

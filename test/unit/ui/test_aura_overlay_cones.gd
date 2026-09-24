@@ -153,3 +153,28 @@ func test_edge_radii_pinch_with_length() -> void:
 	var flat: Vector4 = _segments(_packed_cones())[0][0]
 	assert_almost_eq(flat.z, a.radius * _overlay.radius_multiplier * 0.6, 1e-4,
 		"INF slack → w == edge_width")
+
+
+## Same-coloured owners (every blocker is the same grey) are one aura: one
+## colour slot, and an edge between two of them joins their territories — so
+## fifty blockers never crowd the players out of the colour cap.
+func test_same_coloured_owners_share_one_slot_and_join_across_edges() -> void:
+	var grey_a := _entity(Color.GRAY)
+	var grey_b := _entity(Color.GRAY)
+	var red := _entity(Color.RED)
+	var a := _node(Vector2(0, 0), grey_a)
+	var b := _node(Vector2(200, 0), grey_b)
+	var r := _node(Vector2(400, 0), red)
+	_graph.add_edge(a, b)
+	_graph.add_edge(b, r)
+
+	_overlay.edge_width = 1.0
+	_overlay.edge_slack_length = INF
+	_overlay.graph = _graph
+
+	var mat: ShaderMaterial = _overlay.material
+	assert_eq(int(mat.get_shader_parameter(&"entity_count")), 2, "grey + red — the two greys share a slot")
+	var segs := _segments(_packed_cones())
+	assert_eq(segs.size(), 1, "a-b joins (same colour); b-r does not")
+	var sa: Vector4 = segs[0][0]
+	assert_eq(sa.w, 0.0, "the joined edge carries the shared grey slot")
