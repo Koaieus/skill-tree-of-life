@@ -78,7 +78,7 @@ centered = false
 
 [node name="CompositeFront" type="Sprite2D" parent="."]
 unique_name_in_owner = true
-z_index = 500
+z_index = 1500
 z_as_relative = false
 texture_filter = 1
 material = SubResource("PremultFront")

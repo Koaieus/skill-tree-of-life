@@ -149,3 +149,18 @@ func test_runtime_is_always_live() -> void:
 	var node := Node2D.new()
 	add_child_autofree(node)
 	assert_true(GimbalWorld.is_live_for(node), "outside the editor every node may hold a world")
+
+
+## The front composite must draw over every disk it sandwiches — and a disk the
+## viewer can see is lifted to SENSED to punch through the fog, so the front
+## half sits above that lift (and below spell VFX). At 500 it sat under every
+## visible node: the rim covered the rings.
+func test_front_composite_draws_over_a_fog_lifted_node() -> void:
+	var z_layers := preload("res://ui/z_layers.gd")
+	assert_gt(z_layers.GIMBAL, z_layers.GRAPH_DEFAULT + z_layers.SENSED,
+		"over a visible/sensed node's absolute z")
+	assert_lt(z_layers.GIMBAL, z_layers.SPELL_VFX, "under spell VFX")
+	var world: Node = load("res://skill_node/visuals/gimbal_3d/gimbal_world.tscn").instantiate()
+	assert_eq((world.get_node("%CompositeFront") as CanvasItem).z_index, z_layers.GIMBAL,
+		"the scene's raw value matches the constant")
+	world.free()

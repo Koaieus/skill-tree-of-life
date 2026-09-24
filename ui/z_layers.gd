@@ -7,9 +7,9 @@
 ##   EDGE        -10     absolute — edges always draw below graph nodes
 ##   GRAPH_DEFAULT  0     relative — scene-tree order governs draw order within the band
 ##   CORE_MOVE    100     relative — core ghost/badge above graph siblings during a move
-##   GIMBAL       500     absolute — GimbalWorld's front composite (its back one sits at GRAPH_DEFAULT-1): over disks, under fog
 ##   FOG         1000     absolute — FogOverlay shader covers all graph content
 ##   SENSED      1001     absolute — sensed/visible nodes punch through the fog
+##   GIMBAL      1500     absolute — GimbalWorld's front composite (its back one sits at GRAPH_DEFAULT-1): over the SENSED-lifted disks it sandwiches; a fogged core's rig is not revealed, so nothing leaks
 ##   SPELL_VFX   2000     absolute — allocation ring + floaters, above fog + sensed
 ##   PROJECTILE  3000     absolute — attack projectiles, above spell VFX
 ##   UI          4096     absolute — pause overlay; engine ceiling (CanvasItem range ±4096)
@@ -47,9 +47,9 @@ const AURA: int = -100
 const EDGE: int = -10
 const GRAPH_DEFAULT: int = 0
 const CORE_MOVE: int = 100
-const GIMBAL: int = 500
 const FOG: int = 1000
 const SENSED: int = 1001
+const GIMBAL: int = 1500
 const SPELL_VFX: int = 2000
 const PROJECTILE: int = 3000
 const UI: int = 4096
