@@ -88,6 +88,11 @@ const MESH_CORR := Basis(Vector3(1, 0, 0), PI * 0.5)
 static var _mats: Dictionary = {}
 static var _glyph_tex: ImageTexture
 
+var phase: float = 0.0
+
+static func rings_for_level(_level: int) -> int:
+	return 0
+
 var _t := 0.0
 var _rings: Array[MeshInstance3D] = []
 
