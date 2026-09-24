@@ -8,11 +8,13 @@ extends GutTest
 ## shatter, fog and damage numbers visibly move together, which needs a real
 ## frame (see the issue).
 ##
-## The three properties pinned here:
+## The properties pinned here:
 ##   1. an instant clock lands everything synchronously (the drain / test mode)
-##   2. a real clock lands each hit at its own beat, in order
+##   2. hits land in arrival order, not append order
 ##   3. draining mid-window lands the REMAINDER — design B's one real risk is a
 ##      loop interrupted partway leaving hits permanently unapplied
+## The real-clock property — each hit lands at its own beat — is the feature's
+## one wall-clock test: test/integration/attack/test_outcome_applier_real_clock.gd.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -83,27 +85,6 @@ func test_instant_clock_lands_every_hit_synchronously() -> void:
 				"hit %d must have landed with no waiting" % i)
 
 
-func test_real_clock_lands_each_hit_at_its_own_arrival_time() -> void:
-	var landed: Array[SkillNode] = []
-	var handler := func(node: SkillNode, _amount: float, _source: Variant) -> void:
-		landed.append(node)
-	Events.skill_node_damaged.connect(handler)
-
-	var outcome := _outcome([
-		_hit(_nodes[0], 3.0, 0.0),
-		_hit(_nodes[1], 3.0, 0.15),
-		_hit(_nodes[2], 3.0, 0.30),
-	])
-	OutcomeApplier.apply(outcome, CombatWorld.live(), BeatClock.for_tree(get_tree()))
-
-	assert_eq(landed.size(), 1, "only the t=0 hit lands before any waiting")
-	await get_tree().create_timer(0.20).timeout
-	assert_eq(landed.size(), 2, "the 0.15s hit has landed; the 0.30s one has not")
-	await get_tree().create_timer(0.25).timeout
-	Events.skill_node_damaged.disconnect(handler)
-	assert_eq(landed, _nodes, "all three landed, in arrival order")
-
-
 ## Ordering is authored, never emergent: a hit appended LAST but arriving
 ## FIRST must land first. This is the half of #499 that stops allocation order
 ## leaking into combat outcome, now also observable as beat order.
@@ -118,8 +99,8 @@ func test_hits_land_in_arrival_order_not_append_order() -> void:
 		_hit(_nodes[0], 3.0, 0.0),
 		_hit(_nodes[1], 3.0, 0.15),
 	])
-	OutcomeApplier.apply(outcome, CombatWorld.live(), BeatClock.for_tree(get_tree()))
-	await get_tree().create_timer(0.45).timeout
+	# The applier sorts before it waits, so the instant clock sees the same order.
+	OutcomeApplier.apply(outcome, CombatWorld.live(), BeatClock.instant_clock())
 	Events.skill_node_damaged.disconnect(handler)
 	assert_eq(landed, _nodes, "arrival order wins over append order")
 
