@@ -43,3 +43,8 @@ func advance(delta: float) -> void:
 ## Kill every live tween. For a consumer's own teardown / re-arm paths.
 func kill_all() -> void:
 	pass
+
+
+## How many tweens are tracked and still alive — the clock's own observable.
+func live_count() -> int:
+	return 0
