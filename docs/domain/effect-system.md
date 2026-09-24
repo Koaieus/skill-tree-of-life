@@ -132,11 +132,17 @@ set back from the ledger (`ctx.handles_for(node)`) rather than caching its own d
 
 The pure-stat path already works and authors cleanly, so `Effect` is additive:
 
-| Carrier | Field | Granted by |
-|---|---|---|
-| `CoreClass` | `effects` | `CoreClass.apply()`, from `Entity._ready` |
-| `SkillNode` | `effects` | `AllocationSystem`, keyed by carrier node |
-| `SkillNodeAddon` | `effects` | same, via `SkillNode.get_node_effects()` |
+| Carrier | Field | Granted by | Its stat bundle goes in |
+|---|---|---|---|
+| `CoreClass` | `effects` | `CoreClass.apply()`, from `Entity._ready` | `modifiers` |
+| `SkillNode` | `effects` | `AllocationSystem`, keyed by carrier node | `modifiers` |
+| `SkillNodeAddon` | `effects` | same, via `SkillNode.get_node_effects()` | `entity_modifiers` / `local_modifiers` |
+
+Every authored carrier has its own modifier array, so a pure stat bundle never
+rides in its `effects` (check the addon *scenes*, not only the script: bunker,
+fortification, spike ring, toxin and watchtower all author modifiers and no
+effect). Only a runtime `Entity.grant_effect` from a source with no carrier
+of its own has nowhere else to put one.
 
 A landmark ("keystone") is a hand-authored inherited scene of
 `entity/keystone/keystone_skill_node.tscn` whose stat payload is plain
