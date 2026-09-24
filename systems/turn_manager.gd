@@ -33,6 +33,13 @@ signal forecast_changed
 ## rather than the `enabled` convention.
 @export var opens_first_turn: bool = true
 
+## Scopes the initiative clock to the entities under this node. Null → every
+## entity in the tree (the game: one world per tree). Set it wherever one tree
+## holds several worlds — the editor's sandbox host instantiates every live tab
+## at once, and an unscoped [method tick] replenishes every tab's entities, so
+## [method end_turn] serves whichever foreign entity crosses first.
+@export var entity_root: Node = null
+
 ## The entity currently taking its turn; null between turns.
 ##
 ## Written only by TurnManager (#1030): once the manager is ready an outside
@@ -163,7 +170,7 @@ func _rebind_forecast_sources() -> void:
 		if is_instance_valid(s) and s.value_changed.is_connected(_on_forecast_speed_changed):
 			s.value_changed.disconnect(_on_forecast_speed_changed)
 	_bound_initiative_speeds.clear()
-	for node in get_tree().get_nodes_in_group(Entity.GROUP):
+	for node in _in_scope(Entity.GROUP):
 		var e := node as Entity
 		if e == null or e.stat_board == null:
 			continue
@@ -307,7 +314,7 @@ func abandon_turn(entity: Entity) -> void:
 ## carries the overshoot into the next cycle).
 func tick() -> void:
 	ticked.emit()
-	for node in get_tree().get_nodes_in_group(Entity.GROUP):
+	for node in _in_scope(Entity.GROUP):
 		var e := node as Entity
 		if e == null or e.stat_board == null:
 			continue
@@ -326,7 +333,7 @@ func _tick_until_ready(last: Entity = null, max_ticks: int = 1000) -> void:
 	for _i in max_ticks:
 		var ready_entities: Array[Entity] = []
 		var by_key: Dictionary = {}
-		for node in get_tree().get_nodes_in_group(Entity.READY_GROUP):
+		for node in _in_scope(Entity.READY_GROUP):
 			var e := node as Entity
 			if e != null:
 				_warn_if_unminted(e)
@@ -362,6 +369,16 @@ var _warned_unminted: Dictionary = {}
 ## the tie-break, and [code]by_key[0][/code] / [code]copies[0][/code] silently
 ## keeps only the last one seen) — surprising ordering with no error. One
 ## warning per entity instance names the real cause.
+## [param group]'s members under [member entity_root] — every walk of the
+## entity groups goes through here, so the clock, readiness and the forecast
+## agree on one scope.
+func _in_scope(group: StringName) -> Array[Node]:
+	var all := get_tree().get_nodes_in_group(group)
+	if entity_root == null:
+		return all
+	return all.filter(func(n: Node) -> bool: return entity_root.is_ancestor_of(n))
+
+
 func _warn_if_unminted(e: Entity) -> void:
 	if e.entity_id != 0:
 		return
@@ -410,7 +427,7 @@ func forecast(n: int) -> Array[Entity]:
 	if n <= 0:
 		return result
 	var copies: Dictionary = {}  # entity_id -> {entity, current, cap, speed, ready}
-	for node in get_tree().get_nodes_in_group(Entity.GROUP):
+	for node in _in_scope(Entity.GROUP):
 		var e := node as Entity
 		if e == null or e.stat_board == null:
 			continue

@@ -215,6 +215,11 @@ const MILESTONE_LEVEL_INTERVAL := 5
 ## orphan slices and a spell's landings are silently dropped.
 @export var graph_override: Graph
 
+## The TurnManager this entity binds to at ready. Null → the first one in
+## [constant TurnManager.GROUP], which is the only one in a game tree; a tree
+## holding several worlds (the editor's sandbox host) must wire its own.
+@export var turn_manager_override: TurnManager
+
 ## Auto-created on _ready when the entity has a Graph ancestor. Stays null
 ## in editor (`@tool` short-circuit) and in stand-alone tests with no graph.
 var navigator: EntityNavigator
@@ -964,6 +969,8 @@ func _emit_entity_xp_gained(amount: float) -> void:
 ## TurnManager joins its group in `_enter_tree`, which fires before any
 ## spawned entity's _ready.
 func _find_turn_manager() -> TurnManager:
+	if turn_manager_override != null:
+		return turn_manager_override
 	return get_tree().get_first_node_in_group(TurnManager.GROUP) as TurnManager
 
 
