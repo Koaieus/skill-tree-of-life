@@ -34,6 +34,48 @@ func test_perception_pool_values() -> void:
 	assert_true(found, "the pack must carry a perception addb pool at all")
 
 
+func _flatten(subtype: NodeSubtype) -> Array[ModifierPoolEntry]:
+	var pool_set := ModifierPoolSet.new()
+	pool_set.packs = [_PACK.duplicate(true)]
+	return pool_set.flatten_for_node(&"perception", subtype)
+
+## #1095 — blighted PER blinds (trades sensor_range), blessed PER resists
+## blinding (trades the flat vision_range +), scout arrows stay shared.
+func test_blighted_perception_gets_blindness_potency_not_sensor_range() -> void:
+	var blight := NodeSubtype.new(); blight.id = &"blight"
+	var ids: Array[StringName] = []
+	for e in _flatten(blight):
+		if not e.stat_id in ids: ids.append(e.stat_id)
+	assert_true(&"blindness_potency" in ids, "blighted PER must roll blindness_potency")
+	assert_false(&"sensor_range" in ids, "blighted PER must NOT roll sensor_range (trades it away)")
+	assert_true(&"scout_arrows_per_reload" in ids, "scout arrows stay shared by all three poles")
+
+func test_blessed_perception_gets_blindness_resistance_not_flat_vision() -> void:
+	var bless := NodeSubtype.new(); bless.id = &"bless"
+	var ids: Array[StringName] = []
+	var flat_vision := false
+	for e in _flatten(bless):
+		if not e.stat_id in ids: ids.append(e.stat_id)
+		if e.stat_id == &"vision_range" and e.operation == StatModifier.Operation.ADD_BONUS:
+			flat_vision = true
+	assert_true(&"blindness_resistance" in ids, "blessed PER must roll blindness_resistance")
+	assert_false(flat_vision, "blessed PER must NOT roll the flat vision_range + pool (trades it away)")
+	assert_true(&"vision_range" in ids, "blessed PER keeps vision_range +%")
+	assert_true(&"scout_arrows_per_reload" in ids, "scout arrows stay shared by all three poles")
+
+func test_regular_perception_keeps_both_existing_pools_neither_new_one() -> void:
+	var regular := NodeSubtype.regular()
+	var ids: Array[StringName] = []
+	var flat_vision := false
+	for e in _flatten(regular):
+		if not e.stat_id in ids: ids.append(e.stat_id)
+		if e.stat_id == &"vision_range" and e.operation == StatModifier.Operation.ADD_BONUS:
+			flat_vision = true
+	assert_true(&"sensor_range" in ids, "regular PER keeps sensor_range")
+	assert_true(flat_vision, "regular PER keeps the flat vision_range + pool")
+	assert_false(&"blindness_potency" in ids, "regular PER must not roll blindness_potency")
+	assert_false(&"blindness_resistance" in ids, "regular PER must not roll blindness_resistance")
+
 func test_perception_draw_only_emits_pack_stat_ids() -> void:
 	var pool_set := ModifierPoolSet.new()
 	pool_set.packs = [_PACK.duplicate(true)]

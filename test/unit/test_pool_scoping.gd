@@ -155,6 +155,31 @@ func test_dot_stacks_per_hit_is_blighted_wisdom_only() -> void:
 					% [String(primary), String(pole.id)])
 
 
+## #1095 — blindness potency/resistance are PER-only, one per pole, same
+## absence shape as `_POTENCY_HOME`'s sweep and #1094's umbrella sweep.
+func test_blindness_stats_are_perception_only() -> void:
+	var blight := NodeSubtype.new(); blight.id = &"blight"
+	var bless := NodeSubtype.new(); bless.id = &"bless"
+	var poles: Array[NodeSubtype] = [NodeSubtype.regular(), blight, bless]
+	for primary in _ALL_ARCHETYPES:
+		for pole in poles:
+			var reachable := _reachable_stat_ids(primary, pole)
+			var want_potency := primary == &"perception" and pole.id == &"blight"
+			var want_resistance := primary == &"perception" and pole.id == &"bless"
+			if want_potency:
+				assert_true(&"blindness_potency" in reachable,
+					"blighted perception must be able to roll blindness_potency")
+			else:
+				assert_false(&"blindness_potency" in reachable,
+					"a %s/%s node must NOT roll blindness_potency" % [String(primary), String(pole.id)])
+			if want_resistance:
+				assert_true(&"blindness_resistance" in reachable,
+					"blessed perception must be able to roll blindness_resistance")
+			else:
+				assert_false(&"blindness_resistance" in reachable,
+					"a %s/%s node must NOT roll blindness_resistance" % [String(primary), String(pole.id)])
+
+
 func test_no_configuration_warnings() -> void:
 	# The headless half of the `@tool`-only inspector check. Sweeps every pack
 	# AND every pool reachable from the shipped pool set.

@@ -2,6 +2,10 @@
 
 [ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
+[ext_resource type="Script" path="res://procgen/subtypes/node_subtype.gd" id="90_nsub"]
+[ext_resource type="Resource" path="res://procgen/subtypes/regular.tres" id="91_sreg"]
+[ext_resource type="Resource" path="res://procgen/subtypes/blight.tres" id="92_sbli"]
+[ext_resource type="Resource" path="res://procgen/subtypes/bless.tres" id="93_sble"]
 
 [sub_resource type="Resource" id="ab"]
 resource_name = "perception +"
@@ -50,6 +54,7 @@ tags = Array[StringName]([&"per", &"vision", &"sense"])
 unit_value = 10.0
 max_tier = 2
 pool_weight = 3.0
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
 
 [sub_resource type="Resource" id="sr"]
 resource_name = "sensor_range +"
@@ -58,6 +63,29 @@ stat_id = &"sensor_range"
 tags = Array[StringName]([&"per", &"sense", &"vision"])
 pool_weight = 6.0
 max_tier = 2
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
+
+[sub_resource type="Resource" id="blindness_pot"]
+resource_name = "blindness_potency +%"
+script = ExtResource("2_pool")
+stat_id = &"blindness_potency"
+operation = 1
+tags = Array[StringName]([&"per", &"percent", &"sense"])
+unit_value = 7.0
+pool_weight = 0.5
+max_tier = 3
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
+
+[sub_resource type="Resource" id="blindness_res"]
+resource_name = "blindness_resistance +"
+script = ExtResource("2_pool")
+stat_id = &"blindness_resistance"
+tags = Array[StringName]([&"per", &"flat", &"sense"])
+unit_value = 0.05
+pool_weight = 0.25
+min_tier = 2
+max_tier = 4
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])
 
 [sub_resource type="Resource" id="scout_arrows"]
 resource_name = "scout_arrows_per_reload +"
@@ -72,4 +100,4 @@ metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"perception"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("vr_inc"), SubResource("vr_bn"), SubResource("sr"), SubResource("scout_arrows")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("vr_inc"), SubResource("vr_bn"), SubResource("sr"), SubResource("blindness_pot"), SubResource("blindness_res"), SubResource("scout_arrows")])

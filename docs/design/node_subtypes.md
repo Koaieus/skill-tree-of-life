@@ -45,7 +45,7 @@ Owner re-homed two families in this session (see Decisions): **wither → INT**,
 | **STR** | corruption | corruption potency | corruption resistance | strength ladder, armor (pending #1052) |
 | **INT** | wither | wither potency | wither resistance | mana, cast range, node_health |
 | **CON** | curse | curse potency | curse resistance | node_health, the defensive ladder |
-| **PER** | blindness | blindness application | blindness resistance / vision | vision range, sensor range, **scout arrows per reload** |
+| **PER** | blindness | `blindness_potency +%` — trades `sensor_range` (#1095) | `blindness_resistance +` — trades the flat `vision_range +` (#1095) | vision range %, **scout arrows per reload** (shared by all three poles) |
 | **WIS** | — (archive umbrella, #1094) | dot_stacks_per_hit — trades the small xp_per_turn +% (#1094) | wound_heal_per_turn, fat xp_per_turn (flat + %) — trades the small xp_per_turn +% (#1093) | wisdom ladder, small xp_per_turn +% |
 
 Why the re-homing is better than what ships today:

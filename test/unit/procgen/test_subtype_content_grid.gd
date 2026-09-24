@@ -31,12 +31,14 @@ const _FAMILY := {
 }
 
 ## Which (archetype, forced subtype) cells have no content yet — #1061's
-## children clear their own entry as they land: #1093 (blessed WIS) cleared
-## wisdom/bless, #1094 (blighted WIS) will clear wisdom/blight, #1095 (PER)
-## will clear perception/blight and perception/bless.
+## children cleared their own entry as they landed: #1093 (blessed WIS)
+## cleared wisdom/bless, #1094 (blighted WIS) cleared wisdom/blight, #1095
+## (PER) cleared perception/blight and perception/bless. Every cell is now
+## populated; kept as an (empty) Dictionary rather than deleted so a future
+## subtype axis has a place to reintroduce a hole.
 const _EMPTY_CELLS: Dictionary = {
-	&"blight": [&"perception"],
-	&"bless": [&"perception"],
+	&"blight": [] as Array[StringName],
+	&"bless": [] as Array[StringName],
 }
 
 
@@ -205,11 +207,10 @@ func _generate(cfg: GraphProcgenConfig) -> Array[SkillNode]:
 	return out
 
 
-## PER and WIS start each cell empty per `_EMPTY_CELLS`, and that is the design
-## (decisions 10/11/19), not an omission, until each #1061 child lands its
-## content. Decision 13's demotion is what keeps it honest: force a subtype to
-## certainty and every node on an empty cell must still end on the default,
-## while the four populated archetypes (and any cleared PER/WIS cell) stand.
+## Every #1061 child has landed and `_EMPTY_CELLS` is now empty (kept as a
+## structure, not deleted, for the next subtype axis). Decision 13's demotion
+## is what would keep a still-ragged grid honest: force a subtype to certainty
+## and every node on an empty cell must still end on the default.
 func test_perception_and_wisdom_always_end_on_the_default_subtype() -> void:
 	# QUARANTINED. Passes alone and sharded; fails single-process in
 	# `GUT_SHARDS=1 mise run test:dir -- res://test/unit/procgen/` — alongside
