@@ -44,7 +44,18 @@ tags = Array[StringName]([&"wis", &"percent", &"xp_growth", &"growth"])
 unit_value = 2.0
 pool_weight = 1.5
 max_tier = 2
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg")])
+
+[sub_resource type="Resource" id="dot_stacks"]
+resource_name = "dot_stacks_per_hit +"
+script = ExtResource("2_pool")
+stat_id = &"dot_stacks_per_hit"
+tags = Array[StringName]([&"wis", &"flat", &"dot"])
+unit_value = 1.0
+pool_weight = 1.0
+min_tier = 2
+max_tier = 4
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
 
 [sub_resource type="Resource" id="whpt_ab"]
 resource_name = "wound_heal_per_turn +"
@@ -80,4 +91,4 @@ subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"wisdom"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("xpt_inc"), SubResource("whpt_ab"), SubResource("xpt_ab_bless"), SubResource("xpt_inc_bless")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("xpt_inc"), SubResource("dot_stacks"), SubResource("whpt_ab"), SubResource("xpt_ab_bless"), SubResource("xpt_inc_bless")])

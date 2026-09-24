@@ -332,6 +332,7 @@ ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
 | `vision_range` .inc | 7.5 | — | 2.5 | 1 | 3 | +7.5% +22.5% +52.5% |
 | `xp_per_turn` .addb | 10 | — | 2 | 1 | 3 | +10 +30 +70 |
 | `xp_per_turn` .inc | 7.5 | — | 0.5 | 1 | 2 | +7.5% +22.5% |
+| `dot_stacks_per_hit` .addb (wis, blight) | 1 | — | 1 | 2 | 4 | +1 (t2) +2 (t3) +4 (t4) |
 | `wound_heal_per_turn` .addb (wis, bless) | 1 | — | 2 | 1 | 2 | +1 +3 |
 | `xp_per_turn` .addb (wis, bless) | 12 | — | 2 | 1 | 3 | +12 +36 +84 |
 | `xp_per_turn` .inc (wis, bless) | 4 | — | 2 | 1 | 3 | +4% +12% +28% |
@@ -361,10 +362,18 @@ adds `wound_heal_per_turn` .addb and a fatter `xp_per_turn` pair
 `xp_per_turn` .inc pool — that pool's `subtypes` lost `bless` so a blessed
 node draws the fat pair instead (decision 11/18, `docs/design/node_subtypes.md`).
 
+**Blighted WIS is the archive umbrella (#1094)**: `dot_stacks_per_hit` .addb,
+`[blight]`-gated, WIS-only (`test_pool_scoping.gd::test_dot_stacks_per_hit_is_blighted_wisdom_only`)
+— *"knows every plague"*, whatever rot is already dealt lands harder. It also
+gives up the small `xp_per_turn` .inc pool, which after both #1093 and #1094
+land carries `subtypes = [regular]` only (decision 17).
+
 The four DoT families each have one attribute home holding both poles, gated
 by subtype (#1059): the **potency** rolls only on blighted nodes, the
 **resistance** only on blessed ones — corruption → str, poison → dex,
-wither → int, curse → con. WIS and PER carry none. A build that wants poison
+wither → int, curse → con. WIS and PER carry none of the four family potencies —
+the archive umbrella above is a different (fifth, cross-family) stat, homed on
+blighted WIS instead. A build that wants poison
 on a melee blade finds `poison_potency` only on blighted DEX nodes — hybrids
 are the deal (owner, #974): combining two concepts means allocating related
 nodes on both sides. Resistances are T2+, so they never crowd a T1 draw.

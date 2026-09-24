@@ -136,6 +136,25 @@ func test_each_dot_potency_reaches_only_its_own_archetype() -> void:
 						"a %s/%s node must NOT roll %s — that is blighted %s's content"
 						% [String(primary), String(pole.id), String(stat), String(home)])
 
+## #1094 — the archive umbrella (`dot_stacks_per_hit`) is blighted WIS's own
+## content and no other archetype/pole may roll it (same absence shape as
+## `_POTENCY_HOME`'s sweep above, one stat instead of four).
+func test_dot_stacks_per_hit_is_blighted_wisdom_only() -> void:
+	var blight := NodeSubtype.new(); blight.id = &"blight"
+	var bless := NodeSubtype.new(); bless.id = &"bless"
+	var poles: Array[NodeSubtype] = [NodeSubtype.regular(), blight, bless]
+	for primary in _ALL_ARCHETYPES:
+		for pole in poles:
+			var reachable := _reachable_stat_ids(primary, pole)
+			if primary == &"wisdom" and pole.id == &"blight":
+				assert_true(&"dot_stacks_per_hit" in reachable,
+					"blighted wisdom must be able to roll dot_stacks_per_hit — reachable: %s" % str(reachable))
+			else:
+				assert_false(&"dot_stacks_per_hit" in reachable,
+					"a %s/%s node must NOT roll dot_stacks_per_hit — that is blighted wisdom's content"
+					% [String(primary), String(pole.id)])
+
+
 func test_no_configuration_warnings() -> void:
 	# The headless half of the `@tool`-only inspector check. Sweeps every pack
 	# AND every pool reachable from the shipped pool set.

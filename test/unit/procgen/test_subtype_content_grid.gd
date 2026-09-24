@@ -35,7 +35,7 @@ const _FAMILY := {
 ## wisdom/bless, #1094 (blighted WIS) will clear wisdom/blight, #1095 (PER)
 ## will clear perception/blight and perception/bless.
 const _EMPTY_CELLS: Dictionary = {
-	&"blight": [&"perception", &"wisdom"],
+	&"blight": [&"perception"],
 	&"bless": [&"perception"],
 }
 

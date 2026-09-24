@@ -29,6 +29,24 @@ func _flatten(subtype: NodeSubtype) -> Array[ModifierPoolEntry]:
 	pool_set.packs = [_PACK.duplicate(true)]
 	return pool_set.flatten_for_node(&"wisdom", subtype)
 
+## The one xp_per_turn +% pool whose `subtypes` does NOT name `bless` — i.e.
+## the small pre-#1093 pool, not the fat blessed replacement. Both share
+## `stat_id`/`operation` (StatPool._update_resource_name overwrites
+## resource_name identically for both, so that can't distinguish them either).
+func _find_small_xp_pct_pool() -> StatPool:
+	var p: StatPack = _PACK.duplicate(true) as StatPack
+	for sp in p.pools:
+		var pp := sp as StatPool
+		if pp.stat_id != &"xp_per_turn" or pp.operation != StatModifier.Operation.INCREASE:
+			continue
+		var names_bless := false
+		for s in pp.subtypes:
+			if s != null and s.id == &"bless":
+				names_bless = true
+		if not names_bless:
+			return pp
+	return null
+
 ## #1093 — blessed WIS is the XP engine plus recovery, replacing the small
 ## xp_per_turn +% pool (decision 11/18).
 func test_blessed_wisdom_gets_the_fat_xp_pair_and_wound_heal() -> void:
@@ -38,14 +56,8 @@ func test_blessed_wisdom_gets_the_fat_xp_pair_and_wound_heal() -> void:
 		if not e.stat_id in ids: ids.append(e.stat_id)
 	assert_true(&"wound_heal_per_turn" in ids, "blessed WIS must roll wound_heal_per_turn")
 	assert_true(&"xp_per_turn" in ids, "blessed WIS must roll xp_per_turn")
-	var small_pool: StatPool = null
-	var p: StatPack = _PACK.duplicate(true) as StatPack
-	for sp in p.pools:
-		var pp := sp as StatPool
-		if pp.stat_id == &"xp_per_turn" and pp.operation == StatModifier.Operation.INCREASE \
-				and not &"bless" in pp.tags:
-			small_pool = pp
-	assert_not_null(small_pool, "the small (non-bless-tagged) xp_per_turn +% pool must still exist")
+	var small_pool: StatPool = _find_small_xp_pct_pool()
+	assert_not_null(small_pool, "the small xp_per_turn +% pool must still exist")
 	assert_false(small_pool.admits_subtype(bless),
 		"blessed WIS must NOT roll the small xp_per_turn +% pool (decision 11/18: replace, not add)")
 
@@ -55,7 +67,20 @@ func test_regular_wisdom_keeps_the_small_pool_not_the_fat_pair() -> void:
 	for e in _flatten(regular):
 		if not e.stat_id in ids: ids.append(e.stat_id)
 	assert_false(&"wound_heal_per_turn" in ids, "regular WIS must not roll wound_heal_per_turn")
+	assert_false(&"dot_stacks_per_hit" in ids, "regular WIS must not roll dot_stacks_per_hit")
 	assert_true(&"xp_per_turn" in ids, "regular WIS keeps the small xp_per_turn +% pool")
+
+## #1094 — blighted WIS is the archive umbrella, trading the XP trickle.
+func test_blighted_wisdom_gets_the_archive_umbrella_not_the_xp_trickle() -> void:
+	var blight := NodeSubtype.new(); blight.id = &"blight"
+	var ids: Array[StringName] = []
+	for e in _flatten(blight):
+		if not e.stat_id in ids: ids.append(e.stat_id)
+	assert_true(&"dot_stacks_per_hit" in ids, "blighted WIS must roll dot_stacks_per_hit")
+	var small_pool: StatPool = _find_small_xp_pct_pool()
+	assert_not_null(small_pool, "the small xp_per_turn +% pool must still exist")
+	assert_false(small_pool.admits_subtype(blight),
+		"blighted WIS must NOT roll the small xp_per_turn +% pool (the XP trickle give-up)")
 
 func test_draw_only_emits_pack_stat_ids() -> void:
 	var pool_set := ModifierPoolSet.new()
