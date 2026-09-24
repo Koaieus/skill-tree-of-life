@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://skill_node/visuals/core_gimbal.gd" id="1_gimbal"]
+
+[node name="CoreGimbal" type="Node2D"]
+script = ExtResource("1_gimbal")

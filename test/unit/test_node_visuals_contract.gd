@@ -68,6 +68,43 @@ func test_composite_pushes_identity_to_every_child() -> void:
 		assert_true(child.allocated, "%s got allocated" % child.name)
 
 
+
+## #1108: the identity contract carries the owner's level and the node's
+## stable id to every child — the slot's look included — so a look derives its
+## own params (rings, phase) and CorePresence never names them.
+func test_identity_carries_owner_level_and_node_seed() -> void:
+	var comp = add_child_autofree(CompositeScene.instantiate())
+	await get_tree().process_frame
+	comp.get_node("%CorePresence").set_look(preload("res://skill_node/visuals/core_gimbal.tscn"))
+	comp.owner_level = 25
+	comp.node_seed = 99
+	var seen_slot_child := false
+	for child in comp.find_children("*", "", true, false):
+		if not (child is SkillNodeVisual):
+			continue
+		seen_slot_child = seen_slot_child or child.get_parent().name == &"Slot"
+		assert_eq(child.owner_level, 25, "%s got owner_level" % child.name)
+		assert_eq(child.node_seed, 99, "%s got node_seed" % child.name)
+	assert_true(seen_slot_child, "the slot's look is among the children")
+
+	var graph: Graph = add_child_autofree(preload("res://graph/graph.tscn").instantiate())
+	var sn := preload("res://skill_node/skill_node.tscn").instantiate() as SkillNode
+	graph.skill_nodes_container.add_child(sn)
+	sn.stable_id = 42
+	var e: Entity = autofree(Entity.new())
+	e.stat_board = preload("res://entity/default_entity_board.tres").duplicate(true) as EntityStatBoard
+	graph.add_child(e)
+	await get_tree().process_frame
+	e.level = 25
+	sn.owned_by = e
+	await get_tree().process_frame
+	var node_comp = sn.get_node("Visuals/NodeVisualsComposite")
+	assert_eq(node_comp.owner_level, 25, "a level-25 owner pushes 25")
+	assert_eq(node_comp.node_seed, 42, "node_seed is the stable id")
+	e.level = 30
+	e.leveled_up.emit(30)
+	assert_eq(node_comp.owner_level, 30, "leveled_up re-pushes the level")
+
 func test_disk_renders_the_entity_identity_through_its_shader() -> void:
 	var comp = add_child_autofree(CompositeScene.instantiate())
 	await get_tree().process_frame

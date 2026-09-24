@@ -135,6 +135,9 @@ const PICKABLE_AI := 2
 ## unchanged. See [Sigil].
 @export var sigil: Sigil = null
 
+## What this class's core node wears (the [CorePresence] slot's look).
+@export var core_look: PackedScene = null
+
 
 ## Wire this class onto the given entity. Default applies the modifier set and
 ## grants the effects; override for classes whose behaviour needs custom signal

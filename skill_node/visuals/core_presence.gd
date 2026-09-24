@@ -41,6 +41,10 @@ extends Node2D
 var _authored_halo_style: int = -1
 
 
+func set_look(_scene: PackedScene) -> void:
+	pass
+
+
 ## Overrides [member CoreHalos.halo_style] on the [CoreHalos] child. `style ==
 ## -1` restores whatever `core_presence.tscn` authored (cached in [member
 ## _authored_halo_style] on first override) — a genuine restore, not merely a

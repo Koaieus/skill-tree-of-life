@@ -46,6 +46,12 @@ extends Node2D
 		archetype_tint = value
 		_on_identity_changed()
 
+## The owner's level (1 when unowned). Provided by the composite.
+var owner_level: int = 1
+
+## The node's [member SkillNode.stable_id] (0 when unindexed). Provided by the composite.
+var node_seed: int = 0
+
 ## Whether the owning node is allocated. Provided by the composite.
 @export var allocated: bool = false:
 	set(value):
