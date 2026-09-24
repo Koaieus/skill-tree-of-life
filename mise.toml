@@ -23,7 +23,7 @@ pipx = "latest"
 # The python file tasks (test, refresh, rules-hygiene, lint-transcendentals) are
 # stdlib-only and want nothing newer than 3.7 — pinned so `mise install` is the
 # whole setup, not because the version is delicate.
-python = "3.13"
+python = "3.14"
 
 # Project board identifiers — consumed by `.mise/tasks/gh-project`.
 [env]
