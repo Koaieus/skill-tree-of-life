@@ -171,7 +171,6 @@ func _carved_node() -> SkillNode:
 	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	graph.skill_nodes_container.add_child(node)
 	node.archetype = load("res://archetypes/strength.tres")
-	node._sync_visuals()
 	return node
 
 
