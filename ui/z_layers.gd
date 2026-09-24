@@ -7,7 +7,7 @@
 ##   EDGE        -10     absolute — edges always draw below graph nodes
 ##   GRAPH_DEFAULT  0     relative — scene-tree order governs draw order within the band
 ##   CORE_MOVE    100     relative — core ghost/badge above graph siblings during a move
-##   GIMBAL       500     absolute — GimbalWorld's one composited 3D sprite: over disks, under fog
+##   GIMBAL       500     absolute — GimbalWorld's front composite (its back one sits at GRAPH_DEFAULT-1): over disks, under fog
 ##   FOG         1000     absolute — FogOverlay shader covers all graph content
 ##   SENSED      1001     absolute — sensed/visible nodes punch through the fog
 ##   SPELL_VFX   2000     absolute — allocation ring + floaters, above fog + sensed

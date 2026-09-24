@@ -28,8 +28,8 @@ extends "res://scenes/procgen_play_sandbox.gd"
 ## Per-segment sampled time. Longer is calmer; the p95 column is the honest one.
 @export var sample_seconds: float = 2.0
 ## Attribution toggles to sweep, in order, each restored before the next:
-## [code]baseline[/code] (authored state), [code]gimbals-off[/code] (the #763
-## prime suspect — GIMBAL cores ONLY), [code]cogs-off[/code] (the ~10x more
+## [code]baseline[/code] (authored state), [code]gimbals-off[/code] (the
+## entity cores' 3D rigs in GimbalWorld ONLY), [code]cogs-off[/code] (the ~10x more
 ## numerous COG blockers, #478 — the other half of what a blanket halo toggle
 ## would have measured), [code]halos-off[/code] (both, i.e. the blanket
 ## toggle), [code]fog-pass-off[/code] (FogOverlay's fullscreen rect —
