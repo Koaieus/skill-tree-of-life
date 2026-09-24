@@ -89,29 +89,42 @@ uniform float ray_root : hint_range(0.0, 1.0) = 0.55;
 // Same simplification `blade_shard.gdshader` makes for `inner_frac`: "most
 // [source nodes] share one ratio, and there is no spare INSTANCE_CUSTOM
 // channel to carry a per-shard one." Defaults mirror `inner_disk.gdshader`'s
-// `instance uniform` set 1:1. `carve_kind` stays NONE (0) — the honest empty
-// dome InnerDisk itself falls back to — because reaching a dying node's actual
-// resolved carve would need a new accessor on `skill_node.gd` /
-// `node_visuals_composite.gd`, neither of which #257 owns; noted as a
-// follow-up, not silently dropped.
+// `instance uniform` set 1:1 — except the carve, which DOES vary per dying
+// node (it is the node's glyph) and so rides the data texture below.
 uniform float tint_mix : hint_range(0.0, 1.0) = 0.6;
 // A force-deallocated node was, by definition, allocated — always true here,
 // never pushed per-shard.
 uniform bool allocated = true;
 uniform vec2 highlight_position = vec2(-0.35, -0.35);
 uniform float highlight_intensity : hint_range(0.0, 1.0) = 0.85;
-uniform int carve_kind = 0;
-uniform float carve_sides : hint_range(3.0, 16.0, 1.0) = 3.0;
-uniform float carve_squish : hint_range(0.3, 1.0, 0.01) = 1.0;
-uniform float carve_radius : hint_range(0.4, 1.15, 0.01) = 0.75;
-uniform float well_depth : hint_range(0.0, 1.0, 0.01) = 0.35;
+
+// --- Per-shatter carve (#843) — a data texture read at INSTANCE_ID ---
+//
+// A dying node keeps its glyph: `ShatterField` writes each slot's
+// `CarveParams` (the 7-tuple the live disc reads as instance uniforms) as two
+// RGBAF texels at `x = INSTANCE_ID * 2 (+1)`, since INSTANCE_CUSTOM has no
+// channel left. Layout is `CarveParams.to_texels()`'s; 32-bit floats, so the
+// kind and slice integers are exact. Read once per vertex into flat varyings.
+// The samplers the tuple indexes into — `gem_lut` and the one shared
+// `carve_atlas` — stay plain uniforms, bound by AllocationVFX from InnerDisk's
+// own shared ones. Still one draw call.
+uniform sampler2D shatter_carve_tex : filter_nearest;
 uniform sampler2D gem_lut : filter_linear_mipmap, hint_default_black;
 uniform sampler2DArray carve_atlas : filter_linear_mipmap;
-uniform int carve_slice = -1;
-uniform int carve_slice_b = -1;
+
+varying flat int v_carve_kind;
+varying flat vec3 v_carve_shape; // sides, squish, radius
+varying flat float v_well_depth;
+varying flat ivec2 v_carve_slices; // slice, slice_b
 
 void vertex() {
 	SHATTER_VERTEX;
+	vec4 carve_a = texelFetch(shatter_carve_tex, ivec2(INSTANCE_ID * 2, 0), 0);
+	vec4 carve_b = texelFetch(shatter_carve_tex, ivec2(INSTANCE_ID * 2 + 1, 0), 0);
+	v_carve_kind = int(round(carve_a.x));
+	v_carve_shape = carve_a.yzw;
+	v_well_depth = carve_b.x;
+	v_carve_slices = ivec2(round(carve_b.yz));
 }
 
 // Crack glow, 0..1: 0 at spawn, rising to 1 as `prog` reaches p0 — and gone
@@ -173,8 +186,9 @@ vec3 shatter_ray_color(vec4 tint, float ray) {
 
 vec3 shatter_dome(vec2 p, vec4 tint) {
 	return sn_inner_disk_shade(p, tint, tint_mix, allocated, highlight_position,
-			highlight_intensity, carve_kind, carve_sides, carve_squish, carve_radius,
-			well_depth, carve_slice, carve_slice_b, gem_lut, carve_atlas);
+			highlight_intensity, v_carve_kind, v_carve_shape.x, v_carve_shape.y,
+			v_carve_shape.z, v_well_depth, v_carve_slices.x, v_carve_slices.y, gem_lut,
+			carve_atlas);
 }
 
 void fragment() {

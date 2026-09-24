@@ -45,6 +45,9 @@ extends MultiMeshInstance2D
 ##   `COLOR`           = tint lifted by [member spawn_tier] via `Emissive.at()`
 ##   `INSTANCE_CUSTOM` = (velocity.x, velocity.y, spawn_time - [member time_base],
 ##                        [method pack_shard])
+##   `shatter_carve_tex` = per slot, the source's [CarveParams] as
+##                       `CarveParams.TEXELS` RGBAF texels at `INSTANCE_ID`
+##                       (32-bit, NOT half — a texture, not the instance buffer)
 ##   transform         = origin at the source, uniform scale `2 * radius * OVERSIZE`,
 ##                       never rotated — [method radial_kick]'s angle for cell K
 ##                       and the shader's seed placement for cell K agree only
@@ -78,6 +81,9 @@ const MAX_CELLS: int = 32
 const MIN_CAPACITY: int = 16
 
 const _CELL_SCALE: int = 32
+## The data texture carrying each slot's [CarveParams]; a field whose shader
+## does not declare it (the blade's) just ignores the parameter.
+const CARVE_TEXTURE_UNIFORM := &"shatter_carve_tex"
 
 ## Seconds from a shard's spawn to its last frame (progress 1). Authored on
 ## the consumer's tuning resource and handed here (#787: ~0.25s from
@@ -132,6 +138,16 @@ var _customs: PackedColorArray = PackedColorArray()
 ## comparing IT against the float64 `elapsed` misreads a shard spawned at
 ## exactly `elapsed` as unborn; the pool's own bookkeeping never rounds.
 var _spawn_times: PackedFloat64Array = PackedFloat64Array()
+## Per-slot carve (#843), mirrored like the arrays above and replayed into
+## [member _carve_image] — `CarveParams.TEXELS` RGBAF texels per slot, read by
+## the shader at `INSTANCE_ID`. It is the per-instance channel INSTANCE_CUSTOM
+## has no room for; the texture costs no draw call.
+var _carves: Array[CarveParams] = []
+var _carve_image: Image
+var _carve_texture: ImageTexture
+var _carve_dirty: bool = false
+var _carve_flush_queued: bool = false
+var _carve_uploads: int = 0
 
 ## CPU-side union of every live-or-not DISPLACED extent pushed since the last
 ## [method clear], in this node's local space — [constant Vector2.INF] /
@@ -169,6 +185,8 @@ func _ready() -> void:
 ## plain `MultiMesh` property that WOULD serialize — so it rides the same
 ## guard: zeroed pre-save, restored post-save from the `_bounds_min`/`_bounds_max`
 ## CPU mirrors (untouched by either notification, so no recompute is needed).
+## `shatter_carve_tex` (#843) is the same kind of derived state on the
+## material: unbound pre-save, rebuilt from the `_carves` mirror post-save.
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_EDITOR_PRE_SAVE:
@@ -176,10 +194,13 @@ func _notification(what: int) -> void:
 				multimesh.visible_instance_count = 0
 				multimesh.instance_count = 0
 				multimesh.custom_aabb = AABB()
+			_bind_carve_texture(null)
 		NOTIFICATION_EDITOR_POST_SAVE:
 			_capacity = 0
+			_carve_texture = null
 			if _used > 0 and multimesh != null:
 				_grow(_used)
+				flush_carve_texture()
 			_push_bounds()
 
 
@@ -275,6 +296,7 @@ func spawn_shatter(origin: Vector2, radius: float, tint: Color, seed_velocity: V
 	var n := clampi(shard_count, 1, MAX_CELLS)
 	var side := 2.0 * maxf(radius, 0.0) * OVERSIZE
 	var color := Emissive.at(tint, Emissive.stops(spawn_tier))
+	var shard_carve_value := carve if carve != null else CarveParams.none()
 	var first := -1
 	for k in n:
 		var slot := _acquire_slot()
@@ -283,6 +305,7 @@ func spawn_shatter(origin: Vector2, radius: float, tint: Color, seed_velocity: V
 		var v := shard_velocity(seed_velocity, k, n, kick_speed)
 		var custom := Color(v.x, v.y, spawn_time - time_base, pack_shard(k, n))
 		_spawn_times[slot] = spawn_time
+		_carves[slot] = shard_carve_value
 		_push_shard(slot, origin, side, color, custom)
 	# The n shards of this shatter differ only by their radial kick (fixed
 	# speed, varying angle), so the true per-shard max of |shard_velocity()|
@@ -305,6 +328,7 @@ func clear() -> void:
 	_colors = PackedColorArray()
 	_customs = PackedColorArray()
 	_spawn_times = PackedFloat64Array()
+	_carves = []
 	_bounds_min = Vector2.INF
 	_bounds_max = -Vector2.INF
 	if multimesh != null:
@@ -346,16 +370,33 @@ func shard_custom(slot: int) -> Color:
 	return _customs[slot]
 
 
-func shard_carve(_slot: int) -> CarveParams:
-	return null
+## The carve a slot's shard renders (CPU mirror of its texels).
+func shard_carve(slot: int) -> CarveParams:
+	return _carves[slot]
 
 
+## How many times [method flush_carve_texture] has actually pushed the carve
+## image to the GPU — the "at most one upload per frame" contract's counter.
 func carve_upload_count() -> int:
-	return 0
+	return _carve_uploads
 
 
+## Push every carve texel written since the last flush in ONE upload, and
+## bind the texture as `shatter_carve_tex`. Spawns queue this deferred, so a
+## frame of spawns (a whole cascade lands in one) costs one upload; tests call
+## it directly. A same-size flush uses `ImageTexture.update()`; a grown image
+## (the width doubles with the pool) needs a new texture and a rebind.
 func flush_carve_texture() -> void:
-	pass
+	_carve_flush_queued = false
+	if not _carve_dirty or _carve_image == null:
+		return
+	_carve_dirty = false
+	_carve_uploads += 1
+	if _carve_texture != null and _carve_texture.get_size() == Vector2(_carve_image.get_size()):
+		_carve_texture.update(_carve_image)
+		return
+	_carve_texture = ImageTexture.create_from_image(_carve_image)
+	_bind_carve_texture(_carve_texture)
 
 
 # ------------------------------------------------------------------ setters
@@ -499,6 +540,7 @@ func _acquire_slot() -> int:
 	_colors.append(Color.BLACK)
 	_customs.append(Color.BLACK)
 	_spawn_times.append(0.0)
+	_carves.append(null)
 	multimesh.visible_instance_count = _used
 	return fresh
 
@@ -512,6 +554,7 @@ func _grow(min_count: int) -> void:
 	_capacity = maxi(min_count, maxi(_capacity * 2, MIN_CAPACITY))
 	multimesh.instance_count = _capacity
 	multimesh.visible_instance_count = _used
+	_carve_image = Image.create(_capacity * CarveParams.TEXELS, 1, false, Image.FORMAT_RGBAF)
 	for slot in _used:
 		_write_instance(slot)
 
@@ -528,3 +571,23 @@ func _write_instance(slot: int) -> void:
 	multimesh.set_instance_transform_2d(slot, _transform_for(_origins[slot], _sides[slot]))
 	multimesh.set_instance_color(slot, _colors[slot])
 	multimesh.set_instance_custom_data(slot, _customs[slot])
+	_write_carve(slot)
+
+
+func _write_carve(slot: int) -> void:
+	var carve: CarveParams = _carves[slot]
+	if _carve_image == null or carve == null:
+		return
+	var texels := carve.to_texels()
+	for i in CarveParams.TEXELS:
+		_carve_image.set_pixel(slot * CarveParams.TEXELS + i, 0, texels[i])
+	_carve_dirty = true
+	if not _carve_flush_queued:
+		_carve_flush_queued = true
+		flush_carve_texture.call_deferred()
+
+
+func _bind_carve_texture(tex: Texture2D) -> void:
+	var mat := material as ShaderMaterial
+	if mat != null:
+		mat.set_shader_parameter(CARVE_TEXTURE_UNIFORM, tex)
