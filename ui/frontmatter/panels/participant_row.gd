@@ -54,6 +54,9 @@ signal core_reset_requested()
 ## the camp is roster shape, and [LobbyScreen] owns the roster.
 signal camp_picked(camp: Faction)
 
+## The camp twin of [signal core_reset_requested] (#884).
+signal camp_reset_requested()
+
 ## A slot committed a name — Enter, or the field losing focus. Same
 ## ask-don't-write contract as the pickers: the name is run shape (it crosses
 ## the wire inside the roster), and [LobbyScreen] owns the roster.
@@ -111,6 +114,9 @@ func configure(participant: Participant, local_peer_id: int) -> void:
 	var reset_btn := get_node("%CoreReset") as Button
 	if not reset_btn.pressed.is_connected(_on_core_reset_pressed):
 		reset_btn.pressed.connect(_on_core_reset_pressed)
+	var camp_reset := get_node("%CampReset") as Button
+	if not camp_reset.pressed.is_connected(camp_reset_requested.emit):
+		camp_reset.pressed.connect(camp_reset_requested.emit)
 
 
 ## Show or hide the un-override control (#841). [LobbyScreen] decides this,
@@ -118,6 +124,11 @@ func configure(participant: Participant, local_peer_id: int) -> void:
 ## [method LobbyRoster.is_core_overridden], neither of which the row can see.
 func set_core_overridden(overridden: bool) -> void:
 	get_node("%CoreReset").visible = overridden
+
+
+## The camp twin of [method set_core_overridden] (#884).
+func set_camp_overridden(overridden: bool) -> void:
+	get_node("%CampReset").visible = overridden
 
 
 func _on_core_reset_pressed() -> void:

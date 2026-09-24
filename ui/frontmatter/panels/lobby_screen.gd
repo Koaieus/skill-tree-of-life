@@ -207,6 +207,10 @@ func _ready() -> void:
 		content.add_child(_ai_preset_row)
 		_ai_preset_row.set_core_choices(CoreClass.pickable_for(CoreClass.PICKABLE_AI))
 		_ai_preset_row.core_changed.connect(_on_preset_core_changed)
+		# #884: camp joins the preset only where an AI seat may pick one.
+		if _roster.policy != null and _roster.policy.may_pick_camp(Participant.Kind.AI):
+			_ai_preset_row.set_camp_choices(_roster.policy.camp_choices())
+			_ai_preset_row.camp_changed.connect(_on_preset_camp_changed)
 
 	_rows_container = VBoxContainer.new()
 	_rows_container.add_theme_constant_override("separation", 4)
@@ -852,12 +856,14 @@ func _add_participant_row(participant: Participant) -> void:
 	# #841: an AI row holding an explicit pick shows the un-override control —
 	# provenance the roster tracks, never a value comparison against the preset.
 	row.set_core_overridden(_roster.is_core_overridden(participant))
+	row.set_camp_overridden(_roster.is_camp_overridden(participant))
 	# Through the row-signal handlers rather than straight onto the writers: on a
 	# CLIENT a pick is a request, and only the handler knows that.
 	row.color_picked.connect(_on_row_color_picked.bind(participant))
 	row.core_class_picked.connect(_on_row_core_class_picked.bind(participant))
 	row.core_reset_requested.connect(_on_row_core_reset.bind(participant))
 	row.camp_picked.connect(_on_row_camp_picked.bind(participant))
+	row.camp_reset_requested.connect(_on_row_camp_reset.bind(participant))
 	row.name_committed.connect(_on_row_name_committed.bind(participant))
 ## (#714) and waits for the host's roster to say what happened.
 ## --- row signals: ask on a CLIENT, write on everything else ------------------
@@ -896,6 +902,16 @@ func _on_ai_count_changed(value: float) -> void:
 
 func _on_preset_core_changed(core: CoreClass) -> void:
 	_roster.set_preset_core(core)
+	_broadcast_roster()
+
+
+func _on_row_camp_reset(participant: Participant) -> void:
+	_roster.reset_camp(participant)
+	_broadcast_roster()
+
+
+func _on_preset_camp_changed(camp: Faction) -> void:
+	_roster.set_preset_camp(camp)
 	_broadcast_roster()
 
 

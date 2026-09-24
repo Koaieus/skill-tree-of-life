@@ -1118,7 +1118,7 @@ func test_the_shipped_route_with_no_pick_generates_the_authored_preset() -> void
 
 ## **For #558, updated for #742.** After the hotseat remap, `first_level.tres`
 ## is reachable from exactly one shipped lobby route: `New Game`, the
-## single-player one. Every route whose HUMANS pick camps lands on `coop_versus`, which
+## single-player one. Every other route lands on `coop_versus`, which
 ## authors a `CampAnnulusStarters` placement — `New Game` authors a REAL
 ## placement too since #742 (`CenterCoreStarters`), just not a camp-relative
 ## one, so it is the ONE route whose placement is not a `CampAnnulusStarters`.
