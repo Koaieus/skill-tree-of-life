@@ -34,7 +34,7 @@ extends RefCounted
 ## re-applied after every rebuild — a slot's colour must not silently revert to
 ## its palette default because a DIFFERENT slot was added. A field's zero value
 ## is "still on the default": white for colour (the palette never offers it),
-## null for core and camp, "" for the name.
+## null for core, camp and tier, "" for the name.
 ##
 ## [b]Colour is run shape, for every slot (#616).[/b] It crosses the wire in
 ## [method Participant.to_dict], so the AI slots are this roster's problem
@@ -81,6 +81,14 @@ const _DEFAULT_AI_CORE := preload("res://entity/core/balanced_core.tres")
 const TEMPLATED_FIELDS: Dictionary = {
 	&"core": &"core_class",
 	&"camp": &"camp",
+	&"ai_tier": &"ai_tier",
+}
+## The value a [constant TEMPLATED_FIELDS] entry resolves to when no layer
+## arms it (a hand-built seat has no recorded default). Only a field whose
+## [Participant] property cannot hold `null` needs one: a typed int given
+## `null` would read as 0, which for the tier is BRAWLER.
+const FIELD_FALLBACKS: Dictionary = {
+	&"ai_tier": AIController.DEFAULT_TIER,
 }
 
 
@@ -94,6 +102,9 @@ class Pick:
 	var color: Color = Color.WHITE
 	var core: CoreClass = null
 	var camp: Faction = null
+	## An [enum AIController.Tier] as an int, or `null` for "not armed" — an
+	## int has no zero value to spare, BRAWLER is 0.
+	var ai_tier: Variant = null
 	var display_name: String = ""
 
 
@@ -200,6 +211,12 @@ func is_camp_overridden(p: Participant) -> bool:
 	return _is_overridden(p, &"camp")
 
 
+## An AI seat holding an explicit tier pick (#1086) — mirrors
+## [method is_core_overridden].
+func is_tier_overridden(p: Participant) -> bool:
+	return _is_overridden(p, &"ai_tier")
+
+
 func has_pending_remote() -> bool:
 	for p in participants:
 		if is_pending_remote(p):
@@ -259,6 +276,12 @@ func set_preset_camp(camp: Faction) -> void:
 	_set_preset(&"camp", camp)
 
 
+## An [enum AIController.Tier], or `null` to disarm the tier preset: AI seats
+## fall back to [constant AIController.DEFAULT_TIER].
+func set_preset_tier(tier: Variant) -> void:
+	_set_preset(&"ai_tier", tier)
+
+
 func set_local_peer(peer_id: int) -> void:
 	local_peer = peer_id
 	changed.emit()
@@ -293,20 +316,14 @@ func reset_camp(p: Participant) -> bool:
 	return _reset(p, &"camp")
 
 
-func pick_tier(_p: Participant, _tier: int) -> bool:
-	return false
+## A pick equal to the preset is still recorded — provenance, never value
+## coincidence (mirrors [method pick_core]).
+func pick_tier(p: Participant, tier: int) -> bool:
+	return _pick(p, &"ai_tier", tier)
 
 
-func reset_tier(_p: Participant) -> bool:
-	return false
-
-
-func is_tier_overridden(_p: Participant) -> bool:
-	return false
-
-
-func set_preset_tier(_tier: Variant) -> void:
-	pass
+func reset_tier(p: Participant) -> bool:
+	return _reset(p, &"ai_tier")
 
 
 func pick_name(p: Participant, name: String) -> bool:
@@ -391,6 +408,8 @@ func apply_remote_pick(pick: Dictionary) -> bool:
 		any = pick_core(target, _loaded(pick["core_class"]) as CoreClass) or any
 	if pick.has("camp"):
 		any = pick_camp(target, _loaded(pick["camp"]) as Faction) or any
+	if pick.has("ai_tier"):
+		any = pick_tier(target, int(pick["ai_tier"])) or any
 	return any
 
 
@@ -406,7 +425,7 @@ func _pick_of(id: int) -> Pick:
 
 ## Always recorded, even when the value coincides with what the seat holds:
 ## a pick is provenance, never a value comparison (#841 acceptance 7).
-func _pick(p: Participant, field: StringName, value: Object) -> bool:
+func _pick(p: Participant, field: StringName, value: Variant) -> bool:
 	if p == null or value == null:
 		return false
 	_pick_of(p.id).set(field, value)
@@ -428,7 +447,7 @@ func _is_overridden(p: Participant, field: StringName) -> bool:
 	return p != null and p.kind == Participant.Kind.AI and _pick_of(p.id).get(field) != null
 
 
-func _set_preset(field: StringName, value: Object) -> void:
+func _set_preset(field: StringName, value: Variant) -> void:
 	ai_preset.set(field, value)
 	_resolve()
 	changed.emit()
@@ -518,7 +537,9 @@ static func assign_default_cores(participants_in: Array[Participant]) -> void:
 ## field, the explicit pick ([param picks], id -> [LobbyRoster.Pick]) wins,
 ## else the armed [param preset] on an AI seat, else the seat's as-built value
 ## in [param defaults] (id -> [LobbyRoster.Pick]). A seat with no recorded
-## default (a hand-built list) gets its kind's default core. An all-null
+## default (a hand-built list) gets its kind's default core and
+## [constant AIController.DEFAULT_TIER] — never a null written into the typed
+## [member Participant.ai_tier]; its camp stays null. An all-null
 ## preset behaves exactly as [method assign_default_cores]. [param fields]
 ## is [constant TEMPLATED_FIELDS]; only a test passes another list.
 static func resolve_templated(
@@ -537,6 +558,8 @@ static func resolve_templated(
 				if layer != null and layer.get(field) != null:
 					value = layer.get(field)
 					break
+			if value == null:
+				value = FIELD_FALLBACKS.get(field)
 			p.set(fields[field], value)
 	assign_default_cores(participants_in)
 

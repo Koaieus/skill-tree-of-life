@@ -374,8 +374,10 @@ func test_a_seat_with_an_explicit_core_reads_as_overridden_until_reset() -> void
 
 func test_the_resolve_walks_the_declared_field_list_and_nothing_else() -> void:
 	# #1083: one rule over every templated field. Appending an entry (here
-	# `camp`, which #884 will) plus a nullable Pick field is the whole change.
-	assert_eq(LobbyRoster.TEMPLATED_FIELDS, {&"core": &"core_class", &"camp": &"camp"})
+	# `camp` for #884, `ai_tier` for #1086) plus a nullable Pick field is the
+	# whole change.
+	assert_eq(LobbyRoster.TEMPLATED_FIELDS,
+			{&"core": &"core_class", &"camp": &"camp", &"ai_tier": &"ai_tier"})
 	var roster := LobbyRoster.new(RunConfig.Mode.SINGLE)
 	for dead in [&"_resolve_cores", &"_picked_cores", &"apply_core_preset"]:
 		assert_false(roster.has_method(dead), "no per-field resolve: %s" % dead)
