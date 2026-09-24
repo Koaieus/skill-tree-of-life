@@ -457,10 +457,14 @@ cmd_blocking() {
 #
 # What stays report-only is judgement: a `Done` item still open, a hub with an
 # open child missing from the board (never derived — you'd close a hub over a
-# child you can't see). The old `parked_child` check ("Backlog means no live
-# parent") is retired with this: it policed a hub's status as hand-set INTENT,
-# and a derived status carries none — a Backlog sibling next to an In progress
-# sibling contradicts nothing.
+# child you can't see), and `stalled_hub` — every one of a hub's open children
+# sitting in Backlog/Needs design, i.e. nobody is actually working any of them.
+# `--fix` never touches it: detaching the parked children (or moving the hub
+# back) is an owner call, not something derivable from status alone. The old
+# `parked_child` check ("Backlog means no live parent") is retired with this:
+# it policed a hub's status as hand-set INTENT, and a derived status carries
+# none — a Backlog sibling next to an In progress sibling contradicts nothing
+# (stalled_hub only fires when EVERY open child is parked).
 cmd_hygiene() {
   local as_json=false do_fix=false dry_run=false
   for a in "$@"; do
@@ -507,6 +511,7 @@ cmd_hygiene() {
                 kids_done:  (.content.subIssuesSummary.completed // 0) } ]
       | . as $every
       | ($every | derive) as $hubs
+      | ($every | stalled) as $stalled
       | map(select(.state == "OPEN"))
       | . as $all
       | ($all | map({ (.number|tostring): .status }) | add // {}) as $st
@@ -515,6 +520,10 @@ cmd_hygiene() {
             [ $hubs.actions[] | . as $a | ($every[] | select(.number == $a.number)) as $h
               | { number, from, to, close, title: $h.title,
                   detail: "\(.from) → \(.to)\(if .close then " + close" else "" end): \(.reason)" } ],
+          stalled_hub:
+            [ $stalled[] | . as $s | ($every[] | select(.number == $s.number)) as $h
+              | { number, title: $h.title,
+                  detail: "parked: \([ $s.children[] | "#\(.)" ] | join(", ")) — detach the parked children or move the hub back" } ],
           unboarded_child:
             [ $hubs.unboarded[] | . as $u | ($every[] | select(.number == $u.number)) as $h
               | { number, title: $h.title, detail: "\(.missing) child(ren) not on the board — not derived" } ],
@@ -611,6 +620,10 @@ cmd_hygiene() {
   # whose children are all closed IS done — residual scope becomes a child.
   _section hub_drift "Hub status differs from what its children imply" \
     "Never hand-set a hub: mise gh-project -- hygiene --fix"
+  # Never in `--fix`: unlike hub_drift (a status the board derives), detaching
+  # a parked child from its hub is an owner call this script cannot make.
+  _section stalled_hub "Hub's open children are ALL parked (Backlog/Needs design)" \
+    "Nobody is working any of them — detach the parked children or move the hub back. Never fixed by --fix."
   _section unboarded_child "Hub with a child missing from the board" \
     "Not derived until every child is an item: mise gh-project -- add <child>"
   _section stale_label "Still carries the retired \`swarmable\` label" \
@@ -781,6 +794,8 @@ Roadmap (milestone spine + target dates):
 Board hygiene:
   label <n> [<add|rm> <name>]  Read or flip a label (blocked|design|…)
   hygiene [--json] [--fix [--dry-run]]  Report board invariant violations; --fix derives hub statuses
+                                (stalled_hub — a hub whose open children are ALL parked — is
+                                 never touched by --fix: detaching a child is an owner call)
   sync-parent <n>              Derive <n>'s parent hub status from its children (land's hook)
 
 Dependencies (native GitHub issue links, distinct from the `blocked` label):
