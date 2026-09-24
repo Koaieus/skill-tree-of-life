@@ -10,43 +10,77 @@ ambient_light_energy = 1.5
 tonemap_mode = 0
 glow_enabled = false
 
-[sub_resource type="CanvasItemMaterial" id="Premult"]
+[sub_resource type="CanvasItemMaterial" id="PremultBack"]
 blend_mode = 4
 
-[sub_resource type="ViewportTexture" id="WorldTex"]
-viewport_path = NodePath("World")
+[sub_resource type="CanvasItemMaterial" id="PremultFront"]
+blend_mode = 4
+
+[sub_resource type="ViewportTexture" id="WorldBackTex"]
+viewport_path = NodePath("WorldBack")
+
+[sub_resource type="ViewportTexture" id="WorldFrontTex"]
+viewport_path = NodePath("WorldFront")
 
 [node name="GimbalWorld" type="Node2D"]
-z_index = 500
 z_as_relative = false
 script = ExtResource("1_world")
 
-[node name="World" type="SubViewport" parent="."]
+[node name="WorldBack" type="SubViewport" parent="."]
 unique_name_in_owner = true
 own_world_3d = true
 transparent_bg = true
 handle_input_locally = false
+msaa_3d = 2
 use_hdr_2d = true
 size = Vector2i(1920, 1080)
-render_target_update_mode = 4
+render_target_update_mode = 0
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="World"]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="WorldBack"]
 environment = SubResource("NoGlowEnv")
 
-[node name="Camera3D" type="Camera3D" parent="World"]
+[node name="Camera3DBack" type="Camera3D" parent="WorldBack"]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1000)
+projection = 1
+size = 1080.0
+near = 1000.0
+far = 2000.0
+
+[node name="Rigs" type="Node3D" parent="WorldBack"]
+unique_name_in_owner = true
+
+[node name="WorldFront" type="SubViewport" parent="."]
+unique_name_in_owner = true
+transparent_bg = true
+handle_input_locally = false
+msaa_3d = 2
+use_hdr_2d = true
+size = Vector2i(1920, 1080)
+render_target_update_mode = 0
+
+[node name="Camera3DFront" type="Camera3D" parent="WorldFront"]
 unique_name_in_owner = true
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1000)
 projection = 1
 size = 1080.0
 near = 1.0
-far = 2000.0
+far = 1000.0
 
-[node name="Rigs" type="Node3D" parent="World"]
+[node name="CompositeBack" type="Sprite2D" parent="."]
 unique_name_in_owner = true
-
-[node name="Composite" type="Sprite2D" parent="."]
-unique_name_in_owner = true
+z_index = -1
+z_as_relative = false
 texture_filter = 1
-material = SubResource("Premult")
-texture = SubResource("WorldTex")
+material = SubResource("PremultBack")
+texture = SubResource("WorldBackTex")
+centered = false
+
+[node name="CompositeFront" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+z_index = 500
+z_as_relative = false
+texture_filter = 1
+material = SubResource("PremultFront")
+texture = SubResource("WorldFrontTex")
 centered = false

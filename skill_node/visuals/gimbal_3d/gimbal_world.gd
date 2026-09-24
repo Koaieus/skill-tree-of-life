@@ -1,48 +1,49 @@
 class_name GimbalWorld
 extends Node2D
-## Shape A of the gimbal substrate spike (#804): every 3D gimbal rig lives in
-## ONE own-world SubViewport, composited ONCE into the graph canvas as a single
-## Sprite2D at ZLayers.GIMBAL — over the disks, under fog / spell VFX / HUD.
+## THE gimbal substrate (#804, shape A2): every 3D gimbal rig lives in ONE
+## World3D drawn by two SubViewports, each composited once into the graph
+## canvas — the back half just UNDER the node disks, the front half at
+## ZLayers.GIMBAL (over disks, under fog / spell VFX / HUD). The real 2D disk
+## sits between the halves: hidden exactly where a disk is, visible everywhere
+## else, and opaque rings order correctly because a clip plane does not care
+## about draw order.
 ##
 ## Contract:
-## - 1 3D unit = 1 world px; 2D +y down = 3D -y; the ortho camera looks down
+## - 1 3D unit = 1 world px; 2D +y down = 3D -y; both ortho cameras look down
 ##   -Z from CAMERA_Z, so a rig at 3D (x, -y, 0) sits on world px (x, y).
-## - Camera sync is ONE read, two consumers: on `RenderingServer.frame_pre_draw`
+## - `WorldBack` owns the World3D (rigs, light, environment exist once);
+##   `WorldFront` shares it. The cameras split the world at the ring plane by
+##   near/far ([method clip_planes]).
+## - Camera sync is ONE read, four consumers: on `RenderingServer.frame_pre_draw`
 ##   the root viewport's canvas transform x stretch transform (what is actually
-##   drawn, after Camera2D smoothing/limits) feeds both the Camera3D and the
-##   composite sprite via [method map_view]. Zero frame lag by construction:
+##   drawn, after Camera2D smoothing/limits) feeds both cameras and both
+##   composites via [method map_view]. Zero frame lag by construction:
 ##   `frame_pre_draw` fires after every `_process` and before the draw, and
 ##   node transforms reach the RenderingServer synchronously.
-## - The SubViewport is the root viewport's PIXEL size (window px, not the
-##   stretch-logical size), so fill cost is the real thing and texels are 1:1.
+## - Both SubViewports are the root viewport's PIXEL size (window px, not the
+##   stretch-logical size), so fill cost is the real thing and texels are 1:1;
+##   both are 4x MSAA.
 ## - No glow inside: `project.godot`'s `default_environment` (the game's bloom
 ##   env) would otherwise apply to this own world too, so the scene pins a
-##   plain no-glow Environment. HDR values ride the RGBA16F target
-##   (`use_hdr_2d`) into the root viewport's single bloom pass — or don't; that
-##   verdict is #804's acceptance 1.
-## - Behind-the-disk read, shape A: [method add_rig] parks a depth-only disc
-##   at z=0 per rig (writes depth, adds nothing to colour, drawn first among
-##   transparents) so the far half of a HOLO_GLASS ring inside the disk radius
-##   is culled and the 2D disk shows through the transparent background.
-## - Shape A2 ([member split], `gimbal_world_split.tscn`): no occluder. A
-##   SECOND SubViewport shares the first's World3D (rigs exist once) and a
-##   second Camera3D fed from the same [method map_view] read; the two cameras
-##   split the world at the ring plane by near/far ([method clip_planes]).
-##   The back half composites just UNDER the node disks, the front half at
-##   ZLayers.GIMBAL, so the real 2D disk sits between the halves: hidden
-##   exactly where a disk is, visible everywhere else, and opaque rings order
-##   correctly because a clip plane does not care about draw order.
+##   plain no-glow Environment. HDR values ride the RGBA16F targets
+##   (`use_hdr_2d`) into the root viewport's single bloom pass.
+## - Idle: both render targets are DISABLED while no rig is on screen
+##   ([method visible_rig_count]). Each holder carries a
+##   VisibleOnScreenNotifier3D; but a sleeping viewport culls nothing, so its
+##   notifiers can never report "entered" — while asleep, [method _sync_camera]
+##   wakes the world on a cheap sphere-vs-view test and the notifiers take over.
+## - One world per viewport: authored beside the Graph in `game_root.tscn` and
+##   found by group ([method acquire]).
 
 const ZLayers := preload("res://ui/z_layers.gd")
 const SCENE := "res://skill_node/visuals/gimbal_3d/gimbal_world.tscn"
-const SPLIT_SCENE := "res://skill_node/visuals/gimbal_3d/gimbal_world_split.tscn"
+const GROUP := &"gimbal_world"
 
 ## Camera distance above the ring plane, in world px (= 3D units).
 const CAMERA_Z := 1000.0
 ## Nearest clip distance of the front camera, in world px: rings never rise
 ## above z = +3.4 disk radii, so anything short of CAMERA_Z is safe.
 const NEAR := 1.0
-const OCCLUDER_SEGMENTS := 48
 
 ## Per-rig centre light (owner direction on #804): an OmniLight3D at the
 ## rig's origin lights the rings' INNER walls (their normals face it) and
@@ -58,46 +59,38 @@ const LIGHT_RANGE_SCALE := 4.5
 const LIGHT_ATTENUATION := 0.0
 const LIGHT_SPECULAR := 0.15
 
-## Depth-only disc: transparent pipeline (so it draws in the same pass as the
-## glass rings), lowest priority so it lands first, always writes depth, and
-## blend_add of black at alpha 0 leaves colour AND alpha untouched.
-const OCCLUDER_SHADER := """
-shader_type spatial;
-render_mode unshaded, blend_add, depth_draw_always, cull_disabled, shadows_disabled;
-void fragment() {
-	ALBEDO = vec3(0.0);
-	ALPHA = 0.0;
-}
-"""
-
-static var _occluder_mat: ShaderMaterial
-
-## A2: two cameras split at the ring plane, back composite under the disks.
-## Set by `gimbal_world_split.tscn`, which also carries the second viewport.
-@export var split := false
-
-@onready var _world: SubViewport = %World
-@onready var _camera: Camera3D = %Camera3D
+@onready var _world_back: SubViewport = %WorldBack
+@onready var _world_front: SubViewport = %WorldFront
+@onready var _camera_back: Camera3D = %Camera3DBack
+@onready var _camera_front: Camera3D = %Camera3DFront
 @onready var _rigs: Node3D = %Rigs
-@onready var _composite: Sprite2D = %Composite
-# Split-only nodes: absent in shape A's scene, so never `%`-bound up front.
-@onready var _world_front: SubViewport = get_node_or_null(^"WorldFront")
-@onready var _camera_front: Camera3D = get_node_or_null(^"WorldFront/Camera3DFront")
-@onready var _composite_front: Sprite2D = get_node_or_null(^"CompositeFront")
+@onready var _composite_back: Sprite2D = %CompositeBack
+@onready var _composite_front: Sprite2D = %CompositeFront
 
 var _root: Viewport
+## notifier -> on screen, per live holder. The count of `true`s gates rendering.
+var _on_screen: Dictionary = {}
+var _awake := false
 
 
-## The one GimbalWorld of `host`'s viewport: found by group, else `scene`
-## (shape A's by default, [constant SPLIT_SCENE] for A2) instanced as a
-## sibling of `host` (same canvas, so the same camera transform applies).
-static func acquire(host: Node2D, scene: String = SCENE) -> GimbalWorld:
+## The one GimbalWorld of `host`'s viewport: found by group; else [constant SCENE]
+## instanced under the nearest Graph ancestor of `host` (the board's canvas,
+## never inside a SkillNode's ShaderStack); else, with no Graph at all (bare
+## fixtures), as a sibling of `host`.
+static func acquire(host: Node2D) -> GimbalWorld:
 	var vp := host.get_viewport()
-	for w in host.get_tree().get_nodes_in_group(&"gimbal_world"):
+	for w in host.get_tree().get_nodes_in_group(GROUP):
 		if w is GimbalWorld and w.get_viewport() == vp:
 			return w
-	var world: GimbalWorld = (load(scene) as PackedScene).instantiate()
-	host.get_parent().add_child(world)
+	var world: GimbalWorld = (load(SCENE) as PackedScene).instantiate()
+	var parent := host.get_parent()
+	var n := parent
+	while n != null:
+		if n is Graph:
+			parent = n
+			break
+		n = n.get_parent()
+	parent.add_child(world)
 	return world
 
 
@@ -128,20 +121,31 @@ static func clip_planes(front: bool) -> Vector2:
 	return Vector2(CAMERA_Z, CAMERA_Z * 2.0)
 
 
+func _enter_tree() -> void:
+	# In the group before ANY `_ready` of the scene runs: `acquire` from a
+	# SkillNode's `_ready` (the Graph is an earlier sibling) must find it.
+	add_to_group(GROUP)
+
+
 func _ready() -> void:
-	add_to_group(&"gimbal_world")
 	z_as_relative = false
-	if split:
-		_setup_split()
-	else:
-		z_index = ZLayers.GIMBAL
+	_world_front.world_3d = _world_back.find_world_3d()
+	var back := clip_planes(false)
+	_camera_back.near = back.x
+	_camera_back.far = back.y
+	var front := clip_planes(true)
+	_camera_front.near = front.x
+	_camera_front.far = front.y
+	_composite_back.z_as_relative = false
+	_composite_back.z_index = ZLayers.GRAPH_DEFAULT - 1
+	_composite_front.z_as_relative = false
+	_composite_front.z_index = ZLayers.GIMBAL
+	_set_awake(false)
 	_root = get_viewport()
 	_root.size_changed.connect(_resize)
 	_resize()
 	RenderingServer.frame_pre_draw.connect(_sync_camera)
 	_sync_camera()
-	if "--hdr-probe" in OS.get_cmdline_user_args():
-		_hdr_probe()
 
 
 func _exit_tree() -> void:
@@ -149,37 +153,12 @@ func _exit_tree() -> void:
 		RenderingServer.frame_pre_draw.disconnect(_sync_camera)
 
 
-## A2 wiring: the front viewport draws the SAME World3D (rigs, light,
-## environment exist once); the cameras take the split's near/far; the two
-## composites get ABSOLUTE z so the back one lands under the disks whatever
-## this node's own z is.
-func _setup_split() -> void:
-	z_index = ZLayers.GRAPH_DEFAULT
-	_world_front.world_3d = _world.find_world_3d()
-	var back := clip_planes(false)
-	_camera.near = back.x
-	_camera.far = back.y
-	var front := clip_planes(true)
-	_camera_front.near = front.x
-	_camera_front.far = front.y
-	_composite.z_as_relative = false
-	_composite.z_index = ZLayers.GRAPH_DEFAULT - 1
-	_composite_front.z_as_relative = false
-	_composite_front.z_index = ZLayers.GIMBAL
-
-
-## Places `rig` at world px `world_pos` with a depth-only disc of `disk_radius`
-## under it (shape A only); returns the holder to move/free later.
+## Places `rig` at world px `world_pos` over a disk of `disk_radius` (the
+## centre light's range scales with it); returns the holder to move/free later.
 func add_rig(rig: Gimbal3D, world_pos: Vector2, disk_radius: float) -> Node3D:
 	var holder := Node3D.new()
 	holder.position = to_world_3d(world_pos)
 	holder.add_child(rig)
-	if not split:
-		var occluder := MeshInstance3D.new()
-		occluder.mesh = _disc_mesh(disk_radius)
-		occluder.material_override = _occluder_material()
-		occluder.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		holder.add_child(occluder)
 	var light := OmniLight3D.new()
 	light.omni_range = disk_radius * LIGHT_RANGE_SCALE
 	light.light_energy = LIGHT_ENERGY
@@ -187,7 +166,18 @@ func add_rig(rig: Gimbal3D, world_pos: Vector2, disk_radius: float) -> Node3D:
 	light.light_specular = LIGHT_SPECULAR
 	light.shadow_enabled = false
 	holder.add_child(light)
+	# In the tree first: the rig builds its rings (and their radii) in `_ready`.
 	_rigs.add_child(holder)
+	var r := _outer_radius(rig, disk_radius * LIGHT_RANGE_SCALE)
+	var notifier := VisibleOnScreenNotifier3D.new()
+	notifier.name = &"OnScreen"
+	notifier.aabb = AABB(Vector3(-r, -r, -r), Vector3(r, r, r) * 2.0)
+	holder.add_child(notifier)
+	_on_screen[notifier] = false
+	notifier.screen_entered.connect(_on_notifier.bind(notifier, true))
+	notifier.screen_exited.connect(_on_notifier.bind(notifier, false))
+	holder.tree_exiting.connect(_forget.bind(notifier))
+	_recount()
 	return holder
 
 
@@ -195,12 +185,50 @@ func rig_count() -> int:
 	return _rigs.get_child_count()
 
 
+## Holders whose notifier currently reports on screen.
 func visible_rig_count() -> int:
-	return 0
+	return _on_screen.values().count(true)
+
+
+## The back half's render target (the `--hdr-probe` reads it).
+func back_texture() -> ViewportTexture:
+	return _world_back.get_texture()
 
 
 static func to_world_3d(world_pos: Vector2) -> Vector3:
 	return Vector3(world_pos.x, -world_pos.y, 0.0)
+
+
+## The rig's rotation sphere: its outermost ring's radius (`outer_radius` meta
+## on each ring mesh), or `fallback` before it has built any.
+static func _outer_radius(rig: Gimbal3D, fallback: float) -> float:
+	var r := 0.0
+	for c in rig.get_children():
+		if c.has_meta(&"outer_radius"):
+			r = maxf(r, float(c.get_meta(&"outer_radius")))
+	return r if r > 0.0 else fallback
+
+
+func _on_notifier(notifier: VisibleOnScreenNotifier3D, on: bool) -> void:
+	if _on_screen.has(notifier):
+		_on_screen[notifier] = on
+		_recount()
+
+
+func _forget(notifier: VisibleOnScreenNotifier3D) -> void:
+	_on_screen.erase(notifier)
+	_recount()
+
+
+func _recount() -> void:
+	_set_awake(visible_rig_count() > 0)
+
+
+func _set_awake(awake: bool) -> void:
+	_awake = awake
+	var mode := SubViewport.UPDATE_ALWAYS if awake else SubViewport.UPDATE_DISABLED
+	_world_back.render_target_update_mode = mode
+	_world_front.render_target_update_mode = mode
 
 
 func _pixel_size() -> Vector2i:
@@ -214,70 +242,32 @@ func _pixel_size() -> Vector2i:
 func _resize() -> void:
 	var px := _pixel_size()
 	if px.x > 0 and px.y > 0:
-		_world.size = px
-		if split:
-			_world_front.size = px
+		_world_back.size = px
+		_world_front.size = px
 
 
 func _sync_camera() -> void:
 	if not is_inside_tree():
 		return
 	var xf := _root.get_final_transform() * _root.get_canvas_transform()
-	var m := map_view(xf, Vector2(_pixel_size()))
-	_camera.position = m["camera_position"]
-	_camera.size = m["camera_size"]
-	_composite.position = m["sprite_position"]
-	_composite.scale = m["sprite_scale"]
-	if split:
-		_camera_front.position = m["camera_position"]
-		_camera_front.size = m["camera_size"]
-		_composite_front.position = m["sprite_position"]
-		_composite_front.scale = m["sprite_scale"]
+	var px := Vector2(_pixel_size())
+	var m := map_view(xf, px)
+	for cam: Camera3D in [_camera_back, _camera_front]:
+		cam.position = m["camera_position"]
+		cam.size = m["camera_size"]
+	for sprite: Sprite2D in [_composite_back, _composite_front]:
+		sprite.position = m["sprite_position"]
+		sprite.scale = m["sprite_scale"]
+	if not _awake and not _on_screen.is_empty():
+		_wake_if_in_view(Rect2(m["sprite_position"], px * Vector2(m["sprite_scale"])))
 
 
-## The HDR-carry probe (#804 acceptance 1): after the rigs have spun for a
-## second, print the brightest texel of the sub viewport's texture. > 1.0
-## means the RGBA16F target carries emissives above white into the root
-## viewport's bloom pass; == 1.0 means the 3D tonemap clamped them.
-func _hdr_probe() -> void:
-	await get_tree().create_timer(3.0).timeout
-	var img := _world.get_texture().get_image()
-	var peak := 0.0
-	var peak_px := Color()
-	var above := 0
-	for y in range(0, img.get_height(), 2):
-		for x in range(0, img.get_width(), 2):
-			var c := img.get_pixel(x, y)
-			var m := maxf(c.r, maxf(c.g, c.b))
-			if m > 1.0:
-				above += 1
-			if m > peak:
-				peak = m
-				peak_px = c
-	print("hdr-probe: format=%d size=%s peak=%.3f at %s texels>1.0=%d rigs=%d" % [
-		img.get_format(), img.get_size(), peak, peak_px, above, rig_count()])
-
-
-static func _occluder_material() -> ShaderMaterial:
-	if _occluder_mat == null:
-		var sh := Shader.new()
-		sh.code = OCCLUDER_SHADER
-		_occluder_mat = ShaderMaterial.new()
-		_occluder_mat.shader = sh
-		_occluder_mat.render_priority = -1
-	return _occluder_mat
-
-
-static func _disc_mesh(radius: float) -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for i in OCCLUDER_SEGMENTS:
-		var a0 := TAU * float(i) / OCCLUDER_SEGMENTS
-		var a1 := TAU * float(i + 1) / OCCLUDER_SEGMENTS
-		st.set_normal(Vector3.BACK)
-		st.add_vertex(Vector3.ZERO)
-		st.set_normal(Vector3.BACK)
-		st.add_vertex(Vector3(cos(a1), sin(a1), 0.0) * radius)
-		st.set_normal(Vector3.BACK)
-		st.add_vertex(Vector3(cos(a0), sin(a0), 0.0) * radius)
-	return st.commit()
+## Asleep, the notifiers are blind (nothing is culled); wake on the first
+## holder whose rotation sphere touches the view, and let them take over.
+func _wake_if_in_view(view: Rect2) -> void:
+	for notifier: VisibleOnScreenNotifier3D in _on_screen:
+		var p := notifier.global_position
+		var r := notifier.aabb.size.x * 0.5
+		if view.grow(r).has_point(Vector2(p.x, -p.y)):
+			_set_awake(true)
+			return
