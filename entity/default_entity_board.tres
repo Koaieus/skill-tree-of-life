@@ -67,6 +67,13 @@
 [ext_resource type="Resource" uid="uid://dvpjmk8e3m08k" path="res://stats_system/defs/wisdom.tres" id="def_wisdom"]
 [ext_resource type="Resource" path="res://stats_system/defs/wither_potency.tres" id="def_wither_potency"]
 [ext_resource type="Resource" path="res://stats_system/defs/wither_resistance.tres" id="def_wither_resistance"]
+[ext_resource type="Resource" path="res://stats_system/defs/poison_stacks_per_hit.tres" id="def_poison_stacks_per_hit"]
+[ext_resource type="Resource" path="res://stats_system/defs/corruption_stacks_per_hit.tres" id="def_corruption_stacks_per_hit"]
+[ext_resource type="Resource" path="res://stats_system/defs/curse_stacks_per_hit.tres" id="def_curse_stacks_per_hit"]
+[ext_resource type="Resource" path="res://stats_system/defs/wither_stacks_per_hit.tres" id="def_wither_stacks_per_hit"]
+[ext_resource type="Resource" path="res://stats_system/defs/dot_stacks_per_hit.tres" id="def_dot_stacks_per_hit"]
+[ext_resource type="Resource" path="res://stats_system/defs/blindness_potency.tres" id="def_blindness_potency"]
+[ext_resource type="Resource" path="res://stats_system/defs/blindness_resistance.tres" id="def_blindness_resistance"]
 [ext_resource type="Resource" uid="uid://dj0fpcgn42hcn" path="res://stats_system/defs/wound_heal_per_turn.tres" id="def_wound_heal_per_turn"]
 [ext_resource type="Resource" uid="uid://b04rych6tmpxr" path="res://stats_system/defs/xp.tres" id="def_xp"]
 [ext_resource type="Resource" path="res://stats_system/defs/xp_per_turn.tres" id="def_xp_per_turn"]
@@ -509,6 +516,42 @@ resource_name = "poison_resistance"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_poison_resistance")
 
+[sub_resource type="Resource" id="scalar_poison_stacks_per_hit"]
+resource_name = "poison_stacks_per_hit"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_poison_stacks_per_hit")
+
+[sub_resource type="Resource" id="scalar_corruption_stacks_per_hit"]
+resource_name = "corruption_stacks_per_hit"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_corruption_stacks_per_hit")
+
+[sub_resource type="Resource" id="scalar_curse_stacks_per_hit"]
+resource_name = "curse_stacks_per_hit"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_curse_stacks_per_hit")
+
+[sub_resource type="Resource" id="scalar_wither_stacks_per_hit"]
+resource_name = "wither_stacks_per_hit"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_wither_stacks_per_hit")
+
+[sub_resource type="Resource" id="scalar_dot_stacks_per_hit"]
+resource_name = "dot_stacks_per_hit"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_dot_stacks_per_hit")
+
+[sub_resource type="Resource" id="scalar_blindness_potency"]
+resource_name = "blindness_potency"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_blindness_potency")
+base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_blindness_resistance"]
+resource_name = "blindness_resistance"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_blindness_resistance")
+
 [sub_resource type="Resource" id="scalar_range"]
 resource_name = "range"
 script = ExtResource("2_scalar")
@@ -650,6 +693,13 @@ poison_resistance = SubResource("scalar_poison_resistance")
 corruption_resistance = SubResource("scalar_corruption_resistance")
 curse_resistance = SubResource("scalar_curse_resistance")
 wither_resistance = SubResource("scalar_wither_resistance")
+poison_stacks_per_hit = SubResource("scalar_poison_stacks_per_hit")
+corruption_stacks_per_hit = SubResource("scalar_corruption_stacks_per_hit")
+curse_stacks_per_hit = SubResource("scalar_curse_stacks_per_hit")
+wither_stacks_per_hit = SubResource("scalar_wither_stacks_per_hit")
+dot_stacks_per_hit = SubResource("scalar_dot_stacks_per_hit")
+blindness_potency = SubResource("scalar_blindness_potency")
+blindness_resistance = SubResource("scalar_blindness_resistance")
 dealloc_damage = SubResource("scalar_dealloc_damage")
 spikes = SubResource("scalar_spikes")
 spike_regen = SubResource("scalar_spike_regen")

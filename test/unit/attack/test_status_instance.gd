@@ -11,6 +11,8 @@ const _TEST_DEF := preload("res://test/fixtures/status/test_status.tres")
 ## Same shape with `potency_stat_id` / `resistance_stat_id` naming the poison
 ## pair (#963) — a `.tres` so it survives an AttackRecord round trip by path.
 const _SCALED_DEF := preload("res://test/fixtures/status/test_scaled_status.tres")
+const _POISON := preload("res://effects/status/poison.tres")
+const _BLINDNESS := preload("res://effects/status/blindness.tres")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -136,6 +138,53 @@ func test_blank_ids_leave_power_unscaled() -> void:
 	hit.attacker = _attacker
 	OutcomeApplier.land_one(hit, CombatWorld.live())
 	assert_almost_eq(_node.get_combat().get_status_power(&"test_status"), 2.0, 0.0001)
+
+
+## A poison hit of [param per_hit] from `_attacker`, potency 1.21 and the
+## defender's resistance 0.3, with the two flat extra-stacks stats set.
+func _poison_hit(per_hit: float, family_extra: float, umbrella_extra: float) -> StatusInstance:
+	_attacker.stat_board.get_stat(&"poison_potency").base_value = 1.21
+	_entity.stat_board.get_stat(&"poison_resistance").base_value = 0.3
+	_attacker.stat_board.get_stat(&"poison_stacks_per_hit").base_value = family_extra
+	_attacker.stat_board.get_stat(&"dot_stacks_per_hit").base_value = umbrella_extra
+	var hit := _status_hit(per_hit, _POISON)
+	hit.attacker = _attacker
+	return hit
+
+
+func test_family_extra_stacks_add_flat_before_potency() -> void:
+	var hit := _poison_hit(0.5, 1.0, 0.0)
+	OutcomeApplier.land_one(hit, CombatWorld.live())
+	assert_almost_eq(_node.get_combat().get_status_power(&"poison"), 1.5 * 1.21 * 0.7, 0.0001,
+			"(0.5 + 1) × 1.21 × (1 − 0.3)")
+	assert_almost_eq(hit.effective_amount, 1.5 * 1.21 * 0.7, 0.0001)
+
+
+func test_the_umbrella_sums_with_the_family_stat_before_potency() -> void:
+	var hit := _poison_hit(0.5, 1.0, 0.5)
+	OutcomeApplier.land_one(hit, CombatWorld.live())
+	assert_almost_eq(_node.get_combat().get_status_power(&"poison"), 2.0 * 1.21 * 0.7, 0.0001,
+			"(0.5 + 1 + 0.5) × 1.21 × (1 − 0.3)")
+
+
+func test_blindness_ignores_the_dot_extra_stacks() -> void:
+	_attacker.stat_board.get_stat(&"poison_stacks_per_hit").base_value = 1.0
+	_attacker.stat_board.get_stat(&"dot_stacks_per_hit").base_value = 0.5
+	var hit := _status_hit(1.0, _BLINDNESS)
+	hit.attacker = _attacker
+	OutcomeApplier.land_one(hit, CombatWorld.live())
+	assert_almost_eq(_node.get_combat().get_status_power(&"blindness"), 1.0, 0.0001,
+			"blindness lists no extra-stacks stat")
+
+
+func test_blindness_scales_by_its_own_potency_and_resistance() -> void:
+	_attacker.stat_board.get_stat(&"blindness_potency").base_value = 2.0
+	_entity.stat_board.get_stat(&"blindness_resistance").base_value = 0.25
+	var hit := _status_hit(1.0, _BLINDNESS)
+	hit.attacker = _attacker
+	OutcomeApplier.land_one(hit, CombatWorld.live())
+	assert_almost_eq(_node.get_combat().get_status_power(&"blindness"), 1.5, 0.0001,
+			"1 × 2 × (1 − 0.25)")
 
 
 func test_a_shadow_land_reads_the_shadow_nodes_resistance_never_the_live_one() -> void:

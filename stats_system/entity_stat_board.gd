@@ -97,6 +97,29 @@ extends StatBoard
 ## Fraction of incoming wither stacks a node shrugs off (#963). Read node-locally
 ## via get_local_value like armor. Reduces stacks incurred, never decay. Default 0.
 @export var wither_resistance: ScalarStat
+## Flat poison stacks added to each poison application this entity lands, before
+## poison_potency: (per-hit + this + dot_stacks_per_hit) x potency x
+## (1 - resistance). Default 0.
+@export var poison_stacks_per_hit: ScalarStat
+## Flat corruption stacks added to each corruption application this entity lands, before
+## corruption_potency: (per-hit + this + dot_stacks_per_hit) x potency x
+## (1 - resistance). Default 0.
+@export var corruption_stacks_per_hit: ScalarStat
+## Flat curse stacks added to each curse application this entity lands, before
+## curse_potency: (per-hit + this + dot_stacks_per_hit) x potency x
+## (1 - resistance). Default 0.
+@export var curse_stacks_per_hit: ScalarStat
+## Flat wither stacks added to each wither application this entity lands, before
+## wither_potency: (per-hit + this + dot_stacks_per_hit) x potency x
+## (1 - resistance). Default 0.
+@export var wither_stacks_per_hit: ScalarStat
+## Flat stacks added to every poison/corruption/curse/wither application, before
+## that family's potency — the umbrella; never blindness/armor-break. Default 0.
+@export var dot_stacks_per_hit: ScalarStat
+## Multiplier on the blindness this entity's hits land, as poison_potency. Default 1.0.
+@export var blindness_potency: ScalarStat
+## Fraction of incoming blindness a node shrugs off, read node-locally. Default 0.
+@export var blindness_resistance: ScalarStat
 ## Flat HP damage dealt to this entity per node forced-deallocated in a battle
 ## cascade. Bypasses mitigation (currency-exchange semantics — the cascade also
 ## wounds 1 SP per node, separately). Default 1; fragile-core classes raise it.

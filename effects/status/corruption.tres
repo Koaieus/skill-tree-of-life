@@ -12,6 +12,7 @@ tint = Color(0.6, 0.25, 0.85, 1)
 tags = Array[StringName]([&"debuff", &"dot"])
 potency_stat_id = &"corruption_potency"
 resistance_stat_id = &"corruption_resistance"
+extra_stacks_stat_ids = Array[StringName]([&"corruption_stacks_per_hit", &"dot_stacks_per_hit"])
 power_max = 0.0
 decay_mode = 1
 decay_per_tick = 0.5

@@ -12,6 +12,7 @@ tint = Color(0.7, 0.55, 0.25, 1)
 tags = Array[StringName]([&"debuff"])
 potency_stat_id = &"wither_potency"
 resistance_stat_id = &"wither_resistance"
+extra_stacks_stat_ids = Array[StringName]([&"wither_stacks_per_hit", &"dot_stacks_per_hit"])
 power_max = 0.0
 decay_mode = 1
 decay_per_tick = 0.5

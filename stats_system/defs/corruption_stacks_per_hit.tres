@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"corruption_stacks_per_hit"
+display_name = "Corruption Stacks per Hit"
+description = "Flat corruption stacks added to every corruption application this entity lands, before Corruption Potency: landed = (per-hit + Corruption Stacks per Hit + DoT Stacks per Hit) x Corruption Potency x (1 - target's Corruption Resistance), resolved once at land (#1089). Flat, so it doubles a 0.5-stack dart and barely touches an 8-stack cast. Only boosts a corruption application that already happens — never applies corruption on its own. Default 0; entity-scope only."
+value_type = 1
+default_value = 0.0
+tint_color = Color(0.55, 0.85, 0.45, 1)
+modifier_name = "Corruption Stacks per Hit"

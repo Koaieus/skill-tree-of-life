@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"dot_stacks_per_hit"
+display_name = "DoT Stacks per Hit"
+description = "Flat stacks added to every poison, corruption, curse and wither application this entity lands, before that family's potency (#1089) — the archive umbrella: lands more of whatever DoT you already apply, never scales damage across families. Not blindness or armor-break. Default 0; entity-scope only."
+value_type = 1
+default_value = 0.0
+tint_color = Color(0.55, 0.85, 0.45, 1)
+modifier_name = "DoT Stacks per Hit"

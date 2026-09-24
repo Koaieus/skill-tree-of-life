@@ -65,6 +65,13 @@ enum DecayMode {
 ## landing node (e.g. `&"poison_resistance"`), applied as `× (1 − value)`.
 ## Reduces stacks incurred, never decay. Blank → unscaled (×1).
 @export var resistance_stat_id: StringName = &""
+## Attacker-side flat stack stats summed into the per-hit power BEFORE
+## potency: `(power + Σ attacker value) × potency × (1 − resistance)`, read in
+## [method StatusInstance.land_on]. The four DoT families list their own
+## `<family>_stacks_per_hit` plus the shared `dot_stacks_per_hit`; a status
+## that must not grow per hit lists nothing. Null attacker or an unknown id
+## contributes 0.
+@export var extra_stacks_stat_ids: Array[StringName] = []
 ## Power is clamped to this on apply and on accumulate. `<= 0` → uncapped
 ## (#962): [method NodeCombat.apply_status] skips the clamp entirely.
 @export var power_max: float = 1.0
