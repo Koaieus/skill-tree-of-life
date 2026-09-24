@@ -84,6 +84,7 @@ func to_dict() -> Dictionary:
 		"core_class": core_class.resource_path if core_class != null else "",
 		"kind": kind,
 		"peer_id": peer_id,
+		"ai_tier": ai_tier,
 	}
 
 
@@ -98,4 +99,5 @@ static func from_dict(d: Dictionary) -> Participant:
 	p.core_class = load(core_path) as CoreClass if core_path != "" else null
 	p.kind = int(d.get("kind", Kind.HUMAN)) as Kind
 	p.peer_id = int(d.get("peer_id", 0))
+	p.ai_tier = int(d.get("ai_tier", 2))
 	return p

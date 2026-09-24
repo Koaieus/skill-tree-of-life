@@ -632,8 +632,7 @@ func hand_seat_to_ai(participant: Participant) -> void:
 			# until the frame's free flush.
 			ent.remove_child(old)
 			old.queue_free()
-		ai = AIController.new()
-		ai.name = "AIController"
+		ai = _new_ai_controller(ent)
 		ent.add_child(ai)
 	if turn_manager.current_entity == ent:
 		ai.take_turn()
@@ -942,9 +941,23 @@ func _ensure_controllers() -> void:
 			ctrl = PlayerController.new()
 			ctrl.name = "PlayerController"
 		else:
-			ctrl = AIController.new()
-			ctrl.name = "AIController"
+			ctrl = _new_ai_controller(ent)
 		ent.add_child(ctrl)
+
+
+## The one place an [AIController] is built. Its tier is the seat's
+## [member Participant.ai_tier], looked up in [member GameSession.roster] by
+## [member Entity.participant_id]; with no roster or no matching seat (a
+## hand-authored sandbox) the controller keeps [constant AIController.DEFAULT_TIER].
+## Nothing else in production writes [member AIController.ai_tier].
+func _new_ai_controller(ent: Entity) -> AIController:
+	var ai := AIController.new()
+	ai.name = "AIController"
+	if GameSession.roster != null and ent.participant_id != 0:
+		var seat := GameSession.roster.by_id(ent.participant_id)
+		if seat != null:
+			ai.ai_tier = seat.ai_tier as AIController.Tier
+	return ai
 
 
 ## Applies each roster participant's authored camp + control-kind + name onto its
@@ -1022,9 +1035,7 @@ func spawn_entity(
 		allocation_system.force_allocate(ent, core_location)
 		ent.core_location = core_location
 	if with_ai:
-		var ai := AIController.new()
-		ai.name = "AIController"
-		ent.add_child(ai)
+		ent.add_child(_new_ai_controller(ent))
 	return ent
 
 
