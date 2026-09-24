@@ -281,8 +281,8 @@ func _restore_halos(root: GameRoot) -> void:
 	_look_before.clear()
 
 
-func _composite(n: SkillNode) -> NodeVisualsComposite:
-	return n.find_child("NodeVisualsComposite", true, false) as NodeVisualsComposite
+func _composite(n: SkillNode) -> Node:
+	return n.find_child("NodeVisualsComposite", true, false)
 
 
 ## The look the node's CorePresence slot wears, or null.
