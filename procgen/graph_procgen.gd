@@ -340,7 +340,8 @@ static func generate(
 				sn.modifiers = _roll_modifiers_v4(
 						config.content.modifier_pool_set, config.content.weight_profiles,
 						archetype_id, archetype_primary_stat, archetype_forbid,
-						positions[i], i, budget, rng, fp, node_subtype)
+						positions[i], i, budget, rng, fp, node_subtype,
+						config.content.universal_share)
 			sn.set_meta("procgen_footprint", fp)
 			# Stamps NodeVisualsComposite's archetype_tint (persistent type
 			# identity, rim/sensed-outline colour). Owner colour stays free to
@@ -1220,6 +1221,7 @@ static func _roll_modifiers_v4(
 		# Last and defaulted on purpose: every existing caller passes `fp`
 		# positionally, and a subtype-less caller is a node with no subtype.
 		subtype: NodeSubtype = null,
+		universal_share: float = GraphProcgenContent.DEFAULT_UNIVERSAL_SHARE,
 ) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
 	fp["phase"] = "v4"
@@ -1245,7 +1247,7 @@ static func _roll_modifiers_v4(
 	var draws := 0
 
 	while remaining > 0:
-		var entry := _v4_weighted_pick(entries, profiles, ctx, remaining, rng)
+		var entry := _v4_weighted_pick(entries, profiles, ctx, remaining, rng, universal_share)
 		if entry == null:
 			break
 		rolled.append(entry.roll(rng), entry.cost, entry)
@@ -1310,6 +1312,22 @@ static func _is_neutral_result(mod: StatModifier) -> bool:
 		v = ModifierPoolEntry.coerce_to_stat_type(mod.value, mod.operation, mod.stat_id)
 	return is_zero_approx(StatModifier.displacement_from_neutral(mod.operation, v))
 
+## The v4 pick as a distribution: entry → probability, summing to 1, or empty
+## when nothing is drawable (the node is broke). Three levels, each
+## renormalized over what is drawable at THIS pick — an entry is drawable iff
+## it passes `forbid_tags`, every profile leaves it a positive multiplier, and
+## (for the tier level) it is affordable:
+##   group — universal (`entry.universal`) gets `universal_share`, archetype the
+##           rest; a group with nothing drawable cedes the whole pick.
+##   pool  — `pool_weight × m̄` within its group, `m̄ = Σ w_t·m_t / Σ w_t` over
+##           the pool's drawable tiers regardless of budget, so a pool with any
+##           affordable tier keeps its full mass (budget reshapes tiers only);
+##           a pool with none drops out and its siblings share its mass.
+##   tier  — `w_t·m_t` over the pool's affordable drawable tiers.
+## `w_t` is the entry's bare tier weight, `m_t` the product of profile
+## multipliers. Pools are keyed by `pool_key` (a keyless hand-built entry is its
+## own pool) in first-appearance order, so iteration is entry order and every
+## peer reproduces the same distribution. Zero-probability entries are omitted.
 static func _v4_pick_distribution(
 		entries: Array[ModifierPoolEntry],
 		profiles: Array[Resource],
@@ -1317,13 +1335,64 @@ static func _v4_pick_distribution(
 		remaining: int,
 		universal_share: float,
 ) -> Dictionary:
-	return {}
+	var pools := {}
+	for e in entries:
+		if e == null or e.weight <= 0.0 or e.pool_weight <= 0.0:
+			continue
+		if not context.forbid_tags.is_empty() and _has_forbidden_tag(e, context.forbid_tags):
+			continue
+		var wm := e.weight
+		for p in profiles:
+			if p == null:
+				continue
+			wm *= p.multiplier_for(e, context)
+			if wm <= 0.0:
+				break
+		if wm <= 0.0:
+			continue
+		var key: Variant = e.pool_key if e.pool_key != &"" else e
+		if not pools.has(key):
+			pools[key] = {"universal": e.universal, "pool_weight": e.pool_weight,
+				"w": 0.0, "wm": 0.0, "tiers": [], "tier_wm": [], "tier_total": 0.0}
+		var pool: Dictionary = pools[key]
+		pool.w += e.weight
+		pool.wm += wm
+		if e.cost <= remaining:
+			pool.tiers.append(e)
+			pool.tier_wm.append(wm)
+			pool.tier_total += wm
+	# Index 0 = archetype, 1 = universal.
+	var group_mass: Array[float] = [0.0, 0.0]
+	var live: Array[Dictionary] = []
+	for pool: Dictionary in pools.values():
+		if pool.tier_total <= 0.0:
+			continue
+		pool.mass = pool.pool_weight * pool.wm / pool.w
+		pool.group = 1 if pool.universal else 0
+		group_mass[pool.group] += pool.mass
+		live.append(pool)
+	var out := {}
+	if live.is_empty():
+		return out
+	var u := clampf(universal_share, 0.0, 1.0)
+	if group_mass[1] <= 0.0:
+		u = 0.0
+	elif group_mass[0] <= 0.0:
+		u = 1.0
+	var group_p: Array[float] = [1.0 - u, u]
+	for pool in live:
+		var pool_p: float = group_p[pool.group] * pool.mass / group_mass[pool.group]
+		if pool_p <= 0.0:
+			continue
+		for i in pool.tiers.size():
+			out[pool.tiers[i]] = pool_p * pool.tier_wm[i] / pool.tier_total
+	return out
 
 
-## v4 weighted pick: affordable filter + weight profile multiplication, then
-## a single weighted sample. Cost is always positive (#637 retired the
-## negative-cost/refund-cap branch a debuff pool used to get) — one
-## affordability rule for every pool regardless of its rolled value's sign.
+## One weighted sample over [method _v4_pick_distribution] — a single
+## `randf()`, in the distribution's (entry) order. Null iff nothing is
+## drawable. Cost is always positive (#637) — one affordability rule for every
+## pool regardless of its rolled value's sign.
 static func _v4_weighted_pick(
 		entries: Array[ModifierPoolEntry],
 		profiles: Array[Resource],
@@ -1332,36 +1401,17 @@ static func _v4_weighted_pick(
 		rng: RandomNumberGenerator,
 		universal_share: float = GraphProcgenContent.DEFAULT_UNIVERSAL_SHARE,
 ) -> ModifierPoolEntry:
-	var affordable: Array[ModifierPoolEntry] = []
-	var weights: Array[float] = []
-	var total := 0.0
-	for e in entries:
-		if e == null or e.weight <= 0.0:
-			continue
-		if not context.forbid_tags.is_empty() and _has_forbidden_tag(e, context.forbid_tags):
-			continue
-		if e.cost > remaining:
-			continue
-		var w := e.weight
-		for p in profiles:
-			if p == null:
-				continue
-			w *= p.multiplier_for(e, context)
-			if w <= 0.0:
-				break
-		if w <= 0.0:
-			continue
-		affordable.append(e)
-		weights.append(w)
-		total += w
-	if total <= 0.0:
+	var dist := _v4_pick_distribution(entries, profiles, context, remaining, universal_share)
+	if dist.is_empty():
 		return null
-	var r := rng.randf() * total
-	for i in affordable.size():
-		r -= weights[i]
+	var r := rng.randf()
+	var last: ModifierPoolEntry = null
+	for e: ModifierPoolEntry in dist:
+		last = e
+		r -= dist[e]
 		if r <= 0.0:
-			return affordable[i]
-	return affordable.back()
+			return e
+	return last
 
 
 ## Returns a copy of `config` with its generate-time values resolved — the

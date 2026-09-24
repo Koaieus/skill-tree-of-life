@@ -13,7 +13,7 @@ stat_id = &"strength"
 tags = Array[StringName]([&"str", &"flat"])
 unit_value = 3.0
 range_floor = 1.0
-pool_weight = 10.0
+pool_weight = 150.0
 
 [sub_resource type="Resource" id="inc"]
 resource_name = "strength +%"
@@ -23,7 +23,7 @@ operation = 1
 tags = Array[StringName]([&"str", &"percent"])
 unit_value = 7.0
 range_floor = 3.0
-pool_weight = 5.0
+pool_weight = 35.0
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
@@ -35,6 +35,7 @@ tags = Array[StringName]([&"str", &"multiply"])
 unit_value = 0.05
 range_floor = 0.02
 min_tier = 3
+pool_weight = 12.0
 
 [sub_resource type="Resource" id="Resource_u38nb"]
 resource_name = "intelligence +%"
@@ -45,6 +46,7 @@ unit_value = -2.0
 range_floor = -1.0
 max_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+pool_weight = 3.0
 
 [sub_resource type="Resource" id="corruption_pot"]
 resource_name = "corruption_potency +%"
@@ -53,7 +55,7 @@ stat_id = &"corruption_potency"
 operation = 1
 tags = Array[StringName]([&"attack", &"dot", &"percent"])
 unit_value = 7.0
-pool_weight = 0.5
+pool_weight = 3.5
 max_tier = 3
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
 
@@ -63,7 +65,7 @@ script = ExtResource("2_pool")
 stat_id = &"corruption_resistance"
 tags = Array[StringName]([&"defense", &"dot", &"flat"])
 unit_value = 0.05
-pool_weight = 0.25
+pool_weight = 3.5
 min_tier = 2
 max_tier = 4
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])

@@ -9,7 +9,7 @@ script = ExtResource("2_pool")
 stat_id = &"wisdom"
 tags = Array[StringName]([&"wis", &"flat"])
 unit_value = 2.0
-pool_weight = 10.0
+pool_weight = 150.0
 
 [sub_resource type="Resource" id="inc"]
 resource_name = "wisdom +%"
@@ -18,7 +18,7 @@ stat_id = &"wisdom"
 operation = 1
 tags = Array[StringName]([&"wis", &"percent"])
 unit_value = 3.0
-pool_weight = 3.0
+pool_weight = 21.0
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
@@ -29,6 +29,7 @@ operation = 2
 tags = Array[StringName]([&"wis", &"multiply"])
 unit_value = 0.01
 min_tier = 3
+pool_weight = 12.0
 
 [sub_resource type="Resource" id="xpt_inc"]
 resource_name = "xp_per_turn +%"
@@ -37,7 +38,7 @@ stat_id = &"xp_per_turn"
 operation = 1
 tags = Array[StringName]([&"wis", &"percent", &"xp_growth", &"growth"])
 unit_value = 2.0
-pool_weight = 0.5
+pool_weight = 1.5
 max_tier = 2
 
 [resource]

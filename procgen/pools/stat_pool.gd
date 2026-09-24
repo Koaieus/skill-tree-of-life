@@ -113,8 +113,10 @@ extends Resource
 const FLOOR_UNSET := INF
 @export var range_floor: float = FLOOR_UNSET
 
-## Base sampling weight for this pool (the pool-selection axis). Tier weight
-## within a pool is [method tier_weight]; the draw multiplies the two.
+## This pool's share among its drawable siblings in the same group (universal
+## or archetype) — the pool level of the draw. Tier weight within the pool is
+## [method tier_weight], normalized separately: authoring more or pricier tiers
+## never grows the pool's mass. See [method GraphProcgen._v4_pick_distribution].
 @export var pool_weight: float = 1.0
 
 ## How this pool's weight spreads over its tiers — see [TierShape]. Default
@@ -269,10 +271,14 @@ func to_entries(pack_archetype: StringName) -> Array[ModifierPoolEntry]:
 	var op_short := _op_short()
 	var arch_seg := String(pack_archetype) if pack_archetype != &"" else "any"
 	var sub_seg := _subtype_segment()
+	var key := "%s_%s_%s%s" % [stat_id, op_short, arch_seg, sub_seg]
 	for b in _tier_magnitude_bounds():
 		var t: int = b.tier
 		var e := ModifierPoolEntry.new()
-		e.id = StringName("%s_%s_%s%s_t%d" % [stat_id, op_short, arch_seg, sub_seg, t])
+		e.id = StringName("%s_t%d" % [key, t])
+		e.pool_key = StringName(key)
+		e.pool_weight = pool_weight
+		e.universal = pack_archetype == &""
 		e.stat_id = stat_id
 		e.operation = operation
 		# Cost is always positive (#637 — the refund economics of negative
@@ -288,7 +294,7 @@ func to_entries(pack_archetype: StringName) -> Array[ModifierPoolEntry]:
 			e.value_range = Vector2(1.0 + b.lo, 1.0 + b.hi)
 		else:
 			e.value_range = Vector2(b.lo, b.hi)
-		e.weight = pool_weight * tier_weight(t)
+		e.weight = tier_weight(t)
 		# tags = pool tags + ladder auto-tags (tier_N + rarity).
 		var merged: Array[StringName] = []
 		merged.append_array(tags)
@@ -376,7 +382,7 @@ func format_table() -> String:
 		var lo_disp: float = (1.0 + b.lo) if is_mul else b.lo
 		var hi_disp: float = (1.0 + b.hi) if is_mul else b.hi
 		var tc := TierLadder.cost(t)
-		var w := pool_weight * tier_weight(t)
+		var w := tier_weight(t)
 		var ttags := TierLadder.auto_tags(t)
 		lines.append("  T%-3d  %8.2f..%-9.2f  %-4d  %7.3f  %7.2f  %s" % [
 				t, lo_disp, hi_disp, tc, w, (lo_disp + hi_disp) / 2.0, str(ttags)])

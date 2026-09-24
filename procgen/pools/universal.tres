@@ -15,7 +15,7 @@ stat_id = &"node_health"
 operation = 1
 tags = Array[StringName]([&"defense", &"percent"])
 unit_value = 2.5
-pool_weight = 0.5
+pool_weight = 1.5
 max_tier = 2
 
 [sub_resource type="Resource" id="ar"]
@@ -23,7 +23,7 @@ resource_name = "armor +"
 script = ExtResource("2_pool")
 stat_id = &"armor"
 tags = Array[StringName]([&"defense", &"flat"])
-pool_weight = 2.0
+pool_weight = 14.0
 max_tier = 3
 
 [sub_resource type="Resource" id="mv"]
@@ -31,7 +31,7 @@ resource_name = "movement_points +"
 script = ExtResource("2_pool")
 stat_id = &"movement_points"
 tags = Array[StringName]([&"mobility", &"flat"])
-pool_weight = 0.6
+pool_weight = 1.448528137423857
 tier_shape = SubResource("ts_sqrt2")
 max_tier = 2
 
@@ -40,7 +40,7 @@ resource_name = "deallocation_points +"
 script = ExtResource("2_pool")
 stat_id = &"deallocation_points"
 tags = Array[StringName]([&"mobility", &"flat"])
-pool_weight = 0.8
+pool_weight = 1.931370849898476
 tier_shape = SubResource("ts_sqrt2")
 max_tier = 2
 

@@ -9,7 +9,7 @@ script = ExtResource("2_pool")
 stat_id = &"perception"
 tags = Array[StringName]([&"per", &"flat"])
 unit_value = 2.0
-pool_weight = 10.0
+pool_weight = 150.0
 
 [sub_resource type="Resource" id="inc"]
 resource_name = "perception +%"
@@ -18,7 +18,7 @@ stat_id = &"perception"
 operation = 1
 tags = Array[StringName]([&"per", &"percent"])
 unit_value = 7.0
-pool_weight = 3.0
+pool_weight = 21.0
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
@@ -29,6 +29,7 @@ operation = 2
 tags = Array[StringName]([&"per", &"multiply"])
 unit_value = 0.05
 min_tier = 3
+pool_weight = 12.0
 
 [sub_resource type="Resource" id="vr_inc"]
 resource_name = "vision_range +%"
@@ -37,7 +38,7 @@ stat_id = &"vision_range"
 operation = 1
 tags = Array[StringName]([&"per", &"percent", &"vision", &"sense"])
 unit_value = 7.5
-pool_weight = 2.5
+pool_weight = 17.5
 max_tier = 3
 
 [sub_resource type="Resource" id="vr_bn"]
@@ -48,13 +49,14 @@ operation = 3
 tags = Array[StringName]([&"per", &"vision", &"sense"])
 unit_value = 10.0
 max_tier = 2
+pool_weight = 3.0
 
 [sub_resource type="Resource" id="sr"]
 resource_name = "sensor_range +"
 script = ExtResource("2_pool")
 stat_id = &"sensor_range"
 tags = Array[StringName]([&"per", &"sense", &"vision"])
-pool_weight = 2.0
+pool_weight = 6.0
 max_tier = 2
 
 [sub_resource type="Resource" id="scout_arrows"]
@@ -62,7 +64,7 @@ resource_name = "scout_arrows_per_reload +"
 script = ExtResource("2_pool")
 stat_id = &"scout_arrows_per_reload"
 tags = Array[StringName]([&"per", &"flat", &"vision", &"ammo"])
-pool_weight = 0.6
+pool_weight = 1.2
 min_tier = 2
 max_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"

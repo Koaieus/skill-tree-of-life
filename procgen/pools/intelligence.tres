@@ -14,7 +14,7 @@ stat_id = &"intelligence"
 tags = Array[StringName]([&"int", &"flat"])
 unit_value = 10.0
 range_floor = 3.0
-pool_weight = 10.0
+pool_weight = 150.0
 
 [sub_resource type="Resource" id="inc"]
 resource_name = "intelligence +%"
@@ -24,7 +24,7 @@ operation = 1
 tags = Array[StringName]([&"int", &"percent"])
 unit_value = 7.0
 range_floor = 2.0
-pool_weight = 6.0
+pool_weight = 42.0
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
@@ -35,7 +35,7 @@ operation = 2
 tags = Array[StringName]([&"int", &"multiply"])
 unit_value = 0.05
 range_floor = 0.01
-pool_weight = 2.0
+pool_weight = 24.0
 min_tier = 3
 
 [sub_resource type="Resource" id="mana"]
@@ -45,7 +45,7 @@ stat_id = &"mana"
 tags = Array[StringName]([&"int", &"flat", &"magic"])
 unit_value = 1.5
 range_floor = 0.5
-pool_weight = 3.0
+pool_weight = 45.0
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
 
 [sub_resource type="Resource" id="mpt"]
@@ -55,7 +55,7 @@ stat_id = &"mana_per_turn"
 tags = Array[StringName]([&"int", &"flat", &"magic"])
 unit_value = 2.0
 range_floor = 1.0
-pool_weight = 1.5
+pool_weight = 4.5
 max_tier = 2
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
 
@@ -66,7 +66,7 @@ stat_id = &"node_health"
 operation = 1
 unit_value = -2.0
 range_floor = -1.0
-pool_weight = 1.5
+pool_weight = 10.5
 max_tier = 3
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
@@ -77,7 +77,7 @@ stat_id = &"cast_range_distance"
 operation = 1
 unit_value = 10.0
 range_floor = 5.0
-pool_weight = 2.5
+pool_weight = 35.0
 min_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
@@ -86,7 +86,7 @@ subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("9
 resource_name = "cast_range_hops +"
 script = ExtResource("2_pool")
 stat_id = &"cast_range_hops"
-pool_weight = 0.3
+pool_weight = 2.4
 min_tier = 4
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
@@ -98,7 +98,7 @@ stat_id = &"wither_potency"
 operation = 1
 tags = Array[StringName]([&"attack", &"dot", &"percent"])
 unit_value = 7.0
-pool_weight = 0.5
+pool_weight = 3.5
 max_tier = 3
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
 
@@ -108,7 +108,7 @@ script = ExtResource("2_pool")
 stat_id = &"wither_resistance"
 tags = Array[StringName]([&"defense", &"dot", &"flat"])
 unit_value = 0.05
-pool_weight = 0.25
+pool_weight = 3.5
 min_tier = 2
 max_tier = 4
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])

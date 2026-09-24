@@ -13,7 +13,7 @@ script = ExtResource("2_pool")
 stat_id = &"constitution"
 tags = Array[StringName]([&"con", &"defense", &"flat"])
 unit_value = 2.0
-pool_weight = 5.0
+pool_weight = 75.0
 
 [sub_resource type="Resource" id="inc"]
 resource_name = "constitution +%"
@@ -22,7 +22,7 @@ stat_id = &"constitution"
 operation = 1
 tags = Array[StringName]([&"con", &"defense", &"percent"])
 unit_value = 3.0
-pool_weight = 1.5
+pool_weight = 10.5
 max_tier = 3
 
 [sub_resource type="Resource" id="mul"]
@@ -32,7 +32,7 @@ stat_id = &"constitution"
 operation = 2
 tags = Array[StringName]([&"con", &"defense", &"multiply"])
 unit_value = 0.02
-pool_weight = 0.5
+pool_weight = 6.0
 min_tier = 3
 
 [sub_resource type="Resource" id="dex_debuff"]
@@ -43,13 +43,14 @@ operation = 1
 unit_value = -3.0
 range_floor = -1.0
 max_tier = 3
+pool_weight = 7.0
 
 [sub_resource type="Resource" id="Resource_u38nb"]
 resource_name = "min_damage_taken +"
 script = ExtResource("2_pool")
 stat_id = &"min_damage_taken"
 unit_value = -1.0
-pool_weight = 0.3
+pool_weight = 3.5999999999999996
 min_tier = 3
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
@@ -60,7 +61,7 @@ script = ExtResource("2_pool")
 stat_id = &"curse_resistance"
 tags = Array[StringName]([&"defense", &"dot", &"flat"])
 unit_value = 0.05
-pool_weight = 0.25
+pool_weight = 3.5
 min_tier = 2
 max_tier = 4
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])
@@ -72,7 +73,7 @@ stat_id = &"curse_potency"
 operation = 1
 tags = Array[StringName]([&"attack", &"dot", &"percent"])
 unit_value = 7.0
-pool_weight = 0.5
+pool_weight = 3.5
 max_tier = 3
 subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
 
