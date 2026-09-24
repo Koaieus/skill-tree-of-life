@@ -71,7 +71,7 @@ func _assert_layout_clean(bodies: Array[FanLayout.Body], label: String) -> void:
 
 func test_an_unobstructed_body_reaches_its_rest() -> void:
 	var b := _body(Vector2(170, 200), Vector2(60, -100))
-	b.position = Vector2(300, 200)
+	b.position = b.rest + Vector2(30, -25)  # a refresh-sized nudge off rest
 	var bodies: Array[FanLayout.Body] = [b]
 	var steps := FanLayout.settle(bodies, [], _WIDE, _params())
 	assert_true(steps >= 0 and steps <= 60, "settled in %d steps (want 0..60)" % steps)
