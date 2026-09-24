@@ -30,6 +30,7 @@
 [ext_resource type="Script" path="res://network/command_link.gd" id="24_link"]
 [ext_resource type="Script" uid="uid://dwnyeq8jqb23e" path="res://network/network_session.gd" id="25_session"]
 [ext_resource type="Resource" uid="uid://tucatalog00001" path="res://attack/melee/temp_upgrade_catalog.tres" id="26_temp_upgrades"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/gimbal_3d/gimbal_world.tscn" id="30_gimbalworld"]
 
 [node name="GameRoot" type="Node2D" unique_id=599287172]
 script = ExtResource("1_root")
@@ -184,6 +185,8 @@ unique_name_in_owner = true
 script = ExtResource("17_x42w8")
 battle_system = NodePath("../../Systems/BattleSystem")
 metadata/_custom_type_script = "uid://bfj2swvcuavon"
+
+[node name="GimbalWorld" parent="." instance=ExtResource("30_gimbalworld")]
 
 [node name="UI" type="CanvasLayer" parent="." unique_id=2075892469]
 layer = 2
