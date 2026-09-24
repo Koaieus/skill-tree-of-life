@@ -26,7 +26,7 @@ var _host: CanvasItem
 ## that duplicates its material still drives the copy it is actually rendering.
 var _push: Callable
 ## The host gauge's own `TweenClock` — every tween this spark creates goes
-## through it (#1065), so a test steps the host's `clock` by hand instead of
+## through it, so a test steps the host's `clock` by hand instead of
 ## the real clock. Passed in rather than read off `_host`: `_host` is a bare
 ## `CanvasItem` and reaching into a duck-typed `.clock` is the reach-in
 ## `TweenClock` exists to delete.
