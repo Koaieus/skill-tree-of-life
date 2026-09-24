@@ -56,6 +56,10 @@ var edge_highlight: EdgeHighlightOverlay
 
 ## Compose against [param p_graph]. `opts` keys (all default false):
 ##   turn_manager — add a TurnManager (also implied by `loot` / `input`)
+##   adopt_turn_manager — a TurnManager the caller's scene already authored
+##                  (e.g. one scoped via `entity_root` to a bench that shares a
+##                  tree with other tabs); used instead of building one, and
+##                  handed on to every system exactly as a built one would be
 ##   loot         — add a LootSystem (needs a TurnManager for killer attribution)
 ##   commands     — add a CommandApplier (also implied by `input`)
 ##   input        — add a PlayerInputController (implies `commands` + `turn_manager`;
@@ -75,8 +79,9 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 	graph = p_graph
 	var want_input: bool = bool(opts.get("input", false))
 	var want_commands: bool = bool(opts.get("commands", false)) or want_input
+	var adopted_tm: TurnManager = opts.get("adopt_turn_manager", null) as TurnManager
 	var want_tm: bool = bool(opts.get("turn_manager", false)) \
-			or bool(opts.get("loot", false)) or want_input
+			or bool(opts.get("loot", false)) or want_input or adopted_tm != null
 	var want_loot: bool = bool(opts.get("loot", false))
 	var want_melee: bool = bool(opts.get("melee", false))
 	var want_attack_vfx: bool = bool(opts.get("attack_vfx", false))
@@ -100,7 +105,9 @@ func build(p_graph: Graph, opts: Dictionary = {}) -> void:
 	allocation_system.navigator = navigator
 	add_child(allocation_system)
 
-	if want_tm:
+	if adopted_tm != null:
+		turn_manager = adopted_tm
+	elif want_tm:
 		turn_manager = TurnManager.new()
 		turn_manager.name = "TurnManager"
 		add_child(turn_manager)

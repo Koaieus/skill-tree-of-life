@@ -1,0 +1,150 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/status_sandbox/status_sandbox_panel.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="2_bloom_vp"]
+[ext_resource type="PackedScene" path="res://addons/status_sandbox/status_bench.tscn" id="3_node"]
+[ext_resource type="PackedScene" path="res://addons/status_sandbox/status_bench_core.tscn" id="4_core"]
+[ext_resource type="PackedScene" path="res://addons/status_sandbox/status_bench_core_drained.tscn" id="5_drained"]
+
+[node name="StatusSandboxPanel" type="PanelContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+setups = Array[PackedScene]([ExtResource("3_node"), ExtResource("4_core"), ExtResource("5_drained")])
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Controls" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SetupOption" type="OptionButton" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Bench setup — switching re-instantiates it"
+item_count = 3
+selected = 0
+popup/item_0/text = "Node"
+popup/item_0/id = 0
+popup/item_1/text = "Core"
+popup/item_1/id = 1
+popup/item_2/text = "Core, drained"
+popup/item_2/id = 2
+
+[node name="ResetBtn" type="Button" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Re-instantiate the current setup"
+text = "⟲ Reset"
+
+[node name="TickBtn" type="Button" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "TurnManager.end_turn() once — rolls into the Bearer's next turn"
+text = "▶ Tick turn"
+
+[node name="Sep1" type="VSeparator" parent="VBox/Controls"]
+layout_mode = 2
+
+[node name="StatusOption" type="OptionButton" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Every effects/status/*.tres"
+
+[node name="PowerSpin" type="SpinBox" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Stacks per hit, before resistance"
+min_value = 0.25
+max_value = 50.0
+step = 0.25
+value = 3.0
+prefix = "×"
+
+[node name="ApplyBtn" type="Button" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Land the status through the real hit path"
+text = "Apply"
+
+[node name="ClearBtn" type="Button" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Clear node and Bearer statuses"
+text = "Clear"
+
+[node name="CureSpin" type="SpinBox" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 100.0
+step = 1.0
+value = 5.0
+
+[node name="CureBtn" type="Button" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "cure_debuffs(N HP) on the node"
+text = "Cure"
+
+[node name="RingToggle" type="CheckButton" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Vision ring"
+
+[node name="StatLabel" type="Label" parent="VBox/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+vertical_alignment = 1
+text = "—"
+
+[node name="ResistanceRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ResistLabel" type="Label" parent="VBox/ResistanceRow"]
+layout_mode = 2
+text = "Bearer resistances:"
+
+[node name="Resistances" type="HFlowContainer" parent="VBox/ResistanceRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 16
+
+[node name="Split" type="HSplitContainer" parent="VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="WorldContainer" type="SubViewportContainer" parent="VBox/Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+stretch = true
+
+[node name="World" parent="VBox/Split/WorldContainer" instance=ExtResource("2_bloom_vp")]
+unique_name_in_owner = true
+size = Vector2i(960, 720)
+
+[node name="Background" type="ColorRect" parent="VBox/Split/WorldContainer/World"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.07, 0.08, 0.1, 1)
+
+[node name="BenchHost" type="Node2D" parent="VBox/Split/WorldContainer/World"]
+unique_name_in_owner = true
+
+[node name="Log" type="RichTextLabel" parent="VBox/Split"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(340, 0)
+layout_mode = 2
+bbcode_enabled = true
+scroll_following = true
+selection_enabled = true

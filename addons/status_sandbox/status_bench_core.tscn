@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://addons/status_sandbox/status_bench.tscn" id="1_base"]
+
+[node name="StatusBench" instance=ExtResource("1_base")]
+
+[node name="Bearer" parent="Graph/Entities" index="0" node_paths=PackedStringArray("core_location")]
+core_location = NodePath("../../Nodes/Node")

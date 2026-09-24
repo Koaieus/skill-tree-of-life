@@ -15,13 +15,20 @@ const SETUP_CORE := 1
 const SETUP_CORE_DRAINED := 2
 
 var _panel
+var _decoy
 
 
+## A second panel enters the tree FIRST, as another live tab does in the
+## sandbox host: its TurnManager is then the group's first (what an unwired
+## Bearer would bind to) and its Bearer ticks on the same initiative (what an
+## unscoped clock would serve). Every assert below runs in that shared tree.
 func before_each() -> void:
 	var scene: PackedScene = load(_PANEL_PATH) if ResourceLoader.exists(_PANEL_PATH) else null
 	assert_not_null(scene, "the status panel scene exists")
 	if scene == null:
 		return
+	_decoy = scene.instantiate()
+	add_child_autofree(_decoy)
 	_panel = scene.instantiate()
 	add_child_autofree(_panel)
 	await get_tree().process_frame
@@ -51,6 +58,21 @@ func test_tick_serves_the_benchs_own_bearer_and_poison_ticks_the_node() -> void:
 	assert_lt(_node().get_current_hp(), hp_before, "poison ticked node HP down")
 	var gained: String = _panel.get_log_text().substr(log_before.length())
 	assert_string_contains(gained, "damage", "the log gained a damage line")
+
+
+func test_a_foreign_bearer_nearer_its_turn_is_not_served_by_this_clock() -> void:
+	if _panel == null:
+		return
+	_panel.select_setup(SETUP_NODE)
+	var pool: PoolStat = _decoy.bench.bearer.stat_board.initiative
+	pool.set_current(float(pool.value) * 0.99)
+	var turns_before: int = _bearer().turns_taken
+
+	_panel.tick_turn()
+
+	assert_eq(_panel.bench.turn_manager.current_entity, _bearer(),
+			"the clock is scoped to this bench's Graph — the other tab's Bearer crosses first and is ignored")
+	assert_eq(_bearer().turns_taken, turns_before + 1)
 
 
 func test_the_bearers_navigator_mirrors_the_authored_node() -> void:
