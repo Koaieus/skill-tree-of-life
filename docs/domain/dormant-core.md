@@ -87,8 +87,9 @@ things it is ordered against: above any ordinary EV difference, below
 `_KILL_BONUS` on a non-door target, since a kill that is right there is still
 worth taking and the next AP re-evaluates back onto the door.
 
-It is deliberately NOT ordered against the `ai_tier` terms (cut-vertex 25/tier,
-weak-point 5/tier — 75 at most): at 500 it outranks all of them, so a capped
+It is deliberately NOT ordered against the `ai_tier` terms (cut-vertex 25 from
+FIGHTER, weak-point 5 per armor-weakness point from TACTICIAN, each at ×1 and
+never scaled by tier): at 500 it outranks all of them, so a capped
 NPC is door-first at every tier. The tier layer keeps its meaning *among* doors,
 since every door carries the same +500 and cut-vertex / weak-point preference
 still decides which one. Why the bonus sits above the tier terms rather than

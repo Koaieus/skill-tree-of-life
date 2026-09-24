@@ -130,7 +130,7 @@ func test_a_heuristic_blind_to_kill_would_have_misranked() -> void:
 	var winner_index := candidates.size() - 1
 
 	# The real heuristic: HP-clamped EV + kill bonus, exactly what
-	# AiCombatScorer.score itself weighs (minus the ai_tier-scaled terms,
+	# AiCombatScorer.score itself weighs (minus the tier-gated terms,
 	# which are volume-cut concerns, not ranking ones — see cheap_estimate's
 	# doc). Picks the true winner even at the strictest K.
 	var raw := _raw_damage()
