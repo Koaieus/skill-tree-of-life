@@ -9,7 +9,7 @@ extends Resource
 ## [GraphProcgenConfig.content] — never embed it as a SubResource (#349 D3).
 
 ## Phased-draw modifier content. The per-node v4 draw spends the rolled
-## budget until broke across pools whose `archetype_stat` matches the node's
+## budget until broke across packs whose `archetype_stat` matches the node's
 ## primary_stat (or is universal `&""`), then aggregates per (stat, op).
 ## Unset = nodes roll no modifiers. See docs/domain/procgen-v4.md.
 @export var modifier_pool_set: ModifierPoolSet

@@ -43,13 +43,14 @@ func flatten_all() -> Array[ModifierPoolEntry]:
 			continue
 		for pool in pack.pools:
 			if pool != null:
-				out.append_array(pool.to_entries())
+				out.append_array(pool.to_entries(pack.archetype_stat))
 	return out
 
 
-## Per-node flatten. Selects every pool whose `archetype_stat` matches the
+## Per-node flatten. Selects every pack whose `archetype_stat` matches the
 ## node's `primary_stat` **or** is empty (`&""` = universal — armor,
 ## node_health, movement_points, … stay shared across all archetypes, D7).
+## The pack is the only archetype gate (#751); pools carry none.
 ## There is no off-archetype phase and no defensive phase — universal
 ## pools ARE the shared content, gated by tier tag and budget, not by pool
 ## role.
@@ -72,16 +73,17 @@ func flatten_for_node(
 	for pack in packs:
 		if pack == null:
 			continue
+		var is_universal := pack.archetype_stat == &""
+		if not is_universal and pack.archetype_stat != primary_stat:
+			continue
 		for pool in pack.pools:
 			if pool == null:
 				continue
-			if pool.archetype_stat != &"" and pool.archetype_stat != primary_stat:
-				continue
 			if not pool.admits_subtype(effective):
 				continue
-			var entries := pool.to_entries()
+			var entries := pool.to_entries(pack.archetype_stat)
 			for e in entries:
-				if pool.archetype_stat == &"":
+				if is_universal:
 					universal.append(e)
 					u_mass += e.weight
 				else:

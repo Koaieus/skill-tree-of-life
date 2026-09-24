@@ -1181,8 +1181,8 @@ static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringNam
 
 
 ## v4 modifier draw (#321). Spend-until-broke with per-(stat,op) aggregation:
-##   1. Flatten the pools relevant to this node: archetype_stat == primary_stat
-##      OR == &"" (universal). No off-archetype phase, no defensive/rare roles
+##   1. Flatten the pools relevant to this node: those of every pack whose
+##      archetype_stat == primary_stat OR == &"" (universal). No off-archetype phase, no defensive/rare roles
 ##      (#321 D7, D8).
 ##   2. Spend `budget` until broke: weighted-pick an affordable entry applying
 ##      weight profiles (archetype), subtract its cost, repeat. Every entry
@@ -1444,10 +1444,10 @@ static func _has_pool_naming_subtype(
 	for pack in pool_set.packs:
 		if pack == null:
 			continue
+		if pack.archetype_stat != &"" and pack.archetype_stat != primary_stat:
+			continue
 		for pool in pack.pools:
 			if pool == null or pool.subtypes.is_empty():
-				continue
-			if pool.archetype_stat != &"" and pool.archetype_stat != primary_stat:
 				continue
 			if pool.admits_subtype(subtype):
 				return true

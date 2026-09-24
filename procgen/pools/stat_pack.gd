@@ -4,15 +4,16 @@ extends Resource
 
 ## All procgen content belonging to one archetype (v4, #321). The unit of
 ## authoring — one `.tres` per archetype: strength.tres, dexterity.tres, …
-## plus the universal packs (`mobility.tres`, `constitution.tres`'s defensive
-## half) with `archetype_stat = &""`.
+## plus exactly one universal pack, `universal.tres` (`archetype_stat = &""`:
+## armor, node_health, movement, deallocation).
 ##
-## A pack MAY mix universal and archetype-affine pools: `constitution.tres`
-## carries both CON-primary pools (`archetype_stat = &"constitution"`) and
-## the universal defensive ones (node_health / armor, `archetype_stat = &""`).
-## That is legal because [method ModifierPoolSet.flatten_for_node] filters on
-## each [StatPool]'s own `archetype_stat` — the pack-level `archetype_stat`
-## below is documentation, never a gate.
+## The pack is the ONLY archetype gate (#751): every pool in it rolls on a
+## node iff [member archetype_stat] is `&""` or equals the node's
+## `primary_stat` (and the pool's own `subtypes` admits the node's subtype) —
+## see [method ModifierPoolSet.flatten_for_node]. Pools carry no archetype of
+## their own, so a pool's scope is the file it sits in. `&""` is also the
+## field's default, so "forgot to set it" reads as universal:
+## `test_pool_scoping.gd` pins every pack's value to its file stem.
 ##
 ## Why pack content by archetype instead of by stat:
 ##  - Identity lives at the archetype level (a gold/WIS node IS a WIS-themed
@@ -25,12 +26,12 @@ extends Resource
 ## goes to the node's primary archetype; universal pools are the shared
 ## defensive/mobility content.
 
-## Archetype affinity — matches against the node's `primary_stat`. Use `&""`
-## for universal packs (defensive, mobility) that have no archetype identity.
+## The gate — matches against the node's `primary_stat`. `&""` = universal
+## (`universal.tres` only).
 @export var archetype_stat: StringName = &""
 
-## All this pack's stat pools. Each [StatPool] fully describes its
-## (stat_id, operation, tiers) — the pack is just a grouping for authoring.
+## All this pack's stat pools. Each [StatPool] describes its
+## (stat_id, operation, tiers); the pack decides who draws them.
 @export var pools: Array[StatPool] = []
 
 
@@ -55,10 +56,4 @@ func _get_configuration_warnings() -> PackedStringArray:
 		if p == null:
 			out.append("pools[%d] is null." % i)
 			continue
-		# Cross-check a pool's archetype_stat against the pack's, when it is
-		# non-universal. Universal pools (empty archetype_stat) are legal in
-		# any pack (constitution.tres's defensive half is the precedent).
-		if p.archetype_stat != &"" and p.archetype_stat != archetype_stat:
-			out.append("pools[%d] archetype_stat=%s != pack's %s (universal pools use &\"\")." % [
-					i, String(p.archetype_stat), String(archetype_stat)])
 	return out

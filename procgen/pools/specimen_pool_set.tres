@@ -8,8 +8,8 @@
 [ext_resource type="Resource" uid="uid://ctk37d7fbfhud" path="res://procgen/pools/wisdom.tres" id="6_wis"]
 [ext_resource type="Resource" uid="uid://d4snnstdg2xj" path="res://procgen/pools/perception.tres" id="7_per"]
 [ext_resource type="Resource" uid="uid://beujgqh26xswl" path="res://procgen/pools/constitution.tres" id="8_con"]
-[ext_resource type="Resource" uid="uid://b6xdnspb2ash7" path="res://procgen/pools/mobility.tres" id="9_mob"]
+[ext_resource type="Resource" uid="uid://b6xdnspb2ash7" path="res://procgen/pools/universal.tres" id="9_uni"]
 
 [resource]
 script = ExtResource("1_mps")
-packs = Array[ExtResource("2_sp")]([ExtResource("3_str"), ExtResource("4_dex"), ExtResource("5_int"), ExtResource("6_wis"), ExtResource("7_per"), ExtResource("8_con"), ExtResource("9_mob")])
+packs = Array[ExtResource("2_sp")]([ExtResource("3_str"), ExtResource("4_dex"), ExtResource("5_int"), ExtResource("6_wis"), ExtResource("7_per"), ExtResource("8_con"), ExtResource("9_uni")])

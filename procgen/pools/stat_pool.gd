@@ -24,12 +24,8 @@ extends Resource
 ## and, per #628/#637, it rolls a real `[L, H]` range the same as a positive
 ## pool; nothing branches on the sign except display formatting.
 ##
-## Archetype affinity vs target stat:
-##   - `stat_id`     — what the modifier writes to (e.g. `&"xp_per_turn"`).
-##   - `archetype_stat` — which archetype's nodes the pool belongs to. `&""`
-##     = universal (armor, node_health, movement_points, …): always available
-##     to every node regardless of primary stat (D7 — universal pools stay
-##     shared, they are NOT duplicated per archetype).
+## A pool carries no archetype: which archetype's nodes may draw it is decided
+## by its [StatPack] — the pack (the file) is the only gate.
 
 ## Target stat the rolled modifier writes to.
 @export var stat_id: StringName = &"":
@@ -43,16 +39,11 @@ extends Resource
 		_update_resource_name()
 
 
-## Archetype affinity — matches against the node's `primary_stat`. `&""` =
-## universal pool (drawn by every node). See D7: there is no off-archetype
-## phase — universal pools are the shared defensive/mobility content.
-@export var archetype_stat: StringName = &""
-
 ## Which subtypes may draw this pool. `[]` = any subtype (every pool authored
 ## today). A non-empty list is BOTH the membership gate and the give-up: a pool
 ## authored `[regular, bless]` is one a blighted node cannot draw, which is how
 ## "blighted DEX trades crit% for DoT stats" is stated per-archetype without a
-## second mechanism. Paired with [member archetype_stat] by
+## second mechanism. Paired with the owning [StatPack]'s archetype gate by
 ## [method ModifierPoolSet.flatten_for_node].
 ##
 ## Matched by [method admits_subtype]; a non-empty list also mints an id
@@ -215,11 +206,12 @@ func _tier_magnitude_bounds() -> Array[Dictionary]:
 
 ## Flatten into runtime entries (one per tier in `min_tier..max_tier`).
 ## Stable id per tier: `<stat_id>_<op>_<arch>_t<tier>` so weight profiles target
-## stably across re-flattens.
-func to_entries() -> Array[ModifierPoolEntry]:
+## stably across re-flattens. `pack_archetype` is the owning pack's — a pool
+## does not know its archetype; `&""` (universal) mints `any`.
+func to_entries(pack_archetype: StringName) -> Array[ModifierPoolEntry]:
 	var out: Array[ModifierPoolEntry] = []
 	var op_short := _op_short()
-	var arch_seg := String(archetype_stat) if archetype_stat != &"" else "any"
+	var arch_seg := String(pack_archetype) if pack_archetype != &"" else "any"
 	var sub_seg := _subtype_segment()
 	for b in _tier_magnitude_bounds():
 		var t: int = b.tier
@@ -319,9 +311,8 @@ func _print_table() -> void:
 ## magnitude — a pool's tiers are no longer fixed points.
 func format_table() -> String:
 	var lines: PackedStringArray = []
-	var arch := String(archetype_stat) if archetype_stat != &"" else "—"
-	lines.append("  stat=%s op=%s archetype=%s tags=%s" % [
-			String(stat_id), _op_symbol(), arch, str(tags)])
+	lines.append("  stat=%s op=%s tags=%s" % [
+			String(stat_id), _op_symbol(), str(tags)])
 	lines.append("  tier  L..H                  cost  weight   mean     tags")
 	lines.append("  ----  --------------------  ----  -------  -------  ----")
 	var is_mul := operation == StatModifier.Operation.MULTIPLY
