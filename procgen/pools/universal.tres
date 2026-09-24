@@ -2,6 +2,11 @@
 
 [ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
+[ext_resource type="Script" uid="uid://ct7dq3or66mj7" path="res://procgen/pools/tier_shape.gd" id="3_ts"]
+
+[sub_resource type="Resource" id="ts_sqrt2"]
+script = ExtResource("3_ts")
+ratio = 1.4142135623730951
 
 [sub_resource type="Resource" id="nh_inc"]
 resource_name = "node_health +%"
@@ -27,7 +32,7 @@ script = ExtResource("2_pool")
 stat_id = &"movement_points"
 tags = Array[StringName]([&"mobility", &"flat"])
 pool_weight = 0.6
-tier_bias_k = 0.5
+tier_shape = SubResource("ts_sqrt2")
 max_tier = 2
 
 [sub_resource type="Resource" id="dp"]
@@ -36,7 +41,7 @@ script = ExtResource("2_pool")
 stat_id = &"deallocation_points"
 tags = Array[StringName]([&"mobility", &"flat"])
 pool_weight = 0.8
-tier_bias_k = 0.5
+tier_shape = SubResource("ts_sqrt2")
 max_tier = 2
 
 [resource]

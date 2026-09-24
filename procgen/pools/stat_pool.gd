@@ -12,7 +12,7 @@ extends Resource
 ## Mapping to runtime: [method to_entries] expands this pool into one
 ## [ModifierPoolEntry] per tier in `min_tier..max_tier`, computing each entry's
 ## `cost` (from the ladder), `value_range` (fixed at `unit × V[T]`, or the
-## override for that tier), `weight` (`pool_weight × |cost|^tier_bias_k`), and
+## override for that tier), `weight` (`pool_weight ×` [method tier_weight]), and
 ## `tags` (this pool's tags + [TierLadder] auto-tags for the tier). The draw
 ## loop ([method GraphProcgen._roll_modifiers_v4]) picks among those entries
 ## with weight profiles, spends budget until broke, then aggregates per
@@ -114,16 +114,24 @@ const FLOOR_UNSET := INF
 @export var range_floor: float = FLOOR_UNSET
 
 ## Base sampling weight for this pool (the pool-selection axis). Tier weight
-## within a pool is `|cost|^tier_bias_k`; the draw multiplies the two.
+## within a pool is [method tier_weight]; the draw multiplies the two.
 @export var pool_weight: float = 1.0
 
-## Tier-weight exponent (D4): `w ∝ |cost|^k`. `k = 1.0` default. `value(t) =
-## 2*cost(t) - 1`, so composition is itself a power lever — spending budget
-## `B` entirely at tier `t` yields `2B - B/cost(t)`; a chunkier `k` moves
-## real balance (up to ~1.875x at a fixed budget), not just texture.
-## Negative suppresses high tiers (reproduces the descending curves
-## `mobility` / `deallocation_points` wrote by hand).
-@export var tier_bias_k: float = 1.0
+## How this pool's weight spreads over its tiers — see [TierShape]. Default
+## `1, 2, 4, 8` (weight ∝ cost). Tier composition is itself a power lever, not
+## just texture: `value(t) = 2*cost(t) - 1`, so spending budget `B` entirely at
+## tier `t` yields `2B - B/cost(t)` (up to ~1.875x at a fixed budget). The
+## resulting per-tier share shows read-only as `tier_preview` below.
+## Default-instanced so a pool added in the inspector already has the slot
+## filled; a null shape falls back to a default one and warns.
+@export var tier_shape: TierShape = TierShape.new():
+	set(v):
+		if tier_shape and tier_shape.changed.is_connected(notify_property_list_changed):
+			tier_shape.changed.disconnect(notify_property_list_changed)
+		tier_shape = v
+		if tier_shape:
+			tier_shape.changed.connect(notify_property_list_changed)
+		notify_property_list_changed()
 
 ## Lowest tier this pool offers (cost = [TierLadder.cost] min-1). Almost
 ## always 1 — lowering it is how a pool "starts expensive." Value rungs are
@@ -139,12 +147,49 @@ const FLOOR_UNSET := INF
 @export_range(1, 4) var max_tier: int = 4
 
 
-@export var tier_shape: TierShape
+static var _default_tier_shape := TierShape.new()
 
-func tier_weight(_t: int) -> float:
-	return 0.0
+## Relative weight of absolute tier `t` within this pool: [method TierShape.weight]
+## of [member tier_shape], or of a default shape when it is null.
+func tier_weight(t: int) -> float:
+	return (tier_shape if tier_shape else _default_tier_shape).weight(t)
+
+
+## Each offered tier's share of this pool's weight, normalized over
+## `min_tier..max_tier` — e.g. `T3 43% · T4 57%`.
+func format_tier_preview() -> String:
+	var lo := clampi(min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)
+	var hi := clampi(max_tier, lo, TierLadder.MAX_TIER)
+	var total := 0.0
+	for t in range(lo, hi + 1):
+		total += tier_weight(t)
+	if total <= 0.0:
+		return "no weight"
+	var parts: PackedStringArray = []
+	for t in range(lo, hi + 1):
+		parts.append("T%d %d%%" % [t, roundi(100.0 * tier_weight(t) / total)])
+	return " · ".join(parts)
+
+
+## Read-only inspector line for [method format_tier_preview]: shown on the pool itself,
+## never stored.
+func _get_property_list() -> Array[Dictionary]:
+	return [{
+		name = "tier_preview",
+		type = TYPE_STRING,
+		usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY,
+	}]
+
+
+func _get(property: StringName) -> Variant:
+	if property == &"tier_preview":
+		return format_tier_preview()
+	return null
+
 
 func _init() -> void:
+	if tier_shape and not tier_shape.changed.is_connected(notify_property_list_changed):
+		tier_shape.changed.connect(notify_property_list_changed)
 	_update_resource_name()
 
 func _update_resource_name():
@@ -237,8 +282,7 @@ func to_entries(pack_archetype: StringName) -> Array[ModifierPoolEntry]:
 			e.value_range = Vector2(1.0 + b.lo, 1.0 + b.hi)
 		else:
 			e.value_range = Vector2(b.lo, b.hi)
-		# weight = pool_weight * |cost|^k.
-		e.weight = pool_weight * pow(float(t_cost), tier_bias_k)
+		e.weight = pool_weight * tier_weight(t)
 		# tags = pool tags + ladder auto-tags (tier_N + rarity).
 		var merged: Array[StringName] = []
 		merged.append_array(tags)
@@ -326,7 +370,7 @@ func format_table() -> String:
 		var lo_disp: float = (1.0 + b.lo) if is_mul else b.lo
 		var hi_disp: float = (1.0 + b.hi) if is_mul else b.hi
 		var tc := TierLadder.cost(t)
-		var w := pool_weight * pow(float(tc), tier_bias_k)
+		var w := pool_weight * tier_weight(t)
 		var ttags := TierLadder.auto_tags(t)
 		lines.append("  T%-3d  %8.2f..%-9.2f  %-4d  %7.3f  %7.2f  %s" % [
 				t, lo_disp, hi_disp, tc, w, (lo_disp + hi_disp) / 2.0, str(ttags)])
@@ -337,6 +381,8 @@ func _get_configuration_warnings() -> PackedStringArray:
 	var out: PackedStringArray = []
 	if stat_id == &"":
 		out.append("stat_id is empty — entries mint StatModifiers targeting nothing.")
+	if tier_shape == null:
+		out.append("tier_shape is null — tiers weigh as a default TierShape (1, 2, 4, 8).")
 	var lo := clampi(min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)
 	var hi := clampi(max_tier, lo, TierLadder.MAX_TIER)
 	if hi < lo:

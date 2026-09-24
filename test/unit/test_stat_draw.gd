@@ -14,7 +14,7 @@ func _pool(
 		pool_weight: float = 1.0,
 		min_tier: int = 1,
 		max_tier: int = 4,
-		tier_bias_k: float = 1.0,
+		tier_ratio: float = 2.0,
 		range_floor: float = StatPool.FLOOR_UNSET,
 ) -> StatPool:
 	var p := StatPool.new()
@@ -24,7 +24,8 @@ func _pool(
 	p.pool_weight = pool_weight
 	p.min_tier = min_tier
 	p.max_tier = max_tier
-	p.tier_bias_k = tier_bias_k
+	p.tier_shape = TierShape.new()
+	p.tier_shape.ratio = tier_ratio
 	p.range_floor = range_floor
 	return p
 
@@ -171,7 +172,7 @@ func _wide_pool_set() -> ModifierPoolSet:
 	# range_floor 1.0 vs unit 5.0 → every tier beyond T1 has real width
 	# (#628's first worked table: T1 1..5, T2 6..15, T3 16..35, T4 36..75).
 	return _make_set([
-		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, 5.0, 1.0, 1, 4, 1.0, 1.0)]),
+		_pack(&"strength", [_pool(&"strength", StatModifier.Operation.ADD_BASE, 5.0, 1.0, 1, 4, 2.0, 1.0)]),
 	])
 
 

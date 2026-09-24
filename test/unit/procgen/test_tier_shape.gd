@@ -57,3 +57,36 @@ func test_to_entries_weight_is_pool_weight_times_tier_weight() -> void:
 		var t := TierLadder.MIN_TIER + i
 		assert_almost_eq(p.tier_weight(t), p.tier_shape.weight(t), 1e-12, "tier_weight(%d)" % t)
 		assert_almost_eq(e.weight, 0.7 * p.tier_weight(t), 1e-12, "entry t%d weight" % t)
+
+
+func test_preview_shows_each_offered_tiers_share() -> void:
+	var p := StatPool.new()
+	p.min_tier = 3
+	p.max_tier = 4
+	assert_eq(p.format_tier_preview(), "T3 33% · T4 67%")
+	assert_eq(p.get(&"tier_preview"), p.format_tier_preview(), "exposed as an inspector property")
+
+
+func test_null_shape_falls_back_to_default_and_warns() -> void:
+	var p := StatPool.new()
+	p.stat_id = &"strength"
+	p.tier_shape = null
+	assert_almost_eq(p.tier_weight(4), 8.0, 1e-12)
+	assert_true(Array(p._get_configuration_warnings()).any(
+			func(w: String) -> bool: return w.contains("tier_shape")))
+
+
+## Migration pin: universal.tres's mobility pools carried `k = 0.5`; their
+## ratio 2^0.5 must reproduce `cost^0.5`.
+func test_universal_mobility_pools_keep_their_sqrt_cost_weights() -> void:
+	var pack: StatPack = load("res://procgen/pools/universal.tres")
+	var seen := 0
+	for p in pack.pools:
+		if p.stat_id in [&"movement_points", &"deallocation_points"]:
+			seen += 1
+			for t in range(p.min_tier, p.max_tier + 1):
+				assert_almost_eq(p.tier_weight(t), pow(float(TierLadder.cost(t)), 0.5), 1e-9,
+						"%s t%d" % [p.stat_id, t])
+		else:
+			assert_eq(p.tier_shape.ratio, 2.0, "%s keeps the default shape" % p.stat_id)
+	assert_eq(seen, 2)

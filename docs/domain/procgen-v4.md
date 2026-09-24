@@ -14,7 +14,9 @@ draw (primary → cost-capped off-attribute → defensive → rare) is replaced 
   repo-wide, pinned by `test_specimen_pool_set.gd`).
 - **Spend-until-broke draw** — `_roll_modifiers_v4` (`graph_procgen.gd`):
   flatten the node's pools, then repeatedly weighted-pick an affordable entry
-  (weight = `pool_weight · |cost|^tier_bias_k`, modulated by weight profiles),
+  (weight = `pool_weight · TierShape.weight(t)`, where `w(t) = t^power ·
+  ratio^(t-1)` over the absolute tier — default `power 0, ratio 2` = `1,2,4,8`;
+  modulated by weight profiles),
   subtract its cost, until nothing's affordable. T1 always costs 1, so leftover
   budget always drains into T1 filler — budget is never wasted.
 - **Per-(stat,op) aggregation** — after the draw, rolled modifiers combine by
@@ -292,7 +294,7 @@ scenes exist and load; they are not yet placed by `first_level.tres`.
 > around; do not treat a divergence from it as a bug.
 
 `unit` = `unit_value` (T1 magnitude; negative = debuff). `pool_w` =
-`pool_weight`. Default `jitter = 0.25`, `tier_bias_k = 1.0`. ADD*/INCREASE/
+`pool_weight`. Default `jitter = 0.25`, `tier_shape` = `power 0, ratio 2`. ADD*/INCREASE/
 ADD_BONUS magnitude = `unit · V[t]`; MULTIPLY = `1 + unit · V[t]`.
 
 | pool | unit | overrides | pool_w | min_T | max_T | resulting T1..T4 |
