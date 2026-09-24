@@ -153,7 +153,7 @@ class ProbeAI:
 		# override never calls super(), so it has to thread it through by
 		# hand to stay a sequencing copy of the shipped path (#823), not a
 		# second RNG stream.
-		var out := ProbeAI.gather_melee_decomposed(entity, ve, ai_tier, self, rng)
+		var out := ProbeAI.gather_melee_decomposed(entity, ve, ai_tier, self, rng, _loot_system())
 		bump(&"melee_total", Time.get_ticks_usec() - t_all)
 		melee_gathers += 1
 		return out
@@ -188,7 +188,7 @@ class ProbeAI:
 	## the kind of drift this probe exists to catch.
 	static func gather_melee_decomposed(
 			entity: Entity, visible_enemies: Array[SkillNode], ai_tier: int, probe: ProbeAI,
-			rng: RandomNumberGenerator
+			rng: RandomNumberGenerator, loot_system: LootSystem = null
 	) -> Array[AiCombatScorer.ScoredCandidate]:
 		var out: Array[AiCombatScorer.ScoredCandidate] = []
 		if entity == null or entity.navigator == null or visible_enemies.is_empty():
@@ -235,7 +235,7 @@ class ProbeAI:
 		for f in finalists:
 			var candidate := AiBladeRollout._resolve_and_score(
 					entity, f[0], f[1], f[2], visible_enemies, ai_tier, f[3],
-					probe._loot_system())
+					loot_system)
 			if candidate != null:
 				out.append(candidate)
 		if probe != null:
@@ -606,4 +606,5 @@ func test_the_decomposition_agrees_with_the_real_rollout() -> void:
 	for i in mini(mine.size(), real.size()):
 		assert_eq(mine[i].source_node, real[i].source_node, "same pivot at %d" % i)
 		assert_eq(mine[i].swing_cw, real[i].swing_cw, "same direction at %d" % i)
-		assert_almost_eq(mine[i].score, real[i].score, 0.0001, "same score at %d" % i)
+		assert_almost_eq(mine[i].total, real[i].total, 0.0001, "same score at %d" % i)
+		assert_almost_eq(mine[i].kill_xp, real[i].kill_xp, 0.0001, "same kill_xp at %d" % i)
