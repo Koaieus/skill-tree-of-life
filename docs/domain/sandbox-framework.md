@@ -17,6 +17,7 @@ We have several module-testing surfaces, each set up differently:
 | Stat-board visualizer | `addons/stat_board_visualizer/` (plugin) | live-edit |
 | Allocation / dealloc / death VFX | `addons/sandbox_host/tabs/40_allocation_tab.tscn` (live tab) | **live-edit** |
 | Melee blade | `addons/melee_sandbox/` (live tab, #256) | **live-edit** |
+| Status effects (one-node bench: apply / tick / log) | `addons/status_sandbox/` via `tabs/55_status_tab.tscn` (live tab, #1114) | **live-edit** |
 | Ranged | — (none yet) | played |
 | Loot | — (foreseen) | played |
 
@@ -272,9 +273,21 @@ Graph's job, not the tab's.
   scenario — the "auto-tick = played" line. Beats are button-triggered (`▶ Play
   beat`, `▶ Kill victim`), gated while in flight (`_busy`), and labels refresh
   on demand instead of `_process` polling.
-- **TurnManager in the editor:** never `start_turn` / `end_turn` / `tick` from a
-  panel. Killer attribution is `adopt_turn(killer, tm.turns_taken)` (loot panel),
-  and that slot must be cleared between kills (`adopt_turn(null, …)` on reset).
+- **TurnManager in the editor:** a panel never *auto-drives* the clock — no
+  `_process`, timer or `await` loop may call `start_turn` / `end_turn` / `tick`.
+  A single button-bound step is explicit-step and allowed: the Status tab's
+  ▶ Tick turn calls `end_turn()` once per click, which with a lone entity rolls
+  synchronously into that entity's next `start_turn` (real upkeep + the
+  `Events.turn_started` status tick). "Lone" needs work here, because the host
+  instantiates every live tab into one tree: the bench's TurnManager is scoped
+  (`entity_root` = its Graph) and its entity wired (`turn_manager_override`),
+  or an unscoped tick serves another tab's entity and an unwired entity binds
+  to another tab's TurnManager. Build that TurnManager with `TurnManager.new()`
+  from `@tool` code (hand it to `sandbox_world.build` as `adopt_turn_manager`)
+  — `turn_manager.gd` is not `@tool`, so one authored in a `.tscn` is a
+  placeholder in the editor. Killer attribution without a turn stays
+  `adopt_turn(killer, tm.turns_taken)` (loot panel), and that slot must be
+  cleared between kills (`adopt_turn(null, …)` on reset).
 - **Reset/mute:** `AllocationVFX.muted` (added in phase 0) is the pattern — a
   panel's silent SETUP beat replays the real primitives with cosmetics muted.
   Other VFX layers can grow the same switch as needed.
