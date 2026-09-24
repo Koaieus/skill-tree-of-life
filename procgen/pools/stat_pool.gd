@@ -139,6 +139,11 @@ const FLOOR_UNSET := INF
 @export_range(1, 4) var max_tier: int = 4
 
 
+@export var tier_shape: TierShape
+
+func tier_weight(_t: int) -> float:
+	return 0.0
+
 func _init() -> void:
 	_update_resource_name()
 
