@@ -38,7 +38,12 @@ func tween(host: Node) -> Tween:
 		tw.pause()
 	# A tween finished by custom_step stays is_valid() until the tree next reaps
 	# it, and a paused one never reads is_running() — so finishing is heard.
-	tw.finished.connect(func() -> void: _live.erase(tw), CONNECT_ONE_SHOT)
+	# A bound METHOD, never a lambda: a lambda here would capture tw (and self),
+	# forming tween -> connection -> lambda -> tween (and clock -> ... -> clock)
+	# reference cycles that a kill() — which never emits finished — leaves
+	# uncollected forever. A method Callable bound to an int holds only the
+	# clock's own ObjectID; the tween holds nothing strong back.
+	tw.finished.connect(_forget.bind(tw.get_instance_id()), CONNECT_ONE_SHOT)
 	_live.append(tw)
 	return tw
 
@@ -80,3 +85,9 @@ func live_count() -> int:
 
 func _prune() -> void:
 	_live = _live.filter(func(tw: Tween) -> bool: return tw.is_valid())
+
+
+## Bound to a finished tween's instance id at connect time; drops that entry
+## from [member _live] without holding the tween itself.
+func _forget(tween_id: int) -> void:
+	_live = _live.filter(func(tw: Tween) -> bool: return tw.get_instance_id() != tween_id)
