@@ -1,22 +1,16 @@
 extends Node2D
-## The [code]viewport3d[/code] stage-gimbal substrate (#1074, shape A) and its
-## [code]viewport3d-split[/code] twin (#1097, A2 — [member split]): one
+## The [code]viewport3d[/code] stage-gimbal substrate (#804, A2): one
 ## [Gimbal3D] rig registered with the level's single [GimbalWorld], adapted
-## onto the three-property contract every row of [code]IdleTurnProbe[/code]'s
+## onto the property contract every row of [code]IdleTurnProbe[/code]'s
 ## substrate table shares. This Node2D is the rig's 2D anchor: its global
 ## position is mirrored onto the 3D holder, so moving it moves the rings.
-
-## Matches the cpu2d footprint: CoreHalos at halo_scale 1.8 spans
-## radius * 1.8 * (1 + 4 * 0.22) = 3.38r for 5 rings; the 3D chain spans
-## base * (1 + 4 * 0.34) = 2.36 base, so base = 1.43r puts both outer rings
-## on the same px — the fill comparison is like for like.
-const BASE_RADIUS_SCALE := 3.384 / 2.36
+##
+## Arms (bench command line): `--gimbal-facets=<N>` absolute facets per ring
+## (default: the rig's own), `--gimbal-style=`, `--gimbal-tint=`, `--strip=`,
+## `--strip-pan`, `--hdr-probe`. `phase` is set by the probe (0 unless
+## `--gimbal-phase=on`) so every rig starts from the same pose.
 
 @export var style: Gimbal3D.Style = Gimbal3D.Style.HOLO_GLASS
-
-## A2: acquire the two-camera [GimbalWorld] (`gimbal_world_split.tscn`)
-## instead of shape A's occluder one. Set by `stage_gimbal_viewport3d_split.tscn`.
-@export var split := false
 
 @export_range(1, 5, 1) var ring_count: int = 5:
 	set(value):
@@ -30,40 +24,51 @@ const BASE_RADIUS_SCALE := 3.384 / 2.36
 		if _rig != null:
 			_rig.tint = value
 
-## The SkillNode radius the gimbal sits on, px; also the occluder disc radius.
+## The SkillNode radius the gimbal sits on, px; passed to the rig 1:1.
 @export var base_radius: float = 32.0:
 	set(value):
 		base_radius = value
 		if _rig != null:
-			_rig.base_radius = value * BASE_RADIUS_SCALE
+			_rig.base_radius = value
+
+## Radians on the rig's spin clock. Forwarded by name: a no-op on a rig that
+## predates `phase`.
+@export var phase: float = 0.0:
+	set(value):
+		phase = value
+		if _rig != null:
+			_rig.set(&"phase", value)
 
 var _rig: Gimbal3D
 var _holder: Node3D
+var _world: GimbalWorld
 
 
 func _ready() -> void:
-	var world := GimbalWorld.acquire(self,
-			GimbalWorld.SPLIT_SCENE if split else GimbalWorld.SCENE)
+	_world = GimbalWorld.acquire(self)
 	_rig = Gimbal3D.new()
 	_rig.style = _style_from_cmdline()
 	_rig.ring_count = ring_count
 	_rig.tint = _tint_from_cmdline()
-	_rig.base_radius = base_radius * BASE_RADIUS_SCALE
-	var facets_x := maxi(1, int(_arg("--gimbal-facets=")))
-	if facets_x > 1:
-		_rig.facets *= facets_x
-	_holder = world.add_rig(_rig, global_position, base_radius)
+	_rig.base_radius = base_radius
+	_rig.set(&"phase", phase)
+	var facets := int(_arg("--gimbal-facets="))
+	if facets > 0:
+		_rig.facets = facets
+	_holder = _world.add_rig(_rig, global_position, base_radius)
 	if not _geometry_printed:
 		_geometry_printed = true
 		# Four quads x two triangles x three vertices per facet per ring.
-		print("stage    : %s facets=%d (x%d) verts/rig=%d" % [
-				"viewport3d-split" if split else "viewport3d", _rig.facets, facets_x,
-				_rig.facets * 24 * _rig.ring_count])
+		print("stage    : viewport3d facets=%d verts/rig=%d" % [
+				_rig.facets, _rig.facets * 24 * _rig.ring_count])
 	set_notify_transform(true)
 	var strip := _arg("--strip=")
 	if strip != "" and not _strip_claimed:
 		_strip_claimed = true
 		_capture_strip.call_deferred(strip, "--strip-pan" in OS.get_cmdline_user_args())
+	if "--hdr-probe" in OS.get_cmdline_user_args() and not _hdr_probe_claimed:
+		_hdr_probe_claimed = true
+		_hdr_probe()
 
 
 func _notification(what: int) -> void:
@@ -77,9 +82,31 @@ func _exit_tree() -> void:
 		_holder = null
 
 
-## `--gimbal-facets=<N>` multiplies the rig's facets per ring (x1 = the
-## Gimbal3D default, x2, x4) — the segment-count scaling knob.
 static var _geometry_printed := false
+static var _hdr_probe_claimed := false
+
+
+## The HDR-carry probe (#804 acceptance 1): after the rigs have spun for a
+## while, print the brightest texel of the world's back render target. > 1.0
+## means the RGBA16F target carries emissives above white into the root
+## viewport's bloom pass; == 1.0 means the 3D tonemap clamped them.
+func _hdr_probe() -> void:
+	await get_tree().create_timer(3.0).timeout
+	var img := _world.back_texture().get_image()
+	var peak := 0.0
+	var peak_px := Color()
+	var above := 0
+	for y in range(0, img.get_height(), 2):
+		for x in range(0, img.get_width(), 2):
+			var c := img.get_pixel(x, y)
+			var m := maxf(c.r, maxf(c.g, c.b))
+			if m > 1.0:
+				above += 1
+			if m > peak:
+				peak = m
+				peak_px = c
+	print("hdr-probe: format=%d size=%s peak=%.3f at %s texels>1.0=%d rigs=%d" % [
+			img.get_format(), img.get_size(), peak, peak_px, above, _world.rig_count()])
 
 
 ## `--gimbal-style=<UNIFORM_GLOW|HOLO_GLASS|SOLID_GLYPH>` on the bench command

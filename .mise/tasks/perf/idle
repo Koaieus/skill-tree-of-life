@@ -26,8 +26,8 @@ The curated matrix, and what each row exists to answer:
     fp-1440-2000              the North Star resolution (docs/domain/rendering-performance.md)
     fp-1080-2000-stage        #804's gimbal-stage: 10 x 5-ring gimbals staged on
                               screen (`--segments=baseline,gimbal-stage`,
-                              `--gimbal-substrate=cpu2d` by default; each spike
-                              re-runs it with its own substrate row)
+                              `--gimbal-substrate=viewport3d`, the A2 GimbalWorld;
+                              `--gimbal-phase=on` spreads the rigs' poses)
     headless-{500,800,2000}  the CPU floor — no renderer at all; subtract from
                               the windowed CPU column to see what the renderer
                               costs the CPU side

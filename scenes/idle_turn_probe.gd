@@ -39,10 +39,7 @@ const _STAGE_RINGS := 5
 ## `base_radius: float` (the SkillNode radius it sits on) — the contract
 ## `gimbal_3d.gd` already has. A spike adds ONE line here and nothing else.
 const SUBSTRATES: Dictionary = {
-	"cpu2d": preload("res://scenes/bench/stage_gimbal_cpu2d.tscn"),
 	"viewport3d": preload("res://scenes/bench/stage_gimbal_viewport3d.tscn"),
-	"viewport3d-split": preload("res://scenes/bench/stage_gimbal_viewport3d_split.tscn"),
-	"mesh2d": preload("res://scenes/bench/stage_gimbal_mesh2d.tscn"),
 }
 
 var _viewport_rid: RID
@@ -419,8 +416,14 @@ func _stage_gimbals(root: GameRoot, substrate: String) -> void:
 			substrate, ", ".join(SUBSTRATES.keys())])
 		return
 	var scene: PackedScene = SUBSTRATES[substrate]
-	for n in _pick_stage_nodes(root, _STAGE_COUNT):
+	# Every rig starts from pose 0 for comparable runs; `--gimbal-phase=on`
+	# spreads them evenly round the spin clock instead.
+	var spread := "--gimbal-phase=on" in OS.get_cmdline_user_args()
+	var picked := _pick_stage_nodes(root, _STAGE_COUNT)
+	for i in picked.size():
+		var n := picked[i]
 		var gimbal: Node2D = scene.instantiate()
+		gimbal.set("phase", TAU * float(i) / float(picked.size()) if spread else 0.0)
 		gimbal.set("ring_count", _STAGE_RINGS)
 		gimbal.set("tint", n.owned_by.color if n.owned_by != null else Color.WHITE)
 		gimbal.set("base_radius", n.radius)
@@ -459,7 +462,7 @@ func _save_stage_screenshot(path: String) -> void:
 	print("screenshot: %s%s" % [path, "" if err == OK else " (FAILED: %d)" % err])
 
 
-## "substrate=cpu2d gimbals=10 rings=50 onscreen=10" — counted from the
+## "substrate=viewport3d gimbals=10 rings=50 onscreen=10" — counted from the
 ## instanced scenes (ring_count read back from each root), never assumed.
 func _format_stage_census(root: GameRoot, substrate: String) -> String:
 	var view := root.camera.view_rect()

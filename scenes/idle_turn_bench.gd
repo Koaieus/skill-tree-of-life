@@ -47,9 +47,8 @@ extends "res://scenes/procgen_play_sandbox.gd"
 
 @export var segments: Array[String] = ["baseline", "gimbals-off", "cogs-off", "halos-off", "fog-pass-off", "glow-off"]
 ## Which stage-gimbal scene the [code]gimbal-stage[/code] segment instances —
-## a row name in [code]IdleTurnProbe.SUBSTRATES[/code] (#804: [code]cpu2d[/code]
-## is the CoreHalos baseline; each spike registers its own row).
-@export var gimbal_substrate: String = "cpu2d"
+## a row name in [code]IdleTurnProbe.SUBSTRATES[/code] (#804).
+@export var gimbal_substrate: String = "viewport3d"
 ## Where the [code]gimbal-stage[/code] segment saves a PNG of the staged frame
 ## (the reviewer's "is the stage what it claims" check), or "" for none.
 @export var screenshot_path: String = ""
