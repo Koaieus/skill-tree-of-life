@@ -579,9 +579,16 @@ func test_bench_ai_turn_large_owned_fixture() -> void:
 ## goes red rather than the numbers going quietly wrong.
 func test_the_decomposition_agrees_with_the_real_rollout() -> void:
 	var fx := await _build_fixture()
+	var root: GameRoot = fx["root"]
 	var remote: Entity = fx["remote"]
 	# Give the AI something to swing at: the fixture starts with one node
-	# each, so grow the guest one hop toward the host.
+	# each, three hops apart, so grow the guest toward the host until a
+	# melee candidate exists (the large fixture's force_allocate idiom).
+	var alloc := root.allocation_system
+	var nodes := root.graph.get_skill_nodes()
+	nodes.sort_custom(func(a, b): return a.name < b.name)
+	alloc.force_allocate(remote, nodes[2])
+	alloc.force_allocate(remote, nodes[1])
 	var enemies := AiRecon.visible_enemy_nodes(remote)
 	# Identically-seeded but SEPARATE instances (#823) — the two paths must
 	# agree because every stage is the shipped static, not because they
@@ -590,8 +597,11 @@ func test_the_decomposition_agrees_with_the_real_rollout() -> void:
 	rng_real.seed = 823
 	var rng_mine := RandomNumberGenerator.new()
 	rng_mine.seed = 823
-	var real := AiBladeRollout.gather_melee_candidates(remote, enemies, 0, rng_real)
-	var mine := ProbeAI.gather_melee_decomposed(remote, enemies, 0, null, rng_mine)
+	var real := AiBladeRollout.gather_melee_candidates(
+			remote, enemies, 0, rng_real, root.loot_system)
+	var mine := ProbeAI.gather_melee_decomposed(
+			remote, enemies, 0, null, rng_mine, root.loot_system)
+	assert_gt(real.size(), 0, "fixture must yield a melee candidate")
 	assert_eq(mine.size(), real.size(), "same candidate count")
 	for i in mini(mine.size(), real.size()):
 		assert_eq(mine[i].source_node, real[i].source_node, "same pivot at %d" % i)
