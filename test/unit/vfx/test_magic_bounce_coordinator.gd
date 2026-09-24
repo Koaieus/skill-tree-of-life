@@ -65,6 +65,10 @@ func _tempo(beat_interval: float, launch_to_impact: float) -> PresentationTempo:
 func _mount_coord(beat_interval: float, launch_to_impact: float, visual: PackedScene = null) -> MagicBounceCoordinator:
 	var coord := MagicBounceCoordinator.new()
 	coord.tempo = _tempo(beat_interval, launch_to_impact)
+	# Every wave spawns and announces inside the un-awaited `play()` call, so
+	# asserts run synchronously on the line after it. The real clock is the
+	# keeper's: test/integration/vfx/test_magic_bounce_real_clock.gd.
+	coord.clock = BeatClock.instant_clock()
 	if visual != null:
 		coord.visual_scene = visual
 	add_child_autofree(coord)
@@ -92,11 +96,6 @@ func test_wave_started_fires_once_per_hop_in_order() -> void:
 	coord.wave_started.connect(func(hop: int, count: int) -> void:
 		events.append({"hop": hop, "count": count}))
 	coord.play(outcome)
-	# Drive the scheduler past the last hop with margin. The span is now
-	# `launch_to_impact + 3 * beat_interval` — beat 0 waits for the seed bolt to
-	# actually arrive before it is announced — and every sub-frame timer in here
-	# rounds up to a whole headless frame, so the margin is generous on purpose.
-	await get_tree().create_timer(0.06 * 8).timeout
 	assert_eq(events.size(), 4, "one wave per hop index 0..3")
 	for i in 4:
 		assert_eq(int(events[i].hop), i, "wave %d emitted hop_index %d" % [i, i])
@@ -104,35 +103,22 @@ func test_wave_started_fires_once_per_hop_in_order() -> void:
 				"line-graph wave %d should have exactly one hit" % i)
 
 
-func test_wave_intervals_match_beat_interval() -> void:
-	# We assert TOTAL elapsed time (first → last emission) rather than
-	# per-interval deltas: the first emission has variable startup delay
-	# (the play() coroutine is launched bare, picked up by the message
-	# pump on the next frame boundary). The total span cancels that out
-	# — what matters for the clock contract is the average cadence.
-	var dur := 0.08
-	var outcome := _build_4hop_outcome(_tempo(dur, 0.05))
-	var coord := _mount_coord(dur, 0.05)
-	var stamps: Array[int] = []
+func test_wave_started_lands_on_the_schedule() -> void:
+	# Wave k is announced at its arrival instant, `lead_in + k * beat_interval`
+	# — the same absolute time the applier lands its hits on (#543). Read off
+	# the coordinator's own clock, so the number is exact rather than a stopwatch.
+	var interval := 0.06
+	var lead_in := 0.04
+	var outcome := _build_4hop_outcome(_tempo(interval, lead_in))
+	var coord := _mount_coord(interval, lead_in)
+	var stamps: Array[float] = []
 	coord.wave_started.connect(func(_h: int, _c: int) -> void:
-		stamps.append(Time.get_ticks_msec()))
+		stamps.append(coord.clock.elapsed))
 	coord.play(outcome)
-	await get_tree().create_timer(dur * 5).timeout
-	assert_eq(stamps.size(), 4)
-	var total_ms: int = stamps[3] - stamps[0]
-	var expected_total_ms: int = int(dur * 1000.0) * 3
-	# Tolerance: ±1 frame per interval, plus 10ms headless slack.
-	var tol_ms := 3 * 20 + 10
-	assert_true(absi(total_ms - expected_total_ms) <= tol_ms,
-			"hops 0→3 elapsed %dms, expected ~%dms (±%dms)" % [
-					total_ms, expected_total_ms, tol_ms])
-	# Each interval should be strictly positive and bounded — a hop with
-	# zero or negative gap would mean the wave clock collapsed.
-	for i in range(1, stamps.size()):
-		var delta_ms: int = stamps[i] - stamps[i - 1]
-		assert_true(delta_ms > 0, "interval %d→%d must advance time" % [i - 1, i])
-		assert_true(delta_ms < int(dur * 1000.0) * 3,
-				"interval %d→%d ran away: %dms" % [i - 1, i, delta_ms])
+	assert_eq(stamps.size(), 4, "one announce per hop")
+	for k in stamps.size():
+		assert_almost_eq(stamps[k], lead_in + float(k) * interval, 1e-6,
+				"wave %d announced at lead_in + %d * beat_interval" % [k, k])
 
 
 func test_hung_visual_does_not_delay_subsequent_waves() -> void:
@@ -148,7 +134,6 @@ func test_hung_visual_does_not_delay_subsequent_waves() -> void:
 	coord.wave_started.connect(func(hop: int, _c: int) -> void:
 		events.append(hop))
 	coord.play(outcome)
-	await get_tree().create_timer(dur * 6).timeout
 	assert_eq(events.size(), 4, "all 4 waves fire despite hung visuals")
 	assert_eq(events, [0, 1, 2, 3])
 
@@ -179,7 +164,6 @@ func test_events_in_wave_grouped_by_beat() -> void:
 	coord.wave_started.connect(func(hop: int, count: int) -> void:
 		events.append([hop, count]))
 	coord.play(outcome)
-	await get_tree().create_timer(0.04 * 4).timeout
 	assert_eq(events.size(), 3)
 	assert_eq(events[0], [0, 1])
 	assert_eq(events[1], [1, 2])
@@ -225,7 +209,6 @@ func test_coordinator_never_mutates_hp() -> void:
 	outcome.timeline.append(ev2)
 	var coord := _mount_coord(0.05, 0.03)
 	coord.play(outcome)
-	await get_tree().create_timer(0.25).timeout
 	assert_eq(nodes[1].get_current_hp(), hp1_before,
 			"the coordinator must not apply the hit's damage itself")
 	assert_eq(nodes[2].get_current_hp(), hp2_before,
@@ -244,7 +227,6 @@ func test_verb_jump_uses_jump_path() -> void:
 
 	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.JUMP)
 	coord.play(outcome)
-	await get_tree().create_timer(0.15).timeout
 
 	var projectiles := _find_projectiles(coord)
 	assert_eq(projectiles.size(), 1, "one projectile for JUMP event")
@@ -259,7 +241,6 @@ func test_verb_edge_uses_edge_path() -> void:
 
 	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.EDGE)
 	coord.play(outcome)
-	await get_tree().create_timer(0.15).timeout
 
 	var projectiles := _find_projectiles(coord)
 	assert_eq(projectiles.size(), 1, "one projectile for EDGE event")
@@ -275,7 +256,6 @@ func test_verb_self_loop_uses_self_loop_path() -> void:
 
 	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.SELF_LOOP)
 	coord.play(outcome)
-	await get_tree().create_timer(0.15).timeout
 
 	var projectiles := _find_projectiles(coord)
 	assert_eq(projectiles.size(), 1, "one projectile for SELF_LOOP event")
@@ -292,7 +272,6 @@ func test_unset_verb_path_falls_back_to_projectile_path() -> void:
 
 	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.EDGE)
 	coord.play(outcome)
-	await get_tree().create_timer(0.15).timeout
 
 	var projectiles := _find_projectiles(coord)
 	assert_eq(projectiles.size(), 1, "one projectile for EDGE event")
@@ -307,7 +286,6 @@ func test_cancel_event_spawns_dissipate_visual() -> void:
 
 	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.CANCEL)
 	coord.play(outcome)
-	await get_tree().create_timer(0.15).timeout
 
 	# A CANCEL event should spawn a non-Projectile child (a CancelDissipate).
 	var has_dissipate := false
@@ -324,7 +302,6 @@ func test_cancel_dissipate_is_at_target_position() -> void:
 
 	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.CANCEL)
 	coord.play(outcome)
-	await get_tree().create_timer(0.15).timeout
 
 	for child in coord.get_children():
 		if not child is Projectile:
@@ -340,7 +317,6 @@ func test_cancel_event_with_null_visual_does_not_spawn() -> void:
 
 	var outcome := _make_single_event_outcome(nodes, PropagationEvent.Verb.CANCEL)
 	coord.play(outcome)
-	await get_tree().create_timer(0.15).timeout
 
 	var non_projectile_count := 0
 	for child in coord.get_children():
@@ -362,61 +338,8 @@ func test_three_clocks_impact_pinned_to_beat() -> void:
 	coord.wave_started.connect(func(hop: int, _c: int) -> void:
 		events.append(hop))
 	coord.play(outcome)
-	await get_tree().create_timer(0.10 * 5).timeout
 	assert_eq(events.size(), 4, "all 4 waves fire on three-clocks schedule")
 	assert_eq(events, [0, 1, 2, 3])
-
-
-## `play()` must not return until the WHOLE timeline has run. AttackVFX frees
-## the coordinator the moment `await coord.play(payload)` resolves, so an early
-## return silently drops every later beat and the `take_damage` lambdas riding
-## its projectiles.
-##
-## Driven by the deterministic trigger rather than a timing race: a first beat
-## that spawns NOTHING. `_play_cancel` returns before touching the counter when
-## `cancel_visual` is null, so `pending` is still 0 the first time the drain
-## checks it and the loop falls straight through — at any tuning, no reliance on
-## how long a projectile lingers before it frees. (The other trigger,
-## `beat_interval > 2 * launch_to_impact`, is real but races the visual's linger
-## and does not make a stable test.)
-##
-## Every other test in this file calls `play()` bare and waits on a wall-clock
-## timer, so none of them can see this — the assertion has to be on what has
-## happened *by the time play() resolves*.
-func test_play_does_not_return_before_the_last_beat() -> void:
-	var nodes := _graph.get_skill_nodes()
-	var coord := _mount_coord(0.05, 0.03)
-	coord.cancel_visual = null  # beat 0 will spawn nothing at all
-
-	var outcome := AttackOutcome.new()
-	var cancel_ev := PropagationEvent.new()
-	cancel_ev.beat = 0
-	cancel_ev.verb = PropagationEvent.Verb.CANCEL
-	cancel_ev.origin = nodes[0]
-	cancel_ev.target = nodes[1]
-	outcome.timeline.append(cancel_ev)
-	var hit_ev := PropagationEvent.new()
-	hit_ev.beat = 1
-	hit_ev.verb = PropagationEvent.Verb.EDGE
-	hit_ev.origin = nodes[1]
-	hit_ev.target = nodes[2]
-	var hit := DamageInstance.new()
-	hit.origin = nodes[1]
-	hit.target = nodes[2]
-	hit.amount = 1.0
-	hit_ev.hits.append(hit)
-	outcome.hits.append(hit)
-	outcome.timeline.append(hit_ev)
-
-	var events: Array = []
-	coord.wave_started.connect(func(hop: int, _c: int) -> void:
-		events.append(hop))
-
-	await coord.play(outcome)
-
-	assert_eq(events, [0, 1],
-		"play() resolved after only %d of 2 beats — AttackVFX frees the " % events.size()
-			+ "coordinator here, so the rest of the timeline (and its damage) is dropped")
 
 
 # -- Helpers ------------------------------------------------------------------
@@ -695,7 +618,6 @@ func test_begin_wave_once_per_wave_cast_to_target_then_centroids() -> void:
 	coord.wave_landing.connect(func(points: PackedVector2Array) -> void:
 		landings.append(points))
 	coord.play(outcome)
-	await get_tree().create_timer(0.04 * 5).timeout
 	assert_eq(focus.waves.size(), 3, "one begin_wave per wave, none between")
 	assert_eq(landings.size(), 3, "one wave_landing per wave")
 	if focus.waves.size() < 3 or landings.size() < 3:
@@ -745,6 +667,11 @@ func test_focus_weight_is_abs_amount_with_a_status_floor() -> void:
 	assert_true(weights.has(30.0), "the damage bolt weighs |amount| = 30: %s" % [weights])
 	assert_true(weights.has(SwarmFocus.STATUS_FLOOR),
 			"the status-only bolt weighs STATUS_FLOOR: %s" % [weights])
+	# The marker is the coordinator's first child, so it processes BEFORE the
+	# bolts each frame: its position after the next frame is the projection of
+	# the positions sampled here. Asserting against the same frame's positions
+	# instead races the frame delta (a capped 0.05 s frame is a whole pixel).
+	await get_tree().process_frame
 	assert_almost_eq(focus.global_position, focus.project(points, weights), Vector2(0.5, 0.5),
 			"marker = weight-mean projected on the wave segment")
 	coord.queue_free()
