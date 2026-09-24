@@ -1,5 +1,6 @@
 extends Node2D
-## The [code]viewport3d[/code] stage-gimbal substrate (#1074, shape A): one
+## The [code]viewport3d[/code] stage-gimbal substrate (#1074, shape A) and its
+## [code]viewport3d-split[/code] twin (#1097, A2 — [member split]): one
 ## [Gimbal3D] rig registered with the level's single [GimbalWorld], adapted
 ## onto the three-property contract every row of [code]IdleTurnProbe[/code]'s
 ## substrate table shares. This Node2D is the rig's 2D anchor: its global
@@ -12,6 +13,10 @@ extends Node2D
 const BASE_RADIUS_SCALE := 3.384 / 2.36
 
 @export var style: Gimbal3D.Style = Gimbal3D.Style.HOLO_GLASS
+
+## A2: acquire the two-camera [GimbalWorld] (`gimbal_world_split.tscn`)
+## instead of shape A's occluder one. Set by `stage_gimbal_viewport3d_split.tscn`.
+@export var split := false
 
 @export_range(1, 5, 1) var ring_count: int = 5:
 	set(value):
@@ -37,7 +42,8 @@ var _holder: Node3D
 
 
 func _ready() -> void:
-	var world := GimbalWorld.acquire(self)
+	var world := GimbalWorld.acquire(self,
+			GimbalWorld.SPLIT_SCENE if split else GimbalWorld.SCENE)
 	_rig = Gimbal3D.new()
 	_rig.style = _style_from_cmdline()
 	_rig.ring_count = ring_count
@@ -50,7 +56,8 @@ func _ready() -> void:
 	if not _geometry_printed:
 		_geometry_printed = true
 		# Four quads x two triangles x three vertices per facet per ring.
-		print("stage    : viewport3d facets=%d (x%d) verts/rig=%d" % [_rig.facets, facets_x,
+		print("stage    : %s facets=%d (x%d) verts/rig=%d" % [
+				"viewport3d-split" if split else "viewport3d", _rig.facets, facets_x,
 				_rig.facets * 24 * _rig.ring_count])
 	set_notify_transform(true)
 	var strip := _arg("--strip=")

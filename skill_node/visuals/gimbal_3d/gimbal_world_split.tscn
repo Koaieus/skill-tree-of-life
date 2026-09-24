@@ -1,0 +1,35 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://skill_node/visuals/gimbal_3d/gimbal_world.tscn" id="1_base"]
+
+[sub_resource type="CanvasItemMaterial" id="PremultFront"]
+blend_mode = 4
+
+[sub_resource type="ViewportTexture" id="WorldFrontTex"]
+viewport_path = NodePath("WorldFront")
+
+[node name="GimbalWorld" instance=ExtResource("1_base")]
+split = true
+
+[node name="WorldFront" type="SubViewport" parent="." index="1"]
+unique_name_in_owner = true
+transparent_bg = true
+handle_input_locally = false
+use_hdr_2d = true
+size = Vector2i(1920, 1080)
+render_target_update_mode = 4
+
+[node name="Camera3DFront" type="Camera3D" parent="WorldFront"]
+unique_name_in_owner = true
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1000)
+projection = 1
+size = 1080.0
+near = 1.0
+far = 1000.0
+
+[node name="CompositeFront" type="Sprite2D" parent="."]
+unique_name_in_owner = true
+texture_filter = 1
+material = SubResource("PremultFront")
+texture = SubResource("WorldFrontTex")
+centered = false

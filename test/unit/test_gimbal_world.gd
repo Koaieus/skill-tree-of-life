@@ -35,3 +35,17 @@ func test_stretch_is_folded_into_the_transform() -> void:
 	var m := GimbalWorld.map_view(xf, Vector2(2880, 1620))
 	assert_almost_eq(float(m.get("camera_size", 0.0)), 1080.0, 0.001)
 	assert_eq(m.get("sprite_scale"), Vector2(1.0 / 1.5, 1.0 / 1.5))
+
+
+func test_clip_planes_split_the_world_at_the_ring_plane() -> void:
+	# A2 (#1097): the camera sits at CAMERA_Z looking down -Z, so a clip
+	# distance d is the plane z = CAMERA_Z - d. Front half = z > 0: far clip
+	# AT z = 0. Back half = z < 0: near clip at z = 0, far past the rings.
+	var front := GimbalWorld.clip_planes(true)
+	assert_almost_eq(front.y, GimbalWorld.CAMERA_Z, 0.001, "front far clip is the ring plane z=0")
+	assert_true(front.x > 0.0 and front.x < front.y, "front near is a positive distance short of the plane")
+	var back := GimbalWorld.clip_planes(false)
+	assert_almost_eq(back.x, GimbalWorld.CAMERA_Z, 0.001, "back near clip is the ring plane z=0")
+	assert_true(back.y > back.x, "back far clip lies beyond the plane")
+	# Together the two halves tile the visible depth with no gap and no overlap.
+	assert_almost_eq(front.y, back.x, 0.001, "the halves meet exactly at z=0")
