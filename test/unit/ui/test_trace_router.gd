@@ -189,6 +189,17 @@ func test_pcb_every_bend_is_exactly_45_degrees_for_every_target() -> void:
 			_assert_on_45_grid_without_doubling_back(pts, label)
 
 
+func test_pcb_target_at_trunk_top_height_keeps_a_cardinal_closing_leg() -> void:
+	# The family boundary: `to` exactly at the trunk top's height is AHEAD
+	# (trunk, then one cardinal leg) — the gable would dedup `to` away and end
+	# on a diagonal shoulder.
+	var to := Vector2(200.0, -40.0)
+	var pts := TraceRouter.compute_trace_points(Vector2.ZERO, to, TraceRouter.Style.PCB, {"trunk_px": 40.0})
+	assert_eq(pts[pts.size() - 1], to, "last == to")
+	assert_eq(pts.size(), 3, "trunk then a squared 90° corner, like trunk == 1")
+	_assert_on_45_grid_without_doubling_back(pts, "at trunk-top height")
+
+
 func test_pcb_below_target_is_a_symmetric_gable() -> void:
 	var from := Vector2.ZERO
 	var to := Vector2(200.0, 150.0)
