@@ -74,9 +74,8 @@ extends Control
 ## `test_meta_routing_parity.gd` hang off it.
 signal advanced
 
-## Emitted as the FIRST line of [method _boom] — the charge's own clock,
-## for a caller (`test_splash.gd`, #854) that needs to know exactly when the
-## BOOM lands without racing it with a second wall-clock timer of its own.
+## Emitted as the FIRST line of [method _boom] — the moment the charge chain
+## reaches its callback (or the press itself, on a zero charge).
 signal boomed
 
 ## The frontmatter this is the attract state OF. Injected as a NodePath by the
@@ -209,7 +208,7 @@ func _park() -> void:
 func _pulse() -> void:
 	if pulse_period <= 0.0:
 		return
-	var blink := create_tween().set_loops()
+	var blink := clock.tween(self).set_loops()
 	blink.tween_property(_prompt, "modulate:a", 0.3, pulse_period)
 	blink.tween_property(_prompt, "modulate:a", 1.0, pulse_period)
 
@@ -217,14 +216,12 @@ func _pulse() -> void:
 ## Allocate the root: charge up, BOOM, then pan out to the tree. Idempotent by
 ## the latch — later calls do nothing at all.
 ##
-## [b]The charge and the BOOM run on two clocks, and only the timer is
-## authoritative.[/b] The tween below is presentation and gates nothing; the
-## [SceneTreeTimer] is what decides when the BOOM happens
-## (`.claude/rules/presentation-clock.md`). They complete on different frames, so
-## [method _end_charge] writes the charged pose explicitly rather than trusting
-## the tween to have arrived — see there. Since the camera finishes its motion at
-## [member charge_camera_fraction] and merely holds after that, a late tween
-## frame is now harmless anyway; the explicit write remains the guarantee.
+## [b]The charge and the BOOM are one chain on one clock.[/b] [method _start_charge]
+## builds a single tween — the camera/glow ramp, then [method _boom] as its
+## callback — so the BOOM lands exactly when the ramp ends, never a frame apart.
+## The tree is never paused under this node (`.claude/rules/modal-system.md`), so
+## a tween is as authoritative as a timer would be. A zero charge (the
+## `reduce_motion` path) skips the chain and BOOMs on the press.
 ##
 ## Public because it is the whole behaviour of this node, and a test that has to
 ## synthesize an [InputEventKey] to reach it would be testing Godot's input
@@ -239,7 +236,6 @@ func advance() -> void:
 		_boom()
 	else:
 		_start_charge()
-		get_tree().create_timer(_charge_seconds()).timeout.connect(_boom)
 	advanced.emit()
 
 
@@ -267,7 +263,9 @@ func _lock_navigation() -> void:
 
 
 ## Leg 1: the splash's own camera tween, from wherever the camera is now to the
-## charged pose, with the charge ring ramping on the same clock.
+## charged pose, with the charge ring ramping on the same clock — and then the
+## BOOM, as the same chain's callback. The chain is built even with no camera to
+## drive, because it is also what fires the BOOM.
 ##
 ## [b]It does NOT go through [method FrontmatterRoot.focus].[/b] That would fire
 ## `_sync_allocation` — lighting the ring on the press, which is the whole defect
@@ -277,15 +275,20 @@ func _lock_navigation() -> void:
 ## drive [method FrontmatterCamera.apply] directly. It is the same access
 ## [method _park] already takes.
 func _start_charge() -> void:
-	if _frontmatter == null or _frontmatter.tree == null or _frontmatter.camera == null:
-		return
-	_charge_from = _frontmatter.camera.current_transform()
-	_charge_to = FrontmatterLayout.charged_camera(_frontmatter.tree, charge_end_zoom)
-	var glow := _charge_glow()
-	if glow != null:
-		glow.set_progress(0.0)
-	_leg_one = create_tween()
+	if _has_camera():
+		_charge_from = _frontmatter.camera.current_transform()
+		_charge_to = FrontmatterLayout.charged_camera(_frontmatter.tree, charge_end_zoom)
+		var glow := _charge_glow()
+		if glow != null:
+			glow.set_progress(0.0)
+	_leg_one = clock.tween(self)
 	_leg_one.tween_method(_drive_charge, 0.0, 1.0, _charge_seconds())
+	_leg_one.tween_callback(_boom)
+
+
+func _has_camera() -> bool:
+	return _frontmatter != null and is_instance_valid(_frontmatter) \
+			and _frontmatter.tree != null and _frontmatter.camera != null
 
 
 ## Leg 1's camera pose at clock position `t` (0..1) — the PURE half of the
@@ -294,10 +297,8 @@ func _start_charge() -> void:
 ## [b]It exists so a test never has to sample a tween mid-flight.[/b] That is the
 ## convention [FrontmatterCamera] already states for
 ## [method FrontmatterCamera.transform_at]: assert `t == 0` and `t == 1` rather
-## than chasing intermediate frames. It is not fussiness — a [Tween] stops
-## advancing while the [SceneTree] is paused whereas a [SceneTreeTimer] goes on
-## firing, so a test that reads the live camera a fixed wall-clock delay into
-## leg 1 is asserting the harness's frame delivery, not this file's decision.
+## than chasing intermediate frames: a sampled pose asserts this file's
+## decision, where a live camera read mid-chain asserts how far a clock got.
 func charge_pose(t: float) -> Transform2D:
 	# The camera's own clock, which runs out BEFORE the charge does: past
 	# `charge_camera_fraction` this pins at 1.0, so the pose stops changing and
@@ -315,10 +316,9 @@ func charge_pose(t: float) -> Transform2D:
 ## owns every easing decision in this menu; the glow takes the RAW `t`, because
 ## its own look is not a camera motion.
 func _drive_charge(t: float) -> void:
-	if _frontmatter == null or not is_instance_valid(_frontmatter):
+	if not _has_camera():
 		return
-	if _frontmatter.camera != null:
-		_frontmatter.camera.apply(charge_pose(t))
+	_frontmatter.camera.apply(charge_pose(t))
 	var glow := _charge_glow()
 	if glow != null:
 		glow.set_progress(t)
@@ -355,12 +355,14 @@ func _boom() -> void:
 	if _settle_seconds() <= 0.0:
 		_depart()
 		return
-	get_tree().create_timer(_settle_seconds()).timeout.connect(_depart)
+	var settle := clock.tween(self)
+	settle.tween_interval(_settle_seconds())
+	settle.tween_callback(_depart)
 
 
 ## Leg 2: the pan into the hero slot, once the crescendo has been allowed to
-## land. Re-checks everything, because a timer fires a frame or more later and
-## the world may have moved on.
+## land. Re-checks everything, because it fires a settle pause later and the
+## world may have moved on.
 ##
 ## [b]The focus guard is reachable again, and that is correct.[/b] The lock came
 ## off at the BOOM, so a player may steer during [member settle_pause] — and if
@@ -379,15 +381,13 @@ func _depart() -> void:
 
 ## Ends leg 1 and puts the camera exactly where leg 1 was going.
 ##
-## [b]The explicit write is not belt-and-braces, it is the fix for a real
-## desync.[/b] The charge runs on two clocks — a [Tween] for the camera and a
-## [SceneTreeTimer] for this BOOM — and they complete on different frames. If the
-## timer wins, leg 1 is still a few pixels short; [method FrontmatterCamera.travel_to]
-## then snapshots [method FrontmatterCamera.current_transform] as leg 2's origin
-## and the pan starts from the wrong place. It would read as an intermittent jump
-## at the exact instant the player is looking, and would not reproduce on demand.
-## Writing the charged pose here makes leg 2's origin independent of frame
-## ordering, which is why a test can assert it.
+## [b]The explicit write is the zero-charge path's.[/b] A zero charge (the
+## `reduce_motion` path) reaches [method _boom] with no tween at all, so nothing
+## else has put the camera on the charged pose that
+## [method FrontmatterCamera.travel_to] snapshots as leg 2's origin. After a
+## full charge the chain already arrived there, and the write is idempotent.
+## Killing [member _leg_one] from inside its own last callback is legal: the
+## chain is finishing either way.
 func _end_charge() -> void:
 	if _leg_one != null and _leg_one.is_valid():
 		_leg_one.kill()
