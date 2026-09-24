@@ -360,6 +360,26 @@ centreline, a slide stays meaningful wherever it lands — so dragging a unit
 across the fan needs no re-authoring. This is why the panel offset is one
 scalar and not a hand-tuned `Vector2`.
 
+### Router: the 45°-only invariant
+
+`TraceRouter._pcb` promises, for **every** target: each segment heading sits on
+the 45° grid, no bend turns more than 90° (the 135° double-back is the bug it
+rules out), no zero-length segment survives, and the closing leg is cardinal.
+Two families keep it. A target *ahead* of the trunk top takes the classic
+trunk → 45° diagonal → cardinal leg. A target *behind* it (below the node for
+the ring, above it for Roots) takes the **gable**: trunk, 45° shoulder out, a
+run perpendicular to the trunk, the mirrored shoulder back, then a cardinal leg
+back along `-trunk_dir` into the target — so panels may sit LD/RD of the node.
+The gable's trunk is `trunk_px` (or `trunk` × the *perpendicular* span — the
+along-trunk span means nothing behind the top); the shoulder is
+`min(|perp| / 2, shoulder)`, `shoulder` defaulting to the trunk length, and a
+narrow offset collapses the run into a 5-point arch whose apex is the one 90°
+bend the family allows (a literal "every bend ±45°" cannot hold there). Since
+`FanAnchor` reads only the closing leg, the derived terminus edge follows the
+gable with no change of its own. The trunk's own column (`|perp| < 2 px`
+behind the top) is outside the family; the route still spans `from` → `to` and
+the layout keeps panels out of it.
+
 ### The serialization invariant
 
 `FanAnchorDriver` writes derived values into `@export`s from `_process` in a
