@@ -264,6 +264,10 @@ func _resolve_cells() -> void:
 @export_range(0.0, 1.0, 0.01) var min_fill_time: float = 0.12
 @export_range(0.1, 4.0, 0.05) var max_fill_time: float = 1.1
 
+## The one door every tween on this gauge is created through, so a test can
+## step the fill, the level segment and the drain ghost by hand. Production
+## never touches [member TweenClock.manual].
+var clock := TweenClock.new()
 var _drain_tween: Tween
 var _level_tween: Tween
 ## The segment sweep — the display walking to the model one cell per step, hot
@@ -333,7 +337,7 @@ func animate_to(target_current: float, target_max: float) -> void:
 		return
 	_suppress_drain = true
 	max_value = target_max
-	_level_tween = create_tween()
+	_level_tween = clock.tween(self)
 	_level_tween.tween_property(self, ^"current", target_current, duration) \
 			.set_ease(_fill_ease()).set_trans(_fill_trans())
 	_level_tween.tween_callback(_end_scripted_fill)
@@ -366,7 +370,7 @@ func play_level_segment(fill_to: float, new_max: float) -> void:
 	var hold_time := level_up_hold_time
 	var wrap_time := level_up_wrap_time
 	_suppress_drain = true
-	_level_tween = create_tween()
+	_level_tween = clock.tween(self)
 	# Phase 1 — fill to full at the cap this level reached. Rate-derived like any
 	# other fill: this is the path a levelling gain actually takes, so leaving it
 	# on a flat duration would keep exactly the "shoots to full" it's here to fix.
@@ -493,7 +497,7 @@ func _animate_drain_to(target: float) -> void:
 		return
 	if _drain_tween:
 		_drain_tween.kill()
-	_drain_tween = create_tween()
+	_drain_tween = clock.tween(self)
 	_drain_tween.tween_property(self, ^"drain_from", target, DRAIN_FADE_TIME)
 
 func _push(param: StringName, value: Variant) -> void:

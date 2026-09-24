@@ -5,8 +5,16 @@ extends GutTest
 ## overflow), which used to collapse into a single downward jump. play_level_up
 ## replays it over time as fill → wrap-to-empty → fill, so the bar visibly rises
 ## to full before starting the new level.
+##
+## Every tween runs on the gauge's [TweenClock] in manual mode: the test steps
+## the schedule's own numbers, and the only awaits are the one frame the
+## deferred [signal PoolGauge.fill_finished] needs between segments.
 
 const _MATERIAL := "res://ui/gauges/pool_gauge_material.tres"
+
+## Step a hair past a boundary: a step landing exactly on a tweener's end
+## leaves the next one (a callback included) for the following step.
+const _HAIR := 0.001
 
 var _gauge: PoolGauge
 
@@ -15,9 +23,10 @@ func before_each() -> void:
 	_gauge = PoolGauge.new()
 	_gauge.custom_minimum_size = Vector2(120, 12)
 	_gauge.size = Vector2(120, 12)
-	# Fast timings keep the test quick while preserving ordering.
 	_gauge.level_up_fill_time = 0.1
+	_gauge.level_up_hold_time = 0.05
 	_gauge.level_up_wrap_time = 0.04
+	_gauge.clock.manual = true
 	add_child_autofree(_gauge)
 	await get_tree().process_frame
 
@@ -33,14 +42,15 @@ func test_level_up_rises_to_full_before_settling_low() -> void:
 	_gauge.current = 3.0
 	_gauge.play_level_up(3.0, 5.0, 2.0, 10.0)
 
-	# Sample across the whole animation, tracking the peak fill fraction.
-	var peak := 0.0
-	for i in 24:
-		await get_tree().process_frame
-		await wait_seconds(0.02)
-		peak = max(peak, _fraction())
+	_gauge.clock.advance(_gauge.level_up_fill_time + _HAIR)
+	assert_almost_eq(_fraction(), 1.0, 0.001, "the bar fills to full at the old cap first")
+	assert_eq(_gauge.max_value, 5.0, "still on the old cap")
 
-	assert_gt(peak, 0.95, "the bar must fill to (near) full during the level-up")
+	_gauge.clock.advance(_gauge.level_up_hold_time + _gauge.level_up_wrap_time + _HAIR)
+	assert_eq(_gauge.max_value, 10.0, "the wrap adopted the new cap")
+	assert_almost_eq(_gauge.current, 0.0, 0.001, "and emptied the bar")
+	await wait_frames(1)  # the deferred fill_finished chains the settle fill
+	_gauge.clock.advance(_gauge.fill_duration_for(0.0, 2.0, 10.0) + _HAIR)
 
 	# And it must settle on the new level's state, not the old.
 	assert_almost_eq(_gauge.current, 2.0, 0.05, "settles at the new current")
@@ -53,11 +63,11 @@ func test_level_up_rises_to_full_before_settling_low() -> void:
 func test_a_gain_is_tweened_not_snapped() -> void:
 	_gauge.max_value = 10.0
 	_gauge.current = 2.0
+	var duration := _gauge.fill_duration_for(2.0, 8.0, 10.0)
 	_gauge.animate_to(8.0, 10.0)
-	await get_tree().process_frame
-	await wait_seconds(0.03)
-	assert_between(_gauge.current, 2.0, 8.0, "caught mid-rise")
-	await wait_seconds(0.15)
+	_gauge.clock.advance(duration * 0.5)
+	assert_between(_gauge.current, 2.0 + _HAIR, 8.0 - _HAIR, "caught mid-rise")
+	_gauge.clock.advance(duration * 0.5 + _HAIR)
 	assert_almost_eq(_gauge.current, 8.0, 0.05, "and arrives")
 
 
@@ -127,17 +137,15 @@ func test_a_levelling_fill_climbs_gradually_rather_than_snapping() -> void:
 	_gauge.max_fill_time = 1.1
 	_gauge.max_value = 5.0
 	_gauge.current = 2.0
-	await get_tree().process_frame
+	var fill := _gauge.fill_duration_for(2.0, 5.0, 5.0)
 	_gauge.play_level_segment(5.0, 10.0)
 	# 3/5 of the bar at 0.9 bar/s ≈ 0.67s, so a tenth of a second in we should be
 	# nowhere near the top — under the old flat 0.35s cubic we'd be past 80%.
-	await wait_seconds(0.1)
+	_gauge.clock.advance(0.1)
 	var early := _gauge.current
 	assert_lt(early, 4.0, "a tenth of a second in, still climbing (not snapped to full)")
 	assert_gt(early, 2.0, "but moving")
-	for i in 40:
-		await get_tree().process_frame
-		await wait_seconds(0.02)
+	_gauge.clock.advance(fill - 0.1 + _gauge.level_up_hold_time + _gauge.level_up_wrap_time + _HAIR)
 	assert_eq(_gauge.max_value, 10.0, "and the segment still completes")
 
 
@@ -150,10 +158,14 @@ func test_a_level_segment_beats_at_full_then_wraps() -> void:
 		# instant the badge bumps and the LEVEL UP banner fires.
 		held_at.append(_gauge.current / _gauge.max_value)
 		held_at.append(new_max))
+	var fill := _gauge.fill_duration_for(3.0, 5.0, 5.0)
 	_gauge.play_level_segment(5.0, 10.0)
-	for i in 30:
-		await get_tree().process_frame
-		await wait_seconds(0.01)
+	_gauge.clock.advance(fill + _HAIR)
+	assert_almost_eq(_fraction(), 1.0, 0.001, "full at the old cap")
+	assert_eq(held_at.size(), 0, "the beat waits out the hold")
+	_gauge.clock.advance(_gauge.level_up_hold_time)
+	assert_eq(held_at.size(), 2, "the beat landed")
+	_gauge.clock.advance(_gauge.level_up_wrap_time + _HAIR)
 	assert_almost_eq(held_at[0], 1.0, 0.02, "beat lands on a full bar")
 	assert_eq(held_at[1], 10.0, "carrying the cap the next level opens with")
 	assert_eq(_gauge.max_value, 10.0, "cap grew")

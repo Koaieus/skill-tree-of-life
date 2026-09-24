@@ -105,6 +105,10 @@ animation completion; a `BeatClock` is exactly a clock you can swap for an
 instant one (`BattleSystem.instant_mutation = true`), which is why a
 logical-clock cycle test is a *unit* test of what it drives, not a wall-clock
 test of when.
+A tween-driven controller's door is `TweenClock` (`ui/common/tween_clock.gd`):
+it creates every tween through a public `var clock := TweenClock.new()`, and a
+test sets `clock.manual = true` before the first tween and steps
+`clock.advance(dt)` — never a `custom_step` reach-into `x._some_tween`.
 
 Not every controller is there yet. `LevelUpFlourish.release()` still arms a
 `create_timer(min_dwell)` and `_play_exit` awaits two more — that seam is what
