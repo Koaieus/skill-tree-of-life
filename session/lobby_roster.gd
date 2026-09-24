@@ -74,10 +74,20 @@ const _PALETTE := preload("res://ui/theme/player_palette.tres")
 const _DEFAULT_PLAYER_CORE := preload("res://entity/core/balanced_core.tres")
 const _DEFAULT_AI_CORE := preload("res://entity/core/balanced_core.tres")
 
+## The attributes "explicit pick > AI preset > seat default" resolves, as
+## [LobbyRoster.Pick] field -> [Participant] property. Adding one is one entry
+## here plus one nullable [LobbyRoster.Pick] field; [method resolve_templated]
+## walks this list and nothing resolves a field on its own.
+const TEMPLATED_FIELDS: Dictionary = {
+	&"core": &"core_class",
+}
+
 
 ## What one seat explicitly chose, keyed by [member Participant.id] in
 ## [member _picks]. Survives the rebuild an AI-count change triggers; a zero
-## value means "still on the default" for that field.
+## value means "still on the default" for that field. The same record is the
+## AI preset ([member ai_preset]) and each seat's as-built default
+## ([member _defaults]) — see [constant TEMPLATED_FIELDS].
 class Pick:
 	extends RefCounted
 	var color: Color = Color.WHITE
@@ -94,8 +104,10 @@ var network: NetworkConfig = null
 ## pre-#615 lobby: nothing blocks START.
 var policy: LobbyPolicy = null
 var participants: Array[Participant] = []
-## The AI core preset (#841). `null` is "no preset armed"; AI slots only.
-var core_preset: CoreClass = null
+## The AI preset (#841, #1083): one [LobbyRoster.Pick] templating every AI
+## seat's [constant TEMPLATED_FIELDS]. A `null` field is "not armed" for that
+## attribute; human seats are never templated.
+var ai_preset := Pick.new()
 ## This machine's real id on the link, or 0 before the server has minted one
 ## (a client authors its own seat at [constant PENDING_PEER_ID] and learns
 ## the truth on join — see [method local_peer_id]).
@@ -103,6 +115,9 @@ var local_peer: int = 0
 
 var _ai_opponents: int = 0
 var _picks: Dictionary = {}
+## Seat id -> the [LobbyRoster.Pick] holding that seat's templated fields as
+## [method build_participants] authored them: the rule's last resort.
+var _defaults: Dictionary = {}
 ## #736: peers connected at the TRANSPORT level but not yet through
 ## [CommandLink]'s build gate. A pending SEAT and a connecting SOCKET are two
 ## different things, and START must wait for the second. Every entry has a
@@ -175,7 +190,7 @@ func may_edit_locally(p: Participant) -> bool:
 ## An AI seat holding an explicit core pick (#841) — provenance, never a
 ## value comparison against the preset.
 func is_core_overridden(p: Participant) -> bool:
-	return p != null and p.kind == Participant.Kind.AI and _pick_of(p.id).core != null
+	return _is_overridden(p, &"core")
 
 
 func has_pending_remote() -> bool:
@@ -227,10 +242,9 @@ func set_ai_opponents(count: int) -> void:
 	changed.emit()
 
 
-func set_core_preset(core: CoreClass) -> void:
-	core_preset = core
-	_resolve_cores()
-	changed.emit()
+## `null` disarms the core preset: AI seats fall back to their default.
+func set_preset_core(core: CoreClass) -> void:
+	_set_preset(&"core", core)
 
 
 func set_local_peer(peer_id: int) -> void:
@@ -250,21 +264,11 @@ func pick_color(p: Participant, color: Color) -> bool:
 
 
 func pick_core(p: Participant, core: CoreClass) -> bool:
-	if p == null or core == null:
-		return false
-	p.core_class = core
-	_pick_of(p.id).core = core
-	changed.emit()
-	return true
+	return _pick(p, &"core", core)
 
 
 func reset_core(p: Participant) -> bool:
-	if p == null or _pick_of(p.id).core == null:
-		return false
-	_pick_of(p.id).core = null
-	_resolve_cores()
-	changed.emit()
-	return true
+	return _reset(p, &"core")
 
 
 ## A pick equal to the seat's current camp is still recorded — provenance,
@@ -371,16 +375,40 @@ func _pick_of(id: int) -> Pick:
 	return _picks[id]
 
 
-func _picked_cores() -> Dictionary:
-	var out := {}
-	for id in _picks:
-		if _picks[id].core != null:
-			out[id] = _picks[id].core
-	return out
+# The generic doors under the typed public ones — a caller never names a field.
+
+## Always recorded, even when the value coincides with what the seat holds:
+## a pick is provenance, never a value comparison (#841 acceptance 7).
+func _pick(p: Participant, field: StringName, value: Object) -> bool:
+	if p == null or value == null:
+		return false
+	_pick_of(p.id).set(field, value)
+	_resolve()
+	changed.emit()
+	return true
 
 
-func _resolve_cores() -> void:
-	apply_core_preset(participants, _picked_cores(), core_preset)
+func _reset(p: Participant, field: StringName) -> bool:
+	if p == null or _pick_of(p.id).get(field) == null:
+		return false
+	_pick_of(p.id).set(field, null)
+	_resolve()
+	changed.emit()
+	return true
+
+
+func _is_overridden(p: Participant, field: StringName) -> bool:
+	return p != null and p.kind == Participant.Kind.AI and _pick_of(p.id).get(field) != null
+
+
+func _set_preset(field: StringName, value: Object) -> void:
+	ai_preset.set(field, value)
+	_resolve()
+	changed.emit()
+
+
+func _resolve() -> void:
+	resolve_templated(participants, _picks, ai_preset, _defaults)
 
 
 ## Rebuild the list from scratch and re-apply every remembered pick. A rebuild
@@ -394,6 +422,12 @@ func _rebuild() -> void:
 		if p != null and p.kind == Participant.Kind.HUMAN and p.peer_id != PENDING_PEER_ID:
 			seated_peers[p.id] = p.peer_id
 	participants = build_participants(mode, network, _ai_opponents)
+	_defaults.clear()
+	for p in participants:
+		var built := Pick.new()
+		for field in TEMPLATED_FIELDS:
+			built.set(field, p.get(TEMPLATED_FIELDS[field]))
+		_defaults[p.id] = built
 	for p in participants:
 		if _picks.has(p.id):
 			var pick: Pick = _picks[p.id]
@@ -405,9 +439,9 @@ func _rebuild() -> void:
 				p.display_name = pick.display_name
 		if p.kind == Participant.Kind.HUMAN and seated_peers.has(p.id):
 			p.peer_id = seated_peers[p.id]
-	# Cores are resolved together, not folded into the loop above: the preset's
-	# fallback-to-kind-default path has to see the WHOLE roster.
-	_resolve_cores()
+	# Templated fields resolve together, not folded into the loop above: the
+	# preset applies to every AI seat, picked or not yet.
+	_resolve()
 
 
 # --- the pure rules ------------------------------------------------------------
@@ -455,19 +489,30 @@ static func assign_default_cores(participants_in: Array[Participant]) -> void:
 			p.core_class = _DEFAULT_AI_CORE if p.kind == Participant.Kind.AI else _DEFAULT_PLAYER_CORE
 
 
-## #841's resolution rule: an explicit pick wins, else an armed preset templates
-## every AI seat, else the kind default. `null` preset behaves exactly as
-## [method assign_default_cores].
-static func apply_core_preset(
-	participants_in: Array[Participant], picked_cores: Dictionary, preset: CoreClass
+## #841's rule, one loop over every templated field (#1083): per seat and
+## field, the explicit pick ([param picks], id -> [LobbyRoster.Pick]) wins,
+## else the armed [param preset] on an AI seat, else the seat's as-built value
+## in [param defaults] (id -> [LobbyRoster.Pick]). A seat with no recorded
+## default (a hand-built list) gets its kind's default core. An all-null
+## preset behaves exactly as [method assign_default_cores]. [param fields]
+## is [constant TEMPLATED_FIELDS]; only a test passes another list.
+static func resolve_templated(
+	participants_in: Array[Participant], picks: Dictionary, preset: Pick,
+	defaults: Dictionary = {}, fields: Dictionary = TEMPLATED_FIELDS
 ) -> void:
 	for p in participants_in:
-		if picked_cores.has(p.id):
-			p.core_class = picked_cores[p.id]
-		elif preset != null and p.kind == Participant.Kind.AI:
-			p.core_class = preset
-		else:
-			p.core_class = null
+		var layers: Array = [
+			picks.get(p.id),
+			preset if p.kind == Participant.Kind.AI else null,
+			defaults.get(p.id),
+		]
+		for field in fields:
+			var value: Variant = null
+			for layer in layers:
+				if layer != null and layer.get(field) != null:
+					value = layer.get(field)
+					break
+			p.set(fields[field], value)
 	assign_default_cores(participants_in)
 
 

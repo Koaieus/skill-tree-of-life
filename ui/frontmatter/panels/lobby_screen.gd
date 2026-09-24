@@ -55,7 +55,7 @@ var content: VBoxContainer:
 
 const _PARTICIPANT_ROW := preload("res://ui/frontmatter/panels/participant_row.tscn")
 const _AI_COUNT_ROW := preload("res://ui/frontmatter/panels/ai_count_row.tscn")
-const _CORE_PRESET_ROW := preload("res://ui/frontmatter/panels/core_preset_row.tscn")
+const _AI_PRESET_ROW := preload("res://ui/frontmatter/panels/ai_preset_row.tscn")
 const _OPTION_CHOICE_ROW := preload("res://ui/frontmatter/panels/option_choice_row.tscn")
 const _BUDGET_RANGE_ROW := preload("res://ui/frontmatter/panels/budget_range_row.tscn")
 const _ROW_SCENE := preload("res://ui/common/labelled_row.tscn")
@@ -99,7 +99,7 @@ var _roster: LobbyRoster = null
 var _seed_edit: LineEdit
 var _start_button: Button
 var _ai_count_row: AiCountRow
-var _core_preset_row: CorePresetRow
+var _ai_preset_row: AiPresetRow
 var _rows_container: VBoxContainer
 
 ## --- #714: the roster replicates while the menu is up --------------------------
@@ -203,10 +203,10 @@ func _ready() -> void:
 		# #841: gated the same as the count row above it — a client authors no
 		# AI slots at all ([method _offers_ai_opponents]), so it has nothing to
 		# template.
-		_core_preset_row = _CORE_PRESET_ROW.instantiate()
-		content.add_child(_core_preset_row)
-		_core_preset_row.set_choices(CoreClass.pickable_for(CoreClass.PICKABLE_AI))
-		_core_preset_row.preset_changed.connect(_on_core_preset_changed)
+		_ai_preset_row = _AI_PRESET_ROW.instantiate()
+		content.add_child(_ai_preset_row)
+		_ai_preset_row.set_core_choices(CoreClass.pickable_for(CoreClass.PICKABLE_AI))
+		_ai_preset_row.core_changed.connect(_on_preset_core_changed)
 
 	_rows_container = VBoxContainer.new()
 	_rows_container.add_theme_constant_override("separation", 4)
@@ -894,8 +894,8 @@ func _on_ai_count_changed(value: float) -> void:
 	_broadcast_roster()
 
 
-func _on_core_preset_changed(core: CoreClass) -> void:
-	_roster.set_core_preset(core)
+func _on_preset_core_changed(core: CoreClass) -> void:
+	_roster.set_preset_core(core)
 	_broadcast_roster()
 
 

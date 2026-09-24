@@ -219,7 +219,7 @@ func test_basic_enemy_core_is_pickable_by_player_slots() -> void:
 
 # --- #841: a preset row templates AI cores, and per-row overrides stick ------
 #
-# `LobbyRoster.apply_core_preset` is the resolution rule, exercised directly
+# `LobbyRoster.resolve_templated` is the resolution rule, exercised directly
 # against hand-built participants — no scene needed for the seven acceptance
 # bullets. `_SERPENT` mirrors the owner's own worked example on the issue.
 
@@ -265,7 +265,7 @@ func test_setting_the_preset_templates_every_live_ai_row() -> void:
 	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
 	lobby.set_ai_opponents(2)
 
-	lobby._core_preset_row.preset_changed.emit(_SERPENT)
+	lobby._ai_preset_row.core_changed.emit(_SERPENT)
 
 	for p in lobby.participants():
 		if p.kind == Participant.Kind.AI:
@@ -275,7 +275,7 @@ func test_setting_the_preset_templates_every_live_ai_row() -> void:
 func test_raising_ai_count_after_preset_armed_seats_new_ai_on_it() -> void:
 	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
 	lobby.set_ai_opponents(1)
-	lobby._core_preset_row.preset_changed.emit(_SERPENT)
+	lobby._ai_preset_row.core_changed.emit(_SERPENT)
 
 	lobby.set_ai_opponents(3)
 
@@ -284,14 +284,14 @@ func test_raising_ai_count_after_preset_armed_seats_new_ai_on_it() -> void:
 			assert_eq(p.core_class, _SERPENT, "a newly seated AI takes the live preset")
 
 
-func test_a_client_lobby_offers_no_core_preset_row() -> void:
+func test_a_client_lobby_offers_no_ai_preset_row() -> void:
 	# Owner, 2026-09-10: gate it the same as the AI-count row beside it — a
 	# client authors no AI slots at all, so it has nothing to template.
 	var lobby := LobbyScreen.new()
 	lobby.configure(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.join("10.0.0.4", 7777))
 	add_child_autofree(lobby)
 
-	assert_null(lobby._core_preset_row)
+	assert_null(lobby._ai_preset_row)
 
 
 # --- #741: a slot types its own name, the roster carries it ------------------

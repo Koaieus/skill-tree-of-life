@@ -231,6 +231,17 @@ func _summed_stat_contribution(core: CoreClass, stat_id: StringName) -> float:
 	return total
 
 
+func _resolve_cores(parts: Array[Participant], picked_cores: Dictionary, preset_core: CoreClass) -> void:
+	var picks := {}
+	for id in picked_cores:
+		var pick := LobbyRoster.Pick.new()
+		pick.core = picked_cores[id]
+		picks[id] = pick
+	var preset := LobbyRoster.Pick.new()
+	preset.core = preset_core
+	LobbyRoster.resolve_templated(parts, picks, preset)
+
+
 func test_slot_bit_maps_kind_to_pickable_flag() -> void:
 	assert_eq(LobbyRoster.slot_bit_for(Participant.Kind.HUMAN), CoreClass.PICKABLE_PLAYER)
 	assert_eq(LobbyRoster.slot_bit_for(Participant.Kind.AI), CoreClass.PICKABLE_AI)
@@ -256,7 +267,7 @@ func test_human_slot_still_defaults_to_balanced_core() -> void:
 func test_core_preset_templates_every_ai_with_no_pick() -> void:
 	var parts: Array[Participant] = [_make_human(1), _make_ai(2), _make_ai(3)]
 
-	LobbyRoster.apply_core_preset(parts, {}, _SERPENT)
+	_resolve_cores(parts, {}, _SERPENT)
 
 	assert_eq(parts[0].core_class, _BALANCED, "the human is never templated")
 	assert_eq(parts[1].core_class, _SERPENT)
@@ -266,10 +277,10 @@ func test_core_preset_templates_every_ai_with_no_pick() -> void:
 func test_core_preset_covers_a_newly_seated_ai_id() -> void:
 	var parts: Array[Participant] = [_make_ai(2)]
 	var picked := {}
-	LobbyRoster.apply_core_preset(parts, picked, _SERPENT)
+	_resolve_cores(parts, picked, _SERPENT)
 
 	parts.append(_make_ai(3))
-	LobbyRoster.apply_core_preset(parts, picked, _SERPENT)
+	_resolve_cores(parts, picked, _SERPENT)
 
 	assert_eq(parts[1].core_class, _SERPENT, "a seat added after arming follows the preset")
 
@@ -278,7 +289,7 @@ func test_one_ai_given_a_pick_only_that_one_changes() -> void:
 	var parts: Array[Participant] = [_make_ai(2), _make_ai(3)]
 	var picked := {2: _NINJA}
 
-	LobbyRoster.apply_core_preset(parts, picked, _SERPENT)
+	_resolve_cores(parts, picked, _SERPENT)
 
 	assert_eq(parts[0].core_class, _NINJA, "the pick wins over the preset")
 	assert_eq(parts[1].core_class, _SERPENT, "the un-picked seat follows the preset")
@@ -288,8 +299,8 @@ func test_preset_change_moves_every_ai_except_the_overridden_one() -> void:
 	var parts: Array[Participant] = [_make_ai(2), _make_ai(3)]
 	var picked := {2: _NINJA}
 
-	LobbyRoster.apply_core_preset(parts, picked, _SERPENT)
-	LobbyRoster.apply_core_preset(parts, picked, _BALANCED)
+	_resolve_cores(parts, picked, _SERPENT)
+	_resolve_cores(parts, picked, _BALANCED)
 
 	assert_eq(parts[0].core_class, _NINJA)
 	assert_eq(parts[1].core_class, _BALANCED)
@@ -299,17 +310,17 @@ func test_clearing_the_pick_resumes_following_the_preset() -> void:
 	var parts: Array[Participant] = [_make_ai(2)]
 	var picked := {2: _NINJA}
 
-	LobbyRoster.apply_core_preset(parts, picked, _SERPENT)
+	_resolve_cores(parts, picked, _SERPENT)
 	assert_eq(parts[0].core_class, _NINJA)
 	picked.erase(2)
-	LobbyRoster.apply_core_preset(parts, picked, _SERPENT)
+	_resolve_cores(parts, picked, _SERPENT)
 
 	assert_eq(parts[0].core_class, _SERPENT)
 
 
 func test_sentinel_preset_behaves_exactly_as_assign_default_cores() -> void:
 	var via_preset: Array[Participant] = [_make_human(1), _make_ai(2), _make_ai(3)]
-	LobbyRoster.apply_core_preset(via_preset, {}, null)
+	_resolve_cores(via_preset, {}, null)
 
 	var via_default: Array[Participant] = [_make_human(1), _make_ai(2), _make_ai(3)]
 	LobbyRoster.assign_default_cores(via_default)
@@ -324,10 +335,10 @@ func test_a_pick_equal_to_the_preset_still_resolves_independently() -> void:
 	var parts: Array[Participant] = [ai]
 	var picked := {2: _BASIC_ENEMY}
 
-	LobbyRoster.apply_core_preset(parts, picked, _BASIC_ENEMY)
+	_resolve_cores(parts, picked, _BASIC_ENEMY)
 	assert_eq(ai.core_class, _BASIC_ENEMY, "premise: the pick and the preset coincide")
 
-	LobbyRoster.apply_core_preset(parts, picked, _NINJA)
+	_resolve_cores(parts, picked, _NINJA)
 
 	assert_eq(ai.core_class, _BASIC_ENEMY,
 			"tracked as its own state — it does not follow the preset's move")
@@ -335,7 +346,7 @@ func test_a_pick_equal_to_the_preset_still_resolves_independently() -> void:
 
 func test_setting_the_preset_templates_every_live_ai_seat() -> void:
 	var roster := LobbyRoster.new(RunConfig.Mode.SINGLE)
-	roster.set_core_preset(_SERPENT)
+	roster.set_preset_core(_SERPENT)
 	for p in roster.participants:
 		if p.kind == Participant.Kind.AI:
 			assert_eq(p.core_class, _SERPENT)
@@ -352,11 +363,42 @@ func test_a_seat_with_an_explicit_core_reads_as_overridden_until_reset() -> void
 	assert_true(roster.is_core_overridden(ai),
 			"a pick equal to the default is still an override — provenance, not value")
 
-	roster.set_core_preset(_SERPENT)
+	roster.set_preset_core(_SERPENT)
 	assert_eq(ai.core_class, _BALANCED, "the override does not follow the preset")
 	roster.reset_core(ai)
 	assert_false(roster.is_core_overridden(ai))
 	assert_eq(ai.core_class, _SERPENT, "cleared, it follows the preset again")
+
+
+func test_the_resolve_walks_the_declared_field_list_and_nothing_else() -> void:
+	# #1083: one rule over every templated field. Appending an entry (here
+	# `camp`, which #884 will) plus a nullable Pick field is the whole change.
+	assert_eq(LobbyRoster.TEMPLATED_FIELDS, {&"core": &"core_class"})
+	var roster := LobbyRoster.new(RunConfig.Mode.SINGLE)
+	for dead in [&"_resolve_cores", &"_picked_cores", &"apply_core_preset"]:
+		assert_false(roster.has_method(dead), "no per-field resolve: %s" % dead)
+
+	var human := _make_human(1)
+	human.camp = _PLAYER_FACTION
+	var ai := _make_ai(2)
+	var picked_ai := _make_ai(3)
+	var parts: Array[Participant] = [human, ai, picked_ai]
+	var preset := LobbyRoster.Pick.new()
+	preset.core = _SERPENT
+	preset.camp = _CAMP_2
+	var pick := LobbyRoster.Pick.new()
+	pick.camp = _CAMP_1
+	var human_default := LobbyRoster.Pick.new()
+	human_default.camp = _PLAYER_FACTION
+	var fields := LobbyRoster.TEMPLATED_FIELDS.duplicate()
+	fields[&"camp"] = &"camp"
+
+	LobbyRoster.resolve_templated(parts, {3: pick}, preset, {1: human_default}, fields)
+
+	assert_eq(ai.camp, _CAMP_2, "an appended field is templated by the preset")
+	assert_eq(picked_ai.camp, _CAMP_1, "and a pick on it wins")
+	assert_eq(picked_ai.core_class, _SERPENT, "per field: the camp pick leaves core on the preset")
+	assert_eq(human.camp, _PLAYER_FACTION, "the human keeps its default")
 
 
 # --- rebuild survival: an AI-count change never loses a pick -----------------
