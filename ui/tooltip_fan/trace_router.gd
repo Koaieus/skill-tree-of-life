@@ -79,7 +79,8 @@ static func _tree(from: Vector2, to: Vector2, params: Dictionary) -> PackedVecto
 ##   trunk == 1   → full cardinal leg then a squared 90° corner (no diagonal)
 ##
 ## `params.trunk_px` (default 0 = off) overrides `trunk` with a FIXED trunk
-## length in pixels, clamped to the trunk axis' span. A fraction gives near
+## length in pixels; a `trunk_px` at or beyond the target's along-trunk span
+## switches the route to the gable family below. A fraction gives near
 ## panels short trunks and far panels long ones; a fixed length makes every
 ## trace in a fan leave its origin in a uniform bundle before diverging.
 ##
@@ -95,16 +96,18 @@ static func _tree(from: Vector2, to: Vector2, params: Dictionary) -> PackedVecto
 ## shoulder back, then a cardinal closing leg back along `-trunk_dir` into `to`.
 ## The gable's trunk is `trunk_px` if set, else `trunk` × the PERPENDICULAR span
 ## (the along-trunk span is meaningless behind the trunk top); its shoulder is
-## `min(|perp| / 2, params.shoulder)` with `shoulder` defaulting to the trunk
-## length, so a narrow perpendicular offset collapses the run to a 5-point arch.
+## `min(params.shoulder, |perp| / 3)` with `shoulder` defaulting to the trunk
+## length — a third each for the two shoulders and the run, so a narrow
+## perpendicular offset shortens all three rather than losing the flat run.
 ##
 ## The invariant both families keep, for every target: every segment heading is
 ## on the 45° grid, no bend exceeds 90° (never a 135° double-back), and the
 ## closing leg is cardinal. Degenerate: a target behind the trunk top with
 ## `|perp| < 2 px` is outside the family (it is the trunk's own column, which
 ## the fan layout keeps panels out of) — the route still returns `first == from`
-## and `last == to`, but with no shoulder room it is a straight cardinal line
-## through the origin, tolerated rather than special-cased.
+## and `last == to`, but with no shoulder room it is `[from, trunk_top, to]` —
+## the trunk out, then straight back down over itself — tolerated rather than
+## special-cased.
 static func _pcb(from: Vector2, to: Vector2, params: Dictionary) -> PackedVector2Array:
 	var trunk_frac: float = params.get("trunk", 0.382)
 	var trunk_dir: Vector2 = params.get("trunk_dir", Vector2(0.0, -1.0))
@@ -115,11 +118,12 @@ static func _pcb(from: Vector2, to: Vector2, params: Dictionary) -> PackedVector
 	var d := to - from
 	var along := d.dot(trunk_dir)
 	var span := absf(along)
-	if along > 0.0 and (trunk_px <= 0.0 or trunk_px < along):
+	if along > 0.0 and (trunk_px <= 0.0 or trunk_px <= along):
 		# Ahead of the trunk top: the classic trunk → 45° diagonal → cardinal.
-		# `trunk_px` (when > 0) overrides the fraction with a fixed length, clamped
-		# so it can't overshoot the trunk axis and force the diagonal to double back.
-		var trunk_len := minf(trunk_px, span) if trunk_px > 0.0 else trunk_frac * span
+		# A fixed `trunk_px` reaching exactly the target's height still belongs
+		# here (trunk, then one cardinal leg — the same 90° corner `trunk == 1`
+		# draws); anything beyond it is the gable, so the trunk never overshoots.
+		var trunk_len := trunk_px if trunk_px > 0.0 else trunk_frac * span
 		var trunk_top := from + trunk_dir * trunk_len
 		var rem := to - trunk_top
 		var diag := minf(absf(rem.x), absf(rem.y))
@@ -139,7 +143,7 @@ static func _gable(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: f
 	var side := signf(perp) if perp_abs > 0.0 else 1.0
 	var trunk_len := trunk_px if trunk_px > 0.0 else trunk_frac * perp_abs
 	var shoulder: float = params.get("shoulder", trunk_len)
-	var a := minf(perp_abs / 2.0, shoulder)
+	var a := minf(shoulder, perp_abs / 3.0)
 	var b := perp_abs - 2.0 * a
 	var trunk_top := from + trunk_dir * trunk_len
 	var shoulder_out := trunk_top + (trunk_dir + perp_dir * side) * a

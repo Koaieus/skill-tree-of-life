@@ -372,9 +372,12 @@ run perpendicular to the trunk, the mirrored shoulder back, then a cardinal leg
 back along `-trunk_dir` into the target — so panels may sit LD/RD of the node.
 The gable's trunk is `trunk_px` (or `trunk` × the *perpendicular* span — the
 along-trunk span means nothing behind the top); the shoulder is
-`min(|perp| / 2, shoulder)`, `shoulder` defaulting to the trunk length, and a
-narrow offset collapses the run into a 5-point arch whose apex is the one 90°
-bend the family allows (a literal "every bend ±45°" cannot hold there). Since
+`min(shoulder, |perp| / 3)`, `shoulder` defaulting to the trunk length — a
+third each for the two shoulders and the run, so a narrow offset shortens all
+three and never loses the flat run. The 90° allowance is for the ahead family's
+squared corner (`trunk == 1`, or a fixed `trunk_px` reaching exactly the
+target's height), which is why the invariant reads "≤ 90°" and not a literal
+"every bend ±45°". Since
 `FanAnchor` reads only the closing leg, the derived terminus edge follows the
 gable with no change of its own. The trunk's own column (`|perp| < 2 px`
 behind the top) is outside the family; the route still spans `from` → `to` and
