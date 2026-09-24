@@ -7,6 +7,9 @@ extends Resource
 ## (a landmark scene's `effects`), or a [SkillNodeAddon], and dispatched by
 ## the [Entity] that owns it.
 ##
+## [b]Stat math — a formula included — is a [StatModifier], not an Effect.[/b]
+## Reach for an Effect only for behaviour that needs a lifecycle hook.
+##
 ## [b]Not to be confused with [OnHitEffect][/b], which is transient: it fires
 ## once as a spell lands on a node and keeps no state. An [Effect] is granted,
 ## lives, reacts to gameplay moments, and is revoked. Sibling concepts, not a

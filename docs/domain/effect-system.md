@@ -1,8 +1,10 @@
 # Effect system (#4)
 
-Persistent, hook-driven behaviour attached to an `Entity`. Effects are how a
-core class, a keystone, or an addon does something that doesn't reduce to a flat
-stat modifier — auras, per-turn rules, on-kill triggers.
+Persistent, hook-driven behaviour attached to an `Entity`. **Stat math — a
+formula included — is a `StatModifier`; an `Effect` is for behaviour that needs
+a lifecycle hook** (grant/revoke-time work, turn start, on kill, core moved, an
+aura re-evaluated as distances change). A core class, a landmark, or an addon
+reaches for one only for that.
 
 ## `Effect` vs `OnHitEffect`
 

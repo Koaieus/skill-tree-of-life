@@ -84,9 +84,9 @@ signal statuses_changed
 
 ## [Effect]s this node grants to its owner: [AllocationSystem] grants each on
 ## allocate and revokes them (keyed by this node) on deallocate. This is the
-## authoring surface for landmark content — a keystone is a hand-authored
-## inherited scene of `entity/keystone/keystone_skill_node.tscn` that carries
-## its [StatEffect] here as a SubResource (#336 / #929); procgen's rolled
+## authoring surface for behavioural landmark content — a keystone is a
+## hand-authored inherited scene of `entity/keystone/keystone_skill_node.tscn`;
+## a pure stat grant goes in [member modifiers] instead. Procgen's rolled
 ## [SpellGrant]s land here too via [method add_effect].
 @export var effects: Array[Effect] = []
 

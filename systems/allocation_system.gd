@@ -571,8 +571,8 @@ func move_core(entity: Entity, target: SkillNode) -> bool:
 
 
 ## Grant every [Effect] a node carries to its new owner (#4): the node's own
-## [member SkillNode.effects] (a landmark scene's authored StatEffect lives
-## there, #929) and any addon-borne effects.
+## [member SkillNode.effects] (a behavioural landmark's authored effect, a
+## rolled [SpellGrant]) and any addon-borne effects.
 func _grant_node_effects(node: SkillNode, entity: Entity) -> void:
 	if node == null or entity == null:
 		return
