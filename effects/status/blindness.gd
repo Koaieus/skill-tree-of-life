@@ -3,8 +3,11 @@ extends StatusDef
 
 ## Blindness (#873, hub #868 D8): while it lasts, the node sees and senses
 ## less — one `MULTIPLY` on each of the node-local `vision_range` and
-## `sensor_range`, at `lerp(1.0, blind_factor, power / power_max)`, so the
-## fog closes in at full power and recovers linearly as the power decays.
+## `sensor_range`, at [method factor_for] of the TOTAL power: one saturating
+## curve easing toward [member floor_factor]. Authored uncapped + ACCUMULATE,
+## so reapplies commute (light then heavy == heavy then light); with a
+## FRACTION fade the flat top of the curve makes recovery slow first, then
+## faster. See docs/design/damage_over_time.md.
 ##
 ## The def is shared and stateless, so the per-node handle is FOUND rather
 ## than stored: the modifiers are [BlindModifier]s, and the one on a node's
@@ -22,11 +25,10 @@ extends StatusDef
 
 const STAT_IDS: Array[StringName] = [&"vision_range", &"sensor_range"]
 
-## The multiplier on `vision_range` / `sensor_range` at full power. The
-## owner's knob (`blindness.tres`); no test pins the authored value.
-@export var blind_factor: float = 0.5
-## STUB (red commit): the depth curve's knobs, not yet read.
+## The power at which the factor is ½ — the curve's half-depth. The owner's
+## knob (`blindness.tres`); no test pins the authored value.
 @export var depth_k: float = 3.0
+## The multiplier the curve saturates to — never blinder than this.
 @export var floor_factor: float = 0.1
 
 
@@ -60,12 +62,13 @@ func _on_removed(host) -> void:
 			host.remove_local_modifier(m)
 
 
-## The multiplier for [param power] — `1.0` at zero, [member blind_factor]
-## at [member power_max].
+## The multiplier for [param power] — the curve's only home:
+## `max(floor, k / (power + k))`, `1.0` at zero, `½` at [member depth_k],
+## monotone non-increasing, never below [member floor_factor].
 func factor_for(power: float) -> float:
-	if power_max <= 0.0:
+	if power <= 0.0 or depth_k <= 0.0:
 		return 1.0
-	return lerpf(1.0, blind_factor, clampf(power / power_max, 0.0, 1.0))
+	return maxf(floor_factor, depth_k / (power + depth_k))
 
 
 func _set_factor(host, power: float) -> void:

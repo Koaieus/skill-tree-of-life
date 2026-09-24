@@ -196,7 +196,6 @@ func test_a_cured_blindness_modifier_tracks_the_new_power_and_clears_at_zero() -
 	blind.power_max = 3.0
 	blind.decay_per_tick = 0.0
 	blind.cure_per_hp = 1.0
-	blind.blind_factor = 0.5
 
 	_node.get_combat().apply_status(blind, 3.0)
 	var heal := _heal(1.0)

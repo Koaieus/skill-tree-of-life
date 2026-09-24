@@ -95,7 +95,7 @@ func _decaying(def: StatusDef) -> StatusDef:
 func test_entity_blindness_halves_every_nodes_combined_vision_range() -> void:
 	var def := BlindnessStatus.new()
 	def.id = &"blindness"
-	def.blind_factor = 0.5
+	def.depth_k = 10.0  # half-depth at the applied power → ×0.5
 	def.power_max = 10.0
 	def.decay_mode = StatusDef.DecayMode.FRACTION
 	def.decay_per_tick = 0.5
