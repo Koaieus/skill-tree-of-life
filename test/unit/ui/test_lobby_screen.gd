@@ -620,6 +620,58 @@ func test_a_camp_override_shows_a_reset_that_resumes_the_preset() -> void:
 	assert_eq(ai.camp, _CAMP_2, "cleared, the seat follows the preset again")
 
 
+## #1086: one tier knob in the preset row, one override per AI row — never on
+## a human row, and never gated on a policy (every AI seat has a tier).
+func test_ai_rows_show_a_tier_picker_and_human_rows_do_not() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
+	lobby.set_ai_opponents(2)
+	var parts := lobby.participants()
+	for i in parts.size():
+		var row: ParticipantRow = lobby._rows_container.get_child(i)
+		var tier: OptionButton = row.get_node("%Tier")
+		if parts[i].kind == Participant.Kind.AI:
+			assert_true(tier.visible, "an AI row shows its tier")
+			assert_eq(tier.item_count, AIController.Tier.size())
+			assert_eq(tier.get_item_metadata(tier.selected), parts[i].ai_tier)
+		else:
+			assert_false(tier.visible, "a human row has no tier")
+
+
+func test_the_preset_row_templates_the_ai_tiers() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
+	lobby.set_ai_opponents(2)
+	var tier_pick: OptionButton = lobby._ai_preset_row.get_node("%TierPick")
+	assert_true(tier_pick.visible, "the preset row shows a tier dropdown")
+	assert_null(tier_pick.get_item_metadata(0), "sentinel first: no preset")
+	assert_eq(tier_pick.item_count, AIController.Tier.size() + 1)
+
+	lobby._ai_preset_row.tier_changed.emit(AIController.Tier.WARLORD)
+
+	for p in lobby.participants():
+		if p.kind == Participant.Kind.AI:
+			assert_eq(p.ai_tier, AIController.Tier.WARLORD)
+
+
+func test_a_tier_override_shows_a_reset_that_resumes_the_preset() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.SINGLE)
+	lobby.set_ai_opponents(1)
+	var ai: Participant = lobby.participants()[1]
+	lobby._ai_preset_row.tier_changed.emit(AIController.Tier.WARLORD)
+	var row: ParticipantRow = lobby._rows_container.get_child(1)
+	assert_false(row.get_node("%TierReset").visible, "not overridden yet")
+
+	row.tier_picked.emit(AIController.Tier.BRAWLER)
+	assert_eq(ai.ai_tier, AIController.Tier.BRAWLER)
+	row = lobby._rows_container.get_child(1)
+	assert_true(row.get_node("%TierReset").visible, "an explicit tier pick shows its reset")
+
+	row.get_node("%TierReset").pressed.emit()
+
+	row = lobby._rows_container.get_child(1)
+	assert_false(row.get_node("%TierReset").visible)
+	assert_eq(ai.ai_tier, AIController.Tier.WARLORD, "cleared, the seat follows the preset again")
+
+
 func test_a_locked_slot_still_shows_the_camp_it_actually_holds() -> void:
 	# An AI sits on `npc.tres`, which is not in any policy's pool. The dropdown
 	# must show that rather than lie by selecting the pool's first entry.

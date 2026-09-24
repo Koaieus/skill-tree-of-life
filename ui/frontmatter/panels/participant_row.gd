@@ -57,6 +57,13 @@ signal camp_picked(camp: Faction)
 ## The camp twin of [signal core_reset_requested] (#884).
 signal camp_reset_requested()
 
+## An AI slot chose a tier (#1086) — an [enum AIController.Tier] as an int.
+## Same ask-don't-write contract as the other pickers.
+signal tier_picked(tier: int)
+
+## The tier twin of [signal core_reset_requested] (#1086).
+signal tier_reset_requested()
+
 ## A slot committed a name — Enter, or the field losing focus. Same
 ## ask-don't-write contract as the pickers: the name is run shape (it crosses
 ## the wire inside the roster), and [LobbyScreen] owns the roster.

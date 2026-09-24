@@ -17,6 +17,9 @@ extends HBoxContainer
 signal core_changed(core: CoreClass)
 ## The camp preset changed; `null` is the sentinel, #759 decision 5's "any camp".
 signal camp_changed(camp: Faction)
+## The tier preset changed (#1086): an [enum AIController.Tier] as an int, or
+## `null` for the sentinel.
+signal tier_changed(tier: Variant)
 
 const _SENTINEL_LABEL := "(no preset)"
 
