@@ -4,6 +4,7 @@ extends Node2D
 
 const ZLayers = preload("res://ui/z_layers.gd")
 const InnerDiskShatterField := preload("res://skill_node/visuals/inner_disk_shatter_field.tscn")
+const InnerDiskScript := preload("res://skill_node/visuals/inner_disk.gd")
 
 ## Listens to AllocationSystem (allocate / dealloc) and BattleSystem
 ## (cascade_started) and spawns transient world-space effects:
@@ -260,6 +261,8 @@ func _push_shatter_tuning() -> void:
 		mat.set_shader_parameter(&"shard_bloom_stops", Emissive.stops(shatter_shard_bloom_tier))
 		mat.set_shader_parameter(&"ray_stops", Emissive.stops(shatter_ray_tier))
 		mat.set_shader_parameter(&"ray_onset", shatter_ray_onset)
+		# The textures a dying node's carve indexes into (#843).
+		InnerDiskScript.bind_carve_samplers(mat)
 
 
 ## The shard field #257's node deaths spawn into — exposed for the live tab
@@ -332,7 +335,8 @@ func _on_force_deallocated(node: SkillNode, previous_owner: Entity) -> void:
 			snap.get("position", node.global_position),
 			snap.get("radius", node.inner_radius),
 			snap.get("color", previous_owner.color),
-			snap.get("delay", 0.0))
+			snap.get("delay", 0.0),
+			snap.get("carve", node.carve_params()))
 
 
 func _on_blade_vertex_popped(defender: SkillNode, _attacker: Entity, at_pos: Vector2) -> void:
@@ -349,7 +353,7 @@ func _on_blade_vertex_popped(defender: SkillNode, _attacker: Entity, at_pos: Vec
 ## A forced-dealloc cascade is about to run in the model. Two jobs, both of
 ## which need to happen BEFORE `force_deallocate`:
 ##
-## 1. Snapshot each node's position/radius — the node lives on (only
+## 1. Snapshot each node's position/radius/carve — the node lives on (only
 ##    ownership/visuals change), but stake/allocation collapsing to 0 on
 ##    dealloc shrinks `inner_radius` out from under any later read.
 ## 2. Assign each node its ripple slot. `layers` arrives in BFS order from the
@@ -370,6 +374,9 @@ func _on_cascade_started(layers: Array, defender: Entity) -> void:
 				"radius": n.inner_radius,
 				"color": color,
 				"delay": i * CASCADE_STEP,
+				# The glyph the shards keep (#843) — resolved state, valid on a
+				# fogged node, and taken before the dealloc can re-resolve it.
+				"carve": n.carve_params(),
 			}
 
 
@@ -570,7 +577,8 @@ func _spawn_lift(world_pos: Vector2, disk_radius: float, color: Color) -> void:
 ## `force_deallocate` (see `skill_node.gd`), the shard field takes over.
 ## Returns the first pool slot (`ShatterField.spawn_shatter`'s own return),
 ## for test inspection — nothing in gameplay reads it.
-func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay: float) -> int:
+func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay: float,
+		carve: CarveParams = null) -> int:
 	if _shard_field == null:
 		return -1
 	var spawn_time := _shatter_clock + delay
@@ -578,7 +586,7 @@ func _spawn_shatter(world_pos: Vector2, disk_radius: float, color: Color, delay:
 	# A dying node is stationary — its shards' entire velocity is their own
 	# radial kick, never inherited momentum (#257 decision 7).
 	return _shard_field.spawn_shatter(origin, disk_radius, color, Vector2.ZERO, spawn_time,
-			shatter_shard_count, shatter_fling_speed)
+			shatter_shard_count, shatter_fling_speed, carve)
 
 
 ## Blade-pop burst (#170): a self-freeing one-shot spray at the contact point.

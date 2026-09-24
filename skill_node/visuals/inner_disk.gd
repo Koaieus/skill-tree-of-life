@@ -323,23 +323,32 @@ func _on_identity_changed() -> void:
 	_sync_material()
 
 
+## Binds the samplers a [CarveParams] indexes into — the gem LUT and the one
+## shared [CarveAtlas] array (#247; per-node variation is `carve_slice`, never
+## the sampler) — onto `mat`. The live disk's shared material and the
+## shatter shard material (#843) both take them from here, so a dying node's
+## glyph samples the very textures its live disc did.
+static func bind_carve_samplers(mat: ShaderMaterial) -> void:
+	if mat == null:
+		return
+	if _gem_lut == null:
+		_gem_lut = _build_gem_lut()
+	mat.set_shader_parameter(&"gem_lut", _gem_lut)
+	var atlas := CarveAtlas.shared()
+	if atlas != null:
+		mat.set_shader_parameter(&"carve_atlas", atlas.texture())
+
+
 func _ready() -> void:
 	if _shared_material == null:
 		_shared_material = ShaderMaterial.new()
 		_shared_material.shader = SHADER
-	if _gem_lut == null:
-		_gem_lut = _build_gem_lut()
-	# Plain (non-instance) uniform — the LUT is identical for every InnerDisk,
-	# so it's set ONCE on the shared material rather than per-instance. (This is
-	# on the SHARED material, so it does NOT claim a per-instance buffer slot —
-	# binding `material` on THIS CanvasItem is what does, hence the gate below.)
-	_shared_material.set_shader_parameter(&"gem_lut", _gem_lut)
-	# Same deal for the arbitrary-art atlas (#247): ONE array texture holding
-	# every baked LUT, bound once on the shared material. Per-node variation is
-	# the `carve_slice` index below, not the sampler — see [CarveAtlas].
-	var atlas := CarveAtlas.shared()
-	if atlas != null:
-		_shared_material.set_shader_parameter(&"carve_atlas", atlas.texture())
+	# Plain (non-instance) uniforms — the LUT and atlas are identical for every
+	# InnerDisk, so they're set ONCE on the shared material rather than
+	# per-instance. (This is on the SHARED material, so it does NOT claim a
+	# per-instance buffer slot — binding `material` on THIS CanvasItem is what
+	# does, hence the gate in _sync_material.)
+	bind_carve_samplers(_shared_material)
 	# Re-sync when the disk is shown after being hidden — see the visibility gate
 	# in _sync_material (#172). Fires on this node too when an ancestor (a fogged
 	# SkillNode, the invisible Node Graph preview graph) toggles visibility.
