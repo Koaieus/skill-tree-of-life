@@ -94,6 +94,14 @@ static func acquire(host: Node2D) -> GimbalWorld:
 	return world
 
 
+static func is_live_for(node: Node) -> bool:
+	return false
+
+
+static func in_edited_scene(node: Node, edited_root: Node) -> bool:
+	return false
+
+
 ## Pure: the root's world->pixels transform + pixel size -> Camera3D
 ## `position` / ortho `size` + the composite sprite's world-space rect.
 static func map_view(world_to_pixels: Transform2D, pixel_size: Vector2) -> Dictionary:

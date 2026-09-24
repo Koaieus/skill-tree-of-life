@@ -128,3 +128,24 @@ func test_world_scene_is_the_two_camera_split() -> void:
 	assert_almost_eq(cam_back.far, bp.y, 0.001, "back far = clip_planes(false).y")
 	assert_almost_eq(cam_front.near, fp.x, 0.001, "front near = clip_planes(true).x")
 	assert_almost_eq(cam_front.far, fp.y, 0.001, "front far = clip_planes(true).y")
+
+
+# The editor gate: a world is live anywhere at runtime, and in the editor only
+# outside the scene being edited (the sandbox panel's own tree).
+func test_edited_scene_membership_is_the_root_and_its_descendants() -> void:
+	var root := Node2D.new()
+	var child := Node2D.new()
+	var outside := Node2D.new()
+	root.add_child(child)
+	autofree(root)
+	autofree(outside)
+	assert_true(GimbalWorld.in_edited_scene(root, root), "the edited root itself")
+	assert_true(GimbalWorld.in_edited_scene(child, root), "a node inside the edited scene")
+	assert_false(GimbalWorld.in_edited_scene(outside, root), "a node outside it (the panel)")
+	assert_false(GimbalWorld.in_edited_scene(child, null), "no scene open")
+
+
+func test_runtime_is_always_live() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+	assert_true(GimbalWorld.is_live_for(node), "outside the editor every node may hold a world")
