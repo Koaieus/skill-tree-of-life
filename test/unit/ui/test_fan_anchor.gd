@@ -449,3 +449,64 @@ func test_a_satisfiable_forced_axis_is_not_flagged() -> void:
 		"a satisfiable constraint must not report a fallback")
 	assert_true(bool(FanAnchor.solve_route(from, rect, _params(), FanAnchor.Axis.AUTO, 0.5).unsatisfiable) == false,
 		"and AUTO — which forces nothing — never can")
+
+
+# --- the slide is DERIVED: nearest the trunk top, clamped off the corners -----
+#
+# `trunk_px` is the fan-wide trunk length ([member FanAnchorDriver.trunk_length]);
+# the trunk top is `from + trunk_dir * trunk_px`, and the anchor is the point on
+# the derived edge nearest it — clamped to [0.1, 0.9] of the edge so the closing
+# leg keeps a real perpendicular run instead of grazing a corner.
+
+const _TRUNK_PX := 60.0
+
+
+func test_the_slide_lands_nearest_the_trunk_top() -> void:
+	var from := Vector2.ZERO
+	var trunk_top := from + _TRUNK_DIR * _TRUNK_PX # (0, -60)
+
+	# Panel right of the pin, straddling the trunk top's height -> LEFT edge,
+	# at exactly the trunk top's y (0.5 of a 120-tall edge from y -120).
+	var rect := Rect2(Vector2(200.0, -120.0), Vector2(160.0, 120.0))
+	var anchor := FanAnchor.derive_anchor(from, rect, _TRUNK_DIR, _TRUNK_FRAC, _TRUNK_PX)
+	assert_almost_eq(anchor.x, rect.position.x, 0.01, "right of the pin -> LEFT edge")
+	assert_almost_eq(anchor.y, trunk_top.y, 0.01, "slide lands at the trunk top's height")
+
+	# Panel far above the trunk top -> the projection falls off the edge's
+	# bottom corner and is clamped to 0.9 of the edge.
+	var high := Rect2(Vector2(200.0, -300.0), Vector2(160.0, 120.0))
+	var anchor_high := FanAnchor.derive_anchor(from, high, _TRUNK_DIR, _TRUNK_FRAC, _TRUNK_PX)
+	assert_almost_eq(anchor_high.x, high.position.x, 0.01, "still the LEFT edge")
+	assert_almost_eq(anchor_high.y, high.position.y + 0.9 * high.size.y, 0.01,
+		"trunk top below the edge -> clamped to 0.9 of it")
+
+	# Panel wholly below the trunk top and off to the right -> the gable closes
+	# down into the TOP edge; the trunk top's x lies left of the edge, so the
+	# slide clamps to 0.1 of it.
+	var low := Rect2(Vector2(200.0, 20.0), Vector2(160.0, 120.0))
+	var anchor_low := FanAnchor.derive_anchor(from, low, _TRUNK_DIR, _TRUNK_FRAC, _TRUNK_PX)
+	assert_almost_eq(anchor_low.y, low.position.y, 0.01, "below the trunk top -> TOP edge")
+	assert_almost_eq(anchor_low.x, low.position.x + 0.1 * low.size.x, 0.01,
+		"trunk top left of the edge -> clamped to 0.1 of it")
+
+
+func test_a_grown_panel_keeps_a_perpendicular_arrival() -> void:
+	# The surviving intent of the forced-axis regression (#400): content that
+	# grows a panel past its authored envelope must not turn the arrival into a
+	# leg running alongside the edge. NodeStats' shipped geometry, then 200 px
+	# taller.
+	var from := Vector2(-6.0, 0.0)
+	var params := {"trunk": _TRUNK_FRAC, "trunk_dir": _TRUNK_DIR, "trunk_px": _TRUNK_PX}
+	for extra in [0.0, 200.0]:
+		var rect := Rect2(Vector2(-345.0, -230.0), Vector2(170.0, 200.0 + extra))
+		var anchor := FanAnchor.derive_anchor(from, rect, _TRUNK_DIR, _TRUNK_FRAC, _TRUNK_PX)
+		var pts := TraceRouter.compute_trace_points(from, anchor, TraceRouter.Style.PCB, params)
+		var leg := pts[pts.size() - 1] - pts[pts.size() - 2]
+		var on_vertical_edge := is_equal_approx(anchor.x, rect.position.x) \
+			or is_equal_approx(anchor.x, rect.position.x + rect.size.x)
+		if on_vertical_edge:
+			assert_almost_eq(leg.y, 0.0, 0.01, "grown by %s: closing leg into a vertical edge is horizontal" % extra)
+			assert_gt(absf(leg.x), 0.0, "grown by %s: the closing leg has length" % extra)
+		else:
+			assert_almost_eq(leg.x, 0.0, 0.01, "grown by %s: closing leg into a horizontal edge is vertical" % extra)
+			assert_gt(absf(leg.y), 0.0, "grown by %s: the closing leg has length" % extra)
