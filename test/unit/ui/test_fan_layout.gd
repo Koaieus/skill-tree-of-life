@@ -129,6 +129,36 @@ func test_a_rest_outside_the_window_is_held_inside() -> void:
 	assert_true(keep_in.encloses(_rect(b)), "rect inside keep_in: %s" % _rect(b))
 
 
+## The mirror of the test above on the RIGHT wall: the clamp parks a body
+## exactly on `keep_in.end - size`, and a room test that excludes that edge
+## rejects every perpendicular push and falls back to the deadlock direction.
+func test_a_body_flush_against_the_right_wall_still_escapes_an_obstacle() -> void:
+	var keep_in := Rect2(0, 0, 170, 300)
+	var band := Rect2(0, 150, 170, 100)
+	var b := _body(Vector2(160, 110), Vector2(10, 160))
+	var bodies: Array[FanLayout.Body] = [b]
+	var obstacles: Array[Rect2] = [band]
+	var steps := FanLayout.settle(bodies, obstacles, keep_in, _params())
+	assert_true(steps >= 0, "settled (steps=%d)" % steps)
+	assert_false(_rect(b).intersects(band), "clear of the band: %s" % _rect(b))
+	assert_true(keep_in.encloses(_rect(b)), "inside keep_in: %s" % _rect(b))
+
+
+## Two overlapping bodies whose CURRENT order along the shallow axis is the
+## opposite of their rest order separate toward rest order (a brief
+## pass-through), not into a locked swapped contact.
+func test_a_swapped_pair_separates_into_rest_order() -> void:
+	var a := _body(Vector2(150, 130), Vector2(0, 0))
+	var b := _body(Vector2(150, 130), Vector2(100, 0))
+	a.position = Vector2(60, 0)
+	b.position = Vector2(40, 0)
+	var bodies: Array[FanLayout.Body] = [a, b]
+	var steps := FanLayout.settle(bodies, [], _WIDE, _params())
+	assert_true(steps >= 0, "settled (steps=%d)" % steps)
+	assert_gte(_gap(_rect(a), _rect(b)), _PADDING - 0.1, "apart: %s vs %s" % [_rect(a), _rect(b)])
+	assert_lt(a.position.x, b.position.x, "a (rest left) ends left of b: %s vs %s" % [_rect(a), _rect(b)])
+
+
 func test_the_seven_panel_fan_settles_without_overlap() -> void:
 	var bodies := _seven()
 	var steps := FanLayout.settle(bodies, _obstacles(), _WIDE, _params())
