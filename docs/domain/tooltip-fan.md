@@ -322,6 +322,22 @@ authoring problem this design exists to fix.
 The fan is **not** dismissed on camera motion. With the zoom tween, tracking is
 smooth, and dismissing would read as twitchy.
 
+### How the fan reacts to the viewport
+
+**Walls at the HUD's usable rect; the camera never moves on hover** (owner,
+2026-09-25). `HudRoot.usable_rect()` is the HUD's rect with each side pulled in
+past the furthest visible chrome docked there (left column; XP track /
+initiative bar / forecast on top; combat readout on the right; command tray,
+action cluster and minimap along the bottom) plus a 4 px gap — one inset per
+side, so an open corner is not handed out. It is computed on every call rather
+than cached on resize, because the chrome changes size on its own. `HudRoot`
+hands `TooltipFan` the method as `usable_rect_source` in `_ready`; every frame
+of a hover the coordinator subtracts its `global_position` and writes the result
+to the driver's `keep_in`, which `FanLayout` treats as walls. A fan at a screen
+corner therefore folds inward instead of spilling off. When even the walled
+layout is too crowded (seven panels at a corner), panels stay inside but may
+overlap — the escape for that is a camera nudge, a separate design.
+
 ### Order by ANGLE, not by x
 
 The sort key is the clock angle of a panel's centre around the node — the same

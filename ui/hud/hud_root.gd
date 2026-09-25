@@ -115,10 +115,47 @@ func _ready() -> void:
 		# through the queue so its Esc is its own and not the pause menu's.
 		spell_catalogue_modal.closed.connect(_on_modal_closed)
 		pause_menu.spell_catalogue_requested.connect(_on_spell_catalogue_requested)
+		# HUD-lifetime, not level-lifetime: the chrome is ours whatever level
+		# is bound, so the fan's keep-in is wired here rather than in compose.
+		tooltip_fan.usable_rect_source = usable_rect
 
 
+## The gap [method usable_rect] keeps from the chrome — the 4 px
+## [SpellTooltip] keeps from the viewport edge.
+const USABLE_RECT_INSET := 4.0
+
+
+## The screen this HUD leaves free for world overlays, in its own canvas space
+## (the [TooltipFan]'s, which lives beside it): the HUD's rect with each side
+## pulled in past the furthest-reaching VISIBLE chrome docked on it — left
+## column; top strip (XP track, initiative bar, forecast); combat readout on
+## the right; command tray, action cluster and minimap along the bottom — plus
+## [constant USABLE_RECT_INSET]. One inset per side, so it is conservative: a
+## corner the chrome leaves open is not handed out.
+##
+## Computed live, not cached on `NOTIFICATION_RESIZED`: the chrome resizes on
+## its own (the left column's cards grow as they bind) without the HUD doing
+## so, and it is a handful of rect reads.
 func usable_rect() -> Rect2:
-	return get_global_rect()
+	var whole := get_global_rect()
+	var left := whole.position.x
+	var top := whole.position.y
+	var right := whole.end.x
+	var bottom := whole.end.y
+	for c: Control in [left_column_slot]:
+		if c.is_visible_in_tree():
+			left = maxf(left, c.get_global_rect().end.x)
+	for c: Control in [xp_track, initiative_bar, turn_forecast_strip]:
+		if c.is_visible_in_tree():
+			top = maxf(top, c.get_global_rect().end.y)
+	for c: Control in [combat_readout]:
+		if c.is_visible_in_tree():
+			right = minf(right, c.get_global_rect().position.x)
+	for c: Control in [command_tray, action_cluster, minimap_panel]:
+		if c.is_visible_in_tree():
+			bottom = minf(bottom, c.get_global_rect().position.y)
+	var usable := Rect2(left, top, right - left, bottom - top).grow(-USABLE_RECT_INSET)
+	return usable.abs() if usable.has_area() else Rect2(usable.get_center(), Vector2.ZERO)
 
 
 ## Let go of the hero's board when the level goes away. A Stat is a Resource
