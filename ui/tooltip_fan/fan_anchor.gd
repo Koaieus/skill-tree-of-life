@@ -112,7 +112,7 @@ static func derive_anchor(from: Vector2, panel_rect: Rect2, trunk_dir: Vector2, 
 	# warned about, because it's a legitimate resting place for synthetic
 	# geometry (`test_fan_anchor.gd`'s up-and-right quadrant case lands here and
 	# asserts the edge is still the correct one). What must not tolerate it is a
-	# SHIPPED unit — `test_tooltip_fan_variants.gd`'s self-consistency test is
+	# SHIPPED unit — `test_fan_scene.gd`'s self-consistency test is
 	# the guard, and the fix there is authoring, not code: give the panel more
 	# separation from the pin on the tied axis.
 	return _nearest_on_edge(edge, panel_rect, trunk_top)

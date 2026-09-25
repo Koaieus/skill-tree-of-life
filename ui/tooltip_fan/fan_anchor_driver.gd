@@ -255,8 +255,8 @@ func _reroute(unit: Node) -> void:
 ## The shared point every wire in the fan diverges from: `unit`'s clock pin plus
 ## `trunk_length` along its trace's `trunk_dir`. A driver fact (the pin is
 ## derived here, the length is this export) — the derived slide aims at it and
-## a blooming panel starts there. Falls back to an upward trunk for a unit with
-## no trace, or a zero direction.
+## a blooming panel starts there. Returns `Vector2.ZERO` for a unit with no
+## trace; a zero `trunk_dir` falls back to an upward trunk.
 func trunk_top_of(unit: Node) -> Vector2:
 	var trace: FanTrace = unit.get_node_or_null("%Trace") if is_instance_valid(unit) else null
 	if trace == null:

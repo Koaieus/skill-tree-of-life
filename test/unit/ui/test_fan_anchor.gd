@@ -241,7 +241,7 @@ func test_the_slide_lands_nearest_the_trunk_top() -> void:
 
 
 func test_a_grown_panel_keeps_a_perpendicular_arrival() -> void:
-	# The surviving intent of the forced-axis regression (#400): content that
+	# The surviving intent of the forced-axis regression: content that
 	# grows a panel past its authored envelope must not turn the arrival into a
 	# leg running alongside the edge. NodeStats' shipped geometry, then 200 px
 	# taller.
