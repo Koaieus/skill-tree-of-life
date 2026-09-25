@@ -2,7 +2,7 @@ extends GutTest
 
 ## Tooltip V2 (#226/#314) — structural checks on `fan.tscn`, the ONE fan scene
 ## that replaced the three occupancy-class variants: the converged layout
-## (no overlap, clear of the zoom-scaled node + Roots obstacle, #1120), the
+## (no overlap, clear of the zoom-scaled node + Roots obstacle), the
 ## z-sandwich (HoloPanel z=-1 / content z=0 / ScanlineOverlay z=+1), and trace
 ## self-consistency. All geometric, none a screenshot — see #226's report for
 ## what stays

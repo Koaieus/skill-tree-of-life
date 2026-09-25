@@ -125,7 +125,7 @@ func test_a_lone_pin_points_straight_up() -> void:
 	assert_eq(FanAnchorDriver.pin_offset(0, 1, 32.0, _STEP, _MAX_ARC), Vector2(0.0, -32.0))
 
 
-# --- #1120: the driver runs FanLayout -------------------------------------------
+# --- the driver runs FanLayout -------------------------------------------
 
 func _fan() -> FanAnchorDriver:
 	var inst := _FAN.instantiate()
