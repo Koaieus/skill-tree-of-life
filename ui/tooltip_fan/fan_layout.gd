@@ -60,8 +60,8 @@ static func step(bodies: Array[FanLayout.Body], obstacles: Array[Rect2], keep_in
 	var padding: float = float(params.get("padding", DEFAULT_PADDING))
 	var iterations: int = int(params.get("relax_iterations", DEFAULT_RELAX_ITERATIONS))
 	for _pass in iterations:
-		_relax_pairs(bodies, padding)
-		_relax_obstacles(bodies, obstacles, padding)
+		_relax_pairs(bodies, padding, keep_in)
+		_relax_obstacles(bodies, obstacles, padding, keep_in)
 	_clamp_into(bodies, keep_in)
 
 	var moved := 0.0
@@ -98,7 +98,7 @@ static func _integrate_springs(bodies: Array[FanLayout.Body], tau: float, dt: fl
 			b.velocity = Vector2.ZERO
 
 
-static func _relax_pairs(bodies: Array[FanLayout.Body], padding: float) -> void:
+static func _relax_pairs(bodies: Array[FanLayout.Body], padding: float, keep_in: Rect2) -> void:
 	var half := padding * 0.5
 	for i in bodies.size():
 		var a := bodies[i]
@@ -106,24 +106,50 @@ static func _relax_pairs(bodies: Array[FanLayout.Body], padding: float) -> void:
 			var b := bodies[j]
 			var ra := Rect2(a.position, a.size).grow(half)
 			var rb := Rect2(b.position, b.size).grow(half)
-			var push := _separation(ra, rb, (b.rest + b.size * 0.5) - (a.rest + a.size * 0.5))
-			if push == Vector2.ZERO:
+			var toward := (b.rest + b.size * 0.5) - (a.rest + a.size * 0.5)
+			var candidates := _separations(ra, rb, toward)
+			if candidates.is_empty():
 				continue
+			# The split move: the first candidate that leaves BOTH inside the
+			# window wins, else the shallowest and the clamp settles it.
+			var room_a := _room_for(a, keep_in)
+			var room_b := _room_for(b, keep_in)
+			var push := candidates[0]
+			for c in candidates:
+				if room_a.has_point(a.position - c * 0.5) and room_b.has_point(b.position + c * 0.5):
+					push = c
+					break
 			a.position -= push * 0.5
 			b.position += push * 0.5
 
 
+## Obstacles a body overlaps are resolved as ONE merged rect: two obstacles
+## closer together than the body (the node's 11 px slot above Roots) would
+## otherwise hand it back and forth between them forever.
 static func _relax_obstacles(bodies: Array[FanLayout.Body], obstacles: Array[Rect2],
-		padding: float) -> void:
+		padding: float, keep_in: Rect2) -> void:
 	for b in bodies:
+		var rb := Rect2(b.position, b.size).grow(padding)
+		var merged := Rect2()
+		var any := false
 		for o in obstacles:
-			var rb := Rect2(b.position, b.size).grow(padding)
-			# The obstacle is the fixed side: the body takes the whole push,
-			# away from the obstacle, so the arguments are (obstacle, body).
-			var push := _separation(o, rb, (b.rest + b.size * 0.5) - o.get_center())
-			if push == Vector2.ZERO:
+			if not rb.intersects(o):
 				continue
-			b.position += push
+			merged = o if not any else merged.merge(o)
+			any = true
+		if not any:
+			continue
+		# The obstacle is the fixed side: the body takes the whole push,
+		# away from the obstacle, so the arguments are (obstacle, body).
+		var toward := (b.rest + b.size * 0.5) - merged.get_center()
+		var candidates := _separations(merged, rb, toward)
+		var room := _room_for(b, keep_in)
+		var push := candidates[0]
+		for c in candidates:
+			if room.has_point(b.position + c):
+				push = c
+				break
+		b.position += push
 
 
 ## Absolute, last: a body larger than the window pins to its top-left.
@@ -134,25 +160,39 @@ static func _clamp_into(bodies: Array[FanLayout.Body], keep_in: Rect2) -> void:
 		b.position.y = clampf(b.position.y, keep_in.position.y, maxf(keep_in.position.y, max_pos.y))
 
 
-## The translation that moves [param b] fully clear of [param a] along the
-## axis of least penetration, or ZERO when they do not overlap. The sign is
-## [param toward] — the offset between where the two WANT to be (rest
-## centres), so a pair that blooms from one point separates toward its own
-## sectors instead of by whichever rect happens to be wider; a zero component
-## falls back to the current centre offset, and failing that +. Sorting by
-## rest rather than by current position is what keeps a bloom from jamming
-## panels on the wrong side of the node (measured: the seven-panel bloom
-## lands every panel in its rest sector, where centre-first left three
-## swapped).
-static func _separation(a: Rect2, b: Rect2, toward: Vector2) -> Vector2:
+## Where a body's top-left may sit and still be inside [param keep_in].
+static func _room_for(b: Body, keep_in: Rect2) -> Rect2:
+	return Rect2(keep_in.position, keep_in.size - b.size)
+
+
+## The translations that move [param b] fully clear of [param a], shallowest
+## first — each axis, each sign — or empty when they do not overlap. The
+## caller takes the first one WITH ROOM: a push the keep-in clamp would undo
+## deadlocks the body against the wall, so the next-shallowest direction
+## that fits is the one to take (and none fitting, the shallowest, which the
+## clamp then settles).
+##
+## Within an axis the preferred sign is [param toward] — the offset between
+## where the two WANT to be (rest centres), so a pair that blooms from one
+## point separates toward its own sectors instead of by whichever rect
+## happens to be wider; a zero component falls back to the current centre
+## offset, and failing that +. Sorting by rest rather than by current
+## position is what keeps a bloom from jamming panels on the wrong side of
+## the node (measured: the seven-panel bloom lands every panel in its rest
+## sector, where centre-first left three swapped).
+static func _separations(a: Rect2, b: Rect2, toward: Vector2) -> Array[Vector2]:
 	var overlap_x := minf(a.end.x, b.end.x) - maxf(a.position.x, b.position.x)
 	var overlap_y := minf(a.end.y, b.end.y) - maxf(a.position.y, b.position.y)
 	if overlap_x <= 0.0 or overlap_y <= 0.0:
-		return Vector2.ZERO
+		return []
 	var delta := b.get_center() - a.get_center()
+	var sx := _sign_of(toward.x, delta.x)
+	var sy := _sign_of(toward.y, delta.y)
+	var along_x: Array[Vector2] = [Vector2(overlap_x * sx, 0.0), Vector2(-overlap_x * sx, 0.0)]
+	var along_y: Array[Vector2] = [Vector2(0.0, overlap_y * sy), Vector2(0.0, -overlap_y * sy)]
 	if overlap_x < overlap_y:
-		return Vector2(overlap_x * _sign_of(toward.x, delta.x), 0.0)
-	return Vector2(0.0, overlap_y * _sign_of(toward.y, delta.y))
+		return along_x + along_y
+	return along_y + along_x
 
 
 static func _sign_of(primary: float, fallback: float) -> float:
