@@ -92,6 +92,13 @@ const _GROUP := &"fan_unit"
 ## the node. Scaled by [member zoom_scale] into the node obstacle.
 const NODE_FOOTPRINT := Rect2(-45.0, -70.0, 90.0, 102.0)
 
+## A bloom leg's spring time constant is its trace's `draw_in_duration`
+## divided by this. The critically damped spring has ~4% of the way left at
+## five time constants, so the panel lands as the trace tip arrives and
+## unfurls in place — at the solver's `settle_seconds` it would still be a
+## third of the way out when it appears (measured: Addons ~225 px short).
+const BLOOM_TIME_CONSTANTS_PER_DRAW := 5.0
+
 ## Below this many radians from its target a pin just snaps — stops the decay
 ## from chasing an asymptote forever and re-writing `from_point` every frame
 ## for a sub-pixel gain.
@@ -351,8 +358,9 @@ func _layout(delta: float) -> void:
 
 ## Advances every bloom leg one frame toward its body's CURRENT solved
 ## position — the same critically damped spring, run by [FanLayout] itself
-## with nothing to collide with — and retires the legs that have landed
-## (FanLayout snaps a body within a pixel of its rest onto it, at rest).
+## with nothing to collide with, timed to its trace's draw-in (see
+## [constant BLOOM_TIME_CONSTANTS_PER_DRAW]) — and retires the legs that have
+## landed (FanLayout snaps a body within a pixel of its rest onto it, at rest).
 func _fly_legs(params: Dictionary, delta: float) -> void:
 	for id in _legs.keys():
 		var leg: FanLayout.Body = _legs[id]
@@ -360,9 +368,17 @@ func _fly_legs(params: Dictionary, delta: float) -> void:
 		leg.size = body.size
 		leg.rest = body.position
 		var one: Array[FanLayout.Body] = [leg]
-		FanLayout.step(one, [], keep_in, params, delta)
+		var leg_params := params.duplicate()
+		leg_params["settle_seconds"] = _leg_seconds(instance_from_id(id))
+		FanLayout.step(one, [], keep_in, leg_params, delta)
 		if leg.position == leg.rest and leg.velocity == Vector2.ZERO:
 			_legs.erase(id)
+
+
+func _leg_seconds(unit: Object) -> float:
+	var trace: FanTrace = (unit as Node).get_node_or_null("%Trace") if unit is Node else null
+	var draw := trace.draw_in_duration if trace != null else settle_seconds
+	return draw / BLOOM_TIME_CONSTANTS_PER_DRAW
 
 
 ## What the panel shows: the bloom leg while one is in flight, else the body.
