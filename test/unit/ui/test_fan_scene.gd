@@ -14,10 +14,6 @@ extends GutTest
 
 const _FAN := preload("res://ui/tooltip_fan/fan.tscn")
 
-## Decision 3: no panel may occupy y in [-70,-28], |x| <= 45 in node-local
-## space (the reserved HP band above the node's HealthBar/CoreHealthBar).
-const _BAND := Rect2(Vector2(-45.0, -70.0), Vector2(90.0, 42.0))
-
 ## The units a HAND-AUTHORED, UNOWNED node's fan gates out: Owner needs an
 ## owning entity, Core needs to be one, ProcgenDebug (#292) needs a
 ## `procgen_footprint` meta that only `GraphProcgen` stamps, and EffectReadout
@@ -75,20 +71,78 @@ func _gate_out_without_refresh(fan: Node, unit_names: Array) -> void:
 		unit.participating = false
 
 
-func test_no_panel_occupies_the_reserved_hp_band() -> void:
+## Every panel of the real fan at zoom 1, all units participating: `refresh()`
+## runs the solver to convergence, and the converged layout keeps every pair
+## apart and every panel off the node + Roots obstacle.
+func test_refresh_converges_the_layout_with_no_overlap_and_no_obstacle_hit() -> void:
 	var inst := _instantiate()
-	for rect in _panel_rects(inst):
-		assert_false(rect.intersects(_BAND),
-			"panel rect %s must not intersect the reserved HP band %s" % [rect, _BAND])
-
-
-func test_no_two_panels_overlap() -> void:
-	var inst := _instantiate()
+	var driver := inst as FanAnchorDriver
+	driver.refresh()
 	var rects := _panel_rects(inst)
+	assert_eq(rects.size(), 7, "every unit participates standalone")
 	for i in range(rects.size()):
+		for o in driver.obstacles():
+			assert_false(rects[i].intersects(o),
+				"panel %s must clear the node/Roots obstacle %s" % [rects[i], o])
 		for j in range(i + 1, rects.size()):
 			assert_false(rects[i].intersects(rects[j]),
 				"panel %d overlaps panel %d (%s vs %s)" % [i, j, rects[i], rects[j]])
+
+
+## Nothing to push against: a panel on its own converges exactly onto its
+## authored rest — where the unit's `position` puts it before any solve.
+func test_a_lone_panel_sits_at_its_rest() -> void:
+	var inst := _instantiate()
+	var unit := inst.find_child("ProcgenDebug", true, false) as FanUnit
+	var panel := unit.get_node("%Panel") as FanPanel
+	var authored := FanAnchor.panel_rect_of(panel).position + unit.position
+	_suppress(inst, ["IdChip", "NodeStats", "Addons", "Owner", "Core", "EffectReadout"])
+	var solved := FanAnchor.panel_rect_of(panel).position + unit.position
+	assert_almost_eq(solved.x, authored.x, 0.1, "a lone panel must sit at its rest")
+	assert_almost_eq(solved.y, authored.y, 0.1, "a lone panel must sit at its rest")
+
+
+## The whole fan crowds, so some panel is pushed — but the solver's contact
+## equilibrium holds every pair at least `padding` apart.
+func test_a_crowded_panel_is_pushed_off_its_rest_but_never_past_padding() -> void:
+	var inst := _instantiate()
+	var driver := inst as FanAnchorDriver
+	driver.refresh()
+	var rects := _panel_rects(inst)
+	var half: float = (driver.padding - 0.1) * 0.5
+	for i in range(rects.size()):
+		for j in range(i + 1, rects.size()):
+			assert_false(rects[i].grow(half).intersects(rects[j].grow(half)),
+				"panels %d and %d closer than padding (%s vs %s)" % [i, j, rects[i], rects[j]])
+
+
+## The node grows with the camera zoom while panels stay screen-constant, so
+## the node obstacle has to grow with it.
+func test_the_node_obstacle_scales_with_zoom() -> void:
+	var inst := _instantiate()
+	var driver := inst as FanAnchorDriver
+	driver.zoom_scale = 2.0
+	driver.refresh()
+	var doubled := Rect2(FanAnchorDriver.NODE_FOOTPRINT.position * 2.0,
+		FanAnchorDriver.NODE_FOOTPRINT.size * 2.0)
+	for rect in _panel_rects(inst):
+		assert_false(rect.intersects(doubled),
+			"panel %s must clear the zoom-2 node rect %s" % [rect, doubled])
+
+
+## The serialization invariant: the solved position lands on `%Panel`, and a
+## unit's own `position` — the authored rest, saved in `fan.tscn` — never moves.
+func test_the_driver_never_writes_a_units_position() -> void:
+	var inst := _instantiate()
+	var driver := inst as FanAnchorDriver
+	var before := {}
+	for unit in inst.find_children("*", "FanUnit", true, false):
+		before[unit.name] = (unit as Node2D).position
+	for _frame in 60:
+		driver._process(1.0 / 60.0)
+	for unit in inst.find_children("*", "FanUnit", true, false):
+		assert_eq((unit as Node2D).position, before[unit.name],
+			"%s: the driver must never write a unit's position" % unit.name)
 
 
 func test_z_sandwich_is_set_up_on_every_content_panel() -> void:
@@ -163,21 +217,19 @@ func _actual_edge_of_route(trace: FanTrace) -> String:
 ## panel's edge without ever reading as "inside" it — so it isn't asserted
 ## here as a substitute for the edge check.
 ##
-## SKIPPED #362 — known broken, parked indefinitely (parked).
-## The `test_` prefix is deliberately absent so GUT does not collect it: it
-## reported as pending on every run for months, which is a standing line of
-## noise in the verdict for a fact nobody re-decides. Restoring it is a
-## one-word rename, and the assertions it should make are described above.
-##
-## Do NOT infer a direction from #362's title: the issue was filed about
-## `test_no_two_panels_overlap` "failing in isolation", but THIS function is a
-## different failure under the same issue — it was red in a full-suite run
-## (audit 2026-08-13 baseline, `00-brief.md`) while the overlap test now passes
-## in isolation. The order-dependence is real; which way round it cuts for this
-## function has not been measured.
-##
-func parked_every_fan_traces_terminus_is_self_consistent() -> void:
-	pass
+## Checked on the CONVERGED layout (`refresh()` settles the solver first), so
+## the result no longer depends on which test ran before this one.
+func test_every_fan_traces_terminus_is_self_consistent() -> void:
+	var inst := _instantiate()
+	(inst as FanAnchorDriver).refresh()
+	for unit in (inst as FanAnchorDriver).units_in_fan_order():
+		var trace: FanTrace = unit.get_node("%Trace")
+		var rect := FanAnchor.panel_rect_of(unit.get_node("%Panel") as FanPanel)
+		var fresh: Vector2 = FanAnchor.solve_route(trace.from_point, rect, trace.route_params()).anchor
+		assert_almost_eq(trace.to_point.x, fresh.x, 0.01, "%s: to_point must be derived" % unit.name)
+		assert_almost_eq(trace.to_point.y, fresh.y, 0.01, "%s: to_point must be derived" % unit.name)
+		assert_eq(_actual_edge_of_route(trace), _edge_name(trace.to_point, rect),
+			"%s: the drawn route must arrive on the edge its anchor sits on" % unit.name)
 
 
 func test_every_fan_unit_carries_the_fan_unit_group() -> void:
