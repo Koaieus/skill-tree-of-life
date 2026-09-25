@@ -74,6 +74,10 @@ const _GROUP := &"fan_unit"
 ## [method trunk_top_of]) is the point the derived slide aims at and where a
 ## blooming panel starts.
 @export_range(1.0, 300.0, 1.0, "or_greater") var trunk_length := 40.0
+## The 45° shoulder every trace breaks out with past its trunk top, in
+## pixels — fan-wide like [member trunk_length]. `0` defers to [TraceRouter]'s
+## default (the trunk length).
+@export_range(0.0, 300.0, 1.0, "or_greater") var shoulder := 0.0
 
 @export_group("Layout")
 ## [FanLayout]'s spring time constant: how long a panel takes to settle onto
@@ -307,6 +311,7 @@ func _reroute(unit: Node) -> void:
 	# sees the same line the screen draws. It is this driver's export, never a
 	# solver output, so writing it every frame cannot feed itself.
 	trace.trunk_length = trunk_length
+	trace.shoulder = shoulder
 	var route := FanAnchor.solve_route(trace.from_point, rect, trace.route_params())
 	trace.to_point = route.anchor
 

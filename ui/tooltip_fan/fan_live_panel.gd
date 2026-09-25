@@ -78,6 +78,15 @@ func _wire_knobs() -> void:
 	%MaxArcSlider.value_changed.connect(func(v: float) -> void: _sandbox.set_max_arc_degrees(v))
 	%PinFactorSlider.value_changed.connect(func(v: float) -> void: _sandbox.set_pin_factor(v))
 	%SlideRateSlider.value_changed.connect(func(v: float) -> void: _sandbox.set_pin_slide_rate(v))
+	%SettleSlider.value_changed.connect(func(v: float) -> void: _sandbox.set_settle_seconds(v))
+	%PaddingSlider.value_changed.connect(func(v: float) -> void: _sandbox.set_padding(v))
+	%TrunkSlider.value_changed.connect(func(v: float) -> void: _sandbox.set_trunk_length(v))
+	%ShoulderSlider.value_changed.connect(func(v: float) -> void: _sandbox.set_shoulder(v))
+	%KeepInCheck.toggled.connect(_sandbox.set_keep_in_override)
+	for i in 4:
+		var spin: Range = [%KeepInX, %KeepInY, %KeepInW, %KeepInH][i]
+		spin.value_changed.connect(func(v: float) -> void: _sandbox.set_keep_in_component(v, i))
+	%ReplayBloomButton.pressed.connect(_sandbox.replay_bloom)
 
 
 func _wire_drive() -> void:

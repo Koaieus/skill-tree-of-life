@@ -99,6 +99,17 @@ const PHI_FRACTION := 0.382
 		trunk_length = value
 		_rebuild_geometry()
 
+## The 45° shoulder's length, in pixels — how far the route breaks sideways
+## off the trunk top before its perpendicular run. `<= 0` leaves it to
+## [TraceRouter], which uses the trunk length. Written fan-wide by
+## [member FanAnchorDriver.shoulder] every frame, hence the equality skip.
+@export_range(0.0, 200.0, 1.0, "or_greater") var shoulder := 0.0:
+	set(value):
+		if is_equal_approx(shoulder, value):
+			return
+		shoulder = value
+		_rebuild_geometry()
+
 @export_group("Look")
 ## Identity hue before glow tiering — always an SDR (≤1.0) colour.
 ## [member line_glow_stops] is what actually lifts the drawn line into bloom
@@ -327,11 +338,14 @@ func _rebuild_geometry() -> void:
 ## a different line than the one on screen), which is exactly the bug that made
 ## it public.
 func route_params() -> Dictionary:
-	return {
+	var params := {
 		"trunk": bend_start,
 		"trunk_dir": trunk_dir,
 		"trunk_px": trunk_length,
 	}
+	if shoulder > 0.0:
+		params["shoulder"] = shoulder
+	return params
 
 
 ## Splits `progress` into the two bands the reveal is made of — ignition, then

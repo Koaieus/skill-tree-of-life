@@ -462,6 +462,10 @@ func set_trunk_length(v: float) -> void:
 	_fan.trunk_length = v
 
 
+func set_shoulder(v: float) -> void:
+	_fan.shoulder = v
+
+
 ## Keep-in override: at runtime the fan's owner feeds the driver's `keep_in`
 ## from the HUD's usable rect; the bench has no HUD, so this stands in for it.
 ## Off hands the driver back the unbounded rect it was authored with.

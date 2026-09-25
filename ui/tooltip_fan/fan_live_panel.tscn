@@ -260,6 +260,14 @@ max_value = 300.0
 step = 1.0
 value = 40.0
 
+[node name="ShoulderSlider" type="HSlider" parent="Split/Controls/VBox" unique_id=1733052817]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "shoulder — length of the 45° break off the trunk top; 0 = the router default (the trunk length)"
+max_value = 300.0
+step = 1.0
+
 [node name="KeepInCheck" type="CheckButton" parent="Split/Controls/VBox" unique_id=1475230337]
 unique_name_in_owner = true
 layout_mode = 2
@@ -401,13 +409,3 @@ color = Color(0.05, 0.06, 0.08, 1)
 [node name="Sandbox" parent="Split/ViewportContainer/World" unique_id=318413593 instance=ExtResource("2_sandbox")]
 unique_name_in_owner = true
 position = Vector2(518, 523)
-
-[connection signal="value_changed" from="Split/Controls/VBox/SettleSlider" to="Split/ViewportContainer/World/Sandbox" method="set_settle_seconds"]
-[connection signal="value_changed" from="Split/Controls/VBox/PaddingSlider" to="Split/ViewportContainer/World/Sandbox" method="set_padding"]
-[connection signal="value_changed" from="Split/Controls/VBox/TrunkSlider" to="Split/ViewportContainer/World/Sandbox" method="set_trunk_length"]
-[connection signal="toggled" from="Split/Controls/VBox/KeepInCheck" to="Split/ViewportContainer/World/Sandbox" method="set_keep_in_override"]
-[connection signal="value_changed" from="Split/Controls/VBox/KeepInRow/KeepInX" to="Split/ViewportContainer/World/Sandbox" method="set_keep_in_component" binds=[0]]
-[connection signal="value_changed" from="Split/Controls/VBox/KeepInRow/KeepInY" to="Split/ViewportContainer/World/Sandbox" method="set_keep_in_component" binds=[1]]
-[connection signal="value_changed" from="Split/Controls/VBox/KeepInRow/KeepInW" to="Split/ViewportContainer/World/Sandbox" method="set_keep_in_component" binds=[2]]
-[connection signal="value_changed" from="Split/Controls/VBox/KeepInRow/KeepInH" to="Split/ViewportContainer/World/Sandbox" method="set_keep_in_component" binds=[3]]
-[connection signal="pressed" from="Split/Controls/VBox/ReplayBloomButton" to="Split/ViewportContainer/World/Sandbox" method="replay_bloom"]

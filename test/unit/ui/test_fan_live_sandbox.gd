@@ -136,8 +136,18 @@ func test_turning_the_keep_in_override_off_restores_the_unbounded_rect() -> void
 	assert_eq(_fan().keep_in, unbounded)
 
 
-## The knob rows are wired by `[connection]`s in the panel scene, so the only
-## honest check that a row reaches the driver is to move the row.
+func test_the_shoulder_knob_reaches_the_router_params() -> void:
+	_sandbox.apply_preset(_SANDROB_SCRIPT.PRESET_CORE)
+	var trace: FanTrace = _unit("Owner").get_node("%Trace")
+	assert_false(trace.route_params().has("shoulder"),
+		"at 0 the router keeps its trunk-length default")
+	_sandbox.set_shoulder(25.0)
+	_fan().refresh()
+	assert_eq(trace.route_params().get("shoulder"), 25.0)
+
+
+## The panel script wires the knob rows, so the only honest check that a row
+## reaches the driver is to move the row.
 func test_the_panel_layout_rows_reach_the_driver() -> void:
 	var panel: Control = load("res://ui/tooltip_fan/fan_live_panel.tscn").instantiate()
 	add_child_autofree(panel)
@@ -145,11 +155,13 @@ func test_the_panel_layout_rows_reach_the_driver() -> void:
 	(panel.find_child("SettleSlider", true, false) as Range).value = 0.4
 	(panel.find_child("PaddingSlider", true, false) as Range).value = 10.0
 	(panel.find_child("TrunkSlider", true, false) as Range).value = 90.0
+	(panel.find_child("ShoulderSlider", true, false) as Range).value = 30.0
 	(panel.find_child("KeepInCheck", true, false) as BaseButton).button_pressed = true
 	(panel.find_child("KeepInW", true, false) as Range).value = 500.0
 	assert_almost_eq(driver.settle_seconds, 0.4, 0.001)
 	assert_eq(driver.padding, 10.0)
 	assert_eq(driver.trunk_length, 90.0)
+	assert_eq(driver.shoulder, 30.0)
 	assert_eq(driver.keep_in.size.x, 500.0)
 
 
