@@ -12,8 +12,9 @@ extends RefCounted
 ## `accel = (rest − pos)·ω² − vel·2ω`, semi-implicit Euler, sub-stepped so
 ## `ω·dt ≤ MAX_STEP_RATIO`; no transcendentals. (2) Position projection:
 ## after integrating, `relax_iterations` passes push every overlapping
-## inflated pair apart along its minimum-penetration axis — half each for a
-## body pair, the whole correction against an obstacle — then `keep_in` is
+## inflated pair apart along the shallowest direction the keep-in would not
+## undo — half each for a body pair, the whole correction against an
+## obstacle — then `keep_in` is
 ## applied last and absolutely (a body larger than the window pins to its
 ## top-left). Projection never touches velocity: the spring keeps pushing and
 ## the projection keeps holding, which IS the contact equilibrium.
@@ -116,7 +117,7 @@ static func _relax_pairs(bodies: Array[FanLayout.Body], padding: float, keep_in:
 			var room_b := _room_for(b, keep_in)
 			var push := candidates[0]
 			for c in candidates:
-				if room_a.has_point(a.position - c * 0.5) and room_b.has_point(b.position + c * 0.5):
+				if _fits(a.position - c * 0.5, room_a) and _fits(b.position + c * 0.5, room_b):
 					push = c
 					break
 			a.position -= push * 0.5
@@ -146,7 +147,7 @@ static func _relax_obstacles(bodies: Array[FanLayout.Body], obstacles: Array[Rec
 		var room := _room_for(b, keep_in)
 		var push := candidates[0]
 		for c in candidates:
-			if room.has_point(b.position + c):
+			if _fits(b.position + c, room):
 				push = c
 				break
 		b.position += push
@@ -165,8 +166,17 @@ static func _room_for(b: Body, keep_in: Rect2) -> Rect2:
 	return Rect2(keep_in.position, keep_in.size - b.size)
 
 
-## The translations that move [param b] fully clear of [param a], shallowest
-## first — each axis, each sign — or empty when they do not overlap. The
+## Edge-INCLUSIVE containment. `Rect2.has_point` excludes the right/bottom
+## edge, and the clamp parks a body exactly on `keep_in.end - size` — an
+## exclusive test would reject every push that keeps that coordinate and
+## fall back to the deadlock direction on the right and bottom walls.
+static func _fits(p: Vector2, room: Rect2) -> bool:
+	return p == p.clamp(room.position, room.end)
+
+
+## The translations that move [param b] fully clear of [param a] — the
+## shallower-overlap axis first, on each axis the preferred sign first — or
+## empty when they do not overlap. The
 ## caller takes the first one WITH ROOM: a push the keep-in clamp would undo
 ## deadlocks the body against the wall, so the next-shallowest direction
 ## that fits is the one to take (and none fitting, the shallowest, which the
@@ -188,11 +198,21 @@ static func _separations(a: Rect2, b: Rect2, toward: Vector2) -> Array[Vector2]:
 	var delta := b.get_center() - a.get_center()
 	var sx := _sign_of(toward.x, delta.x)
 	var sy := _sign_of(toward.y, delta.y)
-	var along_x: Array[Vector2] = [Vector2(overlap_x * sx, 0.0), Vector2(-overlap_x * sx, 0.0)]
-	var along_y: Array[Vector2] = [Vector2(0.0, overlap_y * sy), Vector2(0.0, -overlap_y * sy)]
+	# The distance that clears [param b] on each side is NOT the overlap: it
+	# is the whole way past [param a]'s far edge when pushing through it.
+	var along_x: Array[Vector2] = [_clear_x(a, b, sx), _clear_x(a, b, -sx)]
+	var along_y: Array[Vector2] = [_clear_y(a, b, sy), _clear_y(a, b, -sy)]
 	if overlap_x < overlap_y:
 		return along_x + along_y
 	return along_y + along_x
+
+
+static func _clear_x(a: Rect2, b: Rect2, sign: float) -> Vector2:
+	return Vector2(a.end.x - b.position.x if sign > 0.0 else a.position.x - b.end.x, 0.0)
+
+
+static func _clear_y(a: Rect2, b: Rect2, sign: float) -> Vector2:
+	return Vector2(0.0, a.end.y - b.position.y if sign > 0.0 else a.position.y - b.end.y)
 
 
 static func _sign_of(primary: float, fallback: float) -> float:
