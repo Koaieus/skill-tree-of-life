@@ -24,6 +24,9 @@ extends GutTest
 const _FAN_SCENE := preload("res://ui/tooltip_fan/tooltip_fan.tscn")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BOARD := preload("res://entity/default_entity_board.tres")
+const _SPIKE_RING_ADDON := preload("res://skill_node/addons/spike_ring_addon.tscn")
+const _BUNKER_ADDON := preload("res://skill_node/addons/bunker_addon.tscn")
+const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 
 const _MORE_INFO_ACTION := &"ui_more_info"
 
@@ -322,6 +325,33 @@ func test_fan_tracks_the_node_across_subsequent_frames() -> void:
 	assert_almost_eq(_fan.global_position.y, expected.y, 0.5)
 
 
+# --- viewport containment ----------------------------------------------------
+
+func test_a_fan_around_a_corner_node_stays_inside_the_usable_rect() -> void:
+	var usable := Rect2(0.0, 0.0, 1280.0, 720.0)
+	_fan.usable_rect_source = func() -> Rect2: return usable
+	_give_the_node_every_units_content()
+	_node.global_position = Vector2(60.0, 60.0)
+	Input.action_press(_MORE_INFO_ACTION)
+	Events.skill_node_hovered.emit(_node)
+	for _i in range(10):
+		await get_tree().process_frame
+	var driver := _fan._current_fan as FanAnchorDriver
+	assert_not_null(driver, "the mounted fan is driven by a FanAnchorDriver")
+	var units := _participating_units()
+	assert_eq(units.size(), 7, "every unit has content: %s" % [units.map(func(u: Node) -> String: return u.name)])
+	driver.refresh()
+	var to_screen := driver.get_global_transform()
+	for unit in units:
+		var panel: FanPanel = unit.get_node("%Panel")
+		var rect: Rect2 = to_screen * driver._panel_rect_in_fan(unit, panel)
+		assert_true(rect.has_area(), "%s has a laid-out panel" % unit.name)
+		assert_true(
+			usable.grow(0.5).encloses(rect),
+			"%s at %s must sit inside %s" % [unit.name, rect, usable]
+		)
+
+
 func test_unhovering_eventually_frees_the_fan() -> void:
 	Events.skill_node_hovered.emit(_node)
 	await get_tree().process_frame
@@ -437,6 +467,34 @@ func test_coordinator_has_no_fan_wide_progress_variable() -> void:
 
 
 # --- helpers -----------------------------------------------------------------
+
+## Arranges, through the node's and entity's own public API, content for every
+## [FanUnit]: an owned core (Owner, Core), a procgen footprint (ProcgenDebug),
+## addons (Addons) and a granted effect row (EffectReadout — read through the
+## bound [Graph]'s entities container, so the entity moves into a real one).
+## The same fixture axes as [FanLiveSandbox]'s core preset.
+func _give_the_node_every_units_content() -> void:
+	var graph: Graph = _GRAPH_SCENE.instantiate()
+	add_child_autofree(graph)
+	_entity.reparent(graph.entities_container)
+	_fan.bind(graph)
+	_entity.core_location = _node
+	_node.owned_by = _entity
+	_node.set_meta(&"procgen_footprint", {
+		"phase": "P4", "budget": 64, "slots": 8, "primary_slots": 4,
+		"off_slots": 4, "peak_primary_cost": 12, "off_cap": 3, "role_tags": ["tank"],
+	})
+	_node.add_child(_SPIKE_RING_ADDON.instantiate())
+	_node.add_child(_BUNKER_ADDON.instantiate())
+	for i in 3:
+		var effect := StatEffect.new()
+		effect.display_name = "Aura %d" % (i + 1)
+		var mod := StatModifier.new()
+		mod.stat_id = &"armor"
+		mod.operation = StatModifier.Operation.ADD_BASE
+		mod.value = float(3 - i)
+		_entity.grant_effect(effect).context.grant(mod, _node)
+
 
 ## The named [FanUnit] inside the currently-mounted fan. Re-resolved per call
 ## rather than cached, so a test that accidentally remounts sees the new

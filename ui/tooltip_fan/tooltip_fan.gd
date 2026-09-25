@@ -66,6 +66,13 @@ const _MORE_INFO_ACTION := &"ui_more_info"
 ## [method FanPanel.bind] rather than walking the tree for it.
 var graph: Graph = null
 
+## Where on screen the fan may lay its panels, in the HUD canvas's space —
+## [method HudRoot.usable_rect], injected by [method HudRoot.compose]. Read
+## every frame while hovering and written to the driver's
+## [member FanAnchorDriver.keep_in], translated into fan space. Unset (a
+## sandbox, a test that doesn't care) leaves the driver's unbounded default.
+var usable_rect_source: Callable = Callable()
+
 var _hovered_node: SkillNode = null
 var _current_fan: Node = null
 
