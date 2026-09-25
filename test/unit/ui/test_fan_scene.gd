@@ -225,6 +225,8 @@ func test_every_fan_traces_terminus_is_self_consistent() -> void:
 	for unit in (inst as FanAnchorDriver).units_in_fan_order():
 		var trace: FanTrace = unit.get_node("%Trace")
 		var rect := FanAnchor.panel_rect_of(unit.get_node("%Panel") as FanPanel)
+		if not rect.has_area():
+			continue  # unbound here (IdChip sizes to its content): no edges to name
 		var fresh: Vector2 = FanAnchor.solve_route(trace.from_point, rect, trace.route_params()).anchor
 		assert_almost_eq(trace.to_point.x, fresh.x, 0.01, "%s: to_point must be derived" % unit.name)
 		assert_almost_eq(trace.to_point.y, fresh.y, 0.01, "%s: to_point must be derived" % unit.name)

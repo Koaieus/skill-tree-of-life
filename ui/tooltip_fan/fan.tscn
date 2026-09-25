@@ -28,7 +28,7 @@ position = Vector2(-149, -2)
 position = Vector2(3, -146)
 
 [node name="Owner" parent="." unique_id=1364100244 instance=ExtResource("6_owner")]
-position = Vector2(170, -229)
+position = Vector2(230, -150)
 
 [node name="Core" parent="." unique_id=314431141 instance=ExtResource("7_core")]
 position = Vector2(160, 24)
