@@ -117,6 +117,10 @@ func _ready() -> void:
 		pause_menu.spell_catalogue_requested.connect(_on_spell_catalogue_requested)
 
 
+func usable_rect() -> Rect2:
+	return get_global_rect()
+
+
 ## Let go of the hero's board when the level goes away. A Stat is a Resource
 ## and outlives the Control that was listening to it, so a HUD freed while
 ## still bound leaves lambdas holding freed gauges — which fire, loudly, the
