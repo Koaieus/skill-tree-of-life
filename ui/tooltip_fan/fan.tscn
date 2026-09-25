@@ -19,23 +19,22 @@ metadata/_edit_horizontal_guides_ = [-65.0]
 position = Vector2(0, 43)
 
 [node name="IdChip" parent="." unique_id=1695165643 instance=ExtResource("3_chip")]
-position = Vector2(-3, -138)
+position = Vector2(0, -104)
 
 [node name="NodeStats" parent="." unique_id=565573391 instance=ExtResource("4_stats")]
-position = Vector2(-155, -2)
+position = Vector2(-149, -2)
 
 [node name="Addons" parent="." unique_id=79711224 instance=ExtResource("5_addons")]
-position = Vector2(5, -235)
+position = Vector2(3, -146)
 
 [node name="Owner" parent="." unique_id=1364100244 instance=ExtResource("6_owner")]
-position = Vector2(213, -286)
+position = Vector2(170, -229)
 
 [node name="Core" parent="." unique_id=314431141 instance=ExtResource("7_core")]
-position = Vector2(188, 28)
+position = Vector2(160, 24)
 
 [node name="ProcgenDebug" parent="." unique_id=1540150391 instance=ExtResource("8_procgen")]
-z_index = -5
-position = Vector2(413, -162)
+position = Vector2(227, -89)
 
 [node name="EffectReadout" parent="." unique_id=1540150392 instance=ExtResource("9_effects")]
-position = Vector2(-196, -203)
+position = Vector2(-165, -171)
