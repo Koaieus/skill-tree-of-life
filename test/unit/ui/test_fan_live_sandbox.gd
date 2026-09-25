@@ -114,6 +114,58 @@ func test_knob_writes_land_on_the_mounted_driver() -> void:
 	assert_eq(driver.pin_slide_rate, 20.0)
 
 
+func test_the_layout_knobs_reach_the_driver() -> void:
+	_sandbox.set_settle_seconds(0.3)
+	_sandbox.set_padding(12.0)
+	_sandbox.set_trunk_length(75.0)
+	_sandbox.set_keep_in_override(true)
+	_sandbox.set_keep_in_rect(Rect2(-200, -300, 400, 350))
+	var driver := _fan()
+	assert_almost_eq(driver.settle_seconds, 0.3, 0.001)
+	assert_eq(driver.padding, 12.0)
+	assert_eq(driver.trunk_length, 75.0)
+	assert_eq(driver.keep_in, Rect2(-200, -300, 400, 350),
+		"with the override on, the bench's rect IS the driver's keep_in")
+
+
+func test_turning_the_keep_in_override_off_restores_the_unbounded_rect() -> void:
+	var unbounded := _fan().keep_in
+	_sandbox.set_keep_in_rect(Rect2(-200, -300, 400, 350))
+	_sandbox.set_keep_in_override(true)
+	_sandbox.set_keep_in_override(false)
+	assert_eq(_fan().keep_in, unbounded)
+
+
+## The knob rows are wired by `[connection]`s in the panel scene, so the only
+## honest check that a row reaches the driver is to move the row.
+func test_the_panel_layout_rows_reach_the_driver() -> void:
+	var panel: Control = load("res://ui/tooltip_fan/fan_live_panel.tscn").instantiate()
+	add_child_autofree(panel)
+	var driver: FanAnchorDriver = panel.find_child("Fan", true, false)
+	(panel.find_child("SettleSlider", true, false) as Range).value = 0.4
+	(panel.find_child("PaddingSlider", true, false) as Range).value = 10.0
+	(panel.find_child("TrunkSlider", true, false) as Range).value = 90.0
+	(panel.find_child("KeepInCheck", true, false) as BaseButton).button_pressed = true
+	(panel.find_child("KeepInW", true, false) as Range).value = 500.0
+	assert_almost_eq(driver.settle_seconds, 0.4, 0.001)
+	assert_eq(driver.padding, 10.0)
+	assert_eq(driver.trunk_length, 90.0)
+	assert_eq(driver.keep_in.size.x, 500.0)
+
+
+func test_replay_bloom_restarts_every_panel_at_its_trunk_top() -> void:
+	_sandbox.apply_preset(_SANDROB_SCRIPT.PRESET_CORE)
+	var driver := _fan()
+	driver.refresh()
+	var unit := _unit("Owner")
+	_sandbox.replay_bloom()
+	var panel: FanPanel = unit.get_node("%Panel")
+	var shown := FanAnchor.panel_rect_of(panel)
+	shown.position += unit.position
+	assert_almost_eq(shown.get_center().distance_to(driver.trunk_top_in_fan(unit)), 0.0, 1.0,
+		"a replayed panel starts centred on its trunk top")
+
+
 func test_zoom_feeds_node_radius_scaled_by_the_fixture_radius() -> void:
 	var node: SkillNode = _sandbox.get_node("Graph/Nodes/SkillNode") as SkillNode
 	_sandbox.set_zoom(2.0)
@@ -230,6 +282,20 @@ func test_dragging_a_unit_reroutes_its_trace() -> void:
 	await get_tree().process_frame
 	assert_ne(trace.to_point, before,
 		"FanAnchorDriver must re-derive the terminus from the moved panel — that is the drag payoff")
+
+
+func test_drag_moves_the_rest_not_the_solved_position() -> void:
+	_sandbox.apply_preset(_SANDROB_SCRIPT.PRESET_CORE)
+	var driver := _fan()
+	driver.refresh()
+	var unit := _unit("Owner")
+	var body := driver.body_of(unit)
+	var rest_before := body.rest
+	var solved_before := body.position
+	_sandbox.drag_unit_to(unit, unit.position + Vector2(60, 40))
+	assert_eq(body.position, solved_before, "a drag never writes the solved spot")
+	driver.refresh()
+	assert_eq(body.rest, rest_before + Vector2(60, 40), "the drag moved the rest")
 
 
 # --- on-screen liveness ------------------------------------------------------------

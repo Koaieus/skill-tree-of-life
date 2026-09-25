@@ -681,3 +681,31 @@ func _draw() -> void:
 	if _mode == _Mode.HOVER:
 		var ring := Color(0.7, 1.0, 1.0, 0.18 if _hovering else 0.08)
 		draw_arc(Vector2.ZERO, hover_radius, 0.0, TAU, 64, ring, 1.0, true)
+
+
+func set_settle_seconds(_v: float) -> void:
+	pass
+
+
+func set_padding(_v: float) -> void:
+	pass
+
+
+func set_trunk_length(_v: float) -> void:
+	pass
+
+
+func set_keep_in_override(_on: bool) -> void:
+	pass
+
+
+func set_keep_in_rect(_r: Rect2) -> void:
+	pass
+
+
+func replay_bloom() -> void:
+	pass
+
+
+func drag_unit_to(_unit: Node, _p: Vector2) -> void:
+	pass
