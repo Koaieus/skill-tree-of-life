@@ -74,6 +74,24 @@ const _GROUP := &"fan_unit"
 ## blooming panel starts.
 @export_range(1.0, 300.0, 1.0, "or_greater") var trunk_length := 40.0
 
+@export_group("Layout")
+## [FanLayout]'s spring time constant: how long a panel takes to settle onto
+## its rest (or its contact equilibrium) after a disturbance.
+@export_range(0.01, 1.0, 0.01, "or_greater") var settle_seconds := FanLayout.DEFAULT_SETTLE_SECONDS
+## The gap the solver keeps between any two panels, and between a panel and
+## an obstacle, in screen pixels.
+@export_range(0.0, 64.0, 0.5, "or_greater") var padding := FanLayout.DEFAULT_PADDING
+## Projection passes per step. More holds a crowded fan tighter per frame.
+@export_range(1, 16, 1) var relax_iterations := FanLayout.DEFAULT_RELAX_ITERATIONS
+## Where panels may sit, in fan space. Defaults to effectively unbounded; the
+## window-aware owner of the fan feeds the real one.
+@export var keep_in := Rect2(-100000.0, -100000.0, 200000.0, 200000.0)
+
+## The node's own footprint — the chip plus the HealthBar / CoreHealthBar
+## above it (`skill_node.tscn`, y −59..−28) — in NODE-LOCAL units, centred on
+## the node. Scaled by [member zoom_scale] into the node obstacle.
+const NODE_FOOTPRINT := Rect2(-45.0, -70.0, 90.0, 102.0)
+
 ## Below this many radians from its target a pin just snaps — stops the decay
 ## from chasing an asymptote forever and re-writing `from_point` every frame
 ## for a sub-pixel gain.
@@ -111,9 +129,31 @@ func _jump_to_sandbox() -> void:
 ## its own.
 var node_radius := 0.0
 
+## The canvas zoom the hovered node is drawn at, pushed in next to
+## [member node_radius] by [TooltipFan]. Scales [constant NODE_FOOTPRINT] into
+## the node obstacle — the node grows with zoom while panels stay
+## screen-constant. Zero/unset (the plain editor) reads as 1.
+var zoom_scale := 0.0
+
+## One [FanLayout.Body] per PARTICIPATING unit, keyed by instance id; the
+## solver's state. Rebuilt (kept, added, dropped) whenever the participating
+## set changes.
+var _bodies := {}
+## Each unit's AUTHORED `%Panel.position` (unit-local), captured the first
+## time the driver sees the unit — before any solved write lands on it.
+var _panel_base := {}
+## The last [enum FanUnit.State] seen per unit, for the HIDDEN → IN edge the
+## bloom keys on.
+var _seen_state := {}
+
 
 func _ready() -> void:
 	set_process(true)
+	for n in find_children("*", "FanUnit", true, false):
+		var unit := n as FanUnit
+		_seen_state[unit.get_instance_id()] = unit.state
+		if not unit.state_changed.is_connected(_on_unit_state_changed):
+			unit.state_changed.connect(_on_unit_state_changed.bind(unit))
 
 
 func _process(delta: float) -> void:
@@ -129,14 +169,20 @@ func _process(delta: float) -> void:
 ## Snapping is what makes it a usable assertion target: an eased call describes
 ## a pin somewhere between two slots, which no test can predict. `_process`
 ## goes through [method _apply] with a real delta instead.
+##
+## It also runs [method FanLayout.settle] to convergence, so a test reads the
+## layout the eye sees once the fan has come to rest.
 func refresh() -> void:
 	_apply(-1.0)
 
 
-## One pass over the participating units: settle each one's pin angle (eased
-## when `delta >= 0`, snapped otherwise), then re-derive its terminus from the
-## panel's live rect.
+## One pass over the participating units: lay the panels out (one solver step
+## when `delta >= 0`, settled otherwise), settle each one's pin angle (eased /
+## snapped the same way), then re-derive its terminus from the panel's live
+## rect — so pins and routes see the solved position with no change of their
+## own.
 func _apply(delta: float) -> void:
+	_layout(delta)
 	var units := units_in_fan_order()
 	for i in range(units.size()):
 		_place_pin(units[i], i, units.size(), delta)
@@ -250,6 +296,128 @@ func _reroute(unit: Node) -> void:
 	trace.trunk_length = trunk_length
 	var route := FanAnchor.solve_route(trace.from_point, rect, trace.route_params())
 	trace.to_point = route.anchor
+
+
+# --- Panel layout ([FanLayout]) -------------------------------------------------
+
+## The solver body for `unit`, or null when it is not participating.
+## Top-left of its panel rect, in fan space.
+func body_of(unit: Node) -> FanLayout.Body:
+	return _bodies.get(unit.get_instance_id()) if is_instance_valid(unit) else null
+
+
+## The fixed rects panels keep clear of, in fan space: the node footprint
+## scaled by [member zoom_scale], merged with the Roots' live `%Rows` rect
+## (unscaled). ONE merged rect — the two sit ~11 px apart, and a panel caught
+## in that slot would be handed back and forth between them every pass.
+func obstacles() -> Array[Rect2]:
+	var s := zoom_scale if zoom_scale > 0.0 else 1.0
+	var node_rect := Rect2(NODE_FOOTPRINT.position * s, NODE_FOOTPRINT.size * s)
+	var roots := find_child("Roots", false, false) as GrantedModifiersRoot
+	var rows: Control = roots.get_node_or_null("%Rows") if roots != null else null
+	if rows != null and rows.get_global_rect().has_area():
+		node_rect = node_rect.merge(get_global_transform().affine_inverse() * rows.get_global_rect())
+	return [node_rect]
+
+
+## Syncs the bodies to the participating set and to each panel's live size and
+## authored rest, advances the solver (one frame, or to convergence for a
+## negative `delta`), and writes each solved position onto the unit's
+## `%Panel` — never onto the unit, whose `position` is the authored rest.
+func _layout(delta: float) -> void:
+	var bodies := _sync_bodies()
+	if bodies.is_empty():
+		return
+	var params := {
+		"settle_seconds": settle_seconds,
+		"padding": padding,
+		"relax_iterations": relax_iterations,
+	}
+	if delta < 0.0:
+		FanLayout.settle(bodies, obstacles(), keep_in, params)
+	elif delta > 0.0:
+		FanLayout.step(bodies, obstacles(), keep_in, params, delta)
+	for unit in _units():
+		_write_panel(unit, _bodies[unit.get_instance_id()])
+
+
+func _sync_bodies() -> Array[FanLayout.Body]:
+	var out: Array[FanLayout.Body] = []
+	var live := {}
+	for unit in _units():
+		var id := unit.get_instance_id()
+		live[id] = true
+		var panel: FanPanel = unit.get_node("%Panel")
+		if not _panel_base.has(id):
+			_panel_base[id] = panel.position
+		var body: FanLayout.Body = _bodies.get(id)
+		var rect := _panel_rect_in_fan(unit, panel)
+		if body == null:
+			body = FanLayout.Body.new()
+			body.position = rect.position
+			_bodies[id] = body
+		body.size = rect.size
+		body.rest = _rest_of(unit, panel)
+		out.append(body)
+	for id in _bodies.keys():
+		if not live.has(id):
+			_bodies.erase(id)
+	return out
+
+
+## The panel's authored rect origin in fan space: the unit's `position` plus
+## the panel's authored offset inside the unit plus the skin chain.
+func _rest_of(unit: Node, panel: FanPanel) -> Vector2:
+	return _unit_pos(unit) + _panel_base[unit.get_instance_id()] + _skin_offset(panel)
+
+
+func _write_panel(unit: Node, body: FanLayout.Body) -> void:
+	var panel: FanPanel = unit.get_node("%Panel")
+	panel.position = body.position - _unit_pos(unit) - _skin_offset(panel)
+
+
+func _panel_rect_in_fan(unit: Node, panel: FanPanel) -> Rect2:
+	var rect := FanAnchor.panel_rect_of(panel)
+	rect.position += _unit_pos(unit)
+	return rect
+
+
+## What [method FanAnchor.panel_rect_of] adds on top of `panel.position`.
+static func _skin_offset(panel: FanPanel) -> Vector2:
+	return FanAnchor.panel_rect_of(panel).position - panel.position
+
+
+static func _unit_pos(unit: Node) -> Vector2:
+	return (unit as Node2D).position if unit is Node2D else Vector2.ZERO
+
+
+## Bloom: on a unit's HIDDEN → IN edge its body restarts with its panel centred
+## on the trunk top, at rest velocity, and the solver carries it out to its
+## slot while the trace draws in (the panel is still at `progress 0`).
+func _on_unit_state_changed(new_state: FanUnit.State, unit: FanUnit) -> void:
+	var id := unit.get_instance_id()
+	var was: FanUnit.State = _seen_state.get(id, FanUnit.State.HIDDEN)
+	_seen_state[id] = new_state
+	if new_state != FanUnit.State.IN or was != FanUnit.State.HIDDEN:
+		return
+	_sync_bodies()
+	var body: FanLayout.Body = _bodies.get(id)
+	if body == null:
+		return
+	if is_nan(unit.pin_angle):
+		var units := units_in_fan_order()
+		_place_pin(unit, units.find(unit), units.size(), -1.0)
+	body.position = trunk_top_in_fan(unit) - body.size * 0.5
+	body.velocity = Vector2.ZERO
+	_write_panel(unit, body)
+
+
+## [method trunk_top_of] moved out of the trace's local space into fan space.
+func trunk_top_in_fan(unit: Node) -> Vector2:
+	var trace: FanTrace = unit.get_node_or_null("%Trace") if is_instance_valid(unit) else null
+	if trace == null:
+		return Vector2.ZERO
+	return trunk_top_of(unit) + trace.position + _unit_pos(unit)
 
 
 ## The shared point every wire in the fan diverges from: `unit`'s clock pin plus

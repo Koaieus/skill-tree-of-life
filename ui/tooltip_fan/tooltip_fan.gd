@@ -179,6 +179,7 @@ func _feed_pin_radius(fan_instance: Node, node: SkillNode) -> void:
 		return
 	var scale_x := node.get_global_transform_with_canvas().get_scale().x
 	(fan_instance as FanAnchorDriver).node_radius = node.radius * scale_x
+	(fan_instance as FanAnchorDriver).zoom_scale = scale_x
 
 
 ## Feeds the hovered [SkillNode] into every content-holding member and records,
