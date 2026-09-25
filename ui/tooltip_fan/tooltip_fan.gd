@@ -116,6 +116,7 @@ func _process(_delta: float) -> void:
 	if _hovered_node != null and is_instance_valid(_hovered_node):
 		global_position = _hovered_node.get_global_transform_with_canvas().origin
 		_feed_pin_radius(_current_fan, _hovered_node)
+		_feed_keep_in(_current_fan)
 		_poll_more_info()
 
 
@@ -162,6 +163,7 @@ func _on_hovered(node: SkillNode) -> void:
 	# editor fallback, at whatever the real zoom happens to be — and only
 	# correct on the next frame. That's a visible pop at any zoom != 1.
 	_feed_pin_radius(instance, node)
+	_feed_keep_in(instance)
 	# Capture the gate state NOW, not on the next `_process` poll: a hover that
 	# lands on a Shift already in flight must show the full fan from the first
 	# `_play_in_all`, or the units would arrive a frame late as a flicker.
@@ -187,6 +189,19 @@ func _feed_pin_radius(fan_instance: Node, node: SkillNode) -> void:
 	var scale_x := node.get_global_transform_with_canvas().get_scale().x
 	(fan_instance as FanAnchorDriver).node_radius = node.radius * scale_x
 	(fan_instance as FanAnchorDriver).zoom_scale = scale_x
+
+
+## Writes [member usable_rect_source]'s screen rect into `fan_instance`'s
+## [member FanAnchorDriver.keep_in], translated into fan space — the driver
+## sits at this node's origin, so fan space is the canvas minus
+## `global_position`. Only the active fan is fed: a retiring one is frozen
+## where it was and never re-solves. No source leaves the driver's default.
+func _feed_keep_in(fan_instance: Node) -> void:
+	if not (fan_instance is FanAnchorDriver) or not usable_rect_source.is_valid():
+		return
+	var usable: Rect2 = usable_rect_source.call()
+	usable.position -= global_position
+	(fan_instance as FanAnchorDriver).keep_in = usable
 
 
 ## Feeds the hovered [SkillNode] into every content-holding member and records,
