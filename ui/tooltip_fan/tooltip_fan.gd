@@ -518,6 +518,14 @@ func _collect_members(fan_instance: Node) -> Array[Node]:
 	for n in fan_instance.find_children("*", "", true, false):
 		if n.is_in_group(_GROUP) and n.has_method(&"play_in") and n.has_method(&"play_out"):
 			out.append(n)
+	var driver := fan_instance as FanAnchorDriver
+	if driver == null:
+		out.sort_custom(func(a: Node, b: Node) -> bool:
+			return FanAnchorDriver.fan_sort_angle(a) < FanAnchorDriver.fan_sort_angle(b))
+		return out
+	# Through the driver, which keys a blooming panel by where it is GOING —
+	# its live rect is mid-flight from the trunk top and would reshuffle the
+	# stagger under it.
 	out.sort_custom(func(a: Node, b: Node) -> bool:
-		return FanAnchorDriver.fan_sort_angle(a) < FanAnchorDriver.fan_sort_angle(b))
+		return driver.order_angle(a) < driver.order_angle(b))
 	return out

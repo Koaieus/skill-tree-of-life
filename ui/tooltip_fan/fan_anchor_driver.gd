@@ -142,6 +142,11 @@ var _bodies := {}
 ## Each unit's AUTHORED `%Panel.position` (unit-local), captured the first
 ## time the driver sees the unit — before any solved write lands on it.
 var _panel_base := {}
+## The bloom leg per blooming unit, keyed like [member _bodies]: a body with
+## no neighbours and no obstacles, springing from the trunk top onto its
+## unit's SOLVED position — repulsion off — and dropped on arrival. While one
+## exists it, not the solver's body, is what the panel shows.
+var _legs := {}
 ## The last [enum FanUnit.State] seen per unit, for the HIDDEN → IN edge the
 ## bloom keys on.
 var _seen_state := {}
@@ -301,7 +306,8 @@ func _reroute(unit: Node) -> void:
 # --- Panel layout ([FanLayout]) -------------------------------------------------
 
 ## The solver body for `unit`, or null when it is not participating.
-## Top-left of its panel rect, in fan space.
+## Top-left of its panel rect, in fan space — the SOLVED spot, which the panel
+## shows except while it is on its bloom leg.
 func body_of(unit: Node) -> FanLayout.Body:
 	return _bodies.get(unit.get_instance_id()) if is_instance_valid(unit) else null
 
@@ -335,10 +341,33 @@ func _layout(delta: float) -> void:
 	}
 	if delta < 0.0:
 		FanLayout.settle(bodies, obstacles(), keep_in, params)
+		_legs.clear()
 	elif delta > 0.0:
 		FanLayout.step(bodies, obstacles(), keep_in, params, delta)
+		_fly_legs(params, delta)
 	for unit in _units():
-		_write_panel(unit, _bodies[unit.get_instance_id()])
+		_write_panel(unit, _shown_body(unit.get_instance_id()))
+
+
+## Advances every bloom leg one frame toward its body's CURRENT solved
+## position — the same critically damped spring, run by [FanLayout] itself
+## with nothing to collide with — and retires the legs that have landed
+## (FanLayout snaps a body within a pixel of its rest onto it, at rest).
+func _fly_legs(params: Dictionary, delta: float) -> void:
+	for id in _legs.keys():
+		var leg: FanLayout.Body = _legs[id]
+		var body: FanLayout.Body = _bodies[id]
+		leg.size = body.size
+		leg.rest = body.position
+		var one: Array[FanLayout.Body] = [leg]
+		FanLayout.step(one, [], keep_in, params, delta)
+		if leg.position == leg.rest and leg.velocity == Vector2.ZERO:
+			_legs.erase(id)
+
+
+## What the panel shows: the bloom leg while one is in flight, else the body.
+func _shown_body(id: int) -> FanLayout.Body:
+	return _legs.get(id, _bodies[id])
 
 
 func _sync_bodies() -> Array[FanLayout.Body]:
@@ -362,6 +391,7 @@ func _sync_bodies() -> Array[FanLayout.Body]:
 	for id in _bodies.keys():
 		if not live.has(id):
 			_bodies.erase(id)
+			_legs.erase(id)
 	return out
 
 
@@ -391,9 +421,12 @@ static func _unit_pos(unit: Node) -> Vector2:
 	return (unit as Node2D).position if unit is Node2D else Vector2.ZERO
 
 
-## Bloom: on a unit's HIDDEN → IN edge its body restarts with its panel centred
-## on the trunk top, at rest velocity, and the solver carries it out to its
-## slot while the trace draws in (the panel is still at `progress 0`).
+## Bloom is a VISUAL leg, not a solver state: on a unit's HIDDEN → IN edge its
+## panel starts centred on the trunk top and flies onto the position the
+## solver already holds for it (bodies are solved warm whether or not the
+## panel shows), so the landed layout is exactly the one [method refresh]
+## converges to — never a history-dependent equilibrium of its own. The leg
+## runs while the trace draws in and the panel is still at `progress 0`.
 func _on_unit_state_changed(new_state: FanUnit.State, unit: FanUnit) -> void:
 	var id := unit.get_instance_id()
 	var was: FanUnit.State = _seen_state.get(id, FanUnit.State.HIDDEN)
@@ -407,9 +440,23 @@ func _on_unit_state_changed(new_state: FanUnit.State, unit: FanUnit) -> void:
 	if is_nan(unit.pin_angle):
 		var units := units_in_fan_order()
 		_place_pin(unit, units.find(unit), units.size(), -1.0)
-	body.position = trunk_top_in_fan(unit) - body.size * 0.5
-	body.velocity = Vector2.ZERO
-	_write_panel(unit, body)
+	var leg := FanLayout.Body.new()
+	leg.size = body.size
+	leg.rest = body.position
+	leg.position = trunk_top_in_fan(unit) - body.size * 0.5
+	_legs[id] = leg
+	_write_panel(unit, leg)
+
+
+## The sort key for `member` in THIS fan: its body's centre angle while it has
+## one — the SOLVED spot, so a panel on its bloom leg keeps the pin (and the
+## stagger slot) it is flying to — else [method fan_sort_angle].
+func order_angle(unit: Node) -> float:
+	var body := body_of(unit)
+	if body == null:
+		return fan_sort_angle(unit)
+	var centre := body.position + body.size * 0.5
+	return atan2(centre.x, -centre.y)
 
 
 ## [method trunk_top_of] moved out of the trace's local space into fan space.
@@ -447,7 +494,7 @@ func trunk_top_of(unit: Node) -> Vector2:
 ## order pinned each newly-appended unit last regardless of position.)
 func units_in_fan_order() -> Array[Node]:
 	var out := _units()
-	out.sort_custom(func(a: Node, b: Node) -> bool: return fan_sort_angle(a) < fan_sort_angle(b))
+	out.sort_custom(func(a: Node, b: Node) -> bool: return order_angle(a) < order_angle(b))
 	return out
 
 

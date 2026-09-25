@@ -134,24 +134,24 @@ func _fan() -> FanAnchorDriver:
 	return inst as FanAnchorDriver
 
 
-## Bloom: a unit going HIDDEN → IN restarts its body with the panel centred on
-## the trunk top — the fan-space form of [method FanAnchorDriver.trunk_top_of]
-## — before the solver has taken a single step.
+## Bloom: a unit going HIDDEN → IN shows its panel centred on the trunk top —
+## the fan-space form of [method FanAnchorDriver.trunk_top_of] — before a
+## single frame has run, while the solver's body stays on the solved spot.
 func test_bloom_seeds_at_the_trunk_top() -> void:
 	var driver := _fan()
 	driver.refresh()
 	var unit := _find_unit(driver, "Owner") as FanUnit
+	var panel := unit.get_node("%Panel") as FanPanel
 	var trace: FanTrace = unit.get_node("%Trace")
 	var top := driver.trunk_top_of(unit) + trace.position + unit.position
-	assert_ne(FanAnchor.panel_rect_of(unit.get_node("%Panel") as FanPanel).get_center() + unit.position, top,
+	var solved := driver.body_of(unit).position
+	assert_ne(FanAnchor.panel_rect_of(panel).get_center() + unit.position, top,
 		"precondition: the settled panel is not already at the trunk top")
 	unit.play_in()
-	var body := driver.body_of(unit)
-	assert_not_null(body, "a participating unit has a body")
-	var centre := body.position + body.size * 0.5
+	var centre := FanAnchor.panel_rect_of(panel).get_center() + unit.position
 	assert_almost_eq(centre.x, top.x, 0.01, "bloom starts at the trunk top")
 	assert_almost_eq(centre.y, top.y, 0.01, "bloom starts at the trunk top")
-	assert_eq(body.velocity, Vector2.ZERO, "bloom starts at rest")
+	assert_eq(driver.body_of(unit).position, solved, "the leg is visual — the solver body never moves")
 
 
 func test_trunk_top_is_the_pin_plus_the_fan_wide_trunk() -> void:
@@ -191,8 +191,8 @@ func test_the_solved_position_is_written_onto_the_panel() -> void:
 
 
 ## Every unit blooming in the same frame — the worst case of the stagger —
-## still lands back on the warm layout: bloom is the solver's own trajectory,
-## and it must not scramble panels across the node.
+## lands every panel exactly on the warm layout `refresh()` converged to: the
+## leg is visual, so the screen never settles into an equilibrium of its own.
 func test_a_full_bloom_lands_on_the_warm_layout() -> void:
 	var driver := _fan()
 	driver.refresh()
@@ -204,5 +204,29 @@ func test_a_full_bloom_lands_on_the_warm_layout() -> void:
 	for _frame in 120:
 		driver._process(1.0 / 60.0)
 	for unit in driver.units_in_fan_order():
-		assert_almost_eq(driver.body_of(unit).position.distance_to(warm[unit.name]), 0.0, 2.0,
-			"%s bloomed to %s, warm layout has it at %s" % [unit.name, driver.body_of(unit).position, warm[unit.name]])
+		var rect := FanAnchor.panel_rect_of(unit.get_node("%Panel") as FanPanel)
+		var shown := rect.position + (unit as Node2D).position
+		var solved := driver.body_of(unit).position
+		assert_almost_eq(shown.distance_to(solved), 0.0, 0.1,
+			"%s landed at %s, not on its solved spot %s" % [unit.name, shown, solved])
+		# The contact equilibrium creeps sub-pixel past settle()'s epsilon; the
+		# bloom does not add to that.
+		assert_almost_eq(solved.distance_to(warm[unit.name]), 0.0, 2.0,
+			"%s's solved spot %s wandered from the warm layout %s" % [unit.name, solved, warm[unit.name]])
+
+
+## Mid-leg the wire chases the FLYING panel, not the empty solved spot.
+func test_mid_bloom_the_trace_ends_on_the_flying_panel() -> void:
+	var driver := _fan()
+	driver.refresh()
+	var unit := _find_unit(driver, "Owner") as FanUnit
+	var panel := unit.get_node("%Panel") as FanPanel
+	var trace: FanTrace = unit.get_node("%Trace")
+	unit.play_in()
+	for _frame in 3:
+		driver._process(1.0 / 60.0)
+	var rect := FanAnchor.panel_rect_of(panel)
+	assert_gt((rect.position + unit.position).distance_to(driver.body_of(unit).position), 1.0,
+		"precondition: the panel is still in flight")
+	assert_true(rect.grow(0.01).has_point(trace.to_point) and not FanAnchor.is_inside(trace.to_point, rect),
+		"to_point %s must sit on the flying panel's edge %s" % [trace.to_point, rect])
