@@ -37,4 +37,4 @@ position = Vector2(160, 24)
 position = Vector2(227, -89)
 
 [node name="EffectReadout" parent="." unique_id=1540150392 instance=ExtResource("9_effects")]
-position = Vector2(-165, -171)
+position = Vector2(-190, -160)
