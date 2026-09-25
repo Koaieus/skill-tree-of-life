@@ -26,39 +26,6 @@ enum State { HIDDEN, IN, LOOP, OUT }
 ## (LOOP after IN, HIDDEN after OUT).
 signal state_changed(new_state: State)
 
-## Where along the panel edge the trace lands, 0 → 1 in reading order
-## (top→bottom on a vertical edge, left→right on a horizontal one). 0.5 is the
-## edge centre; 0 and 1 are its corners.
-##
-## WHICH edge is derived by [FanAnchor] — that's what keeps the arrival leg
-## perpendicular to the panel border, never running alongside it. This is the
-## one authored degree of freedom on top of that.
-@export_range(0.05, 0.95, 0.01) var anchor_slide := 0.5
-
-## Which way this trace must ENTER its panel. `AUTO` (the default) forces
-## nothing and leaves [FanAnchor] to derive the edge exactly as before.
-##
-## Naming an axis instead makes the arrival a constraint the geometry has to
-## satisfy: the edge becomes the one facing the pin, and [FanAnchor.solve_route]
-## solves the trunk length that guarantees the closing leg lands on that axis.
-## Two payoffs beyond taste — the derived edge can't disagree with the drawn
-## route (the 2-cycle is unreachable once the axis is given), and a panel sitting
-## near 45° from its pin stops being ambiguous without being moved.
-##
-## Note that a forced axis makes [member FanTrace.bend_start] inert for this
-## unit: the trunk is solved, not fractional. Steer it with [member trunk_length].
-@export var arrival_axis: FanAnchor.Axis = FanAnchor.Axis.AUTO
-
-## How far the trace runs along its trunk before breaking to 45°, in pixels.
-## 0 (the default) keeps [member FanTrace.bend_start]'s fraction-of-the-span
-## behaviour, so near panels get short trunks and far ones long trunks.
-##
-## Under an [member arrival_axis] this is a PREFERENCE WITHIN the constraint,
-## not an override of it: a length that would land the arrival on the wrong axis
-## is clamped to the nearest one that doesn't. Asking for a longer run up before
-## the bend is always available; asking for one so short the line would come in
-## vertically, while demanding a horizontal arrival, is not.
-@export_range(0.0, 300.0, 1.0, "or_greater") var trunk_length := 0.0
 
 ## Forwarded to [member FanTrace.idle_anim] — the settled trace tip's idle-loop
 ## settings through LOOP, or `null` to keep the trace a bare constant-lit line.

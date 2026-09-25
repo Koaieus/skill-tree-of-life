@@ -270,8 +270,8 @@ the gate works silently in the meantime.
 
 **Exactly one quantity is authored per unit: where its panel sits.** That is the
 `FanUnit`'s own `position` in `fan.tscn` — drag it and everything else
-re-derives. Two smaller knobs sit on top (`anchor_slide`, `bend_start`); both
-have defaults that need no attention.
+re-derives. Two fan-wide knobs sit on top (`FanAnchorDriver.trunk_length`,
+`bend_start`); both have defaults that need no attention.
 
 ### The origin end — clock pins
 
@@ -344,7 +344,7 @@ caps the six-member fan at 1, and
 `test_an_unowned_nodes_fan_is_genuinely_crossing_free` requires zero for the
 common case — the participation subset an unowned node actually shows.
 
-### The terminus end — derived edge, authored slide
+### The terminus end — derived edge AND derived slide
 
 `FanAnchor` derives **which** panel edge a trace lands on, from the closing leg
 of the route `TraceRouter` would actually draw (see the self-consistency note in
@@ -352,13 +352,21 @@ of the route `TraceRouter` would actually draw (see the self-consistency note in
 **perpendicular** to the border it meets — a horizontal leg running alongside a
 panel's bottom edge and simply stopping is the failure mode it prevents.
 
-`FanUnit.anchor_slide` (0..1, default 0.5 = edge centre) picks **where along**
-that edge. Top→bottom on a vertical edge, left→right on a horizontal one; 0 and
-1 are the corners, which are legal precisely because a corner belongs to both
-edges. Because the edge still flips automatically when a unit crosses the fan's
-centreline, a slide stays meaningful wherever it lands — so dragging a unit
-across the fan needs no re-authoring. This is why the panel offset is one
-scalar and not a hand-tuned `Vector2`.
+**Where** along that edge is derived too (#1119, owner 2026-09-25: "The
+connector wire exact position where it touches the panel should likely become
+secondary to where the panel is"). Per candidate edge the anchor is the **trunk
+top** — `pin + trunk_dir × trunk_length`, the point every wire in the fan
+diverges from — projected onto the edge's line, clamped to [0.1, 0.9] of the
+edge so the closing leg never grazes a corner (a corner belongs to two edges,
+and a leg landing there reads as running along the border). The trunk length is
+one fan-wide `FanAnchorDriver.trunk_length` export, not a per-unit knob, so the
+wires leave the node as an equal-length bundle; `FanAnchorDriver.trunk_top_of(unit)`
+exposes the point for the bloom origin.
+
+The per-unit `anchor_slide` / `arrival_axis` / `trunk_length` knobs and the
+forced-axis solver behind them are gone: the panel position is the only thing
+an author places, and a panel that sits on the tie diagonal is moved, not
+constrained.
 
 ### Router: the 45°-only invariant
 
@@ -434,7 +442,7 @@ would either leak entries or hold freed references.
   `tabs/70_bloom_tab.tscn`. `bend_start`/`trunk_dir` stay authored directly on
   the (now-inherited) `Trace` child rather than promoted to `FanUnit` exports
   — `fan.tscn`'s unit-instance overrides
-  (`anchor_slide`/`arrival_axis`/`trunk_length`) remain the only knobs meant
+  (unit `position` only, since #1119) remain the only knobs meant
   to be tuned from that scene. The serialization invariant is unaffected:
   `fan.tscn` still instances each concrete unit without editable children, so
   the driver's per-frame writes to `%Trace` stay off-disk exactly as before.

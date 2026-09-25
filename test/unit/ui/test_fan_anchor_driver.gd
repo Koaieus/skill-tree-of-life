@@ -15,25 +15,15 @@ func _find_unit(root: Node, unit_name: String) -> Node:
 
 
 ## The terminus the driver OUGHT to have derived, computed the way the driver
-## computes it — [method FanAnchor.solve_route] fed every one of the unit's
-## authored route knobs.
-##
-## None of those knobs is optional here. `derive_anchor` is only what
-## `solve_route` reduces to under `Axis.AUTO`, so asserting against it agrees
-## with the driver by coincidence for a unit that happens to author AUTO and
-## then diverges the moment one declares an `arrival_axis` — which is exactly
-## how this test went red when #308's forced axes landed. Same trap 8aa87d4
-## documented for `anchor_slide`, one knob later: mirror the driver's call, do
-## not re-derive a subset of it.
-func _expected_anchor(unit: Node, trace: FanTrace, panel: FanPanel) -> Vector2:
-	var fan_unit := unit as FanUnit
+## computes it — [method FanAnchor.solve_route] fed the trace's own
+## [method FanTrace.route_params], which carries the fan-wide trunk length the
+## driver wrote onto it. Mirror the driver's call, never a hand-built subset of
+## it: a param dict without `trunk_px` describes a route nobody draws.
+func _expected_anchor(_unit: Node, trace: FanTrace, panel: FanPanel) -> Vector2:
 	var route := FanAnchor.solve_route(
 		trace.from_point,
 		FanAnchor.panel_rect_of(panel),
-		trace.route_params(),
-		fan_unit.arrival_axis,
-		fan_unit.anchor_slide,
-		fan_unit.trunk_length)
+		trace.route_params())
 	return route.anchor
 
 

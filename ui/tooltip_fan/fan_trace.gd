@@ -87,9 +87,8 @@ const PHI_FRACTION := 0.382
 ## diverging — which is what makes the chip read as a chip. 0 keeps the
 ## fractional behaviour.
 ##
-## Usually DERIVED rather than authored here: [FanAnchorDriver] solves it every
-## frame from the unit's [member FanUnit.arrival_axis] /
-## [member FanUnit.trunk_length]. Hence the equality skip — same reason
+## Usually DERIVED rather than authored here: [FanAnchorDriver] writes its
+## fan-wide [member FanAnchorDriver.trunk_length] every frame. Hence the equality skip — same reason
 ## `from_point`/`to_point` carry one (a rewrite of an unchanged value would
 ## re-run TraceRouter and re-slice the Line2D every frame), and same
 ## non-reason: assigning a property inside its own setter doesn't recurse.

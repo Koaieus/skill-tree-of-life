@@ -136,9 +136,9 @@ func _edge_name(anchor: Vector2, rect: Rect2) -> String:
 
 ## The route a trace ACTUALLY draws, rebuilt through the trace's own
 ## [method FanTrace.route_params] — never a hand-built param dict. A copy that
-## omits `trunk_px` describes a different line than the one on screen, and since
-## the driver now SOLVES that value for any unit with an `arrival_axis`, such a
-## copy would quietly assert against a route nobody draws.
+## omits `trunk_px` describes a different line than the one on screen — the
+## driver writes its fan-wide `trunk_length` onto every trace — so such a copy
+## would quietly assert against a route nobody draws.
 func _route_of(trace: FanTrace) -> PackedVector2Array:
 	return TraceRouter.compute_trace_points(
 		trace.from_point, trace.to_point, TraceRouter.Style.PCB, trace.route_params())
@@ -178,33 +178,6 @@ func _actual_edge_of_route(trace: FanTrace) -> String:
 ##
 func parked_every_fan_traces_terminus_is_self_consistent() -> void:
 	pass
-
-
-## An authored [member FanUnit.arrival_axis] is a promise about the SHIPPED
-## line, not just about the solver: whatever the driver ends up writing, the
-## last segment TraceRouter draws must run on the requested axis. This is what
-## makes the knob trustworthy for authoring — you set it and stop checking.
-func test_units_with_a_forced_arrival_axis_actually_arrive_on_that_axis() -> void:
-	var inst := _instantiate()
-	(inst as FanAnchorDriver).refresh()
-	var checked := 0
-	for unit in inst.find_children("*", "FanUnit", true, false):
-		var fan_unit := unit as FanUnit
-		if fan_unit.arrival_axis == FanAnchor.Axis.AUTO:
-			continue
-		var trace: FanTrace = unit.get_node_or_null("%Trace")
-		var pts := _route_of(trace)
-		var leg := pts[pts.size() - 1] - pts[pts.size() - 2]
-		checked += 1
-		if fan_unit.arrival_axis == FanAnchor.Axis.HORIZONTAL:
-			assert_gt(absf(leg.x), absf(leg.y),
-				"%s: HORIZONTAL arrival must close on x (leg %s)" % [unit.name, leg])
-		else:
-			assert_gt(absf(leg.y), absf(leg.x),
-				"%s: VERTICAL arrival must close on y (leg %s)" % [unit.name, leg])
-		assert_gte(leg.length(), FanAnchor.MIN_ARRIVAL_LEG - 0.01,
-			"%s: a forced arrival must clear MIN_ARRIVAL_LEG, not win by a hair" % unit.name)
-	assert_gt(checked, 0, "no shipped unit authors an arrival_axis — this test would be vacuous")
 
 
 func test_every_fan_unit_carries_the_fan_unit_group() -> void:

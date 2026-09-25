@@ -25,20 +25,19 @@ extends Node2D
 ## unit participates, so an author still sees the full spread.
 ##
 ## Since #307 it derives BOTH trace endpoints. The origin end is the clock
-## spread described below; the terminus end is Decision 4's derived anchor plus
-## [member FanUnit.anchor_slide]. So a unit's `position` — where its panel
-## sits — is the only thing an author places.
+## spread described below; the terminus end is Decision 4's derived anchor —
+## edge AND slide, the point on the edge nearest the trunk top. So a unit's
+## `position` — where its panel sits — is the only thing an author places.
 ##
 ## SERIALIZATION INVARIANT: this driver may READ a unit's own authored
-## properties (`position`, `anchor_slide`, `arrival_axis`, `trunk_length`) but
-## must never WRITE them. `godot-workflow.md` forbids a @tool script writing a
-## derived value into an `@export`, and the only reason the per-frame
-## `from_point` / `to_point` / `trunk_length` writes don't dirty `fan.tscn`
-## is that `Trace` is a NON-EDITABLE descendant of an instanced scene, so
-## Godot never serializes them. A unit's own properties are direct, editable
-## child properties of the fan scene and have no such protection — which is also
-## why the route knobs live on the unit and the derived results live on the
-## trace, never the reverse.
+## properties (`position`) but must never WRITE them. `godot-workflow.md`
+## forbids a @tool script writing a derived value into an `@export`, and the
+## only reason the per-frame `from_point` / `to_point` / `trunk_length` writes
+## don't dirty `fan.tscn` is that `Trace` is a NON-EDITABLE descendant of an
+## instanced scene, so Godot never serializes them. A unit's own properties are
+## direct, editable child properties of the fan scene and have no such
+## protection — which is also why the derived results live on the trace, never
+## on the unit.
 
 const _GROUP := &"fan_unit"
 
@@ -66,6 +65,14 @@ const _GROUP := &"fan_unit"
 ## inside the fan's "no clock but your own" contract. ~12 lands the slide in
 ## roughly a quarter second, matching the panel unfurl it accompanies.
 @export_range(1.0, 40.0, 0.5) var pin_slide_rate := 12.0
+
+@export_group("Trunk")
+## How far every trace runs along its trunk before breaking to 45°, in pixels —
+## ONE length for the whole fan, so the wires leave the node as an equal-length
+## bundle. The trunk top (`pin + trunk_dir * trunk_length`, see
+## [method trunk_top_of]) is the point the derived slide aims at and where a
+## blooming panel starts.
+@export_range(1.0, 300.0, 1.0, "or_greater") var trunk_length := 40.0
 
 ## Below this many radians from its target a pin just snaps — stops the decay
 ## from chasing an asymptote forever and re-writing `from_point` every frame
@@ -103,10 +110,6 @@ func _jump_to_sandbox() -> void:
 ## length then changes as a consequence of the origin moving, not as a rule of
 ## its own.
 var node_radius := 0.0
-
-## Which units are currently in unsatisfiable-arrival geometry, by instance id —
-## the latch that makes [method _report_unsatisfiable] warn on ENTRY only.
-var _unsatisfiable: Dictionary[int, bool] = {}
 
 
 func _ready() -> void:
@@ -240,41 +243,28 @@ func _reroute(unit: Node) -> void:
 	if trace == null or panel == null:
 		return
 	var rect := FanAnchor.panel_rect_of(panel)
-	var slide: float = unit.anchor_slide if unit is FanUnit else 0.5
-	var axis: FanAnchor.Axis = unit.arrival_axis if unit is FanUnit else FanAnchor.Axis.AUTO
-	var desired_trunk: float = unit.trunk_length if unit is FanUnit else 0.0
-	var route := FanAnchor.solve_route(trace.from_point, rect, trace.route_params(), axis, slide, desired_trunk)
-	_report_unsatisfiable(unit, route)
+	# The fan-wide trunk goes onto the trace FIRST, so the solver — which reads
+	# `trunk_px` out of `route_params()` to ask TraceRouter for the real route —
+	# sees the same line the screen draws. It is this driver's export, never a
+	# solver output, so writing it every frame cannot feed itself.
+	trace.trunk_length = trunk_length
+	var route := FanAnchor.solve_route(trace.from_point, rect, trace.route_params())
 	trace.to_point = route.anchor
-	# The solver's answer, not an echo of what's already on the trace — it reads
-	# only `trunk`/`trunk_dir` out of route_params() and treats trunk length as an
-	# output, so writing it back here can't feed itself. Under AUTO this is just
-	# the unit's authored length passed through (0 = keep the bend fraction).
-	trace.trunk_length = route.trunk_px
 
 
-## Warns ONCE when a unit's forced arrival axis becomes unsatisfiable and
-## [method FanAnchor.solve_route] falls back to `AUTO`, and once more if it
-## re-enters that state after recovering. [method _reroute] runs every frame per
-## unit, so warning from the solver itself spat the same line ~100×/s for as
-## long as a panel sat in the bad geometry (a dragged bench panel, in practice)
-## — the fact is an AUTHORING signal, and one line per entry is all of it.
-##
-## The latch is a plain script var, NOT [method Node.set_meta] on the unit: this
-## driver is `@tool`, node metadata serializes, and the fan scene is authored in
-## the 2D editor — a meta latch would stamp itself into `fan.tscn` on save. A
-## driver-side map has no lifetime problem either way, since the driver dies with
-## the units it keys.
-func _report_unsatisfiable(unit: Node, route: Dictionary) -> void:
-	var bad: bool = route.get("unsatisfiable", false)
-	var key := unit.get_instance_id()
-	if bad == _unsatisfiable.get(key, false):
-		return
-	if bad:
-		_unsatisfiable[key] = true
-		push_warning("FanAnchor [%s]: %s" % [unit.name, route.get("reason", "")])
-	else:
-		_unsatisfiable.erase(key)
+## The shared point every wire in the fan diverges from: `unit`'s clock pin plus
+## `trunk_length` along its trace's `trunk_dir`. A driver fact (the pin is
+## derived here, the length is this export) — the derived slide aims at it and
+## a blooming panel starts there. Falls back to an upward trunk for a unit with
+## no trace, or a zero direction.
+func trunk_top_of(unit: Node) -> Vector2:
+	var trace: FanTrace = unit.get_node_or_null("%Trace") if is_instance_valid(unit) else null
+	if trace == null:
+		return Vector2.ZERO
+	var dir: Vector2 = trace.trunk_dir
+	if dir == Vector2.ZERO:
+		dir = Vector2(0.0, -1.0)
+	return trace.from_point + dir.normalized() * trunk_length
 
 
 ## The PARTICIPATING units in ANGULAR order around the node — the order clock

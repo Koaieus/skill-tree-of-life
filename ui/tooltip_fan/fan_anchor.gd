@@ -6,18 +6,22 @@
 ## at fully determined by the closing leg's direction, rather than something
 ## an author has to place by hand:
 ##
-##   arriving rightward (closing leg moves +x) -> LEFT edge centre
-##   arriving leftward  (closing leg moves -x) -> RIGHT edge centre
-##   arriving downward  (closing leg moves +y) -> TOP edge centre
-##   arriving upward    (closing leg moves -y) -> BOTTOM edge centre
+##   arriving rightward (closing leg moves +x) -> LEFT edge
+##   arriving leftward  (closing leg moves -x) -> RIGHT edge
+##   arriving downward  (closing leg moves +y) -> TOP edge
+##   arriving upward    (closing leg moves -y) -> BOTTOM edge
 ##
-## So panel POSITION is the only authored quantity: [method derive_anchor]
-## recomputes which edge + where on that edge every time it's called, from
-## `from`, the panel's rect, and the router params already authored on the
-## [FanTrace] ([member FanTrace.trunk_dir] / [member FanTrace.bend_start]).
-## Move the panel in the editor, call this again next frame (see
-## `fan_anchor_driver.gd`), and the anchor — and the edge it sits on — updates
-## with zero re-authoring.
+## WHERE along that edge is derived too: the point nearest the trunk top
+## (`from + trunk_dir * trunk_px`, the shared origin every trace in a fan
+## leaves from), clamped to [0.1, 0.9] of the edge so the closing leg keeps a
+## real perpendicular run instead of grazing a corner. So panel POSITION is the
+## only authored quantity: [method derive_anchor] recomputes which edge + where
+## on that edge every time it's called, from `from`, the panel's rect, and the
+## router params already on the [FanTrace] ([member FanTrace.trunk_dir] /
+## [member FanTrace.bend_start]) plus the driver's fan-wide
+## [member FanAnchorDriver.trunk_length]. Move the panel in the editor, call
+## this again next frame (see `fan_anchor_driver.gd`), and the anchor — and the
+## edge it sits on — updates with zero re-authoring.
 ##
 ## SELF-CONSISTENCY, not a one-shot guess: the edge nearest the panel's
 ## CENTRE is only a candidate. Moving `to` from the centre to that edge's
@@ -35,21 +39,12 @@ extends RefCounted
 
 enum Edge { LEFT, RIGHT, TOP, BOTTOM }
 
-## Which way a trace is REQUIRED to enter its panel, authored per unit
-## ([member FanUnit.arrival_axis]).
-##
-## [code]AUTO[/code] forces nothing — it is [method derive_anchor]'s existing
-## behaviour verbatim, and the default everywhere. The other two are a
-## constraint the author states, which [method solve_route] then satisfies by
-## solving for a trunk length (see its doc for why that's exact rather than a
-## nudge).
-enum Axis { AUTO, HORIZONTAL, VERTICAL }
-
-## Shortest closing leg a FORCED arrival is allowed to settle for, in pixels.
-## The constraint alone only needs the arrival axis to *win*, which at the
-## boundary means winning by a fraction of a pixel and reading as a corner. This
-## is the margin that keeps a forced arrival visibly perpendicular.
-const MIN_ARRIVAL_LEG := 12.0
+## The derived slide's window along an edge, as fractions of its length. Off
+## the corners on both ends: a corner belongs to two edges at once, and a
+## closing leg that lands on one reads as arriving along the edge rather than
+## into it.
+const SLIDE_MIN := 0.1
+const SLIDE_MAX := 0.9
 
 ## Bounds the candidate<->actual iteration below. Two edges are ever in play
 ## (the tie is always between one horizontal and one vertical candidate), so
@@ -59,116 +54,49 @@ const MIN_ARRIVAL_LEG := 12.0
 const _MAX_ITER := 4
 
 
-## Solves one unit's whole route: WHERE it lands on the panel and HOW LONG its
-## trunk runs. Returns `{anchor: Vector2, trunk_px: float, edge: Edge}`.
+## Solves one unit's terminus: WHERE it lands on the panel, and on which edge.
+## Returns `{anchor: Vector2, edge: Edge}`.
 ##
 ## This is the entry point [FanAnchorDriver] uses; [method derive_anchor] is the
-## `AUTO` half of it, kept as its own function because it is also the pure
-## anchor-only question a dozen tests ask directly.
+## same answer minus the edge, kept as its own function because it is also the
+## pure anchor-only question a dozen tests ask directly.
 ##
 ## `params` is a [TraceRouter] param dict (see [method FanTrace.route_params]) —
-## only `trunk_dir` and `trunk` are read. **Its `trunk_px` is ignored**: trunk
-## length is an OUTPUT here. That's what makes re-solving a fixed point, since
-## the solver never reads back the value the driver wrote last frame.
-##
-## `desired_trunk_px` is the author's preference ([member FanUnit.trunk_length],
-## 0 = "use the bend fraction"). Under a forced axis it is a preference WITHIN
-## the constraint — clamped, not honoured blindly.
-##
-## [b]Why forcing an axis is exact, not a nudge.[/b] After a trunk of length L,
-## `_pcb`'s remainders are `span - L` along the trunk axis and `perp` across it,
-## and it closes along whichever is larger. So the arrival axis is a pure
-## inequality in L — perpendicular-to-trunk arrival iff `L > span - perp`, along
-## trunk iff `L < span - perp`. Solving it means the EDGE is determined outright
-## (the one facing `from`), so there is no candidate->actual iteration and the
-## 2-cycle [method derive_anchor] documents cannot occur at all.
-##
-## Falls back to `AUTO` when the constraint is unsatisfiable, REPORTING it in the
-## returned dict (`unsatisfiable` + a human `reason`) rather than warning here:
-## this solver is re-run every frame per unit, so a `push_warning` in it spams
-## the console at frame rate for as long as a panel sits in the bad geometry.
-## Announcing the fact is [FanAnchorDriver]'s job — it has the per-unit state to
-## warn once on ENTRY into the bad state. The unsatisfiable cases are: a
-## panel with almost no sideways offset can't be entered horizontally, one
-## almost beside the pin can't be entered vertically, and neither can be entered
-## at all from a `from` that isn't on the trunk's side of it.
-static func solve_route(from: Vector2, panel_rect: Rect2, params: Dictionary, axis: Axis = Axis.AUTO, slide: float = 0.5, desired_trunk_px: float = 0.0) -> Dictionary:
+## `trunk_dir`, `trunk` and `trunk_px` are read, so the trace must already carry
+## the fan-wide trunk length when this is called. Nothing here is an output the
+## driver writes back into those params, which is what makes re-solving every
+## frame a fixed point.
+static func solve_route(from: Vector2, panel_rect: Rect2, params: Dictionary) -> Dictionary:
 	var trunk_dir: Vector2 = params.get("trunk_dir", Vector2(0.0, -1.0))
 	if trunk_dir == Vector2.ZERO:
 		trunk_dir = Vector2(0.0, -1.0)
 	trunk_dir = trunk_dir.normalized()
 	var trunk_frac: float = params.get("trunk", FanTrace.PHI_FRACTION)
-
-	if axis == Axis.AUTO:
-		var derived := derive_anchor(from, panel_rect, trunk_dir, trunk_frac, slide)
-		return {
-			"anchor": derived,
-			"trunk_px": desired_trunk_px,
-			"edge": _edge_of_route_to(from, derived, trunk_dir, trunk_frac),
-			"unsatisfiable": false,
-			"reason": "",
-		}
-
-	var want_horizontal := axis == Axis.HORIZONTAL
-	var centre := panel_rect.get_center()
-	var edge: FanAnchor.Edge
-	if want_horizontal:
-		edge = Edge.LEFT if from.x < centre.x else Edge.RIGHT
-	else:
-		edge = Edge.BOTTOM if from.y > centre.y else Edge.TOP
-	var anchor := _point_on_edge(edge, panel_rect, slide)
-
-	# Decompose the run in the trunk's own frame: `span` along it, `perp` across.
-	var d := anchor - from
-	var perp_dir := Vector2(-trunk_dir.y, trunk_dir.x)
-	var span := d.dot(trunk_dir)
-	var perp := absf(d.dot(perp_dir))
-	# The requested axis is the trunk's own only when trunk and request line up
-	# (a vertical trunk asked for a VERTICAL arrival); otherwise it's the
-	# perpendicular one. Written out rather than assuming an upward trunk, since
-	# `Roots` already points the other way and a radial variant may point anywhere.
-	var trunk_is_vertical := absf(trunk_dir.y) >= absf(trunk_dir.x)
-	var arrival_is_perp := want_horizontal == trunk_is_vertical
-
-	var lo := 0.0
-	var hi := span
-	if arrival_is_perp:
-		lo = span - perp + MIN_ARRIVAL_LEG
-	else:
-		hi = span - perp - MIN_ARRIVAL_LEG
-	if span <= 0.0 or lo > hi:
-		var fallback := solve_route(from, panel_rect, params, Axis.AUTO, slide, desired_trunk_px)
-		fallback["unsatisfiable"] = true
-		fallback["reason"] = (("%s arrival is unsatisfiable for panel %s from %s "
-			% ["horizontal" if want_horizontal else "vertical", panel_rect, from])
-			+ "(span %.1f, perpendicular offset %.1f) — falling back to AUTO. Move the panel further %s."
-				% [span, perp, "sideways" if arrival_is_perp else "along the trunk"])
-		return fallback
-
-	var desired := desired_trunk_px if desired_trunk_px > 0.0 else trunk_frac * span
+	var trunk_px: float = params.get("trunk_px", 0.0)
+	var anchor := derive_anchor(from, panel_rect, trunk_dir, trunk_frac, trunk_px)
 	return {
 		"anchor": anchor,
-		"trunk_px": clampf(desired, maxf(lo, 0.0), hi),
-		"edge": edge,
-		"unsatisfiable": false,
-		"reason": "",
+		"edge": _edge_of_route_to(from, anchor, trunk_dir, trunk_frac, trunk_px),
 	}
 
 
 ## Returns the point on `panel_rect`'s boundary where a PCB trace from `from`
-## (leaving along `trunk_dir`, breaking to 45° at `trunk_frac` of the trunk
-## axis) ACTUALLY arrives, per the route [TraceRouter] itself would draw to
-## get there — not an approximation of it. See the class doc for why a
-## single guess from the rect's centre isn't enough.
+## (leaving along `trunk_dir` for `trunk_px` pixels — or, at 0, for
+## `trunk_frac` of the span, as the router itself falls back to) ACTUALLY
+## arrives, per the route [TraceRouter] itself would draw to get there — not
+## an approximation of it. See the class doc for why a single guess from the
+## rect's centre isn't enough.
 ##
-## This is [method solve_route]'s `AUTO` case: it forces nothing and derives
-## everything, which is what every unit does unless it authors an
-## [enum Axis].
-static func derive_anchor(from: Vector2, panel_rect: Rect2, trunk_dir: Vector2, trunk_frac: float = FanTrace.PHI_FRACTION, slide: float = 0.5) -> Vector2:
-	var edge := _edge_of_route_to(from, panel_rect.get_center(), trunk_dir, trunk_frac)
+## Per candidate edge the slide is the trunk top's projection onto that edge,
+## clamped to [SLIDE_MIN, SLIDE_MAX]. With a fixed `trunk_px` the trunk top is
+## a constant, so the only thing the iteration has to agree on is the edge.
+static func derive_anchor(from: Vector2, panel_rect: Rect2, trunk_dir: Vector2, trunk_frac: float = FanTrace.PHI_FRACTION, trunk_px: float = 0.0) -> Vector2:
+	var centre := panel_rect.get_center()
+	var trunk_top := _trunk_top_of_route(from, centre, trunk_dir, trunk_frac, trunk_px)
+	var edge := _edge_of_route_to(from, centre, trunk_dir, trunk_frac, trunk_px)
 	for _i in range(_MAX_ITER):
-		var anchor := _point_on_edge(edge, panel_rect, slide)
-		var actual := _edge_of_route_to(from, anchor, trunk_dir, trunk_frac)
+		var anchor := _nearest_on_edge(edge, panel_rect, trunk_top)
+		var actual := _edge_of_route_to(from, anchor, trunk_dir, trunk_frac, trunk_px)
 		if actual == edge:
 			return anchor
 		edge = actual
@@ -178,61 +106,70 @@ static func derive_anchor(from: Vector2, panel_rect: Rect2, trunk_dir: Vector2, 
 	# on whichever candidate this loop last computed rather than looping
 	# forever or crashing; a human moving the panel a few pixels resolves it.
 	#
-	# At `slide` 0 or 1 the anchor IS a corner, which belongs to both edges at
-	# once — so a 2-cycle there is not a failure to resolve, it's two equally
-	# correct answers naming the same point. The fallback lands on the right
-	# place either way.
-	#
-	# Anywhere else the returned point is still ON a real edge and the route
-	# still reaches it — what got traded away is PERPENDICULARITY: the closing
-	# leg runs alongside that edge instead of into it. That's tolerated rather
-	# than warned about, because it's a legitimate resting place for synthetic
+	# The returned point is still ON a real edge and the route still reaches
+	# it — what got traded away is PERPENDICULARITY: the closing leg runs
+	# alongside that edge instead of into it. That's tolerated rather than
+	# warned about, because it's a legitimate resting place for synthetic
 	# geometry (`test_fan_anchor.gd`'s up-and-right quadrant case lands here and
 	# asserts the edge is still the correct one). What must not tolerate it is a
 	# SHIPPED unit — `test_tooltip_fan_variants.gd`'s self-consistency test is
-	# the guard, and the fix there is authoring, not code: raise the unit's
-	# `anchor_slide` toward the corner the trace approaches from (the reachable
-	# window shrinks to that end of the edge), or give the panel more
+	# the guard, and the fix there is authoring, not code: give the panel more
 	# separation from the pin on the tied axis.
-	return _point_on_edge(edge, panel_rect, slide)
+	return _nearest_on_edge(edge, panel_rect, trunk_top)
 
 
 ## Asks [TraceRouter] for the real route to `to` and reads off which edge its
 ## closing leg (the last segment — always cardinal, per `_pcb`'s own
 ## guarantee) arrives at. The single source of truth stays in TraceRouter;
-## this never re-derives the diagonal/trunk math itself.
-static func _edge_of_route_to(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: float) -> FanAnchor.Edge:
-	var pts := TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, {
-		"trunk": trunk_frac,
-		"trunk_dir": trunk_dir,
-	})
+## this never re-derives the diagonal/trunk/gable math itself. `trunk_px` goes
+## through because the router picks its FAMILY by it — a hand-built dict
+## without it describes a different line than the one on screen.
+static func _edge_of_route_to(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: float, trunk_px: float) -> FanAnchor.Edge:
+	var pts := _route(from, to, trunk_dir, trunk_frac, trunk_px)
 	var leg := pts[pts.size() - 1] - pts[pts.size() - 2] if pts.size() >= 2 else Vector2.ZERO
 	if absf(leg.x) >= absf(leg.y):
 		return Edge.LEFT if leg.x >= 0.0 else Edge.RIGHT
 	return Edge.TOP if leg.y >= 0.0 else Edge.BOTTOM
 
 
-## Where on `edge` the anchor sits. `slide` runs 0 → 1 along the edge in
-## reading order — top→bottom for the vertical (LEFT/RIGHT) edges, left→right
-## for the horizontal (TOP/BOTTOM) ones. 0.5 is the edge centre, i.e. the
-## behaviour before `slide` existed; 0 and 1 are the edge's two corners.
-##
-## Which edge is derived (that's what guarantees the arrival leg is
-## perpendicular to it); only WHERE along it is authored. So a unit that moves
-## across the fan's centreline flips edges automatically and its slide stays
-## meaningful — nothing needs re-authoring.
-static func _point_on_edge(edge: FanAnchor.Edge, rect: Rect2, slide: float = 0.5) -> Vector2:
-	var t := clampf(slide, 0.0, 1.0)
+## The trunk top of the route TraceRouter would draw to `to` — its second
+## point. With a fixed `trunk_px` that is `from + trunk_dir * trunk_px` for
+## every target; the router is still asked rather than the formula repeated so
+## the fractional fallback (`trunk_px` 0) stays its arithmetic, not a copy.
+static func _trunk_top_of_route(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: float, trunk_px: float) -> Vector2:
+	var pts := _route(from, to, trunk_dir, trunk_frac, trunk_px)
+	return pts[1] if pts.size() >= 3 else from
+
+
+static func _route(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: float, trunk_px: float) -> PackedVector2Array:
+	return TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, {
+		"trunk": trunk_frac,
+		"trunk_dir": trunk_dir,
+		"trunk_px": trunk_px,
+	})
+
+
+## The point on `edge` nearest `target`, clamped to the [SLIDE_MIN, SLIDE_MAX]
+## window of the edge: `target`'s y projected onto a vertical (LEFT/RIGHT)
+## edge, its x onto a horizontal (TOP/BOTTOM) one.
+static func _nearest_on_edge(edge: FanAnchor.Edge, rect: Rect2, target: Vector2) -> Vector2:
 	var far := rect.position + rect.size
 	match edge:
 		Edge.LEFT:
-			return Vector2(rect.position.x, lerpf(rect.position.y, far.y, t))
+			return Vector2(rect.position.x, _clamped_along(target.y, rect.position.y, far.y))
 		Edge.RIGHT:
-			return Vector2(far.x, lerpf(rect.position.y, far.y, t))
+			return Vector2(far.x, _clamped_along(target.y, rect.position.y, far.y))
 		Edge.TOP:
-			return Vector2(lerpf(rect.position.x, far.x, t), rect.position.y)
+			return Vector2(_clamped_along(target.x, rect.position.x, far.x), rect.position.y)
 		_:
-			return Vector2(lerpf(rect.position.x, far.x, t), far.y)
+			return Vector2(_clamped_along(target.x, rect.position.x, far.x), far.y)
+
+
+static func _clamped_along(value: float, lo: float, hi: float) -> float:
+	if hi <= lo:
+		return lo
+	var t := clampf((value - lo) / (hi - lo), SLIDE_MIN, SLIDE_MAX)
+	return lerpf(lo, hi, t)
 
 
 ## The panel rect in the coordinate space `panel.position` lives in (i.e. its
