@@ -4,8 +4,9 @@ extends RefCounted
 ## Pure rect relaxation solver for the tooltip fan: N bodies spring toward
 ## authored rests while position projection keeps them apart from each
 ## other, from fixed obstacles, and inside a keep-in rect. No nodes; the
-## driver feeds bodies in and reads `position` back each frame. Bloom is not
-## a second path — it is this solver started with every body at one point.
+## driver feeds bodies in and reads `position` back each frame. The solver is
+## bloom-agnostic: [FanAnchorDriver] solves warm and flies a blooming panel
+## onto its solved spot as a separate visual leg (a lone body, no obstacles).
 ##
 ## Two forces only. (1) A critically damped spring toward `rest` — the
 ## camera's rubber band (`scenes/camera_2d.gd`): `ω = 1 / settle_seconds`,

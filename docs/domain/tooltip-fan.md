@@ -268,9 +268,10 @@ the gate works silently in the meantime.
 
 ## Fan geometry: what is derived vs. what is authored (#307)
 
-**Exactly one quantity is authored per unit: where its panel sits.** That is the
-`FanUnit`'s own `position` in `fan.tscn` — drag it and everything else
-re-derives. Two fan-wide knobs sit on top (`FanAnchorDriver.trunk_length`,
+**Exactly one quantity is authored per unit: where its panel wants to sit.**
+That is the `FanUnit`'s own `position` in `fan.tscn` — its panel's **rest** —
+drag it and everything else re-derives. Where the panel actually sits is
+solved (see "Rest vs solved" below). Two fan-wide knobs sit on top (`FanAnchorDriver.trunk_length`,
 `bend_start`); both have defaults that need no attention.
 
 ### The origin end — clock pins
@@ -391,6 +392,47 @@ gable with no change of its own. The trunk's own column (`|perp| < 2 px`
 behind the top) is outside the family; the route still spans `from` → `to` and
 the layout keeps panels out of it.
 
+### Rest vs solved: the layout solver (#1120)
+
+`FanAnchorDriver` runs `FanLayout` (`ui/tooltip_fan/fan_layout.gd`): one body
+per **participating** unit, keyed by instance id. A body's `rest` is the
+panel's authored rect origin in fan space (the unit's `position` plus the
+panel's offset inside the unit); its `size` is the live `panel_rect_of` size,
+so content growth is just a changed input. Each `_process` takes one solver
+step before pins and routes; `refresh()` runs `FanLayout.settle` to
+convergence, so tests assert the layout the eye sees. The solved position is
+written onto the unit's `%Panel`. Pin order (`units_in_fan_order`) and the
+`TooltipFan` stagger (`_collect_members`) key off the body's solved spot
+(`FanAnchorDriver.order_angle`).
+
+- **Compact rests.** Each rest in `fan.tscn` hugs the node: a panel alone
+  sits exactly at its rest, clear of the obstacle. A full fan crowds, and the
+  solver pushes panels apart to at least `padding`. Owner and EffectReadout
+  are placed so their terminus is not on an edge tie (the self-consistency
+  test guards it); retune by moving a rest, never by adding a knob.
+- **One merged obstacle.** `NODE_FOOTPRINT` (`Rect2(-45,-70,90,102)`, the chip
+  plus both HP bars in node-local units) × `zoom_scale` — pushed in by
+  `TooltipFan._feed_pin_radius` next to `node_radius`, 1 in the editor — merged
+  with the Roots' live `%Rows` rect (unscaled). One rect, not two: they sit
+  ~11 px apart, and a panel caught in that slot bounced between them.
+- **`keep_in`** is an export defaulting to effectively unbounded; the
+  window-aware owner feeds the real one.
+- **Bloom is a visual leg, not a solver state** (spike on #1120, owner-confirmed
+  2026-09-25). Starting bodies at one point settles into a history-dependent
+  equilibrium — measured 75 px (Owner) to 130 px (EffectReadout) off the
+  warm layout, depending on stagger — so the screen would show a layout no
+  `refresh()` produces. Instead the bodies are always solved warm, and on a
+  unit's HIDDEN → IN edge its panel starts **centred** on the trunk top
+  (`trunk_top_in_fan`, the fan-space form of `trunk_top_of`) and flies onto its
+  body's solved spot: the same critically damped spring, run by
+  `FanLayout.step` on a lone body with no obstacles, time constant
+  `draw_in_duration / BLOOM_TIME_CONSTANTS_PER_DRAW` so it lands as the trace
+  tip arrives, then the leg is dropped. The trace follows the flying panel's
+  live rect. Centre rather than the literal "body position = trunk top" of
+  the acceptance, and the lone-rest check against the authored rect origin
+  rather than the unit's `position` (the panel is offset inside its unit),
+  are accepted deviations.
+
 ### The serialization invariant
 
 `FanAnchorDriver` writes derived values into `@export`s from `_process` in a
@@ -400,8 +442,14 @@ of an instanced scene**, so Godot never serializes those writes back into the
 `fan.tscn`. Verified empirically — open the fan scene, save, `git diff` is clean
 but for format churn.
 
+The same cover protects the solved layout: the driver writes each panel's solved
+position onto the unit's `%Panel`, also a non-editable descendant of the
+instanced unit, so it never reaches `fan.tscn` (verified at #1120 by the spike:
+a `%Panel.position` write does not survive `PackedScene.pack`). The one thing
+that would break it is an `[editable path="<Unit>"]` line in `fan.tscn`.
+
 A unit's `position` has no such cover: it is a direct, editable child property of
-`fan.tscn`. **The driver reads it and must never write it.** Any future derived
+`fan.tscn` — the authored rest. **The driver reads it and must never write it.** Any future derived
 quantity has to land on the non-editable side of that line, or be split into an
 authored `@export` plus a getter-only `var` per the workflow rule.
 

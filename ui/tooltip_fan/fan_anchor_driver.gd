@@ -27,7 +27,8 @@ extends Node2D
 ## Since #307 it derives BOTH trace endpoints. The origin end is the clock
 ## spread described below; the terminus end is Decision 4's derived anchor —
 ## edge AND slide, the point on the edge nearest the trunk top. So a unit's
-## `position` — where its panel sits — is the only thing an author places.
+## `position` — where its panel RESTS; [FanLayout] solves where it sits — is
+## the only thing an author places.
 ##
 ## SERIALIZATION INVARIANT: this driver may READ a unit's own authored
 ## properties (`position`) but must never WRITE them. `godot-workflow.md`
@@ -36,8 +37,8 @@ extends Node2D
 ## don't dirty `fan.tscn` is that `Trace` is a NON-EDITABLE descendant of an
 ## instanced scene, so Godot never serializes them. A unit's own properties are
 ## direct, editable child properties of the fan scene and have no such
-## protection — which is also why the derived results live on the trace, never
-## on the unit.
+## protection — which is also why the derived results live on the trace and
+## the solved layout on `%Panel` (the same cover), never on the unit.
 
 const _GROUP := &"fan_unit"
 
