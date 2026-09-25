@@ -451,6 +451,21 @@ func _on_unit_state_changed(new_state: FanUnit.State, unit: FanUnit) -> void:
 	if new_state != FanUnit.State.IN or was != FanUnit.State.HIDDEN:
 		return
 	_sync_bodies()
+	_start_leg(unit)
+
+
+## Re-runs the bloom leg for every participating unit: each panel jumps back
+## to its trunk top and flies onto its solved spot again. The bodies are left
+## alone — this replays the VISUAL leg, not the solve. A bench control.
+func replay_bloom() -> void:
+	_sync_bodies()
+	for unit in _units():
+		if unit is FanUnit:
+			_start_leg(unit)
+
+
+func _start_leg(unit: FanUnit) -> void:
+	var id := unit.get_instance_id()
 	var body: FanLayout.Body = _bodies.get(id)
 	if body == null:
 		return

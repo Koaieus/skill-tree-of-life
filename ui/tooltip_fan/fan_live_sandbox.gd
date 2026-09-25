@@ -155,6 +155,9 @@ var _mouse_was_down := false
 var _drag_rig := false
 var _rig_grab_offset := Vector2.ZERO
 var _current_preset := ""
+var _keep_in_on := false
+var _keep_in_rect := Rect2(-240.0, -420.0, 480.0, 480.0)
+var _keep_in_unbounded := Rect2(NAN, NAN, NAN, NAN)
 
 
 func _ready() -> void:
@@ -445,6 +448,59 @@ func set_pin_slide_rate(v: float) -> void:
 	_fan.pin_slide_rate = v
 
 
+# --- layout knobs (the FanLayout solver behind the driver) ----------------------
+
+func set_settle_seconds(v: float) -> void:
+	_fan.settle_seconds = v
+
+
+func set_padding(v: float) -> void:
+	_fan.padding = v
+
+
+func set_trunk_length(v: float) -> void:
+	_fan.trunk_length = v
+
+
+## Keep-in override: at runtime the fan's owner feeds the driver's `keep_in`
+## from the HUD's usable rect; the bench has no HUD, so this stands in for it.
+## Off hands the driver back the unbounded rect it was authored with.
+func set_keep_in_override(on: bool) -> void:
+	_keep_in_on = on
+	_apply_keep_in()
+
+
+func set_keep_in_rect(r: Rect2) -> void:
+	_keep_in_rect = r
+	_apply_keep_in()
+
+
+## One component of the override rect — 0..3 = x, y, w, h — for the panel's
+## four spin rows, which bind their index in the scene's connections.
+func set_keep_in_component(v: float, index: int) -> void:
+	var r := _keep_in_rect
+	match index:
+		0: r.position.x = v
+		1: r.position.y = v
+		2: r.size.x = v
+		3: r.size.y = v
+	set_keep_in_rect(r)
+
+
+func _apply_keep_in() -> void:
+	if _fan == null:
+		return
+	if is_nan(_keep_in_unbounded.size.x):
+		_keep_in_unbounded = _fan.keep_in
+	_fan.keep_in = _keep_in_rect if _keep_in_on else _keep_in_unbounded
+	queue_redraw()
+
+
+## ✿  Replay bloom: every participating panel flies out of its trunk top again.
+func replay_bloom() -> void:
+	_fan.replay_bloom()
+
+
 # --- drive modes (manual / loop / hover) ---------------------------------------
 
 ## ▶  Play draw-in: fan the participating members in, staggered.
@@ -625,9 +681,15 @@ func _poll_drag() -> void:
 			_drag_rig = true
 			_rig_grab_offset = get_global_mouse_position() - position
 	if _drag_unit != null and is_instance_valid(_drag_unit):
-		(_drag_unit as Node2D).position = mp - _grab_offset
+		drag_unit_to(_drag_unit, mp - _grab_offset)
 	elif _drag_rig:
 		position = get_global_mouse_position() - _rig_grab_offset
+
+
+## A drag writes the unit's `position` — the panel's REST. The driver's solver
+## owns where the panel actually shows and follows the rest on its own clock.
+func drag_unit_to(unit: Node, p: Vector2) -> void:
+	(unit as Node2D).position = p
 
 
 ## Is the pointer actually inside the [SubViewportContainer] framing this bench?
@@ -678,34 +740,14 @@ func hit_test(p: Vector2) -> Node:
 
 
 func _draw() -> void:
+	if _keep_in_on and _fan != null:
+		_draw_dashed_rect(_fan.transform * _keep_in_rect, Color(1.0, 0.8, 0.3, 0.6))
 	if _mode == _Mode.HOVER:
 		var ring := Color(0.7, 1.0, 1.0, 0.18 if _hovering else 0.08)
 		draw_arc(Vector2.ZERO, hover_radius, 0.0, TAU, 64, ring, 1.0, true)
 
 
-func set_settle_seconds(_v: float) -> void:
-	pass
-
-
-func set_padding(_v: float) -> void:
-	pass
-
-
-func set_trunk_length(_v: float) -> void:
-	pass
-
-
-func set_keep_in_override(_on: bool) -> void:
-	pass
-
-
-func set_keep_in_rect(_r: Rect2) -> void:
-	pass
-
-
-func replay_bloom() -> void:
-	pass
-
-
-func drag_unit_to(_unit: Node, _p: Vector2) -> void:
-	pass
+func _draw_dashed_rect(r: Rect2, color: Color) -> void:
+	var c := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
+	for i in 4:
+		draw_dashed_line(c[i], c[(i + 1) % 4], color, 1.0, 6.0)
