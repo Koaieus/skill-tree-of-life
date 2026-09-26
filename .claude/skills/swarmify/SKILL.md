@@ -28,7 +28,8 @@ Not inventing: writing down what the owner **already said** in the issue or
 the prompt (step 1 — re-asking it is the failure), and **defaulting a knob**
 (step 5 — a value is not a design answer). An owner's "no real forks" /
 "your call" delegates the picks: make them, mark them as your tentative
-calls, promote.
+calls, promote — but "no real forks" is itself reviewed, and a genuine
+architectural fork it missed is still asked, leading with the finding.
 
 ## The cycle
 
@@ -55,7 +56,8 @@ prompt itself, however rough — into one bin:
   contradiction, a stale premise, a smell, a cleaner shape — earns an ask,
   and the ask leads with the finding.
 - **Claim about the code** → step 3's claim list.
-- **Tunable** → a knob (step 5): default it, don't ask it.
+- **Tunable** → a knob (step 5): default it, don't ask it. A number the
+  owner stated is both: their value is the default, still exported.
 - **Genuinely open** → step 5.
 
 Then ask what is actually open: **how to build it**, or **what would be
@@ -134,7 +136,7 @@ A fork is anything a drone would have to *decide*:
 
 **Not a fork: a knob.** If changing it would move a file, a class, or an
 owner-of-fact, it is a fork; if it changes a number on something that
-exists — a size, timing, ratio, colour, threshold, count — it is a knob.
+exists — a size, timing, ratio, threshold, count — it is a knob.
 "Is there a cap?" is a fork; "what is the cap?" is a knob. For a knob:
 
 - pick a sensible default (step 4's arithmetic at both ends) and say it is
@@ -146,7 +148,10 @@ exists — a size, timing, ratio, colour, threshold, count — it is a knob.
 - tests assert what the knob parameterises (ratios, invariants, a sweep),
   never the literal default, so retuning never reds a test.
 
-Stat rates are not this — they follow `docs/domain/stat-knobs-and-bins.md`.
+A knob's home follows the house rule for its kind: a stat rate →
+`docs/domain/stat-knobs-and-bins.md`; a glow → a named tier
+(`hdr-color.md`), never an exported HDR float; per-instance shader
+variation → `modulate`/`INSTANCE_CUSTOM`, never a per-node uniform.
 
 List them numbered — `AskUserQuestion` for clean choices, prose for the rest.
 
@@ -221,7 +226,7 @@ Post a comment (or edit the body) headed `## Acceptance spec`:
 - <a stated decision from the body/prompt: the quoted sentence, then "— reviewed, taken as settled">
 
 **Knobs** (tentative pass defaults — easy to change)
-- `<Owner>.<export_name>` = <default> — <what it tunes; editor feedback: setter redraw / sandbox tab>
+- `<OwningClass>.<export_name>` = <default> — <what it tunes; editor feedback: setter redraw / sandbox tab>
 
 **Composition**
 <how the pieces compose — a few lines of prose or a small diagram: which unit

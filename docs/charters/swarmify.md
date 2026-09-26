@@ -56,6 +56,9 @@ Numbered so the skill can be checked against them law by law.
    defaulting a tunable value behind a knob (law 32 — a value is not a
    design answer). An owner's "no real forks" / "your call" delegates the
    picks: make them, attribute them as the pass's tentative calls, promote.
+   The delegation covers what survives law 31's review — "no real forks" is
+   itself a claim, and a genuine law-5/28 fork the review turns up is still
+   asked, leading with the finding.
 
 **Reading and verifying**
 
@@ -339,7 +342,8 @@ Numbered so the skill can be checked against them law by law.
     **if changing it would move a file, a class, or an owner-of-fact, it is
     a fork (law 5); if it changes a number on something that already
     exists, it is a knob.** "Is there a cap?" is a fork; "what is the cap?"
-    is a knob. For a knob, the pass picks a sensible default (law 4's
+    is a knob. A number the owner already stated is still a knob — their
+    value is the default, exported all the same. For a knob, the pass picks a sensible default (law 4's
     arithmetic at both ends), records it in Decisions as a tentative pass
     pick — not an owner call — and says it is easy to change. It also
     **specifies the DX that makes it easy**, since that is what "easy to
@@ -349,9 +353,13 @@ Numbered so the skill can be checked against them law by law.
     that redraws in the editor, or a live sandbox-host tab. The acceptance
     names the knob and its default; tests assert the behaviour the knob
     parameterises (ratios, invariants, a sweep), not the literal default,
-    so retuning never reds a test. Stat rates keep their own home
-    (`docs/domain/stat-knobs-and-bins.md` — a modifier's `value`, then a
-    stat); this law covers layout, visual, timing and feel tunables.
+    so retuning never reds a test. A knob's *home* follows the house rule
+    for its kind: a stat rate is a modifier's `value`, then a stat
+    (`docs/domain/stat-knobs-and-bins.md`); a glow is a named tier, never a
+    hand-picked HDR float (`hdr-color.md`); per-instance shader variation
+    rides `modulate`/`INSTANCE_CUSTOM`, never a per-node uniform
+    (`rendering-performance.md`). This law covers the layout, visual,
+    timing and feel tunables those leave to an `@export`.
 
 ## Incident corpus
 
