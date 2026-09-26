@@ -361,7 +361,10 @@ Numbered so the skill can be checked against them law by law.
     hand-picked HDR float (`hdr-color.md`); per-instance shader variation
     rides `modulate`/`INSTANCE_CUSTOM`, never a per-node uniform
     (`rendering-performance.md`). This law covers the layout, visual,
-    timing and feel tunables those leave to an `@export`.
+    timing and feel tunables those leave to an `@export`. The mechanics —
+    shared with drones and every session writing a `.gd` — live in
+    `docs/domain/tunables.md`; this law is only swarmify's half: default in
+    the spec, don't ask.
     The board has one knob of its own: the **milestone** defaults to the
     live one (`mise gh-project -- roadmap`) or the parent's, stated in the
     Ready comment, never asked.

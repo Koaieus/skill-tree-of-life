@@ -151,7 +151,7 @@ exists — a size, timing, ratio, threshold, count — it is a knob.
 A knob's home follows the house rule for its kind: a stat rate →
 `docs/domain/stat-knobs-and-bins.md`; a glow → a named tier
 (`hdr-color.md`), never an exported HDR float; per-instance shader
-variation → `modulate`/`INSTANCE_CUSTOM`, never a per-node uniform.
+variation → `modulate`/`INSTANCE_CUSTOM`, never a per-node uniform. Mechanics and examples: `docs/domain/tunables.md`.
 
 List them numbered — `AskUserQuestion` for clean choices, prose for the rest.
 

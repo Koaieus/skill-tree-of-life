@@ -100,6 +100,9 @@ unfinished.
   `y._flag`, a visual's alpha) to arrange X's state has found a seam, not a
   fixture — the fact belongs to Y. Ask your advisor whether the owner should
   expose it in this unit or it gets filed; never build the reach-in silently.
+- **A number the spec leaves open is a knob**: default it, `@export` it on
+  its owner with editor feedback (`docs/domain/tunables.md`), and list it in
+  `NOTES:` as tentative. Not an advisor question, not a buried `const`.
 - **Exact spec, visual acceptance, tuning, pure refactor → author no test.**
   `check` and the existing suite are the verification.
 - **"Pre-existing failure" is a claim.** Say so in `NOTES:`; the orchestrator

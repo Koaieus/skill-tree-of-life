@@ -155,6 +155,13 @@ against them.
     the lead can apply it without reading the code; a line with no prescribed
     fix is an observation, not poison. A logic error is never poison — it is
     an issue.
+24. **A number the spec leaves open is a knob, not a doubt.** Default it,
+    export it on its owner with editor feedback
+    (`docs/domain/tunables.md`, loaded by a `**/*.gd` rule), and name it in
+    `NOTES:` as a tentative default. Never an advisor question, never a
+    buried `const`. The rule is cross-cutting — drones, warps and main
+    sessions all write tunables — so its body lives in the domain doc, and
+    this law only says the drone's report carries it.
 
 ## Measuring it
 
@@ -198,6 +205,7 @@ does not have to carry them.
 | 2026-09-17 | #918 swarmify | the 2026-09-16 swarm's 11 issues held exactly one out-of-fence stale-text report (#180), and it was a design question; the aggregated Haiku fix-drone was shrunk to a grep-able token (owner: "shrink it to bare minimum") | 23 |
 | 2026-09-10 | two drones | killed in one minute by an API spend limit with uncommitted work | 7 |
 | 2026-09-11 | Sage trial | every report sent to Sage, to `main`, *and* as final text | 22 |
+| 2026-09-26 | #1126 | spec picked `MIN_SEGMENT_PX` / `DIAGONAL_SHARE` as `const`s; owner praised the tentative default and asked for "enough DX that tweaking them is easy in the godot editor. most often an exported variable" | 24 |
 | 2026-09-13 | `ai-gating` (#537) | read `bench_ai_turn.gd` ten times across 20+ edit cycles chasing a benchmark | 11 |
 | 2026-09-13 | `loot-rebalance-2` (#775→#774) | 204k *before its first edit* (six 30–40 KB whole-file Reads + 40 KB `gh issue view`); first commit at 340k on call 116/168; killed at 429k, #774 half uncommitted | 3, 6, 7, 8 |
 | 2026-09-13 | `landing-context` (#356) | first commit at 292k on call 177/203; killed at 330k+ after the deliverable was done and reviewed | 7, 8 |
