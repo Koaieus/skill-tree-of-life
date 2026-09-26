@@ -50,7 +50,12 @@ Numbered so the skill can be checked against them law by law.
    owner chooses; the answer is written in the owner's words, dated,
    attributed as an owner call. An agent that invents a design answer to
    reach `Ready` has defeated the purpose. If the owner is absent, draft
-   proposed resolutions and do **not** move the status.
+   proposed resolutions and do **not** move the status. Two things are
+   *not* inventing: writing down an answer the owner already gave in the
+   issue or the prompt (law 31 — re-asking it is the failure), and
+   defaulting a tunable value behind a knob (law 32 — a value is not a
+   design answer). An owner's "no real forks" / "your call" delegates the
+   picks: make them, attribute them as the pass's tentative calls, promote.
 
 **Reading and verifying**
 
@@ -306,6 +311,48 @@ Numbered so the skill can be checked against them law by law.
     designer hat names both (an emergent mechanic nobody authored is a
     free thing that later got killed for exactly that).
 
+**Honouring what the owner already said**
+
+31. **The owner's input is already an answer.** Every shape the owner put
+    in the issue body, a comment, or the `/swarmify` prompt — however
+    rough, however scribbled — is an owner decision, not a note to be
+    re-confirmed. On the first read, sort each owner sentence into one bin:
+    **stated decision**, **claim about the code** (→ law 3), **tunable**
+    (→ law 32), or **genuinely open** (→ law 5). A stated decision gets a
+    **mini internal review** — verified against the code, consistent with
+    the owner's other sentences, law 4's arithmetic holds, law 25's three
+    questions pass. If it passes, write it back as settled, quoting the
+    source sentence, with one line of why it is sound ("you asked for X;
+    that is clean because Y — taken as settled") — and **never echo it back
+    as a question**. It becomes an ask only when the review *finds
+    something*: a contradiction, a stale premise, a smell, a cheaper-and-
+    cleaner shape the owner would want to hear about. That ask leads with
+    what the review found. The owner would rather be asked than watch a
+    silent wrong turn, so the guard is "review, then settle", never "never
+    ask" — but a question whose best answer is the owner's own sentence
+    read back is a round-trip bought for nothing, and it reads as not
+    having listened.
+
+32. **A knob is defaulted, not asked.** A tunable — a size, a timing, a
+    ratio, a colour, a threshold, a count — where any sensible value ships
+    and the owner tunes it by feel later, is not a fork. The discriminator:
+    **if changing it would move a file, a class, or an owner-of-fact, it is
+    a fork (law 5); if it changes a number on something that already
+    exists, it is a knob.** "Is there a cap?" is a fork; "what is the cap?"
+    is a knob. For a knob, the pass picks a sensible default (law 4's
+    arithmetic at both ends), records it in Decisions as a tentative pass
+    pick — not an owner call — and says it is easy to change. It also
+    **specifies the DX that makes it easy**, since that is what "easy to
+    change" means: an `@export` (with `@export_range` when bounded) on the
+    `@tool` node or `.tres` that owns the value, never a `const` buried in
+    a script, and for a visual knob, instant editor feedback — a setter
+    that redraws in the editor, or a live sandbox-host tab. The acceptance
+    names the knob and its default; tests assert the behaviour the knob
+    parameterises (ratios, invariants, a sweep), not the literal default,
+    so retuning never reds a test. Stat rates keep their own home
+    (`docs/domain/stat-knobs-and-bins.md` — a modifier's `value`, then a
+    stat); this law covers layout, visual, timing and feel tunables.
+
 ## Incident corpus
 
 Each law traces to at least one of these. Kept here so the skill does not
@@ -328,6 +375,8 @@ have to carry them.
 | 2026-09-16 | #928 → #930/#931 | the camera 2-step was fixed inside the director by reading the blade's `state.pivot_index`, `get_node_visuals()` and a vertex's alpha; the test had to poke those to move the goalpost. The owner caught it from a glimpse of the plan — "opportunity: decouple the director from what it follows by letting the (alive) melee blade provide some %Marker2D" — and the sim storing its own centroid. Seven such redirects in seven days (#889, #900, #910/#917, #927, #928, #930, #931), all answerable from the plan, none from the diff | 25, 26 |
 | 2026-09-17 | owner | "if you can't write it up cleanly (potentially concise, get the idea across) you won't be able to code it up cleanly either" — the Composition section | 26 |
 | 2026-09-15 | #902, owner | stub shape: stubs + `pending()` test on master, so trunk stays green and red-green stays the drone's first commit; drift range-aware and exit 0 always; charter written in the pass, three children | 13, 15 |
+| 2026-09-26 | #1125 → #1126 | told "`/swarmify` this, i assume no real forks", the pass picked `MIN_SEGMENT_PX := 12` and `DIAGONAL_SHARE := 0.5` itself, marked them tentative on the issue, and told the owner "they're easy to change". Owner: "that's excellent. leaving design knobs while not harking over details, just put sensible defaults and enable enough DX that tweaking them is easy in the godot editor. most often an exported variable, ideally with instant editor view feedback (if it's a visual thing)". The picks shipped as `const`s on `TraceRouter` — easy in code, not in the editor; the DX half is what law 32 adds | 1, 32 |
+| 2026-09-26 | owner, status-fx sandbox tab (#1114) | the prompt asked for every status effect represented with controls and specific existing tooltip panels always visible; the pass asked "should the panels be visible", "do you want to reuse the existing panels", "do you want all status effects" — "like seriously asking me this? but then again, rather they ask than silently head in the wrong direction". Owner: an agent "should just better report on what's good, if the idea is clean, and if it clearly is (like a mini internal review) then just write that out" | 31 |
 | 2026-09-10 | #764 / #849 | Recommended parking an architectural fork in a design issue; owner overrode — settle now, refactor-first hub with three children. | 28 |
 | 2026-09-14 | last 2–3 swarms | Drones hitting 300k+ on oversized units; a "plumbing" issue spanning five subsystems was the shape that did it. #872 → #872/#878/#879 is the split that worked. | 27 |
 | 2026-08-24 | #573 | "`test_meta_routing_parity.gd` still passes unmodified" was unsatisfiable — the deletion half of the same issue removed `class_name`s the test cast to, so it stopped *parsing*. A characterization pin enumerates the surviving assertions and says the test may be re-pointed; then asks whether there is anything to re-point onto yet. | 10 |

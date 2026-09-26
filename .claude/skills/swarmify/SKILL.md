@@ -24,6 +24,12 @@ chooses; you write the answer in the owner's words, dated, attributed as an
 owner call. Never invent a design answer to reach `Ready`. Owner absent →
 draft proposed resolutions and do **not** move the status.
 
+Not inventing: writing down what the owner **already said** in the issue or
+the prompt (step 1 — re-asking it is the failure), and **defaulting a knob**
+(step 5 — a value is not a design answer). An owner's "no real forks" /
+"your call" delegates the picks: make them, mark them as your tentative
+calls, promote.
+
 ## The cycle
 
 ### 1. Read the whole issue yourself, then read the room
@@ -36,6 +42,21 @@ gh issue view <n> --comments
 Body *and* every comment, in this session — never summarised by a subagent.
 A later comment routinely corrects an earlier one. Note the labels:
 `design` / `blocked` mean forks are known-open.
+
+**Sort every owner sentence** — issue body, comments, and the `/swarmify`
+prompt itself, however rough — into one bin:
+
+- **Stated decision** → already answered. Review it: true against the code
+  (step 3), consistent with the owner's other sentences, the arithmetic
+  holds (step 4), no smell from step 5's questions. Passes → it goes in
+  Decisions as settled, quoting the sentence, with one line of why it is
+  sound ("you asked for X; clean because Y — taken as settled"). **Never
+  echo it back as a question.** Only a review that *finds something* — a
+  contradiction, a stale premise, a smell, a cleaner shape — earns an ask,
+  and the ask leads with the finding.
+- **Claim about the code** → step 3's claim list.
+- **Tunable** → a knob (step 5): default it, don't ask it.
+- **Genuinely open** → step 5.
 
 Then ask what is actually open: **how to build it**, or **what would be
 fun**? If the second, step 2 comes before anything technical — every fork
@@ -111,6 +132,22 @@ A fork is anything a drone would have to *decide*:
   sequences them. Only a dependency on a decision nobody has made keeps an
   issue out of `Ready`.
 
+**Not a fork: a knob.** If changing it would move a file, a class, or an
+owner-of-fact, it is a fork; if it changes a number on something that
+exists — a size, timing, ratio, colour, threshold, count — it is a knob.
+"Is there a cap?" is a fork; "what is the cap?" is a knob. For a knob:
+
+- pick a sensible default (step 4's arithmetic at both ends) and say it is
+  easy to change;
+- make it easy: an `@export` (`@export_range` when bounded) on the `@tool`
+  node or `.tres` that owns the value — never a buried `const` — and for a
+  visual knob, instant editor feedback (a setter that redraws in-editor, or
+  a live sandbox-host tab);
+- tests assert what the knob parameterises (ratios, invariants, a sweep),
+  never the literal default, so retuning never reds a test.
+
+Stat rates are not this — they follow `docs/domain/stat-knobs-and-bins.md`.
+
 List them numbered — `AskUserQuestion` for clean choices, prose for the rest.
 
 ### 6. Score the options, cleanest first
@@ -159,6 +196,10 @@ loud, never used as the tiebreaker. The owner still sees every option and
 still chooses — the default moves, the choice does not. An "Other" answer
 that redirects the premise is a normal outcome, not a failed question.
 
+Ask only what step 1 left genuinely open or whose review found something;
+a question whose best answer is the owner's own sentence read back is not
+asked.
+
 Every fork gets a pinned answer in the owner's words. An unsettleable fork
 (needs a spike, needs another issue) keeps the issue in `Needs design`:
 "still blocked, here is why" is a valid outcome. Never promote an issue a
@@ -177,6 +218,10 @@ Post a comment (or edit the body) headed `## Acceptance spec`:
 
 **Decisions** (owner, <date>)
 - <each resolved fork as one line of settled fact, in the owner's words>
+- <a stated decision from the body/prompt: the quoted sentence, then "— reviewed, taken as settled">
+
+**Knobs** (tentative pass defaults — easy to change)
+- `<Owner>.<export_name>` = <default> — <what it tunes; editor feedback: setter redraw / sandbox tab>
 
 **Composition**
 <how the pieces compose — a few lines of prose or a small diagram: which unit
@@ -200,6 +245,11 @@ path/to/scene.tscn — seam: instances the node
 `````
 
 - **Decisions** — one line per resolved fork, dated, attributed to the owner.
+  A decision the owner stated before the pass quotes their sentence, so a
+  cold drone sees it was theirs; a pick the owner delegated is marked as
+  the pass's tentative call.
+- **Knobs** — every tunable defaulted in step 5: the exported property, its
+  default, and how it gives feedback. Omit the section when there are none.
 - **Composition** — the proposed shape, concise: which class owns which
   fact, what it exposes (marker, signal, accessor), who reads it, which path
   is deleted by name. Prose or a small diagram, whichever gets the idea
