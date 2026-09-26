@@ -11,6 +11,10 @@ extends Control
 ## forwarding is needed here (see attributes_panel.gd for that pattern
 ## where one IS needed).
 
+## Gate End Turn behind a confirm bubble while the unspent-AP warning shows.
+## Off: a click ends the turn (Ctrl+click always does); the warning still shows.
+@export var confirm_unspent_ap := false
+
 @onready var _ap_gauge: PoolGauge = %APGauge
 @onready var _value_label: Label = %ValueLabel
 @onready var _warning_label: Label = %WarningLabel
@@ -95,7 +99,7 @@ func _refresh_end_turn_button() -> void:
 
 
 ## Same shape as the old UIRoot._unspent_warning (retired in #118 — this is
-## now the only copy): only AP triggers the confirm/warning, and only while
+## now the only copy): only AP triggers the warning (and the opt-in confirm), only while
 ## there's still a visible enemy node worth spending it on.
 ##
 ## Fades via alpha rather than `.visible` — toggling `.visible` on a
@@ -170,11 +174,14 @@ func _on_end_turn_pressed() -> void:
 	if _end_turn_button.is_confirm_open():
 		_end_turn_button.hide_confirm()
 		return
-	var ctrl_held := Input.is_key_pressed(KEY_CTRL)
-	if ctrl_held or not _warning_showing():
+	if not _needs_confirm() or Input.is_key_pressed(KEY_CTRL):
 		_end_turn()
 		return
 	_end_turn_button.show_confirm(_warning_label.text)
+
+
+func _needs_confirm() -> bool:
+	return confirm_unspent_ap and _warning_showing()
 
 
 func _end_turn() -> void:
