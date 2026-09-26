@@ -27,7 +27,14 @@ turns are cheap in thought and expensive in context: they sit at the end of a
 session that has read the issue, the code, the fork discussion and the spec.
 Moved to a fresh Haiku context carrying only the manifest, each turn costs a
 small fraction, and the Opus session pays one spawn and one short report.
-Measured numbers: see the corpus below.
+Measured (corpus below): the tail — everything after the spec is drafted —
+is 58–79% of a swarmify session's Σ(context), starting at a median ~116k
+context; clerk-shaped turns are ~41% of it, 646 turns over 56 sessions.
+Re-priced at `agent-cost` weights they drop ~89% (35.7M → 4.0M
+sonnet-token-units), ~24–27% of whole-session cost. That assumed a 5k Haiku
+brief; the first dry run spent ~35k over 7 calls (system prompt and tools
+included), so the real saving is somewhat lower — still most of it, since
+Haiku is priced a fifth of Opus and never carries the pass's context.
 
 ## Laws
 
@@ -39,7 +46,8 @@ Measured numbers: see the corpus below.
 2. **The only file edit is handle substitution**, on a `.resolved` copy.
    Handles (`@name`) let the Opus session write sibling references before the
    numbers exist; resolving them is mechanical, rewriting is not.
-3. **Every exit code is checked; nothing is piped through `tail`.** The
+3. **Every exit code is checked; nothing is piped through `tail`; nothing is
+   retried blind.** The
    issue-workflow traps (`--add-parent` swallowed by a pipe, `blockedBy` as an
    object, the raw dependencies API taking internal ids, backticks in `--body`)
    all fail *silently*; the clerk's instructions carry each one so the spawning
@@ -64,3 +72,5 @@ beyond the one clause that makes it recognisable.
 | Date | Where | What happened | Law |
 |---|---|---|---|
 | 2026-09-26 | owner | on the proposal to hand the swarmify tail to a Haiku agent: "Clerk does the mechanical stuff that's just tool calls. New agent file too perhaps? and a charter? supplying it with whatever any swarmifying agent would (use this and that tool this that caveat) so they don't even need to output *that*." | all |
+| 2026-09-26 | tail measurement (59 swarmify sessions; `.claude/skills/swarmify/corpus/2026-09-26-tail-measurement.md`) | numbers in the cost argument above. Failures inside tails, by kind: `gh` `--json` field names that had moved (`blockedByIssues`); relations set on a child not yet created, or a milestone typo, exiting 1; hygiene violations fixed by hand; ~15 identical re-runs after a failure. No backtick-mangled `--body` — `--body-file` already holds | 3 |
+| 2026-09-26 | first dry run (read-only manifest: two drift checks + hygiene) | 7 calls, ~35k Haiku tokens, report in the specified shape; `no stamp` on a `/warp`-made issue correctly reported as FAILED | 5, 6 |

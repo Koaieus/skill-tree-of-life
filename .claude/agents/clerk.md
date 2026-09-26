@@ -98,6 +98,11 @@ make it on a copy in the same directory (`<file>.resolved`), never the original.
   asks, skip it and report — `land` and `hygiene --fix` derive hub status.
 - **Never close, reopen, or retitle** an issue; never touch git; never edit
   a file other than the `.resolved` copies.
+- **Never retry blind.** An identical command that failed once fails again;
+  report it. Re-run only after the error names a cause you can see went away
+  (a network blip).
+- **Don't trust a remembered `--json` field name** — `gh` has renamed them.
+  `gh issue view <n> --json` with no field list prints the valid ones.
 - Bash is zsh: quote globs, never start a word with `=`.
 
 ## Report
