@@ -468,11 +468,11 @@ exec "${MISE_PROJECT_ROOT:-.}/.mise/tasks/test-timings"
 '''
 
 [tasks."worktree:new"]
-description = "Create a worktree: `mise run worktree:new -- 86` (issue number, fetches title) or `mise run worktree:new -- my-topic` (free text)"
+description = "Create a worktree: `mise run worktree:new -- 86` (issue number, fetches title) or `mise run worktree:new -- my-topic` (free text). Warms the class cache after; pass `--no-warm` (or set NO_WARM=1) to skip."
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-arg="${1:?usage: mise run worktree:new -- <issue-number|name>}"
+arg="${1:?usage: mise run worktree:new -- <issue-number|name> [--no-warm]}"
 slugify() { echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-40; }
 
 if [[ "$arg" =~ ^[0-9]+$ ]]; then
@@ -516,6 +516,25 @@ else
     echo "⚠ still no native binary — every blade swing will push_error and the"
     echo "  goldens will fail until you build it: mise run native:build"
   fi
+fi
+
+
+# A fresh worktree has its own gitignored .godot/ — no import or class cache
+# at all — so its first `check`/`test` pays a slow, noisy cold import (#1128).
+# Pay that cost here instead, while the worktree is already the thing being
+# waited on: run `refresh` INSIDE the new worktree ($dir), never the main
+# checkout, so this can never write the shared checkout's .godot/. A failed
+# warm-up warns, it must not fail worktree creation — the worktree is still
+# usable, just cold on its first real check/test.
+if [ "${2:-}" = "--no-warm" ] || [ -n "${NO_WARM:-}" ]; then
+  echo "→ skipping class-cache warm-up (--no-warm)"
+elif warm_out=$(cd "$dir" && mise run refresh 2>&1); then
+  echo "✓ class cache warmed ($(printf '%s' "$warm_out" | tail -1 | sed 's/^Refreshing… //'))"
+  if printf '%s\n' "$warm_out" | grep -q 'file(s) touched'; then
+    echo "  ⚠ warm-up touched files — review with git -C $dir status / diff before relying on it"
+  fi
+else
+  echo "⚠ class-cache warm-up failed — first check/test in $dir will cold-import; run mise run refresh there by hand"
 fi
 
 echo "✓ worktree ready: $dir (branch $slug)"
