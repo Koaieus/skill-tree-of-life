@@ -11,10 +11,14 @@
 ##   arriving downward  (closing leg moves +y) -> TOP edge
 ##   arriving upward    (closing leg moves -y) -> BOTTOM edge
 ##
-## WHERE along that edge is derived too: the point nearest the trunk top
-## (`from + trunk_dir * trunk_px`, the shared origin every trace in a fan
-## leaves from), clamped to [0.1, 0.9] of the edge so the closing leg keeps a
-## real perpendicular run instead of grazing a corner. So panel POSITION is the
+## WHERE along that edge is derived too, off the trunk top (`from + trunk_dir *
+## trunk_px`, the shared origin every trace in a fan leaves from): a TOP/BOTTOM
+## edge takes the trunk top's x, so the route runs straight; a LEFT/RIGHT edge
+## takes a point [constant TraceRouter.DIAGONAL_SHARE] of the sideways
+## distance ahead of it (at least [constant TraceRouter.MIN_SEGMENT_PX]), so
+## the route bends through a real 45° diagonal rather than cutting 90° off the
+## trunk. Either is clamped to [0.1, 0.9] of the edge so the closing leg keeps
+## a real perpendicular run instead of grazing a corner. So panel POSITION is the
 ## only authored quantity: [method derive_anchor] recomputes which edge + where
 ## on that edge every time it's called, from `from`, the panel's rect, and the
 ## router params already on the [FanTrace] ([member FanTrace.trunk_dir] /
@@ -87,15 +91,16 @@ static func solve_route(from: Vector2, panel_rect: Rect2, params: Dictionary) ->
 ## an approximation of it. See the class doc for why a single guess from the
 ## rect's centre isn't enough.
 ##
-## Per candidate edge the slide is the trunk top's projection onto that edge,
-## clamped to [SLIDE_MIN, SLIDE_MAX]. With a fixed `trunk_px` the trunk top is
+## Per candidate edge the slide is [method _nearest_on_edge]'s target (the
+## trunk top's x on a horizontal edge, the diagonal-share point's y on a
+## vertical one), clamped to [SLIDE_MIN, SLIDE_MAX]. With a fixed `trunk_px` the trunk top is
 ## a constant, so the only thing the iteration has to agree on is the edge.
 static func derive_anchor(from: Vector2, panel_rect: Rect2, trunk_dir: Vector2, trunk_frac: float = FanTrace.PHI_FRACTION, trunk_px: float = 0.0) -> Vector2:
 	var centre := panel_rect.get_center()
 	var trunk_top := _trunk_top_of_route(from, centre, trunk_dir, trunk_frac, trunk_px)
 	var edge := _edge_of_route_to(from, centre, trunk_dir, trunk_frac, trunk_px)
 	for _i in range(_MAX_ITER):
-		var anchor := _nearest_on_edge(edge, panel_rect, trunk_top)
+		var anchor := _nearest_on_edge(edge, panel_rect, trunk_top, trunk_dir)
 		var actual := _edge_of_route_to(from, anchor, trunk_dir, trunk_frac, trunk_px)
 		if actual == edge:
 			return anchor
@@ -115,7 +120,7 @@ static func derive_anchor(from: Vector2, panel_rect: Rect2, trunk_dir: Vector2, 
 	# SHIPPED unit — `test_fan_scene.gd`'s self-consistency test is
 	# the guard, and the fix there is authoring, not code: give the panel more
 	# separation from the pin on the tied axis.
-	return _nearest_on_edge(edge, panel_rect, trunk_top)
+	return _nearest_on_edge(edge, panel_rect, trunk_top, trunk_dir)
 
 
 ## Asks [TraceRouter] for the real route to `to` and reads off which edge its
@@ -149,20 +154,32 @@ static func _route(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: f
 	})
 
 
-## The point on `edge` nearest `target`, clamped to the [SLIDE_MIN, SLIDE_MAX]
-## window of the edge: `target`'s y projected onto a vertical (LEFT/RIGHT)
-## edge, its x onto a horizontal (TOP/BOTTOM) one.
-static func _nearest_on_edge(edge: FanAnchor.Edge, rect: Rect2, target: Vector2) -> Vector2:
+## The slide point on `edge`, clamped to the [SLIDE_MIN, SLIDE_MAX] window of
+## the edge. A horizontal (TOP/BOTTOM) edge takes the trunk top's x, so the
+## route runs straight. A vertical (LEFT/RIGHT) edge takes the y of a point
+## ahead of the trunk top by [constant TraceRouter.DIAGONAL_SHARE] of the
+## sideways distance to the edge (never under
+## [constant TraceRouter.MIN_SEGMENT_PX]): the 45° diagonal takes that share,
+## the cardinal closing leg the rest — the trunk top's own height would be a
+## 90° cut straight off the trunk.
+static func _nearest_on_edge(edge: FanAnchor.Edge, rect: Rect2, trunk_top: Vector2, trunk_dir: Vector2) -> Vector2:
 	var far := rect.position + rect.size
 	match edge:
 		Edge.LEFT:
+			var target := _diagonal_share_target(trunk_top, trunk_dir, rect.position.x)
 			return Vector2(rect.position.x, _clamped_along(target.y, rect.position.y, far.y))
 		Edge.RIGHT:
+			var target := _diagonal_share_target(trunk_top, trunk_dir, far.x)
 			return Vector2(far.x, _clamped_along(target.y, rect.position.y, far.y))
 		Edge.TOP:
-			return Vector2(_clamped_along(target.x, rect.position.x, far.x), rect.position.y)
+			return Vector2(_clamped_along(trunk_top.x, rect.position.x, far.x), rect.position.y)
 		_:
-			return Vector2(_clamped_along(target.x, rect.position.x, far.x), far.y)
+			return Vector2(_clamped_along(trunk_top.x, rect.position.x, far.x), far.y)
+
+
+static func _diagonal_share_target(trunk_top: Vector2, trunk_dir: Vector2, edge_x: float) -> Vector2:
+	var sideways := absf(edge_x - trunk_top.x)
+	return trunk_top + trunk_dir * maxf(TraceRouter.MIN_SEGMENT_PX, TraceRouter.DIAGONAL_SHARE * sideways)
 
 
 static func _clamped_along(value: float, lo: float, hi: float) -> float:

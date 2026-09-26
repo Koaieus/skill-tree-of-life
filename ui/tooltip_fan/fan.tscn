@@ -22,7 +22,7 @@ position = Vector2(0, 43)
 position = Vector2(0, -104)
 
 [node name="NodeStats" parent="." unique_id=565573391 instance=ExtResource("4_stats")]
-position = Vector2(-149, -2)
+position = Vector2(-149, -18)
 
 [node name="Addons" parent="." unique_id=79711224 instance=ExtResource("5_addons")]
 position = Vector2(3, -146)

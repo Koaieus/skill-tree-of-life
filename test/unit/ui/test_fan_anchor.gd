@@ -203,24 +203,35 @@ func test_panel_rect_of_reads_the_skins_own_offsets() -> void:
 	assert_eq(rect.size, skin.size)
 
 
-# --- the slide is DERIVED: nearest the trunk top, clamped off the corners -----
+# --- the slide is DERIVED off the trunk top, clamped off the corners ---------
 #
 # `trunk_px` is the fan-wide trunk length ([member FanAnchorDriver.trunk_length]);
-# the trunk top is `from + trunk_dir * trunk_px`, and the anchor is the point on
-# the derived edge nearest it — clamped to [0.1, 0.9] of the edge so the closing
-# leg keeps a real perpendicular run instead of grazing a corner.
+# the trunk top is `from + trunk_dir * trunk_px`. A vertical edge's anchor sits
+# DIAGONAL_SHARE of the sideways distance ahead of it (the 45° diagonal's
+# share), a horizontal edge's at its x — clamped to [0.1, 0.9] of the edge so
+# the closing leg keeps a real perpendicular run instead of grazing a corner.
 
 
-func test_the_slide_lands_nearest_the_trunk_top() -> void:
+func test_the_slide_lands_a_diagonal_share_ahead_of_the_trunk_top() -> void:
 	var from := Vector2.ZERO
 	var trunk_top := from + _TRUNK_DIR * _TRUNK_PX # (0, -60)
 
-	# Panel right of the pin, straddling the trunk top's height -> LEFT edge,
-	# at exactly the trunk top's y (0.5 of a 120-tall edge from y -120).
-	var rect := Rect2(Vector2(200.0, -120.0), Vector2(160.0, 120.0))
+	# Panel right of the pin, tall enough to hold the target unclamped -> LEFT
+	# edge, DIAGONAL_SHARE of the 100 px sideways distance above the trunk top
+	# (the trunk top's own height would be a 90° cut off the trunk).
+	var rect := Rect2(Vector2(100.0, -200.0), Vector2(160.0, 200.0))
 	var anchor := FanAnchor.derive_anchor(from, rect, _TRUNK_DIR, _TRUNK_FRAC, _TRUNK_PX)
 	assert_almost_eq(anchor.x, rect.position.x, 0.01, "right of the pin -> LEFT edge")
-	assert_almost_eq(anchor.y, trunk_top.y, 0.01, "slide lands at the trunk top's height")
+	assert_almost_eq(anchor.y, trunk_top.y - TraceRouter.DIAGONAL_SHARE * 100.0, 0.01,
+		"slide lands DIAGONAL_SHARE of the sideways distance ahead of the trunk top")
+
+	# A panel hugging the trunk: the share would be under the minimum segment,
+	# so the target floors at MIN_SEGMENT_PX ahead.
+	var near := Rect2(Vector2(15.0, -200.0), Vector2(160.0, 200.0))
+	var anchor_near := FanAnchor.derive_anchor(from, near, _TRUNK_DIR, _TRUNK_FRAC, _TRUNK_PX)
+	assert_almost_eq(anchor_near.x, near.position.x, 0.01, "still the LEFT edge")
+	assert_almost_eq(anchor_near.y, trunk_top.y - TraceRouter.MIN_SEGMENT_PX, 0.01,
+		"the slide target floors at MIN_SEGMENT_PX ahead of the trunk top")
 
 	# Panel far above the trunk top -> the projection falls off the edge's
 	# bottom corner and is clamped to 0.9 of the edge.

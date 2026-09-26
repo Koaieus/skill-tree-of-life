@@ -27,7 +27,7 @@ stray 0 can never spin a looped tween per-frame. Presets live in
 (`FanUnit.position`).** Trace origins are computed clock pins around 12 o'clock,
 assigned in angular order around the node (never tree order); the terminus edge
 is derived by `FanAnchor` for a perpendicular arrival, and so is where along
-it (the point nearest the fan-wide trunk top, clamped off the corners). Pins ride the node's *screen-space* rim so the fan is
+it (off the fan-wide trunk top: a side edge takes the point `TraceRouter.DIAGONAL_SHARE` of the sideways distance ahead of it, so the route bends through 45° instead of cutting 90°; clamped off the corners). Pins ride the node's *screen-space* rim so the fan is
 zoom-reactive while panels stay screen-constant. `FanAnchorDriver` may READ
 `unit.position`, never write it — its other derived writes are only safe because
 they target non-editable descendants of instanced scenes.
