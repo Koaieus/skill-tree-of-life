@@ -543,25 +543,40 @@ mkdir -p "$dir/.godot"
 if [ "$no_warm" -eq 1 ]; then
   echo "→ skipping class-cache warm-up and check (--no-warm)"
 else
+  # Logs are written unconditionally (they're the only record of a run that
+  # found nothing wrong) but the path is only PRINTED on a ⚠/✗ line — a green
+  # run has nothing worth reading it for.
+  warm_log="$dir/.godot/worktree-new-refresh.log"
   if warm_out=$(cd "$dir" && mise run refresh 2>&1); then
-    echo "✓ class cache warmed"
-    if printf '%s\n' "$warm_out" | grep -q 'file(s) touched'; then
-      touched=$(printf '%s\n' "$warm_out" | grep -oE '\S+\.(gd|tscn|tres|gdshader|uid|import)\b' | sort -u | paste -sd, - || true)
-      echo "  ⚠ warm-up touched: ${touched:-see log} — review with git -C $dir status / diff before relying on it"
+    printf '%s\n' "$warm_out" > "$warm_log"
+    if printf '%s\n' "$warm_out" | grep -q 'Removed lines above are the ONLY thing'; then
+      touched=$(printf '%s\n' "$warm_out" | grep -oE '\S+\.(gd|tscn|tres|gdshader)\b' | sort -u | paste -sd, - || true)
+      echo "⚠ warm-up touched: ${touched:-see $warm_log} — review before relying on it · full log: $warm_log"
+    elif printf '%s\n' "$warm_out" | grep -q 'file(s) touched'; then
+      n=$(printf '%s\n' "$warm_out" | grep -oE '[0-9]+ file\(s\) touched' | head -1)
+      echo "✓ class cache warmed — ${n:-sidecars touched} (benign, commit them)"
+    else
+      echo "✓ class cache warmed"
     fi
   else
-    warm_log="$dir/.godot/worktree-new-refresh.log"
     printf '%s\n' "$warm_out" > "$warm_log"
     echo "⚠ class-cache warm-up failed — first check/test in $dir will cold-import · full log: $warm_log"
   fi
 
   check_log="$dir/.godot/worktree-new-check.log"
   if check_out=$(cd "$dir" && mise run check 2>&1); then
+    printf '%s\n' "$check_out" > "$check_log"
     sha=$(git -C "$dir" rev-parse --short HEAD)
     echo "✓ check green on $sha"
   else
     printf '%s\n' "$check_out" > "$check_log"
-    first_fail=$(printf '%s\n' "$check_out" | grep -m1 -E 'SCRIPT ERROR|SHADER ERROR|parse error|✗' || true)
+    # SCRIPT ERROR / SHADER ERROR carry the offending file:line on the NEXT
+    # line ("at: … (res://foo.gd:12)"), so pull both and fold to one line;
+    # a lint/parse failure prints its own file:line on the same line already.
+    first_fail=$(printf '%s\n' "$check_out" | grep -m1 -A1 -E 'SCRIPT ERROR|SHADER ERROR' | tr '\n' ' ' | sed -E 's/ +$//' || true)
+    if [ -z "$first_fail" ]; then
+      first_fail=$(printf '%s\n' "$check_out" | grep -m1 -E 'parse error|✗' || true)
+    fi
     echo "✗ check failed — ${first_fail:-see log} · full log: $check_log"
   fi
 fi
