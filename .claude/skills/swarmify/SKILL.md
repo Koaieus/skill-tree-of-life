@@ -203,7 +203,8 @@ that redirects the premise is a normal outcome, not a failed question.
 
 Ask only what step 1 left genuinely open or whose review found something;
 a question whose best answer is the owner's own sentence read back is not
-asked.
+asked. No confirm-everything closer ("OK?", "settle both?") on picks already
+made — state them and move on; the owner redirects when they disagree.
 
 Every fork gets a pinned answer in the owner's words. An unsettleable fork
 (needs a spike, needs another issue) keeps the issue in `Needs design`:
@@ -216,7 +217,8 @@ disjoint, never withhold `Ready` because two issues share a file.
 
 ### 8. Write the Ready comment
 
-Post a comment (or edit the body) headed `## Acceptance spec`:
+Write it to a file in your scratchpad (the clerk posts it, step 10), headed
+`## Acceptance spec`:
 
 `````markdown
 ## Acceptance spec
@@ -319,32 +321,44 @@ by hand — `land` and `hygiene --fix` derive it.
   never a child.
 - Shared-file work every child touches (one `.tres`, a registry append) is
   the orchestrator's pre-step in the main checkout, not parcelled out.
-- Each child gets its own full `## Acceptance spec` (step 8).
+- Each child gets its own full `## Acceptance spec` (step 8), as its own
+  body file. Refer to a sibling not yet filed by handle — `#@wiring` — and
+  the clerk substitutes the number.
+- Cross-issue dependencies go in the spec prose *and* the manifest's
+  `blocked-by:` (step 10).
 
-```bash
-gh issue create --parent <n> --title "…" --body-file <file>
-mise gh-project -- status <child> ready                # or needs-design if it still forks
+### 10. Promote — hand the tail to the clerk
+
+`Ready` is the admission ticket: status, `design`/`blocked` labels dropped,
+and a milestone, in one breath. The **milestone is a default, not a
+question** — the live one (`mise gh-project -- roadmap`) or the parent's.
+
+You do not run the board calls. Write a manifest next to the spec files —
+its shape is in `.claude/agents/clerk.md`; the gist:
+
+```
+milestone: 3
+
+issue #1130
+  comment: 1130-spec.md
+  labels-rm: design, blocked                 # a hub gets no status line
+
+new @state "Status tick: sparse schedule"
+  parent: #1130
+  body: state.md
+  status: ready
+
+drift: #1130 @state
+hygiene
 ```
 
-Record cross-issue dependencies as relations *and* in the spec prose:
-
-```bash
-gh issue create --blocked-by <n1>,<n2> --title "…" --body-file <file>
-gh issue edit <child> --add-blocked-by <blocker>
-```
-
-### 10. Promote
-
-`Ready` is the admission ticket; the status move is the whole act, and the
-labels and milestone go in the same breath:
-
-```bash
-mise gh-project -- status <n> ready
-mise gh-project -- label <n> rm design
-mise gh-project -- label <n> rm blocked       # if it was
-mise gh-project -- milestone <n> <m>          # Ready without one is a hygiene violation
-mise gh-project -- hygiene                    # must stay clean
-```
+Then spawn **one** `Agent(subagent_type: "clerk", prompt: "<manifest path>")`.
+It holds every flag trap and ordering rule; you state intent, never commands.
+Read its one-line-per-issue report: handle each `SKIPPED` / `FAILED`
+yourself (a fixed manifest and a second clerk, or the one call by hand),
+then tell the owner what landed. Stubs (step 8) stay yours — they are code;
+list `refresh` in the manifest to have the clerk run it and report the
+verdict.
 
 ## What swarmify is NOT
 
@@ -352,4 +366,4 @@ mise gh-project -- hygiene                    # must stay clean
 - **Not a rubber stamp** — an issue with an unsettleable fork stays in
   `Needs design`.
 - **Not a spawn** — the thinking runs here, with the owner; only step 3's
-  lookup is delegated.
+  lookup and step 10's clerk are delegated.

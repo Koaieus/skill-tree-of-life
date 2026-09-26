@@ -219,7 +219,7 @@ Numbered so the skill can be checked against them law by law.
 
 24. **Not implementation** beyond law 13's stubs. **Not a rubber stamp.**
     **Not a spawn** — the thinking runs in the session with the owner; only
-    law 3's lookup is delegated.
+    law 3's lookup and law 33's clerk are delegated.
 
 27. **Every child is drone-sized.** Roughly one subsystem, a handful of
     files, one test file — finished under ~150k drone context. Size by
@@ -334,7 +334,9 @@ Numbered so the skill can be checked against them law by law.
     silent wrong turn, so the guard is "review, then settle", never "never
     ask" — but a question whose best answer is the owner's own sentence
     read back is a round-trip bought for nothing, and it reads as not
-    having listened.
+    having listened. The same goes for a confirm-everything closer
+    ("OK?", "does that hold?", "settle both?") on picks already made: state
+    them and move on; the owner redirects when they disagree.
 
 32. **A knob is defaulted, not asked.** A tunable — a size, a timing, a
     ratio, a threshold, a count — where any sensible value ships
@@ -360,6 +362,25 @@ Numbered so the skill can be checked against them law by law.
     rides `modulate`/`INSTANCE_CUSTOM`, never a per-node uniform
     (`rendering-performance.md`). This law covers the layout, visual,
     timing and feel tunables those leave to an `@export`.
+    The board has one knob of its own: the **milestone** defaults to the
+    live one (`mise gh-project -- roadmap`) or the parent's, stated in the
+    Ready comment, never asked.
+
+**Handing off the tail**
+
+33. **The mechanical tail goes to a clerk.** Once every spec and child body
+    is written, the pass writes them as files plus a manifest (see
+    `.claude/agents/clerk.md` for the shape) and spawns **one**
+    `Agent(subagent_type: "clerk")` with the manifest path. The clerk posts,
+    creates, relates, sets status / labels / milestone, checks each drift
+    stamp parses, runs hygiene, and reports one line per issue; the pass
+    reads the report, handles any `SKIPPED` / `FAILED` itself, and tells the
+    owner what landed. Writing the spec stays in the pass — it is the
+    compressed thinking (law 26) — and so do stubs, which are code. The tail
+    is tool calls at the session's largest context, each re-sending all of
+    it; the clerk runs them in a fresh Haiku context and also holds the
+    board's flag traps, so the pass neither carries nor outputs them. See
+    `docs/charters/clerk.md`.
 
 ## Incident corpus
 
@@ -384,7 +405,8 @@ have to carry them.
 | 2026-09-17 | owner | "if you can't write it up cleanly (potentially concise, get the idea across) you won't be able to code it up cleanly either" — the Composition section | 26 |
 | 2026-09-15 | #902, owner | stub shape: stubs + `pending()` test on master, so trunk stays green and red-green stays the drone's first commit; drift range-aware and exit 0 always; charter written in the pass, three children | 13, 15 |
 | 2026-09-26 | #1125 → #1126 | told "`/swarmify` this, i assume no real forks", the pass picked `MIN_SEGMENT_PX := 12` and `DIAGONAL_SHARE := 0.5` itself, marked them tentative on the issue, and told the owner "they're easy to change". Owner: "that's excellent. leaving design knobs while not harking over details, just put sensible defaults and enable enough DX that tweaking them is easy in the godot editor. most often an exported variable, ideally with instant editor view feedback (if it's a visual thing)". The picks shipped as `const`s on `TraceRouter` — easy in code, not in the editor; the DX half is what law 32 adds | 1, 32 |
-| 2026-09-26 | owner, status-fx sandbox tab (#1114) | the prompt asked for every status effect represented with controls and specific existing tooltip panels always visible; the pass asked "should the panels be visible", "do you want to reuse the existing panels", "do you want all status effects" — "like seriously asking me this? but then again, rather they ask than silently head in the wrong direction". Owner: an agent "should just better report on what's good, if the idea is clean, and if it clearly is (like a mini internal review) then just write that out" | 31 |
+| 2026-09-26 | owner, status-fx sandbox tab (#1114) | the prompt asked for every status effect with controls and the tooltip panels always on; the session (a `/warp`, `6f05643b…`) asked how the always-on tooltips should show and what "single node with vision range" meant — narrower than remembered, but stated intent framed as open. Owner: "like seriously asking me this? but then again, rather they ask than silently head in the wrong direction … [an agent] should just better report on what's good, if the idea is clean, and if it clearly is (like a mini internal review) then just write that out" | 31 |
+| 2026-09-26 | transcript scan (59 swarmify sessions, 32 in depth, 251 questions; `.claude/skills/swarmify/corpus/2026-09-26-reask-scan.md`) | most questions code-grounded; re-asks a minority, in three shapes — numeric magnitudes deferred inside a range the owner stated, confirm-everything closers ("OK?", "Settle both?"), and a milestone question in nearly every session. Legit asks (a review finding, an arithmetic hole, a bug in the issue's own fix) are the overcorrection guard | 31, 32 |
 | 2026-09-10 | #764 / #849 | Recommended parking an architectural fork in a design issue; owner overrode — settle now, refactor-first hub with three children. | 28 |
 | 2026-09-14 | last 2–3 swarms | Drones hitting 300k+ on oversized units; a "plumbing" issue spanning five subsystems was the shape that did it. #872 → #872/#878/#879 is the split that worked. | 27 |
 | 2026-08-24 | #573 | "`test_meta_routing_parity.gd` still passes unmodified" was unsatisfiable — the deletion half of the same issue removed `class_name`s the test cast to, so it stopped *parsing*. A characterization pin enumerates the surviving assertions and says the test may be re-pointed; then asks whether there is anything to re-point onto yet. | 10 |

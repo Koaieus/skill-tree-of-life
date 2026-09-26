@@ -30,7 +30,7 @@ history, or the next rewrite re-learns it.
   companion doc cannot sit there; skills could hold one in their directory,
   but one home for both keeps the convention uniform.
 
-Charters so far: [drone](drone.md), [swarmify](swarmify.md), [swarm](swarm.md), [sage](sage.md), [adr](adr.md), [warp](warp.md), [relay](relay.md), [relief](relief.md).
+Charters so far: [drone](drone.md), [swarmify](swarmify.md), [swarm](swarm.md), [sage](sage.md), [adr](adr.md), [warp](warp.md), [relay](relay.md), [relief](relief.md), [clerk](clerk.md).
 
 Checklist skills (`manage-stats`) have no charter: a checklist carries no
 laws and no incident corpus, and its *why* is the rule it points at.
