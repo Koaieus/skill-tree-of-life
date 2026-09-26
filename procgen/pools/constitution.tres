@@ -2,10 +2,14 @@
 
 [ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
-[ext_resource type="Script" path="res://procgen/subtypes/node_subtype.gd" id="90_nsub"]
+[ext_resource type="Script" uid="uid://ct7dq3or66mj7" path="res://procgen/pools/tier_shape.gd" id="3_x53si"]
+[ext_resource type="Script" uid="uid://dmbbf2cvwsufo" path="res://procgen/subtypes/node_subtype.gd" id="90_nsub"]
 [ext_resource type="Resource" path="res://procgen/subtypes/regular.tres" id="91_sreg"]
 [ext_resource type="Resource" path="res://procgen/subtypes/blight.tres" id="92_sbli"]
 [ext_resource type="Resource" path="res://procgen/subtypes/bless.tres" id="93_sble"]
+
+[sub_resource type="Resource" id="Resource_nnrk7"]
+script = ExtResource("3_x53si")
 
 [sub_resource type="Resource" id="ab"]
 resource_name = "constitution +"
@@ -14,6 +18,10 @@ stat_id = &"constitution"
 tags = Array[StringName]([&"con", &"defense", &"flat"])
 unit_value = 2.0
 pool_weight = 75.0
+tier_shape = SubResource("Resource_nnrk7")
+
+[sub_resource type="Resource" id="Resource_h7lli"]
+script = ExtResource("3_x53si")
 
 [sub_resource type="Resource" id="inc"]
 resource_name = "constitution +%"
@@ -23,7 +31,11 @@ operation = 1
 tags = Array[StringName]([&"con", &"defense", &"percent"])
 unit_value = 3.0
 pool_weight = 10.5
+tier_shape = SubResource("Resource_h7lli")
 max_tier = 3
+
+[sub_resource type="Resource" id="Resource_ktr80"]
+script = ExtResource("3_x53si")
 
 [sub_resource type="Resource" id="mul"]
 resource_name = "constitution ×"
@@ -33,7 +45,11 @@ operation = 2
 tags = Array[StringName]([&"con", &"defense", &"multiply"])
 unit_value = 0.02
 pool_weight = 6.0
+tier_shape = SubResource("Resource_ktr80")
 min_tier = 3
+
+[sub_resource type="Resource" id="Resource_dh05o"]
+script = ExtResource("3_x53si")
 
 [sub_resource type="Resource" id="dex_debuff"]
 resource_name = "dexterity +%"
@@ -42,40 +58,52 @@ stat_id = &"dexterity"
 operation = 1
 unit_value = -3.0
 range_floor = -1.0
-max_tier = 3
 pool_weight = 7.0
+tier_shape = SubResource("Resource_dh05o")
+max_tier = 3
+
+[sub_resource type="Resource" id="Resource_cb6bi"]
+script = ExtResource("3_x53si")
 
 [sub_resource type="Resource" id="Resource_u38nb"]
 resource_name = "min_damage_taken +"
 script = ExtResource("2_pool")
 stat_id = &"min_damage_taken"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
 unit_value = -1.0
 pool_weight = 3.5999999999999996
+tier_shape = SubResource("Resource_cb6bi")
 min_tier = 3
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
+
+[sub_resource type="Resource" id="Resource_q8can"]
+script = ExtResource("3_x53si")
 
 [sub_resource type="Resource" id="curse_res"]
 resource_name = "curse_resistance +"
 script = ExtResource("2_pool")
 stat_id = &"curse_resistance"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])
 tags = Array[StringName]([&"defense", &"dot", &"flat"])
 unit_value = 0.05
 pool_weight = 3.5
+tier_shape = SubResource("Resource_q8can")
 min_tier = 2
-max_tier = 4
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])
+
+[sub_resource type="Resource" id="Resource_80xtr"]
+script = ExtResource("3_x53si")
 
 [sub_resource type="Resource" id="curse_pot"]
 resource_name = "curse_potency +%"
 script = ExtResource("2_pool")
 stat_id = &"curse_potency"
 operation = 1
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
 tags = Array[StringName]([&"attack", &"dot", &"percent"])
 unit_value = 7.0
 pool_weight = 3.5
+tier_shape = SubResource("Resource_80xtr")
 max_tier = 3
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
 
 [resource]
 script = ExtResource("1_sp")

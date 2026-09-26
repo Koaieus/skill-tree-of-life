@@ -2,10 +2,14 @@
 
 [ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
-[ext_resource type="Script" path="res://procgen/subtypes/node_subtype.gd" id="90_nsub"]
+[ext_resource type="Script" uid="uid://ct7dq3or66mj7" path="res://procgen/pools/tier_shape.gd" id="3_7qv30"]
+[ext_resource type="Script" uid="uid://dmbbf2cvwsufo" path="res://procgen/subtypes/node_subtype.gd" id="90_nsub"]
 [ext_resource type="Resource" path="res://procgen/subtypes/regular.tres" id="91_sreg"]
 [ext_resource type="Resource" path="res://procgen/subtypes/blight.tres" id="92_sbli"]
 [ext_resource type="Resource" path="res://procgen/subtypes/bless.tres" id="93_sble"]
+
+[sub_resource type="Resource" id="Resource_5xakx"]
+script = ExtResource("3_7qv30")
 
 [sub_resource type="Resource" id="ab"]
 resource_name = "intelligence +"
@@ -15,6 +19,10 @@ tags = Array[StringName]([&"int", &"flat"])
 unit_value = 10.0
 range_floor = 3.0
 pool_weight = 150.0
+tier_shape = SubResource("Resource_5xakx")
+
+[sub_resource type="Resource" id="Resource_s4sf5"]
+script = ExtResource("3_7qv30")
 
 [sub_resource type="Resource" id="inc"]
 resource_name = "intelligence +%"
@@ -25,7 +33,11 @@ tags = Array[StringName]([&"int", &"percent"])
 unit_value = 7.0
 range_floor = 2.0
 pool_weight = 42.0
+tier_shape = SubResource("Resource_s4sf5")
 max_tier = 3
+
+[sub_resource type="Resource" id="Resource_b0col"]
+script = ExtResource("3_7qv30")
 
 [sub_resource type="Resource" id="mul"]
 resource_name = "intelligence ×"
@@ -36,28 +48,40 @@ tags = Array[StringName]([&"int", &"multiply"])
 unit_value = 0.05
 range_floor = 0.01
 pool_weight = 24.0
+tier_shape = SubResource("Resource_b0col")
 min_tier = 3
+
+[sub_resource type="Resource" id="Resource_fobbc"]
+script = ExtResource("3_7qv30")
 
 [sub_resource type="Resource" id="mana"]
 resource_name = "mana +"
 script = ExtResource("2_pool")
 stat_id = &"mana"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
 tags = Array[StringName]([&"int", &"flat", &"magic"])
 unit_value = 1.5
 range_floor = 0.5
 pool_weight = 45.0
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
+tier_shape = SubResource("Resource_fobbc")
+
+[sub_resource type="Resource" id="Resource_yqamp"]
+script = ExtResource("3_7qv30")
 
 [sub_resource type="Resource" id="mpt"]
 resource_name = "mana_per_turn +"
 script = ExtResource("2_pool")
 stat_id = &"mana_per_turn"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
 tags = Array[StringName]([&"int", &"flat", &"magic"])
 unit_value = 2.0
 range_floor = 1.0
 pool_weight = 4.5
+tier_shape = SubResource("Resource_yqamp")
 max_tier = 2
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("93_sble")])
+
+[sub_resource type="Resource" id="Resource_yny3n"]
+script = ExtResource("3_7qv30")
 
 [sub_resource type="Resource" id="Resource_0tuuk"]
 resource_name = "node_health +%"
@@ -67,51 +91,67 @@ operation = 1
 unit_value = -2.0
 range_floor = -1.0
 pool_weight = 10.5
+tier_shape = SubResource("Resource_yny3n")
 max_tier = 3
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
+[sub_resource type="Resource" id="Resource_hgcp0"]
+script = ExtResource("3_7qv30")
 
 [sub_resource type="Resource" id="Resource_u38nb"]
 resource_name = "cast_range_distance +%"
 script = ExtResource("2_pool")
 stat_id = &"cast_range_distance"
 operation = 1
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
 unit_value = 10.0
 range_floor = 5.0
 pool_weight = 35.0
+tier_shape = SubResource("Resource_hgcp0")
 min_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
+
+[sub_resource type="Resource" id="Resource_dsto8"]
+script = ExtResource("3_7qv30")
 
 [sub_resource type="Resource" id="Resource_b5k8y"]
 resource_name = "cast_range_hops +"
 script = ExtResource("2_pool")
 stat_id = &"cast_range_hops"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
 pool_weight = 2.4
+tier_shape = SubResource("Resource_dsto8")
 min_tier = 4
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
+
+[sub_resource type="Resource" id="Resource_kjhc8"]
+script = ExtResource("3_7qv30")
 
 [sub_resource type="Resource" id="wither_pot"]
 resource_name = "wither_potency +%"
 script = ExtResource("2_pool")
 stat_id = &"wither_potency"
 operation = 1
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
 tags = Array[StringName]([&"attack", &"dot", &"percent"])
 unit_value = 7.0
 pool_weight = 3.5
+tier_shape = SubResource("Resource_kjhc8")
 max_tier = 3
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("92_sbli")])
+
+[sub_resource type="Resource" id="Resource_1uw1v"]
+script = ExtResource("3_7qv30")
 
 [sub_resource type="Resource" id="wither_res"]
 resource_name = "wither_resistance +"
 script = ExtResource("2_pool")
 stat_id = &"wither_resistance"
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])
 tags = Array[StringName]([&"defense", &"dot", &"flat"])
 unit_value = 0.05
 pool_weight = 3.5
+tier_shape = SubResource("Resource_1uw1v")
 min_tier = 2
-max_tier = 4
-subtypes = Array[ExtResource("90_nsub")]([ExtResource("93_sble")])
 
 [resource]
 script = ExtResource("1_sp")

@@ -1,12 +1,12 @@
 [gd_resource type="Resource" script_class="StatPack" format=3 uid="uid://b6xdnspb2ash7"]
 
 [ext_resource type="Script" uid="uid://dpmnanm11yp8" path="res://procgen/pools/stat_pack.gd" id="1_sp"]
+[ext_resource type="Script" uid="uid://dmbbf2cvwsufo" path="res://procgen/subtypes/node_subtype.gd" id="2_klcpk"]
 [ext_resource type="Script" uid="uid://csc1d4c2smgr7" path="res://procgen/pools/stat_pool.gd" id="2_pool"]
 [ext_resource type="Script" uid="uid://ct7dq3or66mj7" path="res://procgen/pools/tier_shape.gd" id="3_ts"]
 
-[sub_resource type="Resource" id="ts_sqrt2"]
+[sub_resource type="Resource" id="Resource_yv0nh"]
 script = ExtResource("3_ts")
-ratio = 1.4142135623730951
 
 [sub_resource type="Resource" id="nh_inc"]
 resource_name = "node_health +%"
@@ -16,7 +16,11 @@ operation = 1
 tags = Array[StringName]([&"defense", &"percent"])
 unit_value = 2.5
 pool_weight = 1.5
+tier_shape = SubResource("Resource_yv0nh")
 max_tier = 2
+
+[sub_resource type="Resource" id="Resource_y7j1m"]
+script = ExtResource("3_ts")
 
 [sub_resource type="Resource" id="ar"]
 resource_name = "armor +"
@@ -24,7 +28,12 @@ script = ExtResource("2_pool")
 stat_id = &"armor"
 tags = Array[StringName]([&"defense", &"flat"])
 pool_weight = 14.0
+tier_shape = SubResource("Resource_y7j1m")
 max_tier = 3
+
+[sub_resource type="Resource" id="ts_sqrt2"]
+script = ExtResource("3_ts")
+ratio = 1.4142135623730951
 
 [sub_resource type="Resource" id="mv"]
 resource_name = "movement_points +"
