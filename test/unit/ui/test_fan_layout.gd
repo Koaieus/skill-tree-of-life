@@ -217,3 +217,4 @@ func test_a_fan_against_the_window_walls_settles_and_stays_settled() -> void:
 				worst = maxf(worst, FanLayout.step(bodies, _obstacles(), keep_in, _params(), 1.0 / 60.0))
 			assert_true(steps >= 0, "node at %s: settled (steps %d)" % [origin, steps])
 			assert_lt(worst, 0.05, "node at %s: still moving %.2f px/step after settling" % [origin, worst])
+			_assert_layout_clean(bodies, "node at %s" % origin)
