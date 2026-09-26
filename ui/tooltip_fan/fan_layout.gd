@@ -23,6 +23,20 @@ extends RefCounted
 ## speed it built up — which is what lets a crowded fan against a wall
 ## come to rest instead of reshuffling every frame.
 ##
+## JAMS, not just contacts. Projection is local: each push is the
+## shallowest one with room, which a wall, an obstacle or an over-full stack
+## can undo within the same pass — the pair pass shoves a panel onto the
+## node and the obstacle pass shoves it straight back, and the fan rests
+## still but overlapping. So (a) a body inside two obstacles escapes each
+## one on its own axis when that lands clear, the merged rect only when it
+## does not; (b) an obstacle push that has no room on its shallow side
+## takes the shortest far-edge clear that does; and (c) when the relax cap
+## runs out with a pair still overlapping past `JAM_TOLERANCE` (a
+## converging chain's residual is sub-pixel), a second capped relax
+## separates exactly those pairs along their OTHER axis, pinned for the
+## whole round so a pair cannot flip back mid-way. Once apart sideways the
+## pair's next contact is shallow on that axis, so the escape holds.
+##
 ## Inflation: `padding` is the gap the solver maintains between any two
 ## rects. A body-vs-body test inflates each side by `padding / 2`; a
 ## body-vs-obstacle test inflates the body by the full `padding`.
@@ -37,6 +51,9 @@ const DEFAULT_PADDING := 8.0
 ## chain of panels pressed against a wall needs one pass per link to resolve
 ## — too few leaves a residual the spring re-opens, and the chain jitters.
 const DEFAULT_RELAX_ITERATIONS := 16
+## Residual overlap, px, above which a pair left by a capped relax is jammed
+## rather than still converging.
+const JAM_TOLERANCE := 1.0
 ## A critically damped spring's tail is asymptotic: sub-pixel creep for a
 ## second after the eye has stopped seeing motion. A body within a pixel
 ## of its rest AND moving under a pixel a step snaps onto the rest and
@@ -71,11 +88,10 @@ static func step(bodies: Array[FanLayout.Body], obstacles: Array[Rect2], keep_in
 
 	var padding: float = float(params.get("padding", DEFAULT_PADDING))
 	var iterations: int = int(params.get("relax_iterations", DEFAULT_RELAX_ITERATIONS))
-	for _pass in iterations:
-		var pushed := _relax_pairs(bodies, padding, keep_in)
-		pushed = _relax_obstacles(bodies, obstacles, padding, keep_in) or pushed
-		if not pushed:
-			break
+	var converged := _relax(bodies, obstacles, padding, keep_in, iterations, {})
+	var jammed := {} if converged else _jammed_pairs(bodies, padding)
+	if not jammed.is_empty():
+		_relax(bodies, obstacles, padding, keep_in, iterations, jammed)
 	_clamp_into(bodies, keep_in)
 	for i in bodies.size():
 		_absorb_contact(bodies[i], bodies[i].position - integrated[i])
@@ -133,8 +149,39 @@ static func _absorb_contact(b: Body, correction: Vector2) -> void:
 		b.velocity.y = 0.0
 
 
-## True when any pair was pushed apart.
-static func _relax_pairs(bodies: Array[FanLayout.Body], padding: float, keep_in: Rect2) -> bool:
+## Up to [param iterations] pair + obstacle passes; true when one moved
+## nothing (the pass converged), false when the cap ran out.
+static func _relax(bodies: Array[FanLayout.Body], obstacles: Array[Rect2], padding: float,
+		keep_in: Rect2, iterations: int, axis_of: Dictionary) -> bool:
+	for _pass in iterations:
+		var pushed := _relax_pairs(bodies, padding, keep_in, axis_of)
+		pushed = _relax_obstacles(bodies, obstacles, padding, keep_in) or pushed
+		if not pushed:
+			return true
+	return false
+
+
+## The pairs still overlapping by more than [constant JAM_TOLERANCE] after a
+## capped relax, keyed `i * n + j`, each mapped to the axis the ordinary
+## passes did NOT push it along (the deeper overlap axis) — a converging
+## chain's residual is sub-pixel, a jam's is the whole push it keeps undoing.
+static func _jammed_pairs(bodies: Array[FanLayout.Body], padding: float) -> Dictionary:
+	var out := {}
+	var grow := padding * 0.5 - JAM_TOLERANCE
+	for i in bodies.size():
+		var ra := Rect2(bodies[i].position, bodies[i].size).grow(grow)
+		for j in range(i + 1, bodies.size()):
+			var rb := Rect2(bodies[j].position, bodies[j].size).grow(grow)
+			if ra.intersects(rb):
+				var overlap := ra.intersection(rb).size
+				out[i * bodies.size() + j] = Vector2.AXIS_Y if overlap.x < overlap.y else Vector2.AXIS_X
+	return out
+
+
+## True when any pair was pushed apart. A pair in [param axis_of] tries that
+## axis's separations first; every other pair the shallowest overlap's.
+static func _relax_pairs(bodies: Array[FanLayout.Body], padding: float, keep_in: Rect2,
+		axis_of: Dictionary) -> bool:
 	var pushed := false
 	var half := padding * 0.5
 	for i in bodies.size():
@@ -144,7 +191,7 @@ static func _relax_pairs(bodies: Array[FanLayout.Body], padding: float, keep_in:
 			var ra := Rect2(a.position, a.size).grow(half)
 			var rb := Rect2(b.position, b.size).grow(half)
 			var toward := (b.rest + b.size * 0.5) - (a.rest + a.size * 0.5)
-			var candidates := _separations(ra, rb, toward)
+			var candidates := _separations(ra, rb, toward, axis_of.get(i * bodies.size() + j, -1))
 			if candidates.is_empty():
 				continue
 			# Each candidate splits half each, and the window is infinite
@@ -190,9 +237,10 @@ static func _relax_obstacles(bodies: Array[FanLayout.Body], obstacles: Array[Rec
 		if used.is_empty():
 			continue
 		var room := _room_for(b, keep_in)
-		var push := Vector2.ZERO
-		while true:
-			push = _obstacle_push(b, rb, merged, room)
+		var push := _one_by_one_push(b, rb, obstacles, room)
+		var merged_done := push != Vector2.INF
+		while not merged_done:
+			push = _obstacle_push(b.rest + b.size * 0.5, b.position, rb, merged, room)
 			var landed := rb
 			landed.position += push
 			var grew := false
@@ -202,21 +250,50 @@ static func _relax_obstacles(bodies: Array[FanLayout.Body], obstacles: Array[Rec
 					used[i] = true
 					grew = true
 			if not grew:
-				break
+				merged_done = true
 		b.position += push
 		pushed = true
 	return pushed
 
 
+## Each overlapped obstacle's own push in turn, or [constant Vector2.INF]
+## when the sum does not land clear of every obstacle inside the window. A
+## body grazing two obstacles on different axes needs two small pushes, and
+## the merged rect's far edge would throw it the width of both.
+static func _one_by_one_push(b: Body, rb: Rect2, obstacles: Array[Rect2], room: Rect2) -> Vector2:
+	var total := Vector2.ZERO
+	for o in obstacles:
+		var at := rb
+		at.position += total
+		if at.intersects(o):
+			total += _obstacle_push(b.rest + b.size * 0.5, b.position + total, at, o, room)
+	var landed := rb
+	landed.position += total
+	for o in obstacles:
+		if landed.intersects(o):
+			return Vector2.INF
+	return total if _fits(b.position + total, room) else Vector2.INF
+
+
 ## The obstacle is the fixed side: the body takes the whole push, away from
-## the obstacle, so the arguments are (obstacle, body).
-static func _obstacle_push(b: Body, rb: Rect2, merged: Rect2, room: Rect2) -> Vector2:
-	var toward := (b.rest + b.size * 0.5) - merged.get_center()
-	var candidates := _separations(merged, rb, toward)
+## the obstacle, so the arguments are (obstacle, body). No ordinary
+## separation having room, the shortest far-edge clear that does wins — a
+## body the window pins against an obstacle passes it rather than being
+## pushed into the wall and clamped back every frame.
+static func _obstacle_push(rest_center: Vector2, at: Vector2, rb: Rect2, merged: Rect2,
+		room: Rect2) -> Vector2:
+	var candidates := _separations(merged, rb, rest_center - merged.get_center())
 	for c in candidates:
-		if _fits(b.position + c, room):
+		if _fits(at + c, room):
 			return c
-	return candidates[0]
+	var best := candidates[0]
+	var found := false
+	for c: Vector2 in [_clear_x(merged, rb, 1.0), _clear_x(merged, rb, -1.0),
+			_clear_y(merged, rb, 1.0), _clear_y(merged, rb, -1.0)]:
+		if _fits(at + c, room) and (not found or c.length() < best.length()):
+			best = c
+			found = true
+	return best
 
 
 ## Absolute, last: a body larger than the window pins to its top-left.
@@ -265,7 +342,10 @@ static func _fits(p: Vector2, room: Rect2) -> bool:
 ## (hundreds of px for a few px of overlap); when something blocks the far
 ## side the next pass throws it back, and the fan limit-cycles. A zero
 ## component falls back to the other offset, and failing that +.
-static func _separations(a: Rect2, b: Rect2, toward: Vector2) -> Array[Vector2]:
+## [param axis] (`Vector2.AXIS_X`/`AXIS_Y`) puts that axis first regardless
+## of depth — the jam round's override; -1 is shallowest-first.
+static func _separations(a: Rect2, b: Rect2, toward: Vector2,
+		axis := -1) -> Array[Vector2]:
 	var overlap_x := minf(a.end.x, b.end.x) - maxf(a.position.x, b.position.x)
 	var overlap_y := minf(a.end.y, b.end.y) - maxf(a.position.y, b.position.y)
 	if overlap_x <= 0.0 or overlap_y <= 0.0:
@@ -285,7 +365,7 @@ static func _separations(a: Rect2, b: Rect2, toward: Vector2) -> Array[Vector2]:
 	var along_y: Array[Vector2] = [_clear_y(a, b, sy)]
 	if deep_y:
 		along_y.append(_clear_y(a, b, -sy))
-	if overlap_x < overlap_y:
+	if axis == Vector2.AXIS_X or (axis == -1 and overlap_x < overlap_y):
 		return along_x + along_y
 	return along_y + along_x
 
