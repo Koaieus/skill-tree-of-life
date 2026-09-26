@@ -260,3 +260,29 @@ func test_a_grown_panel_keeps_a_perpendicular_arrival() -> void:
 		else:
 			assert_almost_eq(leg.x, 0.0, 0.01, "grown by %s: closing leg into a horizontal edge is vertical" % extra)
 			assert_gt(absf(leg.y), 0.0, "grown by %s: the closing leg has length" % extra)
+
+
+func test_a_side_panel_level_with_the_trunk_top_routes_through_a_real_diagonal() -> void:
+	# The owner's forbidden shape: a panel straddling the trunk top's height
+	# drew trunk, then a 90° cut straight across (or a sub-pixel diagonal
+	# standing in for one). The slide target sits DIAGONAL_SHARE of the
+	# sideways distance ahead of the trunk top, so the route bends through 45°.
+	var from := Vector2.ZERO
+	var trunk_px := 40.0
+	var params := {"trunk": _TRUNK_FRAC, "trunk_dir": _TRUNK_DIR, "trunk_px": trunk_px}
+	for rect in [Rect2(Vector2(200.0, -100.0), Vector2(160.0, 120.0)),
+			Rect2(Vector2(-360.0, -100.0), Vector2(160.0, 120.0))]:
+		var anchor := FanAnchor.derive_anchor(from, rect, _TRUNK_DIR, _TRUNK_FRAC, trunk_px)
+		var pts := TraceRouter.compute_trace_points(from, anchor, TraceRouter.Style.PCB, params)
+		var label := "rect=%s" % rect
+		var has_diagonal := false
+		for i in range(pts.size() - 1):
+			var seg := pts[i + 1] - pts[i]
+			if absf(absf(seg.x) - absf(seg.y)) < 0.01 and seg.length() >= TraceRouter.MIN_SEGMENT_PX:
+				has_diagonal = true
+			if i > 0:
+				var prev := pts[i] - pts[i - 1]
+				var both_cardinal := (absf(prev.x) < 0.01 or absf(prev.y) < 0.01) \
+					and (absf(seg.x) < 0.01 or absf(seg.y) < 0.01)
+				assert_false(both_cardinal, "%s: segments %d→%d are a 90° cardinal cut" % [label, i - 1, i])
+		assert_true(has_diagonal, "%s: a 45° segment of at least MIN_SEGMENT_PX (route %s)" % [label, pts])

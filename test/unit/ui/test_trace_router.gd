@@ -259,3 +259,54 @@ func test_pcb_gable_honours_trunk_dir_sideways() -> void:
 	assert_almost_eq(leg5.y, 0.0, 0.001, "closing leg runs back along -trunk_dir (horizontal)")
 	assert_true(leg5.x < 0.0, "closing leg heads left, behind the trunk top")
 	_assert_on_45_grid_without_doubling_back(pts, "sideways gable")
+
+
+# --- PCB minimum segment (#1126): no 90° trunk cut, no sub-pixel stand-in ----
+# Every segment but the closing leg is at least MIN_SEGMENT_PX, and no two
+# consecutive segments are both cardinal (that pair IS the forbidden 90° cut).
+# The closing leg is exempt: AHEAD of the trunk top it is the leftover
+# ||rem.x| − |rem.y|| the 45° diagonal cannot absorb without moving the fixed
+# trunk — zero on an exact 45° target.
+
+func _is_cardinal(seg: Vector2) -> bool:
+	return absf(seg.x) < 0.001 or absf(seg.y) < 0.001
+
+
+func _assert_min_segments_and_no_cardinal_corner(pts: PackedVector2Array, label: String) -> void:
+	for i in range(pts.size() - 2):
+		var seg := pts[i + 1] - pts[i]
+		assert_true(seg.length() >= TraceRouter.MIN_SEGMENT_PX - 0.001,
+			"%s: segment %d is %.2f px, under MIN_SEGMENT_PX" % [label, i, seg.length()])
+	for i in range(pts.size() - 2):
+		var a := pts[i + 1] - pts[i]
+		var b := pts[i + 2] - pts[i + 1]
+		var collinear := absf(a.cross(b)) < 0.001
+		assert_false(_is_cardinal(a) and _is_cardinal(b) and not collinear,
+			"%s: segments %d→%d are a cardinal→cardinal 90° corner" % [label, i, i + 1])
+
+
+func _pcb_min_segment_targets() -> Array[Vector2]:
+	var targets: Array[Vector2] = []
+	for xi in range(-8, 9):
+		for yi in range(-8, 9):
+			targets.append(Vector2(xi * 50.0, yi * 50.0))
+	# Rows hugging the fixed 40 px trunk top's height, where the old boundary
+	# drew the 90° cut and the diagonal went sub-pixel.
+	for x in [-400.0, -200.0, -100.0, -50.0, 50.0, 100.0, 200.0, 400.0]:
+		for dy in [-40.0, -11.5, -6.0, -1.0, 0.0, 1.0, 6.0, 11.5, 40.0]:
+			targets.append(Vector2(x, -40.0 + dy))
+	return targets
+
+
+func test_pcb_every_segment_clears_the_minimum_for_every_target() -> void:
+	var from := Vector2.ZERO
+	for params in [{"trunk_px": 40.0}, {"trunk": 0.382}]:
+		for to in _pcb_min_segment_targets():
+			if absf(to.x) < 2.0 * TraceRouter.MIN_SEGMENT_PX:
+				continue # the trunk's own column: outside the family
+			var pts := TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, params)
+			var label := "%s to=%s" % [params, to]
+			assert_eq(pts[0], from, "%s: first == from" % label)
+			assert_eq(pts[pts.size() - 1], to, "%s: last == to" % label)
+			_assert_on_45_grid_without_doubling_back(pts, label)
+			_assert_min_segments_and_no_cardinal_corner(pts, label)

@@ -8,6 +8,14 @@ extends RefCounted
 
 enum Style { STRAIGHT, ELBOW, TREE, PCB }
 
+## The shortest segment a PCB route may draw (the closing leg excepted, see
+## [method _pcb]): a shorter one reads as a kink standing in for a 90° corner.
+const MIN_SEGMENT_PX := 12.0
+## The share of the sideways distance from the trunk top to a side panel's edge
+## the 45° diagonal takes; the cardinal closing leg takes the rest. Read by
+## [FanAnchor] to place the slide target, never passed as a route param.
+const DIAGONAL_SHARE := 0.5
+
 
 ## Returns the ordered points of the trace from `from` to `to` for `style`.
 ## `first == from` and `last == to` always hold, for every style.
