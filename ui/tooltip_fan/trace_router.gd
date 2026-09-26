@@ -76,46 +76,56 @@ static func _tree(from: Vector2, to: Vector2, params: Dictionary) -> PackedVecto
 
 
 ## True PCB / 45°-only route: a cardinal trunk out of `from`, then an exact 45°
-## diagonal, then a cardinal run into `to` — every turn is 0°/45°/90°.
+## diagonal, then a cardinal run into `to` — every turn is 0°/45°/90°, and no
+## trunk ever cuts straight into a 90° corner.
 ##
 ## `params.trunk_dir` (default up, `(0,-1)`) is the cardinal direction the trunk
 ## leaves along; `params.trunk` (default 0.382 ≈ φ) is the fraction of the trunk
-## axis' span covered before the 45° break. That single fraction spans the whole
-## family:
+## axis' span covered before the 45° break:
 ##   trunk == 0   → a pure 45° diagonal straight from `from`, then a cardinal leg
 ##   trunk ≈ φ    → trunk, 45° diagonal, cardinal leg (the classic sprout)
-##   trunk == 1   → full cardinal leg then a squared 90° corner (no diagonal)
+##   trunk == 1   → the longest trunk that still leaves a [constant MIN_SEGMENT_PX]
+##                  diagonal — the fraction is capped at `span − MIN_SEGMENT_PX`
 ##
 ## `params.trunk_px` (default 0 = off) overrides `trunk` with a FIXED trunk
-## length in pixels; a `trunk_px` at or beyond the target's along-trunk span
-## switches the route to the gable family below. A fraction gives near
-## panels short trunks and far panels long ones; a fixed length makes every
-## trace in a fan leave its origin in a uniform bundle before diverging.
+## length in pixels, never shortened: a fraction gives near panels short trunks
+## and far panels long ones; a fixed length makes every trace in a fan leave its
+## origin in a uniform bundle before diverging (and lets
+## `FanAnchorDriver.trunk_top_of` compute the trunk top by formula).
 ##
 ## The diagonal consumes `min(|rem.x|, |rem.y|)` on both axes, which snaps one
 ## axis onto `to`, so the closing leg is exactly cardinal. Consecutive duplicate
-## points (produced at the 0 and 1 extremes) are removed so the polyline carries
-## no zero-length segment.
+## points are removed so the polyline carries no zero-length segment.
 ##
-## Two families share this entry, chosen by where `to` sits relative to the
-## trunk top: AHEAD of it (a positive component along `trunk_dir`) takes the
-## trunk → diagonal → cardinal route above; anywhere else takes the GABLE —
-## trunk, 45° shoulder out, a run perpendicular to the trunk, the mirror 45°
-## shoulder back, then a cardinal closing leg back along `-trunk_dir` into `to`.
-## The gable's trunk is `trunk_px` if set, else `trunk` × the PERPENDICULAR span
-## (the along-trunk span is meaningless behind the trunk top); its shoulder is
-## `min(params.shoulder, |perp| / 3)` with `shoulder` defaulting to the trunk
-## length — a third each for the two shoulders and the run, so a narrow
-## perpendicular offset shortens all three rather than losing the flat run.
+## Two families share this entry, chosen by the target's along-trunk remainder
+## past the trunk top: at least [constant MIN_SEGMENT_PX] AHEAD takes the
+## trunk → diagonal → cardinal route above, so the diagonal is never
+## `0 < diag < MIN_SEGMENT_PX`; anything nearer (level with the trunk top, or
+## behind it) takes the GABLE — trunk, 45° shoulder out, a run perpendicular
+## to the trunk, the 45° shoulder back, then a cardinal closing leg back along
+## `-trunk_dir` into `to`. The gable's trunk is `trunk_px` if set, else `trunk`
+## × the PERPENDICULAR span. Its shoulder `a` is `min(params.shoulder,
+## avail / 3)` (`shoulder` defaulting to the trunk length) floored at
+## [constant MIN_SEGMENT_PX] — a third each for two shoulders and the run; an
+## `avail` under `3 × MIN_SEGMENT_PX` drops the run and splits it between the
+## shoulders. A target level with or just past the trunk top LIFTS the gable:
+## the outward shoulder runs longer than the return so the return lands
+## [constant MIN_SEGMENT_PX] past `to` and the closing leg comes back down onto
+## it; `avail` is the perpendicular span minus that lift.
 ##
-## The invariant both families keep, for every target: every segment heading is
-## on the 45° grid, no bend exceeds 90° (never a 135° double-back), and the
-## closing leg is cardinal. Degenerate: a target behind the trunk top with
-## `|perp| < 2 px` is outside the family (it is the trunk's own column, which
-## the fan layout keeps panels out of) — the route still returns `first == from`
-## and `last == to`, but with no shoulder room it is `[from, trunk_top, to]` —
-## the trunk out, then straight back down over itself — tolerated rather than
-## special-cased.
+## The invariant both families keep, for every target outside the degenerate
+## zone: every segment heading is on the 45° grid, no bend exceeds 90° (never a
+## 135° double-back), no two consecutive segments are both cardinal, every
+## segment but the closing leg is at least [constant MIN_SEGMENT_PX], and the
+## closing leg is cardinal — a gable's at least [constant MIN_SEGMENT_PX], an
+## ahead route's the leftover `||rem.x| − |rem.y||` (zero on an exact 45°
+## target, where the route ends on its diagonal). A fraction-mode trunk floors
+## at [constant MIN_SEGMENT_PX] too, save `trunk == 0`, which draws none; a
+## `trunk_px` under the minimum is the caller's call. Degenerate: `|perp|` under
+## `2 × MIN_SEGMENT_PX` (the trunk's own column, which the fan layout keeps
+## panels out of), or a lifted gable whose `avail` is under that — the route
+## still returns `first == from` and `last == to`, with shoulders or a
+## diagonal under the minimum, tolerated rather than special-cased.
 static func _pcb(from: Vector2, to: Vector2, params: Dictionary) -> PackedVector2Array:
 	var trunk_frac: float = params.get("trunk", 0.382)
 	var trunk_dir: Vector2 = params.get("trunk_dir", Vector2(0.0, -1.0))
@@ -125,13 +135,15 @@ static func _pcb(from: Vector2, to: Vector2, params: Dictionary) -> PackedVector
 	var trunk_px: float = params.get("trunk_px", 0.0)
 	var d := to - from
 	var along := d.dot(trunk_dir)
-	var span := absf(along)
-	if along > 0.0 and (trunk_px <= 0.0 or trunk_px <= along):
-		# Ahead of the trunk top: the classic trunk → 45° diagonal → cardinal.
-		# A fixed `trunk_px` reaching exactly the target's height still belongs
-		# here (trunk, then one cardinal leg — the same 90° corner `trunk == 1`
-		# draws); anything beyond it is the gable, so the trunk never overshoots.
-		var trunk_len := trunk_px if trunk_px > 0.0 else trunk_frac * span
+	var trunk_len := trunk_px
+	var is_ahead := along - trunk_px >= MIN_SEGMENT_PX
+	if trunk_px <= 0.0:
+		var floor_px := _fraction_trunk_floor(trunk_frac)
+		trunk_len = minf(maxf(trunk_frac * absf(along), floor_px), along - MIN_SEGMENT_PX)
+		is_ahead = trunk_len >= floor_px
+	if is_ahead:
+		# Ahead of the trunk top by at least the minimum: the classic
+		# trunk → 45° diagonal → cardinal, the diagonal never sub-minimum.
 		var trunk_top := from + trunk_dir * trunk_len
 		var rem := to - trunk_top
 		var diag := minf(absf(rem.x), absf(rem.y))
@@ -140,24 +152,41 @@ static func _pcb(from: Vector2, to: Vector2, params: Dictionary) -> PackedVector
 	return _gable(from, to, trunk_dir, trunk_frac, trunk_px, params)
 
 
-## The below-trunk-top family of [method _pcb]: U → (R|L)U → (R|L) → (R|L)D → D
-## in the trunk's frame, symmetric shoulders. Written for a general cardinal
-## `trunk_dir` (Roots' trunk points down).
+## The level-or-behind family of [method _pcb]: U → (R|L)U → (R|L) → (R|L)D → D
+## in the trunk's frame. Written for a general cardinal `trunk_dir` (Roots'
+## trunk points down).
 static func _gable(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: float, trunk_px: float, params: Dictionary) -> PackedVector2Array:
 	var perp_dir := Vector2(-trunk_dir.y, trunk_dir.x)
 	var d := to - from
 	var perp := d.dot(perp_dir)
 	var perp_abs := absf(perp)
 	var side := signf(perp) if perp_abs > 0.0 else 1.0
-	var trunk_len := trunk_px if trunk_px > 0.0 else trunk_frac * perp_abs
+	var trunk_len := trunk_px
+	if trunk_px <= 0.0:
+		trunk_len = maxf(trunk_frac * perp_abs, _fraction_trunk_floor(trunk_frac))
+	# `to`'s offset along the trunk past the trunk top; the return shoulder lands
+	# `lift` past it so the closing leg (along -trunk_dir) is at least the minimum.
+	var ahead := d.dot(trunk_dir) - trunk_len
+	var lift := minf(maxf(0.0, ahead + MIN_SEGMENT_PX), perp_abs)
+	var avail := perp_abs - lift
 	var shoulder: float = params.get("shoulder", trunk_len)
-	var a := minf(shoulder, perp_abs / 3.0)
-	var b := perp_abs - 2.0 * a
+	var a := avail / 3.0
+	if avail >= 3.0 * MIN_SEGMENT_PX:
+		a = clampf(shoulder, MIN_SEGMENT_PX, avail / 3.0)
+	elif avail >= 2.0 * MIN_SEGMENT_PX:
+		a = avail / 2.0
+	var b := avail - 2.0 * a
 	var trunk_top := from + trunk_dir * trunk_len
-	var shoulder_out := trunk_top + (trunk_dir + perp_dir * side) * a
+	var shoulder_out := trunk_top + (trunk_dir + perp_dir * side) * (a + lift)
 	var run_end := shoulder_out + perp_dir * side * b
 	var shoulder_back := run_end + (-trunk_dir + perp_dir * side) * a
 	return _dedup(PackedVector2Array([from, trunk_top, shoulder_out, run_end, shoulder_back, to]))
+
+
+## The shortest trunk a fraction-mode route draws: none for `trunk == 0` (the
+## route starts on its diagonal), else [constant MIN_SEGMENT_PX].
+static func _fraction_trunk_floor(trunk_frac: float) -> float:
+	return MIN_SEGMENT_PX if trunk_frac > 0.0 else 0.0
 
 
 ## Drops consecutive points that are equal (approx), preserving order and always

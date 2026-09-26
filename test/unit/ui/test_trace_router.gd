@@ -127,12 +127,17 @@ func test_pcb_trunk_zero_starts_on_the_45_diagonal() -> void:
 		"trunk=0 has no trunk: it starts on the 45° diagonal from the anchor")
 
 
-func test_pcb_trunk_one_is_a_squared_90_corner() -> void:
+func test_pcb_trunk_one_still_leaves_a_minimum_diagonal() -> void:
+	# The squared 90° corner trunk == 1 used to draw is forbidden: the trunk is
+	# capped so the 45° diagonal keeps MIN_SEGMENT_PX.
 	var from := Vector2.ZERO
 	var to := Vector2(-155, -200)
 	var pts := TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, {"trunk": 1.0})
-	assert_eq(pts.size(), 3, "trunk=1 squares off (no diagonal), deduped to a corner")
-	assert_eq(pts[1], Vector2(from.x, to.y), "corner sits at from.x / to.y")
+	var m := TraceRouter.MIN_SEGMENT_PX
+	assert_eq(pts.size(), 4, "trunk=1 is trunk, diagonal, cardinal — never a squared corner")
+	assert_eq(pts[1], Vector2(0.0, -200.0 + m), "trunk stops MIN_SEGMENT_PX short of to.y")
+	assert_eq(pts[2], Vector2(-m, -200.0), "a MIN_SEGMENT_PX 45° diagonal snaps onto to.y")
+	assert_eq(pts[3], to)
 
 
 func test_pcb_dedups_zero_length_segments_on_a_straight_up_target() -> void:
@@ -189,15 +194,21 @@ func test_pcb_every_bend_is_exactly_45_degrees_for_every_target() -> void:
 			_assert_on_45_grid_without_doubling_back(pts, label)
 
 
-func test_pcb_target_at_trunk_top_height_keeps_a_cardinal_closing_leg() -> void:
-	# The family boundary: `to` exactly at the trunk top's height is AHEAD
-	# (trunk, then one cardinal leg) — the gable would dedup `to` away and end
-	# on a diagonal shoulder.
+func test_pcb_target_at_trunk_top_height_is_a_lifted_gable_with_a_cardinal_closing_leg() -> void:
+	# The family boundary: `to` exactly at the trunk top's height is no longer
+	# AHEAD (that drew trunk, then a 90° cut). It is a gable lifted so the
+	# return shoulder lands MIN_SEGMENT_PX past `to` and a cardinal closing leg
+	# comes back down onto it — never a route ending on a diagonal shoulder.
 	var to := Vector2(200.0, -40.0)
+	var m := TraceRouter.MIN_SEGMENT_PX
 	var pts := TraceRouter.compute_trace_points(Vector2.ZERO, to, TraceRouter.Style.PCB, {"trunk_px": 40.0})
-	assert_eq(pts[pts.size() - 1], to, "last == to")
-	assert_eq(pts.size(), 3, "trunk then a squared 90° corner, like trunk == 1")
+	assert_eq(pts.size(), 6, "the 6-point gable")
+	assert_eq(pts[1], Vector2(0.0, -40.0), "the trunk stays trunk_px")
+	assert_eq(pts[2], Vector2(40.0 + m, -40.0 - 40.0 - m), "outward shoulder = a + lift")
+	assert_eq(pts[4], Vector2(200.0, -40.0 - m), "return shoulder lands MIN_SEGMENT_PX past `to`")
+	assert_eq(pts[5], to, "last == to")
 	_assert_on_45_grid_without_doubling_back(pts, "at trunk-top height")
+	_assert_min_segments_and_no_cardinal_corner(pts, "at trunk-top height")
 
 
 func test_pcb_below_target_is_a_symmetric_gable() -> void:
@@ -238,10 +249,19 @@ func test_pcb_below_target_with_narrow_perp_shortens_the_shoulders_and_keeps_a_r
 
 func test_pcb_gable_shoulder_param_caps_the_shoulder() -> void:
 	var pts := TraceRouter.compute_trace_points(
-		Vector2.ZERO, Vector2(200.0, 150.0), TraceRouter.Style.PCB, {"trunk_px": 40.0, "shoulder": 10.0})
+		Vector2.ZERO, Vector2(200.0, 150.0), TraceRouter.Style.PCB, {"trunk_px": 40.0, "shoulder": 20.0})
 	assert_eq(pts.size(), 6)
-	assert_eq(pts[2], Vector2(10.0, -50.0), "shoulder = min(params.shoulder, |perp| / 3)")
-	assert_eq(pts[3], Vector2(190.0, -50.0))
+	assert_eq(pts[2], Vector2(20.0, -60.0), "shoulder = min(params.shoulder, |perp| / 3)")
+	assert_eq(pts[3], Vector2(180.0, -60.0))
+
+
+func test_pcb_gable_shoulder_floors_at_the_minimum_segment() -> void:
+	var m := TraceRouter.MIN_SEGMENT_PX
+	var pts := TraceRouter.compute_trace_points(
+		Vector2.ZERO, Vector2(200.0, 150.0), TraceRouter.Style.PCB, {"trunk_px": 40.0, "shoulder": 5.0})
+	assert_eq(pts.size(), 6)
+	assert_eq(pts[2], Vector2(m, -40.0 - m), "a shoulder param under the minimum floors at MIN_SEGMENT_PX")
+	assert_eq(pts[3], Vector2(200.0 - m, -40.0 - m))
 
 
 func test_pcb_gable_honours_trunk_dir_sideways() -> void:
