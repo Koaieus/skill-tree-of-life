@@ -44,7 +44,7 @@ script = ExtResource("4_config")
 filter = SubResource("filter_enemy")
 spread = SubResource("spread_fan")
 reducer = SubResource("reducer_max")
-max_hops = 3
+max_hops = 3.0
 hop_damage = SubResource("prog_falloff")
 
 [sub_resource type="Resource" id="range_lightning"]

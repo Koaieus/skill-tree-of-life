@@ -58,7 +58,7 @@ script = ExtResource("4_config")
 filter = SubResource("Resource_885nj")
 spread = SubResource("spread_top")
 reducer = SubResource("reducer_max")
-max_hops = 4
+max_hops = 4.0
 max_visits_per_node = 2
 
 [sub_resource type="Resource" id="range"]

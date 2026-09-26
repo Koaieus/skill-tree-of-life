@@ -54,7 +54,7 @@ script = ExtResource("4_config")
 filter = SubResource("filter_composite")
 spread = SubResource("spread_cyclone")
 reducer = SubResource("reducer_cyclone")
-max_hops = 8
+max_hops = 8.0
 max_visits_per_node = 999
 
 [sub_resource type="Resource" id="range"]

@@ -64,7 +64,7 @@ script = ExtResource("4_config")
 filter = SubResource("filter_composite")
 spread = SubResource("spread_fan")
 reducer = SubResource("reducer_max")
-max_hops = 7
+max_hops = 7.0
 hop_damage = SubResource("prog_rampup")
 
 [sub_resource type="Resource" id="range"]

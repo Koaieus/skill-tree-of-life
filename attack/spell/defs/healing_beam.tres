@@ -42,7 +42,7 @@ metadata/_custom_type_script = "uid://bqrga3k1hmfut"
 script = ExtResource("7_g1pe3")
 spread = SubResource("Resource_1733n")
 reducer = SubResource("Resource_4wewy")
-max_hops = 3
+max_hops = 3.0
 hop_damage = SubResource("Resource_1sde5")
 metadata/_custom_type_script = "uid://o0v6inqs5wk6"
 

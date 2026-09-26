@@ -65,7 +65,7 @@ script = ExtResource("4_config")
 filter = SubResource("filter_composite")
 spread = SubResource("spread_fan")
 reducer = SubResource("reducer_sum")
-max_hops = 5
+max_hops = 5.0
 max_visits_per_node = 6
 hop_damage = SubResource("Resource_ahisb")
 
