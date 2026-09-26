@@ -49,14 +49,15 @@ Haiku is priced a fifth of Opus and never carries the pass's context.
 3. **Every exit code is checked; nothing is piped through `tail`; nothing is
    retried blind.** The
    issue-workflow traps (`--add-parent` swallowed by a pipe, `blockedBy` as an
-   object, the raw dependencies API taking internal ids, backticks in `--body`)
+   object, the raw dependencies API taking internal ids, backticks in `--body`, a
+   remembered `--json` field name that has since moved)
    all fail *silently*; the clerk's instructions carry each one so the spawning
    session does not have to.
 4. **Board rules are enforced by refusal, not repair.** No `Ready` without a
    milestone, no status on a hub, no close/reopen/retitle, no git. A manifest
    that asks for one gets a `SKIPPED` line.
 5. **The report is the whole output.** One line per issue, then drift,
-   refresh, hygiene, then `SKIPPED` / `FAILED`. The spawning session reads it
+   `refresh` when the manifest lists it, hygiene, then `SKIPPED` / `FAILED`. The spawning session reads it
    once; prose would be context it pays for.
 6. **Haiku.** The work is tool calls against a fixed recipe. If a manifest
    shape turns out to need judgement, the fix is a clearer manifest field, not

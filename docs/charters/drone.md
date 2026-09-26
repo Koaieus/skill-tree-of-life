@@ -144,7 +144,7 @@ against them.
 21. **Act on whichever arrives first — the spawn prompt or the first message
     from `main`.** Named teammates have been observed idling on a prompt and
     waiting for a mailbox brief; a drone with a brief in hand starts.
-22. **The report is the final turn text**, in the fixed five-line format,
+22. **The report is the final turn text**, in the fixed six-line format,
     never *also* a `SendMessage` to `main`. One recipient per message: review
     request to Sage, report to the harness.
 23. **Issue comments only for what must outlive the orchestrator**: a

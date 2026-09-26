@@ -346,7 +346,7 @@ Numbered so the skill can be checked against them law by law.
     exists, it is a knob.** "Is there a cap?" is a fork; "what is the cap?"
     is a knob. A number the owner already stated is still a knob — their
     value is the default, exported all the same. For a knob, the pass picks a sensible default (law 4's
-    arithmetic at both ends), records it in Decisions as a tentative pass
+    arithmetic at both ends), records it in the Ready comment's Knobs section as a tentative pass
     pick — not an owner call — and says it is easy to change. It also
     **specifies the DX that makes it easy**, since that is what "easy to
     change" means: an `@export` (with `@export_range` when bounded) on the
