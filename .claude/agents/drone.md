@@ -107,12 +107,14 @@ unfinished.
   `check` and the existing suite are the verification.
 - **"Pre-existing failure" is a claim.** Say so in `NOTES:`; the orchestrator
   confirms against real `master`. Your worktree may hold a sibling's commit.
-- Fresh worktree: `worktree:new` warms the class cache after seeding the
-  native binary, so the first `check`/`test` is normally already warm.
-  `--no-warm`/`NO_WARM=1` skips it, and a failed warm-up only warns — either
-  way a cold import is still possible: slow, noisy, expected, not a fault.
-  `test*` also refreshes the class cache itself when a `class_name` is new,
-  so a `class cache stale … refreshing…` preamble is normal too.
+- Fresh worktree: `worktree:new` warms the class cache and runs `check`
+  after seeding the native binary, so it hands you a warm, already-checked
+  worktree — its `✓ check green on <sha>` line is your green baseline; don't
+  re-run `check` before your first edit. `--no-warm`/`NO_WARM=1` skips both,
+  and a failed warm-up or check only warns — either way a cold import is
+  still possible: slow, noisy, expected, not a fault. `test*` also refreshes
+  the class cache itself when a `class_name` is new, so a `class cache
+  stale … refreshing…` preamble is normal too.
 
 ## Never
 

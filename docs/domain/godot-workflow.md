@@ -473,11 +473,14 @@ neither touches nor corrupts the main checkout's `.godot/`, and is fully
 independent (own import cache, own class cache).
 
 `worktree:new` pays that cold import itself, right after seeding the native
-binary: it runs `refresh` inside the new worktree (never the main checkout,
-so it can't write there) so the class/import cache is already warm before
-anyone's first `check`/`test`. `--no-warm` (or `NO_WARM=1`) skips it, and a
-failed warm-up only warns rather than failing worktree creation — either way
-a worktree without a warm cache still pays the same cold import on its first
+binary: it runs `refresh` then `check` inside the new worktree (never the
+main checkout, so it can't write there), printing a compact verdict —
+`✓ check green on <sha>` or `✗ check failed — <first failing line> · full
+log: <path>` — instead of either task's raw output, so the worktree lands
+ready to edit with no follow-up command. `--no-warm` (or `NO_WARM=1`,
+anywhere after the issue/name arg) skips both, and a failed warm-up or check
+only warns rather than failing worktree creation — either way a worktree
+without a warm, checked cache still pays the same cold import on its first
 real `check`/`test`, just later and less predictably labeled.
 
 ## `godot --script` does not boot autoloads — use a GUT test to inspect scene state

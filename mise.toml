@@ -468,11 +468,21 @@ exec "${MISE_PROJECT_ROOT:-.}/.mise/tasks/test-timings"
 '''
 
 [tasks."worktree:new"]
-description = "Create a worktree: `mise run worktree:new -- 86` (issue number, fetches title) or `mise run worktree:new -- my-topic` (free text). Warms the class cache after; pass `--no-warm` (or set NO_WARM=1) to skip."
+description = "Create a worktree: `mise run worktree:new -- 86` (issue number, fetches title) or `mise run worktree:new -- my-topic` (free text). Warms the class cache and runs `check` after, so the worktree lands ready to edit; pass `--no-warm` (or set NO_WARM=1, anywhere after the issue/name arg) to skip both."
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 arg="${1:?usage: mise run worktree:new -- <issue-number|name> [--no-warm]}"
+shift
+no_warm=0
+for rest_arg in "$@"; do
+  if [ "$rest_arg" = "--no-warm" ]; then
+    no_warm=1
+  fi
+done
+if [ -n "${NO_WARM:-}" ]; then
+  no_warm=1
+fi
 slugify() { echo "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' | cut -c1-40; }
 
 if [[ "$arg" =~ ^[0-9]+$ ]]; then
@@ -520,21 +530,40 @@ fi
 
 
 # A fresh worktree has its own gitignored .godot/ — no import or class cache
-# at all — so its first `check`/`test` pays a slow, noisy cold import (#1128).
-# Pay that cost here instead, while the worktree is already the thing being
-# waited on: run `refresh` INSIDE the new worktree ($dir), never the main
-# checkout, so this can never write the shared checkout's .godot/. A failed
-# warm-up warns, it must not fail worktree creation — the worktree is still
-# usable, just cold on its first real check/test.
-if [ "${2:-}" = "--no-warm" ] || [ -n "${NO_WARM:-}" ]; then
-  echo "→ skipping class-cache warm-up (--no-warm)"
-elif warm_out=$(cd "$dir" && mise run refresh 2>&1); then
-  echo "✓ class cache warmed ($(printf '%s' "$warm_out" | tail -1 | sed 's/^Refreshing… //'))"
-  if printf '%s\n' "$warm_out" | grep -q 'file(s) touched'; then
-    echo "  ⚠ warm-up touched files — review with git -C $dir status / diff before relying on it"
-  fi
+# at all — so its first `check`/`test` pays a slow, noisy cold import. Pay
+# that cost here instead, while the worktree is already the thing being
+# waited on: run `refresh` then `check` INSIDE the new worktree ($dir), never
+# the main checkout, so this can never write the shared checkout's .godot/,
+# and print a compact verdict instead of either task's raw output — the goal
+# is a worktree an agent can start editing in with no follow-up command.
+# Either step failing only warns; it must not fail worktree creation — the
+# worktree is still usable, just cold (or unverified) on the caller's first
+# real check/test.
+mkdir -p "$dir/.godot"
+if [ "$no_warm" -eq 1 ]; then
+  echo "→ skipping class-cache warm-up and check (--no-warm)"
 else
-  echo "⚠ class-cache warm-up failed — first check/test in $dir will cold-import; run mise run refresh there by hand"
+  if warm_out=$(cd "$dir" && mise run refresh 2>&1); then
+    echo "✓ class cache warmed"
+    if printf '%s\n' "$warm_out" | grep -q 'file(s) touched'; then
+      touched=$(printf '%s\n' "$warm_out" | grep -oE '\S+\.(gd|tscn|tres|gdshader|uid|import)\b' | sort -u | paste -sd, - || true)
+      echo "  ⚠ warm-up touched: ${touched:-see log} — review with git -C $dir status / diff before relying on it"
+    fi
+  else
+    warm_log="$dir/.godot/worktree-new-refresh.log"
+    printf '%s\n' "$warm_out" > "$warm_log"
+    echo "⚠ class-cache warm-up failed — first check/test in $dir will cold-import · full log: $warm_log"
+  fi
+
+  check_log="$dir/.godot/worktree-new-check.log"
+  if check_out=$(cd "$dir" && mise run check 2>&1); then
+    sha=$(git -C "$dir" rev-parse --short HEAD)
+    echo "✓ check green on $sha"
+  else
+    printf '%s\n' "$check_out" > "$check_log"
+    first_fail=$(printf '%s\n' "$check_out" | grep -m1 -E 'SCRIPT ERROR|SHADER ERROR|parse error|✗' || true)
+    echo "✗ check failed — ${first_fail:-see log} · full log: $check_log"
+  fi
 fi
 
 echo "✓ worktree ready: $dir (branch $slug)"
