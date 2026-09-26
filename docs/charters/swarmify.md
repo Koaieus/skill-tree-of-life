@@ -334,7 +334,7 @@ Numbered so the skill can be checked against them law by law.
     having listened.
 
 32. **A knob is defaulted, not asked.** A tunable — a size, a timing, a
-    ratio, a colour, a threshold, a count — where any sensible value ships
+    ratio, a threshold, a count — where any sensible value ships
     and the owner tunes it by feel later, is not a fork. The discriminator:
     **if changing it would move a file, a class, or an owner-of-fact, it is
     a fork (law 5); if it changes a number on something that already
