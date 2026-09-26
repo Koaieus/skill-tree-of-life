@@ -554,7 +554,7 @@ else
       echo "⚠ warm-up touched: ${touched:-see $warm_log} — review before relying on it · full log: $warm_log"
     elif printf '%s\n' "$warm_out" | grep -q 'file(s) touched'; then
       n=$(printf '%s\n' "$warm_out" | grep -oE '[0-9]+ file\(s\) touched' | head -1)
-      echo "✓ class cache warmed — ${n:-sidecars touched} (benign, commit them)"
+      echo "✓ class cache warmed — ${n:-sidecars touched} (benign — master is missing them; leave them uncommitted)"
     else
       echo "✓ class cache warmed"
     fi
