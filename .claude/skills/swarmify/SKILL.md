@@ -93,8 +93,8 @@ Dispatch **one** `Agent(subagent_type: "Explore", model: "haiku")` carrying:
 - each reading-list `path:range` you intend to cite → confirm it exists and
   says what the entry will claim.
 
-A stale claim closes with a doc correction, not new work. This is the only
-delegation in the pass; the thinking stays here.
+A stale claim closes with a doc correction, not new work. The thinking
+stays here.
 
 ### 4. Do the arithmetic
 
@@ -129,9 +129,9 @@ A fork is anything a drone would have to *decide*:
   pass, refactor-first, with the delay cost said out loud — never parked in
   a design issue. An unsettled seam leaks into every consumer written
   against it.
-- **Cross-issue dependencies** — recorded as `--blocked-by` relations *and*
-  in the spec prose (step 8), never disqualifying; the orchestrator
-  sequences them. Only a dependency on a decision nobody has made keeps an
+- **Cross-issue dependencies** — recorded in the spec prose (step 8) *and*
+  the manifest's `blocked-by:` (step 10), never disqualifying; the
+  orchestrator sequences them. Only a dependency on a decision nobody has made keeps an
   issue out of `Ready`.
 
 **Not a fork: a knob.** If changing it would move a file, a class, or an
@@ -151,7 +151,8 @@ exists — a size, timing, ratio, threshold, count — it is a knob.
 A knob's home follows the house rule for its kind: a stat rate →
 `docs/domain/stat-knobs-and-bins.md`; a glow → a named tier
 (`hdr-color.md`), never an exported HDR float; per-instance shader
-variation → `modulate`/`INSTANCE_CUSTOM`, never a per-node uniform. Mechanics and examples: `docs/domain/tunables.md`.
+variation → `modulate`/`INSTANCE_CUSTOM`, never a per-node uniform.
+Mechanics and examples: `docs/domain/tunables.md`.
 
 List them numbered — `AskUserQuestion` for clean choices, prose for the rest.
 
@@ -201,9 +202,8 @@ loud, never used as the tiebreaker. The owner still sees every option and
 still chooses — the default moves, the choice does not. An "Other" answer
 that redirects the premise is a normal outcome, not a failed question.
 
-Ask only what step 1 left genuinely open or whose review found something;
-a question whose best answer is the owner's own sentence read back is not
-asked. No confirm-everything closer ("OK?", "settle both?") on picks already
+Ask only what step 1 left genuinely open or whose review found something.
+No confirm-everything closer ("OK?", "settle both?") on picks already
 made — state them and move on; the owner redirects when they disagree.
 
 Every fork gets a pinned answer in the owner's words. An unsettleable fork
@@ -279,10 +279,11 @@ path/to/scene.tscn — seam: instances the node
 - **Stubs on master** — when the unit adds classes or signatures and the
   arch fork is worth settling in code: `class_name`, method signatures, and
   the red test file committed **under `pending()`** so trunk stays green.
-  `git status` first (the main checkout is shared), `git add` explicit
-  paths, one `mise run refresh` on master. The drone's first commit flips
-  the pending to RED. A stub is a proposal: a drone that finds it wrong
-  says so on the issue and goes against it with a stated reason.
+  One `mise run refresh` on master, `git status` (the main checkout is
+  shared), `git add` explicit paths, commit — before step 10. The drone's
+  first commit flips the pending to RED. A stub is a proposal: a drone that
+  finds it wrong says so on the issue and goes against it with a stated
+  reason.
 - **The drift stamp** — one fenced block, info string `drift-stamp <sha>`
   where `<sha>` is the master sha the entries were written against; one
   entry per line: `path`, optionally `:start-end`, then ` — ` and free text.
@@ -297,8 +298,8 @@ tests — never the implementation.
 the issue — "no seams", "exploratory / docs", "few-turn patch, the drone
 finds the edits faster than we write the list" — never silence.
 
-**Test before promoting:** read body and `--comments` cold, as a Sonnet with
-no chat history would. If you think "the orchestrator will explain that
+**Test before promoting:** read the issue and your spec files cold, as a
+Sonnet with no chat history would. If you think "the orchestrator will explain that
 part", or a single unsettled fork remains, it is not `Ready`.
 
 ### 9. If it is a hub, decompose into Ready children
@@ -324,14 +325,13 @@ by hand — `land` and `hygiene --fix` derive it.
 - Each child gets its own full `## Acceptance spec` (step 8), as its own
   body file. Refer to a sibling not yet filed by handle — `#@wiring` — and
   the clerk substitutes the number.
-- Cross-issue dependencies go in the spec prose *and* the manifest's
-  `blocked-by:` (step 10).
 
 ### 10. Promote — hand the tail to the clerk
 
 `Ready` is the admission ticket: status, `design`/`blocked` labels dropped,
 and a milestone, in one breath. The **milestone is a default, not a
-question** — the live one (`mise gh-project -- roadmap`) or the parent's.
+question** — the live one (`mise gh-project -- roadmap`) or the parent's,
+stated in the spec.
 
 You do not run the board calls. Write a manifest next to the spec files —
 its shape is in `.claude/agents/clerk.md`; the gist:
@@ -356,9 +356,7 @@ Then spawn **one** `Agent(subagent_type: "clerk", prompt: "<manifest path>")`.
 It holds every flag trap and ordering rule; you state intent, never commands.
 Read its one-line-per-issue report: handle each `SKIPPED` / `FAILED`
 yourself (a fixed manifest and a second clerk, or the one call by hand),
-then tell the owner what landed. Stubs (step 8) stay yours — they are code;
-list `refresh` in the manifest to have the clerk run it and report the
-verdict.
+then tell the owner what landed.
 
 ## What swarmify is NOT
 

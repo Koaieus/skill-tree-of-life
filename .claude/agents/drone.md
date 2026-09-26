@@ -74,7 +74,7 @@ Context is not your retirement trigger: the harness auto-compacts you at
 you continue from the summary — re-read your brief's owned paths and seams
 from the issue before touching anything, since the summary keeps less than
 you think. Past 350k (a few fat turns straight after a compaction) a hook
-denies everything except `git add/commit/status/diff/log`, `gh issue
+denies everything except `git add/commit/status/diff/log/rev-parse`, `gh issue
 comment` and `SendMessage` — exactly this path.
 
 **Three failed cycles on one thing is a loop.** Edit → test → still red,
@@ -136,7 +136,7 @@ FILES:  graph/navigator.gd, graph/graph.gd
 TESTS:  mise run test:dir → 41/41 pass
 DID:    one line
 COST:   ~<n>k ctx · ~<n> tool calls · advisor/Sage exchanges <n>
-NOTES:  none | blocker / deviation / stale spec / out-of-scope, one line each
+NOTES:  none | blocker / deviation / stale spec / out-of-scope / tentative knob, one line each
         | poison: <path>:<line> — <wrong> → <right>   (stale text outside your fence)
 ```
 

@@ -52,9 +52,10 @@ make it on a copy in the same directory (`<file>.resolved`), never the original.
 
 ## Order
 
-1. **Read the manifest whole.** Refuse up front (report, do nothing) if: a
-   referenced file is missing; a handle is used but never declared; an issue
-   gets `status: ready` with no milestone from it or the default.
+1. **Read the manifest whole.** An issue whose file is missing or that uses
+   a handle never declared is skipped whole; `status: ready` with no
+   milestone from the issue or the default skips that status. Report each;
+   the rest still runs.
 2. **Create every `new` issue**, in manifest order:
    `gh issue create --title "<title>" --body-file <resolved> [--parent <n>] [--label <l>]`.
    Capture the number from the URL it prints. A body that references a handle
@@ -111,7 +112,7 @@ Your final message is the report and nothing else — one line per issue,
 then the checks, then anything not done:
 
 ```
-#1130 comment posted · labels −design −blocked · hub (status left to derivation)
+#1130 comment posted · labels −design −blocked · hub (status left to derivation) · drift ok
 #1131 @state created · parent #1130 ✓ · Ready · M3 · drift ok
 #1132 @wiring created · parent #1130 ✓ · blocked-by #1131 · Ready · M3 · drift ok
 refresh: <verdict line>
