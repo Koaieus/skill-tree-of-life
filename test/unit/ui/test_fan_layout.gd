@@ -24,7 +24,7 @@ const _SEVEN := {
 
 
 func _params() -> Dictionary:
-	return {"settle_seconds": 0.15, "padding": _PADDING, "relax_iterations": 4}
+	return {"settle_seconds": 0.15, "padding": _PADDING, "relax_iterations": FanLayout.DEFAULT_RELAX_ITERATIONS}
 
 
 func _body(size: Vector2, rest: Vector2) -> FanLayout.Body:
@@ -197,3 +197,23 @@ func test_a_body_larger_than_the_window_pins_to_the_top_left() -> void:
 	var bodies: Array[FanLayout.Body] = [b]
 	FanLayout.settle(bodies, [], keep_in, _params())
 	assert_eq(b.position, keep_in.position, "pinned to keep_in top-left")
+
+
+## A node near a window edge forces panels off their rests — under the top
+## wall, every above-rest panel has to pass the node. From any node position
+## the fan must reach a contact equilibrium and STAY there, not limit-cycle
+## between pushing a panel sideways and pushing it under.
+func test_a_fan_against_the_window_walls_settles_and_stays_settled() -> void:
+	for x: float in [60.0, 350.0, 640.0, 930.0, 1220.0]:
+		for y: float in [60.0, 120.0, 200.0, 360.0, 520.0, 660.0]:
+			var origin := Vector2(x, y)
+			var keep_in := Rect2(-origin, Vector2(1280, 720))
+			var bodies := _seven()
+			for b in bodies:
+				b.position = Vector2(0, -60)
+			var steps := FanLayout.settle(bodies, _obstacles(), keep_in, _params())
+			var worst := 0.0
+			for _i in 120:
+				worst = maxf(worst, FanLayout.step(bodies, _obstacles(), keep_in, _params(), 1.0 / 60.0))
+			assert_true(steps >= 0, "node at %s: settled (steps %d)" % [origin, steps])
+			assert_lt(worst, 0.05, "node at %s: still moving %.2f px/step after settling" % [origin, worst])

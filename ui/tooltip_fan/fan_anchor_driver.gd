@@ -86,8 +86,9 @@ const _GROUP := &"fan_unit"
 ## The gap the solver keeps between any two panels, and between a panel and
 ## an obstacle, in screen pixels.
 @export_range(0.0, 64.0, 0.5, "or_greater") var padding := FanLayout.DEFAULT_PADDING
-## Projection passes per step. More holds a crowded fan tighter per frame.
-@export_range(1, 16, 1) var relax_iterations := FanLayout.DEFAULT_RELAX_ITERATIONS
+## Cap on projection passes per step; a step stops at the first pass that
+## moves nothing. A crowded chain against a wall needs one per link.
+@export_range(1, 32, 1) var relax_iterations := FanLayout.DEFAULT_RELAX_ITERATIONS
 ## Where panels may sit, in fan space. Defaults to effectively unbounded; the
 ## window-aware owner of the fan feeds the real one.
 @export var keep_in := Rect2(-100000.0, -100000.0, 200000.0, 200000.0)
