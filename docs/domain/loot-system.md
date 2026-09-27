@@ -510,12 +510,21 @@ what frees the relic on every peer — one record for all five ways the chain ca
 end (collector dead, rounds exhausted, pool dry, no cycle-safe survivor, empty
 sample).
 
-**Host-gated.** A peer applies the confirmed `AllocateCommand`, `owned_by`
-flips, and `_on_carrier_owner_changed` fires *there too* — so without the gate
-(`command_applier.is_authority`) the peer would open its own round and roll its
-own offer. A null applier (headless fixture, editor, authored sandbox relic) is
-a supported configuration meaning "no pipeline": the round runs inline, exactly
-as it did pre-#522, which is why the existing suite needs no applier.
+**Host-gated, and driven by the handler (#1138).** A peer applies the confirmed
+`AllocateCommand`, `owned_by` flips, and the relic's `SkillDustAddon.claimed`
+fires *there too* — so without the gate the peer would open its own round and
+roll its own offer. The one gate is `LootSystem._on_relic_claimed`
+(`command_applier.is_authority`), reached for every relic `LootSystem` drops via
+`adopt_relic`; a hand-attached relic claims nothing until adopted. The loop is
+`LootRoundCommandHandler`, in two halves: the **resolve side** (`open_round` /
+`resolve_next`, authority only, outside any `apply`) offers, awaits the pick and
+submits the stamped round through the applier's queue; the **replay side**
+(`apply` → `_land`, every peer) grants, frees on the final round and, on the
+authority, fires the next resolve. The addon only offers (`offers_for`) and
+lands (`grant_mod` / `grant_spell` / `finish`). A null applier (headless
+fixture, editor) is a supported configuration meaning "no pipeline": `_settle`
+self-replays the drawn instances straight through `_land`, which is why the
+existing suite needs no applier.
 
 **No ending the turn while picking** (owner call, 2026-08-22) needs no gate of
 its own. The round awaits the pick *inside* the command's application, so

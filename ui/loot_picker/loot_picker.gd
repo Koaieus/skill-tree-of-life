@@ -5,7 +5,7 @@ extends ModalBase
 ## player pick, not just read (tooltip / spell-select are display-only). Mounted
 ## in HudRoot; driven by `Events.loot_pick_requested`. HudRoot filters to the
 ## PLAYER'S relics and calls `present(request)`; NPC relics never reach here
-## (SkillDustAddon auto-resolves them).
+## (LootRoundCommandHandler auto-resolves them).
 ##
 ## An inherited scene of `modal_base.tscn` (#486) — [ModalBase] owns the
 ## shell/freeze/confirm mechanics; [LootPickerBody] (`%BodySlot`) owns the

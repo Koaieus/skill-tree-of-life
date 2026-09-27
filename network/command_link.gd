@@ -767,7 +767,7 @@ func _on_lobby_pick(payload: Dictionary) -> void:
 
 
 ## #646 send side. [method LootPickRegistry.park] only ever parks a REMOTE
-## claim ([SkillDustAddon]'s `_await_pick`), so every [signal
+## claim ([LootRoundCommandHandler]'s `_await_pick`), so every [signal
 ## LootPickRegistry.offer_parked] this connects to is, by construction, a pick
 ## that owes a downward offer. Host-only and NOT gated on [member graph] —
 ## unlike every other `send_*` here, this message names no node, only stat

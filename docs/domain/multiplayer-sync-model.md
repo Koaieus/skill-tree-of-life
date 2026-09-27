@@ -641,7 +641,7 @@ downward messages instead of two states of one type:
   deciding it. It is therefore ALWAYS a replay, on every peer including the
   authority: `_drain` needs no opt-out, because by construction there is
   nothing left to compute by the time one exists. The grant itself moves out of
-  resolution and into the shared apply/replay path (`SkillDustAddon._land_outcome`),
+  resolution and into the shared apply/replay path (`LootRoundCommandHandler._land`),
   so the authority does not double-grant (once resolving, once applying).
 
 The explicit cost, accepted rather than hidden: this gives up the symmetry

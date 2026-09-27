@@ -23,8 +23,8 @@ extends Node
 ## very next line, and the pick that arrives a round trip later hits an
 ## already-resolved request and is silently dropped.
 ##
-## [b]A MIRROR peer's registry is inert, always (#564).[/b] [SkillDustAddon]'s
-## whole claim chain is HOST-GATED at `_on_carrier_owner_changed` — a peer never
+## [b]A MIRROR peer's registry is inert, always (#564).[/b] A relic's
+## whole claim chain is HOST-GATED at [method LootSystem._on_relic_claimed] — a peer never
 ## opens a round on its own, it only replays a [LootRoundCommand] as it arrives
 ## — so [method park] is never called there. [method pending_count] reads 0 for
 ## the entire span of a mirror peer's loot round, by construction: there is no

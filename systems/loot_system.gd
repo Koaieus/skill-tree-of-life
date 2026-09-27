@@ -745,7 +745,7 @@ func _on_loot_offer_received(offer: LootPickOffer) -> void:
 	# Owner call 2026-08-27 (acceptance 3): a collector that dies while this
 	# peer's picker is up must not leave it stranded — auto-forfeit and let the
 	# forfeit travel upward as `chosen_index == -1`, same shape as
-	# [SkillDustAddon]._await_pick's own death guard on the host side.
+	# [LootRoundCommandHandler]._await_pick's own death guard on the host side.
 	if is_instance_valid(collector):
 		var forfeit_on_death := func() -> void:
 			if not request.is_resolved():
