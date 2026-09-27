@@ -172,7 +172,9 @@ def class_map(root, files):
     for rel in files:
         with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
             m = CLASS_RE.search(fh.read())
-        if m:
+        # Only a layered file owns a name: a test double or addon shim sharing
+        # a class_name must not shadow it and silently drop the reference.
+        if m and (top_dir(rel) in RANK or m.group(1) not in out):
             out[m.group(1)] = rel
     return out
 
@@ -276,6 +278,7 @@ def self_test():
             ok = False
             print("✗ clean tree should exit 0:\n" + clean.stdout)
         write("graph/leak.gd", "extends Node\n\nvar p: Panel2\n")
+        write("zz_tests/fake_panel.gd", "class_name Panel2\n")  # collides, sorts last
         write("skill_node/leak2.gd", "extends Node\nconst S := preload(\"res://ui/panel.gd\")\n")
         dirty = subprocess.run([sys.executable, me, "--root", tmp, "--no-allowlist"],
                                capture_output=True, text=True)

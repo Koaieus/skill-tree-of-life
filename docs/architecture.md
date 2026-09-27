@@ -22,7 +22,8 @@ disagree, the script wins and this page is stale.
 A module may reference **itself and anything below it** in that list. A
 reference is a `class_name` token in code (comments and strings stripped) or a
 `"res://…"` path (`preload`, `load`, bare). Granularity is the top-level
-directory; `addons/ test/ tools/` are outside the map.
+directory; `addons/ test/ tools/` are outside the map. Only `.gd` files are
+scanned — scene and resource `ext_resource` paths (`.tscn`/`.tres`) are not.
 
 Two standing exceptions, both permanent:
 
