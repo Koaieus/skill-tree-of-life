@@ -44,6 +44,7 @@ Implementation companions to the design docs — read when modifying systems, no
 | File | What it covers |
 |---|---|
 | [../adr/index.md](../adr/index.md) | **Architecture Decision Records** — why we chose this over that, dated and immutable. Read the relevant record before re-arguing a settled call; its rejected-alternatives section marks which grounds are already dead |
+| [../reviews/](../reviews/) | **Architecture reviews** — dated, top-down structural assessments with verified citations and the issues they filed; the newest is the current read on layering, composition and debt |
 | [../domain/adr.md](../domain/adr.md) | The ADR convention — the boundary against domain docs, the template, how to supersede |
 | [../domain/allocation_system.md](../domain/allocation_system.md) | The 3 side-effects, gated vs forced paths, when to use `force_allocate` |
 | [../domain/attack_plan_system.md](../domain/attack_plan_system.md) | Attack planner architecture, ranged/melee/magic, VFX, cascade |
