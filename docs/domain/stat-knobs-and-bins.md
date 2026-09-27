@@ -461,7 +461,7 @@ code already runs. Audit verdict, 2026-09-21: none of these converts.
 | Rate stat (base 1.0) | × authored number | Consumer |
 |---|---|---|
 | `spell_damage` (√INT intrinsic on the board) | `SpellDef.power` | `SpellResolver.impact_damage` — `get_local_value(&"spell_damage") × power` |
-| `*_potency` (four) | `StatusDef.per_hit` | `StatusInstance` — `per_hit × potency × (1 − resistance)` |
+| ~~`*_potency` (four)~~ — overturned by [ADR 0029](../adr/0029-related-stats-compose-through-parents-folded-at-read-and-every-stat-takes-every-bin.md): folds into the stacks stat | `StatusDef.per_hit` | `StatusInstance` — `per_hit × potency × (1 − resistance)` |
 | `healing_received` | the heal amount | `NodeCombat.heal_damage` — every heal passes through it |
 
 One-line test for the next audit: *would `+1` on this stat, in the stat's own
