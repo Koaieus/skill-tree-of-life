@@ -22,6 +22,19 @@ extends GutTest
 ##    nothing for it to catch — the fallback IS the result).
 ## 2. One `physics_frame` later: the stamp is stale, `query()` takes the
 ##    physics path, and finds the same zone.
+##
+## [b]Case 1's "found" assert alone pins nothing.[/b] In this headless GUT
+## environment the raw physics `intersect_shape` already sees a same-frame
+## `_sync_defender_bit` layer-bit toggle (and a same-frame radius write) with
+## no fallback at all — verified by stripping both `mark_broadphase_dirty`
+## call sites and by isolating each writer in a scratch probe; only a pure
+## same-frame *position* move reproducibly misses, and a position write is not
+## one of the two stamp writers this fix names. So case 1's `assert_not_null`
+## would pass identically without the fix here. What actually pins the fix is
+## the stamp assertion right after the attach: it goes RED the moment either
+## `mark_broadphase_dirty` call site is removed (the stamp never advances past
+## -1), proving the fallback BRANCH is what ran — not proving the branch was
+## necessary to find this particular fixture's defender.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
@@ -105,6 +118,12 @@ func test_a_same_frame_fortification_attach_is_found_by_the_walk_fallback() -> v
 	assert_gt(float(hostile.get_local_value(&"swing_drag")), 0.0,
 			"fixture: Fortification must actually author swing_drag before the "
 			+ "physics half is even in question")
+	# The red this test can actually observe (see the class doc): strip either
+	# `mark_broadphase_dirty` call site and this goes red because the stamp
+	# never leaves -1 — proving the attach took the fallback branch, since the
+	# "found" assert below passes either way in this environment.
+	assert_eq(BladeDefenderZones._dirty_frame, Engine.get_physics_frames(),
+			"fixture: the attach must have stamped THIS physics frame")
 
 	# Deliberately NO `await get_tree().physics_frame` here — the query below
 	# runs in the exact same frame the addon attached in, inside the dirty
