@@ -46,7 +46,9 @@ agent. What you minimise is **context × turns**, so:
   boots unless you changed a shader.
 - **Commit as you go**, explicit paths. A coherent commit exists by ~150k at
   the latest; if the issue has a testable claim, **the red test is your first
-  commit**.
+  commit**. A new script's generated `.uid` goes with it (`git status
+  --porcelain` shows `?? *.uid` otherwise) — a missing one broke two lands
+  in the 2026-09-27 swarm.
 
 `CONTEXT SIZE SO FAR: ~<n>k` markers arrive at 150k, 200k, 250k and every
 50k after. Your brief's turn/time budget is the second tripwire. Either one

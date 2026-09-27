@@ -2,7 +2,9 @@
 
 The design behind `.claude/agents/drone.md`. The agent file is derived from
 this; change the wish here, then re-derive the file. See [README](README.md)
-for the protocol.
+for the protocol. `.claude/skills/swarm/SKILL.md` carries a digest of this
+contract (commit 0d966cd), so any edit to drone.md must re-derive that
+digest too.
 
 ## What a drone is for
 
@@ -206,6 +208,7 @@ does not have to carry them.
 | 2026-09-10 | two drones | killed in one minute by an API spend limit with uncommitted work | 7 |
 | 2026-09-11 | Sage trial | every report sent to Sage, to `main`, *and* as final text | 22 |
 | 2026-09-26 | #1126 | spec picked `MIN_SEGMENT_PX` / `DIAGONAL_SHARE` as `const`s; owner praised the tentative default and asked for "enough DX that tweaking them is easy in the godot editor. most often an exported variable" | 24 |
+| 2026-09-27 | swarm (two units) | a new script's Godot-generated `.uid` was left uncommitted (`git status --porcelain` showed `?? *.uid` after the drone's commit); the missing sidecar broke both lands | 7 |
 | 2026-09-13 | `ai-gating` (#537) | read `bench_ai_turn.gd` ten times across 20+ edit cycles chasing a benchmark | 11 |
 | 2026-09-13 | `loot-rebalance-2` (#775→#774) | 204k *before its first edit* (six 30–40 KB whole-file Reads + 40 KB `gh issue view`); first commit at 340k on call 116/168; killed at 429k, #774 half uncommitted | 3, 6, 7, 8 |
 | 2026-09-13 | `landing-context` (#356) | first commit at 292k on call 177/203; killed at 330k+ after the deliverable was done and reviewed | 7, 8 |

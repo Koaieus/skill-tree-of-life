@@ -19,7 +19,8 @@ and `--comments` once as its spec (skips the view on a `swarm-brief-*.md`);
 `cat`s the repo skill the issue names; searches via `Explore(haiku)` leaves;
 batches, reads narrow, never polls; runs `check` → `test:one` → `test:dir`
 → the full suite at most once and only if the brief allows; commits as it
-goes by explicit path, the red test first when a claim is testable; writes
+goes by explicit path (a new script's generated `.uid` included), the red
+test first when a claim is testable; writes
 only owned paths and reports a need outside the fence instead of reaching;
 `@export`s an open number as a knob and lists it as tentative; calls
 `advisor` once, early, and treats a second as retire; retires on a blown
