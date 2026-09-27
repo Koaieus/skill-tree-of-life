@@ -156,29 +156,42 @@ static func query(
 	var zones := BladeDefenderZones.new()
 	if space_state == null or radius <= 0.0:
 		return zones
-	var shape := CircleShape2D.new()
-	shape.radius = radius
-	var params := PhysicsShapeQueryParameters2D.new()
-	params.shape = shape
-	params.transform = Transform2D(0.0, center)
-	# Both defender bits (#810). Layer 1 — every SkillNode, always — is
-	# deliberately NOT in the mask: that is what makes this query O(defenders)
-	# rather than O(map).
-	params.collision_mask = (1 << (SkillNode.DRAG_COLLISION_LAYER - 1)) \
-			| (1 << (SkillNode.DEFLECT_COLLISION_LAYER - 1))
-	# A SkillNode's root IS the Area2D (skill_node.tscn) — mirrors BladeHitScan.
-	params.collide_with_areas = true
-	params.collide_with_bodies = false
-	params.exclude = exclude
-	var hits := space_state.intersect_shape(params, _MAX_ZONES)
-	if hits.size() >= _MAX_ZONES:
-		push_warning("BladeDefenderZones: hit the %d-zone query cap at radius %.0f — some defenders were dropped"
-				% [_MAX_ZONES, radius])
 	var found: Array[SkillNode] = []
-	for hit in hits:
-		var sn := hit.get("collider") as SkillNode
-		if sn != null and _defends(sn):
-			found.append(sn)
+	# #1136: the broadphase does not see a same-frame collision-layer / radius
+	# change until a physics frame has run past it — `mark_broadphase_dirty()`
+	# is called by the two writers (`SkillNode._sync_collision`,
+	# `SkillNode._sync_defender_bit`) the instant either happens. While the
+	# stamp is still current, `intersect_shape` below cannot be trusted, so
+	# this takes the graph walk instead — the same O(map) cost the debug
+	# cross-check has always paid, now promoted to a real (if narrow) fallback
+	# rather than a debug-only assertion. Once a physics frame has passed the
+	# stamp is stale and the cheap physics path resumes.
+	var used_walk := graph != null and Engine.get_physics_frames() <= _dirty_frame
+	if used_walk:
+		found = _walk(graph, center, radius, exclude)
+	else:
+		var shape := CircleShape2D.new()
+		shape.radius = radius
+		var params := PhysicsShapeQueryParameters2D.new()
+		params.shape = shape
+		params.transform = Transform2D(0.0, center)
+		# Both defender bits (#810). Layer 1 — every SkillNode, always — is
+		# deliberately NOT in the mask: that is what makes this query O(defenders)
+		# rather than O(map).
+		params.collision_mask = (1 << (SkillNode.DRAG_COLLISION_LAYER - 1)) \
+				| (1 << (SkillNode.DEFLECT_COLLISION_LAYER - 1))
+		# A SkillNode's root IS the Area2D (skill_node.tscn) — mirrors BladeHitScan.
+		params.collide_with_areas = true
+		params.collide_with_bodies = false
+		params.exclude = exclude
+		var hits := space_state.intersect_shape(params, _MAX_ZONES)
+		if hits.size() >= _MAX_ZONES:
+			push_warning("BladeDefenderZones: hit the %d-zone query cap at radius %.0f — some defenders were dropped"
+					% [_MAX_ZONES, radius])
+		for hit in hits:
+			var sn := hit.get("collider") as SkillNode
+			if sn != null and _defends(sn):
+				found.append(sn)
 	found.sort_custom(func(a: SkillNode, b: SkillNode) -> bool:
 		var a_id := graph.get_stable_id(a) if graph != null else a.stable_id
 		var b_id := graph.get_stable_id(b) if graph != null else b.stable_id
@@ -189,35 +202,52 @@ static func query(
 				float(sn.get_local_value(&"swing_drag")),
 				bool(sn.get_local_value(&"deflection")),
 				sn)
-	# Debug-only cross-check (#814): the physics query above silently returns
-	# nothing for a defender the space hasn't seen yet — an Area2D isn't in
-	# the broadphase until a physics frame has run past it, and a
-	# same-frame `FortificationAddon` attach + resolve (or any test that
-	# skips `await get_tree().physics_frame`) hits exactly that window. Guard
-	# is behind `is_debug_build()` so the release path keeps #811's 36 us: the
+	# Debug-only cross-check (#814): only meaningful once the physics path ran
+	# — comparing the walk fallback against itself proves nothing, and while
+	# stale the walk IS the result, not a thing to cross-check. Guard is
+	# behind `is_debug_build()` so the release path keeps #811's 36 us: the
 	# walk this drives is the very O(map) cost that query replaced, so it
 	# must never run outside a debug build. See `.claude/rules/melee-fixtures.md`.
-	if OS.is_debug_build() and graph != null:
+	if OS.is_debug_build() and graph != null and not used_walk:
 		_debug_cross_check(zones, graph, center, radius, exclude)
 	return zones
 
 
-## The graph-walk half of the #814 guard: everything the query SHOULD have
-## found, found the old way (#780/#781's pre-#811 walks), compared against
-## what it actually found. Never called outside [method query]'s
-## `is_debug_build()` gate — see that call site for why.
-static func _debug_cross_check(
-		zones: BladeDefenderZones,
+## Records that a collision-affecting write ([SkillNode]'s radius sync or its
+## defender-bit sync) happened this physics frame, so [method query] cannot
+## trust the physics broadphase until one more physics frame has run (#1136).
+## Called by the two writers themselves — [method SkillNode._sync_collision]
+## and [method SkillNode._sync_defender_bit] — never by [method query] or a
+## caller of it.
+static func mark_broadphase_dirty() -> void:
+	_dirty_frame = Engine.get_physics_frames()
+
+
+## The physics frame stamped by the most recent [method mark_broadphase_dirty]
+## call. [method query] falls back to [method _walk] while
+## `Engine.get_physics_frames() <= _dirty_frame` — i.e. no physics frame has
+## run since the write — and trusts the physics query again once it has.
+## Starts at -1 so a fresh run (frame 0) is never mistaken for dirty.
+static var _dirty_frame: int = -1
+
+
+## Every defender node in [param graph] that [method _defends], carries a
+## nonzero `swing_drag` or a true `deflection`, and lies within [param radius]
+## of [param center] — [param exclude] applied the same as the physics path.
+## The O(map) walk both [method query]'s same-frame fallback and [method
+## _debug_cross_check] are built on; #811 deleted this cost from the steady
+## state and it must stay paid only inside the dirty-frame window.
+static func _walk(
 		graph: Graph,
 		center: Vector2,
 		radius: float,
-		exclude: Array[RID]) -> void:
+		exclude: Array[RID]) -> Array[SkillNode]:
+	var found: Array[SkillNode] = []
 	for sn in graph.get_skill_nodes():
 		if sn == null or exclude.has(sn.get_rid()):
 			continue
-		# Same eligibility gate the query applies (#864) — without it this guard
-		# would "helpfully" warn about every unowned wall on the map, i.e. about
-		# the fix itself.
+		# Same eligibility gate the physics path applies (#864) — without it
+		# this would "helpfully" pick up every unowned wall on the map.
 		if not _defends(sn):
 			continue
 		var drag := float(sn.get_local_value(&"swing_drag"))
@@ -226,8 +256,25 @@ static func _debug_cross_check(
 			continue
 		if sn.global_position.distance_to(center) > radius + sn.radius:
 			continue
+		found.append(sn)
+	return found
+
+
+## The graph-walk half of the #814 guard: everything the query SHOULD have
+## found, found the old way ([method _walk]), compared against what the
+## physics path actually found. Never called outside [method query]'s
+## `is_debug_build()` gate, and only on the physics path — see that call site
+## for why.
+static func _debug_cross_check(
+		zones: BladeDefenderZones,
+		graph: Graph,
+		center: Vector2,
+		radius: float,
+		exclude: Array[RID]) -> void:
+	for sn in _walk(graph, center, radius, exclude):
 		if zones.defenders.has(sn):
 			continue
+		var drag := float(sn.get_local_value(&"swing_drag"))
 		push_warning(
 				("BladeDefenderZones: %s carries %s within whip_bound %.1f but " +
 				"the physics query missed it — an Area2D not yet in the physics " +

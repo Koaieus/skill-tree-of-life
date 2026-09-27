@@ -638,6 +638,7 @@ func _sync_collision() -> void:
 	if _collision == null or _collision.shape == null:
 		return
 	(_collision.shape as CircleShape2D).radius = radius
+	BladeDefenderZones.mark_broadphase_dirty()
 
 func _load_type_color_from_archetype() -> void:
 	if not archetype:
@@ -1560,6 +1561,7 @@ func _sync_defender_bit(id: StringName, stat: Stat) -> void:
 	# bool/float comparison is not the numeric coercion this wants. float()
 	# converts bool -> 0.0/1.0 the same as it does an int or a float.
 	set_collision_layer_value(_DEFENDER_LAYER_BITS[id], float(stat.get_value()) != 0.0)
+	BladeDefenderZones.mark_broadphase_dirty()
 
 
 ## Push the authored [member stake_level] backing into the node-board pool's

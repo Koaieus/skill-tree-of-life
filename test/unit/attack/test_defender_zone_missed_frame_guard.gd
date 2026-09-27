@@ -1,21 +1,27 @@
 extends GutTest
 
-## #814 — a defender the physics space has not seen yet silently does not
-## defend. [method BladeDefenderZones.query] answers "who carries `swing_drag`
-## / `deflection` in reach?" with [method
+## #814 / #1136 — a defender the physics space has not seen yet.
+##
+## [method BladeDefenderZones.query] answers "who carries `swing_drag` /
+## `deflection` in reach?" with [method
 ## PhysicsDirectSpaceState2D.intersect_shape], and an `Area2D` whose collision
 ## bit just changed is not visible to that query until a physics frame has run
 ## past it (`.claude/rules/melee-fixtures.md`'s "two extra teeth"). Before
-## #814 this failed COMPLETELY silently: no error, no warning, the wall or
-## plate just doesn't act. This pins the SAME-FRAME case the issue names as
-## the one that must not stay silent any longer — attach the addon, resolve
-## before any intervening `physics_frame`, and the debug cross-check must
-## `push_warning` naming the missed node.
+## #814 this failed completely silently in release AND debug; #814 added a
+## debug-only cross-check that at least warned. #1136: the cross-check's own
+## walk is now promoted to a same-frame FALLBACK — `SkillNode._sync_collision`
+## / `_sync_defender_bit` stamp [method BladeDefenderZones.mark_broadphase_dirty]
+## the instant either write happens, and [method BladeDefenderZones.query]
+## walks the graph instead of trusting the stale physics query while that
+## stamp is current. Release and debug now resolve identically in the same-
+## frame window.
 ##
-## The cross-check itself re-walks the graph (`BladeDefenderZones.
-## _debug_cross_check`) — the very O(map) cost #811 deleted from the release
-## path — so it is gated on `OS.is_debug_build()`. GUT always runs a debug
-## build, which is what makes it observable here at all.
+## Two cases pinned here:
+## 1. Same frame as the attach, no `physics_frame` await: the walk fallback
+##    finds the defender and the debug cross-check does NOT fire (there is
+##    nothing for it to catch — the fallback IS the result).
+## 2. One `physics_frame` later: the stamp is stale, `query()` takes the
+##    physics path, and finds the same zone.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
@@ -42,12 +48,11 @@ func _make_entity(graph: Graph) -> Entity:
 	return entity
 
 
-## The attacker's own pivot-tip blade, plus a hostile node parked OFF the
-## whip's reach entirely — mirrors `test_blade_whip_reach.gd`'s own fixture
-## shape (its `Hostile` starts at `(100000, 100000)`). Both settle through
-## the normal two physics frames, so by the time the test body runs, the
-## physics space HAS seen this exact Area2D, just not where the test is
-## about to put it.
+## The attacker's own pivot-tip blade, plus a hostile node parked WITHIN whip
+## reach from the start — #1136's fix only concerns the collision-bit /
+## radius writes (`mark_broadphase_dirty`'s two callers), never a same-frame
+## position move, so the fixture settles the position through the normal two
+## physics frames and only the addon attach happens same-frame as the query.
 func _setup() -> Dictionary:
 	var graph := _GRAPH_SCENE.instantiate()
 	add_child_autofree(graph)
@@ -60,7 +65,10 @@ func _setup() -> Dictionary:
 	var pivot := _spawn(graph, "Pivot", Vector2.ZERO)
 	var tip := _spawn(graph, "Tip", Vector2(_SPACING, 0.0))
 	graph.add_edge(pivot, tip)
-	var hostile := _spawn(graph, "Hostile", Vector2(100000.0, 100000.0))
+	# Comfortably inside whip_bound (chain length 150 * 1.10 margin + widest
+	# radius + edge radius, past 165) — this fixture is about the FRAME, not
+	# the geometry.
+	var hostile := _spawn(graph, "Hostile", Vector2(75.0, 0.0))
 
 	await get_tree().process_frame
 
@@ -84,36 +92,59 @@ func _setup() -> Dictionary:
 	return {"plan": plan, "hostile": hostile}
 
 
-func test_a_same_frame_fortification_move_is_missed_by_the_query_and_the_guard_fires() -> void:
+func test_a_same_frame_fortification_attach_is_found_by_the_walk_fallback() -> void:
 	var ctx: Dictionary = await _setup()
 	var plan: MeleeAttackPlan = ctx.plan
 	var hostile: SkillNode = ctx.hostile
 
-	# The move into whip_bound AND the addon attach happen HERE, in the same
-	# call stack as the query below — `test_blade_whip_reach.gd`'s own
-	# "`await get_tree().physics_frame` or this test silently passes nothing"
-	# note is exactly this gap: a collider's *new position* only reaches the
-	# broadphase [PhysicsDirectSpaceState2D.intersect_shape] reads on the next
-	# physics tick, not the instant `global_position` is set. Well inside
-	# whip_bound (chain length 150 * 1.10 margin + widest radius + edge
-	# radius, comfortably past 165) — this test is about the FRAME, not the
-	# geometry, so it moves somewhere close rather than onto a measured swing
-	# path.
-	hostile.global_position = Vector2(75.0, 0.0)
 	# The addon's modifier transfer is synchronous (`child_entered_tree`, see
 	# `.claude/rules/skill-node-addons.md`), so `swing_drag` reads nonzero the
-	# instant this returns — no frame needed for THAT half.
+	# instant this returns, and `_sync_defender_bit` stamps the dirty frame
+	# the same instant.
 	hostile.add_child(_FORTIFICATION_SCENE.instantiate() as SkillNodeAddon)
 	assert_gt(float(hostile.get_local_value(&"swing_drag")), 0.0,
 			"fixture: Fortification must actually author swing_drag before the "
 			+ "physics half is even in question")
 
-	# Deliberately NO `await get_tree().process_frame` / `physics_frame` here
-	# — the query below runs in the exact same frame `hostile` moved in.
+	# Deliberately NO `await get_tree().physics_frame` here — the query below
+	# runs in the exact same frame the addon attached in, inside the dirty
+	# window `mark_broadphase_dirty` just opened.
 	var state := plan.build_blade_state()
 
-	assert_null(state.obstacles,
-			"fixture: pins the bug itself — the physics query silently misses "
-			+ "a same-frame move into reach, so no field is attached at all")
-	assert_push_warning("the physics query missed it",
-			"the debug cross-check must name the node the query dropped")
+	assert_not_null(state.obstacles,
+			"the walk fallback must find the same-frame defender the physics "
+			+ "query cannot see yet")
+	if state.obstacles != null:
+		assert_true(state.obstacles.zone_defenders.has(hostile),
+				"the fallback's zone must be the same Hostile node that just "
+				+ "attached the addon")
+	assert_push_warning_count(0,
+			"the debug cross-check must not fire on the fallback path — "
+			+ "there is nothing for it to catch when the walk IS the result")
+
+
+func test_one_physics_frame_later_the_physics_path_takes_over_and_agrees() -> void:
+	var ctx: Dictionary = await _setup()
+	var plan: MeleeAttackPlan = ctx.plan
+	var hostile: SkillNode = ctx.hostile
+
+	hostile.add_child(_FORTIFICATION_SCENE.instantiate() as SkillNodeAddon)
+	var dirty_frame_at_attach: int = BladeDefenderZones._dirty_frame
+
+	await get_tree().physics_frame
+
+	assert_gt(Engine.get_physics_frames(), dirty_frame_at_attach,
+			"fixture: a physics frame must actually have advanced past the "
+			+ "attach for the stamp to go stale")
+
+	var state := plan.build_blade_state()
+
+	assert_gt(Engine.get_physics_frames(), BladeDefenderZones._dirty_frame,
+			"the stamp is now stale — query() must have taken the physics "
+			+ "path, not the walk fallback")
+	assert_not_null(state.obstacles,
+			"the physics path must find the same defender the fallback did "
+			+ "a frame earlier")
+	if state.obstacles != null:
+		assert_true(state.obstacles.zone_defenders.has(hostile),
+				"physics path and fallback must agree on which node defends")
