@@ -88,6 +88,8 @@ var _link_end_presented: bool = false
 @onready var entity_factory: EntityFactory = %EntityFactory
 @onready var controller_factory: ControllerFactory = %ControllerFactory
 @onready var seat_handover: SeatHandover = %SeatHandover
+## The `mp:e2e` process harness — inert unless launched by the lobby driver.
+@onready var mp_harness: MpHarness = %MpHarness
 @onready var battle_system: BattleSystem = %BattleSystem
 ## Read by [AIController] (kill-XP preview for its scorer) through the same
 ## GameRoot walk as [member battle_system].
@@ -159,6 +161,7 @@ func _assert_systems_present() -> void:
 		[camera_director, "CameraDirector"], [hud_root, "HudRoot"],
 		[entity_factory, "EntityFactory"], [controller_factory, "ControllerFactory"],
 		[seat_handover, "SeatHandover"],
+		[mp_harness, "MpHarness"],
 	]:
 		assert(pair[0] != null, ("GameRoot: %%%s is missing — every system is present in "
 				+ "every GameRoot scene; set its own `enabled` to turn it off (#1006)") % pair[1])
@@ -183,9 +186,8 @@ func _ready() -> void:
 	network_session.refused.connect(_present_link_end)
 	network_session.link_lost.connect(_present_link_end)
 	network_session.local_peer_resolved.connect(_on_local_peer_resolved)
-	# The handover itself is [SeatHandover]'s; the root presents it. `quiet`
-	# is read here from the harness flag until the harness sets it itself.
-	seat_handover.quiet = HarnessFlags.has(HarnessFlags.AUTOPLAY)
+	# The handover itself is [SeatHandover]'s; the root presents it (`quiet`
+	# is [MpHarness]'s to set).
 	seat_handover.seat_handed_over.connect(_on_seat_handed_over)
 	# Entity death (#18): AllocationSystem strips the corpse off the same bus
 	# signal; GameRoot owns the player-vs-NPC consequence, and its VISUAL half
@@ -214,6 +216,7 @@ func _ready() -> void:
 	camera_director.seat_policy = seat_policy
 	command_applier.seat_policy = seat_policy
 	battle_system.seat_policy = seat_policy
+	mp_harness.seat_policy = seat_policy
 	# #564: NOT seat_policy — is_remote_collector answers for a PEER (a roster
 	# question). A null roster (no lobby) reads as "nobody is remote".
 	pick_registry.roster = GameSession.roster
@@ -238,11 +241,6 @@ func _ready() -> void:
 		# which reads (0,0)-ish until one frame flushes the deferred sort.
 		await get_tree().process_frame
 
-	# Hooked BEFORE the link opens: a joiner whose level comes up AFTER the
-	# host's first turn gets that turn inside the resync (`adopt_turn` fires
-	# `turn_started` from within `_on_resync`), so a hook connected after the
-	# await had missed the only turn start it was there to report (2026-09-06).
-	_announce_first_turn_for_rung_3()
 	# Opens the link on every role and, on a joiner, waits for the authority's
 	# world or for the link to end — whichever first. See
 	# [method NetworkSession.join_or_host] for why the pull follows the open at
@@ -260,7 +258,6 @@ func _ready() -> void:
 	# the same one line arms it for a solo sandbox.
 	victory_system.world_ready = true
 
-	_arm_rung_4()
 	_stagger_initiative()
 	_open_first_turn()
 	_focus_camera_on_player()
@@ -331,133 +328,6 @@ func _open_first_turn() -> void:
 	command_applier.submit(StartTurnCommand.new(opener.entity_id))
 
 
-## Rung 3's verdict line (#715) — the level half of `meta_root`'s
-## `--lobby=host|client` driver. Prints, once, on the first turn this machine
-## sees: which world it holds and whether it agrees with the other process.
-##
-## [b]On `turn_started`, not on the resync[/b], because "the first turn starts"
-## IS acceptance 1. A client that decoded a world and then never got a turn has
-## not proved the thing; the fingerprint beside it is what makes the pair
-## comparable across two logs.
-##
-## Behind the same explicit flag `meta_root` reads, so an ordinary launch, an
-## exported build and every test print nothing and parse nothing.
-## `""` unless this process was launched by `meta_root`'s `--lobby=` driver.
-static func _rung_3_role() -> String:
-	return HarnessFlags.value(HarnessFlags.LOBBY)
-
-
-func _announce_first_turn_for_rung_3() -> void:
-	var role := _rung_3_role()
-	if role.is_empty() or turn_manager == null:
-		return
-	var announce := func(entity: Entity) -> void:
-		print("[%s] rung 3: FIRST TURN — %s | %d nodes | %s | seat %d | %s" % [
-			role,
-			entity.display_name if entity != null else "<none>",
-			graph.get_skill_nodes().size(),
-			"authority" if network_session.is_authority() else "mirror",
-			seat_policy.seated_entity_id,
-			WorldFingerprint.describe(graph),
-		])
-	turn_manager.turn_started.connect(announce, CONNECT_ONE_SHOT)
-
-
-## --- Rung 4: the run plays itself and says how it ended (#754) ----------------
-##
-## Rung 3 proves two processes reach the same first turn. Rung 4 keeps the same
-## two processes going to a VERDICT — the host hands every human seat to the AI,
-## both ends print one greppable line when [signal Events.run_ended] fires, and
-## both quit so `mise run mp:e2e` can compare the two logs and exit on the
-## difference. See `docs/domain/multiplayer-harness.md`.
-##
-## Everything here is behind `--autoplay` on top of the rung-3 flag, so an
-## ordinary launch, an exported build and the GUT suite are untouched.
-
-## Entity-turns (NOT rounds — [member TurnManager.turns_taken] counts each
-## entity's turn) an autoplay run may spend before it is declared a timeout.
-## Two heroes on the smallest map settle in well under this; the number is a
-## hang detector, not a balance claim, and `--max-turns=N` overrides it.
-const _RUNG4_MAX_TURNS := 400
-
-## Exit code a timed-out autoplay run quits with — distinct from the 1 the
-## engine uses for its own failures, so the harness can tell "the run never
-## ended" from "the process fell over".
-const _RUNG4_TIMEOUT_EXIT := 2
-
-
-func _arm_rung_4() -> void:
-	var role := _rung_3_role()
-	if role.is_empty() or turn_manager == null or not HarnessFlags.has(HarnessFlags.AUTOPLAY):
-		return
-	Events.run_ended.connect(_announce_verdict_for_rung_4.bind(role), CONNECT_ONE_SHOT)
-	var cap := HarnessFlags.number(HarnessFlags.MAX_TURNS, _RUNG4_MAX_TURNS)
-	turn_manager.turn_started.connect(func(_e: Entity) -> void: _watch_turn_cap(role, cap))
-	if not network_session.is_authority():
-		# A mirror needs nothing: its own hero is driven by the authority's
-		# confirmed commands, and a second AI deciding locally is exactly the
-		# divergence this run exists to detect.
-		return
-	# Deferred out of the emission: the handover kicks the current entity's turn
-	# ([method SeatHandover.hand_seat_to_ai]), and doing that from inside `turn_started`
-	# would re-enter the turn loop underneath the signal that started it.
-	turn_manager.turn_started.connect(
-			func(_e: Entity) -> void: _autoplay_every_human_seat.call_deferred(role),
-			CONNECT_ONE_SHOT)
-
-
-## The host's half of `--autoplay`: every HUMAN seat becomes the AI's.
-##
-## No new mechanism — this is the peer-left handover (#753/#755) invoked
-## deliberately rather than on a dropped socket, which is what makes it worth
-## reusing: the AI's turns cross the wire as ordinary confirmed commands, so the
-## client is exercised as a mirror of a real opponent, not as a process running
-## its own copy of the same policy, and #755's broadcast means the mirror's own
-## roster learns the seat is the AI's rather than believing a human still holds
-## it.
-func _autoplay_every_human_seat(role: String) -> void:
-	if GameSession.roster == null:
-		return
-	var seated := 0
-	for p in GameSession.roster.all():
-		if p.kind == Participant.Kind.HUMAN:
-			seat_handover.hand_seat_to_ai(p)
-			seated += 1
-	print("[%s] rung 4: autoplay — %d human seat(s) handed to the AI" % [role, seated])
-
-
-## One line per process on `run_ended`, and then out.
-##
-## [b]Nothing is awaited before the print.[/b] [method _on_run_ended] routes to
-## the meta-shell after [member run_end_route_delay], and routing tears this
-## graph down — a fingerprint sampled after that would describe a world that no
-## longer exists and mismatch its peer for a reason that is not a sync bug.
-##
-## [member RunOutcome.winning_camp] is null on a DRAW, and the camp's
-## [member Faction.id] is what crosses (a `.tres` path resolves per machine, a
-## display name is presentation) — so the two logs compare as plain strings.
-func _announce_verdict_for_rung_4(outcome: RunOutcome, role: String) -> void:
-	print("[%s] RUNG4 VERDICT — winner=%s | turns=%d | %s" % [
-		role,
-		"draw" if outcome == null or outcome.winning_camp == null
-				else String(outcome.winning_camp.id),
-		0 if outcome == null else outcome.turn_count,
-		WorldFingerprint.describe(graph),
-	])
-	get_tree().quit(0)
-
-
-## The hang detector. A run that cannot end — a stalled turn loop, an AI with
-## nothing legal to do, a victory condition that never fires — must fail loudly
-## and on its own, rather than being killed by the harness's wall clock, because
-## only this side knows how far it actually got.
-func _watch_turn_cap(role: String, cap: int) -> void:
-	if turn_manager.turns_taken < cap:
-		return
-	print("[%s] RUNG4 TIMEOUT — %d entity-turns spent, cap %d | %s" % [
-		role, turn_manager.turns_taken, cap, WorldFingerprint.describe(graph),
-	])
-	get_tree().quit(_RUNG4_TIMEOUT_EXIT)
 ## The drain (#504, design B). An attack's world mutation is spread across a
 ## real interval, so a scene change mid-volley would strand every hit that had
 ## not landed yet — a world that is valid but permanently wrong. Draining here

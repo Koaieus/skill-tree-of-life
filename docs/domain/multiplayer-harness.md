@@ -737,7 +737,7 @@ process, with no socket. Rung 3 is the first live two-process proof of the
 menu-opened socket, of the level ADOPTING that socket rather than re-opening
 one (#713), and of the whole join happening without any peer running procgen.
 
-**The verdict line is `GameRoot._announce_first_turn_for_rung_3`.** It prints
+**The verdict line is `MpHarness._announce_first_turn_for_rung_3`.** It prints
 once per process, on `turn_started` rather than on the resync, because "the
 first turn starts" *is* #715's acceptance 1 — a client that decoded a world and
 then never got a turn has not proved the thing. Beside it goes
@@ -745,7 +745,7 @@ then never got a turn has not proved the thing. Beside it goes
 run is green when both print the same `fp` at their first turn.
 
 **Both halves are behind an explicit flag and read nothing by default.**
-`MetaRoot._RUNG3_FLAG` and `GameRoot._rung_3_role` scan
+`MetaRoot._RUNG3_FLAG` and `MpHarness._rung_3_role` scan
 `OS.get_cmdline_user_args()` and return immediately when the flag is absent, so
 an ordinary launch, an exported build and every test parse no arguments at all.
 
@@ -795,7 +795,7 @@ godot --headless --path . -- --lobby=client --address=127.0.0.1 --port=9412 --au
 ```
 
 **`--autoplay` is the host handing every human seat to the AI.** At the first
-`turn_started`, `GameRoot._autoplay_every_human_seat` walks the roster and calls
+`turn_started`, `MpHarness._autoplay_every_human_seat` walks the roster and calls
 `SeatHandover.hand_seat_to_ai` on every `Participant.Kind.HUMAN` — the peer-left path's own
 primitive (#753/#755), unchanged, so the handover is BROADCAST and the mirror's
 roster learns the seat is the AI's rather than believing a human still holds it.

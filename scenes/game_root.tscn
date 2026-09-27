@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://systems/entity_factory.gd" id="5_entfactory"]
 [ext_resource type="Script" path="res://entity/controller/controller_factory.gd" id="5_ctrlfactory"]
 [ext_resource type="Script" path="res://network/seat_handover.gd" id="25_seathandover"]
+[ext_resource type="Script" path="res://network/mp_harness.gd" id="25_mpharness"]
 [ext_resource type="Script" uid="uid://c8h46d4u0rss3" path="res://systems/battle_system.gd" id="6_battle"]
 [ext_resource type="Script" uid="uid://hhfetuy6hfu" path="res://systems/turn_manager.gd" id="7_turn"]
 [ext_resource type="Script" uid="uid://tmd2wsn34dny" path="res://systems/player_input_controller.gd" id="8_input"]
@@ -237,6 +238,14 @@ network_session = NodePath("../NetworkSession")
 command_link = NodePath("../CommandLink")
 turn_manager = NodePath("../Systems/TurnManager")
 controller_factory = NodePath("../Systems/ControllerFactory")
+
+[node name="MpHarness" type="Node" parent="." node_paths=PackedStringArray("turn_manager", "graph", "network_session", "seat_handover")]
+unique_name_in_owner = true
+script = ExtResource("25_mpharness")
+turn_manager = NodePath("../Systems/TurnManager")
+graph = NodePath("../Graph")
+network_session = NodePath("../NetworkSession")
+seat_handover = NodePath("../SeatHandover")
 
 [connection signal="core_moved" from="Systems/AllocationSystem" to="." method="_on_core_moved"]
 

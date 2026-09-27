@@ -206,7 +206,7 @@ seated and nothing drove the turn. That is the second time on this path that
 fingerprint agreement was not evidence of correctness; the first is the
 applied-once guard, where the fold covers neither tags nor effects. So a join is
 proved by the peer reaching its FIRST TURN — which is what
-`GameRoot._announce_first_turn_for_rung_3` prints and what harness rung 3 reads
+`MpHarness._announce_first_turn_for_rung_3` prints and what harness rung 3 reads
 — never by the fingerprints matching at link-up.
 
 The rejected third was a **periodic dirty-stat push** (#521 D2). A subscriber
