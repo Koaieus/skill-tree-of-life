@@ -459,7 +459,7 @@ stake to 4: `x 4/3`) — see `test_grant_at_al3_then_stake_round_trip_returns_ex
 
 **Ownership stays with `SkillNode`, not `AuraEffect`.** The rejected
 alternative — an aura pre-scaling by `allocation_level` before granting —
-would leave the *next* `_apply_local_scale` walk applying its delta AGAIN on
+would leave the *next* `LocalScaleMutator.apply` walk applying its delta AGAIN on
 top (double-scaling), and would split the ladder's authority across two
 systems. Scaling at insert needs no new state (bind and scale are one act) and
 covers every `add_local_modifier` caller — addons included, not just auras.

@@ -183,7 +183,7 @@ func test_two_carriers_with_the_same_addon_type_scale_independently() -> void:
 	assert_almost_eq(float(node_b.get_local_value(&"armor")), 5.0, 0.001, "node B starts at bunker's authored armor")
 
 	# Simulate the local-scale mutator's write path (#376): mutate node A's
-	# own modifier instance directly, as _apply_local_scale would.
+	# own modifier instance directly, as LocalScaleMutator.apply would.
 	mods_a[0].value = 15.0
 
 	assert_almost_eq(float(node_a.get_local_value(&"armor")), 15.0, 0.001, "node A's own modifier scaled")
