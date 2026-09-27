@@ -71,7 +71,7 @@ Nothing discovers the TurnManager to take a turn: the handoff is a call sequence
 After `_setup_level()` spawns everything, `GameRoot._ready()` runs
 `_stagger_initiative()` (#911 — opening clocks spread over `(0, cap]` in spawn
 order, the opener at cap, gated by `RunConfig.stagger_initiative`) and then
-`_open_first_turn()`, which submits a `StartTurnCommand` for `_opening_entity()`
+`_open_first_turn()`, which submits a `StartTurnCommand` for `TurnManager.opening_entity()`
 (the host-peer participant's entity) — the authority decides, mirrors receive
 (#756). Never call `turn_manager.start_turn()` from a level yourself. Entities
 are in group `entities` via `Entity._enter_tree()` — no manual registration.

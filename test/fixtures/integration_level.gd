@@ -46,7 +46,7 @@ var enemy: Entity
 
 func _setup_level() -> void:
 	await super()
-	# Spawn order is opening order (`_opening_entity`): the player spawns
+	# Spawn order is opening order (`TurnManager.opening_entity`): the player spawns
 	# first so it holds the first turn.
 	player = spawn_entity("Player", Color(0.945, 0.271, 0.247), player_core, _CORE_CLASS)
 	player.faction = _PLAYER_FACTION
