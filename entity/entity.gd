@@ -27,6 +27,11 @@ signal statuses_changed
 ## re-read. Cost is O(listeners), which is O(visible), never O(owned). Do not
 ## reintroduce a per-node listener as a convenience.
 signal node_health_cap_changed
+## Emitted LAST by [method begin_turn], once this turn's upkeep has run — the
+## hook an [EntityController] drives [method EntityController.take_turn] from.
+signal turn_began
+## Emitted LAST by [method finish_turn], once the turn-end bookkeeping has run.
+signal turn_finished
 
 ## The player/enemy relation. Two teams for now (#384): [constant ALLIED] is
 ## same-[member faction], [constant HOSTILE] is everything else. Enemies do
@@ -383,6 +388,11 @@ var is_dead: bool = false
 ## `turn_started`; the snapshot is what makes a peer that missed those emits
 ## agree anyway.
 var turns_taken: int = 0
+
+## "It is my turn" — true from [method begin_turn] (or [method mark_turn_adopted],
+## a mirror's adopted cursor) until [method finish_turn]. The one turn fact a
+## controller reads; controllers hold no turn state of their own.
+var is_taking_turn: bool = false
 
 ## Sparse spent-set for the `spikes` pop budget (#778): a node lands here the
 ## moment a melee contact drains its `spikes` pool ([method mark_spikes_spent],
@@ -743,6 +753,10 @@ func reload() -> int:
 	for id in mint:
 		added += quiver.add(id, int(mint[id]))
 	return added
+
+
+func mark_turn_adopted() -> void:
+	pass
 
 
 func _on_turn_started(entity: Entity) -> void:
