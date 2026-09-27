@@ -77,6 +77,7 @@ size_flags_vertical = 3
 theme_override_constants/separation = 16
 
 [node name="RestartButton" type="Button" parent="CenterContainer/Panel/VBoxContainer/MarginContainer/VBoxContainer" unique_id=235955008]
+unique_name_in_owner = true
 layout_mode = 2
 text = "RESTART"
 icon = ExtResource("2_j3kxr")

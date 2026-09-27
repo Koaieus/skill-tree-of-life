@@ -18,6 +18,7 @@ signal spell_catalogue_requested
 
 
 @onready var _build_footer: Label = %BuildFooter
+@onready var _restart_button: Button = %RestartButton
 
 ## True while a picker modal (LootPicker/SpellLootPicker, #486) is up. Esc
 ## would otherwise fall through to here and open the pause menu on top of a
@@ -41,6 +42,7 @@ func _ready() -> void:
 	if identified:
 		_build_footer.text = _footer_text()
 		_build_footer.gui_input.connect(_on_build_footer_gui_input)
+	_update_restart_button()
 
 
 func _footer_text() -> String:
@@ -65,14 +67,33 @@ func _on_build_footer_gui_input(event: InputEvent) -> void:
 func _toggle(on: bool) -> void:
 	visible = on
 	get_tree().paused = on
+	if on:
+		_update_restart_button()
 
 
 ## Reload the running level from scratch. `paused` is a SceneTree flag that
 ## survives the reload, so clear it first (via `active`) or the fresh scene boots
 ## frozen. No confirmation for now — straight restart.
+##
+## Refused in a networked run (#1135): a mirror reloading alone desyncs from
+## the rest of the peers, and there is no host-broadcast restart (yet) to keep
+## them in lockstep. The button is disabled with a tooltip for the same
+## reason, so this guard only matters for the F5 shortcut.
 func _restart() -> void:
+	if GameSession.network != null and GameSession.network.is_online():
+		return
 	active = false
 	get_tree().reload_current_scene()
+
+
+## Disable + explain the restart button while a run is online; re-enable it
+## otherwise. Called on `_ready` and on `_toggle` so a run that goes online
+## mid-session (host starts a lobby from the pause menu, say) still reflects
+## it next time the menu opens.
+func _update_restart_button() -> void:
+	var online := GameSession.network != null and GameSession.network.is_online()
+	_restart_button.disabled = online
+	_restart_button.tooltip_text = "Restart is disabled in a networked run." if online else ""
 
 
 func _on_restart_button_pressed() -> void:

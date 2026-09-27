@@ -95,13 +95,22 @@ func is_active() -> bool:
 ## writing the array, so `participant_joined` / `roster_changed` fire for a
 ## lobby-authored participant exactly as they do for one that arrived over the
 ## wire.
+##
+## Adds a COPY of each participant (#1135), never [member cfg]'s own
+## [Participant] objects: the roster is a run-level mutable thing (seat
+## handover writes [member Participant.kind] into it) while [param cfg] can be
+## an authored `.tres` shared across runs — aliasing the two meant a handover
+## during one run silently rewrote the asset for every run after it. The wire
+## codec is the copy mechanism (no new `duplicate` method needed): [method
+## Participant.to_dict] / [method Participant.from_dict] round-trip a
+## participant into a fresh object with the same field values.
 func start(cfg: RunConfig) -> void:
 	assert(cfg != null, "GameSession.start: null RunConfig")
 	config = cfg
 	config.seed = RunConfig.resolve_seed(config.seed)
 	roster = ParticipantRoster.new()
 	for participant in config.participants:
-		roster.add(participant)
+		roster.add(Participant.from_dict(participant.to_dict()))
 	outcome = null
 	run_started.emit(config)
 
