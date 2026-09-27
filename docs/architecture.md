@@ -11,11 +11,14 @@ disagree, the script wins and this page is stale.
 
 | Tier | Modules | What lives there |
 |---|---|---|
-| **sim** | `archetypes stats_system graph skill_node entity effects combat attack systems` | the rules: topology, stats, nodes, entities, effects, combat math, attack plans/resolve, the gameplay systems |
+| **sim** | `settings archetypes stats_system skill_node graph entity effects combat attack systems entity/controller` | the rules: player settings the rules read, stats, nodes, topology, entities (the model), effects, combat math, attack plans/resolve, the gameplay systems, and the controllers that decide for an entity |
 | **spine** | `session procgen command network` | the run (`GameSession`'s data), the map generator, the single mutation path (`CommandApplier`), the wire |
-| **shell** | `presentation ui scenes autoload settings` | drawing, HUD, composition roots, singletons, player settings |
+| **shell** | `presentation ui scenes autoload` | drawing, HUD, composition roots, singletons |
 
-`procgen` sits just above `session`: it may read sim and session.
+Owner's order of 2026-09-27 (#1134). `procgen` sits just above `session`: it
+may read sim and session. `entity/controller/` is its own module, ranked above
+`attack` and `systems` because a controller drives both; the rest of `entity/`
+is the model.
 
 ## The direction
 
@@ -25,12 +28,16 @@ reference is a `class_name` token in code (comments and strings stripped) or a
 directory; `addons/ test/ tools/` are outside the map. Only `.gd` files are
 scanned — scene and resource `ext_resource` paths (`.tscn`/`.tres`) are not.
 
-Two standing exceptions, both permanent:
+Three standing exceptions, all permanent:
 
 - **`autoload/` is reachable from everywhere** — it is the bus. Its *own*
   outgoing references are still checked like any other layer's.
 - **`Emissive` (`ui/theme/emissive.gd`)** is a colour-tier primitive every layer
   may name (see `hdr-color.md`), not UI.
+- **`attack` ↔ `combat` are declared peers** — both directions allowed. They
+  share the hit vocabulary (`HitInstance`, `DamageInstance` under `attack/`;
+  `EntityCombat`, `NodeCombat` under `combat/`): one layer split across two
+  directories.
 
 ## The allowlist — today's debt, only shrinking
 
@@ -45,12 +52,12 @@ entry; `-- --json` lists every file:line behind every edge.
 - **A removed edge is a one-line delete** in the same landing as the refactor;
   the script warns on a stale entry.
 
-Known shape of the debt, not fixed here: `graph→skill_node` and
-`combat/effects→attack` are large because the sim order is aspirational in
-places (the node is still the model, #1130; hit/damage instances live under
-`attack/`). `attack/melee/skill_blade.gd` is view code inside a sim directory —
-file granularity inside mixed directories is parked until #1130 makes the
-directories honest.
+Known shape of the debt, not fixed here: `skill_node` still reaches up into
+most of sim (the node is still the model, #1130); `attack→command` is codec
+types (`WireFields`), not submission. Moving `command` below `attack` was
+measured and would have swapped that one line for three. `attack/melee/skill_blade.gd` is view code inside
+a sim directory, and file granularity inside mixed directories is parked until
+#1130 makes the directories honest.
 
 ## Forward fit — which seam each milestone stresses
 
@@ -58,7 +65,7 @@ directories honest.
   snapshots in `network/` are the save seed; a save format must not pull
   `network→` anything new.
 - **AI v2** — sim↔scene: lookahead beyond combat needs a scene-free model;
-  `entity→systems/scenes` edges are what it fights (#1131).
+  `entity/controller→command/scenes` edges are what it fights (#1131).
 - **Procgen v3 / v5** — `procgen` reading only sim + session; the existing
   `procgen→scenes` edge is the one to retire, not extend.
 - **Multiplayer** — spine DAG: `command→network`, `session→network/ui`,
