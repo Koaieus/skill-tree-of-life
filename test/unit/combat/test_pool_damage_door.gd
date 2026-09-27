@@ -91,7 +91,7 @@ func _live_spy() -> SpyCombat:
 func _shadow_spy() -> SpyCombat:
 	var spy := SpyCombat.new()
 	spy._origin = _entity
-	spy._board = _entity.stat_board.clone_live()
+	spy._state = _entity.state.clone()
 	spy._mirror = GraphMirror.new()
 	spy._mirror.graph = _graph
 	for n in [_n0, _n1, _n2]:
