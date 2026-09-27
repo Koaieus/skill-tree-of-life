@@ -59,14 +59,13 @@ extends Node
 ## Null in headless fixtures that never run a cascade.
 @export var battle_system: BattleSystem
 
-## The command pipeline a relic's claim flow runs through (#522). Stamped onto
-## every [SkillDustAddon] this system drops, so the addon needs no lookup — DI,
-## per `.claude/rules/scene-composition.md`. Null is a supported configuration
-## (headless fixtures, the editor): the addon then runs its rounds inline, the
-## pre-#522 behaviour.
+## The command pipeline a relic's claim rounds are submitted through (#522),
+## handed to the loot round controller on every claim this system opens. Null
+## is a supported configuration (headless fixtures, the editor): the rounds
+## then land inline, the pre-#522 behaviour.
 @export var command_applier: CommandApplier
 
-## The outstanding-pick book, stamped onto the relic alongside the applier.
+## The outstanding-pick book the loot round controller parks a pick in.
 ## Only consulted for a REMOTE collector — #564 wired that consumer: a mirror
 ## peer's pick arrives via [signal CommandLink.loot_offer_received] and closes
 ## its round through this book. See [LootPickRegistry].
@@ -191,6 +190,10 @@ extends Node
 ## plain state on this system rather than a payload on the bus — the ledger is
 ## transient attack bookkeeping, not a domain fact anyone else should read.
 var _removed_this_attack: Dictionary[Entity, Dictionary] = {}
+
+## Drives adopted relics' claims. Stateless like every handler, so a private
+## instance is the same controller [CommandRegistry] replays rounds through.
+var _round_controller := LootRoundCommandHandler.new()
 
 
 func _ready() -> void:
@@ -457,9 +460,38 @@ func _drop_skill_dust(victim: Entity) -> void:
 	dust.rounds = draw["rounds"]
 	dust.victim_color = victim.color
 	dust.spell_candidates = spell_candidates
-	dust.command_applier = command_applier
-	dust.pick_registry = pick_registry
+	adopt_relic(dust)
 	_attach_addon(core, dust)
+
+
+## Take charge of [param dust]'s claims: its [signal SkillDustAddon.claimed]
+## opens rounds through the loot round controller ([LootRoundCommandHandler]).
+## Every relic this system drops is adopted before it enters the tree; a relic
+## attached by hand (a fixture, a sandbox) claims nothing until adopted.
+func adopt_relic(dust: SkillDustAddon) -> void:
+	dust.claimed.connect(_on_relic_claimed.bind(dust))
+
+
+## THE HOST GATE (#522). `owned_by` flips on every peer that applies the
+## confirmed [AllocateCommand], so every peer's relic announces the claim —
+## without this gate a peer would open its OWN round and roll its OWN offer in
+## parallel with the host's, agreeing only by luck. A peer's relic is driven
+## purely by the [LootRoundCommand]s that arrive. No applier means no
+## pipeline, which is authority by construction.
+func _on_relic_claimed(collector: Entity, dust: SkillDustAddon) -> void:
+	if command_applier != null and not command_applier.is_authority:
+		return
+	_round_controller.open_round(dust, collector, _round_context())
+
+
+## What the controller's resolve side reaches — built per claim, like
+## [CommandApplier]'s own per-command context, so a late-wired export is seen.
+func _round_context() -> CommandContext:
+	var ctx := CommandContext.new()
+	ctx.command_applier = command_applier
+	ctx.loot_pick_registry = pick_registry
+	ctx.graph = command_applier.graph if command_applier != null else null
+	return ctx
 
 
 ## Build the loot draw (#323 re-cut): a weighted union of THREE provenance
@@ -472,7 +504,7 @@ func _drop_skill_dust(victim: Entity) -> void:
 ## `would_cycle` is DELIBERATELY NOT checked here — the claimant (whoever
 ## allocates the relic node) isn't known at draw/death time, so cycle-safety
 ## is a claim-time concern, filtered per round against the collector's live
-## board (see [method SkillDustAddon._on_carrier_owner_changed]).
+## board (see [method SkillDustAddon.offers_for]).
 ##
 ## `rounds` (how many pick-1-of-3 rounds) scales with victim level as before, now
 ## against the TOTAL pool across all three buckets. When N >= supply there's

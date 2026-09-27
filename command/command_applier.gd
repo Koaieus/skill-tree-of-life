@@ -395,7 +395,7 @@ func pending_count() -> int:
 
 
 ## A relic's claim chain opened on THIS applier (#646) — called only from the
-## authority side of [SkillDustAddon]'s `_on_carrier_owner_changed`, since a
+## authority side of [method LootRoundCommandHandler.open_round], since a
 ## MIRROR peer never drives a chain, only replays it. Paired with
 ## [method notify_loot_round_closed], called from the same authority-gated
 ## site once the chain's terminal round lands.
@@ -625,5 +625,6 @@ func _context() -> CommandContext:
 	ctx.battle_system = battle_system
 	ctx.turn_manager = turn_manager
 	ctx.loot_pick_registry = loot_pick_registry
+	ctx.command_applier = self
 	ctx.tree = get_tree()
 	return ctx

@@ -13,6 +13,12 @@ var battle_system: BattleSystem
 var turn_manager: TurnManager
 ## The outstanding-loot-pick book, for [PickLootCommand] (#522).
 var loot_pick_registry: LootPickRegistry
+## The pipeline itself, for the one handler that also DRIVES its verb from the
+## host side ([LootRoundCommandHandler]'s resolve loop, which submits stamped
+## rounds through [method CommandApplier.submit] — the ordinary queue, never a
+## direct apply — and reads [member CommandApplier.is_authority]). Null when
+## the loot controller runs with no pipeline at all.
+var command_applier: CommandApplier
 ## For the one verb whose apply waits on a clock ([MoveCoreCommand]'s hop
 ## beat) — a [RefCounted] handler has no `get_tree()` of its own.
 var tree: SceneTree
