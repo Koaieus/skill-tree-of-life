@@ -827,7 +827,8 @@ func clone_live() -> StatBoard:
 ## [Stat] holds [member Stat._board] and `bins.board` pointing back at the board
 ## that holds it, so a board and its stats form a reference CYCLE, and GDScript's
 ## [RefCounted] has no cycle collector — the same class of problem as
-## [member NodeCombat._owner] backpointing at its [EntityCombat], and it wants
+## a shadow [NodeCombat]'s `_world` backpointing at the [CombatWorld] that
+## indexes it, and it wants
 ## the same explicit answer. Measured 2026-08-21 over 200 `clone_live()` calls on
 ## `default_entity_board`, sampling [constant Performance.OBJECT_COUNT]:
 ## [b]122 objects leaked per clone, 0 after this[/b].

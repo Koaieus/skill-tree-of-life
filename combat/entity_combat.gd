@@ -54,8 +54,9 @@ var _materialized: bool = false
 ## [method NodeCombat.ownership_bit], which a landing gate asks on every hit.
 var _origin: Entity
 ## Meaningful ONLY when [member host] == null — the shadow's own refcounted tag
-## set. See [member NodeCombat._tags] for why tag storage, unlike ownership,
-## genuinely has to move for a shadow.
+## set: an [Effect] recomputing against a shadow grants and revokes tags, and
+## there is no real entity they may land on (the node twin keeps its tags in
+## [member NodeCombat._state]).
 var _tags: Dictionary[StringName, int] = {}
 ## Meaningful ONLY when [member host] == null — the shadow's stand-in for
 ## [member Entity._effect_instances] (#520). Populated at [method snapshot] from

@@ -145,8 +145,9 @@ after, 0 with `release()`.**
 
 The cycle is `StatBoard` → its `Stat`s → `Stat._board` / `bins.board` → back to
 the board, and `RefCounted` has no cycle collector — the same class of cycle
-`EntityCombat.free_shadow()` already existed to break for `NodeCombat._owner`,
-one layer down. It is **not** the localized modifiers' `changed` connections:
+`EntityCombat.free_shadow()` already existed to break for a shadow
+`NodeCombat`'s backpointer (its minting `CombatWorld` now; it resolves
+`_state.owned_by` through `owner()`), one layer down. It is **not** the localized modifiers' `changed` connections:
 disconnecting every one of those and leaving the backpointers moves the number
 not at all (122 → 122), while nulling `_board` / `bins.board` drops it to
 exactly 0 and collects the modifier copies along with everything else.

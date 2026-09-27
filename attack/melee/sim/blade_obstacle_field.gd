@@ -565,8 +565,8 @@ func retire_disowned_defenders(world: CombatWorld) -> void:
 ## Whether zone [param z] is still armed as a defender yet no longer allocated.
 ##
 ## [b]Allocation is asked of the WORLD, never of the real [SkillNode].[/b] The
-## authority resolves on a shadow, where the cascade strips
-## [member NodeCombat._owner] and leaves `owned_by` on the real node untouched
+## authority resolves on a shadow, where the cascade nulls the shadow's own
+## `NodeCombat._state.owned_by` and leaves `owned_by` on the real node untouched
 ## until the record is replayed — so a live-node read would keep honouring a
 ## defender this very swing has already destroyed. Same rule
 ## [method BladePopResolver.LiveGate.admit] follows; see
