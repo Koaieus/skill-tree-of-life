@@ -353,7 +353,7 @@ const _RUNG3_SEAT_FRAMES := 600
 const _AUTOPLAY_MAP_SIZE_INDEX := 0
 ## AI opponents an autoplay run seats: none. The two HUMAN seats are what rung 4
 ## is about — one per process, both handed to the AI by [method
-## GameRoot.hand_seat_to_ai] — so a third camp of NPCs would only lengthen the
+## SeatHandover.hand_seat_to_ai] — so a third camp of NPCs would only lengthen the
 ## run and blur which camp's victory is being agreed on.
 const _AUTOPLAY_AI_OPPONENTS := 0
 
