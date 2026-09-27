@@ -55,6 +55,9 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 ## [method GameRoot.apply_roster], or set directly on a hand-authored scene's
 ## node) rather than derived from entity identity. See #475.
 @export var is_human_controlled: bool = false
+## STUB (#1143 red).
+var state := EntityState.new()
+
 ## One owner (#1031): outside the editor the setter stores a private
 ## `duplicate(true)` from the moment of assignment — a `.tscn` instance gets
 ## its copy at `instantiate()`, a spawned entity at spawn — so no reader that
