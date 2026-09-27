@@ -1,7 +1,9 @@
 class_name BladeDefenderZones
 extends RefCounted
 
-## The defenders one swing can meet, found ONCE by the physics engine (#811).
+## The defenders one swing can meet, found ONCE by the physics engine (#811) —
+## or, for one physics frame after a collision-affecting write, by a graph
+## walk instead (#1136's dirty-frame fallback, [method mark_broadphase_dirty]).
 ##
 ## [b]One question, one query.[/b] "Which nodes near this swing carry
 ## `swing_drag` or `deflection`?" used to be asked twice — [method
