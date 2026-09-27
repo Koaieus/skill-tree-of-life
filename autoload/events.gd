@@ -83,10 +83,9 @@ signal run_ended(outcome: RunOutcome)
 
 ## Sparse status-tick channel (#879). Re-emitted by [method TurnManager.start_turn]
 ## for a REAL turn begin only — never [method TurnManager.adopt_turn]'s resync
-## cursor (#756's `is_adopting`) — and only AFTER [signal TurnManager.turn_started]'s
-## own emit has returned, so every listener of that signal (including
-## [method Entity._on_turn_started]'s upkeep / [method SkillNode.apply_turn_regen])
-## has already run. A [SkillNode] with ≥ 1 status connects to this once (on its
+## cursor (#756) — and only AFTER [method Entity.begin_turn]'s upkeep
+## ([method SkillNode.apply_turn_regen] included) and [signal TurnManager.turn_started]'s
+## own emit have both run. A [SkillNode] with ≥ 1 status connects to this once (on its
 ## first status) and disconnects on its last, checks `entity == owned_by`, then
 ## calls [method NodeCombat.tick_statuses] — never a territory sweep. Distinct
 ## from [signal TurnManager.turn_started] on purpose: that one's seven listeners

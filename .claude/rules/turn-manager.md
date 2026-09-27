@@ -32,7 +32,7 @@ Click dispatch lives in `PlayerInputController._on_skill_node_left_clicked` (bat
 
 Initiative is the **`initiative` PoolStat** on each entity's stat board (a `CyclicPoolStatDef` — see `.claude/rules/stats-system.md`). The cap is that entity's action threshold (default 100, tweakable per entity via modifiers); `current` is the clock.
 
-`tick()` replenishes the `initiative` pool of every entity under `entity_root` (null → the whole tree; the editor's sandbox host holds many worlds in one tree, so a sandbox scopes its TurnManager and wires `Entity.turn_manager_override`) by its `initiative_speed.value`. When a pool crosses its cap it fires `replenished` (the entity handles this by joining `Entity.READY_GROUP` / `&"ready_to_act"`) and the cyclic def carries the overshoot into the next cycle — so **`end_turn()` deducts nothing**; the deduction already happened at the crossing. `_tick_until_ready()` ticks until `READY_GROUP` is non-empty, then serves the member `order_ready` (below) puts first. `start_turn()` removes the entity from `READY_GROUP`, sets `current_entity`, and emits `turn_started`.
+`tick()` replenishes the `initiative` pool of every entity under `entity_root` (null → the whole tree; the editor's sandbox host holds many worlds in one tree, so a sandbox scopes its TurnManager — an entity never binds to one) by its `initiative_speed.value`. When a pool crosses its cap it fires `replenished` (the entity handles this by joining `Entity.READY_GROUP` / `&"ready_to_act"`) and the cyclic def carries the overshoot into the next cycle — so **`end_turn()` deducts nothing**; the deduction already happened at the crossing. `_tick_until_ready()` ticks until `READY_GROUP` is non-empty, then serves the member `order_ready` (below) puts first. `start_turn()` removes the entity from `READY_GROUP`, sets `current_entity`, calls `entity.begin_turn()` (upkeep, then `Entity.turn_began` → its controller's `take_turn`), and only then emits `turn_started`.
 
 Readiness is **group membership, not `current >= cap`** — because the carry-reset drops `current` back near zero the instant the clock crosses. The `_tick_until_ready` loop is synchronous (no per-tick frame yield); the InitiativeBar animates the climb on its own via a tween bound to the pool's `current_changed`, and holds "full" off `replenished` until `turn_started` drains it.
 
@@ -48,7 +48,7 @@ A pool sitting **exactly at its cap from a raw write** (rather than having cross
 
 ## An entity's FIRST turn runs NO upkeep
 
-`Entity._on_turn_started` counts into `Entity.turns_taken` (per-entity; the one on `TurnManager` is the global tally) and returns while it reads 1 — no pool upkeep, no node regen, no aura, no `on_turn_started`, no `_on_turn_start` dispatch. Pools are authored at cap, so what the gate really removes is one tick of `xp_per_turn`, which used to level a fresh entity before it had made a move. **How to apply:** anything constructing an *already-established* entity and then driving `_on_turn_started` directly must set `turns_taken = 1` at build time — the `tools/balance/` fixtures do, or they under-report a turn of income. The counter is derived, never synced: each peer counts the same turns off its own TurnManager.
+`Entity.begin_turn` counts into `Entity.turns_taken` (per-entity; the one on `TurnManager` is the global tally) and returns while it reads 1 — no pool upkeep, no node regen, no aura, no `on_turn_started`, no `_on_turn_start` dispatch. Pools are authored at cap, so what the gate really removes is one tick of `xp_per_turn`, which used to level a fresh entity before it had made a move. **How to apply:** anything constructing an *already-established* entity and then driving `begin_turn()` directly must set `turns_taken = 1` at build time — the `tools/balance/` fixtures do, or they under-report a turn of income. The counter is derived, never synced: each peer counts the same turns off its own TurnManager.
 
 ## `start_turn()` fires upkeep — never open a turn before you snapshot
 
@@ -62,9 +62,9 @@ opening turn *after* the sends complete. Found building #533's rung-2 harness;
 
 `TurnManager.abandon_turn(entity)` clears `current_entity` and emits `turn_ended`; no-op for a bystander or a re-entrant second arrival. `GameRoot._pull_from_turn_loop` is the caller. Nulling the field from outside was the old shape and left `turn_ended` unfired, guarded only by `start_turn`'s `assert` — compiled out of a release build, so the End Turn button / initiative bar / act-gate went stale with nothing to notice. It deliberately does **not** hand the clock on (`end_turn` does): the handoff is command-ordered via `EndTurnCommand`, and advancing the clock locally out of a death handler reopens the group-order sync hazard that command closes. No path reaches it today — chip damage and core overflow kill the *defender*, during the attacker's turn; `abandon_turn`'s docstring carries the long version. The field has one owner (#1030): once the manager is ready the setter `push_error`s and ignores an outside write. Fixtures and dev panels arrange a turn through `start_turn(entity)` (a real turn: `turns_taken++`, upkeep, `Events.turn_started`) or `adopt_turn(entity, n)` (a silent cursor swap, no upkeep — the forge seam).
 
-## Discovery
+## Turn handoff
 
-`TurnManager` joins the `"turn_manager"` group (constant `TurnManager.GROUP`) in `_enter_tree`. `Entity._find_turn_manager()` uses `get_tree().get_first_node_in_group(...)`. A tree-walk via `get_children()` missed it — TM lives at `GameRoot/Systems/TurnManager` (sibling of Graph), never a direct child of an Entity ancestor. Single instance per level.
+Nothing discovers the TurnManager to take a turn: the handoff is a call sequence. `start_turn(e)` → `e.begin_turn()` (sets `is_taking_turn`, upkeep, emits `Entity.turn_began` last) → `turn_started`; `end_turn()` / `abandon_turn(e)` → `e.finish_turn()` (AP→surplus, `_on_turn_end`, clears `is_taking_turn`, emits `turn_finished`) → `turn_ended`; `adopt_turn(e, n)` → `e.mark_turn_adopted()` (flag only) → `turn_started`. An `EntityController` connects `entity.turn_began → take_turn` in `_ready` and holds no turn state; `AIController._continue()` reads `entity.is_taking_turn`, so a controller handed a turn mid-way (seat handover) plays it out. `TurnManager.GROUP` still exists for the few non-entity readers (e.g. `EntitySnapshot`). Single instance per level.
 
 ## Wiring a new level
 
@@ -100,7 +100,7 @@ roster-driven way to set `is_human_controlled` + `faction` together from a
 
 ## Turn-start upkeep
 
-`Entity._on_turn_started` (subscribed to `turn_started`) refills `action_points` / `deallocation_points`, replenishes `xp` by `xp_per_turn`, heals `wound_heal_per_turn` wounded SP, and calls `refill()` on each owned `SkillNode` (combat HP back to max). See `.claude/rules/stats-system.md` for the full list.
+`Entity.begin_turn` (called by `start_turn`, before `turn_started`) refills `action_points` / `deallocation_points`, replenishes `xp` by `xp_per_turn`, heals `wound_heal_per_turn` wounded SP, and calls `refill()` on each owned `SkillNode` (combat HP back to max). See `.claude/rules/stats-system.md` for the full list.
 
 ## Testing an EntityController in isolation (#378)
 
@@ -121,21 +121,18 @@ child (no `game_root.tscn`) hits three gotchas together:
   turn — assert the *behavior* that doesn't depend on the economy (e.g.
   "every reachable frontier node got allocated"), or the number will drift
   for reasons that have nothing to do with what you're testing.
-- **Add the controller child AFTER the entity enters the tree**, mirroring
-  `GameRoot._ensure_controllers()` (which runs post-`_setup_level`). This
-  makes `Entity`'s own `turn_started` connection (upkeep) register before the
-  controller's, so upkeep runs before `take_turn` on the very first turn —
-  reversed, the two race inside the same synchronous `emit()` and, with
-  `turn_delay = 0`, a single-entity fixture can recurse `take_turn` straight
-  into a stack overflow (`TurnManager._tick_until_ready` re-selecting the
-  same entity with nothing else to hand the turn to). Give the fixture a
+- **Controller attach order is free**: upkeep runs before `take_turn` by call
+  sequence (`begin_turn` emits `turn_began` last). With `turn_delay = 0`, a
+  single-entity fixture can still recurse `take_turn` straight into a stack
+  overflow (`TurnManager._tick_until_ready` re-selecting the same entity with
+  nothing else to hand the turn to). Give the fixture a
   second, idle entity (e.g. `PlayerController`, whose `take_turn` is a no-op)
   so the clock has somewhere to park after the AI's turn ends.
-- **`AIController` mutates only through a `CommandApplier` (#512), which it
-  resolves by walking up to a `GameRoot` ancestor** — absent one it allocates
-  nothing AND never ends its turn, so the whole loop stalls. Set
-  `command_applier_override` / `battle_system_override` on the controller
-  instead of composing a full `game_root.tscn`; unset in production. The
+- **`AIController` mutates only through a `CommandApplier` (#512), set on its
+  `command_applier` export by whoever builds it** (`GameRoot._new_ai_controller`
+  in a level) — absent one it allocates nothing AND never ends its turn, so the
+  whole loop stalls. A fixture sets `command_applier` / `battle_system` /
+  `loot_system` directly instead of composing a full `game_root.tscn`. The
   fixture also needs a `Graph` with both entities under
   `graph.entities_container` — a command names its actor by `entity_id`, minted
   only on entry to that container, and id 0 resolves to nothing.
