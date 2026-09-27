@@ -479,7 +479,7 @@ func present_link_lost(reason: String) -> void:
 
 
 ## A seated peer left and its hero was handed to the AI
-## ([method GameRoot._adopt_seat_handover]). Raised on EVERY peer since #755,
+## ([method SeatHandover._adopt]). Raised on EVERY peer since #755,
 ## not just the host: the handover crosses the wire because the mirrors have to
 ## flip [member Entity.is_human_controlled] too (fog is an allied-HUMANS reveal
 ## — see that method), and once they are told at all, telling the player is

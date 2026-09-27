@@ -85,14 +85,14 @@ subclass that exists so the UI's End Turn button is the legal turn-ender).
 An entity without a controller child receives `turn_started` and then
 sits there forever; the loop stalls.
 
-`GameRoot._ensure_controllers()` runs after `_setup_level()` and attaches
+`ControllerFactory.ensure_all()` (via `GameRoot._ensure_controllers()`) runs after `_setup_level()` and attaches
 a default controller to any entity that doesn't have one: `PlayerController`
 where `Entity.is_human_controlled` is set, `AIController` otherwise (#475 —
 this reads the per-entity flag, not entity identity against `self.player`,
 so it scales past a single human). That's the catch-all that keeps
 sandbox scenes (`dev_sandbox.tscn`, `first_level_sandbox.tscn`)
 playable without each remembering to wire controllers manually. Explicit
-scene composition wins — `_ensure_controllers()` skips entities that already
+scene composition wins — `ensure_all()` skips entities that already
 have a child `EntityController`. `GameRoot.apply_roster()` is the
 roster-driven way to set `is_human_controlled` + `faction` together from a
 `ParticipantRoster`; a hand-authored scene sets `is_human_controlled` (and
@@ -129,7 +129,7 @@ child (no `game_root.tscn`) hits three gotchas together:
   second, idle entity (e.g. `PlayerController`, whose `take_turn` is a no-op)
   so the clock has somewhere to park after the AI's turn ends.
 - **`AIController` mutates only through a `CommandApplier` (#512), set on its
-  `command_applier` export by whoever builds it** (`GameRoot._new_ai_controller`
+  `command_applier` export by whoever builds it** (`ControllerFactory.make_ai`
   in a level) — absent one it allocates nothing AND never ends its turn, so the
   whole loop stalls. A fixture sets `command_applier` / `battle_system` /
   `loot_system` directly instead of composing a full `game_root.tscn`. The

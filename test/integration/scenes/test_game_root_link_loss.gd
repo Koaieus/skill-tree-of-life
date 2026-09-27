@@ -73,7 +73,7 @@ func before_each() -> void:
 	roster.add(_remote_seat)
 	GameSession.roster = roster
 	GameRoot.apply_roster({1: _local, 2: _remote}, roster)
-	_root._ensure_controllers()
+	_root.controller_factory.ensure_all()
 	_root.bind_player(_local)
 	await wait_frames(1)
 
@@ -100,7 +100,7 @@ func test_the_level_opened_its_link_as_host() -> void:
 	assert_true(_root.transport.link_lost.is_connected(_root.network_session._on_link_lost),
 			"link_lost reaches the level")
 	assert_true(_remote.is_human_controlled)
-	assert_true(GameRoot._find_controller(_remote) is PlayerController)
+	assert_true(ControllerFactory.find(_remote) is PlayerController)
 
 
 # --- host: a peer leaves --------------------------------------------------
@@ -109,20 +109,20 @@ func test_a_departed_peers_hero_is_handed_to_the_ai() -> void:
 	_root.transport.peer_left.emit(_REMOTE_PEER)
 
 	assert_false(_remote.is_human_controlled, "no longer a human's seat")
-	assert_true(GameRoot._find_controller(_remote) is AIController,
+	assert_true(ControllerFactory.find(_remote) is AIController,
 			"an AIController drives it now")
 	assert_eq(_remote_seat.kind, Participant.Kind.AI,
 			"the roster agrees, so the loot registry stops parking its picks on a remote human")
 	# The seat that stayed is untouched.
 	assert_true(_local.is_human_controlled)
-	assert_true(GameRoot._find_controller(_local) is PlayerController)
+	assert_true(ControllerFactory.find(_local) is PlayerController)
 
 
 func test_a_handed_over_seat_plays_at_its_seats_tier() -> void:
 	_remote_seat.ai_tier = AIController.Tier.WARLORD
 	_root.transport.peer_left.emit(_REMOTE_PEER)
 
-	var ai := GameRoot._find_controller(_remote) as AIController
+	var ai := ControllerFactory.find(_remote) as AIController
 	assert_not_null(ai)
 	if ai != null:
 		assert_eq(ai.ai_tier, AIController.Tier.WARLORD,
@@ -253,7 +253,7 @@ func test_a_mirror_applies_the_handover_without_growing_a_controller() -> void:
 	assert_eq(_remote_seat.kind, Participant.Kind.AI, "the mirror's roster agrees")
 	assert_false(_remote.is_human_controlled,
 			"so SeatPolicy.vision_group stops revealing through it, as it has on the host")
-	assert_true(GameRoot._find_controller(_remote) is PlayerController,
+	assert_true(ControllerFactory.find(_remote) is PlayerController,
 			"the inert controller is left alone — a mirror never drives a hero")
 	assert_string_contains(_playing_main_text(), "Guest",
 			"and this peer is told why its ally started playing differently")
@@ -271,7 +271,7 @@ func test_a_handover_for_a_seat_this_peer_does_not_know_is_ignored() -> void:
 ## The defect #755 actually fixes, and the only test that touches the fog: put
 ## the two heroes on ONE camp so `SeatPolicy.vision_group` is a set of two, then
 ## drop the peer. AI never shares, so the departed hero must leave the viewers —
-## and it only does because `_adopt_seat_handover` re-runs `_apply_seat_vision`
+## and it only does because `GameRoot._on_seat_handed_over` re-runs `_apply_seat_vision`
 ## by hand (the group is computed, not reactive).
 ##
 ## The other tests here run the shipped versus shape, where the two heroes are

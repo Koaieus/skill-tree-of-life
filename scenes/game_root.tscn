@@ -5,6 +5,8 @@
 [ext_resource type="Script" uid="uid://bb2qycfjh26rf" path="res://scenes/camera_2d.gd" id="4_cam"]
 [ext_resource type="Script" uid="uid://blmjm81fytofd" path="res://systems/allocation_system.gd" id="5_alloc"]
 [ext_resource type="Script" path="res://systems/entity_factory.gd" id="5_entfactory"]
+[ext_resource type="Script" path="res://entity/controller/controller_factory.gd" id="5_ctrlfactory"]
+[ext_resource type="Script" path="res://network/seat_handover.gd" id="25_seathandover"]
 [ext_resource type="Script" uid="uid://c8h46d4u0rss3" path="res://systems/battle_system.gd" id="6_battle"]
 [ext_resource type="Script" uid="uid://hhfetuy6hfu" path="res://systems/turn_manager.gd" id="7_turn"]
 [ext_resource type="Script" uid="uid://tmd2wsn34dny" path="res://systems/player_input_controller.gd" id="8_input"]
@@ -55,6 +57,13 @@ unique_name_in_owner = true
 script = ExtResource("5_entfactory")
 graph = NodePath("../../Graph")
 allocation_system = NodePath("../AllocationSystem")
+
+[node name="ControllerFactory" type="Node" parent="Systems" node_paths=PackedStringArray("command_applier", "battle_system", "loot_system")]
+unique_name_in_owner = true
+script = ExtResource("5_ctrlfactory")
+command_applier = NodePath("../CommandApplier")
+battle_system = NodePath("../BattleSystem")
+loot_system = NodePath("../LootSystem")
 
 [node name="BattleSystem" type="Node" parent="Systems" unique_id=1847539356 node_paths=PackedStringArray("turn_manager", "allocation_system", "graph", "attack_vfx", "melee_preview", "vision_system")]
 unique_name_in_owner = true
@@ -220,6 +229,14 @@ script = ExtResource("25_session")
 transport = NodePath("../Transport")
 command_link = NodePath("../CommandLink")
 command_applier = NodePath("../Systems/CommandApplier")
+
+[node name="SeatHandover" type="Node" parent="." node_paths=PackedStringArray("network_session", "command_link", "turn_manager", "controller_factory")]
+unique_name_in_owner = true
+script = ExtResource("25_seathandover")
+network_session = NodePath("../NetworkSession")
+command_link = NodePath("../CommandLink")
+turn_manager = NodePath("../Systems/TurnManager")
+controller_factory = NodePath("../Systems/ControllerFactory")
 
 [connection signal="core_moved" from="Systems/AllocationSystem" to="." method="_on_core_moved"]
 

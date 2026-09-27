@@ -85,7 +85,7 @@ const KEY_PICK := "pick"
 ## #755: which seat a [constant KIND_SEAT_HANDOVER] is about — a [member
 ## Participant.id], never a `peer_id`. The peer whose id it was is by definition
 ## gone, and every mirror already resolves a seat by participant id
-## ([method GameRoot._entity_for_participant]); a mirror has no view of a
+## ([method SeatHandover.entity_for_participant]); a mirror has no view of a
 ## sibling's peer id at all.
 const KEY_PARTICIPANT := "participant"
 ## #716: what the sender CLAIMS its own peer id is, on a client's announce.
@@ -197,7 +197,7 @@ const KIND_LOBBY := "lobby"
 ## confirmation.
 const KIND_LOBBY_PICK := "lobby_pick"
 ## #755's downward leg: "the human on this seat is gone; the AI has it now."
-## Sent by the host from [method GameRoot.hand_seat_to_ai] when a seated peer
+## Sent by the host from [method SeatHandover.hand_seat_to_ai] when a seated peer
 ## drops mid-run.
 ##
 ## [b]Not a [Command].[/b] Same shape as [constant KIND_LOOT_OFFER]: it never
@@ -288,7 +288,7 @@ signal lobby_pick_received(pick: Dictionary)
 
 ## #755, client-side: the host handed a dropped peer's seat to the AI. Carries
 ## the [member Participant.id], decoded no further here — what a handover MEANS
-## to a level ([method GameRoot._on_seat_handover]) is the level's, same split
+## to a level ([method SeatHandover._on_seat_handover]) is the level's, same split
 ## as [signal lobby_roster_received].
 signal seat_handover_received(participant_id: int)
 

@@ -116,7 +116,7 @@ func test_an_ai_turn_does_not_rebind_the_player() -> void:
 	npc.faction = _NPC
 	npc.is_human_controlled = false
 	# Controllers were attached at level setup; a late spawn gets its own here.
-	_root._ensure_controllers()
+	_root.controller_factory.ensure_all()
 
 	_hand_turn_to(_p1)
 	_hand_turn_to(npc)
@@ -275,7 +275,7 @@ func test_handover_does_not_re_derive_fog() -> void:
 func test_an_enemy_camp_is_not_a_viewer() -> void:
 	var npc := _root.spawn_entity("NPC", Color.RED, _nodes[2], _BALANCED)
 	npc.faction = _NPC
-	_root._ensure_controllers()
+	_root.controller_factory.ensure_all()
 	await wait_physics_frames(1)
 
 	_root.bind_player(_p2)

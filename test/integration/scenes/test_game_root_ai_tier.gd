@@ -1,6 +1,6 @@
 extends GutTest
 
-## The AI tier is run shape on the seat: [method GameRoot._ensure_controllers]
+## The AI tier is run shape on the seat: [method ControllerFactory.ensure_all]
 ## builds each AI hero's [AIController] at its [member Participant.ai_tier],
 ## read from [member GameSession.roster] by [member Entity.participant_id]; a
 ## level with no roster (the hand-authored sandbox shape) keeps the default.
@@ -58,9 +58,9 @@ func test_an_ai_seat_spawns_its_controller_at_the_seats_tier() -> void:
 	GameSession.roster = roster
 	GameRoot.apply_roster({1: _human, 2: _bot}, roster)
 
-	_root._ensure_controllers()
+	_root.controller_factory.ensure_all()
 
-	var ai := GameRoot._find_controller(_bot) as AIController
+	var ai := ControllerFactory.find(_bot) as AIController
 	assert_not_null(ai, "the AI seat got an AIController")
 	if ai != null:
 		assert_eq(ai.ai_tier, AIController.Tier.BRAWLER)
@@ -68,9 +68,9 @@ func test_an_ai_seat_spawns_its_controller_at_the_seats_tier() -> void:
 
 func test_no_roster_leaves_the_default_tier() -> void:
 	_bot.is_human_controlled = false
-	_root._ensure_controllers()
+	_root.controller_factory.ensure_all()
 
-	var ai := GameRoot._find_controller(_bot) as AIController
+	var ai := ControllerFactory.find(_bot) as AIController
 	assert_not_null(ai)
 	if ai != null:
 		assert_eq(ai.ai_tier, AIController.DEFAULT_TIER)

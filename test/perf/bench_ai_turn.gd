@@ -287,7 +287,7 @@ func _build_fixture() -> Dictionary:
 	roster.add(remote_seat)
 	GameSession.roster = roster
 	GameRoot.apply_roster({1: local, 2: remote}, roster)
-	root._ensure_controllers()
+	root.controller_factory.ensure_all()
 	root.bind_player(local)
 	await wait_frames(1)
 	return {"root": root, "local": local, "remote": remote, "seat": remote_seat}
@@ -351,7 +351,7 @@ func _build_large_fixture() -> Dictionary:
 	roster.add(remote_seat)
 	GameSession.roster = roster
 	GameRoot.apply_roster({1: local, 2: remote}, roster)
-	root._ensure_controllers()
+	root.controller_factory.ensure_all()
 	root.bind_player(local)
 	await wait_frames(1)
 	gut.p("--- large fixture: %d-node chain, remote owns %d, local owns %d ---"
@@ -361,17 +361,13 @@ func _build_large_fixture() -> Dictionary:
 
 
 ## Swap `remote`'s controller for a [ProbeAI] — the same swap
-## [method GameRoot.hand_seat_to_ai] performs, minus the transport event, so
+## [method SeatHandover.hand_seat_to_ai] performs, minus the transport event, so
 ## the bench is not also measuring the handover.
 func _install_probe(root: GameRoot, ent: Entity) -> ProbeAI:
-	var old := GameRoot._find_controller(ent)
-	if old != null:
-		ent.remove_child(old)
-		old.queue_free()
 	var probe := ProbeAI.new()
 	probe.name = "AIController"
 	probe.turn_delay = 0.0
-	ent.add_child(probe)
+	root.controller_factory.replace_with_ai(ent, probe)
 	ent.is_human_controlled = false
 	await wait_frames(1)
 	return probe

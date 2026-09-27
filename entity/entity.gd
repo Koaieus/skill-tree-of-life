@@ -50,7 +50,7 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 ## even across separately-loaded/duplicated resource instances.
 @export var faction: Faction = preload("res://entity/factions/npc.tres")
 ## Whether a human (local or remote) drives this entity — the seam
-## [method GameRoot._ensure_controllers] reads to attach [PlayerController]
+## [method ControllerFactory.ensure_all] reads to attach [PlayerController]
 ## vs [AIController]. Authored per-entity (roster-driven spawn via
 ## [method GameRoot.apply_roster], or set directly on a hand-authored scene's
 ## node) rather than derived from entity identity. See #475.

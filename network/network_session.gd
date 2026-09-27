@@ -441,7 +441,7 @@ func _on_refused_by_host(reason: String) -> void:
 ## here — the alternative is the turn loop parked forever on a hero whose human
 ## will never end its turn, which every other player experiences as a hang with
 ## no explanation. The root hands its hero to the AI
-## ([method GameRoot.hand_seat_to_ai]) off [signal peer_left]: the host is the
+## ([method SeatHandover.hand_seat_to_ai]) off [signal peer_left]: the host is the
 ## authority, so the AI's turns cross the wire as ordinary confirmed commands
 ## and every mirror watches the hero keep playing.
 ##

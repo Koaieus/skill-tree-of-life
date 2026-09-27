@@ -422,13 +422,13 @@ them would let a peer observe an intermediate state that never legally existed.
 ### A seat handed to the AI, and why fog forced it onto the wire (#755)
 
 A seated peer dropping mid-run is not a rejoinable state (#733, owner call), so
-the host hands its hero to the AI — `GameRoot.hand_seat_to_ai`. That used to be
+the host hands its hero to the AI — `SeatHandover.hand_seat_to_ai`. That used to be
 entirely host-local. It is now split, and the split is the interesting part:
 
 | | Who runs it | What |
 |---|---|---|
-| Shared | **every** peer, `GameRoot._adopt_seat_handover` | `Participant.kind = AI`, `Entity.is_human_controlled = false`, re-run `_apply_seat_vision()`, raise the banner |
-| Authority | host only, `hand_seat_to_ai` | broadcast `KIND_SEAT_HANDOVER`, swap `PlayerController` → `AIController`, kick the turn if it is this hero's |
+| Shared | **every** peer, `SeatHandover._adopt` | `Participant.kind = AI`, `Entity.is_human_controlled = false`, emit `seat_handed_over` — the level re-runs `_apply_seat_vision()` and raises the banner |
+| Authority | host only, `hand_seat_to_ai` | broadcast `KIND_SEAT_HANDOVER`, swap `PlayerController` → `AIController` (`ControllerFactory.replace_with_ai`), kick the turn if it is this hero's |
 
 **The argument is fog, not the banner.** `SeatPolicy.vision_group` is an
 *allied-humans* reveal keyed on `Entity.is_human_controlled`, and AI never

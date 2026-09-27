@@ -2,7 +2,7 @@ extends GutTest
 
 ## #532 decision 2: a MIRROR peer's own [AIController] must never submit.
 ##
-## [method GameRoot._ensure_controllers] attaches an [AIController] to every
+## [method ControllerFactory.ensure_all] attaches an [AIController] to every
 ## non-human entity on BOTH peers of the multiplayer harness, and that
 ## controller resolves its OWN peer's [CommandApplier] — so without a gate, a
 ## client's copy of a non-human entity's AI would decide and submit

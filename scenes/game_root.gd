@@ -86,6 +86,8 @@ var _link_end_presented: bool = false
 @onready var input_ctl: PlayerInputController = %PlayerInputController
 @onready var allocation_system: AllocationSystem = %AllocationSystem
 @onready var entity_factory: EntityFactory = %EntityFactory
+@onready var controller_factory: ControllerFactory = %ControllerFactory
+@onready var seat_handover: SeatHandover = %SeatHandover
 @onready var battle_system: BattleSystem = %BattleSystem
 ## Read by [AIController] (kill-XP preview for its scorer) through the same
 ## GameRoot walk as [member battle_system].
@@ -155,7 +157,8 @@ func _assert_systems_present() -> void:
 		[floater_director, "FloaterDirector"], [fog_overlay, "FogOverlay"],
 		[aura_overlay, "AuraOverlay"], [camera, "GraphCamera"],
 		[camera_director, "CameraDirector"], [hud_root, "HudRoot"],
-		[entity_factory, "EntityFactory"],
+		[entity_factory, "EntityFactory"], [controller_factory, "ControllerFactory"],
+		[seat_handover, "SeatHandover"],
 	]:
 		assert(pair[0] != null, ("GameRoot: %%%s is missing — every system is present in "
 				+ "every GameRoot scene; set its own `enabled` to turn it off (#1006)") % pair[1])
@@ -179,9 +182,11 @@ func _ready() -> void:
 	network_session.world_ready.connect(_on_world_ready)
 	network_session.refused.connect(_present_link_end)
 	network_session.link_lost.connect(_present_link_end)
-	network_session.seat_handover.connect(_on_seat_handover)
-	network_session.peer_left.connect(_on_seat_vacated)
 	network_session.local_peer_resolved.connect(_on_local_peer_resolved)
+	# The handover itself is [SeatHandover]'s; the root presents it. `quiet`
+	# is read here from the harness flag until the harness sets it itself.
+	seat_handover.quiet = HarnessFlags.has(HarnessFlags.AUTOPLAY)
+	seat_handover.seat_handed_over.connect(_on_seat_handed_over)
 	# Entity death (#18): AllocationSystem strips the corpse off the same bus
 	# signal; GameRoot owns the player-vs-NPC consequence, and its VISUAL half
 	# rides `entity_death_shown`, which `Entity.die()` emits last.
@@ -394,7 +399,7 @@ func _arm_rung_4() -> void:
 		# divergence this run exists to detect.
 		return
 	# Deferred out of the emission: the handover kicks the current entity's turn
-	# ([method hand_seat_to_ai]), and doing that from inside `turn_started`
+	# ([method SeatHandover.hand_seat_to_ai]), and doing that from inside `turn_started`
 	# would re-enter the turn loop underneath the signal that started it.
 	turn_manager.turn_started.connect(
 			func(_e: Entity) -> void: _autoplay_every_human_seat.call_deferred(role),
@@ -416,7 +421,7 @@ func _autoplay_every_human_seat(role: String) -> void:
 	var seated := 0
 	for p in GameSession.roster.all():
 		if p.kind == Participant.Kind.HUMAN:
-			hand_seat_to_ai(p)
+			seat_handover.hand_seat_to_ai(p)
 			seated += 1
 	print("[%s] rung 4: autoplay — %d human seat(s) handed to the AI" % [role, seated])
 
@@ -507,110 +512,14 @@ func _on_local_peer_resolved(peer_id: int) -> void:
 	pick_registry.local_peer_id = peer_id
 
 
-## Host-side: a seated peer left mid-run. Every HUMAN seat it held goes to the
-## AI ([method hand_seat_to_ai]) so the run goes on for everyone still here.
-func _on_seat_vacated(peer_id: int) -> void:
-	if GameSession.roster == null:
-		return
-	for p in GameSession.roster.all():
-		if p.kind == Participant.Kind.HUMAN and p.peer_id == peer_id:
-			hand_seat_to_ai(p)
-## The HOST's half of "this seat is the AI's now" — the authority-only parts,
-## on top of the [method _adopt_seat_handover] every peer runs.
-##
-## The broadcast (#755) goes out BEFORE the turn kick, and that order is
-## load-bearing: the wire is reliable-ordered, so sequencing the handover ahead
-## of the AI's first command is what stops a mirror seeing an AI act on a seat
-## it still believes a human holds.
-##
-## The entity half swaps the no-op [PlayerController] for an [AIController].
-## If it is this hero's turn RIGHT NOW the new controller missed
-## `turn_started`, and the human who would have ended the turn is gone — so the
-## turn is kicked by hand. Fire-and-forget, as [signal Entity.turn_began]
-## calls it. This half is the host's ALONE: a mirror that grew an
-## [AIController] of its own would be a second machine deciding actions for a
-## hero it has no authority over, which is the whole of
-## `.claude/rules/multiplayer-sync.md` broken in one line.
-func hand_seat_to_ai(participant: Participant) -> void:
-	var ent := _adopt_seat_handover(participant)
-	command_link.send_seat_handover(participant.id)
-	if ent == null:
-		return
-	var ai := _find_controller(ent) as AIController
-	if ai == null:
-		var old := _find_controller(ent)
-		if old != null:
-			# Detached NOW, not only queued: `_find_controller` walks children
-			# in order and a still-parented PlayerController would keep winning
-			# until the frame's free flush.
-			ent.remove_child(old)
-			old.queue_free()
-		ai = _new_ai_controller(ent)
-		ent.add_child(ai)
-	if turn_manager.current_entity == ent:
-		ai.take_turn()
-
-
-## Mirror-side entry for the same handover, off
-## [signal CommandLink.seat_handover_received] (#755). Applies the shared half
-## and nothing else — see [method hand_seat_to_ai] for why the controller swap
-## must not follow it here.
-func _on_seat_handover(participant_id: int) -> void:
-	if GameSession.roster == null:
-		return
-	var participant := GameSession.roster.by_id(participant_id)
-	if participant == null:
-		return
-	_adopt_seat_handover(participant)
-
-
-## What EVERY peer does when a seat passes to the AI, host and mirror alike.
-## Returns the seat's [Entity], or null if this peer has none for it.
-##
-## [b]The roster half comes first[/b], and matters beyond the controller:
-## [method LootPickRegistry.is_remote_collector] reads [member Participant.kind],
-## and a HUMAN seat whose peer is gone would park every relic this hero claims
-## on a pick that never comes (#646) — a second hang behind the first.
-##
-## [b]The flag half is why this crosses the wire at all[/b] (#755). Until then
-## the host flipped [member Entity.is_human_controlled] alone and every mirror's
-## copy stayed `true` — but [method SeatPolicy.vision_group] is an ALLIED-HUMANS
-## reveal keyed on exactly that flag, so a coop ally on a third machine went on
-## seeing through a hero the host had already stopped sharing with. Fog is
-## local-view-only, so this was never a desync of the authoritative world; it
-## was two machines drawing different maps of it, which is worse to play with
-## and impossible to notice from a fingerprint.
-##
-## [method _apply_seat_vision] is re-run explicitly because that group is
-## COMPUTED, not reactive: flipping the flag without it leaves the stale fog in
-## place until something else happens to recompute.
-func _adopt_seat_handover(participant: Participant) -> Entity:
-	participant.kind = Participant.Kind.AI
-	var ent := _entity_for_participant(participant.id)
-	if ent == null:
-		return null
-	ent.is_human_controlled = false
+## A seat passed to the AI on this peer ([signal SeatHandover.seat_handed_over]).
+## Seat vision is re-derived because [method SeatPolicy.vision_group] is
+## computed from [member Entity.is_human_controlled], not reactive to it; the
+## banner is skipped when the handover was asked for rather than forced.
+func _on_seat_handed_over(entity: Entity, quiet: bool) -> void:
 	_apply_seat_vision()
-	# ...but NOT the announcement, when the handover was asked for rather than
-	# forced (#754). `--autoplay` hands both seats over on purpose and nobody
-	# left; a HUD crying that somebody did would be the harness lying about the
-	# very run it is checking. Read from the flag rather than passed down as an
-	# argument because this method is also the MIRROR's entry
-	# ([method _on_seat_handover]), which is told a seat changed hands and never
-	# why — and both processes carry the flag.
-	if not HarnessFlags.has(HarnessFlags.AUTOPLAY):
-		hud_root.announce_peer_left(ent.display_name)
-	return ent
-
-
-func _entity_for_participant(participant_id: int) -> Entity:
-	if participant_id == 0:
-		return null
-	for node in get_tree().get_nodes_in_group(Entity.GROUP):
-		var ent := node as Entity
-		if ent != null and ent.participant_id == participant_id:
-			return ent
-	return null
+	if not quiet:
+		hud_root.announce_peer_left(entity.display_name)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -832,48 +741,10 @@ func _on_turn_started_for_handover(entity: Entity) -> void:
 	bind_player(entity)
 
 
-## Attaches a default [EntityController] child to any [Entity] in the level
-## that doesn't already have one: [PlayerController] where [member
-## Entity.is_human_controlled] is set, [AIController] otherwise. No-op if the
-## scene/code already wired a controller — explicit composition always wins.
-##
-## Reads [member Entity.is_human_controlled] rather than comparing identity
-## against [member player] — that authored-per-entity flag is what
-## [method apply_roster] sets from a [Participant]'s kind, and it's also what
-## a hand-authored scene (dev_sandbox) sets directly on its `%Player` node.
-## #475: this is the seam that stops assuming "the player" is singular.
+## Invariant: every [Entity] carries an [EntityController] — see
+## [method ControllerFactory.ensure_all]. Idempotent.
 func _ensure_controllers() -> void:
-	for node in get_tree().get_nodes_in_group("entities"):
-		var ent := node as Entity
-		if ent == null:
-			continue
-		if _find_controller(ent) != null:
-			continue
-		var ctrl: EntityController
-		if ent.is_human_controlled:
-			ctrl = PlayerController.new()
-			ctrl.name = "PlayerController"
-		else:
-			ctrl = _new_ai_controller(ent)
-		ent.add_child(ctrl)
-
-
-## The one place an [AIController] is built. Its tier is the seat's
-## [member Participant.ai_tier], looked up in [member GameSession.roster] by
-## [member Entity.participant_id]; with no roster or no matching seat (a
-## hand-authored sandbox) the controller keeps [constant AIController.DEFAULT_TIER].
-## Nothing else in production writes [member AIController.ai_tier].
-func _new_ai_controller(ent: Entity) -> AIController:
-	var ai := AIController.new()
-	ai.name = "AIController"
-	ai.command_applier = command_applier
-	ai.battle_system = battle_system
-	ai.loot_system = loot_system
-	if GameSession.roster != null and ent.participant_id != 0:
-		var seat := GameSession.roster.by_id(ent.participant_id)
-		if seat != null:
-			ai.ai_tier = seat.ai_tier as AIController.Tier
-	return ai
+	controller_factory.ensure_all()
 
 
 ## Applies each roster participant's authored camp + control-kind + name onto its
@@ -907,13 +778,6 @@ static func apply_roster(entities_by_participant_id: Dictionary, roster: Partici
 		# stays rather than blanking the presentation.
 		if not participant.display_name.is_empty():
 			ent.display_name = participant.display_name
-
-
-static func _find_controller(ent: Entity) -> EntityController:
-	for child in ent.get_children():
-		if child is EntityController:
-			return child as EntityController
-	return null
 
 
 ## Subclass hook. Default = pick up an existing `%Player` node from the scene

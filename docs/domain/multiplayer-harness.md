@@ -229,7 +229,7 @@ stale: #512 landed, and `AIController` emits commands through `CommandApplier`
 like everything else, so restoring the AI keeps every mutation on the mirrored
 path just as well, and turns the harness into a player-against-an-opponent
 rather than two humans hot-seated. Restoring it exposes a real trap:
-`GameRoot._ensure_controllers` attaches an `AIController` to Blue on BOTH
+`ControllerFactory.ensure_all` attaches an `AIController` to Blue on BOTH
 peers, and that controller resolves *its own peer's* `CommandApplier` — so a
 MIRROR peer's copy would decide and submit independently of the host's AI the
 instant a mirrored `EndTurnCommand` hands Blue the turn locally. Closed by
@@ -479,7 +479,7 @@ and the two cases are deliberately different:
   way out, `route_to_meta_now`.
 - **A seated peer left the host** (`peer_left`, host only — a client ignores a
   sibling leaving). The run goes on for everyone still here.
-  `GameRoot.hand_seat_to_ai` flips the seat's `Participant.kind` to AI on the
+  `SeatHandover.hand_seat_to_ai` flips the seat's `Participant.kind` to AI on the
   host's roster copy *first* — `LootPickRegistry.is_remote_collector` reads it,
   and a HUMAN seat with a dead peer would park every relic that hero claims on a
   pick nobody sends (#646) — then swaps its `PlayerController` for an
@@ -796,11 +796,11 @@ godot --headless --path . -- --lobby=client --address=127.0.0.1 --port=9412 --au
 
 **`--autoplay` is the host handing every human seat to the AI.** At the first
 `turn_started`, `GameRoot._autoplay_every_human_seat` walks the roster and calls
-`hand_seat_to_ai` on every `Participant.Kind.HUMAN` — the peer-left path's own
+`SeatHandover.hand_seat_to_ai` on every `Participant.Kind.HUMAN` — the peer-left path's own
 primitive (#753/#755), unchanged, so the handover is BROADCAST and the mirror's
 roster learns the seat is the AI's rather than believing a human still holds it.
-The flag suppresses exactly one thing, in `_adopt_seat_handover` and on both
-peers: the "somebody left" announcement. Nobody left, and a HUD saying otherwise
+The flag suppresses exactly one thing (via `SeatHandover.quiet`, riding
+`seat_handed_over`) on both peers: the "somebody left" announcement. Nobody left, and a HUD saying otherwise
 would be the harness lying about the run it is checking.
 **The client acts on nothing**: it
 is a mirror, its hero is driven by the host's confirmed commands, and a second

@@ -12,7 +12,7 @@ extends EntityController
 ## sandbox scenes silently stall when nobody remembered to attach a
 ## controller to non-player entities either.
 ##
-## [GameRoot._ensure_controllers] attaches this automatically post-
+## [ControllerFactory.ensure_all] attaches this automatically post-
 ## [code]_setup_level()[/code] for any entity matching [member GameRoot.player]
 ## that lacks an EntityController child.
 
