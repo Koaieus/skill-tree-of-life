@@ -34,16 +34,38 @@ var shots_fired_this_turn: int = 0
 var damaged_since_upkeep: bool = false
 
 
-## Mint [member board] from [param template] (deep clone) if not yet ready.
-## Signal hookups stay with the caller — a connection is not state.
+## Mint [member board] if not yet ready: a DEEP clone of the authored
+## [member board] when one is set, of [param template] otherwise, so this state
+## owns its Stat instances outright. Raises [member board_ready]. Returns the
+## board; a no-op on an already-minted state. Signal hookups, intrinsics and
+## the backing push stay with the caller — a connection is not state, and the
+## caller must connect before the push so its handlers see it.
 func ensure_board(template: NodeStatBoard) -> NodeStatBoard:
-	push_error("NodeState.ensure_board: stub (#1130)")
+	if board_ready:
+		return board
+	var source: NodeStatBoard = board if board != null else template
+	board = source.duplicate(true)
+	board_ready = true
 	return board
 
 
 ## A detached copy at COMBAT depth: [member board] via
 ## [method StatBoard.clone_live], [member tags] duplicated, everything else
-## copied by value or (modifiers, effects, owner identity) by reference.
+## copied by value or (modifiers, effects, local modifiers, owner identity) by
+## reference.
 func clone() -> NodeState:
-	push_error("NodeState.clone: stub (#1130)")
-	return null
+	var c := NodeState.new()
+	c.owned_by = owned_by
+	c.board = board.clone_live() as NodeStatBoard if board != null else null
+	c.board_ready = board_ready and c.board != null
+	c.tags = tags.duplicate()
+	c.modifiers = modifiers
+	c.effects = effects
+	c.local_modifiers = local_modifiers
+	c.stake_level_backing = stake_level_backing
+	c.allocation_level_backing = allocation_level_backing
+	c.last_allocation_level = last_allocation_level
+	c.regen_stacks = regen_stacks
+	c.shots_fired_this_turn = shots_fired_this_turn
+	c.damaged_since_upkeep = damaged_since_upkeep
+	return c

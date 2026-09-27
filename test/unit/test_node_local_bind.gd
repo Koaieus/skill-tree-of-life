@@ -121,7 +121,7 @@ func test_no_local_modifiers_leaves_extra_stats_empty() -> void:
 	# template until something needs it — a node that needs nothing never pays
 	# for a clone — and once cloned, the stats it BORROWS stay sparse while the
 	# ones it OWNS come baked. See NodeStatBoard.
-	assert_false(node._node_board_ready,
+	assert_false(node.state.board_ready,
 			"no local modifier ever added -> the authored board is never cloned or wired")
 	assert_eq(node.node_board, SkillNode.DEFAULT_NODE_BOARD,
 			"until then it still points at the shared authored template, unmodified")

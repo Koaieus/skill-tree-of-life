@@ -79,15 +79,21 @@ var state := NodeState.new()
 # null  → unallocated
 # !null → allocated
 @export var owned_by: Entity = null:
+	get:
+		return state.owned_by
 	set(value):
-		if owned_by == value:
+		if state.owned_by == value:
 			return
-		owned_by = value
+		state.owned_by = value
 		owner_changed.emit()
 
 ## The modifier offerings this node carries — pushed onto an allocating
 ## entity's stat board by AllocationSystem. Node-level data, no behaviour.
-@export var modifiers: Array[StatModifier] = []
+@export var modifiers: Array[StatModifier] = []:
+	get:
+		return state.modifiers
+	set(value):
+		state.modifiers = value
 
 ## [Effect]s this node grants to its owner: [AllocationSystem] grants each on
 ## allocate and revokes them (keyed by this node) on deallocate. This is the
@@ -95,7 +101,11 @@ var state := NodeState.new()
 ## hand-authored inherited scene of `entity/keystone/keystone_skill_node.tscn`;
 ## a pure stat grant goes in [member modifiers] instead. Procgen's rolled
 ## [SpellGrant]s land here too via [method add_effect].
-@export var effects: Array[Effect] = []
+@export var effects: Array[Effect] = []:
+	get:
+		return state.effects
+	set(value):
+		state.effects = value
 
 ## Tooltip identity — a single line, PoE-keystone style (#179). Empty means
 ## "no name to show"; callers render nothing. Opt-in authoring surface: a
@@ -268,7 +278,11 @@ var _status_tick_connected: bool = false
 ## as the PARENT instances (composites stay whole) so the local-scale mutator
 ## (#376) can walk the walk and consult each parent's override. Populated by
 ## [method add_local_modifier] / emptied by [method remove_local_modifier].
-var _local_modifiers: Array[StatModifier] = []
+var _local_modifiers: Array[StatModifier] = []:
+	get:
+		return state.local_modifiers
+	set(value):
+		state.local_modifiers = value
 
 ## [b]Two of the four ledgers this comment used to describe are gone — see
 ## #377.[/b] `_addon_local_clones` / `_addon_entity_clones` existed because a
@@ -301,7 +315,11 @@ var _scaled_effect_sets: Dictionary[Effect, Array] = {}
 
 ## Old fill for the mutator's (old_al, new_al) pair — PoolStat.current_changed
 ## only carries the new value.
-var _last_allocation_level: int = 0
+var _last_allocation_level: int = 0:
+	get:
+		return state.last_allocation_level
+	set(value):
+		state.last_allocation_level = value
 
 ## Sensed-but-not-visible flag, written by VisionSystem on every recompute.
 ## Drives NodeVisualsComposite's archetype-only outline (SensedOutline, #141).
@@ -364,17 +382,23 @@ const DEFAULT_NODE_BOARD: NodeStatBoard = preload("res://skill_node/default_node
 ## Assigning this ALWAYS resets [member _node_board_ready] — the property means
 ## "here is the authored board", so a fresh one (or `null`, which sandboxes use
 ## to make a board-less node) must be re-cloned and re-wired on next need
-## instead of inheriting the previous board's initialization. Self-assignment
-## inside a setter does not recurse in Godot 4; [method _init_node_board] relies
-## on that and re-raises the flag after its own write.
+## instead of inheriting the previous board's initialization. The mint itself
+## ([method NodeState.ensure_board]) writes [member state] directly, so it never
+## passes through this reset.
 @export var node_board: NodeStatBoard = null:
+	get:
+		return state.board
 	set(value):
-		node_board = value
-		_node_board_ready = false
+		state.board = value
+		state.board_ready = false
 
 ## True once [method _init_node_board] has cloned + wired the board. NOT the
 ## same question as `node_board != null` — see the note above.
-var _node_board_ready: bool = false
+var _node_board_ready: bool = false:
+	get:
+		return state.board_ready
+	set(value):
+		state.board_ready = value
 
 ## Refcounted status markers ("poisoned", "lifeline", ...) — the non-numeric
 ## sibling to [member node_board]. See docs/design/status-tags.md. Sparse:
@@ -382,7 +406,11 @@ var _node_board_ready: bool = false
 ## not a bool, because multiplicity is real — two effects granting the same
 ## tag must both need to revoke before it clears. Granted/revoked through
 ## [method EffectContext.grant_tag] / `revoke`, never written to directly.
-var _tags: Dictionary[StringName, int] = {}
+var _tags: Dictionary[StringName, int] = {}:
+	get:
+		return state.tags
+	set(value):
+		state.tags = value
 
 ## Per-node allocation cap — the N in the M/N dial, and `.max` of the
 ## node-board `stake_level` PoolStat (the baked [member NodeStatBoard.stake_level]).
@@ -412,7 +440,11 @@ var _tags: Dictionary[StringName, int] = {}
 		_stake_level_backing = value
 		_push_stake_level()
 		_refresh_radius()
-var _stake_level_backing: int = 1
+var _stake_level_backing: int = 1:
+	get:
+		return state.stake_level_backing
+	set(value):
+		state.stake_level_backing = value
 
 ## Per-node allocation fill — the M in M/N. 0 = unowned, 1 = baseline,
 ## 2+ = staked. Mirrors `stake_level` PoolStat.current; the pool's clamp
@@ -430,14 +462,22 @@ var _stake_level_backing: int = 1
 		_push_allocation_level()
 		if is_node_ready():
 			_sync_visuals()
-var _allocation_level_backing: int = 0
+var _allocation_level_backing: int = 0:
+	get:
+		return state.allocation_level_backing
+	set(value):
+		state.allocation_level_backing = value
 
 ## Consecutive turns this node has regenerated without taking damage, feeding
 ## `node_healing_ramp` (D-9). Runtime state, not a stat — same rationale as
 ## node HP itself: see docs/domain/node-hp.md. Reset to 0 on damage taken and
 ## on reaching full HP; incremented by [method apply_turn_regen] each time it
 ## grants a ramped heal.
-var regen_stacks: int = 0
+var regen_stacks: int = 0:
+	get:
+		return state.regen_stacks
+	set(value):
+		state.regen_stacks = value
 
 ## Arrows fired from this leaf during the current turn (#956). Runtime state,
 ## not a stat — the `regen_stacks` precedent: per-node combat bookkeeping
@@ -450,8 +490,10 @@ var regen_stacks: int = 0
 ## of who owns the node by then. Bumped only by [method mark_shot_fired],
 ## called from the command commit path so mirrors reproduce it.
 var shots_fired_this_turn: int = 0:
+	get:
+		return state.shots_fired_this_turn
 	set(value):
-		shots_fired_this_turn = value
+		state.shots_fired_this_turn = value
 		# #959: both writers — mark_shot_fired's `+=` and the firer's turn-end
 		# `= 0` in Entity._on_turn_ended — land here, so the pip row refreshes
 		# off the write itself and never per frame.
@@ -475,7 +517,11 @@ func mark_shot_fired(n: int = 1) -> void:
 ## Set by [method take_damage] whenever a hit actually reduces this node's
 ## HP; cleared by [method apply_turn_regen]. Gates the D-9 base heal — a node
 ## hit since its last upkeep gets no base heal this turn and its ramp resets.
-var _damaged_since_upkeep: bool = false
+var _damaged_since_upkeep: bool = false:
+	get:
+		return state.damaged_since_upkeep
+	set(value):
+		state.damaged_since_upkeep = value
 
 # Hit-flash bookkeeping. Killed and re-created on every hit so back-to-back
 # damage doesn't visually merge into one stuck red.
@@ -1494,9 +1540,9 @@ func _init_node_board() -> void:
 	# into sub-resources, so every SkillNode in the level would share one set of
 	# Stats and every local modifier would apply globally. Same reason
 	# Entity._ready duplicates instead of relying on the flag.
-	var source: NodeStatBoard = node_board if node_board != null else DEFAULT_NODE_BOARD
-	node_board = source.duplicate(true)   # clears the flag via the setter...
-	_node_board_ready = true              # ...so re-raise it here, after the write
+	# The clone itself is state's: see NodeState.ensure_board. Everything from
+	# here down is the node's wiring onto that fresh instance.
+	state.ensure_board(DEFAULT_NODE_BOARD)
 	# The reactive edge feeding the #376 local-scale mutator, and the read side
 	# of the `stake_level__current` accessor. Connected here rather than in the
 	# template because a signal connection is not a resource property.
