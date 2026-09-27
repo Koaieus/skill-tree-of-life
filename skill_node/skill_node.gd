@@ -68,6 +68,13 @@ signal depleted
 ## is the sole subscriber today; #876's readout row gets the same trigger.
 signal statuses_changed
 
+## The node's authoritative, SILENT state — every field below that reads or
+## writes it is a forwarder whose setter keeps the node's emits and visual
+## syncs. Declared first so every later field initialiser (notably
+## [member _combat]) finds it. Not exported: the forwarders carry the
+## serialized surface, so the `.tscn` format and `duplicate(true)` are unchanged.
+var state := NodeState.new()
+
 # `owned_by` is the single source of truth for allocation:
 # null  → unallocated
 # !null → allocated
