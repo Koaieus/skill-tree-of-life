@@ -1090,8 +1090,15 @@ fixture side (`test_blade_whip_reach.gd`'s addon-then-`physics_frame` dance
 exists because of it); this is the production side, which had no guard at all
 before #814.
 
-**The fix is a debug-only cross-check, not a production-side correction.**
-`BladeDefenderZones.query()` — the only call site, gated `OS.is_debug_build()` —
+**The production-side correction is a dirty-frame fallback (#1136).** The two
+collision writers on `SkillNode` (radius sync, `_sync_defender_bit`) call
+`BladeDefenderZones.mark_broadphase_dirty()`; while the stamp is the current
+physics frame, `query()` fills the zones from a graph walk instead of
+`intersect_shape`, so release and debug resolve alike, and the O(map) walk is
+paid only inside that window. A same-frame *position* move does not stamp.
+
+The debug cross-check remains on the physics path:
+`BladeDefenderZones.query()` — gated `OS.is_debug_build()` —
 re-walks `graph.get_skill_nodes()` for anything carrying `swing_drag > 0` or
 `deflection` within the query's own `whip_bound` disc, diffs it against what
 `intersect_shape` actually returned, and `push_warning`s the node's name for
