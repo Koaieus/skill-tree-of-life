@@ -90,6 +90,7 @@ func _live_spy() -> SpyCombat:
 ## shadow: cloned board, a mirror over the owned roster, the core shadow.
 func _shadow_spy() -> SpyCombat:
 	var spy := SpyCombat.new()
+	spy._origin = _entity
 	spy._board = _entity.stat_board.clone_live()
 	spy._mirror = GraphMirror.new()
 	spy._mirror.graph = _graph
