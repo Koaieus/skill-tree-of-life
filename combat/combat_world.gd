@@ -111,7 +111,11 @@ func combat_for(node: SkillNode) -> NodeCombat:
 		known = combat_for_entity(owner_entity).shadow_for(node)
 		if known != null:
 			return known
-	var orphan := node.get_combat().snapshot(null)
+	var orphan := node.get_combat().snapshot(self)
+	# Un-owned: an orphan exists because `owned_by` disagrees with the owner's
+	# navigator, and resolving it would snapshot that entity for a node it
+	# does not hold.
+	orphan._state.owned_by = null
 	_nodes[node] = orphan
 	_orphans.append(orphan)
 	return orphan
@@ -178,9 +182,11 @@ func free_shadow() -> void:
 	for shadow_entity in entities:
 		shadow_entity.free_shadow()
 	for orphan in _orphans:
-		if orphan._board != null:
-			orphan._board.release()
-			orphan._board = null
+		if orphan._state.board != null:
+			orphan._state.board.release()
+			orphan._state.board = null
+			orphan._state.board_ready = false
+		orphan._world = null
 		orphan._real = null
 	_orphans.clear()
 	_entities.clear()

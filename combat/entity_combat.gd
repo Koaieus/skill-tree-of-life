@@ -149,14 +149,15 @@ func free_shadow() -> void:
 	# still uncollectable (#514's cycle). `_shadow_by_real` never shrinks, which
 	# is what makes it the complete roster.
 	for n in _shadow_by_real.values():
-		if n._board != null:
-			n._board.release()
-			n._board = null
+		if n._state.board != null:
+			n._state.board.release()
+			n._state.board = null
+			n._state.board_ready = false
 	if _board != null:
 		_board.release()
 		_board = null
 	for n in _shadow_by_real.values():
-		n._owner = null
+		n._world = null
 		n._real = null
 	_owned.clear()
 	_shadow_by_real.clear()
@@ -380,11 +381,13 @@ func shadow_for(real_node: SkillNode) -> NodeCombat:
 		return known
 	if _mirror == null or _mirror.vertex_id(real_node) < 0:
 		return null
-	var node_shadow: NodeCombat = real_node.get_combat().snapshot(self)
+	# world(), never the raw `_world`: a bare snapshot has none until asked,
+	# and the node's owner() resolves through the world it was minted by.
+	var w := world()
+	var node_shadow: NodeCombat = real_node.get_combat().snapshot(w)
 	_owned.append(node_shadow)
 	_shadow_by_real[real_node] = node_shadow
-	if _world != null:
-		_world.index_node(real_node, node_shadow)
+	w.index_node(real_node, node_shadow)
 	return node_shadow
 
 
@@ -902,7 +905,7 @@ func _strip_one(node: NodeCombat) -> void:
 	if node == null or not _owned.has(node):
 		return
 	_owned.erase(node)
-	node._owner = null
+	node._state.owned_by = null
 	var real: SkillNode = node.real()
 	if real != null and _mirror != null:
 		_mirror.mirror_remove(real)

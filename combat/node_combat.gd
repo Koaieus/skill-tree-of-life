@@ -12,13 +12,11 @@ extends RefCounted
 ## - [method _init], for a LIVE slice: `host` is the real [SkillNode].
 ## - [method snapshot], for a SHADOW: `host` is null forever, and every method
 ##   below branches on that null exactly once (`if host != null:` — never a
-##   second, preview-specific branch). Ownership and board storage do NOT
-##   move onto this class even for a shadow — [member owner] / [member board]
-##   are ACCESSORS that read through [member host] when live and fall back to
-##   [member _owner] / [member _board] only when it's null. Reading through
-##   `host` on every call (never caching) is deliberate: [AllocationSystem]
-##   writes `node.owned_by` directly and knows nothing about this slice, so a
-##   cached owner would go stale silently the moment it does.
+##   second, preview-specific branch). STORAGE never branches: every state
+##   read and write goes to [member _state] — the host's own [NodeState] when
+##   live (so an [AllocationSystem] write to `node.owned_by` is seen with nobody
+##   telling this slice), a [method NodeState.clone] when shadow. The `host`
+##   branches that remain select NOTIFICATION, or the live owner's slice.
 var host: SkillNode
 ## The real [SkillNode] this slice stands for, on a SHADOW — its IDENTITY, never
 ## its state. Set once by [method snapshot], read through [method real].
@@ -32,56 +30,51 @@ var host: SkillNode
 ## legitimately go through it are static facts of the real world that no attack
 ## mutates: topology, and the addon roster ([method get_spike_power]).
 var _real: SkillNode
-## Meaningful ONLY when [member host] == null (a shadow). Set once, by
-## [method snapshot], never reassigned afterward.
-var _owner: EntityCombat
-## Meaningful ONLY when [member host] == null (a shadow) — the shadow's own
-## deep-cloned [NodeStatBoard], standing in for [member SkillNode.node_board].
-var _board: NodeStatBoard
-## Meaningful ONLY when [member host] == null — the shadow's own refcounted tag
-## set (#520). Storage, unlike ownership, genuinely has to move for a shadow:
-## an [Effect] recomputing against one grants and revokes tags, and there is no
-## real node those may land on. Live reads go straight to
-## [member SkillNode._tags] through [method _tag_store], so there is still only
-## one tag dictionary per real node.
-var _tags: Dictionary[StringName, int] = {}
+## The node's state — owner identity, board, tags. Live: [member SkillNode.state]
+## itself, shared, so there is one store per real node. Shadow: the
+## [method NodeState.clone] made at [method snapshot], whose `owned_by` still
+## names the REAL [Entity] until a strip nulls it. A bare `NodeCombat.new()`
+## gets an empty state of its own.
+var _state := NodeState.new()
+## Meaningful ONLY on a shadow — the world that minted it, through which
+## [method owner] resolves `_state.owned_by` to that world's [EntityCombat].
+## Nulled by [method EntityCombat.free_shadow] / [method CombatWorld.free_shadow]:
+## `NodeCombat → CombatWorld → _nodes → NodeCombat` is a [RefCounted] cycle.
+var _world: CombatWorld
 ## The status slice (#872), composed as one [StatusHost] (#995): every
-## [StatusDef] currently on this node lives in it. Unlike [member _tags], this
+## [StatusDef] currently on this node lives in it. Unlike [NodeState], this
 ## is the ONE store live AND shadow — [SkillNode] has no status field, the
 ## slice is its sole owner, and a [method snapshot] clones the rows so a
 ## shadow tick never moves the live one. This slice is the host's `owner`:
 ## every def hook sees the NodeCombat, never the StatusHost.
 var _status_host := StatusHost.new(self)
-## STUB (#1141 red): the slice's NodeState.
-var _state := NodeState.new()
 
 
 func _init(p_host: SkillNode = null) -> void:
 	host = p_host
+	if p_host != null:
+		_state = p_host.state
 
 
 ## The owning [EntityCombat] slice. Live: [code]host.owned_by.get_combat()[/code],
-## read fresh every call — see the class doc's no-caching rule. Shadow: the
-## `_owner` set once by [method snapshot].
+## read fresh every call. Shadow: the minting world's slice for the clone's
+## `owned_by` — null once a strip has nulled it, or once the world is severed.
 func owner() -> EntityCombat:
+	# Null-guarded: GDScript has no safe-navigation operator, and an
+	# unallocated node's `owned_by` genuinely is null.
+	var e := _state.owned_by
+	if e == null:
+		return null
 	if host != null:
-		# Null-guarded, not a bare `host.owned_by.get_combat()` — GDScript has
-		# no safe-navigation operator, and an unallocated live node's
-		# `owned_by` genuinely is null (that's what `is_allocated() == false`
-		# means), so calling straight through would crash on every
-		# unallocated read instead of just answering "no owner".
-		return host.owned_by.get_combat() if host.owned_by != null else null
-	return _owner
+		return e.get_combat()
+	return _world.combat_for_entity(e) if _world != null else null
 
 
-## This node's [NodeStatBoard]. Live: [member SkillNode.node_board] (only once
-## [member SkillNode._node_board_ready] — a lazily-materialized board that
-## hasn't minted yet reads as absent, same as every other node_board read in
-## this file). Shadow: the deep clone made at [method snapshot].
+## This node's [NodeStatBoard], only once [member NodeState.board_ready] — a
+## lazily-materialized board that hasn't minted yet reads as absent. Shadow:
+## the board cloned at [method snapshot].
 func board() -> NodeStatBoard:
-	if host != null:
-		return host.node_board if host._node_board_ready else null
-	return _board
+	return _state.board if _state.board_ready else null
 
 
 func is_allocated() -> bool:
@@ -97,27 +90,25 @@ func is_core() -> bool:
 
 
 ## Build a detached shadow of this LIVE slice (see the class doc — never call
-## on a slice that is already a shadow), owned by [param owner_combat].
-## `host` on the result is null FOREVER. Deep-clones [member SkillNode.node_board]
-## exactly like [method SkillNode._init_node_board] clones the authored
-## template, so the shadow gets its own [PoolStat] with the live current/max —
-## "real PoolStat semantics", not a captured float.
-func snapshot(owner_combat: EntityCombat) -> NodeCombat:
+## on a slice that is already a shadow), minted by [param world], through which
+## its [method owner] resolves. `host` on the result is null FOREVER. Its state
+## is a [method NodeState.clone] — the board via `clone_live`, so the shadow gets
+## its own [PoolStat] with the live current/max ("real PoolStat semantics", not a
+## captured float), and `owned_by` still naming the real [Entity].
+func snapshot(world: CombatWorld) -> NodeCombat:
 	var shadow := NodeCombat.new()
-	shadow._owner = owner_combat
+	shadow._world = world
 	shadow._real = host
 	if host != null:
-		shadow._tags = host._tags.duplicate()
 		_status_host.clone_into(shadow._status_host)
 		host._init_node_board()
-		# clone_live, not duplicate(true) — see its doc on StatBoard.
-		shadow._board = host.node_board.clone_live() as NodeStatBoard
+		shadow._state = _state.clone()
 		# The clone's `node_health` pool must resolve through the SHADOW's owner,
-		# never the live one. `base_provider` is not exported so `duplicate()`
-		# does not carry it, but `clone_live` copies stat-by-stat — clear it
-		# explicitly rather than rely on that, then let `_hp_pool` reinstall this
-		# slice's own on first read.
-		var shadow_hp := shadow._board.get_stat(&"node_health") as PoolStat
+		# never the live one. `clone_live` copies stat-by-stat — clear the
+		# provider explicitly rather than rely on that, then let `_hp_pool`
+		# reinstall this slice's own on first read.
+		var shadow_board := shadow.board()
+		var shadow_hp := shadow_board.get_stat(&"node_health") as PoolStat if shadow_board != null else null
 		if shadow_hp != null:
 			shadow_hp.base_provider = Callable()
 	return shadow
@@ -140,10 +131,7 @@ func real() -> SkillNode:
 ## entities, not about a slice, and a shadow's owner still knows which entity it
 ## shadows ([method EntityCombat.real_entity]).
 func ownership_bit(viewer: Entity) -> int:
-	var o := owner()
-	if o == null:
-		return SkillNode.Ownership.NEUTRAL
-	var owner_entity := o.real_entity()
+	var owner_entity := _state.owned_by
 	if owner_entity == null:
 		return SkillNode.Ownership.NEUTRAL
 	if owner_entity == viewer:
@@ -447,22 +435,15 @@ func take_damage(amount: float, source: HitInstance) -> void:
 				source.deallocations = entries
 
 
-## The refcounted tag dictionary to read and write — the real node's when live,
-## this slice's own when shadow. One store per world, never a copy of another
-## world's.
-func _tag_store() -> Dictionary[StringName, int]:
-	return host._tags if host != null else _tags
-
-
 ## State half of [method SkillNode.add_tag].
 func add_tag(tag: StringName) -> void:
-	var store := _tag_store()
+	var store := _state.tags
 	store[tag] = store.get(tag, 0) + 1
 
 
 ## State half of [method SkillNode.remove_tag].
 func remove_tag(tag: StringName) -> void:
-	var store := _tag_store()
+	var store := _state.tags
 	var count: int = store.get(tag, 0) - 1
 	if count <= 0:
 		store.erase(tag)
@@ -471,7 +452,7 @@ func remove_tag(tag: StringName) -> void:
 
 
 func has_tag(tag: StringName) -> bool:
-	return _tag_store().get(tag, 0) > 0
+	return _state.tags.get(tag, 0) > 0
 
 
 ## State half of [method SkillNode.add_local_modifier] for the shadow's benefit
@@ -490,15 +471,16 @@ func add_local_modifier(m: StatModifier) -> void:
 	if host != null:
 		host.add_local_modifier(m)
 		return
-	if _board == null:
+	var b := board()
+	if b == null:
 		return
-	var cycle := _board.cycle_from(m)
+	var cycle := b.cycle_from(m)
 	if not cycle.is_empty():
 		push_warning("NodeCombat.add_local_modifier: rejected a modifier that would close a formula dependency cycle: %s" % cycle)
 		return
 	for leaf in m.flatten():
-		_board.bind_modifier(leaf)
-		_board._ensure_stat(leaf.stat_id).add_modifier(leaf, _board)
+		b.bind_modifier(leaf)
+		b._ensure_stat(leaf.stat_id).add_modifier(leaf, b)
 
 
 ## State half of [method SkillNode.remove_local_modifier]. Removal is by object
@@ -511,13 +493,14 @@ func remove_local_modifier(m: StatModifier) -> void:
 	if host != null:
 		host.remove_local_modifier(m)
 		return
-	if _board == null:
+	var b := board()
+	if b == null:
 		return
 	for leaf in m.flatten():
-		var s: Stat = _board.get_stat(leaf.stat_id)
+		var s: Stat = b.get_stat(leaf.stat_id)
 		if s != null:
-			_board.unbind_modifier(leaf)
-			s.remove_modifier(leaf, _board)
+			b.unbind_modifier(leaf)
+			s.remove_modifier(leaf, b)
 
 
 ## State half of [method SkillNode.heal_damage] — see that method for the
