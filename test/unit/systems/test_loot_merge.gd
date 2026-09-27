@@ -1,7 +1,7 @@
 extends GutTest
 
 ## Entity.absorb_core_modifier (#775) — the loot merge verb. SkillDust pickup
-## (SkillDustAddon._grant_mod) routes a looted grant through here instead of
+## (SkillDustAddon.grant_mod) routes a looted grant through here instead of
 ## Entity.grant_core_modifier: an EQUIVALENT existing grant (same stat_id +
 ## operation + formula, ignoring `value` — StatModifierCodec.merge_key) adds
 ## coefficients into ONE modifier instead of holding another copy.

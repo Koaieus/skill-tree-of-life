@@ -427,6 +427,7 @@ func test_pickup_merges_equivalent_grants_instead_of_stacking_copies() -> void:
 	dust_a.weights = [1.0]
 	dust_a.rounds = 1
 	relic_a.add_child(dust_a)
+	_loot.adopt_relic(dust_a)
 
 	var relic_b := _SKILL_NODE_SCENE.instantiate() as SkillNode
 	relic_b.name = "RelicB"
@@ -437,6 +438,7 @@ func test_pickup_merges_equivalent_grants_instead_of_stacking_copies() -> void:
 	dust_b.weights = [1.0]
 	dust_b.rounds = 1
 	relic_b.add_child(dust_b)
+	_loot.adopt_relic(dust_b)
 
 	_killer.stat_board.skill_points.grant(5)
 	assert_true(_alloc.allocate(relic_a, _killer), "killer claims relic A")
@@ -614,6 +616,7 @@ func test_sequential_would_cycle_filtering_closes_the_joint_cycle_gap() -> void:
 	dust.weights = [1.0, 1.0]
 	dust.rounds = 2
 	relic.add_child(dust)
+	_loot.adopt_relic(dust)
 
 	var captured: Array[LootPickRequest] = []
 	var handler := func(req: LootPickRequest) -> void:

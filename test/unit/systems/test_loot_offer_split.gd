@@ -80,8 +80,6 @@ func _build_world(label: String, candidates: Array[StatModifier],
 	addon.candidates = candidates
 	addon.weights = weights
 	addon.rounds = 1
-	addon.command_applier = applier
-	addon.pick_registry = registry
 	relic.add_child(addon)
 
 	return {
@@ -102,15 +100,19 @@ func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
 	return link
 
 
-## Bypasses the real pickup event ([method
-## SkillDustAddon._on_carrier_owner_changed]), which these wire-focused tests
-## don't need to exercise, via the addon's own entry point (#935) — which
-## kicks off the SAME authority-side resolver `_on_carrier_owner_changed`
-## would (#646: there is no "submit an empty command" door left; the
+## Bypasses the real pickup event ([signal SkillDustAddon.claimed], gated by
+## [LootSystem]), which these wire-focused tests don't need to exercise, via
+## the loot round controller's own entry point — the SAME authority-side
+## resolver a real pickup opens (#646: there is no "submit an empty command" door left; the
 ## offer/pick/roll sequence has to be started directly).
 func _open_stat_round(world: Dictionary) -> void:
 	var addon: SkillDustAddon = world["addon"]
-	addon.open_round_for(world["collector"], 1)
+	var applier: CommandApplier = world["applier"]
+	var ctx := CommandContext.new()
+	ctx.graph = applier.graph
+	ctx.command_applier = applier
+	ctx.loot_pick_registry = applier.loot_pick_registry
+	LootRoundCommandHandler.new().open_round(addon, world["collector"], ctx, 1)
 
 
 func test_a_local_or_npc_round_still_mirrors_correctly() -> void:

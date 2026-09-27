@@ -150,9 +150,9 @@ var seat_policy: SeatPolicy = null
 ## code on every peer, and [LaunchAttackCommand] carries which half of the work
 ## is already done in its own payload rather than asking about a role. The
 ## exception is a mutation a peer STARTS on its own, from a local reaction
-## rather than from a received command — [SkillDustAddon]'s claim flow opens on
+## rather than from a received command — a relic's claim opens on
 ## `owner_changed`, which fires on every peer that applies the allocation. That
-## one needs gating; see its `_on_carrier_owner_changed`.
+## one needs gating; see [method LootSystem._on_relic_claimed].
 var is_authority: bool = true
 
 ## Who this peer is on the link, for minting a globally-unique

@@ -63,8 +63,6 @@ func _build_world(label: String, candidates: Array[StatModifier],
 	addon.candidates = candidates
 	addon.weights = weights
 	addon.rounds = 1
-	addon.command_applier = applier
-	addon.pick_registry = registry
 	relic.add_child(addon)
 
 	return {
@@ -96,12 +94,17 @@ func _mirror_adapter(applier: CommandApplier, link: CommandLink) -> LootSystem:
 	return system
 
 
-## Latches the addon's internal round state directly — bypassing the real
-## pickup event — and kicks off the same authority-side resolver a real pickup
+## Opens the claim through the loot round controller directly — bypassing the
+## real pickup event — which kicks off the same authority-side resolver a real pickup
 ## would. See `test_loot_offer_split.gd`'s copy of this helper.
 func _open_stat_round(world: Dictionary) -> void:
 	var addon: SkillDustAddon = world["addon"]
-	addon.open_round_for(world["collector"], 1)
+	var applier: CommandApplier = world["applier"]
+	var ctx := CommandContext.new()
+	ctx.graph = applier.graph
+	ctx.command_applier = applier
+	ctx.loot_pick_registry = applier.loot_pick_registry
+	LootRoundCommandHandler.new().open_round(addon, world["collector"], ctx, 1)
 
 
 ## Acceptance 1 + 4: the two-world end-to-end. The host parks for a remote
@@ -214,7 +217,7 @@ func test_a_forfeited_round_closes_the_clients_open_request_without_a_local_answ
 
 ## Acceptance 3: a client-side forfeit travels. The collector dies while the
 ## client's picker is up (this peer's own world, not the host's) — the same
-## death guard [SkillDustAddon._await_pick] uses on the host side, mirrored for
+## death guard [LootRoundCommandHandler._await_pick] uses on the host side, mirrored for
 ## the rebuilt request. `chosen_index == -1` must cross the wire and land on
 ## the host's PARKED request, not be dropped.
 func test_a_collector_death_mid_pick_forfeits_and_travels_upward() -> void:

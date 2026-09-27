@@ -182,7 +182,7 @@ func test_looted_composite_applied_flattened_to_board() -> void:
 	]
 	var dust := SkillDustAddon.new()
 	autofree(dust)
-	dust._grant_mod(collector, bundle)
+	dust.grant_mod(collector, bundle)
 
 	assert_eq(collector.stat_board.deallocation_points.get_value(), dp_before + 2.0,
 			"bundle applied flattened onto the board")

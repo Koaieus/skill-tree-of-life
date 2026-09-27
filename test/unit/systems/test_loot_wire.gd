@@ -181,10 +181,10 @@ func test_a_peer_grants_what_the_record_says() -> void:
 	# round, and an addon with no applier runs one inline (the offline path).
 	_relic.owned_by = _collector
 	var dust := _dust([_mod(&"armor", StatModifier.Operation.ADD_BASE, 99.0)])
-	var command := LootRoundCommand.new(_collector.entity_id, 0,
+	var command := LootRoundCommand.new(_collector.entity_id, _graph.get_stable_id(_relic),
 			_mod(&"strength", StatModifier.Operation.ADD_BASE, 6.0), &"", false)
 
-	await dust.run_round(command)
+	await _replay(command)
 
 	assert_eq(_collector.core_modifiers.size(), 1, "the recorded grant landed")
 	assert_eq(_collector.core_modifiers[0].stat_id, &"strength",
@@ -194,9 +194,10 @@ func test_a_peer_grants_what_the_record_says() -> void:
 func test_a_final_replayed_round_frees_the_relic() -> void:
 	_relic.owned_by = _collector
 	var dust := _dust([_mod(&"armor", StatModifier.Operation.ADD_BASE, 1.0)])
-	var command := LootRoundCommand.new(_collector.entity_id, 0, null, &"", true)
+	var command := LootRoundCommand.new(_collector.entity_id, _graph.get_stable_id(_relic),
+			null, &"", true)
 
-	await dust.run_round(command)
+	await _replay(command)
 	await get_tree().process_frame
 
 	assert_false(is_instance_valid(dust) and not dust.is_queued_for_deletion(),
@@ -216,7 +217,10 @@ func test_a_peer_never_opens_a_round_of_its_own() -> void:
 		_mod(&"armor", StatModifier.Operation.ADD_BASE, 1.0),
 		_mod(&"strength", StatModifier.Operation.ADD_BASE, 1.0),
 	])
-	dust.command_applier = applier
+	var loot := LootSystem.new()
+	loot.command_applier = applier
+	add_child_autofree(loot)
+	loot.adopt_relic(dust)
 
 	var requests := 0
 	var handler := func(_req: LootPickRequest) -> void: requests += 1
@@ -346,7 +350,7 @@ func test_a_pick_never_confirms_and_so_never_mirrors() -> void:
 ## The primary wire path end to end: a stamped round encodes, decodes, resolves
 ## its carrier by `stable_id` and its collector by `entity_id`, and grants.
 ## Same shape as `test/unit/attack/test_attack_record_replay.gd` — calling
-## `run_round` directly would skip the id resolution, which is exactly where a
+## the handler's `apply` directly would skip the id resolution, which is exactly where a
 ## lazily-minted `stable_id` reads 0 and resolves to nothing SILENTLY.
 func test_a_round_applies_through_the_applier_after_a_wire_round_trip() -> void:
 	var applier := _applier(_registry())
@@ -399,6 +403,14 @@ func test_a_round_in_flight_is_what_blocks_the_player_from_acting() -> void:
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
+
+## The replay side of the loot round controller, with no pipeline behind it.
+func _replay(command: LootRoundCommand) -> void:
+	var ctx := CommandContext.new()
+	ctx.graph = _graph
+	@warning_ignore("redundant_await")
+	await LootRoundCommandHandler.new().apply(command, ctx)
+
 
 func _applier(registry: LootPickRegistry) -> CommandApplier:
 	var applier := CommandApplier.new()
