@@ -3,12 +3,14 @@ extends GutTest
 ## #911 — opening initiative is staggered across spawn order instead of every
 ## entity opening at 0 and the tie-break deciding the whole race every cycle.
 ##
-## [method GameRoot.apply_initiative_stagger] is the pure half (spawn-ordered
+## [method TurnManager.apply_initiative_stagger] is the pure half (spawn-ordered
 ## carriers in, `current` rewritten via [method PoolStat.set_current] out) —
-## tested here with hand-built entities, no [Graph]/[GameRoot] scene needed.
-## [method GameRoot._stagger_initiative] (the instance half that reads
-## `graph.entities_container` and [autoload GameSession]'s
-## [member RunConfig.stagger_initiative] bool) is exercised separately below.
+## tested here with hand-built entities. [method TurnManager.stagger_opening_clocks]
+## is the instance half (enumerates the carriers its clock serves) and
+## [method TurnManager.opening_entity] names the opener — both driven against a
+## bare TurnManager, no [GameRoot]. The run's switch,
+## [member RunConfig.stagger_initiative], stays GameRoot's gate
+## ([method GameRoot._stagger_initiative]) and is pinned once below.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -52,7 +54,7 @@ func test_non_first_ranks_land_exactly_on_the_formula() -> void:
 	var carriers := _spawn_n(4)
 	await wait_physics_frames(1)
 
-	GameRoot.apply_initiative_stagger(carriers)
+	TurnManager.apply_initiative_stagger(carriers)
 
 	assert_eq(carriers[1].stat_board.initiative.current, 75.0)
 	assert_eq(carriers[2].stat_board.initiative.current, 50.0)
@@ -73,7 +75,7 @@ func test_first_rank_is_ready_at_once_rather_than_parked_at_the_cap() -> void:
 	var carriers := _spawn_n(4)
 	await wait_physics_frames(1)
 
-	GameRoot.apply_initiative_stagger(carriers)
+	TurnManager.apply_initiative_stagger(carriers)
 
 	assert_true(carriers[0].is_in_group(Entity.READY_GROUP))
 	assert_eq(carriers[0].stat_board.initiative.current, 0.0)
@@ -82,8 +84,8 @@ func test_first_rank_is_ready_at_once_rather_than_parked_at_the_cap() -> void:
 func test_bool_off_leaves_every_entity_at_zero() -> void:
 	var carriers := _spawn_n(3)
 	await wait_physics_frames(1)
-	var root := GameRoot.new()
-	root.graph = _graph
+	var root: GameRoot = autofree(GameRoot.new())
+	root.turn_manager = _tm
 	GameSession.config = RunConfig.new()
 	GameSession.config.stagger_initiative = false
 
@@ -97,8 +99,8 @@ func test_bool_off_leaves_every_entity_at_zero() -> void:
 func test_bool_on_by_default_stages_the_first_rank_ready() -> void:
 	var carriers := _spawn_n(3)
 	await wait_physics_frames(1)
-	var root := GameRoot.new()
-	root.graph = _graph
+	var root: GameRoot = autofree(GameRoot.new())
+	root.turn_manager = _tm
 	GameSession.config = RunConfig.new()
 	assert_true(GameSession.config.stagger_initiative, "default is on")
 
@@ -120,8 +122,7 @@ func test_spawn_index_0_opens_regardless_of_peer_id() -> void:
 	carriers[0].participant_id = 10
 	carriers[1].participant_id = 20
 	await wait_physics_frames(1)
-	var root := GameRoot.new()
-	root.graph = _graph
+	var root: GameRoot = autofree(GameRoot.new())
 	# #1004: the network role a bare root used to answer itself now lives on
 	# `%NetworkSession`; a scene-less root gets a link-less one — authority.
 	root.network_session = autofree(NetworkSession.new())
@@ -138,13 +139,13 @@ func test_spawn_index_0_opens_regardless_of_peer_id() -> void:
 	p_second.peer_id = NetworkTransport.HOST_PEER_ID
 	GameSession.roster.add(p_second)
 
-	root._stagger_initiative()
+	_tm.stagger_opening_clocks()
 
 	assert_true(carriers[0].is_in_group(Entity.READY_GROUP),
 			"spawn/roster index 0 should rank 0, regardless of which seat is the host")
 	assert_false(carriers[1].is_in_group(Entity.READY_GROUP))
 	assert_eq(carriers[1].stat_board.initiative.current, 50.0)  # rank 1 of 2
-	assert_eq(root._opening_entity(), carriers[0])
+	assert_eq(_tm.opening_entity(), carriers[0])
 
 	# Same entity rank 0 receives is the one _open_first_turn actually opens
 	# on — drives the applier-less branch directly; `player` is deliberately
@@ -164,11 +165,8 @@ func test_blockers_are_excluded_and_untouched() -> void:
 	blocker.name = "Blocker"
 	_graph.entities_container.add_child(blocker)
 	await wait_physics_frames(1)
-	var root := GameRoot.new()
-	root.graph = _graph
-	GameSession.config = RunConfig.new()
 
-	root._stagger_initiative()
+	_tm.stagger_opening_clocks()
 
 	# n stayed 2 (the two carriers), not 3 — rank 1 of {2,1} still reads cap/2.
 	assert_eq(carriers[1].stat_board.initiative.current, 50.0)
@@ -182,7 +180,7 @@ func test_blockers_are_excluded_and_untouched() -> void:
 func test_two_cycles_cross_at_eight_distinct_ticks() -> void:
 	var carriers := _spawn_n(4)
 	await wait_physics_frames(1)
-	GameRoot.apply_initiative_stagger(carriers)
+	TurnManager.apply_initiative_stagger(carriers)
 
 	# A local `int` is captured BY VALUE in a lambda (GUT/GDScript closures over
 	# a bare local do not alias it) — a single-element array is the mutable box.
@@ -206,3 +204,33 @@ func test_two_cycles_cross_at_eight_distinct_ticks() -> void:
 		distinct[t] = true
 	assert_eq(distinct.size(), 8,
 			"expected 8 distinct crossing ticks, got %s" % [crossing_ticks])
+
+
+## The opener is the first initiative CARRIER in the clock's enumeration order
+## (tree = spawn order): a blocker spawned ahead of it is skipped, not named.
+func test_opening_entity_is_the_first_carrier_in_enumeration_order() -> void:
+	var blocker := Entity.new()
+	blocker.name = "Blocker"
+	_graph.entities_container.add_child(blocker)
+	var carriers := _spawn_n(3)
+	await wait_physics_frames(1)
+
+	assert_eq(_tm.opening_entity(), carriers[0])
+
+
+## The clock's own scope: a manager scoped by `entity_root` staggers and opens
+## only on its own world's carriers.
+func test_a_scoped_manager_staggers_only_its_own_world() -> void:
+	var away: Graph = _GRAPH_SCENE.instantiate()
+	add_child_autofree(away)
+	var foreign := _make_entity("Foreign")
+	away.entities_container.add_child(foreign)
+	var carriers := _spawn_n(2)
+	await wait_physics_frames(1)
+	_tm.entity_root = _graph
+
+	_tm.stagger_opening_clocks()
+
+	assert_eq(_tm.opening_entity(), carriers[0])
+	assert_eq(carriers[1].stat_board.initiative.current, 50.0)  # rank 1 of 2, not of 3
+	assert_eq(foreign.stat_board.initiative.current, 0.0)

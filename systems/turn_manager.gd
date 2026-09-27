@@ -383,6 +383,68 @@ func _in_scope(group: StringName) -> Array[Node]:
 	return all.filter(func(n: Node) -> bool: return entity_root.is_ancestor_of(n))
 
 
+## Every initiative-carrying entity this manager's clock serves, in tree order
+## — the same scope [method tick] uses ([method _in_scope] over
+## [constant Entity.GROUP], which SceneTree sorts in tree order on read, i.e.
+## spawn order for appended children: the order `_tick_until_ready`'s tiebreak
+## already relies on). Blockers (no `initiative` pool) are skipped.
+func _initiative_carriers() -> Array[Entity]:
+	var out: Array[Entity] = []
+	for node in _in_scope(Entity.GROUP):
+		var e := node as Entity
+		if e != null and e.stat_board != null and e.stat_board.initiative != null:
+			out.append(e)
+	return out
+
+
+## Rescale every initiative carrier's opening clock across (0, cap] so the first
+## cycle interleaves turns instead of every entity opening at 0 and the
+## tie-break deciding the whole order every cycle (#911). Whether a run
+## staggers at all is the caller's call ([member RunConfig.stagger_initiative]).
+##
+## Runs BEFORE the opening turn, on EVERY peer — never gated on authority: a
+## pure function of shared data (spawn order), so every peer reaches the same
+## clocks independently, exactly like world generation. The opening
+## [StartTurnCommand]'s validator does not look at initiative, so this only
+## reshapes who acts SECOND onward, never who opens turn 1.
+##
+## [b]Index 0 is already [method opening_entity][/b] — spawn order heads roster
+## order (#923, owner call on #911: "spawn order. which should be identical to
+## roster order (player1, player2, ..., AI1, AI2, ...)"):
+## [method ProcgenPlaySandbox._camp_grouped_participants] spawns camp-bucketed,
+## in [method ParticipantRoster.camps]' first-appearance order, so roster[0]'s
+## camp is bucket 0 and roster[0] heads it. No reordering needed.
+func stagger_opening_clocks() -> void:
+	TurnManager.apply_initiative_stagger(_initiative_carriers())
+
+
+## The entity the opening [StartTurnCommand] names: the first initiative carrier
+## in [method _initiative_carriers]' order (#923, owner call on #911 — spawn
+## order heads roster order, offline, couch and remote alike). No peer-id
+## lookup: deriving the same "who opens" fact a second way, off a peer id rather
+## than spawn order, is exactly what #923 retired. Null when nothing carries a
+## clock.
+func opening_entity() -> Entity:
+	var carriers := _initiative_carriers()
+	return carriers[0] if not carriers.is_empty() else null
+
+
+## The pure half of [method stagger_opening_clocks] — testable against
+## hand-built entities with no tree scan. `carriers` is spawn-ordered (index 0 =
+## first spawned); index `i` of `n` opens at `floor(cap * (n - i) / n)` — first
+## = cap (ready at once, no initial tick race to win), last = `cap / n`, never
+## 0. Written through [method PoolStat.set_current] (never `base_value` — this
+## is a `current` write, not a redefinition of the pool).
+static func apply_initiative_stagger(carriers: Array[Entity]) -> void:
+	var n := carriers.size()
+	if n == 0:
+		return
+	for i in n:
+		var pool := carriers[i].stat_board.initiative
+		var cap := float(pool.get_value())
+		pool.set_current(floor(cap * float(n - i) / float(n)))
+
+
 func _warn_if_unminted(e: Entity) -> void:
 	if e.entity_id != 0:
 		return
