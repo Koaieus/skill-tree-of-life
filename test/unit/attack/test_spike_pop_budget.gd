@@ -141,10 +141,10 @@ func test_turn_start_regenerates_spent_set_but_a_dormant_owner_never_does() -> v
 	# The owner never takes a turn (a "blocker") -- no regen, ever.
 	assert_eq(_spikes_pool(spiked).current, 1.0, "no turn served yet, still 1")
 	# Now the owner DOES take a turn.
-	defender._on_turn_started(defender)
+	defender.begin_turn()
 	assert_eq(_spikes_pool(spiked).current, 2.0, "regen 1 tops remaining 1 back to the cap")
 	# The spent set was cleared -- a second turn with no new spend is a no-op.
-	defender._on_turn_started(defender)
+	defender.begin_turn()
 	assert_eq(_spikes_pool(spiked).current, 2.0, "still capped -- nothing left in the spent set")
 
 

@@ -73,7 +73,7 @@ func before_each() -> void:
 	_graph.entities_container.add_child(_enemy)
 	_ai = AIController.new()
 	_ai.turn_delay = 0.0
-	_ai.command_applier_override = _applier
+	_ai.command_applier = _applier
 	_enemy.add_child(_ai)
 
 	await get_tree().process_frame

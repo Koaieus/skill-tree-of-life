@@ -939,6 +939,9 @@ func _ensure_controllers() -> void:
 func _new_ai_controller(ent: Entity) -> AIController:
 	var ai := AIController.new()
 	ai.name = "AIController"
+	ai.command_applier = command_applier
+	ai.battle_system = battle_system
+	ai.loot_system = loot_system
 	if GameSession.roster != null and ent.participant_id != 0:
 		var seat := GameSession.roster.by_id(ent.participant_id)
 		if seat != null:

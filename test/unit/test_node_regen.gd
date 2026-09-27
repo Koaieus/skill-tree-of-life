@@ -36,13 +36,13 @@ func before_each() -> void:
 	_entity.stat_board = TestBoards.flat_entity_board()
 	# Keep the turn upkeep from levelling up mid-test. WIS 10 gives
 	# xp_per_turn = floor(10/2) = 5 against an xp cap of exactly 5, so any
-	# _on_turn_started() that isn't skipped levels the entity, which grants
+	# begin_turn() that isn't skipped levels the entity, which grants
 	# +1 CON, which raises node_health by 1 — and since D-31 that cap rise
 	# correctly ratchets +1 into every owned node's current HP. Harmless in
 	# play, but it lands on top of the regen/aura numbers these tests assert
 	# exactly. Nothing here tests levelling, so take the variable off the table.
 	_entity.stat_board.xp.base_value = 100000.0
-	# These tests drive ONE _on_turn_started() and read its effects, so the
+	# These tests drive ONE begin_turn() and read its effects, so the
 	# entity must be past the first-turn upkeep skip before the first call.
 	_entity.turns_taken = 1
 	_graph.add_child(_entity)
@@ -137,7 +137,7 @@ func test_turn_start_no_longer_refills_to_full() -> void:
 	_alloc.force_allocate(_entity, n)
 	var hp := _hp_pool(n)
 	_true_damage(n, 8.0)
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_lt(hp.current, hp.value,
 			"regression guard: turn start must not refill to full (D-9 removed that sweep)")
 
@@ -217,7 +217,7 @@ func test_aura_falloff_by_hop() -> void:
 
 	for n in chain:
 		_true_damage(n, 50.0)
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 
 	# LinearScale-equivalent formula: base * (1 - d/max) = 10, 6.667, 3.333, 0
 	# for base 10 / max_hops 3 — floored once, here, per ADR 0017 (health is
@@ -248,7 +248,7 @@ func test_aura_base_and_range_independent() -> void:
 	var before_weak: Dictionary[SkillNode, float] = {}
 	for n in nodes:
 		before_weak[n] = _hp_pool(n).current
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	var weak_core_heal: float = _hp_pool(core).current - before_weak[core]
 	var weak_hop1_heal: float = _hp_pool(chain[1]).current - before_weak[chain[1]]
 
@@ -261,7 +261,7 @@ func test_aura_base_and_range_independent() -> void:
 	var before_strong: Dictionary[SkillNode, float] = {}
 	for n in nodes:
 		before_strong[n] = _hp_pool(n).current
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	var strong_core_heal: float = _hp_pool(core).current - before_strong[core]
 	var strong_hop1_heal: float = _hp_pool(chain[1]).current - before_strong[chain[1]]
 	var strong_hop2_heal: float = _hp_pool(chain[2]).current - before_strong[chain[2]]
@@ -298,7 +298,7 @@ func test_aura_hop_distance_uses_owned_subgraph() -> void:
 
 	for n in [core, chain[1], target]:
 		_true_damage(n, 50.0)
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 
 	assert_almost_eq(_hp_pool(target).current, 50.0, 0.001,
 			"target is 4 owned-hops away (out of range); a global shortcut through unowned territory must not shrink that — no heal lands")
@@ -325,7 +325,7 @@ func test_aura_heals_through_damage_gate_and_grants_no_ramp() -> void:
 	_true_damage(core, 50.0)
 	assert_almost_eq(hp.current, 50.0, 0.001)
 
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 
 	# Base term is gated to 0 (damaged this turn); only the aura's hop-0 value
 	# (10.0) lands, and it heals through the gate rather than being suppressed.
@@ -349,7 +349,7 @@ func test_aura_exact_ladder_5_minus_d_over_four_hops() -> void:
 
 	for n in chain:
 		_true_damage(n, 20.0)
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 
 	# Cap is 10 (default) + 40 = 50; damage 20 leaves 30 headroom before heal.
 	assert_almost_eq(_hp_pool(core).current, 35.0, 0.001, "hop 0 heals 5")
@@ -379,7 +379,7 @@ func test_aura_clamps_negative_result_to_zero_regardless_of_discard() -> void:
 		_true_damage(n, 20.0)
 	var before_hop3 := _hp_pool(chain[3]).current
 	var before_hop4 := _hp_pool(chain[4]).current
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 
 	assert_almost_eq(_hp_pool(chain[3]).current, before_hop3, 0.001,
 			"hop 3: '3 - d' computes exactly 0, heals nothing")
@@ -409,7 +409,7 @@ func test_alloc_dealloc_inside_reach_is_a_no_op_for_the_heal_channel() -> void:
 
 	for n in chain:
 		_true_damage(n, 20.0)
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 
 	# Cap is 10 (default) + 40 = 50; damage 20 leaves 30 headroom before heal.
 	assert_almost_eq(_hp_pool(core).current, 35.0, 0.001,
@@ -447,7 +447,7 @@ func test_con_scaling_hand_built_effect_matches_acceptance_numbers() -> void:
 	# this test's subject.
 	var before_core := _hp_pool(core).current
 	var before_hop1 := _hp_pool(chain[1]).current
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 
 	assert_almost_eq(_hp_pool(core).current - before_core, 8.0, 0.001,
 			"hop 0: floor(2*sqrt(16)*1) = 8 healed")
@@ -470,14 +470,14 @@ func test_con_scaling_reads_board_live_between_turns() -> void:
 
 	_true_damage(core, 50.0)
 	var before_first := _hp_pool(core).current
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_almost_eq(_hp_pool(core).current - before_first, 6.0, 0.001,
 			"CON 4: floor(3*sqrt(4)) = 6 healed")
 
 	_set_con(16.0)  # sqrt(16) = 4 -> v = 3*4 = 12; SET ties break last-in
 	_true_damage(core, 50.0)
 	var before_second := _hp_pool(core).current
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	var healed_second: float = _hp_pool(core).current - before_second
 
 	assert_almost_eq(healed_second, 12.0, 0.001,
@@ -501,14 +501,14 @@ func test_con_scaling_never_moves_max_hops_reach() -> void:
 	_set_con(16.0)
 	_true_damage(far, 100.0)
 	var before_low_con := _hp_pool(far).current
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_almost_eq(_hp_pool(far).current, before_low_con, 0.001,
 			"hop 3 (beyond max_hops 2) untouched at CON 16")
 
 	_set_con(400.0)
 	_true_damage(far, 100.0)
 	var before_high_con := _hp_pool(far).current
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_almost_eq(_hp_pool(far).current, before_high_con, 0.001,
 			"hop 3 stays untouched at CON 400 too — max_hops never scales with CON")
 

@@ -196,7 +196,7 @@ static func _core_adjacent_aura(root: Node, name: String, level: int) -> Diction
 		if core.get_current_hp() <= 0.0:
 			depleted = true
 			break
-		defender.entity._on_turn_started(defender.entity)
+		defender.entity.begin_turn()
 	readouts["core_node_ttk_under_sustained_pressure"] = turns if depleted else -1
 	readouts["core_node_ttk_pressure_per_turn"] = raw
 
@@ -517,7 +517,7 @@ static func _territory_growth(root: Node, level: int, core_class: CoreClass) -> 
 	var cap := 500
 	var turns := 0
 	while int(probe.level) == start_level and turns < cap:
-		probe._on_turn_started(probe)
+		probe.begin_turn()
 		turns += 1
 
 	var sp_minted: float = probe.stat_board.skill_points.value - sp_before

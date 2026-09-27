@@ -200,8 +200,8 @@ func before_each() -> void:
 	# GameRoot._ensure_controllers — upkeep must register before take_turn.
 	_ai = AIController.new()
 	_ai.turn_delay = 0.0
-	_ai.command_applier_override = _applier
-	_ai.battle_system_override = _bs
+	_ai.command_applier = _applier
+	_ai.battle_system = _bs
 	_enemy.add_child(_ai)
 
 	await get_tree().process_frame

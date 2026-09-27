@@ -77,7 +77,7 @@ func test_restraint_buys_mobility() -> void:
 	var b := _entity.stat_board
 	# End a turn with 3 AP unused (attacked once).
 	b.action_points.set_current(3.0)
-	_entity._on_turn_ended(_entity)
+	_entity.finish_turn()
 	# Cap is 0, but the surplus bin lives outside the SET-short-circuit, so the
 	# available budget is entirely purchased: roundi(3 unused × rate 4) = 12.
 	assert_eq(b.movement_points.available(), roundi(3.0 * _RATE), "mobility = unspent AP × rate, despite 0 cap")
@@ -88,7 +88,7 @@ func test_spending_all_ap_anchors_the_entity() -> void:
 	var b := _entity.stat_board
 	# Attacked out the whole AP bar — 0 unused.
 	b.action_points.set_current(0.0)
-	_entity._on_turn_ended(_entity)
+	_entity.finish_turn()
 	assert_eq(b.movement_points.available(), 0, "no restraint, no motion — anchored")
 	assert_eq(b.deallocation_points.available(), 0, "and no reshape budget either")
 

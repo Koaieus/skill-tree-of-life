@@ -79,7 +79,6 @@ ALLOWLIST = {
     "entity→effects": (None, "no retiring issue — AuraDistanceCache, Effect, EffectContext, EffectInstance, NodeStatus"),
     "entity→systems": (None, "no retiring issue — TurnManager"),
     "entity/controller→command": (None, "no retiring issue — AllocateCommand, Command, CommandApplier, EndTurnCommand, ReloadCommand"),
-    "entity/controller→scenes": (1131, "GameRoot"),
     "graph→entity": (None, "no retiring issue — Entity"),
     "graph→scenes": (None, "no retiring issue — GraphCamera"),
     "session→network": (1133, "NetworkTransport"),

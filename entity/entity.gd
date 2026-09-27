@@ -220,11 +220,6 @@ const MILESTONE_LEVEL_INTERVAL := 5
 ## orphan slices and a spell's landings are silently dropped.
 @export var graph_override: Graph
 
-## The TurnManager this entity binds to at ready. Null → the first one in
-## [constant TurnManager.GROUP], which is the only one in a game tree; a tree
-## holding several worlds (the editor's sandbox host) must wire its own.
-@export var turn_manager_override: TurnManager
-
 ## Auto-created on _ready when the entity has a Graph ancestor. Stays null
 ## in editor (`@tool` short-circuit) and in stand-alone tests with no graph.
 var navigator: EntityNavigator
@@ -366,7 +361,7 @@ var _hook_buckets: Dictionary[StringName, Array] = {}
 ## corpse (TurnManager initiative, AI targeting).
 var is_dead: bool = false
 
-## Turns THIS entity has been served, counted in [method _on_turn_started] —
+## Turns THIS entity has been served, counted in [method begin_turn] —
 ## distinct from [member TurnManager.turns_taken], which tallies every entity's.
 ##
 ## Its one job today is the first-turn gate: while it reads 1, turn-start upkeep
@@ -397,7 +392,7 @@ var is_taking_turn: bool = false
 ## Sparse spent-set for the `spikes` pop budget (#778): a node lands here the
 ## moment a melee contact drains its `spikes` pool ([method mark_spikes_spent],
 ## called from [BladePopResolver.LiveGate._mark_spent] on the LIVE world only).
-## [method _on_turn_started] regenerates EXACTLY this set, then clears it — a
+## [method begin_turn] regenerates EXACTLY this set, then clears it — a
 ## sweep of a level's hundreds of allocated nodes to top up a pool that is
 ## almost always full is explicitly not acceptable (#778). There is
 ## deliberately no dormant-node exception: an owner who never takes a turn
@@ -407,7 +402,7 @@ var _spiked_nodes_spent: Dictionary[SkillNode, bool] = {}
 
 ## Sparse fired-set for the per-leaf shot budget (#956): every node this
 ## entity fired an arrow from this turn, appended by the launch commit next to
-## its [method SkillNode.mark_shot_fired] call. [method _on_turn_ended] zeroes
+## its [method SkillNode.mark_shot_fired] call. [method finish_turn] zeroes
 ## EXACTLY these nodes' [member SkillNode.shots_fired_this_turn] and clears
 ## the set — the same discipline as [member _spiked_nodes_spent], never a
 ## sweep of the owned subgraph — and does so regardless of who owns the node
@@ -416,23 +411,18 @@ var _fired_nodes_this_turn: Array[SkillNode] = []
 
 ## Volleys this entity has launched this turn, checked against the board's
 ## `volleys_per_turn` by the plan side (#956). Reset in
-## [method _on_turn_started]. Derived from commands, so mirrors reproduce it;
+## [method begin_turn]. Derived from commands, so mirrors reproduce it;
 ## never snapshotted.
 var volleys_launched_this_turn: int = 0
 
 ## The leaf set this entity held when its turn STARTED (#955) — the producer
 ## set a [ReloadCommand] sums `arrows_per_reload` over (∪ the core). Captured
-## once per turn in [method _on_turn_started], never re-derived at reload
+## once per turn in [method begin_turn], never re-derived at reload
 ## time: the fixed set is what closes the allocate-then-reload pump, while
 ## the VALUES are read live so a stake raised mid-turn still counts. Runtime
 ## only, never synced — a mirror captures its own copy from its own
 ## `turn_started`, the same state the authority saw.
 var _turn_start_leaves: Array[SkillNode] = []
-
-## Resolved once in [method initialize]; read by [method _on_turn_started] to
-## tell an adopted cursor from a turn actually beginning. See
-## [member TurnManager.is_adopting].
-var _turn_manager: TurnManager = null
 
 ## Has this entity's BRAIN concluded it is boxed in, this turn? Host-only,
 ## AI-only, and re-decided every turn by [method AIController.take_turn] from
@@ -563,11 +553,6 @@ func initialize() -> void:
 			node_hp_baseline.value_changed.connect(node_health_cap_changed.emit)
 	_board_sealed = true
 
-	_turn_manager = _find_turn_manager()
-	if _turn_manager != null:
-		_turn_manager.turn_started.connect(_on_turn_started)
-		_turn_manager.turn_ended.connect(_on_turn_ended)
-
 
 #region Effects
 ## Attach [param effect] to this entity, optionally sourced from [param source_node]
@@ -673,7 +658,7 @@ func get_active_tags() -> Array[StringName]:
 #endregion
 
 
-## Listens for TurnManager.turn_started. Each entity self-handles its own
+## Called by [method begin_turn]. Each entity self-handles its own
 ## start-of-turn upkeep so we don't grow a god-mode TurnManager. Per-turn
 ## bookkeeping today: replenish pools (per each pool's per_turn_mode, including
 ## skill_points' CUSTOM wound-heal), run the gated node regen sweep (D-9), run
@@ -689,7 +674,7 @@ func get_active_tags() -> Array[StringName]:
 ## Registers [param node] on this entity's sparse spikes-spent set — called
 ## by [method BladePopResolver.LiveGate._mark_spent] the moment a melee
 ## contact drains the node's `spikes` pool on the LIVE world (never a shadow
-## — see that method's doc). [method _on_turn_started] is the sole reader,
+## — see that method's doc). [method begin_turn] is the sole reader,
 ## regenerating exactly this set once per turn and clearing it.
 func mark_spikes_spent(node: SkillNode) -> void:
 	if node != null:
@@ -755,18 +740,22 @@ func reload() -> int:
 	return added
 
 
+## The authority's cursor arrived as a RESULT ([method TurnManager.adopt_turn]):
+## the turn is this entity's, but the snapshot it came with already holds the
+## upkeep [method begin_turn] would compute, [member turns_taken] included — so
+## the flag only, no upkeep and no [signal turn_began].
 func mark_turn_adopted() -> void:
-	pass
+	is_taking_turn = true
 
 
-func _on_turn_started(entity: Entity) -> void:
-	if entity != self or stat_board == null:
-		return
-	# An ADOPTED cursor is not a turn beginning (#756) — it is the authority's
-	# turn arriving inside a snapshot that already holds everything the lines
-	# below would compute, [member turns_taken] included. See
-	# [member TurnManager.is_adopting].
-	if _turn_manager != null and _turn_manager.is_adopting:
+## This entity's turn begins. Called by [method TurnManager.start_turn] — and
+## only for the entity it names — BEFORE [signal TurnManager.turn_started], so
+## every listener of that signal sees the upkeep already applied. Emits
+## [signal turn_began] last: the controller acts on a board that is ready.
+func begin_turn() -> void:
+	is_taking_turn = true
+	if stat_board == null:
+		turn_began.emit()
 		return
 	# The reload producer set (#955), before the first-turn gate below: the
 	# opening turn has no income, but it may reload — the quiver starts empty.
@@ -785,6 +774,7 @@ func _on_turn_started(entity: Entity) -> void:
 	# existing order). Every real turn, the first included, exactly like a
 	# node's tick — a poison landed before your first turn ticks on it.
 	_combat.tick_statuses()
+	turn_began.emit()
 
 
 ## The per-turn upkeep of a turn that is not the entity's first: pools,
@@ -848,15 +838,14 @@ func _apply_turn_upkeep() -> void:
 	dispatch(&"_on_turn_start")
 
 
-## Listens for TurnManager.turn_ended. Transfers unused action points into next
+## Called by [method TurnManager.end_turn] (and [method TurnManager.abandon_turn])
+## before [signal TurnManager.turn_ended] is emitted. Transfers unused action points into next
 ## turn's DP/MP surplus (#152), then runs effect dispatch. Surplus is written
 ## here — not on turn start — because unused AP is only known once the turn is
 ## over; turn-start REFILL then leaves the surplus untouched (it sits outside the
 ## cap). set_surplus *overwrites*, so a turn ending with 0 unused AP self-clears
 ## last turn's boost.
-func _on_turn_ended(entity: Entity) -> void:
-	if entity != self:
-		return
+func finish_turn() -> void:
 	_transfer_unused_ap_to_surplus()
 	# #956: per-leaf shot budget resets at the FIRER's turn end, over exactly
 	# the nodes it fired from — never a sweep — and whoever owns them now.
@@ -865,6 +854,8 @@ func _on_turn_ended(entity: Entity) -> void:
 			n.shots_fired_this_turn = 0
 	_fired_nodes_this_turn.clear()
 	dispatch(&"_on_turn_end")
+	is_taking_turn = false
+	turn_finished.emit()
 
 
 func _transfer_unused_ap_to_surplus() -> void:
@@ -976,16 +967,6 @@ func _emit_entity_healed(amount: int) -> void:
 
 func _emit_entity_xp_gained(amount: float) -> void:
 	Events.entity_xp_gained.emit(self, amount)
-
-
-## Group lookup, not tree walk: TurnManager lives at `GameRoot/Systems/...`,
-## a sibling of Graph, so an ancestor get_children() walk never reaches it.
-## TurnManager joins its group in `_enter_tree`, which fires before any
-## spawned entity's _ready.
-func _find_turn_manager() -> TurnManager:
-	if turn_manager_override != null:
-		return turn_manager_override
-	return get_tree().get_first_node_in_group(TurnManager.GROUP) as TurnManager
 
 
 ## The entity's Graph: [member graph_override] when a scene wired one, otherwise

@@ -125,22 +125,19 @@ var rng: RandomNumberGenerator = null
 ## console. [signal Events.ai_decision] fires regardless of this toggle —
 ## this only gates the local console sink.
 @export var debug_trace: bool = false
-## Explicit injection wins over the GameRoot tree-walk — lets tests wire a
-## bare CommandApplier / BattleSystem without composing a full game_root.tscn.
-## Unset in production (GameRoot._ensure_controllers doesn't set these), so
-## real levels keep resolving via [method _game_root_or_null] unchanged.
+## The AI's three system deps, set by whoever builds the controller
+## (the level's composition root in production; a test wires bare ones).
+## Nothing is discovered: a missing [member command_applier] or
+## [member battle_system] means the AI warns and idles through that step.
 ##
 ## There is deliberately no `allocation_system_override` any more (#512): the
 ## AI no longer holds a reference it could mutate the world through — every
 ## allocation goes out as a [Command].
-@export var command_applier_override: CommandApplier = null
-@export var battle_system_override: BattleSystem = null
-## Supplies [AiCombatScorer]'s kill-XP preview (what WARLORD hunts). Null and
-## no GameRoot = no preview, so every tier below WARLORD scores the same.
-@export var loot_system_override: LootSystem = null
-
-# Cached on first use. Walked once via _find_game_root; cheap lookup.
-var _game_root: GameRoot = null
+@export var command_applier: CommandApplier = null
+@export var battle_system: BattleSystem = null
+## Supplies [AiCombatScorer]'s kill-XP preview (what WARLORD hunts). Null = no
+## preview, so every tier below WARLORD scores the same.
+@export var loot_system: LootSystem = null
 
 
 func _ready() -> void:
@@ -193,7 +190,7 @@ func take_turn() -> void:
 	# TurnManager hands this entity the turn (which a mirrored EndTurnCommand
 	# does). Bail before the decision loop runs at all: this entity's turn
 	# crosses the wire as the authority's commands, never ours.
-	var applier := _command_applier()
+	var applier := command_applier
 	if applier != null and not applier.is_authority:
 		return
 
@@ -474,7 +471,7 @@ func _compose_volley(n: int) -> Dictionary:
 ## has no territory to pivot from or no candidate reaches a visible enemy.
 func _gather_melee_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
 	return AiBladeRollout.gather_melee_candidates(
-			entity, visible_enemies, ai_tier, rng, _loot_system())
+			entity, visible_enemies, ai_tier, rng, loot_system)
 
 
 ## Two-tier gated (#537 D1/D3): [method AttackPlan.is_valid] is the cheap PASS
@@ -522,7 +519,7 @@ func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCom
 			plan.ammo_counts = _compose_volley(to_kill + KILL_MARGIN_ARROWS)
 			outcome = plan.resolve()
 		var c := AiCombatScorer.score(BattleSystem.AttackMode.RANGED, outcome, target, entity, ai_tier,
-				0, _loot_system())
+				0, loot_system)
 		c.ammo_counts = plan.ammo_counts.duplicate()
 		c.trace += " n=%d" % plan.n()
 		out.append(c)
@@ -674,7 +671,7 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 		probe.target = target
 		var outcome := probe.resolve()
 		var c := AiCombatScorer.score(BattleSystem.AttackMode.MAGIC, outcome, target, entity, ai_tier,
-				0, _loot_system())
+				0, loot_system)
 		c.source_node = source
 		c.spell = spell
 		out.append(c)
@@ -688,7 +685,7 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 ## one live [member BattleSystem.attack_plan] and its signal-driven UI/VFX
 ## seam, so scoring must not mutate it N times per turn.
 func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
-	var bs := _battle_system()
+	var bs := battle_system
 	if bs == null or candidate == null:
 		return false
 	bs.request_attack_mode(candidate.mode)
@@ -770,7 +767,7 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 ## [signal CommandApplier.command_applied] emit. The queue is FIFO, so the
 ## command we are waiting on always arrives.
 func _submit_and_wait(command: Command) -> bool:
-	var applier := _command_applier()
+	var applier := command_applier
 	if applier == null or command == null:
 		return false
 	# An Array as the latch, not two locals: a lambda captures locals BY VALUE.
@@ -791,7 +788,7 @@ func _submit_and_wait(command: Command) -> bool:
 ## for: its own end-of-turn. Warns rather than silently no-opping when nothing
 ## is wired — an AI that cannot mutate is a wiring bug, not a pacifist.
 func _submit(command: Command) -> void:
-	var applier := _command_applier()
+	var applier := command_applier
 	if applier == null:
 		push_warning("AIController: no CommandApplier wired; dropping '%s'" \
 				% command.type_tag())
@@ -802,11 +799,11 @@ func _submit(command: Command) -> void:
 # --- helpers ---------------------------------------------------------------
 
 ## Bail if the turn has already ended or the entity died mid-turn. Keeps the
-## action sequence from racing on side effects.
+## action sequence from racing on side effects. Reads the entity's own
+## [member Entity.is_taking_turn], so a controller handed a turn mid-way
+## (seat handover) continues it without ever having heard [signal Entity.turn_began].
 func _continue() -> bool:
-	return _turn_manager != null \
-			and _turn_manager.current_entity == entity \
-			and is_instance_valid(entity)
+	return is_instance_valid(entity) and entity.is_taking_turn
 
 
 func _wait() -> void:
@@ -821,36 +818,3 @@ func _wait() -> void:
 ## documents.
 func _graph_or_null() -> Graph:
 	return entity.navigator.graph if entity != null and entity.navigator != null else null
-
-
-func _game_root_or_null() -> GameRoot:
-	if _game_root != null:
-		return _game_root
-	var n: Node = entity
-	while n != null:
-		if n is GameRoot:
-			_game_root = n
-			return _game_root
-		n = n.get_parent()
-	return null
-
-
-func _command_applier() -> CommandApplier:
-	if command_applier_override != null:
-		return command_applier_override
-	var gr := _game_root_or_null()
-	return gr.command_applier if gr != null else null
-
-
-func _battle_system() -> BattleSystem:
-	if battle_system_override != null:
-		return battle_system_override
-	var gr := _game_root_or_null()
-	return gr.battle_system if gr != null else null
-
-
-func _loot_system() -> LootSystem:
-	if loot_system_override != null:
-		return loot_system_override
-	var gr := _game_root_or_null()
-	return gr.loot_system if gr != null else null

@@ -2,9 +2,9 @@
 class_name EntityController
 extends Node
 
-## Drives an [Entity] through its turn. Subscribes to
-## [signal TurnManager.turn_started] and dispatches to [method take_turn]
-## when the wired entity is the active one.
+## Drives an [Entity] through its turn. Listens to its own entity's
+## [signal Entity.turn_began] — emitted by [method Entity.begin_turn] after the
+## turn's upkeep — and never to a TurnManager, so attach order is irrelevant.
 ##
 ## Player entities use [PlayerInputController] (a sibling system, event-driven
 ## off UI clicks) rather than an EntityController — humans don't need a
@@ -16,8 +16,6 @@ extends Node
 
 @export var entity: Entity = null
 
-var _turn_manager: TurnManager
-
 
 func _ready() -> void:
 	if entity == null:
@@ -25,17 +23,7 @@ func _ready() -> void:
 	if entity == null:
 		push_warning("%s has no entity wired and no Entity parent; idle" % name)
 		return
-	_turn_manager = get_tree().get_first_node_in_group(TurnManager.GROUP) as TurnManager
-	if _turn_manager == null:
-		push_warning("%s found no TurnManager; idle" % name)
-		return
-	_turn_manager.turn_started.connect(_on_turn_started)
-
-
-func _on_turn_started(active: Entity) -> void:
-	if active != entity:
-		return
-	take_turn()
+	entity.turn_began.connect(take_turn)
 
 
 ## Override. Decide and execute this entity's turn, then call

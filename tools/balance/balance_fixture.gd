@@ -131,4 +131,4 @@ func core_node() -> SkillNode:
 ## replenishment, node regen, class aura, all through the production code path.
 func run_turns(count: int) -> void:
 	for _i in range(count):
-		entity._on_turn_started(entity)
+		entity.begin_turn()

@@ -64,27 +64,26 @@ var _current_entity: Entity = null
 var turns_taken: int = 0
 
 
-## True only for the duration of [method adopt_turn]'s [signal turn_started]
-## emit. It is what tells [method Entity._on_turn_started] that this particular
-## turn start is a REPAIR and not a beginning: the snapshot it arrived with
-## already carries the results of that turn's upkeep (every pool's `current`,
-## every node's HP and regen stacks, [member Entity.turns_taken] itself), so
-## running the upkeep again would apply it twice.
+## [b]The handoff is a call sequence, not a subscription.[/b] [method start_turn]
+## calls [method Entity.begin_turn] on the entity it names — upkeep, then
+## [signal Entity.turn_began], which is what that entity's [EntityController]
+## drives [method EntityController.take_turn] from — and only THEN emits
+## [signal turn_started], so every listener (HUD banner, initiative bar, action
+## cluster, seat handover, harness, [BattleSystem]) sees the turn's upkeep
+## already applied. [method end_turn] / [method abandon_turn] call
+## [method Entity.finish_turn] before [signal turn_ended] the same way. No entity
+## or controller discovers this manager; a second manager in the tree can only
+## ever begin the turns it starts.
 ##
-## [b]A flag rather than a second signal.[/b] `turn_started` has seven listeners
-## and six of them are presentation or dispatch — the HUD banner, the initiative
-## bar, the action cluster, the seat handover, the harness announcements,
-## [BattleSystem]'s plan invalidation — and every one of them wants to hear an
-## adopted cursor exactly as it hears an ordinary one. Only ONE listener mutates
-## the world, and it is the one the snapshot has already spoken for. A parallel
-## `turn_adopted` signal would mean re-wiring all six to hear both and would put
-## two spellings of "the turn is now this entity's" in the tree
-## (`.claude/rules/…` — one implementation over swappable state).
-var is_adopting: bool = false
+## [method adopt_turn] is the one entry that runs neither: the cursor arrives
+## as a RESULT inside a snapshot that already holds the upkeep, so it calls only
+## [method Entity.mark_turn_adopted] and emits [signal turn_started] for the
+## presentation listeners, which want to hear an adopted cursor exactly as an
+## ordinary one.
 
 
-## Group used by Entity to discover the level's TurnManager without coupling
-## to scene-tree depth. Single instance per level.
+## The level's TurnManager joins this group (single instance per level) for
+## the few non-entity readers that still look it up.
 const GROUP := &"turn_manager"
 
 ## The [PoolStat]s / [Stat]s currently wired to [method _on_forecast_source_changed]
@@ -197,8 +196,8 @@ func _on_forecast_speed_changed() -> void:
 	forecast_changed.emit()
 
 
-## Hand the turn to `entity`. Turn-start upkeep (budget replenish) runs in
-## Entity._on_turn_started, subscribed to `turn_started`.
+## Hand the turn to `entity`: [method Entity.begin_turn] runs its upkeep and
+## kicks its controller, then [signal turn_started] tells everyone else.
 func start_turn(entity: Entity) -> void:
 	assert(entity != null, "TurnManager.start_turn(null)")
 	assert(current_entity == null, "Already in a turn: %s" % current_entity)
@@ -206,10 +205,10 @@ func start_turn(entity: Entity) -> void:
 	entity.remove_from_group(Entity.READY_GROUP)
 	_current_entity = entity
 	turns_taken += 1
+	entity.begin_turn()
 	turn_started.emit(entity)
-	# Sparse status-tick channel (#879): emitted AFTER `turn_started` above
-	# returns, so Entity._on_turn_started's upkeep (regen included) has
-	# already run — never from `adopt_turn`, which is a resync repair, not a
+	# Sparse status-tick channel (#879): after `begin_turn`'s upkeep (regen
+	# included) — never from `adopt_turn`, which is a resync repair, not a
 	# real turn begin.
 	Events.turn_started.emit(entity)
 	forecast_changed.emit()
@@ -222,8 +221,8 @@ func start_turn(entity: Entity) -> void:
 ## fires the upkeep that turning gives you. This is the same cursor arriving as
 ## a RESULT, from [method EntitySnapshot.restore_turn_cursor], on a peer that has
 ## just had its whole world overwritten by the authority's. So it sets what
-## `start_turn` sets and runs none of what `start_turn` runs — see
-## [member is_adopting] — because the payload it came with is the world AFTER
+## `start_turn` sets and runs none of what `start_turn` runs — no
+## [method Entity.begin_turn], only [method Entity.mark_turn_adopted] — because the payload it came with is the world AFTER
 ## all of that already happened.
 ##
 ## [param total_turns_taken] is the authority's [member turns_taken], adopted
@@ -231,7 +230,7 @@ func start_turn(entity: Entity) -> void:
 ## mirror counting its own was #756's second symptom (host 48, client 38).
 ##
 ## [b]No [signal turn_ended] for the entity being displaced.[/b] That signal
-## MUTATES ([method Entity._on_turn_ended] moves unused AP into next turn's
+## MUTATES ([method Entity.finish_turn] moves unused AP into next turn's
 ## surplus), and the surplus this repair should end with is already in the board
 ## the snapshot just restored. A repair has no presentation semantics and must
 ## never acquire any (#521 D1); this is the same rule one level down.
@@ -243,15 +242,18 @@ func adopt_turn(entity: Entity, total_turns_taken: int) -> void:
 	turns_taken = total_turns_taken
 	if current_entity == entity:
 		return
+	# The displaced entity's turn is over in the authority's world; only its
+	# flag follows — no finish_turn, see above.
+	if current_entity != null and is_instance_valid(current_entity):
+		current_entity.is_taking_turn = false
 	_current_entity = entity
 	if entity == null:
 		return
 	# The authority's acting entity has spent its readiness; a mirror that left
 	# it in the group would serve it again on the next `_tick_until_ready`.
 	entity.remove_from_group(Entity.READY_GROUP)
-	is_adopting = true
+	entity.mark_turn_adopted()
 	turn_started.emit(entity)
-	is_adopting = false
 	forecast_changed.emit()
 
 
@@ -264,6 +266,7 @@ func end_turn() -> void:
 		return
 	var entity := current_entity
 	_current_entity = null
+	entity.finish_turn()
 	turn_ended.emit(entity)
 	forecast_changed.emit()
 	_tick_until_ready(entity)
@@ -294,7 +297,7 @@ func end_turn() -> void:
 ## cascade, so a second arrival must not emit a second [signal turn_ended].
 ##
 ## This does put a side-effect-bearing emit inside the `entity_died` phase —
-## [method Entity._on_turn_ended] fires on the CORPSE, transferring its unused
+## [method Entity.finish_turn] runs on the CORPSE, transferring its unused
 ## AP into a DP/MP surplus and dispatching `_on_turn_end`. Whether that lands
 ## before or after AllocationSystem's strip is decided by child order in
 ## `game_root.tscn`, which is scene-authored and therefore identical on every
@@ -304,6 +307,7 @@ func abandon_turn(entity: Entity) -> void:
 	if entity == null or current_entity != entity:
 		return
 	_current_entity = null
+	entity.finish_turn()
 	turn_ended.emit(entity)
 	forecast_changed.emit()
 

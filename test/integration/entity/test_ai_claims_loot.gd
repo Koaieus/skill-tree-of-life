@@ -111,8 +111,8 @@ func before_each() -> void:
 	_graph.entities_container.add_child(_ai_entity)
 	var ai := AIController.new()
 	ai.turn_delay = 0.0
-	ai.command_applier_override = _applier
-	ai.battle_system_override = _bs
+	ai.command_applier = _applier
+	ai.battle_system = _bs
 	_ai_entity.add_child(ai)
 
 	_victim = _make_entity("Victim", _PLAYER_FACTION)

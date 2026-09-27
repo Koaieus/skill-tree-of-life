@@ -2,8 +2,9 @@ extends GutTest
 
 ## One tree, two worlds (the editor's sandbox host mounts every live tab at
 ## once): a TurnManager scoped by [member TurnManager.entity_root] serves only
-## its own world's entities, and an entity bound through
-## [member Entity.turn_manager_override] hears only that manager.
+## its own world's entities, and [method Entity.begin_turn] runs only for the
+## entity a manager's [method TurnManager.start_turn] names — never for a
+## bystander in either world.
 
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
@@ -14,18 +15,16 @@ var _home: Graph
 var _away: Graph
 
 
-func _make_entity(ent_name: String, tm: TurnManager = null) -> Entity:
+func _make_entity(ent_name: String) -> Entity:
 	var e := Entity.new()
 	e.name = ent_name
 	e.stat_board = _BOARD.duplicate(true)
 	e.stat_board.initiative.current = 0.0
-	e.turn_manager_override = tm
 	return e
 
 
 func before_each() -> void:
-	# Added first, so it is the group's first member — what an unwired entity
-	# would bind to.
+	# A second manager in the same tree: it must reach nobody it does not name.
 	_foreign_tm = TurnManager.new()
 	add_child_autofree(_foreign_tm)
 	_tm = TurnManager.new()
@@ -38,7 +37,7 @@ func before_each() -> void:
 
 
 func test_a_scoped_tick_replenishes_only_its_own_world() -> void:
-	var mine := _make_entity("Mine", _tm)
+	var mine := _make_entity("Mine")
 	_home.entities_container.add_child(mine)
 	var theirs := _make_entity("Theirs")
 	_away.entities_container.add_child(theirs)
@@ -48,7 +47,7 @@ func test_a_scoped_tick_replenishes_only_its_own_world() -> void:
 
 
 func test_end_turn_hands_the_turn_back_to_the_lone_scoped_entity() -> void:
-	var mine := _make_entity("Mine", _tm)
+	var mine := _make_entity("Mine")
 	_home.entities_container.add_child(mine)
 	# Equally fast and spawned first: unscoped, it would be served instead.
 	var theirs := _make_entity("Theirs")
@@ -58,9 +57,16 @@ func test_end_turn_hands_the_turn_back_to_the_lone_scoped_entity() -> void:
 	assert_eq(_tm.current_entity, mine, "with one entity in scope, end_turn rolls into its next turn")
 
 
-func test_an_override_binds_the_entity_to_that_manager() -> void:
-	var mine := _make_entity("Mine", _tm)
+func test_begin_turn_runs_only_for_the_entity_start_turn_names() -> void:
+	var mine := _make_entity("Mine")
 	_home.entities_container.add_child(mine)
+	var bystander := _make_entity("Bystander")
+	_home.entities_container.add_child(bystander)
+	var theirs := _make_entity("Theirs")
+	_away.entities_container.add_child(theirs)
 	var before := mine.turns_taken
 	_tm.start_turn(mine)
-	assert_eq(mine.turns_taken, before + 1, "the wired manager's turn reaches the entity")
+	assert_eq(mine.turns_taken, before + 1, "the named entity's turn begins")
+	assert_eq(bystander.turns_taken, 0, "a bystander in the same world is untouched")
+	assert_eq(theirs.turns_taken, 0, "a foreign world's entity is untouched")
+	assert_false(theirs.is_taking_turn, "and it is not marked as taking a turn")

@@ -8,8 +8,8 @@ extends Node2D
 ##
 ## The bench owns its TurnManager rather than letting the scaffold build one,
 ## because the sandbox host instantiates every live tab into one tree: it is
-## scoped to this bench's Graph (`entity_root`) and the Bearer is wired to it
-## (`turn_manager_override`), so ▶ Tick turn serves this Bearer and nobody else.
+## scoped to this bench's Graph (`entity_root`) so its clock can only reach the Bearer
+## and ▶ Tick turn serves this Bearer and nobody else.
 ## It is built in code, not authored in the `.tscn`: `turn_manager.gd` is not
 ## `@tool`, so an authored one is a placeholder instance in the editor.
 ##
@@ -39,8 +39,9 @@ var allocation_system: AllocationSystem
 var _resistance_mods: Dictionary[StringName, StatModifier] = {}
 
 
-## Before any child's `_ready`: headless, the Bearer binds its TurnManager in
-## its own `_ready`, so the override has to be in place by then.
+## Before any child's `_ready`, so the scoped manager exists before anything
+## asks for it. Its [member TurnManager.entity_root] is what keeps it to this
+## world — `start_turn` here can only ever name the Bearer.
 func _enter_tree() -> void:
 	if turn_manager != null:
 		return
@@ -48,11 +49,10 @@ func _enter_tree() -> void:
 	turn_manager.name = "TurnManager"
 	turn_manager.entity_root = get_node(^"Graph")
 	add_child(turn_manager)
-	(get_node(^"Graph/Entities/Bearer") as Entity).turn_manager_override = turn_manager
 
 
 ## Bring the authored world to life, in order: the Bearer first (under the
-## editor hint nothing else would duplicate its board or bind its TurnManager),
+## editor hint nothing else would duplicate its board),
 ## then the systems, then the ownership the scene authored, then the authored
 ## node HP, then the first turn.
 func arm() -> void:

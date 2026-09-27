@@ -282,7 +282,6 @@ func test_adopting_a_cursor_runs_no_upkeep() -> void:
 	assert_eq(p1.turns_taken, 4, "adopting is not a turn served — the snapshot already counted it")
 	assert_eq(p1.stat_board.xp.current, xp_before,
 			"per-turn upkeep must not re-run: the board that arrived already holds its result")
-	assert_false(tm.is_adopting, "the flag is scoped to the emit and nothing wider")
 
 
 func test_adopting_the_cursor_it_already_holds_is_a_no_op() -> void:

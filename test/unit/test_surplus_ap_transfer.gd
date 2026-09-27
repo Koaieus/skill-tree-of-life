@@ -27,7 +27,7 @@ func _end_turn_with_unused_ap(unused: int) -> void:
 	var board := _entity.stat_board
 	# Drain AP to the cap, then set the unused remainder.
 	board.action_points.set_current(float(unused))
-	_entity._on_turn_ended(_entity)
+	_entity.finish_turn()
 
 
 func test_default_rate_is_two() -> void:

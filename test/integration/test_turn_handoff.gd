@@ -60,7 +60,7 @@ func before_each() -> void:
 	_enemy = autofree(_make_entity("Enemy"))
 	var ai := AIController.new()
 	ai.turn_delay = 0.3
-	ai.command_applier_override = _applier
+	ai.command_applier = _applier
 	_enemy.add_child(ai)
 	_graph.entities_container.add_child(_enemy)
 

@@ -27,14 +27,14 @@ func test_first_turn_grants_no_xp() -> void:
 	assert_gt(float(_entity.stat_board.xp_per_turn.get_value()), 0.0,
 			"precondition: WIS baseline gives this entity real xp income")
 	var xp_before: float = _entity.stat_board.xp.current
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_eq(_entity.stat_board.xp.current, xp_before,
 			"an entity's first turn must not tick xp income")
 
 
 func test_first_turn_does_not_level_a_fresh_entity() -> void:
 	var level_before: int = _entity.level
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_eq(_entity.level, level_before,
 			"xp_per_turn used to fill the level-1 xp cap outright — never before a move")
 
@@ -46,9 +46,9 @@ func test_second_turn_runs_a_normal_upkeep() -> void:
 	# owner-tuned value (#776) — this test must not repin that number, only
 	# that turn 2 actually ticks income turn 1 skipped.
 	var xp_before: float = _entity.stat_board.xp.current
-	_entity._on_turn_started(_entity)  # skipped
+	_entity.begin_turn()  # skipped
 	assert_eq(_entity.stat_board.xp.current, xp_before, "precondition: turn 1 changed nothing")
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_gt(_entity.stat_board.xp.current, xp_before,
 			"the gate is first-turn only: turn 2 is an ordinary upkeep")
 
@@ -59,17 +59,17 @@ func test_first_turn_skips_pool_refill_too() -> void:
 	# right to act), so this pins the mechanism, not a play scenario.
 	var ap := _entity.stat_board.action_points
 	ap.deplete(ap.current)
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_eq(ap.current, 0.0, "first turn runs no upkeep at all, refills included")
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_eq(ap.current, float(ap.get_value()), "turn 2 refills as normal")
 
 
 func test_turns_taken_counts_served_turns_including_the_skipped_one() -> void:
 	assert_eq(_entity.turns_taken, 0, "a spawned entity has been served no turns")
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_eq(_entity.turns_taken, 1, "the skipped turn still counts as served")
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_eq(_entity.turns_taken, 2)
 
 
@@ -81,10 +81,10 @@ func test_another_entitys_turn_does_not_burn_the_gate() -> void:
 	add_child(other)
 	await get_tree().process_frame
 
-	# `turn_started` is a broadcast: every entity hears every turn and filters
-	# on `entity != self`. The counter must only advance on our OWN turns.
-	_entity._on_turn_started(other)
+	# Another entity's turn beginning is its own call: our counter must only
+	# advance on our OWN turns.
+	other.begin_turn()
 	assert_eq(_entity.turns_taken, 0, "someone else's turn is not one of ours")
 	var xp_before: float = _entity.stat_board.xp.current
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_eq(_entity.stat_board.xp.current, xp_before, "our own first turn is still the skipped one")

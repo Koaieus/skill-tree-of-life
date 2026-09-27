@@ -87,7 +87,7 @@ func test_firer_turn_end_resets_fired_nodes_even_when_owned_by_another() -> void
 	_entity._fired_nodes_this_turn.append(_node)
 	var other := _make_entity()
 	_node.owned_by = other
-	_entity._on_turn_ended(_entity)
+	_entity.finish_turn()
 	assert_eq(_node.shots_fired_this_turn, 0, "firer's turn end resets it")
 	assert_eq(_node.shots_left(), 5)
 	assert_eq(_entity._fired_nodes_this_turn.size(), 0, "fired set drained")
@@ -99,7 +99,7 @@ func test_turn_end_resets_only_the_fired_set_not_a_sweep() -> void:
 	untouched.mark_shot_fired(4)
 	_node.mark_shot_fired(1)
 	_entity._fired_nodes_this_turn.append(_node)
-	_entity._on_turn_ended(_entity)
+	_entity.finish_turn()
 	assert_eq(_node.shots_fired_this_turn, 0, "in the fired set: reset")
 	assert_eq(untouched.shots_fired_this_turn, 4,
 			"owned but not in the fired set: untouched (assert the set, not a sweep)")
@@ -110,7 +110,7 @@ func test_another_entity_turn_end_does_not_reset() -> void:
 	_node.mark_shot_fired(2)
 	_entity._fired_nodes_this_turn.append(_node)
 	var other := _make_entity()
-	_entity._on_turn_ended(other)
+	other.finish_turn()
 	assert_eq(_node.shots_fired_this_turn, 2, "not my turn end: no reset")
 
 
@@ -118,12 +118,12 @@ func test_volleys_launched_resets_at_turn_start() -> void:
 	assert_eq(_entity.stat_board.volleys_per_turn.value, 5.0, "innate <- max_shots_per_leaf")
 	_entity.volleys_launched_this_turn = 3
 	_entity.turns_taken = 1
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_eq(_entity.volleys_launched_this_turn, 0, "reset at turn start")
 
 
 func test_volleys_launched_resets_even_on_first_turn() -> void:
 	# The turns_taken == 1 upkeep skip must not leave a stale counter behind.
 	_entity.volleys_launched_this_turn = 3
-	_entity._on_turn_started(_entity)
+	_entity.begin_turn()
 	assert_eq(_entity.volleys_launched_this_turn, 0)

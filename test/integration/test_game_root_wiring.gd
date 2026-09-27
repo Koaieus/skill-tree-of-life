@@ -196,15 +196,14 @@ func test_ready_and_compose_connect_every_cross_system_signal() -> void:
 				"connected after _ready + compose: " + label)
 
 
-## The by-name `_on_turn_started` / `_on_xp_replenished` calls in
+## The by-name `begin_turn` / `_on_xp_replenished` calls in
 ## `test_node_regen.gd`, `test_first_turn_upkeep_skip.gd`,
 ## `test/unit/attack/test_spike_pop_budget.gd`, `test_core_class.gd` and
 ## `test_progression_economy.gd` exercise the upkeep/regen *formula* — a
 ## handler nobody's fixture holds a `TurnManager` to invoke by signal. This is
 ## the one place that connect is asserted (#989): spawn a real entity through
 ## `GameRoot.spawn_entity` (the same path `_setup_level` uses), so
-## `Entity.initialize`'s group-lookup `_find_turn_manager` and the
-## `stat_board.xp.replenished` connect both run for real, then check them with
+## the `stat_board.xp.replenished` connect runs for real, then check them with
 ## `is_connected` exactly like the compose-time table above. Kept separate
 ## from `test_ready_and_compose_connect_every_cross_system_signal` because
 ## that test's `pairs` list is compose-time only; an entity is a runtime spawn.
@@ -216,8 +215,6 @@ func test_entity_signals_connect_on_spawn() -> void:
 	await get_tree().process_frame
 	var entity: Entity = root.spawn_entity("WiringProbe", Color.WHITE)
 	var pairs: Array = [
-		[root.turn_manager, "turn_started", entity, "_on_turn_started"],
-		[root.turn_manager, "turn_ended", entity, "_on_turn_ended"],
 		[entity.stat_board.xp, "replenished", entity, "_on_xp_replenished"],
 	]
 	for p: Array in pairs:
